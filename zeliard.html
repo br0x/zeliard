@@ -143,16 +143,17 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Game State ---
     const player = {
-        x: 0, 
+        x: 0,
         y: 0,
         vx: 0,
         vy: 0,
-        width: 0.6, 
+        width: 0.6,
         // Height is ~3 tiles (2.9 allows sliding through 3-block gaps without friction)
-        height: 2.9, 
+        height: 2.9,
         onGround: false,
         onRope: false,
-        climbing: false
+        climbing: false,
+        jumpStartY: null  // Track Y position when leaving ground
     };
 
     const keys = {
@@ -163,6 +164,11 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         Space: false,
         KeyZ: false,
         Shift: false
+    };
+
+    const keyTimers = {
+        ArrowLeft: 0,
+        ArrowRight: 0
     };
 
     // --- Utilities ---
@@ -203,6 +209,17 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         if(e.code === 'Space') keys.Space = true;
         if(e.code === 'KeyZ') keys.KeyZ = true;
         if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = true;
+
+        // Start timer for directional keys
+        if(e.code === 'ArrowLeft' && !keys.ArrowLeft) {
+            keys.ArrowLeft = true;
+            keyTimers.ArrowLeft = 0;
+        }
+        if(e.code === 'ArrowRight' && !keys.ArrowRight) {
+            keys.ArrowRight = true;
+            keyTimers.ArrowRight = 0;
+        }
+
         if(keys.hasOwnProperty(e.code)) keys[e.code] = true;
         if(keys.hasOwnProperty(e.key)) keys[e.key] = true; // Fallback
     });
@@ -213,15 +230,20 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = false;
         if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
         if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+
+        // Reset timers on key release
+        if(e.code === 'ArrowLeft') keyTimers.ArrowLeft = 0;
+        if(e.code === 'ArrowRight') keyTimers.ArrowRight = 0;
     });
 
     // --- Physics Update ---
     function update() {
-        const speed = keys.Shift ? 0.3 : 0.05;
+        const speed = keys.Shift ? 0.3 : 0.06;
         const jumpForce = -0.35;
         const gravity = 0.03;
         const climbSpeed = 0.05;
         const friction = 0.75;
+        const keyDelay = 0.05; // 50ms delay before movement starts
 
         // 1. ROPE LOGIC (Upper Char holds the rope)
         // Check the tile at the "Head" position (player.y + 0.5)
@@ -237,9 +259,18 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             player.climbing = false;
         }
 
-        // Horizontal Movement
-        if (keys.ArrowLeft) player.vx -= speed * 0.5;
-        if (keys.ArrowRight) player.vx += speed * 0.5;
+        // Horizontal Movement with delay
+        // Update key timers
+        if (keys.ArrowLeft) keyTimers.ArrowLeft += 1/60; // Assuming 60 FPS
+        if (keys.ArrowRight) keyTimers.ArrowRight += 1/60;
+
+        // Only apply movement if key has been held long enough
+        if (keys.ArrowLeft && keyTimers.ArrowLeft >= keyDelay) {
+            player.vx -= speed * 0.5;
+        }
+        if (keys.ArrowRight && keyTimers.ArrowRight >= keyDelay) {
+            player.vx += speed * 0.5;
+        }
 
         player.vx *= friction;
         if (Math.abs(player.vx) < 0.001) player.vx = 0;
@@ -284,16 +315,26 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         let nextY = player.y + player.vy;
         if (checkCollision(player.x, nextY)) {
             if (player.vy > 0) {
+                const wasInAir = !player.onGround;
                 player.onGround = true;
                 // Snap feet to floor
                 const floorTileY = Math.floor(nextY + player.height);
                 player.y = floorTileY - player.height;
+
+                // If we just landed, mark for camera update
+                if (wasInAir && player.jumpStartY !== null) {
+                    player.justLanded = true;
+                }
             } else if (player.vy < 0) {
                 player.vy = 0;
                 player.y = Math.ceil(player.y); // Bonk head, nudge down
             }
             player.vy = 0;
         } else {
+            // Record jump start position when leaving ground
+            if (player.onGround && !player.onRope) {
+                player.jumpStartY = player.y;
+            }
             player.y = nextY;
             player.onGround = false;
         }
@@ -340,10 +381,34 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         ctx.textBaseline = 'top';
 
         // Camera Logic
-        // Center on the "Body" (middle char) rather than the head
-        const playerCenterY = player.y + (player.height / 2);
+        // Horizontal camera always follows player
         const camX = player.x - (VIEW_COLS / 2);
-        const camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+
+        // Vertical camera logic
+        const playerCenterY = player.y + (player.height / 2);
+        if (!window.camY) window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+
+        // Update camera when:
+        // 1. Actively climbing rope
+        if (player.onRope && player.climbing) {
+            window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+        }
+        // 2. In air and below jump start position (fell below starting level)
+        else if (!player.onGround && !player.onRope && player.jumpStartY !== null && player.y > player.jumpStartY) {
+            window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+        }
+        // 3. Just landed from a jump (to handle landing on higher ground)
+        else if (player.justLanded) {
+            window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+            player.justLanded = false;
+            player.jumpStartY = null;
+        }
+        // 4. Reset jumpStartY when on ground
+        if (player.onGround) {
+            player.jumpStartY = null;
+        }
+
+        const camY = window.camY;
 
         // Draw Map
         for (let ry = 0; ry < VIEW_ROWS; ry++) {
