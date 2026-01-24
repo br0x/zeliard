@@ -199,7 +199,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     function isSolid(char) {
         if (!char) return false;
-        return char !== ' ' && !isRope(char) && !isPortal(char);
+        return char !== ' ' && char !== '(' && !isRope(char) && !isPortal(char);
     }
 
     // --- Spawn Logic ---
@@ -214,7 +214,6 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 
         if(e.code === 'Space') keys.Space = true;
-        if(e.code === 'KeyZ') keys.KeyZ = true;
         if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = true;
 
         // Start timer for directional keys
@@ -233,7 +232,6 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     window.addEventListener('keyup', e => {
         if(e.code === 'Space') keys.Space = false;
-        if(e.code === 'KeyZ') keys.KeyZ = false;
         if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = false;
         if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
         if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
@@ -246,8 +244,8 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
     // --- Physics Update ---
     function update() {
         const speed = keys.Shift ? 0.3 : 0.06;
-        const jumpForce = -0.35;
-        const gravity = 0.03;
+        const jumpForce = -0.126;
+        const gravity = 0.004;
         const climbSpeed = 0.05;
         const friction = 0.75;
         const keyDelay = 0.05; // 50ms delay before movement starts
@@ -292,8 +290,6 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.vy = 0;
                 if (keys.ArrowUp) player.vy = -climbSpeed;
                 if (keys.ArrowDown) player.vy = climbSpeed;
-            } else {
-                if (player.vy > 0) player.vy *= 0.8; // Slide down slowly
             }
 
             if (jump && !player.jumpLocked) {
@@ -307,9 +303,10 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.vy += gravity;
             }
 
-            // Can't jump while squatting
+            // Can jump from ground (not while squatting)
             if (player.onGround && jump && !player.jumpLocked && !player.squatting) {
                 player.vy = jumpForce;
+                player.onGround = false; // Immediately leave ground to enable repeated jumps
                 player.jumpLocked = true;
             }
         }
@@ -338,6 +335,9 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 if (wasInAir && player.jumpStartY !== null) {
                     player.justLanded = true;
                 }
+
+                // Unlock jump when landing to enable continuous jumping
+                player.jumpLocked = false;
             } else if (player.vy < 0) {
                 player.vy = 0;
                 player.y = Math.ceil(player.y); // Bonk head, nudge down
@@ -349,23 +349,30 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.jumpStartY = player.y;
             }
             player.y = nextY;
-            // Only set onGround to false if we're actually moving away from ground
-            if (Math.abs(player.vy) > 0.001) {
-                player.onGround = false;
-            }
+            player.onGround = false;
         }
 
-        // Extra check: if we're not moving vertically and there's ground beneath us, we're on ground
-        if (Math.abs(player.vy) < 0.001) {
+        // Extra check: if we're stationary vertically, check if there's actually ground beneath us
+        // If not, we need to start falling (walking off a ledge)
+        if (Math.abs(player.vy) < 0.001 && !player.onRope) {
             const groundCheck = checkCollision(player.x, player.y + 0.1);
             if (groundCheck) {
                 player.onGround = true;
+            } else {
+                // No ground beneath, start falling
+                player.onGround = false;
+                if (player.jumpStartY === null) {
+                    player.jumpStartY = player.y;
+                }
+                // Give a small downward velocity to initiate falling
+                player.vy = 0.001;
             }
         }
 
         // 4. SQUAT LOGIC (after collision detection)
-        // Only set the visual flag - don't change height as it affects collision
-        if (keys.ArrowDown && player.onGround && !player.onRope) {
+        // Cancel squat if moving horizontally
+        const isMovingHorizontally = keys.ArrowLeft || keys.ArrowRight;
+        if (keys.ArrowDown && player.onGround && !player.onRope && !isMovingHorizontally) {
             player.squatting = true;
         } else {
             player.squatting = false;
@@ -425,17 +432,21 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         if (player.onRope && player.climbing) {
             window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
         }
-        // 2. In air and below jump start position (fell below starting level)
+        // // 2. In air and falling (vy > 0 means falling down, regardless of jump start position)
+        // else if (!player.onGround && !player.onRope && player.vy > 0.01) {
+        //     window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+        // }
+        // 3. In air and below jump start position (fell below starting level)
         else if (!player.onGround && !player.onRope && player.jumpStartY !== null && player.y > player.jumpStartY) {
             window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
         }
-        // 3. Just landed from a jump (to handle landing on higher ground)
+        // 4. Just landed from a jump (to handle landing on higher ground)
         else if (player.justLanded) {
             window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
             player.justLanded = false;
             player.jumpStartY = null;
         }
-        // 4. Reset jumpStartY when on ground
+        // 5. Reset jumpStartY when on ground
         if (player.onGround) {
             player.jumpStartY = null;
         }
