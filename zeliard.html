@@ -51,6 +51,10 @@
         Controls: <span class="key">Arrows</span> Move/Climb/Jump/Squat &nbsp;|&nbsp; <span class="key">&lt; &gt;</span> Jump left/right &nbsp;|&nbsp; <span class="key">Space</span> Use sword &nbsp;|&nbsp; <span class="key">Shift</span> Run
     </div>
 
+    <div id="debug" style="margin-top: 10px; text-align: center; font-size: 14px; color: #0f0; font-family: monospace; width: 580px; margin-left: auto; margin-right: auto;">
+        Debug: onGround: 0 | squatting: 0 | vy: 0.000
+    </div>
+
 <script>
 const rawMapData = `
   '&&&&%&&&#&&&&(&&&%&&&(&  " &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$$$$$$$$%            #$%                       (***(( ((       "                              &&&&&&&#&' !)(( &'())&')))&
@@ -150,9 +154,12 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         width: 0.6,
         // Height is ~3 tiles (2.9 allows sliding through 3-block gaps without friction)
         height: 2.9,
+        normalHeight: 2.9,
+        squatHeight: 1.9,
         onGround: false,
         onRope: false,
         climbing: false,
+        squatting: false,
         jumpStartY: null  // Track Y position when leaving ground
     };
 
@@ -280,7 +287,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
         if (player.onRope) {
             if (keys.ArrowUp || keys.ArrowDown) player.climbing = true;
-            
+
             if (player.climbing) {
                 player.vy = 0;
                 if (keys.ArrowUp) player.vy = -climbSpeed;
@@ -288,16 +295,20 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             } else {
                 if (player.vy > 0) player.vy *= 0.8; // Slide down slowly
             }
-            
+
             if (jump && !player.jumpLocked) {
                 player.vy = jumpForce;
                 player.climbing = false;
                 player.jumpLocked = true;
             }
         } else {
-            player.vy += gravity;
-            
-            if (player.onGround && jump && !player.jumpLocked) {
+            // Only apply gravity if not on ground
+            if (!player.onGround) {
+                player.vy += gravity;
+            }
+
+            // Can't jump while squatting
+            if (player.onGround && jump && !player.jumpLocked && !player.squatting) {
                 player.vy = jumpForce;
                 player.jumpLocked = true;
             }
@@ -313,7 +324,9 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         }
 
         let nextY = player.y + player.vy;
-        if (checkCollision(player.x, nextY)) {
+        const wouldCollide = checkCollision(player.x, nextY);
+
+        if (wouldCollide) {
             if (player.vy > 0) {
                 const wasInAir = !player.onGround;
                 player.onGround = true;
@@ -336,10 +349,29 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.jumpStartY = player.y;
             }
             player.y = nextY;
-            player.onGround = false;
+            // Only set onGround to false if we're actually moving away from ground
+            if (Math.abs(player.vy) > 0.001) {
+                player.onGround = false;
+            }
         }
 
-        // 4. WRAPPING
+        // Extra check: if we're not moving vertically and there's ground beneath us, we're on ground
+        if (Math.abs(player.vy) < 0.001) {
+            const groundCheck = checkCollision(player.x, player.y + 0.1);
+            if (groundCheck) {
+                player.onGround = true;
+            }
+        }
+
+        // 4. SQUAT LOGIC (after collision detection)
+        // Only set the visual flag - don't change height as it affects collision
+        if (keys.ArrowDown && player.onGround && !player.onRope) {
+            player.squatting = true;
+        } else {
+            player.squatting = false;
+        }
+
+        // 5. WRAPPING
         if (player.x < 0) player.x += mapWidth;
         if (player.x >= mapWidth) player.x -= mapWidth;
         if (player.y < 0) player.y += mapHeight;
@@ -385,7 +417,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         const camX = player.x - (VIEW_COLS / 2);
 
         // Vertical camera logic
-        const playerCenterY = player.y + (player.height / 2);
+        const playerCenterY = player.y + (player.normalHeight / 2);
         if (!window.camY) window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
 
         // Update camera when:
@@ -427,18 +459,24 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             }
         }
 
-        // Draw Hero (3 Vertical Characters)
+        // Draw Hero (3 Vertical Characters in normal mode, 2 in squat mode)
+        ctx.fillStyle = '#0f0';
         const screenX = (player.x - camX) * TILE_WIDTH;
         const screenY = (player.y - camY) * TILE_HEIGHT;
-        
-        ctx.fillStyle = '#0f0';
-        
-        // 1. HEAD
-        ctx.fillText('@', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT / 2);
-        // 2. BODY
-        ctx.fillText('+', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT * 1.5);
-        // 3. LEGS
-        ctx.fillText('Λ', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT * 2.5);
+
+        if (player.squatting) {
+            // Squat mode: 2 characters
+            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 1.5);
+            ctx.fillText('A', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 2.5);
+        } else {
+            // Normal mode: 3 characters
+            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 0.5);
+            ctx.fillText('+', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 1.5);
+            ctx.fillText('Λ', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 2.5);
+        }
+
+        // Update debug info in HTML (use 1/0 instead of true/false)
+        document.getElementById('debug').textContent = `Debug: onGround: ${player.onGround ? 1 : 0} | squatting: ${player.squatting ? 1 : 0} | vy: ${player.vy.toFixed(3)}`;
     }
 
     function loop() {
