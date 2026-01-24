@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zeliard Level 1 - ASCII Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #111;
+            color: #ccc;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            border: 4px solid #444;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
+            color: #0f0;
+        }
+        .key {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #fff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="ui">
+        Controls: <span class="key">Arrows</span> Move/Climb/Jump/Squat &nbsp;|&nbsp; <span class="key">&lt; &gt;</span> Jump left/right &nbsp;|&nbsp; <span class="key">Space</span> Use sword &nbsp;|&nbsp; <span class="key">Shift</span> Run
+    </div>
+
+<script>
+const rawMapData = `
+  '&&&&%&&&#&&&&(&&&%&&&(&  " &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$$$$$$$$%            #$%                       (***(( ((       "                              &&&&&&&#&' !)(( &'())&')))&
+    (&&&( &&&&(  (&&&((& (  " ('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&'            #&%                                       "                            #$&&&&&&&&&( " )  &(   &
+     (&(  ( &(   ( &(       !  ('&&&#&&&&&&&&&&$&#%&'#$&&#'&'&#(($&$&$ #&&&'&&&&(&&&&&&&'(&&&&$&&&&&&&&&&&&&&&&&#&&&&(            #&&%                                      "                            &&&&&&&&&&(  !
+            (               !   (&&&$&&&&'&&' '  )*' ' (  (( ('  (#  (  '&&( &(  (  &&&( (  (&&&&&(&&&&((  ( &&&' (&(             #&&$%                                                                 #&&&$&&&&&'   "
+                            "    &&&&&&'' '(  !      (        (            (         '       (&&(   (&((     (& ! (               #&&&&$%                                                             #$&&&&&&&&&&&   "
+                            "    &&&&&$   (   !             56789                    (        '(                !                 #&&&&&$$$$$$$$$$$$$$$$$$$$%$$$$$$$%&&&&&#$$$$$$$$$$$$$$$$%&#$$$$$$$$&&&&&&&&&#&&(   !
+                               #$&&&&$        !                                                                 !                 #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&#&&&&&&&&&    !
+$$$$$$$$$$$$$$$$$$$$$$$%#$$$$$$&&&&&&&        "                                                                 !                 #&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&&&#&    " #$$$$$$%&#$$$$$$$%    #$
+&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&%       "                                                                 "                 #&&$&&&$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'    " #&$&&&&&&&$&&&&$%%    #&
+&&&&&&&&&&'&'&&'&&&&&&&&&&&&&&&&&%&&&&&$%     "                                                                 "                #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&'&&&&&&&&#&&&&#&&'&&&&&&&#&&'&&&&&&&&#&    " '&&&&&&$&&&&&&&&&%    '&
+'&'&'&&''  ' &'*%&&&&&&&#&&&&&&&#&&&&&&&&$$$% ! ##$$$$$$$$$$$$$$$$$$$$$$$$$$%#$$$$$$$$$$$$%&&#$$$$$$$$#$$$$$$$% " #$$$$%&&#$$$$$$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'( &&&&'&&&&(&'&#&& &'&&(&&#& &'&(    !  && &&&&&&&&&&&&&&    *'
+*'*&*''      '  #&&&&&&&&&&&&&&&&&&&&&&&$&&&$ ! &$&$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& ! $&&&&&&&&&&#&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'('( &&(   (& ( &(   (&&( ( (&&  (&&( &(      !  &( (&(&&&&&&$&&&&     *
+   '            &&$&&&((&&&&(&&&&&&&&&&&&&&&& ! '$$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&%&&&&' ! &&&&&&&&&&&&&&&&&&&&&&&&&&&&&)&&&&&&&&&&&&&&&&&&&&&&&&( (  ('         (     &(      &   ('          !  (   ((&&&&&&&&'
+                 &  !(  ((&(  ((  '&&&&&&&'(  " (''&&&$&&&&&&&&&&&&#&&&&&&&&&&&&&&&&#&&&&$&&&&&&&&&(&&&&&&&&&$( ! '&&&#&&&&&&&&&&&&&&&&&&&))'&)))&)&&&&&&&$&&&&&#&&&&&#&                                              "        &&&&&&&
+                    !         )   ( &&&'& (   "  (((&&'&('&&%&(&(&''&&&#&&&&' $&'&&&'*&$)(*&&&((#(&((&((&&&&&'  " ($&&'&&&&&&&&&&&&&&&&&&'   )))   )''&&&&&&&&&&&&&&&&&(                                              "        #&&&&''
+                    "               ( & (     !          )*  ' (  (    ' ($((   (   (  (    & ( ( '  ((  &'(#(  "  (&( &)&&&&&&&&&&&&&&&(             (&#&&&&&&&&&&'&'&                                               !        #&&&& "
+                    "                         !              (            (                 (             ( '   "   '   )(&&&&(&&&&&'&(                (&&&%&&&#&&&&*!(                                                       #&&&$& "
+                    !                         !                                                             (   !         & (   ((&&(                    (&&&&&&(&'' !    #$$$$$$$$$$$$$$$$$$%&#$$$$$$$$$$$$$$$%&&#$$$$$$$$$$$&&&&&& !
+                    !                         !                                                                 !                  '                      () '&( &*! !    &&&$&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&$&&&&&&&&$&&&&&&&% !
+                +$% " #$$$$$$#$$$$$$%         "                                                                 !                                          )  &  ( " "   #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&&&% !
+               +$&% " #&&&&&%&'&&&&%'         "                                                                 "                                             (    ! " #$&&&&&&&&&&&&&&&&&&%&&&&&&&%#&&&&&&&#&&&&&&&#&&&&&&&&&&$&&&& "
+              +$&&% ! #&&'                    "     #$$$$$$$$$%&&&$$&&&#$$$$$$$$$$$$$$%$$$$$$%&&#$$$$$$$$$%     "                                                  ! ! &&&'&&&&$&&&&&&&&'&&&&&&&&&&&&&&&&'&&&&&&&&&&&&&&$&&&&'&&&&&' !
+             +&&&&% ! #&&                     "     &&&&$&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&&$%   !                                                  " !  &&&& &&'&&& &&&& & &(&&&(&&'&&&&( &&& (&&&'&&&&& &&&( &&&(&( !
+$%&&#$$$$$$$$&&&&&% ! #&&                           &&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&$% !  #$$$$$$$$$$$$$%&&#$$$$$$$$$$$$$$$$$%            "    (' ( (&&((  ('&(    ( '( (  (&&(   &(  &(   (&&( ( '  (&( (  " #$$$$$$$%
+&&&&&&&&&&&&&&&&&$% ! #&&%                         #&&&&&&&&&&&&&%&&&&&#&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&% ! #&&&$&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&$$$$%       !     (    &(      &               &    ((  (     '(    !   (     " #&&&&$&&&
+&&&&&&&&$&&&&&&&&&% " #&&&$$$$$$$%#$$$&$$&&#$$$$$$$&&&&&&&&%#&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&%&&&&$&&&&&&&&'&& " &&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&$$$%   !                                                       "         ! &&&&&&&&&
+&&&&&&&&&&&&&&&&&&$ " #&&&&&&&&$&&&&&&&&&&&&&&&&$&&&&&&'&&&&&&&&&&&&&&&&&&&&'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&(&&&& " (&&&&&&&%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$% "                                                       "         " &&&&&&&&&
+&&&&&&&&&&&&'&(&&&% " #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'&&&'&&(&&&&( (&&&'&&'&&&&&'&&&&&&&&'& &&&&(('&( !  #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& "                                                       !         ! #&&&&&&&&
+&&&#&''&&&&(&&))&&( ! ('&&&'&&&&&'&&(&&&&'&&&&'&&&&&&&&&'&&&&(( &&' (   &('   &(   & ( &&(  !(&&&&&(  ('&(  (   !    "&&&&&&&&&&&&&&&&'&#&&'&&&&&&&&&&&&&&&'#&&&&& !                                                       !           #&&&&&&%&
+&&&&&&((&&( (&  (   !   & (  ('') (&  '(( &&*( (( & ('&( ( &(   ((      (     (    (   &    ! (&&&&    (        !    " #&&&&&#&'(  ('&&(& ( &&&(  &(&&&&&(&&&&&&&' ! #$$$$$$$$$$$$$$$$$$$$$$$$%#$$$$$$$$%&&#$$$$$$$$$$$$$% ! #$$$$$$%#$&&&&&&&$&
+&&'& "  (&          "   (      ()     (   ( *     (  *(    (                           (    "  %&&(             "    " &&&&&'( (    (&      ( '      &(  ('&&&&&#& " #&&&&&&&&&$&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&$ " #&&$&&&&&&&&&&&&&&&
+&) ' "              !                                                                       "  #&%)             "    ! &&&&((  01234                       & &&&&( " '&&&&&&&&&&$&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&%&&&&&% " #&&&&&&$&&&&&&&&&&&
+'  ! !              "                                                                       !  &&%                   ! &&$(                                ( '(&(  " (&#&&%&&&&&&&&&&&&&&&&&&&&&&&&'&&&&&%&&&&&&&&&&&&&&&& ! &&&&&&&&&&&&&&&&&&&
+$  " "                                                                                      !  &&&$$$$$$%&#$$$$$$$$% " &&%                                   ( '   !   (&&('&&%&&&&&& &%&&(&%&&&&%&&(&'&&&#(&%&&&&&&&&&&'& ! &&&&&&&&&&&&&&&&&&&
+$  ! !        #$$$$$$$$%#$$$$$$$$$%&&#$$$$$$$$$$$$$$%&&&#$$$$$$$$$$$%&#$$$$$%&&&#$$$$$$$$$% !  &&&&&&$&&&&&&&&&&&&&% " &&%                                         !    '( &&(& '&%&( (&&&( (&'&'(& ((&&&&& (&&&'&(&&&%&(  " &&&$&&&&&&&&&&&&&&'
+'  ! " $$$$$$$&&&&&&&$&&&&&&&&&&$&&&&&&&&&$&&&&&&$&&&&&&&&&#&&&$&&&&&&&&&$&&&&&&&&$&&&&&&$# "  &&&&&&&&&&&&&&&&$&&&% ! $&&%                                        !        ' ( ( & (  &'    ( &(     (& (    &( ( (')(    !    &&&&&&&&&%#&&&&$
+&  " ! &&&&&#&#&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&((&&&&&&&&&&('&&&&&&&&&&&&$&&&&&#&&&' "  #$&&&&&&&&& &&&&&&&&# " &&&&$$$$$$$$$#$$$$#$%$$$$$$$$$$$$$,         "                                   )      )     ))     !      &&&&&&&&&&&&'&
+$  ! " #&&(&&&&&&'&&&&'&&&(&&&&'&&(&&&&('&&&(((&&&&(&&  (&(('(&&&( & &(&&&&&& (&&'&&(&&&'&( !  &&&&&&&&&(   !&&&&&&' ! &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$,        "                                                       "      &$&&&&&&&&&&%&
+'  " " &(( (&&&((  &&(( !  (&&(((  '&((**&&(  *( '**&(   (  ( (&       (('&((   ((&(  &&(   !  &&&&( (&(    !&&&&&&& ! #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$,       !                                                       "    &&&&&&&&&&&&&&&&
+&  !   (     )()   ))   "   *(      (    (*      (             (          (           ((    "  %&&(   &     !(&&&&&& " (&&&& &&&&&(&&&&&'&&(&&&%&&(&&&&&&&&&,                                                              "    &&&&&&&&&%&&&&&$
+&  !                    "                                                                   !  #&&          " &&&&&& "  (' ( (&'(  &(( '&((( ('&&'  !(('&&&&&#$$$$$$%#$$$$$$$$$$$$$$$$$$%&$&&&&#$$$$$$$$$$$$$$$$$$$$$$$%   !    &&&&&&&&&&&&&&&&
+&  "                    !                                                                   "  #&&          " &&&&&& !        (    (   ) (     )(   "  (&&&&&&&&&&&&&&&&&'(#((&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&$&&&&&$% !    &&&%&&&&&&&&&&$&
+&                       !                                                                     #&&&%         ! (&&&&% !                              !   $&&&&&&(&'&&&&(   ('  (&&&'(&&(&&&&&&&&$&&&&&&&&&&&&%#&&&&&&&&&&&% "    &&&&&&&&&&&&&&&&
+$                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$$$$%&&#$$$$$$$&&&&&$$$$$$$% !  &&&&%                                "    ) ( (     ())         )))  (  ())  !(&&&&&&&&&&&&&&&&&&&&&&&&&&&& "    &&&&%&&&&&&&&&&&
+                  &&&&% " &&&&&&&&&&&$&&&&&&&#&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&$&&&&&&&&&&&$&&&&&&&&&&&&&&&% "  &$&&&%                               !                                       ! (&&&&$&&&&&&&&&&&&&&&&&&&&&% !    &&&&&&&&&&&'&&(
+                  &&%&& "  &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%#&&&&&&&&&&&%&&&&&&&&&&&#&&&&&&&&&& !  &&&&&&$$$$$%&&&#$$$%&&#$$$$$$$$$%    "                                       "  &&&&&&&&&((&&&&&&&&&&&%&&&& !    &&&&&&&&&&&(*(
+                 #&&&&& !  '&&&&$&&&&&&&&('&&&&&&&&&'&&&&&&&&&&&&&&&&&&&&&&(((&&&&(((((''(('((&&&&&&&&&#&&& !  (&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&$$% "                                       !  '&&&('((   '('&'&&&((&&&&&( "    &&&&&&&&&&(
+                 &&&&&' !  ((&'&&&('&&%&'((&'(&#&&'(&&$&(&'&&&&&&&&(((((((()  (''(            (((('&&&&&&&& "   '&&&&&&&&&&''((((((((((&&&&&&&&&&&& ! #$$$$$$$$%#$$$$$$$$$$$%&&#$$$$$$$$%   !  (&&(           (((  ('&&&'  !    &&&&&&&&&&
+   //////////////#&&&(  !     (( ((((&&((  (  (&((  (&( ((  '&$&&')))                              ((#&&&&# "   (& (&&(&&&&(            (&&&'&&&&&& ! '&&&&&'&&&&'((&$&&&&&&&&&&&&$&&&&&&%  "  )&(                   &(&(  !    &&&&&&&$&&
+%//..............#%&%   "      )     '(        (     (       (&((                                    (&&&&' !    '  '   (&(              (' ( &&('( " *&&&&&              &&&&&&&&&&&&&&&&% !   (                    (     "    &&&&&&&&&&    #$
+&..--------------#&&%   !                                                                             #'&&% !                                 (     "  &$&%                 " #&&&&&&&&&&&& "                              "    &&#&&&&&&'    &&
+&$#&#$$%&&&#$$$$#&&&%   "                                                                              &&&& "                                       !  &&&%                 ! $&&&&&&&&$%&& "                              !    &&&&&&&&&&    &&
+&&&&&&&&&&&&&&&&&&&&&%                                                                                 &&#&                                         !  #&&&                 ! &&&&&&&&&&&&& !                              "    &&&&&&&&&%    '&
+&&&&&&&&&&&&&&&&#&&&&&$$$$$$$$$%                        #$$$%                                         #&&&&%                                          #&&&%                 " #&&&&&&&&&&&&                                !    &&&&&&&&&&    &&
+&#&&$&$&&&&#&&&&&&%&&&&&$&&&&&&%                        #&$&&$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$%#$$&&&&&&$$$$$$$$$$$$$$$%&&$&#$$$$$$$$$$$$$%$$$$$$$&&&&&$$$$$$$$$$$$%    " &&&&&&&&&&&&&%                                    #&&&&$&&&&     &
+&'&&(&&(' && &&#&&(&'&&&#&&&&$&$                        '&&%#&&&$&&&&&&&$&&&$&&&'&'&&&$'&&&&&$&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&$&&&&&&&&$%  ! &&&&##&&&$&&&&$$$$$$$$$$%&&&#$$$$$$$$$%#$$$$$$$$$$&&&&&&&&&#     (
+(&&( ') ( &( '(&&&(( $&&&(&'&(&(                         &&&'&&&((&&($&&&&'&&&&&$&'&$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&$&&&&&&&&$&&&&&&&&&&&&&&&&% ! (&&&&&&&&'&&&&&&&&'&&$&&&&&&&&&&&$&&&&&&&&&$&&&&&&&&&&&&&&&'
+ )   )    )  )) &(   &&'((( ! (                           &( ($&  (()(((&(((&&( '( ((((((&&&&&& &('&&& & '&&&&'&&&&&$&&&&&'&&&&&&&&($&&& &&&'&&&&&&&&&&&&&&&&&&&&&&&&&$&&&& "  &#&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%
+                (    ()(    "                                 ((                           ( '( (  (&  ( ( &&( (& ( ((& '( (&&'($&&( &(  ( & &&& & '&&('&&&&&&&&&&&&&&&&&&% !  **&&&' &&&&&&#&&&&&&&'&&&&&&&&&&&&$&&&&&&&&&&&&&&&&&&&&&'&&
+                            "     #%                #%                                       *      (      (*   (       (   & ***&(   *    ( (   (  &(  &&&&&&&%#&&&&&&&&&& "   * & ( (&&((&&('&&&& ( &&& &&$&&&&&&&&&&&&&&$&&&&&&%&&&&&&'
+                            !     #%////////////////#%                                                                        * *              *    *    '&&&&&&&&&&&&&&&&& "     *    ** ( (  (* (   (*( (&&&&&&&&&&&&&&&&&&&&&&&&&#&&'&&
+                            !    #&%................#&%                                                                                                  (&&&&&&&&&&#&&&&&( !          *                  (&&&&&&&&&&&'&'&&&&&&&&&&&&&&&&(
+  #$$$$$%#$$$%&&#$$$$$$$$$% " #$$&&&%$$$$$$$$%#$$$$#&&&$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$%                                                                #&&&&&&&&&&&&&&#&  !                              &&&&&&&&&&'&&&&&&'&&&&$&'&&'(&
+  #&$&&&&&&&&&&&&&$&&&&$&&$ ! &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&$$$$&&&&&$$$$&$$$$$%                                             &&&'(&&&&&&&& '(  "                              #&&&&&&$&&&''&&'&&&('&&&(&'& (
+`;
+
+// --- Engine Configuration ---
+    const TILE_WIDTH = 20;
+    const TILE_HEIGHT = 20;
+    const VIEW_COLS = 29;
+    const VIEW_ROWS = 18;
+
+    // --- Setup Canvas ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = VIEW_COLS * TILE_WIDTH;
+    canvas.height = VIEW_ROWS * TILE_HEIGHT;
+
+    // --- Map Parsing ---
+    let map = rawMapData.split('\n').filter(row => row.trim().length > 0 || row.length > 0);
+    let mapWidth = 0;
+    for (let row of map) {
+        if (row.length > mapWidth) mapWidth = row.length;
+    }
+    // Pad rows to uniform width
+    map = map.map(row => row.padEnd(mapWidth, ' '));
+    const mapHeight = map.length;
+
+    // --- Game State ---
+    const player = {
+        x: 0, 
+        y: 0,
+        vx: 0,
+        vy: 0,
+        width: 0.6, 
+        // Height is ~3 tiles (2.9 allows sliding through 3-block gaps without friction)
+        height: 2.9, 
+        onGround: false,
+        onRope: false,
+        climbing: false
+    };
+
+    const keys = {
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false,
+        Space: false,
+        KeyZ: false,
+        Shift: false
+    };
+
+    // --- Utilities ---
+    function wrap(n, max) {
+        return ((n % max) + max) % max;
+    }
+
+    function getTile(x, y) {
+        const wx = wrap(Math.floor(x), mapWidth);
+        const wy = wrap(Math.floor(y), mapHeight);
+        return map[wy][wx];
+    }
+
+    function isRope(char) {
+        return char === '!' || char === '"';
+    }
+
+    function isPortal(char) {
+        return '0123456789'.includes(char);
+    }
+
+    function isSolid(char) {
+        if (!char) return false;
+        return char !== ' ' && !isRope(char) && !isPortal(char);
+    }
+
+    // --- Spawn Logic ---
+    function findSpawn() {
+        player.x = 62;
+        player.y = 72;
+    }
+    findSpawn();
+
+    // --- Input Handling ---
+    window.addEventListener('keydown', e => {
+        if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+
+        if(e.code === 'Space') keys.Space = true;
+        if(e.code === 'KeyZ') keys.KeyZ = true;
+        if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = true;
+        if(keys.hasOwnProperty(e.code)) keys[e.code] = true;
+        if(keys.hasOwnProperty(e.key)) keys[e.key] = true; // Fallback
+    });
+
+    window.addEventListener('keyup', e => {
+        if(e.code === 'Space') keys.Space = false;
+        if(e.code === 'KeyZ') keys.KeyZ = false;
+        if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = false;
+        if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
+        if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+    });
+
+    // --- Physics Update ---
+    function update() {
+        const speed = keys.Shift ? 0.3 : 0.05;
+        const jumpForce = -0.35;
+        const gravity = 0.03;
+        const climbSpeed = 0.05;
+        const friction = 0.75;
+
+        // 1. ROPE LOGIC (Upper Char holds the rope)
+        // Check the tile at the "Head" position (player.y + 0.5)
+        const headX = player.x + player.width / 2;
+        const headY = player.y + 0.5;
+        const tileAtHead = getTile(headX, headY);
+        const touchingRope = isRope(tileAtHead);
+
+        if (touchingRope) {
+            player.onRope = true;
+        } else {
+            player.onRope = false;
+            player.climbing = false;
+        }
+
+        // Horizontal Movement
+        if (keys.ArrowLeft) player.vx -= speed * 0.5;
+        if (keys.ArrowRight) player.vx += speed * 0.5;
+
+        player.vx *= friction;
+        if (Math.abs(player.vx) < 0.001) player.vx = 0;
+
+        // Vertical Movement
+        const jump = keys.ArrowUp;
+
+        if (player.onRope) {
+            if (keys.ArrowUp || keys.ArrowDown) player.climbing = true;
+            
+            if (player.climbing) {
+                player.vy = 0;
+                if (keys.ArrowUp) player.vy = -climbSpeed;
+                if (keys.ArrowDown) player.vy = climbSpeed;
+            } else {
+                if (player.vy > 0) player.vy *= 0.8; // Slide down slowly
+            }
+            
+            if (jump && !player.jumpLocked) {
+                player.vy = jumpForce;
+                player.climbing = false;
+                player.jumpLocked = true;
+            }
+        } else {
+            player.vy += gravity;
+            
+            if (player.onGround && jump && !player.jumpLocked) {
+                player.vy = jumpForce;
+                player.jumpLocked = true;
+            }
+        }
+        if (!jump) player.jumpLocked = false;
+
+        // 3. COLLISION
+        let nextX = player.x + player.vx;
+        if (checkCollision(nextX, player.y)) {
+            player.vx = 0;
+        } else {
+            player.x = nextX;
+        }
+
+        let nextY = player.y + player.vy;
+        if (checkCollision(player.x, nextY)) {
+            if (player.vy > 0) {
+                player.onGround = true;
+                // Snap feet to floor
+                const floorTileY = Math.floor(nextY + player.height);
+                player.y = floorTileY - player.height;
+            } else if (player.vy < 0) {
+                player.vy = 0;
+                player.y = Math.ceil(player.y); // Bonk head, nudge down
+            }
+            player.vy = 0;
+        } else {
+            player.y = nextY;
+            player.onGround = false;
+        }
+
+        // 4. WRAPPING
+        if (player.x < 0) player.x += mapWidth;
+        if (player.x >= mapWidth) player.x -= mapWidth;
+        if (player.y < 0) player.y += mapHeight;
+        if (player.y >= mapHeight) player.y -= mapHeight;
+    }
+
+    function checkCollision(targetX, targetY) {
+        const eps = 0.05; 
+        const left = targetX + eps;
+        const right = targetX + player.width - eps;
+        
+        // Loop vertically to check Head, Body, and Legs for collisions
+        // We check every 0.9 tiles to ensure we don't skip over a block
+        for(let h = 0; h <= player.height; h += 0.9) {
+            let checkY = targetY + h;
+            // Ensure we check the very bottom edge on the last pass
+            if(h > player.height - eps) checkY = targetY + player.height - eps;
+
+            if (isSolid(getTile(left, checkY)) || isSolid(getTile(right, checkY))) {
+                return true;
+            }
+        }
+        // One final check at the exact bottom to be safe
+        if (isSolid(getTile(left, targetY + player.height - eps)) || 
+            isSolid(getTile(right, targetY + player.height - eps))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // --- Rendering ---
+    function draw() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Press Start 2P is naturally very wide, almost square.
+        ctx.font = `${TILE_HEIGHT}px "Press Start 2P", cursive`;
+        ctx.textBaseline = 'top';
+
+        // Camera Logic
+        // Center on the "Body" (middle char) rather than the head
+        const playerCenterY = player.y + (player.height / 2);
+        const camX = player.x - (VIEW_COLS / 2);
+        const camY = playerCenterY - (VIEW_ROWS / 2) - 2;
+
+        // Draw Map
+        for (let ry = 0; ry < VIEW_ROWS; ry++) {
+            for (let rx = 0; rx < VIEW_COLS; rx++) {
+                const mapX = rx + Math.floor(camX);
+                const mapY = ry + Math.floor(camY);
+                const char = getTile(mapX, mapY);
+                if (char === ' ') continue;
+
+                if (isPortal(char)) ctx.fillStyle = '#f0f';
+                else if (isSolid(char)) ctx.fillStyle = '#aaa';
+                else if (isRope(char)) ctx.fillStyle = '#d60';
+                else ctx.fillStyle = '#555';
+
+                ctx.fillText(char, rx * TILE_WIDTH, ry * TILE_HEIGHT);
+            }
+        }
+
+        // Draw Hero (3 Vertical Characters)
+        const screenX = (player.x - camX) * TILE_WIDTH;
+        const screenY = (player.y - camY) * TILE_HEIGHT;
+        
+        ctx.fillStyle = '#0f0';
+        
+        // 1. HEAD
+        ctx.fillText('@', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT / 2);
+        // 2. BODY
+        ctx.fillText('+', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT * 1.5);
+        // 3. LEGS
+        ctx.fillText('Λ', screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT * 2.5);
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    loop();
+
+</script>
+</body>
+</html>
