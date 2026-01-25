@@ -48,11 +48,18 @@
     </div>
 
     <div id="ui">
-        Controls: <span class="key">Arrows</span> Move/Climb/Jump/Squat &nbsp;|&nbsp; <span class="key">&lt; &gt;</span> Jump left/right &nbsp;|&nbsp; <span class="key">Space</span> Use sword &nbsp;|&nbsp; <span class="key">Shift</span> Run
+        Controls: <span class="key">Arrows</span> Move/Climb/Jump/Squat &nbsp;|&nbsp; <span class="key">&lt; &gt;</span> Jump left/right &nbsp;|&nbsp; <span class="key">Space</span> Use sword &nbsp;|&nbsp; <span class="key">Alt</span> Magics &nbsp;|&nbsp; <span class="key">Enter</span> Inventory
     </div>
 
-    <div id="debug" style="margin-top: 10px; text-align: center; font-size: 14px; color: #0f0; font-family: monospace; width: 580px; margin-left: auto; margin-right: auto;">
-        Debug: onGround: 0 | squatting: 0 | vy: 0.000
+    <div id="debug" style="margin-top: 10px; text-align: left; font-size: 14px; color: #0f0; font-family: monospace; width: 580px; margin-left: auto; margin-right: auto;">
+        Debug:<br>
+        FPS: 0<br>
+        onGround: 0<br>
+        squatting: 0<br>
+        x: 0.000<br>
+        y: 0.000<br>
+        vx: 0.000<br>
+        vy: 0.000
     </div>
 
 <script>
@@ -146,16 +153,19 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
     const mapHeight = map.length;
 
     // --- Game State ---
+    let lastTime = 0;
+    let fps = 0;
+
     const player = {
         x: 0,
         y: 0,
         vx: 0,
         vy: 0,
-        width: 0.6,
+        width: 0.99,
         // Height is ~3 tiles (2.9 allows sliding through 3-block gaps without friction)
-        height: 2.9,
-        normalHeight: 2.9,
-        squatHeight: 1.9,
+        height: 2.99,
+        normalHeight: 2.99,
+        squatHeight: 1.99,
         onGround: false,
         onRope: false,
         climbing: false,
@@ -170,7 +180,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         ArrowRight: false,
         Space: false,
         KeyZ: false,
-        Shift: false
+        Alt: false
     };
 
     const keyTimers = {
@@ -203,18 +213,19 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
     }
 
     // --- Spawn Logic ---
-    function findSpawn() {
-        player.x = 62;
-        player.y = 72;
+    function spawn() {
+        player.x = 62; // absolute position from the left of the map
+        player.y = 72; // absolute position from the top of the map
     }
-    findSpawn();
+    spawn();
 
     // --- Input Handling ---
     window.addEventListener('keydown', e => {
-        if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+        if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) 
+            e.preventDefault();
 
         if(e.code === 'Space') keys.Space = true;
-        if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = true;
+        if(e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt = true;
 
         // Start timer for directional keys
         if(e.code === 'ArrowLeft' && !keys.ArrowLeft) {
@@ -232,7 +243,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     window.addEventListener('keyup', e => {
         if(e.code === 'Space') keys.Space = false;
-        if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.Shift = false;
+        if(e.code === 'AltLeft' || e.code === 'AltRight') keys.Shift = false;
         if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
         if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
 
@@ -243,14 +254,14 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Physics Update ---
     function update() {
-        const speed = keys.Shift ? 0.3 : 0.06;
+        const speed = 0.06;
         const jumpForce = -0.126;
         const gravity = 0.004;
         const climbSpeed = 0.05;
         const friction = 0.75;
         const keyDelay = 0.05; // 50ms delay before movement starts
 
-        // 1. ROPE LOGIC (Upper Char holds the rope)
+        // 1. ROPE LOGIC (rope is held near head)
         // Check the tile at the "Head" position (player.y + 0.5)
         const headX = player.x + player.width / 2;
         const headY = player.y + 0.5;
@@ -416,7 +427,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Press Start 2P is naturally very wide, almost square.
-        ctx.font = `${TILE_HEIGHT}px "Press Start 2P", cursive`;
+        ctx.font = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
         ctx.textBaseline = 'top';
 
         // Camera Logic
@@ -464,7 +475,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 if (isPortal(char)) ctx.fillStyle = '#f0f';
                 else if (isSolid(char)) ctx.fillStyle = '#aaa';
                 else if (isRope(char)) ctx.fillStyle = '#d60';
-                else ctx.fillStyle = '#555';
+                else ctx.fillStyle = '#555'; // non-solid decorations
 
                 ctx.fillText(char, rx * TILE_WIDTH, ry * TILE_HEIGHT);
             }
@@ -487,17 +498,44 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         }
 
         // Update debug info in HTML (use 1/0 instead of true/false)
-        document.getElementById('debug').textContent = `Debug: onGround: ${player.onGround ? 1 : 0} | squatting: ${player.squatting ? 1 : 0} | vy: ${player.vy.toFixed(3)}`;
+        document.getElementById('debug')
+            .innerHTML = `Debug:<br>
+                FPS: ${fps}<br>
+                onGround: ${player.onGround ? 1 : 0}<br>
+                squatting: ${player.squatting ? 1 : 0}<br>
+                x: ${player.x.toFixed(3)}<br>
+                y: ${player.y.toFixed(3)}<br>
+                vx: ${player.vx.toFixed(3)}<br>
+                vy: ${player.vy.toFixed(3)}`;
     }
 
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
+    function loop(timestamp) {
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+        if (dt > 0) {
+            fps = Math.round(1000 / dt);
+        }
+        update(); //updates the world state
+        draw(); //draws the current world state
+        requestAnimationFrame(loop); // syncs with display refresh rate
     }
 
-    loop();
-
+    requestAnimationFrame(loop);
+/*
+Modes:
+    1. Normal - on ground, not moving
+    2. Squat - on ground, not moving, camera not moving
+    3. Jump - starts on ground at y0, (can have vx > 0). 
+        y decreases until 2 tiles up, then starts falling (camera not follows).
+        If collision with ground at y <= y0, end the jump and center camera.
+        If y > y0, camera starts following player down (falling the pit).
+        In the rising phase of the jump (vy <= 0), if hero crosses the rope and presses Climb (up arrow), jump mode ends and rope mode starts, camera centered on player.
+    4. Rope - on ground, if rope appears at the head, press Climb (rope mode starts). 
+        Camera follows.
+        If hero moves off the rope (left/right), rope mode ends and fall starts. 
+        If another rope appears, hero hangs on rope and rope mode starts.
+    5. Move - on ground. If falls off a ledge, fall mode starts. Camera follows.
+*/
 </script>
 </body>
 </html>
