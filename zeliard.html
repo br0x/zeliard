@@ -43,23 +43,28 @@
 </head>
 <body>
 
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
+    <div id="layout-wrapper" style="display: flex; align-items: flex-start; justify-content: center; width: 100%; max-width: 1200px;">
+        
+        <div id="debug" style="font-size: 14px; color: #0f0; font-family: monospace; width: 200px; padding-right: 20px;">
+            Debug:<br>
+            FPS: 0<br>
+            onGround: 0<br>
+            squatting: 0<br>
+            x: 0.000<br>
+            y: 0.000<br>
+            vx: 0.000<br>
+            vy: 0.000
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div style="width: 200px;"></div>
     </div>
 
     <div id="ui">
         Controls: <span class="key">Arrows</span> Move/Climb/Jump/Squat &nbsp;|&nbsp; <span class="key">&lt; &gt;</span> Jump left/right &nbsp;|&nbsp; <span class="key">Space</span> Use sword &nbsp;|&nbsp; <span class="key">Alt</span> Magics &nbsp;|&nbsp; <span class="key">Enter</span> Inventory
-    </div>
-
-    <div id="debug" style="margin-top: 10px; text-align: left; font-size: 14px; color: #0f0; font-family: monospace; width: 580px; margin-left: auto; margin-right: auto;">
-        Debug:<br>
-        FPS: 0<br>
-        onGround: 0<br>
-        squatting: 0<br>
-        x: 0.000<br>
-        y: 0.000<br>
-        vx: 0.000<br>
-        vy: 0.000
     </div>
 
 <script>
@@ -162,7 +167,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         vx: 0,
         vy: 0,
         width: 0.99,
-        // Height is ~3 tiles (2.9 allows sliding through 3-block gaps without friction)
+        // Height is ~3 tiles (2.99 allows sliding through 3-block gaps without friction)
         height: 2.99,
         normalHeight: 2.99,
         squatHeight: 1.99,
@@ -214,8 +219,8 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Spawn Logic ---
     function spawn() {
-        player.x = 62; // absolute position from the left of the map
-        player.y = 72; // absolute position from the top of the map
+        player.x = 62; // absolute position (from the left of the map) of the player's left side
+        player.y = 75; // absolute position (from the top of the map) of the player's feet bottom
     }
     spawn();
 
@@ -254,7 +259,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Physics Update ---
     function update() {
-        const speed = 0.06;
+        const accel = 0.0667;
         const jumpForce = -0.126;
         const gravity = 0.004;
         const climbSpeed = 0.05;
@@ -262,9 +267,9 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         const keyDelay = 0.05; // 50ms delay before movement starts
 
         // 1. ROPE LOGIC (rope is held near head)
-        // Check the tile at the "Head" position (player.y + 0.5)
+        // Check the tile at the "Head" position (player.y - 2.5)
         const headX = player.x + player.width / 2;
-        const headY = player.y + 0.5;
+        const headY = player.y - 2.5;
         const tileAtHead = getTile(headX, headY);
         const touchingRope = isRope(tileAtHead);
 
@@ -282,14 +287,20 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
         // Only apply movement if key has been held long enough
         if (keys.ArrowLeft && keyTimers.ArrowLeft >= keyDelay) {
-            player.vx -= speed * 0.5;
+            player.vx -= accel * 0.5;
         }
         if (keys.ArrowRight && keyTimers.ArrowRight >= keyDelay) {
-            player.vx += speed * 0.5;
+            player.vx += accel * 0.5;
         }
 
         player.vx *= friction;
         if (Math.abs(player.vx) < 0.001) player.vx = 0;
+        
+        // Rule 5: Snap to nearest tile when not moving horizontally on ground
+        if (!keys.ArrowLeft && !keys.ArrowRight && player.onGround && Math.abs(player.vx) < 0.01) {
+            player.x = Math.round(player.x);
+            player.vx = 0;
+        }
 
         // Vertical Movement
         const jump = keys.ArrowUp;
@@ -324,23 +335,23 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         if (!jump) player.jumpLocked = false;
 
         // 3. COLLISION
+        // Horizontal Collision
         let nextX = player.x + player.vx;
         if (checkCollision(nextX, player.y)) {
             player.vx = 0;
         } else {
             player.x = nextX;
         }
-
+        // Vertical Collision
         let nextY = player.y + player.vy;
         const wouldCollide = checkCollision(player.x, nextY);
 
         if (wouldCollide) {
-            if (player.vy > 0) {
+            if (player.vy > 0) { // Falling down
                 const wasInAir = !player.onGround;
                 player.onGround = true;
                 // Snap feet to floor
-                const floorTileY = Math.floor(nextY + player.height);
-                player.y = floorTileY - player.height;
+                player.y = Math.floor(nextY);
 
                 // If we just landed, mark for camera update
                 if (wasInAir && player.jumpStartY !== null) {
@@ -349,12 +360,12 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
                 // Unlock jump when landing to enable continuous jumping
                 player.jumpLocked = false;
-            } else if (player.vy < 0) {
+            } else if (player.vy < 0) { // Moving up (jumping, climbing or lifting with platform)
                 player.vy = 0;
                 player.y = Math.ceil(player.y); // Bonk head, nudge down
             }
             player.vy = 0;
-        } else {
+        } else { // no collision
             // Record jump start position when leaving ground
             if (player.onGround && !player.onRope) {
                 player.jumpStartY = player.y;
@@ -366,13 +377,13 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         // Extra check: if we're stationary vertically, check if there's actually ground beneath us
         // If not, we need to start falling (walking off a ledge)
         if (Math.abs(player.vy) < 0.001 && !player.onRope) {
-            const groundCheck = checkCollision(player.x, player.y + 0.1);
+            const groundCheck = checkCollision(player.x, player.y + 0.01);
             if (groundCheck) {
                 player.onGround = true;
             } else {
                 // No ground beneath, start falling
                 player.onGround = false;
-                if (player.jumpStartY === null) {
+                if (player.jumpStartY === null) { // to distinguish from jumping
                     player.jumpStartY = player.y;
                 }
                 // Give a small downward velocity to initiate falling
@@ -402,20 +413,12 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         const right = targetX + player.width - eps;
         
         // Loop vertically to check Head, Body, and Legs for collisions
-        // We check every 0.9 tiles to ensure we don't skip over a block
-        for(let h = 0; h <= player.height; h += 0.9) {
-            let checkY = targetY + h;
-            // Ensure we check the very bottom edge on the last pass
-            if(h > player.height - eps) checkY = targetY + player.height - eps;
-
+        // We check every 0.99 tiles to ensure we don't skip over a block
+        for(let h = 0.01; h <= player.height; h += 0.99) {
+            let checkY = targetY - h - 1; // getTile uses top-left corner, so subtract 1
             if (isSolid(getTile(left, checkY)) || isSolid(getTile(right, checkY))) {
                 return true;
             }
-        }
-        // One final check at the exact bottom to be safe
-        if (isSolid(getTile(left, targetY + player.height - eps)) || 
-            isSolid(getTile(right, targetY + player.height - eps))) {
-            return true;
         }
 
         return false;
@@ -432,10 +435,11 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
         // Camera Logic
         // Horizontal camera always follows player
+        // camX, camY represent the top-left corner of the viewport in world coordinates
         const camX = player.x - (VIEW_COLS / 2);
 
         // Vertical camera logic
-        const playerCenterY = player.y + (player.normalHeight / 2);
+        const playerCenterY = player.y - (player.normalHeight / 2);
         if (!window.camY) window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
 
         // Update camera when:
@@ -462,7 +466,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             player.jumpStartY = null;
         }
 
-        const camY = window.camY;
+        const camY = window.camY - 1;
 
         // Draw Map
         for (let ry = 0; ry < VIEW_ROWS; ry++) {
@@ -488,13 +492,13 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
         if (player.squatting) {
             // Squat mode: 2 characters
-            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 1.5);
-            ctx.fillText('A', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 2.5);
+            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
+            ctx.fillText('A', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 1.5);
         } else {
             // Normal mode: 3 characters
-            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 0.5);
-            ctx.fillText('+', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 1.5);
-            ctx.fillText('Λ', screenX + TILE_WIDTH * 0.5, screenY + TILE_HEIGHT * 2.5);
+            ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 3.5);
+            ctx.fillText('+', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
+            ctx.fillText('Λ', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 1.5);
         }
 
         // Update debug info in HTML (use 1/0 instead of true/false)
@@ -535,6 +539,13 @@ Modes:
         If hero moves off the rope (left/right), rope mode ends and fall starts. 
         If another rope appears, hero hangs on rope and rope mode starts.
     5. Move - on ground. If falls off a ledge, fall mode starts. Camera follows.
+        When stop moving (key released), X coordinate is snapped to the nearest tile (player.x = floor(player.x+0.5)).
+*/
+
+/*
+Bugs:
+    - When hitting the ceiling while jumping, camera starts following player down. 
+        Should only do this if player is falling below jump start position or if landed above jump start position.
 */
 </script>
 </body>
