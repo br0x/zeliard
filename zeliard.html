@@ -54,6 +54,7 @@
             jumpLocked: 0<br>
             isHighJump: 0<br>
             isLowCeiling: 0<br>
+            yMin: 0.000<br>
             climbing: 0<br>
             x: 0.000<br>
             y: 0.000<br>
@@ -183,6 +184,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         jumpLocked: false, // true allows continuous jumping
         isHighJump: false,
         isLowCeiling: false,
+        yMin: null,
         jumpStartY: null  // Track Y position when leaving ground
     };
 
@@ -269,16 +271,16 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Physics Update ---
     function update() {
-        const accel = 0.0667;
+        const accel = 0.0667; // horizontal acceleration
         const friction = 0.75;
         const climbSpeed = 0.05;
         const keyDelay = 0.05; 
         
         // BUG FIX 2: PHYSICS TUNING
         // Calculated for ~0.5s long jump (2 tiles) and ~0.33s short jump (1 tile)
-        const gravity = 0.002; 
-        const jumpForceHigh = -0.07; // 2 tiles high
-        const jumpForceLow = -0.06;  // 1 tile high
+        const gravity = 0.00205; 
+        const jumpForceHigh = -0.0734; // 2 tiles high => full period = 0.75s
+        const jumpForceLow = -0.063;  // 1 tile high => full period = 0.436s
 
         const up = keys.ArrowUp;
         const down = keys.ArrowDown;
@@ -372,6 +374,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.onGround = false;
                 player.jumpLocked = true;
                 player.jumpStartY = player.y;
+                player.yMin = player.y;
             } else if (!player.onGround && up && player.jumpLocked && !player.isHighJump && !player.squatting && keyTimers.ArrowUp >= keyDelay) {
                 if (player.isLowCeiling) {
                     player.isHighJump = false;
@@ -419,6 +422,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             } else if (player.vy < 0) { // Moving up (jumping, climbing or lifting with platform)
                 player.vy = 0;
                 player.y = Math.ceil(player.y); // Bonk head, nudge down
+                if (player.yMin && player.y < player.yMin) player.yMin = player.y;
                 player.jumpLocked = false; // Optional: allow immediate re-jump or not?
             }
             player.vy = 0;
@@ -427,8 +431,10 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             // Record jump start position when leaving ground
             if (player.onGround && !player.overRope) {
                 player.jumpStartY = player.y;
+                player.yMin = player.y;
             }
             player.y = nextY;
+            if (player.yMin && player.y < player.yMin) player.yMin = player.y;
             player.onGround = false;
         }
 
@@ -444,6 +450,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.onGround = false;
                 if (player.jumpStartY === null) { // to distinguish from jumping
                     player.jumpStartY = player.y;
+                    player.yMin = player.y;
                 }
                 // Give a small downward velocity to initiate falling
                 player.vy = 0.001;
@@ -514,10 +521,12 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             window.camY = playerCenterY - (VIEW_ROWS / 2) - 2;
             player.justLanded = false;
             player.jumpStartY = null;
+            player.yMin = null;
         }
         // 5. Reset jumpStartY when on ground
         if (player.onGround) {
             player.jumpStartY = null;
+            player.yMin = null;
         }
 
         const camY = window.camY - 1;
@@ -565,6 +574,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 jumpLocked: ${player.jumpLocked ? 1 : 0}<br>
                 isHighJump: ${player.isHighJump ? 1 : 0}<br>
                 isLowCeiling: ${player.isLowCeiling ? 1 : 0}<br>
+                yMin: ${player.yMin ? player.yMin.toFixed(3) : "null"}<br>
                 climbing: ${player.climbing ? 1 : 0}<br>
                 x: ${player.x.toFixed(3)}<br>
                 y: ${player.y.toFixed(3)}<br>
@@ -608,9 +618,6 @@ Bugs:
 - Sometimes hero hangs at fractional x position. 
 - Sometimes he starts falling down when exactly over rope.
 - Sometimes he starts sliding down when exactly over rope.
-2. There should be 'small jump' (1 tile up) when pressing up arrow quickly, and 'big jump' (2 tiles up) when pressing up arrow for a longer time.
-   Short jump full period = 0.333 sec; long jump full period = 0.5 sec;
-   When ceiling is 1 tile above player, jumps should always be small, no matter how long the key is held.
 */
 </script>
 </body>
