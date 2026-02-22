@@ -315,6 +315,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 // Add small nudge to help disengage
                 if(left) player.vx = -0.05;
                 if(right) player.vx = 0.05;
+                player.jumpStartY = player.y; // Mark for camera follow when falling
             }
         }
 
