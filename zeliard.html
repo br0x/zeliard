@@ -55,6 +55,7 @@
             isHighJump: 0<br>
             isLowCeiling: 0<br>
             yMin: 0.000<br>
+            slippery: 0<br>
             climbing: 0<br>
             x: 0.000<br>
             y: 0.000<br>
@@ -167,9 +168,19 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
     let lastTime = 0;
     let fps = 0;
 
+    // PHYSICS TUNING
+    const accel = 0.0667; // horizontal acceleration
+    const friction = 0.75;
+    const climbSpeed = 0.05;
+    const keyDelay = 0.05;
+    const slipSpeed = 0.01;
+    const gravity = 0.00205; 
+    const jumpForceHigh = -0.0734; // 2 tiles high => full period = 0.75s
+    const jumpForceLow = -0.063;  // 1 tile high => full period = 0.436s
+
     const player = {
-        x: 0,
-        y: 0,
+        x: 0, // absolute position (from the left of the map) of the player's left side
+        y: 0, // absolute position (from the top of the map) of the player's feet bottom
         vx: 0,
         vy: 0,
         width: 0.99,
@@ -185,6 +196,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         isHighJump: false,
         isLowCeiling: false,
         yMin: null,
+        overSlippery: false,
         jumpStartY: null  // Track Y position when leaving ground
     };
 
@@ -222,12 +234,27 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         return '0123456789'.includes(char);
     }
 
+    function isSlippery(char) {
+        return char === '+' // slip left
+            || char === ','; // slip right
+    }
+
+    function slipDirection(char) {
+        if (char === '+') { // slip left
+            return -1;
+        } else if (char === ',') { // slip right
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
     const isSolid = (c) => c && !' ()'.includes(c) && !isRope(c) && !isPortal(c);
 
     // --- Spawn Logic ---
     function spawn() {
-        player.x = 62; // absolute position (from the left of the map) of the player's left side
-        player.y = 75; // absolute position (from the top of the map) of the player's feet bottom
+        player.x = 62;
+        player.y = 75;
     }
     spawn();
 
@@ -271,16 +298,6 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
     // --- Physics Update ---
     function update() {
-        const accel = 0.0667; // horizontal acceleration
-        const friction = 0.75;
-        const climbSpeed = 0.05;
-        const keyDelay = 0.05; 
-        
-        // BUG FIX 2: PHYSICS TUNING
-        // Calculated for ~0.5s long jump (2 tiles) and ~0.33s short jump (1 tile)
-        const gravity = 0.00205; 
-        const jumpForceHigh = -0.0734; // 2 tiles high => full period = 0.75s
-        const jumpForceLow = -0.063;  // 1 tile high => full period = 0.436s
 
         const up = keys.ArrowUp;
         const down = keys.ArrowDown;
@@ -321,9 +338,20 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
         player.vx *= friction;
         if (Math.abs(player.vx) < 0.001) player.vx = 0;
-        
-        // Snap to nearest tile when touching the ground
-        if (!left && !right && player.onGround && Math.abs(player.vx) < 0.01) {
+
+        // Slippery tiles: check tile under player's feet
+        if (player.onGround) {
+            const slipTile = getTile(player.x + 0.5, player.y - 0.01);
+            player.overSlippery = isSlippery(slipTile);
+
+            // Apply slip force
+            if (player.overSlippery) {
+                const slipDir = slipDirection(slipTile);
+                player.vx += slipDir * slipSpeed;
+            }
+        }
+        // Snap to nearest tile when touching the ground (but not on slippery tiles)
+        if (!left && !right && player.onGround && Math.abs(player.vx) < 0.01 && !player.overSlippery) {
             player.x = Math.round(player.x);
             player.vx = 0;
             player.isLowCeiling = isSolid(getTile(player.x + player.width/2, player.y - 5.5));
@@ -359,7 +387,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
 
             // Jump Start
             if (player.onGround && up && !player.squatting && keyTimers.ArrowUp >= keyDelay) {
-                if (player.isLowCeiling) {
+                if (player.isLowCeiling || player.overSlippery) {
                     player.vy = jumpForceLow; // Forced short jump (-0.19)
                     player.isHighJump = false;
                 } else {
@@ -377,7 +405,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 player.jumpStartY = player.y;
                 player.yMin = player.y;
             } else if (!player.onGround && up && player.jumpLocked && !player.isHighJump && !player.squatting && keyTimers.ArrowUp >= keyDelay) {
-                if (player.isLowCeiling) {
+                if (player.isLowCeiling || player.overSlippery) {
                     player.isHighJump = false;
                 } else {
                     if (keyTimers.ArrowUp >= 5*keyDelay && !player.isHighJump) {
@@ -406,6 +434,10 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             if (player.vy > 0) { // Falling down and Landing
                 const wasInAir = !player.onGround;
                 player.onGround = true;
+
+                const slipTile = getTile(player.x + 0.5, player.y - 0.01);
+                player.overSlippery = isSlippery(slipTile);
+
                 // Snap feet to floor
                 player.y = Math.floor(nextY);
 
@@ -446,6 +478,8 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             const groundCheck = checkCollision(player.x, player.y + 0.01);
             if (groundCheck) {
                 player.onGround = true;
+                const slipTile = getTile(player.x + 0.5, player.y - 0.01);
+                player.overSlippery = isSlippery(slipTile);
             } else {
                 // No ground beneath, start falling
                 player.onGround = false;
@@ -541,6 +575,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 if (char === ' ') continue;
 
                 if (isPortal(char)) ctx.fillStyle = '#f0f';
+                else if (isSlippery(char)) ctx.fillStyle = '#0ff';
                 else if (isSolid(char)) ctx.fillStyle = '#aaa';
                 else if (isRope(char)) ctx.fillStyle = '#d60';
                 else ctx.fillStyle = '#555'; // non-solid decorations
@@ -576,6 +611,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 isHighJump: ${player.isHighJump ? 1 : 0}<br>
                 isLowCeiling: ${player.isLowCeiling ? 1 : 0}<br>
                 yMin: ${player.yMin ? player.yMin.toFixed(3) : "null"}<br>
+                slippery: ${player.overSlippery ? 1 : 0}<br>
                 climbing: ${player.climbing ? 1 : 0}<br>
                 x: ${player.x.toFixed(3)}<br>
                 y: ${player.y.toFixed(3)}<br>
@@ -583,12 +619,25 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 vy: ${player.vy.toFixed(3)}`;
     }
 
+    // --- Debug: slow down to ~10 FPS ---
+    // const targetFPS = 20;
+    // const frameDelay = 1000 / targetFPS;
+    // let lastFrameTime = 0;
+
     function loop(timestamp) {
         const dt = timestamp - lastTime;
         lastTime = timestamp;
         if (dt > 0) {
             fps = Math.round(1000 / dt);
         }
+
+        // Skip frames to achieve target FPS
+        // if (timestamp - lastFrameTime < frameDelay) {
+        //     requestAnimationFrame(loop);
+        //     return;
+        // }
+        // lastFrameTime = timestamp;
+
         update(); //updates the world state
         draw(); //draws the current world state
         requestAnimationFrame(loop); // syncs with display refresh rate
