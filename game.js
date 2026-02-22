@@ -25,8 +25,9 @@ let lastTime = 0;
 let fps = 0;
 
 // PHYSICS TUNING
-const accel = 0.0667; // horizontal acceleration
+const accel = 0.05; // horizontal acceleration
 const friction = 0.75;
+const offRopeAccel = 0.05;
 const climbSpeed = 0.05;
 const keyDelay = 0.05;
 const slipSpeed = 0.01;
@@ -39,6 +40,7 @@ const player = {
     y: 0, // absolute position (from the top of the map) of the player's feet bottom
     vx: 0,
     vy: 0,
+    direction: 0, // -1 = left, 1 = right, 0 = on the rope
     width: 0.99,
     // Height is ~3 tiles (2.99 allows sliding through 3-block gaps without friction)
     height: 2.99,
@@ -117,6 +119,7 @@ const isSolid = (c) => c && !' ()'.includes(c) && !isRope(c) && !isPortal(c);
 function spawn() {
     player.x = 62;
     player.y = 75;
+    player.direction = 1;
 }
 spawn();
 
@@ -469,12 +472,12 @@ function draw() {
 
     if (player.squatting) {
         // Squat mode: 2 characters
-        ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
+        ctx.fillText(player.direction == 1 ? 'ó' : 'ò', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
         ctx.fillText('A', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 1.5);
     } else {
         // Normal mode: 3 characters
-        ctx.fillText('@', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 3.5);
-        ctx.fillText('+', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
+        ctx.fillText(player.direction == 0 ? 'ŏ' : (player.direction == 1 ? 'ó' : 'ò'), screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 3.5);
+        ctx.fillText(player.direction == 0 ? '+' : (player.direction == 1 ? ')' : '('), screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 2.5);
         ctx.fillText('Λ', screenX + TILE_WIDTH * 0.5, screenY - TILE_HEIGHT * 1.5);
     }
 
@@ -522,3 +525,40 @@ function loop(timestamp) {
 }
 
 requestAnimationFrame(loop);
+/*
+Modes:
+    1. Normal - on ground, not moving
+    2. Squat - on ground, not moving, camera not moving
+    3. Jump - starts on ground at y0, (can have vx != 0). 
+        y decreases until 2 tiles up, then starts falling (camera not follows).
+        If collision with ground from above at y <= y0 while vy > 0 (above start position), end the jump and center camera.
+        If y > y0 (below start position), camera starts following player down (falling the pit).
+        In the rising phase of the jump (vy <= 0), if hero crosses the rope and presses Climb (up arrow), 
+          jump mode ends and rope mode starts, camera centered on player.
+    4. Rope - on ground, if rope appears at the head, press Climb (rope mode starts). 
+        Camera follows.
+        If hero moves off the rope (left/right), rope mode ends and fall starts. 
+        If another rope appears, hero hangs on rope and rope mode starts.
+    5. Move - on ground. If falls off a ledge, fall mode starts. Camera follows.
+        When stop moving (key released), X coordinate is snapped to the nearest tile (player.x = floor(player.x+0.5)).
+*/
+
+/*
+Todo: 
+1. jumping and hanging on rope:
+    Rope has different sections - knots '"' and plain rope '!'. 
+    If hero head is over a knot, hanging is possible, no matter what is under hero feet. 
+    If head is over plain rope, hanging is only possible if there is any rope at hero feet.
+    When side-jumping, it should not be possible to hang on rope.
+2. falling off rope: camera should center on player.
+3. When walking off ledge towards rope over single space, hero should hang on rope automatically, 2 tiles down.
+    The same is for walking off rope towards another rope over single space - hero should hang on rope automatically, 2 tiles down.
+4. Jumps should depend on hero direction. 
+    Short jump in the same direction => dx=3
+    Long jump in the same direction => dx=5
+    Long jump in the opposite direction => dx=4
+    Short jump in the opposite direction => dx=0 (just jump up and turn around)
+    When on ground, short pressing left/right should just change direction, x-coord should not change.
+    When on ground, long pressing left/right should change direction, and then start moving.
+    When falling, pressing left/right should change direction.
+*/
