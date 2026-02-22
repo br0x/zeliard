@@ -234,6 +234,10 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
         return '0123456789'.includes(char);
     }
 
+    function isPortalEdge(char) {
+        return '0459'.includes(char);
+    }
+
     function isSlippery(char) {
         return char === '+' // slip left
             || char === ','; // slip right
@@ -572,15 +576,32 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
                 const mapX = rx + Math.floor(camX);
                 const mapY = ry + Math.floor(camY);
                 const char = getTile(mapX, mapY);
-                if (char === ' ') continue;
+
+                // Check if this is an empty tile under a portal (left/right columns, 4 rows down)
+                let isUnderPortal = false;
+                if (char === ' ') {
+                    // Check if above us (1-4 rows) there's a portal in the same column or adjacent columns
+                    for (let checkRow = 1; checkRow <= 4; checkRow++) {
+                        const checkY = mapY - checkRow;
+                        const centerChar = getTile(mapX, checkY);
+                        if (isPortalEdge(centerChar)) {
+                            isUnderPortal = true;
+                            break;
+                        }
+                    }
+                }
+
+                const displayChar = isUnderPortal ? 'П' : char;
+                if (displayChar === ' ') continue;
 
                 if (isPortal(char)) ctx.fillStyle = '#f0f';
+                else if (isUnderPortal) ctx.fillStyle = '#f0f'; // pink for tiles under portals
                 else if (isSlippery(char)) ctx.fillStyle = '#0ff';
                 else if (isSolid(char)) ctx.fillStyle = '#aaa';
                 else if (isRope(char)) ctx.fillStyle = '#d60';
                 else ctx.fillStyle = '#555'; // non-solid decorations
 
-                ctx.fillText(char, rx * TILE_WIDTH, ry * TILE_HEIGHT);
+                ctx.fillText(displayChar, rx * TILE_WIDTH, ry * TILE_HEIGHT);
             }
         }
 
