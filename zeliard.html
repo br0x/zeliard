@@ -388,7 +388,7 @@ $                 #$$$% ! #$$$#$$$$$$$$%&&#$$$$$$$$$$$$$$$$$$$$%&&#$$$$$$$%#$$$$
             // Jump Start
             if (player.onGround && up && !player.squatting && keyTimers.ArrowUp >= keyDelay) {
                 if (player.isLowCeiling || player.overSlippery) {
-                    player.vy = jumpForceLow; // Forced short jump (-0.19)
+                    player.vy = player.overSlippery ? jumpForceLow / 2: jumpForceLow; // Forced short jump (-0.19)
                     player.isHighJump = false;
                 } else {
                     if (keyTimers.ArrowUp >= 5*keyDelay) {
