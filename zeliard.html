@@ -600,7 +600,7 @@ Modes:
     2. Squat - on ground, not moving, camera not moving
     3. Jump - starts on ground at y0, (can have vx != 0). 
         y decreases until 2 tiles up, then starts falling (camera not follows).
-        If collision with ground at y <= y0 (above start position), end the jump and center camera.
+        If collision with ground from above at y <= y0 while vy > 0 (above start position), end the jump and center camera.
         If y > y0 (below start position), camera starts following player down (falling the pit).
         In the rising phase of the jump (vy <= 0), if hero crosses the rope and presses Climb (up arrow), 
           jump mode ends and rope mode starts, camera centered on player.
@@ -618,6 +618,7 @@ Bugs:
 - Sometimes hero hangs at fractional x position. 
 - Sometimes he starts falling down when exactly over rope.
 - Sometimes he starts sliding down when exactly over rope.
+2. falling off rope: camera should center on player.
 */
 </script>
 </body>
