@@ -1,34 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 body {
-    background-color: #111;
-    color: #ccc;
-    font-family: 'Courier New', Courier, monospace;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    overflow: hidden;
+  background-color: #111;
+  color: #ccc;
+  font-family: 'Courier New', Courier, monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
 }
 #game-container {
-    position: relative;
-    border: 4px solid #444;
-    box-shadow: 0 0 20px rgba(0,0,0,0.8);
-    background-color: #000;
+  position: relative;
+  border: 4px solid #444;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  background-color: #000;
 }
 canvas {
-    display: block;
+  display: block;
 }
 #ui {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 14px;
-    color: #0f0;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 14px;
+  color: #0f0;
 }
 .key {
-    background: #333;
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #fff;
-    font-weight: bold;
+  background: #333;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: bold;
+}
+.group {
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ff0;
+  font-weight: bold;
+}
+
+:root {
+  --bg-grey: #757575;
+  --hud-blue: #008;
+  --text-green: #00FF00;
+  --text-white: #FFFFFF;
+  --life-green: #00FF00;
+  --border-dark: #000000;
+  --border-blue: #00e;
+}
+
+/* Ensure width calculations include padding and borders */
+* {
+  box-sizing: border-box;
+}
+
+.zeliard-hud {
+  background-color: var(--bg-grey);
+  padding: 8px;
+  display: flex;
+  justify-content: space-between; /* This pushes the inventory panel to the far right */
+  width: 100%; 
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px;
+  border: 4px solid #444;
+  border-top: none; /* Merges visually with game-container border */
+  image-rendering: pixelated;
+}
+
+.stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1; /* Takes up all available space on the left */
+  margin-right: 12px;
+}
+
+/* Ensure rows inside stats-panel stretch to fill the width */
+.hud-row {
+  width: 100%;
+  background-color: var(--hud-blue);
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-blue);
+  height: 24px;
+}
+
+/* Specific Row Layouts */
+.label {
+  color: var(--text-green);
+  padding: 0 8px;
+  min-width: 70px;
+  text-shadow: 2px 2px #e00;
+}
+
+.value {
+  color: var(--text-white);
+  padding-left: 20px;
+}
+
+.split-row {
+  background: transparent;
+  border: none;
+  gap: 4px;
+}
+
+.currency-box {
+  background-color: var(--hud-blue);
+  border: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-blue);
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 24px;
+}
+
+.life-bar-container {
+  background-color: #000;
+  flex-grow: 1;
+  height: 100%;
+  position: relative;
+  border-left: 2px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+}
+
+.life-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin-top: 0;
+}
+
+.life-fill-max {
+  background-color: #e00;
+  height: calc(80% - 1px);
+  margin-bottom: 2px;
+}
+
+.life-fill-current {
+  background-color: var(--life-green);
+  height: calc(80% - 4px);
+  margin-bottom: 4px;
+}
+
+.ticks {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8px; /* Total height of the ruler area */
+  border-bottom: 2px solid #fff; /* The horizontal baseline */
+  
+  /* Layered Gradients: 
+     1. A tick pinned to the far right (100%)
+     2. Long ticks every 25% (Every 5 divisions)
+     3. Short ticks every 5% (Total 20 divisions) */
+  background-image: 
+    linear-gradient(to left, #fff 2px, transparent 2px),
+    repeating-linear-gradient(to right, #fff 0, #fff 2px, transparent 2px, transparent 25%),
+    repeating-linear-gradient(to right, #fff 0, #fff 2px, transparent 2px, transparent 5%);
+  
+  /* background-size controls the height of each layer:
+     Right-pin: 50% height
+     Long ticks: 50% height (4px)
+     Short ticks: 25% height (2px) */
+  background-size: 100% 50%, 100% 50%, 100% 25%;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+}
+
+.slot-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.slot-counter {
+  background-color: var(--hud-blue);
+  border: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-blue);
+  color: var(--text-white);
+  width: 100%;
+  text-align: center;
+  height: 24px; 
+  line-height: 24px;
+}
+
+.inventory-panel {
+  display: flex;
+  /* Keeps items at the top of the inventory area */
+  align-items: flex-start; 
+  gap: 8px;
+  /* Prevents the inventory from shrinking */
+  flex-shrink: 0; 
+}
+
+/* Vertical alignment fix for the sword slot specifically */
+.inventory-panel .slot-wrapper:first-child {
+  align-self: center; 
+}
+
+.slot {
+  margin-top: 3px;
+  width: 45px;
+  height: 45px;
+  background-color: #000;
+  border: 3px solid #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 28px;
 }

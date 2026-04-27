@@ -1,0 +1,6 @@
+I can't see the selection points of the radio button of the render item.
+The tile grid is not working.
+Failed to modify the check boxes of objects.
+The paths of the passes were not properly tested.
+Not saved as PNG when real tiles are imported.
+The rectangular box with the door needs to be resized.

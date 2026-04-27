@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(bash *)",
+      "Bash(./build.sh)",
+      "Bash(cat *)"
+    ]
+  },
+  "$version": 3
+}

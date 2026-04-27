@@ -1,0 +1,114 @@
+/*
+<head>
+<link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+*/
+
+body {
+	background: #000000;
+	color: #ffffff;
+}
+
+a:link {
+	text-decoration: none;
+	color: #35cccb;
+}
+
+a:visited {
+	text-decoration: none;
+	color: #2dadac;
+}
+
+a:hover {
+	text-decoration: none;
+	color: #00ff00;
+}
+
+a:active {
+	text-decoration: none;
+	color: #ff0000;
+}
+
+a img {
+	border: none;
+}
+
+
+/* Guest list page specific */
+
+td {
+	color: #ffffff;
+}
+
+td.alt1 {
+	background-color: #606060;
+}
+
+td.alt2 {
+	background-color: #404040;
+}
+
+td.admin {
+	background-color: #022B05;
+}
+
+td.admin2 {
+	background-color: #011a03;
+}
+
+
+
+/* Google custom search specific */
+form#cse-search-box #q {
+	background: black;
+	border-style:ridge;
+	border-color:white;
+	color: rgb(0,255,0);
+	font-family: Arial;
+	width: 130;
+}
+
+form#cse-search-box input {
+	background: white;
+	border-style: none;
+}
+
+
+
+
+/* Manual pictures specific */
+.images-300 img {
+	height: 300px;
+	margin: 5px;
+}
+
+.images-200 img {
+	height: 200px;
+	margin: 5px;
+}
+
+.images-150 img {
+	height: 150px;
+	margin: 5px;
+}
+/*
+     FILE ARCHIVED ON 06:01:31 Apr 02, 2024 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 17:33:18 Mar 01, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+*/
+/*
+playback timings (ms):
+  capture_cache.get: 0.349
+  load_resource: 1215.044 (2)
+  PetaboxLoader3.resolve: 260.905 (4)
+  PetaboxLoader3.datanode: 199.371 (5)
+  captures_list: 0.915
+  exclusion.robots: 0.041
+  exclusion.robots.policy: 0.022
+  esindex: 0.019
+  cdx.remote: 30.555
+  LoadShardBlock: 219.271 (3)
+*/
