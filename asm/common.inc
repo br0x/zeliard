@@ -537,7 +537,11 @@ spacebar_latch                                     equ 0FF1Dh
 altkey_latch                                       equ 0FF1Eh
 fn_per_tick_user_ptr                               equ 0FF1Fh
 per_tick_user_enabled                              equ 0FF20h
+byte_FF21                                          equ 0FF21h
+byte_FF22                                          equ 0FF22h
+byte_FF23                                          equ 0FF23h
 byte_FF24                                          equ 0FF24h
+byte_FF25                                          equ 0FF25h
 byte_FF26                                          equ 0FF26h
 sound_fx_toggle_by_f2                              equ 0FF27h
 music_channel_param                                equ 0FF28h
@@ -589,6 +593,7 @@ string_width_bytes                                 equ 0FF6Ah ; rendered strings
 save_name                                          equ 0FF6Ch
 keyboard_alt_mode_flag                             equ 0FF74h
 soundFX_request                                    equ 0FF75h
+byte_FF76                                          equ 0FF76h
 font_highlight_flag                                equ 0FF77h
 disk_swap_suppressed                               equ 0FF78h
 fn_kbd_chain_ptr                                   equ 0FF79h

@@ -17,15 +17,33 @@ Any variable needed for implementation, should be outside of the original memory
 ## 1. Architecture Overview
 
 
-### 1.2 Memory Layout (Detailed)
+### 1.2 Memory Layout
 ┌───────────────────────────────────┬───────────────────────────────────────────────┐
-|              Address              | Description                                   |
-├─────────────────┬─────────────────┤                                               |
+|              Address              |                                               |
+├─────────────────┬─────────────────┤                 Description                   |
 | DOS             | WASM            |                                               |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
 | seg0:           |                 |                                               |
-|   0x0000-0x00FF | 0x00000-0x000ff | SaveData struct (g_save_data)                 |
-|   0x0100-0x01FF | 0x00100-0x001ff |                                               |
+|   0x0000-0x00ff | 0x00000-0x000ff | SaveData area. When restarted, stdply.bin     |
+|                 |                 | loads here                                    |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x0100-0x1135 | 0x00100-0x01135 | stick.bin                                     |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x2000-0x2cc8 | 0x02000-0x02cc8 | gmmcga.bin (video lib common)                 |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x3000-0x51d4 | 0x03000-0x051d4 | gdmcga.bin (video lib for opening demo)       |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x3000-0x44ee | 0x03000-0x044ee | gtmcga.bin (video lib for towns)              |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x3000-0x535c | 0x03000-0x0535c | gfmcga.bin (video lib for caverns)            |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0x6000-0x?475 | 0x0a000-0x0a475 | opdemo.bin (opening demo)                     |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0xa000-0xa475 | 0x0a000-0x0a475 | game.bin (initial loader)                     |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+|   0xff00-0xffff | 0x0ff00-0x0ffff | Shared data. Note that music_seg overlaps the |
+| (=0x0000-0x00ff |                 | seg0 by 100h bytes (10h paragraphs)           |
+|   in music_seg) |                 |                                               |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
 | seg1:           |                 |                                               |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
@@ -49,7 +67,7 @@ Any variable needed for implementation, should be outside of the original memory
 │  WebAssembly (fight.wasm)                                   │
 │  ├── fight.c        - Dungeon engine (Fight.asm port)       │
 │  ├── monster_ai_N.c - Monster AI (eaiN.asm port)            │
-│  ├── town.c         - Collision detection                   │
+│  ├── town.c         - Town engine                           │
 │  └── data.c         - Global state                          │
 └─────────────────────────────────────────────────────────────┘
 ```

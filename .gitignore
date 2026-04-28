@@ -6,3 +6,4 @@ __pycache__
 asm/LOG.TXT
 asm/diff.txt
 asm/*.bin
+asm/*.drv

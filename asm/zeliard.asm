@@ -1,4 +1,5 @@
 include common.inc
+include adlib.inc
 
                 .286
                 .model small
@@ -233,7 +234,7 @@ loc_101F2:
                 push    cs
                 pop     ds
                 mov     es, cs:game_cseg
-                mov     di, offset vfs_stdply_bin
+                mov     di, offset vfs_stdply_bin  ; savegame for restarting
                 test    restore_on_startup_flag, 0FFh
                 jz      short loc_10219
                 mov     di, offset vfs_savename
@@ -255,12 +256,12 @@ loc_10219:
                 mov     ax, cs:game_cseg
                 add     ax, 1000h-10h        ; game_cseg:0FF00h..0FFFFh is mapped to music_seg:0..0FFh
                 mov     es, ax
-                mov     di, offset vfs_music_drv
+                mov     di, offset vfs_music_drv ; 0x100
                 call    Load_Resource_File
                 mov     ax, cs:game_cseg
                 add     ax, 1000h-10h        ; game_cseg:0FF00h..0FFFFh is mapped to music_seg:0..0FFh
                 mov     es, ax
-                mov     di, offset vfs_snd_fx_drv
+                mov     di, offset vfs_snd_fx_drv ; 0x1100
                 call    Load_Resource_File
                 cli
                 push    cs
@@ -281,12 +282,12 @@ loc_10219:
                 int     21h             ; DOS - SET INTERRUPT VECTOR
                                         ; AL = interrupt number
                                         ; DS:DX = new vector to be used for specified interrupt
-                mov     dx, int24_new_proc        ; game_cseg:int24_new
+                mov     dx, int24_new_proc ; game_cseg:int24_new
                 mov     ax, 2524h
                 int     21h             ; DOS - SET INTERRUPT VECTOR
                                         ; AL = interrupt number
                                         ; DS:DX = new vector to be used for specified interrupt
-                mov     dx, int61_new_proc
+                mov     dx, int61_new_proc ; keyboard/joystick handler
                 mov     ax, 2561h       ; game_cseg:int61_new
                 int     21h             ; DOS - SET INTERRUPT VECTOR
                                         ; AL = interrupt number
@@ -294,12 +295,12 @@ loc_10219:
                 mov     ax, cs:game_cseg
                 mov     es, ax
                 add     ax, 1000h-10h
-                mov     ds, ax           ; seg1
-                mov     word ptr es:fn_per_tick_callback, 100h
+                mov     ds, ax           ; music_seg
+                mov     word ptr es:fn_per_tick_callback, music_drv_poll_farproc
                 mov     word ptr es:fn_per_tick_callback+2, ds
-                mov     word ptr es:fn_per_tick_callback2, 1100h
+                mov     word ptr es:fn_per_tick_callback2, sound_drv_poll_farproc
                 mov     word ptr es:fn_per_tick_callback2+2, ds
-                mov     dx, 103h         ; seg1:music_drv entry for int60
+                mov     dx, int60_new_proc ; music_seg:music_drv entry for int60
                 mov     ax, 2560h
                 int     21h             ; DOS - SET INTERRUPT VECTOR
                                         ; AL = interrupt number
