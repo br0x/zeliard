@@ -75,6 +75,7 @@ loc_10050:
                 mov     ah, 3Eh
                 int     21h             ; DOS - 2+ - CLOSE A FILE WITH HANDLE
                                         ; BX = file handle
+                ; Allocate 0x40000 bytes of memory
                 mov     bx, 4000h
                 mov     ah, 48h
                 int     21h             ; DOS - 2+ - ALLOCATE MEMORY
@@ -133,24 +134,28 @@ alloc_success:
 ; ---------------------------------------------------------------------------
 
 init_done_or_not_needed:
+                ; Save old timer interrupt
                 mov     ax, 3508h
                 int     21h             ; DOS - 2+ - GET INTERRUPT VECTOR
                                         ; AL = interrupt number
                                         ; Return: ES:BX = value of interrupt vector
                 mov     word ptr int8_old, bx
                 mov     word ptr int8_old+2, es
+                ; Save old keyboard interrupt
                 mov     ax, 3509h
                 int     21h             ; DOS - 2+ - GET INTERRUPT VECTOR
                                         ; AL = interrupt number
                                         ; Return: ES:BX = value of interrupt vector
                 mov     word ptr int9_old, bx
                 mov     word ptr int9_old+2, es
+                ; Save old int 60h interrupt
                 mov     ax, 3560h
                 int     21h             ; DOS - 2+ - GET INTERRUPT VECTOR
                                         ; AL = interrupt number
                                         ; Return: ES:BX = value of interrupt vector
                 mov     word ptr int60_old, bx
                 mov     word ptr int60_old+2, es
+                ; Save old int 61h interrupt
                 mov     ax, 3561h
                 int     21h             ; DOS - 2+ - GET INTERRUPT VECTOR
                                         ; AL = interrupt number

@@ -16,69 +16,23 @@ Any variable needed for implementation, should be outside of the original memory
 
 ## 1. Architecture Overview
 
-### 1.1 Original Structure
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    DOS Executable                           │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│   DATA      │   stick     │   gfmcga    │      fight        │
-│  (globals)  │  (input)    │ (graphics)  │  (dungeon logic)  │
-│  0x0000     │  0x0100     │  0x3000     │     0x6000        │
-├─────────────┴─────────────┴─────────────┴───────────────────┤
-│                    Monster AI (eai1)                        │
-│                        0xA000                               │
-└─────────────────────────────────────────────────────────────┘
-```
 
 ### 1.2 Memory Layout (Detailed)
-
-```
-Memory Map:
-─────────────────────────────────────────────────────────────
-0x0000-0x00FF (256 bytes) - Global State / Save Data
-  Copy of saved game file (xxx.sav)
-  Layout must match Fight.asm DATA segment exactly
-
-0xC000-0xDFFF - MDT Dungeon Data (loaded from *.mdt files)
-  Example: Cavern Malicia (MP10.MDT)
-  
-  Offset  | Content                    | Size     | Stop Marker
-  ────────┼────────────────────────────┼──────────┼────────────
-  0xC004  | Vertical platforms         | 3 bytes  | 0xFFFF
-  0xC006  | Air streams/objects        | 3 bytes  | 0xFFFF
-  0xC008  | Horizontal platforms       | 7 bytes  | 0xFFFF
-  0xC00A  | Doors                      | 12 bytes | 0xFFFF
-  0xC00C  | Items check data           | variable | 0xFFFF
-  0xC00E  | Cavern name rendering info | variable | -
-  0xC010  | Monsters                   | 16 bytes | 0xFFFF
-          | (some use 2 records)       |          |
-
-0xE000-0xE8FF (2304 bytes) - Proximity Map
-  - 36 columns × 64 rows
-  - Centered on hero's X coordinate
-  - Scrolls as hero moves (1 column at a time)
-  - Missing columns unpacked from MDT file
-  - Full cavern maps vary in width (e.g., Cavern Malicia = 240 columns)
-  - Height is always 64 rows
-
-0xE900-0xEB13 (28*19 bytes) - Viewport Buffer 28 columns × 19 rows
-  - 1 byte per object (monster ID/type etc)
-
-0xFF16-0xFF19 (4 bytes) - Input Buffer:
-0xFF16 (1 byte) holds Alt and Spacebar pressed states
-0xFF17 (1 byte) holds arrows keys pressed states
-0xFF18 (2 bytes) holds pressed states for keys F9, F7, F2, F1, K, R, E, J, S, N, Y, Q, Esc, Ctrl, Shift, Enter
-
-WASM Memory Layout (same offsets for compatibility):
-─────────────────────────────────────────────────────────────
-0x0000-0x00FF: SaveData struct (g_save_data)
-0xC000-0xDFFF: MDT dungeon data (g_mdt_data)
-0xE000-0xE8FF: Proximity map (g_proximity_map)
-0xE900-0xeb13: Viewport buffer (g_monster_ids)
-0xFF16-0xFF19: Input buffer (g_input)
-anything not mentioned and below 0xFFFF: Global variables (g_globals)
-```
+┌───────────────────────────────────┬───────────────────────────────────────────────┐
+|              Address              | Description                                   |
+├─────────────────┬─────────────────┤                                               |
+| DOS             | WASM            |                                               |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+| seg0:           |                 |                                               |
+|   0x0000-0x00FF | 0x00000-0x000ff | SaveData struct (g_save_data)                 |
+|   0x0100-0x01FF | 0x00100-0x001ff |                                               |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+| seg1:           |                 |                                               |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+| seg2:           |                 |                                               |
+├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
+| seg3:           |                 |                                               |
+└─────────────────┴─────────────────┴───────────────────────────────────────────────┘
 
 ### 1.3 Target Architecture
 
@@ -89,15 +43,14 @@ anything not mentioned and below 0xFFFF: Global variables (g_globals)
 │  JavaScript (game.js)                                       │
 │  ├── Input handling (keyboard)                              │
 │  ├── Canvas rendering (text characters)                     │
-│  ├── Map loading (map.js, m1.js-m9.js)                      │
+│  ├── Map loading                                            │
 │  └── WASM bridge                                            │
 ├─────────────────────────────────────────────────────────────┤
 │  WebAssembly (fight.wasm)                                   │
-│  ├── fight.c      - Dungeon engine (Fight.asm port)         │
-│  ├── monster_ai.c - Monster AI (eai1.asm port)              │
-│  ├── collision.c  - Collision detection                     │
-│  ├── physics.c    - Hero physics                            │
-│  └── data.c       - Global state                            │
+│  ├── fight.c        - Dungeon engine (Fight.asm port)       │
+│  ├── monster_ai_N.c - Monster AI (eaiN.asm port)            │
+│  ├── town.c         - Collision detection                   │
+│  └── data.c         - Global state                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 

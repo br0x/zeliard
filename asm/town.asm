@@ -80,7 +80,7 @@ skip_til_ff:
                 jnz     short loc_6097
                 mov     ds:edge_scroll_enabled, 0FFh
 
-loc_6097:                               ; ...
+loc_6097:   
                 call    load_town_background
                 call    load_patterns_and_call_background
                 call    cs:backup_upper_town_3_tiles_proc ; skips top 8 tiles (sky, distant mountains)
@@ -143,7 +143,7 @@ loc_60B7:
                                         ; al: masking mode
                 call    cs:Print_Magic_Left_Decimal_proc
 
-loc_6127:                               ; ...
+loc_6127:   
                 test    byte ptr ds:shield_type, 0FFh
                 jz      short loc_613F
                 mov     bx, 0C61Ch
@@ -154,7 +154,7 @@ loc_6127:                               ; ...
                                         ; al: masking mode
                 call    cs:Print_ShieldHP_Decimal_proc
 
-loc_613F:                               ; ...
+loc_613F:   
                 mov     si, ds:town_descriptor_addr
                 inc     si
 skip_until_ff:
@@ -175,13 +175,13 @@ skip_until_ff:
                 mov     ds:proximity_start_tiles, ax
                 call    mark_npc_initialized
                 test    byte ptr ds:invincibility_flag, 0FFh
-                jz      short normal_game ;
+                jz      short normal_game
                 ; resurrect at sage
                 mov     byte ptr ds:invincibility_flag, 0
                 call    load_town_background
                 mov     bx, offset loc_61FC
                 push    bx
-                mov     bx, 6EAFh
+                mov     bx, offset loc_6EAF
                 push    bx
                 mov     si, offset kenjpro_bin
                 push    cs
@@ -190,7 +190,7 @@ skip_until_ff:
                 mov     al, 3
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
-                                        ; ...
+            
                 call    cs:fade_to_black_dithered_proc
                 mov     ax, 1
                 int     60h             ; adlib fn_1
@@ -198,7 +198,7 @@ skip_until_ff:
                 jmp     cs:word_A004    ; sage resurrects hero
 ; ---------------------------------------------------------------------------
 
-normal_game:                            ; ...
+normal_game:
                 push    cs
                 pop     es
                 mov     al, 0FEh
@@ -213,10 +213,10 @@ normal_game:                            ; ...
                 jnz     short loc_61CE
                 mov     ds:edge_scroll_handler, offset loc_67F4
 
-loc_61CE:                               ; ...
+loc_61CE:   
                 mov     cx, 4
 
-loc_61D1:                               ; ...
+loc_61D1:   
                 push    cx
                 call    cs:edge_scroll_handler
                 call    init_npcs_and_render
@@ -224,7 +224,7 @@ loc_61D1:                               ; ...
                 loop    loc_61D1
                 call    cs:edge_scroll_handler
 
-loc_61E2:                               ; ...
+loc_61E2:   
                 mov     ds:hero_moved_flag, 0
                 test    byte ptr ds:is_death_already_processed, 0FFh
                 jz      short loc_61FC
@@ -235,7 +235,7 @@ loc_61E2:                               ; ...
                 int     60h             ; adlib fn_0
                 pop     ds
 
-loc_61FC:                               ; ...
+loc_61FC:   
                 call    init_npcs_and_render
                 call    handle_inventory_key
                 call    handle_edge_screen_transition
@@ -244,7 +244,7 @@ loc_61FC:                               ; ...
                 jnz     short loc_6212
                 call    hero_building_entry_check
 
-loc_6212:                               ; ...
+loc_6212:   
                 mov     ds:hero_moved_flag, 0
                 mov     dx, offset loc_61FC
                 push    dx
@@ -255,20 +255,20 @@ loc_6212:                               ; ...
                 jmp     loc_6E29
 ; ---------------------------------------------------------------------------
 
-loc_6224:                               ; ...
+loc_6224:   
                 and     al, 0Ch
                 cmp     al, 4
                 jnz     short loc_622D
                 jmp     loc_6781
 ; ---------------------------------------------------------------------------
 
-loc_622D:                               ; ...
+loc_622D:   
                 cmp     al, 8
                 jnz     short loc_6234
                 jmp     loc_67F4
 ; ---------------------------------------------------------------------------
 
-loc_6234:                               ; ...
+loc_6234:   
                 or      byte ptr ds:hero_animation_phase, 1
                 mov     ds:hero_moved_flag, 0FFh
                 retn
@@ -289,7 +289,7 @@ hero_spacebar_interaction        proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6247:                               ; ...
+loc_6247:   
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
@@ -315,7 +315,7 @@ loc_6247:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6285:                               ; ...
+loc_6285:   
                 call    load_npc_array_ptr
                 mov     al, [si+6]
                 and     al, 0C0h
@@ -323,7 +323,7 @@ loc_6285:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6290:                               ; ...
+loc_6290:   
                 mov     al, [si+2]
                 mov     ah, [si+5]
                 push    ax
@@ -337,7 +337,7 @@ loc_6290:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_62AE:                               ; ...
+loc_62AE:   
                 dec     dx
                 cmp     byte ptr [bx-8], 0FDh
                 jz      short loc_62C4
@@ -350,7 +350,7 @@ loc_62AE:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_62C4:                               ; ...
+loc_62C4:   
                 call    load_npc_array_ptr
                 mov     al, [si+6]
                 and     al, 0C0h
@@ -358,7 +358,7 @@ loc_62C4:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_62CF:                               ; ...
+loc_62CF:   
                 mov     al, [si+2]
                 mov     ah, [si+5]
                 push    ax
@@ -403,26 +403,26 @@ hero_building_entry_check        proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6319:                               ; ...
+loc_6319:   
                 call    load_npc_array_ptr
                 test    byte ptr [si+2], 80h
                 jnz     short loc_6323
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6323:                               ; ...
+loc_6323:   
                 test    byte ptr [si+6], 80h
                 jnz     short loc_632A
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_632A:                               ; ...
+loc_632A:   
                 or      byte ptr [si+4], 1
                 mov     ds:dialog_exit_flag, 0FFh
                 jmp     short start_npc_conversation
 ; ---------------------------------------------------------------------------
 
-loc_6335:                               ; ...
+loc_6335:   
                 dec     dx
                 dec     dx
                 cmp     byte ptr [bx-16], 0FDh
@@ -430,20 +430,20 @@ loc_6335:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_633E:                               ; ...
+loc_633E:   
                 call    load_npc_array_ptr
                 test    byte ptr [si+2], 80h
                 jz      short loc_6348
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6348:                               ; ...
+loc_6348:   
                 test    byte ptr [si+6], 80h
                 jnz     short loc_634F
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_634F:                               ; ...
+loc_634F:   
                 or      byte ptr [si+4], 1
                 mov     ds:dialog_exit_flag, 0FFh
                 jmp     short $+2
@@ -475,7 +475,7 @@ start_npc_conversation        proc near
                 jnz     short loc_637D
                 mov     ax, 0B18h
 
-loc_637D:                               ; ...
+loc_637D:   
                 mov     ds:dialog_rect_pos, ax
                 xor     di, di
                 mov     cx, 1658h
@@ -516,7 +516,7 @@ render_dialog_text        proc near       ; renders dialog text with word wrap,
 
                 or      byte ptr ds:hero_animation_phase, 1
 
-loc_63CA:                               ; ...
+loc_63CA:   
                 mov     ds:dialog_src_rect, ax
                 mov     ds:dialog_cursor_pos, ax
                 xor     bh, bh
@@ -535,7 +535,7 @@ loc_63CA:                               ; ...
                 jb      short loc_6400
                 mov     al, 8
 
-loc_6400:                               ; ...
+loc_6400:   
                 push    ax
                 mov     cl, 0Ah
                 mul     cl
@@ -561,7 +561,7 @@ loc_6400:                               ; ...
                 mov     al, 0FFh
                 call    cs:Draw_Bordered_Rectangle_proc
 
-loc_6437:                               ; ...
+loc_6437:   
                 mov     si, ds:dialog_text_ptr
                 lodsb
                 mov     ds:dialog_text_ptr, si
@@ -570,49 +570,49 @@ loc_6437:                               ; ...
                 jmp     loc_64E6
 ; ---------------------------------------------------------------------------
 
-loc_6447:                               ; ...
+loc_6447:   
                 cmp     al, 81h
                 jnz     short loc_644E
                 jmp     loc_6655
 ; ---------------------------------------------------------------------------
 
-loc_644E:                               ; ...
+loc_644E:   
                 cmp     al, 83h
                 jnz     short loc_6455
                 jmp     loc_6685
 ; ---------------------------------------------------------------------------
 
-loc_6455:                               ; ...
+loc_6455:   
                 cmp     al, 85h
                 jnz     short loc_645C
                 jmp     loc_6695
 ; ---------------------------------------------------------------------------
 
-loc_645C:                               ; ...
+loc_645C:   
                 cmp     al, 87h
                 jnz     short loc_6463
                 jmp     loc_66A2
 ; ---------------------------------------------------------------------------
 
-loc_6463:                               ; ...
+loc_6463:   
                 cmp     al, 89h
                 jnz     short loc_646A
                 jmp     loc_66AD
 ; ---------------------------------------------------------------------------
 
-loc_646A:                               ; ...
+loc_646A:   
                 cmp     al, 8Bh
                 jnz     short loc_6471
                 jmp     loc_664D        ; al=8Bh
 ; ---------------------------------------------------------------------------
 
-loc_6471:                               ; ...
+loc_6471:   
                 cmp     al, 0FFh
                 jnz     short loc_6478
                 jmp     wait_for_dialog_input
 ; ---------------------------------------------------------------------------
 
-loc_6478:                               ; ...
+loc_6478:   
                 push    ax
                 mov     cx, ds:dialog_cursor_pos
                 xor     bh, bh
@@ -652,7 +652,7 @@ loc_6478:                               ; ...
                 jmp     loc_6437
 ; ---------------------------------------------------------------------------
 
-loc_64CE:                               ; ...
+loc_64CE:   
                 mov     si, ds:dialog_text_ptr
                 call    measure_text_to_delimiter
                 mov     dl, ds:dialog_char_x
@@ -663,7 +663,7 @@ loc_64CE:                               ; ...
                 jmp     loc_6437
 ; ---------------------------------------------------------------------------
 
-loc_64E6:                               ; ...
+loc_64E6:   
                 mov     ds:dialog_char_x, 0
                 inc     ds:dialog_char_y
                 cmp     ds:dialog_char_y, 8
@@ -671,7 +671,7 @@ loc_64E6:                               ; ...
                 dec     ds:dialog_char_y
                 mov     cx, 0Ah
 
-loc_64FD:                               ; ...
+loc_64FD:   
                 push    cx
                 mov     bx, ds:dialog_cursor_pos
                 add     bl, 4
@@ -682,20 +682,20 @@ loc_64FD:                               ; ...
                 pop     cx
                 loop    loc_64FD
 
-loc_6516:                               ; ...
+loc_6516:   
                 inc     ds:dialog_lines_rendered
                 cmp     ds:dialog_lines_rendered, 7
                 jnb     short loc_6524
                 jmp     loc_6437
 ; ---------------------------------------------------------------------------
 
-loc_6524:                               ; ...
+loc_6524:   
                 cmp     ds:dialog_chars_on_line, 8
                 jnz     short loc_652E
                 jmp     loc_6437
 ; ---------------------------------------------------------------------------
 
-loc_652E:                               ; ...
+loc_652E:   
                 sub     ds:dialog_chars_on_line, 7
                 mov     cx, ds:dialog_cursor_pos
                 xor     bh, bh
@@ -714,7 +714,7 @@ loc_652E:                               ; ...
                 pop     bx
                 pop     cx
 
-loc_655D:                               ; ...
+loc_655D:   
                 push    cx
                 push    bx
                 call    draw_dialog_cursor
@@ -728,7 +728,7 @@ loc_655D:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6576:                               ; ...
+loc_6576:   
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_655D
                 shr     bx, 1
@@ -754,7 +754,7 @@ wait_for_dialog_input        proc near     ; waits for player input during dialo
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     byte ptr byte ptr ds:altkey_latch, 0
 
-loc_65AB:                               ; ...
+loc_65AB:   
                 call    draw_dialog_cursor
                 call    init_npcs_and_render
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
@@ -762,17 +762,17 @@ loc_65AB:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65B9:                               ; ...
+loc_65B9:   
                 test    byte ptr byte ptr ds:altkey_latch, 0FFh
                 jz      short loc_65C1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65C1:                               ; ...
+loc_65C1:   
                 test    byte ptr ds:____right_left_down_up, 0FFh
                 jnz     short loc_65AB
 
-loc_65C8:                               ; ...
+loc_65C8:   
                 call    draw_dialog_cursor
                 call    init_npcs_and_render
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
@@ -780,13 +780,13 @@ loc_65C8:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65D6:                               ; ...
+loc_65D6:   
                 test    byte ptr byte ptr ds:altkey_latch, 0FFh
                 jz      short loc_65DE
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65DE:                               ; ...
+loc_65DE:   
                 test    byte ptr ds:____right_left_down_up, 0FFh
                 jz      short loc_65C8
                 retn
@@ -802,26 +802,26 @@ measure_text_to_delimiter        proc near ; measures pixel width of text until
 ;   Output: cl = total pixel width, si advanced past measured text
                 xor     cx, cx
 
-loc_65E8:                               ; ...
+loc_65E8:   
                 lodsb
                 or      al, al
                 jns     short loc_65EE
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65EE:                               ; ...
+loc_65EE:   
                 cmp     al, 20h ; ' '
                 jnz     short loc_65F3
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65F3:                               ; ...
+loc_65F3:   
                 cmp     al, 2Fh ; '/'
                 jnz     short loc_65F8
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65F8:                               ; ...
+loc_65F8:   
                 sub     al, 20h ; ' '
                 jb      short loc_65E8
                 mov     bl, al
@@ -844,7 +844,7 @@ count_dialog_lines        proc near
                 xor     cx, cx
                 xor     dx, dx
 
-loc_660D:                               ; ...
+loc_660D:   
                 lodsb
                 or      al, al
                 js      short loc_6646
@@ -855,7 +855,7 @@ loc_660D:                               ; ...
                 jmp     short loc_660D
 ; ---------------------------------------------------------------------------
 
-loc_661B:                               ; ...
+loc_661B:   
                 push    cx
                 mov     bl, al
                 sub     bl, 20h ; ' '
@@ -881,25 +881,25 @@ loc_661B:                               ; ...
                 jmp     short loc_660D
 ; ---------------------------------------------------------------------------
 
-loc_6646:                               ; ...
+loc_6646:   
                 or      dx, dx
                 jnz     short loc_664B
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_664B:                               ; ...
+loc_664B:   
                 inc     cx
                 retn
 count_dialog_lines        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_664D:                               ; ...
+loc_664D:   
                 or      byte ptr ds:byte_4, 80h
                 jmp     init_c015_obj_if_exists
 ; ---------------------------------------------------------------------------
 
-loc_6655:                               ; ...
+loc_6655:   
                 mov     bx, ds:dialog_rect_pos
                 add     bh, bh
                 add     bx, 193Fh
@@ -917,12 +917,12 @@ loc_6655:                               ; ...
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_6680:                               ; ...
+loc_6680:   
                 mov     bl, 0Ch
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_6685:                               ; ...
+loc_6685:   
                 or      byte ptr ds:caliente_items, 80h ; +128 - Spoke to the girl after defeating Paguro
                                         ; +64 - Purchased the Asbestos Cape
                                         ; +32 - Open locked door (1st one)
@@ -936,21 +936,21 @@ loc_6685:                               ; ...
                 jmp     wait_for_dialog_input
 ; ---------------------------------------------------------------------------
 
-loc_6695:                               ; ...
+loc_6695:   
                 mov     ds:dialog_exit_flag, 0FFh
                 mov     bl, 4
                 mov     ax, ds:dialog_src_rect
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66A2:                               ; ...
+loc_66A2:   
                 call    wait_for_dialog_input
                 mov     bl, 5
                 mov     ax, ds:dialog_src_rect
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66AD:                               ; ...
+loc_66AD:   
                 mov     bx, ds:dialog_rect_pos
                 add     bh, bh
                 add     bx, 1832h
@@ -968,7 +968,7 @@ loc_66AD:                               ; ...
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66D8:                               ; ...
+loc_66D8:   
                 mov     dx, ds:hero_almas
                 sub     dx, 9C4h
                 mov     bl, 7
@@ -976,20 +976,20 @@ loc_66D8:                               ; ...
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66E7:                               ; ...
+loc_66E7:   
                 mov     word ptr ds:hero_almas, dx
                 call    cs:Print_Almas_Decimal_proc
                 or      byte ptr ds:caliente_items, 40h ; +64 - Purchased the Asbestos Cape
                 mov     si, 0A1h
 
-loc_66F8:                               ; ...
+loc_66F8:   
                 test    byte ptr [si], 0FFh
                 jz      short loc_6700
                 inc     si
                 jmp     short loc_66F8
 ; ---------------------------------------------------------------------------
 
-loc_6700:                               ; ...
+loc_6700:   
                 mov     byte ptr [si], 5
                 call    init_c015_obj_if_exists
                 mov     ax, ds:dialog_rect_pos
@@ -1015,13 +1015,13 @@ confirm_purchase_dialog        proc near
                 jnb     short loc_672F
                 mov     bl, 1
 
-loc_672F:                               ; ...
+loc_672F:   
                 or      bl, bl
                 jnz     short loc_6734
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6734:                               ; ...
+loc_6734:   
                 stc
                 retn
 confirm_purchase_dialog        endp
@@ -1047,7 +1047,7 @@ draw_dialog_cursor        proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6754:                               ; ...
+loc_6754:   
                 push    ax
                 xor     ah, ah
                 sub     al, 4Eh ; 'N'
@@ -1064,12 +1064,12 @@ loc_6754:                               ; ...
                 add     di, ax
                 mov     al, 0FFh
 
-loc_6770:                               ; ...
+loc_6770:   
                 push    cx
                 push    di
                 mov     cx, 16h
 
-loc_6775:                               ; ...
+loc_6775:   
                 stosb
                 add     di, 7
                 loop    loc_6775
@@ -1082,7 +1082,7 @@ draw_dialog_cursor        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_6781:                               ; ...
+loc_6781:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 3
@@ -1096,7 +1096,7 @@ loc_6781:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_679D:                               ; ...
+loc_679D:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
@@ -1107,7 +1107,7 @@ loc_679D:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_67B1:                               ; ...
+loc_67B1:   
                 inc     byte ptr ds:hero_animation_phase
                 and     byte ptr ds:hero_animation_phase, 3
                 or      byte ptr ds:facing_direction, 1
@@ -1117,14 +1117,14 @@ loc_67B1:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_67CB:                               ; ...
+loc_67CB:   
                 test    word ptr ds:proximity_map_left_col_x, 0FFFFh
                 jnz     short loc_67D8
                 dec     byte ptr ds:hero_x_in_viewport
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_67D8:                               ; ...
+loc_67D8:   
                 dec     word ptr ds:proximity_map_left_col_x
                 sub     word ptr ds:proximity_start_tiles, 8
                 call    cs:scroll_hud_right_8px_proc
@@ -1133,12 +1133,12 @@ loc_67D8:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_67EE:                               ; ...
+loc_67EE:   
                 call    cs:scroll_hud_right_4px_proc
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_67F4:                               ; ...
+loc_67F4:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 6
@@ -1152,7 +1152,7 @@ loc_67F4:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6810:                               ; ...
+loc_6810:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
@@ -1163,7 +1163,7 @@ loc_6810:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6824:                               ; ...
+loc_6824:   
                 inc     byte ptr ds:hero_animation_phase
                 and     byte ptr ds:hero_animation_phase, 3
                 and     byte ptr ds:facing_direction, 0FEh
@@ -1173,7 +1173,7 @@ loc_6824:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_683E:                               ; ...
+loc_683E:   
                 mov     ax, ds:mapWidth
                 sub     ax, 23h ; '#'
                 mov     bx, ds:proximity_map_left_col_x
@@ -1184,7 +1184,7 @@ loc_683E:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6852:                               ; ...
+loc_6852:   
                 inc     word ptr ds:proximity_map_left_col_x
                 add     word ptr ds:proximity_start_tiles, 8
                 call    cs:scroll_hud_left_8px_proc
@@ -1193,7 +1193,7 @@ loc_6852:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6868:                               ; ...
+loc_6868:   
                 call    cs:scroll_hud_left_4px_proc
                 retn
 
@@ -1214,17 +1214,17 @@ check_tile_in_special_list        proc near
                 xor     ch, ch
                 inc     si
 
-loc_6882:                               ; ...
+loc_6882:   
                 cmp     al, es:[si]
                 jnz     short loc_6888
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6888:                               ; ...
+loc_6888:   
                 inc     si
                 loop    loc_6882
 
-loc_688B:                               ; ...
+loc_688B:   
                 not     cl
                 or      cl, cl
                 retn
@@ -1242,14 +1242,14 @@ check_tile_in_special_list        endp
 find_npc_at_x_pos        proc near
                 mov     si, ds:npc_array_addr
 
-loc_6894:                               ; ...
+loc_6894:   
                 mov     ax, [si]
                 cmp     ax, 0FFFFh
                 jnz     short loc_689C
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_689C:                               ; ...
+loc_689C:   
                 sub     ax, bx
                 jnz     short loc_68A7
                 test    byte ptr [si+6], 40h
@@ -1257,7 +1257,7 @@ loc_689C:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_68A7:                               ; ...
+loc_68A7:   
                 add     si, 8
                 jmp     short loc_6894
 find_npc_at_x_pos        endp
@@ -1293,7 +1293,7 @@ game_loop_with_frame_wait        proc near
                 mov     al, 4
                 mul     cl
 
-loc_68C2:                               ; ...
+loc_68C2:   
                 push    ax
                 call    cs:Confirm_Exit_Dialog_proc ; Confirm_Exit_Dialog
                 call    cs:Handle_Pause_State_proc ; Handle_Pause_State
@@ -1304,7 +1304,7 @@ loc_68C2:                               ; ...
                 jnb     short loc_68E6
                 call    restore_game
 
-loc_68E6:                               ; ...
+loc_68E6:   
                 pop     ax
                 cmp     ds:frame_timer, al
                 jb      short loc_68C2
@@ -1326,7 +1326,7 @@ handle_inventory_key        proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_68FC:                               ; ...
+loc_68FC:   
                 mov     byte ptr byte ptr ds:soundFX_request, 0Bh
                 call    cs:Clear_Viewport_proc
                 call    swap_a000_c000_buffers
@@ -1362,7 +1362,7 @@ swap_a000_c000_buffers        proc near
                 mov     si, 0A000h
                 mov     cx, 800h
 
-loc_6946:                               ; ...
+loc_6946:   
                 mov     ax, es:[di]
                 movsw
                 mov     [si-2], ax
@@ -1386,7 +1386,7 @@ clear_6_hero_tiles_in_viewport_buffer proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6958:                               ; ...
+loc_6958:   
                 add     al, al
                 add     al, al
                 add     al, al
@@ -1447,14 +1447,14 @@ prepare_hero_sprite proc near
                 mov     si, offset hero_2x3_tile_buf
                 mov     cx, 2
 
-two_columns:                            ; ...
+two_columns:
                 push    si
                 mov     al, [si]        ; CD CE CE CF D0 D0
                 cmp     al, 0FDh
                 jnz     short loc_69C8
                 call    load_npc_array_ptr
 
-loc_69B9:                               ; ...
+loc_69B9:   
                 mov     al, [si+3]
                 cmp     al, 0FDh
                 jnz     short loc_69C8
@@ -1463,7 +1463,7 @@ loc_69B9:                               ; ...
                 jmp     short loc_69B9
 ; ---------------------------------------------------------------------------
 
-loc_69C8:                               ; ...
+loc_69C8:   
                 pop     si
                 mov     [si], al
                 add     si, 3
@@ -1486,7 +1486,7 @@ loc_69C8:                               ; ...
                 stosb
                 mov     si, ds:npc_array_addr
 
-next_npc:                               ; ...
+next_npc:   
                 call    is_hero_close_to_npc ; Return:
                                         ; AL=3 if hero_1x3_tile_buf contains 0xfd special tile
                                         ; AL=0 otherwise
@@ -1501,7 +1501,7 @@ next_npc:                               ; ...
                 call    cs:ui_draw_routine_dispatcher_proc
                 pop     si
 
-loc_6A11:                               ; ...
+loc_6A11:   
                 add     si, 8
                 cmp     [si+NPC.n_x], 0FFFFh
                 jnz     short next_npc
@@ -1510,7 +1510,7 @@ loc_6A11:                               ; ...
                 jnz     short loc_6A26
                 mov     si, offset hero_faced_right
 
-loc_6A26:                               ; ...
+loc_6A26:   
                 xor     ax, ax
                 mov     al, ds:hero_animation_phase
                 add     ax, ax
@@ -1552,7 +1552,7 @@ is_hero_close_to_npc proc near
                 mov     dx, ds:hero_x
                 mov     di, offset hero_1x3_tile_buf
 
-loc_6A81:                               ; ...
+loc_6A81:   
                 cmp     byte ptr [di], 0FDh
                 jnz     short loc_6A8D
                 mov     al, cl
@@ -1561,7 +1561,7 @@ loc_6A81:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6A8D:                               ; ...
+loc_6A8D:   
                 inc     di
                 inc     dx
                 loop    loc_6A81
@@ -1595,7 +1595,7 @@ find_npc_at_x        proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6A9D:                               ; ...
+loc_6A9D:   
                 add     si, 8
                 jmp     short find_npc_at_x
 find_npc_at_x        endp
@@ -1665,7 +1665,7 @@ init_c015_obj_if_exists proc near       ; Initialize objects from word_C015 data
 
                 mov     si, ds:word_C015
 
-next_object:                            ; ...
+next_object:
                 lodsw
                 mov     bx, ax          ; dst addr
                 and     al, ah
@@ -1674,7 +1674,7 @@ next_object:                            ; ...
                 retn                    ; ffff - stop marker
 ; ---------------------------------------------------------------------------
 
-loc_6AFB:                               ; ...
+loc_6AFB:   
                 lodsb
                 and     al, [bx]
                 jnz     short copy_mode
@@ -1688,7 +1688,7 @@ skip_until_ffff:                        ; ...
                 jmp     short skip_until_ffff
 ; ---------------------------------------------------------------------------
 
-copy_mode:                              ; ...
+copy_mode:  
                 lodsw                   ; dst addr
                 mov     bx, ax
                 and     al, ah
@@ -1700,7 +1700,7 @@ copy_mode:                              ; ...
                 jmp     short copy_mode
 ; ---------------------------------------------------------------------------
 
-ffff_found:                             ; ...
+ffff_found: 
                 jmp     short next_object
 init_c015_obj_if_exists endp
 
@@ -1719,14 +1719,14 @@ init_npcs       proc near               ; Initialize all NPCs by running their A
                 call    modify_npc_heads
                 mov     si, ds:npc_array_addr
 
-next_npc_:                               ; ...
+next_npc_:   
                 mov     dx, [si+NPC.n_x]  ; NPC array
                 cmp     dx, 0FFFFh
                 jnz     short loc_6B2D
                 jmp     mark_npc_initialized
 ; ---------------------------------------------------------------------------
 
-loc_6B2D:                               ; ...
+loc_6B2D:   
                 mov     bl, [si+NPC.n_ai_type]
                 xor     bh, bh
                 add     bx, bx
@@ -1789,7 +1789,7 @@ npc_ai_patrol_1bit_phase        endp
 ; ---------------------------------------------------------------------------
 ;   ADDITIONAL PARENT FUNCTION npc_ai_patrol_1bit_phase
 
-patrol_between_boundaries:                               ; ...
+patrol_between_boundaries:   
                 inc     ch
                 and     ch, 0Fh
                 or      ch, al
@@ -1803,19 +1803,19 @@ patrol_between_boundaries:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6B95:                               ; ...
+loc_6B95:   
                 and     [si+NPC.n_facing], 7Fh
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6B9A:                               ; ...
+loc_6B9A:   
                 inc     dx
                 cmp     word ptr [bx+NPC.n_facing], dx
                 jb      short loc_6BA1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6BA1:                               ; ...
+loc_6BA1:   
                 or      [si+NPC.n_facing], 80h
                 retn
 
@@ -1837,7 +1837,7 @@ npc_ai_patrol_2bit_phase        proc near               ; NPC AI: patrol between
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6BB5:                               ; ...
+loc_6BB5:   
                 jmp     short patrol_between_boundaries
 npc_ai_patrol_2bit_phase        endp
 
@@ -1862,7 +1862,7 @@ npc_ai_face_hero        proc near               ; NPC AI: face towards or away f
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6BCD:                               ; ...
+loc_6BCD:   
                 and     [si+NPC.n_facing], 7Fh
                 retn
 npc_ai_face_hero        endp
@@ -1886,7 +1886,7 @@ npc_ai_bob_in_place        proc near               ; NPC AI: bob up and down in 
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6BE1:                               ; ...
+loc_6BE1:   
                 inc     ch
                 and     ch, 1
                 or      al, ch
@@ -1916,7 +1916,7 @@ npc_ai_patrol_bounce_1bit        endp
 ; ---------------------------------------------------------------------------
 ;   ADDITIONAL PARENT FUNCTION npc_ai_patrol_bounce_1bit
 
-patrol_bounce_at_phase:                               ; ...
+patrol_bounce_at_phase:   
                 inc     ch
                 and     ch, 0Fh
                 or      ch, al
@@ -1927,14 +1927,14 @@ patrol_bounce_at_phase:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6C0F:                               ; ...
+loc_6C0F:   
                 test    [si+NPC.n_facing], 80h
                 jz      short loc_6C17
                 dec     dx
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6C17:                               ; ...
+loc_6C17:   
                 inc     dx
                 retn
 
@@ -1959,7 +1959,7 @@ npc_ai_patrol_bounce_2bit        proc near               ; NPC AI: patrol with b
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6C28:                               ; ...
+loc_6C28:   
                 jmp     short patrol_bounce_at_phase
 npc_ai_patrol_bounce_2bit        endp
 
@@ -1983,14 +1983,14 @@ mark_npc_initialized proc near          ; Mark all NPCs as initialized by replac
                 ; Modifies: si, bx, al
                 mov     si, ds:npc_array_addr
 
-_next_npc:                               ; ...
+_next_npc:   
                 mov     bx, [si+NPC.n_x]
                 cmp     bx, 0FFFFh
                 jnz     short loc_6C37
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6C37:                               ; ...
+loc_6C37:   
                 add     bx, bx
                 add     bx, bx
                 add     bx, bx
@@ -2013,14 +2013,14 @@ modify_npc_heads proc near              ; Restore NPC head tiles in the town til
                 ; Modifies: si, bx, al
                 mov     si, ds:npc_array_addr
 
-next_npc__:                               ; ...
+next_npc__:   
                 mov     bx, [si+NPC.n_x]
                 cmp     bx, 0FFFFh
                 jnz     short loc_6C5A
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6C5A:                               ; ...
+loc_6C5A:   
                 mov     al, [si+NPC.n_head_tile]
                 cmp     al, 0FDh
                 jz      short skip_head
@@ -2030,7 +2030,7 @@ loc_6C5A:                               ; ...
                 add     bx, offset town_tiles+5
                 mov     [bx], al        ; modify head tile
 
-skip_head:                              ; ...
+skip_head:  
                 add     si, 8
                 jmp     short next_npc__
 modify_npc_heads endp
@@ -2090,14 +2090,14 @@ handle_edge_screen_transition        proc near               ; Handle hero walki
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
 
-loc_6CCB:                               ; ...
+loc_6CCB:   
                 test    byte ptr [si], 1
                 jnz     short loc_6CD5
                 add     si, 4
                 jmp     short loc_6CCB
 ; ---------------------------------------------------------------------------
 
-loc_6CD5:                               ; ...
+loc_6CD5:   
                 lodsb
                 mov     ah, al
                 lodsb
@@ -2106,7 +2106,7 @@ loc_6CD5:                               ; ...
                 jmp     loc_6FF8
 ; ---------------------------------------------------------------------------
 
-loc_6CE1:                               ; ...
+loc_6CE1:   
                 call    load_town_transition_data
                 mov     byte ptr ds:hero_x_in_viewport, 1Ah
                 mov     ax, ds:mapWidth
@@ -2115,26 +2115,26 @@ loc_6CE1:                               ; ...
                 jmp     loc_60B7
 ; ---------------------------------------------------------------------------
 
-loc_6CF5:                               ; ...
+loc_6CF5:   
                 cmp     al, 1Ch
                 jz      short loc_6CFA
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6CFA:                               ; ...
+loc_6CFA:   
                 call    modify_npc_heads
                 mov     byte ptr ds:frame_timer, 28h ; '('
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
 
-loc_6D09:                               ; ...
+loc_6D09:   
                 test    byte ptr [si], 1
                 jz      short loc_6D13
                 add     si, 4
                 jmp     short loc_6D09
 ; ---------------------------------------------------------------------------
 
-loc_6D13:                               ; ...
+loc_6D13:   
                 lodsb
                 mov     ah, al
                 lodsb
@@ -2143,7 +2143,7 @@ loc_6D13:                               ; ...
                 jmp     loc_6FF8
 ; ---------------------------------------------------------------------------
 
-loc_6D1F:                               ; ...
+loc_6D1F:   
                 call    load_town_transition_data
                 mov     byte ptr ds:hero_x_in_viewport, 0
                 mov     word ptr ds:proximity_map_left_col_x, 0
@@ -2170,7 +2170,7 @@ load_town_transition_data        proc near               ; Load transition data 
                 mov     al, 1
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
-                                        ; ...
+            
                 pop     ax
                 push    ax
                 mov     cl, 11
@@ -2197,7 +2197,7 @@ load_town_transition_data        proc near               ; Load transition data 
                 mov     ds:pat_id, ah
                 call    load_and_decompress_patterns
 
-locret_6D87:                            ; ...
+locret_6D87:
                 retn
 load_town_transition_data        endp
 
@@ -2277,7 +2277,7 @@ tman_grp        db 1                    ; hero town sprite descriptor
 aTmanGrp        db 'TMAN.GRP',0
 ; ---------------------------------------------------------------------------
 
-loc_6E29:                               ; ...
+loc_6E29:   
                 or      byte ptr ds:hero_animation_phase, 1
                 mov     ax, ds:proximity_map_left_col_x ; =00b3 (absolute x coord of proximity map left border)
                 mov     bl, ds:hero_x_in_viewport ; =16h
@@ -2293,7 +2293,7 @@ check_next_door:                        ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6E46:                               ; ...
+loc_6E46:   
                 cmp     [si], ax
                 jz      short door_x_coord_match
                 inc     ax
@@ -2321,13 +2321,13 @@ door_x_coord_match:                     ; ...
                 jmp     loc_6F77
 ; ---------------------------------------------------------------------------
 
-loc_6E77:                               ; ...
+loc_6E77:   
                 sub     al, 8           ; 8-8=0
                 jb      short loc_6E7E
                 jmp     loc_6FF8        ; al=0
 ; ---------------------------------------------------------------------------
 
-loc_6E7E:                               ; ...
+loc_6E7E:   
                 mov     byte ptr ds:byte_FF24, 4
                 mov     bl, [si+2]
                 mov     al, 14
@@ -2340,12 +2340,13 @@ loc_6E7E:                               ; ...
                 mov     al, 3
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
-                                        ; ...
+            
                 call    cs:fade_to_black_dithered_proc
                 mov     ax, 1
                 int     60h             ; adlib fn_1
                 mov     ds:town_transition_flag, 0FFh
                 call    cs:word_A000
+loc_6EAF:
                 call    cs:Clear_Viewport_proc
                 mov     ds:town_transition_flag, 0
                 call    cs:Clear_Place_Enemy_Bar_proc
@@ -2401,7 +2402,7 @@ inn_binary      db    1
 aInnaproBin     db 'INNAPRO.BIN',0
 ; ---------------------------------------------------------------------------
 
-loc_6F77:                               ; ...
+loc_6F77:   
                 mov     byte ptr ds:hero_animation_phase, 4
                 call    game_loop_with_frame_wait
                 test    byte ptr ds:falter_items, 80h ; +128 - Travel back to Dorado Town using the building in the back.
@@ -2419,7 +2420,7 @@ loc_6F77:                               ; ...
                                         ; +32 - Open final locked door (Jashiin's Lair)
                                         ; +16 - Key (Final)
 
-loc_6F9D:                               ; ...
+loc_6F9D:   
                 mov     byte ptr ds:byte_FF24, 4
                 mov     ah, 86h
                 mov     byte ptr ds:place_map_id, ah
@@ -2431,7 +2432,7 @@ loc_6F9D:                               ; ...
                 mov     al, 2
                 call    cs:res_dispatcher_proc ; res_dispatcher
 
-loc_6FC1:                               ; ...
+loc_6FC1:   
                 test    byte ptr ds:byte_FF26, 0FFh
                 jz      short loc_6FC1
                 mov     si, offset falter_transition_desc
@@ -2448,7 +2449,7 @@ falter_transition_desc       dw 3201h                ; falter warp descriptor
 aUgm2Msd        db 'UGM2.MSD',0
 ; ---------------------------------------------------------------------------
 
-loc_6FF8:                               ; ...
+loc_6FF8:   
                 mov     bl, 5           ; ax=0
                 mul     bl
                 add     ax, ds:dungeon_entrance_table ; 0+C700=c700
@@ -2473,7 +2474,7 @@ loc_6FF8:                               ; ...
                 jns     short loc_702B
                 add     ax, ds:mapWidth
 
-loc_702B:                               ; ...
+loc_702B:   
                 mov     ds:proximity_map_left_col_x, ax ; =2d for Malicia entrance
                 mov     byte ptr ds:entered_cavern_first_time, 0FFh
                 call    cs:fade_to_black_dithered_proc ; fade_to_black_dithered
@@ -2494,7 +2495,7 @@ npcAnimation    proc near
                 jnb     short loc_7058
                 call    restore_game
 
-loc_7058:                               ; ...
+loc_7058:   
                 pop     di
                 pop     si
                 test    ds:town_transition_flag, 0FFh
@@ -2502,7 +2503,7 @@ loc_7058:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7062:                               ; ...
+loc_7062:   
                 push    si
                 push    di
                 call    cs:word_A002
@@ -2530,10 +2531,10 @@ render_menu_dialog proc near
                 jb      short loc_7084
                 call    advance_dialog_page
 
-loc_7084:                               ; ...
+loc_7084:   
                 mov     byte ptr ds:frame_timer, 0
 
-loc_7089:                               ; ...
+loc_7089:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 6
                 jb      short loc_7089
@@ -2545,45 +2546,45 @@ loc_7089:                               ; ...
                 jmp     loc_7163
 ; ---------------------------------------------------------------------------
 
-loc_70A3:                               ; ...
+loc_70A3:   
                 cmp     al, 0Dh
                 jnz     short loc_70AA
                 jmp     loc_7163
 ; ---------------------------------------------------------------------------
 
-loc_70AA:                               ; ...
+loc_70AA:   
                 cmp     al, 0Ch
                 jnz     short loc_70B1
                 jmp     loc_7205
 ; ---------------------------------------------------------------------------
 
-loc_70B1:                               ; ...
+loc_70B1:   
                 cmp     al, 0Fh
                 jnz     short loc_70B8
                 jmp     loc_71B0
 ; ---------------------------------------------------------------------------
 
-loc_70B8:                               ; ...
+loc_70B8:   
                 cmp     al, 11h
                 jnz     short loc_70BF
                 jmp     loc_71B6
 ; ---------------------------------------------------------------------------
 
-loc_70BF:                               ; ...
+loc_70BF:   
                 cmp     al, 13h
                 jnz     short loc_70CA
                 mov     ds:menu_highlight_toggle, 0FFh
                 jmp     short loc_7084
 ; ---------------------------------------------------------------------------
 
-loc_70CA:                               ; ...
+loc_70CA:   
                 cmp     al, 15h
                 jnz     short loc_70D5
                 mov     ds:menu_highlight_toggle, 0
                 jmp     short loc_7084
 ; ---------------------------------------------------------------------------
 
-loc_70D5:                               ; ...
+loc_70D5:   
                 cmp     al, 0FFh
                 jnz     short loc_70DF
                 lodsb
@@ -2591,19 +2592,19 @@ loc_70D5:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_70DF:                               ; ...
+loc_70DF:   
                 or      al, al
                 jnz     short loc_70E4
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_70E4:                               ; ...
+loc_70E4:   
                 push    ax
                 cmp     byte ptr ds:dialog_cursor_x, 0D0h
                 jb      short loc_70EF
                 call    advance_dialog_page
 
-loc_70EF:                               ; ...
+loc_70EF:   
                 mov     bl, ds:dialog_cursor_x
                 xor     bh, bh
                 mov     cl, ds:dialog_scroll_counter
@@ -2642,7 +2643,7 @@ loc_70EF:                               ; ...
                 jmp     loc_7084
 ; ---------------------------------------------------------------------------
 
-loc_7148:                               ; ...
+loc_7148:   
                 mov     si, ds:dialog_string_ptr
                 call    measure_single_word
                 mov     dl, ds:dialog_cursor_x
@@ -2652,11 +2653,11 @@ loc_7148:                               ; ...
                 jb      short loc_7160
                 call    advance_dialog_page
 
-loc_7160:                               ; ...
+loc_7160:   
                 jmp     loc_7084
 ; ---------------------------------------------------------------------------
 
-loc_7163:                               ; ...
+loc_7163:   
                 call    advance_dialog_page
                 jmp     loc_7084
 render_menu_dialog endp
@@ -2684,7 +2685,7 @@ advance_dialog_page        proc near               ; Advance to next page of dia
                 jb      short locret_718D
                 call    draw_next_page_arrow
 
-locret_718D:                            ; ...
+locret_718D:
                 retn
 advance_dialog_page        endp
 
@@ -2703,11 +2704,11 @@ scroll_dialog_down        proc near               ; Scroll dialog box down by an
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7196:                               ; ...
+loc_7196:   
                 dec     byte ptr ds:dialog_scroll_counter
                 mov     cx, 0Ah
 
-loc_719D:                               ; ...
+loc_719D:   
                 push    cx
                 call    npcAnimation
                 mov     bx, 762h
@@ -2720,12 +2721,12 @@ scroll_dialog_down        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_71B0:                               ; ...
+loc_71B0:   
                 call    draw_next_page_arrow
                 jmp     loc_7084
 ; ---------------------------------------------------------------------------
 
-loc_71B6:                               ; ...
+loc_71B6:   
                 call    wait_for_dialog_continue
                 jmp     loc_7084
 
@@ -2765,7 +2766,7 @@ wait_for_dialog_continue        proc near               ; Wait for player to pre
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     byte ptr ds:altkey_latch, 0
 
-loc_71E9:                               ; ...
+loc_71E9:   
                 call    npcAnimation
                 mov     al, byte ptr ds:spacebar_latch
                 or      al, byte ptr ds:altkey_latch
@@ -2778,7 +2779,7 @@ wait_for_dialog_continue        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_7205:                               ; ...
+loc_7205:   
                 mov     byte ptr ds:dialog_cursor_x, 0
                 mov     byte ptr ds:dialog_scroll_counter, 0
                 mov     ds:dialog_page_count, 0
@@ -2802,7 +2803,7 @@ measure_single_word        proc near               ; Measure pixel width of a si
                 xor     cx, cx
                 xor     dx, dx
 
-loc_7228:                               ; ...
+loc_7228:   
                 lodsb
                 or      al, al
                 jz      short loc_7255
@@ -2827,13 +2828,13 @@ loc_7228:                               ; ...
                 jmp     short loc_7228
 ; ---------------------------------------------------------------------------
 
-loc_7255:                               ; ...
+loc_7255:   
                 cmp     dx, 1
                 jz      short loc_725B
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_725B:                               ; ...
+loc_725B:   
                 cmp     ah, 2Eh ; '.'
                 jz      short loc_7266
                 cmp     ah, 2Ch ; ','
@@ -2841,7 +2842,7 @@ loc_725B:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7266:                               ; ...
+loc_7266:   
                 xor     cx, cx
                 retn
 measure_single_word        endp
@@ -2860,7 +2861,7 @@ count_remaining_dialog_lines        proc near               ; Count remaining li
                 xor     cx, cx
                 xor     dx, dx
 
-loc_7271:                               ; ...
+loc_7271:   
                 lodsb
                 or      al, al
                 jz      short loc_72C0
@@ -2872,7 +2873,7 @@ loc_7271:                               ; ...
                 jmp     short loc_7271
 ; ---------------------------------------------------------------------------
 
-loc_7281:                               ; ...
+loc_7281:   
                 cmp     al, 0Ch
                 jz      short loc_72C0
                 cmp     al, 2Fh ; '/'
@@ -2882,7 +2883,7 @@ loc_7281:                               ; ...
                 jmp     short loc_7271
 ; ---------------------------------------------------------------------------
 
-loc_728E:                               ; ...
+loc_728E:   
                 cmp     al, 0Dh
                 jnz     short loc_7297
                 xor     dx, dx
@@ -2890,7 +2891,7 @@ loc_728E:                               ; ...
                 jmp     short loc_7271
 ; ---------------------------------------------------------------------------
 
-loc_7297:                               ; ...
+loc_7297:   
                 mov     bl, al
                 sub     bl, 20h ; ' '
                 xor     bh, bh
@@ -2915,13 +2916,13 @@ loc_7297:                               ; ...
                 jmp     short loc_7271
 ; ---------------------------------------------------------------------------
 
-loc_72C0:                               ; ...
+loc_72C0:   
                 or      dx, dx
                 jnz     short loc_72C5
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_72C5:                               ; ...
+loc_72C5:   
                 inc     cx
                 retn
 count_remaining_dialog_lines        endp
@@ -2958,26 +2959,26 @@ convert_ax_to_decimal proc near         ; converts AX to 7-digit decimal string
                 mov     si, di
                 mov     cx, 7
 
-loc_72FE:                               ; ...
+loc_72FE:   
                 lodsb
                 or      al, al
                 jnz     short loc_7305
                 loop    loc_72FE
 
-loc_7305:                               ; ...
+loc_7305:   
                 add     al, 30h ; '0'
                 stosb
                 jcxz    short loc_7313
                 dec     cx
                 jz      short loc_7313
 
-loc_730D:                               ; ...
+loc_730D:   
                 lodsb
                 add     al, 30h ; '0'
                 stosb
                 loop    loc_730D
 
-loc_7313:                               ; ...
+loc_7313:   
                 mov     al, 0FFh
                 stosb
                 retn
@@ -2995,7 +2996,7 @@ div_by_sub      proc near               ; Division by repeated subtraction
                 ; Modifies: ax, di, dh, dl
                 xor     dh, dh
 
-loc_7319:                               ; ...
+loc_7319:   
                 sub     dl, bl
                 jb      short loc_732D
                 sub     ax, cx
@@ -3004,15 +3005,15 @@ loc_7319:                               ; ...
                 jz      short loc_732B
                 dec     dl
 
-loc_7327:                               ; ...
+loc_7327:   
                 inc     dh
                 jmp     short loc_7319
 ; ---------------------------------------------------------------------------
 
-loc_732B:                               ; ...
+loc_732B:   
                 add     ax, cx
 
-loc_732D:                               ; ...
+loc_732D:   
                 add     dl, bl
                 push    ax
                 mov     al, dh
@@ -3056,7 +3057,7 @@ select_from_menu proc near
                 call    houseCursorShow
                 pop     bx
 
-loc_7353:                               ; ...
+loc_7353:   
                 push    bx
                 call    npcAnimation
                 pop     bx
@@ -3067,7 +3068,7 @@ loc_7353:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7366:                               ; ...
+loc_7366:   
                 test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_7374
                 clc
@@ -3075,7 +3076,7 @@ loc_7366:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7374:                               ; ...
+loc_7374:   
                 mov     ax, offset loc_7353
                 push    ax
                 int     61h             ; ah: ____Alt_Space
@@ -3092,13 +3093,13 @@ loc_7374:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_738C:                               ; ...
+loc_738C:   
                 test    byte ptr ds:menu_cursor_pos, 0FFh
                 jnz     short loc_7394
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7394:                               ; ...
+loc_7394:   
                 push    di
                 push    si
                 push    bx
@@ -3110,7 +3111,7 @@ loc_7394:                               ; ...
                 call    cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
-loc_73AC:                               ; ...
+loc_73AC:   
                 push    cx
                 mov     bx, ds:menu_base_addr
                 add     bx, 301h
@@ -3126,7 +3127,7 @@ loc_73AC:                               ; ...
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_up_proc
 
-loc_73D3:                               ; ...
+loc_73D3:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_73D3
@@ -3139,13 +3140,13 @@ loc_73D3:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-up_pressed:                             ; ...
+up_pressed: 
                 cmp     al, 2
                 jz      short loc_73EE
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_73EE:                               ; ...
+loc_73EE:   
                 mov     al, ds:menu_item_count
                 dec     al
                 cmp     bl, al
@@ -3157,7 +3158,7 @@ loc_73EE:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_73FF:                               ; ...
+loc_73FF:   
                 mov     al, bl
                 add     al, ds:menu_cursor_pos
                 inc     al
@@ -3168,7 +3169,7 @@ loc_73FF:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7412:                               ; ...
+loc_7412:   
                 push    di
                 push    si
                 push    bx
@@ -3180,7 +3181,7 @@ loc_7412:                               ; ...
                 call    cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
-loc_742A:                               ; ...
+loc_742A:   
                 push    cx
                 mov     bx, ds:menu_base_addr
                 add     bx, 301h
@@ -3197,7 +3198,7 @@ loc_742A:                               ; ...
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_down_proc
 
-loc_7453:                               ; ...
+loc_7453:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_7453
@@ -3237,14 +3238,14 @@ houseCursorUp   proc near               ; animates cursor moving up one row
                 mov     bx, ax
                 mov     cx, 0Ah         ; Height
 
-loc_748B:                               ; ...
+loc_748B:   
                 push    cx
                 mov     byte ptr ds:frame_timer, 0
                 dec     bx
                 push    bx
                 call    cs:draw_arrow_icon_or_ui_symbol_proc
 
-loc_7498:                               ; ...
+loc_7498:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4 ; delay
                 jb      short loc_7498
@@ -3267,14 +3268,14 @@ houseCursorDown proc near               ; animates cursor moving down one row
                 mov     bx, ax
                 mov     cx, 0Ah
 
-loc_74B7:                               ; ...
+loc_74B7:   
                 push    cx
                 mov     byte ptr ds:frame_timer, 0
                 inc     bx
                 push    bx
                 call    cs:draw_arrow_icon_or_ui_symbol_proc
 
-loc_74C4:                               ; ...
+loc_74C4:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_74C4
@@ -3306,7 +3307,7 @@ show_yes_no_dialog proc near
                 jnb     short loc_7500
                 mov     bl, 1
 
-loc_7500:                               ; ...
+loc_7500:   
                 pop     ax
                 mov     ds:menu_cursor_pos, al
                 pop     ax
@@ -3317,7 +3318,7 @@ loc_7500:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7511:                               ; ...
+loc_7511:   
                 stc
                 retn
 show_yes_no_dialog endp
@@ -3333,7 +3334,7 @@ aNo             db 'No',0
 render_menu_string_list proc near
                 xor     dl, dl
 
-loc_751C:                               ; ...
+loc_751C:   
                 push    cx
                 push    dx
                 mov     al, 0Ah
@@ -3358,7 +3359,7 @@ render_menu_string_list endp
 render_menu_list_scrolling proc near
                 xor     ah, ah
 
-loc_753B:                               ; ...
+loc_753B:   
                 push    cx
                 push    si
                 push    di
@@ -3401,7 +3402,7 @@ check_gold_sufficient proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7579:                               ; ...
+loc_7579:   
                 mov     dl, bl
                 mov     bx, ds:hero_gold_lo
                 xchg    ax, bx
@@ -3410,7 +3411,7 @@ loc_7579:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7585:                               ; ...
+loc_7585:   
                 sub     dl, 1
                 retn
 check_gold_sufficient endp
@@ -3454,19 +3455,19 @@ restore_game    proc near               ; restores game from .usr save file
                 jmp     short loc_75F8
 ; ---------------------------------------------------------------------------
 
-loc_75C6:                               ; ...
+loc_75C6:   
                 mov     si, offset save_name
                 mov     di, offset save_name_buffer
                 mov     cx, 8
 
-loc_75CF:                               ; ...
+loc_75CF:   
                 lodsb
                 or      al, al
                 jz      short loc_75D7
                 stosb
                 loop    loc_75CF
 
-loc_75D7:                               ; ...
+loc_75D7:   
                 mov     byte ptr es:[di], '.'
                 mov     byte ptr es:[di+1], 'U'
                 mov     byte ptr es:[di+2], 'S'
@@ -3475,12 +3476,12 @@ loc_75D7:                               ; ...
                 mov     si, offset save_buffer_padding
                 mov     byte ptr cs:disk_swap_suppressed, 0FFh
 
-loc_75F8:                               ; ...
+loc_75F8:   
                 mov     di, 0
                 mov     al, 3
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
-                                        ; ...
+            
                 mov     byte ptr cs:disk_swap_suppressed, 0
                 jb      short loc_762F
                 mov     si, offset game_bin_desc
@@ -3488,7 +3489,7 @@ loc_75F8:                               ; ...
                 mov     al, 3
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
-                                        ; ...
+            
                 call    cs:Clear_Screen_proc
                 mov     ax, 1
                 int     60h             ; adlib fn_1
@@ -3499,7 +3500,7 @@ loc_75F8:                               ; ...
                 jmp     ds:game_bin_entry_ptr
 ; ---------------------------------------------------------------------------
 
-loc_762F:                               ; ...
+loc_762F:   
                 mov     bx, 1A46h
                 mov     cx, 1E1Ah
                 mov     al, 0FFh
@@ -3512,7 +3513,7 @@ loc_762F:                               ; ...
                 call    cs:Render_String_FF_Terminated_proc
                 mov     byte ptr cs:spacebar_latch, 0
 
-loc_7651:                               ; ...
+loc_7651:   
                 call    cs:Confirm_Exit_Dialog_proc
                 test    byte ptr cs:spacebar_latch, 0FFh
                 jz      short loc_7651
@@ -3552,7 +3553,7 @@ choose_game_to_restore proc near        ; Choose a saved game or restart, with n
                 jnz     short loc_76AF
                 dec     byte ptr [di]
 
-loc_76AF:                               ; ...
+loc_76AF:   
                 std
                 mov     si, 0E1FDh
                 mov     di, 0E1FFh
@@ -3581,7 +3582,7 @@ loc_76AF:                               ; ...
                 mov     di, offset save_name_buffer
                 mov     cx, 8
 
-loc_76F9:                               ; ...
+loc_76F9:   
                 lodsb
                 or      al, al
                 jz      short loc_7705
@@ -3589,7 +3590,7 @@ loc_76F9:                               ; ...
                 stosb
                 loop    loc_76F9
 
-loc_7705:                               ; ...
+loc_7705:   
                 mov     al, ds:save_name_count
                 mov     ds:save_slot_has_name, al
                 push    cs
@@ -3598,7 +3599,7 @@ loc_7705:                               ; ...
                 mov     al, 60h ; '`'
                 mov     cx, 8
 
-loc_7715:                               ; ...
+loc_7715:   
                 scasb
                 jnz     short loc_7725
                 loop    loc_7715
@@ -3607,7 +3608,7 @@ loc_7715:                               ; ...
                 mov     cx, 8
                 rep movsb
 
-loc_7725:                               ; ...
+loc_7725:   
                 mov     bx, 3Ch ; '<'
                 mov     cl, 44h ; 'D'
                 mov     si, offset aInputName ; "Input name:"
@@ -3623,7 +3624,7 @@ loc_7725:                               ; ...
                 jb      short loc_7756
                 mov     al, 5
 
-loc_7756:                               ; ...
+loc_7756:   
                 xor     ah, ah
                 mov     cx, ax
                 xor     al, al
@@ -3631,7 +3632,7 @@ loc_7756:                               ; ...
                 jcxz    short loc_7764
                 call    render_save_game_list
 
-loc_7764:                               ; ...
+loc_7764:   
                 mov     si, 0E001h
                 mov     al, byte ptr ds:viewport_buffer
                 mov     ds:menu_max_items, al
@@ -3649,11 +3650,11 @@ loc_7764:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_778A:                               ; ...
+loc_778A:   
                 mov     si, offset save_name_buffer
                 mov     di, 0FF6Ch
 
-loc_7790:                               ; ...
+loc_7790:   
                 lodsb
                 cmp     al, 0FFh
                 clc
@@ -3661,19 +3662,19 @@ loc_7790:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7797:                               ; ...
+loc_7797:   
                 cmp     al, 60h ; '`'
                 clc
                 jnz     short loc_779D
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_779D:                               ; ...
+loc_779D:   
                 stosb
                 jmp     short loc_7790
 ; ---------------------------------------------------------------------------
 
-loc_77A0:                               ; ...
+loc_77A0:   
                 mov     ax, 0FFFFh
                 jmp     dword ptr cs:fn_exit_far_ptr
 choose_game_to_restore endp
@@ -3704,7 +3705,7 @@ check_save_is_restart        proc near               ; Check if current save nam
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_77D8:                               ; ...
+loc_77D8:   
                 mov     cs:save_is_restart, 0FFh
                 mov     cs:save_name_count, 0
                 retn
@@ -3725,7 +3726,7 @@ clear_save_name        proc near               ; Clear save name buffer if in re
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_77EE:                               ; ...
+loc_77EE:   
                 mov     cs:save_is_restart, 0
                 push    cs
                 pop     es
@@ -3750,7 +3751,7 @@ render_save_game_list        proc near               ; Render list of saved game
                 ; Modifies: ax, bx
                 xor     ah, ah
 
-loc_7809:                               ; ...
+loc_7809:   
                 push    cx
                 push    si
                 push    ax
@@ -3798,12 +3799,12 @@ save_name_input_handler        proc near               ; Handle save name keyboa
                 jz      short loc_7867
                 call    cs:cursor_exports
 
-loc_7867:                               ; ...
+loc_7867:   
                 call    render_save_name_string
                 xor     al, al
                 call    highlight_save_cursor
 
-loc_786F:                               ; ...
+loc_786F:   
                 mov     byte ptr ds:frame_timer, 0
                 test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 1
                 jz      short loc_78BF
@@ -3813,7 +3814,7 @@ loc_786F:                               ; ...
                 mov     al, 60h ; '`'
                 mov     cx, 8
 
-loc_7887:                               ; ...
+loc_7887:   
                 scasb
                 jnz     short loc_78AF
                 loop    loc_7887
@@ -3827,20 +3828,20 @@ loc_7887:                               ; ...
                 call    render_save_name_string
                 mov     byte ptr ds:soundFX_request, 1
 
-loc_78A4:                               ; ...
+loc_78A4:   
                 test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 1
                 jnz     short loc_78A4
                 jmp     short loc_786F
 ; ---------------------------------------------------------------------------
 
-loc_78AF:                               ; ...
+loc_78AF:   
                 mov     byte ptr ds:soundFX_request, 1Fh
                 mov     byte ptr ds:keyboard_alt_mode_flag, 0
                 mov     byte ptr ds:altkey_latch, 0
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_78BF:                               ; ...
+loc_78BF:   
                 test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_7931
                 mov     byte ptr ds:soundFX_request, 1
@@ -3862,7 +3863,7 @@ loc_78BF:                               ; ...
                 mov     di, offset save_name_buffer
                 mov     cx, 8
 
-loc_78F4:                               ; ...
+loc_78F4:   
                 lodsb
                 or      al, al
                 jz      short loc_7900
@@ -3870,7 +3871,7 @@ loc_78F4:                               ; ...
                 stosb
                 loop    loc_78F4
 
-loc_7900:                               ; ...
+loc_7900:   
                 mov     al, ds:save_name_count
                 mov     ds:save_slot_has_name, al
                 pop     si
@@ -3890,7 +3891,7 @@ loc_7900:                               ; ...
                 jmp     loc_786F
 ; ---------------------------------------------------------------------------
 
-loc_7931:                               ; ...
+loc_7931:   
                 mov     cx, offset loc_786F
                 push    cx
                 test    byte ptr ds:Current_ASCII_Char, 0FFh
@@ -3903,13 +3904,13 @@ loc_7931:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_794E:                               ; ...
+loc_794E:   
                 cmp     al, 8
                 jnz     short loc_7955
                 jmp     loc_7B44
 ; ---------------------------------------------------------------------------
 
-loc_7955:                               ; ...
+loc_7955:   
                 push    ax
                 call    clear_save_name
                 pop     ax
@@ -3919,7 +3920,7 @@ loc_7955:                               ; ...
                 jnz     short loc_796B
                 inc     ds:save_slot_has_name
 
-loc_796B:                               ; ...
+loc_796B:   
                 mov     ds:save_name_buffer[bx], al
                 call    render_save_name_string
                 mov     byte ptr ds:soundFX_request, 1
@@ -3927,7 +3928,7 @@ loc_796B:                               ; ...
                 jmp     highlight_save_cursor
 ; ---------------------------------------------------------------------------
 
-loc_797C:                               ; ...
+loc_797C:   
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 8
@@ -3936,7 +3937,7 @@ loc_797C:                               ; ...
                 mov     al, 1
                 call    highlight_save_cursor
 
-loc_798C:                               ; ...
+loc_798C:   
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 8
@@ -3945,14 +3946,14 @@ loc_798C:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7998:                               ; ...
+loc_7998:   
                 test    al, 4
                 jz      short loc_79B2
                 mov     byte ptr ds:soundFX_request, 1
                 mov     al, 0FFh
                 call    highlight_save_cursor
 
-loc_79A6:                               ; ...
+loc_79A6:   
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 4
@@ -3961,13 +3962,13 @@ loc_79A6:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_79B2:                               ; ...
+loc_79B2:   
                 test    byte ptr ds:menu_max_items, 0FFh
                 jnz     short loc_79BA
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_79BA:                               ; ...
+loc_79BA:   
                 and     al, 3
                 cmp     al, 1
                 jnz     short loc_7A2B
@@ -3979,13 +3980,13 @@ loc_79BA:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_79D5:                               ; ...
+loc_79D5:   
                 test    byte ptr ds:menu_cursor_pos, 0FFh
                 jnz     short loc_79DD
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_79DD:                               ; ...
+loc_79DD:   
                 push    di
                 push    si
                 dec     byte ptr ds:menu_cursor_pos
@@ -3994,7 +3995,7 @@ loc_79DD:                               ; ...
                 call    cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
-loc_79F2:                               ; ...
+loc_79F2:   
                 push    cx
                 mov     bx, ds:menu_base_addr
                 add     bx, 301h
@@ -4010,7 +4011,7 @@ loc_79F2:                               ; ...
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_up_proc
 
-loc_7A19:                               ; ...
+loc_7A19:   
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_7A19
                 mov     byte ptr ds:frame_timer, 0
@@ -4021,13 +4022,13 @@ loc_7A19:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7A2B:                               ; ...
+loc_7A2B:   
                 cmp     al, 2
                 jz      short loc_7A30
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7A30:                               ; ...
+loc_7A30:   
                 mov     al, ds:save_cursor_row
                 add     al, ds:menu_cursor_pos
                 inc     al
@@ -4038,7 +4039,7 @@ loc_7A30:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7A44:                               ; ...
+loc_7A44:   
                 mov     al, ds:menu_item_count
                 dec     al
                 cmp     ds:save_cursor_row, al
@@ -4049,7 +4050,7 @@ loc_7A44:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7A5D:                               ; ...
+loc_7A5D:   
                 push    di
                 push    si
                 inc     byte ptr ds:menu_cursor_pos
@@ -4058,7 +4059,7 @@ loc_7A5D:                               ; ...
                 call    cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
-loc_7A72:                               ; ...
+loc_7A72:   
                 push    cx
                 mov     bx, ds:menu_base_addr
                 add     bx, 301h
@@ -4075,7 +4076,7 @@ loc_7A72:                               ; ...
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_down_proc
 
-loc_7A9B:                               ; ...
+loc_7A9B:   
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_7A9B
                 mov     byte ptr ds:frame_timer, 0
@@ -4118,18 +4119,18 @@ highlight_save_cursor        proc near               ; Draw cursor highlight and
                 jz      short loc_7AE1
                 mov     ds:save_name_count, 0
 
-loc_7AE1:                               ; ...
+loc_7AE1:   
                 cmp     ds:save_name_count, 8
                 jb      short loc_7AEC
                 dec     ds:save_name_count
 
-loc_7AEC:                               ; ...
+loc_7AEC:   
                 mov     al, ds:save_slot_has_name
                 cmp     ds:save_name_count, al
                 jb      short loc_7AF8
                 mov     ds:save_name_count, al
 
-loc_7AF8:                               ; ...
+loc_7AF8:   
                 mov     bx, ds:save_name_rect_pos
                 mov     cl, ds:save_name_rect_y
                 xor     ax, ax
@@ -4174,7 +4175,7 @@ render_save_name_string        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_7B44:                               ; ...
+loc_7B44:   
                 call    clear_save_name
                 push    si
                 mov     bl, ds:save_name_count
@@ -4182,7 +4183,7 @@ loc_7B44:                               ; ...
                 jnz     short loc_7B52
                 inc     bl
 
-loc_7B52:                               ; ...
+loc_7B52:   
                 xor     bh, bh
                 push    cs
                 pop     es
@@ -4199,7 +4200,7 @@ loc_7B52:                               ; ...
                 jz      short loc_7B73
                 dec     ds:save_slot_has_name
 
-loc_7B73:                               ; ...
+loc_7B73:   
                 mov     ds:save_name_terminator, 60h ; '`'
                 mov     al, 0FFh
                 call    highlight_save_cursor

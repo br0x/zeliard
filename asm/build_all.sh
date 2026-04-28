@@ -30,6 +30,8 @@ tasm /m9 ckpd.asm >>log.txt
 tlink ckpd.obj >>log.txt
 tasm /m9 town.asm >>log.txt
 tlink town.obj >>log.txt
+tasm /m9 kenjpro.asm >>log.txt
+tlink kenjpro.obj >>log.txt
 tasm /m9 fight.asm >>log.txt
 tlink fight.obj >>log.txt
 tasm /m9 select.asm >>log.txt
@@ -58,6 +60,7 @@ python3 exe2bin.py GFMCGA.EXE gfmcga.bin 0x3000
 python3 exe2bin.py YMPD.EXE ympd.bin 0x3300
 python3 exe2bin.py CKPD.EXE ckpd.bin 0x3300
 python3 exe2bin.py TOWN.EXE town.bin 0x6000
+python3 exe2bin.py KENJPRO.EXE kenjpro.bin 0xA000
 python3 exe2bin.py FIGHT.EXE fight.bin 0x6000
 python3 exe2bin.py SELECT.EXE select.bin 0xA000
 python3 exe2bin.py EAI1.EXE eai1.bin 0xA000
@@ -85,6 +88,8 @@ echo "ckpd.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/ckpd.bin ckpd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "town.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/town.bin town.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "kenjpro.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/1/kenjpro.bin kenjpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "fight.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/fight.bin fight.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "select.bin diffs:" >>diff.txt

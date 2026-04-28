@@ -61,6 +61,7 @@ town_descriptor_addr                               equ 0C000h
   ; [4]: pat_id
 town_map_width                                     equ 0C002h
 town_name_rendering_info                           equ 0C004h
+town_id                                            equ 0C006h ; 1-based
 town_transition_table                              equ 0C007h
 doors_array_addr                                   equ 0C009h
 dungeon_entrance_table                             equ 0C00Bh

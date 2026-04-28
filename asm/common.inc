@@ -577,6 +577,7 @@ byte_FF4B                                          equ 0FF4Bh
 dialog_string_ptr                                  equ 0FF4Ch
 dialog_cursor_x                                    equ 0FF4Eh
 dialog_scroll_counter                              equ 0FF4Fh
+byte_FF50                                          equ 0FF50h
 menu_item_count                                    equ 0FF52h
 menu_max_items                                     equ 0FF53h
 menu_base_addr                                     equ 0FF54h
