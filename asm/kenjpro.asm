@@ -21,8 +21,8 @@ sub_A006        proc near
                 mov     bx, 0D60h
                 mov     cx, 3637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
-                mov     word ptr ds:0FF4Ch, offset byte_BA67 ; dialog_string_ptr
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
+                mov     word ptr ds:dialog_string_ptr, offset byte_BA67
                 jmp     short loc_A047
 ; ---------------------------------------------------------------------------
 
@@ -33,20 +33,20 @@ loc_A027:
                 mov     bx, 0D60h
                 mov     cx, 3637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 call    sub_AC07
-                mov     ds:0FF4Ch, si   ; dialog_string_ptr
+                mov     ds:dialog_string_ptr, si
 
-loc_A047:                               ;
-                call    word ptr cs:6004h ; render_menu_dialog_proc
+loc_A047:
+                call    word ptr cs:render_menu_dialog_proc
                 cmp     al, 0FFh
                 jz      short loc_A055
                 call    sub_A0A4
                 jmp     short loc_A047
 ; ---------------------------------------------------------------------------
 
-loc_A055:                               ;
-                jmp     word ptr cs:2040h ; Fade_To_Black_Dithered_proc
+loc_A055:
+                jmp     word ptr cs:Fade_To_Black_Dithered_proc
 sub_A006        endp
 
 
@@ -54,27 +54,27 @@ sub_A006        endp
 
 
 sub_A05A        proc near
-                mov     es, word ptr ds:0FF2Ch ; seg1
+                mov     es, word ptr ds:seg1
                 mov     di, 8000h
                 mov     si, offset vfs_kenjya_grp
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 push    ds
-                mov     ds, word ptr cs:0FF2Ch ; seg1
+                mov     ds, word ptr cs:seg1
                 mov     si, 8000h
                 mov     cx, 100h
-                call    word ptr cs:2044h ; Reassemble_3_Planes_To_Packed_Bitmap_proc
+                call    word ptr cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
                 pop     ds
-                mov     byte ptr ds:0FF4Eh, 0 ; dialog_cursor_x
-                mov     byte ptr ds:0FF4Fh, 0 ; dialog_scroll_counter
-                call    word ptr cs:2002h ; Clear_Viewport_proc
-                call    word ptr cs:2012h ; Clear_Place_Enemy_Bar_proc
-                mov     bl, ds:0C006h   ; town_id
+                mov     byte ptr ds:dialog_cursor_x, 0
+                mov     byte ptr ds:dialog_scroll_counter, 0
+                call    word ptr cs:Clear_Viewport_proc
+                call    word ptr cs:Clear_Place_Enemy_Bar_proc
+                mov     bl, ds:town_id
                 dec     bl
                 xor     bh, bh
                 add     bx, bx
                 mov     si, sage_names[bx]
-                jmp     word ptr cs:2010h ; Render_Pascal_String_1_proc
+                jmp     word ptr cs:Render_Pascal_String_1_proc
 sub_A05A        endp
 
 
@@ -82,11 +82,6 @@ sub_A05A        endp
 
 
 sub_A0A4        proc near
-
-; FUNCTION CHUNK AT A0CB SIZE 00000041 BYTES
-; FUNCTION CHUNK AT A178 SIZE 00000059 BYTES
-; FUNCTION CHUNK AT A420 SIZE 00000007 BYTES
-; FUNCTION CHUNK AT A862 SIZE 000000A5 BYTES
 
                 mov     bl, al
                 xor     bh, bh
@@ -110,29 +105,27 @@ jpt_A0AA        dw offset loc_A0CB      ; jump table for switch statement
                 dw offset loc_A94F
                 dw offset loc_A953
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A0A4
 
 loc_A0CB:
                 call    sub_A983
                 mov     bx, 2722h
                 mov     cx, 1C2Dh
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
-                mov     word ptr ds:0FF54h, 2725h ; menu_base_addr
-                mov     byte ptr ds:0FF52h, 4 ; menu_item_count
-                mov     byte ptr ds:0FF53h, 4 ; menu_max_items
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
+                mov     word ptr ds:menu_base_addr, 2725h
+                mov     byte ptr ds:menu_item_count, 4
+                mov     byte ptr ds:menu_max_items, 4
                 mov     cx, 4           ; number of menu items
                 mov     si, offset aGoOutside ; "Go outside"
-                call    word ptr cs:600Eh ; render_menu_string_list_proc
-                mov     byte ptr ds:0FF56h, 0 ; menu_cursor_pos
+                call    word ptr cs:render_menu_string_list_proc
+                mov     byte ptr ds:menu_cursor_pos, 0
                 mov     bl, menu_item_selected
-                call    word ptr cs:6010h ; select_from_menu_proc
+                call    word ptr cs:select_from_menu_proc
                 jnb     short loc_A108
                 xor     bl, bl
 
 loc_A108:
                 mov     menu_item_selected, bl
-; END OF FUNCTION CHUNK FOR sub_A0A4
                 xor     bh, bh
                 add     bx, bx          ; switch 4 cases
                 jmp     jpt_A110[bx]    ; switch jump
@@ -144,24 +137,20 @@ jpt_A110        dw offset on_go_outside ; jump table for switch statement
 
 ; =============== S U B R O U T I N E =======================================
 
-; jumptable 0000A110 case 0
-
 on_go_outside   proc near
                 call    sub_A983
-                mov     word ptr ds:0FF4Ch, offset byte_ADEB ; dialog_string_ptr
+                mov     word ptr ds:dialog_string_ptr, offset byte_ADEB
                 retn
 on_go_outside   endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-; jumptable 0000A110 case 1
-
 on_see_power    proc near
                 call    sub_A983
                 test    byte_BB15, 0FFh
                 jnz     short loc_A137
-                mov     word ptr ds:0FF4Ch, offset byte_AE08 ; dialog_string_ptr
+                mov     word ptr ds:dialog_string_ptr, offset byte_AE08
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -173,73 +162,69 @@ loc_A137:
                 jz      short loc_A14B
                 mov     di, offset byte_AF03
 
-loc_A14B:                               ;
-                mov     ds:0FF4Ch, di   ; dialog_string_ptr
+loc_A14B:
+                mov     ds:dialog_string_ptr, di
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A150:                               ;
-                mov     word ptr ds:0FF4Ch, offset byte_AE42 ; dialog_string_ptr
+loc_A150:
+                mov     word ptr ds:dialog_string_ptr, offset byte_AE42
                 retn
 on_see_power    endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-; jumptable 0000A110 case 2
-
 on_listen_knowledge proc near
                 call    sub_A983
-                mov     bl, ds:0C006h   ; town_id
+                mov     bl, ds:town_id
                 dec     bl
                 xor     bh, bh
                 add     bx, bx
                 mov     si, off_B5EB[bx]
-                mov     ds:0FF4Ch, si   ; dialog_string_ptr
-                call    word ptr cs:6004h ; render_menu_dialog_proc
-                mov     word ptr ds:0FF4Ch, offset byte_ADBF ; dialog_string_ptr
+                mov     ds:dialog_string_ptr, si
+                call    word ptr cs:render_menu_dialog_proc
+                mov     word ptr ds:dialog_string_ptr, offset byte_ADBF
                 retn
 on_listen_knowledge endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A0A4
 
-on_record_experience:                   ; jumptable 0000A110 case 3
+on_record_experience:
                 call    sub_A983
                 call    sub_A427
-                mov     word ptr ds:0FF4Ch, offset byte_ADBF ; dialog_string_ptr
+                mov     word ptr ds:dialog_string_ptr, offset byte_ADBF
                 jnb     short loc_A187
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A187:                               ;
-                mov     word ptr ds:0FF4Ch, offset byte_AF7C ; dialog_string_ptr
+loc_A187:
+                mov     word ptr ds:dialog_string_ptr, offset byte_AF7C
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A18E:                               ; jumptable 0000A0AA case 1
+loc_A18E:
                 mov     byte_BB15, 0FFh
                 call    sub_A1D1
                 call    sub_A410
                 mov     byte_BB18, 0FFh
                 mov     byte_BB19, 0FFh
-                mov     word ptr ds:0FF4Ch, offset unk_AFDE ; dialog_string_ptr
+                mov     word ptr ds:dialog_string_ptr, offset unk_AFDE
 
 loc_A1A9:
                 call    sub_A410
-                call    word ptr cs:6004h ; render_menu_dialog_proc
+                call    word ptr cs:render_menu_dialog_proc
                 cmp     al, 4
                 jz      short loc_A1A9
                 mov     byte_BB1A, 0FFh
                 call    sub_A200
-                call    word ptr cs:6004h ; render_menu_dialog_proc
+                call    word ptr cs:render_menu_dialog_proc
                 call    sub_A22E
                 add     ax, ax
                 mov     bx, ax
                 mov     ax, off_B029[bx] ; "Your experience is lacking. Persevere i"...
-                mov     ds:0FF4Ch, ax   ; dialog_string_ptr
+                mov     ds:dialog_string_ptr, ax
                 retn
-; END OF FUNCTION CHUNK FOR sub_A0A4
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -252,13 +237,13 @@ sub_A1D1        proc near
 
 loc_A1E1:
                 push    cx
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 lodsb
                 push    si
                 call    sub_AA16
 
-loc_A1EC:                               ;
-                cmp     byte ptr ds:0FF1Ah, 25 ; frame_timer
+loc_A1EC:
+                cmp     byte ptr ds:frame_timer, 25
                 jb      short loc_A1EC
                 pop     si
                 pop     cx
@@ -282,14 +267,14 @@ sub_A200        proc near
 
 loc_A20B:
                 push    cx
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 mov     al, [si]
                 dec     si
                 push    si
                 call    sub_AA16
 
-loc_A218:                               ;
-                cmp     byte ptr ds:0FF1Ah, 25 ; frame_timer
+loc_A218:
+                cmp     byte ptr ds:frame_timer, 25
                 jb      short loc_A218
                 pop     si
                 pop     cx
@@ -305,7 +290,7 @@ sub_A200        endp
 
 sub_A22E        proc near
                 xor     bx, bx
-                mov     bl, ds:8Dh      ; hero_level
+                mov     bl, ds:hero_level
                 cmp     bl, 0Fh
                 jb      short loc_A23B
                 mov     bl, 0Fh
@@ -317,7 +302,7 @@ loc_A23B:
                 mov     cx, dx
                 xor     ax, ax
                 shr     cx, 1
-                cmp     ds:8Eh, cx      ; hero_xp
+                cmp     ds:hero_xp, cx
                 jnb     short loc_A250
                 retn
 ; ---------------------------------------------------------------------------
@@ -328,25 +313,25 @@ loc_A250:
                 sub     ax, cx
                 mov     cx, ax
                 mov     ax, 1
-                cmp     ds:8Eh, cx      ; hero_xp
+                cmp     ds:hero_xp, cx
                 jnb     short loc_A262
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A262:
                 mov     ax, 2
-                cmp     ds:8Eh, dx      ; hero_xp
+                cmp     ds:hero_xp, dx
                 jnb     short loc_A26C
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A26C:
                 xor     bx, bx
-                mov     bl, ds:0C006h   ; town_id
+                mov     bl, ds:town_id
                 dec     bx
                 add     bx, offset byte_A2AC
                 mov     ax, 3
-                mov     cl, ds:8Dh      ; hero_level
+                mov     cl, ds:hero_level
                 cmp     cl, [bx]
                 jnb     short loc_A283
                 retn
@@ -372,23 +357,22 @@ sub_A2B4        proc near
 
 loc_A2BC:
                 push    cx
-                call    word ptr cs:3000h ; apply_screen_xor_grid_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:apply_screen_xor_grid_proc
+                mov     byte ptr ds:frame_timer, 0
 
-loc_A2C7:                               ;
-                cmp     byte ptr ds:0FF1Ah, 10 ; frame_timer
+loc_A2C7:
+                cmp     byte ptr ds:frame_timer, 10
                 jb      short loc_A2C7
                 pop     cx
                 loop    loc_A2BC
                 push    cs
                 pop     es
-                assume es:nothing
-                mov     al, ds:8Dh      ; hero_level
+                mov     al, ds:hero_level
                 cmp     al, 10h
                 jb      short loc_A2F5
                 mov     word_BB34, 320h
                 mov     cx, 7
-                mov     si, 0B4h        ; espada_count
+                mov     si, espada_count
                 mov     di, offset byte_BB36
 
 loc_A2E9:
@@ -412,36 +396,36 @@ loc_A2F5:
                 mov     cx, 9
                 rep movsb
 
-loc_A306:                               ;
-                mov     al, ds:8Dh      ; hero_level
+loc_A306:
+                mov     al, ds:hero_level
                 inc     al
                 jnz     short loc_A30F
                 mov     al, 0FFh
 
-loc_A30F:                               ;
-                mov     ds:8Dh, al      ; hero_level
+loc_A30F:
+                mov     ds:hero_level, al
                 mov     ax, word_BB34
-                mov     ds:0B2h, ax     ; heroMaxHp
-                mov     ds:90h, ax      ; hero_HP
-                call    word ptr cs:2006h ; Draw_Hero_Max_Health_proc
-                call    word ptr cs:2008h ; Draw_Hero_Health_proc
+                mov     ds:heroMaxHp, ax
+                mov     ds:hero_HP, ax
+                call    word ptr cs:Draw_Hero_Max_Health_proc
+                call    word ptr cs:Draw_Hero_Health_proc
                 push    cs
                 pop     es
-                mov     di, 0B4h        ; espada_count
+                mov     di, espada_count
                 mov     si, offset byte_BB36
                 mov     cx, 7
                 rep movsb
-                mov     di, 0ABh        ; spells_espada
+                mov     di, spells_espada
                 mov     si, offset byte_BB36
                 mov     cx, 7
                 rep movsb
-                test    byte ptr ds:9Dh, 0FFh ; current_magic_spell
+                test    byte ptr ds:current_magic_spell, 0FFh
                 jz      short loc_A349
-                call    word ptr cs:2018h ; Print_Magic_Left_Decimal_proc
+                call    word ptr cs:Print_Magic_Left_Decimal_proc
 
 loc_A349:
                 xor     bx, bx
-                mov     bl, ds:8Dh      ; hero_level
+                mov     bl, ds:hero_level
                 dec     bl
                 cmp     bl, 0Fh
                 jb      short loc_A358
@@ -450,9 +434,9 @@ loc_A349:
 loc_A358:
                 add     bx, bx
                 mov     ax, word_A28C[bx]
-                sub     ds:8Eh, ax      ; hero_xp
+                sub     ds:hero_xp, ax
                 xor     bx, bx
-                mov     bl, ds:8Dh      ; hero_level
+                mov     bl, ds:hero_level
                 cmp     bl, 0Fh
                 jb      short loc_A36F
                 mov     bl, 0Fh
@@ -460,10 +444,10 @@ loc_A358:
 loc_A36F:
                 add     bx, bx
                 mov     ax, word_A28C[bx]
-                cmp     ds:8Eh, ax      ; hero_xp
+                cmp     ds:hero_xp, ax
                 jb      short locret_A37F
                 dec     ax
-                mov     ds:8Eh, ax      ; hero_xp
+                mov     ds:hero_xp, ax
 
 locret_A37F:
                 retn
@@ -491,22 +475,20 @@ byte_A380       db 78h, 0, 0Ch, 6, 8, 8, 3, 4, 3
 
 
 sub_A410        proc near
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
 
 loc_A415:
                 call    sub_AB47
-                cmp     byte ptr ds:0FF1Ah, 140 ; frame_timer
+                cmp     byte ptr ds:frame_timer, 140
                 jb      short loc_A415
                 retn
 sub_A410        endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A0A4
 
-loc_A420:                               ;
-                mov     word ptr ds:0FF4Ch, offset byte_ADBF ; dialog_string_ptr
+loc_A420:
+                mov     word ptr ds:dialog_string_ptr, offset byte_ADBF
                 retn
-; END OF FUNCTION CHUNK FOR sub_A0A4
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -516,22 +498,21 @@ sub_A427        proc near
                 pop     es
                 mov     si, offset vfs_stdply_bin
                 mov     al, 6
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     ax, cs
                 mov     es, ax
                 mov     ds, ax
-                assume ds:nothing
                 mov     di, 0E000h
                 mov     dx, 0A516h
-                call    word ptr cs:11Ch ; Scan_Saved_Games_proc
+                call    word ptr cs:Scan_Saved_Games_proc
                 mov     bx, 0D60h
                 mov     cx, 3637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 mov     bx, 0D60h
                 mov     cx, 2637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 push    cs
                 pop     es
                 mov     di, offset byte_BB27
@@ -541,7 +522,7 @@ sub_A427        proc near
                 mov     al, 0FFh
                 stosb
                 mov     ds:byte_BB25, 0
-                mov     si, 0FF6Ch      ; save_name
+                mov     si, save_name
                 mov     di, offset byte_BB27
                 mov     cx, 8
 
@@ -559,11 +540,11 @@ loc_A487:
                 mov     bx, 3Ch ; '<'
                 mov     cl, 6Ch ; 'l'
                 mov     si, offset aInputName ; "Input name:"
-                call    word ptr cs:202Ah ; Render_String_FF_Terminated_proc
+                call    word ptr cs:Render_String_FF_Terminated_proc
                 mov     ds:word_BB21, 60h ; '`'
                 mov     ds:byte_BB23, 7Eh ; '~'
-                mov     word ptr ds:0FF54h, 3463h ; menu_base_addr
-                mov     word ptr ds:0FF6Ah, 0Ah ; string_width_bytes
+                mov     word ptr ds:menu_base_addr, 3463h
+                mov     word ptr ds:string_width_bytes, 0Ah
                 mov     al, ds:0E000h
                 cmp     al, 5
                 jb      short loc_A4BA
@@ -580,14 +561,14 @@ loc_A4BA:
 loc_A4C8:
                 mov     si, 0E001h
                 mov     al, ds:0E000h
-                mov     ds:0FF53h, al   ; menu_max_items
-                mov     byte ptr ds:0FF52h, 5 ; menu_item_count
+                mov     ds:menu_max_items, al
+                mov     byte ptr ds:menu_item_count, 5
                 call    sub_A559
                 pushf
                 mov     bx, 0D60h
                 mov     cx, 3637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 popf
                 jnb     short loc_A4EB
                 retn
@@ -596,7 +577,7 @@ loc_A4C8:
 loc_A4EB:
                 push    cs
                 pop     es
-                mov     di, 0FF6Ch      ; save_name
+                mov     di, save_name
                 mov     cx, 8
                 xor     al, al
                 rep stosb
@@ -608,7 +589,7 @@ loc_A4EB:
 
 loc_A500:
                 mov     si, offset byte_BB27
-                mov     di, 0FF6Ch      ; save_name
+                mov     di, save_name
 
 loc_A506:
                 lodsb
@@ -645,7 +626,7 @@ loc_A52A:
                 push    cx
                 push    si
                 push    ax
-                call    word ptr cs:301Ah ; format_string_to_buffer_proc
+                call    word ptr cs:format_string_to_buffer_proc
                 pop     ax
                 push    ax
                 mov     al, ah
@@ -655,9 +636,9 @@ loc_A52A:
                 add     ax, ax
                 add     ax, ax
                 add     bx, ax
-                add     bx, ds:0FF54h   ; menu_base_addr
+                add     bx, ds:menu_base_addr
                 add     bx, 300h
-                call    word ptr cs:301Ch ; draw_string_buffer_to_screen_proc
+                call    word ptr cs:draw_string_buffer_to_screen_proc
                 pop     ax
                 inc     al
                 inc     ah
@@ -665,7 +646,7 @@ loc_A52A:
                 pop     cx
                 loop    loc_A52A
                 retn
-sub_A528        endp ; sp-analysis failed
+sub_A528        endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -673,47 +654,45 @@ sub_A528        endp ; sp-analysis failed
 
 sub_A559        proc near
 
-; FUNCTION CHUNK AT A827 SIZE 0000003B BYTES
-
-                mov     byte ptr ds:0FF74h, 0FFh ; keyboard_alt_mode_flag
-                mov     byte ptr ds:0FF29h, 0 ; Current_ASCII_Char
-                mov     byte ptr ds:0FF29h, 0 ; Current_ASCII_Char
-                mov     byte ptr ds:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr ds:0FF1Eh, 0 ; altkey_latch
-                mov     byte ptr ds:0FF56h, 0 ; menu_cursor_pos
+                mov     byte ptr ds:keyboard_alt_mode_flag, 0FFh
+                mov     byte ptr ds:Current_ASCII_Char, 0
+                mov     byte ptr ds:Current_ASCII_Char, 0
+                mov     byte ptr ds:spacebar_latch, 0
+                mov     byte ptr ds:altkey_latch, 0
+                mov     byte ptr ds:menu_cursor_pos, 0
                 mov     ds:byte_BB24, 0
                 xor     bl, bl
-                test    byte ptr ds:0FF53h, 0FFh ; menu_max_items
+                test    byte ptr ds:menu_max_items, 0FFh
                 jz      short loc_A58A
-                call    word ptr cs:6014h ; houseCursorShow_proc
+                call    word ptr cs:houseCursorShow_proc
 
 loc_A58A:
                 call    sub_A7FD
                 xor     al, al
                 call    sub_A790
 
-loc_A592:                               ;
-                call    word ptr cs:6016h ; npcAnimation_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
-                test    byte ptr ds:0FF1Eh, 0FFh ; altkey_latch
+loc_A592:
+                call    word ptr cs:npcAnimation_proc
+                mov     byte ptr ds:frame_timer, 0
+                test    byte ptr ds:altkey_latch, 0FFh
                 stc
                 jnz     short loc_A5AE
-                test    word ptr cs:0FF18h, 1 ; F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter
+                test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 1
                 jz      short loc_A5B9
                 clc
 
-loc_A5AE:                               ;
-                mov     byte ptr ds:0FF74h, 0 ; keyboard_alt_mode_flag
-                mov     byte ptr ds:0FF1Eh, 0 ; altkey_latch
+loc_A5AE:
+                mov     byte ptr ds:keyboard_alt_mode_flag, 0
+                mov     byte ptr ds:altkey_latch, 0
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A5B9:                               ;
-                test    byte ptr ds:0FF1Dh, 0FFh ; spacebar_latch
+loc_A5B9:
+                test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_A623
                 push    si
                 xor     bh, bh
-                mov     bl, ds:0FF56h   ; menu_cursor_pos
+                mov     bl, ds:menu_cursor_pos
                 add     bl, ds:byte_BB24
                 add     bx, bx
                 mov     si, [bx+si]
@@ -741,7 +720,7 @@ loc_A5F5:
                 mov     al, ds:byte_BB25
                 mov     ds:byte_BB26, al
                 pop     si
-                mov     byte ptr ds:0FF1Dh, 0 ; spacebar_latch
+                mov     byte ptr ds:spacebar_latch, 0
                 mov     ax, ds:word_BB21
                 shr     ax, 1
                 shr     ax, 1
@@ -749,7 +728,7 @@ loc_A5F5:
                 mov     bl, ds:byte_BB23
                 mov     cx, 1010h
                 xor     al, al
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 call    sub_A7FD
                 xor     al, al
                 call    sub_A790
@@ -759,10 +738,10 @@ loc_A5F5:
 loc_A623:
                 mov     cx, offset loc_A592
                 push    cx
-                test    byte ptr ds:0FF29h, 0FFh ; Current_ASCII_Char
+                test    byte ptr ds:Current_ASCII_Char, 0FFh
                 jz      short loc_A65F
-                mov     al, ds:0FF29h   ; Current_ASCII_Char
-                mov     byte ptr ds:0FF29h, 0 ; Current_ASCII_Char
+                mov     al, ds:Current_ASCII_Char
+                mov     byte ptr ds:Current_ASCII_Char, 0
                 cmp     al, 0Dh
                 jnz     short loc_A63B
                 retn
@@ -788,7 +767,7 @@ loc_A653:
                 jmp     sub_A790
 ; ---------------------------------------------------------------------------
 
-loc_A65F:                               ;
+loc_A65F:
                 int     61h             ; check input keys buffer
                                         ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
@@ -797,13 +776,13 @@ loc_A65F:                               ;
                 mov     al, 1
                 call    sub_A790
 
-loc_A66A:                               ;
+loc_A66A:
                 int     61h             ; check input keys buffer
                                         ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 8
                 jnz     short loc_A66A
-                mov     byte ptr ds:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr ds:Current_ASCII_Char, 0
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -813,18 +792,18 @@ loc_A676:
                 mov     al, 0FFh
                 call    sub_A790
 
-loc_A67F:                               ;
+loc_A67F:
                 int     61h             ; check input keys buffer
                                         ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 4
                 jnz     short loc_A67F
-                mov     byte ptr ds:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr ds:Current_ASCII_Char, 0
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A68B:                               ;
-                test    byte ptr ds:0FF53h, 0FFh ; menu_max_items
+loc_A68B:
+                test    byte ptr ds:menu_max_items, 0FFh
                 jnz     short loc_A693
                 retn
 ; ---------------------------------------------------------------------------
@@ -836,13 +815,13 @@ loc_A693:
                 test    ds:byte_BB24, 0FFh
                 jz      short loc_A6AE
                 mov     bl, ds:byte_BB24
-                call    word ptr cs:6018h ; houseCursorUp_proc
+                call    word ptr cs:houseCursorUp_proc
                 dec     ds:byte_BB24
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A6AE:                               ;
-                test    byte ptr ds:0FF56h, 0FFh ; menu_cursor_pos
+loc_A6AE:
+                test    byte ptr ds:menu_cursor_pos, 0FFh
                 jnz     short loc_A6B6
                 retn
 ; ---------------------------------------------------------------------------
@@ -850,33 +829,33 @@ loc_A6AE:                               ;
 loc_A6B6:
                 push    di
                 push    si
-                dec     byte ptr ds:0FF56h ; menu_cursor_pos
-                mov     al, ds:0FF56h   ; menu_cursor_pos
+                dec     byte ptr ds:menu_cursor_pos
+                mov     al, ds:menu_cursor_pos
                 add     al, ds:byte_BB24
-                call    word ptr cs:301Ah ; format_string_to_buffer_proc
+                call    word ptr cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
 loc_A6CB:
                 push    cx
-                mov     bx, ds:0FF54h   ; menu_base_addr
+                mov     bx, ds:menu_base_addr
                 add     bx, 301h
                 mov     al, cl
                 dec     al
-                mov     cl, ds:0FF52h   ; menu_item_count
+                mov     cl, ds:menu_item_count
                 add     cl, cl
                 mov     dl, cl
                 add     cl, cl
                 add     cl, cl
                 add     cl, dl
                 sub     cl, 2
-                mov     ch, ds:0FF6Ah   ; string_width_bytes
-                call    word ptr cs:301Eh ; scroll_hud_up_proc
+                mov     ch, ds:string_width_bytes
+                call    word ptr cs:scroll_hud_up_proc
 
-loc_A6F2:                               ;
-                call    word ptr cs:6016h ; npcAnimation_proc
-                cmp     byte ptr ds:0FF1Ah, 4 ; frame_timer
+loc_A6F2:
+                call    word ptr cs:npcAnimation_proc
+                cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_A6F2
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 pop     cx
                 loop    loc_A6CB
                 pop     si
@@ -892,22 +871,22 @@ loc_A709:
 
 loc_A70E:
                 mov     al, ds:byte_BB24
-                add     al, ds:0FF56h   ; menu_cursor_pos
+                add     al, ds:menu_cursor_pos
                 inc     al
-                mov     ah, ds:0FF53h   ; menu_max_items
+                mov     ah, ds:menu_max_items
                 dec     ah
                 cmp     ah, al
                 jnb     short loc_A722
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A722:                               ;
-                mov     al, ds:0FF52h   ; menu_item_count
+loc_A722:
+                mov     al, ds:menu_item_count
                 dec     al
                 cmp     ds:byte_BB24, al
                 jnb     short loc_A73B
                 mov     bl, ds:byte_BB24
-                call    word ptr cs:601Ah ; houseCursorDown_proc
+                call    word ptr cs:houseCursorDown_proc
                 inc     ds:byte_BB24
                 retn
 ; ---------------------------------------------------------------------------
@@ -915,40 +894,40 @@ loc_A722:                               ;
 loc_A73B:
                 push    di
                 push    si
-                inc     byte ptr ds:0FF56h ; menu_cursor_pos
-                mov     al, ds:0FF56h   ; menu_cursor_pos
+                inc     byte ptr ds:menu_cursor_pos
+                mov     al, ds:menu_cursor_pos
                 add     al, ds:byte_BB24
-                call    word ptr cs:301Ah ; format_string_to_buffer_proc
+                call    word ptr cs:format_string_to_buffer_proc
                 mov     cx, 0Ah
 
 loc_A750:
                 push    cx
-                mov     bx, ds:0FF54h   ; menu_base_addr
+                mov     bx, ds:menu_base_addr
                 add     bx, 301h
                 mov     al, cl
                 neg     al
                 add     al, 0Ah
-                mov     cl, ds:0FF52h   ; menu_item_count
+                mov     cl, ds:menu_item_count
                 add     cl, cl
                 mov     dl, cl
                 add     cl, cl
                 add     cl, cl
                 add     cl, dl
                 sub     cl, 2
-                mov     ch, ds:0FF6Ah   ; string_width_bytes
-                call    word ptr cs:3020h ; scroll_hud_down_proc
+                mov     ch, ds:string_width_bytes
+                call    word ptr cs:scroll_hud_down_proc
 
 loc_A779:                               ;
-                call    word ptr cs:6016h ; npcAnimation_proc
-                cmp     byte ptr ds:0FF1Ah, 4 ; frame_timer
+                call    word ptr cs:npcAnimation_proc
+                cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_A779
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 pop     cx
                 loop    loc_A750
                 pop     si
                 pop     di
                 retn
-sub_A559        endp ; sp-analysis failed
+sub_A559        endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -968,7 +947,7 @@ sub_A790        proc near
                 add     bl, 8
                 mov     cx, 208h
                 xor     al, al
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 pop     ax
                 add     ds:byte_BB25, al
                 test    ds:byte_BB25, 80h
@@ -997,7 +976,7 @@ loc_A7DB:
                 add     bx, ax
                 add     cl, 8
                 mov     ax, 67Fh
-                call    word ptr cs:2022h ; Render_Font_Glyph_proc
+                call    word ptr cs:Render_Font_Glyph_proc
                 pop     si
                 retn
 sub_A790        endp
@@ -1015,17 +994,16 @@ sub_A7FD        proc near
                 mov     bl, ds:byte_BB23
                 mov     cx, 1008h
                 xor     al, al
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 mov     bx, ds:word_BB21
                 mov     cl, ds:byte_BB23
                 mov     si, offset byte_BB27
-                call    word ptr cs:202Ah ; Render_String_FF_Terminated_proc
+                call    word ptr cs:Render_String_FF_Terminated_proc
                 pop     si
                 retn
 sub_A7FD        endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A559
 
 loc_A827:
                 push    si
@@ -1058,14 +1036,12 @@ loc_A853:
                 call    sub_A7FD
                 pop     si
                 retn
-; END OF FUNCTION CHUNK FOR sub_A559
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A0A4
 
-loc_A862:                               ; jumptable 0000A0AA case 3
+loc_A862:
                 push    cs
                 pop     es
-                mov     si, 0FF6Ch      ; save_name
+                mov     si, save_name
                 mov     di, offset byte_BB27
                 mov     cx, 8
 
@@ -1077,10 +1053,10 @@ loc_A86D:
                 loop    loc_A86D
 
 loc_A875:
-                mov     byte ptr es:[di], 2Eh ; '.'
-                mov     byte ptr es:[di+1], 75h ; 'u'
-                mov     byte ptr es:[di+2], 73h ; 's'
-                mov     byte ptr es:[di+3], 72h ; 'r'
+                mov     byte ptr es:[di], '.'
+                mov     byte ptr es:[di+1], 'u'
+                mov     byte ptr es:[di+2], 's'
+                mov     byte ptr es:[di+3], 'r'
                 mov     byte ptr es:[di+4], 0
                 mov     dx, offset byte_BB27
                 mov     cx, 0
@@ -1111,31 +1087,30 @@ loc_A8B2:
                 mov     ax, 849h
                 mov     cx, 1926h
                 xor     di, di
-                call    word ptr cs:2026h ; Capture_Screen_Rect_to_seg3_proc
+                call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
                 mov     bx, 1049h
                 mov     cx, 3226h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 mov     bx, 4Ch ; 'L'
                 mov     cl, 50h ; 'P'
                 mov     si, offset aDiskErrorPleas ; "      Disk error.\rPlease check your di"...
-                call    word ptr cs:202Ah ; Render_String_FF_Terminated_proc
-                mov     byte ptr ds:0FF1Dh, 0 ; spacebar_latch
+                call    word ptr cs:Render_String_FF_Terminated_proc
+                mov     byte ptr ds:spacebar_latch, 0
 
-loc_A8DE:                               ;
-                test    byte ptr ds:0FF1Dh, 0FFh ; spacebar_latch
+loc_A8DE:
+                test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_A8DE
-                mov     byte ptr ds:0FF1Dh, 0 ; spacebar_latch
+                mov     byte ptr ds:spacebar_latch, 0
                 mov     ax, 849h
                 mov     cx, 1926h
                 xor     di, di
-                call    word ptr cs:2028h ; Put_Image_proc
+                call    word ptr cs:Put_Image_proc
                 mov     bx, 0D60h
                 mov     cx, 3637h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
-                jmp     on_record_experience ; jumptable 0000A110 case 3
-; END OF FUNCTION CHUNK FOR sub_A0A4
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
+                jmp     on_record_experience
 ; ---------------------------------------------------------------------------
 vfs_stdply_bin  db    0
                 db    0
@@ -1148,9 +1123,9 @@ sub_A914        proc near
                 mov     bx, 2F2Bh
                 mov     cx, 0C19h
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
-                mov     word ptr ds:0FF54h, 302Eh ; menu_base_addr
-                call    word ptr cs:6008h ; show_yes_no_dialog_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
+                mov     word ptr ds:menu_base_addr, 302Eh
+                call    word ptr cs:show_yes_no_dialog_proc
                 pushf
                 call    sub_A983
                 popf
@@ -1160,7 +1135,7 @@ sub_A914        proc near
 
 loc_A934:
                 xor     ax, ax
-                jmp     dword ptr cs:0FF00h ; fn_exit_far_ptr
+                jmp     dword ptr cs:fn_exit_far_ptr
 sub_A914        endp
 
 
@@ -1207,17 +1182,17 @@ loc_A957:
                 mov     bx, 0AA1Ch
                 xor     al, al
                 mov     ch, 17h
-                call    word ptr cs:2004h ; Clear_HUD_Bar_proc
+                call    word ptr cs:Clear_HUD_Bar_proc
                 pop     ax
-                mov     ds:9Dh, al      ; current_magic_spell
+                mov     ds:current_magic_spell, al
                 mov     bl, al
                 dec     bl
                 xor     bh, bh
-                mov     byte ptr [bx+0BBh], 0FFh ; espada_active
-                mov     al, ds:9Dh      ; current_magic_spell
+                mov     byte ptr espada_active[bx], 0FFh
+                mov     al, ds:current_magic_spell
                 mov     bx, 37A4h
-                call    word ptr cs:201Eh ; Render_Magic_Spell_Item_Sprite_16x16_proc
-                jmp     word ptr cs:2018h ; Print_Magic_Left_Decimal_proc
+                call    word ptr cs:Render_Magic_Spell_Item_Sprite_16x16_proc
+                jmp     word ptr cs:Print_Magic_Left_Decimal_proc
 sub_A93B        endp
 
 
@@ -1228,7 +1203,7 @@ sub_A983        proc near
                 mov     bx, 2717h
                 mov     cx, 1D41h
                 xor     al, al
-                jmp     word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                jmp     word ptr cs:Draw_Bordered_Rectangle_proc
 sub_A983        endp
 
 
@@ -1248,7 +1223,7 @@ loc_A99E:
                 push    cx
                 push    bx
                 lodsb
-                call    word ptr cs:3016h ; draw_tile_to_screen_proc
+                call    word ptr cs:draw_tile_to_screen_proc
                 pop     bx
                 inc     bh
                 pop     cx
@@ -1290,7 +1265,7 @@ loc_AA2F:
                 push    cx
                 push    bx
                 lodsb
-                call    word ptr cs:3016h ; draw_tile_to_screen_proc
+                call    word ptr cs:draw_tile_to_screen_proc
                 pop     bx
                 inc     bh
                 pop     cx
@@ -1324,13 +1299,13 @@ byte_AA47       db 1Ah, 1Bh, 1Ch, 1Dh, 1Eh, 1Fh, 1Bh, 20h, 25h, 1Bh, 26h, 27h, 2
 
 
 sub_AB47        proc near
-                cmp     word ptr ds:0FF50h, 2 ; byte_FF50
+                cmp     word ptr ds:byte_FF50, 2
                 jnb     short loc_AB4F
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AB4F:                               ;
-                mov     word ptr ds:0FF50h, 0 ; byte_FF50
+loc_AB4F:
+                mov     word ptr ds:byte_FF50, 0
                 test    ds:byte_BB18, 0FFh
                 jz      short loc_ABB9
                 test    ds:byte_BB1A, 0FFh
@@ -1393,7 +1368,7 @@ loc_ABEC:
                 mov     al, [bx+di]
                 mov     bx, ds:word_BB12
                 add     bx, 718h
-                jmp     word ptr cs:3016h ; draw_tile_to_screen_proc
+                jmp     word ptr cs:draw_tile_to_screen_proc
 sub_AB47        endp
 
 ; ---------------------------------------------------------------------------
@@ -1406,10 +1381,8 @@ byte_ABFF       db 5, 6, 7, 6, 5, 4, 3, 4
 
 sub_AC07        proc near
 
-; FUNCTION CHUNK AT AC28 SIZE 00000088 BYTES
-
                 mov     si, offset byte_AD9D
-                mov     bl, ds:0C006h   ; town_id
+                mov     bl, ds:town_id
                 dec     bl
                 xor     bh, bh
                 add     bx, bx          ; switch 8 cases
@@ -1417,7 +1390,7 @@ sub_AC07        proc near
 sub_AC07        endp
 
 ; ---------------------------------------------------------------------------
-jpt_AC14        dw offset loc_AC28      ; jump table for switch statement
+jpt_AC14        dw offset loc_AC28
                 dw offset loc_AC39
                 dw offset loc_AC4A
                 dw offset loc_AC5B
@@ -1426,103 +1399,101 @@ jpt_AC14        dw offset loc_AC28      ; jump table for switch statement
                 dw offset loc_AC8E
                 dw offset loc_AC9F
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_AC07
 
-loc_AC28:                               ;
-                test    byte ptr ds:0E5h, 80h ; sages_spoken_to_hero
+loc_AC28:
+                test    byte ptr ds:sages_spoken_to_hero, 80h
                 jz      short loc_AC30
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC30:
                 mov     si, offset aIAmTheSageMari ; "I am the Sage Marid./You are very brave"...
-                or      byte ptr ds:0E5h, 80h ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 80h
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC39:                               ;
-                test    byte ptr ds:0E5h, 40h ; sages_spoken_to_hero
+loc_AC39:
+                test    byte ptr ds:sages_spoken_to_hero, 40h
                 jz      short loc_AC41
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC41:
                 mov     si, offset aIAmTheSageYasm ; "I am the Sage Yasmin./I have been expec"...
-                or      byte ptr ds:0E5h, 40h ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 40h
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC4A:                               ;
-                test    byte ptr ds:0E5h, 20h ; sages_spoken_to_hero
+loc_AC4A:
+                test    byte ptr ds:sages_spoken_to_hero, 20h
                 jz      short loc_AC52
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC52:
                 mov     si, offset aIAmTheSageHajj ; "I am the Sage Hajjar./I am happy to see"...
-                or      byte ptr ds:0E5h, 20h ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 20h
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC5B:                               ;
-                test    byte ptr ds:0E5h, 10h ; sages_spoken_to_hero
+loc_AC5B:
+                test    byte ptr ds:sages_spoken_to_hero, 10h
                 jz      short loc_AC63
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC63:
                 mov     si, offset aIAmTheSageChir ; "I am the Sage Chiriga./You have come fa"...
-                or      byte ptr ds:0E5h, 10h ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 10h
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC6C:                               ;
-                test    byte ptr ds:0E5h, 8 ; sages_spoken_to_hero
+loc_AC6C:
+                test    byte ptr ds:sages_spoken_to_hero, 8
                 jz      short loc_AC74
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC74:
                 mov     si, offset aIAmTheSageHish ; "I am the Sage Hisham./You are doing wel"...
-                or      byte ptr ds:0E5h, 8 ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 8
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC7D:                               ;
-                test    byte ptr ds:0E5h, 4 ; sages_spoken_to_hero
+loc_AC7D:
+                test    byte ptr ds:sages_spoken_to_hero, 4
                 jz      short loc_AC85
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC85:
                 mov     si, offset aIAmTheSageMary ; "I am the Sage Maryam./You have made the"...
-                or      byte ptr ds:0E5h, 4 ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 4
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC8E:                               ;
-                test    byte ptr ds:0E5h, 2 ; sages_spoken_to_hero
+loc_AC8E:
+                test    byte ptr ds:sages_spoken_to_hero, 2
                 jz      short loc_AC96
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AC96:
                 mov     si, offset aIAmTheSageSaie ; "I am the Sage Saied./You have lived thr"...
-                or      byte ptr ds:0E5h, 2 ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 2
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_AC9F:                               ;
-                test    byte ptr ds:0E5h, 1 ; sages_spoken_to_hero
+loc_AC9F:
+                test    byte ptr ds:sages_spoken_to_hero, 1
                 jz      short loc_ACA7
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_ACA7:
                 mov     si, offset aIAmTheSageOfAl ; "I am the Sage of All Sages, Indihar./Br"...
-                or      byte ptr ds:0E5h, 1 ; sages_spoken_to_hero
+                or      byte ptr ds:sages_spoken_to_hero, 1
                 retn
-; END OF FUNCTION CHUNK FOR sub_AC07
 ; ---------------------------------------------------------------------------
 vfs_kenjya_grp  db    1
                 db  1Ah
@@ -1818,6 +1789,5 @@ byte_BB2E       db 0
 word_BB34       dw 0
 byte_BB36       db 0, 0, 0, 0, 0, 0, 0
 kenjpro         ends
-
 
                 end     start
