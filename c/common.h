@@ -371,7 +371,7 @@ typedef struct {
 #define fn_per_tick_user_ptr        0xFF1F  /* far pointer */
 #define per_tick_user_enabled       0xFF20
 #define byte_FF24                   0xFF24
-#define byte_FF26                   0xFF26
+#define music_status_flag                   0xFF26
 #define sound_fx_toggle_by_f2       0xFF27
 #define music_channel_param         0xFF28
 #define Current_ASCII_Char          0xFF29

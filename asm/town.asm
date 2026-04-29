@@ -2433,7 +2433,7 @@ loc_6F9D:
                 call    cs:res_dispatcher_proc ; res_dispatcher
 
 loc_6FC1:   
-                test    byte ptr ds:byte_FF26, 0FFh
+                test    byte ptr ds:music_status_flag, 0FFh
                 jz      short loc_6FC1
                 mov     si, offset falter_transition_desc
                 mov     es, cs:seg1

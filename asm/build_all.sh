@@ -10,6 +10,10 @@ cat << 'EOF' > build.bat
 path D:\;%PATH%
 tasm /m9 zeliard.asm >log.txt
 link zeliard.obj, zeliard.exe /CPARMAXALLOC:513; >>log.txt
+tasm /m9 mscadlib.asm >>log.txt
+tlink mscadlib.obj >>log.txt
+tasm /m9 sndadlib.asm >>log.txt
+tlink sndadlib.obj >>log.txt
 tasm /m9 stick.asm >>log.txt
 tlink stick.obj >>log.txt
 tasm /m9 game.asm >>log.txt
@@ -28,6 +32,8 @@ tasm /m9 ympd.asm >>log.txt
 tlink ympd.obj >>log.txt
 tasm /m9 ckpd.asm >>log.txt
 tlink ckpd.obj >>log.txt
+tasm /m9 opdemo.asm >>log.txt
+tlink opdemo.obj >>log.txt
 tasm /m9 town.asm >>log.txt
 tlink town.obj >>log.txt
 tasm /m9 kenjpro.asm >>log.txt
@@ -50,6 +56,8 @@ dosbox-x -c "mount c ." \
          -c "c:" \
          -c "build.bat"
 
+python3 exe2bin.py MSCADLIB.EXE mscadlib.drv 0x100
+python3 exe2bin.py SNDADLIB.EXE sndadlib.drv 0x1100
 python3 exe2bin.py STICK.EXE stick.bin 0x100
 python3 exe2bin.py GAME.EXE game.bin 0xA000
 python3 exe2bin.py MOLE.EXE mole.bin 0
@@ -59,6 +67,7 @@ python3 exe2bin.py GTMCGA.EXE gtmcga.bin 0x3000
 python3 exe2bin.py GFMCGA.EXE gfmcga.bin 0x3000
 python3 exe2bin.py YMPD.EXE ympd.bin 0x3300
 python3 exe2bin.py CKPD.EXE ckpd.bin 0x3300
+python3 exe2bin.py OPDEMO.EXE opdemo.bin 0x6000
 python3 exe2bin.py TOWN.EXE town.bin 0x6000
 python3 exe2bin.py KENJPRO.EXE kenjpro.bin 0xA000
 python3 exe2bin.py FIGHT.EXE fight.bin 0x6000
@@ -68,6 +77,10 @@ python3 exe2bin.py CRAB.EXE crab.bin 0xA000
 
 echo "ZELIARD.EXE diffs:" >diff.txt
 { cmp -l ../game/zeliard.exe ZELIARD.EXE | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "mscadlib.drv diffs:" >>diff.txt
+{ cmp -l ../game/mscadlib.drv mscadlib.drv | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "sndadlib.drv diffs:" >>diff.txt
+{ cmp -l ../game/sndadlib.drv sndadlib.drv | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "stick.bin diffs:" >>diff.txt
 { cmp -l ../game/stick.bin stick.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "game.bin diffs:" >>diff.txt
@@ -86,6 +99,8 @@ echo "ympd.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/ympd.bin ympd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "ckpd.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/ckpd.bin ckpd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "opdemo.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/1/opdemo.bin opdemo.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "town.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/town.bin town.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "kenjpro.bin diffs:" >>diff.txt

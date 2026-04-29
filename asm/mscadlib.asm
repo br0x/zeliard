@@ -19,7 +19,15 @@ music_drv_poll_farproc  endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; AL: function (0..7)
+; fn0	Init/Play	  Clears buffers, loads music data, and starts playback.
+; fn1	Stop	      Silences all channels and halts the driver.
+; fn2	BGM Toggle	  Pauses or Resumes the main music track.
+; fn3	SFX Toggle	  Pauses or Resumes sound effects/secondary tracks.
+; fn4	Raw Write	  Writes a byte directly to OPL2 Register 0.
+; fn5	Drum Config	  Sets up OPL Rhythm Mode and percussion bits.
+; fn6	Fade/Mute	  Manages channel fading and selective muting.
+; fn7	Master Vol	  Adjusts global attenuation/volume (0-63).
 int60_new_proc  proc far
                 push    ax
                 push    bx
@@ -52,18 +60,19 @@ loc_11D:
 int60_new_proc  endp
 
 ; ---------------------------------------------------------------------------
-music_funcs     dw offset music_fn0
-                dw offset music_fn1
-                dw offset music_fn2
-                dw offset music_fn3
-                dw offset music_fn4
-                dw offset music_fn5
-                dw offset music_fn6
-                dw offset music_fn7
+music_funcs     dw offset music_fn0  ; Init/Play
+                dw offset music_fn1  ; Stop
+                dw offset music_fn2  ; BGM Toggle
+                dw offset music_fn3  ; SFX Toggle
+                dw offset music_fn4  ; Raw Write
+                dw offset music_fn5  ; Drum Config
+                dw offset music_fn6  ; Fade/Mute
+                dw offset music_fn7  ; Master Vol
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; BGM Toggle	  Pauses or Resumes the main music track.
+; CL = 00h -> Pause, CL != 00h -> Resume
 music_fn2       proc near
 
                 or      cl, cl
@@ -81,7 +90,7 @@ music_fn2       endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; SFX Toggle	  Pauses or Resumes sound effects/secondary tracks.
 music_fn3       proc near
 
                 or      cl, cl
@@ -99,7 +108,7 @@ music_fn3       endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Raw Write	  Writes a byte directly to OPL2 Register 0.
 music_fn4       proc near
                 xor     ah, ah
                 jmp     word ptr cs:OPL_save_al_to_reg_ah_proc
@@ -108,7 +117,8 @@ music_fn4       endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Drum Config	  Sets up OPL Rhythm Mode and percussion bits.
+; CL: percussion flags
 music_fn5       proc near
                 test    cl, 38h
                 jnz     short loc_178
@@ -144,12 +154,12 @@ music_fn5       endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Fade/Mute	  Manages channel fading and selective muting.
 music_fn6       proc near
 
                 or      cl, cl
                 jnz     short loc_1F6
-                mov     di, offset byte_C49
+                mov     di, offset opl_buf4
                 test    byte ptr es:[di+2Bh], 0FFh
                 jz      short loc_1B1
                 call    sub_1EE
@@ -161,7 +171,7 @@ loc_1B1:
                 call    sub_1EE
 
 loc_1BE:
-                test    byte ptr es:(byte_FF26 - segment_shift), 0FFh
+                test    byte ptr es:(music_status_flag - segment_shift), 0FFh
                 jz      short loc_1C9
                 jmp     sub_3D2
 ; ---------------------------------------------------------------------------
@@ -199,7 +209,7 @@ sub_1EE         endp
 ; ---------------------------------------------------------------------------
 
 loc_1F6:
-                mov     di, offset byte_C49
+                mov     di, offset opl_buf4
                 shr     cl, 1
                 sbb     al, al
                 mov     es:[di+2Bh], al
@@ -211,7 +221,8 @@ loc_1F6:
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Master Vol	  Adjusts global attenuation/volume (0-63).
+; CL: attenuation/volume (0-63)
 music_fn7       proc near
                 not     cl
                 mov     cs:(byte_FF76 - segment_shift), cl
@@ -229,7 +240,7 @@ sub_21F         proc near
                 cld
                 push    cs
                 pop     es
-                mov     di, offset byte_B99
+                mov     di, offset opl_buf0
                 mov     cx, 302
                 xor     al, al
                 rep stosb
@@ -239,24 +250,24 @@ sub_21F         proc near
                 mov     es:(byte_FF24 - segment_shift), al
                 mov     es:(byte_FF25 - segment_shift), al
                 not     al
-                mov     es:(byte_FF26 - segment_shift), al
+                mov     es:(music_status_flag - segment_shift), al
                 retn
 sub_21F         endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Init/Play	  Clears buffers, loads music data, and starts playback.
 music_fn0       proc near
                 call    sub_21F
                 call    sub_3D2
                 mov     ax, 120h
                 call    loc_B11
-                mov     es:word_CBD, si
+                mov     es:music_seq_ptr, si
                 mov     es:word_CBF, ds
                 mov     dx, si
                 inc     si
-                mov     di, offset byte_B99
+                mov     di, offset opl_buf0
                 mov     cx, 6
                 xor     bl, bl
 
@@ -266,7 +277,7 @@ loc_268:
                 inc     bl
                 loop    loc_268
                 add     si, 6
-                mov     di, offset byte_CA1
+                mov     di, offset opl_buf6
                 call    sub_376
                 mov     byte ptr es:[di+0Ch], 80h
                 lodsw
@@ -400,7 +411,7 @@ loc_386:
                 call    sub_30D
                 mov     bl, 8
                 call    sub_30D
-                mov     di, offset byte_CA1
+                mov     di, offset opl_buf6
                 call    sub_988
                 xor     al, al
                 mov     cx, 6
@@ -424,7 +435,7 @@ sub_3B1         proc near
                 mov     ds, es:word_CBF
                 mov     cl, 44
                 mul     cl
-                add     ax, offset byte_B99
+                add     ax, offset opl_buf0
                 mov     di, ax
                 mov     si, es:[di+29h]
                 jmp     sub_5AF
@@ -433,10 +444,10 @@ sub_3B1         endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Stop	      Silences all channels and halts the driver.
 music_fn1       proc near
                 call    sub_3D2
-                mov     byte ptr es:(byte_FF26 - segment_shift), 0FFh
+                mov     byte ptr es:(music_status_flag - segment_shift), 0FFh
                 retn
 music_fn1       endp
 
@@ -473,7 +484,7 @@ sub_3E5         endp
 
 sub_3EA         proc near
 
-                test    byte ptr cs:(byte_FF26 - segment_shift), 0FFh
+                test    byte ptr cs:(music_status_flag - segment_shift), 0FFh
                 jz      short loc_3F3
                 retn
 ; ---------------------------------------------------------------------------
@@ -498,7 +509,7 @@ loc_404:
                 test    byte ptr es:(byte_FF24 - segment_shift), 0FFh
                 jz      short loc_425
                 call    sub_463
-                test    byte ptr es:(byte_FF26 - segment_shift), 0FFh
+                test    byte ptr es:(music_status_flag - segment_shift), 0FFh
                 jz      short loc_425
                 retn
 ; ---------------------------------------------------------------------------
@@ -509,19 +520,19 @@ loc_425:
                 add     es:byte_CB8, al
                 sbb     al, al
                 mov     es:byte_CBA, al
-                mov     di, offset byte_B99
+                mov     di, offset opl_buf0
                 call    sub_49D
-                mov     di, offset byte_BC5
+                mov     di, offset opl_buf1
                 call    sub_49D
-                mov     di, offset byte_BF1
+                mov     di, offset opl_buf2
                 call    sub_49D
-                mov     di, offset byte_C1D
+                mov     di, offset opl_buf3
                 call    sub_49D
-                mov     di, offset byte_C49
+                mov     di, offset opl_buf4
                 call    sub_49D
-                mov     di, offset byte_C75
+                mov     di, offset opl_buf5
                 call    sub_49D
-                mov     di, offset byte_CA1
+                mov     di, offset opl_buf6
                 jmp     loc_8A9
 sub_3EA         endp ; sp-analysis failed
 
@@ -544,7 +555,7 @@ loc_471:
                 add     al, 4
                 jnb     short loc_498
                 mov     byte ptr es:(byte_FF24 - segment_shift), 0
-                mov     byte ptr es:(byte_FF26 - segment_shift), 0FFh
+                mov     byte ptr es:(music_status_flag - segment_shift), 0FFh
                 call    sub_3D2
                 mov     al, 0FFh
 
@@ -1338,7 +1349,7 @@ loc_9F7:
                 lodsw
                 cmp     es:[bx+21h], dl
                 jnz     short locret_A0C
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
 
 locret_A0C:
@@ -1366,7 +1377,7 @@ loc_A1E:
                 dec     byte ptr es:[bx+di+6]
                 jz      short locret_A3A
                 and     ax, 3FFFh
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
 
 locret_A3A:
@@ -1383,7 +1394,7 @@ loc_A3B:
                 dec     byte ptr es:[bx+di+6]
                 jnz     short locret_A57
                 and     ax, 3FFFh
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
 
 locret_A57:
@@ -1402,7 +1413,7 @@ loc_A58:
                 cmp     es:[bx+di+6], cl
                 jnz     short locret_A77
                 and     ax, 3FFFh
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
 
 locret_A77:
@@ -1427,7 +1438,7 @@ loc_A82:
 
 loc_A8C:
                 lodsw
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
                 retn
 ; ---------------------------------------------------------------------------
@@ -1437,7 +1448,7 @@ loc_A95:
                 mov     es:[di+2], si
                 mov     cx, es:[di+0Ah]
                 mov     es:[di+4], cx
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
                 retn
 ; ---------------------------------------------------------------------------
@@ -1457,7 +1468,7 @@ loc_AAA:
                 mov     cx, es:[di+0Ah]
                 mov     es:[di+4], cx
                 and     ax, 3FFFh
-                add     ax, es:word_CBD
+                add     ax, es:music_seq_ptr
                 mov     si, ax
 
 locret_AD5:
@@ -1481,7 +1492,7 @@ loc_AE3:
 ; ---------------------------------------------------------------------------
 
 loc_AF7:
-                mov     byte ptr es:(byte_FF26 - segment_shift), 3Fh
+                mov     byte ptr es:(music_status_flag - segment_shift), 3Fh
                 jmp     sub_3D2
 ; END OF FUNCTION CHUNK FOR sub_49D
 
@@ -1582,25 +1593,25 @@ byte_B75        db 0, 1, 2, 8, 9, 0Ah, 10h, 11h, 12h
 byte_B7E        db 0, 0, 0Bh, 40h, 0A8h, 0D6h, 0BCh, 0BFh, 0, 1, 0Ch, 0
                 db 0, 0D8h, 0C7h, 68h, 46h, 0Fh, 2, 88h, 0, 0, 0C8h, 0F5h
                 db 67h, 65h, 0
-byte_B99        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf0        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_BC5        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf1        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_BF1        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf2        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_C1D        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf3        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_C49        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf4        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_C75        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf5        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0
-byte_CA1        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+opl_buf6        db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0
 byte_CB7        db 0
 byte_CB8        db 0
@@ -1608,7 +1619,7 @@ byte_CB9        db 0
 byte_CBA        db 0
 byte_CBB        db 0
 byte_CBC        db 0
-word_CBD        dw 0
+music_seq_ptr   dw 0
 word_CBF        dw 0
 word_CC1        dw 0
 word_CC3        dw 0

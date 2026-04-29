@@ -178,7 +178,7 @@ init_done_or_not_needed:
                 mov     byte ptr es:spacebar_latch, 0
                 mov     byte ptr es:altkey_latch, 0
                 mov     word ptr es:fn_per_tick_user_ptr, 0
-                mov     byte ptr es:byte_FF26, 0FFh
+                mov     byte ptr es:music_status_flag, 0FFh
                 mov     byte ptr es:exit_pending_flag, 0FFh
                 mov     byte ptr es:sound_fx_toggle_by_f2, 0
                 mov     byte ptr es:music_channel_param, 0

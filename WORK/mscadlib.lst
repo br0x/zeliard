@@ -538,7 +538,7 @@ seg000:040C                 mov     ds, es:word_CBF
 seg000:0411                 test    byte ptr es:24h, 0FFh ; byte_FF24 - 0FF00h
 seg000:0417                 jz      short loc_425
 seg000:0419                 call    sub_463
-seg000:041C                 test    byte ptr es:26h, 0FFh ; byte_FF26 - 0FF00h
+seg000:041C                 test    byte ptr es:26h, 0FFh ; music_status_flag - 0FF00h
 seg000:0422                 jz      short loc_425
 seg000:0424                 retn
 seg000:0425 ; ---------------------------------------------------------------------------

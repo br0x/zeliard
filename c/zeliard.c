@@ -451,7 +451,7 @@ static void init_game_mem_flags(void)
 
     /* callback / misc */
     GM_WORD(fn_per_tick_user_ptr) = 0;
-    GM_BYTE(byte_FF26)            = 0xFF;
+    GM_BYTE(music_status_flag)            = 0xFF;
     GM_BYTE(exit_pending_flag)    = 0xFF;
     GM_BYTE(sound_fx_toggle_by_f2) = 0;
     GM_BYTE(music_channel_param)  = 0;

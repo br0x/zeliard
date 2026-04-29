@@ -2682,7 +2682,7 @@ seg004:6FBA                 mov     al, 2
 seg004:6FBC                 call    cs:res_dispatcher_proc ; res_dispatcher
 seg004:6FC1
 seg004:6FC1 loc_6FC1:                               ; ...
-seg004:6FC1                 test    ds:byte_FF26, 0FFh
+seg004:6FC1                 test    ds:music_status_flag, 0FFh
 seg004:6FC6                 jz      short loc_6FC1
 seg004:6FC8                 mov     si, offset word_6FED
 seg004:6FCB                 mov     es, cs:seg1
@@ -4496,7 +4496,7 @@ seg004:FF22                 db    ? ;
 seg004:FF23                 db    ? ;
 seg004:FF24 byte_FF24       db ?
 seg004:FF25                 db    ? ;
-seg004:FF26 byte_FF26       db ?
+seg004:FF26 music_status_flag       db ?
 seg004:FF27                 db    ? ;
 seg004:FF28                 db    ? ;
 seg004:FF29 Current_ASCII_Char       db ?

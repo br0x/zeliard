@@ -542,7 +542,7 @@ byte_FF22                                          equ 0FF22h
 byte_FF23                                          equ 0FF23h
 byte_FF24                                          equ 0FF24h
 byte_FF25                                          equ 0FF25h
-byte_FF26                                          equ 0FF26h
+music_status_flag                                          equ 0FF26h
 sound_fx_toggle_by_f2                              equ 0FF27h
 music_channel_param                                equ 0FF28h
 Current_ASCII_Char                                 equ 0FF29h

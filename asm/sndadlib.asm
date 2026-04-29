@@ -840,7 +840,7 @@ loc_1611:
                 push    cx
                 mov     ax, 6
                 mov     cl, 3
-                int     60h             ; adlib fn_6
+                int     60h             ; adlib fn_6 - Fade Out channel
                 call    sub_169E
                 pop     cx
                 neg     ch
