@@ -853,9 +853,9 @@ loc_68F7:
                 push    cx
                 push    dx
                 push    bx
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
                 mov     cx, dx
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
                 mov     al, 0Fh
                 call    sub_6A07
                 pop     bx
@@ -865,71 +865,71 @@ loc_68F7:
                 pop     cx
                 loop    loc_68F7
                 xor     ax, ax
-                call    word ptr cs:3020h ; Render_Scrolling_Border_proc
+                call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 7
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuu2_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 mov     bx, 1010h
                 mov     cx, 3160h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuu3_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     si, offset vfs_yuu4_grp
                 mov     di, 0D000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
                 mov     bx, 0
                 mov     cx, 50C8h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
                 mov     bx, 808h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 call    sub_6FAC
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     si, 0D000h
                 mov     di, 0D000h
                 call    sub_6D5E
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 mov     si, 0D000h
                 call    sub_6F41
                 mov     al, 0FFh
                 mov     bx, 808h
                 mov     cx, 40C0h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                mov     byte ptr cs:frame_timer, 0
                 mov     al, 0F0h
                 call    sub_6A07
                 mov     al, 0FFh
                 mov     bx, 808h
                 mov     cx, 40C0h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3002h ; Decompress_3Plane_2Row_proc
+                call    word ptr cs:Decompress_3Plane_2Row_proc
                 mov     ax, 1
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     si, offset aAtLastTheDoorO ; "                At last,               "...
                 call    sub_6D04
                 mov     cx, 0Ah
@@ -947,9 +947,9 @@ loc_69FC:
 
 sub_6A07        proc near
                 call    sub_6A18
-                cmp     cs:0FF1Ah, al   ; frame_timer
+                cmp     cs:frame_timer, al
                 jb      short sub_6A07
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
                 retn
 sub_6A07        endp
 
@@ -958,16 +958,16 @@ sub_6A07        endp
 
 
 sub_6A18        proc near
-                test    byte ptr cs:0FF1Dh, 0FFh ; spacebar_latch
+                test    byte ptr cs:spacebar_latch, 0FFh
                 jnz     short loc_6A41
-                cmp     byte ptr cs:0FF29h, 0Dh ; Current_ASCII_Char
+                cmp     byte ptr cs:Current_ASCII_Char, 0Dh
                 jz      short loc_6A41
                 push    si
                 push    ax
-                call    word ptr cs:110h ; Confirm_Exit_Dialog_proc
-                call    word ptr cs:112h ; Handle_Pause_State_proc
-                call    word ptr cs:116h ; Joystick_Calibration_proc
-                call    word ptr cs:118h ; Joystick_Deactivator_proc
+                call    word ptr cs:Confirm_Exit_Dialog_proc
+                call    word ptr cs:Handle_Pause_State_proc
+                call    word ptr cs:Joystick_Calibration_proc
+                call    word ptr cs:Joystick_Deactivator_proc
                 pop     ax
                 pop     si
                 retn
@@ -976,16 +976,16 @@ sub_6A18        proc near
 loc_6A41:
                 mov     bx, 0
                 mov     cx, 50C8h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     ax, cs
                 mov     es, ax
                 mov     ds, ax
                 mov     si, offset vfs_game_bin
                 mov     di, 0A000h
                 mov     al, 3
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     ax, 0FFFFh
                 jmp     cs:word_6A73
 sub_6A18        endp
@@ -997,7 +997,7 @@ word_6A73       dw 0A000h
 
 
 sub_6A75        proc near
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
 
 loc_6A7B:
                 mov     al, 10h
@@ -1026,7 +1026,7 @@ loc_6A92:
                 cmp     al, 27h ; '''
                 jz      short loc_6AAE
                 mov     ah, ds:byte_6D5D
-                mov     ds:0FF75h, ah   ; soundFX_request
+                mov     ds:soundFX_request, ah
 
 loc_6AAE:
                 push    ax
@@ -1053,12 +1053,12 @@ loc_6AAE:
                 inc     bx
                 inc     cx
                 mov     ah, ds:byte_6D5B
-                call    word ptr cs:3030h ; GDMCGA_Font_Glyph_Thunk_proc
+                call    word ptr cs:GDMCGA_Font_Glyph_Thunk_proc
                 pop     cx
                 pop     bx
                 pop     ax
                 mov     ah, ds:byte_6D5C
-                call    word ptr cs:3030h ; GDMCGA_Font_Glyph_Thunk_proc
+                call    word ptr cs:GDMCGA_Font_Glyph_Thunk_proc
                 pop     ax
                 mov     bl, al
                 sub     bl, 20h ; ' '
@@ -1224,7 +1224,7 @@ loc_6BFD:
                 mov     bx, 8Fh
                 mov     cx, 5039h
                 xor     al, al
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 xor     ah, ah
                 jmp     short loc_6BE3
 ; ---------------------------------------------------------------------------
@@ -1245,8 +1245,8 @@ loc_6C16:
                 jmp     loc_6A7B
 ; ---------------------------------------------------------------------------
 
-loc_6C28:                               ;
-                mov     es, word ptr cs:0FF2Ch ; seg1
+loc_6C28:
+                mov     es, word ptr cs:seg1
                 and     al, 0Fh
                 cmp     al, 6
                 jnb     short loc_6C56
@@ -1262,7 +1262,7 @@ loc_6C28:                               ;
                 mov     di, ax
                 mov     bx, 3350h
                 mov     cx, 0E20h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 jmp     loc_6A80
 ; ---------------------------------------------------------------------------
 
@@ -1278,12 +1278,12 @@ loc_6C56:
                 mov     di, ax
                 mov     bx, 3338h
                 mov     cx, 0B10h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 jmp     loc_6A80
 ; ---------------------------------------------------------------------------
 
-loc_6C77:                               ;
-                mov     es, word ptr cs:0FF2Ch ; seg1
+loc_6C77:
+                mov     es, word ptr cs:seg1
                 and     al, 0Fh
                 cmp     al, 6
                 jnb     short loc_6CA3
@@ -1298,7 +1298,7 @@ loc_6C77:                               ;
                 mov     di, ax
                 mov     bx, 1350h
                 mov     cx, 920h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 jmp     loc_6A80
 ; ---------------------------------------------------------------------------
 
@@ -1314,7 +1314,7 @@ loc_6CA3:
                 mov     di, ax
                 mov     bx, 1238h
                 mov     cx, 0B10h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 jmp     loc_6A80
 sub_6A75        endp
 
@@ -1394,11 +1394,11 @@ sub_6D04        proc near
                 push    si
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Ah ; Clear_Seg2_Buffer_proc
+                call    word ptr cs:Clear_Seg2_Buffer_proc
                 pop     si
 
-loc_6D11:                               ;
-                call    word ptr cs:300Ch ; Render_Text_String_proc
+loc_6D11:
+                call    word ptr cs:Render_Text_String_proc
                 push    si
                 mov     cx, 0Ah
 
@@ -1409,7 +1409,7 @@ loc_6D1A:
                 add     ax, 0Ah
                 mov     bx, 14h
                 mov     cx, 50A0h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_6A07
                 pop     cx
@@ -1424,13 +1424,13 @@ loc_6D3F:
                 xor     ax, ax
                 mov     bx, 14h
                 mov     cx, 50A0h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_6A07
                 pop     cx
                 loop    loc_6D3F
                 retn
-sub_6D04        endp ; sp-analysis failed
+sub_6D04        endp
 
 ; ---------------------------------------------------------------------------
 off_6D56        dw offset byte_79C6
@@ -1446,36 +1446,8 @@ byte_6D5D       db 0
 sub_6D5E        proc near
 
                 call    sub_6D63
-                jmp     short loc_6D8D  ; #include <stdint.h>
-sub_6D5E        endp                    ;
-                                        ; /**
-                                        ;  * @brief Decodes a bitstream using a 2-bit XOR delta pattern.
-                                        ;  * * @param source      Pointer to the input bitstream buffer.
-                                        ;  * @param destination Pointer to the output buffer.
-                                        ;  * @param count       Number of bytes to generate (the 'loop' counter).
-                                        ;  */
-                                        ; void decode_bits(uint8_t *source, uint8_t *destination, int count) {
-                                        ;     uint8_t state_dh = 0; // Running XOR state
-                                        ;
-                                        ;     for (int i = 0; i < count; i++) {
-                                        ;         uint8_t result_ah = 0;
-                                        ;
-                                        ;         // Process 4 pairs of bits to fill one byte (4 * 2 = 8 bits)
-                                        ;         for (int j = 0; j < 4; j++) {
-                                        ;             // 1. Extract 2 bits from the source
-                                        ;             // Note: The ASM uses 'rcl', suggesting it pulls from
-                                        ;             // the top of the byte at [di] repeatedly.
-                                        ;             uint8_t bits = 0;
-                                        ;
-                                        ;             // Extract Bit 1
-                                        ;             bits = (*source >> 7) & 1;
-                                        ;             *source <<= 1;
-                                        ;
-                                        ;             // Extract Bit 2
-                                        ;             bits = (bits << 1) | ((*source >> 7) & 1);
-                                        ;             *source <<= 1;
-                                        ;
-                                        ;
+                jmp     short loc_6D8D  
+sub_6D5E        endp                    
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -1518,37 +1490,34 @@ loc_6D80:
 sub_6D63        endp
 
 ; ---------------------------------------------------------------------------
-
-loc_6D8D:                               ; #include <stdint.h>
-                xor     dh, dh          ;
-                                        ; /**
-                                        ;  * @brief Decodes a bitstream using a 2-bit XOR delta pattern.
-                                        ;  * * @param source      Pointer to the input bitstream buffer.
-                                        ;  * @param destination Pointer to the output buffer.
-                                        ;  * @param count       Number of bytes to generate (the 'loop' counter).
-                                        ;  */
-                                        ; void decode_bits(uint8_t *source, uint8_t *destination, int count) {
-                                        ;     uint8_t state_dh = 0; // Running XOR state
-                                        ;
-                                        ;     for (int i = 0; i < count; i++) {
-                                        ;         uint8_t result_ah = 0;
-                                        ;
-                                        ;         // Process 4 pairs of bits to fill one byte (4 * 2 = 8 bits)
-                                        ;         for (int j = 0; j < 4; j++) {
-                                        ;             // 1. Extract 2 bits from the source
-                                        ;             // Note: The ASM uses 'rcl', suggesting it pulls from
-                                        ;             // the top of the byte at [di] repeatedly.
-                                        ;             uint8_t bits = 0;
-                                        ;
-                                        ;             // Extract Bit 1
-                                        ;             bits = (*source >> 7) & 1;
-                                        ;             *source <<= 1;
-                                        ;
-                                        ;             // Extract Bit 2
-                                        ;             bits = (bits << 1) | ((*source >> 7) & 1);
-                                        ;             *source <<= 1;
-                                        ;
-                                        ;
+; /**
+;  * @brief Decodes a bitstream using a 2-bit XOR delta pattern.
+;  * @param source      Pointer to the input bitstream buffer.
+;  * @param destination Pointer to the output buffer.
+;  * @param count       Number of bytes to generate (the 'loop' counter).
+;  */
+; void decode_bits(uint8_t *source, uint8_t *destination, int count) {
+;     uint8_t state_dh = 0; // Running XOR state
+;
+;     for (int i = 0; i < count; i++) {
+;         uint8_t result_ah = 0;
+;
+;         // Process 4 pairs of bits to fill one byte (4 * 2 = 8 bits)
+;         for (int j = 0; j < 4; j++) {
+;             // 1. Extract 2 bits from the source
+;             // Note: The ASM uses 'rcl', suggesting it pulls from
+;             // the top of the byte at [di] repeatedly.
+;             uint8_t bits = 0;
+;
+;             // Extract Bit 1
+;             bits = (*source >> 7) & 1;
+;             *source <<= 1;
+;
+;             // Extract Bit 2
+;             bits = (bits << 1) | ((*source >> 7) & 1);
+;             *source <<= 1;
+loc_6D8D:
+                xor     dh, dh
 
 loc_6D8F:
                 xor     al, al
@@ -1642,7 +1611,7 @@ sub_6E0F        proc near
                 mov     cx, 1650h
                 xor     ax, ax
                 rep stosw
-                mov     ds, word ptr cs:0FF2Ch ; seg1
+                mov     ds, word ptr cs:seg1
                 mov     di, 0
                 mov     bx, 0
                 mov     cx, 2230h
@@ -1730,7 +1699,7 @@ sub_6E8F        proc near
                 mov     dx, 0CC0h
                 mul     dx
                 add     ax, 0AB40h
-                mov     ds, word ptr cs:0FF2Ch ; seg1
+                mov     ds, word ptr cs:seg1
                 mov     si, ax
                 mov     ax, cs
                 add     ax, 2000h
@@ -1778,7 +1747,7 @@ sub_6ED8        proc near
                 push    es
                 pop     ds
                 mov     si, di
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 46D3h
                 mov     cx, 30h ; '0'
 
@@ -1899,7 +1868,7 @@ loc_6FB2:
                 pop     bx
                 mov     cx, 40C0h
                 mov     al, 0FFh
-                jmp     word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
+                jmp     word ptr cs:Decompress_3Plane_Interleaved_proc
 sub_6FAC        endp ; sp-analysis failed
 
 ; ---------------------------------------------------------------------------
