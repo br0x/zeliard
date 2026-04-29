@@ -12,9 +12,9 @@ music_seg       segment byte public 'CODE'
                 org 100h
 start:
 
-music_drv_poll_farproc  proc far
+music_drv_poll_far      proc far
                 jmp     near ptr sub_3E5
-music_drv_poll_farproc  endp
+music_drv_poll_far      endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -28,7 +28,7 @@ music_drv_poll_farproc  endp
 ; fn5	Drum Config	  Sets up OPL Rhythm Mode and percussion bits.
 ; fn6	Fade/Mute	  Manages channel fading and selective muting.
 ; fn7	Master Vol	  Adjusts global attenuation/volume (0-63).
-int60_new_proc  proc far
+int60_new       proc far
                 push    ax
                 push    bx
                 push    cx
@@ -57,7 +57,7 @@ loc_11D:
                 pop     bx
                 pop     ax
                 iret
-int60_new_proc  endp
+int60_new       endp
 
 ; ---------------------------------------------------------------------------
 music_funcs     dw offset music_fn0  ; Init/Play

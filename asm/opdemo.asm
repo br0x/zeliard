@@ -15,11 +15,11 @@ sub_6002        proc near
                 cli
                 mov     sp, 2000h
                 sti
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 push    cs
                 pop     ds
-                call    word ptr cs:2042h ; Clear_Screen_proc
+                call    word ptr cs:Clear_Screen_proc
                 push    cs
                 pop     ds
                 push    cs
@@ -27,84 +27,84 @@ sub_6002        proc near
                 mov     si, offset vfs_ttl3_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6DE1
                 mov     ax, 4
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 xor     bx, bx
                 mov     cl, 96h
                 mov     si, offset byte_64EA
-                call    word ptr cs:202Ah ; Render_String_FF_Terminated_proc
+                call    word ptr cs:Render_String_FF_Terminated_proc
                 mov     bx, 70Fh
                 mov     cx, 4170h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:301Ah ; Decompress_3Plane_XOR_proc
+                call    word ptr cs:Decompress_3Plane_XOR_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_nec_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     si, offset vfs_hou_grp
                 mov     di, 0B800h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
-                call    word ptr cs:2042h ; Clear_Screen_proc
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                call    word ptr cs:Clear_Screen_proc
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     ax, 1
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     al, 0FFh
                 mov     bx, 1220h
                 mov     cx, 2C68h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3002h ; Decompress_3Plane_2Row_proc
+                call    word ptr cs:Decompress_3Plane_2Row_proc
                 call    sub_6358
                 mov     ax, 2
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     al, 0FFh
                 mov     bx, 1220h
                 mov     cx, 2C68h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0B800h
                 mov     di, 9000h
                 call    sub_6D5E
                 mov     bx, 2048h
                 mov     cx, 1040h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 75A0h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
-                mov     byte ptr cs:0FF75h, 4 ; soundFX_request
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                mov     byte ptr cs:soundFX_request, 4
                 mov     si, 9060h
-                call    word ptr cs:3012h ; Animate_Sprites_proc
+                call    word ptr cs:Animate_Sprites_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_dmaou_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 97C0h
                 call    sub_6D5E
                 call    sub_6E0F
                 mov     bx, 1220h
                 mov     cx, 2C68h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
                 mov     ax, 3
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax
@@ -112,56 +112,56 @@ sub_6002        proc near
                 mov     bx, 1720h
                 mov     cx, 2270h
                 mov     di, 0
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
                 mov     si, offset byte_911E
 
-loc_6154:                               ;
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+loc_6154:
+                mov     byte ptr ds:frame_timer, 0
                 lodsb
                 or      al, al
                 jz      short loc_6171
                 push    si
                 dec     al
                 mov     bx, 1720h
-                call    word ptr cs:3014h ; Load_Tiles_From_Big_Block_proc
+                call    word ptr cs:Load_Tiles_From_Big_Block_proc
                 pop     si
                 mov     al, 14h
                 call    sub_63AB
                 jmp     short loc_6154
 ; ---------------------------------------------------------------------------
 
-loc_6171:                               ;
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+loc_6171:
+                mov     byte ptr ds:frame_timer, 0
                 mov     al, 0F0h
                 call    sub_63AB
                 mov     si, 9096h
                 call    sub_62D1
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 mov     al, 0F0h
                 call    sub_63AB
                 mov     al, 2
                 mov     bx, 1720h
-                call    word ptr cs:3014h ; Load_Tiles_From_Big_Block_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:Load_Tiles_From_Big_Block_proc
+                mov     byte ptr ds:frame_timer, 0
                 mov     al, 0Fh
                 call    sub_63AB
                 mov     al, 3
                 mov     bx, 1720h
-                call    word ptr cs:3014h ; Load_Tiles_From_Big_Block_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:Load_Tiles_From_Big_Block_proc
+                mov     byte ptr ds:frame_timer, 0
                 mov     al, 0F0h
                 call    sub_63AB
                 xor     al, al
                 mov     bx, 94h
                 mov     cx, 501Eh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_ttl1_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6DE1
@@ -170,41 +170,39 @@ loc_6171:                               ;
                 mov     si, offset vfs_ttl2_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     si, offset vfs_ttl3_grp
                 mov     di, 0B000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     si, offset vfs_zopn_msd
                 mov     es, word ptr cs:0FF2Ch ; seg1
                 mov     di, 3000h
                 mov     al, 5
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     bx, 1720h
                 mov     cx, 2270h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
                 mov     ax, 4
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                mov     byte ptr ds:frame_timer, 0
                 push    ds
-                mov     ds, word ptr cs:0FF2Ch ; seg1
+                mov     ds, word ptr cs:seg1
                 mov     si, 3000h
                 xor     ax, ax
-                int     60h             ; SYS_PROF.EXE - PROFILER STATUS
-                                        ; Return: AX = 0000h    profiling is off
-                                        ; otherwise profiling is on
+                int     60h             ; adlib fn 0
                 pop     ds
-                call    word ptr cs:3018h ; GDMCGA_Clear_Viewport_proc
+                call    word ptr cs:GDMCGA_Clear_Viewport_proc
                 mov     al, 0F0h
                 call    sub_63AB
                 xor     al, al
                 mov     bx, 0B48h
                 mov     cx, 3180h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                mov     byte ptr ds:frame_timer, 0
+                mov     es, word ptr cs:seg1
                 mov     si, 0B000h
                 mov     di, 4000h
                 call    sub_6DE1
@@ -212,16 +210,16 @@ loc_6171:                               ;
                 call    sub_63AB
                 mov     bx, 70Fh
                 mov     cx, 4170h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:301Ah ; Decompress_3Plane_XOR_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:Decompress_3Plane_XOR_proc
+                mov     byte ptr ds:frame_timer, 0
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6DE1
                 mov     si, 912Bh
-                call    word ptr cs:301Ch ; Render_Tile_Grid_proc
+                call    word ptr cs:Render_Tile_Grid_proc
                 mov     al, 0F0h
                 call    sub_63AB
                 mov     ax, 0C7h
@@ -229,13 +227,13 @@ loc_6171:                               ;
 
 loc_62A1:
                 push    cx
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr ds:frame_timer, 0
                 push    ax
-                call    word ptr cs:301Eh ; Blit_And_Or_Xor_Masked_proc
+                call    word ptr cs:Blit_And_Or_Xor_Masked_proc
                 pop     ax
                 push    ax
                 mov     al, ah
-                call    word ptr cs:301Eh ; Blit_And_Or_Xor_Masked_proc
+                call    word ptr cs:Blit_And_Or_Xor_Masked_proc
                 mov     al, 50h ; 'P'
                 call    sub_63AB
                 pop     ax
@@ -246,7 +244,7 @@ loc_62A1:
 
 loc_62C4:
                 call    sub_63CC
-                test    byte ptr ds:0FF26h, 0FFh ; byte_FF26
+                test    byte ptr ds:music_status_flag, 0FFh
                 jz      short loc_62C4
                 jmp     loc_63E5
 sub_6002        endp
@@ -258,8 +256,8 @@ sub_6002        endp
 sub_62D1        proc near
                 mov     byte_653F, 8Ah
 
-loc_62D6:                               ;
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+loc_62D6:
+                mov     byte ptr ds:frame_timer, 0
 
 loc_62DB:
                 lodsb
@@ -274,7 +272,7 @@ loc_62E1:
                 push    si
                 dec     al
                 mov     bx, 1F70h
-                call    word ptr cs:3016h ; Load_Tiles_From_Small_Block_proc
+                call    word ptr cs:Load_Tiles_From_Small_Block_proc
                 pop     si
                 jmp     short loc_62DB
 ; ---------------------------------------------------------------------------
@@ -325,12 +323,12 @@ loc_631E:
                 mov     cl, byte_653F
                 add     cl, 1
                 mov     ah, 2
-                call    word ptr cs:3030h ; GDMCGA_Font_Glyph_Thunk_proc
+                call    word ptr cs:GDMCGA_Font_Glyph_Thunk_proc
                 pop     ax
                 mov     bx, word_653D
                 mov     cl, byte_653F
                 mov     ah, 7
-                call    word ptr cs:3030h ; GDMCGA_Font_Glyph_Thunk_proc
+                call    word ptr cs:GDMCGA_Font_Glyph_Thunk_proc
                 pop     si
                 add     word_653D, 8
                 pop     ax
@@ -339,7 +337,7 @@ loc_631E:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6352:                               ;
+loc_6352:
                 mov     byte ptr ds:0FF75h, 3Fh ; '?' ; soundFX_request
                 retn
 sub_62FD        endp
@@ -351,11 +349,11 @@ sub_62FD        endp
 sub_6358        proc near
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Ah ; Clear_Seg2_Buffer_proc
+                call    word ptr cs:Clear_Seg2_Buffer_proc
                 mov     si, offset aTwoThousandYea ; "           Two thousand years, \rfrom t"...
 
 loc_6366:                               ;
-                call    word ptr cs:300Ch ; Render_Text_String_proc
+                call    word ptr cs:Render_Text_String_proc
                 push    si
                 mov     cx, 0Ah
 
@@ -366,7 +364,7 @@ loc_636F:
                 add     ax, 0Ah
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_63AB
                 pop     cx
@@ -381,7 +379,7 @@ loc_6394:
                 xor     ax, ax
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_63AB
                 pop     cx
@@ -395,14 +393,14 @@ sub_6358        endp
 
 sub_63AB        proc near
 
-                test    byte ptr cs:0FF1Dh, 0FFh ; spacebar_latch
+                test    byte ptr cs:spacebar_latch, 0FFh
                 jnz     short loc_63E5
-                cmp     byte ptr cs:0FF29h, 0Dh ; Current_ASCII_Char
+                cmp     byte ptr cs:Current_ASCII_Char, 0Dh
                 jz      short loc_63E5
                 call    sub_63CC
-                cmp     cs:0FF1Ah, al   ; frame_timer
+                cmp     cs:frame_timer, al
                 jb      short sub_63AB
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
                 retn
 sub_63AB        endp
 
@@ -413,28 +411,28 @@ sub_63AB        endp
 sub_63CC        proc near
                 push    si
                 push    ax
-                call    word ptr cs:110h ; Confirm_Exit_Dialog_proc
-                call    word ptr cs:112h ; Handle_Pause_State_proc
-                call    word ptr cs:116h ; Joystick_Calibration_proc
-                call    word ptr cs:118h ; Joystick_Deactivator_proc
+                call    word ptr cs:Confirm_Exit_Dialog_proc
+                call    word ptr cs:Handle_Pause_State_proc
+                call    word ptr cs:Joystick_Calibration_proc
+                call    word ptr cs:Joystick_Deactivator_proc
                 pop     ax
                 pop     si
                 retn
 sub_63CC        endp
 
 ; ---------------------------------------------------------------------------
-loc_63E5:                               ;
-                mov     byte ptr ds:0FF24h, 8 ; byte_FF24
+loc_63E5:
+                mov     byte ptr ds:byte_FF24, 8
                 mov     al, 0FFh
                 mov     bx, 0
                 mov     cx, 50C8h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
 
-loc_63F7:                               ;
-                test    byte ptr ds:0FF26h, 0FFh ; byte_FF26
+loc_63F7:
+                test    byte ptr ds:music_status_flag, 0FFh
                 jz      short loc_63F7
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
@@ -444,25 +442,23 @@ loc_640C:
                 sti
                 push    cs
                 pop     ds
-                call    word ptr cs:2042h ; Clear_Screen_proc
+                call    word ptr cs:Clear_Screen_proc
                 mov     si, offset vfs_zend_msd
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 3000h
                 mov     al, 5
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:res_dispatcher_proc
+                mov     byte ptr ds:frame_timer, 0
                 push    ds
-                mov     ds, word ptr cs:0FF2Ch ; seg1
+                mov     ds, word ptr cs:seg1
                 mov     si, 3000h
                 xor     ax, ax
-                int     60h             ; SYS_PROF.EXE - PROFILER STATUS
-                                        ; Return: AX = 0000h    profiling is off
-                                        ; otherwise profiling is on
+                int     60h             ; adlib fn 0
                 pop     ds
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     ax, 1
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 call    sub_6497
                 jmp     short loc_6477
 
@@ -471,26 +467,26 @@ loc_640C:
 
 sub_6456        proc near
 
-                test    byte ptr cs:0FF1Dh, 0FFh ; spacebar_latch
+                test    byte ptr cs:spacebar_latch, 0FFh
                 jnz     short loc_6477
-                cmp     byte ptr cs:0FF29h, 0Dh ; Current_ASCII_Char
+                cmp     byte ptr cs:Current_ASCII_Char, 0Dh
                 jz      short loc_6477
                 call    sub_63CC
-                cmp     cs:0FF1Ah, al   ; frame_timer
+                cmp     cs:frame_timer, al
                 jb      short sub_6456
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_6477:                               ;
-                mov     byte ptr ds:0FF24h, 8 ; byte_FF24
-                call    word ptr cs:2042h ; Clear_Screen_proc
+loc_6477:
+                mov     byte ptr ds:byte_FF24, 8
+                call    word ptr cs:Clear_Screen_proc
 
-loc_6481:                               ;
-                test    byte ptr ds:0FF26h, 0FFh ; byte_FF26
+loc_6481:
+                test    byte ptr ds:music_status_flag, 0FFh
                 jz      short loc_6481
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 jmp     loc_6540
 sub_6456        endp
 
@@ -501,11 +497,11 @@ sub_6456        endp
 sub_6497        proc near
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Ah ; Clear_Seg2_Buffer_proc
+                call    word ptr cs:Clear_Seg2_Buffer_proc
                 mov     si, offset aTheHumbleGuysZ ; "           The Humble Guys!            "...
 
-loc_64A5:                               ;
-                call    word ptr cs:300Ch ; Render_Text_String_proc
+loc_64A5:
+                call    word ptr cs:Render_Text_String_proc
                 push    si
                 mov     cx, 0Ah
 
