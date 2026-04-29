@@ -512,7 +512,7 @@ loc_64AE:
                 add     ax, 0Ah
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_6456
                 pop     cx
@@ -527,7 +527,7 @@ loc_64D3:
                 xor     ax, ax
                 mov     bx, 20h ; ' '
                 mov     cx, 5078h
-                call    word ptr cs:300Eh ; Blit_Sprite_To_Screen_proc
+                call    word ptr cs:Blit_Sprite_To_Screen_proc
                 mov     al, 1Ch
                 call    sub_6456
                 pop     cx
@@ -547,17 +547,17 @@ loc_6540:
                 cli
                 mov     sp, 2000h
                 sti
-                mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
-                mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
+                mov     byte ptr cs:spacebar_latch, 0
+                mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     cs:off_6D56, 79C6h
                 mov     ax, 5
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_waku_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
+                call    word ptr cs:res_dispatcher_proc
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax
@@ -569,8 +569,8 @@ loc_6540:
                 mov     si, offset vfs_ame_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
@@ -580,47 +580,47 @@ loc_6540:
                 add     ax, 2000h
                 mov     es, ax
                 mov     di, 0
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 mov     ax, 9
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_hime_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
                 call    sub_6A75
                 xor     ax, ax
-                call    word ptr cs:3020h ; Render_Scrolling_Border_proc
+                call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 6
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_dmaou_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 97C0h
                 call    sub_6D5E
@@ -634,9 +634,9 @@ loc_6540:
                 call    sub_6ED8
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 call    sub_6A75
                 mov     ax, cs
@@ -646,7 +646,7 @@ loc_6540:
                 mov     bx, 1728h
                 mov     cx, 2230h
                 mov     al, 7
-                call    word ptr cs:3022h ; Render_Animated_Tiles_proc
+                call    word ptr cs:Render_Animated_Tiles_proc
                 call    sub_6A75
                 call    sub_6A75
                 mov     al, 2
@@ -657,8 +657,8 @@ loc_6540:
                 mov     di, 0
                 mov     bx, 1728h
                 mov     cx, 2230h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                mov     byte ptr cs:frame_timer, 0
                 mov     al, 0Fh
                 call    sub_6A07
                 mov     al, 3
@@ -669,46 +669,46 @@ loc_6540:
                 mov     di, 0
                 mov     bx, 1728h
                 mov     cx, 2230h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_isi_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
                 mov     bx, 410h
                 mov     cx, 4868h
-                call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
+                call    word ptr cs:Render_With_MaskErase_Callback_proc
                 call    sub_6A75
                 mov     ax, 7
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     al, 0FFh
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
                 call    sub_6A75
                 push    cs
                 pop     es
                 mov     si, offset vfs_oui_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
                 xor     al, al
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
                 call    sub_6A75
                 call    sub_6A75
                 push    cs
@@ -716,8 +716,8 @@ loc_6540:
                 mov     si, offset vfs_sei_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
@@ -725,34 +725,34 @@ loc_6540:
                 mov     bx, 1610h
                 mov     cx, 2468h
                 mov     al, 5
-                call    word ptr cs:3022h ; Render_Animated_Tiles_proc
+                call    word ptr cs:Render_Animated_Tiles_proc
                 call    sub_6A75
                 xor     ax, ax
-                call    word ptr cs:3020h ; Render_Scrolling_Border_proc
+                call    word ptr cs:Render_Scrolling_Border_proc
                 call    sub_6A75
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuu1_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
                 mov     al, 0FFh
                 mov     bx, 410h
                 mov     cx, 4868h
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
-                call    word ptr cs:3004h ; Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuup_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
                 call    sub_6D5E
@@ -761,33 +761,33 @@ loc_6540:
                 mov     si, offset vfs_oup_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 8000h
                 call    sub_6D5E
                 call    sub_6A75
                 call    sub_6A75
                 xor     ax, ax
-                call    word ptr cs:3020h ; Render_Scrolling_Border_proc
+                call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 6
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     bx, 0A15h
                 mov     cx, 1A5Dh
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 mov     bx, 0B18h
                 mov     cx, 1858h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 mov     bx, 2C15h
                 mov     cx, 1A5Dh
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                mov     es, word ptr cs:seg1
                 mov     di, 8000h
                 mov     bx, 2D18h
                 mov     cx, 1858h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 call    sub_6A75
                 push    cs
@@ -795,22 +795,22 @@ loc_6540:
                 mov     si, offset vfs_maop_grp
                 mov     di, 0A000h
                 mov     al, 2
-                call    word ptr cs:10Ch ; res_dispatcher_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:res_dispatcher_proc
+                mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 8000h
                 call    sub_6D5E
                 xor     ax, ax
-                call    word ptr cs:3020h ; Render_Scrolling_Border_proc
+                call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 8
-                call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_To_Black_proc
                 mov     bx, 1515h
                 mov     cx, 315Dh
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                mov     es, word ptr cs:seg1
                 mov     di, 8000h
                 mov     bx, 1618h
-                call    word ptr cs:3026h
+                call    word ptr cs:Pack_3Plane_And_Render_proc
                 call    sub_6A75
                 call    sub_6A75
                 mov     bx, 1515h
@@ -821,9 +821,9 @@ loc_68A1:
                 push    cx
                 push    dx
                 push    bx
-                mov     byte ptr cs:0FF1Ah, 0 ; frame_timer
+                mov     byte ptr cs:frame_timer, 0
                 mov     cx, dx
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
                 mov     al, 0Fh
                 call    sub_6A07
                 pop     bx
@@ -834,15 +834,15 @@ loc_68A1:
                 loop    loc_68A1
                 mov     bx, 2C15h
                 mov     cx, 1A5Dh
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
                 mov     bx, 0A15h
                 mov     cx, 1A5Dh
-                call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
-                mov     es, word ptr cs:0FF2Ch ; seg1
+                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 mov     bx, 0B18h
                 mov     cx, 1858h
-                call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 call    sub_6A75
                 mov     bx, 2C15h
