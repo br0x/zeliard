@@ -1,3 +1,5 @@
+import { OpeningIntro } from './opening-intro.js';
+
 const USE_WASM_ENGINE = false;
 let engineReady = false;
 let gameStarted = false;
@@ -69,26 +71,15 @@ const TILE_HEIGHT = 20;
 const VIEW_COLS = 28;
 const VIEW_ROWS = 18;
 
-const INTRO_FADE_IN_MS = 2000;
-const INTRO_FADE_OUT_MS = 2000;
-const INTRO_LOGO_SRC = 'assets/images/opdemo/ttl3_logo.png';
-const INTRO_COPYRIGHT_LINES = [
-  'Copyright (C)1987,1990 GAME ARTS',
-  'Copyright (C)1990 Sierra On-Line',
-  'Web port 2026, brox//THIRTEEN'
-];
-
 const introScreen = document.getElementById('intro-screen');
 const introCanvas = document.getElementById('introCanvas');
-const introCtx = introCanvas.getContext('2d');
 const uiScreen = document.getElementById('ui');
 const layoutWrapper = document.getElementById('layout-wrapper');
-
-let introActive = false;
-let introFrameId = 0;
-let introStartTime = 0;
-let introFadeOutStartTime = 0;
-let introLogoImage = null;
+const openingIntro = new OpeningIntro({
+  screen: introScreen,
+  canvas: introCanvas,
+  onComplete: startGame
+});
 
 // --- Setup Canvas ---
 const canvas = document.getElementById('gameCanvas');
@@ -148,103 +139,10 @@ const keyTimers = {
   ArrowUp: 0,
 };
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    image.src = src;
-  });
-}
-
-async function startOpeningTitles() {
-  introActive = true;
-  introStartTime = 0;
-  introFadeOutStartTime = 0;
-  introCtx.imageSmoothingEnabled = false;
-  introScreen.classList.remove('hidden');
+function startOpeningTitles() {
   uiScreen.classList.add('hidden');
   layoutWrapper.classList.add('hidden');
-
-  try {
-    [introLogoImage] = await Promise.all([
-      loadImage(INTRO_LOGO_SRC),
-      document.fonts.ready
-    ]).then(([logo]) => [logo]);
-  } catch (error) {
-    console.error(error);
-    finishOpeningTitles();
-    return;
-  }
-
-  introFrameId = requestAnimationFrame(drawOpeningTitle);
-}
-
-function drawOpeningTitle(timestamp) {
-  if (!introActive) {
-    return;
-  }
-
-  if (!introStartTime) {
-    introStartTime = timestamp;
-  }
-
-  const elapsed = timestamp - introStartTime;
-  const fadeInProgress = Math.min(elapsed / INTRO_FADE_IN_MS, 1);
-  const fadeOutElapsed = introFadeOutStartTime ? timestamp - introFadeOutStartTime : 0;
-  const pageOpacity = introFadeOutStartTime ? 1 - Math.min(fadeOutElapsed / INTRO_FADE_OUT_MS, 1) : 1;
-  const logoOpacity = 0.18 + fadeInProgress * 0.82;
-
-  introCtx.fillStyle = '#000';
-  introCtx.fillRect(0, 0, introCanvas.width, introCanvas.height);
-
-  introCtx.save();
-  introCtx.globalAlpha = pageOpacity * logoOpacity;
-  introCtx.drawImage(introLogoImage, 0, 0);
-
-  drawIntroCopyrightText(pageOpacity);
-  introCtx.restore();
-
-  if (introFadeOutStartTime && fadeOutElapsed >= INTRO_FADE_OUT_MS) {
-    finishOpeningTitles();
-    return;
-  }
-
-  introFrameId = requestAnimationFrame(drawOpeningTitle);
-}
-
-function drawIntroCopyrightText(opacity) {
-  introCtx.globalAlpha = opacity;
-  introCtx.fillStyle = '#fff';
-  introCtx.font = '16px "Press Start 2P", monospace';
-  introCtx.textAlign = 'center';
-  introCtx.textBaseline = 'top';
-
-  const startY = 290;
-  const lineHeight = 20;
-
-  for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
-    introCtx.fillText(INTRO_COPYRIGHT_LINES[i], introCanvas.width / 2, startY + i * lineHeight);
-  }
-}
-
-function skipOpeningTitlePage() {
-  if (!introActive || introFadeOutStartTime) {
-    return;
-  }
-
-  introFadeOutStartTime = performance.now();
-}
-
-function finishOpeningTitles() {
-  if (!introActive) {
-    return;
-  }
-
-  introActive = false;
-  cancelAnimationFrame(introFrameId);
-  introScreen.classList.add('hidden');
-  startGame();
+  openingIntro.start();
 }
 
 function init() {
@@ -338,8 +236,8 @@ window.addEventListener('keydown', e => {
   if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
     e.preventDefault();
 
-  if (introActive && e.code === 'Space') {
-    skipOpeningTitlePage();
+  if (openingIntro.active && e.code === 'Space') {
+    openingIntro.skipPage();
     return;
   }
 
