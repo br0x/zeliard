@@ -15,7 +15,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/crab.grp"
+                "${workspaceFolder}/tools/GrpViewer/font.grp"
             ],
             "console": "integratedTerminal",
         },

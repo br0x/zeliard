@@ -91,13 +91,13 @@ Draw_Bordered_Rectangle proc near
                                         ; Fills cl rows × ch*2 pixels with black (0)
 ; ---------------------------------------------------------------------------
 
-loc_2062:                               ; ...
+loc_2062:
                 mov     dx, 909h
                 test    byte ptr cs:font_highlight_flag, 0FFh
                 jz      short loc_2070
                 mov     dx, 0FFFFh
 
-loc_2070:                               ; ...
+loc_2070:
                 push    di
                 sub     cl, 4
                 add     di, 280h
@@ -122,7 +122,7 @@ loc_2070:                               ; ...
                 xor     bh, bh
                 xor     ch, ch
 
-loc_209A:                               ; ...
+loc_209A:
                 mov     es:[di], dx
                 mov     es:[bx+di+2], dx
                 add     di, 140h
@@ -183,7 +183,7 @@ clear_rectangular_region proc near      ; ...
                 push    cx
                 xor     ax, ax
 
-loc_20F0:                               ; ...
+loc_20F0:
                 push    di
                 push    cx
                 mov     cl, ch
@@ -212,12 +212,12 @@ Clear_Viewport  proc near
                 mov     di, viewport_top_left_vram_addr
                 mov     cx, 8
 
-loc_2111:                               ; ...
+loc_2111:
                 push    cx
                 push    di
                 mov     cx, 12h
 
-loc_2116:                               ; ...
+loc_2116:
                 push    cx
                 push    di
                 mov     cx, 0E0h
@@ -247,23 +247,23 @@ Fade_To_Black_Dithered proc near
                 mov     si, 218Dh
                 mov     cx, 8
 
-loc_213B:                               ; ...
+loc_213B:
                 push    cx
                 mov     di, viewport_top_left_vram_addr
                 lodsb
                 push    di
                 mov     cx, 48h ; 'H'
 
-loc_2144:                               ; ...
+loc_2144:
                 push    cx
                 mov     cx, 0E0h
 
-loc_2148:                               ; ...
+loc_2148:
                 rol     al, 1
                 jnb     short loc_2150
                 mov     byte ptr es:[di], 0
 
-loc_2150:                               ; ...
+loc_2150:
                 inc     di
                 loop    loc_2148
                 ror     al, 1
@@ -276,16 +276,16 @@ loc_2150:                               ; ...
                 add     di, 140h
                 mov     cx, 48h ; 'H'
 
-loc_2168:                               ; ...
+loc_2168:
                 push    cx
                 mov     cx, 0E0h
 
-loc_216C:                               ; ...
+loc_216C:
                 ror     al, 1
                 jnb     short loc_2174
                 mov     byte ptr es:[di], 0
 
-loc_2174:                               ; ...
+loc_2174:
                 inc     di
                 loop    loc_216C
                 rol     al, 1
@@ -296,7 +296,7 @@ loc_2174:                               ; ...
                 loop    loc_2168
                 mov     cx, 1F40h
 
-loc_2187:                               ; ...
+loc_2187:
                 loop    loc_2187
                 pop     cx
                 loop    loc_213B
@@ -334,7 +334,7 @@ Clear_HUD_Bar   proc near               ; ...
                 inc     di
                 mov     cl, ch
 
-loc_21C0:                               ; ...
+loc_21C0:
                 push    cx
                 mov     ax, 0FFFFh
                 call    draw_HUD_column_width_1
@@ -359,7 +359,7 @@ draw_HUD_column_width_1 proc near       ; ...
                 add     di, 140h
                 mov     cx, 8
 
-loc_21E7:                               ; ...
+loc_21E7:
                 mov     es:[di], ah
                 add     di, 140h
                 loop    loc_21E7
@@ -368,7 +368,7 @@ loc_21E7:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_21F5:                               ; ...
+loc_21F5:
                 cmp     cs:masking_mode, 80h
                 jz      short loc_2215
                 push    di
@@ -377,7 +377,7 @@ loc_21F5:                               ; ...
                 and     al, 1
                 mov     cx, 0Ah
 
-loc_2207:                               ; ...
+loc_2207:
                 and     es:[di], ah
                 or      es:[di], al
                 add     di, 140h
@@ -386,12 +386,12 @@ loc_2207:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_2215:                               ; ...
+loc_2215:
                 push    di
                 not     al
                 mov     cx, 0Ah
 
-loc_221B:                               ; ...
+loc_221B:
                 and     es:[di], al
                 add     di, 140h
                 loop    loc_221B
@@ -426,7 +426,7 @@ draw_max_hp_gauge:                      ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_2245:                               ; ...
+loc_2245:
                 push    cx
                 push    di
                 mov     bh, 6
@@ -458,7 +458,7 @@ Draw_Boss_Health:                       ; ...
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-loc_2265:                               ; ...
+loc_2265:
                 mov     ax, 0A000h
                 mov     es, ax
                 call    normalize_health_to_100
@@ -467,7 +467,7 @@ loc_2265:                               ; ...
                 or      cx, cx
                 jz      short loc_2284
 
-loc_2274:                               ; ...
+loc_2274:
                 push    cx
                 push    di
                 mov     bh, 5
@@ -479,7 +479,7 @@ loc_2274:                               ; ...
                 pop     cx
                 loop    loc_2274
 
-loc_2284:                               ; ...
+loc_2284:
                 pop     bx
                 mov     cx, 64h ; 'd'
                 sub     cx, bx
@@ -487,7 +487,7 @@ loc_2284:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_228D:                               ; ...
+loc_228D:
                 push    cx
                 push    di
                 mov     bh, 5
@@ -515,7 +515,7 @@ normalize_health_to_100 proc near       ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_22AC:                               ; ...
+loc_22AC:
                 mov     bx, 64h ; 'd'
                 retn
 normalize_health_to_100 endp
@@ -584,14 +584,14 @@ Render_C_String:
                 mov     ax, 0A000h
                 mov     es, ax
 
-loc_2303:                               ; ...
+loc_2303:
                 lodsb
                 or      al, al
                 jnz     short loc_2309
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_2309:                               ; ...
+loc_2309:
                 push    ds
                 push    si
                 call    render_glyph
@@ -600,7 +600,7 @@ loc_2309:                               ; ...
                 jmp     short loc_2303
 ; ---------------------------------------------------------------------------
 
-loc_2312:                               ; ...
+loc_2312:
                 lodsb
                 mov     dl, al
                 xor     dh, dh
@@ -623,7 +623,7 @@ loc_2312:                               ; ...
                 mov     ax, 0A000h
                 mov     es, ax
 
-loc_2338:                               ; ...
+loc_2338:
                 push    cx
                 lodsb
                 push    ds
@@ -651,14 +651,14 @@ render_glyph    proc near               ; ...
                 push    di
                 mov     bl, 8
 
-loc_2358:                               ; ...
+loc_2358:
                 push    bx
                 lodsb
                 push    di
                 mov     dh, al
                 mov     dl, 4
 
-loc_235F:                               ; ...
+loc_235F:
                 add     dh, dh
                 jnb     short loc_2371
                 mov     al, shadow_color
@@ -666,7 +666,7 @@ loc_235F:                               ; ...
                 mov     ah, primary_color
                 mov     es:[di], ah
 
-loc_2371:                               ; ...
+loc_2371:
                 inc     di
                 dec     dl
                 jnz     short loc_235F
@@ -780,7 +780,7 @@ Print_ShieldHP_Decimal proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_23FE:                               ; ...
+loc_23FE:
                 push    ds
                 mov     ax, cs:shield_HP
                 xor     dx, dx
@@ -807,13 +807,13 @@ Prepare_Decimal_Display_Buffer proc near
                 call    Convert_32bit_To_Decimal_Digits
                 mov     cx, 6
 
-loc_2424:                               ; ...
+loc_2424:
                 test    byte ptr cs:[di], 0FFh
                 jz      short loc_242B
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_242B:                               ; ...
+loc_242B:
                 mov     byte ptr cs:[di], 0FFh
                 inc     di
                 loop    loc_2424
@@ -869,7 +869,7 @@ Convert_32bit_To_Decimal_Digits endp
 _Divide_By_Rounding proc near           
                 xor     dh, dh
 
-loc_2482:                               ; ...
+loc_2482:
                 sub     dl, cl
                 jb      short loc_2496
                 sub     ax, bx
@@ -878,15 +878,15 @@ loc_2482:                               ; ...
                 jz      short loc_2494
                 dec     dl
 
-loc_2490:                               ; ...
+loc_2490:
                 inc     dh
                 jmp     short loc_2482
 ; ---------------------------------------------------------------------------
 
-loc_2494:                               ; ...
+loc_2494:
                 add     ax, bx
 
-loc_2496:                               ; ...
+loc_2496:
                 add     dl, cl
                 retn
 _Divide_By_Rounding endp
@@ -933,7 +933,7 @@ Render_Decimal_Digits proc near
                 mov     ax, 0A000h
                 mov     es, ax
 
-loc_24D2:                               ; ...
+loc_24D2:
                 mov     al, [di]
                 inc     di
                 push    bx
@@ -953,7 +953,7 @@ loc_24D2:                               ; ...
 Render_Decimal_Digits endp
 
 ; ---------------------------------------------------------------------------
-mul9            db 0, 9, 12h, 1Bh, 24h, 2Dh, 36h, 3Fh ; ...
+mul9            db 0, 9, 12h, 1Bh, 24h, 2Dh, 36h, 3Fh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -971,7 +971,7 @@ _Render_Single_Digit_Glyph proc near
                 mov     ax, 505h
                 mov     cx, 7
 
-loc_2501:                               ; ...
+loc_2501:
                 push    cx
                 push    di
                 mov     cx, 3
@@ -983,13 +983,13 @@ loc_2501:                               ; ...
                 pop     di
                 pop     ax
 
-loc_2512:                               ; ...
+loc_2512:
                 inc     al
                 jnz     short loc_2517
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_2517:                               ; ...
+loc_2517:
                 dec     al
                 xor     ah, ah
                 add     ax, ax
@@ -1001,19 +1001,19 @@ loc_2517:                               ; ...
                 pop     ds
                 mov     cx, 7
 
-loc_252D:                               ; ...
+loc_252D:
                 lodsb
                 add     al, al
                 add     al, al
                 mov     ah, 6
 
-loc_2534:                               ; ...
+loc_2534:
                 add     al, al
                 jnb     short loc_2540
                 mov     bl, cs:primary_color
                 mov     es:[di], bl
 
-loc_2540:                               ; ...
+loc_2540:
                 inc     di
                 dec     ah
                 jnz     short loc_2534
@@ -1320,19 +1320,12 @@ _Decode_4_Pixels_From_3_Planes endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; AL: ASCII character code
-; AH: Palette/colour index
-; BX: X pixel coordinate in framebuffer
-; CX: Y pixel coordinate (row)
-; CS:0xFF77: Flag: 0 = normal colour mode, nonzero = "bright/highlight" mode
-
 ; Renders an 8x8 font glyph from the letters font table
 ; AL: ASCII character code
 ; AH: Palette/colour index
 ; BX: X pixel coordinate in framebuffer
 ; CX: Y pixel coordinate (row)
-; CS:font_highlight_flag: 0 = normal colour mode, nonzero = "bright/highlight" mode
-
+; font_highlight_flag: 0 = normal colour mode, nonzero = "bright/highlight" mode
 Render_Font_Glyph proc near
                 push    ds
                 push    cs
@@ -1349,8 +1342,7 @@ Render_Font_Glyph proc near
                 add     ah, ah
                 add     ah, ah
                 or      ah, bl
-
-loc_2809:                               ; ...
+loc_2809:
                 mov     ds:primary_color, ah
                 pop     bx
                 xor     ah, ah
@@ -1373,18 +1365,15 @@ loc_2809:                               ; ...
                 mov     ax, 0A000h
                 mov     es, ax
                 mov     cx, 8
-
 loc_283A:
                 push    cx
                 lodsb
                 mov     cx, 8
-
 next_bit:
                 add     al, al          ; al bit 7
                 jnb     short skip_zero_bit
                 mov     dl, cs:primary_color
                 mov     es:[di], dl
-
 skip_zero_bit:
                 inc     di
                 loop    next_bit
@@ -1429,7 +1418,7 @@ Scroll_Screen_Rect_Down proc near
                 add     bx, bx
                 xor     ch, ch
 
-loc_2884:                               ; ...
+loc_2884:
                 push    cx
                 push    di
                 push    si
@@ -1479,7 +1468,7 @@ Capture_Screen_Rect_to_seg3 proc near   ; ...
                 add     bx, bx
                 add     bx, bx
 
-loc_28C9:                               ; ...
+loc_28C9:
                 push    cx
                 push    si
                 mov     cx, bx
@@ -1527,7 +1516,7 @@ Put_Image       proc near               ; ...
                 add     bx, bx
                 add     bx, bx
 
-loc_290A:                               ; ...
+loc_290A:
                 push    cx
                 push    di
                 mov     cx, bx
@@ -1543,35 +1532,30 @@ Put_Image       endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; BX: starting x coord
-; CL: starting y coord
-; SI: string pointer
-
 ; Renders a 0FFh-terminated string with control codes
 ; BX: starting X coord
 ; CL: starting Y coord
 ; SI: string pointer
 ;   Control codes: 0Dh = newline, 80h-87h = color change
-
 Render_String_FF_Terminated proc near
                 mov     cs:word_2CC0, bx
                 mov     cs:byte_2CC2, cl
                 mov     al, 1
-                test    byte ptr cs:0FF77h, 0FFh
+                test    byte ptr cs:font_highlight_flag, 0FFh
                 jz      short loc_2930
                 mov     al, 7
 
-loc_2930:                               ; ...
+loc_2930:
                 mov     cs:byte_2CBF, al
 
-loc_2934:                               ; ...
+loc_2934:
                 lodsb
                 cmp     al, 0FFh
                 jnz     short loc_293A
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_293A:                               ; ...
+loc_293A:
                 cmp     al, 0Dh
                 jz      short loc_2955
                 or      al, al
@@ -1592,14 +1576,14 @@ loc_293A:                               ; ...
                 jmp     short loc_2934
 ; ---------------------------------------------------------------------------
 
-loc_2955:                               ; ...
+loc_2955:
                 add     cs:byte_2CC2, 8
                 mov     cl, cs:byte_2CC2
                 mov     bx, cs:word_2CC0
                 jmp     short loc_2934
 ; ---------------------------------------------------------------------------
 
-loc_2967:                               ; ...
+loc_2967:
                 and     al, 7
                 mov     cs:byte_2CBF, al
                 jmp     short loc_2934
@@ -1649,7 +1633,7 @@ Copy_Screen_Rect_VRAM proc near
                 add     bx, bx
                 xor     ch, ch
 
-loc_29AD:                               ; ...
+loc_29AD:
                 push    cx
                 push    di
                 push    si
@@ -1697,7 +1681,7 @@ Draw_Status_Frame proc near
                 mov     al, primary_color
                 mov     cx, 10h
 
-loc_29F1:                               ; ...
+loc_29F1:
                 mov     es:[di], al
                 mov     es:[di+1], al
                 mov     es:[di+12h], al
@@ -1830,12 +1814,12 @@ Clear_Screen proc near
                 xor     di, di
                 mov     cx, 8
 
-loc_2C0B:                               ; ...
+loc_2C0B:
                 push    cx
                 push    di
                 mov     cx, 19h
 
-loc_2C10:                               ; ...
+loc_2C10:
                 push    cx
                 push    di
                 mov     cx, 0A0h

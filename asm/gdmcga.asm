@@ -2,14 +2,14 @@ include common.inc
                 .286
                 .model small
 gdmcga          segment byte public 'CODE' use16
-                assume cs:gdmcga
+                assume cs:gdmcga, ds:gdmcga
                 org 3000h
 start:                
                 dw offset NoOp
                 dw offset Decompress_3Plane_2Row
                 dw offset Decompress_3Plane_Interleaved
                 dw offset Render_With_MaskErase_Callback
-                dw offset GDMCGA_Fade_To_Black
+                dw offset GDMCGA_Fade_Palette
                 dw offset Clear_Seg2_Buffer
                 dw offset Render_Text_String
                 dw offset Blit_Sprite_To_Screen
@@ -53,14 +53,13 @@ Decompress_3Plane_2Row        proc near
                 mov     ax, cs
                 add     ax, 3000h
                 mov     es, ax          ; seg3
-                assume es:nothing
                 mov     di, 0
                 mov     cs:decomp_plane1, 0
                 mov     cs:decomp_plane2, 0
                 mov     cx, bp
                 shr     cx, 1
 
-loc_305C:                               ; ...
+loc_305C:
                 mov     ax, ds:[bp+si]
                 xchg    ah, al
                 mov     cs:decomp_plane3, ax
@@ -101,7 +100,6 @@ Decompress_3Plane_Interleaved:
                 mov     bp, ax
                 push    es
                 pop     ds
-                assume ds:nothing
                 mov     si, di
                 mov     ax, cs
                 add     ax, 3000h
@@ -111,7 +109,7 @@ Decompress_3Plane_Interleaved:
                 mov     cx, bp
                 shr     cx, 1
 
-loc_30AB:                               ; ...
+loc_30AB:
                 add     bp, bp
                 mov     ax, ds:[bp+si]
                 xchg    al, ah
@@ -133,7 +131,6 @@ loc_30AB:                               ; ...
                 stosw
                 loop    loc_30AB
                 pop     ds
-                assume ds:nothing
                 pop     cx
                 pop     bx
                 pop     ax
@@ -177,7 +174,6 @@ Decompress_3Plane_XOR:
                 mov     bp, ax
                 push    es
                 pop     ds
-                assume ds:nothing
                 mov     si, di
                 mov     ax, cs
                 add     ax, 3000h
@@ -186,8 +182,7 @@ Decompress_3Plane_XOR:
                 mov     cs:decomp_plane0, 0
                 mov     cx, bp
                 shr     cx, 1
-
-loc_311E:                               ; ...
+loc_311E:
                 push    cx
                 mov     bx, ds:[bp+si]
                 xchg    bh, bl
@@ -214,7 +209,6 @@ loc_311E:                               ; ...
                 pop     cx
                 loop    loc_311E
                 pop     ds
-                assume ds:nothing
                 pop     cx
                 pop     bx
                 xor     ax, ax
@@ -233,15 +227,13 @@ loc_311E:                               ; ...
                 or      al, al
                 jnz     short loc_317E
                 call    Render_8Plane_Loop
-
-loc_317E:                               ; ...
+loc_317E:
                 mov     cs:render_mode, 0FFh
                 call    Render_8Plane_Loop
                 pop     ds
                 retn
 ; ---------------------------------------------------------------------------
-
-loc_3189:                               ; ...
+loc_3189:
                 push    ds
                 push    ax
                 push    es
@@ -256,8 +248,7 @@ loc_3189:                               ; ...
                 or      al, al
                 jnz     short loc_31A9
                 call    Render_8Plane_Loop
-
-loc_31A9:                               ; ...
+loc_31A9:
                 mov     cs:render_mode, 0FFh
                 call    Render_8Plane_Loop
                 pop     ds
@@ -275,22 +266,19 @@ Decompress_3Plane_2Row        endp
 ;     render_mode = mode flag for callbacks
 ;     decomp_plane0..3 = pre-loaded decompressed plane data
 ;   Clobbers: ES:DI (VRAM), SI, AX, CX, flags
-Render_8Plane_Loop        proc near
+Render_8Plane_Loop  proc near
                 mov     cs:plane_group, 0
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 mov     bp, 8
-
-loc_31C2:                               ; ...
+loc_31C2:
                 mov     al, cs:plane_group
                 mov     cs:plane_row, al
                 mov     byte ptr cs:frame_timer, 0
                 push    cx
                 push    si
                 push    di
-
-loc_31D3:                               ; ...
+loc_31D3:
                 mov     bl, cs:plane_row
                 and     bx, 7
                 mov     bl, cs:byte_32B9[bx]
@@ -318,19 +306,19 @@ loc_31D3:                               ; ...
                 dec     cl
                 jnz     short loc_31D3
 
-loc_3225:                               ; ...
+loc_3225:
                 pop     di
                 pop     si
                 pop     cx
                 inc     cs:plane_group
 
-loc_322D:                               ; ...
+loc_322D:
                 cmp     byte ptr cs:frame_timer, 20
                 jb      short loc_322D
                 dec     bp
                 jnz     short loc_31C2
                 retn
-Render_8Plane_Loop        endp
+Render_8Plane_Loop  endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -355,13 +343,13 @@ Render_SetOr_Pixel        proc near
                 add     cx, cx
                 add     cx, cx
 
-loc_324C:                               ; ...
+loc_324C:
                 lodsb
                 rol     bl, 1
                 jnb     short loc_3254
                 mov     es:[di], al
 
-loc_3254:                               ; ...
+loc_3254:
                 inc     di
                 loop    loc_324C
                 pop     cx
@@ -370,7 +358,7 @@ loc_3254:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_325B:                               ; ...
+loc_325B:
                 push    si
                 push    di
                 push    cx
@@ -379,7 +367,7 @@ loc_325B:                               ; ...
                 add     cx, cx
                 add     cx, cx
 
-loc_3266:                               ; ...
+loc_3266:
                 lodsb
                 rol     bl, 1
                 sbb     ah, ah
@@ -416,7 +404,7 @@ Render_SetOr_Transparent        proc near
                 add     cx, cx
                 add     cx, cx
 
-loc_328A:                               ; ...
+loc_328A:
                 lodsb
                 rol     bl, 1
                 jnb     short loc_3296
@@ -424,7 +412,7 @@ loc_328A:                               ; ...
                 jz      short loc_3296
                 mov     es:[di], al
 
-loc_3296:                               ; ...
+loc_3296:
                 inc     di
                 loop    loc_328A
                 pop     cx
@@ -451,7 +439,7 @@ Render_MaskErase_2bpp        proc near
                 xor     ch, ch
                 add     cx, cx
 
-loc_32A7:                               ; ...
+loc_32A7:
                 rol     bl, 1
                 sbb     al, al
                 rol     bl, 1
@@ -480,27 +468,26 @@ byte_32C1       db 1, 4, 10h, 40h, 2, 8, 20h, 80h ; ...
 Render_Text_String        proc near
                 push    cs
                 pop     es
-                assume es:nothing
                 mov     di, offset text_buffer
                 xor     ax, ax
                 mov     cx, 1600
                 rep stosw
                 mov     di, offset text_buffer
 
-loc_32D8:                               ; ...
+loc_32D8:
                 lodsb
                 cmp     al, 0FFh
                 jnz     short loc_32DE
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_32DE:                               ; ...
+loc_32DE:
                 sub     al, 20h ; ' '
                 jnb     short loc_32E3
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_32E3:                               ; ...
+loc_32E3:
                 jz      short loc_331E
                 push    si
                 push    di
@@ -508,11 +495,11 @@ loc_32E3:                               ; ...
                 add     ax, ax
                 add     ax, ax
                 add     ax, ax
-                add     ax, ds:0F500h   ; bold_font_8x8
+                add     ax, ds:bold_font_8x8
                 mov     si, ax
                 mov     cx, 8
 
-loc_32F8:                               ; ...
+loc_32F8:
                 push    cx
                 lodsb
                 call    Expand_1bpp_To_2bpp
@@ -529,7 +516,7 @@ loc_32F8:                               ; ...
                 pop     di
                 pop     si
 
-loc_331E:                               ; ...
+loc_331E:
                 add     di, 8
                 jmp     short loc_32D8
 Render_Text_String        endp
@@ -581,10 +568,8 @@ Blit_Sprite_To_Screen        proc near
                 mov     ax, cs
                 add     ax, 2000h
                 mov     ds, ax          ; seg2
-                assume ds:nothing
                 push    ds
                 pop     es
-                assume es:nothing
                 mov     di, 0
                 mov     si, 320
                 mov     cx, 7F60h
@@ -593,7 +578,6 @@ Blit_Sprite_To_Screen        proc near
                 pop     di
                 push    cs
                 pop     ds
-                assume ds:nothing
                 mov     cx, 160
                 rep movsw
                 pop     bx
@@ -614,10 +598,8 @@ Blit_Sprite_To_Screen        proc near
                 mov     ax, cs
                 add     ax, 2000h
                 mov     ds, ax          ; seg2
-                assume ds:nothing
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 pop     cx
                 mov     dx, 1001100110011001b
                 mov     bp, 0110011001100110b
@@ -626,12 +608,12 @@ Blit_Sprite_To_Screen        proc near
                 add     bx, bx
                 xor     ch, ch
 
-loc_339C:                               ; ...
+loc_339C:
                 push    cx
                 push    di
                 mov     cx, bx
 
-loc_33A0:                               ; ...
+loc_33A0:
                 and     es:[di], dx
                 lodsw
                 and     ax, bp
@@ -644,7 +626,6 @@ loc_33A0:                               ; ...
                 pop     cx
                 loop    loc_339C
                 pop     ds
-                assume ds:nothing
                 retn
 Blit_Sprite_To_Screen        endp
 
@@ -670,18 +651,16 @@ Decompress_And_Copy_To_VRAM        proc near
                 mov     bp, ax
                 push    es
                 pop     ds
-                assume ds:nothing
                 mov     si, di
                 mov     ax, cs
                 add     ax, 3000h
                 mov     es, ax          ; seg3
-                assume es:nothing
                 mov     di, 0
                 mov     cs:decomp_plane3, 0
                 mov     cx, bp
                 shr     cx, 1
 
-loc_33DA:                               ; ...
+loc_33DA:
                 add     bp, bp
                 mov     ax, ds:[bp+si]
                 xchg    ah, al
@@ -706,26 +685,23 @@ loc_33DA:                               ; ...
                 pop     bx
                 pop     ax
                 pop     ds
-                assume ds:nothing
 
-loc_340D:                               ; ...
+loc_340D:
                 push    ds
                 call    Calc_VRAM_Addr
                 mov     di, ax
                 mov     si, 0
                 push    es
                 pop     ds
-                assume ds:nothing
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 xor     bx, bx
                 mov     bl, ch
                 add     bx, bx
                 add     bx, bx
                 xor     ch, ch
 
-loc_3427:                               ; ...
+loc_3427:
                 push    cx
                 push    di
                 mov     cx, bx
@@ -735,7 +711,6 @@ loc_3427:                               ; ...
                 add     di, 320
                 loop    loc_3427
                 pop     ds
-                assume ds:nothing
                 retn
 Decompress_And_Copy_To_VRAM        endp
 
@@ -748,12 +723,11 @@ Decompress_And_Copy_To_VRAM        endp
 Animate_Sprites        proc near
                 push    cs
                 pop     es
-                assume es:nothing
                 mov     di, 0A000h
                 xor     dx, dx
                 mov     cx, 9
 
-loc_3441:                               ; ...
+loc_3441:
                 mov     al, 1
                 stosb
                 mov     ax, dx
@@ -774,11 +748,11 @@ loc_3441:                               ; ...
                 mov     ds:plane_row, 0
                 mov     byte ptr ds:frame_timer, 0
 
-loc_3465:                               ; ...
+loc_3465:
                 mov     si, 0A000h
                 mov     cx, 9
 
-loc_346B:                               ; ...
+loc_346B:
                 push    cx
                 test    byte ptr [si], 0FFh
                 jz      short loc_34CD
@@ -790,7 +764,7 @@ loc_346B:                               ; ...
                 jnz     short loc_3485
                 inc     byte ptr [si+0Dh]
 
-loc_3485:                               ; ...
+loc_3485:
                 xor     bx, bx
                 mov     bl, [si+0Dh]
                 add     bx, bx
@@ -813,26 +787,23 @@ loc_3485:                               ; ...
                 push    si
                 mov     ax, 0A000h
                 mov     ds, ax
-                assume ds:nothing
                 mov     ax, cs
                 add     ax, 3000h
                 mov     es, ax          ; seg3
-                assume es:nothing
                 mov     si, di
                 mov     di, bp
                 call    Copy_VRAM_Block_Fwd
                 pop     si
                 pop     ds
-                assume ds:nothing
 
-loc_34CD:                               ; ...
+loc_34CD:
                 pop     cx
                 add     si, 0Fh
                 loop    loc_346B
                 mov     si, 0A000h
                 mov     cx, 9
 
-loc_34D9:                               ; ...
+loc_34D9:
                 push    cx
                 push    si
                 mov     al, ds:plane_row
@@ -849,7 +820,7 @@ loc_34D9:                               ; ...
                 mov     ds:byte_428B, al
                 inc     ds:plane_row
                 xor     ax, ax
-                call    GDMCGA_Fade_To_Black
+                call    GDMCGA_Fade_Palette
                 pop     si
                 test    byte ptr cs:[si], 0FFh
                 jz      short loc_353E
@@ -872,26 +843,25 @@ loc_34D9:                               ; ...
                 push    si
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 mov     ds, word ptr cs:seg1
                 mov     si, bp
                 call    Blit_Masked_OR_From_Seg1
                 pop     si
                 pop     ds
 
-loc_353E:                               ; ...
+loc_353E:
                 pop     cx
                 add     si, 0Fh
                 loop    loc_34D9
 
-loc_3544:                               ; ...
+loc_3544:
                 cmp     byte ptr cs:frame_timer, 1Eh
                 jb      short loc_3544
                 mov     byte ptr cs:frame_timer, 0
                 mov     si, 0A000h
                 mov     cx, 9
 
-loc_3558:                               ; ...
+loc_3558:
                 push    cx
                 mov     bp, [si+1]
                 mov     di, [si+5]
@@ -903,29 +873,27 @@ loc_3558:                               ; ...
                 mov     ax, cs
                 add     ax, 3000h
                 mov     ds, ax          ; seg3
-                assume ds:nothing
                 mov     si, bp
                 call    Copy_VRAM_Block_Rev
                 pop     si
                 pop     ds
-                assume ds:nothing
                 pop     cx
                 add     si, 0Fh
                 loop    loc_3558
                 mov     si, 0A000h
                 mov     cx, 9
 
-loc_3583:                               ; ...
+loc_3583:
                 test    byte ptr [si], 0FFh
                 jz      short loc_358B
                 jmp     loc_3465
 ; ---------------------------------------------------------------------------
 
-loc_358B:                               ; ...
+loc_358B:
                 add     si, 0Fh
                 loop    loc_3583
                 mov     ax, 2
-                jmp     GDMCGA_Fade_To_Black
+                jmp     GDMCGA_Fade_Palette
 Animate_Sprites        endp
 
 
@@ -943,7 +911,7 @@ Copy_VRAM_Block_Fwd        proc near
                 push    si
                 push    cx
 
-loc_3598:                               ; ...
+loc_3598:
                 push    si
                 push    cx
                 mov     cl, ch
@@ -976,7 +944,7 @@ Copy_VRAM_Block_Rev        proc near
                 push    di
                 push    cx
 
-loc_35B3:                               ; ...
+loc_35B3:
                 push    di
                 push    cx
                 mov     cl, ch
@@ -1014,13 +982,13 @@ Blit_Masked_OR_From_Seg1        proc near
                 mov     bx, ax
                 mov     cs:decomp_plane3, 0
 
-loc_35DB:                               ; ...
+loc_35DB:
                 push    di
                 push    cx
                 mov     cl, ch
                 xor     ch, ch
 
-loc_35E1:                               ; ...
+loc_35E1:
                 xor     al, al
                 mov     ah, [bx+si]
                 mov     cs:decomp_plane1, ax
@@ -1049,8 +1017,8 @@ loc_35E1:                               ; ...
 Blit_Masked_OR_From_Seg1        endp
 
 ; ---------------------------------------------------------------------------
-word_3617       dw 9000h                ; ...
-word_3619       dw 620h                 ; ...
+word_3617       dw 9000h
+word_3619       dw 620h
                 db  80h
                 db  91h
                 db  20h
@@ -1100,13 +1068,12 @@ Load_Tiles_From_Big_Block        proc near
                 mov     ax, cs
                 add     ax, 3000h
                 mov     es, ax          ; seg3
-                assume es:nothing
                 mov     di, 0
                 mov     cs:decomp_plane3, 0
                 mov     cs:decomp_plane2, 0
                 mov     cx, 330h
 
-loc_367D:                               ; ...
+loc_367D:
                 mov     ax, [si+660h]
                 xchg    ah, al
                 mov     cs:decomp_plane0, ax
@@ -1153,7 +1120,7 @@ Load_Tiles_From_Small_Block        proc near
                 mov     cs:decomp_plane2, 0
                 mov     cx, 120h
 
-loc_36D9:                               ; ...
+loc_36D9:
                 mov     ax, [si+240h]
                 xchg    ah, al
                 mov     cs:decomp_plane1, ax
@@ -1185,11 +1152,10 @@ Load_Tiles_From_Small_Block        endp
 GDMCGA_Clear_Viewport        proc near
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 xor     di, di
                 mov     cx, 100
 
-loc_3711:                               ; ...
+loc_3711:
                 push    cx
                 push    di
                 mov     ax, 1000h
@@ -1219,11 +1185,11 @@ Render_Tile_Grid        proc near
                 xor     bx, bx
                 mov     cx, 19h
 
-loc_3737:                               ; ...
+loc_3737:
                 push    cx
                 mov     cx, 22h ; '"'
 
-loc_373B:                               ; ...
+loc_373B:
                 push    cx
                 lodsb
                 push    bx
@@ -1259,17 +1225,16 @@ Render_Font_Glyph_8x8        proc near
                 mov     dx, cs
                 add     dx, 2000h
                 mov     es, dx          ; seg2
-                assume es:nothing
                 xor     ah, ah
 
-loc_3762:                               ; ...
+loc_3762:
                 sub     al, 28h ; '('
                 jb      short loc_376A
                 inc     ah
                 jmp     short loc_3762
 ; ---------------------------------------------------------------------------
 
-loc_376A:                               ; ...
+loc_376A:
                 add     al, 28h ; '('
                 mov     cl, al
                 mov     al, ah
@@ -1292,13 +1257,13 @@ loc_376A:                               ; ...
                 pop     si
                 mov     cx, 3
 
-loc_3797:                               ; ...
+loc_3797:
                 push    cx
                 push    di
                 push    si
                 mov     cx, 8
 
-loc_379D:                               ; ...
+loc_379D:
                 movsb
                 add     di, 33
                 add     si, 39
@@ -1328,10 +1293,8 @@ Blit_And_Or_Xor_Masked        proc near
                 push    ds
                 mov     dx, cs
                 mov     es, dx
-                assume es:nothing
                 add     dx, 2000h
                 mov     ds, dx          ; seg2
-                assume ds:nothing
                 push    ax
                 mov     dl, 22h ; '"'
                 mul     dl
@@ -1347,11 +1310,11 @@ Blit_And_Or_Xor_Masked        proc near
                 mov     di, 5191h
                 mov     cx, 44h ; 'D'
 
-loc_37E1:                               ; ...
+loc_37E1:
                 mov     al, es:[di]
                 mov     dx, 8
 
-loc_37E7:                               ; ...
+loc_37E7:
                 ror     al, 1
                 adc     ah, ah
                 dec     dx
@@ -1367,11 +1330,10 @@ loc_37E7:                               ; ...
                 mov     di, ax
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 push    di
                 mov     cx, 11h
 
-loc_3808:                               ; ...
+loc_3808:
                 push    cx
                 lodsw
                 xchg    ah, al
@@ -1410,11 +1372,10 @@ loc_3808:                               ; ...
                 add     di, 312
                 push    cs
                 pop     ds
-                assume ds:nothing
                 mov     si, 5191h
                 mov     cx, 11h
 
-loc_387D:                               ; ...
+loc_387D:
                 push    cx
                 lodsw
                 xchg    ah, al
@@ -1473,7 +1434,7 @@ Render_Scrolling_Border        proc near
                 mov     di, 1410h
                 mov     si, offset byte_3B1F
 
-loc_3903:                               ; ...
+loc_3903:
                 lodsb
                 or      al, al
                 jz      short loc_3911
@@ -1482,10 +1443,10 @@ loc_3903:                               ; ...
                 jmp     short loc_3903
 ; ---------------------------------------------------------------------------
 
-loc_3911:                               ; ...
+loc_3911:
                 add     di, 0FB04h
 
-loc_3915:                               ; ...
+loc_3915:
                 lodsb
                 or      al, al
                 jz      short loc_3922
@@ -1494,10 +1455,10 @@ loc_3915:                               ; ...
                 jmp     short loc_3915
 ; ---------------------------------------------------------------------------
 
-loc_3922:                               ; ...
+loc_3922:
                 add     di, 0FAFCh
 
-loc_3926:                               ; ...
+loc_3926:
                 lodsb
                 or      al, al
                 jz      short loc_3934
@@ -1506,10 +1467,10 @@ loc_3926:                               ; ...
                 jmp     short loc_3926
 ; ---------------------------------------------------------------------------
 
-loc_3934:                               ; ...
+loc_3934:
                 add     di, 4FCh
 
-loc_3938:                               ; ...
+loc_3938:
                 lodsb
                 or      al, al
                 jz      short loc_3945
@@ -1518,11 +1479,11 @@ loc_3938:                               ; ...
                 jmp     short loc_3938
 ; ---------------------------------------------------------------------------
 
-loc_3945:                               ; ...
+loc_3945:
                 add     di, 504h
                 mov     si, offset word_3BE3
 
-loc_394C:                               ; ...
+loc_394C:
                 mov     byte ptr cs:frame_timer, 0
                 lodsb
                 or      al, al
@@ -1530,11 +1491,11 @@ loc_394C:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3958:                               ; ...
+loc_3958:
                 xor     cx, cx
                 mov     cl, al
 
-loc_395C:                               ; ...
+loc_395C:
                 push    cx
                 mov     al, 18h
                 call    Render_Scrolling_Border_Row
@@ -1548,11 +1509,11 @@ loc_395C:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3973:                               ; ...
+loc_3973:
                 xor     cx, cx
                 mov     cl, al
 
-loc_3977:                               ; ...
+loc_3977:
                 push    cx
                 mov     al, 18h
                 call    Render_Scrolling_Border_Row
@@ -1566,11 +1527,11 @@ loc_3977:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_398C:                               ; ...
+loc_398C:
                 xor     cx, cx
                 mov     cl, al
 
-loc_3990:                               ; ...
+loc_3990:
                 push    cx
                 mov     al, 18h
                 call    Render_Scrolling_Border_Row
@@ -1584,11 +1545,11 @@ loc_3990:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_39A7:                               ; ...
+loc_39A7:
                 xor     cx, cx
                 mov     cl, al
 
-loc_39AB:                               ; ...
+loc_39AB:
                 push    cx
                 mov     al, 18h
                 call    Render_Scrolling_Border_Row
@@ -1597,7 +1558,7 @@ loc_39AB:                               ; ...
                 loop    loc_39AB
                 add     di, 4
 
-loc_39BA:                               ; ...
+loc_39BA:
                 cmp     byte ptr cs:frame_timer, 0Ch
                 jb      short loc_39BA
                 jmp     short loc_394C
@@ -1682,18 +1643,18 @@ Render_Border_Row_Composite        proc near
                 jnb     short loc_3A4D
                 or      ds:decomp_plane0, ax
 
-loc_3A4D:                               ; ...
+loc_3A4D:
                 shr     al, 1
                 jnb     short loc_3A55
                 or      ds:decomp_plane1, ax
 
-loc_3A55:                               ; ...
+loc_3A55:
                 shr     al, 1
                 jb      short loc_3A5A
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3A5A:                               ; ...
+loc_3A5A:
                 or      ds:decomp_plane2, ax
                 retn
 Render_Border_Row_Composite        endp
@@ -1733,7 +1694,7 @@ byte_3B1F       db 1, 2, 3, 16h, 16h, 16h, 16h, 16h, 16h, 16h, 16h, 16h ; ...
                 db 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h
                 db 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h, 14h
                 db 14h, 14h, 14h, 5, 4, 0
-word_3BE3       dw 4618h                ; ...
+word_3BE3       dw 4618h
                 dw 4518h
                 dw 4417h
                 dw 4316h
@@ -1759,8 +1720,8 @@ word_3BE3       dw 4618h                ; ...
                 dw 2F02h
                 dw 2E01h
                 db    0
-byte_3C16       db 2                    ; ...
-byte_3C17       db 55h                  ; ...
+byte_3C16       db 2
+byte_3C17       db 55h
                 db    3
                 db 0FFh
                 db    1
@@ -1785,12 +1746,10 @@ Render_Animated_Tiles        proc near
                 mov     bp, ax
                 push    es
                 pop     ds
-                assume ds:nothing
                 mov     si, di
                 mov     ax, cs
                 add     ax, 3000h
                 mov     es, ax          ; seg3
-                assume es:nothing
                 mov     di, 0
                 mov     cs:decomp_plane3, 0
                 mov     cs:decomp_plane0, 0
@@ -1799,7 +1758,7 @@ Render_Animated_Tiles        proc near
                 mov     cx, bp
                 shr     cx, 1
 
-loc_3C57:                               ; ...
+loc_3C57:
                 push    si
                 test    cs:render_mode, 1
                 jz      short loc_3C6A
@@ -1808,7 +1767,7 @@ loc_3C57:                               ; ...
                 mov     cs:decomp_plane0, ax
                 add     si, bp
 
-loc_3C6A:                               ; ...
+loc_3C6A:
                 test    cs:render_mode, 2
                 jz      short loc_3C7C
                 mov     ax, [si]
@@ -1816,14 +1775,14 @@ loc_3C6A:                               ; ...
                 mov     cs:decomp_plane1, ax
                 add     si, bp
 
-loc_3C7C:                               ; ...
+loc_3C7C:
                 test    cs:render_mode, 4
                 jz      short loc_3C8C
                 mov     ax, [si]
                 xchg    ah, al
                 mov     cs:decomp_plane2, ax
 
-loc_3C8C:                               ; ...
+loc_3C8C:
                 call    Decompress_3Plane_To_2bpp
                 stosw
                 call    Decompress_3Plane_To_2bpp
@@ -1845,21 +1804,19 @@ loc_3C8C:                               ; ...
                 mov     ax, cs
                 add     ax, 3000h
                 mov     ds, ax          ; seg3
-                assume ds:nothing
                 mov     si, 0
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 mov     cx, 8
 
-loc_3CCA:                               ; ...
+loc_3CCA:
                 push    cx
                 mov     al, cs:anim_frame
                 mov     cs:plane_group, al
                 mov     byte ptr cs:frame_timer, 0
                 mov     cx, 0Dh
 
-loc_3CDC:                               ; ...
+loc_3CDC:
                 push    cx
                 push    bx
                 push    si
@@ -1871,13 +1828,12 @@ loc_3CDC:                               ; ...
                 loop    loc_3CDC
                 pop     cx
 
-loc_3CEE:                               ; ...
+loc_3CEE:
                 cmp     byte ptr cs:frame_timer, 20
                 jb      short loc_3CEE
                 inc     cs:anim_frame
                 loop    loc_3CCA
                 pop     ds
-                assume ds:nothing
                 retn
 Render_Animated_Tiles        endp
 
@@ -1913,7 +1869,7 @@ Render_Anim_Tile_Row        proc near
                 mov     cs:plane_row, 0
                 mov     cx, 48h ; 'H'
 
-loc_3D3F:                               ; ...
+loc_3D3F:
                 push    cx
                 mov     word ptr es:[di], 0
                 mov     word ptr es:[di+2], 0
@@ -1927,7 +1883,7 @@ loc_3D3F:                               ; ...
                 movsw
                 sub     di, 4
 
-loc_3D65:                               ; ...
+loc_3D65:
                 add     di, 4
                 inc     cs:plane_row
                 pop     cx
@@ -1935,7 +1891,7 @@ loc_3D65:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3D71:                               ; ...
+loc_3D71:
                 mov     cx, 90h
                 xor     ax, ax
                 rep stosw
@@ -1974,7 +1930,7 @@ GDMCGA_Draw_Bordered_Rect        proc near
                 call    Draw_BorderedRect_SideRows
                 pop     cx
 
-loc_3DAE:                               ; ...
+loc_3DAE:
                 push    cx
                 call    Draw_BorderedRect_Corner
                 mov     byte ptr es:[di], 0FFh
@@ -2070,7 +2026,7 @@ Pack_3Plane_And_Render        proc near
                 push    di
                 mov     cx, 1028h
 
-loc_3E3B:                               ; ...
+loc_3E3B:
                 mov     al, es:[di]
                 and     al, es:[di+1028h]
                 mov     ah, es:[di+2050h]
@@ -2095,7 +2051,6 @@ loc_3E3B:                               ; ...
                 loop    loc_3E3B
                 pop     di
                 pop     es
-                assume es:nothing
                 pop     bx
                 mov     cx, 2F58h
                 jmp     Decompress_And_Copy_To_VRAM
@@ -2121,11 +2076,10 @@ Render_Animated_Tile_Rows        proc near
                 call    Setup_HUD_Frame
                 mov     ax, 0A000h
                 mov     es, ax
-                assume es:nothing
                 mov     ds, cs:src_segment
                 mov     cx, 44h ; 'D'
 
-loc_3EB5:                               ; ...
+loc_3EB5:
                 push    cx
                 mov     byte ptr cs:frame_timer, 0
                 mov     ax, 44h ; 'D'
@@ -2151,10 +2105,10 @@ loc_3EB5:                               ; ...
                 jmp     short loc_3EED
 ; ---------------------------------------------------------------------------
 
-loc_3EEA:                               ; ...
+loc_3EEA:
                 call    Decompress_And_Render_Tile
 
-loc_3EED:                               ; ...
+loc_3EED:
                 pop     cx
                 push    cx
                 mov     ax, cx
@@ -2180,10 +2134,10 @@ loc_3EED:                               ; ...
                 jmp     short loc_3F1E
 ; ---------------------------------------------------------------------------
 
-loc_3F1B:                               ; ...
+loc_3F1B:
                 call    Decompress_And_Render_Tile
 
-loc_3F1E:                               ; ...
+loc_3F1E:
                 cmp     byte ptr cs:frame_timer, 4
                 jb      short loc_3F1E
                 pop     cx
@@ -2205,7 +2159,7 @@ Decompress_And_Render_Tile        proc near
                 mov     cx, 28h ; '('
                 mov     cs:decomp_plane3, 0
 
-loc_3F35:                               ; ...
+loc_3F35:
                 mov     ax, [si+5500h]
                 xchg    ah, al
                 mov     cs:decomp_plane2, ax
@@ -2240,7 +2194,7 @@ Render_Partial_Width_Tile        proc near
                 mov     cx, 0Bh
                 mov     cs:decomp_plane3, 0
 
-loc_3F6D:                               ; ...
+loc_3F6D:
                 mov     ah, [si+5500h]
                 mov     cs:decomp_plane2, ax
                 mov     ah, [si+2A80h]
@@ -2257,7 +2211,7 @@ loc_3F6D:                               ; ...
                 add     di, 60h ; '`'
                 mov     cx, 5
 
-loc_3F97:                               ; ...
+loc_3F97:
                 mov     ax, [si+5500h]
                 xchg    ah, al
                 mov     cs:decomp_plane2, ax
@@ -2280,7 +2234,7 @@ loc_3F97:                               ; ...
                 add     di, 60h ; '`'
                 mov     cx, 0Bh
 
-loc_3FCD:                               ; ...
+loc_3FCD:
                 mov     ah, [si+5500h]
                 mov     cs:decomp_plane2, ax
                 mov     ah, [si+2A80h]
@@ -2312,7 +2266,7 @@ Setup_HUD_Frame        proc near
                 add     di, 36h ; '6'
                 mov     cx, 5Bh ; '['
 
-loc_3FFC:                               ; ...
+loc_3FFC:
                 mov     byte ptr es:[di], 30h ; '0'
                 mov     byte ptr es:[di+19h], 0Ch
                 add     di, 50h ; 'P'
@@ -2327,7 +2281,7 @@ loc_3FFC:                               ; ...
                 add     di, 36h ; '6'
                 mov     cx, 2Dh ; '-'
 
-loc_4022:                               ; ...
+loc_4022:
                 mov     byte ptr es:[di], 0B0h
                 mov     byte ptr es:[di+19h], 0Eh
                 add     di, 50h ; 'P'
@@ -2347,7 +2301,7 @@ loc_4022:                               ; ...
                 add     di, 36h ; '6'
                 mov     cx, 5Bh ; '['
 
-loc_405F:                               ; ...
+loc_405F:
                 mov     byte ptr es:[di], 30h ; '0'
                 mov     byte ptr es:[di+19h], 0Ch
                 add     di, 50h ; 'P'
@@ -2393,7 +2347,7 @@ Render_Tile_Rows_TopDown        proc near
                 mov     ds, cs:src_segment
                 mov     cx, 39h ; '9'
 
-loc_4096:                               ; ...
+loc_4096:
                 mov     byte ptr cs:frame_timer, 0
                 push    cx
                 mov     ax, cx
@@ -2407,7 +2361,7 @@ loc_4096:                               ; ...
                 dec     ax
                 call    Render_TileRow_TopDown
 
-loc_40B1:                               ; ...
+loc_40B1:
                 cmp     byte ptr cs:frame_timer, 4
                 jb      short loc_40B1
                 pop     cx
@@ -2444,7 +2398,7 @@ Render_TileRow_TopDown        proc near
                 jmp     short loc_40EE
 ; ---------------------------------------------------------------------------
 
-loc_40DE:                               ; ...
+loc_40DE:
                 mov     cx, 23h ; '#'
                 cmp     ax, 17h
                 jb      short loc_40EE
@@ -2452,10 +2406,10 @@ loc_40DE:                               ; ...
                 jb      short loc_4117
                 mov     cx, 21h ; '!'
 
-loc_40EE:                               ; ...
+loc_40EE:
                 mov     cs:decomp_plane3, 0
 
-loc_40F5:                               ; ...
+loc_40F5:
                 mov     ah, [si+29DCh]
                 mov     cs:decomp_plane2, ax
                 mov     ah, [si+14EEh]
@@ -2471,11 +2425,11 @@ loc_40F5:                               ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_4117:                               ; ...
+loc_4117:
                 mov     cx, 21h ; '!'
                 mov     cs:decomp_plane3, 0
 
-loc_4121:                               ; ...
+loc_4121:
                 mov     ah, [si+29DCh]
                 mov     cs:decomp_plane2, ax
                 mov     ah, [si+14EEh]
@@ -2519,7 +2473,7 @@ Render_Tile_Rows_BottomUp        proc near
                 mov     ds, cs:src_segment
                 mov     cx, 39h ; '9'
 
-loc_4178:                               ; ...
+loc_4178:
                 mov     byte ptr cs:frame_timer, 0
                 push    cx
                 mov     ax, cx
@@ -2533,7 +2487,7 @@ loc_4178:                               ; ...
                 dec     ax
                 call    Render_TileRow_BottomUp
 
-loc_4193:                               ; ...
+loc_4193:
                 cmp     byte ptr cs:frame_timer, 4
                 jb      short loc_4193
                 pop     cx
@@ -2572,7 +2526,7 @@ Render_TileRow_BottomUp        proc near
                 mov     cx, 7
                 mov     cs:decomp_plane3, 0
 
-loc_41CE:                               ; ...
+loc_41CE:
                 mov     ax, [si+29DCh]
                 xchg    ah, al
                 mov     cs:decomp_plane2, ax
@@ -2593,7 +2547,7 @@ loc_41CE:                               ; ...
                 loop    loc_41CE
                 mov     cx, 21h ; '!'
 
-loc_41FE:                               ; ...
+loc_41FE:
                 add     cx, cx
                 xor     ax, ax
                 rep stosw
@@ -2618,7 +2572,7 @@ GDMCGA_Clear_HUD_Bar        proc near
                 mov     ah, al
                 mov     cx, 8
 
-loc_4216:                               ; ...
+loc_4216:
                 stosw
                 stosw
                 stosw
@@ -2635,10 +2589,10 @@ GDMCGA_Clear_HUD_Bar        endp
 ; VGA palette fade to black via DAC ports 0x3C8/0x3C9
 ;   Input:
 ;     DS:SI = pointer to 16-block palette data sequence
-GDMCGA_Fade_To_Black        proc near
-                mov     dx, 30h ; '0'
+GDMCGA_Fade_Palette        proc near
+                mov     dx, 48
                 mul     dx
-                add     ax, 4289h
+                add     ax, offset byte_4289
                 mov     si, ax
                 mov     ds:fade_pal_ptr, si
                 pushf
@@ -2646,15 +2600,13 @@ GDMCGA_Fade_To_Black        proc near
                 mov     si, ds:fade_pal_ptr
                 mov     ax, 40h ; '@'
                 mov     es, ax
-                assume es:nothing
                 mov     dx, es:63h
                 add     dx, 6
                 push    dx
                 in      al, dx          ; read Vertical Retrace
                 mov     ds:fade_color_idx, 0
-                mov     cx, 10h
-
-loc_424C:                               ; ...
+                mov     cx, 16
+loc_424C:
                 push    cx
                 lodsb
                 mov     bh, al
@@ -2664,40 +2616,27 @@ loc_424C:                               ; ...
                 mov     ah, al
                 push    si
                 mov     si, ds:fade_pal_ptr
-                mov     cx, 10h
-
-loc_425E:                               ; ...
+                mov     cx, 16
+next_pal_index:
                 mov     dx, 3C8h        ; VGA Palette Address Register
                 mov     al, ds:fade_color_idx
                 out     dx, al          ; color index to change
                 jmp     short $+2
-; ---------------------------------------------------------------------------
-
-loc_4267:                               ; ...
                 mov     dl, 0C9h        ; 3C9h: VGA Palette Data Register
                 lodsb
                 add     al, bh
                 out     dx, al          ; modify red
                 jmp     short $+2
-; ---------------------------------------------------------------------------
-
-loc_426F:                               ; ...
                 lodsb
                 add     al, bl
                 out     dx, al          ; modify green
                 jmp     short $+2
-; ---------------------------------------------------------------------------
-
-loc_4275:                               ; ...
                 lodsb
                 add     al, ah
                 out     dx, al          ; modify blue
                 jmp     short $+2
-; ---------------------------------------------------------------------------
-
-loc_427B:                               ; ...
                 inc     ds:fade_color_idx
-                loop    loc_425E
+                loop    next_pal_index
                 pop     si
                 pop     cx
                 loop    loc_424C
@@ -2705,489 +2644,32 @@ loc_427B:                               ; ...
                 in      al, dx
                 popf
                 retn
-GDMCGA_Fade_To_Black        endp
+GDMCGA_Fade_Palette        endp
 
 ; ---------------------------------------------------------------------------
-byte_4289       db 0                    ; ...
-byte_428A       db 0                    ; ...
-byte_428B       db 0                    ; ...
-                db    0
-                db  0Fh
-                db  0Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  0Fh
-                db  0Fh
-                db    0
-                db    0
-                db  0Fh
-                db    0
-                db  0Fh
-                db    0
-                db  0Fh
-                db  0Fh
-                db    0
-                db  0Fh
-                db  0Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  0Fh
-                db  0Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db  0Fh
-                db  0Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db  0Fh
-                db  0Fh
-                db  0Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  0Fh
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    7
-                db    7
-                db    7
-                db    0
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db  1Fh
-                db    0
-                db  1Fh
-                db  1Fh
-                db  1Fh
+byte_4289       db 0
+byte_428A       db 0
+byte_428B       db 0
+                db 0, 0Fh, 0Fh,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,   0,   0, 0,   1Fh, 1Fh, 1Fh, 1Fh,   0, 1Fh, 1Fh, 1Fh
+                db 7,   7,   7, 0Fh, 0Fh, 0Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh, 0,   1Fh,   0,   0, 1Fh, 1Fh, 0Fh, 0Fh,   0,  0Fh, 0Fh, 0Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7, 0Fh, 0Fh, 0Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0,   0,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7, 0Fh, 0Fh, 0Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh,   0,   0, 1Fh, 1Fh, 0Fh, 0Fh,   0,  0Fh, 0Fh, 0Fh
+                db 0,   0,   0, 1Fh,   0,   0,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,   0,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7, 1Fh, 1Fh, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  0Fh, 0Fh, 0Fh
+                db 0,   0,   0,   0,   0, 0Fh, 0Fh,   0,   0, 0Fh,   0, 0Fh,   0, 0Fh, 0Fh,   0, 0Fh, 0Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh, 1Fh,   0, 1Fh, 1Fh, 0Fh, 0Fh,   0,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0,   0, 0Fh, 0Fh,   0, 1Fh,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0,   0,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh,  1Fh,  0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7, 0Fh, 0Fh, 0Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh, 1Fh,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0,   0, 1Fh,   0,   0,   0,   0,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 0,   0,   0,   0,   0, 1Fh, 1Fh,   0,   0, 0Fh,   0,   0,   0, 1Fh,   0, 1Fh,   0,   0, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
+                db 7,   7,   7,   0,   0, 1Fh, 1Fh,   0,   0, 1Fh,   0, 1Fh,   0, 1Fh, 1Fh,   0, 1Fh, 1Fh, 1Fh, 1Fh,   0,  1Fh, 1Fh, 1Fh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -3201,8 +2683,7 @@ byte_428B       db 0                    ; ...
 Decompress_3Plane_To_2bpp        proc near
                 push    cx
                 mov     cx, 2
-
-loc_446D:                               ; ...
+loc_446D:
                 rol     cs:decomp_plane3, 1
                 adc     ax, ax
                 rol     cs:decomp_plane2, 1
@@ -3259,7 +2740,6 @@ Clear_Seg2_Buffer        proc near
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax          ; seg2
-                assume es:nothing
                 xor     ax, ax
                 mov     di, 0
                 mov     cx, 8000h
@@ -3286,7 +2766,7 @@ GDMCGA_Font_Glyph_Thunk        endp
 ;   Output:
 ;     AX = VRAM offset (320 * BH + BL * 4)
 ;   Clobbers: AX, BX, DX, flags
-Calc_VRAM_Addr        proc near
+Calc_VRAM_Addr  proc near
                 mov     dl, bl
                 mov     bl, bh
                 xor     bh, bh
@@ -3297,7 +2777,7 @@ Calc_VRAM_Addr        proc near
                 mul     dx
                 add     ax, bx
                 retn
-Calc_VRAM_Addr        endp
+Calc_VRAM_Addr  endp
 
 
 ; =============== S U B R O U T I N E =======================================

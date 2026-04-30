@@ -31,18 +31,23 @@ sub_6002        proc near
                 mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
-                call    sub_6DE1
+                call    RLE_decompress
                 mov     ax, 4
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 xor     bx, bx
                 mov     cl, 96h
-                mov     si, offset byte_64EA
-                call    word ptr cs:Render_String_FF_Terminated_proc
+                mov     si, offset copyright_str
+                call    word ptr cs:Render_String_FF_Terminated_proc ; BX: starting X coord
+                                                        ; CL: starting Y coord
+                                                        ; SI: string pointer
+                                                        ;   Control codes: 0Dh = newline, 80h-87h = color change
                 mov     bx, 70Fh
-                mov     cx, 4170h
+                mov     cx, 4170h  ; width = 70h, height = 41h
                 mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 call    word ptr cs:Decompress_3Plane_XOR_proc
+;============ Done above this line =============
+
                 push    cs
                 pop     es
                 mov     si, offset vfs_nec_grp
@@ -61,7 +66,7 @@ sub_6002        proc near
                 mov     byte ptr cs:spacebar_latch, 0
                 mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     ax, 1
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     al, 0FFh
                 mov     bx, 1220h
                 mov     cx, 2C68h
@@ -70,7 +75,7 @@ sub_6002        proc near
                 call    word ptr cs:Decompress_3Plane_2Row_proc
                 call    sub_6358
                 mov     ax, 2
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     al, 0FFh
                 mov     bx, 1220h
                 mov     cx, 2C68h
@@ -104,7 +109,7 @@ sub_6002        proc near
                 mov     cx, 2C68h
                 call    word ptr cs:Render_With_MaskErase_Callback_proc
                 mov     ax, 3
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax
@@ -164,7 +169,7 @@ loc_6171:
                 mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
-                call    sub_6DE1
+                call    RLE_decompress
                 push    cs
                 pop     es
                 mov     si, offset vfs_ttl2_grp
@@ -184,7 +189,7 @@ loc_6171:
                 mov     cx, 2270h
                 call    word ptr cs:Render_With_MaskErase_Callback_proc
                 mov     ax, 4
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     byte ptr ds:frame_timer, 0
                 push    ds
                 mov     ds, word ptr cs:seg1
@@ -205,7 +210,7 @@ loc_6171:
                 mov     es, word ptr cs:seg1
                 mov     si, 0B000h
                 mov     di, 4000h
-                call    sub_6DE1
+                call    RLE_decompress
                 mov     al, 0F0h
                 call    sub_63AB
                 mov     bx, 70Fh
@@ -217,7 +222,7 @@ loc_6171:
                 mov     es, word ptr cs:seg1
                 mov     si, 0A000h
                 mov     di, 4000h
-                call    sub_6DE1
+                call    RLE_decompress
                 mov     si, 912Bh
                 call    word ptr cs:Render_Tile_Grid_proc
                 mov     al, 0F0h
@@ -458,7 +463,7 @@ loc_640C:
                 mov     byte ptr cs:spacebar_latch, 0
                 mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     ax, 1
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 call    sub_6497
                 jmp     short loc_6477
 
@@ -536,9 +541,7 @@ loc_64D3:
 sub_6497        endp
 
 ; ---------------------------------------------------------------------------
-byte_64EA       db 87h
-aCopyrightC1987 db '    Copyright (C)1987,1990 GAME ARTS    ',0Dh,'    Copyright (C)1990 Sierra On-Line    '
-                db 0FFh
+copyright_str   db 87h, '    Copyright (C)1987,1990 GAME ARTS    ', 0Dh, '    Copyright (C)1990 Sierra On-Line    ', 0FFh
 word_653D       dw 0
 byte_653F       db 0
 ; ---------------------------------------------------------------------------
@@ -551,7 +554,7 @@ loc_6540:
                 mov     byte ptr cs:Current_ASCII_Char, 0
                 mov     cs:off_6D56, 79C6h
                 mov     ax, 5
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_waku_grp
@@ -588,7 +591,7 @@ loc_6540:
                 call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
                 call    sub_6A75
                 mov     ax, 9
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     bx, 410h
                 mov     cx, 4868h
                 mov     es, word ptr cs:seg1
@@ -608,7 +611,7 @@ loc_6540:
                 xor     ax, ax
                 call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 6
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     bx, 410h
                 mov     cx, 4868h
                 mov     es, word ptr cs:seg1
@@ -685,7 +688,7 @@ loc_6540:
                 call    word ptr cs:Render_With_MaskErase_Callback_proc
                 call    sub_6A75
                 mov     ax, 7
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     al, 0FFh
                 mov     bx, 410h
                 mov     cx, 4868h
@@ -771,7 +774,7 @@ loc_6540:
                 xor     ax, ax
                 call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 6
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     bx, 0A15h
                 mov     cx, 1A5Dh
                 call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
@@ -803,7 +806,7 @@ loc_6540:
                 xor     ax, ax
                 call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 8
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     bx, 1515h
                 mov     cx, 315Dh
                 call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
@@ -867,7 +870,7 @@ loc_68F7:
                 xor     ax, ax
                 call    word ptr cs:Render_Scrolling_Border_proc
                 mov     ax, 7
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuu2_grp
@@ -929,7 +932,7 @@ loc_68F7:
                 mov     di, 4000h
                 call    word ptr cs:Decompress_3Plane_2Row_proc
                 mov     ax, 1
-                call    word ptr cs:GDMCGA_Fade_To_Black_proc
+                call    word ptr cs:GDMCGA_Fade_Palette_proc
                 mov     si, offset aAtLastTheDoorO ; "                At last,               "...
                 call    sub_6D04
                 mov     cx, 0Ah
@@ -1562,9 +1565,9 @@ loc_6D8F:
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_6DE1        proc near
+RLE_decompress  proc near
                 test    byte ptr [si], 40h
-                jz      short loc_6E03
+                jz      short control_mode_byte
                 lodsw
                 xchg    ah, al
                 mov     cx, ax
@@ -1576,27 +1579,27 @@ sub_6DE1        proc near
 loc_6DF1:
                 and     cx, 3FFFh
                 test    ax, 8000h
-                jz      short loc_6DFF
+                jz      short copy_bytes
 
-loc_6DFA:
+fill_with_byte:
                 lodsb
                 rep stosb
-                jmp     short sub_6DE1
+                jmp     short RLE_decompress
 ; ---------------------------------------------------------------------------
 
-loc_6DFF:
+copy_bytes:
                 rep movsb
-                jmp     short sub_6DE1
+                jmp     short RLE_decompress
 ; ---------------------------------------------------------------------------
 
-loc_6E03:
+control_mode_byte:
                 lodsb
                 mov     cl, al
                 and     cx, 3Fh
                 test    al, 80h
-                jz      short loc_6DFF
-                jmp     short loc_6DFA
-sub_6DE1        endp
+                jz      short copy_bytes
+                jmp     short fill_with_byte
+RLE_decompress  endp
 
 
 ; =============== S U B R O U T I N E =======================================

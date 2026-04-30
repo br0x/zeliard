@@ -3,7 +3,7 @@ NoOp_proc                           equ 3000h
 Decompress_3Plane_2Row_proc         equ 3002h
 Decompress_3Plane_Interleaved_proc  equ 3004h
 Render_With_MaskErase_Callback_proc equ 3006h
-GDMCGA_Fade_To_Black_proc           equ 3008h
+GDMCGA_Fade_Palette_proc           equ 3008h
 Clear_Seg2_Buffer_proc              equ 300Ah
 Render_Text_String_proc             equ 300Ch
 Blit_Sprite_To_Screen_proc          equ 300Eh

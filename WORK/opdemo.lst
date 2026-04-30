@@ -57,7 +57,7 @@ seg000:6030                 mov     si, 0A000h
 seg000:6033                 mov     di, 4000h
 seg000:6036                 call    sub_6DE1
 seg000:6039                 mov     ax, 4
-seg000:603C                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:603C                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6041                 xor     bx, bx
 seg000:6043                 mov     cl, 96h
 seg000:6045                 mov     si, offset byte_64EA
@@ -87,7 +87,7 @@ seg000:608A                 call    word ptr cs:2042h ; Clear_Screen_proc
 seg000:608F                 mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
 seg000:6095                 mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
 seg000:609B                 mov     ax, 1
-seg000:609E                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:609E                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:60A3                 mov     al, 0FFh
 seg000:60A5                 mov     bx, 1220h
 seg000:60A8                 mov     cx, 2C68h
@@ -96,7 +96,7 @@ seg000:60B0                 mov     di, 4000h
 seg000:60B3                 call    word ptr cs:3002h ; Decompress_3Plane_2Row_proc
 seg000:60B8                 call    sub_6358
 seg000:60BB                 mov     ax, 2
-seg000:60BE                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:60BE                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:60C3                 mov     al, 0FFh
 seg000:60C5                 mov     bx, 1220h
 seg000:60C8                 mov     cx, 2C68h
@@ -132,7 +132,7 @@ seg000:6127                 mov     bx, 1220h
 seg000:612A                 mov     cx, 2C68h
 seg000:612D                 call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
 seg000:6132                 mov     ax, 3
-seg000:6135                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:6135                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:613A                 mov     ax, cs
 seg000:613C                 add     ax, 2000h
 seg000:613F                 mov     es, ax
@@ -217,7 +217,7 @@ seg000:620B                 mov     bx, 1720h
 seg000:620E                 mov     cx, 2270h
 seg000:6211                 call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
 seg000:6216                 mov     ax, 4
-seg000:6219                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:6219                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:621E                 mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
 seg000:6223                 push    ds
 seg000:6224                 mov     ds, word ptr cs:0FF2Ch ; seg1
@@ -503,7 +503,7 @@ seg000:643C                 pop     ds
 seg000:643D                 mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
 seg000:6443                 mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
 seg000:6449                 mov     ax, 1
-seg000:644C                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:644C                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6451                 call    sub_6497
 seg000:6454                 jmp     short loc_6477
 seg000:6454 ; END OF FUNCTION CHUNK FOR sub_63AB
@@ -601,7 +601,7 @@ seg000:6545                 mov     byte ptr cs:0FF1Dh, 0 ; spacebar_latch
 seg000:654B                 mov     byte ptr cs:0FF29h, 0 ; Current_ASCII_Char
 seg000:6551                 mov     cs:off_6D56, 79C6h
 seg000:6558                 mov     ax, 5
-seg000:655B                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:655B                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6560                 push    cs
 seg000:6561                 pop     es
 seg000:6562                 assume es:nothing
@@ -644,7 +644,7 @@ seg000:65BC                 mov     di, 4000h
 seg000:65BF                 call    word ptr cs:3010h ; Decompress_And_Copy_To_VRAM_proc
 seg000:65C4                 call    sub_6A75
 seg000:65C7                 mov     ax, 9
-seg000:65CA                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:65CA                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:65CF                 mov     bx, 410h
 seg000:65D2                 mov     cx, 4868h
 seg000:65D5                 mov     es, word ptr cs:0FF2Ch ; seg1
@@ -666,7 +666,7 @@ seg000:65FF                 call    sub_6A75
 seg000:6602                 xor     ax, ax
 seg000:6604                 call    word ptr cs:3020h ; Render_Scrolling_Border_proc
 seg000:6609                 mov     ax, 6
-seg000:660C                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:660C                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6611                 mov     bx, 410h
 seg000:6614                 mov     cx, 4868h
 seg000:6617                 mov     es, word ptr cs:0FF2Ch ; seg1
@@ -750,7 +750,7 @@ seg000:66EB                 mov     cx, 4868h
 seg000:66EE                 call    word ptr cs:3006h ; Render_With_MaskErase_Callback_proc
 seg000:66F3                 call    sub_6A75
 seg000:66F6                 mov     ax, 7
-seg000:66F9                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:66F9                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:66FE                 mov     al, 0FFh
 seg000:6700                 mov     bx, 410h
 seg000:6703                 mov     cx, 4868h
@@ -846,7 +846,7 @@ seg000:67F7                 call    sub_6A75
 seg000:67FA                 xor     ax, ax
 seg000:67FC                 call    word ptr cs:3020h ; Render_Scrolling_Border_proc
 seg000:6801                 mov     ax, 6
-seg000:6804                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:6804                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6809                 mov     bx, 0A15h
 seg000:680C                 mov     cx, 1A5Dh
 seg000:680F                 call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
@@ -880,7 +880,7 @@ seg000:6865                 call    sub_6D5E
 seg000:6868                 xor     ax, ax
 seg000:686A                 call    word ptr cs:3020h ; Render_Scrolling_Border_proc
 seg000:686F                 mov     ax, 8
-seg000:6872                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:6872                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6877                 mov     bx, 1515h
 seg000:687A                 mov     cx, 315Dh
 seg000:687D                 call    word ptr cs:3024h ; GDMCGA_Draw_Bordered_Rect_proc
@@ -944,7 +944,7 @@ seg000:6913                 loop    loc_68F7
 seg000:6915                 xor     ax, ax
 seg000:6917                 call    word ptr cs:3020h ; Render_Scrolling_Border_proc
 seg000:691C                 mov     ax, 7
-seg000:691F                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:691F                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:6924                 push    cs
 seg000:6925                 pop     es
 seg000:6926                 assume es:nothing
@@ -1010,7 +1010,7 @@ seg000:69DE                 mov     es, word ptr cs:0FF2Ch ; seg1
 seg000:69E3                 mov     di, 4000h
 seg000:69E6                 call    word ptr cs:3002h ; Decompress_3Plane_2Row_proc
 seg000:69EB                 mov     ax, 1
-seg000:69EE                 call    word ptr cs:3008h ; GDMCGA_Fade_To_Black_proc
+seg000:69EE                 call    word ptr cs:3008h ; GDMCGA_Fade_Palette_proc
 seg000:69F3                 mov     si, offset aAtLastTheDoorO ; "                At last,               "...
 seg000:69F6                 call    sub_6D04
 seg000:69F9                 mov     cx, 0Ah
