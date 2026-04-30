@@ -10,10 +10,10 @@
 
 cat << 'EOF' > build.bat
 path D:\;%PATH%
-tasm /m9 ttl3_sni.asm >log.txt
-tlink /t/x ttl3_sni.obj >>log.txt
-ttl3_sni.com
-exit
+tasm /m9 nec_snip.asm >log.txt
+tlink /t/x nec_snip.obj >>log.txt
+nec_snip.com
+
 EOF
 
 dosbox-x -conf test.conf \

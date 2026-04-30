@@ -91,6 +91,7 @@ sub_6002        proc near
                 mov     es, word ptr cs:seg1
                 mov     di, 75A0h
                 call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+;=====================================
                 mov     byte ptr cs:soundFX_request, 4
                 mov     si, 9060h
                 call    word ptr cs:Animate_Sprites_proc

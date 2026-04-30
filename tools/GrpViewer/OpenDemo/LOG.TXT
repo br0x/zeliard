@@ -1,9 +1,9 @@
 Turbo Assembler  Version 4.1  Copyright (c) 1988, 1996 Borland International
 
-Assembling file:   ttl3_sni.asm
+Assembling file:   nec_snip.asm
 Error messages:    None
 Warning messages:  None
 Passes:            2
-Remaining memory:  431k
+Remaining memory:  414k
 
 Turbo Link  Version 7.1.30.1. Copyright (c) 1987, 1996 Borland International

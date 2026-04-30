@@ -1,11 +1,54 @@
 const INTRO_FADE_IN_MS = 2000;
 const INTRO_FADE_OUT_MS = 2000;
 const INTRO_LOGO_SRC = 'assets/images/opdemo/ttl3_logo.png';
+const INTRO_NEC_SRC = 'assets/images/opdemo/nec.png';
+const INTRO_NEC_GOLD_SRC = 'assets/images/opdemo/nec_gold.png';
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
   'Copyright (C)1990 Sierra On-Line',
   'Web port 2026, brox//THIRTEEN'
 ];
+const STORY_LINES = [
+  '           Two thousand years, ',
+  'from the dark reaches of another galaxy,',
+  '        a demon with not a shred',
+  '      of compassion for humankind,',
+  '         descended upon earth.',
+  '',
+  '          He defiled the land,',
+  '  sending vile creatures to live in it,',
+  '   and thus became ruler of the world.',
+  '',
+  '         The King of Felishika,',
+  '     appalled by what had happened,',
+  '          prayed to the Spirit',
+  '      of the Holy Land of Zeliard',
+  '    for help in defeating this monster.',
+  '',
+  '    With the help of the holy crystals',
+  '       called Tears of Esmesanti,',
+  '    the King managed to wrest power',
+  '    from the fiend and seal him deep',
+  '     within the bowels of the earth.',
+  '',
+  '            And once again,',
+  ' the light of peace came to shine upon',
+  '              the earth.',
+  '',
+  '',
+  'However, it is written in',
+  '       the Sixth Book of Esmesanti:',
+  '                    The Age of Darkness.'
+];
+
+const PAGE_LOGO = 'logo';
+const PAGE_STORY = 'story';
+const STORY_IMAGE_FADE_IN_MS = 2000;
+const STORY_CROSSFADE_MS = 2000;
+const STORY_FONT = '14px "Press Start 2P", monospace';
+const STORY_LINE_HEIGHT = 20;
+const STORY_START_Y = 400;
+const STORY_SCROLL_SPEED = 28;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -26,21 +69,31 @@ export class OpeningIntro {
     this.frameId = 0;
     this.startTime = 0;
     this.fadeOutStartTime = 0;
+    this.page = PAGE_LOGO;
+    this.storyStartTime = 0;
+    this.storyCrossfadeStartTime = 0;
     this.logoImage = null;
+    this.necImage = null;
+    this.necGoldImage = null;
   }
 
   async start() {
     this.active = true;
     this.startTime = 0;
     this.fadeOutStartTime = 0;
+    this.page = PAGE_LOGO;
+    this.storyStartTime = 0;
+    this.storyCrossfadeStartTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
     try {
-      [this.logoImage] = await Promise.all([
+      [this.logoImage, this.necImage, this.necGoldImage] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
+        loadImage(INTRO_NEC_SRC),
+        loadImage(INTRO_NEC_GOLD_SRC),
         document.fonts.ready
-      ]).then(([logo]) => [logo]);
+      ]).then(([logo, nec, necGold]) => [logo, nec, necGold]);
     } catch (error) {
       console.error(error);
       this.finish();
@@ -51,11 +104,22 @@ export class OpeningIntro {
   }
 
   skipPage() {
-    if (!this.active || this.fadeOutStartTime) {
+    if (!this.active) {
       return;
     }
 
-    this.fadeOutStartTime = performance.now();
+    if (this.page === PAGE_LOGO) {
+      if (this.fadeOutStartTime) {
+        return;
+      }
+
+      this.fadeOutStartTime = performance.now();
+      return;
+    }
+
+    if (this.page === PAGE_STORY && this.isStoryWaitingForInput()) {
+      this.finish();
+    }
   }
 
   draw(timestamp) {
@@ -63,6 +127,15 @@ export class OpeningIntro {
       return;
     }
 
+    if (this.page === PAGE_LOGO) {
+      this.drawLogoPage(timestamp);
+      return;
+    }
+
+    this.drawStoryPage(timestamp);
+  }
+
+  drawLogoPage(timestamp) {
     if (!this.startTime) {
       this.startTime = timestamp;
     }
@@ -86,10 +159,56 @@ export class OpeningIntro {
     this.ctx.restore();
 
     if (this.fadeOutStartTime && fadeOutElapsed >= INTRO_FADE_OUT_MS) {
-      this.finish();
+      this.startStoryPage();
       return;
     }
 
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startStoryPage() {
+    this.page = PAGE_STORY;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.storyStartTime = 0;
+    this.storyCrossfadeStartTime = 0;
+    this.frameId = requestAnimationFrame((timestamp) => this.draw(timestamp));
+  }
+
+  drawStoryPage(timestamp) {
+    if (!this.storyStartTime) {
+      this.storyStartTime = timestamp;
+    }
+
+    const elapsed = timestamp - this.storyStartTime;
+    const imageOpacity = Math.min(elapsed / STORY_IMAGE_FADE_IN_MS, 1);
+    const textY = STORY_START_Y - (elapsed / 1000) * STORY_SCROLL_SPEED;
+    const textBottom = textY + STORY_LINES.length * STORY_LINE_HEIGHT;
+
+    if (textBottom < 0 && !this.storyCrossfadeStartTime) {
+      this.storyCrossfadeStartTime = timestamp;
+    }
+
+    const crossfadeElapsed = this.storyCrossfadeStartTime ? timestamp - this.storyCrossfadeStartTime : 0;
+    const goldOpacity = this.storyCrossfadeStartTime
+      ? Math.min(crossfadeElapsed / STORY_CROSSFADE_MS, 1)
+      : 0;
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = imageOpacity * (1 - goldOpacity);
+    this.ctx.drawImage(this.necImage, 0, 0);
+
+    this.ctx.globalAlpha = imageOpacity * goldOpacity;
+    this.ctx.drawImage(this.necGoldImage, 0, 0);
+
+    if (!this.storyCrossfadeStartTime) {
+      this.drawStoryText(textY, imageOpacity);
+    }
+
+    this.ctx.restore();
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -106,6 +225,28 @@ export class OpeningIntro {
     for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
       this.ctx.fillText(INTRO_COPYRIGHT_LINES[i], this.canvas.width / 2, startY + i * lineHeight);
     }
+  }
+
+  drawStoryText(y, opacity) {
+    this.ctx.globalAlpha = opacity;
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = STORY_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    const x = 24;
+
+    for (let i = 0; i < STORY_LINES.length; i++) {
+      this.ctx.fillText(STORY_LINES[i], x, y + i * STORY_LINE_HEIGHT);
+    }
+  }
+
+  isStoryWaitingForInput() {
+    if (this.page !== PAGE_STORY || !this.storyCrossfadeStartTime) {
+      return false;
+    }
+
+    return performance.now() - this.storyCrossfadeStartTime >= STORY_CROSSFADE_MS;
   }
 
   finish() {

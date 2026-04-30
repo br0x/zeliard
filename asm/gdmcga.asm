@@ -460,7 +460,7 @@ byte_32C1       db 1, 4, 10h, 40h, 2, 8, 20h, 80h ; ...
 ; =============== S U B R O U T I N E =======================================
 
 
-; Render text string to seg3 text buffer using 8x8 font
+; Render text string to text buffer using 8x8 font
 ;   Input:
 ;     SI = pointer to FF-terminated string
 ;   Output:
@@ -910,7 +910,6 @@ Animate_Sprites        endp
 Copy_VRAM_Block_Fwd        proc near
                 push    si
                 push    cx
-
 loc_3598:
                 push    si
                 push    cx
@@ -1018,36 +1017,8 @@ Blit_Masked_OR_From_Seg1        endp
 
 ; ---------------------------------------------------------------------------
 word_3617       dw 9000h
-word_3619       dw 620h
-                db  80h
-                db  91h
-                db  20h
-                db    6
-                db    0
-                db  93h
-                db  20h
-                db    6
-                db  80h
-                db  94h
-                db  20h
-                db    6
-                db    0
-                db  96h
-                db  18h
-                db    4
-                db 0C0h
-                db  96h
-                db  18h
-                db    4
-                db  80h
-                db  97h
-                db  18h
-                db    4
-                db  40h ; @
-                db  98h
-                db  18h
-                db    4
-byte_3637       db 1Fh, 1Fh, 0, 0Fh, 0Fh, 0, 1Fh, 1Fh, 1Fh, 0Fh, 0Fh, 0Fh ; ...
+word_3619       dw 620h, 9180h, 620h, 9300h, 620h, 9480h, 620h, 9600h, 418h, 96C0h, 418h, 9780h, 418h, 9840h, 418h
+byte_3637       db 1Fh, 1Fh, 0, 0Fh, 0Fh, 0, 1Fh, 1Fh, 1Fh, 0Fh, 0Fh, 0Fh
                 db 1Fh, 0, 1Fh, 0Fh, 0, 0Fh, 1Fh, 0, 0, 0Fh, 0, 0
 
 ; =============== S U B R O U T I N E =======================================
