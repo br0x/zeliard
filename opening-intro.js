@@ -75,6 +75,7 @@ export class OpeningIntro {
     this.logoImage = null;
     this.necImage = null;
     this.necGoldImage = null;
+    this.storyTextCanvas = null;
   }
 
   async start() {
@@ -94,6 +95,7 @@ export class OpeningIntro {
         loadImage(INTRO_NEC_GOLD_SRC),
         document.fonts.ready
       ]).then(([logo, nec, necGold]) => [logo, nec, necGold]);
+      this.storyTextCanvas = this.createStoryTextCanvas();
     } catch (error) {
       console.error(error);
       this.finish();
@@ -182,8 +184,8 @@ export class OpeningIntro {
 
     const elapsed = timestamp - this.storyStartTime;
     const imageOpacity = Math.min(elapsed / STORY_IMAGE_FADE_IN_MS, 1);
-    const textY = STORY_START_Y - (elapsed / 1000) * STORY_SCROLL_SPEED;
-    const textBottom = textY + STORY_LINES.length * STORY_LINE_HEIGHT;
+    const textY = Math.round(STORY_START_Y - (elapsed / 1000) * STORY_SCROLL_SPEED);
+    const textBottom = textY + this.storyTextCanvas.height;
 
     if (textBottom < 0 && !this.storyCrossfadeStartTime) {
       this.storyCrossfadeStartTime = timestamp;
@@ -229,16 +231,29 @@ export class OpeningIntro {
 
   drawStoryText(y, opacity) {
     this.ctx.globalAlpha = opacity;
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = STORY_FONT;
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'top';
+    this.ctx.drawImage(this.storyTextCanvas, 0, y);
+  }
+
+  createStoryTextCanvas() {
+    const textCanvas = document.createElement('canvas');
+    textCanvas.width = this.canvas.width;
+    textCanvas.height = STORY_LINES.length * STORY_LINE_HEIGHT;
+
+    const textCtx = textCanvas.getContext('2d');
+    textCtx.imageSmoothingEnabled = false;
+    textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    textCtx.fillStyle = '#fff';
+    textCtx.font = STORY_FONT;
+    textCtx.textAlign = 'left';
+    textCtx.textBaseline = 'top';
 
     const x = 24;
 
     for (let i = 0; i < STORY_LINES.length; i++) {
-      this.ctx.fillText(STORY_LINES[i], x, y + i * STORY_LINE_HEIGHT);
+      textCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
     }
+
+    return textCanvas;
   }
 
   isStoryWaitingForInput() {
