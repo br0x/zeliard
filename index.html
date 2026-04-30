@@ -8,12 +8,16 @@
 </head>
 <body>
 
-  <div id="ui">
+  <section id="intro-screen" class="intro-screen">
+    <canvas id="introCanvas" width="640" height="400" aria-label="Opening title"></canvas>
+  </section>
+
+  <div id="ui" class="hidden">
     <span class="group">Controls:</span>&nbsp;&nbsp;<span class="key">Arrows</span> Move / Climb / Jump / Squat<br>
     <span class="key">Space</span> Use sword &nbsp; <span class="key">Alt</span> Magics &nbsp; <span class="key">Enter</span> Inventory
   </div>
 
-  <div id="layout-wrapper" style="display: flex; align-items: flex-start; justify-content: center; width: 100%; max-width: 1200px;">
+  <div id="layout-wrapper" class="hidden" style="display: flex; align-items: flex-start; justify-content: center; width: 100%; max-width: 1200px;">
 
     <div id="debug" style="font-size: 14px; color: #0f0; font-family: monospace; width: 200px; padding-right: 20px;">
     </div>

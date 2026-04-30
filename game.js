@@ -1,47 +1,94 @@
-import {
-  initWasm,
-  loadMdt,
-  getMdtHeader,
-  getCavernName,
-  getProximityMap,
-  readMemory,
-  unpack_map,
-  unpack_map_internal,
-  inputInit,
-  inputUpdate,
-  inputSetKeys,
-  buildInputBitmask,
-  heroMovementInit,
-  townToDungeonTransition,
-  heroMovementUpdate,
-  heroGetDirection,
-  heroGetState,
-  heroIsMoving,
-  updateHorizontalPlatforms,
-  heroInteractionCheck,
-  combatInit,
-  combatUpdate,
-  getCombatTimer,
-  initBossBattle,
-  updateBossBattle,
-  getBossHp,
-  getBossMaxHp,
-  isBossDefeated,
-  getHeroPosition,
-  setHeroPosition,
-  inputGetDebugCounter,
-  getInputDebug,
-  getStateMachineDebug
-} from './src/zeliard-wasm.js';
+const USE_WASM_ENGINE = false;
+let engineReady = false;
+let gameStarted = false;
 
-import { RENDER_CONFIG } from './src/render-config.js';
-import { renderDungeonObjects } from './src/render-objects.js';
+let initWasm;
+let loadMdt;
+let getMdtHeader;
+let getCavernName;
+let getProximityMap;
+let inputInit;
+let inputUpdate;
+let inputSetKeys;
+let buildInputBitmask;
+let heroMovementInit;
+let townToDungeonTransition;
+let heroMovementUpdate;
+let heroGetDirection;
+let heroGetState;
+let heroIsMoving;
+let updateHorizontalPlatforms;
+let heroInteractionCheck;
+let combatInit;
+let combatUpdate;
+let initBossBattle;
+let updateBossBattle;
+let getHeroPosition;
+let inputGetDebugCounter;
+let RENDER_CONFIG;
+let renderDungeonObjects;
+
+async function loadWasmEngine() {
+  const wasmBridge = await import('./src/zeliard-wasm.js');
+  const renderConfig = await import('./src/render-config.js');
+  const renderObjects = await import('./src/render-objects.js');
+
+  ({
+    initWasm,
+    loadMdt,
+    getMdtHeader,
+    getCavernName,
+    getProximityMap,
+    inputInit,
+    inputUpdate,
+    inputSetKeys,
+    buildInputBitmask,
+    heroMovementInit,
+    townToDungeonTransition,
+    heroMovementUpdate,
+    heroGetDirection,
+    heroGetState,
+    heroIsMoving,
+    updateHorizontalPlatforms,
+    heroInteractionCheck,
+    combatInit,
+    combatUpdate,
+    initBossBattle,
+    updateBossBattle,
+    getHeroPosition,
+    inputGetDebugCounter
+  } = wasmBridge);
+
+  RENDER_CONFIG = renderConfig.RENDER_CONFIG;
+  renderDungeonObjects = renderObjects.renderDungeonObjects;
+}
 
         // --- Engine Configuration ---
 const TILE_WIDTH = 20;
 const TILE_HEIGHT = 20;
 const VIEW_COLS = 28;
 const VIEW_ROWS = 18;
+
+const INTRO_FADE_IN_MS = 2000;
+const INTRO_FADE_OUT_MS = 2000;
+const INTRO_LOGO_SRC = 'tools/GrpViewer/OpenDemo/ttl3_logo.png';
+const INTRO_COPYRIGHT_LINES = [
+  'Copyright (C)1987,1990 GAME ARTS',
+  'Copyright (C)1990 Sierra On-Line',
+  'Web port 2026, brox//THIRTEEN'
+];
+
+const introScreen = document.getElementById('intro-screen');
+const introCanvas = document.getElementById('introCanvas');
+const introCtx = introCanvas.getContext('2d');
+const uiScreen = document.getElementById('ui');
+const layoutWrapper = document.getElementById('layout-wrapper');
+
+let introActive = false;
+let introFrameId = 0;
+let introStartTime = 0;
+let introFadeOutStartTime = 0;
+let introLogoImage = null;
 
 // --- Setup Canvas ---
 const canvas = document.getElementById('gameCanvas');
@@ -101,8 +148,126 @@ const keyTimers = {
   ArrowUp: 0,
 };
 
-async function init() {
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    image.src = src;
+  });
+}
+
+async function startOpeningTitles() {
+  introActive = true;
+  introStartTime = 0;
+  introFadeOutStartTime = 0;
+  introCtx.imageSmoothingEnabled = false;
+  introScreen.classList.remove('hidden');
+  uiScreen.classList.add('hidden');
+  layoutWrapper.classList.add('hidden');
+
   try {
+    [introLogoImage] = await Promise.all([
+      loadImage(INTRO_LOGO_SRC),
+      document.fonts.ready
+    ]).then(([logo]) => [logo]);
+  } catch (error) {
+    console.error(error);
+    finishOpeningTitles();
+    return;
+  }
+
+  introFrameId = requestAnimationFrame(drawOpeningTitle);
+}
+
+function drawOpeningTitle(timestamp) {
+  if (!introActive) {
+    return;
+  }
+
+  if (!introStartTime) {
+    introStartTime = timestamp;
+  }
+
+  const elapsed = timestamp - introStartTime;
+  const fadeInProgress = Math.min(elapsed / INTRO_FADE_IN_MS, 1);
+  const fadeOutElapsed = introFadeOutStartTime ? timestamp - introFadeOutStartTime : 0;
+  const pageOpacity = introFadeOutStartTime ? 1 - Math.min(fadeOutElapsed / INTRO_FADE_OUT_MS, 1) : 1;
+  const logoOpacity = 0.18 + fadeInProgress * 0.82;
+
+  introCtx.fillStyle = '#000';
+  introCtx.fillRect(0, 0, introCanvas.width, introCanvas.height);
+
+  introCtx.save();
+  introCtx.globalAlpha = pageOpacity * logoOpacity;
+  introCtx.drawImage(introLogoImage, 0, 0);
+
+  drawIntroCopyrightText(pageOpacity);
+  introCtx.restore();
+
+  if (introFadeOutStartTime && fadeOutElapsed >= INTRO_FADE_OUT_MS) {
+    finishOpeningTitles();
+    return;
+  }
+
+  introFrameId = requestAnimationFrame(drawOpeningTitle);
+}
+
+function drawIntroCopyrightText(opacity) {
+  introCtx.globalAlpha = opacity;
+  introCtx.fillStyle = '#fff';
+  introCtx.font = '16px "Press Start 2P", monospace';
+  introCtx.textAlign = 'center';
+  introCtx.textBaseline = 'top';
+
+  const startY = 290;
+  const lineHeight = 20;
+
+  for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
+    introCtx.fillText(INTRO_COPYRIGHT_LINES[i], introCanvas.width / 2, startY + i * lineHeight);
+  }
+}
+
+function skipOpeningTitlePage() {
+  if (!introActive || introFadeOutStartTime) {
+    return;
+  }
+
+  introFadeOutStartTime = performance.now();
+}
+
+function finishOpeningTitles() {
+  if (!introActive) {
+    return;
+  }
+
+  introActive = false;
+  cancelAnimationFrame(introFrameId);
+  introScreen.classList.add('hidden');
+  startGame();
+}
+
+function init() {
+  startOpeningTitles();
+}
+
+async function startGame() {
+  if (gameStarted) {
+    return;
+  }
+
+  gameStarted = true;
+  uiScreen.classList.remove('hidden');
+  layoutWrapper.classList.remove('hidden');
+
+  try {
+    if (!USE_WASM_ENGINE) {
+      drawLifeBar();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    await loadWasmEngine();
     await initWasm();
 
     // Initialize input buffer
@@ -160,6 +325,7 @@ async function init() {
     console.log('Hero position after init:', heroPos);
     
     // Start the game loop only after initialization is complete
+    engineReady = true;
     requestAnimationFrame(loop);
   } catch (error) {
     console.error(error);
@@ -172,6 +338,11 @@ window.addEventListener('keydown', e => {
   if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
     e.preventDefault();
 
+  if (introActive && e.code === 'Space') {
+    skipOpeningTitlePage();
+    return;
+  }
+
   // Update key state
   if(e.code === 'Space') keys.Space = true;
   if(e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt = true;
@@ -182,12 +353,14 @@ window.addEventListener('keydown', e => {
   if(e.code === 'ArrowLeft') keys.ArrowLeft = true;
   if(e.code === 'ArrowRight') keys.ArrowRight = true;
 
-  // Send input to WASM
-  const bitmask = buildInputBitmask(keys);
-  const counterBefore = inputGetDebugCounter();
-  inputSetKeys(bitmask);
-  const counterAfter = inputGetDebugCounter();
-  console.log('Keydown:', e.code, '| Counter:', counterBefore, '->', counterAfter);
+  if (engineReady) {
+    // Send input to WASM
+    const bitmask = buildInputBitmask(keys);
+    const counterBefore = inputGetDebugCounter();
+    inputSetKeys(bitmask);
+    const counterAfter = inputGetDebugCounter();
+    console.log('Keydown:', e.code, '| Counter:', counterBefore, '->', counterAfter);
+  }
 });
 
 window.addEventListener('keyup', e => {
@@ -201,12 +374,14 @@ window.addEventListener('keyup', e => {
   if(e.code === 'ArrowLeft') keys.ArrowLeft = false;
   if(e.code === 'ArrowRight') keys.ArrowRight = false;
 
-  // Send input to WASM
-  const bitmask = buildInputBitmask(keys);
-  const counterBefore = inputGetDebugCounter();
-  inputSetKeys(bitmask);
-  const counterAfter = inputGetDebugCounter();
-  console.log('Keyup:', e.code, '| Counter:', counterBefore, '->', counterAfter);
+  if (engineReady) {
+    // Send input to WASM
+    const bitmask = buildInputBitmask(keys);
+    const counterBefore = inputGetDebugCounter();
+    inputSetKeys(bitmask);
+    const counterAfter = inputGetDebugCounter();
+    console.log('Keyup:', e.code, '| Counter:', counterBefore, '->', counterAfter);
+  }
 });
 
 function updateElementText(elementId, value) {
@@ -239,6 +414,10 @@ function setLife(currentLife, maxLife) {
 let frameCount = 0;
 
 function update() {
+  if (!engineReady) {
+    return;
+  }
+
   // Update input state (compute edge-triggered inputs)
   inputUpdate();
 
@@ -275,6 +454,14 @@ function update() {
 function draw() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!engineReady) {
+      drawLifeBar();
+      updateElementText('currentMapName', '');
+      updateElementText('gold', 0);
+      updateElementText('almas', 0);
+      return;
+    }
 
     // Press Start 2P is naturally very wide, almost square.
     ctx.font = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
