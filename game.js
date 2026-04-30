@@ -71,7 +71,7 @@ const VIEW_ROWS = 18;
 
 const INTRO_FADE_IN_MS = 2000;
 const INTRO_FADE_OUT_MS = 2000;
-const INTRO_LOGO_SRC = 'tools/GrpViewer/OpenDemo/ttl3_logo.png';
+const INTRO_LOGO_SRC = 'assets/images/opdemo/ttl3_logo.png';
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
   'Copyright (C)1990 Sierra On-Line',
