@@ -44,8 +44,8 @@ const STORY_LINES = [
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
 const STORY_IMAGE_FADE_IN_MS = 2000;
-const STORY_CROSSFADE_MS = 2000;
-const STORY_FONT = '14px "Press Start 2P", monospace';
+const STORY_CROSSFADE_MS = 4000;
+const STORY_FONT = '16px "Press Start 2P", monospace';
 const STORY_LINE_HEIGHT = 20;
 const STORY_START_Y = 400;
 const STORY_SCROLL_SPEED = 28;
@@ -247,7 +247,7 @@ export class OpeningIntro {
     textCtx.textAlign = 'left';
     textCtx.textBaseline = 'top';
 
-    const x = 24;
+    const x = 6;
 
     for (let i = 0; i < STORY_LINES.length; i++) {
       textCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
