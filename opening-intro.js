@@ -119,8 +119,13 @@ export class OpeningIntro {
       return;
     }
 
-    if (this.page === PAGE_STORY && this.isStoryWaitingForInput()) {
-      this.finish();
+    if (this.page === PAGE_STORY) {
+      if (this.isStoryWaitingForInput()) {
+        this.finish();
+        return;
+      }
+
+      this.skipStoryScroll();
     }
   }
 
@@ -262,6 +267,14 @@ export class OpeningIntro {
     }
 
     return performance.now() - this.storyCrossfadeStartTime >= STORY_CROSSFADE_MS;
+  }
+
+  skipStoryScroll() {
+    if (this.storyCrossfadeStartTime) {
+      return;
+    }
+
+    this.storyCrossfadeStartTime = performance.now() - STORY_CROSSFADE_MS;
   }
 
   finish() {
