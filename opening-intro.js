@@ -274,7 +274,7 @@ export class OpeningIntro {
       return;
     }
 
-    this.storyCrossfadeStartTime = performance.now() - STORY_CROSSFADE_MS;
+    this.storyCrossfadeStartTime = performance.now();
   }
 
   finish() {
