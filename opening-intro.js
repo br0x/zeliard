@@ -46,6 +46,7 @@ const PAGE_STORY = 'story';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
+const STORY_FONT_SAMPLE = 'The Age of Darkness.';
 const STORY_LINE_HEIGHT = 20;
 const STORY_START_Y = 400;
 const STORY_SCROLL_SPEED = 28;
@@ -57,6 +58,19 @@ function loadImage(src) {
     image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     image.src = src;
   });
+}
+
+async function loadStoryFont() {
+  if (!document.fonts?.load) {
+    return;
+  }
+
+  try {
+    await document.fonts.load(STORY_FONT, STORY_FONT_SAMPLE);
+    await document.fonts.ready;
+  } catch (error) {
+    console.warn('Failed to load intro font; using fallback font.', error);
+  }
 }
 
 export class OpeningIntro {
@@ -93,7 +107,7 @@ export class OpeningIntro {
         loadImage(INTRO_LOGO_SRC),
         loadImage(INTRO_NEC_SRC),
         loadImage(INTRO_NEC_GOLD_SRC),
-        document.fonts.ready
+        loadStoryFont()
       ]).then(([logo, nec, necGold]) => [logo, nec, necGold]);
       this.storyTextCanvas = this.createStoryTextCanvas();
     } catch (error) {
