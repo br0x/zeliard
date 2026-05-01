@@ -3,6 +3,9 @@ const INTRO_FADE_OUT_MS = 2000;
 const INTRO_LOGO_SRC = 'assets/images/opdemo/ttl3_logo.png';
 const INTRO_NEC_SRC = 'assets/images/opdemo/nec.png';
 const INTRO_NEC_GOLD_SRC = 'assets/images/opdemo/nec_gold.png';
+const INTRO_NEC_BROKEN_SRC = 'assets/images/opdemo/nec_broken.png';
+const INTRO_BLUE_GEM_SRC = 'assets/images/opdemo/blue.png';
+const INTRO_RED_GEM_SRC = 'assets/images/opdemo/red.png';
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
   'Copyright (C)1990 Sierra On-Line',
@@ -43,6 +46,7 @@ const STORY_LINES = [
 
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
+const PAGE_BROKEN_NEC = 'brokenNec';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
@@ -50,6 +54,22 @@ const STORY_FONT_SAMPLE = 'The Age of Darkness.';
 const STORY_LINE_HEIGHT = 20;
 const STORY_START_Y = 400;
 const STORY_SCROLL_SPEED = 28;
+const NEC_FLASH_IN_MS = 200;
+const NEC_FLASH_OUT_MS = 500;
+const NEC_GEM_EXPLODE_MS = 1000;
+const NEC_BROKEN_FADE_OUT_MS = 1000;
+const NEC_GEM_EXPLOSION_CENTER = { x: 325, y: 240 };
+const NEC_GEM_COORDS = [
+  { image: 'blue', x: 280, y: 215 },
+  { image: 'blue', x: 284, y: 224 },
+  { image: 'blue', x: 293, y: 232 },
+  { image: 'blue', x: 303, y: 238 },
+  { image: 'blue', x: 321, y: 238 },
+  { image: 'blue', x: 331, y: 232 },
+  { image: 'blue', x: 340, y: 224 },
+  { image: 'blue', x: 344, y: 215 },
+  { image: 'red', x: 299, y: 172 }
+];
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -89,7 +109,13 @@ export class OpeningIntro {
     this.logoImage = null;
     this.necImage = null;
     this.necGoldImage = null;
+    this.necBrokenImage = null;
+    this.blueGemImage = null;
+    this.redGemImage = null;
     this.storyTextCanvas = null;
+    this.brokenNecStartTime = 0;
+    this.brokenNecFadeOutStartTime = 0;
+    this.explosionGems = [];
   }
 
   async start() {
@@ -99,16 +125,36 @@ export class OpeningIntro {
     this.page = PAGE_LOGO;
     this.storyStartTime = 0;
     this.storyCrossfadeStartTime = 0;
+    this.brokenNecStartTime = 0;
+    this.brokenNecFadeOutStartTime = 0;
+    this.explosionGems = [];
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
     try {
-      [this.logoImage, this.necImage, this.necGoldImage] = await Promise.all([
+      [
+        this.logoImage,
+        this.necImage,
+        this.necGoldImage,
+        this.necBrokenImage,
+        this.blueGemImage,
+        this.redGemImage
+      ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
         loadImage(INTRO_NEC_SRC),
         loadImage(INTRO_NEC_GOLD_SRC),
+        loadImage(INTRO_NEC_BROKEN_SRC),
+        loadImage(INTRO_BLUE_GEM_SRC),
+        loadImage(INTRO_RED_GEM_SRC),
         loadStoryFont()
-      ]).then(([logo, nec, necGold]) => [logo, nec, necGold]);
+      ]).then(([logo, nec, necGold, necBroken, blueGem, redGem]) => [
+        logo,
+        nec,
+        necGold,
+        necBroken,
+        blueGem,
+        redGem
+      ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
     } catch (error) {
       console.error(error);
@@ -135,11 +181,17 @@ export class OpeningIntro {
 
     if (this.page === PAGE_STORY) {
       if (this.isStoryWaitingForInput()) {
-        this.finish();
         return;
       }
 
       this.skipStoryScroll();
+      return;
+    }
+
+    if (this.page === PAGE_BROKEN_NEC) {
+      if (this.isBrokenNecWaitingForInput()) {
+        this.startBrokenNecFadeOut();
+      }
     }
   }
 
@@ -153,7 +205,12 @@ export class OpeningIntro {
       return;
     }
 
-    this.drawStoryPage(timestamp);
+    if (this.page === PAGE_STORY) {
+      this.drawStoryPage(timestamp);
+      return;
+    }
+
+    this.drawBrokenNecPage(timestamp);
   }
 
   drawLogoPage(timestamp) {
@@ -196,6 +253,16 @@ export class OpeningIntro {
     this.frameId = requestAnimationFrame((timestamp) => this.draw(timestamp));
   }
 
+  startBrokenNecPage(timestamp) {
+    this.page = PAGE_BROKEN_NEC;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.brokenNecStartTime = timestamp;
+    this.brokenNecFadeOutStartTime = 0;
+    this.explosionGems = this.createExplosionGems();
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
   drawStoryPage(timestamp) {
     if (!this.storyStartTime) {
       this.storyStartTime = timestamp;
@@ -230,6 +297,55 @@ export class OpeningIntro {
     }
 
     this.ctx.restore();
+
+    if (this.storyCrossfadeStartTime && crossfadeElapsed >= STORY_CROSSFADE_MS) {
+      this.startBrokenNecPage(timestamp);
+      return;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawBrokenNecPage(timestamp) {
+    const elapsed = timestamp - this.brokenNecStartTime;
+    const gemElapsed = Math.max(elapsed - NEC_FLASH_IN_MS, 0);
+    const gemProgress = Math.min(gemElapsed / NEC_GEM_EXPLODE_MS, 1);
+    const fadeOutElapsed = this.brokenNecFadeOutStartTime
+      ? timestamp - this.brokenNecFadeOutStartTime
+      : 0;
+    const pageOpacity = this.brokenNecFadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / NEC_BROKEN_FADE_OUT_MS, 1)
+      : 1;
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = pageOpacity;
+
+    if (elapsed < NEC_FLASH_IN_MS) {
+      this.ctx.drawImage(this.necGoldImage, 0, 0);
+    } else {
+      this.ctx.drawImage(this.necBrokenImage, 0, 0);
+      this.drawExplosionGems(gemProgress);
+    }
+
+    this.ctx.restore();
+
+    const flashOpacity = this.getBrokenNecFlashOpacity(elapsed) * pageOpacity;
+    if (flashOpacity > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = flashOpacity;
+      this.ctx.fillStyle = '#fff';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
+
+    if (this.brokenNecFadeOutStartTime && fadeOutElapsed >= NEC_BROKEN_FADE_OUT_MS) {
+      this.finish();
+      return;
+    }
+
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -251,6 +367,18 @@ export class OpeningIntro {
   drawStoryText(y, opacity) {
     this.ctx.globalAlpha = opacity;
     this.ctx.drawImage(this.storyTextCanvas, 0, y);
+  }
+
+  drawExplosionGems(progress) {
+    if (progress >= 1) {
+      return;
+    }
+
+    for (const gem of this.explosionGems) {
+      const x = gem.x + gem.dx * progress;
+      const y = gem.y + gem.dy * progress;
+      this.ctx.drawImage(gem.image, Math.round(x), Math.round(y));
+    }
   }
 
   createStoryTextCanvas() {
@@ -276,11 +404,23 @@ export class OpeningIntro {
   }
 
   isStoryWaitingForInput() {
-    if (this.page !== PAGE_STORY || !this.storyCrossfadeStartTime) {
+    return this.page === PAGE_STORY && !!this.storyCrossfadeStartTime;
+  }
+
+  isBrokenNecWaitingForInput() {
+    if (this.page !== PAGE_BROKEN_NEC || this.brokenNecFadeOutStartTime) {
       return false;
     }
 
-    return performance.now() - this.storyCrossfadeStartTime >= STORY_CROSSFADE_MS;
+    return performance.now() - this.brokenNecStartTime >= NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS;
+  }
+
+  startBrokenNecFadeOut() {
+    if (this.brokenNecFadeOutStartTime) {
+      return;
+    }
+
+    this.brokenNecFadeOutStartTime = performance.now();
   }
 
   skipStoryScroll() {
@@ -289,6 +429,66 @@ export class OpeningIntro {
     }
 
     this.storyCrossfadeStartTime = performance.now();
+  }
+
+  getBrokenNecFlashOpacity(elapsed) {
+    if (elapsed < NEC_FLASH_IN_MS) {
+      return elapsed / NEC_FLASH_IN_MS;
+    }
+
+    const flashOutElapsed = elapsed - NEC_FLASH_IN_MS;
+    if (flashOutElapsed < NEC_FLASH_OUT_MS) {
+      return 1 - flashOutElapsed / NEC_FLASH_OUT_MS;
+    }
+
+    return 0;
+  }
+
+  createExplosionGems() {
+    return NEC_GEM_COORDS.map((gem) => {
+      const image = gem.image === 'red' ? this.redGemImage : this.blueGemImage;
+      const centerX = gem.x + image.width / 2;
+      const centerY = gem.y + image.height / 2;
+      const baseAngle = Math.atan2(
+        centerY - NEC_GEM_EXPLOSION_CENTER.y,
+        centerX - NEC_GEM_EXPLOSION_CENTER.x
+      );
+      const angle = baseAngle + (Math.random() - 0.5) * 1.1;
+      const ray = this.getCanvasEdgeRay(centerX, centerY, angle);
+
+      return {
+        image,
+        x: gem.x,
+        y: gem.y,
+        dx: ray.dx,
+        dy: ray.dy
+      };
+    });
+  }
+
+  getCanvasEdgeRay(x, y, angle) {
+    const vx = Math.cos(angle);
+    const vy = Math.sin(angle);
+    const distances = [];
+
+    if (vx > 0) {
+      distances.push((this.canvas.width - x) / vx);
+    } else if (vx < 0) {
+      distances.push(-x / vx);
+    }
+
+    if (vy > 0) {
+      distances.push((this.canvas.height - y) / vy);
+    } else if (vy < 0) {
+      distances.push(-y / vy);
+    }
+
+    const distance = Math.min(...distances.filter((value) => value >= 0));
+
+    return {
+      dx: vx * distance,
+      dy: vy * distance
+    };
   }
 
   finish() {
