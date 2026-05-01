@@ -68,7 +68,6 @@ start:
 ; CL: height (rows)
 ; CH: width (words × 2 = pixels)
 ; AL: 0 = fill black, non-zero = draw border
-
 Draw_Bordered_Rectangle proc near
                 push    ax
                 xor     ax, ax
@@ -176,7 +175,6 @@ draw_one_scanline_of_bordered_horiz_bar endp
 ; cl=row count,
 ; ch=width-in-words (×2 = pixels, so width must be even).
 ; Fills cl rows × ch*2 pixels with black (0)
-
 clear_rectangular_region proc near      ; ...
                 mov     ax, 0A000h
                 mov     es, ax

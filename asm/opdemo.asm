@@ -92,8 +92,6 @@ sub_6002        proc near
                 mov     byte ptr cs:soundFX_request, 4
                 mov     si, 9060h
                 call    word ptr cs:Animate_Sprites_proc
-;============ Done above this line =============
-
                 push    cs
                 pop     es
                 mov     si, offset vfs_dmaou_grp
@@ -136,6 +134,7 @@ loc_6154:
 ; ---------------------------------------------------------------------------
 
 loc_6171:
+;============ Done above this line =============
                 mov     byte ptr ds:frame_timer, 0
                 mov     al, 0F0h
                 call    sub_63AB

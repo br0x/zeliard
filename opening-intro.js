@@ -10,7 +10,9 @@ const INTRO_DMAO_SRCS = [
   'assets/images/opdemo/dmao0.png',
   'assets/images/opdemo/dmao1.png',
   'assets/images/opdemo/dmao2.png',
-  'assets/images/opdemo/dmao3.png'
+  'assets/images/opdemo/dmao3.png',
+  'assets/images/opdemo/dmao4.png',
+  'assets/images/opdemo/dmao5.png'
 ];
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
@@ -49,11 +51,17 @@ const STORY_LINES = [
   '       the Sixth Book of Esmesanti:',
   '                    The Age of Darkness.'
 ];
+const DMAO_SPEECH_LINES = [
+  'Beware, for I shall wake',
+  'from my sleep of 2,000 years',
+  'and once again reign over the world.'
+];
 
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
 const PAGE_BROKEN_NEC = 'brokenNec';
 const PAGE_DMAO = 'dmao';
+const PAGE_DMAO_SPEECH = 'dmaoSpeech';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
@@ -80,6 +88,14 @@ const NEC_GEM_COORDS = [
 ];
 const DMAO_FRAME_DELAY_MS = 500;
 const DMAO_SEQUENCE = [0, 1, 0, 1, 2, 3];
+const DMAO_SPEECH_FONT = '16px "Press Start 2P", monospace';
+const DMAO_SPEECH_LINE_HEIGHT = 20;
+const DMAO_SPEECH_START_Y = 298;
+const DMAO_SPEECH_CHAR_DELAY_MS = 45;
+const DMAO_MOUTH_FRAME_DELAY_MS = 120;
+const DMAO_SPEECH_TEXT_COLOR = '#fff';
+const DMAO_SPEECH_SHADOW_COLOR = '#00f';
+const DMAO_SPEECH_SHADOW_OFFSET = 2;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -127,6 +143,7 @@ export class OpeningIntro {
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
     this.dmaoStartTime = 0;
+    this.dmaoSpeechStartTime = 0;
     this.explosionGems = [];
   }
 
@@ -140,6 +157,7 @@ export class OpeningIntro {
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
     this.dmaoStartTime = 0;
+    this.dmaoSpeechStartTime = 0;
     this.explosionGems = [];
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -211,7 +229,12 @@ export class OpeningIntro {
       return;
     }
 
-    if (this.page === PAGE_DMAO && this.isDmaoWaitingForInput()) {
+    if (this.page === PAGE_DMAO && this.isDmaoSequenceComplete()) {
+      this.startDmaoSpeechPage(performance.now());
+      return;
+    }
+
+    if (this.page === PAGE_DMAO_SPEECH && this.isDmaoSpeechWaitingForInput()) {
       this.finish();
     }
   }
@@ -236,7 +259,12 @@ export class OpeningIntro {
       return;
     }
 
-    this.drawDmaoPage(timestamp);
+    if (this.page === PAGE_DMAO) {
+      this.drawDmaoPage(timestamp);
+      return;
+    }
+
+    this.drawDmaoSpeechPage(timestamp);
   }
 
   drawLogoPage(timestamp) {
@@ -294,6 +322,14 @@ export class OpeningIntro {
     this.startTime = 0;
     this.fadeOutStartTime = 0;
     this.dmaoStartTime = timestamp;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startDmaoSpeechPage(timestamp) {
+    this.page = PAGE_DMAO_SPEECH;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.dmaoSpeechStartTime = timestamp;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -399,6 +435,24 @@ export class OpeningIntro {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(image, 0, 0);
 
+    if (this.isDmaoSequenceComplete(timestamp)) {
+      this.startDmaoSpeechPage(timestamp);
+      return;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawDmaoSpeechPage(timestamp) {
+    const elapsed = timestamp - this.dmaoSpeechStartTime;
+    const characterCount = this.getVisibleDmaoSpeechCharacterCount(elapsed);
+    const image = this.getDmaoSpeechImage(elapsed, characterCount);
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(image, 0, 0);
+    this.drawDmaoSpeechText(characterCount);
+
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -420,6 +474,41 @@ export class OpeningIntro {
   drawStoryText(y, opacity) {
     this.ctx.globalAlpha = opacity;
     this.ctx.drawImage(this.storyTextCanvas, 0, y);
+  }
+
+  drawDmaoSpeechText(characterCount) {
+    this.ctx.font = DMAO_SPEECH_FONT;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'top';
+
+    let remainingCharacters = characterCount;
+
+    for (let i = 0; i < DMAO_SPEECH_LINES.length; i++) {
+      const line = DMAO_SPEECH_LINES[i];
+      const visibleLine = line.slice(0, Math.max(Math.min(remainingCharacters, line.length), 0));
+
+      if (visibleLine) {
+        this.drawShadowedText(
+          visibleLine,
+          this.canvas.width / 2,
+          DMAO_SPEECH_START_Y + i * DMAO_SPEECH_LINE_HEIGHT
+        );
+      }
+
+      remainingCharacters -= line.length;
+    }
+  }
+
+  drawShadowedText(text, x, y) {
+    this.ctx.fillStyle = DMAO_SPEECH_SHADOW_COLOR;
+    this.ctx.fillText(
+      text,
+      x + DMAO_SPEECH_SHADOW_OFFSET,
+      y + DMAO_SPEECH_SHADOW_OFFSET
+    );
+
+    this.ctx.fillStyle = DMAO_SPEECH_TEXT_COLOR;
+    this.ctx.fillText(text, x, y);
   }
 
   drawExplosionGems(progress) {
@@ -483,12 +572,21 @@ export class OpeningIntro {
       NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS + waitBeforeFadeMs;
   }
 
-  isDmaoWaitingForInput() {
+  isDmaoSequenceComplete(timestamp = performance.now()) {
     if (this.page !== PAGE_DMAO) {
       return false;
     }
 
-    return performance.now() - this.dmaoStartTime >= DMAO_SEQUENCE.length * DMAO_FRAME_DELAY_MS;
+    return timestamp - this.dmaoStartTime >= DMAO_SEQUENCE.length * DMAO_FRAME_DELAY_MS;
+  }
+
+  isDmaoSpeechWaitingForInput() {
+    if (this.page !== PAGE_DMAO_SPEECH) {
+      return false;
+    }
+
+    return this.getVisibleDmaoSpeechCharacterCount(performance.now() - this.dmaoSpeechStartTime) >=
+      this.getDmaoSpeechCharacterCount();
   }
 
   skipStoryScroll() {
@@ -510,6 +608,26 @@ export class OpeningIntro {
     }
 
     return 0;
+  }
+
+  getVisibleDmaoSpeechCharacterCount(elapsed) {
+    return Math.min(
+      Math.floor(elapsed / DMAO_SPEECH_CHAR_DELAY_MS),
+      this.getDmaoSpeechCharacterCount()
+    );
+  }
+
+  getDmaoSpeechCharacterCount() {
+    return DMAO_SPEECH_LINES.reduce((total, line) => total + line.length, 0);
+  }
+
+  getDmaoSpeechImage(elapsed, characterCount) {
+    if (characterCount >= this.getDmaoSpeechCharacterCount()) {
+      return this.dmaoImages[3];
+    }
+
+    const mouthFrame = Math.floor(elapsed / DMAO_MOUTH_FRAME_DELAY_MS) % 2;
+    return this.dmaoImages[[4, 5][mouthFrame]];
   }
 
   createExplosionGems() {

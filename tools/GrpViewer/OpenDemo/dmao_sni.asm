@@ -65,6 +65,32 @@ loc_6154:
                 jmp     short loc_6154
 
 loc_6171:
+
+;                mov     byte ptr ds:frame_timer, 0
+                mov     al, 0F0h
+                call    sub_63AB
+                mov     si, 9096h
+                call    sub_62D1
+;                mov     byte ptr ds:frame_timer, 0
+                mov     al, 0F0h
+                call    sub_63AB
+                mov     al, 2
+                mov     bx, 1720h
+                call    Load_Tiles_From_Big_Block
+;                mov     byte ptr ds:frame_timer, 0
+                mov     al, 0Fh
+                call    sub_63AB
+                mov     al, 3
+                mov     bx, 1720h
+                call    Load_Tiles_From_Big_Block
+;                mov     byte ptr ds:frame_timer, 0
+                mov     al, 0F0h
+                call    sub_63AB
+                xor     al, al
+                mov     bx, 94h
+                mov     cx, 501Eh
+                call    Draw_Bordered_Rectangle
+
 ;=====================================
                 ; done
 wait_for_esc:   in      al, 60h
@@ -1821,6 +1847,266 @@ loc_367D:
                 jmp     loc_340D
 Load_Tiles_From_Big_Block        endp
 
+sub_62D1        proc near
+                mov     byte_653F, 8Ah
+
+loc_62D6:
+;                mov     byte ptr ds:frame_timer, 0
+
+loc_62DB:
+                lodsb
+                or      al, al
+                jnz     short loc_62E1
+                retn
+; ---------------------------------------------------------------------------
+
+loc_62E1:
+                cmp     al, 5
+                jnb     short loc_62F3
+                push    si
+                dec     al
+                mov     bx, 1F70h
+                call    Load_Tiles_From_Small_Block
+                pop     si
+                jmp     short loc_62DB
+; ---------------------------------------------------------------------------
+
+loc_62F3:
+                call    sub_62FD
+                mov     al, 14h
+                call    sub_63AB
+                jmp     short loc_62D6
+sub_62D1        endp
+
+; Draws a bordered rectangle or fills with black
+; BH: left margin
+; BL: top margin
+; CL: height (rows)
+; CH: width (words × 2 = pixels)
+; AL: 0 = fill black, non-zero = draw border
+Draw_Bordered_Rectangle proc near
+                push    ax
+                xor     ax, ax
+                mov     al, bh
+                mov     bh, ah
+                push    ax
+                mov     ax, 140h
+                mul     bx
+                pop     di
+                add     di, di
+                add     di, di
+                add     di, ax
+                pop     ax
+                or      al, al
+                jnz     short loc_2062
+                jmp     clear_rectangular_region ; Input:
+                                        ; DI = start offset in framebuffer,
+                                        ; cl=row count,
+                                        ; ch=width-in-words (×2 = pixels, so width must be even).
+                                        ; Fills cl rows × ch*2 pixels with black (0)
+; ---------------------------------------------------------------------------
+
+loc_2062:
+                mov     dx, 909h
+                test    byte ptr cs:font_highlight_flag, 0FFh
+                jz      short loc_2070
+                mov     dx, 0FFFFh
+
+loc_2070:
+                push    di
+                sub     cl, 4
+                add     di, 280h
+                call    clear_rectangular_region ; Input:
+                                        ; DI = start offset in framebuffer,
+                                        ; cl=row count,
+                                        ; ch=width-in-words (×2 = pixels, so width must be even).
+                                        ; Fills cl rows × ch*2 pixels with black (0)
+                pop     di
+                xor     ax, ax
+                xor     bx, bx
+                call    draw_one_scanline_of_bordered_horiz_bar
+                mov     ax, 0FF00h
+                mov     bx, 0FFh
+                call    draw_one_scanline_of_bordered_horiz_bar
+                push    cx
+                push    bx
+                mov     bl, ch
+                dec     bl
+                add     bx, bx
+                add     bx, bx
+                xor     bh, bh
+                xor     ch, ch
+
+loc_209A:
+                mov     es:[di], dx
+                mov     es:[bx+di+2], dx
+                add     di, 140h
+                loop    loc_209A
+                pop     bx
+                pop     cx
+                mov     ax, 0FF00h
+                mov     bx, 0FFh
+                call    draw_one_scanline_of_bordered_horiz_bar
+                xor     ax, ax
+                xor     bx, bx
+Draw_Bordered_Rectangle endp
+
+; Input:
+; DI = start offset in framebuffer,
+; cl=row count,
+; ch=width-in-words (×2 = pixels, so width must be even).
+; Fills cl rows × ch*2 pixels with black (0)
+clear_rectangular_region proc near      ; ...
+                mov     ax, 0A000h
+                mov     es, ax
+                push    cx
+                xor     ax, ax
+
+loc_20F0:
+                push    di
+                push    cx
+                mov     cl, ch
+                xor     ch, ch
+                add     cx, cx
+                rep stosw
+                pop     cx
+                pop     di
+                add     di, 140h
+                dec     cl
+                jnz     short loc_20F0
+                pop     cx
+                retn
+clear_rectangular_region endp
+
+draw_one_scanline_of_bordered_horiz_bar proc near ; ...
+                push    di
+                push    cx
+                not     ax
+                and     es:[di], ax
+                not     ax
+                and     ax, dx
+                or      es:[di], ax
+                inc     di
+                inc     di
+                mov     cl, ch
+                xor     ch, ch
+                add     cx, cx
+                add     cx, cx
+                sub     cx, 4
+                mov     al, dl
+                rep stosb
+                not     bx
+                and     es:[di], bx
+                not     bx
+                and     bx, dx
+                or      es:[di], bx
+                pop     cx
+                pop     di
+                add     di, 140h
+                retn
+draw_one_scanline_of_bordered_horiz_bar endp
+
+; Load and render tiles from small block (seg1+097C0h, 0x120 tiles)
+;   Input:
+;     AL = tile index (0-based)
+Load_Tiles_From_Small_Block        proc near
+                push    ds
+                push    bx
+                xor     ah, ah
+                mov     dx, 480h
+                mul     dx
+                add     ax, 97C0h
+                mov     ds, word ptr cs:seg1
+                mov     si, ax
+                mov     ax, cs
+                add     ax, 3000h
+                mov     es, ax
+                mov     di, 0
+                mov     cs:decomp_plane3, 0
+                mov     cs:decomp_plane2, 0
+                mov     cx, 120h
+
+loc_36D9:
+                mov     ax, [si+240h]
+                xchg    ah, al
+                mov     cs:decomp_plane1, ax
+                lodsw
+                xchg    ah, al
+                mov     cs:decomp_plane0, ax
+                call    Decompress_3Plane_To_2bpp
+                stosw
+                call    Decompress_3Plane_To_2bpp
+                stosw
+                call    Decompress_3Plane_To_2bpp
+                stosw
+                call    Decompress_3Plane_To_2bpp
+                stosw
+                loop    loc_36D9
+                pop     bx
+                pop     ds
+                mov     di, 0
+                mov     cx, 1220h
+                jmp     loc_340D
+Load_Tiles_From_Small_Block        endp
+
+sub_62FD        proc near
+                cmp     al, 0FFh
+                jnz     short loc_631E
+                lodsb
+                or      al, al
+                jnz     short loc_6307
+                retn
+; ---------------------------------------------------------------------------
+
+loc_6307:
+                cmp     al, 1
+                jz      short loc_630C
+                retn
+; ---------------------------------------------------------------------------
+
+loc_630C:
+                xor     ax, ax
+                lodsb
+                add     ax, ax
+                add     ax, ax
+                add     ax, ax
+                mov     word_653D, ax
+                add     byte_653F, 0Ah
+                retn
+; ---------------------------------------------------------------------------
+
+loc_631E:
+                push    ax
+                push    si
+                push    ax
+                mov     bx, word_653D
+                add     bx, 2
+                mov     cl, byte_653F
+                add     cl, 1
+                mov     ah, 2
+                call    GDMCGA_Font_Glyph_Thunk
+                pop     ax
+                mov     bx, word_653D
+                mov     cl, byte_653F
+                mov     ah, 7
+                call    GDMCGA_Font_Glyph_Thunk
+                pop     si
+                add     word_653D, 8
+                pop     ax
+                cmp     al, 20h ; ' '
+                jnz     short loc_6352
+                retn
+; ---------------------------------------------------------------------------
+
+loc_6352:
+                mov     byte ptr ds:0FF75h, 3Fh ; '?' ; soundFX_request
+                retn
+sub_62FD        endp
+
+GDMCGA_Font_Glyph_Thunk        proc near
+                jmp     Render_Font_Glyph
+GDMCGA_Font_Glyph_Thunk        endp
+
 ; ---------------------------------------------------------------------------
 fade_pal_ptr    dw 0                    ; pointer to current palette data in fade sequence
 fade_color_idx  db 0                    ; current VGA color index (0-255) during fade
@@ -1868,6 +2154,9 @@ word_2CC0       dw 0
 byte_2CC2       db 0
 font_highlight_flag db 0ffh
 copyright_str   db 87h, '    Copyright (C)1987,1990 GAME ARTS    ', 0Dh, '    Copyright (C)1990 Sierra On-Line    ', 0FFh
+word_653D       dw 0
+byte_653F       db 0
+
 mul9            db 0, 9, 12h, 1Bh, 24h, 2Dh, 36h, 3Fh
 primary_color   db 0
 shadow_color    db 0
