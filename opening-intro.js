@@ -154,6 +154,7 @@ const DEMON_SPEECH_TEXT_COLOR = '#fff';
 const DEMON_SPEECH_SHADOW_COLOR = '#00f';
 const DEMON_SPEECH_SHADOW_OFFSET = 2;
 const DEMON_SPEECH_FADE_OUT_MS = 1000;
+const DEMON_SPEECH_AUTO_ADVANCE_MS = 3000;
 const NECKLACE_FADE_IN_MS = 1000;
 const NECKLACE_LAYER_DELAY_MS = 3000;
 const NECKLACE_FADE_OUT_MS = 1000;
@@ -171,6 +172,7 @@ const BALCONY_FONT = '14px "Press Start 2P", monospace';
 const BALCONY_TEXT_MAX_WIDTH = 624; // canvas width (640) minus 2 * BALCONY_TEXT_X (8)
 const BALCONY_LINE_HEIGHT = 20;
 const BALCONY_CHAR_DELAY_MS = 45;
+const BALCONY_AUTO_ADVANCE_MS = 3000;
 const BALCONY_TEXT_COLOR = '#fff';
 const BALCONY_SHADOW_COLOR = '#00f';
 const BALCONY_SHADOW_OFFSET = 2;
@@ -246,6 +248,7 @@ export class OpeningIntro {
     this.demonStartTime = 0;
     this.demonSpeechStartTime = 0;
     this.demonSpeechFadeOutStartTime = 0;
+    this.demonSpeechFullyTypedTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
     this.creditsStartTime = 0;
@@ -256,6 +259,7 @@ export class OpeningIntro {
     this.balconyStartTime = 0;
     this.balconyLineIndex = 0;
     this.balconyLineStartTime = 0;
+    this.balconyLineFullyTypedTime = 0;
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
   }
@@ -272,6 +276,7 @@ export class OpeningIntro {
     this.demonStartTime = 0;
     this.demonSpeechStartTime = 0;
     this.demonSpeechFadeOutStartTime = 0;
+    this.demonSpeechFullyTypedTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
     this.creditsStartTime = 0;
@@ -280,6 +285,7 @@ export class OpeningIntro {
     this.balconyStartTime = 0;
     this.balconyLineIndex = 0;
     this.balconyLineStartTime = 0;
+    this.balconyLineFullyTypedTime = 0;
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
     this.ctx.imageSmoothingEnabled = false;
@@ -514,6 +520,7 @@ export class OpeningIntro {
     this.fadeOutStartTime = 0;
     this.demonSpeechStartTime = timestamp;
     this.demonSpeechFadeOutStartTime = 0;
+    this.demonSpeechFullyTypedTime = 0;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -669,6 +676,16 @@ export class OpeningIntro {
       return;
     }
 
+    // Record the moment typing finishes (once), then auto-advance after the delay
+    if (!this.demonSpeechFadeOutStartTime &&
+        characterCount >= this.getDemonSpeechCharacterCount()) {
+      if (!this.demonSpeechFullyTypedTime) {
+        this.demonSpeechFullyTypedTime = timestamp;
+      } else if (timestamp - this.demonSpeechFullyTypedTime >= DEMON_SPEECH_AUTO_ADVANCE_MS) {
+        this.startDemonSpeechFadeOut();
+      }
+    }
+
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -755,7 +772,7 @@ export class OpeningIntro {
     return line.trimStart().startsWith('"');
   }
 
-  // Advance to the next line or part; called on click/keypress
+  // Advance to the next line or part; called on click/keypress or auto-advance timer
   advanceBalconyLine(timestamp) {
     const lines = this.getBalconyLines();
     const elapsed = timestamp - this.balconyLineStartTime;
@@ -766,6 +783,7 @@ export class OpeningIntro {
     if (!fullyTyped) {
       // force snap by setting lineStartTime to far in the past
       this.balconyLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
+      this.balconyLineFullyTypedTime = timestamp;
       return;
     }
 
@@ -786,6 +804,7 @@ export class OpeningIntro {
     // Advance to next line
     this.balconyLineIndex++;
     this.balconyLineStartTime = timestamp;
+    this.balconyLineFullyTypedTime = 0;
   }
 
   drawBalconyPage(timestamp) {
@@ -810,6 +829,7 @@ export class OpeningIntro {
       this.balconyPart = 2;
       this.balconyLineIndex = 0;
       this.balconyLineStartTime = timestamp;
+      this.balconyLineFullyTypedTime = 0;
     }
 
     this.ctx.fillStyle = '#000';
@@ -832,6 +852,23 @@ export class OpeningIntro {
     const isCrossfading = this.balconyCrossfadeStartTime && crossfadeProgress < 1;
     if (imageOpacity > 0 && !isCrossfading) {
       this.drawBalconyText(timestamp);
+    }
+
+    // Auto-advance balcony lines after BALCONY_AUTO_ADVANCE_MS once a line is fully typed
+    // Runs in part 1 (before crossfade) and part 2 (after crossfade completes), not during crossfade
+    if (!this.balconyCrossfadeStartTime || (this.balconyPart === 2 && !isCrossfading)) {
+      const lines = this.getBalconyLines();
+      const currentLine = lines[this.balconyLineIndex] ?? '';
+      const lineElapsed = timestamp - this.balconyLineStartTime;
+      const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+      if (lineFullyTyped) {
+        if (!this.balconyLineFullyTypedTime) {
+          this.balconyLineFullyTypedTime = timestamp;
+        } else if (timestamp - this.balconyLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
+          this.advanceBalconyLine(timestamp);
+        }
+      }
     }
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
