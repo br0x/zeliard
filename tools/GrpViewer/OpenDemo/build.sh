@@ -10,9 +10,9 @@
 
 cat << 'EOF' > build.bat
 path D:\;%PATH%
-tasm /m9 nec_snip.asm >log.txt
-tlink /t/x nec_snip.obj >>log.txt
-nec_snip.com
+tasm /m9 dmao_sni.asm >log.txt
+tlink /t/x dmao_sni.obj >>log.txt
+dmao_sni.com
 
 EOF
 
