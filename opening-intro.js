@@ -6,6 +6,12 @@ const INTRO_NEC_GOLD_SRC = 'assets/images/opdemo/nec_gold.png';
 const INTRO_NEC_BROKEN_SRC = 'assets/images/opdemo/nec_broken.png';
 const INTRO_BLUE_GEM_SRC = 'assets/images/opdemo/blue.png';
 const INTRO_RED_GEM_SRC = 'assets/images/opdemo/red.png';
+const INTRO_DMAO_SRCS = [
+  'assets/images/opdemo/dmao0.png',
+  'assets/images/opdemo/dmao1.png',
+  'assets/images/opdemo/dmao2.png',
+  'assets/images/opdemo/dmao3.png'
+];
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
   'Copyright (C)1990 Sierra On-Line',
@@ -47,6 +53,7 @@ const STORY_LINES = [
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
 const PAGE_BROKEN_NEC = 'brokenNec';
+const PAGE_DMAO = 'dmao';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
@@ -58,6 +65,7 @@ const NEC_FLASH_IN_MS = 200;
 const NEC_FLASH_OUT_MS = 500;
 const NEC_GEM_EXPLODE_MS = 1000;
 const NEC_BROKEN_FADE_OUT_MS = 1000;
+const NEC_BROKEN_AUTO_ADVANCE_MS = 3000;
 const NEC_GEM_EXPLOSION_CENTER = { x: 325, y: 240 };
 const NEC_GEM_COORDS = [
   { image: 'blue', x: 280, y: 215 },
@@ -70,6 +78,8 @@ const NEC_GEM_COORDS = [
   { image: 'blue', x: 344, y: 215 },
   { image: 'red', x: 299, y: 172 }
 ];
+const DMAO_FRAME_DELAY_MS = 500;
+const DMAO_SEQUENCE = [0, 1, 0, 1, 2, 3];
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -112,9 +122,11 @@ export class OpeningIntro {
     this.necBrokenImage = null;
     this.blueGemImage = null;
     this.redGemImage = null;
+    this.dmaoImages = [];
     this.storyTextCanvas = null;
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
+    this.dmaoStartTime = 0;
     this.explosionGems = [];
   }
 
@@ -127,6 +139,7 @@ export class OpeningIntro {
     this.storyCrossfadeStartTime = 0;
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
+    this.dmaoStartTime = 0;
     this.explosionGems = [];
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -138,7 +151,8 @@ export class OpeningIntro {
         this.necGoldImage,
         this.necBrokenImage,
         this.blueGemImage,
-        this.redGemImage
+        this.redGemImage,
+        ...this.dmaoImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
         loadImage(INTRO_NEC_SRC),
@@ -146,14 +160,16 @@ export class OpeningIntro {
         loadImage(INTRO_NEC_BROKEN_SRC),
         loadImage(INTRO_BLUE_GEM_SRC),
         loadImage(INTRO_RED_GEM_SRC),
+        ...INTRO_DMAO_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
-      ]).then(([logo, nec, necGold, necBroken, blueGem, redGem]) => [
+      ]).then(([logo, nec, necGold, necBroken, blueGem, redGem, ...dmaoImages]) => [
         logo,
         nec,
         necGold,
         necBroken,
         blueGem,
-        redGem
+        redGem,
+        ...dmaoImages.slice(0, INTRO_DMAO_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
     } catch (error) {
@@ -192,6 +208,11 @@ export class OpeningIntro {
       if (this.isBrokenNecWaitingForInput()) {
         this.startBrokenNecFadeOut();
       }
+      return;
+    }
+
+    if (this.page === PAGE_DMAO && this.isDmaoWaitingForInput()) {
+      this.finish();
     }
   }
 
@@ -210,7 +231,12 @@ export class OpeningIntro {
       return;
     }
 
-    this.drawBrokenNecPage(timestamp);
+    if (this.page === PAGE_BROKEN_NEC) {
+      this.drawBrokenNecPage(timestamp);
+      return;
+    }
+
+    this.drawDmaoPage(timestamp);
   }
 
   drawLogoPage(timestamp) {
@@ -260,6 +286,14 @@ export class OpeningIntro {
     this.brokenNecStartTime = timestamp;
     this.brokenNecFadeOutStartTime = 0;
     this.explosionGems = this.createExplosionGems();
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startDmaoPage(timestamp) {
+    this.page = PAGE_DMAO;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.dmaoStartTime = timestamp;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -342,9 +376,28 @@ export class OpeningIntro {
     }
 
     if (this.brokenNecFadeOutStartTime && fadeOutElapsed >= NEC_BROKEN_FADE_OUT_MS) {
-      this.finish();
+      this.startDmaoPage(timestamp);
       return;
     }
+
+    if (!this.brokenNecFadeOutStartTime && this.shouldAutoAdvanceBrokenNec(timestamp)) {
+      this.brokenNecFadeOutStartTime = timestamp;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawDmaoPage(timestamp) {
+    const elapsed = timestamp - this.dmaoStartTime;
+    const sequenceIndex = Math.min(
+      Math.floor(elapsed / DMAO_FRAME_DELAY_MS),
+      DMAO_SEQUENCE.length - 1
+    );
+    const image = this.dmaoImages[DMAO_SEQUENCE[sequenceIndex]];
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(image, 0, 0);
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
@@ -421,6 +474,21 @@ export class OpeningIntro {
     }
 
     this.brokenNecFadeOutStartTime = performance.now();
+  }
+
+  shouldAutoAdvanceBrokenNec(timestamp) {
+    const waitBeforeFadeMs = Math.max(NEC_BROKEN_AUTO_ADVANCE_MS - NEC_BROKEN_FADE_OUT_MS, 0);
+
+    return timestamp - this.brokenNecStartTime >=
+      NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS + waitBeforeFadeMs;
+  }
+
+  isDmaoWaitingForInput() {
+    if (this.page !== PAGE_DMAO) {
+      return false;
+    }
+
+    return performance.now() - this.dmaoStartTime >= DMAO_SEQUENCE.length * DMAO_FRAME_DELAY_MS;
   }
 
   skipStoryScroll() {
