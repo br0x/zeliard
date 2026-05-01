@@ -366,28 +366,26 @@ export class OpeningIntro {
     }
 
     if (this.page === PAGE_STORY) {
-      if (this.isStoryWaitingForInput()) {
-        return;
+      if (this.storyCrossfadeStartTime) {
+        this.startBrokenNecPage(performance.now());
+      } else {
+        this.skipStoryScroll();
       }
-
-      this.skipStoryScroll();
       return;
     }
 
     if (this.page === PAGE_BROKEN_NEC) {
-      if (this.isBrokenNecWaitingForInput()) {
-        this.startBrokenNecFadeOut();
-      }
+      this.startDemonPage(performance.now());
       return;
     }
 
-    if (this.page === PAGE_DEMON && this.isDemonSequenceComplete()) {
-      this.startDemonSpeechPage(performance.now());
+    if (this.page === PAGE_DEMON) {
+      this.startNecklacePage(performance.now());
       return;
     }
 
-    if (this.page === PAGE_DEMON_SPEECH && this.isDemonSpeechWaitingForInput()) {
-      this.startDemonSpeechFadeOut();
+    if (this.page === PAGE_DEMON_SPEECH) {
+      this.startNecklacePage(performance.now());
       return;
     }
 
@@ -455,6 +453,9 @@ export class OpeningIntro {
     }
 
     const elapsed = timestamp - this.startTime;
+    if (!this.fadeOutStartTime && elapsed >= 3000) {
+      this.fadeOutStartTime = timestamp;
+    }
     const fadeInProgress = Math.min(elapsed / INTRO_FADE_IN_MS, 1);
     const fadeOutElapsed = this.fadeOutStartTime ? timestamp - this.fadeOutStartTime : 0;
     const pageOpacity = this.fadeOutStartTime
@@ -702,6 +703,11 @@ export class OpeningIntro {
     }
 
     this.ctx.restore();
+
+    const totalNecklaceTime = pannoStartTime + NECKLACE_FADE_IN_MS + 2000;
+    if (!this.necklaceFadeOutStartTime && elapsed >= totalNecklaceTime) {
+      this.necklaceFadeOutStartTime = timestamp;
+    }
 
     if (this.necklaceFadeOutStartTime && fadeOutElapsed >= NECKLACE_FADE_OUT_MS) {
       this.startCreditsPage(timestamp);
