@@ -9,7 +9,7 @@ const INTRO_RED_GEM_SRC = 'assets/images/opdemo/red.png';
 const INTRO_NECKLACE_SRC = 'assets/images/opdemo/necklace.png';
 const INTRO_LOGO_TRANSP_SRC = 'assets/images/opdemo/logo_transp.png';
 const INTRO_PANNO_SRC = 'assets/images/opdemo/panno.png';
-const INTRO_DMAO_SRCS = [
+const INTRO_DEMON_SRCS = [
   'assets/images/opdemo/dmao0.png',
   'assets/images/opdemo/dmao1.png',
   'assets/images/opdemo/dmao2.png',
@@ -54,7 +54,7 @@ const STORY_LINES = [
   '       the Sixth Book of Esmesanti:',
   '                    The Age of Darkness.'
 ];
-const DMAO_SPEECH_LINES = [
+const DEMON_SPEECH_LINES = [
   'Beware, for I shall wake',
   'from my sleep of 2,000 years',
   'and once again reign over the world.'
@@ -115,8 +115,8 @@ const CREDITS_LINES = [
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
 const PAGE_BROKEN_NEC = 'brokenNec';
-const PAGE_DMAO = 'dmao';
-const PAGE_DMAO_SPEECH = 'dmaoSpeech';
+const PAGE_DEMON = 'demon';
+const PAGE_DEMON_SPEECH = 'demonSpeech';
 const PAGE_NECKLACE = 'necklace';
 const PAGE_CREDITS = 'credits';
 const STORY_IMAGE_FADE_IN_MS = 2000;
@@ -141,26 +141,59 @@ const NEC_GEM_COORDS = [
   { image: 'blue', x: 331, y: 232 },
   { image: 'blue', x: 340, y: 224 },
   { image: 'blue', x: 344, y: 215 },
-  { image: 'red', x: 299, y: 172 }
+  { image: 'red',  x: 299, y: 172 }
 ];
-const DMAO_FRAME_DELAY_MS = 500;
-const DMAO_SEQUENCE = [0, 1, 0, 1, 2, 3];
-const DMAO_SPEECH_FONT = '16px "Press Start 2P", monospace';
-const DMAO_SPEECH_LINE_HEIGHT = 20;
-const DMAO_SPEECH_START_Y = 298;
-const DMAO_SPEECH_CHAR_DELAY_MS = 45;
-const DMAO_MOUTH_FRAME_DELAY_MS = 120;
-const DMAO_SPEECH_TEXT_COLOR = '#fff';
-const DMAO_SPEECH_SHADOW_COLOR = '#00f';
-const DMAO_SPEECH_SHADOW_OFFSET = 2;
-const DMAO_SPEECH_FADE_OUT_MS = 1000;
+const DEMON_FRAME_DELAY_MS = 500;
+const DEMON_SEQUENCE = [0, 1, 0, 1, 2, 3];
+const DEMON_SPEECH_FONT = '16px "Press Start 2P", monospace';
+const DEMON_SPEECH_LINE_HEIGHT = 20;
+const DEMON_SPEECH_START_Y = 298;
+const DEMON_SPEECH_CHAR_DELAY_MS = 45;
+const DEMON_MOUTH_FRAME_DELAY_MS = 120;
+const DEMON_SPEECH_TEXT_COLOR = '#fff';
+const DEMON_SPEECH_SHADOW_COLOR = '#00f';
+const DEMON_SPEECH_SHADOW_OFFSET = 2;
+const DEMON_SPEECH_FADE_OUT_MS = 1000;
 const NECKLACE_FADE_IN_MS = 1000;
-const NECKLACE_LAYER_DELAY_MS = 5000;
+const NECKLACE_LAYER_DELAY_MS = 3000;
 const NECKLACE_FADE_OUT_MS = 1000;
 const CREDITS_FONT = '16px "Press Start 2P", monospace';
 const CREDITS_LINE_HEIGHT = 20;
 const CREDITS_START_Y = 400;
 const CREDITS_SCROLL_SPEED = 28;
+
+const PAGE_BALCONY = 'balcony';
+const INTRO_BALCONY_SRC = 'assets/images/opdemo/balcony.png';
+const INTRO_BALCONY_SAND_SRC = 'assets/images/opdemo/balcony_sand.png';
+const BALCONY_FADE_IN_MS = 2000;
+const BALCONY_CROSSFADE_MS = 2000;
+const BALCONY_FONT = '14px "Press Start 2P", monospace';
+const BALCONY_TEXT_MAX_WIDTH = 624; // canvas width (640) minus 2 * BALCONY_TEXT_X (8)
+const BALCONY_LINE_HEIGHT = 20;
+const BALCONY_CHAR_DELAY_MS = 45;
+const BALCONY_TEXT_COLOR = '#fff';
+const BALCONY_SHADOW_COLOR = '#00f';
+const BALCONY_SHADOW_OFFSET = 2;
+// Y position of the text area below the image (image occupies roughly top 75% of canvas)
+const BALCONY_TEXT_Y = 310;
+const BALCONY_TEXT_X = 8;
+const BALCONY_LINES_PART1 = [
+  'Once, long ago, a terrible storm came to the land of Zeliard. ',
+  'Dark clouds filled the sky; lightning flashed and thunder crashed. ',
+  'Day after day, rain poured from the heavens as if in lament.',
+  'On the seventh day of rain, a beautiful young girl stood on her balcony watching this dark, sad rain.',
+  'The girl was Princess Felicia la Felishika.  She was the only daughter of King Felishika, and the light of his life.',
+  'Her smiles were like sunshine, her voice as beautiful as that of an angel.  She was adored by the people of the kingdom.',
+  '"What a dreadful storm!  Will it never end?"',
+  'Just as the princess spoke these words, the raindrops turned to grains of sand which covered the ground below her. '
+];
+const BALCONY_LINES_PART2 = [
+  'As she watched, a startling transformation began to take place.',
+  'In an instant, the green hills and plains turned a dusty brown. ',
+  'Trees and flowers crumpled and were buried. ',
+  'Rivers and lakes disappeared beneath the sand.',
+  'This ever-green land was turning to desert before her very eyes.'
+];
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -203,21 +236,28 @@ export class OpeningIntro {
     this.necBrokenImage = null;
     this.blueGemImage = null;
     this.redGemImage = null;
-    this.dmaoImages = [];
+    this.demonImages = [];
     this.necklaceImage = null;
     this.logoTranspImage = null;
     this.pannoImage = null;
     this.storyTextCanvas = null;
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
-    this.dmaoStartTime = 0;
-    this.dmaoSpeechStartTime = 0;
-    this.dmaoSpeechFadeOutStartTime = 0;
+    this.demonStartTime = 0;
+    this.demonSpeechStartTime = 0;
+    this.demonSpeechFadeOutStartTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
     this.creditsStartTime = 0;
     this.creditsX = 0;
     this.explosionGems = [];
+    this.balconyImage = null;
+    this.balconySandImage = null;
+    this.balconyStartTime = 0;
+    this.balconyLineIndex = 0;
+    this.balconyLineStartTime = 0;
+    this.balconyCrossfadeStartTime = 0;
+    this.balconyPart = 1;
   }
 
   async start() {
@@ -229,14 +269,19 @@ export class OpeningIntro {
     this.storyCrossfadeStartTime = 0;
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
-    this.dmaoStartTime = 0;
-    this.dmaoSpeechStartTime = 0;
-    this.dmaoSpeechFadeOutStartTime = 0;
+    this.demonStartTime = 0;
+    this.demonSpeechStartTime = 0;
+    this.demonSpeechFadeOutStartTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
     this.creditsStartTime = 0;
     this.creditsX = 0;
     this.explosionGems = [];
+    this.balconyStartTime = 0;
+    this.balconyLineIndex = 0;
+    this.balconyLineStartTime = 0;
+    this.balconyCrossfadeStartTime = 0;
+    this.balconyPart = 1;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
@@ -251,7 +296,9 @@ export class OpeningIntro {
         this.necklaceImage,
         this.logoTranspImage,
         this.pannoImage,
-        ...this.dmaoImages
+        this.balconyImage,
+        this.balconySandImage,
+        ...this.demonImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
         loadImage(INTRO_NEC_SRC),
@@ -262,7 +309,9 @@ export class OpeningIntro {
         loadImage(INTRO_NECKLACE_SRC),
         loadImage(INTRO_LOGO_TRANSP_SRC),
         loadImage(INTRO_PANNO_SRC),
-        ...INTRO_DMAO_SRCS.map((src) => loadImage(src)),
+        loadImage(INTRO_BALCONY_SRC),
+        loadImage(INTRO_BALCONY_SAND_SRC),
+        ...INTRO_DEMON_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
       ]).then(([
         logo,
@@ -274,7 +323,9 @@ export class OpeningIntro {
         necklace,
         logoTransp,
         panno,
-        ...dmaoImages
+        balcony,
+        balconySand,
+        ...demonImages
       ]) => [
         logo,
         nec,
@@ -285,7 +336,9 @@ export class OpeningIntro {
         necklace,
         logoTransp,
         panno,
-        ...dmaoImages.slice(0, INTRO_DMAO_SRCS.length)
+        balcony,
+        balconySand,
+        ...demonImages.slice(0, INTRO_DEMON_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
       this.creditsX = this.getCreditsTextX();
@@ -328,13 +381,13 @@ export class OpeningIntro {
       return;
     }
 
-    if (this.page === PAGE_DMAO && this.isDmaoSequenceComplete()) {
-      this.startDmaoSpeechPage(performance.now());
+    if (this.page === PAGE_DEMON && this.isDemonSequenceComplete()) {
+      this.startDemonSpeechPage(performance.now());
       return;
     }
 
-    if (this.page === PAGE_DMAO_SPEECH && this.isDmaoSpeechWaitingForInput()) {
-      this.startDmaoSpeechFadeOut();
+    if (this.page === PAGE_DEMON_SPEECH && this.isDemonSpeechWaitingForInput()) {
+      this.startDemonSpeechFadeOut();
       return;
     }
 
@@ -344,7 +397,12 @@ export class OpeningIntro {
     }
 
     if (this.page === PAGE_CREDITS) {
-      this.finish();
+      this.startBalconyPage(performance.now());
+      return;
+    }
+
+    if (this.page === PAGE_BALCONY) {
+      this.advanceBalconyLine(performance.now());
     }
   }
 
@@ -368,18 +426,23 @@ export class OpeningIntro {
       return;
     }
 
-    if (this.page === PAGE_DMAO) {
-      this.drawDmaoPage(timestamp);
+    if (this.page === PAGE_DEMON) {
+      this.drawDemonPage(timestamp);
       return;
     }
 
-    if (this.page === PAGE_DMAO_SPEECH) {
-      this.drawDmaoSpeechPage(timestamp);
+    if (this.page === PAGE_DEMON_SPEECH) {
+      this.drawDemonSpeechPage(timestamp);
       return;
     }
 
     if (this.page === PAGE_NECKLACE) {
       this.drawNecklacePage(timestamp);
+      return;
+    }
+
+    if (this.page === PAGE_BALCONY) {
+      this.drawBalconyPage(timestamp);
       return;
     }
 
@@ -436,20 +499,20 @@ export class OpeningIntro {
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  startDmaoPage(timestamp) {
-    this.page = PAGE_DMAO;
+  startDemonPage(timestamp) {
+    this.page = PAGE_DEMON;
     this.startTime = 0;
     this.fadeOutStartTime = 0;
-    this.dmaoStartTime = timestamp;
+    this.demonStartTime = timestamp;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  startDmaoSpeechPage(timestamp) {
-    this.page = PAGE_DMAO_SPEECH;
+  startDemonSpeechPage(timestamp) {
+    this.page = PAGE_DEMON_SPEECH;
     this.startTime = 0;
     this.fadeOutStartTime = 0;
-    this.dmaoSpeechStartTime = timestamp;
-    this.dmaoSpeechFadeOutStartTime = 0;
+    this.demonSpeechStartTime = timestamp;
+    this.demonSpeechFadeOutStartTime = 0;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -549,7 +612,7 @@ export class OpeningIntro {
     }
 
     if (this.brokenNecFadeOutStartTime && fadeOutElapsed >= NEC_BROKEN_FADE_OUT_MS) {
-      this.startDmaoPage(timestamp);
+      this.startDemonPage(timestamp);
       return;
     }
 
@@ -560,35 +623,35 @@ export class OpeningIntro {
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawDmaoPage(timestamp) {
-    const elapsed = timestamp - this.dmaoStartTime;
+  drawDemonPage(timestamp) {
+    const elapsed = timestamp - this.demonStartTime;
     const sequenceIndex = Math.min(
-      Math.floor(elapsed / DMAO_FRAME_DELAY_MS),
-      DMAO_SEQUENCE.length - 1
+      Math.floor(elapsed / DEMON_FRAME_DELAY_MS),
+      DEMON_SEQUENCE.length - 1
     );
-    const image = this.dmaoImages[DMAO_SEQUENCE[sequenceIndex]];
+    const image = this.demonImages[DEMON_SEQUENCE[sequenceIndex]];
 
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(image, 0, 0);
 
-    if (this.isDmaoSequenceComplete(timestamp)) {
-      this.startDmaoSpeechPage(timestamp);
+    if (this.isDemonSequenceComplete(timestamp)) {
+      this.startDemonSpeechPage(timestamp);
       return;
     }
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawDmaoSpeechPage(timestamp) {
-    const elapsed = timestamp - this.dmaoSpeechStartTime;
-    const characterCount = this.getVisibleDmaoSpeechCharacterCount(elapsed);
-    const image = this.getDmaoSpeechImage(elapsed, characterCount);
-    const fadeOutElapsed = this.dmaoSpeechFadeOutStartTime
-      ? timestamp - this.dmaoSpeechFadeOutStartTime
+  drawDemonSpeechPage(timestamp) {
+    const elapsed = timestamp - this.demonSpeechStartTime;
+    const characterCount = this.getVisibleDemonSpeechCharacterCount(elapsed);
+    const image = this.getDemonSpeechImage(elapsed, characterCount);
+    const fadeOutElapsed = this.demonSpeechFadeOutStartTime
+      ? timestamp - this.demonSpeechFadeOutStartTime
       : 0;
-    const pageOpacity = this.dmaoSpeechFadeOutStartTime
-      ? 1 - Math.min(fadeOutElapsed / DMAO_SPEECH_FADE_OUT_MS, 1)
+    const pageOpacity = this.demonSpeechFadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / DEMON_SPEECH_FADE_OUT_MS, 1)
       : 1;
 
     this.ctx.fillStyle = '#000';
@@ -597,10 +660,10 @@ export class OpeningIntro {
     this.ctx.save();
     this.ctx.globalAlpha = pageOpacity;
     this.ctx.drawImage(image, 0, 0);
-    this.drawDmaoSpeechText(characterCount);
+    this.drawDemonSpeechText(characterCount);
     this.ctx.restore();
 
-    if (this.dmaoSpeechFadeOutStartTime && fadeOutElapsed >= DMAO_SPEECH_FADE_OUT_MS) {
+    if (this.demonSpeechFadeOutStartTime && fadeOutElapsed >= DEMON_SPEECH_FADE_OUT_MS) {
       this.startNecklacePage(timestamp);
       return;
     }
@@ -657,11 +720,177 @@ export class OpeningIntro {
     this.drawCreditsText(textY);
 
     if (textY + CREDITS_LINES.length * CREDITS_LINE_HEIGHT < 0) {
-      this.finish();
+      this.startBalconyPage(timestamp);
       return;
     }
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startBalconyPage(timestamp) {
+    this.page = PAGE_BALCONY;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.balconyStartTime = timestamp;
+    this.balconyLineIndex = 0;
+    this.balconyLineStartTime = timestamp + BALCONY_FADE_IN_MS;
+    this.balconyCrossfadeStartTime = 0;
+    this.balconyPart = 1;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  // Returns all lines for the current part
+  getBalconyLines() {
+    return this.balconyPart === 1 ? BALCONY_LINES_PART1 : BALCONY_LINES_PART2;
+  }
+
+  // Returns true if the line is a princess quote (double-quoted)
+  isBalconyPrincessLine(line) {
+    return line.trimStart().startsWith('"');
+  }
+
+  // Advance to the next line or part; called on click/keypress
+  advanceBalconyLine(timestamp) {
+    const lines = this.getBalconyLines();
+    const elapsed = timestamp - this.balconyLineStartTime;
+    const currentLine = lines[this.balconyLineIndex] ?? '';
+    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+    // If still typing, snap to full line immediately
+    if (!fullyTyped) {
+      // force snap by setting lineStartTime to far in the past
+      this.balconyLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
+      return;
+    }
+
+    // If part 1 is done and we just showed the last line, start crossfade then part 2
+    if (this.balconyPart === 1 && this.balconyLineIndex >= lines.length - 1) {
+      if (!this.balconyCrossfadeStartTime) {
+        this.balconyCrossfadeStartTime = timestamp;
+      }
+      return;
+    }
+
+    // If part 2 is done, finish
+    if (this.balconyPart === 2 && this.balconyLineIndex >= lines.length - 1) {
+      this.finish();
+      return;
+    }
+
+    // Advance to next line
+    this.balconyLineIndex++;
+    this.balconyLineStartTime = timestamp;
+  }
+
+  drawBalconyPage(timestamp) {
+    if (!this.balconyStartTime) {
+      this.balconyStartTime = timestamp;
+      this.balconyLineStartTime = timestamp + BALCONY_FADE_IN_MS;
+    }
+
+    const elapsed = timestamp - this.balconyStartTime;
+    const imageOpacity = Math.min(elapsed / BALCONY_FADE_IN_MS, 1);
+
+    // Crossfade from balcony to balcony_sand at end of part 1
+    const crossfadeElapsed = this.balconyCrossfadeStartTime
+      ? timestamp - this.balconyCrossfadeStartTime
+      : 0;
+    const crossfadeProgress = this.balconyCrossfadeStartTime
+      ? Math.min(crossfadeElapsed / BALCONY_CROSSFADE_MS, 1)
+      : 0;
+
+    // Switch to part 2 once crossfade done
+    if (this.balconyCrossfadeStartTime && crossfadeProgress >= 1 && this.balconyPart === 1) {
+      this.balconyPart = 2;
+      this.balconyLineIndex = 0;
+      this.balconyLineStartTime = timestamp;
+    }
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+
+    // Draw balcony image fading in, then crossfading to sand
+    this.ctx.globalAlpha = imageOpacity * (1 - crossfadeProgress);
+    this.ctx.drawImage(this.balconyImage, 0, 0);
+
+    if (this.balconyCrossfadeStartTime) {
+      this.ctx.globalAlpha = imageOpacity * crossfadeProgress;
+      this.ctx.drawImage(this.balconySandImage, 0, 0);
+    }
+
+    this.ctx.restore();
+
+    // Draw text: visible in part 1 (before crossfade) and part 2 (after crossfade)
+    const isCrossfading = this.balconyCrossfadeStartTime && crossfadeProgress < 1;
+    if (imageOpacity > 0 && !isCrossfading) {
+      this.drawBalconyText(timestamp);
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawBalconyText(timestamp) {
+    const lines = this.getBalconyLines();
+    const line = lines[this.balconyLineIndex] ?? '';
+    const elapsed = timestamp - this.balconyLineStartTime;
+    const visibleCount = Math.min(
+      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
+      line.length
+    );
+
+    if (visibleCount === 0) {
+      return;
+    }
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.font = BALCONY_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
+    const isShadowed = this.isBalconyPrincessLine(line);
+
+    // Distribute visible character count across wrapped lines
+    let remaining = visibleCount;
+    for (let i = 0; i < wrapped.length; i++) {
+      const segment = wrapped[i];
+      const visible = segment.slice(0, Math.min(remaining, segment.length));
+      if (visible) {
+        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+        if (isShadowed) {
+          this.drawShadowedText(visible, BALCONY_TEXT_X, y);
+        } else {
+          this.ctx.fillStyle = BALCONY_TEXT_COLOR;
+          this.ctx.fillText(visible, BALCONY_TEXT_X, y);
+        }
+      }
+      remaining -= segment.length;
+      if (remaining <= 0) break;
+    }
+
+    this.ctx.restore();
+  }
+
+  wrapBalconyText(text, maxWidth) {
+    // Split on spaces, reassemble greedily
+    const words = text.split(' ');
+    const lines = [];
+    let current = '';
+
+    for (const word of words) {
+      const candidate = current ? current + ' ' + word : word;
+      if (this.ctx.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
   }
 
   drawCopyrightText(opacity) {
@@ -684,22 +913,22 @@ export class OpeningIntro {
     this.ctx.drawImage(this.storyTextCanvas, 0, y);
   }
 
-  drawDmaoSpeechText(characterCount) {
-    this.ctx.font = DMAO_SPEECH_FONT;
+  drawDemonSpeechText(characterCount) {
+    this.ctx.font = DEMON_SPEECH_FONT;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'top';
 
     let remainingCharacters = characterCount;
 
-    for (let i = 0; i < DMAO_SPEECH_LINES.length; i++) {
-      const line = DMAO_SPEECH_LINES[i];
+    for (let i = 0; i < DEMON_SPEECH_LINES.length; i++) {
+      const line = DEMON_SPEECH_LINES[i];
       const visibleLine = line.slice(0, Math.max(Math.min(remainingCharacters, line.length), 0));
 
       if (visibleLine) {
         this.drawShadowedText(
           visibleLine,
           this.canvas.width / 2,
-          DMAO_SPEECH_START_Y + i * DMAO_SPEECH_LINE_HEIGHT
+          DEMON_SPEECH_START_Y + i * DEMON_SPEECH_LINE_HEIGHT
         );
       }
 
@@ -708,14 +937,14 @@ export class OpeningIntro {
   }
 
   drawShadowedText(text, x, y) {
-    this.ctx.fillStyle = DMAO_SPEECH_SHADOW_COLOR;
+    this.ctx.fillStyle = DEMON_SPEECH_SHADOW_COLOR;
     this.ctx.fillText(
       text,
-      x + DMAO_SPEECH_SHADOW_OFFSET,
-      y + DMAO_SPEECH_SHADOW_OFFSET
+      x + DEMON_SPEECH_SHADOW_OFFSET,
+      y + DEMON_SPEECH_SHADOW_OFFSET
     );
 
-    this.ctx.fillStyle = DMAO_SPEECH_TEXT_COLOR;
+    this.ctx.fillStyle = DEMON_SPEECH_TEXT_COLOR;
     this.ctx.fillText(text, x, y);
   }
 
@@ -802,29 +1031,29 @@ export class OpeningIntro {
       NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS + waitBeforeFadeMs;
   }
 
-  isDmaoSequenceComplete(timestamp = performance.now()) {
-    if (this.page !== PAGE_DMAO) {
+  isDemonSequenceComplete(timestamp = performance.now()) {
+    if (this.page !== PAGE_DEMON) {
       return false;
     }
 
-    return timestamp - this.dmaoStartTime >= DMAO_SEQUENCE.length * DMAO_FRAME_DELAY_MS;
+    return timestamp - this.demonStartTime >= DEMON_SEQUENCE.length * DEMON_FRAME_DELAY_MS;
   }
 
-  isDmaoSpeechWaitingForInput() {
-    if (this.page !== PAGE_DMAO_SPEECH || this.dmaoSpeechFadeOutStartTime) {
+  isDemonSpeechWaitingForInput() {
+    if (this.page !== PAGE_DEMON_SPEECH || this.demonSpeechFadeOutStartTime) {
       return false;
     }
 
-    return this.getVisibleDmaoSpeechCharacterCount(performance.now() - this.dmaoSpeechStartTime) >=
-      this.getDmaoSpeechCharacterCount();
+    return this.getVisibleDemonSpeechCharacterCount(performance.now() - this.demonSpeechStartTime) >=
+      this.getDemonSpeechCharacterCount();
   }
 
-  startDmaoSpeechFadeOut() {
-    if (this.dmaoSpeechFadeOutStartTime) {
+  startDemonSpeechFadeOut() {
+    if (this.demonSpeechFadeOutStartTime) {
       return;
     }
 
-    this.dmaoSpeechFadeOutStartTime = performance.now();
+    this.demonSpeechFadeOutStartTime = performance.now();
   }
 
   isNecklaceWaitingForInput() {
@@ -834,7 +1063,7 @@ export class OpeningIntro {
 
     const pannoStartTime = NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2;
 
-    return performance.now() - this.necklaceStartTime >= pannoStartTime + NECKLACE_FADE_IN_MS;
+    return performance.now() - this.necklaceStartTime >= 0;
   }
 
   startNecklaceFadeOut() {
@@ -866,24 +1095,24 @@ export class OpeningIntro {
     return 0;
   }
 
-  getVisibleDmaoSpeechCharacterCount(elapsed) {
+  getVisibleDemonSpeechCharacterCount(elapsed) {
     return Math.min(
-      Math.floor(elapsed / DMAO_SPEECH_CHAR_DELAY_MS),
-      this.getDmaoSpeechCharacterCount()
+      Math.floor(elapsed / DEMON_SPEECH_CHAR_DELAY_MS),
+      this.getDemonSpeechCharacterCount()
     );
   }
 
-  getDmaoSpeechCharacterCount() {
-    return DMAO_SPEECH_LINES.reduce((total, line) => total + line.length, 0);
+  getDemonSpeechCharacterCount() {
+    return DEMON_SPEECH_LINES.reduce((total, line) => total + line.length, 0);
   }
 
-  getDmaoSpeechImage(elapsed, characterCount) {
-    if (characterCount >= this.getDmaoSpeechCharacterCount()) {
-      return this.dmaoImages[3];
+  getDemonSpeechImage(elapsed, characterCount) {
+    if (characterCount >= this.getDemonSpeechCharacterCount()) {
+      return this.demonImages[3];
     }
 
-    const mouthFrame = Math.floor(elapsed / DMAO_MOUTH_FRAME_DELAY_MS) % 2;
-    return this.dmaoImages[[4, 5][mouthFrame]];
+    const mouthFrame = Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2;
+    return this.demonImages[[4, 5][mouthFrame]];
   }
 
   createExplosionGems() {
