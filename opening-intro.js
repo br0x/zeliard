@@ -59,6 +59,58 @@ const DMAO_SPEECH_LINES = [
   'from my sleep of 2,000 years',
   'and once again reign over the world.'
 ];
+const CREDITS_LINES = [
+  '               ZELIARD                  ',
+  '',
+  '             -- STAFF --                ',
+  '',
+  'Producer -- Japanese Version',
+  '                      Mitsuhiro Mazda   ',
+  '',
+  'Producer -- English Version',
+  '                        Josh Mandel     ',
+  '',
+  'Lead Programmer      Tomoyuki Shimada   ',
+  '',
+  'Graphic Designers     Akihiko Yoshida   ',
+  '                      Masatoshi Azumi   ',
+  '',
+  'English Text Translation by',
+  '                       Marti McKenna    ',
+  '',
+  'Music Composers  -- MECANO ASSOCIATES --',
+  '                    Fumihito Kasatani   ',
+  '                    Nobuyuki Aoshima    ',
+  '',
+  'Story Maker           Masaru Takeuchi   ',
+  '',
+  'Sound Effects by     Tomoyuki Shimada   ',
+  '',
+  'Advisers               Osamu Harada     ',
+  '                       Hiromi Ohba      ',
+  '                       Greg Miyaji      ',
+  '',
+  'System Designer      Rocky Cave Maker   ',
+  '',
+  'Special Thanks to',
+  '                    Toshiyuki Uchida    ',
+  '                       Yuzo Sunaga      ',
+  '                     Takeshi Miyaji     ',
+  '                     Naozumi Honma      ',
+  '                     Toshi Masubuchi    ',
+  '                     Ray E. Nakazato    ',
+  '                     Hiroyuki Koyama    ',
+  '                     Satoshi Uesaka     ',
+  '              Sierra On-Line Japan, Inc.',
+  '                    Eiji (Ed) Nagano    ',
+  '',
+  '',
+  '',
+  '    Copyright (C)1987,1990 GAME ARTS    ',
+  '    Copyright (C)1990 Sierra On-Line    ',
+  '  This edition first published 1987 by  ',
+  '  GAME ARTS Co.,Ltd./ Tomoyuki Shimada  '
+];
 
 const PAGE_LOGO = 'logo';
 const PAGE_STORY = 'story';
@@ -66,6 +118,7 @@ const PAGE_BROKEN_NEC = 'brokenNec';
 const PAGE_DMAO = 'dmao';
 const PAGE_DMAO_SPEECH = 'dmaoSpeech';
 const PAGE_NECKLACE = 'necklace';
+const PAGE_CREDITS = 'credits';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
@@ -104,6 +157,10 @@ const DMAO_SPEECH_FADE_OUT_MS = 1000;
 const NECKLACE_FADE_IN_MS = 1000;
 const NECKLACE_LAYER_DELAY_MS = 5000;
 const NECKLACE_FADE_OUT_MS = 1000;
+const CREDITS_FONT = '16px "Press Start 2P", monospace';
+const CREDITS_LINE_HEIGHT = 20;
+const CREDITS_START_Y = 400;
+const CREDITS_SCROLL_SPEED = 28;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -158,6 +215,8 @@ export class OpeningIntro {
     this.dmaoSpeechFadeOutStartTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
+    this.creditsStartTime = 0;
+    this.creditsX = 0;
     this.explosionGems = [];
   }
 
@@ -175,6 +234,8 @@ export class OpeningIntro {
     this.dmaoSpeechFadeOutStartTime = 0;
     this.necklaceStartTime = 0;
     this.necklaceFadeOutStartTime = 0;
+    this.creditsStartTime = 0;
+    this.creditsX = 0;
     this.explosionGems = [];
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -227,6 +288,7 @@ export class OpeningIntro {
         ...dmaoImages.slice(0, INTRO_DMAO_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
+      this.creditsX = this.getCreditsTextX();
     } catch (error) {
       console.error(error);
       this.finish();
@@ -278,6 +340,11 @@ export class OpeningIntro {
 
     if (this.page === PAGE_NECKLACE && this.isNecklaceWaitingForInput()) {
       this.startNecklaceFadeOut();
+      return;
+    }
+
+    if (this.page === PAGE_CREDITS) {
+      this.finish();
     }
   }
 
@@ -311,7 +378,12 @@ export class OpeningIntro {
       return;
     }
 
-    this.drawNecklacePage(timestamp);
+    if (this.page === PAGE_NECKLACE) {
+      this.drawNecklacePage(timestamp);
+      return;
+    }
+
+    this.drawCreditsPage(timestamp);
   }
 
   drawLogoPage(timestamp) {
@@ -387,6 +459,14 @@ export class OpeningIntro {
     this.fadeOutStartTime = 0;
     this.necklaceStartTime = timestamp;
     this.necklaceFadeOutStartTime = 0;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startCreditsPage(timestamp) {
+    this.page = PAGE_CREDITS;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.creditsStartTime = timestamp;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -561,6 +641,22 @@ export class OpeningIntro {
     this.ctx.restore();
 
     if (this.necklaceFadeOutStartTime && fadeOutElapsed >= NECKLACE_FADE_OUT_MS) {
+      this.startCreditsPage(timestamp);
+      return;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawCreditsPage(timestamp) {
+    const elapsed = timestamp - this.creditsStartTime;
+    const textY = Math.round(CREDITS_START_Y - (elapsed / 1000) * CREDITS_SCROLL_SPEED);
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawCreditsText(textY);
+
+    if (textY + CREDITS_LINES.length * CREDITS_LINE_HEIGHT < 0) {
       this.finish();
       return;
     }
@@ -623,6 +719,17 @@ export class OpeningIntro {
     this.ctx.fillText(text, x, y);
   }
 
+  drawCreditsText(y) {
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = CREDITS_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    for (let i = 0; i < CREDITS_LINES.length; i++) {
+      this.ctx.fillText(CREDITS_LINES[i], this.creditsX, y + i * CREDITS_LINE_HEIGHT);
+    }
+  }
+
   drawExplosionGems(progress) {
     if (progress >= 1) {
       return;
@@ -655,6 +762,17 @@ export class OpeningIntro {
     }
 
     return textCanvas;
+  }
+
+  getCreditsTextX() {
+    this.ctx.save();
+    this.ctx.font = CREDITS_FONT;
+
+    const textWidth = Math.max(...CREDITS_LINES.map((line) => this.ctx.measureText(line).width));
+
+    this.ctx.restore();
+
+    return Math.round((this.canvas.width - textWidth) / 2);
   }
 
   isStoryWaitingForInput() {
