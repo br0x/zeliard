@@ -6,6 +6,9 @@ const INTRO_NEC_GOLD_SRC = 'assets/images/opdemo/nec_gold.png';
 const INTRO_NEC_BROKEN_SRC = 'assets/images/opdemo/nec_broken.png';
 const INTRO_BLUE_GEM_SRC = 'assets/images/opdemo/blue.png';
 const INTRO_RED_GEM_SRC = 'assets/images/opdemo/red.png';
+const INTRO_NECKLACE_SRC = 'assets/images/opdemo/necklace.png';
+const INTRO_LOGO_TRANSP_SRC = 'assets/images/opdemo/logo_transp.png';
+const INTRO_PANNO_SRC = 'assets/images/opdemo/panno.png';
 const INTRO_DMAO_SRCS = [
   'assets/images/opdemo/dmao0.png',
   'assets/images/opdemo/dmao1.png',
@@ -62,6 +65,7 @@ const PAGE_STORY = 'story';
 const PAGE_BROKEN_NEC = 'brokenNec';
 const PAGE_DMAO = 'dmao';
 const PAGE_DMAO_SPEECH = 'dmaoSpeech';
+const PAGE_NECKLACE = 'necklace';
 const STORY_IMAGE_FADE_IN_MS = 2000;
 const STORY_CROSSFADE_MS = 4000;
 const STORY_FONT = '16px "Press Start 2P", monospace';
@@ -96,6 +100,10 @@ const DMAO_MOUTH_FRAME_DELAY_MS = 120;
 const DMAO_SPEECH_TEXT_COLOR = '#fff';
 const DMAO_SPEECH_SHADOW_COLOR = '#00f';
 const DMAO_SPEECH_SHADOW_OFFSET = 2;
+const DMAO_SPEECH_FADE_OUT_MS = 1000;
+const NECKLACE_FADE_IN_MS = 1000;
+const NECKLACE_LAYER_DELAY_MS = 5000;
+const NECKLACE_FADE_OUT_MS = 1000;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -139,11 +147,17 @@ export class OpeningIntro {
     this.blueGemImage = null;
     this.redGemImage = null;
     this.dmaoImages = [];
+    this.necklaceImage = null;
+    this.logoTranspImage = null;
+    this.pannoImage = null;
     this.storyTextCanvas = null;
     this.brokenNecStartTime = 0;
     this.brokenNecFadeOutStartTime = 0;
     this.dmaoStartTime = 0;
     this.dmaoSpeechStartTime = 0;
+    this.dmaoSpeechFadeOutStartTime = 0;
+    this.necklaceStartTime = 0;
+    this.necklaceFadeOutStartTime = 0;
     this.explosionGems = [];
   }
 
@@ -158,6 +172,9 @@ export class OpeningIntro {
     this.brokenNecFadeOutStartTime = 0;
     this.dmaoStartTime = 0;
     this.dmaoSpeechStartTime = 0;
+    this.dmaoSpeechFadeOutStartTime = 0;
+    this.necklaceStartTime = 0;
+    this.necklaceFadeOutStartTime = 0;
     this.explosionGems = [];
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -170,6 +187,9 @@ export class OpeningIntro {
         this.necBrokenImage,
         this.blueGemImage,
         this.redGemImage,
+        this.necklaceImage,
+        this.logoTranspImage,
+        this.pannoImage,
         ...this.dmaoImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
@@ -178,15 +198,32 @@ export class OpeningIntro {
         loadImage(INTRO_NEC_BROKEN_SRC),
         loadImage(INTRO_BLUE_GEM_SRC),
         loadImage(INTRO_RED_GEM_SRC),
+        loadImage(INTRO_NECKLACE_SRC),
+        loadImage(INTRO_LOGO_TRANSP_SRC),
+        loadImage(INTRO_PANNO_SRC),
         ...INTRO_DMAO_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
-      ]).then(([logo, nec, necGold, necBroken, blueGem, redGem, ...dmaoImages]) => [
+      ]).then(([
         logo,
         nec,
         necGold,
         necBroken,
         blueGem,
         redGem,
+        necklace,
+        logoTransp,
+        panno,
+        ...dmaoImages
+      ]) => [
+        logo,
+        nec,
+        necGold,
+        necBroken,
+        blueGem,
+        redGem,
+        necklace,
+        logoTransp,
+        panno,
         ...dmaoImages.slice(0, INTRO_DMAO_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
@@ -235,7 +272,12 @@ export class OpeningIntro {
     }
 
     if (this.page === PAGE_DMAO_SPEECH && this.isDmaoSpeechWaitingForInput()) {
-      this.finish();
+      this.startDmaoSpeechFadeOut();
+      return;
+    }
+
+    if (this.page === PAGE_NECKLACE && this.isNecklaceWaitingForInput()) {
+      this.startNecklaceFadeOut();
     }
   }
 
@@ -264,7 +306,12 @@ export class OpeningIntro {
       return;
     }
 
-    this.drawDmaoSpeechPage(timestamp);
+    if (this.page === PAGE_DMAO_SPEECH) {
+      this.drawDmaoSpeechPage(timestamp);
+      return;
+    }
+
+    this.drawNecklacePage(timestamp);
   }
 
   drawLogoPage(timestamp) {
@@ -330,6 +377,16 @@ export class OpeningIntro {
     this.startTime = 0;
     this.fadeOutStartTime = 0;
     this.dmaoSpeechStartTime = timestamp;
+    this.dmaoSpeechFadeOutStartTime = 0;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  startNecklacePage(timestamp) {
+    this.page = PAGE_NECKLACE;
+    this.startTime = 0;
+    this.fadeOutStartTime = 0;
+    this.necklaceStartTime = timestamp;
+    this.necklaceFadeOutStartTime = 0;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -447,11 +504,66 @@ export class OpeningIntro {
     const elapsed = timestamp - this.dmaoSpeechStartTime;
     const characterCount = this.getVisibleDmaoSpeechCharacterCount(elapsed);
     const image = this.getDmaoSpeechImage(elapsed, characterCount);
+    const fadeOutElapsed = this.dmaoSpeechFadeOutStartTime
+      ? timestamp - this.dmaoSpeechFadeOutStartTime
+      : 0;
+    const pageOpacity = this.dmaoSpeechFadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / DMAO_SPEECH_FADE_OUT_MS, 1)
+      : 1;
 
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = pageOpacity;
     this.ctx.drawImage(image, 0, 0);
     this.drawDmaoSpeechText(characterCount);
+    this.ctx.restore();
+
+    if (this.dmaoSpeechFadeOutStartTime && fadeOutElapsed >= DMAO_SPEECH_FADE_OUT_MS) {
+      this.startNecklacePage(timestamp);
+      return;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawNecklacePage(timestamp) {
+    const elapsed = timestamp - this.necklaceStartTime;
+    const logoStartTime = NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS;
+    const pannoStartTime = logoStartTime + NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS;
+    const fadeOutElapsed = this.necklaceFadeOutStartTime
+      ? timestamp - this.necklaceFadeOutStartTime
+      : 0;
+    const pageOpacity = this.necklaceFadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / NECKLACE_FADE_OUT_MS, 1)
+      : 1;
+
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = pageOpacity * Math.min(elapsed / NECKLACE_FADE_IN_MS, 1);
+    this.ctx.drawImage(this.necklaceImage, 0, 0);
+
+    if (elapsed >= logoStartTime) {
+      this.ctx.globalAlpha = pageOpacity *
+        Math.min((elapsed - logoStartTime) / NECKLACE_FADE_IN_MS, 1);
+      this.ctx.drawImage(this.logoTranspImage, 0, 0);
+    }
+
+    if (elapsed >= pannoStartTime) {
+      this.ctx.globalAlpha = pageOpacity *
+        Math.min((elapsed - pannoStartTime) / NECKLACE_FADE_IN_MS, 1);
+      this.ctx.drawImage(this.pannoImage, 0, 0);
+    }
+
+    this.ctx.restore();
+
+    if (this.necklaceFadeOutStartTime && fadeOutElapsed >= NECKLACE_FADE_OUT_MS) {
+      this.finish();
+      return;
+    }
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
@@ -581,12 +693,38 @@ export class OpeningIntro {
   }
 
   isDmaoSpeechWaitingForInput() {
-    if (this.page !== PAGE_DMAO_SPEECH) {
+    if (this.page !== PAGE_DMAO_SPEECH || this.dmaoSpeechFadeOutStartTime) {
       return false;
     }
 
     return this.getVisibleDmaoSpeechCharacterCount(performance.now() - this.dmaoSpeechStartTime) >=
       this.getDmaoSpeechCharacterCount();
+  }
+
+  startDmaoSpeechFadeOut() {
+    if (this.dmaoSpeechFadeOutStartTime) {
+      return;
+    }
+
+    this.dmaoSpeechFadeOutStartTime = performance.now();
+  }
+
+  isNecklaceWaitingForInput() {
+    if (this.page !== PAGE_NECKLACE || this.necklaceFadeOutStartTime) {
+      return false;
+    }
+
+    const pannoStartTime = NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2;
+
+    return performance.now() - this.necklaceStartTime >= pannoStartTime + NECKLACE_FADE_IN_MS;
+  }
+
+  startNecklaceFadeOut() {
+    if (this.necklaceFadeOutStartTime) {
+      return;
+    }
+
+    this.necklaceFadeOutStartTime = performance.now();
   }
 
   skipStoryScroll() {
