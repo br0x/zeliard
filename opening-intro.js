@@ -166,6 +166,7 @@ const CREDITS_SCROLL_SPEED = 28;
 const PAGE_BALCONY = 'balcony';
 const INTRO_BALCONY_SRC = 'assets/images/opdemo/balcony.png';
 const INTRO_BALCONY_SAND_SRC = 'assets/images/opdemo/balcony_sand.png';
+const INTRO_PRINCESS_SRC = 'assets/images/opdemo/princess.png';
 const BALCONY_FADE_IN_MS = 2000;
 const BALCONY_CROSSFADE_MS = 2000;
 const BALCONY_FONT = '14px "Press Start 2P", monospace';
@@ -173,6 +174,16 @@ const BALCONY_TEXT_MAX_WIDTH = 624; // canvas width (640) minus 2 * BALCONY_TEXT
 const BALCONY_LINE_HEIGHT = 20;
 const BALCONY_CHAR_DELAY_MS = 45;
 const BALCONY_AUTO_ADVANCE_MS = 3000;
+
+const PAGE_PRINCESS_DEMON = 'princessDemon';
+// The curtain rect in canvas coords
+const CURTAIN_X1 = 92;
+const CURTAIN_Y1 = 53;
+const CURTAIN_X2 = 544;
+const CURTAIN_Y2 = 219;
+const CURTAIN_COLOR = '#56040a';
+const CURTAIN_MS = 1000;       // time for curtain to fully close
+const PRINCESS_CROSSFADE_MS = 1000; // crossfade from sand to princess once curtain closed
 const BALCONY_TEXT_COLOR = '#fff';
 const BALCONY_SHADOW_COLOR = '#00f';
 const BALCONY_SHADOW_OFFSET = 2;
@@ -256,12 +267,14 @@ export class OpeningIntro {
     this.explosionGems = [];
     this.balconyImage = null;
     this.balconySandImage = null;
+    this.princessImage = null;
     this.balconyStartTime = 0;
     this.balconyLineIndex = 0;
     this.balconyLineStartTime = 0;
     this.balconyLineFullyTypedTime = 0;
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
+    this.princessDemonStartTime = 0;
   }
 
   async start() {
@@ -288,6 +301,7 @@ export class OpeningIntro {
     this.balconyLineFullyTypedTime = 0;
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
+    this.princessDemonStartTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
@@ -304,6 +318,7 @@ export class OpeningIntro {
         this.pannoImage,
         this.balconyImage,
         this.balconySandImage,
+        this.princessImage,
         ...this.demonImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
@@ -317,6 +332,7 @@ export class OpeningIntro {
         loadImage(INTRO_PANNO_SRC),
         loadImage(INTRO_BALCONY_SRC),
         loadImage(INTRO_BALCONY_SAND_SRC),
+        loadImage(INTRO_PRINCESS_SRC),
         ...INTRO_DEMON_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
       ]).then(([
@@ -331,6 +347,7 @@ export class OpeningIntro {
         panno,
         balcony,
         balconySand,
+        princess,
         ...demonImages
       ]) => [
         logo,
@@ -344,6 +361,7 @@ export class OpeningIntro {
         panno,
         balcony,
         balconySand,
+        princess,
         ...demonImages.slice(0, INTRO_DEMON_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
@@ -408,6 +426,10 @@ export class OpeningIntro {
     if (this.page === PAGE_BALCONY) {
       this.advanceBalconyLine(performance.now());
     }
+
+    if (this.page === PAGE_PRINCESS_DEMON) {
+      this.finish();
+    }
   }
 
   draw(timestamp) {
@@ -447,6 +469,11 @@ export class OpeningIntro {
 
     if (this.page === PAGE_BALCONY) {
       this.drawBalconyPage(timestamp);
+      return;
+    }
+
+    if (this.page === PAGE_PRINCESS_DEMON) {
+      this.drawPrincessDemonPage(timestamp);
       return;
     }
 
@@ -795,9 +822,9 @@ export class OpeningIntro {
       return;
     }
 
-    // If part 2 is done, finish
+    // If part 2 is done, go to Princess and Demon scene
     if (this.balconyPart === 2 && this.balconyLineIndex >= lines.length - 1) {
-      this.finish();
+      this.startPrincessDemonPage(timestamp);
       return;
     }
 
@@ -1203,6 +1230,115 @@ export class OpeningIntro {
       dx: vx * distance,
       dy: vy * distance
     };
+  }
+
+  startPrincessDemonPage(timestamp) {
+    this.page = PAGE_PRINCESS_DEMON;
+    this.princessDemonStartTime = timestamp;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawPrincessDemonPage(timestamp) {
+    if (!this.princessDemonStartTime) {
+      this.princessDemonStartTime = timestamp;
+    }
+
+    const elapsed = timestamp - this.princessDemonStartTime;
+
+    // Phase 1: draw balcony_sand with curtain closing (0 → CURTAIN_MS)
+    // Phase 2: crossfade sand→princess (CURTAIN_MS → CURTAIN_MS + PRINCESS_CROSSFADE_MS)
+    const curtainProgress = Math.min(elapsed / CURTAIN_MS, 1);
+    const crossfadeElapsed = Math.max(elapsed - CURTAIN_MS, 0);
+    const crossfadeProgress = Math.min(crossfadeElapsed / PRINCESS_CROSSFADE_MS, 1);
+
+    // Background
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.save();
+
+    if (crossfadeProgress === 0) {
+      // Phase 1: sand at full opacity; curtain animation draws on top below
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(this.balconySandImage, 0, 0);
+    } else {
+      // Phase 2: composite sand+closed-curtain as one layer fading out, princess fading in.
+      // Draw to offscreen so sand and curtain rect share the same globalAlpha.
+      const offscreen = document.createElement('canvas');
+      offscreen.width = this.canvas.width;
+      offscreen.height = this.canvas.height;
+      const off = offscreen.getContext('2d');
+      off.imageSmoothingEnabled = false;
+      off.drawImage(this.balconySandImage, 0, 0);
+      off.fillStyle = CURTAIN_COLOR;
+      off.fillRect(CURTAIN_X1, CURTAIN_Y1, CURTAIN_X2 - CURTAIN_X1, CURTAIN_Y2 - CURTAIN_Y1);
+
+      this.ctx.globalAlpha = 1 - crossfadeProgress;
+      this.ctx.drawImage(offscreen, 0, 0);
+
+      this.ctx.globalAlpha = crossfadeProgress;
+      this.ctx.drawImage(this.princessImage, 0, 0);
+    }
+
+    this.ctx.restore();
+
+    // Phase 1 curtain animation: inward-shrinking colored border over the rect
+    if (curtainProgress > 0 && crossfadeProgress === 0) {
+      const rx1 = CURTAIN_X1;
+      const ry1 = CURTAIN_Y1;
+      const rx2 = CURTAIN_X2;
+      const ry2 = CURTAIN_Y2;
+      const rw = rx2 - rx1;
+      const rh = ry2 - ry1;
+
+      // Maximum inset is half the smaller dimension so all 4 sides meet in the middle
+      const maxInset = Math.floor(Math.min(rw, rh) / 2);
+      // How many pixels of inset the curtain has reached so far
+      const inset = Math.ceil(curtainProgress * maxInset);
+
+      this.ctx.save();
+      this.ctx.fillStyle = CURTAIN_COLOR;
+
+      // Fill ring by ring from outside in up to current inset
+      // Efficient: just fill the full rect and cut out the remaining uncovered interior
+      // Outer rect fill (covers entire curtain area first)
+      this.ctx.fillRect(rx1, ry1, rw, rh);
+
+      // Cut out the still-uncovered interior by drawing black (background colour) over it
+      const innerX = rx1 + inset;
+      const innerY = ry1 + inset;
+      const innerW = rw - inset * 2;
+      const innerH = rh - inset * 2;
+
+      if (innerW > 0 && innerH > 0 && curtainProgress < 1) {
+        // Re-draw the sand (or princess) image clipped to the interior so it shows through
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(innerX, innerY, innerW, innerH);
+        this.ctx.clip();
+        this.ctx.globalAlpha = 1 - crossfadeProgress;
+        this.ctx.drawImage(this.balconySandImage, 0, 0);
+        if (crossfadeProgress > 0) {
+          this.ctx.globalAlpha = crossfadeProgress;
+          this.ctx.drawImage(this.princessImage, 0, 0);
+        }
+        this.ctx.restore();
+      }
+
+      this.ctx.restore();
+    }
+
+    if (crossfadeProgress >= 1) {
+      // Hold on princess.png — wait for user input (skipPage → finish())
+      this.ctx.save();
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(this.princessImage, 0, 0);
+      this.ctx.restore();
+      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+      return;
+    }
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
   finish() {
