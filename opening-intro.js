@@ -730,7 +730,7 @@ export class OpeningIntro {
         break;
 
       case 'gemExplosion':
-        this._nextStep();
+        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
         break;
 
       case 'spriteAnim':
@@ -738,11 +738,8 @@ export class OpeningIntro {
         break;
 
       case 'typeText':
-        if (!s.fadeOutStartTime) {
-          // snap to fully typed first, then fade
-          s.fullyTypedTime = s.fullyTypedTime || performance.now();
-          s.fadeOutStartTime = performance.now();
-        }
+        // Snap text to fully typed; if already done, jump immediately
+        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
         break;
 
       case 'layeredFadeIn':
