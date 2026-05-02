@@ -179,10 +179,10 @@ const PAGE_PRINCESS_DEMON = 'princessDemon';
 const INTRO_PRINCESS_VS_DEMON_SRC = 'assets/images/opdemo/princess_vs_demon.png';
 const INTRO_DEMON_FINAL_SRC = 'assets/images/opdemo/demon.png';
 // The curtain rect in canvas coords
-const CURTAIN_X1 = 92;
-const CURTAIN_Y1 = 53;
-const CURTAIN_X2 = 544;
-const CURTAIN_Y2 = 219;
+const CURTAIN_X1 = 33;
+const CURTAIN_Y1 = 33;
+const CURTAIN_X2 = 607;
+const CURTAIN_Y2 = 239;
 const CURTAIN_COLOR = '#56040a';
 const CURTAIN_MS = 1000;       // time for curtain to fully close
 const PRINCESS_CROSSFADE_MS = 1000; // crossfade from sand to princess once curtain closed
