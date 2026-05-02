@@ -1,27 +1,43 @@
-const INTRO_FADE_IN_MS = 2000;
-const INTRO_FADE_OUT_MS = 2000;
-const INTRO_LOGO_SRC = 'assets/images/opdemo/ttl3_logo.png';
-const INTRO_NEC_SRC = 'assets/images/opdemo/nec.png';
-const INTRO_NEC_GOLD_SRC = 'assets/images/opdemo/nec_gold.png';
-const INTRO_NEC_BROKEN_SRC = 'assets/images/opdemo/nec_broken.png';
-const INTRO_BLUE_GEM_SRC = 'assets/images/opdemo/blue.png';
-const INTRO_RED_GEM_SRC = 'assets/images/opdemo/red.png';
-const INTRO_NECKLACE_SRC = 'assets/images/opdemo/necklace.png';
-const INTRO_LOGO_TRANSP_SRC = 'assets/images/opdemo/logo_transp.png';
-const INTRO_PANNO_SRC = 'assets/images/opdemo/panno.png';
+// ─────────────────────────────────────────────────────────────────────────────
+// Assets
+// ─────────────────────────────────────────────────────────────────────────────
+
+const INTRO_LOGO_SRC            = 'assets/images/opdemo/ttl3_logo.png';
+const INTRO_NEC_SRC             = 'assets/images/opdemo/nec.png';
+const INTRO_NEC_GOLD_SRC        = 'assets/images/opdemo/nec_gold.png';
+const INTRO_NEC_BROKEN_SRC      = 'assets/images/opdemo/nec_broken.png';
+const INTRO_BLUE_GEM_SRC        = 'assets/images/opdemo/blue.png';
+const INTRO_RED_GEM_SRC         = 'assets/images/opdemo/red.png';
+const INTRO_NECKLACE_SRC        = 'assets/images/opdemo/necklace.png';
+const INTRO_LOGO_TRANSP_SRC     = 'assets/images/opdemo/logo_transp.png';
+const INTRO_PANNO_SRC           = 'assets/images/opdemo/panno.png';
+const INTRO_BALCONY_SRC         = 'assets/images/opdemo/balcony.png';
+const INTRO_BALCONY_SAND_SRC    = 'assets/images/opdemo/balcony_sand.png';
+const INTRO_PRINCESS_SRC        = 'assets/images/opdemo/princess.png';
+const INTRO_PRINCESS_VS_DEMON_SRC = 'assets/images/opdemo/princess_vs_demon.png';
+const INTRO_DEMON_FINAL_SRC     = 'assets/images/opdemo/demon.png';
+const INTRO_STONED_SRC          = 'assets/images/opdemo/stoned.png';
+const INTRO_KING_PRINCESS_SRC   = 'assets/images/opdemo/king_princess.png';
+const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 const INTRO_DEMON_SRCS = [
   'assets/images/opdemo/dmaou0.png',
   'assets/images/opdemo/dmaou1.png',
   'assets/images/opdemo/dmaou2.png',
   'assets/images/opdemo/dmaou3.png',
   'assets/images/opdemo/dmaou4.png',
-  'assets/images/opdemo/dmaou5.png'
+  'assets/images/opdemo/dmaou5.png',
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Text content
+// ─────────────────────────────────────────────────────────────────────────────
+
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
   'Copyright (C)1990 Sierra On-Line',
-  'Web port 2026, brox//THIRTEEN'
+  'Web port 2026, brox//THIRTEEN',
 ];
+
 const STORY_LINES = [
   '           Two thousand years, ',
   'from the dark reaches of another galaxy,',
@@ -52,13 +68,15 @@ const STORY_LINES = [
   '',
   'However, it is written in',
   '       the Sixth Book of Esmesanti:',
-  '                    The Age of Darkness.'
+  '                    The Age of Darkness.',
 ];
+
 const DEMON_SPEECH_LINES = [
   'Beware, for I shall wake',
   'from my sleep of 2,000 years',
-  'and once again reign over the world.'
+  'and once again reign over the world.',
 ];
+
 const CREDITS_LINES = [
   '               ZELIARD                  ',
   '',
@@ -109,29 +127,87 @@ const CREDITS_LINES = [
   '    Copyright (C)1987,1990 GAME ARTS    ',
   '    Copyright (C)1990 Sierra On-Line    ',
   '  This edition first published 1987 by  ',
-  '  GAME ARTS Co.,Ltd./ Tomoyuki Shimada  '
+  '  GAME ARTS Co.,Ltd./ Tomoyuki Shimada  ',
 ];
 
-const PAGE_LOGO = 'logo';
-const PAGE_STORY = 'story';
-const PAGE_BROKEN_NEC = 'brokenNec';
-const PAGE_DEMON = 'demon';
-const PAGE_DEMON_SPEECH = 'demonSpeech';
-const PAGE_NECKLACE = 'necklace';
-const PAGE_CREDITS = 'credits';
-const STORY_IMAGE_FADE_IN_MS = 2000;
-const STORY_CROSSFADE_MS = 4000;
-const STORY_FONT = '16px "Press Start 2P", monospace';
-const STORY_FONT_SAMPLE = 'The Age of Darkness.';
-const STORY_LINE_HEIGHT = 20;
-const STORY_START_Y = 400;
-const STORY_SCROLL_SPEED = 28;
-const NEC_FLASH_IN_MS = 200;
-const NEC_FLASH_OUT_MS = 500;
-const NEC_GEM_EXPLODE_MS = 1000;
-const NEC_BROKEN_FADE_OUT_MS = 1000;
-const NEC_BROKEN_AUTO_ADVANCE_MS = 3000;
-const NEC_GEM_EXPLOSION_CENTER = { x: 325, y: 240 };
+const BALCONY_LINES_PART1 = [
+  'Once, long ago, a terrible storm came to the land of Zeliard. ',
+  'Dark clouds filled the sky; lightning flashed and thunder crashed. ',
+  'Day after day, rain poured from the heavens as if in lament.',
+  'On the seventh day of rain, a beautiful young girl stood on her balcony watching this dark, sad rain.',
+  'The girl was Princess Felicia la Felishika.  She was the only daughter of King Felishika, and the light of his life.',
+  'Her smiles were like sunshine, her voice as beautiful as that of an angel.  She was adored by the people of the kingdom.',
+  '"What a dreadful storm!  Will it never end?"',
+  'Just as the princess spoke these words, the raindrops turned to grains of sand which covered the ground below her. ',
+];
+
+const BALCONY_LINES_PART2 = [
+  'As she watched, a startling transformation began to take place.',
+  'In an instant, the green hills and plains turned a dusty brown. ',
+  'Trees and flowers crumpled and were buried. ',
+  'Rivers and lakes disappeared beneath the sand.',
+  'This ever-green land was turning to desert before her very eyes.',
+];
+
+const PRINCESS_DEMON_LINES = [
+  '"How can this be?" she cried, "What evil power could cause such a terrible thing to happen?"',
+];
+
+const PRINCESS_VS_DEMON_LINES = [
+  'Princess Felicia shivered as she felt a dark presence near her, and suddenly, a terrifying voice bellowed as loud as thunder...',
+  '"I am Jashiin, the Emperor of Chaos.  The descendants of those who imprisoned me under the earth shall know that my wrath has smoldered for two thousand years!"',
+];
+
+const DEMON_FINAL_LINES = [
+  '"Beautiful Princess Felicia, you will make a lovely and terrifying symbol of my awakening.  Your father will not make the mistakes of his ancestors!"',
+  'As the words of the demon resounded over the land, Princess Felicia was turned to stone.',
+];
+
+const STONED_LINES = [
+  'The rain of sand continued for 108 days and transformed the once-fertile land into desert.',
+  'The people of the kingdom wept at the terrible fate of their country, and of their princess.',
+];
+
+const KING_PRINCESS_LINES = [
+  'The King wept most of all. "Oh, my beloved Felicia!  I fear the Age of Darkness is upon us.  I am powerless to stop it ... and powerless to help you."',
+  'But the tears of the King and his people soon awakened another power.',
+  'As the King grieved, an apparition appeared before him.',
+];
+
+const SPIRIT_LINES = [
+  '"I am the Guardian Spirit of the Holy Land of Zeliard.  The demon Jashiin has been resurrected, and indeed his evil magic will plunge this world into the Age of Darkness once again."',
+  '"Heed my words, King Felishika: There is but one way to stop this demon.  A brave warrior must venture into the labyrinths and recover the nine Holy Crystals, the Tears of Esmesanti."',
+  '"Many terrible creatures dwell within the labyrinths, all of them Jashiin\'s minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them."',
+  '"However, there is one with the power to oppose Jashiin. The man who is destined to fight him will soon arrive in your kingdom."',
+  '"This man is the only being strong enough to banish Jashiin forever."',
+  '"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse."',
+  'Having spoken these words, the Spirit disappeared.',
+];
+
+const KING_SURPRISED_LINES = [
+  'King Felishika could not believe what he had seen.  "Surely my mind is playing tricks on me!  I\'m afraid I have gone mad with grief."',
+  'But the next day, a stranger appeared in the kingdom...',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Timing & layout constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const INTRO_FADE_IN_MS              = 2000;
+const INTRO_FADE_OUT_MS             = 2000;
+const STORY_IMAGE_FADE_IN_MS        = 2000;
+const STORY_CROSSFADE_MS            = 4000;
+const STORY_FONT                    = '16px "Press Start 2P", monospace';
+const STORY_FONT_SAMPLE             = 'The Age of Darkness.';
+const STORY_LINE_HEIGHT             = 20;
+const STORY_START_Y                 = 400;
+const STORY_SCROLL_SPEED            = 28;   // px / second
+const NEC_FLASH_IN_MS               = 200;
+const NEC_FLASH_OUT_MS              = 500;
+const NEC_GEM_EXPLODE_MS            = 1000;
+const NEC_BROKEN_FADE_OUT_MS        = 1000;
+const NEC_BROKEN_AUTO_ADVANCE_MS    = 3000;
+const NEC_GEM_EXPLOSION_CENTER      = { x: 325, y: 240 };
 const NEC_GEM_COORDS = [
   { image: 'blue', x: 280, y: 215 },
   { image: 'blue', x: 284, y: 224 },
@@ -141,130 +217,70 @@ const NEC_GEM_COORDS = [
   { image: 'blue', x: 331, y: 232 },
   { image: 'blue', x: 340, y: 224 },
   { image: 'blue', x: 344, y: 215 },
-  { image: 'red',  x: 299, y: 172 }
+  { image: 'red',  x: 299, y: 172 },
 ];
-const DEMON_FRAME_DELAY_MS = 500;
-const DEMON_SEQUENCE = [0, 1, 0, 1, 2, 3];
-const DEMON_SPEECH_FONT = '16px "Press Start 2P", monospace';
-const DEMON_SPEECH_LINE_HEIGHT = 20;
-const DEMON_SPEECH_START_Y = 330;
-const DEMON_SPEECH_CHAR_DELAY_MS = 45;
-const DEMON_MOUTH_FRAME_DELAY_MS = 120;
-const DIRECT_SPEECH_TEXT_COLOR = '#fbfbfb';
-const DIRECT_SPEECH_SHADOW_COLOR = '#0000fb';
-const DIRECT_SPEECH_SHADOW_OFFSET = 2;
-const DEMON_SPEECH_FADE_OUT_MS = 1000;
-const DEMON_SPEECH_AUTO_ADVANCE_MS = 3000;
-const NECKLACE_FADE_IN_MS = 1000;
-const NECKLACE_LAYER_DELAY_MS = 3000;
-const NECKLACE_FADE_OUT_MS = 1000;
-const CREDITS_FONT = '16px "Press Start 2P", monospace';
-const CREDITS_LINE_HEIGHT = 20;
-const CREDITS_START_Y = 400;
-const CREDITS_SCROLL_SPEED = 28;
-
-const PAGE_BALCONY = 'balcony';
-const INTRO_BALCONY_SRC = 'assets/images/opdemo/balcony.png';
-const INTRO_BALCONY_SAND_SRC = 'assets/images/opdemo/balcony_sand.png';
-const INTRO_PRINCESS_SRC = 'assets/images/opdemo/princess.png';
-const BALCONY_FADE_IN_MS = 2000;
-const BALCONY_CROSSFADE_MS = 2000;
-const BALCONY_FONT = '14px "Press Start 2P", monospace';
-const BALCONY_TEXT_MAX_WIDTH = 624; // canvas width (640) minus 2 * BALCONY_TEXT_X (8)
-const BALCONY_LINE_HEIGHT = 20;
-const BALCONY_CHAR_DELAY_MS = 45;
-const BALCONY_AUTO_ADVANCE_MS = 3000;
-
-const PAGE_PRINCESS_DEMON = 'princessDemon';
-const INTRO_PRINCESS_VS_DEMON_SRC = 'assets/images/opdemo/princess_vs_demon.png';
-const INTRO_DEMON_FINAL_SRC = 'assets/images/opdemo/demon.png';
-// The curtain rect in canvas coords
-const CURTAIN_X1 = 33;
-const CURTAIN_Y1 = 33;
-const CURTAIN_X2 = 607;
-const CURTAIN_Y2 = 239;
-const CURTAIN_COLOR = '#56040a';
-const CURTAIN_MS = 1000;       // time for curtain to fully close
-const PRINCESS_CROSSFADE_MS = 1000; // crossfade from sand to princess once curtain closed
-const PRINCESS_DEMON_LINES = [
-  '"How can this be?" she cried, "What evil power could cause such a terrible thing to happen?"'
-];
+const DEMON_FRAME_DELAY_MS          = 500;
+const DEMON_SEQUENCE                = [0, 1, 0, 1, 2, 3];
+const DEMON_SPEECH_CHAR_DELAY_MS    = 45;
+const DEMON_MOUTH_FRAME_DELAY_MS    = 120;
+const DEMON_SPEECH_FADE_OUT_MS      = 1000;
+const DEMON_SPEECH_AUTO_ADVANCE_MS  = 3000;
+const NECKLACE_FADE_IN_MS           = 1000;
+const NECKLACE_LAYER_DELAY_MS       = 3000;
+const NECKLACE_FADE_OUT_MS          = 1000;
+const CREDITS_FONT                  = '16px "Press Start 2P", monospace';
+const CREDITS_LINE_HEIGHT           = 20;
+const CREDITS_START_Y               = 400;
+const CREDITS_SCROLL_SPEED          = 28;   // px / second
+const BALCONY_FADE_IN_MS            = 2000;
+const BALCONY_CROSSFADE_MS          = 2000;
+const BALCONY_FONT                  = '14px "Press Start 2P", monospace';
+const BALCONY_TEXT_X                = 8;
+const BALCONY_TEXT_Y                = 290;
+const BALCONY_TEXT_MAX_WIDTH        = 624;  // canvas width (640) − 2 × BALCONY_TEXT_X
+const BALCONY_LINE_HEIGHT           = 20;
+const BALCONY_CHAR_DELAY_MS         = 45;
+const BALCONY_AUTO_ADVANCE_MS       = 3000;
+const CURTAIN_X1                    = 33;
+const CURTAIN_Y1                    = 33;
+const CURTAIN_X2                    = 607;
+const CURTAIN_Y2                    = 239;
+const CURTAIN_COLOR                 = '#56040a';
+const CURTAIN_MS                    = 1000;
+const PRINCESS_CROSSFADE_MS         = 1000;
 const PRINCESS_VS_DEMON_CROSSFADE_MS = 2000;
-const PRINCESS_VS_DEMON_LINES = [
-  'Princess Felicia shivered as she felt a dark presence near her, and suddenly, a terrifying voice bellowed as loud as thunder...',
-  '"I am Jashiin, the Emperor of Chaos.  The descendants of those who imprisoned me under the earth shall know that my wrath has smoldered for two thousand years!"'
-];
-const DEMON_FINAL_CROSSFADE_MS = 2000;
-const DEMON_FINAL_LINES = [
-  '"Beautiful Princess Felicia, you will make a lovely and terrifying symbol of my awakening.  Your father will not make the mistakes of his ancestors!"',
-  'As the words of the demon resounded over the land, Princess Felicia was turned to stone.'
-];
-const PAGE_STONED = 'stoned';
-const INTRO_STONED_SRC = 'assets/images/opdemo/stoned.png';
-const INTRO_KING_PRINCESS_SRC = 'assets/images/opdemo/king_princess.png';
-const INTRO_SPIRIT_SRC = 'assets/images/opdemo/spirit.png';
-const STONED_CROSSFADE_MS = 2000;
-const KING_PRINCESS_CROSSFADE_MS = 2000;
-const SPIRIT_CROSSFADE_MS = 2000;
-const STONED_LINES = [
-  'The rain of sand continued for 108 days and transformed the once-fertile land into desert.',
-  'The people of the kingdom wept at the terrible fate of their country, and of their princess.'
-];
-const KING_PRINCESS_LINES = [
-  'The King wept most of all. "Oh, my beloved Felicia!  I fear the Age of Darkness is upon us.  I am powerless to stop it ... and powerless to help you."',
-  'But the tears of the King and his people soon awakened another power.',
-  'As the King grieved, an apparition appeared before him.'
-];
-const SPIRIT_LINES = [
-  '"I am the Guardian Spirit of the Holy Land of Zeliard.  The demon Jashiin has been resurrected, and indeed his evil magic will plunge this world into the Age of Darkness once again."',
-  '"Heed my words, King Felishika: There is but one way to stop this demon.  A brave warrior must venture into the labyrinths and recover the nine Holy Crystals, the Tears of Esmesanti."',
-  '"Many terrible creatures dwell within the labyrinths, all of them Jashiin\'s minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them."',
-  '"However, there is one with the power to oppose Jashiin. The man who is destined to fight him will soon arrive in your kingdom."',
-  '"This man is the only being strong enough to banish Jashiin forever."',
-  '"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse."',
-  'Having spoken these words, the Spirit disappeared.'
-];
-const KING_SURPRISED_LINES = [
-  'King Felishika could not believe what he had seen.  "Surely my mind is playing tricks on me!  I\'m afraid I have gone mad with grief."',
-  'But the next day, a stranger appeared in the kingdom...'
-];
-const JASHIIN_TEXT_COLOR = '#fbfb00';
-const JASHIIN_SHADOW_COLOR = '#fb0000';
-// Y position of the text area below the image (image occupies roughly top 75% of canvas)
-const BALCONY_TEXT_Y = 290;
-const BALCONY_TEXT_X = 8;
-const BALCONY_LINES_PART1 = [
-  'Once, long ago, a terrible storm came to the land of Zeliard. ',
-  'Dark clouds filled the sky; lightning flashed and thunder crashed. ',
-  'Day after day, rain poured from the heavens as if in lament.',
-  'On the seventh day of rain, a beautiful young girl stood on her balcony watching this dark, sad rain.',
-  'The girl was Princess Felicia la Felishika.  She was the only daughter of King Felishika, and the light of his life.',
-  'Her smiles were like sunshine, her voice as beautiful as that of an angel.  She was adored by the people of the kingdom.',
-  '"What a dreadful storm!  Will it never end?"',
-  'Just as the princess spoke these words, the raindrops turned to grains of sand which covered the ground below her. '
-];
-const BALCONY_LINES_PART2 = [
-  'As she watched, a startling transformation began to take place.',
-  'In an instant, the green hills and plains turned a dusty brown. ',
-  'Trees and flowers crumpled and were buried. ',
-  'Rivers and lakes disappeared beneath the sand.',
-  'This ever-green land was turning to desert before her very eyes.'
-];
+const DEMON_FINAL_CROSSFADE_MS      = 2000;
+const STONED_CROSSFADE_MS           = 2000;
+const KING_PRINCESS_CROSSFADE_MS    = 2000;
+const SPIRIT_CROSSFADE_MS           = 2000;
+
+// Text styling
+const DIRECT_SPEECH_TEXT_COLOR      = '#fbfbfb';
+const DIRECT_SPEECH_SHADOW_COLOR    = '#0000fb';
+const DIRECT_SPEECH_SHADOW_OFFSET   = 2;
+const JASHIIN_TEXT_COLOR            = '#fbfb00';
+const JASHIIN_SHADOW_COLOR          = '#fb0000';
+
+// Demon speech layout
+const DEMON_SPEECH_FONT             = '16px "Press Start 2P", monospace';
+const DEMON_SPEECH_LINE_HEIGHT      = 20;
+const DEMON_SPEECH_START_Y          = 330;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
+    image.onload  = () => resolve(image);
     image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     image.src = src;
   });
 }
 
 async function loadStoryFont() {
-  if (!document.fonts?.load) {
-    return;
-  }
-
+  if (!document.fonts?.load) return;
   try {
     await document.fonts.load(STORY_FONT, STORY_FONT_SAMPLE);
     await document.fonts.ready;
@@ -273,470 +289,593 @@ async function loadStoryFont() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Timeline definition
+//
+// Each step is processed by the engine's generic draw/skip handlers.
+// Steps reference image keys resolved from `this.images` after asset load.
+//
+// Step types:
+//   fadeInImage    – fade a single image in, hold, then advance
+//   crossfade      – crossfade from one image to another, then advance
+//   scrollText     – scroll a pre-rendered text canvas over a background image,
+//                    then crossfade to a second image and advance
+//   gemExplosion   – flash, shatter gems, fade out, then advance
+//   spriteAnim     – play a frame sequence from a sprite array, then advance
+//   typeText       – type lines over an image with auto-advance; supports
+//                    mouth animation and fade-out
+//   layeredFadeIn  – stagger-fade multiple image layers, then advance
+//   curtainThen    – close curtain over backgroundKey image, then advance
+//   balcony        – two-part typed-text scene with crossfade between parts
+//   typedScene     – sequence of (image, lines[]) sub-scenes with crossfades
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildTimeline(images) {
+  return [
+    // ── 1. Logo ──────────────────────────────────────────────────────────────
+    {
+      type: 'fadeInImage',
+      image: images.logo,
+      fadeInMs: INTRO_FADE_IN_MS,
+      holdMs: 3000,
+      fadeOutMs: INTRO_FADE_OUT_MS,
+      // Extra overlay drawn on top of the image during this step
+      overlay: (ctx, canvas, opacity) => {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const startY = 290, lineHeight = 20;
+        for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
+          ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
+        }
+        ctx.restore();
+      },
+      // Custom opacity curve: image starts at 0.18 and ramps to 1
+      opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
+    },
+
+    // ── 2. Story scroll (nec → nec_gold crossfade) ───────────────────────────
+    {
+      type: 'scrollText',
+      backgroundImage: images.nec,
+      crossfadeImage: images.necGold,
+      textCanvas: null,          // built at runtime; see buildStepState()
+      imagefadeInMs: STORY_IMAGE_FADE_IN_MS,
+      crossfadeMs: STORY_CROSSFADE_MS,
+      startY: STORY_START_Y,
+      scrollSpeed: STORY_SCROLL_SPEED,
+    },
+
+    // ── 3. Broken necklace + gem explosion ───────────────────────────────────
+    {
+      type: 'gemExplosion',
+      goldImage: images.necGold,
+      brokenImage: images.necBroken,
+      blueGemImage: images.blueGem,
+      redGemImage: images.redGem,
+      gemCoords: NEC_GEM_COORDS,
+      explosionCenter: NEC_GEM_EXPLOSION_CENTER,
+      flashInMs: NEC_FLASH_IN_MS,
+      flashOutMs: NEC_FLASH_OUT_MS,
+      explodeMs: NEC_GEM_EXPLODE_MS,
+      fadeOutMs: NEC_BROKEN_FADE_OUT_MS,
+      autoAdvanceMs: NEC_BROKEN_AUTO_ADVANCE_MS,
+    },
+
+    // ── 4. Demon entrance animation ──────────────────────────────────────────
+    {
+      type: 'spriteAnim',
+      frames: images.demonFrames,
+      sequence: DEMON_SEQUENCE,
+      frameDelayMs: DEMON_FRAME_DELAY_MS,
+    },
+
+    // ── 5. Demon speech ──────────────────────────────────────────────────────
+    {
+      type: 'typeText',
+      lines: DEMON_SPEECH_LINES,
+      // Mouth animation while speaking; idle frame when done
+      getImage: (elapsed, charsDone, totalChars) => {
+        if (charsDone >= totalChars) return images.demonFrames[3];
+        return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
+      },
+      font: DEMON_SPEECH_FONT,
+      textAlign: 'center',
+      textX: (canvas) => canvas.width / 2,
+      startY: DEMON_SPEECH_START_Y,
+      lineHeight: DEMON_SPEECH_LINE_HEIGHT,
+      charDelayMs: DEMON_SPEECH_CHAR_DELAY_MS,
+      autoAdvanceMs: DEMON_SPEECH_AUTO_ADVANCE_MS,
+      fadeOutMs: DEMON_SPEECH_FADE_OUT_MS,
+      textColor: DIRECT_SPEECH_TEXT_COLOR,
+      shadowColor: DIRECT_SPEECH_SHADOW_COLOR,
+      shadowOffset: DIRECT_SPEECH_SHADOW_OFFSET,
+    },
+
+    // ── 6. Necklace layers ───────────────────────────────────────────────────
+    {
+      type: 'layeredFadeIn',
+      layers: [
+        { image: images.necklace,   delayMs: 0 },
+        { image: images.logoTransp, delayMs: NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS },
+        { image: images.panno,      delayMs: NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2 },
+      ],
+      eachFadeInMs: NECKLACE_FADE_IN_MS,
+      holdAfterMs: 2000,
+      fadeOutMs: NECKLACE_FADE_OUT_MS,
+    },
+
+    // ── 7. Credits scroll ────────────────────────────────────────────────────
+    {
+      type: 'scrollText',
+      backgroundImage: null,        // black background
+      crossfadeImage: null,
+      textCanvas: null,             // built at runtime
+      imagefadeInMs: 0,
+      crossfadeMs: 0,
+      startY: CREDITS_START_Y,
+      scrollSpeed: CREDITS_SCROLL_SPEED,
+      isCredits: true,              // different font / alignment
+    },
+
+    // ── 8. Balcony (2 parts, curtain + crossfade between them) ───────────────
+    {
+      type: 'balcony',
+      part1: {
+        image: images.balcony,
+        lines: BALCONY_LINES_PART1,
+      },
+      part2: {
+        image: images.balconySand,
+        lines: BALCONY_LINES_PART2,
+      },
+      fadeInMs: BALCONY_FADE_IN_MS,
+      crossfadeMs: BALCONY_CROSSFADE_MS,
+      charDelayMs: BALCONY_CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+
+    // ── 9. Princess / Demon confrontation (3 sub-scenes) ─────────────────────
+    {
+      type: 'typedScene',
+      // Sub-scene 1 starts with curtain-close + sand→princess crossfade
+      curtainImage: images.balconySand,
+      curtainMs: CURTAIN_MS,
+      curtainCrossfadeMs: PRINCESS_CROSSFADE_MS,
+      subScenes: [
+        {
+          image: images.princess,
+          lines: PRINCESS_DEMON_LINES,
+          crossfadeMs: PRINCESS_VS_DEMON_CROSSFADE_MS,
+          textStyle: 'normal',
+        },
+        {
+          image: images.princessVsDemon,
+          lines: PRINCESS_VS_DEMON_LINES,
+          crossfadeMs: DEMON_FINAL_CROSSFADE_MS,
+          textStyle: 'jashiin',   // Jashiin lines use yellow/red colours
+        },
+        {
+          image: images.demonFinal,
+          lines: DEMON_FINAL_LINES,
+          crossfadeMs: 0,
+          textStyle: 'jashiin',
+        },
+      ],
+      charDelayMs: BALCONY_CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+
+    // ── 10. Stoned / King / Spirit (sub-scenes + curtain) ────────────────────
+    {
+      type: 'typedScene',
+      curtainImage: null,
+      curtainMs: 0,
+      curtainCrossfadeMs: 0,
+      // The entry to this step crossfades from demonFinal → stoned before any text
+      entryFromImage: images.demonFinal,
+      entryToImage:   images.stoned,
+      entryCrossfadeMs: STONED_CROSSFADE_MS,
+      subScenes: [
+        {
+          image: images.stoned,
+          lines: STONED_LINES,
+          crossfadeMs: KING_PRINCESS_CROSSFADE_MS,
+          textStyle: 'normal',
+        },
+        {
+          image: images.kingPrincess,
+          lines: KING_PRINCESS_LINES,
+          crossfadeMs: SPIRIT_CROSSFADE_MS,
+          textStyle: 'normal',
+        },
+        {
+          image: images.spirit,
+          lines: SPIRIT_LINES,
+          curtainAfter: true,
+          curtainLines: KING_SURPRISED_LINES,
+          textStyle: 'normal',
+        },
+      ],
+      charDelayMs: BALCONY_CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OpeningIntro — timeline engine
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class OpeningIntro {
   constructor({ screen, canvas, onComplete }) {
-    this.screen = screen;
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.screen     = screen;
+    this.canvas     = canvas;
+    this.ctx        = canvas.getContext('2d');
     this.onComplete = onComplete;
-    this.active = false;
-    this.frameId = 0;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.page = PAGE_LOGO;
-    this.storyStartTime = 0;
-    this.storyCrossfadeStartTime = 0;
-    this.logoImage = null;
-    this.necImage = null;
-    this.necGoldImage = null;
-    this.necBrokenImage = null;
-    this.blueGemImage = null;
-    this.redGemImage = null;
-    this.demonImages = [];
-    this.necklaceImage = null;
-    this.logoTranspImage = null;
-    this.pannoImage = null;
-    this.storyTextCanvas = null;
-    this.brokenNecStartTime = 0;
-    this.brokenNecFadeOutStartTime = 0;
-    this.demonStartTime = 0;
-    this.demonSpeechStartTime = 0;
-    this.demonSpeechFadeOutStartTime = 0;
-    this.demonSpeechFullyTypedTime = 0;
-    this.necklaceStartTime = 0;
-    this.necklaceFadeOutStartTime = 0;
-    this.creditsStartTime = 0;
-    this.creditsX = 0;
-    this.explosionGems = [];
-    this.balconyImage = null;
-    this.balconySandImage = null;
-    this.princessImage = null;
-    this.balconyStartTime = 0;
-    this.balconyLineIndex = 0;
-    this.balconyLineStartTime = 0;
-    this.balconyLineFullyTypedTime = 0;
-    this.balconyCrossfadeStartTime = 0;
-    this.balconyPart = 1;
-    this.princessDemonStartTime = 0;
-    this.princessDemonLineIndex = 0;
-    this.princessDemonLineStartTime = 0;
-    this.princessDemonLineFullyTypedTime = 0;
-    this.princessVsDemonImage = null;
-    this.demonFinalImage = null;
-    this.princessDemonSubScene = 1;          // 1 = princess, 2 = princess_vs_demon, 3 = demon_final
-    this.princessDemonCrossfadeStartTime = 0; // tracks sub-scene crossfade
-    this.stonedImage = null;
-    this.kingPrincessImage = null;
-    this.spiritImage = null;
-    this.stonedStartTime = 0;
-    this.stonedSubScene = 1;   // 1 = demon→stoned, 2 = stoned lines, 3 = king_princess lines, 4 = spirit lines
-    this.stonedCrossfadeStartTime = 0;
-    this.stonedLineIndex = 0;
-    this.stonedLineStartTime = 0;
-    this.stonedLineFullyTypedTime = 0;
+
+    this.active   = false;
+    this.frameId  = 0;
+
+    // Runtime state set by start()
+    this.timeline     = [];
+    this.stepIndex    = 0;
+    this.stepState    = null;   // mutable state object for the current step
+    this.images       = {};
   }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
 
   async start() {
     this.active = true;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.page = PAGE_LOGO;
-    this.storyStartTime = 0;
-    this.storyCrossfadeStartTime = 0;
-    this.brokenNecStartTime = 0;
-    this.brokenNecFadeOutStartTime = 0;
-    this.demonStartTime = 0;
-    this.demonSpeechStartTime = 0;
-    this.demonSpeechFadeOutStartTime = 0;
-    this.demonSpeechFullyTypedTime = 0;
-    this.necklaceStartTime = 0;
-    this.necklaceFadeOutStartTime = 0;
-    this.creditsStartTime = 0;
-    this.creditsX = 0;
-    this.explosionGems = [];
-    this.balconyStartTime = 0;
-    this.balconyLineIndex = 0;
-    this.balconyLineStartTime = 0;
-    this.balconyLineFullyTypedTime = 0;
-    this.balconyCrossfadeStartTime = 0;
-    this.balconyPart = 1;
-    this.princessDemonStartTime = 0;
-    this.princessDemonLineIndex = 0;
-    this.princessDemonLineStartTime = 0;
-    this.princessDemonLineFullyTypedTime = 0;
-    this.princessDemonSubScene = 1;
-    this.princessDemonCrossfadeStartTime = 0;
-    this.stonedStartTime = 0;
-    this.stonedSubScene = 1;
-    this.stonedCrossfadeStartTime = 0;
-    this.stonedLineIndex = 0;
-    this.stonedLineStartTime = 0;
-    this.stonedLineFullyTypedTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
     try {
-      [
-        this.logoImage,
-        this.necImage,
-        this.necGoldImage,
-        this.necBrokenImage,
-        this.blueGemImage,
-        this.redGemImage,
-        this.necklaceImage,
-        this.logoTranspImage,
-        this.pannoImage,
-        this.balconyImage,
-        this.balconySandImage,
-        this.princessImage,
-        this.princessVsDemonImage,
-        this.demonFinalImage,
-        this.stonedImage,
-        this.kingPrincessImage,
-        this.spiritImage,
-        ...this.demonImages
-      ] = await Promise.all([
-        loadImage(INTRO_LOGO_SRC),
-        loadImage(INTRO_NEC_SRC),
-        loadImage(INTRO_NEC_GOLD_SRC),
-        loadImage(INTRO_NEC_BROKEN_SRC),
-        loadImage(INTRO_BLUE_GEM_SRC),
-        loadImage(INTRO_RED_GEM_SRC),
-        loadImage(INTRO_NECKLACE_SRC),
-        loadImage(INTRO_LOGO_TRANSP_SRC),
-        loadImage(INTRO_PANNO_SRC),
-        loadImage(INTRO_BALCONY_SRC),
-        loadImage(INTRO_BALCONY_SAND_SRC),
-        loadImage(INTRO_PRINCESS_SRC),
-        loadImage(INTRO_PRINCESS_VS_DEMON_SRC),
-        loadImage(INTRO_DEMON_FINAL_SRC),
-        loadImage(INTRO_STONED_SRC),
-        loadImage(INTRO_KING_PRINCESS_SRC),
-        loadImage(INTRO_SPIRIT_SRC),
-        ...INTRO_DEMON_SRCS.map((src) => loadImage(src)),
-        loadStoryFont()
-      ]).then(([
-        logo,
-        nec,
-        necGold,
-        necBroken,
-        blueGem,
-        redGem,
-        necklace,
-        logoTransp,
-        panno,
-        balcony,
-        balconySand,
-        princess,
-        princessVsDemon,
-        demonFinal,
-        stoned,
-        kingPrincess,
-        spirit,
-        ...demonImages
-      ]) => [
-        logo,
-        nec,
-        necGold,
-        necBroken,
-        blueGem,
-        redGem,
-        necklace,
-        logoTransp,
-        panno,
-        balcony,
-        balconySand,
-        princess,
-        princessVsDemon,
-        demonFinal,
-        stoned,
-        kingPrincess,
-        spirit,
-        ...demonImages.slice(0, INTRO_DEMON_SRCS.length)
-      ]);
-      this.storyTextCanvas = this.createStoryTextCanvas();
-      this.creditsX = this.getCreditsTextX();
+      await this._loadAssets();
     } catch (error) {
       console.error(error);
       this.finish();
       return;
     }
 
-    this.frameId = requestAnimationFrame((timestamp) => this.draw(timestamp));
+    this.timeline  = buildTimeline(this.images);
+    this.stepIndex = 0;
+    this._enterStep(0);
+
+    this.frameId = requestAnimationFrame((ts) => this._tick(ts));
   }
 
   skipPage() {
-    if (!this.active) {
-      return;
+    if (!this.active) return;
+    const step = this.timeline[this.stepIndex];
+    if (!step) return;
+    this._skipStep(step, this.stepState);
+  }
+
+  finish() {
+    if (!this.active) return;
+    this.active = false;
+    cancelAnimationFrame(this.frameId);
+    this.screen.classList.add('hidden');
+    this.onComplete();
+  }
+
+  // ── Asset loading ──────────────────────────────────────────────────────────
+
+  async _loadAssets() {
+    const [
+      logo, nec, necGold, necBroken, blueGem, redGem,
+      necklace, logoTransp, panno,
+      balcony, balconySand, princess,
+      princessVsDemon, demonFinal,
+      stoned, kingPrincess, spirit,
+      ...rest
+    ] = await Promise.all([
+      loadImage(INTRO_LOGO_SRC),
+      loadImage(INTRO_NEC_SRC),
+      loadImage(INTRO_NEC_GOLD_SRC),
+      loadImage(INTRO_NEC_BROKEN_SRC),
+      loadImage(INTRO_BLUE_GEM_SRC),
+      loadImage(INTRO_RED_GEM_SRC),
+      loadImage(INTRO_NECKLACE_SRC),
+      loadImage(INTRO_LOGO_TRANSP_SRC),
+      loadImage(INTRO_PANNO_SRC),
+      loadImage(INTRO_BALCONY_SRC),
+      loadImage(INTRO_BALCONY_SAND_SRC),
+      loadImage(INTRO_PRINCESS_SRC),
+      loadImage(INTRO_PRINCESS_VS_DEMON_SRC),
+      loadImage(INTRO_DEMON_FINAL_SRC),
+      loadImage(INTRO_STONED_SRC),
+      loadImage(INTRO_KING_PRINCESS_SRC),
+      loadImage(INTRO_SPIRIT_SRC),
+      ...INTRO_DEMON_SRCS.map(loadImage),
+      loadStoryFont(),
+    ]);
+
+    const demonFrames = rest.slice(0, INTRO_DEMON_SRCS.length);
+
+    this.images = {
+      logo, nec, necGold, necBroken, blueGem, redGem,
+      necklace, logoTransp, panno,
+      balcony, balconySand, princess,
+      princessVsDemon, demonFinal,
+      stoned, kingPrincess, spirit,
+      demonFrames,
+    };
+  }
+
+  // ── Step lifecycle ─────────────────────────────────────────────────────────
+
+  _enterStep(index) {
+    this.stepIndex = index;
+    const step = this.timeline[index];
+    if (!step) { this.finish(); return; }
+    this.stepState = this._buildStepState(step);
+  }
+
+  _nextStep() {
+    this._enterStep(this.stepIndex + 1);
+  }
+
+  _buildStepState(step) {
+    const base = { startTime: 0 };
+
+    if (step.type === 'scrollText') {
+      const canvas = step.isCredits
+        ? this._createCreditsCanvas()
+        : this._createStoryTextCanvas();
+      // compute credits x-offset once
+      const creditsX = step.isCredits ? this._measureCreditsX() : 0;
+      return { ...base, textCanvas: canvas, creditsX, crossfadeStartTime: 0 };
     }
 
-    if (this.page === PAGE_LOGO) {
-      if (this.fadeOutStartTime) {
-        return;
-      }
-
-      this.fadeOutStartTime = performance.now();
-      return;
+    if (step.type === 'gemExplosion') {
+      return { ...base, explosionGems: [], fadeOutStartTime: 0 };
     }
 
-    if (this.page === PAGE_STORY) {
-      if (this.storyCrossfadeStartTime) {
-        this.startBrokenNecPage(performance.now());
-      } else {
-        this.skipStoryScroll();
-      }
-      return;
+    if (step.type === 'fadeInImage') {
+      return { ...base, fadeOutStartTime: 0 };
     }
 
-    if (this.page === PAGE_BROKEN_NEC) {
-      this.startDemonPage(performance.now());
-      return;
+    if (step.type === 'typeText') {
+      return { ...base, fullyTypedTime: 0, fadeOutStartTime: 0 };
     }
 
-    if (this.page === PAGE_DEMON) {
-      this.startNecklacePage(performance.now());
-      return;
+    if (step.type === 'layeredFadeIn') {
+      return { ...base, fadeOutStartTime: 0 };
     }
 
-    if (this.page === PAGE_DEMON_SPEECH) {
-      this.startNecklacePage(performance.now());
-      return;
+    if (step.type === 'balcony') {
+      return {
+        ...base,
+        part: 1,
+        lineIndex: 0,
+        lineStartTime: 0,   // set once fade-in completes
+        lineFullyTypedTime: 0,
+        crossfadeStartTime: 0,
+      };
     }
 
-    if (this.page === PAGE_NECKLACE && this.isNecklaceWaitingForInput()) {
-      this.startNecklaceFadeOut();
-      return;
+    if (step.type === 'typedScene') {
+      // Opening phase: curtain > entryCrossfade > text
+      let initialPhase;
+      if (step.curtainImage)     initialPhase = 'curtain';
+      else if (step.entryFromImage) initialPhase = 'entryCrossfade';
+      else                       initialPhase = 'text';
+
+      return {
+        ...base,
+        subSceneIndex: 0,
+        phase: initialPhase,
+        crossfadeStartTime: 0,
+        lineIndex: 0,
+        lineStartTime: 0,
+        lineFullyTypedTime: 0,
+      };
     }
 
-    if (this.page === PAGE_CREDITS) {
-      this.startBalconyPage(performance.now());
-      return;
-    }
+    return base;
+  }
 
-    if (this.page === PAGE_BALCONY) {
-      this.advanceBalconyLine(performance.now());
-    }
+  // ── RAF loop ───────────────────────────────────────────────────────────────
 
-    if (this.page === PAGE_PRINCESS_DEMON) {
-      this.advancePrincessDemonLine(performance.now());
-    }
+  _tick(timestamp) {
+    if (!this.active) return;
+    const step = this.timeline[this.stepIndex];
+    if (!step) { this.finish(); return; }
 
-    if (this.page === PAGE_STONED) {
-      this.advanceStonedLine(performance.now());
+    const s = this.stepState;
+    if (!s.startTime) s.startTime = timestamp;
+
+    this._drawStep(step, s, timestamp);
+
+    if (this.active) {
+      this.frameId = requestAnimationFrame((ts) => this._tick(ts));
     }
   }
 
-  draw(timestamp) {
-    if (!this.active) {
-      return;
-    }
+  // ── Generic draw dispatcher ────────────────────────────────────────────────
 
-    if (this.page === PAGE_LOGO) {
-      this.drawLogoPage(timestamp);
-      return;
+  _drawStep(step, s, ts) {
+    switch (step.type) {
+      case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
+      case 'scrollText':     return this._drawScrollText(step, s, ts);
+      case 'gemExplosion':   return this._drawGemExplosion(step, s, ts);
+      case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
+      case 'typeText':       return this._drawTypeText(step, s, ts);
+      case 'layeredFadeIn':  return this._drawLayeredFadeIn(step, s, ts);
+      case 'balcony':        return this._drawBalcony(step, s, ts);
+      case 'typedScene':     return this._drawTypedScene(step, s, ts);
     }
-
-    if (this.page === PAGE_STORY) {
-      this.drawStoryPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_BROKEN_NEC) {
-      this.drawBrokenNecPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_DEMON) {
-      this.drawDemonPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_DEMON_SPEECH) {
-      this.drawDemonSpeechPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_NECKLACE) {
-      this.drawNecklacePage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_BALCONY) {
-      this.drawBalconyPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_PRINCESS_DEMON) {
-      this.drawPrincessDemonPage(timestamp);
-      return;
-    }
-
-    if (this.page === PAGE_STONED) {
-      this.drawStonedPage(timestamp);
-      return;
-    }
-
-    this.drawCreditsPage(timestamp);
   }
 
-  drawLogoPage(timestamp) {
-    if (!this.startTime) {
-      this.startTime = timestamp;
+  // ── Generic skip dispatcher ────────────────────────────────────────────────
+
+  _skipStep(step, s) {
+    switch (step.type) {
+      case 'fadeInImage':
+        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
+        break;
+
+      case 'scrollText':
+        if (step.crossfadeMs && !s.crossfadeStartTime) {
+          s.crossfadeStartTime = performance.now();
+        } else if (!step.crossfadeMs) {
+          this._nextStep();
+        }
+        break;
+
+      case 'gemExplosion':
+        this._nextStep();
+        break;
+
+      case 'spriteAnim':
+        this._nextStep();
+        break;
+
+      case 'typeText':
+        if (!s.fadeOutStartTime) {
+          // snap to fully typed first, then fade
+          s.fullyTypedTime = s.fullyTypedTime || performance.now();
+          s.fadeOutStartTime = performance.now();
+        }
+        break;
+
+      case 'layeredFadeIn':
+        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
+        break;
+
+      case 'balcony':
+        this._advanceBalconyLine(step, s, performance.now());
+        break;
+
+      case 'typedScene':
+        this._advanceTypedSceneLine(step, s, performance.now());
+        break;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Step renderers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── fadeInImage ────────────────────────────────────────────────────────────
+
+  _drawFadeInImage(step, s, ts) {
+    const elapsed      = ts - s.startTime;
+    const fadeInProg   = Math.min(elapsed / step.fadeInMs, 1);
+    const rawOpacity   = step.opacityCurve ? step.opacityCurve(fadeInProg) : fadeInProg;
+
+    if (!s.fadeOutStartTime && elapsed >= step.holdMs) {
+      s.fadeOutStartTime = ts;
     }
 
-    const elapsed = timestamp - this.startTime;
-    if (!this.fadeOutStartTime && elapsed >= 3000) {
-      this.fadeOutStartTime = timestamp;
-    }
-    const fadeInProgress = Math.min(elapsed / INTRO_FADE_IN_MS, 1);
-    const fadeOutElapsed = this.fadeOutStartTime ? timestamp - this.fadeOutStartTime : 0;
-    const pageOpacity = this.fadeOutStartTime
-      ? 1 - Math.min(fadeOutElapsed / INTRO_FADE_OUT_MS, 1)
+    const fadeOutElapsed = s.fadeOutStartTime ? ts - s.fadeOutStartTime : 0;
+    const pageOpacity    = s.fadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / step.fadeOutMs, 1)
       : 1;
-    const logoOpacity = 0.18 + fadeInProgress * 0.82;
+    const finalOpacity   = pageOpacity * rawOpacity;
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this._clearBlack();
     this.ctx.save();
-    this.ctx.globalAlpha = pageOpacity * logoOpacity;
-    this.ctx.drawImage(this.logoImage, 0, 0);
-
-    this.drawCopyrightText(pageOpacity);
+    this.ctx.globalAlpha = finalOpacity;
+    this.ctx.drawImage(step.image, 0, 0);
+    step.overlay?.(this.ctx, this.canvas, pageOpacity);
     this.ctx.restore();
 
-    if (this.fadeOutStartTime && fadeOutElapsed >= INTRO_FADE_OUT_MS) {
-      this.startStoryPage();
-      return;
+    if (s.fadeOutStartTime && fadeOutElapsed >= step.fadeOutMs) {
+      this._nextStep();
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  startStoryPage() {
-    this.page = PAGE_STORY;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.storyStartTime = 0;
-    this.storyCrossfadeStartTime = 0;
-    this.frameId = requestAnimationFrame((timestamp) => this.draw(timestamp));
-  }
+  // ── scrollText ─────────────────────────────────────────────────────────────
 
-  startBrokenNecPage(timestamp) {
-    this.page = PAGE_BROKEN_NEC;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.brokenNecStartTime = timestamp;
-    this.brokenNecFadeOutStartTime = 0;
-    this.explosionGems = this.createExplosionGems();
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
+  _drawScrollText(step, s, ts) {
+    const elapsed     = ts - s.startTime;
+    const imageOpacity = step.imagefadeInMs
+      ? Math.min(elapsed / step.imagefadeInMs, 1)
+      : 1;
+    const textY       = Math.round(step.startY - (elapsed / 1000) * step.scrollSpeed);
 
-  startDemonPage(timestamp) {
-    this.page = PAGE_DEMON;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.demonStartTime = timestamp;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  startDemonSpeechPage(timestamp) {
-    this.page = PAGE_DEMON_SPEECH;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.demonSpeechStartTime = timestamp;
-    this.demonSpeechFadeOutStartTime = 0;
-    this.demonSpeechFullyTypedTime = 0;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  startNecklacePage(timestamp) {
-    this.page = PAGE_NECKLACE;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.necklaceStartTime = timestamp;
-    this.necklaceFadeOutStartTime = 0;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  startCreditsPage(timestamp) {
-    this.page = PAGE_CREDITS;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.creditsStartTime = timestamp;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  drawStoryPage(timestamp) {
-    if (!this.storyStartTime) {
-      this.storyStartTime = timestamp;
-    }
-
-    const elapsed = timestamp - this.storyStartTime;
-    const imageOpacity = Math.min(elapsed / STORY_IMAGE_FADE_IN_MS, 1);
-    const textY = Math.round(STORY_START_Y - (elapsed / 1000) * STORY_SCROLL_SPEED);
-    const textBottom = textY + this.storyTextCanvas.height;
-
-    if (textBottom < 0 && !this.storyCrossfadeStartTime) {
-      this.storyCrossfadeStartTime = timestamp;
-    }
-
-    const crossfadeElapsed = this.storyCrossfadeStartTime ? timestamp - this.storyCrossfadeStartTime : 0;
-    const goldOpacity = this.storyCrossfadeStartTime
-      ? Math.min(crossfadeElapsed / STORY_CROSSFADE_MS, 1)
+    const crossfadeElapsed = s.crossfadeStartTime ? ts - s.crossfadeStartTime : 0;
+    const goldOpacity      = s.crossfadeStartTime
+      ? Math.min(crossfadeElapsed / step.crossfadeMs, 1)
       : 0;
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this._clearBlack();
     this.ctx.save();
-    this.ctx.globalAlpha = imageOpacity * (1 - goldOpacity);
-    this.ctx.drawImage(this.necImage, 0, 0);
 
-    this.ctx.globalAlpha = imageOpacity * goldOpacity;
-    this.ctx.drawImage(this.necGoldImage, 0, 0);
+    if (step.isCredits) {
+      this.ctx.globalAlpha = 1;
+      this._drawCreditsText(s.creditsX, textY);
+    } else {
+      // Story: nec fades in, crossfades to nec_gold at end of scroll
+      this.ctx.globalAlpha = imageOpacity * (1 - goldOpacity);
+      this.ctx.drawImage(step.backgroundImage, 0, 0);
 
-    if (!this.storyCrossfadeStartTime) {
-      this.drawStoryText(textY, imageOpacity);
+      if (s.crossfadeStartTime) {
+        this.ctx.globalAlpha = imageOpacity * goldOpacity;
+        this.ctx.drawImage(step.crossfadeImage, 0, 0);
+      }
+
+      if (!s.crossfadeStartTime) {
+        this._drawStoryText(s.textCanvas, textY, imageOpacity);
+      }
     }
 
     this.ctx.restore();
 
-    if (this.storyCrossfadeStartTime && crossfadeElapsed >= STORY_CROSSFADE_MS) {
-      this.startBrokenNecPage(timestamp);
-      return;
+    // Trigger crossfade / advance
+    if (step.isCredits) {
+      if (textY + CREDITS_LINES.length * CREDITS_LINE_HEIGHT < 0) {
+        this._nextStep();
+      }
+    } else {
+      if (textY + s.textCanvas.height < 0 && !s.crossfadeStartTime) {
+        s.crossfadeStartTime = ts;
+      }
+      if (s.crossfadeStartTime && crossfadeElapsed >= step.crossfadeMs) {
+        this._nextStep();
+      }
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawBrokenNecPage(timestamp) {
-    const elapsed = timestamp - this.brokenNecStartTime;
-    const gemElapsed = Math.max(elapsed - NEC_FLASH_IN_MS, 0);
-    const gemProgress = Math.min(gemElapsed / NEC_GEM_EXPLODE_MS, 1);
-    const fadeOutElapsed = this.brokenNecFadeOutStartTime
-      ? timestamp - this.brokenNecFadeOutStartTime
-      : 0;
-    const pageOpacity = this.brokenNecFadeOutStartTime
-      ? 1 - Math.min(fadeOutElapsed / NEC_BROKEN_FADE_OUT_MS, 1)
+  // ── gemExplosion ───────────────────────────────────────────────────────────
+
+  _drawGemExplosion(step, s, ts) {
+    const elapsed     = ts - s.startTime;
+    const gemElapsed  = Math.max(elapsed - step.flashInMs, 0);
+    const gemProgress = Math.min(gemElapsed / step.explodeMs, 1);
+
+    const fadeOutElapsed = s.fadeOutStartTime ? ts - s.fadeOutStartTime : 0;
+    const pageOpacity    = s.fadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / step.fadeOutMs, 1)
       : 1;
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // Initialise gem trajectories on first frame
+    if (!s.explosionGems.length) {
+      s.explosionGems = this._createExplosionGems(step);
+    }
 
+    this._clearBlack();
     this.ctx.save();
     this.ctx.globalAlpha = pageOpacity;
 
-    if (elapsed < NEC_FLASH_IN_MS) {
-      this.ctx.drawImage(this.necGoldImage, 0, 0);
+    if (elapsed < step.flashInMs) {
+      this.ctx.drawImage(step.goldImage, 0, 0);
     } else {
-      this.ctx.drawImage(this.necBrokenImage, 0, 0);
-      this.drawExplosionGems(gemProgress);
+      this.ctx.drawImage(step.brokenImage, 0, 0);
+      this._drawExplosionGems(s.explosionGems, gemProgress);
     }
 
     this.ctx.restore();
 
-    const flashOpacity = this.getBrokenNecFlashOpacity(elapsed) * pageOpacity;
+    // White flash overlay
+    const flashOpacity = this._getBrokenNecFlashOpacity(elapsed, step) * pageOpacity;
     if (flashOpacity > 0) {
       this.ctx.save();
       this.ctx.globalAlpha = flashOpacity;
@@ -745,326 +884,575 @@ export class OpeningIntro {
       this.ctx.restore();
     }
 
-    if (this.brokenNecFadeOutStartTime && fadeOutElapsed >= NEC_BROKEN_FADE_OUT_MS) {
-      this.startDemonPage(timestamp);
+    if (s.fadeOutStartTime && fadeOutElapsed >= step.fadeOutMs) {
+      this._nextStep();
       return;
     }
 
-    if (!this.brokenNecFadeOutStartTime && this.shouldAutoAdvanceBrokenNec(timestamp)) {
-      this.brokenNecFadeOutStartTime = timestamp;
+    if (!s.fadeOutStartTime && this._shouldAutoAdvanceGemExplosion(elapsed, step)) {
+      s.fadeOutStartTime = ts;
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawDemonPage(timestamp) {
-    const elapsed = timestamp - this.demonStartTime;
-    const sequenceIndex = Math.min(
-      Math.floor(elapsed / DEMON_FRAME_DELAY_MS),
-      DEMON_SEQUENCE.length - 1
-    );
-    const image = this.demonImages[DEMON_SEQUENCE[sequenceIndex]];
+  // ── spriteAnim ─────────────────────────────────────────────────────────────
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  _drawSpriteAnim(step, s, ts) {
+    const elapsed       = ts - s.startTime;
+    const sequenceIndex = Math.min(
+      Math.floor(elapsed / step.frameDelayMs),
+      step.sequence.length - 1,
+    );
+    const image = step.frames[step.sequence[sequenceIndex]];
+
+    this._clearBlack();
     this.ctx.drawImage(image, 0, 0);
 
-    if (this.isDemonSequenceComplete(timestamp)) {
-      this.startDemonSpeechPage(timestamp);
-      return;
+    if (elapsed >= step.sequence.length * step.frameDelayMs) {
+      this._nextStep();
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawDemonSpeechPage(timestamp) {
-    const elapsed = timestamp - this.demonSpeechStartTime;
-    const characterCount = this.getVisibleDemonSpeechCharacterCount(elapsed);
-    const image = this.getDemonSpeechImage(elapsed, characterCount);
-    const fadeOutElapsed = this.demonSpeechFadeOutStartTime
-      ? timestamp - this.demonSpeechFadeOutStartTime
-      : 0;
-    const pageOpacity = this.demonSpeechFadeOutStartTime
-      ? 1 - Math.min(fadeOutElapsed / DEMON_SPEECH_FADE_OUT_MS, 1)
+  // ── typeText ───────────────────────────────────────────────────────────────
+
+  _drawTypeText(step, s, ts) {
+    const elapsed    = ts - s.startTime;
+    const totalChars = step.lines.reduce((n, l) => n + l.length, 0);
+    const charsDone  = Math.min(Math.floor(elapsed / step.charDelayMs), totalChars);
+    const image      = step.getImage(elapsed, charsDone, totalChars);
+
+    const fadeOutElapsed = s.fadeOutStartTime ? ts - s.fadeOutStartTime : 0;
+    const pageOpacity    = s.fadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / step.fadeOutMs, 1)
       : 1;
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this._clearBlack();
     this.ctx.save();
     this.ctx.globalAlpha = pageOpacity;
     this.ctx.drawImage(image, 0, 0);
-    this.drawDemonSpeechText(characterCount);
+    this._drawTypeTextLines(step, charsDone);
     this.ctx.restore();
 
-    if (this.demonSpeechFadeOutStartTime && fadeOutElapsed >= DEMON_SPEECH_FADE_OUT_MS) {
-      this.startNecklacePage(timestamp);
+    if (s.fadeOutStartTime && fadeOutElapsed >= step.fadeOutMs) {
+      this._nextStep();
       return;
     }
 
-    // Record the moment typing finishes (once), then auto-advance after the delay
-    if (!this.demonSpeechFadeOutStartTime &&
-        characterCount >= this.getDemonSpeechCharacterCount()) {
-      if (!this.demonSpeechFullyTypedTime) {
-        this.demonSpeechFullyTypedTime = timestamp;
-      } else if (timestamp - this.demonSpeechFullyTypedTime >= DEMON_SPEECH_AUTO_ADVANCE_MS) {
-        this.startDemonSpeechFadeOut();
+    if (!s.fadeOutStartTime && charsDone >= totalChars) {
+      if (!s.fullyTypedTime) {
+        s.fullyTypedTime = ts;
+      } else if (ts - s.fullyTypedTime >= step.autoAdvanceMs) {
+        s.fadeOutStartTime = ts;
       }
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawNecklacePage(timestamp) {
-    const elapsed = timestamp - this.necklaceStartTime;
-    const logoStartTime = NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS;
-    const pannoStartTime = logoStartTime + NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS;
-    const fadeOutElapsed = this.necklaceFadeOutStartTime
-      ? timestamp - this.necklaceFadeOutStartTime
-      : 0;
-    const pageOpacity = this.necklaceFadeOutStartTime
-      ? 1 - Math.min(fadeOutElapsed / NECKLACE_FADE_OUT_MS, 1)
+  // ── layeredFadeIn ──────────────────────────────────────────────────────────
+
+  _drawLayeredFadeIn(step, s, ts) {
+    const elapsed     = ts - s.startTime;
+    const lastLayer   = step.layers[step.layers.length - 1];
+    const totalTimeMs = lastLayer.delayMs + step.eachFadeInMs + step.holdAfterMs;
+
+    const fadeOutElapsed = s.fadeOutStartTime ? ts - s.fadeOutStartTime : 0;
+    const pageOpacity    = s.fadeOutStartTime
+      ? 1 - Math.min(fadeOutElapsed / step.fadeOutMs, 1)
       : 1;
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this._clearBlack();
     this.ctx.save();
-    this.ctx.globalAlpha = pageOpacity * Math.min(elapsed / NECKLACE_FADE_IN_MS, 1);
-    this.ctx.drawImage(this.necklaceImage, 0, 0);
 
-    if (elapsed >= logoStartTime) {
-      this.ctx.globalAlpha = pageOpacity *
-        Math.min((elapsed - logoStartTime) / NECKLACE_FADE_IN_MS, 1);
-      this.ctx.drawImage(this.logoTranspImage, 0, 0);
-    }
-
-    if (elapsed >= pannoStartTime) {
-      this.ctx.globalAlpha = pageOpacity *
-        Math.min((elapsed - pannoStartTime) / NECKLACE_FADE_IN_MS, 1);
-      this.ctx.drawImage(this.pannoImage, 0, 0);
+    for (const layer of step.layers) {
+      const layerElapsed = elapsed - layer.delayMs;
+      if (layerElapsed <= 0) break;
+      this.ctx.globalAlpha = pageOpacity * Math.min(layerElapsed / step.eachFadeInMs, 1);
+      this.ctx.drawImage(layer.image, 0, 0);
     }
 
     this.ctx.restore();
 
-    const totalNecklaceTime = pannoStartTime + NECKLACE_FADE_IN_MS + 2000;
-    if (!this.necklaceFadeOutStartTime && elapsed >= totalNecklaceTime) {
-      this.necklaceFadeOutStartTime = timestamp;
-    }
-
-    if (this.necklaceFadeOutStartTime && fadeOutElapsed >= NECKLACE_FADE_OUT_MS) {
-      this.startCreditsPage(timestamp);
+    if (s.fadeOutStartTime && fadeOutElapsed >= step.fadeOutMs) {
+      this._nextStep();
       return;
     }
 
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+    if (!s.fadeOutStartTime && elapsed >= totalTimeMs) {
+      s.fadeOutStartTime = ts;
+    }
   }
 
-  drawCreditsPage(timestamp) {
-    const elapsed = timestamp - this.creditsStartTime;
-    const textY = Math.round(CREDITS_START_Y - (elapsed / 1000) * CREDITS_SCROLL_SPEED);
+  // ── balcony ────────────────────────────────────────────────────────────────
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this.drawCreditsText(textY);
-
-    if (textY + CREDITS_LINES.length * CREDITS_LINE_HEIGHT < 0) {
-      this.startBalconyPage(timestamp);
-      return;
+  _drawBalcony(step, s, ts) {
+    // lineStartTime is derived once from s.startTime (set by _tick on first frame)
+    if (!s.lineStartTime) {
+      s.lineStartTime = s.startTime + step.fadeInMs;
     }
 
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
+    const elapsed       = ts - s.startTime;
+    const imageOpacity  = Math.min(elapsed / step.fadeInMs, 1);
+    const part          = s.part === 1 ? step.part1 : step.part2;
 
-  startBalconyPage(timestamp) {
-    this.page = PAGE_BALCONY;
-    this.startTime = 0;
-    this.fadeOutStartTime = 0;
-    this.balconyStartTime = timestamp;
-    this.balconyLineIndex = 0;
-    this.balconyLineStartTime = timestamp + BALCONY_FADE_IN_MS;
-    this.balconyCrossfadeStartTime = 0;
-    this.balconyPart = 1;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  // Returns all lines for the current part
-  getBalconyLines() {
-    return this.balconyPart === 1 ? BALCONY_LINES_PART1 : BALCONY_LINES_PART2;
-  }
-
-  // Returns true if the line is a princess quote (double-quoted)
-  isBalconyPrincessLine(line) {
-    return line.trimStart().startsWith('"');
-  }
-
-  // Splits text into segments: [{text, quoted}, ...] based on matched "..." pairs.
-  // Unmatched opening quotes are treated as plain text.
-  parseQuoteSegments(text) {
-    const segments = [];
-    let i = 0;
-    let plain = '';
-    while (i < text.length) {
-      if (text[i] === '"') {
-        const closeIdx = text.indexOf('"', i + 1);
-        if (closeIdx !== -1) {
-          // Flush any plain text before this quote
-          if (plain) { segments.push({ text: plain, quoted: false }); plain = ''; }
-          segments.push({ text: text.slice(i, closeIdx + 1), quoted: true });
-          i = closeIdx + 1;
-        } else {
-          // No closing quote — treat as plain
-          plain += text[i++];
-        }
-      } else {
-        plain += text[i++];
-      }
-    }
-    if (plain) segments.push({ text: plain, quoted: false });
-    return segments;
-  }
-
-  // Advance to the next line or part; called on click/keypress or auto-advance timer
-  advanceBalconyLine(timestamp) {
-    const lines = this.getBalconyLines();
-    const elapsed = timestamp - this.balconyLineStartTime;
-    const currentLine = lines[this.balconyLineIndex] ?? '';
-    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-    // If still typing, snap to full line immediately
-    if (!fullyTyped) {
-      // force snap by setting lineStartTime to far in the past
-      this.balconyLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
-      this.balconyLineFullyTypedTime = timestamp;
-      return;
-    }
-
-    // If part 1 is done and we just showed the last line, start crossfade then part 2
-    if (this.balconyPart === 1 && this.balconyLineIndex >= lines.length - 1) {
-      if (!this.balconyCrossfadeStartTime) {
-        this.balconyCrossfadeStartTime = timestamp;
-      }
-      return;
-    }
-
-    // If part 2 is done, go to Princess and Demon scene
-    if (this.balconyPart === 2 && this.balconyLineIndex >= lines.length - 1) {
-      this.startPrincessDemonPage(timestamp);
-      return;
-    }
-
-    // Advance to next line
-    this.balconyLineIndex++;
-    this.balconyLineStartTime = timestamp;
-    this.balconyLineFullyTypedTime = 0;
-  }
-
-  drawBalconyPage(timestamp) {
-    if (!this.balconyStartTime) {
-      this.balconyStartTime = timestamp;
-      this.balconyLineStartTime = timestamp + BALCONY_FADE_IN_MS;
-    }
-
-    const elapsed = timestamp - this.balconyStartTime;
-    const imageOpacity = Math.min(elapsed / BALCONY_FADE_IN_MS, 1);
-
-    // Crossfade from balcony to balcony_sand at end of part 1
-    const crossfadeElapsed = this.balconyCrossfadeStartTime
-      ? timestamp - this.balconyCrossfadeStartTime
-      : 0;
-    const crossfadeProgress = this.balconyCrossfadeStartTime
-      ? Math.min(crossfadeElapsed / BALCONY_CROSSFADE_MS, 1)
+    const crossfadeElapsed  = s.crossfadeStartTime ? ts - s.crossfadeStartTime : 0;
+    const crossfadeProgress = s.crossfadeStartTime
+      ? Math.min(crossfadeElapsed / step.crossfadeMs, 1)
       : 0;
 
-    // Switch to part 2 once crossfade done
-    if (this.balconyCrossfadeStartTime && crossfadeProgress >= 1 && this.balconyPart === 1) {
-      this.balconyPart = 2;
-      this.balconyLineIndex = 0;
-      this.balconyLineStartTime = timestamp;
-      this.balconyLineFullyTypedTime = 0;
+    // Commit part-switch once crossfade completes
+    if (s.crossfadeStartTime && crossfadeProgress >= 1 && s.part === 1) {
+      s.part               = 2;
+      s.lineIndex          = 0;
+      s.lineStartTime      = ts;
+      s.lineFullyTypedTime = 0;
     }
 
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this._clearBlack();
     this.ctx.save();
 
-    // Draw balcony image fading in, then crossfading to sand
     this.ctx.globalAlpha = imageOpacity * (1 - crossfadeProgress);
-    this.ctx.drawImage(this.balconyImage, 0, 0);
+    this.ctx.drawImage(step.part1.image, 0, 0);
 
-    if (this.balconyCrossfadeStartTime) {
+    if (s.crossfadeStartTime) {
       this.ctx.globalAlpha = imageOpacity * crossfadeProgress;
-      this.ctx.drawImage(this.balconySandImage, 0, 0);
+      this.ctx.drawImage(step.part2.image, 0, 0);
     }
 
     this.ctx.restore();
 
-    // Draw text: visible in part 1 (before crossfade) and part 2 (after crossfade)
-    const isCrossfading = this.balconyCrossfadeStartTime && crossfadeProgress < 1;
+    const isCrossfading = s.crossfadeStartTime && crossfadeProgress < 1;
     if (imageOpacity > 0 && !isCrossfading) {
-      this.drawBalconyText(timestamp);
+      this._drawBalconyText(part.lines, s, ts);
     }
 
-    // Auto-advance balcony lines after BALCONY_AUTO_ADVANCE_MS once a line is fully typed
-    // Runs in part 1 (before crossfade) and part 2 (after crossfade completes), not during crossfade
-    if (!this.balconyCrossfadeStartTime || (this.balconyPart === 2 && !isCrossfading)) {
-      const lines = this.getBalconyLines();
-      const currentLine = lines[this.balconyLineIndex] ?? '';
-      const lineElapsed = timestamp - this.balconyLineStartTime;
-      const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-      if (lineFullyTyped) {
-        if (!this.balconyLineFullyTypedTime) {
-          this.balconyLineFullyTypedTime = timestamp;
-        } else if (timestamp - this.balconyLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
-          this.advanceBalconyLine(timestamp);
-        }
-      }
+    if (!isCrossfading) {
+      this._autoAdvanceBalcony(step, s, part.lines, ts);
     }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
-  drawBalconyText(timestamp) {
-    const lines = this.getBalconyLines();
-    const line = lines[this.balconyLineIndex] ?? '';
-    const elapsed = timestamp - this.balconyLineStartTime;
-    const visibleCount = Math.min(
-      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
-      line.length
-    );
+  _advanceBalconyLine(step, s, ts) {
+    if (!s.lineStartTime) return;   // fade-in not yet complete, nothing to advance
+    const part  = s.part === 1 ? step.part1 : step.part2;
+    const lines = part.lines;
+    const line  = lines[s.lineIndex] ?? '';
+    const elapsed    = ts - s.lineStartTime;
+    const fullyTyped = elapsed >= line.length * step.charDelayMs;
 
-    this.clearTextArea();
-
-    if (visibleCount === 0) {
+    if (!fullyTyped) {
+      s.lineStartTime      = ts - line.length * step.charDelayMs;
+      s.lineFullyTypedTime = ts;
       return;
     }
 
+    if (s.part === 1 && s.lineIndex >= lines.length - 1) {
+      if (!s.crossfadeStartTime) s.crossfadeStartTime = ts;
+      return;
+    }
+
+    if (s.part === 2 && s.lineIndex >= lines.length - 1) {
+      this._nextStep();
+      return;
+    }
+
+    s.lineIndex++;
+    s.lineStartTime      = ts;
+    s.lineFullyTypedTime = 0;
+  }
+
+  _autoAdvanceBalcony(step, s, lines, ts) {
+    if (!s.lineStartTime) return;   // not yet initialised (fade still pending)
+    const line       = lines[s.lineIndex] ?? '';
+    const lineElapsed = ts - s.lineStartTime;
+    const fullyTyped  = lineElapsed >= line.length * step.charDelayMs;
+
+    if (!fullyTyped) { s.lineFullyTypedTime = 0; return; }
+
+    if (!s.lineFullyTypedTime) {
+      s.lineFullyTypedTime = ts;
+    } else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
+      this._advanceBalconyLine(step, s, ts);
+    }
+  }
+
+  // ── typedScene ─────────────────────────────────────────────────────────────
+  //
+  // Phases per sub-scene:
+  //   'curtain'      – opening curtain + crossfade (first sub-scene only, optional)
+  //   'crossfade'    – crossfade from previous image to this sub-scene image
+  //   'text'         – show image, type lines, auto-advance
+  //   'curtainAfter' – close curtain after last sub-scene, then type curtainLines
+  //   'done'         – advance to next timeline step
+
+  _drawTypedScene(step, s, ts) {
+    const sub = step.subScenes[s.subSceneIndex];
+
+    switch (s.phase) {
+      case 'curtain':          return this._drawTypedSceneCurtain(step, s, sub, ts);
+      case 'entryCrossfade':   return this._drawTypedSceneEntryCrossfade(step, s, sub, ts);
+      case 'crossfade':        return this._drawTypedSceneCrossfade(step, s, sub, ts);
+      case 'text':             return this._drawTypedSceneText(step, s, sub, ts);
+      case 'curtainAfter':     return this._drawTypedSceneCurtainAfter(step, s, sub, ts);
+      case 'curtainAfterText': return this._drawTypedSceneCurtainAfterText(step, s, sub, ts);
+    }
+  }
+
+  _drawTypedSceneEntryCrossfade(step, s, sub, ts) {
+    if (!s.crossfadeStartTime) s.crossfadeStartTime = ts;
+    const progress = Math.min((ts - s.crossfadeStartTime) / step.entryCrossfadeMs, 1);
+
+    this._clearBlack();
+    this.ctx.save();
+    this.ctx.globalAlpha = 1 - progress;
+    this.ctx.drawImage(step.entryFromImage, 0, 0);
+    this.ctx.globalAlpha = progress;
+    this.ctx.drawImage(step.entryToImage, 0, 0);
+    this.ctx.restore();
+
+    if (progress >= 1) {
+      s.phase              = 'text';
+      s.crossfadeStartTime = 0;
+      s.lineStartTime      = ts;
+    }
+  }
+
+  _drawTypedSceneCurtain(step, s, sub, ts) {
+    const elapsed          = ts - s.startTime;
+    const curtainProgress  = Math.min(elapsed / step.curtainMs, 1);
+    const crossfadeElapsed = Math.max(elapsed - step.curtainMs, 0);
+    const crossfadeProgress = Math.min(crossfadeElapsed / step.curtainCrossfadeMs, 1);
+
+    this._clearBlack();
+    this.ctx.save();
+
+    if (crossfadeProgress === 0) {
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(step.curtainImage, 0, 0);
+    } else {
+      // Offscreen: sand + closed curtain rect, crossfading to princess
+      const off    = this._makeOffscreen();
+      const offCtx = off.getContext('2d');
+      offCtx.imageSmoothingEnabled = false;
+      offCtx.drawImage(step.curtainImage, 0, 0);
+      offCtx.fillStyle = CURTAIN_COLOR;
+      offCtx.fillRect(CURTAIN_X1, CURTAIN_Y1, CURTAIN_X2 - CURTAIN_X1, CURTAIN_Y2 - CURTAIN_Y1);
+
+      this.ctx.globalAlpha = 1 - crossfadeProgress;
+      this.ctx.drawImage(off, 0, 0);
+      this.ctx.globalAlpha = crossfadeProgress;
+      this.ctx.drawImage(sub.image, 0, 0);
+    }
+
+    this.ctx.restore();
+
+    if (curtainProgress > 0 && crossfadeProgress === 0) {
+      this._drawCurtainClose(curtainProgress, step.curtainImage);
+    }
+
+    if (crossfadeProgress >= 1) {
+      // First text frame
+      s.phase         = 'text';
+      s.lineStartTime = ts;
+    }
+  }
+
+  _drawTypedSceneCrossfade(step, s, sub, ts) {
+    const prevSub  = step.subScenes[s.subSceneIndex - 1];
+    const outImage = prevSub?.image ?? sub.image;
+    const inImage  = sub.image;
+    const cfMs     = sub.crossfadeMs || 1;
+    const progress = Math.min((ts - s.crossfadeStartTime) / cfMs, 1);
+
+    this._clearBlack();
+    this.ctx.save();
+    this.ctx.globalAlpha = 1 - progress;
+    this.ctx.drawImage(outImage, 0, 0);
+    this.ctx.globalAlpha = progress;
+    this.ctx.drawImage(inImage, 0, 0);
+    this.ctx.restore();
+
+    if (progress >= 1) {
+      s.phase              = 'text';
+      s.lineIndex          = 0;
+      s.lineStartTime      = ts;
+      s.lineFullyTypedTime = 0;
+      s.crossfadeStartTime = 0;
+    }
+  }
+
+  _drawTypedSceneText(step, s, sub, ts) {
+    this._clearBlack();
     this.ctx.save();
     this.ctx.globalAlpha = 1;
-    this.ctx.font = BALCONY_FONT;
-    this.ctx.textAlign = 'left';
+    this.ctx.drawImage(sub.image, 0, 0);
+    this.ctx.restore();
+
+    // Prime the line timer on the very first text frame
+    if (!s.lineStartTime) s.lineStartTime = ts;
+
+    this._drawBalconyText(sub.lines, s, ts, sub.textStyle);
+    this._autoAdvanceTypedScene(step, s, sub, ts);
+  }
+
+  _autoAdvanceTypedScene(step, s, sub, ts) {
+    const lines  = sub.lines ?? [];
+    const line   = lines[s.lineIndex] ?? '';
+    const elapsed = ts - s.lineStartTime;
+    const fullyTyped = elapsed >= line.length * step.charDelayMs;
+
+    if (!fullyTyped) { s.lineFullyTypedTime = 0; return; }
+
+    if (!s.lineFullyTypedTime) {
+      s.lineFullyTypedTime = ts;
+    } else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
+      this._advanceTypedSceneLine(step, s, ts);
+    }
+  }
+
+  _advanceTypedSceneLine(step, s, ts) {
+    const sub   = step.subScenes[s.subSceneIndex];
+    const lines = sub.lines ?? [];
+    const line  = lines[s.lineIndex] ?? '';
+    const elapsed    = ts - (s.lineStartTime || ts);
+    const fullyTyped = !line || elapsed >= line.length * step.charDelayMs;
+
+    // Snap to full if still typing
+    if (!fullyTyped) {
+      s.lineStartTime      = ts - line.length * step.charDelayMs;
+      s.lineFullyTypedTime = ts;
+      return;
+    }
+
+    if (lines.length && s.lineIndex < lines.length - 1) {
+      s.lineIndex++;
+      s.lineStartTime      = ts;
+      s.lineFullyTypedTime = 0;
+      return;
+    }
+
+    // Last line of this sub-scene (or sub-scene has no lines)
+    if (sub.curtainAfter) {
+      s.phase              = 'curtainAfter';
+      s.crossfadeStartTime = ts;
+      s.lineIndex          = 0;
+      s.lineStartTime      = 0;
+      s.lineFullyTypedTime = 0;
+      return;
+    }
+
+    const isLastSubScene = s.subSceneIndex >= step.subScenes.length - 1;
+    if (isLastSubScene) {
+      this._nextStep();
+      return;
+    }
+
+    // Move to next sub-scene
+    s.subSceneIndex++;
+    s.lineIndex          = 0;
+    s.lineStartTime      = 0;
+    s.lineFullyTypedTime = 0;
+
+    const nextSub = step.subScenes[s.subSceneIndex];
+    if (nextSub.crossfadeMs > 0) {
+      s.crossfadeStartTime = ts;
+      s.phase              = 'crossfade';
+    } else {
+      s.crossfadeStartTime = 0;
+      s.phase              = 'text';
+    }
+  }
+
+  _drawTypedSceneCurtainAfter(step, s, sub, ts) {
+    const elapsed  = ts - s.crossfadeStartTime;
+    const progress = Math.min(elapsed / CURTAIN_MS, 1);
+
+    this._clearBlack();
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.drawImage(sub.image, 0, 0);
+    this.ctx.restore();
+
+    this._drawCurtainClose(progress, sub.image);
+
+    if (progress >= 1 && !s.lineStartTime) {
+      // Curtain fully closed — switch phase on next tick so text starts cleanly
+      s.phase         = 'curtainAfterText';
+      s.lineStartTime = ts;
+    }
+  }
+
+  _drawTypedSceneCurtainAfterText(step, s, sub, ts) {
+    const lines = sub.curtainLines ?? [];
+
+    this._clearBlack();
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.drawImage(sub.image, 0, 0);
+    this.ctx.restore();
+
+    this._drawCurtainClose(1, sub.image); // curtain fully closed
+    this._drawBalconyText(lines, s, ts, sub.textStyle);
+
+    const line       = lines[s.lineIndex] ?? '';
+    const elapsed    = ts - s.lineStartTime;
+    const fullyTyped = elapsed >= line.length * step.charDelayMs;
+
+    if (fullyTyped) {
+      if (!s.lineFullyTypedTime) {
+        s.lineFullyTypedTime = ts;
+      } else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
+        if (s.lineIndex < lines.length - 1) {
+          s.lineIndex++;
+          s.lineStartTime      = ts;
+          s.lineFullyTypedTime = 0;
+        } else {
+          this.finish();
+        }
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Shared rendering utilities
+  // ─────────────────────────────────────────────────────────────────────────
+
+  _clearBlack() {
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  _clearTextArea() {
+    this.ctx.clearRect(0, 275, this.canvas.width, 125);
+  }
+
+  _makeOffscreen() {
+    const off    = document.createElement('canvas');
+    off.width    = this.canvas.width;
+    off.height   = this.canvas.height;
+    return off;
+  }
+
+  // Draws the storyText canvas at (0, y) with the given opacity
+  _drawStoryText(textCanvas, y, opacity) {
+    this.ctx.globalAlpha = opacity;
+    this.ctx.drawImage(textCanvas, 0, y);
+  }
+
+  _drawCreditsText(x, y) {
+    this.ctx.fillStyle   = '#fff';
+    this.ctx.font        = CREDITS_FONT;
+    this.ctx.textAlign   = 'left';
+    this.ctx.textBaseline = 'top';
+    for (let i = 0; i < CREDITS_LINES.length; i++) {
+      this.ctx.fillText(CREDITS_LINES[i], x, y + i * CREDITS_LINE_HEIGHT);
+    }
+  }
+
+  // Generic typewriter text for balcony/typedScene steps.
+  // textStyle: 'normal' | 'jashiin'
+  _drawBalconyText(lines, s, ts, textStyle = 'normal') {
+    const line = lines[s.lineIndex] ?? '';
+    if (!s.lineStartTime || !line) return;
+
+    const elapsed      = ts - s.lineStartTime;
+    const visibleCount = Math.min(
+      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
+      line.length,
+    );
+
+    this._clearTextArea();
+    if (!visibleCount) return;
+
+    this.ctx.save();
+    this.ctx.globalAlpha  = 1;
+    this.ctx.font         = BALCONY_FONT;
+    this.ctx.textAlign    = 'left';
     this.ctx.textBaseline = 'top';
 
-    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
-    const quotedMap = this.buildQuotedMap(line);
+    const wrapped = this._wrapText(line, BALCONY_TEXT_MAX_WIDTH);
+
+    // Jashiin lines are entirely yellow/red; normal lines honour "..." quoting
+    const useJashiin = textStyle === 'jashiin' && line.trimStart().startsWith('"');
 
     for (let i = 0; i < wrapped.length; i++) {
       const { text: chunk, start: chunkStart } = wrapped[i];
       if (chunkStart >= visibleCount) break;
       const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
-      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
+      const y            = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+
+      if (useJashiin) {
+        const visText = line.slice(chunkStart, chunkStart + chunkVisible);
+        this.ctx.fillStyle = JASHIIN_SHADOW_COLOR;
+        this.ctx.fillText(visText, BALCONY_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, y + DIRECT_SPEECH_SHADOW_OFFSET);
+        this.ctx.fillStyle = JASHIIN_TEXT_COLOR;
+        this.ctx.fillText(visText, BALCONY_TEXT_X, y);
+      } else {
+        const quotedMap = this._buildQuotedMap(line);
+        this._drawWrappedSegmentedText(
+          line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y,
+          DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET,
+        );
+      }
     }
 
     this.ctx.restore();
   }
 
-  // Draws `visibleCount` characters of `fullText` at (x,y), honouring matched "..." pairs.
-  // Parsing is done on fullText so quote pairs aren't broken by the typing cursor.
-  // Returns a boolean array: quotedMap[i] = true if char i of text is inside a matched "..." pair
-  buildQuotedMap(text) {
+  // Draws lines for the demon-speech typeText step (centred)
+  _drawTypeTextLines(step, charsDone) {
+    this.ctx.font         = step.font;
+    this.ctx.textAlign    = step.textAlign;
+    this.ctx.textBaseline = 'top';
+
+    let remaining = charsDone;
+    const x       = step.textX(this.canvas);
+
+    for (let i = 0; i < step.lines.length; i++) {
+      const line        = step.lines[i];
+      const visibleLine = line.slice(0, Math.min(remaining, line.length));
+
+      if (visibleLine) {
+        this._drawShadowedText(
+          visibleLine, x,
+          step.startY + i * step.lineHeight,
+          step.textColor, step.shadowColor, step.shadowOffset,
+        );
+      }
+
+      remaining -= line.length;
+      if (remaining <= 0) break;
+    }
+  }
+
+  _drawShadowedText(text, x, y, textColor, shadowColor, shadowOffset) {
+    this.ctx.fillStyle = shadowColor;
+    this.ctx.fillText(text, x + shadowOffset, y + shadowOffset);
+    this.ctx.fillStyle = textColor;
+    this.ctx.fillText(text, x, y);
+  }
+
+  // ── Text layout helpers ────────────────────────────────────────────────────
+
+  // Returns [{text, start}] where start is the char offset in the original string
+  _wrapText(text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let current = '', currentStart = 0, pos = 0;
+
+    for (const word of words) {
+      const candidate = current ? current + ' ' + word : word;
+      if (this.ctx.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) { lines.push({ text: current, start: currentStart }); currentStart = pos; }
+        current      = word;
+        currentStart = pos;
+      }
+      pos += word.length + 1;
+    }
+    if (current) lines.push({ text: current, start: currentStart });
+    return lines;
+  }
+
+  // Returns boolean[] where true means the character is inside a matched "…" pair
+  _buildQuotedMap(text) {
     const map = new Array(text.length).fill(false);
     let i = 0;
     while (i < text.length) {
@@ -1083,11 +1471,10 @@ export class OpeningIntro {
     return map;
   }
 
-  // Draws `visibleCount` characters of `fullLine` starting at char offset `chunkStart`,
-  // using the quoted map built from the full line for correct styling.
-  drawWrappedSegmentedText(fullLine, quotedMap, chunkStart, chunkVisible, x, y, plainColor, shadowColor, shadowOffset) {
-    // Walk character by character, batching consecutive same-style chars for efficiency
-    let curX = x;
+  // Renders `chunkVisible` chars from `fullLine` starting at `chunkStart`,
+  // switching text style on quoted/plain boundaries.
+  _drawWrappedSegmentedText(fullLine, quotedMap, chunkStart, chunkVisible, x, y, plainColor, shadowColor, shadowOffset) {
+    let curX       = x;
     let batchStart = chunkStart;
     let batchQuoted = quotedMap[chunkStart] ?? false;
 
@@ -1107,623 +1494,27 @@ export class OpeningIntro {
 
     for (let i = chunkStart + 1; i < chunkStart + chunkVisible; i++) {
       const q = quotedMap[i] ?? false;
-      if (q !== batchQuoted) {
-        flush(i);
-        batchStart = i;
-        batchQuoted = q;
-      }
+      if (q !== batchQuoted) { flush(i); batchStart = i; batchQuoted = q; }
     }
     flush(chunkStart + chunkVisible);
   }
 
-  drawSegmentedText(fullText, visibleCount, x, y, plainColor, shadowColor, shadowOffset) {
-    const segments = this.parseQuoteSegments(fullText);
-    let curX = x;
-    let drawn = 0;
-    for (const seg of segments) {
-      if (drawn >= visibleCount) break;
-      const visible = seg.text.slice(0, visibleCount - drawn);
-      if (seg.quoted) {
-        this.ctx.fillStyle = shadowColor;
-        this.ctx.fillText(visible, curX + shadowOffset, y + shadowOffset);
-        this.ctx.fillStyle = plainColor;
-        this.ctx.fillText(visible, curX, y);
-      } else {
-        this.ctx.fillStyle = plainColor;
-        this.ctx.fillText(visible, curX, y);
-      }
-      curX += this.ctx.measureText(visible).width;
-      drawn += seg.text.length;
-    }
-  }
+  // ── Curtain ────────────────────────────────────────────────────────────────
 
-  // Returns [{text, start}] where start is the char offset in the original text
-  wrapBalconyText(text, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let current = '';
-    let currentStart = 0;
-    let pos = 0;
-
-    for (const word of words) {
-      const candidate = current ? current + ' ' + word : word;
-      if (this.ctx.measureText(candidate).width <= maxWidth) {
-        current = candidate;
-      } else {
-        if (current) {
-          lines.push({ text: current, start: currentStart });
-          currentStart = pos;
-        }
-        current = word;
-        currentStart = pos;
-      }
-      pos += word.length + 1; // +1 for the space
-    }
-    if (current) lines.push({ text: current, start: currentStart });
-    return lines;
-  }
-
-  clearTextArea() {
-    this.ctx.clearRect(0, 275, this.canvas.width, 125);
-  }
-
-  drawCopyrightText(opacity) {
-    this.ctx.globalAlpha = opacity;
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '16px "Press Start 2P", monospace';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'top';
-
-    const startY = 290;
-    const lineHeight = 20;
-
-    for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
-      this.ctx.fillText(INTRO_COPYRIGHT_LINES[i], this.canvas.width / 2, startY + i * lineHeight);
-    }
-  }
-
-  drawStoryText(y, opacity) {
-    this.ctx.globalAlpha = opacity;
-    this.ctx.drawImage(this.storyTextCanvas, 0, y);
-  }
-
-  drawDemonSpeechText(characterCount) {
-    this.ctx.font = DEMON_SPEECH_FONT;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'top';
-
-    let remainingCharacters = characterCount;
-
-    for (let i = 0; i < DEMON_SPEECH_LINES.length; i++) {
-      const line = DEMON_SPEECH_LINES[i];
-      const visibleLine = line.slice(0, Math.max(Math.min(remainingCharacters, line.length), 0));
-
-      if (visibleLine) {
-        this.drawShadowedText(
-          visibleLine,
-          this.canvas.width / 2,
-          DEMON_SPEECH_START_Y + i * DEMON_SPEECH_LINE_HEIGHT
-        );
-      }
-
-      remainingCharacters -= line.length;
-    }
-  }
-
-  drawShadowedText(text, x, y) {
-    this.ctx.fillStyle = DIRECT_SPEECH_SHADOW_COLOR;
-    this.ctx.fillText(
-      text,
-      x + DIRECT_SPEECH_SHADOW_OFFSET,
-      y + DIRECT_SPEECH_SHADOW_OFFSET
-    );
-
-    this.ctx.fillStyle = DIRECT_SPEECH_TEXT_COLOR;
-    this.ctx.fillText(text, x, y);
-  }
-
-  drawCreditsText(y) {
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = CREDITS_FONT;
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'top';
-
-    for (let i = 0; i < CREDITS_LINES.length; i++) {
-      this.ctx.fillText(CREDITS_LINES[i], this.creditsX, y + i * CREDITS_LINE_HEIGHT);
-    }
-  }
-
-  drawExplosionGems(progress) {
-    if (progress >= 1) {
-      return;
-    }
-
-    for (const gem of this.explosionGems) {
-      const x = gem.x + gem.dx * progress;
-      const y = gem.y + gem.dy * progress;
-      this.ctx.drawImage(gem.image, Math.round(x), Math.round(y));
-    }
-  }
-
-  createStoryTextCanvas() {
-    const textCanvas = document.createElement('canvas');
-    textCanvas.width = this.canvas.width;
-    textCanvas.height = STORY_LINES.length * STORY_LINE_HEIGHT;
-
-    const textCtx = textCanvas.getContext('2d');
-    textCtx.imageSmoothingEnabled = false;
-    textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-    textCtx.fillStyle = '#fff';
-    textCtx.font = STORY_FONT;
-    textCtx.textAlign = 'left';
-    textCtx.textBaseline = 'top';
-
-    const x = 6;
-
-    for (let i = 0; i < STORY_LINES.length; i++) {
-      textCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
-    }
-
-    return textCanvas;
-  }
-
-  getCreditsTextX() {
-    this.ctx.save();
-    this.ctx.font = CREDITS_FONT;
-
-    const textWidth = Math.max(...CREDITS_LINES.map((line) => this.ctx.measureText(line).width));
-
-    this.ctx.restore();
-
-    return Math.round((this.canvas.width - textWidth) / 2);
-  }
-
-  isStoryWaitingForInput() {
-    return this.page === PAGE_STORY && !!this.storyCrossfadeStartTime;
-  }
-
-  isBrokenNecWaitingForInput() {
-    if (this.page !== PAGE_BROKEN_NEC || this.brokenNecFadeOutStartTime) {
-      return false;
-    }
-
-    return performance.now() - this.brokenNecStartTime >= NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS;
-  }
-
-  startBrokenNecFadeOut() {
-    if (this.brokenNecFadeOutStartTime) {
-      return;
-    }
-
-    this.brokenNecFadeOutStartTime = performance.now();
-  }
-
-  shouldAutoAdvanceBrokenNec(timestamp) {
-    const waitBeforeFadeMs = Math.max(NEC_BROKEN_AUTO_ADVANCE_MS - NEC_BROKEN_FADE_OUT_MS, 0);
-
-    return timestamp - this.brokenNecStartTime >=
-      NEC_FLASH_IN_MS + NEC_GEM_EXPLODE_MS + waitBeforeFadeMs;
-  }
-
-  isDemonSequenceComplete(timestamp = performance.now()) {
-    if (this.page !== PAGE_DEMON) {
-      return false;
-    }
-
-    return timestamp - this.demonStartTime >= DEMON_SEQUENCE.length * DEMON_FRAME_DELAY_MS;
-  }
-
-  isDemonSpeechWaitingForInput() {
-    if (this.page !== PAGE_DEMON_SPEECH || this.demonSpeechFadeOutStartTime) {
-      return false;
-    }
-
-    return this.getVisibleDemonSpeechCharacterCount(performance.now() - this.demonSpeechStartTime) >=
-      this.getDemonSpeechCharacterCount();
-  }
-
-  startDemonSpeechFadeOut() {
-    if (this.demonSpeechFadeOutStartTime) {
-      return;
-    }
-
-    this.demonSpeechFadeOutStartTime = performance.now();
-  }
-
-  isNecklaceWaitingForInput() {
-    if (this.page !== PAGE_NECKLACE || this.necklaceFadeOutStartTime) {
-      return false;
-    }
-
-    const pannoStartTime = NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2;
-
-    return performance.now() - this.necklaceStartTime >= 0;
-  }
-
-  startNecklaceFadeOut() {
-    if (this.necklaceFadeOutStartTime) {
-      return;
-    }
-
-    this.necklaceFadeOutStartTime = performance.now();
-  }
-
-  skipStoryScroll() {
-    if (this.storyCrossfadeStartTime) {
-      return;
-    }
-
-    this.storyCrossfadeStartTime = performance.now();
-  }
-
-  getBrokenNecFlashOpacity(elapsed) {
-    if (elapsed < NEC_FLASH_IN_MS) {
-      return elapsed / NEC_FLASH_IN_MS;
-    }
-
-    const flashOutElapsed = elapsed - NEC_FLASH_IN_MS;
-    if (flashOutElapsed < NEC_FLASH_OUT_MS) {
-      return 1 - flashOutElapsed / NEC_FLASH_OUT_MS;
-    }
-
-    return 0;
-  }
-
-  getVisibleDemonSpeechCharacterCount(elapsed) {
-    return Math.min(
-      Math.floor(elapsed / DEMON_SPEECH_CHAR_DELAY_MS),
-      this.getDemonSpeechCharacterCount()
-    );
-  }
-
-  getDemonSpeechCharacterCount() {
-    return DEMON_SPEECH_LINES.reduce((total, line) => total + line.length, 0);
-  }
-
-  getDemonSpeechImage(elapsed, characterCount) {
-    if (characterCount >= this.getDemonSpeechCharacterCount()) {
-      return this.demonImages[3];
-    }
-
-    const mouthFrame = Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2;
-    return this.demonImages[[4, 5][mouthFrame]];
-  }
-
-  createExplosionGems() {
-    return NEC_GEM_COORDS.map((gem) => {
-      const image = gem.image === 'red' ? this.redGemImage : this.blueGemImage;
-      const centerX = gem.x + image.width / 2;
-      const centerY = gem.y + image.height / 2;
-      const baseAngle = Math.atan2(
-        centerY - NEC_GEM_EXPLOSION_CENTER.y,
-        centerX - NEC_GEM_EXPLOSION_CENTER.x
-      );
-      const angle = baseAngle + (Math.random() - 0.5) * 1.1;
-      const ray = this.getCanvasEdgeRay(centerX, centerY, angle);
-
-      return {
-        image,
-        x: gem.x,
-        y: gem.y,
-        dx: ray.dx,
-        dy: ray.dy
-      };
-    });
-  }
-
-  getCanvasEdgeRay(x, y, angle) {
-    const vx = Math.cos(angle);
-    const vy = Math.sin(angle);
-    const distances = [];
-
-    if (vx > 0) {
-      distances.push((this.canvas.width - x) / vx);
-    } else if (vx < 0) {
-      distances.push(-x / vx);
-    }
-
-    if (vy > 0) {
-      distances.push((this.canvas.height - y) / vy);
-    } else if (vy < 0) {
-      distances.push(-y / vy);
-    }
-
-    const distance = Math.min(...distances.filter((value) => value >= 0));
-
-    return {
-      dx: vx * distance,
-      dy: vy * distance
-    };
-  }
-
-  startPrincessDemonPage(timestamp) {
-    this.page = PAGE_PRINCESS_DEMON;
-    this.princessDemonStartTime = timestamp;
-    this.princessDemonSubScene = 1;
-    this.princessDemonLineIndex = 0;
-    this.princessDemonLineStartTime = 0; // set once initial crossfade completes
-    this.princessDemonLineFullyTypedTime = 0;
-    this.princessDemonCrossfadeStartTime = 0;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  // Returns the lines array for the current sub-scene (1/2/3)
-  getPrincessDemonLines() {
-    if (this.princessDemonSubScene === 1) return PRINCESS_DEMON_LINES;
-    if (this.princessDemonSubScene === 2) return PRINCESS_VS_DEMON_LINES;
-    return DEMON_FINAL_LINES;
-  }
-
-  // Returns the background image for the current sub-scene
-  getPrincessDemonImage() {
-    if (this.princessDemonSubScene === 1) return this.princessImage;
-    if (this.princessDemonSubScene === 2) return this.princessVsDemonImage;
-    return this.demonFinalImage;
-  }
-
-  // Advances to next line within the current sub-scene, or triggers crossfade to next sub-scene
-  advancePrincessDemonLine(timestamp) {
-    const lines = this.getPrincessDemonLines();
-    const elapsed = timestamp - this.princessDemonLineStartTime;
-    const currentLine = lines[this.princessDemonLineIndex] ?? '';
-    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-    // Snap current line to fully typed if still typing
-    if (!fullyTyped) {
-      this.princessDemonLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
-      this.princessDemonLineFullyTypedTime = timestamp;
-      return;
-    }
-
-    // If there are more lines in this sub-scene, advance to next line
-    if (this.princessDemonLineIndex < lines.length - 1) {
-      this.princessDemonLineIndex++;
-      this.princessDemonLineStartTime = timestamp;
-      this.princessDemonLineFullyTypedTime = 0;
-      return;
-    }
-
-    // Last line of sub-scene — trigger crossfade to next sub-scene (or finish)
-    if (this.princessDemonSubScene === 1) {
-      // Begin crossfade to princess_vs_demon
-      if (!this.princessDemonCrossfadeStartTime) {
-        this.princessDemonCrossfadeStartTime = timestamp;
-      }
-    } else if (this.princessDemonSubScene === 2) {
-      // Begin crossfade to demon_final
-      if (!this.princessDemonCrossfadeStartTime) {
-        this.princessDemonCrossfadeStartTime = timestamp;
-      }
-    } else {
-      // Sub-scene 3 done — go to stoned page
-      this.startStonedPage(timestamp);
-    }
-  }
-
-  drawPrincessDemonPage(timestamp) {
-    if (!this.princessDemonStartTime) {
-      this.princessDemonStartTime = timestamp;
-    }
-
-    const elapsed = timestamp - this.princessDemonStartTime;
-
-    // ── Sub-scene 1: curtain close + sand→princess crossfade (same as before) ──
-    if (this.princessDemonSubScene === 1) {
-      const curtainProgress = Math.min(elapsed / CURTAIN_MS, 1);
-      const crossfadeElapsed = Math.max(elapsed - CURTAIN_MS, 0);
-      const crossfadeProgress = Math.min(crossfadeElapsed / PRINCESS_CROSSFADE_MS, 1);
-
-      this.ctx.fillStyle = '#000';
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-      this.ctx.save();
-
-      if (crossfadeProgress === 0) {
-        this.ctx.globalAlpha = 1;
-        this.ctx.drawImage(this.balconySandImage, 0, 0);
-      } else {
-        const offscreen = document.createElement('canvas');
-        offscreen.width = this.canvas.width;
-        offscreen.height = this.canvas.height;
-        const off = offscreen.getContext('2d');
-        off.imageSmoothingEnabled = false;
-        off.drawImage(this.balconySandImage, 0, 0);
-        off.fillStyle = CURTAIN_COLOR;
-        off.fillRect(CURTAIN_X1, CURTAIN_Y1, CURTAIN_X2 - CURTAIN_X1, CURTAIN_Y2 - CURTAIN_Y1);
-
-        this.ctx.globalAlpha = 1 - crossfadeProgress;
-        this.ctx.drawImage(offscreen, 0, 0);
-
-        this.ctx.globalAlpha = crossfadeProgress;
-        this.ctx.drawImage(this.princessImage, 0, 0);
-      }
-
-      this.ctx.restore();
-
-      // Curtain closing animation (phase 1 only)
-      if (curtainProgress > 0 && crossfadeProgress === 0) {
-        this.drawCurtainClose(curtainProgress, this.balconySandImage);
-      }
-
-      // Once princess is fully visible, check for crossfade to sub-scene 2
-      if (crossfadeProgress >= 1) {
-        this.ctx.save();
-        this.ctx.globalAlpha = 1;
-        this.ctx.drawImage(this.princessImage, 0, 0);
-
-        // Check if we are in sub-scene 1→2 crossfade
-        if (this.princessDemonCrossfadeStartTime) {
-          const cfElapsed = timestamp - this.princessDemonCrossfadeStartTime;
-          const cfProgress = Math.min(cfElapsed / PRINCESS_VS_DEMON_CROSSFADE_MS, 1);
-          this.ctx.globalAlpha = cfProgress;
-          this.ctx.drawImage(this.princessVsDemonImage, 0, 0);
-          this.ctx.restore();
-
-          if (cfProgress >= 1) {
-            // Transition to sub-scene 2
-            this.princessDemonSubScene = 2;
-            this.princessDemonLineIndex = 0;
-            this.princessDemonLineStartTime = timestamp;
-            this.princessDemonLineFullyTypedTime = 0;
-            this.princessDemonCrossfadeStartTime = 0;
-          }
-        } else {
-          this.ctx.restore();
-
-          // Start line timer on first settled frame
-          if (!this.princessDemonLineStartTime) {
-            this.princessDemonLineStartTime = timestamp;
-          }
-
-          this.drawPrincessDemonText(timestamp);
-
-          // Auto-advance lines
-          this.autoPrincessDemonAdvance(timestamp);
-        }
-      }
-
-      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-      return;
-    }
-
-    // ── Sub-scenes 2 & 3: image + text, with crossfade to next sub-scene on advance ──
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // If crossfading to next sub-scene, draw outgoing/incoming images
-    if (this.princessDemonCrossfadeStartTime) {
-      const crossfadeMs = this.princessDemonSubScene === 2
-        ? PRINCESS_VS_DEMON_CROSSFADE_MS
-        : DEMON_FINAL_CROSSFADE_MS;
-      const cfElapsed = timestamp - this.princessDemonCrossfadeStartTime;
-      const cfProgress = Math.min(cfElapsed / crossfadeMs, 1);
-
-      const outImage = this.getPrincessDemonImage();
-      const inImage = this.princessDemonSubScene === 2
-        ? this.demonFinalImage
-        : null; // sub-scene 3 has no "next" (finish is called after last line)
-
-      this.ctx.save();
-      this.ctx.globalAlpha = 1 - cfProgress;
-      this.ctx.drawImage(outImage, 0, 0);
-      if (inImage) {
-        this.ctx.globalAlpha = cfProgress;
-        this.ctx.drawImage(inImage, 0, 0);
-      }
-      this.ctx.restore();
-
-      if (cfProgress >= 1) {
-        const nextSubScene = this.princessDemonSubScene + 1;
-        this.princessDemonSubScene = nextSubScene;
-        this.princessDemonLineIndex = 0;
-        this.princessDemonLineStartTime = timestamp;
-        this.princessDemonLineFullyTypedTime = 0;
-        this.princessDemonCrossfadeStartTime = 0;
-      }
-    } else {
-      // Normal draw — show current sub-scene image + text
-      this.ctx.save();
-      this.ctx.globalAlpha = 1;
-      this.ctx.drawImage(this.getPrincessDemonImage(), 0, 0);
-      this.ctx.restore();
-
-      this.drawPrincessDemonText(timestamp);
-      this.autoPrincessDemonAdvance(timestamp);
-    }
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  // Auto-advance a line once it's fully typed and the hold delay elapses
-  autoPrincessDemonAdvance(timestamp) {
-    const lines = this.getPrincessDemonLines();
-    const currentLine = lines[this.princessDemonLineIndex] ?? '';
-    const lineElapsed = timestamp - this.princessDemonLineStartTime;
-    const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-    if (lineFullyTyped) {
-      if (!this.princessDemonLineFullyTypedTime) {
-        this.princessDemonLineFullyTypedTime = timestamp;
-      } else if (timestamp - this.princessDemonLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
-        this.advancePrincessDemonLine(timestamp);
-      }
-    }
-  }
-
-  drawPrincessDemonText(timestamp) {
-    const lines = this.getPrincessDemonLines();
-    const line = lines[this.princessDemonLineIndex] ?? '';
-    const elapsed = timestamp - this.princessDemonLineStartTime;
-    const visibleCount = Math.min(
-      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
-      line.length
-    );
-
-    this.clearTextArea();
-
-    if (visibleCount === 0) {
-      return;
-    }
-
-    // Sub-scene 2 uses Jashiin demon colors for direct speech lines
-    const isDemonLine = this.princessDemonSubScene === 2 && line.trimStart().startsWith('"');
-    const isDemonFinalLine = this.princessDemonSubScene === 3 && line.trimStart().startsWith('"');
-    const useJashiin = isDemonLine || isDemonFinalLine;
-
-    this.ctx.save();
-    this.ctx.globalAlpha = 1;
-    this.ctx.font = BALCONY_FONT;
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'top';
-
-    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
-
-    if (useJashiin) {
-      // Entire line is demon speech — render with Jashiin colors (shadow then text)
-      for (let i = 0; i < wrapped.length; i++) {
-        const { text: chunk, start: chunkStart } = wrapped[i];
-        if (chunkStart >= visibleCount) break;
-        const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
-        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-        const visibleText = line.slice(chunkStart, chunkStart + chunkVisible);
-        this.ctx.fillStyle = JASHIIN_SHADOW_COLOR;
-        this.ctx.fillText(visibleText, BALCONY_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, y + DIRECT_SPEECH_SHADOW_OFFSET);
-        this.ctx.fillStyle = JASHIIN_TEXT_COLOR;
-        this.ctx.fillText(visibleText, BALCONY_TEXT_X, y);
-      }
-    } else {
-      // Mixed or plain text — use the existing quoted-segment renderer
-      const quotedMap = this.buildQuotedMap(line);
-      for (let i = 0; i < wrapped.length; i++) {
-        const { text: chunk, start: chunkStart } = wrapped[i];
-        if (chunkStart >= visibleCount) break;
-        const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
-        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-        this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
-      }
-    }
-
-    this.ctx.restore();
-  }
-
-  // ── Curtain-close animation ─────────────────────────────────────────────────
-  // Draws a shrinking-iris curtain over the image rect.
-  // progress: 0 = open, 1 = fully closed.
-  // backgroundImage: the image drawn behind the curtain hole while it closes.
-  drawCurtainClose(progress, backgroundImage) {
+  _drawCurtainClose(progress, backgroundImage) {
     if (progress <= 0) return;
 
     const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
-    const rw = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
+    const rw  = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
     const maxInset = Math.floor(Math.min(rw, rh) / 2);
-    const inset = Math.ceil(progress * maxInset);
+    const inset    = Math.ceil(progress * maxInset);
 
     this.ctx.save();
     this.ctx.fillStyle = CURTAIN_COLOR;
     this.ctx.fillRect(rx1, ry1, rw, rh);
 
     const innerX = rx1 + inset, innerY = ry1 + inset;
-    const innerW = rw - inset * 2, innerH = rh - inset * 2;
+    const innerW = rw - inset * 2,  innerH = rh - inset * 2;
 
     if (innerW > 0 && innerH > 0 && progress < 1) {
       this.ctx.save();
@@ -1738,246 +1529,86 @@ export class OpeningIntro {
     this.ctx.restore();
   }
 
-  // ── Stoned page ─────────────────────────────────────────────────────────────
-  // Sub-scenes:
-  //   1 — demon→stoned crossfade (STONED_CROSSFADE_MS)
-  //   2 — stoned image + STONED_LINES typed
-  //   3 — crossfade stoned→king_princess (KING_PRINCESS_CROSSFADE_MS), then KING_PRINCESS_LINES
-  //   4 — crossfade king_princess→spirit (SPIRIT_CROSSFADE_MS), then SPIRIT_LINES, then curtain close + finish
+  // ── Gem explosion helpers ──────────────────────────────────────────────────
 
-  startStonedPage(timestamp) {
-    this.page = PAGE_STONED;
-    this.stonedStartTime = timestamp;
-    this.stonedSubScene = 1;
-    this.stonedCrossfadeStartTime = timestamp;
-    this.stonedLineIndex = 0;
-    this.stonedLineStartTime = 0;
-    this.stonedLineFullyTypedTime = 0;
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  _createExplosionGems(step) {
+    return step.gemCoords.map((gem) => {
+      const image   = gem.image === 'red' ? step.redGemImage : step.blueGemImage;
+      const centerX = gem.x + image.width  / 2;
+      const centerY = gem.y + image.height / 2;
+      const baseAngle = Math.atan2(
+        centerY - step.explosionCenter.y,
+        centerX - step.explosionCenter.x,
+      );
+      const angle = baseAngle + (Math.random() - 0.5) * 1.1;
+      const ray   = this._getCanvasEdgeRay(centerX, centerY, angle);
+      return { image, x: gem.x, y: gem.y, dx: ray.dx, dy: ray.dy };
+    });
   }
 
-  // Returns the active lines array for the current stoned sub-scene
-  getStonedLines() {
-    if (this.stonedSubScene === 2) return STONED_LINES;
-    if (this.stonedSubScene === 3) return KING_PRINCESS_LINES;
-    if (this.stonedSubScene === 4) return SPIRIT_LINES;
-    if (this.stonedSubScene === 6) return KING_SURPRISED_LINES;
-    return [];
-  }
-
-  // Returns the "current" background image for the given sub-scene
-  getStonedImage(subScene) {
-    if (subScene <= 1) return this.demonFinalImage;
-    if (subScene === 2) return this.stonedImage;
-    if (subScene === 3) return this.kingPrincessImage;
-    return this.spiritImage; // sub-scenes 4 and 6
-  }
-
-  advanceStonedLine(timestamp) {
-    const lines = this.getStonedLines();
-    if (!lines.length) return;
-
-    const currentLine = lines[this.stonedLineIndex] ?? '';
-    const elapsed = timestamp - this.stonedLineStartTime;
-    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-    if (!fullyTyped) {
-      this.stonedLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
-      this.stonedLineFullyTypedTime = timestamp;
-      return;
-    }
-
-    if (this.stonedLineIndex < lines.length - 1) {
-      this.stonedLineIndex++;
-      this.stonedLineStartTime = timestamp;
-      this.stonedLineFullyTypedTime = 0;
-      return;
-    }
-
-    // Last line of sub-scene
-    if (this.stonedSubScene === 2) {
-      // Start crossfade to king_princess
-      this.stonedSubScene = 3;
-      this.stonedCrossfadeStartTime = timestamp;
-      this.stonedLineIndex = 0;
-      this.stonedLineStartTime = 0;
-      this.stonedLineFullyTypedTime = 0;
-    } else if (this.stonedSubScene === 3) {
-      // Start crossfade to spirit
-      this.stonedSubScene = 4;
-      this.stonedCrossfadeStartTime = timestamp;
-      this.stonedLineIndex = 0;
-      this.stonedLineStartTime = 0;
-      this.stonedLineFullyTypedTime = 0;
-    } else if (this.stonedSubScene === 4) {
-      // All done — close curtain then show King surprised text
-      this.stonedSubScene = 5;
-      this.stonedCrossfadeStartTime = timestamp;
-    } else if (this.stonedSubScene === 6) {
-      // King surprised scene done — finish
-      this.finish();
+  _drawExplosionGems(gems, progress) {
+    if (progress >= 1) return;
+    for (const gem of gems) {
+      const x = gem.x + gem.dx * progress;
+      const y = gem.y + gem.dy * progress;
+      this.ctx.drawImage(gem.image, Math.round(x), Math.round(y));
     }
   }
 
-  drawStonedPage(timestamp) {
+  _getBrokenNecFlashOpacity(elapsed, step) {
+    if (elapsed < step.flashInMs) return elapsed / step.flashInMs;
+    const flashOutElapsed = elapsed - step.flashInMs;
+    if (flashOutElapsed < step.flashOutMs) return 1 - flashOutElapsed / step.flashOutMs;
+    return 0;
+  }
 
-    const elapsed = this.stonedCrossfadeStartTime
-      ? timestamp - this.stonedCrossfadeStartTime
-      : 0;
+  _shouldAutoAdvanceGemExplosion(elapsed, step) {
+    const waitBeforeFade = Math.max(step.autoAdvanceMs - step.fadeOutMs, 0);
+    return elapsed >= step.flashInMs + step.explodeMs + waitBeforeFade;
+  }
 
-    // ── Sub-scene 1: demon → stoned crossfade ──────────────────────────────
-    if (this.stonedSubScene === 1) {
-      const progress = Math.min(elapsed / STONED_CROSSFADE_MS, 1);
+  _getCanvasEdgeRay(x, y, angle) {
+    const vx = Math.cos(angle), vy = Math.sin(angle);
+    const distances = [];
+    if (vx > 0)  distances.push((this.canvas.width  - x) / vx);
+    else if (vx < 0) distances.push(-x / vx);
+    if (vy > 0)  distances.push((this.canvas.height - y) / vy);
+    else if (vy < 0) distances.push(-y / vy);
+    const distance = Math.min(...distances.filter((v) => v >= 0));
+    return { dx: vx * distance, dy: vy * distance };
+  }
 
-      this.ctx.save();
-      this.ctx.globalAlpha = 1 - progress;
-      this.ctx.drawImage(this.demonFinalImage, 0, 0);
-      this.ctx.globalAlpha = progress;
-      this.ctx.drawImage(this.stonedImage, 0, 0);
-      this.ctx.restore();
+  // ── Canvas factories ───────────────────────────────────────────────────────
 
-      if (progress >= 1) {
-        this.stonedSubScene = 2;
-        this.stonedCrossfadeStartTime = 0;
-        this.stonedLineIndex = 0;
-        this.stonedLineStartTime = timestamp;
-        this.stonedLineFullyTypedTime = 0;
-      }
-
-      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-      return;
+  _createStoryTextCanvas() {
+    const tc    = document.createElement('canvas');
+    tc.width    = this.canvas.width;
+    tc.height   = STORY_LINES.length * STORY_LINE_HEIGHT;
+    const tCtx  = tc.getContext('2d');
+    tCtx.imageSmoothingEnabled = false;
+    tCtx.clearRect(0, 0, tc.width, tc.height);
+    tCtx.fillStyle   = '#fff';
+    tCtx.font        = STORY_FONT;
+    tCtx.textAlign   = 'left';
+    tCtx.textBaseline = 'top';
+    const x = 6;
+    for (let i = 0; i < STORY_LINES.length; i++) {
+      tCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
     }
+    return tc;
+  }
 
-    // ── Sub-scenes 3 & 4 entry: crossfade between images ───────────────────
-    if (this.stonedCrossfadeStartTime &&
-        (this.stonedSubScene === 3 || this.stonedSubScene === 4)) {
-      const cfMs = this.stonedSubScene === 3 ? KING_PRINCESS_CROSSFADE_MS : SPIRIT_CROSSFADE_MS;
-      const progress = Math.min(elapsed / cfMs, 1);
-      const outImage = this.getStonedImage(this.stonedSubScene - 1);
-      const inImage = this.getStonedImage(this.stonedSubScene);
+  _createCreditsCanvas() {
+    // Credits are drawn directly each frame (not pre-baked) so return null;
+    // the _drawScrollText handler checks step.isCredits.
+    return null;
+  }
 
-      this.ctx.save();
-      this.ctx.globalAlpha = 1 - progress;
-      this.ctx.drawImage(outImage, 0, 0);
-      this.ctx.globalAlpha = progress;
-      this.ctx.drawImage(inImage, 0, 0);
-      this.ctx.restore();
-
-      if (progress >= 1) {
-        this.stonedCrossfadeStartTime = 0;
-        this.stonedLineStartTime = timestamp;
-        this.stonedLineFullyTypedTime = 0;
-      }
-
-      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-      return;
-    }
-
-    // ── Sub-scene 5: curtain close and show King surprised text
-    if (this.stonedSubScene === 5) {
-      const progress = Math.min(elapsed / CURTAIN_MS, 1);
-
-      this.ctx.save();
-      this.ctx.globalAlpha = 1;
-      this.ctx.drawImage(this.spiritImage, 0, 0);
-      this.ctx.restore();
-
-      this.drawCurtainClose(progress, this.spiritImage);
-
-      if (progress >= 1) {
-        this.stonedSubScene = 6;
-        this.stonedCrossfadeStartTime = 0;
-        this.stonedLineIndex = 0;
-        this.stonedLineStartTime = timestamp;
-        this.stonedLineFullyTypedTime = 0;
-      }
-
-      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-      return;
-    }
-
-    // ── Sub-scene 6: curtain already painted; just type the King surprised text ──────
-    if (this.stonedSubScene === 6) {
-      this.drawStonedText(timestamp);
-      this.autoAdvanceStonedLine(timestamp);
-      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-      return;
-    }
-
-    // ── Sub-scenes 2, 3, 4 (after crossfade): image + typed text ───────────
-    const bgImage = this.getStonedImage(this.stonedSubScene);
-
+  _measureCreditsX() {
     this.ctx.save();
-    this.ctx.globalAlpha = 1;
-    this.ctx.drawImage(bgImage, 0, 0);
+    this.ctx.font  = CREDITS_FONT;
+    const maxWidth = Math.max(...CREDITS_LINES.map((l) => this.ctx.measureText(l).width));
     this.ctx.restore();
-
-    this.drawStonedText(timestamp);
-    this.autoAdvanceStonedLine(timestamp);
-
-    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
-  }
-
-  drawStonedText(timestamp) {
-    const lines = this.getStonedLines();
-    if (!this.stonedLineStartTime || !lines.length) return;
-
-    const line = lines[this.stonedLineIndex] ?? '';
-    const elapsed = timestamp - this.stonedLineStartTime;
-    const visibleCount = Math.min(
-      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
-      line.length
-    );
-
-    this.clearTextArea();
-
-    if (visibleCount === 0) return;
-
-    this.ctx.save();
-    this.ctx.globalAlpha = 1;
-    this.ctx.font = BALCONY_FONT;
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'top';
-
-    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
-    const quotedMap = this.buildQuotedMap(line);
-
-    for (let i = 0; i < wrapped.length; i++) {
-      const { text: chunk, start: chunkStart } = wrapped[i];
-      if (chunkStart >= visibleCount) break;
-      const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
-      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
-    }
-
-    this.ctx.restore();
-  }
-
-  autoAdvanceStonedLine(timestamp) {
-    const lines = this.getStonedLines();
-    if (!lines.length || !this.stonedLineStartTime) return;
-
-    const currentLine = lines[this.stonedLineIndex] ?? '';
-    const lineElapsed = timestamp - this.stonedLineStartTime;
-    const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
-
-    if (lineFullyTyped) {
-      if (!this.stonedLineFullyTypedTime) {
-        this.stonedLineFullyTypedTime = timestamp;
-      } else if (timestamp - this.stonedLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
-        this.advanceStonedLine(timestamp);
-      }
-    }
-  }
-
-  finish() {
-    if (!this.active) {
-      return;
-    }
-
-    this.active = false;
-    cancelAnimationFrame(this.frameId);
-    this.screen.classList.add('hidden');
-    this.onComplete();
+    return Math.round((this.canvas.width - maxWidth) / 2);
   }
 }
