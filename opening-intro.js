@@ -218,11 +218,15 @@ const KING_PRINCESS_LINES = [
 const SPIRIT_LINES = [
   '"I am the Guardian Spirit of the Holy Land of Zeliard.  The demon Jashiin has been resurrected, and indeed his evil magic will plunge this world into the Age of Darkness once again."',
   '"Heed my words, King Felishika: There is but one way to stop this demon.  A brave warrior must venture into the labyrinths and recover the nine Holy Crystals, the Tears of Esmesanti."',
-  '"Many terrible creatures dwell within the labyrinths, all of them Jashiin`s minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them."',
+  '"Many terrible creatures dwell within the labyrinths, all of them Jashiin\'s minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them."',
   '"However, there is one with the power to oppose Jashiin. The man who is destined to fight him will soon arrive in your kingdom."',
   '"This man is the only being strong enough to banish Jashiin forever."',
   '"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse."',
   'Having spoken these words, the Spirit disappeared.'
+];
+const KING_EPILOGUE_LINES = [
+  'King Felishika could not believe what he had seen.  "Surely my mind is playing tricks on me!  I\'m afraid I have gone mad with grief."',
+  'But the next day, a stranger appeared in the kingdom...'
 ];
 const JASHIIN_TEXT_COLOR = '#fbfb00';
 const JASHIIN_SHADOW_COLOR = '#fb0000';
@@ -1031,6 +1035,8 @@ export class OpeningIntro {
       line.length
     );
 
+    this.clearTextArea();
+
     if (visibleCount === 0) {
       return;
     }
@@ -1155,6 +1161,10 @@ export class OpeningIntro {
     }
     if (current) lines.push({ text: current, start: currentStart });
     return lines;
+  }
+
+  clearTextArea() {
+    this.ctx.clearRect(0, 275, this.canvas.width, 125);
   }
 
   drawCopyrightText(opacity) {
@@ -1649,6 +1659,8 @@ export class OpeningIntro {
       line.length
     );
 
+    this.clearTextArea();
+
     if (visibleCount === 0) {
       return;
     }
@@ -1749,6 +1761,7 @@ export class OpeningIntro {
     if (this.stonedSubScene === 2) return STONED_LINES;
     if (this.stonedSubScene === 3) return KING_PRINCESS_LINES;
     if (this.stonedSubScene === 4) return SPIRIT_LINES;
+    if (this.stonedSubScene === 6) return KING_EPILOGUE_LINES;
     return [];
   }
 
@@ -1757,7 +1770,7 @@ export class OpeningIntro {
     if (subScene <= 1) return this.demonFinalImage;
     if (subScene === 2) return this.stonedImage;
     if (subScene === 3) return this.kingPrincessImage;
-    return this.spiritImage;
+    return this.spiritImage; // sub-scenes 4 and 6
   }
 
   advanceStonedLine(timestamp) {
@@ -1797,15 +1810,20 @@ export class OpeningIntro {
       this.stonedLineStartTime = 0;
       this.stonedLineFullyTypedTime = 0;
     } else if (this.stonedSubScene === 4) {
-      // All done — close curtain then finish
+      // All done — close curtain then show epilogue text
       this.stonedSubScene = 5;
       this.stonedCrossfadeStartTime = timestamp;
+    } else if (this.stonedSubScene === 6) {
+      // Epilogue done — finish
+      this.finish();
     }
   }
 
   drawStonedPage(timestamp) {
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // if (this.stonedSubScene !== 6) {
+    //   this.ctx.fillStyle = '#000';
+    //   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // }
 
     const elapsed = this.stonedCrossfadeStartTime
       ? timestamp - this.stonedCrossfadeStartTime
@@ -1871,10 +1889,21 @@ export class OpeningIntro {
       this.drawCurtainClose(progress, this.spiritImage);
 
       if (progress >= 1) {
-        this.finish();
-        return;
+        this.stonedSubScene = 6;
+        this.stonedCrossfadeStartTime = 0;
+        this.stonedLineIndex = 0;
+        this.stonedLineStartTime = timestamp;
+        this.stonedLineFullyTypedTime = 0;
       }
 
+      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+      return;
+    }
+
+    // ── Sub-scene 6: curtain already painted; just type epilogue text ──────
+    if (this.stonedSubScene === 6) {
+      this.drawStonedText(timestamp);
+      this.autoAdvanceStonedLine(timestamp);
       this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
       return;
     }
@@ -1903,6 +1932,8 @@ export class OpeningIntro {
       Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
       line.length
     );
+
+    this.clearTextArea();
 
     if (visibleCount === 0) return;
 
