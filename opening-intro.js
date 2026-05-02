@@ -10,12 +10,12 @@ const INTRO_NECKLACE_SRC = 'assets/images/opdemo/necklace.png';
 const INTRO_LOGO_TRANSP_SRC = 'assets/images/opdemo/logo_transp.png';
 const INTRO_PANNO_SRC = 'assets/images/opdemo/panno.png';
 const INTRO_DEMON_SRCS = [
-  'assets/images/opdemo/dmao0.png',
-  'assets/images/opdemo/dmao1.png',
-  'assets/images/opdemo/dmao2.png',
-  'assets/images/opdemo/dmao3.png',
-  'assets/images/opdemo/dmao4.png',
-  'assets/images/opdemo/dmao5.png'
+  'assets/images/opdemo/dmaou0.png',
+  'assets/images/opdemo/dmaou1.png',
+  'assets/images/opdemo/dmaou2.png',
+  'assets/images/opdemo/dmaou3.png',
+  'assets/images/opdemo/dmaou4.png',
+  'assets/images/opdemo/dmaou5.png'
 ];
 const INTRO_COPYRIGHT_LINES = [
   'Copyright (C)1987,1990 GAME ARTS',
@@ -150,9 +150,9 @@ const DEMON_SPEECH_LINE_HEIGHT = 20;
 const DEMON_SPEECH_START_Y = 298;
 const DEMON_SPEECH_CHAR_DELAY_MS = 45;
 const DEMON_MOUTH_FRAME_DELAY_MS = 120;
-const DEMON_SPEECH_TEXT_COLOR = '#fff';
-const DEMON_SPEECH_SHADOW_COLOR = '#00f';
-const DEMON_SPEECH_SHADOW_OFFSET = 2;
+const DIRECT_SPEECH_TEXT_COLOR = '#fbfbfb';
+const DIRECT_SPEECH_SHADOW_COLOR = '#0000fb';
+const DIRECT_SPEECH_SHADOW_OFFSET = 2;
 const DEMON_SPEECH_FADE_OUT_MS = 1000;
 const DEMON_SPEECH_AUTO_ADVANCE_MS = 3000;
 const NECKLACE_FADE_IN_MS = 1000;
@@ -184,9 +184,9 @@ const CURTAIN_Y2 = 219;
 const CURTAIN_COLOR = '#56040a';
 const CURTAIN_MS = 1000;       // time for curtain to fully close
 const PRINCESS_CROSSFADE_MS = 1000; // crossfade from sand to princess once curtain closed
-const BALCONY_TEXT_COLOR = '#fff';
-const BALCONY_SHADOW_COLOR = '#00f';
-const BALCONY_SHADOW_OFFSET = 2;
+const PRINCESS_DEMON_LINES = [
+  '"How can this be?" she cried, "What evil power could cause such a terrible thing to happen?"'
+];
 // Y position of the text area below the image (image occupies roughly top 75% of canvas)
 const BALCONY_TEXT_Y = 310;
 const BALCONY_TEXT_X = 8;
@@ -275,6 +275,9 @@ export class OpeningIntro {
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
     this.princessDemonStartTime = 0;
+    this.princessDemonLineIndex = 0;
+    this.princessDemonLineStartTime = 0;
+    this.princessDemonLineFullyTypedTime = 0;
   }
 
   async start() {
@@ -302,6 +305,9 @@ export class OpeningIntro {
     this.balconyCrossfadeStartTime = 0;
     this.balconyPart = 1;
     this.princessDemonStartTime = 0;
+    this.princessDemonLineIndex = 0;
+    this.princessDemonLineStartTime = 0;
+    this.princessDemonLineFullyTypedTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
@@ -799,6 +805,32 @@ export class OpeningIntro {
     return line.trimStart().startsWith('"');
   }
 
+  // Splits text into segments: [{text, quoted}, ...] based on matched "..." pairs.
+  // Unmatched opening quotes are treated as plain text.
+  parseQuoteSegments(text) {
+    const segments = [];
+    let i = 0;
+    let plain = '';
+    while (i < text.length) {
+      if (text[i] === '"') {
+        const closeIdx = text.indexOf('"', i + 1);
+        if (closeIdx !== -1) {
+          // Flush any plain text before this quote
+          if (plain) { segments.push({ text: plain, quoted: false }); plain = ''; }
+          segments.push({ text: text.slice(i, closeIdx + 1), quoted: true });
+          i = closeIdx + 1;
+        } else {
+          // No closing quote — treat as plain
+          plain += text[i++];
+        }
+      } else {
+        plain += text[i++];
+      }
+    }
+    if (plain) segments.push({ text: plain, quoted: false });
+    return segments;
+  }
+
   // Advance to the next line or part; called on click/keypress or auto-advance timer
   advanceBalconyLine(timestamp) {
     const lines = this.getBalconyLines();
@@ -921,45 +953,118 @@ export class OpeningIntro {
     this.ctx.textBaseline = 'top';
 
     const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
-    const isShadowed = this.isBalconyPrincessLine(line);
+    const quotedMap = this.buildQuotedMap(line);
 
-    // Distribute visible character count across wrapped lines
-    let remaining = visibleCount;
     for (let i = 0; i < wrapped.length; i++) {
-      const segment = wrapped[i];
-      const visible = segment.slice(0, Math.min(remaining, segment.length));
-      if (visible) {
-        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-        if (isShadowed) {
-          this.drawShadowedText(visible, BALCONY_TEXT_X, y);
-        } else {
-          this.ctx.fillStyle = BALCONY_TEXT_COLOR;
-          this.ctx.fillText(visible, BALCONY_TEXT_X, y);
-        }
-      }
-      remaining -= segment.length;
-      if (remaining <= 0) break;
+      const { text: chunk, start: chunkStart } = wrapped[i];
+      if (chunkStart >= visibleCount) break;
+      const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
+      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
     }
 
     this.ctx.restore();
   }
 
+  // Draws `visibleCount` characters of `fullText` at (x,y), honouring matched "..." pairs.
+  // Parsing is done on fullText so quote pairs aren't broken by the typing cursor.
+  // Returns a boolean array: quotedMap[i] = true if char i of text is inside a matched "..." pair
+  buildQuotedMap(text) {
+    const map = new Array(text.length).fill(false);
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '"') {
+        const close = text.indexOf('"', i + 1);
+        if (close !== -1) {
+          for (let j = i; j <= close; j++) map[j] = true;
+          i = close + 1;
+        } else {
+          i++;
+        }
+      } else {
+        i++;
+      }
+    }
+    return map;
+  }
+
+  // Draws `visibleCount` characters of `fullLine` starting at char offset `chunkStart`,
+  // using the quoted map built from the full line for correct styling.
+  drawWrappedSegmentedText(fullLine, quotedMap, chunkStart, chunkVisible, x, y, plainColor, shadowColor, shadowOffset) {
+    // Walk character by character, batching consecutive same-style chars for efficiency
+    let curX = x;
+    let batchStart = chunkStart;
+    let batchQuoted = quotedMap[chunkStart] ?? false;
+
+    const flush = (end) => {
+      if (end <= batchStart) return;
+      const text = fullLine.slice(batchStart, end);
+      if (batchQuoted) {
+        this.ctx.fillStyle = shadowColor;
+        this.ctx.fillText(text, curX + shadowOffset, y + shadowOffset);
+        this.ctx.fillStyle = plainColor;
+      } else {
+        this.ctx.fillStyle = plainColor;
+      }
+      this.ctx.fillText(text, curX, y);
+      curX += this.ctx.measureText(text).width;
+    };
+
+    for (let i = chunkStart + 1; i < chunkStart + chunkVisible; i++) {
+      const q = quotedMap[i] ?? false;
+      if (q !== batchQuoted) {
+        flush(i);
+        batchStart = i;
+        batchQuoted = q;
+      }
+    }
+    flush(chunkStart + chunkVisible);
+  }
+
+  drawSegmentedText(fullText, visibleCount, x, y, plainColor, shadowColor, shadowOffset) {
+    const segments = this.parseQuoteSegments(fullText);
+    let curX = x;
+    let drawn = 0;
+    for (const seg of segments) {
+      if (drawn >= visibleCount) break;
+      const visible = seg.text.slice(0, visibleCount - drawn);
+      if (seg.quoted) {
+        this.ctx.fillStyle = shadowColor;
+        this.ctx.fillText(visible, curX + shadowOffset, y + shadowOffset);
+        this.ctx.fillStyle = plainColor;
+        this.ctx.fillText(visible, curX, y);
+      } else {
+        this.ctx.fillStyle = plainColor;
+        this.ctx.fillText(visible, curX, y);
+      }
+      curX += this.ctx.measureText(visible).width;
+      drawn += seg.text.length;
+    }
+  }
+
+  // Returns [{text, start}] where start is the char offset in the original text
   wrapBalconyText(text, maxWidth) {
-    // Split on spaces, reassemble greedily
     const words = text.split(' ');
     const lines = [];
     let current = '';
+    let currentStart = 0;
+    let pos = 0;
 
     for (const word of words) {
       const candidate = current ? current + ' ' + word : word;
       if (this.ctx.measureText(candidate).width <= maxWidth) {
         current = candidate;
       } else {
-        if (current) lines.push(current);
+        if (current) {
+          lines.push({ text: current, start: currentStart });
+          currentStart = pos;
+        }
         current = word;
+        currentStart = pos;
       }
+      pos += word.length + 1; // +1 for the space
     }
-    if (current) lines.push(current);
+    if (current) lines.push({ text: current, start: currentStart });
     return lines;
   }
 
@@ -1007,14 +1112,14 @@ export class OpeningIntro {
   }
 
   drawShadowedText(text, x, y) {
-    this.ctx.fillStyle = DEMON_SPEECH_SHADOW_COLOR;
+    this.ctx.fillStyle = DIRECT_SPEECH_SHADOW_COLOR;
     this.ctx.fillText(
       text,
-      x + DEMON_SPEECH_SHADOW_OFFSET,
-      y + DEMON_SPEECH_SHADOW_OFFSET
+      x + DIRECT_SPEECH_SHADOW_OFFSET,
+      y + DIRECT_SPEECH_SHADOW_OFFSET
     );
 
-    this.ctx.fillStyle = DEMON_SPEECH_TEXT_COLOR;
+    this.ctx.fillStyle = DIRECT_SPEECH_TEXT_COLOR;
     this.ctx.fillText(text, x, y);
   }
 
@@ -1235,6 +1340,9 @@ export class OpeningIntro {
   startPrincessDemonPage(timestamp) {
     this.page = PAGE_PRINCESS_DEMON;
     this.princessDemonStartTime = timestamp;
+    this.princessDemonLineIndex = 0;
+    this.princessDemonLineStartTime = 0; // set once crossfade completes
+    this.princessDemonLineFullyTypedTime = 0;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
@@ -1329,16 +1437,56 @@ export class OpeningIntro {
     }
 
     if (crossfadeProgress >= 1) {
-      // Hold on princess.png — wait for user input (skipPage → finish())
+      // Hold on princess.png — start typing text, wait for user input (skipPage → finish())
       this.ctx.save();
       this.ctx.globalAlpha = 1;
       this.ctx.drawImage(this.princessImage, 0, 0);
       this.ctx.restore();
+
+      // Start line timer on first frame after crossfade
+      if (!this.princessDemonLineStartTime) {
+        this.princessDemonLineStartTime = timestamp;
+      }
+
+      this.drawPrincessDemonText(timestamp);
+
       this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
       return;
     }
 
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawPrincessDemonText(timestamp) {
+    const line = PRINCESS_DEMON_LINES[this.princessDemonLineIndex] ?? '';
+    const elapsed = timestamp - this.princessDemonLineStartTime;
+    const visibleCount = Math.min(
+      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
+      line.length
+    );
+
+    if (visibleCount === 0) {
+      return;
+    }
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.font = BALCONY_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
+    const quotedMap = this.buildQuotedMap(line);
+
+    for (let i = 0; i < wrapped.length; i++) {
+      const { text: chunk, start: chunkStart } = wrapped[i];
+      if (chunkStart >= visibleCount) break;
+      const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
+      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
+    }
+
+    this.ctx.restore();
   }
 
   finish() {
