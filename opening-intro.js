@@ -199,10 +199,35 @@ const DEMON_FINAL_LINES = [
   '"Beautiful Princess Felicia, you will make a lovely and terrifying symbol of my awakening.  Your father will not make the mistakes of his ancestors!"',
   'As the words of the demon resounded over the land, Princess Felicia was turned to stone.'
 ];
+const PAGE_STONED = 'stoned';
+const INTRO_STONED_SRC = 'assets/images/opdemo/stoned.png';
+const INTRO_KING_PRINCESS_SRC = 'assets/images/opdemo/king_princess.png';
+const INTRO_SPIRIT_SRC = 'assets/images/opdemo/spirit.png';
+const STONED_CROSSFADE_MS = 2000;
+const KING_PRINCESS_CROSSFADE_MS = 2000;
+const SPIRIT_CROSSFADE_MS = 2000;
+const STONED_LINES = [
+  'The rain of sand continued for 108 days and transformed the once-fertile land into desert.',
+  'The people of the kingdom wept at the terrible fate of their country, and of their princess.'
+];
+const KING_PRINCESS_LINES = [
+  'The King wept most of all. "Oh, my beloved Felicia!  I fear the Age of Darkness is upon us.  I am powerless to stop it ... and powerless to help you."',
+  'But the tears of the King and his people soon awakened another power.',
+  'As the King grieved, an apparition appeared before him.'
+];
+const SPIRIT_LINES = [
+  '"I am the Guardian Spirit of the Holy Land of Zeliard.  The demon Jashiin has been resurrected, and indeed his evil magic will plunge this world into the Age of Darkness once again."',
+  '"Heed my words, King Felishika: There is but one way to stop this demon.  A brave warrior must venture into the labyrinths and recover the nine Holy Crystals, the Tears of Esmesanti."',
+  '"Many terrible creatures dwell within the labyrinths, all of them Jashiin`s minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them."',
+  '"However, there is one with the power to oppose Jashiin. The man who is destined to fight him will soon arrive in your kingdom."',
+  '"This man is the only being strong enough to banish Jashiin forever."',
+  '"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse."',
+  'Having spoken these words, the Spirit disappeared.'
+];
 const JASHIIN_TEXT_COLOR = '#fbfb00';
 const JASHIIN_SHADOW_COLOR = '#fb0000';
 // Y position of the text area below the image (image occupies roughly top 75% of canvas)
-const BALCONY_TEXT_Y = 310;
+const BALCONY_TEXT_Y = 290;
 const BALCONY_TEXT_X = 8;
 const BALCONY_LINES_PART1 = [
   'Once, long ago, a terrible storm came to the land of Zeliard. ',
@@ -296,6 +321,15 @@ export class OpeningIntro {
     this.demonFinalImage = null;
     this.princessDemonSubScene = 1;          // 1 = princess, 2 = princess_vs_demon, 3 = demon_final
     this.princessDemonCrossfadeStartTime = 0; // tracks sub-scene crossfade
+    this.stonedImage = null;
+    this.kingPrincessImage = null;
+    this.spiritImage = null;
+    this.stonedStartTime = 0;
+    this.stonedSubScene = 1;   // 1 = demon→stoned, 2 = stoned lines, 3 = king_princess lines, 4 = spirit lines
+    this.stonedCrossfadeStartTime = 0;
+    this.stonedLineIndex = 0;
+    this.stonedLineStartTime = 0;
+    this.stonedLineFullyTypedTime = 0;
   }
 
   async start() {
@@ -328,6 +362,12 @@ export class OpeningIntro {
     this.princessDemonLineFullyTypedTime = 0;
     this.princessDemonSubScene = 1;
     this.princessDemonCrossfadeStartTime = 0;
+    this.stonedStartTime = 0;
+    this.stonedSubScene = 1;
+    this.stonedCrossfadeStartTime = 0;
+    this.stonedLineIndex = 0;
+    this.stonedLineStartTime = 0;
+    this.stonedLineFullyTypedTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
@@ -347,6 +387,9 @@ export class OpeningIntro {
         this.princessImage,
         this.princessVsDemonImage,
         this.demonFinalImage,
+        this.stonedImage,
+        this.kingPrincessImage,
+        this.spiritImage,
         ...this.demonImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
@@ -363,6 +406,9 @@ export class OpeningIntro {
         loadImage(INTRO_PRINCESS_SRC),
         loadImage(INTRO_PRINCESS_VS_DEMON_SRC),
         loadImage(INTRO_DEMON_FINAL_SRC),
+        loadImage(INTRO_STONED_SRC),
+        loadImage(INTRO_KING_PRINCESS_SRC),
+        loadImage(INTRO_SPIRIT_SRC),
         ...INTRO_DEMON_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
       ]).then(([
@@ -380,6 +426,9 @@ export class OpeningIntro {
         princess,
         princessVsDemon,
         demonFinal,
+        stoned,
+        kingPrincess,
+        spirit,
         ...demonImages
       ]) => [
         logo,
@@ -396,6 +445,9 @@ export class OpeningIntro {
         princess,
         princessVsDemon,
         demonFinal,
+        stoned,
+        kingPrincess,
+        spirit,
         ...demonImages.slice(0, INTRO_DEMON_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
@@ -464,6 +516,10 @@ export class OpeningIntro {
     if (this.page === PAGE_PRINCESS_DEMON) {
       this.advancePrincessDemonLine(performance.now());
     }
+
+    if (this.page === PAGE_STONED) {
+      this.advanceStonedLine(performance.now());
+    }
   }
 
   draw(timestamp) {
@@ -508,6 +564,11 @@ export class OpeningIntro {
 
     if (this.page === PAGE_PRINCESS_DEMON) {
       this.drawPrincessDemonPage(timestamp);
+      return;
+    }
+
+    if (this.page === PAGE_STONED) {
+      this.drawStonedPage(timestamp);
       return;
     }
 
@@ -1424,8 +1485,8 @@ export class OpeningIntro {
         this.princessDemonCrossfadeStartTime = timestamp;
       }
     } else {
-      // Sub-scene 3 done — end the intro
-      this.finish();
+      // Sub-scene 3 done — go to stoned page
+      this.startStonedPage(timestamp);
     }
   }
 
@@ -1471,29 +1532,7 @@ export class OpeningIntro {
 
       // Curtain closing animation (phase 1 only)
       if (curtainProgress > 0 && crossfadeProgress === 0) {
-        const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
-        const rw = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
-        const maxInset = Math.floor(Math.min(rw, rh) / 2);
-        const inset = Math.ceil(curtainProgress * maxInset);
-
-        this.ctx.save();
-        this.ctx.fillStyle = CURTAIN_COLOR;
-        this.ctx.fillRect(rx1, ry1, rw, rh);
-
-        const innerX = rx1 + inset, innerY = ry1 + inset;
-        const innerW = rw - inset * 2, innerH = rh - inset * 2;
-
-        if (innerW > 0 && innerH > 0 && curtainProgress < 1) {
-          this.ctx.save();
-          this.ctx.beginPath();
-          this.ctx.rect(innerX, innerY, innerW, innerH);
-          this.ctx.clip();
-          this.ctx.globalAlpha = 1;
-          this.ctx.drawImage(this.balconySandImage, 0, 0);
-          this.ctx.restore();
-        }
-
-        this.ctx.restore();
+        this.drawCurtainClose(curtainProgress, this.balconySandImage);
       }
 
       // Once princess is fully visible, check for crossfade to sub-scene 2
@@ -1653,6 +1692,255 @@ export class OpeningIntro {
     }
 
     this.ctx.restore();
+  }
+
+  // ── Curtain-close animation ─────────────────────────────────────────────────
+  // Draws a shrinking-iris curtain over the image rect.
+  // progress: 0 = open, 1 = fully closed.
+  // backgroundImage: the image drawn behind the curtain hole while it closes.
+  drawCurtainClose(progress, backgroundImage) {
+    if (progress <= 0) return;
+
+    const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
+    const rw = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
+    const maxInset = Math.floor(Math.min(rw, rh) / 2);
+    const inset = Math.ceil(progress * maxInset);
+
+    this.ctx.save();
+    this.ctx.fillStyle = CURTAIN_COLOR;
+    this.ctx.fillRect(rx1, ry1, rw, rh);
+
+    const innerX = rx1 + inset, innerY = ry1 + inset;
+    const innerW = rw - inset * 2, innerH = rh - inset * 2;
+
+    if (innerW > 0 && innerH > 0 && progress < 1) {
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.rect(innerX, innerY, innerW, innerH);
+      this.ctx.clip();
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(backgroundImage, 0, 0);
+      this.ctx.restore();
+    }
+
+    this.ctx.restore();
+  }
+
+  // ── Stoned page ─────────────────────────────────────────────────────────────
+  // Sub-scenes:
+  //   1 — demon→stoned crossfade (STONED_CROSSFADE_MS)
+  //   2 — stoned image + STONED_LINES typed
+  //   3 — crossfade stoned→king_princess (KING_PRINCESS_CROSSFADE_MS), then KING_PRINCESS_LINES
+  //   4 — crossfade king_princess→spirit (SPIRIT_CROSSFADE_MS), then SPIRIT_LINES, then curtain close + finish
+
+  startStonedPage(timestamp) {
+    this.page = PAGE_STONED;
+    this.stonedStartTime = timestamp;
+    this.stonedSubScene = 1;
+    this.stonedCrossfadeStartTime = timestamp;
+    this.stonedLineIndex = 0;
+    this.stonedLineStartTime = 0;
+    this.stonedLineFullyTypedTime = 0;
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  // Returns the active lines array for the current stoned sub-scene
+  getStonedLines() {
+    if (this.stonedSubScene === 2) return STONED_LINES;
+    if (this.stonedSubScene === 3) return KING_PRINCESS_LINES;
+    if (this.stonedSubScene === 4) return SPIRIT_LINES;
+    return [];
+  }
+
+  // Returns the "current" background image for the given sub-scene
+  getStonedImage(subScene) {
+    if (subScene <= 1) return this.demonFinalImage;
+    if (subScene === 2) return this.stonedImage;
+    if (subScene === 3) return this.kingPrincessImage;
+    return this.spiritImage;
+  }
+
+  advanceStonedLine(timestamp) {
+    const lines = this.getStonedLines();
+    if (!lines.length) return;
+
+    const currentLine = lines[this.stonedLineIndex] ?? '';
+    const elapsed = timestamp - this.stonedLineStartTime;
+    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+    if (!fullyTyped) {
+      this.stonedLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
+      this.stonedLineFullyTypedTime = timestamp;
+      return;
+    }
+
+    if (this.stonedLineIndex < lines.length - 1) {
+      this.stonedLineIndex++;
+      this.stonedLineStartTime = timestamp;
+      this.stonedLineFullyTypedTime = 0;
+      return;
+    }
+
+    // Last line of sub-scene
+    if (this.stonedSubScene === 2) {
+      // Start crossfade to king_princess
+      this.stonedSubScene = 3;
+      this.stonedCrossfadeStartTime = timestamp;
+      this.stonedLineIndex = 0;
+      this.stonedLineStartTime = 0;
+      this.stonedLineFullyTypedTime = 0;
+    } else if (this.stonedSubScene === 3) {
+      // Start crossfade to spirit
+      this.stonedSubScene = 4;
+      this.stonedCrossfadeStartTime = timestamp;
+      this.stonedLineIndex = 0;
+      this.stonedLineStartTime = 0;
+      this.stonedLineFullyTypedTime = 0;
+    } else if (this.stonedSubScene === 4) {
+      // All done — close curtain then finish
+      this.stonedSubScene = 5;
+      this.stonedCrossfadeStartTime = timestamp;
+    }
+  }
+
+  drawStonedPage(timestamp) {
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const elapsed = this.stonedCrossfadeStartTime
+      ? timestamp - this.stonedCrossfadeStartTime
+      : 0;
+
+    // ── Sub-scene 1: demon → stoned crossfade ──────────────────────────────
+    if (this.stonedSubScene === 1) {
+      const progress = Math.min(elapsed / STONED_CROSSFADE_MS, 1);
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 1 - progress;
+      this.ctx.drawImage(this.demonFinalImage, 0, 0);
+      this.ctx.globalAlpha = progress;
+      this.ctx.drawImage(this.stonedImage, 0, 0);
+      this.ctx.restore();
+
+      if (progress >= 1) {
+        this.stonedSubScene = 2;
+        this.stonedCrossfadeStartTime = 0;
+        this.stonedLineIndex = 0;
+        this.stonedLineStartTime = timestamp;
+        this.stonedLineFullyTypedTime = 0;
+      }
+
+      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+      return;
+    }
+
+    // ── Sub-scenes 3 & 4 entry: crossfade between images ───────────────────
+    if (this.stonedCrossfadeStartTime &&
+        (this.stonedSubScene === 3 || this.stonedSubScene === 4)) {
+      const cfMs = this.stonedSubScene === 3 ? KING_PRINCESS_CROSSFADE_MS : SPIRIT_CROSSFADE_MS;
+      const progress = Math.min(elapsed / cfMs, 1);
+      const outImage = this.getStonedImage(this.stonedSubScene - 1);
+      const inImage = this.getStonedImage(this.stonedSubScene);
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 1 - progress;
+      this.ctx.drawImage(outImage, 0, 0);
+      this.ctx.globalAlpha = progress;
+      this.ctx.drawImage(inImage, 0, 0);
+      this.ctx.restore();
+
+      if (progress >= 1) {
+        this.stonedCrossfadeStartTime = 0;
+        this.stonedLineStartTime = timestamp;
+        this.stonedLineFullyTypedTime = 0;
+      }
+
+      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+      return;
+    }
+
+    // ── Sub-scene 5: curtain close then finish ──────────────────────────────
+    if (this.stonedSubScene === 5) {
+      const progress = Math.min(elapsed / CURTAIN_MS, 1);
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(this.spiritImage, 0, 0);
+      this.ctx.restore();
+
+      this.drawCurtainClose(progress, this.spiritImage);
+
+      if (progress >= 1) {
+        this.finish();
+        return;
+      }
+
+      this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+      return;
+    }
+
+    // ── Sub-scenes 2, 3, 4 (after crossfade): image + typed text ───────────
+    const bgImage = this.getStonedImage(this.stonedSubScene);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.drawImage(bgImage, 0, 0);
+    this.ctx.restore();
+
+    this.drawStonedText(timestamp);
+    this.autoAdvanceStonedLine(timestamp);
+
+    this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  drawStonedText(timestamp) {
+    const lines = this.getStonedLines();
+    if (!this.stonedLineStartTime || !lines.length) return;
+
+    const line = lines[this.stonedLineIndex] ?? '';
+    const elapsed = timestamp - this.stonedLineStartTime;
+    const visibleCount = Math.min(
+      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
+      line.length
+    );
+
+    if (visibleCount === 0) return;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 1;
+    this.ctx.font = BALCONY_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
+    const quotedMap = this.buildQuotedMap(line);
+
+    for (let i = 0; i < wrapped.length; i++) {
+      const { text: chunk, start: chunkStart } = wrapped[i];
+      if (chunkStart >= visibleCount) break;
+      const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
+      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
+    }
+
+    this.ctx.restore();
+  }
+
+  autoAdvanceStonedLine(timestamp) {
+    const lines = this.getStonedLines();
+    if (!lines.length || !this.stonedLineStartTime) return;
+
+    const currentLine = lines[this.stonedLineIndex] ?? '';
+    const lineElapsed = timestamp - this.stonedLineStartTime;
+    const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+    if (lineFullyTyped) {
+      if (!this.stonedLineFullyTypedTime) {
+        this.stonedLineFullyTypedTime = timestamp;
+      } else if (timestamp - this.stonedLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
+        this.advanceStonedLine(timestamp);
+      }
+    }
   }
 
   finish() {
