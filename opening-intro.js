@@ -224,7 +224,7 @@ const SPIRIT_LINES = [
   '"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse."',
   'Having spoken these words, the Spirit disappeared.'
 ];
-const KING_EPILOGUE_LINES = [
+const KING_SURPRISED_LINES = [
   'King Felishika could not believe what he had seen.  "Surely my mind is playing tricks on me!  I\'m afraid I have gone mad with grief."',
   'But the next day, a stranger appeared in the kingdom...'
 ];
@@ -1761,7 +1761,7 @@ export class OpeningIntro {
     if (this.stonedSubScene === 2) return STONED_LINES;
     if (this.stonedSubScene === 3) return KING_PRINCESS_LINES;
     if (this.stonedSubScene === 4) return SPIRIT_LINES;
-    if (this.stonedSubScene === 6) return KING_EPILOGUE_LINES;
+    if (this.stonedSubScene === 6) return KING_SURPRISED_LINES;
     return [];
   }
 
@@ -1810,20 +1810,16 @@ export class OpeningIntro {
       this.stonedLineStartTime = 0;
       this.stonedLineFullyTypedTime = 0;
     } else if (this.stonedSubScene === 4) {
-      // All done — close curtain then show epilogue text
+      // All done — close curtain then show King surprised text
       this.stonedSubScene = 5;
       this.stonedCrossfadeStartTime = timestamp;
     } else if (this.stonedSubScene === 6) {
-      // Epilogue done — finish
+      // King surprised scene done — finish
       this.finish();
     }
   }
 
   drawStonedPage(timestamp) {
-    // if (this.stonedSubScene !== 6) {
-    //   this.ctx.fillStyle = '#000';
-    //   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    // }
 
     const elapsed = this.stonedCrossfadeStartTime
       ? timestamp - this.stonedCrossfadeStartTime
@@ -1877,7 +1873,7 @@ export class OpeningIntro {
       return;
     }
 
-    // ── Sub-scene 5: curtain close then finish ──────────────────────────────
+    // ── Sub-scene 5: curtain close and show King surprised text
     if (this.stonedSubScene === 5) {
       const progress = Math.min(elapsed / CURTAIN_MS, 1);
 
@@ -1900,7 +1896,7 @@ export class OpeningIntro {
       return;
     }
 
-    // ── Sub-scene 6: curtain already painted; just type epilogue text ──────
+    // ── Sub-scene 6: curtain already painted; just type the King surprised text ──────
     if (this.stonedSubScene === 6) {
       this.drawStonedText(timestamp);
       this.autoAdvanceStonedLine(timestamp);
