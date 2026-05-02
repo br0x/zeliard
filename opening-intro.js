@@ -176,6 +176,8 @@ const BALCONY_CHAR_DELAY_MS = 45;
 const BALCONY_AUTO_ADVANCE_MS = 3000;
 
 const PAGE_PRINCESS_DEMON = 'princessDemon';
+const INTRO_PRINCESS_VS_DEMON_SRC = 'assets/images/opdemo/princess_vs_demon.png';
+const INTRO_DEMON_FINAL_SRC = 'assets/images/opdemo/demon.png';
 // The curtain rect in canvas coords
 const CURTAIN_X1 = 92;
 const CURTAIN_Y1 = 53;
@@ -187,6 +189,18 @@ const PRINCESS_CROSSFADE_MS = 1000; // crossfade from sand to princess once curt
 const PRINCESS_DEMON_LINES = [
   '"How can this be?" she cried, "What evil power could cause such a terrible thing to happen?"'
 ];
+const PRINCESS_VS_DEMON_CROSSFADE_MS = 2000;
+const PRINCESS_VS_DEMON_LINES = [
+  'Princess Felicia shivered as she felt a dark presence near her, and suddenly, a terrifying voice bellowed as loud as thunder...',
+  '"I am Jashiin, the Emperor of Chaos.  The descendants of those who imprisoned me under the earth shall know that my wrath has smoldered for two thousand years!"'
+];
+const DEMON_FINAL_CROSSFADE_MS = 2000;
+const DEMON_FINAL_LINES = [
+  '"Beautiful Princess Felicia, you will make a lovely and terrifying symbol of my awakening.  Your father will not make the mistakes of his ancestors!"',
+  'As the words of the demon resounded over the land, Princess Felicia was turned to stone.'
+];
+const JASHIIN_TEXT_COLOR = '#fbfb00';
+const JASHIIN_SHADOW_COLOR = '#fb0000';
 // Y position of the text area below the image (image occupies roughly top 75% of canvas)
 const BALCONY_TEXT_Y = 310;
 const BALCONY_TEXT_X = 8;
@@ -278,6 +292,10 @@ export class OpeningIntro {
     this.princessDemonLineIndex = 0;
     this.princessDemonLineStartTime = 0;
     this.princessDemonLineFullyTypedTime = 0;
+    this.princessVsDemonImage = null;
+    this.demonFinalImage = null;
+    this.princessDemonSubScene = 1;          // 1 = princess, 2 = princess_vs_demon, 3 = demon_final
+    this.princessDemonCrossfadeStartTime = 0; // tracks sub-scene crossfade
   }
 
   async start() {
@@ -308,6 +326,8 @@ export class OpeningIntro {
     this.princessDemonLineIndex = 0;
     this.princessDemonLineStartTime = 0;
     this.princessDemonLineFullyTypedTime = 0;
+    this.princessDemonSubScene = 1;
+    this.princessDemonCrossfadeStartTime = 0;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
 
@@ -325,6 +345,8 @@ export class OpeningIntro {
         this.balconyImage,
         this.balconySandImage,
         this.princessImage,
+        this.princessVsDemonImage,
+        this.demonFinalImage,
         ...this.demonImages
       ] = await Promise.all([
         loadImage(INTRO_LOGO_SRC),
@@ -339,6 +361,8 @@ export class OpeningIntro {
         loadImage(INTRO_BALCONY_SRC),
         loadImage(INTRO_BALCONY_SAND_SRC),
         loadImage(INTRO_PRINCESS_SRC),
+        loadImage(INTRO_PRINCESS_VS_DEMON_SRC),
+        loadImage(INTRO_DEMON_FINAL_SRC),
         ...INTRO_DEMON_SRCS.map((src) => loadImage(src)),
         loadStoryFont()
       ]).then(([
@@ -354,6 +378,8 @@ export class OpeningIntro {
         balcony,
         balconySand,
         princess,
+        princessVsDemon,
+        demonFinal,
         ...demonImages
       ]) => [
         logo,
@@ -368,6 +394,8 @@ export class OpeningIntro {
         balcony,
         balconySand,
         princess,
+        princessVsDemon,
+        demonFinal,
         ...demonImages.slice(0, INTRO_DEMON_SRCS.length)
       ]);
       this.storyTextCanvas = this.createStoryTextCanvas();
@@ -434,7 +462,7 @@ export class OpeningIntro {
     }
 
     if (this.page === PAGE_PRINCESS_DEMON) {
-      this.finish();
+      this.advancePrincessDemonLine(performance.now());
     }
   }
 
@@ -1340,10 +1368,65 @@ export class OpeningIntro {
   startPrincessDemonPage(timestamp) {
     this.page = PAGE_PRINCESS_DEMON;
     this.princessDemonStartTime = timestamp;
+    this.princessDemonSubScene = 1;
     this.princessDemonLineIndex = 0;
-    this.princessDemonLineStartTime = 0; // set once crossfade completes
+    this.princessDemonLineStartTime = 0; // set once initial crossfade completes
     this.princessDemonLineFullyTypedTime = 0;
+    this.princessDemonCrossfadeStartTime = 0;
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
+  }
+
+  // Returns the lines array for the current sub-scene (1/2/3)
+  getPrincessDemonLines() {
+    if (this.princessDemonSubScene === 1) return PRINCESS_DEMON_LINES;
+    if (this.princessDemonSubScene === 2) return PRINCESS_VS_DEMON_LINES;
+    return DEMON_FINAL_LINES;
+  }
+
+  // Returns the background image for the current sub-scene
+  getPrincessDemonImage() {
+    if (this.princessDemonSubScene === 1) return this.princessImage;
+    if (this.princessDemonSubScene === 2) return this.princessVsDemonImage;
+    return this.demonFinalImage;
+  }
+
+  // Advances to next line within the current sub-scene, or triggers crossfade to next sub-scene
+  advancePrincessDemonLine(timestamp) {
+    const lines = this.getPrincessDemonLines();
+    const elapsed = timestamp - this.princessDemonLineStartTime;
+    const currentLine = lines[this.princessDemonLineIndex] ?? '';
+    const fullyTyped = elapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+    // Snap current line to fully typed if still typing
+    if (!fullyTyped) {
+      this.princessDemonLineStartTime = timestamp - currentLine.length * BALCONY_CHAR_DELAY_MS;
+      this.princessDemonLineFullyTypedTime = timestamp;
+      return;
+    }
+
+    // If there are more lines in this sub-scene, advance to next line
+    if (this.princessDemonLineIndex < lines.length - 1) {
+      this.princessDemonLineIndex++;
+      this.princessDemonLineStartTime = timestamp;
+      this.princessDemonLineFullyTypedTime = 0;
+      return;
+    }
+
+    // Last line of sub-scene — trigger crossfade to next sub-scene (or finish)
+    if (this.princessDemonSubScene === 1) {
+      // Begin crossfade to princess_vs_demon
+      if (!this.princessDemonCrossfadeStartTime) {
+        this.princessDemonCrossfadeStartTime = timestamp;
+      }
+    } else if (this.princessDemonSubScene === 2) {
+      // Begin crossfade to demon_final
+      if (!this.princessDemonCrossfadeStartTime) {
+        this.princessDemonCrossfadeStartTime = timestamp;
+      }
+    } else {
+      // Sub-scene 3 done — end the intro
+      this.finish();
+    }
   }
 
   drawPrincessDemonPage(timestamp) {
@@ -1353,112 +1436,174 @@ export class OpeningIntro {
 
     const elapsed = timestamp - this.princessDemonStartTime;
 
-    // Phase 1: draw balcony_sand with curtain closing (0 → CURTAIN_MS)
-    // Phase 2: crossfade sand→princess (CURTAIN_MS → CURTAIN_MS + PRINCESS_CROSSFADE_MS)
-    const curtainProgress = Math.min(elapsed / CURTAIN_MS, 1);
-    const crossfadeElapsed = Math.max(elapsed - CURTAIN_MS, 0);
-    const crossfadeProgress = Math.min(crossfadeElapsed / PRINCESS_CROSSFADE_MS, 1);
+    // ── Sub-scene 1: curtain close + sand→princess crossfade (same as before) ──
+    if (this.princessDemonSubScene === 1) {
+      const curtainProgress = Math.min(elapsed / CURTAIN_MS, 1);
+      const crossfadeElapsed = Math.max(elapsed - CURTAIN_MS, 0);
+      const crossfadeProgress = Math.min(crossfadeElapsed / PRINCESS_CROSSFADE_MS, 1);
 
-    // Background
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    this.ctx.save();
-
-    if (crossfadeProgress === 0) {
-      // Phase 1: sand at full opacity; curtain animation draws on top below
-      this.ctx.globalAlpha = 1;
-      this.ctx.drawImage(this.balconySandImage, 0, 0);
-    } else {
-      // Phase 2: composite sand+closed-curtain as one layer fading out, princess fading in.
-      // Draw to offscreen so sand and curtain rect share the same globalAlpha.
-      const offscreen = document.createElement('canvas');
-      offscreen.width = this.canvas.width;
-      offscreen.height = this.canvas.height;
-      const off = offscreen.getContext('2d');
-      off.imageSmoothingEnabled = false;
-      off.drawImage(this.balconySandImage, 0, 0);
-      off.fillStyle = CURTAIN_COLOR;
-      off.fillRect(CURTAIN_X1, CURTAIN_Y1, CURTAIN_X2 - CURTAIN_X1, CURTAIN_Y2 - CURTAIN_Y1);
-
-      this.ctx.globalAlpha = 1 - crossfadeProgress;
-      this.ctx.drawImage(offscreen, 0, 0);
-
-      this.ctx.globalAlpha = crossfadeProgress;
-      this.ctx.drawImage(this.princessImage, 0, 0);
-    }
-
-    this.ctx.restore();
-
-    // Phase 1 curtain animation: inward-shrinking colored border over the rect
-    if (curtainProgress > 0 && crossfadeProgress === 0) {
-      const rx1 = CURTAIN_X1;
-      const ry1 = CURTAIN_Y1;
-      const rx2 = CURTAIN_X2;
-      const ry2 = CURTAIN_Y2;
-      const rw = rx2 - rx1;
-      const rh = ry2 - ry1;
-
-      // Maximum inset is half the smaller dimension so all 4 sides meet in the middle
-      const maxInset = Math.floor(Math.min(rw, rh) / 2);
-      // How many pixels of inset the curtain has reached so far
-      const inset = Math.ceil(curtainProgress * maxInset);
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
       this.ctx.save();
-      this.ctx.fillStyle = CURTAIN_COLOR;
 
-      // Fill ring by ring from outside in up to current inset
-      // Efficient: just fill the full rect and cut out the remaining uncovered interior
-      // Outer rect fill (covers entire curtain area first)
-      this.ctx.fillRect(rx1, ry1, rw, rh);
-
-      // Cut out the still-uncovered interior by drawing black (background colour) over it
-      const innerX = rx1 + inset;
-      const innerY = ry1 + inset;
-      const innerW = rw - inset * 2;
-      const innerH = rh - inset * 2;
-
-      if (innerW > 0 && innerH > 0 && curtainProgress < 1) {
-        // Re-draw the sand (or princess) image clipped to the interior so it shows through
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(innerX, innerY, innerW, innerH);
-        this.ctx.clip();
-        this.ctx.globalAlpha = 1 - crossfadeProgress;
+      if (crossfadeProgress === 0) {
+        this.ctx.globalAlpha = 1;
         this.ctx.drawImage(this.balconySandImage, 0, 0);
-        if (crossfadeProgress > 0) {
-          this.ctx.globalAlpha = crossfadeProgress;
-          this.ctx.drawImage(this.princessImage, 0, 0);
+      } else {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = this.canvas.width;
+        offscreen.height = this.canvas.height;
+        const off = offscreen.getContext('2d');
+        off.imageSmoothingEnabled = false;
+        off.drawImage(this.balconySandImage, 0, 0);
+        off.fillStyle = CURTAIN_COLOR;
+        off.fillRect(CURTAIN_X1, CURTAIN_Y1, CURTAIN_X2 - CURTAIN_X1, CURTAIN_Y2 - CURTAIN_Y1);
+
+        this.ctx.globalAlpha = 1 - crossfadeProgress;
+        this.ctx.drawImage(offscreen, 0, 0);
+
+        this.ctx.globalAlpha = crossfadeProgress;
+        this.ctx.drawImage(this.princessImage, 0, 0);
+      }
+
+      this.ctx.restore();
+
+      // Curtain closing animation (phase 1 only)
+      if (curtainProgress > 0 && crossfadeProgress === 0) {
+        const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
+        const rw = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
+        const maxInset = Math.floor(Math.min(rw, rh) / 2);
+        const inset = Math.ceil(curtainProgress * maxInset);
+
+        this.ctx.save();
+        this.ctx.fillStyle = CURTAIN_COLOR;
+        this.ctx.fillRect(rx1, ry1, rw, rh);
+
+        const innerX = rx1 + inset, innerY = ry1 + inset;
+        const innerW = rw - inset * 2, innerH = rh - inset * 2;
+
+        if (innerW > 0 && innerH > 0 && curtainProgress < 1) {
+          this.ctx.save();
+          this.ctx.beginPath();
+          this.ctx.rect(innerX, innerY, innerW, innerH);
+          this.ctx.clip();
+          this.ctx.globalAlpha = 1;
+          this.ctx.drawImage(this.balconySandImage, 0, 0);
+          this.ctx.restore();
         }
+
         this.ctx.restore();
       }
 
-      this.ctx.restore();
-    }
+      // Once princess is fully visible, check for crossfade to sub-scene 2
+      if (crossfadeProgress >= 1) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1;
+        this.ctx.drawImage(this.princessImage, 0, 0);
 
-    if (crossfadeProgress >= 1) {
-      // Hold on princess.png — start typing text, wait for user input (skipPage → finish())
-      this.ctx.save();
-      this.ctx.globalAlpha = 1;
-      this.ctx.drawImage(this.princessImage, 0, 0);
-      this.ctx.restore();
+        // Check if we are in sub-scene 1→2 crossfade
+        if (this.princessDemonCrossfadeStartTime) {
+          const cfElapsed = timestamp - this.princessDemonCrossfadeStartTime;
+          const cfProgress = Math.min(cfElapsed / PRINCESS_VS_DEMON_CROSSFADE_MS, 1);
+          this.ctx.globalAlpha = cfProgress;
+          this.ctx.drawImage(this.princessVsDemonImage, 0, 0);
+          this.ctx.restore();
 
-      // Start line timer on first frame after crossfade
-      if (!this.princessDemonLineStartTime) {
-        this.princessDemonLineStartTime = timestamp;
+          if (cfProgress >= 1) {
+            // Transition to sub-scene 2
+            this.princessDemonSubScene = 2;
+            this.princessDemonLineIndex = 0;
+            this.princessDemonLineStartTime = timestamp;
+            this.princessDemonLineFullyTypedTime = 0;
+            this.princessDemonCrossfadeStartTime = 0;
+          }
+        } else {
+          this.ctx.restore();
+
+          // Start line timer on first settled frame
+          if (!this.princessDemonLineStartTime) {
+            this.princessDemonLineStartTime = timestamp;
+          }
+
+          this.drawPrincessDemonText(timestamp);
+
+          // Auto-advance lines
+          this.autoPrincessDemonAdvance(timestamp);
+        }
       }
-
-      this.drawPrincessDemonText(timestamp);
 
       this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
       return;
     }
 
+    // ── Sub-scenes 2 & 3: image + text, with crossfade to next sub-scene on advance ──
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // If crossfading to next sub-scene, draw outgoing/incoming images
+    if (this.princessDemonCrossfadeStartTime) {
+      const crossfadeMs = this.princessDemonSubScene === 2
+        ? PRINCESS_VS_DEMON_CROSSFADE_MS
+        : DEMON_FINAL_CROSSFADE_MS;
+      const cfElapsed = timestamp - this.princessDemonCrossfadeStartTime;
+      const cfProgress = Math.min(cfElapsed / crossfadeMs, 1);
+
+      const outImage = this.getPrincessDemonImage();
+      const inImage = this.princessDemonSubScene === 2
+        ? this.demonFinalImage
+        : null; // sub-scene 3 has no "next" (finish is called after last line)
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 1 - cfProgress;
+      this.ctx.drawImage(outImage, 0, 0);
+      if (inImage) {
+        this.ctx.globalAlpha = cfProgress;
+        this.ctx.drawImage(inImage, 0, 0);
+      }
+      this.ctx.restore();
+
+      if (cfProgress >= 1) {
+        const nextSubScene = this.princessDemonSubScene + 1;
+        this.princessDemonSubScene = nextSubScene;
+        this.princessDemonLineIndex = 0;
+        this.princessDemonLineStartTime = timestamp;
+        this.princessDemonLineFullyTypedTime = 0;
+        this.princessDemonCrossfadeStartTime = 0;
+      }
+    } else {
+      // Normal draw — show current sub-scene image + text
+      this.ctx.save();
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(this.getPrincessDemonImage(), 0, 0);
+      this.ctx.restore();
+
+      this.drawPrincessDemonText(timestamp);
+      this.autoPrincessDemonAdvance(timestamp);
+    }
+
     this.frameId = requestAnimationFrame((nextTimestamp) => this.draw(nextTimestamp));
   }
 
+  // Auto-advance a line once it's fully typed and the hold delay elapses
+  autoPrincessDemonAdvance(timestamp) {
+    const lines = this.getPrincessDemonLines();
+    const currentLine = lines[this.princessDemonLineIndex] ?? '';
+    const lineElapsed = timestamp - this.princessDemonLineStartTime;
+    const lineFullyTyped = lineElapsed >= currentLine.length * BALCONY_CHAR_DELAY_MS;
+
+    if (lineFullyTyped) {
+      if (!this.princessDemonLineFullyTypedTime) {
+        this.princessDemonLineFullyTypedTime = timestamp;
+      } else if (timestamp - this.princessDemonLineFullyTypedTime >= BALCONY_AUTO_ADVANCE_MS) {
+        this.advancePrincessDemonLine(timestamp);
+      }
+    }
+  }
+
   drawPrincessDemonText(timestamp) {
-    const line = PRINCESS_DEMON_LINES[this.princessDemonLineIndex] ?? '';
+    const lines = this.getPrincessDemonLines();
+    const line = lines[this.princessDemonLineIndex] ?? '';
     const elapsed = timestamp - this.princessDemonLineStartTime;
     const visibleCount = Math.min(
       Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
@@ -1469,6 +1614,11 @@ export class OpeningIntro {
       return;
     }
 
+    // Sub-scene 2 uses Jashiin demon colors for direct speech lines
+    const isDemonLine = this.princessDemonSubScene === 2 && line.trimStart().startsWith('"');
+    const isDemonFinalLine = this.princessDemonSubScene === 3 && line.trimStart().startsWith('"');
+    const useJashiin = isDemonLine || isDemonFinalLine;
+
     this.ctx.save();
     this.ctx.globalAlpha = 1;
     this.ctx.font = BALCONY_FONT;
@@ -1476,14 +1626,30 @@ export class OpeningIntro {
     this.ctx.textBaseline = 'top';
 
     const wrapped = this.wrapBalconyText(line, BALCONY_TEXT_MAX_WIDTH);
-    const quotedMap = this.buildQuotedMap(line);
 
-    for (let i = 0; i < wrapped.length; i++) {
-      const { text: chunk, start: chunkStart } = wrapped[i];
-      if (chunkStart >= visibleCount) break;
-      const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
-      const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
-      this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
+    if (useJashiin) {
+      // Entire line is demon speech — render with Jashiin colors (shadow then text)
+      for (let i = 0; i < wrapped.length; i++) {
+        const { text: chunk, start: chunkStart } = wrapped[i];
+        if (chunkStart >= visibleCount) break;
+        const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
+        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+        const visibleText = line.slice(chunkStart, chunkStart + chunkVisible);
+        this.ctx.fillStyle = JASHIIN_SHADOW_COLOR;
+        this.ctx.fillText(visibleText, BALCONY_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, y + DIRECT_SPEECH_SHADOW_OFFSET);
+        this.ctx.fillStyle = JASHIIN_TEXT_COLOR;
+        this.ctx.fillText(visibleText, BALCONY_TEXT_X, y);
+      }
+    } else {
+      // Mixed or plain text — use the existing quoted-segment renderer
+      const quotedMap = this.buildQuotedMap(line);
+      for (let i = 0; i < wrapped.length; i++) {
+        const { text: chunk, start: chunkStart } = wrapped[i];
+        if (chunkStart >= visibleCount) break;
+        const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
+        const y = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
+        this.drawWrappedSegmentedText(line, quotedMap, chunkStart, chunkVisible, BALCONY_TEXT_X, y, DIRECT_SPEECH_TEXT_COLOR, DIRECT_SPEECH_SHADOW_COLOR, DIRECT_SPEECH_SHADOW_OFFSET);
+      }
     }
 
     this.ctx.restore();
