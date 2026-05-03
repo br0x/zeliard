@@ -19,6 +19,7 @@ const INTRO_DEMON_FINAL_SRC     = 'assets/images/opdemo/demon.png';
 const INTRO_STONED_SRC          = 'assets/images/opdemo/stoned.png';
 const INTRO_KING_PRINCESS_SRC   = 'assets/images/opdemo/king_princess.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
+const INTRO_DUKE_ARRIVED_SRC    = 'assets/images/opdemo/duke_arrived.png';
 const INTRO_DEMON_SRCS = [
   'assets/images/opdemo/dmaou0.png',
   'assets/images/opdemo/dmaou1.png',
@@ -189,6 +190,15 @@ const KING_SURPRISED_LINES = [
   'But the next day, a stranger appeared in the kingdom...',
 ];
 
+const DUKE_ARRIVED_LINES = [
+  '"What a desolate place!  Why has the Spirit led me here?"',
+  'Guided by the light of the Spirit, brave Duke Garland had journeyed many days to the land of Zeliard.',
+];
+
+const DUKE_ESCORTED_LINES = [
+  'Entering the castle, he was quickly escorted to the throne of the grieving King Felishika.'
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Timing & layout constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,7 +231,7 @@ const NEC_GEM_COORDS = [
 ];
 const DEMON_FRAME_DELAY_MS          = 500;
 const DEMON_SEQUENCE                = [0, 1, 0, 1, 2, 3];
-const DEMON_SPEECH_CHAR_DELAY_MS    = 45;
+const CHAR_DELAY_MS                 = 45;
 const DEMON_MOUTH_FRAME_DELAY_MS    = 120;
 const DEMON_SPEECH_FADE_OUT_MS      = 1000;
 const DEMON_SPEECH_AUTO_ADVANCE_MS  = 3000;
@@ -239,7 +249,6 @@ const BALCONY_TEXT_X                = 8;
 const BALCONY_TEXT_Y                = 290;
 const BALCONY_TEXT_MAX_WIDTH        = 624;  // canvas width (640) − 2 × BALCONY_TEXT_X
 const BALCONY_LINE_HEIGHT           = 20;
-const BALCONY_CHAR_DELAY_MS         = 45;
 const BALCONY_AUTO_ADVANCE_MS       = 3000;
 const CURTAIN_X1                    = 33;
 const CURTAIN_Y1                    = 33;
@@ -248,11 +257,7 @@ const CURTAIN_Y2                    = 239;
 const CURTAIN_COLOR                 = '#56040a';
 const CURTAIN_MS                    = 1000;
 const PRINCESS_CROSSFADE_MS         = 1000;
-const PRINCESS_VS_DEMON_CROSSFADE_MS = 2000;
-const DEMON_FINAL_CROSSFADE_MS      = 2000;
-const STONED_CROSSFADE_MS           = 2000;
-const KING_PRINCESS_CROSSFADE_MS    = 2000;
-const SPIRIT_CROSSFADE_MS           = 2000;
+const SCENE_CROSSFADE_MS            = 2000;
 
 // Text styling
 const DIRECT_SPEECH_TEXT_COLOR      = '#fbfbfb';
@@ -313,161 +318,161 @@ async function loadStoryFont() {
 function buildTimeline(images) {
   return [
     // ── 1. Logo ──────────────────────────────────────────────────────────────
-    {
-      type: 'fadeInImage',
-      image: images.logo,
-      fadeInMs: INTRO_FADE_IN_MS,
-      holdMs: 3000,
-      fadeOutMs: INTRO_FADE_OUT_MS,
-      // Extra overlay drawn on top of the image during this step
-      overlay: (ctx, canvas, opacity) => {
-        ctx.save();
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px "Press Start 2P", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const startY = 290, lineHeight = 20;
-        for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
-          ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
-        }
-        ctx.restore();
-      },
-      // Custom opacity curve: image starts at 0.18 and ramps to 1
-      opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
-    },
+    // {
+    //   type: 'fadeInImage',
+    //   image: images.logo,
+    //   fadeInMs: INTRO_FADE_IN_MS,
+    //   holdMs: 3000,
+    //   fadeOutMs: INTRO_FADE_OUT_MS,
+    //   // Extra overlay drawn on top of the image during this step
+    //   overlay: (ctx, canvas, opacity) => {
+    //     ctx.save();
+    //     ctx.globalAlpha = opacity;
+    //     ctx.fillStyle = '#fff';
+    //     ctx.font = '16px "Press Start 2P", monospace';
+    //     ctx.textAlign = 'center';
+    //     ctx.textBaseline = 'top';
+    //     const startY = 290, lineHeight = 20;
+    //     for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
+    //       ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
+    //     }
+    //     ctx.restore();
+    //   },
+    //   // Custom opacity curve: image starts at 0.18 and ramps to 1
+    //   opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
+    // },
 
     // ── 2. Story scroll (nec → nec_gold crossfade) ───────────────────────────
-    {
-      type: 'scrollText',
-      backgroundImage: images.nec,
-      crossfadeImage: images.necGold,
-      textCanvas: null,          // built at runtime; see buildStepState()
-      imagefadeInMs: STORY_IMAGE_FADE_IN_MS,
-      crossfadeMs: STORY_CROSSFADE_MS,
-      startY: STORY_START_Y,
-      scrollSpeed: STORY_SCROLL_SPEED,
-    },
+    // {
+    //   type: 'scrollText',
+    //   backgroundImage: images.nec,
+    //   crossfadeImage: images.necGold,
+    //   textCanvas: null,          // built at runtime; see buildStepState()
+    //   imagefadeInMs: STORY_IMAGE_FADE_IN_MS,
+    //   crossfadeMs: STORY_CROSSFADE_MS,
+    //   startY: STORY_START_Y,
+    //   scrollSpeed: STORY_SCROLL_SPEED,
+    // },
 
-    // ── 3. Broken necklace + gem explosion ───────────────────────────────────
-    {
-      type: 'gemExplosion',
-      goldImage: images.necGold,
-      brokenImage: images.necBroken,
-      blueGemImage: images.blueGem,
-      redGemImage: images.redGem,
-      gemCoords: NEC_GEM_COORDS,
-      explosionCenter: NEC_GEM_EXPLOSION_CENTER,
-      flashInMs: NEC_FLASH_IN_MS,
-      flashOutMs: NEC_FLASH_OUT_MS,
-      explodeMs: NEC_GEM_EXPLODE_MS,
-      fadeOutMs: NEC_BROKEN_FADE_OUT_MS,
-      autoAdvanceMs: NEC_BROKEN_AUTO_ADVANCE_MS,
-    },
+    // // ── 3. Broken necklace + gem explosion ───────────────────────────────────
+    // {
+    //   type: 'gemExplosion',
+    //   goldImage: images.necGold,
+    //   brokenImage: images.necBroken,
+    //   blueGemImage: images.blueGem,
+    //   redGemImage: images.redGem,
+    //   gemCoords: NEC_GEM_COORDS,
+    //   explosionCenter: NEC_GEM_EXPLOSION_CENTER,
+    //   flashInMs: NEC_FLASH_IN_MS,
+    //   flashOutMs: NEC_FLASH_OUT_MS,
+    //   explodeMs: NEC_GEM_EXPLODE_MS,
+    //   fadeOutMs: NEC_BROKEN_FADE_OUT_MS,
+    //   autoAdvanceMs: NEC_BROKEN_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 4. Demon entrance animation ──────────────────────────────────────────
-    {
-      type: 'spriteAnim',
-      frames: images.demonFrames,
-      sequence: DEMON_SEQUENCE,
-      frameDelayMs: DEMON_FRAME_DELAY_MS,
-    },
+    // // ── 4. Demon entrance animation ──────────────────────────────────────────
+    // {
+    //   type: 'spriteAnim',
+    //   frames: images.demonFrames,
+    //   sequence: DEMON_SEQUENCE,
+    //   frameDelayMs: DEMON_FRAME_DELAY_MS,
+    // },
 
-    // ── 5. Demon speech ──────────────────────────────────────────────────────
-    {
-      type: 'typeText',
-      lines: DEMON_SPEECH_LINES,
-      // Mouth animation while speaking; idle frame when done
-      getImage: (elapsed, charsDone, totalChars) => {
-        if (charsDone >= totalChars) return images.demonFrames[3];
-        return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
-      },
-      font: DEMON_SPEECH_FONT,
-      textAlign: 'center',
-      textX: (canvas) => canvas.width / 2,
-      startY: DEMON_SPEECH_START_Y,
-      lineHeight: DEMON_SPEECH_LINE_HEIGHT,
-      charDelayMs: DEMON_SPEECH_CHAR_DELAY_MS,
-      autoAdvanceMs: DEMON_SPEECH_AUTO_ADVANCE_MS,
-      fadeOutMs: DEMON_SPEECH_FADE_OUT_MS,
-      textColor: DIRECT_SPEECH_TEXT_COLOR,
-      shadowColor: DIRECT_SPEECH_SHADOW_COLOR,
-      shadowOffset: DIRECT_SPEECH_SHADOW_OFFSET,
-    },
+    // // ── 5. Demon speech ──────────────────────────────────────────────────────
+    // {
+    //   type: 'typeText',
+    //   lines: DEMON_SPEECH_LINES,
+    //   // Mouth animation while speaking; idle frame when done
+    //   getImage: (elapsed, charsDone, totalChars) => {
+    //     if (charsDone >= totalChars) return images.demonFrames[3];
+    //     return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
+    //   },
+    //   font: DEMON_SPEECH_FONT,
+    //   textAlign: 'center',
+    //   textX: (canvas) => canvas.width / 2,
+    //   startY: DEMON_SPEECH_START_Y,
+    //   lineHeight: DEMON_SPEECH_LINE_HEIGHT,
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: DEMON_SPEECH_AUTO_ADVANCE_MS,
+    //   fadeOutMs: DEMON_SPEECH_FADE_OUT_MS,
+    //   textColor: DIRECT_SPEECH_TEXT_COLOR,
+    //   shadowColor: DIRECT_SPEECH_SHADOW_COLOR,
+    //   shadowOffset: DIRECT_SPEECH_SHADOW_OFFSET,
+    // },
 
-    // ── 6. Necklace layers ───────────────────────────────────────────────────
-    {
-      type: 'layeredFadeIn',
-      layers: [
-        { image: images.necklace,   delayMs: 0 },
-        { image: images.logoTransp, delayMs: NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS },
-        { image: images.panno,      delayMs: NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2 },
-      ],
-      eachFadeInMs: NECKLACE_FADE_IN_MS,
-      holdAfterMs: 2000,
-      fadeOutMs: NECKLACE_FADE_OUT_MS,
-    },
+    // // ── 6. Necklace layers ───────────────────────────────────────────────────
+    // {
+    //   type: 'layeredFadeIn',
+    //   layers: [
+    //     { image: images.necklace,   delayMs: 0 },
+    //     { image: images.logoTransp, delayMs: NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS },
+    //     { image: images.panno,      delayMs: NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2 },
+    //   ],
+    //   eachFadeInMs: NECKLACE_FADE_IN_MS,
+    //   holdAfterMs: 2000,
+    //   fadeOutMs: NECKLACE_FADE_OUT_MS,
+    // },
 
-    // ── 7. Credits scroll ────────────────────────────────────────────────────
-    {
-      type: 'scrollText',
-      backgroundImage: null,        // black background
-      crossfadeImage: null,
-      textCanvas: null,             // built at runtime
-      imagefadeInMs: 0,
-      crossfadeMs: 0,
-      startY: CREDITS_START_Y,
-      scrollSpeed: CREDITS_SCROLL_SPEED,
-      isCredits: true,              // different font / alignment
-    },
+    // // ── 7. Credits scroll ────────────────────────────────────────────────────
+    // {
+    //   type: 'scrollText',
+    //   backgroundImage: null,        // black background
+    //   crossfadeImage: null,
+    //   textCanvas: null,             // built at runtime
+    //   imagefadeInMs: 0,
+    //   crossfadeMs: 0,
+    //   startY: CREDITS_START_Y,
+    //   scrollSpeed: CREDITS_SCROLL_SPEED,
+    //   isCredits: true,              // different font / alignment
+    // },
 
-    // ── 8. Balcony (2 parts, curtain + crossfade between them) ───────────────
-    {
-      type: 'balcony',
-      part1: {
-        image: images.balcony,
-        lines: BALCONY_LINES_PART1,
-      },
-      part2: {
-        image: images.balconySand,
-        lines: BALCONY_LINES_PART2,
-      },
-      fadeInMs: BALCONY_FADE_IN_MS,
-      crossfadeMs: BALCONY_CROSSFADE_MS,
-      charDelayMs: BALCONY_CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 8. Balcony (2 parts, curtain + crossfade between them) ───────────────
+    // {
+    //   type: 'balcony',
+    //   part1: {
+    //     image: images.balcony,
+    //     lines: BALCONY_LINES_PART1,
+    //   },
+    //   part2: {
+    //     image: images.balconySand,
+    //     lines: BALCONY_LINES_PART2,
+    //   },
+    //   fadeInMs: BALCONY_FADE_IN_MS,
+    //   crossfadeMs: BALCONY_CROSSFADE_MS,
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 9. Princess / Demon confrontation (3 sub-scenes) ─────────────────────
-    {
-      type: 'typedScene',
-      // Sub-scene 1 starts with curtain-close + sand→princess crossfade
-      curtainImage: images.balconySand,
-      curtainMs: CURTAIN_MS,
-      curtainCrossfadeMs: PRINCESS_CROSSFADE_MS,
-      subScenes: [
-        {
-          image: images.princess,
-          lines: PRINCESS_DEMON_LINES,
-          crossfadeMs: PRINCESS_VS_DEMON_CROSSFADE_MS,
-          textStyle: 'normal',
-        },
-        {
-          image: images.princessVsDemon,
-          lines: PRINCESS_VS_DEMON_LINES,
-          crossfadeMs: DEMON_FINAL_CROSSFADE_MS,
-          textStyle: 'jashiin',   // Jashiin lines use yellow/red colours
-        },
-        {
-          image: images.demonFinal,
-          lines: DEMON_FINAL_LINES,
-          crossfadeMs: 0,
-          textStyle: 'jashiin',
-        },
-      ],
-      charDelayMs: BALCONY_CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 9. Princess / Demon confrontation (3 sub-scenes) ─────────────────────
+    // {
+    //   type: 'typedScene',
+    //   // Sub-scene 1 starts with curtain-close + sand→princess crossfade
+    //   curtainImage: images.balconySand,
+    //   curtainMs: CURTAIN_MS,
+    //   curtainCrossfadeMs: PRINCESS_CROSSFADE_MS,
+    //   subScenes: [
+    //     {
+    //       image: images.princess,
+    //       lines: PRINCESS_DEMON_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'normal',
+    //     },
+    //     {
+    //       image: images.princessVsDemon,
+    //       lines: PRINCESS_VS_DEMON_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'jashiin',   // Jashiin lines use yellow/red colours
+    //     },
+    //     {
+    //       image: images.demonFinal,
+    //       lines: DEMON_FINAL_LINES,
+    //       crossfadeMs: 0,
+    //       textStyle: 'jashiin',
+    //     },
+    //   ],
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
     // ── 10. Stoned / King / Spirit (sub-scenes + curtain) ────────────────────
     {
@@ -478,18 +483,18 @@ function buildTimeline(images) {
       // The entry to this step crossfades from demonFinal → stoned before any text
       entryFromImage: images.demonFinal,
       entryToImage:   images.stoned,
-      entryCrossfadeMs: STONED_CROSSFADE_MS,
+      entryCrossfadeMs: SCENE_CROSSFADE_MS,
       subScenes: [
         {
           image: images.stoned,
           lines: STONED_LINES,
-          crossfadeMs: KING_PRINCESS_CROSSFADE_MS,
+          crossfadeMs: SCENE_CROSSFADE_MS,
           textStyle: 'normal',
         },
         {
           image: images.kingPrincess,
           lines: KING_PRINCESS_LINES,
-          crossfadeMs: SPIRIT_CROSSFADE_MS,
+          crossfadeMs: SCENE_CROSSFADE_MS,
           textStyle: 'normal',
         },
         {
@@ -500,7 +505,31 @@ function buildTimeline(images) {
           textStyle: 'normal',
         },
       ],
-      charDelayMs: BALCONY_CHAR_DELAY_MS,
+      charDelayMs: CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+
+    // ── 11. Duke arrival at the town (sub-scenes + curtain) ────────────────────
+    {
+      type: 'typedScene',
+      curtainImage: images.spirit,
+      curtainMs: 0,
+      curtainCrossfadeMs: 0,
+      // The entry to this step crossfades from spirit + curtain → dukeArrival before any text
+      entryFromImage: images.spirit,
+      entryToImage:   images.dukeArrival,
+      entryCrossfadeMs: SCENE_CROSSFADE_MS,
+      subScenes: [
+        {
+          image: images.dukeArrival,
+          lines: DUKE_ARRIVED_LINES,
+          crossfadeMs: SCENE_CROSSFADE_MS,
+          curtainAfter: true,
+          curtainLines: DUKE_ESCORTED_LINES,
+          textStyle: 'normal',
+        },
+      ],
+      charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
     },
   ];
@@ -573,6 +602,7 @@ export class OpeningIntro {
       balcony, balconySand, princess,
       princessVsDemon, demonFinal,
       stoned, kingPrincess, spirit,
+      dukeArrival,
       ...rest
     ] = await Promise.all([
       loadImage(INTRO_LOGO_SRC),
@@ -592,6 +622,7 @@ export class OpeningIntro {
       loadImage(INTRO_STONED_SRC),
       loadImage(INTRO_KING_PRINCESS_SRC),
       loadImage(INTRO_SPIRIT_SRC),
+      loadImage(INTRO_DUKE_ARRIVED_SRC),
       ...INTRO_DEMON_SRCS.map(loadImage),
       loadStoryFont(),
     ]);
@@ -604,6 +635,7 @@ export class OpeningIntro {
       balcony, balconySand, princess,
       princessVsDemon, demonFinal,
       stoned, kingPrincess, spirit,
+      dukeArrival,
       demonFrames,
     };
   }
@@ -1300,7 +1332,7 @@ export class OpeningIntro {
           s.lineStartTime      = ts;
           s.lineFullyTypedTime = 0;
         } else {
-          this.finish();
+          this._nextStep(); // FIX ME: it should leave curtain closed and advance to next step
         }
       }
     }
@@ -1350,7 +1382,7 @@ export class OpeningIntro {
 
     const elapsed      = ts - s.lineStartTime;
     const visibleCount = Math.min(
-      Math.floor(Math.max(elapsed, 0) / BALCONY_CHAR_DELAY_MS),
+      Math.floor(Math.max(elapsed, 0) / CHAR_DELAY_MS),
       line.length,
     );
 
