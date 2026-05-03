@@ -519,6 +519,7 @@ function buildTimeline(images) {
       entryFromImage: images.spirit,
       entryToImage:   images.dukeArrival,
       entryCrossfadeMs: SCENE_CROSSFADE_MS,
+      entryWithCurtain: true,
       subScenes: [
         {
           image: images.dukeArrival,
@@ -707,6 +708,7 @@ export class OpeningIntro {
         lineIndex: 0,
         lineStartTime: 0,
         lineFullyTypedTime: 0,
+        crossfadeDuration: 0,
       };
     }
 
@@ -1131,7 +1133,9 @@ export class OpeningIntro {
     this.ctx.save();
     this.ctx.globalAlpha = 1 - progress;
     this.ctx.drawImage(step.entryFromImage, 0, 0);
-    this._drawCurtainClose(1, step.entryFromImage); // Keep curtain fully closed during fade
+    if (step.entryWithCurtain) {
+        this._drawCurtainClose(1, step.entryFromImage);
+    }
     this.ctx.restore();
 
     this.ctx.save();
@@ -1190,7 +1194,7 @@ export class OpeningIntro {
     const prevSub  = step.subScenes[s.subSceneIndex - 1];
     const outImage = prevSub?.image ?? sub.image;
     const inImage  = sub.image;
-    const cfMs     = sub.crossfadeMs || 1;
+    const cfMs     = s.crossfadeDuration || 1;   // ← use stored duration, not sub.crossfadeMs
     const progress = Math.min((ts - s.crossfadeStartTime) / cfMs, 1);
 
     this._clearBlack();
@@ -1270,6 +1274,7 @@ export class OpeningIntro {
       return;
     }
 
+    const outgoingSub = sub;               // ← capture before index change
     const isLastSubScene = s.subSceneIndex >= step.subScenes.length - 1;
     if (isLastSubScene) {
       this._nextStep();
@@ -1282,12 +1287,13 @@ export class OpeningIntro {
     s.lineStartTime      = 0;
     s.lineFullyTypedTime = 0;
 
-    const nextSub = step.subScenes[s.subSceneIndex];
-    if (nextSub.crossfadeMs > 0) {
+    if (outgoingSub.crossfadeMs > 0) {     // ← use outgoing scene's crossfade duration
       s.crossfadeStartTime = ts;
+      s.crossfadeDuration  = outgoingSub.crossfadeMs;
       s.phase              = 'crossfade';
     } else {
       s.crossfadeStartTime = 0;
+      s.crossfadeDuration  = 0;
       s.phase              = 'text';
     }
   }
