@@ -20,6 +20,12 @@ const INTRO_STONED_SRC          = 'assets/images/opdemo/stoned.png';
 const INTRO_KING_PRINCESS_SRC   = 'assets/images/opdemo/king_princess.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 const INTRO_DUKE_ARRIVED_SRC    = 'assets/images/opdemo/duke_arrived.png';
+const INTRO_TEMPLATE2_SRC       = 'assets/images/opdemo/template2.png';
+const INTRO_DUKE0_SRC           = 'assets/images/opdemo/duke0.png';
+const INTRO_DUKE1_SRC           = 'assets/images/opdemo/duke1.png';
+const INTRO_DUKE2_SRC           = 'assets/images/opdemo/duke2.png';
+const INTRO_KING0_SRC           = 'assets/images/opdemo/king0.png';
+const INTRO_KING1_SRC           = 'assets/images/opdemo/king1.png';
 const INTRO_DEMON_SRCS = [
   'assets/images/opdemo/dmaou0.png',
   'assets/images/opdemo/dmaou1.png',
@@ -533,6 +539,51 @@ function buildTimeline(images) {
       charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
     },
+
+    // ── 12. King & Duke dialogue ─────────────────────────────────
+    {
+      type: 'dualDialogue',
+      fadeInMs: 1000,                        // cross‑fade from black after curtain
+      background: images.template2,
+      characters: {
+        duke: {
+          closedImage: images.duke0,
+          mouthSequence: [1, 0, 0, 2, 0, 1, 0, 0],          // half‑open → open → half‑open
+          mouthImages: [images.duke0, images.duke1, images.duke2],
+          x: 94, y: 45,
+        },
+        king: {
+          closedImage: images.king0,
+          mouthSequence: [1, 0, 0, 1, 0, 1, 0, 0],             // 1 = open (king1), 0 = closed (king0)
+          mouthImages: [images.king0, images.king1],
+          x: 366,  y: 45,
+        },
+      },
+      mouthFrameDelayMs: 150,
+      script: [
+        {
+          speaker: 'king',
+          lines: [
+            '"Duke Garland!  You must be the man of destiny of whom the Spirit spoke.  I beg of you to destroy the demon Jashiin who has cursed my kingdom and turned my beloved daughter to stone."'
+          ],
+        },
+        {
+          speaker: 'duke',
+          lines: [
+            'Duke Garland knelt before the King.  "Your Majesty, I have followed the light of the Spirit to this place."',
+            '"I know not of this demon, nor what powers he may possess, but if there is none else who can defeat him, then I will dedicate my life to this task."'
+          ],
+        },
+        {
+          speaker: 'king',
+          lines: [
+            '"For the first time since the sandstorm began, you have brought hope into my heart, Duke Garland.  May God go with you on your quest."'
+          ],
+        },
+      ],
+      charDelayMs: CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
   ];
 }
 
@@ -604,6 +655,7 @@ export class OpeningIntro {
       princessVsDemon, demonFinal,
       stoned, kingPrincess, spirit,
       dukeArrival,
+      template2, duke0, duke1, duke2, king0, king1,
       ...rest
     ] = await Promise.all([
       loadImage(INTRO_LOGO_SRC),
@@ -624,6 +676,12 @@ export class OpeningIntro {
       loadImage(INTRO_KING_PRINCESS_SRC),
       loadImage(INTRO_SPIRIT_SRC),
       loadImage(INTRO_DUKE_ARRIVED_SRC),
+      loadImage(INTRO_TEMPLATE2_SRC),
+      loadImage(INTRO_DUKE0_SRC),
+      loadImage(INTRO_DUKE1_SRC),
+      loadImage(INTRO_DUKE2_SRC),
+      loadImage(INTRO_KING0_SRC),
+      loadImage(INTRO_KING1_SRC),
       ...INTRO_DEMON_SRCS.map(loadImage),
       loadStoryFont(),
     ]);
@@ -637,6 +695,7 @@ export class OpeningIntro {
       princessVsDemon, demonFinal,
       stoned, kingPrincess, spirit,
       dukeArrival,
+      template2, duke0, duke1, duke2, king0, king1,
       demonFrames,
     };
   }
@@ -712,6 +771,17 @@ export class OpeningIntro {
       };
     }
 
+    if (step.type === 'dualDialogue') {
+      return {
+        ...base,
+        fadeInStartTime: 0,          // will be set later
+        scriptIndex: 0,
+        lineIndex: 0,
+        lineStartTime: 0,
+        lineFullyTypedTime: 0,
+      };
+    }    
+
     return base;
   }
 
@@ -744,6 +814,7 @@ export class OpeningIntro {
       case 'layeredFadeIn':  return this._drawLayeredFadeIn(step, s, ts);
       case 'balcony':        return this._drawBalcony(step, s, ts);
       case 'typedScene':     return this._drawTypedScene(step, s, ts);
+      case 'dualDialogue':   return this._drawDualDialogue(step, s, ts);
     }
   }
 
@@ -786,6 +857,10 @@ export class OpeningIntro {
 
       case 'typedScene':
         this._advanceTypedSceneLine(step, s, performance.now());
+        break;
+
+      case 'dualDialogue':
+        this._advanceDualDialogueLine(step, s, performance.now());
         break;
     }
   }
@@ -1345,6 +1420,113 @@ export class OpeningIntro {
           this._nextStep();
         }
       }
+    }
+  }
+
+  _drawDualDialogue(step, s, ts) {
+    // ── Fade in ────────────────────────────────────────────────────────────
+    const elapsed   = ts - s.startTime;
+    const fadeProg  = Math.min(elapsed / step.fadeInMs, 1);
+
+    // ── Composite scene on a temp canvas to respect globalAlpha ─────────────
+    const off = this._makeOffscreen();
+    const offCtx = off.getContext('2d');
+    offCtx.imageSmoothingEnabled = false;
+
+    // 1. Background
+    offCtx.drawImage(step.background, 0, 0);
+
+    // 2. Characters
+    const scriptItem = step.script[s.scriptIndex];
+    const speaker    = scriptItem?.speaker;
+
+    for (const [name, char] of Object.entries(step.characters)) {
+      const isSpeaking = speaker === name && scriptItem;  // only animate if it's their turn
+      let img = char.closedImage;
+
+      if (isSpeaking) {
+        // Determine if still typing or in hold phase
+        const lines   = scriptItem.lines;
+        const line    = lines[s.lineIndex] ?? '';
+        const lineElapsed = s.lineStartTime ? ts - s.lineStartTime : 0;
+        const fullyTyped  = lineElapsed >= line.length * step.charDelayMs;
+
+        if (!fullyTyped || (s.lineFullyTypedTime && ts - s.lineFullyTypedTime < step.autoAdvanceMs)) {
+          // Animate mouth
+          const frameIdx = char.mouthSequence[Math.floor((elapsed / step.mouthFrameDelayMs) % char.mouthSequence.length)];
+          img = char.mouthImages[frameIdx];
+        }
+        // else closed mouth (will use closedImage)
+      }
+
+      offCtx.drawImage(img, char.x, char.y, 180, 180);
+    }
+
+    // 3. Draw the composite scene with fade opacity
+    this._clearBlack();
+    this.ctx.save();
+    this.ctx.globalAlpha = fadeProg;
+    this.ctx.drawImage(off, 0, 0);
+    this.ctx.restore();
+
+    // 4. Text (only after fade completes)
+    if (fadeProg >= 1 && scriptItem) {
+      if (!s.lineStartTime) s.lineStartTime = ts;   // start typing on first fully visible frame
+      this._drawBalconyText(scriptItem.lines, s, ts, 'normal');
+      this._autoAdvanceDualDialogue(step, s, scriptItem, ts);
+    }
+  }
+
+  _autoAdvanceDualDialogue(step, s, scriptItem, ts) {
+    const lines       = scriptItem.lines;
+    const line        = lines[s.lineIndex] ?? '';
+    const elapsed     = ts - s.lineStartTime;
+    const fullyTyped  = elapsed >= line.length * step.charDelayMs;
+
+    if (!fullyTyped) { s.lineFullyTypedTime = 0; return; }
+
+    if (!s.lineFullyTypedTime) {
+      s.lineFullyTypedTime = ts;
+    } else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
+      this._advanceDualDialogueLine(step, s, ts);
+    }
+  }
+
+  _advanceDualDialogueLine(step, s, ts) {
+    const scriptItem = step.script[s.scriptIndex];
+    if (!scriptItem) {
+      this.finish();
+      return;
+    }
+
+    const lines = scriptItem.lines;
+    const line  = lines[s.lineIndex] ?? '';
+    const elapsed = ts - (s.lineStartTime || ts);
+    const fullyTyped = !line || elapsed >= line.length * step.charDelayMs;
+
+    // Snap to fully typed if not yet
+    if (!fullyTyped) {
+      s.lineStartTime      = ts - line.length * step.charDelayMs;
+      s.lineFullyTypedTime = ts;
+      return;
+    }
+
+    // Advance line within current script item
+    if (s.lineIndex < lines.length - 1) {
+      s.lineIndex++;
+      s.lineStartTime      = ts;
+      s.lineFullyTypedTime = 0;
+      return;
+    }
+
+    // Move to next script item (or finish)
+    if (s.scriptIndex < step.script.length - 1) {
+      s.scriptIndex++;
+      s.lineIndex         = 0;
+      s.lineStartTime     = ts;
+      s.lineFullyTypedTime = 0;
+    } else {
+      this.finish();   // final scene — intro complete
     }
   }
 
