@@ -755,14 +755,14 @@ export class OpeningIntro {
 
       case 'scrollText':
         if (step.crossfadeMs && !s.crossfadeStartTime) {
-          s.crossfadeStartTime = performance.now();
+          s.crossfadeStartTime = performance.now() - (step.crossfadeMs - 500); 
         } else if (!step.crossfadeMs) {
           this._nextStep();
-        }
+        }        
         break;
 
       case 'gemExplosion':
-        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
+        this._nextStep();
         break;
 
       case 'spriteAnim':
