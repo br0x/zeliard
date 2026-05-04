@@ -66,8 +66,8 @@ async function loadWasmEngine() {
 }
 
         // --- Engine Configuration ---
-const TILE_WIDTH = 20;
-const TILE_HEIGHT = 20;
+const TILE_WIDTH = 24;
+const TILE_HEIGHT = 24;
 const VIEW_COLS = 28;
 const VIEW_ROWS = 18;
 
