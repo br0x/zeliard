@@ -836,9 +836,23 @@ export class OpeningIntro {
 
   skipPage() {
     if (!this.active) return;
-    const step = this.timeline[this.stepIndex];
-    if (!step) return;
-    this._skipStep(step, this.stepState);
+
+    const idx = this.stepIndex;
+
+    // Before Scene 7 (Credits) → jump straight to the Credits scene
+    if (idx < 6) {
+        this.stepIndex = 6;
+        this._enterStep(6);
+    }
+    // Currently on Scene 7 (Credits) → skip to Scene 8 (Balcony)
+    else if (idx === 6) {
+        this.stepIndex = 7;
+        this._enterStep(7);
+    }
+    // From Scene 8 onward → finish the entire intro
+    else {
+        this.finish();
+    }
   }
 
   finish() {
