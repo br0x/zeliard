@@ -26,6 +26,9 @@ const INTRO_DUKE1_SRC           = 'assets/images/opdemo/duke1.png';
 const INTRO_DUKE2_SRC           = 'assets/images/opdemo/duke2.png';
 const INTRO_KING0_SRC           = 'assets/images/opdemo/king0.png';
 const INTRO_KING1_SRC           = 'assets/images/opdemo/king1.png';
+const INTRO_TEMPLATE0_SRC       = 'assets/images/opdemo/template0.png';
+const INTRO_TEMPLATE1_SRC       = 'assets/images/opdemo/template1.png';
+const INTRO_JASHIIN_SRC         = 'assets/images/opdemo/jashiin.png';
 const INTRO_DEMON_SRCS = [
   'assets/images/opdemo/dmaou0.png',
   'assets/images/opdemo/dmaou1.png',
@@ -205,6 +208,19 @@ const DUKE_ESCORTED_LINES = [
   'Entering the castle, he was quickly escorted to the throne of the grieving King Felishika.'
 ];
 
+const KING_DUKE_LINES1 = [
+  '"Duke Garland!  You must be the man of destiny of whom the Spirit spoke.  I beg of you to destroy the demon Jashiin who has cursed my kingdom and turned my beloved daughter to stone."'
+];
+
+const KING_DUKE_LINES2 = [
+  'Duke Garland knelt before the King.  "Your Majesty, I have followed the light of the Spirit to this place."',
+  '"I know not of this demon, nor what powers he may possess, but if there is none else who can defeat him, then I will dedicate my life to this task."'
+];
+
+const KING_DUKE_LINES3 = [
+  '"For the first time since the sandstorm began, you have brought hope into my heart, Duke Garland.  May God go with you on your quest."'
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Timing & layout constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,6 +280,38 @@ const CURTAIN_COLOR                 = '#56040a';
 const CURTAIN_MS                    = 1000;
 const PRINCESS_CROSSFADE_MS         = 1000;
 const SCENE_CROSSFADE_MS            = 2000;
+// ── Window border colours (used in expandWindow line-drawing) ──────────────
+const WIN_TOP_COLORS    =      [
+  '#51060a',
+  '#593e26',
+  '#e8d597',
+  '#b49555',
+  '#8c6e3d',
+]; // y=44..40
+const WIN_LEFT_COLORS   =      [
+  '#4d0808',
+  '#5a2f18',
+  '#f0d591',
+  '#c0a158',
+  '#96753c',
+]; // x=160..156
+const WIN_BOTTOM_COLORS =      ['#edd589','#a27e3c','#7a5026','#410407','#51060a']; // y=225..229
+const WIN_BOTTOM_OUTER_FIRST = ['#51060a','#410407','#7a5026','#a27e3c','#edd589'];
+const WIN_BORDER_THICKNESS = 5;
+// Fixed window interior coordinates
+const WIN_INNER_LEFT_SMALL = 491;
+const WIN_INNER_LEFT_FULL  = 161;
+const WIN_INNER_TOP        = 45;
+const WIN_INNER_BOTTOM     = 224;
+const WIN_INNER_RIGHT      = 545;
+const WIN_JASHIIN_X        = 161;   // where Jashiin image is placed inside window
+const WIN_JASHIIN_Y        = 45;
+// Frame outer edges (where the border begins)
+const FRAME_TOP    = 40;
+const FRAME_BOTTOM = 229;
+// Left‑border outer edges for small / full window
+const FRAME_LEFT_SMALL = 491 - 5;   // 486
+const FRAME_LEFT_FULL  = 161 - 5;   // 156
 
 // Text styling
 const DIRECT_SPEECH_TEXT_COLOR      = '#fbfbfb';
@@ -323,222 +371,222 @@ async function loadStoryFont() {
 
 function buildTimeline(images) {
   return [
-    // ── 1. Logo ──────────────────────────────────────────────────────────────
-    {
-      type: 'fadeInImage',
-      image: images.logo,
-      fadeInMs: INTRO_FADE_IN_MS,
-      holdMs: 3000,
-      fadeOutMs: INTRO_FADE_OUT_MS,
-      // Extra overlay drawn on top of the image during this step
-      overlay: (ctx, canvas, opacity) => {
-        ctx.save();
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px "Press Start 2P", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const startY = 290, lineHeight = 20;
-        for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
-          ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
-        }
-        ctx.restore();
-      },
-      // Custom opacity curve: image starts at 0.18 and ramps to 1
-      opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
-    },
+    // // ── 1. Logo ──────────────────────────────────────────────────────────────
+    // {
+    //   type: 'fadeInImage',
+    //   image: images.logo,
+    //   fadeInMs: INTRO_FADE_IN_MS,
+    //   holdMs: 3000,
+    //   fadeOutMs: INTRO_FADE_OUT_MS,
+    //   // Extra overlay drawn on top of the image during this step
+    //   overlay: (ctx, canvas, opacity) => {
+    //     ctx.save();
+    //     ctx.globalAlpha = opacity;
+    //     ctx.fillStyle = '#fff';
+    //     ctx.font = '16px "Press Start 2P", monospace';
+    //     ctx.textAlign = 'center';
+    //     ctx.textBaseline = 'top';
+    //     const startY = 290, lineHeight = 20;
+    //     for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
+    //       ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
+    //     }
+    //     ctx.restore();
+    //   },
+    //   // Custom opacity curve: image starts at 0.18 and ramps to 1
+    //   opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
+    // },
 
-    // ── 2. Story scroll (nec → nec_gold crossfade) ───────────────────────────
-    {
-      type: 'scrollText',
-      backgroundImage: images.nec,
-      crossfadeImage: images.necGold,
-      textCanvas: null,          // built at runtime; see buildStepState()
-      imagefadeInMs: STORY_IMAGE_FADE_IN_MS,
-      crossfadeMs: STORY_CROSSFADE_MS,
-      startY: STORY_START_Y,
-      scrollSpeed: STORY_SCROLL_SPEED,
-    },
+    // // ── 2. Story scroll (nec → nec_gold crossfade) ───────────────────────────
+    // {
+    //   type: 'scrollText',
+    //   backgroundImage: images.nec,
+    //   crossfadeImage: images.necGold,
+    //   textCanvas: null,          // built at runtime; see buildStepState()
+    //   imagefadeInMs: STORY_IMAGE_FADE_IN_MS,
+    //   crossfadeMs: STORY_CROSSFADE_MS,
+    //   startY: STORY_START_Y,
+    //   scrollSpeed: STORY_SCROLL_SPEED,
+    // },
 
-    // ── 3. Broken necklace + gem explosion ───────────────────────────────────
-    {
-      type: 'gemExplosion',
-      goldImage: images.necGold,
-      brokenImage: images.necBroken,
-      blueGemImage: images.blueGem,
-      redGemImage: images.redGem,
-      gemCoords: NEC_GEM_COORDS,
-      explosionCenter: NEC_GEM_EXPLOSION_CENTER,
-      flashInMs: NEC_FLASH_IN_MS,
-      flashOutMs: NEC_FLASH_OUT_MS,
-      explodeMs: NEC_GEM_EXPLODE_MS,
-      fadeOutMs: NEC_BROKEN_FADE_OUT_MS,
-      autoAdvanceMs: NEC_BROKEN_AUTO_ADVANCE_MS,
-    },
+    // // ── 3. Broken necklace + gem explosion ───────────────────────────────────
+    // {
+    //   type: 'gemExplosion',
+    //   goldImage: images.necGold,
+    //   brokenImage: images.necBroken,
+    //   blueGemImage: images.blueGem,
+    //   redGemImage: images.redGem,
+    //   gemCoords: NEC_GEM_COORDS,
+    //   explosionCenter: NEC_GEM_EXPLOSION_CENTER,
+    //   flashInMs: NEC_FLASH_IN_MS,
+    //   flashOutMs: NEC_FLASH_OUT_MS,
+    //   explodeMs: NEC_GEM_EXPLODE_MS,
+    //   fadeOutMs: NEC_BROKEN_FADE_OUT_MS,
+    //   autoAdvanceMs: NEC_BROKEN_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 4. Demon entrance animation ──────────────────────────────────────────
-    {
-      type: 'spriteAnim',
-      frames: images.demonFrames,
-      sequence: DEMON_SEQUENCE,
-      frameDelayMs: DEMON_FRAME_DELAY_MS,
-    },
+    // // ── 4. Demon entrance animation ──────────────────────────────────────────
+    // {
+    //   type: 'spriteAnim',
+    //   frames: images.demonFrames,
+    //   sequence: DEMON_SEQUENCE,
+    //   frameDelayMs: DEMON_FRAME_DELAY_MS,
+    // },
 
-    // ── 5. Demon speech ──────────────────────────────────────────────────────
-    {
-      type: 'typeText',
-      lines: DEMON_SPEECH_LINES,
-      // Mouth animation while speaking; idle frame when done
-      getImage: (elapsed, charsDone, totalChars) => {
-        if (charsDone >= totalChars) return images.demonFrames[3];
-        return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
-      },
-      font: DEMON_SPEECH_FONT,
-      textAlign: 'center',
-      textX: (canvas) => canvas.width / 2,
-      startY: DEMON_SPEECH_START_Y,
-      lineHeight: DEMON_SPEECH_LINE_HEIGHT,
-      charDelayMs: CHAR_DELAY_MS,
-      autoAdvanceMs: DEMON_SPEECH_AUTO_ADVANCE_MS,
-      fadeOutMs: DEMON_SPEECH_FADE_OUT_MS,
-      textColor: DIRECT_SPEECH_TEXT_COLOR,
-      shadowColor: DIRECT_SPEECH_SHADOW_COLOR,
-      shadowOffset: DIRECT_SPEECH_SHADOW_OFFSET,
-    },
+    // // ── 5. Demon speech ──────────────────────────────────────────────────────
+    // {
+    //   type: 'typeText',
+    //   lines: DEMON_SPEECH_LINES,
+    //   // Mouth animation while speaking; idle frame when done
+    //   getImage: (elapsed, charsDone, totalChars) => {
+    //     if (charsDone >= totalChars) return images.demonFrames[3];
+    //     return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
+    //   },
+    //   font: DEMON_SPEECH_FONT,
+    //   textAlign: 'center',
+    //   textX: (canvas) => canvas.width / 2,
+    //   startY: DEMON_SPEECH_START_Y,
+    //   lineHeight: DEMON_SPEECH_LINE_HEIGHT,
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: DEMON_SPEECH_AUTO_ADVANCE_MS,
+    //   fadeOutMs: DEMON_SPEECH_FADE_OUT_MS,
+    //   textColor: DIRECT_SPEECH_TEXT_COLOR,
+    //   shadowColor: DIRECT_SPEECH_SHADOW_COLOR,
+    //   shadowOffset: DIRECT_SPEECH_SHADOW_OFFSET,
+    // },
 
-    // ── 6. Necklace layers ───────────────────────────────────────────────────
-    {
-      type: 'layeredFadeIn',
-      layers: [
-        { image: images.necklace,   delayMs: 0 },
-        { image: images.logoTransp, delayMs: NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS },
-        { image: images.panno,      delayMs: NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2 },
-      ],
-      eachFadeInMs: NECKLACE_FADE_IN_MS,
-      holdAfterMs: 2000,
-      fadeOutMs: NECKLACE_FADE_OUT_MS,
-    },
+    // // ── 6. Necklace layers ───────────────────────────────────────────────────
+    // {
+    //   type: 'layeredFadeIn',
+    //   layers: [
+    //     { image: images.necklace,   delayMs: 0 },
+    //     { image: images.logoTransp, delayMs: NECKLACE_FADE_IN_MS + NECKLACE_LAYER_DELAY_MS },
+    //     { image: images.panno,      delayMs: NECKLACE_FADE_IN_MS * 2 + NECKLACE_LAYER_DELAY_MS * 2 },
+    //   ],
+    //   eachFadeInMs: NECKLACE_FADE_IN_MS,
+    //   holdAfterMs: 2000,
+    //   fadeOutMs: NECKLACE_FADE_OUT_MS,
+    // },
 
-    // ── 7. Credits scroll ────────────────────────────────────────────────────
-    {
-      type: 'scrollText',
-      backgroundImage: null,        // black background
-      crossfadeImage: null,
-      textCanvas: null,             // built at runtime
-      imagefadeInMs: 0,
-      crossfadeMs: 0,
-      startY: CREDITS_START_Y,
-      scrollSpeed: CREDITS_SCROLL_SPEED,
-      isCredits: true,              // different font / alignment
-    },
+    // // ── 7. Credits scroll ────────────────────────────────────────────────────
+    // {
+    //   type: 'scrollText',
+    //   backgroundImage: null,        // black background
+    //   crossfadeImage: null,
+    //   textCanvas: null,             // built at runtime
+    //   imagefadeInMs: 0,
+    //   crossfadeMs: 0,
+    //   startY: CREDITS_START_Y,
+    //   scrollSpeed: CREDITS_SCROLL_SPEED,
+    //   isCredits: true,              // different font / alignment
+    // },
 
-    // ── 8. Balcony (2 parts, curtain + crossfade between them) ───────────────
-    {
-      type: 'balcony',
-      part1: {
-        image: images.balcony,
-        lines: BALCONY_LINES_PART1,
-      },
-      part2: {
-        image: images.balconySand,
-        lines: BALCONY_LINES_PART2,
-      },
-      fadeInMs: BALCONY_FADE_IN_MS,
-      crossfadeMs: BALCONY_CROSSFADE_MS,
-      charDelayMs: CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 8. Balcony (2 parts, curtain + crossfade between them) ───────────────
+    // {
+    //   type: 'balcony',
+    //   part1: {
+    //     image: images.balcony,
+    //     lines: BALCONY_LINES_PART1,
+    //   },
+    //   part2: {
+    //     image: images.balconySand,
+    //     lines: BALCONY_LINES_PART2,
+    //   },
+    //   fadeInMs: BALCONY_FADE_IN_MS,
+    //   crossfadeMs: BALCONY_CROSSFADE_MS,
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 9. Princess / Demon confrontation (3 sub-scenes) ─────────────────────
-    {
-      type: 'typedScene',
-      // Sub-scene 1 starts with curtain-close + sand→princess crossfade
-      curtainImage: images.balconySand,
-      curtainMs: CURTAIN_MS,
-      curtainCrossfadeMs: PRINCESS_CROSSFADE_MS,
-      subScenes: [
-        {
-          image: images.princess,
-          lines: PRINCESS_DEMON_LINES,
-          crossfadeMs: SCENE_CROSSFADE_MS,
-          textStyle: 'normal',
-        },
-        {
-          image: images.princessVsDemon,
-          lines: PRINCESS_VS_DEMON_LINES,
-          crossfadeMs: SCENE_CROSSFADE_MS,
-          textStyle: 'jashiin',   // Jashiin lines use yellow/red colours
-        },
-        {
-          image: images.demonFinal,
-          lines: DEMON_FINAL_LINES,
-          crossfadeMs: 0,
-          textStyle: 'jashiin',
-        },
-      ],
-      charDelayMs: CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 9. Princess / Demon confrontation (3 sub-scenes) ─────────────────────
+    // {
+    //   type: 'typedScene',
+    //   // Sub-scene 1 starts with curtain-close + sand→princess crossfade
+    //   curtainImage: images.balconySand,
+    //   curtainMs: CURTAIN_MS,
+    //   curtainCrossfadeMs: PRINCESS_CROSSFADE_MS,
+    //   subScenes: [
+    //     {
+    //       image: images.princess,
+    //       lines: PRINCESS_DEMON_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'normal',
+    //     },
+    //     {
+    //       image: images.princessVsDemon,
+    //       lines: PRINCESS_VS_DEMON_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'jashiin',   // Jashiin lines use yellow/red colours
+    //     },
+    //     {
+    //       image: images.demonFinal,
+    //       lines: DEMON_FINAL_LINES,
+    //       crossfadeMs: 0,
+    //       textStyle: 'jashiin',
+    //     },
+    //   ],
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 10. Stoned / King / Spirit (sub-scenes + curtain) ────────────────────
-    {
-      type: 'typedScene',
-      curtainImage: null,
-      curtainMs: 0,
-      curtainCrossfadeMs: 0,
-      // The entry to this step crossfades from demonFinal → stoned before any text
-      entryFromImage: images.demonFinal,
-      entryToImage:   images.stoned,
-      entryCrossfadeMs: SCENE_CROSSFADE_MS,
-      subScenes: [
-        {
-          image: images.stoned,
-          lines: STONED_LINES,
-          crossfadeMs: SCENE_CROSSFADE_MS,
-          textStyle: 'normal',
-        },
-        {
-          image: images.kingPrincess,
-          lines: KING_PRINCESS_LINES,
-          crossfadeMs: SCENE_CROSSFADE_MS,
-          textStyle: 'normal',
-        },
-        {
-          image: images.spirit,
-          lines: SPIRIT_LINES,
-          curtainAfter: true,
-          curtainLines: KING_SURPRISED_LINES,
-          textStyle: 'normal',
-        },
-      ],
-      charDelayMs: CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 10. Stoned / King / Spirit (sub-scenes + curtain) ────────────────────
+    // {
+    //   type: 'typedScene',
+    //   curtainImage: null,
+    //   curtainMs: 0,
+    //   curtainCrossfadeMs: 0,
+    //   // The entry to this step crossfades from demonFinal → stoned before any text
+    //   entryFromImage: images.demonFinal,
+    //   entryToImage:   images.stoned,
+    //   entryCrossfadeMs: SCENE_CROSSFADE_MS,
+    //   subScenes: [
+    //     {
+    //       image: images.stoned,
+    //       lines: STONED_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'normal',
+    //     },
+    //     {
+    //       image: images.kingPrincess,
+    //       lines: KING_PRINCESS_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       textStyle: 'normal',
+    //     },
+    //     {
+    //       image: images.spirit,
+    //       lines: SPIRIT_LINES,
+    //       curtainAfter: true,
+    //       curtainLines: KING_SURPRISED_LINES,
+    //       textStyle: 'normal',
+    //     },
+    //   ],
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
-    // ── 11. Duke arrival at the town (sub-scenes + curtain) ────────────────────
-    {
-      type: 'typedScene',
-      curtainImage: null,
-      curtainMs: 0,
-      curtainCrossfadeMs: 0,
-      // The entry to this step crossfades from spirit + curtain → dukeArrival before any text
-      entryFromImage: images.spirit,
-      entryToImage:   images.dukeArrival,
-      entryCrossfadeMs: SCENE_CROSSFADE_MS,
-      entryWithCurtain: true,
-      subScenes: [
-        {
-          image: images.dukeArrival,
-          lines: DUKE_ARRIVED_LINES,
-          crossfadeMs: SCENE_CROSSFADE_MS,
-          curtainAfter: true,
-          curtainLines: DUKE_ESCORTED_LINES,
-          textStyle: 'normal',
-        },
-      ],
-      charDelayMs: CHAR_DELAY_MS,
-      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
-    },
+    // // ── 11. Duke arrival at the town (sub-scenes + curtain) ────────────────────
+    // {
+    //   type: 'typedScene',
+    //   curtainImage: null,
+    //   curtainMs: 0,
+    //   curtainCrossfadeMs: 0,
+    //   // The entry to this step crossfades from spirit + curtain → dukeArrival before any text
+    //   entryFromImage: images.spirit,
+    //   entryToImage:   images.dukeArrival,
+    //   entryCrossfadeMs: SCENE_CROSSFADE_MS,
+    //   entryWithCurtain: true,
+    //   subScenes: [
+    //     {
+    //       image: images.dukeArrival,
+    //       lines: DUKE_ARRIVED_LINES,
+    //       crossfadeMs: SCENE_CROSSFADE_MS,
+    //       curtainAfter: true,
+    //       curtainLines: DUKE_ESCORTED_LINES,
+    //       textStyle: 'normal',
+    //     },
+    //   ],
+    //   charDelayMs: CHAR_DELAY_MS,
+    //   autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    // },
 
     // ── 12. King & Duke dialogue ─────────────────────────────────
     {
@@ -563,26 +611,85 @@ function buildTimeline(images) {
       script: [
         {
           speaker: 'king',
-          lines: [
-            '"Duke Garland!  You must be the man of destiny of whom the Spirit spoke.  I beg of you to destroy the demon Jashiin who has cursed my kingdom and turned my beloved daughter to stone."'
-          ],
+          lines: KING_DUKE_LINES1,
         },
         {
           speaker: 'duke',
-          lines: [
-            'Duke Garland knelt before the King.  "Your Majesty, I have followed the light of the Spirit to this place."',
-            '"I know not of this demon, nor what powers he may possess, but if there is none else who can defeat him, then I will dedicate my life to this task."'
-          ],
+          lines: KING_DUKE_LINES2,
         },
         {
           speaker: 'king',
-          lines: [
-            '"For the first time since the sandstorm began, you have brought hope into my heart, Duke Garland.  May God go with you on your quest."'
-          ],
+          lines: KING_DUKE_LINES3,
         },
       ],
       charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+
+    // ── 13. Curtain (reuses existing animation) ─────────────────────────────
+    {
+      type: 'curtainOnly',
+      curtainMs: CURTAIN_MS,
+    },
+
+    // ── 14. Jashiin full frame + text (no animation) ────────────────────────
+    {
+      type: 'windowText',
+      backgroundImage: images.jashiin,
+      frameImage: images.template1,
+      lines: [
+        'Suddenly, the room grew cold.  A black mist swirled around them, then took on a hideous shape.',
+        '"Are you the fool who dares to challenge me?  Don\'t be absurd!"'
+      ],
+      textStyle: 'jashiin',
+      charDelayMs: CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+    },
+
+    // ── 15. Window shrinks (left border moves right) ────────────────────────
+    {
+      type: 'expandWindow',
+      backgroundImage: images.jashiin,
+      shrunkImage: images.template0,
+      expandedImage: images.template1,
+      startOuterLeft: 156,          // full open
+      endOuterLeft:   365 - 5,      // interior width 180
+      animationMs: 1500,
+      holdMs: 500,
+    },
+
+    // ── 16. Duke vs Jashiin dialogue ───────────────────────────────────────
+    {
+      type: 'dualDialogue',
+      fadeInMs: 1000,
+      background: images.template2,
+      characters: {
+        duke: {
+          closedImage: images.duke0,
+          mouthSequence: [1,0,0,2,0,1,0,0],
+          mouthImages: [images.duke0, images.duke1, images.duke2],
+          x: 94, y: 45, width: 180, height: 180,
+        },
+        jashiin: {
+          closedImage: images.jashiin,
+          mouthSequence: [],
+          mouthImages: [],
+          x: 366, y: 45 - 40, width: 180, height: 180,
+        },
+      },
+      mouthFrameDelayMs: 150,
+      script: [
+        { speaker: 'duke',   lines: ['"And you must be the evil Jashiin!"'] },
+        { speaker: 'jashiin', lines: [
+          '"You shall address me as the Emperor of Chaos... THE EMPEROR OF CHAOS!"',
+          '"Young fool, I could destroy you now, but I need a little amusement.  I will give you some time to perform your little quest, but you must promise not to bore me."',
+          '"Of course, you have no hope of defeating me."'
+        ]},
+        { speaker: 'duke',   lines: ['"Mark my words, evil one: I will not stop until I have reclaimed the nine holy crystals, and sealed you under the earth once and for all!"'] },
+      ],
+      charDelayMs: CHAR_DELAY_MS,
+      autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
+      isFinal: true,   // intro ends after this scene
     },
   ];
 }
@@ -656,6 +763,7 @@ export class OpeningIntro {
       stoned, kingPrincess, spirit,
       dukeArrival,
       template2, duke0, duke1, duke2, king0, king1,
+      template0, template1, jashiin,
       ...rest
     ] = await Promise.all([
       loadImage(INTRO_LOGO_SRC),
@@ -682,6 +790,9 @@ export class OpeningIntro {
       loadImage(INTRO_DUKE2_SRC),
       loadImage(INTRO_KING0_SRC),
       loadImage(INTRO_KING1_SRC),
+      loadImage(INTRO_TEMPLATE0_SRC),
+      loadImage(INTRO_TEMPLATE1_SRC),
+      loadImage(INTRO_JASHIIN_SRC),
       ...INTRO_DEMON_SRCS.map(loadImage),
       loadStoryFont(),
     ]);
@@ -696,6 +807,7 @@ export class OpeningIntro {
       stoned, kingPrincess, spirit,
       dukeArrival,
       template2, duke0, duke1, duke2, king0, king1,
+      template0, template1, jashiin,
       demonFrames,
     };
   }
@@ -782,6 +894,23 @@ export class OpeningIntro {
       };
     }    
 
+    if (step.type === 'expandWindow') {
+      return { ...base, animationDone: false, holdStartTime: 0 };
+    }
+
+    if (step.type === 'curtainOnly') {
+      return { ...base, snapshot: null, done: false };
+    }
+
+    if (step.type === 'windowText') {
+      return {
+        ...base,
+        lineIndex: 0,
+        lineStartTime: 0,
+        lineFullyTypedTime: 0,
+      };
+    }
+
     return base;
   }
 
@@ -815,6 +944,9 @@ export class OpeningIntro {
       case 'balcony':        return this._drawBalcony(step, s, ts);
       case 'typedScene':     return this._drawTypedScene(step, s, ts);
       case 'dualDialogue':   return this._drawDualDialogue(step, s, ts);
+      case 'expandWindow':   return this._drawExpandWindow(step, s, ts);
+      case 'curtainOnly':    return this._drawCurtainOnly(step, s, ts);
+      case 'windowText':     return this._drawWindowText(step, s, ts);    
     }
   }
 
@@ -862,7 +994,22 @@ export class OpeningIntro {
       case 'dualDialogue':
         this._advanceDualDialogueLine(step, s, performance.now());
         break;
-    }
+
+      case 'expandWindow':
+        // Jump to end
+        s.animationDone = true;
+        this._nextStep();
+        break;
+
+      case 'curtainOnly':
+        s.done = true;
+        this._nextStep();
+        break;
+
+      case 'windowText':
+        this._advanceWindowTextLine(step, s, performance.now());
+        break;
+      }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1441,25 +1588,32 @@ export class OpeningIntro {
     const speaker    = scriptItem?.speaker;
 
     for (const [name, char] of Object.entries(step.characters)) {
-      const isSpeaking = speaker === name && scriptItem;  // only animate if it's their turn
-      let img = char.closedImage;
+        const isSpeaking = speaker === name && scriptItem;
+        let img = char.closedImage;                     // fallback
 
-      if (isSpeaking) {
-        // Determine if still typing or in hold phase
-        const lines   = scriptItem.lines;
-        const line    = lines[s.lineIndex] ?? '';
-        const lineElapsed = s.lineStartTime ? ts - s.lineStartTime : 0;
-        const fullyTyped  = lineElapsed >= line.length * step.charDelayMs;
+        if (isSpeaking) {
+            const lines   = scriptItem.lines;
+            const line    = lines[s.lineIndex] ?? '';
+            const lineElapsed = s.lineStartTime ? ts - s.lineStartTime : 0;
+            const fullyTyped  = lineElapsed >= line.length * step.charDelayMs;
 
-        if (!fullyTyped || (s.lineFullyTypedTime && ts - s.lineFullyTypedTime < step.autoAdvanceMs)) {
-          // Animate mouth
-          const frameIdx = char.mouthSequence[Math.floor((elapsed / step.mouthFrameDelayMs) % char.mouthSequence.length)];
-          img = char.mouthImages[frameIdx];
+            // Only animate if we have both a sequence and images
+            const canAnimate = char.mouthSequence.length > 0 && char.mouthImages.length > 0;
+
+            if (!fullyTyped || (s.lineFullyTypedTime && ts - s.lineFullyTypedTime < step.autoAdvanceMs)) {
+                if (canAnimate) {
+                    const idx = Math.floor(elapsed / step.mouthFrameDelayMs) % char.mouthSequence.length;
+                    img = char.mouthImages[char.mouthSequence[idx]];
+                }
+                // if cannot animate, stays on closedImage (which is fine)
+            }
+            // else closed mouth – will use closedImage
         }
-        // else closed mouth (will use closedImage)
-      }
 
-      offCtx.drawImage(img, char.x, char.y, 180, 180);
+        // Draw with optional sizing
+        const cw = char.width  || 180;
+        const ch = char.height || 180;
+        offCtx.drawImage(img, char.x, char.y, cw, ch);
     }
 
     // 3. Draw the composite scene with fade opacity
@@ -1472,7 +1626,9 @@ export class OpeningIntro {
     // 4. Text (only after fade completes)
     if (fadeProg >= 1 && scriptItem) {
       if (!s.lineStartTime) s.lineStartTime = ts;   // start typing on first fully visible frame
-      this._drawBalconyText(scriptItem.lines, s, ts, 'normal');
+      // Determine text style – Jashiin’s direct speech uses yellow/red
+      const style = scriptItem.speaker === 'jashiin' ? 'jashiin' : 'normal';
+      this._drawBalconyText(scriptItem.lines, s, ts, style);
       this._autoAdvanceDualDialogue(step, s, scriptItem, ts);
     }
   }
@@ -1526,7 +1682,127 @@ export class OpeningIntro {
       s.lineStartTime     = ts;
       s.lineFullyTypedTime = 0;
     } else {
-      this.finish();   // final scene — intro complete
+      if (step.isFinal) {
+        this.finish();      // intro complete
+      } else {
+        this._nextStep();   // move to next timeline step
+      }
+    }
+  }
+
+  _drawExpandWindow(step, s, ts) {
+    this._clearBlack();
+
+    const elapsed  = ts - s.startTime;
+    const progress = Math.min(elapsed / step.animationMs, 1);
+
+    const outerLeft = Math.round(
+        step.startOuterLeft + (step.endOuterLeft - step.startOuterLeft) * progress
+    );
+    const innerLeft = outerLeft + WIN_BORDER_THICKNESS;
+
+    // ── 1. Jashiin background ───────────────────────────────────────────────
+    this.ctx.drawImage(step.backgroundImage, 161, 45);
+
+    // ── 2. Static decorations from template0 (interior cleared) ─────────────
+    const off = this._makeOffscreen();
+    const offCtx = off.getContext('2d');
+    offCtx.imageSmoothingEnabled = false;
+    offCtx.drawImage(step.shrunkImage, 0, 0);
+    offCtx.clearRect(innerLeft, 45, 545 - innerLeft, 179);
+    this.ctx.drawImage(off, 0, 0);
+
+    // ── 3. Top and bottom horizontal borders (full width) ──────────────────
+    for (let i = 0; i < WIN_BORDER_THICKNESS; i++) {
+      // Top border: y = 40 .. 44
+      this.ctx.fillStyle = WIN_TOP_COLORS[i];
+      this.ctx.fillRect(outerLeft, 40 + i, 545 - outerLeft, 1);
+      // Bottom border: y = 225 .. 229
+      this.ctx.fillStyle = WIN_BOTTOM_COLORS[i];   // inner‑first ordering is fine here
+      this.ctx.fillRect(outerLeft, 225 + i, 545 - outerLeft, 1);
+    }
+
+    // ── 4. Animated left border with corner blending ────────────────────────
+    for (let i = 0; i < WIN_BORDER_THICKNESS; i++) {
+      const x = outerLeft + i;   // 486, 487, 488, 489, 490 → 156,157,158,159,160
+
+      // Top corner: draw WIN_TOP_COLORS[j] for j = 0..i-1 at y = 40+j
+      for (let j = 0; j < i; j++) {
+        this.ctx.fillStyle = WIN_TOP_COLORS[j];
+        this.ctx.fillRect(x, 40 + j, 1, 1);
+      }
+
+      // Vertical line: from y = 40 + i + 1  down to  y = 229 - i - 1
+      const startY = 40 + i + 1;
+      const endY   = 229 - i - 1;
+      if (startY <= endY) {
+        this.ctx.fillStyle = WIN_LEFT_COLORS[i];
+        this.ctx.fillRect(x, startY, 1, endY - startY + 1);
+      }
+
+      // Bottom corner: draw WIN_BOTTOM_OUTER_FIRST[j] for j = 0..i-1 at y = 229 - j
+      for (let j = 0; j < i; j++) {
+        this.ctx.fillStyle = WIN_BOTTOM_OUTER_FIRST[j];
+        this.ctx.fillRect(x, 229 - j, 1, 1);
+      }
+    }
+
+    if (progress >= 1 && !s.animationDone) {
+      s.animationDone = true;
+      s.holdStartTime = ts;
+    }
+    if (s.animationDone) {
+      if (step.holdMs && ts - s.holdStartTime >= step.holdMs) {
+        this._nextStep();
+      }
+    }
+  }
+
+  _drawCurtainOnly(step, s, ts) {
+    if (!s.snapshot) {
+        s.snapshot = this._makeOffscreen();
+        s.snapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+
+    const elapsed = ts - s.startTime;
+    const progress = Math.min(elapsed / step.curtainMs, 1);
+
+    // Reuse the existing red curtain helper – it will draw the snapshot inside the hole
+    this._drawCurtainClose(progress, s.snapshot);
+
+    if (progress >= 1) {
+        this._nextStep();
+    }
+  }
+
+  _drawWindowText(step, s, ts) {
+    this._clearBlack();
+    this.ctx.drawImage(step.backgroundImage, 161, 45);
+    this.ctx.drawImage(step.frameImage, 0, 0);
+    if (!s.lineStartTime) s.lineStartTime = ts;
+    this._drawBalconyText(step.lines, s, ts, step.textStyle);
+    this._autoAdvanceWindowText(step, s, step.lines, ts);
+  }
+
+  _autoAdvanceWindowText(step, s, lines, ts) {
+    const line = lines[s.lineIndex] ?? '';
+    const elapsed = ts - s.lineStartTime;
+    const fullyTyped = elapsed >= line.length * step.charDelayMs;
+    if (!fullyTyped) { s.lineFullyTypedTime = 0; return; }
+    if (!s.lineFullyTypedTime) s.lineFullyTypedTime = ts;
+    else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
+      this._advanceWindowTextLine(step, s, ts);
+    }
+  }
+
+  _advanceWindowTextLine(step, s, ts) {
+    const lines = step.lines;
+    if (s.lineIndex < lines.length - 1) {
+      s.lineIndex++;
+      s.lineStartTime = ts;
+      s.lineFullyTypedTime = 0;
+    } else {
+      this._nextStep();
     }
   }
 
