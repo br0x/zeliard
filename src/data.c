@@ -4,12 +4,12 @@
 #include "zeliard.h"
 
 // ============================================================================
-// Main Memory Array (64KB to match original DOS memory model)
+// Main Memory Array (4 segments of 64KB to match original DOS memory model)
 // ============================================================================
 
 // Using a flat array to represent the entire memory space
 // This gets placed in the WASM linear memory
-uint8_t g_memory[65536] __attribute__((aligned(65536)));
+uint8_t g_memory[65536*4] __attribute__((aligned(65536)));
 
 // ============================================================================
 // Export g_memory base address for JS

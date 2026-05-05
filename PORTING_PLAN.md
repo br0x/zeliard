@@ -32,7 +32,7 @@ Any variable needed for implementation, should be outside of the original memory
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
 |   0x3000-0x535c | 0x03000-0x0535c | gfmcga.asm (video lib for caverns)            |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
-|   0x6000-0x9628 | 0x06000-0x09628 | opdemo.asm (opening demo)                     |
+|   0x6000-0x9628 | 0x06000-0x09628 | opdemo.asm (opening demo) - implemented in js |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
 |   0x6000-0x7c7c | 0x06000-0x07c7c | town.asm (towns logic)                        |
 ├─────────────────┼─────────────────┼───────────────────────────────────────────────┤
@@ -67,7 +67,6 @@ Any variable needed for implementation, should be outside of the original memory
 │  └── WASM bridge                                            │
 ├─────────────────────────────────────────────────────────────┤
 │  WebAssembly                                                │
-│  ├── opdemo.c       - Opening titles (opdemo.asm port)      │
 │  ├── town.c         - Town engine (town.asm port)           │
 │  ├── fight.c        - Dungeon engine (fight.asm port)       │
 │  ├── eai{N}.c       - Monster AI (eai{N}.asm port)          │
@@ -167,10 +166,11 @@ zeliard/
 ├── index.html
 ├── styles.css
 ├── game.js                 # Main JS (updated for WASM)
-├── wasm-bridge.js          # WASM JavaScript bridge
-├── opdemo.wasm             # Generated WASM binary
-├── src/                    # C source files
-│   ├── opdemo.c            # Dungeon engine (opdemo.asm port)
+├── build/
+|   └── zeliard.wasm        # Generated WASM binary
+├── src/                    # source files
+|   ├── zeliard-wasm.js     # WASM JavaScript bridge
+│   ├── town.c              # Town engine (town.asm port)
 │   ├── zeliard.h           # Public API
 │   ├── data.c              # Global state
 │   └── Makefile            # Emscripten build
@@ -187,31 +187,6 @@ zeliard/
 
 ### 11.2 Integration Tests
 
-```javascript
-// test-wasm.js
-describe('WASM Integration', () => {
-    it('should initialize dungeon', () => {
-        wasmInit(mapData, 36, 64);
-        const hero = wasmGetHeroState();
-        assert.equal(hero.x, spawn.x);
-        assert.equal(hero.y, spawn.y);
-    });
-    
-    it('should process input', () => {
-        wasmSetInput(INPUT_RIGHT);
-        wasmUpdate();
-        const hero = wasmGetHeroState();
-        assert.equal(hero.direction, 1);
-    });
-    
-    it('should detect collision', () => {
-        // Setup wall in front of hero
-        // Move hero into wall
-        // Assert: Hero position unchanged
-    });
-});
-```
-
 ### 11.3 Visual Testing
 
 
@@ -220,7 +195,14 @@ describe('WASM Integration', () => {
 
 ### 12.3 Coordinate System
 
-- **X**: 0-35 (36 columns), wraps at edges
-- **Y**: 0-63 (64 rows), wraps at top/bottom
+#### 12.3.1 Proximity Map
+Memory area at seg0:0xe000-0xe900 (36*64 bytes)
+It maps game objects in proximity of the hero. The map is linear and wraps at 0xe000 and 0xe900.
+There are methods to convert address in the proximity map to coordinates, and vice versa.
+- **X**: 0-35 (36 columns)
+- **Y**: 0-63 (64 rows)
+
+#### 12.3.2 Viewport
+
 - **Viewport**: Centered on hero, 28×19 tiles
 

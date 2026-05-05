@@ -80,7 +80,7 @@ Render_Viewport_Border_Walls_proc                  equ 3018h
 Load_Magic_Spell_Sprite_Group_proc                 equ 301Ah
 
 Render_Animated_Tile_Strip_proc                    equ 301Ch
-Render_Roca_Tilemap_proc                   equ 301Eh
+Render_Roca_Tilemap_proc                           equ 301Eh
 Calculate_Tile_VRAM_Address_proc                   equ 3020h
 Render_16x16_Sprite_proc                           equ 3022h
 Render_Status_Indicator_proc                       equ 3024h
