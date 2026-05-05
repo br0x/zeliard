@@ -63,6 +63,7 @@ viewport_top_left_vram_addr equ (48+14*320)
 vram_shadow_addr            equ (320*200)
 
 ; savegame area
+savegame_area               equ   0
 Cangrejo_Defeated           equ   0     ; 0000 = No, FFFF = Yes
 malicia_items               equ   2     ; +128 - Chest, 50 Golds
                                         ; +64 - Chest, Red Potion
@@ -400,6 +401,14 @@ int8_new_proc                                      equ 103h
 int24_new_proc                                     equ 106h
 int61_new_proc                                     equ 109h
 res_dispatcher_proc                                equ 10ch
+  ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
+  ; fn1_load_mdt_idx_ah ; ...
+  ; fn2_segmented_load
+  ; fn3_read_virtual_file ; load binary resource to dest buffer
+  ; fn4_load_sword_graphics ; AH: sword id (0..6)
+  ; fn5_load_music
+  ; fn6_get_virtual_file_size
+
 reserved_nop_proc                                  equ 10eh
 Confirm_Exit_Dialog_proc                           equ 110h
 Handle_Pause_State_proc                            equ 112h
@@ -486,6 +495,10 @@ Move_Monster_NWE_Depending_On_Whats_Below_proc     equ 6040h
 ; town.bin
 special_tile_list_ptr                              equ 8002h
 word_A000                                          equ 0A000h
+sage_bin_addr                                      equ 0A000h
+town_indoors_bin_addr                              equ 0A000h
+game_bin_entry                                     equ 0A000h
+
 ; eai1.bin, crab.bin
 Monster_AI_proc                                    equ 0A000h
 word_A002                                          equ 0A002h
@@ -609,7 +622,7 @@ fman_gfx                                           equ 6000h ; hero in dungeon
 packed_tile_ptr                                    equ 8000h
 tile_anim_count_table                              equ 8000h ; pointer to a table
     ; one byte per tile type
-    ; `0` = no animation, non-zero = number of animation frames. 
+    ; 0 = no animation, non-zero = number of animation frames. 
     ; Also used as the loaded-sprites base for `tile_render_and_animate`
 table_8002                                         equ 8002h
 tile_animation_replacement_table                   equ 8004h ; pointer to a table
@@ -633,6 +646,7 @@ wearable_item_gfx                                  equ 0E20Ch
 ; seg2 offsets (code seg + 2000h)
 magic_grp_sprites                                  equ 0
 sword_grp_sprites                                  equ 1800h
+town_background_decorations                        equ 3300h
 or_blit_buffer                                     equ 6000h
 and_blit_buffer                                    equ 8000h
 mcga_driver_buffer                                 equ 9000h

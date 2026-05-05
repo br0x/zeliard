@@ -1402,6 +1402,7 @@ skip_unknown:
 res_dispatcher  endp
 
 ; ---------------------------------------------------------------------------
+                        ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
 func_selector   dw offset fn1_load_mdt_idx_ah ; ...
                 dw offset fn2_segmented_load
                 dw offset fn3_read_virtual_file ; load binary resource to dest buffer

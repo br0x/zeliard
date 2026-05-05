@@ -186,11 +186,9 @@ skip_until_ff:
                 mov     si, offset kenjpro_bin
                 push    cs
                 pop     es
-                mov     di, 0A000h
-                mov     al, 3
-                call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
-                                        ; fn1_load_mdt_idx_ah
-            
+                mov     di, sage_bin_addr
+                mov     al, 3 ; fn3_read_virtual_file ; load binary resource to dest buffer
+                call    cs:res_dispatcher_proc
                 call    cs:fade_to_black_dithered_proc
                 mov     ax, 1
                 int     60h             ; adlib fn_1
@@ -1027,7 +1025,7 @@ loc_6734:
 confirm_purchase_dialog        endp
 
 ; ---------------------------------------------------------------------------
-aTake           db 'Take',0             ; ...
+aTake           db 'Take',0            
 aNoTake         db 'No Take',0
 
 ; =============== S U B R O U T I N E =======================================
@@ -1523,12 +1521,12 @@ loc_6A26:
 prepare_hero_sprite endp
 
 ; ---------------------------------------------------------------------------
-hero_faced_left db 0, 2, 4, 1, 3, 5     ; ...
+hero_faced_left db 0, 2, 4, 1, 3, 5    
                 db 6, 8, 0Ah, 7, 9, 0Bh
                 db 0, 0Ch, 0Eh, 1, 0Dh, 0Fh
                 db 6, 10h, 12h, 7, 11h, 13h
                 db 14h, 16h, 18h, 15h, 17h, 19h
-hero_faced_right db 1Ah, 1Ch, 1Eh, 1Bh, 1Dh, 1Fh ; ...
+hero_faced_right db 1Ah, 1Ch, 1Eh, 1Bh, 1Dh, 1Fh
                 db 20h, 22h, 24h, 21h, 23h, 25h
                 db 1Ah, 26h, 28h, 1Bh, 27h, 29h
                 db 20h, 2Ah, 2Ch, 21h, 2Bh, 2Dh
@@ -1621,7 +1619,7 @@ load_patterns_and_call_background        endp
 
 
 ; =============== S U B R O U T I N E =======================================
-; Load town background sprite data
+; Load town background (mountains, stalactites etc)
 ; Loads the appropriate background (foreground+background or just background
 ; depending on town_has_middle_layer) via res_dispatcher_proc.
 ; Input: ds:town_has_middle_layer (0 or 1), ds:pat_id (pattern index)
@@ -1638,19 +1636,19 @@ load_town_background        proc near
                 add     ax, 2000h
                 mov     ds:bg_entry_segment, ax   ; seg2
                 mov     es, ax
-                mov     di, 3300h
+                mov     di, town_background_decorations
                 mov     al, 3     ; fn3_read_virtual_file
                 call    cs:res_dispatcher_proc
                 retn
 load_town_background        endp
 
 ; ---------------------------------------------------------------------------
-town_bg_load_desc  dw 901h                 ; ...
+town_bg_load_desc  dw 901h
 aYmpdBin           db 'YMPD.BIN',0
                    dw 0A01h
 aCkpdBin           db 'CKPD.BIN',0
-bg_entry_offset    dw 3300h                ; ...
-bg_entry_segment   dw 3000h                ; ...
+bg_entry_offset    dw 3300h               
+bg_entry_segment   dw 3000h               
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -1679,7 +1677,7 @@ loc_6AFB:
                 and     al, [bx]
                 jnz     short copy_mode
 
-skip_until_ffff:                        ; ...
+skip_until_ffff:       
                 lodsw
                 and     al, ah
                 inc     al
@@ -1738,7 +1736,7 @@ loc_6B2D:
 init_npcs       endp
 
 ; ---------------------------------------------------------------------------
-npc_ai_jump_table        dw offset npc_ai_look_at_hero_and_bob      ; ...
+npc_ai_jump_table        dw offset npc_ai_look_at_hero_and_bob     
                 dw offset npc_ai_patrol_1bit_phase
                 dw offset npc_ai_patrol_2bit_phase
                 dw offset npc_ai_face_hero
@@ -2057,16 +2055,16 @@ render_life_almas_gold_place proc near  ; Render HUD labels: LIFE, ALMAS, GOLD, 
 render_life_almas_gold_place endp
 
 ; ---------------------------------------------------------------------------
-life_str        dw 0A30Eh               ; ...
+life_str        dw 0A30Eh              
                 db    0
 aLife           db 4,'LIFE'
-almas_str       dw 0BB1Eh               ; ...
+almas_str       dw 0BB1Eh              
                 db    3
 aAlmas          db 5,'ALMAS'
-gold_str        dw 0BB0Dh               ; ...
+gold_str        dw 0BB0Dh              
                 db    1
 aGold           db 4,'GOLD'
-place_str       dw 0AF0Dh               ; ...
+place_str       dw 0AF0Dh              
                 db    1
 aPlace          db 5,'PLACE'
 
@@ -2153,24 +2151,20 @@ handle_edge_screen_transition        endp ; sp-analysis failed
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Sets the new place_map_id, loads the new town's MDT data to fixed address 0xc000,
+; NPC sprite group, applies sprite masks, and loads patterns if the pattern ID changed.
+; Input: al = transition data byte (or'd with 80h for place_map_id),
+;        [si+1] = pattern group ID, [si+2] = transition flags
+; Output: new town data loaded, patterns decompressed if needed
+; Modifies: ax, si, di, es, ds
 load_town_transition_data        proc near               ; Load transition data for town edge crossing
-                ; Sets the new place_map_id, loads the new town's MDT data,
-                ; NPC sprite group, applies sprite masks, and loads patterns
-                ; if the pattern ID changed.
-                ; Input: al = transition data byte (or'd with 80h for place_map_id),
-                ;        [si+1] = pattern group ID, [si+2] = transition flags
-                ; Output: new town data loaded, patterns decompressed if needed
-                ; Modifies: ax, si, di, es, ds
                 or      al, 80h
                 mov     byte ptr ds:place_map_id, al
                 lodsw
                 push    ax
                 mov     ah, byte ptr ds:place_map_id
-                mov     al, 1
-                call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
-                                        ; fn1_load_mdt_idx_ah
-            
+                mov     al, 1 ; fn1_load_mdt_idx_ah
+                call    cs:res_dispatcher_proc
                 pop     ax
                 push    ax
                 mov     cl, 11
@@ -2178,12 +2172,12 @@ load_town_transition_data        proc near               ; Load transition data 
                 mov     si, ax
                 add     si, offset vfs_mman_grp
                 mov     es, cs:seg1
-                mov     di, 4000h
+                mov     di, mman_cman_gfx
                 mov     al, 2    ; fn2_segmented_load
                 call    cs:res_dispatcher_proc
                 push    ds
                 mov     ds, cs:seg1
-                mov     si, 4100h
+                mov     si, mman_cman_gfx + 100h
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax    ; seg2
@@ -2211,7 +2205,7 @@ aCmanGrp        db 'CMAN.GRP',0
 
 ; =============== S U B R O U T I N E =======================================
 
-; Load and decompress pattern tile group
+; Load and decompress pattern tile group (town static tiles)
 ; Loads the pattern group file (CPAT/MPAT/DPAT) indexed by ds:pat_id
 ; via res_dispatcher_proc, adjusts segment offsets, then calls
 ; decompress_patterns_proc to unpack the tiles.
@@ -2246,7 +2240,7 @@ aDpatGrp        db 'DPAT.GRP',0
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; town NPC sprites
 ; Loads TMAN.GRP sprite group to seg1:6000h, then applies
 ; sprite mask from seg1:6000h to seg2:8000h for town rendering.
 ; Input: none (uses hardcoded tman_grp descriptor)
@@ -2287,7 +2281,7 @@ loc_6E29:
                                         ; ax = absolute hero x coord
                 mov     si, ds:doors_array_addr
 
-check_next_door:                        ; ...
+check_next_door:       
                 cmp     word ptr [si], 0FFFFh
                 jnz     short loc_6E46
                 retn
@@ -2308,7 +2302,7 @@ loc_6E46:
                 jmp     short check_next_door
 ; ---------------------------------------------------------------------------
 
-door_x_coord_match:                     ; ...
+door_x_coord_match:    
                 mov     byte ptr ds:hero_animation_phase, 4
                 push    si
                 call    modify_npc_heads
@@ -2332,15 +2326,13 @@ loc_6E7E:
                 mov     bl, [si+2]
                 mov     al, 14
                 mul     bl
-                add     ax, offset king_binary
+                add     ax, offset vfs_kingpro_bin ; king palace, shops, inn etc
                 mov     si, ax
                 push    cs
                 pop     es
-                mov     di, 0A000h
-                mov     al, 3
-                call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
-                                        ; fn1_load_mdt_idx_ah
-            
+                mov     di, town_indoors_bin_addr
+                mov     al, 3 ; fn3_read_virtual_file ; load town indoor binary resource to dest buffer
+                call    cs:res_dispatcher_proc 
                 call    cs:fade_to_black_dithered_proc
                 mov     ax, 1
                 int     60h             ; adlib fn_1
@@ -2376,13 +2368,13 @@ loc_6EAF:
                 pop     ds
                 retn
 ; ---------------------------------------------------------------------------
-king_binary     db    1                 ; ...
+vfs_kingpro_bin db    1
                 db  0Bh
 aKingproBin     db 'KINGPRO.BIN',0
 princess_binary db    1
                 db  0Ch
 aOmoyproBin     db 'OMOYPRO.BIN',0
-kenjpro_bin     db 1                    ; ...
+kenjpro_bin     db 1   
                 db  12h
 aKenjproBin     db 'KENJPRO.BIN',0
 weaponry_binary db    1
@@ -2424,12 +2416,12 @@ loc_6F9D:
                 mov     byte ptr ds:byte_FF24, 4
                 mov     ah, 86h
                 mov     byte ptr ds:place_map_id, ah
-                mov     al, 1
+                mov     al, 1 ; fn1_load_mdt_idx_ah
                 call    cs:res_dispatcher_proc ; res_dispatcher
                 mov     si, offset vfs_mman_grp
                 mov     es, cs:seg1
-                mov     di, 4000h
-                mov     al, 2
+                mov     di, mman_cman_gfx
+                mov     al, 2 ; fn2_segmented_load
                 call    cs:res_dispatcher_proc ; res_dispatcher
 
 loc_6FC1:   
@@ -2437,16 +2429,16 @@ loc_6FC1:
                 jz      short loc_6FC1
                 mov     si, offset falter_transition_desc
                 mov     es, cs:seg1
-                mov     di, 3000h
-                mov     al, 5
+                mov     di, town_msd_music
+                mov     al, 5 ; fn5_load_music
                 call    cs:res_dispatcher_proc ; res_dispatcher
                 mov     word ptr ds:proximity_map_left_col_x, 84h
                 mov     byte ptr ds:hero_x_in_viewport, 0Dh
                 call    cs:fade_to_black_dithered_proc
                 jmp     town_entry_init
 ; ---------------------------------------------------------------------------
-falter_transition_desc       dw 3201h                ; falter warp descriptor
-aUgm2Msd        db 'UGM2.MSD',0
+falter_transition_desc dw 3201h                ; falter warp descriptor
+aUgm2Msd               db 'UGM2.MSD',0
 ; ---------------------------------------------------------------------------
 
 loc_6FF8:   
@@ -2467,7 +2459,7 @@ loc_6FF8:
                 lodsb                   ; 0
                 mov     byte ptr ds:place_map_id, al
                 mov     ah, al          ; 0 => mp10.mdt
-                mov     al, 1           ; fn 1
+                mov     al, 1           ; fn1_load_mdt_idx_ah
                 call    cs:res_dispatcher_proc ; res_dispatcher
                 pop     ax              ; 003d
                 add     ax, -16         ; proximity_map_left_col_x in absolute map coords
@@ -2479,7 +2471,7 @@ loc_702B:
                 mov     byte ptr ds:entered_cavern_first_time, 0FFh
                 call    cs:fade_to_black_dithered_proc ; fade_to_black_dithered
                 mov     bx, offset town_exports ; cs:[bx]=fight.bin prepare_dungeon after res_dispatcher
-                xor     al, al          ; fn 0 - buffer swapper
+                xor     al, al          ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
                 jmp     cs:res_dispatcher_proc ; res_dispatcher
 
 ; =============== S U B R O U T I N E =======================================
@@ -3324,7 +3316,7 @@ loc_7511:
 show_yes_no_dialog endp
 
 ; ---------------------------------------------------------------------------
-aYes            db 'Yes',0              ; ...
+aYes            db 'Yes',0             
 aNo             db 'No',0
 
 ; =============== S U B R O U T I N E =======================================
@@ -3439,7 +3431,7 @@ restore_game    proc near               ; restores game from .usr save file
                 push    cs
                 pop     es
                 mov     si, offset stdply_bin_desc
-                mov     al, 6
+                mov     al, 6 ; fn6_get_virtual_file_size
                 call    cs:res_dispatcher_proc ; res_dispatcher
                 mov     byte ptr ds:menu_digits_render_flag, 0
                 call    choose_game_to_restore
@@ -3447,7 +3439,7 @@ restore_game    proc near               ; restores game from .usr save file
                 pop     es
                 test    cs:save_is_restart, 0FFh
                 jz      short loc_75C6
-                mov     di, 0FF6Ch
+                mov     di, save_name
                 xor     al, al
                 mov     cx, 8
                 rep stosb
@@ -3477,16 +3469,16 @@ loc_75D7:
                 mov     byte ptr cs:disk_swap_suppressed, 0FFh
 
 loc_75F8:   
-                mov     di, 0
-                mov     al, 3
+                mov     di, savegame_area
+                mov     al, 3 ; fn3_read_virtual_file ; load binary resource to dest buffer
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
             
                 mov     byte ptr cs:disk_swap_suppressed, 0
                 jb      short loc_762F
-                mov     si, offset game_bin_desc
-                mov     di, 0A000h
-                mov     al, 3
+                mov     si, offset vfs_game_bin
+                mov     di, game_bin_entry
+                mov     al, 3 ; fn3_read_virtual_file ; load binary resource to dest buffer
                 call    cs:res_dispatcher_proc ; fn0_buffer_swap_and_go
                                         ; fn1_load_mdt_idx_ah
             
@@ -3522,12 +3514,12 @@ loc_7651:
 restore_game    endp
 
 ; ---------------------------------------------------------------------------
-aUserFileNotFou db 'User File',0Dh,'Not Found' ; ...
+aUserFileNotFou db 'User File', 0Dh, 'Not Found'
                 db 0FFh
-game_bin_desc     db 0                    ; GAME.BIN load descriptor
+vfs_game_bin    db 0                    ; GAME.BIN load descriptor
                 db    0
 aGameBin        db 'GAME.BIN',0
-game_bin_entry_ptr  dw 0A000h               ; entry point of loaded GAME.BIN
+game_bin_entry_ptr  dw game_bin_entry               ; entry point of loaded GAME.BIN
 stdply_bin_desc   db 0                    ; STDPLY.BIN load descriptor
                 db    0
 aStdplyBin      db 'STDPLY.BIN',0
@@ -3680,10 +3672,10 @@ loc_77A0:
 choose_game_to_restore endp
 
 ; ---------------------------------------------------------------------------
-aUsr            db '*.usr',0            ; ...
-aInputName      db 'Input name:'        ; ...
+aUsr            db '*.usr',0           
+aInputName      db 'Input name:'       
                 db 0FFh
-aReStart        db 'Re-Start',0         ; ...
+aReStart        db 'Re-Start',0        
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -4269,14 +4261,14 @@ save_cursor_row       db 0
 save_is_restart       db 0 
 save_buffer_padding db 0 
                 db    0
-save_name_buffer       db 0                    ; ...
+save_name_buffer       db 0   
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
-save_name_terminator       db 0                    ; ...
+save_name_terminator       db 0   
                 db    0
                 db    0
                 db    0
@@ -4286,7 +4278,7 @@ hero_2x3_tile_buf dw 0                  ; 2 columns × 3 rows hero tile buffer
                 db 0
                 dw 0
                 db 0
-hero_1x3_tile_buf db 0              ; ...
+hero_1x3_tile_buf db 0             
                 db 0
                 db 0
 
