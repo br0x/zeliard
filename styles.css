@@ -38,6 +38,7 @@ canvas {
 }
 #ui {
   margin-top: 10px;
+  padding-bottom: 16px;
   text-align: center;
   font-size: 14px;
   color: #0f0;
