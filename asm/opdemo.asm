@@ -985,15 +985,15 @@ loc_6A41:
                 mov     es, ax
                 mov     ds, ax
                 mov     si, offset vfs_game_bin
-                mov     di, 0A000h
+                mov     di, game_bin_entry
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc
                 mov     ax, 0FFFFh
-                jmp     cs:word_6A73
+                jmp     cs:game_bin_addr
 sub_6A18        endp
 
 ; ---------------------------------------------------------------------------
-word_6A73       dw 0A000h
+game_bin_addr   dw game_bin_entry
 
 ; =============== S U B R O U T I N E =======================================
 

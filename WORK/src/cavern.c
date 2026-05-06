@@ -13,41 +13,41 @@ extern void* memcpy(void* dest, const void* src, unsigned long len);
 // Global Variables (0xFF00 region) - Key offsets from Fight.asm
 // ============================================================================
 
-// These are accessed via g_memory[0xFFxx]
+// These are accessed via g_mem[0xFFxx]
 // Offsets from 0xFF00:
 
 // 0xFF00 flags
-#define byte_9F01       g_memory[0x9F01]    // UI update flag
-#define byte_9F02       g_memory[0x9F02]    // Boss battle flag
-#define byte_9F0A       g_memory[0x9F0A]    // Timer counter
-#define byte_9F20       g_memory[0x9F20]
-#define byte_9F21       g_memory[0x9F21]
-#define byte_9F22       g_memory[0x9F22]
-#define byte_9F26       g_memory[0x9F26]
-#define byte_9F27       g_memory[0x9F27]    // MDT unpacked flag
+#define byte_9F01       g_mem[0x9F01]    // UI update flag
+#define byte_9F02       g_mem[0x9F02]    // Boss battle flag
+#define byte_9F0A       g_mem[0x9F0A]    // Timer counter
+#define byte_9F20       g_mem[0x9F20]
+#define byte_9F21       g_mem[0x9F21]
+#define byte_9F22       g_mem[0x9F22]
+#define byte_9F26       g_mem[0x9F26]
+#define byte_9F27       g_mem[0x9F27]    // MDT unpacked flag
 
 // 0xFF00 region flags
-#define byte_FF00       g_memory[0xFF00]
-#define byte_FF1A       g_memory[0xFF1A]    // Async completion flag
-#define spacebar_latch       g_memory[0xFF1D]
-#define altkey_latch       g_memory[0xFF1E]
-#define boss_being_hit       g_memory[0xFF2E]
-#define sprite_flash_flag       g_memory[0xFF2F]
-#define boss_is_dead       g_memory[0xFF30]
-#define byte_FF34       g_memory[0xFF34]    // Boss battle mode
-#define byte_FF37       g_memory[0xFF37]
-#define byte_FF38       g_memory[0xFF38]
-#define byte_FF42       g_memory[0xFF42]
-#define byte_FF43       g_memory[0xFF43]
+#define byte_FF00       g_mem[0xFF00]
+#define byte_FF1A       g_mem[0xFF1A]    // Async completion flag
+#define spacebar_latch       g_mem[0xFF1D]
+#define altkey_latch       g_mem[0xFF1E]
+#define boss_being_hit       g_mem[0xFF2E]
+#define sprite_flash_flag       g_mem[0xFF2F]
+#define boss_is_dead       g_mem[0xFF30]
+#define byte_FF34       g_mem[0xFF34]    // Boss battle mode
+#define byte_FF37       g_mem[0xFF37]
+#define byte_FF38       g_mem[0xFF38]
+#define byte_FF42       g_mem[0xFF42]
+#define byte_FF43       g_mem[0xFF43]
 
 // Hero state flags
-#define on_rope_flags       g_memory[0xFF14]    // 0=ground, 0xFF=rope, 0x80=transition
-#define jump_phase_flags    g_memory[0xFF1D]    // 0=ground, 0xFF=ascending, 0x7F=descending
-#define starting_direction  g_memory[0xFFC2]    // Bit 0: horizontal, Bit 1: squat
+#define on_rope_flags       g_mem[0xFF14]    // 0=ground, 0xFF=rope, 0x80=transition
+#define jump_phase_flags    g_mem[0xFF1D]    // 0=ground, 0xFF=ascending, 0x7F=descending
+#define starting_direction  g_mem[0xFFC2]    // Bit 0: horizontal, Bit 1: squat
 
 // Hero position in save data
-#define hero_x_in_viewport  g_memory[0x86]
-#define hero_y_rel          g_memory[0x81]
+#define hero_x_in_viewport  g_mem[0x86]
+#define hero_y_rel          g_mem[0x81]
 
 // ============================================================================
 // Forward declarations
@@ -137,15 +137,15 @@ static void init_cavern(void) {
 
 static void fill_e900_buffer(void) {
     // Clear monster buffer first
-    memset(&g_memory[MEM_VIEWPORT_BUFFER], 0, 28*19);
+    memset(&g_mem[MEM_VIEWPORT_BUFFER], 0, 28*19);
     
     // Get monster list from MDT
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->monsters_offset >= MEM_MDT_DATA && 
         header->monsters_offset < 0xE000) {
         
-        const MonsterEntry* monsters = (const MonsterEntry*)&g_memory[header->monsters_offset];
-        uint8_t* monster_buf = &g_memory[MEM_VIEWPORT_BUFFER];
+        const MonsterEntry* monsters = (const MonsterEntry*)&g_mem[header->monsters_offset];
+        uint8_t* monster_buf = &g_mem[MEM_VIEWPORT_BUFFER];
         uint16_t monster_count = 0;
         
         // Iterate through monster list until 0xFFFF marker
@@ -223,7 +223,7 @@ void wasm_update(void) {
             altkey_latch = 0;
             byte_9F20 = 0;
             byte_9F21 = 0;
-            // byte_E7 = g_memory[0x00E7];  // In save data region
+            // byte_E7 = g_mem[0x00E7];  // In save data region
         }
     } else {
         // Normal ground physics (0x62A3)

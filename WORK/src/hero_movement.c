@@ -103,11 +103,11 @@ static int can_move_this_frame(void) {
 // ============================================================================
 
 static SaveData* get_save_data(void) {
-    return (SaveData*)&g_memory[MEM_SAVE_DATA];
+    return (SaveData*)&g_mem[MEM_SAVE_DATA];
 }
 
 static uint8_t* get_proximity_map(void) {
-    return &g_memory[MEM_PROXIMITY_MAP];
+    return &g_mem[MEM_PROXIMITY_MAP];
 }
 
 // Get tile at proximity map offset
@@ -203,8 +203,8 @@ static uint8_t get_dst_monster_flags(uint16_t si) {
  * at the right margin (x = hero_x + 35 in proximity map = column 35)
  */
 void update_monsters_for_right_scroll(void) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     // Calculate right margin X position (column 35 in proximity map)
     uint16_t bx = save->hero_x_minus_18_abs + 36 - 1;  // hero_x + 35
@@ -225,7 +225,7 @@ void update_monsters_for_right_scroll(void) {
     
     while (1) {
         // Read monster currX (2 bytes)
-        uint16_t monster_x = g_memory[si] | (g_memory[si + 1] << 8);
+        uint16_t monster_x = g_mem[si] | (g_mem[si + 1] << 8);
         
         // Check for end of monsters marker (0xFFFF)
         if (monster_x == 0xFFFF) {
@@ -233,19 +233,19 @@ void update_monsters_for_right_scroll(void) {
         }
         
         // Check if this is a special monster (ah = 0xFF)
-        uint8_t monster_ah = g_memory[si + 1];
+        uint8_t monster_ah = g_mem[si + 1];
         if (monster_ah != 0xFF) {
             // Check if monster X matches right margin
             if (monster_x == bx) {
                 // Get monster Y from currY (offset 2 in monster struct)
-                uint8_t monster_y = g_memory[si + 2];
+                uint8_t monster_y = g_mem[si + 2];
                 
                 // Calculate proximity map offset
                 // di = (y * 36) + x + 0xE000, where x = 35 (rightmost column)
                 uint16_t di = (monster_y * 36) + 35 + MEM_PROXIMITY_MAP;
                 
                 // Set tile to monster_index | 0x80
-                g_memory[di] = monster_index | 0x80;
+                g_mem[di] = monster_index | 0x80;
             }
         }
         
@@ -263,8 +263,8 @@ void update_monsters_for_right_scroll(void) {
  * at the left margin (x = 0 in proximity map)
  */
 void update_monsters_for_left_scroll(void) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     // Calculate left margin X position (column 0 in proximity map)
     uint16_t bx = save->hero_x_minus_18_abs;  // hero_x (leftmost column = 0)
@@ -278,7 +278,7 @@ void update_monsters_for_left_scroll(void) {
     
     while (1) {
         // Read monster currX (2 bytes)
-        uint16_t monster_x = g_memory[si] | (g_memory[si + 1] << 8);
+        uint16_t monster_x = g_mem[si] | (g_mem[si + 1] << 8);
         
         // Check for end of monsters marker (0xFFFF)
         if (monster_x == 0xFFFF) {
@@ -286,19 +286,19 @@ void update_monsters_for_left_scroll(void) {
         }
         
         // Check if this is a special monster (ah = 0xFF)
-        uint8_t monster_ah = g_memory[si + 1];
+        uint8_t monster_ah = g_mem[si + 1];
         if (monster_ah != 0xFF) {
             // Check if monster X matches left margin
             if (monster_x == bx) {
                 // Get monster Y from currY (offset 2 in monster struct)
-                uint8_t monster_y = g_memory[si + 2];
+                uint8_t monster_y = g_mem[si + 2];
                 
                 // Calculate proximity map offset
                 // di = (y * 36) + x + 0xE000, where x = 0 (leftmost column)
                 uint16_t di = (monster_y * 36) + 0 + MEM_PROXIMITY_MAP;
                 
                 // Set tile to monster_index | 0x80
-                g_memory[di] = monster_index | 0x80;
+                g_mem[di] = monster_index | 0x80;
             }
         }
         
@@ -315,7 +315,7 @@ void update_monsters_for_left_scroll(void) {
  */
 static int sub_7FDC(void) {
     SaveData* save = get_save_data();
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     // Get hero's absolute position
     uint8_t hero_x = save->hero_x_in_viewport + 4 + save->hero_x_minus_18_abs;
@@ -327,7 +327,7 @@ static int sub_7FDC(void) {
     
     while (1) {
         // Read platform X (2 bytes)
-        uint16_t plat_x = g_memory[di] | (g_memory[di + 1] << 8);
+        uint16_t plat_x = g_mem[di] | (g_mem[di + 1] << 8);
         
         // Check for end marker (0xFFFF)
         if (plat_x == 0xFFFF) {
@@ -335,7 +335,7 @@ static int sub_7FDC(void) {
         }
         
         // Read platform Y (1 byte at offset 2)
-        uint8_t plat_y = g_memory[di + 2];
+        uint8_t plat_y = g_mem[di + 2];
         
         // Check if platform is under hero
         if (plat_x == hero_x && plat_y == hero_y) {
@@ -397,7 +397,7 @@ void move_platform_up(void) {
     }
     
     // Find platform in vertical platforms table
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     uint16_t di = MEM_MDT_DATA + mdt_header->vert_platforms_offset;
     
     uint8_t hero_x = save->hero_x_in_viewport + 4 + save->hero_x_minus_18_abs;
@@ -405,12 +405,12 @@ void move_platform_up(void) {
     hero_y &= 0x3F;
     
     while (1) {
-        uint16_t plat_x = g_memory[di] | (g_memory[di + 1] << 8);
+        uint16_t plat_x = g_mem[di] | (g_mem[di + 1] << 8);
         if (plat_x == 0xFFFF) {
             return;  // End of table, platform not found
         }
         
-        uint8_t plat_y = g_memory[di + 2];
+        uint8_t plat_y = g_mem[di + 2];
         
         if (plat_x == hero_x && plat_y == hero_y) {
             break;  // Platform found
@@ -421,7 +421,7 @@ void move_platform_up(void) {
     
     // Move platform up: decrement Y coordinate
     // Platform Y is stored with bits 6-7 as flags, so mask with 0x3F
-    g_memory[di + 2] = (g_memory[di + 2] - 1) & 0x3F;
+    g_mem[di + 2] = (g_mem[di + 2] - 1) & 0x3F;
     
     // Set flags
     save->byte_E7 = 0x80;
@@ -440,7 +440,7 @@ void move_platform_up(void) {
  */
 int move_platform_down(void) {
     SaveData* save = get_save_data();
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     // Find platform under hero
     uint8_t hero_x = save->hero_x_in_viewport + 4 + save->hero_x_minus_18_abs;
@@ -450,12 +450,12 @@ int move_platform_down(void) {
     uint16_t di = MEM_MDT_DATA + mdt_header->vert_platforms_offset;
     
     while (1) {
-        uint16_t plat_x = g_memory[di] | (g_memory[di + 1] << 8);
+        uint16_t plat_x = g_mem[di] | (g_mem[di + 1] << 8);
         if (plat_x == 0xFFFF) {
             return 0;  // End of table, platform not found
         }
 
-        uint8_t plat_y = g_memory[di + 2];
+        uint8_t plat_y = g_mem[di + 2];
 
         if (plat_x == hero_x && plat_y == hero_y) {
             // Get platform position in proximity map
@@ -479,7 +479,7 @@ int move_platform_down(void) {
             }
 
             // Move platform down: increment Y coordinate
-            g_memory[di + 2] = (g_memory[di + 2] + 1) & 0x3F;
+            g_mem[di + 2] = (g_mem[di + 2] + 1) & 0x3F;
 
             return 1;  // Success (carry set)
         }
@@ -835,12 +835,12 @@ static void clear_horizontal_platform(HorizPlatform* plat) {
             
             uint16_t offset = (y * 36) + (uint8_t)viewport_x;
             if (offset < 2304) {
-                g_memory[MEM_PROXIMITY_MAP + offset] = 0x00;
+                g_mem[MEM_PROXIMITY_MAP + offset] = 0x00;
                 // Debug marker
-                g_memory[0xFF10 + i] = 0x01;  // Mark that we cleared this tile
+                g_mem[0xFF10 + i] = 0x01;  // Mark that we cleared this tile
             }
         } else {
-            g_memory[0xFF10 + i] = 0x00;  // Mark as not cleared
+            g_mem[0xFF10 + i] = 0x00;  // Mark as not cleared
         }
     }
 }
@@ -866,14 +866,14 @@ static void draw_horizontal_platform(HorizPlatform* plat) {
     static uint8_t draw_debug_done = 0;
     if (!draw_debug_done) {
         draw_debug_done = 1;
-        g_memory[0xFF20] = abs_x & 0xFF;
-        g_memory[0xFF21] = (abs_x >> 8) & 0xFF;
-        g_memory[0xFF22] = y;
-        g_memory[0xFF23] = map_start_x & 0xFF;
-        g_memory[0xFF24] = (map_start_x >> 8) & 0xFF;
-        g_memory[0xFF25] = map_end_x & 0xFF;
-        g_memory[0xFF26] = (map_end_x >> 8) & 0xFF;
-        g_memory[0xFF27] = 0xAA;  // Marker
+        g_mem[0xFF20] = abs_x & 0xFF;
+        g_mem[0xFF21] = (abs_x >> 8) & 0xFF;
+        g_mem[0xFF22] = y;
+        g_mem[0xFF23] = map_start_x & 0xFF;
+        g_mem[0xFF24] = (map_start_x >> 8) & 0xFF;
+        g_mem[0xFF25] = map_end_x & 0xFF;
+        g_mem[0xFF26] = (map_end_x >> 8) & 0xFF;
+        g_mem[0xFF27] = 0xAA;  // Marker
     }
     
     // Draw 3 tiles: 0x46, 0x47, 0x48 (platform tiles)
@@ -909,7 +909,7 @@ static void draw_horizontal_platform(HorizPlatform* plat) {
             
             uint16_t offset = (y * 36) + (uint8_t)viewport_x;
             if (offset < 2304) {
-                g_memory[MEM_PROXIMITY_MAP + offset] = 0x46 + i;
+                g_mem[MEM_PROXIMITY_MAP + offset] = 0x46 + i;
             }
         }
     }
@@ -925,14 +925,14 @@ void update_horizontal_platforms(void) {
     static uint8_t frame_counter = 0;
     frame_counter++;
 
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
-    // The offsets in MDT header are absolute addresses in g_memory space
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
+    // The offsets in MDT header are absolute addresses in g_mem space
     uint16_t plat_addr = mdt_header->horiz_platforms_offset;
     
     SaveData* save = get_save_data();
 
     while (1) {
-        HorizPlatform* plat = (HorizPlatform*)&g_memory[plat_addr];
+        HorizPlatform* plat = (HorizPlatform*)&g_mem[plat_addr];
 
         // Check for end marker (0xFFFF)
         if (plat->x_and_flags == 0xFFFF) {
@@ -1199,7 +1199,7 @@ static int hero_moves_left(void) {
     }
 
     // Scroll proximity map right (with wrapping if needed)
-    uint8_t* proximity_map = &g_memory[MEM_PROXIMITY_MAP];
+    uint8_t* proximity_map = &g_mem[MEM_PROXIMITY_MAP];
 
     // Step 1: Move all bytes right by 1 (exact rep movsb with std from assembly)
     // std sets decrement flag so movsb goes backwards
@@ -1211,7 +1211,7 @@ static int hero_moves_left(void) {
 
     // Step 2: Unpack new leftmost column (column 0) from packed data (going backwards)
     // Get packed data pointer
-    uint8_t* packed = &g_memory[MEM_MDT_DATA + PACKED_MAP_START];
+    uint8_t* packed = &g_mem[MEM_MDT_DATA + PACKED_MAP_START];
 
     // points to the last byte of packed column
     si--;
@@ -1280,7 +1280,7 @@ static int hero_moves_right(void) {
     save->hero_x_minus_18_abs++;
 
     // Scroll proximity map left (handles wraparound internally)
-    uint8_t* proximity_map = &g_memory[MEM_PROXIMITY_MAP];
+    uint8_t* proximity_map = &g_mem[MEM_PROXIMITY_MAP];
     uint16_t si;
 
     // Check if we're wrapping to the start of the map
@@ -1300,7 +1300,7 @@ static int hero_moves_right(void) {
 
     // Step 2: Unpack new rightmost column (column 35)
     // Get packed data pointer
-    uint8_t* packed = &g_memory[MEM_MDT_DATA + PACKED_MAP_START];
+    uint8_t* packed = &g_mem[MEM_MDT_DATA + PACKED_MAP_START];
 
     // Unpack column directly to rightmost column of proximity map
     // di = proximity_map + 36 - 1 = proximity_map + 35 (column 35, row 0)

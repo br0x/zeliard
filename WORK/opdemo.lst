@@ -1071,11 +1071,11 @@ seg000:6A61                 mov     di, 0A000h
 seg000:6A64                 mov     al, 3
 seg000:6A66                 call    word ptr cs:10Ch ; res_dispatcher_proc
 seg000:6A6B                 mov     ax, 0FFFFh
-seg000:6A6E                 jmp     cs:word_6A73
+seg000:6A6E                 jmp     cs:game_bin_addr
 seg000:6A6E sub_6A18        endp
 seg000:6A6E
 seg000:6A6E ; ---------------------------------------------------------------------------
-seg000:6A73 word_6A73       dw 0A000h
+seg000:6A73 game_bin_addr       dw 0A000h
 seg000:6A75
 seg000:6A75 ; =============== S U B R O U T I N E =======================================
 seg000:6A75

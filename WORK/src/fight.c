@@ -22,54 +22,54 @@ extern void hero_interaction_check(void);
 // ============================================================================
 
 // 0x9EED-0x9F2E region (64 bytes cleared by prepare_dungeon)
-#define byte_9EED       g_memory[0x9EED]
-#define byte_9EEF       g_memory[0x9EEF]
-#define byte_9EF5       g_memory[0x9EF5]
-#define mman_grp_index       g_memory[0x9EF6]
-#define byte_9EF8       g_memory[0x9EF8]
-#define byte_9F00       g_memory[0x9F00]
-#define byte_9F01       g_memory[0x9F01]
-#define byte_9F02       g_memory[0x9F02]
-#define byte_9F0A       g_memory[0x9F0A]
-#define byte_9F20       g_memory[0x9F20]
-#define byte_9F21       g_memory[0x9F21]
-#define byte_9F22       g_memory[0x9F22]
-#define byte_9F26       g_memory[0x9F26]
-#define byte_9F27       g_memory[0x9F27]
+#define byte_9EED       g_mem[0x9EED]
+#define byte_9EEF       g_mem[0x9EEF]
+#define byte_9EF5       g_mem[0x9EF5]
+#define mman_grp_index       g_mem[0x9EF6]
+#define byte_9EF8       g_mem[0x9EF8]
+#define byte_9F00       g_mem[0x9F00]
+#define byte_9F01       g_mem[0x9F01]
+#define byte_9F02       g_mem[0x9F02]
+#define byte_9F0A       g_mem[0x9F0A]
+#define byte_9F20       g_mem[0x9F20]
+#define byte_9F21       g_mem[0x9F21]
+#define byte_9F22       g_mem[0x9F22]
+#define byte_9F26       g_mem[0x9F26]
+#define byte_9F27       g_mem[0x9F27]
 
 // 0xFF00 region flags
-#define byte_FF00       g_memory[0xFF00]
-#define byte_FF1A       g_memory[0xFF1A]
-#define spacebar_latch       g_memory[0xFF1D]
-#define altkey_latch       g_memory[0xFF1E]
-#define byte_FF24       g_memory[0xFF24]
-#define boss_being_hit       g_memory[0xFF2E]
-#define sprite_flash_flag       g_memory[0xFF2F]
-#define boss_is_dead       g_memory[0xFF30]
-#define byte_FF34       g_memory[0xFF34]    // Boss battle mode
-#define byte_FF36       g_memory[0xFF36]
-#define byte_FF37       g_memory[0xFF37]
-#define byte_FF38       g_memory[0xFF38]
-#define byte_FF3A       g_memory[0xFF3A]
-#define byte_FF3C       g_memory[0xFF3C]
-#define byte_FF3E       g_memory[0xFF3E]
-#define byte_FF42       g_memory[0xFF42]
-#define byte_FF43       g_memory[0xFF43]
-#define byte_FF44       g_memory[0xFF44]
-#define byte_FF4B       g_memory[0xFF4B]
+#define byte_FF00       g_mem[0xFF00]
+#define byte_FF1A       g_mem[0xFF1A]
+#define spacebar_latch       g_mem[0xFF1D]
+#define altkey_latch       g_mem[0xFF1E]
+#define byte_FF24       g_mem[0xFF24]
+#define boss_being_hit       g_mem[0xFF2E]
+#define sprite_flash_flag       g_mem[0xFF2F]
+#define boss_is_dead       g_mem[0xFF30]
+#define byte_FF34       g_mem[0xFF34]    // Boss battle mode
+#define byte_FF36       g_mem[0xFF36]
+#define byte_FF37       g_mem[0xFF37]
+#define byte_FF38       g_mem[0xFF38]
+#define byte_FF3A       g_mem[0xFF3A]
+#define byte_FF3C       g_mem[0xFF3C]
+#define byte_FF3E       g_mem[0xFF3E]
+#define byte_FF42       g_mem[0xFF42]
+#define byte_FF43       g_mem[0xFF43]
+#define byte_FF44       g_mem[0xFF44]
+#define byte_FF4B       g_mem[0xFF4B]
 
 // Hero state flags
-#define on_rope_flags       g_memory[0xFF14]
-#define jump_phase_flags    g_memory[0xFF1D]
-#define proximity           g_memory[0xFF3B]
+#define on_rope_flags       g_mem[0xFF14]
+#define jump_phase_flags    g_mem[0xFF1D]
+#define proximity           g_mem[0xFF3B]
 
 // Save data access
-#define save_data           ((SaveData*)&g_memory[MEM_SAVE_DATA])
-#define mdt_header          ((MDTHeader*)&g_memory[MEM_MDT_DATA])
+#define save_data           ((SaveData*)&g_mem[MEM_SAVE_DATA])
+#define mdt_header          ((MDTHeader*)&g_mem[MEM_MDT_DATA])
 
 // Viewport buffer (0xE900-0xEB13)
 #define VIEWPORT_BUFFER_SIZE (28 * 19)
-#define viewport_buffer     (&g_memory[0xE900])
+#define viewport_buffer     (&g_mem[0xE900])
 
 // ============================================================================
 // Forward declarations
@@ -81,7 +81,7 @@ static void remove_accomplished_items(void);
 static void clear_viewport_buffer(void);
 
 static SaveData* get_save_data(void) {
-    return (SaveData*)&g_memory[MEM_SAVE_DATA];
+    return (SaveData*)&g_mem[MEM_SAVE_DATA];
 }
 
 // ============================================================================
@@ -105,12 +105,12 @@ static void sub_7E5B(void) {
     save->byte_E7 = 0;
     
     // Set word slots_13_bytes_32_rows to 0xFFFF
-    g_memory[0xEDA0] = 0xFF;
-    g_memory[0xEDA1] = 0xFF;
+    g_mem[0xEDA0] = 0xFF;
+    g_mem[0xEDA1] = 0xFF;
     
     // Clear word_EB15
-    g_memory[0xEB15] = 0xFF;
-    g_memory[0xEB16] = 0xFF;
+    g_mem[0xEB15] = 0xFF;
+    g_mem[0xEB16] = 0xFF;
     
     byte_FF3A = 0;
     byte_9EF5 = 0;
@@ -136,7 +136,7 @@ static void clear_viewport_buffer(void) {
 static void process_mdt_header(uint8_t mdt_byte) {
     // Copy first 4 bytes from MDT buffer to 0x9EF6-0x9EF9
     // MDT header: [0]=flags, [1-2]=width, [3]=special
-    memcpy(&g_memory[0x9EF6], &g_memory[MEM_MDT_DATA], 4);
+    memcpy(&g_mem[0x9EF6], &g_mem[MEM_MDT_DATA], 4);
     
     // Process byte 0 (flags)
     // Bit 0: Special transition flag
@@ -153,8 +153,8 @@ static void process_mdt_header(uint8_t mdt_byte) {
     }
     
     // Store the processed value
-    g_memory[0x9EFA] = 0xFF;
-    g_memory[0x9EFB] = 0xFF;
+    g_mem[0x9EFA] = 0xFF;
+    g_mem[0x9EFB] = 0xFF;
 }
 
 // ============================================================================
@@ -182,7 +182,7 @@ static void remove_accomplished_items(void) {
     
     while (1) {
         // Read check_address (word at [si])
-        uint16_t check_addr = *(uint16_t*)&g_memory[si];
+        uint16_t check_addr = *(uint16_t*)&g_mem[si];
         
         // Check for end of table (0xFFFF)
         if (check_addr == 0xFFFF) {
@@ -193,14 +193,14 @@ static void remove_accomplished_items(void) {
         si += 3;
         
         // Read mask (byte at [si-1], which is the byte after check_address)
-        uint8_t mask = g_memory[si - 1];
+        uint8_t mask = g_mem[si - 1];
         
         // Check if (mask & memory[check_addr]) != 0
-        if ((mask & g_memory[check_addr]) != 0) {
+        if ((mask & g_mem[check_addr]) != 0) {
             // Process move_loop - copy values to destinations
             while (1) {
                 // Read destination address
-                uint16_t dest_addr = *(uint16_t*)&g_memory[si];
+                uint16_t dest_addr = *(uint16_t*)&g_mem[si];
                 
                 // Check for end of moves (0xFFFF)
                 if (dest_addr == 0xFFFF) {
@@ -208,10 +208,10 @@ static void remove_accomplished_items(void) {
                 }
                 
                 // Read value to copy (word at [si+2])
-                uint16_t value = *(uint16_t*)&g_memory[si + 2];
+                uint16_t value = *(uint16_t*)&g_mem[si + 2];
                 
                 // Copy value to destination
-                *(uint16_t*)&g_memory[dest_addr] = value;
+                *(uint16_t*)&g_mem[dest_addr] = value;
                 
                 // Move to next pair (4 bytes: dest_addr + value)
                 si += 4;
@@ -219,7 +219,7 @@ static void remove_accomplished_items(void) {
         } else {
             // Skip this entry - find the 0xFFFF terminator
             while (1) {
-                uint16_t dest_addr = *(uint16_t*)&g_memory[si];
+                uint16_t dest_addr = *(uint16_t*)&g_mem[si];
                 
                 if (dest_addr == 0xFFFF) {
                     break;
@@ -246,7 +246,7 @@ void prepare_dungeon(void) {
     
     // Clear memory region 0x9EED to 0x9F2D (64 bytes)
     // This is the region just before the 0x9F2E marker
-    memset(&g_memory[0x9EED], 0, 0x9F2E - 0x9EED);
+    memset(&g_mem[0x9EED], 0, 0x9F2E - 0x9EED);
     
     // Set byte_9EF5 to 0xFF
     byte_9EF5 = 0xFF;
@@ -259,10 +259,10 @@ void prepare_dungeon(void) {
     sub_7E5B();
     
     // Set flags at 0xEB60, 0xEB67, 0xEB6E, 0xEB75 to 0xFF
-    g_memory[0xEB60] = 0xFF;
-    g_memory[0xEB67] = 0xFF;
-    g_memory[0xEB6E] = 0xFF;
-    g_memory[0xEB75] = 0xFF;
+    g_mem[0xEB60] = 0xFF;
+    g_mem[0xEB67] = 0xFF;
+    g_mem[0xEB6E] = 0xFF;
+    g_mem[0xEB75] = 0xFF;
     
     // Clear byte_FF3A
     byte_FF3A = 0;
@@ -274,7 +274,7 @@ void prepare_dungeon(void) {
     // Original: Copies sprite animation data
     
     // Process MDT header
-    uint8_t mdt_byte = g_memory[MEM_MDT_DATA];
+    uint8_t mdt_byte = g_mem[MEM_MDT_DATA];
     process_mdt_header(mdt_byte);
     
     // Skip: Call word_2002 (graphics related)
@@ -323,9 +323,9 @@ void prepare_dungeon(void) {
         
         // Check fade flag (bit 2)
         if (mdt_byte & 0x04) {
-            g_memory[0x00E6] = 0xFF;  // Fade effect
+            g_mem[0x00E6] = 0xFF;  // Fade effect
         } else {
-            g_memory[0x00E6] = 0;
+            g_mem[0x00E6] = 0;
         }
         
         boss_being_hit = 0;

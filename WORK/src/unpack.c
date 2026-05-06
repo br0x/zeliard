@@ -35,8 +35,8 @@ uint16_t map_hero_row_start = 0; // FF31
  * MDT header at 0xC000, map width at offset 2 (0xC002)
  */
 uint16_t get_map_width(void) {
-    return g_memory[MEM_MDT_DATA + MAP_WIDTH_OFFSET] | 
-           (g_memory[MEM_MDT_DATA + MAP_WIDTH_OFFSET + 1] << 8);
+    return g_mem[MEM_MDT_DATA + MAP_WIDTH_OFFSET] | 
+           (g_mem[MEM_MDT_DATA + MAP_WIDTH_OFFSET + 1] << 8);
 }
 
 /**
@@ -217,7 +217,7 @@ void unpack_column(uint8_t* packed, uint16_t* pos, uint8_t* dest) {
 // ============================================================================
 
 void unpack_map() {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     unpack_map_internal(save->hero_x_minus_18_abs + 18, save->hero_y_rel);
 }
 
@@ -231,7 +231,7 @@ void unpack_map_internal(uint8_t hero_x, uint8_t hero_y) {
     (void)hero_y;  // Y coordinate handled by caller for vertical wrapping
 
     // Clear proximity map first
-    memset(&g_memory[MEM_PROXIMITY_MAP], 0, PROXIMITY_MAP_WIDTH * PROXIMITY_MAP_HEIGHT);
+    memset(&g_mem[MEM_PROXIMITY_MAP], 0, PROXIMITY_MAP_WIDTH * PROXIMITY_MAP_HEIGHT);
 
     // Packed map starts at offset 0x1B in MDT file (address 0xC01B in memory)
     uint16_t packed_start = PACKED_MAP_START;
@@ -241,10 +241,10 @@ void unpack_map_internal(uint8_t hero_x, uint8_t hero_y) {
     // hero_x_minus_18 = hero_x - 18
     int16_t cx = (int16_t)hero_x - 18;
     uint16_t ax = cx;
-    uint16_t map_width = g_memory[MEM_MDT_DATA + MAP_WIDTH_OFFSET];
+    uint16_t map_width = g_mem[MEM_MDT_DATA + MAP_WIDTH_OFFSET];
 
     // Get pointer to packed data
-    uint8_t* packed = &g_memory[MEM_MDT_DATA + packed_start]; // si
+    uint8_t* packed = &g_mem[MEM_MDT_DATA + packed_start]; // si
     uint16_t packed_pos = 0; // offset packed + packed_pos = si
 
     // Skip cx columns before proximity map left edge (unpack to /dev/null)
@@ -259,7 +259,7 @@ void unpack_map_internal(uint8_t hero_x, uint8_t hero_y) {
     packed_map_ptr_for_hero_x_minus_18 = packed_pos;
 
     // Unpack 36 columns into proximity map
-    uint8_t* proximity = &g_memory[MEM_PROXIMITY_MAP];
+    uint8_t* proximity = &g_mem[MEM_PROXIMITY_MAP];
 
     int col = 0;
 

@@ -457,6 +457,9 @@ Fade_To_Black_Dithered_proc                        equ 2040h
 Clear_Screen_proc                                  equ 2042h
 Reassemble_3_Planes_To_Packed_Bitmap_proc          equ 2044h
 
+; opdemo.bin
+opdemo_proc                                        equ 6000h
+
 ; fight.bin
 Cavern_Game_Init_proc                              equ 6000h
 prepare_dungeon_proc                               equ 6002h

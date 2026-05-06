@@ -127,7 +127,7 @@ uint16_t wrap_map_from_below(uint16_t offset) {
  * Get tile from proximity map
  */
 static inline uint8_t get_proximity_tile(uint16_t offset) {
-    return g_memory[MEM_PROXIMITY_MAP + (offset & 0x08FF)];
+    return g_mem[MEM_PROXIMITY_MAP + (offset & 0x08FF)];
 }
 
 /**

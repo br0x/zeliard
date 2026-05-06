@@ -45,7 +45,7 @@ static uint8_t almas_drop_counters[256];
 // ============================================================================
 
 static SaveData* get_save_data(void) {
-    return (SaveData*)&g_memory[MEM_SAVE_DATA];
+    return (SaveData*)&g_mem[MEM_SAVE_DATA];
 }
 
 /**
@@ -53,11 +53,11 @@ static SaveData* get_save_data(void) {
  * Returns pointer to monster entry or 0 if none
  */
 static MonsterEntry* get_monster_at(uint8_t x, uint8_t y) {
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     uint16_t monster_addr = MEM_MDT_DATA + mdt_header->monsters_offset;
     
     while (1) {
-        MonsterEntry* monster = (MonsterEntry*)&g_memory[monster_addr];
+        MonsterEntry* monster = (MonsterEntry*)&g_mem[monster_addr];
         
         // Check for end marker
         if (monster->currX == (int16_t)0xFFFF) {

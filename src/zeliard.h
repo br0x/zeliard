@@ -22,7 +22,7 @@ extern "C" {
 // Global Memory Array (exported for JS access)
 // ============================================================================
 
-extern uint8_t g_memory[65536];  // 64KB memory space
+extern uint8_t g_mem[65536*4];  // 64KB*4 memory space
 extern uint16_t packed_map_start;
 extern uint16_t packed_map_end_ptr;  // Current position in packed map
 extern uint16_t packed_map_ptr_for_hero_x_minus_18;  // For left column

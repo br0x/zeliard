@@ -7,8 +7,8 @@ town            segment byte public 'CODE' use16
                 assume cs:town, ds:town
                 org 6000h
 start:
-                dw offset town_entry_normal
-town_exports    dw offset town_entry_init           ; primary town init, called from fight.bin
+                dw offset town_entry_enabling_edge_scroll
+town_exports    dw offset town_entry_disabling_edge_scroll           ; primary town init, called from fight.bin
                 dw offset render_menu_dialog        ; render FF-terminated dialog text
                 dw offset convert_ax_to_decimal     ; convert AX to 7-digit decimal string
                 dw offset show_yes_no_dialog        ; Yes/No confirmation dialog
@@ -24,20 +24,20 @@ cursor_down_export dw offset houseCursorDown        ; animate cursor moving down
                 dw offset restore_game              ; restore game from save file
 
 ; =============== S U B R O U T I N E =======================================
-; town_entry_init — Primary town initialization entry point, called from
+; town_entry_disabling_edge_scroll — Primary town initialization entry point, called from
 ;   fight.bin after hero returns from cavern.
 ;   Input: (none — reads state from shared memory)
 ;   Sets disable_edge_scroll=0FFh to prevent edge-scroll on first frame.
 
-town_entry_init   proc near
+town_entry_disabling_edge_scroll   proc near
                 mov     cs:disable_edge_scroll, 0FFh
                 jmp     short town_entry_common
 ; ---------------------------------------------------------------------------
 
-; town_entry_normal — Town re-entry after transitions (sage resurrection,
+; town_entry_enabling_edge_scroll — Town re-entry after transitions (sage resurrection,
 ;   falter warp). Clears disable_edge_scroll to enable edge-scroll handler.
 ;   Input: (none — state already set in shared memory)
-town_entry_normal:
+town_entry_enabling_edge_scroll:
                 mov     cs:disable_edge_scroll, 0
 
 town_entry_common:
@@ -93,9 +93,9 @@ loc_6097:
                 xor     ax, ax
                 int     60h             ; adlib fn_0
                 pop     ds
-town_entry_init   endp ; sp-analysis failed
+town_entry_disabling_edge_scroll   endp ; sp-analysis failed
 
-;   ADDITIONAL PARENT FUNCTION town_entry_init
+;   ADDITIONAL PARENT FUNCTION town_entry_disabling_edge_scroll
 
 loc_60B7:
                 cli
@@ -2435,7 +2435,7 @@ loc_6FC1:
                 mov     word ptr ds:proximity_map_left_col_x, 84h
                 mov     byte ptr ds:hero_x_in_viewport, 0Dh
                 call    cs:fade_to_black_dithered_proc
-                jmp     town_entry_init
+                jmp     town_entry_disabling_edge_scroll
 ; ---------------------------------------------------------------------------
 falter_transition_desc dw 3201h                ; falter warp descriptor
 aUgm2Msd               db 'UGM2.MSD',0

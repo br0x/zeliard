@@ -30,7 +30,7 @@ uint8_t input_get_debug_counter(void) {
 // Input buffer structure in global memory
 // Layout matches InputBuffer struct in zeliard.h
 static InputBuffer* get_input_buffer(void) {
-    return (InputBuffer*)&g_memory[MEM_INPUT_BUFFER];
+    return (InputBuffer*)&g_mem[MEM_INPUT_BUFFER];
 }
 
 // ============================================================================
@@ -84,7 +84,7 @@ void input_set_keys(uint8_t keys) {
     InputBuffer* input = get_input_buffer();
     
     // Write directly to 0xFF16 (input buffer base)
-    g_memory[0xFF16] = keys;
+    g_mem[0xFF16] = keys;
     
     input->current_keys = keys;
 }
@@ -95,7 +95,7 @@ void input_set_keys(uint8_t keys) {
  */
 uint8_t input_get_current_keys(void) {
     // Read directly from 0xFF16
-    uint8_t value = g_memory[0xFF16];
+    uint8_t value = g_mem[0xFF16];
     
     return value;
 }

@@ -42,7 +42,7 @@ Data lists are terminated by 0xFFFF marker.
  * @param mdt_size  Size of MDT file in bytes
  * @return 0 on success, -1 on error
  *
- * Note: JS copies MDT data directly to g_memory[0xC000] before calling this.
+ * Note: JS copies MDT data directly to g_mem[0xC000] before calling this.
  * This function just validates the data is loaded correctly.
  */
 int wasm_load_mdt(const uint8_t* mdt_data, uint32_t mdt_size) {
@@ -50,11 +50,11 @@ int wasm_load_mdt(const uint8_t* mdt_data, uint32_t mdt_size) {
         return -1;
     }
 
-    // JS already copied MDT data to g_memory[MEM_MDT_DATA]
+    // JS already copied MDT data to g_mem[MEM_MDT_DATA]
     // We just need to verify it was loaded correctly
     
     // Verify header was loaded
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
 
     // Basic validation: offsets should be within reasonable range
     // All offsets should be > 0xC000 and < 0xE000
@@ -77,10 +77,10 @@ int wasm_load_mdt(const uint8_t* mdt_data, uint32_t mdt_size) {
  * List terminated by 0xFFFF
  */
 const uint8_t* mdt_get_vert_platforms(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->vert_platforms_offset >= MEM_MDT_DATA && 
         header->vert_platforms_offset < 0xE000) {
-        return &g_memory[header->vert_platforms_offset];
+        return &g_mem[header->vert_platforms_offset];
     }
     return NULL;
 }
@@ -91,10 +91,10 @@ const uint8_t* mdt_get_vert_platforms(void) {
  * List terminated by 0xFFFF
  */
 const uint8_t* mdt_get_horiz_platforms(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->horiz_platforms_offset >= MEM_MDT_DATA && 
         header->horiz_platforms_offset < 0xE000) {
-        return &g_memory[header->horiz_platforms_offset];
+        return &g_mem[header->horiz_platforms_offset];
     }
     return NULL;
 }
@@ -105,10 +105,10 @@ const uint8_t* mdt_get_horiz_platforms(void) {
  * List terminated by 0xFFFF
  */
 const uint8_t* mdt_get_doors(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->doors_offset >= MEM_MDT_DATA && 
         header->doors_offset < 0xE000) {
-        return &g_memory[header->doors_offset];
+        return &g_mem[header->doors_offset];
     }
     return NULL;
 }
@@ -119,10 +119,10 @@ const uint8_t* mdt_get_doors(void) {
  * List terminated by 0xFFFF
  */
 const MonsterEntry* mdt_get_monsters(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->monsters_offset >= MEM_MDT_DATA && 
         header->monsters_offset < 0xE000) {
-        return (const MonsterEntry*)&g_memory[header->monsters_offset];
+        return (const MonsterEntry*)&g_mem[header->monsters_offset];
     }
     return NULL;
 }
@@ -132,12 +132,12 @@ const MonsterEntry* mdt_get_monsters(void) {
  * Note: cavern_name_offset points to rendering info, name is 3 bytes in
  */
 const char* mdt_get_cavern_name(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->cavern_name_offset >= MEM_MDT_DATA && 
         header->cavern_name_offset < 0xE000) {
         // Rendering info structure: first 3 bytes are metadata
         // Pascal string starts at offset+3: first byte is length, then characters
-        return (const char*)&g_memory[header->cavern_name_offset + 3];
+        return (const char*)&g_mem[header->cavern_name_offset + 3];
     }
     return NULL;
 }
@@ -146,11 +146,11 @@ const char* mdt_get_cavern_name(void) {
  * Get cavern name length
  */
 uint8_t mdt_get_cavern_name_length(void) {
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     if (header->cavern_name_offset >= MEM_MDT_DATA && 
         header->cavern_name_offset < 0xE000) {
         // Pascal string length is at offset+3
-        return g_memory[header->cavern_name_offset + 3];
+        return g_mem[header->cavern_name_offset + 3];
     }
     return 0;
 }

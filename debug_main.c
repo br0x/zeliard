@@ -10,7 +10,7 @@
 #define MEM_MDT_DATA        0xC000
 #define MEM_PROXIMITY_MAP   0xE000
 
-extern uint8_t g_memory[65536];
+extern uint8_t g_mem[65536];
 
 // From unpack.c
 void unpack_map_internal(uint8_t hero_x, uint8_t hero_y);
@@ -44,35 +44,35 @@ int main(int argc, char** argv) {
     printf("Loaded %ld bytes from %s\n\n", size, argv[1]);
     
     // Load MDT into memory at 0xC000
-    memcpy(&g_memory[MEM_MDT_DATA], mdt_data, size);
+    memcpy(&g_mem[MEM_MDT_DATA], mdt_data, size);
     free(mdt_data);
     
     // Dump MDT header
     printf("MDT Header:\n");
     printf("  [0xC000]: %02X %02X\n", 
-           g_memory[0xC000], g_memory[0xC001]);
+           g_mem[0xC000], g_mem[0xC001]);
     printf("  [0xC002]: %04X (map width)\n", 
-           g_memory[0xC002] | (g_memory[0xC003] << 8));
+           g_mem[0xC002] | (g_mem[0xC003] << 8));
     printf("  [0xC004]: %04X (vertical platforms)\n", 
-           g_memory[0xC004] | (g_memory[0xC005] << 8));
+           g_mem[0xC004] | (g_mem[0xC005] << 8));
     printf("  [0xC006]: %04X (air streams)\n", 
-           g_memory[0xC006] | (g_memory[0xC007] << 8));
+           g_mem[0xC006] | (g_mem[0xC007] << 8));
     printf("  [0xC008]: %04X (horizontal platforms)\n", 
-           g_memory[0xC008] | (g_memory[0xC009] << 8));
+           g_mem[0xC008] | (g_mem[0xC009] << 8));
     printf("  [0xC00A]: %04X (doors)\n", 
-           g_memory[0xC00A] | (g_memory[0xC00B] << 8));
+           g_mem[0xC00A] | (g_mem[0xC00B] << 8));
     printf("  [0xC00C]: %04X (items check)\n", 
-           g_memory[0xC00C] | (g_memory[0xC00D] << 8));
+           g_mem[0xC00C] | (g_mem[0xC00D] << 8));
     printf("  [0xC00E]: %04X (cavern name info)\n", 
-           g_memory[0xC00E] | (g_memory[0xC00F] << 8));
+           g_mem[0xC00E] | (g_mem[0xC00F] << 8));
     printf("  [0xC010]: %04X (monsters)\n\n", 
-           g_memory[0xC010] | (g_memory[0xC011] << 8));
+           g_mem[0xC010] | (g_mem[0xC011] << 8));
     
     // Show packed map start
     printf("Packed map starts at 0xC01B:\n");
     printf("  [0xC01B]: %02X %02X %02X %02X %02X %02X %02X %02X\n\n",
-           g_memory[0xC01B], g_memory[0xC01C], g_memory[0xC01D], g_memory[0xC01E],
-           g_memory[0xC01F], g_memory[0xC020], g_memory[0xC021], g_memory[0xC022]);
+           g_mem[0xC01B], g_mem[0xC01C], g_mem[0xC01D], g_mem[0xC01E],
+           g_mem[0xC01F], g_mem[0xC020], g_mem[0xC021], g_mem[0xC022]);
     
     uint8_t x = 17; // Standard Malicia spawn point is (63, 7)
     uint8_t y = 4;
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     
     // Show first few rows of proximity map
     printf("Proximity map ASCII view (first 10 rows, 36 columns):\n");
-    uint8_t* proximity = &g_memory[MEM_PROXIMITY_MAP];
+    uint8_t* proximity = &g_mem[MEM_PROXIMITY_MAP];
     for (int row = 0; row < 10; row++) {
         printf("  Row %2d: ", row);
         for (int col = 0; col < 36; col++) {

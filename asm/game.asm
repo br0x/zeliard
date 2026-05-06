@@ -7,6 +7,9 @@ game            segment byte public 'CODE' use16
                 assume cs:game, ds:game
                 org 0A000h
 start:
+; Input:
+; AX = 0: game entry after opening demo or restart
+; AX = 0ffffh: restored from save file
                 mov     cs:is_restore_game, ax
                 mov     ax, cs
                 mov     ds, ax
@@ -48,28 +51,29 @@ start:
                 call    word ptr cs:res_dispatcher_proc
                 call    word ptr cs:NoOp_proc
                 cmp     cs:is_restore_game, 0FFFFh
-                jz      short loc_A097
+                jz      short on_restore
+                ; restart game
                 mov     byte ptr cs:font_highlight_flag, 0FFh
                 mov     si, offset vfs_opdemo_bin
-                mov     di, 6000h
+                mov     di, opdemo_proc
                 mov     al, 3       ; fn3_read_virtual_file
                 call    word ptr cs:res_dispatcher_proc
-                jmp     word ptr ds:6000h  ; go to initial story
+                jmp     word ptr ds:opdemo_proc  ; go to initial story
 ; ---------------------------------------------------------------------------
 
-loc_A097:
-                call    sub_A3E5
+on_restore:
+                call    set_palette
                 mov     ax, cs
                 mov     es, ax
                 xor     bx, bx
                 mov     bl, byte ptr ds:video_drv_id
                 add     bx, bx
                 mov     si, ds:gt_video_drivers[bx]
-                mov     di, 3000h  ; load gtcga.bin into cs:3000h
+                mov     di, gtmcga_drv_addr  ; load gtmcga.bin into seg0:3000h
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     si, offset vfs_town_bin
-                mov     di, 6000h
+                mov     di, town_entry_enabling_edge_scroll_proc ; start of town code
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     ax, cs
@@ -83,14 +87,14 @@ loc_A097:
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     si, offset vfs_fight_bin
-                mov     di, 0C000h
+                mov     di, 0C000h  ; load fight.bin into seg2:0C000h
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     ax, cs
-                add     ax, 1000h
+                add     ax, 1000h   ; seg1
                 mov     es, ax
                 mov     si, offset vfs_select_bin
-                mov     di, 0C000h
+                mov     di, 0C000h  ; load select.bin into seg1:0C000h
                 mov     al, 3
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     ax, cs
@@ -125,12 +129,12 @@ loc_A097:
                 add     es:[di+2], di   ; seg2:[1802h]+=1800h
                 add     es:[di+4], di   ; seg2:[1804h]+=1800h
                 mov     ah, ds:sword_type
-                mov     al, 4
+                mov     al, 4 ; fn4_load_sword_graphics ; AH: sword id (0..6)
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     ax, cs
                 mov     ds, ax
                 add     ax, 3000h
-                mov     ds:InitTitleScreen_seg, ax ; seg3
+                mov     ds:DrawDecorationsAroundCanvas_seg, ax ; seg3
                 mov     es, ax
                 mov     di, 0
                 mov     si, offset vfs_mole_bin
@@ -138,32 +142,32 @@ loc_A097:
                 call    word ptr cs:res_dispatcher_proc
                 mov     al, byte ptr ds:video_drv_id
                 push    ds
-                call    dword ptr ds:InitTitleScreen_proc
+                call    dword ptr ds:DrawDecorationsAroundCanvas_proc ; calls mole.bin at seg3:0
                 pop     ds
                 call    render_tears_collected
                 mov     ax, cs
                 mov     ds, ax
                 test    byte ptr ds:sword_type, 0FFh
-                jz      short loc_A1A7
+                jz      short no_sword_skip_render
                 mov     al, ds:sword_type
                 mov     bx, 18ABh
                 call    word ptr cs:Render_Sword_Item_Sprite_20x18_proc
 
-loc_A1A7:
+no_sword_skip_render:
                 test    byte ptr ds:shield_type, 0FFh
-                jz      short loc_A1B9
+                jz      short no_shield_skip_render
                 mov     al, ds:shield_type
                 mov     bx, 3EA4h
                 call    word ptr cs:Render_Shield_Item_Sprite_16x16_proc
 
-loc_A1B9:
+no_shield_skip_render:
                 test    byte ptr ds:current_magic_spell, 0FFh
-                jz      short loc_A1CB
+                jz      short no_magic_skip_render
                 mov     al, ds:current_magic_spell
                 mov     bx, 37A4h
                 call    word ptr cs:Render_Magic_Spell_Item_Sprite_16x16_proc
 
-loc_A1CB:
+no_magic_skip_render:
                 mov     ah, cs:place_map_id
                 mov     al, 1           ; fn1_load_mdt_idx_ah
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
@@ -193,7 +197,7 @@ loc_A1CB:
                 mov     di, mman_cman_gfx   ; to seg1:4000h
                 mov     al, 2
                 call    word ptr cs:res_dispatcher_proc
-                jmp     word ptr ds:town_entry_init_proc
+                jmp     word ptr ds:town_entry_disabling_edge_scroll_proc
 
 ; ---------------------------------------------------------------------------
 vfs_font_grp    db 0
@@ -353,17 +357,13 @@ tears_order_coords dw 0F00h
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A3E5        proc near
+set_palette     proc near
 
-; FUNCTION CHUNK AT A3FE SIZE 0000000B BYTES
-; FUNCTION CHUNK AT A41A SIZE 0000003C BYTES
-; FUNCTION CHUNK AT A46E SIZE 00000002 BYTES
-
-                mov     bl, ds:0FF14h   ; video_drv_id
+                mov     bl, ds:video_drv_id
                 xor     bh, bh
                 add     bx, bx          ; switch 6 cases
                 jmp     cs:jpt_A3ED[bx] ; switch jump
-sub_A3E5        endp
+set_palette     endp
 
 ; ---------------------------------------------------------------------------
 jpt_A3ED        dw offset set_ega_palette ; jump table for switch statement
@@ -373,7 +373,6 @@ jpt_A3ED        dw offset set_ega_palette ; jump table for switch statement
                 dw offset set_mcga_palette
                 dw offset locret_A46E
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A3E5
 
 set_ega_palette:                        ; jumptable 0000A3ED case 0
                 push    cs
@@ -383,12 +382,9 @@ set_ega_palette:                        ; jumptable 0000A3ED case 0
                 int     10h             ; - VIDEO - SET ALL PALETTE REGISTERS (Jr, PS, TANDY 1000, EGA, VGA)
                                         ; ES:DX -> 17-byte palette register list
                 retn
-; END OF FUNCTION CHUNK FOR sub_A3E5
 ; ---------------------------------------------------------------------------
-byte_A409       db 0, 3Fh, 24h, 12h, 1Bh, 9, 36h, 2Dh, 38h, 7, 4, 2, 3
-                db 1, 6, 5, 0
+byte_A409       db 0, 3Fh, 24h, 12h, 1Bh, 9, 36h, 2Dh, 38h, 7, 4, 2, 3, 1, 6, 5, 0
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A3E5
 
 locret_A41A:                            ; jumptable 0000A3ED cases 1,2
                 retn
@@ -438,12 +434,16 @@ loc_A436:
                 pop     cx
                 loop    loc_A425
                 retn
-; END OF FUNCTION CHUNK FOR sub_A3E5
 ; ---------------------------------------------------------------------------
-byte_A456       db 0, 0, 0, 1Fh, 1Fh, 1Fh, 1Fh, 0, 0, 0, 1Fh, 0, 0, 1Fh
-                db 1Fh, 0, 0, 1Fh, 1Fh, 1Fh, 0, 1Fh, 0, 1Fh
+byte_A456       db 0, 0, 0
+                db 1Fh, 1Fh, 1Fh
+                db 1Fh, 0, 0
+                db 0, 1Fh, 0
+                db 0, 1Fh, 1Fh
+                db 0, 0, 1Fh
+                db 1Fh, 1Fh, 0
+                db 1Fh, 0, 1Fh
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_A3E5
 
 locret_A46E:                            ; jumptable 0000A3ED case 5
                 retn
@@ -451,10 +451,9 @@ locret_A46E:                            ; jumptable 0000A3ED case 5
 
 locret_A46F:                            ; jumptable 0000A3ED case 3
                 retn
-; END OF FUNCTION CHUNK FOR sub_A3E5
 ; ---------------------------------------------------------------------------
-InitTitleScreen_proc  dw 0
-InitTitleScreen_seg   dw 3000h
+DrawDecorationsAroundCanvas_proc  dw 0
+DrawDecorationsAroundCanvas_seg   dw 3000h
 is_restore_game       dw 0
 game                  ends
                       end     start

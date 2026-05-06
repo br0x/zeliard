@@ -157,7 +157,7 @@ seg000:A167                 call    word ptr cs:10Ch ; res_dispatcher_proc
 seg000:A16C                 mov     ax, cs
 seg000:A16E                 mov     ds, ax
 seg000:A170                 add     ax, 3000h
-seg000:A173                 mov     ds:InitTitleScreen_seg, ax ; seg3
+seg000:A173                 mov     ds:DrawDecorationsAroundCanvas_seg, ax ; seg3
 seg000:A176                 mov     es, ax
 seg000:A178                 assume es:nothing
 seg000:A178                 mov     di, 0
@@ -166,7 +166,7 @@ seg000:A17E                 mov     al, 3
 seg000:A180                 call    word ptr cs:10Ch ; res_dispatcher_proc
 seg000:A185                 mov     al, ds:0FF14h   ; video_drv_id
 seg000:A188                 push    ds
-seg000:A189                 call    dword ptr ds:InitTitleScreen_proc
+seg000:A189                 call    dword ptr ds:DrawDecorationsAroundCanvas_proc
 seg000:A18D                 pop     ds
 seg000:A18E                 assume ds:seg000
 seg000:A18E                 call    render_tears_collected
@@ -224,7 +224,7 @@ seg000:A20B                 add     si, offset vfs_2_types_of_town_npcs
 seg000:A20F                 mov     di, 4000h       ; to seg1:4000h
 seg000:A212                 mov     al, 2
 seg000:A214                 call    word ptr cs:10Ch ; res_dispatcher_proc
-seg000:A219                 jmp     word ptr ds:6002h ; town_entry_init_proc
+seg000:A219                 jmp     word ptr ds:6002h ; town_entry_disabling_edge_scroll_proc
 seg000:A219 sub_A000        endp
 seg000:A219
 seg000:A219 ; ---------------------------------------------------------------------------
@@ -486,8 +486,8 @@ seg000:A46F locret_A46F:                            ; jumptable 0000A3ED case 3
 seg000:A46F                 retn
 seg000:A46F ; END OF FUNCTION CHUNK FOR sub_A3E5
 seg000:A46F ; ---------------------------------------------------------------------------
-seg000:A470 InitTitleScreen_proc dw 0
-seg000:A472 InitTitleScreen_seg dw 3000h
+seg000:A470 DrawDecorationsAroundCanvas_proc dw 0
+seg000:A472 DrawDecorationsAroundCanvas_seg dw 3000h
 seg000:A474 is_restore_game dw 0
 seg000:A474 seg000          ends
 seg000:A474

@@ -73,7 +73,7 @@ static void process_rope_climb(void);
  * Returns offset in proximity map buffer
  */
 static uint16_t hero_coords_to_addr_in_proximity(void) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // hero_head_y_in_viewport = height above ground
     // hero_x_in_viewport = X position in viewport
@@ -99,7 +99,7 @@ static uint16_t hero_coords_to_addr_in_proximity(void) {
  */
 int set_zero_flag_if_slippery(void) {
     // Check if hero has Ruzeria Shoes (anti-ice accessory)
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     if (save->Ruzeria_Shoes == ACCESSORY_RUZERIA_SHOES) {
         // Has Ruzeria Shoes - not slippery
@@ -108,7 +108,7 @@ int set_zero_flag_if_slippery(void) {
     
     // Check current tile for ice/slippery properties
     uint16_t offset = hero_coords_to_addr_in_proximity();
-    uint8_t tile = g_memory[MEM_PROXIMITY_MAP + offset];
+    uint8_t tile = g_mem[MEM_PROXIMITY_MAP + offset];
     
     // Ice tiles are typically in a specific range
     // For now, check if tile is in slippery category
@@ -135,7 +135,7 @@ int set_zero_flag_if_slippery(void) {
  */
 int is_over_rope(void) {
     uint16_t offset = hero_coords_to_addr_in_proximity();
-    uint8_t tile = g_memory[MEM_PROXIMITY_MAP + offset];
+    uint8_t tile = g_mem[MEM_PROXIMITY_MAP + offset];
     
     // Check if tile is 0 or 1 (rope/empty)
     // Assembly does: dec al; cmp al, 2; sets CF if al < 2
@@ -223,7 +223,7 @@ void sub_64BB(void) {
         above_offset -= 0x900;
     }
     
-    uint8_t tile_above = g_memory[MEM_PROXIMITY_MAP + above_offset];
+    uint8_t tile_above = g_mem[MEM_PROXIMITY_MAP + above_offset];
     
     // Check if tile is in range 0x40-0x48 (obstacle tiles)
     if (tile_above >= 0x40 && tile_above <= 0x48) {
@@ -285,7 +285,7 @@ void start_jump(void) {
  * Called each frame while jumping
  */
 void update_jump_trajectory(void) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     if (jump_phase_flags == JUMP_ASCENDING) {
         // Moving up - decrease height
@@ -366,7 +366,7 @@ static void check_grab_rope(void) {
  * Called when hero is on rope
  */
 static void process_rope_climb(void) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Check rope state
     if (on_rope_flags == ROPE_TRANSITION) {
@@ -392,7 +392,7 @@ static void process_rope_climb(void) {
         below_offset -= 0x900;
     }
     
-    uint8_t tile_below = g_memory[MEM_PROXIMITY_MAP + below_offset];
+    uint8_t tile_below = g_mem[MEM_PROXIMITY_MAP + below_offset];
     
     // Check if ground below
     if (!is_rope_tile(tile_below) && !is_ladder_tile(tile_below)) {
@@ -424,7 +424,7 @@ void start_climb_rope(void) {
     on_rope_flags = ROPE_ON_ROPE;
     
     // Adjust hero position to align with rope
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     save->hero_head_y_in_viewport = 10;  // Start at bottom
 }
 
@@ -436,7 +436,7 @@ void climb_up_rope(void) {
         return;
     }
     
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Check if can climb higher
     if (save->hero_head_y_in_viewport > 0) {
@@ -452,7 +452,7 @@ void climb_down_rope(void) {
         return;
     }
     
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Check if at bottom
     if (save->hero_head_y_in_viewport < 10) {
@@ -481,7 +481,7 @@ void physics_init(void) {
     on_rope_flags = ROPE_ON_GROUND;
     
     // Set hero to ground level
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     save->hero_head_y_in_viewport = 10;  // Ground level
 }
 

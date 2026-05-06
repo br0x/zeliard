@@ -20,8 +20,8 @@ COMMENT #
                 pop es
                 int 10h             ; set palette
 
-                mov     al, 4       ; this is how exactly Zeliard calls InitTitleScreen
-                call    InitTitleScreen
+                mov     al, 4       ; this is how exactly Zeliard calls DrawDecorationsAroundCanvas
+                call    DrawDecorationsAroundCanvas
 wait_for_esc:   in      al, 60h
                 dec     al
                 jnz     short wait_for_esc
@@ -65,9 +65,9 @@ db  0Bh, 10h, 0Bh, 0Bh, 10h, 0Ch, 0Bh, 10h, 0Dh, 0Bh, 10h, 0Fh, 0Bh, 10h, 10h, 0
 db  00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 #
 
-; Original ypmd.bin source code starts here
+; Original mole.bin source code starts here
                 org 0
-InitTitleScreen proc far
+DrawDecorationsAroundCanvas proc far
                 mov     cs:video_mode, al    ; 4 = MCGA
                 mov     ax, cs
                 mov     ds, ax
@@ -123,7 +123,7 @@ InitTitleScreen proc far
                 call    DecompressToVRAM
                 call    DrawTitleFrame
                 retf
-InitTitleScreen endp
+DrawDecorationsAroundCanvas endp
 
 
 ; =============== S U B R O U T I N E =======================================

@@ -88,15 +88,15 @@ static const uint8_t minion_pattern_2[] = {
 // ============================================================================
 
 static SaveData* get_save_data(void) {
-    return (SaveData*)&g_memory[MEM_SAVE_DATA];
+    return (SaveData*)&g_mem[MEM_SAVE_DATA];
 }
 
 static uint8_t* get_proximity_map(void) {
-    return &g_memory[MEM_PROXIMITY_MAP];
+    return &g_mem[MEM_PROXIMITY_MAP];
 }
 
 static MonsterEntry* get_monster_buffer(void) {
-    return (MonsterEntry*)&g_memory[MEM_VIEWPORT_BUFFER];
+    return (MonsterEntry*)&g_mem[MEM_VIEWPORT_BUFFER];
 }
 
 /**
@@ -297,7 +297,7 @@ void boss_take_damage(uint16_t damage) {
         SaveData* save = get_save_data();
         
         // Set defeat flag
-        g_memory[0xFF2E] = 0xFF;
+        g_mem[0xFF2E] = 0xFF;
         
         // Set boss defeat flag in save data
         // For Cangrejo (boss 1), this is at offset 0x0000
@@ -333,7 +333,7 @@ static void update_boss_ai(void) {
     }
     
     // Update boss position in monster table
-    MonsterEntry* boss_monster = (MonsterEntry*)&g_memory[MEM_MDT_DATA + 0xC010];
+    MonsterEntry* boss_monster = (MonsterEntry*)&g_mem[MEM_MDT_DATA + 0xC010];
     boss_monster->currX = boss_x;
     boss_monster->currY = boss_y;
     boss_monster->x_rel = boss_x - 18;
@@ -413,7 +413,7 @@ static void update_boss_ai(void) {
  */
 void init_boss_battle(void) {
     SaveData* save = get_save_data();
-    MDTHeader* mdt_header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    MDTHeader* mdt_header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     // Reset boss state
     boss_x = 0x2B;  // Start at center-right
@@ -434,7 +434,7 @@ void init_boss_battle(void) {
     minion_pattern_idx = 0;
     
     // Initialize boss monster entry in MDT
-    MonsterEntry* boss_monster = (MonsterEntry*)&g_memory[MEM_MDT_DATA + mdt_header->monsters_offset];
+    MonsterEntry* boss_monster = (MonsterEntry*)&g_mem[MEM_MDT_DATA + mdt_header->monsters_offset];
     boss_monster->currX = boss_x;
     boss_monster->currY = boss_y;
     boss_monster->x_rel = boss_x - 18;
@@ -451,8 +451,8 @@ void init_boss_battle(void) {
     boss_monster->counter = 0;
     
     // Set boss mode flags
-    g_memory[0xFF34] = 0xFF;  // byte_FF34 = 0xFF (boss mode)
-    g_memory[0x9F27] = 0xFF;  // byte_9F27 = 0xFF (MDT unpacked)
+    g_mem[0xFF34] = 0xFF;  // byte_FF34 = 0xFF (boss mode)
+    g_mem[0x9F27] = 0xFF;  // byte_9F27 = 0xFF (MDT unpacked)
     
     // Position hero at edge of screen (not centered)
     save->hero_x_minus_18_abs = 41;
@@ -467,7 +467,7 @@ void update_boss_battle(void) {
     SaveData* save = get_save_data();
     
     // Check if boss mode is active
-    if (g_memory[0xFF34] == 0) {
+    if (g_mem[0xFF34] == 0) {
         return;  // Not in boss battle
     }
     
@@ -486,7 +486,7 @@ void update_boss_battle(void) {
     // Check for boss defeat
     if (boss_hp == 0) {
         // Boss defeated - handle transition
-        g_memory[0xFF34] = 0;  // Clear boss mode
+        g_mem[0xFF34] = 0;  // Clear boss mode
     }
 }
 

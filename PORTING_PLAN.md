@@ -172,9 +172,9 @@ zeliard/
 |   ├── zeliard-wasm.js     # WASM JavaScript bridge
 │   ├── town.c              # Town engine (town.asm port)
 │   ├── zeliard.h           # Public API
-│   ├── data.c              # Global state
-│   └── Makefile            # Emscripten build
-└── PORTING_PLAN.md         # This document
+│   └── data.c              # Global state
+├── PORTING_PLAN.md         # This document
+└── Makefile            # Emscripten build
 ```
 
 ---

@@ -14,8 +14,8 @@ extern void* memcpy(void* dest, const void* src, unsigned long len);
 // ============================================================================
 
 // Hero absolute Y position (needed for monster AI)
-#define hero_y_absolute     g_memory[0xFF35]
-#define byte_FF36           g_memory[0xFF36]    // Timer/completion flag
+#define hero_y_absolute     g_mem[0xFF35]
+#define byte_FF36           g_mem[0xFF36]    // Timer/completion flag
 
 // ============================================================================
 // Monster Animation Frame Tables (from eai1.asm A0B0-A23F)
@@ -181,7 +181,7 @@ static int check_collision_in_direction(MonsterEntry* m, uint8_t direction);
  * @return 1 if clear (no monsters), 0 if blocked
  */
 static int check_monster_ids_two_rows_below_monster(MonsterEntry* m) {
-    uint8_t* monster_buf = &g_memory[MEM_VIEWPORT_BUFFER];
+    uint8_t* monster_buf = &g_mem[MEM_VIEWPORT_BUFFER];
     uint8_t check_y = m->currY + 2;
     
     // Check all monsters in buffer
@@ -189,9 +189,9 @@ static int check_monster_ids_two_rows_below_monster(MonsterEntry* m) {
         if (monster_buf[i] == 0) continue;  // Empty slot
         
         // Get monster entry from MDT
-        MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+        MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
         if (header->monsters_offset >= MEM_MDT_DATA && header->monsters_offset < 0xE000) {
-            MonsterEntry* other = (MonsterEntry*)&g_memory[header->monsters_offset + (i * sizeof(MonsterEntry))];
+            MonsterEntry* other = (MonsterEntry*)&g_mem[header->monsters_offset + (i * sizeof(MonsterEntry))];
             
             // Check if this monster is two rows below and same X position
             if (other->currY == check_y && other->currX == m->currX) {
@@ -214,7 +214,7 @@ static int check_monster_ids_two_rows_below_monster(MonsterEntry* m) {
  * @param m Monster entry
  */
 static void check_vertical_distance_between_hero_and_monster(MonsterEntry* m) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Calculate vertical distance
     int16_t dist_y = (int16_t)save->hero_y_rel - (int16_t)m->currY;
@@ -263,7 +263,7 @@ static void hero_hits_monster(MonsterEntry* m) {
  */
 __attribute__((unused))
 static int horiz_dist_to_hero_35(uint8_t monster_x) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
 
     // Hero X relative to viewport
     uint8_t hero_x = save->hero_x_in_viewport;
@@ -310,7 +310,7 @@ static int sub_A3D4(MonsterEntry* m) {
  * @return 0xFF if far, direction flag if close
  */
 static int sub_A4E8(MonsterEntry* m) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Calculate vertical distance
     uint8_t dist_y = save->hero_y_rel;
@@ -351,7 +351,7 @@ static int sub_A4E8(MonsterEntry* m) {
  * @return 0xFF if far, direction flag if close
  */
 static int sub_A6F0(MonsterEntry* m) {
-    SaveData* save = (SaveData*)&g_memory[MEM_SAVE_DATA];
+    SaveData* save = (SaveData*)&g_mem[MEM_SAVE_DATA];
     
     // Calculate vertical distance
     uint8_t dist_y = save->hero_y_rel;
@@ -872,8 +872,8 @@ void Monster_AI(MonsterEntry* m) {
  * Iterates through monster buffer and calls Monster_AI for each
  */
 void update_all_monsters_in_map(void) {
-    uint8_t* monster_buf = &g_memory[MEM_VIEWPORT_BUFFER];
-    MDTHeader* header = (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    uint8_t* monster_buf = &g_mem[MEM_VIEWPORT_BUFFER];
+    MDTHeader* header = (MDTHeader*)&g_mem[MEM_MDT_DATA];
     
     if (header->monsters_offset < MEM_MDT_DATA || header->monsters_offset >= 0xE000) {
         return;
@@ -884,7 +884,7 @@ void update_all_monsters_in_map(void) {
         if (monster_buf[i] == 0) continue;  // Empty slot
         
         // Get monster entry
-        MonsterEntry* m = (MonsterEntry*)&g_memory[header->monsters_offset + (i * sizeof(MonsterEntry))];
+        MonsterEntry* m = (MonsterEntry*)&g_mem[header->monsters_offset + (i * sizeof(MonsterEntry))];
         
         // Check for end marker
         if (m->currX == -1) break;

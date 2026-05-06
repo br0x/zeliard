@@ -4,10 +4,10 @@
 let wasmInstance = null;
 let wasmMemory = null;
 let wasmExports = null;
-let gMemoryBase = 0;  // Offset of g_memory array in WASM linear memory
+let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
 
 // Memory layout constants (must match zeliard.h)
-// These are offsets within g_memory, not absolute WASM memory offsets
+// These are offsets within g_mem, not absolute WASM memory offsets
 const MEM_MDT_DATA = 0xC000;
 const MEM_PROXIMITY_MAP = 0xE000;
 const MEM_VIEWPORT_BUFFER = 0xE900;
@@ -57,14 +57,14 @@ export async function initWasm() {
             throw new Error('WASM module does not export memory');
         }
 
-        // Get g_memory base address
+        // Get g_mem base address
         if (wasmExports.get_memory_base) {
             gMemoryBase = wasmExports.get_memory_base();
-            console.log('g_memory base offset:', gMemoryBase, '(0x' + gMemoryBase.toString(16) + ')');
+            console.log('g_mem base offset:', gMemoryBase, '(0x' + gMemoryBase.toString(16) + ')');
         } else {
-            // Fallback: assume g_memory starts at 0
+            // Fallback: assume g_mem starts at 0
             gMemoryBase = 0;
-            console.log('get_memory_base not exported, assuming g_memory at offset 0');
+            console.log('get_memory_base not exported, assuming g_mem at offset 0');
         }
 
         // Call wasm_init to initialize memory
@@ -437,7 +437,7 @@ export function unpack_map_internal(heroX, heroY) {
 
 /**
  * Read raw bytes from WASM memory
- * @param {number} offset - Memory offset (relative to g_memory base)
+ * @param {number} offset - Memory offset (relative to g_mem base)
  * @param {number} length - Number of bytes to read
  * @returns {Uint8Array} Bytes from memory
  */
@@ -452,7 +452,7 @@ export function readMemory(offset, length) {
 
 /**
  * Write bytes to WASM memory
- * @param {number} offset - Memory offset (relative to g_memory base)
+ * @param {number} offset - Memory offset (relative to g_mem base)
  * @param {Uint8Array} data - Bytes to write
  */
 export function writeMemory(offset, data) {
@@ -468,7 +468,7 @@ export function writeMemory(offset, data) {
 
 /**
  * Debug: dump memory region as hex
- * @param {number} offset - Memory offset (relative to g_memory base)
+ * @param {number} offset - Memory offset (relative to g_mem base)
  * @param {number} length - Number of bytes to dump
  * @returns {string} Hex dump
  */

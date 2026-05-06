@@ -3,22 +3,23 @@
 
 #include "zeliard.h"
 
+/* =========================================================================
+ * WASM linear memory — the entire address space lives here.
+ * 0x10000 = 64 KB for seg0. Extend if seg1/seg2/seg3 are needed.
+ * ========================================================================= */
+uint8_t g_mem[0x40000];  /* 256 KB — covers seg0..seg3 */
+
+void wasm_init(void) {
+}
+
 // ============================================================================
-// Main Memory Array (4 segments of 64KB to match original DOS memory model)
+// Export g_mem base address for JS
 // ============================================================================
 
-// Using a flat array to represent the entire memory space
-// This gets placed in the WASM linear memory
-uint8_t g_memory[65536*4] __attribute__((aligned(65536)));
-
-// ============================================================================
-// Export g_memory base address for JS
-// ============================================================================
-
-// JS needs to know where g_memory is located in WASM linear memory
-// This function returns the offset of g_memory[0] in WASM memory
+// JS needs to know where g_mem is located in WASM linear memory
+// This function returns the offset of g_mem[0] in WASM memory
 uint32_t get_memory_base(void) {
-    return (uint32_t)((uintptr_t)g_memory);
+    return (uint32_t)((uintptr_t)g_mem);
 }
 
 // ============================================================================
@@ -27,22 +28,22 @@ uint32_t get_memory_base(void) {
 
 // Get save data structure
 SaveData* wasm_get_save_data(void) {
-    return (SaveData*)&g_memory[MEM_SAVE_DATA];
+    return (SaveData*)&g_mem[MEM_SAVE_DATA];
 }
 
 // Get MDT header
 MDTHeader* wasm_get_mdt_header(void) {
-    return (MDTHeader*)&g_memory[MEM_MDT_DATA];
+    return (MDTHeader*)&g_mem[MEM_MDT_DATA];
 }
 
 // Get monster buffer
 uint8_t* wasm_get_monster_buffer(void) {
-    return &g_memory[MEM_VIEWPORT_BUFFER];
+    return &g_mem[MEM_VIEWPORT_BUFFER];
 }
 
 // Get proximity map
 uint8_t* wasm_get_proximity_map(void) {
-    return &g_memory[MEM_PROXIMITY_MAP];
+    return &g_mem[MEM_PROXIMITY_MAP];
 }
 
 // Debug dump - just a marker, JS reads memory directly

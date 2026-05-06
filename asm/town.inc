@@ -13,6 +13,7 @@ NPC ENDS
 ; so they are in separate include files
 
 ; gtmcga.bin (driver for towns)
+gtmcga_drv_addr                                    equ 3000h
 apply_screen_xor_grid_proc                         equ 3000h
 backup_upper_town_3_tiles_proc                     equ 3002h
 render_town_tiles_28_columns_proc                  equ 3004h
@@ -35,8 +36,8 @@ decompress_patterns_proc                           equ 3024h
 apply_sprite_mask_proc                             equ 3026h
 
 ; town.bin exports
-town_entry_normal_proc                             equ 6000h
-town_entry_init_proc                               equ 6002h
+town_entry_enabling_edge_scroll_proc               equ 6000h
+town_entry_disabling_edge_scroll_proc                               equ 6002h
 render_menu_dialog_proc                            equ 6004h
 convert_ax_to_decimal_proc                         equ 6006h
 show_yes_no_dialog_proc                            equ 6008h
