@@ -7,7 +7,6 @@ Features:
   - Full MDT header parsing for dungeon and town maps
   - Overlay labels: D1/D2 (doors), M1/M2 (monsters), I1/I2 (items), N1/N2 (NPCs)
   - Hover tooltips showing entity details
-  - NPC dialogue panel for town maps
   - Export to PNG and TXT formats
   - Zoom controls (2-40px block size)
   - 16-tile alignment guides

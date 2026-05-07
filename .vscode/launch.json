@@ -2,10 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Module - SpriteEditor.decoder",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tools.MDTVSpriteEditoriewer",   // ← change this to match your structure
+            "cwd": "${workspaceFolder}/tools",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Module - MdtViewer.decoder",
             "type": "debugpy",
             "request": "launch",
-            "module": "tools.MDTViewer",   // ← change this to match your structure
+            "module": "tools.MdtViewer",   // ← change this to match your structure
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
