@@ -185,16 +185,18 @@ class MDTViewer(tk.Tk):
         self.cf = tk.Frame(left, bg=self.C_BG1)
         self.canvas = tk.Canvas(self.cf, bg=self.C_BG1,
                                 highlightthickness=0, cursor='crosshair')
-        vsb = tk.Scrollbar(self.cf, orient='vertical',
-                           command=self.canvas.yview,
-                           bg=self.C_SURF, troughcolor=self.C_BG2, width=10)
-        hsb = tk.Scrollbar(self.cf, orient='horizontal',
-                           command=self.canvas.xview,
-                           bg=self.C_SURF, troughcolor=self.C_BG2, width=10)
-        self.canvas.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        vsb.pack(side='right', fill='y')
-        hsb.pack(side='bottom', fill='x')
+        # --- Scrollbars (store as instance attributes) ---
+        self.vsb = tk.Scrollbar(self.cf, orient='vertical',
+                                command=self.canvas.yview,
+                                bg=self.C_SURF, troughcolor=self.C_BG2, width=10)
+        self.hsb = tk.Scrollbar(self.cf, orient='horizontal',
+                                command=self.canvas.xview,
+                                bg=self.C_SURF, troughcolor=self.C_BG2, width=10)
+        self.canvas.configure(yscrollcommand=self.vsb.set, xscrollcommand=self.hsb.set)
+        self.vsb.pack(side='right', fill='y')
+        self.hsb.pack(side='bottom', fill='x')
         self.canvas.pack(fill='both', expand=True)
+        self.canvas.bind('<Configure>', self._update_canvas_scrollbars)
 
         # Bindings for scrolling and zooming
         self.canvas.bind('<Motion>', self._on_motion)
@@ -372,6 +374,8 @@ class MDTViewer(tk.Tk):
         # Re-apply overlays & tile IDs if needed
         self._draw_overlays()
         self._draw_tile_ids()
+        # Show/hide scrollbars based on current view
+        self._update_canvas_scrollbars()
 
     def _draw_overlays(self):
         for iid in self.overlay_ids:
@@ -566,6 +570,32 @@ class MDTViewer(tk.Tk):
         self.hover_txt.set('')
         if self.tooltip:
             self.tooltip.hide()
+
+    def _update_canvas_scrollbars(self, event=None):
+        """Show/hide scrollbars based on whether content fits the viewport."""
+        if event:
+            # Unpack the event (from <Configure>)
+            pass
+        if not self.mdt:
+            return
+        # Get canvas viewport size
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        # Map full size
+        map_full_w = self.mdt.map_width * self.block_size
+        map_full_h = self.mdt.map_height * self.block_size
+
+        # Vertical scrollbar
+        if map_full_h <= canvas_height:
+            self.vsb.pack_forget()
+        else:
+            self.vsb.pack(side='right', fill='y')
+
+        # Horizontal scrollbar
+        if map_full_w <= canvas_width:
+            self.hsb.pack_forget()
+        else:
+            self.hsb.pack(side='bottom', fill='x')
 
     # ── Scroll handlers (enhanced) ──────────────────────────────────────
     def _on_wheel(self, event):
@@ -937,6 +967,7 @@ class MDTViewer(tk.Tk):
         return tmp.resize((bs, bs), Image.NEAREST)
 
     def save_png(self):
+        """Export map as PNG at native tile size (source tile size or 8px)."""
         if not self.mdt:
             messagebox.showwarning('Warning', 'Open a file first.')
             return
@@ -947,14 +978,19 @@ class MDTViewer(tk.Tk):
         if not path:
             return
         try:
-            bs = max(self.block_size, 4)
+            # Use source tile size if loaded, otherwise native 8px
+            if self.source_tile_candidates and self.source_tile_size:
+                tile_size = self.source_tile_size
+            else:
+                tile_size = 8
+
             mw, mh = self.mdt.map_width, self.mdt.map_height
-            full_map = Image.new('RGB', (mw * bs, mh * bs), self.C_BG1)
+            full_map = Image.new('RGB', (mw * tile_size, mh * tile_size), self.C_BG1)
             for r in range(mh):
                 for c in range(mw):
                     tid = self.mdt.grid[r][c]
-                    tile_img = self._get_tile_image_for_export(tid, bs)
-                    full_map.paste(tile_img, (c * bs, r * bs))
+                    tile_img = self._get_tile_image_for_export(tid, tile_size)
+                    full_map.paste(tile_img, (c * tile_size, r * tile_size))
             full_map.save(path)
             messagebox.showinfo('Saved', f'High-fidelity PNG saved:\n{path}')
         except Exception as e:
