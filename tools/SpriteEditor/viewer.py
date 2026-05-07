@@ -35,7 +35,7 @@ class MDTViewer(tk.Tk):
     C_PINK = '#f5c2e7'
 
     BLK_MIN = 2
-    BLK_MAX = 40
+    BLK_MAX = 48
     BLK_DEF = 8
 
     def build_palette():
@@ -162,6 +162,7 @@ class MDTViewer(tk.Tk):
             bg=self.C_BG0, fg=self.C_DIM, font=('Consolas', 9))
         self.file_lbl.pack(side='left', padx=8)
 
+    # ── CORRECTED _build_body (single layout, no duplicates) ──────────────
     def _build_body(self):
         """Build the main body with map canvas and info panel."""
         pane = tk.PanedWindow(self, orient='horizontal',
@@ -195,13 +196,17 @@ class MDTViewer(tk.Tk):
         hsb.pack(side='bottom', fill='x')
         self.canvas.pack(fill='both', expand=True)
 
+        # Bindings for scrolling and zooming
         self.canvas.bind('<Motion>', self._on_motion)
         self.canvas.bind('<Leave>', self._on_leave)
         self.canvas.bind('<MouseWheel>', self._on_wheel)
+        self.canvas.bind('<Shift-MouseWheel>', self._on_shift_wheel)
         self.canvas.bind('<Button-4>', self._on_wheel)
         self.canvas.bind('<Button-5>', self._on_wheel)
+        self.canvas.bind('<Shift-Button-4>', self._on_shift_wheel)
+        self.canvas.bind('<Shift-Button-5>', self._on_shift_wheel)
 
-        # Status bar
+        # Status bar at bottom of the left pane
         status_frame = tk.Frame(left, bg=self.C_BG0)
         status_frame.pack(fill='x', side='bottom')
 
@@ -225,40 +230,46 @@ class MDTViewer(tk.Tk):
         right = tk.Frame(pane, bg=self.C_BG3)
         pane.add(right, minsize=315, stretch='never')
         self._build_info_panel(right)
+    # ──────────────────────────────────────────────────────────────────────
 
     def _build_info_panel(self, parent: tk.Widget):
-        """Build the right-side info panel with multiple info boxes."""
-        hdr = tk.Frame(parent, bg=self.C_SURF, pady=4)
-        hdr.pack(fill='x')
+        """Build the right-side info panel with fixed top boxes and scrollable candidate area."""
+        # ---- Top section: fixed info boxes (non‑scrollable) ----
+        top_frame = tk.Frame(parent, bg=self.C_BG3)
+        top_frame.pack(fill='both', expand=True)
 
-        scroll_frame = ScrollFrame(parent, bg=self.C_BG3)
-        scroll_frame.pack(fill='both', expand=True)
-
-        self.info_box1 = InfoBox(scroll_frame.interior, 'MAP INFORMATION', self.C_SURF, self.C_BLUE)
+        # Scrollable area for the three info boxes (they are short, no need to scroll, but we keep the look)
+        # We'll just pack them directly
+        self.info_box1 = InfoBox(top_frame, 'MAP INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box1.pack(fill='x', padx=5, pady=3)
 
-        self.info_box2 = InfoBox(scroll_frame.interior, 'HEADER INFORMATION', self.C_SURF, self.C_BLUE)
+        self.info_box2 = InfoBox(top_frame, 'HEADER INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box2.pack(fill='x', padx=5, pady=3)
 
-        self.info_box4 = InfoBox(scroll_frame.interior, 'TILE INFORMATION', self.C_SURF, self.C_BLUE)
+        self.info_box4 = InfoBox(top_frame, 'TILE INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box4.pack(fill='x', padx=5, pady=3)
 
-        self.info_box5 = InfoBox(scroll_frame.interior, 'TILE CANDIDATES', self.C_SURF, self.C_BLUE)
-        self.info_box5.pack(fill='x', padx=5, pady=3)
+        # ---- Bottom section: Tile Candidates with fixed horizontal scroll ----
+        candidate_container = tk.Frame(parent, bg=self.C_BG3)
+        candidate_container.pack(fill='both', expand=True)
 
+        self.info_box5 = InfoBox(candidate_container, 'TILE CANDIDATES', self.C_SURF, self.C_BLUE)
+        self.info_box5.pack(fill='both', expand=True, padx=5, pady=3)
+
+        # Text widgets for the three info boxes
         self.info_txt1 = tk.Text(self.info_box1._content, bg=self.C_PANEL, fg=self.C_FG,
-                                 font=('Consolas', 8), relief='flat', state='disabled',
-                                 width=40, wrap='none', selectbackground=self.C_SURF, height=5)
+                                font=('Consolas', 8), relief='flat', state='disabled',
+                                width=40, wrap='none', selectbackground=self.C_SURF, height=5)
         self.info_box1.set_text_widget(self.info_txt1)
 
         self.info_txt2 = tk.Text(self.info_box2._content, bg=self.C_PANEL, fg=self.C_FG,
-                                 font=('Consolas', 8), relief='flat', state='disabled',
-                                 width=40, wrap='none', selectbackground=self.C_SURF, height=5)
+                                font=('Consolas', 8), relief='flat', state='disabled',
+                                width=40, wrap='none', selectbackground=self.C_SURF, height=5)
         self.info_box2.set_text_widget(self.info_txt2)
 
         self.info_txt4 = tk.Text(self.info_box4._content, bg=self.C_PANEL, fg=self.C_FG,
-                                 font=('Consolas', 8), relief='flat', state='disabled',
-                                 width=40, wrap='none', selectbackground=self.C_SURF, height=5)
+                                font=('Consolas', 8), relief='flat', state='disabled',
+                                width=40, wrap='none', selectbackground=self.C_SURF, height=5)
         self.info_box4.set_text_widget(self.info_txt4)
 
         # Configure text tags
@@ -274,6 +285,7 @@ class MDTViewer(tk.Tk):
             txt.tag_config('leg_d', foreground='#ffffff', background=self.C_BG0)
             txt.tag_config('leg_m', foreground='#ffffff', background=self.C_BG0)
             txt.tag_config('leg_i', foreground='#ffffff', background=self.C_BG0)
+
 
     # ── File Operations ───────────────────────────────────────────────────────
     def open_file(self):
@@ -334,8 +346,9 @@ class MDTViewer(tk.Tk):
     def _draw_map(self):
         self.canvas.delete("all")
         bw = self.block_size
-        for y in range(self.mdt.map_height):
-            for x in range(self.mdt.map_width):
+        mw, mh = self.mdt.map_width, self.mdt.map_height
+        for y in range(mh):
+            for x in range(mw):
                 tile_idx = self.mdt.grid[y][x]
                 x1, y1 = x * bw, y * bw
                 if self.source_tile_candidates and tile_idx in self.source_tile_candidates:
@@ -355,6 +368,13 @@ class MDTViewer(tk.Tk):
                     self.canvas.create_image(x1, y1, image=tile_img, anchor='nw')
                 else:
                     self.canvas.create_rectangle(x1, y1, x1+bw, y1+bw, fill='gray')
+        
+        # Update scrollregion so scrollbars reflect full map size
+        self.canvas.config(scrollregion=(0, 0, mw * bw, mh * bw))
+
+        # Re-apply overlays & tile IDs if needed
+        self._draw_overlays()
+        self._draw_tile_ids()
 
     def _draw_overlays(self):
         for iid in self.overlay_ids:
@@ -550,19 +570,39 @@ class MDTViewer(tk.Tk):
         if self.tooltip:
             self.tooltip.hide()
 
+    # ── Scroll handlers (enhanced) ──────────────────────────────────────
     def _on_wheel(self, event):
-        if event.state & 0x4:
+        """Handle mouse wheel for vertical scrolling and Ctrl+wheel for zoom."""
+        if event.state & 0x4:          # Ctrl held → zoom
             if event.delta > 0 or event.num == 4:
                 self.zoom_in()
             else:
                 self.zoom_out()
             return
+
+        # Vertical scroll
         if event.num == 4:
             self.canvas.yview_scroll(-3, 'units')
         elif event.num == 5:
             self.canvas.yview_scroll(3, 'units')
         else:
+            # event.delta on Windows is typically ±120 per notch
             self.canvas.yview_scroll(-1 * (event.delta // 120), 'units')
+
+    def _on_shift_wheel(self, event):
+        """Horizontal scroll via Shift+wheel or two-finger horizontal pan."""
+        # Ignore Ctrl combinations (they are for zoom)
+        if event.state & 0x4:
+            return
+
+        # On some systems, Shift+wheel sends a separate event with delta.
+        # We'll use that delta for horizontal scrolling.
+        if event.num == 4:
+            self.canvas.xview_scroll(-3, 'units')
+        elif event.num == 5:
+            self.canvas.xview_scroll(3, 'units')
+        else:
+            self.canvas.xview_scroll(-1 * (event.delta // 120), 'units')
 
     def _hit_entity(self, cx, cy):
         if not self.mdt or not self.show_overlay.get():
@@ -621,8 +661,6 @@ class MDTViewer(tk.Tk):
             self.zoom_lbl.config(text=f'{self.block_size}px')
             if self.mdt:
                 self._draw_map()
-                self._draw_overlays()
-                self._draw_tile_ids()
 
     def zoom_out(self):
         if self.block_size > self.BLK_MIN:
@@ -630,8 +668,6 @@ class MDTViewer(tk.Tk):
             self.zoom_lbl.config(text=f'{self.block_size}px')
             if self.mdt:
                 self._draw_map()
-                self._draw_overlays()
-                self._draw_tile_ids()
 
     # ── Source Tile Loading & Candidate Palette ──────────────────────────────
     def load_source_image(self):
@@ -677,7 +713,7 @@ class MDTViewer(tk.Tk):
             self.source_image_path = path
             self.source_tile_size = ts
 
-            # ---- NEW: try to load saved selections ----
+            # ---- Attempt to load saved selections ----
             self._load_selections_if_match()
             self._build_tile_candidates_ui()
             self._draw_map()
@@ -704,7 +740,7 @@ class MDTViewer(tk.Tk):
             for w in self.info_box5._content.winfo_children():
                 w.destroy()
 
-    # ─── NEW: persistence methods ─────────────────────────────────────────────
+    # ─── Persistence methods ─────────────────────────────────────────────────
     def _get_selections_file_path(self):
         """Derive a persistent file path for tile selections next to the MDT."""
         if not self.current_file or not self.source_image_path:
@@ -762,28 +798,67 @@ class MDTViewer(tk.Tk):
             # Cancel: do nothing (stay open)
         else:
             self.destroy()
-    # ──────────────────────────────────────────────────────────────────────────
 
+    # ── Right panel: tile candidates with CORRECTED horizontal scroll ────────
     def _build_tile_candidates_ui(self):
+        """
+        Build the tile candidate palette inside info_box5.
+        Uses vertical + horizontal scrollbars. The horizontal scrollbar is fixed at the bottom
+        and the vertical scrollbar on the right side; both work independently.
+        """
         content = self.info_box5._content
         for w in content.winfo_children():
             w.destroy()
+
         if not self.source_tile_candidates:
             return
+
+        # Outer frame to contain canvas and scrollbars
+        outer = tk.Frame(content, bg=self.C_BG2)
+        outer.pack(fill='both', expand=True)
+
+        # Canvas that will scroll both directions
+        v_canvas = tk.Canvas(outer, bg=self.C_BG2, highlightthickness=0)
+        v_scrollbar = tk.Scrollbar(outer, orient='vertical', command=v_canvas.yview,
+                                bg=self.C_SURF, troughcolor=self.C_BG2)
+        h_scrollbar = tk.Scrollbar(outer, orient='horizontal',
+                                command=v_canvas.xview,
+                                bg=self.C_SURF, troughcolor=self.C_BG2)
+
+        v_canvas.configure(yscrollcommand=v_scrollbar.set,
+                        xscrollcommand=h_scrollbar.set)
+
+        v_scrollbar.pack(side='right', fill='y')
+        h_scrollbar.pack(side='bottom', fill='x')
+        v_canvas.pack(side='left', fill='both', expand=True)
+
+        # Inner frame – its natural size is determined by its content
+        inner = tk.Frame(v_canvas, bg=self.C_BG2)
+        v_canvas.create_window((0, 0), window=inner, anchor='nw')
+
+        # Update scrollregion whenever the inner frame changes size
+        def on_inner_configure(event):
+            v_canvas.configure(scrollregion=v_canvas.bbox('all'))
+        inner.bind('<Configure>', on_inner_configure)
+
         self.candidate_labels = {}
         self.candidate_frames = {}
+
         for tile_id in sorted(self.source_tile_candidates.keys()):
             cands = self.source_tile_candidates[tile_id]
-            section = tk.Frame(content, bg=self.C_BG2)
+            section = tk.Frame(inner, bg=self.C_BG2)
             section.pack(fill='x', padx=5, pady=2)
+
             tk.Label(section, text=f'Tile {tile_id}',
-                     fg=self.C_FG, bg=self.C_BG2,
-                     font=('Consolas', 9)).pack(side='left', padx=5)
+                    fg=self.C_FG, bg=self.C_BG2,
+                    font=('Consolas', 9)).pack(side='left', padx=5)
+
             row = tk.Frame(section, bg=self.C_BG2)
             row.pack(side='left', fill='x')
+
             for i, img in enumerate(cands):
                 frame = tk.Frame(row, bg=self.C_BG2, highlightthickness=0,
-                                 highlightbackground='white', relief='flat')
+                                highlightbackground='white', relief='flat')
                 frame.pack(side='left', padx=2)
                 thumb = img.copy()
                 thumb.thumbnail((24, 24), Image.NEAREST)
@@ -793,16 +868,24 @@ class MDTViewer(tk.Tk):
                 lbl.pack()
                 self.candidate_labels[(tile_id, i)] = lbl
                 self.candidate_frames[(tile_id, i)] = frame
-                lbl.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
-                frame.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+
+                lbl.bind('<Button-1>',
+                        lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+                frame.bind('<Button-1>',
+                        lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+
                 if self.source_tile_selections.get(tile_id) == i:
                     frame.config(highlightthickness=1, relief='solid')
+
+        # Force initial scrollregion after all widgets are built
+        inner.update_idletasks()
+        v_canvas.configure(scrollregion=v_canvas.bbox('all'))
 
     def _select_candidate(self, tile_id, idx):
         if self.source_tile_selections.get(tile_id) == idx:
             return
         self.source_tile_selections[tile_id] = idx
-        self.selections_dirty = True            # NEW: mark dirty
+        self.selections_dirty = True
         for (tid, i), frame in self.candidate_frames.items():
             if tid == tile_id:
                 frame.config(highlightthickness=1 if i == idx else 0,
