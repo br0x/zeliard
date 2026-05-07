@@ -1,8 +1,9 @@
 """
-Zeliard Sprite Editor - Main application (v0.2 - tile editor features).
+Zeliard Sprite Editor - Main application (v0.3 - persistent tile selections).
 """
 
 import os
+import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 from collections import Counter, defaultdict
@@ -55,7 +56,7 @@ class MDTViewer(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title('Zeliard Sprite Editor v0.2')
+        self.title('Zeliard Sprite Editor v0.3')
         self.geometry('1400x880')
         self.minsize(980, 660)
         self.configure(bg=self.C_BG2)
@@ -65,9 +66,9 @@ class MDTViewer(tk.Tk):
         self.current_file: Optional[str] = None
         self.file_data: Optional[bytes] = None
         self.show_overlay = tk.BooleanVar(value=True)
-        self.show_tile_ids = tk.BooleanVar(value=False)            # NEW
+        self.show_tile_ids = tk.BooleanVar(value=False)
         self.overlay_ids: List[int] = []
-        self.tile_id_overlay_ids: List[int] = []                   # NEW
+        self.tile_id_overlay_ids: List[int] = []
         self.hover_txt = tk.StringVar()
         self.tooltip: Optional[Tooltip] = None
         self.tile_images = {}          # Cache for scaled GRP PhotoImages
@@ -75,9 +76,18 @@ class MDTViewer(tk.Tk):
         self.source_tile_selections = {}     # tile_id -> chosen candidate index
         self.source_tile_cache = {}          # cache for scaled source PhotoImages
         self.candidate_labels = {}           # dict (tile_id, idx) -> Label widget
-        self.candidate_frames = {}           # NEW dict (tile_id, idx) -> Frame widget (for border)
+        self.candidate_frames = {}           # dict (tile_id, idx) -> Frame widget (for border)
+
+        # ---- NEW: persistence attributes ----
+        self.selections_dirty = False
+        self.selections_file_path = None
+        self.source_image_path = None
+        self.source_tile_size = None
+        # ------------------------------------
 
         self._build_ui()
+        # Intercept window close
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     # ── UI Construction ───────────────────────────────────────────────────────
     def _build_ui(self):
@@ -115,7 +125,6 @@ class MDTViewer(tk.Tk):
         btn('Load Source', self.load_source_image, fg=self.C_CYAN)
         btn('Clear Source', self.clear_source_data, fg=self.C_RED)
         sep()
-        # ────────────────────────────────────────────────────
 
         self.ov_btn = tk.Button(
             tb, text='Overlay  ON', command=self._toggle_overlay,
@@ -125,7 +134,6 @@ class MDTViewer(tk.Tk):
             font=('Consolas', 9), padx=10, pady=7)
         self.ov_btn.pack(side='left', padx=2, pady=6)
 
-        # NEW: Tile IDs overlay toggle
         self.tid_btn = tk.Button(
             tb, text='Tile IDs  OFF', command=self._toggle_tile_ids,
             bg='#2a2a45', fg=self.C_YELL if self.show_tile_ids.get() else self.C_DIM,
@@ -146,7 +154,6 @@ class MDTViewer(tk.Tk):
         btn('+', self.zoom_in, fg=self.C_GREEN, px=8)
         sep()
 
-        # NEW: Save TileSheet button
         btn('Save TileSheet', self.save_tilesheet, fg=self.C_PINK)
         sep()
 
@@ -236,10 +243,8 @@ class MDTViewer(tk.Tk):
         self.info_box4 = InfoBox(scroll_frame.interior, 'TILE INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box4.pack(fill='x', padx=5, pady=3)
 
-        # ─── NEW: Tile Candidates palette ─────────────────────────
         self.info_box5 = InfoBox(scroll_frame.interior, 'TILE CANDIDATES', self.C_SURF, self.C_BLUE)
         self.info_box5.pack(fill='x', padx=5, pady=3)
-        # ───────────────────────────────────────────────────────────
 
         self.info_txt1 = tk.Text(self.info_box1._content, bg=self.C_PANEL, fg=self.C_FG,
                                  font=('Consolas', 8), relief='flat', state='disabled',
@@ -279,9 +284,8 @@ class MDTViewer(tk.Tk):
         if not path:
             return
         try:
-            # Clear the image cache so tiles from the previous file aren't reused
             self.tile_images.clear()
-            self._clear_source_data()   # also clears source palette
+            self._clear_source_data()
 
             self.file_data = open(path, 'rb').read()
             self.mdt = decode_mdt_file(path)
@@ -298,7 +302,7 @@ class MDTViewer(tk.Tk):
 
             self._draw_map()
             self._draw_overlays()
-            self._draw_tile_ids()       # NEW: draw tile IDs if enabled
+            self._draw_tile_ids()
             self._update_info()
 
         except Exception as e:
@@ -312,23 +316,16 @@ class MDTViewer(tk.Tk):
         if not self.mdt.gfx or tile_idx >= len(self.mdt.gfx):
             return None
 
-        # Use 'RGBA' mode to support transparency
         raw_pixels = self.mdt.gfx[tile_idx]
-        img = Image.new('RGBA', (8, 8), (0, 0, 0, 0)) # Initialize as fully transparent
-        
+        img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
         for i, p_idx in enumerate(raw_pixels):
             if p_idx == -1:
-                # Simulate blue background
                 color_hex = self.PALETTE_STRS[5]
             else:
                 color_hex = self.PALETTE_STRS[p_idx]
             x, y = i % 8, i // 8
             rgb = tuple(int(color_hex[i:i+2], 16) for i in (1, 3, 5))
             img.putpixel((x, y), rgb + (255,))
-
-        # Important: Use NEAREST to keep the pixel art crisp when scaling 8x8 up
-        # img = img.resize((self.block_size, self.block_size), Image.NEAREST)
-        
         photo = ImageTk.PhotoImage(img)
         self.tile_images[cache_key] = photo
         return photo
@@ -337,14 +334,11 @@ class MDTViewer(tk.Tk):
     def _draw_map(self):
         self.canvas.delete("all")
         bw = self.block_size
-        
         for y in range(self.mdt.map_height):
             for x in range(self.mdt.map_width):
                 tile_idx = self.mdt.grid[y][x]
                 x1, y1 = x * bw, y * bw
-                
                 if self.source_tile_candidates and tile_idx in self.source_tile_candidates:
-                    # Use selected source tile version
                     sel_idx = self.source_tile_selections.get(tile_idx, 0)
                     if sel_idx < len(self.source_tile_candidates[tile_idx]):
                         src_img = self.source_tile_candidates[tile_idx][sel_idx]
@@ -356,7 +350,6 @@ class MDTViewer(tk.Tk):
                         tile_img = self.source_tile_cache[cache_key]
                         self.canvas.create_image(x1, y1, image=tile_img, anchor='nw')
                         continue
-                # Fallback to GRP tile
                 tile_img = self.get_tile_image(tile_idx)
                 if tile_img:
                     self.canvas.create_image(x1, y1, image=tile_img, anchor='nw')
@@ -364,105 +357,77 @@ class MDTViewer(tk.Tk):
                     self.canvas.create_rectangle(x1, y1, x1+bw, y1+bw, fill='gray')
 
     def _draw_overlays(self):
-        """Draw entity labels (D1, M1, I1, N1, etc.) on the map."""
         for iid in self.overlay_ids:
             self.canvas.delete(iid)
         self.overlay_ids = []
         if not self.mdt or not self.show_overlay.get():
             return
-
         bs = self.block_size
         fs = max(6, min(10, bs - 1))
         font = ('Consolas', fs, 'bold')
         pad = max(1, bs // 6)
-
         def place(x, y, text):
             cx = x * bs + bs // 2
             cy = y * bs + bs // 2
-            tid = self.canvas.create_text(
-                cx, cy, text=text, fill='#ffffff', font=font, anchor='center')
+            tid = self.canvas.create_text(cx, cy, text=text, fill='#ffffff', font=font, anchor='center')
             bb = self.canvas.bbox(tid)
             if bb:
-                rid = self.canvas.create_rectangle(
-                    bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad,
-                    fill='#000000', outline='#555555', width=1)
+                rid = self.canvas.create_rectangle(bb[0]-pad, bb[1]-pad, bb[2]+pad, bb[3]+pad,
+                                                  fill='#000000', outline='#555555', width=1)
                 self.canvas.tag_raise(tid)
                 self.overlay_ids += [rid, tid]
             else:
                 self.overlay_ids.append(tid)
-
-        # Dungeon entities
-        for d in self.mdt.doors:
-            place(d.x, d.y, d.label)
-        for m in self.mdt.monsters:
-            place(m.x, m.y, m.label)
-        for i in self.mdt.items:
-            place(i.x, i.y, i.label)
-
-        # Town entities: place at ground level (row 7)
+        for d in self.mdt.doors: place(d.x, d.y, d.label)
+        for m in self.mdt.monsters: place(m.x, m.y, m.label)
+        for i in self.mdt.items: place(i.x, i.y, i.label)
         if self.mdt.is_town:
             ground_row = TOWN_HEIGHT - 1
-            for td in self.mdt.town_doors:
-                place(td.x, ground_row, td.label)
-            for npc in self.mdt.npcs:
-                place(npc.x, ground_row, npc.label)
+            for td in self.mdt.town_doors: place(td.x, ground_row, td.label)
+            for npc in self.mdt.npcs: place(npc.x, ground_row, npc.label)
 
-    # NEW: Tile ID overlay
     def _draw_tile_ids(self):
-        """Draw tile ID numbers in the top-left corner of each tile."""
         for iid in self.tile_id_overlay_ids:
             self.canvas.delete(iid)
         self.tile_id_overlay_ids = []
         if not self.mdt or not self.show_tile_ids.get():
             return
-
         bs = self.block_size
-        fs = max(4, bs // 4)            # scale font with block size
+        fs = max(4, bs // 4)
         font = ('Consolas', fs, 'bold')
         mw, mh = self.mdt.map_width, self.mdt.map_height
-
         for y in range(mh):
             for x in range(mw):
                 tile_idx = self.mdt.grid[y][x]
-                x1 = x * bs + 2
-                y1 = y * bs + 2
-                tid = self.canvas.create_text(
-                    x1, y1, text=str(tile_idx), fill='white',
-                    font=font, anchor='nw')
+                tid = self.canvas.create_text(x*bs+2, y*bs+2, text=str(tile_idx),
+                                             fill='white', font=font, anchor='nw')
                 self.tile_id_overlay_ids.append(tid)
 
     def _toggle_overlay(self):
-        """Toggle overlay visibility."""
         self.show_overlay.set(not self.show_overlay.get())
         on = self.show_overlay.get()
-        self.ov_btn.config(
-            text=f'Overlay  {"ON " if on else "OFF"}',
-            fg=self.C_YELL if on else self.C_DIM)
+        self.ov_btn.config(text=f'Overlay  {"ON " if on else "OFF"}',
+                           fg=self.C_YELL if on else self.C_DIM)
         self._draw_overlays()
 
-    # NEW: Toggle tile ID overlay
     def _toggle_tile_ids(self):
         self.show_tile_ids.set(not self.show_tile_ids.get())
         on = self.show_tile_ids.get()
-        self.tid_btn.config(
-            text=f'Tile IDs  {"ON " if on else "OFF"}',
-            fg=self.C_YELL if on else self.C_DIM)
+        self.tid_btn.config(text=f'Tile IDs  {"ON " if on else "OFF"}',
+                            fg=self.C_YELL if on else self.C_DIM)
         self._draw_tile_ids()
 
     # ── Info Panel Update ─────────────────────────────────────────────────────
     def _update_info(self):
-        """Update all info boxes with current map data."""
         m = self.mdt
         d = self.file_data
         if not m or not d:
             return
-
         mw, mh = m.map_width, m.map_height
         total = mw * mh
         flat = [m.grid[r][c] for r in range(mh) for c in range(mw)]
         cnt = Counter(flat)
         fname = os.path.basename(self.current_file) if self.current_file else ''
-
         mtype = get_map_type_info(self.current_file) if self.current_file else 'Unknown'
 
         for txt in [self.info_txt1, self.info_txt2, self.info_txt4]:
@@ -470,18 +435,14 @@ class MDTViewer(tk.Tk):
             txt.delete('1.0', 'end')
 
         T = self.info_txt1
-
         def kv(key, val, vt='v'):
             T.insert('end', f'  {key:<18}', 'k')
             T.insert('end', f'{val}\n', vt)
-
         def sep():
             T.insert('end', '  ' + '-' * 34 + '\n', 's')
-
         def sec(title):
             T.insert('end', f'\n  [ {title} ]\n', 'sec')
 
-        # Box 1: File Info, Map Structure, Compression / Map data
         sec('File Info')
         kv('Filename', fname)
         kv('File size', f'{len(d):,} bytes')
@@ -512,9 +473,7 @@ class MDTViewer(tk.Tk):
             saving = (1 - ratio) * 100 if ratio < 1 else 0
             kv('Space saved', f'{saving:.1f}%', 'g' if saving > 50 else 'v')
 
-        # Box 2: Header Pointers, Raw Header
         T = self.info_txt2
-
         def ptr_row(lbl, ptr):
             off = _ptr_off_safe(ptr, len(d))
             s = (f'{ptr:#06x}  ->  +{off:#06x}' if off is not None
@@ -554,20 +513,17 @@ class MDTViewer(tk.Tk):
             ascs = ''.join(chr(b) if 0x20 <= b < 0x7F else '.' for b in chunk)
             T.insert('end', f'  +{o:02X}  {hexs:<11}  {ascs}\n', 'd')
 
-        # Box 4: Tile Frequency
         T = self.info_txt4
         sec('Tile Frequency  Top 15')
         for tile, count in cnt.most_common(15):
             pct = count / total * 100
-            T.insert('end',
-                     f'  #{tile:2d}  {count:6d}  {pct:5.1f}%  {PALETTE[tile % 64]}\n', 'd')
+            T.insert('end', f'  #{tile:2d}  {count:6d}  {pct:5.1f}%  {PALETTE[tile % 64]}\n', 'd')
 
         for txt in [self.info_txt1, self.info_txt2, self.info_txt4]:
             txt.config(state='disabled')
 
     # ── Mouse Events ──────────────────────────────────────────────────────────
     def _on_motion(self, event):
-        """Handle mouse motion over the canvas."""
         if not self.mdt:
             return
         bs = self.block_size
@@ -578,12 +534,9 @@ class MDTViewer(tk.Tk):
         mw, mh = self.mdt.map_width, self.mdt.map_height
         if 0 <= col < mw and 0 <= row < mh:
             tile = self.mdt.grid[row][col]
-            self.hover_txt.set(
-                f'  col:{col:4d}  row:{row:3d}  '
-                f'tile:{tile:2d}   {PALETTE[tile % 64]}')
+            self.hover_txt.set(f'  col:{col:4d}  row:{row:3d}  tile:{tile:2d}   {PALETTE[tile % 64]}')
         else:
             self.hover_txt.set('')
-
         entity = self._hit_entity(cx, cy)
         if entity and self.tooltip:
             rx = self.winfo_pointerx()
@@ -593,14 +546,12 @@ class MDTViewer(tk.Tk):
             self.tooltip.hide()
 
     def _on_leave(self, event):
-        """Handle mouse leaving the canvas."""
         self.hover_txt.set('')
         if self.tooltip:
             self.tooltip.hide()
 
     def _on_wheel(self, event):
-        """Handle mouse wheel for scrolling and zooming."""
-        if event.state & 0x4:  # Ctrl held - zoom
+        if event.state & 0x4:
             if event.delta > 0 or event.num == 4:
                 self.zoom_in()
             else:
@@ -614,7 +565,6 @@ class MDTViewer(tk.Tk):
             self.canvas.yview_scroll(-1 * (event.delta // 120), 'units')
 
     def _hit_entity(self, cx, cy):
-        """Find entity at canvas coordinates."""
         if not self.mdt or not self.show_overlay.get():
             return None
         bs = self.block_size
@@ -623,12 +573,10 @@ class MDTViewer(tk.Tk):
         best_d = thresh
         is_town = self.mdt.is_town
         ground_row = TOWN_HEIGHT - 1 if is_town else 0
-
         all_entities = list(self.mdt.doors) + list(self.mdt.monsters) + list(self.mdt.items)
         if is_town:
             all_entities.extend(self.mdt.town_doors)
             all_entities.extend(self.mdt.npcs)
-
         for e in all_entities:
             ex = e.x * bs + bs // 2
             ey = (ground_row if is_town else e.y) * bs + bs // 2
@@ -639,79 +587,54 @@ class MDTViewer(tk.Tk):
         return best
 
     def _make_tip(self, e) -> str:
-        """Generate tooltip text for an entity."""
         lbl = e.label
         line = '-' * 30
         tip = [f'  {lbl}', f'  {line}']
-
         if lbl.startswith('D'):
             if hasattr(e, 'door_type'):
-                tip += [
-                    f'  Type      {e.dtype}',
-                    f'  Column X  {e.x}',
-                    f'  Door type {e.door_type:#04x}',
-                ]
+                tip += [f'  Type      {e.dtype}', f'  Column X  {e.x}', f'  Door type {e.door_type:#04x}']
             else:
-                tip += [
-                    f'  Type      {e.dtype}',
-                    f'  From      ({e.x}, {e.y})',
-                    f'  Dest map  {e.dest}',
-                    f'  To        ({e.x1}, {"town" if e.is_town else e.y1})',
-                    f'  Lion Key  {"required" if e.needs_key else "not required"}',
-                    f'  flags     {e.flags:#04x}   flags2  {e.flags2:#04x}',
-                    f'  map_id    {e.map_id:#04x}   unk  {e.unk:#06x}',
-                ]
+                tip += [f'  Type      {e.dtype}', f'  From      ({e.x}, {e.y})',
+                        f'  Dest map  {e.dest}', f'  To        ({e.x1}, {"town" if e.is_town else e.y1})',
+                        f'  Lion Key  {"required" if e.needs_key else "not required"}',
+                        f'  flags     {e.flags:#04x}   flags2  {e.flags2:#04x}',
+                        f'  map_id    {e.map_id:#04x}   unk  {e.unk:#06x}']
         elif lbl.startswith('N'):
-            tip += [
-                f'  NPC id    {e.npc_id:#04x}  ({e.npc_id})',
-                f'  Column X  {e.x}',
-            ]
+            tip += [f'  NPC id    {e.npc_id:#04x}  ({e.npc_id})', f'  Column X  {e.x}']
         elif lbl.startswith('M'):
             name = _MONSTER_TYPE_NAMES.get(e.type, '')
             name_str = f' ({name})' if name else ''
-            tip += [
-                f'  Type      {e.type:#04x}{name_str}',
-                f'  Position  ({e.x}, {e.y})',
-                f'  Spawn     ({e.spwn_x}, {e.spwn_y})',
-                f'  SType     {e.spwn_type:#04x}',
-                f'  Act       {e.act:#04x}',
-                f'  Raw:  {e.raw}',
-            ]
+            tip += [f'  Type      {e.type:#04x}{name_str}', f'  Position  ({e.x}, {e.y})',
+                    f'  Spawn     ({e.spwn_x}, {e.spwn_y})', f'  SType     {e.spwn_type:#04x}',
+                    f'  Act       {e.act:#04x}', f'  Raw:  {e.raw}']
         elif lbl.startswith('I'):
-            tip += [
-                f'  Type      {e.type:#04x}  ({e.type})',
-                f'  Position  ({e.x}, {e.y})',
-                f'  Spawn     ({e.spwn_x}, {e.spwn_y})',
-                f'  Raw:  {e.raw}',
-            ]
+            tip += [f'  Type      {e.type:#04x}  ({e.type})', f'  Position  ({e.x}, {e.y})',
+                    f'  Spawn     ({e.spwn_x}, {e.spwn_y})', f'  Raw:  {e.raw}']
         else:
             tip.append('  Unknown entity')
         return '\n'.join(tip)
 
     # ── Zoom ──────────────────────────────────────────────────────────────────
     def zoom_in(self):
-        """Zoom in the map view."""
         if self.block_size < self.BLK_MAX:
             self.block_size = min(self.block_size + 2, self.BLK_MAX)
             self.zoom_lbl.config(text=f'{self.block_size}px')
             if self.mdt:
                 self._draw_map()
                 self._draw_overlays()
-                self._draw_tile_ids()      # NEW
+                self._draw_tile_ids()
 
     def zoom_out(self):
-        """Zoom out the map view."""
         if self.block_size > self.BLK_MIN:
             self.block_size = max(self.block_size - 2, self.BLK_MIN)
             self.zoom_lbl.config(text=f'{self.block_size}px')
             if self.mdt:
                 self._draw_map()
                 self._draw_overlays()
-                self._draw_tile_ids()      # NEW
+                self._draw_tile_ids()
 
     # ── Source Tile Loading & Candidate Palette ──────────────────────────────
     def load_source_image(self):
-        """Load an artist‑rendered map image and extract unique tile variants."""
         if not self.mdt:
             messagebox.showwarning('Warning', 'Open an MDT first.')
             return
@@ -720,28 +643,25 @@ class MDTViewer(tk.Tk):
             filetypes=[('PNG files', '*.png'), ('All files', '*')])
         if not path:
             return
-
         ts = simpledialog.askinteger(
             'Tile Size', 'Enter tile pixel size in the source image:',
-            initialvalue=8, minvalue=1, parent=self)
+            initialvalue=getattr(self, 'source_tile_size', 8), minvalue=1, parent=self)
         if ts is None:
             return
-
         try:
             src_img = Image.open(path)
             mw, mh = self.mdt.map_width, self.mdt.map_height
             expected_w = mw * ts
             expected_h = mh * ts
             if src_img.size != (expected_w, expected_h):
-                messagebox.showerror(
-                    'Size Mismatch',
-                    f'Image must be exactly {expected_w}x{expected_h} pixels.\n'
-                    f'(map {mw}x{mh} × tile size {ts})')
+                messagebox.showerror('Size Mismatch',
+                                     f'Image must be exactly {expected_w}x{expected_h} pixels.\n'
+                                     f'(map {mw}x{mh} × tile size {ts})')
                 return
 
             # Slice and deduplicate per tile ID
             candidates = defaultdict(list)
-            seen = defaultdict(set)   # tile_id -> set of image hashes
+            seen = defaultdict(set)
             for row in range(mh):
                 for col in range(mw):
                     tid = self.mdt.grid[row][col]
@@ -753,9 +673,12 @@ class MDTViewer(tk.Tk):
                         candidates[tid].append(tile_img)
 
             self.source_tile_candidates = dict(candidates)
-            self.source_tile_selections = {tid: 0 for tid in candidates}
             self.source_tile_cache = {}
-            self.source_tile_size = ts                 # NEW: store for sheet export
+            self.source_image_path = path
+            self.source_tile_size = ts
+
+            # ---- NEW: try to load saved selections ----
+            self._load_selections_if_match()
             self._build_tile_candidates_ui()
             self._draw_map()
 
@@ -763,7 +686,6 @@ class MDTViewer(tk.Tk):
             messagebox.showerror('Load Error', str(e))
 
     def clear_source_data(self):
-        """Remove loaded source data and revert to GRP tiles."""
         self._clear_source_data()
         if self.mdt:
             self._draw_map()
@@ -773,86 +695,126 @@ class MDTViewer(tk.Tk):
         self.source_tile_selections = {}
         self.source_tile_cache = {}
         self.candidate_labels = {}
-        self.candidate_frames = {}     # NEW
+        self.candidate_frames = {}
+        self.source_image_path = None
+        self.source_tile_size = None
+        self.selections_dirty = False
+        self.selections_file_path = None
         if hasattr(self, 'info_box5'):
             for w in self.info_box5._content.winfo_children():
                 w.destroy()
 
+    # ─── NEW: persistence methods ─────────────────────────────────────────────
+    def _get_selections_file_path(self):
+        """Derive a persistent file path for tile selections next to the MDT."""
+        if not self.current_file or not self.source_image_path:
+            return None
+        base = os.path.splitext(self.current_file)[0]
+        return base + '_tile_selections.json'
+
+    def _load_selections_if_match(self):
+        """Load saved selections if the source image and tile size match."""
+        path = self._get_selections_file_path()
+        self.selections_file_path = path
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            if data.get('source_file') != self.source_image_path or \
+               data.get('tile_size') != self.source_tile_size:
+                return  # mismatch – start fresh
+            saved = {int(k): v for k, v in data.get('selections', {}).items()}
+            # validate against current candidates
+            for tid in saved:
+                if tid in self.source_tile_candidates and \
+                   saved[tid] < len(self.source_tile_candidates[tid]):
+                    self.source_tile_selections[tid] = saved[tid]
+            self.selections_dirty = False
+        except Exception:
+            pass   # corrupted file – ignore
+
+    def _save_selections(self):
+        """Write current selections to the JSON file."""
+        path = self.selections_file_path
+        if not path:
+            return
+        data = {
+            'source_file': self.source_image_path,
+            'tile_size': self.source_tile_size,
+            'selections': {str(k): v for k, v in self.source_tile_selections.items()}
+        }
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+        self.selections_dirty = False
+
+    def _on_close(self):
+        """Intercept window close and prompt to save if dirty."""
+        if self.selections_dirty:
+            answer = messagebox.askyesnocancel(
+                "Unsaved tile selections",
+                "You have modified tile selections. Save before closing?")
+            if answer:        # Yes
+                self._save_selections()
+                self.destroy()
+            elif answer is False:  # No
+                self.destroy()
+            # Cancel: do nothing (stay open)
+        else:
+            self.destroy()
+    # ──────────────────────────────────────────────────────────────────────────
+
     def _build_tile_candidates_ui(self):
-        """Build clickable thumbnail palette for each tile ID, with selection border."""
         content = self.info_box5._content
         for w in content.winfo_children():
             w.destroy()
         if not self.source_tile_candidates:
             return
-
         self.candidate_labels = {}
         self.candidate_frames = {}
         for tile_id in sorted(self.source_tile_candidates.keys()):
             cands = self.source_tile_candidates[tile_id]
             section = tk.Frame(content, bg=self.C_BG2)
             section.pack(fill='x', padx=5, pady=2)
-
             tk.Label(section, text=f'Tile {tile_id}',
                      fg=self.C_FG, bg=self.C_BG2,
                      font=('Consolas', 9)).pack(side='left', padx=5)
-
             row = tk.Frame(section, bg=self.C_BG2)
             row.pack(side='left', fill='x')
-
             for i, img in enumerate(cands):
-                # Wrap each thumbnail in a Frame to provide border
                 frame = tk.Frame(row, bg=self.C_BG2, highlightthickness=0,
                                  highlightbackground='white', relief='flat')
                 frame.pack(side='left', padx=2)
                 thumb = img.copy()
                 thumb.thumbnail((24, 24), Image.NEAREST)
                 photo = ImageTk.PhotoImage(thumb)
-                lbl = tk.Label(frame, image=photo, bg=self.C_BG2,
-                               borderwidth=0)   # no inner border
-                lbl.image = photo  # keep reference
+                lbl = tk.Label(frame, image=photo, bg=self.C_BG2, borderwidth=0)
+                lbl.image = photo
                 lbl.pack()
-
-                # Store label and frame for later selection updates
                 self.candidate_labels[(tile_id, i)] = lbl
                 self.candidate_frames[(tile_id, i)] = frame
-
-                # Click callback (capture tile_id, idx by default args)
-                lbl.bind('<Button-1>',
-                         lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
-                frame.bind('<Button-1>',
-                           lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
-
-                # Initial selection border
+                lbl.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+                frame.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
                 if self.source_tile_selections.get(tile_id) == i:
                     frame.config(highlightthickness=1, relief='solid')
 
     def _select_candidate(self, tile_id, idx):
-        """Handle selection of a particular tile variant and update borders."""
         if self.source_tile_selections.get(tile_id) == idx:
             return
         self.source_tile_selections[tile_id] = idx
-
-        # Update highlighting: white 1px border on selected, none on others
+        self.selections_dirty = True            # NEW: mark dirty
         for (tid, i), frame in self.candidate_frames.items():
             if tid == tile_id:
-                if i == idx:
-                    frame.config(highlightthickness=1, relief='solid')
-                else:
-                    frame.config(highlightthickness=0, relief='flat')
-
+                frame.config(highlightthickness=1 if i == idx else 0,
+                             relief='solid' if i == idx else 'flat')
         self._draw_map()
 
     # ── Save Functions ────────────────────────────────────────────────────────
     def _get_tile_image_for_export(self, tile_id, bs):
-        """Return a scaled PIL Image for the given tile, using source if available."""
         if self.source_tile_candidates and tile_id in self.source_tile_candidates:
             sel = self.source_tile_selections.get(tile_id, 0)
             if sel < len(self.source_tile_candidates[tile_id]):
-                src_img = self.source_tile_candidates[tile_id][sel]
-                return src_img.resize((bs, bs), Image.NEAREST)
-
-        # Fallback to GRP tile
+                return self.source_tile_candidates[tile_id][sel].resize((bs, bs), Image.NEAREST)
         if not self.mdt.gfx or tile_id >= len(self.mdt.gfx):
             return Image.new('RGB', (bs, bs), 'gray')
         raw_pixels = self.mdt.gfx[tile_id]
@@ -864,49 +826,37 @@ class MDTViewer(tk.Tk):
         return tmp.resize((bs, bs), Image.NEAREST)
 
     def save_png(self):
-        """Export map as high-fidelity PNG image using chosen tiles."""
         if not self.mdt:
             messagebox.showwarning('Warning', 'Open a file first.')
             return
-        try:
-            pass   # PIL already imported
-        except ImportError:
-            messagebox.showerror('Pillow Required',
-                                 'PNG export requires Pillow:\n\n  pip install Pillow')
-            return
-
         init = os.path.splitext(os.path.basename(self.current_file))[0] + '.png'
-        path = filedialog.asksaveasfilename(
-            defaultextension='.png',
-            filetypes=[('PNG image', '*.png')], initialfile=init)
+        path = filedialog.asksaveasfilename(defaultextension='.png',
+                                            filetypes=[('PNG image', '*.png')],
+                                            initialfile=init)
         if not path:
             return
-
         try:
             bs = max(self.block_size, 4)
             mw, mh = self.mdt.map_width, self.mdt.map_height
             full_map = Image.new('RGB', (mw * bs, mh * bs), self.C_BG1)
-
             for r in range(mh):
                 for c in range(mw):
                     tid = self.mdt.grid[r][c]
                     tile_img = self._get_tile_image_for_export(tid, bs)
                     full_map.paste(tile_img, (c * bs, r * bs))
-
             full_map.save(path)
             messagebox.showinfo('Saved', f'High-fidelity PNG saved:\n{path}')
         except Exception as e:
             messagebox.showerror('Save Error', str(e))
 
     def save_txt(self):
-        """Export map as text file."""
         if not self.mdt:
             messagebox.showwarning('Warning', 'Open a file first.')
             return
         init = os.path.splitext(os.path.basename(self.current_file))[0] + '.txt'
-        path = filedialog.asksaveasfilename(
-            defaultextension='.txt',
-            filetypes=[('Text file', '*.txt')], initialfile=init)
+        path = filedialog.asksaveasfilename(defaultextension='.txt',
+                                            filetypes=[('Text file', '*.txt')],
+                                            initialfile=init)
         if not path:
             return
         try:
@@ -915,68 +865,50 @@ class MDTViewer(tk.Tk):
                 f.write(f'; Zeliard MDT:  {os.path.basename(self.current_file)}\n')
                 f.write(f'; Width={m.map_width}  Height={m.map_height}\n')
                 if m.is_town:
-                    f.write(f'; Town name={m.town_name}  '
-                            f'Doors={len(m.town_doors)}  '
-                            f'NPCs={len(m.npcs)}\n;\n')
+                    f.write(f'; Town name={m.town_name}  Doors={len(m.town_doors)}  NPCs={len(m.npcs)}\n;\n')
                 else:
-                    f.write(f'; Level={m.level}  Tear=({m.tear_x},{m.tear_y})\n')
-                    f.write(f'; Doors={len(m.doors)}  '
-                            f'Monsters={len(m.monsters)}  '
-                            f'Items={len(m.items)}\n;\n')
+                    f.write(f'; Level={m.level}  Tear=({m.tear_x},{m.tear_y})\n'
+                            f'; Doors={len(m.doors)}  Monsters={len(m.monsters)}  Items={len(m.items)}\n;\n')
                 for row in m.grid:
                     f.write(''.join(chr(t + 0x20) for t in row) + '\n')
             messagebox.showinfo('Saved', f'TXT saved:\n{path}')
         except Exception as e:
             messagebox.showerror('Save Error', str(e))
 
-    # NEW: Save TileSheet of chosen tile variants
     def save_tilesheet(self):
-        """Export all selected tile variants as a combined tile sheet PNG."""
         if not self.mdt or not self.source_tile_candidates:
             messagebox.showwarning('Warning', 'Load source image first to have tile candidates.')
             return
-
         ts = getattr(self, 'source_tile_size', None)
         if ts is None:
             messagebox.showerror('Error', 'Source tile size unknown. Reload source image.')
             return
-
-        # Collect selected tiles for all tile IDs that have candidates
         tile_ids = sorted(self.source_tile_candidates.keys())
         if not tile_ids:
             return
-
-        # Build filename: map stem + _x{ts}.png
         base = os.path.splitext(os.path.basename(self.current_file))[0] if self.current_file else 'tiles'
         default_name = f"{base}_x{ts}.png"
-        path = filedialog.asksaveasfilename(
-            defaultextension='.png',
-            filetypes=[('PNG image', '*.png')],
-            initialfile=default_name)
+        path = filedialog.asksaveasfilename(defaultextension='.png',
+                                            filetypes=[('PNG image', '*.png')],
+                                            initialfile=default_name)
         if not path:
             return
-
         max_cols = 16
         n = len(tile_ids)
         cols = min(n, max_cols)
         rows = (n + cols - 1) // cols
-
         sheet_w = cols * ts
         sheet_h = rows * ts
         sheet = Image.new('RGB', (sheet_w, sheet_h), self.C_BG1)
-
         for i, tid in enumerate(tile_ids):
             row = i // cols
             col = i % cols
-            # Get selected variant image (original source scale)
             sel = self.source_tile_selections.get(tid, 0)
             if sel < len(self.source_tile_candidates[tid]):
                 tile_img = self.source_tile_candidates[tid][sel]
             else:
                 tile_img = Image.new('RGB', (ts, ts), 'black')
-            # No scaling needed if tile size matches source tile size
             sheet.paste(tile_img, (col * ts, row * ts))
-
         sheet.save(path)
         messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\nat:\n{path}')
         
