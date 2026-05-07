@@ -1,4 +1,6 @@
-# viewer.py (CHANGED – added tile‑source loading, candidate palette, selection, and export)
+"""
+Zeliard Sprite Editor - Main application (v0.2 - tile editor features).
+"""
 
 import os
 import tkinter as tk
@@ -53,7 +55,7 @@ class MDTViewer(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title('Zeliard Sprite Editor v0.1')
+        self.title('Zeliard Sprite Editor v0.2')
         self.geometry('1400x880')
         self.minsize(980, 660)
         self.configure(bg=self.C_BG2)
@@ -63,7 +65,9 @@ class MDTViewer(tk.Tk):
         self.current_file: Optional[str] = None
         self.file_data: Optional[bytes] = None
         self.show_overlay = tk.BooleanVar(value=True)
+        self.show_tile_ids = tk.BooleanVar(value=False)            # NEW
         self.overlay_ids: List[int] = []
+        self.tile_id_overlay_ids: List[int] = []                   # NEW
         self.hover_txt = tk.StringVar()
         self.tooltip: Optional[Tooltip] = None
         self.tile_images = {}          # Cache for scaled GRP PhotoImages
@@ -71,6 +75,7 @@ class MDTViewer(tk.Tk):
         self.source_tile_selections = {}     # tile_id -> chosen candidate index
         self.source_tile_cache = {}          # cache for scaled source PhotoImages
         self.candidate_labels = {}           # dict (tile_id, idx) -> Label widget
+        self.candidate_frames = {}           # NEW dict (tile_id, idx) -> Frame widget (for border)
 
         self._build_ui()
 
@@ -106,11 +111,11 @@ class MDTViewer(tk.Tk):
         btn('Save TXT', self.save_txt, fg=self.C_BLUE)
         sep()
 
-        # ─── NEW: Source image buttons ────────────────────────────
+        # ─── Source image buttons ────────────────────────────
         btn('Load Source', self.load_source_image, fg=self.C_CYAN)
         btn('Clear Source', self.clear_source_data, fg=self.C_RED)
         sep()
-        # ───────────────────────────────────────────────────────────
+        # ────────────────────────────────────────────────────
 
         self.ov_btn = tk.Button(
             tb, text='Overlay  ON', command=self._toggle_overlay,
@@ -119,6 +124,15 @@ class MDTViewer(tk.Tk):
             relief='flat', bd=0, cursor='hand2',
             font=('Consolas', 9), padx=10, pady=7)
         self.ov_btn.pack(side='left', padx=2, pady=6)
+
+        # NEW: Tile IDs overlay toggle
+        self.tid_btn = tk.Button(
+            tb, text='Tile IDs  OFF', command=self._toggle_tile_ids,
+            bg='#2a2a45', fg=self.C_YELL if self.show_tile_ids.get() else self.C_DIM,
+            activebackground='#45475a', activeforeground=self.C_FG,
+            relief='flat', bd=0, cursor='hand2',
+            font=('Consolas', 9), padx=10, pady=7)
+        self.tid_btn.pack(side='left', padx=2, pady=6)
         sep()
 
         tk.Label(tb, text='Zoom', bg=self.C_BG0, fg=self.C_DIM,
@@ -130,6 +144,10 @@ class MDTViewer(tk.Tk):
             font=('Consolas', 9), width=5)
         self.zoom_lbl.pack(side='left')
         btn('+', self.zoom_in, fg=self.C_GREEN, px=8)
+        sep()
+
+        # NEW: Save TileSheet button
+        btn('Save TileSheet', self.save_tilesheet, fg=self.C_PINK)
         sep()
 
         self.file_lbl = tk.Label(
@@ -280,6 +298,7 @@ class MDTViewer(tk.Tk):
 
             self._draw_map()
             self._draw_overlays()
+            self._draw_tile_ids()       # NEW: draw tile IDs if enabled
             self._update_info()
 
         except Exception as e:
@@ -388,6 +407,30 @@ class MDTViewer(tk.Tk):
             for npc in self.mdt.npcs:
                 place(npc.x, ground_row, npc.label)
 
+    # NEW: Tile ID overlay
+    def _draw_tile_ids(self):
+        """Draw tile ID numbers in the top-left corner of each tile."""
+        for iid in self.tile_id_overlay_ids:
+            self.canvas.delete(iid)
+        self.tile_id_overlay_ids = []
+        if not self.mdt or not self.show_tile_ids.get():
+            return
+
+        bs = self.block_size
+        fs = max(4, bs // 4)            # scale font with block size
+        font = ('Consolas', fs, 'bold')
+        mw, mh = self.mdt.map_width, self.mdt.map_height
+
+        for y in range(mh):
+            for x in range(mw):
+                tile_idx = self.mdt.grid[y][x]
+                x1 = x * bs + 2
+                y1 = y * bs + 2
+                tid = self.canvas.create_text(
+                    x1, y1, text=str(tile_idx), fill='white',
+                    font=font, anchor='nw')
+                self.tile_id_overlay_ids.append(tid)
+
     def _toggle_overlay(self):
         """Toggle overlay visibility."""
         self.show_overlay.set(not self.show_overlay.get())
@@ -396,6 +439,15 @@ class MDTViewer(tk.Tk):
             text=f'Overlay  {"ON " if on else "OFF"}',
             fg=self.C_YELL if on else self.C_DIM)
         self._draw_overlays()
+
+    # NEW: Toggle tile ID overlay
+    def _toggle_tile_ids(self):
+        self.show_tile_ids.set(not self.show_tile_ids.get())
+        on = self.show_tile_ids.get()
+        self.tid_btn.config(
+            text=f'Tile IDs  {"ON " if on else "OFF"}',
+            fg=self.C_YELL if on else self.C_DIM)
+        self._draw_tile_ids()
 
     # ── Info Panel Update ─────────────────────────────────────────────────────
     def _update_info(self):
@@ -645,6 +697,7 @@ class MDTViewer(tk.Tk):
             if self.mdt:
                 self._draw_map()
                 self._draw_overlays()
+                self._draw_tile_ids()      # NEW
 
     def zoom_out(self):
         """Zoom out the map view."""
@@ -654,6 +707,7 @@ class MDTViewer(tk.Tk):
             if self.mdt:
                 self._draw_map()
                 self._draw_overlays()
+                self._draw_tile_ids()      # NEW
 
     # ── Source Tile Loading & Candidate Palette ──────────────────────────────
     def load_source_image(self):
@@ -701,6 +755,7 @@ class MDTViewer(tk.Tk):
             self.source_tile_candidates = dict(candidates)
             self.source_tile_selections = {tid: 0 for tid in candidates}
             self.source_tile_cache = {}
+            self.source_tile_size = ts                 # NEW: store for sheet export
             self._build_tile_candidates_ui()
             self._draw_map()
 
@@ -718,12 +773,13 @@ class MDTViewer(tk.Tk):
         self.source_tile_selections = {}
         self.source_tile_cache = {}
         self.candidate_labels = {}
+        self.candidate_frames = {}     # NEW
         if hasattr(self, 'info_box5'):
             for w in self.info_box5._content.winfo_children():
                 w.destroy()
 
     def _build_tile_candidates_ui(self):
-        """Build clickable thumbnail palette for each tile ID."""
+        """Build clickable thumbnail palette for each tile ID, with selection border."""
         content = self.info_box5._content
         for w in content.winfo_children():
             w.destroy()
@@ -731,6 +787,7 @@ class MDTViewer(tk.Tk):
             return
 
         self.candidate_labels = {}
+        self.candidate_frames = {}
         for tile_id in sorted(self.source_tile_candidates.keys()):
             cands = self.source_tile_candidates[tile_id]
             section = tk.Frame(content, bg=self.C_BG2)
@@ -744,33 +801,45 @@ class MDTViewer(tk.Tk):
             row.pack(side='left', fill='x')
 
             for i, img in enumerate(cands):
+                # Wrap each thumbnail in a Frame to provide border
+                frame = tk.Frame(row, bg=self.C_BG2, highlightthickness=0,
+                                 highlightbackground='white', relief='flat')
+                frame.pack(side='left', padx=2)
                 thumb = img.copy()
                 thumb.thumbnail((24, 24), Image.NEAREST)
                 photo = ImageTk.PhotoImage(thumb)
-                lbl = tk.Label(row, image=photo, bg=self.C_BG2,
-                               borderwidth=2, relief='flat')
+                lbl = tk.Label(frame, image=photo, bg=self.C_BG2,
+                               borderwidth=0)   # no inner border
                 lbl.image = photo  # keep reference
-                lbl.pack(side='left', padx=2)
+                lbl.pack()
+
+                # Store label and frame for later selection updates
+                self.candidate_labels[(tile_id, i)] = lbl
+                self.candidate_frames[(tile_id, i)] = frame
 
                 # Click callback (capture tile_id, idx by default args)
                 lbl.bind('<Button-1>',
                          lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
-                self.candidate_labels[(tile_id, i)] = lbl
+                frame.bind('<Button-1>',
+                           lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
 
+                # Initial selection border
                 if self.source_tile_selections.get(tile_id) == i:
-                    lbl.config(bg=self.C_SURF, relief='solid')
+                    frame.config(highlightthickness=1, relief='solid')
 
     def _select_candidate(self, tile_id, idx):
-        """Handle selection of a particular tile variant."""
+        """Handle selection of a particular tile variant and update borders."""
         if self.source_tile_selections.get(tile_id) == idx:
             return
         self.source_tile_selections[tile_id] = idx
 
-        # Update highlighting for all labels of this tile_id
-        for (tid, i), lbl in self.candidate_labels.items():
+        # Update highlighting: white 1px border on selected, none on others
+        for (tid, i), frame in self.candidate_frames.items():
             if tid == tile_id:
-                lbl.config(bg=self.C_SURF if i == idx else self.C_BG2,
-                           relief='solid' if i == idx else 'flat')
+                if i == idx:
+                    frame.config(highlightthickness=1, relief='solid')
+                else:
+                    frame.config(highlightthickness=0, relief='flat')
 
         self._draw_map()
 
@@ -859,3 +928,55 @@ class MDTViewer(tk.Tk):
             messagebox.showinfo('Saved', f'TXT saved:\n{path}')
         except Exception as e:
             messagebox.showerror('Save Error', str(e))
+
+    # NEW: Save TileSheet of chosen tile variants
+    def save_tilesheet(self):
+        """Export all selected tile variants as a combined tile sheet PNG."""
+        if not self.mdt or not self.source_tile_candidates:
+            messagebox.showwarning('Warning', 'Load source image first to have tile candidates.')
+            return
+
+        ts = getattr(self, 'source_tile_size', None)
+        if ts is None:
+            messagebox.showerror('Error', 'Source tile size unknown. Reload source image.')
+            return
+
+        # Collect selected tiles for all tile IDs that have candidates
+        tile_ids = sorted(self.source_tile_candidates.keys())
+        if not tile_ids:
+            return
+
+        # Build filename: map stem + _x{ts}.png
+        base = os.path.splitext(os.path.basename(self.current_file))[0] if self.current_file else 'tiles'
+        default_name = f"{base}_x{ts}.png"
+        path = filedialog.asksaveasfilename(
+            defaultextension='.png',
+            filetypes=[('PNG image', '*.png')],
+            initialfile=default_name)
+        if not path:
+            return
+
+        max_cols = 16
+        n = len(tile_ids)
+        cols = min(n, max_cols)
+        rows = (n + cols - 1) // cols
+
+        sheet_w = cols * ts
+        sheet_h = rows * ts
+        sheet = Image.new('RGB', (sheet_w, sheet_h), self.C_BG1)
+
+        for i, tid in enumerate(tile_ids):
+            row = i // cols
+            col = i % cols
+            # Get selected variant image (original source scale)
+            sel = self.source_tile_selections.get(tid, 0)
+            if sel < len(self.source_tile_candidates[tid]):
+                tile_img = self.source_tile_candidates[tid][sel]
+            else:
+                tile_img = Image.new('RGB', (ts, ts), 'black')
+            # No scaling needed if tile size matches source tile size
+            sheet.paste(tile_img, (col * ts, row * ts))
+
+        sheet.save(path)
+        messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\nat:\n{path}')
+        
