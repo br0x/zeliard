@@ -233,13 +233,11 @@ class MDTViewer(tk.Tk):
     # ──────────────────────────────────────────────────────────────────────
 
     def _build_info_panel(self, parent: tk.Widget):
-        """Build the right-side info panel with fixed top boxes and scrollable candidate area."""
-        # ---- Top section: fixed info boxes (non‑scrollable) ----
+        """Right panel: fixed top info boxes and a bottom candidate area that expands."""
+        # ---------- Top info section (non‑expandable) ----------
         top_frame = tk.Frame(parent, bg=self.C_BG3)
-        top_frame.pack(fill='both', expand=True)
+        top_frame.pack(side='top', fill='x')   # only horizontal fill
 
-        # Scrollable area for the three info boxes (they are short, no need to scroll, but we keep the look)
-        # We'll just pack them directly
         self.info_box1 = InfoBox(top_frame, 'MAP INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box1.pack(fill='x', padx=5, pady=3)
 
@@ -249,14 +247,7 @@ class MDTViewer(tk.Tk):
         self.info_box4 = InfoBox(top_frame, 'TILE INFORMATION', self.C_SURF, self.C_BLUE)
         self.info_box4.pack(fill='x', padx=5, pady=3)
 
-        # ---- Bottom section: Tile Candidates with fixed horizontal scroll ----
-        candidate_container = tk.Frame(parent, bg=self.C_BG3)
-        candidate_container.pack(fill='both', expand=True)
-
-        self.info_box5 = InfoBox(candidate_container, 'TILE CANDIDATES', self.C_SURF, self.C_BLUE)
-        self.info_box5.pack(fill='both', expand=True, padx=5, pady=3)
-
-        # Text widgets for the three info boxes
+        # Text widgets with fixed height (5 lines) so they don't grow
         self.info_txt1 = tk.Text(self.info_box1._content, bg=self.C_PANEL, fg=self.C_FG,
                                 font=('Consolas', 8), relief='flat', state='disabled',
                                 width=40, wrap='none', selectbackground=self.C_SURF, height=5)
@@ -286,6 +277,12 @@ class MDTViewer(tk.Tk):
             txt.tag_config('leg_m', foreground='#ffffff', background=self.C_BG0)
             txt.tag_config('leg_i', foreground='#ffffff', background=self.C_BG0)
 
+        # ---------- Candidate area takes remaining space ----------
+        candidate_frame = tk.Frame(parent, bg=self.C_BG3)
+        candidate_frame.pack(side='bottom', fill='both', expand=True)   # now expands
+
+        self.info_box5 = InfoBox(candidate_frame, 'TILE CANDIDATES', self.C_SURF, self.C_BLUE)
+        self.info_box5.pack(fill='both', expand=True, padx=5, pady=(3, 0))
 
     # ── File Operations ───────────────────────────────────────────────────────
     def open_file(self):
@@ -802,44 +799,71 @@ class MDTViewer(tk.Tk):
     # ── Right panel: tile candidates with CORRECTED horizontal scroll ────────
     def _build_tile_candidates_ui(self):
         """
-        Build the tile candidate palette inside info_box5.
-        Uses vertical + horizontal scrollbars. The horizontal scrollbar is fixed at the bottom
-        and the vertical scrollbar on the right side; both work independently.
+        Tile candidate palette inside info_box5.
+        Has its own vertical scrollbar and a permanent horizontal scrollbar.
+        Wheel scrolling works anywhere inside the candidate area.
         """
         content = self.info_box5._content
         for w in content.winfo_children():
             w.destroy()
-
         if not self.source_tile_candidates:
             return
 
-        # Outer frame to contain canvas and scrollbars
         outer = tk.Frame(content, bg=self.C_BG2)
         outer.pack(fill='both', expand=True)
 
-        # Canvas that will scroll both directions
         v_canvas = tk.Canvas(outer, bg=self.C_BG2, highlightthickness=0)
-        v_scrollbar = tk.Scrollbar(outer, orient='vertical', command=v_canvas.yview,
+        v_scroll = tk.Scrollbar(outer, orient='vertical', command=v_canvas.yview,
                                 bg=self.C_SURF, troughcolor=self.C_BG2)
-        h_scrollbar = tk.Scrollbar(outer, orient='horizontal',
-                                command=v_canvas.xview,
+        h_scroll = tk.Scrollbar(outer, orient='horizontal', command=v_canvas.xview,
                                 bg=self.C_SURF, troughcolor=self.C_BG2)
+        v_canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
-        v_canvas.configure(yscrollcommand=v_scrollbar.set,
-                        xscrollcommand=h_scrollbar.set)
-
-        v_scrollbar.pack(side='right', fill='y')
-        h_scrollbar.pack(side='bottom', fill='x')
+        v_scroll.pack(side='right', fill='y')
+        h_scroll.pack(side='bottom', fill='x')
         v_canvas.pack(side='left', fill='both', expand=True)
 
-        # Inner frame – its natural size is determined by its content
         inner = tk.Frame(v_canvas, bg=self.C_BG2)
         v_canvas.create_window((0, 0), window=inner, anchor='nw')
 
-        # Update scrollregion whenever the inner frame changes size
         def on_inner_configure(event):
             v_canvas.configure(scrollregion=v_canvas.bbox('all'))
         inner.bind('<Configure>', on_inner_configure)
+
+        # ---------- wheel helpers (attached to all relevant widgets) ----------
+        def _vert_wheel(event):
+            """Vertical scroll on the candidate canvas."""
+            if event.num == 4:
+                v_canvas.yview_scroll(-3, 'units')
+            elif event.num == 5:
+                v_canvas.yview_scroll(3, 'units')
+            else:
+                v_canvas.yview_scroll(-1 * (event.delta // 120), 'units')
+
+        def _horiz_wheel(event):
+            """Horizontal scroll on the candidate canvas."""
+            if event.num == 4:
+                v_canvas.xview_scroll(-3, 'units')
+            elif event.num == 5:
+                v_canvas.xview_scroll(3, 'units')
+            else:
+                v_canvas.xview_scroll(-1 * (event.delta // 120), 'units')
+
+        def _bind_recursive(widget):
+            """Bind wheel events to *widget* and all its descendants."""
+            widget.bind('<MouseWheel>', _vert_wheel)
+            widget.bind('<Shift-MouseWheel>', _horiz_wheel)
+            widget.bind('<Button-4>', _vert_wheel)
+            widget.bind('<Button-5>', _vert_wheel)
+            widget.bind('<Shift-Button-4>', _horiz_wheel)
+            widget.bind('<Shift-Button-5>', _horiz_wheel)
+            for child in widget.winfo_children():
+                _bind_recursive(child)
+
+        # Bind initially to the outer container and the canvas
+        _bind_recursive(outer)
+        _bind_recursive(v_canvas)
+        # -----------------------------------------------------------------------
 
         self.candidate_labels = {}
         self.candidate_frames = {}
@@ -869,18 +893,22 @@ class MDTViewer(tk.Tk):
                 self.candidate_labels[(tile_id, i)] = lbl
                 self.candidate_frames[(tile_id, i)] = frame
 
-                lbl.bind('<Button-1>',
-                        lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
-                frame.bind('<Button-1>',
-                        lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+                lbl.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+                frame.bind('<Button-1>', lambda e, tid=tile_id, idx=i: self._select_candidate(tid, idx))
+
+                # Apply wheel bindings to every newly created widget
+                _bind_recursive(frame)
+                _bind_recursive(lbl)
 
                 if self.source_tile_selections.get(tile_id) == i:
                     frame.config(highlightthickness=1, relief='solid')
 
-        # Force initial scrollregion after all widgets are built
+        # Force the inner frame to inherit wheel bindings as well
+        _bind_recursive(inner)
+
         inner.update_idletasks()
         v_canvas.configure(scrollregion=v_canvas.bbox('all'))
-
+        
     def _select_candidate(self, tile_id, idx):
         if self.source_tile_selections.get(tile_id) == idx:
             return

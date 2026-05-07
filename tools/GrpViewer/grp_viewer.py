@@ -29,6 +29,7 @@ GRP_DESCRIPTOR = [
     ("sword.grp", [4, 4, 4]),
     ("mman.grp",  5), # NPC
     ("cman.grp",  5), # NPC
+#    ("dman.grp",  5), # NPC
     ("tman.grp",  6), # Hero in the town
     ("mpat.grp",  7), # Patterns/Background Tiles
     ("dpat.grp",  7),
