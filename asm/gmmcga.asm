@@ -1715,11 +1715,10 @@ _Draw_Status_Frame_Lines endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; Renders a magic spell icon graphic (13 rows)
-; AL: spell index (0-12, used with off_2A5D lookup table)
+; Renders a Tear of Esmesanti icon (16x13 pixels)
+; AL: tear index (0-small blue Tear, 1-large red Tear)
 ; BH: left margin
 ; BL: top margin
-
 Render_Tear_Icon proc near
                 push    ds
                 push    si

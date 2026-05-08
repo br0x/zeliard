@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/font.grp"
+                "${workspaceFolder}/tools/GrpViewer/dman.grp"
             ],
             "console": "integratedTerminal",
         },
