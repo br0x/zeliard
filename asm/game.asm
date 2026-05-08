@@ -335,7 +335,7 @@ loc_A3B5:
                 mov     al, 1
 
 loc_A3C8:
-                call    word ptr cs:Render_Tear_Icon_proc
+                call    word ptr cs:Render_Icon_16x13_proc
                 pop     bx
                 inc     bx
                 pop     cx

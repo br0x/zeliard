@@ -60,7 +60,7 @@ seg000:A04F
 seg000:A04F loc_A04F:
 seg000:A04F                 mov     byte_A5A4, al
 seg000:A052                 mov     bx, 2552h
-seg000:A055                 call    word ptr cs:203Eh ; Render_Tear_Icon
+seg000:A055                 call    word ptr cs:203Eh ; Render_Icon_16x13
 seg000:A055                                         ; ; AL: tear index (0-small blue Tear, 1-large red Tear)
 seg000:A055                                         ; ; BH: left margin
 seg000:A055                                         ; ; BL: top margin
@@ -308,7 +308,7 @@ seg000:A304                 dec     bl
 seg000:A306                 xor     bh, bh
 seg000:A308                 add     bx, bx
 seg000:A30A                 mov     bx, tears_coords[bx]
-seg000:A30E                 call    word ptr cs:203Eh ; Render_Tear_Icon
+seg000:A30E                 call    word ptr cs:203Eh ; Render_Icon_16x13
 seg000:A313                 mov     ah, byte_A59C
 seg000:A317                 shr     ah, 1
 seg000:A319                 shr     ah, 1

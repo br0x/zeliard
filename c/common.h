@@ -269,7 +269,7 @@ typedef struct {
 #define Render_C_String_proc                       0x2038
 #define Render_Key_Item_Sprite_16x16_proc                   0x203A
 #define Render_Crest_Item_Sprite_16x16_proc                  0x203C
-#define Render_Tear_Icon_proc                     0x203E
+#define Render_Icon_16x13_proc                     0x203E
 #define Fade_To_Black_Dithered_proc                0x2040
 #define Clear_Screen_proc                          0x2042
 #define Reassemble_3_Planes_To_Packed_Bitmap_proc  0x2044

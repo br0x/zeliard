@@ -363,7 +363,7 @@ seg000:A3C4                 jnz     short loc_A3C8
 seg000:A3C6                 mov     al, 1
 seg000:A3C8
 seg000:A3C8 loc_A3C8:                               ;
-seg000:A3C8                 call    word ptr cs:203Eh ; Render_Tear_Icon_proc
+seg000:A3C8                 call    word ptr cs:203Eh ; Render_Icon_16x13_proc
 seg000:A3CD                 pop     bx
 seg000:A3CE                 inc     bx
 seg000:A3CF                 pop     cx

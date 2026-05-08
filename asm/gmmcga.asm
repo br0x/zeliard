@@ -53,7 +53,7 @@ start:
                 dw offset Render_C_String ; bh: left margin; bl: top margin
                 dw offset Render_Key_Item_Sprite_16x16
                 dw offset Render_Crest_Item_Sprite_16x16
-                dw offset Render_Tear_Icon
+                dw offset Render_Icon_16x13
                 dw offset Fade_To_Black_Dithered
                 dw offset Clear_Screen
                 dw offset Reassemble_3_Planes_To_Packed_Bitmap ; si: src
@@ -1719,7 +1719,7 @@ _Draw_Status_Frame_Lines endp
 ; AL: tear index (0-small blue Tear, 1-large red Tear)
 ; BH: left margin
 ; BL: top margin
-Render_Tear_Icon proc near
+Render_Icon_16x13 proc near
                 push    ds
                 push    si
                 push    cs
@@ -1760,7 +1760,7 @@ skip_opaque:
                 pop     si
                 pop     ds
                 retn
-Render_Tear_Icon endp
+Render_Icon_16x13 endp
 
 ; ---------------------------------------------------------------------------
 off_2A5D        dw offset byte_2A61
