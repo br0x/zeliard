@@ -1017,7 +1017,7 @@ def render_dman_group(data, canvas, y_offset):
     gap_x = 16
     gap_y = 24
     sprite_px = 24  # Total width/height of the 3x3 tile assembly
-    frames_per_row = 9
+    frames_per_row = 10
 
     # Ensure the data buffer is padded to prevent index-out-of-range errors 
     # for high tile indices (e.g., 0xF8)
@@ -1028,6 +1028,11 @@ def render_dman_group(data, canvas, y_offset):
             # Calculate base position for the 24x24 sprite
             x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            # Draw frame border
+            canvas.create_rectangle(x_frame-1, y_frame-1, x_frame + sprite_px*scale, 
+                                     y_frame + sprite_px*scale, outline="gray")
+
             draw_composed_24x24_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
 
         # Advance Y cursor to the next animation block
