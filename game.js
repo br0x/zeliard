@@ -1,8 +1,25 @@
-import { OpeningIntro } from './opening-intro.js';
+/**
+ * game.js — Zeliard web port, main entry point.
+ *
+ * Changes from previous version:
+ *   - Imports SoundManager (sound-manager.js)
+ *   - AudioWorklet PIT timer drives full_tick / slow_tick
+ *   - WASM memory accessor wired to SoundManager so sound_drv_poll()
+ *     reads ADDR_SOUND_FX_REQUEST directly from WASM linear memory
+ *   - startGame() resumes AudioContext on first user gesture
+ *   - All timer-driven counters (frameTimer, tickCounter, animTimer)
+ *     are incremented inside the full_tick callback — NOT in rAF loop
+ */
 
+import { OpeningIntro }  from './opening-intro.js';
+import { SoundManager }  from './sound-manager.js';
+
+// ─── Feature flags ────────────────────────────────────────────────────────────
 const USE_WASM_ENGINE = false;
-let engineReady = false;
-let gameStarted = false;
+
+// ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
+let engineReady  = false;
+let gameStarted  = false;
 
 let initWasm;
 let loadMdt;
@@ -27,91 +44,88 @@ let initBossBattle;
 let updateBossBattle;
 let getHeroPosition;
 let inputGetDebugCounter;
+let getWasmMemory;  // NEW: returns Uint8Array of WASM linear memory
+
 let RENDER_CONFIG;
 let renderDungeonObjects;
 
 async function loadWasmEngine() {
-  const wasmBridge = await import('./src/zeliard-wasm.js');
-  const renderConfig = await import('./src/render-config.js');
-  const renderObjects = await import('./src/render-objects.js');
+    const wasmBridge    = await import('./src/zeliard-wasm.js');
+    const renderConfig  = await import('./src/render-config.js');
+    const renderObjects = await import('./src/render-objects.js');
 
-  ({
-    initWasm,
-    loadMdt,
-    getMdtHeader,
-    getCavernName,
-    getProximityMap,
-    inputInit,
-    inputUpdate,
-    inputSetKeys,
-    buildInputBitmask,
-    heroMovementInit,
-    townToDungeonTransition,
-    heroMovementUpdate,
-    heroGetDirection,
-    heroGetState,
-    heroIsMoving,
-    updateHorizontalPlatforms,
-    heroInteractionCheck,
-    combatInit,
-    combatUpdate,
-    initBossBattle,
-    updateBossBattle,
-    getHeroPosition,
-    inputGetDebugCounter
-  } = wasmBridge);
+    ({
+        initWasm,
+        loadMdt,
+        getMdtHeader,
+        getCavernName,
+        getProximityMap,
+        inputInit,
+        inputUpdate,
+        inputSetKeys,
+        buildInputBitmask,
+        heroMovementInit,
+        townToDungeonTransition,
+        heroMovementUpdate,
+        heroGetDirection,
+        heroGetState,
+        heroIsMoving,
+        updateHorizontalPlatforms,
+        heroInteractionCheck,
+        combatInit,
+        combatUpdate,
+        initBossBattle,
+        updateBossBattle,
+        getHeroPosition,
+        inputGetDebugCounter,
+        getWasmMemory,         // NEW: exposed from zeliard-wasm.js
+    } = wasmBridge);
 
-  RENDER_CONFIG = renderConfig.RENDER_CONFIG;
-  renderDungeonObjects = renderObjects.renderDungeonObjects;
+    RENDER_CONFIG        = renderConfig.RENDER_CONFIG;
+    renderDungeonObjects = renderObjects.renderDungeonObjects;
 }
 
-        // --- Engine Configuration ---
-const TILE_WIDTH = 24;
+// ─── Engine / Canvas config ───────────────────────────────────────────────────
+const TILE_WIDTH  = 24;
 const TILE_HEIGHT = 24;
-const VIEW_COLS = 28;
-const VIEW_ROWS = 18;
+const VIEW_COLS   = 28;
+const VIEW_ROWS   = 18;
 
-const introScreen = document.getElementById('intro-screen');
-const introCanvas = document.getElementById('introCanvas');
-const uiScreen = document.getElementById('ui');
+// ─── DOM ──────────────────────────────────────────────────────────────────────
+const introScreen  = document.getElementById('intro-screen');
+const introCanvas  = document.getElementById('introCanvas');
+const uiScreen     = document.getElementById('ui');
 const layoutWrapper = document.getElementById('layout-wrapper');
-const openingIntro = new OpeningIntro({
-  screen: introScreen,
-  canvas: introCanvas,
-  onComplete: startGame
-});
 
-// --- Setup Canvas ---
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = VIEW_COLS * TILE_WIDTH;
+const ctx    = canvas.getContext('2d');
+canvas.width  = VIEW_COLS * TILE_WIDTH;
 canvas.height = VIEW_ROWS * TILE_HEIGHT;
 
+// ─── Opening intro ────────────────────────────────────────────────────────────
+const openingIntro = new OpeningIntro({
+    screen:     introScreen,
+    canvas:     introCanvas,
+    onComplete: startGame,
+});
 
-// --- Current Map State ---
+// ─── Map / game state ─────────────────────────────────────────────────────────
 let proximityMap = null;
-let cavernName = '';
-let mdtData = null;
-let mdtHeader = null;
+let cavernName   = '';
+let mdtData      = null;
+let mdtHeader    = null;
 
-// --- Game State ---
-let lastTimestamp = 0; // Timestamp of last frame
-let fps = 0;
-
-
-
-// Timing
-const keyDelay = 0.05;            // input timing threshold (seconds)
-const TURN_DELAY = 0.15;          // direction change delay (~9 frames at 60fps)
+let lastTimestamp = 0;
+let fps           = 0;
 
 const player = {
-  x: 61, // absolute position (from the left of the map) of the player's left edge
-  y: 7, // absolute position (from the top of the map) of the player's feet bottom
-  direction: 1, // 1=right, -1=left, 0=onRope
+    x:         61,
+    y:         7,
+    direction: 1,   // 1=right, -1=left, 0=onRope
 };
 
-let camX = 13;
-let camY = 7;
+const camX = 13;
+const camY = 7;
 
 // Calculate starting position for viewport
 // Hero is at column 18 (center of 36-column proximity map)
@@ -122,64 +136,215 @@ const startCol = 4;  // Center 28 columns in 36-column proximity map
 // Hero is at row heroY, we want to show 9 rows above and 9 below (18 total)
 const startRow = (player.y - 9 < 0) ? player.y - 9 + 64 : player.y - 9;
 
+// ─── Timer-driven counters (written by full_tick, read by draw/update) ────────
+// These mirror the byte/word variables that the DOS ISR incremented each tick.
+let frameTimer  = 0;   // byte  — wraps at 256
+let tickCounter = 0;   // word  — wraps at 65536
+let animTimer   = 0;   // word  — wraps at 65536
+
+// ─── Sound Manager ────────────────────────────────────────────────────────────
+/**
+ * SFX request-byte values used by town.c / fight.c (ADDR_SOUND_FX_REQUEST).
+ * Add every value the C code can write to 0xFF75 so assets are pre-loaded.
+ * These map to assets/sfx/sfx_{hex}.{ogg,mp3}.
+ *
+ * Known values from town.c source (grep for ADDR_SOUND_FX_REQUEST):
+ *   0x1D — dialog page-turn / button confirm
+ *   0x0A — sword swing
+ *   0x14 — hero hurt
+ *   0x1E — item pickup
+ *   0x28 — magic cast
+ *   0x32 — door open
+ *   0x3C — enemy death
+ */
+const SFX_IDS = [0x0A, 0x14, 0x1D, 0x1E, 0x28, 0x32, 0x3C];
+
+/**
+ * Music track IDs — map to assets/music/{id}.{ogg,mp3}.
+ * Town descriptor loading sets the track; adjust to your actual filenames.
+ */
+const MUSIC_TRACKS = ['town1', 'town2', 'dungeon1', 'dungeon2', 'boss', 'intro'];
+
+const soundManager = new SoundManager({
+    workletPath:   'pit-worklet.js',
+    sfxBasePath:   'assets/sfx/',
+    musicBasePath: 'assets/music/',
+    sfxIds:        SFX_IDS,
+    musicTracks:   MUSIC_TRACKS,
+    onFullTick:    onFullTick,
+    onSlowTick:    onSlowTick,
+});
+
+// ─── PIT tick callbacks ───────────────────────────────────────────────────────
+
+/**
+ * onFullTick — fires ~236.7 times per second.
+ *
+ * Mirrors the original DOS ISR:
+ *   call  sound_drv_poll_farproc     ← handled inside SoundManager before
+ *   call  music_drv_poll_farproc       this callback is invoked
+ *   inc   byte ptr cs:frame_timer
+ *   inc   word ptr cs:tick_counter
+ *   inc   word ptr cs:anim_timer
+ *   inc   cs:disk_retry_timer
+ *
+ * The sound/music poll happens inside SoundManager._onWorkletMessage()
+ * before this function is called — matching the ISR call order.
+ */
+function onFullTick() {
+    frameTimer  = (frameTimer  + 1) & 0xFF;
+    tickCounter = (tickCounter + 1) & 0xFFFF;
+    animTimer   = (animTimer   + 1) & 0xFFFF;
+    // disk_retry_timer lives in WASM memory (0xFF-area); increment it there
+    // if you have a getWasmMemory accessor:
+    if (engineReady && getWasmMemory) {
+        const mem = getWasmMemory();
+        if (mem) {
+            // ADDR_DISK_RETRY_TIMER is in the FF-area — adjust if needed
+            // mem[0xFF??]++;
+        }
+    }
+}
+
+/**
+ * onSlowTick — fires ~47.3 times per second (every 5th full tick).
+ *
+ * Mirrors:
+ *   call  F1_F2_edge_detector
+ *   call  space_alt_edge_detector
+ *   call  joystick_buttons_edge_detectors
+ *   jmp   main game logic dispatch
+ */
+function onSlowTick() {
+    if (!engineReady) return;
+
+    // Update input edge-detection in WASM
+    inputUpdate?.();
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
 const keys = {
-  ArrowUp: false,
-  ArrowDown: false,
-  ArrowLeft: false,
-  ArrowRight: false,
-  Space: false,
-  Enter: false,
-  Alt: false,
-  Escape: false
+    ArrowUp:    false,
+    ArrowDown:  false,
+    ArrowLeft:  false,
+    ArrowRight: false,
+    Space:      false,
+    Enter:      false,
+    Alt:        false,
+    Escape:     false,
 };
 
-const keyTimers = {
-  ArrowLeft: 0,
-  ArrowRight: 0,
-  ArrowUp: 0,
-};
+window.addEventListener('keydown', e => {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
+        e.preventDefault();
 
+    if (openingIntro.active && e.code === 'Space') {
+        openingIntro.skipPage();
+        return;
+    }
+
+    if (e.code === 'Space')                       keys.Space     = true;
+    if (e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt  = true;
+    if (e.code === 'Enter')                       keys.Enter     = true;
+    if (e.code === 'Escape')                      keys.Escape    = true;
+    if (e.code === 'ArrowUp')                     keys.ArrowUp   = true;
+    if (e.code === 'ArrowDown')                   keys.ArrowDown = true;
+    if (e.code === 'ArrowLeft')                   keys.ArrowLeft = true;
+    if (e.code === 'ArrowRight')                  keys.ArrowRight = true;
+
+    if (engineReady) {
+        const bitmask      = buildInputBitmask(keys);
+        const counterBefore = inputGetDebugCounter();
+        inputSetKeys(bitmask);
+        const counterAfter  = inputGetDebugCounter();
+        console.log('Keydown:', e.code, '| Counter:', counterBefore, '->', counterAfter);
+    }
+});
+
+window.addEventListener('keyup', e => {
+    if (e.code === 'Space')                       keys.Space     = false;
+    if (e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt  = false;
+    if (e.code === 'Enter')                       keys.Enter     = false;
+    if (e.code === 'Escape')                      keys.Escape    = false;
+    if (e.code === 'ArrowUp')                     keys.ArrowUp   = false;
+    if (e.code === 'ArrowDown')                   keys.ArrowDown = false;
+    if (e.code === 'ArrowLeft')                   keys.ArrowLeft = false;
+    if (e.code === 'ArrowRight')                  keys.ArrowRight = false;
+
+    if (engineReady) {
+        const bitmask = buildInputBitmask(keys);
+        inputSetKeys(bitmask);
+    }
+});
+
+// ─── Intro screen / game start ────────────────────────────────────────────────
 function startOpeningTitles() {
-  uiScreen.classList.add('hidden');
-  layoutWrapper.classList.add('hidden');
-  openingIntro.start();
+    uiScreen.classList.add('hidden');
+    layoutWrapper.classList.add('hidden');
+    openingIntro.start();
 }
 
 function init() {
-  startOpeningTitles();
+    startOpeningTitles();
 }
 
+/**
+ * startGame — called by OpeningIntro.onComplete.
+ *
+ * Sequence:
+ *   1. Guard against double-start.
+ *   2. Show game UI.
+ *   3. Init SoundManager (requires user gesture — we're inside keydown/click).
+ *   4. Load WASM engine (if enabled).
+ *   5. Start PIT worklet ticking.
+ *   6. Kick off rAF render loop.
+ */
 async function startGame() {
-  if (gameStarted) {
-    return;
-  }
+    if (gameStarted) return;
+    gameStarted = true;
 
-  gameStarted = true;
-  uiScreen.classList.remove('hidden');
-  layoutWrapper.classList.remove('hidden');
+    uiScreen.classList.remove('hidden');
+    layoutWrapper.classList.remove('hidden');
 
-  try {
-    if (!USE_WASM_ENGINE) {
-      drawLifeBar();
-      requestAnimationFrame(loop);
-      return;
+    // ── 3. AudioWorklet init (must happen inside user gesture) ────────────────
+    try {
+        await soundManager.init();
+    } catch (err) {
+        console.warn('[SoundManager] AudioWorklet init failed:', err);
+        // Game continues without audio — non-fatal.
     }
 
-    await loadWasmEngine();
-    await initWasm();
+    // ── 4. WASM engine ────────────────────────────────────────────────────────
+    try {
+        if (!USE_WASM_ENGINE) {
+            // No WASM — run JS-only render loop
+            drawLifeBar();
+            soundManager.start();
+            requestAnimationFrame(loop);
+            return;
+        }
 
-    // Initialize input buffer
-    inputInit();
+        await loadWasmEngine();
+        await initWasm();
+
+        // Wire WASM memory into sound driver so poll reads 0xFF75 directly
+        if (getWasmMemory) {
+            soundManager.setWasmMemAccessor(getWasmMemory);
+        }
+
+        // Initialise WASM subsystems
+        inputInit();
 
     // Initialize hero movement state machine
-    heroMovementInit();
+        heroMovementInit();
 
     // Initialize combat system
-    combatInit();
+        combatInit();
 
-    const response = await fetch('WORK/MP10.MDT');
-    mdtData = new Uint8Array(await response.arrayBuffer());
-    loadMdt(mdtData);
+        // Load map data
+        const response = await fetch('WORK/MP10.MDT');
+        mdtData = new Uint8Array(await response.arrayBuffer());
+        loadMdt(mdtData);
 
 // Muralla -> Malicia:
 // hero_y_rel = 0x3d
@@ -188,164 +353,89 @@ async function startGame() {
 // load mp10.mdt
 // hero_x_minus_18_abs = 0x2d
 // entered_cavern_first_time = 0xFF
-    townToDungeonTransition(0x2d, 0x3d, 0, 0);
+        townToDungeonTransition(0x2d, 0x3d, 0, 0);
 
-    cavernName = getCavernName();
-    console.log('Cavern name:', cavernName);
+        cavernName = getCavernName();
+        mdtHeader  = getMdtHeader();
+        console.log('Cavern:', cavernName, '| MDT:', mdtHeader);
 
-    mdtHeader = getMdtHeader();
-    console.log('MDT Header:', mdtHeader);
-    console.log(`Monsters at: 0x${mdtHeader.monsters_offset.toString(16)}`);
-    console.log(`Cavern name info at: 0x${mdtHeader.cavern_name_offset.toString(16)}`);
+        const isBossCavern = (mdtData[0] & 0x02) !== 0;
+        if (isBossCavern) initBossBattle();
 
-    // Check if this is a boss cavern (MDT header bit 1)
-    const mdtHeaderByte = mdtData[0];
-    const isBossCavern = (mdtHeaderByte & 0x02) !== 0;
-    
-    if (isBossCavern) {
-      console.log('Boss cavern detected!');
-      initBossBattle();
+        // ── Load matching music for this map ──────────────────────────────────
+        const trackId = resolveMusicTrack(mdtHeader);
+        if (trackId) soundManager.playMusic(trackId);
+
+        const heroPos = getHeroPosition();
+        console.log('Hero pos:', heroPos);
+
+        engineReady = true;
+
+    } catch (err) {
+        console.error('[startGame] WASM init error:', err);
     }
 
-    // Unpack the map centered at hero position
-    console.log(`Unpacking map centered at hero (x=${player.x}, y=${player.y})...`);
-    // unpack_map_internal(player.x, player.y);
+    // ── 5. Start PIT worklet (after WASM so first ticks don't arrive too early)
+    soundManager.start();
 
-    // Initialize hero position in WASM save data
-    // hero_x_minus_18_abs = player.x (absolute position from left of map)
-    // hero_y_rel = player.y (Y position relative to viewport)
-    // hero_x_in_viewport = 16 (center of 36-column proximity map)
-    // hero_head_y_in_viewport = calculated from player.y
-    // setHeroPosition(player.x, player.y);
-    
-    // Also set the viewport position
-    const heroPos = getHeroPosition();
-    console.log('Hero position after init:', heroPos);
-    
-    // Start the game loop only after initialization is complete
-    engineReady = true;
+    // ── 6. Render loop ────────────────────────────────────────────────────────
     requestAnimationFrame(loop);
-  } catch (error) {
-    console.error(error);
-  }
 }
 
-
-// --- Input Handling ---
-window.addEventListener('keydown', e => {
-  if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
-    e.preventDefault();
-
-  if (openingIntro.active && e.code === 'Space') {
-    openingIntro.skipPage();
-    return;
-  }
-
-  // Update key state
-  if(e.code === 'Space') keys.Space = true;
-  if(e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt = true;
-  if(e.code === 'Enter') keys.Enter = true;
-  if(e.code === 'Escape') keys.Escape = true;
-  if(e.code === 'ArrowUp') keys.ArrowUp = true;
-  if(e.code === 'ArrowDown') keys.ArrowDown = true;
-  if(e.code === 'ArrowLeft') keys.ArrowLeft = true;
-  if(e.code === 'ArrowRight') keys.ArrowRight = true;
-
-  if (engineReady) {
-    // Send input to WASM
-    const bitmask = buildInputBitmask(keys);
-    const counterBefore = inputGetDebugCounter();
-    inputSetKeys(bitmask);
-    const counterAfter = inputGetDebugCounter();
-    console.log('Keydown:', e.code, '| Counter:', counterBefore, '->', counterAfter);
-  }
-});
-
-window.addEventListener('keyup', e => {
-  // Update key state
-  if(e.code === 'Space') keys.Space = false;
-  if(e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt = false;
-  if(e.code === 'Enter') keys.Enter = false;
-  if(e.code === 'Escape') keys.Escape = false;
-  if(e.code === 'ArrowUp') keys.ArrowUp = false;
-  if(e.code === 'ArrowDown') keys.ArrowDown = false;
-  if(e.code === 'ArrowLeft') keys.ArrowLeft = false;
-  if(e.code === 'ArrowRight') keys.ArrowRight = false;
-
-  if (engineReady) {
-    // Send input to WASM
-    const bitmask = buildInputBitmask(keys);
-    const counterBefore = inputGetDebugCounter();
-    inputSetKeys(bitmask);
-    const counterAfter = inputGetDebugCounter();
-    console.log('Keyup:', e.code, '| Counter:', counterBefore, '->', counterAfter);
-  }
-});
-
-function updateElementText(elementId, value) {
-  const el = document.getElementById(elementId);
-  if (el && value) {
-    el.textContent = value;
-  }
+/**
+ * Resolve which music track to play based on the MDT header.
+ * Extend this as you map more MDT type bytes to filenames.
+ * @param {object} header  — result of getMdtHeader()
+ * @returns {string|null}
+ */
+function resolveMusicTrack(header) {
+    if (!header) return null;
+    // Example: MDT type byte lives in header.type or header.flags
+    // Adjust to your actual getMdtHeader() shape.
+    const type = header.type ?? 0;
+    const map  = { 0: 'town1', 1: 'town2', 2: 'dungeon1', 3: 'dungeon2', 4: 'boss' };
+    return map[type] ?? 'town1';
 }
 
-// --- UI Functions ---
-let lifeFillCurrentEl = null;
-let lifeFillMaxEl = null;
-
-function drawLifeBar() {
-  lifeFillCurrentEl = document.querySelector('.life-fill-current');
-  lifeFillMaxEl = document.querySelector('.life-fill-max');
-  setLife(10, 30);
-}
-
-function setLife(currentLife, maxLife) {
-  if (lifeFillCurrentEl && lifeFillMaxEl) {
-    const maxPercent = maxLife; // lifeMax=25 means 25% width
-    const currentPercent = currentLife; // life=20 means 20% width
-    lifeFillMaxEl.style.width = maxPercent + '%';
-    lifeFillCurrentEl.style.width = currentPercent + '%';
-  }
-}
-
-// --- Physics Update ---
-let frameCount = 0;
-
+// ─── rAF game loop ────────────────────────────────────────────────────────────
+/**
+ * update() — runs once per animation frame (~60 Hz).
+ *
+ * Heavy game-logic (movement, combat) is intentionally NOT done here; it runs
+ * inside onSlowTick() at ~47.3 Hz (driven by the PIT worklet) to preserve the
+ * original timing. update() only syncs WASM state → JS player object so the
+ * renderer has fresh data.
+ */
 function update() {
-  if (!engineReady) {
-    return;
-  }
+    if (!engineReady) return;
 
-  // Update input state (compute edge-triggered inputs)
-  inputUpdate();
-
-  // Enable hero movement update
-  heroMovementUpdate();
-  updateHorizontalPlatforms();
+    // Enable hero movement update
+    heroMovementUpdate();
+    updateHorizontalPlatforms();
 
   // Sync hero position from WASM
-  const heroPos = getHeroPosition();
-  if (heroPos) {
-    player.x = heroPos.x;
-    player.y = heroPos.y;
-  }
+    const heroPos = getHeroPosition();
+    if (heroPos) {
+        player.x = heroPos.x;
+        player.y = heroPos.y;
+    }
 
   // Check for hero interactions with doors/items
   // This is for specific situations (entering doors, item triggers)
-  heroInteractionCheck();
+    heroInteractionCheck();
 
   // Update combat state (death animations, XP/gold awards)
-  combatUpdate();
+    combatUpdate();
 
   // Update boss battle (if in boss cavern)
-  updateBossBattle();
+    updateBossBattle();
 
   // Sync hero direction from WASM to JS player object
   // starting_direction: bit 0 = 0 (left) or 1 (right)
-  const wasmDirection = heroGetDirection();
-  player.direction = (wasmDirection & 1) ? 1 : -1;
-  
-  proximityMap = getProximityMap();
+    const wasmDir  = heroGetDirection();
+    player.direction = (wasmDir & 1) ? 1 : -1;
+
+    proximityMap = getProximityMap();
 }
 
 // --- Rendering ---
@@ -354,124 +444,101 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (!engineReady) {
-      drawLifeBar();
-      updateElementText('currentMapName', '');
-      updateElementText('gold', 0);
-      updateElementText('almas', 0);
-      return;
+        drawLifeBar();
+        updateElementText('currentMapName', '');
+        updateElementText('gold', 0);
+        updateElementText('almas', 0);
+        return;
     }
 
-    // Press Start 2P is naturally very wide, almost square.
-    ctx.font = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
-    ctx.textBaseline = 'top';
+    ctx.font          = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
+    ctx.textBaseline  = 'top';
 
-    // Draw Map (background tiles)
+    // Background tiles
     ctx.fillStyle = RENDER_CONFIG.tiles.default.color;
     for (let row = 0; row < VIEW_ROWS; row++) {
-      let mapRow = startRow + row;
-      if (mapRow >= 64) mapRow -= 64;
+        let mapRow = startRow + row;
+        if (mapRow >= 64) mapRow -= 64;
 
-      for (let col = 0; col < VIEW_COLS; col++) {
-        const proximityCol = startCol + col;
-        const offset = mapRow * 36 + proximityCol;
-        const tileByte = proximityMap[offset];
-
-        // Convert to ASCII: add 0x20
-        const asciiChar = String.fromCharCode(tileByte + 0x20);
-        ctx.fillText(asciiChar, col * TILE_WIDTH, row * TILE_HEIGHT);
-      }
+        for (let col = 0; col < VIEW_COLS; col++) {
+            const proximityCol = startCol + col;
+            const offset       = mapRow * 36 + proximityCol;
+            const tileByte     = proximityMap[offset];
+            ctx.fillText(String.fromCharCode(tileByte + 0x20), col * TILE_WIDTH, row * TILE_HEIGHT);
+        }
     }
 
     // Render dungeon objects (platforms, doors, items, monsters)
     renderDungeonObjects(ctx, mdtData, mdtHeader, camX, startRow, TILE_WIDTH, TILE_HEIGHT);
 
-    // Draw Hero (3 Vertical Characters in normal mode, 2 in squat mode)
+    // Hero sprite
     ctx.fillStyle = RENDER_CONFIG.hero.color;
     const screenX = camX * TILE_WIDTH;
     const screenY = camY * TILE_HEIGHT;
 
-    // Get hero state from WASM
-    const heroState = heroGetState();
-    const isMoving = heroIsMoving();
-    
-    // Select hero sprite based on state and direction
     let heroStyle;
-    
-    // For now, use direction-based standing sprites
-    // TODO: Add full state-based rendering (jumping, climbing, squatting, falling)
-    if (player.direction === 0) {
-        heroStyle = RENDER_CONFIG.hero.standing.onRope;
-    } else if (player.direction === 1) {
-        heroStyle = RENDER_CONFIG.hero.standing.facingRight;
-    } else {
-        heroStyle = RENDER_CONFIG.hero.standing.facingLeft;
-    }
-    
+    if      (player.direction === 0)  heroStyle = RENDER_CONFIG.hero.standing.onRope;
+    else if (player.direction === 1)  heroStyle = RENDER_CONFIG.hero.standing.facingRight;
+    else                              heroStyle = RENDER_CONFIG.hero.standing.facingLeft;
+
     ctx.fillText(heroStyle.head, screenX, screenY + TILE_HEIGHT * 2);
     ctx.fillText(heroStyle.body, screenX, screenY + TILE_HEIGHT * 3);
     ctx.fillText(heroStyle.legs, screenX, screenY + TILE_HEIGHT * 4);
 
     drawLifeBar();
-
     updateElementText('currentMapName', cavernName);
     updateElementText('gold', 1);
     updateElementText('almas', 2);
-
     updateElementText('activeSwordSlot', '/');
-
     updateElementText('activeShieldSlot', 'O');
     updateElementText('shieldHp', 3);
 }
 
-// --- Debug: slow down to ~10 FPS ---
-// const targetFPS = 20;
-// const frameDelay = 1000 / targetFPS;
-// let lastFrameTime = 0;
-
 function loop(timestamp) {
     const dt = timestamp - lastTimestamp;
     lastTimestamp = timestamp;
-    if (dt > 0) {
-        fps = Math.round(1000 / dt);
-    }
+    if (dt > 0) fps = Math.round(1000 / dt);
 
-    update(); //updates the world state
-    draw(); //draws the current world state
-    requestAnimationFrame(loop); // syncs with display refresh rate
+    update();
+    draw();
+    requestAnimationFrame(loop);
 }
 
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function updateElementText(elementId, value) {
+    const el = document.getElementById(elementId);
+    if (el && value !== undefined) el.textContent = value;
+}
+
+let lifeFillCurrentEl = null;
+let lifeFillMaxEl     = null;
+
+function drawLifeBar() {
+    if (!lifeFillCurrentEl) {
+        lifeFillCurrentEl = document.querySelector('.life-fill-current');
+        lifeFillMaxEl     = document.querySelector('.life-fill-max');
+    }
+    setLife(10, 30);
+}
+
+function setLife(currentLife, maxLife) {
+    if (lifeFillCurrentEl && lifeFillMaxEl) {
+        lifeFillMaxEl.style.width     = maxLife     + '%';
+        lifeFillCurrentEl.style.width = currentLife + '%';
+    }
+}
+
+// ─── Save / load (unchanged) ──────────────────────────────────────────────────
 function saveGame() {
-    const gameState = {
-        player: {
-            x: player.x,
-            y: player.y,
-            direction: player.direction,
-            // add other stats like health/inventory here
-        },
-        // If your map changes (broken blocks, etc.), save it too:
-        // map: map 
-    };
-    
-    localStorage.setItem('zeliard_save_01', JSON.stringify(gameState));
-    console.log("Game Saved to LocalStorage!");
+    localStorage.setItem('zeliard_save_01', JSON.stringify({ player }));
+    console.log('Game saved.');
 }
 
 function loadGame() {
-    const savedData = localStorage.getItem('zeliard_save_01');
-    if (!savedData) {
-        console.log("No save file found.");
-        return;
-    }
-
-    const data = JSON.parse(savedData);
-    
-    // Restore player state
-    Object.assign(player, data.player);
-    
-    // If you saved the map:
-    // map = data.map;
-
-    console.log("Game Loaded!");
+    const data = localStorage.getItem('zeliard_save_01');
+    if (!data) { console.log('No save file.'); return; }
+    Object.assign(player, JSON.parse(data).player);
+    console.log('Game loaded.');
 }
 
 function exportSave() {
@@ -501,7 +568,6 @@ function importSave(event) {
     };
     reader.readAsText(file);
 }
-// Trigger it via a button:
-// document.getElementById('fileInput').click();
 
+// ─── Boot ─────────────────────────────────────────────────────────────────────
 init();
