@@ -767,7 +767,7 @@ item_exit_inventory:                               ;
                 mov     byte ptr ds:frame_timer, 0
 
 loc_A5A2:
-                cmp     byte ptr ds:frame_timer, 78h ; 'x'
+                cmp     byte ptr ds:frame_timer, 120
                 jb      short loc_A5A2
                 call    word ptr cs:2040h ; Fade_To_Black_Dithered_proc
                 mov     ax, 1

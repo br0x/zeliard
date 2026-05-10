@@ -397,7 +397,7 @@ invincibility_flag          equ   0e8h  ; ...
 
 ; stick.bin
 int9_new_proc                                      equ 100h
-int8_new_proc                                      equ 103h
+int8_new_proc                                      equ 103h  ; timer_ISR_int8_chained
 int24_new_proc                                     equ 106h
 int61_new_proc                                     equ 109h
 res_dispatcher_proc                                equ 10ch
@@ -452,7 +452,7 @@ Render_Magic_Potion_Item_Sprite_16x16_proc         equ 2036h
 Render_C_String_proc                               equ 2038h
 Render_Key_Item_Sprite_16x16_proc                  equ 203Ah
 Render_Crest_Item_Sprite_16x16_proc                equ 203Ch
-Render_Icon_16x13_proc                              equ 203Eh
+Render_Icon_16x13_proc                             equ 203Eh
 Fade_To_Black_Dithered_proc                        equ 2040h
 Clear_Screen_proc                                  equ 2042h
 Reassemble_3_Planes_To_Packed_Bitmap_proc          equ 2044h

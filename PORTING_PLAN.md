@@ -101,8 +101,89 @@ extern SaveData g_save_data;
 3. **Data Structures:** C structs are laid out at fixed offsets matching original DOS
 
 
-### 5.3 Updated Game Loop (JavaScript)
+### 5.4 Updated Game Loop (JavaScript)
+TBD
 
+---
+
+### 5.5 Timer.
+Original game uses timer interrupts to sync game state, music and sound. We use `AudioWorklet` to emulate this.
+The audio thread runs at sample rate (44100 or 48000 Hz), completely independent of the main thread. We accumulate samples to fire callbacks at exactly 236.7 Hz:
+``` js
+// pit-worklet.js  (registered as an AudioWorkletProcessor)
+class PITWorklet extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.PIT_CLOCK = 1_193_182;
+    this.RELOAD    = 0x13B1;          // 5041
+    this.FREQ      = this.PIT_CLOCK / this.RELOAD;  // 236.70 Hz
+    this.phase     = 0;               // fractional sample accumulator
+    this.tickDiv   = 5;               // mirrors cs:tick_divider
+  }
+
+  process(inputs, outputs, parameters) {
+    // Each process() block = 128 samples at 44100 Hz = ~2.9 ms
+    // How many PIT ticks fall inside this block?
+    this.phase += (128 / sampleRate) * this.FREQ;
+
+    while (this.phase >= 1) {
+      this.phase -= 1;
+      this.fireTick();
+    }
+    return true;  // keep alive
+  }
+
+  fireTick() {
+    // Full-rate callbacks (sound + music driver) go here
+    // Post a message to the main thread for anything that touches DOM/WASM
+    this.port.postMessage({ type: 'full_tick' });
+
+    this.tickDiv--;
+    if (this.tickDiv === 0) {
+      this.tickDiv = 5;
+      this.port.postMessage({ type: 'slow_tick' }); // input, logic
+    }
+  }
+}
+registerProcessor('pit-worklet', PITWorklet);
+```
+
+Main thread code:
+``` js
+// main thread
+const ctx  = new AudioContext();
+await ctx.audioWorklet.addModule('pit-worklet.js');
+const node = new AudioWorkletNode(ctx, 'pit-worklet');
+node.port.onmessage = ({ data }) => {
+  if (data.type === 'full_tick') {
+    soundDriverPoll();
+    musicDriverPoll();
+    frameTimer = (frameTimer + 1) & 0xFF;
+    tickCounter = (tickCounter + 1) & 0xFFFF;
+  }
+  if (data.type === 'slow_tick') {
+    pollInput();
+    runGameLogic();
+  }
+};
+node.connect(ctx.destination);
+```
+Tradeoff: postMessage adds ~0.5–2 ms of latency per message. For audio synthesis that must be sample-accurate, do the DSP inside the worklet and only send game-state messages out.
+
+#### 5.5.1 Mapping to WASM
+Export the callback functions and call them from the AudioWorklet:
+``` js
+// Inside the AudioWorklet after WASM loads
+const wasm = await WebAssembly.instantiate(wasmBytes, imports);
+const { sound_drv_poll, music_drv_poll, slow_tick } = wasm.instance.exports;
+
+fireTick() {
+  sound_drv_poll();
+  music_drv_poll();
+  this.tickDiv--;
+  if (this.tickDiv === 0) { this.tickDiv = 5; slow_tick(); }
+}
+```
 ---
 
 ## 6. Build System
@@ -204,5 +285,7 @@ There are methods to convert address in the proximity map to coordinates, and vi
 
 #### 12.3.2 Viewport
 
-- **Viewport**: Centered on hero, 28×19 tiles
+- **Viewport**: Centered on hero, 28×18 tiles.
+There is a buffer at 0E900h, 28*19=532 bytes. It is used to keep dirty flags for each tile.
+
 

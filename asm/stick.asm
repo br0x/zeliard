@@ -199,8 +199,8 @@ timer_ISR_int8_chained proc far
                 push    ds
                 push    es
                 cld
-                call    dword ptr cs:fn_per_tick_callback2
-                call    dword ptr cs:fn_per_tick_callback
+                call    dword ptr cs:fn_per_tick_callback2 ; sound_drv_poll_farproc
+                call    dword ptr cs:fn_per_tick_callback  ; music_drv_poll_farproc
                 dec     cs:tick_divider
                 jnz     short loc_27A
                 mov     cs:tick_divider, 5
@@ -215,7 +215,7 @@ loc_27A:
                 inc     cs:disk_retry_timer
                 test    byte ptr cs:per_tick_user_enabled, 0FFh
                 jz      short loc_29B
-                call    word ptr cs:fn_per_tick_user_ptr
+                call    word ptr cs:fn_per_tick_user_ptr  ; NULL in standard version
 
 loc_29B:
                 pop     es

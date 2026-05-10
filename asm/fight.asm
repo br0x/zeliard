@@ -274,7 +274,7 @@ not_dead:
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
-                xor     ax, ax
+                xor     ax, ax          ; fn 0
                 int     60h             ; mscadlib.drv
                 pop     ds
 
