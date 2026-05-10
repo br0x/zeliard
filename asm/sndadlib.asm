@@ -66,7 +66,7 @@ loc_113F:
                 loop    loc_113F
                 lodsw
                 mov     word_20C0, ax
-                mov     byte ptr ds:9, 0
+                mov     byte ptr ds:(exit_pending_flag - segment_shift), 0
                 mov     byte_20BD, 7Fh
                 mov     byte_20C2, 0
                 mov     byte_20C3, 0
@@ -998,7 +998,7 @@ sub_1707        endp                    ; AL: Data
 byte_173A       db 20h, 21h, 4, 0, 0F8h, 0F4h, 8Fh, 8Fh, 40h
 byte_1743       db 0, 0Ah, 19h, 1Fh, 20h, 14h, 19h
                 db 0FFh, 15h, 19h, 1Fh, 20h, 23h, 19h
-                db 0, 24h, 19h, 31h, 19h, 3Ch, 19h
+                db 0, 24h, 19h, 31h, 19h, 3Ch, 19h ; sword swing
                 db 0, 3Eh, 19h, 4Ah, 19h, 55h, 19h
                 db 0, 57h, 19h, 1Fh, 20h, 61h, 19h
                 db 1, 62h, 19h, 78h, 19h, 89h, 19h

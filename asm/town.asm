@@ -467,7 +467,7 @@ start_npc_conversation        proc near
                 push    ax
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
-                mov     byte ptr byte ptr ds:soundFX_request, 1Eh
+                mov     byte ptr byte ptr ds:soundFX_request, 30
                 mov     ax, 718h
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_637D
@@ -738,7 +738,7 @@ loc_6576:
                 call    cs:Draw_Bordered_Rectangle_proc
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     ds:dialog_lines_rendered, 0
-                mov     byte ptr byte ptr ds:soundFX_request, 1Dh
+                mov     byte ptr byte ptr ds:soundFX_request, 29
                 jmp     loc_6437
 render_dialog_text        endp
 
@@ -1325,7 +1325,7 @@ handle_inventory_key        proc near
 ; ---------------------------------------------------------------------------
 
 loc_68FC:   
-                mov     byte ptr byte ptr ds:soundFX_request, 0Bh
+                mov     byte ptr byte ptr ds:soundFX_request, 11
                 call    cs:Clear_Viewport_proc
                 call    swap_a000_c000_buffers
                 call    cs:word_A002
@@ -2753,7 +2753,7 @@ wait_for_dialog_continue        proc near               ; Wait for player to pre
                 ; Clears input latches, then polls in a loop with NPC animation
                 ; until spacebar or alt is pressed. Plays sound effect on continue.
                 ; Input: none (reads ds:spacebar_latch, ds:altkey_latch)
-                ; Output: clears latches, sets ds:soundFX_request = 1Dh
+                ; Output: clears latches, sets ds:soundFX_request = 29
                 ; Modifies: al
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     byte ptr ds:altkey_latch, 0
@@ -2765,7 +2765,7 @@ loc_71E9:
                 jz      short loc_71E9
                 mov     byte ptr ds:spacebar_latch, 0
                 mov     byte ptr ds:altkey_latch, 0
-                mov     byte ptr ds:soundFX_request, 1Dh
+                mov     byte ptr ds:soundFX_request, 29
                 retn
 wait_for_dialog_continue        endp
 
@@ -3064,7 +3064,7 @@ loc_7366:
                 test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_7374
                 clc
-                mov     byte ptr ds:soundFX_request, 1Fh
+                mov     byte ptr ds:soundFX_request, 31
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -3827,7 +3827,7 @@ loc_78A4:
 ; ---------------------------------------------------------------------------
 
 loc_78AF:   
-                mov     byte ptr ds:soundFX_request, 1Fh
+                mov     byte ptr ds:soundFX_request, 31
                 mov     byte ptr ds:keyboard_alt_mode_flag, 0
                 mov     byte ptr ds:altkey_latch, 0
                 retn

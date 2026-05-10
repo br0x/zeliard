@@ -301,7 +301,7 @@ main_loop:
 
 loc_62C5:        
                 mov     dx, offset main_loop
-                push    dx              ;
+                push    dx
                                         ; check input keys buffer
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
@@ -2671,7 +2671,7 @@ loc_70D4:
                 mov     word ptr ds:healing_potion_timer, 0
 
 loc_7105:        
-                mov     byte ptr ds:soundFX_request, 13h
+                mov     byte ptr ds:soundFX_request, 19
                 call    cs:Draw_Hero_Health_proc
 
 loc_710F:        
@@ -2853,7 +2853,7 @@ bring_inventory_window proc near
 ; ---------------------------------------------------------------------------
 
 loc_7287:        
-                mov     byte ptr ds:soundFX_request, 0Bh
+                mov     byte ptr ds:soundFX_request, 11
                 call    cs:Clear_Viewport_proc
                 call    swap_eai_and_inventory_code_regions
                 call    cs:Monster_AI_proc
@@ -4049,7 +4049,7 @@ loc_7B03:
 
 loc_7B15:        
                 mov     ds:byte_9F19, 0FFh
-                mov     byte ptr ds:soundFX_request, 16h
+                mov     byte ptr ds:soundFX_request, 22
                 mov     dx, offset cant_open_this_door_str
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
@@ -4416,7 +4416,7 @@ open_door       proc near
 
 has_keys:        
                 dec     byte ptr ds:keys_amount  ; use ordinary key
-                mov     byte ptr ds:soundFX_request, 15h
+                mov     byte ptr ds:soundFX_request, 21
                 or      [si+door.d_flags], 80h   ; open
                 mov     bx, [si+door.d_save_achievement_addr]
                 mov     al, [si+door.d_achievement_flag]
@@ -4433,7 +4433,7 @@ lion_head_key_needed:
 
 loc_7E45:        
                 dec     byte ptr ds:lion_head_keys
-                mov     byte ptr ds:soundFX_request, 15h
+                mov     byte ptr ds:soundFX_request, 21
                 or      byte ptr [si+3], 80h
                 mov     bx, [si+9]
                 mov     al, [si+0Bh]
@@ -5664,7 +5664,7 @@ loc_8568:
                 jb      short loc_850E
 
 loc_856D:        
-                mov     byte ptr ds:soundFX_request, 0Ah
+                mov     byte ptr ds:soundFX_request, 10
                 retn
 sub_846F        endp
 
@@ -6205,7 +6205,7 @@ loc_87D9:
 loc_87E1:        
                 mov     ds:byte_9F2B, 0
                 mov     byte ptr ds:spell_active_flag, 0FFh
-                mov     byte ptr ds:soundFX_request, 17h
+                mov     byte ptr ds:soundFX_request, 23
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -6235,7 +6235,7 @@ loc_880B:
 loc_881B:        
                 dec     byte ptr ds:spells_espada[bx]
                 call    cs:Print_Magic_Left_Decimal_proc
-                mov     byte ptr ds:soundFX_request, 18h
+                mov     byte ptr ds:soundFX_request, 24
                 mov     si, offset magic_projectiles
                 mov     byte ptr ds:byte_FF3E, 0FFh
                 mov     bl, ds:current_magic_spell
@@ -6396,7 +6396,7 @@ loc_894A:
 
 loc_8954:        
                 mov     byte ptr ds:byte_FF3E, 0
-                mov     byte ptr ds:soundFX_request, 19h
+                mov     byte ptr ds:soundFX_request, 25
                 call    cs:Render_Viewport_Border_Walls_proc
                 mov     byte ptr ds:altkey_latch, 0
                 call    clear_viewport_buffer
@@ -7130,7 +7130,7 @@ flag_10:
 ; ---------------------------------------------------------------------------
 
 loc_8E3F:        
-                mov     byte ptr ds:soundFX_request, 12h
+                mov     byte ptr ds:soundFX_request, 18
                 and     [si+monster.ai_flags], 10010000b
                 and     [si+monster.flags], 1111111b
                 or      [si+monster.flags], 1100000b
@@ -7200,7 +7200,7 @@ loc_8EB6:
 ; ---------------------------------------------------------------------------
 
 loc_8EC0:        
-                mov     byte ptr ds:soundFX_request, 12h
+                mov     byte ptr ds:soundFX_request, 18
                 or      [si+monster.ai_timer], 1
                 retn
 ; ---------------------------------------------------------------------------
@@ -7243,7 +7243,7 @@ flag_13:
 ; ---------------------------------------------------------------------------
 
 loc_8EFC:        
-                mov     byte ptr ds:soundFX_request, 14h
+                mov     byte ptr ds:soundFX_request, 20
                 test    [si+monster.anim_counter], 0Fh
                 jnz     short chest
                 mov     al, [si+monster.ai_state]
@@ -7343,7 +7343,7 @@ flag_14_15_1b:
 ; ---------------------------------------------------------------------------
 
 almas_picked_up: 
-                mov     byte ptr ds:soundFX_request, 10h
+                mov     byte ptr ds:soundFX_request, 16
                 mov     al, [si+monster.flags]
                 and     al, 0Fh         ; monster almas price:
                                         ; 4 => 1 almas
@@ -7436,7 +7436,7 @@ flag_1c:
 ; ---------------------------------------------------------------------------
 
 loc_904C:        
-                mov     byte ptr ds:soundFX_request, 11h
+                mov     byte ptr ds:soundFX_request, 17
                 or      [si+monster.state_flags], 80h
                 or      [si+monster.ai_state], 1
                 mov     [si+monster.ai_timer], 0EBh
@@ -7538,7 +7538,7 @@ loc_90D3:
 ; ---------------------------------------------------------------------------
 
 loc_90DE:        
-                mov     byte ptr ds:soundFX_request, 11h
+                mov     byte ptr ds:soundFX_request, 17
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
 

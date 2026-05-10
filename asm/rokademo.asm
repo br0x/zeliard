@@ -50,7 +50,7 @@ loc_A04F:
 loc_A065:
                 test    cx, 1
                 jnz     short loc_A070
-                mov     byte ptr ds:soundFX_request, 1Ah
+                mov     byte ptr ds:soundFX_request, 26
 
 loc_A070:
                 push    cx
@@ -139,7 +139,7 @@ loc_A107:
                 mov     cx, 1110h
                 xor     di, di
                 call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
-                mov     byte ptr ds:soundFX_request, 1Bh
+                mov     byte ptr ds:soundFX_request, 27
                 mov     byte_A5A5, 0
 
 loc_A162:
@@ -208,7 +208,7 @@ loc_A20E:
                 cmp     byte_A5A7, 3
                 jb      short loc_A232
                 mov     byte_A5A7, 0
-                mov     byte ptr ds:soundFX_request, 1Ch
+                mov     byte ptr ds:soundFX_request, 28
 
 loc_A232:
                 mov     ah, byte_A59C
@@ -256,7 +256,7 @@ loc_A232:
                 mov     cx, 1110h
                 xor     di, di
                 call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
-                mov     byte ptr ds:soundFX_request, 1Bh
+                mov     byte ptr ds:soundFX_request, 27
                 mov     byte_A5A5, 0
 
 loc_A2BB:
@@ -361,7 +361,7 @@ loc_A3AF:
 loc_A3C9:
                 test    cx, 1
                 jnz     short loc_A3D4
-                mov     byte ptr ds:soundFX_request, 1Ah
+                mov     byte ptr ds:soundFX_request, 26
 
 loc_A3D4:
                 push    cx

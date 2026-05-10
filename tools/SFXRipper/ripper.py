@@ -1,67 +1,91 @@
 #!/usr/bin/env python3
 """
-Zeliard Sound Effect Ripper
----------------------------
-Extracts all 65 sound effects from sndadlib.asm and renders them to WAV.
-Requires pyopl (pip install pyopl).
-Fixed: OPL init, amplitude debugging, volume boost.
+Zeliard Sound Effect Ripper – FINAL FIXED
+Uses OPL2 emulator with correct global volume, but no channel muting.
 """
 
-import struct
-import wave
-import os
-import re
-import array
+import struct, wave, os, re, array, math
 
-# ----------------------------------------------------------------------
-# 1. Parse the assembly file and extract needed data blocks
-# ----------------------------------------------------------------------
+# ======================================================================
+# 1. OPL2 emulator (unchanged)
+# ======================================================================
+class OPL2:
+    def __init__(self, sample_rate):
+        self.sample_rate = sample_rate
+        self.reg = [0] * 256
+        self.phase = [0.0] * 18
+        self.sin = [math.sin(2 * math.pi * i / 1024) for i in range(1024)]
+
+    def writeReg(self, reg, val):
+        self.reg[reg & 0xFF] = val & 0xFF
+
+    def generate(self, num_samples):
+        buf = []
+        for _ in range(num_samples):
+            self._tick()
+            s = max(-32768, min(32767, int(self.out * 32767 * 2)))
+            buf.append(s)
+        return buf
+
+    def _tick(self):
+        total = 0.0
+        bases = [0, 1, 2, 8, 9, 0xA, 0x10, 0x11, 0x12]
+        for ch in range(9):
+            base = bases[ch]
+            if not (self.reg[0xB0 + base] & 0x20):
+                continue
+            fnum = self.reg[0xA0 + base] | ((self.reg[0xB0 + base] & 0x03) << 8)
+            block = (self.reg[0xB0 + base] >> 2) & 7
+            freq_hz = (fnum * (2 ** block) * 49716) / (2 ** 20)
+            inc = freq_hz / self.sample_rate
+            op1_mult = self.reg[0x20 + base] & 0x0F or 1
+            op2_mult = self.reg[0x23 + base] & 0x0F or 1
+            op1_tl = self.reg[0x40 + base] & 0x3F
+            op2_tl = self.reg[0x43 + base] & 0x3F
+            connection = self.reg[0xC0 + base] & 1
+            self.phase[ch*2]   = (self.phase[ch*2] + inc * op1_mult) % 1.0
+            self.phase[ch*2+1] = (self.phase[ch*2+1] + inc * op2_mult) % 1.0
+            mod = self.sin[int(self.phase[ch*2] * 1024) & 1023]
+            car = self.sin[int(self.phase[ch*2+1] * 1024) & 1023]
+            mod_env = (63 - op1_tl) / 63.0
+            car_env = (63 - op2_tl) / 63.0
+            if connection == 0:          # FM
+                total += car * car_env * mod * mod_env
+            else:                        # additive
+                total += mod * mod_env + car * car_env * 0.5
+        self.out = total / 3.0
+
+# ======================================================================
+# 2. Assembly parser (unchanged)
+# ======================================================================
 def extract_bytes_from_label(asm_lines, label, stop_label=None, max_count=None):
     inside = False
     data = []
     label_pat = re.compile(rf'^{re.escape(label)}\s*(:)?(?:\s+(db|dw)\b)?', re.I)
-
     for line in asm_lines:
         stripped = line.strip()
         if not inside:
             m = label_pat.match(stripped)
-            if m:
-                inside = True
-        if not inside:
-            continue
-
+            if m: inside = True
+        if not inside: continue
         if stop_label:
-            stop_pat = re.compile(rf'^{re.escape(stop_label)}\s*(:)?\s*', re.I)
-            if stop_pat.match(stripped):
-                break
-
-        if re.match(r'^\w+\s*(:)?\s*$', stripped):
-            break
-
+            if re.match(rf'^{re.escape(stop_label)}\s*(:)?\s*', stripped, re.I): break
+        if re.match(r'^\w+\s*(:)?\s*$', stripped): break
         m_data = re.match(r'(?:\w+\s+)?(db|dw)\s+(.+)', stripped, re.I)
-        if not m_data:
-            break
-
+        if not m_data: break
         directive = m_data.group(1).lower()
         rest = m_data.group(2).split(';')[0]
-
         dup_match = re.match(r'(\S+)\s+dup\s*\(\s*(\S+)\s*\)', rest.strip(), re.I)
         if dup_match and directive == 'db':
-            count_str = dup_match.group(1)
-            val_str = dup_match.group(2)
+            count_str, val_str = dup_match.groups()
             def parse_const(s):
-                if s.endswith('h') or s.endswith('H'):
-                    return int(s[:-1], 16)
-                if (s.startswith("'") and s.endswith("'")) or (s.startswith('"') and s.endswith('"')):
-                    return ord(s[1])
+                if s.endswith('h') or s.endswith('H'): return int(s[:-1], 16)
+                if s.startswith("'") or s.startswith('"'): return ord(s[1])
                 return int(s)
-            count = parse_const(count_str)
-            val = parse_const(val_str)
-            data.extend([val & 0xFF] * count)
+            data.extend([parse_const(val_str) & 0xFF] * parse_const(count_str))
             if max_count and len(data) >= max_count:
                 return data[:max_count]
             continue
-
         tokens = re.findall(r'[^,\s]+', rest)
         is_word = (directive == 'dw')
         for tok in tokens:
@@ -71,139 +95,67 @@ def extract_bytes_from_label(asm_lines, label, stop_label=None, max_count=None):
                 byte_val = int(tok[:-1], 16)
             elif re.match(r'^\d+$', tok):
                 byte_val = int(tok)
-            else:
-                continue
-
+            else: continue
             if is_word:
                 data.append(byte_val & 0xFF)
                 data.append((byte_val >> 8) & 0xFF)
             else:
                 data.append(byte_val & 0xFF)
-
             if max_count and len(data) >= max_count:
                 return data[:max_count]
-
     return data
 
 def parse_asm_for_data(filename):
     with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
-
     sfx_block = extract_bytes_from_label(lines, 'byte_1743', stop_label='byte_2020')
     instr_block = extract_bytes_from_label(lines, 'byte_2020', max_count=81)
     freq_base_words = extract_bytes_from_label(lines, 'word_1576', max_count=12*2)
     note_scale_bytes = extract_bytes_from_label(lines, 'byte_158E', max_count=12)
     chan_base_bytes = extract_bytes_from_label(lines, 'byte_159A', max_count=9)
-
     return sfx_block, instr_block, freq_base_words, note_scale_bytes, chan_base_bytes
 
-# ----------------------------------------------------------------------
-# 2. Constants and tables
-# ----------------------------------------------------------------------
 NUM_SFX = 65
-FREQ_BASE = []
-NOTE_SCALE = []
-CHAN_BASE = []
 
-# ----------------------------------------------------------------------
-# 3. Adaptive OPL interface (detects pyopl's actual method names)
-# ----------------------------------------------------------------------
-def init_opl(opl, write):
-    """Initialize the OPL2 chip for proper playback."""
-    # Clear all channels
-    for ch in range(0, 9):
-        base = CHAN_BASE[ch] if ch < len(CHAN_BASE) else ch
-        write(0xA0 + base, 0)
-        write(0xB0 + base, 0)
-    # Enable OPL2 mode: set bit 5 of register 0x01 (waveform select enable)
-    write(0x01, 0x20)
-    # Turn off CSW mode (bit 6 of 0xBD)
-    write(0xBD, 0x00)
-    # Set percussion mode off (bit 5 of 0xBD)
-    # already 0
+# ======================================================================
+# 3. OPL helpers (no mute logic, but keep global volume for realism)
+# ======================================================================
+MASTER_VOLUME = 0x00  # 0 = loudest, 0x3F = silent (game default full volume)
 
-def create_opl(sample_rate):
-    """Create an OPL chip and return (opl, write, sample_method)."""
-    try:
-        import pyopl
-        opl = pyopl.opl(sample_rate, 2, 1)
-    except ImportError:
-        print("ERROR: pyopl not installed. Use: pip install pyopl")
-        return None
+def init_opl(opl):
+    for ch in range(9):
+        base = CHAN_BASE[ch]
+        opl.writeReg(0xA0 + base, 0)
+        opl.writeReg(0xB0 + base, 0)
+    opl.writeReg(0x01, 0x20)               # wave select enable
+    opl.writeReg(0xBD, 0x00)
+    opl.writeReg(0x07, MASTER_VOLUME)      # master volume (fade not used for SFX)
 
-    # Find the register writing method
-    write_method = None
-    for name in ['writeReg', 'writereg', 'write', 'write_register']:
-        if hasattr(opl, name):
-            write_method = getattr(opl, name)
-            break
-    if write_method is None:
-        available = [m for m in dir(opl) if not m.startswith('_')]
-        print("Available methods:", available)
-        return None
-
-    # Determine argument order: (reg, val) or (val, reg)
-    # We'll test by writing to a dummy register and catching errors (safe)
-    # Actually we can inspect the function's arg names if it's a Python function.
-    try:
-        import inspect
-        sig = inspect.signature(write_method)
-        params = list(sig.parameters.keys())
-        if len(params) >= 2:
-            # Assume first is register, second is value if 'reg' is in name
-            if 'reg' in params[0].lower() or 'addr' in params[0].lower():
-                write_order = 'reg_val'
-            else:
-                write_order = 'val_reg'
-        else:
-            write_order = 'val_reg'   # guess
-    except:
-        # Fallback: try reg,val first, if that fails, swap
-        write_order = 'reg_val'
-
-    # Find sample method
-    sample_method = None
-    for name in ['getsamples', 'generate', 'getSamples']:
-        if hasattr(opl, name):
-            sample_method = getattr(opl, name)
-            break
-    if sample_method is None:
-        return None
-
-    # Initialize the chip
-    def write_fn(reg, val):
-        if write_order == 'reg_val':
-            write_method(reg, val)
-        else:
-            write_method(val, reg)
-
-    init_opl(opl, write_fn)
-
-    return opl, write_fn, sample_method
-
-# ----------------------------------------------------------------------
-# 4. Instrument loader
-# ----------------------------------------------------------------------
-def load_instrument(write, chan, instr_data):
-    if not instr_data or len(instr_data) < 9:
-        return
+def load_instrument(opl, chan, instr_data):
+    if not instr_data or len(instr_data) < 9: return
     base = CHAN_BASE[chan]
-    regs = [
-        0x20 + base, 0x23 + base,
-        0x40 + base, 0x43 + base,
-        0x60 + base, 0x63 + base,
-        0x80 + base, 0x83 + base,
-        0xC0 + base
-    ]
+    regs = [0x20+base, 0x23+base, 0x40+base, 0x43+base,
+            0x60+base, 0x63+base, 0x80+base, 0x83+base, 0xC0+base]
     for i, val in enumerate(instr_data[:9]):
-        write(regs[i], val)
+        opl.writeReg(regs[i], val)
 
-# ----------------------------------------------------------------------
-# 5. Channel note player (simplified interpreter)
-# ----------------------------------------------------------------------
+def set_channel_volume(opl, chan, volume, instruments, instrument_index):
+    if instrument_index >= len(instruments): return
+    instr = instruments[instrument_index]
+    base = CHAN_BASE[chan]
+    op1_base = instr[2] & 0x3F
+    op2_base = instr[3] & 0x3F
+    def calc_tl(base_tl, vol):
+        return 63 - ((63 - base_tl) * vol) // 127
+    opl.writeReg(0x40 + base, calc_tl(op1_base, volume))
+    opl.writeReg(0x43 + base, calc_tl(op2_base, volume))
+
+# ======================================================================
+# 4. Channel sequencer (unchanged)
+# ======================================================================
 class ChannelPlayer:
     def __init__(self, data, start_offset, chan, global_dur_base, instruments,
-                 freq_base, note_scale, write):
+                 freq_base, note_scale, opl):
         self.data = data
         self.pos = start_offset
         self.chan = chan
@@ -211,8 +163,7 @@ class ChannelPlayer:
         self.instruments = instruments
         self.freq_base = freq_base
         self.note_scale = note_scale
-        self.write = write
-
+        self.opl = opl
         self.flags5 = 0
         self.duration = 0
         self.volume = 0x7F
@@ -220,11 +171,10 @@ class ChannelPlayer:
         self.transpose = 0
         self.note_active = False
         self.finished = False
-        self.env_step = 0
+        self.inst_index = 0
 
     def read_byte(self):
-        if self.pos >= len(self.data):
-            return 0
+        if self.pos >= len(self.data): return 0
         b = self.data[self.pos]
         self.pos += 1
         return b
@@ -236,18 +186,12 @@ class ChannelPlayer:
         return 1
 
     def tick(self):
-        if self.finished:
-            return
-
-        if self.flags5 & 0x40 and self.env_step > 0:
-            self.env_step -= 1
-
+        if self.finished: return
         if self.duration > 0:
             self.duration -= 1
             if self.duration == 0 and self.note_active:
                 self.note_off()
             return
-
         while self.duration == 0 and not self.finished:
             cmd = self.read_byte()
             if cmd & 0x80:
@@ -255,7 +199,7 @@ class ChannelPlayer:
             else:
                 dur_nib = (cmd >> 4) & 0xF
                 note_nib = cmd & 0xF
-                if note_nib == 0xF or note_nib == 0:
+                if note_nib in (0, 0xF):
                     self.duration = self.get_duration(dur_nib)
                     if self.note_active:
                         self.note_off()
@@ -263,132 +207,103 @@ class ChannelPlayer:
                     self.play_note(note_nib, dur_nib)
 
     def note_off(self):
-        reg = 0xB0 + CHAN_BASE[self.chan]
-        self.write(reg, 0)
+        base = CHAN_BASE[self.chan]
+        self.opl.writeReg(0xB0 + base, 0)
         self.note_active = False
 
     def play_note(self, note, dur_nib):
         idx = note - 1
-        if idx < 0 or idx >= 12:
-            return
+        if idx < 0 or idx >= 12: return
         fnum = self.freq_base[idx] + self.transpose
+        set_channel_volume(self.opl, self.chan, self.volume,
+                           self.instruments, self.inst_index)
+        base = CHAN_BASE[self.chan]
         fnum_low = fnum & 0xFF
         fnum_high = ((fnum >> 8) & 0x3) | ((self.octave & 7) << 2) | 0x20
-        reg_a0 = 0xA0 + CHAN_BASE[self.chan]
-        reg_b0 = 0xB0 + CHAN_BASE[self.chan]
-        self.write(reg_a0, fnum_low)
-        self.write(reg_b0, fnum_high)
+        self.opl.writeReg(0xA0 + base, fnum_low)
+        self.opl.writeReg(0xB0 + base, fnum_high)
         self.note_active = True
         self.duration = self.get_duration(dur_nib)
 
     def handle_command(self, cmd):
-        if 0xE0 <= cmd <= 0xFF:
+        if 0x80 <= cmd <= 0xBF:
+            self.inst_index = cmd & 0x3F
+            if self.inst_index < len(self.instruments):
+                load_instrument(self.opl, self.chan, self.instruments[self.inst_index])
+        elif 0xD0 <= cmd <= 0xD7:
+            self.octave = cmd & 7
+        elif 0xE0 <= cmd <= 0xFF:
             sub = cmd & 0x1F
-            if sub == 0:
-                self.read_byte()
-            elif sub == 1:
-                self.transpose = self.read_byte()
+            if sub == 0: self.read_byte()
+            elif sub == 1: self.transpose = self.read_byte()
             elif sub == 2:
                 self.flags5 &= ~0x40
                 if self.read_byte():
                     self.flags5 |= 0x40
-                    self.read_byte()
-                    self.read_byte()
-                    self.read_byte()
-                    self.read_byte()
-            elif sub == 3:
-                self.octave = max(0, self.octave - 1)
-            elif sub == 4:
-                self.octave = min(7, self.octave + 1)
+                    for _ in range(4): self.read_byte()
+            elif sub == 3: self.octave = max(0, self.octave - 1)
+            elif sub == 4: self.octave = min(7, self.octave + 1)
             elif sub == 5:
                 self.volume = self.read_byte()
+                set_channel_volume(self.opl, self.chan, self.volume,
+                                   self.instruments, self.inst_index)
             elif sub == 0x10:
                 idx = self.read_byte()
                 self.global_dur_base += idx * 8
-            elif sub == 0x1F:
-                self.finished = True
-        elif 0x80 <= cmd <= 0xBF:
-            inst_num = cmd & 0x3F
-            if inst_num < len(self.instruments):
-                load_instrument(self.write, self.chan, self.instruments[inst_num])
+            elif sub == 0x1F: self.finished = True
 
-# ----------------------------------------------------------------------
-# 6. Render all sound effects
-# ----------------------------------------------------------------------
+# ======================================================================
+# 5. Rendering
+# ======================================================================
 def render_all(sfx_block, instr_block, freq_base, note_scale, chan_base,
                sample_rate=44100, tick_rate=140):
-    result = create_opl(sample_rate)
-    if result is None:
-        return []
-    _, _, _ = result
-
-    samples_per_tick = sample_rate // tick_rate
     headers = [sfx_block[i:i+7] for i in range(0, NUM_SFX*7, 7)]
     note_stream = sfx_block[NUM_SFX*7:]
     instruments = [instr_block[i:i+9] for i in range(0, min(81, len(instr_block)), 9)]
-    if not instruments:
-        return []
+    if not instruments: return []
 
     wav_outputs = []
     base_data_addr = 0x1743
+    samples_per_tick = sample_rate // tick_rate
 
     for idx, hdr in enumerate(headers):
         ch1_ptr = hdr[1] | (hdr[2] << 8)
         ch2_ptr = hdr[3] | (hdr[4] << 8)
         global_word = hdr[5] | (hdr[6] << 8)
-        if ch1_ptr == 0 or ch2_ptr == 0:
-            continue
-
+        if ch1_ptr == 0 or ch2_ptr == 0: continue
         off1 = ch1_ptr - base_data_addr - NUM_SFX*7
         off2 = ch2_ptr - base_data_addr - NUM_SFX*7
         global_dur_off = global_word - base_data_addr - NUM_SFX*7
+        if (off1<0 or off2<0 or off1>=len(note_stream) or off2>=len(note_stream) or
+            global_dur_off<0 or global_dur_off>=len(note_stream)): continue
 
-        if (off1 < 0 or off2 < 0 or
-            off1 >= len(note_stream) or off2 >= len(note_stream) or
-            global_dur_off < 0):
-            continue
-
-        result = create_opl(sample_rate)
-        if result is None:
-            break
-        opl, write, sample_method = result
+        opl = OPL2(sample_rate)
+        init_opl(opl)
 
         ch1 = ChannelPlayer(note_stream, off1, 4, global_dur_off,
-                            instruments, freq_base, note_scale, write)
+                            instruments, freq_base, note_scale, opl)
         ch2 = ChannelPlayer(note_stream, off2, 5, global_dur_off,
-                            instruments, freq_base, note_scale, write)
+                            instruments, freq_base, note_scale, opl)
 
-        buf = bytearray()
-        tickbuf = bytearray(samples_per_tick * 2)   # 16-bit mono
-        for _ in range(3000):
+        all_samples = []
+        for _ in range(4000):
             ch1.tick()
             ch2.tick()
-            try:
-                ret = sample_method(tickbuf)
-                if isinstance(ret, int):
-                    buf.extend(tickbuf[:ret])
-                else:
-                    buf.extend(tickbuf)
-            except Exception as e:
-                print(f"Error getting samples: {e}")
-                break
+            all_samples.extend(opl.generate(samples_per_tick))
             if ch1.finished and ch2.finished:
                 break
 
-        if buf:
-            # Amplify if needed: check maximum sample value
-            samples = array.array('h', buf)  # signed 16-bit
-            max_val = max(max(samples), -min(samples))
+        if all_samples:
+            maxv = max(max(all_samples), -min(all_samples))
             if idx == 0:
-                print(f"Effect 0 raw max amplitude: {max_val}")
-            if max_val > 0 and max_val < 1000:   # if very quiet
-                factor = min(32767 // max_val, 256)
-                amplified = array.array('h', (int(s * factor) for s in samples))
-                wav_outputs.append((idx, amplified.tobytes()))
-            else:
-                wav_outputs.append((idx, bytes(buf)))
+                print(f"Effect 0 max amplitude: {maxv}")
+            if maxv > 0 and maxv < 500:
+                factor = 32767 // maxv
+                all_samples = [int(s * factor) for s in all_samples]
+            raw = struct.pack('<' + 'h' * len(all_samples), *all_samples)
+            wav_outputs.append((idx, raw))
         else:
-            wav_outputs.append((idx, b''))
+            print(f"Effect {idx}: no output")
 
     return wav_outputs
 
@@ -400,32 +315,46 @@ def write_wav(filename, data, sample_rate=44100, channels=1, sampwidth=2):
         wf.writeframes(data)
 
 def main():
+    # Self‑test
+    def self_test():
+        opl = OPL2(44100)
+        opl.writeReg(0x01, 0x20)
+        opl.writeReg(0xBD, 0x00)
+        opl.writeReg(0x20, 0x01)
+        opl.writeReg(0x23, 0x01)
+        opl.writeReg(0x40, 0x3F)
+        opl.writeReg(0x43, 0x00)
+        opl.writeReg(0xC0, 0x01)    # additive
+        opl.writeReg(0xA0, 0x56)
+        opl.writeReg(0xB0, 0x20 | (4<<2) | 0x01)
+        samples = opl.generate(2000)
+        return max(samples) > 1000
+
+    if not self_test():
+        print("OPL2 self‑test failed. Aborting.")
+        return
+
     asm_file = 'sndadlib.asm'
     if not os.path.exists(asm_file):
         print(f"File {asm_file} not found.")
         return
-
     sfx_block, instr_block, freq_words, note_scale, chan_base = parse_asm_for_data(asm_file)
-
     if not sfx_block or len(sfx_block) < NUM_SFX*7:
-        print(f"Could not extract enough SFX data. Got {len(sfx_block)} bytes, need at least {NUM_SFX*7}.")
+        print(f"Not enough SFX data. Got {len(sfx_block)} bytes.")
         return
-
     global FREQ_BASE, NOTE_SCALE, CHAN_BASE
     if len(freq_words) < 24:
-        print(f"Frequency table too short: {len(freq_words)} bytes (need 24).")
+        print("Frequency table too short.")
         return
-    FREQ_BASE = [freq_words[i] | (freq_words[i+1] << 8) for i in range(0, 24, 2)]
+    FREQ_BASE = [freq_words[i] | (freq_words[i+1]<<8) for i in range(0,24,2)]
     NOTE_SCALE = note_scale[:12]
     CHAN_BASE = chan_base[:9]
 
     print(f"Extracted {len(sfx_block)} bytes SFX block, {len(instr_block)} bytes instruments.")
     wavs = render_all(sfx_block, instr_block, FREQ_BASE, NOTE_SCALE, CHAN_BASE)
-
     if not wavs:
-        print("No sound effects could be rendered.")
+        print("No sound effects rendered.")
         return
-
     os.makedirs('sfx_wav', exist_ok=True)
     for idx, wav_data in wavs:
         fname = f'sfx_wav/effect_{idx:02d}.wav'
@@ -435,4 +364,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

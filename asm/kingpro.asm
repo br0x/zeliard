@@ -121,7 +121,7 @@ loc_A09D:
                 mov     ds:86h, ax      ; hero_gold_lo
                 mov     ds:85h, dl      ; hero_gold_hi
                 call    word ptr cs:2016h ; Print_Gold_Decimal
-                mov     byte ptr ds:0FF75h, 13h ; soundFX_request
+                mov     byte ptr ds:0FF75h, 19 ; soundFX_request
                 mov     byte ptr ds:0FF1Ah, 0 ; frame_timer
 
 loc_A0C1:

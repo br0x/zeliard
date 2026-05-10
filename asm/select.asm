@@ -169,7 +169,7 @@ loc_A0EB:
                 inc     selected_magic_index
                 mov     al, 2
                 call    Draw_Magic_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Magic_Detail
                 jmp     short loc_A0D8
 ; ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ loc_A116:
                 dec     selected_magic_index
                 mov     al, 2
                 call    Draw_Magic_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Magic_Detail
                 jmp     short loc_A0D8
 Inventory_Screen        endp
@@ -252,8 +252,8 @@ loc_A190:
                 jmp     loc_A0D8
 ; ---------------------------------------------------------------------------
 
-loc_A1AA:                               ; soundFX_request
-                mov     byte ptr ds:soundFX_request, 0Dh
+loc_A1AA:
+                mov     byte ptr ds:soundFX_request, 13
                 mov     current_tab, cl
                 mov     al, 5
                 call    Draw_Magic_Status_Frame
@@ -300,7 +300,7 @@ loc_A1DE:
                 inc     selected_wearable_index
                 mov     al, 2
                 call    Draw_Accessory_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Accessory_Detail
                 jmp     short loc_A1C9
 ; ---------------------------------------------------------------------------
@@ -313,7 +313,7 @@ loc_A209:
                 dec     selected_wearable_index
                 mov     al, 2
                 call    Draw_Accessory_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Accessory_Detail
                 jmp     short loc_A1C9
 
@@ -400,7 +400,7 @@ loc_A2A7:
                 mov     current_tab, 2
 
 loc_A2AC:                               ;
-                mov     byte ptr ds:soundFX_request, 0Dh
+                mov     byte ptr ds:soundFX_request, 13
                 mov     al, 5
                 call    Draw_Accessory_Status_Frame
                 jmp     loc_A0B8
@@ -460,7 +460,7 @@ loc_A2F2:
                 inc     current_item_for_use
                 mov     al, 2
                 call    Draw_Item_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Item_Detail
                 jmp     short loc_A2C7
 ; ---------------------------------------------------------------------------
@@ -473,7 +473,7 @@ loc_A31D:
                 dec     current_item_for_use
                 mov     al, 2
                 call    Draw_Item_Status_Frame
-                mov     byte ptr ds:soundFX_request, 0Ch
+                mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Item_Detail
                 jmp     short loc_A2C7
 
@@ -543,7 +543,7 @@ loc_A391:
 
 loc_A3A6:
                 mov     current_tab, cl
-                mov     byte ptr ds:soundFX_request, 0Dh
+                mov     byte ptr ds:soundFX_request, 13
                 mov     al, 5
                 call    Draw_Item_Status_Frame
                 jmp     loc_A0B8
@@ -632,7 +632,7 @@ item_effect_jump_table dw offset item_heal_hp
 ; ---------------------------------------------------------------------------
 
 item_heal_hp:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 add     word ptr ds:hero_HP, 80
                 mov     ax, ds:hero_HP
                 sub     ax, ds:heroMaxHp
@@ -641,20 +641,20 @@ item_heal_hp:                               ;
                 mov     ds:hero_HP, ax
 
 loc_A47B:                               ;
-                call    word ptr cs:2008h ; Draw_Hero_Health_proc
+                call    word ptr cs:Draw_Hero_Health_proc
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
 item_full_heal:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 mov     ax, ds:heroMaxHp
                 mov     ds:hero_HP, ax
-                call    word ptr cs:2008h ; Draw_Hero_Health_proc
+                call    word ptr cs:Draw_Hero_Health_proc
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
 item_set_espada:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 test    byte ptr ds:current_magic_spell, 0FFh
                 jnz     short loc_A4A3
                 retn
@@ -672,7 +672,7 @@ loc_A4A3:                               ;
 ; ---------------------------------------------------------------------------
 
 item_refresh_all_spells:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 push    cs
                 pop     es
                 mov     si, offset espada_count
@@ -685,14 +685,14 @@ item_refresh_all_spells:                               ;
 ; ---------------------------------------------------------------------------
 
 item_enchant_sword:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 inc     byte ptr ds:byte_E4
                 call    Render_Enchantment_Count
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
 item_repair_shield:                               ;
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 test    byte ptr ds:shield_type, 0FFh
                 jnz     short loc_A4F7
                 retn
@@ -722,7 +722,7 @@ shield_hp_values       dw 50h, 5Ah, 64h, 6Eh, 73h, 78h
 item_spirit_shield:
                 push    cs
                 pop     es
-                mov     byte ptr ds:soundFX_request, 0Eh
+                mov     byte ptr ds:soundFX_request, 14
                 mov     spirit_copy_src, 0
                 mov     spirit_copy_flag, 1
                 mov     si, offset spirit_copy_src
@@ -757,8 +757,8 @@ spirit_copy_flag       db 0
                 db    0
 ; ---------------------------------------------------------------------------
 
-item_exit_inventory:                               ;
-                mov     byte ptr ds:soundFX_request, 0Fh
+item_exit_inventory:
+                mov     byte ptr ds:soundFX_request, 15
                 call    Render_Item_Usage_Text
                 call    Clear_Item_Panel
                 pop     ax

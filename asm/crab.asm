@@ -251,7 +251,7 @@ loc_A349:
 
 loc_A376:
                 call    apply_damage_to_boss
-                mov     byte ptr ds:soundFX_request, 22h
+                mov     byte ptr ds:soundFX_request, 34
                 mov     ax, ds:proximity_map_left_col_x
                 add     ax, 0Ch
                 mov     bx, ds:mapWidth
@@ -604,7 +604,7 @@ death_sequence_handler proc near
                 jnb     short loc_A61B
                 and     al, 1
                 jnz     short loc_A61B
-                mov     byte ptr ds:soundFX_request, 23h ; '#'
+                mov     byte ptr ds:soundFX_request, 35
 
 loc_A61B:
                 mov     byte ptr ds:0FF2Fh, 0FFh
