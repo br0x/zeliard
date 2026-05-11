@@ -298,20 +298,20 @@ Makefile (line 6): exports the town WASM symbols and uses a repo-local Emscripte
 src/zeliard-wasm.js (line 90): added bridge helpers for townInit, townEntryDisablingEdgeScroll, WASM memory access, and export checks.
 src/town.c (line 550): added a startup guard so town_entry_disabling_edge_scroll() can run without entering the original infinite DOS town loop and freezing the browser.
 game.js (line 18): enables WASM, loads game/0/cmap.mdt, and calls townEntryDisablingEdgeScroll() inside startGame.
-Ready:
 
+Ready:
 src/town.c/.h compiles into WASM.
 game/0/cmap.mdt is usable as the starting town MDT.
 build/zeliard.wasm now exports wasm_town_entry_disabling_edge_scroll.
 game.js can load the WASM bridge even though dungeon renderer modules are missing.
-Missing / still stubbed:
 
+Missing / still stubbed:
 src/render-config.js and src/render-objects.js are absent.
 Most dungeon C files referenced by build.sh are not in src/; they exist under WORK/src.
 TownProcs render/resource/audio callbacks are not wired yet, so town bootstrap runs but does not truly render/play like DOS.
 The real town main loop still needs to be split into tick/update functions or moved to a worker.
-Verified:
 
+Verified:
 make -B succeeds.
 Node smoke test calls the town entry and confirms disable_edge_scroll = 0xFF.
 Dev server is running at http://127.0.0.1:8000/index.html.

@@ -67,6 +67,8 @@ export class SoundManager {
         this._musicGain     = null;
         this._currentTrack  = null;
         this._pendingTrack  = null;   // queued during crossfade
+        this._musicMuted    = false;
+        this._musicVolume   = 0.7;
 
         // Track which SFX is currently playing (only one at a time per original)
         /** @type {AudioBufferSourceNode|null} */
@@ -110,7 +112,7 @@ export class SoundManager {
 
         // Shared GainNode for music so we can crossfade
         this._musicGain = this._ctx.createGain();
-        this._musicGain.gain.value = 0.7;
+        this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume;
         this._musicGain.connect(this._ctx.destination);
 
         // Pre-load assets in parallel (non-blocking — missing files are warned)
@@ -174,8 +176,9 @@ export class SoundManager {
         source.loop   = true;
         source.connect(this._musicGain);
 
+        const targetGain = this._musicMuted ? 0 : this._musicVolume;
         this._musicGain.gain.setValueAtTime(0, now);
-        this._musicGain.gain.linearRampToValueAtTime(0.7, now + fadeDuration);
+        this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
 
         source.start(now);
         this._musicSource = source;
@@ -191,6 +194,18 @@ export class SoundManager {
         this._musicSource.stop(now + fadeDuration + 0.05);
         this._musicSource = null;
         this._currentTrack = null;
+    }
+
+    /** Mute/unmute music without stopping the current track. */
+    setMusicMuted(muted, fadeDuration = 0.25) {
+        this._musicMuted = muted;
+        if (!this._ready || !this._musicGain) return;
+
+        const now = this._ctx.currentTime;
+        const targetGain = muted ? 0 : this._musicVolume;
+        this._musicGain.gain.cancelScheduledValues(now);
+        this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
+        this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
     }
 
     /**

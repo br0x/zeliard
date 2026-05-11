@@ -191,6 +191,27 @@ const soundManager = new SoundManager({
     onSlowTick:    onSlowTick,
 });
 
+let musicEnabled = true;
+let currentMusicTrack = null;
+
+function playCurrentMusic(fadeDuration = 1.5) {
+    if (!currentMusicTrack) return;
+    soundManager.playMusic(currentMusicTrack, fadeDuration);
+    soundManager.setMusicMuted?.(!musicEnabled, 0);
+}
+
+function setCurrentMusicTrack(trackId) {
+    currentMusicTrack = trackId;
+    playCurrentMusic();
+}
+
+function toggleMusic() {
+    musicEnabled = !musicEnabled;
+    soundManager.setMusicMuted?.(!musicEnabled, 0.25);
+
+    console.log(`Music ${musicEnabled ? 'ON' : 'OFF'}`);
+}
+
 // ─── PIT tick callbacks ───────────────────────────────────────────────────────
 
 /**
@@ -251,8 +272,13 @@ const keys = {
 };
 
 window.addEventListener('keydown', e => {
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
+    if (['F1', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
         e.preventDefault();
+
+    if (e.code === 'F1') {
+        if (!e.repeat) toggleMusic();
+        return;
+    }
 
     if (openingIntro.active && e.code === 'Space') {
         openingIntro.skipPage();
@@ -374,7 +400,7 @@ async function startGame() {
 
         // ── Load matching music for this map ──────────────────────────────────
         const trackId = resolveMusicTrack(mdtHeader);
-        if (trackId) soundManager.playMusic(trackId);
+        if (trackId) setCurrentMusicTrack(trackId);
 
         const heroPos = getHeroPosition?.();
         console.log('Hero pos:', heroPos);
