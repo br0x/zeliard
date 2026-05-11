@@ -1240,7 +1240,7 @@ seg000:3731
 seg000:3731 loc_3731:                               ; ...
 seg000:3731                 push    cs
 seg000:3732                 pop     es
-seg000:3733                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b_proc
+seg000:3733                 call    word ptr cs:11Ah ; get_random_proc
 seg000:3738                 and     al, 0Fh
 seg000:373A                 cmp     al, 0Eh
 seg000:373C                 jnb     short loc_373F
@@ -1266,7 +1266,7 @@ seg000:3755                 retn
 seg000:3756 ; ---------------------------------------------------------------------------
 seg000:3756
 seg000:3756 loc_3756:                               ; ...
-seg000:3756                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b_proc
+seg000:3756                 call    word ptr cs:11Ah ; get_random_proc
 seg000:375B                 and     al, 3
 seg000:375D                 cmp     al, 3
 seg000:375F                 jz      short loc_3756
@@ -1285,7 +1285,7 @@ seg000:3773 loc_3773:                               ; ...
 seg000:3773                 stosb
 seg000:3774
 seg000:3774 loc_3774:                               ; ...
-seg000:3774                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b_proc
+seg000:3774                 call    word ptr cs:11Ah ; get_random_proc
 seg000:3779                 and     al, 3
 seg000:377B                 cmp     al, 3
 seg000:377D                 jz      short loc_3774
@@ -1299,7 +1299,7 @@ seg000:378B loc_378B:                               ; ...
 seg000:378B                 stosb
 seg000:378C                 mov     al, 3
 seg000:378E                 stosb
-seg000:378F                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b_proc
+seg000:378F                 call    word ptr cs:11Ah ; get_random_proc
 seg000:3794                 and     al, 3
 seg000:3796                 stosb
 seg000:3797                 mov     al, 0FFh

@@ -299,7 +299,7 @@ loc_A3C5:
 ; ---------------------------------------------------------------------------
 
 loc_A3CF:
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 7
                 jnz     short loc_A3DB
                 jmp     loc_A45C

@@ -316,7 +316,7 @@ seg000:A3CA                 jz      short loc_A3CF
 seg000:A3CC                 jmp     loc_A466
 seg000:A3CF ; ---------------------------------------------------------------------------
 seg000:A3CF
-seg000:A3CF loc_A3CF:                               ; Accumulate_folded_ff1b_proc
+seg000:A3CF loc_A3CF:                               ; get_random_proc
 seg000:A3CF                 call    word ptr cs:11Ah
 seg000:A3D4                 and     al, 7
 seg000:A3D6                 jnz     short loc_A3DB

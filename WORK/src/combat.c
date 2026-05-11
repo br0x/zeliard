@@ -34,7 +34,7 @@ static uint8_t byte_FF45 = 0;  // Combat state flag
 static uint8_t soundFX_request = 0;  // Monster death timer
 static uint8_t byte_E8 = 0;    // Almas drop flag (always drop if set)
 
-// Accumulator for damage calculation (from Fight.asm Accumulate_folded_ff1b)
+// Accumulator for damage calculation (from Fight.asm get_random)
 static uint16_t damage_accumulator = 0;
 
 // Almas drop counter (per monster)
@@ -75,7 +75,7 @@ static MonsterEntry* get_monster_at(uint8_t x, uint8_t y) {
 
 /**
  * Accumulate damage using folded sum algorithm
- * Port of Fight.asm Accumulate_folded_ff1b_proc
+ * Port of Fight.asm get_random_proc
  * 
  * ACC = Σ (S_i + (S_i >> 8)) for i = 0 to N-1
  */

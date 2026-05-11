@@ -6311,13 +6311,7 @@ four_beams_of_rascar:
 
 loc_88C1:        
                 mov     [si], ax
-                call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
-                                        ;
-                                        ; mov     ax, cs:0FF1Bh
-                                        ; add     al, ah          ; ax += ah
-                                        ; adc     ah, 0
-                                        ; add     ax, cs:word_92B
-                                        ; mov     cs:word_92B, ax ; ACC = Σ (S_i + (S_i >> 8))   for i = 0 to N-1
+                call    cs:get_random_proc
                 and     al, 3
                 mov     ah, ds:viewport_top_row_y
                 sub     ah, 3
@@ -8924,13 +8918,7 @@ loc_97E2:
                 xor     bh, bh
                 add     bx, bx
                 mov     di, [bx+di]     ; =a250
-                call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
-                                        ;
-                                        ; mov     ax, cs:0FF1Bh
-                                        ; add     al, ah          ; ax += ah
-                                        ; adc     ah, 0
-                                        ; add     ax, cs:word_92B
-                                        ; mov     cs:word_92B, ax ; ACC = Σ (S_i + (S_i >> 8))   for i = 0 to N-1
+                call    cs:get_random_proc
                 mov     bl, al          ; =9d
                 and     bx, 3           ; =1
                 cmp     byte ptr ds:sword_hit_type, 2
@@ -8959,13 +8947,7 @@ loc_981E:
                 xor     bh, bh
                 add     bx, bx
                 mov     di, [bx+di]
-                call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
-                                        ;
-                                        ; mov     ax, cs:0FF1Bh
-                                        ; add     al, ah          ; ax += ah
-                                        ; adc     ah, 0
-                                        ; add     ax, cs:word_92B
-                                        ; mov     cs:word_92B, ax ; ACC = Σ (S_i + (S_i >> 8))   for i = 0 to N-1
+                call    cs:get_random_proc
                 mov     bl, al
                 and     bx, 3
                 cmp     byte ptr ds:sword_hit_type, 2

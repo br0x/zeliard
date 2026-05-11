@@ -1,3 +1,57 @@
+;==============================================================================
+; ZELIARD ADLIB MUSIC DRIVER (YM3812 / OPL2)
+;==============================================================================
+; This driver provides multi‑channel music playback on the AdLib OPL2
+; synthesizer.  It is called periodically via interrupt 60h and processes up
+; to 6 melodic channels + 1 rhythm/percussion channel.  The event language
+; is a compact command/note stream similar to the sound‑effect driver.
+;
+; OPL2 I/O:
+;   Status/Index port   388h
+;   Data port           389h
+;   Register write implementation: see OPL_WriteReg (formerly sub_B08)
+; All writes are guarded by a channel mute flag (sub_B00 / Ch_MuteCheck).
+;
+; Channel state structure (size 44 bytes):
+MusicCh_State   struc
+seq_ptr         dw ?    ; 0x00 ; pointer to next event in sequence
+seq_save        dw ?    ; 0x02 ; saved seq_ptr (used by sub‑routines)
+dur_tbl_save    dw ?    ; 0x04 ; saved dur_tbl_base (for sub‑routines)
+loop_cnt        db ?    ; 0x06 ; loop counter (unused in melodic channels)
+                db ?    ; 0x07
+                db ?    ; 0x08
+                db ?    ; 0x09
+dur_tbl_base    dw ?    ; 0x0A ; pointer to duration multiplier table
+opl_channel     db ?    ; 0x0C ; OPL channel number (0‑5 melodic, 6 rhythm)
+flags           db ?    ; 0x0D ; bit 0: track finished, bit 6: envelope enabled
+note_timer      db ?    ; 0x0E ; countdown for current event
+volume          db ?    ; 0x0F ; total level (0‑7Fh, higher = quieter)
+octave_shift    db ?    ; 0x10 ; octave / block multiplier (0..7)
+flags2          db ?    ; 0x11 ; bit 1: envelope active, bit 4: pause, bit 5: vibrato active, etc.
+note_dur_init   db ?    ; 0x12 ; initial note duration (from sequence)
+algo_feedback   db ?    ; 0x13 ; low nibble = register C0h value (feedback/algorithm)
+default_dur     db ?    ; 0x14 ; default note duration (used by rhythm channel)
+perc_mask       db ?    ; 0x15 ; percussion instrument mask (rhythm channel only)
+fnum_block      dw ?    ; 0x16 ; frequency: upper 5 bits = block, lower 10 bits = F‑number
+transpose       db ?    ; 0x18 ; semitone transpose
+pitch_bend_acc  dw ?    ; 0x19 ; pitch bend accumulator
+pitch_bend_frac db ?    ; 0x1A ; fractional part of pitch bend
+env_countdown   db ?    ; 0x1B ; envelope step counter
+env_step_up     dw ?    ; 0x1C ; envelope increment (direction up)
+env_step_down   dw ?    ; 0x1E ; envelope decrement (direction down)
+env_scale       db ?    ; 0x20 ; envelope multiplier/scale (derived from note freq)
+env_hold        db ?    ; 0x21 ; hold counter (from envelope data)
+env_par1        db ?    ; 0x22 ; envelope parameter #1
+env_par2        db ?    ; 0x23 ; envelope parameter #2
+env_par3        db ?    ; 0x24 ; envelope parameter #3
+env_par4        db ?    ; 0x25 ; envelope parameter #4
+env_flags       db ?    ; 0x26 ; bit 7: alternate; lower 5 bits: period divider
+env_alt_count   db ?    ; 0x27 ; toggle counter for par3/par4
+instr_ptr       dw ?    ; 0x28 ; pointer to current instrument definition (15 bytes)
+                db ?    ; 0x2A ; unused?
+channel_mute    db ?    ; 0x2B ; 0 = channel plays, non‑zero = silenced
+MusicCh_State   ends
+
 include common.inc
 include adlib.inc
                 .286

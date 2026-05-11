@@ -760,7 +760,7 @@ seg001:A595
 seg001:A595 loc_A595:                               ; ...
 seg001:A595                 and     [si+monster.ai_state], 0FBh
 seg001:A599                 and     [si+monster.ai_flags], 7Fh
-seg001:A59D                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b_proc
+seg001:A59D                 call    word ptr cs:11Ah ; get_random_proc
 seg001:A5A2                 and     al, 80h
 seg001:A5A4                 or      [si+monster.ai_flags], al
 seg001:A5A7                 or      al, al

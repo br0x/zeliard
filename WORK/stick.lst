@@ -43,7 +43,7 @@ seg000:0112                 dw offset Handle_Pause_State
 seg000:0114                 dw offset Handle_Speed_Change
 seg000:0116                 dw offset Joystick_Calibration
 seg000:0118                 dw offset Joystick_Deactivator
-seg000:011A                 dw offset accumulate_folded_ff1b
+seg000:011A                 dw offset get_random
 seg000:011C                 dw offset Scan_Saved_Games
 seg000:011E                 dw offset Handle_Restore_Game
 seg000:0120                 dw offset raw_joystick_calibration_read
@@ -1245,14 +1245,14 @@ seg000:0918
 seg000:0918 ; =============== S U B R O U T I N E =======================================
 seg000:0918
 seg000:0918
-seg000:0918 accumulate_folded_ff1b proc near        ; ...
+seg000:0918 get_random proc near        ; ...
 seg000:0918                 mov     ax, cs:0FF1Bh
 seg000:091C                 add     al, ah          ; ax += ah
 seg000:091E                 adc     ah, 0
 seg000:0921                 add     ax, cs:anim_accum
 seg000:0926                 mov     cs:anim_accum, ax ; ACC = Σ (S_i + (S_i >> 8))   for i = 0 to N-1
 seg000:092A                 retn
-seg000:092A accumulate_folded_ff1b endp
+seg000:092A get_random endp
 seg000:092A
 seg000:092A ; ---------------------------------------------------------------------------
 seg000:092B anim_accum      dw 0                    ; ...

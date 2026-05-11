@@ -742,7 +742,7 @@ loc_A582:
 loc_A595:                
                 and     [si+monster.ai_state], 0FBh
                 and     [si+monster.ai_flags], 7Fh
-                call    cs:Accumulate_folded_ff1b_proc
+                call    cs:get_random_proc
                 and     al, 80h
                 or      [si+monster.ai_flags], al
                 or      al, al

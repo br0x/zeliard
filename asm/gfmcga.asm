@@ -305,7 +305,7 @@ loc_31A8:
                 or      al, al
                 jnz     short loc_31C0
                 push    ax
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 3
                 pop     ax
                 jz      short loc_31C0
@@ -1208,7 +1208,7 @@ Spawn_Map_Entity proc near              ; ...
 loc_3731:
                 push    cs
                 pop     es
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 0Fh
                 cmp     al, 0Eh
                 jnb     short loc_373F
@@ -1234,7 +1234,7 @@ loc_3750:
 ; ---------------------------------------------------------------------------
 
 loc_3756:
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 3
                 cmp     al, 3
                 jz      short loc_3756
@@ -1253,7 +1253,7 @@ loc_3773:
                 stosb
 
 loc_3774:
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 3
                 cmp     al, 3
                 jz      short loc_3774
@@ -1267,7 +1267,7 @@ loc_378B:
                 stosb
                 mov     al, 3
                 stosb
-                call    word ptr cs:Accumulate_folded_ff1b_proc
+                call    word ptr cs:get_random_proc
                 and     al, 3
                 stosb
                 mov     al, 0FFh

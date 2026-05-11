@@ -529,8 +529,8 @@ stick:0116 Joystick_Calibration_proc dw ?          ; ...
 stick:0116                                         ; offset Joystick_Calibration
 stick:0118 Joystick_Deactivator_proc dw ?          ; ...
 stick:0118                                         ; offset Joystick_Deactivator
-stick:011A Accumulate_folded_ff1b_proc dw ?        ; ...
-stick:011A                                         ; offset accumulate_folded_ff1b
+stick:011A get_random_proc dw ?        ; ...
+stick:011A                                         ; offset get_random
 stick:011A                                         ;
 stick:011A                                         ; mov     ax, cs:0FF1Bh
 stick:011A                                         ; add     al, ah          ; ax += ah
@@ -11591,7 +11591,7 @@ fight:88BD                 sub     ax, ds:mapWidth
 fight:88C1
 fight:88C1 loc_88C1:                               ; ...
 fight:88C1                 mov     [si], ax
-fight:88C3                 call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
+fight:88C3                 call    cs:get_random_proc ; offset get_random
 fight:88C3                                         ;
 fight:88C3                                         ; mov     ax, cs:0FF1Bh
 fight:88C3                                         ; add     al, ah          ; ax += ah
@@ -14213,7 +14213,7 @@ fight:97E9                 and     bl, 7
 fight:97EC                 xor     bh, bh
 fight:97EE                 add     bx, bx
 fight:97F0                 mov     di, [bx+di]     ; =a250
-fight:97F2                 call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
+fight:97F2                 call    cs:get_random_proc ; offset get_random
 fight:97F2                                         ;
 fight:97F2                                         ; mov     ax, cs:0FF1Bh
 fight:97F2                                         ; add     al, ah          ; ax += ah
@@ -14248,7 +14248,7 @@ fight:9825                 and     bl, 7
 fight:9828                 xor     bh, bh
 fight:982A                 add     bx, bx
 fight:982C                 mov     di, [bx+di]
-fight:982E                 call    cs:Accumulate_folded_ff1b_proc ; offset accumulate_folded_ff1b
+fight:982E                 call    cs:get_random_proc ; offset get_random
 fight:982E                                         ;
 fight:982E                                         ; mov     ax, cs:0FF1Bh
 fight:982E                                         ; add     al, ah          ; ax += ah

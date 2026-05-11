@@ -232,7 +232,7 @@ typedef struct {
 #define Handle_Speed_Change_proc         0x114
 #define Joystick_Calibration_proc        0x116
 #define Joystick_Deactivator_proc        0x118
-#define Accumulate_folded_ff1b_proc      0x11A
+#define get_random_proc      0x11A
 #define Scan_Saved_Games_proc            0x11C
 #define Handle_Restore_Game_proc         0x11E
 #define raw_joystick_calibration_read_proc 0x120

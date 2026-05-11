@@ -415,7 +415,7 @@ Handle_Pause_State_proc                            equ 112h
 Handle_Speed_Change_proc                           equ 114h
 Joystick_Calibration_proc                          equ 116h
 Joystick_Deactivator_proc                          equ 118h
-Accumulate_folded_ff1b_proc                        equ 11ah
+get_random_proc                                    equ 11ah
 Scan_Saved_Games_proc                              equ 11ch
 Handle_Restore_Game_proc                           equ 11eh
 raw_joystick_calibration_read_proc                 equ 120h

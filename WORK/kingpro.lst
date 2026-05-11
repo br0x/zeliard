@@ -331,7 +331,7 @@ seg000:A31D loc_A31D:
 seg000:A31D                 inc     byte_A7A1
 seg000:A321                 cmp     byte_A7A1, 1Ah
 seg000:A326                 jb      short loc_A338
-seg000:A328                 call    word ptr cs:11Ah ; Accumulate_folded_ff1b
+seg000:A328                 call    word ptr cs:11Ah ; get_random
 seg000:A32D                 or      al, al
 seg000:A32F                 jz      short loc_A332
 seg000:A331                 retn

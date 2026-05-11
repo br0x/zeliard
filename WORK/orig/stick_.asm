@@ -19,7 +19,7 @@ start:
                 dw offset Handle_Speed_Change
                 dw offset Joystick_Calibration
                 dw offset Joystick_Deactivator
-                dw offset accumulate_folded_ff1b
+                dw offset get_random
                 dw offset Scan_Saved_Games
                 dw offset Handle_Restore_Game
                 dw offset raw_joystick_calibration_read
@@ -1164,14 +1164,14 @@ Joystick_Deactivator endp
 ; =============== S U B R O U T I N E =======================================
 
 
-accumulate_folded_ff1b proc near        ; ...
+get_random proc near        ; ...
                 mov     ax, cs:anim_timer
                 add     al, ah          ; ax += ah
                 adc     ah, 0
                 add     ax, cs:anim_accum
                 mov     cs:anim_accum, ax ; ACC = Σ (S_i + (S_i >> 8))   for i = 0 to N-1
                 retn
-accumulate_folded_ff1b endp
+get_random endp
 
 ; ---------------------------------------------------------------------------
 anim_accum      dw 0          
