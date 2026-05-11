@@ -24,7 +24,8 @@ cursor_down_export dw offset houseCursorDown        ; animate cursor moving down
                 dw offset restore_game              ; restore game from save file
 
 ; =============== S U B R O U T I N E =======================================
-; town_entry_disabling_edge_scroll — Primary town initialization entry point, called from
+; town_entry_disabling_edge_scroll — Primary town initialization entry point, called from:
+; - after opening intro
 ;   fight.bin after hero returns from cavern.
 ;   Input: (none — reads state from shared memory)
 ;   Sets disable_edge_scroll=0FFh to prevent edge-scroll on first frame.
@@ -45,7 +46,7 @@ town_entry_common:
                 mov     si, 4100h
                 mov     ax, cs
                 add     ax, 2000h
-                mov     es, ax
+                mov     es, ax   ; seg2
                 mov     di, 7000h
                 mov     cx, 164
                 call    cs:apply_sprite_mask_proc

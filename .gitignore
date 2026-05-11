@@ -7,3 +7,4 @@ asm/LOG.TXT
 asm/diff.txt
 asm/*.bin
 asm/*.drv
+build/.emcache/

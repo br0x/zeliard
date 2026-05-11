@@ -144,7 +144,7 @@ export class SoundManager {
      * Play a music track by ID.
      * If a track is already playing, crossfades over `fadeDuration` seconds.
      *
-     * @param {string} trackId    e.g. 'town1', 'dungeon3'
+     * @param {string} trackId    e.g. 'mgt1', 'ugm2'
      * @param {number} [fadeDuration=1.5]
      */
     async playMusic(trackId, fadeDuration = 1.5) {
@@ -316,7 +316,7 @@ export class SoundManager {
 
     async _preloadSfx() {
         const promises = this._sfxIds.map(async (id) => {
-            const name = `sfx_${id.toString(16).padStart(2, '0')}`;
+            const name = `sfx_${id.toString(10).padStart(2, '0')}`;
             const buf = await this._loadAudio(this._sfxBase, name);
             if (buf) this._sfxCache.set(id, buf);
         });

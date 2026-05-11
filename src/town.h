@@ -119,6 +119,7 @@ extern TownProcs g_town_procs;
  * Exported WASM entry points (callable from JavaScript)
  * ========================================================================= */
 void     wasm_town_init(void);
+void     wasm_town_set_return_before_main_loop(int enabled);
 void     wasm_town_entry_disabling_edge_scroll(void);
 void     wasm_town_entry_enabling_edge_scroll(void);
 uint32_t wasm_get_mem_ptr(void);

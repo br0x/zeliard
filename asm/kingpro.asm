@@ -65,7 +65,7 @@ sub_A06D        endp
 
 ; ---------------------------------------------------------------------------
 jpt_A073        dw offset loc_A0E4
-                dw offset loc_A09A
+                dw offset get_1000_gold
                 dw offset loc_A0D4
                 dw offset loc_A092
                 dw offset loc_A084
@@ -89,8 +89,8 @@ loc_A092:
                 jmp     loc_A3A6
 ; ---------------------------------------------------------------------------
 
-loc_A09A:
-                mov     cx, 0Ah
+get_1000_gold:
+                mov     cx, 10
 
 loc_A09D:
                 push    cx
@@ -126,7 +126,7 @@ loc_A0D9:
 
 loc_A0E4:
                 mov     si, offset byte_A0F8
-                mov     cx, 0Ch
+                mov     cx, 12
 
 loc_A0EA:
                 push    cx

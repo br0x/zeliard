@@ -83,6 +83,91 @@ export async function initWasm() {
 }
 
 /**
+ * Check whether the loaded WASM module exports a function.
+ * @param {string} name - Export name to check.
+ * @returns {boolean} true when present.
+ */
+export function hasWasmExport(name) {
+    return !!(wasmExports && wasmExports[name]);
+}
+
+/**
+ * Get a Uint8Array view of the full WASM linear memory.
+ * SoundManager uses this to poll shared bytes such as 0xFF75.
+ * @returns {Uint8Array|null} WASM memory view.
+ */
+export function getWasmMemory() {
+    if (!wasmExports?.memory) {
+        console.error('WASM not initialized');
+        return null;
+    }
+
+    if (!wasmMemory || wasmMemory.buffer !== wasmExports.memory.buffer) {
+        wasmMemory = new Uint8Array(wasmExports.memory.buffer);
+    }
+
+    return wasmMemory;
+}
+
+/**
+ * Initialize town memory/proc state.
+ */
+export function townInit() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    wasmExports.wasm_town_init?.();
+}
+
+/**
+ * When enabled, town entry returns after bootstrapping instead of entering
+ * the original blocking DOS main loop.
+ * @param {boolean} enabled
+ */
+export function townSetReturnBeforeMainLoop(enabled) {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    wasmExports.wasm_town_set_return_before_main_loop?.(enabled ? 1 : 0);
+}
+
+/**
+ * Run town_entry_disabling_edge_scroll.
+ */
+export function townEntryDisablingEdgeScroll() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    if (!wasmExports.wasm_town_entry_disabling_edge_scroll) {
+        throw new Error('wasm_town_entry_disabling_edge_scroll is not exported');
+    }
+
+    wasmExports.wasm_town_entry_disabling_edge_scroll();
+}
+
+/**
+ * Run town_entry_enabling_edge_scroll.
+ */
+export function townEntryEnablingEdgeScroll() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    if (!wasmExports.wasm_town_entry_enabling_edge_scroll) {
+        throw new Error('wasm_town_entry_enabling_edge_scroll is not exported');
+    }
+
+    wasmExports.wasm_town_entry_enabling_edge_scroll();
+}
+
+/**
  * Load MDT file data into WASM memory at 0xC000
  * @param {Uint8Array} mdtData - Raw MDT file data
  * @returns {number} 0 on success, -1 on error

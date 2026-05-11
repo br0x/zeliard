@@ -3,6 +3,7 @@ CC = emcc
 SRCDIR = src
 BUILDDIR = build
 TARGET = $(BUILDDIR)/zeliard.js
+EM_CACHE_DIR = $(CURDIR)/$(BUILDDIR)/.emcache
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 
@@ -10,14 +11,14 @@ CFLAGS = -O2 -Wall -Wextra
 
 EMFLAGS = \
   -s WASM=1 \
-  -s EXPORTED_FUNCTIONS='["_wasm_init"]' \
+  -s EXPORTED_FUNCTIONS='["_wasm_init","_get_memory_base","_wasm_get_mem_ptr","_wasm_town_init","_wasm_town_set_return_before_main_loop","_wasm_town_entry_disabling_edge_scroll","_wasm_town_entry_enabling_edge_scroll"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 
 all: $(TARGET)
 
 $(TARGET): $(SOURCES)
 	mkdir -p $(BUILDDIR)
-	$(CC) $(CFLAGS) $(EMFLAGS) -o $@ $(SOURCES)
+	EM_CACHE=$(EM_CACHE_DIR) $(CC) $(CFLAGS) $(EMFLAGS) -o $@ $(SOURCES)
 
 clean:
 	rm -rf $(BUILDDIR)

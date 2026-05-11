@@ -295,6 +295,7 @@ static const uint8_t str_usr_glob[] = {'*','.','u','s','r',0};
  *   town_procs.render_town_tiles_28_columns = <fn>;
  * ========================================================================= */
 TownProcs g_town_procs;  /* zero-initialised; JS sets members before calling wasm_town_init */
+static uint8_t g_town_return_before_main_loop;
 
 /* Convenience wrappers that guard against NULL */
 #define CALL_PROC(name, ...) \
@@ -544,6 +545,10 @@ static void town_entry_common(void)
 
     if (DEATH_DONE) {
         CALL_PROC(adlib_fn0, SEG1_BASE + SEG1_TOWN_MSD_MUSIC);
+    }
+
+    if (g_town_return_before_main_loop) {
+        return;
     }
 
     /* Main town game loop */
@@ -2250,7 +2255,14 @@ static void wait_for_dialog_continue(void)
 void wasm_town_init(void)
 {
     memset(g_mem, 0, sizeof(g_mem));
+    g_town_return_before_main_loop = 0;
     /* JS must populate g_mem with save data and MDT before calling entry */
+}
+
+/* JS callable: let startup run town init without entering the blocking DOS loop */
+void wasm_town_set_return_before_main_loop(int enabled)
+{
+    g_town_return_before_main_loop = enabled ? 1 : 0;
 }
 
 /* JS callable: enter town after returning from a dungeon */

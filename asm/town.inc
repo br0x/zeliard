@@ -55,7 +55,7 @@ restore_game_proc                                  equ 601Ch
 
 ; mdt info - towns
 town_descriptor_addr                               equ 0C000h
-  ; [0]: bits 5..1 - msd index
+  ; [0]: bits 5..1 - msd index in [MGT1.MSD, UGM1.MSD, MGT2.MSD, UGM2.MSD]
   ; [1]: NPC type; 0 -> mman.grp, 1 -> cman.grp
   ; [2]: ff
   ; [3]: town_has_middle_layer

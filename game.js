@@ -15,7 +15,10 @@ import { OpeningIntro }  from './opening-intro.js';
 import { SoundManager }  from './sound-manager.js';
 
 // ─── Feature flags ────────────────────────────────────────────────────────────
-const USE_WASM_ENGINE = false;
+const USE_WASM_ENGINE = true;
+const RUN_TOWN_ENTRY_ON_START = true;
+const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
+const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
@@ -45,14 +48,17 @@ let updateBossBattle;
 let getHeroPosition;
 let inputGetDebugCounter;
 let getWasmMemory;  // NEW: returns Uint8Array of WASM linear memory
+let townInit;
+let townSetReturnBeforeMainLoop;
+let townEntryDisablingEdgeScroll;
+let hasWasmExport;
 
 let RENDER_CONFIG;
 let renderDungeonObjects;
+let townEntryRan = false;
 
 async function loadWasmEngine() {
     const wasmBridge    = await import('./src/zeliard-wasm.js');
-    const renderConfig  = await import('./src/render-config.js');
-    const renderObjects = await import('./src/render-objects.js');
 
     ({
         initWasm,
@@ -79,10 +85,20 @@ async function loadWasmEngine() {
         getHeroPosition,
         inputGetDebugCounter,
         getWasmMemory,         // NEW: exposed from zeliard-wasm.js
+        townInit,
+        townSetReturnBeforeMainLoop,
+        townEntryDisablingEdgeScroll,
+        hasWasmExport,
     } = wasmBridge);
 
-    RENDER_CONFIG        = renderConfig.RENDER_CONFIG;
-    renderDungeonObjects = renderObjects.renderDungeonObjects;
+    try {
+        const renderConfig  = await import('./src/render-config.js');
+        const renderObjects = await import('./src/render-objects.js');
+        RENDER_CONFIG        = renderConfig.RENDER_CONFIG;
+        renderDungeonObjects = renderObjects.renderDungeonObjects;
+    } catch (err) {
+        console.warn('[WASM] Dungeon renderer modules are not available yet:', err);
+    }
 }
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
@@ -157,13 +173,13 @@ let animTimer   = 0;   // word  — wraps at 65536
  *   0x32 — door open
  *   0x3C — enemy death
  */
-const SFX_IDS = [0x0A, 0x14, 0x1D, 0x1E, 0x28, 0x32, 0x3C];
+const SFX_IDS = [10, 20, 29, 30, 40, 50, 60];
 
 /**
  * Music track IDs — map to assets/music/{id}.{ogg,mp3}.
  * Town descriptor loading sets the track; adjust to your actual filenames.
  */
-const MUSIC_TRACKS = ['town1', 'town2', 'dungeon1', 'dungeon2', 'boss', 'intro'];
+const MUSIC_TRACKS = ['mgt1', 'mgt2', 'ugm1', 'ugm2'];
 
 const soundManager = new SoundManager({
     workletPath:   'pit-worklet.js',
@@ -333,40 +349,34 @@ async function startGame() {
         }
 
         // Initialise WASM subsystems
-        inputInit();
+        townInit?.();
+        inputInit?.();
 
-    // Initialize hero movement state machine
-        heroMovementInit();
-
-    // Initialize combat system
-        combatInit();
-
-        // Load map data
-        const response = await fetch('WORK/MP10.MDT');
+        // Load starting town MDT at seg0:0xC000.
+        const response = await fetch(START_TOWN_MDT_PATH);
+        if (!response.ok) {
+            throw new Error(`Failed to load ${START_TOWN_MDT_PATH}: ${response.status}`);
+        }
         mdtData = new Uint8Array(await response.arrayBuffer());
         loadMdt(mdtData);
+        mdtHeader = getMdtHeader?.();
 
-// Muralla -> Malicia:
-// hero_y_rel = 0x3d
-// byte_C3 = 0
-// place_map_id = 0 // cavern id
-// load mp10.mdt
-// hero_x_minus_18_abs = 0x2d
-// entered_cavern_first_time = 0xFF
-        townToDungeonTransition(0x2d, 0x3d, 0, 0);
+        if (RUN_TOWN_ENTRY_ON_START) {
+            if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
+                throw new Error('wasm_town_entry_disabling_edge_scroll is missing from build/zeliard.wasm');
+            }
 
-        cavernName = getCavernName();
-        mdtHeader  = getMdtHeader();
-        console.log('Cavern:', cavernName, '| MDT:', mdtHeader);
-
-        const isBossCavern = (mdtData[0] & 0x02) !== 0;
-        if (isBossCavern) initBossBattle();
+            townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
+            townEntryDisablingEdgeScroll();
+            townEntryRan = true;
+            console.log('town_entry_disabling_edge_scroll called');
+        }
 
         // ── Load matching music for this map ──────────────────────────────────
         const trackId = resolveMusicTrack(mdtHeader);
         if (trackId) soundManager.playMusic(trackId);
 
-        const heroPos = getHeroPosition();
+        const heroPos = getHeroPosition?.();
         console.log('Hero pos:', heroPos);
 
         engineReady = true;
@@ -393,8 +403,8 @@ function resolveMusicTrack(header) {
     // Example: MDT type byte lives in header.type or header.flags
     // Adjust to your actual getMdtHeader() shape.
     const type = header.type ?? 0;
-    const map  = { 0: 'town1', 1: 'town2', 2: 'dungeon1', 3: 'dungeon2', 4: 'boss' };
-    return map[type] ?? 'town1';
+    const map  = { 0: 'mgt1', 1: 'ugm1', 2: 'mgt2', 3: 'ugm2' };
+    return map[type] ?? 'mgt1';
 }
 
 // ─── rAF game loop ────────────────────────────────────────────────────────────
@@ -446,6 +456,14 @@ function draw() {
     if (!engineReady) {
         drawLifeBar();
         updateElementText('currentMapName', '');
+        updateElementText('gold', 0);
+        updateElementText('almas', 0);
+        return;
+    }
+
+    if (!proximityMap || !RENDER_CONFIG || !renderDungeonObjects) {
+        drawLifeBar();
+        updateElementText('currentMapName', townEntryRan ? 'Town WASM bootstrapped' : '');
         updateElementText('gold', 0);
         updateElementText('almas', 0);
         return;

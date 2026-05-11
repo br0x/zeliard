@@ -1002,7 +1002,7 @@ HeartbeatInstr  db 20h, 21h, 4, 0, 0F8h, 0F4h, 8Fh, 8Fh, 40h ; 9 bytes
 ;   word ptr to duration multiplier table (base for dur_tbl_base)
 ; ---------------------------------------------------------------------------
 SFX_Table:
-byte_1743       db 0                    ; sfx1
+                db 0                    ; sfx1
                 dw offset byte_190A
                 dw offset byte_201F
                 dw offset byte_1914
