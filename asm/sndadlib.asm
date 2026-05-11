@@ -21,37 +21,6 @@
 ;   Data port           389h
 ;   Register write implementation: see OPL_WriteReg
 ;
-; Channel data structure (size 23h bytes, instantiated at ChA_State and ChB_State):
-;   Offset  Size   Description (see equates below for exact names)
-;   ------------------------------------------------------------------
-;   0x00    word   seq_ptr         ; pointer to next event in sequence
-;   0x02    word   dur_tbl_base    ; pointer to duration multiplier table (from sfx definition)
-;   0x04    byte   opl_channel     ; OPL channel number (4 or 5)
-;   0x05    byte   flags           ; bit 0: note_on, bit 7: envelope direction, etc.
-;   0x06    byte   note_timer      ; countdown for the current note/event
-;   0x07    byte   volume          ; total level (0-3Fh, higher = quieter)
-;   0x08    byte   octave_shift    ; octave / block multiplier (0..7)
-;   0x09    byte   flags2          ; bit 2: vibrato active, bit 4: pause, bit 5: ramp, bit 6: env active
-;   0x0A    byte   note_dur_init   ; initial note duration (from sequence)
-;   0x0B    byte   algo_feedback   ; low nibble = register C0h value (feedback/algorithm)
-;   0x0D    word   fnum_block      ; frequency: upper 5 bits = block (octave), lower 10 bits = F-number
-;   0x0F    byte   transpose       ; semitone transpose
-;   0x10    word   pitch_bend_acc  ; pitch bend accumulator
-;   0x12    byte   pitch_bend_frac ; fractional part of pitch bend
-;   0x13    byte   env_countdown   ; envelope step counter (downcounter)
-;   0x14    word   env_step_up     ; envelope increment (when direction = up)
-;   0x16    word   env_step_down   ; envelope decrement (when direction = down)
-;   0x18    byte   env_scale       ; envelope multiplier/scale
-;   0x19    byte   env_hold        ; hold counter for vibrato (from sequence)
-;   0x1A    byte   env_par1        ; envelope parameter #1
-;   0x1B    byte   env_par2        ; envelope parameter #2
-;   0x1C    byte   env_par3        ; envelope parameter #3
-;   0x1D    byte   env_par4        ; envelope parameter #4
-;   0x1E    byte   env_flags       ; bit 7: alternate between par3/par4, lower 5 bits: period divider
-;   0x1F    byte   env_alt_count   ; toggle counter for par3/par4
-;   0x20    word   instr_ptr       ; pointer to current instrument definition (9+4 bytes)
-;   0x22    byte   channel_mask    ; 1 for ChA, 2 for ChB (used to notify int 60h)
-;
 ; Instrument definition (13 bytes per instrument at InstrTable):
 ;   Offset  Description
 ;   0       OPL operator 1 (modulator) → register 0x20+opNum (AM/VIB/EG/KSR/MULT)
@@ -66,6 +35,39 @@
 ;   9..12   Additional data loaded by InstrLoadFeedback etc.
 ;==============================================================================
 include common.inc
+
+; Channel state structure (size 35)
+Ch_State        struc ;   Offset ; Description
+seq_ptr         dw ?  ;   0x00   ; pointer to next event in sequence
+dur_tbl_base    dw ?  ;   0x02   ; pointer to duration multiplier table (from sfx definition)
+opl_channel     db ?  ;   0x04   ; OPL channel number (4 or 5)
+flags           db ?  ;   0x05   ; bit 0: note_on, bit 7: envelope direction, etc.
+note_timer      db ?  ;   0x06   ; countdown for the current note/event
+volume          db ?  ;   0x07   ; total level (0-3Fh, higher = quieter)
+octave_shift    db ?  ;   0x08   ; octave / block multiplier (0..7)
+flags2          db ?  ;   0x09   ; bit 2: vibrato active, bit 4: pause, bit 5: ramp, bit 6: env active
+note_dur_init   db ?  ;   0x0A   ; initial note duration (from sequence)
+algo_feedback   db ?  ;   0x0B   ; low nibble = register C0h value (feedback/algorithm)
+unused          db ?  ;   0x0C   ; 
+fnum_block      dw ?  ;   0x0D   ; frequency: upper 5 bits = block (octave), lower 10 bits = F-number
+transpose       db ?  ;   0x0F   ; semitone transpose
+pitch_bend_acc  dw ?  ;   0x10   ; pitch bend accumulator
+pitch_bend_frac db ?  ;   0x12   ; fractional part of pitch bend
+env_countdown   db ?  ;   0x13   ; envelope step counter (downcounter)
+env_step_up     dw ?  ;   0x14   ; envelope increment (when direction = up)
+env_step_down   dw ?  ;   0x16   ; envelope decrement (when direction = down)
+env_scale       db ?  ;   0x18   ; envelope multiplier/scale
+env_hold        db ?  ;   0x19   ; hold counter for vibrato (from sequence)
+env_par1        db ?  ;   0x1A   ; envelope parameter #1
+env_par2        db ?  ;   0x1B   ; envelope parameter #2
+env_par3        db ?  ;   0x1C   ; envelope parameter #3
+env_par4        db ?  ;   0x1D   ; envelope parameter #4
+env_flags       db ?  ;   0x1E   ; bit 7: alternate between par3/par4, lower 5 bits: period divider
+env_alt_count   db ?  ;   0x1F   ; toggle counter for par3/par4
+instr_ptr       dw ?  ;   0x20   ; pointer to current instrument definition (9+4 bytes)
+channel_mask    db ?  ;   0x22   ; 1 for ChA, 2 for ChB (used to notify int 60h)
+Ch_State        ends
+
                 .286
                 .model small
 
@@ -101,626 +103,575 @@ sound_drv_poll_farproc  endp
 ; non‑zero value (SFX number + 1).  It copies the SFX definition's three
 ; data pointers and resets the two channels if necessary.
 ; ---------------------------------------------------------------------------
-SFX_Start        proc near
+SFX_Start      proc near
                 mov     al, ds:(soundFX_request - segment_shift)
                 mov     byte ptr ds:(soundFX_request - segment_shift), 0
                 test    byte ptr ds:(sound_fx_toggle_by_f2 - segment_shift), 0FFh
                 jz      short check_sfx
                 retn
-; ---------------------------------------------------------------------------
-
 check_sfx:
-                dec     al
+                dec     al                  ; al = SFX index (0..63)
                 mov     ah, 7
-                mul     ah
-                add     ax, offset byte_1743
+                mul     ah                  ; each SFX entry is 7 bytes
+                add     ax, offset SFX_Table
                 mov     si, ax
-                mov     al, [si]
-                cmp     al, byte_20BC
-                jnb     short loc_1131
-                retn
-; ---------------------------------------------------------------------------
-
-loc_1131:
-                mov     byte_20BC, al
-                inc     si
-                mov     di, offset byte_2076
+                mov     al, [si]            ; priority byte
+                cmp     al, SfxPriority
+                jnb     short build_sfx
+                retn                        ; lower priority → ignore
+build_sfx:
+                mov     SfxPriority, al
+                inc     si                  ; skip priority byte
+                ; load two duration‑table pointers into the two channels
+                mov     di, offset ChA_State
                 mov     cx, 2
-                mov     bh, 1
-                mov     bl, 4
-
-loc_113F:
-                call    sub_1166
-                add     di, 35
-                inc     bh
-                inc     bl
-                loop    loc_113F
+                mov     bh, 1               ; channel mask for ChA
+                mov     bl, 4               ; OPL channel 4
+load_sfx_loop:
+                call    Ch_InitOp
+                add     di, size Ch_State   ; skip to next channel state
+                inc     bh                  ; mask 2 for ChB
+                inc     bl                  ; channel 5
+                loop    load_sfx_loop
+                ; load the base pointer for the duration multiplier table
                 lodsw
-                mov     word_20C0, ax
+                mov     SfxDurTblPtr, ax
                 mov     byte ptr ds:(exit_pending_flag - segment_shift), 0
-                mov     byte_20BD, 7Fh
-                mov     byte_20C2, 0
-                mov     byte_20C3, 0
-                jmp     int60_fn6
-SFX_Start        endp
+                mov     TempoAccum, 7Fh
+                mov     ActiveChCnt, 0
+                mov     ChannelMask, 0
+                jmp     int60_fn6           ; notify that a new SFX/music started
+SFX_Start      endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_1166        proc near
-                lodsw
-                mov     [di], ax
-                mov     byte ptr [di+6], 1
-                mov     byte ptr [di+8], 3
-                mov     byte ptr [di+0Ah], 1
-                mov     byte ptr [di+7], 7Fh
-                mov     byte ptr [di+9], 0
-                mov     byte ptr [di+5], 0
-                mov     [di+4], bl
-                mov     [di+22h], bh
-                retn
-sub_1166        endp
-
-
-; =============== S U B R O U T I N E =======================================
-
-
-ProcessTick        proc near
-                test    byte ptr ds:(soundFX_request - segment_shift), 0FFh
-                jz      short loc_1192
-                call    SFX_Start
-
-loc_1192:
-                test    byte ptr ds:(exit_pending_flag - segment_shift), 0FFh
-                jz      short loc_119A
-                retn
 ; ---------------------------------------------------------------------------
+; Initialise one operator with hard‑coded default values, then set the
+; channel’s instrument pointer to the first SFX instrument (later the
+; sequence may change it).  Called for both ChA and ChB.
+; Input:  SI → first two words of SFX definition (pointer to seq data)
+;         DI → Ch_State structure
+;         BL = OPL channel number (4/5)
+;         BH = channel mask (1/2)
+; ---------------------------------------------------------------------------
+Ch_InitOp      proc near
+                lodsw
+                mov     word ptr ds:[di+Ch_State.seq_ptr], ax
+                mov     byte ptr [di+Ch_State.note_timer], 1
+                mov     byte ptr [di+Ch_State.octave_shift], 3
+                mov     byte ptr [di+Ch_State.note_dur_init], 1
+                mov     byte ptr [di+Ch_State.volume], 7Fh
+                mov     byte ptr [di+Ch_State.flags2], 0
+                mov     byte ptr [di+Ch_State.flags], 0
+                mov     [di+Ch_State.opl_channel], bl
+                mov     [di+Ch_State.channel_mask], bh
+                retn
+Ch_InitOp      endp
 
-loc_119A:
+
+; ===========================================================================
+; Main per‑tick processing.  Checks for new SFX requests, runs the two‑
+; channel sequencer, and handles tempo.
+; ===========================================================================
+ProcessTick    proc near
+                test    byte ptr ds:(soundFX_request - segment_shift), 0FFh
+                jz      short no_sfx
+                call    SFX_Start
+no_sfx:
+                test    byte ptr ds:(exit_pending_flag - segment_shift), 0FFh
+                jz      short run_seq
+                retn
+run_seq:
                 push    cs
                 pop     es
-                mov     al, byte_20BD
-                add     byte_20BE, al
+                ; simple tempo accumulator (adds an 8‑bit fraction)
+                mov     al, TempoAccum
+                add     TempoCounter, al
                 sbb     al, al
-                mov     byte_20BF, al
+                mov     TempoCarry, al      ; carry flag stored for sequence engine
                 cld
-                mov     di, offset byte_2076
-                call    sub_11B4
-                mov     di, offset byte_2099
-                jmp     short $+2
-ProcessTick        endp
+                mov     di, offset ChA_State
+                call    Ch_Sequencer
+                mov     di, offset ChB_State
+                jmp     short $+2           ; flush prefetch (8086 quirk)
+ProcessTick    endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_11B4        proc near
-
-                test    byte ptr [di+5], 1
-                jz      short loc_11BB
+; ===========================================================================
+; Channel sequencer – interprets the event stream for one channel.
+; ===========================================================================
+Ch_Sequencer   proc near
+                test    byte ptr [di+Ch_State.flags], 1     ; note_on?
+                jz      short not_active
                 retn
-; ---------------------------------------------------------------------------
-
-loc_11BB:
-                mov     ax, offset sub_1458
-                push    ax
-                test    byte_20BF, 0FFh
-                jz      short loc_11C7
+not_active:
+                mov     ax, offset Ch_DoEnvelope
+                push    ax                      ; return address for note end
+                test    TempoCarry, 0FFh
+                jz      short do_step
+                retn                            ; no tick this frame
+do_step:
+                dec     byte ptr [di+Ch_State.note_timer]
+                jz      short fetch_event       ; timer expired
+                ; check if note is in "pause" phase (flags2 bit 4 set)
+                mov     al, [di+Ch_State.note_dur_init]
+                cmp     al, [di+Ch_State.note_timer]
+                jnb     short no_pause
                 retn
-; ---------------------------------------------------------------------------
-
-loc_11C7:
-                dec     byte ptr [di+6]
-                jz      short loc_11DF
-                mov     al, [di+0Ah]
-                cmp     al, [di+6]
-                jnb     short loc_11D5
+no_pause:
+                test    byte ptr [di+Ch_State.flags2], 10h   ; pause flag?
+                jz      short skip_pause
                 retn
-; ---------------------------------------------------------------------------
-
-loc_11D5:
-                test    byte ptr [di+9], 10h
-                jz      short loc_11DC
-                retn
-; ---------------------------------------------------------------------------
-
-loc_11DC:
-                jmp     loc_142D
-; ---------------------------------------------------------------------------
-
-loc_11DF:
-                mov     si, [di]
-
-loc_11E1:
+skip_pause:
+                jmp     Ch_NoteUpdate           ; still playing, update freq/vol
+; --- fetch next event from sequence ---
+fetch_event:
+                mov     si, [di+Ch_State.seq_ptr]
+ch_event_loop:
                 lodsb
                 or      al, al
-                js      short loc_11E9
-                jmp     loc_13B0
-; ---------------------------------------------------------------------------
+                js      short cmd_event         ; high bit set → command
+                jmp     ch_note_event           ; else → note event
 
-loc_11E9:
-                mov     bx, offset loc_11E1
-                push    bx
+cmd_event:
+                mov     bx, offset ch_event_loop
+                push    bx                      ; most commands return to loop
                 test    al, 40h
-                jnz     short loc_11F4
-                jmp     loc_1292
-; ---------------------------------------------------------------------------
+                jnz     short cmd_group1
+                jmp     cmd_group2
 
-loc_11F4:
+; ---------- Command group 1 (0xC0‑0xDF) ----------
+cmd_group1:
                 cmp     al, 0D0h
-                jnb     short loc_11FB
-                jmp     loc_1367
-; ---------------------------------------------------------------------------
-
-loc_11FB:
+                jnb     short cmd_ge_D0
+                jmp     cmd_volume_relative     ; 0xC0..0xCF
+cmd_ge_D0:
                 cmp     al, 0D8h
-                jnb     short loc_1202
-                jmp     loc_1397
-; ---------------------------------------------------------------------------
-
-loc_1202:
+                jnb     short cmd_ge_D8
+                jmp     cmd_set_octave          ; 0xD0..0xD7
+cmd_ge_D8:
                 cmp     al, 0E0h
-                jnb     short loc_1209
-                jmp     loc_139D
-; ---------------------------------------------------------------------------
-
-loc_1209:
+                jnb     short cmd_ge_E0
+                jmp     cmd_duration           ; 0xD8..0xDF
+cmd_ge_E0:
                 and     al, 1Fh
                 add     al, al
                 mov     bl, al
                 xor     bh, bh
-                jmp     off_1215[bx]
-; ---------------------------------------------------------------------------
-off_1215        dw offset loc_1255
-                dw offset loc_125A
-                dw offset loc_125F
-                dw offset loc_127D
-                dw offset loc_1281
-                dw offset loc_1285
-                dw offset locret_1291
-                dw offset loc_128C
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset locret_1291
-                dw offset loc_14FA
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset locret_150B
-                dw offset loc_150C
-; ---------------------------------------------------------------------------
+                jmp     word ptr CmdTable_E0[bx]  ; dispatch 0xE0..0xFF
 
-loc_1255:
+CmdTable_E0:
+                dw ChCmd_SetTempo        ; 0xE0
+                dw ChCmd_SetTranspose    ; 0xE1
+                dw ChCmd_EnvSetup        ; 0xE2
+                dw ChCmd_DecOctave       ; 0xE3
+                dw ChCmd_IncOctave       ; 0xE4
+                dw ChCmd_SetVolume       ; 0xE5
+                dw ChCmd_Ret             ; 0xE7
+                dw ChCmd_SetVibrato      ; 0xE6
+                dw ChCmd_Ret             ; 0xE8
+                dw ChCmd_Ret             ; 0xE9
+                dw ChCmd_Ret             ; 0xEA
+                dw ChCmd_Ret             ; 0xEB
+                dw ChCmd_Ret             ; 0xEC
+                dw ChCmd_Ret             ; 0xED
+                dw ChCmd_Ret             ; 0xEE
+                dw ChCmd_Ret             ; 0xEF
+                dw ChCmd_SetDurTbl       ; 0xF0
+                dw locret_150B           ; 0xF1
+                dw locret_150B           ; 0xF2
+                dw locret_150B           ; 0xF3
+                dw locret_150B           ; 0xF4
+                dw locret_150B           ; 0xF5
+                dw locret_150B           ; 0xF6
+                dw locret_150B           ; 0xF7
+                dw locret_150B           ; 0xF8
+                dw locret_150B           ; 0xF9
+                dw locret_150B           ; 0xFA
+                dw locret_150B           ; 0xFB
+                dw locret_150B           ; 0xFC
+                dw locret_150B           ; 0xFD
+                dw locret_150B           ; 0xFE
+                dw ChCmd_EndOfTrack      ; 0xFF
+
+; ---------- Group 1 sub‑commands ----------
+ChCmd_SetTempo:
                 lodsb
-                mov     byte_20BD, al
+                mov     TempoAccum, al
                 retn
-; ---------------------------------------------------------------------------
-
-loc_125A:
+ChCmd_SetTranspose:
                 lodsb
-                mov     [di+0Fh], al
+                mov     [di+Ch_State.transpose], al
                 retn
-; ---------------------------------------------------------------------------
-
-loc_125F:
-                and     byte ptr [di+5], 0BFh
+ChCmd_EnvSetup:
+                and     byte ptr [di+Ch_State.flags], 0BFh   ; clear envelope flag
                 lodsb
                 or      al, al
-                jnz     short loc_1269
+                jnz     short set_envelope
                 retn
-; ---------------------------------------------------------------------------
-
-loc_1269:
-                or      byte ptr [di+5], 40h
+set_envelope:
+                or      byte ptr [di+Ch_State.flags], 40h   ; enable envelope
                 push    di
-                add     di, 1Ah
-                mov     [di-1], al
-                movsw
-                movsw
-                movsb
+                add     di, Ch_State.env_par1       ; di+1 → env_hold
+                mov     [di-1], al                  ; store first byte in env_hold
+                movsw                                   ; copy env_par1, env_par2
+                movsw                                   ; copy env_par3, env_par4
+                movsb                                   ; copy env_flags
                 pop     di
-                and     byte ptr [di+9], 0FDh
+                and     byte ptr [di+Ch_State.flags2], 0FDh  ; clear "envelope active"
                 retn
-; ---------------------------------------------------------------------------
-
-loc_127D:
-                dec     byte ptr [di+8]
+ChCmd_DecOctave:
+                dec     byte ptr [di+Ch_State.octave_shift]
                 retn
-; ---------------------------------------------------------------------------
-
-loc_1281:
-                inc     byte ptr [di+8]
+ChCmd_IncOctave:
+                inc     byte ptr [di+Ch_State.octave_shift]
                 retn
-; ---------------------------------------------------------------------------
-
-loc_1285:
+ChCmd_SetVolume:
                 lodsb
-                mov     [di+7], al
-                jmp     sub_1319
-; ---------------------------------------------------------------------------
-
-loc_128C:
-                or      byte ptr [di+9], 20h
+                mov     [di+Ch_State.volume], al
+                jmp     Ch_UpdateTotalLevel
+ChCmd_SetVibrato:
+                or      byte ptr [di+Ch_State.flags2], 20h   ; set vibrato flag
                 retn
-; ---------------------------------------------------------------------------
-
-locret_1291:
+ChCmd_Ret:
                 retn
-; ---------------------------------------------------------------------------
 
-loc_1292:
-                and     al, 3Fh
+; ---------- Command group 2 (0x80‑0xBF) : instrument change ----------
+cmd_group2:
+                and     al, 3Fh                 ; 6‑bit instrument number
                 push    si
                 mov     cl, 9
                 mul     cl
-                add     ax, offset byte_2020
-                mov     si, ax
-                mov     [di+20h], si
-                mov     bl, [di+4]
+                add     ax, offset InstrTable
+                mov     si, ax                  ; si → instrument data
+                mov     [di+Ch_State.instr_ptr], si
+                mov     bl, [di+Ch_State.opl_channel]
                 xor     bh, bh
-                mov     ah, ChOpBaseTbl[bx]
+                mov     ah, ChOpBaseTbl[bx]     ; operator base number
+                ; --- load operator 1 (modulator) ---
                 mov     al, 0FFh
-                add     ah, 40h ; '@'
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                add     ah, 3
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                sub     ah, 23h
+                add     ah, 40h                 ; KSL/TL reg for operator 1
+                call    OPL_WriteReg            ; set total level to 0FFh (silence) temporarily
+                add     ah, 3                   ; now KSL/TL for operator 2
+                call    OPL_WriteReg
+                sub     ah, 23h                 ; back to 0x20+op (AM/VIB/...)
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                add     ah, 3
+                call    OPL_WriteReg            ; write am/vib/eg/ksr/mult
+                add     ah, 3                   ; 0x23+op → operator 2 same reg
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                add     ah, 1Dh
+                call    OPL_WriteReg
+                add     ah, 1Dh                 ; 0x40+op → KSL/TL operator 1
                 lodsb
-                lodsb
-                add     ah, 20h ; ' '
+                lodsb                           ; skip, we'll reload later
+                add     ah, 20h                 ; 0x60+op → AR/DR operator 1
                 mov     cx, 2
-
-loc_12D1:
+inst_loop:
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
+                call    OPL_WriteReg            ; AR/DR op1
                 add     ah, 3
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
+                call    OPL_WriteReg            ; AR/DR op2
                 add     ah, 1Dh
-                loop    loc_12D1
-                add     ah, 40h
-                lodsb
+                loop    inst_loop               ; next: SL/RR
+                add     ah, 40h                 ; 0xC0+op? No, see below.
+                ; --- load feedback / algorithm and remaining data ---
+                lodsb                           ; instrument byte 9
                 mov     bl, al
                 rol     al, 1
-                rol     al, 1
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
+                rol     al, 1                   ; bits 6-5 → bits 1-0
+                call    OPL_WriteReg            ; write ?? (likely unused)
                 add     ah, 3
                 rol     al, 1
                 rol     al, 1
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                mov     ah, [di+4]
+                call    OPL_WriteReg            ; write ??
+                mov     ah, [di+Ch_State.opl_channel]
                 mov     al, bl
                 and     al, 0Fh
-                mov     [di+0Bh], al
-                add     ah, 0C0h
-                call    OPL_WriteReg ; AH: Register Index
-                                              ; AL: Data
-                call    sub_1319
+                mov     [di+Ch_State.algo_feedback], al
+                add     ah, 0C0h                ; register 0xC0+channel (feedback/algorithm)
+                call    OPL_WriteReg
+                call    Ch_UpdateTotalLevel
                 pop     si
-                mov     al, [di+22h]
-                or      byte_20C3, al
-                call    int60_fn6
-                jmp     loc_142D
-sub_11B4        endp ; sp-analysis failed
+                mov     al, [di+Ch_State.channel_mask]
+                or      ChannelMask, al
+                call    int60_fn6               ; notify new instrument
+                jmp     Ch_NoteUpdate
+Ch_Sequencer   endp    ; (sp-analysis may fail – original code works fine)
 
-
-; =============== S U B R O U T I N E =======================================
-
-
-sub_1319        proc near
-                push    si
-                mov     si, [di+20h]
-                mov     bl, [di+4]
-                xor     bh, bh
-                mov     ah, ChOpBaseTbl[bx]
-                add     ah, 40h ; '@'
-                mov     bl, [di+7]
-                shr     bl, 1
-                mov     al, [si+2]
-                test    byte ptr [di+0Bh], 1
-                jz      short loc_1348
-                mov     bh, al
-                and     al, 3Fh
-                add     al, bl
-                cmp     al, 40h ; '@'
-                jb      short loc_1343
-                mov     al, 3Fh ; '?'
-
-loc_1343:
-                and     bh, 0C0h
-                or      al, bh
-
-loc_1348:                               ; AH: Register Index
-                call    OPL_WriteReg ; AL: Data
-                add     ah, 3
-                mov     al, [si+3]
-                mov     bh, al
-                and     al, 3Fh
-                add     al, bl
-                cmp     al, 40h ; '@'
-                jb      short loc_135D
-                mov     al, 3Fh ; '?'
-
-loc_135D:
-                and     bh, 0C0h
-                or      al, bh
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                pop     si
-                retn
-sub_1319        endp
 
 ; ---------------------------------------------------------------------------
+; Update total level (volume) registers for both operators.
+; Called after a volume change or instrument load.
+; ---------------------------------------------------------------------------
+Ch_UpdateTotalLevel proc near
+                push    si
+                mov     si, [di+Ch_State.instr_ptr]   ; instrument data
+                mov     bl, [di+Ch_State.opl_channel]
+                xor     bh, bh
+                mov     ah, ChOpBaseTbl[bx]
+                add     ah, 40h                 ; KSL/TL operator 1
+                mov     bl, [di+Ch_State.volume]      ; requested total level
+                shr     bl, 1                   ; scale to 0..1Fh
+                ; operator 1
+                mov     al, [si+2]              ; instrument's KSL/TL
+                test    byte ptr [di+Ch_State.algo_feedback], 1  ; check feedback bit
+                jz      short no_ksl_correction
+                mov     bh, al
+                and     al, 3Fh
+                add     al, bl
+                cmp     al, 40h
+                jb      short ok1
+                mov     al, 3Fh
+ok1:
+                and     bh, 0C0h
+                or      al, bh
+no_ksl_correction:
+                call    OPL_WriteReg
+                add     ah, 3                   ; operator 2 KSL/TL
+                mov     al, [si+3]              ; instrument byte for op2
+                mov     bh, al
+                and     al, 3Fh
+                add     al, bl
+                cmp     al, 40h
+                jb      short ok2
+                mov     al, 3Fh
+ok2:
+                and     bh, 0C0h
+                or      al, bh
+                call    OPL_WriteReg
+                pop     si
+                retn
+Ch_UpdateTotalLevel endp
 
-loc_1367:
-                mov     bl, [di+7]
+; ---------------------------------------------------------------------------
+; Volume‑relative commands (0xC0..0xCF) – add/sub from current volume.
+; ---------------------------------------------------------------------------
+cmd_volume_relative:
+                mov     bl, [di+Ch_State.volume]
                 and     al, 0Fh
                 shl     al, 1
                 shl     al, 1
                 shl     al, 1
                 shl     al, 1
-                sar     al, 1
+                sar     al, 1                   ; sign extend to 8 bits
                 sar     al, 1
                 or      al, al
-                js      short loc_1389
+                js      short sub_vol
                 add     al, 4
                 sub     bl, al
                 test    bl, 0C0h
-                jz      short loc_1392
+                jz      short set_vol
                 xor     bl, bl
-                jmp     short loc_1392
-; ---------------------------------------------------------------------------
-
-loc_1389:
+                jmp     short set_vol
+sub_vol:
                 sub     bl, al
                 test    bl, 0C0h
-                jz      short loc_1392
-                mov     bl, 3Fh ; '?'
+                jz      short set_vol
+                mov     bl, 3Fh
+set_vol:
+                mov     [di+Ch_State.volume], bl
+                jmp     Ch_UpdateTotalLevel
 
-loc_1392:
-                mov     [di+7], bl
-                jmp     short sub_1319
 ; ---------------------------------------------------------------------------
-
-loc_1397:
+; Set octave command (0xD0..0xD7).
+; ---------------------------------------------------------------------------
+cmd_set_octave:
                 and     al, 7
-                mov     [di+8], al
+                mov     [di+Ch_State.octave_shift], al
                 retn
-; ---------------------------------------------------------------------------
 
-loc_139D:
+; ---------------------------------------------------------------------------
+; Duration command (0xD8..0xDF) – sets the initial note duration from a
+; small table.
+; ---------------------------------------------------------------------------
+cmd_duration:
                 xor     bx, bx
                 and     al, 7
                 mov     bl, al
-                mov     ax, [di+2]
+                mov     ax, [di+Ch_State.dur_tbl_base] ; pointer to byte table
                 push    di
                 mov     di, ax
                 mov     al, [bx+di]
                 pop     di
-                mov     [di+0Ah], al
+                mov     [di+Ch_State.note_dur_init], al
                 retn
+
 ; ---------------------------------------------------------------------------
-
-loc_13B0:
-                mov     [di], si
-                and     byte ptr [di+9], 0EFh
-                cmp     byte ptr [si], 0E7h
-                jnz     short loc_13BF
-                or      byte ptr [di+9], 10h
-
-loc_13BF:
-                mov     dl, al
-                mov     bx, [di+2]
+; Note event (0x00..0x7F).
+; ---------------------------------------------------------------------------
+ch_note_event:
+                mov     [di+Ch_State.seq_ptr], si
+                and     byte ptr [di+Ch_State.flags2], 0EFh  ; clear pause
+                cmp     byte ptr [si], 0E7h    ; peek ahead: if next is "vibrato" cmd?
+                jnz     short not_pause
+                or      byte ptr [di+Ch_State.flags2], 10h   ; set pause flag
+not_pause:
+                mov     dl, al                  ; note number
+                mov     bx, [di+Ch_State.dur_tbl_base]
                 shr     dl, 1
                 shr     dl, 1
                 shr     dl, 1
-                shr     dl, 1
+                shr     dl, 1                   ; high nibble → index into step table
                 xor     dh, dh
                 add     bx, dx
-                mov     dl, [bx]
-                mov     [di+6], dl
+                mov     dl, [bx]                ; duration multiplier
+                mov     [di+Ch_State.note_timer], dl
                 mov     dl, al
-                and     al, 0Fh
-                jz      short loc_142D
+                and     al, 0Fh                  ; low nibble = note index (0..11)
+                jz      short Ch_NoteUpdate
                 cmp     al, 0Fh
-                jnz     short loc_13E0
-                retn
-; ---------------------------------------------------------------------------
-
-loc_13E0:
-                call    sub_1409
-                mov     al, [di+9]
-                and     byte ptr [di+9], 0DFh
+                jnz     short calc_freq
+                retn                            ; note 0xF = rest?
+calc_freq:
+                call    Ch_SetFrequency
+                mov     al, [di+Ch_State.flags2]
+                and     byte ptr [di+Ch_State.flags2], 0DFh  ; clear vibrato active?
                 test    al, 20h
-                jnz     short loc_1407
+                jnz     short freq_done
+                ; reset envelope/vibrato state
                 push    dx
-                mov     al, [di+19h]
-                mov     [di+13h], al
-                mov     word ptr [di+10h], 0
-                mov     byte ptr [di+12h], 80h
-                and     byte ptr [di+9], 0FDh
+                mov     al, [di+Ch_State.env_hold]
+                mov     [di+Ch_State.env_countdown], al
+                mov     word ptr [di+Ch_State.pitch_bend_acc], 0
+                mov     byte ptr [di+Ch_State.pitch_bend_frac], 80h
+                and     byte ptr [di+Ch_State.flags2], 0FDh
                 pop     dx
-                or      byte ptr [di+9], 40h
+                or      byte ptr [di+Ch_State.flags2], 40h   ; envelope active
+freq_done:
+                jmp     short Ch_OutputFreq
 
-loc_1407:
-                jmp     short loc_1433
-
-; =============== S U B R O U T I N E =======================================
-
-
-sub_1409        proc near
-                dec     al
+; ---------------------------------------------------------------------------
+; Compute frequency and octave from note index + transpose + octave shift.
+; Writes freq/block to Ch_State.fnum_block.
+; ---------------------------------------------------------------------------
+Ch_SetFrequency proc near
+                dec     al                      ; note 1..12 -> 0..11
                 xor     ah, ah
                 mov     bx, ax
-                mov     al, byte_158E[bx]
-                mov     [di+18h], al
+                mov     al, NoteFreqTbl[bx]     ; F‑number low bits? Actually a scale multiplier
+                mov     [di+Ch_State.env_scale], al
                 add     bx, bx
-                mov     al, [di+0Fh]
+                mov     al, [di+Ch_State.transpose]
                 cbw
-                add     ax, word_1576[bx]
-                mov     ch, [di+8]
+                add     ax, FreqBaseTbl[bx]     ; base F‑number for note
+                mov     ch, [di+Ch_State.octave_shift]
                 shl     ch, 1
                 shl     ch, 1
-                or      ah, ch
-                mov     [di+0Dh], ax
+                or      ah, ch                  ; merge block (octave) into high bits
+                mov     [di+Ch_State.fnum_block], ax
                 retn
-sub_1409        endp
+Ch_SetFrequency endp
 
 ; ---------------------------------------------------------------------------
-
-loc_142D:
-                and     byte ptr [di+9], 0BFh
+; Called at the end of each non‑command event.
+; Computes the final pitch (fnum + bend) and sends it to the OPL2.
+; ---------------------------------------------------------------------------
+Ch_NoteUpdate:
+                and     byte ptr [di+Ch_State.flags2], 0BFh  ; clear some flag
                 jmp     short $+2
-; ---------------------------------------------------------------------------
-
-loc_1433:
-                mov     cx, [di+0Dh]
-                add     cx, [di+10h]
-                and     ch, 1Fh
-                mov     al, [di+9]
-                and     al, 40h
+                ; fall through to compute output frequency
+Ch_OutputFreq:
+                mov     cx, [di+Ch_State.fnum_block]
+                add     cx, [di+Ch_State.pitch_bend_acc]    ; add pitch bend
+                and     ch, 1Fh                        ; block limited to 5 bits
+                mov     al, [di+Ch_State.flags2]
+                and     al, 40h                        ; envelope active?
                 shr     al, 1
-                or      ch, al
-                mov     ah, [di+4]
-                add     ah, 0A0h
+                or      ch, al                         ; bit 5 = envelope/key on?
+                mov     ah, [di+Ch_State.opl_channel]
+                add     ah, 0A0h                       ; register A0+ch (F‑number low)
                 mov     al, cl
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                add     ah, 10h
+                call    OPL_WriteReg
+                add     ah, 10h                        ; register B0+ch (block / key on)
                 mov     al, ch
-                jmp     OPL_WriteReg ; AH: Register Index
-; END OF FUNCTION CHUNK FOR sub_11B4    ; AL: Data
+                jmp     OPL_WriteReg
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_1458        proc near
-                test    byte ptr [di+5], 40h
-                jnz     short loc_145F
+; ===========================================================================
+; Envelope processor.  Handles pitch envelope (vibrato) and possibly
+; volume effects.  Called via the stack return address trick.
+; ===========================================================================
+Ch_DoEnvelope  proc near
+                test    byte ptr [di+Ch_State.flags], 40h   ; envelope enabled?
+                jnz     short do_env
                 retn
-; ---------------------------------------------------------------------------
-
-loc_145F:
-                dec     byte ptr [di+13h]
-                jz      short loc_1465
+do_env:
+                dec     byte ptr [di+Ch_State.env_countdown]
+                jz      short env_tick
                 retn
-; ---------------------------------------------------------------------------
-
-loc_1465:
-                test    byte ptr [di+9], 2
-                jnz     short loc_149F
-                mov     al, [di+1Ah]
-                mul     byte ptr [di+18h]
-                mov     [di+14h], ax
-                mov     al, [di+1Bh]
-                mul     byte ptr [di+18h]
-                mov     [di+16h], ax
-                mov     al, [di+1Ch]
-                mov     ah, [di+1Eh]
+env_tick:
+                test    byte ptr [di+Ch_State.flags2], 2    ; envelope active?
+                jnz     short env_active
+                ; initialise envelope parameters
+                mov     al, [di+Ch_State.env_par1]
+                mul     byte ptr [di+Ch_State.env_scale]
+                mov     [di+Ch_State.env_step_up], ax        ; step up value
+                mov     al, [di+Ch_State.env_par2]
+                mul     byte ptr [di+Ch_State.env_scale]
+                mov     [di+Ch_State.env_step_down], ax      ; step down value
+                mov     al, [di+Ch_State.env_par3]
+                mov     ah, [di+Ch_State.env_flags]
                 and     ah, 80h
-                jz      short loc_148B
-                mov     al, [di+1Dh]
+                jz      short not_alt
+                mov     al, [di+Ch_State.env_par4]
 
-loc_148B:
+not_alt:
                 shr     al, 1
-                mov     [di+1Fh], al
-                mov     byte ptr [di+12h], 80h
-                and     byte ptr [di+5], 7Fh
-                or      [di+5], ah
-                or      byte ptr [di+9], 2
-
-loc_149F:
-                mov     al, [di+1Eh]
+                mov     [di+Ch_State.env_alt_count], al
+                mov     byte ptr [di+Ch_State.pitch_bend_frac], 80h
+                and     byte ptr [di+Ch_State.flags], 7Fh    ; direction = up
+                or      [di+Ch_State.flags], ah
+                or      byte ptr [di+Ch_State.flags2], 2     ; envelope active
+env_active:
+                mov     al, [di+Ch_State.env_flags]
                 and     al, 1Fh
-                mov     [di+13h], al
-                dec     byte ptr [di+1Fh]
-                jnz     short loc_14C8
-                test    byte ptr [di+5], 80h
-                jz      short loc_14BE
-                mov     al, [di+1Ch]
-                mov     [di+1Fh], al
-                and     byte ptr [di+5], 7Fh
-                jmp     short loc_14C8
-; ---------------------------------------------------------------------------
-
-loc_14BE:
-                mov     al, [di+1Dh]
-                mov     [di+1Fh], al
-                or      byte ptr [di+5], 80h
-
-loc_14C8:
-                test    byte ptr [di+5], 80h
+                mov     [di+Ch_State.env_countdown], al
+                dec     byte ptr [di+Ch_State.env_alt_count]
+                jnz     short no_toggle
+                test    byte ptr [di+Ch_State.flags], 80h    ; direction
+                jz      short set_up
+                mov     al, [di+Ch_State.env_par3]
+                mov     [di+Ch_State.env_alt_count], al
+                and     byte ptr [di+Ch_State.flags], 7Fh
+                jmp     short no_toggle
+set_up:
+                mov     al, [di+Ch_State.env_par4]
+                mov     [di+Ch_State.env_alt_count], al
+                or      byte ptr [di+Ch_State.flags], 80h
+no_toggle:
+                test    byte ptr [di+Ch_State.flags], 80h
                 jnz     short loc_14E4
-                mov     cx, [di+14h]
-                add     [di+12h], cl
+                ; direction up
+                mov     cx, [di+Ch_State.env_step_up]
+                add     [di+Ch_State.pitch_bend_frac], cl
                 adc     ch, 0
-                jnz     short loc_14DA
+                jnz     short dir_down
                 retn
-; ---------------------------------------------------------------------------
-
-loc_14DA:
+dir_down:
                 mov     cl, ch
                 xor     ch, ch
-                add     [di+10h], cx
-                jmp     loc_1433
-; ---------------------------------------------------------------------------
-
+                add     [di+Ch_State.pitch_bend_acc], cx
+                jmp     Ch_OutputFreq
 loc_14E4:
-                mov     cx, [di+16h]
-                sub     [di+12h], cl
+                mov     cx, [di+Ch_State.env_step_down]
+                sub     [di+Ch_State.pitch_bend_frac], cl
                 adc     ch, 0
-                jnz     short loc_14F0
+                jnz     short apply_bend
                 retn
-; ---------------------------------------------------------------------------
-
-loc_14F0:
+apply_bend:
                 mov     cl, ch
                 xor     ch, ch
-                sub     [di+10h], cx
-                jmp     loc_1433
-sub_1458        endp
+                sub     [di+Ch_State.pitch_bend_acc], cx
+                jmp     Ch_OutputFreq
+Ch_DoEnvelope  endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR sub_11B4
-
-loc_14FA:
+ChCmd_SetDurTbl:
                 lodsb
                 shl     al, 1
                 shl     al, 1
-                shl     al, 1
+                shl     al, 1                   ; *8
                 xor     ah, ah
-                add     ax, word_20C0
-                mov     [di+2], ax
+                add     ax, SfxDurTblPtr
+                mov     word ptr ds:[di+Ch_State.dur_tbl_base], ax
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -728,43 +679,44 @@ locret_150B:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_150C:
-                pop     cx
-                or      byte ptr [di+5], 1
-                inc     byte_20C2
-                cmp     byte_20C2, 2
-                jz      short loc_151D
+ChCmd_EndOfTrack:
+                pop     cx                      ; discard return address
+                or      byte ptr ds:[di+Ch_State.flags], 1      ; set note_on (track finished)
+                inc     ActiveChCnt
+                cmp     ActiveChCnt, 2
+                jz      short both_done
                 retn
-; ---------------------------------------------------------------------------
-
-loc_151D:
-                mov     byte ptr ds:9, 0FFh
-                mov     byte_20BC, 0
-                mov     byte_20C3, 0
-; END OF FUNCTION CHUNK FOR sub_11B4
-
-; =============== S U B R O U T I N E =======================================
-
-
+both_done:
+                mov     byte ptr ds:(exit_pending_flag - segment_shift), 0FFh
+                mov     SfxPriority, 0
+                mov     ChannelMask, 0
+                ; fall through to int60_fn6
+; ===========================================================================
+; Notify the game via interrupt 60h function 6 that a channel’s state
+; changed (instrument loaded, note on, etc.).
+;   cl = bitmask of channels that need attention
+; ===========================================================================
 int60_fn6       proc near
-                mov     cl, byte_20C3
+                mov     cl, ChannelMask
                 mov     ax, 6
                 int     60h             ; adlib fn_6
                 retn
 int60_fn6       endp
 
-
-; =============== S U B R O U T I N E =======================================
-
-; AH: Register Index
-; AL: Data
-OPL_WriteReg proc near
+; ===========================================================================
+; OPL2 register write with mandatory delays.
+; Input:   AH = register index
+;          AL = data
+; Ports:   388h (index), 389h (data)
+; Timing for YM3812: 3.3 µs after index write, 23 µs after data write.
+; ===========================================================================
+OPL_WriteReg   proc near
                 push    dx
                 push    ax
-                mov     dx, 388h        ; Status/Index port
-                xchg    ah, al          ; al: register Index
+                mov     dx, 388h
+                xchg    ah, al          ; al = index
                 out     dx, al
-                in      al, dx          ; OPL2 needs 3.3us after Index write
+                in      al, dx          ; OPL2 needs to wait 3.3us after Index write
                 in      al, dx
                 in      al, dx
                 in      al, dx
@@ -775,9 +727,9 @@ OPL_WriteReg proc near
                 in      al, dx
                 in      al, dx
                 mov     dx, 389h        ; AdLib Data port
-                xchg    ah, al          ; al: Data
-                out     dx, al          ; Send actual configuration/note data to previously selected register
-                mov     dx, 388h        ; Status/Index port
+                xchg    ah, al          ; al = data
+                out     dx, al
+                mov     dx, 388h
                 in      al, dx          ; OPL2 needs 23us delay after a data write
                 in      al, dx
                 in      al, dx
@@ -815,13 +767,17 @@ OPL_WriteReg proc near
                 pop     ax
                 pop     dx
                 retn
-OPL_WriteReg endp
+OPL_WriteReg   endp
 
-; ---------------------------------------------------------------------------
-word_1576       dw 156h, 16Bh, 180h, 197h, 1B0h, 1C9h, 1E4h, 201h, 220h
-                dw 240h, 263h, 287h
-byte_158E       db 13h, 14h, 15h, 16h, 18h, 19h, 1Bh, 1Ch, 1Eh, 20h, 22h
-                db 24h
+; ===========================================================================
+; Frequency base numbers for 12 notes (upper byte = block 0, lower = F‑num).
+; ===========================================================================
+FreqBaseTbl    dw 0156h, 016Bh, 0180h, 0197h, 01B0h, 01C9h
+               dw 01E4h, 0201h, 0220h, 0240h, 0263h, 0287h
+; ===========================================================================
+; Note frequency scaling factors (used in envelope calculations).
+; ===========================================================================
+NoteFreqTbl    db 13h, 14h, 15h, 16h, 18h, 19h, 1Bh, 1Ch, 1Eh, 20h, 22h, 24h
 ; ===========================================================================
 ; Channel operator base numbers.  Used to convert a logical channel (0..8)
 ; into the OPL operator number that will receive the instrument settings.
@@ -831,249 +787,221 @@ byte_158E       db 13h, 14h, 15h, 16h, 18h, 19h, 1Bh, 1Ch, 1Eh, 20h, 22h
 ; ===========================================================================
 ChOpBaseTbl     db 0, 1, 2, 8, 9, 0Ah, 10h, 11h, 12h
 
-; =============== S U B R O U T I N E =======================================
-
-
-HeartbeatTick        proc near
+; ===========================================================================
+; Heartbeat / sound‑fx toggle processor.
+; Handles the periodic "heartbeat" sound and the F2 toggle for sound effects.
+; ===========================================================================
+HeartbeatTick  proc near
                 test    byte ptr ds:(sound_fx_toggle_by_f2 - segment_shift), 0FFh
-                jnz     short loc_15B8
+                jnz     short check_heartbeat_trigger
                 test    byte ptr ds:(byte_FF0B - segment_shift), 0FFh
-                jnz     short loc_15B8
+                jnz     short check_heartbeat_trigger
                 test    byte ptr ds:(heartbeat_volume - segment_shift), 0FFh
-                jnz     short loc_15D5
-
-loc_15B8:
-                test    byte_2071, 0FFh
-                jnz     short loc_15C0
+                jnz     short do_heartbeat
+check_heartbeat_trigger:
+                test    HeartbeatTrigger, 0FFh
+                jnz     short clear_trigger
                 retn
-; ---------------------------------------------------------------------------
-
-loc_15C0:
-                mov     byte_2071, 0
+clear_trigger:
+                mov     HeartbeatTrigger, 0
                 test    byte ptr ds:(exit_pending_flag - segment_shift), 0FFh
-                jnz     short loc_15CD
+                jnz     short maybe_fade_out
                 retn
-; ---------------------------------------------------------------------------
-
-loc_15CD:
+maybe_fade_out:
                 mov     ax, 6
                 xor     cl, cl
-                int     60h             ; adlib fn_6
+                int     60h                     ; fade out all channels
                 retn
-; ---------------------------------------------------------------------------
 
-loc_15D5:
-                dec     byte_2072
-                jz      short loc_15DC
+do_heartbeat:
+                dec     HeartbeatTimer
+                jz      short heartbeat_tick
                 retn
-; ---------------------------------------------------------------------------
-
-loc_15DC:
-                mov     byte_2072, 4
-                inc     byte_2073
-                mov     al, byte_2073
-                mov     byte_2073, 0FFh
-                cmp     al, 96h
-                jb      short loc_15F2
+heartbeat_tick:
+                mov     HeartbeatTimer, 4       ; every 4th tick
+                inc     HeartbeatCounter
+                mov     al, HeartbeatCounter
+                mov     HeartbeatCounter, 0FFh
+                cmp     al, 96h                 ; max beats?
+                jb      short continue_beat
                 retn
-; ---------------------------------------------------------------------------
-
-loc_15F2:
-                mov     byte_2073, al
+continue_beat:
+                mov     HeartbeatCounter, al
                 test    byte ptr ds:(exit_pending_flag - segment_shift), 0FFh
-                jnz     short loc_15FD
+                jnz     short beat_active
                 retn
-; ---------------------------------------------------------------------------
-
-loc_15FD:
+beat_active:
                 cmp     al, 1Eh
-                jb      short loc_1603
+                jb      short use_index
                 sub     al, 1Eh
-
-loc_1603:
+use_index:
                 push    ax
                 xor     ah, ah
                 mov     cl, 1Eh
                 div     cl
-                jnz     short loc_1611
-                mov     byte_2075, 0FFh
-
-loc_1611:
+                jnz     short no_flip
+                mov     HeartbeatFlipFlop, 0FFh  ; toggle every 30 beats
+no_flip:
                 pop     ax
                 mov     ch, al
                 shr     al, 1
                 shr     al, 1
-                shr     al, 1
+                shr     al, 1                   ; /8
                 mov     ah, ds:(heartbeat_volume - segment_shift)
                 sub     ah, al
                 cmc
                 sbb     al, al
                 and     ah, al
                 add     ah, ah
-                add     ah, ah
+                add     ah, ah                  ; *4
                 mov     al, ah
                 or      al, al
-                jz      short loc_15B8
-                mov     byte_2074, al
+                jz      check_heartbeat_trigger
+                mov     HeartbeatAttenuation, al
                 push    cx
                 mov     ax, 6
-                mov     cl, 3
-                int     60h             ; adlib fn_6 - Fade Out channel
-                call    sub_169E
+                mov     cl, 3                   ; master volume control?
+                int     60h
+                call    Heartbeat_SetupInstr
                 pop     cx
                 neg     ch
                 mov     cl, ch
                 mov     ch, 0FFh
                 add     cx, cx
-                add     cx, 980h
-                test    byte_2075, 0FFh
-                jz      short loc_1674
+                add     cx, 980h                ; some frequency
+                test    HeartbeatFlipFlop, 0FFh
+                jz      short write_freq
                 mov     ah, 0A4h
                 mov     al, cl
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 10h
                 mov     al, ch
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 mov     ah, 0A5h
                 mov     al, cl
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 10h
                 mov     al, ch
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                mov     byte_2075, 0
-
-loc_1674:
-                or      ch, 20h
+                call    OPL_WriteReg
+                mov     HeartbeatFlipFlop, 0
+write_freq:
+                or      ch, 20h                 ; key on bit
                 mov     ah, 0A4h
                 mov     al, cl
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 10h
                 mov     al, ch
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 mov     ah, 0A5h
                 mov     al, cl
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 10h
                 mov     al, ch
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                call    sub_16FE
-                mov     byte_2071, 0FFh
+                call    OPL_WriteReg
+                call    Heartbeat_UpdateVol
+                mov     HeartbeatTrigger, 0FFh
                 retn
-HeartbeatTick        endp
+HeartbeatTick  endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_169E        proc near
-                mov     si, offset byte_173A
+; ===========================================================================
+; Load the heartbeat instrument onto operators 4 and 5.
+; ===========================================================================
+Heartbeat_SetupInstr proc near
+                mov     si, offset HeartbeatInstr
                 mov     bx, 4
-                call    sub_16AD
-                mov     si, offset byte_173A
+                call    Heartbeat_LoadOp
+                mov     si, offset HeartbeatInstr
                 mov     bx, 5
-sub_169E        endp
+Heartbeat_SetupInstr endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_16AD        proc near
+Heartbeat_LoadOp proc near
                 mov     ah, ChOpBaseTbl[bx]
                 push    bx
-                add     ah, 20h ; ' '
+                add     ah, 20h                 ; 0x20+op
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                add     ah, 3
+                call    OPL_WriteReg
+                add     ah, 3                   ; 0x23+op (operator 2)
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
-                add     ah, 3Dh ; '='
+                call    OPL_WriteReg
+                add     ah, 3Dh                 ; 0x60+op (AR/DR)
                 lodsb
                 lodsb
                 mov     cx, 2
-
-loc_16C8:
+hb_ld_lp:
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 3
                 lodsb
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 1Dh
-                loop    loc_16C8
-                add     ah, 40h ; '@'
+                loop    hb_ld_lp
+                add     ah, 40h                 ; 0xC0+op? No, see below.
                 lodsb
                 mov     bl, al
                 rol     al, 1
                 rol     al, 1
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 add     ah, 3
                 rol     al, 1
                 rol     al, 1
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                call    OPL_WriteReg
                 mov     al, bl
                 and     al, 0Fh
                 pop     bx
                 mov     ah, bl
-                add     ah, 0C0h
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                add     ah, 0C0h                ; feedback/algorithm
+                call    OPL_WriteReg
                 jmp     short $+2
-sub_16AD        endp
+Heartbeat_LoadOp endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_16FE        proc near
+; ===========================================================================
+; Apply heartbeat volume attenuation to both operators.
+; ===========================================================================
+Heartbeat_UpdateVol proc near
                 mov     bx, 4
-                call    sub_1707
+                call    Heartbeat_SetAttenuation
                 mov     bx, 5
-sub_16FE        endp
+Heartbeat_UpdateVol endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-sub_1707        proc near
-                mov     si, offset byte_173A
+Heartbeat_SetAttenuation proc near
+                mov     si, offset HeartbeatInstr
                 mov     ah, ChOpBaseTbl[bx]
-                add     ah, 40h ; '@'
-                mov     al, [si+2]
-                call    OPL_WriteReg ; AH: Register Index
-                                        ; AL: Data
+                add     ah, 40h                 ; KSL/TL
+                mov     al, [si+2]              ; operator 1 TL
+                call    OPL_WriteReg
                 add     ah, 3
-                mov     bl, byte_2074
+                mov     bl, HeartbeatAttenuation
                 neg     bl
-                add     bl, 3Fh ; '?'
+                add     bl, 3Fh
                 mov     al, [si+3]
                 mov     bh, al
                 and     al, 3Fh
                 add     al, bl
-                cmp     al, 40h ; '@'
-                jb      short loc_1732
-                mov     al, 3Fh ; '?'
-
-loc_1732:
+                cmp     al, 40h
+                jb      short hb_ok
+                mov     al, 3Fh
+hb_ok:
                 and     bh, 0C0h
                 or      al, bh
-                jmp     OPL_WriteReg ; AH: Register Index
-sub_1707        endp                    ; AL: Data
+                jmp     OPL_WriteReg
+Heartbeat_SetAttenuation endp
 
+; ===========================================================================
+; Data area
+; ===========================================================================
+HeartbeatInstr  db 20h, 21h, 4, 0, 0F8h, 0F4h, 8Fh, 8Fh, 40h ; 9 bytes
 ; ---------------------------------------------------------------------------
-byte_173A       db 20h, 21h, 4, 0, 0F8h, 0F4h, 8Fh, 8Fh, 40h
+; SFX Table – 65 entries, each 7 bytes:
+;   byte priority
+;   word ptr to seq data for ChA
+;   word ptr to seq data for ChB (often same as first if no re‑trigger)
+;   word ptr to duration multiplier table (base for dur_tbl_base)
+; ---------------------------------------------------------------------------
+SFX_Table:
 byte_1743       db 0                    ; sfx1
                 dw offset byte_190A
                 dw offset byte_201F
@@ -3148,30 +3076,34 @@ byte_2015       db 0F0h
                 db  0Ch
                 db 0FFh
 byte_201F       db 0FFh
-byte_2020       db 0Fh, 0, 2, 0, 0FAh, 0F7h, 6Fh, 8Fh, 0Eh
-                db 0Fh, 10h, 0, 80h, 0F0h, 45h, 46h, 0D8h, 8Eh
-                db 3Fh, 25h, 40h, 0, 0F4h, 0F6h, 0A3h, 88h, 0Eh
-                db 24h, 22h, 14h, 4, 0F3h, 0E4h, 6, 8, 0
-                db 2Fh, 5, 0, 0, 0F3h, 0F4h, 0Fh, 0FFh, 0Eh
-                db 20h, 21h, 40h, 0, 0F8h, 0F3h, 4Fh, 3Fh, 0
-                db 32h, 22h, 0CAh, 0, 0F5h, 0F5h, 5Fh, 0FFh, 0Eh
-                db 4, 2, 86h, 0, 0F2h, 0F6h, 3Ch, 5Dh, 0
-                db 24h, 22h, 8Ah, 0, 0F5h, 0F5h, 6Fh, 6Fh, 80h
-byte_2071       db 0
-byte_2072       db 2
-byte_2073       db 0
-byte_2074       db 0
-byte_2075       db 0
-byte_2076       db 35 dup(0)
-byte_2099       db 35 dup(0)
-byte_20BC       db 0
-byte_20BD       db 0
-byte_20BE       db 0
-byte_20BF       db 0
-word_20C0       dw 0
-byte_20C2       db 0
-byte_20C3       db 0
+; OPL2 Instrument Table (9 bytes per instrument, base at InstrTable)
+;==============================================================================
+InstrTable     db 0Fh, 0, 2, 0, 0FAh, 0F7h, 6Fh, 8Fh, 0Eh
+               db 0Fh, 10h, 0, 80h, 0F0h, 45h, 46h, 0D8h, 8Eh
+               db 3Fh, 25h, 40h, 0, 0F4h, 0F6h, 0A3h, 88h, 0Eh
+               db 24h, 22h, 14h, 4, 0F3h, 0E4h, 6, 8, 0
+               db 2Fh, 5, 0, 0, 0F3h, 0F4h, 0Fh, 0FFh, 0Eh
+               db 20h, 21h, 40h, 0, 0F8h, 0F3h, 4Fh, 3Fh, 0
+               db 32h, 22h, 0CAh, 0, 0F5h, 0F5h, 5Fh, 0FFh, 0Eh
+               db 4, 2, 86h, 0, 0F2h, 0F6h, 3Ch, 5Dh, 0
+               db 24h, 22h, 8Ah, 0, 0F5h, 0F5h, 6Fh, 6Fh, 80h
+; ---------------------------------------------------------------------------
+; Driver global variables
+; ---------------------------------------------------------------------------
+HeartbeatTrigger     db 0
+HeartbeatTimer       db 2
+HeartbeatCounter     db 0
+HeartbeatAttenuation db 0
+HeartbeatFlipFlop    db 0
+ChA_State            Ch_State <>
+ChB_State            Ch_State <>
+SfxPriority          db 0
+TempoAccum           db 0
+TempoCounter         db 0
+TempoCarry           db 0
+SfxDurTblPtr         dw 0
+ActiveChCnt          db 0
+ChannelMask          db 0
+
 music_seg       ends
-
-
                 end    start
