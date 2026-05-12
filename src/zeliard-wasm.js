@@ -241,10 +241,10 @@ export function initCavern(spawnX, spawnY, direction) {
 }
 
 /**
- * Get MDT header data
+ * Get MDT header data for dungeons
  * @returns {object} MDT header with all offsets
  */
-export function getMdtHeader() {
+export function getCavernMdtHeader() {
     if (!wasmMemory) {
         console.error('WASM not initialized');
         return null;
@@ -270,6 +270,31 @@ export function getMdtHeader() {
 }
 
 /**
+ * Get MDT header data for towns
+ * @returns {object} MDT header with all offsets
+ */
+export function getTownMdtHeader() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return null;
+    }
+
+    const offset = gMemoryBase + MEM_MDT_DATA;
+
+    // Read uint16 values from memory (little-endian)
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
+    }
+
+    return {
+        town_descriptor_offset: readU16(offset + 0),
+        map_width: readU16(offset + 2),
+        town_name_offset: readU16(offset + 4),
+        doors_offset: readU16(offset + 9)
+    };
+}
+
+/**
  * Get cavern name from loaded MDT
  * @returns {string} Cavern name
  *
@@ -283,7 +308,7 @@ export function getCavernName() {
         return '';
     }
 
-    const header = getMdtHeader();
+    const header = getCavernMdtHeader();
     if (!header || header.cavern_name_offset === 0) {
         return '';
     }
@@ -301,6 +326,40 @@ export function getCavernName() {
 
     return name;
 }
+
+/**
+ * Get town name from loaded MDT
+ * @returns {string} Town name
+ *
+ * Header offsets are relative to MDT base (0xc000).
+ * The rendering info structure has 3 bytes of metadata,
+ * followed by Pascal string (length byte + characters).
+ */
+export function getTownName() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return '';
+    }
+
+    const header = getTownMdtHeader();
+    if (!header || header.town_name_offset === 0) {
+        return '';
+    }
+
+    // Header offset is relative to 0xc000, so actual WASM memory address is:
+    // gMemoryBase + header.town_name_offset
+    // Add 3 to skip rendering info metadata and point to Pascal string length
+    const nameOffset = gMemoryBase + header.town_name_offset + 3;
+    const nameLength = wasmMemory[nameOffset];
+    let name = '';
+
+    for (let i = 0; i < nameLength; i++) {
+        name += (String.fromCharCode(wasmMemory[nameOffset + 1 + i]).replace('\\', "ʼ"));
+    }
+
+    return name;
+}
+
 
 /**
  * Get monster buffer (0xE900)

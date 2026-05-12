@@ -22,10 +22,14 @@ const USE_DUNGEON_RENDERER = false;
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 const TOWN_TILE_SHEET_PATH = 'assets/images/cpat/cmap_x24.png';
 const TOWN_BACKGROUND_PATH = 'assets/images/ympd/ympd1.png';
+const TOWN_SIDEWALK1_PATH = 'assets/images/ympd/ympd2.png';
+const TOWN_SIDEWALK2_PATH = 'assets/images/ympd/ympd3.png';
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
 const TOWN_MAP_START_ROW = 8;
+const TOWN_SIDEWALK1_START_ROW = TOWN_MAP_START_ROW + TOWN_VIEW_ROWS;
+const TOWN_SIDEWALK2_START_ROW = TOWN_SIDEWALK1_START_ROW + 1;
 const TOWN_VISIBLE_COL_OFFSET = 4;
 const TOWN_ANIMATED_TILES = [2, 3, 4, 5];
 const TOWN_ANIMATION_FULL_TICKS = 24;
@@ -37,8 +41,10 @@ let gameStarted  = false;
 
 let initWasm;
 let loadMdt;
-let getMdtHeader;
+let getCavernMdtHeader;
 let getCavernName;
+let getTownMdtHeader;
+let getTownName;
 let getProximityMap;
 let inputInit;
 let inputUpdate;
@@ -74,6 +80,12 @@ let townBackground = null;
 let townBackgroundReady = false;
 let townTileSheet = null;
 let townTileSheetReady = false;
+let townSidewalk1OffsetX = 0;
+let townSidewalk2OffsetX = 0;
+let townSidewalk1 = null;
+let townSidewalk1Ready = false;
+let townSidewalk2 = null;
+let townSidewalk2Ready = false;
 
 function loadTownBackground() {
     if (townBackgroundReady) return Promise.resolve(townBackground);
@@ -87,6 +99,36 @@ function loadTownBackground() {
         };
         img.onerror = () => reject(new Error(`Failed to load ${TOWN_BACKGROUND_PATH}`));
         img.src = TOWN_BACKGROUND_PATH;
+    });
+}
+
+function loadTownSidewalk1() {
+    if (townSidewalk1Ready) return Promise.resolve(townSidewalk1);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            townSidewalk1 = img;
+            townSidewalk1Ready = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${TOWN_SIDEWALK1_PATH}`));
+        img.src = TOWN_SIDEWALK1_PATH;
+    });
+}
+
+function loadTownSidewalk2() {
+    if (townSidewalk2Ready) return Promise.resolve(townSidewalk2);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            townSidewalk2 = img;
+            townSidewalk2Ready = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${TOWN_SIDEWALK2_PATH}`));
+        img.src = TOWN_SIDEWALK2_PATH;
     });
 }
 
@@ -111,8 +153,10 @@ async function loadWasmEngine() {
     ({
         initWasm,
         loadMdt,
-        getMdtHeader,
+        getCavernMdtHeader,
         getCavernName,
+        getTownMdtHeader,
+        getTownName,
         getProximityMap,
         inputInit,
         inputUpdate,
@@ -427,6 +471,8 @@ async function startGame() {
         await loadWasmEngine();
         await initWasm();
         await loadTownBackground();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
         await loadTownTileSheet();
 
         // Wire WASM memory into sound driver so poll reads 0xFF75 directly
@@ -445,7 +491,7 @@ async function startGame() {
         }
         mdtData = new Uint8Array(await response.arrayBuffer());
         loadMdt(mdtData);
-        mdtHeader = getMdtHeader?.();
+        mdtHeader = getTownMdtHeader?.();
 
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
@@ -481,13 +527,13 @@ async function startGame() {
 /**
  * Resolve which music track to play based on the MDT header.
  * Extend this as you map more MDT type bytes to filenames.
- * @param {object} header  — result of getMdtHeader()
+ * @param {object} header  — result of getCavernMdtHeader()
  * @returns {string|null}
  */
 function resolveMusicTrack(header) {
     if (!header) return null;
     // Example: MDT type byte lives in header.type or header.flags
-    // Adjust to your actual getMdtHeader() shape.
+    // Adjust to your actual getCavernMdtHeader() shape.
     const type = header.type ?? 0;
     const map  = { 0: 'mgt1', 1: 'ugm1', 2: 'mgt2', 3: 'ugm2' };
     return map[type] ?? 'mgt1';
@@ -509,6 +555,18 @@ function getAnimatedTownTileId(tileId) {
 function drawTownBackground() {
     if (!townBackgroundReady) return false;
     ctx.drawImage(townBackground, 0, 0);
+    return true;
+}
+
+function drawTownSidewalk1() {
+    if (!townSidewalk1Ready) return false;
+    ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT);
+    return true;
+}
+
+function drawTownSidewalk2() {
+    if (!townSidewalk2Ready) return false;
+    ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT);
     return true;
 }
 
@@ -607,11 +665,14 @@ function draw() {
         return;
     }
 
-    drawTownBackground()
+    drawTownBackground();
+    drawTownSidewalk1();
+    drawTownSidewalk2();
 
     if (drawTownTiles()) {
         drawLifeBar();
-        updateElementText('currentMapName', townEntryRan ? 'Felishika Castle' : '');
+        let placeName = getTownName?.() ?? 'unknown';
+        updateElementText('currentMapName', townEntryRan ? placeName : '');
         updateElementText('gold', 0);
         updateElementText('almas', 0);
         return;
