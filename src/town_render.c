@@ -17,9 +17,9 @@
  */
 
 #include "town_render.h"
+#include <stddef.h>
 #include <string.h>
 #include <stdint.h>
-#include <stddef.h>
 
 /* =========================================================================
  * Internal state (mirrors the module-level variables in gtmcga.asm)
@@ -70,10 +70,10 @@ static uint16_t sprite_x_coord;
  * Forward declarations (internal helpers)
  * =========================================================================*/
 static void hero_column_shadow_blitter_guard(zeliard_mem_t *m, uint8_t *si, uint8_t *di);
-static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr);
-static void background_tile_render_with_blit_cache(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr);
-static void special_tile_dispatcher(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr);
-static void special_multi_tile_column_renderer(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr);
+static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t *di);
+static void background_tile_render_with_blit_cache(zeliard_mem_t *m, uint8_t *si, uint8_t *di);
+static void special_tile_dispatcher(zeliard_mem_t *m, uint8_t *si, uint8_t *di);
+static void special_multi_tile_column_renderer(zeliard_mem_t *m, uint8_t *si, uint8_t *di);
 static void pre_pass_special_column_initializer(zeliard_mem_t *m, uint8_t *start_si);
 
 static void unpack_tile_to_vram(zeliard_mem_t *m, uint8_t tile_id, uint8_t *vram_dst);
@@ -156,7 +156,7 @@ void render_town_tiles_28_columns(zeliard_mem_t *m)
                 /* We model this by passing the tile id directly. */
                 uint8_t bl = 0; /* row index */
                 (void)bl;
-                tile_render_and_animate(m, si - 1, &(di)); /* corrected below */
+                tile_render_and_animate(m, si - 1, di - 1); /* corrected below */
             }
         }
 
@@ -181,20 +181,12 @@ void render_town_tiles_28_columns(zeliard_mem_t *m)
                 continue;
             }
 
-            /* Write current tile id into viewport buffer (mark "rendered") */
-            /* The ASM writes 0xFE after the cmpsb so it is always updated. */
-            di[row] = 0xFE; /* will be overwritten by renderer if new */
-
-            /* bl = row (used to calculate VRAM y-offset) */
-            uint8_t bl = row;
-            (void)bl; /* passed implicitly via current_column_screen_addr + row*320*8 */
-
-            /* Dispatch by row */
+            /* Dispatch by row — each renderer marks di[row] itself */
             if (row <= 2) {
                 /* Rows 0-2: animated tiles (flags, etc.) */
                 tile_render_and_animate(m, &si[row], &di[row]);
-            } else if (row == 5) {
-                /* Row 5: special dispatcher (may be NPC column) */
+            } else if (row == 5) { // NPC and hero heads level
+                /* Row 5: special dispatcher (NPC heads) */
                 special_tile_dispatcher(m, &si[row], &di[row]);
             } else {
                 /* Rows 3,4,6,7: plain background with blit cache */
@@ -347,31 +339,20 @@ static void unpack_tile_to_vram(zeliard_mem_t *m, uint8_t tile_id, uint8_t *vram
  * =========================================================================*/
 static void background_tile_render_with_blit_cache(zeliard_mem_t *m,
                                                     uint8_t *si,
-                                                    uint8_t **di_ptr)
+                                                    uint8_t *di)
 {
-    uint8_t *di = *di_ptr;
-
-    /* The ASM reads di[-1] (the viewport buffer byte written before the call),
-     * checks if it became 0xFF (tile id was 0 → skip), then proceeds. */
-    uint8_t vp_byte = *(di - 1);
-    *(di - 1) = 0xFE; /* mark as processed */
+    /* di points directly at the viewport buffer byte for this cell */
+    uint8_t vp_byte = *di;
+    *di = 0xFE; /* mark as processed */
 
     vp_byte++;        /* +1: if was 0xFF → becomes 0, skip */
     if (vp_byte == 0) return; /* tile id 0 = empty */
 
-    /* Reload actual tile id (si[-1] after the cmpsb consumed it) */
-    uint8_t tile_id = *(si - 1);
+    /* si points directly at the current tile id in the proximity map */
+    uint8_t tile_id = *si;
 
-    /* Row = bl at call site (0-7), used to compute VRAM y offset */
-    /* We determine the row from how far di is past column base.  The ASM
-     * keeps BL explicitly; here we recover row from the tile loop context.
-     * Since background_tile_render_with_blit_cache is only called for rows
-     * 3,4,6,7 we store it separately via the inline call in the main loop.
-     * For this helper we accept a row parameter through the global
-     * column/row tracking. */
-    /* NOTE: to avoid restructuring the API, we compute row from the current
-     * viewport buffer position relative to the column base. */
-    uint8_t row = (uint8_t)((di - 1) - (m->viewport_buffer +
+    /* Compute row from viewport buffer pointer position within this column */
+    uint8_t row = (uint8_t)(di - (m->viewport_buffer +
                               (ptrdiff_t)column_counter * VIEWPORT_ROWS));
 
     /* VRAM address for this tile */
@@ -447,16 +428,14 @@ static void background_tile_render_with_blit_cache(zeliard_mem_t *m,
  *   si      - points to current tile id in proximity map (si[-1] after cmpsb)
  *   di_ptr  - points to viewport buffer byte
  * =========================================================================*/
-static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr)
+static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t *di)
 {
-    uint8_t *di = *di_ptr;
-
-    uint8_t vp_byte = *(di - 1);
-    *(di - 1) = 0xFE;
+    uint8_t vp_byte = *di;
+    *di = 0xFE;
     vp_byte++;
     if (vp_byte == 0) return; /* tile id 0 = skip */
 
-    uint8_t tile_id = *(si - 1);
+    uint8_t tile_id = *si;
 
     /* Check animation count table in seg1 */
     uint16_t anim_table_ptr = *(uint16_t *)(m->seg1 + 0x8000); /* ptr to count table */
@@ -464,12 +443,12 @@ static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_
 
     if (anim_count == 0) {
         /* Not an animated tile; fall through to plain background renderer */
-        background_tile_render_with_blit_cache(m, si, di_ptr);
+        background_tile_render_with_blit_cache(m, si, di);
         return;
     }
 
     /* Animated tile: render with transparency mask */
-    uint8_t row = (uint8_t)((di - 1) - (m->viewport_buffer +
+    uint8_t row = (uint8_t)(di - (m->viewport_buffer +
                               (ptrdiff_t)column_counter * VIEWPORT_ROWS));
 
     uint32_t vram_y = VIEWPORT_Y_START + (uint32_t)(8 + row) * TILE_SIZE;
@@ -541,7 +520,7 @@ static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_
     /* After rendering, check if next viewport buffer byte (the tile just written
      * to viewport_buffer before calling this) is non-zero and < 25.
      * If so, look it up in the tile_animation_replacement_table. */
-    uint8_t next_vp = *(di - 1);
+    uint8_t next_vp = *di;
     if (next_vp == 0) return;
     if (next_vp >= 25) return;
 
@@ -556,7 +535,7 @@ static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_
         if (old_id == 0xFF) break;
         if (next_vp == old_id) {
             /* Replace tile id in proximity map for next frame */
-            *(si - 1) = m->seg1[entry + 1];
+            *si = m->seg1[entry + 1];
             break;
         }
         entry += 2;
@@ -570,12 +549,12 @@ static void tile_render_and_animate(zeliard_mem_t *m, uint8_t *si, uint8_t **di_
  * If not → background_tile_render_with_blit_cache.
  * If yes  → special_multi_tile_column_renderer (composite NPC sprite).
  * =========================================================================*/
-static void special_tile_dispatcher(zeliard_mem_t *m, uint8_t *si, uint8_t **di_ptr)
+static void special_tile_dispatcher(zeliard_mem_t *m, uint8_t *si, uint8_t *di)
 {
-    if (*(si - 1) != 0xFD) {
-        background_tile_render_with_blit_cache(m, si, di_ptr);
+    if (*si != 0xFD) {
+        background_tile_render_with_blit_cache(m, si, di);
     } else {
-        special_multi_tile_column_renderer(m, si, di_ptr);
+        special_multi_tile_column_renderer(m, si, di);
     }
 }
 
@@ -598,16 +577,15 @@ static void special_tile_dispatcher(zeliard_mem_t *m, uint8_t *si, uint8_t **di_
  * =========================================================================*/
 static void special_multi_tile_column_renderer(zeliard_mem_t *m,
                                                 uint8_t *si,
-                                                uint8_t **di_ptr)
+                                                uint8_t *di)
 {
-    uint8_t *di = *di_ptr;
-
     /* 1. Capture 5 bytes from proximity map (tile ids for this NPC slot) */
     uint8_t slot[5];
-    /* The ASM does: movsw; add si,5; movsw; movsb  (from si-1 / di-1) */
-    slot[0] = si[-1]; slot[1] = si[0];
-    /* skip 5 bytes of proximity map */
-    slot[2] = si[6]; slot[3] = si[7]; slot[4] = si[8];
+    /* si points at row 5; the NPC slot spans rows 5,6 of this column
+     * and rows 4,5,6 of the next column (stride = VIEWPORT_ROWS = 8) */
+    slot[0] = si[0]; slot[1] = si[1];
+    /* skip to next column (offset +8 from row 5 = row 5 of next column) */
+    slot[2] = si[7]; slot[3] = si[8]; slot[4] = si[9];
     /* Copy to tile_id_staging_buffer */
     memcpy(tile_id_staging_buffer, slot, 5);
 
@@ -648,8 +626,8 @@ static void special_multi_tile_column_renderer(zeliard_mem_t *m,
     uint32_t dst_base = VRAM_OFF(current_column_screen_addr % SCREEN_WIDTH,
                                  VIEWPORT_Y_START + (8 + 5) * TILE_SIZE);
 
-    uint8_t ch = *(di - 1);   /* viewport byte before row 5 */
-    uint8_t cl = *(di + 7);   /* viewport byte for row 0 of next column */
+    uint8_t ch = *di;        /* viewport byte at row 5 */
+    uint8_t cl = *(di + 8);  /* viewport byte for row 5 of next column */
 
     /* Copy 3-tile shadow block for this column (rows 5-7) */
     ch++;
@@ -669,12 +647,12 @@ static void special_multi_tile_column_renderer(zeliard_mem_t *m,
     }
 
     /* 8. Mark viewport buffer as processed */
-    *(di - 1) = 0xFE;
-    di[0] = 0xFF;
-    di[1] = 0xFF;
-    di[7] = 0xFF;
-    di[8] = 0xFF;
-    di[9] = 0xFF;
+    *di       = 0xFE;
+    di[1]     = 0xFF;
+    di[2]     = 0xFF;
+    di[8]     = 0xFF;
+    di[9]     = 0xFF;
+    di[10]    = 0xFF;
 }
 
 /* =========================================================================

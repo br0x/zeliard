@@ -21,12 +21,15 @@ const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const USE_DUNGEON_RENDERER = false;
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 const TOWN_TILE_SHEET_PATH = 'assets/images/cpat/cmap_x24.png';
+const TOWN_BACKGROUND_PATH = 'assets/images/ympd/ympd1.png';
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
+const TOWN_MAP_START_ROW = 8;
 const TOWN_VISIBLE_COL_OFFSET = 4;
 const TOWN_ANIMATED_TILES = [2, 3, 4, 5];
 const TOWN_ANIMATION_FULL_TICKS = 24;
+const TOWN_BACKGROUND_ROWS = 11;
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
@@ -67,8 +70,25 @@ let hasWasmExport;
 let RENDER_CONFIG;
 let renderDungeonObjects;
 let townEntryRan = false;
+let townBackground = null;
+let townBackgroundReady = false;
 let townTileSheet = null;
 let townTileSheetReady = false;
+
+function loadTownBackground() {
+    if (townBackgroundReady) return Promise.resolve(townBackground);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            townBackground = img;
+            townBackgroundReady = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${TOWN_BACKGROUND_PATH}`));
+        img.src = TOWN_BACKGROUND_PATH;
+    });
+}
 
 function loadTownTileSheet() {
     if (townTileSheetReady) return Promise.resolve(townTileSheet);
@@ -406,6 +426,7 @@ async function startGame() {
 
         await loadWasmEngine();
         await initWasm();
+        await loadTownBackground();
         await loadTownTileSheet();
 
         // Wire WASM memory into sound driver so poll reads 0xFF75 directly
@@ -485,6 +506,12 @@ function getAnimatedTownTileId(tileId) {
     return TOWN_ANIMATED_TILES[(cycleIndex + frame) % TOWN_ANIMATED_TILES.length];
 }
 
+function drawTownBackground() {
+    if (!townBackgroundReady) return false;
+    ctx.drawImage(townBackground, 0, 0);
+    return true;
+}
+
 function drawTownTiles() {
     if (!mdtData || !townTileSheetReady) return false;
 
@@ -508,16 +535,16 @@ function drawTownTiles() {
             const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_WIDTH;
             const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_HEIGHT;
             ctx.drawImage(
-                townTileSheet,
-                sx,
-                sy,
-                TILE_WIDTH,
-                TILE_HEIGHT,
-                col * TILE_WIDTH,
-                row * TILE_HEIGHT,
-                TILE_WIDTH,
-                TILE_HEIGHT
-            );
+                townTileSheet,           // 1. Source image
+                sx,                      // 2. Source X
+                sy,                      // 3. Source Y
+                TILE_WIDTH,              // 4. Source Width
+                TILE_HEIGHT,             // 5. Source Height
+                col * TILE_WIDTH,        // 6. Destination X
+                (row + TOWN_MAP_START_ROW) * TILE_HEIGHT,       // 7. Destination Y
+                TILE_WIDTH,              // 8. Destination Width
+                TILE_HEIGHT              // 9. Destination Height
+            );            
         }
     }
 
@@ -580,6 +607,8 @@ function draw() {
         return;
     }
 
+    drawTownBackground()
+
     if (drawTownTiles()) {
         drawLifeBar();
         updateElementText('currentMapName', townEntryRan ? 'Felishika Castle' : '');
@@ -596,39 +625,39 @@ function draw() {
         return;
     }
 
-    ctx.font          = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
-    ctx.textBaseline  = 'top';
+    // ctx.font          = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
+    // ctx.textBaseline  = 'top';
 
     // Background tiles
-    ctx.fillStyle = RENDER_CONFIG.tiles.default.color;
-    for (let row = 0; row < VIEW_ROWS; row++) {
-        let mapRow = startRow + row;
-        if (mapRow >= 64) mapRow -= 64;
+    // ctx.fillStyle = RENDER_CONFIG.tiles.default.color;
+    // for (let row = 0; row < VIEW_ROWS; row++) {
+    //     let mapRow = startRow + row;
+    //     if (mapRow >= 64) mapRow -= 64;
 
-        for (let col = 0; col < VIEW_COLS; col++) {
-            const proximityCol = startCol + col;
-            const offset       = mapRow * 36 + proximityCol;
-            const tileByte     = proximityMap[offset];
-            ctx.fillText(String.fromCharCode(tileByte + 0x20), col * TILE_WIDTH, row * TILE_HEIGHT);
-        }
-    }
+    //     for (let col = 0; col < VIEW_COLS; col++) {
+    //         const proximityCol = startCol + col;
+    //         const offset       = mapRow * 36 + proximityCol;
+    //         const tileByte     = proximityMap[offset];
+    //         ctx.fillText(String.fromCharCode(tileByte + 0x20), col * TILE_WIDTH, row * TILE_HEIGHT);
+    //     }
+    // }
 
     // Render dungeon objects (platforms, doors, items, monsters)
-    renderDungeonObjects(ctx, mdtData, mdtHeader, camX, startRow, TILE_WIDTH, TILE_HEIGHT);
+    // renderDungeonObjects(ctx, mdtData, mdtHeader, camX, startRow, TILE_WIDTH, TILE_HEIGHT);
 
-    // Hero sprite
-    ctx.fillStyle = RENDER_CONFIG.hero.color;
-    const screenX = camX * TILE_WIDTH;
-    const screenY = camY * TILE_HEIGHT;
+    // // Hero sprite
+    // ctx.fillStyle = RENDER_CONFIG.hero.color;
+    // const screenX = camX * TILE_WIDTH;
+    // const screenY = camY * TILE_HEIGHT;
 
-    let heroStyle;
-    if      (player.direction === 0)  heroStyle = RENDER_CONFIG.hero.standing.onRope;
-    else if (player.direction === 1)  heroStyle = RENDER_CONFIG.hero.standing.facingRight;
-    else                              heroStyle = RENDER_CONFIG.hero.standing.facingLeft;
+    // let heroStyle;
+    // if      (player.direction === 0)  heroStyle = RENDER_CONFIG.hero.standing.onRope;
+    // else if (player.direction === 1)  heroStyle = RENDER_CONFIG.hero.standing.facingRight;
+    // else                              heroStyle = RENDER_CONFIG.hero.standing.facingLeft;
 
-    ctx.fillText(heroStyle.head, screenX, screenY + TILE_HEIGHT * 2);
-    ctx.fillText(heroStyle.body, screenX, screenY + TILE_HEIGHT * 3);
-    ctx.fillText(heroStyle.legs, screenX, screenY + TILE_HEIGHT * 4);
+    // ctx.fillText(heroStyle.head, screenX, screenY + TILE_HEIGHT * 2);
+    // ctx.fillText(heroStyle.body, screenX, screenY + TILE_HEIGHT * 3);
+    // ctx.fillText(heroStyle.legs, screenX, screenY + TILE_HEIGHT * 4);
 
     drawLifeBar();
     updateElementText('currentMapName', cavernName);

@@ -56,7 +56,7 @@ class MDTViewer(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title('Zeliard Sprite Editor v0.3')
+        self.title('Zeliard Sprite Editor v0.4')
         self.geometry('1400x880')
         self.minsize(980, 660)
         self.configure(bg=self.C_BG2)
@@ -769,7 +769,7 @@ class MDTViewer(tk.Tk):
                 w.destroy()
 
     def load_animation(self):
-        """Load an animation strip (4 vertical frames) and assign to consecutive tile IDs."""
+        """Load an animation strip (4 horizontal frames) and assign to consecutive tile IDs."""
         if not self.mdt:
             messagebox.showwarning('Warning', 'Open an MDT first.')
             return
@@ -1095,6 +1095,20 @@ class MDTViewer(tk.Tk):
         tile_ids = sorted(self.source_tile_candidates.keys())
         if not tile_ids:
             return
+
+        # Determine full range of tile IDs (0 .. max_id)
+        max_tid = max(tile_ids)
+        total_tiles = max_tid + 1
+
+        # Prepare the empty tile (default to tile 0 or black if tile 0 doesn't exist)
+        empty_tile = None
+        if 0 in self.source_tile_candidates:
+            sel0 = self.source_tile_selections.get(0, 0)
+            if sel0 < len(self.source_tile_candidates[0]):
+                empty_tile = self.source_tile_candidates[0][sel0]
+        if empty_tile is None:
+            empty_tile = Image.new('RGB', (ts, ts), 'black')   # fallback
+
         base = os.path.splitext(os.path.basename(self.current_file))[0] if self.current_file else 'tiles'
         default_name = f"{base}_x{ts}.png"
         path = filedialog.asksaveasfilename(defaultextension='.png',
@@ -1102,22 +1116,30 @@ class MDTViewer(tk.Tk):
                                             initialfile=default_name)
         if not path:
             return
+
         max_cols = 16
-        n = len(tile_ids)
-        cols = min(n, max_cols)
-        rows = (n + cols - 1) // cols
+        cols = min(total_tiles, max_cols)
+        rows = (total_tiles + cols - 1) // cols
         sheet_w = cols * ts
         sheet_h = rows * ts
         sheet = Image.new('RGB', (sheet_w, sheet_h), self.C_BG1)
-        for i, tid in enumerate(tile_ids):
+
+        # ----- Modified loop -----
+        existing_ids = set(tile_ids)          # for fast lookup
+        for i in range(total_tiles):          # i is the tile ID
+            if i in existing_ids:
+                sel = self.source_tile_selections.get(i, 0)
+                if sel < len(self.source_tile_candidates[i]):
+                    tile_img = self.source_tile_candidates[i][sel]
+                else:
+                    tile_img = Image.new('RGB', (ts, ts), 'black')
+            else:
+                tile_img = empty_tile         # use tile 0 for gaps
+
             row = i // cols
             col = i % cols
-            sel = self.source_tile_selections.get(tid, 0)
-            if sel < len(self.source_tile_candidates[tid]):
-                tile_img = self.source_tile_candidates[tid][sel]
-            else:
-                tile_img = Image.new('RGB', (ts, ts), 'black')
             sheet.paste(tile_img, (col * ts, row * ts))
+        # -------------------------
+
         sheet.save(path)
-        messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\nat:\n{path}')
-        
+        messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\n at:\n{path}')
