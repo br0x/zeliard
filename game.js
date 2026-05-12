@@ -654,7 +654,7 @@ function update() {
 
 // --- Rendering ---
 function draw() {
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#05053f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (!engineReady) {

@@ -1100,14 +1100,13 @@ class MDTViewer(tk.Tk):
         max_tid = max(tile_ids)
         total_tiles = max_tid + 1
 
-        # Prepare the empty tile (default to tile 0 or black if tile 0 doesn't exist)
-        empty_tile = None
+        # Prepare the empty tile – use a fully transparent RGBA tile for missing IDs
         if 0 in self.source_tile_candidates:
             sel0 = self.source_tile_selections.get(0, 0)
             if sel0 < len(self.source_tile_candidates[0]):
-                empty_tile = self.source_tile_candidates[0][sel0]
-        if empty_tile is None:
-            empty_tile = Image.new('RGB', (ts, ts), 'black')   # fallback
+                empty_tile = self.source_tile_candidates[0][sel0].convert('RGBA')
+        else:
+            empty_tile = Image.new('RGBA', (ts, ts), (0, 0, 0, 0))   # transparent fallback
 
         base = os.path.splitext(os.path.basename(self.current_file))[0] if self.current_file else 'tiles'
         default_name = f"{base}_x{ts}.png"
@@ -1122,24 +1121,28 @@ class MDTViewer(tk.Tk):
         rows = (total_tiles + cols - 1) // cols
         sheet_w = cols * ts
         sheet_h = rows * ts
-        sheet = Image.new('RGB', (sheet_w, sheet_h), self.C_BG1)
 
-        # ----- Modified loop -----
-        existing_ids = set(tile_ids)          # for fast lookup
-        for i in range(total_tiles):          # i is the tile ID
-            if i in existing_ids:
-                sel = self.source_tile_selections.get(i, 0)
-                if sel < len(self.source_tile_candidates[i]):
-                    tile_img = self.source_tile_candidates[i][sel]
+        # --- Create sheet with alpha channel (transparent background) ---
+        sheet = Image.new('RGBA', (sheet_w, sheet_h), (0, 0, 0, 0))
+
+        existing_ids = set(tile_ids)
+        for tid in range(total_tiles):          # tid is the tile ID
+            if tid in existing_ids:
+                sel = self.source_tile_selections.get(tid, 0)
+                if sel < len(self.source_tile_candidates[tid]):
+                    tile_img = self.source_tile_candidates[tid][sel]
+                    # Convert to RGBA if it isn't already – leaves RGB opaque
+                    if tile_img.mode != 'RGBA':
+                        tile_img = tile_img.convert('RGBA')
                 else:
-                    tile_img = Image.new('RGB', (ts, ts), 'black')
+                    tile_img = Image.new('RGBA', (ts, ts), (0, 0, 0, 0))
             else:
-                tile_img = empty_tile         # use tile 0 for gaps
+                tile_img = empty_tile
 
-            row = i // cols
-            col = i % cols
-            sheet.paste(tile_img, (col * ts, row * ts))
-        # -------------------------
+            row = tid // cols
+            col = tid % cols
+            sheet.paste(tile_img, (col * ts, row * ts), tile_img)  # use alpha mask
 
         sheet.save(path)
         messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\n at:\n{path}')
+        
