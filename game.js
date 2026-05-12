@@ -20,6 +20,13 @@ const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const USE_DUNGEON_RENDERER = false;
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
+const TOWN_TILE_SHEET_PATH = 'assets/images/cpat/cmap_x24.png';
+const TOWN_TILE_SHEET_COLS = 16;
+const TOWN_MAP_TILE_OFFSET = 0x17;
+const TOWN_VIEW_ROWS = 8;
+const TOWN_VISIBLE_COL_OFFSET = 4;
+const TOWN_ANIMATED_TILES = [2, 3, 4, 5];
+const TOWN_ANIMATION_FULL_TICKS = 24;
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
@@ -60,6 +67,23 @@ let hasWasmExport;
 let RENDER_CONFIG;
 let renderDungeonObjects;
 let townEntryRan = false;
+let townTileSheet = null;
+let townTileSheetReady = false;
+
+function loadTownTileSheet() {
+    if (townTileSheetReady) return Promise.resolve(townTileSheet);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            townTileSheet = img;
+            townTileSheetReady = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${TOWN_TILE_SHEET_PATH}`));
+        img.src = TOWN_TILE_SHEET_PATH;
+    });
+}
 
 async function loadWasmEngine() {
     const wasmBridge    = await import('./src/zeliard-wasm.js');
@@ -128,6 +152,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 canvas.width  = VIEW_COLS * TILE_WIDTH;
 canvas.height = VIEW_ROWS * TILE_HEIGHT;
+ctx.imageSmoothingEnabled = false;
 
 // ─── Opening intro ────────────────────────────────────────────────────────────
 const openingIntro = new OpeningIntro({
@@ -381,6 +406,7 @@ async function startGame() {
 
         await loadWasmEngine();
         await initWasm();
+        await loadTownTileSheet();
 
         // Wire WASM memory into sound driver so poll reads 0xFF75 directly
         if (getWasmMemory) {
@@ -446,6 +472,58 @@ function resolveMusicTrack(header) {
     return map[type] ?? 'mgt1';
 }
 
+function getTownMapWidth() {
+    if (!mdtData || mdtData.length < 4) return 0;
+    return mdtData[2] | (mdtData[3] << 8);
+}
+
+function getAnimatedTownTileId(tileId) {
+    const cycleIndex = TOWN_ANIMATED_TILES.indexOf(tileId);
+    if (cycleIndex === -1) return tileId;
+
+    const frame = Math.floor(frameTimer / TOWN_ANIMATION_FULL_TICKS) % TOWN_ANIMATED_TILES.length;
+    return TOWN_ANIMATED_TILES[(cycleIndex + frame) % TOWN_ANIMATED_TILES.length];
+}
+
+function drawTownTiles() {
+    if (!mdtData || !townTileSheetReady) return false;
+
+    const mapWidth = getTownMapWidth();
+    if (!mapWidth) return false;
+
+    const heroPos = getTownHeroPosition?.();
+    const leftCol = Math.max(0, Math.min(
+        mapWidth - VIEW_COLS,
+        (heroPos?.proximity_left_col_x ?? 0) + TOWN_VISIBLE_COL_OFFSET
+    ));
+
+    for (let col = 0; col < VIEW_COLS; col++) {
+        const mapCol = leftCol + col;
+
+        for (let row = 0; row < TOWN_VIEW_ROWS; row++) {
+            const mdtOffset = TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
+            let tileId = mdtData[mdtOffset] ?? 0;
+            tileId = getAnimatedTownTileId(tileId);
+
+            const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_WIDTH;
+            const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_HEIGHT;
+            ctx.drawImage(
+                townTileSheet,
+                sx,
+                sy,
+                TILE_WIDTH,
+                TILE_HEIGHT,
+                col * TILE_WIDTH,
+                row * TILE_HEIGHT,
+                TILE_WIDTH,
+                TILE_HEIGHT
+            );
+        }
+    }
+
+    return true;
+}
+
 // ─── rAF game loop ────────────────────────────────────────────────────────────
 /**
  * update() — runs once per animation frame (~60 Hz).
@@ -459,8 +537,8 @@ function update() {
     if (!engineReady) return;
 
     // Enable hero movement update
-    heroMovementUpdate();
-    updateHorizontalPlatforms();
+    heroMovementUpdate?.();
+    updateHorizontalPlatforms?.();
 
   // Sync hero position from WASM
     const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
@@ -469,22 +547,24 @@ function update() {
         player.y = heroPos.y;
     }
 
-  // Check for hero interactions with doors/items
-  // This is for specific situations (entering doors, item triggers)
-    heroInteractionCheck();
+    // Check for hero interactions with doors/items
+    // This is for specific situations (entering doors, item triggers)
+    heroInteractionCheck?.();
 
-  // Update combat state (death animations, XP/gold awards)
-    combatUpdate();
+    // Update combat state (death animations, XP/gold awards)
+    combatUpdate?.();
 
-  // Update boss battle (if in boss cavern)
-    updateBossBattle();
+    // Update boss battle (if in boss cavern)
+    updateBossBattle?.();
 
-  // Sync hero direction from WASM to JS player object
-  // starting_direction: bit 0 = 0 (left) or 1 (right)
-    const wasmDir  = heroGetDirection();
-    player.direction = (wasmDir & 1) ? 1 : -1;
+    // Sync hero direction from WASM to JS player object
+    // starting_direction: bit 0 = 0 (left) or 1 (right)
+    const wasmDir  = heroGetDirection?.();
+    if (wasmDir !== undefined) {
+        player.direction = (wasmDir & 1) ? 1 : -1;
+    }
 
-    proximityMap = getProximityMap();
+    proximityMap = getProximityMap?.();
 }
 
 // --- Rendering ---
@@ -495,6 +575,14 @@ function draw() {
     if (!engineReady) {
         drawLifeBar();
         updateElementText('currentMapName', '');
+        updateElementText('gold', 0);
+        updateElementText('almas', 0);
+        return;
+    }
+
+    if (drawTownTiles()) {
+        drawLifeBar();
+        updateElementText('currentMapName', townEntryRan ? 'Felishika Castle' : '');
         updateElementText('gold', 0);
         updateElementText('almas', 0);
         return;
