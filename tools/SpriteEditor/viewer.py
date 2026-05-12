@@ -1,5 +1,5 @@
 """
-Zeliard Sprite Editor - Main application (v0.3 - persistent tile selections).
+Zeliard Sprite Editor - Main application (v0.4 - animation support).
 """
 
 import os
@@ -124,6 +124,7 @@ class MDTViewer(tk.Tk):
         # ─── Source image buttons ────────────────────────────
         btn('Load Source', self.load_source_image, fg=self.C_CYAN)
         btn('Clear Source', self.clear_source_data, fg=self.C_RED)
+        btn('Load Anim', self.load_animation, fg=self.C_YELL)     # NEW
         sep()
 
         self.ov_btn = tk.Button(
@@ -766,6 +767,67 @@ class MDTViewer(tk.Tk):
         if hasattr(self, 'info_box5'):
             for w in self.info_box5._content.winfo_children():
                 w.destroy()
+
+    def load_animation(self):
+        """Load an animation strip (4 vertical frames) and assign to consecutive tile IDs."""
+        if not self.mdt:
+            messagebox.showwarning('Warning', 'Open an MDT first.')
+            return
+        path = filedialog.askopenfilename(
+            title='Open Animation PNG (vertical strip of 4 frames)',
+            filetypes=[('PNG files', '*.png'), ('All files', '*')])
+        if not path:
+            return
+
+        ts = simpledialog.askinteger(
+            'Frame Size', 'Pixel size of each frame (width & height):',
+            initialvalue=getattr(self, 'source_tile_size', 8), minvalue=1, parent=self)
+        if ts is None:
+            return
+
+        start_id = simpledialog.askinteger(
+            'Starting Tile ID', 'First tile ID to assign the animation:',
+            initialvalue=0, minvalue=0, parent=self)
+        if start_id is None:
+            return
+
+        try:
+            anim_img = Image.open(path)
+            w, h = anim_img.size
+            expected_w = ts * 4
+            if w != expected_w or h != ts:
+                messagebox.showerror(
+                    'Size Mismatch',
+                    f'Animation image must be exactly {expected_w}x{ts} pixels\n'
+                    f'(width = 4 × frame size, height = frame size).')
+                return
+
+            # Slice the 4 frames horizontally
+            frames = []
+            for i in range(4):
+                frame = anim_img.crop((i * ts, 0, (i + 1) * ts, ts))
+                frames.append(frame)
+
+            # Ensure we have the candidate dict (may not exist if no source loaded)
+            if self.source_tile_candidates is None:
+                self.source_tile_candidates = {}
+                self.source_tile_selections = {}
+                self.source_tile_cache = {}
+
+            # Assign frames to consecutive tile IDs
+            for offset, tid in enumerate(range(start_id, start_id + 4)):
+                if tid not in self.source_tile_candidates:
+                    self.source_tile_candidates[tid] = []
+                self.source_tile_candidates[tid].append(frames[offset])
+                # Select the newly added frame (last index)
+                self.source_tile_selections[tid] = len(self.source_tile_candidates[tid]) - 1
+
+            self.selections_dirty = True
+            self._build_tile_candidates_ui()
+            self._draw_map()
+
+        except Exception as e:
+            messagebox.showerror('Load Error', str(e))
 
     # ─── Persistence methods ─────────────────────────────────────────────────
     def _get_selections_file_path(self):

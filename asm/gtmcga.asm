@@ -94,54 +94,55 @@ loc_306A:
                 add     si, 20h ; ' '
                 push    cs
                 pop     es
-                mov     di, 0E000h
+                mov     di, viewport_buffer
                 mov     ds:column_counter, 0
 
 next_column:
                 call    hero_column_shadow_blitter_guard
-                xor     bl, bl
+                ; top 4 rows of town can be animated (waving flags, etc.)
+                xor     bl, bl      ; row 0
                 cmpsb
                 jz      short loc_308C
                 call    tile_render_and_animate
 
 loc_308C:
-                inc     bl
+                inc     bl          ; row 1
                 cmpsb
                 jz      short loc_3094
                 call    tile_render_and_animate
 
 loc_3094:
-                inc     bl
+                inc     bl          ; row 2
                 cmpsb
                 jz      short loc_309C
                 call    tile_render_and_animate
 
 loc_309C:
-                inc     bl
+                inc     bl          ; row 3
                 cmpsb
                 jz      short loc_30A4
                 call    background_tile_render_with_blit_cache
 
 loc_30A4:
-                inc     bl
+                inc     bl          ; row 4
                 cmpsb
                 jz      short loc_30AC
                 call    background_tile_render_with_blit_cache
 
 loc_30AC:
-                inc     bl
+                inc     bl          ; row 5
                 cmpsb
                 jz      short loc_30B4
                 call    special_tile_dispatcher
 
 loc_30B4:
-                inc     bl
+                inc     bl          ; row 6
                 cmpsb
                 jz      short loc_30BC
                 call    background_tile_render_with_blit_cache
 
 loc_30BC:
-                inc     bl
+                inc     bl          ; row 7
                 cmpsb
                 jz      short loc_30C4
                 call    background_tile_render_with_blit_cache
@@ -164,14 +165,14 @@ hero_column_shadow_blitter_guard proc near
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_30DD:                               ; ...
+loc_30DD:
                 mov     al, ds:hero_x_in_viewport
                 cmp     ds:column_counter, al
                 jz      short loc_30E7
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_30E7:                               ; ...
+loc_30E7:
                 push    di
                 push    es
                 push    si
@@ -189,7 +190,7 @@ loc_30E7:                               ; ...
                 mov     si, vram_shadow_addr      ; shadow memory buffer
                 mov     cx, 2
 
-loc_3109:                               ; ...
+loc_3109:
                 push    cx
                 push    di
                 call    copy_3_vert_tiles
@@ -446,7 +447,7 @@ loc_32A6:
                 retn
 ; ---------------------------------------------------------------------------
 loc_32C5:
-                cmp     ah, 19h
+                cmp     ah, 25
                 jb      short loc_32CB
                 retn
 ; ---------------------------------------------------------------------------
@@ -456,20 +457,21 @@ loc_32CB:
                 mov     es, word ptr cs:seg1
                 mov     di, es:tile_animation_replacement_table
                 mov     cl, es:[di]
-                or      cl, cl
+                or      cl, cl  ; number of animation frames (tile replacement pairs)
                 jz      short loc_32F9
                 inc     di
+                ; lookup replacement tile id for tile in ah
 loc_32DF:
-                mov     al, es:[di]
+                mov     al, es:[di]    ; old tile id
                 cmp     al, 0FFh
                 jz      short loc_32F9
                 cmp     ah, al
-                jnz     short loc_32F3
-                mov     al, es:[di+1]
-                mov     [si-1], al
+                jne     short try_next_pair
+                mov     al, es:[di+1]  ; replacement tile id
+                mov     [si-1], al     ; replace (animate) tile
                 jmp     short loc_32F9
 ; ---------------------------------------------------------------------------
-loc_32F3:
+try_next_pair:
                 inc     di
                 inc     di
                 dec     cl

@@ -296,6 +296,7 @@ static const uint8_t str_usr_glob[] = {'*','.','u','s','r',0};
  * ========================================================================= */
 TownProcs g_town_procs;  /* zero-initialised; JS sets members before calling wasm_town_init */
 static uint8_t g_town_return_before_main_loop;
+static uint8_t g_town_update_active;
 
 /* Convenience wrappers that guard against NULL */
 #define CALL_PROC(name, ...) \
@@ -305,6 +306,7 @@ static uint8_t g_town_return_before_main_loop;
  * Forward declarations
  * ========================================================================= */
 static void town_entry_common(void);
+static void town_main_loop_step(void);
 static void init_npcs_and_render(void);
 static void game_loop_with_frame_wait(void);
 static void prepare_hero_sprite(void);
@@ -553,94 +555,98 @@ static void town_entry_common(void)
 
     /* Main town game loop */
     for (;;) {
-        init_npcs_and_render();
-        handle_inventory_key();
-        handle_edge_screen_transition();
-        hero_spacebar_interaction();
+        town_main_loop_step();
+    }
+}
 
-        if (!HERO_MOVED) {
-            hero_building_entry_check();
-        }
+static void town_main_loop_step(void)
+{
+    init_npcs_and_render();
+    handle_inventory_key();
+    handle_edge_screen_transition();
+    hero_spacebar_interaction();
 
-        HERO_MOVED = 0;
+    if (!HERO_MOVED) {
+        hero_building_entry_check();
+    }
 
-        /* Poll input (replaces int 61h).
-         * INPUT_DIRS bits: bit0=up, bit1=down, bit2=left, bit3=right
-         * INPUT_ALT_SPACE bits: bit0=space, bit1=alt               */
-        CALL_PROC(poll_input);
+    HERO_MOVED = 0;
 
-        uint8_t dirs = INPUT_DIRS;
-        uint8_t alt_spc = INPUT_ALT_SPACE;
+    /* Poll input (replaces int 61h).
+     * INPUT_DIRS bits: bit0=up, bit1=down, bit2=left, bit3=right
+     * INPUT_ALT_SPACE bits: bit0=space, bit1=alt               */
+    CALL_PROC(poll_input);
 
-        if (dirs & 0x01) {
-            /* Up pressed → enter door */
-            HERO_ANIM |= 1;
-            /* Check for door interaction (jump to loc_6E29 logic) */
-            /* (handled in hero_building_entry_check via dialog_exit_flag) */
-        } else if ((dirs & 0x0C) == 0x04) {
-            /* Left pressed */
-            /* Edge-scroll left handler (loc_6781) */
-            {
-                uint16_t bx = (uint16_t)((HERO_XV + 3) * 8) + PROX_START;
-                uint8_t tile = MEM8(bx + 7);
-                int found;
-                check_tile_in_special_list(tile, &found);
-                if (found) {
-                    uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT - 1;
-                    uint16_t si_npc;
-                    find_npc_at_x_pos(tx, &si_npc, &found);
-                    if (!found) {
-                        HERO_ANIM = (HERO_ANIM + 1) & 3;
-                        FACING |= 1;  /* face left */
-                        if (HERO_XV >= 0x0B) {
-                            HERO_XV--;
-                        } else if (PROX_LEFT != 0) {
-                            PROX_LEFT--;
-                            PROX_START -= 8;
-                            CALL_PROC(scroll_hud_right_8px);
-                            if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_right_4px);
-                        } else {
-                            HERO_XV--;
-                        }
-                        HERO_MOVED = 0xFF;
+    uint8_t dirs = INPUT_DIRS;
+
+    if (dirs & 0x01) {
+        /* Up pressed → enter door */
+        HERO_ANIM |= 1;
+        /* Check for door interaction (jump to loc_6E29 logic) */
+        /* (handled in hero_building_entry_check via dialog_exit_flag) */
+    } else if ((dirs & 0x0C) == 0x04) {
+        /* Left pressed */
+        /* Edge-scroll left handler (loc_6781) */
+        {
+            uint16_t bx = (uint16_t)((HERO_XV + 3) * 8) + PROX_START;
+            uint8_t tile = MEM8(bx + 7);
+            int found;
+            check_tile_in_special_list(tile, &found);
+            if (found) {
+                uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT - 1;
+                uint16_t si_npc;
+                find_npc_at_x_pos(tx, &si_npc, &found);
+                if (!found) {
+                    HERO_ANIM = (HERO_ANIM + 1) & 3;
+                    FACING |= 1;  /* face left */
+                    if (HERO_XV >= 0x0B) {
+                        HERO_XV--;
+                    } else if (PROX_LEFT != 0) {
+                        PROX_LEFT--;
+                        PROX_START -= 8;
+                        CALL_PROC(scroll_hud_right_8px);
+                        if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_right_4px);
+                    } else {
+                        HERO_XV--;
                     }
+                    HERO_MOVED = 0xFF;
                 }
             }
-        } else if ((dirs & 0x0C) == 0x08) {
-            /* Right pressed */
-            {
-                uint16_t bx = (uint16_t)((HERO_XV + 6) * 8) + PROX_START;
-                uint8_t tile = MEM8(bx + 7);
-                int found;
-                check_tile_in_special_list(tile, &found);
-                if (found) {
-                    uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT + 1;
-                    uint16_t si_npc;
-                    find_npc_at_x_pos(tx, &si_npc, &found);
-                    if (!found) {
-                        HERO_ANIM = (HERO_ANIM + 1) & 3;
-                        FACING &= ~1;  /* face right */
-                        if (HERO_XV < 0x10) {
+        }
+    } else if ((dirs & 0x0C) == 0x08) {
+        /* Right pressed */
+        {
+            uint16_t bx = (uint16_t)((HERO_XV + 6) * 8) + PROX_START;
+            uint8_t tile = MEM8(bx + 7);
+            int found;
+            check_tile_in_special_list(tile, &found);
+            if (found) {
+                uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT + 1;
+                uint16_t si_npc;
+                find_npc_at_x_pos(tx, &si_npc, &found);
+                if (!found) {
+                    HERO_ANIM = (HERO_ANIM + 1) & 3;
+                    FACING &= ~1;  /* face right */
+                    if (HERO_XV < 0x10) {
+                        HERO_XV++;
+                    } else {
+                        uint16_t right_limit = MAP_WIDTH - 0x23;
+                        if (PROX_LEFT + 1 == right_limit) {
                             HERO_XV++;
                         } else {
-                            uint16_t right_limit = MAP_WIDTH - 0x23;
-                            if (PROX_LEFT + 1 == right_limit) {
-                                HERO_XV++;
-                            } else {
-                                PROX_LEFT++;
-                                PROX_START += 8;
-                                CALL_PROC(scroll_hud_left_8px);
-                                if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_left_4px);
-                            }
+                            PROX_LEFT++;
+                            PROX_START += 8;
+                            CALL_PROC(scroll_hud_left_8px);
+                            if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_left_4px);
                         }
-                        HERO_MOVED = 0xFF;
                     }
+                    HERO_MOVED = 0xFF;
                 }
             }
-        } else {
-            HERO_ANIM |= 1;
-            HERO_MOVED = 0xFF;
         }
+    } else {
+        HERO_ANIM |= 1;
+        HERO_MOVED = 0xFF;
     }
 }
 
@@ -1130,6 +1136,11 @@ static void game_loop_with_frame_wait(void)
     CALL_PROC(render_town_tiles_28_columns);
 
     uint8_t target = (uint8_t)(SPEED_C * 4);
+
+    if (g_town_update_active) {
+        FRAME_TMR = 0;
+        return;
+    }
 
     while (FRAME_TMR < target) {
         CALL_PROC(confirm_exit_dialog);
@@ -2256,6 +2267,7 @@ void wasm_town_init(void)
 {
     memset(g_mem, 0, sizeof(g_mem));
     g_town_return_before_main_loop = 0;
+    g_town_update_active = 0;
     /* JS must populate g_mem with save data and MDT before calling entry */
 }
 
@@ -2270,6 +2282,38 @@ void wasm_town_entry_disabling_edge_scroll(void)   { town_entry_disabling_edge_s
 
 /* JS callable: re-enter town (sage / falter) */
 void wasm_town_entry_enabling_edge_scroll(void) { town_entry_enabling_edge_scroll(); }
+
+/* JS callable: execute one iteration of the extracted town main loop */
+void wasm_town_update(void)
+{
+    g_town_update_active = 1;
+    town_main_loop_step();
+    g_town_update_active = 0;
+}
+
+/* JS callable: mirror the DOS timer ISR counters in town memory */
+void wasm_town_full_tick(void)
+{
+    MEM8(ADDR_FRAME_TIMER) = (uint8_t)(MEM8(ADDR_FRAME_TIMER) + 1);
+    MEM16(ADDR_TICK_COUNTER) = (uint16_t)(MEM16(ADDR_TICK_COUNTER) + 1);
+    MEM16(ADDR_ANIM_TIMER) = (uint16_t)(MEM16(ADDR_ANIM_TIMER) + 1);
+}
+
+/* JS callable: copy browser key state into the town input latch bytes */
+void wasm_town_set_input_keys(uint8_t keys)
+{
+    uint8_t dirs = 0;
+    if (keys & 0x01) dirs |= 0x01;  /* up */
+    if (keys & 0x02) dirs |= 0x02;  /* down */
+    if (keys & 0x04) dirs |= 0x04;  /* left */
+    if (keys & 0x08) dirs |= 0x08;  /* right */
+
+    MEM8(ADDR_RIGHT_LEFT_DOWN_UP) = dirs;
+    MEM8(ADDR_ENTER_KEYS) = (keys & 0x10) ? 0x01 : 0x00;
+    MEM8(ADDR_ALT_SPACE) =
+        (uint8_t)(((keys & 0x20) ? 0x01 : 0x00) |
+                  ((keys & 0x40) ? 0x02 : 0x00));
+}
 
 /* JS callable: get pointer into WASM linear memory (for direct JS access) */
 uint32_t wasm_get_mem_ptr(void)   { return (uint32_t)(uintptr_t)g_mem; }

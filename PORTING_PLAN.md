@@ -309,27 +309,5 @@ Missing / still stubbed:
 src/render-config.js and src/render-objects.js are absent.
 Most dungeon C files referenced by build.sh are not in src/; they exist under WORK/src.
 TownProcs render/resource/audio callbacks are not wired yet, so town bootstrap runs but does not truly render/play like DOS.
-The real town main loop still needs to be split into tick/update functions or moved to a worker.
-
-Verified:
-make -B succeeds.
-Node smoke test calls the town entry and confirms disable_edge_scroll = 0xFF.
-Dev server is running at http://127.0.0.1:8000/index.html.
-
-Web preview
-Website
-Open
-6 files changed
-+151
--12
-Undo
-
-Review
-
-Makefile
-.gitignore
-src/town.h
-src/town.c
-src/zeliard-wasm.js
-game.js
+The top-level town main loop is now split into wasm_town_update(), driven from game.js slow ticks. Deeper blocking dialog/menu waits still need follow-up state-machine refactors.
 

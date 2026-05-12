@@ -496,7 +496,6 @@ Find_Monsters_Near_Hero_proc                       equ 603Eh
 Move_Monster_NWE_Depending_On_Whats_Below_proc     equ 6040h
 
 ; town.bin
-special_tile_list_ptr                              equ 8002h
 word_A000                                          equ 0A000h
 sage_bin_addr                                      equ 0A000h
 town_indoors_bin_addr                              equ 0A000h
@@ -627,7 +626,7 @@ tile_anim_count_table                              equ 8000h ; pointer to a tabl
     ; one byte per tile type
     ; 0 = no animation, non-zero = number of animation frames. 
     ; Also used as the loaded-sprites base for `tile_render_and_animate`
-table_8002                                         equ 8002h
+special_tile_list_ptr                              equ 8002h
 tile_animation_replacement_table                   equ 8004h ; pointer to a table
     ; the table at that address is a counted list of (old_tile, new_tile) byte pairs terminated by 0FFh
 packed_tile_graphics                               equ 8100h ; 48 bytes per tile (6 bits per pixel × 8 pixels × 8 rows)

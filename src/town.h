@@ -122,6 +122,9 @@ void     wasm_town_init(void);
 void     wasm_town_set_return_before_main_loop(int enabled);
 void     wasm_town_entry_disabling_edge_scroll(void);
 void     wasm_town_entry_enabling_edge_scroll(void);
+void     wasm_town_update(void);
+void     wasm_town_full_tick(void);
+void     wasm_town_set_input_keys(uint8_t keys);
 uint32_t wasm_get_mem_ptr(void);
 
 void wasm_render_menu_dialog(uint16_t rect_pos, uint8_t pattern);

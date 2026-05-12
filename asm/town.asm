@@ -3528,20 +3528,21 @@ aStdplyBin      db 'STDPLY.BIN',0
 ; =============== S U B R O U T I N E =======================================
 
 
-choose_game_to_restore proc near        ; Choose a saved game or restart, with name input
-                ; Scans for .usr save files, displays a Re-Start option, allows
-                ; the player to input a save name, and copies the name to the
-                ; save slot area (0FF6Ch). Returns with carry set if a name was entered.
-                ; Input: ds:viewport_buffer (determines whether to show save list)
-                ; Output: save name copied to 0FF6Ch, CF=1 if save slot has name
-                ; Modifies: ax, bx, cx, si, di, es
+; Choose a saved game or restart, with name input
+; Scans for .usr save files, displays a Re-Start option, allows
+; the player to input a save name, and copies the name to the
+; save slot area (save_name). Returns with carry set if a name was entered.
+; Input: ds:viewport_buffer (determines whether to show save list)
+; Output: save name copied to save_name, CF=1 if save slot has name
+; Modifies: ax, bx, cx, si, di, es
+choose_game_to_restore proc near        
                 mov     ax, cs
                 mov     es, ax
                 mov     ds, ax
-                mov     di, 0E000h
+                mov     di, viewport_buffer
                 mov     dx, offset aUsr ; "*.usr"
                 call    cs:Scan_Saved_Games_proc ; Scan_Saved_Games
-                mov     di, 0E000h
+                mov     di, viewport_buffer
                 inc     byte ptr [di]
                 jnz     short loc_76AF
                 dec     byte ptr [di]
@@ -3571,7 +3572,7 @@ loc_76AF:
                 mov     al, 0FFh
                 stosb
                 mov     ds:save_name_count, 0
-                mov     si, 0FF6Ch
+                mov     si, save_name
                 mov     di, offset save_name_buffer
                 mov     cx, 8
 
@@ -3621,19 +3622,19 @@ loc_7756:
                 xor     ah, ah
                 mov     cx, ax
                 xor     al, al
-                mov     si, 0E001h
+                mov     si, word_E001
                 jcxz    short loc_7764
                 call    render_save_game_list
 
 loc_7764:   
-                mov     si, 0E001h
+                mov     si, word_E001
                 mov     al, byte ptr ds:viewport_buffer
                 mov     ds:menu_max_items, al
                 mov     byte ptr ds:menu_item_count, 5
                 call    save_name_input_handler
                 push    cs
                 pop     es
-                mov     di, 0FF6Ch
+                mov     di, save_name
                 mov     cx, 8
                 xor     al, al
                 rep stosb
@@ -3645,7 +3646,7 @@ loc_7764:
 
 loc_778A:   
                 mov     si, offset save_name_buffer
-                mov     di, 0FF6Ch
+                mov     di, save_name
 
 loc_7790:   
                 lodsb

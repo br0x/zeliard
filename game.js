@@ -18,6 +18,7 @@ import { SoundManager }  from './sound-manager.js';
 const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
+const USE_DUNGEON_RENDERER = false;
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
@@ -46,11 +47,14 @@ let combatUpdate;
 let initBossBattle;
 let updateBossBattle;
 let getHeroPosition;
+let getTownHeroPosition;
 let inputGetDebugCounter;
 let getWasmMemory;  // NEW: returns Uint8Array of WASM linear memory
 let townInit;
 let townSetReturnBeforeMainLoop;
 let townEntryDisablingEdgeScroll;
+let townUpdate;
+let townFullTick;
 let hasWasmExport;
 
 let RENDER_CONFIG;
@@ -83,13 +87,20 @@ async function loadWasmEngine() {
         initBossBattle,
         updateBossBattle,
         getHeroPosition,
+        getTownHeroPosition,
         inputGetDebugCounter,
         getWasmMemory,         // NEW: exposed from zeliard-wasm.js
         townInit,
         townSetReturnBeforeMainLoop,
         townEntryDisablingEdgeScroll,
+        townUpdate,
+        townFullTick,
         hasWasmExport,
     } = wasmBridge);
+
+    if (!USE_DUNGEON_RENDERER) {
+        return;
+    }
 
     try {
         const renderConfig  = await import('./src/render-config.js');
@@ -232,6 +243,7 @@ function onFullTick() {
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
+    townFullTick?.();
     // disk_retry_timer lives in WASM memory (0xFF-area); increment it there
     // if you have a getWasmMemory accessor:
     if (engineReady && getWasmMemory) {
@@ -257,6 +269,7 @@ function onSlowTick() {
 
     // Update input edge-detection in WASM
     inputUpdate?.();
+    townUpdate?.();
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -402,7 +415,7 @@ async function startGame() {
         const trackId = resolveMusicTrack(mdtHeader);
         if (trackId) setCurrentMusicTrack(trackId);
 
-        const heroPos = getHeroPosition?.();
+        const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
         console.log('Hero pos:', heroPos);
 
         engineReady = true;
@@ -450,7 +463,7 @@ function update() {
     updateHorizontalPlatforms();
 
   // Sync hero position from WASM
-    const heroPos = getHeroPosition();
+    const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
     if (heroPos) {
         player.x = heroPos.x;
         player.y = heroPos.y;

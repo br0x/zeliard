@@ -168,6 +168,30 @@ export function townEntryEnablingEdgeScroll() {
 }
 
 /**
+ * Run one extracted town main-loop update.
+ */
+export function townUpdate() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    wasmExports.wasm_town_update?.();
+}
+
+/**
+ * Advance town timer counters that originally lived in the DOS ISR.
+ */
+export function townFullTick() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    wasmExports.wasm_town_full_tick?.();
+}
+
+/**
  * Load MDT file data into WASM memory at 0xC000
  * @param {Uint8Array} mdtData - Raw MDT file data
  * @returns {number} 0 on success, -1 on error
@@ -351,6 +375,32 @@ export function getHeroPosition() {
         hero_y_rel: readU8(offset + 0x82),        // hero_y_rel
         hero_x_in_viewport: readU8(offset + 0x83),  // hero_x_in_viewport
         hero_head_y_in_viewport: readU8(offset + 0x84)   // hero_head_y_in_viewport
+    };
+}
+
+/**
+ * Get town hero position/state from town.c memory.
+ * @returns {object|null} Town hero position data.
+ */
+export function getTownHeroPosition() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return null;
+    }
+
+    const offset = gMemoryBase;
+    const readU8 = (addr) => wasmMemory[addr];
+    const readU16 = (addr) => wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
+    const heroXInViewport = readU8(offset + 0x7B60);
+    const proximityLeft = readU16(offset + 0x7B62);
+
+    return {
+        x: proximityLeft + heroXInViewport + 4,
+        y: readU8(offset + 0xFF35),
+        hero_x_in_viewport: heroXInViewport,
+        proximity_left_col_x: proximityLeft,
+        hero_x_word: readU16(offset + 0x7B23),
+        viewport_top_row_y: readU8(offset + 0x7B95)
     };
 }
 
@@ -621,13 +671,30 @@ export function inputSetKeys(keys) {
         return;
     }
 
-    console.log('inputSetKeys called with:', keys, '0x' + keys.toString(16));
-    
     if (wasmExports.input_set_keys) {
         wasmExports.input_set_keys(keys);
+    } else if (wasmExports.wasm_town_set_input_keys) {
+        wasmExports.wasm_town_set_input_keys(keys);
     } else {
-        console.error('input_set_keys not exported!');
+        writeTownInputBytes(keys);
     }
+}
+
+function writeTownInputBytes(keys) {
+    if (!wasmMemory) return;
+
+    const offset = gMemoryBase;
+    let dirs = 0;
+    if (keys & INPUT_FLAGS.UP) dirs |= 0x01;
+    if (keys & INPUT_FLAGS.DOWN) dirs |= 0x02;
+    if (keys & INPUT_FLAGS.LEFT) dirs |= 0x04;
+    if (keys & INPUT_FLAGS.RIGHT) dirs |= 0x08;
+
+    wasmMemory[offset + 0xFF17] = dirs;
+    wasmMemory[offset + 0xFF18] = (keys & INPUT_FLAGS.ENTER) ? 0x01 : 0x00;
+    wasmMemory[offset + 0xFF16] =
+        ((keys & INPUT_FLAGS.SPACE) ? 0x01 : 0x00) |
+        ((keys & INPUT_FLAGS.ALT) ? 0x02 : 0x00);
 }
 
 /**
