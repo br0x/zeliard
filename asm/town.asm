@@ -1417,7 +1417,6 @@ clear_6_hero_tiles_in_viewport_buffer endp
 ;          ds:proximity_map_left_col_x
 ;   Output: ds:hero_x (absolute), hero_2x3_tile_buf filled,
 ;           hero sprite rendered via ui_draw_routine_dispatcher
-
 prepare_hero_sprite proc near
                 push    cs
                 pop     es

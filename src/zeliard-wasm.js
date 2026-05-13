@@ -495,10 +495,11 @@ export function getHeroPosition() {
     function readU16(addr) { return wasmMemory[addr] | (wasmMemory[addr + 1] << 8); }
     
     return {
-        hero_x_minus_18_abs: readU16(offset + 0x80),           // hero_x_minus_18_abs
-        hero_y_rel: readU8(offset + 0x82),        // hero_y_rel
-        hero_x_in_viewport: readU8(offset + 0x83),  // hero_x_in_viewport
-        hero_head_y_in_viewport: readU8(offset + 0x84)   // hero_head_y_in_viewport
+        hero_x_minus_18_abs: readU16(offset + 0x80),   // hero_x_minus_18_abs
+        hero_y_rel: readU8(offset + 0x82),             // hero_y_rel
+        hero_x_in_viewport: readU8(offset + 0x83),     // hero_x_in_viewport
+        hero_head_y_in_viewport: readU8(offset + 0x84),// hero_head_y_in_viewport
+        facing_direction: readU8(offset + 0xc2),       // facing_direction: bit0: 0=Right, 1=Left; bit1: 0=Down, 1=Up
     };
 }
 
@@ -512,19 +513,18 @@ export function getTownHeroPosition() {
         return null;
     }
 
-    const offset = gMemoryBase;
     const readU8 = (addr) => wasmMemory[addr];
     const readU16 = (addr) => wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
-    const heroXInViewport = readU8(offset + 0x7B60);
-    const proximityLeft = readU16(offset + 0x7B62);
+    const heroXInViewport = readU8(gMemoryBase + 0x7B60);
+    const proximityLeft = readU16(gMemoryBase + 0x7B62);
 
     return {
-        x: proximityLeft + heroXInViewport + 4,
-        y: readU8(offset + 0xFF35),
+        x: proximityLeft + heroXInViewport + 4, // absolute x within town map
+        y: readU8(gMemoryBase + 0xFF35), // hero_y_absolute
         hero_x_in_viewport: heroXInViewport,
         proximity_left_col_x: proximityLeft,
-        hero_x_word: readU16(offset + 0x7B23),
-        viewport_top_row_y: readU8(offset + 0x7B95)
+        hero_x_word: readU16(gMemoryBase + 0x7B23),
+        viewport_top_row_y: readU8(gMemoryBase + 0x7B95)
     };
 }
 

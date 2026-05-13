@@ -14,6 +14,11 @@
 import { OpeningIntro }  from './opening-intro.js';
 import { SoundManager }  from './sound-manager.js';
 
+// ─── Engine / Canvas config ───────────────────────────────────────────────────
+const TILE_WIDTH  = 24;
+const TILE_HEIGHT = 24;
+const VIEW_COLS   = 28;
+const VIEW_ROWS   = 18;
 // ─── Feature flags ────────────────────────────────────────────────────────────
 const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
@@ -29,10 +34,12 @@ const TOWN_BACKGROUND_CKPD_PATH = 'assets/images/ckpd/ckpd1.png';
 const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
 const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
+const HERO_SPRITE_PATH = 'assets/images/tman.png';
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
 const TOWN_MAP_START_ROW = 8;
+const TOWN_HEADS_START_ROW = TOWN_MAP_START_ROW + 5;
 const TOWN_SIDEWALK1_START_ROW = TOWN_MAP_START_ROW + TOWN_VIEW_ROWS;
 const TOWN_SIDEWALK2_START_ROW = TOWN_SIDEWALK1_START_ROW + 1;
 const TOWN_VISIBLE_COL_OFFSET = 4;
@@ -52,6 +59,22 @@ const TOWN_MDTS = [
     'game/0/prmp.mdt',
     'game/0/esmp.mdt',
 ];
+const HERO_FRAME_W = 48;
+const HERO_FRAME_H = 72;
+const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_HEIGHT;   // row 13 → 312px
+const ANIM_SPEED_TICKS = 8;   // change frame every 8 full ticks
+// Frame indices in tman.png:
+// 0-3 : left walking
+// 4   : facing away (door open)
+// 5-8 : right walking
+// 9   : facing away (door open) - copy for compatibility with original format
+// 10  : standing left
+// 11  : standing right
+const FRAME_LEFT_WALK_BASE = 0;
+const FRAME_RIGHT_WALK_BASE = 5;
+const FRAME_LEFT_STAND = 10;
+const FRAME_RIGHT_STAND = 11;
+
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
@@ -111,6 +134,8 @@ let townSidewalk1 = null;
 let townSidewalk1Ready = false;
 let townSidewalk2 = null;
 let townSidewalk2Ready = false;
+let heroSprite = null;
+let heroSpriteReady = false;
 
 function loadTownBackground() {
     if (townBackgroundReady) return Promise.resolve(townBackground);
@@ -191,6 +216,20 @@ function loadTownTileSheet() {
     });
 }
 
+function loadHeroSprite() {
+    if (heroSpriteReady) return Promise.resolve(heroSprite);
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            heroSprite = img;
+            heroSpriteReady = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${HERO_SPRITE_PATH}`));
+        img.src = HERO_SPRITE_PATH;
+    });
+}
+
 async function loadWasmEngine() {
     const wasmBridge    = await import('./src/zeliard-wasm.js');
 
@@ -247,11 +286,6 @@ async function loadWasmEngine() {
     }
 }
 
-// ─── Engine / Canvas config ───────────────────────────────────────────────────
-const TILE_WIDTH  = 24;
-const TILE_HEIGHT = 24;
-const VIEW_COLS   = 28;
-const VIEW_ROWS   = 18;
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
 const introScreen  = document.getElementById('intro-screen');
@@ -560,6 +594,7 @@ async function startGame() {
         await loadTownSidewalk1();
         await loadTownSidewalk2();
         await loadTownTileSheet();
+        await loadHeroSprite();
 
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
@@ -669,7 +704,7 @@ function drawTownTiles() {
                 TILE_WIDTH,              // 4. Source Width
                 TILE_HEIGHT,             // 5. Source Height
                 col * TILE_WIDTH,        // 6. Destination X
-                (row + TOWN_MAP_START_ROW) * TILE_HEIGHT,       // 7. Destination Y
+                (row + TOWN_MAP_START_ROW) * TILE_HEIGHT, // 7. Destination Y
                 TILE_WIDTH,              // 8. Destination Width
                 TILE_HEIGHT              // 9. Destination Height
             );            
@@ -677,6 +712,53 @@ function drawTownTiles() {
     }
 
     return true;
+}
+
+function drawHero() {
+    if (!heroSpriteReady || !engineReady) return;
+
+    // Get current hero state from WASM
+    const moving = heroIsMoving?.();          // true if walking
+    let heroPos = getHeroPosition?.();
+    let viewportX = heroPos.hero_x_in_viewport;
+    let direction = heroPos.facing_direction;
+    if (viewportX === undefined) viewportX = 0;
+
+    // Select frame index
+    let frame = FRAME_RIGHT_STAND;
+    if (direction === 0) {
+        if (moving) {
+            const phase = Math.floor(animTimer / ANIM_SPEED_TICKS) % 4;
+            frame = FRAME_RIGHT_WALK_BASE + phase;
+        } else {
+            frame = FRAME_RIGHT_STAND;
+        }
+    } else if (direction === 1) {
+        if (moving) {
+            const phase = Math.floor(animTimer / ANIM_SPEED_TICKS) % 4;
+            frame = FRAME_LEFT_WALK_BASE + phase;
+        } else {
+            frame = FRAME_LEFT_STAND;
+        }
+    } else {
+        // On rope / facing away – use frame 4 (optional)
+        frame = 4;
+    }
+
+    const sx = frame * HERO_FRAME_W;
+    const dx = viewportX * TILE_WIDTH;
+    const dy = HERO_BASE_Y;
+
+    ctx.drawImage(heroSprite, 
+        sx, // source x
+        0,  // source y
+        HERO_FRAME_W, // source width
+        HERO_FRAME_H, // source height
+        dx, // dest x
+        dy, // dest y
+        HERO_FRAME_W, // dest width
+        HERO_FRAME_H  // dest height
+    );
 }
 
 // ─── rAF game loop ────────────────────────────────────────────────────────────
@@ -740,6 +822,7 @@ function draw() {
     drawTownSidewalk2();
 
     if (drawTownTiles()) {
+        drawHero();
         drawLifeBar();
         let placeName = getTownName?.() ?? 'unknown';
         updateElementText('currentMapName', townEntryRan ? placeName : '');
