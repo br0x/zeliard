@@ -19,11 +19,16 @@ const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const USE_DUNGEON_RENDERER = false;
+const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 const TOWN_TILE_SHEET_PATH = 'assets/images/cpat/cmap_x24.png';
-const TOWN_BACKGROUND_PATH = 'assets/images/ympd/ympd1.png';
-const TOWN_SIDEWALK1_PATH = 'assets/images/ympd/ympd2.png';
-const TOWN_SIDEWALK2_PATH = 'assets/images/ympd/ympd3.png';
+const TOWN_BACKGROUND_YMPD_PATH = 'assets/images/ympd/ympd1.png';
+const TOWN_SIDEWALK1_YMPD_PATH = 'assets/images/ympd/ympd2.png';
+const TOWN_SIDEWALK2_YMPD_PATH = 'assets/images/ympd/ympd3.png';
+const TOWN_BACKGROUND_CKPD_PATH = 'assets/images/ckpd/ckpd1.png';
+const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
+const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
+const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
@@ -34,17 +39,33 @@ const TOWN_VISIBLE_COL_OFFSET = 4;
 const TOWN_ANIMATED_TILES = [2, 3, 4, 5];
 const TOWN_ANIMATION_FULL_TICKS = 24;
 const TOWN_BACKGROUND_ROWS = 11;
+const PLACE_MAP_ID = 0xC4;
+const TOWN_MDTS = [
+    'game/0/cmap.mdt',
+    'game/0/mrmp.mdt',
+    'game/0/stmp.mdt',
+    'game/0/bsmp.mdt',
+    'game/0/hlmp.mdt',
+    'game/0/tmmp.mdt',
+    'game/0/drmp.mdt',
+    'game/0/lmmp.mdt',
+    'game/0/prmp.mdt',
+    'game/0/esmp.mdt',
+];
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
 let gameStarted  = false;
 
 let initWasm;
+let loadSaveState;
 let loadMdt;
 let getCavernMdtHeader;
 let getCavernName;
 let getTownMdtHeader;
 let getTownName;
+let getTownMusicTrack;
+let getTownBackgroundType;
 let getProximityMap;
 let inputInit;
 let inputUpdate;
@@ -73,11 +94,15 @@ let townUpdate;
 let townFullTick;
 let hasWasmExport;
 
+let restoreName = null;
 let RENDER_CONFIG;
 let renderDungeonObjects;
 let townEntryRan = false;
+let townBackgroundType = null;
 let townBackground = null;
 let townBackgroundReady = false;
+let townBackground0 = null;
+let townBackground0Ready = false;
 let townTileSheet = null;
 let townTileSheetReady = false;
 let townSidewalk1OffsetX = 0;
@@ -97,8 +122,25 @@ function loadTownBackground() {
             townBackgroundReady = true;
             resolve(img);
         };
-        img.onerror = () => reject(new Error(`Failed to load ${TOWN_BACKGROUND_PATH}`));
-        img.src = TOWN_BACKGROUND_PATH;
+        const path = !townBackgroundType ? TOWN_BACKGROUND_YMPD_PATH : TOWN_BACKGROUND_CKPD_PATH;
+        img.onerror = () => reject(new Error(`Failed to load ${path}`));
+        img.src = path;
+    });
+}
+
+function loadTownBackground0() {
+    if (!townBackgroundType) return Promise.resolve(null);
+    if (townBackground0Ready) return Promise.resolve(townBackground0);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            townBackground0 = img;
+            townBackground0Ready = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${TOWN_BACKGROUND0_CKPD_PATH}`));
+        img.src = TOWN_BACKGROUND0_CKPD_PATH;
     });
 }
 
@@ -112,8 +154,9 @@ function loadTownSidewalk1() {
             townSidewalk1Ready = true;
             resolve(img);
         };
-        img.onerror = () => reject(new Error(`Failed to load ${TOWN_SIDEWALK1_PATH}`));
-        img.src = TOWN_SIDEWALK1_PATH;
+        const path = !townBackgroundType ? TOWN_SIDEWALK1_YMPD_PATH : TOWN_SIDEWALK1_CKPD_PATH;
+        img.onerror = () => reject(new Error(`Failed to load ${path}`));
+        img.src = path;
     });
 }
 
@@ -127,8 +170,9 @@ function loadTownSidewalk2() {
             townSidewalk2Ready = true;
             resolve(img);
         };
-        img.onerror = () => reject(new Error(`Failed to load ${TOWN_SIDEWALK2_PATH}`));
-        img.src = TOWN_SIDEWALK2_PATH;
+        const path = !townBackgroundType ? TOWN_SIDEWALK2_YMPD_PATH : TOWN_SIDEWALK2_CKPD_PATH;
+        img.onerror = () => reject(new Error(`Failed to load ${path}`));
+        img.src = path;
     });
 }
 
@@ -152,11 +196,14 @@ async function loadWasmEngine() {
 
     ({
         initWasm,
+        loadSaveState,
         loadMdt,
         getCavernMdtHeader,
         getCavernName,
         getTownMdtHeader,
         getTownName,
+        getTownMusicTrack,
+        getTownBackgroundType,
         getProximityMap,
         inputInit,
         inputUpdate,
@@ -177,7 +224,7 @@ async function loadWasmEngine() {
         getHeroPosition,
         getTownHeroPosition,
         inputGetDebugCounter,
-        getWasmMemory,         // NEW: exposed from zeliard-wasm.js
+        getWasmMemory,
         townInit,
         townSetReturnBeforeMainLoop,
         townEntryDisablingEdgeScroll,
@@ -470,10 +517,6 @@ async function startGame() {
 
         await loadWasmEngine();
         await initWasm();
-        await loadTownBackground();
-        await loadTownSidewalk1();
-        await loadTownSidewalk2();
-        await loadTownTileSheet();
 
         // Wire WASM memory into sound driver so poll reads 0xFF75 directly
         if (getWasmMemory) {
@@ -484,14 +527,39 @@ async function startGame() {
         townInit?.();
         inputInit?.();
 
+        // restart/restore: Load saved game data
+        let saveState = null;
+        if (!restoreName) {
+            // restart 
+            const resp = await fetch(STDPLY_PATH);
+            if (!resp.ok) {
+                throw new Error(`Failed to load ${STDPLY_PATH}: ${resp.status}`);
+            }
+            saveState = new Uint8Array(await resp.arrayBuffer());
+        } else {
+            // restore, for now - default slot
+            saveState = loadGame();
+        }
+        loadSaveState(saveState);
+        // get mdt from saveState
+        const placeId = saveState[PLACE_MAP_ID] & 0x7f;
+        const mdtPath = TOWN_MDTS[placeId];
+
         // Load starting town MDT at seg0:0xC000.
-        const response = await fetch(START_TOWN_MDT_PATH);
+        const response = await fetch(mdtPath);
         if (!response.ok) {
-            throw new Error(`Failed to load ${START_TOWN_MDT_PATH}: ${response.status}`);
+            throw new Error(`Failed to load ${mdtPath}: ${response.status}`);
         }
         mdtData = new Uint8Array(await response.arrayBuffer());
         loadMdt(mdtData);
         mdtHeader = getTownMdtHeader?.();
+
+        townBackgroundType = getTownBackgroundType();
+        await loadTownBackground();
+        await loadTownBackground0();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
+        await loadTownTileSheet();
 
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
@@ -505,7 +573,7 @@ async function startGame() {
         }
 
         // ── Load matching music for this map ──────────────────────────────────
-        const trackId = resolveMusicTrack(mdtHeader);
+        const trackId = resolveTownMusicTrack(getTownMusicTrack());
         if (trackId) setCurrentMusicTrack(trackId);
 
         const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
@@ -527,14 +595,10 @@ async function startGame() {
 /**
  * Resolve which music track to play based on the MDT header.
  * Extend this as you map more MDT type bytes to filenames.
- * @param {object} header  — result of getCavernMdtHeader()
+ * @param {number} type  — result of getTownMusicTrack()
  * @returns {string|null}
  */
-function resolveMusicTrack(header) {
-    if (!header) return null;
-    // Example: MDT type byte lives in header.type or header.flags
-    // Adjust to your actual getCavernMdtHeader() shape.
-    const type = header.type ?? 0;
+function resolveTownMusicTrack(type) {
     const map  = { 0: 'mgt1', 1: 'ugm1', 2: 'mgt2', 3: 'ugm2' };
     return map[type] ?? 'mgt1';
 }
@@ -555,6 +619,12 @@ function getAnimatedTownTileId(tileId) {
 function drawTownBackground() {
     if (!townBackgroundReady) return false;
     ctx.drawImage(townBackground, 0, 0);
+    return true;
+}
+
+function drawTownBackground0() {
+    if (!townBackgroundType || !townBackground0Ready) return false;
+    ctx.drawImage(townBackground0, 0, 0);
     return true;
 }
 
@@ -763,17 +833,50 @@ function setLife(currentLife, maxLife) {
     }
 }
 
-// ─── Save / load (unchanged) ──────────────────────────────────────────────────
-function saveGame() {
-    localStorage.setItem('zeliard_save_01', JSON.stringify({ player }));
-    console.log('Game saved.');
+/**
+ * Save 256 bytes to localStorage.
+ * @param {Uint8Array} saveData - exactly 256 bytes
+ * @param {string} [saveKey='zeliard_save_01']
+ */
+function saveGame(saveData, saveKey = 'zeliard_save_01') {
+  if (saveData.length !== 256) {
+    console.error(`saveGame: expected 256 bytes, got ${saveData.length}`);
+    return;
+  }
+  // Build a binary string from the bytes, then base64‑encode
+  const binary = String.fromCharCode(...saveData);
+  const base64 = btoa(binary);
+  localStorage.setItem(saveKey, base64);
+  console.log('Game saved (base64,', base64.length, 'chars).');
 }
 
-function loadGame() {
-    const data = localStorage.getItem('zeliard_save_01');
-    if (!data) { console.log('No save file.'); return; }
-    Object.assign(player, JSON.parse(data).player);
+/**
+ * Load 256 bytes from localStorage.
+ * @param {string} [saveKey='zeliard_save_01']
+ * @returns {Uint8Array|null}
+ */
+function loadGame(saveKey = 'zeliard_save_01') {
+  const base64 = localStorage.getItem(saveKey);
+  if (!base64) {
+    console.log('No save file.');
+    return null;
+  }
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    if (bytes.length !== 256) {
+      console.warn(`loadGame: retrieved ${bytes.length} bytes, expected 256 – data may be corrupted.`);
+      return null;
+    }
     console.log('Game loaded.');
+    return bytes;
+  } catch (err) {
+    console.error('loadGame: failed to decode save data', err);
+    return null;
+  }
 }
 
 function exportSave() {

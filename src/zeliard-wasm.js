@@ -223,6 +223,22 @@ export function loadMdt(mdtData) {
     return 0;
 }
 
+export function loadSaveState(saveState) {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    const saveStart = gMemoryBase + MEM_SAVE_DATA;
+
+    // Copy saveState to WASM memory at 0
+    for (let i = 0; i < saveState.length; i++) {
+        wasmMemory[saveStart + i] = saveState[i];
+    }
+
+    return 0;
+}
+
 /**
  * Initialize cavern with spawn point
  * @param {number} spawnX - Hero spawn X coordinate
@@ -360,6 +376,55 @@ export function getTownName() {
     return name;
 }
 
+/**
+ * Get town music track id from loaded MDT
+ * @returns {number} trackId
+ *
+ * Header offsets are relative to MDT base (0xc000).
+ * First word of header points to town_descriptor, and track id is in bits 5..1 of byte 0.
+ */
+export function getTownMusicTrack() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return '';
+    }
+
+    const header = getTownMdtHeader();
+    if (!header || header.town_descriptor_offset === 0) {
+        return '';
+    }
+
+    // Header offset is relative to 0xc000, so actual WASM memory address is:
+    // gMemoryBase + header.town_descriptor_offset
+    const musicIdOffset = gMemoryBase + header.town_descriptor_offset + 0;
+
+    return (wasmMemory[musicIdOffset] >> 1) & 0x3;
+}
+
+/**
+ * Get town background type from loaded MDT
+ * @returns {number} 00 -> ympd, 01 -> ckpd
+ *
+ * Header offsets are relative to MDT base (0xc000).
+ * First word of header points to town_descriptor, and background type is in byte 3.
+ */
+export function getTownBackgroundType() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return '';
+    }
+
+    const header = getTownMdtHeader();
+    if (!header || header.town_descriptor_offset === 0) {
+        return '';
+    }
+
+    // Header offset is relative to 0xc000, so actual WASM memory address is:
+    // gMemoryBase + header.town_descriptor_offset
+    const backgroundTypeOffset = gMemoryBase + header.town_descriptor_offset + 3;
+
+    return wasmMemory[backgroundTypeOffset];
+}
 
 /**
  * Get monster buffer (0xE900)
