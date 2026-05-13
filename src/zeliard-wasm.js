@@ -28,6 +28,20 @@ const INPUT_FLAGS = {
     ESC: 0x80
 };
 
+function createImportObject() {
+    // Provide a stub for any missing import so the debug module loads without error
+    const handler = {
+        get(target, prop) {
+            if (!(prop in target)) {
+                // Return a no-op function for any missing function import
+                target[prop] = () => {};
+            }
+            return target[prop];
+        }
+    };
+    return new Proxy({}, handler);
+}
+
 /**
  * Initialize the WASM module
  * Call this once at game startup
@@ -45,7 +59,10 @@ export async function initWasm() {
         }
 
         const wasmBytes = await response.arrayBuffer();
-        const wasmModule = await WebAssembly.instantiate(wasmBytes);
+        const importObject = {
+            env: createImportObject()
+        };
+        const wasmModule = await WebAssembly.instantiate(wasmBytes, importObject);
 
         wasmInstance = wasmModule.instance;
         wasmExports = wasmInstance.exports;

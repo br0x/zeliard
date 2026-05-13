@@ -7,7 +7,7 @@ EM_CACHE_DIR = $(CURDIR)/$(BUILDDIR)/.emcache
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 
-CFLAGS = -O2 -Wall -Wextra
+CFLAGS = -O0 -Wall -Wextra -g -gsource-map --source-map-base "http://localhost:8000/" -s ASSERTIONS=1 -s SAFE_HEAP=1
 
 EMFLAGS = \
   -s WASM=1 \
