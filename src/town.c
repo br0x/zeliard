@@ -86,7 +86,7 @@
 #define SEG1_16(off) (*(uint16_t*)&g_mem[SEG1_BASE + ((off) & 0xFFFF)])
 
 /* =========================================================================
- * Shared / HW-register addresses (seg0:0xFF00–0xFFFF)
+ * Shared addresses (seg0:0xFF00–0xFFFF)
  * ========================================================================= */
 #define ADDR_VIDEO_DRV_ID          0xFF14
 #define ADDR_ALT_SPACE             0xFF16
@@ -127,62 +127,62 @@
 #define ADDR_BYTE4                 0x0004
 #define ADDR_SPOKE_TO_KING         0x0005
 #define ADDR_ENTERED_CAVERN        0x0006
-#define ADDR_CALIENTE_ITEMS        0x0050  /* example — patch to real offset */
-#define ADDR_FALTER_ITEMS          0x0060  /* example — patch to real offset */
-#define ADDR_ELF_CREST             0x0070  /* example — patch to real offset */
+#define ADDR_CALIENTE_ITEMS        0x0034
+#define ADDR_FALTER_ITEMS          0x0045
+#define ADDR_ELF_CREST             0x009a
 
 /* Hero stats */
-#define ADDR_HERO_GOLD_LO          0x0028  /* word */
-#define ADDR_HERO_GOLD_HI          0x002A
-#define ADDR_HERO_ALMAS            0x002C  /* word */
-#define ADDR_HERO_LIFE             0x0020
-#define ADDR_HERO_MAX_LIFE         0x0022
-#define ADDR_HERO_LEVEL            0x0024
-#define ADDR_SHIELD_TYPE           0x0030
-#define ADDR_CURRENT_MAGIC_SPELL   0x0032
-#define ADDR_INVINCIBILITY_FLAG    0x0034
-#define ADDR_IS_DEATH_PROCESSED    0x0036
-#define ADDR_FACING_DIRECTION      0x0038  /* bit0: 0=right,1=left */
-#define ADDR_PLACE_MAP_ID          0x003A
+#define ADDR_HERO_GOLD_LO          0x0086  /* word */
+#define ADDR_HERO_GOLD_HI          0x0088
+#define ADDR_HERO_ALMAS            0x008b  /* word */
+#define ADDR_HERO_LEVEL            0x008d
+#define ADDR_HERO_XP               0x008e  /* word */
+#define ADDR_HERO_HP               0x0090  /* word */
+#define ADDR_SHIELD_TYPE           0x0093
+#define ADDR_CURRENT_MAGIC_SPELL   0x009d
+#define ADDR_INVINCIBILITY_FLAG    0x00e8
+#define ADDR_IS_DEATH_PROCESSED    0x0049
+#define ADDR_FACING_DIRECTION      0x00c2  /* bit0: 0=right, 1=left; bit1: 0=Down, 1=Up */
+#define ADDR_PLACE_MAP_ID          0x00c4
 
 /* Town-local variables (live in seg0:0x6000 data region).
  * In WASM we put them in a dedicated struct instead of overlaying the
  * code region, keeping the original offsets for reference only.        */
-#define ADDR_TOWN_TRANSITION_FLAG  0x7B1C
-#define ADDR_DISABLE_EDGE_SCROLL   0x7B1D
-#define ADDR_EDGE_SCROLL_ENABLED   0x7B1E
-#define ADDR_TOWN_HAS_MIDDLE_LAYER 0x7B1F
-#define ADDR_PAT_ID                0x7B20
-#define ADDR_EDGE_SCROLL_HANDLER   0x7B21  /* word — not used directly in C */
-#define ADDR_HERO_X_WORD           0x7B23  /* word: absolute hero x */
-#define ADDR_HERO_MOVED_FLAG       0x7B25
-#define ADDR_DIALOG_RECT_POS       0x7B26  /* word */
-#define ADDR_DIALOG_CURSOR_POS     0x7B28  /* word */
-#define ADDR_DIALOG_SRC_RECT       0x7B2A  /* word */
-#define ADDR_DIALOG_PAGE_COUNT     0x7B2C
-#define ADDR_DIALOG_CHAR_X         0x7B2D
-#define ADDR_DIALOG_CHAR_Y         0x7B2E
-#define ADDR_DIALOG_LINE_START_X   0x7B2F
-#define ADDR_DIALOG_CHARS_ON_LINE  0x7B30
-#define ADDR_DIALOG_LINES_RENDERED 0x7B31
-#define ADDR_DIALOG_TEXT_PTR       0x7B32  /* word */
-#define ADDR_DIALOG_RECT_END       0x7B34  /* word */
-#define ADDR_DIALOG_EXIT_FLAG      0x7B36
-#define ADDR_MENU_HIGHLIGHT_TOGGLE 0x7B37
-#define ADDR_SAVE_NAME_COUNT       0x7B38
-#define ADDR_SAVE_SLOT_HAS_NAME    0x7B39
-#define ADDR_SAVE_NAME_RECT_POS    0x7B3A  /* word */
-#define ADDR_SAVE_NAME_RECT_Y      0x7B3C
-#define ADDR_SAVE_CURSOR_ROW       0x7B3D
-#define ADDR_SAVE_IS_RESTART       0x7B3E
-#define ADDR_SAVE_BUFFER_PADDING   0x7B3F
-#define ADDR_SAVE_NAME_BUFFER      0x7B41  /* 8 chars + terminator */
-#define ADDR_SAVE_NAME_TERMINATOR  0x7B4A
-#define ADDR_HERO_2X3_TILE_BUF     0x7B50  /* 6 bytes: 2 cols × 3 rows */
-#define ADDR_HERO_1X3_TILE_BUF     0x7B56  /* 3 bytes */
-#define ADDR_HERO_ANIMATION_PHASE  0x7B5A
-#define ADDR_BYTE_9F               0x7B5B
-#define ADDR_BYTE_E4               0x7B5C
+#define ADDR_TOWN_TRANSITION_FLAG  0x7C42
+#define ADDR_DISABLE_EDGE_SCROLL   0x7C43
+#define ADDR_EDGE_SCROLL_ENABLED   0x7C44
+#define ADDR_TOWN_HAS_MIDDLE_LAYER 0x7C45
+#define ADDR_PAT_ID                0x7C46
+#define ADDR_EDGE_SCROLL_HANDLER   0x7C47  /* word — not used directly in C */
+#define ADDR_HERO_X_WORD           0x7C49  /* word: absolute hero x */
+#define ADDR_HERO_MOVED_FLAG       0x7C4B
+#define ADDR_DIALOG_RECT_POS       0x7C4C  /* word */
+#define ADDR_DIALOG_CURSOR_POS     0x7C4E  /* word */
+#define ADDR_DIALOG_SRC_RECT       0x7C50  /* word */
+#define ADDR_DIALOG_PAGE_COUNT     0x7C52
+#define ADDR_DIALOG_CHAR_X         0x7C53
+#define ADDR_DIALOG_CHAR_Y         0x7C54
+#define ADDR_DIALOG_LINE_START_X   0x7C55
+#define ADDR_DIALOG_CHARS_ON_LINE  0x7C56
+#define ADDR_DIALOG_LINES_RENDERED 0x7C57
+#define ADDR_DIALOG_TEXT_PTR       0x7C58  /* word */
+#define ADDR_DIALOG_RECT_END       0x7C5A  /* word */
+#define ADDR_DIALOG_EXIT_FLAG      0x7C5C
+#define ADDR_MENU_HIGHLIGHT_TOGGLE 0x7C5D
+#define ADDR_SAVE_NAME_COUNT       0x7C5E
+#define ADDR_SAVE_SLOT_HAS_NAME    0x7C5F
+#define ADDR_SAVE_NAME_RECT_POS    0x7C60  /* word */
+#define ADDR_SAVE_NAME_RECT_Y      0x7C62
+#define ADDR_SAVE_CURSOR_ROW       0x7C63
+#define ADDR_SAVE_IS_RESTART       0x7C64
+#define ADDR_SAVE_BUFFER_PADDING   0x7C65
+#define ADDR_SAVE_NAME_BUFFER      0x7C67  /* 7 chars + terminator */
+#define ADDR_SAVE_NAME_TERMINATOR  0x7C6E
+#define ADDR_HERO_2X3_TILE_BUF     0x7C74  /* 6 bytes: 2 cols × 3 rows */
+#define ADDR_HERO_1X3_TILE_BUF     0x7C7A  /* 3 bytes */
+#define ADDR_HERO_ANIMATION_PHASE  0x00e7
+#define ADDR_BYTE_9F               0x009f
+#define ADDR_BYTE_E4               0x00e4
 #define ADDR_SPACEBAR_LATCH_LOCAL  ADDR_SPACEBAR_LATCH
 #define ADDR_ALTKEY_LATCH_LOCAL    ADDR_ALTKEY_LATCH
 
@@ -190,7 +190,7 @@
 #define SEG1_TOWN_MSD_MUSIC        0x3000
 #define SEG1_MMAN_CMAN_GFX         0x4000
 #define SEG1_TMAN_GFX              0x6000
-#define SEG1_SPECIAL_TILE_LIST_PTR 0x0010  /* placeholder — real offset TBD */
+#define SEG1_SPECIAL_TILE_LIST_PTR 0x8002  /* placeholder — real offset TBD */
 
 /* seg0:0xC000 — town descriptor base (MDT loaded here) */
 #define ADDR_TOWN_DESCRIPTOR       0xC000
@@ -208,16 +208,14 @@
 #define ADDR_NPC_HEAD_TILES        0xC01C
 
 /* Hero x in viewport (number of columns from left of 28-col view) */
-#define ADDR_HERO_X_IN_VIEWPORT    0x7B60
+#define ADDR_HERO_X_IN_VIEWPORT    0x0083
 /* Proximity map left column absolute x */
-#define ADDR_PROXIMITY_MAP_LEFT_COL_X 0x7B62  /* word */
+#define ADDR_PROXIMITY_MAP_LEFT_COL_X 0x0080  /* word */
 /* Hero name address used in town_entry */
-#define ADDR_SAGE_BIN_ADDR         0x7B70  /* placeholder */
-#define ADDR_TOWN_INDOORS_BIN_ADDR 0x7B80  /* placeholder */
-#define ADDR_GAME_BIN_ENTRY        0x7B90  /* placeholder */
-#define ADDR_GAME_BIN_ENTRY_PTR    0x7B92  /* word: ptr to game_bin_entry */
-#define ADDR_HERO_IS_LEFT_RUN      0x7B94
-#define ADDR_VIEWPORT_TOP_ROW_Y    0x7B95
+#define ADDR_SAGE_BIN_ADDR         0xa000  /* placeholder */
+#define ADDR_TOWN_INDOORS_BIN_ADDR 0xa000  /* placeholder */
+#define ADDR_GAME_BIN_ENTRY        0xa000  /* placeholder */
+#define ADDR_VIEWPORT_TOP_ROW_Y    0x0082
 
 /* viewport_buffer: seg0:0xE000, 28 columns × 8 rows = 224 bytes */
 #define ADDR_VIEWPORT_BUFFER       0xE000

@@ -50,21 +50,14 @@
             "preLaunchTask": "build-debug"
         },
         {
-            "name": "Debug (WASM in Chrome)",
-            "type": "chrome",
-            "request": "launch",
-            "url": "http://localhost:8000/test-render.html",
-            "webRoot": "${workspaceFolder}",
-            "runtimeArgs": [
-                "--enable-features=SharedArrayBuffer"
-            ]
-        },
-        {
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome against localhost",
             "url": "http://localhost:8000",
-            "webRoot": "${workspaceFolder}"
+            "webRoot": "${workspaceFolder}",
+            "sourceMapPathOverrides": {
+                "../*": "${workspaceFolder}/*"
+            }
         }        
     ]
 }

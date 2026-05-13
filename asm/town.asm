@@ -1521,6 +1521,9 @@ loc_6A26:
 prepare_hero_sprite endp
 
 ; ---------------------------------------------------------------------------
+; 0 1   6 7
+; 2 3   8 9
+; 4 5   A B ... etc
 hero_faced_left db 0, 2, 4, 1, 3, 5    
                 db 6, 8, 0Ah, 7, 9, 0Bh
                 db 0, 0Ch, 0Eh, 1, 0Dh, 0Fh
@@ -1631,7 +1634,7 @@ load_town_background        proc near
                 mov     cl, 11
                 mul     cl
                 mov     si, ax
-                add     si, offset town_bg_load_desc
+                add     si, offset vfs_ympd_bin
                 mov     ax, cs
                 add     ax, 2000h
                 mov     ds:bg_entry_segment, ax   ; seg2
@@ -1643,7 +1646,7 @@ load_town_background        proc near
 load_town_background        endp
 
 ; ---------------------------------------------------------------------------
-town_bg_load_desc  dw 901h
+vfs_ympd_bin       dw 901h
 aYmpdBin           db 'YMPD.BIN',0
                    dw 0A01h
 aCkpdBin           db 'CKPD.BIN',0
@@ -2470,7 +2473,7 @@ loc_702B:
                 mov     ds:proximity_map_left_col_x, ax ; =2d for Malicia entrance
                 mov     byte ptr ds:entered_cavern_first_time, 0FFh
                 call    cs:fade_to_black_dithered_proc ; fade_to_black_dithered
-                mov     bx, offset town_exports ; cs:[bx]=fight.bin prepare_dungeon after res_dispatcher
+                mov     bx, prepare_dungeon_proc ; in fight.bin
                 xor     al, al          ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
                 jmp     cs:res_dispatcher_proc ; res_dispatcher
 
@@ -3430,7 +3433,7 @@ restore_game    proc near               ; restores game from .usr save file
                 int     60h             ; adlib: AX=3 stops a channel (CL=FF: mute)
                 push    cs
                 pop     es
-                mov     si, offset stdply_bin_desc
+                mov     si, offset vfs_stdply_bin
                 mov     al, 6 ; fn6_get_virtual_file_size
                 call    cs:res_dispatcher_proc ; res_dispatcher
                 mov     byte ptr ds:menu_digits_render_flag, 0
@@ -3443,7 +3446,7 @@ restore_game    proc near               ; restores game from .usr save file
                 xor     al, al
                 mov     cx, 8
                 rep stosb
-                mov     si, offset stdply_bin_desc
+                mov     si, offset vfs_stdply_bin
                 jmp     short loc_75F8
 ; ---------------------------------------------------------------------------
 
@@ -3516,11 +3519,11 @@ restore_game    endp
 ; ---------------------------------------------------------------------------
 aUserFileNotFou db 'User File', 0Dh, 'Not Found'
                 db 0FFh
-vfs_game_bin    db 0                    ; GAME.BIN load descriptor
+vfs_game_bin    db 0
                 db    0
 aGameBin        db 'GAME.BIN',0
 game_bin_entry_ptr  dw game_bin_entry               ; entry point of loaded GAME.BIN
-stdply_bin_desc   db 0                    ; STDPLY.BIN load descriptor
+vfs_stdply_bin   db 0                    ; STDPLY.BIN load descriptor
                 db    0
 aStdplyBin      db 'STDPLY.BIN',0
 
@@ -4201,6 +4204,7 @@ loc_7B73:
                 pop     si
                 retn
 ; ---------------------------------------------------------------------------
+; 7B82
 char_x_offset   db 0, 2, 2, 3, 1, 0     ; per-char x offset adjustment before render
                 db 0, 2, 2, 3, 1, 1
                 db 1, 2, 2, 0, 1, 2
@@ -4217,6 +4221,7 @@ char_x_offset   db 0, 2, 2, 3, 1, 0     ; per-char x offset adjustment before re
                 db 1, 1, 0, 0, 0, 1
                 db 1, 0, 0, 0, 1, 1
                 db 1, 2, 0, 3, 1, 0
+; 7BE2
 char_width_table  db 5, 4, 4, 4, 6, 8     ; per-char pixel width after render
                 db 5, 3, 4, 4, 6, 6
                 db 6, 5, 6, 8, 7, 5
@@ -4233,53 +4238,53 @@ char_width_table  db 5, 4, 4, 4, 6, 8     ; per-char pixel width after render
                 db 7, 7, 8, 8, 8, 7
                 db 6, 8, 8, 8, 7, 7
                 db 7, 4, 8, 4, 7, 8
-town_transition_flag db 0
-disable_edge_scroll  db 0
-edge_scroll_enabled  db 0
-town_has_middle_layer db 0
-pat_id          db 0 
-edge_scroll_handler       dw 0 
-hero_x          dw 0 
-hero_moved_flag       db 0 
-dialog_rect_pos       dw 0 
-dialog_cursor_pos       dw 0 
-dialog_src_rect       dw 0 
-dialog_page_count       db 0 
-dialog_char_x       db 0 
-dialog_char_y       db 0 
-dialog_line_start_x       db 0 
-dialog_chars_on_line       db 0 
-dialog_lines_rendered       db 0 
-dialog_text_ptr       dw 0 
-dialog_rect_end       dw 0 
-dialog_exit_flag       db 0 
-menu_highlight_toggle       db 0 
-save_name_count       db 0 
-save_slot_has_name    db 0
-save_name_rect_pos    dw 0
-save_name_rect_y      db 0
-save_cursor_row       db 0 
-save_is_restart       db 0 
-save_buffer_padding db 0 
-                db    0
-save_name_buffer       db 0   
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-save_name_terminator       db 0   
+town_transition_flag db 0           ; 7C42
+disable_edge_scroll  db 0           ; 7C43
+edge_scroll_enabled  db 0           ; 7C44
+town_has_middle_layer db 0          ; 7C45
+pat_id               db 0           ; 7C46
+edge_scroll_handler  dw 0           ; 7C47
+hero_x               dw 0           ; 7C49
+hero_moved_flag      db 0           ; 7C4B
+dialog_rect_pos      dw 0           ; 7C4C
+dialog_cursor_pos    dw 0           ; 7C4E
+dialog_src_rect      dw 0           ; 7C50
+dialog_page_count    db 0           ; 7C52
+dialog_char_x        db 0           ; 7C53
+dialog_char_y        db 0           ; 7C54
+dialog_line_start_x  db 0           ; 7C55
+dialog_chars_on_line db 0           ; 7C56
+dialog_lines_rendered db 0          ; 7C57
+dialog_text_ptr       dw 0          ; 7C58
+dialog_rect_end       dw 0          ; 7C5A
+dialog_exit_flag      db 0          ; 7C5C
+menu_highlight_toggle db 0          ; 7C5D
+save_name_count       db 0          ; 7C5E
+save_slot_has_name    db 0          ; 7C5F
+save_name_rect_pos    dw 0          ; 7C60
+save_name_rect_y      db 0          ; 7C62
+save_cursor_row       db 0          ; 7C63
+save_is_restart       db 0          ; 7C64
+save_buffer_padding   db 0          ; 7C65
+                      db    0
+save_name_buffer      db 0          ; 7C67
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
-hero_2x3_tile_buf dw 0                  ; 2 columns × 3 rows hero tile buffer
+                db    0
+save_name_terminator       db 0     ; 7C6E
+                db    0
+                db    0
+                db    0
+                db    0
+                db    0
+hero_2x3_tile_buf dw 0              ; 7C74; 2 columns × 3 rows hero tile buffer
                 db 0
                 dw 0
                 db 0
-hero_1x3_tile_buf db 0             
+hero_1x3_tile_buf db 0              ; 7C7A
                 db 0
                 db 0
 
