@@ -861,13 +861,24 @@ export function inputSetKeys(keys) {
         console.error('WASM not initialized');
         return;
     }
+    let bitmask = INPUT_FLAGS.NONE;
 
-    if (wasmExports.input_set_keys) {
-        wasmExports.input_set_keys(keys);
-    } else if (wasmExports.wasm_town_set_input_keys) {
-        wasmExports.wasm_town_set_input_keys(keys);
+    if (keys.ArrowUp) bitmask |= INPUT_FLAGS.UP;
+    if (keys.ArrowDown) bitmask |= INPUT_FLAGS.DOWN;
+    if (keys.ArrowLeft) bitmask |= INPUT_FLAGS.LEFT;
+    if (keys.ArrowRight) bitmask |= INPUT_FLAGS.RIGHT;
+    if (keys.Enter) bitmask |= INPUT_FLAGS.ENTER;
+    if (keys.Space) bitmask |= INPUT_FLAGS.SPACE;
+    if (keys.Alt) bitmask |= INPUT_FLAGS.ALT;
+    if (keys.Escape) bitmask |= INPUT_FLAGS.ESC;
+
+    // if (wasmExports.input_set_keys) {
+    //     wasmExports.input_set_keys(bitmask);
+    // } else 
+    if (wasmExports.wasm_town_set_input_keys) {
+        wasmExports.wasm_town_set_input_keys(bitmask);
     } else {
-        writeTownInputBytes(keys);
+        // writeTownInputBytes(bitmask);
     }
 }
 
@@ -998,27 +1009,6 @@ export function getInputBuffer() {
     }
 
     return new Uint8Array(wasmMemory.buffer, gMemoryBase + MEM_INPUT_BUFFER, 256);
-}
-
-/**
- * Build input bitmask from JavaScript key state
- * Helper function to convert JS keys to WASM input flags
- * @param {object} keys - Object with boolean values for each key
- * @returns {number} Bitmask of pressed keys
- */
-export function buildInputBitmask(keys) {
-    let bitmask = INPUT_FLAGS.NONE;
-
-    if (keys.ArrowUp) bitmask |= INPUT_FLAGS.UP;
-    if (keys.ArrowDown) bitmask |= INPUT_FLAGS.DOWN;
-    if (keys.ArrowLeft) bitmask |= INPUT_FLAGS.LEFT;
-    if (keys.ArrowRight) bitmask |= INPUT_FLAGS.RIGHT;
-    if (keys.Enter) bitmask |= INPUT_FLAGS.ENTER;
-    if (keys.Space) bitmask |= INPUT_FLAGS.SPACE;
-    if (keys.Alt) bitmask |= INPUT_FLAGS.ALT;
-    if (keys.Escape) bitmask |= INPUT_FLAGS.ESC;
-
-    return bitmask;
 }
 
 /**

@@ -566,7 +566,7 @@ static void town_main_loop_step(void)
 
     uint8_t dirs = INPUT_DIRS;
 
-    if (dirs & 0x01) {
+    if (dirs == 0x01) { // up
         /* Up pressed → enter door */
         HERO_ANIM |= 1;
         /* Check for door interaction (jump to loc_6E29 logic) */

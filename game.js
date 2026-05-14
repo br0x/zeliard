@@ -109,7 +109,6 @@ let getProximityMap;
 let inputInit;
 let inputUpdate;
 let inputSetKeys;
-let buildInputBitmask;
 let heroMovementInit;
 let townToDungeonTransition;
 let heroMovementUpdate;
@@ -269,7 +268,6 @@ async function loadWasmEngine() {
         inputInit,
         inputUpdate,
         inputSetKeys,
-        buildInputBitmask,
         heroMovementInit,
         townToDungeonTransition,
         heroMovementUpdate,
@@ -473,9 +471,10 @@ function onFullTick() {
 function onSlowTick() {
     if (!engineReady) return;
 
-    // Update input edge-detection in WASM
-    // inputUpdate?.();
-    // townUpdate?.();
+    // --- Apply current key state to the engine ONCE per input tick ---
+    if (engineReady) {
+        inputSetKeys(keys);
+    }
 
     // Poll scroll request flag
     const scrollFlag = readMemory(0xfff0, 1)[0];
@@ -523,14 +522,6 @@ window.addEventListener('keydown', e => {
     if (e.code === 'ArrowDown')                   keys.ArrowDown = true;
     if (e.code === 'ArrowLeft')                   keys.ArrowLeft = true;
     if (e.code === 'ArrowRight')                  keys.ArrowRight = true;
-
-    if (engineReady) {
-        const bitmask      = buildInputBitmask(keys);
-        const counterBefore = inputGetDebugCounter();
-        inputSetKeys(bitmask);
-        const counterAfter  = inputGetDebugCounter();
-        console.log('Keydown:', e.code, '| Counter:', counterBefore, '->', counterAfter);
-    }
 });
 
 window.addEventListener('keyup', e => {
@@ -542,11 +533,6 @@ window.addEventListener('keyup', e => {
     if (e.code === 'ArrowDown')                   keys.ArrowDown = false;
     if (e.code === 'ArrowLeft')                   keys.ArrowLeft = false;
     if (e.code === 'ArrowRight')                  keys.ArrowRight = false;
-
-    if (engineReady) {
-        const bitmask = buildInputBitmask(keys);
-        inputSetKeys(bitmask);
-    }
 });
 
 // ─── Intro screen / game start ────────────────────────────────────────────────
@@ -835,30 +821,24 @@ function drawHero() {
     readMemory(0xFF33, 1)[0]
     const heroAnim = readMemory(0x00E7, 1)[0];        // ADDR_HERO_ANIMATION_PHASE
     const facing   = readMemory(0x00C2, 1)[0] & 1;    // ADDR_FACING_DIRECTION bit0: 0=right, 1=left
-    const movedFlag = readMemory(0x7C4B, 1)[0];       // ADDR_HERO_MOVED_FLAG (0xFF = moved this frame)
+    // const movedFlag = readMemory(0x7C4B, 1)[0];       // ADDR_HERO_MOVED_FLAG (0xFF = moved this frame)
 
-    // Determine if hero is walking (movedFlag == 0xFF)
-    const isMoving = (movedFlag === 0xFF);
+    // // Determine if hero is walking (movedFlag == 0xFF)
+    // const isMoving = (movedFlag === 0xFF);
 
-    // Phase is the low 2 bits of heroAnim (0-3)
-    const phase = heroAnim & 3;
+    // Check actual key state – use the global `keys` object updated by keydown/keyup
+    const moving = keys.ArrowLeft || keys.ArrowRight;
 
-    let frame = 0;
-
-    if (!isMoving) {
-        // Standing frames
-        if (facing === 0) {
-            frame = FRAME_RIGHT_STAND;   // 11
-        } else {
-            frame = FRAME_LEFT_STAND;    // 10
-        }
+    let frame;
+    if (!moving) {
+        // Standing frame – ignore HERO_ANIM completely
+        frame = (facing === 0) ? FRAME_RIGHT_STAND : FRAME_LEFT_STAND;
     } else {
-        // Walking frames
+        // Walking frame – use the phase from HERO_ANIM (0-3)
+        const phase = heroAnim & 3;
         if (facing === 0) {
-            // Right walk frames: 5,6,7,8
             frame = FRAME_RIGHT_WALK_BASE + phase;
         } else {
-            // Left walk frames: 0,1,2,3
             frame = FRAME_LEFT_WALK_BASE + phase;
         }
     }
