@@ -575,23 +575,23 @@ export function getHeroPosition() {
  * @returns {object|null} Town hero position data.
  */
 export function getTownHeroPosition() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return null;
-    }
+    if (!wasmMemory) return null;
 
     const readU8 = (addr) => wasmMemory[addr];
     const readU16 = (addr) => wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
-    const heroXInViewport = readU8(gMemoryBase + 0x7B60);
-    const proximityLeft = readU16(gMemoryBase + 0x7B62);
+
+    const heroXInViewport = readU8(gMemoryBase + 0x0083);
+    const proximityLeft   = readU16(gMemoryBase + 0x0080);
+    const heroXWord       = readU16(gMemoryBase + 0x7C49);
+    const viewportTopRowY = readU8(gMemoryBase + 0x0082);
 
     return {
-        x: proximityLeft + heroXInViewport + 4, // absolute x within town map
-        y: readU8(gMemoryBase + 0xFF35), // hero_y_absolute
+        x: proximityLeft + heroXInViewport + 4,
+        y: readU8(gMemoryBase + 0xFF35),           // hero_y_absolute
         hero_x_in_viewport: heroXInViewport,
         proximity_left_col_x: proximityLeft,
-        hero_x_word: readU16(gMemoryBase + 0x7B23),
-        viewport_top_row_y: readU8(gMemoryBase + 0x7B95)
+        hero_x_word: heroXWord,
+        viewport_top_row_y: viewportTopRowY
     };
 }
 
