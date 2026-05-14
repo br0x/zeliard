@@ -71,7 +71,7 @@ skip_til_ff:
                 lodsb
                 mov     ds:town_has_middle_layer, al
                 lodsb
-                mov     ds:pat_id, al
+                mov     ds:pat_id, al    ; cpat/mpat/dpat
                 mov     ds:edge_scroll_enabled, 0
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jnz     short loc_60B7
@@ -159,11 +159,11 @@ loc_613F:
                 mov     si, ds:town_descriptor_addr
                 inc     si
 skip_until_ff:
-                lodsb
+                lodsb      ; background type ympd/ckpd
                 inc     al
                 jnz     short skip_until_ff
                 inc     si
-                lodsb
+                lodsb      ; pat_id cpat/mpat/dpat
                 mov     ds:pat_id, al
                 mov     si, ds:town_name_rendering_info
                 call    cs:Render_Pascal_String_1_proc

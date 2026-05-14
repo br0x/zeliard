@@ -26,7 +26,21 @@ const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const USE_DUNGEON_RENDERER = false;
 const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
-const TOWN_TILE_SHEET_PATH = 'assets/images/cpat/cmap_x24.png';
+const PATTERN_ASSETS = {
+    0: { // CPAT
+        imagePath: 'assets/images/cpat/cmap_x24.png',
+        specialTiles: [0x3C, 0x3D]   // pillars (screen edges)
+    },
+    1: { // MPAT
+        imagePath: 'assets/images/mpat/mmap_x24.png',
+        specialTiles: [0x96, 0x97]   // pillars (screen edges)
+    },
+    2: { // DPAT
+        imagePath: 'assets/images/dpat/dmap_x24.png',
+        specialTiles: [0xbf]
+    }
+};
+
 const TOWN_BACKGROUND_YMPD_PATH = 'assets/images/ympd/ympd1.png';
 const TOWN_SIDEWALK1_YMPD_PATH = 'assets/images/ympd/ympd2.png';
 const TOWN_SIDEWALK2_YMPD_PATH = 'assets/images/ympd/ympd3.png';
@@ -89,6 +103,7 @@ let getTownMdtHeader;
 let getTownName;
 let getTownMusicTrack;
 let getTownBackgroundType;
+let getTownPatId;
 let getProximityMap;
 let inputInit;
 let inputUpdate;
@@ -109,19 +124,21 @@ let updateBossBattle;
 let getHeroPosition;
 let getTownHeroPosition;
 let inputGetDebugCounter;
-let getWasmMemory;  // NEW: returns Uint8Array of WASM linear memory
+let getWasmMemory;
 let townInit;
 let townSetReturnBeforeMainLoop;
 let townEntryDisablingEdgeScroll;
 let townUpdate;
 let townFullTick;
 let hasWasmExport;
+let setSpecialTileList;
 
 let restoreName = null;
 let RENDER_CONFIG;
 let renderDungeonObjects;
 let townEntryRan = false;
 let townBackgroundType = null;
+let townPatId = null;
 let townBackground = null;
 let townBackgroundReady = false;
 let townBackground0 = null;
@@ -201,7 +218,7 @@ function loadTownSidewalk2() {
     });
 }
 
-function loadTownTileSheet() {
+function loadTownTileSheet(tileSheetPath) {
     if (townTileSheetReady) return Promise.resolve(townTileSheet);
 
     return new Promise((resolve, reject) => {
@@ -211,8 +228,8 @@ function loadTownTileSheet() {
             townTileSheetReady = true;
             resolve(img);
         };
-        img.onerror = () => reject(new Error(`Failed to load ${TOWN_TILE_SHEET_PATH}`));
-        img.src = TOWN_TILE_SHEET_PATH;
+        img.onerror = () => reject(new Error(`Failed to load ${tileSheetPath}`));
+        img.src = tileSheetPath;
     });
 }
 
@@ -243,6 +260,7 @@ async function loadWasmEngine() {
         getTownName,
         getTownMusicTrack,
         getTownBackgroundType,
+        getTownPatId,
         getProximityMap,
         inputInit,
         inputUpdate,
@@ -270,6 +288,7 @@ async function loadWasmEngine() {
         townUpdate,
         townFullTick,
         hasWasmExport,
+        setSpecialTileList,
     } = wasmBridge);
 
     if (!USE_DUNGEON_RENDERER) {
@@ -593,7 +612,14 @@ async function startGame() {
         await loadTownBackground0();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
-        await loadTownTileSheet();
+        townPatId = getTownPatId(); // 00 -> cpat, 01 ->mpat, 02 -> dpat
+        const pattern = PATTERN_ASSETS[townPatId];
+        if (pattern) {
+            await loadTownTileSheet(pattern.imagePath);   // your existing loader
+            setSpecialTileList(pattern.specialTiles);
+        } else {
+            console.warn(`Unknown pattern ID ${townPatId}, movement may be blocked`);
+        }        
         await loadHeroSprite();
 
         if (RUN_TOWN_ENTRY_ON_START) {

@@ -14,6 +14,8 @@ const MEM_VIEWPORT_BUFFER = 0xE900;
 const MEM_SAVE_DATA = 0x0000;
 const MEM_INPUT_BUFFER = 0xFF16; // 4 bytes
 const MEMORY_SIZE = 64 * 1024 * 1024; // 64MB
+const SEG1_BASE = 0x10000;
+const SPECIAL_LIST_PTR_ADDR = SEG1_BASE + 0x8002; // seg1:0x8002
 
 // Input flags (bitmask) - must match InputFlags enum in zeliard.h
 const INPUT_FLAGS = {
@@ -441,6 +443,48 @@ export function getTownBackgroundType() {
     const backgroundTypeOffset = gMemoryBase + header.town_descriptor_offset + 3;
 
     return wasmMemory[backgroundTypeOffset];
+}
+
+/**
+ * Get town pattern Id from loaded MDT
+ * @returns {number} 00 -> cpat, 01 ->mpat, 02 -> dpat
+ *
+ * Header offsets are relative to MDT base (0xc000).
+ * First word of header points to town_descriptor, and patId is in byte 4.
+ */
+export function getTownPatId() {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return '';
+    }
+
+    const header = getTownMdtHeader();
+    if (!header || header.town_descriptor_offset === 0) {
+        return '';
+    }
+
+    // Header offset is relative to 0xc000, so actual WASM memory address is:
+    // gMemoryBase + header.town_descriptor_offset
+    const patIdOffset = gMemoryBase + header.town_descriptor_offset + 4;
+
+    return wasmMemory[patIdOffset];
+}
+
+export function setSpecialTileList(tileIds) {
+    if (!wasmMemory) {
+        console.error('WASM memory not ready');
+        return;
+    }
+    // safe location in seg1
+    const listAddr = gMemoryBase + SEG1_BASE + 0x9000;
+    wasmMemory[listAddr] = tileIds.length;
+    for (let i = 0; i < tileIds.length; i++) {
+        wasmMemory[listAddr + 1 + i] = tileIds[i];
+    }
+    // Set the pointer at seg1:0x8002 to point to this list
+    wasmMemory[gMemoryBase + SPECIAL_LIST_PTR_ADDR] = listAddr & 0xFF;
+    wasmMemory[gMemoryBase + SPECIAL_LIST_PTR_ADDR + 1] = (listAddr >> 8) & 0xFF;
+    console.log(`Special tile list set at 0x${listAddr.toString(16)} with ${tileIds.length} tiles`);
 }
 
 /**
