@@ -15,6 +15,19 @@
 #include <stdint.h>
 
 /* =========================================================================
+ * NPC struct layout (8 bytes each, terminated by n_x = 0xFFFF)
+ * ========================================================================= */
+typedef struct {
+    uint16_t n_x;           /* absolute x coord */
+    uint8_t  n_facing;      /* bit7: face-left flag; bit0: walking-left */
+    uint8_t  n_head_tile;   /* original head tile (saved before 0xFD replacement) */
+    uint8_t  n_anim_phase;  /* animation / movement phase counter */
+    uint8_t  n_ai_type;     /* index into npc_ai_jump_table (0–7) */
+    uint8_t  n_flags;       /* bit6: interactable, bit7: in-conversation */
+    uint8_t  n_id;          /* conversation pattern index */
+} NPC;
+
+/* =========================================================================
  * Flat WASM memory (defined in town.c)
  * ========================================================================= */
 extern uint8_t g_mem[0x40000];
@@ -30,10 +43,10 @@ typedef struct {
     void (*render_town_tiles_28_columns)(void);
     void (*clear_viewport)(void);
     void (*backup_upper_town_3_tiles)(void);
-    void (*scroll_hud_right_8px)(void);
-    void (*scroll_hud_right_4px)(void);
-    void (*scroll_hud_left_8px)(void);
-    void (*scroll_hud_left_4px)(void);
+    void (*scroll_floor_right_8px)(void);
+    void (*scroll_ceiling_right_4px)(void);
+    void (*scroll_floor_left_8px)(void);
+    void (*scroll_ceiling_left_4px)(void);
     void (*scroll_hud_up)(uint16_t screen_pos, uint8_t rows, uint8_t width);
     void (*scroll_hud_down)(uint16_t screen_pos, uint8_t rows, uint8_t width);
     void (*scroll_screen_rect_up)(uint16_t pos, uint16_t size);

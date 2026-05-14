@@ -132,6 +132,12 @@ let townUpdate;
 let townFullTick;
 let hasWasmExport;
 let setSpecialTileList;
+let setScrollFloorRight8px;
+let setScrollFloorLeft8px;
+let setScrollCeilingRight4px;
+let setScrollCeilingLeft4px;
+let readMemory;
+let writeMemory;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -145,6 +151,7 @@ let townBackground0 = null;
 let townBackground0Ready = false;
 let townTileSheet = null;
 let townTileSheetReady = false;
+let townCeilingOffsetX = 0;
 let townSidewalk1OffsetX = 0;
 let townSidewalk2OffsetX = 0;
 let townSidewalk1 = null;
@@ -289,6 +296,12 @@ async function loadWasmEngine() {
         townFullTick,
         hasWasmExport,
         setSpecialTileList,
+        setScrollFloorRight8px,
+        setScrollFloorLeft8px,
+        setScrollCeilingRight4px,
+        setScrollCeilingLeft4px,
+        readMemory,
+        writeMemory,
     } = wasmBridge);
 
     if (!USE_DUNGEON_RENDERER) {
@@ -459,6 +472,17 @@ function onSlowTick() {
     // Update input edge-detection in WASM
     inputUpdate?.();
     townUpdate?.();
+
+    // Poll scroll request flag
+    const scrollFlag = readMemory(0xfff0, 1)[0];
+    if (scrollFlag) {
+        if (scrollFlag & 0x01) scrollFloorRight8px();
+        if (scrollFlag & 0x02) scrollFloorLeft8px();
+        if (scrollFlag & 0x04) scrollCeilingRight4px();
+        if (scrollFlag & 0x08) scrollCeilingLeft4px();
+        // Clear the flag
+        writeMemory(0xfff0, [0]);
+    }
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -612,6 +636,15 @@ async function startGame() {
         await loadTownBackground0();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
+        resetTownScrollOffsets();
+
+        if (setScrollFloorRight8px) {
+            setScrollFloorRight8px(scrollFloorRight8px);
+            setScrollFloorLeft8px(scrollFloorLeft8px);
+            setScrollCeilingRight4px(scrollCeilingRight4px);
+            setScrollCeilingLeft4px(scrollCeilingLeft4px);
+        }
+
         townPatId = getTownPatId(); // 00 -> cpat, 01 ->mpat, 02 -> dpat
         const pattern = PATTERN_ASSETS[townPatId];
         if (pattern) {
@@ -683,22 +716,90 @@ function drawTownBackground() {
     return true;
 }
 
+// ceiling in ckpd
 function drawTownBackground0() {
-    if (!townBackgroundType || !townBackground0Ready) return false;
-    ctx.drawImage(townBackground0, 0, 0);
+    if (!townBackgroundType || !townBackground0Ready || !townBackgroundReady) return false;
+    ctx.drawImage(townBackground, 0, 0, canvas.width, TILE_HEIGHT*2, 0, 0, canvas.width, TILE_HEIGHT*2);
+
+    const rightPartWidth = canvas.width - townCeilingOffsetX;
+    if (rightPartWidth > 0) {
+        ctx.drawImage(townBackground0, townCeilingOffsetX, 0, rightPartWidth, TILE_HEIGHT*2,
+                      0, 0, rightPartWidth, TILE_HEIGHT*2);
+    }
+    // Draw the left part (from start of image to offset)
+    const leftPartWidth = canvas.width - rightPartWidth;
+    if (leftPartWidth > 0) {
+        ctx.drawImage(townBackground0, 0, 0, leftPartWidth, TILE_HEIGHT*2,
+                      rightPartWidth, 0, leftPartWidth, TILE_HEIGHT*2);
+    }
+
     return true;
 }
 
 function drawTownSidewalk1() {
     if (!townSidewalk1Ready) return false;
-    ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT);
+
+    const rightPartWidth = canvas.width - townSidewalk1OffsetX;
+    const y = TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT;
+    if (rightPartWidth > 0) {
+        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth, TILE_HEIGHT,
+                      0, y, rightPartWidth, TILE_HEIGHT);
+    }
+    // Draw the left part (from start of image to offset)
+    const leftPartWidth = canvas.width - rightPartWidth;
+    if (leftPartWidth > 0) {
+        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth, TILE_HEIGHT,
+                      rightPartWidth, y, leftPartWidth, TILE_HEIGHT);
+    }
+
     return true;
 }
 
 function drawTownSidewalk2() {
     if (!townSidewalk2Ready) return false;
-    ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT);
+
+    const rightPartWidth = canvas.width - townSidewalk2OffsetX;
+    const y = TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT;
+    if (rightPartWidth > 0) {
+        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth, TILE_HEIGHT,
+                      0, y, rightPartWidth, TILE_HEIGHT);
+    }
+    // Draw the left part (from start of image to offset)
+    const leftPartWidth = canvas.width - rightPartWidth;
+    if (leftPartWidth > 0) {
+        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth, TILE_HEIGHT,
+                      rightPartWidth, y, leftPartWidth, TILE_HEIGHT);
+    }
+
     return true;
+}
+
+function resetTownScrollOffsets() {
+    townSidewalk1OffsetX = 0;
+    townSidewalk2OffsetX = 0;
+    townCeilingOffsetX = 0;
+}
+
+const scrollFloorRight8px = () => {
+    console.log("scrollFloorRight8px called");
+    townSidewalk1OffsetX = (townSidewalk1OffsetX + 24) % canvas.width;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX + 48) % canvas.width;
+}
+
+const scrollFloorLeft8px = () => {
+    console.log("scrollFloorLeft8px called");
+    townSidewalk1OffsetX = (townSidewalk1OffsetX - 24 + canvas.width) % canvas.width;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX - 48 + canvas.width) % canvas.width;
+}
+
+const scrollCeilingRight4px = () => {
+    console.log("scrollCeilingRight4px called");
+    townCeilingOffsetX = (townCeilingOffsetX + 12) % canvas.width;
+}
+
+const scrollCeilingLeft4px = () => {
+    console.log("scrollCeilingLeft4px called");
+    townCeilingOffsetX = (townCeilingOffsetX - 12 + canvas.width) % canvas.width;
 }
 
 function drawTownTiles() {

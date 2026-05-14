@@ -101,6 +101,12 @@ export async function initWasm() {
     }
 }
 
+// After wasmExports is available
+export const setScrollFloorRight8px = (fn) => wasmExports.wasm_set_scroll_floor_right_8px(fn);
+export const setScrollFloorLeft8px  = (fn) => wasmExports.wasm_set_scroll_floor_left_8px(fn);
+export const setScrollCeilingRight4px = (fn) => wasmExports.wasm_set_scroll_ceiling_right_4px(fn);
+export const setScrollCeilingLeft4px  = (fn) => wasmExports.wasm_set_scroll_ceiling_left_4px(fn);
+
 /**
  * Check whether the loaded WASM module exports a function.
  * @param {string} name - Export name to check.

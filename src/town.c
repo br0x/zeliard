@@ -221,18 +221,7 @@
 #define ADDR_VIEWPORT_BUFFER       0xE000
 #define ADDR_WORD_E001             0xE001  /* word (pointer used in save list) */
 
-/* =========================================================================
- * NPC struct layout (8 bytes each, terminated by n_x = 0xFFFF)
- * ========================================================================= */
-typedef struct {
-    uint16_t n_x;           /* absolute x coord */
-    uint8_t  n_facing;      /* bit7: face-left flag; bit0: walking-left */
-    uint8_t  n_head_tile;   /* original head tile (saved before 0xFD replacement) */
-    uint8_t  n_anim_phase;  /* animation / movement phase counter */
-    uint8_t  n_ai_type;     /* index into npc_ai_jump_table (0–7) */
-    uint8_t  n_flags;       /* bit6: interactable, bit7: in-conversation */
-    uint8_t  n_id;          /* conversation pattern index */
-} NPC;
+#define ADDR_SCROLL_REQUEST  0xFFF0 // bit 0: floor right, bit 1: floor left, bit 2: ceiling right, bit 3: ceiling left
 
 /* =========================================================================
  * Per-character rendering tables (char_x_offset, char_width_table)
@@ -329,7 +318,7 @@ static int  measure_text_to_delimiter(uint16_t *si_ptr);
 static int  count_dialog_lines(uint16_t si_addr, uint8_t *out_chars_on_line);
 static void draw_dialog_cursor(void);
 static void check_tile_in_special_list(uint8_t tile, int *found);
-static void find_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *found);
+static void find_non_passable_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *found);
 static void load_npc_array_ptr(uint16_t *si_out);
 static void scroll_dialog_up(void);
 static void scroll_dialog_down(void);
@@ -534,9 +523,9 @@ static void town_entry_common(void)
         for (int i = 0; i < 5; i++) {
             if (is_left)
                 /* scroll right (hero facing left) */
-                CALL_PROC(scroll_hud_right_8px);
+                CALL_PROC(scroll_floor_right_8px);
             else
-                CALL_PROC(scroll_hud_left_8px);
+                CALL_PROC(scroll_floor_left_8px);
             init_npcs_and_render();
         }
     }
@@ -587,24 +576,25 @@ static void town_main_loop_step(void)
         /* Edge-scroll left handler (loc_6781) */
         {
             uint16_t bx = (uint16_t)((HERO_XV + 3) * 8) + PROX_START;
-            uint8_t tile = MEM8(bx + 7);
+            uint8_t tile = MEM8(bx + 7); // bottom tile to the left of hero
             int found;
             check_tile_in_special_list(tile, &found);
-            if (found) {
+            if (!found) {
                 uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT - 1;
                 uint16_t si_npc;
-                find_npc_at_x_pos(tx, &si_npc, &found);
+                find_non_passable_npc_at_x_pos(tx, &si_npc, &found);
                 if (!found) {
                     HERO_ANIM = (HERO_ANIM + 1) & 3;
                     FACING |= 1;  /* face left */
-                    if (HERO_XV >= 0x0B) {
-                        HERO_XV--;
-                    } else if (PROX_LEFT != 0) {
+                    if (HERO_XV >= 11) { // left threshold for scrolling
+                        HERO_XV--; // no scrolling, normal movement
+                    } else if (PROX_LEFT != 0) { // scroll the floor and ceiling
                         PROX_LEFT--;
                         PROX_START -= 8;
-                        CALL_PROC(scroll_hud_right_8px);
-                        if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_right_4px);
-                    } else {
+                        MEM8(ADDR_SCROLL_REQUEST) |= 0x01;  // floor right
+                        // CALL_PROC(scroll_floor_right_8px);
+                        if (MIDDLE_LYR == 1) MEM8(ADDR_SCROLL_REQUEST) |= 0x04; // ceiling right //CALL_PROC(scroll_ceiling_right_4px);
+                    } else { // cannot scroll anymore, normal movement
                         HERO_XV--;
                     }
                     HERO_MOVED = 0xFF;
@@ -618,24 +608,25 @@ static void town_main_loop_step(void)
             uint8_t tile = MEM8(bx + 7);
             int found;
             check_tile_in_special_list(tile, &found);
-            if (found) {
+            if (!found) {
                 uint16_t tx = (uint16_t)(HERO_XV + 4) + PROX_LEFT + 1;
                 uint16_t si_npc;
-                find_npc_at_x_pos(tx, &si_npc, &found);
+                find_non_passable_npc_at_x_pos(tx, &si_npc, &found);
                 if (!found) {
                     HERO_ANIM = (HERO_ANIM + 1) & 3;
                     FACING &= ~1;  /* face right */
-                    if (HERO_XV < 0x10) {
-                        HERO_XV++;
+                    if (HERO_XV < 16) { // right threshold for scrolling
+                        HERO_XV++; // no scrolling, normal movement
                     } else {
-                        uint16_t right_limit = MAP_WIDTH - 0x23;
+                        uint16_t right_limit = MAP_WIDTH - 35;
                         if (PROX_LEFT + 1 == right_limit) {
-                            HERO_XV++;
-                        } else {
+                            HERO_XV++; // cannot scroll anymore, normal movement
+                        } else { // scroll the floor and ceiling
                             PROX_LEFT++;
                             PROX_START += 8;
-                            CALL_PROC(scroll_hud_left_8px);
-                            if (MIDDLE_LYR == 1) CALL_PROC(scroll_hud_left_4px);
+                            MEM8(ADDR_SCROLL_REQUEST) |= 0x02;  // floor left
+                            // CALL_PROC(scroll_floor_left_8px);
+                            if (MIDDLE_LYR == 1) MEM8(ADDR_SCROLL_REQUEST) |= 0x08; // ceiling left //CALL_PROC(scroll_ceiling_left_4px);
                         }
                     }
                     HERO_MOVED = 0xFF;
@@ -683,7 +674,7 @@ static void hero_spacebar_interaction(void)
 
     if (!found_tile) return;
 
-    find_npc_at_x_pos(abs_x, &npc_si, &found_npc);
+    find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found_npc);
     if (!found_npc) return;
 
     /* Check bits 6..7 of n_flags — if set, NPC is busy */
@@ -723,7 +714,7 @@ static void hero_building_entry_check(void)
         /* facing left: 2 cols left */
         abs_x -= 2;
         if (MEM8(bx - 16) != 0xFD) return;
-        find_npc_at_x_pos(abs_x, &npc_si, &found);
+        find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found);
         if (!found) return;
         if (MEM8(npc_si + 2) & 0x80) return;   /* already open */
         if (!(MEM8(npc_si + 6) & 0x80)) return;
@@ -731,7 +722,7 @@ static void hero_building_entry_check(void)
         /* facing right: 2 cols right */
         abs_x += 2;
         if (MEM8(bx + 16) != 0xFD) return;
-        find_npc_at_x_pos(abs_x, &npc_si, &found);
+        find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found);
         if (!found) return;
         if (!(MEM8(npc_si + 2) & 0x80)) return; /* already closed (must be open) */
         if (!(MEM8(npc_si + 6) & 0x80)) return;
@@ -1080,18 +1071,18 @@ static void check_tile_in_special_list(uint8_t tile, int *found)
     uint16_t si = SEG1_16(SEG1_SPECIAL_TILE_LIST_PTR);
     uint8_t  count = SEG1_8(si);
     *found = 0;
-    if (!count) return;
+    if (!count) return;  // empty list => any tile is passable
     si++;
     for (uint8_t i = 0; i < count; i++) {
-        if (SEG1_8(si + i) == tile) { *found = 1; return; }
+        if (SEG1_8(si + i) == tile) { *found = 1; return; } // tile is special (non-passable)
     }
 }
 
 /* =========================================================================
- * find_npc_at_x_pos
- * Walks NPC array looking for n_x == x with bit6 of n_flags set.
+ * find_non_passable_npc_at_x_pos
+ * Walks NPC array looking for n_x == x with bit6 of n_flags set (non-passable).
  * ========================================================================= */
-static void find_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *found)
+static void find_non_passable_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *found)
 {
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     *found = 0;
@@ -2334,3 +2325,7 @@ void wasm_house_cursor_show(void)         { houseCursorShow(); }
 void wasm_house_cursor_up(uint8_t row)    { houseCursorUp(row); }
 void wasm_house_cursor_down(uint8_t row)  { houseCursorDown(row); }
 void wasm_restore_game(void)              { restore_game(); }
+void wasm_set_scroll_floor_right_8px(void (*fn)(void)) { g_town_procs.scroll_floor_right_8px = fn; }
+void wasm_set_scroll_floor_left_8px(void (*fn)(void))  { g_town_procs.scroll_floor_left_8px  = fn; }
+void wasm_set_scroll_ceiling_right_4px(void (*fn)(void)) { g_town_procs.scroll_ceiling_right_4px = fn; }
+void wasm_set_scroll_ceiling_left_4px(void (*fn)(void))  { g_town_procs.scroll_ceiling_left_4px  = fn; }

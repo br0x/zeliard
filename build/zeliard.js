@@ -1218,6 +1218,14 @@ var _wasm_town_set_input_keys = Module["_wasm_town_set_input_keys"] = makeInvali
 
 var _wasm_get_mem_ptr = Module["_wasm_get_mem_ptr"] = makeInvalidEarlyAccess("_wasm_get_mem_ptr");
 
+var _wasm_set_scroll_floor_right_8px = Module["_wasm_set_scroll_floor_right_8px"] = makeInvalidEarlyAccess("_wasm_set_scroll_floor_right_8px");
+
+var _wasm_set_scroll_floor_left_8px = Module["_wasm_set_scroll_floor_left_8px"] = makeInvalidEarlyAccess("_wasm_set_scroll_floor_left_8px");
+
+var _wasm_set_scroll_ceiling_right_4px = Module["_wasm_set_scroll_ceiling_right_4px"] = makeInvalidEarlyAccess("_wasm_set_scroll_ceiling_right_4px");
+
+var _wasm_set_scroll_ceiling_left_4px = Module["_wasm_set_scroll_ceiling_left_4px"] = makeInvalidEarlyAccess("_wasm_set_scroll_ceiling_left_4px");
+
 var _fflush = makeInvalidEarlyAccess("_fflush");
 
 var _emscripten_get_sbrk_ptr = makeInvalidEarlyAccess("_emscripten_get_sbrk_ptr");
@@ -1255,6 +1263,10 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_town_full_tick"] != "undefined", "missing Wasm export: wasm_town_full_tick");
   assert(typeof wasmExports["wasm_town_set_input_keys"] != "undefined", "missing Wasm export: wasm_town_set_input_keys");
   assert(typeof wasmExports["wasm_get_mem_ptr"] != "undefined", "missing Wasm export: wasm_get_mem_ptr");
+  assert(typeof wasmExports["wasm_set_scroll_floor_right_8px"] != "undefined", "missing Wasm export: wasm_set_scroll_floor_right_8px");
+  assert(typeof wasmExports["wasm_set_scroll_floor_left_8px"] != "undefined", "missing Wasm export: wasm_set_scroll_floor_left_8px");
+  assert(typeof wasmExports["wasm_set_scroll_ceiling_right_4px"] != "undefined", "missing Wasm export: wasm_set_scroll_ceiling_right_4px");
+  assert(typeof wasmExports["wasm_set_scroll_ceiling_left_4px"] != "undefined", "missing Wasm export: wasm_set_scroll_ceiling_left_4px");
   assert(typeof wasmExports["fflush"] != "undefined", "missing Wasm export: fflush");
   assert(typeof wasmExports["emscripten_get_sbrk_ptr"] != "undefined", "missing Wasm export: emscripten_get_sbrk_ptr");
   assert(typeof wasmExports["sbrk"] != "undefined", "missing Wasm export: sbrk");
@@ -1277,6 +1289,10 @@ function assignWasmExports(wasmExports) {
   _wasm_town_full_tick = Module["_wasm_town_full_tick"] = createExportWrapper("wasm_town_full_tick", 0);
   _wasm_town_set_input_keys = Module["_wasm_town_set_input_keys"] = createExportWrapper("wasm_town_set_input_keys", 1);
   _wasm_get_mem_ptr = Module["_wasm_get_mem_ptr"] = createExportWrapper("wasm_get_mem_ptr", 0);
+  _wasm_set_scroll_floor_right_8px = Module["_wasm_set_scroll_floor_right_8px"] = createExportWrapper("wasm_set_scroll_floor_right_8px", 1);
+  _wasm_set_scroll_floor_left_8px = Module["_wasm_set_scroll_floor_left_8px"] = createExportWrapper("wasm_set_scroll_floor_left_8px", 1);
+  _wasm_set_scroll_ceiling_right_4px = Module["_wasm_set_scroll_ceiling_right_4px"] = createExportWrapper("wasm_set_scroll_ceiling_right_4px", 1);
+  _wasm_set_scroll_ceiling_left_4px = Module["_wasm_set_scroll_ceiling_left_4px"] = createExportWrapper("wasm_set_scroll_ceiling_left_4px", 1);
   _fflush = createExportWrapper("fflush", 1);
   _emscripten_get_sbrk_ptr = wasmExports["emscripten_get_sbrk_ptr"];
   _sbrk = createExportWrapper("sbrk", 1);

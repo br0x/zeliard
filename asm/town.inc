@@ -1,11 +1,11 @@
 NPC STRUC
-  n_x           dw   ?
-  n_facing      db   ?
-  n_head_tile   db   ?
-  n_anim_phase  db   ?
-  n_ai_type     db   ?
-  n_flags       db   ?
-  n_id          db   ?
+  n_x           dw   ? ; 0
+  n_facing      db   ? ; 2
+  n_head_tile   db   ? ; 3
+  n_anim_phase  db   ? ; 4
+  n_ai_type     db   ? ; 5
+  n_flags       db   ? ; 6
+  n_id          db   ? ; 7
 NPC ENDS
 
 
@@ -17,10 +17,10 @@ gtmcga_drv_addr                                    equ 3000h
 apply_screen_xor_grid_proc                         equ 3000h
 backup_upper_town_3_tiles_proc                     equ 3002h
 render_town_tiles_28_columns_proc                  equ 3004h
-scroll_hud_right_8px_proc                          equ 3006h
-scroll_hud_right_4px_proc                          equ 3008h
-scroll_hud_left_8px_proc                           equ 300Ah
-scroll_hud_left_4px_proc                           equ 300Ch
+scroll_floor_right_8px_proc                          equ 3006h
+scroll_ceiling_right_4px_proc                          equ 3008h
+scroll_floor_left_8px_proc                           equ 300Ah
+scroll_ceiling_left_4px_proc                           equ 300Ch
 unpack_to_shadow_memory_six_tiles_proc             equ 300Eh
 ui_draw_routine_dispatcher_proc                    equ 3010h
 blit_6_tiles_to_shadow_memory_proc                 equ 3012h

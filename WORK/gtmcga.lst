@@ -29,10 +29,10 @@ seg000:3000                 dw offset apply_screen_xor_grid
 seg000:3002                 dw offset backup_upper_town_3_tiles ; skips top 8 tiles (sky, distant mountains)
 seg000:3002                                         ; saves town top (3 tiles of 8) to screen buffer
 seg000:3004                 dw offset render_town_tiles_28_columns
-seg000:3006                 dw offset scroll_hud_right_8px
-seg000:3008                 dw offset scroll_hud_right_4px
-seg000:300A                 dw offset scroll_hud_left_8px
-seg000:300C                 dw offset scroll_hud_left_4px
+seg000:3006                 dw offset scroll_floor_right_8px
+seg000:3008                 dw offset scroll_ceiling_right_4px
+seg000:300A                 dw offset scroll_floor_left_8px
+seg000:300C                 dw offset scroll_ceiling_left_4px
 seg000:300E                 dw offset unpack_to_shadow_memory_six_tiles
 seg000:3010                 dw offset ui_draw_routine_dispatcher
 seg000:3012                 dw offset blit_6_tiles_to_shadow_memory
@@ -1092,7 +1092,7 @@ seg000:3628
 seg000:3628 ; =============== S U B R O U T I N E =======================================
 seg000:3628
 seg000:3628
-seg000:3628 scroll_hud_right_8px proc near          ; ...
+seg000:3628 scroll_floor_right_8px proc near          ; ...
 seg000:3628                 push    ds
 seg000:3629                 mov     ax, 0A000h
 seg000:362C                 mov     es, ax
@@ -1135,13 +1135,13 @@ seg000:3674                 pop     ds
 seg000:3675                 assume ds:data
 seg000:3675                 cld
 seg000:3676                 retn
-seg000:3676 scroll_hud_right_8px endp
+seg000:3676 scroll_floor_right_8px endp
 seg000:3676
 seg000:3677
 seg000:3677 ; =============== S U B R O U T I N E =======================================
 seg000:3677
 seg000:3677
-seg000:3677 scroll_hud_right_4px proc near          ; ...
+seg000:3677 scroll_ceiling_right_4px proc near          ; ...
 seg000:3677                 push    ds
 seg000:3678                 mov     ax, 0A000h
 seg000:367B                 mov     es, ax
@@ -1168,13 +1168,13 @@ seg000:36A1                 pop     ds
 seg000:36A2                 assume ds:data
 seg000:36A2                 cld
 seg000:36A3                 retn
-seg000:36A3 scroll_hud_right_4px endp
+seg000:36A3 scroll_ceiling_right_4px endp
 seg000:36A3
 seg000:36A4
 seg000:36A4 ; =============== S U B R O U T I N E =======================================
 seg000:36A4
 seg000:36A4
-seg000:36A4 scroll_hud_left_8px proc near           ; ...
+seg000:36A4 scroll_floor_left_8px proc near           ; ...
 seg000:36A4                 push    ds
 seg000:36A5                 mov     ax, 0A000h
 seg000:36A8                 mov     es, ax
@@ -1215,13 +1215,13 @@ seg000:36ED                 jnz     short loc_36D2
 seg000:36EF                 pop     ds
 seg000:36F0                 assume ds:data
 seg000:36F0                 retn
-seg000:36F0 scroll_hud_left_8px endp
+seg000:36F0 scroll_floor_left_8px endp
 seg000:36F0
 seg000:36F1
 seg000:36F1 ; =============== S U B R O U T I N E =======================================
 seg000:36F1
 seg000:36F1
-seg000:36F1 scroll_hud_left_4px proc near           ; ...
+seg000:36F1 scroll_ceiling_left_4px proc near           ; ...
 seg000:36F1                 push    ds
 seg000:36F2                 mov     ax, 0A000h
 seg000:36F5                 mov     es, ax
@@ -1246,7 +1246,7 @@ seg000:3718                 jnz     short loc_36FE
 seg000:371A                 pop     ds
 seg000:371B                 assume ds:data
 seg000:371B                 retn
-seg000:371B scroll_hud_left_4px endp
+seg000:371B scroll_ceiling_left_4px endp
 seg000:371B
 seg000:371C
 seg000:371C ; =============== S U B R O U T I N E =======================================

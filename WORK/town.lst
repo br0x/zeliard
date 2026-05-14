@@ -368,10 +368,10 @@ gtmcga:3000 apply_screen_xor_grid_proc dw ?         ; RefreshDirtyTiles
 gtmcga:3002 backup_upper_town_3_tiles_proc dw ?     ; skips top 8 tiles (sky, distant mountains)
 gtmcga:3002                                         ; saves town top (3 tiles of 8) to screen buffer
 gtmcga:3004 render_town_tiles_28_columns_proc dw ?  ; render_town_tiles_28_columns
-gtmcga:3006 scroll_hud_right_8px_proc dw ?          ; Composite_Meta_Tile_Renderer
-gtmcga:3008 scroll_hud_right_4px_proc dw ?          ; Uncompress_And_Render_Tile
-gtmcga:300A scroll_hud_left_8px_proc dw ?
-gtmcga:300C scroll_hud_left_4px_proc dw ?
+gtmcga:3006 scroll_floor_right_8px_proc dw ?          ; Composite_Meta_Tile_Renderer
+gtmcga:3008 scroll_ceiling_right_4px_proc dw ?          ; Uncompress_And_Render_Tile
+gtmcga:300A scroll_floor_left_8px_proc dw ?
+gtmcga:300C scroll_ceiling_left_4px_proc dw ?
 gtmcga:300E unpack_to_shadow_memory_six_tiles_proc dw ? ; unpack_to_shadow_memory_six_tiles
 gtmcga:3010 ui_draw_routine_dispatcher dw ?
 gtmcga:3012 blit_6_tiles_to_shadow_memory dw ?
@@ -1493,14 +1493,14 @@ seg004:67D8
 seg004:67D8 loc_67D8:                               ; ...
 seg004:67D8                 dec     proximity_map_left_col_x
 seg004:67DC                 sub     ds:proximity_start_tiles, 8
-seg004:67E1                 call    cs:scroll_hud_right_8px_proc
+seg004:67E1                 call    cs:scroll_floor_right_8px_proc
 seg004:67E6                 cmp     ds:ympd_ckpd_select, 1
 seg004:67EB                 jz      short loc_67EE
 seg004:67ED                 retn
 seg004:67EE ; ---------------------------------------------------------------------------
 seg004:67EE
 seg004:67EE loc_67EE:                               ; ...
-seg004:67EE                 call    cs:scroll_hud_right_4px_proc
+seg004:67EE                 call    cs:scroll_ceiling_right_4px_proc
 seg004:67F3                 retn
 seg004:67F4 ; ---------------------------------------------------------------------------
 seg004:67F4
@@ -1553,14 +1553,14 @@ seg004:6852
 seg004:6852 loc_6852:                               ; ...
 seg004:6852                 inc     proximity_map_left_col_x
 seg004:6856                 add     ds:proximity_start_tiles, 8
-seg004:685B                 call    cs:scroll_hud_left_8px_proc
+seg004:685B                 call    cs:scroll_floor_left_8px_proc
 seg004:6860                 cmp     ds:ympd_ckpd_select, 1
 seg004:6865                 jz      short loc_6868
 seg004:6867                 retn
 seg004:6868 ; ---------------------------------------------------------------------------
 seg004:6868
 seg004:6868 loc_6868:                               ; ...
-seg004:6868                 call    cs:scroll_hud_left_4px_proc
+seg004:6868                 call    cs:scroll_ceiling_left_4px_proc
 seg004:686D                 retn
 seg004:686D ; END OF FUNCTION CHUNK FOR sub_6CB5
 seg004:686E

@@ -207,10 +207,10 @@ normal_game:
                 call    init_npcs_and_render
                 test    ds:edge_scroll_enabled, 0FFh
                 jz      short loc_61E2
-                mov     ds:edge_scroll_handler, offset loc_6781
-                test    byte ptr ds:facing_direction, 1
+                mov     ds:edge_scroll_handler, offset loc_6781 ; left edge scroll handler
+                test    byte ptr ds:facing_direction, 1  ; bit0: 0=Right, 1=Left
                 jnz     short loc_61CE
-                mov     ds:edge_scroll_handler, offset loc_67F4
+                mov     ds:edge_scroll_handler, offset loc_67F4 ; right edge scroll handler
 
 loc_61CE:   
                 mov     cx, 4
@@ -258,13 +258,13 @@ loc_6224:
                 and     al, 0Ch
                 cmp     al, 4
                 jnz     short loc_622D
-                jmp     loc_6781
+                jmp     loc_6781  ; left edge scroll handler
 ; ---------------------------------------------------------------------------
 
 loc_622D:   
                 cmp     al, 8
                 jnz     short loc_6234
-                jmp     loc_67F4
+                jmp     loc_67F4  ; right edge scroll handler
 ; ---------------------------------------------------------------------------
 
 loc_6234:   
@@ -1080,63 +1080,59 @@ loc_6775:
 draw_dialog_cursor        endp
 
 ; ---------------------------------------------------------------------------
-
+; left edge scroll handler
 loc_6781:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 3
                 add     bx, bx
                 add     bx, bx
-                add     bx, bx
+                add     bx, bx  ; (HERO_XV + 3) * 8
                 add     bx, ds:proximity_start_tiles
-                mov     al, [bx+7]
-                call    check_tile_in_special_list
+                mov     al, [bx+7] ; bottom tile to the left of hero
+                call    check_tile_in_special_list ; NZ if tile not found, ZF if found
                 jnz     short loc_679D
-                retn
+                retn  ; tile ahead is not passable, return
 ; ---------------------------------------------------------------------------
-
+; tile ahead is passable, process movement/scrolling
 loc_679D:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
                 add     bx, ds:proximity_map_left_col_x
                 dec     bx
-                call    find_npc_at_x_pos
+                call    find_non_passable_npc_at_x_pos
                 jz      short loc_67B1
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_67B1:   
                 inc     byte ptr ds:hero_animation_phase
-                and     byte ptr ds:hero_animation_phase, 3
-                or      byte ptr ds:facing_direction, 1
-                cmp     byte ptr ds:hero_x_in_viewport, 0Bh
-                jb      short loc_67CB
+                and     byte ptr ds:hero_animation_phase, 3  ; 4 walking phases total
+                or      byte ptr ds:facing_direction, 1  ; set facing Left
+                cmp     byte ptr ds:hero_x_in_viewport, 11
+                jb      short loc_67CB ; need to scroll
                 dec     byte ptr ds:hero_x_in_viewport
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_67CB:   
                 test    word ptr ds:proximity_map_left_col_x, 0FFFFh
                 jnz     short loc_67D8
                 dec     byte ptr ds:hero_x_in_viewport
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_67D8:   
                 dec     word ptr ds:proximity_map_left_col_x
                 sub     word ptr ds:proximity_start_tiles, 8
-                call    cs:scroll_hud_right_8px_proc
+                call    cs:scroll_floor_right_8px_proc
                 cmp     ds:town_has_middle_layer, 1
                 jz      short loc_67EE
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_67EE:   
-                call    cs:scroll_hud_right_4px_proc
+                call    cs:scroll_ceiling_right_4px_proc
                 retn
 ; ---------------------------------------------------------------------------
-
+; right edge scroll handler
 loc_67F4:   
                 xor     bx, bx
                 mov     bl, ds:hero_x_in_viewport
@@ -1145,8 +1141,8 @@ loc_67F4:
                 add     bx, bx
                 add     bx, bx
                 add     bx, ds:proximity_start_tiles
-                mov     al, [bx+7]
-                call    check_tile_in_special_list
+                mov     al, [bx+7]  ; tile to the right of hero
+                call    check_tile_in_special_list  ; NZ if tile not found, ZF if found
                 jnz     short loc_6810
                 retn
 ; ---------------------------------------------------------------------------
@@ -1157,7 +1153,7 @@ loc_6810:
                 add     bl, 4
                 add     bx, ds:proximity_map_left_col_x
                 inc     bx
-                call    find_npc_at_x_pos
+                call    find_non_passable_npc_at_x_pos
                 jz      short loc_6824
                 retn
 ; ---------------------------------------------------------------------------
@@ -1186,45 +1182,40 @@ loc_683E:
 loc_6852:   
                 inc     word ptr ds:proximity_map_left_col_x
                 add     word ptr ds:proximity_start_tiles, 8
-                call    cs:scroll_hud_left_8px_proc
+                call    cs:scroll_floor_left_8px_proc
                 cmp     ds:town_has_middle_layer, 1
                 jz      short loc_6868
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_6868:   
-                call    cs:scroll_hud_left_4px_proc
+                call    cs:scroll_ceiling_left_4px_proc
                 retn
 
 ; =============== S U B R O U T I N E =======================================
 
 
-; check_tile_in_special_list — checks if tile AL is in a special list.
+; Checks if tile AL is in a special list (non-passable).
 ;   Input: al = tile ID
-;   Output: ZF=clear if tile found, ZF=set if not found
+;   Output: NZ if tile not found, ZF if found
 ;   Uses: es:seg1:special_tile_list_ptr = pointer to tile list (counted)
-
 check_tile_in_special_list        proc near
                 mov     es, cs:seg1
-                mov     si, es:special_tile_list_ptr
-                mov     cl, es:[si]
+                mov     si, es:special_tile_list_ptr  ; seg1:8002h
+                mov     cl, es:[si]  ; list length
                 or      cl, cl
                 jz      short loc_688B
                 xor     ch, ch
-                inc     si
-
+                inc     si  ; points to special tiles
 loc_6882:   
                 cmp     al, es:[si]
-                jnz     short loc_6888
-                retn
-; ---------------------------------------------------------------------------
-
+                jne     short loc_6888
+                retn  ; found => set ZF on exit
 loc_6888:   
                 inc     si
                 loop    loc_6882
-
 loc_688B:   
-                not     cl
+                not     cl   ; empty list or not found => set NZ on exit
                 or      cl, cl
                 retn
 check_tile_in_special_list        endp
@@ -1233,33 +1224,29 @@ check_tile_in_special_list        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; find_npc_at_x_pos — searches NPC array for NPC whose x coordinate
-;   matches dx and has bit 6 set in n_flags.
+; find_non_passable_npc_at_x_pos — searches NPC array for NPC whose x coordinate
+;   matches and has bit 6 set in n_flags (non-passable).
 ;   Input: bx = target x coordinate
-;   Output: ZF=clear if found (si = pointer to NPC), ZF=set if not found
-
-find_npc_at_x_pos        proc near
+;   Output: NZ if found (si = pointer to NPC), ZF=set if not found
+find_non_passable_npc_at_x_pos        proc near
                 mov     si, ds:npc_array_addr
-
 loc_6894:   
                 mov     ax, [si]
                 cmp     ax, 0FFFFh
                 jnz     short loc_689C
-                retn
+                retn  ; not found => set ZF
 ; ---------------------------------------------------------------------------
-
 loc_689C:   
                 sub     ax, bx
                 jnz     short loc_68A7
-                test    byte ptr [si+6], 40h
+                test    byte ptr [si+NPC.n_flags], 01000000b ; non-passable NPC
                 jz      short loc_68A7
-                retn
+                retn  ; found non-passable NPC => set NZ
 ; ---------------------------------------------------------------------------
-
 loc_68A7:   
-                add     si, 8
+                add     si, size NPC
                 jmp     short loc_6894
-find_npc_at_x_pos        endp
+find_non_passable_npc_at_x_pos        endp
 
 
 ; =============== S U B R O U T I N E =======================================

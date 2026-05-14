@@ -12,10 +12,10 @@ start           dw offset apply_screen_xor_grid
                 dw offset backup_upper_town_3_tiles ; skips top 8 tiles (sky, distant mountains)
                                         ; saves town top (3 tiles of 8) to screen buffer
                 dw offset render_town_tiles_28_columns
-                dw offset scroll_hud_right_8px
-                dw offset scroll_hud_right_4px
-                dw offset scroll_hud_left_8px
-                dw offset scroll_hud_left_4px
+                dw offset scroll_floor_right_8px
+                dw offset scroll_ceiling_right_4px
+                dw offset scroll_floor_left_8px
+                dw offset scroll_ceiling_left_4px
                 dw offset unpack_to_shadow_memory_six_tiles
                 dw offset ui_draw_routine_dispatcher
                 dw offset blit_6_tiles_to_shadow_memory
@@ -1033,7 +1033,7 @@ blit_tile_to_shadow_buffer endp
 ; =============== S U B R O U T I N E =======================================
 
 
-scroll_hud_right_8px proc near          ; ...
+scroll_floor_right_8px proc near
                 push    ds
                 mov     ax, 0A000h
                 mov     es, ax
@@ -1041,8 +1041,7 @@ scroll_hud_right_8px proc near          ; ...
                 std
                 mov     si, 48+222+(14+16*8)*320
                 mov     al, 8
-
-loc_3636:                               ; ...
+loc_3636:
                 push    si
                 mov     di, si
                 sub     si, 8
@@ -1057,8 +1056,7 @@ loc_3636:                               ; ...
                 jnz     short loc_3636
                 mov     si, 48+222+(14+17*8)*320
                 mov     al, 8
-
-loc_3657:                               ; ...
+loc_3657:
                 push    si
                 mov     di, si
                 sub     si, 10h
@@ -1074,30 +1072,29 @@ loc_3657:                               ; ...
                 pop     ds
                 cld
                 retn
-scroll_hud_right_8px endp
+scroll_floor_right_8px endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
-scroll_hud_right_4px proc near          ; ...
+; Scrolls top 16 pixels (2 tile rows) right by 4px (ckpd ceilings)
+scroll_ceiling_right_4px proc near
                 push    ds
                 mov     ax, 0A000h
                 mov     es, ax
                 mov     ds, ax
-                std
-                mov     si, 48+222+14*320
-                mov     al, 10h
-
-loc_3685:                               ; ...
+                std           ; decrementing
+                mov     si, 14*320+48 + (28*8-2)
+                mov     al, 16 ; ceiling is 16 pixel rows
+loc_3685:
                 push    si
                 mov     di, si
                 sub     si, 4
                 mov     cx, 110
-                rep movsw
+                rep movsw  ; move 220px right (27.5 tiles); si-=220, di-=220
                 add     si, 116
                 mov     cx, 2
-                rep movsw
+                rep movsw  ; copy last 4px from periodic ceiling pattern
                 pop     si
                 add     si, 320
                 dec     al
@@ -1105,21 +1102,20 @@ loc_3685:                               ; ...
                 pop     ds
                 cld
                 retn
-scroll_hud_right_4px endp
+scroll_ceiling_right_4px endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-scroll_hud_left_8px proc near           ; ...
+scroll_floor_left_8px proc near
                 push    ds
                 mov     ax, 0A000h
                 mov     es, ax
                 mov     ds, ax
                 mov     si, 48+(14+16*8)*320
                 mov     al, 8
-
-loc_36B1:                               ; ...
+loc_36B1:
                 push    si
                 mov     di, si
                 add     si, 8
@@ -1134,8 +1130,7 @@ loc_36B1:                               ; ...
                 jnz     short loc_36B1
                 mov     si, 48+(14+17*8)*320
                 mov     al, 8
-
-loc_36D2:                               ; ...
+loc_36D2:
                 push    si
                 mov     di, si
                 add     si, 10h
@@ -1150,21 +1145,20 @@ loc_36D2:                               ; ...
                 jnz     short loc_36D2
                 pop     ds
                 retn
-scroll_hud_left_8px endp
+scroll_floor_left_8px endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-scroll_hud_left_4px proc near           ; ...
+scroll_ceiling_left_4px proc near
                 push    ds
                 mov     ax, 0A000h
                 mov     es, ax
                 mov     ds, ax
                 mov     si, viewport_top_left_vram_addr
                 mov     al, 16
-
-loc_36FE:                               ; ...
+loc_36FE:
                 push    si
                 mov     di, si
                 add     si, 4
@@ -1179,7 +1173,7 @@ loc_36FE:                               ; ...
                 jnz     short loc_36FE
                 pop     ds
                 retn
-scroll_hud_left_4px endp
+scroll_ceiling_left_4px endp
 
 
 ; =============== S U B R O U T I N E =======================================
