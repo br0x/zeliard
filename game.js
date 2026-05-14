@@ -19,6 +19,7 @@ const TILE_WIDTH  = 24;
 const TILE_HEIGHT = 24;
 const VIEW_COLS   = 28;
 const VIEW_ROWS   = 18;
+const VIEW_WIDTH  = VIEW_COLS * TILE_WIDTH;
 // ─── Feature flags ────────────────────────────────────────────────────────────
 const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
@@ -132,10 +133,6 @@ let townUpdate;
 let townFullTick;
 let hasWasmExport;
 let setSpecialTileList;
-let setScrollFloorRight8px;
-let setScrollFloorLeft8px;
-let setScrollCeilingRight4px;
-let setScrollCeilingLeft4px;
 let readMemory;
 let writeMemory;
 
@@ -147,8 +144,8 @@ let townBackgroundType = null;
 let townPatId = null;
 let townBackground = null;
 let townBackgroundReady = false;
-let townBackground0 = null;
-let townBackground0Ready = false;
+let townCeiling = null;
+let townCeilingReady = false;
 let townTileSheet = null;
 let townTileSheetReady = false;
 let townCeilingOffsetX = 0;
@@ -177,15 +174,15 @@ function loadTownBackground() {
     });
 }
 
-function loadTownBackground0() {
+function loadtownCeiling() {
     if (!townBackgroundType) return Promise.resolve(null);
-    if (townBackground0Ready) return Promise.resolve(townBackground0);
+    if (townCeilingReady) return Promise.resolve(townCeiling);
 
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-            townBackground0 = img;
-            townBackground0Ready = true;
+            townCeiling = img;
+            townCeilingReady = true;
             resolve(img);
         };
         img.onerror = () => reject(new Error(`Failed to load ${TOWN_BACKGROUND0_CKPD_PATH}`));
@@ -296,10 +293,6 @@ async function loadWasmEngine() {
         townFullTick,
         hasWasmExport,
         setSpecialTileList,
-        setScrollFloorRight8px,
-        setScrollFloorLeft8px,
-        setScrollCeilingRight4px,
-        setScrollCeilingLeft4px,
         readMemory,
         writeMemory,
     } = wasmBridge);
@@ -445,14 +438,25 @@ function onFullTick() {
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
-    townFullTick?.();
-    // disk_retry_timer lives in WASM memory (0xFF-area); increment it there
-    // if you have a getWasmMemory accessor:
-    if (engineReady && getWasmMemory) {
-        const mem = getWasmMemory();
-        if (mem) {
-            // ADDR_DISK_RETRY_TIMER is in the FF-area — adjust if needed
-            // mem[0xFF??]++;
+    townFullTick?.();   // increments FRAME_TMR in WASM memory
+
+    // Gate town logic: fire when FRAME_TMR reaches SPEED_C * 4
+    if (engineReady) {
+        const speedC     = readMemory(0xFF33, 1)[0] || 5;
+        const target     = speedC * 4;
+        const frameTmr   = readMemory(0xFF1A, 1)[0];   // ADDR_FRAME_TIMER
+        if (frameTmr >= target) {
+            inputUpdate?.();
+            townUpdate?.();   // this zeroes FRAME_TMR internally
+            // handle scroll flag
+            const scrollFlag = readMemory(0xfff0, 1)[0];
+            if (scrollFlag) {
+                if (scrollFlag & 0x01) scrollFloorRight8px();
+                if (scrollFlag & 0x02) scrollFloorLeft8px();
+                if (scrollFlag & 0x04) scrollCeilingRight4px();
+                if (scrollFlag & 0x08) scrollCeilingLeft4px();
+                writeMemory(0xfff0, [0]);
+            }
         }
     }
 }
@@ -470,8 +474,8 @@ function onSlowTick() {
     if (!engineReady) return;
 
     // Update input edge-detection in WASM
-    inputUpdate?.();
-    townUpdate?.();
+    // inputUpdate?.();
+    // townUpdate?.();
 
     // Poll scroll request flag
     const scrollFlag = readMemory(0xfff0, 1)[0];
@@ -633,17 +637,10 @@ async function startGame() {
 
         townBackgroundType = getTownBackgroundType();
         await loadTownBackground();
-        await loadTownBackground0();
+        await loadtownCeiling();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
         resetTownScrollOffsets();
-
-        if (setScrollFloorRight8px) {
-            setScrollFloorRight8px(scrollFloorRight8px);
-            setScrollFloorLeft8px(scrollFloorLeft8px);
-            setScrollCeilingRight4px(scrollCeilingRight4px);
-            setScrollCeilingLeft4px(scrollCeilingLeft4px);
-        }
 
         townPatId = getTownPatId(); // 00 -> cpat, 01 ->mpat, 02 -> dpat
         const pattern = PATTERN_ASSETS[townPatId];
@@ -717,58 +714,52 @@ function drawTownBackground() {
 }
 
 // ceiling in ckpd
-function drawTownBackground0() {
-    if (!townBackgroundType || !townBackground0Ready || !townBackgroundReady) return false;
+function drawTownCeiling() {
+    if (!townBackgroundType || !townCeilingReady || !townBackgroundReady || !townCeilingNeedsRedraw) return false;
     ctx.drawImage(townBackground, 0, 0, canvas.width, TILE_HEIGHT*2, 0, 0, canvas.width, TILE_HEIGHT*2);
 
     const rightPartWidth = canvas.width - townCeilingOffsetX;
     if (rightPartWidth > 0) {
-        ctx.drawImage(townBackground0, townCeilingOffsetX, 0, rightPartWidth, TILE_HEIGHT*2,
+        ctx.drawImage(townCeiling, townCeilingOffsetX, 0, rightPartWidth, TILE_HEIGHT*2,
                       0, 0, rightPartWidth, TILE_HEIGHT*2);
     }
     // Draw the left part (from start of image to offset)
-    const leftPartWidth = canvas.width - rightPartWidth;
+    const leftPartWidth = townCeilingOffsetX;
     if (leftPartWidth > 0) {
-        ctx.drawImage(townBackground0, 0, 0, leftPartWidth, TILE_HEIGHT*2,
+        ctx.drawImage(townCeiling, 0, 0, leftPartWidth, TILE_HEIGHT*2,
                       rightPartWidth, 0, leftPartWidth, TILE_HEIGHT*2);
     }
 
     return true;
 }
 
-function drawTownSidewalk1() {
-    if (!townSidewalk1Ready) return false;
+function drawTownSidewalk() {
+    if (!townSidewalk1Ready || !townSidewalk2Ready) return false;
 
-    const rightPartWidth = canvas.width - townSidewalk1OffsetX;
-    const y = TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT;
-    if (rightPartWidth > 0) {
-        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth, TILE_HEIGHT,
-                      0, y, rightPartWidth, TILE_HEIGHT);
+    const rightPartWidth1 = canvas.width - townSidewalk1OffsetX;
+    let y = TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT;
+    if (rightPartWidth1 > 0) {
+        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth1, TILE_HEIGHT,
+                      0, y, rightPartWidth1, TILE_HEIGHT);
     }
     // Draw the left part (from start of image to offset)
-    const leftPartWidth = canvas.width - rightPartWidth;
-    if (leftPartWidth > 0) {
-        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth, TILE_HEIGHT,
-                      rightPartWidth, y, leftPartWidth, TILE_HEIGHT);
+    const leftPartWidth1 = townSidewalk1OffsetX;
+    if (leftPartWidth1 > 0) {
+        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth1, TILE_HEIGHT,
+                      rightPartWidth1, y, leftPartWidth1, TILE_HEIGHT);
     }
 
-    return true;
-}
-
-function drawTownSidewalk2() {
-    if (!townSidewalk2Ready) return false;
-
-    const rightPartWidth = canvas.width - townSidewalk2OffsetX;
-    const y = TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT;
-    if (rightPartWidth > 0) {
-        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth, TILE_HEIGHT,
-                      0, y, rightPartWidth, TILE_HEIGHT);
+    const rightPartWidth2 = canvas.width - townSidewalk2OffsetX;
+    y = TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT;
+    if (rightPartWidth2 > 0) {
+        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth2, TILE_HEIGHT,
+                      0, y, rightPartWidth2, TILE_HEIGHT);
     }
     // Draw the left part (from start of image to offset)
-    const leftPartWidth = canvas.width - rightPartWidth;
-    if (leftPartWidth > 0) {
-        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth, TILE_HEIGHT,
-                      rightPartWidth, y, leftPartWidth, TILE_HEIGHT);
+    const leftPartWidth2 = townSidewalk2OffsetX;
+    if (leftPartWidth2 > 0) {
+        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth2, TILE_HEIGHT,
+                      rightPartWidth2, y, leftPartWidth2, TILE_HEIGHT);
     }
 
     return true;
@@ -781,25 +772,21 @@ function resetTownScrollOffsets() {
 }
 
 const scrollFloorRight8px = () => {
-    console.log("scrollFloorRight8px called");
-    townSidewalk1OffsetX = (townSidewalk1OffsetX + 24) % canvas.width;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX + 48) % canvas.width;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX - 24 + VIEW_WIDTH) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX - 48 + VIEW_WIDTH) % VIEW_WIDTH;
 }
 
 const scrollFloorLeft8px = () => {
-    console.log("scrollFloorLeft8px called");
-    townSidewalk1OffsetX = (townSidewalk1OffsetX - 24 + canvas.width) % canvas.width;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX - 48 + canvas.width) % canvas.width;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX + 24) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX + 48) % VIEW_WIDTH;
 }
 
 const scrollCeilingRight4px = () => {
-    console.log("scrollCeilingRight4px called");
-    townCeilingOffsetX = (townCeilingOffsetX + 12) % canvas.width;
+    townCeilingOffsetX = (townCeilingOffsetX - 12 + VIEW_WIDTH) % VIEW_WIDTH;
 }
 
 const scrollCeilingLeft4px = () => {
-    console.log("scrollCeilingLeft4px called");
-    townCeilingOffsetX = (townCeilingOffsetX - 12 + canvas.width) % canvas.width;
+    townCeilingOffsetX = (townCeilingOffsetX + 12) % VIEW_WIDTH;
 }
 
 function drawTownTiles() {
@@ -844,53 +831,54 @@ function drawTownTiles() {
 function drawHero() {
     if (!heroSpriteReady || !engineReady) return;
 
-    // Get current hero state from WASM
-    const moving = heroIsMoving?.();          // true if walking
-    let heroPos = getHeroPosition?.();
-    let viewportX = heroPos.hero_x_in_viewport;
-    let direction = heroPos.facing_direction;
-    if (viewportX === undefined) viewportX = 0;
+    // Read hero state directly from WASM memory
+    readMemory(0xFF33, 1)[0]
+    const heroAnim = readMemory(0x00E7, 1)[0];        // ADDR_HERO_ANIMATION_PHASE
+    const facing   = readMemory(0x00C2, 1)[0] & 1;    // ADDR_FACING_DIRECTION bit0: 0=right, 1=left
+    const movedFlag = readMemory(0x7C4B, 1)[0];       // ADDR_HERO_MOVED_FLAG (0xFF = moved this frame)
 
-    // Select frame index
-    let frame = FRAME_RIGHT_STAND;
-    if (direction === 0) {
-        if (moving) {
-            const phase = Math.floor(animTimer / ANIM_SPEED_TICKS) % 4;
-            frame = FRAME_RIGHT_WALK_BASE + phase;
+    // Determine if hero is walking (movedFlag == 0xFF)
+    const isMoving = (movedFlag === 0xFF);
+
+    // Phase is the low 2 bits of heroAnim (0-3)
+    const phase = heroAnim & 3;
+
+    let frame = 0;
+
+    if (!isMoving) {
+        // Standing frames
+        if (facing === 0) {
+            frame = FRAME_RIGHT_STAND;   // 11
         } else {
-            frame = FRAME_RIGHT_STAND;
-        }
-    } else if (direction === 1) {
-        if (moving) {
-            const phase = Math.floor(animTimer / ANIM_SPEED_TICKS) % 4;
-            frame = FRAME_LEFT_WALK_BASE + phase;
-        } else {
-            frame = FRAME_LEFT_STAND;
+            frame = FRAME_LEFT_STAND;    // 10
         }
     } else {
-        // On rope / facing away – use frame 4 (optional)
-        frame = 4;
+        // Walking frames
+        if (facing === 0) {
+            // Right walk frames: 5,6,7,8
+            frame = FRAME_RIGHT_WALK_BASE + phase;
+        } else {
+            // Left walk frames: 0,1,2,3
+            frame = FRAME_LEFT_WALK_BASE + phase;
+        }
     }
 
     const sx = frame * HERO_FRAME_W;
+    const viewportX = readMemory(0x0083, 1)[0];       // ADDR_HERO_X_IN_VIEWPORT
     const dx = viewportX * TILE_WIDTH;
     const dy = HERO_BASE_Y;
 
-    ctx.drawImage(heroSprite, 
-        sx, // source x
-        0,  // source y
-        HERO_FRAME_W, // source width
-        HERO_FRAME_H, // source height
-        dx, // dest x
-        dy, // dest y
-        HERO_FRAME_W, // dest width
-        HERO_FRAME_H  // dest height
+    ctx.drawImage(heroSprite,
+        sx, 0,
+        HERO_FRAME_W, HERO_FRAME_H,
+        dx, dy,
+        HERO_FRAME_W, HERO_FRAME_H
     );
 }
 
 // ─── rAF game loop ────────────────────────────────────────────────────────────
 /**
- * update() — runs once per animation frame (~60 Hz).
+ * update() — runs once per animation frame.
  *
  * Heavy game-logic (movement, combat) is intentionally NOT done here; it runs
  * inside onSlowTick() at ~47.3 Hz (driven by the PIT worklet) to preserve the
@@ -899,10 +887,6 @@ function drawHero() {
  */
 function update() {
     if (!engineReady) return;
-
-    // Enable hero movement update
-    heroMovementUpdate?.();
-    updateHorizontalPlatforms?.();
 
   // Sync hero position from WASM
     const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
@@ -945,8 +929,8 @@ function draw() {
     }
 
     drawTownBackground();
-    drawTownSidewalk1();
-    drawTownSidewalk2();
+    drawTownSidewalk();
+    if (townBackgroundType) drawTownCeiling();
 
     if (drawTownTiles()) {
         drawHero();
@@ -965,40 +949,6 @@ function draw() {
         updateElementText('almas', 0);
         return;
     }
-
-    // ctx.font          = `${TILE_HEIGHT}px "Press Start 2P", monospace`;
-    // ctx.textBaseline  = 'top';
-
-    // Background tiles
-    // ctx.fillStyle = RENDER_CONFIG.tiles.default.color;
-    // for (let row = 0; row < VIEW_ROWS; row++) {
-    //     let mapRow = startRow + row;
-    //     if (mapRow >= 64) mapRow -= 64;
-
-    //     for (let col = 0; col < VIEW_COLS; col++) {
-    //         const proximityCol = startCol + col;
-    //         const offset       = mapRow * 36 + proximityCol;
-    //         const tileByte     = proximityMap[offset];
-    //         ctx.fillText(String.fromCharCode(tileByte + 0x20), col * TILE_WIDTH, row * TILE_HEIGHT);
-    //     }
-    // }
-
-    // Render dungeon objects (platforms, doors, items, monsters)
-    // renderDungeonObjects(ctx, mdtData, mdtHeader, camX, startRow, TILE_WIDTH, TILE_HEIGHT);
-
-    // // Hero sprite
-    // ctx.fillStyle = RENDER_CONFIG.hero.color;
-    // const screenX = camX * TILE_WIDTH;
-    // const screenY = camY * TILE_HEIGHT;
-
-    // let heroStyle;
-    // if      (player.direction === 0)  heroStyle = RENDER_CONFIG.hero.standing.onRope;
-    // else if (player.direction === 1)  heroStyle = RENDER_CONFIG.hero.standing.facingRight;
-    // else                              heroStyle = RENDER_CONFIG.hero.standing.facingLeft;
-
-    // ctx.fillText(heroStyle.head, screenX, screenY + TILE_HEIGHT * 2);
-    // ctx.fillText(heroStyle.body, screenX, screenY + TILE_HEIGHT * 3);
-    // ctx.fillText(heroStyle.legs, screenX, screenY + TILE_HEIGHT * 4);
 
     drawLifeBar();
     updateElementText('currentMapName', cavernName);
