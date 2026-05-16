@@ -465,7 +465,7 @@ seg004:6074                 lodsb
 seg004:6075                 mov     ds:pat_id, al
 seg004:6078                 mov     ds:byte_7C44, 0
 seg004:607D                 test    byte ptr invincibility_flag, 0FFh
-seg004:6082                 jnz     short loc_60B7
+seg004:6082                 jnz     short town_entry_internal
 seg004:6084                 test    ds:ympd_ckpd_select, 1
 seg004:6089                 jz      short loc_6097
 seg004:608B                 test    ds:byte_7C43, 0FFh
@@ -478,7 +478,7 @@ seg004:609A                 call    sub_6AA2
 seg004:609D                 call    cs:backup_upper_town_3_tiles_proc ; skips top 8 tiles (sky, distant mountains)
 seg004:609D                                         ; saves town top (3 tiles of 8) to screen buffer
 seg004:60A2                 test    is_death_already_processed, 0FFh
-seg004:60A7                 jnz     short loc_60B7
+seg004:60A7                 jnz     short town_entry_internal
 seg004:60A9                 push    ds
 seg004:60AA                 mov     ds, cs:seg1
 seg004:60AF                 mov     si, 3000h
@@ -492,7 +492,7 @@ seg004:60B6
 seg004:60B7 ; START OF FUNCTION CHUNK FOR sub_6CB5
 seg004:60B7 ;   ADDITIONAL PARENT FUNCTION sub_601E
 seg004:60B7
-seg004:60B7 loc_60B7:                               ; ...
+seg004:60B7 town_entry_internal:                               ; ...
 seg004:60B7                 cli
 seg004:60B8                 mov     sp, 2000h
 seg004:60BB                 sti
@@ -2334,7 +2334,7 @@ seg004:6CB5 ; FUNCTION CHUNK AT seg004:6FF8 SIZE 0000004A BYTES
 seg004:6CB5
 seg004:6CB5                 mov     al, hero_x_in_viewport
 seg004:6CB8                 inc     al
-seg004:6CBA                 jnz     short loc_6CF5
+seg004:6CBA                 jnz     short maybe_crossed_right
 seg004:6CBC                 call    modify_npc_heads
 seg004:6CBF                 mov     ds:frame_timer, 28h ; '('
 seg004:6CC4                 call    sub_68AF
@@ -2352,26 +2352,26 @@ seg004:6CD5                 lodsb
 seg004:6CD6                 mov     ah, al
 seg004:6CD8                 lodsb
 seg004:6CD9                 and     ah, 0FEh
-seg004:6CDC                 jz      short loc_6CE1
-seg004:6CDE                 jmp     loc_6FF8
+seg004:6CDC                 jz      short town_transition_from_left
+seg004:6CDE                 jmp     dungeon_transition
 seg004:6CE1 ; ---------------------------------------------------------------------------
 seg004:6CE1
-seg004:6CE1 loc_6CE1:                               ; ...
+seg004:6CE1 town_transition_from_left:                               ; ...
 seg004:6CE1                 call    sub_6D30
 seg004:6CE4                 mov     hero_x_in_viewport, 1Ah
 seg004:6CE9                 mov     ax, ds:mapWidth
 seg004:6CEC                 sub     ax, 24h ; '$'
 seg004:6CEF                 mov     proximity_map_left_col_x, ax
-seg004:6CF2                 jmp     loc_60B7
+seg004:6CF2                 jmp     town_entry_internal
 seg004:6CF5 ; ---------------------------------------------------------------------------
 seg004:6CF5
-seg004:6CF5 loc_6CF5:                               ; ...
+seg004:6CF5 maybe_crossed_right:                               ; ...
 seg004:6CF5                 cmp     al, 1Ch
-seg004:6CF7                 jz      short loc_6CFA
+seg004:6CF7                 jz      short crossed_right_edge
 seg004:6CF9                 retn
 seg004:6CFA ; ---------------------------------------------------------------------------
 seg004:6CFA
-seg004:6CFA loc_6CFA:                               ; ...
+seg004:6CFA crossed_right_edge:                               ; ...
 seg004:6CFA                 call    modify_npc_heads
 seg004:6CFD                 mov     ds:frame_timer, 28h ; '('
 seg004:6D02                 call    sub_68AF
@@ -2389,15 +2389,15 @@ seg004:6D13                 lodsb
 seg004:6D14                 mov     ah, al
 seg004:6D16                 lodsb
 seg004:6D17                 and     ah, 0FEh
-seg004:6D1A                 jz      short loc_6D1F
-seg004:6D1C                 jmp     loc_6FF8
+seg004:6D1A                 jz      short town_transition_from_right
+seg004:6D1C                 jmp     dungeon_transition
 seg004:6D1F ; ---------------------------------------------------------------------------
 seg004:6D1F
-seg004:6D1F loc_6D1F:                               ; ...
+seg004:6D1F town_transition_from_right:                               ; ...
 seg004:6D1F                 call    sub_6D30
 seg004:6D22                 mov     hero_x_in_viewport, 0
 seg004:6D27                 mov     proximity_map_left_col_x, 0
-seg004:6D2D                 jmp     loc_60B7
+seg004:6D2D                 jmp     town_entry_internal
 seg004:6D2D sub_6CB5        endp ; sp-analysis failed
 seg004:6D2D
 seg004:6D30
@@ -2567,7 +2567,7 @@ seg004:6E77
 seg004:6E77 loc_6E77:                               ; ...
 seg004:6E77                 sub     al, 8           ; 8-8=0
 seg004:6E79                 jb      short loc_6E7E
-seg004:6E7B                 jmp     loc_6FF8        ; al=0
+seg004:6E7B                 jmp     dungeon_transition        ; al=0
 seg004:6E7E ; ---------------------------------------------------------------------------
 seg004:6E7E
 seg004:6E7E loc_6E7E:                               ; ...
@@ -2700,7 +2700,7 @@ seg004:6FEF aUgm2Msd        db 'UGM2.MSD',0
 seg004:6FF8 ; ---------------------------------------------------------------------------
 seg004:6FF8 ; START OF FUNCTION CHUNK FOR sub_6CB5
 seg004:6FF8
-seg004:6FF8 loc_6FF8:                               ; ...
+seg004:6FF8 dungeon_transition:                               ; ...
 seg004:6FF8                 mov     bl, 5           ; ax=0
 seg004:6FFA                 mul     bl
 seg004:6FFC                 add     ax, ds:word_C00B ; 0+C700=c700

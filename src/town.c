@@ -222,6 +222,15 @@
 #define ADDR_WORD_E001             0xE001  /* word (pointer used in save list) */
 
 #define ADDR_SCROLL_REQUEST  0xFFF0 // bit 0: floor right, bit 1: floor left, bit 2: ceiling right, bit 3: ceiling left
+/* =========================================================================
+ * Transition-pending state (WASM→JS async handshake)
+ * ========================================================================= */
+/* Written by handle_edge_screen_transition, cleared by JS after it has
+ * loaded all resources and called wasm_town_entry_enabling_edge_scroll. */
+#define ADDR_PENDING_TRANSITION_MAP  0xFFF1  /* byte: dest map id (with 0x80 set) */
+#define ADDR_PENDING_TRANSITION_PAT  0xFFF2  /* byte: new pat_id */
+#define ADDR_PENDING_TRANSITION_DIR  0xFFF3  /* byte: 0=going right, 1=going left */
+#define ADDR_PENDING_TRANSITION_FLAG 0xFFF4  /* byte: 0xFF = transition requested */
 
 /* =========================================================================
  * Per-character rendering tables (char_x_offset, char_width_table)
@@ -447,7 +456,7 @@ static void town_entry_common(void)
         }
     }
 
-    /* --- loc_60B7 --- */
+    /* --- town_entry_internal --- */
     SPACEBAR = 0;
     ALTKEY   = 0;
     MEM8(ADDR_BYTE_E4) = 0;
@@ -1587,8 +1596,8 @@ static void swap_a000_c000_buffers(void)
 static void handle_edge_screen_transition(void)
 {
     uint8_t vp_x = HERO_XV;
-    int going_left = (vp_x == 0xFF);  /* x wrapped: 0+(-1) = 0xFF byte */
-    int going_right = (vp_x == 0x1C); /* 28 */
+    int going_left = (vp_x == 0xFF);  /* x wrapped: -1 = 0xFF byte */
+    int going_right = (vp_x == 28);
     if (!going_left && !going_right) return;
 
     modify_npc_heads();
@@ -1625,7 +1634,7 @@ static void handle_edge_screen_transition(void)
         PROX_LEFT = 0;
     }
 
-    /* Restart town loop from loc_60B7 equivalent */
+    /* Restart town loop from town_entry_internal equivalent */
     town_entry_common();   /* NOTE: recursive — fine for C since it's the game loop */
 }
 

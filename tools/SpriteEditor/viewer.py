@@ -1,5 +1,5 @@
 """
-Zeliard Sprite Editor - Main application (v0.4 - animation support).
+Zeliard Sprite Editor - Main application (v0.5 - animation/transparency support).
 """
 
 import os
@@ -35,7 +35,7 @@ class MDTViewer(tk.Tk):
     C_PINK = '#f5c2e7'
 
     BLK_MIN = 2
-    BLK_MAX = 48
+    BLK_MAX = 72
     BLK_DEF = 8
 
     def build_palette():
@@ -77,6 +77,11 @@ class MDTViewer(tk.Tk):
         self.source_tile_cache = {}          # cache for scaled source PhotoImages
         self.candidate_labels = {}           # dict (tile_id, idx) -> Label widget
         self.candidate_frames = {}           # dict (tile_id, idx) -> Frame widget (for border)
+        self.show_checkerboard = tk.BooleanVar(value=True)
+        self._checker_cache = {}           # size -> PIL Image
+        self.CHECKER_LIGHT = '#aaaaaa'     # light gray square
+        self.CHECKER_DARK  = '#666666'     # dark gray square
+        self.CHECKER_CELL  = 4             # cell size in px (at native 8px tile)
 
         # ---- NEW: persistence attributes ----
         self.selections_dirty = False
@@ -123,6 +128,7 @@ class MDTViewer(tk.Tk):
 
         # ─── Source image buttons ────────────────────────────
         btn('Load Source', self.load_source_image, fg=self.C_CYAN)
+        btn('Load TileSheet', self.load_tilesheet, fg=self.C_CYAN)
         btn('Clear Source', self.clear_source_data, fg=self.C_RED)
         btn('Load Anim', self.load_animation, fg=self.C_YELL)     # NEW
         sep()
@@ -142,6 +148,14 @@ class MDTViewer(tk.Tk):
             relief='flat', bd=0, cursor='hand2',
             font=('Consolas', 9), padx=10, pady=7)
         self.tid_btn.pack(side='left', padx=2, pady=6)
+
+        self.chk_btn = tk.Button(
+            tb, text='Checker  ON', command=self._toggle_checkerboard,
+            bg='#2a2a45', fg=self.C_YELL,
+            activebackground='#45475a', activeforeground=self.C_FG,
+            relief='flat', bd=0, cursor='hand2',
+            font=('Consolas', 9), padx=10, pady=7)
+        self.chk_btn.pack(side='left', padx=2, pady=6)
         sep()
 
         tk.Label(tb, text='Zoom', bg=self.C_BG0, fg=self.C_DIM,
@@ -321,7 +335,8 @@ class MDTViewer(tk.Tk):
             messagebox.showerror('Load Error', str(e))
 
     def get_tile_image(self, tile_idx):
-        cache_key = (tile_idx, self.block_size)
+        use_checker = self.show_checkerboard.get()
+        cache_key = (tile_idx, self.block_size, use_checker)
         if cache_key in self.tile_images:
             return self.tile_images[cache_key]
 
@@ -332,13 +347,18 @@ class MDTViewer(tk.Tk):
         img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
         for i, p_idx in enumerate(raw_pixels):
             if p_idx == -1:
-                color_hex = self.PALETTE_STRS[5]
-            else:
-                color_hex = self.PALETTE_STRS[p_idx]
+                continue                        # truly transparent
+            color_hex = self.PALETTE_STRS[p_idx]
             x, y = i % 8, i // 8
-            rgb = tuple(int(color_hex[i:i+2], 16) for i in (1, 3, 5))
+            rgb = tuple(int(color_hex[j:j+2], 16) for j in (1, 3, 5))
             img.putpixel((x, y), rgb + (255,))
-        photo = ImageTk.PhotoImage(img)
+
+        bw = self.block_size
+        scaled = img.resize((bw, bw), Image.NEAREST)
+        if use_checker:
+            scaled = self._composite_over_checker(scaled, bw)
+
+        photo = ImageTk.PhotoImage(scaled)
         self.tile_images[cache_key] = photo
         return photo
 
@@ -347,35 +367,37 @@ class MDTViewer(tk.Tk):
         self.canvas.delete("all")
         bw = self.block_size
         mw, mh = self.mdt.map_width, self.mdt.map_height
+        use_checker = self.show_checkerboard.get()
+
         for y in range(mh):
             for x in range(mw):
                 tile_idx = self.mdt.grid[y][x]
                 x1, y1 = x * bw, y * bw
+
                 if self.source_tile_candidates and tile_idx in self.source_tile_candidates:
                     sel_idx = self.source_tile_selections.get(tile_idx, 0)
                     if sel_idx < len(self.source_tile_candidates[tile_idx]):
                         src_img = self.source_tile_candidates[tile_idx][sel_idx]
-                        cache_key = (tile_idx, bw, sel_idx)
+                        cache_key = (tile_idx, bw, sel_idx, use_checker)  # ← added flag
                         if cache_key not in self.source_tile_cache:
                             scaled = src_img.resize((bw, bw), Image.NEAREST)
+                            if use_checker:
+                                scaled = self._composite_over_checker(scaled, bw)
                             photo = ImageTk.PhotoImage(scaled)
                             self.source_tile_cache[cache_key] = photo
                         tile_img = self.source_tile_cache[cache_key]
                         self.canvas.create_image(x1, y1, image=tile_img, anchor='nw')
                         continue
+
                 tile_img = self.get_tile_image(tile_idx)
                 if tile_img:
                     self.canvas.create_image(x1, y1, image=tile_img, anchor='nw')
                 else:
                     self.canvas.create_rectangle(x1, y1, x1+bw, y1+bw, fill='gray')
-        
-        # Update scrollregion so scrollbars reflect full map size
-        self.canvas.config(scrollregion=(0, 0, mw * bw, mh * bw))
 
-        # Re-apply overlays & tile IDs if needed
+        self.canvas.config(scrollregion=(0, 0, mw * bw, mh * bw))
         self._draw_overlays()
         self._draw_tile_ids()
-        # Show/hide scrollbars based on current view
         self._update_canvas_scrollbars()
 
     def _draw_overlays(self):
@@ -1017,16 +1039,28 @@ class MDTViewer(tk.Tk):
         if self.source_tile_candidates and tile_id in self.source_tile_candidates:
             sel = self.source_tile_selections.get(tile_id, 0)
             if sel < len(self.source_tile_candidates[tile_id]):
-                return self.source_tile_candidates[tile_id][sel].resize((bs, bs), Image.NEAREST)
-        if not self.mdt.gfx or tile_id >= len(self.mdt.gfx):
-            return Image.new('RGB', (bs, bs), 'gray')
-        raw_pixels = self.mdt.gfx[tile_id]
-        tmp = Image.new('RGB', (8, 8))
-        for i, p_idx in enumerate(raw_pixels):
-            color_hex = self.PALETTE_STRS[5] if p_idx == -1 else self.PALETTE_STRS[p_idx]
-            rgb = tuple(int(color_hex[j:j+2], 16) for j in (1, 3, 5))
-            tmp.putpixel((i % 8, i // 8), rgb)
-        return tmp.resize((bs, bs), Image.NEAREST)
+                img = self.source_tile_candidates[tile_id][sel]
+                # Ensure RGBA
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                return img.resize((bs, bs), Image.NEAREST)
+
+        # Native MDT tile – create RGBA with proper transparency
+        if self.mdt.gfx and tile_id < len(self.mdt.gfx):
+            raw_pixels = self.mdt.gfx[tile_id]
+            tmp = Image.new('RGBA', (8, 8))
+            for i, p_idx in enumerate(raw_pixels):
+                if p_idx == -1:
+                    pixel = (0, 0, 0, 0)          # fully transparent
+                else:
+                    color_hex = self.PALETTE_STRS[p_idx]
+                    rgb = tuple(int(color_hex[j:j+2], 16) for j in (1, 3, 5))
+                    pixel = rgb + (255,)           # fully opaque
+                tmp.putpixel((i % 8, i // 8), pixel)
+            return tmp.resize((bs, bs), Image.NEAREST)
+
+        # Fallback for missing tile
+        return Image.new('RGBA', (bs, bs), (0, 0, 0, 0))
 
     def save_png(self):
         """Export map as PNG at native tile size (source tile size or 8px)."""
@@ -1047,12 +1081,12 @@ class MDTViewer(tk.Tk):
                 tile_size = 8
 
             mw, mh = self.mdt.map_width, self.mdt.map_height
-            full_map = Image.new('RGB', (mw * tile_size, mh * tile_size), self.C_BG1)
+            full_map = Image.new('RGBA', (mw * tile_size, mh * tile_size), (0, 0, 0, 0))
             for r in range(mh):
                 for c in range(mw):
                     tid = self.mdt.grid[r][c]
                     tile_img = self._get_tile_image_for_export(tid, tile_size)
-                    full_map.paste(tile_img, (c * tile_size, r * tile_size))
+                    full_map.paste(tile_img, (c * tile_size, r * tile_size), tile_img)
             full_map.save(path)
             messagebox.showinfo('Saved', f'High-fidelity PNG saved:\n{path}')
         except Exception as e:
@@ -1145,4 +1179,119 @@ class MDTViewer(tk.Tk):
 
         sheet.save(path)
         messagebox.showinfo('Saved', f'Tile sheet saved as {default_name}\n at:\n{path}')
-        
+
+    def _make_checker_patch(self, size: int) -> Image.Image:
+        """Return a checkerboard RGBA image of size×size pixels."""
+        if size in self._checker_cache:
+            return self._checker_cache[size]
+        img = Image.new('RGBA', (size, size))
+        cell = max(1, self.CHECKER_CELL * size // 8)
+        light = tuple(int(self.CHECKER_LIGHT[i:i+2], 16) for i in (1, 3, 5)) + (255,)
+        dark  = tuple(int(self.CHECKER_DARK[i:i+2], 16)  for i in (1, 3, 5)) + (255,)
+        for y in range(size):
+            for x in range(size):
+                img.putpixel((x, y), light if ((x // cell) + (y // cell)) % 2 == 0 else dark)
+        self._checker_cache[size] = img
+        return img
+
+    def _composite_over_checker(self, tile_img: Image.Image, size: int) -> Image.Image:
+        """Paste an RGBA tile over a checkerboard background."""
+        checker = self._make_checker_patch(size).copy()
+        tile_rgba = tile_img.convert('RGBA') if tile_img.mode != 'RGBA' else tile_img
+        checker.paste(tile_rgba, (0, 0), tile_rgba)
+        return checker
+
+    def _toggle_checkerboard(self):
+        self.show_checkerboard.set(not self.show_checkerboard.get())
+        on = self.show_checkerboard.get()
+        self.chk_btn.config(
+            text=f'Checker  {"ON " if on else "OFF"}',
+            fg=self.C_YELL if on else self.C_DIM)
+        self.tile_images.clear()
+        self.source_tile_cache.clear()
+        self._checker_cache.clear()
+        if self.mdt:
+            self._draw_map()
+
+    def load_tilesheet(self):
+        """Load a tilesheet image and assign each tile ID from the sheet to the map."""
+        if not self.mdt:
+            messagebox.showwarning('Warning', 'Open an MDT first.')
+            return
+
+        path = filedialog.askopenfilename(
+            title='Open Tilesheet Image',
+            filetypes=[('PNG files', '*.png'), ('All files', '*')])
+        if not path:
+            return
+
+        ts = simpledialog.askinteger(
+            'Tile Size', 'Pixel size of each tile in the sheet:',
+            initialvalue=getattr(self, 'source_tile_size', 8), minvalue=1, parent=self)
+        if ts is None:
+            return
+
+        cols = simpledialog.askinteger(
+            'Columns', 'Number of tile columns in the sheet:',
+            initialvalue=16, minvalue=1, parent=self)
+        if cols is None:
+            return
+
+        try:
+            sheet_img = Image.open(path)
+            w, h = sheet_img.size
+
+            # Validate dimensions
+            if w % ts != 0 or h % ts != 0:
+                messagebox.showerror(
+                    'Size Mismatch',
+                    f'Image width ({w}) and height ({h}) must be multiples of tile size ({ts}).')
+                return
+
+            tiles_across = w // ts
+            if tiles_across != cols:
+                # Allow but warn – automatically adjust if they mismatched
+                cols = tiles_across
+                # Optional: ask for confirmation? We'll just use detected cols.
+                # messagebox.showinfo('Info', f'Detected {cols} columns from image width.')
+
+            tiles_down = h // ts
+            # Slice all tiles into a list where index = tile ID
+            tiles = []
+            for row in range(tiles_down):
+                for col in range(cols):
+                    left = col * ts
+                    upper = row * ts
+                    tile_img = sheet_img.crop((left, upper, left + ts, upper + ts))
+                    tiles.append(tile_img)
+
+            # Build candidate dictionary for each tile ID present in the map
+            self.source_tile_candidates = {}
+            self.source_tile_selections = {}
+            self.source_tile_cache = {}
+
+            max_tile_id = max(max(row) for row in self.mdt.grid) if self.mdt.grid else 0
+
+            for y in range(self.mdt.map_height):
+                for x in range(self.mdt.map_width):
+                    tid = self.mdt.grid[y][x]
+                    if tid < len(tiles):                     # valid tile from sheet
+                        if tid not in self.source_tile_candidates:
+                            self.source_tile_candidates[tid] = []
+                        # Avoid duplicates (same tile ID from different positions – they share the candidate)
+                        if not any(tiles[tid].tobytes() == existing.tobytes()
+                                for existing in self.source_tile_candidates[tid]):
+                            self.source_tile_candidates[tid].append(tiles[tid])
+                        # Auto‑select the first (only) candidate
+                        self.source_tile_selections[tid] = 0
+                    # tiles with ID >= len(tiles) are left untouched (original MDT rendering)
+
+            self.source_image_path = path        # for persistence
+            self.source_tile_size = ts
+            self.selections_dirty = True
+
+            self._build_tile_candidates_ui()
+            self._draw_map()
+
+        except Exception as e:
+            messagebox.showerror('Load Error', str(e))

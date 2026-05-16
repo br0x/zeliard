@@ -74,7 +74,7 @@ skip_til_ff:
                 mov     ds:pat_id, al    ; cpat/mpat/dpat
                 mov     ds:edge_scroll_enabled, 0
                 test    byte ptr ds:invincibility_flag, 0FFh
-                jnz     short loc_60B7
+                jnz     short town_entry_internal
                 test    byte ptr ds:town_has_middle_layer, 1
                 jz      short loc_6097
                 test    ds:disable_edge_scroll, 0FFh
@@ -87,7 +87,7 @@ loc_6097:
                 call    cs:backup_upper_town_3_tiles_proc ; skips top 8 tiles (sky, distant mountains)
                                         ; saves town top (3 tiles of 8) to screen buffer
                 test    byte ptr ds:is_death_already_processed, 0FFh
-                jnz     short loc_60B7
+                jnz     short town_entry_internal
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
@@ -98,7 +98,7 @@ town_entry_disabling_edge_scroll   endp ; sp-analysis failed
 
 ;   ADDITIONAL PARENT FUNCTION town_entry_disabling_edge_scroll
 
-loc_60B7:
+town_entry_internal:
                 cli
                 mov     sp, 2000h
                 sti
@@ -2061,25 +2061,27 @@ aPlace          db 5,'PLACE'
 ; =============== S U B R O U T I N E =======================================
 
 
-handle_edge_screen_transition        proc near               ; Handle hero walking off screen edge to adjacent town
-                ; Checks if hero is at left edge (x=0) or right edge (x=28) of viewport.
-                ; If so, looks up transition data from town_transition_table, waits for
-                ; animation frames, then calls load_town_transition_data to load
-                ; the new town and reinitialize.
-                ; Input: ds:hero_x_in_viewport, ds:town_transition_table (transition data table)
-                ; Output: may load new town and jump to town init
-                ; Modifies: ax, si, al
+; Handle hero walking off screen edge to adjacent town
+; Checks if hero is at left edge (x=0) or right edge (x=28) of viewport.
+; If so, looks up transition data from town_transition_table, waits for
+; animation frames, then calls load_town_transition_data to load
+; the new town and reinitialize.
+; Input: ds:hero_x_in_viewport, ds:town_transition_table (transition data table)
+; Output: may load new town and jump to town init
+; Modifies: ax, si
+handle_edge_screen_transition        proc near               
 
                 mov     al, ds:hero_x_in_viewport
                 inc     al
-                jnz     short loc_6CF5
+                jnz     short maybe_crossed_right
+; crossed left edge
                 call    modify_npc_heads
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
 
 loc_6CCB:   
-                test    byte ptr [si], 1
+                test    byte ptr [si], 1 ; town_transition_data[i].0 & 1 != 0 => data for crossing from left
                 jnz     short loc_6CD5
                 add     si, 4
                 jmp     short loc_6CCB
@@ -2090,28 +2092,27 @@ loc_6CD5:
                 mov     ah, al
                 lodsb
                 and     ah, 0FEh
-                jz      short loc_6CE1
-                jmp     loc_6FF8
+                jz      short town_transition_from_left
+                jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
-loc_6CE1:   
+town_transition_from_left:   
                 call    load_town_transition_data
-                mov     byte ptr ds:hero_x_in_viewport, 1Ah
+                mov     byte ptr ds:hero_x_in_viewport, 26
                 mov     ax, ds:mapWidth
-                sub     ax, 24h ; '$'
+                sub     ax, 36
                 mov     ds:proximity_map_left_col_x, ax
-                jmp     loc_60B7
+                jmp     town_entry_internal
 ; ---------------------------------------------------------------------------
 
-loc_6CF5:   
-                cmp     al, 1Ch
-                jz      short loc_6CFA
+maybe_crossed_right:   
+                cmp     al, 28
+                jz      short crossed_right_edge
                 retn
 ; ---------------------------------------------------------------------------
-
-loc_6CFA:   
+crossed_right_edge:   
                 call    modify_npc_heads
-                mov     byte ptr ds:frame_timer, 28h ; '('
+                mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
 
@@ -2127,15 +2128,15 @@ loc_6D13:
                 mov     ah, al
                 lodsb
                 and     ah, 0FEh
-                jz      short loc_6D1F
-                jmp     loc_6FF8
+                jz      short town_transition_from_right
+                jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
-loc_6D1F:   
+town_transition_from_right:   
                 call    load_town_transition_data
                 mov     byte ptr ds:hero_x_in_viewport, 0
                 mov     word ptr ds:proximity_map_left_col_x, 0
-                jmp     loc_60B7
+                jmp     town_entry_internal
 handle_edge_screen_transition        endp ; sp-analysis failed
 
 
@@ -2144,19 +2145,20 @@ handle_edge_screen_transition        endp ; sp-analysis failed
 ; Sets the new place_map_id, loads the new town's MDT data to fixed address 0xc000,
 ; NPC sprite group, applies sprite masks, and loads patterns if the pattern ID changed.
 ; Input: al = transition data byte (or'd with 80h for place_map_id),
+;        ah - ignored
 ;        [si+1] = pattern group ID, [si+2] = transition flags
 ; Output: new town data loaded, patterns decompressed if needed
 ; Modifies: ax, si, di, es, ds
 load_town_transition_data        proc near               ; Load transition data for town edge crossing
-                or      al, 80h
+                or      al, 80h  ; high bit set for towns
                 mov     byte ptr ds:place_map_id, al
-                lodsw
+                lodsw  ; town_transition_data[i].2
                 push    ax
                 mov     ah, byte ptr ds:place_map_id
                 mov     al, 1 ; fn1_load_mdt_idx_ah
                 call    cs:res_dispatcher_proc
-                pop     ax
-                push    ax
+                pop     ax  ; popped town_transition_data[i].2
+                push    ax  ; pushed town_transition_data[i].2
                 mov     cl, 11
                 mul     cl
                 mov     si, ax
@@ -2175,7 +2177,7 @@ load_town_transition_data        proc near               ; Load transition data 
                 mov     cx, 160
                 call    cs:apply_sprite_mask_proc
                 pop     ds
-                pop     ax
+                pop     ax  ; popped town_transition_data[i].2
                 cmp     ah, ds:pat_id
                 jz      short locret_6D87
                 mov     ds:pat_id, ah
@@ -2308,7 +2310,7 @@ door_x_coord_match:
 loc_6E77:   
                 sub     al, 8           ; 8-8=0
                 jb      short loc_6E7E
-                jmp     loc_6FF8        ; al=0
+                jmp     dungeon_transition        ; al=0
 ; ---------------------------------------------------------------------------
 
 loc_6E7E:   
@@ -2431,7 +2433,7 @@ falter_transition_desc dw 3201h                ; falter warp descriptor
 aUgm2Msd               db 'UGM2.MSD',0
 ; ---------------------------------------------------------------------------
 
-loc_6FF8:   
+dungeon_transition:   
                 mov     bl, 5           ; ax=0
                 mul     bl
                 add     ax, ds:dungeon_entrance_table ; 0+C700=c700
