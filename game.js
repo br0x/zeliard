@@ -30,15 +30,23 @@ const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 const PATTERN_ASSETS = {
     0: { // CPAT
         imagePath: 'assets/images/cpat/cmap_x24.png',
-        specialTiles: [0x3C, 0x3D]   // pillars (screen edges)
+        specialTiles: [0x3C, 0x3D],   // pillars (screen edges)
+        animatedTilesSeq: [[2, 3, 4, 5]]
     },
     1: { // MPAT
         imagePath: 'assets/images/mpat/mmap_x24.png',
-        specialTiles: [0x96, 0x97]   // pillars (screen edges)
+        specialTiles: [0x96, 0x97],   // pillars (screen edges)
+        animatedTilesSeq: [[]]
     },
     2: { // DPAT
         imagePath: 'assets/images/dpat/dmap_x24.png',
-        specialTiles: [0xbf]
+        specialTiles: [0xbf],
+        animatedTilesSeq: [
+            [1, 2, 3, 4, 5, 6], 
+            [7, 8, 9, 10, 11, 12], 
+            [13, 14, 15, 16, 17, 18], 
+            [19, 20, 21, 22, 23, 24]
+        ]
     }
 };
 
@@ -58,7 +66,6 @@ const TOWN_HEADS_START_ROW = TOWN_MAP_START_ROW + 5;
 const TOWN_SIDEWALK1_START_ROW = TOWN_MAP_START_ROW + TOWN_VIEW_ROWS;
 const TOWN_SIDEWALK2_START_ROW = TOWN_SIDEWALK1_START_ROW + 1;
 const TOWN_VISIBLE_COL_OFFSET = 4;
-const TOWN_ANIMATED_TILES = [2, 3, 4, 5];
 const TOWN_ANIMATION_FULL_TICKS = 24;
 const TOWN_BACKGROUND_ROWS = 11;
 const PLACE_MAP_ID = 0xC4;
@@ -160,6 +167,7 @@ let townSidewalk2 = null;
 let townSidewalk2Ready = false;
 let heroSprite = null;
 let heroSpriteReady = false;
+let townAnimTileMap = {};   // built from current PATTERN_ASSETS animatedTilesSeq
 
 function loadTownBackground() {
     if (townBackgroundReady) return Promise.resolve(townBackground);
@@ -651,6 +659,7 @@ async function startGame() {
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);   // your existing loader
             setSpecialTileList(pattern.specialTiles);
+            updateTownAnimation();
         } else {
             console.warn(`Unknown pattern ID ${townPatId}, movement may be blocked`);
         }        
@@ -703,12 +712,42 @@ function getTownMapWidth() {
     return mdtData[2] | (mdtData[3] << 8);
 }
 
-function getAnimatedTownTileId(tileId) {
-    const cycleIndex = TOWN_ANIMATED_TILES.indexOf(tileId);
-    if (cycleIndex === -1) return tileId;
+/**
+ * Rebuild townAnimTileMap from the current pattern's animatedTilesSeq.
+ * Must be called after townPatId is set and the pattern is selected.
+ */
+function updateTownAnimation() {
+    const pattern = PATTERN_ASSETS[townPatId];
+    const seqList = pattern?.animatedTilesSeq ?? [];
+    townAnimTileMap = {};
 
-    const frame = Math.floor(frameTimer / TOWN_ANIMATION_FULL_TICKS) % TOWN_ANIMATED_TILES.length;
-    return TOWN_ANIMATED_TILES[(cycleIndex + frame) % TOWN_ANIMATED_TILES.length];
+    if (!seqList.length || (seqList.length === 1 && !seqList[0].length)) {
+        // No animation for this pattern (e.g., MPAT with [[]])
+        return;
+    }
+
+    for (const seq of seqList) {
+        for (let pos = 0; pos < seq.length; pos++) {
+            const tileId = seq[pos];
+            townAnimTileMap[tileId] = { seq, pos };
+        }
+    }
+}
+
+/**
+ * Returns the animated tile ID if tileId is part of any looping sequence,
+ * otherwise returns tileId unchanged.  All sequences advance at a fixed
+ * speed (TOWN_ANIMATION_FULL_TICKS per phase) using the global frameTimer.
+ */
+function getAnimatedTownTileId(tileId) {
+    const entry = townAnimTileMap[tileId];
+    if (!entry) return tileId;
+
+    const { seq, pos } = entry;
+    const len = seq.length;
+    const phase = Math.floor(frameTimer / TOWN_ANIMATION_FULL_TICKS) % len;
+    const newPos = (pos + phase) % len;
+    return seq[newPos];
 }
 
 function drawTownBackground() {
@@ -926,6 +965,7 @@ async function handleTownTransition(transition) {
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
+            updateTownAnimation();
         }
 
         // 4. Tell WASM to finish: apply sprite masks, decompress patterns,
