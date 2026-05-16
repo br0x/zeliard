@@ -311,9 +311,9 @@ static void init_npcs(void);
 static void mark_npc_initialized(void);
 static void modify_npc_heads(void);
 static void render_life_almas_gold_place(void);
-static void load_town_background(void);
-static void load_patterns_and_call_background(void);
-static void load_and_decompress_patterns(void);
+// static void load_town_background(void);
+// static void load_patterns_and_call_background(void);
+// static void load_and_decompress_patterns(void);
 static void load_hero_town_sprite(void);
 static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
@@ -448,8 +448,8 @@ static void town_entry_common(void)
         if ((MIDDLE_LYR & 1) && !MEM8(ADDR_DISABLE_EDGE_SCROLL)) {
             MEM8(ADDR_EDGE_SCROLL_ENABLED) = 0xFF;
         }
-        load_town_background();
-        load_patterns_and_call_background();
+        // load_town_background();
+        // load_patterns_and_call_background();
         CALL_PROC(backup_upper_town_3_tiles);
         if (!DEATH_DONE) {
             CALL_PROC(adlib_fn0, SEG1_BASE + SEG1_TOWN_MSD_MUSIC);
@@ -507,7 +507,7 @@ static void town_entry_common(void)
     if (INVINC) {
         /* Resurrect at sage */
         INVINC = 0;
-        load_town_background();
+        // load_town_background();
         /* Load kenjpro.bin (sage binary) and call sage resurrection handler */
         CALL_PROC(res_dispatcher_fn3, "KENJPRO.BIN", ADDR_SAGE_BIN_ADDR);
         CALL_PROC(fade_to_black_dithered);
@@ -608,6 +608,10 @@ static void town_main_loop_step(void)
                     }
                     HERO_MOVED = 0xFF;
                 }
+            } else {
+                tile == tile;
+                uint8_t xv = HERO_XV;
+                xv == xv;
             }
         }
     } else if ((dirs & 0x0C) == 0x08) {
@@ -1477,42 +1481,42 @@ static void render_life_almas_gold_place(void)
 /* =========================================================================
  * load_town_background
  * ========================================================================= */
-static void load_town_background(void)
-{
-    /* If town has middle layer: load CKPD.BIN (composite bg+fg),
-     * otherwise load YMPD.BIN (background only).             */
-    const char *filename = (MIDDLE_LYR & 1) ? "CKPD.BIN" : "YMPD.BIN";
-    CALL_PROC(res_dispatcher_fn3, filename, SEG2_BASE + 0x3300);
-}
+// static void load_town_background(void)
+// {
+//     /* If town has middle layer: load CKPD.BIN (composite bg+fg),
+//      * otherwise load YMPD.BIN (background only).             */
+//     const char *filename = (MIDDLE_LYR & 1) ? "CKPD.BIN" : "YMPD.BIN";
+//     CALL_PROC(res_dispatcher_fn3, filename, SEG2_BASE + 0x3300);
+// }
 
 /* =========================================================================
  * load_patterns_and_call_background
  * ========================================================================= */
-static void load_patterns_and_call_background(void)
-{
-    load_and_decompress_patterns();
-    CALL_PROC(call_background_code, MEM8(ADDR_VIDEO_DRV_ID));
-}
+// static void load_patterns_and_call_background(void)
+// {
+//     load_and_decompress_patterns();
+//     CALL_PROC(call_background_code, MEM8(ADDR_VIDEO_DRV_ID));
+// }
 
 /* =========================================================================
  * load_and_decompress_patterns
  * Loads the pattern group (CPAT/MPAT/DPAT) indexed by pat_id,
  * fixes up the embedded pointers, then calls decompress_patterns.
  * ========================================================================= */
-static void load_and_decompress_patterns(void)
-{
-    static const char *pat_names[3] = { "CPAT.GRP", "MPAT.GRP", "DPAT.GRP" };
-    uint8_t idx = PAT_ID;
-    if (idx > 2) idx = 0;
-    CALL_PROC(res_dispatcher_fn2, pat_names[idx], SEG1_BASE + 0x8000);
+// static void load_and_decompress_patterns(void)
+// {
+//     static const char *pat_names[3] = { "CPAT.GRP", "MPAT.GRP", "DPAT.GRP" };
+//     uint8_t idx = PAT_ID;
+//     if (idx > 2) idx = 0;
+//     CALL_PROC(res_dispatcher_fn2, pat_names[idx], SEG1_BASE + 0x8000);
 
-    /* Fix up the three pointer words embedded at seg1:8000/8002/8004 */
-    SEG1_16(0x8000) += 0x8000;
-    SEG1_16(0x8002) += 0x8000;
-    SEG1_16(0x8004) += 0x8000;
+//     /* Fix up the three pointer words embedded at seg1:8000/8002/8004 */
+//     SEG1_16(0x8000) += 0x8000;
+//     SEG1_16(0x8002) += 0x8000;
+//     SEG1_16(0x8004) += 0x8000;
 
-    CALL_PROC(decompress_patterns, SEG1_BASE + 0x8000);
-}
+//     CALL_PROC(decompress_patterns, SEG1_BASE + 0x8000);
+// }
 
 /* =========================================================================
  * load_hero_town_sprite
@@ -1568,7 +1572,7 @@ static void handle_inventory_key(void)
     CALL_PROC(inventory_overlay);          /* cs:word_A002 */
     swap_a000_c000_buffers();
     CALL_PROC(clear_viewport);
-    load_patterns_and_call_background();
+    // load_patterns_and_call_background();
     CALL_PROC(backup_upper_town_3_tiles);
     memset(&g_mem[0xE000], 0xFE, 0xE0);
     game_loop_with_frame_wait();
@@ -1596,8 +1600,8 @@ static void swap_a000_c000_buffers(void)
 static void handle_edge_screen_transition(void)
 {
     uint8_t vp_x = HERO_XV;
-    int going_left = (vp_x == 0xFF);  /* x wrapped: -1 = 0xFF byte */
-    int going_right = (vp_x == 28);
+    int going_left  = (vp_x == 0xFF);
+    int going_right = (vp_x == 27);
     if (!going_left && !going_right) return;
 
     modify_npc_heads();
@@ -1605,66 +1609,92 @@ static void handle_edge_screen_transition(void)
     game_loop_with_frame_wait();
 
     uint16_t si = MEM16(ADDR_TOWN_TRANSITION_TABLE);
-    /* Scan for the entry matching our direction:
-     * bit0 of [si]: 1=left-exit, 0=right-exit (or vice-versa) */
     for (;;) {
         uint8_t flags = MEM8(si);
-        if (going_left  && (flags & 1)) { si += 4; continue; }
-        if (going_right && !(flags & 1)) { si += 4; continue; }
+        if (going_left  && !(flags & 1)) { si += 4; continue; }
+        if (going_right && (flags & 1)) { si += 4; continue; }
         break;
     }
 
-    uint8_t dest_map = MEM8(si);
-    uint8_t pat_new  = MEM8(si + 1);
-    uint8_t extra    = MEM8(si + 2);
+    uint8_t flags    = MEM8(si);
+    uint8_t dest_map = MEM8(si + 1);
+    uint8_t pat_new  = MEM8(si + 3);
 
-    if (extra & 0xFE) {
-        /* Transition to different module (fight/dungeon) */
+    if (flags & 0xFE) {
         CALL_PROC(transition_to_dungeon, dest_map);
         return;
     }
 
-    load_town_transition_data(si);
+    /* --- Signal JS to load resources asynchronously --- */
+    uint8_t dest_id = dest_map | 0x80;
+    MEM8(ADDR_PLACE_MAP_ID) = dest_id;
 
-    if (going_right) {
-        HERO_XV = 0x1A;
-        PROX_LEFT = MAP_WIDTH - 0x24;
+    /* Stash hero re-entry position based on direction */
+    if (going_left) {
+        HERO_XV  = 26;   /* enter from right side of new town */
+        PROX_LEFT = 0;
     } else {
-        HERO_XV = 0x00;
+        HERO_XV  = 0;   /* enter from left side of new town */
+        PROX_LEFT = 0;     /* JS will set this to MAP_WIDTH - 0x24 after loading */
+    }
+
+    /* Write the pending-transition record for JS to read */
+    MEM8(ADDR_PENDING_TRANSITION_MAP)  = dest_id;
+    MEM8(ADDR_PENDING_TRANSITION_PAT)  = pat_new;
+    MEM8(ADDR_PENDING_TRANSITION_DIR)  = going_left ? 1 : 0;
+    MEM8(ADDR_PENDING_TRANSITION_FLAG) = 0xFF;  /* arm the signal */
+
+    /* Do NOT call load_town_transition_data or town_entry_common here.
+     * JS detects ADDR_PENDING_TRANSITION_FLAG and drives the rest. */
+}
+
+/* Called by JS after it has:
+ *   1. Written new MDT bytes into g_mem[0xC000]
+ *   2. Loaded MMAN/CMAN.GRP into seg1:0x4000
+ * We finish the in-WASM part (apply masks, decompress patterns) and
+ * then run town_entry_common which re-enters the main loop. */
+void wasm_town_complete_transition(void)
+{
+    uint8_t dest_id  = MEM8(ADDR_PENDING_TRANSITION_MAP);
+    uint8_t pat_new  = MEM8(ADDR_PENDING_TRANSITION_PAT);
+    uint8_t going_left = MEM8(ADDR_PENDING_TRANSITION_DIR);
+
+    /* Clear the flag first — JS checks it and we don't want re-entry */
+    MEM8(ADDR_PENDING_TRANSITION_FLAG) = 0;
+
+    /* Apply NPC sprite mask (same as load_town_transition_data did) */
+    uint8_t npc_type = MEM8(ADDR_TOWN_DESCRIPTOR + 1);
+    // CALL_PROC(apply_sprite_mask,
+    //           SEG1_BASE + SEG1_MMAN_CMAN_GFX + 0x100,
+    //           SEG2_BASE + 0x7000, 160);
+
+    /* Decompress patterns if pat_id changed */
+    if (pat_new != PAT_ID) {
+        PAT_ID = pat_new;
+        // load_and_decompress_patterns();
+    }
+
+    /* Set hero re-entry scroll position */
+    if (going_left) {
+        /* came from the right, hero appears at right edge */
+        HERO_XV   = 26;
+        PROX_LEFT = (uint16_t)(MAP_WIDTH - 36);
+    } else {
+        /* came from the left, hero appears at left edge */
+        HERO_XV   = 0;
         PROX_LEFT = 0;
     }
 
-    /* Restart town loop from town_entry_internal equivalent */
-    town_entry_common();   /* NOTE: recursive — fine for C since it's the game loop */
+    FACING = going_left ? 1 : 0;  /* face into the new town */
+
+    /* Re-enter town (loads background, starts music, inits NPCs, etc.) */
+    // town_entry_common();
 }
 
-/* =========================================================================
- * load_town_transition_data
- * Loads new MDT, NPC sprite group, applies masks, decompresses patterns.
- * ========================================================================= */
-static void load_town_transition_data(uint16_t si)
-{
-    uint8_t dest_id = MEM8(si) | 0x80;
-    MEM8(ADDR_PLACE_MAP_ID) = dest_id;
-
-    uint8_t new_pat_id = MEM8(si + 1);
-
-    /* Load MDT for new town */
-    CALL_PROC(res_dispatcher_fn1_mdt, dest_id);
-
-    /* Load NPC sprite group (MMAN or CMAN) */
-    uint8_t npc_type = MEM8(ADDR_TOWN_DESCRIPTOR + 1);
-    const char *grp = (npc_type == 0) ? "MMAN.GRP" : "CMAN.GRP";
-    CALL_PROC(res_dispatcher_fn2, grp, SEG1_BASE + SEG1_MMAN_CMAN_GFX);
-    CALL_PROC(apply_sprite_mask,
-              SEG1_BASE + SEG1_MMAN_CMAN_GFX + 0x100,
-              SEG2_BASE + 0x7000, 160);
-
-    if (new_pat_id != PAT_ID) {
-        PAT_ID = new_pat_id;
-        load_and_decompress_patterns();
-    }
-}
+/* Read the pending-transition record — JS uses this after detecting the flag */
+uint8_t wasm_get_pending_transition_map(void) { return MEM8(ADDR_PENDING_TRANSITION_MAP); }
+uint8_t wasm_get_pending_transition_pat(void) { return MEM8(ADDR_PENDING_TRANSITION_PAT); }
+uint8_t wasm_get_pending_transition_dir(void) { return MEM8(ADDR_PENDING_TRANSITION_DIR); }
 
 /* =========================================================================
  * npcAnimation — NPC frame tick (exported; called from building binaries)

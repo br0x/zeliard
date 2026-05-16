@@ -131,6 +131,17 @@ extern TownProcs g_town_procs;
 /* =========================================================================
  * Exported WASM entry points (callable from JavaScript)
  * ========================================================================= */
+/* Async transition handshake */
+#define ADDR_PENDING_TRANSITION_MAP  0xFFF1
+#define ADDR_PENDING_TRANSITION_PAT  0xFFF2
+#define ADDR_PENDING_TRANSITION_DIR  0xFFF3
+#define ADDR_PENDING_TRANSITION_FLAG 0xFFF4
+
+void    wasm_town_complete_transition(void);
+uint8_t wasm_get_pending_transition_map(void);
+uint8_t wasm_get_pending_transition_pat(void);
+uint8_t wasm_get_pending_transition_dir(void);
+
 void     wasm_town_init(void);
 void     wasm_town_set_return_before_main_loop(int enabled);
 void     wasm_town_entry_disabling_edge_scroll(void);

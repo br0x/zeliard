@@ -15,7 +15,6 @@ const MEM_SAVE_DATA = 0x0000;
 const MEM_INPUT_BUFFER = 0xFF16; // 4 bytes
 const MEMORY_SIZE = 64 * 1024 * 1024; // 64MB
 const SEG1_BASE = 0x10000;
-const SPECIAL_LIST_PTR_ADDR = SEG1_BASE + 0x8002; // seg1:0x8002
 
 // Input flags (bitmask) - must match InputFlags enum in zeliard.h
 const INPUT_FLAGS = {
@@ -481,16 +480,24 @@ export function setSpecialTileList(tileIds) {
         console.error('WASM memory not ready');
         return;
     }
-    // safe location in seg1
-    const listAddr = gMemoryBase + SEG1_BASE + 0x9000;
-    wasmMemory[listAddr] = tileIds.length;
+
+    // List lives at seg1:0x9000 — a safe scratch area well past the
+    // pattern data (seg1:0x8000–0x807F) and the pointer word itself.
+    const SEG1_OFFSET  = 0x9000;          // seg1-relative offset of list data
+    const listGmemAddr = gMemoryBase + SEG1_BASE + SEG1_OFFSET; // absolute index into wasmMemory
+
+    // Write count + tile bytes at seg1:0x9000
+    wasmMemory[listGmemAddr] = tileIds.length;
     for (let i = 0; i < tileIds.length; i++) {
-        wasmMemory[listAddr + 1 + i] = tileIds[i];
+        wasmMemory[listGmemAddr + 1 + i] = tileIds[i];
     }
-    // Set the pointer at seg1:0x8002 to point to this list
-    wasmMemory[gMemoryBase + SPECIAL_LIST_PTR_ADDR] = listAddr & 0xFF;
-    wasmMemory[gMemoryBase + SPECIAL_LIST_PTR_ADDR + 1] = (listAddr >> 8) & 0xFF;
-    console.log(`Special tile list set at 0x${listAddr.toString(16)} with ${tileIds.length} tiles`);
+
+    // Write the pointer word at seg1:0x8002.
+    // C reads it with SEG1_16(0x8002) and uses the result as a seg1-relative
+    // offset, so store the seg1-relative value 0x9000 (little-endian).
+    const ptrGmemAddr = gMemoryBase + SEG1_BASE + 0x8002;
+    wasmMemory[ptrGmemAddr]     = SEG1_OFFSET & 0xFF;        // lo = 0x00
+    wasmMemory[ptrGmemAddr + 1] = (SEG1_OFFSET >> 8) & 0xFF; // hi = 0x90
 }
 
 /**
@@ -1299,4 +1306,23 @@ export function isBossDefeated() {
         return wasmExports.is_boss_defeated() !== 0;
     }
     return false;
+}
+
+export function getTownPendingTransitionFlag() {
+    if (!wasmMemory) return 0;
+    return wasmMemory[gMemoryBase + 0xFFF4];
+}
+
+export function getTownPendingTransition() {
+    if (!wasmMemory) return null;
+    const base = gMemoryBase;
+    return {
+        mapId:     wasmMemory[base + 0xFFF1],  // dest map id (0x80 already set)
+        patId:     wasmMemory[base + 0xFFF2],
+        goingLeft: wasmMemory[base + 0xFFF3] !== 0,
+    };
+}
+
+export function townCompleteTransition() {
+    wasmExports?.wasm_town_complete_transition?.();
 }

@@ -134,6 +134,10 @@ let hasWasmExport;
 let setSpecialTileList;
 let readMemory;
 let writeMemory;
+let getTownPendingTransitionFlag;
+let getTownPendingTransition;
+let townCompleteTransition;
+let townEntryEnablingEdgeScroll;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -293,6 +297,10 @@ async function loadWasmEngine() {
         setSpecialTileList,
         readMemory,
         writeMemory,
+        getTownPendingTransitionFlag,
+        getTownPendingTransition,
+        townCompleteTransition,
+        townEntryEnablingEdgeScroll,
     } = wasmBridge);
 
     if (!USE_DUNGEON_RENDERER) {
@@ -454,6 +462,16 @@ function onFullTick() {
                 if (scrollFlag & 0x04) scrollCeilingRight4px();
                 if (scrollFlag & 0x08) scrollCeilingLeft4px();
                 writeMemory(0xfff0, [0]);
+            }
+            // detect async transition request
+            const pendingFlag = getTownPendingTransitionFlag?.();
+            if (pendingFlag === 0xFF) {
+                const transition = getTownPendingTransition?.();
+                if (transition) {
+                    // Clear flag immediately so we don't re-enter
+                    writeMemory(0xFFF4, [0]);
+                    handleTownTransition(transition);  // async, won't block tick
+                }
             }
         }
     }
@@ -854,6 +872,79 @@ function drawHero() {
         dx, dy,
         HERO_FRAME_W, HERO_FRAME_H
     );
+}
+
+let townTransitionInProgress = false;
+
+async function handleTownTransition(transition) {
+    if (townTransitionInProgress) return;
+    townTransitionInProgress = true;
+
+    // Pause the tick loop from calling townUpdate while we load
+    engineReady = false;
+
+    try {
+        const rawMapId = transition.mapId & 0x7F;  // strip 0x80
+        const mdtPath  = TOWN_MDTS[rawMapId];
+        if (!mdtPath) throw new Error(`No MDT path for map id ${rawMapId}`);
+
+        // 1. Load and install the new MDT
+        const resp = await fetch(mdtPath);
+        if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
+        mdtData = new Uint8Array(await resp.arrayBuffer());
+        loadMdt(mdtData);
+        mdtHeader = getTownMdtHeader?.();
+
+        // 2. Reload background images (new town may use different type)
+        const newBgType = getTownBackgroundType();
+        if (newBgType !== townBackgroundType) {
+            // background type changed — invalidate cached images
+            townBackgroundType    = newBgType;
+            townBackgroundReady   = false;
+            townBackground        = null;
+            townCeilingReady      = false;
+            townCeiling           = null;
+            townSidewalk1Ready    = false;
+            townSidewalk1         = null;
+            townSidewalk2Ready    = false;
+            townSidewalk2         = null;
+        }
+        await loadTownBackground();
+        await loadtownCeiling();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
+        resetTownScrollOffsets();
+
+        // 3. Load tileset if pat_id changed
+        const newPatId = transition.patId;
+        if (newPatId !== townPatId) {
+            townPatId         = newPatId;
+            townTileSheetReady = false;
+            townTileSheet     = null;
+        }
+        const pattern = PATTERN_ASSETS[townPatId];
+        if (pattern) {
+            await loadTownTileSheet(pattern.imagePath);
+            setSpecialTileList(pattern.specialTiles);
+        }
+
+        // 4. Tell WASM to finish: apply sprite masks, decompress patterns,
+        //    set hero position, call town_entry_common
+        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
+        townCompleteTransition?.();
+
+        // 5. Update music
+        const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
+        if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
+
+        console.log(`[transition] entered map ${rawMapId}`);
+
+    } catch (err) {
+        console.error('[handleTownTransition] failed:', err);
+    } finally {
+        townTransitionInProgress = false;
+        engineReady = true;
+    }
 }
 
 // ─── rAF game loop ────────────────────────────────────────────────────────────

@@ -1202,6 +1202,14 @@ var _wasm_init = Module["_wasm_init"] = makeInvalidEarlyAccess("_wasm_init");
 
 var _get_memory_base = Module["_get_memory_base"] = makeInvalidEarlyAccess("_get_memory_base");
 
+var _wasm_town_complete_transition = Module["_wasm_town_complete_transition"] = makeInvalidEarlyAccess("_wasm_town_complete_transition");
+
+var _wasm_get_pending_transition_map = Module["_wasm_get_pending_transition_map"] = makeInvalidEarlyAccess("_wasm_get_pending_transition_map");
+
+var _wasm_get_pending_transition_pat = Module["_wasm_get_pending_transition_pat"] = makeInvalidEarlyAccess("_wasm_get_pending_transition_pat");
+
+var _wasm_get_pending_transition_dir = Module["_wasm_get_pending_transition_dir"] = makeInvalidEarlyAccess("_wasm_get_pending_transition_dir");
+
 var _wasm_town_init = Module["_wasm_town_init"] = makeInvalidEarlyAccess("_wasm_town_init");
 
 var _wasm_town_set_return_before_main_loop = Module["_wasm_town_set_return_before_main_loop"] = makeInvalidEarlyAccess("_wasm_town_set_return_before_main_loop");
@@ -1255,6 +1263,10 @@ var wasmMemory = makeInvalidEarlyAccess("wasmMemory");
 function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_init"] != "undefined", "missing Wasm export: wasm_init");
   assert(typeof wasmExports["get_memory_base"] != "undefined", "missing Wasm export: get_memory_base");
+  assert(typeof wasmExports["wasm_town_complete_transition"] != "undefined", "missing Wasm export: wasm_town_complete_transition");
+  assert(typeof wasmExports["wasm_get_pending_transition_map"] != "undefined", "missing Wasm export: wasm_get_pending_transition_map");
+  assert(typeof wasmExports["wasm_get_pending_transition_pat"] != "undefined", "missing Wasm export: wasm_get_pending_transition_pat");
+  assert(typeof wasmExports["wasm_get_pending_transition_dir"] != "undefined", "missing Wasm export: wasm_get_pending_transition_dir");
   assert(typeof wasmExports["wasm_town_init"] != "undefined", "missing Wasm export: wasm_town_init");
   assert(typeof wasmExports["wasm_town_set_return_before_main_loop"] != "undefined", "missing Wasm export: wasm_town_set_return_before_main_loop");
   assert(typeof wasmExports["wasm_town_entry_disabling_edge_scroll"] != "undefined", "missing Wasm export: wasm_town_entry_disabling_edge_scroll");
@@ -1281,6 +1293,10 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["__indirect_function_table"] != "undefined", "missing Wasm export: __indirect_function_table");
   _wasm_init = Module["_wasm_init"] = createExportWrapper("wasm_init", 0);
   _get_memory_base = Module["_get_memory_base"] = createExportWrapper("get_memory_base", 0);
+  _wasm_town_complete_transition = Module["_wasm_town_complete_transition"] = createExportWrapper("wasm_town_complete_transition", 0);
+  _wasm_get_pending_transition_map = Module["_wasm_get_pending_transition_map"] = createExportWrapper("wasm_get_pending_transition_map", 0);
+  _wasm_get_pending_transition_pat = Module["_wasm_get_pending_transition_pat"] = createExportWrapper("wasm_get_pending_transition_pat", 0);
+  _wasm_get_pending_transition_dir = Module["_wasm_get_pending_transition_dir"] = createExportWrapper("wasm_get_pending_transition_dir", 0);
   _wasm_town_init = Module["_wasm_town_init"] = createExportWrapper("wasm_town_init", 0);
   _wasm_town_set_return_before_main_loop = Module["_wasm_town_set_return_before_main_loop"] = createExportWrapper("wasm_town_set_return_before_main_loop", 1);
   _wasm_town_entry_disabling_edge_scroll = Module["_wasm_town_entry_disabling_edge_scroll"] = createExportWrapper("wasm_town_entry_disabling_edge_scroll", 0);
