@@ -58,6 +58,27 @@ const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
 const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
+
+// ─── NPC sprite config ────────────────────────────────────────────────────────
+// mman0.png : citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
+// mman1.png : soldier — 8 frames (48×72 each), all face viewer (looping idle)
+const NPC_SPRITE_PATHS = [
+    'assets/images/mman/mman0.png',   // type index 0 → citizen
+    'assets/images/mman/mman1.png',   // type index 1 → soldier
+];
+const NPC_FRAME_W  = 48;
+const NPC_FRAME_H  = 72;
+const NPC_FRAMES   = 8;           // frames per sheet
+// Animation: the WASM npc_ai_bob counter lives in n_anim_phase bits [1:0]
+// after the 0x10 increment pattern in npc_ai_bob_in_place / npc_ai_face_hero.
+// Bits 5:4 of n_anim_phase give a 0-3 slow-tick counter → use for frame index.
+const NPC_ANIM_PHASE_BITS = 0x30;   // mask for 2-bit slow anim counter
+const NPC_ANIM_PHASE_SHIFT = 4;
+
+// WASM memory addresses for NPC table (mirrors town.h / town.c)
+const ADDR_NPC_ARRAY_PTR       = 0xC00F;   // word → pointer to NPC array in g_mem
+const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;   // word → pointer to town descriptor
+
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
@@ -167,6 +188,13 @@ let townSidewalk2 = null;
 let townSidewalk2Ready = false;
 let heroSprite = null;
 let heroSpriteReady = false;
+
+// ─── NPC sprite state ─────────────────────────────────────────────────────────
+// npcSprites[i] mirrors NPC_SPRITE_PATHS[i]
+const npcSprites      = [null, null];
+const npcSpritesReady = [false, false];
+// Which NPC sprite type(s) are used by the current town (derived from MDT descriptor)
+let townNpcTypeList   = [];   // array of type indices (one per NPC entry in descriptor)
 let townAnimTileMap = {};   // built from current PATTERN_ASSETS animatedTilesSeq
 
 function loadTownBackground() {
@@ -262,6 +290,56 @@ function loadHeroSprite() {
     });
 }
 
+/**
+ * Load one NPC sprite sheet by type index (0=citizen, 1=soldier).
+ * Cached: second call for the same index resolves immediately.
+ */
+function loadNpcSprite(typeIndex) {
+    if (npcSpritesReady[typeIndex]) return Promise.resolve(npcSprites[typeIndex]);
+    const path = NPC_SPRITE_PATHS[typeIndex];
+    if (!path) return Promise.resolve(null);
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            npcSprites[typeIndex]      = img;
+            npcSpritesReady[typeIndex] = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load NPC sprite ${path}`));
+        img.src = path;
+    });
+}
+
+/**
+ * Parse the town descriptor from WASM memory to find which NPC sprite types
+ * are used by the current town.  Updates townNpcTypeList.
+ *
+ * Town descriptor format (starting at the address stored in word 0xC000):
+ *   [0]      msd_music_index
+ *   [1..n]   NPC type bytes  (one per NPC spawn point; 0xFF = end-of-list)
+ *   [n+1]    town_has_middle_layer
+ *   [n+2]    pat_id
+ */
+function parseTownNpcTypes() {
+    if (!readMemory) { townNpcTypeList = []; return; }
+
+    // ADDR_TOWN_DESCRIPTOR (0xC000) is a word pointing to the descriptor base
+    const descPtrLo  = readMemory(0xC000, 2);
+    const descPtr    = descPtrLo[0] | (descPtrLo[1] << 8);
+
+    const types = new Set();
+    let offset = descPtr + 1;   // skip msd_music_index byte
+
+    for (let i = 0; i < 64; i++) {   // safety cap
+        const byte = readMemory(offset + i, 1)[0];
+        if (byte === 0xFF) break;
+        types.add(byte);
+    }
+
+    townNpcTypeList = [...types];
+    console.log('[NPC] town descriptor NPC types:', townNpcTypeList);
+}
+
 async function loadWasmEngine() {
     const wasmBridge    = await import('./src/zeliard-wasm.js');
 
@@ -353,6 +431,7 @@ let mdtHeader    = null;
 
 let lastTimestamp = 0;
 let fps           = 0;
+let townTransitionInProgress = false;
 
 const player = {
     x:         61,
@@ -665,6 +744,11 @@ async function startGame() {
         }        
         await loadHeroSprite();
 
+        // Parse MDT to discover which NPC sprite types this town uses, then
+        // pre-load only those sheets.
+        parseTownNpcTypes();
+        await Promise.all(townNpcTypeList.map(t => loadNpcSprite(t)));
+
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
                 throw new Error('wasm_town_entry_disabling_edge_scroll is missing from build/zeliard.wasm');
@@ -913,7 +997,105 @@ function drawHero() {
     );
 }
 
-let townTransitionInProgress = false;
+/**
+ * drawNpcs — reads the NPC array from WASM memory and renders each NPC.
+ *
+ * NPC struct (8 bytes, 0xFFFF-terminated on n_x):
+ *   +0  n_x          uint16  absolute map column
+ *   +2  n_facing     uint8   bit7: 1=face-left, 0=face-right
+ *   +3  n_head_tile  uint8   (ignored here — WASM handles tile-map sentinel)
+ *   +4  n_anim_phase uint8   bits[5:4] = 2-bit slow anim index (0-3)
+ *   +5  n_ai_type    uint8
+ *   +6  n_flags      uint8
+ *   +7  n_id         uint8
+ *
+ * Sprite selection:
+ *   - mman1.png (soldier, type 1): 8-frame looping idle facing viewer.
+ *     frame = (n_anim_phase bits[5:4]) * 2    (maps 0-3 → 0,2,4,6)
+ *     Soldiers use all 8 frames as a smooth loop driven by anim_phase.
+ *
+ *   - mman0.png (citizen, type 0): 4 left-facing + 4 right-facing.
+ *     Left  frames: 0-3  (n_facing bit7 = 1)
+ *     Right frames: 4-7  (n_facing bit7 = 0)
+ *     frame = facingBase + (n_anim_phase bits[5:4])
+ *
+ * The NPC type for the current town comes from the town descriptor byte at +1
+ * (first NPC-type entry after the msd_music_index), stored in townNpcTypeList.
+ * When multiple NPC types exist in the same town the per-NPC type would need to
+ * be read from the descriptor; for now all NPCs in a town share the same type
+ * (which matches every town in map 0).
+ * 
+ * cman.grp/mman.grp
+ * n_facing & 0x80 is facing direction: 0 => right, 0x80 => left
+ * (n_facing & 0xf) is sprite id within the grp
+ * E.g. the guards at castle 0x81 & 0xf = 1 => mman1.png
+ */
+function drawNpcs() {
+    if (!engineReady || !readMemory) return;
+
+    // Read the NPC array pointer (word at 0xC00F)
+    const ptrBytes = readMemory(ADDR_NPC_ARRAY_PTR, 2);
+    const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
+    if (!npcArrayAddr) return;
+
+    // Read viewport scroll position
+    const proxLeftBytes = readMemory(0x0080, 2);
+    const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
+
+    // Determine which sprite type this town uses (first entry in list, or 0)
+    // For towns that mix types, this could be expanded to a per-NPC lookup.
+    const npcType = townNpcTypeList.length > 0 ? townNpcTypeList[0] : 0;
+    const sprite  = npcSprites[npcType];
+    if (!sprite || !npcSpritesReady[npcType]) return;
+
+    const isSoldier = (npcType === 1);   // mman1.png — facing-viewer sheet
+
+    // Walk NPC array (max 64 entries safety cap)
+    for (let i = 0; i < 64; i++) {
+        const base = npcArrayAddr + i * 8;
+        const npcMem = readMemory(base, 8);
+        const nx = npcMem[0] | (npcMem[1] << 8);
+
+        if (nx === 0xFFFF) break;   // end-of-list sentinel
+
+        const nFacing    = npcMem[2];
+        const nAnimPhase = npcMem[4];
+
+        // Convert absolute map column → screen pixel X.
+        // proxLeft is the map column of the viewport's leftmost tile.
+        // TOWN_VISIBLE_COL_OFFSET (4) aligns the visible window inside the
+        // 28-column viewport (the MDT tiles start at column 4 of the render).
+        const screenCol = nx - proxLeft - TOWN_VISIBLE_COL_OFFSET;
+        const screenX   = screenCol * TILE_WIDTH;
+
+        // Cull NPCs outside the 28-column viewport (with 1 tile margin)
+        if (screenX < -NPC_FRAME_W || screenX >= VIEW_WIDTH) continue;
+
+        // 2-bit animation index from bits [5:4] of n_anim_phase
+        const animIdx = (nAnimPhase & NPC_ANIM_PHASE_BITS) >> NPC_ANIM_PHASE_SHIFT;
+
+        let frame;
+        if (isSoldier) {
+            // Soldiers: 8-frame loop, two phases per anim index
+            frame = animIdx * 2;
+        } else {
+            // Citizens: left/right halves of 8-frame sheet
+            const facingLeft = (nFacing & 0x80) !== 0;
+            frame = facingLeft ? animIdx : (4 + animIdx);
+        }
+
+        const sx = frame * NPC_FRAME_W;
+
+        ctx.drawImage(
+            sprite,
+            sx, 0,
+            NPC_FRAME_W, NPC_FRAME_H,
+            screenX, HERO_BASE_Y,
+            NPC_FRAME_W, NPC_FRAME_H
+        );
+    }
+}
+
 
 async function handleTownTransition(transition) {
     if (townTransitionInProgress) return;
@@ -967,6 +1149,10 @@ async function handleTownTransition(transition) {
             setSpecialTileList(pattern.specialTiles);
             updateTownAnimation();
         }
+
+        // 3b. Load NPC sprites for the new town
+        parseTownNpcTypes();
+        await Promise.all(townNpcTypeList.map(t => loadNpcSprite(t)));
 
         // 4. Tell WASM to finish: apply sprite masks, decompress patterns,
         //    set hero position, call town_entry_common
@@ -1044,6 +1230,7 @@ function draw() {
     if (townBackgroundType) drawTownCeiling();
 
     if (drawTownTiles()) {
+        drawNpcs();   // NPCs rendered behind the hero
         drawHero();
         drawLifeBar();
         let placeName = getTownName?.() ?? 'unknown';
