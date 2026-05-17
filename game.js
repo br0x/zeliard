@@ -185,7 +185,7 @@ function loadTownBackground() {
     });
 }
 
-function loadtownCeiling() {
+function loadTownCeiling() {
     if (!townBackgroundType) return Promise.resolve(null);
     if (townCeilingReady) return Promise.resolve(townCeiling);
 
@@ -649,7 +649,7 @@ async function startGame() {
 
         townBackgroundType = getTownBackgroundType();
         await loadTownBackground();
-        await loadtownCeiling();
+        await loadTownCeiling();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
         resetTownScrollOffsets();
@@ -949,7 +949,7 @@ async function handleTownTransition(transition) {
             townSidewalk2         = null;
         }
         await loadTownBackground();
-        await loadtownCeiling();
+        await loadTownCeiling();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
         resetTownScrollOffsets();
