@@ -1844,27 +1844,27 @@ npc_ai_face_hero        proc near               ; NPC AI: face towards or away f
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
                 xor     bh, bh
-                add     bx, ds:proximity_map_left_col_x
+                add     bx, ds:proximity_map_left_col_x ; bx = hero x position in proximity map
                 cmp     bx, dx
                 jnb     short loc_6BCD
-                retn
+                retn  ; heroX < npcX; n_facing |= 0x80
 ; ---------------------------------------------------------------------------
-
+; heroX >= npcX
 loc_6BCD:   
-                and     [si+NPC.n_facing], 7Fh
+                and     [si+NPC.n_facing], 7Fh ; n_facing &= ~0x80
                 retn
 npc_ai_face_hero        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
-npc_ai_bob_in_place        proc near               ; NPC AI: bob up and down in place
-                ; Increments field_4 by 0x10 each frame; when bits 4-5 wrap,
-               ; toggles the lowest bit of the phase into field_4 for bobbing animation.
-                ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
-                ; Output: [si+NPC.n_anim_phase] updated with bob animation bits
-                ; Modifies: ax, ch
+; NPC AI: bob up and down in place
+; Increments field_4 by 0x10 each frame; when bits 4-5 wrap,
+; toggles the lowest bit of the phase into field_4 for bobbing animation.
+; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
+; Output: [si+NPC.n_anim_phase] updated with bob animation bits
+; Modifies: ax, ch
+npc_ai_bob_in_place        proc near               
                 mov     al, [si+NPC.n_anim_phase]
                 add     al, 10h
                 mov     [si+NPC.n_anim_phase], al

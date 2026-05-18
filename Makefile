@@ -4,10 +4,11 @@ SRCDIR = src
 BUILDDIR = build
 TARGET = $(BUILDDIR)/zeliard.js
 EM_CACHE_DIR = $(CURDIR)/$(BUILDDIR)/.emcache
+SOURCE_MAP_BASE ?= http://localhost:8000/build/
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 
-CFLAGS = -O0 -Wall -Wextra -g -gsource-map --source-map-base "http://localhost:8000/" -s ASSERTIONS=1 -s SAFE_HEAP=1
+CFLAGS = -O0 -Wall -Wextra -g3 -gsource-map --source-map-base "$(SOURCE_MAP_BASE)" -s ASSERTIONS=1 -s SAFE_HEAP=1
 
 EMFLAGS = \
   -s WASM=1 \
@@ -21,11 +22,16 @@ EMFLAGS = \
 "_wasm_get_pending_transition_pat","_wasm_get_pending_transition_dir"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 
+.PHONY: all clean serve
+
 all: $(TARGET)
 
-$(TARGET): $(SOURCES)
+$(TARGET): $(SOURCES) Makefile
 	mkdir -p $(BUILDDIR)
 	EM_CACHE=$(EM_CACHE_DIR) $(CC) $(CFLAGS) $(EMFLAGS) -o $@ $(SOURCES)
 
 clean:
 	rm -rf $(BUILDDIR)
+
+serve:
+	python3 -m http.server 8000

@@ -1311,10 +1311,12 @@ static void init_npcs(void)
 
 static void npc_ai_look_at_hero_and_bob(uint16_t si, uint16_t *dx)
 {
-    MEM8(si + 2) |= 0x80;
     uint16_t hero_abs = (uint16_t)(HERO_XV + 4) + PROX_LEFT;
-    if (hero_abs < *dx)
-        MEM8(si + 2) &= 0x7F;
+    if (hero_abs >= *dx) {
+        MEM8(si + 2) &= 0x7F; // hero is to the right, face right
+    } else {
+        MEM8(si + 2) |= 0x80; // hero is to the left, face left
+    }
     npc_ai_bob_in_place(si, dx);
 }
 
@@ -1363,15 +1365,18 @@ static void npc_ai_patrol_2bit_phase(uint16_t si, uint16_t *dx)
 
 static void npc_ai_face_hero(uint16_t si, uint16_t *dx)
 {
-    MEM8(si + 2) |= 0x80;
     uint16_t hero_abs = (uint16_t)(HERO_XV + 4) + PROX_LEFT;
-    if (hero_abs < *dx) MEM8(si + 2) &= 0x7F;
+    if (hero_abs >= *dx) {
+        MEM8(si + 2) &= 0x7F; // hero is to the right, face right
+    } else {
+        MEM8(si + 2) |= 0x80; // hero is to the left, face left
+    }
 }
 
 static void npc_ai_bob_in_place(uint16_t si, uint16_t *dx)
 {
     (void)dx;
-    uint8_t al = MEM8(si + 4);
+    uint8_t al = MEM8(si + 4); // NPC anim. phase
     al += 0x10;
     MEM8(si + 4) = al;
     uint8_t ch = al;

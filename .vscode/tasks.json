@@ -17,8 +17,18 @@
         {
             "label": "build-wasm",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "make",
             "group": "build",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "serve",
+            "type": "shell",
+            "command": "make serve",
+            "isBackground": true,
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}"
