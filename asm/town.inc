@@ -17,10 +17,10 @@ gtmcga_drv_addr                                    equ 3000h
 apply_screen_xor_grid_proc                         equ 3000h
 backup_upper_town_3_tiles_proc                     equ 3002h
 render_town_tiles_28_columns_proc                  equ 3004h
-scroll_floor_right_8px_proc                          equ 3006h
-scroll_ceiling_right_4px_proc                          equ 3008h
-scroll_floor_left_8px_proc                           equ 300Ah
-scroll_ceiling_left_4px_proc                           equ 300Ch
+scroll_floor_right_8px_proc                        equ 3006h
+scroll_ceiling_right_4px_proc                      equ 3008h
+scroll_floor_left_8px_proc                         equ 300Ah
+scroll_ceiling_left_4px_proc                       equ 300Ch
 unpack_to_shadow_memory_six_tiles_proc             equ 300Eh
 ui_draw_routine_dispatcher_proc                    equ 3010h
 blit_6_tiles_to_shadow_memory_proc                 equ 3012h
@@ -37,7 +37,7 @@ apply_sprite_mask_proc                             equ 3026h
 
 ; town.bin exports
 town_entry_enabling_edge_scroll_proc               equ 6000h
-town_entry_disabling_edge_scroll_proc                               equ 6002h
+town_entry_disabling_edge_scroll_proc              equ 6002h
 render_menu_dialog_proc                            equ 6004h
 convert_ax_to_decimal_proc                         equ 6006h
 show_yes_no_dialog_proc                            equ 6008h
@@ -56,7 +56,7 @@ restore_game_proc                                  equ 601Ch
 ; mdt info - towns
 town_descriptor_addr                               equ 0C000h
   ; [0]: bits 5..1 - msd index in [MGT1.MSD, UGM1.MSD, MGT2.MSD, UGM2.MSD]
-  ; [1]: NPC type; 0 -> mman.grp, 1 -> cman.grp
+  ; [1]: NPC category; 0 -> mman.grp, 1 -> cman.grp
   ; [2]: ff
   ; [3]: town_has_middle_layer
   ; [4]: pat_id
