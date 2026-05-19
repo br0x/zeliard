@@ -601,7 +601,7 @@ static void town_main_loop_step(void)
                     FACING |= 1;  /* face left */
                     if (HERO_XV >= 11) { // left threshold for scrolling
                         HERO_XV--; // no scrolling, normal movement
-                    } else if (PROX_LEFT != 0) { // scroll the floor and ceiling
+                    } else if (PROX_LEFT != 0) { // scroll the map, floor and ceiling
                         PROX_LEFT--;
                         PROX_START -= 8;
                         MEM8(ADDR_SCROLL_REQUEST) |= 0x01;  // floor right
@@ -638,7 +638,7 @@ static void town_main_loop_step(void)
                         uint16_t right_limit = MAP_WIDTH - 35;
                         if (PROX_LEFT + 1 == right_limit) {
                             HERO_XV++; // cannot scroll anymore, normal movement
-                        } else { // scroll the floor and ceiling
+                        } else { // scroll the map, floor and ceiling
                             PROX_LEFT++;
                             PROX_START += 8;
                             MEM8(ADDR_SCROLL_REQUEST) |= 0x02;  // floor left
@@ -1690,6 +1690,8 @@ void wasm_town_complete_transition(void)
         HERO_XV   = 0;
         PROX_LEFT = 0;
     }
+    uint16_t left_col = PROX_LEFT;
+    PROX_START = (uint16_t)(left_col * 8 + ADDR_TOWN_TILES);
 
     FACING = going_left ? 1 : 0;  /* face into the new town */
 
