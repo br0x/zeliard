@@ -569,7 +569,7 @@ seg004:615E                 shl     ax, 1
 seg004:6160                 shl     ax, 1           ; x*8 = 0x598
 seg004:6162                 add     ax, offset town_tiles ; unpacked town map offset =c5af
 seg004:6165                 mov     ds:proximity_start_tiles, ax
-seg004:6168                 call    mark_npc_processed
+seg004:6168                 call    save_head_level_tiles_in_npcs
 seg004:616B                 test    byte ptr invincibility_flag, 0FFh
 seg004:6170                 jz      short normal_game ;
 seg004:6170                                         ; resurrect at sage
@@ -2012,14 +2012,14 @@ seg004:6B1C ; =============== S U B R O U T I N E ==============================
 seg004:6B1C
 seg004:6B1C
 seg004:6B1C update_npcs       proc near               ; ...
-seg004:6B1C                 call    modify_npc_heads
+seg004:6B1C                 call    restore_head_level_tiles_from_npcs
 seg004:6B1F                 mov     si, ds:npc_array_addr
 seg004:6B23
 seg004:6B23 next_npc:                               ; ...
 seg004:6B23                 mov     dx, [si+NPC.x]  ; NPC array
 seg004:6B25                 cmp     dx, 0FFFFh
 seg004:6B28                 jnz     short loc_6B2D
-seg004:6B2A                 jmp     mark_npc_processed
+seg004:6B2A                 jmp     save_head_level_tiles_in_npcs
 seg004:6B2D ; ---------------------------------------------------------------------------
 seg004:6B2D
 seg004:6B2D loc_6B2D:                               ; ...
@@ -2241,7 +2241,7 @@ seg004:6C2B
 seg004:6C2B ; =============== S U B R O U T I N E =======================================
 seg004:6C2B
 seg004:6C2B
-seg004:6C2B mark_npc_processed proc near          ; ...
+seg004:6C2B save_head_level_tiles_in_npcs proc near          ; ...
 seg004:6C2B                 mov     si, ds:npc_array_addr
 seg004:6C2F
 seg004:6C2F next_npc:                               ; ...
@@ -2260,13 +2260,13 @@ seg004:6C41                 mov     ds:byte_C01C[bx], 0FDh
 seg004:6C46                 mov     [si+NPC.field_3], al
 seg004:6C49                 add     si, 8
 seg004:6C4C                 jmp     short next_npc
-seg004:6C4C mark_npc_processed endp
+seg004:6C4C save_head_level_tiles_in_npcs endp
 seg004:6C4C
 seg004:6C4E
 seg004:6C4E ; =============== S U B R O U T I N E =======================================
 seg004:6C4E
 seg004:6C4E
-seg004:6C4E modify_npc_heads proc near              ; ...
+seg004:6C4E restore_head_level_tiles_from_npcs proc near              ; ...
 seg004:6C4E                 mov     si, ds:npc_array_addr
 seg004:6C52
 seg004:6C52 next_npc:                               ; ...
@@ -2289,7 +2289,7 @@ seg004:6C6D
 seg004:6C6D skip_head:                              ; ...
 seg004:6C6D                 add     si, 8
 seg004:6C70                 jmp     short next_npc
-seg004:6C70 modify_npc_heads endp
+seg004:6C70 restore_head_level_tiles_from_npcs endp
 seg004:6C70
 seg004:6C72
 seg004:6C72 ; =============== S U B R O U T I N E =======================================
@@ -2335,7 +2335,7 @@ seg004:6CB5
 seg004:6CB5                 mov     al, hero_x_in_viewport
 seg004:6CB8                 inc     al
 seg004:6CBA                 jnz     short maybe_crossed_right
-seg004:6CBC                 call    modify_npc_heads
+seg004:6CBC                 call    restore_head_level_tiles_from_npcs
 seg004:6CBF                 mov     ds:frame_timer, 28h ; '('
 seg004:6CC4                 call    sub_68AF
 seg004:6CC7                 mov     si, ds:word_C007
@@ -2372,7 +2372,7 @@ seg004:6CF9                 retn
 seg004:6CFA ; ---------------------------------------------------------------------------
 seg004:6CFA
 seg004:6CFA crossed_right_edge:                               ; ...
-seg004:6CFA                 call    modify_npc_heads
+seg004:6CFA                 call    restore_head_level_tiles_from_npcs
 seg004:6CFD                 mov     ds:frame_timer, 28h ; '('
 seg004:6D02                 call    sub_68AF
 seg004:6D05                 mov     si, ds:word_C007
@@ -2554,7 +2554,7 @@ seg004:6E5B
 seg004:6E5B door_x_coord_match:                     ; ...
 seg004:6E5B                 mov     hero_animation_phase, 4
 seg004:6E60                 push    si
-seg004:6E61                 call    modify_npc_heads
+seg004:6E61                 call    restore_head_level_tiles_from_npcs
 seg004:6E64                 mov     ds:frame_timer, 28h ; '('
 seg004:6E69                 call    sub_68AF
 seg004:6E6C                 pop     si              ; door struct pointer

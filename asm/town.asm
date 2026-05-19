@@ -174,7 +174,7 @@ skip_until_ff:
                 shl     ax, 1           ; x*8 = 0x598
                 add     ax, offset town_tiles ; unpacked town map offset =c5af
                 mov     ds:proximity_start_tiles, ax
-                call    mark_npc_processed
+                call    save_head_level_tiles_in_npcs
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short normal_game
                 ; resurrect at sage
@@ -1694,7 +1694,7 @@ init_c015_obj_if_exists endp
 
 
 ; Update all NPCs by running their AI procedures
-; Calls modify_npc_heads to update NPC sprite tiles, then iterates
+; Calls restore_head_level_tiles_from_npcs to update NPC sprite tiles, then iterates
 ; through the NPC array dispatching each NPC's AI update function
 ; via npc_ai_jump_table based on n_ai_type value.
 ; Input: ds:npc_array_addr (pointer to NPC array, terminated by x=0FFFFh)
@@ -1702,14 +1702,14 @@ init_c015_obj_if_exists endp
 ; Output: NPC structs updated with correct x positions and states
 ; Modifies: si, ax, bx, dx
 update_npcs     proc near               
-                call    modify_npc_heads
+                call    restore_head_level_tiles_from_npcs
                 mov     si, ds:npc_array_addr
 
 next_npc_:   
                 mov     dx, [si+NPC.n_x]  ; NPC array
                 cmp     dx, 0FFFFh
                 jnz     short loc_6B2D
-                jmp     mark_npc_processed
+                jmp     save_head_level_tiles_in_npcs
 ; ---------------------------------------------------------------------------
 
 loc_6B2D:   
@@ -1834,13 +1834,14 @@ npc_ai_patrol_2bit_phase        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-npc_ai_face_hero        proc near               ; NPC AI: face towards or away from hero
-                ; Sets bit 7 of field_2 based on whether hero is to the left or right
-                ; of the NPC. Bit 7 clear = face right (toward hero if hero is right),
-                ; bit 7 set = face left.
-                ; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, dx = NPC x position
-                ; Output: [si+NPC.n_facing] bit 7 set/cleared based on hero position
-                ; Modifies: ax, bx
+; NPC AI: face towards hero
+; Sets bit 7 of n_facing based on whether hero is to the left or right
+; of the NPC. Bit 7 clear = face right (toward hero if hero is right),
+; bit 7 set = face left.
+; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, dx = NPC x position
+; Output: [si+NPC.n_facing] bit 7 set/cleared based on hero position
+; Modifies: ax, bx
+npc_ai_face_hero        proc near               
                 or      [si+NPC.n_facing], 80h
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
@@ -1964,13 +1965,13 @@ npc_ai_static       endp
 
 
 ; Mark all NPCs as initialized by replacing head tiles
-; Iterates the NPC array, reads each NPC's head tile from npc_head_tiles,
-; replaces it with 0xFD (special tile marker), and stores original
+; Iterates the NPC array, reads each town tile under NPC's head from town_head_level_tiles,
+; replaces it with 0xFD (marker "NPC is here"), and stores original
 ; in n_head_tile for later restoration.
-; Input: ds:npc_array_addr, ds:npc_head_tiles (head tile array)
-; Output: npc_head_tiles entries replaced with 0xFD, NPC n_head_tile saved
+; Input: none
+; Output: none
 ; Modifies: si, bx, al
-mark_npc_processed proc near          
+save_head_level_tiles_in_npcs proc near          
                 mov     si, ds:npc_array_addr
 
 _next_npc:   
@@ -1984,23 +1985,24 @@ loc_6C37:
                 add     bx, bx
                 add     bx, bx
                 add     bx, bx
-                mov     al, ds:npc_head_tiles[bx] ; head tile
-                mov     byte ptr ds:npc_head_tiles[bx], 0FDh
-                mov     [si+NPC.n_head_tile], al
+                mov     al, ds:town_head_level_tiles[bx] ; original town tile on the head level
+                mov     byte ptr ds:town_head_level_tiles[bx], 0FDh
+                mov     [si+NPC.n_head_tile], al ; keep town tile ID in the NPC struc for later restoration
                 add     si, 8
                 jmp     short _next_npc
-mark_npc_processed endp
+save_head_level_tiles_in_npcs endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-modify_npc_heads proc near              ; Restore NPC head tiles in the town tile map
-                ; Iterates the NPC array and for each NPC whose n_head_tile != 0xFD,
-                ; restores the original head tile into the town_tiles buffer.
-                ; Input: ds:npc_array_addr, ds:town_tiles (tile map buffer)
-                ; Output: head tiles restored in town_tiles at NPC positions
-                ; Modifies: si, bx, al
+; Restore town head-level tiles from corresponding NPC structs
+; Iterates the NPC array and for each NPC whose n_head_tile != 0xFD,
+; restores the original town_tiles buffer.
+; Input: none
+; Output: none
+; Modifies: si, bx, al
+restore_head_level_tiles_from_npcs proc near              
                 mov     si, ds:npc_array_addr
 
 next_npc__:   
@@ -2013,17 +2015,17 @@ next_npc__:
 loc_6C5A:   
                 mov     al, [si+NPC.n_head_tile]
                 cmp     al, 0FDh
-                jz      short skip_head
+                je      short skip_head
                 add     bx, bx
                 add     bx, bx
                 add     bx, bx          ; x*8
-                add     bx, offset town_tiles+5
+                add     bx, offset town_head_level_tiles
                 mov     [bx], al        ; modify head tile
 
 skip_head:  
                 add     si, 8
                 jmp     short next_npc__
-modify_npc_heads endp
+restore_head_level_tiles_from_npcs endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2077,7 +2079,7 @@ handle_edge_screen_transition        proc near
                 inc     al
                 jnz     short maybe_crossed_right
 ; crossed left edge
-                call    modify_npc_heads
+                call    restore_head_level_tiles_from_npcs
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
@@ -2113,7 +2115,7 @@ maybe_crossed_right:
                 retn
 ; ---------------------------------------------------------------------------
 crossed_right_edge:   
-                call    modify_npc_heads
+                call    restore_head_level_tiles_from_npcs
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 mov     si, ds:town_transition_table
@@ -2299,7 +2301,7 @@ loc_6E46:
 door_x_coord_match:    
                 mov     byte ptr ds:hero_animation_phase, 4
                 push    si
-                call    modify_npc_heads
+                call    restore_head_level_tiles_from_npcs
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 pop     si              ; door struct pointer

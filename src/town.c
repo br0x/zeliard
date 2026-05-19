@@ -312,8 +312,8 @@ static void game_loop_with_frame_wait(void);
 static void prepare_hero_sprite(void);
 static void clear_6_hero_tiles_in_viewport_buffer(void);
 static void update_npcs(void);
-static void mark_npc_processed(void);
-static void modify_npc_heads(void);
+static void save_head_level_tiles_in_npcs(void);
+static void restore_head_level_tiles_from_npcs(void);
 static void render_life_almas_gold_place(void);
 // static void load_town_background(void);
 // static void load_patterns_and_call_background(void);
@@ -506,7 +506,7 @@ static void town_entry_common(void)
         PROX_START = (uint16_t)(left_col * 8 + ADDR_TOWN_TILES);
     }
 
-    mark_npc_processed();
+    save_head_level_tiles_in_npcs();
 
     if (INVINC) {
         /* Resurrect at sage */
@@ -1291,12 +1291,12 @@ static NpcAiFn npc_ai_table[8] = {
 
 static void update_npcs(void)
 {
-    modify_npc_heads();
+    restore_head_level_tiles_from_npcs();
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
         uint16_t dx = MEM16(si);
         if (dx == 0xFFFF) {
-            mark_npc_processed();
+            save_head_level_tiles_in_npcs();
             return;
         }
         uint8_t ai_type = MEM8(si + 5);
@@ -1432,9 +1432,9 @@ static void npc_ai_static(uint16_t si, uint16_t *dx)
 }
 
 /* =========================================================================
- * mark_npc_processed — replace NPC head tiles in tile map with 0xFD
+ * save_head_level_tiles_in_npcs — replace NPC head tiles in tile map with 0xFD
  * ========================================================================= */
-static void mark_npc_processed(void)
+static void save_head_level_tiles_in_npcs(void)
 {
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
@@ -1449,9 +1449,9 @@ static void mark_npc_processed(void)
 }
 
 /* =========================================================================
- * modify_npc_heads — restore original head tiles from NPC structs
+ * restore_head_level_tiles_from_npcs — restore original head tiles from NPC structs
  * ========================================================================= */
-static void modify_npc_heads(void)
+static void restore_head_level_tiles_from_npcs(void)
 {
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
@@ -1610,7 +1610,7 @@ static void handle_edge_screen_transition(void)
     int going_right = (vp_x == 27);
     if (!going_left && !going_right) return;
 
-    modify_npc_heads();
+    restore_head_level_tiles_from_npcs();
     FRAME_TMR = 40;
     game_loop_with_frame_wait();
 

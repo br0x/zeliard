@@ -321,6 +321,7 @@ export function getTownMdtHeader() {
 
     const offset = gMemoryBase + MEM_MDT_DATA;
 
+    const readU8 = (addr) => wasmMemory[addr];
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
         return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
@@ -330,7 +331,15 @@ export function getTownMdtHeader() {
         town_descriptor_offset: readU16(offset + 0),
         map_width: readU16(offset + 2),
         town_name_offset: readU16(offset + 4),
-        doors_offset: readU16(offset + 9)
+        town_id: readU8(offset + 6),
+        town_transition_table: readU16(offset + 7),
+        doors_offset: readU16(offset + 9),
+        dungeon_entrance_table: readU16(offset + 0xb),
+        npc_conversations_offset: readU16(offset + 0xd),
+        npc_array_offset: readU16(offset + 0xf),
+        npc_patrol_boundaries: readU16(offset + 0x11),
+        word_c015: readU16(offset + 0x15),
+        town_tiles: readU16(offset + 0x17),
     };
 }
 

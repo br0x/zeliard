@@ -75,7 +75,7 @@ npc_array_addr                                     equ 0C00Fh
 npc_patrol_boundaries                              equ 0C011h
 word_C015                                          equ 0C015h
 town_tiles                                         equ 0C017h
-npc_head_tiles                                     equ 0C01Ch
+town_head_level_tiles                              equ town_tiles+5 ; the row where NPC IDs live
 ;Offset | Muralla Town | Details
 ;-----------------------------------------------
 ; c000  | c6d3         | Town descriptor: 00 00 ff 00 01
@@ -91,7 +91,6 @@ npc_head_tiles                                     equ 0C01Ch
 ; c013  | 00ac         |
 ; c015  | c705         | ff ff
 ; c017  | -            | Unpacked town map c017...c6cf = 0x6b8 bytes = 0xd7 * 8 (8 x 1 vertical blocks)
-; c01c  |              | NPC sprites
 
 viewport_buffer                                    equ 0E000h
 word_E001                                          equ 0E001h
