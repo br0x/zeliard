@@ -569,7 +569,7 @@ seg004:615E                 shl     ax, 1
 seg004:6160                 shl     ax, 1           ; x*8 = 0x598
 seg004:6162                 add     ax, offset town_tiles ; unpacked town map offset =c5af
 seg004:6165                 mov     ds:proximity_start_tiles, ax
-seg004:6168                 call    mark_npc_initialized
+seg004:6168                 call    mark_npc_processed
 seg004:616B                 test    byte ptr invincibility_flag, 0FFh
 seg004:6170                 jz      short normal_game ;
 seg004:6170                                         ; resurrect at sage
@@ -1624,7 +1624,7 @@ seg004:68AC ; =============== S U B R O U T I N E ==============================
 seg004:68AC
 seg004:68AC
 seg004:68AC sub_68AC        proc near               ; ...
-seg004:68AC                 call    init_npcs
+seg004:68AC                 call    update_npcs
 seg004:68AC sub_68AC        endp
 seg004:68AC
 seg004:68AF
@@ -2011,7 +2011,7 @@ seg004:6B1C
 seg004:6B1C ; =============== S U B R O U T I N E =======================================
 seg004:6B1C
 seg004:6B1C
-seg004:6B1C init_npcs       proc near               ; ...
+seg004:6B1C update_npcs       proc near               ; ...
 seg004:6B1C                 call    modify_npc_heads
 seg004:6B1F                 mov     si, ds:npc_array_addr
 seg004:6B23
@@ -2019,7 +2019,7 @@ seg004:6B23 next_npc:                               ; ...
 seg004:6B23                 mov     dx, [si+NPC.x]  ; NPC array
 seg004:6B25                 cmp     dx, 0FFFFh
 seg004:6B28                 jnz     short loc_6B2D
-seg004:6B2A                 jmp     mark_npc_initialized
+seg004:6B2A                 jmp     mark_npc_processed
 seg004:6B2D ; ---------------------------------------------------------------------------
 seg004:6B2D
 seg004:6B2D loc_6B2D:                               ; ...
@@ -2031,7 +2031,7 @@ seg004:6B38                 call    ax
 seg004:6B3A                 mov     [si+NPC.x], dx
 seg004:6B3C                 add     si, 8
 seg004:6B3F                 jmp     short next_npc
-seg004:6B3F init_npcs       endp
+seg004:6B3F update_npcs       endp
 seg004:6B3F
 seg004:6B3F ; ---------------------------------------------------------------------------
 seg004:6B41 off_6B41        dw offset sub_6B51      ; ...
@@ -2241,7 +2241,7 @@ seg004:6C2B
 seg004:6C2B ; =============== S U B R O U T I N E =======================================
 seg004:6C2B
 seg004:6C2B
-seg004:6C2B mark_npc_initialized proc near          ; ...
+seg004:6C2B mark_npc_processed proc near          ; ...
 seg004:6C2B                 mov     si, ds:npc_array_addr
 seg004:6C2F
 seg004:6C2F next_npc:                               ; ...
@@ -2260,7 +2260,7 @@ seg004:6C41                 mov     ds:byte_C01C[bx], 0FDh
 seg004:6C46                 mov     [si+NPC.field_3], al
 seg004:6C49                 add     si, 8
 seg004:6C4C                 jmp     short next_npc
-seg004:6C4C mark_npc_initialized endp
+seg004:6C4C mark_npc_processed endp
 seg004:6C4C
 seg004:6C4E
 seg004:6C4E ; =============== S U B R O U T I N E =======================================

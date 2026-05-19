@@ -174,7 +174,7 @@ skip_until_ff:
                 shl     ax, 1           ; x*8 = 0x598
                 add     ax, offset town_tiles ; unpacked town map offset =c5af
                 mov     ds:proximity_start_tiles, ax
-                call    mark_npc_initialized
+                call    mark_npc_processed
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short normal_game
                 ; resurrect at sage
@@ -204,7 +204,7 @@ normal_game:
                 mov     di, offset viewport_buffer
                 mov     cx, 224         ; viewport width
                 rep stosb
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 test    ds:edge_scroll_enabled, 0FFh
                 jz      short loc_61E2
                 mov     ds:edge_scroll_handler, offset loc_6781 ; left edge scroll handler
@@ -218,7 +218,7 @@ loc_61CE:
 loc_61D1:   
                 push    cx
                 call    cs:edge_scroll_handler
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 pop     cx
                 loop    loc_61D1
                 call    cs:edge_scroll_handler
@@ -235,7 +235,7 @@ loc_61E2:
                 pop     ds
 
 loc_61FC:   
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 call    handle_inventory_key
                 call    handle_edge_screen_transition
                 call    hero_spacebar_interaction
@@ -251,11 +251,11 @@ loc_6212:
                                         ; al: ____right_left_down_up
                 cmp     al, 1
                 jnz     short loc_6224
-                jmp     loc_6E29
+                jmp     loc_6E29  ; up arrow pressed
 ; ---------------------------------------------------------------------------
 
 loc_6224:   
-                and     al, 0Ch
+                and     al, 0Ch   ; left or right
                 cmp     al, 4
                 jnz     short loc_622D
                 jmp     loc_6781  ; left edge scroll handler
@@ -462,8 +462,8 @@ hero_building_entry_check        endp
 ;   Modifies: ax, cx, di (used for screen capture/restore)
 
 start_npc_conversation        proc near
-                and     byte ptr [si+6], 7Fh
-                mov     al, [si+7]
+                and     byte ptr [si+NPC.n_flags], 7Fh
+                mov     al, [si+NPC.n_id]
                 push    si
                 push    ax
                 mov     byte ptr ds:frame_timer, 40
@@ -717,7 +717,7 @@ loc_655D:
                 push    cx
                 push    bx
                 call    draw_dialog_cursor
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 pop     bx
                 pop     cx
                 test    ds:dialog_exit_flag, 0FFh
@@ -755,7 +755,7 @@ wait_for_dialog_input        proc near     ; waits for player input during dialo
 
 loc_65AB:   
                 call    draw_dialog_cursor
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_65B9
                 retn
@@ -773,7 +773,7 @@ loc_65C1:
 
 loc_65C8:   
                 call    draw_dialog_cursor
-                call    init_npcs_and_render
+                call    update_npcs_and_render
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_65D6
                 retn
@@ -1252,32 +1252,29 @@ find_non_passable_npc_at_x_pos        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; init_npcs_and_render — wrapper: initializes NPCs then calls
-;   game_loop_with_frame_wait for one frame of rendering.
+; updates NPCs then calls game_loop_with_frame_wait for one frame of rendering.
 ;   Input: (none)
-
-init_npcs_and_render        proc near
-                call    init_npcs
-init_npcs_and_render        endp
+update_npcs_and_render        proc near
+                call    update_npcs
+update_npcs_and_render        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-; game_loop_with_frame_wait — main game loop that waits for frame_timer
+; Main game loop that waits for frame_timer
 ;   to expire. Runs exit dialog, pause, speed change, joystick calibration,
 ;   and restore game handlers each iteration.
 ;   Input: ds:speed_const (controls loop duration)
 ;   Output: returns when frame_timer reaches speed_const * 4
 ;   Side effects: may call restore_game if Handle_Restore_Game returns CF
-
 game_loop_with_frame_wait        proc near
                 call    prepare_hero_sprite
                 call    clear_6_hero_tiles_in_viewport_buffer
                 call    cs:render_town_tiles_28_columns_proc
                 mov     cl, ds:speed_const ; =5 (standard speed?)
                 mov     al, 4
-                mul     cl
+                mul     cl  ; 4*speed = sleep delay
 
 loc_68C2:   
                 push    ax
@@ -1508,9 +1505,9 @@ loc_6A26:
 prepare_hero_sprite endp
 
 ; ---------------------------------------------------------------------------
-; 0 1   6 7
-; 2 3   8 9
-; 4 5   A B ... etc
+; 0 1   6 7   00 01   06 07   20 21
+; 2 3   8 9   12 13   16 17   22 23
+; 4 5   A B   14 15   18 19   24 25
 hero_faced_left db 0, 2, 4, 1, 3, 5    
                 db 6, 8, 0Ah, 7, 9, 0Bh
                 db 0, 0Ch, 0Eh, 1, 0Dh, 0Fh
@@ -1696,14 +1693,15 @@ init_c015_obj_if_exists endp
 ; =============== S U B R O U T I N E =======================================
 
 
-init_npcs       proc near               ; Initialize all NPCs by running their AI setup
-                ; Calls modify_npc_heads to update NPC sprite tiles, then iterates
-                ; through the NPC array dispatching each NPC's AI init function
-                ; via npc_ai_jump_table based on field_5 value.
-                ; Input: ds:npc_array_addr (pointer to NPC array, terminated by x=0FFFFh)
-                ;       ds:npc_ai_jump_table (8-entry jump table)
-                ; Output: NPC structs initialized with correct x positions and states
-                ; Modifies: si, ax, bx, dx
+; Update all NPCs by running their AI procedures
+; Calls modify_npc_heads to update NPC sprite tiles, then iterates
+; through the NPC array dispatching each NPC's AI update function
+; via npc_ai_jump_table based on n_ai_type value.
+; Input: ds:npc_array_addr (pointer to NPC array, terminated by x=0FFFFh)
+;       ds:npc_ai_jump_table (8-entry jump table)
+; Output: NPC structs updated with correct x positions and states
+; Modifies: si, ax, bx, dx
+update_npcs     proc near               
                 call    modify_npc_heads
                 mov     si, ds:npc_array_addr
 
@@ -1711,7 +1709,7 @@ next_npc_:
                 mov     dx, [si+NPC.n_x]  ; NPC array
                 cmp     dx, 0FFFFh
                 jnz     short loc_6B2D
-                jmp     mark_npc_initialized
+                jmp     mark_npc_processed
 ; ---------------------------------------------------------------------------
 
 loc_6B2D:   
@@ -1723,10 +1721,10 @@ loc_6B2D:
                 mov     [si+NPC.n_x], dx
                 add     si, 8
                 jmp     short next_npc_
-init_npcs       endp
+update_npcs     endp
 
 ; ---------------------------------------------------------------------------
-npc_ai_jump_table        dw offset npc_ai_look_at_hero_and_bob     
+npc_ai_jump_table  dw offset npc_ai_look_at_hero_and_bob     
                 dw offset npc_ai_patrol_1bit_phase
                 dw offset npc_ai_patrol_2bit_phase
                 dw offset npc_ai_face_hero
@@ -1738,12 +1736,13 @@ npc_ai_jump_table        dw offset npc_ai_look_at_hero_and_bob
 ; =============== S U B R O U T I N E =======================================
 
 
-npc_ai_look_at_hero_and_bob        proc near               ; NPC AI: face hero then bob in place
-                ; Sets NPC to face the hero (bit 7 of field_2 based on hero position),
-                ; then falls through to npc_ai_bob_in_place for bobbing animation.
-                ; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, dx = NPC x position
-                ; Output: [si+NPC.n_facing] bit 7 set/cleared, [si+NPC.n_anim_phase] incremented
-                ; Modifies: ax, bx
+; NPC AI: face hero then bob in place
+; Sets NPC to face the hero (bit 7 of field_2 based on hero position),
+; then falls through to npc_ai_bob_in_place for bobbing animation.
+; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, dx = NPC x position
+; Output: [si+NPC.n_facing] bit 7 set/cleared, [si+NPC.n_anim_phase] incremented
+; Modifies: ax, bx
+npc_ai_look_at_hero_and_bob        proc near               
                 or      [si+NPC.n_facing], 80h
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4
@@ -1758,13 +1757,14 @@ npc_ai_look_at_hero_and_bob        endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-npc_ai_patrol_1bit_phase        proc near               ; NPC AI: patrol between boundaries (1-bit phase counter)
-                ; Increments field_4 by 0x10 each frame; when bit 4 wraps to zero,
-                ; calls patrol_between_boundaries to move NPC between left/right bounds.
-                ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
-                ; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
-                ; Modifies: ax, ch
+; Fast NPC patrol (every 2nd call)
+; NPC AI: patrol between boundaries (1-bit phase counter)
+; Increments field_4 by 0x10 each frame; when bit 4 wraps to zero,
+; calls patrol_between_boundaries to move NPC between left/right bounds.
+; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
+; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
+; Modifies: ax, ch
+npc_ai_patrol_1bit_phase        proc near               
                 mov     al, [si+NPC.n_anim_phase]
                 add     al, 10h
                 mov     [si+NPC.n_anim_phase], al
@@ -1774,48 +1774,49 @@ npc_ai_patrol_1bit_phase        proc near               ; NPC AI: patrol between
                 retn
 npc_ai_patrol_1bit_phase        endp
 
-; ---------------------------------------------------------------------------
-;   ADDITIONAL PARENT FUNCTION npc_ai_patrol_1bit_phase
-
+; CH: anim. phase
+; DX: current X position of NPC
 patrol_between_boundaries:   
-                inc     ch
+                inc     ch ; anim_phase+1
                 and     ch, 0Fh
                 or      ch, al
                 mov     [si+NPC.n_anim_phase], ch
-                mov     bx, ds:npc_patrol_boundaries
+                mov     bx, ds:npc_patrol_boundaries ; points to two 16-bit words: minX, maxX
                 test    [si+NPC.n_facing], 80h
                 jz      short loc_6B9A
-                dec     dx
-                cmp     [bx], dx
+; was walking left
+                dec     dx  ; currX--
+                cmp     [bx], dx  ; patrol minX
                 jnb     short loc_6B95
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_6B95:   
-                and     [si+NPC.n_facing], 7Fh
+                and     [si+NPC.n_facing], 7Fh ; start walking right
                 retn
 ; ---------------------------------------------------------------------------
-
+; was walking right
 loc_6B9A:   
-                inc     dx
-                cmp     word ptr [bx+NPC.n_facing], dx
+                inc     dx  ; currX++
+                cmp     word ptr [bx+2], dx ; patrol maxX
                 jb      short loc_6BA1
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_6BA1:   
-                or      [si+NPC.n_facing], 80h
+                or      [si+NPC.n_facing], 80h ; start walking left
                 retn
 
 ; =============== S U B R O U T I N E =======================================
 
-
-npc_ai_patrol_2bit_phase        proc near               ; NPC AI: patrol between boundaries (2-bit phase counter)
-                ; Increments field_4 by 0x10 each frame; when bits 4-5 wrap to zero,
-                ; calls patrol_between_boundaries for wider patrol range.
-                ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
-                ; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
-                ; Modifies: ax, ch
+; Slow NPC patrol (every 4th call)
+; NPC AI: patrol between boundaries (2-bit phase counter)
+; Increments field_4 by 0x10 each frame; when bits 4-5 wrap to zero,
+; calls patrol_between_boundaries for wider patrol range.
+; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
+; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
+; Modifies: ax, ch
+npc_ai_patrol_2bit_phase        proc near               
                 mov     al, [si+NPC.n_anim_phase]
                 add     al, 10h
                 mov     [si+NPC.n_anim_phase], al
@@ -1859,8 +1860,8 @@ npc_ai_face_hero        endp
 ; =============== S U B R O U T I N E =======================================
 
 ; NPC AI: bob up and down in place
-; Increments field_4 by 0x10 each frame; when bits 4-5 wrap,
-; toggles the lowest bit of the phase into field_4 for bobbing animation.
+; Increments n_anim_phase by 0x10 each frame; when bits 4-5 wrap,
+; toggles the lowest bit of the phase into n_anim_phase for bobbing animation.
 ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
 ; Output: [si+NPC.n_anim_phase] updated with bob animation bits
 ; Modifies: ax, ch
@@ -1873,7 +1874,7 @@ npc_ai_bob_in_place        proc near
                 jz      short loc_6BE1
                 retn
 ; ---------------------------------------------------------------------------
-
+; every 4-th frame. 0->1, 1->1
 loc_6BE1:   
                 inc     ch
                 and     ch, 1
@@ -1962,13 +1963,14 @@ npc_ai_static       endp
 ; =============== S U B R O U T I N E =======================================
 
 
-mark_npc_initialized proc near          ; Mark all NPCs as initialized by replacing head tiles
-                ; Iterates the NPC array, reads each NPC's head tile from npc_head_tiles,
-                ; replaces it with 0xFD (special tile marker), and stores original
-                ; in n_head_tile for later restoration.
-                ; Input: ds:npc_array_addr, ds:npc_head_tiles (head tile array)
-                ; Output: npc_head_tiles entries replaced with 0xFD, NPC n_head_tile saved
-                ; Modifies: si, bx, al
+; Mark all NPCs as initialized by replacing head tiles
+; Iterates the NPC array, reads each NPC's head tile from npc_head_tiles,
+; replaces it with 0xFD (special tile marker), and stores original
+; in n_head_tile for later restoration.
+; Input: ds:npc_array_addr, ds:npc_head_tiles (head tile array)
+; Output: npc_head_tiles entries replaced with 0xFD, NPC n_head_tile saved
+; Modifies: si, bx, al
+mark_npc_processed proc near          
                 mov     si, ds:npc_array_addr
 
 _next_npc:   
@@ -1987,7 +1989,7 @@ loc_6C37:
                 mov     [si+NPC.n_head_tile], al
                 add     si, 8
                 jmp     short _next_npc
-mark_npc_initialized endp
+mark_npc_processed endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2301,21 +2303,21 @@ door_x_coord_match:
                 mov     byte ptr ds:frame_timer, 40
                 call    game_loop_with_frame_wait
                 pop     si              ; door struct pointer
-                mov     al, [si+2]      ; [c6fd]=8 (door leads to cavern)
+                mov     al, [si+TOWN_DOOR.td_dest_id]
                 cmp     al, 0FFh
-                jnz     short loc_6E77
+                jne     short loc_6E77
                 jmp     loc_6F77
 ; ---------------------------------------------------------------------------
 
 loc_6E77:   
-                sub     al, 8           ; 8-8=0
-                jb      short loc_6E7E
-                jmp     dungeon_transition        ; al=0
+                sub     al, 8
+                jb      short loc_6E7E  ; in-town buildings
+                jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
 loc_6E7E:   
                 mov     byte ptr ds:byte_FF24, 4
-                mov     bl, [si+2]
+                mov     bl, [si+TOWN_DOOR.td_dest_id]
                 mov     al, 14
                 mul     bl
                 add     ax, offset vfs_kingpro_bin ; king palace, shops, inn etc
@@ -2387,12 +2389,9 @@ aInnaproBin     db 'INNAPRO.BIN',0
 ; ---------------------------------------------------------------------------
 
 loc_6F77:   
-                mov     byte ptr ds:hero_animation_phase, 4
+                mov     byte ptr ds:hero_animation_phase, 4 ; phase 4: face from viewer
                 call    game_loop_with_frame_wait
                 test    byte ptr ds:falter_items, 80h ; +128 - Travel back to Dorado Town using the building in the back.
-                                        ; +64 - Collected a Tear of Esmesanti.
-                                        ; +32 - Open final locked door (Jashiin's Lair)
-                                        ; +16 - Key (Final)
                 jnz     short loc_6F9D
                 mov     ds:dialog_exit_flag, 0FFh
                 mov     ax, 918h
@@ -2400,9 +2399,6 @@ loc_6F77:
                 call    loc_63CA
                 mov     ds:dialog_exit_flag, 0
                 or      byte ptr ds:falter_items, 80h ; +128 - Travel back to Dorado Town using the building in the back.
-                                        ; +64 - Collected a Tear of Esmesanti.
-                                        ; +32 - Open final locked door (Jashiin's Lair)
-                                        ; +16 - Key (Final)
 
 loc_6F9D:   
                 mov     byte ptr ds:byte_FF24, 4
@@ -2503,9 +2499,6 @@ npcAnimation    endp
 
 render_menu_dialog proc near
 
-; FUNCTION CHUNK AT 71B0 SIZE 0000000C BYTES
-; FUNCTION CHUNK AT 7205 SIZE 0000001F BYTES
-
                 mov     si, ds:dialog_string_ptr
                 call    measure_single_word
                 mov     dl, ds:dialog_cursor_x
@@ -2517,7 +2510,7 @@ render_menu_dialog proc near
 
 loc_7084:   
                 mov     byte ptr ds:frame_timer, 0
-
+; delay 6 frame ticks
 loc_7089:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 6
@@ -3110,7 +3103,7 @@ loc_73AC:
                 sub     cl, 2
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_up_proc
-
+; delay 4 frame ticks
 loc_73D3:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
@@ -3181,7 +3174,7 @@ loc_742A:
                 sub     cl, 2
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_down_proc
-
+; delay 4 frame ticks
 loc_7453:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
@@ -3228,7 +3221,7 @@ loc_748B:
                 dec     bx
                 push    bx
                 call    cs:draw_arrow_icon_or_ui_symbol_proc
-
+; delay 4 frame ticks
 loc_7498:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4 ; delay
@@ -3258,7 +3251,7 @@ loc_74B7:
                 inc     bx
                 push    bx
                 call    cs:draw_arrow_icon_or_ui_symbol_proc
-
+; delay 4 frame ticks
 loc_74C4:   
                 call    npcAnimation
                 cmp     byte ptr ds:frame_timer, 4
@@ -3995,7 +3988,7 @@ loc_79F2:
                 sub     cl, 2
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_up_proc
-
+; delay 4 frame ticks
 loc_7A19:   
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_7A19
@@ -4060,7 +4053,7 @@ loc_7A72:
                 sub     cl, 2
                 mov     ch, ds:string_width_bytes
                 call    cs:scroll_hud_down_proc
-
+; delay 4 frame ticks
 loc_7A9B:   
                 cmp     byte ptr ds:frame_timer, 4
                 jb      short loc_7A9B

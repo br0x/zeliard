@@ -8,6 +8,10 @@ NPC STRUC
   n_id          db   ? ; 7
 NPC ENDS
 
+TOWN_DOOR STRUC
+  td_x          dw   ? ; 0
+  td_dest_id    db   ? ; 2; 0=king, 1=princess, 2=sage, 3=weapon, 4=magic, 5=church, 6=bank, 7=inn, 8=cavern; ff=terminator
+TOWN_DOOR ENDS
 
 ; Following group of definitions share the same space as gfmcga.bin, 
 ; so they are in separate include files

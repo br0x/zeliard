@@ -298,17 +298,21 @@ static uint8_t g_town_update_active;
 #define CALL_PROC(name, ...) \
     do { if (g_town_procs.name) g_town_procs.name(__VA_ARGS__); } while(0)
 
+static uint8_t g_pending_wait = 0;          /* non-zero when waiting for frame timer */
+static uint8_t g_pending_wait_target = 0;   /* target frame timer value */
+
 /* =========================================================================
  * Forward declarations
  * ========================================================================= */
+static void town_complete_wait(void);
 static void town_entry_common(void);
 static void town_main_loop_step(void);
-static void init_npcs_and_render(void);
+static void update_npcs_and_render(void);
 static void game_loop_with_frame_wait(void);
 static void prepare_hero_sprite(void);
 static void clear_6_hero_tiles_in_viewport_buffer(void);
-static void init_npcs(void);
-static void mark_npc_initialized(void);
+static void update_npcs(void);
+static void mark_npc_processed(void);
 static void modify_npc_heads(void);
 static void render_life_almas_gold_place(void);
 // static void load_town_background(void);
@@ -502,7 +506,7 @@ static void town_entry_common(void)
         PROX_START = (uint16_t)(left_col * 8 + ADDR_TOWN_TILES);
     }
 
-    mark_npc_initialized();
+    mark_npc_processed();
 
     if (INVINC) {
         /* Resurrect at sage */
@@ -524,7 +528,7 @@ static void town_entry_common(void)
         memset(&g_mem[di], 0xFE, 224);
     }
 
-    init_npcs_and_render();
+    update_npcs_and_render();
 
     if (MEM8(ADDR_EDGE_SCROLL_ENABLED)) {
         /* Edge-scroll 4 times (smooth pan) based on facing direction */
@@ -535,7 +539,7 @@ static void town_entry_common(void)
                 CALL_PROC(scroll_floor_right_8px);
             else
                 CALL_PROC(scroll_floor_left_8px);
-            init_npcs_and_render();
+            update_npcs_and_render();
         }
     }
 
@@ -557,7 +561,7 @@ static void town_entry_common(void)
 
 static void town_main_loop_step(void)
 {
-    init_npcs_and_render();
+    update_npcs_and_render();
     handle_inventory_key();
     handle_edge_screen_transition();
     hero_spacebar_interaction();
@@ -859,7 +863,7 @@ static void render_dialog_text(uint16_t rect_pos, uint8_t pattern_idx)
                 ALTKEY   = 0;
                 while (1) {
                     draw_dialog_cursor();
-                    init_npcs_and_render();
+                    update_npcs_and_render();
                     if (DIALOG_EXIT || ALTKEY) break;
                     if (!SPACEBAR) continue;
                     /* Clear more arrow area */
@@ -979,14 +983,14 @@ static void wait_for_dialog_input(void)
     /* Wait for all direction keys to be released */
     while (INPUT_DIRS) {
         draw_dialog_cursor();
-        init_npcs_and_render();
+        update_npcs_and_render();
         if (SPACEBAR || ALTKEY) return;
     }
 
     /* Now wait for any key */
     while (1) {
         draw_dialog_cursor();
-        init_npcs_and_render();
+        update_npcs_and_render();
         if (SPACEBAR || ALTKEY) return;
         if (INPUT_DIRS) return;  /* direction key counts too */
     }
@@ -1120,11 +1124,11 @@ static void load_npc_array_ptr(uint16_t *si_out)
 }
 
 /* =========================================================================
- * init_npcs_and_render — thin wrapper: init NPCs, then render one frame
+ * update_npcs_and_render — thin wrapper: init NPCs, then render one frame
  * ========================================================================= */
-static void init_npcs_and_render(void)
+static void update_npcs_and_render(void)
 {
-    init_npcs();
+    update_npcs();
     game_loop_with_frame_wait();
 }
 
@@ -1140,20 +1144,17 @@ static void game_loop_with_frame_wait(void)
     uint8_t target = (uint8_t)(SPEED_C * 4);
 
     if (g_town_update_active) {
+        /* Called from JS-driven main loop: timer already reached target,
+           just reset FRAME_TMR and return. */
         FRAME_TMR = 0;
         return;
     }
 
-    while (FRAME_TMR < target) {
-        CALL_PROC(confirm_exit_dialog);
-        CALL_PROC(handle_pause_state);
-        CALL_PROC(handle_speed_change);
-        CALL_PROC(joystick_calibration);
-        CALL_PROC(joystick_deactivator);
-        int do_restore = CALL_PROC_RET(handle_restore_game);
-        if (do_restore) restore_game();
-    }
-    FRAME_TMR = 0;
+    /* Outside the main loop (e.g., during initialization, conversations):
+       we must wait for target frames without blocking. Set a pending wait
+       and return; the JS timer will call town_complete_wait() later. */
+    g_pending_wait = 1;
+    g_pending_wait_target = target;
 }
 
 /* =========================================================================
@@ -1272,7 +1273,7 @@ static void clear_6_hero_tiles_in_viewport_buffer(void)
 }
 
 /* =========================================================================
- * init_npcs — run AI for each NPC in the array
+ * update_npcs — run AI for each NPC in the array
  * ========================================================================= */
 
 typedef void (*NpcAiFn)(uint16_t si, uint16_t *dx);
@@ -1288,14 +1289,14 @@ static NpcAiFn npc_ai_table[8] = {
     npc_ai_static,
 };
 
-static void init_npcs(void)
+static void update_npcs(void)
 {
     modify_npc_heads();
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
         uint16_t dx = MEM16(si);
         if (dx == 0xFFFF) {
-            mark_npc_initialized();
+            mark_npc_processed();
             return;
         }
         uint8_t ai_type = MEM8(si + 5);
@@ -1431,9 +1432,9 @@ static void npc_ai_static(uint16_t si, uint16_t *dx)
 }
 
 /* =========================================================================
- * mark_npc_initialized — replace NPC head tiles in tile map with 0xFD
+ * mark_npc_processed — replace NPC head tiles in tile map with 0xFD
  * ========================================================================= */
-static void mark_npc_initialized(void)
+static void mark_npc_processed(void)
 {
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
@@ -1714,7 +1715,7 @@ static void npcAnimation(void)
     if (MEM8(ADDR_TOWN_TRANSITION_FLAG)) return;
 
     /* Render one NPC animation frame */
-    init_npcs();
+    update_npcs();
     CALL_PROC(render_town_tiles_28_columns);
 }
 
@@ -2330,6 +2331,30 @@ void wasm_town_full_tick(void)
     MEM8(ADDR_FRAME_TIMER) = (uint8_t)(MEM8(ADDR_FRAME_TIMER) + 1);
     MEM16(ADDR_TICK_COUNTER) = (uint16_t)(MEM16(ADDR_TICK_COUNTER) + 1);
     MEM16(ADDR_ANIM_TIMER) = (uint16_t)(MEM16(ADDR_ANIM_TIMER) + 1);
+
+    /* If we are waiting for a frame delay, check if target reached */
+    if (g_pending_wait && MEM8(ADDR_FRAME_TIMER) >= g_pending_wait_target) {
+        town_complete_wait();
+    }
+}
+
+static void town_complete_wait(void)
+{
+    if (!g_pending_wait) return;
+
+    /* Execute the five calls that originally ran inside the while loop */
+    CALL_PROC(confirm_exit_dialog);
+    CALL_PROC(handle_pause_state);
+    CALL_PROC(handle_speed_change);
+    CALL_PROC(joystick_calibration);
+    CALL_PROC(joystick_deactivator);
+    int do_restore = CALL_PROC_RET(handle_restore_game);
+    if (do_restore) restore_game();
+
+    /* Reset frame timer and clear wait state */
+    FRAME_TMR = 0;
+    g_pending_wait = 0;
+    g_pending_wait_target = 0;
 }
 
 /* JS callable: copy browser key state into the town input latch bytes */

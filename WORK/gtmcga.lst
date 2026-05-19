@@ -919,38 +919,38 @@ seg000:3533                 retn
 seg000:3533 ui_draw_routine_dispatcher endp
 seg000:3533
 seg000:3533 ; ---------------------------------------------------------------------------
-seg000:3534 funcs_352E      dw offset sub_354A      ; ...
-seg000:3536                 dw offset sub_3542
-seg000:3538                 dw offset sub_353A
+seg000:3534 funcs_352E      dw offset draw_first_column      ; ...
+seg000:3536                 dw offset draw_two_columns
+seg000:3538                 dw offset draw_second_column
 seg000:353A
 seg000:353A ; =============== S U B R O U T I N E =======================================
 seg000:353A
 seg000:353A
-seg000:353A sub_353A        proc near               ; ...
+seg000:353A draw_second_column        proc near               ; ...
 seg000:353A                 add     bp, 3
 seg000:353D                 mov     di, vram_shadow_addr
 seg000:3540                 jmp     short composite_3_tiles_to_shadow_buffer
-seg000:3540 sub_353A        endp
+seg000:3540 draw_second_column        endp
 seg000:3540
 seg000:3542
 seg000:3542 ; =============== S U B R O U T I N E =======================================
 seg000:3542
 seg000:3542
-seg000:3542 sub_3542        proc near               ; ...
+seg000:3542 draw_two_columns        proc near               ; ...
 seg000:3542                 mov     di, vram_shadow_addr
 seg000:3545                 call    composite_3_tiles_to_shadow_buffer
 seg000:3548                 jmp     short composite_3_tiles_to_shadow_buffer
-seg000:3548 sub_3542        endp
+seg000:3548 draw_two_columns        endp
 seg000:3548
 seg000:354A
 seg000:354A ; =============== S U B R O U T I N E =======================================
 seg000:354A
 seg000:354A
-seg000:354A sub_354A        proc near               ; ...
+seg000:354A draw_first_column        proc near               ; ...
 seg000:354A                 mov     di, 64192
 seg000:354D                 add     si, 3
 seg000:3550                 jmp     short $+2
-seg000:3550 sub_354A        endp
+seg000:3550 draw_first_column        endp
 seg000:3550
 seg000:3552
 seg000:3552 ; =============== S U B R O U T I N E =======================================

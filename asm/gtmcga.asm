@@ -583,7 +583,7 @@ loc_3395:                               ; ...
                 call    sprite_x_coordinate_lookup
                 or      bl, bl
                 jz      short loc_33AE
-                push    si
+                push    si  ; NPC struc ptr
                 push    bx
                 call    get_sprite_vram_address
                 pop     bx
@@ -592,9 +592,9 @@ loc_3395:                               ; ...
                 call    sprite_compositor_dispatcher
                 pop     si
 
-loc_33AE:                               ; ...
-                add     si, 8
-                cmp     word ptr [si], 0FFFFh
+loc_33AE:
+                add     si, 8   ; next NPC
+                cmp     word ptr [si], 0FFFFh ; terminator?
                 jnz     short loc_3395
                 pop     di
                 pop     es
@@ -771,7 +771,7 @@ copy_3_vert_tiles endp
 ; =============== S U B R O U T I N E =======================================
 
 
-sprite_compositor_dispatcher proc near  ; ...
+sprite_compositor_dispatcher proc near
                 mov     bp, di
                 dec     bl
                 xor     bh, bh
@@ -806,26 +806,28 @@ single_sprite_shadow_compositor endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-get_sprite_vram_address proc near       ; ...
-                mov     al, [si+2]
+; Input:
+; SI: pointer to NPC struct
+; Output: di = sprite address (points to 6 tiles) in seg1
+get_sprite_vram_address proc near
+                mov     al, [si+2] ; n_facing; bit7: 1=face-left, 0=face-right; bits[3:0] spriteId
                 mov     ch, al
                 and     al, 7Fh
-                mov     cl, 48
-                mul     cl
-                add     ax, 4000h
+                mov     cl, 48      ; 48 bytes per spriteSheet (8 sprites x 6 tiles)
+                mul     cl          ; spriteId * 48
+                add     ax, 4000h   ; base sprite address
                 mov     di, ax
                 xor     dl, dl
                 or      ch, ch
                 js      short loc_3504
-                mov     dl, 4
+                mov     dl, 4       ; facing right → extra offset
 
-loc_3504:                               ; ...
-                mov     al, [si+4]
-                and     al, 3
-                add     al, dl
+loc_3504:
+                mov     al, [si+4]  ; n_anim_phase
+                and     al, 3       ; 4 phases total
+                add     al, dl      ; facing right → extra offset
                 mov     cl, 6
-                mul     cl
+                mul     cl          ; 6 tiles per sprite (single phase)
                 add     di, ax
                 retn
 get_sprite_vram_address endp
@@ -855,8 +857,10 @@ sprite_x_coordinate_lookup endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-ui_draw_routine_dispatcher proc near    ; ...
+; Input:
+; BL: function index (1-3)
+; DI: sprite tiles pointer in seg1
+ui_draw_routine_dispatcher proc near
                 mov     bp, di
                 dec     bl
                 xor     bh, bh
@@ -866,43 +870,44 @@ ui_draw_routine_dispatcher proc near    ; ...
 ui_draw_routine_dispatcher endp
 
 ; ---------------------------------------------------------------------------
-funcs_352E      dw offset sub_354A      ; ...
-                dw offset sub_3542
-                dw offset sub_353A
+funcs_352E      dw offset draw_first_column
+                dw offset draw_two_columns
+                dw offset draw_second_column
 
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_353A        proc near               ; ...
-                add     bp, 3
+draw_second_column        proc near
+                add     bp, 3 ; second column
                 mov     di, vram_shadow_addr
                 jmp     short npc_3_tiles_to_shadow_buffer
-sub_353A        endp
+draw_second_column        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_3542        proc near               ; ...
+draw_two_columns        proc near
                 mov     di, vram_shadow_addr
                 call    npc_3_tiles_to_shadow_buffer
                 jmp     short npc_3_tiles_to_shadow_buffer
-sub_3542        endp
+draw_two_columns        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_354A        proc near               ; ...
+draw_first_column        proc near
                 mov     di, vram_shadow_addr + 192
                 add     si, 3
                 jmp     short $+2
-sub_354A        endp
+draw_first_column        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; BP: pointer in seg1 to NPC sprite data
+; SI: tile_id_staging_buffer
 npc_3_tiles_to_shadow_buffer proc near
                 mov     cx, 3
 loc_3555:

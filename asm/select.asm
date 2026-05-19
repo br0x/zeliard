@@ -765,7 +765,7 @@ item_exit_inventory:
                 pop     ax
                 mov     byte ptr ds:byte_FF24, 8
                 mov     byte ptr ds:frame_timer, 0
-
+; delay 120 frame ticks
 loc_A5A2:
                 cmp     byte ptr ds:frame_timer, 120
                 jb      short loc_A5A2

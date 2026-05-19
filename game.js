@@ -81,11 +81,6 @@ const NPC_SPRITE_PATHS = [
 const NPC_FRAME_W  = 48;
 const NPC_FRAME_H  = 72;
 const NPC_FRAMES   = 8;           // frames per sheet
-// Animation: the WASM npc_ai_bob counter lives in n_anim_phase bits [1:0]
-// after the 0x10 increment pattern in npc_ai_bob_in_place / npc_ai_face_hero.
-// Bits 5:4 of n_anim_phase give a 0-3 slow-tick counter → use for frame index.
-const NPC_ANIM_PHASE_BITS = 0x30;   // mask for 2-bit slow anim counter
-const NPC_ANIM_PHASE_SHIFT = 4;
 
 // WASM memory addresses for NPC table (mirrors town.h / town.c)
 const ADDR_NPC_ARRAY_PTR       = 0xC00F;   // word → pointer to NPC array in g_mem
@@ -1072,7 +1067,7 @@ function drawNpcs() {
         if (screenX < -NPC_FRAME_W || screenX >= VIEW_WIDTH) continue;
 
         // 2-bit animation index from bits [5:4] of n_anim_phase
-        const animIdx = (nAnimPhase & NPC_ANIM_PHASE_BITS) >> NPC_ANIM_PHASE_SHIFT;
+        const animIdx = nAnimPhase & 3;
 
         let frame = (nFacing & 0x80) !== 0 ? animIdx : (4 + animIdx);
 
