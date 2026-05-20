@@ -429,7 +429,7 @@ const DIALOG_FONT_SIZE    = 12;       // px — base line height
 const DIALOG_LINE_HEIGHT  = 13;       // px — line spacing
 const DIALOG_PADDING_X    = 10;       // px — inner horizontal padding
 const DIALOG_PADDING_Y    = 4;        // px — inner vertical padding
-const DIALOG_MAX_WIDTH    = 300;      // px — maximum box width
+const DIALOG_MAX_WIDTH    = VIEW_WIDTH - 24;      // px — maximum box width
 const DIALOG_LINES_PER_PAGE = 15;     // lines shown before "more" prompt
 const DIALOG_CURSOR_CHAR  = '\u25BC'; // ▼ — "more" indicator
 // Bottom edge: 4px above the NPCs' head row
@@ -1342,7 +1342,11 @@ function parseDialogText(bytes) {
 function computeBoxGeometry(facingLeft) {
     const page    = conversation.pages[conversation.page] ?? [];
     const nLines  = Math.max(page.length, 1);
-    const bh      = nLines * DIALOG_LINE_HEIGHT + 2 * DIALOG_PADDING_Y + DIALOG_FONT_SIZE;
+    const TEXT_FIRST_BASELINE = 32;   // matches y+32 in draw
+    const TEXT_LINE_HEIGHT    = 18;   // matches lineHeight in draw
+    const TEXT_BOTTOM_PAD     = 20;   // space for descenders + visual margin
+
+    const bh = TEXT_FIRST_BASELINE + (nLines - 1) * TEXT_LINE_HEIGHT + TEXT_BOTTOM_PAD;
 
     // Width: fit to longest line
     ctx.save();
@@ -1412,9 +1416,6 @@ function drawConversationDialog() {
     if (conversation.page < totalPages - 1) {
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('▼', x + width - 24, y + height - 12);
-    } else {
-        ctx.fillStyle = '#88ff88';
-        ctx.fillText('✓', x + width - 24, y + height - 12);
     }
 }
 
