@@ -275,7 +275,7 @@ loc_6234:
 ; =============== S U B R O U T I N E =======================================
 
 
-; hero_spacebar_interaction — checks spacebar latch; if set, looks for
+; Checks spacebar latch; if set, looks for
 ;   interactable NPC tile ahead of hero and starts conversation.
 ;   Input: ds:spacebar_latch (non-zero to trigger)
 ;   Output: clears spacebar_latch; may start NPC conversation
@@ -302,6 +302,7 @@ loc_6247:
                 add     bx, ds:proximity_start_tiles
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_62AE
+                ; hero facing right
                 inc     dx
                 cmp     byte ptr [bx+8], 0FDh
                 jz      short loc_6285
@@ -316,26 +317,26 @@ loc_6247:
 
 loc_6285:   
                 call    load_npc_array_ptr
-                mov     al, [si+6]
+                mov     al, [si+NPC.n_flags]
                 and     al, 0C0h
                 jz      short loc_6290
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_6290:   
-                mov     al, [si+2]
-                mov     ah, [si+5]
+                mov     al, [si+NPC.n_facing]
+                mov     ah, [si+NPC.n_ai_type]
                 push    ax
-                mov     byte ptr [si+5], 7
-                or      byte ptr [si+2], 80h
-                or      byte ptr [si+4], 1
+                mov     byte ptr [si+NPC.n_ai_type], 7
+                or      byte ptr [si+NPC.n_facing], 80h
+                or      byte ptr [si+NPC.n_anim_phase], 1
                 call    start_npc_conversation
                 pop     ax
-                mov     [si+5], ah
-                mov     [si+2], al
+                mov     [si+NPC.n_ai_type], ah
+                mov     [si+NPC.n_facing], al
                 retn
 ; ---------------------------------------------------------------------------
-
+; hero facing left
 loc_62AE:   
                 dec     dx
                 cmp     byte ptr [bx-8], 0FDh
@@ -351,23 +352,23 @@ loc_62AE:
 
 loc_62C4:   
                 call    load_npc_array_ptr
-                mov     al, [si+6]
+                mov     al, [si+NPC.n_flags]
                 and     al, 0C0h
                 jz      short loc_62CF
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_62CF:   
-                mov     al, [si+2]
-                mov     ah, [si+5]
+                mov     al, [si+NPC.n_facing]
+                mov     ah, [si+NPC.n_ai_type]
                 push    ax
-                mov     byte ptr [si+5], 7
-                and     byte ptr [si+2], 7Fh
-                or      byte ptr [si+4], 1
+                mov     byte ptr [si+NPC.n_ai_type], 7
+                and     byte ptr [si+NPC.n_facing], 7Fh
+                or      byte ptr [si+NPC.n_anim_phase], 1
                 call    start_npc_conversation
                 pop     ax
-                mov     [si+5], ah
-                mov     [si+2], al
+                mov     [si+NPC.n_ai_type], ah
+                mov     [si+NPC.n_facing], al
                 retn
 hero_spacebar_interaction        endp
 
