@@ -417,7 +417,6 @@ let conversation = {
     page: 0,
     pageSize: 6,
     savedBackground: null,
-    ignoreNextSpace: false,   // to skip the Space that started the conversation
     boxX: 0,
     boxY: 0,
     boxW: 0,
@@ -652,20 +651,15 @@ function onSlowTick() {
             // Clear the latch immediately so it doesn't affect anything else
             writeMemory(0xFF1D, [0]);
 
-            if (conversation.ignoreNextSpace) {
-                // This is the Space that triggered the conversation – ignore it
-                conversation.ignoreNextSpace = false;
+            // Advance or close dialog
+            if (conversation.page < conversation.pages.length - 1) {
+                conversation.page++;
             } else {
-                // Advance or close dialog
-                if (conversation.page < conversation.pages.length - 1) {
-                    conversation.page++;
-                } else {
-                    // End conversation
-                    conversation.active = false;
-                    conversation.savedBackground = null;
-                    // Tell WASM to restore NPC and clear flag
-                    townFinishConversation?.();
-                }
+                // End conversation
+                conversation.active = false;
+                conversation.savedBackground = null;
+                // Tell WASM to restore NPC and clear flag
+                townFinishConversation?.();
             }
         }
         // Do not process any other input (movement, inventory) while conversation active
@@ -1443,7 +1437,6 @@ function startConversationFromWasm() {
     conversation.active = true;
     conversation.pages = pages;
     conversation.page = 0;
-    conversation.ignoreNextSpace = true;   // ignore the Space that triggered this
     conversation.savedBackground = null;
     computeBoxGeometry(readMemory(npcAddr + 2, 1)[0] & 0x80); // bit7 of n_facing is facing direction
 
