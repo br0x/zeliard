@@ -1,4 +1,9 @@
 {
     "hexeditor.dataInspector.autoReveal": false,
-    "java.debug.settings.showHex": true
+    "java.debug.settings.showHex": true,
+    "github.copilot.nextEditSuggestions.fixes": false,
+    "github.copilot.nextEditSuggestions.extendedRange": false,
+    "github.copilot.nextEditSuggestions.enabled": false,
+    "github.copilot.nextEditSuggestions.allowWhitespaceOnlyChanges": false,
+    "editor.inlineSuggest.edits.showLongDistanceHint": false
 }

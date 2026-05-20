@@ -315,9 +315,6 @@ static void update_npcs(void);
 static void save_head_level_tiles_in_npcs(void);
 static void restore_head_level_tiles_from_npcs(void);
 static void render_life_almas_gold_place(void);
-// static void load_town_background(void);
-// static void load_patterns_and_call_background(void);
-// static void load_and_decompress_patterns(void);
 static void load_hero_town_sprite(void);
 static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
@@ -332,7 +329,7 @@ static int  count_dialog_lines(uint16_t si_addr, uint8_t *out_chars_on_line);
 static void draw_dialog_cursor(void);
 static void check_tile_in_special_list(uint8_t tile, int *found);
 static void find_non_passable_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *found);
-static void load_npc_array_ptr(uint16_t *si_out);
+static void find_first_npc_at_x(uint16_t dx, uint16_t *si_out);
 static void scroll_dialog_up(void);
 static void scroll_dialog_down(void);
 static void draw_next_page_arrow(void);
@@ -370,7 +367,7 @@ static void houseCursorUp(uint8_t row);
 static void houseCursorDown(uint8_t row);
 static void npcAnimation(void);
 static void is_hero_close_to_npc(uint16_t si, uint16_t hero_x, uint8_t *result);
-static void find_npc_at_x(uint16_t dx, uint16_t *si_ptr);
+static void find_first_npc_at_x_after_current(uint16_t dx, uint16_t *si_ptr);
 static void swap_a000_c000_buffers(void);
 
 /* =========================================================================
@@ -562,6 +559,11 @@ static void town_entry_common(void)
 static void town_main_loop_step(void)
 {
     update_npcs_and_render();
+    // If conversation active, skip all hero-related logic
+    if (MEM8(ADDR_CONVERSATION_ACTIVE)) {
+        return;
+    }
+
     handle_inventory_key();
     handle_edge_screen_transition();
     hero_spacebar_interaction();
@@ -657,8 +659,7 @@ static void town_main_loop_step(void)
 }
 
 /* =========================================================================
- * hero_spacebar_interaction
- * Checks for NPC in the tile column ahead of hero and starts conversation.
+ * Checks for NPC ahead of hero and starts conversation.
  * ========================================================================= */
 static void hero_spacebar_interaction(void)
 {
@@ -670,48 +671,38 @@ static void hero_spacebar_interaction(void)
     uint16_t abs_x = (uint16_t)viewport_col + PROX_LEFT;
 
     int found_tile = 0;
-    int found_npc  = 0;
-    uint16_t npc_si = 0;
-
-    if (FACING & 1) {
+    int delta = FACING & 1 ? -1 : 1;  /* direction to check: -1 for left, +1 for right */
+    abs_x += delta;
+    for (int i = 1; i < 3; i++) {
         /* facing left — check tiles at -8, -16, -24 */
-        abs_x--;
-        for (int off = -8; off >= -24; off -= 8) {
-            if (MEM8(bx + off) == 0xFD) { found_tile = 1; break; }
-            abs_x--;
-        }
-    } else {
         /* facing right — check tiles at +8, +16, +24 */
-        abs_x++;
-        for (int off = 8; off <= 24; off += 8) {
-            if (MEM8(bx + off) == 0xFD) { found_tile = 1; break; }
-            abs_x++;
-        }
+        if (MEM8(bx + 8*delta*i) == 0xFD) { found_tile = 1; break; }
+        abs_x += delta;
     }
 
     if (!found_tile) return;
 
-    find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found_npc);
-    if (!found_npc) return;
+    uint16_t npc_si = 0;
+    find_first_npc_at_x(abs_x, &npc_si);
 
     /* Check bits 6..7 of n_flags — if set, NPC is busy */
     if (MEM8(npc_si + 6) & 0xC0) return;
 
-    /* Save state, put NPC in conversation mode, converse, restore */
-    uint8_t saved_facing = MEM8(npc_si + 2);
-    uint8_t saved_ai     = MEM8(npc_si + 5);
+    // /* Save state, put NPC in conversation mode, converse, restore */
+    // uint8_t saved_facing = MEM8(npc_si + 2);
+    // uint8_t saved_ai     = MEM8(npc_si + 5);
 
-    MEM8(npc_si + 5) = 7;  /* freeze NPC AI */
-    if (FACING & 1)
-        MEM8(npc_si + 2) &= 0x7F;   /* NPC faces right toward hero */
-    else
-        MEM8(npc_si + 2) |= 0x80;   /* NPC faces left toward hero */
-    MEM8(npc_si + 4) |= 1;
+    // MEM8(npc_si + 5) = 7;  /* freeze NPC AI */
+    // if (FACING & 1)
+    //     MEM8(npc_si + 2) &= 0x7F;   /* NPC faces right toward hero */
+    // else
+    //     MEM8(npc_si + 2) |= 0x80;   /* NPC faces left toward hero */
+    // MEM8(npc_si + 4) |= 1; // n_anim_phase
 
     start_npc_conversation(npc_si);
 
-    MEM8(npc_si + 5) = saved_ai;
-    MEM8(npc_si + 2) = saved_facing;
+    // MEM8(npc_si + 5) = saved_ai;
+    // MEM8(npc_si + 2) = saved_facing;
 }
 
 /* =========================================================================
@@ -751,42 +742,46 @@ static void hero_building_entry_check(void)
 }
 
 /* =========================================================================
- * start_npc_conversation
- * Saves screen behind dialog, renders dialog text, restores screen.
+ * start_npc_conversation — signal JS to show dialog, freeze only this NPC
  * ========================================================================= */
 static void start_npc_conversation(uint16_t si_addr)
 {
-    MEM8(si_addr + 6) &= 0x7F;  /* clear conversation flag */
-    uint8_t pattern_idx = MEM8(si_addr + 7);
+    // Store NPC address and original AI/facing
+    MEM16(ADDR_CONVERSATION_NPC_ADDR) = si_addr;
+    MEM8(ADDR_CONVERSATION_SAVED_AI)   = MEM8(si_addr + 5);
+    MEM8(ADDR_CONVERSATION_SAVED_FACING) = MEM8(si_addr + 2);
 
-    FRAME_TMR = 40;
-    game_loop_with_frame_wait();
-
-    MEM8(ADDR_SOUND_FX_REQUEST) = 0x1E;
-
-    uint16_t rect_pos;
+    // Freeze this NPC (AI = 7 => static)
+    MEM8(si_addr + 5) = 7;
+    // Make NPC face the hero
     if (FACING & 1)
-        rect_pos = 0x0718;  /* dialog on right side */
+        MEM8(si_addr + 2) &= 0x7F;   // face right
     else
-        rect_pos = 0x0B18;  /* dialog on left side */
+        MEM8(si_addr + 2) |= 0x80;   // face left
 
-    MEM16(ADDR_DIALOG_RECT_POS) = rect_pos;
+    MEM8(ADDR_CONVERSATION_ACTIVE) = 1;
 
-    /* Capture screen rect to seg3 */
-    CALL_PROC(capture_screen_rect_to_seg3, rect_pos, 0, 0x1658);
+    // Play dialog opening sound
+    MEM8(ADDR_SOUND_FX_REQUEST) = 30;
 
-    SPACEBAR = 0;
-    render_dialog_text(rect_pos, pattern_idx);
+    // Do NOT wait – return immediately, JS will show dialog
+}
 
-    /* Restore screen rect from seg3 */
-    CALL_PROC(put_image, rect_pos, 0, 0x1658);
+/* =========================================================================
+ * Restores NPC state and clears flag
+ * ========================================================================= */
+void wasm_town_conversation_finish(void)
+{
+    if (!MEM8(ADDR_CONVERSATION_ACTIVE))
+        return;
 
-    /* Fill viewport_buffer (0xE000, 28*8 bytes) with 0xFE */
-    memset(&g_mem[0xE000], 0xFE, 0xE0);
+    uint16_t npc_addr = MEM16(ADDR_CONVERSATION_NPC_ADDR);
+    if (npc_addr) {
+        MEM8(npc_addr + 5) = MEM8(ADDR_CONVERSATION_SAVED_AI);
+        MEM8(npc_addr + 2) = MEM8(ADDR_CONVERSATION_SAVED_FACING);
+    }
 
-    DIALOG_EXIT = 0;
-    SPACEBAR = 0;
-    ALTKEY = 0;
+    MEM8(ADDR_CONVERSATION_ACTIVE) = 0;
 }
 
 /* =========================================================================
@@ -1115,12 +1110,11 @@ static void find_non_passable_npc_at_x_pos(uint16_t x, uint16_t *si_out, int *fo
     }
 }
 
-/* =========================================================================
- * load_npc_array_ptr
- * ========================================================================= */
-static void load_npc_array_ptr(uint16_t *si_out)
+static void find_first_npc_at_x(uint16_t dx, uint16_t *si_out)
 {
-    *si_out = MEM16(ADDR_NPC_ARRAY);
+    uint16_t si_ptr = MEM16(ADDR_NPC_ARRAY);
+    find_first_npc_at_x_after_current(dx, &si_ptr);
+    *si_out = si_ptr;
 }
 
 /* =========================================================================
@@ -1186,7 +1180,7 @@ static void prepare_hero_sprite(void)
             uint16_t si = MEM16(ADDR_NPC_ARRAY);
             while (g_mem[col_buf + 3] == 0xFD) {
                 si += 8;
-                find_npc_at_x(abs_x, &si);
+                find_first_npc_at_x_after_current(abs_x, &si);
             }
             g_mem[col_buf] = g_mem[col_buf + 3];  /* replace with real tile */
         }
@@ -1244,9 +1238,9 @@ static void is_hero_close_to_npc(uint16_t npc_si, uint16_t hero_x, uint8_t *resu
 }
 
 /* =========================================================================
- * find_npc_at_x — linear scan of NPC array for matching x
+ * find_first_npc_at_x_after_current — linear scan of NPC array for matching x
  * ========================================================================= */
-static void find_npc_at_x(uint16_t dx, uint16_t *si_ptr)
+static void find_first_npc_at_x_after_current(uint16_t dx, uint16_t *si_ptr)
 {
     for (;;) {
         if (MEM16(*si_ptr) == dx) return;
@@ -1280,8 +1274,8 @@ typedef void (*NpcAiFn)(uint16_t si, uint16_t *dx);
 
 static NpcAiFn npc_ai_table[8] = {
     npc_ai_look_at_hero_and_bob,
-    npc_ai_patrol_1bit_phase,
-    npc_ai_patrol_2bit_phase,
+    npc_ai_patrol_1bit_phase, // fast
+    npc_ai_patrol_2bit_phase, // slow
     npc_ai_face_hero,
     npc_ai_bob_in_place,
     npc_ai_patrol_bounce_1bit,

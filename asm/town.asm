@@ -281,7 +281,6 @@ loc_6234:
 ;   Output: clears spacebar_latch; may start NPC conversation
 ;   Uses: si = pointer to NPC struct when found
 ;   Modifies: si, al, ah (restored after conversation call)
-
 hero_spacebar_interaction        proc near
                 test    byte ptr byte ptr ds:spacebar_latch, 0FFh
                 jnz     short loc_6247
@@ -291,32 +290,32 @@ hero_spacebar_interaction        proc near
 loc_6247:   
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     bl, ds:hero_x_in_viewport
-                add     bl, 4
+                add     bl, 4  ; viewport_col
                 xor     bh, bh
                 mov     dx, bx
-                add     dx, ds:proximity_map_left_col_x
+                add     dx, ds:proximity_map_left_col_x ; abs_x
                 add     bl, bl
                 add     bl, bl
                 add     bl, bl
                 add     bl, 5
-                add     bx, ds:proximity_start_tiles
+                add     bx, ds:proximity_start_tiles ; bx = (viewport_col * 8 + 5) + PROX_START;
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_62AE
                 ; hero facing right
                 inc     dx
                 cmp     byte ptr [bx+8], 0FDh
-                jz      short loc_6285
+                je      short loc_6285
                 inc     dx
                 cmp     byte ptr [bx+16], 0FDh
-                jz      short loc_6285
+                je      short loc_6285
                 inc     dx
                 cmp     byte ptr [bx+24], 0FDh
-                jz      short loc_6285
+                je      short loc_6285
                 retn
 ; ---------------------------------------------------------------------------
-
+; found NPC to the right of hero
 loc_6285:   
-                call    load_npc_array_ptr
+                call    find_first_npc_at_x
                 mov     al, [si+NPC.n_flags]
                 and     al, 0C0h
                 jz      short loc_6290
@@ -340,18 +339,18 @@ loc_6290:
 loc_62AE:   
                 dec     dx
                 cmp     byte ptr [bx-8], 0FDh
-                jz      short loc_62C4
+                je      short loc_62C4
                 dec     dx
                 cmp     byte ptr [bx-16], 0FDh
-                jz      short loc_62C4
+                je      short loc_62C4
                 dec     dx
                 cmp     byte ptr [bx-24], 0FDh
-                jz      short loc_62C4
+                je      short loc_62C4
                 retn
 ; ---------------------------------------------------------------------------
-
+; found NPC to the left of hero
 loc_62C4:   
-                call    load_npc_array_ptr
+                call    find_first_npc_at_x
                 mov     al, [si+NPC.n_flags]
                 and     al, 0C0h
                 jz      short loc_62CF
@@ -404,7 +403,7 @@ hero_building_entry_check        proc near
 ; ---------------------------------------------------------------------------
 
 loc_6319:   
-                call    load_npc_array_ptr
+                call    find_first_npc_at_x
                 test    byte ptr [si+2], 80h
                 jnz     short loc_6323
                 retn
@@ -431,7 +430,7 @@ loc_6335:
 ; ---------------------------------------------------------------------------
 
 loc_633E:   
-                call    load_npc_array_ptr
+                call    find_first_npc_at_x
                 test    byte ptr [si+2], 80h
                 jz      short loc_6348
                 retn
@@ -453,7 +452,7 @@ hero_building_entry_check        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; start_npc_conversation — begins NPC dialog: captures screen behind
+; Begins NPC dialog: captures screen behind
 ;   dialog box, renders dialog text, then restores screen.
 ;   Input: si = pointer to NPC struct
 ;          [si+6] bit 7 cleared to mark NPC as "in conversation"
@@ -487,14 +486,14 @@ loc_637D:
                 mov     ax, ds:dialog_rect_pos
                 xor     di, di
                 mov     cx, 1658h
-                call    cs:Put_Image_proc
+                call    cs:Put_Image_proc  ; restore screen
                 pop     si
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 push    cs
                 pop     es
                 mov     al, 0FEh
-                mov     di, 0E000h
-                mov     cx, 0E0h
+                mov     di, viewport_buffer
+                mov     cx, 28*8
                 rep stosb
                 mov     ds:dialog_exit_flag, 0
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
@@ -505,14 +504,13 @@ start_npc_conversation        endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-render_dialog_text        proc near       ; renders dialog text with word wrap,
+; Renders dialog text with word wrap,
 ;   scrolling, and control codes (0x81-0x8B for shop/quest triggers, 0xFF=end).
 ;   Input: ds:dialog_text_ptr = initial dialog text string pointer
 ;   Output: dialog text rendered; modifies ds:dialog_* variables
 ;   Returns: when spacebar pressed or 0xFF terminator reached
 
-; FUNCTION CHUNK AT 664D SIZE 000000C1 BYTES
+render_dialog_text        proc near       
 
                 or      byte ptr ds:hero_animation_phase, 1
 
@@ -1435,14 +1433,14 @@ two_columns:
                 mov     al, [si]        ; CD CE CE CF D0 D0
                 cmp     al, 0FDh
                 jnz     short loc_69C8
-                call    load_npc_array_ptr
+                call    find_first_npc_at_x
 
 loc_69B9:   
                 mov     al, [si+3]
                 cmp     al, 0FDh
                 jnz     short loc_69C8
                 add     si, 8
-                call    find_npc_at_x
+                call    find_first_npc_at_x_after_current
                 jmp     short loc_69B9
 ; ---------------------------------------------------------------------------
 
@@ -1559,23 +1557,20 @@ is_hero_close_to_npc endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; load_npc_array_ptr — sets si to point to npc_array_addr.
+; find_first_npc_at_x — sets si to point to npc_array_addr.
 ;   Output: si = ds:npc_array_addr
 
-load_npc_array_ptr        proc near
+find_first_npc_at_x        proc near
                 mov     si, ds:npc_array_addr
-load_npc_array_ptr        endp
+find_first_npc_at_x        endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
-; find_npc_at_x — searches NPC array starting at [si] for NPC
+; find_first_npc_at_x_after_current — searches NPC array starting at [si] for NPC
 ;   whose x coordinate matches dx.
 ;   Input: dx = target x, si = current NPC pointer
 ;   Output: si = pointer to matching NPC, or si past end marker
 
-find_npc_at_x        proc near
+find_first_npc_at_x_after_current        proc near
                 cmp     dx, [si]
                 jnz     short loc_6A9D
                 retn
@@ -1583,8 +1578,8 @@ find_npc_at_x        proc near
 
 loc_6A9D:   
                 add     si, 8
-                jmp     short find_npc_at_x
-find_npc_at_x        endp
+                jmp     short find_first_npc_at_x_after_current
+find_first_npc_at_x_after_current        endp
 
 
 ; =============== S U B R O U T I N E =======================================

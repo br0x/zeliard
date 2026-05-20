@@ -65,8 +65,8 @@ const DIALOG_FONT_SIZE    = 10;       // px — base line height
 const DIALOG_LINE_HEIGHT  = 13;       // px — line spacing
 const DIALOG_PADDING_X    = 10;       // px — inner horizontal padding
 const DIALOG_PADDING_Y    = 8;        // px — inner vertical padding
-const DIALOG_MAX_WIDTH    = 380;      // px — maximum box width
-const DIALOG_LINES_PER_PAGE = 7;      // lines shown before "more" prompt
+const DIALOG_MAX_WIDTH    = 480;      // px — maximum box width
+const DIALOG_LINES_PER_PAGE = 15;      // lines shown before "more" prompt
 const DIALOG_CURSOR_CHAR  = '\u25BC'; // ▼ — "more" indicator
 // Bottom edge: 4px above the NPCs' head row
 const DIALOG_BOTTOM_Y     = TOWN_HEADS_ROW * TILE_HEIGHT - 4;  // 308 px

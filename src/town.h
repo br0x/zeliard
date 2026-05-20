@@ -132,10 +132,17 @@ extern TownProcs g_town_procs;
  * Exported WASM entry points (callable from JavaScript)
  * ========================================================================= */
 /* Async transition handshake */
-#define ADDR_PENDING_TRANSITION_MAP  0xFFF1
-#define ADDR_PENDING_TRANSITION_PAT  0xFFF2
-#define ADDR_PENDING_TRANSITION_DIR  0xFFF3
-#define ADDR_PENDING_TRANSITION_FLAG 0xFFF4
+#define ADDR_PENDING_TRANSITION_MAP      0xFFF1
+#define ADDR_PENDING_TRANSITION_PAT      0xFFF2
+#define ADDR_PENDING_TRANSITION_DIR      0xFFF3
+#define ADDR_PENDING_TRANSITION_FLAG     0xFFF4
+#define ADDR_CONVERSATION_ACTIVE         0xFFF5   // byte, 1 = conversation active
+#define ADDR_CONVERSATION_NPC_ADDR       0xFFF6   // word, pointer to NPC struct
+#define ADDR_CONVERSATION_SAVED_AI       0xFFF8   // byte
+#define ADDR_CONVERSATION_SAVED_FACING   0xFFF9   // byte
+
+// Export function to finish conversation (called by JS)
+void wasm_town_conversation_finish(void);
 
 void    wasm_town_complete_transition(void);
 uint8_t wasm_get_pending_transition_map(void);

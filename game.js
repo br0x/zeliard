@@ -173,6 +173,7 @@ let getTownPendingTransitionFlag;
 let getTownPendingTransition;
 let townCompleteTransition;
 let townEntryEnablingEdgeScroll;
+let townFinishConversation;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -392,6 +393,7 @@ async function loadWasmEngine() {
         getTownPendingTransition,
         townCompleteTransition,
         townEntryEnablingEdgeScroll,
+        townFinishConversation,
     } = wasmBridge);
 
     if (!USE_DUNGEON_RENDERER) {
@@ -408,6 +410,56 @@ async function loadWasmEngine() {
     }
 }
 
+const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
+let conversation = {
+    active: false,
+    pages: [],
+    page: 0,
+    pageSize: 6,
+    savedBackground: null,
+    ignoreNextSpace: false,   // to skip the Space that started the conversation
+    boxX: 0,
+    boxY: 0,
+    boxW: 0,
+    boxH: 0,
+};
+
+const TOWN_HEADS_ROW      = TOWN_MAP_START_ROW + 5;   // row 13, y = 312px
+// Dialog visual constants
+const DIALOG_FONT_SIZE    = 12;       // px — base line height
+const DIALOG_LINE_HEIGHT  = 13;       // px — line spacing
+const DIALOG_PADDING_X    = 10;       // px — inner horizontal padding
+const DIALOG_PADDING_Y    = 4;        // px — inner vertical padding
+const DIALOG_MAX_WIDTH    = 300;      // px — maximum box width
+const DIALOG_LINES_PER_PAGE = 15;     // lines shown before "more" prompt
+const DIALOG_CURSOR_CHAR  = '\u25BC'; // ▼ — "more" indicator
+// Bottom edge: 4px above the NPCs' head row
+const DIALOG_BOTTOM_Y     = TOWN_HEADS_ROW * TILE_HEIGHT - 4;  // 308 px
+
+// Character width table copied verbatim from town.c (index = charCode - 0x20)
+// These are the original CGA pixel widths; we scale them for the canvas font.
+const CHAR_WIDTH_TABLE = [
+    5, 4, 4, 4, 6, 8,  5, 3, 4, 4, 6, 6,
+    6, 5, 6, 8, 7, 5,  7, 7, 7, 7, 7, 7,
+    7, 7, 3, 4, 6, 6,  6, 7, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 5,  8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 7, 8,  8, 8, 8, 8, 7, 5,
+    3, 5, 6, 7, 7, 8,  8, 7, 8, 7, 7, 8,
+    8, 5, 6, 8, 5, 8,  7, 7, 8, 8, 8, 7,
+    6, 8, 8, 8, 7, 7,  7, 4, 8, 4, 7, 8,
+];
+
+// Scale from original 168px dialog width (chars fit in ≤0xA8 = 168px) to canvas width.
+// We want the text area to be DIALOG_MAX_WIDTH - 2*DIALOG_PADDING_X pixels wide.
+const ORIG_MAX_LINE_PX   = 256;
+const TEXT_AREA_WIDTH    = DIALOG_MAX_WIDTH - 2 * DIALOG_PADDING_X;
+const WIDTH_SCALE        = TEXT_AREA_WIDTH / ORIG_MAX_LINE_PX;
+
+function charOrigWidth(ch) {
+    const idx = ch.charCodeAt(0) - 0x20;
+    if (idx < 0 || idx >= CHAR_WIDTH_TABLE.length) return 6;
+    return CHAR_WIDTH_TABLE[idx];
+}
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
 const introScreen  = document.getElementById('intro-screen');
@@ -581,9 +633,43 @@ function onFullTick() {
 function onSlowTick() {
     if (!engineReady) return;
 
-    // --- Apply current key state to the engine ONCE per input tick ---
-    if (engineReady) {
-        inputSetKeys(keys);
+    updateInputLatches(); // set edge‑triggered latches (0xFF1D, 0xFF1E)
+    inputSetKeys(keys);
+
+    // --- Start a new conversation if requested by WASM and no conversation active ---
+    if (!conversation.active) {
+        const activeFlag = readMemory(ADDR_CONVERSATION_ACTIVE, 1)[0];
+        if (activeFlag) {
+            startConversationFromWasm();
+        }
+    }
+
+    // --- Handle active conversation input ---
+    if (conversation.active) {
+        // Read Space latch (edge-triggered)
+        const spaceLatched = readMemory(0xFF1D, 1)[0];
+        if (spaceLatched) {
+            // Clear the latch immediately so it doesn't affect anything else
+            writeMemory(0xFF1D, [0]);
+
+            if (conversation.ignoreNextSpace) {
+                // This is the Space that triggered the conversation – ignore it
+                conversation.ignoreNextSpace = false;
+            } else {
+                // Advance or close dialog
+                if (conversation.page < conversation.pages.length - 1) {
+                    conversation.page++;
+                } else {
+                    // End conversation
+                    conversation.active = false;
+                    conversation.savedBackground = null;
+                    // Tell WASM to restore NPC and clear flag
+                    townFinishConversation?.();
+                }
+            }
+        }
+        // Do not process any other input (movement, inventory) while conversation active
+        return;
     }
 
     // Poll scroll request flag
@@ -968,10 +1054,6 @@ function drawHero() {
     readMemory(0xFF33, 1)[0]
     const heroAnim = readMemory(0x00E7, 1)[0];        // ADDR_HERO_ANIMATION_PHASE
     const facing   = readMemory(0x00C2, 1)[0] & 1;    // ADDR_FACING_DIRECTION bit0: 0=right, 1=left
-    // const movedFlag = readMemory(0x7C4B, 1)[0];       // ADDR_HERO_MOVED_FLAG (0xFF = moved this frame)
-
-    // // Determine if hero is walking (movedFlag == 0xFF)
-    // const isMoving = (movedFlag === 0xFF);
 
     // Check actual key state – use the global `keys` object updated by keydown/keyup
     const moving = keys.ArrowLeft || keys.ArrowRight;
@@ -1083,7 +1165,6 @@ function drawNpcs() {
     }
 }
 
-
 async function handleTownTransition(transition) {
     if (townTransitionInProgress) return;
     townTransitionInProgress = true;
@@ -1162,6 +1243,213 @@ async function handleTownTransition(transition) {
     }
 }
 
+let lastSpace = false;
+let lastAlt = false;
+
+function updateInputLatches() {
+    const currentSpace = keys.Space;
+    const currentAlt = keys.Alt;
+
+    if (currentSpace && !lastSpace) {
+        writeMemory(0xFF1D, [1]);   // ADDR_SPACEBAR_LATCH
+    }
+    if (currentAlt && !lastAlt) {
+        writeMemory(0xFF1E, [1]);   // ADDR_ALTKEY_LATCH
+    }
+
+    lastSpace = currentSpace;
+    lastAlt = currentAlt;
+}
+
+function getNpcConversationRaw(npcId) {
+    let ptr = readMemory(0xC00D, 2);
+    const convTablePtr = ptr[0] | (ptr[1] << 8);
+    if (!convTablePtr) return null;
+    const textPtr = readMemory(convTablePtr + npcId * 2, 2);
+    const textAddr = textPtr[0] | (textPtr[1] << 8);
+    if (!textAddr) return null;
+    let bytes = [];
+    let b;
+    while ((b = readMemory(textAddr + bytes.length, 1)[0]) !== 0xFF) {
+        if (b === 0) break;
+        bytes.push(b);
+    }
+    return new Uint8Array(bytes);
+}
+
+/**
+ * Parse raw MDT text bytes into an array of "page" objects.
+ * Each page is an array of line strings.
+ * Control codes (0x81..0x8F) are treated as end-of-text for now.
+ * '/' (0x2F) is a newline.  0xFF is end-of-text.
+ *
+ * Word-wrap uses the original pixel-width table scaled by WIDTH_SCALE.
+ */
+function parseDialogText(bytes) {
+    const pages = [];
+    let lines  = [''];    // current page's lines
+    let lineW  = 0;       // current line pixel width (original coords)
+    const MAX_W = ORIG_MAX_LINE_PX;
+
+    const pushLine = () => {
+        lines.push('');
+        lineW = 0;
+        if (lines.length - 1 === DIALOG_LINES_PER_PAGE) {
+            // commit page (drop trailing empty line)
+            const trimmed = lines.slice(0, DIALOG_LINES_PER_PAGE);
+            pages.push(trimmed);
+            lines = [''];
+        }
+    };
+
+    for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        if (b === 0xFF || b === 0x00) break;          // end of dialog
+        if (b >= 0x81) break;                          // control code → end
+        if (b === 0x2F) { pushLine(); continue; }     // explicit newline
+        if (b < 0x20) continue;                        // skip other controls
+
+        const ch  = String.fromCharCode(b);
+        const cw  = charOrigWidth(ch);
+
+        // Word-wrap: if adding this character would overflow and it's a space,
+        // wrap now.  For non-space chars, always emit (original behaviour).
+        if (b === 0x20) {
+            // Measure next word to decide whether to wrap before the space.
+            let nextW = 0;
+            for (let j = i + 1; j < bytes.length; j++) {
+                const nb = bytes[j];
+                if (nb === 0x20 || nb === 0x2F || nb >= 0x80) break;
+                if (nb >= 0x20) nextW += charOrigWidth(String.fromCharCode(nb));
+            }
+            if (lineW + cw + nextW >= MAX_W) {
+                pushLine();
+                continue; // drop the space at wrap point
+            }
+        }
+
+        lines[lines.length - 1] += ch;
+        lineW += cw;
+    }
+
+    // Flush remaining lines as a final page
+    const nonEmpty = lines.filter(l => l.length > 0);
+    if (nonEmpty.length > 0) pages.push(nonEmpty);
+
+    return pages;
+}
+
+/**
+ * Compute the dialog box position and size for the current page.
+ * `onRight` true → box on right side of screen (hero faces left);
+ * `onRight` false → box on left side (hero faces right).
+ * Original: rect_pos 0x0718 = right, 0x0B18 = left.
+ */
+function computeBoxGeometry(facingLeft) {
+    const page    = conversation.pages[conversation.page] ?? [];
+    const nLines  = Math.max(page.length, 1);
+    const bh      = nLines * DIALOG_LINE_HEIGHT + 2 * DIALOG_PADDING_Y + DIALOG_FONT_SIZE;
+
+    // Width: fit to longest line
+    ctx.save();
+    ctx.font = `${DIALOG_FONT_SIZE + 2}px 'Courier New', monospace`;
+    let maxW = 0;
+    for (const line of page) {
+        const w = ctx.measureText(line).width;
+        if (w > maxW) maxW = w;
+    }
+    ctx.restore();
+
+    const bw = Math.min(
+        Math.max(maxW + 2 * DIALOG_PADDING_X + 16, 160),
+        DIALOG_MAX_WIDTH
+    );
+
+    // Horizontal: hero faces left → NPC is to the right → box on right side;
+    // hero faces right → NPC is to the left → box on left side.
+    // In original: facing left (bit0=1) → rect_pos 0x0718 (right), else left.
+    let bx;
+    if (facingLeft) {
+        // Box on right side of canvas
+        bx = VIEW_WIDTH - bw - 12;
+    } else {
+        // Box on left side of canvas
+        bx = 12;
+    }
+
+    // Bottom edge sits just above the heads row
+    const by = DIALOG_BOTTOM_Y - bh;
+
+    conversation.boxX = bx;
+    conversation.boxY = Math.max(by, 4);
+    conversation.boxW = bw;
+    conversation.boxH = bh;
+}
+
+function drawConversationDialog() {
+    if (!conversation.active || !conversation.pages.length) return;
+
+    const start = conversation.page * conversation.pageSize;
+    const pageLines = conversation.pages[conversation.page] || [];
+    const totalPages = conversation.pages.length;
+    const width = conversation.boxW || 300;
+    const height = conversation.boxH || 100;
+    const x = conversation.boxX || 10;
+    const y = conversation.boxY || 10;
+
+    // if (!conversation.savedBackground) {
+    //     conversation.savedBackground = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // } else {
+    //     ctx.putImageData(conversation.savedBackground, 0, 0);
+    // }
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = '#c0c0c0';
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    const lineHeight = 18;
+    for (let i = 0; i < pageLines.length; i++) {
+        ctx.fillText(pageLines[i], x + 16, y + 32 + i * lineHeight);
+    }
+
+    if (conversation.page < totalPages - 1) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText('▼', x + width - 24, y + height - 12);
+    } else {
+        ctx.fillStyle = '#88ff88';
+        ctx.fillText('✓', x + width - 24, y + height - 12);
+    }
+}
+
+function startConversationFromWasm() {
+    // Read NPC address and ID
+    const npcAddrBytes = readMemory(0xFFF6, 2);
+    const npcAddr = npcAddrBytes[0] | (npcAddrBytes[1] << 8);
+    let npcId = 0;
+    if (npcAddr) {
+        npcId = readMemory(npcAddr + 7, 1)[0];
+    }
+    const rawText = getNpcConversationRaw(npcId);
+    const pages = parseDialogText(rawText);
+    if (pages.length === 0) {
+        // No text – exit conversation immediately
+        townFinishConversation?.();
+        return;
+    }
+
+    conversation.active = true;
+    conversation.pages = pages;
+    conversation.page = 0;
+    conversation.ignoreNextSpace = true;   // ignore the Space that triggered this
+    conversation.savedBackground = null;
+    computeBoxGeometry(readMemory(npcAddr + 2, 1)[0] & 0x80); // bit7 of n_facing is facing direction
+
+    // Optional: play sound effect (the WASM already set ADDR_SOUND_FX_REQUEST)
+}
+
 // ─── rAF game loop ────────────────────────────────────────────────────────────
 /**
  * update() — runs once per animation frame.
@@ -1226,24 +1514,11 @@ function draw() {
         updateElementText('currentMapName', townEntryRan ? placeName : '');
         updateElementText('gold', 0);
         updateElementText('almas', 0);
+
+        // Draw dialog on top if conversation active
+        drawConversationDialog();
         return;
     }
-
-    if (!proximityMap || !RENDER_CONFIG || !renderDungeonObjects) {
-        drawLifeBar();
-        updateElementText('currentMapName', townEntryRan ? 'Town WASM bootstrapped' : '');
-        updateElementText('gold', 0);
-        updateElementText('almas', 0);
-        return;
-    }
-
-    drawLifeBar();
-    updateElementText('currentMapName', cavernName);
-    updateElementText('gold', 1);
-    updateElementText('almas', 2);
-    updateElementText('activeSwordSlot', '/');
-    updateElementText('activeShieldSlot', 'O');
-    updateElementText('shieldHp', 3);
 }
 
 function loop(timestamp) {

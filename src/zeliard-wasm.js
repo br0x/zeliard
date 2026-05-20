@@ -1335,3 +1335,7 @@ export function getTownPendingTransition() {
 export function townCompleteTransition() {
     wasmExports?.wasm_town_complete_transition?.();
 }
+
+export function townFinishConversation() {
+    wasmExports?.wasm_town_conversation_finish?.();
+}
