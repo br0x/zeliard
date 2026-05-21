@@ -1,7 +1,6 @@
 /**
  * game.js — Zeliard web port, main entry point.
  *
- * Changes from previous version:
  *   - Imports SoundManager (sound-manager.js)
  *   - AudioWorklet PIT timer drives full_tick / slow_tick
  *   - WASM memory accessor wired to SoundManager so sound_drv_poll()
@@ -24,7 +23,6 @@ const VIEW_WIDTH  = VIEW_COLS * TILE_WIDTH;
 const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
-const USE_DUNGEON_RENDERER = false;
 const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 const PATTERN_ASSETS = {
@@ -395,19 +393,6 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll,
         townFinishConversation,
     } = wasmBridge);
-
-    if (!USE_DUNGEON_RENDERER) {
-        return;
-    }
-
-    try {
-        const renderConfig  = await import('./src/render-config.js');
-        const renderObjects = await import('./src/render-objects.js');
-        RENDER_CONFIG        = renderConfig.RENDER_CONFIG;
-        renderDungeonObjects = renderObjects.renderDungeonObjects;
-    } catch (err) {
-        console.warn('[WASM] Dungeon renderer modules are not available yet:', err);
-    }
 }
 
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
@@ -448,8 +433,6 @@ const CHAR_WIDTH_TABLE = [
     6, 8, 8, 8, 7, 7,  7, 4, 8, 4, 7, 8,
 ];
 
-// Scale from original 168px dialog width (chars fit in ≤0xA8 = 168px) to canvas width.
-// We want the text area to be DIALOG_MAX_WIDTH - 2*DIALOG_PADDING_X pixels wide.
 const ORIG_MAX_LINE_PX   = 256;
 const TEXT_AREA_WIDTH    = DIALOG_MAX_WIDTH - 2 * DIALOG_PADDING_X;
 const WIDTH_SCALE        = TEXT_AREA_WIDTH / ORIG_MAX_LINE_PX;
@@ -488,24 +471,6 @@ let mdtHeader    = null;
 let lastTimestamp = 0;
 let fps           = 0;
 let townTransitionInProgress = false;
-
-const player = {
-    x:         61,
-    y:         7,
-    direction: 1,   // 1=right, -1=left, 0=onRope
-};
-
-const camX = 13;
-const camY = 7;
-
-// Calculate starting position for viewport
-// Hero is at column 18 (center of 36-column proximity map)
-// For 28-column viewport, start at column (36-28)/2 = 4
-const startCol = 4;  // Center 28 columns in 36-column proximity map
-
-// Calculate starting row (center vertically on hero)
-// Hero is at row heroY, we want to show 9 rows above and 9 below (18 total)
-const startRow = (player.y - 9 < 0) ? player.y - 9 + 64 : player.y - 9;
 
 // ─── Timer-driven counters (written by full_tick, read by draw/update) ────────
 // These mirror the byte/word variables that the DOS ISR incremented each tick.
@@ -1366,14 +1331,7 @@ function computeBoxGeometry(facingLeft) {
     // Horizontal: hero faces left → NPC is to the right → box on right side;
     // hero faces right → NPC is to the left → box on left side.
     // In original: facing left (bit0=1) → rect_pos 0x0718 (right), else left.
-    let bx;
-    if (facingLeft) {
-        // Box on right side of canvas
-        bx = VIEW_WIDTH - bw - 12;
-    } else {
-        // Box on left side of canvas
-        bx = 12;
-    }
+    let bx = facingLeft ? VIEW_WIDTH - bw - 12 : 12;
 
     // Bottom edge sits just above the heads row
     const by = DIALOG_BOTTOM_Y - bh;
@@ -1394,12 +1352,6 @@ function drawConversationDialog() {
     const height = conversation.boxH || 100;
     const x = conversation.boxX || 10;
     const y = conversation.boxY || 10;
-
-    // if (!conversation.savedBackground) {
-    //     conversation.savedBackground = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    // } else {
-    //     ctx.putImageData(conversation.savedBackground, 0, 0);
-    // }
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(x, y, width, height);
@@ -1450,18 +1402,10 @@ function startConversationFromWasm() {
  *
  * Heavy game-logic (movement, combat) is intentionally NOT done here; it runs
  * inside onSlowTick() at ~47.3 Hz (driven by the PIT worklet) to preserve the
- * original timing. update() only syncs WASM state → JS player object so the
- * renderer has fresh data.
+ * original timing.
  */
 function update() {
     if (!engineReady) return;
-
-  // Sync hero position from WASM
-    const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
-    if (heroPos) {
-        player.x = heroPos.x;
-        player.y = heroPos.y;
-    }
 
     // Check for hero interactions with doors/items
     // This is for specific situations (entering doors, item triggers)
@@ -1472,13 +1416,6 @@ function update() {
 
     // Update boss battle (if in boss cavern)
     updateBossBattle?.();
-
-    // Sync hero direction from WASM to JS player object
-    // starting_direction: bit 0 = 0 (left) or 1 (right)
-    const wasmDir  = heroGetDirection?.();
-    if (wasmDir !== undefined) {
-        player.direction = (wasmDir & 1) ? 1 : -1;
-    }
 
     proximityMap = getProximityMap?.();
 }
@@ -1596,7 +1533,7 @@ function loadGame(saveKey = 'zeliard_save_01') {
 }
 
 function exportSave() {
-    const gameState = { player }; // Simplify for example
+    const gameState = null;//{ player }; // Simplify for example
     const dataStr = JSON.stringify(gameState, null, 2); // Pretty print
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1617,7 +1554,7 @@ function importSave(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const data = JSON.parse(e.target.result);
-        Object.assign(player, data.player);
+        // Object.assign(player, data.player);
         console.log("File Imported!");
     };
     reader.readAsText(file);

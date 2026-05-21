@@ -320,7 +320,7 @@ static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
 static void handle_edge_screen_transition(void);
 static void hero_spacebar_interaction(void);
-static void hero_building_entry_check(void);
+static void check_special_npc_conversation(void);
 static void start_npc_conversation(uint16_t si_addr);
 static void render_dialog_text(uint16_t rect_pos, uint8_t bx_pattern);
 static void wait_for_dialog_input(void);
@@ -569,7 +569,7 @@ static void town_main_loop_step(void)
     hero_spacebar_interaction();
 
     if (!HERO_MOVED) {
-        hero_building_entry_check();
+        check_special_npc_conversation();
     }
 
     HERO_MOVED = 0;
@@ -585,7 +585,7 @@ static void town_main_loop_step(void)
         /* Up pressed → enter door */
         HERO_ANIM |= 1;
         /* Check for door interaction (jump to loc_6E29 logic) */
-        /* (handled in hero_building_entry_check via dialog_exit_flag) */
+        /* (handled in check_special_npc_conversation via dialog_exit_flag) */
     } else if ((dirs & 0x0C) == 0x04) {
         /* Left pressed */
         /* Edge-scroll left handler (loc_6781) */
@@ -706,10 +706,10 @@ static void hero_spacebar_interaction(void)
 }
 
 /* =========================================================================
- * hero_building_entry_check
+ * check_special_npc_conversation
  * Checks if a building entrance (0xFD tile, 2 cols ahead) is present.
  * ========================================================================= */
-static void hero_building_entry_check(void)
+static void check_special_npc_conversation(void)
 {
     uint8_t viewport_col = HERO_XV + 4;
     uint16_t bx = (uint16_t)(viewport_col * 8 + 5) + PROX_START;

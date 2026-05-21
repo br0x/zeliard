@@ -241,7 +241,7 @@ loc_61FC:
                 call    hero_spacebar_interaction
                 test    ds:hero_moved_flag, 0FFh
                 jnz     short loc_6212
-                call    hero_building_entry_check
+                call    check_special_npc_conversation
 
 loc_6212:   
                 mov     ds:hero_moved_flag, 0
@@ -275,8 +275,7 @@ loc_6234:
 ; =============== S U B R O U T I N E =======================================
 
 
-; Checks spacebar latch; if set, looks for
-;   interactable NPC tile ahead of hero and starts conversation.
+; On spacebar latch, looks for NPC tile ahead of hero and starts conversation.
 ;   Input: ds:spacebar_latch (non-zero to trigger)
 ;   Output: clears spacebar_latch; may start NPC conversation
 ;   Uses: si = pointer to NPC struct when found
@@ -375,78 +374,73 @@ hero_spacebar_interaction        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; hero_building_entry_check — checks if hero is in front of a building
-;   entrance (0xFD tile 2 tiles ahead) and initiates building NPC dialog.
+; Checks if hero is 2 tiles ahead of NPC with n_flags bit7 set
+; and initiates special NPC dialog.
 ;   Input: ds:hero_x_in_viewport, ds:proximity_map_left_col_x,
 ;          ds:facing_direction
 ;   Output: may set dialog_exit_flag=0FFh and start NPC conversation
 ;   Uses: si = pointer to NPC struct when found
 
-hero_building_entry_check        proc near
+check_special_npc_conversation        proc near
                 mov     bl, ds:hero_x_in_viewport
-                add     bl, 4
+                add     bl, 4  ; viewport_col
                 xor     bh, bh
                 mov     dx, bx
-                add     dx, ds:proximity_map_left_col_x
+                add     dx, ds:proximity_map_left_col_x ; abs_x
                 add     bl, bl
                 add     bl, bl
                 add     bl, bl
                 add     bl, 5
-                add     bx, ds:proximity_start_tiles
+                add     bx, ds:proximity_start_tiles ; bx = (viewport_col * 8 + 5) + PROX_START;
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_6335
+            ; facing right
                 inc     dx
                 inc     dx
-                cmp     byte ptr [bx+16], 0FDh
-                jz      short loc_6319
+                cmp     byte ptr [bx+16], 0FDh ; NPC 2 columns ahead
+                je      short loc_6319
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_6319:   
                 call    find_first_npc_at_x
-                test    byte ptr [si+2], 80h
+                test    byte ptr [si+2], 80h ; n_facing
                 jnz     short loc_6323
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_6323:   
-                test    byte ptr [si+6], 80h
+                test    byte ptr [si+6], 80h ; n_flags
                 jnz     short loc_632A
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_632A:   
-                or      byte ptr [si+4], 1
+                or      byte ptr [si+4], 1 ; n_anim_phase
                 mov     ds:dialog_exit_flag, 0FFh
                 jmp     short start_npc_conversation
 ; ---------------------------------------------------------------------------
-
+            ; facing left
 loc_6335:   
                 dec     dx
                 dec     dx
-                cmp     byte ptr [bx-16], 0FDh
+                cmp     byte ptr [bx-16], 0FDh ; NPC 2 columns ahead
                 jz      short loc_633E
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_633E:   
                 call    find_first_npc_at_x
-                test    byte ptr [si+2], 80h
+                test    byte ptr [si+2], 80h ; n_facing
                 jz      short loc_6348
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_6348:   
-                test    byte ptr [si+6], 80h
+                test    byte ptr [si+6], 80h ; n_flags
                 jnz     short loc_634F
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_634F:   
-                or      byte ptr [si+4], 1
+                or      byte ptr [si+4], 1 ; n_anim_phase
                 mov     ds:dialog_exit_flag, 0FFh
                 jmp     short $+2
-hero_building_entry_check        endp
+check_special_npc_conversation        endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -570,38 +564,38 @@ loc_6437:
 
 loc_6447:   
                 cmp     al, 81h
-                jnz     short loc_644E
-                jmp     loc_6655
+                jne     short loc_644E
+                jmp     on_flag_0x81
 ; ---------------------------------------------------------------------------
 
 loc_644E:   
                 cmp     al, 83h
-                jnz     short loc_6455
-                jmp     loc_6685
+                jne     short loc_6455
+                jmp     on_flag_0x83
 ; ---------------------------------------------------------------------------
 
 loc_6455:   
                 cmp     al, 85h
-                jnz     short loc_645C
-                jmp     loc_6695
+                jne     short loc_645C
+                jmp     on_flag_0x85
 ; ---------------------------------------------------------------------------
 
 loc_645C:   
                 cmp     al, 87h
-                jnz     short loc_6463
-                jmp     loc_66A2
+                jne     short loc_6463
+                jmp     on_flag_0x87
 ; ---------------------------------------------------------------------------
 
 loc_6463:   
                 cmp     al, 89h
-                jnz     short loc_646A
-                jmp     loc_66AD
+                jne     short loc_646A
+                jmp     on_flag_0x89
 ; ---------------------------------------------------------------------------
 
 loc_646A:   
                 cmp     al, 8Bh
-                jnz     short loc_6471
-                jmp     loc_664D        ; al=8Bh
+                jne     short loc_6471
+                jmp     on_flag_0x8b
 ; ---------------------------------------------------------------------------
 
 loc_6471:   
@@ -667,7 +661,7 @@ loc_64E6:
                 cmp     ds:dialog_char_y, 8
                 jnz     short loc_6516
                 dec     ds:dialog_char_y
-                mov     cx, 0Ah
+                mov     cx, 10
 
 loc_64FD:   
                 push    cx
@@ -739,16 +733,17 @@ loc_6576:
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     ds:dialog_lines_rendered, 0
                 mov     byte ptr byte ptr ds:soundFX_request, 29
-                jmp     loc_6437
+                jmp     loc_6437 ; next dialog page
 render_dialog_text        endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-wait_for_dialog_input        proc near     ; waits for player input during dialog
+; waits for player input during dialog
 ;   Input: (none — polls spacebar_latch, altkey_latch, joystick direction)
 ;   Output: returns on spacebar press; CF set on direction input
+wait_for_dialog_input        proc near     
                 mov     byte ptr byte ptr ds:spacebar_latch, 0
                 mov     byte ptr byte ptr ds:altkey_latch, 0
 
@@ -794,10 +789,11 @@ wait_for_dialog_input        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-measure_text_to_delimiter        proc near ; measures pixel width of text until
+; measures pixel width of text until
 ;   space (0x20), slash (0x2F), negative byte, or terminator.
 ;   Input: si = pointer to text string
 ;   Output: cl = total pixel width, si advanced past measured text
+measure_text_to_delimiter        proc near 
                 xor     cx, cx
 
 loc_65E8:   
@@ -892,12 +888,12 @@ count_dialog_lines        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_664D:   
+on_flag_0x8b:   
                 or      byte ptr ds:byte_4, 80h
                 jmp     init_c015_obj_if_exists
 ; ---------------------------------------------------------------------------
 
-loc_6655:   
+on_flag_0x81:   
                 mov     bx, ds:dialog_rect_pos
                 add     bh, bh
                 add     bx, 193Fh
@@ -920,35 +916,28 @@ loc_6680:
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_6685:   
+on_flag_0x83:   
                 or      byte ptr ds:caliente_items, 80h ; +128 - Spoke to the girl after defeating Paguro
-                                        ; +64 - Purchased the Asbestos Cape
-                                        ; +32 - Open locked door (1st one)
-                                        ; +16 - Open locked door to Dragon's lair
-                                        ; +8 - Chest, Blue Potion (Requires platform to rise up to)
-                                        ; +4 - Key (1st one)
-                                        ; +2 - Chest, Blue Potion (By vertical wind tunnel)
-                                        ; +1 - Key (2nd one)
                 mov     byte ptr ds:elf_crest, 0FFh
                 call    init_c015_obj_if_exists
                 jmp     wait_for_dialog_input
 ; ---------------------------------------------------------------------------
 
-loc_6695:   
+on_flag_0x85:   
                 mov     ds:dialog_exit_flag, 0FFh
                 mov     bl, 4
                 mov     ax, ds:dialog_src_rect
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66A2:   
+on_flag_0x87:   
                 call    wait_for_dialog_input
                 mov     bl, 5
                 mov     ax, ds:dialog_src_rect
                 jmp     render_dialog_text
 ; ---------------------------------------------------------------------------
 
-loc_66AD:   
+on_flag_0x89:   
                 mov     bx, ds:dialog_rect_pos
                 add     bh, bh
                 add     bx, 1832h
@@ -968,7 +957,7 @@ loc_66AD:
 
 loc_66D8:   
                 mov     dx, ds:hero_almas
-                sub     dx, 9C4h
+                sub     dx, 2500
                 mov     bl, 7
                 jnb     short loc_66E7
                 jmp     render_dialog_text
@@ -978,7 +967,7 @@ loc_66E7:
                 mov     word ptr ds:hero_almas, dx
                 call    cs:Print_Almas_Decimal_proc
                 or      byte ptr ds:caliente_items, 40h ; +64 - Purchased the Asbestos Cape
-                mov     si, 0A1h
+                mov     si, Feruza_Shoes
 
 loc_66F8:   
                 test    byte ptr [si], 0FFh
@@ -986,9 +975,9 @@ loc_66F8:
                 inc     si
                 jmp     short loc_66F8
 ; ---------------------------------------------------------------------------
-
+            ; empty slot found
 loc_6700:   
-                mov     byte ptr [si], 5
+                mov     byte ptr [si], 5  ; put Asbestos_Cape id in the first empty slot
                 call    init_c015_obj_if_exists
                 mov     ax, ds:dialog_rect_pos
                 mov     bl, 8
