@@ -231,6 +231,8 @@
 #define ADDR_PENDING_TRANSITION_PAT  0xFFF2  /* byte: new pat_id */
 #define ADDR_PENDING_TRANSITION_DIR  0xFFF3  /* byte: 0=going right, 1=going left */
 #define ADDR_PENDING_TRANSITION_FLAG 0xFFF4  /* byte: 0xFF = transition requested */
+#define ADDR_BUILDING_ACTIVE         0xFFFA  /* byte: 1 = JS-owned building scene active */
+#define ADDR_BUILDING_DEST_ID        0xFFFB  /* byte: TOWN_DOOR.td_dest_id */
 
 /* =========================================================================
  * Per-character rendering tables (char_x_offset, char_width_table)
@@ -318,6 +320,7 @@ static void load_hero_town_sprite(void);
 static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
 static void handle_edge_screen_transition(void);
+static void town_up_pressed(void);
 static void hero_spacebar_interaction(void);
 static void check_special_npc_conversation(void);
 static void start_npc_conversation(uint16_t si_addr);
@@ -561,6 +564,9 @@ static void town_main_loop_step(void)
     if (MEM8(ADDR_CONVERSATION_ACTIVE)) {
         return;
     }
+    if (MEM8(ADDR_BUILDING_ACTIVE)) {
+        return;
+    }
 
     handle_inventory_key();
     handle_edge_screen_transition();
@@ -581,8 +587,7 @@ static void town_main_loop_step(void)
     if (dirs == 0x01) { // up
         /* Up pressed → enter door */
         HERO_ANIM |= 1;
-        /* Check for door interaction (jump to town_up_pressed logic) */
-        /* (handled in check_special_npc_conversation via dialog_exit_flag) */
+        town_up_pressed();
     } else if ((dirs & 0x0C) == 0x04) {
         /* Left pressed */
         /* Edge-scroll left handler (loc_6781) */
@@ -1582,10 +1587,74 @@ void wasm_town_complete_transition(void)
     // town_entry_common();
 }
 
+/* =========================================================================
+ * town_up_pressed
+ * Checks the town door table for a door under/near the hero and signals JS
+ * for in-town buildings. Rendering and building-specific logic live in JS.
+ * ========================================================================= */
+static void town_up_pressed(void)
+{
+    HERO_ANIM |= 1;
+
+    uint16_t hero_x = (uint16_t)(PROX_LEFT + HERO_XV + 4);
+    uint16_t si = MEM16(ADDR_DOORS_ARRAY);
+
+    for (;;) {
+        uint16_t door_x = MEM16(si);
+        if (door_x == 0xFFFF) {
+            return;
+        }
+
+        if (door_x == hero_x ||
+            door_x == (uint16_t)(hero_x + 1) ||
+            door_x == (uint16_t)(hero_x - 1)) {
+            break;
+        }
+
+        si += 3;
+    }
+
+    HERO_ANIM = 4;
+    restore_head_level_tiles_from_npcs();
+    FRAME_TMR = 40;
+    game_loop_with_frame_wait();
+
+    uint8_t dest_id = MEM8(si + 2);
+    if (dest_id == 0xFF) {
+        return;
+    }
+
+    if (dest_id >= 8) {
+        CALL_PROC(transition_to_dungeon, dest_id);
+        return;
+    }
+
+    MEM8(ADDR_BYTE_FF24) = 4;
+    MEM8(ADDR_BUILDING_DEST_ID) = dest_id;
+    MEM8(ADDR_BUILDING_ACTIVE) = 1;
+    MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
+
+    SPACEBAR = 0;
+    ALTKEY = 0;
+    INPUT_DIRS = 0;
+    INPUT_ALT_SPACE = 0;
+}
+
 /* Read the pending-transition record — JS uses this after detecting the flag */
 uint8_t wasm_get_pending_transition_map(void) { return MEM8(ADDR_PENDING_TRANSITION_MAP); }
 uint8_t wasm_get_pending_transition_pat(void) { return MEM8(ADDR_PENDING_TRANSITION_PAT); }
 uint8_t wasm_get_pending_transition_dir(void) { return MEM8(ADDR_PENDING_TRANSITION_DIR); }
+
+void wasm_town_building_finish(void)
+{
+    MEM8(ADDR_BUILDING_ACTIVE) = 0;
+    MEM8(ADDR_BUILDING_DEST_ID) = 0xFF;
+    SPACEBAR = 0;
+    ALTKEY = 0;
+    INPUT_DIRS = 0;
+    INPUT_ALT_SPACE = 0;
+    HERO_ANIM = 1;
+}
 
 /* =========================================================================
  * npcAnimation — NPC frame tick (exported; called from building binaries)

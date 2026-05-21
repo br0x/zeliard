@@ -56,6 +56,7 @@ const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
 const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
+const PRINCESS_CHAMBER_PATH = 'assets/images/princess.png';
 
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
@@ -119,6 +120,7 @@ const ANIM_SPEED_TICKS = 8;   // change frame every 8 full ticks
 // 10  : standing left
 // 11  : standing right
 const FRAME_LEFT_WALK_BASE = 0;
+const FRAME_FACING_AWAY = 4;
 const FRAME_RIGHT_WALK_BASE = 5;
 const FRAME_LEFT_STAND = 10;
 const FRAME_RIGHT_STAND = 11;
@@ -172,6 +174,7 @@ let getTownPendingTransition;
 let townCompleteTransition;
 let townEntryEnablingEdgeScroll;
 let townFinishConversation;
+let townFinishBuilding;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -392,10 +395,14 @@ async function loadWasmEngine() {
         townCompleteTransition,
         townEntryEnablingEdgeScroll,
         townFinishConversation,
+        townFinishBuilding,
     } = wasmBridge);
 }
 
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
+const ADDR_BUILDING_ACTIVE = 0xFFFA;
+const ADDR_BUILDING_DEST_ID = 0xFFFB;
+const TOWN_BUILDING_PRINCESS = 1;
 let conversation = {
     active: false,
     pages: [],
@@ -406,6 +413,18 @@ let conversation = {
     boxY: 0,
     boxW: 0,
     boxH: 0,
+};
+
+let princessChamberImage = null;
+let princessChamberImageReady = false;
+let indoorScene = {
+    active: false,
+    destId: 0xFF,
+    phase: 'idle',
+    phaseStart: 0,
+    alpha: 0,
+    fadeStartAlpha: 0,
+    image: null,
 };
 
 const TOWN_HEADS_ROW      = TOWN_MAP_START_ROW + 5;   // row 13, y = 312px
@@ -583,6 +602,7 @@ function onFullTick() {
                     handleTownTransition(transition);  // async, won't block tick
                 }
             }
+            checkBuildingRequest();
         }
     }
 }
@@ -668,6 +688,11 @@ window.addEventListener('keydown', e => {
 
     if (openingIntro.active && e.code === 'Space') {
         openingIntro.skipPage();
+        return;
+    }
+
+    if (indoorScene.active && e.code === 'Space') {
+        requestExitIndoorScene();
         return;
     }
 
@@ -1020,7 +1045,9 @@ function drawHero() {
     const moving = keys.ArrowLeft || keys.ArrowRight;
 
     let frame;
-    if (!moving) {
+    if (heroAnim === 4) {
+        frame = FRAME_FACING_AWAY;
+    } else if (!moving) {
         // Standing frame – ignore HERO_ANIM completely
         frame = (facing === 0) ? FRAME_RIGHT_STAND : FRAME_LEFT_STAND;
     } else {
@@ -1396,6 +1423,118 @@ function startConversationFromWasm() {
     // Optional: play sound effect (the WASM already set ADDR_SOUND_FX_REQUEST)
 }
 
+function loadPrincessChamberImage() {
+    if (princessChamberImageReady) return Promise.resolve(princessChamberImage);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            princessChamberImage = img;
+            princessChamberImageReady = true;
+            resolve(img);
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${PRINCESS_CHAMBER_PATH}`));
+        img.src = PRINCESS_CHAMBER_PATH;
+    });
+}
+
+function checkBuildingRequest() {
+    if (!engineReady || !readMemory || indoorScene.active) return;
+
+    const active = readMemory(ADDR_BUILDING_ACTIVE, 1)[0];
+    if (!active) return;
+
+    const destId = readMemory(ADDR_BUILDING_DEST_ID, 1)[0];
+    startIndoorScene(destId);
+}
+
+function startIndoorScene(destId) {
+    if (destId !== TOWN_BUILDING_PRINCESS) {
+        console.warn(`[building] destination ${destId} is not implemented yet`);
+        townFinishBuilding?.();
+        return;
+    }
+
+    indoorScene.active = true;
+    indoorScene.destId = destId;
+    indoorScene.phase = 'loading';
+    indoorScene.phaseStart = performance.now();
+    indoorScene.alpha = 0;
+    indoorScene.fadeStartAlpha = 0;
+    indoorScene.image = null;
+
+    loadPrincessChamberImage()
+        .then(img => {
+            if (!indoorScene.active || indoorScene.destId !== destId) return;
+            indoorScene.image = img;
+            indoorScene.phase = 'fadeIn';
+            indoorScene.phaseStart = performance.now();
+            indoorScene.alpha = 0;
+        })
+        .catch(err => {
+            console.error('[building] failed to load princess chamber:', err);
+            finishIndoorScene();
+        });
+}
+
+function requestExitIndoorScene() {
+    if (!indoorScene.active || indoorScene.phase === 'fadeOut') return;
+    if (indoorScene.destId !== TOWN_BUILDING_PRINCESS) return;
+
+    indoorScene.phase = 'fadeOut';
+    indoorScene.phaseStart = performance.now();
+    indoorScene.fadeStartAlpha = indoorScene.alpha;
+}
+
+function finishIndoorScene() {
+    indoorScene.active = false;
+    indoorScene.destId = 0xFF;
+    indoorScene.phase = 'idle';
+    indoorScene.phaseStart = 0;
+    indoorScene.alpha = 0;
+    indoorScene.fadeStartAlpha = 0;
+    indoorScene.image = null;
+    townFinishBuilding?.();
+    keys.Space = false;
+    lastSpace = false;
+}
+
+function drawIndoorScene() {
+    if (!indoorScene.active) return false;
+
+    const now = performance.now();
+    const fadeInMs = 650;
+    const fadeOutMs = 450;
+
+    if (indoorScene.phase === 'fadeIn') {
+        indoorScene.alpha = Math.min(1, (now - indoorScene.phaseStart) / fadeInMs);
+        if (indoorScene.alpha >= 1) {
+            indoorScene.phase = 'shown';
+        }
+    } else if (indoorScene.phase === 'shown') {
+        indoorScene.alpha = 1;
+    } else if (indoorScene.phase === 'fadeOut') {
+        const t = Math.min(1, (now - indoorScene.phaseStart) / fadeOutMs);
+        indoorScene.alpha = indoorScene.fadeStartAlpha * (1 - t);
+        if (t >= 1) {
+            finishIndoorScene();
+            return false;
+        }
+    }
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (indoorScene.image) {
+        ctx.save();
+        ctx.globalAlpha = indoorScene.alpha;
+        ctx.drawImage(indoorScene.image, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+
+    return true;
+}
+
 // ─── rAF game loop ────────────────────────────────────────────────────────────
 /**
  * update() — runs once per animation frame.
@@ -1406,6 +1545,7 @@ function startConversationFromWasm() {
  */
 function update() {
     if (!engineReady) return;
+    if (indoorScene.active) return;
 
     // Check for hero interactions with doors/items
     // This is for specific situations (entering doors, item triggers)
@@ -1424,6 +1564,10 @@ function update() {
 function draw() {
     ctx.fillStyle = '#05053f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (drawIndoorScene()) {
+        return;
+    }
 
     if (!engineReady) {
         drawLifeBar();

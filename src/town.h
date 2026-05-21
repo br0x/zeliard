@@ -140,9 +140,12 @@ extern TownProcs g_town_procs;
 #define ADDR_CONVERSATION_NPC_ADDR       0xFFF6   // word, pointer to NPC struct
 #define ADDR_CONVERSATION_SAVED_AI       0xFFF8   // byte
 #define ADDR_CONVERSATION_SAVED_FACING   0xFFF9   // byte
+#define ADDR_BUILDING_ACTIVE             0xFFFA   // byte, 1 = JS-owned building scene active
+#define ADDR_BUILDING_DEST_ID            0xFFFB   // byte, TOWN_DOOR.td_dest_id
 
 // Export function to finish conversation (called by JS)
 void wasm_town_conversation_finish(void);
+void wasm_town_building_finish(void);
 
 void    wasm_town_complete_transition(void);
 uint8_t wasm_get_pending_transition_map(void);

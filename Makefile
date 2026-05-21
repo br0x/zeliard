@@ -19,7 +19,8 @@ EMFLAGS = \
 "_wasm_town_update","_wasm_town_full_tick","_wasm_town_set_input_keys","_wasm_set_scroll_floor_right_8px",\
 "_wasm_set_scroll_floor_left_8px","_wasm_set_scroll_ceiling_right_4px","_wasm_set_scroll_ceiling_left_4px",\
 "_wasm_town_complete_transition","_wasm_get_pending_transition_map",\
-"_wasm_get_pending_transition_pat","_wasm_get_pending_transition_dir","_wasm_town_conversation_finish"]' \
+"_wasm_get_pending_transition_pat","_wasm_get_pending_transition_dir","_wasm_town_conversation_finish",\
+"_wasm_town_building_finish"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 
 .PHONY: all clean serve

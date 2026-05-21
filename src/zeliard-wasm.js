@@ -1339,3 +1339,7 @@ export function townCompleteTransition() {
 export function townFinishConversation() {
     wasmExports?.wasm_town_conversation_finish?.();
 }
+
+export function townFinishBuilding() {
+    wasmExports?.wasm_town_building_finish?.();
+}
