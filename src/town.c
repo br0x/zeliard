@@ -581,7 +581,7 @@ static void town_main_loop_step(void)
     if (dirs == 0x01) { // up
         /* Up pressed → enter door */
         HERO_ANIM |= 1;
-        /* Check for door interaction (jump to loc_6E29 logic) */
+        /* Check for door interaction (jump to town_up_pressed logic) */
         /* (handled in check_special_npc_conversation via dialog_exit_flag) */
     } else if ((dirs & 0x0C) == 0x04) {
         /* Left pressed */

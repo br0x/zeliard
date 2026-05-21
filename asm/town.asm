@@ -251,7 +251,7 @@ loc_6212:
                                         ; al: ____right_left_down_up
                 cmp     al, 1
                 jne     short loc_6224
-                jmp     loc_6E29  ; up arrow pressed
+                jmp     town_up_pressed  ; up arrow pressed
 ; ---------------------------------------------------------------------------
 
 loc_6224:   
@@ -2251,7 +2251,7 @@ tman_grp        db 1                    ; hero town sprite descriptor
 aTmanGrp        db 'TMAN.GRP',0
 ; ---------------------------------------------------------------------------
 
-loc_6E29:   
+town_up_pressed:   
                 or      byte ptr ds:hero_animation_phase, 1
                 mov     ax, ds:proximity_map_left_col_x ; =00b3 (absolute x coord of proximity map left border)
                 mov     bl, ds:hero_x_in_viewport ; =16h

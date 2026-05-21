@@ -652,7 +652,7 @@ seg004:621A                 push    dx
 seg004:621B                 int     61h             ; reserved for user interrupt
 seg004:621D                 cmp     al, 1
 seg004:621F                 jnz     short loc_6224
-seg004:6221                 jmp     loc_6E29
+seg004:6221                 jmp     town_up_pressed
 seg004:6224 ; ---------------------------------------------------------------------------
 seg004:6224
 seg004:6224 loc_6224:                               ; ...
@@ -2520,7 +2520,7 @@ seg004:6E20 aTmanGrp        db 'TMAN.GRP',0
 seg004:6E29 ; ---------------------------------------------------------------------------
 seg004:6E29 ; START OF FUNCTION CHUNK FOR sub_6CB5
 seg004:6E29
-seg004:6E29 loc_6E29:                               ; ...
+seg004:6E29 town_up_pressed:                               ; ...
 seg004:6E29                 or      hero_animation_phase, 1
 seg004:6E2E                 mov     ax, proximity_map_left_col_x ; =00b3 (absolute x coord of proximity map left border)
 seg004:6E31                 mov     bl, hero_x_in_viewport ; =16h
