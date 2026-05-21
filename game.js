@@ -403,6 +403,9 @@ const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
 const ADDR_BUILDING_ACTIVE = 0xFFFA;
 const ADDR_BUILDING_DEST_ID = 0xFFFB;
 const TOWN_BUILDING_PRINCESS = 1;
+const TOWN_BUILDING_NAMES = {
+    [TOWN_BUILDING_PRINCESS]: 'In the Hut',
+};
 let conversation = {
     active: false,
     pages: [],
@@ -1501,6 +1504,8 @@ function finishIndoorScene() {
 
 function drawIndoorScene() {
     if (!indoorScene.active) return false;
+
+    updateElementText('currentMapName', TOWN_BUILDING_NAMES[indoorScene.destId] ?? '');
 
     const now = performance.now();
     const fadeInMs = 650;
