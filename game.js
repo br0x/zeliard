@@ -410,8 +410,10 @@ let conversation = {
 
 const TOWN_HEADS_ROW      = TOWN_MAP_START_ROW + 5;   // row 13, y = 312px
 // Dialog visual constants
-const DIALOG_FONT_SIZE    = 12;       // px — base line height
-const DIALOG_LINE_HEIGHT  = 13;       // px — line spacing
+const DIALOG_FONT_SIZE    = 18;       // px — base line height
+const TEXT_FIRST_BASELINE = 32;   // matches y+32 in draw
+const TEXT_LINE_HEIGHT    = 24;   // matches lineHeight in draw
+const TEXT_BOTTOM_PAD     = 20;   // space for descenders + visual margin
 const DIALOG_PADDING_X    = 10;       // px — inner horizontal padding
 const DIALOG_PADDING_Y    = 4;        // px — inner vertical padding
 const DIALOG_MAX_WIDTH    = VIEW_WIDTH - 24;      // px — maximum box width
@@ -1262,11 +1264,13 @@ function parseDialogText(bytes) {
     };
 
     for (let i = 0; i < bytes.length; i++) {
-        const b = bytes[i];
+        let b = bytes[i];
         if (b === 0xFF || b === 0x00) break;          // end of dialog
-        if (b >= 0x81) break;                          // control code → end
+        if (b >= 0x81) break;                         // control code → not yet implemented
         if (b === 0x2F) { pushLine(); continue; }     // explicit newline
-        if (b < 0x20) continue;                        // skip other controls
+        if (b === 0x5c) b = 0x27;                     // replace \ with '
+        if (b === 0x26) b = 0x20;                     // replace & with space
+        if (b < 0x20) continue;                       // skip other controls
 
         const ch  = String.fromCharCode(b);
         const cw  = charOrigWidth(ch);
@@ -1307,9 +1311,6 @@ function parseDialogText(bytes) {
 function computeBoxGeometry(facingLeft) {
     const page    = conversation.pages[conversation.page] ?? [];
     const nLines  = Math.max(page.length, 1);
-    const TEXT_FIRST_BASELINE = 32;   // matches y+32 in draw
-    const TEXT_LINE_HEIGHT    = 18;   // matches lineHeight in draw
-    const TEXT_BOTTOM_PAD     = 20;   // space for descenders + visual margin
 
     const bh = TEXT_FIRST_BASELINE + (nLines - 1) * TEXT_LINE_HEIGHT + TEXT_BOTTOM_PAD;
 
@@ -1353,16 +1354,15 @@ function drawConversationDialog() {
     const x = conversation.boxX || 10;
     const y = conversation.boxY || 10;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.99)';
     ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#c0c0c0';
+    ctx.strokeStyle = '#ccc';
     ctx.strokeRect(x, y, width, height);
 
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillStyle = '#ffffff';
-    const lineHeight = 18;
+    ctx.font = '20px "Courier New", monospace';
+    ctx.fillStyle = '#fff';
     for (let i = 0; i < pageLines.length; i++) {
-        ctx.fillText(pageLines[i], x + 16, y + 32 + i * lineHeight);
+        ctx.fillText(pageLines[i], x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
     }
 
     if (conversation.page < totalPages - 1) {

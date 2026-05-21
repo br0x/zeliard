@@ -180,7 +180,7 @@ skip_until_ff:
                 ; resurrect at sage
                 mov     byte ptr ds:invincibility_flag, 0
                 call    load_town_background
-                mov     bx, offset loc_61FC
+                mov     bx, offset town_loop_start
                 push    bx
                 mov     bx, offset loc_6EAF
                 push    bx
@@ -226,7 +226,7 @@ loc_61D1:
 loc_61E2:   
                 mov     ds:hero_moved_flag, 0
                 test    byte ptr ds:is_death_already_processed, 0FFh
-                jz      short loc_61FC
+                jz      short town_loop_start
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
@@ -234,7 +234,7 @@ loc_61E2:
                 int     60h             ; adlib fn_0
                 pop     ds
 
-loc_61FC:   
+town_loop_start:   
                 call    update_npcs_and_render
                 call    handle_inventory_key
                 call    handle_edge_screen_transition
@@ -245,26 +245,26 @@ loc_61FC:
 
 loc_6212:   
                 mov     ds:hero_moved_flag, 0
-                mov     dx, offset loc_61FC
+                mov     dx, offset town_loop_start
                 push    dx
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 cmp     al, 1
-                jnz     short loc_6224
+                jne     short loc_6224
                 jmp     loc_6E29  ; up arrow pressed
 ; ---------------------------------------------------------------------------
 
 loc_6224:   
                 and     al, 0Ch   ; left or right
                 cmp     al, 4
-                jnz     short loc_622D
-                jmp     loc_6781  ; left edge scroll handler
+                jne     short loc_622D
+                jmp     loc_6781  ; left arrow pressed: left edge scroll handler
 ; ---------------------------------------------------------------------------
 
 loc_622D:   
                 cmp     al, 8
                 jnz     short loc_6234
-                jmp     loc_67F4  ; right edge scroll handler
+                jmp     loc_67F4  ; right arrow pressed: right edge scroll handler
 ; ---------------------------------------------------------------------------
 
 loc_6234:   
@@ -380,7 +380,6 @@ hero_spacebar_interaction        endp
 ;          ds:facing_direction
 ;   Output: may set dialog_exit_flag=0FFh and start NPC conversation
 ;   Uses: si = pointer to NPC struct when found
-
 check_special_npc_conversation        proc near
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4  ; viewport_col
@@ -402,8 +401,8 @@ check_special_npc_conversation        proc near
                 retn
 ; ---------------------------------------------------------------------------
 loc_6319:   
-                call    find_first_npc_at_x
-                test    byte ptr [si+2], 80h ; n_facing
+                call    find_first_npc_at_x  ; input: dx = target x
+                test    byte ptr [si+2], 80h ; n_facing; left==towards hero
                 jnz     short loc_6323
                 retn
 ; ---------------------------------------------------------------------------
@@ -1546,7 +1545,8 @@ is_hero_close_to_npc endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; find_first_npc_at_x — sets si to point to npc_array_addr.
+; Sets si to point to npc_array_addr.
+;   Input: dx = target x
 ;   Output: si = ds:npc_array_addr
 
 find_first_npc_at_x        proc near
@@ -1724,7 +1724,8 @@ npc_ai_jump_table  dw offset npc_ai_look_at_hero_and_bob
 ; NPC AI: face hero then bob in place
 ; Sets NPC to face the hero (bit 7 of field_2 based on hero position),
 ; then falls through to npc_ai_bob_in_place for bobbing animation.
-; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, dx = NPC x position
+; Input: si = pointer to NPC struct, ds:hero_x_in_viewport, 
+;        dx = NPC x position
 ; Output: [si+NPC.n_facing] bit 7 set/cleared, [si+NPC.n_anim_phase] incremented
 ; Modifies: ax, bx
 npc_ai_look_at_hero_and_bob        proc near               
@@ -1744,8 +1745,7 @@ npc_ai_look_at_hero_and_bob        endp
 
 ; Fast NPC patrol (every 2nd call)
 ; NPC AI: patrol between boundaries (1-bit phase counter)
-; Increments field_4 by 0x10 each frame; when bit 4 wraps to zero,
-; calls patrol_between_boundaries to move NPC between left/right bounds.
+; Increments n_anim_phase by 0x10 each frame; when bit 4 wraps to zero,
 ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
 ; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
 ; Modifies: ax, ch
@@ -1761,6 +1761,7 @@ npc_ai_patrol_1bit_phase        endp
 
 ; CH: anim. phase
 ; DX: current X position of NPC
+; AL: always 0
 patrol_between_boundaries:   
                 inc     ch ; anim_phase+1
                 and     ch, 0Fh
@@ -1797,7 +1798,6 @@ loc_6BA1:
 ; Slow NPC patrol (every 4th call)
 ; NPC AI: patrol between boundaries (2-bit phase counter)
 ; Increments field_4 by 0x10 each frame; when bits 4-5 wrap to zero,
-; calls patrol_between_boundaries for wider patrol range.
 ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
 ; Output: [si+NPC.n_anim_phase] incremented, NPC may move to boundary
 ; Modifies: ax, ch
@@ -1856,15 +1856,15 @@ npc_ai_bob_in_place        proc near
                 add     al, 10h
                 mov     [si+NPC.n_anim_phase], al
                 mov     ch, al
-                and     al, 30h
+                and     al, 30h ; every 4th call
                 jz      short loc_6BE1
                 retn
 ; ---------------------------------------------------------------------------
-; every 4-th frame. 0->1, 1->1
+; every 4-th frame. 0->1, 1->0
 loc_6BE1:   
                 inc     ch
-                and     ch, 1
-                or      al, ch
+                and     ch, 1 ; for bobbing in place NPC only low bit matters
+                or      al, ch ; al is always 0
                 mov     [si+NPC.n_anim_phase], al
                 retn
 npc_ai_bob_in_place        endp
@@ -1916,14 +1916,13 @@ loc_6C17:
 ; =============== S U B R O U T I N E =======================================
 
 
-npc_ai_patrol_bounce_2bit        proc near               ; NPC AI: patrol with bounce direction toggle (2-bit)
-                ; Increments field_4 by 0x10 each frame; when bits 4-5 wrap,
-                ; falls through to patrol_bounce_at_phase for wider bounce range.
-                ; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
-                ; Output: [si+NPC.n_anim_phase] incremented, may toggle facing direction
-                ; Modifies: ax, ch
-
-; FUNCTION CHUNK AT 6BFB SIZE 0000001E BYTES
+; NPC AI: patrol with bounce direction toggle (2-bit)
+; Increments field_4 by 0x10 each frame; when bits 4-5 wrap,
+; falls through to patrol_bounce_at_phase for wider bounce range.
+; Input: si = pointer to NPC struct, [si+NPC.n_anim_phase] = phase counter
+; Output: [si+NPC.n_anim_phase] incremented, may toggle facing direction
+; Modifies: ax, ch
+npc_ai_patrol_bounce_2bit        proc near               
 
                 mov     al, [si+NPC.n_anim_phase]
                 add     al, 10h

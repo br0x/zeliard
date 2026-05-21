@@ -575,7 +575,7 @@ seg004:6170                 jz      short normal_game ;
 seg004:6170                                         ; resurrect at sage
 seg004:6172                 mov     byte ptr invincibility_flag, 0
 seg004:6177                 call    sub_6AAF
-seg004:617A                 mov     bx, offset loc_61FC
+seg004:617A                 mov     bx, offset town_loop_start
 seg004:617D                 push    bx
 seg004:617E                 mov     bx, 6EAFh
 seg004:6181                 push    bx
@@ -626,7 +626,7 @@ seg004:61E2
 seg004:61E2 loc_61E2:                               ; ...
 seg004:61E2                 mov     ds:byte_7C4B, 0
 seg004:61E7                 test    is_death_already_processed, 0FFh
-seg004:61EC                 jz      short loc_61FC
+seg004:61EC                 jz      short town_loop_start
 seg004:61EE                 push    ds
 seg004:61EF                 mov     ds, cs:seg1
 seg004:61F4                 mov     si, 3000h
@@ -636,7 +636,7 @@ seg004:61F9                                         ; Return: AX = 0000h    prof
 seg004:61F9                                         ; otherwise profiling is on
 seg004:61FB                 pop     ds
 seg004:61FC
-seg004:61FC loc_61FC:                               ; ...
+seg004:61FC town_loop_start:                               ; ...
 seg004:61FC                 call    sub_68AC
 seg004:61FF                 call    sub_68F3
 seg004:6202                 call    sub_6CB5
@@ -647,7 +647,7 @@ seg004:620F                 call    sub_62ED
 seg004:6212
 seg004:6212 loc_6212:                               ; ...
 seg004:6212                 mov     ds:byte_7C4B, 0
-seg004:6217                 mov     dx, offset loc_61FC
+seg004:6217                 mov     dx, offset town_loop_start
 seg004:621A                 push    dx
 seg004:621B                 int     61h             ; reserved for user interrupt
 seg004:621D                 cmp     al, 1

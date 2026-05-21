@@ -571,13 +571,12 @@ static void town_main_loop_step(void)
     if (!HERO_MOVED) {
         check_special_npc_conversation();
     }
-
     HERO_MOVED = 0;
 
     /* Poll input (replaces int 61h).
      * INPUT_DIRS bits: bit0=up, bit1=down, bit2=left, bit3=right
      * INPUT_ALT_SPACE bits: bit0=space, bit1=alt               */
-    CALL_PROC(poll_input);
+    // CALL_PROC(poll_input);
 
     uint8_t dirs = INPUT_DIRS;
 
@@ -673,7 +672,7 @@ static void hero_spacebar_interaction(void)
     int found_tile = 0;
     int delta = FACING & 1 ? -1 : 1;  /* direction to check: -1 for left, +1 for right */
     abs_x += delta;
-    for (int i = 1; i < 3; i++) {
+    for (int i = 1; i <= 3; i++) {
         /* facing left — check tiles at -8, -16, -24 */
         /* facing right — check tiles at +8, +16, +24 */
         if (MEM8(bx + 8*delta*i) == 0xFD) { found_tile = 1; break; }
@@ -688,26 +687,26 @@ static void hero_spacebar_interaction(void)
     /* Check bits 6..7 of n_flags — if set, NPC is busy */
     if (MEM8(npc_si + 6) & 0xC0) return;
 
-    // /* Save state, put NPC in conversation mode, converse, restore */
-    // uint8_t saved_facing = MEM8(npc_si + 2);
-    // uint8_t saved_ai     = MEM8(npc_si + 5);
+    /* Save state, put NPC in conversation mode, converse; restore will be done in wasm_town_conversation_finish */
+    MEM8(ADDR_CONVERSATION_SAVED_FACING) = MEM8(npc_si + 2);
+    MEM8(ADDR_CONVERSATION_SAVED_AI)   = MEM8(npc_si + 5);
 
-    // MEM8(npc_si + 5) = 7;  /* freeze NPC AI */
-    // if (FACING & 1)
-    //     MEM8(npc_si + 2) &= 0x7F;   /* NPC faces right toward hero */
-    // else
-    //     MEM8(npc_si + 2) |= 0x80;   /* NPC faces left toward hero */
-    // MEM8(npc_si + 4) |= 1; // n_anim_phase
+    // Freeze this NPC (AI = 7 => static)
+    MEM8(npc_si + 5) = 7;
+    // Make NPC face the hero
+    if (FACING & 1)
+        MEM8(npc_si + 2) &= 0x7F;   // face right
+    else
+        MEM8(npc_si + 2) |= 0x80;   // face left
+
+    MEM8(npc_si + 4) |= 1; // n_anim_phase
 
     start_npc_conversation(npc_si);
-
-    // MEM8(npc_si + 5) = saved_ai;
-    // MEM8(npc_si + 2) = saved_facing;
 }
 
 /* =========================================================================
- * check_special_npc_conversation
- * Checks if a building entrance (0xFD tile, 2 cols ahead) is present.
+ * Checks if hero is 2 tiles ahead of NPC with n_flags bit7 set 
+ * and initiates special NPC dialog.
  * ========================================================================= */
 static void check_special_npc_conversation(void)
 {
@@ -715,56 +714,33 @@ static void check_special_npc_conversation(void)
     uint16_t bx = (uint16_t)(viewport_col * 8 + 5) + PROX_START;
     uint16_t abs_x = (uint16_t)viewport_col + PROX_LEFT;
 
+    int delta = FACING & 1 ? -2 : 2;
+    abs_x += delta;
+    if (MEM8(bx + 8*delta) != 0xFD) return;
     uint16_t npc_si;
-    int found;
+    find_first_npc_at_x(abs_x, &npc_si);
+    if ((FACING & 1) && MEM8(npc_si + 2) & 0x80) return;
+    if (!(MEM8(npc_si + 6) & 0x80)) return;
 
-    if (FACING & 1) {
-        /* facing left: 2 cols left */
-        abs_x -= 2;
-        if (MEM8(bx - 16) != 0xFD) return;
-        find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found);
-        if (!found) return;
-        if (MEM8(npc_si + 2) & 0x80) return;   /* already open */
-        if (!(MEM8(npc_si + 6) & 0x80)) return;
-    } else {
-        /* facing right: 2 cols right */
-        abs_x += 2;
-        if (MEM8(bx + 16) != 0xFD) return;
-        find_non_passable_npc_at_x_pos(abs_x, &npc_si, &found);
-        if (!found) return;
-        if (!(MEM8(npc_si + 2) & 0x80)) return; /* already closed (must be open) */
-        if (!(MEM8(npc_si + 6) & 0x80)) return;
-    }
-
-    MEM8(npc_si + 4) |= 1;
+    MEM8(npc_si + 4) |= 1; // n_anim_phase
     DIALOG_EXIT = 0xFF;
     start_npc_conversation(npc_si);
 }
 
 /* =========================================================================
  * start_npc_conversation — signal JS to show dialog, freeze only this NPC
+ * fixme: only save ai if called from spacebar interaction
  * ========================================================================= */
 static void start_npc_conversation(uint16_t si_addr)
 {
     // Store NPC address and original AI/facing
     MEM16(ADDR_CONVERSATION_NPC_ADDR) = si_addr;
-    MEM8(ADDR_CONVERSATION_SAVED_AI)   = MEM8(si_addr + 5);
-    MEM8(ADDR_CONVERSATION_SAVED_FACING) = MEM8(si_addr + 2);
 
-    // Freeze this NPC (AI = 7 => static)
-    MEM8(si_addr + 5) = 7;
-    // Make NPC face the hero
-    if (FACING & 1)
-        MEM8(si_addr + 2) &= 0x7F;   // face right
-    else
-        MEM8(si_addr + 2) |= 0x80;   // face left
-
+    // Signal js to show dialog
     MEM8(ADDR_CONVERSATION_ACTIVE) = 1;
 
     // Play dialog opening sound
     MEM8(ADDR_SOUND_FX_REQUEST) = 30;
-
-    // Do NOT wait – return immediately, JS will show dialog
 }
 
 /* =========================================================================
@@ -1288,14 +1264,14 @@ static void update_npcs(void)
     restore_head_level_tiles_from_npcs();
     uint16_t si = MEM16(ADDR_NPC_ARRAY);
     for (;;) {
-        uint16_t dx = MEM16(si);
+        uint16_t dx = MEM16(si); // n_x
         if (dx == 0xFFFF) {
             save_head_level_tiles_in_npcs();
             return;
         }
-        uint8_t ai_type = MEM8(si + 5);
+        uint8_t ai_type = MEM8(si + 5); // n_ai_type
         if (ai_type < 8) npc_ai_table[ai_type](si, &dx);
-        MEM16(si) = dx;
+        MEM16(si) = dx; // update x coord
         si += 8;
     }
 }
@@ -1303,7 +1279,7 @@ static void update_npcs(void)
 /* =========================================================================
  * NPC AI implementations
  * ========================================================================= */
-
+// AI fn0+
 static void npc_ai_look_at_hero_and_bob(uint16_t si, uint16_t *dx)
 {
     uint16_t hero_abs = (uint16_t)(HERO_XV + 4) + PROX_LEFT;
@@ -1315,49 +1291,50 @@ static void npc_ai_look_at_hero_and_bob(uint16_t si, uint16_t *dx)
     npc_ai_bob_in_place(si, dx);
 }
 
+// always called when n_anim_phase higher bits are zero, so we incrementing low bits
 static void patrol_between_boundaries(uint16_t si, uint16_t *dx, uint8_t ch)
 {
-    ch++;
-    ch &= 0x0F;
-    ch |= MEM8(si + 4) & 0xF0;
-    MEM8(si + 4) = ch;
+    MEM8(si + 4) = (ch + 1) & 0x0f; // n_anim_phase
 
     uint16_t patrol_bx = MEM16(ADDR_NPC_PATROL_BOUNDARIES);
-    if (MEM8(si + 2) & 0x80) {
+    if (MEM8(si + 2) & 0x80) { // n_facing
         /* moving left */
         (*dx)--;
-        if (MEM16(patrol_bx) >= *dx) {
-            MEM8(si + 2) &= 0x7F;
+        if (*dx <= MEM16(patrol_bx)) { // left boundary
+            MEM8(si + 2) &= 0x7F; // start walking right
         }
     } else {
         /* moving right */
         (*dx)++;
-        if (MEM16(patrol_bx + 2) < *dx) {
-            MEM8(si + 2) |= 0x80;
+        if (*dx > MEM16(patrol_bx + 2)) { // right boundary
+            MEM8(si + 2) |= 0x80; // start walking left
         }
     }
 }
 
+// AI fn1+
 static void npc_ai_patrol_1bit_phase(uint16_t si, uint16_t *dx)
 {
-    uint8_t al = MEM8(si + 4);
+    uint8_t al = MEM8(si + 4); // n_anim_phase
     al += 0x10;
     MEM8(si + 4) = al;
     uint8_t ch = al;
-    al &= 0x10;
+    al &= 0x10; // every 2nd call
     if (al == 0) patrol_between_boundaries(si, dx, ch);
 }
 
+// AI fn2+
 static void npc_ai_patrol_2bit_phase(uint16_t si, uint16_t *dx)
 {
     uint8_t al = MEM8(si + 4);
     al += 0x10;
     MEM8(si + 4) = al;
     uint8_t ch = al;
-    al &= 0x30;
+    al &= 0x30; // every 4th call
     if (al == 0) patrol_between_boundaries(si, dx, ch);
 }
 
+// AI fn3+
 static void npc_ai_face_hero(uint16_t si, uint16_t *dx)
 {
     uint16_t hero_abs = (uint16_t)(HERO_XV + 4) + PROX_LEFT;
@@ -1368,41 +1345,40 @@ static void npc_ai_face_hero(uint16_t si, uint16_t *dx)
     }
 }
 
+// AI fn4
 static void npc_ai_bob_in_place(uint16_t si, uint16_t *dx)
 {
     (void)dx;
-    uint8_t al = MEM8(si + 4); // NPC anim. phase
+    uint8_t al = MEM8(si + 4); // n_anim_phase
     al += 0x10;
     MEM8(si + 4) = al;
     uint8_t ch = al;
     al &= 0x30;
     if (al == 0) {
-        ch++;
-        ch &= 1;
-        al |= ch;
-        MEM8(si + 4) = al;
+        MEM8(si + 4) = (ch + 1) & 1; // n_anim_phase
     }
 }
 
 static void patrol_bounce_at_phase(uint16_t si, uint16_t *dx, uint8_t ch)
 {
     ch++;
-    ch &= 0x0F;
-    ch |= MEM8(si + 4) & 0xF0;
-    MEM8(si + 4) = ch;
-    if ((ch & 7) == 0) {
+    MEM8(si + 4) = ch & 0x0f; // n_anim_phase
+
+    if ((ch & 7) == 0) { // each 8th step
         MEM8(si + 2) ^= 0x80;
         return;
     }
+    // continue patrolling in the same direction
     if (MEM8(si + 2) & 0x80)
         (*dx)--;
     else
         (*dx)++;
 }
 
+// AI fn5
 static void npc_ai_patrol_bounce_1bit(uint16_t si, uint16_t *dx)
 {
-    uint8_t al = MEM8(si + 4);
+    uint8_t al = MEM8(si + 4); // n_anim_phase
     al += 0x10;
     MEM8(si + 4) = al;
     uint8_t ch = al;
@@ -1410,6 +1386,7 @@ static void npc_ai_patrol_bounce_1bit(uint16_t si, uint16_t *dx)
     if (al == 0) patrol_bounce_at_phase(si, dx, ch);
 }
 
+// AI fn6
 static void npc_ai_patrol_bounce_2bit(uint16_t si, uint16_t *dx)
 {
     uint8_t al = MEM8(si + 4);
@@ -1420,6 +1397,7 @@ static void npc_ai_patrol_bounce_2bit(uint16_t si, uint16_t *dx)
     if (al == 0) patrol_bounce_at_phase(si, dx, ch);
 }
 
+// AI fn7
 static void npc_ai_static(uint16_t si, uint16_t *dx)
 {
     (void)si; (void)dx;
@@ -1464,18 +1442,19 @@ static void restore_head_level_tiles_from_npcs(void)
  * ========================================================================= */
 static void render_life_almas_gold_place(void)
 {
-    /* Pascal-string format: {word: screen_pos, byte: color, byte: len, chars} */
-    /* Data from life_str/almas_str/gold_str/place_str in asm */
-    static const struct { uint16_t pos; uint8_t color; const char *text; } labels[] = {
-        { 0x0A30, 0x0E, "LIFE"  },
-        { 0x0BB1, 0x03, "ALMAS" },
-        { 0x0BB0, 0x01, "GOLD"  },
-        { 0x0AF0, 0x01, "PLACE" },
-    };
-    for (int i = 0; i < 4; i++) {
-        CALL_PROC(render_pascal_string_0, labels[i].pos, labels[i].color,
-                  labels[i].text);
-    }
+    // TODO: signal js to refresh the HUD
+    // /* Pascal-string format: {word: screen_pos, byte: color, byte: len, chars} */
+    // /* Data from life_str/almas_str/gold_str/place_str in asm */
+    // static const struct { uint16_t pos; uint8_t color; const char *text; } labels[] = {
+    //     { 0x0A30, 0x0E, "LIFE"  },
+    //     { 0x0BB1, 0x03, "ALMAS" },
+    //     { 0x0BB0, 0x01, "GOLD"  },
+    //     { 0x0AF0, 0x01, "PLACE" },
+    // };
+    // for (int i = 0; i < 4; i++) {
+    //     CALL_PROC(render_pascal_string_0, labels[i].pos, labels[i].color,
+    //               labels[i].text);
+    // }
 }
 
 /* =========================================================================
