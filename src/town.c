@@ -309,7 +309,6 @@ static void town_entry_common(void);
 static void town_main_loop_step(void);
 static void update_npcs_and_render(void);
 static void game_loop_with_frame_wait(void);
-static void prepare_hero_sprite(void);
 static void clear_6_hero_tiles_in_viewport_buffer(void);
 static void update_npcs(void);
 static void save_head_level_tiles_in_npcs(void);
@@ -366,7 +365,6 @@ static void houseCursorShow(void);
 static void houseCursorUp(uint8_t row);
 static void houseCursorDown(uint8_t row);
 static void npcAnimation(void);
-static void is_hero_close_to_npc(uint16_t si, uint16_t hero_x, uint8_t *result);
 static void find_first_npc_at_x_after_current(uint16_t dx, uint16_t *si_ptr);
 static void swap_a000_c000_buffers(void);
 
@@ -1103,13 +1101,12 @@ static void update_npcs_and_render(void)
 }
 
 /* =========================================================================
- * game_loop_with_frame_wait — prepare hero, render tiles, wait for frame
+ * Prepare hero, render tiles, wait for frame
  * ========================================================================= */
 static void game_loop_with_frame_wait(void)
 {
-    prepare_hero_sprite();
     clear_6_hero_tiles_in_viewport_buffer();
-    CALL_PROC(render_town_tiles_28_columns);
+    // CALL_PROC(render_town_tiles_28_columns);
 
     uint8_t target = (uint8_t)(SPEED_C * 4);
 
@@ -1128,92 +1125,6 @@ static void game_loop_with_frame_wait(void)
 }
 
 /* =========================================================================
- * prepare_hero_sprite
- * Copies hero's 2×3 tile block from proximity map, resolves 0xFD NPC tiles,
- * fills hero_2x3_tile_buf and hero_1x3_tile_buf, blits sprite to shadow.
- * ========================================================================= */
-static void prepare_hero_sprite(void)
-{
-    uint8_t vp_col = HERO_XV + 4;
-    uint16_t prox_addr = (uint16_t)(vp_col * 8 + 5) + PROX_START;
-
-    /* Copy 2 columns × 3 rows into hero_2x3_tile_buf */
-    uint16_t buf = ADDR_HERO_2X3_TILE_BUF;
-    g_mem[buf+0] = g_mem[prox_addr+0];
-    g_mem[buf+1] = g_mem[prox_addr+1];
-    g_mem[buf+2] = g_mem[prox_addr+2];
-    g_mem[buf+3] = g_mem[prox_addr+8];
-    g_mem[buf+4] = g_mem[prox_addr+9];
-    g_mem[buf+5] = g_mem[prox_addr+10];
-
-    uint16_t abs_x = (uint16_t)vp_col + PROX_LEFT;
-
-    /* Resolve 0xFD NPC tiles in both columns */
-    for (int col = 0; col < 2; col++) {
-        uint16_t col_buf = buf + (uint16_t)(col * 3);
-        uint8_t tile = g_mem[col_buf];
-        if (tile == 0xFD) {
-            uint16_t si = MEM16(ADDR_NPC_ARRAY);
-            while (g_mem[col_buf + 3] == 0xFD) {
-                si += 8;
-                find_first_npc_at_x_after_current(abs_x, &si);
-            }
-            g_mem[col_buf] = g_mem[col_buf + 3];  /* replace with real tile */
-        }
-        abs_x++;
-    }
-
-    CALL_PROC(unpack_to_shadow_memory_six_tiles, ADDR_HERO_2X3_TILE_BUF);
-
-    /* hero_x absolute = hero_x_in_viewport + proximity_map_left_col_x + 4 - 1 */
-    uint16_t hero_abs_x = (uint16_t)(HERO_XV + 4) + PROX_LEFT - 1;
-    MEM16(ADDR_HERO_X_WORD) = hero_abs_x;
-
-    /* hero_1x3_tile_buf: one column of tiles (at hero_x, rows head/body/feet) */
-    uint16_t col1 = prox_addr;
-    g_mem[ADDR_HERO_1X3_TILE_BUF+0] = g_mem[col1 - 8];
-    g_mem[ADDR_HERO_1X3_TILE_BUF+1] = g_mem[col1];
-    g_mem[ADDR_HERO_1X3_TILE_BUF+2] = g_mem[col1 + 8];
-
-    /* Walk NPC list to render NPC sprites that overlap hero */
-    uint16_t npc_si = MEM16(ADDR_NPC_ARRAY);
-    for (;;) {
-        if (MEM16(npc_si) == 0xFFFF) break;
-        uint8_t result = 0;
-        is_hero_close_to_npc(npc_si, MEM16(ADDR_HERO_X_WORD), &result);
-        if (result) {
-            CALL_PROC(get_sprite_vram_address, result);
-            CALL_PROC(ui_draw_routine_dispatcher,
-                      SEG1_BASE, npc_si, ADDR_HERO_2X3_TILE_BUF);
-        }
-        npc_si += 8;
-    }
-
-    /* Select hero sprite frame */
-    const uint8_t *frame_table = (FACING & 1) ? hero_faced_left : hero_faced_right;
-    uint8_t phase = HERO_ANIM & 3;
-    const uint8_t *frame = frame_table + (uint16_t)(phase * 6);
-    CALL_PROC(blit_6_tiles_to_shadow_memory, frame);
-}
-
-/* =========================================================================
- * is_hero_close_to_npc
- * Returns AL=3 (row count) if NPC x matches hero_x and 0xFD tile is present.
- * ========================================================================= */
-static void is_hero_close_to_npc(uint16_t npc_si, uint16_t hero_x, uint8_t *result)
-{
-    *result = 0;
-    for (int row = 0; row < 3; row++) {
-        if (g_mem[ADDR_HERO_1X3_TILE_BUF + row] == 0xFD) {
-            if (MEM16(npc_si) == hero_x + (uint16_t)row) {
-                *result = (uint8_t)(3 - row);
-                return;
-            }
-        }
-    }
-}
-
-/* =========================================================================
  * find_first_npc_at_x_after_current — linear scan of NPC array for matching x
  * ========================================================================= */
 static void find_first_npc_at_x_after_current(uint16_t dx, uint16_t *si_ptr)
@@ -1225,7 +1136,6 @@ static void find_first_npc_at_x_after_current(uint16_t dx, uint16_t *si_ptr)
 }
 
 /* =========================================================================
- * clear_6_hero_tiles_in_viewport_buffer
  * Marks the 2×3 hero tile block in viewport_buffer as dirty (0xFF).
  * ========================================================================= */
 static void clear_6_hero_tiles_in_viewport_buffer(void)
@@ -1234,12 +1144,12 @@ static void clear_6_hero_tiles_in_viewport_buffer(void)
     if (vp_col >= 27) return;
 
     uint16_t di = (uint16_t)(ADDR_VIEWPORT_BUFFER + vp_col * 8 + 5);
-    g_mem[di+0] = 0xFF;
-    g_mem[di+1] = 0xFF;
-    g_mem[di+2] = 0xFF;
-    g_mem[di+5] = 0xFF;
-    g_mem[di+6] = 0xFF;
-    g_mem[di+7] = 0xFF;
+    MEM8(di+0) = 0xFF;
+    MEM8(di+1) = 0xFF;
+    MEM8(di+2) = 0xFF;
+    MEM8(di+5) = 0xFF;
+    MEM8(di+6) = 0xFF;
+    MEM8(di+7) = 0xFF;
 }
 
 /* =========================================================================
@@ -1691,7 +1601,7 @@ static void npcAnimation(void)
 
     /* Render one NPC animation frame */
     update_npcs();
-    CALL_PROC(render_town_tiles_28_columns);
+    // CALL_PROC(render_town_tiles_28_columns);
 }
 
 /* =========================================================================
