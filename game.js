@@ -414,6 +414,8 @@ async function loadWasmEngine() {
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
 const ADDR_BUILDING_ACTIVE = 0xFFFA;
 const ADDR_BUILDING_DEST_ID = 0xFFFB;
+const ADDR_FRAME_TIMER = 0xFF1A;
+const ADDR_SOUND_FX_REQUEST = 0xFF75;
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
@@ -468,7 +470,10 @@ const KING_DIALOG_TEXT_Y = KING_DIALOG_Y + 22;
 const KING_DIALOG_LINE_HEIGHT = 23;
 const KING_DIALOG_FONT = '14px "Press Start 2P", monospace';
 const KING_DIALOG_MAX_LINES = 4;
-const KING_GOLD_GIFT = 1000;
+const KING_GOLD_GIFT_STEPS = 10;
+const KING_GOLD_GIFT_PER_STEP = 100;
+const KING_GOLD_GIFT_DELAY_FRAMES = 15;
+const KING_GOLD_GIFT_SFX = 19;
 
 const KING_DIALOG_SCRIPTS = {
     firstAudience: [
@@ -583,7 +588,7 @@ let animTimer   = 0;   // word  — wraps at 65536
  *   0x32 — door open
  *   0x3C — enemy death
  */
-const SFX_IDS = [10, 20, 29, 30, 40, 50, 60];
+const SFX_IDS = [10, 19, 20, 29, 30, 40, 50, 60];
 
 /**
  * Music track IDs — map to assets/music/{id}.{ogg,mp3}.
@@ -1570,13 +1575,19 @@ function wrapKingDialogText(text) {
 function buildKingDialogPages(dialogKey) {
     const paragraphs = KING_DIALOG_SCRIPTS[dialogKey] ?? KING_DIALOG_SCRIPTS.firstAudience;
     const pages = [];
+    let currentPage = [];
 
     for (const paragraph of paragraphs) {
         const wrapped = wrapKingDialogText(paragraph);
-        for (let i = 0; i < wrapped.length; i += KING_DIALOG_MAX_LINES) {
-            pages.push(wrapped.slice(i, i + KING_DIALOG_MAX_LINES));
+        for (const line of wrapped) {
+            currentPage.push(line);
+            if (currentPage.length === KING_DIALOG_MAX_LINES) {
+                pages.push(currentPage);
+                currentPage = [];
+            }
         }
     }
+    if (currentPage.length) pages.push(currentPage);
 
     return pages.length ? pages : [['...']];
 }
@@ -1611,6 +1622,28 @@ function drawKingImage(img, alpha = 1) {
     ctx.restore();
 }
 
+function getKingVisibleDialogLines(now) {
+    const king = indoorScene.king;
+    if (!king) return [];
+
+    const visibleChars = getKingVisibleCharCount(now);
+    const lines = [];
+
+    for (let pageIndex = 0; pageIndex < king.page; pageIndex++) {
+        lines.push(...(king.pages[pageIndex] ?? []));
+    }
+
+    let remaining = visibleChars;
+    const currentPageLines = king.pages[king.page] ?? [];
+    for (const line of currentPageLines) {
+        if (remaining <= 0) break;
+        lines.push(line.slice(0, Math.min(line.length, remaining)));
+        remaining -= line.length;
+    }
+
+    return lines.slice(-KING_DIALOG_MAX_LINES);
+}
+
 function drawKingDialogBox(now, alpha = 1) {
     const king = indoorScene.king;
     if (!king) return;
@@ -1618,7 +1651,7 @@ function drawKingDialogBox(now, alpha = 1) {
     const pageLines = king.pages[king.page] ?? [];
     const visibleChars = getKingVisibleCharCount(now);
     const pageCharCount = getKingPageCharCount(pageLines);
-    let remaining = visibleChars;
+    const visibleLines = getKingVisibleDialogLines(now);
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -1634,11 +1667,8 @@ function drawKingDialogBox(now, alpha = 1) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#fff';
-    for (let i = 0; i < pageLines.length; i++) {
-        const line = pageLines[i];
-        const visibleLine = line.slice(0, Math.max(0, Math.min(line.length, remaining)));
-        ctx.fillText(visibleLine, KING_DIALOG_TEXT_X, KING_DIALOG_TEXT_Y + i * KING_DIALOG_LINE_HEIGHT);
-        remaining -= line.length;
+    for (let i = 0; i < visibleLines.length; i++) {
+        ctx.fillText(visibleLines[i], KING_DIALOG_TEXT_X, KING_DIALOG_TEXT_Y + i * KING_DIALOG_LINE_HEIGHT);
     }
 
     if (visibleChars >= pageCharCount) {
@@ -1665,18 +1695,68 @@ function getKingSpeechImageIndex(now) {
     return mouthOpen ? 9 : 8;
 }
 
-function awardKingFirstAudienceGift() {
-    if (!readMemory || !writeMemory) return;
-    if (readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0) return;
+function getHeroGoldValue() {
+    if (!readMemory) return 0;
 
     const goldBytes = readMemory(ADDR_HERO_GOLD_LO, 2);
     const goldLo = goldBytes[0] | (goldBytes[1] << 8);
     const goldHi = readMemory(ADDR_HERO_GOLD_HI, 1)[0];
-    const total = goldLo + KING_GOLD_GIFT;
+    return goldLo + goldHi * 0x10000;
+}
 
-    writeMemory(ADDR_HERO_GOLD_LO, [total & 0xFF, (total >> 8) & 0xFF]);
-    writeMemory(ADDR_HERO_GOLD_HI, [(goldHi + (total >> 16)) & 0xFF]);
+function setHeroGoldValue(value) {
+    if (!writeMemory) return;
+
+    const clamped = Math.max(0, Math.min(0xFFFFFF, value));
+    writeMemory(ADDR_HERO_GOLD_LO, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
+    writeMemory(ADDR_HERO_GOLD_HI, [(clamped >> 16) & 0xFF]);
+}
+
+function renderGoldHud() {
+    updateElementText('gold', getHeroGoldValue());
+}
+
+function startKingFirstAudienceGift() {
+    const king = indoorScene.king;
+    if (!king || !readMemory || !writeMemory) return false;
+    if (readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0) return false;
+
+    king.goldAward = { stepsDone: 0 };
+    indoorScene.phase = 'kingGoldAward';
+    indoorScene.phaseStart = performance.now();
+    applyKingGoldAwardStep();
+    return true;
+}
+
+function applyKingGoldAwardStep() {
+    const king = indoorScene.king;
+    if (!king?.goldAward || !writeMemory) return;
+
+    const nextGold = getHeroGoldValue() + KING_GOLD_GIFT_PER_STEP;
+    setHeroGoldValue(nextGold);
+    renderGoldHud();
+
+    writeMemory(ADDR_SOUND_FX_REQUEST, [KING_GOLD_GIFT_SFX]);
+    frameTimer = 0;
+    writeMemory(ADDR_FRAME_TIMER, [0]);
+    king.goldAward.stepsDone++;
+}
+
+function updateKingGoldAward(now) {
+    const king = indoorScene.king;
+    if (!king?.goldAward || !writeMemory) return;
+    if (frameTimer < KING_GOLD_GIFT_DELAY_FRAMES) return;
+
+    if (king.goldAward.stepsDone < KING_GOLD_GIFT_STEPS) {
+        applyKingGoldAwardStep();
+        return;
+    }
+
     writeMemory(ADDR_SPOKE_TO_KING, [0xFF]);
+    king.goldAward = null;
+    indoorScene.phase = 'kingFadeOut';
+    indoorScene.phaseStart = now;
+    indoorScene.fadeStartAlpha = 1;
 }
 
 function checkBuildingRequest() {
@@ -1731,6 +1811,7 @@ function startIndoorScene(destId) {
                 pages: buildKingDialogPages(dialogKey),
                 page: 0,
                 pageStart: 0,
+                goldAward: null,
             };
             indoorScene.phase = 'kingEntering';
             indoorScene.phaseStart = performance.now();
@@ -1775,7 +1856,7 @@ function advanceKingDialog() {
     }
 
     if (king.dialogKey === 'firstAudience') {
-        awardKingFirstAudienceGift();
+        if (startKingFirstAudienceGift()) return;
     }
 
     indoorScene.phase = 'kingFadeOut';
@@ -1868,6 +1949,13 @@ function drawKingPalaceScene(now) {
         return true;
     }
 
+    if (indoorScene.phase === 'kingGoldAward') {
+        updateKingGoldAward(now);
+        drawKingImage(king.images[8]);
+        drawKingDialogBox(now);
+        return true;
+    }
+
     if (indoorScene.phase === 'kingFadeOut') {
         const t = Math.min(1, (now - indoorScene.phaseStart) / KING_FADE_OUT_MS);
         const alpha = indoorScene.fadeStartAlpha * (1 - t);
@@ -1920,7 +2008,7 @@ function draw() {
     if (!engineReady) {
         drawLifeBar();
         updateElementText('currentMapName', '');
-        updateElementText('gold', 0);
+        renderGoldHud();
         updateElementText('almas', 0);
         return;
     }
@@ -1935,7 +2023,7 @@ function draw() {
         drawLifeBar();
         let placeName = getTownName?.() ?? 'unknown';
         updateElementText('currentMapName', townEntryRan ? placeName : '');
-        updateElementText('gold', 0);
+        renderGoldHud();
         updateElementText('almas', 0);
 
         // Draw dialog on top if conversation active
