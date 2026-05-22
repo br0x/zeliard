@@ -69,7 +69,14 @@ const KING_IMAGE_PATHS = [
     'assets/images/king/king8.png',
     'assets/images/king/king9.png',
 ];
-
+const ITEMP_SWORD_IMAGE_PATHS = [
+    'assets/images/itemp/training_sword.png',
+    'assets/images/itemp/wiseman_sword.png',
+    'assets/images/itemp/spirit_sword.png',
+    'assets/images/itemp/knight_sword.png',
+    'assets/images/itemp/illumination_sword.png',
+    'assets/images/itemp/enchantment_sword.png',
+];
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
 // soldier — 8 frames (48×72 each), all face viewer (looping idle)
@@ -209,6 +216,8 @@ let townSidewalk2 = null;
 let townSidewalk2Ready = false;
 let heroSprite = null;
 let heroSpriteReady = false;
+let swordIcons = [];
+let swordIconsReady = false;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -421,6 +430,7 @@ const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
+const ADDR_SWORD_TYPE = 0x92;
 const TOWN_BUILDING_KING = 0;
 const TOWN_BUILDING_PRINCESS = 1;
 const TOWN_BUILDING_NAMES = {
@@ -896,6 +906,7 @@ async function startGame() {
             console.warn(`Unknown pattern ID ${townPatId}, movement may be blocked`);
         }        
         await loadHeroSprite();
+        await loadSwordIcons();
 
         // Parse MDT to discover which NPC sprite types this town uses, then
         // pre-load only those sheets.
@@ -1736,6 +1747,43 @@ function renderGoldHud() {
     updateElementText('gold', getHeroGoldValue());
 }
 
+async function loadSwordIcons() {
+    if (swordIconsReady) return Promise.resolve(swordIcons);
+
+    const loads = ITEMP_SWORD_IMAGE_PATHS.map((path, index) => {
+        if (!path) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${path}`));
+            img.src = path;
+        }).then(img => {
+            swordIcons[index] = img;
+            return img;
+        });
+    });
+
+    await Promise.all(loads);
+    swordIconsReady = true;
+    return swordIcons;
+}
+
+function getHeroSwordType() {
+    if (!readMemory) return 0;
+    return readMemory(ADDR_SWORD_TYPE, 1)[0];
+}
+
+function setHeroSwordType(type) {
+    if (!writeMemory) return;
+    writeMemory(ADDR_SWORD_TYPE, [type]);
+}
+
+function renderSwordHud() {
+    const type = getHeroSwordType() - 1;
+    const icon = document.getElementById("activeSwordIcon");
+    icon.src = type >= 0 && swordIcons[type] ? swordIcons[type].src : "";
+}
+
 function startKingFirstAudienceGift() {
     const king = indoorScene.king;
     if (!king || !readMemory || !writeMemory) return false;
@@ -2040,6 +2088,7 @@ function draw() {
         updateElementText('currentMapName', '');
         renderGoldHud();
         updateElementText('almas', 0);
+        renderSwordHud();
         return;
     }
 
@@ -2055,6 +2104,7 @@ function draw() {
         updateElementText('currentMapName', townEntryRan ? placeName : '');
         renderGoldHud();
         updateElementText('almas', 0);
+        renderSwordHud();
 
         // Draw dialog on top if conversation active
         drawConversationDialog();

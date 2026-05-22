@@ -222,7 +222,7 @@ loc_A1A9:
                 call    sub_A22E
                 add     ax, ax
                 mov     bx, ax
-                mov     ax, off_B029[bx] ; "Your experience is lacking. Persevere i"...
+                mov     ax, off_B029[bx]
                 mov     ds:dialog_string_ptr, ax
                 retn
 
@@ -344,8 +344,8 @@ loc_A283:
 sub_A22E        endp
 
 ; ---------------------------------------------------------------------------
-word_A28C       dw 32h, 96h, 12Ch, 1A4h, 3E8h, 5DCh, 0BB8h, 1388h, 1770h
-                dw 1F40h, 2710h, 3A98h, 4E20h, 9C40h, 0C350h, 0EA60h
+word_A28C       dw 50, 150, 300, 420, 1000, 1500, 3000, 5000, 6000
+                dw 8000, 10000, 15000, 20000, 40000, 50000, 60000
 byte_A2AC       db 3, 6, 9, 0Bh, 0Dh, 0Fh, 12h, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
@@ -497,7 +497,7 @@ sub_A427        proc near
                 push    cs
                 pop     es
                 mov     si, offset vfs_stdply_bin
-                mov     al, 6
+                mov     al, 6  ; fn6_get_virtual_file_size (dword at 0f64)
                 call    word ptr cs:res_dispatcher_proc
                 mov     ax, cs
                 mov     es, ax
@@ -516,7 +516,7 @@ sub_A427        proc near
                 push    cs
                 pop     es
                 mov     di, offset byte_BB27
-                mov     al, 60h ; '`'
+                mov     al, 60h
                 mov     cx, 8
                 rep stosb
                 mov     al, 0FFh
@@ -537,12 +537,12 @@ loc_A47B:
 loc_A487:
                 mov     al, ds:byte_BB25
                 mov     ds:byte_BB26, al
-                mov     bx, 3Ch ; '<'
-                mov     cl, 6Ch ; 'l'
-                mov     si, offset aInputName ; "Input name:"
+                mov     bx, 3Ch
+                mov     cl, 6Ch
+                mov     si, offset aInputName
                 call    word ptr cs:Render_String_FF_Terminated_proc
-                mov     ds:word_BB21, 60h ; '`'
-                mov     ds:byte_BB23, 7Eh ; '~'
+                mov     ds:word_BB21, 60h
+                mov     ds:byte_BB23, 7Eh
                 mov     word ptr ds:menu_base_addr, 3463h
                 mov     word ptr ds:string_width_bytes, 0Ah
                 mov     al, ds:0E000h
@@ -679,6 +679,7 @@ loc_A592:
                 jnz     short loc_A5AE
                 test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 1
                 jz      short loc_A5B9
+                ; Enter pressed
                 clc
 
 loc_A5AE:
@@ -690,6 +691,7 @@ loc_A5AE:
 loc_A5B9:
                 test    byte ptr ds:spacebar_latch, 0FFh
                 jz      short loc_A623
+                ; Space pressed
                 push    si
                 xor     bh, bh
                 mov     bl, ds:menu_cursor_pos
@@ -699,7 +701,7 @@ loc_A5B9:
                 push    cs
                 pop     es
                 mov     di, offset byte_BB27
-                mov     al, 60h ; '`'
+                mov     al, 60h
                 mov     cx, 8
                 rep stosb
                 mov     al, 0FFh
@@ -756,7 +758,7 @@ loc_A63B:
 loc_A642:
                 xor     bx, bx
                 mov     bl, ds:byte_BB25
-                cmp     ds:byte_BB27[bx], 60h ; '`'
+                cmp     ds:byte_BB27[bx], 60h
                 jnz     short loc_A653
                 inc     ds:byte_BB26
 
@@ -773,15 +775,16 @@ loc_A65F:
                                         ; al: ____right_left_down_up
                 test    al, 8
                 jz      short loc_A676
+                ; Right pressed
                 mov     al, 1
                 call    sub_A790
 
-loc_A66A:
+wait_for_right_released:
                 int     61h             ; check input keys buffer
                                         ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 8
-                jnz     short loc_A66A
+                jnz     short wait_for_right_released
                 mov     byte ptr ds:Current_ASCII_Char, 0
                 retn
 ; ---------------------------------------------------------------------------
@@ -789,15 +792,16 @@ loc_A66A:
 loc_A676:
                 test    al, 4
                 jz      short loc_A68B
+                ; Left pressed
                 mov     al, 0FFh
                 call    sub_A790
 
-loc_A67F:
+wait_for_left_released:
                 int     61h             ; check input keys buffer
                                         ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 4
-                jnz     short loc_A67F
+                jnz     short wait_for_left_released
                 mov     byte ptr ds:Current_ASCII_Char, 0
                 retn
 ; ---------------------------------------------------------------------------
@@ -1030,7 +1034,7 @@ loc_A832:
                 dec     ds:byte_BB26
 
 loc_A853:
-                mov     ds:byte_BB2E, 60h ; '`'
+                mov     ds:byte_BB2E, 60h
                 mov     al, 0FFh
                 call    sub_A790
                 call    sub_A7FD
@@ -1092,9 +1096,9 @@ loc_A8B2:
                 mov     cx, 3226h
                 mov     al, 0FFh
                 call    word ptr cs:Draw_Bordered_Rectangle_proc
-                mov     bx, 4Ch ; 'L'
-                mov     cl, 50h ; 'P'
-                mov     si, offset aDiskErrorPleas ; "      Disk error.\rPlease check your di"...
+                mov     bx, 4Ch
+                mov     cl, 50h
+                mov     si, offset aDiskErrorPleas
                 call    word ptr cs:Render_String_FF_Terminated_proc
                 mov     byte ptr ds:spacebar_latch, 0
 
@@ -1217,7 +1221,7 @@ sub_A990        proc near
 
 loc_A99A:
                 push    cx
-                mov     cx, 0Ch
+                mov     cx, 12
 
 loc_A99E:
                 push    cx
@@ -1299,13 +1303,13 @@ byte_AA47       db 1Ah, 1Bh, 1Ch, 1Dh, 1Eh, 1Fh, 1Bh, 20h, 25h, 1Bh, 26h, 27h, 2
 
 
 sub_AB47        proc near
-                cmp     word ptr ds:byte_FF50, 2
+                cmp     word ptr ds:tick_counter, 2
                 jnb     short loc_AB4F
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_AB4F:
-                mov     word ptr ds:byte_FF50, 0
+                mov     word ptr ds:tick_counter, 0
                 test    ds:byte_BB18, 0FFh
                 jz      short loc_ABB9
                 test    ds:byte_BB1A, 0FFh
@@ -1407,7 +1411,7 @@ loc_AC28:
 ; ---------------------------------------------------------------------------
 
 loc_AC30:
-                mov     si, offset aIAmTheSageMari ; "I am the Sage Marid./You are very brave"...
+                mov     si, offset aIAmTheSageMari
                 or      byte ptr ds:sages_spoken_to_hero, 80h
                 retn
 ; ---------------------------------------------------------------------------
@@ -1419,7 +1423,7 @@ loc_AC39:
 ; ---------------------------------------------------------------------------
 
 loc_AC41:
-                mov     si, offset aIAmTheSageYasm ; "I am the Sage Yasmin./I have been expec"...
+                mov     si, offset aIAmTheSageYasm
                 or      byte ptr ds:sages_spoken_to_hero, 40h
                 retn
 ; ---------------------------------------------------------------------------
@@ -1431,7 +1435,7 @@ loc_AC4A:
 ; ---------------------------------------------------------------------------
 
 loc_AC52:
-                mov     si, offset aIAmTheSageHajj ; "I am the Sage Hajjar./I am happy to see"...
+                mov     si, offset aIAmTheSageHajj
                 or      byte ptr ds:sages_spoken_to_hero, 20h
                 retn
 ; ---------------------------------------------------------------------------
@@ -1443,7 +1447,7 @@ loc_AC5B:
 ; ---------------------------------------------------------------------------
 
 loc_AC63:
-                mov     si, offset aIAmTheSageChir ; "I am the Sage Chiriga./You have come fa"...
+                mov     si, offset aIAmTheSageChir
                 or      byte ptr ds:sages_spoken_to_hero, 10h
                 retn
 ; ---------------------------------------------------------------------------
@@ -1455,7 +1459,7 @@ loc_AC6C:
 ; ---------------------------------------------------------------------------
 
 loc_AC74:
-                mov     si, offset aIAmTheSageHish ; "I am the Sage Hisham./You are doing wel"...
+                mov     si, offset aIAmTheSageHish
                 or      byte ptr ds:sages_spoken_to_hero, 8
                 retn
 ; ---------------------------------------------------------------------------
@@ -1467,7 +1471,7 @@ loc_AC7D:
 ; ---------------------------------------------------------------------------
 
 loc_AC85:
-                mov     si, offset aIAmTheSageMary ; "I am the Sage Maryam./You have made the"...
+                mov     si, offset aIAmTheSageMary
                 or      byte ptr ds:sages_spoken_to_hero, 4
                 retn
 ; ---------------------------------------------------------------------------
@@ -1479,7 +1483,7 @@ loc_AC8E:
 ; ---------------------------------------------------------------------------
 
 loc_AC96:
-                mov     si, offset aIAmTheSageSaie ; "I am the Sage Saied./You have lived thr"...
+                mov     si, offset aIAmTheSageSaie
                 or      byte ptr ds:sages_spoken_to_hero, 2
                 retn
 ; ---------------------------------------------------------------------------
@@ -1491,7 +1495,7 @@ loc_AC9F:
 ; ---------------------------------------------------------------------------
 
 loc_ACA7:
-                mov     si, offset aIAmTheSageOfAl ; "I am the Sage of All Sages, Indihar./Br"...
+                mov     si, offset aIAmTheSageOfAl
                 or      byte ptr ds:sages_spoken_to_hero, 1
                 retn
 ; ---------------------------------------------------------------------------
@@ -1562,8 +1566,8 @@ aIShallCallUpon db 'I shall call upon the Spirits and their powers..... /'
                 db 0FFh
                 db    1
 byte_AE42       db 0Ch
-aIFearTheSpirit db 'I fear the spirits are no longer with you. No matter how many tim'
-                db 'es I try, it comes out the same. '
+aIFearTheSpirit db 'I fear the spirits are no longer with you. No matter how many times'
+                db ' I try, it comes out the same. '
                 db 0FFh
                 db    0
 byte_AEA7       db 0Ch
@@ -1601,19 +1605,18 @@ aOhHolySpiritsP db 'Oh, Holy Spirits, purify my thoughts and grant me strength. 
                 db    0
                 db 0FFh
                 db 0FFh
-off_B029        dw offset aYourExperience ; "Your experience is lacking. Persevere i"...
-                dw offset aYouMustAccumul ; "You must accumulate more experience."
-                dw offset aICanSeeTheFain ; "I can see the faint light of the Spirit"...
-                dw offset aTheLightOfTheS ; "The light of the Spirits is bursting fo"...
-                dw offset aICanNoLongerIm_0 ; "I can no longer impart the power of the"...
+off_B029        dw offset aYourExperience
+                dw offset aYouMustAccumul
+                dw offset aICanSeeTheFain
+                dw offset aTheLightOfTheS
+                dw offset aICanNoLongerIm_0
 aYourExperience db 'Your experience is lacking. Persevere in your quest.'
                 db 0FFh
                 db    0
 aYouMustAccumul db 'You must accumulate more experience.'
                 db 0FFh
                 db    0
-aICanSeeTheFain db 'I can see the faint light of the Spirits in you. You must endure '
-                db 'a little longer.'
+aICanSeeTheFain db 'I can see the faint light of the Spirits in you. You must endure a little longer.'
                 db 0FFh
                 db    0
 aTheLightOfTheS db 'The light of the Spirits is bursting forth within you. '
@@ -1660,14 +1663,13 @@ aIAmTheSageHish db 'I am the Sage Hisham./You are doing well to stand before me.
                 db 0FFh
                 db    0
 aIAmTheSageMary db 'I am the Sage Maryam./You have made the Spirits proud with your b'
-                db 'ravery. I&shall teach you the Magic Spell of Falling Rocks: Rasca'
-                db 'r.'
+                db 'ravery. I&shall teach you the Magic Spell of Falling Rocks: Rascar.'
                 db 0FFh
                 db  0Bh
                 db 0FFh
                 db    0
-aIAmTheSageSaie db 'I am the Sage Saied./You have lived through much, but your journe'
-                db 'y is not over. You must be hot. I&shall teach you the Magic Spell'
+aIAmTheSageSaie db 'I am the Sage Saied./You have lived through much, but your journey'
+                db ' is not over. You must be hot. I&shall teach you the Magic Spell'
                 db ' of Water: Agua.'
                 db 0FFh
                 db  0Ch
@@ -1718,29 +1720,29 @@ aThisIsAMessage db 'This is a message from the Spirits: Bend when you walk a low
                 db 0FFh
                 db    0
 byte_B81C       db 0Ch
-aYouCanTDefeatT db 'You can\t defeat the demons at the edge of the badlands without t'
-                db 'he Knight\s Sword. Until you get that sword, do not open the door'
+aYouCanTDefeatT db 'You can\t defeat the demons at the edge of the badlands without the'
+                db ' Knight\s Sword. Until you get that sword, do not open the door'
                 db ' of the demons. '
                 db  11h
                 db 0FFh
                 db    0
 byte_B8B2       db 0Ch
-aOnceYouLeaveTh db 'Once you leave this world, get the Silkarn shoes made by the spir'
-                db 'its at the behest of Percel. If you do not get those, you cannot '
+aOnceYouLeaveTh db 'Once you leave this world, get the Silkarn shoes made by the spirits'
+                db ' at the behest of Percel. If you do not get those, you cannot '
                 db 'travel far from this world. '
                 db  11h
                 db 0FFh
                 db    0
 byte_B954       db 0Ch
-aThatWorldIsCon db 'That world is controlled by dragons. To get there, you have to op'
-                db 'en three closed doors.'
+aThatWorldIsCon db 'That world is controlled by dragons. To get there, you have to open'
+                db ' three closed doors.'
                 db  11h
                 db 0FFh
                 db    0
 byte_B9AF       db 0Ch
-aAtTheEdgeOfThi db 'At the edge of this world is the final foe, Jashiin./To fight Jas'
-                db 'hiin, you must have the Sword of the Fairy Flame. And to get ther'
-                db 'e, you must topple the invincible monster Alguien.'
+aAtTheEdgeOfThi db 'At the edge of this world is the final foe, Jashiin./To fight Jashiin'
+                db ', you must have the Sword of the Fairy Flame. And to get there'
+                db ', you must topple the invincible monster Alguien.'
                 db  11h
                 db 0FFh
                 db    0

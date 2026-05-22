@@ -1565,7 +1565,7 @@ aSabreOil       db 'Sabre Oil',0
                 db    0
 aKioku          db 'Kioku',0
 aFeather        db '     feather',0
-sword_names_table        dw offset aTraining     ; "Training"
+sword_names_table dw offset aTraining     ; "Training"
                 dw offset aWiseManS     ; "Wise man\\s"
                 dw offset aSpirit       ; "Spirit"
                 dw offset aKnightS      ; "Knight\\s"
