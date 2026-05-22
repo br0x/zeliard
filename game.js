@@ -56,7 +56,7 @@ const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
 const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
-const PRINCESS_CHAMBER_PATH = 'assets/images/princess.png';
+const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right

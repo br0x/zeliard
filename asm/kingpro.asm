@@ -59,7 +59,7 @@ sub_A06D        proc near
 
                 mov     bl, al
                 xor     bh, bh
-                add     bx, bx          ; switch 5 cases
+                add     bx, bx
                 jmp     cs:jpt_A073[bx] ; switch jump
 sub_A06D        endp
 
@@ -91,7 +91,6 @@ loc_A092:
 
 get_1000_gold:
                 mov     cx, 10
-
 loc_A09D:
                 push    cx
                 mov     ax, ds:hero_gold_lo
@@ -103,20 +102,17 @@ loc_A09D:
                 call    word ptr cs:Print_Gold_Decimal_proc
                 mov     byte ptr ds:soundFX_request, 19
                 mov     byte ptr ds:frame_timer, 0
-
 loc_A0C1:
                 call    sub_A302
-                cmp     byte ptr ds:frame_timer, 0Fh
+                cmp     byte ptr ds:frame_timer, 15
                 jb      short loc_A0C1
                 pop     cx
                 loop    loc_A09D
                 mov     byte ptr ds:spoke_to_king, 0FFh
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_A0D4:
                 mov     byte ptr ds:frame_timer, 0
-
 loc_A0D9:
                 call    sub_A302
                 cmp     byte ptr ds:frame_timer, 150
@@ -127,7 +123,6 @@ loc_A0D9:
 loc_A0E4:
                 mov     si, offset byte_A0F8
                 mov     cx, 12
-
 loc_A0EA:
                 push    cx
                 lodsb
@@ -141,10 +136,8 @@ loc_A0EA:
 ; ---------------------------------------------------------------------------
 byte_A0F8       db 0, 0, 1, 2, 2, 1, 0, 3, 4, 4, 5, 6
 ; ---------------------------------------------------------------------------
-
 loc_A104:
                 mov     byte ptr ds:frame_timer, 0
-
 loc_A109:
                 call    sub_A302
                 cmp     byte ptr ds:frame_timer, 25
@@ -158,11 +151,9 @@ sub_A114        proc near
                 mov     si, offset byte_A16E
                 mov     bx, 0E17h
                 mov     cx, 8
-
 loc_A11D:
                 push    cx
                 mov     cx, 12
-
 loc_A121:
                 push    cx
                 push    bx
@@ -191,11 +182,9 @@ loc_A142:
                 mov     si, off_A1CE[bx]
                 mov     bx, 1117h
                 mov     cx, 7
-
 loc_A152:
                 push    cx
                 mov     cx, 6
-
 loc_A156:
                 push    cx
                 push    bx
