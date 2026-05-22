@@ -57,6 +57,18 @@ const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
+const KING_IMAGE_PATHS = [
+    null,
+    'assets/images/king/king1.png',
+    'assets/images/king/king2.png',
+    'assets/images/king/king3.png',
+    'assets/images/king/king4.png',
+    'assets/images/king/king5.png',
+    'assets/images/king/king6.png',
+    'assets/images/king/king7.png',
+    'assets/images/king/king8.png',
+    'assets/images/king/king9.png',
+];
 
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
@@ -402,8 +414,15 @@ async function loadWasmEngine() {
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
 const ADDR_BUILDING_ACTIVE = 0xFFFA;
 const ADDR_BUILDING_DEST_ID = 0xFFFB;
+const ADDR_SPOKE_TO_KING = 0x05;
+const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
+const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
+const ADDR_HERO_GOLD_HI = 0x85;
+const ADDR_HERO_GOLD_LO = 0x86;
+const TOWN_BUILDING_KING = 0;
 const TOWN_BUILDING_PRINCESS = 1;
 const TOWN_BUILDING_NAMES = {
+    [TOWN_BUILDING_KING]: 'King of Felishika',
     [TOWN_BUILDING_PRINCESS]: 'In the Hut',
 };
 let conversation = {
@@ -420,6 +439,8 @@ let conversation = {
 
 let princessChamberImage = null;
 let princessChamberImageReady = false;
+let kingImages = [];
+let kingImagesReady = false;
 let indoorScene = {
     active: false,
     destId: 0xFF,
@@ -428,6 +449,51 @@ let indoorScene = {
     alpha: 0,
     fadeStartAlpha: 0,
     image: null,
+    king: null,
+};
+
+const KING_ENTRY_SEQUENCE = [1, 2, 3, 4, 5];
+const KING_ENTRY_FRAME_MS = 350;
+const KING_DIALOG_CHAR_MS = 30;
+const KING_FADE_OUT_MS = 450;
+const KING_IMAGE_W = 422;
+const KING_IMAGE_H = 282;
+const KING_IMAGE_X = Math.floor((VIEW_WIDTH - KING_IMAGE_W) / 2);
+const KING_DIALOG_X = 24;
+const KING_DIALOG_Y = 294;
+const KING_DIALOG_W = VIEW_WIDTH - KING_DIALOG_X * 2;
+const KING_DIALOG_H = VIEW_ROWS * TILE_HEIGHT - KING_DIALOG_Y - 14;
+const KING_DIALOG_TEXT_X = KING_DIALOG_X + 18;
+const KING_DIALOG_TEXT_Y = KING_DIALOG_Y + 22;
+const KING_DIALOG_LINE_HEIGHT = 23;
+const KING_DIALOG_FONT = '14px "Press Start 2P", monospace';
+const KING_DIALOG_MAX_LINES = 4;
+const KING_GOLD_GIFT = 1000;
+
+const KING_DIALOG_SCRIPTS = {
+    firstAudience: [
+        'Brave Duke Garland, you\'ll need money for your journey.',
+        'I hereby bestow upon you 1000 Golds.',
+        'Go to town and outfit yourself, then make haste to the labyrinth to defeat the forces of Jashiin.',
+        'My kingdom and the life of my daughter are at stake.',
+    ],
+    reminder: [
+        'Brave Duke, did you forget something?',
+        'The entrance to the labyrinth is at the edge of town.',
+        'Please hurry, before it\'s too late!',
+    ],
+    afterCavern: [
+        'Duke Garland, I am in debt to you for your efforts.',
+        'Have you not yet succeeded in vanquishing Jashiin?',
+        'I pray that the spirits will guide you.',
+        'Please don\'t give up, the people of Zeliard are depending on you!',
+    ],
+    victory: [
+        'Duke Garland, you are a brave man.',
+        'You have conquered Jashiin and returned the nine Tears of Esmesanti.',
+        'Now go quickly to the chamber of Princess Felicia.',
+        'The crystals will bring her back to life.',
+    ],
 };
 
 const TOWN_HEADS_ROW      = TOWN_MAP_START_ROW + 5;   // row 13, y = 312px
@@ -695,6 +761,7 @@ window.addEventListener('keydown', e => {
     }
 
     if (indoorScene.active && e.code === 'Space') {
+        if (e.repeat) return;
         requestExitIndoorScene();
         return;
     }
@@ -1426,6 +1493,28 @@ function startConversationFromWasm() {
     // Optional: play sound effect (the WASM already set ADDR_SOUND_FX_REQUEST)
 }
 
+function loadKingImages() {
+    if (kingImagesReady) return Promise.resolve(kingImages);
+
+    const loads = KING_IMAGE_PATHS.map((path, index) => {
+        if (!path) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${path}`));
+            img.src = path;
+        }).then(img => {
+            kingImages[index] = img;
+            return img;
+        });
+    });
+
+    return Promise.all(loads).then(() => {
+        kingImagesReady = true;
+        return kingImages;
+    });
+}
+
 function loadPrincessChamberImage() {
     if (princessChamberImageReady) return Promise.resolve(princessChamberImage);
 
@@ -1441,6 +1530,155 @@ function loadPrincessChamberImage() {
     });
 }
 
+function selectKingDialogKey() {
+    if (!readMemory) return 'firstAudience';
+
+    const spokeToKing = readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0;
+    const enteredCavern = readMemory(ADDR_ENTERED_CAVERN_FIRST_TIME, 1)[0] !== 0;
+    const deathProcessed = readMemory(ADDR_IS_DEATH_ALREADY_PROCESSED, 1)[0] !== 0;
+
+    if (!spokeToKing && !enteredCavern) return 'firstAudience';
+    if (!enteredCavern) return 'reminder';
+    if (!deathProcessed) return 'afterCavern';
+    return 'victory';
+}
+
+function wrapKingDialogText(text) {
+    ctx.save();
+    ctx.font = KING_DIALOG_FONT;
+
+    const maxWidth = KING_DIALOG_W - 36;
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = '';
+
+    for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (line && ctx.measureText(candidate).width > maxWidth) {
+            lines.push(line);
+            line = word;
+        } else {
+            line = candidate;
+        }
+    }
+    if (line) lines.push(line);
+
+    ctx.restore();
+    return lines;
+}
+
+function buildKingDialogPages(dialogKey) {
+    const paragraphs = KING_DIALOG_SCRIPTS[dialogKey] ?? KING_DIALOG_SCRIPTS.firstAudience;
+    const pages = [];
+
+    for (const paragraph of paragraphs) {
+        const wrapped = wrapKingDialogText(paragraph);
+        for (let i = 0; i < wrapped.length; i += KING_DIALOG_MAX_LINES) {
+            pages.push(wrapped.slice(i, i + KING_DIALOG_MAX_LINES));
+        }
+    }
+
+    return pages.length ? pages : [['...']];
+}
+
+function getKingPageCharCount(pageLines) {
+    return pageLines.reduce((sum, line) => sum + line.length, 0);
+}
+
+function getKingVisibleCharCount(now) {
+    const king = indoorScene.king;
+    if (!king) return 0;
+    const pageLines = king.pages[king.page] ?? [];
+    const pageCharCount = getKingPageCharCount(pageLines);
+    return Math.min(pageCharCount, Math.floor((now - king.pageStart) / KING_DIALOG_CHAR_MS));
+}
+
+function getKingCurrentChar(pageLines, visibleChars) {
+    let remaining = Math.max(visibleChars - 1, 0);
+    for (const line of pageLines) {
+        if (remaining < line.length) return line[remaining];
+        remaining -= line.length;
+    }
+    return '';
+}
+
+function drawKingImage(img, alpha = 1) {
+    if (!img) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, KING_IMAGE_X, 0, KING_IMAGE_W, KING_IMAGE_H);
+    ctx.restore();
+}
+
+function drawKingDialogBox(now, alpha = 1) {
+    const king = indoorScene.king;
+    if (!king) return;
+
+    const pageLines = king.pages[king.page] ?? [];
+    const visibleChars = getKingVisibleCharCount(now);
+    const pageCharCount = getKingPageCharCount(pageLines);
+    let remaining = visibleChars;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.98)';
+    ctx.fillRect(KING_DIALOG_X, KING_DIALOG_Y, KING_DIALOG_W, KING_DIALOG_H);
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(KING_DIALOG_X + 1, KING_DIALOG_Y + 1, KING_DIALOG_W - 2, KING_DIALOG_H - 2);
+    ctx.strokeStyle = '#26f';
+    ctx.strokeRect(KING_DIALOG_X + 3, KING_DIALOG_Y + 3, KING_DIALOG_W - 6, KING_DIALOG_H - 6);
+
+    ctx.font = KING_DIALOG_FONT;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < pageLines.length; i++) {
+        const line = pageLines[i];
+        const visibleLine = line.slice(0, Math.max(0, Math.min(line.length, remaining)));
+        ctx.fillText(visibleLine, KING_DIALOG_TEXT_X, KING_DIALOG_TEXT_Y + i * KING_DIALOG_LINE_HEIGHT);
+        remaining -= line.length;
+    }
+
+    if (visibleChars >= pageCharCount) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText('▼', KING_DIALOG_X + KING_DIALOG_W - 34, KING_DIALOG_Y + KING_DIALOG_H - 30);
+    }
+    ctx.restore();
+}
+
+function getKingSpeechImageIndex(now) {
+    const king = indoorScene.king;
+    if (!king || indoorScene.phase !== 'kingDialog') return 8;
+
+    const pageLines = king.pages[king.page] ?? [];
+    const visibleChars = getKingVisibleCharCount(now);
+    const pageCharCount = getKingPageCharCount(pageLines);
+    const typing = visibleChars < pageCharCount;
+    const currentChar = getKingCurrentChar(pageLines, visibleChars);
+    const mouthOpen = typing && currentChar.trim() !== '' && Math.floor(now / 95) % 2 === 0;
+    const blinkCycle = now % 3600;
+    const eyesClosed = blinkCycle > 3320 && blinkCycle < 3520;
+
+    if (eyesClosed) return mouthOpen ? 7 : 6;
+    return mouthOpen ? 9 : 8;
+}
+
+function awardKingFirstAudienceGift() {
+    if (!readMemory || !writeMemory) return;
+    if (readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0) return;
+
+    const goldBytes = readMemory(ADDR_HERO_GOLD_LO, 2);
+    const goldLo = goldBytes[0] | (goldBytes[1] << 8);
+    const goldHi = readMemory(ADDR_HERO_GOLD_HI, 1)[0];
+    const total = goldLo + KING_GOLD_GIFT;
+
+    writeMemory(ADDR_HERO_GOLD_LO, [total & 0xFF, (total >> 8) & 0xFF]);
+    writeMemory(ADDR_HERO_GOLD_HI, [(goldHi + (total >> 16)) & 0xFF]);
+    writeMemory(ADDR_SPOKE_TO_KING, [0xFF]);
+}
+
 function checkBuildingRequest() {
     if (!engineReady || !readMemory || indoorScene.active) return;
 
@@ -1452,7 +1690,7 @@ function checkBuildingRequest() {
 }
 
 function startIndoorScene(destId) {
-    if (destId !== TOWN_BUILDING_PRINCESS) {
+    if (destId !== TOWN_BUILDING_KING && destId !== TOWN_BUILDING_PRINCESS) {
         console.warn(`[building] destination ${destId} is not implemented yet`);
         townFinishBuilding?.();
         return;
@@ -1465,28 +1703,84 @@ function startIndoorScene(destId) {
     indoorScene.alpha = 0;
     indoorScene.fadeStartAlpha = 0;
     indoorScene.image = null;
+    indoorScene.king = null;
 
-    loadPrincessChamberImage()
-        .then(img => {
+    if (destId === TOWN_BUILDING_PRINCESS) {
+        loadPrincessChamberImage()
+            .then(img => {
+                if (!indoorScene.active || indoorScene.destId !== destId) return;
+                indoorScene.image = img;
+                indoorScene.phase = 'fadeIn';
+                indoorScene.phaseStart = performance.now();
+                indoorScene.alpha = 0;
+            })
+            .catch(err => {
+                console.error('[building] failed to load princess chamber:', err);
+                finishIndoorScene();
+            });
+        return;
+    }
+
+    loadKingImages()
+        .then(images => {
             if (!indoorScene.active || indoorScene.destId !== destId) return;
-            indoorScene.image = img;
-            indoorScene.phase = 'fadeIn';
+            const dialogKey = selectKingDialogKey();
+            indoorScene.king = {
+                images,
+                dialogKey,
+                pages: buildKingDialogPages(dialogKey),
+                page: 0,
+                pageStart: 0,
+            };
+            indoorScene.phase = 'kingEntering';
             indoorScene.phaseStart = performance.now();
-            indoorScene.alpha = 0;
+            indoorScene.alpha = 1;
         })
         .catch(err => {
-            console.error('[building] failed to load princess chamber:', err);
+            console.error('[building] failed to load king palace:', err);
             finishIndoorScene();
         });
 }
 
 function requestExitIndoorScene() {
     if (!indoorScene.active || indoorScene.phase === 'fadeOut') return;
-    if (indoorScene.destId !== TOWN_BUILDING_PRINCESS) return;
+    if (indoorScene.destId === TOWN_BUILDING_KING) {
+        advanceKingDialog();
+        return;
+    }
 
     indoorScene.phase = 'fadeOut';
     indoorScene.phaseStart = performance.now();
     indoorScene.fadeStartAlpha = indoorScene.alpha;
+}
+
+function advanceKingDialog() {
+    const king = indoorScene.king;
+    if (!king || indoorScene.phase !== 'kingDialog') return;
+
+    const now = performance.now();
+    const pageLines = king.pages[king.page] ?? [];
+    const pageCharCount = getKingPageCharCount(pageLines);
+    const visibleChars = getKingVisibleCharCount(now);
+
+    if (visibleChars < pageCharCount) {
+        king.pageStart = now - pageCharCount * KING_DIALOG_CHAR_MS;
+        return;
+    }
+
+    if (king.page < king.pages.length - 1) {
+        king.page++;
+        king.pageStart = now;
+        return;
+    }
+
+    if (king.dialogKey === 'firstAudience') {
+        awardKingFirstAudienceGift();
+    }
+
+    indoorScene.phase = 'kingFadeOut';
+    indoorScene.phaseStart = now;
+    indoorScene.fadeStartAlpha = 1;
 }
 
 function finishIndoorScene() {
@@ -1497,6 +1791,7 @@ function finishIndoorScene() {
     indoorScene.alpha = 0;
     indoorScene.fadeStartAlpha = 0;
     indoorScene.image = null;
+    indoorScene.king = null;
     townFinishBuilding?.();
     keys.Space = false;
     lastSpace = false;
@@ -1510,6 +1805,10 @@ function drawIndoorScene() {
     const now = performance.now();
     const fadeInMs = 650;
     const fadeOutMs = 450;
+
+    if (indoorScene.destId === TOWN_BUILDING_KING) {
+        return drawKingPalaceScene(now);
+    }
 
     if (indoorScene.phase === 'fadeIn') {
         indoorScene.alpha = Math.min(1, (now - indoorScene.phaseStart) / fadeInMs);
@@ -1535,6 +1834,50 @@ function drawIndoorScene() {
         ctx.globalAlpha = indoorScene.alpha;
         ctx.drawImage(indoorScene.image, 0, 0, canvas.width, canvas.height);
         ctx.restore();
+    }
+
+    return true;
+}
+
+function drawKingPalaceScene(now) {
+    const king = indoorScene.king;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!king) return true;
+
+    if (indoorScene.phase === 'kingEntering') {
+        const elapsed = now - indoorScene.phaseStart;
+        const frame = Math.min(
+            KING_ENTRY_SEQUENCE.length - 1,
+            Math.floor(elapsed / KING_ENTRY_FRAME_MS)
+        );
+        drawKingImage(king.images[KING_ENTRY_SEQUENCE[frame]]);
+
+        if (frame === KING_ENTRY_SEQUENCE.length - 1 && elapsed >= KING_ENTRY_SEQUENCE.length * KING_ENTRY_FRAME_MS) {
+            indoorScene.phase = 'kingDialog';
+            indoorScene.phaseStart = now;
+            king.pageStart = now;
+        }
+        return true;
+    }
+
+    if (indoorScene.phase === 'kingDialog') {
+        drawKingImage(king.images[getKingSpeechImageIndex(now)]);
+        drawKingDialogBox(now);
+        return true;
+    }
+
+    if (indoorScene.phase === 'kingFadeOut') {
+        const t = Math.min(1, (now - indoorScene.phaseStart) / KING_FADE_OUT_MS);
+        const alpha = indoorScene.fadeStartAlpha * (1 - t);
+        drawKingImage(king.images[8], alpha);
+        drawKingDialogBox(now, alpha);
+        if (t >= 1) {
+            finishIndoorScene();
+            return false;
+        }
+        return true;
     }
 
     return true;
