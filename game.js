@@ -466,7 +466,7 @@ const KING_DIALOG_Y = 294;
 const KING_DIALOG_W = VIEW_WIDTH - KING_DIALOG_X * 2;
 const KING_DIALOG_H = VIEW_ROWS * TILE_HEIGHT - KING_DIALOG_Y - 14;
 const KING_DIALOG_TEXT_X = KING_DIALOG_X + 18;
-const KING_DIALOG_TEXT_Y = KING_DIALOG_Y + 22;
+const KING_DIALOG_TEXT_Y = KING_DIALOG_Y + 12;
 const KING_DIALOG_LINE_HEIGHT = 23;
 const KING_DIALOG_FONT = '14px "Press Start 2P", monospace';
 const KING_DIALOG_MAX_LINES = 4;
@@ -474,11 +474,12 @@ const KING_GOLD_GIFT_STEPS = 10;
 const KING_GOLD_GIFT_PER_STEP = 100;
 const KING_GOLD_GIFT_DELAY_FRAMES = 15;
 const KING_GOLD_GIFT_SFX = 19;
+const KING_GOLD_GIFT_LINE = 'I hereby bestow upon you 1000 Golds.';
 
 const KING_DIALOG_SCRIPTS = {
     firstAudience: [
         'Brave Duke Garland, you\'ll need money for your journey.',
-        'I hereby bestow upon you 1000 Golds.',
+        KING_GOLD_GIFT_LINE,
         'Go to town and outfit yourself, then make haste to the labyrinth to defeat the forces of Jashiin.',
         'My kingdom and the life of my daughter are at stake.',
     ],
@@ -1576,6 +1577,7 @@ function buildKingDialogPages(dialogKey) {
     const paragraphs = KING_DIALOG_SCRIPTS[dialogKey] ?? KING_DIALOG_SCRIPTS.firstAudience;
     const pages = [];
     let currentPage = [];
+    let goldAwardPage = -1;
 
     for (const paragraph of paragraphs) {
         const wrapped = wrapKingDialogText(paragraph);
@@ -1586,10 +1588,20 @@ function buildKingDialogPages(dialogKey) {
                 currentPage = [];
             }
         }
+        if (dialogKey === 'firstAudience' && paragraph === KING_GOLD_GIFT_LINE) {
+            if (currentPage.length) {
+                pages.push(currentPage);
+                currentPage = [];
+            }
+            goldAwardPage = pages.length - 1;
+        }
     }
     if (currentPage.length) pages.push(currentPage);
 
-    return pages.length ? pages : [['...']];
+    return {
+        pages: pages.length ? pages : [['...']],
+        goldAwardPage,
+    };
 }
 
 function getKingPageCharCount(pageLines) {
@@ -1672,8 +1684,16 @@ function drawKingDialogBox(now, alpha = 1) {
     }
 
     if (visibleChars >= pageCharCount) {
-        ctx.fillStyle = '#ffcc00';
-        ctx.fillText('▼', KING_DIALOG_X + KING_DIALOG_W - 34, KING_DIALOG_Y + KING_DIALOG_H - 30);
+        ctx.fillStyle = '#0ee';
+        // draw arrow pointing down
+        ctx.beginPath();
+        const x0 = KING_DIALOG_X + KING_DIALOG_W/2 - 12;
+        const y0 = KING_DIALOG_Y + KING_DIALOG_H - 20;
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0+20, y0);
+        ctx.lineTo(x0+10, y0+10);
+        ctx.closePath();
+        ctx.fill();
     }
     ctx.restore();
 }
@@ -1754,6 +1774,14 @@ function updateKingGoldAward(now) {
 
     writeMemory(ADDR_SPOKE_TO_KING, [0xFF]);
     king.goldAward = null;
+    if (king.page < king.pages.length - 1) {
+        king.page++;
+        king.pageStart = now;
+        indoorScene.phase = 'kingDialog';
+        indoorScene.phaseStart = now;
+        return;
+    }
+
     indoorScene.phase = 'kingFadeOut';
     indoorScene.phaseStart = now;
     indoorScene.fadeStartAlpha = 1;
@@ -1805,10 +1833,12 @@ function startIndoorScene(destId) {
         .then(images => {
             if (!indoorScene.active || indoorScene.destId !== destId) return;
             const dialogKey = selectKingDialogKey();
+            const dialog = buildKingDialogPages(dialogKey);
             indoorScene.king = {
                 images,
                 dialogKey,
-                pages: buildKingDialogPages(dialogKey),
+                pages: dialog.pages,
+                goldAwardPage: dialog.goldAwardPage,
                 page: 0,
                 pageStart: 0,
                 goldAward: null,
@@ -1849,14 +1879,14 @@ function advanceKingDialog() {
         return;
     }
 
+    if (king.dialogKey === 'firstAudience' && king.page === king.goldAwardPage) {
+        if (startKingFirstAudienceGift()) return;
+    }
+
     if (king.page < king.pages.length - 1) {
         king.page++;
         king.pageStart = now;
         return;
-    }
-
-    if (king.dialogKey === 'firstAudience') {
-        if (startKingFirstAudienceGift()) return;
     }
 
     indoorScene.phase = 'kingFadeOut';
