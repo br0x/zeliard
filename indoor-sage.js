@@ -72,6 +72,7 @@ export class SageScene extends IndoorSceneBase {
         this.typewriter = null;
         this.fadeInMs = SAGE_FADE_IN_MS;
         this.fadeOutMs = SAGE_FADE_OUT_MS;
+        this.modalOpen = false;
     }
 
     async onEnter(now) {
@@ -236,6 +237,7 @@ export class SageScene extends IndoorSceneBase {
     }
 
     handleInput(key) {
+        if (this.modalOpen) return;
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
         if (key === 'ArrowUp') {
@@ -346,11 +348,31 @@ export class SageScene extends IndoorSceneBase {
     }
 
     _recordExperience(now) {
-        if (this.readMemory && this.saveGame) {
-            try { this.saveGame(this.readMemory(0,256)); } catch(e) { console.error('[Sage] save failed:', e); }
+        // Open the global save modal (defined in game.js)
+        if (typeof window.openSaveModal === 'function') {
+            // Disable further input while modal is open
+            this.modalOpen = true;
+            window.openSaveModal((success) => {
+                this.modalOpen = false;
+                if (success) {
+                    this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+                } else {
+                    this._setDialog('Save cancelled.');
+                }
+                this.sagePhase = 'dialog';
+                this.exitAfterDialog = false;
+                // Restart typewriter
+                if (this.typewriter) this.typewriter.start(performance.now());
+            });
+        } else {
+            // Fallback (should never happen)
+            if (this.readMemory && this.saveGame) {
+                try { this.saveGame(this.readMemory(0,256)); } catch(e) { console.error(e); }
+            }
+            this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+            this.sagePhase = 'dialog';
+            this.exitAfterDialog = false;
         }
-        this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
-        this.sagePhase = 'dialog'; this.exitAfterDialog = false;
     }
 
     _getHeroLevel() { return this.readMemory?.(0x8d,1)[0] || 1; }

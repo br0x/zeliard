@@ -9,6 +9,7 @@ import { SoundManager }  from './sound-manager.js';
 import { KingScene }     from './indoor-king.js';
 import { PrincessScene } from './indoor-princess.js';
 import { SageScene }     from './indoor-sage.js';
+import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
 const TILE_WIDTH  = 24;
@@ -247,6 +248,9 @@ const TOWN_BUILDING_NAMES = {
     2: 'The Sage',
 };
 
+let activeModal = null;          // instance of SaveDialog or RestoreDialog
+let gamePaused = false;          // freeze game updates while modal is open
+
 // ─── Sound Manager ────────────────────────────────────────────────────────────
 const SFX_IDS = [10, 19, 20, 29, 30, 40, 50, 60];
 const MUSIC_TRACKS = ['mgt1', 'mgt2', 'ugm1', 'ugm2'];
@@ -284,6 +288,7 @@ function toggleMusic() {
 
 // ─── PIT tick callbacks ───────────────────────────────────────────────────────
 function onFullTick() {
+    if (gamePaused) return;
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
@@ -318,6 +323,7 @@ function onFullTick() {
 }
 
 function onSlowTick() {
+    if (gamePaused) return;
     if (!engineReady) return;
 
     updateInputLatches();
@@ -368,11 +374,38 @@ const keys = {
 };
 
 window.addEventListener('keydown', e => {
-    if (['F1', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
+    if (['F1', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
         e.preventDefault();
-
+    
     if (e.code === 'F1') {
         if (!e.repeat) toggleMusic();
+        return;
+    }
+
+    if (e.code === 'F7') {
+        if (!activeModal && !gamePaused) {
+            openRestoreModal();
+        }
+        return;
+    }
+
+    // If a modal is active, route keys to it
+    if (activeModal) {
+        let key = e.code;
+        // Convert letter keys to lowercase character
+        if (key.startsWith('Key')) {
+            key = key[3].toLowerCase();      // 'KeyA' -> 'a'
+        } else if (key.startsWith('Digit')) {
+            key = key[5];                    // 'Digit1' -> '1'
+        } else if (key === 'Space') {
+            key = ' ';                       // space character
+        } else if (key === 'Backspace') {
+            key = 'Backspace';               // keep as is
+        }
+        // ArrowUp, ArrowDown, Enter, Escape remain unchanged
+        if (activeModal.handleKey(key, performance.now())) {
+            e.preventDefault();
+        }
         return;
     }
 
@@ -1137,18 +1170,19 @@ function setLife(currentLife, maxLife) {
     }
 }
 
-function saveGame(saveData, saveKey = 'zeliard_save_01') {
+export function saveGame(saveData, saveKey = 'zeliard_save_01') {
     if (saveData.length !== 256) {
         console.error(`saveGame: expected 256 bytes, got ${saveData.length}`);
         return;
     }
+    // Build a binary string from the bytes, then base64‑encode
     const binary = String.fromCharCode(...saveData);
     const base64 = btoa(binary);
     localStorage.setItem(saveKey, base64);
     console.log('Game saved (base64,', base64.length, 'chars).');
 }
 
-function loadGame(saveKey = 'zeliard_save_01') {
+export function loadGame(saveKey = 'zeliard_save_01') {
     const base64 = localStorage.getItem(saveKey);
     if (!base64) return null;
     try {
@@ -1306,6 +1340,162 @@ function renderMagicHud() {
     updateElementText('spellCounter', type0 >= 0 ? getHeroMagicCount(type0+1) : '');
 }
 
+// Open Save Modal (called from Sage scene)
+function openSaveModal(onSaveComplete) {
+    if (activeModal) return;
+    gamePaused = true;
+    const onSave = (slotName) => {
+        const saveState = readMemory(0, 256);
+        if (slotName === null) {
+            onSaveComplete?.(false);
+        } else {
+            saveGameToSlot(slotName, saveState);
+            onSaveComplete?.(true);
+        }
+        closeModal();
+    };
+    const onCancel = () => {
+        onSaveComplete?.(false);
+        closeModal();
+    };
+    activeModal = new SaveDialog(onSave, onCancel);
+}
+
+function openRestoreModal() {
+    if (activeModal) return;
+    gamePaused = true;
+    const onRestore = (slotName) => {
+        let saveData = null;
+        if (slotName === null) {  // Re-Start
+            // Fetch default save from STDPLY_PATH
+            fetch(STDPLY_PATH)
+                .then(resp => {
+                    if (!resp.ok) throw new Error('Failed to load default save');
+                    return resp.arrayBuffer();
+                })
+                .then(buffer => {
+                    saveData = new Uint8Array(buffer);
+                    performGameRestore(saveData);
+                    closeModal();
+                })
+                .catch(err => {
+                    console.error('Re-Start failed:', err);
+                    closeModal();
+                });
+        } else {
+            saveData = loadGameFromSlot(slotName);
+            if (saveData) {
+                performGameRestore(saveData);
+                closeModal();
+            } else {
+                console.error('Failed to load save:', slotName);
+                closeModal();
+            }
+        }
+    };
+    const onCancel = () => {
+        closeModal();
+    };
+    activeModal = new RestoreDialog(onRestore, onCancel);
+}
+
+function closeModal() {
+    activeModal = null;
+    gamePaused = false;
+}
+
+// Core restore routine: reloads full game state from 256-byte saveData
+async function performGameRestore(saveData) {
+    if (!saveData || saveData.length !== 256) {
+        console.error('Invalid save data');
+        return;
+    }
+
+    // Abort any indoor scene or conversation
+    if (indoorActiveScene) {
+        indoorActiveScene = null;
+    }
+    conversation.active = false;
+
+    // Load the save into WASM memory
+    loadSaveState(saveData);
+
+    // Get the place id (town index or dungeon)
+    const placeId = readMemory(0xC4, 1)[0] & 0x7F;
+
+    // Only towns are implemented for now; dungeons would need similar handling
+    if (placeId < TOWN_MDTS.length) {
+        const mdtPath = TOWN_MDTS[placeId];
+        try {
+            const resp = await fetch(mdtPath);
+            if (!resp.ok) throw new Error(`Failed to load ${mdtPath}`);
+            mdtData = new Uint8Array(await resp.arrayBuffer());
+            loadMdt(mdtData);
+            mdtHeader = getTownMdtHeader?.();
+
+            // Refresh backgrounds and tiles
+            const newBgType = getTownBackgroundType();
+            if (newBgType !== townBackgroundType) {
+                townBackgroundType = newBgType;
+                townBackgroundReady = false;
+                townBackground = null;
+                townCeilingReady = false;
+                townCeiling = null;
+                townSidewalk1Ready = false;
+                townSidewalk1 = null;
+                townSidewalk2Ready = false;
+                townSidewalk2 = null;
+            }
+            await loadTownBackground();
+            await loadTownCeiling();
+            await loadTownSidewalk1();
+            await loadTownSidewalk2();
+            resetTownScrollOffsets();
+
+            const newPatId = getTownPatId();
+            if (newPatId !== townPatId) {
+                townPatId = newPatId;
+                townTileSheetReady = false;
+                townTileSheet = null;
+            }
+            const pattern = PATTERN_ASSETS[townPatId];
+            if (pattern) {
+                await loadTownTileSheet(pattern.imagePath);
+                setSpecialTileList(pattern.specialTiles);
+                updateTownAnimation();
+            }
+
+            parseTownNpcCategory();
+            await Promise.all(
+                NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, idx) => loadNpcSprite(idx))
+            );
+
+            // Notify WASM that transition is complete (if needed)
+            townCompleteTransition?.();
+
+            const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
+            if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
+
+            // Ensure town entry flag is set (so minimap etc. works)
+            if (!townEntryRan) {
+                townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
+                townEntryDisablingEdgeScroll();
+                townEntryRan = true;
+            }
+
+            console.log(`Restored town ${placeId}`);
+        } catch (err) {
+            console.error('Restore failed:', err);
+        }
+    } else {
+        // For dungeons / caverns, fallback to starting town (index 0)
+        console.error('Attempt to restore in dungeon');
+    }
+
+    engineReady = true;
+    gamePaused = false;
+}
+
 // ─── Game loop ────────────────────────────────────────────────────────────────
 let lastTimestamp = 0;
 let fps = 0;
@@ -1331,14 +1521,6 @@ function draw() {
     ctx.fillStyle = '#05053f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (indoorActiveScene) {
-        const stillActive = indoorActiveScene.draw(performance.now());
-        if (!stillActive) indoorActiveScene = null;
-        updateElementText('currentMapName',
-            indoorActiveScene?.getName?.() ?? TOWN_BUILDING_NAMES[indoorActiveScene?.destId] ?? '');
-        return;
-    }
-
     if (!engineReady) {
         drawLifeBar();
         updateElementText('currentMapName', '');
@@ -1350,21 +1532,33 @@ function draw() {
         return;
     }
 
-    drawTownBackground();
-    drawTownSidewalk();
-    if (townBackgroundType) drawTownCeiling();
-    if (drawTownTiles()) {
-        drawNpcs();
-        drawHero();
-        drawLifeBar();
-        let placeName = getTownName?.() ?? 'unknown';
-        updateElementText('currentMapName', townEntryRan ? placeName : '');
-        renderGoldHud();
-        updateElementText('almas', 0);
-        renderSwordHud();
-        renderMagicHud();
-        renderShieldHud();
-        drawConversationDialog();
+    if (indoorActiveScene) {
+        const stillActive = indoorActiveScene.draw(performance.now());
+        if (!stillActive) indoorActiveScene = null;
+        updateElementText('currentMapName',
+            indoorActiveScene?.getName?.() ?? TOWN_BUILDING_NAMES[indoorActiveScene?.destId] ?? '');
+    } else {
+        drawTownBackground();
+        drawTownSidewalk();
+        if (townBackgroundType) 
+            drawTownCeiling();
+        if (drawTownTiles()) {
+            drawNpcs();
+            drawHero();
+            drawLifeBar();
+            let placeName = getTownName?.() ?? 'unknown';
+            updateElementText('currentMapName', townEntryRan ? placeName : '');
+            renderGoldHud();
+            updateElementText('almas', 0);
+            renderSwordHud();
+            renderMagicHud();
+            renderShieldHud();
+            drawConversationDialog();
+        }
+    }
+    // Draw modal on top of everything (indoor scene or town)
+    if (activeModal) {
+        activeModal.draw(ctx, canvas.width, canvas.height, performance.now());
     }
 }
 
@@ -1393,6 +1587,73 @@ const openingIntro = new OpeningIntro({
     canvas:     introCanvas,
     onComplete: startGame,
 });
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+// ========== Save slot helpers (localStorage) ==========
+const SAVE_PREFIX = 'zeliard_save_';
+
+export function getSaveSlotNames() {
+    const slots = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(SAVE_PREFIX)) {
+            slots.push(key.slice(SAVE_PREFIX.length));
+        }
+    }
+    slots.sort();
+    return slots;
+}
+
+export function saveGameToSlot(slotName, data) {
+    const key = SAVE_PREFIX + slotName;
+    const binary = String.fromCharCode(...data);
+    localStorage.setItem(key, btoa(binary));
+}
+
+export function loadGameFromSlot(slotName) {
+    const key = SAVE_PREFIX + slotName;
+    const base64 = localStorage.getItem(key);
+    if (!base64) return null;
+    try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    } catch (err) {
+        console.error('Failed to load save', slotName, err);
+        return null;
+    }
+}
+
+function exportSave() {
+    const gameState = null;//{ player }; // Simplify for example
+    const dataStr = JSON.stringify(gameState, null, 2); // Pretty print
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "zeliard_save.json";
+    link.click();
+    
+    URL.revokeObjectURL(url);
+}
+
+// Add this to your HTML: <input type="file" id="fileInput" style="display:none">
+function importSave(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = JSON.parse(e.target.result);
+        // Object.assign(player, data.player);
+        console.log("File Imported!");
+    };
+    reader.readAsText(file);
+}
+
+window.openSaveModal = openSaveModal;
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 init();
