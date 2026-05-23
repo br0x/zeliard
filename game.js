@@ -69,6 +69,8 @@ const KING_IMAGE_PATHS = [
     'assets/images/king/king8.png',
     'assets/images/king/king9.png',
 ];
+const SAGE_IMAGE_PATH     = 'assets/images/kenjya/kenjya.png';
+
 const ITEMP_SWORD_IMAGE_PATHS = [
     'assets/images/itemp/training_sword.png',
     'assets/images/itemp/wiseman_sword.png',
@@ -464,11 +466,18 @@ const ADDR_SPELL_COUNTS = [
     0xb0, // AGUA
     0xb1  // GUERRA
 ];
+const ADDR_HERO_LEVEL    = 0x8d;   // byte
+const ADDR_HERO_XP       = 0x8e;   // word
+const ADDR_SAGES_SPOKEN  = 0xe5;   // byte bitmask
+
 const TOWN_BUILDING_KING = 0;
 const TOWN_BUILDING_PRINCESS = 1;
+const TOWN_BUILDING_SAGE = 2;
+
 const TOWN_BUILDING_NAMES = {
     [TOWN_BUILDING_KING]: 'King of Felishika',
     [TOWN_BUILDING_PRINCESS]: 'In the Hut',
+    [TOWN_BUILDING_SAGE]: 'The Sage Marid',    
 };
 let conversation = {
     active: false,
@@ -555,7 +564,6 @@ const DIALOG_PADDING_X    = 10;       // px — inner horizontal padding
 const DIALOG_PADDING_Y    = 4;        // px — inner vertical padding
 const DIALOG_MAX_WIDTH    = VIEW_WIDTH - 24;      // px — maximum box width
 const DIALOG_LINES_PER_PAGE = 15;     // lines shown before "more" prompt
-const DIALOG_CURSOR_CHAR  = '\u25BC'; // ▼ — "more" indicator
 // Bottom edge: 4px above the NPCs' head row
 const DIALOG_BOTTOM_Y     = TOWN_HEADS_ROW * TILE_HEIGHT - 4;  // 308 px
 
@@ -580,6 +588,727 @@ function charOrigWidth(ch) {
     const idx = ch.charCodeAt(0) - 0x20;
     if (idx < 0 || idx >= CHAR_WIDTH_TABLE.length) return 6;
     return CHAR_WIDTH_TABLE[idx];
+}
+
+// ─── XP thresholds (word_A28C) ─────────────────────────────────────────────
+const SAGE_XP_TABLE = [
+    50, 150, 300, 420, 1000, 1500, 3000, 5000, 6000,
+    8000, 10000, 15000, 20000, 40000, 50000, 60000,
+];
+// Minimum hero level required for power-up per town (byte_A2AC, 8 towns, 1-based)
+const SAGE_MIN_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
+// ─── Per-town Sage names (sage_names table, Pascal strings) ────────────────
+const SAGE_NAMES = [
+    'The Sage Marid',    // town 1 — Muralla
+    'The Sage Yasmin',   // town 2 — Satono
+    'The Sage Hajjar',   // town 3 — Bosque
+    'The Sage Chiriga',  // town 4 — Hellada
+    'The Sage Hisham',   // town 5 — Tumba
+    'The Sage Maryam',   // town 6 — Dorado
+    'The Sage Saied',    // town 7 — Llama
+    'The Sage Indihar',  // town 8 — Pureza (Sage of All Sages)
+];
+// ─── First-visit intro speeches (aIAmTheSage* strings) ────────────────────
+// bit: the sages_spoken_to_hero bitmask bit for this town
+const SAGE_INTROS = [
+    { bit: 0x80, text: 'I am the Sage Marid.\nYou are very brave to embark on such a dangerous journey. I shall assist you in your travels.' },
+    { bit: 0x40, text: 'I am the Sage Yasmin.\nI have been expecting you. I shall teach you the Magic Spell of Throwing Swords: Espada.' },
+    { bit: 0x20, text: 'I am the Sage Hajjar.\nI am happy to see you\'ve made it this far. I shall teach you the Magic Spell of Arrows: Saeta.' },
+    { bit: 0x10, text: 'I am the Sage Chiriga.\nYou have come far, and you must be cold. I shall teach you the Magic Spell of Fire: Fuego.' },
+    { bit: 0x08, text: 'I am the Sage Hisham.\nYou are doing well to stand before me. I shall teach you the Magic Spell of Flame: Lanzar.' },
+    { bit: 0x04, text: 'I am the Sage Maryam.\nYou have made the Spirits proud with your bravery. I shall teach you the Magic Spell of Falling Rocks: Rascar.' },
+    { bit: 0x02, text: 'I am the Sage Saied.\nYou have lived through much, but your journey is not over. You must be hot. I shall teach you the Magic Spell of Water: Agua.' },
+    { bit: 0x01, text: 'I am the Sage of All Sages, Indihar.\nBrave lad, you\'ve done well to get this far.\nI shall teach you the Magic Spell of Lightning: Guerra.' },
+];
+// ─── Knowledge texts per town (off_B5EB) ───────────────────────────────────
+const SAGE_KNOWLEDGE = [
+    'My master, the Sage Yasmin, resides in the underground town. She is a person you can turn to if you are in need.',
+    'When you leave the city, climb to the plateau on the left. You\'ll see a door that looks like the exit from this world.',
+    'The exit from this world is very near the exit from the village. However, before you go there you must have the Hero\'s Crest.',
+    'This is a message from the Spirits: Bend when you walk a low road. Walk not on the steep path with the needles of ice, choose another path instead. Heed well these words.',
+    'You can\'t defeat the demons at the edge of the badlands without the Knight\'s Sword. Until you get that sword, do not open the door of the demons.',
+    'Once you leave this world, get the Silkarn shoes made by the spirits at the behest of Percel. If you do not get those, you cannot travel far from this world.',
+    'That world is controlled by dragons. To get there, you have to open three closed doors.',
+    'At the edge of this world is the final foe, Jashiin.\nTo fight Jashiin, you must have the Sword of the Fairy Flame. And to get there, you must topple the invincible monster Alguien.',
+];
+// ─── Menu items (jpt_A110 order: go_outside, see_power, listen_knowledge, record_experience)
+const SAGE_MENU = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
+const SAGE_MENU_GO_OUTSIDE        = 0;
+const SAGE_MENU_SEE_POWER         = 1;
+const SAGE_MENU_LISTEN_KNOWLEDGE  = 2;
+const SAGE_MENU_RECORD_EXPERIENCE = 3;
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Layout — all measurements in canvas pixels (672×432 canvas, 24px tile grid)
+//  Matches screenshot: outer black panel, portrait box (yellow border), menu
+//  box, dialog box below both.
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+const SAGE_PANEL_X    = 0;
+const SAGE_PANEL_Y    = 0;
+const SAGE_PANEL_W    = VIEW_WIDTH;   // 672px
+const SAGE_PANEL_H    = 432;
+ 
+// Portrait sub-panel (left, yellow border)
+const SAGE_IMG_X      = SAGE_PANEL_X + 16;
+const SAGE_IMG_Y      = SAGE_PANEL_Y + 16;
+const SAGE_IMG_W      = 291;
+const SAGE_IMG_H      = 192;
+ 
+// Menu sub-panel (right of portrait)
+const SAGE_MENU_X     = SAGE_IMG_X + SAGE_IMG_W + 16;
+const SAGE_MENU_Y     = SAGE_IMG_Y;
+const SAGE_MENU_W     = SAGE_PANEL_X + SAGE_PANEL_W - SAGE_MENU_X - 16;
+const SAGE_MENU_H     = SAGE_IMG_H;
+ 
+// Dialog box (full width, below both sub-panels)
+const SAGE_DLG_X      = SAGE_PANEL_X + 16;
+const SAGE_DLG_Y      = SAGE_IMG_Y + SAGE_IMG_H + 16;
+const SAGE_DLG_W      = SAGE_PANEL_W - 32;
+const SAGE_DLG_H      = SAGE_PANEL_Y + SAGE_PANEL_H - SAGE_DLG_Y - 16;
+ 
+// Typography
+const SAGE_FONT_MENU  = '12px "Press Start 2P", monospace';
+const SAGE_FONT_DLG   = '12px "Press Start 2P", monospace';
+const SAGE_LINE_H_MENU = 22;
+const SAGE_LINE_H_DLG  = 20;
+const SAGE_DLG_TEXT_X  = SAGE_DLG_X + 14;
+const SAGE_DLG_TEXT_Y  = SAGE_DLG_Y + 22;
+const SAGE_MENU_TEXT_X = SAGE_MENU_X + 22;
+const SAGE_MENU_TEXT_Y = SAGE_MENU_Y + 18;
+const SAGE_CURSOR_X    = SAGE_MENU_X + 8;
+ 
+// Typewriter speed (ms per character) — matches KING_DIALOG_CHAR_MS style
+const SAGE_CHAR_MS    = 28;
+ 
+// Fade timings (ms)
+const SAGE_FADE_IN_MS  = 600;
+const SAGE_FADE_OUT_MS = 450;
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Module-level JS state  (mirrors kenjpro segment internal variables)
+//  These are deliberately NOT in WASM memory — they are overlay-private.
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+let sageImage      = null;    // HTMLImageElement, loaded once
+let sageImageReady = false;
+ 
+/**
+ * sageState — all kenjpro.asm internal variables as plain JS fields.
+ *
+ * Mapping to original ASM names:
+ *   menuSel         ← menu_item_selected  (byte_BB14)
+ *   hasPower        ← byte_BB15  (non-0 = power ritual has been initiated)
+ *   powerExhausted  ← byte_BB16  (non-0 = power already fully granted this level)
+ *   levelUpReady    ← byte_BB17  (non-0 = XP+level check passed, upgrade queued)
+ *   animRun         ← byte_BB18  (non-0 = orb animation playing)
+ *   animSuppressed  ← byte_BB19  (non-0 = tick suppressor active during anim)
+ *   animPhaseDone   ← byte_BB1A
+ *   crystalMode     ← byte_BB1B  (0 = eye blink tiles, non-0 = crystal tiles)
+ *   animFrameCtr    ← byte_BB1C  (mod-16 frame counter)
+ *   animTickDir     ← byte_BB1D  (tick direction / step)
+ *   blinkFrameCtr   ← byte_BB1E  (bit0 alternates blink tile)
+ *   blinkPhaseCtr   ← byte_BB1F  (counts to 20 between blink flips)
+ *   blinkPhase      ← byte_BB20  (counts to 20 for the idle blink)
+ *   dialogPos       ← word_BB12  (CGA screen address of portrait, 0x0717/0xE17)
+ *   saveNameBuf     ← byte_BB27[0..6]  (save-slot name buffer)
+ *   saveNameLen     ← byte_BB25
+ *   saveNameHasData ← byte_BB26
+ *
+ * Additional JS-only fields for scene flow:
+ *   phase           — 'loading' | 'intro' | 'greeting' | 'menu' | 'dialog' | 'power_anim'
+ *   dialogLines     — string[]  (pre-wrapped lines of current message)
+ *   dialogStart     — DOMHighResTimeStamp  (when typewriter began)
+ *   dialogDone      — bool
+ *   exitAfterDialog — bool  (set by Go Outside to close scene on next Space)
+ *   townIdx         — 0-based town index derived from PLACE_MAP_ID
+ */
+let sageState = _makeSageState();
+ 
+function _makeSageState() {
+    return {
+        // kenjpro internal vars (all start at 0, reset on each scene entry)
+        menuSel:        0,
+        hasPower:       false,
+        powerExhausted: false,
+        levelUpReady:   false,
+        animRun:        false,
+        animSuppressed: false,
+        animPhaseDone:  false,
+        crystalMode:    false,
+        animFrameCtr:   0,
+        animTickDir:    0,
+        blinkFrameCtr:  0,
+        blinkPhaseCtr:  0,
+        blinkPhase:     0,
+        dialogPos:      0x0717,   // word_BB12: default = first-entry position
+        saveNameBuf:    '',
+        saveNameLen:    0,
+        saveNameHasData: false,
+        // Scene-flow (JS-only)
+        phase:          'loading',
+        dialogLines:    [],
+        dialogStart:    0,
+        dialogDone:     false,
+        exitAfterDialog: false,
+        townIdx:        0,
+    };
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  WASM save-state accessors  (only the fields that cross the boundary)
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function sageGetTownIdx() {
+    // PLACE_MAP_ID (0xC4) is the 0-based place index; 
+    // town_id in ASM is 1-based (castle is not a town and does not have a Sage)
+    // Sage town index is PLACE_MAP_ID -1 → 0-based index into SAGE_NAMES.
+    if (!readMemory) return 0;
+    return Math.max(0, Math.min(7, (readMemory(PLACE_MAP_ID, 1)[0] & 0x7F) - 1));
+}
+ 
+function sageGetHeroLevel() {
+    if (!readMemory) return 1;
+    return readMemory(ADDR_HERO_LEVEL, 1)[0] || 1;
+}
+ 
+function sageGetHeroXp() {
+    if (!readMemory) return 0;
+    const b = readMemory(ADDR_HERO_XP, 2);
+    return b[0] | (b[1] << 8);
+}
+ 
+function sageGetSpokenBits() {
+    if (!readMemory) return 0;
+    return readMemory(ADDR_SAGES_SPOKEN, 1)[0];
+}
+ 
+function sageSetSpokenBit(bit) {
+    if (!writeMemory) return;
+    writeMemory(ADDR_SAGES_SPOKEN, [sageGetSpokenBits() | bit]);
+}
+ 
+function sageApplyLevelUp() {
+    // Mirrors sub_A2B4 (simplified): increment level, drain XP threshold, restore HP.
+    if (!readMemory || !writeMemory) return;
+    let lvl = sageGetHeroLevel();
+    if (lvl < 0xFE) lvl++;
+    writeMemory(ADDR_HERO_LEVEL, [lvl]);
+    // Drain the XP threshold that was spent (sub ds:hero_xp, ax in ASM).
+    // For simplicity: zero XP (original also caps to threshold-1 if still above).
+    writeMemory(ADDR_HERO_XP, [0, 0]);
+    // HP restore is handled by Draw_Hero_Max_Health / Draw_Hero_Health in original;
+    // here we just flag it — the HUD renders from WASM memory automatically.
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Image loader
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function loadSageImage() {
+    if (sageImageReady) return Promise.resolve(sageImage);
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload  = () => { sageImage = img; sageImageReady = true; resolve(img); };
+        img.onerror = () => reject(new Error(`Failed to load ${SAGE_IMAGE_PATH}`));
+        img.src = SAGE_IMAGE_PATH;
+    });
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Text helpers
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+/** Word-wrap `text` (respects \n) to fit `maxW` canvas pixels at current font. */
+function sageWrapText(text, maxW) {
+    const lines = [];
+    for (const para of text.split('\n')) {
+        const words = para.split(' ');
+        let line = '';
+        for (const word of words) {
+            const candidate = line ? `${line} ${word}` : word;
+            if (line && ctx.measureText(candidate).width > maxW) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = candidate;
+            }
+        }
+        if (line) lines.push(line);
+    }
+    return lines;
+}
+ 
+function sageSetDialog(text) {
+    ctx.save();
+    ctx.font = SAGE_FONT_DLG;
+    sageState.dialogLines = sageWrapText(text, SAGE_DLG_W - 28);
+    ctx.restore();
+    sageState.dialogStart = performance.now();
+    sageState.dialogDone  = false;
+}
+ 
+function sageDialogTotalChars() {
+    return sageState.dialogLines.reduce((s, l) => s + l.length, 0);
+}
+ 
+function sageVisibleChars(now) {
+    const elapsed = now - sageState.dialogStart;
+    return Math.min(sageDialogTotalChars(), Math.floor(elapsed / SAGE_CHAR_MS));
+}
+ 
+function sageSkipTypewriter(now) {
+    // Fast-forward typewriter to end
+    sageState.dialogStart = now - sageDialogTotalChars() * SAGE_CHAR_MS;
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Scene entry  (called from startIndoorScene when destId === TOWN_BUILDING_SAGE)
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function startSageScene() {
+    // Reset all internal state (kenjpro module is re-entered each time)
+    sageState = _makeSageState();
+    sageState.townIdx = sageGetTownIdx();
+ 
+    // word_BB12: sub_A006 sets it to 0x0E17 (death entry), loc_A027 sets 0x0717 (normal).
+    // We distinguish via ADDR_IS_DEATH_ALREADY_PROCESSED (readMemory already available).
+    const deathEntry = readMemory ? readMemory(ADDR_IS_DEATH_ALREADY_PROCESSED, 1)[0] : 0;
+    sageState.dialogPos = deathEntry ? 0x0E17 : 0x0717;
+ 
+    // Determine intro (sub_AC07): has this town's sage already spoken to hero?
+    const intro   = SAGE_INTROS[sageState.townIdx];
+    const spoken  = sageGetSpokenBits();
+    const isFirst = intro && !(spoken & intro.bit);
+ 
+    loadSageImage()
+        .then(() => {
+            if (!indoorScene.active || indoorScene.destId !== TOWN_BUILDING_SAGE) return;
+ 
+            if (deathEntry) {
+                // sub_A006 path: hero was knocked out, different opening text (byte_BA67)
+                sageSetDialog(
+                    'While you were unconscious, the spirits brought you here.\n' +
+                    'Be careful not to exhaust yourself in battle.\n' +
+                    'Now be on your way. The spirits are looking after you.'
+                );
+                sageState.phase = 'intro';   // after Space → go outside automatically
+                sageState.exitAfterDialog = true;
+            } else if (isFirst) {
+                // First visit: sage introduces itself (sub_AC07 sets bit in sages_spoken)
+                sageSetSpokenBit(intro.bit);
+                sageSetDialog(intro.text);
+                sageState.phase = 'intro';
+            } else {
+                // Returning visit: straight to greeting + menu (byte_AD9D)
+                sageSetDialog('How can I help you, Brave One?');
+                sageState.phase = 'greeting';
+            }
+ 
+            indoorScene.phase     = 'fadeIn';
+            indoorScene.phaseStart = performance.now();
+        })
+        .catch(err => {
+            console.error('[sage] failed to load image:', err);
+            finishIndoorScene();
+        });
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Input handlers
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+/** Called from requestExitIndoorScene() when destId === TOWN_BUILDING_SAGE. */
+function handleSageSpacePress() {
+    const now = performance.now();
+ 
+    if (indoorScene.phase === 'fadeOut') return;
+    if (indoorScene.phase === 'fadeIn')  return;   // ignore Space while fading in
+ 
+    // ── Typewriter still running — skip to end ──────────────────────────────
+    if (!sageState.dialogDone) {
+        sageSkipTypewriter(now);
+        return;
+    }
+ 
+    // ── Power animation running — suppress Space (byte_BB19 suppressor) ─────
+    if (sageState.animRun && sageState.animSuppressed) return;
+ 
+    // ── Phase transitions ────────────────────────────────────────────────────
+    switch (sageState.phase) {
+        case 'intro':
+            if (sageState.exitAfterDialog) {
+                // Death-entry: exit the scene after the opening text
+                _sageStartFadeOut(now);
+            } else {
+                // Normal first-visit intro → greeting → menu
+                sageSetDialog('How can I help you, Brave One?');
+                sageState.phase = 'greeting';
+            }
+            break;
+ 
+        case 'greeting':
+            sageState.phase = 'menu';
+            break;
+ 
+        case 'menu':
+            _sageActivateMenuItem(sageState.menuSel, now);
+            break;
+ 
+        case 'dialog':
+            if (sageState.exitAfterDialog) {
+                _sageStartFadeOut(now);
+            } else {
+                // byte_ADBF: "Is there anything else I can do for you?"
+                sageSetDialog('Is there anything else I can do for you?');
+                sageState.phase = 'greeting';
+            }
+            break;
+ 
+        case 'power_anim':
+            // Space skips back to menu after power animation
+            sageState.animRun       = false;
+            sageState.animSuppressed = false;
+            sageState.phase = 'menu';
+            break;
+    }
+}
+ 
+/** Called from keydown for ArrowUp / ArrowDown when sage scene is active. */
+function handleSageArrow(dir) {
+    if (!indoorScene.active || indoorScene.destId !== TOWN_BUILDING_SAGE) return false;
+    if (sageState.phase !== 'menu') return false;
+ 
+    const n = SAGE_MENU.length;
+    sageState.menuSel = (sageState.menuSel + dir + n) % n;
+    return true;
+}
+ 
+function _sageStartFadeOut(now) {
+    indoorScene.phase      = 'fadeOut';
+    indoorScene.phaseStart = now;
+    indoorScene.fadeStartAlpha = 1;
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Menu action dispatch  (mirrors jpt_A110)
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function _sageActivateMenuItem(sel, now) {
+    // sub_A983 clears the dialog area before each action (we just replace text)
+    switch (sel) {
+        case SAGE_MENU_GO_OUTSIDE:        _sageGoOutside(now);        break;
+        case SAGE_MENU_SEE_POWER:         _sageSeePower(now);         break;
+        case SAGE_MENU_LISTEN_KNOWLEDGE:  _sageListenKnowledge(now);  break;
+        case SAGE_MENU_RECORD_EXPERIENCE: _sageRecordExperience(now); break;
+        default:                          _sageGoOutside(now);
+    }
+}
+ 
+// ── on_go_outside ─────────────────────────────────────────────────────────────
+// byte_ADEB: "The Spirits are with you."  then 0x11 (fade+exit)
+function _sageGoOutside(now) {
+    sageSetDialog('The Spirits are with you.');
+    sageState.phase          = 'dialog';
+    sageState.exitAfterDialog = true;
+}
+ 
+// ── on_see_power ──────────────────────────────────────────────────────────────
+// Mirrors the byte_BB15/BB16/BB17 decision tree exactly.
+function _sageSeePower(now) {
+    if (!sageState.hasPower) {
+        // First call: initiate the power ritual (byte_BB18/BB19/BB1B set to 0xFF)
+        sageState.hasPower       = true;
+        sageState.animRun        = true;
+        sageState.animSuppressed = true;
+        sageState.crystalMode    = true;
+ 
+        // Run sub_A22E to determine outcome
+        const result = _sageCheckLevelUp();
+        sageState.levelUpReady = (result >= 4);
+ 
+        sageSetDialog('I shall call upon the Spirits and their powers.....');
+        sageState.phase = 'power_anim';
+        return;
+    }
+ 
+    if (sageState.powerExhausted) {
+        // byte_AE42: spirits no longer respond
+        sageSetDialog('I fear the spirits are no longer with you. No matter how many times I try, it comes out the same.');
+        sageState.phase          = 'dialog';
+        sageState.exitAfterDialog = false;
+        return;
+    }
+ 
+    // Power was already initiated — show result (off_B029 lookup)
+    const result = _sageCheckLevelUp();
+    _sageShowPowerResult(result);
+}
+ 
+/**
+ * Mirrors sub_A22E: returns 0..4
+ *  0 = XP < threshold/4      "Your experience is lacking"
+ *  1 = XP < threshold/2      "You must accumulate more experience"
+ *  2 = XP < threshold*3/4    "I can see the faint light"
+ *  3 = XP >= threshold*3/4   "The light is bursting forth" (but level check fails)
+ *  4 = XP >= threshold AND level >= town minimum  → level-up granted
+ */
+function _sageCheckLevelUp() {
+    let lvl  = sageGetHeroLevel();
+    if (lvl > 15) lvl = 15;
+    const threshold = SAGE_XP_TABLE[lvl] ?? 60000;
+    const xp        = sageGetHeroXp();
+ 
+    const q1 = Math.floor(threshold / 4);
+    const q2 = Math.floor(threshold / 2);
+    const q3 = threshold - q1;
+ 
+    if (xp < q1) return 0;
+    if (xp < q2) return 1;
+    if (xp < q3) return 2;
+ 
+    // XP ≥ 3/4 threshold — check town minimum level (byte_A2AC)
+    const minLvl = SAGE_MIN_LEVEL_BY_TOWN[sageState.townIdx] ?? 0xFF;
+    if (lvl < minLvl) return 3;   // not high enough level yet
+ 
+    return 4;   // level-up granted
+}
+ 
+function _sageShowPowerResult(result) {
+    // off_B029 table (5 strings indexed 0-4)
+    const texts = [
+        'Your experience is lacking. Persevere in your quest.',
+        'You must accumulate more experience.',
+        'I can see the faint light of the Spirits in you. You must endure a little longer.',
+        'The light of the Spirits is bursting forth within you.',
+        '',  // result 4: level-up — handled separately below
+    ];
+ 
+    if (result === 4) {
+        // Level-up: aIndeedYourPowerHasGrown
+        sageState.levelUpReady  = true;
+        sageState.powerExhausted = true;
+        sageApplyLevelUp();
+        renderGoldHud?.();
+        sageSetDialog('The light of the Spirits is bursting forth within you. Indeed, your power has grown.');
+    } else if (result === 3 && sageState.levelUpReady) {
+        // byte_AF03: already at max power for this sage
+        sageState.powerExhausted = true;
+        sageSetDialog('I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.');
+    } else {
+        sageSetDialog(texts[result] ?? texts[0]);
+    }
+    sageState.phase          = 'dialog';
+    sageState.exitAfterDialog = false;
+}
+ 
+// ── on_listen_knowledge ───────────────────────────────────────────────────────
+// off_B5EB table → one entry per town (byte_ADBF follows: "Is there anything else")
+function _sageListenKnowledge(now) {
+    const text = SAGE_KNOWLEDGE[sageState.townIdx] ?? 'The Spirits guide your path.';
+    sageSetDialog(text);
+    sageState.phase          = 'dialog';
+    sageState.exitAfterDialog = false;
+}
+ 
+// ── on_record_experience ──────────────────────────────────────────────────────
+// sub_A427: scan save slots, prompt for name, write to disk.
+// In the web port we delegate to saveGame() and show the confirmation text.
+function _sageRecordExperience(now) {
+    let saved = false;
+    if (readMemory) {
+        try {
+            const mem = readMemory(0, 256);
+            // saveGame expects exactly 256 bytes starting at offset 0 of the save area
+            saveGame(mem);
+            saved = true;
+        } catch (e) {
+            console.error('[sage] saveGame failed:', e);
+        }
+    }
+    // byte_AF7C: "I shall record your experiences."  (success)
+    // On failure, still show it — disk errors not surfaced in the web port.
+    sageSetDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+    sageState.phase          = 'dialog';
+    sageState.exitAfterDialog = false;
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Drawing
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+/** Called from drawIndoorScene() when destId === TOWN_BUILDING_SAGE. */
+function drawSageHutScene(now) {
+    // ── Resolve alpha from the outer fade managed by drawIndoorScene ──────────
+    let alpha = 1;
+    if (indoorScene.phase === 'fadeIn') {
+        alpha = Math.min(1, (now - indoorScene.phaseStart) / SAGE_FADE_IN_MS);
+        if (alpha >= 1) indoorScene.phase = 'shown';
+    } else if (indoorScene.phase === 'fadeOut') {
+        const t = Math.min(1, (now - indoorScene.phaseStart) / SAGE_FADE_OUT_MS);
+        alpha = 1 - t;
+        if (t >= 1) { finishIndoorScene(); return false; }
+    }
+ 
+    ctx.save();
+    ctx.globalAlpha = alpha;
+ 
+    // ── Canvas background ─────────────────────────────────────────────────────
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+ 
+     // ── Portrait box (yellow border, matching screenshot) ─────────────────────
+    ctx.strokeStyle = '#cc0';
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(SAGE_IMG_X - 2, SAGE_IMG_Y - 2, SAGE_IMG_W + 4, SAGE_IMG_H + 4);
+    ctx.fillStyle = '#0a0a18';
+    ctx.fillRect(SAGE_IMG_X, SAGE_IMG_Y, SAGE_IMG_W, SAGE_IMG_H);
+ 
+    if (sageImageReady && sageImage) {
+        ctx.drawImage(sageImage, SAGE_IMG_X, SAGE_IMG_Y, SAGE_IMG_W, SAGE_IMG_H);
+    }
+ 
+    // Crystal / orb glow animation (sub_AB47: alternates between tile pairs)
+    // byte_BB1B=0 → eye-blink tiles (0x29/0x2A), non-0 → crystal tiles (0x67/0x68)
+    _sageDrawOrbAnimation(now, alpha);
+ 
+    ctx.textAlign = 'left';
+ 
+    // ── Menu box ──────────────────────────────────────────────────────────────
+    _sageBorder(SAGE_MENU_X - 2, SAGE_MENU_Y - 2, SAGE_MENU_W + 4, SAGE_MENU_H + 4, '#eee', '#888');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(SAGE_MENU_X, SAGE_MENU_Y, SAGE_MENU_W, SAGE_MENU_H);
+ 
+    if (sageState.phase === 'menu') {
+        ctx.font = SAGE_FONT_MENU;
+        for (let i = 0; i < SAGE_MENU.length; i++) {
+            const y   = SAGE_MENU_TEXT_Y + i * SAGE_LINE_H_MENU;
+            const sel = i === sageState.menuSel;
+            ctx.fillStyle = sel ? '#ff0' : '#fff';
+            ctx.fillText(SAGE_MENU[i], SAGE_MENU_TEXT_X, y);
+            if (sel) {
+                // Red right-pointing triangle cursor (▶)
+                ctx.fillStyle = '#f00';
+                _sageTriangle(SAGE_CURSOR_X, y - 9, 10, 9, false);
+            }
+        }
+    }
+ 
+    // ── Dialog box ────────────────────────────────────────────────────────────
+    _sageBorder(SAGE_DLG_X - 2, SAGE_DLG_Y - 2, SAGE_DLG_W + 4, SAGE_DLG_H + 4, '#aaa', '#555');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(SAGE_DLG_X, SAGE_DLG_Y, SAGE_DLG_W, SAGE_DLG_H);
+ 
+    // Typewriter
+    const visChars   = sageVisibleChars(now);
+    const totalChars = sageDialogTotalChars();
+    if (!sageState.dialogDone && visChars >= totalChars) sageState.dialogDone = true;
+ 
+    ctx.font      = SAGE_FONT_DLG;
+    ctx.fillStyle = '#fff';
+    let remaining = visChars;
+    for (let i = 0; i < sageState.dialogLines.length; i++) {
+        if (remaining <= 0) break;
+        const line    = sageState.dialogLines[i];
+        const visible = line.slice(0, Math.min(line.length, remaining));
+        ctx.fillText(visible, SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y + i * SAGE_LINE_H_DLG);
+        remaining -= line.length;
+    }
+ 
+    // ▼ prompt when text is fully shown (matches DIALOG_CURSOR_CHAR usage in town dialog)
+    if (sageState.dialogDone && sageState.dialogLines.length) {
+        ctx.fillStyle = '#0ee';
+        _sageTriangle(
+            SAGE_DLG_X + SAGE_DLG_W - 20,
+            SAGE_DLG_Y + SAGE_DLG_H - 18,
+            14, 10, true   // downward
+        );
+    }
+ 
+    ctx.restore();
+    return true;
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Orb / crystal animation  (mirrors sub_AB47 + sub_AA16 tick logic)
+//
+//  Original draws alternating tile pairs at the orb position (bx = word_BB12 + 0x718).
+//  We replicate the visible effect with a JS-driven radial glow that pulses
+//  between two states (crystalMode selects colour palette, blinkFrameCtr selects
+//  which of the two tiles in the pair is shown).
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function _sageDrawOrbAnimation(now, parentAlpha) {
+    // Orb sits at roughly centre-lower of the portrait box
+    const orbX = SAGE_IMG_X + SAGE_IMG_W * 0.508;
+    const orbY = SAGE_IMG_Y + SAGE_IMG_H * 0.604;
+ 
+    // Idle blink (byte_BB18 = 0): eye / orb gentle pulse
+    // Active power anim (byte_BB18 != 0): bright flashing crystal
+    const t = now / 1000;
+    let glowColor, glowR, glowAlpha;
+ 
+    if (sageState.animRun) {
+        // Crystal mode (byte_BB1B set): rapid alternating tiles 0x67/0x68
+        const blinkOn = Math.floor(now / 150) % 2 === 0;
+        glowColor  = blinkOn ? '#fff' : '#88f';
+        glowR      = 28;
+        glowAlpha  = 0.65;
+    } else {
+        // Idle / eye-blink mode: slow sinusoidal pulse
+        const pulse = 0.18 + 0.12 * Math.sin(t * 2.1);
+        glowColor   = sageState.crystalMode ? '#aaf' : '#8ff';
+        glowR       = 20;
+        glowAlpha   = pulse;
+    }
+ 
+    ctx.save();
+    ctx.globalAlpha = glowAlpha * parentAlpha;
+    const grad = ctx.createRadialGradient(orbX, orbY, 2, orbX, orbY, glowR);
+    grad.addColorStop(0, glowColor);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(orbX, orbY, glowR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Drawing utilities
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function _sageBorder(x, y, w, h, outer, inner) {
+    ctx.lineWidth   = 2;
+    ctx.strokeStyle = outer;
+    ctx.strokeRect(x, y, w, h);
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = inner;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+}
+ 
+/** Filled triangle: right-pointing (down=false) or down-pointing (down=true). */
+function _sageTriangle(x, y, w, h, down) {
+    ctx.beginPath();
+    if (down) {
+        ctx.moveTo(x,         y);
+        ctx.lineTo(x + w,     y);
+        ctx.lineTo(x + w / 2, y + h);
+    } else {
+        ctx.moveTo(x,     y);
+        ctx.lineTo(x + w, y + h / 2);
+        ctx.lineTo(x,     y + h);
+    }
+    ctx.closePath();
+    ctx.fill();
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Status-bar name helper  (used by integration point 6 in drawIndoorScene)
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+function sageCurrentName() {
+    return SAGE_NAMES[sageState.townIdx] ?? 'The Sage';
 }
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
@@ -813,6 +1542,10 @@ window.addEventListener('keydown', e => {
         if (e.repeat) return;
         requestExitIndoorScene();
         return;
+    }
+    if (indoorScene.active && indoorScene.destId === TOWN_BUILDING_SAGE) {
+        if (e.code === 'ArrowUp')   { handleSageArrow(-1); return; }
+        if (e.code === 'ArrowDown') { handleSageArrow( 1); return; }
     }
 
     if (e.code === 'Space')                       keys.Space     = true;
@@ -1982,7 +2715,9 @@ function checkBuildingRequest() {
 }
 
 function startIndoorScene(destId) {
-    if (destId !== TOWN_BUILDING_KING && destId !== TOWN_BUILDING_PRINCESS) {
+    if (destId !== TOWN_BUILDING_KING && 
+        destId !== TOWN_BUILDING_PRINCESS &&
+        destId !== TOWN_BUILDING_SAGE) {
         console.warn(`[building] destination ${destId} is not implemented yet`);
         townFinishBuilding?.();
         return;
@@ -1996,6 +2731,11 @@ function startIndoorScene(destId) {
     indoorScene.fadeStartAlpha = 0;
     indoorScene.image = null;
     indoorScene.king = null;
+
+    if (destId === TOWN_BUILDING_SAGE) {
+        startSageScene();
+        return;
+    }
 
     if (destId === TOWN_BUILDING_PRINCESS) {
         loadPrincessChamberImage()
@@ -2041,6 +2781,10 @@ function requestExitIndoorScene() {
     if (!indoorScene.active || indoorScene.phase === 'fadeOut') return;
     if (indoorScene.destId === TOWN_BUILDING_KING) {
         advanceKingDialog();
+        return;
+    }
+    if (indoorScene.destId === TOWN_BUILDING_SAGE) {
+        handleSageSpacePress();
         return;
     }
 
@@ -2095,7 +2839,10 @@ function finishIndoorScene() {
 function drawIndoorScene() {
     if (!indoorScene.active) return false;
 
-    updateElementText('currentMapName', TOWN_BUILDING_NAMES[indoorScene.destId] ?? '');
+    updateElementText('currentMapName',
+        indoorScene.destId === TOWN_BUILDING_SAGE
+            ? sageCurrentName()
+            : (TOWN_BUILDING_NAMES[indoorScene.destId] ?? ''));
 
     const now = performance.now();
     const fadeInMs = 650;
@@ -2103,6 +2850,9 @@ function drawIndoorScene() {
 
     if (indoorScene.destId === TOWN_BUILDING_KING) {
         return drawKingPalaceScene(now);
+    }
+    if (indoorScene.destId === TOWN_BUILDING_SAGE) {
+        return drawSageHutScene(now);
     }
 
     if (indoorScene.phase === 'fadeIn') {
