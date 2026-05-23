@@ -77,6 +77,14 @@ const ITEMP_SWORD_IMAGE_PATHS = [
     'assets/images/itemp/illumination_sword.png',
     'assets/images/itemp/enchantment_sword.png',
 ];
+const ITEMP_SHIELD_IMAGE_PATHS = [
+    'assets/images/itemp/clay_shield.png',
+    'assets/images/itemp/wiseman_shield.png',
+    'assets/images/itemp/stone_shield.png',
+    'assets/images/itemp/honor_shield.png',
+    'assets/images/itemp/light_shield.png',
+    'assets/images/itemp/titanium_shield.png',
+];
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
 // soldier — 8 frames (48×72 each), all face viewer (looping idle)
@@ -431,6 +439,7 @@ const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
 const ADDR_SWORD_TYPE = 0x92;
+const ADDR_SHIELD_TYPE = 0x93;
 const TOWN_BUILDING_KING = 0;
 const TOWN_BUILDING_PRINCESS = 1;
 const TOWN_BUILDING_NAMES = {
@@ -1782,6 +1791,43 @@ function renderSwordHud() {
     const type = getHeroSwordType() - 1;
     const icon = document.getElementById("activeSwordIcon");
     icon.src = type >= 0 && swordIcons[type] ? swordIcons[type].src : "";
+}
+
+async function loadShieldIcons() {
+    if (shieldIconsReady) return Promise.resolve(shieldIcons);
+
+    const loads = ITEMP_SHIELD_IMAGE_PATHS.map((path, index) => {
+        if (!path) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${path}`));
+            img.src = path;
+        }).then(img => {
+            shieldIcons[index] = img;
+            return img;
+        });
+    });
+
+    await Promise.all(loads);
+    shieldIconsReady = true;
+    return shieldIcons;
+}
+
+function getHeroShieldType() {
+    if (!readMemory) return 0;
+    return readMemory(ADDR_SHIELD_TYPE, 1)[0];
+}
+
+function setHeroShieldType(type) {
+    if (!writeMemory) return;
+    writeMemory(ADDR_SHIELD_TYPE, [type]);
+}
+
+function renderShieldHud() {
+    const type = getHeroShieldType() - 1;
+    const icon = document.getElementById("activeShieldIcon");
+    icon.src = type >= 0 && shieldIcons[type] ? shieldIcons[type].src : "";
 }
 
 function startKingFirstAudienceGift() {
