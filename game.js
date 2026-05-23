@@ -668,14 +668,14 @@ const SAGE_DLG_W      = SAGE_PANEL_W - 32;
 const SAGE_DLG_H      = SAGE_PANEL_Y + SAGE_PANEL_H - SAGE_DLG_Y - 16;
  
 // Typography
-const SAGE_FONT_MENU  = '12px "Press Start 2P", monospace';
-const SAGE_FONT_DLG   = '12px "Press Start 2P", monospace';
-const SAGE_LINE_H_MENU = 22;
+const SAGE_FONT_MENU  = '16px "Press Start 2P", monospace';
+const SAGE_FONT_DLG   = '14px "Press Start 2P", monospace';
+const SAGE_LINE_H_MENU = 40;
 const SAGE_LINE_H_DLG  = 20;
 const SAGE_DLG_TEXT_X  = SAGE_DLG_X + 14;
 const SAGE_DLG_TEXT_Y  = SAGE_DLG_Y + 22;
-const SAGE_MENU_TEXT_X = SAGE_MENU_X + 22;
-const SAGE_MENU_TEXT_Y = SAGE_MENU_Y + 18;
+const SAGE_MENU_TEXT_X = SAGE_MENU_X + 32;
+const SAGE_MENU_TEXT_Y = SAGE_MENU_Y + 40;
 const SAGE_CURSOR_X    = SAGE_MENU_X + 8;
  
 // Typewriter speed (ms per character) — matches KING_DIALOG_CHAR_MS style
@@ -926,13 +926,14 @@ function handleSageSpacePress() {
     if (indoorScene.phase === 'fadeIn')  return;   // ignore Space while fading in
  
     // ── Typewriter still running — skip to end ──────────────────────────────
+    // byte_BB19 (animSuppressed) mirrors the original suppressor that blocked input
+    // while the power animation was playing AND the text was still printing.
+    // Once dialogDone is true the player must always be able to advance.
     if (!sageState.dialogDone) {
+        if (sageState.animRun && sageState.animSuppressed) return; // still animating, wait
         sageSkipTypewriter(now);
         return;
     }
- 
-    // ── Power animation running — suppress Space (byte_BB19 suppressor) ─────
-    if (sageState.animRun && sageState.animSuppressed) return;
  
     // ── Phase transitions ────────────────────────────────────────────────────
     switch (sageState.phase) {
@@ -966,10 +967,11 @@ function handleSageSpacePress() {
             break;
  
         case 'power_anim':
-            // Space skips back to menu after power animation
-            sageState.animRun       = false;
+            // Typewriter for "I shall call upon..." is done; stop the animation
+            // and reveal the result (mirrors the ASM transition after sub_AB47 finishes).
+            sageState.animRun        = false;
             sageState.animSuppressed = false;
-            sageState.phase = 'menu';
+            _sageShowPowerResult(_sageCheckLevelUp());
             break;
     }
 }
@@ -1189,7 +1191,7 @@ function drawSageHutScene(now) {
             if (sel) {
                 // Red right-pointing triangle cursor (▶)
                 ctx.fillStyle = '#f00';
-                _sageTriangle(SAGE_CURSOR_X, y - 9, 10, 9, false);
+                _sageTriangle(SAGE_CURSOR_X, y - 18, 10, 18, false);
             }
         }
     }
@@ -1219,9 +1221,9 @@ function drawSageHutScene(now) {
     if (sageState.dialogDone && sageState.dialogLines.length) {
         ctx.fillStyle = '#0ee';
         _sageTriangle(
-            SAGE_DLG_X + SAGE_DLG_W - 20,
+            SAGE_DLG_X + SAGE_DLG_W/2 - 20,
             SAGE_DLG_Y + SAGE_DLG_H - 18,
-            14, 10, true   // downward
+            18, 10, true   // downward
         );
     }
  
