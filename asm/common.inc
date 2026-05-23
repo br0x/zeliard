@@ -282,7 +282,7 @@ magic_items                 equ   0a6h  ; A6 - AA - 5 slots for Items
                                         ; 06 - Holy Water of Acero
                                         ; 07 - Sabre Oil
                                         ; 08 - Kioku Feather
-spells_espada               equ   0abh  ; Espada, default:12
+spells_espada               equ   0abh  ; Espada, default:12 (number of spells left)
 spells_saeta                equ   0ach  ; Saeta, default: 6
 spells_fuego                equ   0adh  ; Fuego, default: 8
 spells_lanzar               equ   0aeh  ; Lanzar, default: 4
@@ -290,7 +290,7 @@ spells_rascar               equ   0afh  ; Rascar, default: 3
 spells_agua                 equ   0b0h  ; Agua, default: 4
 spells_guerra               equ   0b1h  ; Guerra, default: 3
 heroMaxHp                   equ   0b2h
-espada_count                equ   0b4h
+espada_count                equ   0b4h  ; in inventory
 saeta_count                 equ   0b5h
 fuego_count                 equ   0b6h
 lanzar_count                equ   0b7h

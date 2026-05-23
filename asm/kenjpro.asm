@@ -374,13 +374,11 @@ loc_A2C7:
                 mov     cx, 7
                 mov     si, espada_count
                 mov     di, offset byte_BB36
-
 loc_A2E9:
                 lodsb
                 add     al, 2
                 jnb     short loc_A2F0
                 mov     al, 0FFh
-
 loc_A2F0:
                 stosb
                 loop    loc_A2E9

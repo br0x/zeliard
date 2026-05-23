@@ -6174,7 +6174,7 @@ circle          dw 102h
 ; =============== S U B R O U T I N E =======================================
 
 
-magic_spell_fire_handler proc near      ; ...
+magic_spell_fire_handler proc near
                 test    byte ptr ds:current_magic_spell, 0FFh
                 jnz     short loc_87B8
                 retn
@@ -6224,7 +6224,7 @@ loc_8805:
 ; ---------------------------------------------------------------------------
 
 loc_880B:        
-                mov     bl, ds:current_magic_spell
+                mov     bl, ds:current_magic_spell  ; 1..7
                 dec     bl
                 xor     bh, bh
                 test    byte ptr ds:spells_espada[bx], 0FFh
@@ -6239,17 +6239,17 @@ loc_881B:
                 mov     si, offset magic_projectiles
                 mov     byte ptr ds:byte_FF3E, 0FFh
                 mov     bl, ds:current_magic_spell
-                dec     bl
+                dec     bl  ; 0..6
                 xor     bh, bh
                 add     bx, bx
                 jmp     ds:funcs_883B[bx]
 magic_spell_fire_handler endp
 
 ; ---------------------------------------------------------------------------
-funcs_883B      dw offset init_magic_projectile ; ...
-                dw offset init_magic_projectile
-                dw offset init_magic_projectile
-                dw offset init_magic_projectile
+funcs_883B      dw offset init_magic_projectile ; espada
+                dw offset init_magic_projectile ; saeta
+                dw offset init_magic_projectile ; fuego
+                dw offset init_magic_projectile ; lanzar
                 dw offset init_rascar
                 dw offset init_agua
                 dw offset init_guerra

@@ -85,6 +85,15 @@ const ITEMP_SHIELD_IMAGE_PATHS = [
     'assets/images/itemp/light_shield.png',
     'assets/images/itemp/titanium_shield.png',
 ];
+const ITEMP_MAGIC_IMAGE_PATHS = [
+    'assets/images/itemp/espada_magic.png',
+    'assets/images/itemp/saeta_magic.png',
+    'assets/images/itemp/fuego_magic.png',
+    'assets/images/itemp/lanzar_magic.png',
+    'assets/images/itemp/rascar_magic.png',
+    'assets/images/itemp/agua_magic.png',
+    'assets/images/itemp/guerra_magic.png',
+];
 // ─── NPC sprite config ────────────────────────────────────────────────────────
 // citizen — 8 frames (48×72 each), 0-3 face left, 4-7 face right
 // soldier — 8 frames (48×72 each), all face viewer (looping idle)
@@ -226,6 +235,10 @@ let heroSprite = null;
 let heroSpriteReady = false;
 let swordIcons = [];
 let swordIconsReady = false;
+let shieldIcons = [];
+let shieldIconsReady = false;
+let magicIcons = [];
+let magicIconsReady = false;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -440,6 +453,17 @@ const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
 const ADDR_SWORD_TYPE = 0x92;
 const ADDR_SHIELD_TYPE = 0x93;
+const ADDR_SHIELD_HP = 0x94;
+const ADDR_CURR_SPELL_TYPE = 0x9d;
+const ADDR_SPELL_COUNTS = [
+    0xab, // ESPADA
+    0xac, // SAETA
+    0xad, // FUEGO
+    0xae, // LANZAR
+    0xaf, // RASCAR
+    0xb0, // AGUA
+    0xb1  // GUERRA
+];
 const TOWN_BUILDING_KING = 0;
 const TOWN_BUILDING_PRINCESS = 1;
 const TOWN_BUILDING_NAMES = {
@@ -1824,11 +1848,77 @@ function setHeroShieldType(type) {
     writeMemory(ADDR_SHIELD_TYPE, [type]);
 }
 
+function getHeroShieldHP() {
+    if (!readMemory) return 0;
+
+    const hpBytes =  readMemory(ADDR_SHIELD_HP, 2);
+    return hpBytes[0] | (hpBytes[1] << 8);
+}
+
+function setHeroShieldHP(hp) {
+    if (!writeMemory) return;
+    writeMemory(ADDR_SHIELD_HP, [hp & 0xff, (hp >> 8) & 0xff]);
+}
+
 function renderShieldHud() {
     const type = getHeroShieldType() - 1;
     const icon = document.getElementById("activeShieldIcon");
     icon.src = type >= 0 && shieldIcons[type] ? shieldIcons[type].src : "";
+    updateElementText('shieldHp', type >= 0 ? getHeroShieldHP() : '');
 }
+
+async function loadMagicIcons() {
+    if (magicIconsReady) return Promise.resolve(magicIcons);
+
+    const loads = ITEMP_MAGIC_IMAGE_PATHS.map((path, index) => {
+        if (!path) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${path}`));
+            img.src = path;
+        }).then(img => {
+            magicIcons[index] = img;
+            return img;
+        });
+    });
+
+    await Promise.all(loads);
+    magicIconsReady = true;
+    return magicIcons;
+}
+
+function getHeroMagicType() {
+    if (!readMemory) return 0;
+    return readMemory(ADDR_CURR_SPELL_TYPE, 1)[0];
+}
+
+function setHeroMagicType(type) {
+    if (!writeMemory) return;
+    writeMemory(ADDR_CURR_SPELL_TYPE, [type]);
+}
+
+function getHeroMagicCount(type) {
+    if (!readMemory) return 0;
+    const idx = type - 1;
+    if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length) return 0;
+    return readMemory(ADDR_SPELL_COUNTS[idx], 1)[0];
+}
+
+function setHeroMagicCount(type, count) {
+    if (!writeMemory) return;
+    const idx = type - 1;
+    if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length || count < 0 || count > 255) return;
+    writeMemory(ADDR_SPELL_COUNTS[idx], [count]);
+}
+
+function renderMagicHud() {
+    const type0 = getHeroMagicType() - 1;
+    const icon = document.getElementById("activeSpellIcon");
+    icon.src = type0 >= 0 && magicIcons[type0] ? magicIcons[type0].src : "";
+    updateElementText('spellCounter', type0 >= 0 ? getHeroMagicCount(type0+1) : '');
+}
+
 
 function startKingFirstAudienceGift() {
     const king = indoorScene.king;
@@ -2135,6 +2225,8 @@ function draw() {
         renderGoldHud();
         updateElementText('almas', 0);
         renderSwordHud();
+        renderMagicHud();
+        renderShieldHud();
         return;
     }
 
@@ -2151,6 +2243,8 @@ function draw() {
         renderGoldHud();
         updateElementText('almas', 0);
         renderSwordHud();
+        renderMagicHud();
+        renderShieldHud();
 
         // Draw dialog on top if conversation active
         drawConversationDialog();

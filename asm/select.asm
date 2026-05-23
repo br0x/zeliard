@@ -653,25 +653,25 @@ item_full_heal:                               ;
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
-item_set_espada:                               ;
+item_set_espada:
                 mov     byte ptr ds:soundFX_request, 14
                 test    byte ptr ds:current_magic_spell, 0FFh
                 jnz     short loc_A4A3
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A4A3:                               ;
+loc_A4A3:
                 mov     bl, ds:current_magic_spell
                 dec     bl
                 xor     bh, bh
                 mov     al, [bx+espada_count]
                 mov     [bx+spells_espada], al
-                call    word ptr cs:2018h ; Print_Magic_Left_Decimal_proc
+                call    word ptr cs:Print_Magic_Left_Decimal_proc
                 call    Render_Magic_Counts_Panel
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
-item_refresh_all_spells:                               ;
+item_refresh_all_spells:
                 mov     byte ptr ds:soundFX_request, 14
                 push    cs
                 pop     es
@@ -679,12 +679,12 @@ item_refresh_all_spells:                               ;
                 mov     di, offset spells_espada
                 mov     cx, 7
                 rep movsb
-                call    word ptr cs:2018h ; Print_Magic_Left_Decimal_proc
+                call    word ptr cs:Print_Magic_Left_Decimal_proc
                 call    Render_Magic_Counts_Panel
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
 
-item_enchant_sword:                               ;
+item_enchant_sword:
                 mov     byte ptr ds:soundFX_request, 14
                 inc     byte ptr ds:byte_E4
                 call    Render_Enchantment_Count
