@@ -8,16 +8,19 @@ const SAGE_IMG_X = 16, SAGE_IMG_Y = 16, SAGE_IMG_W = 291, SAGE_IMG_H = 192;
 const SAGE_MENU_X = SAGE_IMG_X + SAGE_IMG_W + 16, SAGE_MENU_Y = SAGE_IMG_Y;
 const SAGE_MENU_W = SAGE_PANEL_W - SAGE_MENU_X - 16, SAGE_MENU_H = SAGE_IMG_H;
 const SAGE_DLG_X = 16, SAGE_DLG_Y = SAGE_IMG_Y + SAGE_IMG_H + 16;
-const SAGE_DLG_W = SAGE_PANEL_W - 32, SAGE_DLG_H = SAGE_PANEL_H - SAGE_DLG_Y - 16;
+const SAGE_DLG_W = SAGE_PANEL_W - 32;
+const SAGE_DLG_H = SAGE_PANEL_H - SAGE_DLG_Y - 16;
 const SAGE_FONT_MENU = '16px "Press Start 2P", monospace';
 const SAGE_FONT_DLG = '14px "Press Start 2P", monospace';
 const SAGE_LINE_H_MENU = 40, SAGE_LINE_H_DLG = 20;
 const SAGE_MENU_TEXT_X = SAGE_MENU_X + 32;
 const SAGE_MENU_TEXT_Y = SAGE_MENU_Y + 40;
 const SAGE_CURSOR_X = SAGE_MENU_X + 8;
-const SAGE_DLG_TEXT_X = SAGE_DLG_X + 14, SAGE_DLG_TEXT_Y = SAGE_DLG_Y + 22;
+const SAGE_DLG_TEXT_X = SAGE_DLG_X + 14;
+const SAGE_DLG_TEXT_Y = SAGE_DLG_Y + 22;
 const SAGE_CHAR_MS = 28;
 const SAGE_FADE_IN_MS = 600, SAGE_FADE_OUT_MS = 450;
+const POWER_LINE_DELAY_MS = 1200;  // delay between power lines
 
 const SAGE_MENU = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
 const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
@@ -70,9 +73,25 @@ export class SageScene extends IndoorSceneBase {
         this.exitAfterDialog = false;
         this.townIdx = 0;
         this.typewriter = null;
+        this.dlgBuffer = [];       // committed wrapped lines (fully typed)
+        this._pendingLine = null;  // line currently being typed
+        this._dlgQueue = [];       // pending lines for sequential _setDialog typing
+        this._dlgQueueIndex = 0;
+        this._dlgQueueAdvanceAt = null;
         this.fadeInMs = SAGE_FADE_IN_MS;
         this.fadeOutMs = SAGE_FADE_OUT_MS;
         this.modalOpen = false;
+
+        // For power sequence auto-advance
+        this.powerQueue = null;
+        this.powerQueueIndex = 0;
+        this.powerQueueSentenceEnds = new Set();
+        this.powerLineAdvanceAt = null;
+        this._powerWaitingScroll = false;
+        this._powerScrollNextLine = null;
+
+        // Whether the menu should be drawn dimmed (interactive actions in progress)
+        this.menuDimmed = false;
     }
 
     async onEnter(now) {
@@ -98,9 +117,9 @@ export class SageScene extends IndoorSceneBase {
             this.sagePhase = 'intro';
         } else {
             this._setDialog('How can I help you, Brave One?');
-            this.sagePhase = 'greeting';
+            this.sagePhase = 'menu';   // go directly to menu; no Space needed
         }
-        this.typewriter.start(now);
+        // _setDialog already calls typewriter.start(); no extra call needed
     }
 
     _loadImage() {
@@ -115,22 +134,129 @@ export class SageScene extends IndoorSceneBase {
     _getSpokenBits() { return this.readMemory?.(0xe5,1)[0] || 0; }
     _setSpokenBit(bit) { if (this.writeMemory) this.writeMemory(0xe5, [this._getSpokenBits() | bit]); }
 
+    // ── Dialog line buffer ────────────────────────────────────────────────────
+    // dlgBuffer: string[]  – fully-committed wrapped lines (already typed out)
+    // typewriter           – animates the single line currently being typed in
+    // _pendingLine: string – the raw line currently being typed (not yet in buffer)
+    //
+    // Max lines that fit, leaving 40px for the arrow indicator.
+    get _dlgMaxLines() {
+        return Math.floor((SAGE_DLG_H - 22 - 40) / SAGE_LINE_H_DLG);
+    }
+
+    /**
+     * Replace the entire dialog with new text. Clears the buffer and starts a
+     * sequential typewriter sequence through every wrapped line of `text`.
+     * Uses the same power-queue machinery so each line types in fully before
+     * the next begins (with no inter-line pause).
+     */
     _setDialog(text) {
+        const wrappedLines = this._wrapText(text);
+        if (wrappedLines.length === 0) return;
+        // Clear buffer completely
+        this.dlgBuffer = [];
+        this._pendingLine = null;
+        this._powerWaitingScroll = false;
+        this._powerScrollNextLine = null;
+        // Start typing the first line immediately; remaining lines auto-advance
+        // with zero delay (they are dialog, not power-anim, so no POWER_LINE_DELAY)
+        this._dlgQueue = wrappedLines;
+        this._dlgQueueIndex = 0;
+        this._dlgQueueAdvanceAt = null;
+        this._showNextDlgLine();
+    }
+
+    /** Advance to next line in the _setDialog sequential queue (zero-delay). */
+    _showNextDlgLine() {
+        if (this._dlgQueueIndex >= this._dlgQueue.length) return;
+        const line = this._dlgQueue[this._dlgQueueIndex];
+        this._dlgQueueIndex++;
+        const isLast = this._dlgQueueIndex >= this._dlgQueue.length;
+        // Commit whatever was typing before
+        if (this._pendingLine !== null) {
+            this.dlgBuffer.push(this._pendingLine);
+            this._pendingLine = null;
+        }
+        this._startTypewriterLine(line);
+        this._dlgQueueAdvanceAt = isLast ? null : 'pending'; // pending = wait for done, then 0ms
+    }
+
+    /**
+     * Append one new line to the dialog (power-queue path).
+     * Commits the previously-typing line into dlgBuffer, then types the new one.
+     */
+    _appendDialogLine(line) {
+        if (this._pendingLine !== null) {
+            this.dlgBuffer.push(this._pendingLine);
+            this._pendingLine = null;
+        }
+        this._startTypewriterLine(line);
+    }
+
+    /** Wrap raw text into display lines (no animation). */
+    _wrapText(text) {
+        this.ctx.save();
+        this.ctx.font = SAGE_FONT_DLG;
+        const maxW = SAGE_DLG_W - 28;
+        const lines = [];
+        for (const para of text.split('\n')) {
+            const words = para.split(' ');
+            let line = '';
+            for (const word of words) {
+                const candidate = line ? line + ' ' + word : word;
+                if (line && this.ctx.measureText(candidate).width > maxW) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = candidate;
+                }
+            }
+            if (line) lines.push(line);
+        }
+        this.ctx.restore();
+        return lines;
+    }
+
+    /** Begin animating a single plain line string. */
+    _startTypewriterLine(line) {
+        this._pendingLine = line;
         this.typewriter = new TypewriterText(
-            text,
+            line,
             SAGE_FONT_DLG,
-            SAGE_DLG_W - 28,   // original maxWidth
+            SAGE_DLG_W - 28,
             SAGE_CHAR_MS,
             SAGE_LINE_H_DLG,
+            SAGE_DLG_H,
             this.ctx
         );
         this.typewriter.start(performance.now());
     }
 
+    /**
+     * Scroll info: which committed lines are visible given current buffer size.
+     * Returns { scrollTop } — first dlgBuffer index to display.
+     */
+    _dlgScrollTop() {
+        const max = this._dlgMaxLines;
+        const total = this.dlgBuffer.length + 1; // +1 for the typing line
+        return Math.max(0, total - max);
+    }
+
+    /** True when adding another line would overflow the box. */
+    _dlgBoxFull() {
+        return (this.dlgBuffer.length + 1) >= this._dlgMaxLines;
+    }
+
     drawContent(now, alpha) {
+        this._tickDlgQueue(now);
+        this._tickPowerQueue(now);
         this._drawPortraitBox();
         this._drawOrbAnimation(now, alpha);
-        this._drawMenuBox(now, alpha);
+        // Hide menu during loading and intro. During dialog/power_anim show it dimmed.
+        if (this.sagePhase !== 'loading' && this.sagePhase !== 'intro') {
+            const menuAlpha = this.menuDimmed ? 0.25 : 1;
+            this._drawMenuBox(now, alpha * menuAlpha);
+        }
         this._drawDialogBox(now, alpha);
     }
 
@@ -174,7 +300,6 @@ export class SageScene extends IndoorSceneBase {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
-        // border
         ctx.strokeStyle = '#eee';
         ctx.lineWidth = 2;
         ctx.strokeRect(SAGE_MENU_X-2, SAGE_MENU_Y-2, SAGE_MENU_W+4, SAGE_MENU_H+4);
@@ -184,18 +309,15 @@ export class SageScene extends IndoorSceneBase {
         ctx.fillStyle = '#000';
         ctx.fillRect(SAGE_MENU_X, SAGE_MENU_Y, SAGE_MENU_W, SAGE_MENU_H);
 
-        if (this.sagePhase === 'menu') {
-            ctx.font = SAGE_FONT_MENU;
-            for (let i = 0; i < SAGE_MENU.length; i++) {
-                const y = SAGE_MENU_TEXT_Y + i * SAGE_LINE_H_MENU;
-                const sel = i === this.menuSel;
-                ctx.fillStyle = sel ? '#ff0' : '#fff';
-                ctx.fillText(SAGE_MENU[i], SAGE_MENU_TEXT_X, y);
-                if (sel) {
-                    ctx.fillStyle = '#f00';
-                    // right-pointing triangle, placed at the same cursor position as original
-                    this._triangle(ctx, SAGE_CURSOR_X, y - 18, 10, 18, false);
-                }
+        ctx.font = SAGE_FONT_MENU;
+        for (let i = 0; i < SAGE_MENU.length; i++) {
+            const y = SAGE_MENU_TEXT_Y + i * SAGE_LINE_H_MENU;
+            const sel = i === this.menuSel;
+            ctx.fillStyle = sel ? '#ff0' : '#fff';
+            ctx.fillText(SAGE_MENU[i], SAGE_MENU_TEXT_X, y);
+            if (sel) {
+                ctx.fillStyle = '#f00';
+                this._triangle(ctx, SAGE_CURSOR_X, y - 18, 10, 18, false);
             }
         }
         ctx.restore();
@@ -205,20 +327,66 @@ export class SageScene extends IndoorSceneBase {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
-        // border
-        ctx.strokeStyle = '#aaa';
-        ctx.lineWidth = 2;
+        // border + background
+        ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2;
         ctx.strokeRect(SAGE_DLG_X-2, SAGE_DLG_Y-2, SAGE_DLG_W+4, SAGE_DLG_H+4);
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
         ctx.strokeRect(SAGE_DLG_X, SAGE_DLG_Y, SAGE_DLG_W, SAGE_DLG_H);
         ctx.fillStyle = '#000';
         ctx.fillRect(SAGE_DLG_X, SAGE_DLG_Y, SAGE_DLG_W, SAGE_DLG_H);
 
+        ctx.font = SAGE_FONT_DLG;
+        const scrollTop = this._dlgScrollTop();
+        const visibleCommitted = this.dlgBuffer.slice(scrollTop);
+        let row = 0;
+
+        // Draw committed lines
+        ctx.fillStyle = '#fff';
+        for (const line of visibleCommitted) {
+            ctx.fillText(line, SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y + row * SAGE_LINE_H_DLG);
+            row++;
+        }
+
+        // Draw the currently-typing line
         if (this.typewriter) {
-            this.typewriter.draw(ctx, SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y, now, 1);
+            const visLines = this.typewriter.getVisibleLines(now);
+            if (visLines.length > 0) {
+                ctx.fillStyle = '#fff';
+                ctx.fillText(visLines[0], SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y + row * SAGE_LINE_H_DLG);
+            }
+            // Show down-arrow when typing is done and a Space press is expected
+            const needsSpace = this.typewriter.isDone(now) && this._dlgArrowVisible();
+            if (needsSpace) {
+                ctx.fillStyle = '#0ee';
+                const ax = SAGE_DLG_X + SAGE_DLG_W / 2 - 12;
+                const ay = SAGE_DLG_Y + SAGE_DLG_H - 40;
+                ctx.beginPath();
+                ctx.moveTo(ax, ay);
+                ctx.lineTo(ax + 24, ay);
+                ctx.lineTo(ax + 12, ay + 14);
+                ctx.closePath();
+                ctx.fill();
+            }
         }
         ctx.restore();
+    }
+
+    /**
+     * Whether the down-arrow (Space prompt) should be visible.
+     * Only shown when typing is fully done AND we are genuinely waiting for Space —
+     * not during automatic mid-sequence line advances.
+     */
+    _dlgArrowVisible() {
+        // Suppress arrow while a _setDialog multi-line queue is still advancing
+        if (this._dlgQueue && this._dlgQueueIndex < this._dlgQueue.length) return false;
+        if (this.sagePhase === 'intro') return true;
+        if (this.sagePhase === 'dialog') return true;
+        if (this.sagePhase === 'power_anim') {
+            if (this._powerWaitingScroll) return true;
+            return this.powerQueue !== null &&
+                   this.powerQueueIndex >= this.powerQueue.length;
+        }
+        return false;
     }
 
     _triangle(ctx, x, y, w, h, down) {
@@ -236,41 +404,184 @@ export class SageScene extends IndoorSceneBase {
         ctx.fill();
     }
 
+    /** Called every frame to auto-advance sequential dialog lines (from _setDialog). */
+    _tickDlgQueue(now) {
+        if (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length) return;
+        if (this._dlgQueueAdvanceAt === 'pending') {
+            if (this.typewriter && this.typewriter.isDone(now)) {
+                this._dlgQueueAdvanceAt = now; // advance immediately (0ms delay)
+            }
+        } else if (this._dlgQueueAdvanceAt !== null && now >= this._dlgQueueAdvanceAt) {
+            this._dlgQueueAdvanceAt = null;
+            this._showNextDlgLine();
+        }
+    }
+
+
+
+    _startPowerQueue(queue) {
+        // Pre-wrap every sentence into display-width lines and flatten,
+        // but record which flat-line indices are the LAST line of their sentence.
+        // The inter-sentence pause only fires at those boundary lines.
+        const flatLines = [];
+        const sentenceEnds = new Set(); // flat indices that end a sentence
+        for (const sentence of queue) {
+            const wrapped = this._wrapText(sentence);
+            for (const line of wrapped) flatLines.push(line);
+            sentenceEnds.add(flatLines.length - 1); // last wrapped line of this sentence
+        }
+        // Clear existing dialog before power sequence begins
+        this.dlgBuffer = [];
+        this._pendingLine = null;
+        this._dlgQueue = [];
+        this._dlgQueueIndex = 0;
+        this._dlgQueueAdvanceAt = null;
+
+        this.powerQueue = flatLines;
+        this.powerQueueSentenceEnds = sentenceEnds;
+        this.powerQueueIndex = 0;
+        this.powerLineAdvanceAt = null;
+        this._powerWaitingScroll = false;
+        this._powerScrollNextLine = null;
+        this._showNextPowerLine();
+    }
+
+    _showNextPowerLine() {
+        if (this.powerQueueIndex >= this.powerQueue.length) return;
+
+        const line = this.powerQueue[this.powerQueueIndex];
+        const currentIndex = this.powerQueueIndex;
+        this.powerQueueIndex++;
+        const isLast = this.powerQueueIndex >= this.powerQueue.length;
+        const isSentenceEnd = this.powerQueueSentenceEnds.has(currentIndex);
+
+        // Commit pending line into buffer
+        if (this._pendingLine !== null) {
+            this.dlgBuffer.push(this._pendingLine);
+            this._pendingLine = null;
+        }
+
+        if (!isLast && this._dlgBoxFull()) {
+            this._powerScrollNextLine = line;
+            this._powerWaitingScroll = true;
+            return;
+        }
+
+        this._powerScrollNextLine = null;
+        this._powerWaitingScroll = false;
+        this._appendDialogLine(line);
+
+        if (isLast) {
+            this.powerLineAdvanceAt = null;           // last line: wait for Space
+        } else if (isSentenceEnd) {
+            this.powerLineAdvanceAt = 'pending';      // pause after sentence completes
+        } else {
+            this.powerLineAdvanceAt = 'immediate';    // mid-sentence wrap: no pause
+        }
+    }
+
+    /** Called from drawContent each frame to auto-advance power queue mid-lines. */
+    _tickPowerQueue(now) {
+        if (this.sagePhase !== 'power_anim') return;
+        if (this.powerQueue === null) return;
+        if (this._powerWaitingScroll) return;
+        if (this.powerQueueIndex >= this.powerQueue.length) return;
+
+        if (this.powerLineAdvanceAt === 'immediate') {
+            // Mid-sentence wrap: advance as soon as current line finishes typing
+            if (this.typewriter && this.typewriter.isDone(now)) {
+                this.powerLineAdvanceAt = null;
+                this._showNextPowerLine();
+            }
+        } else if (this.powerLineAdvanceAt === 'pending') {
+            // Sentence end: wait for typing to finish, then start the delay
+            if (this.typewriter && this.typewriter.isDone(now)) {
+                this.powerLineAdvanceAt = now + POWER_LINE_DELAY_MS;
+            }
+        } else if (this.powerLineAdvanceAt !== null && now >= this.powerLineAdvanceAt) {
+            this.powerLineAdvanceAt = null;
+            this._showNextPowerLine();
+        }
+    }
+
     handleInput(key) {
         if (this.modalOpen) return;
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
-        if (key === 'ArrowUp') {
-            if (this.sagePhase === 'menu') this.menuSel = (this.menuSel - 1 + SAGE_MENU.length) % SAGE_MENU.length;
-        } else if (key === 'ArrowDown') {
-            if (this.sagePhase === 'menu') this.menuSel = (this.menuSel + 1) % SAGE_MENU.length;
-        } else if (key === 'Space') {
+
+        // Arrow keys navigate the menu
+        if (this.sagePhase === 'menu' && !this.menuDimmed && (key === 'ArrowUp' || key === 'ArrowDown')) {
+            if (key === 'ArrowUp') this.menuSel = (this.menuSel - 1 + SAGE_MENU.length) % SAGE_MENU.length;
+            else if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % SAGE_MENU.length;
+            return;
+        }
+
+        if (key === 'Space') {
             this._onSpace(now);
         }
     }
 
     _onSpace(now) {
-        if (this.typewriter && !this.typewriter.isDone(now)) {
-            if (this.animRun && this.animSuppressed) return;
+        // If typewriter is still typing, skip to end — unless we're waiting for
+        // the player to scroll (box full), in which case fall through to the switch.
+        if (!this._powerWaitingScroll && this.typewriter && !this.typewriter.isDone(now)) {
             this.typewriter.skip(now);
             return;
         }
+
         switch (this.sagePhase) {
             case 'intro':
-                if (this.exitAfterDialog) this.startFadeOut(now);
-                else { this._setDialog('How can I help you, Brave One?'); this.sagePhase = 'greeting'; }
+                if (this.exitAfterDialog) {
+                    this.startFadeOut(now);
+                } else {
+                    // Intro done: show menu. Dialog text stays; do NOT overwrite it.
+                    this.sagePhase = 'menu';
+                    this.menuDimmed = false;
+                    this._setDialog('How can I help you, Brave One?');
+                }
                 break;
-            case 'greeting': this.sagePhase = 'menu'; break;
-            case 'menu': this._activateMenuItem(this.menuSel, now); break;
+            case 'menu':
+                this._activateMenuItem(this.menuSel, now);
+                break;
             case 'dialog':
-                if (this.exitAfterDialog) this.startFadeOut(now);
-                else { this._setDialog('Is there anything else I can do for you?'); this.sagePhase = 'greeting'; }
+                if (this.exitAfterDialog) {
+                    this.startFadeOut(now);
+                } else {
+                    // Return to menu; show prompt, undim menu
+                    this.sagePhase = 'menu';
+                    this.menuDimmed = false;
+                    this._setDialog('Is there anything else I can do for you?');
+                }
                 break;
             case 'power_anim':
-                this.animRun = false;
-                this.animSuppressed = false;
-                const result = this._checkLevelUp();
-                this._showPowerResult(result);
+                if (this._powerWaitingScroll) {
+                    // Box was full; Space scrolls oldest line away, then continues
+                    this._powerWaitingScroll = false;
+                    const line = this._powerScrollNextLine;
+                    this._powerScrollNextLine = null;
+                    const isLast = this.powerQueueIndex >= this.powerQueue.length;
+                    this._appendDialogLine(line);
+                    if (!isLast) {
+                        this.powerLineAdvanceAt = 'pending';
+                    } else {
+                        this.powerLineAdvanceAt = null; // last line: wait for Space again
+                    }
+                } else if (this.powerQueue !== null &&
+                           this.powerQueueIndex >= this.powerQueue.length &&
+                           this.typewriter && this.typewriter.isDone(now)) {
+                    // Last line fully typed — commit it and return to menu
+                    if (this._pendingLine !== null) {
+                        this.dlgBuffer.push(this._pendingLine);
+                        this._pendingLine = null;
+                    }
+                    this.powerQueue = null;
+                    this.powerLineAdvanceAt = null;
+                    this.animRun = false;
+                    this.animSuppressed = false;
+                    this.sagePhase = 'menu';
+                    this.menuDimmed = false;
+                    this._setDialog('Is there anything else I can do for you?');
+                }
                 break;
         }
     }
@@ -279,16 +590,22 @@ export class SageScene extends IndoorSceneBase {
         switch (sel) {
             case SAGE_MENU_GO_OUTSIDE:
                 this._setDialog('The Spirits are with you.');
-                this.sagePhase = 'dialog'; this.exitAfterDialog = true;
+                this.sagePhase = 'dialog';
+                this.exitAfterDialog = true;
+                this.menuDimmed = true;
                 break;
             case SAGE_MENU_SEE_POWER:
+                this.menuDimmed = true;
                 this._seePower(now);
                 break;
             case SAGE_MENU_LISTEN_KNOWLEDGE:
                 this._setDialog(SAGE_KNOWLEDGE[this.townIdx] || 'The Spirits guide your path.');
-                this.sagePhase = 'dialog'; this.exitAfterDialog = false;
+                this.sagePhase = 'dialog';
+                this.exitAfterDialog = false;
+                this.menuDimmed = true;
                 break;
             case SAGE_MENU_RECORD_EXPERIENCE:
+                this.menuDimmed = true;
                 this._recordExperience(now);
                 break;
         }
@@ -296,20 +613,90 @@ export class SageScene extends IndoorSceneBase {
 
     _seePower(now) {
         if (!this.hasPower) {
-            this.hasPower = true; this.animRun = true; this.animSuppressed = true; this.crystalMode = true;
+            this.hasPower = true;
+            this.animRun = true;
+            this.animSuppressed = true;
+            this.crystalMode = true;
             const result = this._checkLevelUp();
             this.levelUpReady = (result >= 4);
-            this._setDialog('I shall call upon the Spirits and their powers.....');
-            this.sagePhase = 'power_anim';
+
+            // Build the three lines for power sequence
+            const line1 = 'I shall call upon the Spirits and their powers.....';
+            const line2 = 'Oh, Holy Spirits, purify my thoughts and grant me strength.';
+            let resultLine = '';
+            if (result === 4) {
+                this.powerExhausted = true;
+                this._applyLevelUp();
+                resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
+            } else if (result === 3 && this.levelUpReady) {
+                this.powerExhausted = true;
+                resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
+            } else {
+                const texts = [
+                    'Your experience is lacking. Persevere in your quest.',
+                    'You must accumulate more experience.',
+                    'I can see the faint light of the Spirits in you. You must endure a little longer.',
+                    'The light of the Spirits is bursting forth within you.',
+                ];
+                resultLine = texts[result] || texts[0];
+            }
+            const queue = [line1, line2, resultLine];
+            this.sagePhase = 'power_anim';  // keep animation running
+            this._startPowerQueue(queue);
             return;
         }
         if (this.powerExhausted) {
             this._setDialog('I fear the spirits are no longer with you. No matter how many times I try, it comes out the same.');
-            this.sagePhase = 'dialog'; this.exitAfterDialog = false;
+            this.sagePhase = 'dialog';
+            this.exitAfterDialog = false;
             return;
         }
         const result = this._checkLevelUp();
-        this._showPowerResult(result);
+        let resultLine = '';
+        if (result === 4) {
+            this.powerExhausted = true;
+            this._applyLevelUp();
+            resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
+        } else if (result === 3 && this.levelUpReady) {
+            this.powerExhausted = true;
+            resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
+        } else {
+            const texts = [
+                'Your experience is lacking. Persevere in your quest.',
+                'You must accumulate more experience.',
+                'I can see the faint light of the Spirits in you. You must endure a little longer.',
+                'The light of the Spirits is bursting forth within you.',
+            ];
+            resultLine = texts[result] || texts[0];
+        }
+        // Single line case (already seen power before)
+        this._setDialog(resultLine);
+        this.sagePhase = 'dialog';
+        this.exitAfterDialog = false;
+    }
+
+    _recordExperience(now) {
+        if (typeof window.openSaveModal === 'function') {
+            this.modalOpen = true;
+            window.openSaveModal((success) => {
+                this.modalOpen = false;
+                if (success) {
+                    this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+                } else {
+                    this._setDialog('Save cancelled.');
+                }
+                this.sagePhase = 'dialog';
+                this.exitAfterDialog = false;
+                // menuDimmed stays true; _onSpace will undim when Space pressed
+            });
+        } else {
+            if (this.readMemory && this.saveGame) {
+                try { this.saveGame(this.readMemory(0,256)); } catch(e) { console.error(e); }
+            }
+            this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+            this.sagePhase = 'dialog';
+            this.exitAfterDialog = false;
+        }
     }
 
     _checkLevelUp() {
@@ -323,56 +710,6 @@ export class SageScene extends IndoorSceneBase {
         const minLvl = SAGE_MIN_LEVEL_BY_TOWN[this.townIdx] || 0xFF;
         if (lvl < minLvl) return 3;
         return 4;
-    }
-
-    _showPowerResult(result) {
-        const texts = [
-            'Your experience is lacking. Persevere in your quest.',
-            'You must accumulate more experience.',
-            'I can see the faint light of the Spirits in you. You must endure a little longer.',
-            'The light of the Spirits is bursting forth within you.',
-            '',
-        ];
-        if (result === 4) {
-            this.levelUpReady = true;
-            this.powerExhausted = true;
-            this._applyLevelUp();
-            this._setDialog('The light of the Spirits is bursting forth within you. Indeed, your power has grown.');
-        } else if (result === 3 && this.levelUpReady) {
-            this.powerExhausted = true;
-            this._setDialog('I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.');
-        } else {
-            this._setDialog(texts[result] || texts[0]);
-        }
-        this.sagePhase = 'dialog'; this.exitAfterDialog = false;
-    }
-
-    _recordExperience(now) {
-        // Open the global save modal (defined in game.js)
-        if (typeof window.openSaveModal === 'function') {
-            // Disable further input while modal is open
-            this.modalOpen = true;
-            window.openSaveModal((success) => {
-                this.modalOpen = false;
-                if (success) {
-                    this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
-                } else {
-                    this._setDialog('Save cancelled.');
-                }
-                this.sagePhase = 'dialog';
-                this.exitAfterDialog = false;
-                // Restart typewriter
-                if (this.typewriter) this.typewriter.start(performance.now());
-            });
-        } else {
-            // Fallback (should never happen)
-            if (this.readMemory && this.saveGame) {
-                try { this.saveGame(this.readMemory(0,256)); } catch(e) { console.error(e); }
-            }
-            this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
-            this.sagePhase = 'dialog';
-            this.exitAfterDialog = false;
-        }
     }
 
     _getHeroLevel() { return this.readMemory?.(0x8d,1)[0] || 1; }

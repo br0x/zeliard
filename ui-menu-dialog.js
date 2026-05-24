@@ -8,14 +8,16 @@ export class TypewriterText {
      * @param {number} maxWidth  maximum pixel width for word wrap
      * @param {number} charMs  milliseconds per character
      * @param {number} lineHeight  px between baselines
+     * @param {number} dlgHeight  px height of the dialog box
      * @param {CanvasRenderingContext2D} ctx  (used for measureText)
      */
-    constructor(text, font, maxWidth, charMs, lineHeight, ctx) {
+    constructor(text, font, maxWidth, charMs, lineHeight, dlgHeight, ctx) {
         this.text = text;
         this.font = font;
         this.maxWidth = maxWidth;
         this.charMs = charMs;
         this.lineHeight = lineHeight;
+        this.dlgHeight = dlgHeight;
         this.ctx = ctx;
 
         this.lines = [];          // wrapped lines (array of strings)
@@ -96,7 +98,7 @@ export class TypewriterText {
         // show cursor when fully revealed
         if (this.isDone(now) && lines.length) {
             ctx.fillStyle = '#0ee';
-            this._drawDownwardArrow(ctx, x + this.maxWidth / 2 - 12, y + lines.length * this.lineHeight - 6);
+            this._drawDownwardArrow(ctx, x + this.maxWidth / 2 - 12, y + this.dlgHeight - 40);
         }
         ctx.restore();
     }
