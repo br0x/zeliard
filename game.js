@@ -246,6 +246,7 @@ const TOWN_BUILDING_NAMES = {
     0: 'King of Felishika',
     1: 'In the Hut',
     2: 'The Sage',
+    3: ''
 };
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog

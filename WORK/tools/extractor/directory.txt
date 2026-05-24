@@ -62,7 +62,7 @@
 1, 0x16, 'bank.grp'
 1, 0x17, 'church.grp'
 1, 0x18, 'drug.grp'
-1, 0x19, 'unkn1_19'
+1, 0x19, 'inn.grp'
 1, 0x1a, 'kenjya.grp'
 1, 0x1b, 'sword.grp'
 1, 0x1c, 'itemp.grp'
