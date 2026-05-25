@@ -67,7 +67,7 @@ const CALM_SEQ = [
     3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4,
     2,
 ];  // 0-based indices into CALM_FRAMES
-const CALM_FRAME_MS = 250;
+const CALM_FRAME_MS = 360;
 
 const ANGRY_FRAMES = [
     'assets/images/armor/angry1.png',
@@ -75,8 +75,8 @@ const ANGRY_FRAMES = [
     'assets/images/armor/angry3.png',
     'assets/images/armor/angry4.png',
 ];
-const ANGRY_FRAME_MS      = 160;   // ms per angry frame
-const ANGRY_LAST_HOLD_MS  = 600;   // extra hold on last angry frame before fade-out
+const ANGRY_FRAME_MS      = 400;   // ms per angry frame
+const ANGRY_LAST_HOLD_MS  = 800;   // extra hold on last angry frame before fade-out
 
 // ─── Main menu ────────────────────────────────────────────────────────────────
 const MENU_ITEMS = [
@@ -459,6 +459,20 @@ export class WeaponShopScene extends IndoorSceneBase {
     drawContent(now, alpha) {
         this._tickDlgQueue(now);
         this._tickAngryAnim(now);
+
+        if (this.shopPhase === 'greeting' &&
+            (!this.typewriter || this.typewriter.isDone(now)) &&
+            (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)) {
+
+            // Finalize the last typed line so it stays in the dialog box.
+            if (this._pendingLine !== null) {
+                this.dlgBuffer.push(this._pendingLine);
+                this._pendingLine = null;
+            }
+            this.typewriter = null;
+            this.shopPhase = 'menu';
+            this.menuDimmed = false;
+        }
 
         this._drawPortraitBox(now);
         if (this.shopPhase !== 'loading') {
@@ -1083,10 +1097,6 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     getName() {
-        const TOWN_NAMES = [
-            'Muralla','Satono','Bosque','Helada',
-            'Tumba','Dorado','Llama','Pureza','Esco',
-        ];
-        return `Weapon & Armour Shop (${TOWN_NAMES[this.townIdx] || '?'})`;
+        return 'Weapon and Armour Shop';
     }
 }
