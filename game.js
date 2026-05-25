@@ -9,6 +9,7 @@ import { SoundManager }  from './sound-manager.js';
 import { KingScene }     from './indoor-king.js';
 import { PrincessScene } from './indoor-princess.js';
 import { SageScene }     from './indoor-sage.js';
+import { WeaponShopScene } from './indoor-weapon-shop.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
@@ -246,8 +247,10 @@ const TOWN_BUILDING_NAMES = {
     0: 'King of Felishika',
     1: 'In the Hut',
     2: 'The Sage',
-    3: ''
+    3: 'Weapon and Armour Shop',
 };
+
+const implementedIDs = new Set([0, 1, 2, 3]);
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog
 let gamePaused = false;          // freeze game updates while modal is open
@@ -1121,7 +1124,7 @@ function checkBuildingRequest() {
 }
 
 function startIndoorScene(destId) {
-    if (destId !== 0 && destId !== 1 && destId !== 2) {
+    if (!implementedIDs.has(destId)) {
         console.warn(`[building] destination ${destId} not implemented`);
         townFinishBuilding?.();
         return;
@@ -1143,6 +1146,7 @@ function startIndoorScene(destId) {
     if (destId === 0) scene = new KingScene(context);
     else if (destId === 1) scene = new PrincessScene(context);
     else if (destId === 2) scene = new SageScene(context);
+    else if (destId === 3) scene = new WeaponShopScene(context);
     indoorActiveScene = scene;
     scene.enter(performance.now());
 }

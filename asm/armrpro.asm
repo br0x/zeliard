@@ -40,7 +40,7 @@ sub_A004        proc near
                 dec     bl
                 add     bl, bl
                 xor     bh, bh
-                mov     si, off_BAA7[bx]
+                mov     si, prices_by_town[bx]
                 mov     di, offset byte_BBFD
                 mov     cx, 12h
                 rep movsw
@@ -2023,339 +2023,225 @@ aThisShieldMake db 'This shield makes the mightiest swords seem like paper. It\s
                 db  0Ch
                 db 0FFh
                 db 0FFh
-off_BAA7        dw offset unk_BAB9
-                dw offset unk_BADD
-                dw offset unk_BB01
-                dw offset unk_BB25
-                dw offset unk_BB49
-                dw offset unk_BB6D
-                dw offset unk_BB91
-                dw offset unk_BBB5
-                dw offset unk_BBD9
-unk_BAB9        db    0
-                db  90h
-                db    1
-                db    0
-                db 0DCh
-                db    5
-                db    0
-                db  90h
-                db  1Ah
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    1
-                db  90h
-                db  5Fh ; _
-                db    0
-                db    4
-                db    0
-                db    0
-                db  32h ; 2
-                db    0
-                db    0
-                db  96h
-                db    0
-                db    0
-                db 0A4h
-                db  0Bh
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BADD        db    0
-                db  20h
-                db    3
-                db    0
-                db 0DCh
-                db    5
-                db    0
-                db  90h
-                db  1Ah
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    1
-                db 0A8h
-                db  10h
-                db    0
-                db    4
-                db    0
-                db    0
-                db  32h ; 2
-                db    0
-                db    0
-                db  96h
-                db    0
-                db    0
-                db 0A4h
-                db  0Bh
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BB01        db    0
-                db  20h
-                db    3
-                db    0
-                db 0DCh
-                db    5
-                db    0
-                db  90h
-                db  1Ah
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    1
-                db 0A8h
-                db  10h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  96h
-                db    0
-                db    0
-                db  4Ch ; L
-                db    9
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BB25        db    0
-                db  90h
-                db    1
-                db    0
-                db 0B8h
-                db  0Bh
-                db    0
-                db  40h ; @
-                db  15h
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    1
-                db 0A8h
-                db  10h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  32h ; 2
-                db    0
-                db    0
-                db 0F4h
-                db    6
-                db    0
-                db  48h ; H
-                db  26h ; &
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BB49        db    0
-                db  90h
-                db    1
-                db    0
-                db 0B8h
-                db  0Bh
-                db    0
-                db  98h
-                db  12h
-                db    0
-                db  24h ; $
-                db  13h
-                db    1
-                db 0A8h
-                db  10h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  32h ; 2
-                db    0
-                db    0
-                db 0F4h
-                db    6
-                db    0
-                db 0A0h
-                db  1Eh
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BB6D        db    0
-                db 0C8h
-                db    0
-                db    0
-                db 0DCh
-                db    5
-                db    0
-                db  48h ; H
-                db  0Dh
-                db    0
-                db 0A0h
-                db  1Eh
-                db    1
-                db 0A8h
-                db  10h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  14h
-                db    0
-                db    0
-                db  7Ah ; z
-                db    3
-                db    0
-                db 0F8h
-                db  16h
-                db    0
-                db 0D0h
-                db  39h ; 9
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BB91        db    0
-                db 0C8h
-                db    0
-                db    0
-                db 0DCh
-                db    5
-                db    0
-                db  50h ; P
-                db    5
-                db    0
-                db 0F8h
-                db  16h
-                db    0
-                db 0F0h
-                db  87h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  14h
-                db    0
-                db    0
-                db  7Ah ; z
-                db    3
-                db    0
-                db 0F8h
-                db  16h
-                db    0
-                db  78h ; x
-                db  28h ; (
-                db    0
-                db  78h ; x
-                db  9Bh
-unk_BBB5        db    0
-                db  64h ; d
-                db    0
-                db    0
-                db 0E8h
-                db    3
-                db    0
-                db  50h ; P
-                db    5
-                db    0
-                db  50h ; P
-                db  0Fh
-                db    0
-                db  20h
-                db  80h
-                db    0
-                db    4
-                db    0
-                db    0
-                db    5
-                db    0
-                db    0
-                db  14h
-                db    0
-                db    0
-                db  7Ah ; z
-                db    3
-                db    0
-                db  50h ; P
-                db  0Fh
-                db    0
-                db 0E8h
-                db  1Ch
-                db    0
-                db  38h ; 8
-                db  7Ch ; |
-unk_BBD9        db    0
-                db  0Ah
-                db    0
-                db    0
-                db  64h ; d
-                db    0
-                db    0
-                db 0A8h
-                db    2
-                db    0
-                db 0A8h
-                db    7
-                db    0
-                db  68h ; h
-                db  74h ; t
-                db    0
-                db    4
-                db    0
-                db    0
-                db    2
-                db    0
-                db    0
-                db  0Ah
-                db    0
-                db    0
-                db  2Ah ; *
-                db    1
-                db    0
-                db 0A8h
-                db    7
-                db    0
-                db  20h
-                db  17h
-                db    0
-                db 0F8h
-                db  5Ch ; \
+prices_by_town  dw offset muralla_prices
+                dw offset satono_prices
+                dw offset bosque_prices
+                dw offset hellada_prices
+                dw offset tumba_prices
+                dw offset dorado_prices
+                dw offset llama_prices
+                dw offset pureza_prices
+                dw offset esco_prices
+muralla_prices  db 0
+                dw 400
+                db 0
+                dw 1500
+                db 0
+                dw 6800
+                db 0
+                dw 9800
+                db 1, 90h, 5Fh          ; 15f90h=90000
+                db 0
+                dw 4
+                db 0
+                dw 50
+                db 0
+                dw 150
+                db 0
+                dw 2980
+                db 0
+                dw 9800
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+satono_prices   db 0
+                dw 800
+                db 0
+                dw 1500
+                db 0
+                dw 6800
+                db 0
+                dw 9800
+                db 1, 0A8h, 10h         ; 110a8h=69800
+                db 0
+                dw 4
+                db 0
+                dw 50
+                db 0
+                dw 150
+                db 0
+                dw 2980
+                db 0
+                dw 9800
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+bosque_prices   db 0
+                dw 800
+                db 0
+                dw 1500
+                db 0
+                dw 6800
+                db 0
+                dw 9800
+                db 1, 0A8h, 10h         ; 110a8h=69800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 150
+                db 0
+                dw 2380
+                db 0
+                dw 9800
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+hellada_prices  db 0
+                dw 400
+                db 0
+                dw 3000
+                db 0
+                dw 5440
+                db 0
+                dw 9800
+                db 1, 0A8h, 10h         ; 110a8h=69800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 50
+                db 0
+                dw 1780
+                db 0
+                dw 9800
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+tumba_prices    db 0
+                dw 400
+                db 0
+                dw 3000
+                db 0
+                dw 4760
+                db 0
+                dw 4900
+                db 1, 0A8h, 10h         ; 110a8h=69800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 50
+                db 0
+                dw 1780
+                db 0
+                dw 7840
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+dorado_prices   db 0
+                dw 200
+                db 0
+                dw 1500
+                db 0
+                dw 3400
+                db 0
+                dw 7840
+                db 1, 0A8h, 10h         ; 110a8h=69800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 20
+                db 0
+                dw 890
+                db 0
+                dw 5880
+                db 0
+                dw 14800
+                db 0
+                dw 39800
+llama_prices    db 0
+                dw 200
+                db 0
+                dw 1500
+                db 0
+                dw 1360
+                db 0
+                dw 5880
+                db 0
+                dw 34800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 20
+                db 0
+                dw 890
+                db 0
+                dw 5880
+                db 0
+                dw 10360
+                db 0
+                dw 39800
+pureza_prices   db 0
+                dw 100
+                db 0
+                dw 1000
+                db 0
+                dw 1360
+                db 0
+                dw 3920
+                db 0
+                dw 32800
+                db 0
+                dw 4
+                db 0
+                dw 5
+                db 0
+                dw 20
+                db 0
+                dw 890
+                db 0
+                dw 3920
+                db 0
+                dw 7400
+                db 0
+                dw 31800
+esco_prices     db 0
+                dw 10
+                db 0
+                dw 100
+                db 0
+                dw 680
+                db 0
+                dw 1960
+                db 0
+                dw 29800
+                db 0
+                dw 4
+                db 0
+                dw 2
+                db 0
+                dw 10
+                db 0
+                dw 298
+                db 0
+                dw 1960
+                db 0
+                dw 5920
+                db 0
+                dw 23800
 byte_BBFD       db 0
 word_BBFE       dw 0
                 db    0
