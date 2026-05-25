@@ -282,13 +282,13 @@ sub_A22F        proc near
 ; ---------------------------------------------------------------------------
 
 loc_A237:
-                cmp     word ptr ds:byte_FF50, 40
+                cmp     word ptr ds:tick_counter, 40
                 jnb     short loc_A23F
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A23F:
-                mov     word ptr ds:byte_FF50, 0
+                mov     word ptr ds:tick_counter, 0
                 call    word ptr cs:get_random_proc
                 and     al, 1
                 add     al, al

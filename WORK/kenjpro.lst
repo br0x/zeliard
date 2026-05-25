@@ -1341,13 +1341,13 @@ seg000:AB47 ; =============== S U B R O U T I N E ==============================
 seg000:AB47
 seg000:AB47
 seg000:AB47 sub_AB47        proc near
-seg000:AB47                 cmp     word ptr ds:0FF50h, 2 ; byte_FF50
+seg000:AB47                 cmp     word ptr ds:0FF50h, 2 ; tick_counter
 seg000:AB4C                 jnb     short loc_AB4F
 seg000:AB4E                 retn
 seg000:AB4F ; ---------------------------------------------------------------------------
 seg000:AB4F
 seg000:AB4F loc_AB4F:                               ;
-seg000:AB4F                 mov     word ptr ds:0FF50h, 0 ; byte_FF50
+seg000:AB4F                 mov     word ptr ds:0FF50h, 0 ; tick_counter
 seg000:AB55                 test    ds:byte_BB18, 0FFh
 seg000:AB5A                 jz      short loc_ABB9
 seg000:AB5C                 test    ds:byte_BB1A, 0FFh

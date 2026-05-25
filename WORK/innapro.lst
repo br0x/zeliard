@@ -305,13 +305,13 @@ seg000:A236                 retn
 seg000:A237 ; ---------------------------------------------------------------------------
 seg000:A237
 seg000:A237 loc_A237:                               ;
-seg000:A237                 cmp     word ptr ds:0FF50h, 28h ; '(' ; byte_FF50
+seg000:A237                 cmp     word ptr ds:0FF50h, 28h ; '(' ; tick_counter
 seg000:A23C                 jnb     short loc_A23F
 seg000:A23E                 retn
 seg000:A23F ; ---------------------------------------------------------------------------
 seg000:A23F
 seg000:A23F loc_A23F:                               ;
-seg000:A23F                 mov     word ptr ds:0FF50h, 0 ; byte_FF50
+seg000:A23F                 mov     word ptr ds:0FF50h, 0 ; tick_counter
 seg000:A245                 call    word ptr cs:11Ah ; get_random_proc
 seg000:A24A                 and     al, 1
 seg000:A24C                 add     al, al

@@ -343,45 +343,40 @@ msd_index                   equ   0c8h  ; ...
                                         ; + 4 - Holy Water of Acero
                                         ; + 2 - Sabre Oil
                                         ; + 1 - Kioku Feather
-                                        ; D2-DA - Weapon Shop Inventory, Swords --- TOWNS
-                                        ;
-                                        ; D2 - Muralla Town (Default: C0)
-                                        ; D3 - Satono Town (Default: C0)
-                                        ; D4 - Bosque Village (Default: E0)
-                                        ; D5 - Helada Town (Default: E0)
-                                        ; D6 - Tumba Town (Default: 70)
-                                        ; D7 - Dorado Town (Default: 38)
-                                        ; D8 - Llama Town (Default: 38)
-                                        ; D9 - Pureza Town (Default: F8)
-                                        ; DA - Esco Village (Default: F8)
+muralla_arm_swords_inventory_bitmask equ 0d2h ; Default: C0
+satono_arm_swords_inventory_bitmask equ 0d3h ; Default: C0
+bosque_arm_swords_inventory_bitmask equ 0d4h ; Default: E0
+helada_arm_swords_inventory_bitmask equ 0d5h ; Default: E0
+tumba_arm_swords_inventory_bitmask equ 0d6h ; Default: 70
+dorado_arm_swords_inventory_bitmask equ 0d7h ; Default: 38
+llama_arm_swords_inventory_bitmask equ 0d8h ; Default: 38
+pureza_arm_swords_inventory_bitmask equ 0d9h ; Default: F8
+esco_arm_swords_inventory_bitmask equ 0dah ; Default: F8
                                         ; --- ITEM VALUES
-                                        ;
                                         ; + 128 - Training Sword
                                         ; + 64 - Wise Man's Sword
                                         ; + 32 - Spirit Sword
                                         ; + 16 - Knight's Sword
                                         ; + 8 - Illumination Sword
                                         ; + 4 - Enchantment Sword
-                                        ; DB-E3 - Weapon Shop Inventory, Shields --- TOWNS
-                                        ;
-                                        ; DB - Muralla Town (Default: C0)
-                                        ; DC - Satono Town (Default: E0)
-                                        ; DD - Bosque Village (Default: E0)
-                                        ; DE - Helada Town (Default: 70)
-                                        ; DF - Tumba Town (Default: 30)
-                                        ; E0 - Dorado Town (Default: 38)
-                                        ; E1 - Llama Town (Default: 1C)
-                                        ; E2 - Pureza Town (Default: 1C)
-                                        ; E3 - Esco Village (Default: FC)
+
+muralla_arm_shields_inventory_bitmask equ 0dbh ; Default: C0
+satono_arm_shields_inventory_bitmask equ 0dch ; Default: E0
+bosque_arm_shields_inventory_bitmask equ 0ddh ; Default: E0
+helada_arm_shields_inventory_bitmask equ 0deh ; Default: 70
+tumba_arm_shields_inventory_bitmask equ 0dfh ; Default: 30
+dorado_arm_shields_inventory_bitmask equ 0e0h ; Default: 38
+llama_arm_shields_inventory_bitmask equ 0e1h ; Default: 1C
+pureza_arm_shields_inventory_bitmask equ 0e2h ; Default: 1C
+esco_arm_shields_inventory_bitmask equ 0e3h ; Default: FC
                                         ; --- ITEM VALUES
-                                        ;
                                         ; + 128 - Clay Shield
                                         ; + 64 - Wise Man's Shield
                                         ; + 32 - Stone Shield
                                         ; + 16 - Honor Shield
                                         ; + 8 - Light Shield
                                         ; + 4 - Titanium Shield
-byte_E4                     equ   0e4h  ; ...
+byte_E4                     equ   0e4h  ;
 sages_spoken_to_hero        equ   0e5h  ; + 128 - Muralla
                                         ; + 64 - Satono
                                         ; + 32 - Bosque
@@ -590,13 +585,12 @@ sword_movement_phase                               equ 0FF46h
 down_thrust_held_flag                              equ 0FF47h
 joystick_direction_bits                            equ 0FF48h
 joystick_button_bits                               equ 0FF49h
-tick_counter                                       equ 0FF50h
 monster_index                                      equ 0FF4Ah
 byte_FF4B                                          equ 0FF4Bh
 dialog_string_ptr                                  equ 0FF4Ch
 dialog_cursor_x                                    equ 0FF4Eh
 dialog_scroll_counter                              equ 0FF4Fh
-byte_FF50                                          equ 0FF50h
+tick_counter                                       equ 0FF50h
 menu_item_count                                    equ 0FF52h
 menu_max_items                                     equ 0FF53h
 menu_base_addr                                     equ 0FF54h
