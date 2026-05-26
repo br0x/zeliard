@@ -404,4 +404,8 @@ export class KingScene extends IndoorSceneBase {
         this.writeMemory(0x86, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
         this.writeMemory(0x85, [(clamped >> 16) & 0xFF]);
     }
+
+    getName() {
+        return 'King of Felishika';
+    }
 }

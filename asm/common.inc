@@ -321,20 +321,17 @@ place_map_id                equ   0c4h  ; ...
 last_sage_visited           equ   0c5h  ; ...
 healing_potion_timer        equ   0c6h  ; ...
 msd_index                   equ   0c8h  ; ...
-                                        ; C9-D1 - Magic Stores Inventory. --- TOWNS
-                                        ;
-                                        ; C9 - Muralla Town (Default: 8A)
-                                        ; CA - Satono Town (Default: A6)
-                                        ; CB - Bosque Village (Default: 6B)
-                                        ; CC - Helada Town (Default: 75)
-                                        ; CD - Tumba Town (Default: 42)
-                                        ; CE - Dorado Town (Default: 4C)
-                                        ; CF - Llama Town (Default: 4B)
-                                        ; D0 - Pureza Town (Default: 01)
-                                        ; D1 - Esco Village (Default: FF)
-                                        ;
+
+muralla_magic_items_inventory_bitmask equ 0c9h ; Default: 8a
+satono_magic_items_inventory_bitmask equ 0cah ; Default: a6
+bosque_magic_items_inventory_bitmask equ 0cbh ; Default: 6b
+helada_magic_items_inventory_bitmask equ 0cch ; Default: 75
+tumba_magic_items_inventory_bitmask equ 0cdh ; Default: 42
+dorado_magic_items_inventory_bitmask equ 0ceh ; Default: 4c
+llama_magic_items_inventory_bitmask equ 0cfh ; Default: 4b
+pureza_magic_items_inventory_bitmask equ 0d0h ; Default: 01
+esco_magic_items_inventory_bitmask equ 0d1h ; Default: ff
                                         ; --- ITEM VALUES
-                                        ;
                                         ; + 128 - Ken'ko Potion
                                         ; + 64 - Juu-en Fruit
                                         ; + 32 - Elixir of Kashi

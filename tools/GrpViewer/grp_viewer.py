@@ -63,8 +63,7 @@ GRP_DESCRIPTOR = [
     ("enp1.grp",  11),
     ("crab.grp",  12),
     ("dman.grp",  13), # rokademo
-    ("king.grp",  6),
-    ("kenjya.grp",  6),
+    ("unkn1_21.grp",  7),
 ]
 
 MODE_CFG = {

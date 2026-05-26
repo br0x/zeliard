@@ -10,6 +10,7 @@ import { KingScene }     from './indoor-king.js';
 import { PrincessScene } from './indoor-princess.js';
 import { SageScene }     from './indoor-sage.js';
 import { WeaponShopScene } from './indoor-weapon-shop.js';
+import { WitchcraftShopScene } from './indoor-magic-shop.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
@@ -243,14 +244,28 @@ let townAnimTileMap = {};
 // ─── Indoor scene manager ─────────────────────────────────────────────────────
 let indoorActiveScene = null;   // instance of IndoorSceneBase
 
-const TOWN_BUILDING_NAMES = {
-    0: 'King of Felishika',
-    1: 'In the Hut',
-    2: 'The Sage',
-    3: 'Weapon and Armour Shop',
+const TOWN_BUILDINGS = {
+    0: {
+        name: 'King of Felishika',
+        scene: KingScene,
+    },
+    1: {
+        name: 'In the Hut',
+        scene: PrincessScene,
+    },
+    2: {
+        name: 'The Sage',
+        scene: SageScene,
+    },
+    3: {
+        name: 'Weapon and Armour Shop',
+        scene: WeaponShopScene,
+    },
+    4: {
+        name: 'Witchcraft Implement Shop',
+        scene: WitchcraftShopScene,
+    },
 };
-
-const implementedIDs = new Set([0, 1, 2, 3]);
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog
 let gamePaused = false;          // freeze game updates while modal is open
@@ -1124,7 +1139,7 @@ function checkBuildingRequest() {
 }
 
 function startIndoorScene(destId) {
-    if (!implementedIDs.has(destId)) {
+    if (!TOWN_BUILDINGS[destId]) {
         console.warn(`[building] destination ${destId} not implemented`);
         townFinishBuilding?.();
         return;
@@ -1142,13 +1157,13 @@ function startIndoorScene(destId) {
         saveGame,
         renderGoldHud,
     };
-    let scene;
-    if (destId === 0) scene = new KingScene(context);
-    else if (destId === 1) scene = new PrincessScene(context);
-    else if (destId === 2) scene = new SageScene(context);
-    else if (destId === 3) scene = new WeaponShopScene(context);
-    indoorActiveScene = scene;
-    scene.enter(performance.now());
+
+    const building = TOWN_BUILDINGS[destId];
+    if (building) {
+        indoorActiveScene = new building.scene(context);
+        indoorActiveScene.building = building;
+        indoorActiveScene.enter(performance.now());
+    }
 }
 
 // ─── UI helpers (gold, sword, shield, magic) ──────────────────────────────────
@@ -1541,7 +1556,7 @@ function draw() {
         const stillActive = indoorActiveScene.draw(performance.now());
         if (!stillActive) indoorActiveScene = null;
         updateElementText('currentMapName',
-            indoorActiveScene?.getName?.() ?? TOWN_BUILDING_NAMES[indoorActiveScene?.destId] ?? '');
+            indoorActiveScene?.getName?.() ?? indoorActiveScene?.building?.name ?? '');
     } else {
         drawTownBackground();
         drawTownSidewalk();

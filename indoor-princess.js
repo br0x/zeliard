@@ -39,4 +39,8 @@ export class PrincessScene extends IndoorSceneBase {
             this.startFadeOut(performance.now());
         }
     }
+
+    getName() {
+        return 'In the Hut';
+    }
 }
