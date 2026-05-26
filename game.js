@@ -1172,6 +1172,14 @@ function updateElementText(elementId, value) {
     if (el && value !== undefined) el.textContent = value;
 }
 
+function updatePlaceHud(name, indoor = false) {
+    const placeRow = document.querySelector('.place-row');
+    const placeLabel = document.getElementById('placeLabel');
+    if (placeRow) placeRow.classList.toggle('indoor-place', indoor);
+    if (placeLabel) placeLabel.textContent = indoor ? '' : 'PLACE';
+    updateElementText('currentMapName', name);
+}
+
 let lifeFillCurrentEl = null;
 let lifeFillMaxEl     = null;
 
@@ -1543,7 +1551,7 @@ function draw() {
 
     if (!engineReady) {
         drawLifeBar();
-        updateElementText('currentMapName', '');
+        updatePlaceHud('');
         renderGoldHud();
         updateElementText('almas', 0);
         renderSwordHud();
@@ -1557,8 +1565,7 @@ function draw() {
         const sceneName = scene.getName?.() ?? scene.building?.name ?? '';
         const stillActive = scene.draw(performance.now());
         if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
-        updateElementText('currentMapName',
-            stillActive ? sceneName : '');
+        updatePlaceHud(stillActive ? sceneName : '', stillActive);
     } else {
         drawTownBackground();
         drawTownSidewalk();
@@ -1569,7 +1576,7 @@ function draw() {
             drawHero();
             drawLifeBar();
             let placeName = getTownName?.() ?? 'unknown';
-            updateElementText('currentMapName', townEntryRan ? placeName : '');
+            updatePlaceHud(townEntryRan ? placeName : '');
             renderGoldHud();
             updateElementText('almas', 0);
             renderSwordHud();

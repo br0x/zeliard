@@ -117,6 +117,18 @@ canvas {
   padding-left: 20px;
 }
 
+.place-row .value {
+  flex: 1;
+}
+
+.place-row.indoor-place .label {
+  display: none;
+}
+
+.place-row.indoor-place .value {
+  padding-left: 8px;
+}
+
 .split-row {
   background: transparent;
   border: none;
