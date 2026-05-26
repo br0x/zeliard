@@ -1553,10 +1553,12 @@ function draw() {
     }
 
     if (indoorActiveScene) {
-        const stillActive = indoorActiveScene.draw(performance.now());
-        if (!stillActive) indoorActiveScene = null;
+        const scene = indoorActiveScene;
+        const sceneName = scene.getName?.() ?? scene.building?.name ?? '';
+        const stillActive = scene.draw(performance.now());
+        if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
         updateElementText('currentMapName',
-            indoorActiveScene?.getName?.() ?? indoorActiveScene?.building?.name ?? '');
+            stillActive ? sceneName : '');
     } else {
         drawTownBackground();
         drawTownSidewalk();
