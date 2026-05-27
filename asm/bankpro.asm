@@ -124,34 +124,34 @@ loc_A10F:
                 add     bx, bx          ; switch 5 cases
                 jmp     jpt_A117[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A117        dw offset loc_A125      ; jump table for switch statement
-                dw offset loc_A14B
-                dw offset loc_A23B
-                dw offset loc_A3D0
-                dw offset loc_A595
+jpt_A117        dw offset on_go_outside_bank      ; jump table for switch statement
+                dw offset on_exchange_almas
+                dw offset on_deposit_money
+                dw offset on_withdraw_money
+                dw offset on_check_balance
 ; ---------------------------------------------------------------------------
 
-loc_A125:                               ; jumptable 0000A117 case 0
+on_go_outside_bank:                               ; jumptable 0000A117 case 0
                 call    sub_A61F
-                mov     word ptr ds:dialog_string_ptr, offset unk_ACD4
+                mov     word ptr ds:dialog_string_ptr, offset unk_ACD4 ; 'Thank you. Come again to make a deposit for a large sum in savings. '
                 test    byte_AD24, 0FFh
                 jz      short loc_A136
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A136:
-                mov     word ptr ds:dialog_string_ptr, offset unk_AC9D
+                mov     word ptr ds:dialog_string_ptr, offset unk_AC9D ; 'Next time please deposit a large sum in savings. '
                 test    byte_AD23, 0FFh
                 jz      short loc_A144
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A144:
-                mov     word ptr ds:dialog_string_ptr, offset unk_AC5A
+                mov     word ptr ds:dialog_string_ptr, offset unk_AC5A ; 'Unless you have business, don\t come in here. I\m a busy man.'
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A14B:                               ; jumptable 0000A117 case 1
+on_exchange_almas:                               ; jumptable 0000A117 case 1
                 call    sub_A61F
                 mov     byte_AD21, 0
                 mov     si, offset byte_A8BB
@@ -213,7 +213,7 @@ loc_A1FC:
                 call    sub_A61F
                 pop     dx
                 mov     byte_AD23, 0FFh
-                mov     word ptr ds:dialog_string_ptr, offset unk_AA82
+                mov     word ptr ds:dialog_string_ptr, offset unk_AA82 ; 'Will there be anything else?'
 
 loc_A20C:
                 xor     cx, cx
@@ -243,7 +243,7 @@ loc_A216:
                 jmp     short loc_A20C
 ; ---------------------------------------------------------------------------
 
-loc_A23B:                               ; jumptable 0000A117 case 2
+on_deposit_money:                               ; jumptable 0000A117 case 2
                 call    sub_A61F
                 mov     byte_AD21, 0
                 mov     si, offset byte_A8BB
@@ -341,14 +341,14 @@ loc_A31B:
 ; ---------------------------------------------------------------------------
 
 loc_A331:
-                or      dl, dl
-                jnz     short loc_A33A
-                cmp     ax, 1000
-                jb      short loc_A345
+                or      dl, dl           ; deposit amount high byte
+                jnz     short loc_A33A   ; if high byte != 0 => laugh
+                cmp     ax, 1000         ; low word of deposit amount
+                jb      short loc_A345   ; if < 1000 => no laugh
 
 loc_A33A:
-                mov     byte_AD21, 0FFh
-                mov     word_AD1F, offset byte_A7C3
+                mov     byte_AD21, 0FFh  ; enable animation
+                mov     word_AD1F, offset byte_A7C3 ; laughing tile set
 
 loc_A345:
                 add     ds:bank_gold_lo, ax
@@ -401,7 +401,7 @@ loc_A3C9:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A3D0:                               ; jumptable 0000A117 case 3
+on_withdraw_money:                               ; jumptable 0000A117 case 3
                 call    sub_A61F
                 mov     byte_AD21, 0
                 mov     si, offset byte_A8BB
@@ -568,7 +568,7 @@ loc_A584:
                 jmp     word ptr cs:Print_Gold_Decimal_proc
 ; ---------------------------------------------------------------------------
 
-loc_A595:                               ; jumptable 0000A117 case 4
+on_check_balance:                               ; jumptable 0000A117 case 4
                 call    sub_A61F
                 mov     word ptr ds:dialog_string_ptr, offset unk_ABF7
                 mov     al, ds:bank_gold_hi
@@ -987,8 +987,7 @@ aNextTimePlease db 'Next time please deposit a large sum in savings. '
                 db 0FFh
                 db 0FFh
 unk_ACD4        db  0Ch
-aThankYouComeAg db 'Thank you. Come again to make a deposit for a large sum in saving'
-                db 's. '
+aThankYouComeAg db 'Thank you. Come again to make a deposit for a large sum in savings. '
                 db 0FFh
                 db    2
                 db  11h
