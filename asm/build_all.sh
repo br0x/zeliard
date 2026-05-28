@@ -48,6 +48,8 @@ tasm /m9 drugpro.asm >>log.txt
 tlink drugpro.obj >>log.txt
 tasm /m9 bankpro.asm >>log.txt
 tlink bankpro.obj >>log.txt
+tasm /m9 churpro.asm >>log.txt
+tlink churpro.obj >>log.txt
 tasm /m9 innapro.asm >>log.txt
 tlink innapro.obj >>log.txt
 tasm /m9 fight.asm >>log.txt
@@ -87,6 +89,7 @@ python3 exe2bin.py KENJPRO.EXE kenjpro.bin 0xA000
 python3 exe2bin.py ARMRPRO.EXE armrpro.bin 0xA000
 python3 exe2bin.py DRUGPRO.EXE drugpro.bin 0xA000
 python3 exe2bin.py BANKPRO.EXE bankpro.bin 0xA000
+python3 exe2bin.py CHURPRO.EXE churpro.bin 0xA000
 python3 exe2bin.py INNAPRO.EXE innapro.bin 0xA000
 python3 exe2bin.py FIGHT.EXE fight.bin 0x6000
 python3 exe2bin.py SELECT.EXE select.bin 0xA000
@@ -133,6 +136,8 @@ echo "drugpro.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/drugpro.bin drugpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "bankpro.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/bankpro.bin bankpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "churpro.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/1/churpro.bin churpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "innapro.bin diffs:" >>diff.txt
 { cmp -l ../game/0/1/innapro.bin innapro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "fight.bin diffs:" >>diff.txt

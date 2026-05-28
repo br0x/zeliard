@@ -11,6 +11,7 @@ import { PrincessScene } from './indoor-princess.js';
 import { SageScene }     from './indoor-sage.js';
 import { WeaponShopScene } from './indoor-weapon-shop.js';
 import { WitchcraftShopScene } from './indoor-magic-shop.js';
+import { ChurchScene }   from './indoor-church.js';
 import { BankScene }     from './indoor-bank.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 
@@ -265,6 +266,10 @@ const TOWN_BUILDINGS = {
     4: {
         name: 'Witchcraft Implement Shop',
         scene: WitchcraftShopScene,
+    },
+    5: {
+        name: 'The Church',
+        scene: ChurchScene,
     },
     6: {
         name: 'The Bank',
