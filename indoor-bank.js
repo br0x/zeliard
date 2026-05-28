@@ -2,14 +2,13 @@
  * indoor-bank.js – Bank indoor scene.
  *
  * Faithful port of bankpro.asm.  Supports:
- *   • Entering animation – clerk writes in ledger (writing1/writing2 cycling),
- *     then notices the player (notice1→notice2→notice3), played while "....."
- *     and "Oh, excuse me." are typed.
- *   • Idle animation – after greeting, clerk frame cycles writing1/writing2.
- *   • Laughing animation – triggered when player deposits ≥ 1000 gold in one
- *     transaction; laughing1/laughing2 loop until any menu option is chosen.
- *   • Exiting animation – entering animation played in reverse, then fade out
- *     and return to town.
+ *   • Entering animation – clerk writes in ledger (writing1/writing2 cycling, played while "....." is typed),
+ *     then notices the player (notice1→notice2→notice3), played while "Oh, excuse me." is typed.
+ *   • After greeting, frame stays at notice3.
+ *   • Laughing animation – triggered when player deposits ≥ 1000 gold in one transaction;
+ *     laughing1/laughing2 loop until any menu option is chosen, then show static notice3.
+ *   • Exiting animation – entering animation played in reverse (notice3→notice2→notice1 and 5 cycles of writing1/writing2),
+ *     then fade out and return to town.
  *   • Exchange almas  – trade almas for gold at the town-specific rate.
  *   • Deposit money   – numeric entry, deduct from hero gold, add to bank gold.
  *   • Withdraw money  – numeric entry, deduct from bank gold, add to hero gold.
@@ -26,7 +25,7 @@ const PANEL_W = 672;
 const PANEL_H = 432;
 
 const IMG_X = 16,  IMG_Y = 16;
-const IMG_W = 320, IMG_H = 220;   // clerk portrait area
+const IMG_W = 291, IMG_H = 192;   // clerk portrait area
 
 const MENU_X = IMG_X + IMG_W + 16;
 const MENU_Y = IMG_Y;
@@ -74,7 +73,9 @@ const LAUGHING_FRAMES = [
 const WRITING_FRAME_MS  = 320;   // alternation speed for writing anim
 const NOTICE_FRAME_MS   = 420;   // speed for notice sequence
 const LAUGHING_FRAME_MS = 260;   // speed for laughing loop
-const IDLE_FRAME_MS     = 400;   // writing1/2 idle loop after greeting
+const NUM_REPEAT_FRAME_MS      = 1000 / 60;
+const NUM_REPEAT_INITIAL_FRAMES = 35;
+const NUM_REPEAT_MIN_FRAMES     = 1;
 
 // ─── Entering/exiting animation sequence ──────────────────────────────────────
 // The entering anim plays:
@@ -188,7 +189,7 @@ export class BankScene extends IndoorSceneBase {
         this.numMode         = 'deposit';       // 'deposit' | 'withdraw'
         this._numRepeatTimer = 0;               // for key-repeat acceleration
         this._numKeyHeld     = null;
-        this._numRepeatDelay = 0x23;            // initial repeat delay (frames, ~580ms)
+        this._numRepeatDelay = NUM_REPEAT_INITIAL_FRAMES;
 
         // flags mirroring bankpro.asm local variables
         this._hadLargeDeposit  = false;   // byte_AD23: did a deposit this session
@@ -207,6 +208,8 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueue            = [];
         this._dlgQueueIndex       = 0;
         this._dlgQueueAdvanceAt   = null;
+        this._dlgCharMs           = CHAR_MS;
+        this._dlgRevealFirstChar  = false;
 
         // after dialog is dismissed, what happens next
         this._afterDialog        = null;   // function (now) called on Space press
@@ -233,14 +236,15 @@ export class BankScene extends IndoorSceneBase {
             return;
         }
 
+        const startNow = performance.now();
         this.animSeqIdx     = 0;
-        this.animFrameTimer = now;
+        this.animFrameTimer = startNow;
         this.animPhase      = 'entering';
         this.bankPhase      = 'entering';
 
         // First dialog line: five dots — the ASM types these as "." chars,
         // one per frame-group (unk_A989 = form-feed, unk_A98B = ".")
-        this._setDialog('.....');
+        this._setDialog('.....', null, WRITING_FRAME_MS * 2, true);
         // After dots finish, "Oh, excuse me. " is shown (set inside _tickEnterAnim)
     }
 
@@ -335,12 +339,14 @@ export class BankScene extends IndoorSceneBase {
         this._pendingLine = line;
         this.typewriter   = new TypewriterText(
             line, FONT_DLG, DLG_W - 28,
-            CHAR_MS, LINE_H_DLG, DLG_H, this.ctx
+            this._dlgCharMs, LINE_H_DLG, DLG_H, this.ctx
         );
-        this.typewriter.start(performance.now());
+        const now = performance.now();
+        this.typewriter.start(this._dlgRevealFirstChar ? now - this._dlgCharMs : now);
+        this._dlgRevealFirstChar = false;
     }
 
-    _setDialog(text, afterFn = null) {
+    _setDialog(text, afterFn = null, charMs = CHAR_MS, revealFirstChar = false) {
         const lines = this._wrapText(text);
         if (!lines.length) return;
         this.dlgBuffer          = [];
@@ -348,6 +354,8 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueue          = lines;
         this._dlgQueueIndex     = 0;
         this._dlgQueueAdvanceAt = null;
+        this._dlgCharMs         = charMs;
+        this._dlgRevealFirstChar = revealFirstChar;
         this._afterDialog       = afterFn;
         this._showNextDlgLine();
     }
@@ -411,11 +419,7 @@ export class BankScene extends IndoorSceneBase {
                 return null;
             }
             case 'idle': {
-                if (now - this.idleLastSwitch >= IDLE_FRAME_MS) {
-                    this.idleLastSwitch = now;
-                    this.idleFrameIdx   = (this.idleFrameIdx + 1) % 2;
-                }
-                return this.writingImgs[this.idleFrameIdx] || null;
+                return this.noticeImgs[2] || null;
             }
             case 'laughing': {
                 if (now - this.laughLastSwitch >= LAUGHING_FRAME_MS) {
@@ -477,8 +481,10 @@ export class BankScene extends IndoorSceneBase {
             this._tickEnterExitAnim(now);   // advance animation regardless
 
             if (this._enterStage === 0) {
-                // Dots dialog: wait until fully typed, then switch to notice text.
-                if (this._dlgDone(now)) {
+                // Dots dialog: one dot is revealed for each writing1/writing2
+                // cycle, then the clerk looks up and speaks.
+                const writingDone = this.animSeqIdx >= WRITING_REPEAT * WRITING_FRAMES.length;
+                if (writingDone && this._dlgDone(now)) {
                     this._enterStage = 1;
                     this._clearDlgArea();
                     this._setDialog('Oh, excuse me. ');
@@ -647,7 +653,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
-    handleInput(key) {
+    handleInput(key, repeat = false) {
         const now = performance.now();
         if (this.phase === 'fadeOut')    return;
         if (this.bankPhase === 'loading')    return;
@@ -658,13 +664,40 @@ export class BankScene extends IndoorSceneBase {
         if (this.bankPhase === 'confirm_exchange') {
             this._handleConfirmExchange(key, now); return;
         }
-        if (this.bankPhase === 'numentry')   { this._handleNumEntry(key, now); return; }
+        if (this.bankPhase === 'numentry')   { this._handleNumEntry(key, now, repeat); return; }
         if (this.bankPhase === 'menu') {
             if (key === 'ArrowUp')   this.menuSel = (this.menuSel - 1 + MENU_ITEMS.length) % MENU_ITEMS.length;
             if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % MENU_ITEMS.length;
             if (key === 'Space' || key === 'Enter') this._selectMenuItem(now);
             if (key === 'Escape') this._doGoOutside(now);
         }
+    }
+
+    handleHeldInput(keys, now) {
+        if (this.bankPhase !== 'numentry') {
+            this._resetNumRepeat();
+            return;
+        }
+
+        const key = this._numHeldKeyFromState(keys);
+        if (!key) {
+            this._resetNumRepeat();
+            return;
+        }
+
+        if (key !== this._numKeyHeld) {
+            this._numKeyHeld = key;
+            this._numRepeatDelay = NUM_REPEAT_INITIAL_FRAMES;
+            this._numRepeatTimer = now;
+            return;
+        }
+
+        const delayMs = this._numRepeatDelay * NUM_REPEAT_FRAME_MS;
+        if (now - this._numRepeatTimer < delayMs) return;
+
+        this._adjustNumAmountForKey(key);
+        this._numRepeatTimer = now;
+        this._numRepeatDelay = Math.max(NUM_REPEAT_MIN_FRAMES, this._numRepeatDelay - 1);
     }
 
     _handleEnterInput(key, now) {
@@ -835,8 +868,7 @@ export class BankScene extends IndoorSceneBase {
         this.numLabels = DEPOSIT_LABELS;
         this.numAmount = 0;
         this.numMax    = heroGold;
-        this._numRepeatDelay = 0x23;
-        this._numKeyHeld     = null;
+        this._resetNumRepeat();
         this.bankPhase = 'numentry';
     }
 
@@ -856,19 +888,17 @@ export class BankScene extends IndoorSceneBase {
         this.numLabels = WITHDRAW_LABELS;
         this.numAmount = 0;
         this.numMax    = bankGold;
-        this._numRepeatDelay = 0x23;
-        this._numKeyHeld     = null;
+        this._resetNumRepeat();
         this.bankPhase = 'numentry';
     }
 
     // ── Numeric entry input ────────────────────────────────────────────────────
-    // Arrow keys: Up/Right = +1, Down/Left = -1; +10 via Right+modifier in original.
-    // In web we map:  ArrowUp/ArrowRight = +1,  ArrowDown/ArrowLeft = -1,
-    //                 PageUp = +10,              PageDown = -10.
+    // Arrow keys: Up = +1, Down = -1; Left = +10, Right = -10.
     // Space/Enter = confirm; Escape = cancel.
 
-    _handleNumEntry(key, now) {
-        if (key === 'Escape') {
+    _handleNumEntry(key, now, repeat = false) {
+        const isConfirm = key === 'Space' || key === 'Enter';
+        if (key === 'Escape' || isConfirm && !this.numAmount) {
             this._clearDlgArea();
             this._setDialog("I don't understand. Please state your business clearly.", (n) => {
                 this.bankPhase = 'menu';
@@ -877,34 +907,54 @@ export class BankScene extends IndoorSceneBase {
             return;
         }
 
-        if (key === 'Space' || key === 'Enter') {
-            if (!this.numAmount) {
-                // Nothing entered — treat as cancel.
-                this._clearDlgArea();
-                this._setDialog("I don't understand. Please state your business clearly.", (n) => {
-                    this.bankPhase = 'menu';
-                });
-                this.bankPhase = 'dialog';
-                return;
-            }
-            if (this.numMode === 'deposit') this._executeDeposit(now);
-            else                            this._executeWithdraw(now);
+        if (isConfirm) {
+            if (this.numMode === 'deposit')
+                this._executeDeposit(now);
+            else
+                this._executeWithdraw(now);
+
             return;
         }
 
+        if (repeat && this._isNumArrowKey(key)) return;
+
         // Arrow adjustment.
-        if (key === 'ArrowUp' || key === 'ArrowRight' || key === 'PageUp') {
-            const delta = (key === 'PageUp') ? 10 : 1;
+        if (this._isNumArrowKey(key)) {
+            this._adjustNumAmountForKey(key);
+            this._numKeyHeld = key;
+            this._numRepeatDelay = NUM_REPEAT_INITIAL_FRAMES;
+            this._numRepeatTimer = now;
+        }
+    }
+
+    _isNumArrowKey(key) {
+        return key === 'ArrowUp' || key === 'ArrowDown' ||
+               key === 'ArrowLeft' || key === 'ArrowRight';
+    }
+
+    _numHeldKeyFromState(keys) {
+        if (!keys) return null;
+        if (keys.ArrowRight) return 'ArrowRight';
+        if (keys.ArrowLeft)  return 'ArrowLeft';
+        if (keys.ArrowDown)  return 'ArrowDown';
+        if (keys.ArrowUp)    return 'ArrowUp';
+        return null;
+    }
+
+    _adjustNumAmountForKey(key) {
+        if (key === 'ArrowUp' || key === 'ArrowLeft') {
+            const delta = (key === 'ArrowLeft') ? 10 : 1;
             this.numAmount = Math.min(this.numAmount + delta, this.numMax);
-            this._numKeyHeld    = key;
-            this._numRepeatDelay = 0x23;
-        }
-        if (key === 'ArrowDown' || key === 'ArrowLeft' || key === 'PageDown') {
-            const delta = (key === 'PageDown') ? 10 : 1;
+        } else if (key === 'ArrowDown' || key === 'ArrowRight') {
+            const delta = (key === 'ArrowRight') ? 10 : 1;
             this.numAmount = Math.max(this.numAmount - delta, 0);
-            this._numKeyHeld    = key;
-            this._numRepeatDelay = 0x23;
         }
+    }
+
+    _resetNumRepeat() {
+        this._numRepeatTimer = 0;
+        this._numKeyHeld = null;
+        this._numRepeatDelay = NUM_REPEAT_INITIAL_FRAMES;
     }
 
     _executeDeposit(now) {
@@ -1020,6 +1070,8 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueue          = [];
         this._dlgQueueIndex     = 0;
         this._dlgQueueAdvanceAt = null;
+        this._dlgCharMs         = CHAR_MS;
+        this._dlgRevealFirstChar = false;
         this.typewriter         = null;
     }
 

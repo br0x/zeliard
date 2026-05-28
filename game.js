@@ -398,7 +398,7 @@ const keys = {
 };
 
 window.addEventListener('keydown', e => {
-    if (['F1', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code))
+    if (['F1', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.code))
         e.preventDefault();
     
     if (e.code === 'F1') {
@@ -439,9 +439,21 @@ window.addEventListener('keydown', e => {
     }
 
     if (indoorActiveScene) {
-        if (e.code === 'Space' && !e.repeat) indoorActiveScene.handleInput('Space');
-        else if (e.code === 'ArrowUp') indoorActiveScene.handleInput('ArrowUp');
-        else if (e.code === 'ArrowDown') indoorActiveScene.handleInput('ArrowDown');
+        if (e.code === 'Space')                       keys.Space     = true;
+        if (e.code === 'Enter')                       keys.Enter     = true;
+        if (e.code === 'Escape')                      keys.Escape    = true;
+        if (e.code === 'ArrowUp')                     keys.ArrowUp   = true;
+        if (e.code === 'ArrowDown')                   keys.ArrowDown = true;
+        if (e.code === 'ArrowLeft')                   keys.ArrowLeft = true;
+        if (e.code === 'ArrowRight')                  keys.ArrowRight = true;
+
+        if (e.code === 'Space' && !e.repeat) indoorActiveScene.handleInput('Space', e.repeat);
+        else if (e.code === 'Enter' && !e.repeat) indoorActiveScene.handleInput('Enter', e.repeat);
+        else if (e.code === 'Escape' && !e.repeat) indoorActiveScene.handleInput('Escape', e.repeat);
+        else if (e.code === 'ArrowUp') indoorActiveScene.handleInput('ArrowUp', e.repeat);
+        else if (e.code === 'ArrowDown') indoorActiveScene.handleInput('ArrowDown', e.repeat);
+        else if (e.code === 'ArrowLeft') indoorActiveScene.handleInput('ArrowLeft', e.repeat);
+        else if (e.code === 'ArrowRight') indoorActiveScene.handleInput('ArrowRight', e.repeat);
         return;
     }
 
@@ -1567,8 +1579,10 @@ function draw() {
 
     if (indoorActiveScene) {
         const scene = indoorActiveScene;
+        const now = performance.now();
         const sceneName = scene.getName?.() ?? scene.building?.name ?? '';
-        const stillActive = scene.draw(performance.now());
+        scene.handleHeldInput?.(keys, now);
+        const stillActive = scene.draw(now);
         if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
         updatePlaceHud(stillActive ? sceneName : '', stillActive);
     } else {
