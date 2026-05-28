@@ -568,6 +568,8 @@ async function startGame() {
         }        
         await loadHeroSprite();
         await loadSwordIcons();
+        await loadShieldIcons();
+        await loadMagicIcons();
 
         parseTownNpcCategory();
         await Promise.all(
@@ -1184,7 +1186,9 @@ function startIndoorScene(destId) {
         renderAlmasHud,
         drawLifeBar,
         setLife,
+        renderSwordHud,
         renderMagicHud,
+        renderShieldHud,
     };
 
     const building = TOWN_BUILDINGS[destId];
@@ -1640,7 +1644,11 @@ function draw() {
         if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
         updatePlaceHud(stillActive ? sceneName : '', stillActive);
         drawLifeBar();
+        renderGoldHud();
+        renderAlmasHud();
+        renderSwordHud();
         renderMagicHud();
+        renderShieldHud();
     } else {
         drawTownBackground();
         drawTownSidewalk();

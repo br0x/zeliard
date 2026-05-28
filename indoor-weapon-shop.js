@@ -316,17 +316,18 @@ export class WeaponShopScene extends IndoorSceneBase {
         const lo = v & 0xFFFF;
         this._write(ADDR_GOLD_HI, [hi]);
         this._write(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this.renderGoldHud?.();
     }
 
     _getSwordType()    { return this._read(ADDR_SWORD_TYPE,  1)[0]; }
-    _setSwordType(v)   { this._write(ADDR_SWORD_TYPE,  [v]); }
+    _setSwordType(v)   { this._write(ADDR_SWORD_TYPE,  [v]); this.renderSwordHud?.(); }
     _getShieldType()   { return this._read(ADDR_SHIELD_TYPE, 1)[0]; }
-    _setShieldType(v)  { this._write(ADDR_SHIELD_TYPE, [v]); }
+    _setShieldType(v)  { this._write(ADDR_SHIELD_TYPE, [v]); this.renderShieldHud?.(); }
 
     _getShieldHP()     { const b = this._read(ADDR_SHIELD_HP,     2); return b[0] | (b[1] << 8); }
     _getShieldMaxHP()  { const b = this._read(ADDR_SHIELD_MAX_HP, 2); return b[0] | (b[1] << 8); }
-    _setShieldHP(v)    { this._write(ADDR_SHIELD_HP,     [v & 0xFF, (v >> 8) & 0xFF]); }
-    _setShieldMaxHP(v) { this._write(ADDR_SHIELD_MAX_HP, [v & 0xFF, (v >> 8) & 0xFF]); }
+    _setShieldHP(v)    { this._write(ADDR_SHIELD_HP,     [v & 0xFF, (v >> 8) & 0xFF]); this.renderShieldHud?.(); }
+    _setShieldMaxHP(v) { this._write(ADDR_SHIELD_MAX_HP, [v & 0xFF, (v >> 8) & 0xFF]); this.renderShieldHud?.(); }
 
     _getSwordBitmask()  {
         return this._read(ADDR_SWORD_MASKS  + this.townIdx, 1)[0]

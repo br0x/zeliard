@@ -21,7 +21,7 @@ const IMG_H = 192;
 const CANDLE_REL_X = 51;
 const CANDLE_REL_Y = 100;
 const CANDLE_W = 53;
-const CANDLE_H = 64;
+const CANDLE_H = 23;
 
 const DLG_X = 16;
 const DLG_Y = IMG_Y + IMG_H + 14;

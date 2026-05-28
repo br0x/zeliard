@@ -10,9 +10,13 @@ export class IndoorSceneBase {
         writeMemory,
         finishCallback,
         soundManager,
+        renderGoldHud,
+        renderAlmasHud,
         drawLifeBar,
         setLife,
+        renderSwordHud,
         renderMagicHud,
+        renderShieldHud,
     }) {
         this.canvas = canvas;
         this.ctx = ctx;
@@ -20,9 +24,13 @@ export class IndoorSceneBase {
         this.writeMemory = writeMemory;
         this.finishCallback = finishCallback;
         this.soundManager = soundManager;
+        this.renderGoldHud = renderGoldHud;
+        this.renderAlmasHud = renderAlmasHud;
         this.drawLifeBar = drawLifeBar;
         this.setLife = setLife;
+        this.renderSwordHud = renderSwordHud;
         this.renderMagicHud = renderMagicHud;
+        this.renderShieldHud = renderShieldHud;
 
         this.phase = 'idle';
         this.alpha = 0;
