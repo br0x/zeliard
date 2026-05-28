@@ -150,6 +150,8 @@ export class BankScene extends IndoorSceneBase {
 
     constructor(context) {
         super(context);
+        this.renderGoldHud = context.renderGoldHud;
+        this.renderAlmasHud = context.renderAlmasHud;
 
         // ── Image caches ─────────────────────────────────────────────────────
         this.writingImgs  = [];
@@ -210,6 +212,7 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueueAdvanceAt   = null;
         this._dlgCharMs           = CHAR_MS;
         this._dlgRevealFirstChar  = false;
+        this._dlgAutoAdvance      = false;
 
         // after dialog is dismissed, what happens next
         this._afterDialog        = null;   // function (now) called on Space press
@@ -284,6 +287,7 @@ export class BankScene extends IndoorSceneBase {
         const lo = v & 0xFFFF;
         this._write(ADDR_GOLD_HI, [hi]);
         this._write(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this.renderGoldHud?.();
     }
 
     /** Bank gold: 16-bit – hi byte at 0x88, lo byte at 0x89 (LE word) */
@@ -304,6 +308,7 @@ export class BankScene extends IndoorSceneBase {
     _setAlmas(amount) {
         const v = Math.max(0, Math.floor(amount)) & 0xFFFF;
         this._write(ADDR_ALMAS, [v & 0xFF, (v >> 8) & 0xFF]);
+        this.renderAlmasHud?.();
     }
 
     // ── Dialog machinery ──────────────────────────────────────────────────────
@@ -346,7 +351,7 @@ export class BankScene extends IndoorSceneBase {
         this._dlgRevealFirstChar = false;
     }
 
-    _setDialog(text, afterFn = null, charMs = CHAR_MS, revealFirstChar = false) {
+    _setDialog(text, afterFn = null, charMs = CHAR_MS, revealFirstChar = false, autoAdvance = false) {
         const lines = this._wrapText(text);
         if (!lines.length) return;
         this.dlgBuffer          = [];
@@ -356,8 +361,35 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueueAdvanceAt = null;
         this._dlgCharMs         = charMs;
         this._dlgRevealFirstChar = revealFirstChar;
+        this._dlgAutoAdvance    = autoAdvance;
         this._afterDialog       = afterFn;
         this._showNextDlgLine();
+    }
+
+    _setAutoDialog(text, afterFn = null) {
+        this._setDialog(text, afterFn, CHAR_MS, false, true);
+    }
+
+    _appendDialogText(text, afterFn = null, charMs = CHAR_MS, autoAdvance = false) {
+        const base = this._pendingLine !== null
+            ? this._pendingLine
+            : (this.dlgBuffer.length ? this.dlgBuffer.pop() : '');
+        const line = base + text;
+
+        this._pendingLine       = line;
+        this._dlgQueue          = [line];
+        this._dlgQueueIndex     = 1;
+        this._dlgQueueAdvanceAt = null;
+        this._dlgCharMs         = charMs;
+        this._dlgRevealFirstChar = false;
+        this._dlgAutoAdvance    = autoAdvance;
+        this._afterDialog       = afterFn;
+
+        this.typewriter = new TypewriterText(
+            line, FONT_DLG, DLG_W - 28,
+            charMs, LINE_H_DLG, DLG_H, this.ctx
+        );
+        this.typewriter.start(performance.now() - base.length * charMs);
     }
 
     _showNextDlgLine() {
@@ -396,13 +428,26 @@ export class BankScene extends IndoorSceneBase {
     }
 
     _dlgArrowVisible(now) {
+        if (this._dlgAutoAdvance) return false;
         if (!this._dlgDone(now)) return false;
         return (
-            this.bankPhase === 'entering'        ||
-            this.bankPhase === 'greeting'        ||
             this.bankPhase === 'dialog'          ||
             this.bankPhase === 'confirm_exchange'
         );
+    }
+
+    _finishDialog(now) {
+        if (this._pendingLine !== null) {
+            this.dlgBuffer.push(this._pendingLine);
+            this._pendingLine = null;
+        }
+        this.typewriter = null;
+        this._dlgAutoAdvance = false;
+        if (this._afterDialog) {
+            const fn = this._afterDialog;
+            this._afterDialog = null;
+            fn(now);
+        }
     }
 
     // ── Animation helpers ─────────────────────────────────────────────────────
@@ -454,6 +499,9 @@ export class BankScene extends IndoorSceneBase {
     drawContent(now, alpha) {
         this._tickDlgQueue(now);
         this._tickBankLogic(now);
+        if (this._dlgAutoAdvance && this._dlgDone(now)) {
+            this._finishDialog(now);
+        }
 
         this._drawClerkPortrait(now);
         if (this.bankPhase === 'menu' || this.bankPhase === 'dialog' ||
@@ -486,8 +534,7 @@ export class BankScene extends IndoorSceneBase {
                 const writingDone = this.animSeqIdx >= WRITING_REPEAT * WRITING_FRAMES.length;
                 if (writingDone && this._dlgDone(now)) {
                     this._enterStage = 1;
-                    this._clearDlgArea();
-                    this._setDialog('Oh, excuse me. ');
+                    this._appendDialogText('Oh, excuse me. ');
                 }
             } else if (this._enterStage === 1) {
                 // "Oh, excuse me.": wait until the full enter sequence is done
@@ -500,10 +547,9 @@ export class BankScene extends IndoorSceneBase {
                     this.idleLastSwitch = now;
 
                     this.bankPhase = 'greeting';
-                    this._clearDlgArea();
-                    this._setDialog('Can I help you?', (n) => {
+                    this._appendDialogText('Can I help you?', (n) => {
                         this.bankPhase = 'menu';
-                    });
+                    }, CHAR_MS, true);
                 }
             }
             return;
@@ -725,16 +771,7 @@ export class BankScene extends IndoorSceneBase {
             return;
         }
         // Dialog fully done: flush pending line and invoke callback.
-        if (this._pendingLine !== null) {
-            this.dlgBuffer.push(this._pendingLine);
-            this._pendingLine = null;
-        }
-        this.typewriter = null;
-        if (this._afterDialog) {
-            const fn = this._afterDialog;
-            this._afterDialog = null;
-            fn(now);
-        }
+        this._finishDialog(now);
     }
 
     _selectMenuItem(now) {
@@ -764,7 +801,7 @@ export class BankScene extends IndoorSceneBase {
             msg = "Unless you have business, don't come in here. I'm a busy man.";
         }
         this._clearDlgArea();
-        this._setDialog(msg, (n) => {
+        this._setAutoDialog(msg, (n) => {
             // Start exit animation.
             this.bankPhase      = 'exiting';
             this.animPhase      = 'exiting';
@@ -781,7 +818,7 @@ export class BankScene extends IndoorSceneBase {
 
         const almas = this._getAlmas();
         if (!almas) {
-            this._setDialog("Sir, you aren't carrying any almas. ", (n) => {
+            this._setAutoDialog("Sir, you aren't carrying any almas. ", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -809,7 +846,7 @@ export class BankScene extends IndoorSceneBase {
         }
         if (key === 'Escape') {
             this._clearDlgArea();
-            this._setDialog("I don't understand. Please state your business clearly.", (n) => {
+            this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -829,7 +866,7 @@ export class BankScene extends IndoorSceneBase {
         const batches = Math.floor(almas / from);
         if (!batches) {
             this._clearDlgArea();
-            this._setDialog("I'm sorry, you do not have enough almas.", (n) => {
+            this._setAutoDialog("I'm sorry, you do not have enough almas.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -844,7 +881,7 @@ export class BankScene extends IndoorSceneBase {
         this._hadLargeDeposit = true;   // byte_AD23: exchanged counts as "did something"
 
         this._clearDlgArea();
-        this._setDialog('Will there be anything else?', (n) => {
+        this._setAutoDialog('Will there be anything else?', (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';
@@ -856,7 +893,7 @@ export class BankScene extends IndoorSceneBase {
         this._clearDlgArea();
         const heroGold = this._getHeroGold();
         if (!heroGold) {
-            this._setDialog("You aren't carrying any gold, are you?", (n) => {
+            this._setAutoDialog("You aren't carrying any gold, are you?", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -876,7 +913,7 @@ export class BankScene extends IndoorSceneBase {
         this._clearDlgArea();
         const bankGold = this._getBankGold();
         if (!bankGold) {
-            this._setDialog("I'm afraid we have a problem here. You don't have any gold in your account.", (n) => {
+            this._setAutoDialog("I'm afraid we have a problem here. You don't have any gold in your account.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -900,7 +937,7 @@ export class BankScene extends IndoorSceneBase {
         const isConfirm = key === 'Space' || key === 'Enter';
         if (key === 'Escape' || isConfirm && !this.numAmount) {
             this._clearDlgArea();
-            this._setDialog("I don't understand. Please state your business clearly.", (n) => {
+            this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -962,7 +999,7 @@ export class BankScene extends IndoorSceneBase {
         const hero   = this._getHeroGold();
         if (amount > hero) {
             this._clearDlgArea();
-            this._setDialog("I'm sorry, you do not have enough gold.", (n) => {
+            this._setAutoDialog("I'm sorry, you do not have enough gold.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -995,7 +1032,7 @@ export class BankScene extends IndoorSceneBase {
             msg = `Your balance is ${bankGold} golds.`;
         }
         this._clearDlgArea();
-        this._setDialog(msg, (n) => {
+        this._setAutoDialog(msg, (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';
@@ -1006,7 +1043,7 @@ export class BankScene extends IndoorSceneBase {
         const bankGold = this._getBankGold();
         if (amount > bankGold) {
             this._clearDlgArea();
-            this._setDialog("I'm afraid we have a problem here. You don't have enough gold in your account.", (n) => {
+            this._setAutoDialog("I'm afraid we have a problem here. You don't have enough gold in your account.", (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -1036,7 +1073,7 @@ export class BankScene extends IndoorSceneBase {
         }
 
         this._clearDlgArea();
-        this._setDialog(`${handOverMsg}\n${balanceMsg}`, (n) => {
+        this._setAutoDialog(`${handOverMsg}\n${balanceMsg}`, (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';
@@ -1056,7 +1093,7 @@ export class BankScene extends IndoorSceneBase {
             msg = `You have ${bankGold} golds in your account.`;
         }
         this._hadLargeDeposit = true;  // byte_AD23 (checking balance still counts)
-        this._setDialog(msg, (n) => {
+        this._setAutoDialog(msg, (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';

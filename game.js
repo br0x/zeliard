@@ -712,6 +712,7 @@ const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
+const ADDR_HERO_ALMAS = 0x8b;
 const ADDR_SWORD_TYPE = 0x92;
 const ADDR_SHIELD_TYPE = 0x93;
 const ADDR_SHIELD_HP = 0x94;
@@ -1173,6 +1174,7 @@ function startIndoorScene(destId) {
         soundManager,
         saveGame,
         renderGoldHud,
+        renderAlmasHud,
     };
 
     const building = TOWN_BUILDINGS[destId];
@@ -1260,6 +1262,23 @@ function setHeroGoldValue(value) {
 
 function renderGoldHud() {
     updateElementText('gold', getHeroGoldValue());
+}
+
+function getHeroAlmasValue() {
+    if (!readMemory) return 0;
+    const almasBytes = readMemory(ADDR_HERO_ALMAS, 2);
+    const almas = almasBytes[0] | (almasBytes[1] << 8);
+    return almas;
+}
+
+function setHeroAlmasValue(value) {
+    if (!writeMemory) return;
+    const clamped = Math.max(0, Math.min(0xFFFF, value));
+    writeMemory(ADDR_HERO_ALMAS, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
+}
+
+function renderAlmasHud() {
+    updateElementText('almas', getHeroAlmasValue());
 }
 
 async function loadSwordIcons() {
