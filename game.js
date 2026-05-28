@@ -123,6 +123,30 @@ const NPC_FRAMES   = 8;           // frames per sheet
 // WASM memory addresses for NPC table (mirrors town.h / town.c)
 const ADDR_NPC_ARRAY_PTR       = 0xC00F;
 const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
+const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
+const ADDR_BUILDING_ACTIVE = 0xFFFA;
+const ADDR_BUILDING_DEST_ID = 0xFFFB;
+const ADDR_FRAME_TIMER = 0xFF1A;
+const ADDR_SOUND_FX_REQUEST = 0xFF75;
+const ADDR_SPOKE_TO_KING = 0x05;
+const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
+const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
+const ADDR_HERO_GOLD_HI = 0x85;
+const ADDR_HERO_GOLD_LO = 0x86;
+const ADDR_HERO_ALMAS = 0x8b;
+const ADDR_SWORD_TYPE = 0x92;
+const ADDR_SHIELD_TYPE = 0x93;
+const ADDR_SHIELD_HP = 0x94;
+const ADDR_CURR_SPELL_TYPE = 0x9d;
+const ADDR_SPELL_COUNTS = [
+    0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
+];
+const ADDR_HERO_LEVEL    = 0x8d;
+const ADDR_HERO_XP       = 0x8e;
+const ADDR_SAGES_SPOKEN  = 0xe5;
+const ADDR_HERO_HP       = 0x90;
+const ADDR_HERO_MAX_HP   = 0xB2;
+const ADDR_PLACE_MAP_ID  = 0xC4;
 
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
@@ -134,7 +158,6 @@ const TOWN_SIDEWALK2_START_ROW = TOWN_SIDEWALK1_START_ROW + 1;
 const TOWN_VISIBLE_COL_OFFSET = 4;
 const TOWN_ANIMATION_FULL_TICKS = 24;
 const TOWN_BACKGROUND_ROWS = 11;
-const PLACE_MAP_ID = 0xC4;
 const TOWN_MDTS = [
     'game/0/cmap.mdt', // Felishika's Castle
     'game/0/mrmp.mdt', // Muralla Town
@@ -547,7 +570,7 @@ async function startGame() {
             saveState = loadGame();
         }
         loadSaveState(saveState);
-        const placeId = saveState[PLACE_MAP_ID] & 0x7f;
+        const placeId = saveState[ADDR_PLACE_MAP_ID] & 0x7f;
         const mdtPath = TOWN_MDTS[placeId];
 
         const response = await fetch(mdtPath);
@@ -716,30 +739,6 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
     } = wasmBridge);
 }
-
-const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
-const ADDR_BUILDING_ACTIVE = 0xFFFA;
-const ADDR_BUILDING_DEST_ID = 0xFFFB;
-const ADDR_FRAME_TIMER = 0xFF1A;
-const ADDR_SOUND_FX_REQUEST = 0xFF75;
-const ADDR_SPOKE_TO_KING = 0x05;
-const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
-const ADDR_HERO_GOLD_HI = 0x85;
-const ADDR_HERO_GOLD_LO = 0x86;
-const ADDR_HERO_ALMAS = 0x8b;
-const ADDR_SWORD_TYPE = 0x92;
-const ADDR_SHIELD_TYPE = 0x93;
-const ADDR_SHIELD_HP = 0x94;
-const ADDR_CURR_SPELL_TYPE = 0x9d;
-const ADDR_SPELL_COUNTS = [
-    0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
-];
-const ADDR_HERO_LEVEL    = 0x8d;
-const ADDR_HERO_XP       = 0x8e;
-const ADDR_SAGES_SPOKEN  = 0xe5;
-const ADDR_HERO_HP       = 0x90;
-const ADDR_HERO_MAX_HP   = 0xB2;
 
 // Conversation state (NPC dialog overlay)
 let conversation = {
@@ -1527,84 +1526,91 @@ async function performGameRestore(saveData) {
         indoorActiveScene = null;
     }
     conversation.active = false;
+    if (activeModal) closeModal();
 
     // Load the save into WASM memory
     loadSaveState(saveData);
 
     // Get the place id (town index or dungeon)
-    const placeId = readMemory(0xC4, 1)[0] & 0x7F;
+    const placeId = readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F;
 
-    // Only towns are implemented for now; dungeons would need similar handling
     if (placeId < TOWN_MDTS.length) {
         const mdtPath = TOWN_MDTS[placeId];
         try {
             const resp = await fetch(mdtPath);
             if (!resp.ok) throw new Error(`Failed to load ${mdtPath}`);
-            mdtData = new Uint8Array(await resp.arrayBuffer());
-            loadMdt(mdtData);
+            // ✅ CRITICAL: Update the module-level mdtData variable
+            const newMdtData = new Uint8Array(await resp.arrayBuffer());
+            mdtData = newMdtData;          // <-- this was missing!
+            loadMdt(newMdtData);
             mdtHeader = getTownMdtHeader?.();
-
-            // Refresh backgrounds and tiles
-            const newBgType = getTownBackgroundType();
-            if (newBgType !== townBackgroundType) {
-                townBackgroundType = newBgType;
-                townBackgroundReady = false;
-                townBackground = null;
-                townCeilingReady = false;
-                townCeiling = null;
-                townSidewalk1Ready = false;
-                townSidewalk1 = null;
-                townSidewalk2Ready = false;
-                townSidewalk2 = null;
-            }
-            await loadTownBackground();
-            await loadTownCeiling();
-            await loadTownSidewalk1();
-            await loadTownSidewalk2();
-            resetTownScrollOffsets();
-
-            const newPatId = getTownPatId();
-            if (newPatId !== townPatId) {
-                townPatId = newPatId;
-                townTileSheetReady = false;
-                townTileSheet = null;
-            }
-            const pattern = PATTERN_ASSETS[townPatId];
-            if (pattern) {
-                await loadTownTileSheet(pattern.imagePath);
-                setSpecialTileList(pattern.specialTiles);
-                updateTownAnimation();
-            }
-
-            parseTownNpcCategory();
-            await Promise.all(
-                NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, idx) => loadNpcSprite(idx))
-            );
-
-            // Notify WASM that transition is complete (if needed)
-            townCompleteTransition?.();
-
-            const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
-            if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
-
-            // Ensure town entry flag is set (so minimap etc. works)
-            if (!townEntryRan) {
-                townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
-                townEntryDisablingEdgeScroll();
-                townEntryRan = true;
-            }
-
-            console.log(`Restored town ${placeId}`);
         } catch (err) {
-            console.error('Restore failed:', err);
+            console.error('Failed to load MDT for restore:', err);
+            return;
         }
     } else {
-        // For dungeons / caverns, fallback to starting town (index 0)
-        console.error('Attempt to restore in dungeon');
+        // Fallback to starting town (index 0) for dungeons
+        console.warn('Restoring in dungeon – falling back to Felishika Castle');
+        const resp = await fetch(TOWN_MDTS[0]);
+        if (!resp.ok) throw new Error(`Failed to load ${TOWN_MDTS[0]}`);
+        const newMdtData = new Uint8Array(await resp.arrayBuffer());
+        mdtData = newMdtData;
+        loadMdt(newMdtData);
+        mdtHeader = getTownMdtHeader?.();
+        writeMemory(ADDR_PLACE_MAP_ID, [0]);  // ensure place_map_id points to town 0
     }
+
+    // Re‑initialise the town engine – reads hero position from restored save data
+    townSetReturnBeforeMainLoop(true);
+    townEntryDisablingEdgeScroll();
+    townEntryRan = true;
+
+    // ------------------- Reload JS-side visual assets -------------------
+    const newBgType = getTownBackgroundType();
+    const newPatId = getTownPatId();
+
+    if (newBgType !== townBackgroundType || !townBackgroundReady) {
+        townBackgroundType = newBgType;
+        townBackgroundReady = false;
+        townBackground = null;
+        townCeilingReady = false;
+        townCeiling = null;
+        townSidewalk1Ready = false;
+        townSidewalk1 = null;
+        townSidewalk2Ready = false;
+        townSidewalk2 = null;
+        await loadTownBackground();
+        await loadTownCeiling();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
+        resetTownScrollOffsets();
+    }
+
+    if (newPatId !== townPatId || !townTileSheetReady) {
+        townPatId = newPatId;
+        townTileSheetReady = false;
+        townTileSheet = null;
+        const pattern = PATTERN_ASSETS[townPatId];
+        if (pattern) {
+            await loadTownTileSheet(pattern.imagePath);
+            setSpecialTileList(pattern.specialTiles);
+            updateTownAnimation();   // rebuild townAnimTileMap based on new patId
+        }
+    }
+
+    // Reload NPC sprites (category may have changed)
+    parseTownNpcCategory();
+    await Promise.all(
+        NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, idx) => loadNpcSprite(idx))
+    );
+
+    const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
+    if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
 
     engineReady = true;
     gamePaused = false;
+
+    console.log(`Restored town ${readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F}`);
 }
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
