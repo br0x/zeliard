@@ -3,13 +3,26 @@
  * Handles fade‑in / fade‑out, dispatches to subclass drawContent().
  */
 export class IndoorSceneBase {
-    constructor({ canvas, ctx, readMemory, writeMemory, finishCallback, soundManager }) {
+    constructor({
+        canvas,
+        ctx,
+        readMemory,
+        writeMemory,
+        finishCallback,
+        soundManager,
+        drawLifeBar,
+        setLife,
+        renderMagicHud,
+    }) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.readMemory = readMemory;
         this.writeMemory = writeMemory;
         this.finishCallback = finishCallback;
         this.soundManager = soundManager;
+        this.drawLifeBar = drawLifeBar;
+        this.setLife = setLife;
+        this.renderMagicHud = renderMagicHud;
 
         this.phase = 'idle';
         this.alpha = 0;

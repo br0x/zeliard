@@ -728,6 +728,8 @@ const ADDR_SPELL_COUNTS = [
 const ADDR_HERO_LEVEL    = 0x8d;
 const ADDR_HERO_XP       = 0x8e;
 const ADDR_SAGES_SPOKEN  = 0xe5;
+const ADDR_HERO_HP       = 0x90;
+const ADDR_HERO_MAX_HP   = 0xB2;
 
 // Conversation state (NPC dialog overlay)
 let conversation = {
@@ -1180,6 +1182,9 @@ function startIndoorScene(destId) {
         saveGame,
         renderGoldHud,
         renderAlmasHud,
+        drawLifeBar,
+        setLife,
+        renderMagicHud,
     };
 
     const building = TOWN_BUILDINGS[destId];
@@ -1204,6 +1209,30 @@ function updatePlaceHud(name, indoor = false) {
     updateElementText('currentMapName', name);
 }
 
+function getHeroHp() {
+    if (!readMemory) return 0;
+    const hpBytes = readMemory(ADDR_HERO_HP, 2);
+    return (hpBytes[0] | (hpBytes[1] << 8));
+}
+
+function setHeroHp(hp) {
+    if (!writeMemory) return;
+    const clamped = Math.max(0, Math.min(0xFFFF, hp));
+    writeMemory(ADDR_HERO_HP, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
+}
+
+function getHeroMaxHp() {
+    if (!readMemory) return 0;
+    const hpBytes = readMemory(ADDR_HERO_MAX_HP, 2);
+    return (hpBytes[0] | (hpBytes[1] << 8));
+}
+
+function setHeroMaxHp(maxHp) {
+    if (!writeMemory) return;
+    const clamped = Math.max(0, Math.min(0xFFFF, maxHp));
+    writeMemory(ADDR_HERO_MAX_HP, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
+}
+
 let lifeFillCurrentEl = null;
 let lifeFillMaxEl     = null;
 
@@ -1212,13 +1241,14 @@ function drawLifeBar() {
         lifeFillCurrentEl = document.querySelector('.life-fill-current');
         lifeFillMaxEl     = document.querySelector('.life-fill-max');
     }
-    setLife(10, 30);
+    setLife(getHeroHp(), getHeroMaxHp());
 }
 
+// Max possible HP is 800 (which corresponds to 100% of the bar)
 function setLife(currentLife, maxLife) {
     if (lifeFillCurrentEl && lifeFillMaxEl) {
-        lifeFillMaxEl.style.width     = maxLife     + '%';
-        lifeFillCurrentEl.style.width = currentLife + '%';
+        lifeFillMaxEl.style.width     = (maxLife/8)     + '%';
+        lifeFillCurrentEl.style.width = (currentLife/8) + '%';
     }
 }
 
@@ -1609,6 +1639,8 @@ function draw() {
         const stillActive = scene.draw(now);
         if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
         updatePlaceHud(stillActive ? sceneName : '', stillActive);
+        drawLifeBar();
+        renderMagicHud();
     } else {
         drawTownBackground();
         drawTownSidewalk();

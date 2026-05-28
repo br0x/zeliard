@@ -54,6 +54,7 @@ const CANDLE_FRAMES = [
     'assets/images/church/candle1.png',
     'assets/images/church/candle2.png',
     'assets/images/church/candle3.png',
+    'assets/images/church/candle4.png',
 ];
 
 const ADDR_HERO_HP = 0x90;
@@ -205,6 +206,7 @@ export class ChurchScene extends IndoorSceneBase {
 
     _setHeroHP(value) {
         this._writeWord(ADDR_HERO_HP, value);
+        this._refreshLifeHud();
     }
 
     _restoreSpells() {
@@ -219,6 +221,15 @@ export class ChurchScene extends IndoorSceneBase {
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
         if (counter) counter.textContent = this._readByte(ADDR_SPELLS_ACT + activeSpell - 1);
+        this.renderMagicHud?.();
+    }
+
+    _refreshLifeHud() {
+        if (this.drawLifeBar) {
+            this.drawLifeBar();
+        } else {
+            this.setLife?.(this._getHeroHP(), this._getHeroMaxHp());
+        }
     }
 
     drawContent(now, alpha) {

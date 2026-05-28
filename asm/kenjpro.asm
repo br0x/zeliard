@@ -368,9 +368,9 @@ loc_A2C7:
                 push    cs
                 pop     es
                 mov     al, ds:hero_level
-                cmp     al, 10h
+                cmp     al, 16
                 jb      short loc_A2F5
-                mov     word_BB34, 320h
+                mov     word_BB34, 800  ; max possible HP
                 mov     cx, 7
                 mov     si, espada_count
                 mov     di, offset byte_BB36

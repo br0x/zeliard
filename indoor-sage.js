@@ -28,6 +28,31 @@ const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
 
 const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 const SAGE_MIN_LEVEL_BY_TOWN = [3,6,9,11,13,15,18,0xFF];
+const ADDR_HERO_LEVEL = 0x8d;
+const ADDR_HERO_XP = 0x8e;
+const ADDR_HERO_HP = 0x90;
+const ADDR_CURRENT_MAGIC_SPELL = 0x9d;
+const ADDR_SPELLS_ACTIVE = 0xab;
+const ADDR_HERO_MAX_HP = 0xb2;
+const ADDR_SPELLS_INVENTORY = 0xb4;
+const SAGE_LEVEL_REWARDS = [
+    { hp: 0x0078, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x00a0, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x00c8, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x00f0, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x0118, spells: [0x10, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x0140, spells: [0x14, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x017c, spells: [0x18, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x01cc, spells: [0x1c, 0x0c, 0x08, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x021c, spells: [0x20, 0x12, 0x0c, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x0258, spells: [0x24, 0x18, 0x10, 0x08, 0x03, 0x04, 0x03] },
+    { hp: 0x0280, spells: [0x28, 0x1e, 0x14, 0x10, 0x03, 0x04, 0x03] },
+    { hp: 0x02a8, spells: [0x2c, 0x24, 0x18, 0x18, 0x03, 0x04, 0x03] },
+    { hp: 0x02d0, spells: [0x30, 0x2a, 0x1c, 0x20, 0x03, 0x04, 0x03] },
+    { hp: 0x02f8, spells: [0x34, 0x30, 0x24, 0x30, 0x09, 0x08, 0x06] },
+    { hp: 0x030c, spells: [0x38, 0x36, 0x2c, 0x36, 0x0f, 0x0c, 0x09] },
+    { hp: 0x0320, spells: [0x3c, 0x3c, 0x3c, 0x48, 0x15, 0x10, 0x0c] },
+];
 const SAGE_NAMES = [
     'The Sage Marid','The Sage Yasmin','The Sage Hajjar','The Sage Chiriga',
     'The Sage Hisham','The Sage Maryam','The Sage Saied','The Sage Indihar',
@@ -712,18 +737,53 @@ export class SageScene extends IndoorSceneBase {
         return 4;
     }
 
-    _getHeroLevel() { return this.readMemory?.(0x8d,1)[0] || 1; }
+    _getHeroLevel() { return this.readMemory?.(ADDR_HERO_LEVEL,1)[0] || 1; }
     _getHeroXp() {
         if (!this.readMemory) return 0;
-        const b = this.readMemory(0x8e,2);
+        const b = this.readMemory(ADDR_HERO_XP,2);
         return b[0] | (b[1] << 8);
     }
     _applyLevelUp() {
         if (!this.writeMemory) return;
-        let lvl = this._getHeroLevel();
-        if (lvl < 0xFE) lvl++;
-        this.writeMemory(0x8d, [lvl]);
-        this.writeMemory(0x8e, [0,0]);
+        const oldLevel = this._getHeroLevel();
+        const nextLevel = oldLevel === 0xFF ? 0xFF : Math.min(0xFF, oldLevel + 1);
+        const reward = this._getLevelReward(oldLevel);
+
+        this.writeMemory(ADDR_HERO_LEVEL, [nextLevel]);
+        this.writeMemory(ADDR_HERO_XP, [0,0]);
+        this._writeWord(ADDR_HERO_MAX_HP, reward.hp);
+        this._writeWord(ADDR_HERO_HP, reward.hp);
+        this.writeMemory(ADDR_SPELLS_INVENTORY, reward.spells);
+        this.writeMemory(ADDR_SPELLS_ACTIVE, reward.spells);
+
+        this.drawLifeBar?.();
+        this.renderMagicHud?.();
+        this._refreshMagicCounter();
+    }
+
+    _getLevelReward(level) {
+        if (level >= 16) {
+            const spells = this.readMemory ? Array.from(this.readMemory(ADDR_SPELLS_INVENTORY, 7)) : [0,0,0,0,0,0,0];
+            return {
+                hp: 800,
+                spells: spells.map(count => Math.min(0xFF, count + 2)),
+            };
+        }
+        return SAGE_LEVEL_REWARDS[Math.max(0, Math.min(SAGE_LEVEL_REWARDS.length - 1, level))];
+    }
+
+    _writeWord(addr, value) {
+        if (!this.writeMemory) return;
+        const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
+        this.writeMemory(addr, [v & 0xFF, (v >> 8) & 0xFF]);
+    }
+
+    _refreshMagicCounter() {
+        if (typeof document === 'undefined' || !this.readMemory) return;
+        const spell = this.readMemory(ADDR_CURRENT_MAGIC_SPELL, 1)[0] & 0xFF;
+        if (!spell) return;
+        const counter = document.getElementById('spellCounter');
+        if (counter) counter.textContent = this.readMemory(ADDR_SPELLS_ACTIVE + spell - 1, 1)[0] & 0xFF;
     }
 
     getName() {
