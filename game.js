@@ -14,6 +14,7 @@ import { WitchcraftShopScene } from './indoor-magic-shop.js';
 import { ChurchScene }   from './indoor-church.js';
 import { BankScene }     from './indoor-bank.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
+import { ImportExportDialog } from './import-export-ui.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
 const TILE_WIDTH  = 24;
@@ -414,6 +415,13 @@ window.addEventListener('keydown', e => {
     if (e.code === 'F7') {
         if (!activeModal && !gamePaused) {
             openRestoreModal();
+        }
+        return;
+    }
+
+    if (e.code === 'F8') {
+        if (!activeModal && !gamePaused && engineReady) {
+            openImportExportModal();
         }
         return;
     }
@@ -1737,32 +1745,85 @@ export function loadGameFromSlot(slotName) {
     }
 }
 
-function exportSave() {
-    const gameState = null;//{ player }; // Simplify for example
-    const dataStr = JSON.stringify(gameState, null, 2); // Pretty print
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "zeliard_save.json";
-    link.click();
-    
-    URL.revokeObjectURL(url);
+// Hidden file input used for import
+let fileInput = null;
+function ensureFileInput() {
+    if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.sav';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+    }
+    return fileInput;
 }
 
-// Add this to your HTML: <input type="file" id="fileInput" style="display:none">
-function importSave(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+// Export a specific save slot to a .sav file (filename = slotName + '.sav')
+function exportSlotToFile(slotName) {
+    const saveData = loadGameFromSlot(slotName);
+    if (!saveData) {
+        console.error(`No save data found for slot "${slotName}"`);
+        alert(`No save data for slot "${slotName}"`);
+        return;
+    }
+    const blob = new Blob([saveData], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slotName}.sav`;   // use slot name as filename
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log(`Exported slot "${slotName}" to ${slotName}.sav`);
+}
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const data = JSON.parse(e.target.result);
-        // Object.assign(player, data.player);
-        console.log("File Imported!");
+// Import a .sav file and restore game state
+function importSaveFromFile() {
+    if (!engineReady) {
+        console.warn('Engine not ready, cannot import.');
+        return;
+    }
+    const input = ensureFileInput();
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const buffer = await file.arrayBuffer();
+            const data = new Uint8Array(buffer);
+            if (data.length !== 256) {
+                alert('Invalid save file: must be exactly 256 bytes.');
+                return;
+            }
+            await performGameRestore(data);
+            console.log(`Imported and restored from ${file.name}`);
+        } catch (err) {
+            console.error('Import failed:', err);
+            alert('Failed to import save file.');
+        } finally {
+            input.value = '';
+        }
     };
-    reader.readAsText(file);
+    input.click();
+}
+
+// Open the new modal
+function openImportExportModal() {
+    if (activeModal) return;
+    gamePaused = true;
+
+    const onExportSlot = (slotName) => {
+        exportSlotToFile(slotName);
+        closeModal();
+    };
+    const onImportFromFile = () => {
+        importSaveFromFile();
+        closeModal();
+    };
+    const onCancel = () => {
+        closeModal();
+    };
+    activeModal = new ImportExportDialog(onExportSlot, onImportFromFile, onCancel);
 }
 
 window.openSaveModal = openSaveModal;
