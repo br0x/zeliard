@@ -15,12 +15,12 @@ from tkinter import filedialog
 # 3: 16x16 Magic Spells (3 planes, 48-byte block reassembly)
 # 4: 32x32 Sword Macro-tiles (2bpp bit-plane assembly)
 # 5: 16x24 NPC Sprites (mman.grp/cman.grp)
-# 6: 16x24 Hero Sprites (tman.grp)
-# 7: 8x8 Patterns (mpat.grp/dpat.grp/cpat.grp)
-# 8: 24x24 Hero Sprites (fman.grp)
+# 6: 16x24 Hero Sprites in town (tman.grp)
+# 7: 8x8 town Patterns (mpat.grp/dpat.grp/cpat.grp)
+# 8: 24x24 Hero Sprites in dungeons (fman.grp)
 # 9: 28x18 tiles 8x8 each, 5 palette modes (roka.grp)
 # 10; 8x8 static dungeon tiles (dchr.grp, mppX.grp)
-# 11: 16x16 NPC Sprites (enpX.grp)
+# 11: 16x16 monsters Sprites (enpX.grp)
 # 12: boss sprites (crab.grp)
 GRP_DESCRIPTOR = [
     ("itemp.grp", [0, 1, 1, 1, 1, 1, 1]),
@@ -63,7 +63,6 @@ GRP_DESCRIPTOR = [
     ("enp1.grp",  11),
     ("crab.grp",  12),
     ("dman.grp",  13), # rokademo
-    ("unkn1_21.grp",  7),
 ]
 
 MODE_CFG = {
@@ -956,7 +955,7 @@ def render_fman_group(data, canvas, y_offset, frame_counts=None):
             
             # Draw frame border
             canvas.create_rectangle(x0-1, y0-1, x0 + sprite_px*scale, 
-                                     y0 + sprite_px*scale, outline="gray")
+                                     y0 + sprite_px*scale, fill="#8c38ff")
 
             frame_map = group_indices[f_idx*9 : (f_idx+1)*9]
             for row in range(3):
