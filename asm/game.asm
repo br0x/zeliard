@@ -1,6 +1,7 @@
 include common.inc
 include gdmcga.inc
 include town.inc
+include dungeon.inc
                 .286
                 .model small
 game            segment byte public 'CODE' use16

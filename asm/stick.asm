@@ -1,4 +1,5 @@
 include common.inc
+include dungeon.inc
                 .286
                 .model small
 

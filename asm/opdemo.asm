@@ -342,7 +342,7 @@ loc_631E:
 ; ---------------------------------------------------------------------------
 
 loc_6352:
-                mov     byte ptr ds:0FF75h, 63 ; '?' ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 63
                 retn
 sub_62FD        endp
 

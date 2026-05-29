@@ -6,31 +6,9 @@ mdt_descriptor     STRUC
   enp_grp_idx      db   ?
   boss_grp         db   ? ; boss enp override (e.g. crab.grp)
   boss_ai          db   ? ; boss AI override (e.g. crab.bin)
+  saved_enp_grp_idx db   ?
 mdt_descriptor     ENDS
 
-; hero magic projectile
-magic_projectile   STRUC
-  mp_x_rel                  dw   ?
-  mp_y_rel                  db   ?
-  mp_dir                    db   ? ; bit 7: return/deactivate flag, bit 1,0: direction
-  mp_life_timer             db   ?
-  mp_anim_frame             db   ?
-  mp_cached_x_offset_tiles  db   ?
-  mp_cached_y_offset        db   ?
-  mp_vram_addr_tile00       dw   ?
-  mp_vram_addr_tile10       dw   ?
-  mp_vram_addr_tile01       dw   ?
-  mp_vram_addr_tile11       dw   ?
-magic_projectile   ENDS
-
-spirit             STRUC
-  s_orbit_phase    db   ? ; FF: inactive; bits 3..0: orbit phase
-  s_orbit_speed    db   ?
-  s_active_shots   db   ?
-  s_vram_addr      dw   ? ; bit 15: dirty flag, bit 14..0: VRAM address
-  s_screen_x       db   ?
-  s_screen_y       db   ?
-spirit             ENDS
 
 ; Permanent constants
 LEFT               EQU 1
@@ -493,8 +471,12 @@ sage_bin_addr                                      equ 0A000h
 town_indoors_bin_addr                              equ 0A000h
 game_bin_entry                                     equ 0A000h
 
+; rocademo.bin
+roca_entrypoint                                    equ 0A000h
+
 ; eai1.bin, crab.bin
 Monster_AI_proc                                    equ 0A000h
+boss_state_block_ptr                               equ 0A002h
 word_A002                                          equ 0A002h
 word_A004                                          equ 0A004h
 death_split_table_ptr                              equ 0A006h
@@ -607,9 +589,7 @@ fn_kbd_chain_ptr                                   equ 0FF79h
 ; seg1 offsets (code seg + 1000h)
 town_msd_music                                     equ 3000h
 mman_cman_gfx                                      equ 4000h
-monster_gfx                                        equ 4000h
 tman_gfx                                           equ 6000h ; hero in town
-fman_gfx                                           equ 6000h ; hero in dungeon
 ; functions like draw_tile_to_screen assume that there are packed tiles (48 bytes each) at 8000h
 ; other functions like decompress_patterns expect the descriptor table at 8000h:
 packed_tile_ptr                                    equ 8000h
@@ -621,9 +601,6 @@ special_tile_list_ptr                              equ 8002h
 tile_animation_replacement_table                   equ 8004h ; pointer to a table
     ; the table at that address is a counted list of (old_tile, new_tile) byte pairs terminated by 0FFh
 packed_tile_graphics                               equ 8100h ; 48 bytes per tile (6 bits per pixel × 8 pixels × 8 rows)
-monsters_transparency_masks                        equ 0A000h
-sword_animation_gfx                                equ 0B000h
-sword_reachability_tables                          equ 0B002h
 hero_transparency_masks                            equ 0D000h
     ; 1 byte per tile-row of the animated sprite, 
     ; 8 bits per row selecting which of the 8 pixels are drawn from the sprite vs the background
@@ -637,8 +614,6 @@ wearable_item_gfx                                  equ 0E20Ch
 
 
 ; seg2 offsets (code seg + 2000h)
-magic_grp_sprites                                  equ 0
-sword_grp_sprites                                  equ 1800h
 town_background_decorations                        equ 3300h
 or_blit_buffer                                     equ 6000h
 and_blit_buffer                                    equ 8000h

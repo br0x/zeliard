@@ -1,8 +1,6 @@
 ; ===========================================================================
 ; fight.asm — Zeliard dungeon (cavern) engine
-; Loaded as fight.bin at seg:6000h.
 ;
-; OVERVIEW
 ; --------
 ; This module implements the entire dungeon gameplay loop:
 ;   - Dungeon init & map decompression (MDT format)
@@ -11,7 +9,7 @@
 ;   - Hero damage, shield absorption, knockback, death + respawn
 ;   - Monster proximity culling, AI dispatching, spawning
 ;   - Contact damage, projectile collision with hero
-;   - Magic spell projectiles (Espada, Saeta, Fuego, Rascar, Agua, Guerra)
+;   - Magic spell projectiles (Espada, Saeta, Fuego, Lanzar, Rascar, Agua, Guerra)
 ;   - Collectible items/keys/gold/potions picked up via monster flags
 ;   - Door/platform logic (dchr.grp tiles)
 ;   - Dungeon-to-town and dungeon-to-dungeon transitions
@@ -27,14 +25,15 @@
 ;
 ; SPRITE SUMMARY (for JS renderer)
 ; ----------------------------------
-; fman.grp  — hero in dungeon: 3×3 grid of 8×8 tiles (= 24×24 px per frame).
+; fman.grp  — hero in dungeon: 3×3 grid of 8×8 px tiles (= 24×24 px per frame).
+;             Hero frame is composed by layering the body, right hand, optional shield and sword.
 ;             Frame table stored at the start of the file (groups × 9 bytes).
-;             Palette: PAL_DECODE_TABLES[0]; tile format: 32 bytes/tile (mode 8 in grp_viewer).
-; dchr.grp  — doors (multi-tile composites) and platforms (8×8 tiles, mode 10).
-; mpp?.grp  — dungeon tileset for the current cavern (8×8 tiles, mode 10).
+;             Palette: PAL_DECODE_TABLES[0]; tile format: 32 bytes/tile (mode 8 in grp_viewer.py).
+; dchr.grp  — doors (multi-tile composites) and platforms (8×8 px tiles, mode 10).
+; mpp?.grp  — dungeon tileset for the current cavern (8×8 px tiles, mode 10).
 ;             Loaded to seg1:8000h. Layout metadata: tile_anim_count_table @ 8000h,
 ;             special_tile_list @ 8002h, animation replacements @ 8004h.
-; enp?.grp  — monsters/items: 2×2 grid of 8×8 tiles (= 16×16 px per frame).
+; enp?.grp  — monsters/items: 2×2 grid of 8×8 px tiles (= 16×16 px per frame).
 ;             Each frame: [palette_idx, tl, tr, bl, br] (mode 11).
 ;             Loaded to seg1:monster_gfx (4000h), transparency masks at A000h.
 ; crab.grp  — boss sprite (multi-part body, mode 12).
@@ -62,13 +61,7 @@ include dungeon.inc
                 .286
                 .model small
 
-; ===========================================================================
-
-; Format      : Binary File
-; Base Address: 0000h Range: 6000h - 9F2Eh Loaded length: 3F2Eh
-; ===========================================================================
-
-; Segment type: Pure code
+; Range: 6000h - 9F2Eh Loaded length: 3F2Eh
 fight           segment byte public 'CODE'
                 assume cs:fight, ds:fight
                 org 6000h
@@ -106,7 +99,7 @@ start:
                 dw offset wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 dw offset wrap_map_from_below ; if (si < 0E000h) si += 900h
                 dw offset if_passable_set_ZF
-                dw offset Check_Monster_Ids_Two_Rows_Below_Monster
+                dw offset check_monster_on_aggressive_ground
                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
                 dw offset Hero_Hits_monster
                 dw offset HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
@@ -123,9 +116,6 @@ start:
                 dw offset Find_Monsters_Near_Hero ; Return dl: number of monsters found nearby
                 dw offset Move_Monster_NWE_Depending_On_Whats_Below ; si points to monster struc
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; Cavern_Game_Init
 ; Entry point called every time the dungeon scene begins (after MDT load).
@@ -140,7 +130,7 @@ start:
 ;      d. Animate 6 'encounter flashing' intervals.
 ;      e. Override enp_grp_idx with boss_grp from mdt_descriptor.
 ;      f. Load boss enp?.grp → seg1:monster_gfx, decompress tile data.
-;      g. Draw boss name (Pascal string from AI word_A002+9) and HP bars.
+;      g. Draw boss name (Pascal string from AI boss_state_block_ptr+9) and HP bars.
 ;   3. Jashiin special path (is_jashiin_cavern != 0):
 ;      Shifted viewport (hero not centered), loads MDT 30 (MPA0.MDT).
 ;   4. Regular cavern path:
@@ -157,7 +147,6 @@ start:
 ;     - hero_interaction_check : tile-based interactions
 ;     - hero_knockback_handler
 ;     - State machine dispatcher (left/right/up/down key routing)
-; ===========================================================================
 Cavern_Game_Init proc near
                 cli
                 mov     sp, 2000h
@@ -186,7 +175,7 @@ Cavern_Game_Init proc near
 ; After animation: loads the actual boss enp sprite group and decompresses it.
 boss_place:      
                 call    render_hud_bars_with_enemy
-                mov     ax, 1
+                mov     ax, 1  ; fn1 (Stop) - Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 mov     byte_9F02, 0FFh
                 mov     al, byte ptr ds:msd_index
@@ -195,13 +184,13 @@ boss_place:
                 add     ax, offset vfs_mgt1_msd
                 mov     si, ax
                 mov     es, cs:seg1
-                mov     di, 3000h       ; destination address for another binary
-                mov     al, 5           ; fn_5
+                mov     di, 3000h       ; music buffer seg1:3000h
+                mov     al, 5           ; fn5_load_music
                 call    cs:res_dispatcher_proc ; =0A84
                 mov     si, offset encnt_grp
                 mov     es, cs:seg1
-                mov     di, 4000h
-                mov     al, 2           ; fn_2
+                mov     di, 4000h       ; seg1:4000h - decorations for encounter warning scene
+                mov     al, 2           ; fn2_segmented_load
                 call    cs:res_dispatcher_proc ; =0A84h
                 call    word ptr cs:Render_Animated_Tile_Strip_proc
                 mov     byte ptr ds:hero_sprite_hidden, 0
@@ -212,34 +201,34 @@ boss_place:
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
-                xor     ax, ax
+                xor     ax, ax  ; fn0 (Init/Play) - Clears buffers, loads music data, and starts playback.
                 int     60h             ; mscadlib.drv
                 pop     ds
+; Flash big word 'ENCOUNTER' on screen 6 times
                 mov     cx, 6
-
 loc_60E9:        
                 push    cx
                 mov     byte ptr ds:frame_timer, 0
-
 waiter0:         
-                cmp     byte ptr ds:frame_timer, 41h ; 'A'
+                cmp     byte ptr ds:frame_timer, 65
                 jb      short waiter0
                 mov     bx, 0C28h
                 mov     cx, 3828h
                 xor     al, al
                 call    cs:Draw_Bordered_Rectangle_proc
                 mov     byte ptr ds:frame_timer, 0
-
 loc_6108:        
-                cmp     byte ptr ds:frame_timer, 41h ; 'A'
+                cmp     byte ptr ds:frame_timer, 65
                 jb      short loc_6108
                 call    word ptr cs:Render_Animated_Tile_Strip_proc
                 pop     cx
                 loop    loc_60E9
+; flash animation end
                 mov     si, ds:mdt_buffer
                 add     si, 5           ; mdt_descriptor.boss_grp
-                mov     al, [si]
-                mov     [si-1], al      ; mdt_descriptor.enp_grp_idx overridden
+                mov     al, [si]        ; boss idx
+                mov     [si-1], al      ; mdt_descriptor.enp_grp_idx overridden by boss_grp idx
+; load boss sprites
                 mov     bl, 11
                 mul     bl
                 add     ax, offset vfs_enp1_grp
@@ -256,17 +245,17 @@ loc_6108:
                 call    cs:Decompress_Tile_Data_proc
                 pop     ds
 
-; --- Boss HUD: display boss name from AI data, draw HP bars ---
+; Boss HUD: display boss name from AI data, draw HP bars
 render_boss_hud: 
-                mov     si, ds:word_A002
+                mov     si, ds:boss_state_block_ptr
                 add     si, 8
-                lodsb
+                lodsb               ; boss_state.bs_unk_8
                 mov     ds:byte_9F01, al
-                mov     si, [si]
+                mov     si, [si]    ; boss_state.bs_name_block_ptr
                 call    cs:Render_Pascal_String_1_proc
-                mov     si, ds:word_A002
+                mov     si, ds:boss_state_block_ptr
                 add     si, 3
-                mov     bx, [si]
+                mov     bx, [si]    ; boss_state.bs_hp
                 push    bx
                 call    cs:Draw_Boss_Max_Health_proc ; bx: boss maxHP
                 pop     bx
@@ -274,16 +263,16 @@ render_boss_hud:
                 jmp     short loc_618F
 ; ---------------------------------------------------------------------------
 
-; --- REGULAR CAVERN INIT ---
-; Clear enemy bar, render place name label and gold label.
+; REGULAR CAVERN INIT
+; Clear place/enemy bar, render cavern name label and gold label.
 regular_cavern:  
                 call    cs:Clear_Place_Enemy_Bar_proc
                 call    render_place_and_gold_labels
-                mov     si, ds:cavern_name_rendering_info ; =d614 for cavern Malicia
+                mov     si, ds:cavern_name_rendering_info
                 call    cs:Render_Pascal_String_1_proc
                 call    cs:Print_Gold_Decimal_proc
 
-; --- Common cavern HUD: hero max HP, current HP, almas counter ---
+; Common cavern HUD: hero max HP, current HP, almas counter
 loc_618F:        
                 call    cs:Draw_Hero_Max_Health_proc
                 call    cs:Draw_Hero_Health_proc
@@ -291,12 +280,11 @@ loc_618F:
                 test    byte ptr ds:is_jashiin_cavern, 0FFh
                 jnz     short jashiin_place
                 jmp     init_cavern
-; ---------------------------------------------------------------------------
 
-; --- Jashiin special path ---
+; Jashiin special path
 ; Viewport offset: hero appears at x=5 in viewport (x+36=41 in proximity map).
 ; Waits until is_jashiin_cavern flag clears (set by transition animation).
-; Loads MDT index 30 (MPA0.MDT — Jashiin boss room).
+; Loads MPA0.MDT — Jashiin boss room
 jashiin_place:   
                 mov     ds:byte_9F26, 0FFh
                 mov     word ptr ds:proximity_map_left_col_x, 41
@@ -311,14 +299,13 @@ loc_61BE:
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
-                xor     ax, ax
+                xor     ax, ax  ; fn0 (Init/Play) - Clears buffers, loads music data, and starts playback.
                 int     60h             ; mscadlib.drv
                 pop     ds
                 mov     ds:byte_9F02, 0
                 mov     ah, 30          ; MPA0.MDT - Jashiin's room
-                mov     al, 1           ; fn_1
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
+                mov     al, 1           ; fn1_load_mdt_idx_ah
+                call    cs:res_dispatcher_proc
                  
                 mov     byte ptr ds:is_boss_cavern, 0FFh
                 mov     ds:byte_9F27, 0FFh
@@ -342,9 +329,9 @@ loc_61BE:
                 mov     cx, 24
                 call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
                 pop     ds
-                mov     ds:hero_x_in_proximity_map, 18h
+                mov     ds:hero_x_in_proximity_map, 24
                 mov     ds:byte_9F1C, 0Dh
-                mov     byte ptr ds:hero_x_in_viewport, 0Ch
+                mov     byte ptr ds:hero_x_in_viewport, 12
                 mov     ds:byte_9F00, 0Ch
                 call    hero_left_16_down_1
                 call    render_hud_bars_with_enemy
@@ -385,7 +372,7 @@ not_dead:
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 3000h
-                xor     ax, ax          ; fn 0
+                xor     ax, ax          ; fn0 (Init/Play) - Clears buffers, loads music data, and starts playback.
                 int     60h             ; mscadlib.drv
                 pop     ds
 
@@ -397,7 +384,7 @@ loc_628A:
                 mov     ds:byte_9F27, 0
 
 ; ===========================================================================
-; main_loop — per-frame game loop (called via RET/PUSH trick)
+; main_loop — per-frame game loop (called via PUSH/RET trick)
 ; Frame structure:
 ;   1. Check if on rope → separate rope-handling path
 ;   2. input_handling
@@ -425,7 +412,7 @@ main_loop:
 
 loc_62C5:        
                 mov     dx, offset main_loop
-                push    dx
+                push    dx  ; main_loop will be called on return
                                         ; check input keys buffer
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
@@ -452,10 +439,10 @@ over_rope:
                 cmp     byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jnz     short move_off_rope
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                inc     si
+                inc     si              ; hero head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jb      short over_rope
-                add     si, 36
+                jc      short over_rope
+                add     si, 36          ; fall down 1 tile
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
                 jb      short over_rope
@@ -472,9 +459,6 @@ move_off_rope:
 Cavern_Game_Init endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; state_machine_dispatcher
 ; Reads the current direction input (int 61h) and branches to the correct
@@ -484,8 +468,8 @@ Cavern_Game_Init endp
 ;   101b  (left+up)   → left_up_pressed
 ;   1001b (right+up)  → right_up_pressed
 ;   001b  (up only)   → up_pressed
-;   100b  (left)      → loc_663E (left_up_pressed tail)
-;   1000b (right)     → loc_67C6 (right_up_pressed tail)
+;   100b  (left)      → on_left_pressed (left_up_pressed tail)
+;   1000b (right)     → on_right_pressed (right_up_pressed tail)
 ;   010b  (down)      → down_pressed
 ;   else              → init_horizontal_sliding + idle animation
 ;
@@ -496,19 +480,19 @@ state_machine_dispatcher proc near      ; ...
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 cmp     al, 101b
-                jnz     short loc_6351
+                jne     short loc_6351
                 jmp     left_up_pressed
 ; ---------------------------------------------------------------------------
 
 loc_6351:        
                 cmp     al, 1001b
-                jnz     short loc_6358
+                jne     short loc_6358
                 jmp     right_up_pressed
 ; ---------------------------------------------------------------------------
 
 loc_6358:        
                 cmp     al, 1
-                jnz     short loc_635F
+                jne     short loc_635F
                 jmp     up_pressed
 ; ---------------------------------------------------------------------------
 
@@ -535,42 +519,44 @@ no_squat_mode:
                 push    dx
                 test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_6396
-                jmp     loc_67C6
+                jmp     on_right_pressed
 ; ---------------------------------------------------------------------------
 
 loc_6396:        
-                jmp     loc_663E
+                jmp     on_left_pressed
 ; ---------------------------------------------------------------------------
 
-loc_6399:        
-                push    ax
+loc_6399:
+                push    ax                ; ah = ____right_left_down_up
                 mov     al, ds:facing_direction
-                and     al, 1
+                and     al, LEFT
                 cmp     al, ds:byte_9F24
-                mov     ds:byte_9F24, al
-                jz      short loc_63AB
+                mov     ds:byte_9F24, al  ; sliding direction = facing direction
+                je      short loc_63AB    ; already sliding, skip
                 call    init_horizontal_sliding
 
 loc_63AB:        
                 pop     ax
-                mov     al, ah
+                mov     al, ah            ; al = ____right_left_down_up
                 push    ax
                 cmp     al, 2
-                jnz     short loc_63B6
-                call    down_pressed    ; down pressed
+                jne     short loc_63B6
+                call    down_pressed
 
 loc_63B6:        
                 pop     ax
                 and     al, 0Ch
                 cmp     al, 4
-                jnz     short loc_63C0
-                jmp     loc_663E
+                jne     short loc_63C0
+                ; left pressed
+                jmp     on_left_pressed
 ; ---------------------------------------------------------------------------
 
 loc_63C0:        
                 cmp     al, 8
-                jnz     short loc_63C7
-                jmp     loc_67C6
+                jne     short loc_63C7
+                ; right pressed
+                jmp     on_right_pressed
 ; ---------------------------------------------------------------------------
 
 loc_63C7:        
@@ -587,9 +573,6 @@ loc_63D4:
 state_machine_dispatcher endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; hero_interaction_check
 ; Checks whether the 3-tile-wide hero footprint overlaps a rope or door tile,
@@ -600,34 +583,34 @@ state_machine_dispatcher endp
 hero_interaction_check proc near
                 test    byte ptr ds:squat_flag, 0FFh
                 jz      short loc_63E2
-                retn
+                retn    ; squatting: skip
 ; ---------------------------------------------------------------------------
 
 loc_63E2:        
                 test    byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 jz      short loc_63EA
-                retn
+                retn    ; airborne: skip
 ; ---------------------------------------------------------------------------
 
 loc_63EA:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                mov     al, [si]        ; [e10c]=
+                mov     al, [si]
                 call    is_non_blocking_tile ; ZF if can pass
                 jnz     short loc_63F5
-                retn
+                retn    ; hero's top left can't be here: skip
 ; ---------------------------------------------------------------------------
 
 loc_63F5:        
                 inc     si
-                inc     si
+                inc     si      ; si = hero top-right coord
                 mov     al, [si]
                 call    is_non_blocking_tile ; ZF if can pass
                 jnz     short loc_63FF
-                retn
+                retn    ; hero's top right can't be here: skip
 ; ---------------------------------------------------------------------------
 
 loc_63FF:        
-                add     si, 36
+                add     si, 36  ; hero mid right coord
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
                 call    is_non_blocking_tile ; ZF if can pass
@@ -638,9 +621,6 @@ loc_63FF:
 loc_640F:        
                 jmp     hero_moves_right
 hero_interaction_check endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -685,7 +665,7 @@ loc_6440:
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_645B
                 and     byte ptr ds:facing_direction, 11111100b
-                or      byte ptr ds:facing_direction, 1
+                or      byte ptr ds:facing_direction, LEFT
                 mov     byte ptr ds:jump_phase_flags, 7Fh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 mov     byte ptr ds:spacebar_latch, 0
 
@@ -698,7 +678,7 @@ loc_645B:
 loc_6463:        
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_6479
-                and     byte ptr ds:facing_direction, 11111100b
+                and     byte ptr ds:facing_direction, 11111100b ; right
                 mov     byte ptr ds:jump_phase_flags, 7Fh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 mov     byte ptr ds:spacebar_latch, 0
 
@@ -746,9 +726,6 @@ loc_64B2:
 hero_knockback_handler endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; sliding_physics_step
 ; Applies one tick of ice-slide movement.
@@ -786,35 +763,37 @@ loc_64D1:
                 jb      short loc_64EE
                 cmp     al, 49h ; 'I'
                 jnb     short loc_64EE
-                mov     ds:slide_ticks_remaining, 0
+                ; al = 40h ... 49h
+                mov     ds:slide_ticks_remaining, 0 ; stop sliding
                 retn
 ; ---------------------------------------------------------------------------
-
+                ; on the ice
 loc_64EE:        
                 mov     al, ds:byte_9F22 ; slide_direction: 1 = right, 2 = left
-                test    ds:byte_9F23, 1 ; slide_direction_flags: Bit 0 = slide direction from previous tick
+                test    ds:byte_9F23, 1 ; slide_direction_flags: Bit 0 = moving direction from previous tick
                 jz      short loc_6500
+                ; was moving right, try move right
                 cmp     al, 1
-                jnz     short loc_64FD
+                jne     short loc_64FD
+                ; was already moving right
                 retn
 ; ---------------------------------------------------------------------------
-
+                ; byte_9F22 != 1 => confirm moving right
 loc_64FD:        
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
-
+                ; was moving left, try move left
 loc_6500:        
                 cmp     al, 2
-                jnz     short loc_6505
+                jne     short loc_6505
+                ; was already moving left
                 retn
 ; ---------------------------------------------------------------------------
-
+                ; byte_9F22 != 2 => confirm moving left
 loc_6505:        
                 jmp     move_hero_left_if_no_obstacles
 sliding_physics_step endp
 
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -823,7 +802,7 @@ sliding_physics_step endp
 ; horiz_movement_sub_tile_accum into slide_ticks_remaining (capped at 10).
 ; Called each time a directional key is read in the state machine.
 ; ===========================================================================
-init_horizontal_sliding proc near       ; ...
+init_horizontal_sliding proc near
                 call    set_zero_flag_if_slippery
                 jz      short loc_650E
                 retn
@@ -850,9 +829,9 @@ loc_651E:
 ; ---------------------------------------------------------------------------
 
 loc_6528:        
-                cmp     al, 0Ah
+                cmp     al, 10
                 jb      short loc_652E
-                mov     al, 0Ah
+                mov     al, 10
 
 loc_652E:        
                 mov     ds:slide_ticks_remaining, al
@@ -861,8 +840,6 @@ loc_652E:
 init_horizontal_sliding endp
 
 
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
 ; up_pressed
@@ -870,20 +847,15 @@ init_horizontal_sliding endp
 ; Tries (in order):
 ;   1. try_door_interaction — check for a door tile above hero
 ;   2. try_move_platform_up — raise a vertical platform if hero is on it
-;   3. try_climb_rope       — grab a rope if one is above hero
-; Falls through silently if none apply.
+;   3. try_climb_rope       — grab a rope if hero is over it
+; Falls through silently to jumping if none apply.
 ; ===========================================================================
-up_pressed      proc near 
+up_pressed:
                 mov     ds:byte_9F18, 0
                 call    try_door_interaction
                 call    try_move_platform_up
                 call    try_climb_rope
-up_pressed      endp
-
-
-; =============== S U B R O U T I N E =======================================
-
-
+                ; otherwise, jump
 ; ===========================================================================
 ; jump_press_handler
 ; Handles the jump initiation when UP+button is pressed.
@@ -916,13 +888,13 @@ on_ground1:
                 cmp     al, ds:feruza_shoes_four_else_two
                 jnb     short loc_65BA
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                sub     si, 35          ; x++, y--
+                sub     si, 35          ; points above hero head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 mov     al, [si]
                 call    is_non_blocking_tile ; ZF if can pass
                 jnz     short loc_65A5
                 mov     byte ptr ds:hero_animation_phase, 0
-                and     byte ptr ds:facing_direction, 11111101b ; clear Down direction
+                and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
                 mov     byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 mov     al, ds:feruza_shoes_four_else_two
                 shr     al, 1
@@ -958,9 +930,6 @@ loc_65BA:
 jump_press_handler endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; try_climb_rope
 ; Called from up_pressed.
@@ -971,20 +940,20 @@ jump_press_handler endp
 ; ===========================================================================
 try_climb_rope  proc near 
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                inc     si
-                call    is_over_rope    ; set CF if [si] is rope (0 or 1)
+                inc     si  ; points to hero head
+                call    is_over_rope    ; set CF if rope found
                 jb      short climb_to_rope_from_ground
-                dec     si
+                dec     si  ; check tile to the left of head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
                 jnb     short loc_65DC
                 test    byte ptr ds:facing_direction, 1
-                jnz     short loc_663E
+                jnz     short on_left_pressed  ; move left to center on rope
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_65DC:        
                 inc     si
-                inc     si
+                inc     si  ; check tile to the right of head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
                 jb      short loc_65E4
                 retn
@@ -993,7 +962,7 @@ loc_65DC:
 loc_65E4:        
                 test    byte ptr ds:facing_direction, 1
                 jnz     short locret_65EE
-                jmp     loc_67C6
+                jmp     on_right_pressed  ; move right to center on rope
 ; ---------------------------------------------------------------------------
 
 locret_65EE:     
@@ -1006,11 +975,11 @@ climb_to_rope_from_ground:
 
 loc_65F9:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                sub     si, 35
+                sub     si, 35  ; points to tile above head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 dec     byte ptr ds:hero_animation_phase
-                call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jb      short loc_6611
+                call    is_over_rope    ; set CF if over rope
+                jc      short loc_6611
                 or      byte ptr ds:hero_animation_phase, 1
                 retn
 ; ---------------------------------------------------------------------------
@@ -1028,15 +997,13 @@ loc_661F:
 try_climb_rope  endp
 
 
-; =============== S U B R O U T I N E =======================================
 
 ; move_hero_up() {
 ;   viewport_top_row_y--;
 ;   viewport_left_top_addr -= 36;
 ;   if (viewport_left_top_addr < 0xE000) viewport_left_top_addr += 0x900;
 ; }
-; ===========================================================================
-; move_hero_up
+;
 ; Scrolls the viewport up by one tile row:
 ;   viewport_top_row_y--
 ;   viewport_left_top_addr -= 36  (with circular wrap if below 0xE000)
@@ -1051,18 +1018,15 @@ move_hero_up    proc near
 move_hero_up    endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
-; left_up_pressed / loc_663E (left movement without jump)
+; left_up_pressed / on_left_pressed (left movement without jump)
 ; Handles LEFT direction (optionally combined with UP for jump-left).
 ;
 ; - If facing right: flip_facing_direction, reset animation.
 ; - If squatting: ignore.
 ; - If on a right slope and moving left: clear Up bit, transition slope state.
 ; - Otherwise: call move_hero_left_if_no_obstacles.
-;   On success: set byte_9F22=2 (slide dir=left), increment accum, set Up flag.
+;   On success: set byte_9F22=2 (move dir=left), increment accum, set Up flag.
 ; ===========================================================================
 left_up_pressed proc near 
                 mov     ds:byte_9F0B, 0FFh
@@ -1070,7 +1034,7 @@ left_up_pressed proc near
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-loc_663E:        
+on_left_pressed:        
                 mov     ds:byte_9F18, 0
                 test    byte ptr ds:facing_direction, left
                 jnz     short loc_664D
@@ -1091,12 +1055,13 @@ loc_6655:
 
 loc_665F:        
                 call    move_hero_left_if_no_obstacles
-                jnb     short loc_6667
+                jnc     short loc_6667
+                ; CF: cannot move left
                 jmp     loc_6837
 ; ---------------------------------------------------------------------------
 
 loc_6667:        
-                mov     ds:byte_9F22, 2
+                mov     ds:byte_9F22, 2   ; move dir=left
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_6674
                 retn
@@ -1107,7 +1072,7 @@ loc_6674:
                 jnz     short loc_6689
                 test    ds:slide_ticks_remaining, 0FFh
                 jnz     short loc_6689
-                mov     ds:byte_9F23, 0
+                mov     ds:byte_9F23, 0  ; left movement
                 inc     ds:horiz_movement_sub_tile_accum
 
 loc_6689:        
@@ -1125,12 +1090,10 @@ on_ground2:
 left_up_pressed endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; move_hero_left_if_no_obstacles
-; Attempts to scroll the dungeon one tile to the right (hero moves left).
+; Attempts to move hero left (scroll the dungeon one tile to the right).
+; Returns CF=1 if cannot move.
 ;
 ; 1. Check the 4 tiles (3 hero rows + 1 above) at hero x-1 for:
 ;    - Active monsters (proximity byte with bit 7 set) → block
@@ -1146,23 +1109,23 @@ left_up_pressed endp
 ; proximity map. hero_coords_to_addr_in_proximity returns the top-left corner.
 ; hero_x_in_viewport is always 0x0C (column 12) in normal caverns.
 ; ===========================================================================
-move_hero_left_if_no_obstacles proc near ; ...
-                call    hero_coords_to_addr_in_proximity ; =0xe10c
+move_hero_left_if_no_obstacles proc near
+                call    hero_coords_to_addr_in_proximity
                 mov     di, si
                 sub     si, 36
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
-                dec     si              ; =0xe0e7
+                dec     si              ; tile NW of hero top left
                 mov     cx, 4
 
-check_4_tiles_to_the_left_of_hero:      ; ...
+check_4_tiles_to_the_left_of_hero:
                 call    get_dst_monster_flags ; =0x4a, 0x58, 0x5a, 0x5c
-                add     al, al          ; monsters in the proximity map has bit 7 set
+                add     al, al          ; monsters in the proximity map have bit 7 set
                 jnb     short loc_66BC
                 retn                    ; monster to the left of hero, can't move
 ; ---------------------------------------------------------------------------
 
 loc_66BC:        
-                add     si, 36          ; 0xe10b
+                add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 loop    check_4_tiles_to_the_left_of_hero
                 xchg    di, si
@@ -1297,19 +1260,16 @@ skip_monster:
 move_hero_left_if_no_obstacles endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; NC_can_pass_except_category2
 ; Returns CF=1 (cannot pass) if tile [si] is an airflow tile of category 2
 ; (right-flowing wind). Used for left-movement blocking in level 5 caverns.
 ; get_airflow_direction → ZF + cl=0/1/2 for up/left/right.
 ; ===========================================================================
-NC_can_pass_except_category2 proc near  ; ...
+NC_can_pass_except_category2 proc near
                 cmp     byte ptr ds:cavern_level, 7 ; Exception: MP73.MDT (The Hut) has level 1
                 clc
-                jnz     short loc_67AC
+                jne     short loc_67AC
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -1334,11 +1294,9 @@ loc_67BA:
 NC_can_pass_except_category2 endp
 
 
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
-; right_up_pressed / loc_67C6 (right movement without jump)
+; right_up_pressed / on_right_pressed (right movement without jump)
 ; Mirror of left_up_pressed for rightward movement.
 ; - If facing left: flip_facing_direction.
 ; - If on right slope and moving right: transition slope state.
@@ -1350,7 +1308,7 @@ right_up_pressed proc near
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-loc_67C6:        
+on_right_pressed:        
                 mov     ds:byte_9F18, 0
                 test    byte ptr ds:facing_direction, 1
                 jnz     short flip_facing_direction
@@ -1364,7 +1322,7 @@ loc_67DA:
                 jz      short loc_6837
                 call    move_hero_right_if_no_obstacles
                 jb      short loc_6837
-                mov     ds:byte_9F22, 1
+                mov     ds:byte_9F22, 1  ; move dir = right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_67F3
                 retn
@@ -1375,7 +1333,7 @@ loc_67F3:
                 jnz     short loc_6808
                 test    ds:slide_ticks_remaining, 0FFh
                 jnz     short loc_6808
-                mov     ds:byte_9F23, 1
+                mov     ds:byte_9F23, 1   ; 1 => right movement
                 inc     ds:horiz_movement_sub_tile_accum
 
 loc_6808:        
@@ -1393,12 +1351,9 @@ loc_6815:
 right_up_pressed endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; flip_facing_direction
-; XORs bit 0 of facing_direction (toggle left/right).
+; Toggles facing_direction left/right.
 ; If on ground: resets hero_animation_phase to 0x80 (idle frame).
 ; ===========================================================================
 flip_facing_direction proc near 
@@ -1427,9 +1382,6 @@ loc_6846:
 flip_facing_direction endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; move_hero_right_if_no_obstacles
 ; Attempts to scroll the dungeon one tile to the left (hero moves right).
@@ -1441,7 +1393,7 @@ flip_facing_direction endp
 ; 3. Call every_projectile_moves_left_in_viewport,
 ;    stamp newly-entering left-edge monsters.
 ; ===========================================================================
-move_hero_right_if_no_obstacles proc near ; ...
+move_hero_right_if_no_obstacles proc near
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 inc     si
                 inc     si              ; x+=2
@@ -1585,9 +1537,6 @@ loc_6939:
 move_hero_right_if_no_obstacles endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; NC_can_pass_except_category1
 ; Returns CF=1 (cannot pass) if tile [si] is airflow category 1 (left-flow).
@@ -1596,7 +1545,7 @@ move_hero_right_if_no_obstacles endp
 NC_can_pass_except_category1 proc near  ; ...
                 cmp     byte ptr ds:cavern_level, 7
                 clc
-                jnz     short loc_694B
+                jne     short loc_694B
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -1620,8 +1569,6 @@ loc_6958:
                 retn
 NC_can_pass_except_category1 endp
 
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -1709,11 +1656,11 @@ loc_69CB:
                 push    ax
                 test    byte ptr ds:facing_direction, 1
                 jz      short loc_69DD
-                jmp     loc_663E
+                jmp     on_left_pressed
 ; ---------------------------------------------------------------------------
 
 loc_69DD:        
-                jmp     loc_67C6
+                jmp     on_right_pressed
 ; ---------------------------------------------------------------------------
 
 loc_69E0:        
@@ -1743,11 +1690,11 @@ loc_69F2:
 loc_6A02:        
                 test    byte ptr ds:facing_direction, LEFT
                 jz      short loc_6A0C
-                jmp     loc_663E
+                jmp     on_left_pressed
 ; ---------------------------------------------------------------------------
 
 loc_6A0C:        
-                jmp     loc_67C6
+                jmp     on_right_pressed
 ; ---------------------------------------------------------------------------
 
 left_pressed:    
@@ -1805,9 +1752,6 @@ loc_6A5B:
 loc_6A64:        
                 jmp     move_hero_left_if_no_obstacles
 airborne_movement endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -1886,9 +1830,6 @@ no_silkarn_shoes_slide_off_slope:       ; ...
 loc_6AC6:        
                 jmp     move_hero_left_if_no_obstacles
 slope_assist_on_landing endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -1999,7 +1940,7 @@ loc_6B6A:
                 retn
 ; ---------------------------------------------------------------------------
 
-squat_after_landing_from_big_height:    ; ...
+squat_after_landing_from_big_height:
                 mov     byte ptr ds:squat_flag, 0FFh
                 retn
 land_after_jump endp
@@ -2007,8 +1948,7 @@ land_after_jump endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-check_floor_for_landing proc near       ; ...
+check_floor_for_landing proc near
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1      ; directly under feet
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
@@ -2138,16 +2078,6 @@ no_right_slope_defined:
 get_slope_direction_by_tile_under_feet endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-; if Cangrejo_Defeated then [c013]=ffff
-; if 'Chest 50 Golds' taken then [d65e]=ff00, [d669]=ffff
-; if 'Chest Red Potion' taken then [d77e]=ff00, [d789]=ffff
-; if 'Muralla Key 1' taken then [d78e]=ff00, [d799]=ffff
-; if 'Wall, Blue Potion' taken then [d987]=0000
-; if 'Door to Cangrejo open' then [d580]=0181
-; if 'Door to Satono open' then [d5a4]=0280
-
 ; ===========================================================================
 ; remove_accomplished_items
 ; Scans the accomplished_items_checker_table (MDT-embedded).
@@ -2157,7 +2087,7 @@ get_slope_direction_by_tile_under_feet endp
 ;   table — effectively removing collected items or opening doors in memory.
 ; This reconciles the savegame state with the current MDT's monster list.
 ; ===========================================================================
-remove_accomplished_items proc near     ; ...
+remove_accomplished_items proc near
                 mov     si, ds:accomplished_items_checker_table
 
 next_item:       
@@ -2198,15 +2128,12 @@ loc_6C2F:
 remove_accomplished_items endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; render_place_and_gold_labels
 ; Renders the 'PLACE' and 'GOLD' text labels on the HUD bar (non-boss cavern).
 ; Uses hard-coded Pascal strings with pixel positions.
 ; ===========================================================================
-render_place_and_gold_labels proc near  ; ...
+render_place_and_gold_labels proc near
                 mov     si, offset byte_6C44
                 call    cs:Render_Pascal_String_0_proc
                 mov     si, offset byte_6C4C
@@ -2215,18 +2142,14 @@ render_place_and_gold_labels proc near  ; ...
 render_place_and_gold_labels endp
 
 ; ---------------------------------------------------------------------------
-byte_6C44       db 0Dh    
-                                        ; marginLeft
+byte_6C44       db 0Dh                  ; marginLeft
                 db 0BBh                 ; marginTop
                 db    1
 aGold           db 4,'GOLD'
-byte_6C4C       db 0Dh    
-                                        ; marginLeft
+byte_6C4C       db 0Dh                  ; marginLeft
                 db 0AFh                 ; marginTop
                 db    1
 aPlace          db 5,'PLACE'
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -2235,7 +2158,7 @@ aPlace          db 5,'PLACE'
 ; Draws two HUD bar areas, copies a screen region, and renders the 'ENEMY' label.
 ; Called on boss cavern init and Jashiin cavern init.
 ; ===========================================================================
-render_hud_bars_with_enemy proc near    ; ...
+render_hud_bars_with_enemy proc near
                 mov     bx, 210h
                 xor     al, al
                 mov     ch, 21h ; '!'
@@ -2263,13 +2186,10 @@ render_hud_bars_with_enemy proc near    ; ...
 render_hud_bars_with_enemy endp
 
 ; ---------------------------------------------------------------------------
-byte_6C8F       db 0Dh    
-                                        ; marginLeft
+byte_6C8F       db 0Dh                  ; marginLeft
                 db 0AFh                 ; marginTop
                 db    2
 aEnemy          db 5,'ENEMY'
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -2296,8 +2216,7 @@ aEnemy          db 5,'ENEMY'
 ; ===========================================================================
 unpack_map      proc near 
                 mov     si, offset packed_map_start ; unpack to /dev/null by columns, until the hero_x-18 position (proximity map left edge)
-                                        ; 87 C4 45 C7 CA ...
-                mov     cx, ds:proximity_map_left_col_x ; 002d
+                mov     cx, ds:proximity_map_left_col_x
                 or      cx, cx
                 jz      short loc_6CB2
 
@@ -2348,9 +2267,6 @@ loc_6CDB:
                 mov     ds:viewport_left_top_addr, di
                 retn
 unpack_map      endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -2460,9 +2376,6 @@ unpack_case3    proc near
 unpack_case3    endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; unpack_column
 ; Decompresses one full column (64 rows) into the proximity map.
@@ -2526,7 +2439,7 @@ coords_in_ax_to_proximity_map_addr_in_di endp
 ; Maintain the circular 36×64 proximity map buffer (0xE000–0xE8FF).
 ; wrap_map_from_above: if SI >= 0xE900, subtract 0x900 (wrap past bottom).
 ; wrap_map_from_below: if SI <  0xE000, add    0x900 (wrap past top).
-; Called after every SI ± 36 offset adjustment to traverse rows.
+; Called after every SI offset adjustment
 ; ===========================================================================
 wrap_map_from_above proc near 
                 cmp     si, proximity_map + 36*64
@@ -2556,16 +2469,13 @@ loc_6D95:
 wrap_map_from_below endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; set_zero_flag_if_slippery
 ; Returns ZF=1 (slippery) if cavern_level == 4 (ice dungeon) AND hero is
 ; not wearing Ruzeria shoes (current_accessory != SHOES_RUZERIA).
 ; Used by sliding_physics_step and init_horizontal_sliding.
 ; ===========================================================================
-set_zero_flag_if_slippery proc near     ; ...
+set_zero_flag_if_slippery proc near
                 cmp     byte ptr ds:cavern_level, 4 ; danger type: slippery ground
                 jz      short loc_6DA2
                 retn                    ; NZ
@@ -2685,7 +2595,7 @@ is_non_blocking_tile endp
 ; =============== S U B R O U T I N E =======================================
 
 
-is_non_blocking_tile_extended proc near ; ...
+is_non_blocking_tile_extended proc near
                 cmp     al, 49h ; 'I'
                 jb      short lookup_shared
                 cmp     al, al
@@ -2726,7 +2636,7 @@ is_non_blocking_tile_extended endp
 ; =============== S U B R O U T I N E =======================================
 
 
-is_non_blocking_tile_simple proc near   ; ...
+is_non_blocking_tile_simple proc near
                 cmp     al, 49h ; 'I'
                 jb      short loc_6E22
                 cmp     al, al
@@ -2751,9 +2661,6 @@ loc_6E36:
                 cmp     al, 80h
                 retn
 is_non_blocking_tile_simple endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -2885,8 +2792,6 @@ loc_6EF7:
 input_handling  endp
 
 
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
 ; apply_sword_hit_to_map_tiles
@@ -2958,7 +2863,7 @@ loc_6F6E:
                 mov     al, es:[di]
                 inc     di
                 cmp     al, 0FFh
-                jnz     short loc_6F77
+                jne     short loc_6F77
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -2978,9 +2883,6 @@ loc_6F77:
                 or      byte ptr [bx+5], 1
                 jmp     short loc_6F6E
 apply_sword_hit_to_map_tiles endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -3103,9 +3005,6 @@ skip_temperature_damage:
                 mov     byte ptr ds:hero_damage_this_frame, 0
                 jmp     short loc_7094
 main_update_render endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -3291,9 +3190,6 @@ loc_7202:
 game_loop_render_and_timing endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; screen_flash_overlay
 ; Handles two overlay effects in the viewport buffer:
@@ -3362,9 +3258,6 @@ fill_viewport_2_lines:
 screen_flash_overlay endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; bring_inventory_window
 ; Opens the inventory/equipment screen when ENTER is pressed.
@@ -3374,7 +3267,7 @@ screen_flash_overlay endp
 ; 2. swap_eai_and_inventory_code_regions: XOR-swap 0x800 words between
 ;    the enemy AI region (0xA000) and inventory region (seg1:0xC000).
 ;    This temporarily replaces the live AI code with select.bin code.
-; 3. Call Monster_AI_proc (now actually select.bin Inventory_Screen_proc).
+; 3. Call Inventory_Screen_proc.
 ; 4. Swap back.
 ; 5. If byte_FF4B == 8 (save/load from inventory): jmp to resurrection code.
 ; 6. Reload magic spell sprites, clear viewport, reinit.
@@ -3392,7 +3285,7 @@ loc_7287:
                 mov     byte ptr ds:soundFX_request, 11
                 call    cs:Clear_Viewport_proc
                 call    swap_eai_and_inventory_code_regions
-                call    cs:Monster_AI_proc
+                call    cs:Inventory_Screen_proc
                 call    swap_eai_and_inventory_code_regions
                 cmp     byte ptr ds:byte_FF4B, 8
                 jnz     short loc_72A6
@@ -3414,9 +3307,6 @@ loc_72A6:
                 mov     ds:byte_9EF0, 0
                 jmp     main_update_render
 bring_inventory_window endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -3442,15 +3332,12 @@ loc_72E7:
 swap_eai_and_inventory_code_regions endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; load_place_and_reinit
 ; Called when boss_is_dead fires and the game needs to transition the cavern
 ; from boss mode back to post-boss state.
 ;
-; 1. Load boss AI binary (eai from mdt_descriptor.boss_ai) → 0xA000.
+; 1. Load saved monsters AI binary (eai from mdt_descriptor.boss_ai) → 0xA000.
 ; 2. Load boss enp sprite group (from mdt_descriptor.enp_grp_idx).
 ; 3. Decompress boss monster tiles.
 ; 4. Clear is_boss_cavern flag.
@@ -3465,11 +3352,11 @@ load_place_and_reinit proc near
 ; ---------------------------------------------------------------------------
 
 loc_72F9:        
-                mov     si, ds:mdt_buffer
+                mov     si, ds:mdt_buffer    ; mdt_buffer[0] is mdt_descriptor_addr; [C000]=C20A
                 add     si, mdt_descriptor.boss_ai
-                lodsb
+                lodsb  ; saved eai_bin_index
                 push    si
-                mov     ds:eai_bin_index, al ; enemy ai overridden with boss ai
+                mov     ds:eai_bin_index, al ; enemy ai restored with saved value
                 mov     bl, 11
                 mul     bl
                 add     ax, offset eai1_bin
@@ -3477,10 +3364,8 @@ loc_72F9:
                 push    cs
                 pop     es
                 mov     di, 0A000h      ; destination buffer
-                mov     al, 3           ; fn_3
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
+                mov     al, 3           ; fn3_read_virtual_file
+                call    cs:res_dispatcher_proc
                 pop     si
                 lodsb                   ; mdt_descriptor.enp_grp_idx
                 mov     ds:enp_grp_index, al
@@ -3500,13 +3385,13 @@ loc_72F9:
                 call    cs:Decompress_Tile_Data_proc
                 pop     ds
                 mov     byte ptr ds:is_boss_cavern, 0
-                mov     si, ds:mdt_buffer
-                add     si, 8
+                mov     si, ds:mdt_buffer  ; mdt_buffer[0] is mdt_descriptor_addr
+                add     si, 8          ; mdt_descriptor+8 is post-boss initializers (addr - value pairs)
 
-next_optional_initializer:
+next_optional_initializer: ; addr, value pairs
                 lodsw
                 cmp     ax, 0FFFFh
-                jz      short end_of_mdt_descriptor ;
+                jz      short end_of_initializers ;
                                         ; if not ffff: optional initializers follow
                 mov     bx, ax          ; address to init
                 lodsw                   ; 16 bit word to write
@@ -3514,7 +3399,7 @@ next_optional_initializer:
                 jmp     short next_optional_initializer
 ; ---------------------------------------------------------------------------
 
-end_of_mdt_descriptor:    
+end_of_initializers:    
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 mov     ax, ds:proximity_map_left_col_x
                 mov     bl, ds:hero_x_in_viewport
@@ -3539,16 +3424,13 @@ loc_7386:
                 call    cs:Render_Viewport_Tiles_proc
                 mov     bx, 21Ch
                 xor     al, al
-                mov     ch, 42h ; 'B'
+                mov     ch, 42h
                 call    cs:Clear_HUD_Bar_proc
-                mov     ax, 1
+                mov     ax, 1  ; fn1 (Stop) Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 mov     ds:byte_9F1E, 0
                 jmp     Cavern_Game_Init
 load_place_and_reinit endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -3567,20 +3449,17 @@ clear_viewport_buffer proc near
 clear_viewport_buffer endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
-; find_al_in_four_bytes_at_8020
+; is_tile_al_aggressive_ground
 ; Searches for tile value AL in the 4-byte 'aggressive ground' list at
 ; seg1:8020h. These are the tile IDs that hurt the hero when stood upon
 ; (e.g., lava, spikes), set per-dungeon in the mpp?.grp descriptor.
 ; Returns: ZF=1 (match found) or NZ (AH=0xFF, no match).
 ; ===========================================================================
-find_al_in_four_bytes_at_8020 proc near ; ...
+is_tile_al_aggressive_ground proc near
                 push    di
                 mov     es, cs:seg1
-                mov     di, 8020h
+                mov     di, offset aggressive_ground_list
                 mov     cx, 4
 
 loc_73CC:        
@@ -3589,7 +3468,7 @@ loc_73CC:
                 or      ah, ah
                 jz      short loc_73DA
                 cmp     ah, al
-                jz      short loc_73DE
+                je      short loc_73DE
                 loop    loc_73CC
 
 loc_73DA:        
@@ -3599,10 +3478,7 @@ loc_73DA:
 loc_73DE:        
                 pop     di
                 retn
-find_al_in_four_bytes_at_8020 endp
-
-
-; =============== S U B R O U T I N E =======================================
+is_tile_al_aggressive_ground endp
 
 
 ; ===========================================================================
@@ -3633,9 +3509,6 @@ render_notification_string proc near    ; ...
                 pop     si
                 retn
 render_notification_string endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -3710,9 +3583,6 @@ loc_746F:
 render_cavern_signs endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; clear_hero_in_viewport
 ; Erases the hero's 3×3 tile area in the viewport buffer by writing 0xFF.
@@ -3743,15 +3613,12 @@ three_tiles:
 clear_hero_in_viewport endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; step_on_aggressive_ground
 ; Deals damage to the hero if standing on harmful tiles.
 ; Pirika shoes grant immunity.
 ; Scans the hero's bottom 2-3 rows (squatting: +1 row) by calling
-; find_al_in_four_bytes_at_8020 on each tile.
+; is_tile_al_aggressive_ground on each tile.
 ; Also checks the tile directly under the hero centre.
 ; If any match: set hero_damage_this_frame, play SFX 9, deal damage.
 ; Damage table byte_7516: per cavern_level (1,1,4,8,20,20,20,20,20).
@@ -3780,7 +3647,7 @@ three_times:
                 push    cx
                 mov     al, [si]
                 inc     si
-                call    find_al_in_four_bytes_at_8020
+                call    is_tile_al_aggressive_ground
                 jnz     short loc_74D3
                 mov     ds:byte_9F17, 0FFh
 
@@ -3795,7 +3662,7 @@ loc_74D3:
                 jnz     short loc_74F3
                 inc     si
                 mov     al, [si]
-                call    find_al_in_four_bytes_at_8020
+                call    is_tile_al_aggressive_ground
                 jnz     short loc_74F3
                 mov     ds:byte_9F17, 0FFh
 
@@ -3818,9 +3685,6 @@ step_on_aggressive_ground endp
 
 ; ---------------------------------------------------------------------------
 byte_7516       db 1, 1, 4, 8, 20, 20, 20, 20, 20 ; ...
-
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
 ; check_hero_contact_damage
@@ -3932,9 +3796,6 @@ locret_75B9:
 check_hero_contact_damage endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; apply_hit_from_left / apply_hit_from_right
 ; Applies monster contact damage after determining shield blocking.
@@ -3959,9 +3820,6 @@ loc_75C2:
                 jz      short no_shield ; hero faced right (opposite direction) => shield useless
                 jmp     short loc_75E2
 apply_hit_from_left endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 apply_hit_from_right proc near
@@ -4008,9 +3866,6 @@ no_shield:
 apply_hit_from_right endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; destroy_shield
 ; Clears shield_type to 0, wipes the shield HP bar area on HUD,
@@ -4034,7 +3889,7 @@ destroy_shield  endp
 ; =============== S U B R O U T I N E =======================================
 
 
-get_monster_in_row_or_above proc near   ; ...
+get_monster_in_row_or_above proc near
                 call    get_dst_monster_flags ; CF: no monster
                                         ; NC: active monster; al=type, bx=monster struct
                 jb      short loc_764B
@@ -4062,7 +3917,7 @@ get_monster_in_row_or_above endp
 ; =============== S U B R O U T I N E =======================================
 
 
-get_monster_one_row_above proc near     ; ...
+get_monster_one_row_above proc near
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 call    get_dst_monster_flags ; CF: no monster
@@ -4159,13 +4014,13 @@ airflow_detected:
 dispatch_airflows endp
 
 ; ---------------------------------------------------------------------------
-airflows_table  dw offset airflow_up    ; ...
-                dw offset airflow_left  ; jump table for switch statement
+airflows_table  dw offset airflow_up
+                dw offset airflow_left
                 dw offset airflow_right
 ; ---------------------------------------------------------------------------
 
 airflow_up:      
-                call    move_hero_up    ; jumptable 000076CA case 0
+                call    move_hero_up
                 call    move_hero_up
                 mov     ds:air_up_tile_found, 0FFh
                 mov     byte ptr ds:jump_phase_flags, 0 ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
@@ -4174,12 +4029,12 @@ airflow_up:
 ; ---------------------------------------------------------------------------
 
 airflow_right:   
-                call    move_hero_right_if_no_obstacles ; jumptable 000076CA case 2
+                call    move_hero_right_if_no_obstacles
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
 
 airflow_left:    
-                call    move_hero_left_if_no_obstacles ; jumptable 000076CA case 1
+                call    move_hero_left_if_no_obstacles
                 jmp     move_hero_left_if_no_obstacles
 
 ; =============== S U B R O U T I N E =======================================
@@ -4261,10 +4116,10 @@ get_airflow_direction endp
 ; =============== S U B R O U T I N E =======================================
 
 
-update_boss_heartbeat_volume proc near  ; ...
+update_boss_heartbeat_volume proc near
                 mov     ax, ds:tear_x
                 cmp     ax, 0FFFFh
-                jz      short distance_big
+                je      short distance_big
                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
@@ -4329,8 +4184,8 @@ distance_big:
 update_boss_heartbeat_volume endp
 
 ; ---------------------------------------------------------------------------
-squares         db 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225 ; ...
-distance_attenuation db 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh ; ...
+squares         db 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225
+distance_attenuation db 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh
                 db 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Eh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh
                 db 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Dh, 0Ch, 0Ch, 0Ch, 0Ch
                 db 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch, 0Ch
@@ -4354,7 +4209,7 @@ restore_game    endp
 
 
 process_doors   proc near 
-                mov     bp, ds:doors_table_addr ; =d57d
+                mov     bp, ds:doors_table_addr
 
 next_door:       
                 mov     ax, ds:[bp+door.x0]
@@ -4450,7 +4305,7 @@ process_doors   endp
 ; =============== S U B R O U T I N E =======================================
 
 
-move_if_dst_high_bit_zero proc near     ; ...
+move_if_dst_high_bit_zero proc near
                 test    byte ptr [di], 80h
                 jz      short loc_797C
                 retn
@@ -4505,9 +4360,9 @@ calc_object_viewport_x_offset endp
 
 ; ---------------------------------------------------------------------------
 byte_79B4       db 49h, 4Ah   
-byte_79B6       db 61h, 4Bh, 4Ch, 4Dh, 4Fh, 50h, 51h, 4Eh, 5Fh, 52h, 53h, 54h, 60h, 5Fh, 55h, 56h, 57h, 60h ; ...
+byte_79B6       db 61h, 4Bh, 4Ch, 4Dh, 4Fh, 50h, 51h, 4Eh, 5Fh, 52h, 53h, 54h, 60h, 5Fh, 55h, 56h, 57h, 60h
 byte_79C8       db 49h, 4Ah   
-byte_79CA       db 61h, 4Bh, 4Ch, 4Dh, 58h, 0, 59h, 4Eh, 5Fh, 5Ah, 0, 5Bh, 60h, 5Fh, 5Ch, 5Dh, 5Eh, 60h ; ...
+byte_79CA       db 61h, 4Bh, 4Ch, 4Dh, 58h, 0, 59h, 4Eh, 5Fh, 5Ah, 0, 5Bh, 60h, 5Fh, 5Ch, 5Dh, 5Eh, 60h
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -4569,14 +4424,7 @@ prepare_dungeon proc near
                 mov     al, ds:place_map_id
                 or      al, al
                 js      short loc_7A80
-                call    remove_accomplished_items ; if Cangrejo_Defeated then [c013]=ffff
-                                        ; if 'Chest 50 Golds' taken then [d65e]=ff00, [d669]=ffff
-                                        ; if 'Chest Red Potion' taken then [d77e]=ff00, [d789]=ffff
-                                        ; if 'Muralla Key 1' taken then [d78e]=ff00, [d799]=ffff
-                                        ; if 'Wall, Blue Potion' taken then [d987]=0000
-                                        ; if 'Door to Cangrejo open' then [d580]=0181
-                                        ; if 'Door to Satono open' then [d5a4]=0280
-
+                call    remove_accomplished_items
 loc_7A80:        
                 jmp     loc_7C6E
 prepare_dungeon endp
@@ -4726,14 +4574,7 @@ skip_if_cavern:
                 test    byte ptr ds:place_map_id, 80h
                 jnz     short skip_if_town ;
                                         ; place is cavern
-                call    remove_accomplished_items ; if Cangrejo_Defeated then [c013]=ffff
-                                        ; if 'Chest 50 Golds' taken then [d65e]=ff00, [d669]=ffff
-                                        ; if 'Chest Red Potion' taken then [d77e]=ff00, [d789]=ffff
-                                        ; if 'Muralla Key 1' taken then [d78e]=ff00, [d799]=ffff
-                                        ; if 'Wall, Blue Potion' taken then [d987]=0000
-                                        ; if 'Door to Cangrejo open' then [d580]=0181
-                                        ; if 'Door to Satono open' then [d5a4]=0280
-
+                call    remove_accomplished_items
 skip_if_town:    
                 call    hero_left_16_down_1
                 mov     si, ds:mdt_buffer
@@ -4743,10 +4584,8 @@ skip_if_town:
                 mov     si, offset vfs_roka_grp_1
                 mov     es, cs:seg1
                 mov     di, packed_tile_ptr
-                mov     al, 2           ; fn_2
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, packed_tile_ptr
@@ -4764,10 +4603,8 @@ loc_7BD0:
                 mov     si, offset vfs_roka_grp_2
                 mov     es, cs:seg1
                 mov     di, packed_tile_ptr
-                mov     al, 2           ; fn_2
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, packed_tile_ptr
@@ -4789,12 +4626,10 @@ loc_7C02:
                 mov     si, offset rokademo_bin
                 push    cs
                 pop     es
-                mov     di, 0A000h
-                mov     al, 3           ; fn_3
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
-                call    cs:Monster_AI_proc
+                mov     di, 0A000h      ; rokademo.bin loaded
+                mov     al, 3           ; fn3_read_virtual_file
+                call    cs:res_dispatcher_proc
+                call    cs:roca_entrypoint
                 mov     ds:enp_grp_index, 0FFh
                 mov     ds:eai_bin_index, 0FFh
                 mov     al, ds:msd_index
@@ -4821,8 +4656,8 @@ loc_7C02:
 ; ---------------------------------------------------------------------------
 loc_7C6E:        
                 test    byte ptr ds:is_left_run, 0FFh
-                jnz     short run_to_town
-                and     byte ptr ds:facing_direction, 11111110b ; run to the cavern
+                jnz     short run_to_the_left
+                and     byte ptr ds:facing_direction, 11111110b ; run to the right
                 mov     bx, 0A6Eh
                 mov     cx, 26          ; 26 steps to animate
 
@@ -4850,10 +4685,10 @@ loc_7C80:
                 jmp     short loc_7CF4
 ; ---------------------------------------------------------------------------
 
-run_to_town:     
+run_to_the_left:     
                 or      byte ptr ds:facing_direction, 1
                 mov     bx, 406Eh
-                mov     cx, 1Ah
+                mov     cx, 26          ; 26 steps to animate
 
 loc_7CBF:        
                 push    cx
@@ -4879,10 +4714,10 @@ loc_7CBF:
                 call    cs:Draw_Bordered_Rectangle_proc
 
 loc_7CF4:        
-                mov     si, ds:mdt_buffer
-                lodsb
+                mov     si, ds:mdt_buffer  ; mdt_descriptor
+                lodsb                      ; .b7b6_msd_idx_b0
                 mov     ah, al
-                and     al, 1
+                and     al, 1              ; 0 ? town : dungeon
                 jz      short loc_7D64
                 call    load_cavern_sprites_ai_music ; load dchr.grp
                                         ; load mpp{mpp_grp_index}.grp
@@ -4890,7 +4725,7 @@ loc_7CF4:
                                         ; load enp{enp_grp_index}.grp
                                         ; load mgt{mgt_msd_index}.msd
                 mov     si, ds:mdt_buffer
-                lodsb                   ; mdt_descriptor[0]
+                lodsb                   ; mdt_descriptor.b7b6_msd_idx_b0
                 mov     ah, al
                 add     ah, ah
                 sbb     bl, bl          ; if ah bit 7 is set => bl = ff (boss cavern)
@@ -4909,7 +4744,7 @@ loc_7CF4:
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 8030h
-                mov     cx, 66h ; 'f'
+                mov     cx, 66h
                 call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
                 call    cs:NoOperation_proc
                 pop     ds
@@ -4935,14 +4770,12 @@ loc_7D64:
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 4000h
-                mov     al, 2           ; fn_2
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
-                mov     bx, 6000h       ; far jump to the town code
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
+                mov     bx, 6000h       ; jump address to the town code
 
 transfer_to_town:
-                mov     ax, 1
+                mov     ax, 1  ; fn1 (Stop) Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 push    bx
                 call    edge_locking_scrolling_window ; Return:
@@ -4950,8 +4783,8 @@ transfer_to_town:
                                         ; BL: hero_x_in_viewport
                 mov     ds:proximity_map_left_col_x, ax
                 mov     ds:hero_x_in_viewport, bl
-                mov     si, ds:mdt_buffer
-                lodsb
+                mov     si, ds:mdt_buffer ; mdt_descriptor
+                lodsb                   ; b7b6_msd_idx_b0
                 shr     al, 1
                 and     al, 11111b
                 mov     ds:msd_index, al
@@ -4961,14 +4794,12 @@ transfer_to_town:
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 3000h
-                mov     al, 5           ; fn_5
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
+                mov     al, 5           ; fn5_load_music
+                call    cs:res_dispatcher_proc
                 pop     bx
-                xor     al, al          ; swap and go bx
-                jmp     cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-try_door_interaction endp               ; fn1_load_mdt_idx_ah
+                xor     al, al           ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
+                jmp     cs:res_dispatcher_proc
+try_door_interaction endp
                  
 
 ; =============== S U B R O U T I N E =======================================
@@ -4998,7 +4829,7 @@ hero_left_16_down_1 endp
 ; AX: proximity_map_left_col_x
 ; BL: hero_x_in_viewport
 
-edge_locking_scrolling_window proc near ; ...
+edge_locking_scrolling_window proc near
                 mov     bx, 13
                 mov     ax, ds:hero_x_in_proximity_map
                 mov     cx, ds:mapWidth
@@ -5132,21 +4963,21 @@ process_mdt_descriptor endp
 ; load eai{eai_bin_index}.bin
 ; load enp{enp_grp_index}.grp
 ; load mgt{mgt_msd_index}.msd
-load_cavern_sprites_ai_music proc near  ; ...
+load_cavern_sprites_ai_music proc near
                 mov     es, cs:seg1
                 mov     si, offset dchr_grp
-                mov     di, 8C00h
-                mov     al, 2           ; fn_2
-                call    cs:res_dispatcher_proc ; res_dispatcher
+                mov     di, 8C00h       ; doors, platforms tiles gfx
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
                 mov     bl, ds:mpp_grp_index
                 mov     al, 11
                 mul     bl
                 add     ax, offset mpp_grp
                 mov     si, ax
                 mov     es, cs:seg1
-                mov     di, 8000h       ; destination buffer
-                mov     al, 2           ; fn_2: load and unpack
-                call    cs:res_dispatcher_proc ; res_dispatcher
+                mov     di, 8000h       ; static cavern tiles gfx
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
                 mov     bl, ds:eai_bin_index_
                 cmp     bl, 0FFh
                 jnz     short loc_7EF3
@@ -5155,7 +4986,7 @@ load_cavern_sprites_ai_music proc near  ; ...
 
 loc_7EF3:        
                 cmp     bl, ds:eai_bin_index
-                jz      short loc_7F12
+                je      short loc_7F12   ; monsters AI already loaded
                 mov     ds:eai_bin_index, bl
                 mov     al, 11
                 mul     bl
@@ -5163,9 +4994,9 @@ loc_7EF3:
                 mov     si, ax
                 push    cs
                 pop     es
-                mov     di, 0A000h
-                mov     al, 3           ; fn_3
-                call    cs:res_dispatcher_proc ; res_dispatcher
+                mov     di, offset Monster_AI_proc
+                mov     al, 3           ; fn3_read_virtual_file
+                call    cs:res_dispatcher_proc
 
 loc_7F12:        
                 mov     bl, ds:enp_grp_index_
@@ -5176,7 +5007,7 @@ loc_7F12:
 
 loc_7F1C:        
                 cmp     bl, ds:enp_grp_index
-                jz      short loc_7F53
+                je      short loc_7F53   ; monsters gfx already loaded
                 mov     ds:enp_grp_index, bl
                 mov     al, 11
                 mul     bl
@@ -5201,18 +5032,18 @@ loc_7F53:
 ; ---------------------------------------------------------------------------
 load_music:
                 push    bx
-                mov     ax, 1
+                mov     ax, 1  ; fn1 (Stop) Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 mov     ds:byte_9F02, 0FFh
-                pop     bx              ; =4 for Malicia
+                pop     bx              ; music index from mdt_descriptor
                 mov     al, 11
                 mul     bl
                 add     ax, offset vfs_mgt1_msd
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 3000h
-                mov     al, 5           ; fn_5
-                call    cs:res_dispatcher_proc ; res_dispatcher
+                mov     al, 5           ; fn5_load_music
+                call    cs:res_dispatcher_proc
                 retn
 load_cavern_sprites_ai_music endp
 
@@ -5278,7 +5109,7 @@ render_vertical_platforms_to_proximity endp
 ; =============== S U B R O U T I N E =======================================
 
 
-move_platform_down_damage_monster proc near ; ...
+move_platform_down_damage_monster proc near
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short on_ground4
                 retn
@@ -5415,7 +5246,7 @@ loc_807C:
 hero_not_blocked_above:   
                 add     si, 36*4
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                mov     dl, 40h ; '@'   ; vertical platform: tiles 0x40, 0x41, 0x42
+                mov     dl, 40h         ; vertical platform: tiles 0x40, 0x41, 0x42
                 call    identify_platform_tile ; NZ: not a platform
                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
                 jz      short hor_platform_beneath_
@@ -5423,8 +5254,8 @@ hero_not_blocked_above:
 ; ---------------------------------------------------------------------------
 
 hor_platform_beneath_:     
-                mov     di, ds:vertical_platforms_table_addr ; =d555
-                mov     dl, 40h ; '@'
+                mov     di, ds:vertical_platforms_table_addr
+                mov     dl, 40h
                 push    dx
                 call    find_platform_under_hero
                 pop     dx
@@ -5456,27 +5287,27 @@ not_blocked_:
                 mov     si, bx
                 sub     si, 36
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
-                push    di              ; =d558
-                mov     di, si          ; =e717
+                push    di
+                mov     di, si
                 mov     cx, 3
 
 loc_80DA:        
                 push    dx
                 push    bx
                 call    put_dl_to_proximity_layered
-                pop     bx              ; =e73b
-                xchg    di, bx          ; bx=e717
+                pop     bx
+                xchg    di, bx
                 push    bx
                 xor     dl, dl
                 call    put_dl_to_proximity_layered
-                pop     bx              ; =e717
-                xchg    di, bx          ; bx=e73b
+                pop     bx
+                xchg    di, bx
                 inc     di
                 inc     bx
                 pop     dx
                 inc     dl              ; 40h, 41h, 42h
                 loop    loc_80DA
-                pop     di              ; =d558
+                pop     di
                 dec     [di+door.y0]    ; move platform up
                 and     [di+door.y0], 3Fh
                 pop     ax
@@ -5490,12 +5321,12 @@ try_move_platform_up endp
 ; =============== S U B R O U T I N E =======================================
 
 
-find_platform_under_hero proc near      ; ...
-                mov     al, ds:hero_x_in_viewport ; =0c
+find_platform_under_hero proc near
+                mov     al, ds:hero_x_in_viewport
                 add     al, 4           ; viewport starts +4 from proximity window
                 add     al, dh          ; hero position on platform {-1, 0, 1}
-                xor     ah, ah          ; =000f
-                add     ax, ds:proximity_map_left_col_x ; +00ce=00dd
+                xor     ah, ah
+                add     ax, ds:proximity_map_left_col_x
                 cmp     ax, ds:mapWidth
                 jb      short inside_the_map
                 sub     ax, ds:mapWidth ; ax = hero absolute coord x
@@ -5562,12 +5393,12 @@ identify_platform_tile endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-process_visible_collapsing_platforms proc near ; ...
+; Note: collapsing and vertical platforms share the same struct
+process_visible_collapsing_platforms proc near
                 mov     si, ds:collapsing_platforms_table_addr
 
 next_collapsing_platform: 
-                mov     ax, [si+vert_platform.x] ; x
+                mov     ax, [si+vert_platform.x]
                 cmp     ax, 0FFFFh
                 jnz     short loc_816F
                 retn
@@ -5604,7 +5435,7 @@ hero_collapse_platform proc near
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                mov     dl, 43h ; 'C'   ; collapsing platform tiles are 0x43, 0x44, 0x45
+                mov     dl, 43h         ; collapsing platform tiles are 0x43, 0x44, 0x45
                 call    identify_platform_tile ; NZ: not a platform
                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
                 jz      short loc_819F
@@ -5613,7 +5444,7 @@ hero_collapse_platform proc near
 
 loc_819F:        
                 mov     di, ds:collapsing_platforms_table_addr
-                mov     dl, 43h ; 'C'
+                mov     dl, 43h
                 call    try_move_platform_down ; NC: platform is blocked
                                         ; CF: platform successfully moved down
                 jb      short loc_81AB
@@ -5628,7 +5459,7 @@ hero_collapse_platform endp
 ; =============== S U B R O U T I N E =======================================
 
 
-update_and_render_horiz_platforms proc near ; ...
+update_and_render_horiz_platforms proc near
                 inc     ds:byte_9F07
                 mov     si, ds:horiz_platforms_table_addr ; =d55f
 
@@ -5718,7 +5549,7 @@ skip_if_0:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 mov     cx, 3
-                mov     dl, 46h ; 'F'   ; Horizontal platform has tiles 0x46, 0x47, 0x48
+                mov     dl, 46h         ; Horizontal platform has tiles 0x46, 0x47, 0x48
 
 loc_8236:        
                 call    put_dl_to_proximity_layered
@@ -5732,14 +5563,14 @@ loc_823E:
 update_and_render_horiz_platforms endp
 
 ; ---------------------------------------------------------------------------
-funcs_8220      dw offset update_slow_horiz_platform_coords ; ...
+funcs_8220      dw offset update_slow_horiz_platform_coords
                 dw offset update_horiz_platform_coords
                 dw offset update_horiz_platform_coords
 
 ; =============== S U B R O U T I N E =======================================
 
 
-update_slow_horiz_platform_coords proc near ; ...
+update_slow_horiz_platform_coords proc near
                 test    ds:byte_9F07, 1
                 jnz     short update_horiz_platform_coords
                 retn
@@ -5749,7 +5580,7 @@ update_slow_horiz_platform_coords endp
 ; =============== S U B R O U T I N E =======================================
 
 
-update_horiz_platform_coords proc near  ; ...
+update_horiz_platform_coords proc near
                 mov     cl, [si+horiz_platform.y_and_flags]
                 and     [si+horiz_platform.y_and_flags], 10111111b
                 test    cl, 40h         ; paused platform
@@ -5914,7 +5745,7 @@ abs_x_to_proximity_rel endp
 ; =============== S U B R O U T I N E =======================================
 
 
-horiz_platform_proximity_x_offset proc near ; ...
+horiz_platform_proximity_x_offset proc near
                 add     ax, 2
                 mov     bx, ax
                 sub     ax, ds:mapWidth
@@ -5975,7 +5806,7 @@ put_dl_to_proximity_layered endp
 ; =============== S U B R O U T I N E =======================================
 
 
-update_and_render_projectile_row_pair proc near ; ...
+update_and_render_projectile_row_pair proc near
                 mov     si, offset projectiles_array
 
 loc_8369:        
@@ -5989,7 +5820,7 @@ loc_836F:
                 call    flush_dirty_projectile
                 pop     si
                 mov     al, [si+projectile.p_x_rel]
-                mov     [si+0Bh], al
+                mov     [si+projectile.p_cached_x_rel], al
                 sub     al, 4
                 cmp     al, 28
                 jnb     short loc_83D2
@@ -5998,8 +5829,8 @@ loc_836F:
                 and     al, 3Fh
                 cmp     al, 12h
                 jnb     short loc_83D2
-                mov     [si+0Ch], al
-                mov     ah, [si+0Bh]
+                mov     [si+projectile.p_cached_y_rel], al
+                mov     ah, [si+projectile.p_cached_x_rel]
                 push    ax
                 call    proximity_map_coords_to_viewport_offset ; AL: proximity map relative y
                                         ; AH: proximity map relative x
@@ -6013,14 +5844,14 @@ loc_836F:
                                         ; AH: x
                                         ; Returns video memory address in DI
                 or      di, 8000h
-                mov     [si+7], di
+                mov     [si+projectile.p_vram_addr_d], di
                 mov     al, [si+projectile.p_base_tile_idx]
                 mov     bl, al
                 rol     bl, 1
                 rol     bl, 1
                 and     bx, 3
                 mov     bl, ds:masks[bx]
-                and     bl, [si+3]
+                and     bl, [si+projectile.p_trajectory_step_count]
                 add     al, bl
                 and     al, 3Fh
                 and     di, 7FFFh
@@ -6028,7 +5859,7 @@ loc_836F:
                                         ; DI: screen address
 
 loc_83CD:
-                add     si, 0Dh
+                add     si, 13          ; size of a projectile struct
                 jmp     short loc_8369
 
 loc_83D2:
@@ -6082,7 +5913,7 @@ flush_dirty_projectile endp
 ; =============== S U B R O U T I N E =======================================
 
 
-restore_bg_tile_at_given_position proc near ; ...
+restore_bg_tile_at_given_position proc near
                 push    ax
                 call    proximity_map_coords_to_viewport_offset ; AL: proximity map relative y
                                         ; AH: proximity map relative x
@@ -6107,7 +5938,7 @@ restore_bg_tile_at_given_position endp  ; DX: Screen destination
 ; =============== S U B R O U T I N E =======================================
 
 
-projectiles_collision_processing proc near ; ...
+projectiles_collision_processing proc near
                 mov     si, offset projectiles_array
                 mov     di, offset projectiles_array
                 push    cs
@@ -6301,7 +6132,7 @@ sub_846F        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-projectile_y_vs_hero_row_dispatch proc near ; ...
+projectile_y_vs_hero_row_dispatch proc near
                 mov     bl, [si+projectile.p_trajectory_dir]
                 and     bx, 7
                 add     bx, bx
@@ -6310,7 +6141,7 @@ projectile_y_vs_hero_row_dispatch proc near ; ...
 projectile_y_vs_hero_row_dispatch endp
 
 ; ---------------------------------------------------------------------------
-funcs_857D      dw offset check_y_eq_projectile_row ; ...
+funcs_857D      dw offset check_y_eq_projectile_row
                 dw offset check_prev_y_eq_projectile_row
                 dw offset check_prev_y_eq_projectile_row
                 dw offset check_prev_y_eq_projectile_row
@@ -6322,7 +6153,7 @@ funcs_857D      dw offset check_y_eq_projectile_row ; ...
 ; =============== S U B R O U T I N E =======================================
 
 
-check_y_eq_projectile_row proc near     ; ...
+check_y_eq_projectile_row proc near
                 cmp     al, [si+projectile.p_y_rel]
                 jnz     short loc_8597
                 retn
@@ -6337,7 +6168,7 @@ check_y_eq_projectile_row endp
 ; =============== S U B R O U T I N E =======================================
 
 
-check_prev_y_eq_projectile_row proc near ; ...
+check_prev_y_eq_projectile_row proc near
                 dec     al
                 and     al, 3Fh
                 jmp     short check_y_eq_projectile_row
@@ -6347,7 +6178,7 @@ check_prev_y_eq_projectile_row endp
 ; =============== S U B R O U T I N E =======================================
 
 
-check_next_y_eq_projectile_row proc near ; ...
+check_next_y_eq_projectile_row proc near
                 inc     al
                 and     al, 3Fh
                 jmp     short check_y_eq_projectile_row
@@ -6357,7 +6188,7 @@ check_next_y_eq_projectile_row endp
 ; =============== S U B R O U T I N E =======================================
 
 
-projectile_advance_position proc near   ; ...
+projectile_advance_position proc near
                 test    [si+projectile.p_trajectory_dir], 40h
                 jz      short loc_85B1
                 call    projectile_read_curved_path_step
@@ -6459,7 +6290,7 @@ decY__          endp
 ; =============== S U B R O U T I N E =======================================
 
 
-projectile_read_curved_path_step proc near ; ...
+projectile_read_curved_path_step proc near
                 mov     bl, [si+projectile.p_trajectory_step_count]
                 xor     bh, bh
                 mov     di, [si+projectile.p_curved_path_data_ptr]
@@ -6483,7 +6314,7 @@ projectile_read_curved_path_step endp
 
 ; In: BX pointing to projectile struct
 
-Add_Projectile_To_Array proc near       ; ...
+Add_Projectile_To_Array proc near
                 cmp     ds:last_projectile_index, 31 ; max 32 projectiles
                 jb      short loc_8619
                 retn
@@ -6517,7 +6348,7 @@ Add_Projectile_To_Array endp
 ; =============== S U B R O U T I N E =======================================
 
 
-every_projectile_moves_left_in_viewport proc near ; ...
+every_projectile_moves_left_in_viewport proc near
                 mov     si, offset projectiles_array
 
 next_projectile_: 
@@ -6541,7 +6372,7 @@ every_projectile_moves_left_in_viewport endp
 ; =============== S U B R O U T I N E =======================================
 
 
-every_projectile_moves_right_in_viewport proc near ; ...
+every_projectile_moves_right_in_viewport proc near
                 mov     si, offset projectiles_array
 
 next_projectile__: 
@@ -6568,7 +6399,7 @@ every_projectile_moves_right_in_viewport endp
 ; AH: proximity map relative x
 ; Return: address in DI
 
-proximity_map_coords_to_viewport_offset proc near ; ...
+proximity_map_coords_to_viewport_offset proc near
                 and     al, 3Fh         ; clamp y
                 mov     bl, ah          ; proximity map relative x
                 mov     bh, 28          ; viewport width
@@ -6585,7 +6416,7 @@ proximity_map_coords_to_viewport_offset endp
 ; =============== S U B R O U T I N E =======================================
 
 
-render_and_collision_pass_row proc near ; ...
+render_and_collision_pass_row proc near
                 mov     si, offset spirit_sprite_0
                 mov     cx, 4
 
@@ -6641,7 +6472,7 @@ loc_8693:
                 pop     si
 
 loc_86DC:
-                add     si, 7
+                add     si, 7  ; size of spirit struct
                 pop     cx
                 loop    next_spirit
                 retn
@@ -6651,7 +6482,7 @@ render_and_collision_pass_row endp
 ; =============== S U B R O U T I N E =======================================
 
 
-restore_bg_under_spirit_sprite proc near ; ...
+restore_bg_under_spirit_sprite proc near
                 test    word ptr [si+spirit.s_vram_addr], 8000h
                 jnz     short loc_86EB
                 retn
@@ -6716,7 +6547,7 @@ monsters_updates endp
 ; =============== S U B R O U T I N E =======================================
 
 
-spirit_sprite_place_in_proximity_rows proc near ; ...
+spirit_sprite_place_in_proximity_rows proc near
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jz      short loc_8750
                 test    byte ptr ds:boss_is_dead, 0FFh
@@ -6740,7 +6571,7 @@ spirit_sprite_place_in_proximity_rows endp
 ; =============== S U B R O U T I N E =======================================
 
 
-proximity_cell_inject_spell_target proc near ; ...
+proximity_cell_inject_spell_target proc near
                 test    byte ptr [si+2], 0FFh
                 jnz     short loc_876C
                 retn
@@ -6775,30 +6606,30 @@ loc_8784:
 proximity_cell_inject_spell_target endp
 
 ; ---------------------------------------------------------------------------
-circle          dw 102h   
-                                        ;
-                                        ; ..345..
-                                        ; .2...6.
-                                        ; 1.....7
-                                        ; 0.....8
-                                        ; f.....9
-                                        ; .e...a.
-                                        ; ..dcb..
-                dw 2
-                dw 0FF03h
-                dw 0FE04h
-                dw 0FE05h
-                dw 0FE06h
-                dw 0FF07h
-                dw 8
-                dw 108h
-                dw 208h
-                dw 307h
-                dw 406h
-                dw 405h
-                dw 404h
-                dw 303h
-                dw 202h
+;   ..345..
+;   .2...6.
+; ⊙.1.....7
+;   0.....8
+;   f.....9
+;   .e...a.
+;   ..dcb..
+                ;    y x
+circle          dw  0102h ; 0   
+                dw  0002h ; 1
+                dw 0FF03h ; 2
+                dw 0FE04h ; 3
+                dw 0FE05h ; 4
+                dw 0FE06h ; 5
+                dw 0FF07h ; 6
+                dw  0008h ; 7
+                dw  0108h ; 8
+                dw  0208h ; 9
+                dw  0307h ; a
+                dw  0406h ; b
+                dw  0405h ; c
+                dw  0404h ; d
+                dw  0303h ; e
+                dw  0202h ; f
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -7163,7 +6994,7 @@ update_active_projectiles_render endp
 ; =============== S U B R O U T I N E =======================================
 
 
-projectile_erase_old_tiles proc near    ; ...
+projectile_erase_old_tiles proc near
                 test    word ptr [si+magic_projectile.mp_vram_addr_tile00], 8000h
                 jz      short loc_8A51
                 and     word ptr [si+magic_projectile.mp_vram_addr_tile00], 7FFFh
@@ -7223,7 +7054,7 @@ projectile_erase_old_tiles endp
 ; =============== S U B R O U T I N E =======================================
 
 
-dispatch_spell_projectile_movement proc near ; ...
+dispatch_spell_projectile_movement proc near
                 test    byte ptr ds:byte_FF3E, 0FFh
                 jnz     short loc_8AB5
                 retn
@@ -7239,7 +7070,7 @@ loc_8AB5:
 dispatch_spell_projectile_movement endp
 
 ; ---------------------------------------------------------------------------
-funcs_8AC2      dw offset espada_move   ; ...
+funcs_8AC2      dw offset espada_move
                 dw offset saeta_move
                 dw offset fuego_move
                 dw offset saeta_move
@@ -7516,7 +7347,7 @@ monster_is_in_spawn_range_and_clear endp
 ; =============== S U B R O U T I N E =======================================
 
 
-mark_proximity_monster_as_spell_target proc near ; ...
+mark_proximity_monster_as_spell_target proc near
                 call    get_dst_monster_flags ; CF: no monster
                                         ; NC: active monster; al=type, bx=monster struct
                 jnb     short loc_8C55
@@ -7548,31 +7379,29 @@ loc_8C61:
 mark_proximity_monster_as_spell_target endp
 
 ; ---------------------------------------------------------------------------
-byte_8C79       db 0, 0, 1, 0, 0, 1, 1, 1 ; ...
-sequences0      dw offset byte_8C99     ; ...
+byte_8C79       db 0, 0, 1, 0, 0, 1, 1, 1
+sequences0      dw offset byte_8C99
                 dw offset byte_8CA5
                 dw offset byte_8CBD
                 dw offset byte_8CE5
                 dw offset byte_8CFD
                 dw offset byte_8D01
-sequences1      dw offset byte_8C99     ; ...
+sequences1      dw offset byte_8C99
                 dw offset byte_8CB1
                 dw offset byte_8CD1
                 dw offset byte_8CF1
                 dw offset byte_8CFD
                 dw offset byte_8D0D
-byte_8C99       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h ; ...
-byte_8CA5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h ; ...
-byte_8CB1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; ...
-byte_8CBD       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; ...
-byte_8CD1       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; ...
-byte_8CE5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h ; ...
-byte_8CF1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; ...
-byte_8CFD       db 73h, 74h, 75h, 76h   ; ...
-byte_8D01       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h ; ...
-byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; ...
-
-; =============== S U B R O U T I N E =======================================
+byte_8C99       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CA5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CB1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CBD       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CD1       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CE5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CF1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CFD       db 73h, 74h, 75h, 76h
+byte_8D01       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 
 
 ; ===========================================================================
@@ -7606,7 +7435,7 @@ byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh ; 
 ;   [E..F] ai_state/hp
 ; ===========================================================================
 monsters_spawning proc near   
-                mov     si, ds:monsters_table_addr ; d62e - *.mdt contains after the Place Name, the table of all monsters
+                mov     si, ds:monsters_table_addr
                 mov     al, ds:is_boss_cavern
                 or      al, ds:is_jashiin_cavern
                 jz      short loc_8D2B
@@ -7691,9 +7520,6 @@ loc_8DA5:
 monsters_spawning endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; place_monster_in_proximity_and_run_ai
 ; Places a monster in the proximity map and optionally runs its AI.
@@ -7728,9 +7554,9 @@ monsters_spawning endp
 ; optionally write the item's save achievement bitmask to savegame.
 ;
 ; SPRITE NOTE: Items use enp?.grp 2×2 tiles. The frame to display is encoded
-; in monster.flags low nibble or via ENP1_FRAMES lookup in grp_viewer.py.
+; in monster.flags low nibble (see ENP1_FRAMES lookup in grp_viewer.py).
 ; ===========================================================================
-place_monster_in_proximity_and_run_ai proc near ; ...
+place_monster_in_proximity_and_run_ai proc near
                 mov     ax, word ptr [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
@@ -7793,8 +7619,8 @@ loc_8E0E:
                 add     bx, bx          ; switch 15 cases
                 jmp     ds:jpt_8E10[bx] ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_8E10        dw offset flag_10       ; ...
-                dw offset flag_11       ; jump table for switch statement
+jpt_8E10        dw offset flag_10
+                dw offset flag_11
                 dw offset flag_12
                 dw offset flag_13
                 dw offset flag_14_15_1b
@@ -7957,7 +7783,7 @@ chest:
                 xor     bh, bh
                 jmp     ds:off_8F33[bx]
 ; ---------------------------------------------------------------------------
-off_8F33        dw offset got_50_gold   ; ...
+off_8F33        dw offset got_50_gold
                 dw offset got_100_gold
                 dw offset loc_8F59
                 dw offset got_500_gold
@@ -8092,7 +7918,7 @@ flag_18:
 loc_900E:        
                 mov     dx, offset you_have_recovered_str
                 call    render_notification_string
-                add     byte ptr ds:healing_potion_timer, 0Ah
+                add     byte ptr ds:healing_potion_timer, 10
                 jmp     loc_914C
 ; ---------------------------------------------------------------------------
 
@@ -8232,40 +8058,40 @@ loc_90DE:
 ; ---------------------------------------------------------------------------
 
 loc_90E6:        
-                add     byte ptr [si+6], 80h
-                jb      short loc_90ED
+                add     byte ptr [si+monster.anim_counter], 80h
+                jc      short loc_90ED
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_90ED:        
-                inc     byte ptr [si+6]
-                cmp     byte ptr [si+6], 3
+                inc     byte ptr [si+monster.anim_counter]
+                cmp     byte ptr [si+monster.anim_counter], 3
                 jz      short loc_90F7
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_90F7:        
-                mov     byte ptr [si+0Fh], 0
-                test    byte ptr [si+7], 40h
+                mov     byte ptr [si+monster.counter], 0
+                test    byte ptr [si+monster.state_flags], 40h
                 jz      short loc_9116
-                and     byte ptr [si+7], 0BFh
-                mov     al, [si+0Ah]
-                mov     cl, 10h
+                and     byte ptr [si+monster.state_flags], 0BFh
+                mov     al, [si+monster.ai_timer]
+                mov     cl, 16   ; size of monster struct
                 mul     cl
                 add     ax, ds:monsters_table_addr
                 mov     di, ax
-                mov     byte ptr [di+2], 0
+                mov     byte ptr [di+monster.currY], 0
 
 loc_9116:        
-                test    byte ptr [si+7], 10h
+                test    byte ptr [si+monster.state_flags], 10h
                 jz      short loc_9122
-                test    byte ptr [si+4], 1
+                test    byte ptr [si+monster.flags], 1
                 jz      short loc_914C
 
 loc_9122:        
-                mov     byte ptr [si+6], 0
-                mov     byte ptr [si+4], 72h ; 'r'
-                mov     al, [si+7]
+                mov     byte ptr [si+monster.anim_counter], 0
+                mov     byte ptr [si+monster.flags], 72h
+                mov     al, [si+monster.state_flags]
                 and     al, 0Fh
                 jnz     short loc_9132
                 retn
@@ -8275,32 +8101,32 @@ loc_9132:
                 cmp     al, 1
                 jz      short loc_914C
                 or      al, 70h
-                or      byte ptr [si+7], 80h
-                mov     byte ptr [si+0Fh], 4
-                mov     [si+4], al
-                and     byte ptr [si+5], 80h
-                and     byte ptr [si+7], 0F0h
+                or      byte ptr [si+monster.state_flags], 80h
+                mov     byte ptr [si+monster.counter], 4
+                mov     [si+monster.flags], al
+                and     byte ptr [si+monster.ai_flags], 80h
+                and     byte ptr [si+monster.state_flags], 0F0h
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_914C:        
                 mov     word ptr [si], 0FF00h
-                test    byte ptr [si+7], 20h
+                test    byte ptr [si+monster.state_flags], 20h
                 jnz     short loc_9157
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_9157:        
-                mov     di, [si+0Bh]
-                cmp     di, 0FFFFh
-                jnz     short loc_9160
+                mov     di, [si+monster.spwnX]
+                cmp     di, 0FFFFh  ; already spawned
+                jne     short loc_9160
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_9160:        
-                mov     al, [si+0Dh]
+                mov     al, [si+monster.spwnY]
                 or      [di], al
-                mov     word ptr [si+0Bh], 0FFFFh
+                mov     word ptr [si+monster.spwnX], 0FFFFh
                 retn
 place_monster_in_proximity_and_run_ai endp
 
@@ -8340,9 +8166,6 @@ loc_9188:
 hero_got_almas  endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; check_monster_aligned_to_hero_and_tick
 ; Returns NC (item can be picked up) only when:
@@ -8352,7 +8175,7 @@ hero_got_almas  endp
 ;   - monster.counter counts up to bit 3 being set (throttles pickup rate)
 ; Returns CF (stc) when misaligned or inactive.
 ; ===========================================================================
-check_monster_aligned_to_hero_and_tick proc near ; ...
+check_monster_aligned_to_hero_and_tick proc near
                 test    byte ptr ds:invincibility_flag, 0FFh
                 stc
                 jz      short loc_9199
@@ -8410,9 +8233,6 @@ loc_91E3:
                 stc
                 retn
 check_monster_aligned_to_hero_and_tick endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -8652,8 +8472,6 @@ decrementY:
                 and     [si+monster.currY], 3Fh ; wrap Y: dungeon map height is always 64
                 retn
 
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
 ; check_collision_E2 / W2 / N2 / S2 / NE2 / SE2 / NW2 / SW2
@@ -8710,7 +8528,7 @@ loc_92D2:
                 retn                    ; CF is only set if any of {(+2, +1), (+2, 0), (+2, -1)} has high bit set (negative)
 check_collision_E2 endp
 
-check_collision_E_including_danger5 proc near ; ...
+check_collision_E_including_danger5 proc near
                 mov     al, [di]
                 call    if_passable_set_ZF
                 stc
@@ -8790,7 +8608,7 @@ check_collision_W2 endp
 ; =============== S U B R O U T I N E =======================================
 
 
-check_collision_W_including_danger5 proc near ; ...
+check_collision_W_including_danger5 proc near
                 mov     al, [di]
                 call    if_passable_set_ZF
                 stc
@@ -9128,9 +8946,6 @@ loc_94D9:
 check_collision_SW2 endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; if_passable_set_ZF
 ; Core passability test used by monster collision checks.
@@ -9143,7 +8958,7 @@ check_collision_SW2 endp
 ; which does NOT use the 73-based threshold (uses 0x40 and 0x49 variants).
 ; ===========================================================================
 if_passable_set_ZF proc near  
-                cmp     al, 73
+                cmp     al, 73    ; aka 0x49
                 jb      short in_zero_to_72
                 or      al, al
                 jns     short in_73_to_127
@@ -9166,9 +8981,6 @@ in_zero_to_72:
                 pop     di
                 retn                    ; ZF if one of predefined passable tiles; NZ otherwise
 if_passable_set_ZF endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -9262,7 +9074,7 @@ loc_954A:
 
 loc_9569:        
                 or      al, byte ptr [si+monster.currX]
-                or      al, [si+1]
+                or      al, [si+1]   ; monster x coord high byte
                 or      al, [si+monster.currY]
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
@@ -9376,9 +9188,6 @@ loc_95F1:
 monster_activation endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; update_all_monsters_in_map
 ; Called once from init_cavern at room load (NOT per frame).
@@ -9386,7 +9195,7 @@ monster_activation endp
 ; stamps each in-range monster's index | 0x80 into the proximity map.
 ; Used to pre-populate the map with monsters before the main loop starts.
 ; ===========================================================================
-update_all_monsters_in_map proc near    ; ...
+update_all_monsters_in_map proc near
                 push    cs
                 pop     es
                 mov     di, offset proximity_second_layer ; proximity map is designed to keep only one item
@@ -9481,9 +9290,6 @@ loc_96BA:
 HorizDistToHero_35 endp
 
 
-; =============== S U B R O U T I N E =======================================
-
-
 ; ===========================================================================
 ; monster_split_or_die
 ; Called when a monster's HP drops to 0.
@@ -9505,7 +9311,7 @@ monster_split_or_die proc near
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-Check_Vertical_Distance_Between_Hero_And_Monster: ; ...
+Check_Vertical_Distance_Between_Hero_And_Monster:
                 mov     [si+monster.anim_counter], 0
                 or      [si+monster.flags], 68h
                 and     [si+monster.ai_flags], 80h
@@ -9529,7 +9335,7 @@ usual_monster:
                 retn
 ; ---------------------------------------------------------------------------
 
-monster_close_to_hero_vertically_19:    ; ...
+monster_close_to_hero_vertically_19:
                 mov     byte ptr ds:soundFX_request, 7
                 retn
 monster_split_or_die endp
@@ -9562,7 +9368,7 @@ update_hero_XP  endp
 ; monster_move_in_direction: calls the corresponding move_monster_X.
 ; Check_collision_in_direction: calls the corresponding check_collision_X2.
 ; ===========================================================================
-monster_move_in_direction proc near     ; ...
+monster_move_in_direction proc near
                 and     al, 7
                 mov     bl, al
                 xor     bh, bh
@@ -9571,7 +9377,7 @@ monster_move_in_direction proc near     ; ...
 monster_move_in_direction endp
 
 ; ---------------------------------------------------------------------------
-funcs_972B      dw offset move_monster_E ; ...
+funcs_972B      dw offset move_monster_E
                 dw offset move_monster_NE
                 dw offset move_monster_N
                 dw offset move_monster_NW
@@ -9583,7 +9389,7 @@ funcs_972B      dw offset move_monster_E ; ...
 ; =============== S U B R O U T I N E =======================================
 
 
-Check_collision_in_direction proc near  ; ...
+Check_collision_in_direction proc near
                 and     al, 7
                 mov     bl, al
                 xor     bh, bh
@@ -9592,7 +9398,7 @@ Check_collision_in_direction proc near  ; ...
 Check_collision_in_direction endp
 
 ; ---------------------------------------------------------------------------
-funcs_9747      dw offset check_collision_E2 ; ...
+funcs_9747      dw offset check_collision_E2
                 dw offset check_collision_NE2
                 dw offset check_collision_N2
                 dw offset check_collision_NW2
@@ -9612,7 +9418,7 @@ funcs_9747      dw offset check_collision_E2 ; ...
 ; Used by flying/swimming monster AIs that follow air/water currents.
 ; Airflow categories: 0=Up → move N; 1=Left → move W; 2=Right → move E.
 ; ===========================================================================
-Move_Monster_NWE_Depending_On_Whats_Below proc near ; ...
+Move_Monster_NWE_Depending_On_Whats_Below proc near
                 mov     ax, word ptr [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
@@ -9650,8 +9456,8 @@ loc_977F:
 Move_Monster_NWE_Depending_On_Whats_Below endp
 
 ; ---------------------------------------------------------------------------
-jpt_9784        dw offset category0_moveN ; ...
-                dw offset category1_moveW ; jump table for switch statement
+jpt_9784        dw offset category0_moveN
+                dw offset category1_moveW
                 dw offset category2_moveE
 ; ---------------------------------------------------------------------------
 
@@ -9669,16 +9475,14 @@ category0_moveN:
                 call    move_monster_N  ; jumptable 00009784 case 0
                 jmp     move_monster_N
 
-; =============== S U B R O U T I N E =======================================
-
 
 ; ===========================================================================
-; Check_Monster_Ids_Two_Rows_Below_Monster
+; check_monster_on_aggressive_ground
 ; Exported helper for AI: checks the proximity map at monster position Y+2.
-; Calls find_al_in_four_bytes_at_8020 to test if it is an 'aggressive'
+; Calls is_tile_al_aggressive_ground to test if it is an 'aggressive'
 ; ground tile. Used by AIs to detect lava/spike floors for evasion.
 ; ===========================================================================
-Check_Monster_Ids_Two_Rows_Below_Monster proc near ; ...
+check_monster_on_aggressive_ground proc near
                 mov     ax, word ptr [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
@@ -9689,11 +9493,9 @@ Check_Monster_Ids_Two_Rows_Below_Monster proc near ; ...
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 mov     al, [di]        ; monster_id
-                jmp     find_al_in_four_bytes_at_8020
-Check_Monster_Ids_Two_Rows_Below_Monster endp
+                jmp     is_tile_al_aggressive_ground
+check_monster_on_aggressive_ground endp
 
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -9722,14 +9524,14 @@ Hero_Hits_monster proc near
                 sub     al, ah
                 jbe     short loc_97CD
                 mov     [si+monster.hp], al
-                mov     byte ptr ds:0FF75h, 6
+                mov     byte ptr ds:soundFX_request, 6
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_97CD:        
                 test    [si+monster.flags], 1
                 jnz     short loc_97D9
-                test    [si+monster.state_flags], 10h ; extended monsters? splitting ones?
+                test    [si+monster.state_flags], 10h ; big monster?
                 jnz     short loc_9815
 
 loc_97D9:        
@@ -9744,16 +9546,16 @@ loc_97E2:
                 and     bl, 7
                 xor     bh, bh
                 add     bx, bx
-                mov     di, [bx+di]     ; =a250
+                mov     di, [bx+di]
                 call    cs:get_random_proc
-                mov     bl, al          ; =9d
-                and     bx, 3           ; =1
+                mov     bl, al
+                and     bx, 3
                 cmp     byte ptr ds:sword_hit_type, 2
                 jnz     short loc_9805
                 xor     bx, bx
 
 loc_9805:        
-                mov     al, [bx+di]     ; [A251]=00
+                mov     al, [bx+di]
                 mov     ah, [si+monster.state_flags]
                 and     ah, 0F0h
                 or      al, ah
@@ -9883,8 +9685,8 @@ loc_98B5:
 Get_Stats       endp
 
 ; ---------------------------------------------------------------------------
-sword_damages   db 1, 2, 4, 8, 32, 127  ; ...
-byte_98BE       db 2, 4, 8, 16, 32, 64, 255 ; ...
+sword_damages   db 1, 2, 4, 8, 32, 127
+byte_98BE       db 2, 4, 8, 16, 32, 64, 255
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -9898,7 +9700,7 @@ byte_98BE       db 2, 4, 8, 16, 32, 64, 255 ; ...
 ; Returns CF=1 if hero should die (monster aligned with dead hero position).
 ; Used by AI to trigger special hero-death interactions.
 ; ===========================================================================
-Find_Monsters_Near_Hero proc near       ; ...
+Find_Monsters_Near_Hero proc near
                 xor     dl, dl
                 mov     di, ds:monsters_table_addr
 
@@ -9940,9 +9742,6 @@ loc_98FA:
                 clc                     ; error
                 retn
 Find_Monsters_Near_Hero endp
-
-
-; =============== S U B R O U T I N E =======================================
 
 
 ; ===========================================================================
@@ -10027,7 +9826,7 @@ loc_9993:
                 dec     al
                 mov     ds:hero_sprite_hidden, al
                 loop    loc_9993
-                mov     ax, 1
+                mov     ax, 1  ; fn1 (Stop) - Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 call    cs:Fade_To_Black_Dithered_proc
                 test    byte ptr ds:is_death_already_processed, 0FFh
@@ -10057,10 +9856,8 @@ loc_99E0:
                 mov     byte ptr ds:heartbeat_volume, 0
                 mov     ah, ds:last_sage_visited ; resurrect in sage's hut
                 mov     ds:place_map_id, ah
-                mov     al, 1           ; fn_1
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
+                mov     al, 1           ; fn1_load_mdt_idx_ah
+                call    cs:res_dispatcher_proc
                 mov     ax, ds:tear_x
                 mov     ds:hero_x_in_proximity_map, ax
                 mov     si, ds:mdt_buffer ; si=mdt_descr
@@ -10072,11 +9869,9 @@ loc_99E0:
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 4000h
-                mov     al, 2           ; fn_2
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
-                mov     bx, 6002h       ; town off_6002 = sub_601E
+                mov     al, 2           ; fn2_segmented_load
+                call    cs:res_dispatcher_proc
+                mov     bx, 6002h       ; town_entry_disabling_edge_scroll
                 jmp     transfer_to_town
 process_hero_death endp
 
@@ -10147,16 +9942,16 @@ aGetTheLionSHea db 'Get the lion\s head Key.'
 ; encnt.grp  — encounter intro animation (boss entry screen)
 ; roka.grp   — dungeon entrance decoration (28×18 tile map, animated palette)
 ; dchr.grp   — door and platform component tiles (8×8, mode 10)
-; mman.grp   — male NPC town sprite sheet
-; cman.grp   — female NPC town sprite sheet
+; mman.grp   — surface towns NPC sprite sheet
+; cman.grp   — underground towns NPC sprite sheet
 ; mpp1-b.grp — dungeon tilesets 1-11 (8×8 tiles, mode 10)
 ;              Loaded to seg1:8000h as the current dungeon environment
-; eai1-8.bin — enemy AI modules 1-8 (regular cavern AIs)
+; eai1-8.bin — enemy AI modules 1-8 (regular cavern monster AIs)
 ; crab/tako/tori/zela/meda/lega/drgn/akma/mao1/mao2.bin — boss AIs
 ; enp1-8.grp — monster/item sprite sheets 1-8 (16×16 px, 2×2 tiles, mode 11)
 ; crab/tako/tori/zela/meda/lega/drgn/akma/mao1/mao2.grp — boss sprite sheets
-; mgt1-8.msd + ugm1-2.msd — dungeon background music tracks
-; mus1-8.msd + mbos/mmao.msd — additional music (boss, town, etc.)
+; mgt1-2.msd + ugm1-2.msd — town background music tracks
+; mus1-8.msd + mbos/mmao.msd — dungeon music tracks
 ; ===========================================================================
 vfs_fman_grp    db 2
                 db 34h
@@ -10371,7 +10166,6 @@ aMmaoMsd        db 'MMAO.MSD',0
 ; ===========================================================================
 ; PER-DUNGEON STATE VARIABLES
 ; These are zero-initialised at start and reset on dungeon transitions.
-; Many are in the 0x9Exx-0x9Fxx range within the fight.bin segment.
 ; ===========================================================================
 byte_9EED       db 0      
 byte_9EEE       db 0      
@@ -10428,7 +10222,7 @@ byte_9F1E       db 0
 last_projectile_index db 0
 ; ---- Ice slide state ----
 slide_ticks_remaining db 0
-horiz_movement_sub_tile_accum db 0      ; ...
+horiz_movement_sub_tile_accum db 0
 ; ---- Input / animation state ----
 byte_9F22       db 0      
 byte_9F23       db 0      
@@ -10446,6 +10240,5 @@ delta_y         db 0
 byte_9F2E       db 0D2h dup(?)
 
 fight           ends
-
 
                 end      start

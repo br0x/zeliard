@@ -8,7 +8,7 @@ crab            segment byte public 'CODE'
                 org 0A000h
                 assume es:nothing, ss:nothing
 start           dw offset Cangrejo_AI_proc
-                dw offset boss_x        ; boss_state_block_ptr
+                dw offset boss_state_block
                 db    0
                 db    0
                 db    0
@@ -261,7 +261,7 @@ loc_A376:
 
 loc_A38E:
                 xchg    ax, bx
-                mov     ax, boss_x      ; boss_state_block_ptr
+                mov     ax, boss_x      ; boss_state_block.boss_x
                 add     ax, 5
                 cmp     ax, bx
                 jnb     short loc_A3A1
@@ -360,14 +360,14 @@ Cangrejo_AI_proc endp
 
 
 boss_move_left  proc near 
-                cmp     byte ptr boss_x, 10h ; boss_state_block_ptr
+                cmp     byte ptr boss_x, 16 ; boss_state_block.boss_x
                 stc
                 jnz     short loc_A447
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A447:
-                dec     byte ptr boss_x ; boss_state_block_ptr
+                dec     byte ptr boss_x ; boss_state_block.boss_x
                 clc
                 retn
 boss_move_left  endp
@@ -377,20 +377,19 @@ boss_move_left  endp
 
 
 boss_move_right proc near 
-                cmp     byte ptr boss_x, 31h ; '1' ; boss_state_block_ptr
+                cmp     byte ptr boss_x, 49 ; boss_state_block.boss_x
                 stc
                 jnz     short loc_A456
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A456:
-                inc     byte ptr boss_x ; boss_state_block_ptr
+                inc     byte ptr boss_x ; boss_state_block.boss_x
                 clc
                 retn
 boss_move_right endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR Cangrejo_AI_proc
 
 loc_A45C:
                 mov     acid_step_index, 0
@@ -405,7 +404,6 @@ loc_A466:
                 mov     al, acid_approach_body_states[bx]
                 mov     body_anim_state, al
                 jmp     render_body_sprites
-; END OF FUNCTION CHUNK FOR Cangrejo_AI_proc
 ; ---------------------------------------------------------------------------
 acid_approach_body_states db 7, 7, 8, 8, 8, 8, 8, 6
 
@@ -423,7 +421,7 @@ trigger_acid_drop proc near
                 xchg    bx, cx
 
 loc_A49C:
-                mov     ax, boss_x      ; boss_state_block_ptr
+                mov     ax, boss_x      ; boss_state_block.boss_x
                 add     ax, 5
                 sub     ax, bx
                 sbb     dl, dl
@@ -504,7 +502,7 @@ loc_A51F:
 loc_A52D:
                 mov     spawn_seq_index, 0
                 mov     phase_spawning_droplet, 0FFh
-                mov     ax, boss_x      ; boss_state_block_ptr
+                mov     ax, boss_x      ; boss_state_block.boss_x
                 add     ax, 4
                 mov     droplet_target_x, ax
                 mov     al, boss_y
@@ -647,7 +645,6 @@ death_sequence_handler endp
 
 render_body_sprites proc near          
 
-; FUNCTION CHUNK AT A501 SIZE 000000B5 BYTES
 
                 mov     bl, body_anim_state
                 add     bl, bl
@@ -662,11 +659,11 @@ render_body_sprites proc near
 loc_A68C:
                 push    di
                 push    ax
-                mov     bl, 0Ah
+                mov     bl, 10
                 mul     bl
                 add     di, ax
-                mov     ax, boss_x      ; boss_state_block_ptr
-                mov     cx, 0Ah
+                mov     ax, boss_x      ; boss_state_block.boss_x
+                mov     cx, 10
 
 loc_A69A:
                 push    cx
@@ -777,20 +774,20 @@ loc_A7B8:
 apply_damage_to_boss endp
 
 ; ---------------------------------------------------------------------------
-boss_x          dw 2Bh    
-                                        ; boss_state_block_ptr
-boss_y          db 0Ch    
-boss_hp         dw 96h    
-xp_reward       dw 78h
-arena_center_x  db 0Ch
-                db    0
-name_block_ptr  dw offset name_screen_x
-almas_reward    db 150
-                db    0
-name_screen_x   db 10h    
-name_screen_y   db 0BBh
-                db    0
-boss_name_pstring db 8,'Cangrejo'
+boss_state_block:
+boss_x              dw 2Bh                  ; +0
+boss_y              db 0Ch                  ; +2
+boss_hp             dw 150                  ; +3
+xp_reward           dw 120                  ; +5
+arena_center_x      db 0Ch                  ; +7
+boss_state_unk_8    db 0                    ; +8
+name_block_ptr      dw offset name_screen_x ; +9
+almas_reward        db 150                  ; +11
+                    db    0
+name_screen_x       db 10h    
+name_screen_y       db 0BBh
+                    db    0
+boss_name_pstring   db 8,'Cangrejo'
 active_sprite_count db 0  
 hit_monster_flags db 0    
                                         ; Packed: bit 7 = hit monster was facing left (`flags & 0x10`); bits 4–0 = `ai_flags & 0x1F` of the monster that was hit this frame. Non-zero means a monster was struck; causes acid droplets to set their "flip" flag

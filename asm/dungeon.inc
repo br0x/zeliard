@@ -1,19 +1,30 @@
 monster            STRUC
-  currX            dw   ?
-  currY            db   ?
-  m_x_rel          db   ?
-  flags            db   ?
-  ai_flags         db   ?
-  anim_counter     db   ?
-  state_flags      db   ?
-  hp               db   ?
-  ai_state         db   ?
-  ai_timer         db   ?
-  spwnX            dw   ?
-  spwnY            db   ?
-  type_            db   ?
-  counter          db   ?
+  currX            dw   ?  ; 0
+  currY            db   ?  ; 2
+  m_x_rel          db   ?  ; 3
+  flags            db   ?  ; 4
+  ai_flags         db   ?  ; 5
+  anim_counter     db   ?  ; 6
+  state_flags      db   ?  ; 7
+  hp               db   ?  ; 8
+  ai_state         db   ?  ; 9
+  ai_timer         db   ?  ; 10
+  spwnX            dw   ?  ; 11
+  spwnY            db   ?  ; 13
+  type_            db   ?  ; 14
+  counter          db   ?  ; 15
 monster            ENDS
+
+boss_state         STRUC
+  bs_x                dw   ?   ; +0
+  bs_y                db   ?   ; +2
+  bs_hp               dw   ?   ; +3
+  bs_xp_reward        dw   ?   ; +5
+  bs_arena_center_x   db   ?   ; +7
+  bs_unk_8            db   ?   ; +8
+  bs_name_block_ptr   dw   ?   ; +9
+  bs_almas_reward     db   ?   ; +11
+boss_state         ENDS
 
 door               STRUC
   x0                      dw   ? ; Door X position on current map
@@ -42,18 +53,42 @@ horiz_platform     ENDS
 
 ; enemy projectile
 projectile         STRUC
-  p_x_rel                 db   ?
-  p_y_rel                 db   ?
-  p_base_tile_idx         db   ? ; bits 7,6 select a mask to AND with [si+3] (a screen dirty mask byte) and then added to the base (bits 5..0), forming a quarter-tile decomposition index
-  p_trajectory_step_count db   ?
-  p_max_step_count        db   ?
-  p_trajectory_dir        db   ? ; bits 2..0: direction 0..7
-  p_damage                db   ?
-  p_vram_addr_d           dw   ? ; bit 15: dirty flag, bit 14..0: VRAM address
-  p_curved_path_data_ptr  dw   ? ; Pointer to curved path data table
-  p_cached_x_rel          db   ?
-  p_cached_y_rel          db   ?
+  p_x_rel                 db   ? ; 0
+  p_y_rel                 db   ? ; 1
+  p_base_tile_idx         db   ? ; 2 ; bits 7,6 select a mask to AND with [si+3] (a screen dirty mask byte) and then added to the base (bits 5..0), forming a quarter-tile decomposition index
+  p_trajectory_step_count db   ? ; 3
+  p_max_step_count        db   ? ; 4
+  p_trajectory_dir        db   ? ; 5 ; bits 2..0: direction 0..7
+  p_damage                db   ? ; 6
+  p_vram_addr_d           dw   ? ; 7 ; bit 15: dirty flag, bit 14..0: VRAM address
+  p_curved_path_data_ptr  dw   ? ; 9 ; Pointer to curved path data table
+  p_cached_x_rel          db   ? ; 11
+  p_cached_y_rel          db   ? ; 12
 projectile         ENDS
+
+; hero magic projectile
+magic_projectile   STRUC
+  mp_x_rel                  dw   ?
+  mp_y_rel                  db   ?
+  mp_dir                    db   ? ; bit 7: return/deactivate flag, bit 1,0: direction
+  mp_life_timer             db   ?
+  mp_anim_frame             db   ?
+  mp_cached_x_offset_tiles  db   ?
+  mp_cached_y_offset        db   ?
+  mp_vram_addr_tile00       dw   ?
+  mp_vram_addr_tile10       dw   ?
+  mp_vram_addr_tile01       dw   ?
+  mp_vram_addr_tile11       dw   ?
+magic_projectile   ENDS
+
+spirit             STRUC
+  s_orbit_phase    db   ? ; FF: inactive; bits 3..0: orbit phase
+  s_orbit_speed    db   ?
+  s_active_shots   db   ?
+  s_vram_addr      dw   ? ; bit 15: dirty flag, bit 14..0: VRAM address
+  s_screen_x       db   ?
+  s_screen_y       db   ?
+spirit             ENDS
 
 ; Following group of definitions share the same space as gtmcga.bin, 
 ; so they are in separate include files
@@ -89,6 +124,8 @@ Decompress_Tile_Data_proc                          equ 3028h
 NoOperation_proc                                   equ 302Ah
 
 ; mdt info - dungeons
+mdt_descriptor_addr                                equ 0C000h
+map_width                                          equ 0C002h
 vertical_platforms_table_addr                      equ 0C004h
 collapsing_platforms_table_addr                    equ 0C006h
 horiz_platforms_table_addr                         equ 0C008h
@@ -103,3 +140,15 @@ hero_head_y_in_viewport_initial_from_mdt           equ 0C016h
 cavern_signs_rendering_info                        equ 0C017h
 packed_map_end_ptr                                 equ 0C019h
 packed_map_start                                   equ 0C01Bh
+
+; seg1 offsets (code seg + 1000h)
+monster_gfx                                        equ 4000h
+fman_gfx                                           equ 6000h ; hero in dungeon
+aggressive_ground_list                             equ 8020h
+monsters_transparency_masks                        equ 0A000h
+sword_animation_gfx                                equ 0B000h
+sword_reachability_tables                          equ 0B002h
+
+; seg2 offsets (code seg + 2000h)
+magic_grp_sprites                                  equ 0
+sword_grp_sprites                                  equ 1800h
