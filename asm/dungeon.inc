@@ -27,15 +27,15 @@ boss_state         STRUC
 boss_state         ENDS
 
 door               STRUC
-  x0                      dw   ? ; Door X position on current map
-  y0                      db   ? ; Door Y position on current map
-  d_flags                 db   ? ; bit 7: open, bit 6: exit face left, bits 2-0: tile type
-  d_place_map_id          db   ? ; Destination map ID
-  x1                      dw   ? ; X after transition
-  y1                      db   ? ; Y after transition; 0FFh means "door to town"
-  d_features              db   ? ; bit 0=Lion Key needed, bit 7=town transition animation flag
-  d_save_achievement_addr dw   ? ; (if not ffff) savegame address of achievement 
-  d_achievement_flag      db   ? ; mask of achievement to save at address above
+  x0                      dw   ? ; 0 ; Door X position on current map
+  y0                      db   ? ; 2 ; Door Y position on current map
+  d_flags                 db   ? ; 3 ; bit 7: open, bit 6: exit face left, bits 2-0: tile type
+  d_place_map_id          db   ? ; 4 ; Destination map ID
+  x1                      dw   ? ; 5 ; X after transition
+  y1                      db   ? ; 7 ; Y after transition; 0FFh means "door to town"
+  d_features              db   ? ; 8 ; bit 0=Lion Key needed, bit 7=town transition animation flag
+  d_save_achievement_addr dw   ? ; 9 ; (if not ffff) savegame address of achievement 
+  d_achievement_flag      db   ? ; 11 ; mask of achievement to save at address above
 door               ENDS
 
 ; collapsing and vertical platforms share the same struct

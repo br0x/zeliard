@@ -498,7 +498,7 @@ spirit_sprite_2                                    equ 0EB6Eh
 spirit_sprite_3                                    equ 0EB75h
 projectiles_array                                  equ 0EB80h ; 13x32 bytes
 proximity_second_layer                             equ 0ED20h
-is_boss_dead                                       equ 0EDA0h
+active_entity_table                                equ 0EDA0h
 
 ; towns
 cache_bytes_ptr                                    equ 0E005h

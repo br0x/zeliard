@@ -1248,7 +1248,7 @@ seg000:373E                 retn
 seg000:373F ; ---------------------------------------------------------------------------
 seg000:373F
 seg000:373F loc_373F:                               ; ...
-seg000:373F                 mov     di, 0EDA0h      ; is_boss_dead ??
+seg000:373F                 mov     di, 0EDA0h      ; active_entity_table ??
 seg000:3742                 xor     cl, cl
 seg000:3744
 seg000:3744 loc_3744:                               ; ...

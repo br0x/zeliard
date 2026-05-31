@@ -158,7 +158,7 @@ Cavern_Game_Init proc near
                 mov     byte_9F22, 0
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
-                mov     ds:is_boss_dead, al
+                mov     ds:active_entity_table, al
                 mov     ds:word ptr magic_projectiles, ax
                 mov     byte ptr ds:boss_being_hit, 0
                 mov     byte ptr ds:sprite_flash_flag, 0
@@ -3089,6 +3089,8 @@ loc_710F:
                 call    cs:Refresh_Dirty_Tiles_proc
                 test    byte ptr ds:sprite_flash_flag, 0FFh
                 jz      short loc_7125
+; combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
+; with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
                 call    cs:Active_Entity_Sprite_Renderer_proc
                 mov     byte ptr ds:byte_FF24, 0Ah
 
@@ -3163,7 +3165,7 @@ loc_71CC:
                 jz      short loc_71FA
                 test    byte ptr ds:boss_is_dead, 0FFh
                 jz      short loc_71FA
-                cmp     byte ptr ds:is_boss_dead, 0FFh
+                cmp     byte ptr ds:active_entity_table, 0FFh
                 jnz     short loc_71FA
                 mov     si, ds:word_A002
                 add     si, 5
@@ -4399,7 +4401,7 @@ prepare_dungeon proc near
                 call    cs:res_dispatcher_proc
                 push    ds
                 mov     ds, cs:seg1
-                mov     si, fman_gfx + 333h
+                mov     si, fman_gfx + 333h  ; TILE_BANK_OFFSET = 0x333
                 mov     bp, hero_transparency_masks
                 mov     cx, 230
                 call    cs:Decompress_Tile_Data_proc
@@ -4647,7 +4649,7 @@ loc_7C02:
                 call    cs:res_dispatcher_proc
                 push    ds
                 mov     ds, cs:seg1
-                mov     si, fman_gfx + 333h
+                mov     si, fman_gfx + 333h  ; TILE_BANK_OFFSET = 0x333
                 mov     bp, hero_transparency_masks
                 mov     cx, 230
                 call    cs:Decompress_Tile_Data_proc
@@ -4894,9 +4896,9 @@ lion_head_key_needed:
 loc_7E45:        
                 dec     byte ptr ds:lion_head_keys
                 mov     byte ptr ds:soundFX_request, 21
-                or      byte ptr [si+3], 80h
-                mov     bx, [si+9]
-                mov     al, [si+0Bh]
+                or      byte ptr [si+door.d_flags], 80h
+                mov     bx, [si+door.d_save_achievement_addr]
+                mov     al, [si+door.d_achievement_flag]
                 or      [bx], al
                 retn
 open_door       endp
@@ -4920,7 +4922,7 @@ reset_dungeon_state_vars proc near      ; ...
                 mov     ds:hero_animation_phase, al
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
-                mov     ds:is_boss_dead, al
+                mov     ds:active_entity_table, al
                 mov     word ptr ds:magic_projectiles, ax
                 mov     ds:hero_hidden_flag, al
                 mov     ds:byte_9EF5, al

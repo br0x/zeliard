@@ -168,7 +168,7 @@ DMAN_FRAMES = {
 }
 
 # Frame definitions from enp_frames.asm
-# Each frame is a 2x2 grid of 8x8 tiles: [Top-Left, Top-Right, Bottom-Left, Bottom-Right]
+# Each frame is a 2x2 grid of 8x8 px tiles: [Top-Left, Top-Right, Bottom-Left, Bottom-Right]
 ENP1_FRAMES = {
     "Bat Fly Left": [
         [0, 0x19, 0x1A, 0x1B, 0x1C], 
@@ -652,12 +652,18 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
     current_y = y_offset
     scale = 3
     # Divide macro-tiles into visual subgroups
-    subgroups = [(0,6), (6,10), (10,11), (11,17), (17,21), (21,22)]
+    subgroups_r = [(0,6), (6,10), (10,11)]
+    subgroups_l = [(11,17), (17,21), (21,22)]
 
     for c_pair in SWORD_COLORS[mega_idx]:
+        # right swings
         x_cursor = 10
-        for start, end in subgroups:
+        for start, end in subgroups_r:
             for m_def in macro_defs[start:end]:
+                # Draw frame border
+                canvas.create_rectangle(x_cursor-1, current_y-1, x_cursor + 32*scale, 
+                                        current_y + 32*scale, outline="gray")
+
                 # Each macro-tile is a 32x32 (4x4 grid of 8x8 tiles), column-major
                 for col in range(4):
                     for row in range(4):
@@ -671,9 +677,34 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
                                        x_cursor + (col*8 + rx) * scale,
                                        current_y + (row*8 + ry) * scale,
                                        PALETTE_STRS[p_idx], scale)
-                x_cursor += 32 * scale + 2
-            x_cursor += 8  # Extra gap between subgroups
-        current_y += 32 * scale + 16
+                x_cursor += 32 * scale + 4
+            x_cursor += 4  # Extra gap between subgroups
+        current_y += 32 * scale + 8
+
+        # left swings
+        x_cursor = 10
+        for start, end in subgroups_l:
+            for m_def in macro_defs[start:end]:
+                # Draw frame border
+                canvas.create_rectangle(x_cursor-1, current_y-1, x_cursor + 32*scale, 
+                                        current_y + 32*scale, outline="gray")
+
+                # Each macro-tile is a 32x32 (4x4 grid of 8x8 tiles), column-major
+                for col in range(4):
+                    for row in range(4):
+                        t_idx = m_def[col * 4 + row]
+                        if t_idx == 0xFF: continue  # Full transparency
+                        pixels = decode_sword_8x8(tile_bank[t_idx*16 : (t_idx+1)*16], c_pair)
+                        for i, p_idx in enumerate(pixels):
+                            if p_idx is None: continue
+                            rx, ry = i % 8, i // 8
+                            draw_pixel(canvas,
+                                       x_cursor + (col*8 + rx) * scale,
+                                       current_y + (row*8 + ry) * scale,
+                                       PALETTE_STRS[p_idx], scale)
+                x_cursor += 32 * scale + 4
+            x_cursor += 4  # Extra gap between subgroups
+        current_y += 32 * scale + 8
 
     return current_y - y_offset
 
@@ -1255,6 +1286,168 @@ def render_dchr_group(tile_bank_raw, canvas, y_offset, layout=None):
         current_y += tile_dim + row_gap
 
     return current_y - y_offset
+
+def render_composite_hero_exact(
+    canvas,
+    fman_data: bytes,          # decompressed fman.grp
+    sword_data: bytes,         # decompressed sword.grp
+    facing: int,               # 0=right, 1=left
+    anim_phase: int,           # 0..3 (walk cycle) or 0x80 (idle)
+    squat: bool,
+    on_rope: bool,
+    invincible: bool,
+    hero_hidden: bool,
+    jump_phase_flags: int,     # 0, 0x7F, 0x80, 0xFF
+    slope_direction: int,      # 0,1,2
+    shield_type: int,          # 0,1,2
+    shield_anim_active: bool,
+    shield_anim_phase: int,
+    sword_type: int,           # 1..6
+    swing_type: int,           # 0,1,2
+    swing_phase: int,          # 0..7 (0 = no swing)
+    x: int, y: int, scale: int = SCALE
+):
+    # ------------------------------------------------------------------
+    # Helper to get a 9-byte frame from fman_data (frame index table)
+    def get_frame(offset):
+        if offset is None:
+            return None
+        indices = []
+        for i in range(9):
+            idx = fman_data[offset + i]
+            indices.append(idx)
+        return indices
+
+    # Helper to render a 3x3 tile block
+    def draw_layer(frame_off, x0, y0):
+        if frame_off is None:
+            return
+        indices = get_frame(frame_off)
+        for row in range(3):
+            for col in range(3):
+                tile_idx = indices[row*3 + col]
+                if tile_idx == 0:
+                    continue
+                # Decode tile from fman_data (tiles start at offset 0x333, each 32 bytes)
+                tile_off = 0x333 + tile_idx * 32
+                tile_raw = fman_data[tile_off:tile_off+32]
+                # Hero tiles always use palette 0 (PAL_DECODE_TABLES[0])
+                pixels = decode_fman_tile(tile_raw, PAL_DECODE_TABLES[0])
+                tx = x0 + col * 8 * scale
+                ty = y0 + row * 8 * scale
+                draw_tile_pixels(canvas, pixels, tx, ty, scale)
+
+    # Body frames
+    BODY_RIGHT_BASE = 0x00        # fman_gfx + 0
+    BODY_LEFT_BASE  = 0x75        # fman_gfx + 13*9
+    BODY_ROPE_BASE  = 0xea        # fman_gfx + 2*13*9
+    BODY_OPEN_DOOR  = 0x10e       # fman_gfx + (2*13 + 4)*9
+    # Right hand (sword arm) frames
+    ARM_RIGHT_BASE  = 0x117       # fman_gfx + (2*13 + 4 + 1)*9
+    ARM_LEFT_BASE   = 0x1B9       # fman_gfx + (2*13 + 4 + 1 + 18)*9
+    # Left hand (shield arm) frames
+    SHIELD_FRONT_BASE = 0x25B        # fman_gfx + (2*13 + 4 + 1 + 2*18)*9
+    SHIELD_BACK_BASE  = 0x2c7        # fman_gfx + (2*13 + 4 + 1 + 2*18 + 12)*9
+
+    # ------------------------------------------------------------------
+    # 1. Left arm (shield)
+    left_arm_off = None
+    if facing == 0:  # right-facing
+        base = ARM_RIGHT_BASE
+        if shield_anim_active:
+            left_arm_off = base + shield_anim_phase * 9
+        elif shield_type != 0:
+            offset = 108 # 12th frame 0-based
+            if squat:
+                offset += 9 # 13th frame 0-based
+            if shield_type == 2:
+                offset += 27 # 15th frame 0-based
+            left_arm_off = base + offset
+        # else no shield -> left arm not drawn
+    else:  # left-facing
+        base = ARM_LEFT_BASE
+        if shield_anim_active:
+            # Use shield animation? Not in assembly, we'll skip
+            pass
+        else:
+            # Draw with walk cycle (only even phases)
+            if not squat and anim_phase != 0x80:
+                # Phase mapping as in loc_3B43
+                phase = (anim_phase + 2) & 3
+                if (phase & 1) == 0:
+                    left_arm_off = base + phase * 9
+    draw_layer(left_arm_off, x, y)
+
+    # ------------------------------------------------------------------
+    # 2. Body
+    body_off = BODY_RIGHT_BASE if facing == 0 else BODY_LEFT_BASE
+    if invincible:
+        body_off += 0x90
+    if squat:
+        body_off += 0x2D  # 5rd frame 0-based
+    elif (jump_phase_flags & 0x80) != 0:
+        body_off += 0x3F  # 7th frame 0-based
+    elif slope_direction == 1:
+        body_off += 0x48  # 8th frame 0-based
+    elif slope_direction == 2:
+        body_off += 0x51  # 9th frame 0-based
+    elif jump_phase_flags == 0x7F:
+        body_off += 0x36  # 6th frame 0-based
+    elif anim_phase == 0x80:
+        body_off += 0x24  # 4th frame 0-based => stay still
+    else:
+        body_off += 0x24  # 4th frame 0-based => stay still
+        body_off += (anim_phase & 3) * 9
+    draw_layer(body_off, x, y)
+
+    # ------------------------------------------------------------------
+    # 3. Right arm (sword)
+    right_arm_off = None
+    if not (on_rope or hero_hidden):
+        base = ARM_LEFT_BASE if facing == 0 else ARM_RIGHT_BASE
+        if squat:
+            # Squat uses a 2x3 tile block starting at offset 0x27? We'll use the same base for now.
+            right_arm_off = base + 0x27   # approximate
+        else:
+            phase = anim_phase & 3
+            right_arm_off = base + phase * 9
+    draw_layer(right_arm_off, x, y)
+
+    # ------------------------------------------------------------------
+    # 4. Sword swing overlay (if active)
+    if swing_phase > 0:
+        # Determine macro-tile block pointer (offsets from sword_data)
+        # These offsets are taken directly from fight.asm (lines 0x3E5E-0x3EEE)
+        if swing_type == 0:  # forward
+            macro_base = 0x0B01E if facing == 0 else 0x0B0CE
+        elif swing_type == 1:  # overhead
+            macro_base = 0x0B07E if facing == 0 else 0x0B12E
+        else:  # downward thrust
+            macro_base = 0x0B0BE if facing == 0 else 0x0B16E
+        macro_off = (swing_phase - 1) * 16
+        tile_indices = sword_data[macro_base + macro_off : macro_base + macro_off + 16]
+        # Position the overlay relative to hero
+        offset_x = 8 * scale if facing == 0 else -8 * scale
+        offset_y = -8 * scale
+        if squat:
+            offset_y += 8 * scale
+        # Draw 4x4 tiles
+        for row in range(4):
+            for col in range(4):
+                t_idx = tile_indices[row * 4 + col]
+                if t_idx == 0xFF:
+                    continue
+                # Decode sword tile (16 bytes per tile, 2bpp planar)
+                tile_off = t_idx * 16
+                tile_raw = sword_data[tile_off:tile_off+16]
+                # Colour pair is determined by sword_type (see SWORD_COLORS in grp_viewer)
+                # sword_type 1..6 -> index (sword_type-1)//2? Actually SWORD_COLORS has 3 groups.
+                # We'll reuse decode_sword_8x8 from grp_viewer.
+                color_pair = SWORD_COLORS[(sword_type-1)//2][(sword_type-1)%2]
+                pixels = decode_sword_8x8(tile_raw, color_pair)
+                tx = x + offset_x + col * 8 * scale
+                ty = y + offset_y + row * 8 * scale
+                draw_tile_pixels(canvas, pixels, tx, ty, scale)
 
 # ---------------------------------------------------------------------------
 # Main Application

@@ -1216,7 +1216,7 @@ loc_3731:
 ; ---------------------------------------------------------------------------
 
 loc_373F:
-                mov     di, 0EDA0h      ; is_boss_dead ??
+                mov     di, 0EDA0h      ; active_entity_table ??
                 xor     cl, cl
 
 loc_3744:
@@ -1279,10 +1279,10 @@ Spawn_Map_Entity endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Active_Entity_Sprite_Renderer proc near ; ...
+Active_Entity_Sprite_Renderer proc near
                 push    cs
                 pop     es
-                mov     di, 0EDA0h      ; Active Entity Table
+                mov     di, active_entity_table
                 mov     si, di
 
 loc_37A2:
@@ -1583,11 +1583,11 @@ choose_hero_sprite proc near
 ; ---------------------------------------------------------------------------
 non_god_rope_hidden:
                 mov     cl, 0FFh
-                mov     si, fman_gfx + 117h
+                mov     si, fman_gfx + 117h  ; ARM_RIGHT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jz      short loc_3ACF
                 xor     cl, cl
-                mov     si, fman_gfx + 1B9h
+                mov     si, fman_gfx + 1B9h  ; ARM_LEFT_BASE
 
 loc_3ACF:
                 test    byte ptr ds:shield_anim_active, 0FFh
@@ -1604,7 +1604,7 @@ loc_3ACF:
                 mul     cl
                 pop     si
                 add     si, ax
-                add     si, fman_gfx + 2C7h
+                add     si, fman_gfx + 2C7h  ; SHIELD_BACK_BASE
                 jmp     short loc_3B61
 ; ---------------------------------------------------------------------------
 
@@ -1685,16 +1685,16 @@ loc_3B75:
                 call    Render_Scrolling_Tile
 
 loc_3B80:
-                mov     si, fman_gfx + 10Eh
+                mov     si, fman_gfx + 10Eh  ; BODY_OPEN_DOOR
                 test    byte ptr ds:hero_hidden_flag, 0FFh
                 jnz     short loc_3BF2
-                mov     si, fman_gfx + 0EAh
+                mov     si, fman_gfx + 0EAh  ; BODY_ROPE_BASE
                 test    byte ptr ds:on_rope_flags, 0FFh
                 jnz     short loc_3BE7
-                mov     si, fman_gfx + 75h   ; facing left
+                mov     si, fman_gfx + 75h   ; BODY_LEFT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_3BA1
-                mov     si, fman_gfx   ; facing right
+                mov     si, fman_gfx         ; BODY_RIGHT_BASE
 
 loc_3BA1:
                 test    byte ptr ds:invincibility_flag, 0FFh
@@ -1744,11 +1744,11 @@ loc_3BF2:
 
 loc_3C05:
                 mov     cl, 0FFh
-                mov     si, fman_gfx + 1B9h
+                mov     si, fman_gfx + 1B9h  ; ARM_LEFT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_3C16
                 xor     cl, cl
-                mov     si, fman_gfx + 117h
+                mov     si, fman_gfx + 117h  ; ARM_RIGHT_BASE
 
 loc_3C16:
                 mov     al, ds:on_rope_flags
@@ -1785,7 +1785,7 @@ loc_3C36:
                 mul     cl
                 pop     si
                 add     si, ax
-                add     si, fman_gfx + 25Bh
+                add     si, fman_gfx + 25Bh  ; SHIELD_FRONT_BASE
                 jmp     short loc_3CC1
 ; ---------------------------------------------------------------------------
 
@@ -1855,14 +1855,15 @@ non_squat:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0 ; normal: 9 tiles starting at 0
                 jmp     short $+2
-choose_hero_sprite endp ; sp-analysis failed
+                ; fall through to Render_Scrolling_Tile
+choose_hero_sprite endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 ; SI: pointer to tile indices from fman header 6000h..6332h
 ; CX: number of tiles to render
-Render_Scrolling_Tile proc near         ; ...
+Render_Scrolling_Tile proc near
                 push    cx
                 mov     al, es:[si]
                 or      al, al
@@ -1905,7 +1906,7 @@ Render_Scrolling_Tile endp
 ; =============== S U B R O U T I N E =======================================
 
 
-get_player_shield_category proc near    ; ...
+get_player_shield_category proc near
                 mov     al, ds:shield_type      ; shield_type
                 or      al, al
                 jnz     short loc_3D2A
@@ -2121,13 +2122,13 @@ loc_3E3C:
 ; ---------------------------------------------------------------------------
 loc_3E5E:
                 xor     cl, cl
-                mov     si, 0B16Eh                 ; ↓+←
+                mov     si, sword_animation_gfx + 16Eh    ; ↓+←
                 mov     ds:hero_sprite_offset, 0FF01h
                 mov     dx, 320*8-8
                 test    byte ptr ds:facing_direction, 1   ; bit0: 0=Right, 1=Left
                 jnz     short loc_3EEE
                 ; facing right
-                mov     si, 0B0BEh                 ; ↓+→
+                mov     si, sword_animation_gfx + 0BEh    ; ↓+→
                 mov     ds:hero_sprite_offset, 1
                 mov     dx, 320*8
                 jmp     short loc_3EEE
@@ -2143,13 +2144,13 @@ loc_3E8B:
                 xor     bh, bh
                 mov     cl, bl
                 add     bx, bx
-                mov     di, 0B19Eh                 ; ↑+←
-                mov     si, 0B12Eh                 ; ↑+←0
+                mov     di, sword_animation_gfx + 19Eh  ; ↑+←
+                mov     si, sword_animation_gfx + 12Eh  ; ↑+←0
                 test    byte ptr ds:facing_direction, 1 ; bit0: 0=Right, 1=Left
                 jnz     short loc_3ED2
                 ; facing right
-                mov     di, 0B18Ah                 ; ↑+→
-                mov     si, 0B07Eh                 ; ↑+→0
+                mov     di, sword_animation_gfx + 18Ah  ; ↑+→
+                mov     si, sword_animation_gfx + 7Eh   ; ↑+→0
                 jmp     short loc_3ED2
 ; ---------------------------------------------------------------------------
 loc_3EAC:
@@ -2160,13 +2161,13 @@ loc_3EAC:
                 xor     bh, bh
                 mov     cl, bl
                 add     bx, bx
-                mov     di, 0B192h                 ; ←
-                mov     si, 0B0CEh                 ; ←0
+                mov     di, sword_animation_gfx + 192h  ; ←
+                mov     si, sword_animation_gfx + 0CEh  ; ←0
                 test    byte ptr ds:facing_direction, 1 ; bit0: 0=Right, 1=Left
                 jnz     short loc_3ED2
                 ; facing right
-                mov     di, 0B17Eh                 ; →
-                mov     si, 0B01Eh                 ; →0
+                mov     di, sword_animation_gfx + 17Eh  ; →
+                mov     si, sword_animation_gfx + 1Eh   ; →0
 loc_3ED2:
                 mov     bx, es:[bx+di]
                 mov     ds:hero_sprite_offset, bx

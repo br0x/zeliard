@@ -67,7 +67,7 @@ fight:604E                 mov     horiz_movement_sub_tile_accum, 0
 fight:6053                 mov     byte_9F22, 0
 fight:6058                 mov     ax, 0FFFFh
 fight:605B                 mov     projectiles_array, al
-fight:605E                 mov     is_boss_dead, al
+fight:605E                 mov     active_entity_table, al
 fight:6061                 mov     word ptr magic_projectiles, ax
 fight:6064                 mov     byte_FF2E, 0
 fight:6069                 mov     byte_FF2F, 0
@@ -2736,7 +2736,7 @@ fight:71CC                 test    ds:is_boss_cavern, 0FFh
 fight:71D1                 jz      short loc_71FA
 fight:71D3                 test    ds:byte_FF30, 0FFh
 fight:71D8                 jz      short loc_71FA
-fight:71DA                 cmp     ds:is_boss_dead, 0FFh
+fight:71DA                 cmp     ds:active_entity_table, 0FFh
 fight:71DF                 jnz     short loc_71FA
 fight:71E1                 mov     si, ds:word_A002
 fight:71E5                 add     si, 5
@@ -4463,7 +4463,7 @@ fight:7E78                 mov     ds:heartbeat_volume, al
 fight:7E7B                 mov     ds:hero_animation_phase, al
 fight:7E7E                 mov     ax, 0FFFFh
 fight:7E81                 mov     ds:projectiles_array, al
-fight:7E84                 mov     ds:is_boss_dead, al
+fight:7E84                 mov     ds:active_entity_table, al
 fight:7E87                 mov     word ptr ds:magic_projectiles, ax
 fight:7E8A                 mov     ds:byte_FF3A, al
 fight:7E8D                 mov     ds:byte_9EF5, al
@@ -9668,7 +9668,7 @@ fight:ED20                                         ; at given address. So when w
 fight:ED20                                         ; when position is already occupied by monster,
 fight:ED20                                         ; we use second layer: 128 bytes of additional buffer
 fight:ED20                                         ; (1 byte per monster id)
-fight:EDA0 is_boss_dead    db ?                    ; ...
+fight:EDA0 active_entity_table    db ?                    ; ...
 fight:EDA1                 db 115Fh dup(?)
 fight:FF00                 db    ? ;
 fight:FF01                 db    ? ;
