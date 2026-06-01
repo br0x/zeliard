@@ -1439,7 +1439,7 @@ Update_Local_Attribute_Cache proc near  ; ...
                 jmp     short loc_39F5
 ; ---------------------------------------------------------------------------
 
-Sample_Neighborhood_Attributes:         ; ...
+Sample_Neighborhood_Attributes:
                 call    load_3x3_tiles
                 mov     di, offset tile_load_buffer
                 mov     dl, ds:hero_y_absolute
@@ -1449,10 +1449,10 @@ Sample_Neighborhood_Attributes:         ; ...
 loc_39C8:
                 push    cx
                 and     dl, 3Fh
-                mov     al, 24h ; '$'
+                mov     al, 36
                 mul     dl
                 mov     bx, ax
-                add     bx, 0E000h
+                add     bx, offset proximity_map
                 mov     al, ds:hero_x_in_viewport
                 add     al, 3
                 xor     ah, ah
@@ -1504,7 +1504,6 @@ loc_3A25:
                 jnz     short loc_3A3A
                 jmp     Render_Empty_Or_Cached_Tile
 ; ---------------------------------------------------------------------------
-
 loc_3A3A:
                 test    byte ptr [di], 0FFh
                 jz      short loc_3A4E
@@ -1581,27 +1580,30 @@ choose_hero_sprite proc near
                 jz      short non_god_rope_hidden
                 jmp     loc_3B80
 ; ---------------------------------------------------------------------------
+; invincibility_flag = 0, on_rope_flags = 0, hero_hidden_flag = 0
 non_god_rope_hidden:
                 mov     cl, 0FFh
-                mov     si, fman_gfx + 117h  ; ARM_RIGHT_BASE
+                mov     si, fman_gfx + (2*13 + 4 + 1)*9  ; ARM_RIGHT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jz      short loc_3ACF
-                xor     cl, cl
-                mov     si, fman_gfx + 1B9h  ; ARM_LEFT_BASE
+                xor     cl, cl  ; offset = 0
+                mov     si, fman_gfx + (2*13 + 4 + 1 + 18)*9  ; ARM_LEFT_BASE
 
 loc_3ACF:
                 test    byte ptr ds:shield_anim_active, 0FFh
                 jz      short loc_3B18
+; shield animation is active
                 inc     cl
                 jnz     short loc_3AF4
+                ; cl was 255, now it's 0
                 mov     al, ds:shield_anim_phase
                 shr     al, 1
                 mov     cl, 9
                 mul     cl
-                push    ax
-                call    get_player_shield_category
-                mov     cl, 36
-                mul     cl
+                push    ax  ; shield_anim_phase/2 * 9 
+                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
+                mov     cl, 4*9
+                mul     cl  ; offset from SHIELD_FRONT_BASE/SHIELD_BACK_BASE
                 pop     si
                 add     si, ax
                 add     si, fman_gfx + 2C7h  ; SHIELD_BACK_BASE
@@ -1630,39 +1632,40 @@ loc_3B14:
                 add     si, ax
                 jmp     short loc_3B61
 ; ---------------------------------------------------------------------------
-
+; shield_anim_active = 0
 loc_3B18:
-                call    get_player_shield_category
+                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
                 or      al, al
                 jz      short loc_3B43
                 dec     al
                 mov     cl, al
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_3B43
-                mov     ax, 108
+                mov     ax, 12*9
                 mov     dl, ds:squat_flag   ; squat_flag
-                and     dl, 9
+                and     dl, 9  ; non-squat=0, squat=9
                 xor     dh, dh
                 add     ax, dx
                 or      cl, cl
                 jz      short loc_3B3F
-                add     ax, 27
+                add     ax, 3*9
 
 loc_3B3F:
                 add     si, ax
                 jmp     short loc_3B61
 ; ---------------------------------------------------------------------------
-
+; no shield
 loc_3B43:
                 test    byte ptr ds:squat_flag, 0FFh ; squat_flag
                 jnz     short loc_3B80
                 mov     al, ds:hero_animation_phase
                 cmp     al, 80h
-                jz      short loc_3B80
+                je      short loc_3B80
                 add     al, 2
                 and     al, 3
-                test    al, 1
+                test    al, 1 ; odd phases?
                 jnz     short loc_3B80
+                ; al is 0 or 2
                 mov     cl, 9
                 mul     cl
                 add     si, ax
@@ -1678,57 +1681,58 @@ loc_3B61:
                 call    Render_Scrolling_Tile
                 jmp     short loc_3B80
 ; ---------------------------------------------------------------------------
-
+; non squat: 9 tiles
 loc_3B75:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0
                 call    Render_Scrolling_Tile
 
 loc_3B80:
-                mov     si, fman_gfx + 10Eh  ; BODY_OPEN_DOOR
+                mov     si, fman_gfx + (2*13 + 4)*9  ; BODY_OPEN_DOOR
                 test    byte ptr ds:hero_hidden_flag, 0FFh
                 jnz     short loc_3BF2
-                mov     si, fman_gfx + 0EAh  ; BODY_ROPE_BASE
+                mov     si, fman_gfx + 2*13*9        ; BODY_ROPE_BASE
                 test    byte ptr ds:on_rope_flags, 0FFh
                 jnz     short loc_3BE7
-                mov     si, fman_gfx + 75h   ; BODY_LEFT_BASE
+                mov     si, fman_gfx + 13*9          ; BODY_LEFT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_3BA1
-                mov     si, fman_gfx         ; BODY_RIGHT_BASE
+                mov     si, fman_gfx + 0             ; BODY_RIGHT_BASE
 
 loc_3BA1:
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short loc_3BAD
-                add     si, 90
+                add     si, 10*9
                 jmp     short loc_3BE7
 ; ---------------------------------------------------------------------------
-
+; now si contains base BODY_LEFT_BASE or BODY_RIGHT_BASE, lets find an offset
 loc_3BAD:
-                mov     ax, 45
+                mov     ax, 5*9  ; for squat, 5th frame
                 test    byte ptr ds:squat_flag, 0FFh ; squat_flag
                 jnz     short loc_3BF0
-                mov     ax, 63
+; non-squat
+                mov     ax, 7*9  ; for jump phase 80h, 7th frame
                 test    byte ptr ds:jump_phase_flags, 80h
                 jnz     short loc_3BF0
-                mov     cl, ds:slope_direction
-                mov     ax, 72
+                mov     cl, ds:slope_direction ; SLOPE_NONE, SLOPE_RIGHT, SLOPE_LEFT
+                mov     ax, 8*9 ; for SLOPE_RIGHT, 8th frame
                 dec     cl
                 jz      short loc_3BF0
-                mov     ax, 81
+                mov     ax, 9*9 ; for SLOPE_LEFT, 9th frame
                 dec     cl
                 jz      short loc_3BF0
-                mov     ax, 54
+                mov     ax, 6*9  ; for jump phase 7Fh, 6th frame
                 cmp     byte ptr ds:jump_phase_flags, 7Fh
-                jz      short loc_3BF0
-                mov     ax, 36
-                cmp     byte ptr ds:hero_animation_phase, 80h
+                je      short loc_3BF0
+                mov     ax, 4*9  ; for hero animation IDLE, 4th frame
+                cmp     byte ptr ds:hero_animation_phase, 80h ; state IDLE
                 jz      short loc_3BF0
 
 loc_3BE7:
                 mov     al, ds:hero_animation_phase
                 and     al, 3
                 mov     cl, 9
-                mul     cl
+                mul     cl  ; frames 0..3 for normal walking
 
 loc_3BF0:
                 add     si, ax
@@ -1739,73 +1743,77 @@ loc_3BF2:
                 call    Render_Scrolling_Tile
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short loc_3C05
+                ; for invincibility mode - no more layers
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_3C05:
                 mov     cl, 0FFh
-                mov     si, fman_gfx + 1B9h  ; ARM_LEFT_BASE
+                mov     si, fman_gfx + (2*13 + 4 + 1 + 18)*9  ; ARM_LEFT_BASE
                 test    byte ptr ds:facing_direction, 1
                 jnz     short loc_3C16
                 xor     cl, cl
-                mov     si, fman_gfx + 117h  ; ARM_RIGHT_BASE
+                mov     si, fman_gfx + (2*13 + 4 + 1)*9  ; ARM_RIGHT_BASE
 
 loc_3C16:
                 mov     al, ds:on_rope_flags
                 or      al, ds:hero_hidden_flag
                 jz      short loc_3C36
-                call    get_player_shield_category
+                ; on rope or hidden
+                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
                 or      al, al
                 jnz     short loc_3C27
+                ; no shield
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_3C27:
-                dec     al
-                shr     al, 1
-                sbb     al, al
-                and     al, 1Bh
-                add     al, 7Eh ; '~'
+                dec     al      ; 0=small shield, 1=large shield
+                shr     al, 1   ; NC=small, CF=large
+                sbb     al, al  ; 0=small, 0FFh=large
+                and     al, 1Bh ; 0=small, 1Bh=large
+                add     al, 7Eh ; 7Eh=small (14th frame from ARM BASE), 99h=large (17th frame from ARM BASE)
                 xor     ah, ah
                 jmp     loc_3CBF
 ; ---------------------------------------------------------------------------
-
+; neither on rope, nor hidden
 loc_3C36:
                 test    byte ptr ds:shield_anim_active, 0FFh
                 jz      short loc_3C7F
+; shield animation is active
                 inc     cl
                 jnz     short loc_3C5B
-                mov     al, ds:shield_anim_phase
-                shr     al, 1
+                mov     al, ds:shield_anim_phase ; 0..7
+                shr     al, 1  ; 0..3
                 mov     cl, 9
                 mul     cl
                 push    ax
-                call    get_player_shield_category
-                mov     cl, 36
+                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
+                mov     cl, 4*9
                 mul     cl
                 pop     si
                 add     si, ax
-                add     si, fman_gfx + 25Bh  ; SHIELD_FRONT_BASE
+                add     si, fman_gfx + (2*13 + 4 + 1 + 2*18)*9  ; SHIELD_FRONT_BASE
                 jmp     short loc_3CC1
 ; ---------------------------------------------------------------------------
 
 loc_3C5B:
-                mov     al, ds:shield_anim_phase
-                shr     al, 1
+                mov     al, ds:shield_anim_phase ; 0..7
+                shr     al, 1 ; 0..3
                 mov     cl, 9
                 mul     cl
-                add     ax, 36
+                add     ax, 4*9
                 mov     dl, ds:shield_variant_index
                 dec     dl
                 jnz     short loc_3C74
-                add     ax, 36
+                add     ax, 4*9
                 jmp     short loc_3C7B
 ; ---------------------------------------------------------------------------
 
 loc_3C74:
                 dec     dl
                 jnz     short loc_3C7B
-                mov     ax, 99
+                mov     ax, 11*9
 
 loc_3C7B:
                 add     si, ax
@@ -1813,32 +1821,35 @@ loc_3C7B:
 ; ---------------------------------------------------------------------------
 
 loc_3C7F:
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jz      short loc_3CA5
-                call    get_player_shield_category
+                ; facing left
+                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
                 or      al, al
                 jz      short loc_3CA5
                 dec     al
-                mov     cl, al
-                mov     al, ds:squat_flag   ; squat_flag
-                and     al, 9
-                add     al, 108
+                mov     cl, al   ; 0=small shield, 1=large shield
+                mov     al, ds:squat_flag   ; squat_flag (0=no squat, FFh=squat)
+                and     al, 9    ; 0=no squat, 9=squat
+                add     al, 12*9 ; 12th frame for non-squat, 13th frame for squat
                 xor     ah, ah
-                or      cl, cl
+                or      cl, cl   ; 0=small shield, 1=large shield
                 jz      short loc_3CA1
-                add     ax, 27
+                add     ax, 3*9  ; 3 more frames for large shield
 loc_3CA1:
                 add     si, ax
                 jmp     short loc_3CC1
 ; ---------------------------------------------------------------------------
+; facing right or no shield
 loc_3CA5:
-                mov     ax, 27
+                mov     ax, 3*9
                 test    byte ptr ds:squat_flag, 0FFh ; squat_flag
-                jnz     short loc_3CBF
+                jnz     short loc_3CBF ; squat
+                ; no squat
                 mov     cl, ds:hero_animation_phase
-                cmp     cl, 80h
-                jz      short loc_3CBF
-                and     cl, 3
+                cmp     cl, 80h  ; idle
+                je      short loc_3CBF
+                and     cl, 3    ; 0..3
                 mov     al, 9
                 mul     cl
 loc_3CBF:
@@ -1884,7 +1895,7 @@ Render_Scrolling_Tile proc near
                 mov     di, dx  ; ignore, will be overwritten few lines below
                 push    cs
                 pop     es
-                mov     al, cs:hero_tile_col_idx
+                mov     al, cs:hero_tile_col_idx ; normally 0, but can be 3 for squat
                 mov     cl, 64
                 mul     cl
                 add     ax, offset sword_anim_frames
@@ -1905,7 +1916,7 @@ Render_Scrolling_Tile endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Returns shield category in AL (0=no shield, 1=small, 2=large)
 get_player_shield_category proc near
                 mov     al, ds:shield_type      ; shield_type
                 or      al, al
@@ -1917,11 +1928,11 @@ loc_3D2A:
                 cmp     al, 4           ; Honor Shield
                 mov     al, 1
                 jnb     short loc_3D31
-                retn                    ; 1: Clay, WiseMans, Stone shield
+                retn                    ; 1: Clay, WiseMans, Stone (small shields)
 ; ---------------------------------------------------------------------------
 
 loc_3D31:
-                mov     al, 2           ; 2: Honor, Light, Titanium shield
+                mov     al, 2           ; 2: Honor, Light, Titanium (large shields)
                 retn
 get_player_shield_category endp
 
@@ -1929,8 +1940,8 @@ get_player_shield_category endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Empty_Or_Cached_Tile proc near   ; ...
-                mov     al, [si]
+Render_Empty_Or_Cached_Tile proc near
+                mov     al, [si] ; tile idx
                 push    ds
                 push    si
                 push    di
@@ -1939,15 +1950,15 @@ Render_Empty_Or_Cached_Tile proc near   ; ...
                 push    cs
                 pop     es
                 mov     al, cs:hero_tile_col_idx
-                mov     cl, 40h ; '@'
+                mov     cl, 64
                 mul     cl
                 add     ax, offset sword_anim_frames
                 mov     di, ax
                 pop     ax
                 or      al, al
-                jz      short loc_3D65
+                jz      short empty_tile
                 dec     al
-                mov     cl, 30h ; '0'
+                mov     cl, 48
                 mul     cl
                 add     ax, 8030h
                 mov     si, ax
@@ -1958,7 +1969,7 @@ Render_Empty_Or_Cached_Tile proc near   ; ...
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3D65:
+empty_tile:
                 call    Clear_Tile_Buffer
                 pop     di
                 pop     si

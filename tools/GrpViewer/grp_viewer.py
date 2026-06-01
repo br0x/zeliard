@@ -85,7 +85,7 @@ MODE_CFG = {
     13:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "dman"},
 }
 
-SCALE = 4
+SCALE = 3
 CANVAS_BG = "#0f0f1a"
 FG_COLOR = "#e0e0ff"
 BG_COLOR = "#1a1a2e"
@@ -666,8 +666,8 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
         for start, end in subgroups_r:
             for m_def in macro_defs[start:end]:
                 # Draw frame border
-                canvas.create_rectangle(x_cursor-1, current_y-1, x_cursor + 32*scale, 
-                                        current_y + 32*scale, outline="gray")
+                canvas.create_rectangle(x_cursor, current_y, x_cursor + 32*scale, 
+                                        current_y + 32*scale, fill="#ff0000", outline="")
 
                 # Each macro-tile is a 32x32 (4x4 grid of 8x8 tiles), column-major
                 for col in range(4):
@@ -682,17 +682,16 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
                                        x_cursor + (col*8 + rx) * scale,
                                        current_y + (row*8 + ry) * scale,
                                        PALETTE_STRS[p_idx], scale)
-                x_cursor += 32 * scale + 4
-            x_cursor += 4  # Extra gap between subgroups
-        current_y += 32 * scale + 8
+                x_cursor += 32 * scale
+        current_y += 32 * scale
 
         # left swings
         x_cursor = 10
         for start, end in subgroups_l:
             for m_def in macro_defs[start:end]:
                 # Draw frame border
-                canvas.create_rectangle(x_cursor-1, current_y-1, x_cursor + 32*scale, 
-                                        current_y + 32*scale, outline="gray")
+                canvas.create_rectangle(x_cursor, current_y, x_cursor + 32*scale, 
+                                        current_y + 32*scale, fill="#ff0000", outline="")
 
                 # Each macro-tile is a 32x32 (4x4 grid of 8x8 tiles), column-major
                 for col in range(4):
@@ -707,9 +706,8 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
                                        x_cursor + (col*8 + rx) * scale,
                                        current_y + (row*8 + ry) * scale,
                                        PALETTE_STRS[p_idx], scale)
-                x_cursor += 32 * scale + 4
-            x_cursor += 4  # Extra gap between subgroups
-        current_y += 32 * scale + 8
+                x_cursor += 32 * scale
+        current_y += 32 * scale
 
     return current_y - y_offset
 
@@ -980,7 +978,7 @@ def render_fman_group(data, canvas, y_offset, frame_counts=None):
 
     # 3. Render the groups
     current_y  = y_offset
-    gap        = 12
+    gap        = 4
     sprite_px  = 24  
 
     for group_indices in fman_groups:
@@ -991,9 +989,9 @@ def render_fman_group(data, canvas, y_offset, frame_counts=None):
             x0 = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap)
             y0 = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap)
             
-            # Draw frame border
-            canvas.create_rectangle(x0-1, y0-1, x0 + sprite_px*scale, 
-                                     y0 + sprite_px*scale, fill="#8c38ff")
+            # Draw frame background
+            canvas.create_rectangle(x0, y0, x0 + sprite_px*scale, 
+                                     y0 + sprite_px*scale, fill="#8c38ff", outline="")
 
             frame_map = group_indices[f_idx*9 : (f_idx+1)*9]
             for row in range(3):
@@ -1272,6 +1270,9 @@ def render_dchr_group(tile_bank_raw, canvas, y_offset, layout=None):
     for row in layout:
         x_cursor = 10
         for group_size in row:
+            # Draw frame background
+            canvas.create_rectangle(x_cursor-1, current_y-1, x_cursor + tile_dim*group_size, 
+                                    current_y + tile_dim, outline="#aaaaaa")
             for _ in range(group_size):
                 if tile_idx >= num_tiles:
                     break
@@ -1638,7 +1639,7 @@ class GrpViewer:
             else:
                 consumed = render_font_group(group_data, mode, self.canvas, y_cursor)
 
-            y_cursor += consumed + 20
+            y_cursor += consumed
 
         self.canvas.config(scrollregion=(0, 0, 1500, y_cursor))
         self.info_label.config(text=f"File: {filename} | Mega-Groups: {num_groups}")

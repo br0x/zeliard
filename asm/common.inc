@@ -13,6 +13,7 @@ mdt_descriptor     ENDS
 ; Permanent constants
 LEFT               EQU 1
 UP                 EQU 2
+SLOPE_NONE         EQU 0 ; --
 SLOPE_RIGHT        EQU 1 ; \
 SLOPE_LEFT         EQU 2 ; /
 KEY_ENTER          EQU 1
@@ -24,6 +25,7 @@ SWORD_KNIGHT       EQU 4
 SWORD_ILLUMINATION EQU 5
 SWORD_ENCHANTMENT  EQU 6
 
+SHIELD_NONE        EQU 0
 SHIELD_CLAY        EQU 1
 SHIELD_WISE_MANS   EQU 2
 SHIELD_STONE       EQU 3

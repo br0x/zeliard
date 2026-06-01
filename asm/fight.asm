@@ -4742,7 +4742,7 @@ loc_7CF4:
                 mov     al, ds:hero_head_y_in_viewport_initial_from_mdt
                 mov     ds:hero_head_y_in_viewport, al
                 mov     ds:byte_9F00, al
-                mov     byte ptr ds:hero_animation_phase, 80h
+                mov     byte ptr ds:hero_animation_phase, 80h ; state IDLE
                 push    ds
                 mov     ds, cs:seg1
                 mov     si, 8030h
