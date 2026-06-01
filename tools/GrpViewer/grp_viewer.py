@@ -4,6 +4,8 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 
+DEBUG_DRAW = True
+
 # ---------------------------------------------------------------------------
 # Configuration & Descriptors
 # ---------------------------------------------------------------------------
@@ -33,7 +35,8 @@ GRP_DESCRIPTOR = [
     ("mpat.grp",  7), # Patterns/Background Tiles
     ("dpat.grp",  7),
     ("cpat.grp",  7),
-    ("fman.grp",  8, [13, 13, 4, 1, 18, 18, 12, 12]), # Hero in the dungeons
+    ("fman.grp",  8, [91]), # Hero in the dungeons
+#    ("fman.grp",  8, [13, 13, 4, 1, 18, 18, 12, 12]), # Hero in the dungeons
     ("roka.grp",  9), # decorations on entering the dungeon door
     ("dchr.grp",  10, [
         [3, 3, 3], [2, 2], [1, 1], [3], [3], [3], [1, 1], [1, 1], [3], [1, 1], [1, 1, 1, 1, 1, 1]
@@ -608,6 +611,8 @@ def read_be_words(row_bytes, count=3):
 
 def draw_pixel(canvas, x, y, color_str, scale=SCALE):
     canvas.create_rectangle(x, y, x + scale, y + scale, fill=color_str, outline="")
+    if DEBUG_DRAW:
+        canvas.update()   # force redraw after this pixel
 
 def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_idx=None):
     """Paint a flat list of palette indices (or None for transparent) onto the canvas."""
@@ -616,7 +621,7 @@ def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_
             continue
         rx, ry = i % tile_w, i // tile_w
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
-
+        
 # ---------------------------------------------------------------------------
 # Sword rendering
 # ---------------------------------------------------------------------------
@@ -945,11 +950,13 @@ def decode_fman_tile(t_data, lut):
             pixels.append(None if is_trans else lut[nib])
     return pixels
 
+# fman data length = 8176; 91 frames 3x3 tiles = 819 tiles (header)
+# tiles_raw = 8176-819+3 = 7360 = 230*32 (230 tile definitions)
 def render_fman_group(data, canvas, y_offset, frame_counts=None):
     """Decode fman.grp using frame counts in each group to determine group slices."""
     if not frame_counts:
         # Default fallback if no list is provided
-        frame_counts = [len(data) // 9] # single group of len/9 frames
+        frame_counts = [91] # single group of 91 frames
 
     # 1. Calculate slices and total header size
     fman_groups = []
@@ -963,7 +970,7 @@ def render_fman_group(data, canvas, y_offset, frame_counts=None):
     TILE_SIZE   = 32  
     scale       = 3
 
-    # 2. Pre-decode all 8x8 tiles from the bank
+    # 2. Pre-decode all 8x8 px tiles from the bank
     tiles_raw = data[header_size:] + b'\x00\x00\x00'
     lut = PAL_DECODE_TABLES[0]
     decoded_tiles = [
@@ -1298,12 +1305,12 @@ def render_composite_hero_exact(
     invincible: bool,
     hero_hidden: bool,
     jump_phase_flags: int,     # 0, 0x7F, 0x80, 0xFF
-    slope_direction: int,      # 0,1,2
-    shield_type: int,          # 0,1,2
+    slope_direction: int,      # 0 (no slope), 1 (\), 2 (/)
+    shield_type: int,          # 0, 1, 2
     shield_anim_active: bool,
     shield_anim_phase: int,
     sword_type: int,           # 1..6
-    swing_type: int,           # 0,1,2
+    swing_type: int,           # 0, 1, 2
     swing_phase: int,          # 0..7 (0 = no swing)
     x: int, y: int, scale: int = SCALE
 ):
@@ -1319,6 +1326,7 @@ def render_composite_hero_exact(
         return indices
 
     # Helper to render a 3x3 tile block
+    # fman data length = 8176; 91 frames 3x3 tiles = 819 tiles = 0x333 (header)
     def draw_layer(frame_off, x0, y0):
         if frame_off is None:
             return
@@ -1335,7 +1343,7 @@ def render_composite_hero_exact(
                 pixels = decode_fman_tile(tile_raw, PAL_DECODE_TABLES[0])
                 tx = x0 + col * 8 * scale
                 ty = y0 + row * 8 * scale
-                draw_tile_pixels(canvas, pixels, tx, ty, scale)
+                draw_tile_pixels(canvas, pixels, tx, ty, scale=scale)
 
     # Body frames
     BODY_RIGHT_BASE = 0x00        # fman_gfx + 0
@@ -1357,7 +1365,7 @@ def render_composite_hero_exact(
         if shield_anim_active:
             left_arm_off = base + shield_anim_phase * 9
         elif shield_type != 0:
-            offset = 108 # 12th frame 0-based
+            offset = 12*9 # 12th frame 0-based
             if squat:
                 offset += 9 # 13th frame 0-based
             if shield_type == 2:
@@ -1396,7 +1404,6 @@ def render_composite_hero_exact(
     elif anim_phase == 0x80:
         body_off += 0x24  # 4th frame 0-based => stay still
     else:
-        body_off += 0x24  # 4th frame 0-based => stay still
         body_off += (anim_phase & 3) * 9
     draw_layer(body_off, x, y)
 
@@ -1468,6 +1475,7 @@ class GrpViewer:
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         tk.Button(toolbar, text="Open *.grp", command=self.on_open_click).pack(side=tk.LEFT)
+        tk.Button(toolbar, text="Composed fman", command=self.load_fman_sword).pack(side=tk.LEFT, padx=5)
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
 
@@ -1490,6 +1498,59 @@ class GrpViewer:
         path = filedialog.askopenfilename(filetypes=[("Zeliard GRP", "*.grp"), ("All Files", "*.*")])
         if path:
             self.load_file(path)
+
+    def load_fman_sword(self):
+        try:
+            raw = open("tools/GrpViewer/fman.grp", "rb").read()
+        except Exception as e:
+            self.info_label.config(text=f"Error: {e}")
+            return
+
+        if raw[0] == 0:
+            skip, length, raw1 = 0, len(raw)-1, raw[1:]
+        else:
+            skip   = int.from_bytes(raw[1:3], "little")
+            length = int.from_bytes(raw[3:5], "little")
+            raw1   = raw[5+skip:]
+
+        unpacked_fman = unpack(raw1, length)
+
+        try:
+            raw = open("tools/GrpViewer/sword.grp", "rb").read()
+        except Exception as e:
+            self.info_label.config(text=f"Error: {e}")
+            return
+
+        if raw[0] == 0:
+            skip, length, raw1 = 0, len(raw)-1, raw[1:]
+        else:
+            skip   = int.from_bytes(raw[1:3], "little")
+            length = int.from_bytes(raw[3:5], "little")
+            raw1   = raw[5+skip:]
+
+        unpacked_sword = unpack(raw1, length)
+        render_composite_hero_exact(
+            self.canvas, 
+            unpacked_fman, 
+            unpacked_sword, 
+            0, # facing
+            0, # anim_phase
+            False, # squat
+            False, # on_rope
+            False, # invincible
+            False, # hero_hidden
+            0, # jump_phase_flags
+            0, # slope_direction
+            0, # shield_type
+            False, # shield_anim_active
+            0, # shield_anim_phase
+            1, # sword_type
+            0, # swing_type
+            0, # swing_phase
+            100, # x
+            100, # y
+            3
+        )
 
     def load_file(self, path):
         try:

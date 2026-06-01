@@ -13,8 +13,8 @@ mdt_descriptor     ENDS
 ; Permanent constants
 LEFT               EQU 1
 UP                 EQU 2
-SLOPE_RIGHT        EQU 1
-SLOPE_LEFT         EQU 2
+SLOPE_RIGHT        EQU 1 ; \
+SLOPE_LEFT         EQU 2 ; /
 KEY_ENTER          EQU 1
 
 SWORD_TRAINING     EQU 1

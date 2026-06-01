@@ -1048,8 +1048,8 @@ loc_664D:
 ; ---------------------------------------------------------------------------
 
 loc_6655:        
-                cmp     byte ptr ds:slope_direction, slope_right
-                jnz     short loc_665F
+                cmp     byte ptr ds:slope_direction, SLOPE_RIGHT
+                jne     short loc_665F
                 jmp     loc_6837
 ; ---------------------------------------------------------------------------
 
@@ -1318,7 +1318,7 @@ on_right_pressed:
 ; ---------------------------------------------------------------------------
 
 loc_67DA:        
-                cmp     byte ptr ds:slope_direction, 2
+                cmp     byte ptr ds:slope_direction, SLOPE_LEFT
                 jz      short loc_6837
                 call    move_hero_right_if_no_obstacles
                 jb      short loc_6837
@@ -1764,7 +1764,7 @@ airborne_movement endp
 ;   - height_above_ground counts down; at 0, slides freely every frame.
 ; Slope tiles defined in seg1:8018h (left slope 0x0B) and 801Ch (right slope 0x0C).
 ; ===========================================================================
-slope_assist_on_landing proc near       ; ...
+slope_assist_on_landing proc near
                 mov     byte ptr ds:slope_direction, 0
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 2*36+1
@@ -1792,7 +1792,7 @@ loc_6A7B:
 time_to_check_sliding_down:   
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
-                cmp     byte ptr ds:slope_direction, slope_right
+                cmp     byte ptr ds:slope_direction, SLOPE_RIGHT
                 jz      short right_slope
                 test    al, 1000b       ; left slope, check Right keypress
                 jz      short slide_off_leftwards
@@ -1820,10 +1820,10 @@ check_silkarn_shoes_and_slopes:
                 retn                    ; silkarn shoes - no slide
 ; ---------------------------------------------------------------------------
 
-no_silkarn_shoes_slide_off_slope:       ; ...
+no_silkarn_shoes_slide_off_slope:
                 dec     ds:height_above_ground
-                cmp     byte ptr ds:slope_direction, slope_right
-                jnz     short loc_6AC6
+                cmp     byte ptr ds:slope_direction, SLOPE_RIGHT
+                jne     short loc_6AC6
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
 

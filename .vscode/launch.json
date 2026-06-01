@@ -23,7 +23,6 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/fman.grp"
             ],
             "console": "integratedTerminal",
         },
