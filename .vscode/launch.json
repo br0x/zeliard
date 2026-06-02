@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/dchr.grp"
+                "${workspaceFolder}/tools/GrpViewer/magic.grp"
             ],
             "console": "integratedTerminal",
         },

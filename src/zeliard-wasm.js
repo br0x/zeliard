@@ -1343,3 +1343,71 @@ export function townFinishConversation() {
 export function townFinishBuilding() {
     wasmExports?.wasm_town_building_finish?.();
 }
+
+export function getPendingDungeonFlag() {
+    if (wasmExports?.wasm_get_pending_dungeon_flag) {
+        return wasmExports.wasm_get_pending_dungeon_flag();
+    }
+    if (!wasmMemory) return 0;
+    return wasmMemory[gMemoryBase + 0xFFFD];
+}
+
+export function getPendingDungeonMap() {
+    if (wasmExports?.wasm_get_pending_dungeon_map) {
+        return wasmExports.wasm_get_pending_dungeon_map();
+    }
+    if (!wasmMemory) return 0;
+    return wasmMemory[gMemoryBase + 0xFFFC];
+}
+
+export function clearPendingDungeon() {
+    if (wasmExports?.wasm_clear_pending_dungeon) {
+        wasmExports.wasm_clear_pending_dungeon();
+    } else if (wasmMemory) {
+        wasmMemory[gMemoryBase + 0xFFFD] = 0;
+    }
+}
+
+export function dungeonInit(mapId, spawnX = 0xFFFF, spawnY = 0xFF, direction = 1) {
+    wasmExports?.wasm_dungeon_init?.(mapId, spawnX, spawnY, direction);
+}
+
+export function dungeonUpdate() {
+    wasmExports?.wasm_dungeon_update?.();
+}
+
+export function dungeonFullTick() {
+    wasmExports?.wasm_dungeon_full_tick?.();
+}
+
+export function dungeonGetViewportTop() {
+    return wasmExports?.wasm_dungeon_get_viewport_top?.() ?? 0;
+}
+
+export function dungeonGetFullMapPtr() {
+    return wasmExports?.wasm_dungeon_get_full_map_ptr?.() ?? 0x30000;
+}
+
+export function dungeonGetEntityTable() {
+    return wasmExports?.wasm_dungeon_get_entity_table?.() ?? 0;
+}
+
+export function dungeonGetEntityCount() {
+    return wasmExports?.wasm_dungeon_get_entity_count?.() ?? 0;
+}
+
+export function dungeonGetSwordFrame() {
+    return wasmExports?.wasm_dungeon_get_sword_frame?.() ?? 0xFF;
+}
+
+export function dungeonGetExitFlag() {
+    return wasmExports?.wasm_dungeon_get_exit_flag?.() ?? 0;
+}
+
+export function dungeonGetExitMap() {
+    return wasmExports?.wasm_dungeon_get_exit_map?.() ?? 0;
+}
+
+export function dungeonClearExit() {
+    wasmExports?.wasm_dungeon_clear_exit?.();
+}

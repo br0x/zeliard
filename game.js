@@ -28,6 +28,16 @@ const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
+const CAVERN_MALICIA_MDT_PATH = 'game/0/mp10.mdt';
+const DUNGEON_MDTS = {
+    8: CAVERN_MALICIA_MDT_PATH,
+};
+const DUNGEON_TILE_SHEET_PATH = 'assets/images/mpp1.png';
+const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
+const DUNGEON_ENTITY_SHEET_PATH = 'assets/images/enp1.png';
+const DUNGEON_MAGIC_SHEET_PATH = 'assets/images/magic.png';
+const DUNGEON_HERO_SHEET_PATH = 'assets/images/fman.png';
+const DUNGEON_SWORD_SHEET_PATH = 'assets/images/sword.png';
 const PATTERN_ASSETS = {
     0: { // CPAT
         imagePath: 'assets/images/cpat/cmap_x24.png',
@@ -120,14 +130,7 @@ const NPC_FRAME_W  = 48;
 const NPC_FRAME_H  = 72;
 const NPC_FRAMES   = 8;           // frames per sheet
 
-// WASM memory addresses for NPC table (mirrors town.h / town.c)
-const ADDR_NPC_ARRAY_PTR       = 0xC00F;
-const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
-const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
-const ADDR_BUILDING_ACTIVE = 0xFFFA;
-const ADDR_BUILDING_DEST_ID = 0xFFFB;
-const ADDR_FRAME_TIMER = 0xFF1A;
-const ADDR_SOUND_FX_REQUEST = 0xFF75;
+// WASM memory addresses (mirrors town.h / town.c)
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
@@ -147,6 +150,16 @@ const ADDR_SAGES_SPOKEN  = 0xe5;
 const ADDR_HERO_HP       = 0x90;
 const ADDR_HERO_MAX_HP   = 0xB2;
 const ADDR_PLACE_MAP_ID  = 0xC4;
+
+const ADDR_NPC_ARRAY_PTR       = 0xC00F;
+const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
+const ADDR_FRAME_TIMER = 0xFF1A;
+const ADDR_SOUND_FX_REQUEST = 0xFF75;
+const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
+const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
+const ADDR_BUILDING_ACTIVE = 0xFFFA;
+const ADDR_BUILDING_DEST_ID = 0xFFFB;
+
 
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
@@ -173,6 +186,16 @@ const TOWN_MDTS = [
 const HERO_FRAME_W = 48;
 const HERO_FRAME_H = 72;
 const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_HEIGHT;   // row 13 → 312px
+const DUNGEON_MAP_HEIGHT = 64;
+const DUNGEON_VIEW_LEFT_IN_PROX = 4;
+const DUNGEON_ENTITY_W = 48;
+const DUNGEON_ENTITY_H = 48;
+const DUNGEON_HERO_FRAME_W = 72;
+const DUNGEON_HERO_FRAME_H = 72;
+const DUNGEON_SWORD_FRAME_W = 96;
+const DUNGEON_SWORD_FRAME_H = 96;
+const DUNGEON_HERO_SHEET_COLS = 16;
+const DUNGEON_SWORD_SHEET_COLS = 11;
 const ANIM_SPEED_TICKS = 8;
 const FRAME_LEFT_WALK_BASE = 0;
 const FRAME_FACING_AWAY = 4;
@@ -230,10 +253,25 @@ let townCompleteTransition;
 let townEntryEnablingEdgeScroll;
 let townFinishConversation;
 let townFinishBuilding;
+let getPendingDungeonFlag;
+let getPendingDungeonMap;
+let clearPendingDungeon;
+let dungeonInit;
+let dungeonUpdate;
+let dungeonFullTick;
+let dungeonGetViewportTop;
+let dungeonGetFullMapPtr;
+let dungeonGetEntityTable;
+let dungeonGetEntityCount;
+let dungeonGetSwordFrame;
+let dungeonGetExitFlag;
+let dungeonGetExitMap;
+let dungeonClearExit;
 
 let restoreName = null;
 let RENDER_CONFIG;
 let renderDungeonObjects;
+let gameMode = 'town';
 let townEntryRan = false;
 let townBackgroundType = null;
 let townPatId = null;
@@ -258,6 +296,18 @@ let shieldIcons = [];
 let shieldIconsReady = false;
 let magicIcons = [];
 let magicIconsReady = false;
+let dungeonTileSheet = null;
+let dungeonTileSheetReady = false;
+let dungeonDchrSheet = null;
+let dungeonDchrSheetReady = false;
+let dungeonEntitySheet = null;
+let dungeonEntitySheetReady = false;
+let dungeonMagicSheet = null;
+let dungeonMagicSheetReady = false;
+let dungeonHeroSheet = null;
+let dungeonHeroSheetReady = false;
+let dungeonSwordSheet = null;
+let dungeonSwordSheetReady = false;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -299,6 +349,8 @@ const TOWN_BUILDINGS = {
         name: 'The Bank',
         scene: BankScene,
     },
+    // 7: Inn (TODO)
+    // 8: Cavern (TODO)
 };
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog
@@ -306,7 +358,7 @@ let gamePaused = false;          // freeze game updates while modal is open
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────
 const SFX_IDS = [10, 19, 20, 29, 30, 40, 50, 60];
-const MUSIC_TRACKS = ['mgt1', 'mgt2', 'ugm1', 'ugm2'];
+const MUSIC_TRACKS = ['mgt1', 'mgt2', 'ugm1', 'ugm2', 'Zeliard-04-CavernOfMalicia'];
 
 const soundManager = new SoundManager({
     workletPath:   'pit-worklet.js',
@@ -345,7 +397,8 @@ function onFullTick() {
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
-    townFullTick?.();
+    if (gameMode === 'dungeon') dungeonFullTick?.();
+    else townFullTick?.();
 
     if (engineReady) {
         const speedC     = readMemory(0xFF33, 1)[0] || 5;
@@ -353,24 +406,34 @@ function onFullTick() {
         const frameTmr   = readMemory(0xFF1A, 1)[0];
         if (frameTmr >= target) {
             inputUpdate?.();
-            townUpdate?.();
-            const scrollFlag = readMemory(0xfff0, 1)[0];
-            if (scrollFlag) {
-                if (scrollFlag & 0x01) scrollFloorRight8px();
-                if (scrollFlag & 0x02) scrollFloorLeft8px();
-                if (scrollFlag & 0x04) scrollCeilingRight4px();
-                if (scrollFlag & 0x08) scrollCeilingLeft4px();
-                writeMemory(0xfff0, [0]);
-            }
-            const pendingFlag = getTownPendingTransitionFlag?.();
-            if (pendingFlag === 0xFF) {
-                const transition = getTownPendingTransition?.();
-                if (transition) {
-                    writeMemory(0xFFF4, [0]);
-                    handleTownTransition(transition);
+            if (gameMode === 'dungeon') {
+                dungeonUpdate?.();
+                if (dungeonGetExitFlag?.() === 0xFF) {
+                    handleDungeonExit(dungeonGetExitMap?.() ?? 1);
                 }
+            } else {
+                townUpdate?.();
+                const scrollFlag = readMemory(0xfff0, 1)[0];
+                if (scrollFlag) {
+                    if (scrollFlag & 0x01) scrollFloorRight8px();
+                    if (scrollFlag & 0x02) scrollFloorLeft8px();
+                    if (scrollFlag & 0x04) scrollCeilingRight4px();
+                    if (scrollFlag & 0x08) scrollCeilingLeft4px();
+                    writeMemory(0xfff0, [0]);
+                }
+                const pendingFlag = getTownPendingTransitionFlag?.();
+                if (pendingFlag === 0xFF) {
+                    const transition = getTownPendingTransition?.();
+                    if (transition) {
+                        writeMemory(ADDR_PENDING_TRANSITION_FLAG, [0]);
+                        handleTownTransition(transition);
+                    }
+                }
+                if (getPendingDungeonFlag?.() === 0xFF) {
+                    handleDungeonTransition(getPendingDungeonMap?.() ?? 8);
+                }
+                checkBuildingRequest();
             }
-            checkBuildingRequest();
         }
     }
 }
@@ -381,6 +444,8 @@ function onSlowTick() {
 
     updateInputLatches();
     inputSetKeys(keys);
+
+    if (gameMode === 'dungeon') return;
 
     if (!conversation.active) {
         const activeFlag = readMemory(0xFFF5, 1)[0];
@@ -715,6 +780,56 @@ function loadNpcSprite(spriteId) {
     });
 }
 
+function loadImageOnce(path, setter) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { setter(img); resolve(img); };
+        img.onerror = () => reject(new Error(`Failed to load ${path}`));
+        img.src = path;
+    });
+}
+
+async function loadDungeonAssets() {
+    const loads = [];
+    if (!dungeonTileSheetReady) {
+        loads.push(loadImageOnce(DUNGEON_TILE_SHEET_PATH, img => {
+            dungeonTileSheet = img;
+            dungeonTileSheetReady = true;
+        }));
+    }
+    if (!dungeonDchrSheetReady) {
+        loads.push(loadImageOnce(DUNGEON_DCHR_SHEET_PATH, img => {
+            dungeonDchrSheet = img;
+            dungeonDchrSheetReady = true;
+        }));
+    }
+    if (!dungeonEntitySheetReady) {
+        loads.push(loadImageOnce(DUNGEON_ENTITY_SHEET_PATH, img => {
+            dungeonEntitySheet = img;
+            dungeonEntitySheetReady = true;
+        }));
+    }
+    if (!dungeonMagicSheetReady) {
+        loads.push(loadImageOnce(DUNGEON_MAGIC_SHEET_PATH, img => {
+            dungeonMagicSheet = img;
+            dungeonMagicSheetReady = true;
+        }));
+    }
+    if (!dungeonHeroSheetReady) {
+        loads.push(loadImageOnce(DUNGEON_HERO_SHEET_PATH, img => {
+            dungeonHeroSheet = img;
+            dungeonHeroSheetReady = true;
+        }));
+    }
+    if (!dungeonSwordSheetReady) {
+        loads.push(loadImageOnce(DUNGEON_SWORD_SHEET_PATH, img => {
+            dungeonSwordSheet = img;
+            dungeonSwordSheetReady = true;
+        }));
+    }
+    await Promise.all(loads);
+}
+
 function parseTownNpcCategory() {
     if (!readMemory) { townNpcSpriteCategory = 0; return; }
     const descPtrBytes = readMemory(0xC000, 2);
@@ -737,6 +852,10 @@ async function loadWasmEngine() {
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
+        getPendingDungeonFlag, getPendingDungeonMap, clearPendingDungeon,
+        dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
+        dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
+        dungeonGetSwordFrame, dungeonGetExitFlag, dungeonGetExitMap, dungeonClearExit,
     } = wasmBridge);
 }
 
@@ -931,6 +1050,182 @@ function drawNpcs() {
     }
 }
 
+function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = frameW, dh = frameH) {
+    if (!sheet || frameIndex < 0) return;
+    const sx = (frameIndex % cols) * frameW;
+    const sy = Math.floor(frameIndex / cols) * frameH;
+    if (sx + frameW > sheet.width || sy + frameH > sheet.height) return;
+    ctx.drawImage(sheet, sx, sy, frameW, frameH, dx, dy, dw, dh);
+}
+
+function drawDungeonTiles() {
+    if (!dungeonTileSheetReady || !readMemory) return false;
+    const proximity = getProximityMap?.();
+    if (!proximity) return false;
+    const top = dungeonGetViewportTop?.() ?? 0;
+
+    for (let col = 0; col < VIEW_COLS; col++) {
+        const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
+        for (let row = 0; row < VIEW_ROWS; row++) {
+            const mapRow = (top + row) & 0x3F;
+            const tileId = proximity[proxCol * DUNGEON_MAP_HEIGHT + mapRow] ?? 0;
+            if (tileId === 0) continue;
+
+            const dx = col * TILE_WIDTH;
+            const dy = row * TILE_HEIGHT;
+            if (tileId < 25) {
+                ctx.drawImage(
+                    dungeonTileSheet,
+                    tileId * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
+                    dx, dy, TILE_WIDTH, TILE_HEIGHT
+                );
+            } else if (dungeonDchrSheetReady) {
+                const dchrId = tileId - 25;
+                ctx.drawImage(
+                    dungeonDchrSheet,
+                    dchrId * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
+                    dx, dy, TILE_WIDTH, TILE_HEIGHT
+                );
+            }
+        }
+    }
+    return true;
+}
+
+function getDungeonEntities() {
+    if (!readMemory) return [];
+    const table = dungeonGetEntityTable?.() ?? 0;
+    if (!table) return [];
+    const entities = [];
+    for (let i = 0; i < 160; i++) {
+        const base = table + i * 16;
+        const raw = readMemory(base, 16);
+        const x = raw[0] | (raw[1] << 8);
+        if (x === 0xFFFF) break;
+        entities.push({
+            x,
+            y: raw[2],
+            flags: raw[4],
+            anim: raw[6] & 3,
+            hp: raw[8],
+            type: raw[14],
+            counter: raw[15],
+        });
+    }
+    return entities;
+}
+
+function drawDungeonEntities() {
+    if (!dungeonEntitySheetReady || !readMemory) return;
+    const heroPos = getHeroPosition?.();
+    const proxLeft = heroPos?.hero_x_minus_18_abs ?? 0;
+    const left = proxLeft + DUNGEON_VIEW_LEFT_IN_PROX;
+    const top = dungeonGetViewportTop?.() ?? 0;
+
+    for (const entity of getDungeonEntities()) {
+        const sxTiles = entity.x - left;
+        const syTiles = entity.y - top;
+        if (sxTiles < -2 || sxTiles >= VIEW_COLS || syTiles < -2 || syTiles >= VIEW_ROWS) continue;
+
+        let sprite = entity.type ? entity.type - 1 : (entity.flags & 0x3F);
+        sprite = Math.max(0, Math.min(76, sprite));
+        const dx = sxTiles * TILE_WIDTH;
+        const dy = syTiles * TILE_HEIGHT - TILE_HEIGHT;
+        ctx.drawImage(
+            dungeonEntitySheet,
+            sprite * DUNGEON_ENTITY_W, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H,
+            dx, dy, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H
+        );
+    }
+}
+
+function getShieldCategory() {
+    const shieldType = readMemory?.(ADDR_SHIELD_TYPE, 1)?.[0] ?? 0;
+    if (!shieldType) return 0;
+    return shieldType >= 4 ? 2 : 1;
+}
+
+function dungeonHeroBodyFrame() {
+    const anim = readMemory(0x00E7, 1)[0];
+    const squat = readMemory(0xFF38, 1)[0];
+    const jump = readMemory(0xFF3A, 1)?.[0] ?? 0;
+    if (squat) return 5;
+    if (jump & 0x80) return 7;
+    if (anim === 0x80) return 4;
+    return anim & 3;
+}
+
+function dungeonHeroArmFrame() {
+    const anim = readMemory(0x00E7, 1)[0];
+    const squat = readMemory(0xFF38, 1)[0];
+    if (squat || anim === 0x80) return 3;
+    return anim & 3;
+}
+
+function dungeonHeroLayerIndices() {
+    const facingLeft = (readMemory(0x00C2, 1)[0] & 1) !== 0;
+    const shield = getShieldCategory();
+    const squat = readMemory(0xFF38, 1)[0] ? 1 : 0;
+    const bodyBase = facingLeft ? 13 : 0;
+    const backArmBase = facingLeft ? 49 : 31;
+    const frontArmBase = facingLeft ? 31 : 49;
+    const layers = [];
+
+    let backFrame = dungeonHeroArmFrame();
+    if (shield && !facingLeft) {
+        backFrame = 12 + squat + (shield === 2 ? 3 : 0);
+    }
+    layers.push(backArmBase + backFrame);
+    layers.push(bodyBase + dungeonHeroBodyFrame());
+
+    let frontFrame = dungeonHeroArmFrame();
+    if (shield && facingLeft) {
+        frontFrame = 12 + squat + (shield === 2 ? 3 : 0);
+    }
+    layers.push(frontArmBase + frontFrame);
+    return layers;
+}
+
+function drawDungeonHero() {
+    if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
+    const heroPos = getHeroPosition?.();
+    if (!heroPos) return;
+    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH;
+    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT;
+    for (const frame of dungeonHeroLayerIndices()) {
+        drawSheetFrame(
+            dungeonHeroSheet,
+            frame,
+            DUNGEON_HERO_FRAME_W,
+            DUNGEON_HERO_FRAME_H,
+            DUNGEON_HERO_SHEET_COLS,
+            dx,
+            dy
+        );
+    }
+}
+
+function drawDungeonSword() {
+    if (!dungeonSwordSheetReady || !readMemory) return;
+    const frame = dungeonGetSwordFrame?.() ?? 0xFF;
+    if (frame === 0xFF) return;
+    const heroPos = getHeroPosition?.();
+    if (!heroPos) return;
+    const facingLeft = (readMemory(0x00C2, 1)[0] & 1) !== 0;
+    const sprite = (facingLeft ? DUNGEON_SWORD_SHEET_COLS : 0) + Math.min(frame, DUNGEON_SWORD_SHEET_COLS - 1);
+    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH * 2;
+    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT * 2;
+    drawSheetFrame(
+        dungeonSwordSheet,
+        sprite,
+        DUNGEON_SWORD_FRAME_W,
+        DUNGEON_SWORD_FRAME_H,
+        DUNGEON_SWORD_SHEET_COLS,
+        dx,
+        dy
+    );
+}
+
 // ─── Town transition ──────────────────────────────────────────────────────────
 let townTransitionInProgress = false;
 async function handleTownTransition(transition) {
@@ -988,6 +1283,100 @@ async function handleTownTransition(transition) {
         console.error('[handleTownTransition] failed:', err);
     } finally {
         townTransitionInProgress = false;
+        engineReady = true;
+    }
+}
+
+let dungeonTransitionInProgress = false;
+async function handleDungeonTransition(mapId) {
+    if (dungeonTransitionInProgress) return;
+    dungeonTransitionInProgress = true;
+    engineReady = false;
+    try {
+        clearPendingDungeon?.();
+        const rawMapId = mapId & 0x7F;
+        const mdtPath = DUNGEON_MDTS[rawMapId] ?? CAVERN_MALICIA_MDT_PATH;
+        const resp = await fetch(mdtPath);
+        if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
+        mdtData = new Uint8Array(await resp.arrayBuffer());
+        loadMdt(mdtData);
+        mdtHeader = getCavernMdtHeader?.();
+        cavernName = getCavernName?.() || 'Cavern of Malicia';
+        await loadDungeonAssets();
+        dungeonInit?.(rawMapId, 0xFFFF, 0xFF, 1);
+        gameMode = 'dungeon';
+        townEntryRan = false;
+        setCurrentMusicTrack('Zeliard-04-CavernOfMalicia');
+        console.log(`[dungeon] entered map ${rawMapId}`);
+    } catch (err) {
+        console.error('[handleDungeonTransition] failed:', err);
+    } finally {
+        dungeonTransitionInProgress = false;
+        engineReady = true;
+    }
+}
+
+let dungeonExitInProgress = false;
+async function handleDungeonExit(townMapId) {
+    if (dungeonExitInProgress) return;
+    dungeonExitInProgress = true;
+    engineReady = false;
+    try {
+        dungeonClearExit?.();
+        const rawMapId = townMapId & 0x7F;
+        const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
+        const resp = await fetch(mdtPath);
+        if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
+        mdtData = new Uint8Array(await resp.arrayBuffer());
+        loadMdt(mdtData);
+        mdtHeader = getTownMdtHeader?.();
+
+        const newBgType = getTownBackgroundType();
+        if (newBgType !== townBackgroundType) {
+            townBackgroundType = newBgType;
+            townBackgroundReady = false;
+            townBackground = null;
+            townCeilingReady = false;
+            townCeiling = null;
+            townSidewalk1Ready = false;
+            townSidewalk1 = null;
+            townSidewalk2Ready = false;
+            townSidewalk2 = null;
+        }
+        await loadTownBackground();
+        await loadTownCeiling();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
+        resetTownScrollOffsets();
+
+        const newPatId = getTownPatId();
+        if (newPatId !== townPatId) {
+            townPatId = newPatId;
+            townTileSheetReady = false;
+            townTileSheet = null;
+        }
+        const pattern = PATTERN_ASSETS[townPatId];
+        if (pattern) {
+            await loadTownTileSheet(pattern.imagePath);
+            setSpecialTileList(pattern.specialTiles);
+            updateTownAnimation();
+        }
+
+        parseTownNpcCategory();
+        await Promise.all(
+            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+        );
+        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
+        townEntryDisablingEdgeScroll();
+        townEntryRan = true;
+        gameMode = 'town';
+        const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
+        if (trackId) setCurrentMusicTrack(trackId);
+        console.log(`[dungeon] exited to town ${rawMapId}`);
+    } catch (err) {
+        console.error('[handleDungeonExit] failed:', err);
+    } finally {
+        dungeonExitInProgress = false;
         engineReady = true;
     }
 }

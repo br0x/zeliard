@@ -82,7 +82,7 @@ town_head_level_tiles                              equ town_tiles+5 ; the row wh
 ; c002  | 00d7         | mapWidth
 ; c004  | c6d8         | Town name rendering info
 ; c006  | 1            |
-; c007  | c6e8         | 01 00 00 00
+; c007  | c6e8         | town_transition_table
 ; c009  | c6ec         | Town doors array (struct size = 3)
 ; c00b  | c700         | 3D 00 07 00 00 FF FF
 ; c00d  | c707         | array of pointers to ff-terminated strings (NPC conversation)

@@ -2081,6 +2081,7 @@ loc_6CD5:
                 lodsb
                 and     ah, 0FEh
                 jz      short town_transition_from_left
+                ; some towns at the map edge transit to the dungeon
                 jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
@@ -2388,7 +2389,7 @@ loc_6F77:
 
 loc_6F9D:   
                 mov     byte ptr ds:byte_FF24, 4
-                mov     ah, 86h
+                mov     ah, 86h ; Dorado place map id
                 mov     byte ptr ds:place_map_id, ah
                 mov     al, 1 ; fn1_load_mdt_idx_ah
                 call    cs:res_dispatcher_proc ; res_dispatcher

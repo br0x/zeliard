@@ -233,6 +233,8 @@
 #define ADDR_PENDING_TRANSITION_FLAG 0xFFF4  /* byte: 0xFF = transition requested */
 #define ADDR_BUILDING_ACTIVE         0xFFFA  /* byte: 1 = JS-owned building scene active */
 #define ADDR_BUILDING_DEST_ID        0xFFFB  /* byte: TOWN_DOOR.td_dest_id */
+#define ADDR_PENDING_DUNGEON_MAP     0xFFFC  /* byte: dungeon id requested by town */
+#define ADDR_PENDING_DUNGEON_FLAG    0xFFFD  /* byte: 0xFF = dungeon requested */
 
 /* =========================================================================
  * Per-character rendering tables (char_x_offset, char_width_table)
@@ -321,6 +323,7 @@ static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
 static void handle_edge_screen_transition(void);
 static void town_up_pressed(void);
+static void request_dungeon_transition(uint8_t dest_map);
 static void hero_spacebar_interaction(void);
 static void check_special_npc_conversation(void);
 static void start_npc_conversation(uint16_t si_addr);
@@ -1515,7 +1518,7 @@ static void handle_edge_screen_transition(void)
     uint8_t pat_new  = MEM8(si + 3);
 
     if (flags & 0xFE) {
-        CALL_PROC(transition_to_dungeon, dest_map);
+        request_dungeon_transition(dest_map);
         return;
     }
 
@@ -1540,6 +1543,22 @@ static void handle_edge_screen_transition(void)
 
     /* Do NOT call load_town_transition_data or town_entry_common here.
      * JS detects ADDR_PENDING_TRANSITION_FLAG and drives the rest. */
+}
+
+static void request_dungeon_transition(uint8_t dest_map)
+{
+    if (g_town_procs.transition_to_dungeon) {
+        g_town_procs.transition_to_dungeon(dest_map);
+        return;
+    }
+
+    MEM8(ADDR_PLACE_MAP_ID) = (uint8_t)(dest_map | 0x80);
+    MEM8(ADDR_PENDING_DUNGEON_MAP) = dest_map;
+    MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
+    SPACEBAR = 0;
+    ALTKEY = 0;
+    INPUT_DIRS = 0;
+    INPUT_ALT_SPACE = 0;
 }
 
 /* Called by JS after it has:
@@ -1625,7 +1644,7 @@ static void town_up_pressed(void)
     }
 
     if (dest_id >= 8) {
-        CALL_PROC(transition_to_dungeon, dest_id);
+        request_dungeon_transition(dest_id);
         return;
     }
 
