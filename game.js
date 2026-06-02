@@ -189,6 +189,7 @@ const TOWN_MDTS = [
 const HERO_FRAME_W = 48;
 const HERO_FRAME_H = 72;
 const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_HEIGHT;   // row 13 → 312px
+const PROX_COLS = 36;
 const DUNGEON_MAP_HEIGHT = 64;
 const DUNGEON_VIEW_LEFT_IN_PROX = 4;
 const DUNGEON_ENTITY_W = 48;
@@ -1069,7 +1070,7 @@ function drawDungeonTiles() {
         const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
         for (let row = 0; row < VIEW_ROWS; row++) {
             const mapRow = (top + row) & 0x3F;
-            const tileId = proximity[proxCol * DUNGEON_MAP_HEIGHT + mapRow] ?? 0;
+            const tileId = proximity[mapRow * PROX_COLS + proxCol];
             if (tileId === 0) continue;
 
             const dx = col * TILE_WIDTH;
@@ -2060,6 +2061,15 @@ function draw() {
         renderSwordHud();
         renderMagicHud();
         renderShieldHud();
+    } else if (gameMode === 'dungeon') {
+        // Clear canvas (or draw black background)
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawDungeonTiles();
+        drawDungeonEntities();
+        drawDungeonHero();
+        drawDungeonSword();
+        // HUD is drawn later (outside this branch)
     } else {
         drawTownBackground();
         drawTownSidewalk();

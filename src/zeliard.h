@@ -29,7 +29,6 @@ extern uint16_t packed_map_ptr_for_hero_x_minus_18;  // For left column
 extern uint16_t packed_map_ptr_for_hero_x_plus_18;   // For right column
 extern uint16_t map_hero_row_start;
 extern void unpack_step_backward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
-extern void unpack_step_forward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
 // ============================================================================
 // Type Definitions
 // ============================================================================

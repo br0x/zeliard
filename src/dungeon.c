@@ -17,6 +17,7 @@
 #define ADDR_PLACE_MAP_ID        0x00C4u
 #define ADDR_HERO_ANIM_PHASE     0x00E7u
 
+// MDT layout
 #define ADDR_MDT                 0xC000u
 #define ADDR_MDT_DESCRIPTOR      0xC000u
 #define ADDR_MAP_WIDTH           0xC002u
@@ -35,12 +36,23 @@
 #define ADDR_PACKED_MAP_END_PTR  0xC019u
 #define ADDR_PACKED_MAP_START    0xC01Bu
 
-#define ADDR_PROXIMITY           0xE000u
+// Dungeon rendering buffers
+#define ADDR_PROXIMITY           0xE000u          // 36*64 bytes
 #define ADDR_VIEWPORT_ENTITIES   0xE900u
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
 #define ADDR_INPUT_DIRS          0xFF17u
 #define ADDR_ENTER_KEYS          0xFF18u
+
+#define DUNGEON_FULL_MAP_ADDR    0x30000u         // full map buffer
+#define PROX_COLS                36
+#define DUNGEON_HEIGHT           64
+#define VIEW_COLS_DUNGEON        28
+#define VIEW_ROWS_DUNGEON        18
+#define HERO_VIEW_COL            14               // hero x in viewport (columns)
+#define HERO_PROX_COL            18               // hero x in proximity (columns)
+
+// Input / frame
 #define ADDR_FRAME_TIMER         0xFF1Au
 #define ADDR_SPACEBAR_LATCH      0xFF1Du
 #define ADDR_SOUND_FX_REQUEST    0xFF75u
@@ -54,14 +66,6 @@
 
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFCu
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFDu
-
-#define DUNGEON_FULL_MAP_ADDR    0x30000u
-#define DUNGEON_HEIGHT           64u
-#define PROX_COLS                36u
-#define VIEW_COLS_DUNGEON        28u
-#define VIEW_ROWS_DUNGEON        18u
-#define HERO_VIEW_COL            14u
-#define HERO_PROX_COL            18u
 #define MAX_MDT_BYTES            0x4000u
 
 struct DungeonMonster {
@@ -84,38 +88,116 @@ struct DungeonMonster {
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
 
-static uint16_t rd16(uint16_t addr)
-{
-    return (uint16_t)(MEM8(addr) | ((uint16_t)MEM8(addr + 1) << 8));
-}
-
-static void wr16(uint16_t addr, uint16_t value)
-{
-    MEM8(addr) = (uint8_t)value;
-    MEM8(addr + 1) = (uint8_t)(value >> 8);
-}
-
 static uint16_t ptr_to_off(uint16_t ptr)
 {
     return ptr >= ADDR_MDT ? (uint16_t)(ptr - ADDR_MDT) : ptr;
 }
 
-static uint8_t full_map_get(uint16_t x, uint8_t y)
+
+// ----------------------------------------------------------------------
+// RLE unpack helpers (forward only, used to build full map)
+// ----------------------------------------------------------------------
+static void unpack_step_forward(uint16_t *si, uint8_t *rep, uint8_t *tile)
 {
-    if (!dungeon_map_width) return 0;
-    x = (uint16_t)(x % dungeon_map_width);
-    y &= 0x3F;
-    return g_mem[DUNGEON_FULL_MAP_ADDR + (uint32_t)x * DUNGEON_HEIGHT + y];
+    uint8_t b = MEM8(*si);
+    uint8_t op = b >> 6;
+    if (op == 0) {
+        *rep = (b & 0x3F) + 1;
+        (*si)++;
+        *tile = MEM8(*si);
+    } else if (op == 1) {
+        *rep = ((b >> 4) & 3) + 2;
+        *tile = (b & 0x0F) + 1;
+    } else if (op == 2) {
+        *rep = b & 0x3F;
+        *tile = 0;
+        if (*rep == 0) {
+            (*si)++;
+            return;
+        }
+    } else { // op == 3
+        *rep = 1;
+        *tile = b & 0x3F;
+    }
+    (*si)++;
 }
 
-static void full_map_set(uint16_t x, uint8_t y, uint8_t tile)
+static void unpack_column_forward(uint16_t *si, uint8_t col, uint8_t *full_map, uint16_t map_width)
 {
-    if (!dungeon_map_width) return;
-    x = (uint16_t)(x % dungeon_map_width);
-    y &= 0x3F;
-    g_mem[DUNGEON_FULL_MAP_ADDR + (uint32_t)x * DUNGEON_HEIGHT + y] = tile;
+    uint8_t row = 0;
+    while (row < DUNGEON_HEIGHT) {
+        uint8_t rep, tile;
+        unpack_step_forward(si, &rep, &tile);
+        for (uint8_t i = 0; i < rep && row < DUNGEON_HEIGHT; i++) {
+            full_map[(uint32_t)col * DUNGEON_HEIGHT + row] = tile;
+            row++;
+        }
+    }
 }
 
+// Unpack entire map from MDT packed data into full_map buffer
+static void unpack_full_map(uint16_t map_width, uint8_t *full_map)
+{
+    uint16_t si = ADDR_PACKED_MAP_START;
+    memset(full_map, 0, (uint32_t)map_width * DUNGEON_HEIGHT);
+
+    for (uint16_t col = 0; col < map_width; col++) {
+        unpack_column_forward(&si, col, full_map, map_width);
+    }
+}
+
+// ----------------------------------------------------------------------
+// Proximity window management (copy columns from full map)
+// ----------------------------------------------------------------------
+static void copy_proximity_column(uint16_t src_col, uint8_t prox_col)
+{
+    uint32_t src_base = DUNGEON_FULL_MAP_ADDR + (uint32_t)src_col * DUNGEON_HEIGHT;
+    uint16_t dst_base = ADDR_PROXIMITY + prox_col * DUNGEON_HEIGHT;
+    memcpy(&g_mem[dst_base], &g_mem[src_base], DUNGEON_HEIGHT);
+}
+
+static void copy_proximity_window(uint16_t left_col)
+{
+    for (uint8_t col = 0; col < PROX_COLS; col++) {
+        uint16_t src_col = (uint16_t)(left_col + col);
+        if (src_col >= MEM16(ADDR_MAP_WIDTH)) src_col -= MEM16(ADDR_MAP_WIDTH);
+        copy_proximity_column(src_col, col);
+    }
+}
+
+// Shift proximity map columns right (when moving left) and fill new left column
+static void proximity_scroll_right(uint16_t new_left_col)
+{
+    // Shift columns right by 1 (backward copy)
+    uint16_t src = ADDR_PROXIMITY + (PROX_COLS - 2) * DUNGEON_HEIGHT;
+    uint16_t dst = ADDR_PROXIMITY + (PROX_COLS - 1) * DUNGEON_HEIGHT;
+    for (uint8_t i = PROX_COLS - 1; i > 0; i--) {
+        memmove(&g_mem[dst], &g_mem[src], DUNGEON_HEIGHT);
+        src -= DUNGEON_HEIGHT;
+        dst -= DUNGEON_HEIGHT;
+    }
+    // Fill new leftmost column
+    copy_proximity_column(new_left_col, 0);
+}
+
+// Shift proximity map columns left (when moving right) and fill new right column
+static void proximity_scroll_left(uint16_t new_right_col)
+{
+    // Shift columns left by 1 (forward copy)
+    uint16_t src = ADDR_PROXIMITY + DUNGEON_HEIGHT;
+    uint16_t dst = ADDR_PROXIMITY;
+    for (uint8_t i = 0; i < PROX_COLS - 1; i++) {
+        memmove(&g_mem[dst], &g_mem[src], DUNGEON_HEIGHT);
+        src += DUNGEON_HEIGHT;
+        dst += DUNGEON_HEIGHT;
+    }
+    // Fill new rightmost column
+    copy_proximity_column(new_right_col, PROX_COLS - 1);
+}
+
+// ----------------------------------------------------------------------
+// Hero movement and collision (simplified for WASM)
+// ----------------------------------------------------------------------
 static int is_passable_tile(uint8_t tile)
 {
     static const uint8_t passable[] = {
@@ -131,90 +213,57 @@ static int is_passable_tile(uint8_t tile)
     return 0;
 }
 
+static uint8_t get_tile_at(uint16_t x, uint8_t y)
+{
+    if (x >= MEM16(ADDR_MAP_WIDTH)) return 0xFF;
+    if (y >= DUNGEON_HEIGHT) return 0xFF;
+    uint32_t addr = DUNGEON_FULL_MAP_ADDR + (uint32_t)x * DUNGEON_HEIGHT + y;
+    return g_mem[addr];
+}
+
 int dungeon_can_stand_at(uint16_t x, uint8_t y)
 {
     if (y >= DUNGEON_HEIGHT - 1) return 0;
-    uint8_t body = full_map_get(x, y);
-    uint8_t feet = full_map_get(x, (uint8_t)(y + 1));
-    return is_passable_tile(body) && is_passable_tile(feet);
+    return is_passable_tile(get_tile_at(x, y)) &&
+           is_passable_tile(get_tile_at(x, (uint8_t)(y + 1)));
 }
 
-static void unpack_full_map(void)
-{
-    uint16_t si = ADDR_PACKED_MAP_START;
-    memset(&g_mem[DUNGEON_FULL_MAP_ADDR], 0, (uint32_t)dungeon_map_width * DUNGEON_HEIGHT);
+// static void refresh_proximity_map(void)
+// {
+//     uint16_t left = MEM16(ADDR_HERO_PROX_LEFT);
 
-    for (uint16_t col = 0; col < dungeon_map_width; col++) {
-        uint8_t row = 0;
-        while (row < DUNGEON_HEIGHT && si < MAX_MDT_BYTES) {
-            uint8_t b = MEM8(si);
-            uint8_t op = b >> 6;
-            uint8_t rep = 1;
-            uint8_t tile = 0;
+//     for (uint16_t col = 0; col < PROX_COLS; col++) {
+//         uint16_t map_x = (uint16_t)(left + col);
+//         for (uint8_t row = 0; row < DUNGEON_HEIGHT; row++) {
+//             MEM8(ADDR_PROXIMITY + col * DUNGEON_HEIGHT + row) = full_map_get(map_x, row);
+//         }
+//     }
+// }
 
-            if (op == 0) {
-                rep = (uint8_t)(b + 1);
-                si++;
-                tile = MEM8(si);
-            } else if (op == 1) {
-                rep = (uint8_t)(((b >> 4) & 3) + 2);
-                tile = (uint8_t)((b & 0x0F) + 1);
-            } else if (op == 2) {
-                rep = (uint8_t)(b & 0x3F);
-                tile = 0;
-                if (rep == 0) {
-                    si++;
-                    continue;
-                }
-            } else {
-                tile = (uint8_t)(b & 0x3F);
-                rep = 1;
-            }
+// static void refresh_viewport_entities(void)
+// {
+//     memset(&g_mem[ADDR_VIEWPORT_ENTITIES], 0, VIEW_COLS_DUNGEON * (VIEW_ROWS_DUNGEON + 1));
 
-            si++;
-            for (uint8_t i = 0; i < rep && row < DUNGEON_HEIGHT; i++) {
-                full_map_set(col, row++, tile);
-            }
-        }
-    }
-}
+//     uint16_t left = (uint16_t)(MEM16(ADDR_HERO_PROX_LEFT) + 4);
+//     uint8_t top = MEM8(ADDR_DUNGEON_VIEW_TOP);
+//     uint16_t table = rd16(ADDR_MDT + 0x10);
+//     uint16_t off = ptr_to_off(table);
+//     dungeon_entity_count = 0;
 
-static void refresh_proximity_map(void)
-{
-    uint16_t left = MEM16(ADDR_HERO_PROX_LEFT);
+//     while (off + sizeof(DungeonMonster) <= MAX_MDT_BYTES) {
+//         DungeonMonster *m = (DungeonMonster *)&g_mem[ADDR_MDT + off];
+//         if (m->curr_x == 0xFFFF) break;
+//         dungeon_entity_count++;
 
-    for (uint16_t col = 0; col < PROX_COLS; col++) {
-        uint16_t map_x = (uint16_t)(left + col);
-        for (uint8_t row = 0; row < DUNGEON_HEIGHT; row++) {
-            MEM8(ADDR_PROXIMITY + col * DUNGEON_HEIGHT + row) = full_map_get(map_x, row);
-        }
-    }
-}
-
-static void refresh_viewport_entities(void)
-{
-    memset(&g_mem[ADDR_VIEWPORT_ENTITIES], 0, VIEW_COLS_DUNGEON * (VIEW_ROWS_DUNGEON + 1));
-
-    uint16_t left = (uint16_t)(MEM16(ADDR_HERO_PROX_LEFT) + 4);
-    uint8_t top = MEM8(ADDR_DUNGEON_VIEW_TOP);
-    uint16_t table = rd16(ADDR_MDT + 0x10);
-    uint16_t off = ptr_to_off(table);
-    dungeon_entity_count = 0;
-
-    while (off + sizeof(DungeonMonster) <= MAX_MDT_BYTES) {
-        DungeonMonster *m = (DungeonMonster *)&g_mem[ADDR_MDT + off];
-        if (m->curr_x == 0xFFFF) break;
-        dungeon_entity_count++;
-
-        if (m->curr_x >= left && m->curr_x < left + VIEW_COLS_DUNGEON &&
-            m->curr_y >= top && m->curr_y < top + VIEW_ROWS_DUNGEON) {
-            uint8_t vx = (uint8_t)(m->curr_x - left);
-            uint8_t vy = (uint8_t)(m->curr_y - top);
-            MEM8(ADDR_VIEWPORT_ENTITIES + vy * VIEW_COLS_DUNGEON + vx) = (uint8_t)dungeon_entity_count;
-        }
-        off = (uint16_t)(off + sizeof(DungeonMonster));
-    }
-}
+//         if (m->curr_x >= left && m->curr_x < left + VIEW_COLS_DUNGEON &&
+//             m->curr_y >= top && m->curr_y < top + VIEW_ROWS_DUNGEON) {
+//             uint8_t vx = (uint8_t)(m->curr_x - left);
+//             uint8_t vy = (uint8_t)(m->curr_y - top);
+//             MEM8(ADDR_VIEWPORT_ENTITIES + vy * VIEW_COLS_DUNGEON + vx) = (uint8_t)dungeon_entity_count;
+//         }
+//         off = (uint16_t)(off + sizeof(DungeonMonster));
+//     }
+// }
 
 static uint16_t hero_abs_x(void)
 {
@@ -223,9 +272,11 @@ static uint16_t hero_abs_x(void)
 
 static void set_hero_abs_x(uint16_t x)
 {
-    if (!dungeon_map_width) return;
-    x = (uint16_t)(x % dungeon_map_width);
-    wr16(ADDR_HERO_PROX_LEFT, (uint16_t)(x - HERO_PROX_COL));
+    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
+    if (map_width == 0) return;
+    x %= map_width;
+    uint16_t left = (uint16_t)(x - HERO_PROX_COL);
+    MEM16(ADDR_HERO_PROX_LEFT) = left;
     MEM8(ADDR_HERO_X_VIEW) = HERO_VIEW_COL;
 }
 
@@ -243,40 +294,90 @@ static void update_view_top(void)
 
 static void update_hero(void)
 {
-    uint8_t dirs = MEM8(ADDR_INPUT_DIRS);
-    uint8_t alt_space = MEM8(ADDR_INPUT_ALT_SPACE);
-    uint16_t x = hero_abs_x();
+    uint8_t dirs = MEM8(ADDR_INPUT_DIRS);          // right/left/down/up bits
+    uint8_t alt_space = MEM8(ADDR_INPUT_ALT_SPACE);     // alt/space bits
+    uint16_t x = MEM16(ADDR_HERO_PROX_LEFT) + HERO_PROX_COL;
     uint8_t y = MEM8(ADDR_HERO_Y);
     uint8_t moved = 0;
+    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
 
-    if (dirs & 0x04) {
-        uint16_t nx = (uint16_t)(x - 1);
-        if (dungeon_can_stand_at(nx, y)) {
-            x = nx;
-            MEM8(ADDR_FACING) = 1;
-            moved = 1;
+    // Left / Right movement with viewport scrolling
+    if (dirs & 0x04) {                    // left
+        uint8_t vp_x = MEM8(ADDR_HERO_X_VIEW);
+        if (vp_x > 0) {
+            // normal movement without scrolling
+            uint16_t new_x = (uint16_t)(x - 1 + map_width) % map_width;
+            if (dungeon_can_stand_at(new_x, y)) {
+                set_hero_abs_x(new_x);
+                moved = 1;
+                MEM8(ADDR_FACING) = 1;    // face left
+            }
+        } else {
+            // try to scroll proximity map left
+            uint16_t left = MEM16(ADDR_HERO_PROX_LEFT);
+            if (left > 0) {
+                left--;
+                MEM16(ADDR_HERO_PROX_LEFT) = left;
+                uint16_t new_left_col = left;
+                proximity_scroll_right(new_left_col);
+                // hero x in viewport stays 0 (now at left edge)
+                moved = 1;
+                MEM8(ADDR_FACING) = 1;
+            } else {
+                // edge of map, cannot scroll, normal movement if possible
+                uint16_t new_x = (uint16_t)(x - 1 + map_width) % map_width;
+                if (dungeon_can_stand_at(new_x, y)) {
+                    set_hero_abs_x(new_x);
+                    moved = 1;
+                    MEM8(ADDR_FACING) = 1;
+                }
+            }
         }
-    } else if (dirs & 0x08) {
-        uint16_t nx = (uint16_t)(x + 1);
-        if (dungeon_can_stand_at(nx, y)) {
-            x = nx;
-            MEM8(ADDR_FACING) = 0;
-            moved = 1;
+    } else if (dirs & 0x08) {             // right
+        uint8_t vp_x = MEM8(ADDR_HERO_X_VIEW);
+        if (vp_x < 27) {
+            uint16_t new_x = (x + 1) % map_width;
+            if (dungeon_can_stand_at(new_x, y)) {
+                set_hero_abs_x(new_x);
+                moved = 1;
+                MEM8(ADDR_FACING) = 0;    // face right
+            }
+        } else {
+            uint16_t left = MEM16(ADDR_HERO_PROX_LEFT);
+            uint16_t max_left = (uint16_t)(map_width - PROX_COLS);
+            if (left < max_left) {
+                left++;
+                MEM16(ADDR_HERO_PROX_LEFT) = left;
+                uint16_t new_right_col = (uint16_t)(left + PROX_COLS - 1);
+                if (new_right_col >= map_width) new_right_col -= map_width;
+                proximity_scroll_left(new_right_col);
+                moved = 1;
+                MEM8(ADDR_FACING) = 0;
+            } else {
+                uint16_t new_x = (x + 1) % map_width;
+                if (dungeon_can_stand_at(new_x, y)) {
+                    set_hero_abs_x(new_x);
+                    moved = 1;
+                    MEM8(ADDR_FACING) = 0;
+                }
+            }
         }
     }
 
-    if (dirs & 0x01) {
+    // Up / Down movement
+    if (dirs & 0x01) {                    // up
         if (y > 0 && dungeon_can_stand_at(x, (uint8_t)(y - 1))) {
             y--;
             moved = 1;
         }
-    } else if (dirs & 0x02) {
-        if (y < DUNGEON_HEIGHT - 2 && dungeon_can_stand_at(x, (uint8_t)(y + 1))) {
+    } else if (dirs & 0x02) {             // down
+        if (y < DUNGEON_HEIGHT - 1 && dungeon_can_stand_at(x, (uint8_t)(y + 1))) {
             y++;
             moved = 1;
         }
     }
 
+    // Sword swing (space/alt)
     if ((alt_space & 0x01) || MEM8(ADDR_SPACEBAR_LATCH)) {
         if (MEM8(ADDR_DUNGEON_SWING_TMR) == 0 && MEM8(ADDR_SWORD_TYPE) != 0) {
             MEM8(ADDR_DUNGEON_SWING_TMR) = 18;
@@ -285,9 +386,9 @@ static void update_hero(void)
         MEM8(ADDR_SPACEBAR_LATCH) = 0;
     }
 
-    set_hero_abs_x(x);
     MEM8(ADDR_HERO_Y) = y;
     MEM8(ADDR_HERO_ANIM_PHASE) = moved ? (uint8_t)((MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 3) : 0x80;
+    update_view_top();
 }
 
 static void update_sword(void)
@@ -305,7 +406,7 @@ static void update_sword(void)
 
 static void update_monsters(void)
 {
-    uint16_t table = rd16(ADDR_MDT + 0x10);
+    uint16_t table = MEM16(ADDR_MDT + 0x10);
     uint16_t off = ptr_to_off(table);
     uint16_t hx = hero_abs_x();
     uint8_t hy = MEM8(ADDR_HERO_Y);
@@ -322,18 +423,18 @@ static void check_doors(void)
 {
     if (!(MEM8(ADDR_INPUT_DIRS) & 0x01)) return;
 
-    uint16_t table = rd16(ADDR_MDT + 0x0A);
+    uint16_t table = MEM16(ADDR_MDT + 0x0A);
     uint16_t off = ptr_to_off(table);
     uint16_t hx = hero_abs_x();
     uint8_t hy = MEM8(ADDR_HERO_Y);
 
     while (off + 12 <= MAX_MDT_BYTES) {
-        uint16_t x0 = rd16(ADDR_MDT + off);
+        uint16_t x0 = MEM16(ADDR_MDT + off);
         if (x0 == 0xFFFF) break;
         uint8_t y0 = MEM8(ADDR_MDT + off + 2);
         uint8_t map_id = MEM8(ADDR_MDT + off + 4);
-        uint16_t x1 = rd16(ADDR_MDT + off + 5);
-        uint16_t y1 = rd16(ADDR_MDT + off + 7);
+        uint16_t x1 = MEM16(ADDR_MDT + off + 5);
+        uint16_t y1 = MEM16(ADDR_MDT + off + 7);
 
         if (hx >= x0 - 1 && hx <= x0 + 1 && hy >= y0 - 1 && hy <= y0 + 2) {
             if (y1 == 0x00FF) {
@@ -349,25 +450,33 @@ static void check_doors(void)
     }
 }
 
+// ----------------------------------------------------------------------
+// Exported WASM functions
+// ----------------------------------------------------------------------
 void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction)
 {
-    dungeon_map_width = rd16(ADDR_MDT + 0x02);
-    unpack_full_map();
+    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
+    if (map_width == 0) return;
+
+    // Unpack full map into DUNGEON_FULL_MAP_ADDR
+    unpack_full_map(map_width, &g_mem[DUNGEON_FULL_MAP_ADDR]);
+
+    // Set initial proximity window
+    uint16_t left = (uint16_t)(spawn_x - HERO_PROX_COL);
+    MEM16(ADDR_HERO_PROX_LEFT) = left;
+    MEM8(ADDR_HERO_X_VIEW) = HERO_VIEW_COL;
+    MEM8(ADDR_HERO_Y) = spawn_y;
+    MEM8(ADDR_FACING) = direction ? 1 : 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+
+    copy_proximity_window(left);
+    update_view_top();
 
     MEM8(ADDR_DUNGEON_ACTIVE) = 1;
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
     MEM8(ADDR_DUNGEON_SWING_TMR) = 0;
     MEM8(ADDR_DUNGEON_SWING_FRAME) = 0xFF;
-    MEM8(ADDR_PLACE_MAP_ID) = (uint8_t)(map_id | 0x80);
-    MEM8(ADDR_FACING) = direction ? 1 : 0;
-    MEM8(ADDR_HERO_X_VIEW) = HERO_VIEW_COL;
-
-    set_hero_abs_x(spawn_x);
-    MEM8(ADDR_HERO_Y) = spawn_y;
-    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
-    update_view_top();
-    refresh_proximity_map();
-    refresh_viewport_entities();
+    MEM8(ADDR_PLACE_MAP_ID) = map_id;
 }
 
 void wasm_dungeon_update(void)
@@ -379,8 +488,8 @@ void wasm_dungeon_update(void)
     check_doors();
     update_monsters();
     update_view_top();
-    refresh_proximity_map();
-    refresh_viewport_entities();
+    // refresh_proximity_map();
+    // refresh_viewport_entities();
     MEM8(ADDR_FRAME_TIMER) = 0;
 }
 
@@ -391,7 +500,7 @@ void wasm_dungeon_full_tick(void)
 
 uint32_t wasm_dungeon_get_full_map_ptr(void) { return DUNGEON_FULL_MAP_ADDR; }
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_DUNGEON_VIEW_TOP); }
-uint16_t wasm_dungeon_get_entity_table(void) { return rd16(ADDR_MDT + 0x10); }
+uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAME); }
 uint8_t wasm_dungeon_get_exit_flag(void) { return MEM8(ADDR_DUNGEON_EXIT_FLAG); }
