@@ -2118,6 +2118,7 @@ loc_6D13:
                 lodsb
                 and     ah, 0FEh
                 jz      short town_transition_from_right
+                ; some towns at the map edge transit to the dungeon
                 jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
@@ -2299,6 +2300,7 @@ door_x_coord_match:
 loc_6E77:   
                 sub     al, 8
                 jb      short loc_6E7E  ; in-town buildings
+                ; td_dest_id >=8 -> dungeon transition
                 jmp     dungeon_transition
 ; ---------------------------------------------------------------------------
 
@@ -2421,9 +2423,9 @@ dungeon_transition:
                 mul     bl
                 add     ax, ds:dungeon_entrance_table ; 0+C700=c700
                 mov     si, ax
-                lodsw                   ; 003d = 61 hero absolute x in the target map
+                lodsw                   ; 003d = 61 ; hero absolute x in the target map
                 push    ax
-                lodsb                   ; 07  hero head y in the target map
+                lodsb                   ; 07 ; hero head y in the target map
                 sub     al, 10          ; -3 = fd
                 and     al, 3Fh         ; wrap y => 3d = 61
                 mov     byte ptr ds:viewport_top_row_y, al ; viewport y_top
@@ -2436,7 +2438,7 @@ dungeon_transition:
                 mov     ah, al          ; 0 => mp10.mdt
                 mov     al, 1           ; fn1_load_mdt_idx_ah
                 call    cs:res_dispatcher_proc ; res_dispatcher
-                pop     ax              ; 003d
+                pop     ax              ; hero absolute x in the target map
                 add     ax, -16         ; proximity_map_left_col_x in absolute map coords
                 jns     short loc_702B
                 add     ax, ds:mapWidth

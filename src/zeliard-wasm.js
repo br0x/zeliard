@@ -1344,31 +1344,7 @@ export function townFinishBuilding() {
     wasmExports?.wasm_town_building_finish?.();
 }
 
-export function getPendingDungeonFlag() {
-    if (wasmExports?.wasm_get_pending_dungeon_flag) {
-        return wasmExports.wasm_get_pending_dungeon_flag();
-    }
-    if (!wasmMemory) return 0;
-    return wasmMemory[gMemoryBase + 0xFFFD];
-}
-
-export function getPendingDungeonMap() {
-    if (wasmExports?.wasm_get_pending_dungeon_map) {
-        return wasmExports.wasm_get_pending_dungeon_map();
-    }
-    if (!wasmMemory) return 0;
-    return wasmMemory[gMemoryBase + 0xFFFC];
-}
-
-export function clearPendingDungeon() {
-    if (wasmExports?.wasm_clear_pending_dungeon) {
-        wasmExports.wasm_clear_pending_dungeon();
-    } else if (wasmMemory) {
-        wasmMemory[gMemoryBase + 0xFFFD] = 0;
-    }
-}
-
-export function dungeonInit(mapId, spawnX = 0xFFFF, spawnY = 0xFF, direction = 1) {
+export function dungeonInit(mapId, spawnX, spawnY, direction) {
     wasmExports?.wasm_dungeon_init?.(mapId, spawnX, spawnY, direction);
 }
 

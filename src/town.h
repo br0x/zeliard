@@ -109,7 +109,6 @@ typedef struct {
 
     /* Far-jump targets (replace jmp cs:word_A000/A004) */
     void (*jump_word_a004)(void);            /* sage resurrection */
-    void (*transition_to_dungeon)(uint8_t map_id);
     void (*jump_exit_far)(uint16_t ax);      /* fn_exit_far_ptr */
     void (*jump_game_bin_entry)(uint16_t ax);
 

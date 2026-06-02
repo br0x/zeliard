@@ -4721,6 +4721,7 @@ loc_7CF4:
                 mov     ah, al
                 and     al, 1              ; 0 ? town : dungeon
                 jz      short loc_7D64
+                ; dungeon init
                 call    load_cavern_sprites_ai_music ; load dchr.grp
                                         ; load mpp{mpp_grp_index}.grp
                                         ; load eai{eai_bin_index}.bin

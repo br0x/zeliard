@@ -323,7 +323,7 @@ static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
 static void handle_edge_screen_transition(void);
 static void town_up_pressed(void);
-static void request_dungeon_transition(uint8_t dest_map);
+static void request_dungeon_transition();
 static void hero_spacebar_interaction(void);
 static void check_special_npc_conversation(void);
 static void start_npc_conversation(uint16_t si_addr);
@@ -1518,7 +1518,8 @@ static void handle_edge_screen_transition(void)
     uint8_t pat_new  = MEM8(si + 3);
 
     if (flags & 0xFE) {
-        request_dungeon_transition(dest_map);
+        // some towns at the map edge transit to the dungeon
+        request_dungeon_transition();
         return;
     }
 
@@ -1545,15 +1546,12 @@ static void handle_edge_screen_transition(void)
      * JS detects ADDR_PENDING_TRANSITION_FLAG and drives the rest. */
 }
 
-static void request_dungeon_transition(uint8_t dest_map)
+static void request_dungeon_transition()
 {
-    if (g_town_procs.transition_to_dungeon) {
-        g_town_procs.transition_to_dungeon(dest_map);
-        return;
-    }
-
-    MEM8(ADDR_PLACE_MAP_ID) = (uint8_t)(dest_map | 0x80);
-    MEM8(ADDR_PENDING_DUNGEON_MAP) = dest_map;
+    int16_t tbl = MEM16(ADDR_DUNGEON_ENTRANCE_TABLE);
+    int8_t place_map_id = (MEM8(tbl + 4)) & 0x7F;
+    MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
+    MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
     MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
     SPACEBAR = 0;
     ALTKEY = 0;
@@ -1644,7 +1642,7 @@ static void town_up_pressed(void)
     }
 
     if (dest_id >= 8) {
-        request_dungeon_transition(dest_id);
+        request_dungeon_transition();
         return;
     }
 

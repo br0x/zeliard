@@ -7,10 +7,6 @@
 #define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 
-#define ADDR_MDT                 0xC000u
-#define ADDR_PROXIMITY           0xE000u
-#define ADDR_VIEWPORT_ENTITIES   0xE900u
-
 #define ADDR_HERO_PROX_LEFT      0x0080u
 #define ADDR_HERO_Y              0x0082u
 #define ADDR_HERO_X_VIEW         0x0083u
@@ -20,6 +16,27 @@
 #define ADDR_FACING              0x00C2u
 #define ADDR_PLACE_MAP_ID        0x00C4u
 #define ADDR_HERO_ANIM_PHASE     0x00E7u
+
+#define ADDR_MDT                 0xC000u
+#define ADDR_MDT_DESCRIPTOR      0xC000u
+#define ADDR_MAP_WIDTH           0xC002u
+#define ADDR_VERTICAL_PLATFORMS_TABLE 0xC004u
+#define ADDR_COLLAPSING_PLATFORMS_TABLE 0xC006u
+#define ADDR_HORIZ_PLATFORMS_TABLE 0xC008u
+#define ADDR_DOORS_TABLE         0xC00Au
+#define ADDR_ACHIEVEMENTS_TABLE  0xC00Cu
+#define ADDR_CAVERN_NAME_INFO    0xC00Eu
+#define ADDR_MONSTERS_TABLE      0xC010u
+#define ADDR_CAVERN_LEVEL        0xC012u
+#define ADDR_TEAR_X              0xC013u
+#define ADDR_TEAR_Y              0xC015u
+#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016u
+#define ADDR_CAVERN_SIGNS_INFO   0xC017u
+#define ADDR_PACKED_MAP_END_PTR  0xC019u
+#define ADDR_PACKED_MAP_START    0xC01Bu
+
+#define ADDR_PROXIMITY           0xE000u
+#define ADDR_VIEWPORT_ENTITIES   0xE900u
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
 #define ADDR_INPUT_DIRS          0xFF17u
@@ -124,13 +141,13 @@ int dungeon_can_stand_at(uint16_t x, uint8_t y)
 
 static void unpack_full_map(void)
 {
-    uint16_t si = 0x001B;
+    uint16_t si = ADDR_PACKED_MAP_START;
     memset(&g_mem[DUNGEON_FULL_MAP_ADDR], 0, (uint32_t)dungeon_map_width * DUNGEON_HEIGHT);
 
     for (uint16_t col = 0; col < dungeon_map_width; col++) {
         uint8_t row = 0;
         while (row < DUNGEON_HEIGHT && si < MAX_MDT_BYTES) {
-            uint8_t b = MEM8(ADDR_MDT + si);
+            uint8_t b = MEM8(si);
             uint8_t op = b >> 6;
             uint8_t rep = 1;
             uint8_t tile = 0;
@@ -138,7 +155,7 @@ static void unpack_full_map(void)
             if (op == 0) {
                 rep = (uint8_t)(b + 1);
                 si++;
-                tile = MEM8(ADDR_MDT + si);
+                tile = MEM8(si);
             } else if (op == 1) {
                 rep = (uint8_t)(((b >> 4) & 3) + 2);
                 tile = (uint8_t)((b & 0x0F) + 1);
@@ -335,12 +352,7 @@ static void check_doors(void)
 void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction)
 {
     dungeon_map_width = rd16(ADDR_MDT + 0x02);
-    if (dungeon_map_width == 0 || dungeon_map_width > 1024) dungeon_map_width = 240;
-
     unpack_full_map();
-
-    if (spawn_x == 0xFFFF) spawn_x = 0x3D;
-    if (spawn_y == 0xFF) spawn_y = 6;
 
     MEM8(ADDR_DUNGEON_ACTIVE) = 1;
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
@@ -385,10 +397,6 @@ uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAM
 uint8_t wasm_dungeon_get_exit_flag(void) { return MEM8(ADDR_DUNGEON_EXIT_FLAG); }
 uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_DUNGEON_EXIT_MAP); }
 void wasm_dungeon_clear_exit(void) { MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0; }
-
-uint8_t wasm_get_pending_dungeon_flag(void) { return MEM8(ADDR_PENDING_DUNGEON_FLAG); }
-uint8_t wasm_get_pending_dungeon_map(void) { return MEM8(ADDR_PENDING_DUNGEON_MAP); }
-void wasm_clear_pending_dungeon(void) { MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0; }
 
 int wasm_load_mdt(const uint8_t *mdt_data, uint32_t mdt_size)
 {

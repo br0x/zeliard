@@ -13,6 +13,13 @@ TOWN_DOOR STRUC
   td_dest_id    db   ? ; 2; 0=king, 1=princess, 2=sage, 3=weapon, 4=magic, 5=church, 6=bank, 7=inn, 8=cavern; ff=terminator
 TOWN_DOOR ENDS
 
+DUNGEON_ENTRANCE STRUC
+  de_target_x   dw   ? ; 0 ; hero absolute x in the target map
+  de_target_y   db   ? ; 2 ; hero head y in the target map
+  de_is_roka_left db   ? ; 3 ; bit 0: 0=right, 1=left (direction of run in rokademo)
+  de_map_id     db   ? ; 4 ; 0 = cavern Malicia, ...
+
+DUNGEON_ENTRANCE ENDS
 ; Following group of definitions share the same space as gfmcga.bin, 
 ; so they are in separate include files
 

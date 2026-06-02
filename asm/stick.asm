@@ -1404,7 +1404,7 @@ res_dispatcher  endp
 
 ; ---------------------------------------------------------------------------
                         ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-func_selector   dw offset fn1_load_mdt_idx_ah ; ...
+func_selector   dw offset fn1_load_mdt_idx_ah ; loads packed MDT to mdt_buffer at 0xC000
                 dw offset fn2_segmented_load
                 dw offset fn3_read_virtual_file ; load binary resource to dest buffer
                 dw offset fn4_load_sword_graphics ; AH: sword id (0..6)

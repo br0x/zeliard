@@ -20,8 +20,7 @@ EMFLAGS = \
 "_wasm_set_scroll_floor_left_8px","_wasm_set_scroll_ceiling_right_4px","_wasm_set_scroll_ceiling_left_4px",\
 "_wasm_town_complete_transition","_wasm_get_pending_transition_map",\
 "_wasm_get_pending_transition_pat","_wasm_get_pending_transition_dir","_wasm_town_conversation_finish",\
-"_wasm_town_building_finish","_wasm_get_pending_dungeon_flag","_wasm_get_pending_dungeon_map",\
-"_wasm_clear_pending_dungeon","_wasm_dungeon_init","_wasm_dungeon_update","_wasm_dungeon_full_tick",\
+"_wasm_town_building_finish","_wasm_dungeon_init","_wasm_dungeon_update","_wasm_dungeon_full_tick",\
 "_wasm_dungeon_get_full_map_ptr","_wasm_dungeon_get_viewport_top","_wasm_dungeon_get_entity_table",\
 "_wasm_dungeon_get_entity_count","_wasm_dungeon_get_sword_frame","_wasm_dungeon_get_exit_flag",\
 "_wasm_dungeon_get_exit_map","_wasm_dungeon_clear_exit"]' \

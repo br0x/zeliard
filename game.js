@@ -134,6 +134,7 @@ const NPC_FRAMES   = 8;           // frames per sheet
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
+const ADDR_PROXIMITY_MAP_LEFT_COL_X = 0x80;
 const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
 const ADDR_HERO_ALMAS = 0x8b;
@@ -151,15 +152,17 @@ const ADDR_HERO_HP       = 0x90;
 const ADDR_HERO_MAX_HP   = 0xB2;
 const ADDR_PLACE_MAP_ID  = 0xC4;
 
-const ADDR_NPC_ARRAY_PTR       = 0xC00F;
 const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
+const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
+const ADDR_NPC_ARRAY_PTR       = 0xC00F;
 const ADDR_FRAME_TIMER = 0xFF1A;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
 const ADDR_BUILDING_ACTIVE = 0xFFFA;
 const ADDR_BUILDING_DEST_ID = 0xFFFB;
-
+const ADDR_PENDING_DUNGEON_MAP = 0xFFFC;
+const ADDR_PENDING_DUNGEON_FLAG = 0xFFFD;
 
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
@@ -253,9 +256,6 @@ let townCompleteTransition;
 let townEntryEnablingEdgeScroll;
 let townFinishConversation;
 let townFinishBuilding;
-let getPendingDungeonFlag;
-let getPendingDungeonMap;
-let clearPendingDungeon;
 let dungeonInit;
 let dungeonUpdate;
 let dungeonFullTick;
@@ -421,16 +421,18 @@ function onFullTick() {
                     if (scrollFlag & 0x08) scrollCeilingLeft4px();
                     writeMemory(0xfff0, [0]);
                 }
-                const pendingFlag = getTownPendingTransitionFlag?.();
-                if (pendingFlag === 0xFF) {
+                const pendingTransitionFlag = getTownPendingTransitionFlag?.();
+                if (pendingTransitionFlag === 0xFF) {
                     const transition = getTownPendingTransition?.();
                     if (transition) {
                         writeMemory(ADDR_PENDING_TRANSITION_FLAG, [0]);
                         handleTownTransition(transition);
                     }
                 }
-                if (getPendingDungeonFlag?.() === 0xFF) {
-                    handleDungeonTransition(getPendingDungeonMap?.() ?? 8);
+                const pendingDungeonFlag = readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0];
+                if (pendingDungeonFlag === 0xFF) {
+                    const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
+                    handleDungeonTransition(pendingMap);
                 }
                 checkBuildingRequest();
             }
@@ -852,7 +854,6 @@ async function loadWasmEngine() {
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
-        getPendingDungeonFlag, getPendingDungeonMap, clearPendingDungeon,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
         dungeonGetSwordFrame, dungeonGetExitFlag, dungeonGetExitMap, dungeonClearExit,
@@ -1029,7 +1030,7 @@ function drawNpcs() {
     const ptrBytes = readMemory(ADDR_NPC_ARRAY_PTR, 2);
     const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
     if (!npcArrayAddr) return;
-    const proxLeftBytes = readMemory(0x0080, 2);
+    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, 2);
     const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
     for (let i = 0; i < 64; i++) {
         const base = npcArrayAddr + i * 8;
@@ -1293,7 +1294,14 @@ async function handleDungeonTransition(mapId) {
     dungeonTransitionInProgress = true;
     engineReady = false;
     try {
-        clearPendingDungeon?.();
+        writeMemory(ADDR_PENDING_DUNGEON_FLAG, [0]);
+        const tblBytes = readMemory(ADDR_DUNGEON_ENTRANCE_TABLE, 2);
+        const dungEntranceTableAddr = tblBytes[0] | (tblBytes[1] << 8);
+        const spawnXBytes = readMemory(dungEntranceTableAddr + 0, 2);
+        const spawnX = spawnXBytes[0] | (spawnXBytes[1] << 8);
+        const spawnY = readMemory(dungEntranceTableAddr + 2, 1)[0];
+        const spawnDir = readMemory(dungEntranceTableAddr + 3, 1)[0];
+
         const rawMapId = mapId & 0x7F;
         const mdtPath = DUNGEON_MDTS[rawMapId] ?? CAVERN_MALICIA_MDT_PATH;
         const resp = await fetch(mdtPath);
@@ -1303,7 +1311,7 @@ async function handleDungeonTransition(mapId) {
         mdtHeader = getCavernMdtHeader?.();
         cavernName = getCavernName?.() || 'Cavern of Malicia';
         await loadDungeonAssets();
-        dungeonInit?.(rawMapId, 0xFFFF, 0xFF, 1);
+        dungeonInit?.(rawMapId, spawnX, spawnY, spawnDir);
         gameMode = 'dungeon';
         townEntryRan = false;
         setCurrentMusicTrack('Zeliard-04-CavernOfMalicia');
