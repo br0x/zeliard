@@ -1070,7 +1070,7 @@ function drawDungeonTiles() {
         const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
         for (let row = 0; row < VIEW_ROWS; row++) {
             const mapRow = (top + row) & 0x3F;
-            const tileId = proximity[mapRow * PROX_COLS + proxCol];
+            const tileId = proximity[mapRow + DUNGEON_MAP_HEIGHT * proxCol];
             if (tileId === 0) continue;
 
             const dx = col * TILE_WIDTH;
