@@ -28,7 +28,6 @@ extern uint16_t packed_map_end_ptr;  // Current position in packed map
 extern uint16_t packed_map_ptr_for_hero_x_minus_18;  // For left column
 extern uint16_t packed_map_ptr_for_hero_x_plus_18;   // For right column
 extern uint16_t map_hero_row_start;
-extern void unpack_step_backward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -620,7 +619,6 @@ void physics_update(void);
 
 // Jump physics
 void sub_64BB(void);           // Jump trajectory calculation
-void start_jump(void);         // Initialize jump
 void update_jump_trajectory(void);
 
 // Rope physics
@@ -631,8 +629,6 @@ void climb_down_rope(void);    // Climb down on rope
 int is_over_rope(void);        // Check if over rope tile
 
 // Tile helpers
-int is_rope_tile(uint8_t tile);
-int is_ladder_tile(uint8_t tile);
 int is_walkable_tile(uint8_t tile);
 
 // State accessors

@@ -17,5 +17,12 @@ uint8_t wasm_dungeon_get_exit_map(void);
 
 void dungeon_ai_update_monster(DungeonMonster *m, uint16_t hero_x, uint8_t hero_y);
 int dungeon_can_stand_at(uint16_t x, uint8_t y);
+static uint16_t hero_abs_x(void);
+static void set_hero_abs_x(uint16_t x);
+static uint8_t get_tile_at(uint16_t x, uint8_t y);
+static int is_passable_tile(uint8_t tile);
+static void proximity_scroll_right(uint16_t new_left_col);
+static void proximity_scroll_left(uint16_t new_right_col);
+static void update_view_top(void);
 
 #endif
