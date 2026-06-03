@@ -17,6 +17,8 @@
 #define ADDR_PLACE_MAP_ID        0x00C4u
 #define ADDR_HERO_ANIM_PHASE     0x00E7u
 
+#define ADDR_HERO_X_IN_PROXIMITY_MAP 0x9F1Au // word
+
 // MDT layout
 #define ADDR_MDT                 0xC000u
 #define ADDR_MDT_DESCRIPTOR      0xC000u
@@ -41,7 +43,7 @@
 #define ADDR_VIEWPORT_ENTITIES   0xE900u
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
-#define ADDR_INPUT_DIRS          0xFF17u
+#define ADDR_INPUT_DIRS          0xFF17u  // ____right_left_down_up
 #define ADDR_ENTER_KEYS          0xFF18u
 
 #define DUNGEON_FULL_MAP_ADDR    0x30000u         // full map buffer
@@ -83,6 +85,18 @@ struct DungeonMonster {
     uint8_t spawn_y;
     uint8_t type;
     uint8_t counter;
+};
+
+struct Door {
+    uint16_t x0;
+    uint8_t y0;
+    uint8_t flags;
+    uint8_t dest_map;
+    uint16_t x1;
+    uint8_t y1;
+    uint8_t features;
+    uint16_t save_addr;
+    uint8_t save_mask;
 };
 
 static uint16_t dungeon_map_width;
@@ -423,21 +437,23 @@ static void check_doors(void)
 {
     if (!(MEM8(ADDR_INPUT_DIRS) & 0x01)) return;
 
-    uint16_t table = MEM16(ADDR_MDT + 0x0A);
+    uint16_t table = MEM16(ADDR_MDT + 0x0A); // doors_table_addr
     uint16_t off = ptr_to_off(table);
     uint16_t hx = hero_abs_x();
     uint8_t hy = MEM8(ADDR_HERO_Y);
 
     while (off + 12 <= MAX_MDT_BYTES) {
         uint16_t x0 = MEM16(ADDR_MDT + off);
-        if (x0 == 0xFFFF) break;
+        if (x0 == 0xFFFF) break; // list terminator
         uint8_t y0 = MEM8(ADDR_MDT + off + 2);
         uint8_t map_id = MEM8(ADDR_MDT + off + 4);
         uint16_t x1 = MEM16(ADDR_MDT + off + 5);
-        uint16_t y1 = MEM16(ADDR_MDT + off + 7);
+        uint8_t y1 = MEM8(ADDR_MDT + off + 7);
 
+        // Check if hero overlaps the door (x0-1..x0+1, y0-1..y0+2)
         if (hx >= x0 - 1 && hx <= x0 + 1 && hy >= y0 - 1 && hy <= y0 + 2) {
-            if (y1 == 0x00FF) {
+            MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
+            if (y1 == 0xFF) { // door to town
                 MEM8(ADDR_DUNGEON_EXIT_MAP) = map_id;
                 MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0xFF;
                 return;
@@ -505,7 +521,10 @@ uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAME); }
 uint8_t wasm_dungeon_get_exit_flag(void) { return MEM8(ADDR_DUNGEON_EXIT_FLAG); }
 uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_DUNGEON_EXIT_MAP); }
-void wasm_dungeon_clear_exit(void) { MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0; }
+void wasm_dungeon_clear_exit(void) 
+{ 
+    MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
+}
 
 int wasm_load_mdt(const uint8_t *mdt_data, uint32_t mdt_size)
 {

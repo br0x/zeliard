@@ -330,7 +330,7 @@ loc_61BE:
                 call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
                 pop     ds
                 mov     ds:hero_x_in_proximity_map, 24
-                mov     ds:byte_9F1C, 0Dh
+                mov     ds:door_target_y, 0Dh
                 mov     byte ptr ds:hero_x_in_viewport, 12
                 mov     ds:byte_9F00, 0Ch
                 call    hero_left_16_down_1
@@ -4556,12 +4556,12 @@ loc_7B32:
                 mov     ax, [si+door.x1]
                 mov     ds:hero_x_in_proximity_map, ax
                 mov     al, [si+door.y1]
-                mov     ds:byte_9F1C, al
+                mov     ds:door_target_y, al
                 mov     al, [si+door.d_flags]
                 and     al, 1000000b
                 mov     ds:is_left_run, al
                 mov     al, [si+door.d_features]
-                mov     ds:byte_9F1D, al
+                mov     ds:door_features, al
                 mov     ah, [si+door.d_place_map_id]
                 cmp     [si+door.y1], 0FFh
                 jnz     short skip_if_cavern
@@ -4623,7 +4623,7 @@ loc_7C02:
                 mov     byte ptr ds:hero_hidden_flag, 0
                 mov     ds:byte_9EF5, 0FFh
                 mov     byte ptr ds:projectiles_array, 0FFh
-                test    ds:byte_9F1D, 80h
+                test    ds:door_features, 80h
                 jz      short loc_7C6E
                 mov     si, offset rokademo_bin
                 push    cs
@@ -4801,7 +4801,7 @@ transfer_to_town:
                 call    cs:res_dispatcher_proc
                 pop     bx
                 xor     al, al           ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                jmp     cs:res_dispatcher_proc
+                jmp     cs:res_dispatcher_proc ; on return will jump to the town entry code
 try_door_interaction endp
                  
 
@@ -4817,7 +4817,7 @@ hero_left_16_down_1 proc near
 
 loc_7DCF:        
                 mov     ds:proximity_map_left_col_x, ax
-                mov     al, ds:byte_9F1C
+                mov     al, ds:door_target_y
                 inc     al
                 sub     al, ds:hero_head_y_in_viewport_initial_from_mdt
                 and     al, 3Fh
@@ -4831,30 +4831,29 @@ hero_left_16_down_1 endp
 ; Return:
 ; AX: proximity_map_left_col_x
 ; BL: hero_x_in_viewport
-
 edge_locking_scrolling_window proc near
                 mov     bx, 13
                 mov     ax, ds:hero_x_in_proximity_map
                 mov     cx, ds:mapWidth
                 sub     cx, bx
-                sub     cx, ax
-                jnb     short loc_7E03
+                sub     cx, ax ; mapWidth - 13 - hero_x_in_proximity_map
+                jnb     short loc_7E03 ; cx >= 0
+                ; hero_x_in_proximity_map > mapWidth - 13
                 mov     ax, ds:mapWidth
-                add     ax, -36
+                add     ax, -36 ; mapWidth - 36; CF = mapWidth >= 36 ? 1 : 0
                 mov     cx, ds:hero_x_in_proximity_map
-                sbb     cx, ax
+                sbb     cx, ax ; cx = hero_x_in_proximity_map - (mapWidth - 36) - CF
                 mov     bl, cl
                 sub     bl, 3
                 retn
 ; ---------------------------------------------------------------------------
-
-loc_7E03:        
-                add     ax, 0FFEFh
+loc_7E03: ; mapWidth - 13 - hero_x_in_proximity_map >= 0    
+                add     ax, -17
                 or      ah, ah
-                jnz     short loc_7E0B
+                jnz     short loc_7E0B ; ax >= 256
+                ; ax = hero_x_in_proximity_map - 17; bl = 13
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_7E0B:        
                 xor     ax, ax
                 mov     bl, byte ptr ds:hero_x_in_proximity_map
@@ -10218,8 +10217,8 @@ byte_9F18       db 0
 byte_9F19       db 0      
 ; ---- Map / scroll ----
 hero_x_in_proximity_map dw 0  
-byte_9F1C       db 0      
-byte_9F1D       db 0      
+door_target_y       db 0      
+door_features       db 0      
 byte_9F1E       db 0      
 ; ---- Projectile tracking ----
 last_projectile_index db 0

@@ -135,6 +135,7 @@ const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL_X = 0x80;
+const ADDR_HERO_X_IN_VIEWPORT = 0x83;
 const ADDR_HERO_GOLD_HI = 0x85;
 const ADDR_HERO_GOLD_LO = 0x86;
 const ADDR_HERO_ALMAS = 0x8b;
@@ -152,6 +153,7 @@ const ADDR_HERO_HP       = 0x90;
 const ADDR_HERO_MAX_HP   = 0xB2;
 const ADDR_PLACE_MAP_ID  = 0xC4;
 
+const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
 const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR       = 0xC00F;
@@ -1071,18 +1073,18 @@ function drawDungeonTiles() {
         for (let row = 0; row < VIEW_ROWS; row++) {
             const mapRow = (top + row) & 0x3F;
             const tileId = proximity[mapRow + DUNGEON_MAP_HEIGHT * proxCol];
-            if (tileId === 0) continue;
+            if (tileId === 0) continue; // empty tile
 
             const dx = col * TILE_WIDTH;
             const dy = row * TILE_HEIGHT;
-            if (tileId < 25) {
+            if (tileId <= 25) { // tileId = 1..25 -> mppX tiles
                 ctx.drawImage(
                     dungeonTileSheet,
-                    tileId * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
+                    (tileId-1) * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
                     dx, dy, TILE_WIDTH, TILE_HEIGHT
                 );
-            } else if (dungeonDchrSheetReady) {
-                const dchrId = tileId - 25;
+            } else if (tile_id >=64 && tile_id < (64+39) && dungeonDchrSheetReady) {
+                const dchrId = tileId - 64;
                 ctx.drawImage(
                     dungeonDchrSheet,
                     dchrId * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
@@ -1331,7 +1333,7 @@ async function handleDungeonExit(townMapId) {
     dungeonExitInProgress = true;
     engineReady = false;
     try {
-        dungeonClearExit?.();
+        dungeonClearExit?.();        
         const rawMapId = townMapId & 0x7F;
         const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
         const resp = await fetch(mdtPath);
@@ -1339,6 +1341,15 @@ async function handleDungeonExit(townMapId) {
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData);
         mdtHeader = getTownMdtHeader?.();
+
+        const mapWidth = getTownMapWidth();
+        const heroXproxBytes = readMemory(ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
+        const heroXprox = heroXproxBytes[0] | (heroXproxBytes[1] << 8);
+        if (mapWidth) {
+            const { proxLeft, heroViewX } = computeTownScrollFromAbsoluteX(heroXprox, mapWidth);
+            writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, [proxLeft & 0xFF, (proxLeft >> 8) & 0xFF]);
+            writeMemory(ADDR_HERO_X_IN_VIEWPORT, [heroViewX]);
+        }
 
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
@@ -1393,6 +1404,98 @@ async function handleDungeonExit(townMapId) {
 function resolveTownMusicTrack(type) {
     const map = { 0: 'mgt1', 1: 'ugm1', 2: 'mgt2', 3: 'ugm2' };
     return map[type] ?? 'mgt1';
+}
+
+/*
+extern uint16_t hero_x_in_proximity_map;
+extern uint16_t mapWidth;
+//  Computes the horizontal scroll state based on the hero's proximity-map
+//  position and the map width, locking the viewport at both map edges.
+//  Out: proximity_map_left_col_x  – first proximity-map column rendered (was AX)
+//       hero_x_in_viewport        – hero's column inside the viewport      (was BL)
+void edge_locking_scrolling_window(uint16_t *proximity_map_left_col_x, uint8_t  *hero_x_in_viewport)
+{
+    uint16_t hero_x = hero_x_in_proximity_map;
+    uint16_t mapW   = mapWidth;
+
+    if (hero_x > mapW - 13u)
+    {
+        // ── Right-edge lock ──────────────────────────────────────────────
+        // Hero is within 13 columns of the right edge; freeze the viewport
+        // so the map's rightmost column stays visible.
+        uint8_t  carry    = (mapW >= 36u) ? 1u : 0u;
+        uint16_t left_col = mapW - 36u;
+
+        *proximity_map_left_col_x = left_col;
+        *hero_x_in_viewport       = (uint8_t)(hero_x - left_col - carry) - 3u;
+    }
+    else
+    {
+        // Subtract 17; the result wraps to a large uint16 when hero_x < 17,
+        // which is exactly what `or ah, ah / jnz` detected in the original.
+        uint16_t ax = hero_x - 17u;
+
+        if (ax > 255u)
+        {
+            // ── Left-edge lock ───────────────────────────────────────────
+            // Hero is within 17 columns of the left edge (or hero_x wrapped
+            // past 272, which shouldn't occur in practice).
+            // Freeze the viewport at column 0; hero sits 4 tiles from left.
+            *proximity_map_left_col_x = 0u;
+            *hero_x_in_viewport       = (uint8_t)hero_x - 4u;
+        }
+        else
+        {
+            // ── Middle (free scrolling) ──────────────────────────────────
+            // Hero is far enough from both edges; scroll the map so the hero
+            // always appears at viewport column 13 (bx=13 was set at entry).
+            *proximity_map_left_col_x = ax;   // hero_x_in_proximity_map - 17
+            *hero_x_in_viewport       = 13u;
+        }
+    }
+}
+*/
+function computeTownScrollFromAbsoluteX(heroProxX, mapWidth) {
+    // Edge locking logic from fight.asm (edge_locking_scrolling_window)
+    let heroViewX = 13;
+    let proxLeft = 0;
+
+    if (heroProxX > mapWidth - 13)
+    {
+        // ── Right-edge lock ──────────────────────────────────────────────
+        // Hero is within 13 columns of the right edge; freeze the viewport
+        // so the map's rightmost column stays visible.
+        const  carry = (mapWidth >= 36) ? 1 : 0;
+        const left_col = mapWidth - 36;
+
+        proxLeft = left_col;
+        heroViewX = (heroProxX - left_col - carry) - 3;
+    }
+    else
+    {
+        // Subtract 17; the result wraps to a large uint16 when hero_x < 17,
+        // which is exactly what `or ah, ah / jnz` detected in the original.
+        const ax = (heroProxX + 65536 - 17) & 0xFFFF;
+
+        if (ax > 255)
+        {
+            // ── Left-edge lock ───────────────────────────────────────────
+            // Hero is within 17 columns of the left edge (or hero_x wrapped
+            // past 272, which shouldn't occur in practice).
+            // Freeze the viewport at column 0; hero sits 4 tiles from left.
+            proxLeft = 0;
+            heroViewX = heroProxX - 4;
+        }
+        else
+        {
+            // ── Middle (free scrolling) ──────────────────────────────────
+            // Hero is far enough from both edges; scroll the map so the hero
+            // always appears at viewport column 13 (bx=13 was set at entry).
+            proxLeft = ax;   // hero_x_in_proximity_map - 17
+            heroViewX = 13;
+        }
+    }
+    return { proxLeft, heroViewX };
 }
 
 function getTownMapWidth() {
