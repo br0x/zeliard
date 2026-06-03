@@ -460,9 +460,7 @@ Cavern_Game_Init endp
 
 
 ; ===========================================================================
-; state_machine_dispatcher
-; Reads the current direction input (int 61h) and branches to the correct
-; hero movement handler.
+; Reads the current direction input and branches to the correct hero movement handler.
 ;
 ; Input combinations dispatched (al = right/left/down/up bitfield):
 ;   101b  (left+up)   → left_up_pressed
