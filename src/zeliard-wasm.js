@@ -1376,14 +1376,6 @@ export function dungeonGetSwordFrame() {
     return wasmExports?.wasm_dungeon_get_sword_frame?.() ?? 0xFF;
 }
 
-export function dungeonGetExitFlag() {
-    return wasmExports?.wasm_dungeon_get_exit_flag?.() ?? 0;
-}
-
 export function dungeonGetExitMap() {
     return wasmExports?.wasm_dungeon_get_exit_map?.() ?? 0;
-}
-
-export function dungeonClearExit() {
-    wasmExports?.wasm_dungeon_clear_exit?.();
 }

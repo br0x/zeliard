@@ -159,6 +159,8 @@ const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR       = 0xC00F;
 const ADDR_FRAME_TIMER = 0xFF1A;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
+const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
+
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
 const ADDR_BUILDING_ACTIVE = 0xFFFA;
@@ -267,9 +269,7 @@ let dungeonGetFullMapPtr;
 let dungeonGetEntityTable;
 let dungeonGetEntityCount;
 let dungeonGetSwordFrame;
-let dungeonGetExitFlag;
 let dungeonGetExitMap;
-let dungeonClearExit;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -411,7 +411,7 @@ function onFullTick() {
             inputUpdate?.();
             if (gameMode === 'dungeon') {
                 dungeonUpdate?.();
-                if (dungeonGetExitFlag?.() === 0xFF) {
+                if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
                     handleDungeonExit(dungeonGetExitMap?.() ?? 1);
                 }
             } else {
@@ -859,7 +859,7 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
-        dungeonGetSwordFrame, dungeonGetExitFlag, dungeonGetExitMap, dungeonClearExit,
+        dungeonGetSwordFrame, dungeonGetExitMap,
     } = wasmBridge);
 }
 
@@ -1333,7 +1333,7 @@ async function handleDungeonExit(townMapId) {
     dungeonExitInProgress = true;
     engineReady = false;
     try {
-        dungeonClearExit?.();        
+        writeMemory(ADDR_DUNGEON_EXIT_FLAG, [0]);
         const rawMapId = townMapId & 0x7F;
         const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
         const resp = await fetch(mdtPath);

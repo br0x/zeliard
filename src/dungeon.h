@@ -13,9 +13,7 @@ uint8_t wasm_dungeon_get_viewport_top(void);
 uint16_t wasm_dungeon_get_entity_table(void);
 uint16_t wasm_dungeon_get_entity_count(void);
 uint8_t wasm_dungeon_get_sword_frame(void);
-uint8_t wasm_dungeon_get_exit_flag(void);
 uint8_t wasm_dungeon_get_exit_map(void);
-void wasm_dungeon_clear_exit(void);
 
 void dungeon_ai_update_monster(DungeonMonster *m, uint16_t hero_x, uint8_t hero_y);
 int dungeon_can_stand_at(uint16_t x, uint8_t y);

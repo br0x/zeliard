@@ -87,18 +87,6 @@ struct DungeonMonster {
     uint8_t counter;
 };
 
-struct Door {
-    uint16_t x0;
-    uint8_t y0;
-    uint8_t flags;
-    uint8_t dest_map;
-    uint16_t x1;
-    uint8_t y1;
-    uint8_t features;
-    uint16_t save_addr;
-    uint8_t save_mask;
-};
-
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
 
@@ -519,12 +507,7 @@ uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_DUNGEON_VIEW_TOP)
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAME); }
-uint8_t wasm_dungeon_get_exit_flag(void) { return MEM8(ADDR_DUNGEON_EXIT_FLAG); }
 uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_DUNGEON_EXIT_MAP); }
-void wasm_dungeon_clear_exit(void) 
-{ 
-    MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
-}
 
 int wasm_load_mdt(const uint8_t *mdt_data, uint32_t mdt_size)
 {
