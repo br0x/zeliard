@@ -43,7 +43,7 @@ uint8_t* wasm_get_monster_buffer(void) {
 
 // Get proximity map
 uint8_t* wasm_get_proximity_map(void) {
-    return &g_mem[MEM_PROXIMITY_MAP];
+    return &g_mem[ADDR_PROXIMITY_MAP];
 }
 
 // Debug dump - just a marker, JS reads memory directly

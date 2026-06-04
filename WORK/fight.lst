@@ -963,7 +963,7 @@ fight:6703                 mov     ax, ds:mapWidth ; wrap to end of map
 fight:6706                 dec     ax
 fight:6707                 mov     ds:proximity_map_left_col_x, ax ; mapWidth - 1
 fight:670A                 mov     si, ds:packed_map_end_ptr ; end of packed map + 1
-fight:670E                 mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+fight:670E                 mov     ds:packed_map_ptr_for_prox_left, si
 fight:6712
 fight:6712 proximity_map_scrolls_right:            ; ...
 fight:6712                 push    cs              ; free left column of proximity map
@@ -975,7 +975,7 @@ fight:6718                 mov     di, offset proximity_map+36*64-1
 fight:671B                 mov     cx, 36*64-1
 fight:671E                 rep movsb
 fight:6720                 cld
-fight:6721                 mov     si, ds:packed_map_ptr_for_hero_x_minus_18
+fight:6721                 mov     si, ds:packed_map_ptr_for_prox_left
 fight:6725                 dec     si              ; points to the last byte of packed column
 fight:6726                 mov     di, offset proximity_map+36*(64-1) ; last row, leftmost column
 fight:6729                 xor     dl, dl          ; y = 0
@@ -993,7 +993,7 @@ fight:6738                 jnz     short repeat_bh_times
 fight:673A                 cmp     dl, 64
 fight:673D                 jb      short fill_column_backward
 fight:673F                 inc     si
-fight:6740                 mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+fight:6740                 mov     ds:packed_map_ptr_for_prox_left, si
 fight:6744                 mov     si, ds:packed_map_end_ptr
 fight:6748                 dec     si              ; end of packed map
 fight:6749                 mov     ax, ds:proximity_map_left_col_x ; already decremented and wrapped
@@ -1002,7 +1002,7 @@ fight:674F                 cmp     ax, ds:mapWidth
 fight:6753                 jz      short no_column_skip_needed ;
 fight:6753                                         ; we need to prepare pointer also for unpacking rightmost column of proximity map
 fight:6753                                         ; they both need to be in sync (36 columns apart)
-fight:6755                 mov     si, ds:packed_map_ptr_for_hero_x_plus_18
+fight:6755                 mov     si, ds:packed_map_ptr_for_prox_right
 fight:6759                 xor     dh, dh          ; y = 0
 fight:675B
 fight:675B skip_bh_times:                          ; ...
@@ -1013,7 +1013,7 @@ fight:6761                 cmp     dh, 64
 fight:6764                 jb      short skip_bh_times
 fight:6766
 fight:6766 no_column_skip_needed:                  ; ...
-fight:6766                 mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+fight:6766                 mov     ds:packed_map_ptr_for_prox_right, si
 fight:676A                 call    every_projectile_moves_right_in_viewport ; x coord in viewport increases
 fight:676D                 mov     bx, ds:proximity_map_left_col_x
 fight:6771                 mov     ds:monster_index, 0
@@ -1230,7 +1230,7 @@ fight:68A4                 mov     ax, ds:proximity_map_left_col_x
 fight:68A7                 add     ax, 36-1
 fight:68AA                 cmp     ax, ds:mapWidth
 fight:68AE                 jnz     short proximity_map_scrolls_left
-fight:68B0                 mov     ds:packed_map_ptr_for_hero_x_plus_18, (offset packed_map_end_ptr+1)
+fight:68B0                 mov     ds:packed_map_ptr_for_prox_right, (offset packed_map_end_ptr+1)
 fight:68B6
 fight:68B6 proximity_map_scrolls_left:             ; ...
 fight:68B6                 push    cs
@@ -1239,12 +1239,12 @@ fight:68B8                 mov     si, offset proximity_map+1
 fight:68BB                 mov     di, offset proximity_map
 fight:68BE                 mov     cx, 36*64-1
 fight:68C1                 rep movsb
-fight:68C3                 mov     si, ds:packed_map_ptr_for_hero_x_plus_18 ; =c7e7
+fight:68C3                 mov     si, ds:packed_map_ptr_for_prox_right ; =c7e7
 fight:68C7                 inc     si
 fight:68C8                 mov     di, offset proximity_map+36-1 ; right column offset
 fight:68CB                 call    unpack_column
 fight:68CE                 dec     si
-fight:68CF                 mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+fight:68CF                 mov     ds:packed_map_ptr_for_prox_right, si
 fight:68D3                 mov     ax, ds:proximity_map_left_col_x
 fight:68D6                 cmp     ax, ds:mapWidth
 fight:68DA                 jnz     short loc_68E7
@@ -1254,7 +1254,7 @@ fight:68E5                 jmp     short loc_68F8
 fight:68E7 ; ---------------------------------------------------------------------------
 fight:68E7
 fight:68E7 loc_68E7:                               ; ...
-fight:68E7                 mov     si, ds:packed_map_ptr_for_hero_x_minus_18
+fight:68E7                 mov     si, ds:packed_map_ptr_for_prox_left
 fight:68EB                 xor     dh, dh
 fight:68ED
 fight:68ED unpack_left_column:                     ; ...
@@ -1265,7 +1265,7 @@ fight:68F3                 cmp     dh, 40h ; '@'
 fight:68F6                 jb      short unpack_left_column ; unpack extra column to /dev/null
 fight:68F8
 fight:68F8 loc_68F8:                               ; ...
-fight:68F8                 mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+fight:68F8                 mov     ds:packed_map_ptr_for_prox_left, si
 fight:68FC                 call    every_projectile_moves_left_in_viewport
 fight:68FF                 mov     ds:monster_index, 0
 fight:6904                 mov     bx, ds:proximity_map_left_col_x
@@ -1942,7 +1942,7 @@ fight:6CAE                 jb      short loc_6CA5
 fight:6CB0                 loop    columns_skip_loop
 fight:6CB2
 fight:6CB2 loc_6CB2:                               ; ...
-fight:6CB2                 mov     ds:packed_map_ptr_for_hero_x_minus_18, si ; unpack 36 columns from the hero_x_minus_18
+fight:6CB2                 mov     ds:packed_map_ptr_for_prox_left, si ; unpack 36 columns from the hero_x_minus_18
 fight:6CB6                 mov     di, offset proximity_map ; unpacked proximity map
 fight:6CB9                 mov     ax, ds:proximity_map_left_col_x ; in absolute map coords
 fight:6CBC                 mov     cx, 36          ; proximity map width
@@ -1967,7 +1967,7 @@ fight:6CD7                 mov     si, ds:packed_map_end_ptr
 fight:6CDB
 fight:6CDB loc_6CDB:                               ; ...
 fight:6CDB                 dec     si
-fight:6CDC                 mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+fight:6CDC                 mov     ds:packed_map_ptr_for_prox_right, si
 fight:6CE0                 mov     al, ds:viewport_top_row_y ; 3d
 fight:6CE3                 xor     ah, ah
 fight:6CE5                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
@@ -9547,8 +9547,8 @@ fight:9EFF enp_grp_index   db 0FFh                 ; ...
 fight:9F00 byte_9F00       db 0                    ; ...
 fight:9F01 byte_9F01       db 0                    ; ...
 fight:9F02 byte_9F02       db 0                    ; ...
-fight:9F03 packed_map_ptr_for_hero_x_minus_18 dw 0 ; ...
-fight:9F05 packed_map_ptr_for_hero_x_plus_18 dw 0  ; ...
+fight:9F03 packed_map_ptr_for_prox_left dw 0 ; ...
+fight:9F05 packed_map_ptr_for_prox_right dw 0  ; ...
 fight:9F07 byte_9F07       db 0                    ; ...
 fight:9F08 jump_height_counter db 0                ; ...
 fight:9F09 byte_9F09       db 0                    ; ...

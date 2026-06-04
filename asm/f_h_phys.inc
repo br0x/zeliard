@@ -7,7 +7,7 @@
 ; 1. Check 4 tiles at hero x+2 for monsters or solid tiles.
 ; 2. If clear: increment proximity_map_left_col_x,
 ;    shift proximity map 1 column left (rep movsb forward),
-;    unpack new rightmost column from packed_map_ptr_for_hero_x_plus_18.
+;    unpack new rightmost column from packed_map_ptr_for_prox_right.
 ; 3. Call every_projectile_moves_left_in_viewport,
 ;    stamp newly-entering left-edge monsters.
 ; ===========================================================================
@@ -78,7 +78,7 @@ hero_moves_right:
                 add     ax, 36-1
                 cmp     ax, ds:mapWidth
                 jnz     short proximity_map_scrolls_left
-                mov     ds:packed_map_ptr_for_hero_x_plus_18, (offset packed_map_end_ptr+1)
+                mov     ds:packed_map_ptr_for_prox_right, (offset packed_map_end_ptr+1)
 
 proximity_map_scrolls_left:   
                 push    cs
@@ -87,12 +87,12 @@ proximity_map_scrolls_left:
                 mov     di, offset proximity_map
                 mov     cx, 36*64-1
                 rep movsb
-                mov     si, ds:packed_map_ptr_for_hero_x_plus_18 ; =c7e7
+                mov     si, ds:packed_map_ptr_for_prox_right ; =c7e7
                 inc     si
                 mov     di, offset proximity_map+36-1 ; right column offset
                 call    unpack_column
                 dec     si
-                mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+                mov     ds:packed_map_ptr_for_prox_right, si
                 mov     ax, ds:proximity_map_left_col_x
                 cmp     ax, ds:mapWidth
                 jnz     short loc_68E7
@@ -102,7 +102,7 @@ proximity_map_scrolls_left:
 ; ---------------------------------------------------------------------------
 
 loc_68E7:        
-                mov     si, ds:packed_map_ptr_for_hero_x_minus_18
+                mov     si, ds:packed_map_ptr_for_prox_left
                 xor     dh, dh
 
 unpack_left_column:       
@@ -113,7 +113,7 @@ unpack_left_column:
                 jb      short unpack_left_column ; unpack extra column to /dev/null
 
 loc_68F8:        
-                mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+                mov     ds:packed_map_ptr_for_prox_left, si
                 call    every_projectile_moves_left_in_viewport
                 mov     byte ptr ds:monster_index, 0
                 mov     bx, ds:proximity_map_left_col_x
@@ -127,7 +127,7 @@ loc_6915:
                 mov     si, ds:monsters_table_addr
 
 next_monster1:    
-                mov     ax, [si]
+                mov     ax, [si+monster.currX]
                 cmp     ax, 0FFFFh
                 jnz     short loc_6921
                 retn                    ; monsters end marker
@@ -139,7 +139,7 @@ loc_6921:
                 cmp     ax, bx
                 jnz     short loc_6939
                 mov     ah, 35
-                mov     al, [si+2]
+                mov     al, [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
                                         ; y &= 0x3F; // Clamp Y to 0-63

@@ -9,7 +9,7 @@ let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
 // Memory layout constants (must match zeliard.h)
 // These are offsets within g_mem, not absolute WASM memory offsets
 const MEM_MDT_DATA = 0xC000;
-const MEM_PROXIMITY_MAP = 0xE000;
+const ADDR_PROXIMITY_MAP = 0xE000;
 const MEM_VIEWPORT_BUFFER = 0xE900;
 const MEM_SAVE_DATA = 0x0000;
 const MEM_INPUT_BUFFER = 0xFF16; // 4 bytes
@@ -532,7 +532,7 @@ export function getProximityMap() {
         return null;
     }
 
-    return new Uint8Array(wasmMemory.buffer, gMemoryBase + MEM_PROXIMITY_MAP, 36 * 64);
+    return new Uint8Array(wasmMemory.buffer, gMemoryBase + ADDR_PROXIMITY_MAP, 36 * 64);
 }
 
 /**

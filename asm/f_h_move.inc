@@ -528,7 +528,7 @@ left_up_pressed endp
 ;    - Airflow category 2 (right-flow wind) → block for normal cavern
 ; 2. If clear: decrement proximity_map_left_col_x,
 ;    shift proximity map 1 column right (rep movsb backward),
-;    unpack new leftmost column from packed_map_ptr_for_hero_x_minus_18.
+;    unpack new leftmost column from packed_map_ptr_for_prox_left.
 ; 3. After scroll: call every_projectile_moves_right_in_viewport,
 ;    then stamp the newly-entering right-edge monsters from monsters_table.
 ;
@@ -603,7 +603,7 @@ hero_moves_left:
                 dec     ax
                 mov     ds:proximity_map_left_col_x, ax ; mapWidth - 1
                 mov     si, ds:packed_map_end_ptr ; end of packed map + 1
-                mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+                mov     ds:packed_map_ptr_for_prox_left, si
 
 proximity_map_scrolls_right:  
                 push    cs              ; free left column of proximity map
@@ -614,7 +614,7 @@ proximity_map_scrolls_right:
                 mov     cx, 36*64-1
                 rep movsb
                 cld
-                mov     si, ds:packed_map_ptr_for_hero_x_minus_18
+                mov     si, ds:packed_map_ptr_for_prox_left
                 dec     si              ; points to the last byte of packed column
                 mov     di, offset proximity_map+36*(64-1) ; last row, leftmost column
                 xor     dl, dl          ; y = 0
@@ -632,7 +632,7 @@ repeat_bh_times:
                 cmp     dl, 64
                 jb      short fill_column_backward
                 inc     si
-                mov     ds:packed_map_ptr_for_hero_x_minus_18, si
+                mov     ds:packed_map_ptr_for_prox_left, si
                 mov     si, ds:packed_map_end_ptr
                 dec     si              ; end of packed map
                 mov     ax, ds:proximity_map_left_col_x ; already decremented and wrapped
@@ -641,7 +641,7 @@ repeat_bh_times:
                 jz      short no_column_skip_needed ;
                                         ; we need to prepare pointer also for unpacking rightmost column of proximity map
                                         ; they both need to be in sync (36 columns apart)
-                mov     si, ds:packed_map_ptr_for_hero_x_plus_18
+                mov     si, ds:packed_map_ptr_for_prox_right
                 xor     dh, dh          ; y = 0
 
 skip_bh_times:   
@@ -652,7 +652,7 @@ skip_bh_times:
                 jb      short skip_bh_times
 
 no_column_skip_needed:    
-                mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+                mov     ds:packed_map_ptr_for_prox_right, si
                 call    every_projectile_moves_right_in_viewport ; x coord in viewport increases
                 mov     bx, ds:proximity_map_left_col_x
                 mov     byte ptr ds:monster_index, 0

@@ -14,20 +14,18 @@ extern "C" {
 
 #define MEM_SAVE_DATA       0x0000    // 256 bytes - Save data (xxx.sav)
 #define MEM_MDT_DATA        0xC000    // ~8KB - MDT dungeon data
-#define MEM_PROXIMITY_MAP   0xE000    // 2304 bytes - 36x64 proximity map
+#define ADDR_PACKED_MAP_END_PTR 0xC019 // [0xC019] points behind the last byte of packed map
+#define ADDR_PACKED_MAP_START 0xC01B    // Packed map offset in MDT file
+#define ADDR_PROXIMITY_MAP   0xE000    // 2304 bytes - 36x64 proximity map
 #define MEM_VIEWPORT_BUFFER 0xE900    // 28*19 bytes - Monster IDs (1 byte each)
-#define PACKED_MAP_START      0x1B    // Packed map offset in MDT file (0xC01B - 0xC000)
 
 // ============================================================================
 // Global Memory Array (exported for JS access)
 // ============================================================================
 
 extern uint8_t g_mem[65536*4];  // 64KB*4 memory space
-extern uint16_t packed_map_start;
-extern uint16_t packed_map_end_ptr;  // Current position in packed map
-extern uint16_t packed_map_ptr_for_hero_x_minus_18;  // For left column
-extern uint16_t packed_map_ptr_for_hero_x_plus_18;   // For right column
-extern uint16_t map_hero_row_start;
+extern uint16_t packed_map_ptr_for_prox_left;  // For left column
+extern uint16_t packed_map_ptr_for_prox_right;   // For right column
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -576,19 +574,9 @@ int if_passable_set_ZF(uint8_t tile);
 void set_danger_type(uint8_t type);
 uint8_t get_danger_type(void);
 
-// Map utilities
-uint16_t wrap_map_from_above(uint16_t offset);
-uint16_t wrap_map_from_below(uint16_t offset);
 // Unpack MDT map data into proximity map
 void unpack_map();
-void unpack_map_internal(uint8_t hero_x, uint8_t hero_y);
 void unpack_column(uint8_t* packed, uint16_t* pos, uint8_t* dest);
-// Convert coordinates to proximity map offset
-uint16_t coords_to_proximity_offset(uint8_t x, uint8_t y);
-uint16_t get_map_width(void);
-uint16_t get_packed_map_start(void);
-void update_monsters_for_right_scroll(void);
-void update_monsters_for_left_scroll(void);
 
 // Rendering
 void main_update_render(void);
@@ -642,10 +630,6 @@ int is_on_rope(void);
 
 // Helper functions
 int set_zero_flag_if_slippery(void);
-
-// Complex routines
-int sub_684C(void);            // Hero state machine (returns negative if blocked)
-void sub_66A5(void);           // Jump trajectory variant
 
 #ifdef __cplusplus
 }

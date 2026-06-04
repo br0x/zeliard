@@ -8,7 +8,7 @@
 
 // Forward declarations from zeliard.h
 #define MEM_MDT_DATA        0xC000
-#define MEM_PROXIMITY_MAP   0xE000
+#define ADDR_PROXIMITY_MAP   0xE000
 
 extern uint8_t g_mem[65536];
 
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     
     // Show first few rows of proximity map
     printf("Proximity map ASCII view (first 10 rows, 36 columns):\n");
-    uint8_t* proximity = &g_mem[MEM_PROXIMITY_MAP];
+    uint8_t* proximity = &g_mem[ADDR_PROXIMITY_MAP];
     for (int row = 0; row < 10; row++) {
         printf("  Row %2d: ", row);
         for (int col = 0; col < 36; col++) {

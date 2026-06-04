@@ -314,8 +314,8 @@ byte_9F00       db 0
 byte_9F01       db 0      
 byte_9F02       db 0      
 ; ---- Map streaming pointers ----
-packed_map_ptr_for_hero_x_minus_18 dw 0 ; ...
-packed_map_ptr_for_hero_x_plus_18 dw 0  ; ...
+packed_map_ptr_for_prox_left dw 0 ; 9f03
+packed_map_ptr_for_prox_right dw 0  ; 9f05
 byte_9F07       db 0      
 ; ---- Hero movement state ----
 jump_height_counter db 0  

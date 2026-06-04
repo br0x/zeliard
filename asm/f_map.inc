@@ -123,11 +123,11 @@ aEnemy          db 5,'ENEMY'
 ;
 ; Steps:
 ;   1. Skip proximity_map_left_col_x columns (decompress to /dev/null).
-;      Saves the pointer as packed_map_ptr_for_hero_x_minus_18.
+;      Saves the pointer as packed_map_ptr_for_prox_left.
 ;   2. Decompress 36 columns into proximity_map[0..35].
 ;      Each column: call unpack_column (calls unpack_step_forward in a loop).
 ;      X wraps around mapWidth (circular world).
-;   3. Save pointer as packed_map_ptr_for_hero_x_plus_18.
+;   3. Save pointer as packed_map_ptr_for_prox_right.
 ;   4. Compute viewport_left_top_addr from viewport_top_row_y.
 ;
 ; ENCODING (4 cases based on high 2 bits of first byte):
@@ -154,11 +154,11 @@ loc_6CA5:
                 loop    columns_skip_loop
 
 loc_6CB2:        
-                mov     ds:packed_map_ptr_for_hero_x_minus_18, si ; unpack 36 columns from the hero_x_minus_18
+                mov     ds:packed_map_ptr_for_prox_left, si ; unpack 36 columns from the hero_x_minus_18
+
                 mov     di, offset proximity_map ; unpacked proximity map
                 mov     ax, ds:proximity_map_left_col_x ; in absolute map coords
                 mov     cx, 36          ; proximity map width
-
 columns_loop:    
                 push    di
                 call    unpack_column
@@ -169,19 +169,19 @@ columns_loop:
                 jnz     short loc_6CD1
                 mov     si, offset packed_map_start ; continue from x=0 (map start)
                 xor     ax, ax          ; x = 0
-
 loc_6CD1:        
                 loop    columns_loop    ; fill 36 columns
+                
                 or      ax, ax          ; x in absolute map coords
                 jnz     short loc_6CDB  ;
                                         ; last column of map unpacked
-                mov     si, ds:packed_map_end_ptr
-
+                mov     si, ds:packed_map_end_ptr ; Malicia: [0xC019] = 0xD555; points behind the last byte of packed map
 loc_6CDB:        
                 dec     si
-                mov     ds:packed_map_ptr_for_hero_x_plus_18, si
+                mov     ds:packed_map_ptr_for_prox_right, si
+
                 mov     al, ds:viewport_top_row_y ; 3d
-                xor     ah, ah
+                xor     ah, ah ; x = 0
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
                                         ; y &= 0x3F; // Clamp Y to 0-63
@@ -200,17 +200,17 @@ unpack_map      endp
 ; Dispatch via a 4-entry function pointer table based on high 2 bits.
 ; ===========================================================================
 unpack_step_forward proc near 
-                mov     bl, [si]        ; 0,4,8,C
-                and     bl, 0C0h
+                mov     bl, [si]
+                and     bl, 0C0h        ; 00h, 40h, 80h, 0C0h
                 rol     bl, 1
-                rol     bl, 1
+                rol     bl, 1           ; 0, 1, 2, 3
                 xor     bh, bh
                 add     bx, bx
                 jmp     ds:funcs_6CFA[bx]
 unpack_step_forward endp
 
 ; ---------------------------------------------------------------------------
-funcs_6CFA      dw offset unpack_forward_case0 ; ...
+funcs_6CFA      dw offset unpack_forward_case0
                 dw offset unpack_case1
                 dw offset unpack_case2
                 dw offset unpack_case3
@@ -229,13 +229,12 @@ unpack_step_backward proc near
 unpack_step_backward endp
 
 ; ---------------------------------------------------------------------------
-funcs_6D13      dw offset unpack_backward_case0 ; ...
+funcs_6D13      dw offset unpack_backward_case0
                 dw offset unpack_case1
                 dw offset unpack_case2
                 dw offset unpack_case3
 
 ; =============== S U B R O U T I N E =======================================
-
 
 unpack_forward_case0 proc near
                 mov     bh, [si]        ; 00...... ........
@@ -245,21 +244,13 @@ unpack_forward_case0 proc near
                 retn
 unpack_forward_case0 endp
 
-
-; =============== S U B R O U T I N E =======================================
-
-
 unpack_backward_case0 proc near 
-                mov     bl, [si]        ; only works if tile < 0x40
+                mov     bl, [si]        ; bits 7..6 are 0; tile < 0x40
                 dec     si
                 mov     bh, [si]
                 inc     bh
                 retn
 unpack_backward_case0 endp
-
-
-; =============== S U B R O U T I N E =======================================
-
 
 unpack_case1    proc near 
                 mov     bl, [si]
@@ -275,20 +266,12 @@ unpack_case1    proc near
                 retn
 unpack_case1    endp
 
-
-; =============== S U B R O U T I N E =======================================
-
-
 unpack_case2    proc near 
                 mov     bh, [si]
                 and     bh, 3Fh
                 xor     bl, bl
                 retn
 unpack_case2    endp
-
-
-; =============== S U B R O U T I N E =======================================
-
 
 unpack_case3    proc near 
                 mov     bl, [si]
@@ -299,7 +282,6 @@ unpack_case3    endp
 
 
 ; ===========================================================================
-; unpack_column
 ; Decompresses one full column (64 rows) into the proximity map.
 ; Input: SI = packed map pointer; DI = proximity_map + col_offset
 ; Writes each tile BH times at [DI], DI += 36 per row.
@@ -307,12 +289,10 @@ unpack_case3    endp
 ; ===========================================================================
 unpack_column   proc near 
                 xor     dl, dl          ; y=0
-
 loc_6D59:        
                 call    unpack_step_forward
                 inc     si
                 add     dl, bh          ; column height
-
 loc_6D5F:        
                 mov     [di], bl
                 add     di, 36

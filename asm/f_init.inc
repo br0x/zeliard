@@ -1,6 +1,6 @@
 ; ===========================================================================
 ; Cavern_Game_Init
-; Entry point called every time the dungeon scene begins (after MDT load).
+; Entry point called when the dungeon scene begins (after MDT load).
 ; Also re-entered after room transitions (load_place_and_reinit → Cavern_Game_Init).
 ;
 ; Flow:
