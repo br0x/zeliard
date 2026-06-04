@@ -1208,8 +1208,6 @@ var _wasm_dungeon_update = Module["_wasm_dungeon_update"] = makeInvalidEarlyAcce
 
 var _wasm_dungeon_full_tick = Module["_wasm_dungeon_full_tick"] = makeInvalidEarlyAccess("_wasm_dungeon_full_tick");
 
-var _wasm_dungeon_get_full_map_ptr = Module["_wasm_dungeon_get_full_map_ptr"] = makeInvalidEarlyAccess("_wasm_dungeon_get_full_map_ptr");
-
 var _wasm_dungeon_get_viewport_top = Module["_wasm_dungeon_get_viewport_top"] = makeInvalidEarlyAccess("_wasm_dungeon_get_viewport_top");
 
 var _wasm_dungeon_get_entity_table = Module["_wasm_dungeon_get_entity_table"] = makeInvalidEarlyAccess("_wasm_dungeon_get_entity_table");
@@ -1219,8 +1217,6 @@ var _wasm_dungeon_get_entity_count = Module["_wasm_dungeon_get_entity_count"] = 
 var _wasm_dungeon_get_sword_frame = Module["_wasm_dungeon_get_sword_frame"] = makeInvalidEarlyAccess("_wasm_dungeon_get_sword_frame");
 
 var _wasm_dungeon_get_exit_map = Module["_wasm_dungeon_get_exit_map"] = makeInvalidEarlyAccess("_wasm_dungeon_get_exit_map");
-
-var _wasm_load_mdt = Module["_wasm_load_mdt"] = makeInvalidEarlyAccess("_wasm_load_mdt");
 
 var _wasm_town_conversation_finish = Module["_wasm_town_conversation_finish"] = makeInvalidEarlyAccess("_wasm_town_conversation_finish");
 
@@ -1290,13 +1286,11 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_dungeon_init"] != "undefined", "missing Wasm export: wasm_dungeon_init");
   assert(typeof wasmExports["wasm_dungeon_update"] != "undefined", "missing Wasm export: wasm_dungeon_update");
   assert(typeof wasmExports["wasm_dungeon_full_tick"] != "undefined", "missing Wasm export: wasm_dungeon_full_tick");
-  assert(typeof wasmExports["wasm_dungeon_get_full_map_ptr"] != "undefined", "missing Wasm export: wasm_dungeon_get_full_map_ptr");
   assert(typeof wasmExports["wasm_dungeon_get_viewport_top"] != "undefined", "missing Wasm export: wasm_dungeon_get_viewport_top");
   assert(typeof wasmExports["wasm_dungeon_get_entity_table"] != "undefined", "missing Wasm export: wasm_dungeon_get_entity_table");
   assert(typeof wasmExports["wasm_dungeon_get_entity_count"] != "undefined", "missing Wasm export: wasm_dungeon_get_entity_count");
   assert(typeof wasmExports["wasm_dungeon_get_sword_frame"] != "undefined", "missing Wasm export: wasm_dungeon_get_sword_frame");
   assert(typeof wasmExports["wasm_dungeon_get_exit_map"] != "undefined", "missing Wasm export: wasm_dungeon_get_exit_map");
-  assert(typeof wasmExports["wasm_load_mdt"] != "undefined", "missing Wasm export: wasm_load_mdt");
   assert(typeof wasmExports["wasm_town_conversation_finish"] != "undefined", "missing Wasm export: wasm_town_conversation_finish");
   assert(typeof wasmExports["wasm_town_complete_transition"] != "undefined", "missing Wasm export: wasm_town_complete_transition");
   assert(typeof wasmExports["wasm_get_pending_transition_map"] != "undefined", "missing Wasm export: wasm_get_pending_transition_map");
@@ -1332,13 +1326,11 @@ function assignWasmExports(wasmExports) {
   _wasm_dungeon_init = Module["_wasm_dungeon_init"] = createExportWrapper("wasm_dungeon_init", 4);
   _wasm_dungeon_update = Module["_wasm_dungeon_update"] = createExportWrapper("wasm_dungeon_update", 0);
   _wasm_dungeon_full_tick = Module["_wasm_dungeon_full_tick"] = createExportWrapper("wasm_dungeon_full_tick", 0);
-  _wasm_dungeon_get_full_map_ptr = Module["_wasm_dungeon_get_full_map_ptr"] = createExportWrapper("wasm_dungeon_get_full_map_ptr", 0);
   _wasm_dungeon_get_viewport_top = Module["_wasm_dungeon_get_viewport_top"] = createExportWrapper("wasm_dungeon_get_viewport_top", 0);
   _wasm_dungeon_get_entity_table = Module["_wasm_dungeon_get_entity_table"] = createExportWrapper("wasm_dungeon_get_entity_table", 0);
   _wasm_dungeon_get_entity_count = Module["_wasm_dungeon_get_entity_count"] = createExportWrapper("wasm_dungeon_get_entity_count", 0);
   _wasm_dungeon_get_sword_frame = Module["_wasm_dungeon_get_sword_frame"] = createExportWrapper("wasm_dungeon_get_sword_frame", 0);
   _wasm_dungeon_get_exit_map = Module["_wasm_dungeon_get_exit_map"] = createExportWrapper("wasm_dungeon_get_exit_map", 0);
-  _wasm_load_mdt = Module["_wasm_load_mdt"] = createExportWrapper("wasm_load_mdt", 2);
   _wasm_town_conversation_finish = Module["_wasm_town_conversation_finish"] = createExportWrapper("wasm_town_conversation_finish", 0);
   _wasm_town_complete_transition = Module["_wasm_town_complete_transition"] = createExportWrapper("wasm_town_complete_transition", 0);
   _wasm_get_pending_transition_map = Module["_wasm_get_pending_transition_map"] = createExportWrapper("wasm_get_pending_transition_map", 0);

@@ -1068,11 +1068,11 @@ function drawDungeonTiles() {
     if (!proximity) return false;
     const top = dungeonGetViewportTop?.() ?? 0;
 
-    for (let col = 0; col < VIEW_COLS; col++) {
-        const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
-        for (let row = 0; row < VIEW_ROWS; row++) {
-            const mapRow = (top + row) & 0x3F;
-            const tileId = proximity[mapRow + DUNGEON_MAP_HEIGHT * proxCol];
+    for (let row = 0; row < VIEW_ROWS; row++) {
+        const proxRow = (top + row) & 0x3F;
+        for (let col = 0; col < VIEW_COLS; col++) {
+            const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
+            const tileId = proximity[proxRow*PROX_COLS + proxCol];
             if (tileId === 0) continue; // empty tile
 
             const dx = col * TILE_WIDTH;
@@ -1308,7 +1308,8 @@ async function handleDungeonTransition(mapId) {
         const rawMapId = mapId & 0x7F;
         const mdtPath = DUNGEON_MDTS[rawMapId] ?? CAVERN_MALICIA_MDT_PATH;
         const resp = await fetch(mdtPath);
-        if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
+        if (!resp.ok) 
+            throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData);
         mdtHeader = getCavernMdtHeader?.();
@@ -1406,55 +1407,6 @@ function resolveTownMusicTrack(type) {
     return map[type] ?? 'mgt1';
 }
 
-/*
-extern uint16_t hero_x_in_proximity_map;
-extern uint16_t mapWidth;
-//  Computes the horizontal scroll state based on the hero's proximity-map
-//  position and the map width, locking the viewport at both map edges.
-//  Out: proximity_map_left_col_x  – first proximity-map column rendered (was AX)
-//       hero_x_in_viewport        – hero's column inside the viewport      (was BL)
-void edge_locking_scrolling_window(uint16_t *proximity_map_left_col_x, uint8_t  *hero_x_in_viewport)
-{
-    uint16_t hero_x = hero_x_in_proximity_map;
-    uint16_t mapW   = mapWidth;
-
-    if (hero_x > mapW - 13u)
-    {
-        // ── Right-edge lock ──────────────────────────────────────────────
-        // Hero is within 13 columns of the right edge; freeze the viewport
-        // so the map's rightmost column stays visible.
-        uint8_t  carry    = (mapW >= 36u) ? 1u : 0u;
-        uint16_t left_col = mapW - 36u;
-
-        *proximity_map_left_col_x = left_col;
-        *hero_x_in_viewport       = (uint8_t)(hero_x - left_col - carry) - 3u;
-    }
-    else
-    {
-        // Subtract 17; the result wraps to a large uint16 when hero_x < 17,
-        // which is exactly what `or ah, ah / jnz` detected in the original.
-        uint16_t ax = hero_x - 17u;
-
-        if (ax > 255u)
-        {
-            // ── Left-edge lock ───────────────────────────────────────────
-            // Hero is within 17 columns of the left edge (or hero_x wrapped
-            // past 272, which shouldn't occur in practice).
-            // Freeze the viewport at column 0; hero sits 4 tiles from left.
-            *proximity_map_left_col_x = 0u;
-            *hero_x_in_viewport       = (uint8_t)hero_x - 4u;
-        }
-        else
-        {
-            // ── Middle (free scrolling) ──────────────────────────────────
-            // Hero is far enough from both edges; scroll the map so the hero
-            // always appears at viewport column 13 (bx=13 was set at entry).
-            *proximity_map_left_col_x = ax;   // hero_x_in_proximity_map - 17
-            *hero_x_in_viewport       = 13u;
-        }
-    }
-}
-*/
 function computeTownScrollFromAbsoluteX(heroProxX, mapWidth) {
     // Edge locking logic from fight.asm (edge_locking_scrolling_window)
     let heroViewX = 13;
@@ -1465,8 +1417,8 @@ function computeTownScrollFromAbsoluteX(heroProxX, mapWidth) {
         // ── Right-edge lock ──────────────────────────────────────────────
         // Hero is within 13 columns of the right edge; freeze the viewport
         // so the map's rightmost column stays visible.
-        const  carry = (mapWidth >= 36) ? 1 : 0;
-        const left_col = mapWidth - 36;
+        const  carry = (mapWidth >= PROX_COLS) ? 1 : 0;
+        const left_col = mapWidth - PROX_COLS;
 
         proxLeft = left_col;
         heroViewX = (heroProxX - left_col - carry) - 3;

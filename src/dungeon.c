@@ -68,12 +68,12 @@
 #define ADDR_FRAME_TIMER         0xFF1Au
 #define ADDR_SPACEBAR_LATCH      0xFF1Du
 #define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
-#define ADDR_HERO_Y               0xFF35u   // hero_y_absolute (byte)
-#define ADDR_JUMP_PHASE_FLAGS         0xFF3Du
-#define ADDR_ON_ROPE_FLAGS            0xFF39u
-#define ADDR_SQUAT_FLAG               0xFF38u
-#define ADDR_SLOPE_DIRECTION          0xFF42u  // 1=right, 2=left
-#define ADDR_TICK_COUNTER             0xFF50u
+#define ADDR_HERO_Y              0xFF35u   // hero_y_absolute (byte)
+#define ADDR_JUMP_PHASE_FLAGS    0xFF3Du
+#define ADDR_ON_ROPE_FLAGS       0xFF39u
+#define ADDR_SQUAT_FLAG          0xFF38u
+#define ADDR_SLOPE_DIRECTION     0xFF42u  // 1=right, 2=left
+#define ADDR_TICK_COUNTER        0xFF50u
 #define ADDR_SOUND_FX_REQUEST    0xFF75u
 
 #define ADDR_DUNGEON_VIEW_TOP    0xFFE0u
@@ -87,7 +87,6 @@
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFDu
 
 #define MAX_MDT_BYTES            0x4000u
-#define DUNGEON_FULL_MAP_ADDR    0x30000u         // full map buffer
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
 #define VIEW_COLS_DUNGEON        28
@@ -605,25 +604,6 @@ static void unpack_full_map(uint16_t map_width, uint8_t *full_map)
     }
 }
 
-// ----------------------------------------------------------------------
-// Proximity window management (copy columns from full map)
-// ----------------------------------------------------------------------
-static void copy_proximity_column(uint16_t src_col, uint8_t prox_col)
-{
-    uint32_t src_base = DUNGEON_FULL_MAP_ADDR + (uint32_t)src_col * DUNGEON_HEIGHT;
-    uint16_t dst_base = ADDR_PROXIMITY + prox_col * DUNGEON_HEIGHT;
-    memcpy(&g_mem[dst_base], &g_mem[src_base], DUNGEON_HEIGHT);
-}
-
-static void copy_proximity_window(uint16_t left_col)
-{
-    for (uint8_t col = 0; col < PROX_COLS; col++) {
-        uint16_t src_col = (uint16_t)(left_col + col);
-        if (src_col >= MEM16(ADDR_MAP_WIDTH)) src_col -= MEM16(ADDR_MAP_WIDTH);
-        copy_proximity_column(src_col, col);
-    }
-}
-
 // Shift proximity map columns right (when moving left) and fill new left column
 static void proximity_scroll_right(uint16_t new_left_col)
 {
@@ -636,7 +616,7 @@ static void proximity_scroll_right(uint16_t new_left_col)
         dst -= DUNGEON_HEIGHT;
     }
     // Fill new leftmost column
-    copy_proximity_column(new_left_col, 0);
+    // copy_proximity_column(new_left_col, 0);
 }
 
 // Shift proximity map columns left (when moving right) and fill new right column
@@ -651,7 +631,7 @@ static void proximity_scroll_left(uint16_t new_right_col)
         dst += DUNGEON_HEIGHT;
     }
     // Fill new rightmost column
-    copy_proximity_column(new_right_col, PROX_COLS - 1);
+    // copy_proximity_column(new_right_col, PROX_COLS - 1);
 }
 
 // ----------------------------------------------------------------------
@@ -676,8 +656,7 @@ static uint8_t get_tile_at(uint16_t x, uint8_t y)
 {
     if (x >= MEM16(ADDR_MAP_WIDTH)) return 0xFF;
     if (y >= DUNGEON_HEIGHT) return 0xFF;
-    uint32_t addr = DUNGEON_FULL_MAP_ADDR + (uint32_t)x * DUNGEON_HEIGHT + y;
-    return g_mem[addr];
+    return 0; // stub
 }
 
 int dungeon_can_stand_at(uint16_t x, uint8_t y)
@@ -784,10 +763,7 @@ static void check_doors(void)
 // ----------------------------------------------------------------------
 // Initialization: unpack full map and setup proximity/viewport
 void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction) {
-    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
-    if (map_width == 0) return;
-
-    unpack_full_map(map_width, &g_mem[DUNGEON_FULL_MAP_ADDR]);
+    unpack_map();
 
     // Set initial proximity window centered on spawn point
     uint16_t left = spawn_x - HERO_PROX_COL;  // HERO_PROX_COL is now 16
@@ -797,7 +773,7 @@ void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_
     MEM8(ADDR_FACING) = direction ? 1 : 0;
     MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
 
-    copy_proximity_window(left);
+    // copy_proximity_window(left);
 
     // Compute initial viewport top row (centered vertically)
     uint8_t top = 0;
@@ -835,16 +811,8 @@ void wasm_dungeon_full_tick(void)
     MEM8(ADDR_FRAME_TIMER)++;
 }
 
-uint32_t wasm_dungeon_get_full_map_ptr(void) { return DUNGEON_FULL_MAP_ADDR; }
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_DUNGEON_VIEW_TOP); }
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAME); }
 uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_DUNGEON_EXIT_MAP); }
-
-int wasm_load_mdt(const uint8_t *mdt_data, uint32_t mdt_size)
-{
-    if (!mdt_data || mdt_size > MAX_MDT_BYTES) return -1;
-    memcpy(&g_mem[ADDR_MDT], mdt_data, mdt_size);
-    return 0;
-}

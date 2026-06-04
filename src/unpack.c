@@ -42,57 +42,33 @@ The unpacking is done column by column (64 rows each).
 36 columns are unpacked to form the proximity map.
 */
 
-// ============================================================================
-// Unpack Step - decode one RLE segment
-// ============================================================================
-
 /**
  * Unpack one segment from packed map
  * Returns: tile value in bl, run length in bh
  */
 void unpack_step_forward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count) {
-    uint8_t byte = packed[*pos++];
+    uint8_t byte = packed[(*pos)++];
     
     // Extract encoding type from bits 7-6
     uint8_t encoding = byte >> 6;
     
     switch (encoding) {
         case 0:  // 00xxxxxx - repeat tile, count from bits 5-0 + 1, tile = next byte
-// mov     bh, [si]        ; 00...... ........
-// inc     bh              ; count = (byte & 3fh)+1
-// inc     si
-// mov     bl, [si]        ; tile = next_byte
             *count = byte + 1;
-            *tile = packed[*pos++];
+            *tile = packed[(*pos)++];
             break;
             
         case 1:  // 01xxxxxx - repeat tile, count from bits 5-4 + 2, tile from bits 3-0 + 1
-// mov     bl, [si]
-// mov     bh, bl
-// shr     bh, 1
-// shr     bh, 1
-// shr     bh, 1
-// shr     bh, 1
-// and     bh, 3
-// add     bh, 2
-// and     bl, 0Fh
-// inc     bl
             *count = ((byte & 0x30) >> 4) + 2;
             *tile = (byte & 0x0F) + 1;
             break;
             
         case 2:  // 10xxxxxx - repeat zero tile, count from bits 5-0
-// mov     bh, [si]
-// and     bh, 3Fh
-// xor     bl, bl
             *count = byte & 0x3F;
             *tile = 0;
             break;
             
         case 3:  // 11xxxxxx - count = 1, tile from bits 5-0
-// mov     bl, [si]
-// and     bl, 3Fh
-// mov     bh, 1
             *count = 1;
             *tile = byte & 0x3F;
             break;
@@ -109,48 +85,28 @@ void unpack_step_forward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t*
  * @param count   Output: run count
  */
 void unpack_step_backward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count) {
-    uint8_t byte = packed[*pos--];
+    uint8_t byte = packed[(*pos)--];
     
     // Extract encoding type from bits 7-6
     uint8_t encoding = byte >> 6;
     
     switch (encoding) {
         case 0:  // 00xxxxxx - repeat tile, count from bits 5-0 + 1, tile = previous byte
-// mov     bl, [si]
-// dec     si
-// mov     bh, [si]
-// inc     bh
             *tile = byte;
-            *count = packed[*pos--] + 1;
+            *count = packed[(*pos)--] + 1;
             break;
             
         case 1:  // 01xxxxxx - repeat tile, count from bits 5-4 + 2, tile from bits 3-0 + 1
-// mov     bl, [si]
-// mov     bh, bl
-// shr     bh, 1
-// shr     bh, 1
-// shr     bh, 1
-// shr     bh, 1
-// and     bh, 3
-// add     bh, 2
-// and     bl, 0Fh
-// inc     bl
             *count = ((byte & 0x30) >> 4) + 2;
             *tile = (byte & 0x0F) + 1;
             break;
             
         case 2:  // 10xxxxxx - repeat zero tile, count from bits 5-0
-// mov     bh, [si]
-// and     bh, 3Fh
-// xor     bl, bl
             *count = byte & 0x3F;
             *tile = 0;
             break;
             
         case 3:  // 11xxxxxx - count = 1, tile from bits 5-0
-// mov     bl, [si]
-// and     bl, 3Fh
-// mov     bh, 1
             *count = 1;
             *tile = byte & 0x3F;
             break;
@@ -188,11 +144,11 @@ void unpack_map() {
     // We want to unpack 36 columns centered on hero_x
     int16_t cx = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
 
-    // Packed map starts at offset 0x1B in MDT file (0xC01B relative to g_mem)
-    uint8_t* packed = &g_mem[ADDR_PACKED_MAP_START]; // si
-    uint16_t packed_pos = 0; // offset packed + packed_pos = si
+    // Packed map data starts at a fixed address in g_mem
+    uint8_t* packed = &g_mem[ADDR_PACKED_MAP_START];
+    uint16_t packed_pos = 0;   // offset within the packed data (relative to ADDR_PACKED_MAP_START)
 
-    // Skip cx columns before proximity map left edge (unpack to /dev/null)
+    // Skip cx columns before the proximity map's left edge
     for (int x = 0; x < cx; x++) {
         uint8_t dh = 0;
         do {
@@ -202,12 +158,13 @@ void unpack_map() {
         } while (dh < 64);
     }
 
-    // Store position for left column pointer (column before start)
-    packed_map_ptr_for_prox_left = packed + packed_pos;
+    // Store the absolute address of the first column we will unpack
+    packed_map_ptr_for_prox_left = ADDR_PACKED_MAP_START + packed_pos;
+
     uint16_t ax = cx;
     uint16_t map_width = MEM16(MEM_MDT_DATA + MAP_WIDTH_OFFSET);
 
-    // Unpack 36 columns into proximity map
+    // Unpack 36 columns into the proximity map
     uint8_t* proximity = &g_mem[ADDR_PROXIMITY_MAP];
     for (int col = 0; col < PROXIMITY_MAP_WIDTH; col++) {
         // Column-major: unpack_column writes to dest[0], dest[36], dest[72], ...
@@ -221,7 +178,12 @@ void unpack_map() {
         }
     }
     
-    uint8_t* end_ptr = ax == 0 ? MEM16(ADDR_PACKED_MAP_END_PTR) : packed + packed_pos;
-    packed_map_ptr_for_prox_right = end_ptr - 1;
+    uint16_t end_addr;
+    if (ax == 0)
+        end_addr = MEM16(ADDR_PACKED_MAP_END_PTR);        // integer address
+    else
+        end_addr = ADDR_PACKED_MAP_START + packed_pos;    // integer address
+
+    packed_map_ptr_for_prox_right = end_addr - 1;         // both sides are uint16_t
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = ADDR_PROXIMITY_MAP + (MEM8(ADDR_VIEWPORT_TOP_ROW) & 0x3f) * 36;
 }

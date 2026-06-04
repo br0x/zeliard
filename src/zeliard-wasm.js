@@ -232,17 +232,7 @@ export function loadMdt(mdtData) {
     for (let i = 0; i < mdtData.length; i++) {
         wasmMemory[mdtStart + i] = mdtData[i];
     }
-
-    // Call wasm_load_mdt with pointer and size
-    if (wasmExports.wasm_load_mdt) {
-        const result = wasmExports.wasm_load_mdt(mdtStart, mdtData.length);
-        if (result === 0) {
-            console.log('MDT loaded at 0x' + MEM_MDT_DATA.toString(16));
-        } else {
-            console.error('MDT load failed:', result);
-        }
-        return result;
-    }
+    console.log('MDT loaded at 0x' + MEM_MDT_DATA.toString(16));
 
     return 0;
 }
@@ -742,38 +732,6 @@ export function Cavern_Game_Init() {
     if (wasmExports.Cavern_Game_Init) {
         wasmExports.Cavern_Game_Init();
         console.log('Cavern_Game_Init called');
-    }
-}
-
-/**
- * Unpack MDT map data into proximity map centered on hero
- */
-export function unpack_map() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-    
-    if (wasmExports.unpack_map) {
-        wasmExports.unpack_map();
-        console.log(`unpack_map called`);
-    }
-}
-
-/**
- * Unpack MDT map data into proximity map centered on hero
- * @param {number} heroX - Hero's absolute X coordinate
- * @param {number} heroY - Hero's absolute Y coordinate
- */
-export function unpack_map_internal(heroX, heroY) {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-    
-    if (wasmExports.unpack_map_internal) {
-        wasmExports.unpack_map_internal(heroX, heroY);
-        console.log(`unpack_map_internal called (heroX=${heroX}, heroY=${heroY})`);
     }
 }
 

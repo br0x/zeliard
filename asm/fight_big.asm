@@ -349,22 +349,18 @@ init_cavern:
                 mov     ds:byte_9F26, 0
                 jmp     short loc_6266
 ; ---------------------------------------------------------------------------
-
 loc_6254:        
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jz      short loc_6260
                 call    cs:Render_Viewport_Tiles_proc
-
 loc_6260:        
                 call    clear_viewport_buffer ; 28x19
                 call    update_all_monsters_in_map
-
 loc_6266:        
                 test    byte ptr ds:is_death_already_processed, 0FFh
                 jz      short not_dead
                 jmp     process_hero_death
 ; ---------------------------------------------------------------------------
-
 not_dead:        
                 test    ds:byte_9F02, 0FFh
                 jz      short loc_628A
@@ -375,7 +371,6 @@ not_dead:
                 xor     ax, ax          ; fn0 (Init/Play) - Clears buffers, loads music data, and starts playback.
                 int     60h             ; mscadlib.drv
                 pop     ds
-
 loc_628A:        
                 xor     al, al
                 mov     ds:spacebar_latch, al
