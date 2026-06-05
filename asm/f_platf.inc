@@ -68,8 +68,8 @@ hor_platform_beneath:
 ; ---------------------------------------------------------------------------
 
 blocked:         
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jnb     short alive_or_dead_monster
                 retn                    ; blocked by non-monster
 ; ---------------------------------------------------------------------------

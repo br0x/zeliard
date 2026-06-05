@@ -21,8 +21,8 @@ move_hero_right_if_no_obstacles proc near
                 mov     cx, 4
 
 loc_685C:        
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 add     al, al
                 jnb     short loc_6864
                 retn
@@ -43,7 +43,7 @@ loc_6864:
 ; ---------------------------------------------------------------------------
 
 loc_687E:        
-                call    NC_can_pass_except_category1
+                call    is_left_airflow
                 jnb     short loc_6884
                 retn
 ; ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ loc_6887:
 
 loc_6896:        
                 push    cx
-                call    NC_can_pass_except_category1
+                call    is_left_airflow
                 pop     cx
                 jnb     short loc_689E
                 retn
@@ -156,11 +156,11 @@ move_hero_right_if_no_obstacles endp
 
 
 ; ===========================================================================
-; NC_can_pass_except_category1
+; is_left_airflow
 ; Returns CF=1 (cannot pass) if tile [si] is airflow category 1 (left-flow).
 ; Used for right-movement blocking in level 5 caverns (wind tunnels).
 ; ===========================================================================
-NC_can_pass_except_category1 proc near  ; ...
+is_left_airflow proc near  ; ...
                 cmp     byte ptr ds:cavern_level, 7
                 clc
                 jne     short loc_694B
@@ -185,7 +185,7 @@ loc_694B:
 loc_6958:        
                 clc
                 retn
-NC_can_pass_except_category1 endp
+is_left_airflow endp
 
 
 
@@ -571,17 +571,17 @@ check_floor_for_landing proc near
                 add     si, 3*36+1      ; directly under feet
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     di, si
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
-                add     al, al          ; monsters have bit 7 set
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
+                add     al, al          ; items have bit 7 set
                 jnb     short loc_6B89
                 retn                    ; CF: monster under feet
 ; ---------------------------------------------------------------------------
 
 loc_6B89:        
                 dec     si              ; one tile left beneath hero
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 add     al, al
                 jnb     short loc_6B92
                 retn

@@ -926,7 +926,7 @@ fight:66D5                 retn
 fight:66D6 ; ---------------------------------------------------------------------------
 fight:66D6
 fight:66D6 loc_66D6:                               ; ...
-fight:66D6                 call    NC_can_pass_except_category2
+fight:66D6                 call    is_right_airflow
 fight:66D9                 jnb     short loc_66DC
 fight:66DB                 retn
 fight:66DC ; ---------------------------------------------------------------------------
@@ -946,7 +946,7 @@ fight:66EE ; -------------------------------------------------------------------
 fight:66EE
 fight:66EE loc_66EE:                               ; ...
 fight:66EE                 push    cx
-fight:66EF                 call    NC_can_pass_except_category2
+fight:66EF                 call    is_right_airflow
 fight:66F2                 pop     cx
 fight:66F3                 jnb     short loc_66F6
 fight:66F5                 retn
@@ -1051,7 +1051,7 @@ fight:67A3
 fight:67A3 ; =============== S U B R O U T I N E =======================================
 fight:67A3
 fight:67A3
-fight:67A3 NC_can_pass_except_category2 proc near  ; ...
+fight:67A3 is_right_airflow proc near  ; ...
 fight:67A3                 cmp     ds:cavern_level, 7 ; Exception: MP73.MDT (The Hut) has level 1
 fight:67A8                 clc
 fight:67A9                 jnz     short loc_67AC
@@ -1076,7 +1076,7 @@ fight:67BA
 fight:67BA loc_67BA:                               ; ...
 fight:67BA                 clc
 fight:67BB                 retn
-fight:67BB NC_can_pass_except_category2 endp
+fight:67BB is_right_airflow endp
 fight:67BB
 fight:67BC
 fight:67BC ; =============== S U B R O U T I N E =======================================
@@ -1195,7 +1195,7 @@ fight:687D                 retn
 fight:687E ; ---------------------------------------------------------------------------
 fight:687E
 fight:687E loc_687E:                               ; ...
-fight:687E                 call    NC_can_pass_except_category1
+fight:687E                 call    is_left_airflow
 fight:6881                 jnb     short loc_6884
 fight:6883                 retn
 fight:6884 ; ---------------------------------------------------------------------------
@@ -1215,7 +1215,7 @@ fight:6896 ; -------------------------------------------------------------------
 fight:6896
 fight:6896 loc_6896:                               ; ...
 fight:6896                 push    cx
-fight:6897                 call    NC_can_pass_except_category1
+fight:6897                 call    is_left_airflow
 fight:689A                 pop     cx
 fight:689B                 jnb     short loc_689E
 fight:689D                 retn
@@ -1310,7 +1310,7 @@ fight:6942
 fight:6942 ; =============== S U B R O U T I N E =======================================
 fight:6942
 fight:6942
-fight:6942 NC_can_pass_except_category1 proc near  ; ...
+fight:6942 is_left_airflow proc near  ; ...
 fight:6942                 cmp     ds:cavern_level, 7
 fight:6947                 clc
 fight:6948                 jnz     short loc_694B
@@ -1335,7 +1335,7 @@ fight:6958
 fight:6958 loc_6958:                               ; ...
 fight:6958                 clc
 fight:6959                 retn
-fight:6959 NC_can_pass_except_category1 endp
+fight:6959 is_left_airflow endp
 fight:6959
 fight:695A
 fight:695A ; =============== S U B R O U T I N E =======================================

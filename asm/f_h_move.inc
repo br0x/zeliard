@@ -545,7 +545,8 @@ move_hero_left_if_no_obstacles proc near
                 mov     cx, 4
 
 check_4_tiles_to_the_left_of_hero:
-                call    get_dst_monster_flags ; =0x4a, 0x58, 0x5a, 0x5c
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 add     al, al          ; monsters in the proximity map have bit 7 set
                 jnb     short loc_66BC
                 retn                    ; monster to the left of hero, can't move
@@ -566,7 +567,7 @@ loc_66BC:
 ; ---------------------------------------------------------------------------
 
 loc_66D6:        
-                call    NC_can_pass_except_category2
+                call    is_right_airflow
                 jnb     short loc_66DC
                 retn
 ; ---------------------------------------------------------------------------
@@ -586,7 +587,7 @@ loc_66DF:
 
 loc_66EE:        
                 push    cx
-                call    NC_can_pass_except_category2
+                call    is_right_airflow
                 pop     cx
                 jnb     short loc_66F6
                 retn
@@ -688,12 +689,12 @@ move_hero_left_if_no_obstacles endp
 
 
 ; ===========================================================================
-; NC_can_pass_except_category2
+; is_right_airflow
 ; Returns CF=1 (cannot pass) if tile [si] is an airflow tile of category 2
 ; (right-flowing wind). Used for left-movement blocking in level 5 caverns.
 ; get_airflow_direction → ZF + cl=0/1/2 for up/left/right.
 ; ===========================================================================
-NC_can_pass_except_category2 proc near
+is_right_airflow proc near
                 cmp     byte ptr ds:cavern_level, 7 ; Exception: MP73.MDT (The Hut) has level 1
                 clc
                 jne     short loc_67AC
@@ -718,7 +719,7 @@ loc_67AC:
 loc_67BA:        
                 clc
                 retn
-NC_can_pass_except_category2 endp
+is_right_airflow endp
 
 
 

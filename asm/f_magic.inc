@@ -100,8 +100,8 @@ proximity_cell_inject_spell_target proc near
 
 loc_876C:        
                 xchg    si, di
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 xchg    si, di
                 jnb     short loc_8776
                 retn
@@ -869,8 +869,8 @@ monster_is_in_spawn_range_and_clear endp
 
 
 mark_proximity_monster_as_spell_target proc near
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jnb     short loc_8C55
                 retn
 ; ---------------------------------------------------------------------------

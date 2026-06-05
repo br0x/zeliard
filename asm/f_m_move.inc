@@ -247,7 +247,7 @@ decrementY:
 ; Returns CF=1 if any tile in the 'leading edge' is blocked.
 ;
 ; Tile categorization for level 5 (wind-tunnel) caverns:
-;   - Airflow category 1 (left-flowing): blocks Westward movement (NC_can_pass_except_category1).
+;   - Airflow category 1 (left-flowing): blocks Westward movement (is_left_airflow).
 ;   - Airflow category 2 (right-flowing): blocks Eastward movement.
 ;
 ; CF detection trick: OR multiple proximity bytes together,

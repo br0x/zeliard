@@ -14,6 +14,7 @@ extern "C" {
 
 #define MEM_SAVE_DATA       0x0000    // 256 bytes - Save data (xxx.sav)
 #define MEM_MDT_DATA        0xC000    // ~8KB - MDT dungeon data
+#define ADDR_CAVERN_LEVEL   0xC012
 #define ADDR_PACKED_MAP_END_PTR 0xC019 // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START 0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP   0xE000    // 2304 bytes - 36x64 proximity map
@@ -415,22 +416,22 @@ typedef struct {
 } MDTHeader;
 
 // Monster Entry in MDT (16 bytes)
-typedef struct {
-    int16_t currX;
-    int8_t  currY;
-    int8_t  x_rel;
-    int8_t  flags;
-    int8_t  field_5;
-    int8_t  field_6;
-    int8_t  state_flags;
-    int8_t  field_8;
-    int8_t  field_9;
-    int8_t  field_A;
-    int16_t spwnX;
-    int8_t  spwnY;
-    int8_t  type;
-    int8_t  counter;
-} MonsterEntry;
+typedef struct DungeonMonster {
+    uint16_t curr_x;
+    uint8_t curr_y;
+    uint8_t x_rel;
+    uint8_t flags;
+    uint8_t ai_flags;
+    uint8_t anim_counter;
+    uint8_t state_flags;
+    uint8_t hp;
+    uint8_t ai_state;
+    uint8_t ai_timer;
+    uint16_t spawn_x;
+    uint8_t spawn_y;
+    uint8_t type;
+    uint8_t counter;
+} Monster;
 
 // ============================================================================
 // Accessory Constants
@@ -512,7 +513,7 @@ void wasm_init_cavern_with_prepare(uint8_t spawn_x, uint8_t spawn_y, uint8_t dir
 void Cavern_Game_Init(void);
 
 // Monster AI
-void Monster_AI(MonsterEntry* m);
+void Monster_AI(Monster* m);
 void update_all_monsters_in_map(void);
 
 // Input Handling
@@ -548,7 +549,7 @@ void hero_interaction_check(void);
 // Combat System
 void combat_init(void);
 void combat_update(void);
-void Hero_Hits_monster(MonsterEntry* monster, uint8_t monster_index);
+void Hero_Hits_monster(Monster* monster, uint8_t monster_index);
 uint8_t Get_Stats(uint8_t request_type);
 uint8_t get_combat_timer(void);
 void set_combat_flag(uint8_t value);
@@ -574,22 +575,26 @@ int if_passable_set_ZF(uint8_t tile);
 void set_danger_type(uint8_t type);
 uint8_t get_danger_type(void);
 
-// Unpack MDT map data into proximity map
 void unpack_map();
 void unpack_column(uint8_t* packed, uint16_t* pos, uint8_t* dest);
+void unpack_step_forward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
+void unpack_step_backward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
+uint8_t is_non_blocking_tile(uint8_t tile);
+uint8_t lookup_shared(uint8_t tile);
+uint8_t get_airflow_direction(uint8_t tile);
 
 // Rendering
 void main_update_render(void);
 
 // Collision Detection wrappers for MonsterEntry
-int check_collision_E2_monster(MonsterEntry* m);
-int check_collision_W2_monster(MonsterEntry* m);
-int check_collision_N2_monster(MonsterEntry* m);
-int check_collision_S2_monster(MonsterEntry* m);
-int check_collision_NE2_monster(MonsterEntry* m);
-int check_collision_SE2_monster(MonsterEntry* m);
-int check_collision_NW2_monster(MonsterEntry* m);
-int check_collision_SW2_monster(MonsterEntry* m);
+int check_collision_E2_monster(Monster* m);
+int check_collision_W2_monster(Monster* m);
+int check_collision_N2_monster(Monster* m);
+int check_collision_S2_monster(Monster* m);
+int check_collision_NE2_monster(Monster* m);
+int check_collision_SE2_monster(Monster* m);
+int check_collision_NW2_monster(Monster* m);
+int check_collision_SW2_monster(Monster* m);
 
 // Run one game frame
 void wasm_update(void);

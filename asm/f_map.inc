@@ -434,13 +434,13 @@ hero_coords_to_addr_in_proximity endp
 ; NC: active monster; al=type, bx=monster struct
 
 ; ===========================================================================
-; get_dst_monster_flags
 ; Reads one byte from the proximity map at [SI].
-; If bit 7 is clear: CF=1 (no monster, or blocked tile).
+; If bit 7 is clear: CF=1 (no monster/item).
 ; If bit 7 is set: the low 7 bits are a monster_index (0-127).
 ;   Looks up monsters_table_addr + index*16 to get the monster struct.
 ;   Returns AL = monster.flags, BX = pointer to monster struct.
-;   NC (no carry) if monster is live; CF if monster.flags == 0.
+;   NC (no carry)
+;   NZ if monster is non-passable; ZF if flying monster
 ; ===========================================================================
 get_dst_monster_flags proc near 
                 mov     al, [si]
@@ -457,7 +457,7 @@ monster_there:
                 mov     bx, ax
                 add     bx, ds:monsters_table_addr
                 mov     al, [bx+monster.flags]
-                or      al, al          ; NC, NZ if live monster (not item)
+                or      al, al  ; NC; NZ if non-passable monster (non-flying); ZF if flying monster
                 retn
 get_dst_monster_flags endp
 

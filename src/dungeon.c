@@ -86,6 +86,8 @@
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFCu
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFDu
 
+#define ADDR_PASSABLE_TILES       0x18000u
+#define ADDR_AIRFLOW_TILES        0x18024u
 #define MAX_MDT_BYTES            0x4000u
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
@@ -105,24 +107,10 @@
 #define ICE_TILE_END     0x48
 #define SHOES_FERUZA        1
 #define SHOES_RUZERIA       4
+#define AIRFLOW_UP          0
+#define AIRFLOW_LEFT        1
+#define AIRFLOW_RIGHT       2
 
-
-struct DungeonMonster {
-    uint16_t curr_x;
-    uint8_t curr_y;
-    uint8_t x_rel;
-    uint8_t flags;
-    uint8_t ai_flags;
-    uint8_t anim_counter;
-    uint8_t state_flags;
-    uint8_t hp;
-    uint8_t ai_state;
-    uint8_t ai_timer;
-    uint16_t spawn_x;
-    uint8_t spawn_y;
-    uint8_t type;
-    uint8_t counter;
-};
 
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
@@ -238,16 +226,6 @@ static int is_monster_at(uint16_t world_x, uint8_t world_y) {
     return (tile & 0x80) != 0;
 }
 
-// Helper: get the airflow direction for a tile (used in wind caverns)
-// Returns 0=up,1=left,2=right, 0xFF=none
-static uint8_t get_airflow_direction(uint8_t tile) {
-    // This would need actual mapping from tile IDs to airflow.
-    // For now, stub – will be filled later from original data.
-    // In original, it reads from a table at seg1:8010h.
-    // We'll return 0xFF (no airflow) as placeholder.
-    return 0xFF;
-}
-
 // ----------------------------------------------------------------------
 // Move left (scroll map right) with obstacle checks
 // Returns 1 if movement succeeded, 0 if blocked.
@@ -273,7 +251,7 @@ static int try_move_left(void) {
         if (check_y >= DUNGEON_HEIGHT) continue;
         if (is_monster_at(check_x, check_y)) return 0;
         uint8_t tile = get_tile_at(check_x, check_y);
-        if (!is_passable_tile(tile)) return 0;
+        if (!is_non_blocking_tile(tile)) return 0;
         if (MEM8(ADDR_CAVERN_LEVEL) != 7) {
             uint8_t airflow = get_airflow_direction(tile);
             if (airflow == 2) return 0; // right-flow wind blocks left movement
@@ -283,12 +261,12 @@ static int try_move_left(void) {
     uint8_t squat = MEM8(ADDR_SQUAT_FLAG);
     if (!squat) {
         uint8_t tile = get_tile_at(check_x, hero_y);
-        if (!is_passable_tile(tile)) return 0;
+        if (!is_non_blocking_tile(tile)) return 0;
         if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 2) return 0;
     } else {
         for (int i = 0; i < 2; i++) {
             uint8_t tile = get_tile_at(check_x, hero_y + 1 + i);
-            if (!is_passable_tile(tile)) return 0;
+            if (!is_non_blocking_tile(tile)) return 0;
             if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 2) return 0;
         }
     }
@@ -318,7 +296,7 @@ static int try_move_right(void) {
         if (check_y >= DUNGEON_HEIGHT) continue;
         if (is_monster_at(check_x, check_y)) return 0;
         uint8_t tile = get_tile_at(check_x, check_y);
-        if (!is_passable_tile(tile)) return 0;
+        if (!is_non_blocking_tile(tile)) return 0;
         if (MEM8(ADDR_CAVERN_LEVEL) != 7) {
             uint8_t airflow = get_airflow_direction(tile);
             if (airflow == 1) return 0; // left-flow wind blocks right movement
@@ -328,12 +306,12 @@ static int try_move_right(void) {
     uint8_t squat = MEM8(ADDR_SQUAT_FLAG);
     if (!squat) {
         uint8_t tile = get_tile_at(check_x, hero_y);
-        if (!is_passable_tile(tile)) return 0;
+        if (!is_non_blocking_tile(tile)) return 0;
         if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 1) return 0;
     } else {
         for (int i = 0; i < 2; i++) {
             uint8_t tile = get_tile_at(check_x, hero_y + 1 + i);
-            if (!is_passable_tile(tile)) return 0;
+            if (!is_non_blocking_tile(tile)) return 0;
             if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 1) return 0;
         }
     }
@@ -513,7 +491,7 @@ void update_hero(void) {
     if (dirs & 0x01) { // up
         uint16_t x = hero_abs_x();
         uint8_t y = MEM8(ADDR_HERO_Y);
-        if (y > 0 && is_passable_tile(get_tile_at(x, y - 1))) {
+        if (y > 0 && is_non_blocking_tile(get_tile_at(x, y - 1))) {
             start_jump();
             return;
         } else {
@@ -552,58 +530,6 @@ void update_hero(void) {
 }
 
 
-// ----------------------------------------------------------------------
-// RLE unpack helpers (forward only, used to build full map)
-// ----------------------------------------------------------------------
-static void unpack_step_forward(uint16_t *si, uint8_t *rep, uint8_t *tile)
-{
-    uint8_t b = MEM8(*si);
-    uint8_t op = b >> 6;
-    if (op == 0) {
-        *rep = (b & 0x3F) + 1;
-        (*si)++;
-        *tile = MEM8(*si);
-    } else if (op == 1) {
-        *rep = ((b >> 4) & 3) + 2;
-        *tile = (b & 0x0F) + 1;
-    } else if (op == 2) {
-        *rep = b & 0x3F;
-        *tile = 0;
-        if (*rep == 0) {
-            (*si)++;
-            return;
-        }
-    } else { // op == 3
-        *rep = 1;
-        *tile = b & 0x3F;
-    }
-    (*si)++;
-}
-
-static void unpack_column_forward(uint16_t *si, uint8_t col, uint8_t *full_map, uint16_t map_width)
-{
-    uint8_t row = 0;
-    while (row < DUNGEON_HEIGHT) {
-        uint8_t rep, tile;
-        unpack_step_forward(si, &rep, &tile);
-        for (uint8_t i = 0; i < rep && row < DUNGEON_HEIGHT; i++) {
-            full_map[(uint32_t)col * DUNGEON_HEIGHT + row] = tile;
-            row++;
-        }
-    }
-}
-
-// Unpack entire map from MDT packed data into full_map buffer
-static void unpack_full_map(uint16_t map_width, uint8_t *full_map)
-{
-    uint16_t si = ADDR_PACKED_MAP_START;
-    memset(full_map, 0, (uint32_t)map_width * DUNGEON_HEIGHT);
-
-    for (uint16_t col = 0; col < map_width; col++) {
-        unpack_column_forward(&si, col, full_map, map_width);
-    }
-}
-
 // Shift proximity map columns right (when moving left) and fill new left column
 static void proximity_scroll_right(uint16_t new_left_col)
 {
@@ -635,21 +561,91 @@ static void proximity_scroll_left(uint16_t new_right_col)
 }
 
 // ----------------------------------------------------------------------
-// Hero movement and collision (simplified for WASM)
+// Hero movement and collision
 // ----------------------------------------------------------------------
-static int is_passable_tile(uint8_t tile)
-{
-    static const uint8_t passable[] = {
-        0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
-        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
-        0x17, 0x18, 0x19
-    };
 
-    if (tile >= 0x49) return 0;
-    for (unsigned i = 0; i < sizeof(passable); i++) {
-        if (tile == passable[i]) return 1;
+// is_non_blocking_tile family. 
+// Original assembly code returns ZF or NZ, we return 0 or nonzero values instead.
+uint8_t is_non_blocking_tile(uint8_t tile)
+{
+    return (tile < 0x40) ? lookup_shared(tile) : tile;
+}
+
+static uint8_t is_non_blocking_tile_extended(uint8_t tile) 
+{
+    return (tile < 0x49) ? lookup_shared(tile) : tile;
+}
+
+static uint8_t is_non_blocking_tile_simple(uint8_t tile) 
+{
+    if (tile < 0x49) {
+        for (int i = 0; i < 24; i++) {
+            if (tile == MEM8(ADDR_PASSABLE_TILES + i)) {
+                return 0;
+            }
+        }
+        return tile & 0x80;
+    } else {
+        return tile;
     }
-    return 0;
+}
+
+uint8_t lookup_shared(uint8_t tile)
+{
+    for (int i = 0; i < 24; i++) {
+        if (tile == MEM8(ADDR_PASSABLE_TILES + i)) {
+            return 0;
+        }
+    }
+    uint8_t masked = tile & 0x9F;
+    if (masked == 0x90 || masked == 0x91) return 0xff;
+    return masked & 0x80;
+}
+
+static uint8_t is_right_airflow(uint8_t tile) {
+    if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
+        return 0; // level 7, no airflows
+    return get_airflow_direction(tile) == AIRFLOW_RIGHT;
+}
+
+static uint8_t is_left_airflow(uint8_t tile) {
+    if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
+        return 0; // level 7, no airflows
+    return get_airflow_direction(tile) == AIRFLOW_LEFT;
+}
+
+// Is input tile an airflow?
+// Output: 0xff (no airflow)
+//         0 (Up), 1 (Left), 2 (Right)
+uint8_t get_airflow_direction(uint8_t tile)
+{
+    if (tile != 0) {
+        for (int i = 0; i < 4; i++) {
+            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + i);
+            if (af == 0) 
+                break;
+            if (tile == af) {
+                return AIRFLOW_UP;
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + 4 + i);
+            if (af == 0) 
+                break;
+            if (tile == af) {
+                return AIRFLOW_LEFT;
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + 8 + i);
+            if (af == 0) 
+                break;
+            if (tile == af) {
+                return AIRFLOW_RIGHT;
+            }
+        }
+    }
+    return 0xFF;
 }
 
 static uint8_t get_tile_at(uint16_t x, uint8_t y)
@@ -662,8 +658,8 @@ static uint8_t get_tile_at(uint16_t x, uint8_t y)
 int dungeon_can_stand_at(uint16_t x, uint8_t y)
 {
     if (y >= DUNGEON_HEIGHT - 1) return 0;
-    return is_passable_tile(get_tile_at(x, y)) &&
-           is_passable_tile(get_tile_at(x, (uint8_t)(y + 1)));
+    return is_non_blocking_tile(get_tile_at(x, y)) &&
+           is_non_blocking_tile(get_tile_at(x, (uint8_t)(y + 1)));
 }
 
 // Hero's absolute X coordinate (from proximity left column + center column)

@@ -28,13 +28,18 @@ const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
-const CAVERN_MALICIA_MDT_PATH = 'game/0/mp10.mdt';
-const DUNGEON_MDTS = {
-    8: CAVERN_MALICIA_MDT_PATH,
+const DUNGEONS = {
+    0: { 
+        mdtPath: 'game/0/mp10.mdt',
+        tilesheetPath: 'assets/images/mpp1.png',
+        entitySheetPath: 'assets/images/enp1.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+        ],
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+    },
 };
-const DUNGEON_TILE_SHEET_PATH = 'assets/images/mpp1.png';
 const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
-const DUNGEON_ENTITY_SHEET_PATH = 'assets/images/enp1.png';
 const DUNGEON_MAGIC_SHEET_PATH = 'assets/images/magic.png';
 const DUNGEON_HERO_SHEET_PATH = 'assets/images/fman.png';
 const DUNGEON_SWORD_SHEET_PATH = 'assets/images/sword.png';
@@ -270,6 +275,8 @@ let dungeonGetEntityTable;
 let dungeonGetEntityCount;
 let dungeonGetSwordFrame;
 let dungeonGetExitMap;
+let setDungeonPassableTiles;
+let setDungeonAirflows;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -323,7 +330,7 @@ let townAnimTileMap = {};
 // ─── Indoor scene manager ─────────────────────────────────────────────────────
 let indoorActiveScene = null;   // instance of IndoorSceneBase
 
-const TOWN_BUILDINGS = {
+const TOWN_DOORS = {
     0: {
         name: 'King of Felishika',
         scene: KingScene,
@@ -794,10 +801,10 @@ function loadImageOnce(path, setter) {
     });
 }
 
-async function loadDungeonAssets() {
+async function loadDungeonAssets(rawMapId) {
     const loads = [];
     if (!dungeonTileSheetReady) {
-        loads.push(loadImageOnce(DUNGEON_TILE_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEONS[rawMapId].tilesheetPath, img => {
             dungeonTileSheet = img;
             dungeonTileSheetReady = true;
         }));
@@ -809,7 +816,7 @@ async function loadDungeonAssets() {
         }));
     }
     if (!dungeonEntitySheetReady) {
-        loads.push(loadImageOnce(DUNGEON_ENTITY_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEONS[rawMapId].entitySheetPath, img => {
             dungeonEntitySheet = img;
             dungeonEntitySheetReady = true;
         }));
@@ -859,7 +866,7 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
-        dungeonGetSwordFrame, dungeonGetExitMap,
+        dungeonGetSwordFrame, dungeonGetExitMap, setDungeonPassableTiles, setDungeonAirflows,
     } = wasmBridge);
 }
 
@@ -1306,7 +1313,7 @@ async function handleDungeonTransition(mapId) {
         const spawnDir = readMemory(dungEntranceTableAddr + 3, 1)[0];
 
         const rawMapId = mapId & 0x7F;
-        const mdtPath = DUNGEON_MDTS[rawMapId] ?? CAVERN_MALICIA_MDT_PATH;
+        const mdtPath = DUNGEONS[rawMapId].mdtPath;
         const resp = await fetch(mdtPath);
         if (!resp.ok) 
             throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
@@ -1314,7 +1321,9 @@ async function handleDungeonTransition(mapId) {
         loadMdt(mdtData);
         mdtHeader = getCavernMdtHeader?.();
         cavernName = getCavernName?.() || 'Cavern of Malicia';
-        await loadDungeonAssets();
+        await loadDungeonAssets(rawMapId);
+        setDungeonPassableTiles(DUNGEONS[rawMapId].passableTiles);
+        setDungeonAirflows(DUNGEONS[rawMapId].airflows);
         dungeonInit?.(rawMapId, spawnX, spawnY, spawnDir);
         gameMode = 'dungeon';
         townEntryRan = false;
@@ -1626,7 +1635,7 @@ function checkBuildingRequest() {
 }
 
 function startIndoorScene(destId) {
-    if (!TOWN_BUILDINGS[destId]) {
+    if (!TOWN_DOORS[destId]) {
         console.warn(`[building] destination ${destId} not implemented`);
         townFinishBuilding?.();
         return;
@@ -1651,7 +1660,7 @@ function startIndoorScene(destId) {
         renderShieldHud,
     };
 
-    const building = TOWN_BUILDINGS[destId];
+    const building = TOWN_DOORS[destId];
     if (building) {
         indoorActiveScene = new building.scene(context);
         indoorActiveScene.building = building;

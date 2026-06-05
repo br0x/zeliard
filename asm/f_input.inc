@@ -81,8 +81,8 @@ four_rows:
 
 row_of_eight_tiles:       
                 push    cx
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jb      short no_monster ; no monster
                 test    al, 1100000b    ; frog=8E => (8e & 7f)=0e
                 jnz     short no_monster
@@ -208,8 +208,8 @@ loc_6F77:
                 xor     ah, ah
                 add     si, ax
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jb      short loc_6F6E
                 test    al, 20h
                 jnz     short loc_6F6E

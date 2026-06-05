@@ -499,6 +499,42 @@ export function setSpecialTileList(tileIds) {
     wasmMemory[ptrGmemAddr + 1] = (SEG1_OFFSET >> 8) & 0xFF; // hi = 0x90
 }
 
+export function setDungeonPassableTiles(tileIds) {
+    if (!wasmMemory) {
+        console.error('WASM memory not ready');
+        return;
+    }
+
+    const SEG1_OFFSET  = 0x8000; // seg1-relative offset of list data
+    const listGmemAddr = gMemoryBase + SEG1_BASE + SEG1_OFFSET; // absolute index into wasmMemory
+
+    // 24 tile bytes (zero padded) at seg1:0x8000
+    for (let i = 0; i < tileIds.length; i++) {
+        wasmMemory[listGmemAddr + i] = tileIds[i];
+    }
+    for (let i = 0; i < (24 - tileIds.length); i++) {
+        wasmMemory[listGmemAddr + tileIds.length + i] = 0;
+    }
+}
+
+export function setDungeonAirflows(tileIds) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    const SEG1_OFFSET  = 0x8024; // seg1-relative offset of list data
+    const listGmemAddr = gMemoryBase + SEG1_BASE + SEG1_OFFSET; // absolute index into wasmMemory
+
+    // 12 tile bytes (zero padded) at seg1:0x8024
+    for (let i = 0; i < tileIds.length; i++) {
+        wasmMemory[listGmemAddr + i] = tileIds[i];
+    }
+    for (let i = 0; i < (12 - tileIds.length); i++) {
+        wasmMemory[listGmemAddr + tileIds.length + i] = 0;
+    }
+}
+
 /**
  * Get monster buffer (0xE900)
  * @returns {Uint8Array} View of monster buffer (28*19 bytes, 1 byte per monster)

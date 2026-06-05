@@ -441,8 +441,8 @@ destroy_shield  endp
 
 
 get_monster_in_row_or_above proc near
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jb      short loc_764B
                 test    al, 40h
                 jnz     short loc_764B
@@ -455,8 +455,8 @@ loc_764B:
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 
 loc_7651:        
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 jb      short get_monster_one_row_above
                 test    al, 40h
                 jnz     short get_monster_one_row_above
@@ -471,8 +471,8 @@ get_monster_in_row_or_above endp
 get_monster_one_row_above proc near
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                call    get_dst_monster_flags ; CF: no monster
-                                        ; NC: active monster; al=type, bx=monster struct
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
+                                              ; AL = monster.flags
                 cmc
                 jb      short loc_766B
                 retn
