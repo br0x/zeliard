@@ -11,14 +11,28 @@ extern "C" {
 // ============================================================================
 // Memory Layout Constants
 // ============================================================================
+#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80u    // word
+#define ADDR_VIEWPORT_TOP_ROW         0x82u    // byte
+#define ADDR_HERO_X_VIEW              0x0083u
+#define ADDR_HERO_HEAD_Y_VIEW         0x0084u
+#define ADDR_SWORD_TYPE               0x0092u
+#define ADDR_SHIELD_TYPE              0x0093u
+#define ADDR_CURRENT_ACCESSORY        0x009Eu
+#define ADDR_FACING                   0x00C2u
+#define ADDR_PLACE_MAP_ID             0x00C4u
+#define ADDR_HERO_ANIM_PHASE          0x00E7u
+#define ADDR_INVINCIBILITY_FLAG       0x00E8u
 
-#define MEM_SAVE_DATA       0x0000    // 256 bytes - Save data (xxx.sav)
-#define MEM_MDT_DATA        0xC000    // ~8KB - MDT dungeon data
-#define ADDR_CAVERN_LEVEL   0xC012
-#define ADDR_PACKED_MAP_END_PTR 0xC019 // [0xC019] points behind the last byte of packed map
-#define ADDR_PACKED_MAP_START 0xC01B    // Packed map offset in MDT file
-#define ADDR_PROXIMITY_MAP   0xE000    // 2304 bytes - 36x64 proximity map
-#define MEM_VIEWPORT_BUFFER 0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+
+#define MEM_SAVE_DATA           0x0000    // 256 bytes - Save data (xxx.sav)
+#define MEM_MDT_DATA            0xC000    // ~8KB - MDT dungeon data
+#define ADDR_MONSTERS_LIST      0xC010
+#define ADDR_CAVERN_LEVEL       0xC012
+#define ADDR_PACKED_MAP_END_PTR 0xC019    // [0xC019] points behind the last byte of packed map
+#define ADDR_PACKED_MAP_START   0xC01B    // Packed map offset in MDT file
+#define ADDR_PROXIMITY_MAP      0xE000    // 2304 bytes - 36x64 proximity map
+#define MEM_VIEWPORT_BUFFER     0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_SQUAT_FLAG          0xFF38
 
 // ============================================================================
 // Global Memory Array (exported for JS access)

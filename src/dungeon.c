@@ -7,17 +7,6 @@
 #define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 
-#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80u    // word
-#define ADDR_VIEWPORT_TOP_ROW         0x82u    // byte
-#define ADDR_HERO_X_VIEW              0x0083u
-#define ADDR_HERO_HEAD_Y_VIEW         0x0084u
-#define ADDR_SWORD_TYPE               0x0092u
-#define ADDR_SHIELD_TYPE              0x0093u
-#define ADDR_CURRENT_ACCESSORY        0x009Eu
-#define ADDR_FACING                   0x00C2u
-#define ADDR_PLACE_MAP_ID             0x00C4u
-#define ADDR_HERO_ANIM_PHASE          0x00E7u
-#define ADDR_INVINCIBILITY_FLAG       0x00E8u
 
 #define ADDR_BOSS_CAVERN_SPECIAL      0x9F01u
 #define ADDR_PACKED_MAP_PTR_MINUS     0x9F04u  // word: packed_map_ptr_for_prox_left
@@ -71,7 +60,6 @@
 #define ADDR_HERO_Y              0xFF35u   // hero_y_absolute (byte)
 #define ADDR_JUMP_PHASE_FLAGS    0xFF3Du
 #define ADDR_ON_ROPE_FLAGS       0xFF39u
-#define ADDR_SQUAT_FLAG          0xFF38u
 #define ADDR_SLOPE_DIRECTION     0xFF42u  // 1=right, 2=left
 #define ADDR_TICK_COUNTER        0xFF50u
 #define ADDR_SOUND_FX_REQUEST    0xFF75u
@@ -140,13 +128,14 @@ static uint16_t coords_to_prox_addr(uint8_t x, uint8_t y) {
 }
 
 // Hero's top-left tile address in proximity map (from f_map.inc)
+// Use macro MEM to access actual data at this address
 static uint16_t hero_coords_to_addr_in_proximity(void) {
     uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
     uint8_t view_x = MEM8(ADDR_HERO_X_VIEW);
     uint16_t base = MEM16(ADDR_VIEWPORT_LEFT_TOP);
     uint16_t addr = base + head_y * 36 + view_x + 4;
     wrap_map_from_above(&addr);
-    return addr;
+    return addr; // within 0xe000-0xe8ff
 }
 
 // Move viewport up one row (when hero jumps or climbs)
@@ -608,6 +597,7 @@ static uint8_t is_right_airflow(uint8_t tile) {
     return get_airflow_direction(tile) == AIRFLOW_RIGHT;
 }
 
+// original assembly code returns CF as True, NC as False
 static uint8_t is_left_airflow(uint8_t tile) {
     if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
         return 0; // level 7, no airflows
@@ -646,6 +636,118 @@ uint8_t get_airflow_direction(uint8_t tile)
         }
     }
     return 0xFF;
+}
+
+// Reads one byte from the proximity map at [SI].
+// If bit 7 is clear: CF=1 (no monster/item).
+// If bit 7 is set: the low 7 bits are a monster_index (0-127).
+//   Looks up monsters_table_addr + index*16 to get the monster struct.
+//   Returns AL = monster.flags, BX = pointer to monster struct.
+//   CF (no monster/item) => return 0
+//   NC if monster/item; AL = monster.flags => return 0xff
+// ===========================================================================
+uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
+{
+    uint8_t tile = MEM8(si);
+    if (tile & 0x80 == 0) {
+        *flags = tile;
+        return 0;
+    }
+
+    tile &= 0x7F; // monster id
+    uint16_t addr = MEM16(ADDR_MONSTERS_LIST) + tile * 16;
+    Monster *m = (Monster *)&g_mem[addr];
+    *flags = m->flags;
+    return 0xFF;
+}
+
+// Return 0 if cannot move right
+uint8_t move_hero_right_if_no_obstacles()
+{
+    uint16_t si = hero_coords_to_addr_in_proximity() + 2;
+    uint16_t di = si;
+    si -= 36;
+    wrap_map_from_below(&si);
+    for (int i = 0; i < 4; i++) {
+        uint8_t flags;
+        uint8_t ret = get_dst_monster_flags(si, &flags);
+        if (flags & 0x80) return 0; // destroyable wall to the right of hero, can't move
+        si += 36;
+        wrap_map_from_above(&si);
+    }
+    si = di;
+    if (MEM8(ADDR_SQUAT_FLAG) == 0) {
+        // head level: needs 2 checks
+        uint8_t tile = MEM8(si);
+        if (is_non_blocking_tile(tile)) return 0; // blocking tile to the right of hero, can't move
+        if (is_left_airflow(tile)) return 0; // left-flow wind blocks right movement
+    }
+    // head-level checks finished, now body and feet
+    for (int i = 0; i < 2; i++) {
+        si += 36;
+        wrap_map_from_above(&si);
+        uint8_t tile = MEM8(si);
+        if (is_non_blocking_tile_simple(tile)) return 0;
+        if (is_left_airflow(tile)) return 0;
+    }
+    return hero_moves_right();
+}
+
+// Return 0 if cannot move left
+uint8_t move_hero_left_if_no_obstacles()
+{
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    uint16_t di = si;
+    si -= 36;
+    wrap_map_from_below(&si);
+    si--; // tile NW of hero top left
+    for (int i = 0; i < 4; i++) {
+        uint8_t flags;
+        uint8_t ret = get_dst_monster_flags(si, &flags);
+        if (flags & 0x80) return 0; // destroyable wall to the left of hero, can't move
+        si += 36;
+        wrap_map_from_above(&si);
+    }
+    si = di;
+    if (MEM8(ADDR_SQUAT_FLAG) == 0) { // not squatting
+        // head level: needs 2 checks
+        uint8_t tile = MEM8(si);
+        if (is_non_blocking_tile(tile)) return 0;
+        if (is_right_airflow(tile)) return 0;
+    }
+    // head-level checks finished, now body and feet
+    for (int i = 0; i < 2; i++) {
+        si += 36;
+        wrap_map_from_above(&si);
+        uint8_t tile = MEM8(si);
+        if (is_non_blocking_tile_simple(tile)) return 0;
+        if (is_right_airflow(tile)) return 0;
+    }
+    return hero_moves_left();
+}
+
+uint8_t hero_moves_right()
+{
+    uint16_t left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + 1;
+    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left_col;
+    left_col += (PROX_COLS - 1);
+    if (left_col == MEM16(ADDR_MAP_WIDTH)) {
+        packed_map_ptr_for_prox_right = MEM16(ADDR_PACKED_MAP_END_PTR) + 1;
+    }
+    uint8_t* dest = &MEM8(ADDR_PROXIMITY_MAP);
+    memmove(dest, dest + 1, PROX_COLS * DUNGEON_HEIGHT - 1);
+    uint16_t si = packed_map_ptr_for_prox_right + 1; // check!! Should be offset to pass as 2nd arg to unpack_column
+    uint16_t di = &MEM8(ADDR_PROXIMITY_MAP) + PROX_COLS - 1;
+    unpack_column(&g_mem[ADDR_PACKED_MAP_START], &si, dest); // orig: SI = packed map pointer; DI = proximity_map + col_offset
+    packed_map_ptr_for_prox_right = si - 1;
+    // ...
+
+    return 0;
+}
+
+uint8_t hero_moves_left()
+{
+    return 0;
 }
 
 static uint8_t get_tile_at(uint16_t x, uint8_t y)

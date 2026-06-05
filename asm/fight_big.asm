@@ -1312,7 +1312,7 @@ loc_67DA:
                 cmp     byte ptr ds:slope_direction, SLOPE_LEFT
                 jz      short loc_6837
                 call    move_hero_right_if_no_obstacles
-                jb      short loc_6837
+                jc      short loc_6837   ; CF: cannot move right
                 mov     ds:byte_9F22, 1  ; move dir = right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_67F3
@@ -2521,9 +2521,8 @@ hero_coords_to_addr_in_proximity endp
 ; If bit 7 is clear: CF=1 (no monster/item).
 ; If bit 7 is set: the low 7 bits are a monster_index (0-127).
 ;   Looks up monsters_table_addr + index*16 to get the monster struct.
-;   Returns AL = monster.flags, BX = pointer to monster struct.
-;   NC (no carry)
-;   NZ if monster is non-passable; ZF if flying monster
+;   CF if no monster/item
+;   NC if monster/item; AL = monster.flags
 ; ===========================================================================
 get_dst_monster_flags proc near 
                 mov     al, [si]
