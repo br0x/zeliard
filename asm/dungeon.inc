@@ -138,7 +138,7 @@ tear_x                                             equ 0C013h
 tear_y                                             equ 0C015h
 hero_head_y_in_viewport_initial_from_mdt           equ 0C016h
 cavern_signs_rendering_info                        equ 0C017h
-packed_map_end_ptr                                 equ 0C019h // word
+packed_map_end_ptr                                 equ 0C019h ; word
 packed_map_start                                   equ 0C01Bh
 
 ; seg1 offsets (code seg + 1000h)

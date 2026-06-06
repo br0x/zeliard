@@ -567,7 +567,6 @@ state_machine_dispatcher endp
 
 
 ; ===========================================================================
-; hero_interaction_check
 ; Checks whether the 3-tile-wide hero footprint overlaps a rope or door tile,
 ; routing to hero_moves_left / hero_moves_right if so.
 ; Skipped while squatting or airborne.

@@ -122,9 +122,10 @@ static void wrap_map_from_below(uint16_t *si) {
 }
 
 // Convert (x, y) in proximity coordinates (x 0..35, y 0..63) to address
+// Port of original coords_in_ax_to_proximity_map_addr_in_di
 static uint16_t coords_to_prox_addr(uint8_t x, uint8_t y) {
     y &= 0x3F;
-    return ADDR_PROXIMITY + (uint16_t)y * 36 + x;
+    return ADDR_PROXIMITY + (uint16_t)(y & 0x3F) * PROX_COLS + x;
 }
 
 // Hero's top-left tile address in proximity map (from f_map.inc)
@@ -690,7 +691,8 @@ uint8_t move_hero_right_if_no_obstacles()
         if (is_non_blocking_tile_simple(tile)) return 0;
         if (is_left_airflow(tile)) return 0;
     }
-    return hero_moves_right();
+    hero_moves_right();
+    return 0xff;
 }
 
 // Return 0 if cannot move left
@@ -723,31 +725,116 @@ uint8_t move_hero_left_if_no_obstacles()
         if (is_non_blocking_tile_simple(tile)) return 0;
         if (is_right_airflow(tile)) return 0;
     }
-    return hero_moves_left();
+    hero_moves_left();
+    return 0xff;
 }
 
-uint8_t hero_moves_right()
+void hero_moves_right()
 {
     uint16_t left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + 1;
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left_col;
     left_col += (PROX_COLS - 1);
-    if (left_col == MEM16(ADDR_MAP_WIDTH)) {
+    if (left_col == mapWidth) {
         packed_map_ptr_for_prox_right = MEM16(ADDR_PACKED_MAP_END_PTR) + 1;
     }
     uint8_t* dest = &g_mem[ADDR_PROXIMITY_MAP];
     memmove(dest, dest + 1, PROX_COLS * DUNGEON_HEIGHT - 1);
     uint16_t si = packed_map_ptr_for_prox_right + 1; // check!!
     uint8_t *di = &g_mem[ADDR_PROXIMITY_MAP + PROX_COLS - 1];
-    unpack_column(&si, di); // orig: SI = packed map pointer; DI = proximity_map + col_offset
+    unpack_column(&si, di);
     packed_map_ptr_for_prox_right = si - 1;
-    // ...
-
-    return 0;
+    left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    if (left_col == mapWidth) {
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 0;
+        si = ADDR_PACKED_MAP_START;
+    } else { // skip column
+        si = packed_map_ptr_for_prox_left;
+        uint8_t dh = 0;
+        do {
+            uint8_t tile, count;
+            unpack_step_forward(&si, &tile, &count);
+            dh += count;
+        } while (dh < 64);
+    }
+    packed_map_ptr_for_prox_left = si;
+    every_projectile_moves_left_in_viewport();
+    MEM8(ADDR_MONSTER_INDEX) = 0;
+    left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + PROX_COLS - 1;
+    if (left_col >= mapWidth) {
+        left_col -= mapWidth;
+    }
+    si = MEM16(ADDR_MONSTERS_LIST);
+    for(;;) {
+        uint16_t currX = MEM16(si + 0);
+        if (currX == 0xFFFF) break;
+        if ((currX >> 8) != 0xFF && currX == left_col) {
+            uint8_t currY = MEM8(si + 2);
+            uint16_t prox = coords_to_prox_addr(35, currY);
+            uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
+            MEM8(prox) = (idx | 0x80);
+            MEM8(ADDR_MONSTER_INDEX) = idx + 1;
+            si += 16;
+        }
+    }
 }
 
-uint8_t hero_moves_left()
+void hero_moves_left()
 {
-    return 0;
+    uint16_t left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) - 1;
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    if (left_col == 0xffff) {
+        left_col = mapWidth - 1;
+        packed_map_ptr_for_prox_left = MEM16(ADDR_PACKED_MAP_END_PTR);
+    }
+    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left_col;
+    // proximity_map_scrolls_right
+    uint8_t* dest = &g_mem[ADDR_PROXIMITY_MAP];
+    memmove(dest + 1, dest, PROX_COLS * DUNGEON_HEIGHT - 1);
+    uint16_t si = packed_map_ptr_for_prox_left - 1; // check!!
+    uint8_t *di = &g_mem[ADDR_PROXIMITY_MAP + PROX_COLS * (DUNGEON_HEIGHT - 1)];
+    // fill_column_backward
+    unpack_column_backward(&si, di);
+    packed_map_ptr_for_prox_left = si + 1;
+    si = MEM16(ADDR_PACKED_MAP_END_PTR) - 1;
+    left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    if (left_col + PROX_COLS != mapWidth) {
+        // skip column
+        si = packed_map_ptr_for_prox_right;
+        uint8_t dh = 0;
+        do {
+            uint8_t tile, count;
+            unpack_step_backward(&si, &tile, &count);
+            dh += count;
+        } while (dh < 64);
+    }
+    packed_map_ptr_for_prox_right = si;
+    every_projectile_moves_right_in_viewport();
+    MEM8(ADDR_MONSTER_INDEX) = 0;
+    // left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    si = MEM16(ADDR_MONSTERS_LIST);
+    for(;;) {
+        uint16_t currX = MEM16(si + 0);
+        if (currX == 0xFFFF) break;
+        if ((currX >> 8) != 0xFF && currX == left_col) {
+            uint8_t currY = MEM8(si + 2);
+            uint16_t prox = coords_to_prox_addr(0, currY);
+            uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
+            MEM8(prox) = (idx | 0x80);
+            MEM8(ADDR_MONSTER_INDEX) = idx + 1;
+            si += 16;
+        }
+    }
+}
+
+void every_projectile_moves_left_in_viewport()
+{
+
+}
+
+void every_projectile_moves_right_in_viewport()
+{
+
 }
 
 static uint8_t get_tile_at(uint16_t x, uint8_t y)

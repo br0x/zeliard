@@ -107,45 +107,45 @@ echo "stick.bin diffs:" >>diff.txt
 echo "game.bin diffs:" >>diff.txt
 { cmp -l ../game/game.bin game.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "mole.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/mole.bin mole.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/mole.bin mole.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "gmmcga.bin diffs:" >>diff.txt
 { cmp -l ../game/gmmcga.bin gmmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "gdmcga.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/gdmcga.bin gdmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/gdmcga.bin gdmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "gtmcga.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/gtmcga.bin gtmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/gtmcga.bin gtmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "gfmcga.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/gfmcga.bin gfmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/gfmcga.bin gfmcga.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "ympd.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/ympd.bin ympd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/ympd.bin ympd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "ckpd.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/ckpd.bin ckpd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/ckpd.bin ckpd.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "opdemo.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/opdemo.bin opdemo.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/opdemo.bin opdemo.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "town.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/town.bin town.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/town.bin town.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "rokademo.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/rokademo.bin rokademo.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/rokademo.bin rokademo.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "kingpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/kingpro.bin kingpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/kingpro.bin kingpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "kenjpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/kenjpro.bin kenjpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/kenjpro.bin kenjpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "armrpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/armrpro.bin armrpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/armrpro.bin armrpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "drugpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/drugpro.bin drugpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/drugpro.bin drugpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "bankpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/bankpro.bin bankpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/bankpro.bin bankpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "churpro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/churpro.bin churpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/churpro.bin churpro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "innapro.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/innapro.bin innapro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/innapro.bin innapro.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "fight.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/fight.bin fight.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/fight.bin fight.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "select.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/select.bin select.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/select.bin select.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "eai1.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/eai1.bin eai1.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/eai1.bin eai1.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "crab.bin diffs:" >>diff.txt
-{ cmp -l ../game/0/1/crab.bin crab.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+{ cmp -l ../game/0/crab.bin crab.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 rm *.EXE *.MAP *.OBJ build.bat

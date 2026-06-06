@@ -11,20 +11,20 @@ extern "C" {
 // ============================================================================
 // Memory Layout Constants
 // ============================================================================
-#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80u    // word
-#define ADDR_VIEWPORT_TOP_ROW         0x82u    // byte
-#define ADDR_HERO_X_VIEW              0x0083u
-#define ADDR_HERO_HEAD_Y_VIEW         0x0084u
-#define ADDR_SWORD_TYPE               0x0092u
-#define ADDR_SHIELD_TYPE              0x0093u
-#define ADDR_CURRENT_ACCESSORY        0x009Eu
-#define ADDR_FACING                   0x00C2u
-#define ADDR_PLACE_MAP_ID             0x00C4u
-#define ADDR_HERO_ANIM_PHASE          0x00E7u
-#define ADDR_INVINCIBILITY_FLAG       0x00E8u
+#define MEM_SAVE_DATA                 0x0000    // 256 bytes - Save data (xxx.sav)
+#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
+#define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
+#define ADDR_HERO_X_VIEW              0x0083
+#define ADDR_HERO_HEAD_Y_VIEW         0x0084
+#define ADDR_SWORD_TYPE               0x0092
+#define ADDR_SHIELD_TYPE              0x0093
+#define ADDR_CURRENT_ACCESSORY        0x009E
+#define ADDR_FACING                   0x00C2
+#define ADDR_PLACE_MAP_ID             0x00C4
+#define ADDR_HERO_ANIM_PHASE          0x00E7
+#define ADDR_INVINCIBILITY_FLAG       0x00E8
 
 
-#define MEM_SAVE_DATA           0x0000    // 256 bytes - Save data (xxx.sav)
 #define MEM_MDT_DATA            0xC000    // ~8KB - MDT dungeon data
 #define ADDR_MONSTERS_LIST      0xC010
 #define ADDR_CAVERN_LEVEL       0xC012
@@ -32,7 +32,9 @@ extern "C" {
 #define ADDR_PACKED_MAP_START   0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP      0xE000    // 2304 bytes - 36x64 proximity map
 #define MEM_VIEWPORT_BUFFER     0xE900    // 28*19 bytes - Monster IDs (1 byte each)
-#define ADDR_SQUAT_FLAG          0xFF38
+
+#define ADDR_SQUAT_FLAG         0xFF38
+#define ADDR_MONSTER_INDEX      0xFF4A    // byte
 
 // ============================================================================
 // Global Memory Array (exported for JS access)
@@ -591,13 +593,16 @@ uint8_t get_danger_type(void);
 
 void unpack_map();
 void unpack_column(uint16_t* packed_ptr, uint8_t* dest);
+void unpack_column_backward(uint16_t* packed_ptr, uint8_t* dest);
 void unpack_step_forward(uint16_t* packed_ptr, uint8_t* tile, uint8_t* count);
 void unpack_step_backward(uint16_t* packed_ptr, uint8_t* tile, uint8_t* count);
 uint8_t is_non_blocking_tile(uint8_t tile);
 uint8_t lookup_shared(uint8_t tile);
 uint8_t get_airflow_direction(uint8_t tile);
-uint8_t hero_moves_right();
-uint8_t hero_moves_left();
+void hero_moves_right();
+void hero_moves_left();
+void every_projectile_moves_left_in_viewport();
+void every_projectile_moves_right_in_viewport();
 
 // Rendering
 void main_update_render(void);

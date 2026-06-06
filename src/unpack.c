@@ -126,16 +126,37 @@ void unpack_step_backward(uint16_t* packed_ptr, uint8_t* tile, uint8_t* count) {
  */
 void unpack_column(uint16_t* packed_ptr, uint8_t* dest)
 {
-    uint8_t y = 0;  // Row counter (0-63)
-    uint8_t* p = dest;
+    uint8_t row = 0;
 
-    while (y < 64) {
+    while (row < 64) {
         uint8_t tile, count;
         unpack_step_forward(packed_ptr, &tile, &count);
-        y += count;
+        row += count;
         while (count--) {
-            *p = tile;
-            p += 36;
+            *dest = tile;
+            dest += 36;
+        }
+    }
+}
+
+/**
+ * Unpack one column (64 rows) from packed data to proximity map, going backward
+ * Column-major order
+ *
+ * @param packed_ptr  Packed map data pointer
+ * @param dest    Destination in proximity map (first byte of column)
+ */
+void unpack_column_backward(uint16_t* packed_ptr, uint8_t* dest)
+{
+    uint8_t row = 0;
+
+    while (row < 64) {
+        uint8_t tile, count;
+        unpack_step_backward(packed_ptr, &tile, &count);
+        row += count;
+        while (count--) {
+            *dest = tile;
+            dest -= 36;
         }
     }
 }
@@ -181,11 +202,7 @@ void unpack_map() {
         }
     }
     
-    uint16_t end_addr;
-    if (ax == 0)
-        end_addr = MEM16(ADDR_PACKED_MAP_END_PTR);        // integer address
-    else
-        end_addr = packed_ptr;    // integer address
+    uint16_t end_addr = ax == 0 ? MEM16(ADDR_PACKED_MAP_END_PTR) : packed_ptr;
 
     packed_map_ptr_for_prox_right = end_addr - 1;         // both sides are uint16_t
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = ADDR_PROXIMITY_MAP + (MEM8(ADDR_VIEWPORT_TOP_ROW) & 0x3f) * 36;
