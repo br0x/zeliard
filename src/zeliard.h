@@ -590,12 +590,14 @@ void set_danger_type(uint8_t type);
 uint8_t get_danger_type(void);
 
 void unpack_map();
-void unpack_column(uint8_t* packed, uint16_t* pos, uint8_t* dest);
-void unpack_step_forward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
-void unpack_step_backward(uint8_t* packed, uint16_t* pos, uint8_t* tile, uint8_t* count);
+void unpack_column(uint16_t* packed_ptr, uint8_t* dest);
+void unpack_step_forward(uint16_t* packed_ptr, uint8_t* tile, uint8_t* count);
+void unpack_step_backward(uint16_t* packed_ptr, uint8_t* tile, uint8_t* count);
 uint8_t is_non_blocking_tile(uint8_t tile);
 uint8_t lookup_shared(uint8_t tile);
 uint8_t get_airflow_direction(uint8_t tile);
+uint8_t hero_moves_right();
+uint8_t hero_moves_left();
 
 // Rendering
 void main_update_render(void);

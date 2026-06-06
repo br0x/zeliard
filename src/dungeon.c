@@ -734,11 +734,11 @@ uint8_t hero_moves_right()
     if (left_col == MEM16(ADDR_MAP_WIDTH)) {
         packed_map_ptr_for_prox_right = MEM16(ADDR_PACKED_MAP_END_PTR) + 1;
     }
-    uint8_t* dest = &MEM8(ADDR_PROXIMITY_MAP);
+    uint8_t* dest = &g_mem[ADDR_PROXIMITY_MAP];
     memmove(dest, dest + 1, PROX_COLS * DUNGEON_HEIGHT - 1);
-    uint16_t si = packed_map_ptr_for_prox_right + 1; // check!! Should be offset to pass as 2nd arg to unpack_column
-    uint16_t di = &MEM8(ADDR_PROXIMITY_MAP) + PROX_COLS - 1;
-    unpack_column(&g_mem[ADDR_PACKED_MAP_START], &si, dest); // orig: SI = packed map pointer; DI = proximity_map + col_offset
+    uint16_t si = packed_map_ptr_for_prox_right + 1; // check!!
+    uint8_t *di = &g_mem[ADDR_PROXIMITY_MAP + PROX_COLS - 1];
+    unpack_column(&si, di); // orig: SI = packed map pointer; DI = proximity_map + col_offset
     packed_map_ptr_for_prox_right = si - 1;
     // ...
 
