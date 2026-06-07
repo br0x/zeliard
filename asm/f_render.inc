@@ -5,7 +5,7 @@
 ; Master simulation + render tick called every frame.
 ;
 ; Simulation phase:
-;   - Feruza shoes → feruza_shoes_four_else_two = 4 (else 2).
+;   - Feruza shoes → jump_height_including_shoes = 4 (else 2).
 ;   - check_airflows_on_hero — detect and apply wind tunnel tiles.
 ;   - If not airborne: reset byte_9F09 (fall sub-step counter).
 ;   - Re-center hero if hero_x_in_viewport drifts from 0x0C.
@@ -33,7 +33,7 @@ main_update_render proc near
                 mov     al, 4
 
 no_feruza:       
-                mov     ds:feruza_shoes_four_else_two, al
+                mov     ds:jump_height_including_shoes, al
                 call    check_airflows_on_hero
                 test    byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 jnz     short loc_6FD3

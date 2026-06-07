@@ -432,7 +432,7 @@ over_rope:
                 call    hero_knockback_handler
                 call    state_machine_dispatcher
                 cmp     byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
-                jnz     short move_off_rope
+                jne     short move_off_rope
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 inc     si              ; hero head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
@@ -440,7 +440,7 @@ over_rope:
                 add     si, 36          ; fall down 1 tile
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jb      short over_rope
+                jc      short over_rope
 
 move_off_rope:   
                 and     byte ptr ds:facing_direction, 11111101b ; down
@@ -614,7 +614,6 @@ hero_interaction_check endp
 
 
 ; ===========================================================================
-; hero_knockback_handler
 ; Applies knockback when the hero was just hit by a monster this frame.
 ; (byte_9F14 is set by check_hero_contact_damage when hit.)
 ;
@@ -717,7 +716,6 @@ hero_knockback_handler endp
 
 
 ; ===========================================================================
-; sliding_physics_step
 ; Applies one tick of ice-slide movement.
 ; Only active when cavern_level == 4 (ice cavern) AND no Ruzeria shoes.
 ; Consumes one tick from slide_ticks_remaining.
@@ -875,7 +873,7 @@ loc_6555:
 on_ground1:       
                 mov     byte ptr ds:squat_flag, 0
                 mov     al, ds:byte_9F09
-                cmp     al, ds:feruza_shoes_four_else_two
+                cmp     al, ds:jump_height_including_shoes
                 jnb     short loc_65BA
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 sub     si, 35          ; points above hero head
@@ -886,7 +884,7 @@ on_ground1:
                 mov     byte ptr ds:hero_animation_phase, 0
                 and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
                 mov     byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                mov     al, ds:feruza_shoes_four_else_two
+                mov     al, ds:jump_height_including_shoes
                 shr     al, 1
                 mov     ds:height_above_ground, al
                 inc     ds:byte_9F09
@@ -1559,7 +1557,6 @@ is_left_airflow endp
 
 
 ; ===========================================================================
-; airborne_movement
 ; Handles all in-air physics each frame (ascending and descending).
 ;
 ; Skip if air_up_tile_found or jump_phase_flags bit 7 (rope-descend mode).
@@ -1742,7 +1739,6 @@ airborne_movement endp
 
 
 ; ===========================================================================
-; slope_assist_on_landing
 ; Called each airborne frame to handle slope interactions.
 ; Reads tile at hero feet+2 rows via get_slope_direction_by_tile_under_feet.
 ; If on a slope:
@@ -2461,13 +2457,13 @@ wrap_map_from_below endp
 ; ===========================================================================
 set_zero_flag_if_slippery proc near
                 cmp     byte ptr ds:cavern_level, 4 ; danger type: slippery ground
-                jz      short loc_6DA2
+                je      short loc_6DA2
                 retn                    ; NZ
 ; ---------------------------------------------------------------------------
 
 loc_6DA2:        
                 cmp     byte ptr ds:current_accessory, SHOES_RUZERIA
-                jnz     short no_ruzeria
+                jne     short no_ruzeria
                 mov     al, 0FFh
                 or      al, al
                 retn                    ; NZ
@@ -2578,7 +2574,7 @@ is_non_blocking_tile endp
 
 
 is_non_blocking_tile_extended proc near
-                cmp     al, 49h ; 'I'
+                cmp     al, 49h ; doors
                 jb      short lookup_shared
                 cmp     al, al
                 retn
@@ -2587,7 +2583,6 @@ is_non_blocking_tile_extended proc near
 lookup_shared:   
                 push    di
                 push    cx
-                ; mpp1.grp : 00000000 00 07 FF 00 01 02 08 09 0A 0B 0C 0F 10 11 12 13 14 15 16 17 18 19 FF
                 mov     es, cs:seg1
                 mov     di, 8000h       ; 00 01 02 08  09 0A 0B 0C  0F 10 11 12  13 14 15 16  17 18 19 00  00 00 00 00
                 mov     cx, 24
@@ -2869,11 +2864,10 @@ apply_sword_hit_to_map_tiles endp
 
 
 ; ===========================================================================
-; main_update_render
 ; Master simulation + render tick called every frame.
 ;
 ; Simulation phase:
-;   - Feruza shoes → feruza_shoes_four_else_two = 4 (else 2).
+;   - Feruza shoes → jump_height_including_shoes = 4 (else 2).
 ;   - check_airflows_on_hero — detect and apply wind tunnel tiles.
 ;   - If not airborne: reset byte_9F09 (fall sub-step counter).
 ;   - Re-center hero if hero_x_in_viewport drifts from 0x0C.
@@ -2901,7 +2895,7 @@ main_update_render proc near
                 mov     al, 4
 
 no_feruza:       
-                mov     ds:feruza_shoes_four_else_two, al
+                mov     ds:jump_height_including_shoes, al
                 call    check_airflows_on_hero
                 test    byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 jnz     short loc_6FD3
@@ -2926,7 +2920,7 @@ loc_6FD3:
                 jz      short loc_6FF9
 
 loc_6FE1:        
-                mov     si, ds:word_A002
+                mov     si, ds:boss_state_block_ptr
                 add     si, 7
                 mov     al, [si]
                 cmp     ds:hero_x_in_viewport, al
@@ -2986,12 +2980,11 @@ skip_temperature_damage:
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short game_loop_render_and_timing
                 mov     byte ptr ds:hero_damage_this_frame, 0
-                jmp     short loc_7094
+                jmp     short loc_7094 ; invincibility entry point
 main_update_render endp
 
 
 ; ===========================================================================
-; game_loop_render_and_timing
 ; Rendering + timing portion of the per-frame cycle.
 ;
 ; Rendering sequence:
@@ -3019,10 +3012,10 @@ main_update_render endp
 ;   - Boss death reward: update XP + almas when boss_is_dead fires.
 ;   - Handle inventory (ENTER key) → bring_inventory_window.
 ; ===========================================================================
-game_loop_render_and_timing proc near   ; ...
+game_loop_render_and_timing proc near
                 mov     byte ptr ds:hero_sprite_hidden, 0
 
-loc_7094:        
+loc_7094:       ; invincibility entry point
                 mov     byte ptr ds:shield_anim_active, 0
                 test    byte ptr ds:sword_swing_flag, 0FFh
                 jz      short loc_70B3
@@ -3149,14 +3142,14 @@ loc_71CC:
                 test    byte ptr ds:boss_is_dead, 0FFh
                 jz      short loc_71FA
                 cmp     byte ptr ds:active_entity_table, 0FFh
-                jnz     short loc_71FA
-                mov     si, ds:word_A002
+                jne     short loc_71FA
+                mov     si, ds:boss_state_block_ptr
                 add     si, 5
-                lodsw
+                lodsw  ; xp_reward
                 push    si
                 call    update_hero_XP
                 pop     si
-                add     si, 4
+                add     si, 4 ; almas_reward
                 lodsw
                 call    hero_got_almas  ; ax: almas to add
                 mov     ds:byte_9F1E, 0FFh
@@ -4419,8 +4412,8 @@ prepare_dungeon endp
 
 
 try_door_interaction proc near
-                call    hero_coords_to_addr_in_proximity ; =e10c
-                sub     si, 36+1        ; x--, y-- ; =0xe0e7
+                call    hero_coords_to_addr_in_proximity
+                sub     si, 36+1        ; x--, y--
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 cmp     byte ptr [si], 4Ah ; 'J' ; door to Muralla: 0x49, 0x4A, 0x61, 0x4B, 0x4C
                 jz      short on_the_right_door_tile ; hero is on the right tile of the door
@@ -10183,10 +10176,10 @@ byte_9F07       db 0
 ; ---- Hero movement state ----
 jump_height_counter db 0  
 byte_9F09       db 0      
-frame_ticks     db 0      
+frame_ticks     db 0      ; 9F0A
 byte_9F0B       db 0      
 height_above_ground db 0  
-feruza_shoes_four_else_two db 2 
+jump_height_including_shoes db 2 
 ; ---- Knockback / hit vectors ----
 ; word_9F0E/9F10: X-component vectors for knockback (set by contact damage)
 word_9F0E       dw 0      
@@ -10194,7 +10187,7 @@ word_9F10       dw 0
 ; ---- Damage / invincibility ----
 accumulated_contact_damage dw 0 
 byte_9F14       db 0      
-air_up_tile_found db 0    
+air_up_tile_found db 0    ; 9f15h
 ; ---- Airflow ----
 ticks           db 0      
 byte_9F17       db 0      
@@ -10206,16 +10199,16 @@ door_target_y       db 0
 door_features       db 0      
 byte_9F1E       db 0      
 ; ---- Projectile tracking ----
-last_projectile_index db 0
+last_projectile_index db 0 ; 9F1F
 ; ---- Ice slide state ----
-slide_ticks_remaining db 0
-horiz_movement_sub_tile_accum db 0
+slide_ticks_remaining db 0 ; 9F20
+horiz_movement_sub_tile_accum db 0 ; 9F21
 ; ---- Input / animation state ----
 byte_9F22       db 0      
 byte_9F23       db 0      
 byte_9F24       db 0      
 ; ---- Temperature / cavern flags ----
-temperature_timer db 0    
+temperature_timer db 0    ; 9F25h
 byte_9F26       db 0      
 byte_9F27       db 0      
 byte_9F28       db 0      

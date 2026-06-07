@@ -312,7 +312,7 @@ loc_6555:
 on_ground1:       
                 mov     byte ptr ds:squat_flag, 0
                 mov     al, ds:byte_9F09
-                cmp     al, ds:feruza_shoes_four_else_two
+                cmp     al, ds:jump_height_including_shoes
                 jnb     short loc_65BA
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 sub     si, 35          ; points above hero head
@@ -323,7 +323,7 @@ on_ground1:
                 mov     byte ptr ds:hero_animation_phase, 0
                 and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
                 mov     byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                mov     al, ds:feruza_shoes_four_else_two
+                mov     al, ds:jump_height_including_shoes
                 shr     al, 1
                 mov     ds:height_above_ground, al
                 inc     ds:byte_9F09

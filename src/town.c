@@ -91,7 +91,7 @@
 #define ADDR_VIDEO_DRV_ID          0xFF14
 #define ADDR_ALT_SPACE             0xFF16
 #define ADDR_RIGHT_LEFT_DOWN_UP    0xFF17
-#define ADDR_ENTER_KEYS            0xFF18
+#define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter            0xFF18
 #define ADDR_FRAME_TIMER           0xFF1A
 #define ADDR_ANIM_TIMER            0xFF1B
 #define ADDR_SPACEBAR_LATCH        0xFF1D
@@ -102,7 +102,6 @@
 #define ADDR_HERO_Y_ABSOLUTE       0xFF35
 #define ADDR_SQUAT_FLAG            0xFF38
 #define ADDR_SLOPE_DIRECTION       0xFF42
-#define ADDR_SWORD_SWING_FLAG      0xFF43
 #define ADDR_TICK_COUNTER          0xFF50  /* word */
 #define ADDR_MENU_ITEM_COUNT       0xFF52
 #define ADDR_MENU_MAX_ITEMS        0xFF53
@@ -1462,7 +1461,7 @@ static void init_c015_obj_if_exists(void)
  * ========================================================================= */
 static void handle_inventory_key(void)
 {
-    if (!(MEM8(ADDR_ENTER_KEYS) & 0x01)) return;
+    if (!(MEM8(ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter) & 0x01)) return;
     MEM8(ADDR_SOUND_FX_REQUEST) = 0x0B;
     CALL_PROC(clear_viewport);
     swap_a000_c000_buffers();
@@ -2338,7 +2337,7 @@ void wasm_town_set_input_keys(uint8_t keys)
     if (keys & 0x08) dirs |= 0x08;  /* right */
 
     MEM8(ADDR_RIGHT_LEFT_DOWN_UP) = dirs;
-    MEM8(ADDR_ENTER_KEYS) = (keys & 0x10) ? 0x01 : 0x00;
+    MEM8(ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter) = (keys & 0x10) ? 0x01 : 0x00;
     MEM8(ADDR_ALT_SPACE) =
         (uint8_t)(((keys & 0x20) ? 0x01 : 0x00) |
                   ((keys & 0x40) ? 0x02 : 0x00));

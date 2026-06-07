@@ -7,23 +7,31 @@
 #define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 
-
-#define ADDR_BOSS_CAVERN_SPECIAL      0x9F01u
-#define ADDR_PACKED_MAP_PTR_MINUS     0x9F04u  // word: packed_map_ptr_for_prox_left
-#define ADDR_PACKED_MAP_PTR_PLUS      0x9F06u  // word: packed_map_ptr_for_prox_right
-#define ADDR_JUMP_HEIGHT_COUNTER      0x9F08u
-#define ADDR_BYTE_9F09                0x9F09u  // vertical scroll offset
-#define ADDR_HEIGHT_ABOVE_GROUND      0x9F0Cu
-#define ADDR_FERUZA_SHOES_FOUR_TWO    0x9F0Du  // normally 2, Feruza shoes set to 4
-#define ADDR_KNOCKBACK_VECTOR_X       0x9F0Eu  // word
-#define ADDR_KNOCKBACK_VECTOR_Y       0x9F10u  // word
-#define ADDR_HIT_THIS_FRAME           0x9F14u
-#define ADDR_AIR_UP_TILE_FOUND        0x9F15u
-#define ADDR_HERO_X_IN_PROXIMITY_MAP  0x9F1Au // word
-#define ADDR_SLIDE_TICKS_REMAINING    0x9F20u
-#define ADDR_HORIZ_MOVEMENT_ACCUM     0x9F21u
-#define ADDR_SLIDE_DIRECTION          0x9F22u  // 1=right, 2=left
-#define ADDR_SLIDE_DIRECTION_LOCK     0x9F23u  // 1=right movement
+#define ADDR_BYTE_9EF5                0x9EF5  // byte
+#define ADDR_BYTE_9F00                0x9F00
+#define ADDR_BOSS_CAVERN_SPECIAL      0x9F01
+#define ADDR_PACKED_MAP_PTR_MINUS     0x9F04  // word: packed_map_ptr_for_prox_left
+#define ADDR_PACKED_MAP_PTR_PLUS      0x9F06  // word: packed_map_ptr_for_prox_right
+#define ADDR_JUMP_HEIGHT_COUNTER      0x9F08
+#define ADDR_BYTE_9F09                0x9F09  // vertical scroll offset
+#define ADDR_FRAME_TICKS              0x9F0A
+#define ADDR_BYTE_9F0B                0x9F0B
+#define ADDR_HEIGHT_ABOVE_GROUND      0x9F0C
+#define ADDR_JUMP_HEIGHT_INCLUDING_SHOES    0x9F0D  // normally 2, Feruza shoes set to 4
+#define ADDR_KNOCKBACK_VECTOR_X       0x9F0E  // word
+#define ADDR_KNOCKBACK_VECTOR_Y       0x9F10  // word
+#define ADDR_BYTE_9F14                0x9F14
+#define ADDR_AIR_UP_TILE_FOUND        0x9F15
+#define ADDR_BYTE_9F18                0x9F18
+#define ADDR_BYTE_9F19                0x9F19
+#define ADDR_HERO_X_IN_PROXIMITY_MAP  0x9F1A // word
+#define ADDR_BYTE_9F1E                0x9F1E  // byte
+#define ADDR_SLIDE_TICKS_REMAINING    0x9F20
+#define ADDR_HORIZ_MOVEMENT_ACCUM     0x9F21
+#define ADDR_SLIDE_DIRECTION          0x9F22  // 1=right, 2=left
+#define ADDR_SLIDE_DIRECTION_LOCK     0x9F23  // 1=right movement
+#define ADDR_TEMPERATURE_TIMER        0x9F25  // temperature_timer
+#define ADDR_9F2B                     0x9F2B  // byte
 
 // MDT layout
 #define ADDR_MDT                 0xC000u
@@ -52,19 +60,14 @@
 #define ADDR_VIEWPORT_ENTITIES   0xE900u
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
-#define ADDR_INPUT_DIRS          0xFF17u  // ____right_left_down_up
-#define ADDR_ENTER_KEYS          0xFF18u
 #define ADDR_FRAME_TIMER         0xFF1Au
-#define ADDR_SPACEBAR_LATCH      0xFF1Du
 #define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
 #define ADDR_HERO_Y              0xFF35u   // hero_y_absolute (byte)
-#define ADDR_JUMP_PHASE_FLAGS    0xFF3Du
 #define ADDR_ON_ROPE_FLAGS       0xFF39u
 #define ADDR_SLOPE_DIRECTION     0xFF42u  // 1=right, 2=left
 #define ADDR_TICK_COUNTER        0xFF50u
 #define ADDR_SOUND_FX_REQUEST    0xFF75u
 
-#define ADDR_DUNGEON_VIEW_TOP    0xFFE0u
 #define ADDR_DUNGEON_ACTIVE      0xFFE1u
 #define ADDR_DUNGEON_EXIT_FLAG   0xFFE2u
 #define ADDR_DUNGEON_EXIT_MAP    0xFFE3u
@@ -73,6 +76,7 @@
 
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFCu
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFDu
+
 
 #define ADDR_PASSABLE_TILES       0x18000u
 #define ADDR_AIRFLOW_TILES        0x18024u
@@ -98,23 +102,28 @@
 #define AIRFLOW_UP          0
 #define AIRFLOW_LEFT        1
 #define AIRFLOW_RIGHT       2
+#define KEY_ENTER     1
+#define LEFT  1
+#define UP    2
 
 
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
 
+// TODO: remove (AI hallucinations)
 static uint16_t ptr_to_off(uint16_t ptr)
 {
     return ptr >= ADDR_MDT ? (uint16_t)(ptr - ADDR_MDT) : ptr;
 }
 
-// Wrap functions exactly as in f_map.inc
+// Checked
 static void wrap_map_from_above(uint16_t *si) {
     if (*si >= PROXIMITY_END) {
         *si -= PROXIMITY_SIZE;
     }
 }
 
+// Checked
 static void wrap_map_from_below(uint16_t *si) {
     if (*si < ADDR_PROXIMITY) {
         *si += PROXIMITY_SIZE;
@@ -123,6 +132,7 @@ static void wrap_map_from_below(uint16_t *si) {
 
 // Convert (x, y) in proximity coordinates (x 0..35, y 0..63) to address
 // Port of original coords_in_ax_to_proximity_map_addr_in_di
+// TODO: remove (AI hallucinations)
 static uint16_t coords_to_prox_addr(uint8_t x, uint8_t y) {
     y &= 0x3F;
     return ADDR_PROXIMITY + (uint16_t)(y & 0x3F) * PROX_COLS + x;
@@ -130,23 +140,19 @@ static uint16_t coords_to_prox_addr(uint8_t x, uint8_t y) {
 
 // Hero's top-left tile address in proximity map (from f_map.inc)
 // Use macro MEM to access actual data at this address
+// Checked
 static uint16_t hero_coords_to_addr_in_proximity(void) {
     uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
     uint8_t view_x = MEM8(ADDR_HERO_X_VIEW);
-    uint16_t base = MEM16(ADDR_VIEWPORT_LEFT_TOP);
-    uint16_t addr = base + head_y * 36 + view_x + 4;
+    uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP) + head_y * 36 + view_x + 4;
     wrap_map_from_above(&addr);
     return addr; // within 0xe000-0xe8ff
 }
 
 // Move viewport up one row (when hero jumps or climbs)
+// Checked
 static void move_hero_up(void) {
-    uint8_t top = MEM8(ADDR_VIEWPORT_TOP_ROW);
-    if (top > 0) {
-        top--;
-        MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-        MEM8(ADDR_DUNGEON_VIEW_TOP) = top;   // keep drawing variable in sync
-    }
+    MEM8(ADDR_VIEWPORT_TOP_ROW)--;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
     addr -= 36;
     wrap_map_from_below(&addr);
@@ -154,13 +160,9 @@ static void move_hero_up(void) {
 }
 
 // Move viewport down one row (when falling)
+// Checked
 static void hero_scroll_down(void) {
-    uint8_t top = MEM8(ADDR_VIEWPORT_TOP_ROW);
-    if (top < DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON) {
-        top++;
-        MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-        MEM8(ADDR_DUNGEON_VIEW_TOP) = top;
-    }
+    MEM8(ADDR_VIEWPORT_TOP_ROW)++;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
     addr += 36;
     wrap_map_from_above(&addr);
@@ -168,6 +170,7 @@ static void hero_scroll_down(void) {
 }
 
 // Update hero's absolute Y and adjust viewport if needed (called after vertical movement)
+// TODO: remove (AI hallucinations)
 static void set_hero_y(uint8_t y) {
     MEM8(ADDR_HERO_Y) = y;
     uint8_t top = MEM8(ADDR_VIEWPORT_TOP_ROW);
@@ -181,6 +184,7 @@ static void set_hero_y(uint8_t y) {
 }
 
 // Helper: get address in proximity map for world coordinates
+// TODO: remove (AI hallucinations)
 static uint16_t world_to_proximity_addr(uint16_t x, uint8_t y) {
     uint16_t left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
     uint16_t col = (x - left + PROX_COLS) % PROX_COLS;
@@ -188,29 +192,26 @@ static uint16_t world_to_proximity_addr(uint16_t x, uint8_t y) {
 }
 
 // Helper: check if a tile is a rope (ID 1 or 2)
+// TODO: remove (AI hallucinations)
 static int is_rope_tile(uint8_t tile) {
     return tile == ROPE_TILE_1 || tile == ROPE_TILE_2;
 }
 
-// Helper: check if tile is a slope and return direction
-static int get_slope_direction(uint8_t tile) {
-    if (tile == LEFT_SLOPE_TILE) return SLOPE_LEFT;
-    if (tile == RIGHT_SLOPE_TILE) return SLOPE_RIGHT;
-    return SLOPE_NONE;
-}
-
 // Helper: check if tile is ice (for sliding)
+// TODO: remove (AI hallucinations)
 static int is_ice_tile(uint8_t tile) {
     return tile >= ICE_TILE_START && tile <= ICE_TILE_END;
 }
 
 // Helper: get tile type from proximity map (including monster bit)
+// TODO: remove (AI hallucinations)
 static uint8_t get_proximity_tile(uint16_t world_x, uint8_t world_y) {
     uint16_t addr = world_to_proximity_addr(world_x, world_y);
     return MEM8(addr);
 }
 
 // Helper: check if a monster occupies a given world tile
+// TODO: remove (AI hallucinations)
 static int is_monster_at(uint16_t world_x, uint8_t world_y) {
     uint8_t tile = get_proximity_tile(world_x, world_y);
     return (tile & 0x80) != 0;
@@ -221,6 +222,7 @@ static int is_monster_at(uint16_t world_x, uint8_t world_y) {
 // Returns 1 if movement succeeded, 0 if blocked.
 // ----------------------------------------------------------------------
 // Horizontal movement – centered scrolling (hero_x_in_viewport constant)
+// TODO: remove (AI hallucinations)
 static int try_move_left(void) {
     uint16_t hero_x = hero_abs_x();
     uint8_t hero_y = MEM8(ADDR_HERO_Y);
@@ -263,12 +265,13 @@ static int try_move_left(void) {
 
     // Perform scroll
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = new_left;
-    proximity_scroll_right(new_left);   // shift map right, fill new leftmost column
+    // proximity_scroll_right(new_left);   // shift map right, fill new leftmost column
     MEM8(ADDR_FACING) = 1;              // face left
     // Absolute X updates automatically via hero_abs_x()
     return 1;
 }
 
+// TODO: remove (AI hallucinations)
 static int try_move_right(void) {
     uint16_t hero_x = hero_abs_x();
     uint8_t hero_y = MEM8(ADDR_HERO_Y);
@@ -307,7 +310,7 @@ static int try_move_right(void) {
     }
 
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = new_left;
-    proximity_scroll_left((new_left + PROX_COLS - 1) % map_width);
+    // proximity_scroll_left((new_left + PROX_COLS - 1) % map_width);
     MEM8(ADDR_FACING) = 0;
     return 1;
 }
@@ -315,9 +318,10 @@ static int try_move_right(void) {
 // ----------------------------------------------------------------------
 // Jumping and airborne physics
 // ----------------------------------------------------------------------
+// TODO: remove (AI hallucinations)
 static void start_jump(void) {
     uint8_t feruza = (MEM8(ADDR_CURRENT_ACCESSORY) == SHOES_FERUZA) ? 4 : 2;
-    MEM8(ADDR_FERUZA_SHOES_FOUR_TWO) = feruza;
+    MEM8(ADDR_JUMP_HEIGHT_INCLUDING_SHOES) = feruza;
     MEM8(ADDR_JUMP_PHASE_FLAGS) = 0xFF;
     MEM8(ADDR_HEIGHT_ABOVE_GROUND) = feruza >> 1;
     MEM8(ADDR_JUMP_HEIGHT_COUNTER) = 0;
@@ -326,6 +330,7 @@ static void start_jump(void) {
 }
 
 // Airborne update – uses hero_scroll_down on descent
+// TODO: remove (AI hallucinations)
 static void update_airborne(void) {
     uint8_t phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
     if (phase == 0) return;
@@ -366,6 +371,7 @@ static void update_airborne(void) {
 // ----------------------------------------------------------------------
 // Rope climbing
 // ----------------------------------------------------------------------
+// TODO: replace with actual code (AI hallucinations)
 static void try_climb_rope(void) {
     uint16_t x = hero_abs_x();
     uint8_t y = MEM8(ADDR_HERO_Y);
@@ -379,6 +385,7 @@ static void try_climb_rope(void) {
 }
 
 // Rope update – uses move_hero_up / hero_scroll_down
+// TODO: remove (AI hallucinations)
 static void update_on_rope(void) {
     uint8_t rope_flags = MEM8(ADDR_ON_ROPE_FLAGS);
     if (rope_flags == 0) return;
@@ -409,6 +416,7 @@ static void update_on_rope(void) {
 }
 
 // Ice sliding – uses try_move_left/right
+// TODO: remove (AI hallucinations)
 static void update_ice_slide(void) {
     if (MEM8(ADDR_CAVERN_LEVEL) != 4) return;
     if (MEM8(ADDR_CURRENT_ACCESSORY) == SHOES_RUZERIA) return;
@@ -428,6 +436,7 @@ static void update_ice_slide(void) {
 // ----------------------------------------------------------------------
 // Slopes
 // ----------------------------------------------------------------------
+// TODO: remove (AI hallucinations)
 static void update_slope(void) {
     uint8_t slope = MEM8(ADDR_SLOPE_DIRECTION);
     if (slope == SLOPE_NONE) return;
@@ -442,9 +451,10 @@ static void update_slope(void) {
 // ----------------------------------------------------------------------
 // Knockback
 // ----------------------------------------------------------------------
+// TODO: remove (AI hallucinations)
 static void apply_knockback(void) {
-    if (MEM8(ADDR_HIT_THIS_FRAME) == 0) return;
-    MEM8(ADDR_HIT_THIS_FRAME) = 0;
+    if (MEM8(ADDR_BYTE_9F14) == 0) return;
+    MEM8(ADDR_BYTE_9F14) = 0;
     int16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_X);
     int16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_Y);
     if (vx != 0 || vy != 0) {
@@ -461,6 +471,7 @@ static void apply_knockback(void) {
     }
 }
 
+// TODO: remove (AI hallucinations)
 void update_hero(void) {
     apply_knockback();
     update_on_rope();
@@ -520,35 +531,6 @@ void update_hero(void) {
 }
 
 
-// Shift proximity map columns right (when moving left) and fill new left column
-static void proximity_scroll_right(uint16_t new_left_col)
-{
-    // Shift columns right by 1 (backward copy)
-    uint16_t src = ADDR_PROXIMITY + (PROX_COLS - 2) * DUNGEON_HEIGHT;
-    uint16_t dst = ADDR_PROXIMITY + (PROX_COLS - 1) * DUNGEON_HEIGHT;
-    for (uint8_t i = PROX_COLS - 1; i > 0; i--) {
-        memmove(&g_mem[dst], &g_mem[src], DUNGEON_HEIGHT);
-        src -= DUNGEON_HEIGHT;
-        dst -= DUNGEON_HEIGHT;
-    }
-    // Fill new leftmost column
-    // copy_proximity_column(new_left_col, 0);
-}
-
-// Shift proximity map columns left (when moving right) and fill new right column
-static void proximity_scroll_left(uint16_t new_right_col)
-{
-    // Shift columns left by 1 (forward copy)
-    uint16_t src = ADDR_PROXIMITY + DUNGEON_HEIGHT;
-    uint16_t dst = ADDR_PROXIMITY;
-    for (uint8_t i = 0; i < PROX_COLS - 1; i++) {
-        memmove(&g_mem[dst], &g_mem[src], DUNGEON_HEIGHT);
-        src += DUNGEON_HEIGHT;
-        dst += DUNGEON_HEIGHT;
-    }
-    // Fill new rightmost column
-    // copy_proximity_column(new_right_col, PROX_COLS - 1);
-}
 
 // ----------------------------------------------------------------------
 // Hero movement and collision
@@ -556,16 +538,19 @@ static void proximity_scroll_left(uint16_t new_right_col)
 
 // is_non_blocking_tile family. 
 // Original assembly code returns ZF or NZ, we return 0 or nonzero values instead.
+// Checked
 uint8_t is_non_blocking_tile(uint8_t tile)
 {
     return (tile < 0x40) ? lookup_shared(tile) : tile;
 }
 
+// Checked
 static uint8_t is_non_blocking_tile_extended(uint8_t tile) 
 {
     return (tile < 0x49) ? lookup_shared(tile) : tile;
 }
 
+// Checked
 static uint8_t is_non_blocking_tile_simple(uint8_t tile) 
 {
     if (tile < 0x49) {
@@ -580,6 +565,7 @@ static uint8_t is_non_blocking_tile_simple(uint8_t tile)
     }
 }
 
+// Checked
 uint8_t lookup_shared(uint8_t tile)
 {
     for (int i = 0; i < 24; i++) {
@@ -592,6 +578,7 @@ uint8_t lookup_shared(uint8_t tile)
     return masked & 0x80;
 }
 
+// Checked
 static uint8_t is_right_airflow(uint8_t tile) {
     if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
         return 0; // level 7, no airflows
@@ -599,6 +586,7 @@ static uint8_t is_right_airflow(uint8_t tile) {
 }
 
 // original assembly code returns CF as True, NC as False
+// Checked
 static uint8_t is_left_airflow(uint8_t tile) {
     if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
         return 0; // level 7, no airflows
@@ -608,6 +596,7 @@ static uint8_t is_left_airflow(uint8_t tile) {
 // Is input tile an airflow?
 // Output: 0xff (no airflow)
 //         0 (Up), 1 (Left), 2 (Right)
+// Checked
 uint8_t get_airflow_direction(uint8_t tile)
 {
     if (tile != 0) {
@@ -647,6 +636,7 @@ uint8_t get_airflow_direction(uint8_t tile)
 //   CF (no monster/item) => return 0
 //   NC if monster/item; AL = monster.flags => return 0xff
 // ===========================================================================
+// Checked
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
 {
     uint8_t tile = MEM8(si);
@@ -663,6 +653,7 @@ uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
 }
 
 // Return 0 if cannot move right
+// Checked
 uint8_t move_hero_right_if_no_obstacles()
 {
     uint16_t si = hero_coords_to_addr_in_proximity() + 2;
@@ -696,6 +687,7 @@ uint8_t move_hero_right_if_no_obstacles()
 }
 
 // Return 0 if cannot move left
+// Checked
 uint8_t move_hero_left_if_no_obstacles()
 {
     uint16_t si = hero_coords_to_addr_in_proximity();
@@ -729,6 +721,7 @@ uint8_t move_hero_left_if_no_obstacles()
     return 0xff;
 }
 
+// Checked
 void hero_moves_right()
 {
     uint16_t left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + 1;
@@ -779,6 +772,7 @@ void hero_moves_right()
     }
 }
 
+// Checked
 void hero_moves_left()
 {
     uint16_t left_col = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) - 1;
@@ -827,16 +821,40 @@ void hero_moves_left()
     }
 }
 
+// stub
 void every_projectile_moves_left_in_viewport()
 {
 
 }
 
+// stub
 void every_projectile_moves_right_in_viewport()
 {
 
 }
 
+// Checked
+void hero_interaction_check(void)
+{
+    if (MEM8(ADDR_SQUAT_FLAG)) return;
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS)) return;
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    uint8_t tile = MEM8(si);
+    if (is_non_blocking_tile(tile) == 0) return;
+    si += 2;
+    tile = MEM8(si);
+    if (is_non_blocking_tile(tile) == 0) return;
+    si += 36;
+    wrap_map_from_above(&si);
+    tile = MEM8(si);
+    if (is_non_blocking_tile(tile) == 0) {
+        hero_moves_right();
+    } else {
+        hero_moves_left();
+    }
+}
+
+// TODO: remove (AI hallucinations)
 static uint8_t get_tile_at(uint16_t x, uint8_t y)
 {
     if (x >= MEM16(ADDR_MAP_WIDTH)) return 0xFF;
@@ -844,6 +862,7 @@ static uint8_t get_tile_at(uint16_t x, uint8_t y)
     return 0; // stub
 }
 
+// TODO: remove (AI hallucinations)
 int dungeon_can_stand_at(uint16_t x, uint8_t y)
 {
     if (y >= DUNGEON_HEIGHT - 1) return 0;
@@ -852,11 +871,13 @@ int dungeon_can_stand_at(uint16_t x, uint8_t y)
 }
 
 // Hero's absolute X coordinate (from proximity left column + center column)
+// TODO: remove (AI hallucinations)
 static uint16_t hero_abs_x(void) {
     return MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + HERO_PROX_COL;
 }
 
 // Set hero's absolute X (centered, does NOT change viewport X)
+// TODO: remove (AI hallucinations)
 static void set_hero_abs_x(uint16_t x) {
     uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
     if (map_width == 0) return;
@@ -866,6 +887,7 @@ static void set_hero_abs_x(uint16_t x) {
 }
 
 // Only used during init and after teleporting
+// TODO: remove (AI hallucinations)
 static void sync_viewport_from_hero(void) {
     uint8_t hero_y = MEM8(ADDR_HERO_Y);
     uint8_t top = 0;
@@ -873,13 +895,14 @@ static void sync_viewport_from_hero(void) {
     if (top > DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON)
         top = DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON;
     MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_DUNGEON_VIEW_TOP) = top;
+    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
     MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_y - top;
     // Recompute viewport_left_top_addr from top (col 4)
     uint16_t addr = coords_to_prox_addr(4, top);
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
 }
 
+// TODO: remove (AI hallucinations)
 static void update_sword(void)
 {
     uint8_t timer = MEM8(ADDR_DUNGEON_SWING_TMR);
@@ -893,6 +916,7 @@ static void update_sword(void)
     MEM8(ADDR_DUNGEON_SWING_FRAME) = (uint8_t)((17 - timer) / 2);
 }
 
+// TODO: remove (AI hallucinations)
 static void update_monsters(void)
 {
     uint16_t table = MEM16(ADDR_MDT + 0x10);
@@ -908,6 +932,7 @@ static void update_monsters(void)
     }
 }
 
+// TODO: remove (AI hallucinations)
 static void check_doors(void)
 {
     if (!(MEM8(ADDR_INPUT_DIRS) & 0x01)) return;
@@ -947,6 +972,7 @@ static void check_doors(void)
 // Exported WASM functions
 // ----------------------------------------------------------------------
 // Initialization: unpack full map and setup proximity/viewport
+// FIXME!
 void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction) {
     unpack_map();
 
@@ -966,7 +992,7 @@ void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_
     if (top > DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON)
         top = DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON;
     MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_DUNGEON_VIEW_TOP) = top;
+    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
     MEM8(ADDR_HERO_HEAD_Y_VIEW) = spawn_y - top;
 
     // Calculate viewport_left_top_addr = coords_to_prox_addr(4, top)
@@ -980,6 +1006,7 @@ void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_
     MEM8(ADDR_PLACE_MAP_ID) = map_id;
 }
 
+// FIXME!
 void wasm_dungeon_update(void)
 {
     if (!MEM8(ADDR_DUNGEON_ACTIVE)) return;
@@ -991,13 +1018,1116 @@ void wasm_dungeon_update(void)
     MEM8(ADDR_FRAME_TIMER) = 0;
 }
 
+// FIXME!
 void wasm_dungeon_full_tick(void)
 {
     MEM8(ADDR_FRAME_TIMER)++;
 }
 
-uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_DUNGEON_VIEW_TOP); }
+uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_VIEWPORT_TOP_ROW); }
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_sword_frame(void) { return MEM8(ADDR_DUNGEON_SWING_FRAME); }
 uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_DUNGEON_EXIT_MAP); }
+
+// gemini:
+
+// Checked
+int8_t set_zero_flag_if_slippery(void) {
+    if (MEM8(ADDR_CAVERN_LEVEL) == 4 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_RUZERIA_SHOES) {
+        return 0;
+    }
+    return 0xff;
+}
+
+// Assembly internal route functions / variables
+// TODO: remove (AI hallucinations)
+static uint8_t ticks_counter = 0; // Local counter mapping 'ds:ticks' inside slope logic
+
+// Stubs for missing functional procedures
+// stub
+void jump_press_handler(void) {}
+
+// TODO: replace with actual code (AI hallucinations)
+void flip_facing_direction(void) {
+    MEM8(ADDR_FACING) ^= 1;
+}
+
+// stub
+void hero_collapse_platform(void) {}
+
+// TODO: remove (AI hallucinations)
+void check_floor_for_landing_internal(uint8_t *cf, uint8_t *zf) {
+    *cf = 0; *zf = 1; // Default stub configuration
+}
+
+// TODO: replace with actual code (AI hallucinations)
+void land_after_jump(void) {
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+}
+
+// stub
+void update_boss_heartbeat_volume(void) {}
+
+// stub
+void update_and_render_horiz_platforms(void) {}
+
+// stub
+void render_vertical_platforms_to_proximity(void) {}
+
+// stub
+void process_visible_collapsing_platforms(void) {}
+
+// stub
+void process_doors(void) {}
+
+// stub
+void dispatch_spell_projectile_movement(void) {}
+
+// stub
+void monsters_spawning(void) {}
+
+// stub
+void check_hero_contact_damage(void) {}
+
+// stub
+void Flush_Ui_Element_If_Dirty_proc(void) {}
+
+// stub
+void projectiles_collision_processing(void) {}
+
+// stub
+void monsters_updates(void) {}
+
+// stub
+void Render_Scrolling_Transition_Overlay_proc(void) {}
+
+// stub
+void step_on_aggressive_ground(void) {}
+
+// stub
+void damage_hero(uint16_t amount) {}
+
+// stub
+void render_notification_string(const char* str) {}
+
+// stub
+void screen_flash_overlay(void) {}
+
+// stub
+void input_handling(void) {}
+
+// stub
+void magic_spell_fire_handler(void) {}
+
+// stub
+void state_machine_dispatcher(void) {}
+
+// INT 61h emulation mapping standard input flags (____right_left_down_up)
+// TODO: remove (AI hallucinations)
+static uint8_t bios_get_input_keys(void) {
+    return MEM8(0xFF17u);
+}
+
+// ============================================================================
+// main_loop — per-frame game loop
+// ============================================================================
+// Checked
+void main_loop(void) {
+    // test on_rope_flags
+    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) {
+        input_handling();
+        sliding_physics_step();
+        main_update_render();
+        magic_spell_fire_handler();
+        hero_interaction_check();
+        hero_knockback_handler();
+
+        MEM8(ADDR_FRAME_TICKS)++;
+        if (MEM8(ADDR_FRAME_TICKS) == 2) {
+            MEM8(ADDR_SQUAT_FLAG) = 0;
+        }
+        // check input keys buffer
+        if (MEM8(ADDR_INPUT_DIRS) & 2) {
+            MEM8(ADDR_FACING) &= ~2;
+        }
+        airborne_movement();
+        state_machine_dispatcher();
+    } else { // over_rope path
+        for (;;) {
+            MEM8(ADDR_SQUAT_FLAG) = 0;
+            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+            MEM8(ADDR_SLOPE_DIRECTION) = 0;
+            MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0;
+            Flush_Ui_Element_If_Dirty_proc();
+            MEM8(ADDR_SWORD_SWING_FLAG) = 0;
+            main_update_render();
+            hero_knockback_handler();
+            state_machine_dispatcher();
+            if (MEM8(ADDR_ON_ROPE_FLAGS) != 0xFF) break;
+            uint16_t si = hero_coords_to_addr_in_proximity() + 1; // hero head
+            if (is_over_rope(si)) continue;
+            si += 36; // body level
+            wrap_map_from_above(&si);
+            if (!is_over_rope(si)) break;
+        }
+        MEM8(ADDR_FACING) &= ~2;
+        MEM8(ADDR_ON_ROPE_FLAGS) = 0;
+        MEM8(ADDR_SPACEBAR_LATCH) = 0;
+        MEM8(ADDR_ALTKEY_LATCH) = 0;
+        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
+        MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0x7F;
+    }
+    // in original, loop to main_loop again. We manage it on caller side.
+}
+
+// Checked
+uint8_t is_over_rope(uint16_t si)
+{
+    uint8_t tile = MEM8(si);
+    if (tile == 1 || tile == 2) return 0xFF;
+    return 0;
+}
+
+// ============================================================================
+// Exported Core Assembly Functions
+// ============================================================================
+
+void hero_knockback_handler(void) {
+    if (MEM8(ADDR_BYTE_9F14) == 0) {
+        return;
+    }
+
+    if (MEM8(ADDR_BOSS_CAVERN_SPECIAL) == 0) {
+        uint16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_X);
+        uint16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_Y);
+        if (vx == 0 && vy == 0) {
+            if ((MEM8(ADDR_FACING) & 1) == 0) {
+                goto loc_6463;
+            }
+        } else {
+            goto loc_6463;
+        }
+    }
+
+    // loc_6440:
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        MEM8(ADDR_FACING) = (MEM8(ADDR_FACING) & 0xFC) | ACCESSORY_FERUZA_SHOES; // Force LEFT flag alignment
+        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F; // falling/descending
+        MEM8(ADDR_SPACEBAR_LATCH) = 0;
+    }
+    // loc_645B:
+    move_hero_left_if_no_obstacles();
+    move_hero_left_if_no_obstacles();
+    goto loc_6481;
+
+loc_6463:
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        MEM8(ADDR_FACING) &= 0xFC; // facing right alignment
+        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F; // falling/descending
+        MEM8(ADDR_SPACEBAR_LATCH) = 0;
+    }
+    // loc_6479:
+    move_hero_right_if_no_obstacles();
+    move_hero_right_if_no_obstacles();
+
+loc_6481:
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        MEM8(ADDR_ON_ROPE_FLAGS) = 0x80; // Rope-to-ground transition
+        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+    }
+
+// loc_6492:
+    if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
+        return;
+    }
+
+// loc_649A:
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) & 0x80) {
+        return;
+    }
+
+// loc_64A2:
+    uint8_t cf = 0, zf = 0;
+    check_floor_for_landing_internal(&cf, &zf);
+    if (cf) return; // jnb short loc_64A8
+
+// loc_64A8:
+    if (MEM8(ADDR_BYTE_9F09) != 0) {
+        MEM8(ADDR_BYTE_9F09)--;
+        MEM8(ADDR_HERO_HEAD_Y_VIEW)++;
+        return;
+    } else {
+        hero_scroll_down();
+    }
+}
+
+void sliding_physics_step(void) {
+    if (set_zero_flag_if_slippery() != 0) {
+        return; // NZ: not slippery
+    }
+
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
+        return; // airborne
+    }
+
+    if (MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
+        return;
+    }
+
+    MEM8(ADDR_SLIDE_TICKS_REMAINING)--;
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += (3 * 36 + 1); // target tile directly below feet matrix center
+    wrap_map_from_above(&si);
+
+    uint8_t tile = MEM8(si);
+    if (tile >= 0x40 && tile < 0x49) {
+        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0; // stepped outside or onto valid ice limits
+        return;
+    }
+
+    // loc_64EE:
+    uint8_t slide_dir = MEM8(ADDR_SLIDE_DIRECTION);
+    if ((MEM8(ADDR_SLIDE_DIRECTION_LOCK) & 1) == 0) {
+        if (slide_dir == 2) return;
+        move_hero_left_if_no_obstacles();
+    } else {
+        if (slide_dir == 1) return;
+        move_hero_right_if_no_obstacles();
+    }
+}
+
+void right_up_pressed(void) {
+    MEM8(ADDR_BYTE_9F0B) = 0xFF;
+    jump_press_handler();
+    // fallthrough to on_right_pressed
+    
+    MEM8(ADDR_BYTE_9F18) = 0;
+    if (MEM8(ADDR_FACING) & 1) {
+        flip_facing_direction();
+        return;
+    }
+    if (MEM8(ADDR_SQUAT_FLAG) != 0) {
+        return;
+    }
+
+// loc_67DA:
+    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_LEFT) {
+        land_after_jump(); // target state_machine slope helper block
+        return;
+    }
+
+    uint8_t blocked = move_hero_right_if_no_obstacles();
+    if (blocked == 0) { // CF emulation check
+        land_after_jump();
+        return;
+    }
+
+    MEM8(ADDR_SLIDE_DIRECTION) = 1; // slide direction = right
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        return;
+    }
+
+// loc_67F3:
+    if (set_zero_flag_if_slippery() == 0) {
+        if (MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
+            MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 1; // right movement locked
+            MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
+        }
+    }
+
+// loc_6808:
+    MEM8(ADDR_FACING) |= 2;
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
+        return;
+    }
+
+// loc_6815:
+    MEM8(ADDR_HERO_ANIM_PHASE)++;
+    MEM8(ADDR_HERO_ANIM_PHASE) &= 0x7F;
+    MEM8(ADDR_BYTE_9F19) = 0;
+}
+
+void left_up_pressed(void) {
+    MEM8(ADDR_BYTE_9F0B) = 0xFF;
+    jump_press_handler();
+    // fallthrough to on_left_pressed
+
+    MEM8(ADDR_BYTE_9F18) = 0;
+    if (!(MEM8(ADDR_FACING) & 1)) {
+        flip_facing_direction();
+        return;
+    }
+
+// loc_664D:
+    if (MEM8(ADDR_SQUAT_FLAG) != 0) {
+        return;
+    }
+
+// loc_6655:
+    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
+        land_after_jump(); // target state_machine slope handler block
+        return;
+    }
+
+// loc_665F:
+    uint8_t blocked = move_hero_left_if_no_obstacles();
+    if (blocked == 0) {
+        land_after_jump();
+        return;
+    }
+
+    MEM8(ADDR_SLIDE_DIRECTION) = 2; // slide direction = left
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        return;
+    }
+
+// loc_6674:
+    if (set_zero_flag_if_slippery() == 0) {
+        if (MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
+            MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 0; // left movement unlocked
+            MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
+        }
+    }
+
+// loc_6689:
+    MEM8(ADDR_FACING) |= 2;
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
+        return;
+    }
+
+    // on_ground2:
+    MEM8(ADDR_HERO_ANIM_PHASE)++;
+    MEM8(ADDR_HERO_ANIM_PHASE) &= 0x7F;
+    MEM8(ADDR_BYTE_9F19) = 0;
+}
+
+void airborne_movement(void) {
+    if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
+        return;
+    }
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) & 0x80) {
+        return;
+    }
+
+    hero_collapse_platform();
+    // Custom logic simulating slope assist on landing
+    // Handles reading tiles under feet and checking forced sliding down
+    {
+        MEM8(ADDR_SLOPE_DIRECTION) = 0;
+        uint16_t si_slope = hero_coords_to_addr_in_proximity() + (2 * 36 + 1);
+        wrap_map_from_above(&si_slope);
+        
+        // Emulated checking: get slope direction from tile
+        uint8_t target_tile = MEM8(si_slope);
+        uint8_t dl_dir = 0;
+        if (target_tile == LEFT_SLOPE_TILE) dl_dir = SLOPE_LEFT;
+        else if (target_tile == RIGHT_SLOPE_TILE) dl_dir = SLOPE_RIGHT;
+
+        if (dl_dir != 0) {
+            MEM8(ADDR_FACING) &= 0xFD; // mask vertical inputs out
+            MEM8(ADDR_SLOPE_DIRECTION) = dl_dir;
+            if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) == 0) {
+                uint8_t current_ticks = ticks_counter++;
+                if ((current_ticks & 3) == 0) {
+                    uint8_t input = bios_get_input_keys();
+                    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
+                        if (!(input & 0x04)) move_hero_right_if_no_obstacles();
+                    } else {
+                        if (!(input & 0x08)) move_hero_left_if_no_obstacles();
+                    }
+                }
+            } else {
+                if (MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_SILKARN_SHOES) {
+                    MEM8(ADDR_HEIGHT_ABOVE_GROUND)--;
+                    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
+                        move_hero_right_if_no_obstacles();
+                    } else {
+                        move_hero_left_if_no_obstacles();
+                    }
+                }
+            }
+        }
+    }
+
+    uint8_t cf = 0, zf = 0;
+    check_floor_for_landing_internal(&cf, &zf);
+    if (cf == 0) {
+        land_after_jump();
+        return;
+    }
+
+// loc_6978:
+    MEM8(ADDR_JUMP_HEIGHT_COUNTER)++;
+    if (MEM8(ADDR_BYTE_9F09) != 0) {
+        MEM8(ADDR_BYTE_9F09)--;
+        MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT)++;
+        zf = 0; // popped flags condition simulation
+    } else {
+        zf = 1;
+    }
+
+    if (zf != 0) { // popped conditional fall off cliff check
+        hero_scroll_down();
+    }
+
+// loc_6993:
+    if (!(MEM8(ADDR_FACING) & 2)) {
+        uint16_t si = hero_coords_to_addr_in_proximity() + (36 * 2 + 1);
+        wrap_map_from_above(&si);
+        if (is_rope_tile(MEM8(si))) {
+            MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF; // Grab onto rope mid-air
+            return;
+        }
+    }
+
+// loc_69AE:
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+    uint8_t old_phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) return;
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return;
+
+    if (old_phase == 0) {
+        if (MEM8(ADDR_FACING) & 1) {
+            left_up_pressed();
+        } else {
+            right_up_pressed();
+        }
+        MEM8(ADDR_FACING) &= 0xFD;
+        return;
+    }
+
+// read_keys_buffer:
+    uint8_t input_keys = bios_get_input_keys();
+    uint8_t horiz_input = input_keys & 0x0C;
+
+    if (horiz_input == 0x04) { // left_pressed
+        if (!(MEM8(ADDR_FACING) & 1)) {
+            MEM8(ADDR_FACING) &= 0xFD;
+            flip_facing_direction();
+        }
+        // loc_6A1E:
+        uint16_t si = hero_coords_to_addr_in_proximity() + (3 * 36 + 1);
+        wrap_map_from_above(&si);
+        if (is_non_blocking_tile(MEM8(si)) == 0) {
+            if (is_non_blocking_tile(MEM8(si + 1)) != 0) {
+                move_hero_right_if_no_obstacles();
+            }
+        }
+        return;
+    }
+    
+    if (horiz_input == 0x08) { // right_pressed
+        if (MEM8(ADDR_FACING) & 1) {
+            MEM8(ADDR_FACING) &= 0xFD;
+            flip_facing_direction();
+        }
+        // loc_6A4A:
+        uint16_t si = hero_coords_to_addr_in_proximity() + (3 * 36 + 1);
+        wrap_map_from_above(&si);
+        if (is_non_blocking_tile(MEM8(si)) == 0) {
+            if (is_non_blocking_tile(MEM8(si - 1)) != 0) {
+                move_hero_left_if_no_obstacles();
+            }
+        }
+        return;
+    }
+
+// loc_69F2:
+    if (MEM8(ADDR_FACING) & 0x01) { // UP mask flag checking matching layout
+        if (horiz_input == 0x04) {
+            left_up_pressed();
+        } else if (horiz_input == 0x08) {
+            right_up_pressed();
+        }
+    }
+}
+
+void slope_assist_on_landing(void) {
+    MEM8(ADDR_SLOPE_DIRECTION) = 0;
+
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += 2*36 + 1;
+    wrap_map_from_above(&si);
+
+    uint8_t dl;
+    // get_slope_direction_by_tile_under_feet returns NZ if slope, ZF if none.
+    // In C we simulate: if returns 0 -> no slope.
+    if (get_slope_direction_by_tile_under_feet(si, &dl) == 0) return;
+
+    MEM8(ADDR_FACING) &= ~2;
+    MEM8(ADDR_SLOPE_DIRECTION) = dl;
+
+    if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) != 0) {
+        if (MEM8(ADDR_CURRENT_ACCESSORY) == ACCESSORY_SILKARN_SHOES) return;
+        MEM8(ADDR_HEIGHT_ABOVE_GROUND)--;
+        if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
+            move_hero_right_if_no_obstacles();
+        } else {
+            move_hero_left_if_no_obstacles();
+        }
+        return;
+    }
+
+    // height_above_ground == 0
+    ticks_counter++;
+    if ((ticks_counter & 3) != 0) return;
+
+    uint8_t keys = bios_get_input_keys();
+    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
+        if ((keys & 0x08) == 0) move_hero_right_if_no_obstacles();
+    } else {
+        if ((keys & 0x04) == 0) move_hero_left_if_no_obstacles();
+    }
+}
+
+void check_airflows_on_hero()
+{
+    MEM8(ADDR_AIR_UP_TILE_FOUND) = 0;
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += 2 * PROX_COLS + 1;
+    wrap_map_from_above(&si);
+    for (int i = 0; i < 3; i++) {
+        dispatch_airflows(si);
+        si -= PROX_COLS;
+        wrap_map_from_below(&si);
+    }
+}
+
+// TODO: move rendering to js
+void main_update_render(void) {
+    uint8_t jump_height = 2;
+    if (MEM8(ADDR_CURRENT_ACCESSORY) == ACCESSORY_FERUZA_SHOES) {
+        jump_height = 4;
+    }
+    MEM8(ADDR_JUMP_HEIGHT_INCLUDING_SHOES) = jump_height;
+    check_airflows_on_hero();
+
+    if (MEM8(ADDR_JUMP_PHASE_FLAGS) == 0) {
+        MEM8(ADDR_BYTE_9F09) = 0;
+        if (MEM8(ADDR_BYTE_9F00) != MEM8(ADDR_HERO_HEAD_Y_VIEW)) {
+            if (MEM8(ADDR_BYTE_9F00) < MEM8(ADDR_HERO_HEAD_Y_VIEW)) {
+                hero_scroll_down();
+                MEM8(ADDR_HERO_HEAD_Y_VIEW)--;
+            } else {
+                move_hero_up();
+                MEM8(ADDR_HERO_HEAD_Y_VIEW)++;
+            }
+        }
+    }
+
+    if (MEM8(ADDR_IS_JASHIIN_CAVERN) != 0 || MEM8(ADDR_IS_BOSS_CAVERN) != 0) {
+        uint16_t si = MEM16(ADDR_BOSS_STATE_PTR) + 7; // arena_center_x; e.g. 12 for Crab
+        if (MEM8(ADDR_HERO_X_VIEW) != MEM8(si)) {
+            move_hero_right_if_no_obstacles();
+            MEM8(ADDR_HERO_X_VIEW)--;
+        }
+    } else {
+        if (MEM8(ADDR_HERO_X_VIEW) != 12) {
+            move_hero_left_if_no_obstacles();
+            MEM8(ADDR_HERO_X_VIEW)++;
+        }
+    }
+
+    MEM8(ADDR_HERO_Y) = (MEM8(ADDR_HERO_HEAD_Y_VIEW) + MEM8(ADDR_VIEWPORT_TOP_ROW)) & 0x3F;
+    update_boss_heartbeat_volume();
+    update_and_render_horiz_platforms();
+    render_vertical_platforms_to_proximity();
+    process_visible_collapsing_platforms();
+    process_doors();
+    dispatch_spell_projectile_movement();
+
+    if (MEM8(ADDR_BOSS_IS_DEAD) == 0) {
+        monsters_spawning();
+    }
+
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+    MEM8(ADDR_BYTE_9F14) = 0;
+    check_hero_contact_damage();
+    Flush_Ui_Element_If_Dirty_proc(); // request canvas redraw, todo
+    projectiles_collision_processing();
+    monsters_updates();
+    Render_Scrolling_Transition_Overlay_proc(); // something familiar... sword?
+    step_on_aggressive_ground();
+
+    if (MEM8(ADDR_CAVERN_LEVEL) == 7 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_ASBESTOS_CAPE) { // heat damage
+        MEM8(ADDR_TEMPERATURE_TIMER)++;
+        if ((MEM8(ADDR_TEMPERATURE_TIMER) & 0x3F) == 0) {
+            MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0xFF;
+            MEM8(ADDR_SOUND_FX_REQUEST) = 9;
+            damage_hero(0x0F);
+            render_notification_string("It's too hot !!");
+        }
+    }
+
+    screen_flash_overlay();
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) {
+        MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+        game_loop_render_and_timing(1);
+    } else {
+        game_loop_render_and_timing(0);
+    }
+}
+
+// ============================================================================
+// Rendering + timing portion of the per-frame cycle.
+// TODO: move handling to js
+// ============================================================================
+void game_loop_render_and_timing(uint8_t invincible)
+{
+    if (!invincible) {
+        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+    }
+    // Locals for timing loops
+    uint8_t cl;
+    uint16_t ax;
+
+    MEM8(ADDR_SHIELD_ANIM_ACTIVE) = 0;
+
+    // Sword swing active?
+    if (MEM8(ADDR_SWORD_SWING_FLAG) != 0) {
+        MEM8(ADDR_SHIELD_ANIM_ACTIVE) = 0xFF;
+        MEM8(ADDR_SHIELD_VARIANT_INDEX) = MEM8(ADDR_SWORD_HIT_TYPE);
+        MEM8(ADDR_SHIELD_ANIM_PHASE) = MEM8(ADDR_SWORD_MOVEMENT_PHASE);
+    } else if (MEM8(ADDR_SPELL_ACTIVE_FLAG) != 0) {
+        MEM8(ADDR_SHIELD_ANIM_ACTIVE) = 0xFF;
+        MEM8(ADDR_SHIELD_ANIM_PHASE) = MEM8(ADDR_9F2B);
+        MEM8(ADDR_SHIELD_VARIANT_INDEX) = 1;
+    }
+
+    if (MEM8(ADDR_HERO_SPRITE_HIDDEN) == 0) {
+        clear_hero_in_viewport();          // stub
+    }
+
+    Sample_Neighborhood_Attributes_proc(); // builds attribute cache for viewport tiles
+    // Check from here!!!
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) == 0) {
+        uint16_t timer = MEM16(ADDR_HEALING_TIMER);
+        if (timer != 0) {
+            timer--;
+            MEM16(ADDR_HEALING_TIMER) = timer;
+            MEM16(ADDR_HERO_HP) += 8;      // faster HP restoration (potions ?)
+            if (MEM16(ADDR_HERO_HP) >= MEM16(ADDR_HERO_MAX_HP)) {
+                MEM16(ADDR_HERO_HP) = MEM16(ADDR_HERO_MAX_HP);
+                MEM16(ADDR_HEALING_TIMER) = 0;
+            }
+            MEM8(ADDR_SOUND_FX_REQUEST) = 19;
+            Draw_Hero_Health_proc();
+        }
+    }
+
+    Refresh_Dirty_Tiles_proc();            // redraw tile changes to VRAM
+
+    if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
+        // combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
+        // with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
+        Active_Entity_Sprite_Renderer_proc();
+        MEM8(ADDR_BYTE_FF24) = 10;
+    }
+
+    // Timing loop 1: wait until frame_timer >= speed_const * 2
+    while (MEM8(ADDR_FRAME_TIMER) < 2*MEM8(ADDR_SPEED_CONST)) {
+        // busy wait
+    }
+
+    monsters_updates();                    // second pass – commit sprite positions
+    Flush_Ui_Element_If_Dirty_proc();
+    update_and_render_projectile_row_pair();
+    render_and_collision_pass_row();
+    update_active_projectiles_render();
+    apply_sword_hit_to_map_tiles();
+    Render_Scrolling_Transition_Overlay_proc();
+
+    // Timing loop 2: wait until frame_timer >= speed_const * 4
+    // Inner loop – process dialog/pause/joystick/restore while waiting for frame timer
+    do {
+        Confirm_Exit_Dialog_proc(); // Ctrl+Q dialog
+        Handle_Pause_State_proc(); // Esc dialog
+        Handle_Speed_Change_proc(); // F9 dialog
+        // Joystick_Calibration_proc(); // Ctrl+J dialog
+        // Joystick_Deactivator_proc();
+        if (Handle_Restore_Game_proc()) { // F7 dialog: original returns CF if restore requested
+            restore_game();
+        }
+    } while (MEM8(ADDR_FRAME_TIMER) < 4*MEM8(ADDR_SPEED_CONST));
+
+    MEM8(ADDR_FRAME_TIMER) = 0;
+
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) {
+        return;
+    }
+
+    // Hero death check
+    if (MEM8(ADDR_HERO_INVINCIBILITY) == 0 && MEM16(ADDR_HERO_HP) == 0) {
+        process_hero_death();
+        return;
+    }
+
+    // Passive HP regeneration (every 16 frames)
+    MEM8(ADDR_BYTE_9F18)++;               // byte_9F18 (frame counter)
+    if (MEM8(ADDR_BYTE_9F18) >= 16) {
+        MEM8(ADDR_BYTE_9F18) = 0;
+        if (MEM16(ADDR_HERO_HP) < MEM16(ADDR_HERO_MAX_HP)) {
+            MEM16(ADDR_HERO_HP) += 2;
+            Draw_Hero_Health_proc();
+        }
+    }
+
+    // Check for pending map load
+    if (MEM8(ADDR_BYTE_9F1E) != 0) {
+        load_place_and_reinit();
+        return;
+    }
+
+    // Boss defeat reward (XP + almas)
+    if (MEM8(ADDR_IS_BOSS_CAVERN) != 0 && MEM8(ADDR_BOSS_IS_DEAD) != 0) {
+        if (MEM8(ADDR_ACTIVE_ENTITY_TABLE) == 0xFF) {
+            uint16_t si = MEM16(ADDR_BOSS_STATE_PTR);
+            uint16_t xp_reward = MEM16(si + 5); // xp_reward
+            update_hero_XP(xp_reward);
+            uint16_t almas_reward = MEM16(si + 11); // almas_reward
+            hero_got_almas(almas_reward);
+            MEM8(ADDR_BYTE_9F1E) = 0xFF;
+        }
+    }
+
+    // If boss is being hit, exit early (skip inventory check)
+    if (MEM8(ADDR_BOSS_BEING_HIT) != 0) {
+        return;
+    }
+
+    // Inventory key (ENTER) handling
+    if (MEM16(ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter) & KEY_ENTER) {
+        bring_inventory_window();
+    } else {
+        MEM8(ADDR_BYTE_9EF5) = 0;
+    }
+}
+
+// dispatch_airflows and helper tables
+// ============================================================================
+void dispatch_airflows(uint16_t si) {
+    uint8_t tile = MEM8(si);
+    uint8_t dir = get_airflow_direction(tile);
+    if (dir == 0xFF) return;
+
+    switch (dir) {
+        case 0: // up
+            move_hero_up();
+            move_hero_up();
+            MEM8(ADDR_AIR_UP_TILE_FOUND) = 0xFF;
+            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0; // no jumps while flying
+            MEM8(ADDR_HERO_ANIM_PHASE) = 0x80; // idle
+            break;
+        case 1: // left
+            move_hero_left_if_no_obstacles();
+            move_hero_left_if_no_obstacles();
+            break;
+        case 2: // right
+            move_hero_right_if_no_obstacles();
+            move_hero_right_if_no_obstacles();
+            break;
+    }
+}
+
+// ============================================================================
+// try_door_interaction — handle hero stepping onto a door tile
+// 49 4A 61 4B 4C
+// 4D 58 00 59 4E
+// 5F 5A 00 5B 60
+// 5F 5C 5D 5E 60
+// This matrix 5x4 tiles describes the door frame
+// ============================================================================
+void try_door_interaction(void)
+{
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si -= 36 + 1;                       // x--, y--
+    wrap_map_from_below(&si);
+
+    // Check three adjacent tiles for a door (0x4A)
+    if (MEM8(si) == 0x4A) {
+        // on_the_right_door_tile
+        if ((MEM8(ADDR_FACING) & 1) == 0) {
+            // pop ax (discard return address) and jump to move right
+            move_hero_right_if_no_obstacles();
+        }
+        return;
+    }
+
+    si++;
+    if (MEM8(si) == 0x4A) {
+        // enter_the_door — this is the main door handling block
+        goto enter_the_door;
+    }
+
+    si++;
+    if (MEM8(si) == 0x4A) {
+        // on_the_left_door_tile
+        if (MEM8(ADDR_FACING) & 1) {
+            move_hero_left_if_no_obstacles();
+        }
+        return;
+    }
+    return; // no door
+
+enter_the_door:
+    {
+        // Compute hero absolute X (proximity_map_left_col_x + hero_x_in_viewport + 4)
+        uint16_t ax = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+        uint8_t bl = MEM8(ADDR_HERO_X_VIEW);
+        bl += 4;
+        ax += bl;                       // hero_x_absolute
+
+        uint16_t bx = MEM16(ADDR_MAP_WIDTH);
+        bx--;
+        if (bx >= ax) {
+            // no_wrap
+        } else {
+            bx = ~bx;
+            ax = bx;
+        }
+
+        uint8_t bl2 = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        bl2--;
+        bl2 += MEM8(ADDR_VIEWPORT_TOP_ROW);
+        bl2 &= 0x3F;                    // hero_y_absolute (wrapped)
+
+        si = MEM16(ADDR_DOORS_TABLE);   // doors_table_addr
+
+next_door1:
+        if (MEM16(si) == 0xFFFF) return; // end of doors marker
+
+        if (ax == MEM16(si + 0) && bl2 == MEM8(si + 2)) {
+            // match found
+            // pop ax (discard return address)
+            if (MEM8(si + 3) & 0x80) { // door.d_flags bit 7 = open
+                goto door_is_open;
+            } else {
+                // try to open door
+                if (open_door(si) == 0) { // CF clear = success
+                    return;
+                }
+                // failed to open (carry set)
+                MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+                MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;
+                if (MEM8(ADDR_BYTE_9F19) != 0) return;
+                MEM8(ADDR_BYTE_9F19) = 0xFF;
+                MEM8(ADDR_SOUND_FX_REQUEST) = 22;
+                render_notification_string("CAN'T OPEN THIS DOOR");
+                return;
+            }
+        }
+        si += 12;                       // sizeof(door)
+        goto next_door1;
+
+door_is_open:
+        {
+            uint16_t bx = MEM16(si + 9);   // d_save_achievement_addr
+            if (bx != 0xFFFF) {
+                uint8_t al = MEM8(si + 11); // d_achievement_flag
+                MEM8(bx) |= al;
+            }
+
+            // push si (save door pointer)
+            Browse_Projectiles();          // clears projectile array
+            clear_viewport_buffer();
+            Flush_Ui_Element_If_Dirty_proc();
+            reset_dungeon_state_vars();
+            game_loop_render_and_timing(); // redraw everything
+
+            // Clear monster table (write 0xFFFF at monsters_table_addr)
+            uint16_t monsters_ptr = MEM16(ADDR_MONSTERS_TABLE);
+            MEM16(monsters_ptr) = 0xFFFF;
+
+            // pop si (restore door pointer)
+            uint8_t door_flags = MEM8(si + 3);
+            uint8_t door_type = door_flags & 7;
+            uint16_t x1 = MEM16(si + 5);
+            uint8_t y1 = MEM8(si + 7);
+            uint8_t door_features = MEM8(si + 8);
+            uint8_t place_map_id = MEM8(si + 4);
+            uint8_t is_left_run = (door_flags >> 6) & 1;
+
+            // Set up transition globals
+            MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
+            MEM8(ADDR_DOOR_TARGET_Y) = y1;
+            MEM8(ADDR_IS_LEFT_RUN) = is_left_run;
+            MEM8(ADDR_DOOR_FEATURES) = door_features;
+
+            if (y1 == 0xFF) {
+                place_map_id |= 0x80;   // door leads to town
+            }
+            MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
+
+            // Load new MDT (map descriptor table)
+            // fn1_load_mdt_idx_ah
+            load_mdt(place_map_id & 0x7F);
+
+            if (place_map_id & 0x80) {
+                // it's a town – skip item removal
+            } else {
+                remove_accomplished_items();
+            }
+
+            // Position hero
+            hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
+
+            // Check MDT descriptor bit 0 (town vs dungeon)
+            uint16_t mdt_ptr = MEM16(ADDR_MDT);
+            uint8_t mdt_desc = MEM8(mdt_ptr);   // b7b6_msd_idx_b0
+            if ((mdt_desc & 1) == 0) {
+                // Town map – load Roca graphics
+                if (mdt_desc & 2) {
+                    // Load vfs_roka_grp_2 (town set 2)
+                    load_resource(2, vfs_roka_grp_2, packed_tile_ptr);
+                } else {
+                    // Load vfs_roka_grp_1 (town set 1)
+                    load_resource(2, vfs_roka_grp_1, packed_tile_ptr);
+                }
+                Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
+                Render_Roca_Tilemap_proc(door_type);
+                // set mman_grp_index = 0xFF, byte_FF24 = 0x0A
+                MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
+                MEM8(0xFF24) = 0x0A;
+            } else {
+                // Dungeon map – load proper graphics
+                if (mdt_desc & 2) {
+                    load_resource(2, vfs_roka_grp_2, packed_tile_ptr);
+                } else {
+                    load_resource(2, vfs_roka_grp_1, packed_tile_ptr);
+                }
+                Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
+                Render_Roca_Tilemap_proc(door_type);
+                process_mdt_descriptor(mdt_desc);
+            }
+
+            // Clear hero hidden flag
+            MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
+            MEM8(0x9EF5) = 0xFF;
+            MEM8(ADDR_PROJECTILES_ARRAY) = 0xFF;
+
+            if (door_features & 0x80) {
+                // Special town transition with rocademo.bin
+                load_resource(3, rokademo_bin, 0xA000); // load to seg1:A000
+                roca_entrypoint();
+                MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
+                MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
+                MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
+                MEM8(0x9F02) = 0xFF;
+                load_cavern_sprites_ai_music();
+                // load fman.grp for hero in dungeon
+                load_resource(2, vfs_fman_grp, fman_gfx);
+                Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
+                goto after_run_animation;
+            }
+
+            // Animate hero running into the new map
+            if (MEM8(ADDR_IS_LEFT_RUN) != 0) {
+                // run to the left
+                MEM8(ADDR_FACING) |= 1;   // face left
+                uint16_t bx = 0x406E;     // starting screen X
+                for (int cx = 26; cx > 0; cx--) {
+                    MEM8(ADDR_HERO_ANIM_PHASE)++;
+                    Update_Local_Attribute_Cache_proc();
+                    bx -= 2;
+                    Calculate_Tile_VRAM_Address_proc(bx);
+                    sleep_loop_handle_system_keys();
+                    bx += 4;
+                    Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0); // clears area
+                }
+                Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+            } else {
+                // run to the right
+                MEM8(ADDR_FACING) &= ~1;  // face right
+                uint16_t bx = 0xA6E;
+                for (int cx = 26; cx > 0; cx--) {
+                    MEM8(ADDR_HERO_ANIM_PHASE)++;
+                    Update_Local_Attribute_Cache_proc();
+                    bx += 2;
+                    Calculate_Tile_VRAM_Address_proc(bx);
+                    sleep_loop_handle_system_keys();
+                    Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0);
+                }
+                Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+            }
+
+after_run_animation:
+            // Final dungeon or town setup
+            mdt_desc = MEM8(ADDR_MDT);
+            if (mdt_desc & 1) {
+                // dungeon
+                load_cavern_sprites_ai_music();
+                mdt_desc = MEM8(ADDR_MDT);
+                uint8_t ah = mdt_desc;
+                ah <<= 1;
+                uint8_t bl = (ah & 0x80) ? 0xFF : 0;
+                MEM8(ADDR_IS_BOSS_CAVERN) = bl;
+                ah <<= 1;
+                bl = (ah & 0x80) ? 0xFF : 0;
+                MEM8(ADDR_IS_JASHIIN_CAVERN) = bl;
+                MEM8(ADDR_BOSS_BEING_HIT) = 0;
+                MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
+                Clear_Viewport_proc();
+                MEM8(ADDR_HERO_X_VIEW) = 0x0C;
+                MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT);
+                MEM8(ADDR_BYTE_9F00) = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+                MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+                Reassemble_3_Planes_To_Packed_Bitmap_proc(0x8030, 0x66);
+                NoOperation_proc();
+                Load_Magic_Spell_Sprite_Group_proc();
+                Reassemble_3_Planes_To_Packed_Bitmap_proc(/* magic sprite data */, 24);
+                Cavern_Game_Init();
+            } else {
+                // town
+                uint8_t mman_idx = MEM8(ADDR_MDT + 1);
+                uint16_t offset = mman_idx * 11;
+                uint16_t si2 = offset + vfs_mman_grp;
+                load_resource(2, si2, 0x4000);
+                // Transfer to town code
+                edge_locking_scrolling_window();  // sets proximity_map_left_col_x and hero_x_in_viewport
+                uint8_t msd_idx = (MEM8(ADDR_MDT) >> 1) & 0x1F;
+                MEM8(ADDR_MSD_INDEX) = msd_idx;
+                offset = msd_idx * 11;
+                si2 = offset + vfs_mgt1_msd;
+                load_resource(5, si2, 0x3000);   // load music
+                // fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
+                swap_to_town_graphics_and_jump(0);
+            }
+        }
+    }
+}
+
+void update_horiz_platform_coords(uint16_t si) {
+    // si points to a horiz_platform struct
+    uint8_t cl = MEM8(si + 2); // y_and_flags
+    MEM8(si + 2) &= 0xBF;      // clear pause bit
+
+    if (cl & 0x40) return;     // paused
+
+    uint16_t ax = MEM16(si);   // x (low byte of x_and_flags)
+    if (MEM8(si + 2) & 0x80) {
+        // leftward
+        ax--;
+        if (ax == 0xFFFF) {
+            ax = MEM16(ADDR_MAP_WIDTH) - 1;
+        }
+        // hero_on_horiz_platform check omitted (stub)
+        MEM16(si) = (ax & 0xFF) | (MEM16(si) & 0xFF00);
+        if (MEM16(si + 4) == ax) {
+            MEM8(si + 2) ^= 0x80; // change direction
+            MEM8(si + 2) |= 0x40; // pause
+        }
+    } else {
+        // rightward
+        ax++;
+        MEM16(si) = (ax & 0xFF) | (MEM16(si) & 0xFF00);
+        if (MEM16(si + 6) == ax) {
+            MEM8(si + 2) ^= 0x80;
+            MEM8(si + 2) |= 0x40;
+        }
+    }
+}
+

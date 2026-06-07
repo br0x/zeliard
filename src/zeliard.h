@@ -12,19 +12,25 @@ extern "C" {
 // Memory Layout Constants
 // ============================================================================
 #define MEM_SAVE_DATA                 0x0000    // 256 bytes - Save data (xxx.sav)
+#define ADDR_HERO_INVINCIBILITY       0x7F    // byte
 #define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
 #define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
-#define ADDR_HERO_X_VIEW              0x0083
-#define ADDR_HERO_HEAD_Y_VIEW         0x0084
-#define ADDR_SWORD_TYPE               0x0092
-#define ADDR_SHIELD_TYPE              0x0093
-#define ADDR_CURRENT_ACCESSORY        0x009E
-#define ADDR_FACING                   0x00C2
-#define ADDR_PLACE_MAP_ID             0x00C4
-#define ADDR_HERO_ANIM_PHASE          0x00E7
-#define ADDR_INVINCIBILITY_FLAG       0x00E8
+#define ADDR_HERO_X_VIEW              0x83
+#define ADDR_HERO_HEAD_Y_VIEW         0x84
+#define ADDR_HERO_HP                  0x90    // word
+#define ADDR_SWORD_TYPE               0x92
+#define ADDR_SHIELD_TYPE              0x93
+#define ADDR_CURRENT_ACCESSORY        0x9E
+#define ADDR_HERO_MAX_HP              0xB2    // word
+#define ADDR_FACING                   0xC2
+#define ADDR_PLACE_MAP_ID             0xC4
+#define ADDR_HEALING_TIMER            0xC6
+#define ADDR_IS_JASHIIN_CAVERN        0xE6
+#define ADDR_HERO_ANIM_PHASE          0xE7
+#define ADDR_INVINCIBILITY_FLAG       0xE8
 
 
+#define ADDR_BOSS_STATE_PTR           0xA002u  // word
 #define MEM_MDT_DATA            0xC000    // ~8KB - MDT dungeon data
 #define ADDR_MONSTERS_LIST      0xC010
 #define ADDR_CAVERN_LEVEL       0xC012
@@ -32,9 +38,30 @@ extern "C" {
 #define ADDR_PACKED_MAP_START   0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP      0xE000    // 2304 bytes - 36x64 proximity map
 #define MEM_VIEWPORT_BUFFER     0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0   // byte
 
-#define ADDR_SQUAT_FLAG         0xFF38
-#define ADDR_MONSTER_INDEX      0xFF4A    // byte
+#define ADDR_INPUT_DIRS          0xFF17  // ____right_left_down_up
+#define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
+#define ADDR_SPACEBAR_LATCH      0xFF1D
+#define ADDR_ALTKEY_LATCH        0xFF1E
+#define ADDR_BYTE_FF24           0xFF24  // byte
+#define ADDR_BOSS_BEING_HIT      0xFF2E  // byte
+#define ADDR_SPRITE_FLASH_FLAG   0xFF2F  // byte
+#define ADDR_BOSS_IS_DEAD        0xFF30    // byte
+#define ADDR_SPEED_CONST           0xFF33  // byte
+#define ADDR_IS_BOSS_CAVERN         0xFF34  // byte
+#define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36  // byte
+#define ADDR_HERO_SPRITE_HIDDEN  0xFF37  // byte
+#define ADDR_SQUAT_FLAG          0xFF38    // byte
+#define ADDR_SPELL_ACTIVE_FLAG   0xFF3C  // byte
+#define ADDR_JUMP_PHASE_FLAGS    0xFF3D    // byte
+#define ADDR_SHIELD_ANIM_PHASE   0xFF3F  // byte
+#define ADDR_SHIELD_ANIM_ACTIVE  0xFF40  // byte
+#define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
+#define ADDR_SWORD_SWING_FLAG    0xFF43  // byte
+#define ADDR_SWORD_HIT_TYPE      0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
+#define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
+#define ADDR_MONSTER_INDEX       0xFF4A    // byte
 
 // ============================================================================
 // Global Memory Array (exported for JS access)
@@ -603,6 +630,19 @@ void hero_moves_right();
 void hero_moves_left();
 void every_projectile_moves_left_in_viewport();
 void every_projectile_moves_right_in_viewport();
+void hero_interaction_check(void);
+void check_airflows_on_hero();
+void game_loop_render_and_timing(uint8_t invincible);
+uint8_t move_hero_right_if_no_obstacles(void);
+uint8_t move_hero_left_if_no_obstacles(void);
+uint16_t hero_coords_to_addr_in_proximity(void);
+void wrap_map_from_above(uint16_t *si);
+void wrap_map_from_below(uint16_t *si);
+void hero_scroll_down(void);
+void move_hero_up(void);
+uint8_t is_non_blocking_tile(uint8_t tile);
+uint8_t get_airflow_direction(uint8_t tile);
+int8_t set_zero_flag_if_slippery(void);
 
 // Rendering
 void main_update_render(void);
@@ -640,7 +680,7 @@ void sub_6DB1(void);           // Rope position update
 void start_climb_rope(void);   // Start climbing rope
 void climb_up_rope(void);      // Climb up on rope
 void climb_down_rope(void);    // Climb down on rope
-int is_over_rope(void);        // Check if over rope tile
+uint8_t is_over_rope(uint16_t si); // Check if over rope tile
 
 // Tile helpers
 int is_walkable_tile(uint8_t tile);
@@ -653,9 +693,6 @@ void set_on_rope_flags(uint8_t flags);
 int is_on_ground(void);
 int is_jumping(void);
 int is_on_rope(void);
-
-// Helper functions
-int set_zero_flag_if_slippery(void);
 
 #ifdef __cplusplus
 }

@@ -323,7 +323,7 @@ byte_9F09       db 0
 frame_ticks     db 0      
 byte_9F0B       db 0      
 height_above_ground db 0  
-feruza_shoes_four_else_two db 2 
+jump_height_including_shoes db 2 
 ; ---- Knockback / hit vectors ----
 ; word_9F0E/9F10: X-component vectors for knockback (set by contact damage)
 word_9F0E       dw 0      
