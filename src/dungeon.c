@@ -1204,6 +1204,7 @@ void main_loop(void) {
     // in original, loop to main_loop again. We manage it on caller side.
 }
 
+// Original assembly returns CF if true
 // Checked
 uint8_t is_over_rope(uint16_t si)
 {
@@ -1413,8 +1414,10 @@ void on_left_pressed() {
     MEM8(ADDR_BYTE_9F19) = 0;
 }
 
+// Caller shoult set restart = 0xff before calling, and then check if it 
+// was set to 0 by this function to decide whether to restart the loop
 //
-void airborne_movement(void) {
+void airborne_movement(uint8_t *restart) {
     if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
         return;
     }
@@ -1423,71 +1426,25 @@ void airborne_movement(void) {
     }
 
     hero_collapse_platform();
-    // Custom logic simulating slope assist on landing
-    // Handles reading tiles under feet and checking forced sliding down
-    {
-        MEM8(ADDR_SLOPE_DIRECTION) = 0;
-        uint16_t si_slope = hero_coords_to_addr_in_proximity() + (2 * 36 + 1);
-        wrap_map_from_above(&si_slope);
-        
-        // Emulated checking: get slope direction from tile
-        uint8_t target_tile = MEM8(si_slope);
-        uint8_t dl_dir = 0;
-        if (target_tile == LEFT_SLOPE_TILE) dl_dir = SLOPE_LEFT;
-        else if (target_tile == RIGHT_SLOPE_TILE) dl_dir = SLOPE_RIGHT;
-
-        if (dl_dir != 0) {
-            MEM8(ADDR_FACING) &= 0xFD; // mask vertical inputs out
-            MEM8(ADDR_SLOPE_DIRECTION) = dl_dir;
-            if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) == 0) {
-                uint8_t current_ticks = ticks_counter++;
-                if ((current_ticks & 3) == 0) {
-                    uint8_t input = bios_get_input_keys();
-                    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
-                        if (!(input & 0x04)) move_hero_right_if_no_obstacles();
-                    } else {
-                        if (!(input & 0x08)) move_hero_left_if_no_obstacles();
-                    }
-                }
-            } else {
-                if (MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_SILKARN_SHOES) {
-                    MEM8(ADDR_HEIGHT_ABOVE_GROUND)--;
-                    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
-                        move_hero_right_if_no_obstacles();
-                    } else {
-                        move_hero_left_if_no_obstacles();
-                    }
-                }
-            }
-        }
-    }
-
-    uint8_t cf = 0, zf = 0;
-    check_floor_for_landing_internal(&cf, &zf);
-    if (cf == 0) {
+    slope_assist_on_landing();
+    if (!check_floor_for_landing()) {
         land_after_jump();
         return;
     }
 
-// loc_6978:
     MEM8(ADDR_JUMP_HEIGHT_COUNTER)++;
     if (MEM8(ADDR_BYTE_9F09) != 0) {
         MEM8(ADDR_BYTE_9F09)--;
-        MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT)++;
-        zf = 0; // popped flags condition simulation
+        MEM8(ADDR_HERO_HEAD_Y_VIEW)++;
     } else {
-        zf = 1;
-    }
-
-    if (zf != 0) { // popped conditional fall off cliff check
         hero_scroll_down();
     }
+    *restart = 0; // simulate pop trick
 
-// loc_6993:
-    if (!(MEM8(ADDR_FACING) & 2)) {
+    if (!(MEM8(ADDR_FACING) & UP)) {
         uint16_t si = hero_coords_to_addr_in_proximity() + (36 * 2 + 1);
         wrap_map_from_above(&si);
-        if (is_rope_tile(MEM8(si))) {
+        if (is_over_rope(si)) {
             MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF; // Grab onto rope mid-air
             return;
         }

@@ -1587,7 +1587,7 @@ loc_696A:
                 call    hero_collapse_platform
                 call    slope_assist_on_landing
                 call    check_floor_for_landing
-                jnb     short loc_6978
+                jnc     short loc_6978
                 jmp     land_after_jump
 ; ---------------------------------------------------------------------------
 
@@ -1601,7 +1601,7 @@ loc_6978:
                 popf
 
 loc_698D:        
-                pop     ax
+                pop     ax              ; return address - ignore
                 jnz     short loc_6993  ;
                                         ; fall off cliff
                 call    hero_scroll_down
@@ -1613,7 +1613,7 @@ loc_6993:
                 add     si, 36*2+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jnb     short loc_69AE
+                jnc     short loc_69AE
                 mov     byte ptr ds:on_rope_flags, 0FFh ; hang on rope by walking
                 retn
 ; ---------------------------------------------------------------------------
@@ -1930,7 +1930,7 @@ land_after_jump endp
 
 
 ; =============== S U B R O U T I N E =======================================
-
+; CF if cannot move down
 check_floor_for_landing proc near
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1      ; directly under feet
@@ -9725,7 +9725,6 @@ Find_Monsters_Near_Hero endp
 
 
 ; ===========================================================================
-; process_hero_death
 ; Hero death sequence.
 ;
 ; Phase 1 — falling: calls airborne_movement in a loop until landed.
@@ -10174,7 +10173,7 @@ packed_map_ptr_for_prox_left dw 0 ; 9f03
 packed_map_ptr_for_prox_right dw 0  ; 9f05
 byte_9F07       db 0      
 ; ---- Hero movement state ----
-jump_height_counter db 0  
+jump_height_counter db 0  ; 9F08
 byte_9F09       db 0      
 frame_ticks     db 0      ; 9F0A
 byte_9F0B       db 0      
