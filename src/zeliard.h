@@ -53,11 +53,13 @@ extern "C" {
 #define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36  // byte
 #define ADDR_HERO_SPRITE_HIDDEN  0xFF37  // byte
 #define ADDR_SQUAT_FLAG          0xFF38    // byte
+#define ADDR_ON_ROPE_FLAGS       0xFF39
 #define ADDR_SPELL_ACTIVE_FLAG   0xFF3C  // byte
 #define ADDR_JUMP_PHASE_FLAGS    0xFF3D    // byte
 #define ADDR_SHIELD_ANIM_PHASE   0xFF3F  // byte
 #define ADDR_SHIELD_ANIM_ACTIVE  0xFF40  // byte
 #define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
+#define ADDR_SLOPE_DIRECTION     0xFF42  // 1=right, 2=left, 0=none
 #define ADDR_SWORD_SWING_FLAG    0xFF43  // byte
 #define ADDR_SWORD_HIT_TYPE      0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte

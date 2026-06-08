@@ -558,7 +558,7 @@ byte_FF3E                                          equ 0FF3Eh
 shield_anim_phase                                  equ 0FF3Fh
 shield_anim_active                                 equ 0FF40h
 shield_variant_index                               equ 0FF41h
-slope_direction                                    equ 0FF42h ; 1=right, 2=left
+slope_direction                                    equ 0FF42h ; 1=right, 2=left, 0=none
 sword_swing_flag                                   equ 0FF43h
 ui_element_dirty                                   equ 0FF44h
 sword_hit_type                                     equ 0FF45h ; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust

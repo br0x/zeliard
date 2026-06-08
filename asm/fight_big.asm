@@ -650,7 +650,7 @@ loc_643C:
                 or      al, al
                 jnz     short loc_6463
 
-loc_6440:        
+loc_6440:       ; move left
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_645B
                 and     byte ptr ds:facing_direction, 11111100b
@@ -664,7 +664,7 @@ loc_645B:
                 jmp     short loc_6481
 ; ---------------------------------------------------------------------------
 
-loc_6463:        
+loc_6463:       ; move right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_6479
                 and     byte ptr ds:facing_direction, 11111100b ; right
@@ -698,7 +698,7 @@ loc_649A:
 
 loc_64A2:        
                 call    check_floor_for_landing
-                jnb     short loc_64A8
+                jnc     short loc_64A8
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -747,11 +747,11 @@ loc_64D1:
                 add     si, 3*36+1      ; points to tile under feet
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
-                cmp     al, 40h ; '@'
+                cmp     al, 40h
                 jb      short loc_64EE
-                cmp     al, 49h ; 'I'
+                cmp     al, 49h
                 jnb     short loc_64EE
-                ; al = 40h ... 49h
+                ; al = 40h ... 48h
                 mov     ds:slide_ticks_remaining, 0 ; stop sliding
                 retn
 ; ---------------------------------------------------------------------------
@@ -1038,14 +1038,14 @@ loc_664D:
 loc_6655:        
                 cmp     byte ptr ds:slope_direction, SLOPE_RIGHT
                 jne     short loc_665F
-                jmp     loc_6837
+                jmp     init_on_ground
 ; ---------------------------------------------------------------------------
 
 loc_665F:        
                 call    move_hero_left_if_no_obstacles
                 jnc     short loc_6667
                 ; CF: cannot move left
-                jmp     loc_6837
+                jmp     init_on_ground
 ; ---------------------------------------------------------------------------
 
 loc_6667:        
@@ -1298,7 +1298,7 @@ right_up_pressed proc near
 
 on_right_pressed:        
                 mov     ds:byte_9F18, 0
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short flip_facing_direction
                 test    byte ptr ds:squat_flag, 0FFh
                 jz      short loc_67DA
@@ -1307,9 +1307,9 @@ on_right_pressed:
 
 loc_67DA:        
                 cmp     byte ptr ds:slope_direction, SLOPE_LEFT
-                jz      short loc_6837
+                je      short init_on_ground
                 call    move_hero_right_if_no_obstacles
-                jc      short loc_6837   ; CF: cannot move right
+                jc      short init_on_ground   ; CF: cannot move right
                 mov     ds:byte_9F22, 1  ; move dir = right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_67F3
@@ -1354,9 +1354,10 @@ flip_facing_direction proc near
 on_ground3:       
                 mov     byte ptr ds:hero_animation_phase, 80h
                 retn
-; ---------------------------------------------------------------------------
+flip_facing_direction endp
 
-loc_6837:        
+; ============================================================
+init_on_ground  proc near
                 and     byte ptr ds:facing_direction, 11111101b ; clear Up
                 mov     al, ds:on_rope_flags ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 or      al, ds:jump_phase_flags ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
@@ -1367,8 +1368,7 @@ loc_6837:
 loc_6846:        
                 mov     byte ptr ds:hero_animation_phase, 80h
                 retn
-flip_facing_direction endp
-
+init_on_ground  endp
 
 ; ===========================================================================
 ; Attempts to scroll the dungeon one tile to the left (hero moves right).
@@ -1412,7 +1412,7 @@ loc_6864:
 
 loc_687E:        
                 call    is_left_airflow
-                jnb     short loc_6884
+                jnc     short loc_6884
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -1964,7 +1964,7 @@ loc_6B92:
 loc_6B9D:        
                 cmp     byte ptr ds:hero_animation_phase, 80h
                 clc
-                jnz     short loc_6BA6
+                jne     short loc_6BA6
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -10204,8 +10204,8 @@ last_projectile_index db 0 ; 9F1F
 slide_ticks_remaining db 0 ; 9F20
 horiz_movement_sub_tile_accum db 0 ; 9F21
 ; ---- Input / animation state ----
-byte_9F22       db 0      
-byte_9F23       db 0      
+byte_9F22       db 0      ; ADDR_SLIDE_DIRECTION
+byte_9F23       db 0      ; ADDR_SLIDE_DIRECTION_LOCK
 byte_9F24       db 0      
 ; ---- Temperature / cavern flags ----
 temperature_timer db 0    ; 9F25h

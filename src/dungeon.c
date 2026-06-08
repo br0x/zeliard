@@ -9,7 +9,7 @@
 
 #define ADDR_BYTE_9EF5                0x9EF5  // byte
 #define ADDR_BYTE_9F00                0x9F00
-#define ADDR_BOSS_CAVERN_SPECIAL      0x9F01
+#define ADDR_BYTE_9F01                0x9F01
 #define ADDR_PACKED_MAP_PTR_MINUS     0x9F04  // word: packed_map_ptr_for_prox_left
 #define ADDR_PACKED_MAP_PTR_PLUS      0x9F06  // word: packed_map_ptr_for_prox_right
 #define ADDR_JUMP_HEIGHT_COUNTER      0x9F08
@@ -17,9 +17,9 @@
 #define ADDR_FRAME_TICKS              0x9F0A
 #define ADDR_BYTE_9F0B                0x9F0B
 #define ADDR_HEIGHT_ABOVE_GROUND      0x9F0C
-#define ADDR_JUMP_HEIGHT_INCLUDING_SHOES    0x9F0D  // normally 2, Feruza shoes set to 4
-#define ADDR_KNOCKBACK_VECTOR_X       0x9F0E  // word
-#define ADDR_KNOCKBACK_VECTOR_Y       0x9F10  // word
+#define ADDR_JUMP_HEIGHT_INCLUDING_SHOES  0x9F0D  // normally 2, Feruza shoes set to 4
+#define ADDR_KNOCKBACK_VECTOR_9F0E    0x9F0E  // word
+#define ADDR_KNOCKBACK_VECTOR_9F10       0x9F10  // word
 #define ADDR_BYTE_9F14                0x9F14
 #define ADDR_AIR_UP_TILE_FOUND        0x9F15
 #define ADDR_BYTE_9F18                0x9F18
@@ -63,8 +63,6 @@
 #define ADDR_FRAME_TIMER         0xFF1Au
 #define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
 #define ADDR_HERO_Y              0xFF35u   // hero_y_absolute (byte)
-#define ADDR_ON_ROPE_FLAGS       0xFF39u
-#define ADDR_SLOPE_DIRECTION     0xFF42u  // 1=right, 2=left
 #define ADDR_TICK_COUNTER        0xFF50u
 #define ADDR_SOUND_FX_REQUEST    0xFF75u
 
@@ -91,6 +89,8 @@
 #define SLOPE_NONE  0
 #define SLOPE_RIGHT 1
 #define SLOPE_LEFT  2
+#define SLIDE_RIGHT 1
+#define SLIDE_LEFT  2
 #define ROPE_TILE_1 1
 #define ROPE_TILE_2 2
 #define LEFT_SLOPE_TILE  11
@@ -455,8 +455,8 @@ static void update_slope(void) {
 static void apply_knockback(void) {
     if (MEM8(ADDR_BYTE_9F14) == 0) return;
     MEM8(ADDR_BYTE_9F14) = 0;
-    int16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_X);
-    int16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_Y);
+    int16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_9F0E);
+    int16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_9F10);
     if (vx != 0 || vy != 0) {
         for (int i = 0; i < 2; i++) {
             if (vx < 0) try_move_left();
@@ -550,6 +550,7 @@ static uint8_t is_non_blocking_tile_extended(uint8_t tile)
     return (tile < 0x49) ? lookup_shared(tile) : tile;
 }
 
+// Original returns ZF, we will check for 0 on caller side
 // Checked
 static uint8_t is_non_blocking_tile_simple(uint8_t tile) 
 {
@@ -652,7 +653,7 @@ uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
     return 0xFF;
 }
 
-// Return 0 if cannot move right
+// Return 0 if cannot move right (original assembly returned CF)
 // Checked
 uint8_t move_hero_right_if_no_obstacles()
 {
@@ -662,7 +663,7 @@ uint8_t move_hero_right_if_no_obstacles()
     wrap_map_from_below(&si);
     for (int i = 0; i < 4; i++) {
         uint8_t flags;
-        uint8_t ret = get_dst_monster_flags(si, &flags);
+        get_dst_monster_flags(si, &flags);
         if (flags & 0x80) return 0; // destroyable wall to the right of hero, can't move
         si += 36;
         wrap_map_from_above(&si);
@@ -1056,9 +1057,29 @@ void flip_facing_direction(void) {
 // stub
 void hero_collapse_platform(void) {}
 
-// TODO: remove (AI hallucinations)
-void check_floor_for_landing_internal(uint8_t *cf, uint8_t *zf) {
-    *cf = 0; *zf = 1; // Default stub configuration
+// CF: false (blocked from below), NC: true (can move down)
+uint8_t check_floor_for_landing() {
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += 3*36+1;
+    wrap_map_from_above(&si);
+    uint16_t di = si;
+    uint8_t flags;
+    get_dst_monster_flags(si, &flags); // check directly below hero feet
+    if (flags & 0x80) return 0;
+    si--;
+    get_dst_monster_flags(si, &flags); // check below hero left side
+    if (flags & 0x80) return 0;
+    si = di;
+    uint8_t tile = MEM8(si);
+    if (is_non_blocking_tile_simple(tile)) return 0;
+    if (MEM8(ADDR_HERO_ANIM_PHASE) == 0x80) return 0xff;
+    si--;
+    tile = MEM8(si);
+    if (!is_non_blocking_tile_simple(tile)) return 0xff;
+    si += 2;
+    tile = MEM8(si);
+    if (is_non_blocking_tile_simple(tile)) return 0;
+    return 0xFF;
 }
 
 // TODO: replace with actual code (AI hallucinations)
@@ -1194,67 +1215,62 @@ uint8_t is_over_rope(uint16_t si)
 // ============================================================================
 // Exported Core Assembly Functions
 // ============================================================================
-
-void hero_knockback_handler(void) {
+// Checked
+void hero_knockback_handler(void)
+{
     if (MEM8(ADDR_BYTE_9F14) == 0) {
         return;
     }
 
-    if (MEM8(ADDR_BOSS_CAVERN_SPECIAL) == 0) {
-        uint16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_X);
-        uint16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_Y);
-        if (vx == 0 && vy == 0) {
-            if ((MEM8(ADDR_FACING) & 1) == 0) {
-                goto loc_6463;
-            }
-        } else {
-            goto loc_6463;
+    uint8_t moveLeft;
+
+    if (MEM8(ADDR_BYTE_9F01) != 0) {
+        moveLeft = 0xff; // true
+    } else {
+        uint8_t word9F0E_nonzero = MEM16(ADDR_KNOCKBACK_VECTOR_9F0E) != 0;
+
+        moveLeft = word9F0E_nonzero && (MEM16(ADDR_KNOCKBACK_VECTOR_9F10) != 0) 
+            ? (MEM8(ADDR_FACING) & LEFT) == 0 
+            : !word9F0E_nonzero;
+    }
+
+    if (moveLeft) {
+        if (MEM8(ADDR_ON_ROPE_FLAGS)) {
+            MEM8(ADDR_FACING) = (MEM8(ADDR_FACING) & 0xFC) | LEFT;
+
+            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+            MEM8(ADDR_SPACEBAR_LATCH) = 0;
         }
+
+        move_hero_left_if_no_obstacles();
+        move_hero_left_if_no_obstacles();
+    } else {
+        if (MEM8(ADDR_ON_ROPE_FLAGS))
+        {
+            MEM8(ADDR_FACING) &= 0xFC;
+
+            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+            MEM8(ADDR_SPACEBAR_LATCH) = 0;
+        }
+
+        move_hero_right_if_no_obstacles();
+        move_hero_right_if_no_obstacles();
     }
 
-    // loc_6440:
-    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
-        MEM8(ADDR_FACING) = (MEM8(ADDR_FACING) & 0xFC) | ACCESSORY_FERUZA_SHOES; // Force LEFT flag alignment
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F; // falling/descending
-        MEM8(ADDR_SPACEBAR_LATCH) = 0;
-    }
-    // loc_645B:
-    move_hero_left_if_no_obstacles();
-    move_hero_left_if_no_obstacles();
-    goto loc_6481;
-
-loc_6463:
-    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
-        MEM8(ADDR_FACING) &= 0xFC; // facing right alignment
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F; // falling/descending
-        MEM8(ADDR_SPACEBAR_LATCH) = 0;
-    }
-    // loc_6479:
-    move_hero_right_if_no_obstacles();
-    move_hero_right_if_no_obstacles();
-
-loc_6481:
-    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
-        MEM8(ADDR_ON_ROPE_FLAGS) = 0x80; // Rope-to-ground transition
+    if (MEM8(ADDR_ON_ROPE_FLAGS)) {
+        MEM8(ADDR_ON_ROPE_FLAGS) = 0x80;
         MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
     }
 
-// loc_6492:
-    if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
+    if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0)
         return;
-    }
 
-// loc_649A:
     if (MEM8(ADDR_JUMP_PHASE_FLAGS) & 0x80) {
         return;
     }
 
-// loc_64A2:
-    uint8_t cf = 0, zf = 0;
-    check_floor_for_landing_internal(&cf, &zf);
-    if (cf) return; // jnb short loc_64A8
+    if (!check_floor_for_landing()) return;
 
-// loc_64A8:
     if (MEM8(ADDR_BYTE_9F09) != 0) {
         MEM8(ADDR_BYTE_9F09)--;
         MEM8(ADDR_HERO_HEAD_Y_VIEW)++;
@@ -1264,6 +1280,7 @@ loc_6481:
     }
 }
 
+// Checked
 void sliding_physics_step(void) {
     if (set_zero_flag_if_slippery() != 0) {
         return; // NZ: not slippery
@@ -1284,11 +1301,11 @@ void sliding_physics_step(void) {
 
     uint8_t tile = MEM8(si);
     if (tile >= 0x40 && tile < 0x49) {
-        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0; // stepped outside or onto valid ice limits
+        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0; // stepped on non-slippery tile, stop sliding
         return;
     }
 
-    // loc_64EE:
+    // on the ice
     uint8_t slide_dir = MEM8(ADDR_SLIDE_DIRECTION);
     if ((MEM8(ADDR_SLIDE_DIRECTION_LOCK) & 1) == 0) {
         if (slide_dir == 2) return;
@@ -1299,13 +1316,17 @@ void sliding_physics_step(void) {
     }
 }
 
+// Checked
 void right_up_pressed(void) {
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
-    // fallthrough to on_right_pressed
-    
+    on_right_pressed();
+}
+
+// Checked
+void on_right_pressed() {
     MEM8(ADDR_BYTE_9F18) = 0;
-    if (MEM8(ADDR_FACING) & 1) {
+    if (MEM8(ADDR_FACING) & LEFT) {
         flip_facing_direction();
         return;
     }
@@ -1313,97 +1334,86 @@ void right_up_pressed(void) {
         return;
     }
 
-// loc_67DA:
-    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_LEFT) {
-        land_after_jump(); // target state_machine slope helper block
+    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_LEFT || 
+            move_hero_right_if_no_obstacles() == 0) { // CF emulation check
+        init_on_ground();
         return;
     }
 
-    uint8_t blocked = move_hero_right_if_no_obstacles();
-    if (blocked == 0) { // CF emulation check
-        land_after_jump();
-        return;
-    }
-
-    MEM8(ADDR_SLIDE_DIRECTION) = 1; // slide direction = right
+    MEM8(ADDR_SLIDE_DIRECTION) = SLIDE_RIGHT;
     if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
         return;
     }
 
-// loc_67F3:
-    if (set_zero_flag_if_slippery() == 0) {
-        if (MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
-            MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 1; // right movement locked
-            MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
-        }
+    if (set_zero_flag_if_slippery() == 0 && MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
+        MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 1; // right movement locked
+        MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
     }
 
-// loc_6808:
-    MEM8(ADDR_FACING) |= 2;
+    MEM8(ADDR_FACING) |= UP;
     if (MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
         return;
     }
 
-// loc_6815:
-    MEM8(ADDR_HERO_ANIM_PHASE)++;
-    MEM8(ADDR_HERO_ANIM_PHASE) &= 0x7F;
+    MEM8(ADDR_HERO_ANIM_PHASE) = (MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 0x7F;
     MEM8(ADDR_BYTE_9F19) = 0;
 }
 
+// Checked
+void init_on_ground() 
+{
+    // stub
+    MEM8(ADDR_FACING) &= ~UP;
+    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0 && MEM8(ADDR_JUMP_PHASE_FLAGS) == 0) {
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+    }
+}
+
+// Checked
 void left_up_pressed(void) {
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
-    // fallthrough to on_left_pressed
+    on_left_pressed();
+}
 
+// Checked
+void on_left_pressed() {
     MEM8(ADDR_BYTE_9F18) = 0;
-    if (!(MEM8(ADDR_FACING) & 1)) {
+    if (!(MEM8(ADDR_FACING) & LEFT)) {
         flip_facing_direction();
         return;
     }
 
-// loc_664D:
     if (MEM8(ADDR_SQUAT_FLAG) != 0) {
         return;
     }
 
-// loc_6655:
-    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
-        land_after_jump(); // target state_machine slope handler block
+    if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT || 
+            move_hero_left_if_no_obstacles() == 0) { // CF emulation check
+        init_on_ground();
         return;
     }
 
-// loc_665F:
-    uint8_t blocked = move_hero_left_if_no_obstacles();
-    if (blocked == 0) {
-        land_after_jump();
-        return;
-    }
-
-    MEM8(ADDR_SLIDE_DIRECTION) = 2; // slide direction = left
+    MEM8(ADDR_SLIDE_DIRECTION) = SLIDE_LEFT;
     if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
         return;
     }
 
-// loc_6674:
-    if (set_zero_flag_if_slippery() == 0) {
-        if (MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
-            MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 0; // left movement unlocked
-            MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
-        }
+    if (set_zero_flag_if_slippery() == 0 && MEM8(ADDR_SLIDE_TICKS_REMAINING) == 0) {
+        MEM8(ADDR_SLIDE_DIRECTION_LOCK) = 0; // left movement unlocked
+        MEM8(ADDR_HORIZ_MOVEMENT_ACCUM)++;
     }
 
-// loc_6689:
-    MEM8(ADDR_FACING) |= 2;
+    MEM8(ADDR_FACING) |= UP;
     if (MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
         return;
     }
 
-    // on_ground2:
-    MEM8(ADDR_HERO_ANIM_PHASE)++;
-    MEM8(ADDR_HERO_ANIM_PHASE) &= 0x7F;
+    MEM8(ADDR_HERO_ANIM_PHASE) = (MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 0x7F;
     MEM8(ADDR_BYTE_9F19) = 0;
 }
 
+//
 void airborne_movement(void) {
     if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
         return;
