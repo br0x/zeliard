@@ -102,9 +102,13 @@
 #define AIRFLOW_UP          0
 #define AIRFLOW_LEFT        1
 #define AIRFLOW_RIGHT       2
+#define KEY_UP        1
+#define KEY_DOWN      2
+#define KEY_LEFT      4
+#define KEY_RIGHT     8
 #define KEY_ENTER     1
-#define LEFT  1
-#define UP    2
+#define LEFT          1
+#define UP            2
 
 
 static uint16_t dungeon_map_width;
@@ -1416,7 +1420,7 @@ void on_left_pressed() {
 
 // Caller shoult set restart = 0xff before calling, and then check if it 
 // was set to 0 by this function to decide whether to restart the loop
-//
+// Checked
 void airborne_movement(uint8_t *restart) {
     if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
         return;
@@ -1450,7 +1454,6 @@ void airborne_movement(uint8_t *restart) {
         }
     }
 
-// loc_69AE:
     MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
     uint8_t old_phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
     MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
@@ -1458,57 +1461,71 @@ void airborne_movement(uint8_t *restart) {
     if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return;
 
     if (old_phase == 0) {
-        if (MEM8(ADDR_FACING) & 1) {
-            left_up_pressed();
+        // should clear facing_direction UP on exit
+        if (MEM8(ADDR_FACING) & LEFT) {
+            on_left_pressed();
         } else {
-            right_up_pressed();
+            on_right_pressed();
         }
-        MEM8(ADDR_FACING) &= 0xFD;
+        MEM8(ADDR_FACING) &= ~UP;
         return;
     }
 
-// read_keys_buffer:
-    uint8_t input_keys = bios_get_input_keys();
-    uint8_t horiz_input = input_keys & 0x0C;
+    uint8_t horiz_input = MEM8(ADDR_INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
 
-    if (horiz_input == 0x04) { // left_pressed
-        if (!(MEM8(ADDR_FACING) & 1)) {
-            MEM8(ADDR_FACING) &= 0xFD;
+    if (horiz_input == KEY_LEFT) {
+        // left_pressed
+        if (!(MEM8(ADDR_FACING) & LEFT)) {
+            MEM8(ADDR_FACING) &= ~UP;
             flip_facing_direction();
-        }
-        // loc_6A1E:
-        uint16_t si = hero_coords_to_addr_in_proximity() + (3 * 36 + 1);
-        wrap_map_from_above(&si);
-        if (is_non_blocking_tile(MEM8(si)) == 0) {
-            if (is_non_blocking_tile(MEM8(si + 1)) != 0) {
-                move_hero_right_if_no_obstacles();
-            }
-        }
-        return;
-    }
-    
-    if (horiz_input == 0x08) { // right_pressed
-        if (MEM8(ADDR_FACING) & 1) {
-            MEM8(ADDR_FACING) &= 0xFD;
+            left_default();
+        } // else default
+    } else if (horiz_input == KEY_RIGHT) {
+        // right_pressed
+        if (MEM8(ADDR_FACING) & LEFT) {
+            MEM8(ADDR_FACING) &= ~UP;
             flip_facing_direction();
-        }
-        // loc_6A4A:
-        uint16_t si = hero_coords_to_addr_in_proximity() + (3 * 36 + 1);
-        wrap_map_from_above(&si);
-        if (is_non_blocking_tile(MEM8(si)) == 0) {
-            if (is_non_blocking_tile(MEM8(si - 1)) != 0) {
-                move_hero_left_if_no_obstacles();
-            }
-        }
-        return;
+            right_default();
+        } // else default
     }
+    // default
+    if ((MEM8(ADDR_FACING) & UP) == 0) { // UP mask flag checking matching layout
+        if (horiz_input == KEY_LEFT) {
+            left_default();
+        } else if (horiz_input == KEY_RIGHT) {
+            right_default();
+        }
+    } else {
+        if (MEM8(ADDR_FACING) & LEFT) {
+            on_left_pressed();
+        } else {
+            on_right_pressed();
+        }
+    }
+}
 
-// loc_69F2:
-    if (MEM8(ADDR_FACING) & 0x01) { // UP mask flag checking matching layout
-        if (horiz_input == 0x04) {
-            left_up_pressed();
-        } else if (horiz_input == 0x08) {
-            right_up_pressed();
+// Checked
+void left_default()
+{
+    uint16_t si = hero_coords_to_addr_in_proximity() + 3 * 36 + 1;
+    wrap_map_from_above(&si);
+    if (is_non_blocking_tile(MEM8(si)) == 0) {
+        si++;
+        if (is_non_blocking_tile(MEM8(si))) {
+            move_hero_right_if_no_obstacles();
+        }
+    }
+}
+
+// Checked
+void right_default()
+{
+    uint16_t si = hero_coords_to_addr_in_proximity() + 3 * 36 + 1;
+    wrap_map_from_above(&si);
+    if (is_non_blocking_tile(MEM8(si)) == 0) {
+        si--;
+        if (is_non_blocking_tile(MEM8(si))) {
+            move_hero_left_if_no_obstacles();
         }
     }
 }

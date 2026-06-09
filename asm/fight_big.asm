@@ -1634,11 +1634,11 @@ loc_69C3:
 ; ---------------------------------------------------------------------------
 
 loc_69CB:        
-                test    al, 0FFh
+                test    al, 0FFh   ; old phase
                 jnz     short read_keys_buffer
                 mov     ax, offset loc_69E0
                 push    ax
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jz      short loc_69DD
                 jmp     on_left_pressed
 ; ---------------------------------------------------------------------------
@@ -1656,18 +1656,18 @@ read_keys_buffer:
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 and     al, 1100b
-                cmp     al, 100b
-                jz      short left_pressed
-                cmp     al, 1000b
-                jz      short right_pressed
+                cmp     al, 100b        ; left
+                je      short left_pressed
+                cmp     al, 1000b       ; right
+                je      short right_pressed
 
-loc_69F2:        
+loc_69F2:       ; default case
                 test    byte ptr ds:facing_direction, UP
                 jnz     short loc_6A02
-                cmp     al, 100b
-                jz      short loc_6A4A
-                cmp     al, 1000b
-                jz      short loc_6A1E
+                cmp     al, 100b        ; left
+                jz      short right_default
+                cmp     al, 1000b       ; right
+                jz      short left_default
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -1683,11 +1683,11 @@ loc_6A0C:
 
 left_pressed:    
                 test    byte ptr ds:facing_direction, 1
-                jnz     short loc_69F2
+                jnz     short loc_69F2 ; default case
                 and     byte ptr ds:facing_direction, 11111101b
                 call    flip_facing_direction
 
-loc_6A1E:        
+left_default:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
@@ -1711,11 +1711,11 @@ loc_6A38:
 
 right_pressed:   
                 test    byte ptr ds:facing_direction, 1
-                jz      short loc_69F2
+                jz      short loc_69F2  ; default case
                 and     byte ptr ds:facing_direction, 11111101b
                 call    flip_facing_direction
 
-loc_6A4A:        
+right_default:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
