@@ -1,12 +1,12 @@
 mdt_descriptor     STRUC
-  b7b6_msd_idx_b0  db   ? ; bit 7: is_boss_cavern, bit 6: is_jashiin_cavern, bit 0: (0 ? town : dungeon)
-  mman_grp_idx     db   ? ; Town NPC sprite group index
-  mpp_grp_idx      db   ? ; magic projectiles pattern group index
-  eai_bin_idx      db   ?
-  enp_grp_idx      db   ?
-  boss_grp         db   ? ; boss enp override (e.g. crab.grp)
-  boss_ai          db   ? ; boss AI override (e.g. crab.bin)
-  saved_enp_grp_idx db   ?
+  b7b6_msd_idx_b0  db   ? ; 0; bit 7: is_boss_cavern, bit 6: is_jashiin_cavern, bit 0: (0 ? town : dungeon)
+  mman_grp_idx     db   ? ; 1; Town NPC sprite group index
+  mpp_grp_idx      db   ? ; 2; static tiles group index
+  eai_bin_idx      db   ? ; 3;
+  enp_grp_idx      db   ? ; 4;
+  boss_grp         db   ? ; 5; boss enp override (e.g. crab.grp)
+  boss_ai          db   ? ; 6; boss AI override (e.g. crab.bin)
+  saved_enp_grp_idx db  ? ; 7;
 mdt_descriptor     ENDS
 
 

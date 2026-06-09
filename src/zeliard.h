@@ -20,9 +20,12 @@ extern "C" {
 #define ADDR_HERO_HP                  0x90    // word
 #define ADDR_SWORD_TYPE               0x92
 #define ADDR_SHIELD_TYPE              0x93
+#define ADDR_KEYS_AMOUNT              0x98
+#define ADDR_LION_KEYS_AMOUNT         0x99
 #define ADDR_CURRENT_ACCESSORY        0x9E
 #define ADDR_HERO_MAX_HP              0xB2    // word
 #define ADDR_FACING                   0xC2
+#define ADDR_LEFT_RUN                 0xC3
 #define ADDR_PLACE_MAP_ID             0xC4
 #define ADDR_HEALING_TIMER            0xC6
 #define ADDR_IS_JASHIIN_CAVERN        0xE6
@@ -31,39 +34,43 @@ extern "C" {
 
 
 #define ADDR_BOSS_STATE_PTR           0xA002u  // word
-#define MEM_MDT_DATA            0xC000    // ~8KB - MDT dungeon data
-#define ADDR_MONSTERS_LIST      0xC010
-#define ADDR_CAVERN_LEVEL       0xC012
-#define ADDR_PACKED_MAP_END_PTR 0xC019    // [0xC019] points behind the last byte of packed map
-#define ADDR_PACKED_MAP_START   0xC01B    // Packed map offset in MDT file
-#define ADDR_PROXIMITY_MAP      0xE000    // 2304 bytes - 36x64 proximity map
-#define MEM_VIEWPORT_BUFFER     0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define MEM_MDT_DATA             0xC000    // ~8KB - MDT dungeon data
+#define ADDR_DOORS_LIST          0xC00A
+#define ADDR_MONSTERS_LIST       0xC010
+#define ADDR_CAVERN_LEVEL        0xC012
+#define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
+#define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
+#define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
+#define MEM_VIEWPORT_BUFFER      0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_PROJECTILES_LIST    0xEB80    // 13x32 bytes
 #define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0   // byte
 
-#define ADDR_INPUT_DIRS          0xFF17  // ____right_left_down_up
+#define ADDR_INPUT_DIRS           0xFF17  // ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
-#define ADDR_SPACEBAR_LATCH      0xFF1D
-#define ADDR_ALTKEY_LATCH        0xFF1E
-#define ADDR_BYTE_FF24           0xFF24  // byte
-#define ADDR_BOSS_BEING_HIT      0xFF2E  // byte
-#define ADDR_SPRITE_FLASH_FLAG   0xFF2F  // byte
-#define ADDR_BOSS_IS_DEAD        0xFF30    // byte
+#define ADDR_SPACEBAR_LATCH       0xFF1D
+#define ADDR_ALTKEY_LATCH         0xFF1E
+#define ADDR_BYTE_FF24            0xFF24  // byte
+#define ADDR_BOSS_BEING_HIT       0xFF2E  // byte
+#define ADDR_SPRITE_FLASH_FLAG    0xFF2F  // byte
+#define ADDR_BOSS_IS_DEAD         0xFF30    // byte
 #define ADDR_SPEED_CONST           0xFF33  // byte
 #define ADDR_IS_BOSS_CAVERN         0xFF34  // byte
 #define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36  // byte
-#define ADDR_HERO_SPRITE_HIDDEN  0xFF37  // byte
-#define ADDR_SQUAT_FLAG          0xFF38    // byte
-#define ADDR_ON_ROPE_FLAGS       0xFF39
-#define ADDR_SPELL_ACTIVE_FLAG   0xFF3C  // byte
-#define ADDR_JUMP_PHASE_FLAGS    0xFF3D    // byte
-#define ADDR_SHIELD_ANIM_PHASE   0xFF3F  // byte
-#define ADDR_SHIELD_ANIM_ACTIVE  0xFF40  // byte
+#define ADDR_HERO_SPRITE_HIDDEN   0xFF37  // byte
+#define ADDR_SQUAT_FLAG           0xFF38    // byte
+#define ADDR_ON_ROPE_FLAGS        0xFF39
+#define ADDR_HERO_HIDDEN_FLAG     0xFF3A  // byte
+#define ADDR_SPELL_ACTIVE_FLAG    0xFF3C  // byte
+#define ADDR_JUMP_PHASE_FLAGS     0xFF3D    // byte
+#define ADDR_SHIELD_ANIM_PHASE    0xFF3F  // byte
+#define ADDR_SHIELD_ANIM_ACTIVE   0xFF40  // byte
 #define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
-#define ADDR_SLOPE_DIRECTION     0xFF42  // 1=right, 2=left, 0=none
-#define ADDR_SWORD_SWING_FLAG    0xFF43  // byte
-#define ADDR_SWORD_HIT_TYPE      0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
+#define ADDR_SLOPE_DIRECTION      0xFF42  // 1=right, 2=left, 0=none
+#define ADDR_SWORD_SWING_FLAG     0xFF43  // byte
+#define ADDR_SWORD_HIT_TYPE       0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
-#define ADDR_MONSTER_INDEX       0xFF4A    // byte
+#define ADDR_MONSTER_INDEX        0xFF4A    // byte
+#define ADDR_SOUND_FX_REQUEST     0xFF75    // byte
 
 // ============================================================================
 // Global Memory Array (exported for JS access)

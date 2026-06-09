@@ -418,7 +418,7 @@ loc_62C5:
 no_down_pressed: 
                 call    airborne_movement
                 call    state_machine_dispatcher
-                retn                    ; jumps to main_loop
+                retn                    ; jumps to main_loop or returns, if airborne_movement popped the return address
 ; ---------------------------------------------------------------------------
 
 over_rope:       
@@ -840,7 +840,7 @@ init_horizontal_sliding endp
 ; ===========================================================================
 up_pressed:
                 mov     ds:byte_9F18, 0
-                call    try_door_interaction
+                call    try_door_interaction ; can drop return address and continue to move_right/left_if_no_obstacles
                 call    try_move_platform_up
                 call    try_climb_rope
                 ; otherwise, jump
@@ -4410,42 +4410,45 @@ prepare_dungeon endp
 
 
 ; =============== S U B R O U T I N E =======================================
-
-
+; 49 4A 61 4B 4C
+; 4D 58 00 59 4E
+; 5F 5A 00 5B 60
+; 5F 5C 5D 5E 60
+; This matrix 5x4 tiles describes the door frame
 try_door_interaction proc near
                 call    hero_coords_to_addr_in_proximity
                 sub     si, 36+1        ; x--, y--
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
-                cmp     byte ptr [si], 4Ah ; 'J' ; door to Muralla: 0x49, 0x4A, 0x61, 0x4B, 0x4C
-                jz      short on_the_right_door_tile ; hero is on the right tile of the door
+                cmp     byte ptr [si], 4Ah
+                je      short on_the_right_door_tile ; hero is on the right tile of the door
                 inc     si
-                cmp     byte ptr [si], 4Ah ; 'J'
-                jz      short enter_the_door ; hero is centered on door
+                cmp     byte ptr [si], 4Ah
+                je      short enter_the_door ; hero is centered on door
                 inc     si
-                cmp     byte ptr [si], 4Ah ; 'J'
-                jz      short on_the_left_door_tile
+                cmp     byte ptr [si], 4Ah
+                je      short on_the_left_door_tile
                 retn
 ; ---------------------------------------------------------------------------
 
 on_the_left_door_tile:    
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jz      short loc_7AA6
                 retn                    ; faced left - skip door interaction
 ; ---------------------------------------------------------------------------
 
 loc_7AA6:        
-                pop     ax
+                pop     ax              ; drop return address
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
 
 on_the_right_door_tile:   
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_7AB2
                 retn                    ; faced right - skip door interaction
 ; ---------------------------------------------------------------------------
 
 loc_7AB2:        
-                pop     ax              ; =0x653f
+                pop     ax              ; drop return address
                 jmp     move_hero_left_if_no_obstacles
 ; ---------------------------------------------------------------------------
 
@@ -4454,15 +4457,15 @@ enter_the_door:
                 mov     bl, ds:hero_x_in_viewport
                 add     bl, 4           ; viewport offset from proximity map margin
                 xor     bh, bh
-                add     ax, bx          ; hero x absolute
+                add     ax, bx          ; ax = hero x absolute
+                ; wrapping trick: if (ax >= mapWidth) ax -= mapWidth
                 mov     bx, ds:mapWidth
                 dec     bx
                 sub     bx, ax
                 jnb     short no_wrap
                 not     bx
                 mov     ax, bx
-
-no_wrap:         
+no_wrap:        ; wrapping done
                 mov     bl, ds:hero_head_y_in_viewport
                 dec     bl
                 add     bl, ds:viewport_top_row_y
@@ -4485,14 +4488,14 @@ loc_7AF1:
                 add     si, 12
                 jmp     short next_door1
 ; ---------------------------------------------------------------------------
-
+; door coords match
 loc_7AF6:        
-                pop     ax
-                test    [si+door.d_flags], 80h
-                jnz     short loc_7B25
+                pop     ax              ; drop return address
+                test    [si+door.d_flags], 80h ; door.d_flags bit 7 = open
+                jnz     short enter_opened_door
                 call    open_door
-                jb      short loc_7B03
-                retn
+                jc      short loc_7B03
+                retn ; NC = success
 ; ---------------------------------------------------------------------------
 
 loc_7B03:        
@@ -4509,89 +4512,90 @@ loc_7B15:
                 mov     dx, offset cant_open_this_door_str
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
-
-loc_7B25:        
+enter_opened_door:        
                 mov     bx, [si+door.d_save_achievement_addr]
                 cmp     bx, 0FFFFh
-                jz      short loc_7B32
+                je      short loc_7B32
                 mov     al, [si+door.d_achievement_flag]
                 or      [bx], al
 
 loc_7B32:        
                 push    si
-                call    Browse_Projectiles
-                call    clear_viewport_buffer
-                call    cs:Flush_Ui_Element_If_Dirty_proc
-                call    reset_dungeon_state_vars
-                call    game_loop_render_and_timing
-                mov     si, ds:monsters_table_addr
-                mov     word ptr [si], 0FFFFh ; end-of-monsters marker
+                    call    Browse_Projectiles
+                    call    clear_viewport_buffer
+                    call    cs:Flush_Ui_Element_If_Dirty_proc
+                    call    reset_dungeon_state_vars
+                    call    game_loop_render_and_timing
+                    mov     si, ds:monsters_table_addr
+                    mov     word ptr [si], 0FFFFh ; end-of-monsters marker
                 pop     si              ; doors struct
                 mov     al, [si+door.d_flags]
                 and     al, 111b
                 push    ax
-                mov     ax, [si+door.x1]
-                mov     ds:hero_x_in_proximity_map, ax
-                mov     al, [si+door.y1]
-                mov     ds:door_target_y, al
-                mov     al, [si+door.d_flags]
-                and     al, 1000000b
-                mov     ds:is_left_run, al
-                mov     al, [si+door.d_features]
-                mov     ds:door_features, al
-                mov     ah, [si+door.d_place_map_id]
-                cmp     [si+door.y1], 0FFh
-                jnz     short skip_if_cavern
-                or      ah, 80h         ; door leads to town
+                    mov     ax, [si+door.x1]
+                    mov     ds:hero_x_in_proximity_map, ax
+                    mov     al, [si+door.y1]
+                    mov     ds:door_target_y, al
+                    mov     al, [si+door.d_flags]
+                    and     al, 01000000b
+                    mov     ds:is_left_run, al
+                    mov     al, [si+door.d_features]
+                    mov     ds:door_features, al
+                    mov     ah, [si+door.d_place_map_id]
+                    cmp     [si+door.y1], 0FFh
+                    jne     short skip_if_cavern
+                    or      ah, 80h         ; door leads to town
 
 skip_if_cavern:  
-                mov     ds:place_map_id, ah ; cavern/town id
-                mov     al, 1           ; fn_1 Load mdt
-                call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                        ; fn1_load_mdt_idx_ah
-                 
-                test    byte ptr ds:place_map_id, 80h
-                jnz     short skip_if_town ;
-                                        ; place is cavern
-                call    remove_accomplished_items
+                    mov     ds:place_map_id, ah ; cavern/town id
+                    mov     al, 1           ; fn_1 Load mdt
+                    call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
+                                            ; fn1_load_mdt_idx_ah
+                    
+                    test    byte ptr ds:place_map_id, 80h
+                    jnz     short skip_if_town ;
+                                            ; place is cavern
+                    call    remove_accomplished_items
 skip_if_town:    
-                call    hero_left_16_down_1
-                mov     si, ds:mdt_buffer
-                lodsb
-                test    al, 1
-                jnz     short loc_7BD0
-                mov     si, offset vfs_roka_grp_1
-                mov     es, cs:seg1
-                mov     di, packed_tile_ptr
-                mov     al, 2           ; fn2_segmented_load
-                call    cs:res_dispatcher_proc
-                push    ds
-                mov     ds, cs:seg1
-                mov     si, packed_tile_ptr
-                mov     cx, 80h
-                call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
-                pop     ds
+                    call    hero_left_16_down_1
+                    mov     si, ds:mdt_buffer
+                    lodsb   ; b7b6_msd_idx_b0
+                    test    al, 1 ; current Resource Disk inserted
+                    jnz     short loc_7BD0
+                    mov     si, offset vfs_roka_grp_1
+                    mov     es, cs:seg1
+                    mov     di, packed_tile_ptr
+                    mov     al, 2           ; fn2_segmented_load
+                    call    cs:res_dispatcher_proc
+                    push    ds
+                    mov     ds, cs:seg1
+                    mov     si, packed_tile_ptr
+                    mov     cx, 80h
+                    call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
+                    pop     ds
                 pop     ax  ; door.d_flags & 7
                 call    cs:Render_Roca_Tilemap_proc
+
                 mov     ds:mman_grp_index, 0FFh
-                mov     byte ptr ds:byte_FF24, 0Ah
+                mov     byte ptr ds:byte_FF24, 10
                 jmp     short loc_7C02
 ; ---------------------------------------------------------------------------
 
 loc_7BD0:        
-                mov     si, offset vfs_roka_grp_2
-                mov     es, cs:seg1
-                mov     di, packed_tile_ptr
-                mov     al, 2           ; fn2_segmented_load
-                call    cs:res_dispatcher_proc
-                push    ds
-                mov     ds, cs:seg1
-                mov     si, packed_tile_ptr
-                mov     cx, 80h
-                call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
-                pop     ds
+                    mov     si, offset vfs_roka_grp_2
+                    mov     es, cs:seg1
+                    mov     di, packed_tile_ptr
+                    mov     al, 2           ; fn2_segmented_load
+                    call    cs:res_dispatcher_proc
+                    push    ds
+                    mov     ds, cs:seg1
+                    mov     si, packed_tile_ptr
+                    mov     cx, 80h
+                    call    cs:Reassemble_3_Planes_To_Packed_Bitmap_proc
+                    pop     ds
                 pop     ax ; door.d_flags & 7
                 call    cs:Render_Roca_Tilemap_proc
+
                 mov     si, ds:mdt_buffer ; mdt_descriptor
                 lodsb                   ; b7b6_msd_idx_b0
                 call    process_mdt_descriptor
@@ -4602,6 +4606,7 @@ loc_7C02:
                 mov     byte ptr ds:projectiles_array, 0FFh
                 test    ds:door_features, 80h
                 jz      short loc_7C6E
+                ; load cavern
                 mov     si, offset rokademo_bin
                 push    cs
                 pop     es
@@ -4841,7 +4846,7 @@ edge_locking_scrolling_window endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; return NC on success, CF on failure
 open_door       proc near 
                 mov     bl, [si+door.d_features]
                 and     bl, 1
@@ -4850,7 +4855,7 @@ open_door       proc near
                 test    byte ptr ds:keys_amount, 0FFh
                 stc
                 jnz     short has_keys
-                retn                    ; no keys
+                retn                    ; CF: no keys
 ; ---------------------------------------------------------------------------
 
 has_keys:        
@@ -10156,10 +10161,10 @@ word_9EF2       dw 0
 byte_9EF4       db 0      
 byte_9EF5       db 0FFh   
 ; ---- Loaded GRP/BIN index cache (from last MDT) ----
-mman_grp_index  db 0                    ; mdt_descriptor.mman_grp_idx
-mpp_grp_index   db 0                    ; mdt_descriptor.mpp_grp_idx
-eai_bin_index_  db 0                    ; mdt_descriptor.eai_bin_idx
-enp_grp_index_  db 0                    ; mdt_descriptor.enp_grp_idx
+mman_grp_index  db 0    ; 9EF6h; mdt_descriptor.mman_grp_idx
+mpp_grp_index   db 0    ; 9EF7h; mdt_descriptor.mpp_grp_idx
+eai_bin_index_  db 0    ; 9EF8h; mdt_descriptor.eai_bin_idx
+enp_grp_index_  db 0    ; 9EF9h; mdt_descriptor.enp_grp_idx
 byte_9EFA       db 0      
                 db    0
                 db    0
@@ -10194,9 +10199,9 @@ byte_9F17       db 0
 byte_9F18       db 0      
 byte_9F19       db 0      
 ; ---- Map / scroll ----
-hero_x_in_proximity_map dw 0  
-door_target_y       db 0      
-door_features       db 0      
+hero_x_in_proximity_map dw 0  ; 9F1Ah
+door_target_y       db 0      ; 9F1Ch
+door_features       db 0      ; 9F1Dh
 byte_9F1E       db 0      
 ; ---- Projectile tracking ----
 last_projectile_index db 0 ; 9F1F
