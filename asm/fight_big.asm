@@ -1759,11 +1759,12 @@ slope_assist_on_landing proc near
                 retn                    ; no slope
 ; ---------------------------------------------------------------------------
 
-loc_6A7B:        
+loc_6A7B:       ; slope
                 and     byte ptr ds:facing_direction, 11111101b
                 mov     ds:slope_direction, dl
                 test    ds:height_above_ground, 0FFh
                 jnz     short check_silkarn_shoes_and_slopes
+                ; height_above_ground == 0
                 mov     al, ds:ticks
                 inc     ds:ticks
                 and     al, 3           ; every 4th tick
@@ -1776,9 +1777,9 @@ time_to_check_sliding_down:
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 cmp     byte ptr ds:slope_direction, SLOPE_RIGHT
-                jz      short right_slope
+                je      short right_slope
                 test    al, 1000b       ; left slope, check Right keypress
-                jz      short slide_off_leftwards
+                je      short slide_off_leftwards
                 retn                    ; right pressed on left slope - no slide
 ; ---------------------------------------------------------------------------
 
@@ -1799,7 +1800,7 @@ no_left_pressed:
 check_silkarn_shoes_and_slopes: 
                 mov     al, ds:current_accessory
                 cmp     al, SHOES_SILKARN
-                jnz     short no_silkarn_shoes_slide_off_slope
+                jne     short no_silkarn_shoes_slide_off_slope
                 retn                    ; silkarn shoes - no slide
 ; ---------------------------------------------------------------------------
 
@@ -10177,7 +10178,7 @@ jump_height_counter db 0  ; 9F08
 byte_9F09       db 0      
 frame_ticks     db 0      ; 9F0A
 byte_9F0B       db 0      
-height_above_ground db 0  
+height_above_ground db 0  ; 9F0C
 jump_height_including_shoes db 2 
 ; ---- Knockback / hit vectors ----
 ; word_9F0E/9F10: X-component vectors for knockback (set by contact damage)
@@ -10188,7 +10189,7 @@ accumulated_contact_damage dw 0
 byte_9F14       db 0      
 air_up_tile_found db 0    ; 9f15h
 ; ---- Airflow ----
-ticks           db 0      
+ticks           db 0      ; 9F16h
 byte_9F17       db 0      
 byte_9F18       db 0      
 byte_9F19       db 0      

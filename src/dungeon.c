@@ -22,6 +22,7 @@
 #define ADDR_KNOCKBACK_VECTOR_9F10       0x9F10  // word
 #define ADDR_BYTE_9F14                0x9F14
 #define ADDR_AIR_UP_TILE_FOUND        0x9F15
+#define ADDR_TICKS                    0x9F16
 #define ADDR_BYTE_9F18                0x9F18
 #define ADDR_BYTE_9F19                0x9F19
 #define ADDR_HERO_X_IN_PROXIMITY_MAP  0x9F1A // word
@@ -1046,8 +1047,6 @@ int8_t set_zero_flag_if_slippery(void) {
 }
 
 // Assembly internal route functions / variables
-// TODO: remove (AI hallucinations)
-static uint8_t ticks_counter = 0; // Local counter mapping 'ds:ticks' inside slope logic
 
 // Stubs for missing functional procedures
 // stub
@@ -1530,11 +1529,11 @@ void right_default()
     }
 }
 
+// Checked
 void slope_assist_on_landing(void) {
     MEM8(ADDR_SLOPE_DIRECTION) = 0;
 
-    uint16_t si = hero_coords_to_addr_in_proximity();
-    si += 2*36 + 1;
+    uint16_t si = hero_coords_to_addr_in_proximity() +2*36 + 1;
     wrap_map_from_above(&si);
 
     uint8_t dl;
@@ -1545,7 +1544,7 @@ void slope_assist_on_landing(void) {
     MEM8(ADDR_FACING) &= ~2;
     MEM8(ADDR_SLOPE_DIRECTION) = dl;
 
-    if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) != 0) {
+    if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) != 0) { // check_silkarn_shoes_and_slopes
         if (MEM8(ADDR_CURRENT_ACCESSORY) == ACCESSORY_SILKARN_SHOES) return;
         MEM8(ADDR_HEIGHT_ABOVE_GROUND)--;
         if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
@@ -1557,17 +1556,24 @@ void slope_assist_on_landing(void) {
     }
 
     // height_above_ground == 0
-    ticks_counter++;
-    if ((ticks_counter & 3) != 0) return;
-
-    uint8_t keys = bios_get_input_keys();
+    MEM8(ADDR_TICKS)++;
+    if ((MEM8(ADDR_TICKS) & 3) != 0) return;
+    // every 4th tick
+    uint8_t keys = MEM8(ADDR_INPUT_DIRS);
     if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
-        if ((keys & 0x08) == 0) move_hero_right_if_no_obstacles();
+        if (!(keys & KEY_RIGHT)) move_hero_right_if_no_obstacles();
     } else {
-        if ((keys & 0x04) == 0) move_hero_left_if_no_obstacles();
+        if (!(keys & KEY_LEFT)) move_hero_left_if_no_obstacles();
     }
 }
 
+// stub
+uint8_t get_slope_direction_by_tile_under_feet(uint16_t si, uint8_t *dl)
+{
+    return 0;
+}
+
+//
 void check_airflows_on_hero()
 {
     MEM8(ADDR_AIR_UP_TILE_FOUND) = 0;
