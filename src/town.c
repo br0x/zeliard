@@ -96,12 +96,17 @@
 #define ADDR_ANIM_TIMER            0xFF1B
 #define ADDR_SPACEBAR_LATCH        0xFF1D
 #define ADDR_ALTKEY_LATCH          0xFF1E
+#define ADDR_BYTE_FF24             0xFF24
+#define ADDR_CURRENT_ASCII_CHAR    0xFF29
 #define ADDR_PROXIMITY_START_TILES 0xFF2A  /* word */
 #define ADDR_SEG1_VALUE            0xFF2C  /* word: seg1 paragraph */
 #define ADDR_SPEED_CONST           0xFF33
 #define ADDR_HERO_Y_ABSOLUTE       0xFF35
 #define ADDR_SQUAT_FLAG            0xFF38
 #define ADDR_SLOPE_DIRECTION       0xFF42
+#define ADDR_DIALOG_STRING_PTR     0xFF4C  /* word */
+#define ADDR_DIALOG_CURSOR_X       0xFF4E
+#define ADDR_DIALOG_SCROLL_COUNTER 0xFF4F
 #define ADDR_TICK_COUNTER          0xFF50  /* word */
 #define ADDR_MENU_ITEM_COUNT       0xFF52
 #define ADDR_MENU_MAX_ITEMS        0xFF53
@@ -116,33 +121,31 @@
 #define ADDR_SOUND_FX_REQUEST      0xFF75
 #define ADDR_FONT_HIGHLIGHT_FLAG   0xFF77
 #define ADDR_DISK_SWAP_SUPPRESSED  0xFF78
-#define ADDR_CURRENT_ASCII_CHAR    0xFF29
-#define ADDR_DIALOG_STRING_PTR     0xFF4C  /* word */
-#define ADDR_DIALOG_CURSOR_X       0xFF4E
-#define ADDR_DIALOG_SCROLL_COUNTER 0xFF4F
-#define ADDR_BYTE_FF24             0xFF24
 
 /* savegame area offsets (seg0:0x0000) */
-#define ADDR_BYTE4                 0x0004
-#define ADDR_SPOKE_TO_KING         0x0005
-#define ADDR_ENTERED_CAVERN        0x0006
-#define ADDR_CALIENTE_ITEMS        0x0034
-#define ADDR_FALTER_ITEMS          0x0045
-#define ADDR_ELF_CREST             0x009a
+#define ADDR_BYTE4                    0x04
+#define ADDR_SPOKE_TO_KING            0x05
+#define ADDR_ENTERED_CAVERN           0x06
+#define ADDR_CALIENTE_ITEMS           0x34
+#define ADDR_FALTER_ITEMS             0x45
+#define ADDR_IS_DEATH_PROCESSED       0x49
 
 /* Hero stats */
-#define ADDR_HERO_GOLD_LO          0x0086  /* word */
-#define ADDR_HERO_GOLD_HI          0x0088
-#define ADDR_HERO_ALMAS            0x008b  /* word */
-#define ADDR_HERO_LEVEL            0x008d
-#define ADDR_HERO_XP               0x008e  /* word */
-#define ADDR_HERO_HP               0x0090  /* word */
-#define ADDR_SHIELD_TYPE           0x0093
-#define ADDR_CURRENT_MAGIC_SPELL   0x009d
-#define ADDR_INVINCIBILITY_FLAG    0x00e8
-#define ADDR_IS_DEATH_PROCESSED    0x0049
-#define ADDR_FACING_DIRECTION      0x00c2  /* bit0: 0=right, 1=left; bit1: 0=Down, 1=Up */
-#define ADDR_PLACE_MAP_ID          0x00c4
+#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
+#define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
+#define ADDR_HERO_GOLD_LO             0x86  /* word */
+#define ADDR_HERO_GOLD_HI             0x88
+#define ADDR_HERO_ALMAS               0x8b  /* word */
+#define ADDR_HERO_LEVEL               0x8d
+#define ADDR_HERO_XP                  0x8e  /* word */
+#define ADDR_HERO_HP                  0x90  /* word */
+#define ADDR_SHIELD_TYPE              0x93
+#define ADDR_ELF_CREST                0x9a
+#define ADDR_CURRENT_MAGIC_SPELL      0x9d
+#define ADDR_FACING_DIRECTION         0xc2  /* bit0: 0=right, 1=left; bit1: 0=Down, 1=Up */
+#define ADDR_LEFT_RUN                 0xC3    // byte
+#define ADDR_PLACE_MAP_ID             0xc4
+#define ADDR_INVINCIBILITY_FLAG       0xe8
 
 /* Town-local variables (live in seg0:0x6000 data region).
  * In WASM we put them in a dedicated struct instead of overlaying the
@@ -197,7 +200,7 @@
 #define ADDR_TOWN_NAME_INFO        0xC004  /* word */
 #define ADDR_TOWN_ID               0xC006
 #define ADDR_TOWN_TRANSITION_TABLE 0xC007  /* word */
-#define ADDR_DOORS_ARRAY           0xC009  /* word */
+#define ADDR_DOORS_LIST            0xC009  /* word */
 #define ADDR_DUNGEON_ENTRANCE_TABLE 0xC00B /* word */
 #define ADDR_NPC_CONVERSATIONS     0xC00D  /* word */
 #define ADDR_NPC_ARRAY             0xC00F  /* word */
@@ -220,20 +223,6 @@
 #define ADDR_VIEWPORT_BUFFER       0xE000
 #define ADDR_WORD_E001             0xE001  /* word (pointer used in save list) */
 
-#define ADDR_SCROLL_REQUEST  0xFFF0 // bit 0: floor right, bit 1: floor left, bit 2: ceiling right, bit 3: ceiling left
-/* =========================================================================
- * Transition-pending state (WASM→JS async handshake)
- * ========================================================================= */
-/* Written by handle_edge_screen_transition, cleared by JS after it has
- * loaded all resources and called wasm_town_entry_enabling_edge_scroll. */
-#define ADDR_PENDING_TRANSITION_MAP  0xFFF1  /* byte: dest map id (with 0x80 set) */
-#define ADDR_PENDING_TRANSITION_PAT  0xFFF2  /* byte: new pat_id */
-#define ADDR_PENDING_TRANSITION_DIR  0xFFF3  /* byte: 0=going right, 1=going left */
-#define ADDR_PENDING_TRANSITION_FLAG 0xFFF4  /* byte: 0xFF = transition requested */
-#define ADDR_BUILDING_ACTIVE         0xFFFA  /* byte: 1 = JS-owned building scene active */
-#define ADDR_BUILDING_DEST_ID        0xFFFB  /* byte: TOWN_DOOR.td_dest_id */
-#define ADDR_PENDING_DUNGEON_MAP     0xFFFC  /* byte: dungeon id requested by town */
-#define ADDR_PENDING_DUNGEON_FLAG    0xFFFD  /* byte: 0xFF = dungeon requested */
 
 /* =========================================================================
  * Per-character rendering tables (char_x_offset, char_width_table)
@@ -322,7 +311,7 @@ static void init_c015_obj_if_exists(void);
 static void handle_inventory_key(void);
 static void handle_edge_screen_transition(void);
 static void town_up_pressed(void);
-static void request_dungeon_transition();
+static void request_dungeon_transition(uint8_t dest_map_id);
 static void hero_spacebar_interaction(void);
 static void check_special_npc_conversation(void);
 static void start_npc_conversation(uint16_t si_addr);
@@ -1518,7 +1507,7 @@ static void handle_edge_screen_transition(void)
 
     if (flags & 0xFE) {
         // some towns at the map edge transit to the dungeon
-        request_dungeon_transition();
+        request_dungeon_transition(dest_map);
         return;
     }
 
@@ -1545,17 +1534,24 @@ static void handle_edge_screen_transition(void)
      * JS detects ADDR_PENDING_TRANSITION_FLAG and drives the rest. */
 }
 
-static void request_dungeon_transition()
+static void request_dungeon_transition(uint8_t dest_map_id)
 {
-    int16_t tbl = MEM16(ADDR_DUNGEON_ENTRANCE_TABLE);
-    int8_t place_map_id = (MEM8(tbl + 4)) & 0x7F;
+    uint16_t tbl = MEM16(ADDR_DUNGEON_ENTRANCE_TABLE) + dest_map_id * 5;
+    uint16_t x = MEM16(tbl + 0);
+    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = (x >= 16) ? (x - 16) : (x - 16 + MEM16(ADDR_MAP_WIDTH));
+    uint8_t y = MEM8(tbl + 2);
+    MEM8(ADDR_VIEWPORT_TOP_ROW) = (y - 10) & 0x3F;
+    uint8_t dir = MEM8(tbl + 3);
+    MEM8(ADDR_LEFT_RUN) = dir & 1 ? 0xFF : 0;
+    uint8_t place_map_id = (MEM8(tbl + 4));
     MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
-    MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
-    MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
+    MEM8(ADDR_ENTERED_CAVERN) = 0xff;
     SPACEBAR = 0;
     ALTKEY = 0;
     INPUT_DIRS = 0;
     INPUT_ALT_SPACE = 0;
+    MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
+    MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF; // js will load mdt and res, and proceed with prepare_dungeon_proc
 }
 
 /* Called by JS after it has:
@@ -1613,11 +1609,11 @@ static void town_up_pressed(void)
     HERO_ANIM |= 1;
 
     uint16_t hero_x = (uint16_t)(PROX_LEFT + HERO_XV + 4);
-    uint16_t si = MEM16(ADDR_DOORS_ARRAY);
+    uint16_t si = MEM16(ADDR_DOORS_LIST);
 
     for (;;) {
         uint16_t door_x = MEM16(si);
-        if (door_x == 0xFFFF) {
+        if (door_x == 0xFFFF) { // list terminator
             return;
         }
 
@@ -1627,21 +1623,21 @@ static void town_up_pressed(void)
             break;
         }
 
-        si += 3;
+        si += 3; // size of door struct
     }
 
     HERO_ANIM = 4;
     restore_head_level_tiles_from_npcs();
     FRAME_TMR = 40;
     game_loop_with_frame_wait();
-
+    // si points to matching town door struct
     uint8_t dest_id = MEM8(si + 2);
     if (dest_id == 0xFF) {
-        return;
+        return; // Falter special building, TODO
     }
 
     if (dest_id >= 8) {
-        request_dungeon_transition();
+        request_dungeon_transition(dest_id - 8);
         return;
     }
 

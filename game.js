@@ -1305,13 +1305,6 @@ async function handleDungeonTransition(mapId) {
     engineReady = false;
     try {
         writeMemory(ADDR_PENDING_DUNGEON_FLAG, [0]);
-        const tblBytes = readMemory(ADDR_DUNGEON_ENTRANCE_TABLE, 2);
-        const dungEntranceTableAddr = tblBytes[0] | (tblBytes[1] << 8);
-        const spawnXBytes = readMemory(dungEntranceTableAddr + 0, 2);
-        const spawnX = spawnXBytes[0] | (spawnXBytes[1] << 8);
-        const spawnY = readMemory(dungEntranceTableAddr + 2, 1)[0];
-        const spawnDir = readMemory(dungEntranceTableAddr + 3, 1)[0];
-
         const rawMapId = mapId & 0x7F;
         const mdtPath = DUNGEONS[rawMapId].mdtPath;
         const resp = await fetch(mdtPath);
@@ -1324,7 +1317,7 @@ async function handleDungeonTransition(mapId) {
         await loadDungeonAssets(rawMapId);
         setDungeonPassableTiles(DUNGEONS[rawMapId].passableTiles);
         setDungeonAirflows(DUNGEONS[rawMapId].airflows);
-        dungeonInit?.(rawMapId, spawnX, spawnY, spawnDir);
+        dungeonInit?.(rawMapId); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
         setCurrentMusicTrack('Zeliard-04-CavernOfMalicia');

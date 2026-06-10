@@ -1339,7 +1339,7 @@ export function townFinishBuilding() {
 }
 
 export function dungeonInit(mapId, spawnX, spawnY, direction) {
-    wasmExports?.wasm_dungeon_init?.(mapId, spawnX, spawnY, direction);
+    wasmExports?.wasm_dungeon_init?.(mapId);
 }
 
 export function dungeonUpdate() {

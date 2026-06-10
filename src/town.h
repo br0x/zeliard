@@ -127,21 +127,26 @@ extern TownProcs g_town_procs;
 #define CALL_PROC_RET(name, ...) \
     (g_town_procs.name ? g_town_procs.name(__VA_ARGS__) : 0)
 
+#define ADDR_SCROLL_REQUEST  0xFFF0 // bit 0: floor right, bit 1: floor left, bit 2: ceiling right, bit 3: ceiling left
 /* =========================================================================
- * Exported WASM entry points (callable from JavaScript)
+ * Transition-pending state (WASM→JS async handshake)
  * ========================================================================= */
-/* Async transition handshake */
-#define ADDR_PENDING_TRANSITION_MAP      0xFFF1
-#define ADDR_PENDING_TRANSITION_PAT      0xFFF2
-#define ADDR_PENDING_TRANSITION_DIR      0xFFF3
-#define ADDR_PENDING_TRANSITION_FLAG     0xFFF4
+#define ADDR_PENDING_TRANSITION_MAP      0xFFF1   /* byte: dest map id (with 0x80 set) */
+#define ADDR_PENDING_TRANSITION_PAT      0xFFF2   /* byte: new pat_id */
+#define ADDR_PENDING_TRANSITION_DIR      0xFFF3   /* byte: 0=going right, 1=going left */
+#define ADDR_PENDING_TRANSITION_FLAG     0xFFF4   /* byte: 0xFF = transition requested */
 #define ADDR_CONVERSATION_ACTIVE         0xFFF5   // byte, 1 = conversation active
 #define ADDR_CONVERSATION_NPC_ADDR       0xFFF6   // word, pointer to NPC struct
 #define ADDR_CONVERSATION_SAVED_AI       0xFFF8   // byte
 #define ADDR_CONVERSATION_SAVED_FACING   0xFFF9   // byte
 #define ADDR_BUILDING_ACTIVE             0xFFFA   // byte, 1 = JS-owned building scene active
 #define ADDR_BUILDING_DEST_ID            0xFFFB   // byte, TOWN_DOOR.td_dest_id
+#define ADDR_PENDING_DUNGEON_MAP         0xFFFC   /* byte: dungeon id requested by town */
+#define ADDR_PENDING_DUNGEON_FLAG        0xFFFD   /* byte: 0xFF = dungeon requested */
 
+/* =========================================================================
+ * Exported WASM entry points (callable from JavaScript)
+ * ========================================================================= */
 // Export function to finish conversation (called by JS)
 void wasm_town_conversation_finish(void);
 void wasm_town_building_finish(void);

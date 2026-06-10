@@ -1201,32 +1201,13 @@ static void check_doors(void)
 // Exported WASM functions
 // ----------------------------------------------------------------------
 // Initialization: unpack full map and setup proximity/viewport
-// FIXME!
-void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction) {
+// FIXME! should call prepare_dungeon_proc
+void wasm_dungeon_init(uint8_t map_id) {
     unpack_map();
 
-    // Set initial proximity window centered on spawn point
-    uint16_t left = spawn_x - HERO_PROX_COL;  // HERO_PROX_COL is now 16
-    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left;
-    MEM8(ADDR_HERO_X_VIEW) = HERO_VIEW_COL;
-    MEM8(ADDR_HERO_Y) = spawn_y;
-    MEM8(ADDR_FACING) = direction ? 1 : 0;
-    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
 
     // copy_proximity_window(left);
 
-    // Compute initial viewport top row (centered vertically)
-    uint8_t top = 0;
-    if (spawn_y > 9) top = spawn_y - 9;
-    if (top > DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON)
-        top = DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON;
-    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_HERO_HEAD_Y_VIEW) = spawn_y - top;
-
-    // Calculate viewport_left_top_addr = coords_to_prox_addr(4, top)
-    uint16_t addr = coords_to_prox_addr(4, top);
-    MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
 
     MEM8(ADDR_DUNGEON_ACTIVE) = 1;
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;

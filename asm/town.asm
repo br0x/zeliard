@@ -2069,20 +2069,20 @@ handle_edge_screen_transition        proc near
                 mov     si, ds:town_transition_table
 
 loc_6CCB:   
-                test    byte ptr [si], 1 ; town_transition_data[i].0 & 1 != 0 => data for crossing from left
+                test    byte ptr [si], 1 ; town_transition_data[0] & 1 != 0 => data for crossing from left
                 jnz     short loc_6CD5
                 add     si, 4
                 jmp     short loc_6CCB
 ; ---------------------------------------------------------------------------
 
 loc_6CD5:   
-                lodsb
+                lodsb      ; town_transition_data[0] = flags
                 mov     ah, al
-                lodsb
+                lodsb      ; town_transition_data[1] = dest_map_id
                 and     ah, 0FEh
                 jz      short town_transition_from_left
                 ; some towns at the map edge transit to the dungeon
-                jmp     dungeon_transition
+                jmp     dungeon_transition ; Input: al = dest_map_id
 ; ---------------------------------------------------------------------------
 
 town_transition_from_left:   
@@ -2106,20 +2106,20 @@ crossed_right_edge:
                 mov     si, ds:town_transition_table
 
 loc_6D09:   
-                test    byte ptr [si], 1
+                test    byte ptr [si], 1   ; town_transition_data[0] & 1 == 0 => data for crossing from right
                 jz      short loc_6D13
                 add     si, 4
                 jmp     short loc_6D09
 ; ---------------------------------------------------------------------------
 
 loc_6D13:   
-                lodsb
+                lodsb      ; town_transition_data[0] = flags
                 mov     ah, al
-                lodsb
+                lodsb      ; town_transition_data[1] = dest_map_id
                 and     ah, 0FEh
                 jz      short town_transition_from_right
                 ; some towns at the map edge transit to the dungeon
-                jmp     dungeon_transition
+                jmp     dungeon_transition ; Input: al = dest_map_id
 ; ---------------------------------------------------------------------------
 
 town_transition_from_right:   
@@ -2287,21 +2287,21 @@ loc_6E46:
 door_x_coord_match:    
                 mov     byte ptr ds:hero_animation_phase, 4
                 push    si
-                call    restore_head_level_tiles_from_npcs
-                mov     byte ptr ds:frame_timer, 40
-                call    game_loop_with_frame_wait
+                    call    restore_head_level_tiles_from_npcs
+                    mov     byte ptr ds:frame_timer, 40
+                    call    game_loop_with_frame_wait
                 pop     si              ; door struct pointer
                 mov     al, [si+TOWN_DOOR.td_dest_id]
                 cmp     al, 0FFh
                 jne     short loc_6E77
-                jmp     loc_6F77
+                jmp     loc_6F77 ; Falter special building
 ; ---------------------------------------------------------------------------
 
 loc_6E77:   
                 sub     al, 8
                 jb      short loc_6E7E  ; in-town buildings
                 ; td_dest_id >=8 -> dungeon transition
-                jmp     dungeon_transition
+                jmp     dungeon_transition ; Input: al = dest_map_id
 ; ---------------------------------------------------------------------------
 
 loc_6E7E:   
@@ -2417,7 +2417,8 @@ loc_6FC1:
 falter_transition_desc dw 3201h                ; falter warp descriptor
 aUgm2Msd               db 'UGM2.MSD',0
 ; ---------------------------------------------------------------------------
-
+; Input:
+;   AL: dest_map_id
 dungeon_transition:   
                 mov     bl, 5           ; ax=0
                 mul     bl
@@ -2425,19 +2426,19 @@ dungeon_transition:
                 mov     si, ax
                 lodsw                   ; 003d = 61 ; hero absolute x in the target map
                 push    ax
-                lodsb                   ; 07 ; hero head y in the target map
-                sub     al, 10          ; -3 = fd
-                and     al, 3Fh         ; wrap y => 3d = 61
-                mov     byte ptr ds:viewport_top_row_y, al ; viewport y_top
-                lodsb                   ; 0
-                shr     al, 1           ; 0
-                sbb     al, al          ; 0
-                mov     byte ptr ds:is_left_run, al
-                lodsb                   ; 0
-                mov     byte ptr ds:place_map_id, al
-                mov     ah, al          ; 0 => mp10.mdt
-                mov     al, 1           ; fn1_load_mdt_idx_ah
-                call    cs:res_dispatcher_proc ; res_dispatcher
+                    lodsb                   ; 07 ; hero head y in the target map
+                    sub     al, 10          ; -3 = fd
+                    and     al, 3Fh         ; wrap y => 3d = 61
+                    mov     byte ptr ds:viewport_top_row_y, al ; viewport y_top
+                    lodsb                   ; 0
+                    shr     al, 1           ; 0
+                    sbb     al, al          ; 0
+                    mov     byte ptr ds:is_left_run, al
+                    lodsb                   ; 0
+                    mov     byte ptr ds:place_map_id, al
+                    mov     ah, al          ; 0 => mp10.mdt
+                    mov     al, 1           ; fn1_load_mdt_idx_ah
+                    call    cs:res_dispatcher_proc ; res_dispatcher
                 pop     ax              ; hero absolute x in the target map
                 add     ax, -16         ; proximity_map_left_col_x in absolute map coords
                 jns     short loc_702B

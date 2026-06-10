@@ -5,7 +5,7 @@
 
 typedef struct DungeonMonster DungeonMonster;
 
-void wasm_dungeon_init(uint8_t map_id, uint16_t spawn_x, uint8_t spawn_y, uint8_t direction);
+void wasm_dungeon_init(uint8_t map_id);
 void wasm_dungeon_update(void);
 void wasm_dungeon_full_tick(void);
 uint32_t wasm_dungeon_get_full_map_ptr(void);
