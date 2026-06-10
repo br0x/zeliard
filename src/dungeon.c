@@ -9,8 +9,12 @@
 
 #define ADDR_BYTE_9EF5                0x9EF5  // byte
 #define ADDR_MMAN_GRP_INDEX           0x9EF6  // byte
+#define ADDR_BYTE_9EFA                0x9EFA  // byte
+#define ADDR_EAI_BIN_INDEX            0x9EFE  // byte
+#define ADDR_ENP_GRP_INDEX            0x9EFF  // byte
 #define ADDR_BYTE_9F00                0x9F00
 #define ADDR_BYTE_9F01                0x9F01
+#define ADDR_BYTE_9F02                0x9F02  // byte
 #define ADDR_PACKED_MAP_PTR_MINUS     0x9F04  // word: packed_map_ptr_for_prox_left
 #define ADDR_PACKED_MAP_PTR_PLUS      0x9F06  // word: packed_map_ptr_for_prox_right
 #define ADDR_JUMP_HEIGHT_COUNTER      0x9F08
@@ -49,7 +53,6 @@
 #define ADDR_CAVERN_LEVEL        0xC012u
 #define ADDR_TEAR_X              0xC013u
 #define ADDR_TEAR_Y              0xC015u
-#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016u
 #define ADDR_CAVERN_SIGNS_INFO   0xC017u
 #define ADDR_PACKED_MAP_END_PTR  0xC019u
 #define ADDR_PACKED_MAP_START    0xC01Bu
@@ -121,15 +124,235 @@ static uint16_t ptr_to_off(uint16_t ptr)
     return ptr >= ADDR_MDT ? (uint16_t)(ptr - ADDR_MDT) : ptr;
 }
 
+// stub
+void clear_hero_in_viewport()
+{
+
+}
+
+// stub
+void Sample_Neighborhood_Attributes_proc()
+{
+
+}
+
+// stub
+void Draw_Hero_Health_proc()
+{
+}
+
+// stub
+void Refresh_Dirty_Tiles_proc()
+{
+
+}
+
+// stub
+void Active_Entity_Sprite_Renderer_proc()
+{
+
+}
+
+// stub
+void update_and_render_projectile_row_pair()
+{
+
+}
+
+// stub
+void render_and_collision_pass_row()
+{
+
+}
+
+// stub
+void update_active_projectiles_render()
+{
+
+}
+
+// stub
+void apply_sword_hit_to_map_tiles()
+{
+
+}
+
+// stub
+void Confirm_Exit_Dialog_proc()
+{
+
+}
+
+// stub
+void Handle_Pause_State_proc()
+{
+
+}
+
+// stub
+void Handle_Speed_Change_proc()
+{
+
+}
+
+// stub
+uint8_t Handle_Restore_Game_proc()
+{
+
+}
+
+// stub
+void restore_game()
+{
+
+}
+
+// stub
+void process_hero_death()
+{
+
+}
+
+// stub
+void load_place_and_reinit()
+{
+
+}
+
+// stub
+void update_hero_XP()
+{
+
+}
+
+// stub
+void hero_got_almas()
+{
+
+}
+
+// stub
+void bring_inventory_window()
+{
+
+}
+
+// stub
+void try_move_platform_up()
+{
+
+}
+
+// stub
+void Browse_Projectiles()
+{
+
+}
+
+// stub
+void clear_viewport_buffer()
+{
+
+}
+
+// stub
+void reset_dungeon_state_vars()
+{
+
+}
+
+// stub
+void load_mdt()
+{
+
+}
+
+// stub
+void remove_accomplished_items()
+{
+
+}
+
+// stub
+void hero_left_16_down_1()
+{
+
+}
+
+// stub
+void Render_Roca_Tilemap_proc()
+{
+
+}
+
+// stub
+void process_mdt_descriptor()
+{
+
+}
+
+// stub
+void roca_entrypoint()
+{
+
+}
+
+// stub
+void load_resource(char * filename, int address)
+{
+
+}
+
+// stub
+void load_cavern_sprites_ai_music()
+{
+
+}
+
+// stub
+void Clear_Viewport_proc()
+{
+
+}
+
+// stub
+void Reassemble_3_Planes_To_Packed_Bitmap_proc()
+{
+
+}
+
+// stub
+void Load_Magic_Spell_Sprite_Group_proc()
+{
+
+}
+
+// stub
+void edge_locking_scrolling_window()
+{
+
+}
+
+// stub
+void swap_to_town_graphics_and_jump()
+{
+
+}
+
 // Checked
-static void wrap_map_from_above(uint16_t *si) {
+void NoOperation_proc()
+{
+}
+
+// Checked
+void wrap_map_from_above(uint16_t *si) {
     if (*si >= PROXIMITY_END) {
         *si -= PROXIMITY_SIZE;
     }
 }
 
 // Checked
-static void wrap_map_from_below(uint16_t *si) {
+void wrap_map_from_below(uint16_t *si) {
     if (*si < ADDR_PROXIMITY) {
         *si += PROXIMITY_SIZE;
     }
@@ -146,7 +369,7 @@ static uint16_t coords_to_prox_addr(uint8_t x, uint8_t y) {
 // Hero's top-left tile address in proximity map (from f_map.inc)
 // Use macro MEM to access actual data at this address
 // Checked
-static uint16_t hero_coords_to_addr_in_proximity(void) {
+uint16_t hero_coords_to_addr_in_proximity(void) {
     uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
     uint8_t view_x = MEM8(ADDR_HERO_X_VIEW);
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP) + head_y * 36 + view_x + 4;
@@ -156,7 +379,7 @@ static uint16_t hero_coords_to_addr_in_proximity(void) {
 
 // Move viewport up one row (when hero jumps or climbs)
 // Checked
-static void move_hero_up(void) {
+void move_hero_up(void) {
     MEM8(ADDR_VIEWPORT_TOP_ROW)--;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
     addr -= 36;
@@ -166,7 +389,7 @@ static void move_hero_up(void) {
 
 // Move viewport down one row (when falling)
 // Checked
-static void hero_scroll_down(void) {
+void hero_scroll_down(void) {
     MEM8(ADDR_VIEWPORT_TOP_ROW)++;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
     addr += 36;
@@ -1222,7 +1445,7 @@ uint8_t is_over_rope(uint16_t si)
 // Exported Core Assembly Functions
 // ============================================================================
 // Checked
-void hero_knockback_handler(void)
+void hero_knockback_handler()
 {
     if (MEM8(ADDR_BYTE_9F14) == 0) {
         return;
@@ -1287,7 +1510,8 @@ void hero_knockback_handler(void)
 }
 
 // Checked
-void sliding_physics_step(void) {
+void sliding_physics_step(void)
+{
     if (set_zero_flag_if_slippery() != 0) {
         return; // NZ: not slippery
     }
@@ -1323,14 +1547,16 @@ void sliding_physics_step(void) {
 }
 
 // Checked
-void right_up_pressed(void) {
+void right_up_pressed(void)
+{
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
     on_right_pressed();
 }
 
 // Checked
-void on_right_pressed() {
+void on_right_pressed()
+{
     MEM8(ADDR_BYTE_9F18) = 0;
     if (MEM8(ADDR_FACING) & LEFT) {
         flip_facing_direction();
@@ -1376,14 +1602,16 @@ void init_on_ground()
 }
 
 // Checked
-void left_up_pressed(void) {
+void left_up_pressed(void)
+{
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
     on_left_pressed();
 }
 
 // Checked
-void on_left_pressed() {
+void on_left_pressed()
+{
     MEM8(ADDR_BYTE_9F18) = 0;
     if (!(MEM8(ADDR_FACING) & LEFT)) {
         flip_facing_direction();
@@ -1532,7 +1760,8 @@ void right_default()
 }
 
 // Checked
-void slope_assist_on_landing(void) {
+void slope_assist_on_landing(void)
+{
     MEM8(ADDR_SLOPE_DIRECTION) = 0;
 
     uint16_t si = hero_coords_to_addr_in_proximity() + 2 * PROX_COLS + 1;
@@ -1800,10 +2029,9 @@ void game_loop_render_and_timing(uint8_t invincible)
     }
 }
 
-// dispatch_airflows and helper tables
-// ============================================================================
 // Checked
-void dispatch_airflows(uint16_t si) {
+void dispatch_airflows(uint16_t si)
+{
     uint8_t tile = MEM8(si);
     uint8_t dir = get_airflow_direction(tile);
     if (dir == 0xFF) return;
@@ -1948,170 +2176,169 @@ uint8_t open_door(uint16_t si)
 // si = door struct pointer
 void enter_opened_door(uint16_t si)
 {
-        uint16_t bx = MEM16(si + 9);   // d_save_achievement_addr
-        if (bx != 0xFFFF) {
-            MEM8(bx) |= MEM8(si + 11); // d_achievement_flag
-        }
+    uint16_t bx = MEM16(si + 9);   // d_save_achievement_addr
+    if (bx != 0xFFFF) {
+        MEM8(bx) |= MEM8(si + 11); // d_achievement_flag
+    }
 
-        Browse_Projectiles();          // clears projectile array
-        clear_viewport_buffer();
-        Flush_Ui_Element_If_Dirty_proc();
-        reset_dungeon_state_vars();
-        game_loop_render_and_timing(0); // redraw everything
+    Browse_Projectiles();          // clears projectile array
+    clear_viewport_buffer();
+    Flush_Ui_Element_If_Dirty_proc();
+    reset_dungeon_state_vars();
+    game_loop_render_and_timing(0); // redraw everything
 
-        // Clear monster table (write 0xFFFF at monsters_table_addr)
-        uint16_t monsters_ptr = MEM16(ADDR_MONSTERS_LIST);
-        MEM16(monsters_ptr) = 0xFFFF; // empty monster list
+    // Clear monster table (write 0xFFFF at monsters_table_addr)
+    uint16_t monsters_ptr = MEM16(ADDR_MONSTERS_LIST);
+    MEM16(monsters_ptr) = 0xFFFF; // empty monster list
 
-        uint8_t door_flags = MEM8(si + 3); // d_flags
-        uint8_t door_type = door_flags & 7;
-        uint16_t x1 = MEM16(si + 5);
-        MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
-        uint8_t y1 = MEM8(si + 7);
-        MEM8(ADDR_DOOR_TARGET_Y) = y1;
-        uint8_t is_left_run = (door_flags >> 6) & 1;
-        MEM8(ADDR_LEFT_RUN) = is_left_run;
-        uint8_t door_features = MEM8(si + 8);
-        MEM8(ADDR_DOOR_FEATURES) = door_features;
-        uint8_t place_map_id = MEM8(si + 4);
-        if (y1 == 0xFF) { // town transition
-            place_map_id |= 0x80;   // door leads to town
-        }
-        MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
+    uint8_t door_flags = MEM8(si + 3); // d_flags
+    uint8_t door_type = door_flags & 7;
+    uint16_t x1 = MEM16(si + 5);
+    MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
+    uint8_t y1 = MEM8(si + 7);
+    MEM8(ADDR_DOOR_TARGET_Y) = y1;
+    uint8_t is_left_run = (door_flags >> 6) & 1;
+    MEM8(ADDR_LEFT_RUN) = is_left_run;
+    uint8_t door_features = MEM8(si + 8);
+    MEM8(ADDR_DOOR_FEATURES) = door_features;
+    uint8_t place_map_id = MEM8(si + 4);
+    if (y1 == 0xFF) { // town transition
+        place_map_id |= 0x80;   // door leads to town
+    }
+    MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
 
-        // Load new MDT (map descriptor table)
-        // fn1_load_mdt_idx_ah
-        load_mdt(place_map_id);
+    // Load new MDT (map descriptor table)
+    // fn1_load_mdt_idx_ah
+    load_mdt(place_map_id);
 
-        if ((place_map_id & 0x80) == 0) {
-            remove_accomplished_items(); // for caverns
-        }
+    if ((place_map_id & 0x80) == 0) {
+        remove_accomplished_items(); // for caverns
+    }
 
-        // Position hero
-        hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
+    // Position hero
+    hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
 
-        // Check MDT descriptor bit 0 (town vs dungeon)
-        uint16_t mdt_ptr = MEM16(ADDR_MDT);
-        uint8_t mdt_desc = MEM8(mdt_ptr + 0);   // b7b6_msd_idx_b0
-        if ((mdt_desc & 1) == 0) {
-            // load RocaDemo graphics
-            // if (mdt_desc & 2) {
-            //     // Load vfs_roka_grp_2 (town set 2)
-            //     load_resource(2, vfs_roka_grp_2, packed_tile_ptr);
-            // } else {
-            //     // Load vfs_roka_grp_1 (town set 1)
-            //     load_resource(2, vfs_roka_grp_1, packed_tile_ptr);
-            // }
-            // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
-            Render_Roca_Tilemap_proc(door_type);
-            // set mman_grp_index = 0xFF, byte_FF24 = 0x0A
-            MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
-            MEM8(ADDR_BYTE_FF24) = 10;
-        } else {
-            // // Dungeon map – load proper graphics
-            // if (mdt_desc & 2) {
-            //     load_resource(2, vfs_roka_grp_2, packed_tile_ptr);
-            // } else {
-            //     load_resource(2, vfs_roka_grp_1, packed_tile_ptr);
-            // }
-            // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
-            Render_Roca_Tilemap_proc(door_type);
-            process_mdt_descriptor(mdt_desc);
-        }
+    // Check MDT descriptor bit 0 (town vs dungeon)
+    uint16_t mdt_descr = MEM16(ADDR_MDT);
+    uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
+    if ((mdt_desc0 & 1) == 0) {
+        // load RocaDemo graphics
+        // if (mdt_desc & 2) {
+        //     // Load vfs_roka_grp_2 (town set 2)
+        //     load_resource('roka.grp', packed_tile_ptr);
+        // } else {
+        //     // Load vfs_roka_grp_1 (town set 1)
+        //     load_resource('roka.grp', packed_tile_ptr);
+        // }
+        // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
+        Render_Roca_Tilemap_proc(door_type);
+        // set mman_grp_index = 0xFF, byte_FF24 = 0x0A
+        MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
+        MEM8(ADDR_BYTE_FF24) = 10;
+    } else {
+        // // Dungeon map – load proper graphics
+        // if (mdt_desc & 2) {
+        //     load_resource('roka.grp', packed_tile_ptr);
+        // } else {
+        //     load_resource('roka.grp', packed_tile_ptr);
+        // }
+        // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
+        Render_Roca_Tilemap_proc(door_type);
+        process_mdt_descriptor(mdt_descr); // AL: mdt_descriptor.b7b6_msd_idx_b0
+                                           // SI: &mdt_descriptor+1
+    }
 
-        // Clear hero hidden flag
-        MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
-        MEM8(ADDR_BYTE_9EF5) = 0xFF;
-        MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
+    // Clear hero hidden flag
+    MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
+    MEM8(ADDR_BYTE_9EF5) = 0xFF;
+    MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
 
-        if (door_features & 0x80) {
-            // Special town transition with rocademo.bin
-            load_resource(3, rokademo_bin, 0xA000); // load to seg1:A000
-            roca_entrypoint();
-            MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
-            MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
-            MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
-            MEM8(0x9F02) = 0xFF;
-            load_cavern_sprites_ai_music();
-            // load fman.grp for hero in dungeon
-            load_resource(2, vfs_fman_grp, fman_gfx);
-            Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
-            goto after_run_animation;
-        }
-
+    if (door_features & 0x80) {
+        // load cavern
+        load_resource("rokademo.bin", 0x1A000); // load to seg1:A000
+        roca_entrypoint();
+        MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
+        MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
+        MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
+        MEM8(ADDR_BYTE_9F02) = 0xFF;
+        load_cavern_sprites_ai_music(); // load dchr.grp, mpp{mpp_grp_index}.grp, eai{eai_bin_index}.bin, 
+                                        // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
+        // load_resource('fman.grp', fman_gfx);
+        // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
+    } else {
         // Animate hero running into the new map
-        if (MEM8(ADDR_IS_LEFT_RUN) != 0) {
+        if (MEM8(ADDR_LEFT_RUN)) {
             // run to the left
-            MEM8(ADDR_FACING) |= 1;   // face left
+            MEM8(ADDR_FACING) |= LEFT;   // face left
             uint16_t bx = 0x406E;     // starting screen X
-            for (int cx = 26; cx > 0; cx--) {
+            for (int i = 0; i < 26; i++) {
                 MEM8(ADDR_HERO_ANIM_PHASE)++;
-                Update_Local_Attribute_Cache_proc();
-                bx -= 2;
-                Calculate_Tile_VRAM_Address_proc(bx);
-                sleep_loop_handle_system_keys();
-                bx += 4;
-                Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0); // clears area
+                // Update_Local_Attribute_Cache_proc();
+                // Calculate_Tile_VRAM_Address_proc(bx - 2);
+                // bx += 2;
+                // sleep_loop_handle_system_keys();
+                // Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0); // clears area
             }
-            Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+            // Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
         } else {
             // run to the right
-            MEM8(ADDR_FACING) &= ~1;  // face right
+            MEM8(ADDR_FACING) &= ~LEFT;  // face right
             uint16_t bx = 0xA6E;
-            for (int cx = 26; cx > 0; cx--) {
+            for (int i = 0; i < 26; i++) {
                 MEM8(ADDR_HERO_ANIM_PHASE)++;
-                Update_Local_Attribute_Cache_proc();
-                bx += 2;
-                Calculate_Tile_VRAM_Address_proc(bx);
-                sleep_loop_handle_system_keys();
-                Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0);
+                // Update_Local_Attribute_Cache_proc();
+                // Calculate_Tile_VRAM_Address_proc(bx + 2);
+                // bx += 2;
+                // sleep_loop_handle_system_keys();
+                // Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0);
             }
-            Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+            // Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
         }
+    }
 
-after_run_animation:
-        // Final dungeon or town setup
-        mdt_desc = MEM8(ADDR_MDT);
-        if (mdt_desc & 1) {
-            // dungeon
-            load_cavern_sprites_ai_music();
-            mdt_desc = MEM8(ADDR_MDT);
-            uint8_t ah = mdt_desc;
-            ah <<= 1;
-            uint8_t bl = (ah & 0x80) ? 0xFF : 0;
-            MEM8(ADDR_IS_BOSS_CAVERN) = bl;
-            ah <<= 1;
-            bl = (ah & 0x80) ? 0xFF : 0;
-            MEM8(ADDR_IS_JASHIIN_CAVERN) = bl;
-            MEM8(ADDR_BOSS_BEING_HIT) = 0;
-            MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
-            Clear_Viewport_proc();
-            MEM8(ADDR_HERO_X_VIEW) = 0x0C;
-            MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT);
-            MEM8(ADDR_BYTE_9F00) = MEM8(ADDR_HERO_HEAD_Y_VIEW);
-            MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
-            Reassemble_3_Planes_To_Packed_Bitmap_proc(0x8030, 0x66);
-            NoOperation_proc();
-            Load_Magic_Spell_Sprite_Group_proc();
-            Reassemble_3_Planes_To_Packed_Bitmap_proc(/* magic sprite data */, 24);
-            Cavern_Game_Init();
-        } else {
-            // town
-            uint8_t mman_idx = MEM8(ADDR_MDT + 1);
-            uint16_t offset = mman_idx * 11;
-            uint16_t si2 = offset + vfs_mman_grp;
-            load_resource(2, si2, 0x4000);
-            // Transfer to town code
-            edge_locking_scrolling_window();  // sets proximity_map_left_col_x and hero_x_in_viewport
-            uint8_t msd_idx = (MEM8(ADDR_MDT) >> 1) & 0x1F;
-            MEM8(ADDR_MSD_INDEX) = msd_idx;
-            offset = msd_idx * 11;
-            si2 = offset + vfs_mgt1_msd;
-            load_resource(5, si2, 0x3000);   // load music
-            // fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-            swap_to_town_graphics_and_jump(0);
-        }
-
+    // after_run_animation:
+    // Final dungeon or town setup
+    mdt_descr = MEM16(ADDR_MDT);
+    mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
+    if (mdt_desc0 & 1) { // 0 ? town : dungeon
+        // dungeon
+        load_cavern_sprites_ai_music(); // load dchr.grp, mpp{mpp_grp_index}.grp, eai{eai_bin_index}.bin, 
+                                        // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
+        MEM8(ADDR_IS_BOSS_CAVERN) = (mdt_desc0 & 0x80) ? 0xFF : 0;
+        MEM8(ADDR_IS_JASHIIN_CAVERN) = (mdt_desc0 & 0x40) ? 0xFF : 0;;
+        MEM8(ADDR_BOSS_BEING_HIT) = 0;
+        MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
+        Clear_Viewport_proc();
+        MEM8(ADDR_HERO_X_VIEW) = 12;
+        MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT);
+        MEM8(ADDR_BYTE_9F00) = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+        Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 0x66);
+        NoOperation_proc();
+        Load_Magic_Spell_Sprite_Group_proc(); // Reads corresponding sprite group fron seg2:0 buffer to seg1:9350h
+                                              // Output: Loads sprite sheet for current_magic_spell
+                                              // DS:SI -> seg1:9350h buffer
+        Reassemble_3_Planes_To_Packed_Bitmap_proc(/* magic sprite data */ /*, 24*/);
+        Cavern_Game_Init();
+    } else {
+        // town
+        uint8_t idx = MEM8(mdt_descr + 1);
+        static char * groups[] = { "mman.grp", "cman.grp" };
+        load_resource(groups[idx], 0x4000);
+        // Transfer to town code
+        // stop the music: implement me
+        uint16_t x;
+        uint8_t y;
+        edge_locking_scrolling_window(&x, &y);  // returns proximity_map_left_col_x and hero_x_in_viewport
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = x;
+        MEM8(ADDR_HERO_X_VIEW) = y;
+        uint8_t msd_idx = (mdt_desc0 >> 1) & 0x1F; // b7b6_msd_idx_b0
+        MEM8(ADDR_MSD_INDEX) = msd_idx;
+        static char * musics[] = { "mgt1.msd", "ugm1.msd", "mgt2.msd", "ugm2.msd" };
+        load_resource(musics[msd_idx], 0x3000);   // load music
+        // fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
+        swap_to_town_graphics_and_jump(0);
+    }
 }
 
 void update_horiz_platform_coords(uint16_t si) {

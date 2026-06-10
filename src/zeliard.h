@@ -28,6 +28,7 @@ extern "C" {
 #define ADDR_LEFT_RUN                 0xC3
 #define ADDR_PLACE_MAP_ID             0xC4
 #define ADDR_HEALING_TIMER            0xC6
+#define ADDR_MSD_INDEX                0xC8    // byte
 #define ADDR_IS_JASHIIN_CAVERN        0xE6
 #define ADDR_HERO_ANIM_PHASE          0xE7
 #define ADDR_INVINCIBILITY_FLAG       0xE8
@@ -38,6 +39,7 @@ extern "C" {
 #define ADDR_DOORS_LIST          0xC00A
 #define ADDR_MONSTERS_LIST       0xC010
 #define ADDR_CAVERN_LEVEL        0xC012
+#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016
 #define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
@@ -652,6 +654,21 @@ void move_hero_up(void);
 uint8_t is_non_blocking_tile(uint8_t tile);
 uint8_t get_airflow_direction(uint8_t tile);
 int8_t set_zero_flag_if_slippery(void);
+void sliding_physics_step(void);
+void hero_knockback_handler();
+void airborne_movement(uint8_t *restart);
+void on_right_pressed();
+void on_left_pressed();
+void init_on_ground();
+void slope_assist_on_landing(void);
+void left_default();
+void right_default();
+uint8_t get_slope_direction_by_tile_under_feet(uint16_t si, uint8_t *dl);
+void dispatch_airflows(uint16_t si);
+void try_door_interaction(uint8_t *should_break);
+void enter_the_door(uint8_t *should_break);
+void enter_opened_door(uint16_t si);
+uint8_t open_door(uint16_t si);
 
 // Rendering
 void main_update_render(void);

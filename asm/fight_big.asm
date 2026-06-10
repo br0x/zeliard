@@ -4696,7 +4696,7 @@ loc_7CBF:
                 mov     cx, 618h
                 xor     al, al
                 call    cs:Draw_Bordered_Rectangle_proc
-
+; after_run_animation
 loc_7CF4:        
                 mov     si, ds:mdt_buffer  ; mdt_descriptor
                 lodsb                      ; .b7b6_msd_idx_b0
@@ -4744,7 +4744,7 @@ loc_7CF4:
                 pop     ds
                 jmp     Cavern_Game_Init
 ; ---------------------------------------------------------------------------
-
+; town init
 loc_7D64:        
                 mov     si, ds:mdt_buffer
                 inc     si
@@ -10166,11 +10166,11 @@ mpp_grp_index   db 0    ; 9EF7h; mdt_descriptor.mpp_grp_idx
 eai_bin_index_  db 0    ; 9EF8h; mdt_descriptor.eai_bin_idx
 enp_grp_index_  db 0    ; 9EF9h; mdt_descriptor.enp_grp_idx
 byte_9EFA       db 0      
-                db    0
-                db    0
-                db    0
-eai_bin_index   db 0FFh   
-enp_grp_index   db 0FFh   
+                db    0      ; 9EFBh
+                db    0      ; 9EFCh
+                db    0      ; 9EFDh
+eai_bin_index   db 0FFh     ; 9EFEh
+enp_grp_index   db 0FFh     ; 9EFFh
 byte_9F00       db 0      
 byte_9F01       db 0      
 byte_9F02       db 0      
