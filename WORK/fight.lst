@@ -38,7 +38,7 @@ fight:602E                 dw offset if_passable_set_ZF
 fight:6030                 dw offset check_monster_on_aggressive_ground
 fight:6032                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
 fight:6034                 dw offset Hero_Hits_monster
-fight:6036                 dw offset HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:6036                 dw offset is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:6036                                         ;  * Accounts for world-wrapping (map edges).
 fight:6036                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:6036                                         ;  * @return Positive value (35 - distance) if in range,
@@ -64,7 +64,7 @@ fight:6048                 pop     ds
 fight:6049                 assume ds:fight
 fight:6049                 mov     slide_ticks_remaining, 0
 fight:604E                 mov     horiz_movement_sub_tile_accum, 0
-fight:6053                 mov     byte_9F22, 0
+fight:6053                 mov     slide_direction, 0
 fight:6058                 mov     ax, 0FFFFh
 fight:605B                 mov     projectiles_array, al
 fight:605E                 mov     active_entity_table, al
@@ -347,7 +347,7 @@ fight:6343 ; =============== S U B R O U T I N E ===============================
 fight:6343
 fight:6343
 fight:6343 state_machine_dispatcher proc near      ; ...
-fight:6343                 mov     ds:byte_9F22, 0
+fight:6343                 mov     ds:slide_direction, 0
 fight:6348                 int     61h             ; reserved for user interrupt
 fight:634A                 cmp     al, 101b
 fight:634C                 jnz     short loc_6351
@@ -616,7 +616,7 @@ fight:64ED                 retn
 fight:64EE ; ---------------------------------------------------------------------------
 fight:64EE
 fight:64EE loc_64EE:                               ; ...
-fight:64EE                 mov     al, ds:byte_9F22 ; slide_direction: 1 = right, 2 = left
+fight:64EE                 mov     al, ds:slide_direction ; slide_direction: 1 = right, 2 = left
 fight:64F1                 test    ds:byte_9F23, 1 ; slide_direction_flags: Bit 0 = slide direction from previous tick
 fight:64F6                 jz      short loc_6500
 fight:64F8                 cmp     al, 1
@@ -864,7 +864,7 @@ fight:6664                 jmp     loc_6837
 fight:6667 ; ---------------------------------------------------------------------------
 fight:6667
 fight:6667 loc_6667:                               ; ...
-fight:6667                 mov     ds:byte_9F22, 2
+fight:6667                 mov     ds:slide_direction, 2
 fight:666C                 test    ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
 fight:6671                 jz      short loc_6674
 fight:6673                 retn
@@ -1102,7 +1102,7 @@ fight:67DA                 cmp     ds:slope_direction, 2
 fight:67DF                 jz      short loc_6837
 fight:67E1                 call    move_hero_right_if_no_obstacles
 fight:67E4                 jb      short loc_6837
-fight:67E6                 mov     ds:byte_9F22, 1
+fight:67E6                 mov     ds:slide_direction, 1
 fight:67EB                 test    ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
 fight:67F0                 jz      short loc_67F3
 fight:67F2                 retn
@@ -3630,7 +3630,7 @@ fight:774E update_boss_heartbeat_volume proc near  ; ...
 fight:774E                 mov     ax, ds:tear_x
 fight:7751                 cmp     ax, 0FFFFh
 fight:7754                 jz      short distance_big
-fight:7756                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:7756                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:7756                                         ;  * Accounts for world-wrapping (map edges).
 fight:7756                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:7756                                         ;  * @return Positive value (35 - distance) if in range,
@@ -6462,7 +6462,7 @@ fight:89A9                 add     di, ax
 fight:89AB                 mov     di, [di]
 fight:89AD                 add     di, bx
 fight:89AF                 mov     ax, [si+magic_projectile.x_rel]
-fight:89B1                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:89B1                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:89B1                                         ;  * Accounts for world-wrapping (map edges).
 fight:89B1                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:89B1                                         ;  * @return Positive value (35 - distance) if in range,
@@ -6709,7 +6709,7 @@ fight:8B24                 inc     [si+magic_projectile.p_trajectory_dir]
 fight:8B27                 cmp     [si+magic_projectile.p_max_step_count], 3
 fight:8B2B                 jz      short loc_8B61
 fight:8B2D                 mov     ax, [si+magic_projectile.x_rel]
-fight:8B2F                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:8B2F                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:8B2F                                         ;  * Accounts for world-wrapping (map edges).
 fight:8B2F                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:8B2F                                         ;  * @return Positive value (35 - distance) if in range,
@@ -6854,7 +6854,7 @@ fight:8C07 ; -------------------------------------------------------------------
 fight:8C07
 fight:8C07 loc_8C07:                               ; ...
 fight:8C07                 mov     ax, [si+magic_projectile.x_rel]
-fight:8C09                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:8C09                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:8C09                                         ;  * Accounts for world-wrapping (map edges).
 fight:8C09                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:8C09                                         ;  * @return Positive value (35 - distance) if in range,
@@ -6991,7 +6991,7 @@ fight:8D38 loc_8D38:                               ; ...
 fight:8D38                 mov     [si+monster.x_rel], 0FFh
 fight:8D3C                 cmp     ah, 0FFh
 fight:8D3F                 jz      short skip
-fight:8D41                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:8D41                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:8D41                                         ;  * Accounts for world-wrapping (map edges).
 fight:8D41                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:8D41                                         ;  * @return Positive value (35 - distance) if in range,
@@ -8473,7 +8473,7 @@ fight:951B                 retn
 fight:951C ; ---------------------------------------------------------------------------
 fight:951C
 fight:951C loc_951C:                               ; ...
-fight:951C                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:951C                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:951C                                         ;  * Accounts for world-wrapping (map edges).
 fight:951C                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:951C                                         ;  * @return Positive value (35 - distance) if in range,
@@ -8676,7 +8676,7 @@ fight:9678 loc_9678:                               ; ...
 fight:9678                 cmp     ah, 0FFh
 fight:967B                 jz      short loc_9698
 fight:967D                 mov     [si+monster.x_rel], 0FFh
-fight:9681                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:9681                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:9681                                         ;  * Accounts for world-wrapping (map edges).
 fight:9681                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:9681                                         ;  * @return Positive value (35 - distance) if in range,
@@ -8708,7 +8708,7 @@ fight:96A1 ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:96A1 ;  * @return Positive value (35 - distance) if in range,
 fight:96A1 ;  * Sets Carry Flag (CF=1) if out of range.
 fight:96A1
-fight:96A1 HorizDistToHero_35 proc near            ; ...
+fight:96A1 is_in_proximity_window proc near            ; ...
 fight:96A1                 mov     bx, ax          ; monster_x
 fight:96A3                 sub     ax, ds:proximity_map_left_col_x
 fight:96A7                 jnb     short loc_96BA
@@ -8728,7 +8728,7 @@ fight:96BA                 xchg    ax, bx
 fight:96BB                 mov     ax, 35
 fight:96BE                 sub     ax, bx
 fight:96C0                 retn
-fight:96C0 HorizDistToHero_35 endp
+fight:96C0 is_in_proximity_window endp
 fight:96C0
 fight:96C1
 fight:96C1 ; =============== S U B R O U T I N E =======================================
@@ -9113,7 +9113,7 @@ fight:98D8                 cmp     byte ptr [di+1], 0FFh
 fight:98DC                 jz      short loc_98F4
 fight:98DE                 mov     ax, [di+monster.currX]
 fight:98E0                 push    dx
-fight:98E1                 call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+fight:98E1                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:98E1                                         ;  * Accounts for world-wrapping (map edges).
 fight:98E1                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:98E1                                         ;  * @return Positive value (35 - distance) if in range,
@@ -9572,7 +9572,7 @@ fight:9F1E byte_9F1E       db 0                    ; ...
 fight:9F1F last_projectile_index db 0              ; ...
 fight:9F20 slide_ticks_remaining db 0              ; ...
 fight:9F21 horiz_movement_sub_tile_accum db 0      ; ...
-fight:9F22 byte_9F22       db 0                    ; ...
+fight:9F22 slide_direction       db 0                    ; ...
 fight:9F23 byte_9F23       db 0                    ; ...
 fight:9F24 byte_9F24       db 0                    ; ...
 fight:9F25 temperature_timer db 0                  ; ...
@@ -9662,8 +9662,7 @@ fight:EB7E                 db    ? ;
 fight:EB7F                 db    ? ;
 fight:EB80 projectiles_array db 416 dup(?)         ; ...
 fight:EB80                                         ; 13*32
-fight:ED20 proximity_second_layer db 80h dup(?)    ; ...
-fight:ED20                                         ; proximity map is designed to keep only one item
+fight:ED20 proximity_second_layer db 80h dup(?)    ; proximity map is designed to keep only one item
 fight:ED20                                         ; at given address. So when we need to put other object,
 fight:ED20                                         ; when position is already occupied by monster,
 fight:ED20                                         ; we use second layer: 128 bytes of additional buffer
@@ -9799,134 +9798,6 @@ fight:FF7C                 db    ? ;
 fight:FF7D                 db    ? ;
 fight:FF7E                 db    ? ;
 fight:FF7F                 db    ? ;
-fight:FF80                 db    ? ;
-fight:FF81                 db    ? ;
-fight:FF82                 db    ? ;
-fight:FF83                 db    ? ;
-fight:FF84                 db    ? ;
-fight:FF85                 db    ? ;
-fight:FF86                 db    ? ;
-fight:FF87                 db    ? ;
-fight:FF88                 db    ? ;
-fight:FF89                 db    ? ;
-fight:FF8A                 db    ? ;
-fight:FF8B                 db    ? ;
-fight:FF8C                 db    ? ;
-fight:FF8D                 db    ? ;
-fight:FF8E                 db    ? ;
-fight:FF8F                 db    ? ;
-fight:FF90                 db    ? ;
-fight:FF91                 db    ? ;
-fight:FF92                 db    ? ;
-fight:FF93                 db    ? ;
-fight:FF94                 db    ? ;
-fight:FF95                 db    ? ;
-fight:FF96                 db    ? ;
-fight:FF97                 db    ? ;
-fight:FF98                 db    ? ;
-fight:FF99                 db    ? ;
-fight:FF9A                 db    ? ;
-fight:FF9B                 db    ? ;
-fight:FF9C                 db    ? ;
-fight:FF9D                 db    ? ;
-fight:FF9E                 db    ? ;
-fight:FF9F                 db    ? ;
-fight:FFA0                 db    ? ;
-fight:FFA1                 db    ? ;
-fight:FFA2                 db    ? ;
-fight:FFA3                 db    ? ;
-fight:FFA4                 db    ? ;
-fight:FFA5                 db    ? ;
-fight:FFA6                 db    ? ;
-fight:FFA7                 db    ? ;
-fight:FFA8                 db    ? ;
-fight:FFA9                 db    ? ;
-fight:FFAA                 db    ? ;
-fight:FFAB                 db    ? ;
-fight:FFAC                 db    ? ;
-fight:FFAD                 db    ? ;
-fight:FFAE                 db    ? ;
-fight:FFAF                 db    ? ;
-fight:FFB0                 db    ? ;
-fight:FFB1                 db    ? ;
-fight:FFB2                 db    ? ;
-fight:FFB3                 db    ? ;
-fight:FFB4                 db    ? ;
-fight:FFB5                 db    ? ;
-fight:FFB6                 db    ? ;
-fight:FFB7                 db    ? ;
-fight:FFB8                 db    ? ;
-fight:FFB9                 db    ? ;
-fight:FFBA                 db    ? ;
-fight:FFBB                 db    ? ;
-fight:FFBC                 db    ? ;
-fight:FFBD                 db    ? ;
-fight:FFBE                 db    ? ;
-fight:FFBF                 db    ? ;
-fight:FFC0                 db    ? ;
-fight:FFC1                 db    ? ;
-fight:FFC2                 db    ? ;
-fight:FFC3                 db    ? ;
-fight:FFC4                 db    ? ;
-fight:FFC5                 db    ? ;
-fight:FFC6                 db    ? ;
-fight:FFC7                 db    ? ;
-fight:FFC8                 db    ? ;
-fight:FFC9                 db    ? ;
-fight:FFCA                 db    ? ;
-fight:FFCB                 db    ? ;
-fight:FFCC                 db    ? ;
-fight:FFCD                 db    ? ;
-fight:FFCE                 db    ? ;
-fight:FFCF                 db    ? ;
-fight:FFD0                 db    ? ;
-fight:FFD1                 db    ? ;
-fight:FFD2                 db    ? ;
-fight:FFD3                 db    ? ;
-fight:FFD4                 db    ? ;
-fight:FFD5                 db    ? ;
-fight:FFD6                 db    ? ;
-fight:FFD7                 db    ? ;
-fight:FFD8                 db    ? ;
-fight:FFD9                 db    ? ;
-fight:FFDA                 db    ? ;
-fight:FFDB                 db    ? ;
-fight:FFDC                 db    ? ;
-fight:FFDD                 db    ? ;
-fight:FFDE                 db    ? ;
-fight:FFDF                 db    ? ;
-fight:FFE0                 db    ? ;
-fight:FFE1                 db    ? ;
-fight:FFE2                 db    ? ;
-fight:FFE3                 db    ? ;
-fight:FFE4                 db    ? ;
-fight:FFE5                 db    ? ;
-fight:FFE6                 db    ? ;
-fight:FFE7                 db    ? ;
-fight:FFE8                 db    ? ;
-fight:FFE9                 db    ? ;
-fight:FFEA                 db    ? ;
-fight:FFEB                 db    ? ;
-fight:FFEC                 db    ? ;
-fight:FFED                 db    ? ;
-fight:FFEE                 db    ? ;
-fight:FFEF                 db    ? ;
-fight:FFF0                 db    ? ;
-fight:FFF1                 db    ? ;
-fight:FFF2                 db    ? ;
-fight:FFF3                 db    ? ;
-fight:FFF4                 db    ? ;
-fight:FFF5                 db    ? ;
-fight:FFF6                 db    ? ;
-fight:FFF7                 db    ? ;
-fight:FFF8                 db    ? ;
-fight:FFF9                 db    ? ;
-fight:FFFA                 db    ? ;
-fight:FFFB                 db    ? ;
-fight:FFFC                 db    ? ;
-fight:FFFD                 db    ? ;
-fight:FFFE                 db    ? ;
-fight:FFFF                 db    ? ;
 fight:FFFF fight           ends
 fight:FFFF
 fight:FFFF

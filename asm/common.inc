@@ -499,7 +499,11 @@ spirit_sprite_1                                    equ 0EB67h
 spirit_sprite_2                                    equ 0EB6Eh
 spirit_sprite_3                                    equ 0EB75h
 projectiles_array                                  equ 0EB80h ; 13x32 bytes
-proximity_second_layer                             equ 0ED20h
+proximity_second_layer                             equ 0ED20h ; proximity map is designed to keep only one item
+                                                              ; at given address. So when we need to put other object,
+                                                              ; when position is already occupied by monster,
+                                                              ; we use second layer: 128 bytes of additional buffer
+                                                              ; (1 byte per monster id)
 active_entity_table                                equ 0EDA0h
 
 ; towns

@@ -33,7 +33,7 @@ byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 ;   Iterates the monsters_table (each 16-byte monster struct).
 ;   For each monster:
 ;     - Skip if high byte of currX == 0xFF (stationary item, not a creature).
-;     - Call HorizDistToHero_35: if monster is outside ±35 columns, skip.
+;     - Call is_in_proximity_window: if monster is outside ±35 columns, skip.
 ;     - Set m_x_rel = BL (relative X position in proximity window).
 ;     - Write monster index | 0x80 to proximity map (primary + second layer).
 ;     - If monster.state_flags bit 4: also stamp 2 rows below (big monster lower half).
@@ -77,7 +77,7 @@ loc_8D38:
                 mov     [si+monster.m_x_rel], 0FFh
                 cmp     ah, 0FFh
                 jz      short skip
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,

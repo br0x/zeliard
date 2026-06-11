@@ -102,7 +102,7 @@ start:
                 dw offset check_monster_on_aggressive_ground
                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
                 dw offset Hero_Hits_monster
-                dw offset HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                dw offset is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,

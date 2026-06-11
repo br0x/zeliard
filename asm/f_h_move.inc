@@ -158,7 +158,7 @@ hero_knockback_handler endp
 ; Applies one tick of ice-slide movement.
 ; Only active when cavern_level == 4 (ice cavern) AND no Ruzeria shoes.
 ; Consumes one tick from slide_ticks_remaining.
-; Slides in the direction stored in byte_9F22 (1=right, 2=left),
+; Slides in the direction stored in slide_direction (1=right, 2=left),
 ; but respects the direction-lock bit in byte_9F23.
 ; If the tile underfoot is a non-ice tile (0x40-0x48), stops sliding.
 ; ===========================================================================
@@ -196,7 +196,7 @@ loc_64D1:
 ; ---------------------------------------------------------------------------
                 ; on the ice
 loc_64EE:        
-                mov     al, ds:byte_9F22 ; slide_direction: 1 = right, 2 = left
+                mov     al, ds:slide_direction ; slide_direction: 1 = right, 2 = left
                 test    ds:byte_9F23, 1 ; slide_direction_flags: Bit 0 = moving direction from previous tick
                 jz      short loc_6500
                 ; was moving right, try move right
@@ -205,7 +205,7 @@ loc_64EE:
                 ; was already moving right
                 retn
 ; ---------------------------------------------------------------------------
-                ; byte_9F22 != 1 => confirm moving right
+                ; slide_direction != 1 => confirm moving right
 loc_64FD:        
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
@@ -216,7 +216,7 @@ loc_6500:
                 ; was already moving left
                 retn
 ; ---------------------------------------------------------------------------
-                ; byte_9F22 != 2 => confirm moving left
+                ; slide_direction != 2 => confirm moving left
 loc_6505:        
                 jmp     move_hero_left_if_no_obstacles
 sliding_physics_step endp
@@ -453,7 +453,7 @@ move_hero_up    endp
 ; - If squatting: ignore.
 ; - If on a right slope and moving left: clear Up bit, transition slope state.
 ; - Otherwise: call move_hero_left_if_no_obstacles.
-;   On success: set byte_9F22=2 (move dir=left), increment accum, set Up flag.
+;   On success: set slide_direction=2 (move dir=left), increment accum, set Up flag.
 ; ===========================================================================
 left_up_pressed proc near 
                 mov     ds:byte_9F0B, 0FFh
@@ -488,7 +488,7 @@ loc_665F:
 ; ---------------------------------------------------------------------------
 
 loc_6667:        
-                mov     ds:byte_9F22, 2   ; move dir=left
+                mov     ds:slide_direction, 2   ; move dir=left
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_6674
                 retn
@@ -750,7 +750,7 @@ loc_67DA:
                 jz      short loc_6837
                 call    move_hero_right_if_no_obstacles
                 jb      short loc_6837
-                mov     ds:byte_9F22, 1  ; move dir = right
+                mov     ds:slide_direction, 1  ; move dir = right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_67F3
                 retn

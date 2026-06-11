@@ -348,7 +348,7 @@ last_projectile_index db 0
 slide_ticks_remaining db 0
 horiz_movement_sub_tile_accum db 0
 ; ---- Input / animation state ----
-byte_9F22       db 0      
+slide_direction       db 0      
 byte_9F23       db 0      
 byte_9F24       db 0      
 ; ---- Temperature / cavern flags ----

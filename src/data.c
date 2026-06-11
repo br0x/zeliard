@@ -33,7 +33,7 @@ SaveData* wasm_get_save_data(void) {
 
 // Get MDT header
 MDTHeader* wasm_get_mdt_header(void) {
-    return (MDTHeader*)&g_mem[MEM_MDT_DATA];
+    return (MDTHeader*)&g_mem[ADDR_MDT];
 }
 
 // Get monster buffer

@@ -6,7 +6,7 @@
 ; Conditions for spawn:
 ;   - Monster currX high byte == 0xFF (currently deactivated/item state).
 ;   - spawn X != 0xFFFF (has a defined respawn point).
-;   - Within HorizDistToHero_35 range, and NOT at proximity left/right edge (bl 3..32).
+;   - Within is_in_proximity_window range, and NOT at proximity left/right edge (bl 3..32).
 ;   - Spawn Y within 24 rows of viewport_top_row_y.
 ;   - Spawn position in proximity map has no existing monster (OR of 3×3 tiles).
 ; On spawn: copies spawnX → currX, spawnY → currY, type_ → flags, resets counters.
@@ -35,7 +35,7 @@ loc_9513:
 ; ---------------------------------------------------------------------------
 
 loc_951C:        
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,
@@ -241,7 +241,7 @@ loc_9678:
                 cmp     ah, 0FFh
                 jz      short loc_9698
                 mov     [si+monster.m_x_rel], 0FFh
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,
@@ -274,7 +274,7 @@ update_all_monsters_in_map endp
 ;  * Sets Carry Flag (CF=1) if out of range.
 
 ; ===========================================================================
-; HorizDistToHero_35
+; is_in_proximity_window
 ; Computes horizontal distance from a given map X to the hero's
 ; proximity window left column, accounting for world wrap.
 ; Input: AX = monster X (absolute map coordinate).
@@ -284,7 +284,7 @@ update_all_monsters_in_map endp
 ; World-wrap logic: if monster_x < proximity_left, check the distance
 ; going the 'long way round' (via mapWidth) to handle circular maps.
 ; ===========================================================================
-HorizDistToHero_35 proc near  
+is_in_proximity_window proc near  
                 mov     bx, ax          ; monster_x
                 sub     ax, ds:proximity_map_left_col_x
                 jnb     short loc_96BA
@@ -304,7 +304,7 @@ loc_96BA:
                 mov     ax, 35
                 sub     ax, bx
                 retn
-HorizDistToHero_35 endp
+is_in_proximity_window endp
 
 
 ; ===========================================================================
@@ -713,7 +713,7 @@ byte_98BE       db 2, 4, 8, 16, 32, 64, 255
 ; Find_Monsters_Near_Hero
 ; Exported from fight.bin. Counts nearby movable monsters.
 ; Iterates the monsters_table, for each non-item monster checks
-; HorizDistToHero_35. Returns DL = count of monsters in range.
+; is_in_proximity_window. Returns DL = count of monsters in range.
 ; Returns CF=1 if hero should die (monster aligned with dead hero position).
 ; Used by AI to trigger special hero-death interactions.
 ; ===========================================================================
@@ -735,7 +735,7 @@ loc_98D2:
                 jz      short loc_98F4
                 mov     ax, [di+monster.currX]
                 push    dx
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,

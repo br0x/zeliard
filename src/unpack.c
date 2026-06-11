@@ -186,7 +186,7 @@ void unpack_map() {
     packed_map_ptr_for_prox_left = packed_ptr;
 
     uint16_t ax = cx;
-    uint16_t map_width = MEM16(MEM_MDT_DATA + MAP_WIDTH_OFFSET);
+    uint16_t map_width = MEM16(ADDR_MDT + MAP_WIDTH_OFFSET);
 
     // Unpack 36 columns into the proximity map
     uint8_t* proximity = &g_mem[ADDR_PROXIMITY_MAP];

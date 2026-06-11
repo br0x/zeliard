@@ -37,7 +37,7 @@ Cavern_Game_Init proc near
                 pop     ds
                 mov     slide_ticks_remaining, 0
                 mov     horiz_movement_sub_tile_accum, 0
-                mov     byte_9F22, 0
+                mov     slide_direction, 0
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
                 mov     ds:active_entity_table, al
@@ -356,7 +356,7 @@ Cavern_Game_Init endp
 ; Also manages the byte_9F24 direction-change latch for sliding init.
 ; ===========================================================================
 state_machine_dispatcher proc near      ; ...
-                mov     ds:byte_9F22, 0
+                mov     ds:slide_direction, 0
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 cmp     al, 101b

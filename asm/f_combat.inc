@@ -671,7 +671,7 @@ update_boss_heartbeat_volume proc near
                 mov     ax, ds:tear_x
                 cmp     ax, 0FFFFh
                 je      short distance_big
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,

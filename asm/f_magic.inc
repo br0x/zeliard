@@ -420,7 +420,7 @@ loc_89A9:
                 mov     di, [di]
                 add     di, bx
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,
@@ -667,7 +667,7 @@ loc_8B20:
                 cmp     [si+magic_projectile.mp_life_timer], 3
                 jz      short loc_8B61
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,
@@ -812,7 +812,7 @@ monster_is_in_spawn_range_and_clear proc near ; ...
 
 loc_8C07:        
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
+                call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
                                         ;  * Accounts for world-wrapping (map edges).
                                         ;  * * @param monster_x The X coordinate of the monster (AX)
                                         ;  * @return Positive value (35 - distance) if in range,

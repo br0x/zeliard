@@ -8,7 +8,7 @@ let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
 
 // Memory layout constants (must match zeliard.h)
 // These are offsets within g_mem, not absolute WASM memory offsets
-const MEM_MDT_DATA = 0xC000;
+const ADDR_MDT = 0xC000;
 const ADDR_PROXIMITY_MAP = 0xE000;
 const MEM_VIEWPORT_BUFFER = 0xE900;
 const MEM_SAVE_DATA = 0x0000;
@@ -226,13 +226,13 @@ export function loadMdt(mdtData) {
         return -1;
     }
 
-    const mdtStart = gMemoryBase + MEM_MDT_DATA;
+    const mdtStart = gMemoryBase + ADDR_MDT;
 
     // Copy MDT data to WASM memory at 0xC000
     for (let i = 0; i < mdtData.length; i++) {
         wasmMemory[mdtStart + i] = mdtData[i];
     }
-    console.log('MDT loaded at 0x' + MEM_MDT_DATA.toString(16));
+    console.log('MDT loaded at 0x' + ADDR_MDT.toString(16));
 
     return 0;
 }
@@ -280,7 +280,7 @@ export function getCavernMdtHeader() {
         return null;
     }
 
-    const offset = gMemoryBase + MEM_MDT_DATA;
+    const offset = gMemoryBase + ADDR_MDT;
 
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
@@ -309,7 +309,7 @@ export function getTownMdtHeader() {
         return null;
     }
 
-    const offset = gMemoryBase + MEM_MDT_DATA;
+    const offset = gMemoryBase + ADDR_MDT;
 
     const readU8 = (addr) => wasmMemory[addr];
     // Read uint16 values from memory (little-endian)
@@ -753,21 +753,6 @@ export function update() {
     
     if (wasmExports.wasm_update) {
         wasmExports.wasm_update();
-    }
-}
-
-/**
- * Call Cavern_Game_Init - main dungeon initialization
- */
-export function Cavern_Game_Init() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-    
-    if (wasmExports.Cavern_Game_Init) {
-        wasmExports.Cavern_Game_Init();
-        console.log('Cavern_Game_Init called');
     }
 }
 
@@ -1338,7 +1323,7 @@ export function townFinishBuilding() {
     wasmExports?.wasm_town_building_finish?.();
 }
 
-export function dungeonInit(mapId, spawnX, spawnY, direction) {
+export function dungeonInit(mapId) {
     wasmExports?.wasm_dungeon_init?.(mapId);
 }
 

@@ -12,6 +12,7 @@ extern "C" {
 // Memory Layout Constants
 // ============================================================================
 #define MEM_SAVE_DATA                 0x0000    // 256 bytes - Save data (xxx.sav)
+#define ADDR_DEATH_ALREADY_PROCESSED  0x49
 #define ADDR_HERO_INVINCIBILITY       0x7F    // byte
 #define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
 #define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
@@ -34,9 +35,11 @@ extern "C" {
 #define ADDR_INVINCIBILITY_FLAG       0xE8
 
 
-#define ADDR_BOSS_STATE_PTR           0xA002u  // word
-#define MEM_MDT_DATA             0xC000    // ~8KB - MDT dungeon data
+#define ADDR_BOSS_STATE_PTR           0xA002  // word
+#define ADDR_MDT                 0xC000    // MDT dungeon data
+#define ADDR_MAP_WIDTH           0xC002
 #define ADDR_DOORS_LIST          0xC00A
+#define ADDR_CAVERN_NAME_INFO    0xC00E
 #define ADDR_MONSTERS_LIST       0xC010
 #define ADDR_CAVERN_LEVEL        0xC012
 #define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016
@@ -44,14 +47,21 @@ extern "C" {
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
 #define MEM_VIEWPORT_BUFFER      0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_MAGIC_PROJECTILES   0xEB15    // word
+#define ADDR_SPIRIT_SPRITE0      0xEB60    // byte
+#define ADDR_SPIRIT_SPRITE1      0xEB67    // byte
+#define ADDR_SPIRIT_SPRITE2      0xEB6E    // byte
+#define ADDR_SPIRIT_SPRITE3      0xEB75    // byte
 #define ADDR_PROJECTILES_LIST    0xEB80    // 13x32 bytes
-#define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0   // byte
+#define ADDR_PROXIMITY_LAYER2    0xED20    // 128 bytes
+#define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0    // byte
 
-#define ADDR_INPUT_DIRS           0xFF17  // ____right_left_down_up
+#define ADDR_INPUT_DIRS           0xFF17  // byte ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
+#define ADDR_FRAME_TIMER          0xFF1A  // byte
 #define ADDR_SPACEBAR_LATCH       0xFF1D
 #define ADDR_ALTKEY_LATCH         0xFF1E
-#define ADDR_BYTE_FF24            0xFF24  // byte
+#define ADDR_BYTE_FF24            0xFF24
 #define ADDR_BOSS_BEING_HIT       0xFF2E  // byte
 #define ADDR_SPRITE_FLASH_FLAG    0xFF2F  // byte
 #define ADDR_BOSS_IS_DEAD         0xFF30    // byte
@@ -557,14 +567,12 @@ InputBuffer* wasm_get_input_buffer(void);
 // Initialize cavern with spawn point
 void wasm_init_cavern(uint8_t spawn_x, uint8_t spawn_y, uint8_t direction);
 
-// Prepare dungeon - main initialization/entry point from town
 void prepare_dungeon(void);
 
 // Alternative entry point that uses prepare_dungeon
 void wasm_init_cavern_with_prepare(uint8_t spawn_x, uint8_t spawn_y, uint8_t direction);
 
-// Cavern_Game_Init - Main entry point for dungeon
-void Cavern_Game_Init(void);
+void Cavern_Game_Init();
 
 // Monster AI
 void Monster_AI(Monster* m);
@@ -669,9 +677,20 @@ void try_door_interaction(uint8_t *should_break);
 void enter_the_door(uint8_t *should_break);
 void enter_opened_door(uint16_t si);
 uint8_t open_door(uint16_t si);
+void res_dispatcher_proc(char *fname, int address);
+void roka_run();
+void after_run_animation();
+uint16_t coords_to_prox_addr(uint8_t x, uint8_t y);
+uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel);
 
 // Rendering
 void main_update_render(void);
+void render_hud_bars_with_enemy();
+void Render_Animated_Tile_Strip_proc();
+void Update_Local_Attribute_Cache_proc();
+void Copy_Tile_Buffer_To_VRAM_proc();
+void Draw_Bordered_Rectangle_proc();
+void render_boss_hud();
 
 // Collision Detection wrappers for MonsterEntry
 int check_collision_E2_monster(Monster* m);

@@ -102,11 +102,10 @@ start:
                 dw offset check_monster_on_aggressive_ground
                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
                 dw offset Hero_Hits_monster
-                dw offset HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
+                dw offset is_in_proximity_window    ; Checks if given map X lies within the proximity window (width 36).
+                                                    ; Returns CF if outside the window, accounting for world wrap.
+                                                    ;         NC if inside the window, then BL = relative X in the window.
+
                 dw offset Get_Stats     ; al=0: return ah=hero_level/2
                                         ; al=1: return ah=sword_total_damage
                                         ; al=2..8: return ah=byte_98BE[al-2]
@@ -117,7 +116,6 @@ start:
                 dw offset Move_Monster_NWE_Depending_On_Whats_Below ; si points to monster struc
 
 ; ===========================================================================
-; Cavern_Game_Init
 ; Entry point called when the dungeon scene begins (after MDT load).
 ; Also re-entered after room transitions (load_place_and_reinit → Cavern_Game_Init).
 ;
@@ -155,7 +153,7 @@ Cavern_Game_Init proc near
                 pop     ds
                 mov     slide_ticks_remaining, 0
                 mov     horiz_movement_sub_tile_accum, 0
-                mov     byte_9F22, 0
+                mov     slide_direction, 0
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
                 mov     ds:active_entity_table, al
@@ -469,7 +467,7 @@ Cavern_Game_Init endp
 ; Also manages the byte_9F24 direction-change latch for sliding init.
 ; ===========================================================================
 state_machine_dispatcher proc near      ; ...
-                mov     ds:byte_9F22, 0
+                mov     ds:slide_direction, 0
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 cmp     al, 101b
@@ -719,7 +717,7 @@ hero_knockback_handler endp
 ; Applies one tick of ice-slide movement.
 ; Only active when cavern_level == 4 (ice cavern) AND no Ruzeria shoes.
 ; Consumes one tick from slide_ticks_remaining.
-; Slides in the direction stored in byte_9F22 (1=right, 2=left),
+; Slides in the direction stored in slide_direction (1=right, 2=left),
 ; but respects the direction-lock bit in byte_9F23.
 ; If the tile underfoot is a non-ice tile (0x40-0x48), stops sliding.
 ; ===========================================================================
@@ -757,7 +755,7 @@ loc_64D1:
 ; ---------------------------------------------------------------------------
                 ; on the ice
 loc_64EE:        
-                mov     al, ds:byte_9F22 ; slide_direction: 1 = right, 2 = left
+                mov     al, ds:slide_direction ; slide_direction: 1 = right, 2 = left
                 test    ds:byte_9F23, 1 ; slide_direction_flags: Bit 0 = moving direction from previous tick
                 jz      short loc_6500
                 ; was moving right, try move right
@@ -766,7 +764,7 @@ loc_64EE:
                 ; was already moving right
                 retn
 ; ---------------------------------------------------------------------------
-                ; byte_9F22 != 1 => confirm moving right
+                ; slide_direction != 1 => confirm moving right
 loc_64FD:        
                 jmp     move_hero_right_if_no_obstacles
 ; ---------------------------------------------------------------------------
@@ -777,7 +775,7 @@ loc_6500:
                 ; was already moving left
                 retn
 ; ---------------------------------------------------------------------------
-                ; byte_9F22 != 2 => confirm moving left
+                ; slide_direction != 2 => confirm moving left
 loc_6505:        
                 jmp     move_hero_left_if_no_obstacles
 sliding_physics_step endp
@@ -1014,7 +1012,7 @@ move_hero_up    endp
 ; - If squatting: ignore.
 ; - If on a right slope and moving left: clear Up bit, transition slope state.
 ; - Otherwise: call move_hero_left_if_no_obstacles.
-;   On success: set byte_9F22=2 (move dir=left), increment accum, set Up flag.
+;   On success: set slide_direction=2 (move dir=left), increment accum, set Up flag.
 ; ===========================================================================
 left_up_pressed proc near 
                 mov     ds:byte_9F0B, 0FFh
@@ -1049,7 +1047,7 @@ loc_665F:
 ; ---------------------------------------------------------------------------
 
 loc_6667:        
-                mov     ds:byte_9F22, 2   ; move dir=left
+                mov     ds:slide_direction, 2   ; move dir=left
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_6674
                 retn
@@ -1310,7 +1308,7 @@ loc_67DA:
                 je      short init_on_ground
                 call    move_hero_right_if_no_obstacles
                 jc      short init_on_ground   ; CF: cannot move right
-                mov     ds:byte_9F22, 1  ; move dir = right
+                mov     ds:slide_direction, 1  ; move dir = right
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_67F3
                 retn
@@ -3312,7 +3310,6 @@ swap_eai_and_inventory_code_regions endp
 
 
 ; ===========================================================================
-; load_place_and_reinit
 ; Called when boss_is_dead fires and the game needs to transition the cavern
 ; from boss mode back to post-boss state.
 ;
@@ -4099,12 +4096,10 @@ update_boss_heartbeat_volume proc near
                 mov     ax, ds:tear_x
                 cmp     ax, 0FFFFh
                 je      short distance_big
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jb      short distance_big
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jc      short distance_big
                 mov     al, ds:hero_x_in_viewport
                 add     al, 4
                 mov     ah, al
@@ -4405,7 +4400,7 @@ prepare_dungeon proc near
                 js      short loc_7A80
                 call    remove_accomplished_items
 loc_7A80:        
-                jmp     loc_7C6E
+                jmp     roka_run
 prepare_dungeon endp
 
 
@@ -4605,7 +4600,7 @@ loc_7C02:
                 mov     ds:byte_9EF5, 0FFh
                 mov     byte ptr ds:projectiles_array, 0FFh
                 test    ds:door_features, 80h
-                jz      short loc_7C6E
+                jz      short roka_run
                 ; load cavern
                 mov     si, offset rokademo_bin
                 push    cs
@@ -4636,12 +4631,13 @@ loc_7C02:
                 mov     cx, 230
                 call    cs:Decompress_Tile_Data_proc
                 pop     ds
-                jmp     loc_7CF4
+                jmp     after_run_animation
 ; ---------------------------------------------------------------------------
-loc_7C6E:        
+roka_run:        
                 test    byte ptr ds:is_left_run, 0FFh
                 jnz     short run_to_the_left
-                and     byte ptr ds:facing_direction, 11111110b ; run to the right
+                and     byte ptr ds:facing_direction, 11111110b 
+; run to the right
                 mov     bx, 0A6Eh
                 mov     cx, 26          ; 26 steps to animate
 
@@ -4666,7 +4662,7 @@ loc_7C80:
                 mov     cx, 618h
                 xor     al, al
                 call    cs:Draw_Bordered_Rectangle_proc
-                jmp     short loc_7CF4
+                jmp     short after_run_animation
 ; ---------------------------------------------------------------------------
 
 run_to_the_left:     
@@ -4696,8 +4692,7 @@ loc_7CBF:
                 mov     cx, 618h
                 xor     al, al
                 call    cs:Draw_Bordered_Rectangle_proc
-; after_run_animation
-loc_7CF4:        
+after_run_animation:        
                 mov     si, ds:mdt_buffer  ; mdt_descriptor
                 lodsb                      ; .b7b6_msd_idx_b0
                 mov     ah, al
@@ -6885,11 +6880,9 @@ loc_89A9:
                 mov     di, [di]
                 add     di, bx
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
                 jb      short loc_8A2B
                 mov     [si+magic_projectile.mp_cached_x_offset_tiles], bl
                 mov     al, [si+magic_projectile.mp_y_rel]
@@ -7132,12 +7125,10 @@ loc_8B20:
                 cmp     [si+magic_projectile.mp_life_timer], 3
                 jz      short loc_8B61
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jb      short loc_8B61
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jc      short loc_8B61
                 cmp     bl, 33
                 jnb     short loc_8B61
                 mov     ah, bl
@@ -7277,12 +7268,10 @@ monster_is_in_spawn_range_and_clear proc near ; ...
 
 loc_8C07:        
                 mov     ax, [si+magic_projectile.mp_x_rel]
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jnb     short loc_8C0F
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jnc     short loc_8C0F
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -7398,7 +7387,7 @@ byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 ;   Iterates the monsters_table (each 16-byte monster struct).
 ;   For each monster:
 ;     - Skip if high byte of currX == 0xFF (stationary item, not a creature).
-;     - Call HorizDistToHero_35: if monster is outside ±35 columns, skip.
+;     - Call is_in_proximity_window: if monster is outside proximity window, skip.
 ;     - Set m_x_rel = BL (relative X position in proximity window).
 ;     - Write monster index | 0x80 to proximity map (primary + second layer).
 ;     - If monster.state_flags bit 4: also stamp 2 rows below (big monster lower half).
@@ -7442,12 +7431,10 @@ loc_8D38:
                 mov     [si+monster.m_x_rel], 0FFh
                 cmp     ah, 0FFh
                 jz      short skip
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jb      short skip
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jc      short skip
                 mov     [si+monster.m_x_rel], bl
                 call    place_monster_in_proximity_and_run_ai
                 cmp     byte ptr [si+1], 0FFh ; monster x coord high byte; ff => stationary item
@@ -8975,7 +8962,7 @@ if_passable_set_ZF endp
 ; Conditions for spawn:
 ;   - Monster currX high byte == 0xFF (currently deactivated/item state).
 ;   - spawn X != 0xFFFF (has a defined respawn point).
-;   - Within HorizDistToHero_35 range, and NOT at proximity left/right edge (bl 3..32).
+;   - Within is_in_proximity_window range, and NOT at proximity left/right edge (bl 3..32).
 ;   - Spawn Y within 24 rows of viewport_top_row_y.
 ;   - Spawn position in proximity map has no existing monster (OR of 3×3 tiles).
 ; On spawn: copies spawnX → currX, spawnY → currY, type_ → flags, resets counters.
@@ -9004,12 +8991,10 @@ loc_9513:
 ; ---------------------------------------------------------------------------
 
 loc_951C:        
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jnb     short loc_9522
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jnc     short loc_9522
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -9175,7 +9160,6 @@ monster_activation endp
 
 
 ; ===========================================================================
-; update_all_monsters_in_map
 ; Called once from init_cavern at room load (NOT per frame).
 ; Clears proximity_second_layer, iterates all monsters,
 ; stamps each in-range monster's index | 0x80 into the proximity map.
@@ -9208,14 +9192,12 @@ next_monster3:
 
 loc_9678:        
                 cmp     ah, 0FFh
-                jz      short loc_9698
+                je      short loc_9698
                 mov     [si+monster.m_x_rel], 0FFh
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
-                jb      short loc_9698
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+                jc      short loc_9698  ; monster is outside the window
                 mov     [si+monster.m_x_rel], bl
                 mov     al, [si+monster.currY]
                 mov     ah, bl
@@ -9236,44 +9218,45 @@ update_all_monsters_in_map endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; * Calculates distance to hero and checks if within a 35-unit range.
-;  * Accounts for world-wrapping (map edges).
-;  * * @param monster_x The X coordinate of the monster (AX)
-;  * @return Positive value (35 - distance) if in range,
-;  * Sets Carry Flag (CF=1) if out of range.
-
+; Checks if given map X lies within the proximity window (width 36).
+; Returns CF if outside the window, accounting for world wrap.
+;         NC if inside the window, then BL = relative X in the window.
 ; ===========================================================================
-; HorizDistToHero_35
-; Computes horizontal distance from a given map X to the hero's
-; proximity window left column, accounting for world wrap.
-; Input: AX = monster X (absolute map coordinate).
-; Output: BL = proximity-relative X (0-35); CF=1 if outside 35-column window.
-; Returns: AX = 35 - relative_X (positive means in range; negated value).
-;
-; World-wrap logic: if monster_x < proximity_left, check the distance
-; going the 'long way round' (via mapWidth) to handle circular maps.
-; ===========================================================================
-HorizDistToHero_35 proc near  
-                mov     bx, ax          ; monster_x
+; Cases:
+;  1. |left=0|p=36|right=mapWidth-36|
+;    a. x=0..35; return: NC
+;    b. x=36..mapWidth-1; return: CF
+;  2. |left=L|p=36|right=mapWidth-36-L|  where 0 < L < mapWidth-36
+;    c. x=0..L-1; return: CF
+;    d. x=L..L+35; return: NC
+;    e. x=L+36..mapWidth-1; return: CF
+;  3. |left=L|p=36|right=0|  where L = mapWidth-36
+;    f. x=0..L-1; return: CF
+;    g. x=L..L+35; return: NC
+;  4. |        left=L        |p0=mapWidth-L|  where mapWidth-36 < L < mapWidth
+;     |p1=36-mapWidth+L|...................|  (proximity window intersects map edge)
+;    h. x=0..35-mapWidth+L; return: NC
+;    i. x=36-mapWidth+L..L-1; return: CF
+;    j. x=L..mapWidth-1; return: NC
+is_in_proximity_window proc near  
+                mov     bx, ax          ; monster_x in absolute map coords
                 sub     ax, ds:proximity_map_left_col_x
                 jnb     short loc_96BA
+                ; x < L
                 mov     ax, 35
                 sub     ax, bx
                 jnb     short loc_96B1
-                retn
-; ---------------------------------------------------------------------------
-
-loc_96B1:        
+                retn ; 35 < x < L
+loc_96B1:       ; x <= 35
                 mov     ax, ds:mapWidth
                 sub     ax, ds:proximity_map_left_col_x
-                add     ax, bx
-
+                add     ax, bx ; mapWidth - L + x
 loc_96BA:        
                 xchg    ax, bx
-                mov     ax, 35
+                mov     ax, 35 ; proximity window width - 1
                 sub     ax, bx
                 retn
-HorizDistToHero_35 endp
+is_in_proximity_window endp
 
 
 ; ===========================================================================
@@ -9681,8 +9664,8 @@ byte_98BE       db 2, 4, 8, 16, 32, 64, 255
 ; ===========================================================================
 ; Find_Monsters_Near_Hero
 ; Exported from fight.bin. Counts nearby movable monsters.
-; Iterates the monsters_table, for each non-item monster checks
-; HorizDistToHero_35. Returns DL = count of monsters in range.
+; Iterates the monsters_table, for each non-item monster checks is_in_proximity_window.
+; Returns DL = count of monsters in range.
 ; Returns CF=1 if hero should die (monster aligned with dead hero position).
 ; Used by AI to trigger special hero-death interactions.
 ; ===========================================================================
@@ -9704,13 +9687,12 @@ loc_98D2:
                 jz      short loc_98F4
                 mov     ax, [di+monster.currX]
                 push    dx
-                call    HorizDistToHero_35 ; * Calculates distance to hero and checks if within a 35-unit range.
-                                        ;  * Accounts for world-wrapping (map edges).
-                                        ;  * * @param monster_x The X coordinate of the monster (AX)
-                                        ;  * @return Positive value (35 - distance) if in range,
-                                        ;  * Sets Carry Flag (CF=1) if out of range.
+                call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
+                                                ; Returns CF if outside the window, accounting for world wrap.
+                                                ;         NC if inside the window, then BL = relative X in the window.
+
                 pop     dx
-                jnb     short loc_98ED
+                jnc     short loc_98ED
                 test    [di+monster.flags], 10h
                 jz      short loc_98FA
 
@@ -10209,7 +10191,7 @@ last_projectile_index db 0 ; 9F1F
 slide_ticks_remaining db 0 ; 9F20
 horiz_movement_sub_tile_accum db 0 ; 9F21
 ; ---- Input / animation state ----
-byte_9F22       db 0      ; ADDR_SLIDE_DIRECTION
+slide_direction       db 0      ; ADDR_SLIDE_DIRECTION
 byte_9F23       db 0      ; ADDR_SLIDE_DIRECTION_LOCK
 byte_9F24       db 0      
 ; ---- Temperature / cavern flags ----

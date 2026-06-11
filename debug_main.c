@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 // Forward declarations from zeliard.h
-#define MEM_MDT_DATA        0xC000
+#define ADDR_MDT        0xC000
 #define ADDR_PROXIMITY_MAP   0xE000
 
 extern uint8_t g_mem[65536];
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     printf("Loaded %ld bytes from %s\n\n", size, argv[1]);
     
     // Load MDT into memory at 0xC000
-    memcpy(&g_mem[MEM_MDT_DATA], mdt_data, size);
+    memcpy(&g_mem[ADDR_MDT], mdt_data, size);
     free(mdt_data);
     
     // Dump MDT header
