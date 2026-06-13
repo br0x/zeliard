@@ -762,7 +762,6 @@ Find_Monsters_Near_Hero endp
 
 
 ; ===========================================================================
-; process_hero_death
 ; Hero death sequence.
 ;
 ; Phase 1 — falling: calls airborne_movement in a loop until landed.
@@ -869,7 +868,7 @@ skip_death_math:
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-loc_99E0:        
+transit_to_sage:        
                 mov     byte ptr ds:heartbeat_volume, 0
                 mov     ah, ds:last_sage_visited ; resurrect in sage's hut
                 mov     ds:place_map_id, ah

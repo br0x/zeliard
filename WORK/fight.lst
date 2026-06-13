@@ -2846,7 +2846,7 @@ fight:7294                 call    cs:Monster_AI_proc
 fight:7299                 call    swap_eai_and_inventory_code_regions
 fight:729C                 cmp     ds:byte_FF4B, 8
 fight:72A1                 jnz     short loc_72A6
-fight:72A3                 jmp     loc_99E0
+fight:72A3                 jmp     transit_to_sage
 fight:72A6 ; ---------------------------------------------------------------------------
 fight:72A6
 fight:72A6 loc_72A6:                               ; ...
@@ -9230,7 +9230,7 @@ fight:99DB                 mov     ds:hero_HP, ax
 fight:99DE                 jmp     short $+2
 fight:99E0 ; ---------------------------------------------------------------------------
 fight:99E0
-fight:99E0 loc_99E0:                               ; ...
+fight:99E0 transit_to_sage:                               ; ...
 fight:99E0                 mov     ds:heartbeat_volume, 0
 fight:99E5                 mov     ah, ds:last_sage_visited ; resurrect in sage's hut
 fight:99E9                 mov     ds:place_map_id, ah

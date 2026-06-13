@@ -18,6 +18,10 @@ extern "C" {
 #define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
 #define ADDR_HERO_X_VIEW              0x83
 #define ADDR_HERO_HEAD_Y_VIEW         0x84
+#define ADDR_HERO_GOLD_HI             0x85    // byte
+#define ADDR_HERO_GOLD_LO             0x86    // word
+#define ADDR_HERO_ALMAS               0x8B    // word
+#define ADDR_HERO_LEVEL               0x8D    // byte
 #define ADDR_HERO_HP                  0x90    // word
 #define ADDR_SWORD_TYPE               0x92
 #define ADDR_SHIELD_TYPE              0x93
@@ -28,6 +32,7 @@ extern "C" {
 #define ADDR_FACING                   0xC2
 #define ADDR_LEFT_RUN                 0xC3
 #define ADDR_PLACE_MAP_ID             0xC4
+#define ADDR_LAST_SAGE_VISITED        0xC5    // byte
 #define ADDR_HEALING_TIMER            0xC6
 #define ADDR_MSD_INDEX                0xC8    // byte
 #define ADDR_IS_JASHIIN_CAVERN        0xE6
@@ -42,6 +47,8 @@ extern "C" {
 #define ADDR_CAVERN_NAME_INFO    0xC00E
 #define ADDR_MONSTERS_LIST       0xC010
 #define ADDR_CAVERN_LEVEL        0xC012
+#define ADDR_TEAR_X              0xC013    // word
+#define ADDR_TEAR_Y              0xC015    // byte
 #define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016
 #define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
@@ -56,6 +63,7 @@ extern "C" {
 #define ADDR_PROXIMITY_LAYER2    0xED20    // 128 bytes
 #define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0    // byte
 
+#define ADDR_HEARTBEAT_VOLUME     0xFF08  // byte
 #define ADDR_INPUT_DIRS           0xFF17  // byte ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
 #define ADDR_FRAME_TIMER          0xFF1A  // byte
@@ -683,6 +691,9 @@ void after_run_animation();
 uint16_t coords_to_prox_addr(uint8_t x, uint8_t y);
 uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel);
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct);
+void update_hero_XP(uint16_t amount);
+void transit_to_sage();
+void process_hero_death();
 
 // Rendering
 void main_update_render(void);
@@ -692,6 +703,7 @@ void Update_Local_Attribute_Cache_proc();
 void Copy_Tile_Buffer_To_VRAM_proc();
 void Draw_Bordered_Rectangle_proc();
 void render_boss_hud();
+void Flush_Ui_Element_If_Dirty_proc();
 
 // Collision Detection wrappers for MonsterEntry
 int check_collision_E2_monster(Monster* m);

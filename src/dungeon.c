@@ -44,6 +44,8 @@
 #define ADDR_TEMPERATURE_TIMER        0x9F25  // temperature_timer
 #define ADDR_BYTE_9F26                0x9F26
 #define ADDR_BYTE_9F27                0x9F27
+#define ADDR_BYTE_9F28                0x9F28
+#define ADDR_BYTE_9F29                0x9F29
 #define ADDR_BYTE_9F2B                0x9F2B
 #define ADDR_BYTE_9F2E                0x9F2E
 
@@ -53,8 +55,6 @@
 #define ADDR_HORIZ_PLATFORMS_TABLE 0xC008u
 #define ADDR_ACHIEVEMENTS_TABLE  0xC00Cu
 #define ADDR_CAVERN_LEVEL        0xC012u
-#define ADDR_TEAR_X              0xC013u
-#define ADDR_TEAR_Y              0xC015u
 #define ADDR_CAVERN_SIGNS_INFO   0xC017u
 #define ADDR_PACKED_MAP_END_PTR  0xC019u
 #define ADDR_PACKED_MAP_START    0xC01Bu
@@ -129,7 +129,7 @@ void Draw_Hero_Health_proc()
 {
 }
 
-// stub, will implement later
+// stub, will implement later, when all before projectiles is done
 void update_and_render_projectile_row_pair()
 {
 
@@ -147,12 +147,12 @@ void update_active_projectiles_render()
 
 }
 
-// stub
 /* ===========================================================================
  * called every frame while sword_swing_flag
  * is set. Reads the current reachability list and marks any live monsters
  * within the hit area by setting ai_flags bits 6 and 0.
  * =========================================================================== */
+// Checked
 void apply_sword_hit_to_map_tiles()
 {
     if (!MEM8(ADDR_SWORD_SWING_FLAG))
@@ -215,40 +215,138 @@ void apply_sword_hit_to_map_tiles()
     }
 }
 
-// stub
+// stub. In web version we don't need Exit feature, - closing the browser tab is enough
 void Confirm_Exit_Dialog_proc()
 {
 
 }
 
-// stub
+// stub. Should be handled in game.js (Esc key handler)
 void Handle_Pause_State_proc()
 {
 
 }
 
-// stub
+// stub. Should be handled in game.js (F9 key handler)
 void Handle_Speed_Change_proc()
 {
 
 }
 
-// stub
+// stub. Handled by game.js
 uint8_t Handle_Restore_Game_proc()
 {
 
 }
 
-// stub
+// stub. Handled by game.js
 void restore_game()
 {
 
 }
 
-// stub
+// ============================================================================
+// Hero death sequence (full original logic)
+//  Phase 1 — falling: calls airborne_movement in a loop until landed.
+//  Phase 2 — flashing: hero_animation_phase cycles 0→1→2 at 1/8 speed,
+//    while hero_sprite_hidden flickers at 1/2 speed after phase 2.
+//  Phase 3 — 30-frame fade: alternates show/hide then calls Fade_To_Black.
+// 
+//  Post-death (first death):
+//    - XP += (127 - 2 × hero_level)
+//    - Gold reset to 0.
+//    - Almas halved.
+//  Post-death (already processed, i.e. no-XP death):
+//    - last_sage_visited = 0x80 (Felishika's Castle entry sage).
+//  Both: restore HP to heroMaxHp.
+// 
+//  Resurrection: load the MDT for last_sage_visited town, restore hero_x
+//  from tear_x, load NPC sprites, transfer to town via transfer_to_town.
+// ============================================================================
+// Checked
 void process_hero_death()
 {
+    Flush_Ui_Element_If_Dirty_proc();
+    MEM8(ADDR_SWORD_SWING_FLAG) = 0;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+    MEM8(ADDR_SQUAT_FLAG) = 0;
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+    MEM8(ADDR_INVINCIBILITY_FLAG) = 0xFF;
+    MEM8(ADDR_BYTE_9F28) = 0;
+    MEM8(ADDR_BYTE_9F29) = 0;
+    Draw_Hero_Health_proc();
 
+    uint8_t restart = 0xFF;
+    do {
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+        MEM8(ADDR_ON_ROPE_FLAGS) = 0;
+        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        main_update_render();
+        airborne_movement(&restart);
+    } while (restart);
+    MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+
+    for (;;) {
+        main_update_render();
+        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        if (MEM8(ADDR_HERO_ANIM_PHASE) == 2) {
+            MEM8(ADDR_BYTE_9F29)++;
+            if ((MEM8(ADDR_BYTE_9F29) & 0x0F) == 0) break;
+            if ((MEM8(ADDR_BYTE_9F29) & 1) == 0) continue;
+            MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
+            continue;
+        }
+        MEM8(ADDR_BYTE_9F28)++;
+        if ((MEM8(ADDR_BYTE_9F28) & 7) != 0) continue;
+
+        uint8_t al = (MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 3;
+        if (al == 3) {
+            continue;
+        }
+        MEM8(ADDR_HERO_ANIM_PHASE) = al;
+    }
+
+    MEM8(ADDR_BYTE_FF24) = 8;
+    for (int i = 0; i < 30; i++) {
+        main_update_render();
+        MEM8(ADDR_HERO_SPRITE_HIDDEN) = (i & 1) ? 0 : 0xFF;
+    }
+    // stop_music();  // int 60h, ax=1
+    // Fade_To_Black_Dithered_proc();
+
+    if (MEM8(ADDR_DEATH_ALREADY_PROCESSED) != 0) {
+        MEM8(ADDR_LAST_SAGE_VISITED) = 0x80;
+    } else {
+        uint16_t xp_gain = 127 - MEM8(ADDR_HERO_LEVEL) * 2;
+        update_hero_XP(xp_gain);
+        MEM8(ADDR_HERO_GOLD_HI) = 0;
+        MEM16(ADDR_HERO_GOLD_LO) = 0;
+        MEM16(ADDR_HERO_ALMAS) >>= 1;
+    }
+
+    // Restore full HP
+    MEM16(ADDR_HERO_HP) = MEM16(ADDR_HERO_MAX_HP);
+    transit_to_sage();
+}
+
+// Resurrection: go to last sage's hut
+void transit_to_sage()
+{
+    MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
+    MEM8(ADDR_PLACE_MAP_ID) = MEM8(ADDR_LAST_SAGE_VISITED);
+    // fn1_load_mdt_idx_ah (al = 1, ah = last_sage_visited)
+    // res_dispatcher_proc(1, MEM8(ADDR_LAST_SAGE_VISITED));
+
+    // Set hero absolute X from tear spawn point
+    MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = MEM16(ADDR_TEAR_X);
+
+    // Load town NPC graphics (mman_grp)
+    uint16_t si = ADDR_MDT;                // mdt_buffer
+    uint8_t mman_grp_idx = MEM8(si + 1);   // mdt_descriptor.mman_grp_idx
+    // load_resource(mman_grp_idx == 0 ? "mman.grp" : "cman.grp", 0x4000);       // load to seg1:4000h
+
+    // Transfer to town (goto town_entry_disabling_edge_scroll)
+    // transfer_to_town(0x6002);
 }
 
 // stub
@@ -258,7 +356,7 @@ void load_place_and_reinit()
 }
 
 // stub
-void update_hero_XP()
+void update_hero_XP(uint16_t amount)
 {
 
 }
@@ -1289,7 +1387,10 @@ void monsters_spawning(void) {}
 void check_hero_contact_damage(void) {}
 
 // stub
-void Flush_Ui_Element_If_Dirty_proc(void) {}
+void Flush_Ui_Element_If_Dirty_proc()
+{
+
+}
 
 // stub
 void projectiles_collision_processing(void) {}

@@ -406,7 +406,7 @@ loc_7287:
                 call    swap_eai_and_inventory_code_regions
                 cmp     byte ptr ds:byte_FF4B, 8
                 jnz     short loc_72A6
-                jmp     loc_99E0
+                jmp     transit_to_sage
 ; ---------------------------------------------------------------------------
 
 loc_72A6:        

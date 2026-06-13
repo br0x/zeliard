@@ -23,7 +23,6 @@ const VIEW_COLS   = 28;
 const VIEW_ROWS   = 18;
 const VIEW_WIDTH  = VIEW_COLS * TILE_WIDTH;
 // ─── Feature flags ────────────────────────────────────────────────────────────
-const USE_WASM_ENGINE = true;
 const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const STDPLY_PATH = 'game/stdply.bin';
@@ -669,13 +668,6 @@ async function startGame() {
     }
 
     try {
-        if (!USE_WASM_ENGINE) {
-            drawLifeBar();
-            soundManager.start();
-            requestAnimationFrame(loop);
-            return;
-        }
-
         await loadWasmEngine();
         await initWasm();
 
@@ -724,7 +716,7 @@ async function startGame() {
         } else {
             console.warn(`Unknown pattern ID ${townPatId}, movement may be blocked`);
         }        
-        await loadHeroSprite();
+        await loadHeroTownSprite();
         await loadSwordIcons();
         await loadShieldIcons();
         await loadMagicIcons();
@@ -815,7 +807,7 @@ function loadTownTileSheet(tileSheetPath) {
     });
 }
 
-function loadHeroSprite() {
+function loadHeroTownSprite() {
     if (heroSpriteReady) return Promise.resolve(heroSprite);
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -894,7 +886,7 @@ async function loadDungeonAssets(rawMapId) {
 
 function parseTownNpcCategory() {
     if (!readMemory) { townNpcSpriteCategory = 0; return; }
-    const descPtrBytes = readMemory(0xC000, 2);
+    const descPtrBytes = readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2);
     const descPtr = descPtrBytes[0] | (descPtrBytes[1] << 8);
     townNpcSpriteCategory = readMemory(descPtr + 1, 1)[0];
     console.log('[NPC] town descriptor NPC category:', townNpcSpriteCategory);
@@ -2187,7 +2179,7 @@ function draw() {
         drawDungeonHero();
         drawDungeonSword();
         // HUD is drawn later (outside this branch)
-    } else {
+    } else { // town outdoor mode
         drawTownBackground();
         drawTownSidewalk();
         if (townBackgroundType) 

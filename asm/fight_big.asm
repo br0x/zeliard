@@ -3265,7 +3265,7 @@ loc_7287:
                 call    swap_eai_and_inventory_code_regions
                 cmp     byte ptr ds:byte_FF4B, 8
                 jnz     short loc_72A6
-                jmp     loc_99E0
+                jmp     transit_to_sage
 ; ---------------------------------------------------------------------------
 
 loc_72A6:        
@@ -4744,7 +4744,7 @@ loc_7D64:
                 lodsb                   ; mdt_descriptor.mman_grp_idx
                 mov     bl, 11
                 mul     bl
-                add     ax, offset mman_grp
+                add     ax, offset vfs_mman_grp
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 4000h
@@ -9755,15 +9755,15 @@ loc_9948:
                 call    main_update_render
                 mov     byte ptr ds:hero_sprite_hidden, 0
                 cmp     byte ptr ds:hero_animation_phase, 2
-                jz      short loc_9972
+                je      short loc_9972
                 inc     ds:byte_9F28
                 test    ds:byte_9F28, 7
                 jnz     short loc_9948
-                mov     al, ds:hero_animation_phase
-                inc     al
-                and     al, 3
+                mov     al, ds:hero_animation_phase ; 0, 1, 3, 4, 5, 6, 7
+                inc     al                          ; 1, 2, 4, 5, 6, 7, 8
+                and     al, 3                       ; 1, 2, 0, 1, 2, 3, 0
                 cmp     al, 3
-                jz      short loc_9948
+                je      short loc_9948
                 mov     ds:hero_animation_phase, al
                 jmp     short loc_9948
 ; ---------------------------------------------------------------------------
@@ -9817,7 +9817,7 @@ skip_death_math:
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-loc_99E0:        
+transit_to_sage:        
                 mov     byte ptr ds:heartbeat_volume, 0
                 mov     ah, ds:last_sage_visited ; resurrect in sage's hut
                 mov     ds:place_map_id, ah
@@ -9827,10 +9827,10 @@ loc_99E0:
                 mov     ds:hero_x_in_proximity_map, ax
                 mov     si, ds:mdt_buffer ; si=mdt_descr
                 inc     si
-                lodsb                   ; mman_grp_idx
+                lodsb                   ; mdt_descr[1] = mman_grp_idx
                 mov     bl, 11
                 mul     bl
-                add     ax, offset mman_grp
+                add     ax, offset vfs_mman_grp
                 mov     si, ax
                 mov     es, cs:seg1
                 mov     di, 4000h
@@ -9936,7 +9936,7 @@ aDchrGrp        db 'DCHR.GRP',0
 rokademo_bin    db 2      
                 db 1
 aRokademoBin    db 'ROKADEMO.BIN',0
-mman_grp        db 1      
+vfs_mman_grp    db 1      
                 db 1Eh
 aMmanGrp        db 'MMAN.GRP',0
                 db 1
