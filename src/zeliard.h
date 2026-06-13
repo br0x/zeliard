@@ -22,6 +22,7 @@ extern "C" {
 #define ADDR_HERO_GOLD_LO             0x86    // word
 #define ADDR_HERO_ALMAS               0x8B    // word
 #define ADDR_HERO_LEVEL               0x8D    // byte
+#define ADDR_HERO_XP                  0x8E    // word
 #define ADDR_HERO_HP                  0x90    // word
 #define ADDR_SWORD_TYPE               0x92
 #define ADDR_SHIELD_TYPE              0x93
@@ -82,6 +83,7 @@ extern "C" {
 #define ADDR_HERO_HIDDEN_FLAG     0xFF3A  // byte
 #define ADDR_SPELL_ACTIVE_FLAG    0xFF3C  // byte
 #define ADDR_JUMP_PHASE_FLAGS     0xFF3D    // byte
+#define ADDR_BYTE_FF3E            0xFF3E
 #define ADDR_SHIELD_ANIM_PHASE    0xFF3F  // byte
 #define ADDR_SHIELD_ANIM_ACTIVE   0xFF40  // byte
 #define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
@@ -89,8 +91,9 @@ extern "C" {
 #define ADDR_SWORD_SWING_FLAG     0xFF43  // byte
 #define ADDR_SWORD_HIT_TYPE       0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
-#define ADDR_MONSTER_INDEX        0xFF4A    // byte
-#define ADDR_SOUND_FX_REQUEST     0xFF75    // byte
+#define ADDR_MONSTER_INDEX        0xFF4A  // byte
+#define ADDR_BYTE_FF4B            0xFF4B
+#define ADDR_SOUND_FX_REQUEST     0xFF75  // byte
 
 // ============================================================================
 // Global Memory Array (exported for JS access)
@@ -692,10 +695,12 @@ uint16_t coords_to_prox_addr(uint8_t x, uint8_t y);
 uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel);
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct);
 void update_hero_XP(uint16_t amount);
+void hero_got_almas(uint16_t amount);
 void transit_to_sage();
 void process_hero_death();
 void process_doors();
 void screen_flash_overlay();
+void clear_viewport_buffer();
 
 // Rendering
 void main_update_render(void);
@@ -706,6 +711,9 @@ void Copy_Tile_Buffer_To_VRAM_proc();
 void Draw_Bordered_Rectangle_proc();
 void render_boss_hud();
 void Flush_Ui_Element_If_Dirty_proc();
+void Clear_Viewport_proc();
+void Load_Magic_Spell_Sprite_Group_proc();
+void Reassemble_3_Planes_To_Packed_Bitmap_proc(uint32_t ptr, uint8_t num_tiles);
 
 // Collision Detection wrappers for MonsterEntry
 int check_collision_E2_monster(Monster* m);

@@ -10,6 +10,8 @@
 #define MEM16_1(addr)  (*(uint16_t *)&g_mem[((addr) & 0xFFFF) + 0x10000])
 
 #define ADDR_BYTE_9EED                0x9EED
+#define ADDR_BYTE_9EEF                0x9EEF
+#define ADDR_BYTE_9EF0                0x9EF0
 #define ADDR_BYTE_9EF5                0x9EF5
 #define ADDR_MMAN_GRP_INDEX           0x9EF6  // byte
 #define ADDR_BYTE_9EFA                0x9EFA
@@ -428,22 +430,67 @@ void load_place_and_reinit(void) {
     Cavern_Game_Init();                  // re‑enter main cavern loop
 }
 
-// stub
+// Checked
 void update_hero_XP(uint16_t amount)
 {
-
+    uint16_t xp = MEM16(ADDR_HERO_XP);
+    if (amount > (uint16_t)(0xFFFF - xp)) {
+        xp = 0xFFFF;
+    } else {
+        xp += amount;
+    }
+    MEM16(ADDR_HERO_XP) = xp;
 }
 
-// stub
-void hero_got_almas()
+// Checked
+void hero_got_almas(uint16_t amount)
 {
-
+    uint16_t almas = MEM16(ADDR_HERO_ALMAS);
+    if (amount > (uint16_t)(0xFFFF - almas)) {
+        almas = 0xFFFF;
+    } else {
+        almas += amount;
+    }
+    MEM16(ADDR_HERO_ALMAS) = almas;
+    // Print_Almas_Decimal_proc();
 }
 
-// stub
+//  Opens the inventory/equipment screen when ENTER is pressed.
+//  Preconditions: no active spell, no screen effect, not in intro animation.
+// 
+//  1. Play SFX 11.
+//  2. swap_eai_and_inventory_code_regions: XOR-swap 0x800 words between
+//     the enemy AI region (0xA000) and inventory region (seg1:0xC000).
+//     This temporarily replaces the live AI code with select.bin code.
+//  3. Call Inventory_Screen_proc.
+//  4. Swap back.
+//  5. If byte_FF4B == 8 (save/load from inventory): jmp to resurrection code.
+//  6. Reload magic spell sprites, clear viewport, reinit.
 void bring_inventory_window()
 {
+    if (MEM8(ADDR_BYTE_9EF5) |
+        MEM8(ADDR_SPELL_ACTIVE_FLAG) |
+        MEM8(ADDR_BYTE_FF3E) |
+        MEM8(ADDR_BYTE_9F26)
+    ) return;
+    MEM8(ADDR_SOUND_FX_REQUEST) = 11;
+    Clear_Viewport_proc();
+    // swap_eai_and_inventory_code_regions();
+    // Inventory_Screen_proc();
+    // swap_eai_and_inventory_code_regions();
+    if (MEM8(ADDR_BYTE_FF4B) == 8) // use of Kioku Feather teleports to Muralla sage
+        transit_to_sage();
 
+    Clear_Viewport_proc();
+    Load_Magic_Spell_Sprite_Group_proc();
+    Reassemble_3_Planes_To_Packed_Bitmap_proc(0, 24);
+    MEM8(ADDR_BYTE_9EF5) = 0xff;
+    clear_viewport_buffer();
+    MEM8(ADDR_SPACEBAR_LATCH) = 0;
+    MEM8(ADDR_ALTKEY_LATCH) = 0;
+    MEM8(ADDR_BYTE_9EEF) = 0;
+    MEM8(ADDR_BYTE_9EF0) = 0;
+    main_update_render();
 }
 
 // stub
@@ -525,7 +572,7 @@ void Clear_Viewport_proc()
 }
 
 // stub
-void Reassemble_3_Planes_To_Packed_Bitmap_proc()
+void Reassemble_3_Planes_To_Packed_Bitmap_proc(uint32_t ptr, uint8_t num_tiles)
 {
 
 }
@@ -2426,7 +2473,7 @@ void after_run_animation()
         Load_Magic_Spell_Sprite_Group_proc(); // Reads corresponding sprite group fron seg2:0 buffer to seg1:9350h
                                               // Output: Loads sprite sheet for current_magic_spell
                                               // DS:SI -> seg1:9350h buffer
-        Reassemble_3_Planes_To_Packed_Bitmap_proc(/* magic sprite data */ /*, 24*/);
+        Reassemble_3_Planes_To_Packed_Bitmap_proc(0/* magic sprite data */ , 24);
         Cavern_Game_Init();
     } else {
         // town

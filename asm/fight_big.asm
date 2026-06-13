@@ -3235,7 +3235,6 @@ screen_flash_overlay endp
 
 
 ; ===========================================================================
-; bring_inventory_window
 ; Opens the inventory/equipment screen when ENTER is pressed.
 ; Preconditions: no active spell, no screen effect, not in intro animation.
 ;
@@ -3263,7 +3262,7 @@ loc_7287:
                 call    swap_eai_and_inventory_code_regions
                 call    cs:Inventory_Screen_proc
                 call    swap_eai_and_inventory_code_regions
-                cmp     byte ptr ds:byte_FF4B, 8
+                cmp     byte ptr ds:byte_FF4B, 8 ; use of Kioku Feather teleports to Muralla sage
                 jnz     short loc_72A6
                 jmp     transit_to_sage
 ; ---------------------------------------------------------------------------
@@ -8126,7 +8125,7 @@ hero_got_gold   endp
 
 hero_got_almas  proc near 
                 add     ds:hero_almas, ax
-                jnb     short loc_9188
+                jnc     short loc_9188
                 mov     ds:hero_almas, 0FFFFh
 
 loc_9188:        
@@ -9313,7 +9312,7 @@ monster_split_or_die endp
 
 update_hero_XP  proc near 
                 add     ds:hero_xp, ax
-                jb      short loc_971C
+                jc      short loc_971C
                 retn
 ; ---------------------------------------------------------------------------
 
