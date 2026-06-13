@@ -450,7 +450,6 @@ swap_eai_and_inventory_code_regions endp
 
 
 ; ===========================================================================
-; load_place_and_reinit
 ; Called when boss_is_dead fires and the game needs to transition the cavern
 ; from boss mode back to post-boss state.
 ;

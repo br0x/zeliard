@@ -350,9 +350,82 @@ void transit_to_sage()
 }
 
 // stub
-void load_place_and_reinit()
-{
+// ===========================================================================
+// load_place_and_reinit - Called after boss defeat to restore normal cavern state.
+//  Called when boss_is_dead fires and the game needs to transition the cavern
+//  from boss mode back to post-boss state.
+// 
+//  1. Load saved monsters AI binary (eai from mdt_descriptor.boss_ai) → 0xA000.
+//  2. Load boss enp sprite group (from mdt_descriptor.enp_grp_idx).
+//  3. Decompress boss monster tiles.
+//  4. Clear is_boss_cavern flag.
+//  5. Process optional initializers from MDT (list of word writes).
+//  6. Update hero X position, recalculate door tile, call process_doors.
+//  7. Reinit cavern display, jump back to Cavern_Game_Init.
+// ===========================================================================
+void load_place_and_reinit(void) {
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) {
+        return;
+    }
 
+    // Restore original enemy AI binary (eai.bin) from MDT descriptor
+    uint16_t si = ADDR_MDT;                     // mdt_buffer
+    uint8_t saved_eai_idx = MEM8(si + 6);       // mdt_descriptor.boss_ai
+    MEM8(ADDR_EAI_BIN_INDEX) = saved_eai_idx;
+
+    // Load eai<idx>.bin to 0xA000 (where Monster_AI_proc lives)
+    // Filename table entry size is 11 bytes (pascal string? but we use C string)
+    // char eai_name[12];
+    // snprintf(eai_name, sizeof(eai_name), "eai%d.bin", saved_eai_idx);
+    // res_dispatcher_proc(3, eai_name, 0xA000);   // fn3_read_virtual_file
+
+    // 2. Restore enemy sprite group (enp.grp) from MDT descriptor
+    uint8_t saved_enp_idx = MEM8(si + 7);        // mdt_descriptor.saved_enp_grp_idx
+    MEM8(ADDR_ENP_GRP_INDEX) = saved_enp_idx;
+
+    // char enp_name[12];
+    // snprintf(enp_name, sizeof(enp_name), "enp%d.grp", saved_enp_idx);
+    // load_resource(enp_name, 0x4000);            // fn2_segmented_load -> seg1:4000h (monster_gfx)
+
+    // Decompress monster tile data (256 tiles) to transparency masks buffer (0xA000 in seg1)
+    // Original: DS:SI = monster_gfx (0x4000 in seg1), ES:BP = monsters_transparency_masks (0xA000 in seg1), CX = 0x100
+    // Decompress_Tile_Data_proc(0x4000, 0xA000, 0x100);
+
+    // 3. Clear boss cavern flag
+    MEM8(ADDR_IS_BOSS_CAVERN) = 0;
+
+    // 4. Process optional initializers (address/value pairs) from MDT descriptor+8
+    si = ADDR_MDT + 8;
+    while (1) {
+        uint16_t addr = MEM16(si);
+        if (addr == 0xFFFF) break;
+        MEM16(addr) = MEM16(si + 2); // 16 bit value
+        si += 4;
+    }
+
+    // Position and spawn new door
+    uint16_t hero_tl = hero_coords_to_addr_in_proximity();  // top‑left hero address
+    uint16_t abs_x = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + MEM8(ADDR_HERO_X_VIEW);
+    if (MEM8(hero_tl - 5) != 0) {
+        abs_x += 9;
+    }
+    uint16_t map_w = MEM16(ADDR_MAP_WIDTH);
+    if (abs_x >= map_w) {
+        abs_x -= map_w;
+    }
+    si = MEM16(ADDR_DOORS_LIST);
+    MEM16(si + 0) = abs_x; // door[0].x0
+    process_doors();                     // re‑evaluate door collisions
+    screen_flash_overlay();
+    clear_hero_in_viewport();
+    // Render_Viewport_Tiles_proc();
+    // Clear_HUD_Bar_proc(2, 28, 0, 0x42);
+
+    // 7. Stop music (int 60h, ax=1)
+
+    // 8. Clear reload flag and restart cavern
+    MEM8(ADDR_BYTE_9F1E) = 0;
+    Cavern_Game_Init();                  // re‑enter main cavern loop
 }
 
 // stub
@@ -1375,7 +1448,10 @@ void render_vertical_platforms_to_proximity(void) {}
 void process_visible_collapsing_platforms(void) {}
 
 // stub
-void process_doors(void) {}
+void process_doors(void)
+{
+
+}
 
 // stub
 void dispatch_spell_projectile_movement(void) {}
@@ -1411,7 +1487,10 @@ void damage_hero(uint16_t amount) {}
 void render_notification_string(const char* str) {}
 
 // stub
-void screen_flash_overlay(void) {}
+void screen_flash_overlay()
+{
+
+}
 
 // stub
 void input_handling(void) {}

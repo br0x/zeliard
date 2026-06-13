@@ -3331,16 +3331,16 @@ loc_72F9:
                 add     si, mdt_descriptor.boss_ai
                 lodsb  ; saved eai_bin_index
                 push    si
-                mov     ds:eai_bin_index, al ; enemy ai restored with saved value
-                mov     bl, 11
-                mul     bl
-                add     ax, offset eai1_bin
-                mov     si, ax
-                push    cs
-                pop     es
-                mov     di, 0A000h      ; destination buffer
-                mov     al, 3           ; fn3_read_virtual_file
-                call    cs:res_dispatcher_proc
+                    mov     ds:eai_bin_index, al ; enemy ai restored with saved value
+                    mov     bl, 11
+                    mul     bl
+                    add     ax, offset eai1_bin
+                    mov     si, ax
+                    push    cs
+                    pop     es
+                    mov     di, 0A000h      ; destination buffer
+                    mov     al, 3           ; fn3_read_virtual_file
+                    call    cs:res_dispatcher_proc
                 pop     si
                 lodsb                   ; mdt_descriptor.enp_grp_idx
                 mov     ds:enp_grp_index, al
@@ -3387,7 +3387,7 @@ end_of_initializers:
 loc_737C:        
                 mov     bx, ax
                 sub     bx, ds:mapWidth
-                jb      short loc_7386
+                jc      short loc_7386
                 mov     ax, bx
 
 loc_7386:        

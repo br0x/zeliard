@@ -694,6 +694,8 @@ uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_str
 void update_hero_XP(uint16_t amount);
 void transit_to_sage();
 void process_hero_death();
+void process_doors();
+void screen_flash_overlay();
 
 // Rendering
 void main_update_render(void);
