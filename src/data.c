@@ -38,7 +38,7 @@ MDTHeader* wasm_get_mdt_header(void) {
 
 // Get monster buffer
 uint8_t* wasm_get_monster_buffer(void) {
-    return &g_mem[MEM_VIEWPORT_BUFFER];
+    return &g_mem[ADDR_VIEWPORT_ENTITIES];
 }
 
 // Get proximity map

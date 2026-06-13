@@ -2516,7 +2516,7 @@ hero_coords_to_addr_in_proximity endp
 ; If bit 7 is set: the low 7 bits are a monster_index (0-127).
 ;   Looks up monsters_table_addr + index*16 to get the monster struct.
 ;   CF if no monster/item
-;   NC if monster/item; AL = monster.flags
+;   NC if monster/item; AL = monster.flags; BX = monster struct
 ; ===========================================================================
 get_dst_monster_flags proc near 
                 mov     al, [si]
@@ -2722,7 +2722,7 @@ four_rows:
 row_of_eight_tiles:       
                 push    cx
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
+                                              ; AL = monster.flags; BX = monster struct
                 jc      short no_monster ; no monster
                 test    al, 01100000b
                 jnz     short no_monster
@@ -2771,9 +2771,8 @@ input_handling  endp
 
 
 ; ===========================================================================
-; apply_sword_hit_to_map_tiles
 ; Called every frame while sword_swing_flag is set.
-; Walks the sword reachability table (at seg1:sword_reachability_tables) to
+; Walks the sword reachability table (at seg1:sword_reachability_lists) to
 ; determine which proximity map offsets the sword tip can reach.
 ; Table index = (facing_dir * 16) + sword_movement_phase + swing_type_offset.
 ;   Forward hit:      al = phase | (dir * 16)
@@ -2804,7 +2803,7 @@ loc_6F1E:
                 mov     bx, 3*36
 
 loc_6F2E:        
-                sub     si, bx
+                sub     si, bx ; 3 or 4 rows above the hero
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 mov     bl, ds:facing_direction
                 and     bl, 1
@@ -2827,19 +2826,19 @@ loc_6F2E:
 ; ---------------------------------------------------------------------------
 loc_6F57:                              ; forward hit (ah=0) or overhead swing (ah=6)
                 mov     al, ds:sword_movement_phase
-                or      al, bl         ; dir*16 + phase => 0..5 or 16..21
-                add     al, ah         ; 0..5, 6..11, 16..21 or 22..27
+                or      al, bl         ; dir*16 + phase => 0..4 or 16..20
+                add     al, ah         ; 0..4, 6..9, 16..20 or 22..25
 loc_6F5E:
                 and     al, 0FEh        ; clear bit 0
                 mov     bl, al
                 xor     bh, bh
                 mov     es, cs:seg1
-                mov     di, es:sword_reachability_tables[bx]
+                mov     di, es:sword_reachability_lists[bx]
 
 loc_6F6E:
-                mov     al, es:[di]
+                mov     al, es:[di] ; offset to next tile in proximity window, that is reachable by the sword
                 inc     di
-                cmp     al, 0FFh
+                cmp     al, 0FFh ; reachability list terminator
                 jne     short loc_6F77
                 retn
 ; ---------------------------------------------------------------------------
@@ -2849,15 +2848,15 @@ loc_6F77:
                 add     si, ax
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
-                jc      short loc_6F6E
-                test    al, 20h
+                                              ; AL = monster.flags; BX = monster struct
+                jc      short loc_6F6E ; CF: no monster/item
+                test    al, 20h        ; flags bit 5: cannot be hit
                 jnz     short loc_6F6E
-                test    byte ptr [bx+5], 20h
-                jnz     short loc_6F6E
-                or      byte ptr [bx+5], 40h
-                and     byte ptr [bx+5], 0E0h
-                or      byte ptr [bx+5], 1
+                test    byte ptr [bx+monster.ai_flags], 20h
+                jnz     short loc_6F6E ; ai_flags bit 5: cannot be hit
+                or      byte ptr [bx+monster.ai_flags], 40h ; hit marker: ai_flags bit 6
+                and     byte ptr [bx+monster.ai_flags], 0E0h
+                or      byte ptr [bx+monster.ai_flags], 1   ; ai_flags bit 0: monster processed, its AI can react
                 jmp     short loc_6F6E
 apply_sword_hit_to_map_tiles endp
 
@@ -3560,7 +3559,6 @@ render_cavern_signs endp
 
 
 ; ===========================================================================
-; clear_hero_in_viewport
 ; Erases the hero's 3×3 tile area in the viewport buffer by writing 0xFF.
 ; 0xFF is the 'hero slot' sentinel — tells the renderer to draw the hero
 ; sprite (fman.grp 24×24 px) at this position instead of a map tile.
@@ -3899,7 +3897,7 @@ get_monster_one_row_above proc near
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
                                               ; AL = monster.flags
                 cmc
-                jb      short loc_766B
+                jc      short loc_766B
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -5118,7 +5116,7 @@ hor_platform_beneath:
 
 blocked:         
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
+                                              ; AL = monster.flags; BX = monster struct
                 jnc     short alive_or_dead_monster
                 retn                    ; blocked by non-monster
 ; ---------------------------------------------------------------------------
@@ -6561,7 +6559,7 @@ proximity_cell_inject_spell_target proc near
 loc_876C:        
                 xchg    si, di
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
+                                              ; AL = monster.flags; BX = monster struct
                 xchg    si, di
                 jnc     short loc_8776
                 retn
@@ -7324,7 +7322,7 @@ monster_is_in_spawn_range_and_clear endp
 
 mark_proximity_monster_as_spell_target proc near
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
+                                              ; AL = monster.flags; BX = monster struct
                 jnc     short loc_8C55
                 retn
 ; ---------------------------------------------------------------------------

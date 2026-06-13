@@ -6,6 +6,8 @@
 
 #define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
+#define MEM8_1(addr)   (g_mem[((addr) & 0xFFFF) + 0x10000])
+#define MEM16_1(addr)  (*(uint16_t *)&g_mem[((addr) & 0xFFFF) + 0x10000])
 
 #define ADDR_BYTE_9EED                0x9EED
 #define ADDR_BYTE_9EF5                0x9EF5
@@ -61,7 +63,6 @@
 // Proximity map bounds
 #define PROXIMITY_SIZE            0x900u   // 36*64
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
-#define ADDR_VIEWPORT_ENTITIES   0xE900u
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
 #define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
@@ -73,14 +74,14 @@
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFC
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
 
-
+#define ADDR_REACH_TABLE_SEG1     0xB002
 #define ADDR_PASSABLE_TILES       0x18000u
 #define ADDR_AIRFLOW_TILES        0x18024u
 #define MAX_MDT_BYTES            0x4000u
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
-#define VIEW_COLS_DUNGEON        28
-#define VIEW_ROWS_DUNGEON        18
+#define VIEW_COLS                28
+#define VIEW_ROWS                18
 #define HERO_VIEW_COL            13               // hero x in viewport (columns)
 #define HERO_PROX_COL            17               // hero x in proximity (columns)
 // Constants
@@ -112,63 +113,106 @@
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
 
-// TODO: remove (AI hallucinations)
-static uint16_t ptr_to_off(uint16_t ptr)
-{
-    return ptr >= ADDR_MDT ? (uint16_t)(ptr - ADDR_MDT) : ptr;
-}
 
-// stub
+// Checked
 void clear_hero_in_viewport()
 {
-
+    uint16_t di = ADDR_VIEWPORT_ENTITIES + MEM8(ADDR_HERO_HEAD_Y_VIEW) * 28 + MEM8(ADDR_HERO_X_VIEW);
+    for (int i = 0; i < 3; i++) { // hero occupies 3x3 bytes in viewport buffer
+        memset(&g_mem[di], 0xFF, 3);
+        di += (VIEW_COLS - 3);
+    }
 }
 
-// stub
-void Sample_Neighborhood_Attributes_proc()
-{
-
-}
-
-// stub
+// stub. Should be updated regularly by game.js
 void Draw_Hero_Health_proc()
 {
 }
 
-// stub
-void Refresh_Dirty_Tiles_proc()
-{
-
-}
-
-// stub
-void Active_Entity_Sprite_Renderer_proc()
-{
-
-}
-
-// stub
+// stub, will implement later
 void update_and_render_projectile_row_pair()
 {
 
 }
 
-// stub
+// stub, will implement later
 void render_and_collision_pass_row()
 {
 
 }
 
-// stub
+// stub, will implement later, when all before projectiles is done
 void update_active_projectiles_render()
 {
 
 }
 
 // stub
+/* ===========================================================================
+ * called every frame while sword_swing_flag
+ * is set. Reads the current reachability list and marks any live monsters
+ * within the hit area by setting ai_flags bits 6 and 0.
+ * =========================================================================== */
 void apply_sword_hit_to_map_tiles()
 {
+    if (!MEM8(ADDR_SWORD_SWING_FLAG))
+        return;
+    if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_BEING_HIT))
+        return;
 
+    /* Get hero’s top‑left proximity tile and adjust for squat */
+    uint16_t si = hero_coords_to_addr_in_proximity();
+
+    // Subtract 3 or 4 rows
+    uint16_t rows = MEM8(ADDR_SQUAT_FLAG) ? 3 : 4;
+    si -= (rows * PROX_COLS);
+    wrap_map_from_below(&si);
+
+    /* Compute index into the reachability pointer table */
+    uint8_t dir = MEM8(ADDR_FACING) & LEFT;
+    uint8_t dir16  = dir << 4;                     // dir * 16
+    uint8_t sword_hit_type  = MEM8(ADDR_SWORD_HIT_TYPE);    // 0=forward, 1=overhead, 2=down thrust
+    uint8_t sword_movement_phase = MEM8(ADDR_SWORD_MOVEMENT_PHASE);
+    uint8_t result = dir16;
+    switch (sword_hit_type) {
+        case 0:  // Forward hit: 5 phases
+            result += sword_movement_phase;       //  0..4 (right)  or 16..20 (left)
+            break;
+        case 1:  // Overhead swing: 4 phases
+            result += (sword_movement_phase + 6); //  6..9 (right)  or 22..25 (left)
+            break;
+        default: // Ground downward thrust: single phase
+            result += 10;                         //  10 (right)    or 26 (left)
+            break;
+    }
+    uint16_t idx = result & 0xFE; // zero‑extend to 16‑bit
+
+    // Get the selected reachability list pointer
+    uint16_t reach_table = MEM16_1(ADDR_REACH_TABLE_SEG1);
+    uint16_t list_off = MEM16_1(reach_table + idx); // 0xBxxx
+
+    /* Walk the byte list */
+    uint8_t *list_ptr = &g_mem[0x10000 + list_off];
+
+    for (;;) {
+        uint8_t offset_byte = *list_ptr++;      // LODSB
+        if (offset_byte == 0xFF)                // terminator
+            return;
+
+        uint16_t delta = offset_byte;           // zero‑extend to word (AX)
+        si += delta;
+        wrap_map_from_above(&si);
+
+        uint8_t flags;
+        uint16_t monster_struct;
+        if (!get_dst_monster_flags(si, &flags, &monster_struct)) continue;
+        if (flags & 0x20) continue;
+        uint8_t ai_flags = MEM8(monster_struct + 5);
+        if (ai_flags & 0x20) continue;
+
+        // Mark hit: keep bits 7‑5, set bit6, set bit0
+        MEM8(monster_struct + 5) = (ai_flags & 0xE0) | 0x41;
+    }
 }
 
 // stub
@@ -405,7 +449,7 @@ static void set_hero_y(uint8_t y) {
     uint8_t top = MEM8(ADDR_VIEWPORT_TOP_ROW);
     if (y < top) {
         move_hero_up();
-    } else if (y >= top + VIEW_ROWS_DUNGEON) {
+    } else if (y >= top + VIEW_ROWS) {
         hero_scroll_down();
     }
     // Update derived value for drawing
@@ -807,7 +851,7 @@ uint8_t get_airflow_direction(uint8_t tile)
 //   NC if monster/item; AL = monster.flags => return 0xff
 // ===========================================================================
 // Checked
-uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
+uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct)
 {
     uint8_t tile = MEM8(si);
     if (tile & 0x80 == 0) {
@@ -817,6 +861,7 @@ uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags)
 
     tile &= 0x7F; // monster id
     uint16_t addr = MEM16(ADDR_MONSTERS_LIST) + tile * 16;
+    *monster_struct = addr;
     Monster *m = (Monster *)&g_mem[addr];
     *flags = m->flags;
     return 0xFF;
@@ -832,7 +877,8 @@ uint8_t move_hero_right_if_no_obstacles()
     wrap_map_from_below(&si);
     for (int i = 0; i < 4; i++) {
         uint8_t flags;
-        get_dst_monster_flags(si, &flags);
+        uint16_t monster_struct;
+        get_dst_monster_flags(si, &flags, &monster_struct);
         if (flags & 0x80) return 0; // destroyable wall to the right of hero, can't move
         si += 36;
         wrap_map_from_above(&si);
@@ -867,7 +913,8 @@ uint8_t move_hero_left_if_no_obstacles()
     si--; // tile NW of hero top left
     for (int i = 0; i < 4; i++) {
         uint8_t flags;
-        uint8_t ret = get_dst_monster_flags(si, &flags);
+        uint16_t monster_struct;
+        uint8_t ret = get_dst_monster_flags(si, &flags, &monster_struct);
         if (flags & 0x80) return 0; // destroyable wall to the left of hero, can't move
         si += 36;
         wrap_map_from_above(&si);
@@ -1062,8 +1109,8 @@ static void sync_viewport_from_hero(void) {
     uint8_t hero_y = MEM8(ADDR_HERO_Y);
     uint8_t top = 0;
     if (hero_y > 9) top = hero_y - 9;
-    if (top > DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON)
-        top = DUNGEON_HEIGHT - VIEW_ROWS_DUNGEON;
+    if (top > DUNGEON_HEIGHT - VIEW_ROWS)
+        top = DUNGEON_HEIGHT - VIEW_ROWS;
     MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
     MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
     MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_y - top;
@@ -1192,10 +1239,11 @@ uint8_t check_floor_for_landing() {
     wrap_map_from_above(&si);
     uint16_t di = si;
     uint8_t flags;
-    get_dst_monster_flags(si, &flags); // check directly below hero feet
+    uint16_t monster_struct;
+    get_dst_monster_flags(si, &flags, &monster_struct); // check directly below hero feet
     if (flags & 0x80) return 0;
     si--;
-    get_dst_monster_flags(si, &flags); // check below hero left side
+    get_dst_monster_flags(si, &flags, &monster_struct); // check below hero left side
     if (flags & 0x80) return 0;
     si = di;
     uint8_t tile = MEM8(si);

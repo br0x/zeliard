@@ -121,10 +121,10 @@ on_restore:
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 mov     ax, cs
                 add     ax, 2000h
-                mov     es, ax
+                mov     es, ax  ; seg2
                 mov     si, offset vfs_sword_grp
                 mov     di, sword_grp_sprites   ; load to seg2:1800h
-                mov     al, 2
+                mov     al, 2 ; fn2_segmented_load
                 call    word ptr cs:res_dispatcher_proc ; res_dispatcher_proc
                 add     es:[di], di     ; seg2:[1800h]+=1800h
                 add     es:[di+2], di   ; seg2:[1802h]+=1800h

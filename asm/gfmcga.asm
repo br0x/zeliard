@@ -37,11 +37,15 @@ start:
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Refresh_Dirty_Tiles proc near           ; ...
+; Main tile refresh routine. Marks the tile cache as dirty for all tiles, 
+; then iterates over the 28×19 viewport tilemap, re-rendering any tile 
+; that has changed (dirty flag) or is animated. It also calls special handlers 
+; for the top‑left and bottom‑right corner entities, 
+; and for tiles that require animation updates based on cavern level.
+Refresh_Dirty_Tiles proc near
                 push    cs
                 pop     es
-                mov     di, 501Dh
+                mov     di, offset tile_vram_cache
                 xor     ax, ax
                 mov     cx, 80h
                 rep stosw
@@ -1156,8 +1160,10 @@ Translate_Tile_Index endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Lookup_Monster_Tile_Attributes proc near ; ...
+; Given a tile index (in AL), looks up the associated monster tile attributes from the monsters_table_addr. 
+; Returns the blit mode in ds:tile_blit_mode and the translated tile index in AL. 
+; Also accounts for boss caverns and special flags.
+Lookup_Monster_Tile_Attributes proc near
                 and     al, 7Fh
                 mov     bl, al
                 xor     bh, bh
@@ -1170,10 +1176,10 @@ Lookup_Monster_Tile_Attributes proc near ; ...
                 and     al, 0Fh
                 mov     ch, 5
                 mul     ch
-                mov     si, 0A070h
+                mov     si, offset monster_ai_move_right_frames
                 test    byte ptr ds:[bp+5], 80h ; monster.ai_flags
                 jnz     short loc_3703
-                mov     si, 0A030h
+                mov     si, offset monster_ai_move_left_frames
 
 loc_3703:
                 mov     bl, ds:[bp+4]   ; monster.flags
@@ -1278,7 +1284,11 @@ Spawn_Map_Entity endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Iterates through a list of active map entities (max 32) 
+; and renders each one as a 16×16 sprite onto the viewport. 
+; Entities that have expired (flag 0FFh) are removed. 
+; Each entity is drawn using a mask table and an entity‑render‑function table 
+; that defines the transparency bitplane.
 Active_Entity_Sprite_Renderer proc near
                 push    cs
                 pop     es
@@ -1376,7 +1386,7 @@ loc_380A:
                 not     bp
                 and     es:[di+0Eh], bp
                 or      es:[di+0Eh], dx
-                add     di, 140h
+                add     di, 320
                 loop    loc_380A
                 pop     es
                 assume es:nothing
@@ -1438,7 +1448,12 @@ Update_Local_Attribute_Cache proc near  ; ...
                 rep stosw
                 jmp     short loc_39F5
 ; ---------------------------------------------------------------------------
-
+; Loads the 3×3 block of tile indices around the hero’s current position from the proximity map 
+; and stores them into tile_neighborhood_buffer. Used later to determine what tiles are 
+; under or near the hero for proper rendering and attribute lookups.
+; Output:
+; tile_neighborhood_buffer (9 bytes) filled with tile indices 
+; (negative values indicate valid loaded tiles, zero if blank).
 Sample_Neighborhood_Attributes:
                 call    load_3x3_tiles
                 mov     di, offset tile_load_buffer
@@ -4693,11 +4708,10 @@ tile_cache_dirty_flags      db 0
 tile_cache_row1_dirty_flags db 0         
                             db    0
                             db    0
-tile_neighborhood_buffer    db 9 dup(0)
-tile_vram_cache             dw 128 dup(0)
-sword_anim_frames           db 576 dup(0)
+tile_neighborhood_buffer    db 9 dup(0) ; =5014h
+tile_vram_cache             dw 128 dup(0) ; =501Dh
+sword_anim_frames           db 576 dup(0) ; =509Dh
 
 gfmcga          ends
-
 
                 end    start

@@ -133,7 +133,7 @@ input_handling  endp
 ; ===========================================================================
 ; apply_sword_hit_to_map_tiles
 ; Called every frame while sword_swing_flag is set.
-; Walks the sword reachability table (at seg1:sword_reachability_tables) to
+; Walks the sword reachability table (at seg1:sword_reachability_lists) to
 ; determine which proximity map offsets the sword tip can reach.
 ; Table index = (facing_dir * 16) + sword_movement_phase + swing_type_offset.
 ;   Forward hit:      al = phase | (dir * 16)
@@ -194,7 +194,7 @@ loc_6F5E:
                 mov     bl, al
                 xor     bh, bh
                 mov     es, cs:seg1
-                mov     di, es:sword_reachability_tables[bx]
+                mov     di, es:sword_reachability_lists[bx]
 
 loc_6F6E:
                 mov     al, es:[di]

@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/magic.grp"
+                "${workspaceFolder}/tools/GrpViewer/sword.grp"
             ],
             "console": "integratedTerminal",
         },

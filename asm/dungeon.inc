@@ -123,6 +123,15 @@ Render_Entity_Sprite_proc                          equ 3026h
 Decompress_Tile_Data_proc                          equ 3028h
 NoOperation_proc                                   equ 302Ah
 
+monster_ai_move_left_frames                        equ 0A030h
+monster_ai_death_left_frames                       equ 0A040h
+monster_ai_item_animation_left_frames              equ 0A050h
+monster_ai_potions_left_frames                     equ 0A060h
+monster_ai_move_right_frames                       equ 0A070h
+monster_ai_death_right_frames                      equ 0A080h
+monster_ai_item_animation_right_frames             equ 0A090h
+monster_ai_potions_right_frames                    equ 0A0A0h
+
 ; mdt info - dungeons
 mdt_descriptor_addr                                equ 0C000h
 map_width                                          equ 0C002h
@@ -147,7 +156,7 @@ fman_gfx                                           equ 6000h ; hero in dungeon
 aggressive_ground_list                             equ 8020h
 monsters_transparency_masks                        equ 0A000h
 sword_animation_gfx                                equ 0B000h
-sword_reachability_tables                          equ 0B002h
+sword_reachability_lists                           equ 0B002h
 
 ; seg2 offsets (code seg + 2000h)
 magic_grp_sprites                                  equ 0

@@ -46,7 +46,7 @@ extern "C" {
 #define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
-#define MEM_VIEWPORT_BUFFER      0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_VIEWPORT_ENTITIES   0xE900    // 28*19 bytes - Monster IDs (1 byte each)
 #define ADDR_MAGIC_PROJECTILES   0xEB15    // word
 #define ADDR_SPIRIT_SPRITE0      0xEB60    // byte
 #define ADDR_SPIRIT_SPRITE1      0xEB67    // byte
@@ -682,6 +682,7 @@ void roka_run();
 void after_run_animation();
 uint16_t coords_to_prox_addr(uint8_t x, uint8_t y);
 uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel);
+uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct);
 
 // Rendering
 void main_update_render(void);
@@ -738,6 +739,35 @@ void set_on_rope_flags(uint8_t flags);
 int is_on_ground(void);
 int is_jumping(void);
 int is_on_rope(void);
+
+//==============================
+// From gf.c
+
+// Loads the 3×3 block of tile indices around the hero’s current position from the proximity map 
+// and stores them into tile_neighborhood_buffer. Used later to determine what tiles are 
+// under or near the hero for proper rendering and attribute lookups.
+// Output:
+// tile_neighborhood_buffer (9 bytes) filled with tile indices 
+// (negative values indicate valid loaded tiles, zero if blank).
+// stub, gfmcga 
+void Sample_Neighborhood_Attributes_proc();
+
+// Main tile refresh routine. Marks the tile cache as dirty for all tiles, 
+// then iterates over the 28×19 viewport tilemap, re-rendering any tile 
+// that has changed (dirty flag) or is animated. It also calls special handlers 
+// for the top‑left and bottom‑right corner entities, 
+// and for tiles that require animation updates based on cavern level.
+// stub, gfmcga
+void Refresh_Dirty_Tiles_proc();
+
+// Iterates through a list of active map entities (max 32) 
+// and renders each one as a 16×16 sprite onto the viewport. 
+// Entities that have expired (flag 0FFh) are removed. 
+// Each entity is drawn using a mask table and an entity‑render‑function table 
+// that defines the transparency bitplane.
+// stub, gfmcga
+void Active_Entity_Sprite_Renderer_proc();
+
 
 #ifdef __cplusplus
 }

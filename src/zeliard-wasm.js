@@ -10,7 +10,7 @@ let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
 // These are offsets within g_mem, not absolute WASM memory offsets
 const ADDR_MDT = 0xC000;
 const ADDR_PROXIMITY_MAP = 0xE000;
-const MEM_VIEWPORT_BUFFER = 0xE900;
+const ADDR_VIEWPORT_ENTITIES = 0xE900;
 const MEM_SAVE_DATA = 0x0000;
 const MEM_INPUT_BUFFER = 0xFF16; // 4 bytes
 const MEMORY_SIZE = 64 * 1024 * 1024; // 64MB
@@ -545,7 +545,7 @@ export function getMonsterBuffer() {
         return null;
     }
 
-    return new Uint8Array(wasmMemory.buffer, gMemoryBase + MEM_VIEWPORT_BUFFER, 28*19);
+    return new Uint8Array(wasmMemory.buffer, gMemoryBase + ADDR_VIEWPORT_ENTITIES, 28*19);
 }
 
 /**
@@ -1357,4 +1357,42 @@ export function dungeonGetSwordFrame() {
 
 export function dungeonGetExitMap() {
     return wasmExports?.wasm_dungeon_get_exit_map?.() ?? 0;
+}
+
+// Offsets inside segment 1
+const REACH_TABLE_OFFSET = 0xB002;  // 14 pointers (28 bytes) 0xB002..0xB01D
+const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)
+
+/**
+ * Convert the JS sword‑reach object into the layout expected by
+ * apply_sword_hit_to_map_tiles() and write it to WASM memory.
+ *
+ * @param {Object} reachObj - Object with keys 0,2,4,…,26, each an array of
+ *   byte offsets terminated by 0xFF.  Empty arrays represent unused phases.
+ */
+export function setDungeonSwordReach(reachObj) {
+    if (!wasmMemory) {
+        console.error('WASM memory not ready');
+        return;
+    }
+
+    const seg1Base = gMemoryBase + SEG1_BASE;
+
+    // Write all byte lists contiguously starting at REACH_LISTS_OFFSET
+    let listWritePtr = seg1Base + REACH_LISTS_OFFSET;
+    let tablePtr = seg1Base + REACH_TABLE_OFFSET;
+
+    // The possible indices (even numbers 0..26)
+    for (let idx = 0; idx <= 26; idx += 2) {
+        let bytes = reachObj[idx];
+        for (let i = 0; i < bytes.length; i++) {
+            wasmMemory[listWritePtr++] = bytes[i];
+        }
+        // Write the jump table at REACH_TABLE_OFFSET
+        // (14 entries, each a 16‑bit little‑endian seg1‑relative offset)
+        // For empty entries idx=12 and idx=14, write any value (it will be ignored by apply_sword_hit_to_map_tiles)
+        const off = listWritePtr - seg1Base;
+        wasmMemory[tablePtr++] = off & 0xFF;
+        wasmMemory[tablePtr++] = (off >> 8) & 0xFF;
+    }
 }

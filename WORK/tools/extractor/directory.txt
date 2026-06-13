@@ -70,7 +70,7 @@
 1, 0x1e, 'mman.grp'
 1, 0x1f, 'cman.grp'
 1, 0x20, 'tman.grp'
-1, 0x21, 'unkn1_21'
+1, 0x21, 'dman.grp'
 1, 0x22, 'cpat.grp'
 1, 0x23, 'mpat.grp'
 1, 0x24, 'dpat.grp'

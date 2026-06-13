@@ -1483,7 +1483,7 @@ fn2_segmented_load endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; AH: sword id (0..6)
+; AH: sword type (0..6)
 fn4_load_sword_graphics proc near
                 mov     bl, ah
                 xor     bh, bh
@@ -1494,12 +1494,12 @@ fn4_load_sword_graphics proc near
                 mov     es, ax          ; seg1
                 add     ax, 1000h
                 mov     ds, ax          ; seg2
-                mov     si, [si]        ; seg2:[180x]
-                mov     di, sword_animation_gfx
-                mov     cx, 800h
+                mov     si, [si]        ; seg2:[1800h]=0006h or seg2:[1802h]=06D1h or seg2:[1804h]=1043h
+                mov     di, sword_animation_gfx ; seg1:0B000h
+                mov     cx, 800h        ; 1000h bytes at offset 0006h or 06D1h or 1043h
                 rep movsw
                 mov     di, sword_animation_gfx
-                mov     cx, 0Fh
+                mov     cx, 0Fh ; fixup 15 offsets 
 loc_B96:
                 add     word ptr es:[di], sword_animation_gfx
                 inc     di
@@ -1516,6 +1516,24 @@ sword_ptrs      dw 1800h ; no sword
                 dw 1802h ; knight
                 dw 1802h ; illumination
                 dw 1804h ; enchantment
+; [1800] | [1802] | [1804] ; 
+; =0006  | =06D1  | =1043  ; 
+;  ------+--------+------  ; 
+;  024B  |  0282  |  028B  ; 0B000h
+;  01A6  |  01A6  |  01A6  ; 0B002h
+;  01B4  |  01B8  |  01B6  ; 0B004h
+;  01C1  |  01CC  |  01C9  ; 0B006h
+;  01CA  |  01D7  |  01D4  ; 0B008h
+;  01D7  |  01EB  |  01EC  ; 0B00Ah
+;  01ED  |  0205  |  020A  ; 0B00Ch
+;  0000  |  0000  |  0000  ; 0B00Eh
+;  0000  |  0000  |  0000  ; 0B010h
+;  01F9  |  0214  |  0218  ; 0B012h
+;  0207  |  0226  |  0228  ; 0B014h
+;  0214  |  023A  |  023B  ; 0B016h
+;  021D  |  0245  |  0246  ; 0B018h
+;  022A  |  025A  |  025E  ; 0B01Ah
+;  0240  |  0273  |  027D  ; 0B01Ch
 
 ; =============== S U B R O U T I N E =======================================
 

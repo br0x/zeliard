@@ -2479,7 +2479,7 @@ fight:6F5E                 and     al, 0FEh
 fight:6F60                 mov     bl, al
 fight:6F62                 xor     bh, bh
 fight:6F64                 mov     es, cs:game_segment
-fight:6F69                 mov     di, es:sword_reachability_tables[bx]
+fight:6F69                 mov     di, es:sword_reachability_lists[bx]
 fight:6F6E
 fight:6F6E loc_6F6E:                               ; ...
 fight:6F6E                 mov     al, es:[di]
