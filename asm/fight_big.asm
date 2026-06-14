@@ -917,7 +917,6 @@ jump_press_handler endp
 
 
 ; ===========================================================================
-; try_climb_rope
 ; Called from up_pressed.
 ; Checks the 3 possible hero-relative X positions for a rope tile (tile 0 or 1).
 ; If found directly above: begins climbing animation — moves hero up row by row
@@ -928,10 +927,10 @@ try_climb_rope  proc near
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 inc     si  ; points to hero head
                 call    is_over_rope    ; set CF if rope found
-                jb      short climb_to_rope_from_ground
+                jc      short climb_to_rope_from_ground
                 dec     si  ; check tile to the left of head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jnb     short loc_65DC
+                jnc     short loc_65DC
                 test    byte ptr ds:facing_direction, 1
                 jnz     short on_left_pressed  ; move left to center on rope
                 retn
@@ -941,7 +940,7 @@ loc_65DC:
                 inc     si
                 inc     si  ; check tile to the right of head
                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
-                jb      short loc_65E4
+                jc      short loc_65E4
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -4820,13 +4819,14 @@ edge_locking_scrolling_window proc near
                 retn
 ; ---------------------------------------------------------------------------
 loc_7E03: ; mapWidth - 13 - hero_x_in_proximity_map >= 0    
-                add     ax, -17
+                add     ax, -17  ; hero_x_in_proximity_map - 17
                 or      ah, ah
                 jnz     short loc_7E0B ; ax >= 256
+                ; hero_x_in_proximity_map >= 17
                 ; ax = hero_x_in_proximity_map - 17; bl = 13
                 retn
 ; ---------------------------------------------------------------------------
-loc_7E0B:        
+loc_7E0B:       ; hero_x_in_proximity_map < 17
                 xor     ax, ax
                 mov     bl, byte ptr ds:hero_x_in_proximity_map
                 sub     bl, 4           ; hero_x_in_viewport

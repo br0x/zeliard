@@ -358,7 +358,6 @@ jump_press_handler endp
 
 
 ; ===========================================================================
-; try_climb_rope
 ; Called from up_pressed.
 ; Checks the 3 possible hero-relative X positions for a rope tile (tile 0 or 1).
 ; If found directly above: begins climbing animation — moves hero up row by row

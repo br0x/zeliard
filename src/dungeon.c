@@ -632,19 +632,33 @@ void Load_Magic_Spell_Sprite_Group_proc()
 
 }
 
-// stub
+// Checked
 void edge_locking_scrolling_window()
 {
-
+    uint16_t ax = MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP);
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    if (ax > mapWidth - 13) {
+        /* right-edge lock */
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = mapWidth - 36;
+        MEM8(ADDR_HERO_X_VIEW) = (uint8_t)(ax - (mapWidth - 36) - 4);
+    } else if (ax < 17) {
+        /* left-edge lock */
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 0;
+        MEM8(ADDR_HERO_X_VIEW) = (uint8_t)ax - 4;
+    } else {
+        /* free scroll */
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = ax - 17;
+        MEM8(ADDR_HERO_X_VIEW) = 13;
+    }
 }
 
-// stub
+// stub. Should be handled by js (exit to town)
 void swap_to_town_graphics_and_jump()
 {
 
 }
 
-// stub
+// stub. Assets should be loaded by js
 void res_dispatcher_proc(char *fname, int address)
 {
 
@@ -709,312 +723,61 @@ void hero_scroll_down(void) {
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
 }
 
-// Update hero's absolute Y and adjust viewport if needed (called after vertical movement)
-// TODO: remove (AI hallucinations)
-static void set_hero_y(uint8_t y) {
-    MEM8(ADDR_HERO_Y) = y;
-    uint8_t top = MEM8(ADDR_VIEWPORT_TOP_ROW);
-    if (y < top) {
-        move_hero_up();
-    } else if (y >= top + VIEW_ROWS) {
-        hero_scroll_down();
-    }
-    // Update derived value for drawing
-    MEM8(ADDR_HERO_HEAD_Y_VIEW) = y - MEM8(ADDR_VIEWPORT_TOP_ROW);
-}
+// Attempts to grab a rope above the hero and climb up.
+// Called from up_pressed.
+// Checks the 3 possible hero-relative X positions for a rope tile (tile 0 or 1).
+// If found directly above: begins climbing animation — moves hero up row by row
+// (calling move_hero_up + main_update_render) until rope is no longer above.
+// Sets on_rope_flags = 0xFF.
+//  Checked
+void try_climb_rope()
+{
+    uint16_t si;
 
-// Helper: get address in proximity map for world coordinates
-// TODO: remove (AI hallucinations)
-static uint16_t world_to_proximity_addr(uint16_t x, uint8_t y) {
-    uint16_t left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
-    uint16_t col = (x - left + PROX_COLS) % PROX_COLS;
-    return ADDR_PROXIMITY_MAP + col * DUNGEON_HEIGHT + y;
-}
+    // Get hero top-left address in proximity map, then point to hero's head tile
+    si = hero_coords_to_addr_in_proximity();
+    si++;   // si: hero head tile
 
-// Helper: check if a tile is a rope (ID 1 or 2)
-// TODO: remove (AI hallucinations)
-static int is_rope_tile(uint8_t tile) {
-    return tile == ROPE_TILE_1 || tile == ROPE_TILE_2;
-}
-
-// Helper: check if tile is ice (for sliding)
-// TODO: remove (AI hallucinations)
-static int is_ice_tile(uint8_t tile) {
-    return tile >= ICE_TILE_START && tile <= ICE_TILE_END;
-}
-
-// Helper: get tile type from proximity map (including monster bit)
-// TODO: remove (AI hallucinations)
-static uint8_t get_proximity_tile(uint16_t world_x, uint8_t world_y) {
-    uint16_t addr = world_to_proximity_addr(world_x, world_y);
-    return MEM8(addr);
-}
-
-// Helper: check if a monster occupies a given world tile
-// TODO: remove (AI hallucinations)
-static int is_monster_at(uint16_t world_x, uint8_t world_y) {
-    uint8_t tile = get_proximity_tile(world_x, world_y);
-    return (tile & 0x80) != 0;
-}
-
-// ----------------------------------------------------------------------
-// Move left (scroll map right) with obstacle checks
-// Returns 1 if movement succeeded, 0 if blocked.
-// ----------------------------------------------------------------------
-// Horizontal movement – centered scrolling (hero_x_in_viewport constant)
-// TODO: remove (AI hallucinations)
-static int try_move_left(void) {
-    uint16_t hero_x = hero_abs_x();
-    uint8_t hero_y = MEM8(ADDR_HERO_Y);
-    uint16_t left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
-    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
-
-    // New left column after moving left
-    uint16_t new_left = left - 1;
-    if (new_left >= map_width) new_left = map_width - 1; // wrap
-
-    // World X of the column just left of hero
-    uint16_t check_x = (hero_x - 1 + map_width) % map_width;
-
-    // Check 4 tiles (rows hero_y-1 .. hero_y+2) at check_x
-    for (int i = 0; i < 4; i++) {
-        int8_t y_off = i - 1;
-        uint8_t check_y = hero_y + y_off;
-        if (check_y >= DUNGEON_HEIGHT) continue;
-        if (is_monster_at(check_x, check_y)) return 0;
-        uint8_t tile = get_tile_at(check_x, check_y);
-        if (!is_non_blocking_tile(tile)) return 0;
-        if (MEM8(ADDR_CAVERN_LEVEL) != 7) {
-            uint8_t airflow = get_airflow_direction(tile);
-            if (airflow == 2) return 0; // right-flow wind blocks left movement
+    if (!is_over_rope(si)) {
+        // Check tile to the left of head
+        si--;
+        if (is_over_rope(si)) {
+            if (MEM8(ADDR_FACING) & LEFT) {
+                on_left_pressed();      // move left to center on rope
+            }
+            return; // facing opposite side
         }
-    }
 
-    uint8_t squat = MEM8(ADDR_SQUAT_FLAG);
-    if (!squat) {
-        uint8_t tile = get_tile_at(check_x, hero_y);
-        if (!is_non_blocking_tile(tile)) return 0;
-        if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 2) return 0;
-    } else {
-        for (int i = 0; i < 2; i++) {
-            uint8_t tile = get_tile_at(check_x, hero_y + 1 + i);
-            if (!is_non_blocking_tile(tile)) return 0;
-            if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 2) return 0;
+        // Check tile to the right of head
+        si += 2;                        // restore head + 1 more = right of head
+        if (is_over_rope(si)) {
+            if (!(MEM8(ADDR_FACING) & LEFT)) {
+                on_right_pressed();     // move right to center on rope
+            }
+            return; // facing opposite side
         }
+        return; // no rope found
     }
 
-    // Perform scroll
-    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = new_left;
-    // proximity_scroll_right(new_left);   // shift map right, fill new leftmost column
-    MEM8(ADDR_FACING) = 1;              // face left
-    // Absolute X updates automatically via hero_abs_x()
-    return 1;
-}
-
-// TODO: remove (AI hallucinations)
-static int try_move_right(void) {
-    uint16_t hero_x = hero_abs_x();
-    uint8_t hero_y = MEM8(ADDR_HERO_Y);
-    uint16_t left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
-    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
-
-    uint16_t new_left = left + 1;
-    if (new_left >= map_width) new_left = 0;
-
-    uint16_t check_x = (hero_x + 1) % map_width;
-
-    for (int i = 0; i < 4; i++) {
-        int8_t y_off = i - 1;
-        uint8_t check_y = hero_y + y_off;
-        if (check_y >= DUNGEON_HEIGHT) continue;
-        if (is_monster_at(check_x, check_y)) return 0;
-        uint8_t tile = get_tile_at(check_x, check_y);
-        if (!is_non_blocking_tile(tile)) return 0;
-        if (MEM8(ADDR_CAVERN_LEVEL) != 7) {
-            uint8_t airflow = get_airflow_direction(tile);
-            if (airflow == 1) return 0; // left-flow wind blocks right movement
-        }
-    }
-
-    uint8_t squat = MEM8(ADDR_SQUAT_FLAG);
-    if (!squat) {
-        uint8_t tile = get_tile_at(check_x, hero_y);
-        if (!is_non_blocking_tile(tile)) return 0;
-        if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 1) return 0;
-    } else {
-        for (int i = 0; i < 2; i++) {
-            uint8_t tile = get_tile_at(check_x, hero_y + 1 + i);
-            if (!is_non_blocking_tile(tile)) return 0;
-            if (MEM8(ADDR_CAVERN_LEVEL) != 7 && get_airflow_direction(tile) == 1) return 0;
-        }
-    }
-
-    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = new_left;
-    // proximity_scroll_left((new_left + PROX_COLS - 1) % map_width);
-    MEM8(ADDR_FACING) = 0;
-    return 1;
-}
-
-// ----------------------------------------------------------------------
-// Jumping and airborne physics
-// ----------------------------------------------------------------------
-// TODO: remove (AI hallucinations)
-static void start_jump(void) {
-    uint8_t feruza = (MEM8(ADDR_CURRENT_ACCESSORY) == SHOES_FERUZA) ? 4 : 2;
-    MEM8(ADDR_JUMP_HEIGHT_INCLUDING_SHOES) = feruza;
-    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0xFF;
-    MEM8(ADDR_HEIGHT_ABOVE_GROUND) = feruza >> 1;
-    MEM8(ADDR_JUMP_HEIGHT_COUNTER) = 0;
+    MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF;
     MEM8(ADDR_SQUAT_FLAG) = 0;
-    move_hero_up(); // first step upward
-}
 
-// Airborne update – uses hero_scroll_down on descent
-// TODO: remove (AI hallucinations)
-static void update_airborne(void) {
-    uint8_t phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
-    if (phase == 0) return;
+    do {
+        si = hero_coords_to_addr_in_proximity() - 35; // tile above hero head
+        wrap_map_from_below(&si);
 
-    uint16_t x = hero_abs_x();
-    uint8_t y = MEM8(ADDR_HERO_Y);
-    if (dungeon_can_stand_at(x, y + 1)) {
-        // Land
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
-        MEM8(ADDR_JUMP_HEIGHT_COUNTER) = 0;
-        MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
-        if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) >= 2) {
-            MEM8(ADDR_SQUAT_FLAG) = 0xFF;
+        MEM8(ADDR_HERO_ANIM_PHASE)--;
+
+        if (!is_over_rope(si)) {
+            MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
+            return;
         }
-        return;
-    }
 
-    if (phase == 0xFF) { // ascending
-        uint8_t height = MEM8(ADDR_HEIGHT_ABOVE_GROUND);
-        if (height > 0) {
-            MEM8(ADDR_HEIGHT_ABOVE_GROUND) = height - 1;
-            move_hero_up();
-            // In-air steering
-            uint8_t dirs = MEM8(ADDR_INPUT_DIRS);
-            if (dirs & 0x04) try_move_left();
-            else if (dirs & 0x08) try_move_right();
-        } else {
-            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F; // descending
-        }
-    } else if (phase == 0x7F) { // descending
-        hero_scroll_down();
-        uint8_t dirs = MEM8(ADDR_INPUT_DIRS);
-        if (dirs & 0x04) try_move_left();
-        else if (dirs & 0x08) try_move_right();
-    }
-}
-
-// ----------------------------------------------------------------------
-// Rope climbing
-// ----------------------------------------------------------------------
-// TODO: replace with actual code (AI hallucinations)
-static void try_climb_rope(void) {
-    uint16_t x = hero_abs_x();
-    uint8_t y = MEM8(ADDR_HERO_Y);
-    if (y > 0 && is_rope_tile(get_tile_at(x, y - 1))) {
-        MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF;
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
-        MEM8(ADDR_SQUAT_FLAG) = 0;
         move_hero_up();
-        set_hero_y(y - 1);
-    }
+        main_update_render();
+
+    } while ((MEM8(ADDR_HERO_ANIM_PHASE) & 1) == 0);
 }
-
-// Rope update – uses move_hero_up / hero_scroll_down
-// TODO: remove (AI hallucinations)
-static void update_on_rope(void) {
-    uint8_t rope_flags = MEM8(ADDR_ON_ROPE_FLAGS);
-    if (rope_flags == 0) return;
-    if (rope_flags == 0xFF) {
-        uint8_t dirs = MEM8(ADDR_INPUT_DIRS);
-        if (dirs & 0x01) { // up
-            uint16_t x = hero_abs_x();
-            uint8_t y = MEM8(ADDR_HERO_Y);
-            if (y > 0 && is_rope_tile(get_tile_at(x, y - 1))) {
-                move_hero_up();
-                set_hero_y(y - 1);
-            }
-        } else if (dirs & 0x02) { // down
-            uint16_t x = hero_abs_x();
-            uint8_t y = MEM8(ADDR_HERO_Y);
-            if (y < DUNGEON_HEIGHT - 1 && is_rope_tile(get_tile_at(x, y + 1))) {
-                hero_scroll_down();
-                set_hero_y(y + 1);
-            } else {
-                MEM8(ADDR_ON_ROPE_FLAGS) = 0x80;
-                MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x80;
-            }
-        }
-    } else if (rope_flags == 0x80) {
-        MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
-    }
-}
-
-// Ice sliding – uses try_move_left/right
-// TODO: remove (AI hallucinations)
-static void update_ice_slide(void) {
-    if (MEM8(ADDR_CAVERN_LEVEL) != 4) return;
-    if (MEM8(ADDR_CURRENT_ACCESSORY) == SHOES_RUZERIA) return;
-    uint8_t slide_ticks = MEM8(ADDR_SLIDE_TICKS_REMAINING);
-    if (slide_ticks == 0) return;
-    MEM8(ADDR_SLIDE_TICKS_REMAINING) = slide_ticks - 1;
-    uint8_t dir = MEM8(ADDR_SLIDE_DIRECTION);
-    if (dir == 1) try_move_right();
-    else if (dir == 2) try_move_left();
-    uint16_t x = hero_abs_x();
-    uint8_t y = MEM8(ADDR_HERO_Y);
-    if (!is_ice_tile(get_tile_at(x, y))) {
-        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
-    }
-}
-
-// ----------------------------------------------------------------------
-// Slopes
-// ----------------------------------------------------------------------
-// TODO: remove (AI hallucinations)
-static void update_slope(void) {
-    uint8_t slope = MEM8(ADDR_SLOPE_DIRECTION);
-    if (slope == SLOPE_NONE) return;
-    uint8_t dirs = MEM8(ADDR_INPUT_DIRS);
-    if (slope == SLOPE_RIGHT && !(dirs & 0x08)) {
-        try_move_right();
-    } else if (slope == SLOPE_LEFT && !(dirs & 0x04)) {
-        try_move_left();
-    }
-}
-
-// ----------------------------------------------------------------------
-// Knockback
-// ----------------------------------------------------------------------
-// TODO: remove (AI hallucinations)
-static void apply_knockback(void) {
-    if (MEM8(ADDR_BYTE_9F14) == 0) return;
-    MEM8(ADDR_BYTE_9F14) = 0;
-    int16_t vx = MEM16(ADDR_KNOCKBACK_VECTOR_9F0E);
-    int16_t vy = MEM16(ADDR_KNOCKBACK_VECTOR_9F10);
-    if (vx != 0 || vy != 0) {
-        for (int i = 0; i < 2; i++) {
-            if (vx < 0) try_move_left();
-            else if (vx > 0) try_move_right();
-        }
-        if (vy < 0) move_hero_up();
-        else if (vy > 0) hero_scroll_down();
-    }
-    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0xFF) {
-        MEM8(ADDR_ON_ROPE_FLAGS) = 0x80;
-        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
-    }
-}
-
-
-// ----------------------------------------------------------------------
-// Hero movement and collision
-// ----------------------------------------------------------------------
 
 // is_non_blocking_tile family. 
 // Original assembly code returns ZF or NZ, we return 0 or nonzero values instead.
@@ -1305,13 +1068,13 @@ void hero_moves_left()
     }
 }
 
-// stub
+// stub. Implement later
 void every_projectile_moves_left_in_viewport()
 {
 
 }
 
-// stub
+// stub. Implement later
 void every_projectile_moves_right_in_viewport()
 {
 
@@ -1338,60 +1101,11 @@ void hero_interaction_check(void)
     }
 }
 
-// TODO: remove (AI hallucinations)
-static uint8_t get_tile_at(uint16_t x, uint8_t y)
-{
-    if (x >= MEM16(ADDR_MAP_WIDTH)) return 0xFF;
-    if (y >= DUNGEON_HEIGHT) return 0xFF;
-    return 0; // stub
-}
-
-// TODO: remove (AI hallucinations)
-int dungeon_can_stand_at(uint16_t x, uint8_t y)
-{
-    if (y >= DUNGEON_HEIGHT - 1) return 0;
-    return is_non_blocking_tile(get_tile_at(x, y)) &&
-           is_non_blocking_tile(get_tile_at(x, (uint8_t)(y + 1)));
-}
-
-// Hero's absolute X coordinate (from proximity left column + center column)
-// TODO: remove (AI hallucinations)
-static uint16_t hero_abs_x(void) {
-    return MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + HERO_PROX_COL;
-}
-
-// Set hero's absolute X (centered, does NOT change viewport X)
-// TODO: remove (AI hallucinations)
-static void set_hero_abs_x(uint16_t x) {
-    uint16_t map_width = MEM16(ADDR_MAP_WIDTH);
-    if (map_width == 0) return;
-    x %= map_width;
-    uint16_t left = x - HERO_PROX_COL;
-    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left;
-}
-
-// Only used during init and after teleporting
-// TODO: remove (AI hallucinations)
-static void sync_viewport_from_hero(void) {
-    uint8_t hero_y = MEM8(ADDR_HERO_Y);
-    uint8_t top = 0;
-    if (hero_y > 9) top = hero_y - 9;
-    if (top > DUNGEON_HEIGHT - VIEW_ROWS)
-        top = DUNGEON_HEIGHT - VIEW_ROWS;
-    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_VIEWPORT_TOP_ROW) = top;
-    MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_y - top;
-    // Recompute viewport_left_top_addr from top (col 4)
-    uint16_t addr = coords_to_prox_addr(4, top);
-    MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
-}
-
 
 // ----------------------------------------------------------------------
 // Exported WASM functions
 // ----------------------------------------------------------------------
 // Initialization: unpack full map and setup proximity/viewport
-// FIXME! should call prepare_dungeon_proc
 void wasm_dungeon_init(uint8_t map_id) {
     prepare_dungeon();
 
@@ -1417,7 +1131,7 @@ void prepare_dungeon()
     uint8_t al = MEM8(mdt_descr + 0);
     process_mdt_descriptor(al, mdt_descr+1);
     Clear_Viewport_proc();
-    res_dispatcher_proc("roka.grp", 0x18000);
+    // res_dispatcher_proc("roka.grp", 0x18000);
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
     Render_Roca_Tilemap_proc(0);
     uint8_t map_id = MEM8(ADDR_PLACE_MAP_ID);
@@ -2672,7 +2386,7 @@ void Cavern_Game_Init(void) {
         MEM8(ADDR_BYTE_9F02) = 0;
 
         // Load Jashiin room MDT
-        res_dispatcher_proc("MPA0.MDT", 0xC000);
+        // res_dispatcher_proc("MPA0.MDT", 0xC000);
 
         MEM8(ADDR_IS_BOSS_CAVERN) = 0xFF;
         MEM8(ADDR_BYTE_9F27) = 0xFF;
