@@ -11,7 +11,7 @@ ds:viewport_top_left_vram_addr – VRAM address of the top‑left corner of the 
 
 ds:viewport_buffer_28x19 – buffer holding the currently displayed tile indices.
 
-ds:tile_anim_frame_counter – animation frame counter (incremented by the routine).
+ds:roka_palette – animation frame counter (incremented by the routine).
 
 ds:plane0_buf – set to viewport VRAM base address.
 
@@ -25,7 +25,7 @@ ds:viewport_buffer_28x19 is updated with new tile indices where changed.
 
 ds:viewport_rows_remaining is decremented per row.
 
-ds:tile_anim_frame_counter is incremented once.
+ds:roka_palette is incremented once.
 ====================================
 Sample_Neighborhood_Attributes
 Description:
@@ -185,7 +185,7 @@ ds:viewport_left_top_addr, ds:viewport_buffer_28x19.
 
 ds:plane0_buf set to viewport VRAM base.
 
-ds:tile_anim_frame_counter initially set to 8.
+ds:roka_palette initially set to 8.
 
 Output:
 

@@ -13,8 +13,9 @@
 #define ADDR_BYTE_9EEF                0x9EEF
 #define ADDR_BYTE_9EF0                0x9EF0
 #define ADDR_BYTE_9EF5                0x9EF5
-#define ADDR_MMAN_GRP_INDEX           0x9EF6  // byte
+#define ADDR_MMAN_GRP_INDEX           0x9EF6  // 4 bytes at 0x9EF6..0x9EF9
 #define ADDR_BYTE_9EFA                0x9EFA
+#define ADDR_BYTE_9EFB                0x9EFB
 #define ADDR_EAI_BIN_INDEX            0x9EFE  // byte
 #define ADDR_ENP_GRP_INDEX            0x9EFF  // byte
 #define ADDR_BYTE_9F00                0x9F00
@@ -55,7 +56,6 @@
 #define ADDR_VERTICAL_PLATFORMS_TABLE 0xC004u
 #define ADDR_COLLAPSING_PLATFORMS_TABLE 0xC006u
 #define ADDR_HORIZ_PLATFORMS_TABLE 0xC008u
-#define ADDR_ACHIEVEMENTS_TABLE  0xC00Cu
 #define ADDR_CAVERN_LEVEL        0xC012u
 #define ADDR_CAVERN_SIGNS_INFO   0xC017u
 #define ADDR_PACKED_MAP_END_PTR  0xC019u
@@ -351,8 +351,6 @@ void transit_to_sage()
     // transfer_to_town(0x6002);
 }
 
-// stub
-// ===========================================================================
 // load_place_and_reinit - Called after boss defeat to restore normal cavern state.
 //  Called when boss_is_dead fires and the game needs to transition the cavern
 //  from boss mode back to post-boss state.
@@ -364,7 +362,7 @@ void transit_to_sage()
 //  5. Process optional initializers from MDT (list of word writes).
 //  6. Update hero X position, recalculate door tile, call process_doors.
 //  7. Reinit cavern display, jump back to Cavern_Game_Init.
-// ===========================================================================
+// Checked
 void load_place_and_reinit(void) {
     if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) {
         return;
@@ -466,6 +464,7 @@ void hero_got_almas(uint16_t amount)
 //  4. Swap back.
 //  5. If byte_FF4B == 8 (save/load from inventory): jmp to resurrection code.
 //  6. Reload magic spell sprites, clear viewport, reinit.
+// Checked
 void bring_inventory_window()
 {
     if (MEM8(ADDR_BYTE_9EF5) |
@@ -493,91 +492,141 @@ void bring_inventory_window()
     main_update_render();
 }
 
-// stub
+// stub, will implement later
 void try_move_platform_up()
 {
 
 }
 
-// stub
+// stub, will implement later
 void Browse_Projectiles()
 {
 
 }
 
-// stub
+// Checked
 void clear_viewport_buffer()
 {
-
+    memset(&g_mem[ADDR_VIEWPORT_ENTITIES], 0xFD, 28*19);
 }
 
-// stub
+// Checked
 void reset_dungeon_state_vars()
 {
-
+    MEM8(ADDR_SWORD_SWING_FLAG) = 0;
+    MEM8(ADDR_UI_ELEMENT_DIRTY) = 0;
+    MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0xFF;
+    MEM8(ADDR_SQUAT_FLAG) = 0;
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+    MEM8(ADDR_BYTE_9EEF) = 0;
+    MEM8(ADDR_BYTE_FF3E) = 0;
+    MEM8(ADDR_BYTE_FF4B) = 0;
+    MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+    MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
+    MEM8(ADDR_ACTIVE_ENTITY_TABLE) = 0;
+    MEM16(ADDR_MAGIC_PROJECTILES) = 0xFFFF;
+    MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
+    MEM8(ADDR_BYTE_9EF5) = 0;
+    clear_viewport_buffer();
 }
 
-// stub
+// stub. Should be loaded by game.js
 void load_mdt()
 {
 
 }
 
-// stub
+// Checked
 void remove_accomplished_items()
 {
-
+    uint16_t si = MEM16(ADDR_ACHIEVEMENTS_TABLE);
+    while (1) {
+        uint16_t di = MEM16(si);
+        if (di == 0xFFFF) break;
+        si += 3;
+        if (MEM8(si - 1) & MEM8(di)) { // move_loop
+            while (1) {
+                di = MEM16(si);
+                if (di == 0xFFFF) break;
+                MEM16(di) = MEM16(si + 2);
+                si += 4;
+            }
+        } else { // skip_loop
+            while (MEM16(si) != 0xFFFF) {
+                si += 4;
+            }
+        }
+        si += 2;
+    }
 }
 
-// stub
+// Checked
 void hero_left_16_down_1()
 {
-
+    uint16_t x = MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP);
+    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = (x < 16 ? x + MEM16(ADDR_MAP_WIDTH) : x) - 16;
+    MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_DOOR_TARGET_Y) + 1 - 
+        MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT)) & 0x3F;
 }
 
-// stub
+// stub. Should be rendered by js
 void Render_Roca_Tilemap_proc()
 {
-
 }
 
-// stub
-void process_mdt_descriptor()
+// Checked
+void process_mdt_descriptor(uint8_t descr0, uint16_t descr_ptr1)
 {
-
+    memmove(&g_mem[ADDR_MMAN_GRP_INDEX], &g_mem[descr_ptr1], 4);
+    uint8_t idx = (descr0 >> 1) & 0x0F;
+    if (idx != MEM8(ADDR_MSD_INDEX)) {
+        MEM8(ADDR_BYTE_FF24) = 10;
+        MEM8(ADDR_MSD_INDEX) = idx;
+    } else {
+        idx = 0xff;
+    }
+    MEM8(ADDR_BYTE_9EFA) = idx;
+    MEM8(ADDR_BYTE_9EFB) = 0xff;
 }
 
-// stub
+// stub. The demo when the hero after defeating the boss gets the next Tear of Esmesanti
 void roca_entrypoint()
 {
 
 }
 
-// stub
+// stub. Assets loading should be handled by js
 void load_resource(char * filename, int address)
 {
 
 }
 
-// stub
+// stub. Assets loading should be handled by js:
+// load dchr.grp
+// load mpp{mpp_grp_index}.grp
+// load eai{eai_bin_index}.bin
+// load enp{enp_grp_index}.grp
+// load mgt{mgt_msd_index}.msd
 void load_cavern_sprites_ai_music()
 {
 
 }
 
-// stub
+// stub. Clearing the canvas should be handled by js
 void Clear_Viewport_proc()
 {
 
 }
 
-// stub
+// stub. Image processing should be handled by js
 void Reassemble_3_Planes_To_Packed_Bitmap_proc(uint32_t ptr, uint8_t num_tiles)
 {
 
 }
 
-// stub
+// stub. Assets loading should be handled by js
 void Load_Magic_Spell_Sprite_Group_proc()
 {
 
@@ -1366,7 +1415,7 @@ void prepare_dungeon()
     // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
     uint16_t mdt_descr = MEM16(ADDR_MDT);
     uint8_t al = MEM8(mdt_descr + 0);
-    process_mdt_descriptor(mdt_descr);
+    process_mdt_descriptor(al, mdt_descr+1);
     Clear_Viewport_proc();
     res_dispatcher_proc("roka.grp", 0x18000);
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
@@ -2422,7 +2471,7 @@ void enter_opened_door(uint16_t si)
         // }
         // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
         Render_Roca_Tilemap_proc(door_type);
-        process_mdt_descriptor(mdt_descr); // AL: mdt_descriptor.b7b6_msd_idx_b0
+        process_mdt_descriptor(mdt_desc0, mdt_descr + 1); // AL: mdt_descriptor.b7b6_msd_idx_b0
                                            // SI: &mdt_descriptor+1
     }
 
@@ -2630,7 +2679,7 @@ void Cavern_Game_Init(void) {
 
         uint16_t mdt_descr = MEM16(ADDR_MDT);
         uint8_t desc_byte0 = MEM8(mdt_descr);
-        process_mdt_descriptor(desc_byte0);
+        process_mdt_descriptor(desc_byte0, mdt_descr+1);
 
         load_cavern_sprites_ai_music(); // load dchr.grp, load mpp{mpp_grp_index}.grp, load eai{eai_bin_index}.bin
                                         // load enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd

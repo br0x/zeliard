@@ -2061,7 +2061,6 @@ get_slope_direction_by_tile_under_feet endp
 
 
 ; ===========================================================================
-; remove_accomplished_items
 ; Scans the accomplished_items_checker_table (MDT-embedded).
 ; For each entry: reads a savegame byte and checks a bitmask.
 ; If condition is met (item was already collected / boss defeated):
@@ -3408,7 +3407,6 @@ load_place_and_reinit endp
 
 
 ; ===========================================================================
-; clear_viewport_buffer
 ; Fills the 28×19 viewport_buffer (at 0xE900h) with 0xFD.
 ; 0xFD means 'undrawn tile' — forces a full redraw next render pass.
 ; ===========================================================================
@@ -4755,24 +4753,24 @@ transfer_to_town:
                 mov     ax, 1  ; fn1 (Stop) Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 push    bx
-                call    edge_locking_scrolling_window ; Return:
-                                        ; AX: proximity_map_left_col_x
-                                        ; BL: hero_x_in_viewport
-                mov     ds:proximity_map_left_col_x, ax
-                mov     ds:hero_x_in_viewport, bl
-                mov     si, ds:mdt_buffer ; mdt_descriptor
-                lodsb                   ; b7b6_msd_idx_b0
-                shr     al, 1
-                and     al, 11111b
-                mov     ds:msd_index, al
-                mov     bl, 11
-                mul     bl
-                add     ax, offset vfs_mgt1_msd
-                mov     si, ax
-                mov     es, cs:seg1
-                mov     di, 3000h
-                mov     al, 5           ; fn5_load_music
-                call    cs:res_dispatcher_proc
+                    call    edge_locking_scrolling_window ; Return:
+                                            ; AX: proximity_map_left_col_x
+                                            ; BL: hero_x_in_viewport
+                    mov     ds:proximity_map_left_col_x, ax
+                    mov     ds:hero_x_in_viewport, bl
+                    mov     si, ds:mdt_buffer ; mdt_descriptor
+                    lodsb                   ; b7b6_msd_idx_b0
+                    shr     al, 1
+                    and     al, 11111b
+                    mov     ds:msd_index, al
+                    mov     bl, 11
+                    mul     bl
+                    add     ax, offset vfs_mgt1_msd
+                    mov     si, ax
+                    mov     es, cs:seg1
+                    mov     di, 3000h
+                    mov     al, 5           ; fn5_load_music
+                    call    cs:res_dispatcher_proc
                 pop     bx
                 xor     al, al           ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
                 jmp     cs:res_dispatcher_proc ; on return will jump to the town entry code
@@ -4881,7 +4879,7 @@ open_door       endp
 ; =============== S U B R O U T I N E =======================================
 
 
-reset_dungeon_state_vars proc near      ; ...
+reset_dungeon_state_vars proc near
                 xor     al, al
                 mov     ds:sword_swing_flag, al
                 mov     ds:ui_element_dirty, al
@@ -4919,15 +4917,15 @@ process_mdt_descriptor proc near
                 mov     ah, al
                 mov     al, 0FFh
                 cmp     ah, ds:msd_index
-                jz      short loc_7EB6
+                je      short loc_7EB6
                 mov     byte ptr ds:byte_FF24, 0Ah
                 mov     ds:msd_index, ah
                 mov     al, ah
 
 loc_7EB6:        
-                stosb
+                stosb  ; [9efah]
                 mov     al, 0FFh
-                stosb
+                stosb  ; [9efbh]
                 retn
 process_mdt_descriptor endp
 

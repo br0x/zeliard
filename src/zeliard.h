@@ -45,6 +45,7 @@ extern "C" {
 #define ADDR_MDT                 0xC000    // MDT dungeon data
 #define ADDR_MAP_WIDTH           0xC002
 #define ADDR_DOORS_LIST          0xC00A
+#define ADDR_ACHIEVEMENTS_TABLE  0xC00C
 #define ADDR_CAVERN_NAME_INFO    0xC00E
 #define ADDR_MONSTERS_LIST       0xC010
 #define ADDR_CAVERN_LEVEL        0xC012
@@ -89,6 +90,7 @@ extern "C" {
 #define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
 #define ADDR_SLOPE_DIRECTION      0xFF42  // 1=right, 2=left, 0=none
 #define ADDR_SWORD_SWING_FLAG     0xFF43  // byte
+#define ADDR_UI_ELEMENT_DIRTY     0xFF44  // byte
 #define ADDR_SWORD_HIT_TYPE       0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
 #define ADDR_MONSTER_INDEX        0xFF4A  // byte

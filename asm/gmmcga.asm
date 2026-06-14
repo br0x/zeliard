@@ -213,12 +213,12 @@ Clear_Viewport  proc near
 loc_2111:
                 push    cx
                 push    di
-                mov     cx, 12h
+                mov     cx, 18
 
 loc_2116:
                 push    cx
                 push    di
-                mov     cx, 0E0h
+                mov     cx, 28*8
                 xor     al, al
                 rep stosb
                 pop     di
@@ -226,7 +226,7 @@ loc_2116:
                 pop     cx
                 loop    loc_2116
                 pop     di
-                add     di, 140h
+                add     di, 320
                 pop     cx
                 loop    loc_2111
                 retn

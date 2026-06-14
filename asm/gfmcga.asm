@@ -49,7 +49,7 @@ Refresh_Dirty_Tiles proc near
                 xor     ax, ax
                 mov     cx, 80h
                 rep stosw
-                inc     ds:tile_anim_frame_counter
+                inc     ds:roka_palette
                 mov     ds:plane0_buf, viewport_top_left_vram_addr
                 mov     si, ds:viewport_left_top_addr
                 sub     si, 33
@@ -277,7 +277,7 @@ Animate_Door_Tile_Type0 proc near       ; ...
 
 loc_3188:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:tile_anim_frame_counter, 1
+                test    ds:roka_palette, 1
                 jnz     short loc_3194
                 retn
 ; ---------------------------------------------------------------------------
@@ -342,7 +342,7 @@ Animate_Special_Tiles proc near         ; ...
                 cmp     al, 2
                 jnb     short loc_31F3
                 mov     byte ptr [di-1], 0FEh
-                test    ds:tile_anim_frame_counter, 1
+                test    ds:roka_palette, 1
                 jnz     short loc_31E9
                 retn
 ; ---------------------------------------------------------------------------
@@ -405,7 +405,7 @@ loc_321E:
 
 loc_3242:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:tile_anim_frame_counter, 1
+                test    ds:roka_palette, 1
                 jnz     short loc_324E
                 retn
 ; ---------------------------------------------------------------------------
@@ -429,7 +429,7 @@ AnimateWaterTile proc near              ; ...
 
 loc_325C:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:tile_anim_frame_counter, 1
+                test    ds:roka_palette, 1
                 jnz     short loc_3268
                 retn
 ; ---------------------------------------------------------------------------
@@ -2634,7 +2634,7 @@ Render_Viewport_Tiles proc near         ; ...
                 mov     byte ptr ds:ui_element_dirty, 0
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     ds:tile_anim_frame_counter, 8
+                mov     ds:roka_palette, 8
 
 loc_41A1:
                 mov     ds:plane0_buf, viewport_top_left_vram_addr
@@ -2666,7 +2666,7 @@ loc_41BF:
 wait_frame_timer:
                 cmp     byte ptr ds:frame_timer, 10h
                 jb      short wait_frame_timer
-                dec     ds:tile_anim_frame_counter
+                dec     ds:roka_palette
                 jnz     short loc_41A1
                 retn
 Render_Viewport_Tiles endp
@@ -2696,7 +2696,7 @@ loc_41F3:
                 push    si
                 push    bx
                 push    ax
-                mov     ah, ds:tile_anim_frame_counter
+                mov     ah, ds:roka_palette
                 dec     ah
                 shr     ah, 1
                 shr     ah, 1
@@ -2724,7 +2724,7 @@ loc_4220:
                 mov     ds, word ptr cs:seg1
                 push    si
                 push    di
-                mov     al, cs:tile_anim_frame_counter
+                mov     al, cs:roka_palette
                 and     al, 3
                 neg     al
                 add     al, 3
@@ -2732,7 +2732,7 @@ loc_4220:
                 call    RenderTileRowWithMask
                 pop     di
                 pop     si
-                mov     al, cs:tile_anim_frame_counter
+                mov     al, cs:roka_palette
                 call    CalculateTileOffset
                 add     di, 4
                 add     si, 3
@@ -2791,14 +2791,14 @@ RenderTileRowWithMask endp
 
 RenderTileRowClear:                     ; ...
                 push    di
-                mov     al, cs:tile_anim_frame_counter
+                mov     al, cs:roka_palette
                 and     al, 3
                 neg     al
                 add     al, 3
                 call    CalculateTileOffset
                 call    ClearTileRowWithMask
                 pop     di
-                mov     al, cs:tile_anim_frame_counter
+                mov     al, cs:roka_palette
                 call    CalculateTileOffset
                 add     di, 4
                 call    ClearTileRowWithMask
@@ -2857,9 +2857,9 @@ Render_Viewport_Border_Walls proc near  ; ...
                 mov     byte ptr ds:nibble_decode_lut, al
                 mov     byte ptr ds:nibble_decode_lut+1, ah
                 call    DrawDitheredPattern
-                mov     ds:tile_anim_frame_counter, 36h ; '6'
+                mov     ds:roka_palette, 36h ; '6'
                 call    RenderBorderRings
-                mov     ds:tile_anim_frame_counter, 0
+                mov     ds:roka_palette, 0
                 call    RenderBorderRings
                 jmp     DrawDitheredPattern
 Render_Viewport_Border_Walls endp
@@ -3018,7 +3018,7 @@ loc_43E1:
                 add     di, ax
                 pop     cx
                 xor     ch, ch
-                mov     ah, ds:tile_anim_frame_counter
+                mov     ah, ds:roka_palette
 
 loc_43FA:
                 mov     es:[di], ah
@@ -3068,7 +3068,7 @@ loc_4422:
                 sub     ah, al
                 mov     cl, ah
                 xor     ch, ch
-                mov     al, ds:tile_anim_frame_counter
+                mov     al, ds:roka_palette
                 rep stosb
                 retn
 DrawHorizontalLine endp
@@ -3316,9 +3316,9 @@ sword_hit_pattern_tbl db 0, 1, 2, 4, 7, 9, 0Dh, 10h, 4, 15h, 17h, 1Ch, 1Eh, 4 ; 
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; AL: roka palette?
 Render_Roca_Tilemap proc near
-                mov     ds:tile_anim_frame_counter, al
+                mov     ds:roka_palette, al
                 mov     si, offset roca_tile_indices_28x18
                 mov     ds:plane0_buf, viewport_top_left_vram_addr
                 mov     cx, 18
@@ -3390,7 +3390,7 @@ loc_466C:
                 mov     es:[di+2], bh ; 20h
                 and     al, 3Fh
                 mov     es:[di+3], al ; 20h
-                mov     bl, cs:tile_anim_frame_counter ; 0
+                mov     bl, cs:roka_palette ; 0
                 xor     bh, bh
                 add     bx, bx
                 mov     cx, 4
@@ -4702,7 +4702,7 @@ entity_vram_src             dw 0
 sword_phase_src             dw 0       
 hero_sprite_offset          dw 0       
 tile_render_mask            dw 0       
-tile_anim_frame_counter     db 0
+roka_palette     db 0
 tile_load_buffer            db 10h dup(0)
 tile_cache_dirty_flags      db 0         
 tile_cache_row1_dirty_flags db 0         
