@@ -8,6 +8,36 @@
 extern "C" {
 #endif
 
+#define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
+#define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
+#define MEM8_1(addr)   (g_mem[((addr) & 0xFFFF) + 0x10000])
+#define MEM16_1(addr)  (*(uint16_t *)&g_mem[((addr) & 0xFFFF) + 0x10000])
+
+// Constants
+#define LEFT             1
+#define UP               2
+#define SLOPE_NONE       0
+#define SLOPE_RIGHT      1
+#define SLOPE_LEFT       2
+#define SLIDE_RIGHT      1
+#define SLIDE_LEFT       2
+#define ROPE_TILE_1      1
+#define ROPE_TILE_2      2
+#define LEFT_SLOPE_TILE  11
+#define RIGHT_SLOPE_TILE 12
+#define ICE_TILE_START   0x40
+#define ICE_TILE_END     0x48
+#define SHOES_FERUZA     1
+#define SHOES_RUZERIA    4
+#define AIRFLOW_UP       0
+#define AIRFLOW_LEFT     1
+#define AIRFLOW_RIGHT    2
+#define KEY_UP           1
+#define KEY_DOWN         2
+#define KEY_LEFT         4
+#define KEY_RIGHT        8
+#define KEY_ENTER        1
+
 // ============================================================================
 // Memory Layout Constants
 // ============================================================================
@@ -40,8 +70,16 @@ extern "C" {
 #define ADDR_HERO_ANIM_PHASE          0xE7
 #define ADDR_INVINCIBILITY_FLAG       0xE8
 
+#define ADDR_BOSS_STATE_PTR                          0xA002  // word
+#define ADDR_MONSTER_AI_MOVE_LEFT_FRAMES             0xA030
+#define ADDR_MONSTER_AI_DEATH_LEFT_FRAMES            0xA040
+#define ADDR_MONSTER_AI_ITEM_ANIMATION_LEFT_FRAMES   0xA050
+#define ADDR_MONSTER_AI_POTIONS_LEFT_FRAMES          0xA060
+#define ADDR_MONSTER_AI_MOVE_RIGHT_FRAMES            0xA070
+#define ADDR_MONSTER_AI_DEATH_RIGHT_FRAMES           0xA080
+#define ADDR_MONSTER_AI_ITEM_ANIMATION_RIGHT_FRAMES  0xA090
+#define ADDR_MONSTER_AI_POTIONS_RIGHT_FRAMES         0xA0A0
 
-#define ADDR_BOSS_STATE_PTR           0xA002  // word
 #define ADDR_MDT                 0xC000    // MDT dungeon data
 #define ADDR_MAP_WIDTH           0xC002
 #define ADDR_DOORS_LIST          0xC00A
@@ -74,16 +112,18 @@ extern "C" {
 #define ADDR_BYTE_FF24            0xFF24
 #define ADDR_BOSS_BEING_HIT       0xFF2E  // byte
 #define ADDR_SPRITE_FLASH_FLAG    0xFF2F  // byte
-#define ADDR_BOSS_IS_DEAD         0xFF30    // byte
-#define ADDR_SPEED_CONST           0xFF33  // byte
-#define ADDR_IS_BOSS_CAVERN         0xFF34  // byte
-#define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36  // byte
+#define ADDR_BOSS_IS_DEAD         0xFF30  // byte
+#define ADDR_VIEWPORT_LEFT_TOP    0xFF31  // word
+#define ADDR_SPEED_CONST          0xFF33  // byte
+#define ADDR_IS_BOSS_CAVERN       0xFF34  // byte
+#define ADDR_HERO_Y               0xFF35  // hero_y_absolute (byte)
+#define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36 // byte
 #define ADDR_HERO_SPRITE_HIDDEN   0xFF37  // byte
-#define ADDR_SQUAT_FLAG           0xFF38    // byte
+#define ADDR_SQUAT_FLAG           0xFF38  // byte
 #define ADDR_ON_ROPE_FLAGS        0xFF39
 #define ADDR_HERO_HIDDEN_FLAG     0xFF3A  // byte
 #define ADDR_SPELL_ACTIVE_FLAG    0xFF3C  // byte
-#define ADDR_JUMP_PHASE_FLAGS     0xFF3D    // byte
+#define ADDR_JUMP_PHASE_FLAGS     0xFF3D   // byte
 #define ADDR_BYTE_FF3E            0xFF3E
 #define ADDR_SHIELD_ANIM_PHASE    0xFF3F  // byte
 #define ADDR_SHIELD_ANIM_ACTIVE   0xFF40  // byte

@@ -63,7 +63,7 @@ Output:
 
 ds:ui_element_dirty cleared to 0.
 ====================================
-Render_Scrolling_Transition_Overlay
+Render_Sword_Overlay
 Description:
 Handles the sword‑swing overlay during scrolling transitions. Based on sword_swing_flag, it selects the appropriate sword animation graphics and sets up the sprite offset and source data for later rendering. When the sword animation sequence ends, it resets the flags.
 
@@ -81,7 +81,7 @@ ds:squat_flag – non‑zero if hero is squatting.
 
 Output:
 
-ds:hero_sprite_offset set to (X, Y) offset for the sword sprite.
+ds:sword_sprite_offsets set to (X, Y) offset for the sword sprite.
 
 ds:entity_vram_src set to the hero’s VRAM base adjusted by offset.
 
@@ -121,7 +121,7 @@ Output:
 
 DI – half of the actual VRAM address (address = DI * 2). The caller usually doubles it to get the final address.
 ====================================
-Scrolling_Overlay_EntryPoint
+Sword_Overlay_EntryPoint
 Description:
 Entry point for rendering the sword overlay on top of the hero during a sword swing. It clears the tile cache around the hero, copies the hero’s upper‑half background to a temporary buffer, then draws the sword animation tiles using sprite blitting with transparency.
 
@@ -131,7 +131,7 @@ ds:sword_swing_flag – must be non‑zero.
 
 ds:sword_type, ds:facing_direction, ds:squat_flag, etc. – determine which sword graphics to use.
 
-cs:entity_vram_src and cs:sword_phase_src – prepared by Render_Scrolling_Transition_Overlay.
+cs:entity_vram_src and cs:sword_phase_src – prepared by Render_Sword_Overlay.
 
 Output:
 
@@ -195,7 +195,9 @@ Frame timer (ds:frame_timer) used for pacing.
 ====================================
 Copy_Tile_Buffer_To_VRAM
 Description:
-Copies the 3×3 tile buffer of the hero (stored at 511Dh in shadow VRAM) to the screen at the hero’s current VRAM position (hero_vram_base). Used to transfer the pre‑rendered hero sprite tiles to the visible display. If the hero sprite is hidden (hero_sprite_hidden set), the copy is skipped.
+Copies the 3×3 tile buffer of the hero (stored at 511Dh in shadow VRAM) to the screen at the hero’s current VRAM position 
+(hero_vram_base). Used to transfer the pre‑rendered hero sprite tiles to the visible display. 
+If the hero sprite is hidden (hero_sprite_hidden set), the copy is skipped.
 
 Input:
 
@@ -213,7 +215,11 @@ ds:hero_sprite_hidden set to 0FFh after copying.
 ====================================
 Update_Local_Attribute_Cache
 Description:
-Clears the tile neighborhood buffer and then calls Sample_Neighborhood_Attributes to fill it. Then, for each of the 3×3 tiles under the hero, it determines which sprite (body, arms, shield, etc.) to render based on the hero’s state (facing, squat, shield, rope, invincibility, etc.). It prepares the tile indices and then calls Render_Scrolling_Tile or Render_Tile_With_Palette for each tile. This is the main hero‑rendering routine.
+Clears the tile neighborhood buffer and then calls Sample_Neighborhood_Attributes to fill it. 
+Then, for each of the 3×3 tiles under the hero, it determines which sprite (body, arms, shield, etc.) 
+to render based on the hero’s state (facing, squat, shield, rope, invincibility, etc.). 
+It prepares the tile indices and then calls Render_Scrolling_Tile or Render_Tile_With_Palette for each tile. 
+This is the main hero‑rendering routine.
 
 Input:
 
@@ -225,7 +231,7 @@ tile_neighborhood_buffer filled by Sample_Neighborhood_Attributes.
 
 Output:
 
-Shadow VRAM at sword_anim_frames (or equivalent) filled with the hero’s 3×3 tile graphics.
+Shadow VRAM at nine_unpacked_tiles (or equivalent) filled with the hero’s 3×3 tile graphics.
 
 ds:hero_vram_base computed from hero coordinates.
 
@@ -489,7 +495,7 @@ load_3x3_tiles
 Loads the 3×3 tile indices surrounding the hero from the viewport tilemap into tile_neighborhood_buffer.
 
 render_hero_sword
-Checks if the hero is swinging his sword and, if so, performs the necessary UI element flush and overlay rendering via Scrolling_Overlay_EntryPoint.
+Checks if the hero is swinging his sword and, if so, performs the necessary UI element flush and overlay rendering via Sword_Overlay_EntryPoint.
 
 Flush_Ui_Element_If_Dirty (duplicate entry in the list)
 Already described.
@@ -497,7 +503,7 @@ Already described.
 Blit32x32SpriteToVram
 Blits a 32×32 sprite from shadow VRAM (at cs:entity_vram_src) to the actual VRAM at the same address, effectively making the pre‑rendered hero UI visible.
 
-CopyTempBufferToVRAM_RowMajor
+Copy4x4TilesFromScreenToShadowBuffer
 Copies a 32×32 region from cs:entity_vram_src (the hero’s upper half) to a temporary buffer at VRAM address 64064 using row‑major order.
 
 Clear_Tile_Cache_Around_Hero

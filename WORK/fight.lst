@@ -2581,7 +2581,7 @@ fight:7039                 call    check_hero_contact_damage
 fight:703C                 call    cs:Flush_Ui_Element_If_Dirty_proc
 fight:7041                 call    projectiles_collision_processing
 fight:7044                 call    monsters_updates
-fight:7047                 call    cs:Render_Scrolling_Transition_Overlay_proc
+fight:7047                 call    cs:Render_Sword_Overlay_proc
 fight:704C                 call    step_on_aggressive_ground
 fight:704F                 cmp     ds:cavern_level, 7 ; danger type = temperature
 fight:7054                 jnz     short skip_temperature_damage
@@ -2679,7 +2679,7 @@ fight:713B                 call    update_and_render_projectile_row_pair
 fight:713E                 call    render_and_collision_pass_row
 fight:7141                 call    update_active_projectiles_render
 fight:7144                 call    apply_sword_hit_to_map_tiles
-fight:7147                 call    cs:Render_Scrolling_Transition_Overlay_proc
+fight:7147                 call    cs:Render_Sword_Overlay_proc
 fight:714C                 mov     cl, ds:speed_const
 fight:7150                 mov     al, 4
 fight:7152                 mul     cl

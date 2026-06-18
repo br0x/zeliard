@@ -127,7 +127,7 @@ HERO_INDICES = [
     0x14, 0x16, 0x18, 0x15, 0x17, 0x19  # Faced Right 5
 ]
 
-# pal_decode_tbl has 6 entries (hero_tile_col_idx cycles 0–5);
+# pal_decode_tbl has 6 entries (hero_frame_tile_idx cycles 0–5);
 # entry 5 is the same data as entry 3:
 PAL_DECODE_TABLES = [
     bytes([0x00,0x01,0x02,0x03, 0x08,0x09,0x0A,0x0B,

@@ -2386,7 +2386,6 @@ unpack_column   endp
 ; y &= 0x3F;
 ; uint16_t di = (y * 36) + x + 0xE000;
 ; ===========================================================================
-; coords_in_ax_to_proximity_map_addr_in_di
 ; Converts relative (x, y) coordinates within proximity map to an address.
 ; AL = y (0-63), AH = x (0-35); y masked to 6 bits.
 ; DI = (y & 0x3F) * 36 + x + 0xE000
@@ -2955,7 +2954,7 @@ loc_702F:
                 call    cs:Flush_Ui_Element_If_Dirty_proc
                 call    projectiles_collision_processing
                 call    monsters_updates
-                call    cs:Render_Scrolling_Transition_Overlay_proc
+                call    cs:Render_Sword_Overlay_proc
                 call    step_on_aggressive_ground
                 cmp     byte ptr ds:cavern_level, 7 ; danger type = temperature
                 jne     short skip_temperature_damage
@@ -2999,7 +2998,7 @@ main_update_render endp
 ;   10. render_and_collision_pass_row.
 ;   11. update_active_projectiles_render.
 ;   12. apply_sword_hit_to_map_tiles.
-;   13. Render_Scrolling_Transition_Overlay.
+;   13. Render_Sword_Overlay.
 ;   Wait again until frame_timer >= speed_const*4.
 ;
 ; Post-render checks:
@@ -3017,9 +3016,9 @@ loc_7094:       ; invincibility entry point
                 jz      short loc_70B3
                 mov     byte ptr ds:shield_anim_active, 0FFh
                 mov     al, ds:sword_hit_type
-                mov     ds:shield_variant_index, al
+                mov     ds:shield_variant_index, al ; during sword swing, shield_variant_index = sword_hit_type
                 mov     al, ds:sword_movement_phase
-                mov     ds:shield_anim_phase, al
+                mov     ds:shield_anim_phase, al ; during sword swing, shield_anim_phase = sword_movement_phase
                 jmp     short loc_70CA
 ; ---------------------------------------------------------------------------
 
@@ -3029,7 +3028,7 @@ loc_70B3:
                 mov     byte ptr ds:shield_anim_active, 0FFh
                 mov     al, ds:byte_9F2B
                 mov     ds:shield_anim_phase, al
-                mov     byte ptr ds:shield_variant_index, 1
+                mov     byte ptr ds:shield_variant_index, 1 ; during spell, shield_variant_index = 1
 
 loc_70CA:        
                 test    byte ptr ds:hero_sprite_hidden, 0FFh
@@ -3080,7 +3079,7 @@ loc_712D:
                 call    render_and_collision_pass_row
                 call    update_active_projectiles_render
                 call    apply_sword_hit_to_map_tiles
-                call    cs:Render_Scrolling_Transition_Overlay_proc
+                call    cs:Render_Sword_Overlay_proc
                 mov     cl, ds:speed_const
                 mov     al, 4
                 mul     cl

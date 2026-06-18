@@ -4,10 +4,6 @@
 #include "zeliard.h"
 #include "dungeon.h"
 
-#define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
-#define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
-#define MEM8_1(addr)   (g_mem[((addr) & 0xFFFF) + 0x10000])
-#define MEM16_1(addr)  (*(uint16_t *)&g_mem[((addr) & 0xFFFF) + 0x10000])
 
 #define ADDR_BYTE_9EED                0x9EED
 #define ADDR_BYTE_9EEF                0x9EEF
@@ -68,7 +64,6 @@
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
 #define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
-#define ADDR_HERO_Y              0xFF35u   // hero_y_absolute (byte)
 #define ADDR_TICK_COUNTER        0xFF50u
 
 #define ADDR_DUNGEON_EXIT_FLAG   0xFFE2
@@ -79,37 +74,11 @@
 #define ADDR_REACH_TABLE_SEG1     0xB002
 #define ADDR_PASSABLE_TILES       0x18000u
 #define ADDR_AIRFLOW_TILES        0x18024u
-#define MAX_MDT_BYTES            0x4000u
+
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
 #define VIEW_COLS                28
 #define VIEW_ROWS                18
-#define HERO_VIEW_COL            13               // hero x in viewport (columns)
-#define HERO_PROX_COL            17               // hero x in proximity (columns)
-// Constants
-#define SLOPE_NONE  0
-#define SLOPE_RIGHT 1
-#define SLOPE_LEFT  2
-#define SLIDE_RIGHT 1
-#define SLIDE_LEFT  2
-#define ROPE_TILE_1 1
-#define ROPE_TILE_2 2
-#define LEFT_SLOPE_TILE  11
-#define RIGHT_SLOPE_TILE 12
-#define ICE_TILE_START   0x40
-#define ICE_TILE_END     0x48
-#define SHOES_FERUZA        1
-#define SHOES_RUZERIA       4
-#define AIRFLOW_UP          0
-#define AIRFLOW_LEFT        1
-#define AIRFLOW_RIGHT       2
-#define KEY_UP        1
-#define KEY_DOWN      2
-#define KEY_LEFT      4
-#define KEY_RIGHT     8
-#define KEY_ENTER     1
-#define LEFT          1
-#define UP            2
 
 
 static uint16_t dungeon_map_width;
@@ -1285,7 +1254,7 @@ void projectiles_collision_processing(void) {}
 void monsters_updates(void) {}
 
 // stub
-void Render_Scrolling_Transition_Overlay_proc(void) {}
+void Render_Sword_Overlay_proc(void) {}
 
 // stub
 void step_on_aggressive_ground(void) {}
@@ -1311,11 +1280,6 @@ void magic_spell_fire_handler(void) {}
 // stub
 void state_machine_dispatcher(void) {}
 
-// INT 61h emulation mapping standard input flags (____right_left_down_up)
-// TODO: remove (AI hallucinations)
-static uint8_t bios_get_input_keys(void) {
-    return MEM8(0xFF17u);
-}
 
 // ============================================================================
 // main_loop — per-frame game loop
@@ -1811,7 +1775,7 @@ void main_update_render(void) {
     Flush_Ui_Element_If_Dirty_proc(); // request canvas redraw, todo
     projectiles_collision_processing();
     monsters_updates();
-    Render_Scrolling_Transition_Overlay_proc(); // something familiar... sword?
+    Render_Sword_Overlay_proc(); // something familiar... sword?
     step_on_aggressive_ground();
 
     if (MEM8(ADDR_CAVERN_LEVEL) == 7 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_ASBESTOS_CAPE) { // heat damage
@@ -1901,7 +1865,7 @@ void game_loop_render_and_timing(uint8_t invincible)
     render_and_collision_pass_row();
     update_active_projectiles_render();
     apply_sword_hit_to_map_tiles();
-    Render_Scrolling_Transition_Overlay_proc();
+    Render_Sword_Overlay_proc();
 
     // Timing loop 2: wait until frame_timer >= speed_const * 4
     // Inner loop – process dialog/pause/joystick/restore while waiting for frame timer

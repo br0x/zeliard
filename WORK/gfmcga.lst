@@ -28,13 +28,13 @@ seg000:3000                 assume es:nothing, ss:nothing, ds:nothing, fs:nothin
 seg000:3000                 dw offset Refresh_Dirty_Tiles
 seg000:3002                 dw offset Sample_Neighborhood_Attributes
 seg000:3004                 dw offset Flush_Ui_Element_If_Dirty
-seg000:3006                 dw offset Render_Scrolling_Transition_Overlay
+seg000:3006                 dw offset Render_Sword_Overlay
 seg000:3008                 dw offset Uncompress_And_Render_Tile ; AL: tile index
 seg000:3008                                         ; DI: screen address
 seg000:300A                 dw offset Viewport_Coords_To_Screen_Addr ; AL: y
 seg000:300A                                         ; AH: x
 seg000:300A                                         ; Returns video memory address in DI
-seg000:300C                 dw offset Scrolling_Overlay_EntryPoint
+seg000:300C                 dw offset Sword_Overlay_EntryPoint
 seg000:300E                 dw offset Cached_Tile_Drawer ; AL: Tile Index
 seg000:300E                                         ; DX: Screen destination
 seg000:3010                 dw offset Active_Entity_Sprite_Renderer
@@ -2367,14 +2367,14 @@ seg000:3E30                 retn
 seg000:3E31 ; ---------------------------------------------------------------------------
 seg000:3E31
 seg000:3E31 loc_3E31:                               ; ...
-seg000:3E31                 jmp     Scrolling_Overlay_EntryPoint
+seg000:3E31                 jmp     Sword_Overlay_EntryPoint
 seg000:3E31 render_hero_sword endp
 seg000:3E31
 seg000:3E34
 seg000:3E34 ; =============== S U B R O U T I N E =======================================
 seg000:3E34
 seg000:3E34
-seg000:3E34 Render_Scrolling_Transition_Overlay proc near ; ...
+seg000:3E34 Render_Sword_Overlay proc near ; ...
 seg000:3E34
 seg000:3E34 ; FUNCTION CHUNK AT seg000:3FD0 SIZE 000000B6 BYTES
 seg000:3E34
@@ -2484,7 +2484,7 @@ seg000:3F13                 pop     bx
 seg000:3F14                 pop     di
 seg000:3F15                 pop     si
 seg000:3F16                 pop     es
-seg000:3F17                 jmp     Scrolling_Overlay_EntryPoint
+seg000:3F17                 jmp     Sword_Overlay_EntryPoint
 seg000:3F1A ; ---------------------------------------------------------------------------
 seg000:3F1A
 seg000:3F1A final_sword_phase:                               ; ...
@@ -2495,7 +2495,7 @@ seg000:3F25                 pop     di
 seg000:3F26                 pop     si
 seg000:3F27                 pop     es
 seg000:3F28                 retn
-seg000:3F28 Render_Scrolling_Transition_Overlay endp
+seg000:3F28 Render_Sword_Overlay endp
 seg000:3F28
 seg000:3F29
 seg000:3F29 ; =============== S U B R O U T I N E =======================================
@@ -2525,7 +2525,7 @@ seg000:3F42
 seg000:3F42 ; =============== S U B R O U T I N E =======================================
 seg000:3F42
 seg000:3F42
-seg000:3F42 CopyTempBufferToVRAM_RowMajor proc near ; ...
+seg000:3F42 Copy4x4TilesFromScreenToShadowBuffer proc near ; ...
 seg000:3F42                 push    ds
 seg000:3F43                 mov     si, cs:word_4FF7
 seg000:3F48                 mov     ax, 0A000h
@@ -2546,7 +2546,7 @@ seg000:3F60                 loop    loc_3F55
 seg000:3F62                 pop     ds
 seg000:3F63                 assume ds:nothing
 seg000:3F63                 retn
-seg000:3F63 CopyTempBufferToVRAM_RowMajor endp
+seg000:3F63 Copy4x4TilesFromScreenToShadowBuffer endp
 seg000:3F63
 seg000:3F64
 seg000:3F64 ; =============== S U B R O U T I N E =======================================
@@ -2617,9 +2617,9 @@ seg000:3FCF sub_3F86        endp
 seg000:3FCF
 seg000:3FD0 ; ---------------------------------------------------------------------------
 seg000:3FD0 ; START OF FUNCTION CHUNK FOR render_hero_sword
-seg000:3FD0 ;   ADDITIONAL PARENT FUNCTION Render_Scrolling_Transition_Overlay
+seg000:3FD0 ;   ADDITIONAL PARENT FUNCTION Render_Sword_Overlay
 seg000:3FD0
-seg000:3FD0 Scrolling_Overlay_EntryPoint:           ; ...
+seg000:3FD0 Sword_Overlay_EntryPoint:           ; ...
 seg000:3FD0                 test    byte ptr ds:0FF43h, 0FFh
 seg000:3FD5                 jnz     short loc_3FD8
 seg000:3FD7                 retn
@@ -2633,7 +2633,7 @@ seg000:3FDF                 push    di
 seg000:3FE0                 push    si
 seg000:3FE1                 push    bx
 seg000:3FE2                 call    sub_3F86
-seg000:3FE5                 call    CopyTempBufferToVRAM_RowMajor
+seg000:3FE5                 call    Copy4x4TilesFromScreenToShadowBuffer
 seg000:3FE8                 xor     bx, bx
 seg000:3FEA                 mov     bl, cs:92h
 seg000:3FEF                 dec     bl

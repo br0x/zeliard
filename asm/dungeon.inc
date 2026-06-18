@@ -97,10 +97,10 @@ spirit             ENDS
 Refresh_Dirty_Tiles_proc                           equ 3000h
 Sample_Neighborhood_Attributes_proc                equ 3002h
 Flush_Ui_Element_If_Dirty_proc                     equ 3004h
-Render_Scrolling_Transition_Overlay_proc           equ 3006h
+Render_Sword_Overlay_proc           equ 3006h
 Uncompress_And_Render_Tile_proc                    equ 3008h
 Viewport_Coords_To_Screen_Addr_proc                equ 300Ah
-Scrolling_Overlay_EntryPoint_proc                  equ 300Ch
+Sword_Overlay_EntryPoint_proc                  equ 300Ch
 Cached_Tile_Drawer_proc                            equ 300Eh
 Active_Entity_Sprite_Renderer_proc                 equ 3010h
 Render_Viewport_Tiles_proc                         equ 3012h

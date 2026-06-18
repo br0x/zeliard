@@ -546,7 +546,7 @@ seg1                                               equ 0FF2Ch ; code segment + 1
 boss_being_hit                                     equ 0FF2Eh
 sprite_flash_flag                                  equ 0FF2Fh
 boss_is_dead                                       equ 0FF30h
-viewport_left_top_addr                             equ 0FF31h ; address within proximity map, corresponding to viewport left top corner
+viewport_left_top_addr                             equ 0FF31h ; address within proximity map, corresponding to viewport left top corner; 0E000h .. 0E8FFh
 speed_const                                        equ 0FF33h
 is_boss_cavern                                     equ 0FF34h
 hero_y_absolute                                    equ 0FF35h

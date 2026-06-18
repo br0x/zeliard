@@ -97,7 +97,7 @@ loc_702F:
                 call    cs:Flush_Ui_Element_If_Dirty_proc
                 call    projectiles_collision_processing
                 call    monsters_updates
-                call    cs:Render_Scrolling_Transition_Overlay_proc
+                call    cs:Render_Sword_Overlay_proc
                 call    step_on_aggressive_ground
                 cmp     byte ptr ds:cavern_level, 7 ; danger type = temperature
                 jnz     short skip_temperature_damage
@@ -142,7 +142,7 @@ main_update_render endp
 ;   10. render_and_collision_pass_row.
 ;   11. update_active_projectiles_render.
 ;   12. apply_sword_hit_to_map_tiles.
-;   13. Render_Scrolling_Transition_Overlay.
+;   13. Render_Sword_Overlay.
 ;   Wait again until frame_timer >= speed_const*4.
 ;
 ; Post-render checks:
@@ -223,7 +223,7 @@ loc_712D:
                 call    render_and_collision_pass_row
                 call    update_active_projectiles_render
                 call    apply_sword_hit_to_map_tiles
-                call    cs:Render_Scrolling_Transition_Overlay_proc
+                call    cs:Render_Sword_Overlay_proc
                 mov     cl, ds:speed_const
                 mov     al, 4
                 mul     cl

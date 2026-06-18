@@ -11,13 +11,13 @@ start:
                 dw offset Refresh_Dirty_Tiles
                 dw offset Sample_Neighborhood_Attributes
                 dw offset Flush_Ui_Element_If_Dirty
-                dw offset Render_Scrolling_Transition_Overlay
+                dw offset Render_Sword_Overlay
                 dw offset Uncompress_And_Render_Tile ; AL: tile index
                                         ; DI: screen address
                 dw offset Viewport_Coords_To_Screen_Addr ; AL: y
                                         ; AH: x
                                         ; Returns video memory address in DI
-                dw offset Scrolling_Overlay_EntryPoint
+                dw offset Sword_Overlay_EntryPoint
                 dw offset Cached_Tile_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
                 dw offset Active_Entity_Sprite_Renderer
@@ -767,7 +767,7 @@ Render_Tile_With_Border_Check proc near ; ...
                 mov     ax, [si-1]
                 mov     [bx+2], ax
                 pop     dx
-                mov     ds:hero_tile_col_idx, dl
+                mov     ds:hero_frame_tile_idx, dl
                 mov     al, ds:viewport_rows_remaining
                 neg     al
                 add     al, 18
@@ -1082,7 +1082,7 @@ get_pixel_from_table_by_ah_hi proc near
                 add     ax, ax
                 adc     bx, bx
                 add     ax, ax
-                adc     bx, bx
+                adc     bx, bx ; bx:ax = ax*16
                 and     bx, 0Fh
                 add     bx, cs:nibble_decode_lut ; 16 bytes table addr, one of the pal_decode_data0..4
                 mov     bl, cs:[bx]
@@ -1171,16 +1171,16 @@ Lookup_Monster_Tile_Attributes proc near
                 mov     ch, 16
                 mul     ch
                 add     ax, ds:monsters_table_addr
-                mov     bp, ax
+                mov     bp, ax  ; monster struct pointer
                 mov     al, ds:[bp+6]   ; monster.anim_counter
                 and     al, 0Fh
                 mov     ch, 5
-                mul     ch
+                mul     ch   ; ax = offset = (anim_counter & 0Fh) * 5
                 mov     si, offset monster_ai_move_right_frames
                 test    byte ptr ds:[bp+5], 80h ; monster.ai_flags
                 jnz     short loc_3703
                 mov     si, offset monster_ai_move_left_frames
-
+                ; si = base
 loc_3703:
                 mov     bl, ds:[bp+4]   ; monster.flags
                 and     bl, 1Fh
@@ -1245,7 +1245,7 @@ loc_3756:
                 cmp     al, 3
                 jz      short loc_3756
                 dec     al
-                add     al, ds:hero_tile_col_idx
+                add     al, ds:hero_frame_tile_idx
                 cmp     al, 0FFh
                 jnz     short loc_376D
                 mov     al, 4
@@ -1432,8 +1432,12 @@ word_3963       dw 2F00h, 0F4h, 7F01h, 80FEh, 0D007h, 0E00Bh, 0Fh, 0F000h
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Update_Local_Attribute_Cache proc near  ; ...
+; Clears the tile neighborhood buffer and then calls Sample_Neighborhood_Attributes to fill it. 
+; Then, for each of the 3×3 tiles under the hero, it determines which sprite (body, arms, shield, etc.) 
+; to render based on the hero’s state (facing, squat, shield, rope, invincibility, etc.). 
+; It prepares the tile indices and then calls Render_Scrolling_Tile or Render_Tile_With_Palette for each tile. 
+; This is the main hero‑rendering routine.
+Update_Local_Attribute_Cache proc near
                 mov     di, offset tile_neighborhood_buffer
                 push    cs
                 pop     es
@@ -1446,7 +1450,7 @@ Update_Local_Attribute_Cache proc near  ; ...
                 mov     di, offset tile_load_buffer
                 mov     cx, 8
                 rep stosw
-                jmp     short loc_39F5
+                jmp     short _render_hero_3x3
 ; ---------------------------------------------------------------------------
 ; Loads the 3×3 block of tile indices around the hero’s current position from the proximity map 
 ; and stores them into tile_neighborhood_buffer. Used later to determine what tiles are 
@@ -1488,85 +1492,89 @@ loc_39EA:
                 inc     dl
                 pop     cx
                 loop    loc_39C8
-loc_39F5:
+_render_hero_3x3:
                 mov     al, ds:hero_head_y_in_viewport
                 xor     ah, ah
-                mov     cx, 0A00h
+                mov     cx, 320*8 ; tile height = 8 pixels
                 mul     cx
                 mov     cl, ds:hero_x_in_viewport
                 xor     ch, ch
                 add     cx, cx
                 add     cx, cx
-                add     cx, cx
+                add     cx, cx ; x * 8
                 add     ax, cx
                 add     ax, viewport_top_left_vram_addr
                 mov     ds:hero_vram_base, ax
-                mov     ds:hero_tile_col_idx, 0
+                mov     ds:hero_frame_tile_idx, 0
                 mov     si, offset tile_neighborhood_buffer
                 mov     di, offset tile_load_buffer
                 mov     cx, 3
-loc_3A21:
+loc_3A21:       ; outer
                 push    cx
                 mov     cx, 3
-loc_3A25:
+loc_3A25:       ; inner
                 push    cx
                 mov     ax, offset choose_hero_sprite
-                push    ax
+                push    ax  ; push, then jump trick: will call choose_hero_sprite on return
                 mov     al, [di]
                 or      al, [di+1]
                 or      al, [di+4]
                 or      al, [di+5]
                 jnz     short loc_3A3A
-                jmp     Render_Empty_Or_Cached_Tile
+                jmp     Render_Empty_Or_Cached_Tile ; then jump to choose_hero_sprite
 ; ---------------------------------------------------------------------------
 loc_3A3A:
                 test    byte ptr [di], 0FFh
                 jz      short loc_3A4E
+                ; di[0] != 0
                 mov     al, [di]
                 push    si
-                call    Lookup_Monster_Tile_Attributes
-                inc     si
-                inc     si
-                inc     si
-                mov     al, [si]
+                    call    Lookup_Monster_Tile_Attributes
+                    inc     si
+                    inc     si
+                    inc     si
+                    mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette
+                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
 ; ---------------------------------------------------------------------------
 
 loc_3A4E:
                 test    byte ptr [di+1], 0FFh
                 jz      short loc_3A63
+                ; di[1] != 0
                 mov     al, [di+1]
                 push    si
-                call    Lookup_Monster_Tile_Attributes
-                inc     si
-                inc     si
-                mov     al, [si]
+                    call    Lookup_Monster_Tile_Attributes
+                    inc     si
+                    inc     si
+                    mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette
+                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
 ; ---------------------------------------------------------------------------
 
 loc_3A63:
                 test    byte ptr [di+4], 0FFh
                 jz      short loc_3A77
+                ; di[4] != 0
                 mov     al, [di+4]
                 push    si
-                call    Lookup_Monster_Tile_Attributes
-                inc     si
-                mov     al, [si]
+                    call    Lookup_Monster_Tile_Attributes
+                    inc     si
+                    mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette
+                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
 ; ---------------------------------------------------------------------------
 
 loc_3A77:
+                ; di[5] != 0
                 mov     al, [di+5]
                 push    si
-                call    Lookup_Monster_Tile_Attributes
-                mov     cl, [si]
+                    call    Lookup_Monster_Tile_Attributes
+                    mov     cl, [si]
                 pop     si
                 mov     [si], al
                 mov     al, cl
-                jmp     Render_Tile_With_Palette
+                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
 Update_Local_Attribute_Cache endp
 
 
@@ -1574,14 +1582,16 @@ Update_Local_Attribute_Cache endp
 
 ; called by pushing address to stack before jumping to other routine
 choose_hero_sprite proc near
-                inc     ds:hero_tile_col_idx
+                inc     ds:hero_frame_tile_idx
                 inc     di
                 inc     si
                 pop     cx
-                loop    loc_3A25
+                loop    loc_3A25 ; inner
                 pop     cx
                 inc     di
-                loop    loc_3A21
+                loop    loc_3A21 ; outer
+                ; loops ended
+_choose_hero_sprite:                
                 mov     bl, ds:hero_damage_this_frame
                 and     bl, 3
                 xor     bh, bh
@@ -1597,18 +1607,19 @@ choose_hero_sprite proc near
 ; ---------------------------------------------------------------------------
 ; invincibility_flag = 0, on_rope_flags = 0, hero_hidden_flag = 0
 non_god_rope_hidden:
-                mov     cl, 0FFh
+                mov     cl, 0FFh ; if facing right
                 mov     si, fman_gfx + (2*13 + 4 + 1)*9  ; ARM_RIGHT_BASE
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jz      short loc_3ACF
-                xor     cl, cl  ; offset = 0
+                ; facing left
+                xor     cl, cl  ; 0 if facing left
                 mov     si, fman_gfx + (2*13 + 4 + 1 + 18)*9  ; ARM_LEFT_BASE
 
 loc_3ACF:
                 test    byte ptr ds:shield_anim_active, 0FFh
                 jz      short loc_3B18
 ; shield animation is active
-                inc     cl
+                inc     cl ; facilg left ? 1 : 0
                 jnz     short loc_3AF4
                 ; cl was 255, now it's 0
                 mov     al, ds:shield_anim_phase
@@ -1616,15 +1627,14 @@ loc_3ACF:
                 mov     cl, 9
                 mul     cl
                 push    ax  ; shield_anim_phase/2 * 9 
-                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
-                mov     cl, 4*9
-                mul     cl  ; offset from SHIELD_FRONT_BASE/SHIELD_BACK_BASE
+                    call    get_player_shield_category ; 0=no shield, 1=small, 2=large
+                    mov     cl, 4*9
+                    mul     cl  ; offset from SHIELD_FRONT_BASE/SHIELD_BACK_BASE
                 pop     si
                 add     si, ax
-                add     si, fman_gfx + 2C7h  ; SHIELD_BACK_BASE
+                add     si, fman_gfx + (2 * 13 + 4 + 1 + 2 * 18 + 12) * 9  ; SHIELD_BACK_BASE
                 jmp     short loc_3B61
 ; ---------------------------------------------------------------------------
-
 loc_3AF4:
                 mov     al, ds:shield_anim_phase
                 shr     al, 1
@@ -1634,18 +1644,16 @@ loc_3AF4:
                 mov     dl, ds:shield_variant_index
                 dec     dl
                 jnz     short loc_3B0D
-                add     ax, 36
+                add     ax, 36 ; shield variant 1
                 jmp     short loc_3B14
 ; ---------------------------------------------------------------------------
-
 loc_3B0D:
                 dec     dl
                 jnz     short loc_3B14
-                mov     ax, 99
-
+                mov     ax, 99 ; shield variant 2
 loc_3B14:
                 add     si, ax
-                jmp     short loc_3B61
+                jmp     short loc_3B61 ; default shield variant
 ; ---------------------------------------------------------------------------
 ; shield_anim_active = 0
 loc_3B18:
@@ -1653,17 +1661,17 @@ loc_3B18:
                 or      al, al
                 jz      short loc_3B43
                 dec     al
-                mov     cl, al
-                test    byte ptr ds:facing_direction, 1
+                mov     cl, al ; 0=small, 1=large
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3B43
                 mov     ax, 12*9
-                mov     dl, ds:squat_flag   ; squat_flag
+                mov     dl, ds:squat_flag
                 and     dl, 9  ; non-squat=0, squat=9
                 xor     dh, dh
                 add     ax, dx
                 or      cl, cl
                 jz      short loc_3B3F
-                add     ax, 3*9
+                add     ax, 3*9 ; large
 
 loc_3B3F:
                 add     si, ax
@@ -1692,14 +1700,14 @@ loc_3B61:
                 jz      short loc_3B75
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
-                mov     ds:hero_tile_col_idx, 3
+                mov     ds:hero_frame_tile_idx, 3
                 call    Render_Scrolling_Tile
                 jmp     short loc_3B80
 ; ---------------------------------------------------------------------------
 ; non squat: 9 tiles
 loc_3B75:
                 mov     cx, 9
-                mov     ds:hero_tile_col_idx, 0
+                mov     ds:hero_frame_tile_idx, 0
                 call    Render_Scrolling_Tile
 
 loc_3B80:
@@ -1754,7 +1762,7 @@ loc_3BF0:
 
 loc_3BF2:
                 mov     cx, 9
-                mov     ds:hero_tile_col_idx, 0
+                mov     ds:hero_frame_tile_idx, 0
                 call    Render_Scrolling_Tile
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short loc_3C05
@@ -1874,12 +1882,12 @@ loc_3CC1:
                 jz      short non_squat
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
-                mov     ds:hero_tile_col_idx, 3
+                mov     ds:hero_frame_tile_idx, 3
                 jmp     short Render_Scrolling_Tile
 ; ---------------------------------------------------------------------------
 non_squat:
                 mov     cx, 9
-                mov     ds:hero_tile_col_idx, 0 ; normal: 9 tiles starting at 0
+                mov     ds:hero_frame_tile_idx, 0 ; normal: 9 tiles starting at 0
                 jmp     short $+2
                 ; fall through to Render_Scrolling_Tile
 choose_hero_sprite endp
@@ -1910,10 +1918,10 @@ Render_Scrolling_Tile proc near
                 mov     di, dx  ; ignore, will be overwritten few lines below
                 push    cs
                 pop     es
-                mov     al, cs:hero_tile_col_idx ; normally 0, but can be 3 for squat
+                mov     al, cs:hero_frame_tile_idx ; normally 0, but can be 3 for squat
                 mov     cl, 64
                 mul     cl
-                add     ax, offset sword_anim_frames
+                add     ax, offset nine_unpacked_tiles
                 mov     di, ax
                 call    render_2bpp_tile
                 pop     di
@@ -1922,7 +1930,7 @@ Render_Scrolling_Tile proc near
                 pop     es
 skip_empty:
                 inc     si
-                inc     ds:hero_tile_col_idx
+                inc     ds:hero_frame_tile_idx
                 pop     cx
                 loop    Render_Scrolling_Tile
                 retn
@@ -1961,14 +1969,14 @@ Render_Empty_Or_Cached_Tile proc near
                 push    si
                 push    di
                 push    ax
-                mov     ds, word ptr cs:seg1 ; seg1
-                push    cs
-                pop     es
-                mov     al, cs:hero_tile_col_idx
-                mov     cl, 64
-                mul     cl
-                add     ax, offset sword_anim_frames
-                mov     di, ax
+                    mov     ds, word ptr cs:seg1 ; seg1
+                    push    cs
+                    pop     es
+                    mov     al, cs:hero_frame_tile_idx
+                    mov     cl, 64
+                    mul     cl
+                    add     ax, offset nine_unpacked_tiles
+                    mov     di, ax
                 pop     ax
                 or      al, al
                 jz      short empty_tile
@@ -1995,8 +2003,10 @@ Render_Empty_Or_Cached_Tile endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Render_Tile_With_Palette proc near      ; ...
+; Input:
+; AL: tile index
+; SI:
+Render_Tile_With_Palette proc near
                 push    ds
                 push    si
                 push    di
@@ -2025,10 +2035,10 @@ loc_3D7A:
                 mov     ds, word ptr cs:seg1 ; seg1
                 push    cs
                 pop     es
-                mov     al, cs:hero_tile_col_idx
-                mov     cl, 40h ; '@'
+                mov     al, cs:hero_frame_tile_idx
+                mov     cl, 64
                 mul     cl
-                add     ax, offset sword_anim_frames
+                add     ax, offset nine_unpacked_tiles
                 mov     di, ax
                 pop     ax
                 or      al, al
@@ -2117,14 +2127,14 @@ loc_3E2A:
                 retn
 ; ---------------------------------------------------------------------------
 loc_3E31:
-                jmp     Scrolling_Overlay_EntryPoint
+                jmp     Sword_Overlay_EntryPoint
 render_hero_sword endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Scrolling_Transition_Overlay proc near
+Render_Sword_Overlay proc near
 
                 test    byte ptr ds:sword_swing_flag, 0FFh
                 jnz     short loc_3E3C
@@ -2149,13 +2159,13 @@ loc_3E3C:
 loc_3E5E:
                 xor     cl, cl
                 mov     si, sword_animation_gfx + 16Eh    ; ↓+←
-                mov     ds:hero_sprite_offset, 0FF01h
+                mov     ds:sword_sprite_offsets, 0FF01h
                 mov     dx, 320*8-8
-                test    byte ptr ds:facing_direction, 1   ; bit0: 0=Right, 1=Left
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3EEE
                 ; facing right
                 mov     si, sword_animation_gfx + 0BEh    ; ↓+→
-                mov     ds:hero_sprite_offset, 1
+                mov     ds:sword_sprite_offsets, 1
                 mov     dx, 320*8
                 jmp     short loc_3EEE
 ; ---------------------------------------------------------------------------
@@ -2172,7 +2182,7 @@ loc_3E8B:
                 add     bx, bx
                 mov     di, sword_animation_gfx + 19Eh  ; ↑+←
                 mov     si, sword_animation_gfx + 12Eh  ; ↑+←0
-                test    byte ptr ds:facing_direction, 1 ; bit0: 0=Right, 1=Left
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3ED2
                 ; facing right
                 mov     di, sword_animation_gfx + 18Ah  ; ↑+→
@@ -2187,16 +2197,16 @@ loc_3EAC:
                 xor     bh, bh
                 mov     cl, bl
                 add     bx, bx
-                mov     di, sword_animation_gfx + 192h  ; ←
+                mov     di, sword_animation_gfx + 192h  ; ← ; Forward Hit, facing left
                 mov     si, sword_animation_gfx + 0CEh  ; ←0
-                test    byte ptr ds:facing_direction, 1 ; bit0: 0=Right, 1=Left
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3ED2
-                ; facing right
+                ; Forward Hit, facing right
                 mov     di, sword_animation_gfx + 17Eh  ; →
                 mov     si, sword_animation_gfx + 1Eh   ; →0
 loc_3ED2:
-                mov     bx, es:[bx+di]
-                mov     ds:hero_sprite_offset, bx
+                mov     bx, es:[bx+di] ; seg1-relative
+                mov     ds:sword_sprite_offsets, bx
                 mov     al, bl
                 cbw
                 mov     dx, 320*8
@@ -2227,7 +2237,7 @@ loc_3EFF:
                 pop     di
                 pop     si
                 pop     es
-                jmp     Scrolling_Overlay_EntryPoint
+                jmp     Sword_Overlay_EntryPoint
 ; ---------------------------------------------------------------------------
 final_sword_phase:
                 mov     byte ptr ds:sword_swing_flag, 0
@@ -2237,7 +2247,7 @@ final_sword_phase:
                 pop     si
                 pop     es
                 retn
-Render_Scrolling_Transition_Overlay endp
+Render_Sword_Overlay endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2265,25 +2275,25 @@ Flush_Ui_Element_If_Dirty endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; copies 32x32 region from screen to shadow VRAM
-CopyTempBufferToVRAM_RowMajor proc near ; ...
+; copies 32x32 region from screen to shadow VRAM buffer
+Copy4x4TilesFromScreenToShadowBuffer proc near
                 push    ds
                 mov     si, cs:entity_vram_src ; 6218h - hero upper half
                 mov     ax, 0A000h
                 mov     ds, ax
-                mov     es, ax
-                mov     di, 64064
-                mov     cx, 32
+                mov     es, ax  ; VRAM segment
+                mov     di, 64064 ; VRAM shadow address + 64
+                mov     cx, 32 ; rows
 loc_3F55:
                 push    cx
                 mov     cx, 16
-                rep movsw
+                rep movsw ; 32 bytes
                 add     si, 320-32
                 pop     cx
                 loop    loc_3F55
                 pop     ds
                 retn
-CopyTempBufferToVRAM_RowMajor endp
+Copy4x4TilesFromScreenToShadowBuffer endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2293,9 +2303,9 @@ Blit32x32SpriteToVram proc near
                 push    ds
                 mov     di, cs:entity_vram_src
                 mov     ax, 0A000h
-                mov     es, ax
+                mov     es, ax  ; VRAM segment
                 mov     ds, ax
-                mov     si, 64064
+                mov     si, 64064 ; VRAM shadow address + 64
                 mov     cx, 32
 loc_3F77:
                 push    cx
@@ -2312,14 +2322,14 @@ Blit32x32SpriteToVram endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Clear_Tile_Cache_Around_Hero        proc near               ; ...
+Clear_Tile_Cache_Around_Hero        proc near
                 mov     al, ds:hero_head_y_in_viewport      ; hero_head_y_in_viewport
-                add     al, byte ptr ds:hero_sprite_offset
+                add     al, byte ptr ds:sword_sprite_offsets
                 and     al, 3Fh
                 mov     cl, 36
                 mul     cl
                 mov     cl, ds:hero_x_in_viewport      ; hero_x_in_viewport
-                add     cl, byte ptr ds:hero_sprite_offset+1
+                add     cl, byte ptr ds:sword_sprite_offsets+1
                 add     cl, 4
                 xor     ch, ch
                 add     ax, cx
@@ -2327,11 +2337,9 @@ Clear_Tile_Cache_Around_Hero        proc near               ; ...
                 add     si, ds:viewport_left_top_addr
                 call    wrap_e900_from_above
                 mov     cx, 4
-
 loc_3FAE:
                 push    cx
                 mov     cx, 4
-
 loc_3FB2:
                 push    cx
                 mov     bl, [si]
@@ -2351,7 +2359,7 @@ Clear_Tile_Cache_Around_Hero        endp
 
 ; ---------------------------------------------------------------------------
 
-Scrolling_Overlay_EntryPoint:
+Sword_Overlay_EntryPoint:
                 test    byte ptr ds:sword_swing_flag, 0FFh
                 jnz     short loc_3FD8
                 retn                    ; sword in sheath, no need to render
@@ -2365,7 +2373,7 @@ loc_3FD8:
                 push    si
                 push    bx
                 call    Clear_Tile_Cache_Around_Hero
-                call    CopyTempBufferToVRAM_RowMajor ; hero upper half
+                call    Copy4x4TilesFromScreenToShadowBuffer ; hero upper half
                 xor     bx, bx
                 mov     bl, cs:sword_type
                 dec     bl
@@ -2376,7 +2384,7 @@ loc_3FD8:
                 mov     ax, 0A000h                   ; VRAM segment
                 mov     es, ax
                 mov     di, cs:entity_vram_src       ; =6218h
-                mov     si, cs:sword_phase_src       ; prepared in Render_Scrolling_Transition_Overlay (=seg1:B000+CE)
+                mov     si, cs:sword_phase_src       ; prepared in Render_Sword_Overlay (=seg1:B000+CE)
                 mov     cx, 4
 four_columns_horiz:
                 push    cx
@@ -2476,11 +2484,12 @@ CalculateSpriteBitmask proc near
                 add     ax, ax
                 adc     bl, bl    ; ax15_ax14
                 jz      short loc_40B5
+                ; bl != 0
                 or      bp, 0FFh
-                mov     dl, byte ptr cs:transparency_mask_bitplane_f+1
+                mov     dl, byte ptr cs:transparency_mask_bitplane_f+1 ; for bl==3
                 cmp     bl, 3
-                jz      short loc_40B5
-                mov     dl, byte ptr cs:transparency_mask_bitplane_f
+                je      short loc_40B5
+                mov     dl, byte ptr cs:transparency_mask_bitplane_f ; for bl!=3
 loc_40B5:
                 xor     bl, bl
                 add     ax, ax
@@ -2490,15 +2499,16 @@ loc_40B5:
                 jnz     short loc_40C2
                 retn
 ; ---------------------------------------------------------------------------
+                ; bl != 0
 loc_40C2:
                 or      bp, 0FF00h
-                mov     dh, byte ptr cs:transparency_mask_bitplane_f+1
+                mov     dh, byte ptr cs:transparency_mask_bitplane_f+1 ; for bl==3
                 cmp     bl, 3
-                jnz     short loc_40D1
+                jne     short loc_40D1
                 retn
 ; ---------------------------------------------------------------------------
 loc_40D1:
-                mov     dh, byte ptr cs:transparency_mask_bitplane_f
+                mov     dh, byte ptr cs:transparency_mask_bitplane_f ; for bl!=3
                 retn
 CalculateSpriteBitmask endp
 
@@ -2540,7 +2550,7 @@ loc_40FD:
                 push    bx
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     si, 511Dh
+                mov     si, offset nine_unpacked_tiles
                 mov     di, cs:hero_vram_base
                 mov     cx, 3
 loc_4112:
@@ -2717,7 +2727,7 @@ loc_41F3:
 
 loc_4220:
                 dec     al
-                mov     cl, 30h ; '0'
+                mov     cl, 48
                 mul     cl
                 add     ax, 8030h
                 mov     si, ax
@@ -2849,13 +2859,13 @@ Render_Viewport_Border_Walls proc near  ; ...
                 mov     al, ds:hero_x_in_viewport      ; hero_x_in_viewport
                 add     al, al
                 add     al, al
-                add     al, al
+                add     al, al  ; x*8
                 mov     ah, ds:hero_head_y_in_viewport      ; hero_head_y_in_viewport
                 add     ah, ah
                 add     ah, ah
-                add     ah, ah
-                mov     byte ptr ds:nibble_decode_lut, al
-                mov     byte ptr ds:nibble_decode_lut+1, ah
+                add     ah, ah  ; y*8
+                mov     byte ptr ds:nibble_decode_lut, al ; 8*x
+                mov     byte ptr ds:nibble_decode_lut+1, ah ; 8*y
                 call    DrawDitheredPattern
                 mov     ds:roka_palette, 36h ; '6'
                 call    RenderBorderRings
@@ -2868,35 +2878,35 @@ Render_Viewport_Border_Walls endp
 ; =============== S U B R O U T I N E =======================================
 
 
-RenderBorderRings proc near             ; ...
-                mov     al, byte ptr ds:nibble_decode_lut
+RenderBorderRings proc near
+                mov     al, byte ptr ds:nibble_decode_lut ; 8*x
                 dec     al
                 mov     bl, al
                 add     al, 19h
                 mov     dl, al
-                mov     al, byte ptr ds:nibble_decode_lut+1
+                mov     al, byte ptr ds:nibble_decode_lut+1 ; 8*y
                 dec     al
                 mov     bh, al
                 add     al, 19h
                 mov     dh, al
                 call    RenderBorderSegment
-                mov     al, byte ptr ds:nibble_decode_lut
+                mov     al, byte ptr ds:nibble_decode_lut ; 8*x
                 sub     al, 5
                 mov     bl, al
                 add     al, 21h ; '!'
                 mov     dl, al
-                mov     al, byte ptr ds:nibble_decode_lut+1
+                mov     al, byte ptr ds:nibble_decode_lut+1 ; 8*y
                 sub     al, 5
                 mov     bh, al
                 add     al, 21h ; '!'
                 mov     dh, al
                 call    RenderBorderSegment
-                mov     al, byte ptr ds:nibble_decode_lut
+                mov     al, byte ptr ds:nibble_decode_lut ; 8*x
                 sub     al, 9
                 mov     bl, al
                 add     al, 29h ; ')'
                 mov     dl, al
-                mov     al, byte ptr ds:nibble_decode_lut+1
+                mov     al, byte ptr ds:nibble_decode_lut+1 ; 8*y
                 sub     al, 9
                 mov     bh, al
                 add     al, 29h ; ')'
@@ -4694,23 +4704,23 @@ plane0_buf               dw 0
 hero_vram_base              dw 0       
 plane1_buf               dw 0
 viewport_rows_remaining     db 0       
-hero_tile_col_idx           db 0       
+hero_frame_tile_idx           db 0       
 hero_tile_row_idx           db 0       
 tile_blit_mode              db 0       
 transparency_mask_bitplane_f dw 0       
 entity_vram_src             dw 0       
 sword_phase_src             dw 0       
-hero_sprite_offset          dw 0       
+sword_sprite_offsets          dw 0       
 tile_render_mask            dw 0       
 roka_palette     db 0
-tile_load_buffer            db 10h dup(0)
+tile_load_buffer            db 16 dup(0)
 tile_cache_dirty_flags      db 0         
 tile_cache_row1_dirty_flags db 0         
                             db    0
                             db    0
 tile_neighborhood_buffer    db 9 dup(0) ; =5014h
 tile_vram_cache             dw 128 dup(0) ; =501Dh
-sword_anim_frames           db 576 dup(0) ; =509Dh
+nine_unpacked_tiles         db 576 dup(0) ; =511Dh (9*64 bytes)
 
 gfmcga          ends
 
