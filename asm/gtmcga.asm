@@ -1161,7 +1161,7 @@ scroll_ceiling_left_4px proc near
                 mov     ax, 0A000h
                 mov     es, ax
                 mov     ds, ax
-                mov     si, viewport_top_left_vram_addr
+                mov     si, viewport_top_left_vram_offset
                 mov     al, 16
 loc_36FE:
                 push    si
@@ -1766,7 +1766,7 @@ scroll_hud_down endp
 apply_screen_xor_grid proc near         ; ...
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     di, viewport_top_left_vram_addr
+                mov     di, viewport_top_left_vram_offset
                 mov     cx, 8
 
 loc_3A4C:                               ; ...

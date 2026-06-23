@@ -339,7 +339,7 @@ typedef struct {
 #define spirit_sprite_3             0xEB75
 #define projectiles_array           0xEB80  /* 13 × 32 bytes */
 #define proximity_second_layer      0xED20
-#define active_entity_table                0xEDA0
+#define boss_explosion_rings_list                0xEDA0
 
 /* Towns */
 #define cache_bytes_ptr             0xE005

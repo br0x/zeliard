@@ -118,7 +118,7 @@ db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 08h, 08h, 09h, 01h, 01h, 01h, 18h, 18
 db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 1Bh, 01h, 01h, 09h, 01h, 01h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 
-Copy_Tile_Buffer_To_VRAM proc near
+Copy_Hero_Frame_To_VRAM proc near
                 push    es
                 push    ds
                 push    si
@@ -135,7 +135,7 @@ loc_4112:
 loc_4116:
                 push    cx
                 push    di
-                call    Copy_tile    ; 8x8
+                call    Copy_Tile_To_VRAM    ; 8x8
                 pop     di
                 add     di, 8
                 pop     cx
@@ -149,9 +149,9 @@ loc_4116:
                 pop     ds
                 pop     es
                 retn
-Copy_Tile_Buffer_To_VRAM endp
+Copy_Hero_Frame_To_VRAM endp
 
-Copy_tile       proc near
+Copy_Tile_To_VRAM       proc near
                 mov     cx, 8
 loc_368D:
                 movsw
@@ -161,7 +161,7 @@ loc_368D:
                 add     di, 320-8
                 loop    loc_368D
                 retn
-Copy_tile       endp
+Copy_Tile_To_VRAM       endp
 
 sprite24: ; Duke with shield facing left
 db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h

@@ -132,7 +132,7 @@ main_update_render endp
 ;   3. Sample_Neighborhood_Attributes — build attribute cache for viewport tiles.
 ;   4. Healing potion timer: +8 HP/tick while active.
 ;   5. Refresh_Dirty_Tiles — redraw tile changes to VRAM.
-;   6. If sprite_flash_flag: Active_Entity_Sprite_Renderer (enp/fman sprites).
+;   6. If sprite_flash_flag: Boss_Explosions_Renderer (enp/fman sprites).
 ;
 ; Frame-rate timing:
 ;   Wait until frame_timer >= speed_const*2, then continue:
@@ -206,7 +206,7 @@ loc_710F:
                 jz      short loc_7125
 ; combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
 ; with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
-                call    cs:Active_Entity_Sprite_Renderer_proc
+                call    cs:Boss_Explosions_Renderer_proc
                 mov     byte ptr ds:byte_FF24, 0Ah
 
 loc_7125:        
@@ -280,7 +280,7 @@ loc_71CC:
                 jz      short loc_71FA
                 test    byte ptr ds:boss_is_dead, 0FFh
                 jz      short loc_71FA
-                cmp     byte ptr ds:active_entity_table, 0FFh
+                cmp     byte ptr ds:boss_explosion_rings_list, 0FFh
                 jnz     short loc_71FA
                 mov     si, ds:word_A002
                 add     si, 5

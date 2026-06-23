@@ -7,13 +7,13 @@ Input:
 
 ds:viewport_left_top_addr – pointer to the start of the current viewport in the tilemap.
 
-ds:viewport_top_left_vram_addr – VRAM address of the top‑left corner of the viewport.
+ds:viewport_top_left_vram_offset – VRAM address of the top‑left corner of the viewport.
 
 ds:viewport_buffer_28x19 – buffer holding the currently displayed tile indices.
 
-ds:roka_palette – animation frame counter (incremented by the routine).
+ds:render_counter – animation frame counter (incremented by the routine).
 
-ds:plane0_buf – set to viewport VRAM base address.
+ds:viewport_row_vram_offset – set to viewport VRAM base address.
 
 Various other global state (cavern level, etc.).
 
@@ -25,7 +25,7 @@ ds:viewport_buffer_28x19 is updated with new tile indices where changed.
 
 ds:viewport_rows_remaining is decremented per row.
 
-ds:roka_palette is incremented once.
+ds:render_counter is incremented once.
 ====================================
 Sample_Neighborhood_Attributes
 Description:
@@ -157,23 +157,23 @@ Tile rendered at VRAM address DX*2.
 
 tile_vram_cache updated for the given index.
 ====================================
-Active_Entity_Sprite_Renderer
+Boss_Explosions_Renderer
 Description:
 Iterates through a list of active map entities (max 32) and renders each one as a 16×16 sprite onto the viewport. Entities that have expired (flag 0FFh) are removed. Each entity is drawn using a mask table and an entity‑render‑function table that defines the transparency bitplane.
 
 Input:
 
-active_entity_table – array of entities (x, y, life counter, type, etc.).
+boss_explosion_rings_list – array of entities (x, y, life counter, type, etc.).
 
 viewport_buffer_28x19 – to mark tiles under entity as “dirty” (so they are redrawn later).
 
-ds:entity_render_fn_tbl and ds:entity_mask_tbl – lookup tables for rendering.
+ds:boss_explosion_mask_variants and ds:boss_explosion_ring_phases – lookup tables for rendering.
 
 Output:
 
 Entities drawn to VRAM; expired ones removed.
 
-active_entity_table updated.
+boss_explosion_rings_list updated.
 ====================================
 Render_Viewport_Tiles
 Description:
@@ -183,9 +183,9 @@ Input:
 
 ds:viewport_left_top_addr, ds:viewport_buffer_28x19.
 
-ds:plane0_buf set to viewport VRAM base.
+ds:viewport_row_vram_offset set to viewport VRAM base.
 
-ds:roka_palette initially set to 8.
+ds:render_counter initially set to 8.
 
 Output:
 
@@ -193,7 +193,7 @@ Entire 28×19 tile area rendered eight times (for animation).
 
 Frame timer (ds:frame_timer) used for pacing.
 ====================================
-Copy_Tile_Buffer_To_VRAM
+Copy_Hero_Frame_To_VRAM
 Description:
 Copies the 3×3 tile buffer of the hero (stored at 511Dh in shadow VRAM) to the screen at the hero’s current VRAM position 
 (hero_vram_base). Used to transfer the pre‑rendered hero sprite tiles to the visible display. 
@@ -295,7 +295,7 @@ AL – tile animation frame counter.
 
 roca_tile_indices_28x18 – array of tile indices.
 
-ds:plane0_buf – set to viewport VRAM base.
+ds:viewport_row_vram_offset – set to viewport VRAM base.
 
 Output:
 
@@ -303,7 +303,7 @@ Output:
 ====================================
 Calculate_Tile_VRAM_Address
 Description:
-Computes the VRAM address for a 16×16 sprite given its X and Y tile coordinates. It stores the result in ds:hero_vram_base and then falls through to the next routine (Copy_Tile_Buffer_To_VRAM). Input registers: AH = Y tile coordinate, BH = X tile coordinate.
+Computes the VRAM address for a 16×16 sprite given its X and Y tile coordinates. It stores the result in ds:hero_vram_base and then falls through to the next routine (Copy_Hero_Frame_To_VRAM). Input registers: AH = Y tile coordinate, BH = X tile coordinate.
 
 Input:
 
@@ -315,7 +315,7 @@ Output:
 
 ds:hero_vram_base = VRAM address of the tile position.
 
-Falls through to Copy_Tile_Buffer_To_VRAM.
+Falls through to Copy_Hero_Frame_To_VRAM.
 ====================================
 Render_16x16_Sprite
 Description:
@@ -385,7 +385,7 @@ BP – destination for transparency mask bytes.
 
 CX – number of tiles to decompress.
 
-cs:plane0_buf, cs:plane1_buf – temporary storage.
+cs:viewport_row_vram_offset, cs:plane1_buf – temporary storage.
 
 Output:
 
@@ -405,18 +405,18 @@ Internal Helper Functions
 For completeness, here are annotations for the smaller helper routines that are not directly exposed in the main jump table but are part of the code.
 ------------------------------------
 Process_Dirty_Tile_With_Animation
-Handles a tile that differs from the cache. If the tile is animated, it increments the cache flag, and if necessary, redraws it via Cached_Tile_Drawer. For certain cavern levels (5‑8), it calls animation‑specific subroutines (Animate_Door_Tile_Type0, etc.) to update the tile index.
+Handles a tile that differs from the cache. If the tile is animated, it increments the cache flag, and if necessary, redraws it via Cached_Tile_Drawer. For certain cavern levels (5‑8), it calls animation‑specific subroutines (Animate_Water_Cavern5, etc.) to update the tile index.
 ====================================
-Animate_Door_Tile_Type0
+Animate_Water_Cavern5
 Animates door tiles (indices 1Bh‑1Ch) by toggling between the two frames every other animation tick.
 
-Animate_Chest_Lever_Tile
+Animate_Gold_Magma_Cavern6
 Animates chest/lever tiles (indices 1Dh‑22h). Chests cycle through four frames; levers cycle through two frames.
 
-Animate_Special_Tiles
+Animate_Hot_Cavern7
 Animates various special tiles (indices 2Ch‑3Dh) by swapping to a partner tile index every other animation tick.
 
-AnimateWaterTile
+Animate_Thorn_Cavern8
 Animates water tiles (indices 25h‑28h) by cycling through four frames.
 
 Render_Top_Left_Corner_Entity
@@ -425,7 +425,7 @@ Renders the entity that overlaps the top‑left corner of the viewport. It uses 
 Render_Tile_With_Attribute_Cache
 Renders a single 8×8 tile that is part of the viewport, taking into account neighboring tiles and caching. It loads the 3×3 tile neighborhood, looks up monster tile attributes, and calls Render_Tile_Neighborhood_Cell for each of the two rows.
 
-Render_Bottom_Right_Corner_Entity
+Render_Top_Right_Corner_Entity
 Similar to top‑left corner, but for the bottom‑right corner of the viewport.
 
 Render_Tile_With_Dual_Cache
@@ -444,7 +444,7 @@ Decode_And_Render_Tile_With_Blit
 Main routine to decompress a nibble‑compressed tile and render it either with or without a blit (transparency) mode. It uses the current tile_blit_mode to select a palette decode table (pal_decode_tbl), decompresses the tile from seg1:4000h, optionally blends with the background using a mask, and writes it to VRAM.
 
 decode_and_render_tile_with_blitting
-Renders a tile by first decompressing the background tile from packed 48‑byte format (using render_48bytes_packed_tile) and then overlaying a hero tile (from nibble‑compressed data) using transparency masks (render_2bpp_tile). Used for drawing the hero over the background.
+Renders a tile by first decompressing the background tile from packed 48‑byte format (using render_48bytes_packed_tile) and then overlaying a hero tile (from nibble‑compressed data) using transparency masks (render_tile_to_temp_buffer). Used for drawing the hero over the background.
 
 four_pixels_or_blit
 Processes 4 pixels at once: extracts a blit mask from DL (high bits) and a pixel colour from AX (high nibbles) using the LUT, then combines them with the background using AND‑OR logic.
@@ -455,10 +455,10 @@ Draws an 8×8 tile directly from nibble‑compressed data (32 bytes, 64 nibbles)
 draw_4_pix_from_table_by_ax
 Helper for render_nibble_compressed_tile: writes 4 pixels using the current LUT.
 
-get_pixel_from_table_by_ah_hi
+get_pixel_from_table_by_ax_hi_nibble
 Extracts the high nibble of AH and uses it as an index into cs:nibble_decode_lut to get a pixel colour byte.
 
-Copy_tile
+Copy_Tile_To_VRAM
 Copies an 8×8 tile from DS:SI to ES:DI with a row stride of 320 bytes (MCGA screen pitch).
 
 render_48bytes_packed_tile
@@ -473,8 +473,8 @@ Translates a raw tile index by looking it up in the proximity_second_layer table
 Lookup_Monster_Tile_Attributes
 Given a tile index (in AL), looks up the associated monster tile attributes from the monsters_table_addr. Returns the blit mode in ds:tile_blit_mode and the translated tile index in AL. Also accounts for boss caverns and special flags.
 
-Spawn_Map_Entity
-Randomly spawns a small map entity (like a wandering creature) in the viewport area if conditions are met (boss cavern, sprite flash flag set, and random chance). Uses active_entity_table.
+Spawn_Boss_Explosion_Ring
+Randomly spawns a small map entity (like a wandering creature) in the viewport area if conditions are met (boss cavern, sprite flash flag set, and random chance). Uses boss_explosion_rings_list.
 
 choose_hero_sprite
 Determines which 9 tiles (or 6 for squatting) form the hero’s body, arms, shield, etc., based on the hero’s state (facing, animation phase, shield, squat, jump, slope, invincibility, rope). It then calls Render_Scrolling_Tile to draw each tile.

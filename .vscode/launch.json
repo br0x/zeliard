@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/sword.grp"
+                "${workspaceFolder}/tools/GrpViewer/mpp5.grp"
             ],
             "console": "integratedTerminal",
         },

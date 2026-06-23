@@ -99,9 +99,9 @@ plane3          dw 0
 ; Input:
 ; AL = 0 or door.d_flags & 7
 Render_Roca_Tilemap proc near
-                mov     ds:roka_palette, al
+                mov     ds:render_counter, al
                 mov     si, offset roca_tile_indices_28x18
-                mov     ds:screen_address, viewport_top_left_vram_addr
+                mov     ds:screen_address, viewport_top_left_vram_offset
                 mov     cx, 18
 viewport_rows:
                 push    cx
@@ -166,7 +166,7 @@ loc_466C:
                 mov     es:[di+2], bh ; b11_6
                 and     al, 3Fh       ; al=b5_0
                 mov     es:[di+3], al ; b5_0
-                mov     bl, cs:roka_palette
+                mov     bl, cs:render_counter
                 xor     bh, bh
                 add     bx, bx
                 mov     cx, 4
@@ -306,6 +306,6 @@ db 01h, 02h, 01h, 02h, 01h, 02h, 01h, 02h, 01h, 02h, 01h, 02h, 01h, 02h, 01h, 02
 db 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h, 03h, 04h 
 db 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 06h, 05h, 05h, 06h, 05h, 06h 
 
-roka_palette     db 0
+render_counter     db 0
 
-viewport_top_left_vram_addr equ (48+14*320)
+viewport_top_left_vram_offset equ (48+14*320)

@@ -715,7 +715,7 @@ reset_dungeon_state_vars proc near      ; ...
                 mov     ds:hero_animation_phase, al
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
-                mov     ds:active_entity_table, al
+                mov     ds:boss_explosion_rings_list, al
                 mov     word ptr ds:magic_projectiles, ax
                 mov     ds:hero_hidden_flag, al
                 mov     ds:byte_9EF5, al

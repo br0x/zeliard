@@ -219,7 +219,7 @@ seg000:2106
 seg000:2106 Clear_Viewport  proc near               ; ...
 seg000:2106                 mov     ax, 0A000h
 seg000:2109                 mov     es, ax
-seg000:210B                 mov     di, viewport_top_left_vram_addr
+seg000:210B                 mov     di, viewport_top_left_vram_offset
 seg000:210E                 mov     cx, 8
 seg000:2111
 seg000:2111 loc_2111:                               ; ...
@@ -256,7 +256,7 @@ seg000:2138                 mov     cx, 8
 seg000:213B
 seg000:213B loc_213B:                               ; ...
 seg000:213B                 push    cx
-seg000:213C                 mov     di, viewport_top_left_vram_addr
+seg000:213C                 mov     di, viewport_top_left_vram_offset
 seg000:213F                 lodsb
 seg000:2140                 push    di
 seg000:2141                 mov     cx, 48h ; 'H'

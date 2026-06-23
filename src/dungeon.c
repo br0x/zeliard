@@ -251,20 +251,20 @@ void process_hero_death()
     do {
         MEM8(ADDR_HERO_ANIM_PHASE) = 0;
         MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
         main_update_render();
         airborne_movement(&restart);
     } while (restart);
-    MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+    MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
 
     for (;;) {
         main_update_render();
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
         if (MEM8(ADDR_HERO_ANIM_PHASE) == 2) {
             MEM8(ADDR_BYTE_9F29)++;
             if ((MEM8(ADDR_BYTE_9F29) & 0x0F) == 0) break;
             if ((MEM8(ADDR_BYTE_9F29) & 1) == 0) continue;
-            MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
+            MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0xFF;
             continue;
         }
         MEM8(ADDR_BYTE_9F28)++;
@@ -280,7 +280,7 @@ void process_hero_death()
     MEM8(ADDR_BYTE_FF24) = 8;
     for (int i = 0; i < 30; i++) {
         main_update_render();
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = (i & 1) ? 0 : 0xFF;
+        MEM8(ADDR_HERO_SPRITE_PROCESSED) = (i & 1) ? 0 : 0xFF;
     }
     // stop_music();  // int 60h, ax=1
     // Fade_To_Black_Dithered_proc();
@@ -494,7 +494,7 @@ void reset_dungeon_state_vars()
     MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
     MEM8(ADDR_HERO_ANIM_PHASE) = 0;
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
-    MEM8(ADDR_ACTIVE_ENTITY_TABLE) = 0;
+    MEM8(ADDR_BOSS_EXPLOSIONS_LIST) = 0;
     MEM16(ADDR_MAGIC_PROJECTILES) = 0xFFFF;
     MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
     MEM8(ADDR_BYTE_9EF5) = 0;
@@ -1805,7 +1805,7 @@ void main_update_render(void) {
 void game_loop_render_and_timing(uint8_t invincible)
 {
     if (!invincible) {
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
     }
     // Locals for timing loops
     uint8_t cl;
@@ -1824,7 +1824,7 @@ void game_loop_render_and_timing(uint8_t invincible)
         MEM8(ADDR_SHIELD_VARIANT_INDEX) = 1;
     }
 
-    if (MEM8(ADDR_HERO_SPRITE_HIDDEN) == 0) {
+    if (MEM8(ADDR_HERO_SPRITE_PROCESSED) == 0) {
         clear_hero_in_viewport();
     }
 
@@ -1845,12 +1845,13 @@ void game_loop_render_and_timing(uint8_t invincible)
         }
     }
 
-    Refresh_Dirty_Tiles_proc();            // redraw tile changes to VRAM
+    Refresh_Dirty_Tiles();            // redraw tile changes to VRAM
 
     if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
+        // TODO: comments are irrelevant, remove them
         // combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
         // with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
-        Active_Entity_Sprite_Renderer_proc();
+        Boss_Explosions_Renderer();
         MEM8(ADDR_BYTE_FF24) = 10;
     }
 
@@ -1910,7 +1911,7 @@ void game_loop_render_and_timing(uint8_t invincible)
 
     // Boss defeat reward (XP + almas)
     if (MEM8(ADDR_IS_BOSS_CAVERN) != 0 && MEM8(ADDR_BOSS_IS_DEAD) != 0) {
-        if (MEM8(ADDR_ACTIVE_ENTITY_TABLE) == 0xFF) {
+        if (MEM8(ADDR_BOSS_EXPLOSIONS_LIST) == 0xFF) {
             uint16_t si = MEM16(ADDR_BOSS_STATE_PTR);
             uint16_t xp_reward = MEM16(si + 5); // xp_reward
             update_hero_XP(xp_reward);
@@ -2260,7 +2261,7 @@ void Cavern_Game_Init(void) {
     MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;
     MEM8(ADDR_SLIDE_DIRECTION) = 0;
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
-    MEM8(ADDR_ACTIVE_ENTITY_TABLE) = 0xFF;
+    MEM8(ADDR_BOSS_EXPLOSIONS_LIST) = 0xFF;
     MEM16(ADDR_MAGIC_PROJECTILES) = 0xFFFF;
     MEM8(ADDR_BOSS_BEING_HIT) = 0;
     MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
@@ -2284,7 +2285,7 @@ void Cavern_Game_Init(void) {
         // res_dispatcher_proc("encnt.grp", 0x14000);
 
         Render_Animated_Tile_Strip_proc();
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+        MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
         Update_Local_Attribute_Cache_proc();
         Copy_Tile_Buffer_To_VRAM_proc();
         clear_hero_in_viewport();

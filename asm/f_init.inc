@@ -40,7 +40,7 @@ Cavern_Game_Init proc near
                 mov     slide_direction, 0
                 mov     ax, 0FFFFh
                 mov     ds:projectiles_array, al
-                mov     ds:active_entity_table, al
+                mov     ds:boss_explosion_rings_list, al
                 mov     ds:word ptr magic_projectiles, ax
                 mov     byte ptr ds:boss_being_hit, 0
                 mov     byte ptr ds:sprite_flash_flag, 0

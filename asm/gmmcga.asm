@@ -207,7 +207,7 @@ clear_rectangular_region endp
 Clear_Viewport  proc near
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     di, viewport_top_left_vram_addr
+                mov     di, viewport_top_left_vram_offset
                 mov     cx, 8
 
 loc_2111:
@@ -247,7 +247,7 @@ Fade_To_Black_Dithered proc near
 
 loc_213B:
                 push    cx
-                mov     di, viewport_top_left_vram_addr
+                mov     di, viewport_top_left_vram_offset
                 lodsb
                 push    di
                 mov     cx, 48h ; 'H'

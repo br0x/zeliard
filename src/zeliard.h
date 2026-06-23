@@ -94,6 +94,8 @@ extern "C" {
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
 #define ADDR_VIEWPORT_ENTITIES   0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+// Note: the last row is dummy, because sometimes we need to write 2x2 tiles blocks to the row 18
+
 #define ADDR_MAGIC_PROJECTILES   0xEB15    // word
 #define ADDR_SPIRIT_SPRITE0      0xEB60    // byte
 #define ADDR_SPIRIT_SPRITE1      0xEB67    // byte
@@ -101,7 +103,7 @@ extern "C" {
 #define ADDR_SPIRIT_SPRITE3      0xEB75    // byte
 #define ADDR_PROJECTILES_LIST    0xEB80    // 13x32 bytes
 #define ADDR_PROXIMITY_LAYER2    0xED20    // 128 bytes
-#define ADDR_ACTIVE_ENTITY_TABLE 0xEDA0    // byte
+#define ADDR_BOSS_EXPLOSIONS_LIST 0xEDA0   // up to 32 entities (4 bytes each)
 
 #define ADDR_HEARTBEAT_VOLUME     0xFF08  // byte
 #define ADDR_INPUT_DIRS           0xFF17  // byte ____right_left_down_up
@@ -113,12 +115,12 @@ extern "C" {
 #define ADDR_BOSS_BEING_HIT       0xFF2E  // byte
 #define ADDR_SPRITE_FLASH_FLAG    0xFF2F  // byte
 #define ADDR_BOSS_IS_DEAD         0xFF30  // byte
-#define ADDR_VIEWPORT_LEFT_TOP    0xFF31  // word
+#define ADDR_VIEWPORT_LEFT_TOP    0xFF31  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 #define ADDR_SPEED_CONST          0xFF33  // byte
 #define ADDR_IS_BOSS_CAVERN       0xFF34  // byte
 #define ADDR_HERO_Y               0xFF35  // hero_y_absolute (byte)
 #define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36 // byte
-#define ADDR_HERO_SPRITE_HIDDEN   0xFF37  // byte
+#define ADDR_HERO_SPRITE_PROCESSED   0xFF37  // byte
 #define ADDR_SQUAT_FLAG           0xFF38  // byte
 #define ADDR_ON_ROPE_FLAGS        0xFF39
 #define ADDR_HERO_HIDDEN_FLAG     0xFF3A  // byte
@@ -805,7 +807,7 @@ int is_jumping(void);
 int is_on_rope(void);
 
 //==============================
-// From gf.c
+// From gfmcga.c
 
 // Loads the 3×3 block of tile indices around the hero’s current position from the proximity map 
 // and stores them into tile_neighborhood_buffer. Used later to determine what tiles are 
@@ -816,21 +818,22 @@ int is_on_rope(void);
 // stub, gfmcga 
 void Sample_Neighborhood_Attributes_proc();
 
-// Main tile refresh routine. Marks the tile cache as dirty for all tiles, 
-// then iterates over the 28×19 viewport tilemap, re-rendering any tile 
-// that has changed (dirty flag) or is animated. It also calls special handlers 
-// for the top‑left and bottom‑right corner entities, 
-// and for tiles that require animation updates based on cavern level.
-// stub, gfmcga
-void Refresh_Dirty_Tiles_proc();
+/*
+ * Redraws every tile in the 28x18 viewport whose underlying map data has
+ * changed since the last call, plus anything mid-animation (based on cavern level). 
+ * Row 0 (the top row, with its two corner-entity slots) is handled first, 
+ * then rows 1..18 in the main loop below.
+ */
+void Refresh_Dirty_Tiles();
 
-// Iterates through a list of active map entities (max 32) 
-// and renders each one as a 16×16 sprite onto the viewport. 
-// Entities that have expired (flag 0FFh) are removed. 
-// Each entity is drawn using a mask table and an entity‑render‑function table 
-// that defines the transparency bitplane.
-// stub, gfmcga
-void Active_Entity_Sprite_Renderer_proc();
+/*
+ * Iterates the list of active boss explosions (max 32, 4 bytes each,
+ * terminated by a 0xFF - see Spawn_Boss_Explosion_Ring) and renders
+ * each one as a 16x16 sprite into the viewport. Explosions are removed
+ * from the list (by compacting the survivors over them) once their
+ * lifetime counter runs out.
+ */
+void Boss_Explosions_Renderer();
 
 
 #ifdef __cplusplus

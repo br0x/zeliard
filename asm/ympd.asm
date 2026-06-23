@@ -335,7 +335,7 @@ mode4_mcga:
                 mov     si, 0
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     di, viewport_top_left_vram_addr
+                mov     di, viewport_top_left_vram_offset
                 mov     cx, 88
 mountains_11_rows_of_tiles:
                 push    cx

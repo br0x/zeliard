@@ -102,7 +102,7 @@ Uncompress_And_Render_Tile_proc                    equ 3008h
 Viewport_Coords_To_Screen_Addr_proc                equ 300Ah
 Sword_Overlay_EntryPoint_proc                  equ 300Ch
 Cached_Tile_Drawer_proc                            equ 300Eh
-Active_Entity_Sprite_Renderer_proc                 equ 3010h
+Boss_Explosions_Renderer_proc                 equ 3010h
 Render_Viewport_Tiles_proc                         equ 3012h
 Copy_Tile_Buffer_To_VRAM_proc                      equ 3014h
 Update_Local_Attribute_Cache_proc                  equ 3016h

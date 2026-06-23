@@ -115,7 +115,7 @@ HERO_INDICES = [
     0x14, 0x16, 0x18, 0x15, 0x17, 0x19  # Faced Right 5
 ]
 
-# pal_decode_tbl has 6 entries (hero_frame_tile_idx cycles 0–5);
+# pal_decode_tbl has 6 entries (hero_tile_col_idx cycles 0–5);
 # entry 5 is the same data as entry 3:
 PAL_DECODE_TABLES = [
     bytes([0x00,0x01,0x02,0x03, 0x08,0x09,0x0A,0x0B,
@@ -1281,6 +1281,13 @@ def render_dchr_group(tile_bank_raw, canvas, y_offset, layout=None):
                 if tile_idx >= num_tiles:
                     break
                 
+                font_size = max(7, int(SCALE * 2.5))
+                canvas.create_text(
+                    x_cursor + 12,
+                    current_y - 10,
+                    text=f"{tile_idx:02X}h", anchor="n",
+                    fill="white", font=("Courier", font_size))
+
                 # Draw the specific tile
                 for ry, row_pixels in enumerate(tile_pixel_rows[tile_idx]):
                     for rx, val in enumerate(row_pixels):
@@ -1594,7 +1601,7 @@ class GrpViewer:
             elif modes == 10:
                 consumed = render_dchr_group(data, self.canvas, y_cursor, layout=overrides)
                 self.canvas.config(scrollregion=(0, 0, 1000, y_cursor + consumed + 20))
-                self.info_label.config(text=f"File: {filename} | Doors & Platforms")
+                self.info_label.config(text=f"File: {filename} | Doors & Platforms or Static Dungeon")
             elif modes == 9:
                 consumed = render_roka_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))

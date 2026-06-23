@@ -37,9 +37,9 @@ seg000:300A                                         ; Returns video memory addre
 seg000:300C                 dw offset Sword_Overlay_EntryPoint
 seg000:300E                 dw offset Cached_Tile_Drawer ; AL: Tile Index
 seg000:300E                                         ; DX: Screen destination
-seg000:3010                 dw offset Active_Entity_Sprite_Renderer
+seg000:3010                 dw offset Boss_Explosions_Renderer
 seg000:3012                 dw offset Render_Viewport_Tiles ; ;
-seg000:3014                 dw offset Copy_Tile_Buffer_To_VRAM
+seg000:3014                 dw offset Copy_Hero_Frame_To_VRAM
 seg000:3016                 dw offset Update_Local_Attribute_Cache
 seg000:3018                 dw offset Render_Viewport_Border_Walls
 seg000:301A                 dw offset Load_Magic_Spell_Sprite_Group
@@ -63,7 +63,7 @@ seg000:3031                 xor     ax, ax
 seg000:3033                 mov     cx, 80h
 seg000:3036                 rep stosw
 seg000:3038                 inc     ds:byte_4FFF
-seg000:303C                 mov     ds:word_4FEB, viewport_top_left_vram_addr
+seg000:303C                 mov     ds:word_4FEB, viewport_top_left_vram_offset
 seg000:3042                 mov     si, ds:0FF31h ; viewport_left_top_addr
 seg000:3046                 sub     si, 21h ; '!'
 seg000:3049                 call    wrap_e000_from_below
@@ -130,7 +130,7 @@ seg000:30A2 loc_30A2:                               ; ...
 seg000:30A2                 inc     si
 seg000:30A3                 test    byte ptr [si], 80h
 seg000:30A6                 jz      short loc_30AB
-seg000:30A8                 call    Render_Bottom_Right_Corner_Entity
+seg000:30A8                 call    Render_Top_Right_Corner_Entity
 seg000:30AB
 seg000:30AB loc_30AB:                               ; ...
 seg000:30AB                 mov     si, ds:0FF31h ; viewport_left_top_addr
@@ -266,21 +266,21 @@ seg000:3169                 push    bx
 seg000:316A                 mov     bl, al
 seg000:316C                 xor     bh, bh
 seg000:316E                 add     bx, bx
-seg000:3170                 call    ds:funcs_3170[bx]
+seg000:3170                 call    ds:animate_mpp58_tiles[bx]
 seg000:3174                 pop     bx
 seg000:3175                 retn
 seg000:3175 Process_Dirty_Tile_With_Animation endp
 seg000:3175
 seg000:3175 ; ---------------------------------------------------------------------------
-seg000:3176 funcs_3170      dw offset Animate_Door_Tile_Type0 ; ...
-seg000:3178                 dw offset Animate_Chest_Lever_Tile
-seg000:317A                 dw offset Animate_Special_Tiles
-seg000:317C                 dw offset AnimateWaterTile
+seg000:3176 animate_mpp58_tiles      dw offset Animate_Water_Cavern5 ; ...
+seg000:3178                 dw offset Animate_Gold_Magma_Cavern6
+seg000:317A                 dw offset Animate_Hot_Cavern7
+seg000:317C                 dw offset Animate_Thorn_Cavern8
 seg000:317E
 seg000:317E ; =============== S U B R O U T I N E =======================================
 seg000:317E
 seg000:317E
-seg000:317E Animate_Door_Tile_Type0 proc near       ; ...
+seg000:317E Animate_Water_Cavern5 proc near       ; ...
 seg000:317E                 mov     al, [si-1]
 seg000:3181                 sub     al, 1Bh
 seg000:3183                 cmp     al, 2
@@ -301,13 +301,13 @@ seg000:3196                 and     al, 1
 seg000:3198                 add     al, 1Bh
 seg000:319A                 mov     [si-1], al
 seg000:319D                 retn
-seg000:319D Animate_Door_Tile_Type0 endp
+seg000:319D Animate_Water_Cavern5 endp
 seg000:319D
 seg000:319E
 seg000:319E ; =============== S U B R O U T I N E =======================================
 seg000:319E
 seg000:319E
-seg000:319E Animate_Chest_Lever_Tile proc near      ; ...
+seg000:319E Animate_Gold_Magma_Cavern6 proc near      ; ...
 seg000:319E                 mov     al, [si-1]
 seg000:31A1                 sub     al, 1Dh
 seg000:31A3                 cmp     al, 6
@@ -343,13 +343,13 @@ seg000:31CC                 and     al, 1
 seg000:31CE                 add     al, 21h ; '!'
 seg000:31D0                 mov     [si-1], al
 seg000:31D3                 retn
-seg000:31D3 Animate_Chest_Lever_Tile endp
+seg000:31D3 Animate_Gold_Magma_Cavern6 endp
 seg000:31D3
 seg000:31D4
 seg000:31D4 ; =============== S U B R O U T I N E =======================================
 seg000:31D4
 seg000:31D4
-seg000:31D4 Animate_Special_Tiles proc near         ; ...
+seg000:31D4 Animate_Hot_Cavern7 proc near         ; ...
 seg000:31D4                 mov     al, [si-1]
 seg000:31D7                 sub     al, 2Ch ; ','
 seg000:31D9                 cmp     al, 2
@@ -426,13 +426,13 @@ seg000:324E
 seg000:324E loc_324E:                               ; ...
 seg000:324E                 mov     [si-1], bl
 seg000:3251                 retn
-seg000:3251 Animate_Special_Tiles endp
+seg000:3251 Animate_Hot_Cavern7 endp
 seg000:3251
 seg000:3252
 seg000:3252 ; =============== S U B R O U T I N E =======================================
 seg000:3252
 seg000:3252
-seg000:3252 AnimateWaterTile proc near              ; ...
+seg000:3252 Animate_Thorn_Cavern8 proc near              ; ...
 seg000:3252                 mov     al, [si-1]
 seg000:3255                 sub     al, 25h ; '%'
 seg000:3257                 cmp     al, 4
@@ -453,7 +453,7 @@ seg000:326A                 and     al, 3
 seg000:326C                 add     al, 25h ; '%'
 seg000:326E                 mov     [si-1], al
 seg000:3271                 retn
-seg000:3271 AnimateWaterTile endp
+seg000:3271 Animate_Thorn_Cavern8 endp
 seg000:3271
 seg000:3272
 seg000:3272 ; =============== S U B R O U T I N E =======================================
@@ -613,7 +613,7 @@ seg000:3351                 call    Lookup_Monster_Tile_Attributes
 seg000:3354                 add     si, 3
 seg000:3357                 pop     ax
 seg000:3358                 mov     ah, [si]
-seg000:335A                 mov     dx, viewport_top_left_vram_addr
+seg000:335A                 mov     dx, viewport_top_left_vram_offset
 seg000:335D                 call    Decode_And_Render_Tile_With_Blit
 seg000:3360                 pop     bx
 seg000:3361                 pop     si
@@ -640,7 +640,7 @@ seg000:337E                 mov     dx, cx
 seg000:3380                 add     dx, dx
 seg000:3382                 add     dx, dx
 seg000:3384                 add     dx, dx
-seg000:3386                 add     dx, viewport_top_left_vram_addr
+seg000:3386                 add     dx, viewport_top_left_vram_offset
 seg000:338A                 mov     cl, [si]
 seg000:338C                 add     si, 24h ; '$'
 seg000:338F                 call    wrap_e900_from_above
@@ -663,7 +663,7 @@ seg000:33AB
 seg000:33AB ; =============== S U B R O U T I N E =======================================
 seg000:33AB
 seg000:33AB
-seg000:33AB Render_Bottom_Right_Corner_Entity proc near ; ...
+seg000:33AB Render_Top_Right_Corner_Entity proc near ; ...
 seg000:33AB                 cmp     byte ptr ds:0E91Bh, 0FFh
 seg000:33B0                 jnz     short loc_33B3
 seg000:33B2                 retn
@@ -694,7 +694,7 @@ seg000:33DA                 pop     ax
 seg000:33DB                 mov     ah, [si]
 seg000:33DD                 mov     dx, 1288h
 seg000:33E0                 jmp     Decode_And_Render_Tile_With_Blit
-seg000:33E0 Render_Bottom_Right_Corner_Entity endp
+seg000:33E0 Render_Top_Right_Corner_Entity endp
 seg000:33E0
 seg000:33E3
 seg000:33E3 ; =============== S U B R O U T I N E =======================================
@@ -820,7 +820,7 @@ seg000:34CE                 test    byte ptr ds:0FF34h, 0FFh
 seg000:34D3                 jz      short loc_34DF
 seg000:34D5                 test    byte ptr ds:0FF2Fh, 0FFh
 seg000:34DA                 jz      short loc_34DF
-seg000:34DC                 call    Spawn_Map_Entity
+seg000:34DC                 call    Spawn_Boss_Explosion_Ring
 seg000:34DF
 seg000:34DF loc_34DF:                               ; ...
 seg000:34DF                 pop     bx
@@ -985,7 +985,7 @@ seg000:35EC                 mov     si, 0FA00h
 seg000:35EF                 mov     ax, 0A000h
 seg000:35F2                 mov     ds, ax
 seg000:35F4                 assume ds:nothing
-seg000:35F4                 call    Copy_tile
+seg000:35F4                 call    Copy_Tile_To_VRAM
 seg000:35F7                 pop     ds
 seg000:35F8                 assume ds:nothing
 seg000:35F8                 pop     es
@@ -1002,7 +1002,7 @@ seg000:3602                 mov     si, 0FA00h
 seg000:3605                 mov     ax, 0A000h
 seg000:3608                 mov     ds, ax
 seg000:360A                 assume ds:nothing
-seg000:360A                 call    Copy_tile
+seg000:360A                 call    Copy_Tile_To_VRAM
 seg000:360D                 pop     ds
 seg000:360E                 assume ds:nothing
 seg000:360E                 pop     es
@@ -1056,7 +1056,7 @@ seg000:363E loc_363E:                               ; ...
 seg000:363E                 add     dl, dl
 seg000:3640                 sbb     dh, dh
 seg000:3642                 and     dh, es:[di]
-seg000:3645                 call    get_pixel_from_table_by_ah_hi
+seg000:3645                 call    get_pixel_from_table_by_ax_hi_nibble
 seg000:3648                 or      bl, dh
 seg000:364A                 mov     es:[di], bl
 seg000:364D                 inc     di
@@ -1090,7 +1090,7 @@ seg000:3661 draw_4_pix_from_table_by_ax proc near       ; ...
 seg000:3661                 mov     cx, 4
 seg000:3664
 seg000:3664 loc_3664:                               ; ...
-seg000:3664                 call    get_pixel_from_table_by_ah_hi
+seg000:3664                 call    get_pixel_from_table_by_ax_hi_nibble
 seg000:3667                 mov     es:[di], bl
 seg000:366A                 inc     di
 seg000:366B                 loop    loc_3664
@@ -1101,7 +1101,7 @@ seg000:366E
 seg000:366E ; =============== S U B R O U T I N E =======================================
 seg000:366E
 seg000:366E
-seg000:366E get_pixel_from_table_by_ah_hi proc near           ; ...
+seg000:366E get_pixel_from_table_by_ax_hi_nibble proc near           ; ...
 seg000:366E                 add     ax, ax
 seg000:3670                 adc     bx, bx
 seg000:3672                 add     ax, ax
@@ -1114,13 +1114,13 @@ seg000:367E                 and     bx, 0Fh
 seg000:3681                 add     bx, cs:word_4FE9
 seg000:3686                 mov     bl, cs:[bx]
 seg000:3689                 retn
-seg000:3689 get_pixel_from_table_by_ah_hi endp
+seg000:3689 get_pixel_from_table_by_ax_hi_nibble endp
 seg000:3689
 seg000:368A
 seg000:368A ; =============== S U B R O U T I N E =======================================
 seg000:368A
 seg000:368A
-seg000:368A Copy_tile       proc near               ; ...
+seg000:368A Copy_Tile_To_VRAM       proc near               ; ...
 seg000:368A                 mov     cx, 8
 seg000:368D
 seg000:368D loc_368D:                               ; ...
@@ -1131,7 +1131,7 @@ seg000:3690                 movsw
 seg000:3691                 add     di, 312
 seg000:3695                 loop    loc_368D
 seg000:3697                 retn
-seg000:3697 Copy_tile       endp
+seg000:3697 Copy_Tile_To_VRAM       endp
 seg000:3697
 seg000:3698
 seg000:3698 ; =============== S U B R O U T I N E =======================================
@@ -1231,7 +1231,7 @@ seg000:3729
 seg000:3729 ; =============== S U B R O U T I N E =======================================
 seg000:3729
 seg000:3729
-seg000:3729 Spawn_Map_Entity proc near              ; ...
+seg000:3729 Spawn_Boss_Explosion_Ring proc near              ; ...
 seg000:3729                 cmp     ds:byte_4FF3, 10h
 seg000:372E                 jb      short loc_3731
 seg000:3730                 retn
@@ -1248,7 +1248,7 @@ seg000:373E                 retn
 seg000:373F ; ---------------------------------------------------------------------------
 seg000:373F
 seg000:373F loc_373F:                               ; ...
-seg000:373F                 mov     di, 0EDA0h      ; active_entity_table ??
+seg000:373F                 mov     di, offset boss_explosion_rings_list
 seg000:3742                 xor     cl, cl
 seg000:3744
 seg000:3744 loc_3744:                               ; ...
@@ -1305,13 +1305,13 @@ seg000:3796                 stosb
 seg000:3797                 mov     al, 0FFh
 seg000:3799                 stosb
 seg000:379A                 retn
-seg000:379A Spawn_Map_Entity endp
+seg000:379A Spawn_Boss_Explosion_Ring endp
 seg000:379A
 seg000:379B
 seg000:379B ; =============== S U B R O U T I N E =======================================
 seg000:379B
 seg000:379B
-seg000:379B Active_Entity_Sprite_Renderer proc near ; ...
+seg000:379B Boss_Explosions_Renderer proc near ; ...
 seg000:379B                 push    cs
 seg000:379C                 pop     es
 seg000:379D                 mov     di, 0EDA0h      ; Active Entity Table
@@ -1351,7 +1351,7 @@ seg000:37D6                 add     cx, cx
 seg000:37D8                 add     cx, cx
 seg000:37DA                 add     cx, cx
 seg000:37DC                 add     ax, cx
-seg000:37DE                 add     ax, viewport_top_left_vram_addr
+seg000:37DE                 add     ax, viewport_top_left_vram_offset
 seg000:37E1                 push    si
 seg000:37E2                 push    di
 seg000:37E3                 push    es
@@ -1425,7 +1425,7 @@ seg000:388D
 seg000:388D loc_388D:                               ; ...
 seg000:388D                 add     si, 4
 seg000:3890                 jmp     loc_37A2
-seg000:3890 Active_Entity_Sprite_Renderer endp
+seg000:3890 Boss_Explosions_Renderer endp
 seg000:3890
 seg000:3890 ; ---------------------------------------------------------------------------
 seg000:3893 word_3893       dw 1210h                ; ...
@@ -1748,7 +1748,7 @@ seg000:3A05                 add     cx, cx
 seg000:3A07                 add     cx, cx
 seg000:3A09                 add     cx, cx
 seg000:3A0B                 add     ax, cx
-seg000:3A0D                 add     ax, viewport_top_left_vram_addr
+seg000:3A0D                 add     ax, viewport_top_left_vram_offset
 seg000:3A10                 mov     ds:word_4FED, ax
 seg000:3A13                 mov     ds:byte_4FF2, 0
 seg000:3A18                 mov     si, offset word_5014
@@ -2339,7 +2339,7 @@ seg000:3E0B                 mov     al, ds:84h      ; hero_head_y_in_viewport
 seg000:3E0E                 sub     al, 2
 seg000:3E10                 cmp     al, cl
 seg000:3E12                 jnz     short locret_3E17
-seg000:3E14                 call    Copy_Tile_Buffer_To_VRAM
+seg000:3E14                 call    Copy_Hero_Frame_To_VRAM
 seg000:3E17
 seg000:3E17 locret_3E17:                            ; ...
 seg000:3E17                 retn
@@ -2356,7 +2356,7 @@ seg000:3E22
 seg000:3E22 loc_3E22:                               ; ...
 seg000:3E22                 jnz     short loc_3E2A
 seg000:3E24                 call    Flush_Ui_Element_If_Dirty
-seg000:3E27                 jmp     Copy_Tile_Buffer_To_VRAM
+seg000:3E27                 jmp     Copy_Hero_Frame_To_VRAM
 seg000:3E2A ; ---------------------------------------------------------------------------
 seg000:3E2A
 seg000:3E2A loc_3E2A:                               ; ...
@@ -2784,7 +2784,7 @@ seg000:40F0
 seg000:40F0 ; =============== S U B R O U T I N E =======================================
 seg000:40F0
 seg000:40F0
-seg000:40F0 Copy_Tile_Buffer_To_VRAM proc near      ; ...
+seg000:40F0 Copy_Hero_Frame_To_VRAM proc near      ; ...
 seg000:40F0                 test    byte ptr ds:0FF37h, 0FFh
 seg000:40F5                 jz      short loc_40F8
 seg000:40F7                 retn
@@ -2813,7 +2813,7 @@ seg000:4116
 seg000:4116 loc_4116:                               ; ...
 seg000:4116                 push    cx
 seg000:4117                 push    di
-seg000:4118                 call    Copy_tile
+seg000:4118                 call    Copy_Tile_To_VRAM
 seg000:411B                 pop     di
 seg000:411C                 add     di, 8
 seg000:411F                 pop     cx
@@ -2828,7 +2828,7 @@ seg000:412C                 pop     ds
 seg000:412D                 pop     es
 seg000:412E                 assume es:nothing
 seg000:412E                 retn
-seg000:412E Copy_Tile_Buffer_To_VRAM endp
+seg000:412E Copy_Hero_Frame_To_VRAM endp
 seg000:412E
 seg000:412F
 seg000:412F ; =============== S U B R O U T I N E =======================================
@@ -2908,7 +2908,7 @@ seg000:419A                 mov     es, ax
 seg000:419C                 mov     ds:byte_4FFF, 8
 seg000:41A1
 seg000:41A1 loc_41A1:                               ; ...
-seg000:41A1                 mov     ds:word_4FEB, viewport_top_left_vram_addr
+seg000:41A1                 mov     ds:word_4FEB, viewport_top_left_vram_offset
 seg000:41A7                 mov     byte ptr ds:0FF1Ah, 0
 seg000:41AC                 mov     si, ds:0FF31h   ; viewport_left_top_addr
 seg000:41B0                 mov     di, 0E900h
@@ -3353,7 +3353,7 @@ seg000:443B                 push    dx
 seg000:443C                 xor     ah, ah
 seg000:443E                 mov     di, 140h
 seg000:4441                 mul     di
-seg000:4443                 add     ax, viewport_top_left_vram_addr
+seg000:4443                 add     ax, viewport_top_left_vram_offset
 seg000:4446                 mov     di, ax
 seg000:4448                 pop     dx
 seg000:4449                 retn
@@ -3391,7 +3391,7 @@ seg000:447D
 seg000:447D DrawDitheredPattern proc near           ; ...
 seg000:447D                 mov     ax, 0A000h
 seg000:4480                 mov     es, ax
-seg000:4482                 mov     di, viewport_top_left_vram_addr
+seg000:4482                 mov     di, viewport_top_left_vram_offset
 seg000:4485                 mov     cx, 8
 seg000:4488
 seg000:4488 loc_4488:                               ; ...
@@ -3594,7 +3594,7 @@ seg000:4614
 seg000:4614 Render_Roca_Tilemap proc near   ; ...
 seg000:4614                 mov     ds:byte_4FFF, al
 seg000:4617                 mov     si, offset byte_473B
-seg000:461A                 mov     ds:word_4FEB, viewport_top_left_vram_addr
+seg000:461A                 mov     ds:word_4FEB, viewport_top_left_vram_offset
 seg000:4620                 mov     cx, 18
 seg000:4623
 seg000:4623 loc_4623:                               ; ...

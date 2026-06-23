@@ -1227,7 +1227,7 @@ seg000:36F2                 mov     ax, 0A000h
 seg000:36F5                 mov     es, ax
 seg000:36F7                 mov     ds, ax
 seg000:36F9                 assume ds:nothing
-seg000:36F9                 mov     si, viewport_top_left_vram_addr
+seg000:36F9                 mov     si, viewport_top_left_vram_offset
 seg000:36FC                 mov     al, 10h
 seg000:36FE
 seg000:36FE loc_36FE:                               ; ...
@@ -1832,7 +1832,7 @@ seg000:3A41
 seg000:3A41 apply_screen_xor_grid proc near         ; ...
 seg000:3A41                 mov     ax, 0A000h
 seg000:3A44                 mov     es, ax
-seg000:3A46                 mov     di, viewport_top_left_vram_addr
+seg000:3A46                 mov     di, viewport_top_left_vram_offset
 seg000:3A49                 mov     cx, 8
 seg000:3A4C
 seg000:3A4C loc_3A4C:                               ; ...

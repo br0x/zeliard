@@ -40,7 +40,7 @@ next_row_of_8:
                 lodsw
                 xchg    ah, al
                 mov     cx, ax
-                mov     cs:plane0_buf, dx
+                mov     cs:viewport_row_vram_offset, dx
                 mov     cs:plane1_buf, cx
                 or      ax, dx
                 mov     bx, ax
@@ -73,11 +73,11 @@ build_16_bits_from_2_planes proc near
 loc_4F4B:
                 rol     word ptr cs:plane1_buf, 1
                 adc     dx, dx
-                rol     word ptr cs:plane0_buf, 1
+                rol     word ptr cs:viewport_row_vram_offset, 1
                 adc     dx, dx
                 rol     word ptr cs:plane1_buf, 1
                 adc     dx, dx
-                rol     word ptr cs:plane0_buf, 1
+                rol     word ptr cs:viewport_row_vram_offset, 1
                 adc     dx, dx
                 loop    loc_4F4B
                 retn
@@ -103,7 +103,7 @@ loc_4F83:
                 retn
 extract_transparency_byte_from_mask_plane_f endp
 
-plane0_buf                   dw 0       
+viewport_row_vram_offset                   dw 0       
 plane1_buf                   dw 0
 transparency_mask_bitplane_f dw 0       
 
@@ -163,7 +163,7 @@ loc_35A8:
                 mov     si, vram_shadow_addr
                 mov     ax, 0A000h
                 mov     ds, ax
-                call    Copy_tile
+                call    Copy_Tile_To_VRAM
                 pop     ds
                 pop     es
                 retn
@@ -177,7 +177,7 @@ with_blit:
                 mov     si, vram_shadow_addr
                 mov     ax, 0A000h
                 mov     ds, ax
-                call    Copy_tile
+                call    Copy_Tile_To_VRAM
                 pop     ds
                 pop     es
                 retn
@@ -206,7 +206,7 @@ decode_and_render_tile_with_blitting proc near
 ; SI: pointer to tile data (packed nibbles)
 ; BP: transparency data (1 bit per pixel)
 ; ES:DI: screen destination address; DI += 64
-render_2bpp_tile:
+render_tile_to_temp_buffer:
                 mov     cx, 8
 loc_3629:
                 push    cx
@@ -236,7 +236,7 @@ next_pixel_of_4:
                 add     dl, dl ; extract dl bit7
                 sbb     dh, dh
                 and     dh, es:[di] ; blit with background
-                call    get_pixel_from_table_by_ah_hi ; AH bits 7..4 - nibble to translate -> BL - translated byte; AX <<= 4
+                call    get_pixel_from_table_by_ax_hi_nibble ; AH bits 7..4 - nibble to translate -> BL - translated byte; AX <<= 4
                 or      bl, dh
                 mov     es:[di], bl ; OR-blit dest. pixel with extracted
                 inc     di
@@ -269,7 +269,7 @@ render_nibble_compressed_tile endp
 draw_4_pix_from_table_by_ax proc near
                 mov     cx, 4
 loc_3664:
-                call    get_pixel_from_table_by_ah_hi ; BL = cs:nibble_decode_lut[AH 7...4]
+                call    get_pixel_from_table_by_ax_hi_nibble ; BL = cs:nibble_decode_lut[AH 7...4]
                 mov     es:[di], bl
                 inc     di
                 loop    loc_3664
@@ -283,7 +283,7 @@ draw_4_pix_from_table_by_ax endp
 ;   AH bits 7..4 - nibble to translate
 ;   BX = 0
 ; BL - translated byte
-get_pixel_from_table_by_ah_hi proc near
+get_pixel_from_table_by_ax_hi_nibble proc near
                 add     ax, ax
                 adc     bx, bx
                 add     ax, ax
@@ -296,4 +296,4 @@ get_pixel_from_table_by_ah_hi proc near
                 add     bx, cs:nibble_decode_lut ; 16 bytes table addr, one of the pal_decode_data0..4
                 mov     bl, cs:[bx]
                 retn
-get_pixel_from_table_by_ah_hi endp
+get_pixel_from_table_by_ax_hi_nibble endp

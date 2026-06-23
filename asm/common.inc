@@ -39,7 +39,7 @@ SHOES_SILKARN      EQU 3
 SHOES_RUZERIA      EQU 4
 CAPE_ASBESTOS      EQU 5
 
-viewport_top_left_vram_addr equ (48+14*320)
+viewport_top_left_vram_offset equ (48+14*320)
 vram_shadow_addr            equ (320*200)
 
 ; savegame area
@@ -504,7 +504,7 @@ proximity_second_layer                             equ 0ED20h ; proximity map is
                                                               ; when position is already occupied by monster,
                                                               ; we use second layer: 128 bytes of additional buffer
                                                               ; (1 byte per monster id)
-active_entity_table                                equ 0EDA0h
+boss_explosion_rings_list                                equ 0EDA0h
 
 ; towns
 cache_bytes_ptr                                    equ 0E005h
@@ -546,7 +546,7 @@ seg1                                               equ 0FF2Ch ; code segment + 1
 boss_being_hit                                     equ 0FF2Eh
 sprite_flash_flag                                  equ 0FF2Fh
 boss_is_dead                                       equ 0FF30h
-viewport_left_top_addr                             equ 0FF31h ; address within proximity map, corresponding to viewport left top corner; 0E000h .. 0E8FFh
+viewport_left_top_addr                             equ 0FF31h ; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 speed_const                                        equ 0FF33h
 is_boss_cavern                                     equ 0FF34h
 hero_y_absolute                                    equ 0FF35h

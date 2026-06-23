@@ -20,9 +20,9 @@ start:
                 dw offset Sword_Overlay_EntryPoint
                 dw offset Cached_Tile_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
-                dw offset Active_Entity_Sprite_Renderer
-                dw offset Render_Viewport_Tiles ; ;
-                dw offset Copy_Tile_Buffer_To_VRAM
+                dw offset Boss_Explosions_Renderer
+                dw offset Render_Viewport_Tiles
+                dw offset Copy_Hero_Frame_To_VRAM
                 dw offset Update_Local_Attribute_Cache
                 dw offset Render_Viewport_Border_Walls
                 dw offset Load_Magic_Spell_Sprite_Group
@@ -49,13 +49,13 @@ Refresh_Dirty_Tiles proc near
                 xor     ax, ax
                 mov     cx, 80h
                 rep stosw
-                inc     ds:roka_palette
-                mov     ds:plane0_buf, viewport_top_left_vram_addr
-                mov     si, ds:viewport_left_top_addr
-                sub     si, 33
+                inc     ds:render_counter
+                mov     ds:viewport_row_vram_offset, viewport_top_left_vram_offset ; 11B0
+                mov     si, ds:viewport_left_top_addr ; e894, e828
+                sub     si, 36-3  ; e894-(36-3)=e873, e828-(36-3)=e807
                 call    wrap_e000_from_below
                 xor     bx, bx
-                test    byte ptr [si], 80h
+                test    byte ptr [si], 80h ; [E873]=8C
                 jz      short loc_3056
                 call    Render_Top_Left_Corner_Entity
 
@@ -117,9 +117,10 @@ loc_30A2:
                 inc     si
                 test    byte ptr [si], 80h
                 jz      short loc_30AB
-                call    Render_Bottom_Right_Corner_Entity
+                call    Render_Top_Right_Corner_Entity
 
 loc_30AB:
+                ; now for all rows (0..17)
                 mov     si, ds:viewport_left_top_addr
                 mov     di, viewport_buffer_28x19
                 mov     ds:viewport_rows_remaining, 18
@@ -197,7 +198,7 @@ loc_3108:
 loc_3111:
                 add     si, 4
                 call    wrap_e900_from_above
-                add     ds:plane0_buf, 320*8
+                add     ds:viewport_row_vram_offset, 320*8
                 dec     ds:viewport_rows_remaining
                 jnz     short loc_30B7
                 retn
@@ -207,7 +208,7 @@ Refresh_Dirty_Tiles endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Process_Dirty_Tile_With_Animation proc near ; ...
+Process_Dirty_Tile_With_Animation proc near
                 mov     al, [si-1]
                 or      al, al
                 jns     short loc_312E
@@ -230,7 +231,7 @@ loc_313C:
                 add     dx, dx
                 add     dx, dx
                 add     dx, dx
-                add     dx, ds:plane0_buf
+                add     dx, ds:viewport_row_vram_offset
                 shr     dx, 1
                 call    Cached_Tile_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
@@ -253,21 +254,21 @@ loc_3169:
                 mov     bl, al
                 xor     bh, bh
                 add     bx, bx
-                call    ds:funcs_3170[bx]
+                call    ds:animate_mpp58_tiles[bx]
                 pop     bx
                 retn
 Process_Dirty_Tile_With_Animation endp
 
 ; ---------------------------------------------------------------------------
-funcs_3170      dw offset Animate_Door_Tile_Type0 ; ...
-                dw offset Animate_Chest_Lever_Tile
-                dw offset Animate_Special_Tiles
-                dw offset AnimateWaterTile
+animate_mpp58_tiles      dw offset Animate_Water_Cavern5 ; ...
+                dw offset Animate_Gold_Magma_Cavern6
+                dw offset Animate_Hot_Cavern7
+                dw offset Animate_Thorn_Cavern8
 
 ; =============== S U B R O U T I N E =======================================
 
 
-Animate_Door_Tile_Type0 proc near       ; ...
+Animate_Water_Cavern5 proc near       ; ...
                 mov     al, [si-1]
                 sub     al, 1Bh
                 cmp     al, 2
@@ -277,7 +278,7 @@ Animate_Door_Tile_Type0 proc near       ; ...
 
 loc_3188:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:roka_palette, 1
+                test    ds:render_counter, 1
                 jnz     short loc_3194
                 retn
 ; ---------------------------------------------------------------------------
@@ -288,13 +289,13 @@ loc_3194:
                 add     al, 1Bh
                 mov     [si-1], al
                 retn
-Animate_Door_Tile_Type0 endp
+Animate_Water_Cavern5 endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-Animate_Chest_Lever_Tile proc near      ; ...
+Animate_Gold_Magma_Cavern6 proc near      ; ...
                 mov     al, [si-1]
                 sub     al, 1Dh
                 cmp     al, 6
@@ -330,19 +331,19 @@ loc_31CA:
                 add     al, 21h ; '!'
                 mov     [si-1], al
                 retn
-Animate_Chest_Lever_Tile endp
+Animate_Gold_Magma_Cavern6 endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-Animate_Special_Tiles proc near         ; ...
+Animate_Hot_Cavern7 proc near         ; ...
                 mov     al, [si-1]
                 sub     al, 2Ch ; ','
                 cmp     al, 2
                 jnb     short loc_31F3
                 mov     byte ptr [di-1], 0FEh
-                test    ds:roka_palette, 1
+                test    ds:render_counter, 1
                 jnz     short loc_31E9
                 retn
 ; ---------------------------------------------------------------------------
@@ -405,7 +406,7 @@ loc_321E:
 
 loc_3242:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:roka_palette, 1
+                test    ds:render_counter, 1
                 jnz     short loc_324E
                 retn
 ; ---------------------------------------------------------------------------
@@ -413,13 +414,13 @@ loc_3242:
 loc_324E:
                 mov     [si-1], bl
                 retn
-Animate_Special_Tiles endp
+Animate_Hot_Cavern7 endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-AnimateWaterTile proc near              ; ...
+Animate_Thorn_Cavern8 proc near              ; ...
                 mov     al, [si-1]
                 sub     al, 25h ; '%'
                 cmp     al, 4
@@ -429,7 +430,7 @@ AnimateWaterTile proc near              ; ...
 
 loc_325C:
                 mov     byte ptr [di-1], 0FEh
-                test    ds:roka_palette, 1
+                test    ds:render_counter, 1
                 jnz     short loc_3268
                 retn
 ; ---------------------------------------------------------------------------
@@ -440,7 +441,7 @@ loc_3268:
                 add     al, 25h ; '%'
                 mov     [si-1], al
                 retn
-AnimateWaterTile endp
+Animate_Thorn_Cavern8 endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -553,38 +554,36 @@ Cached_Tile_Drawer endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Render_Top_Left_Corner_Entity proc near ; ...
+; SI = viewport_left_top_addr - 36 + 3 (wrapped)
+Render_Top_Left_Corner_Entity proc near
                 cmp     byte ptr ds:viewport_buffer_28x19, 0FFh
-                jnz     short loc_332E
-                retn
-
+                jne     short loc_332E
+                retn    ; 0FFh: no need to process viewport top left tile
 loc_332E:
                 cmp     byte ptr ds:viewport_buffer_28x19, 0FCh
-                jnz     short loc_3336
-                retn
-
+                jne     short loc_3336
+                retn    ; 0FCh: no need to process viewport top left tile
 loc_3336:
                 push    si
                 push    bx
-                mov     byte ptr ds:viewport_buffer_28x19, 0FFh
-                mov     cl, [si]
+                mov     byte ptr ds:viewport_buffer_28x19, 0FFh ; set cell processed flag
+                mov     cl, [si] ; [E873]=8C (slug 0xC)
                 add     si, 36+1
                 call    wrap_e900_from_above
-                mov     al, [si]
+                mov     al, [si] ; [E898]=00
                 or      al, al
                 jns     short loc_334E
                 call    Translate_Tile_Index
 loc_334E:
-                push    ax
-                mov     al, cl
+                push    ax     ; 0
+                mov     al, cl ; 8C
                 call    Lookup_Monster_Tile_Attributes
-                add     si, 3
-                pop     ax
-                mov     ah, [si]
-                mov     dx, viewport_top_left_vram_addr
-                call    Decode_And_Render_Tile_With_Blit ; AH: nible-compressed tile idx
-                                                         ; AL: 6bit-packed tile idx
+                add     si, 3  ; A11A+3=A11D (slug_walk_right_frames[phase3].SouthEast)
+                pop     ax     ; al=0 (empty background)
+                mov     ah, [si] ; monster/entity tile
+                mov     dx, viewport_top_left_vram_offset
+                call    Decode_And_Render_Tile_With_Blit ; AH: nible-compressed tile idx (monster/entity tile)
+                                                         ; AL: 6 bit-packed tile idx (background tile)
                 pop     bx
                 pop     si
                 retn
@@ -593,26 +592,26 @@ Render_Top_Left_Corner_Entity endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Render_Tile_With_Attribute_Cache proc near ; ...
+; si points to a tile with monster/entity (high bit set)
+Render_Tile_With_Attribute_Cache proc near
                 push    si
                 push    bx
-                mov     cx, bx
-                mov     di, bx
+                mov     cx, bx ; col
+                mov     di, bx ; col
                 add     di, viewport_buffer_28x19
                 mov     bx, offset tile_cache_dirty_flags
                 mov     al, 0FFh
-                xchg    al, [di]
+                xchg    al, [di] ; al = old value
                 mov     [bx], al
                 mov     byte ptr [bx+1], 0
                 mov     byte ptr [di+1], 0FFh
-                mov     dx, cx
+                mov     dx, cx ; col
                 add     dx, dx
                 add     dx, dx
-                add     dx, dx
-                add     dx, viewport_top_left_vram_addr
+                add     dx, dx ; col*8
+                add     dx, viewport_top_left_vram_offset
                 mov     cl, [si]
-                add     si, 24h ; '$'
+                add     si, 36
                 call    wrap_e900_from_above
                 mov     bx, offset tile_neighborhood_buffer
                 lodsw
@@ -633,7 +632,7 @@ Render_Tile_With_Attribute_Cache endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Bottom_Right_Corner_Entity proc near ; ...
+Render_Top_Right_Corner_Entity proc near
                 cmp     byte ptr ds:[viewport_buffer_28x19+1Bh], 0FFh
                 jnz     short loc_33B3
                 retn
@@ -662,15 +661,15 @@ loc_33D1:
                 add     si, 2
                 pop     ax
                 mov     ah, [si]
-                mov     dx, 1288h
+                mov     dx, 14*320+48+27*8 ; points to vieport right column in VRAM
                 jmp     Decode_And_Render_Tile_With_Blit
-Render_Bottom_Right_Corner_Entity endp
+Render_Top_Right_Corner_Entity endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Tile_With_Dual_Cache proc near   ; ...
+Render_Tile_With_Dual_Cache proc near
                 push    si
                 push    di
                 push    bx
@@ -695,7 +694,7 @@ Render_Tile_With_Dual_Cache proc near   ; ...
                 add     dx, dx
                 add     dx, dx
                 add     dx, dx
-                add     dx, ds:plane0_buf
+                add     dx, ds:viewport_row_vram_offset
                 cmp     ds:tile_cache_dirty_flags, 0FFh
                 jz      short loc_343A
                 cmp     ds:tile_cache_dirty_flags, 0FCh
@@ -716,7 +715,7 @@ loc_3434:
                 pop     bx
 
 loc_343A:
-                add     dx, 0A00h
+                add     dx, 320*8
                 cmp     ds:viewport_rows_remaining, 1
                 jz      short loc_3464
                 cmp     ds:tile_cache_row1_dirty_flags, 0FFh
@@ -746,7 +745,7 @@ Render_Tile_With_Dual_Cache endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Tile_With_Border_Check proc near ; ...
+Render_Tile_With_Border_Check proc near
                 push    si
                 push    di
                 push    bx
@@ -767,7 +766,7 @@ Render_Tile_With_Border_Check proc near ; ...
                 mov     ax, [si-1]
                 mov     [bx+2], ax
                 pop     dx
-                mov     ds:hero_frame_tile_idx, dl
+                mov     ds:hero_tile_col_idx, dl
                 mov     al, ds:viewport_rows_remaining
                 neg     al
                 add     al, 18
@@ -775,7 +774,7 @@ Render_Tile_With_Border_Check proc near ; ...
                 add     dx, dx
                 add     dx, dx
                 add     dx, dx
-                add     dx, ds:plane0_buf
+                add     dx, ds:viewport_row_vram_offset
                 mov     al, cl
                 call    Lookup_Monster_Tile_Attributes
                 mov     di, offset tile_neighborhood_buffer
@@ -790,7 +789,7 @@ Render_Tile_With_Border_Check proc near ; ...
                 jz      short loc_34DF
                 test    byte ptr ds:sprite_flash_flag, 0FFh
                 jz      short loc_34DF
-                call    Spawn_Map_Entity
+                call    Spawn_Boss_Explosion_Ring
 
 loc_34DF:
                 pop     bx
@@ -803,7 +802,7 @@ Render_Tile_With_Border_Check endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Tile_And_Update_Cache proc near  ; ...
+Render_Tile_And_Update_Cache proc near
                 push    si
                 push    di
                 push    bx
@@ -827,7 +826,7 @@ Render_Tile_And_Update_Cache proc near  ; ...
                 add     dx, dx
                 add     dx, dx
                 add     dx, dx
-                add     dx, ds:plane0_buf
+                add     dx, ds:viewport_row_vram_offset
                 cmp     ds:tile_cache_dirty_flags, 0FFh
                 jz      short loc_353B
                 cmp     ds:tile_cache_dirty_flags, 0FCh
@@ -877,9 +876,10 @@ Render_Tile_And_Update_Cache endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Render_Tile_Neighborhood_Cell proc near ; ...
+; Calls render_tile_neighborhood_cell_internal twice
+Render_Tile_Neighborhood_Cell proc near
                 call    $+3
+render_tile_neighborhood_cell_internal:
                 cmp     byte ptr ds:[bp+0], 0FFh
                 jz      short loc_3592
                 cmp     byte ptr ds:[bp+0], 0FCh
@@ -929,11 +929,11 @@ loc_35A8:
                 mov     ch, 32 ; 32 bytes (64 nibbles) per compressed tile
                 mul     ch
                 mov     si, ax
-                add     si, 4000h ; seg1:4000h - nible-compressed tiles (mman_cman_gfx)
+                add     si, 4000h ; seg1:4000h - nible-compressed monster tiles
                 shr     ax, 1
                 shr     ax, 1
                 mov     bp, ax
-                add     bp, 0A000h
+                add     bp, 0A000h ; transparency masks for monsters
                 mov     ds, word ptr cs:seg1
                 mov     di, dx   ; VRAM destination address
                 mov     ax, 0A000h
@@ -948,27 +948,26 @@ loc_35A8:
                 or      ch, ch
                 js      short with_blit
                 push    di
-                mov     di, vram_shadow_addr
-                call    render_nibble_compressed_tile ; si: src (compressed) - 32 bytes (64 nibbles)
-                pop     di
-                mov     si, vram_shadow_addr
+                    mov     di, vram_shadow_addr
+                    call    render_nibble_compressed_tile ; si: src (compressed) - 32 bytes (64 nibbles)
+                pop     di ; VRAM destination
+                mov     si, vram_shadow_addr ; source linear buffer
                 mov     ax, 0A000h
                 mov     ds, ax
-                call    Copy_tile
+                call    Copy_Tile_To_VRAM
                 pop     ds
                 pop     es
                 retn
 ; ---------------------------------------------------------------------------
-
 with_blit:
                 push    di
-                mov     di, vram_shadow_addr
-                call    decode_and_render_tile_with_blitting
-                pop     di
-                mov     si, vram_shadow_addr
+                    mov     di, vram_shadow_addr
+                    call    decode_and_render_tile_with_blitting
+                pop     di ; VRAM destination
+                mov     si, vram_shadow_addr ; source linear buffer
                 mov     ax, 0A000h
                 mov     ds, ax
-                call    Copy_tile
+                call    Copy_Tile_To_VRAM
                 pop     ds
                 pop     es
                 retn
@@ -996,8 +995,8 @@ decode_and_render_tile_with_blitting proc near
 ; render hero tile over background
 ; SI: pointer to tile data (packed nibbles)
 ; BP: transparency data (1 bit per pixel)
-; ES:DI: screen destination address; DI += 64
-render_2bpp_tile:
+; ES:DI: shadow VRAM destination address; DI += 64
+render_tile_to_temp_buffer:
                 mov     cx, 8
 loc_3629:
                 push    cx
@@ -1027,7 +1026,7 @@ next_pixel_of_4:
                 add     dl, dl ; extract dl bit7
                 sbb     dh, dh
                 and     dh, es:[di] ; blit with background
-                call    get_pixel_from_table_by_ah_hi ; AH bits 7..4 - nibble to translate -> BL - translated byte; AX <<= 4
+                call    get_pixel_from_table_by_ax_hi_nibble ; AH bits 7..4 - nibble to translate -> BL - translated byte; AX <<= 4
                 or      bl, dh
                 mov     es:[di], bl ; OR-blit dest. pixel with extracted
                 inc     di
@@ -1060,7 +1059,7 @@ render_nibble_compressed_tile endp
 draw_4_pix_from_table_by_ax proc near
                 mov     cx, 4
 loc_3664:
-                call    get_pixel_from_table_by_ah_hi ; BL = cs:nibble_decode_lut[AH 7...4]
+                call    get_pixel_from_table_by_ax_hi_nibble ; BL = cs:nibble_decode_lut[AH 7...4]
                 mov     es:[di], bl
                 inc     di
                 loop    loc_3664
@@ -1074,7 +1073,7 @@ draw_4_pix_from_table_by_ax endp
 ;   AH bits 7..4 - nibble to translate
 ;   BX = 0
 ; BL - translated byte
-get_pixel_from_table_by_ah_hi proc near
+get_pixel_from_table_by_ax_hi_nibble proc near
                 add     ax, ax
                 adc     bx, bx
                 add     ax, ax
@@ -1087,13 +1086,14 @@ get_pixel_from_table_by_ah_hi proc near
                 add     bx, cs:nibble_decode_lut ; 16 bytes table addr, one of the pal_decode_data0..4
                 mov     bl, cs:[bx]
                 retn
-get_pixel_from_table_by_ah_hi endp
+get_pixel_from_table_by_ax_hi_nibble endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Copy_tile       proc near
+; SI: source linear buffer
+; DI: VRAM destination
+Copy_Tile_To_VRAM       proc near
                 mov     cx, 8
 loc_368D:
                 movsw
@@ -1103,13 +1103,13 @@ loc_368D:
                 add     di, 320-8
                 loop    loc_368D
                 retn
-Copy_tile       endp
+Copy_Tile_To_VRAM       endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 ; SI: source (packed) - 48 bytes
-; DI: render address, advances while rendering
+; DI: render destination to a shadow buffer, advances while rendering
 render_48bytes_packed_tile proc near
                 mov     cx, 16
 loc_369B:
@@ -1150,7 +1150,7 @@ Clear_Tile_Buffer endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Translate_Tile_Index proc near          ; ...
+Translate_Tile_Index proc near
                 and     al, 7Fh
                 mov     bx, offset proximity_second_layer
                 xlat
@@ -1205,8 +1205,8 @@ Lookup_Monster_Tile_Attributes endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Spawn_Map_Entity proc near              ; ...
-                cmp     ds:hero_tile_row_idx, 10h
+Spawn_Boss_Explosion_Ring proc near
+                cmp     ds:hero_tile_row_idx, 16
                 jb      short loc_3731
                 retn
 ; ---------------------------------------------------------------------------
@@ -1216,25 +1216,25 @@ loc_3731:
                 pop     es
                 call    word ptr cs:get_random_proc
                 and     al, 0Fh
-                cmp     al, 0Eh
+                cmp     al, 14
                 jnb     short loc_373F
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_373F:
-                mov     di, 0EDA0h      ; active_entity_table ??
+                mov     di, offset boss_explosion_rings_list
                 xor     cl, cl
 
 loc_3744:
                 cmp     byte ptr [di], 0FFh
-                jz      short loc_3750
+                je      short loc_3750
                 add     di, 4
                 inc     cl
                 jmp     short loc_3744
 ; ---------------------------------------------------------------------------
 
 loc_3750:
-                cmp     cl, 20h ; ' '
+                cmp     cl, 32
                 jb      short loc_3756
                 retn
 ; ---------------------------------------------------------------------------
@@ -1243,26 +1243,25 @@ loc_3756:
                 call    word ptr cs:get_random_proc
                 and     al, 3
                 cmp     al, 3
-                jz      short loc_3756
-                dec     al
-                add     al, ds:hero_frame_tile_idx
+                je      short loc_3756
+                ; al = 0, 1, 2
+                dec     al  ; al = -1, 0, 1
+                add     al, ds:hero_tile_col_idx
                 cmp     al, 0FFh
-                jnz     short loc_376D
+                jne     short loc_376D
                 mov     al, 4
 
 loc_376D:
-                cmp     al, 1Bh
+                cmp     al, 27
                 jb      short loc_3773
-                mov     al, 1Ah
-
+                mov     al, 26
 loc_3773:
-                stosb
-
+                stosb ; [0] = x
 loc_3774:
                 call    word ptr cs:get_random_proc
                 and     al, 3
                 cmp     al, 3
-                jz      short loc_3774
+                je      short loc_3774
                 dec     al
                 add     al, ds:hero_tile_row_idx
                 cmp     al, 0FFh
@@ -1270,16 +1269,16 @@ loc_3774:
                 xor     al, al
 
 loc_378B:
-                stosb
+                stosb ; [1] = y
                 mov     al, 3
-                stosb
+                stosb ; [2] = frame
                 call    word ptr cs:get_random_proc
                 and     al, 3
-                stosb
+                stosb ; [3] = variant
                 mov     al, 0FFh
-                stosb
+                stosb ; next.[0] = terminator
                 retn
-Spawn_Map_Entity endp
+Spawn_Boss_Explosion_Ring endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -1289,14 +1288,14 @@ Spawn_Map_Entity endp
 ; Entities that have expired (flag 0FFh) are removed. 
 ; Each entity is drawn using a mask table and an entity‑render‑function table 
 ; that defines the transparency bitplane.
-Active_Entity_Sprite_Renderer proc near
+Boss_Explosions_Renderer proc near
                 push    cs
                 pop     es
-                mov     di, active_entity_table
+                mov     di, offset boss_explosion_rings_list
                 mov     si, di
 
 loc_37A2:
-                cmp     byte ptr [si], 0FFh
+                cmp     byte ptr [si+0], 0FFh ; column 0FFh is terminator
                 jnz     short loc_37AB
                 mov     byte ptr [di], 0FFh
                 retn
@@ -1305,51 +1304,50 @@ loc_37A2:
 loc_37AB:
                 mov     al, [si+1]
                 mov     cl, 28
-                mul     cl
-                mov     cl, [si]
+                mul     cl       ; ax = row*28
+                mov     cl, [si] ; col
                 xor     ch, ch
-                add     ax, cx
+                add     ax, cx   ; ax = row*28+col
                 push    di
-                add     ax, viewport_buffer_28x19
-                mov     di, ax
-                mov     al, 0FEh
-                stosb
-                stosb
-                add     di, 1Ah
-                stosb
-                stosb
+                    add     ax, viewport_buffer_28x19
+                    mov     di, ax
+                    mov     al, 0FEh
+                    stosb
+                    stosb
+                    add     di, 28-2
+                    stosb
+                    stosb
                 pop     di
-                mov     al, [si+1]
+                mov     al, [si+1] ; row
                 xor     ah, ah
-                mov     dx, 0A00h
-                mul     dx
-                mov     cl, [si]
+                mov     dx, 320*8
+                mul     dx         ; row*320*8
+                mov     cl, [si]   ; col
                 xor     ch, ch
                 add     cx, cx
                 add     cx, cx
-                add     cx, cx
-                add     ax, cx
-                add     ax, viewport_top_left_vram_addr
+                add     cx, cx     ; col*8
+                add     ax, cx     ; row*320*8 + col*8
+                add     ax, viewport_top_left_vram_offset
                 push    si
                 push    di
                 push    es
-                push    ax
-                mov     bl, [si+3]
-                xor     bh, bh
-                add     bx, bx
-                mov     ax, ds:entity_render_fn_tbl[bx]
-                mov     ds:transparency_mask_bitplane_f, ax
-                mov     bl, [si+2]
-                and     bl, 3
-                add     bl, bl
-                xor     bh, bh
-                mov     si, ds:entity_mask_tbl[bx]
+                push    ax  ; destination VRAM address
+                    mov     bl, [si+3]  ; variant
+                    xor     bh, bh
+                    add     bx, bx
+                    mov     ax, ds:boss_explosion_mask_variants[bx]
+                    mov     ds:transparency_mask_bitplane_f, ax
+                    mov     bl, [si+2]  ; frame
+                    and     bl, 3
+                    add     bl, bl
+                    xor     bh, bh
+                    mov     si, ds:boss_explosion_ring_phases[bx]
                 pop     di
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     cx, 10h
-
-loc_380A:
+                mov     cx, 16  ; 16 px rows (2 tiles high)
+loc_380A:       ; blit 16 px (2 tiles wide)
                 lodsw
                 xchg    ah, al
                 call    CalculateSpriteBitmask
@@ -1384,17 +1382,16 @@ loc_380A:
                 or      es:[di+0Ch], dx
                 call    CalculateSpriteBitmask
                 not     bp
-                and     es:[di+0Eh], bp
-                or      es:[di+0Eh], dx
+                and     es:[di+0Eh], bp  ; and with sprite mask
+                or      es:[di+0Eh], dx  ; or with sprite data
                 add     di, 320
                 loop    loc_380A
                 pop     es
-                assume es:nothing
                 pop     di
                 pop     si
                 dec     byte ptr [si+2]
                 cmp     byte ptr [si+2], 0FFh
-                jz      short loc_388D
+                je      short loc_388D
                 movsw
                 movsw
                 sub     si, 4
@@ -1402,33 +1399,49 @@ loc_380A:
 loc_388D:
                 add     si, 4
                 jmp     loc_37A2
-Active_Entity_Sprite_Renderer endp
+Boss_Explosions_Renderer endp
 
 ; ---------------------------------------------------------------------------
-entity_render_fn_tbl       dw 1210h
+boss_explosion_mask_variants dw 1210h
                 dw 3630h
                 dw 3F38h
                 dw 3630h
-entity_mask_tbl dw offset word_3963
+boss_explosion_ring_phases dw offset word_3963
                 dw offset word_3923
                 dw offset word_38E3
                 dw offset word_38A3
-word_38A3       dw 0, 0, 0, 0, 0, 0, 0, 0, 0B00h, 0D0h, 5F00h, 0FAh, 7F00h
-                dw 0FEh, 0FF00h, 0FFh, 0FF00h, 0FFh, 7F00h, 0FEh, 5F00h
-                dw 0FAh, 0B00h, 0D0h, 0, 0, 0, 0, 0, 0, 0, 0
-word_38E3       dw 0, 0, 0, 0, 2F00h, 0F4h, 0FF00h, 0FFh, 0FF03h, 0C0FFh
-                dw 0FF07h, 0E0FFh, 0FA0Fh, 0F05Fh, 0F00Fh, 0F00Fh, 0F00Fh
-                dw 0F00Fh, 0FA0Fh, 0F05Fh, 0FF07h, 0E0FFh, 0FF03h, 0C0FFh
-                dw 0FF00h, 0FFh, 2F00h, 0F4h, 0, 0, 0, 0
-word_3923       dw 2F00h, 0F4h, 7F01h, 80FEh, 0FF07h, 0E0FFh, 0FF0Fh, 0F0FFh
-                dw 0F43Fh, 0FC2Fh, 0A07Fh, 0FE05h, 807Fh, 0FE01h, 0FFh
-                dw 0FF00h, 0FFh, 0FF00h, 807Fh, 0FE01h, 0A07Fh, 0FE05h
-                dw 0F43Fh, 0FC2Fh, 0FF0Fh, 0F0FFh, 0FF07h, 0E0FFh, 7F01h
-                dw 80FEh, 2F00h, 0F4h
-word_3963       dw 2F00h, 0F4h, 7F01h, 80FEh, 0D007h, 0E00Bh, 0Fh, 0F000h
-                dw 3Ch, 3C00h, 78h, 1E00h, 70h, 0E00h, 0F0h, 0F00h, 0F0h
-                dw 0F00h, 70h, 0E00h, 78h, 1E00h, 3Ch, 3C00h, 0Fh, 0F000h
-                dw 0D007h, 0E00Bh, 7F01h, 80FEh, 2F00h, 0F4h
+word_38A3       dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+                dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+                dw 0000101100000000b, 0000000011010000b, 0101111100000000b, 0000000011111010b
+                dw 0111111100000000b, 0000000011111110b, 1111111100000000b, 0000000011111111b
+                dw 1111111100000000b, 0000000011111111b, 0111111100000000b, 0000000011111110b
+                dw 0101111100000000b, 0000000011111010b, 0000101100000000b, 0000000011010000b
+                dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+                dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+word_38E3       dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+                dw 0010111100000000b, 0000000011110100b, 1111111100000000b, 0000000011111111b
+                dw 1111111100000011b, 1100000011111111b, 1111111100000111b, 1110000011111111b
+                dw 1111101000001111b, 1111000001011111b, 1111000000001111b, 1111000000001111b
+                dw 1111000000001111b, 1111000000001111b, 1111101000001111b, 1111000001011111b
+                dw 1111111100000111b, 1110000011111111b, 1111111100000011b, 1100000011111111b
+                dw 1111111100000000b, 0000000011111111b, 0010111100000000b, 0000000011110100b
+                dw 0000000000000000b, 0000000000000000b, 0000000000000000b, 0000000000000000b
+word_3923       dw 0010111100000000b, 0000000011110100b, 0111111100000001b, 1000000011111110b
+                dw 1111111100000111b, 1110000011111111b, 1111111100001111b, 1111000011111111b
+                dw 1111010000111111b, 1111110000101111b, 1010000001111111b, 1111111000000101b
+                dw 1000000001111111b, 1111111000000001b, 0000000011111111b, 1111111100000000b
+                dw 0000000011111111b, 1111111100000000b, 1000000001111111b, 1111111000000001b
+                dw 1010000001111111b, 1111111000000101b, 1111010000111111b, 1111110000101111b
+                dw 1111111100001111b, 1111000011111111b, 1111111100000111b, 1110000011111111b
+                dw 0111111100000001b, 1000000011111110b, 0010111100000000b, 0000000011110100b
+word_3963       dw 0010111100000000b, 0000000011110100b, 0111111100000001b, 1000000011111110b
+                dw 1101000000000111b, 1110000000001011b, 0000000000001111b, 1111000000000000b
+                dw 0000000000111100b, 0011110000000000b, 0000000001111000b, 0001111000000000b
+                dw 0000000001110000b, 0000111000000000b, 0000000011110000b, 0000111100000000b
+                dw 0000000011110000b, 0000111100000000b, 0000000001110000b, 0000111000000000b
+                dw 0000000001111000b, 0001111000000000b, 0000000000111100b, 0011110000000000b
+                dw 0000000000001111b, 1111000000000000b, 1101000000000111b, 1110000000001011b
+                dw 0111111100000001b, 1000000011111110b, 0010111100000000b, 0000000011110100b
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -1503,9 +1516,9 @@ _render_hero_3x3:
                 add     cx, cx
                 add     cx, cx ; x * 8
                 add     ax, cx
-                add     ax, viewport_top_left_vram_addr
+                add     ax, viewport_top_left_vram_offset
                 mov     ds:hero_vram_base, ax
-                mov     ds:hero_frame_tile_idx, 0
+                mov     ds:hero_tile_col_idx, 0
                 mov     si, offset tile_neighborhood_buffer
                 mov     di, offset tile_load_buffer
                 mov     cx, 3
@@ -1582,7 +1595,7 @@ Update_Local_Attribute_Cache endp
 
 ; called by pushing address to stack before jumping to other routine
 choose_hero_sprite proc near
-                inc     ds:hero_frame_tile_idx
+                inc     ds:hero_tile_col_idx
                 inc     di
                 inc     si
                 pop     cx
@@ -1700,14 +1713,14 @@ loc_3B61:
                 jz      short loc_3B75
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
-                mov     ds:hero_frame_tile_idx, 3
+                mov     ds:hero_tile_col_idx, 3
                 call    Render_Scrolling_Tile
                 jmp     short loc_3B80
 ; ---------------------------------------------------------------------------
 ; non squat: 9 tiles
 loc_3B75:
                 mov     cx, 9
-                mov     ds:hero_frame_tile_idx, 0
+                mov     ds:hero_tile_col_idx, 0
                 call    Render_Scrolling_Tile
 
 loc_3B80:
@@ -1762,7 +1775,7 @@ loc_3BF0:
 
 loc_3BF2:
                 mov     cx, 9
-                mov     ds:hero_frame_tile_idx, 0
+                mov     ds:hero_tile_col_idx, 0
                 call    Render_Scrolling_Tile
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short loc_3C05
@@ -1882,12 +1895,12 @@ loc_3CC1:
                 jz      short non_squat
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
-                mov     ds:hero_frame_tile_idx, 3
+                mov     ds:hero_tile_col_idx, 3
                 jmp     short Render_Scrolling_Tile
 ; ---------------------------------------------------------------------------
 non_squat:
                 mov     cx, 9
-                mov     ds:hero_frame_tile_idx, 0 ; normal: 9 tiles starting at 0
+                mov     ds:hero_tile_col_idx, 0 ; normal: 9 tiles starting at 0
                 jmp     short $+2
                 ; fall through to Render_Scrolling_Tile
 choose_hero_sprite endp
@@ -1918,19 +1931,19 @@ Render_Scrolling_Tile proc near
                 mov     di, dx  ; ignore, will be overwritten few lines below
                 push    cs
                 pop     es
-                mov     al, cs:hero_frame_tile_idx ; normally 0, but can be 3 for squat
+                mov     al, cs:hero_tile_col_idx ; normally 0, but can be 3 for squat
                 mov     cl, 64
                 mul     cl
                 add     ax, offset nine_unpacked_tiles
                 mov     di, ax
-                call    render_2bpp_tile
+                call    render_tile_to_temp_buffer
                 pop     di
                 pop     si
                 pop     ds
                 pop     es
 skip_empty:
                 inc     si
-                inc     ds:hero_frame_tile_idx
+                inc     ds:hero_tile_col_idx
                 pop     cx
                 loop    Render_Scrolling_Tile
                 retn
@@ -1972,7 +1985,7 @@ Render_Empty_Or_Cached_Tile proc near
                     mov     ds, word ptr cs:seg1 ; seg1
                     push    cs
                     pop     es
-                    mov     al, cs:hero_frame_tile_idx
+                    mov     al, cs:hero_tile_col_idx
                     mov     cl, 64
                     mul     cl
                     add     ax, offset nine_unpacked_tiles
@@ -2035,7 +2048,7 @@ loc_3D7A:
                 mov     ds, word ptr cs:seg1 ; seg1
                 push    cs
                 pop     es
-                mov     al, cs:hero_frame_tile_idx
+                mov     al, cs:hero_tile_col_idx
                 mov     cl, 64
                 mul     cl
                 add     ax, offset nine_unpacked_tiles
@@ -2063,11 +2076,11 @@ Render_Tile_With_Palette endp
 ; =============== S U B R O U T I N E =======================================
 
 
-load_3x3_tiles  proc near               ; ...
-                mov     cl, ds:hero_head_y_in_viewport      ; hero_head_y_in_viewport
+load_3x3_tiles  proc near
+                mov     cl, ds:hero_head_y_in_viewport
                 mov     al, 36
                 mul     cl
-                mov     cl, ds:hero_x_in_viewport      ; hero_x_in_viewport
+                mov     cl, ds:hero_x_in_viewport
                 add     cl, 4           ; x relative to proximity left
                 xor     ch, ch
                 add     ax, cx
@@ -2078,7 +2091,6 @@ load_3x3_tiles  proc near               ; ...
                 push    cs
                 pop     es
                 mov     cx, 3
-
 loc_3DF0:
                 movsw
                 movsb
@@ -2104,7 +2116,7 @@ render_hero_sword proc near
                 sub     al, 2
                 cmp     al, cl
                 jnz     short locret_3E17
-                call    Copy_Tile_Buffer_To_VRAM
+                call    Copy_Hero_Frame_To_VRAM
 locret_3E17:
                 retn
 ; ---------------------------------------------------------------------------
@@ -2118,7 +2130,7 @@ loc_3E18:
 loc_3E22:
                 jnz     short loc_3E2A                      ; cl=5
                 call    Flush_Ui_Element_If_Dirty           ; draws upper half of hero
-                jmp     Copy_Tile_Buffer_To_VRAM            ; draws full hero, no sword drawn
+                jmp     Copy_Hero_Frame_To_VRAM            ; draws full hero, no sword drawn
 ; ---------------------------------------------------------------------------
 loc_3E2A:
                 add     al, 0Ah
@@ -2230,7 +2242,7 @@ loc_3EFF:
                 add     cx, cx
                 add     cx, cx
                 add     cx, cx
-                add     cx, cx  ; phase*16
+                add     cx, cx  ; sword_animation_gfx + offset + (sword_movement_phase-1) * 16
                 add     si, cx
                 mov     ds:sword_phase_src, si
                 pop     bx
@@ -2535,7 +2547,7 @@ Calculate_Tile_VRAM_Address endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Copy_Tile_Buffer_To_VRAM proc near
+Copy_Hero_Frame_To_VRAM proc near
                 test    byte ptr ds:hero_sprite_hidden, 0FFh
                 jz      short loc_40F8
                 retn
@@ -2559,7 +2571,7 @@ loc_4112:
 loc_4116:
                 push    cx
                 push    di
-                call    Copy_tile    ; 8x8
+                call    Copy_Tile_To_VRAM    ; 8x8
                 pop     di
                 add     di, 8
                 pop     cx
@@ -2573,7 +2585,7 @@ loc_4116:
                 pop     ds
                 pop     es
                 retn
-Copy_Tile_Buffer_To_VRAM endp
+Copy_Hero_Frame_To_VRAM endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2640,14 +2652,14 @@ Uncompress_And_Render_Tile endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Viewport_Tiles proc near         ; ...
+Render_Viewport_Tiles proc near
                 mov     byte ptr ds:ui_element_dirty, 0
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     ds:roka_palette, 8
+                mov     ds:render_counter, 8
 
 loc_41A1:
-                mov     ds:plane0_buf, viewport_top_left_vram_addr
+                mov     ds:viewport_row_vram_offset, viewport_top_left_vram_offset
                 mov     byte ptr ds:frame_timer, 0
                 mov     si, ds:viewport_left_top_addr
                 mov     di, viewport_buffer_28x19
@@ -2666,17 +2678,17 @@ loc_41BF:
                 inc     di
                 inc     bl
                 pop     cx
-                loop    loc_41BF
+                loop    loc_41BF ; columns loop
                 add     si, 4           ; skip 4 tiles to the right of viewport
                 call    wrap_e900_from_above
-                add     ds:plane0_buf, 0A00h
+                add     ds:viewport_row_vram_offset, 320*8 ; tile row VRAM offset
                 pop     cx
-                loop    loc_41B6
+                loop    loc_41B6 ; rows loop
 
 wait_frame_timer:
-                cmp     byte ptr ds:frame_timer, 10h
+                cmp     byte ptr ds:frame_timer, 16
                 jb      short wait_frame_timer
-                dec     ds:roka_palette
+                dec     ds:render_counter
                 jnz     short loc_41A1
                 retn
 Render_Viewport_Tiles endp
@@ -2685,9 +2697,7 @@ Render_Viewport_Tiles endp
 ; =============== S U B R O U T I N E =======================================
 
 
-render_tile     proc near               ; ...
-
-; FUNCTION CHUNK AT 42A5 SIZE 00000024 BYTES
+render_tile     proc near
 
                 cmp     byte ptr [di], 0FFh
                 jnz     short loc_41ED
@@ -2706,7 +2716,7 @@ loc_41F3:
                 push    si
                 push    bx
                 push    ax
-                mov     ah, ds:roka_palette
+                mov     ah, ds:render_counter
                 dec     ah
                 shr     ah, 1
                 shr     ah, 1
@@ -2717,7 +2727,7 @@ loc_41F3:
                 add     bx, bx
                 add     bx, bx
                 add     bx, bx
-                add     bx, ds:plane0_buf
+                add     bx, ds:viewport_row_vram_offset
                 mov     di, bx
                 pop     ax
                 test    al, 0FFh
@@ -2734,7 +2744,7 @@ loc_4220:
                 mov     ds, word ptr cs:seg1
                 push    si
                 push    di
-                mov     al, cs:roka_palette
+                mov     al, cs:render_counter
                 and     al, 3
                 neg     al
                 add     al, 3
@@ -2742,7 +2752,7 @@ loc_4220:
                 call    RenderTileRowWithMask
                 pop     di
                 pop     si
-                mov     al, cs:roka_palette
+                mov     al, cs:render_counter
                 call    CalculateTileOffset
                 add     di, 4
                 add     si, 3
@@ -2799,16 +2809,16 @@ RenderTileRowWithMask endp
 ; ---------------------------------------------------------------------------
 ; START OF FUNCTION CHUNK FOR render_tile
 
-RenderTileRowClear:                     ; ...
+RenderTileRowClear:
                 push    di
-                mov     al, cs:roka_palette
+                mov     al, cs:render_counter
                 and     al, 3
                 neg     al
                 add     al, 3
                 call    CalculateTileOffset
                 call    ClearTileRowWithMask
                 pop     di
-                mov     al, cs:roka_palette
+                mov     al, cs:render_counter
                 call    CalculateTileOffset
                 add     di, 4
                 call    ClearTileRowWithMask
@@ -2817,7 +2827,6 @@ RenderTileRowClear:                     ; ...
                 pop     di
                 pop     ds
                 retn
-; END OF FUNCTION CHUNK FOR render_tile
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -2867,9 +2876,9 @@ Render_Viewport_Border_Walls proc near  ; ...
                 mov     byte ptr ds:nibble_decode_lut, al ; 8*x
                 mov     byte ptr ds:nibble_decode_lut+1, ah ; 8*y
                 call    DrawDitheredPattern
-                mov     ds:roka_palette, 36h ; '6'
+                mov     ds:render_counter, 54
                 call    RenderBorderRings
-                mov     ds:roka_palette, 0
+                mov     ds:render_counter, 0
                 call    RenderBorderRings
                 jmp     DrawDitheredPattern
 Render_Viewport_Border_Walls endp
@@ -3028,11 +3037,11 @@ loc_43E1:
                 add     di, ax
                 pop     cx
                 xor     ch, ch
-                mov     ah, ds:roka_palette
+                mov     ah, ds:render_counter
 
 loc_43FA:
                 mov     es:[di], ah
-                add     di, 140h
+                add     di, 320
                 loop    loc_43FA
                 retn
 DrawVerticalLine endp
@@ -3078,7 +3087,7 @@ loc_4422:
                 sub     ah, al
                 mov     cl, ah
                 xor     ch, ch
-                mov     al, ds:roka_palette
+                mov     al, ds:render_counter
                 rep stosb
                 retn
 DrawHorizontalLine endp
@@ -3092,7 +3101,7 @@ CalculateRowVRAMAddress proc near       ; ...
                 xor     ah, ah
                 mov     di, 140h
                 mul     di
-                add     ax, viewport_top_left_vram_addr
+                add     ax, viewport_top_left_vram_offset
                 mov     di, ax
                 pop     dx
                 retn
@@ -3130,7 +3139,7 @@ WaitForVBlankAndDelay endp
 DrawDitheredPattern proc near           ; ...
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     di, viewport_top_left_vram_addr
+                mov     di, viewport_top_left_vram_offset
                 mov     cx, 8
 
 loc_4488:
@@ -3328,9 +3337,9 @@ sword_hit_pattern_tbl db 0, 1, 2, 4, 7, 9, 0Dh, 10h, 4, 15h, 17h, 1Ch, 1Eh, 4 ; 
 
 ; AL: roka palette?
 Render_Roca_Tilemap proc near
-                mov     ds:roka_palette, al
+                mov     ds:render_counter, al
                 mov     si, offset roca_tile_indices_28x18
-                mov     ds:plane0_buf, viewport_top_left_vram_addr
+                mov     ds:viewport_row_vram_offset, viewport_top_left_vram_offset
                 mov     cx, 18
 viewport_rows:
                 push    cx
@@ -3341,10 +3350,10 @@ viewport_cols:
                 push    si
                 call    RenderTileFrom_seg1
                 pop     si
-                add     ds:plane0_buf, 8
+                add     ds:viewport_row_vram_offset, 8
                 pop     cx
                 loop    viewport_cols
-                add     ds:plane0_buf, 48+7*320+48
+                add     ds:viewport_row_vram_offset, 48+7*320+48
                 pop     cx
                 loop    viewport_rows
                 retn
@@ -3363,7 +3372,7 @@ RenderTileFrom_seg1 proc near
                 mov     ds, cs:seg1
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     di, cs:plane0_buf ; screen address = 11b0h
+                mov     di, cs:viewport_row_vram_offset ; screen address = 11b0h
                 mov     cx, 8
 next_8px:
                 push    cx
@@ -3400,7 +3409,7 @@ loc_466C:
                 mov     es:[di+2], bh ; 20h
                 and     al, 3Fh
                 mov     es:[di+3], al ; 20h
-                mov     bl, cs:roka_palette ; 0
+                mov     bl, cs:render_counter ; 0
                 xor     bh, bh
                 add     bx, bx
                 mov     cx, 4
@@ -4609,7 +4618,7 @@ next_row_of_8:
                 lodsw
                 xchg    ah, al
                 mov     cx, ax
-                mov     cs:plane0_buf, dx
+                mov     cs:viewport_row_vram_offset, dx
                 mov     cs:plane1_buf, cx
                 or      ax, dx
                 mov     bx, ax
@@ -4645,11 +4654,11 @@ build_16_bits_from_2_planes proc near
 loc_4F4B:
                 rol     word ptr cs:plane1_buf, 1
                 adc     dx, dx
-                rol     word ptr cs:plane0_buf, 1
+                rol     word ptr cs:viewport_row_vram_offset, 1
                 adc     dx, dx
                 rol     word ptr cs:plane1_buf, 1
                 adc     dx, dx
-                rol     word ptr cs:plane0_buf, 1
+                rol     word ptr cs:viewport_row_vram_offset, 1
                 adc     dx, dx
                 loop    loc_4F4B
                 retn
@@ -4699,28 +4708,28 @@ nullsub_1       proc near
 nullsub_1       endp
 
 ; ---------------------------------------------------------------------------
-nibble_decode_lut           dw 0       
-plane0_buf               dw 0       
-hero_vram_base              dw 0       
-plane1_buf               dw 0
-viewport_rows_remaining     db 0       
-hero_frame_tile_idx           db 0       
-hero_tile_row_idx           db 0       
-tile_blit_mode              db 0       
+nibble_decode_lut            dw 0       
+viewport_row_vram_offset     dw 0       
+hero_vram_base               dw 0       
+plane1_buf                   dw 0
+viewport_rows_remaining      db 0       
+hero_tile_col_idx          db 0       
+hero_tile_row_idx            db 0       
+tile_blit_mode               db 0       
 transparency_mask_bitplane_f dw 0       
-entity_vram_src             dw 0       
-sword_phase_src             dw 0       
-sword_sprite_offsets          dw 0       
-tile_render_mask            dw 0       
-roka_palette     db 0
-tile_load_buffer            db 16 dup(0)
-tile_cache_dirty_flags      db 0         
-tile_cache_row1_dirty_flags db 0         
-                            db    0
-                            db    0
-tile_neighborhood_buffer    db 9 dup(0) ; =5014h
-tile_vram_cache             dw 128 dup(0) ; =501Dh
-nine_unpacked_tiles         db 576 dup(0) ; =511Dh (9*64 bytes)
+entity_vram_src              dw 0       
+sword_phase_src              dw 0       
+sword_sprite_offsets         dw 0       
+tile_render_mask             dw 0       
+render_counter               db 0
+tile_load_buffer             db 16 dup(0)
+tile_cache_dirty_flags       db 0         
+tile_cache_row1_dirty_flags  db 0         
+                             db 0
+                             db 0
+tile_neighborhood_buffer     db 9 dup(0) ; =5014h
+tile_vram_cache              dw 128 dup(0) ; =501Dh
+nine_unpacked_tiles          db 576 dup(0) ; =511Dh (9*64 bytes)
 
 gfmcga          ends
 
