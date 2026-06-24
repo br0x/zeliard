@@ -35,7 +35,7 @@ seg000:300A                 dw offset Viewport_Coords_To_Screen_Addr ; AL: y
 seg000:300A                                         ; AH: x
 seg000:300A                                         ; Returns video memory address in DI
 seg000:300C                 dw offset Sword_Overlay_EntryPoint
-seg000:300E                 dw offset Cached_Tile_Drawer ; AL: Tile Index
+seg000:300E                 dw offset Dungeon_Static_Tile_Cached_Drawer ; AL: Tile Index
 seg000:300E                                         ; DX: Screen destination
 seg000:3010                 dw offset Boss_Explosions_Renderer
 seg000:3012                 dw offset Render_Viewport_Tiles ; ;
@@ -245,7 +245,7 @@ seg000:314F                 add     dx, dx
 seg000:3151                 add     dx, dx
 seg000:3153                 add     dx, ds:word_4FEB
 seg000:3157                 shr     dx, 1
-seg000:3159                 call    Cached_Tile_Drawer ; AL: Tile Index
+seg000:3159                 call    Dungeon_Static_Tile_Cached_Drawer ; AL: Tile Index
 seg000:3159                                         ; DX: Screen destination
 seg000:315C
 seg000:315C loc_315C:                               ; ...
@@ -461,7 +461,7 @@ seg000:3272
 seg000:3272 ; AL: Tile Index
 seg000:3272 ; DX: Screen destination
 seg000:3272
-seg000:3272 Cached_Tile_Drawer proc near            ; ...
+seg000:3272 Dungeon_Static_Tile_Cached_Drawer proc near            ; ...
 seg000:3272                 push    es
 seg000:3273                 push    ds
 seg000:3274                 push    di
@@ -576,7 +576,7 @@ seg000:3323                 pop     ds
 seg000:3324                 pop     es
 seg000:3325                 assume es:nothing
 seg000:3325                 retn
-seg000:3325 Cached_Tile_Drawer endp
+seg000:3325 Dungeon_Static_Tile_Cached_Drawer endp
 seg000:3325
 seg000:3326
 seg000:3326 ; =============== S U B R O U T I N E =======================================
@@ -614,7 +614,7 @@ seg000:3354                 add     si, 3
 seg000:3357                 pop     ax
 seg000:3358                 mov     ah, [si]
 seg000:335A                 mov     dx, viewport_top_left_vram_offset
-seg000:335D                 call    Decode_And_Render_Tile_With_Blit
+seg000:335D                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:3360                 pop     bx
 seg000:3361                 pop     si
 seg000:3362                 retn
@@ -693,7 +693,7 @@ seg000:33D7                 add     si, 2
 seg000:33DA                 pop     ax
 seg000:33DB                 mov     ah, [si]
 seg000:33DD                 mov     dx, 1288h
-seg000:33E0                 jmp     Decode_And_Render_Tile_With_Blit
+seg000:33E0                 jmp     Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:33E0 Render_Top_Right_Corner_Entity endp
 seg000:33E0
 seg000:33E3
@@ -740,7 +740,7 @@ seg000:342F                 jns     short loc_3434
 seg000:3431                 call    Translate_Tile_Index
 seg000:3434
 seg000:3434 loc_3434:                               ; ...
-seg000:3434                 call    Decode_And_Render_Tile_With_Blit
+seg000:3434                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:3437                 pop     dx
 seg000:3438                 pop     si
 seg000:3439                 pop     bx
@@ -763,7 +763,7 @@ seg000:345C                 jns     short loc_3461
 seg000:345E                 call    Translate_Tile_Index
 seg000:3461
 seg000:3461 loc_3461:                               ; ...
-seg000:3461                 call    Decode_And_Render_Tile_With_Blit
+seg000:3461                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:3464
 seg000:3464 loc_3464:                               ; ...
 seg000:3464                 pop     bx
@@ -872,7 +872,7 @@ seg000:3530                 jns     short loc_3535
 seg000:3532                 call    Translate_Tile_Index
 seg000:3535
 seg000:3535 loc_3535:                               ; ...
-seg000:3535                 call    Decode_And_Render_Tile_With_Blit
+seg000:3535                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:3538                 pop     dx
 seg000:3539                 pop     si
 seg000:353A                 pop     bx
@@ -895,7 +895,7 @@ seg000:355D                 jns     short loc_3562
 seg000:355F                 call    Translate_Tile_Index
 seg000:3562
 seg000:3562 loc_3562:                               ; ...
-seg000:3562                 call    Decode_And_Render_Tile_With_Blit
+seg000:3562                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:3565
 seg000:3565 loc_3565:                               ; ...
 seg000:3565                 pop     bx
@@ -925,7 +925,7 @@ seg000:3587                 push    bp
 seg000:3588                 push    si
 seg000:3589                 push    di
 seg000:358A                 push    dx
-seg000:358B                 call    Decode_And_Render_Tile_With_Blit
+seg000:358B                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 seg000:358E                 pop     dx
 seg000:358F                 pop     di
 seg000:3590                 pop     si
@@ -943,7 +943,7 @@ seg000:3599
 seg000:3599 ; =============== S U B R O U T I N E =======================================
 seg000:3599
 seg000:3599
-seg000:3599 Decode_And_Render_Tile_With_Blit proc near    ; ...
+seg000:3599 Decode_And_Render_MonsterEntity_Tile_With_Blit proc near    ; ...
 seg000:3599                 push    es
 seg000:359A                 push    ds
 seg000:359B                 mov     bl, ds:blit_mode
@@ -1007,7 +1007,7 @@ seg000:360D                 pop     ds
 seg000:360E                 assume ds:nothing
 seg000:360E                 pop     es
 seg000:360F                 retn
-seg000:360F Decode_And_Render_Tile_With_Blit endp
+seg000:360F Decode_And_Render_MonsterEntity_Tile_With_Blit endp
 seg000:360F
 seg000:3610
 seg000:3610 ; =============== S U B R O U T I N E =======================================
@@ -1941,14 +1941,14 @@ seg000:3B61                 test    byte ptr ds:0FF38h, 0FFh ; squat_flag
 seg000:3B66                 jz      short loc_3B75
 seg000:3B68                 mov     cx, 6
 seg000:3B6B                 mov     ds:byte_4FF2, 3
-seg000:3B70                 call    Render_Scrolling_Tile
+seg000:3B70                 call    Render_Hero_Sprite_To_Buf9
 seg000:3B73                 jmp     short loc_3B80
 seg000:3B75 ; ---------------------------------------------------------------------------
 seg000:3B75
 seg000:3B75 loc_3B75:                               ; ...
 seg000:3B75                 mov     cx, 9
 seg000:3B78                 mov     ds:byte_4FF2, 0
-seg000:3B7D                 call    Render_Scrolling_Tile
+seg000:3B7D                 call    Render_Hero_Sprite_To_Buf9
 seg000:3B80
 seg000:3B80 loc_3B80:                               ; ...
 seg000:3B80                 mov     si, 610Eh
@@ -2002,7 +2002,7 @@ seg000:3BF2
 seg000:3BF2 loc_3BF2:                               ; ...
 seg000:3BF2                 mov     cx, 9
 seg000:3BF5                 mov     ds:byte_4FF2, 0
-seg000:3BFA                 call    Render_Scrolling_Tile
+seg000:3BFA                 call    Render_Hero_Sprite_To_Buf9
 seg000:3BFD                 test    byte ptr ds:0E8h, 0FFh ; invincibility_flag
 seg000:3C02                 jz      short loc_3C05
 seg000:3C04                 retn
@@ -2118,7 +2118,7 @@ seg000:3CC1                 test    byte ptr ds:0FF38h, 0FFh ; squat_flag
 seg000:3CC6                 jz      short loc_3CD2
 seg000:3CC8                 mov     cx, 6
 seg000:3CCB                 mov     ds:byte_4FF2, 3
-seg000:3CD0                 jmp     short Render_Scrolling_Tile
+seg000:3CD0                 jmp     short Render_Hero_Sprite_To_Buf9
 seg000:3CD2 ; ---------------------------------------------------------------------------
 seg000:3CD2
 seg000:3CD2 loc_3CD2:                               ; ...
@@ -2131,7 +2131,7 @@ seg000:3CDC
 seg000:3CDC ; =============== S U B R O U T I N E =======================================
 seg000:3CDC
 seg000:3CDC
-seg000:3CDC Render_Scrolling_Tile proc near         ; ...
+seg000:3CDC Render_Hero_Sprite_To_Buf9 proc near         ; ...
 seg000:3CDC                 push    cx
 seg000:3CDD                 mov     al, es:[si]
 seg000:3CE0                 or      al, al
@@ -2167,9 +2167,9 @@ seg000:3D19 loc_3D19:                               ; ...
 seg000:3D19                 inc     si
 seg000:3D1A                 inc     ds:byte_4FF2
 seg000:3D1E                 pop     cx
-seg000:3D1F                 loop    Render_Scrolling_Tile
+seg000:3D1F                 loop    Render_Hero_Sprite_To_Buf9
 seg000:3D21                 retn
-seg000:3D21 Render_Scrolling_Tile endp
+seg000:3D21 Render_Hero_Sprite_To_Buf9 endp
 seg000:3D21
 seg000:3D22
 seg000:3D22 ; =============== S U B R O U T I N E =======================================

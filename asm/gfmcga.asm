@@ -18,7 +18,7 @@ start:
                                         ; AH: x
                                         ; Returns video memory address in DI
                 dw offset Sword_Overlay_EntryPoint
-                dw offset Cached_Tile_Drawer ; AL: Tile Index
+                dw offset Dungeon_Static_Tile_Cached_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
                 dw offset Boss_Explosions_Renderer
                 dw offset Render_Viewport_Tiles
@@ -187,7 +187,7 @@ loc_30FE:
                 inc     di
                 or      al, al
                 jns     short loc_3108
-                jmp     Render_Tile_And_Update_Cache
+                jmp     Render_Tile_And_Update_Cache ; instead of ret it jumps to loc_3111
 ; ---------------------------------------------------------------------------
 
 loc_3108:
@@ -207,12 +207,12 @@ Refresh_Dirty_Tiles endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; SI will be used in the calling code
 Process_Dirty_Tile_With_Animation proc near
                 mov     al, [si-1]
                 or      al, al
                 jns     short loc_312E
-                jmp     Render_Tile_With_Border_Check
+                jmp     Render_Tile_With_Border_CheckProcess_Dirty_Tile_With_Animation
 ; ---------------------------------------------------------------------------
 
 loc_312E:
@@ -233,7 +233,7 @@ loc_313C:
                 add     dx, dx
                 add     dx, ds:viewport_row_vram_offset
                 shr     dx, 1
-                call    Cached_Tile_Drawer ; AL: Tile Index
+                call    Dungeon_Static_Tile_Cached_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
 
 loc_315C:
@@ -260,7 +260,7 @@ loc_3169:
 Process_Dirty_Tile_With_Animation endp
 
 ; ---------------------------------------------------------------------------
-animate_mpp58_tiles      dw offset Animate_Water_Cavern5 ; ...
+animate_mpp58_tiles  dw offset Animate_Water_Cavern5
                 dw offset Animate_Gold_Magma_Cavern6
                 dw offset Animate_Hot_Cavern7
                 dw offset Animate_Thorn_Cavern8
@@ -448,7 +448,7 @@ Animate_Thorn_Cavern8 endp
 
 ; AL: Tile Index
 ; DX: Screen destination address / 2
-Cached_Tile_Drawer proc near
+Dungeon_Static_Tile_Cached_Drawer proc near
                 push    es
                 push    ds
                 push    di
@@ -549,7 +549,7 @@ clear_8px:
                 pop     ds
                 pop     es
                 retn
-Cached_Tile_Drawer endp
+Dungeon_Static_Tile_Cached_Drawer endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -582,7 +582,7 @@ loc_334E:
                 pop     ax     ; al=0 (empty background)
                 mov     ah, [si] ; monster/entity tile
                 mov     dx, viewport_top_left_vram_offset
-                call    Decode_And_Render_Tile_With_Blit ; AH: nible-compressed tile idx (monster/entity tile)
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit ; AH: nible-compressed tile idx (monster/entity tile)
                                                          ; AL: 6 bit-packed tile idx (background tile)
                 pop     bx
                 pop     si
@@ -662,13 +662,13 @@ loc_33D1:
                 pop     ax
                 mov     ah, [si]
                 mov     dx, 14*320+48+27*8 ; points to vieport right column in VRAM
-                jmp     Decode_And_Render_Tile_With_Blit
+                jmp     Decode_And_Render_MonsterEntity_Tile_With_Blit
 Render_Top_Right_Corner_Entity endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Preserves SI
 Render_Tile_With_Dual_Cache proc near
                 push    si
                 push    di
@@ -709,7 +709,7 @@ Render_Tile_With_Dual_Cache proc near
                 call    Translate_Tile_Index
 
 loc_3434:
-                call    Decode_And_Render_Tile_With_Blit
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit
                 pop     dx
                 pop     si
                 pop     bx
@@ -732,7 +732,7 @@ loc_343A:
                 call    Translate_Tile_Index
 
 loc_3461:
-                call    Decode_And_Render_Tile_With_Blit
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 
 loc_3464:
                 pop     bx
@@ -744,27 +744,27 @@ Render_Tile_With_Dual_Cache endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; SI: points to the viewport buffer (restores on return)
 Render_Tile_With_Border_Check proc near
                 push    si
                 push    di
                 push    bx
                 push    bx
-                mov     bx, offset tile_cache_dirty_flags
-                mov     ax, 0FFFEh
-                xchg    ax, [di-1]
-                mov     [bx], ax
-                mov     ax, 0FFFFh
-                xchg    ax, [di+1Bh]
-                mov     [bx+2], ax
-                mov     cl, [si-1]
-                mov     bx, offset tile_neighborhood_buffer
-                mov     al, [si]
-                mov     [bx+1], al
-                add     si, 24h ; '$'
-                call    wrap_e900_from_above
-                mov     ax, [si-1]
-                mov     [bx+2], ax
+                    mov     bx, offset tile_cache_dirty_flags
+                    mov     ax, 0FFFEh
+                    xchg    ax, [di-1]
+                    mov     [bx], ax
+                    mov     ax, 0FFFFh
+                    xchg    ax, [di+27]
+                    mov     [bx+2], ax
+                    mov     cl, [si-1]
+                    mov     bx, offset tile_neighborhood_buffer
+                    mov     al, [si]
+                    mov     [bx+1], al
+                    add     si, 36
+                    call    wrap_e900_from_above
+                    mov     ax, [si-1]
+                    mov     [bx+2], ax
                 pop     dx
                 mov     ds:hero_tile_col_idx, dl
                 mov     al, ds:viewport_rows_remaining
@@ -783,7 +783,7 @@ Render_Tile_With_Border_Check proc near
                 call    Render_Tile_Neighborhood_Cell
                 cmp     ds:viewport_rows_remaining, 1
                 jz      short loc_34DF
-                add     dx, 9F0h
+                add     dx, 320*8-16
                 call    Render_Tile_Neighborhood_Cell
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jz      short loc_34DF
@@ -801,7 +801,7 @@ Render_Tile_With_Border_Check endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; SI is preserved
 Render_Tile_And_Update_Cache proc near
                 push    si
                 push    di
@@ -841,7 +841,7 @@ Render_Tile_And_Update_Cache proc near
                 call    Translate_Tile_Index
 
 loc_3535:
-                call    Decode_And_Render_Tile_With_Blit
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit
                 pop     dx
                 pop     si
                 pop     bx
@@ -864,19 +864,20 @@ loc_353B:
                 call    Translate_Tile_Index
 
 loc_3562:
-                call    Decode_And_Render_Tile_With_Blit
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit
 
 loc_3565:
                 pop     bx
                 pop     di
                 pop     si
-                jmp     loc_3111
+                jmp     loc_3111 ; to Refresh_Dirty_Tiles next row
 Render_Tile_And_Update_Cache endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-; Calls render_tile_neighborhood_cell_internal twice
+; Calls render_tile_neighborhood_cell_internal twice, each time dx advanced by 8
+; Output dx value is used by caller
 Render_Tile_Neighborhood_Cell proc near
                 call    $+3
 render_tile_neighborhood_cell_internal:
@@ -895,7 +896,7 @@ loc_3587:
                 push    si
                 push    di
                 push    dx
-                call    Decode_And_Render_Tile_With_Blit
+                call    Decode_And_Render_MonsterEntity_Tile_With_Blit
                 pop     dx
                 pop     di
                 pop     si
@@ -915,7 +916,7 @@ Render_Tile_Neighborhood_Cell endp ; sp-analysis failed
 ; AH: nible-compressed tile idx
 ; AL: 6bit-packed tile idx
 ; DX: VRAM destination address
-Decode_And_Render_Tile_With_Blit proc near
+Decode_And_Render_MonsterEntity_Tile_With_Blit proc near
                 push    es
                 push    ds
                 mov     bl, ds:tile_blit_mode ; blit mode
@@ -971,12 +972,16 @@ with_blit:
                 pop     ds
                 pop     es
                 retn
-Decode_And_Render_Tile_With_Blit endp
+Decode_And_Render_MonsterEntity_Tile_With_Blit endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
-; CL: tile idx + 1 (in seg1:8030h packed)
+; Render dynamic tile over static background.
+; SI: pointer to tile data (packed nibbles)
+; BP: transparency data (1 bit per pixel)
+; ES:DI: buffer destination address; DI += 64
+; CL: background tile idx + 1 (in seg1:8030h packed)
 decode_and_render_tile_with_blitting proc near
                 push    bp
                 push    si
@@ -984,7 +989,7 @@ decode_and_render_tile_with_blitting proc near
                 dec     cl ; packed tile idx
                 mov     al, 48
                 mul     cl
-                add     ax, 8030h
+                add     ax, 8030h  ; dungeon static tiles mppN.grp
                 mov     si, ax ; source addr of packed tile
                 call    render_48bytes_packed_tile ; prepare BG tile (48 bytes packed)
                 pop     di
@@ -992,10 +997,10 @@ decode_and_render_tile_with_blitting proc near
                 pop     bp
                 jmp     short $+2
 
-; render hero tile over background
+; render dynamic tile over background
 ; SI: pointer to tile data (packed nibbles)
 ; BP: transparency data (1 bit per pixel)
-; ES:DI: shadow VRAM destination address; DI += 64
+; ES:DI: buffer destination address; DI += 64
 render_tile_to_temp_buffer:
                 mov     cx, 8
 loc_3629:
@@ -1448,7 +1453,7 @@ word_3963       dw 0010111100000000b, 0000000011110100b, 0111111100000001b, 1000
 ; Clears the tile neighborhood buffer and then calls Sample_Neighborhood_Attributes to fill it. 
 ; Then, for each of the 3×3 tiles under the hero, it determines which sprite (body, arms, shield, etc.) 
 ; to render based on the hero’s state (facing, squat, shield, rope, invincibility, etc.). 
-; It prepares the tile indices and then calls Render_Scrolling_Tile or Render_Tile_With_Palette for each tile. 
+; It prepares the tile indices and then calls Render_Hero_Sprite_To_Buf9 or Render_Tile_With_Palette for each tile. 
 ; This is the main hero‑rendering routine.
 Update_Local_Attribute_Cache proc near
                 mov     di, offset tile_neighborhood_buffer
@@ -1714,14 +1719,14 @@ loc_3B61:
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
                 mov     ds:hero_tile_col_idx, 3
-                call    Render_Scrolling_Tile
+                call    Render_Hero_Sprite_To_Buf9
                 jmp     short loc_3B80
 ; ---------------------------------------------------------------------------
 ; non squat: 9 tiles
 loc_3B75:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0
-                call    Render_Scrolling_Tile
+                call    Render_Hero_Sprite_To_Buf9
 
 loc_3B80:
                 mov     si, fman_gfx + (2*13 + 4)*9  ; BODY_OPEN_DOOR
@@ -1776,7 +1781,7 @@ loc_3BF0:
 loc_3BF2:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0
-                call    Render_Scrolling_Tile
+                call    Render_Hero_Sprite_To_Buf9
                 test    byte ptr ds:invincibility_flag, 0FFh
                 jz      short loc_3C05
                 ; for invincibility mode - no more layers
@@ -1896,13 +1901,13 @@ loc_3CC1:
                 ; squat: 6 tiles starting at 3
                 mov     cx, 6
                 mov     ds:hero_tile_col_idx, 3
-                jmp     short Render_Scrolling_Tile
+                jmp     short Render_Hero_Sprite_To_Buf9
 ; ---------------------------------------------------------------------------
 non_squat:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0 ; normal: 9 tiles starting at 0
                 jmp     short $+2
-                ; fall through to Render_Scrolling_Tile
+                ; fall through to Render_Hero_Sprite_To_Buf9
 choose_hero_sprite endp
 
 
@@ -1910,9 +1915,9 @@ choose_hero_sprite endp
 
 ; SI: pointer to tile indices from fman header 6000h..6332h
 ; CX: number of tiles to render
-Render_Scrolling_Tile proc near
+Render_Hero_Sprite_To_Buf9 proc near
                 push    cx
-                mov     al, es:[si]
+                mov     al, es:[si] ; tile id
                 or      al, al
                 jz      short skip_empty
                 push    es
@@ -1945,9 +1950,9 @@ skip_empty:
                 inc     si
                 inc     ds:hero_tile_col_idx
                 pop     cx
-                loop    Render_Scrolling_Tile
+                loop    Render_Hero_Sprite_To_Buf9
                 retn
-Render_Scrolling_Tile endp
+Render_Hero_Sprite_To_Buf9 endp
 
 
 ; =============== S U B R O U T I N E =======================================

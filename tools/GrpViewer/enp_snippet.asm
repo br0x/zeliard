@@ -107,7 +107,7 @@ viewport_row_vram_offset                   dw 0
 plane1_buf                   dw 0
 transparency_mask_bitplane_f dw 0       
 
-; used in Decode_And_Render_Tile_With_Blit, choose_hero_sprite
+; used in Decode_And_Render_MonsterEntity_Tile_With_Blit, choose_hero_sprite
 pal_decode_tbl     dw offset pal_decode_data0
                    dw offset pal_decode_data1
                    dw offset pal_decode_data2
@@ -124,7 +124,7 @@ nibble_decode_lut  dw 0
 ; AH: nible-compressed tile idx; =4f
 ; AL: 6bit-packed tile idx;      =00
 ; DX: VRAM destination address
-Decode_And_Render_Tile_With_Blit proc near
+Decode_And_Render_MonsterEntity_Tile_With_Blit proc near
                 push    es
                 push    ds
                 mov     bl, ds:tile_blit_mode ; =0
@@ -181,7 +181,7 @@ with_blit:
                 pop     ds
                 pop     es
                 retn
-Decode_And_Render_Tile_With_Blit endp
+Decode_And_Render_MonsterEntity_Tile_With_Blit endp
 
 
 ; =============== S U B R O U T I N E =======================================

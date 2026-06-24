@@ -5904,7 +5904,7 @@ loc_8414:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 mov     al, [di]
-                jmp     cs:Cached_Tile_Drawer_proc ; AL: Tile Index
+                jmp     cs:Dungeon_Static_Tile_Cached_Drawer_proc ; AL: Tile Index
 restore_bg_tile_at_given_position endp  ; DX: Screen destination
 
 

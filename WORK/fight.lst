@@ -5483,7 +5483,7 @@ fight:8418                                         ; uint8_t x = AH
 fight:8418                                         ; y &= 0x3F; // Clamp Y to 0-63
 fight:8418                                         ; uint16_t di = (y * 36) + x + 0xE000;
 fight:841B                 mov     al, [di]
-fight:841D                 jmp     cs:Cached_Tile_Drawer_proc ; AL: Tile Index
+fight:841D                 jmp     cs:Dungeon_Static_Tile_Cached_Drawer_proc ; AL: Tile Index
 fight:841D restore_bg_tile_at_given_position endp  ; DX: Screen destination
 fight:841D
 fight:8422

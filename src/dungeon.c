@@ -52,10 +52,7 @@
 #define ADDR_VERTICAL_PLATFORMS_TABLE 0xC004u
 #define ADDR_COLLAPSING_PLATFORMS_TABLE 0xC006u
 #define ADDR_HORIZ_PLATFORMS_TABLE 0xC008u
-#define ADDR_CAVERN_LEVEL        0xC012u
 #define ADDR_CAVERN_SIGNS_INFO   0xC017u
-#define ADDR_PACKED_MAP_END_PTR  0xC019u
-#define ADDR_PACKED_MAP_START    0xC01Bu
 
 // Dungeon rendering buffers
 // Proximity map bounds
@@ -63,7 +60,6 @@
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
 
 #define ADDR_INPUT_ALT_SPACE     0xFF16u
-#define ADDR_VIEWPORT_LEFT_TOP   0xFF31u  // word: address in proximity map for top-left of viewport
 #define ADDR_TICK_COUNTER        0xFF50u
 
 #define ADDR_DUNGEON_EXIT_FLAG   0xFFE2
@@ -204,13 +200,13 @@ void Handle_Speed_Change_proc()
 
 }
 
-// stub. Handled by game.js
+// stub. Already handled by game.js
 uint8_t Handle_Restore_Game_proc()
 {
-
+    return 0;
 }
 
-// stub. Handled by game.js
+// stub. Already handled by game.js
 void restore_game()
 {
 
@@ -853,7 +849,7 @@ uint8_t get_airflow_direction(uint8_t tile)
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct)
 {
     uint8_t tile = MEM8(si);
-    if (tile & 0x80 == 0) {
+    if ((tile & 0x80) == 0) {
         *flags = tile;
         return 0;
     }

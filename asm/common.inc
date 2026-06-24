@@ -607,7 +607,7 @@ special_tile_list_ptr                              equ 8002h
 tile_animation_replacement_table                   equ 8004h ; pointer to a table
     ; the table at that address is a counted list of (old_tile, new_tile) byte pairs terminated by 0FFh
 packed_tile_graphics                               equ 8100h ; 48 bytes per tile (6 bits per pixel × 8 pixels × 8 rows)
-hero_transparency_masks                            equ 0D000h
+hero_transparency_masks                            equ 0D000h ; filled in Decompress_Tile_Data
     ; 1 byte per tile-row of the animated sprite, 
     ; 8 bits per row selecting which of the 8 pixels are drawn from the sprite vs the background
 sword_item_gfx                                     equ 0E200h

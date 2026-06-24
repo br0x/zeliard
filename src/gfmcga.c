@@ -14,7 +14,9 @@
 #define FMAN_ARM_RIGHT_BASE     ((2 * 13 + 4 + 1) * 9)
 #define FMAN_ARM_LEFT_BASE      ((2 * 13 + 4 + 1 + 18) * 9) // 49 * 9
 #define FMAN_SHIELD_FRONT_BASE  ((2 * 13 + 4 + 1 + 2 * 18) * 9) // 67 * 9
-#define FMAN_SHIELD_BACK_BASE   ((2 * 13 + 4 + 1 + 2 * 18 + 12) * 9) // 79 * 9
+#define FMAN_SHIELD_BACK_BASE   ((2 * 13 + 4 + 1 + 2 * 18 + 12) * 9) // 79 * 9 = 0x2c7
+
+#define FMAN_SPRITE_PIXEL_OFFSET   (0x0333)  /* hero sprite pixel start in seg1 */
 
 // sword_animation_gfx: (1 of 3 datasets, per sword size, defined during dungeon init)
 // tiles_pixel_data_offset    dw ?
@@ -44,7 +46,8 @@
 #define DUNGEON_TILE_PACKED_BASE (0x8030) // seg1-relative
 #define MONSTER_TILE_NIBBLE_BASE (0x4000) // seg1-relative
 #define MONSTER_TILE_MASK_BASE   (0xA000) // seg1-relative
-#define FMAN_SPRITE_PIXEL_BASE   (0x0333)  /* hero sprite pixel start in seg1 */
+#define FMAN_TILE_MASK_BASE      (0xD000) // seg1-relative
+#define FMAN_GFX_BASE            (0x6000) // seg1-relative
 
 uint16_t sword_animation_gfx[];
 uint16_t hero_vram_base; // Destination VRAM offset for the hero’s 3x3 tile block
@@ -152,16 +155,17 @@ static const uint16_t *const boss_explosion_ring_phases[] = {
 // VRAM buffer (320x200 bytes), in MCGA mode 13h starts at 0xA0000
 // Provided here as stub, all the actual rendering should be done in js
 extern uint8_t vram[320 * 200];
+extern uint8_t vram_shadow[1536];
 #define viewport_top_left_vram_offset (14*320 + 48)
 #define viewport_top_right_vram_offset (14*320 + 48 + 27 * 8)
 #define viewport_buffer_28x19 0xE900
-#define vram_shadow (320*200)
 
+extern uint8_t get_random_proc();
 static uint8_t Translate_Tile_Index(uint8_t al);
-static void render_48bytes_packed_tile(uint16_t si_offset, uint8_t *di_offset);
+static void render_48bytes_packed_tile(const uint8_t *si, uint8_t *di);
 static void _render_hero_3x3();
 static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t *si, const uint8_t *bp, uint8_t *di);
-static void render_nibble_compressed_tile(const uint16_t si, uint8_t *dst);
+static void render_nibble_compressed_tile(const uint8_t *si, uint8_t *dst);
 void Sword_Overlay_EntryPoint();
 static void render_tile_to_temp_buffer(const uint8_t *si, const uint8_t *bp, uint8_t *di);
 static void Copy4x4TilesFromScreenToShadowBuffer();
@@ -170,8 +174,9 @@ void Flush_Ui_Element_If_Dirty();
 void Copy_Hero_Frame_To_VRAM();
 static void Copy_Tile_To_VRAM(uint16_t dest_off, const uint8_t *src);
 static void Blit32x32SpriteToVram();
-static void Render_Scrolling_Tile(const uint8_t *sprite_header, uint8_t cx);
+static void Render_Hero_Sprite_To_Buf9(const uint8_t *sprite_header, uint8_t cx);
 static void _choose_hero_sprite();
+static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx);
 
 
 void Clear_Tile_Buffer(uint8_t *dest)
@@ -305,8 +310,8 @@ void Render_Empty_Or_Cached_Tile(uint8_t *nb_ptr) {
     if (tile == 0) {
         Clear_Tile_Buffer(dest);
     } else {
-        uint16_t src_seg1 = (tile - 1) * 48 + DUNGEON_TILE_PACKED_BASE;
-        render_48bytes_packed_tile(src_seg1, dest);
+        uint8_t *src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (tile - 1) * 48];
+        render_48bytes_packed_tile(src, dest);
     }
 }
 
@@ -338,8 +343,8 @@ void Render_Tile_With_Palette(uint8_t tile, uint8_t *nb_ptr) {
     
     nibble_decode_lut = pal_decode_tbl[tile_blit_mode];
     
-    uint16_t si_offset = MONSTER_TILE_NIBBLE_BASE + tile * 32;
-    uint16_t bp_offset = MONSTER_TILE_MASK_BASE + tile * 8;
+    uint8_t *si_offset = &g_mem[0x10000 + MONSTER_TILE_NIBBLE_BASE + tile * 32];
+    uint8_t *bp_offset = &g_mem[0x10000 + MONSTER_TILE_MASK_BASE + tile * 8];
     uint8_t *dest = &nine_unpacked_tiles[hero_tile_col_idx * 64];
     
     if (bg_tile != 0) { // background tile exists, need blitting
@@ -476,7 +481,7 @@ static void _render_hero_3x3()
 
 /* 
  * Called after the 3×3 background grid has been written to nine_unpacked_tiles.
- * Composites three hero-sprite layers on top via Render_Scrolling_Tile():
+ * Composites three hero-sprite layers on top via Render_Hero_Sprite_To_Buf9():
  *
  *   Layer 1 – Back arm / weapon (drawn BEFORE the body)
  *     Skipped when invincible, on rope, or hidden.
@@ -522,7 +527,7 @@ static void _choose_hero_sprite()
     if (!(invincibility_flag | on_rope_flags | hero_hidden_flag)) {
 
         /* Base: back arm follows the facing direction directly */
-        uint16_t arm_si = facing_left ? FMAN_ARM_LEFT_BASE : FMAN_ARM_RIGHT_BASE;
+        uint8_t *arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + (facing_left ? FMAN_ARM_LEFT_BASE : FMAN_ARM_RIGHT_BASE)];
         uint8_t do_render_arm = 0;
         uint8_t arm_cx = 9; // by default, render full frame of 9 tiles
         uint8_t arm_col = 0; // starting from 0
@@ -533,7 +538,7 @@ static void _choose_hero_sprite()
 
             if (!facing_left) {
                 /* Facing right + active shield → SHIELD_BACK_BASE */
-                arm_si = FMAN_SHIELD_BACK_BASE + phase_off + (uint16_t)cat * (4 * 9);
+                arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_SHIELD_BACK_BASE + phase_off + (uint16_t)cat * (4 * 9)];
             } else {
                 /* Facing left + active shield */
                 uint16_t off = phase_off + 36;
@@ -576,7 +581,7 @@ static void _choose_hero_sprite()
                 arm_cx  = 6; // render 6 tiles
             }
             hero_tile_col_idx = arm_col;
-            Render_Scrolling_Tile(arm_si, arm_cx);
+            Render_Hero_Sprite_To_Buf9(arm_si, arm_cx);
         }
     } // layer 1
 
@@ -589,13 +594,13 @@ static void _choose_hero_sprite()
 
         if (hero_hidden_flag) {
             /* Hiding in doorway: static open-door frame, no additional offset */
-            body_si = FMAN_BODY_OPEN_DOOR;
+            body_si = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_BODY_OPEN_DOOR];
         } else if (on_rope_flags) {
             /* On rope: use normal walk-animation phases (0..3) */
-            body_si  = FMAN_BODY_ROPE_BASE;
+            body_si  = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_BODY_ROPE_BASE];
             body_off = (uint16_t)(hero_animation_phase & 3) * 9;
         } else {
-            body_si = facing_left ? FMAN_BODY_LEFT_BASE : FMAN_BODY_RIGHT_BASE;
+            body_si = &g_mem[0x10000 + FMAN_GFX_BASE + (facing_left ? FMAN_BODY_LEFT_BASE : FMAN_BODY_RIGHT_BASE)];
 
             if (invincibility_flag) {
                 /* Invincibility mode: frames start +10 from body base,
@@ -621,7 +626,7 @@ static void _choose_hero_sprite()
         }
 
         hero_tile_col_idx = 0;
-        Render_Scrolling_Tile(body_si + body_off, 9u);
+        Render_Hero_Sprite_To_Buf9(body_si + body_off, 9u);
     } // layer 2
 
     if (invincibility_flag)
@@ -634,7 +639,7 @@ static void _choose_hero_sprite()
      * the two arms bracket the body */
     {
         /* Note the intentional inversion vs. Layer 1 */
-        const uint8_t *arm_si = facing_left ? FMAN_ARM_RIGHT_BASE : FMAN_ARM_LEFT_BASE;
+        const uint8_t *arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + (facing_left ? FMAN_ARM_RIGHT_BASE : FMAN_ARM_LEFT_BASE)];
         uint8_t cat = get_player_shield_category();
 
         if (on_rope_flags | hero_hidden_flag) {
@@ -650,7 +655,7 @@ static void _choose_hero_sprite()
 
             if (!facing_left) {
                 /* Facing right + active shield front → SHIELD_FRONT_BASE */
-                arm_si = FMAN_SHIELD_FRONT_BASE + phase_off + (uint16_t)cat * (4 * 9);
+                arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_SHIELD_FRONT_BASE + phase_off + (uint16_t)cat * (4 * 9)];
             } else {
                 /* Facing left + active shield front */
                 uint16_t off = phase_off + 4 * 9;
@@ -685,10 +690,10 @@ static void _choose_hero_sprite()
 
         if (squat_flag) {
             hero_tile_col_idx = 3;
-            Render_Scrolling_Tile(arm_si, 6);
+            Render_Hero_Sprite_To_Buf9(arm_si, 6);
         } else {
             hero_tile_col_idx = 0;
-            Render_Scrolling_Tile(arm_si, 9);
+            Render_Hero_Sprite_To_Buf9(arm_si, 9);
         }
     } // layer 3
 }
@@ -698,12 +703,12 @@ static void _choose_hero_sprite()
  * Renders cx consecutive hero-sprite tiles from the fman_gfx header table
  * into nine_unpacked_tiles, advancing hero_tile_col_idx for each tile.
  *
- * sprite_header  : pointer into seg1 fman_gfx header table (1 byte per slot)
+ * sprite_header  : pointer into seg1 fman_gfx header table (tile indices at 6000h..6332h)
  * cx             : number of tile slots to process
  *
  * Each header byte is a 1-based tile index into the hero sprite pixel data:
  *   0        → transparent slot (column advanced, nothing rendered)
- *   non-zero → pixel data at seg1 + FMAN_SPRITE_PIXEL_BASE + tile*32
+ *   non-zero → pixel data at seg1 + FMAN_SPRITE_PIXEL_OFFSET + tile*32
  *              mask data at seg1 + hero_transparency_masks_offset + tile*8
  *
  * The sprite is composited onto nine_unpacked_tiles[hero_tile_col_idx × 64]
@@ -712,17 +717,15 @@ static void _choose_hero_sprite()
  * In the original ASM, ES was set to seg1 before calling this function so
  * that "mov al, es:[si]" reads from seg1.  Here we use seg1 directly.
  */
-static void Render_Scrolling_Tile(const uint8_t *sprite_header, uint8_t cx)
+static void Render_Hero_Sprite_To_Buf9(const uint8_t *sprite_header, uint8_t cx)
 {
     for (; cx > 0u; cx--, sprite_header++, hero_tile_col_idx++) {
         uint8_t tile = *sprite_header;
         if (tile == 0u)
             continue;   /* transparent slot – advance counter, no pixels */
 
-        const uint8_t *src   = FMAN_SPRITE_PIXEL_BASE
-                             + (uint16_t)tile * 32;
-        const uint8_t *masks = MONSTER_TILE_MASK_BASE
-                             + (uint16_t)tile * 8;
+        const uint8_t *src   = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_SPRITE_PIXEL_OFFSET + (uint16_t)tile * 32];
+        const uint8_t *masks = &g_mem[0x10000 + FMAN_TILE_MASK_BASE + (uint16_t)tile * 8];
         uint8_t *dst = nine_unpacked_tiles + (uint16_t)hero_tile_col_idx * 64;
 
         render_tile_to_temp_buffer(src, masks, dst);
@@ -985,7 +988,7 @@ void Flush_Ui_Element_If_Dirty()
 static void Blit32x32SpriteToVram()
 {
     // entity_vram_src and VRAM shadow at offset 64064
-    const uint8_t *src = &vram[64064];   // shadow buffer
+    const uint8_t *src = &vram_shadow[64];   // shadow buffer
     uint16_t dest_off = entity_vram_src;
 
     for (int y = 0; y < 32; ++y) {
@@ -1000,7 +1003,7 @@ static void Blit32x32SpriteToVram()
 static void Copy4x4TilesFromScreenToShadowBuffer()
 {
     const uint8_t *src = &vram[entity_vram_src];
-    uint8_t *dest = &vram[64064]; // shadow VRAM buffer, 1024 bytes
+    uint8_t *dest = &vram_shadow[64]; // shadow VRAM buffer, 1024 bytes
 
     for (int y = 0; y < 32; ++y) {
         memcpy(dest, src, 32);
@@ -1120,7 +1123,7 @@ uint8_t  tile_cache_dirty_flags[4];
  * Unpacks 3 source bytes into four 6-bit pixel values and writes them to
  * `dst[0..3]`, advancing both pointers (src by 3, dst by 4). This is the
  * "lodsw/lodsb; ... 3 bytes -> 4 pixels" block that both
- * render_48bytes_packed_tile and Cached_Tile_Drawer perform identically;
+ * render_48bytes_packed_tile and Dungeon_Static_Tile_Cached_Drawer perform identically;
  * I factored it out instead of duplicating the bit-twiddling twice.
  * `row_stride` is added to dst after every 8 pixels (one tile row); pass 0
  * for a contiguous destination (the shadow tile buffer) or 320-8 to skip
@@ -1171,7 +1174,7 @@ static void clear_8x8_tile_vram(uint8_t *dst)
  * SI: source (packed, 48 bytes) -- AL: 6-bit packed bg tile idx, 0-based
  * DI: render address, contiguous (advances 64 bytes total, no row stride)
  */
-static void render_48bytes_packed_tile(const uint16_t src, uint8_t *dst)
+static void render_48bytes_packed_tile(const uint8_t *src, uint8_t *dst)
 {
     decode_packed_6bit_tile(src, dst, 0);
 }
@@ -1185,10 +1188,9 @@ static void render_48bytes_packed_tile(const uint16_t src, uint8_t *dst)
  * somewhere else on screen this pass (just copy the existing pixels
  * instead).
  */
-static void Cached_Tile_Drawer(uint8_t al, uint16_t dx)
+static void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx)
 {
-    uint16_t di_off = (uint16_t)(dx * 2);
-    uint8_t *di = &vram[di_off];
+    uint8_t *di = &vram[dx * 2];
 
     if (al == 0) {
         clear_8x8_tile_vram(di);
@@ -1202,9 +1204,9 @@ static void Cached_Tile_Drawer(uint8_t al, uint16_t dx)
     }
 
     uint8_t bg_idx = (uint8_t)(al - 1);
-    tile_vram_cache[al] = di_off;
+    tile_vram_cache[al] = di;
 
-    const uint16_t src = DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48;
+    const uint8_t *src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48];
     decode_packed_6bit_tile(src, di, 320 - 8);
 }
 
@@ -1235,12 +1237,11 @@ static void draw_4_pix_from_table_by_ax(uint8_t *di, uint16_t ax)
 }
 
 // All rendering should be done in js, this is just direct translation of original
-// si: points to compressed tile data (32 bytes)
+// src: points to compressed tile data (32 bytes)
 // dst: destination buffer (64 bytes)
 // Checked
-static void render_nibble_compressed_tile(const uint16_t si, uint8_t *dst)
+static void render_nibble_compressed_tile(const uint8_t *src, uint8_t *dst)
 {
-    uint8_t *src = (uint8_t *)si;
     for (int i = 0; i < 8; i++) {
         uint16_t ax = (*src++) | ((*src++) << 8);
         draw_4_pix_from_table_by_ax(dst, ax);
@@ -1283,13 +1284,13 @@ static void render_tile_to_temp_buffer(const uint8_t *si, const uint8_t *bp, uin
     for (int row = 0; row < 8; row++) {
         uint8_t dl = bp[row];
 
-        uint16_t word0 = (uint16_t)(si[0] | (si[1] << 8));
+        uint16_t word = (uint16_t)(si[0] | (si[1] << 8));
         si += 2;
-        four_pixels_or_blit(&dl, &word0, &di);
+        four_pixels_or_blit(&dl, &word, &di);
 
-        uint16_t word1 = (uint16_t)(si[0] | (si[1] << 8));
+        word = (uint16_t)(si[0] | (si[1] << 8));
         si += 2;
-        four_pixels_or_blit(&dl, &word1, &di);
+        four_pixels_or_blit(&dl, &word, &di);
     }
 }
 
@@ -1297,14 +1298,14 @@ static void render_tile_to_temp_buffer(const uint8_t *si, const uint8_t *bp, uin
  * Renders a background dungeon tile from mpp{i}.grp, 
  * then blends a sprite/overlay tile on top of it in place.
  * bg_tile: background tile idx + 1 (1-based, packed BG tile data at GFX+0x8030)
- * SI: nibble-compressed sprite tile data (32 bytes)
- * BP: 8-byte transparency mask for the sprite
- * DI: destination, 8x8 = 64 bytes (the VRAM shadow scratch area)
+ * si: nibble-compressed sprite tile data (32 bytes)
+ * bp: 8-byte transparency masks for the sprite
+ * di: destination buffer, 8x8 = 64 bytes
  */
 static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t *si, const uint8_t *bp, uint8_t *di)
 {
     uint8_t bg_idx = (uint8_t)(bg_tile - 1);
-    const uint16_t bg_src = DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48;
+    const uint8_t *bg_src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48];
 
     render_48bytes_packed_tile(bg_src, di); // draw background tile first
     render_tile_to_temp_buffer(si, bp, di); // then blit another tile on top
@@ -1327,7 +1328,7 @@ static uint8_t Translate_Tile_Index(uint8_t al)
  * only, or background+blitted sprite), then copies the result to its real
  * VRAM destination.
  */
-static void Decode_And_Render_Tile_With_Blit(uint8_t al, uint8_t ah, uint16_t dx)
+static void Decode_And_Render_MonsterEntity_Tile_With_Blit(uint8_t al, uint8_t ah, uint16_t dx)
 {
     uint8_t bl = tile_blit_mode;
     if (al != 0 && al < 0x80) {
@@ -1336,9 +1337,8 @@ static void Decode_And_Render_Tile_With_Blit(uint8_t al, uint8_t ah, uint16_t dx
 
     uint16_t tile_off = (uint16_t)(ah * 32);
 
-    const uint8_t *si = MONSTER_TILE_NIBBLE_BASE + tile_off;          /* nibble-compressed monsters data (32 bytes = 64 nibbles per tile)  */
-    const uint8_t *bp = MONSTER_TILE_MASK_BASE + (uint16_t)(tile_off >> 2); /* monsters transparency masks (8 Bytes per tile) */
-    uint8_t *di = &vram[dx];                               /* final VRAM destination        */
+    const uint8_t *si = &g_mem[0x10000 + MONSTER_TILE_NIBBLE_BASE + tile_off];          /* nibble-compressed monsters data (32 bytes = 64 nibbles per tile)  */
+    const uint8_t *bp = &g_mem[0x10000 + MONSTER_TILE_MASK_BASE + (uint16_t)(tile_off >> 2)]; /* monsters transparency masks (8 Bytes per tile) */
 
     uint8_t blit_flag  = bl;        /* ch in the original */
     uint8_t mode_index = bl & 0x7F;
@@ -1350,7 +1350,7 @@ static void Decode_And_Render_Tile_With_Blit(uint8_t al, uint8_t ah, uint16_t dx
         render_nibble_compressed_tile(si, vram_shadow);
     }
 
-    Copy_Tile_To_VRAM(di, vram_shadow);
+    Copy_Tile_To_VRAM(dx, vram_shadow);
 }
 
 /*
@@ -1361,10 +1361,10 @@ static void Decode_And_Render_Tile_With_Blit(uint8_t al, uint8_t ah, uint16_t dx
  * dx -> VRAM destination address
  * All four in/out pointers are advanced by the function before returning
  */
-static void Render_Tile_Neighborhood_Cell(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t dx)
+static void Render_Tile_Neighborhood_Cell(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx)
 {
-    render_tile_neighborhood_cell_internal(si, di, bp, &dx);
-    render_tile_neighborhood_cell_internal(si, di, bp, &dx);
+    render_tile_neighborhood_cell_internal(si, di, bp, dx);
+    render_tile_neighborhood_cell_internal(si, di, bp, dx);
 }
 
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx)
@@ -1375,7 +1375,7 @@ static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, u
         if (al >= 0x80) { // monster/entity tile
             al = Translate_Tile_Index(al);
         }
-        Decode_And_Render_Tile_With_Blit(al, ah, *dx);
+        Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, *dx);
     }
     *si++;
     *di++;
@@ -1410,7 +1410,7 @@ static void Render_Top_Left_Corner_Entity(uint16_t si)
     si += 3; // bottom right tile of the monster 2x2 sprite
     uint8_t ah = MEM8(si);
 
-    Decode_And_Render_Tile_With_Blit(al, ah, viewport_top_left_vram_offset);
+    Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, viewport_top_left_vram_offset);
 }
 
 /*
@@ -1440,7 +1440,7 @@ static void Render_Top_Right_Corner_Entity(uint16_t si)
     si += 2; // bottom left tile of the monster 2x2 sprite
     uint8_t ah = MEM8(si);
 
-    Decode_And_Render_Tile_With_Blit(al, ah, viewport_top_right_vram_offset);
+    Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, viewport_top_right_vram_offset);
 }
 
 /*
@@ -1475,7 +1475,7 @@ static void Render_Tile_With_Attribute_Cache(uint16_t si, int col)
 
     si += 2; // bottom left tile of the monster 2x2 sprite
 
-    uint8_t *nb_si = si;
+    uint8_t *nb_si = &g_mem[si];
     uint8_t *nb_di = tile_neighborhood_buffer;
     uint8_t *nb_bp = tile_cache_dirty_flags;
     Render_Tile_Neighborhood_Cell(&nb_si, &nb_di, &nb_bp, &dest); /* column col, col+1 */
@@ -1484,11 +1484,12 @@ static void Render_Tile_With_Attribute_Cache(uint16_t si, int col)
 /*
  * Handles column 0 of a regular (non-top) row: an optional entity overlay
  * spanning this row's column 0 *and* the same column one row down (hence
- * "dual"). `si` is the map pointer just after the entity/overlay byte was
- * read (lodsb) by the caller; `di` is this row's column-0 cache slot in
- * viewport_buffer_28x19.
+ * "dual"). 
+ * `si` is the map pointer just after the entity/overlay byte was
+ * read (lodsb) by the caller; Passed by value.
+ * `di` is this row's column-0 cache slot in viewport_buffer_28x19.
  */
-static void Render_Tile_With_Dual_Cache(uint8_t *si, uint8_t *di)
+static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
 {
     uint8_t old0 = *di;
     *di = 0xFF;
@@ -1497,11 +1498,11 @@ static void Render_Tile_With_Dual_Cache(uint8_t *si, uint8_t *di)
     tile_cache_dirty_flags[0] = old0;
     tile_cache_dirty_flags[1] = old1;
 
-    uint8_t cl = si[-1];  /* entity/overlay byte, re-read from memory */
-    uint8_t bl = si[0];   /* background tile idx, this row    */
+    uint8_t cl = MEM8(si-1);  /* entity/overlay byte, re-read from memory */
+    uint8_t bl = MEM8(si+0);   /* background tile idx, this row    */
     si += 36;
     wrap_map_from_above(&si);
-    uint8_t bh = si[0];   /* background tile idx, row below   */
+    uint8_t bh = MEM8(si+0);   /* background tile idx, row below   */
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
 
@@ -1510,10 +1511,10 @@ static void Render_Tile_With_Dual_Cache(uint8_t *si, uint8_t *di)
     uint16_t dx = (uint16_t)(0 * 8 + viewport_row_vram_offset); /* column 0 */
 
     if (tile_cache_dirty_flags[0] != 0xFF && tile_cache_dirty_flags[0] != 0xFC) {
-        uint8_t ah = si[0];
+        uint8_t ah = MEM8(si+0);
         uint8_t al = bl;
         if (al >= 0x80) al = Translate_Tile_Index(al);
-        Decode_And_Render_Tile_With_Blit(al, ah, dx);
+        Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 
     dx = (uint16_t)(dx + 320*8); /* one tile-row down (320*8) */
@@ -1521,10 +1522,11 @@ static void Render_Tile_With_Dual_Cache(uint8_t *si, uint8_t *di)
     if (viewport_rows_remaining != 1 &&
         tile_cache_dirty_flags[1] != 0xFF && tile_cache_dirty_flags[1] != 0xFC) {
         si += 2;
-        uint8_t ah = *si++;
+        uint8_t ah = MEM8(si+0);
+        si++;
         uint8_t al = bh;
         if (al >= 0x80) al = Translate_Tile_Index(al);
-        Decode_And_Render_Tile_With_Blit(al, ah, dx);
+        Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 }
 
@@ -1596,7 +1598,7 @@ static void Spawn_Boss_Explosion_Ring()
  * loop (i.e. just past the bytes that were compared); `col` is the
  * current column (0..27).
  */
-static void Render_Tile_With_Border_Check(uint8_t *si, uint8_t *di, int col)
+static void Render_Tile_With_Border_Check(uint16_t si, uint8_t *di, int col)
 {
     uint8_t old_a = di[-1];
     uint8_t old_b = di[0];
@@ -1612,21 +1614,21 @@ static void Render_Tile_With_Border_Check(uint8_t *si, uint8_t *di, int col)
     tile_cache_dirty_flags[2] = old_c;
     tile_cache_dirty_flags[3] = old_d;
 
-    uint8_t cl = si[-1];
-    tile_neighborhood_buffer[1] = si[0];
+    uint8_t cl = MEM8(si-1);
+    tile_neighborhood_buffer[1] = MEM8(si+0);
     si += 36;
     wrap_map_from_above(&si);
-    tile_neighborhood_buffer[2] = si[-1];
-    tile_neighborhood_buffer[3] = si[0];
+    tile_neighborhood_buffer[2] = MEM8(si-1);
+    tile_neighborhood_buffer[3] = MEM8(si+0);
 
     hero_tile_col_idx = (uint8_t)col;
-    hero_tile_row_idx   = (uint8_t)(18 - viewport_rows_remaining);
+    hero_tile_row_idx = (uint8_t)(18 - viewport_rows_remaining);
 
     uint16_t dx = (uint16_t)(col * 8 + viewport_row_vram_offset);
 
     tile_neighborhood_buffer[0] = Lookup_Monster_Tile_Attributes(cl, &si);
 
-    uint8_t *nb_si = si;
+    uint8_t *nb_si = &g_mem[si];
     uint8_t *nb_di = tile_neighborhood_buffer;
     uint8_t *nb_bp = tile_cache_dirty_flags;
     /* Each of the original's two "calls" below doubles via the call-$+3
@@ -1637,7 +1639,7 @@ static void Render_Tile_With_Border_Check(uint8_t *si, uint8_t *di, int col)
         return;
     }
 
-    dx = (uint16_t)(dx + 0x9F0);
+    dx += (320*8-16);
     Render_Tile_Neighborhood_Cell(&nb_si, &nb_di, &nb_bp, &dx); /* row below, col and col+1  */
 
     if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_SPRITE_FLASH_FLAG)) { // boss is just defeated
@@ -1651,7 +1653,7 @@ static void Render_Tile_With_Border_Check(uint8_t *si, uint8_t *di, int col)
  * Render_Tile_With_Dual_Cache for the *right* edge, covering this row's
  * column 27 and the same column one row down.
  */
-static void Render_Tile_And_Update_Cache(uint8_t *si, uint8_t *di, int col)
+static void Render_Tile_And_Update_Cache(uint16_t si, uint8_t *di, int col)
 {
     uint8_t old_a = di[-1];
     di[-1] = 0xFE;
@@ -1661,21 +1663,21 @@ static void Render_Tile_And_Update_Cache(uint8_t *si, uint8_t *di, int col)
     di[27] = 0xFF;
     tile_cache_dirty_flags[1] = old_b;
 
-    uint8_t cl = si[-1];
+    uint8_t cl = MEM8(si-1);
     si += 36;
     wrap_map_from_above(&si);
 
-    uint8_t dl = si[-1];                              /* background idx, row below */
+    uint8_t dl = MEM8(si-1);                              /* background idx, row below */
     uint8_t bl = Lookup_Monster_Tile_Attributes(cl, &si);   /* background idx, this row  */
     uint8_t bh = dl;
 
     uint16_t dx = (uint16_t)(col * 8 + viewport_row_vram_offset);
 
     if (tile_cache_dirty_flags[0] != 0xFF && tile_cache_dirty_flags[0] != 0xFC) {
-        uint8_t ah = si[0];
+        uint8_t ah = MEM8(si);
         uint8_t al = bl;
         if (al >= 0x80) al = Translate_Tile_Index(al);
-        Decode_And_Render_Tile_With_Blit(al, ah, dx);
+        Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 
     dx = (uint16_t)(dx + 320 * 8);
@@ -1683,10 +1685,11 @@ static void Render_Tile_And_Update_Cache(uint8_t *si, uint8_t *di, int col)
     if (viewport_rows_remaining != 1 &&
         tile_cache_dirty_flags[1] != 0xFF && tile_cache_dirty_flags[1] != 0xFC) {
         si += 2;
-        uint8_t ah = *si++;
+        uint8_t ah = MEM8(si);
+        si++; // unused
         uint8_t al = bh;
         if (al >= 0x80) al = Translate_Tile_Index(al);
-        Decode_And_Render_Tile_With_Blit(al, ah, dx);
+        Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 }
 
@@ -1699,9 +1702,9 @@ static void Render_Tile_And_Update_Cache(uint8_t *si, uint8_t *di, int col)
  * ========================================================================== */
 
 // mpp5.grp: 0x1B↔0x1C - animated water tile
-static void Animate_Water_Cavern5(uint8_t *si, uint8_t *di)
+static void Animate_Water_Cavern5(uint16_t si, uint8_t *di)
 {
-    uint8_t al = (uint8_t)(si[-1] - 0x1B);
+    uint8_t al = (uint8_t)(MEM8(si-1) - 0x1B);
     if (al >= 2) {
         return;
     }
@@ -1710,13 +1713,13 @@ static void Animate_Water_Cavern5(uint8_t *si, uint8_t *di)
         return;
     }
     al = ((al + 1) & 1) + 0x1B;
-    si[-1] = al;
+    MEM8(si-1) = al;
 }
 
 // mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (magma) animated tiles
-static void Animate_Gold_Magma_Cavern6(uint8_t *si, uint8_t *di)
+static void Animate_Gold_Magma_Cavern6(uint16_t si, uint8_t *di)
 {
-    uint8_t al = (uint8_t)(si[-1] - 0x1D);
+    uint8_t al = (uint8_t)(MEM8(si-1) - 0x1D);
     if (al >= 6) {
         return;
     }
@@ -1724,7 +1727,7 @@ static void Animate_Gold_Magma_Cavern6(uint8_t *si, uint8_t *di)
 
     if (al >= 4) {
         al = (uint8_t)(((al + 1) & 1) + 0x21);
-        si[-1] = al;
+        MEM8(si-1) = al;
         return;
     }
 
@@ -1736,24 +1739,24 @@ static void Animate_Gold_Magma_Cavern6(uint8_t *si, uint8_t *di)
     }
 
     al = (uint8_t)(((al + 1) & 3) + 0x1D);
-    si[-1] = al;
+    MEM8(si-1) = al;
 }
 
 // mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
-static void Animate_Hot_Cavern7(uint8_t *si, uint8_t *di)
+static void Animate_Hot_Cavern7(uint16_t si, uint8_t *di)
 {
-    uint8_t al = (uint8_t)(si[-1] - 0x2C);
+    uint8_t al = (uint8_t)(MEM8(si-1) - 0x2C);
     if (al < 2) {
         di[-1] = 0xFE;
         if (!(render_counter & 1)) {
             return;
         }
         al = (uint8_t)(((al + 1) & 1) + 0x2C);
-        si[-1] = al;
+        MEM8(si-1) = al;
         return;
     }
 
-    al = si[-1];
+    al = MEM8(si-1);
     if (al >= 0x3E) {
         return;
     }
@@ -1786,13 +1789,13 @@ static void Animate_Hot_Cavern7(uint8_t *si, uint8_t *di)
     if (!(render_counter & 1)) {
         return;
     }
-    si[-1] = bl;
+    MEM8(si-1) = bl;
 }
 
 // mpp8.grp: 0x25..0x28 (thorns) animated tiles
-static void Animate_Thorn_Cavern8(uint8_t *si, uint8_t *di)
+static void Animate_Thorn_Cavern8(uint16_t si, uint8_t *di)
 {
-    uint8_t al = (uint8_t)(si[-1] - 0x25);
+    uint8_t al = (uint8_t)(MEM8(si-1) - 0x25);
     if (al >= 4) {
         return;
     }
@@ -1801,10 +1804,10 @@ static void Animate_Thorn_Cavern8(uint8_t *si, uint8_t *di)
         return;
     }
     al = (uint8_t)(((al + 1) & 3) + 0x25);
-    si[-1] = al;
+    MEM8(si-1) = al;
 }
 
-typedef void (*anim_func_t)(uint8_t *si, uint8_t *di);
+typedef void (*anim_func_t)(uint16_t si, uint8_t *di);
 static const anim_func_t animate_mpp58_tiles[4] = {
     Animate_Water_Cavern5, // cavern level 5
     Animate_Gold_Magma_Cavern6, // cavern level 6
@@ -1818,12 +1821,12 @@ static const anim_func_t animate_mpp58_tiles[4] = {
  * unconditionally). Routes entity cells to Render_Tile_With_Border_Check;
  * otherwise updates the tile's small redraw/animation state machine and,
  * for cavern levels 5..8, dispatches to the matching Animate_* routine.
- * `si`/`di` are positioned just past the compared bytes, `col` is the
- * current column (0..27).
+ * `si`/`di` are positioned just past the compared bytes, 
+ * `col` is the current column (0..27).
  */
-static void Process_Dirty_Tile_With_Animation(uint8_t *si, uint8_t *di, int col)
+static void Process_Dirty_Tile_With_Animation(uint16_t si, uint8_t *di, int col)
 {
-    uint8_t al = si[-1];
+    uint8_t al = MEM8(si-1);
     if (al >= 0x80) { // monster/entity tiles
         Render_Tile_With_Border_Check(si, di, col);
         return;
@@ -1838,7 +1841,7 @@ static void Process_Dirty_Tile_With_Animation(uint8_t *si, uint8_t *di, int col)
             di[-1] = al;
             uint16_t dx = (uint16_t)(col * 8 + viewport_row_vram_offset);
             dx = (uint16_t)(dx >> 1);
-            Cached_Tile_Drawer(al, dx);
+            Dungeon_Static_Tile_Cached_Drawer(al, dx);
         }
         /* else: old di[-1] value was 0xFF -> skip the redraw */
     }
@@ -1889,7 +1892,7 @@ void Refresh_Dirty_Tiles(void)
 
     /* ---- Rows 1..18 ------------------------------------------------------ */
     si = MEM16(ADDR_VIEWPORT_LEFT_TOP);
-    uint8_t *di = viewport_buffer_28x19;
+    uint8_t *di = &g_mem[viewport_buffer_28x19];
     viewport_rows_remaining = 18;
 
     do {
@@ -1902,7 +1905,7 @@ void Refresh_Dirty_Tiles(void)
         }
 
         for (int col = 0; col <= 26; col++) {
-            uint8_t map_byte    = MEM8(si++);
+            uint8_t map_byte = MEM8(si++);
             uint8_t cached_byte = *di++;
             if (map_byte != cached_byte) {
                 Process_Dirty_Tile_With_Animation(si, di, col);
