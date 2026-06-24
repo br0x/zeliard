@@ -3,7 +3,7 @@
 ## Overview
 
 Port dungeon rendering from C/WASM (`gfmcga.c`, `dungeon.c`) to JavaScript (`game.js`), replacing MCGA mode-13h pixel ops with canvas `drawImage()`. Decouple all busy-wait loops into timer-driven state machines signaled via shared-memory semaphores.
-File src/zeliard-wasm.js is a bridge between WASM and JavaScript. Exported C functions are called from there.
+File `zeliard-wasm.js` is a bridge between WASM and JavaScript. Exported C functions are called from there.
 
 ---
 
