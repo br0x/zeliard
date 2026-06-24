@@ -1133,7 +1133,7 @@ function drawDungeonTiles() {
                     (tileId-1) * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
                     dx, dy, TILE_WIDTH, TILE_HEIGHT
                 );
-            } else if (tile_id >=64 && tile_id < (64+39) && dungeonDchrSheetReady) {
+            } else if (tileId >=64 && tileId < (64+39) && dungeonDchrSheetReady) {
                 const dchrId = tileId - 64;
                 ctx.drawImage(
                     dungeonDchrSheet,
@@ -1244,8 +1244,8 @@ function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
     const heroPos = getHeroPosition?.();
     if (!heroPos) return;
-    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH;
-    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT;
+    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH;
+    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT;
     for (const frame of dungeonHeroLayerIndices()) {
         drawSheetFrame(
             dungeonHeroSheet,
