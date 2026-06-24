@@ -6,17 +6,11 @@
 #define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 
-#define ADDR_PROXIMITY_MAP_LEFT_COL   0x80u    // word
-#define ADDR_VIEWPORT_TOP_ROW         0x82u    // byte
-#define ADDR_VIEWPORT_LEFT_TOP   0xFF31u
 // ============================================================================
 // Constants
 // ============================================================================
 
 #define PROXIMITY_MAP_WIDTH  36   // Full proximity map width (columns)
-#define PROXIMITY_MAP_HEIGHT 64   // Full proximity map height (rows)
-#define VIEWPORT_WIDTH       28   // Visible viewport width
-#define VIEWPORT_HEIGHT      18   // Visible viewport height
 #define MAP_WIDTH_OFFSET     2    // Width of full map in MDT (0xC002 - 0xC000)
 
 // These track position in the packed map data during unpacking

@@ -815,8 +815,7 @@ int is_on_rope(void);
 // Output:
 // tile_neighborhood_buffer (9 bytes) filled with tile indices 
 // (negative values indicate valid loaded tiles, zero if blank).
-// stub, gfmcga 
-void Sample_Neighborhood_Attributes_proc();
+void Sample_Neighborhood_Attributes();
 
 /*
  * Redraws every tile in the 28x18 viewport whose underlying map data has

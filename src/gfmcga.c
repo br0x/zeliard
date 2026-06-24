@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "zeliard.h"
 
@@ -46,10 +47,10 @@
 #define DUNGEON_TILE_PACKED_BASE (0x8030) // seg1-relative
 #define MONSTER_TILE_NIBBLE_BASE (0x4000) // seg1-relative
 #define MONSTER_TILE_MASK_BASE   (0xA000) // seg1-relative
+#define SWORD_ANIM_GFX_BASE      (0xB000) // seg1-relative
 #define FMAN_TILE_MASK_BASE      (0xD000) // seg1-relative
 #define FMAN_GFX_BASE            (0x6000) // seg1-relative
 
-uint16_t sword_animation_gfx[];
 uint16_t hero_vram_base; // Destination VRAM offset for the hero’s 3x3 tile block
 uint16_t entity_vram_src; // VRAM offset where the 32x32 overlay is placed
 uint8_t* sword_phase_src; // Pointer to current sword phase tile indices (4x4 grid, 16 bytes)
@@ -63,7 +64,7 @@ static uint8_t tile_neighborhood_buffer[9]; // 3x3 frame
 static uint8_t  tile_blit_mode;  // palette set by Lookup
 static uint8_t  nine_unpacked_tiles[9*64];  // 3x3 frame of 8x8px tiles
 static uint8_t  hero_tile_col_idx;
-static uint8_t *nibble_decode_lut; // active palette LUT pointer
+static const uint8_t *nibble_decode_lut; // active palette LUT pointer
 static uint8_t * tile_vram_cache[128]; // each element is a pointer to a 8x8 tile in VRAM
 
 uint16_t entity_render_tbl[] = {0x0901, 0x2404, 0x1B03, 0x0901, 0x2404, 0x3606};
@@ -154,13 +155,13 @@ static const uint16_t *const boss_explosion_ring_phases[] = {
 };
 // VRAM buffer (320x200 bytes), in MCGA mode 13h starts at 0xA0000
 // Provided here as stub, all the actual rendering should be done in js
-extern uint8_t vram[320 * 200];
-extern uint8_t vram_shadow[1536];
+uint8_t vram[320 * 200];
+uint8_t vram_shadow[1536];
 #define viewport_top_left_vram_offset (14*320 + 48)
 #define viewport_top_right_vram_offset (14*320 + 48 + 27 * 8)
 #define viewport_buffer_28x19 0xE900
 
-extern uint8_t get_random_proc();
+uint8_t get_random();
 static uint8_t Translate_Tile_Index(uint8_t al);
 static void render_48bytes_packed_tile(const uint8_t *si, uint8_t *di);
 static void _render_hero_3x3();
@@ -178,6 +179,10 @@ static void Render_Hero_Sprite_To_Buf9(const uint8_t *sprite_header, uint8_t cx)
 static void _choose_hero_sprite();
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx);
 
+uint8_t get_random()
+{
+    return rand() & 0xFF;
+}
 
 void Clear_Tile_Buffer(uint8_t *dest)
 {
@@ -792,7 +797,7 @@ void Render_Sword_Overlay(void)
                 ? (SWORD_COMPOSITION_DATA_START + SWORD_FORWARD_LEFT_BASE)   // ←
                 : (SWORD_COMPOSITION_DATA_START + SWORD_FORWARD_RIGHT_BASE); // →
             
-            offset_val = *(uint16_t*)(sword_animation_gfx + di_offset + (phase_idx * 2));
+            offset_val = MEM16(SWORD_ANIM_GFX_BASE + di_offset + (phase_idx * 2));
             sword_sprite_offsets = offset_val;
             dx = (offset_val & 0xFF) * 320*8 + ((offset_val >> 8) * 8);
             break;
@@ -809,7 +814,7 @@ void Render_Sword_Overlay(void)
                 ? (SWORD_COMPOSITION_DATA_START + SWORD_OVERHEAD_LEFT_BASE)   // ↑+←
                 : (SWORD_COMPOSITION_DATA_START + SWORD_OVERHEAD_RIGHT_BASE); // ↑+→
             
-            offset_val = *(uint16_t*)(sword_animation_gfx + di_offset + (phase_idx * 2));
+            offset_val = MEM16(SWORD_ANIM_GFX_BASE + di_offset + (phase_idx * 2));
             sword_sprite_offsets = offset_val;
             dx = (offset_val & 0xFF) * 320*8 + ((offset_val >> 8) * 8);
             break;
@@ -836,9 +841,9 @@ void Render_Sword_Overlay(void)
     entity_vram_src = vram_di;
 
     if (MEM8(ADDR_SWORD_HIT_TYPE) == 2) { // downward thrust, single phase
-        sword_phase_src = (uint8_t*)(uintptr_t)(sword_animation_gfx + si_offset);
+        sword_phase_src = &g_mem[SWORD_ANIM_GFX_BASE + si_offset];
     } else {
-        sword_phase_src = (uint8_t*)(uintptr_t)(sword_animation_gfx + si_offset + (phase_idx * 16));
+        sword_phase_src = &g_mem[SWORD_ANIM_GFX_BASE + si_offset + (phase_idx * 16)];
     }
 
     Sword_Overlay_EntryPoint();
@@ -861,7 +866,7 @@ void Sword_Overlay_EntryPoint()
     transparency_mask_bitplane_f = entity_render_tbl[sword_idx];
 
     uint16_t di_start = entity_vram_src;
-    uint8_t* si = sword_phase_src; // sword_animation_gfx + offset + (sword_movement_phase-1) * 16
+    uint8_t* si = sword_phase_src; // SWORD_ANIM_GFX_BASE + offset + (sword_movement_phase-1) * 16
 
     for (int col = 0; col < 4; col++) {
         uint16_t di = di_start;
@@ -878,7 +883,7 @@ void Sword_Overlay_EntryPoint()
                 di += 320 * 8;
             } else {
                 // Opaque tile: al acts as an index. Each 8x8 tile is exactly 16 bytes (2 bits per pixel).
-                uint16_t *gfx_si = (uint16_t*)(sword_animation_gfx + al * 16);                
+                uint16_t *gfx_si = (uint16_t*) &g_mem[SWORD_ANIM_GFX_BASE + al * 16];
                 uint16_t bp, dx, *p;
                 for (int line = 0; line < 8; line++) {
                     uint16_t ax = *gfx_si++;
@@ -887,22 +892,22 @@ void Sword_Overlay_EntryPoint()
                     // Process 4 groups of 4 bits per line. 
                     // Each call consumes 4 bits from 'ax' by shifting it left.
                     CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)di;
+                    p = (uint16_t*)&vram[di];
                     *p = (*p & ~bp) | dx; // render 2 pixels
                     di += 2;
 
                     CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)di;
+                    p = (uint16_t*)&vram[di];
                     *p = (*p & ~bp) | dx; // render 2 pixels
                     di += 2;
                     
                     CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)di;
+                    p = (uint16_t*)&vram[di];
                     *p = (*p & ~bp) | dx; // render 2 pixels
                     di += 2;
                     
                     CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)di;
+                    p = (uint16_t*)&vram[di];
                     *p = (*p & ~bp) | dx; // render 2 pixels
                     di += 2;
                     
@@ -1243,10 +1248,13 @@ static void draw_4_pix_from_table_by_ax(uint8_t *di, uint16_t ax)
 static void render_nibble_compressed_tile(const uint8_t *src, uint8_t *dst)
 {
     for (int i = 0; i < 8; i++) {
-        uint16_t ax = (*src++) | ((*src++) << 8);
+        uint16_t ax = (uint16_t)src[0] | ((uint16_t)src[1] << 8);
         draw_4_pix_from_table_by_ax(dst, ax);
-        ax = (*src++) | ((*src++) << 8);
+        src += 2;
+
+        ax = (uint16_t)src[0] | ((uint16_t)src[1] << 8);
         draw_4_pix_from_table_by_ax(dst, ax);
+        src += 2;
     }
 }
 
@@ -1377,9 +1385,9 @@ static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, u
         }
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, *dx);
     }
-    *si++;
-    *di++;
-    *bp++;
+    (*si)++;
+    (*di)++;
+    (*bp)++;
     *dx += 8;
 }
 
@@ -1541,7 +1549,7 @@ static void Spawn_Boss_Explosion_Ring()
         return;
     }
 
-    if ((get_random_proc() & 0x0F) < 14) {
+    if ((get_random() & 0x0F) < 14) {
         return;
     }
     // continue with 1/8 probability
@@ -1558,7 +1566,7 @@ static void Spawn_Boss_Explosion_Ring()
 
     uint8_t al;
     do {
-        al = get_random_proc() & 3;
+        al = get_random() & 3;
     } while (al == 3);
     // al = random in [0, 1, 2]
     al = (uint8_t)(al - 1);
@@ -1572,7 +1580,7 @@ static void Spawn_Boss_Explosion_Ring()
     *di++ = al; // [0] = x
 
     do {
-        al = get_random_proc() & 3;
+        al = get_random() & 3;
     } while (al == 3);
     al = (uint8_t)(al - 1);
     al = (uint8_t)(al + hero_tile_row_idx);
@@ -1582,7 +1590,7 @@ static void Spawn_Boss_Explosion_Ring()
     *di++ = al; // [1] = y
 
     *di++ = 3; // [2] = frame
-    *di++ = (uint8_t)(get_random_proc() & 3); // [3] = variant
+    *di++ = (uint8_t)(get_random() & 3); // [3] = variant
     *di++ = 0xFF; // terminator in next entity [0]
 }
 
@@ -1732,7 +1740,7 @@ static void Animate_Gold_Magma_Cavern6(uint16_t si, uint8_t *di)
     }
 
     if (al == 0) { // 25% chance to skip the animation
-        if ((get_random_proc() & 3) != 0) {
+        if ((get_random() & 3) != 0) {
             return;
         }
         al = 0;

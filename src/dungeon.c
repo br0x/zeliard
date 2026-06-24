@@ -1170,11 +1170,6 @@ int8_t set_zero_flag_if_slippery(void) {
 // stub
 void jump_press_handler(void) {}
 
-// TODO: replace with actual code (AI hallucinations)
-void flip_facing_direction(void) {
-    MEM8(ADDR_FACING) ^= 1;
-}
-
 // stub
 void hero_collapse_platform(void) {}
 
@@ -1321,7 +1316,7 @@ void main_loop(void) {
                 wrap_map_from_above(&si);
                 if (!is_over_rope(si)) break;
             }
-            MEM8(ADDR_FACING) &= ~2;
+            MEM8(ADDR_FACING) &= ~UP;
             MEM8(ADDR_ON_ROPE_FLAGS) = 0;
             MEM8(ADDR_SPACEBAR_LATCH) = 0;
             MEM8(ADDR_ALTKEY_LATCH) = 0;
@@ -1459,7 +1454,7 @@ void on_right_pressed()
 {
     MEM8(ADDR_BYTE_9F18) = 0;
     if (MEM8(ADDR_FACING) & LEFT) {
-        flip_facing_direction();
+        MEM8(ADDR_FACING) ^= LEFT;
         return;
     }
     if (MEM8(ADDR_SQUAT_FLAG) != 0) {
@@ -1514,7 +1509,7 @@ void on_left_pressed()
 {
     MEM8(ADDR_BYTE_9F18) = 0;
     if (!(MEM8(ADDR_FACING) & LEFT)) {
-        flip_facing_direction();
+        MEM8(ADDR_FACING) ^= LEFT;
         return;
     }
 
@@ -1606,14 +1601,14 @@ void airborne_movement(uint8_t *restart) {
         // left_pressed
         if (!(MEM8(ADDR_FACING) & LEFT)) {
             MEM8(ADDR_FACING) &= ~UP;
-            flip_facing_direction();
+            MEM8(ADDR_FACING) ^= LEFT;
             left_default();
         } // else default
     } else if (horiz_input == KEY_RIGHT) {
         // right_pressed
         if (MEM8(ADDR_FACING) & LEFT) {
             MEM8(ADDR_FACING) &= ~UP;
-            flip_facing_direction();
+            MEM8(ADDR_FACING) ^= LEFT;
             right_default();
         } // else default
     }
@@ -1771,7 +1766,7 @@ void main_update_render(void) {
     Flush_Ui_Element_If_Dirty_proc(); // request canvas redraw, todo
     projectiles_collision_processing();
     monsters_updates();
-    Render_Sword_Overlay_proc(); // something familiar... sword?
+    Render_Sword_Overlay_proc();
     step_on_aggressive_ground();
 
     if (MEM8(ADDR_CAVERN_LEVEL) == 7 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_ASBESTOS_CAPE) { // heat damage
@@ -1824,7 +1819,7 @@ void game_loop_render_and_timing(uint8_t invincible)
         clear_hero_in_viewport();
     }
 
-    Sample_Neighborhood_Attributes_proc(); // builds attribute cache for viewport tiles
+    Sample_Neighborhood_Attributes(); // builds attribute cache for viewport tiles
     // Check from here!!!
     if (MEM8(ADDR_INVINCIBILITY_FLAG) == 0) {
         uint16_t timer = MEM16(ADDR_HEALING_TIMER);
@@ -1844,9 +1839,6 @@ void game_loop_render_and_timing(uint8_t invincible)
     Refresh_Dirty_Tiles();            // redraw tile changes to VRAM
 
     if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
-        // TODO: comments are irrelevant, remove them
-        // combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
-        // with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
         Boss_Explosions_Renderer();
         MEM8(ADDR_BYTE_FF24) = 10;
     }
