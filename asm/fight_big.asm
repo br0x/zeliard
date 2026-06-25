@@ -392,6 +392,7 @@ loc_628A:
 main_loop:       
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jnz     short over_rope
+                ; normal path
                 call    input_handling
                 call    sliding_physics_step
                 call    main_update_render
@@ -400,7 +401,7 @@ main_loop:
                 call    hero_knockback_handler
                 inc     ds:frame_ticks
                 cmp     ds:frame_ticks, 2
-                jnz     short loc_62C5
+                jne     short loc_62C5
                 mov     byte ptr ds:squat_flag, 0
 
 loc_62C5:        
@@ -1566,22 +1567,22 @@ is_left_airflow endp
 ; ===========================================================================
 airborne_movement proc near   
                 test    ds:air_up_tile_found, 0FFh
-                jz      short loc_6962
+                jz      short loc_6962 ; v
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_6962:        
                 test    byte ptr ds:jump_phase_flags, 80h ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                jz      short loc_696A
+                jz      short loc_696A ; 0v
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_696A:        
                 call    hero_collapse_platform
                 call    slope_assist_on_landing
-                call    check_floor_for_landing
-                jnc     short loc_6978
-                jmp     land_after_jump
+                call    check_floor_for_landing ; CF NZ
+                jnc     short loc_6978 ; no jump
+                jmp     land_after_jump ; on return, will jump to main_loop
 ; ---------------------------------------------------------------------------
 
 loc_6978:        
@@ -1924,42 +1925,34 @@ land_after_jump endp
 ; =============== S U B R O U T I N E =======================================
 ; CF if cannot move down
 check_floor_for_landing proc near
-                call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                add     si, 3*36+1      ; directly under feet
+                call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI (=e10c)
+                add     si, 3*36+1      ; directly under feet (=e179)
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     di, si
-                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
-                add     al, al          ; destroyable walls have bit 7 set
-                jnb     short loc_6B89
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying) (=CF ZF)
+                                              ; AL = monster.flags (=4)
+                add     al, al          ; destroyable walls have bit 7 set (=8)
+                jnc     short loc_6B89  ; v (NC)
                 retn                    ; destroyable wall under feet, can't move down
-; ---------------------------------------------------------------------------
-
 loc_6B89:        
-                dec     si              ; one tile left beneath hero
-                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
-                                              ; AL = monster.flags
-                add     al, al          ; destroyable walls have bit 7 set
-                jnb     short loc_6B92
+                dec     si              ; one tile left beneath hero (=e178)
+                call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying) (=CF ZF)
+                                              ; AL = monster.flags (=4)
+                add     al, al          ; destroyable walls have bit 7 set (=8)
+                jnc     short loc_6B92  ; v (NC)
                 retn                    ; destroyable wall under feet, can't move down
-; ---------------------------------------------------------------------------
-
 loc_6B92:        
-                mov     si, di
-                mov     al, [si]
-                call    is_non_blocking_tile_simple
+                mov     si, di          ; (=e179)
+                mov     al, [si]        ; (=4)
+                call    is_non_blocking_tile_simple ; (CF NZ AL=0); NZ=blocking
                 stc
-                jz      short loc_6B9D
+                jz      short loc_6B9D ; no jump
                 retn
-; ---------------------------------------------------------------------------
-
 loc_6B9D:        
                 cmp     byte ptr ds:hero_animation_phase, 80h
                 clc
                 jne     short loc_6BA6
                 retn
-; ---------------------------------------------------------------------------
-
 loc_6BA6:        
                 dec     si
                 mov     al, [si]
@@ -1967,8 +1960,6 @@ loc_6BA6:
                 clc
                 jnz     short loc_6BB0
                 retn
-; ---------------------------------------------------------------------------
-
 loc_6BB0:        
                 inc     si
                 inc     si
@@ -1977,8 +1968,6 @@ loc_6BB0:
                 stc
                 jz      short loc_6BBB
                 retn
-; ---------------------------------------------------------------------------
-
 loc_6BBB:        
                 clc
                 retn
@@ -2473,7 +2462,6 @@ set_zero_flag_if_slippery endp
 ; if (si >= 0xE900) si -= 0x900;
 ; return si;
 ; ===========================================================================
-; hero_coords_to_addr_in_proximity
 ; Returns SI = proximity map address of hero's top-left 8×8 tile.
 ; Formula: SI = viewport_left_top_addr + (hero_head_y_in_viewport * 36)
 ;              + hero_x_in_viewport + 4
@@ -2482,7 +2470,7 @@ set_zero_flag_if_slippery endp
 ; hero_x_in_viewport is normally 0x0C (column 12 = center).
 ; Result is wrapped through wrap_map_from_above.
 ; ===========================================================================
-hero_coords_to_addr_in_proximity proc near ; ...
+hero_coords_to_addr_in_proximity proc near
                 mov     al, ds:hero_head_y_in_viewport ; =0xa
                 mov     cl, 36
                 mul     cl              ; =0x168
@@ -2491,8 +2479,8 @@ hero_coords_to_addr_in_proximity proc near ; ...
                 xor     ch, ch
                 add     ax, cx          ; =0x178
                 mov     si, ax
-                add     si, ds:viewport_left_top_addr ; +(0xe894 = 0xe000 + 36*61)
-                jmp     short wrap_map_from_above ; if (si >= 0E900h) si -= 900h
+                add     si, ds:viewport_left_top_addr ; (+e894 = EA0C)
+                jmp     short wrap_map_from_above ; if (si >= 0E900h) si -= 900h; (=E10C)
 hero_coords_to_addr_in_proximity endp
 
 
@@ -2603,11 +2591,11 @@ is_non_blocking_tile_extended endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; Return ZF if non-blocked, NZ if blocked.
 is_non_blocking_tile_simple proc near
-                cmp     al, 49h ; 'I'
-                jb      short loc_6E22
-                cmp     al, al
+                cmp     al, 49h        ; =4
+                jb      short loc_6E22 ; v
+                cmp     al, al ; set NZ
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -2617,17 +2605,17 @@ loc_6E22:
                 mov     es, cs:seg1
                 mov     di, 8000h
                 mov     cx, 24
-                repne scasb
+                repne scasb ; cx=0, NZ
                 pop     cx
                 pop     di
-                jnz     short loc_6E36
+                jnz     short loc_6E36 ; v
                 retn  ; found within the passable tiles, return ZF
 ; ---------------------------------------------------------------------------
 ; not found: check for monster/item entity
 loc_6E36:        
-                and     al, 80h
-                cmp     al, 80h
-                retn  ; NZ (non-passable) if monster or item
+                and     al, 80h ; =0
+                cmp     al, 80h ; 0 != 80h => NZ
+                retn  ; ZF (passable) if monster or item ; =NZ
 is_non_blocking_tile_simple endp
 
 

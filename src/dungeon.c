@@ -69,8 +69,9 @@
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
 
 #define ADDR_REACH_TABLE_SEG1     0xB002
-#define ADDR_PASSABLE_TILES       0x18000u
-#define ADDR_AIRFLOW_TILES        0x18024u
+
+#define ADDR_PASSABLE_TILES       0x8000 // seg1-based
+#define ADDR_AIRFLOW_TILES        0x8024u // seg1-based
 
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
@@ -668,11 +669,11 @@ uint16_t coords_to_prox_addr(uint8_t x, uint8_t y)
 // Use macro MEM to access actual data at this address
 // Checked
 uint16_t hero_coords_to_addr_in_proximity(void) {
-    uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+    uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW); // =0xa
     uint8_t view_x = MEM8(ADDR_HERO_X_VIEW);
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP) + head_y * 36 + view_x + 4;
-    wrap_map_from_above(&addr);
-    return addr; // within 0xe000-0xe8ff
+    wrap_map_from_above(&addr); // =0xea0c
+    return addr; // within 0xe000-0xe8ff =e10c
 }
 
 // Move viewport up one row (when hero jumps or climbs)
@@ -765,17 +766,17 @@ static uint8_t is_non_blocking_tile_extended(uint8_t tile)
     return (tile < 0x49) ? lookup_shared(tile) : tile;
 }
 
-// Original returns ZF, we will check for 0 on caller side
+// Original returns ZF if non-blocking, we will check for 0 on caller side
 // Checked
 static uint8_t is_non_blocking_tile_simple(uint8_t tile) 
 {
     if (tile < 0x49) {
         for (int i = 0; i < 24; i++) {
-            if (tile == MEM8(ADDR_PASSABLE_TILES + i)) {
+            if (tile == MEM8_1(ADDR_PASSABLE_TILES + i)) {
                 return 0;
             }
         }
-        return tile & 0x80;
+        return (tile & 0x80) != 0x80;
     } else {
         return tile;
     }
@@ -785,7 +786,7 @@ static uint8_t is_non_blocking_tile_simple(uint8_t tile)
 uint8_t lookup_shared(uint8_t tile)
 {
     for (int i = 0; i < 24; i++) {
-        if (tile == MEM8(ADDR_PASSABLE_TILES + i)) {
+        if (tile == MEM8_1(ADDR_PASSABLE_TILES + i)) {
             return 0;
         }
     }
@@ -817,7 +818,7 @@ uint8_t get_airflow_direction(uint8_t tile)
 {
     if (tile != 0) {
         for (int i = 0; i < 4; i++) {
-            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + i);
+            uint8_t af = MEM8_1(ADDR_AIRFLOW_TILES + i);
             if (af == 0) 
                 break;
             if (tile == af) {
@@ -825,7 +826,7 @@ uint8_t get_airflow_direction(uint8_t tile)
             }
         }
         for (int i = 0; i < 4; i++) {
-            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + 4 + i);
+            uint8_t af = MEM8_1(ADDR_AIRFLOW_TILES + 4 + i);
             if (af == 0) 
                 break;
             if (tile == af) {
@@ -833,7 +834,7 @@ uint8_t get_airflow_direction(uint8_t tile)
             }
         }
         for (int i = 0; i < 4; i++) {
-            uint8_t af = MEM8(ADDR_AIRFLOW_TILES + 8 + i);
+            uint8_t af = MEM8_1(ADDR_AIRFLOW_TILES + 8 + i);
             if (af == 0) 
                 break;
             if (tile == af) {
@@ -1208,20 +1209,22 @@ void hero_collapse_platform(void) {}
 
 // CF: false (blocked from below), NC: true (can move down)
 uint8_t check_floor_for_landing() {
-    uint16_t si = hero_coords_to_addr_in_proximity();
+    uint16_t si = hero_coords_to_addr_in_proximity(); // =e10c
     si += 3*36+1;
     wrap_map_from_above(&si);
-    uint16_t di = si;
+    uint16_t di = si; // =e179
     uint8_t flags;
     uint16_t monster_struct;
     get_dst_monster_flags(si, &flags, &monster_struct); // check directly below hero feet
     if (flags & 0x80) return 0;
-    si--;
+    si--;             // =e178
     get_dst_monster_flags(si, &flags, &monster_struct); // check below hero left side
     if (flags & 0x80) return 0;
     si = di;
     uint8_t tile = MEM8(si);
-    if (is_non_blocking_tile_simple(tile)) return 0;
+    if (is_non_blocking_tile_simple(tile)) {
+        return 0;
+    }
     if (MEM8(ADDR_HERO_ANIM_PHASE) == 0x80) return 0xff;
     si--;
     tile = MEM8(si);
@@ -1501,8 +1504,8 @@ void main_loop(void) {
                 MEM8(ADDR_SQUAT_FLAG) = 0;
             }
             // check input keys buffer
-            if (MEM8(ADDR_INPUT_DIRS) & 2) {
-                MEM8(ADDR_FACING) &= ~2;
+            if (MEM8(ADDR_INPUT_DIRS) & KEY_DOWN) {
+                MEM8(ADDR_FACING) &= ~UP;
             }
             airborne_movement(&restart); // can break the loop by setting restart = 0
             state_machine_dispatcher();
@@ -1764,7 +1767,7 @@ void airborne_movement(uint8_t *restart) {
     hero_collapse_platform();
     slope_assist_on_landing();
     if (!check_floor_for_landing()) {
-        land_after_jump();
+        land_after_jump(); // should come here
         return;
     }
 
