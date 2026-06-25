@@ -980,14 +980,14 @@ void hero_moves_right()
     for(;;) {
         uint16_t currX = MEM16(si + 0);
         if (currX == 0xFFFF) break;
+        uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
         if ((currX >> 8) != 0xFF && currX == left_col) {
             uint8_t currY = MEM8(si + 2);
             uint16_t prox = coords_to_prox_addr(35, currY);
-            uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
             MEM8(prox) = (idx | 0x80);
-            MEM8(ADDR_MONSTER_INDEX) = idx + 1;
-            si += 16;
         }
+        MEM8(ADDR_MONSTER_INDEX) = idx + 1;
+        si += 16;
     }
 }
 
@@ -1181,7 +1181,6 @@ uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
 uint8_t wasm_dungeon_get_exit_map(void) { return 0; }
 uint8_t wasm_dungeon_get_state(void) { return MEM8(ADDR_DUNGEON_STATE); }
-uint8_t wasm_dungeon_get_frame_phase(void) { return MEM8(ADDR_DUNGEON_FRAME_PHASE); }
 uint8_t wasm_dungeon_get_render_request(void) { return MEM8(ADDR_RENDER_REQUEST); }
 void wasm_dungeon_clear_render_request(void) {
     MEM8(ADDR_RENDER_REQUEST) = 0;

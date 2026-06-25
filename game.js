@@ -479,7 +479,9 @@ function onFullTick() {
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
-    if (gameMode === 'dungeon') dungeonFullTick?.();
+    if (gameMode === 'dungeon') {
+        dungeonFullTick?.();
+    }
     else townFullTick?.();
 
     if (engineReady) {

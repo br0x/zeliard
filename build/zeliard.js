@@ -1218,8 +1218,6 @@ var _wasm_dungeon_get_exit_map = Module["_wasm_dungeon_get_exit_map"] = makeInva
 
 var _wasm_dungeon_get_state = Module["_wasm_dungeon_get_state"] = makeInvalidEarlyAccess("_wasm_dungeon_get_state");
 
-var _wasm_dungeon_get_frame_phase = Module["_wasm_dungeon_get_frame_phase"] = makeInvalidEarlyAccess("_wasm_dungeon_get_frame_phase");
-
 var _wasm_dungeon_get_render_request = Module["_wasm_dungeon_get_render_request"] = makeInvalidEarlyAccess("_wasm_dungeon_get_render_request");
 
 var _wasm_dungeon_clear_render_request = Module["_wasm_dungeon_clear_render_request"] = makeInvalidEarlyAccess("_wasm_dungeon_clear_render_request");
@@ -1301,7 +1299,6 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_dungeon_get_entity_count"] != "undefined", "missing Wasm export: wasm_dungeon_get_entity_count");
   assert(typeof wasmExports["wasm_dungeon_get_exit_map"] != "undefined", "missing Wasm export: wasm_dungeon_get_exit_map");
   assert(typeof wasmExports["wasm_dungeon_get_state"] != "undefined", "missing Wasm export: wasm_dungeon_get_state");
-  assert(typeof wasmExports["wasm_dungeon_get_frame_phase"] != "undefined", "missing Wasm export: wasm_dungeon_get_frame_phase");
   assert(typeof wasmExports["wasm_dungeon_get_render_request"] != "undefined", "missing Wasm export: wasm_dungeon_get_render_request");
   assert(typeof wasmExports["wasm_dungeon_clear_render_request"] != "undefined", "missing Wasm export: wasm_dungeon_clear_render_request");
   assert(typeof wasmExports["wasm_dungeon_get_exit_map_id"] != "undefined", "missing Wasm export: wasm_dungeon_get_exit_map_id");
@@ -1346,7 +1343,6 @@ function assignWasmExports(wasmExports) {
   _wasm_dungeon_get_entity_count = Module["_wasm_dungeon_get_entity_count"] = createExportWrapper("wasm_dungeon_get_entity_count", 0);
   _wasm_dungeon_get_exit_map = Module["_wasm_dungeon_get_exit_map"] = createExportWrapper("wasm_dungeon_get_exit_map", 0);
   _wasm_dungeon_get_state = Module["_wasm_dungeon_get_state"] = createExportWrapper("wasm_dungeon_get_state", 0);
-  _wasm_dungeon_get_frame_phase = Module["_wasm_dungeon_get_frame_phase"] = createExportWrapper("wasm_dungeon_get_frame_phase", 0);
   _wasm_dungeon_get_render_request = Module["_wasm_dungeon_get_render_request"] = createExportWrapper("wasm_dungeon_get_render_request", 0);
   _wasm_dungeon_clear_render_request = Module["_wasm_dungeon_clear_render_request"] = createExportWrapper("wasm_dungeon_clear_render_request", 0);
   _wasm_dungeon_get_exit_map_id = Module["_wasm_dungeon_get_exit_map_id"] = createExportWrapper("wasm_dungeon_get_exit_map_id", 0);

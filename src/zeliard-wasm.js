@@ -1359,10 +1359,6 @@ export function dungeonGetState() {
     return wasmExports?.wasm_dungeon_get_state?.() ?? 0;
 }
 
-export function dungeonGetFramePhase() {
-    return wasmExports?.wasm_dungeon_get_frame_phase?.() ?? 0;
-}
-
 export function dungeonGetRenderRequest() {
     return wasmExports?.wasm_dungeon_get_render_request?.() ?? 0;
 }

@@ -1490,15 +1490,15 @@ loc_6915:
 next_monster1:    
                 mov     ax, [si+monster.currX]
                 cmp     ax, 0FFFFh
-                jnz     short loc_6921
+                jne     short loc_6921
                 retn                    ; monsters end marker
 ; ---------------------------------------------------------------------------
 
 loc_6921:        
                 cmp     ah, 0FFh
-                jz      short loc_6939
+                je      short loc_6939
                 cmp     ax, bx
-                jnz     short loc_6939
+                jne     short loc_6939
                 mov     ah, 35
                 mov     al, [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
