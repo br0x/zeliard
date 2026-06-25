@@ -1155,8 +1155,10 @@ function drawDungeonTiles() {
             const dy = row * TILE_HEIGHT;
             if (tileId >= 1 && tileId <= 25) {
                 drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
-            } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) {
+            } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
                 drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
+            } else {
+                console.warn(`Unknown tile ID ${tileId} at ${row},${col}`);
             }
         }
     }

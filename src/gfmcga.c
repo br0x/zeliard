@@ -45,6 +45,7 @@
 #define SWORD_OFFSETS_OVERHEAD_LEFT ((6 + 4 + 6) * 2)
 
 #define DUNGEON_TILE_PACKED_BASE (0x8030) // seg1-relative
+#define DCHR_TILE_PACKED_BASE    (0x8C00) // seg1-relative
 #define MONSTER_TILE_NIBBLE_BASE (0x4000) // seg1-relative
 #define MONSTER_TILE_MASK_BASE   (0xA000) // seg1-relative
 #define SWORD_ANIM_GFX_BASE      (0xB000) // seg1-relative
@@ -315,6 +316,8 @@ void Render_Empty_Or_Cached_Tile(uint8_t *nb_ptr) {
     if (tile == 0) {
         Clear_Tile_Buffer(dest);
     } else {
+        // tile IDs 1..0x3f are mppN.grp tiles (seg1:0x8030..0x8BFF)
+        // 0x40..0x66 are dchr.grp tiles (seg1:0x8C00..0x931F)
         uint8_t *src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (tile - 1) * 48];
         render_48bytes_packed_tile(src, dest);
     }
@@ -1211,6 +1214,8 @@ static void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx)
     uint8_t bg_idx = (uint8_t)(al - 1);
     tile_vram_cache[al] = di;
 
+    // tile IDs 1..0x3f are mppN.grp tiles (seg1:0x8030..0x8BFF)
+    // 0x40..0x66 are dchr.grp tiles (seg1:0x8C00..0x931F)
     const uint8_t *src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48];
     decode_packed_6bit_tile(src, di, 320 - 8);
 }
@@ -1313,6 +1318,8 @@ static void render_tile_to_temp_buffer(const uint8_t *si, const uint8_t *bp, uin
 static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t *si, const uint8_t *bp, uint8_t *di)
 {
     uint8_t bg_idx = (uint8_t)(bg_tile - 1);
+    // tile IDs 1..0x3f are mppN.grp tiles (seg1:0x8030..0x8BFF)
+    // 0x40..0x66 are dchr.grp tiles (seg1:0x8C00..0x931F)
     const uint8_t *bg_src = &g_mem[0x10000 + DUNGEON_TILE_PACKED_BASE + (uint16_t)bg_idx * 48];
 
     render_48bytes_packed_tile(bg_src, di); // draw background tile first

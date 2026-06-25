@@ -116,9 +116,10 @@ export function hasWasmExport(name) {
 }
 
 /**
- * Get a Uint8Array view of the full WASM linear memory.
+ * Get a Uint8Array view of the WASM linear memory, offset to the g_mem
+ * array so that callers can index with game-relative offsets.
  * SoundManager uses this to poll shared bytes such as 0xFF75.
- * @returns {Uint8Array|null} WASM memory view.
+ * @returns {Uint8Array|null} WASM g_mem memory view.
  */
 export function getWasmMemory() {
     if (!wasmExports?.memory) {
@@ -130,7 +131,7 @@ export function getWasmMemory() {
         wasmMemory = new Uint8Array(wasmExports.memory.buffer);
     }
 
-    return wasmMemory;
+    return wasmMemory.subarray(gMemoryBase);
 }
 
 /**

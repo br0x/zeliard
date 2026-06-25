@@ -22,7 +22,7 @@
  *
  * -------------------------------------------------------------------------
  * Asset layout convention
- *   assets/sfx/sfx_{hex}.{ogg,mp3}    — sound effects keyed by request byte
+ *   assets/sfx/sfx_{decimal}.{ogg,mp3}    — sound effects keyed by request byte
  *   assets/music/{trackId}.{ogg,mp3}  — background music tracks
  *
  *   All assets are tried in the order [ogg, mp3] so you can ship either.
@@ -212,14 +212,14 @@ export class SoundManager {
      * Trigger a sound effect by its request-byte value.
      * Mirrors the Adlib SFX call triggered when C code sets ADDR_SOUND_FX_REQUEST.
      *
-     * @param {number} sfxId   0x01–0xFF  (0 = silence / no-op)
+     * @param {number} sfxId   1–65  (0 = silence / no-op)
      */
     playSfx(sfxId) {
         if (!this._ready || sfxId === 0) return;
         const buffer = this._sfxCache.get(sfxId);
         if (!buffer) {
             // Not pre-loaded — attempt dynamic load (fire and forget)
-            this._loadAudio(this._sfxBase, `sfx_${sfxId.toString(16).padStart(2, '0')}`).then(buf => {
+            this._loadAudio(this._sfxBase, `sfx_${sfxId.toString(10).padStart(2, '0')}`).then(buf => {
                 if (buf) {
                     this._sfxCache.set(sfxId, buf);
                     this._playBuffer(buf);
