@@ -137,7 +137,9 @@ extern "C" {
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
 #define ADDR_MONSTER_INDEX        0xFF4A  // byte
 #define ADDR_BYTE_FF4B            0xFF4B
+#define ADDR_KEYBOARD_ALT_MODE_FLAG 0xFF74  // byte
 #define ADDR_SOUND_FX_REQUEST     0xFF75  // byte
+#define ADDR_FONT_HIGHLIGHT_FLAG  0xFF77  // byte
 
 #define ADDR_DUNGEON_STATE          0xFF90  // byte
 #define ADDR_DUNGEON_FRAME_PHASE    0xFF91  // byte

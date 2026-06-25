@@ -667,6 +667,6 @@ Note: the remaining boss encounter waits are still present because the plan plac
 
 
 Bugs found:
-1. main_loop in dungeon.c is not decoupled.
-2. Hero falls through the ground infinitely, hero is shown in falling animation phase.
-3. Sword is drawn, though it should be in sheath.
+1. main_loop in dungeon.c is not decoupled. Commented out for now to avoid the deadlock.
+
+

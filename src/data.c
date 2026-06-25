@@ -9,7 +9,25 @@
  * ========================================================================= */
 uint8_t g_mem[0x40000];  /* 256 KB — covers seg0..seg3 */
 
-void wasm_init(void) {
+void wasm_init()
+{
+    // In original game, these are set to 0 in the game.bin (before opening demo)
+    MEM8(ADDR_ON_ROPE_FLAGS) = 0;
+    MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
+    MEM8(ADDR_SWORD_SWING_FLAG) = 0;
+    MEM8(ADDR_UI_ELEMENT_DIRTY) = 0;
+    MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+    MEM8(ADDR_SQUAT_FLAG) = 0;
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+    MEM8(ADDR_BYTE_FF3E) = 0;
+    MEM8(ADDR_BYTE_FF4B) = 0;
+    MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+    MEM8(ADDR_KEYBOARD_ALT_MODE_FLAG) = 0;
+    MEM8(ADDR_FONT_HIGHLIGHT_FLAG) = 0;
+    MEM8(ADDR_SHIELD_ANIM_ACTIVE) = 0;
+    MEM8(ADDR_SLOPE_DIRECTION) = 0;
 }
 
 // ============================================================================
