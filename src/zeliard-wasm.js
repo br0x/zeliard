@@ -1351,10 +1351,6 @@ export function dungeonGetEntityCount() {
     return wasmExports?.wasm_dungeon_get_entity_count?.() ?? 0;
 }
 
-export function dungeonGetSwordFrame() {
-    return wasmExports?.wasm_dungeon_get_sword_frame?.() ?? 0xFF;
-}
-
 export function dungeonGetExitMap() {
     return wasmExports?.wasm_dungeon_get_exit_map?.() ?? 0;
 }

@@ -1179,10 +1179,6 @@ void wasm_dungeon_full_tick(void)
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_VIEWPORT_TOP_ROW); }
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
-uint8_t wasm_dungeon_get_sword_frame(void) {
-    if (!MEM8(ADDR_SWORD_SWING_FLAG)) return 0xFF;
-    return MEM8(ADDR_SWORD_MOVEMENT_PHASE);
-}
 uint8_t wasm_dungeon_get_exit_map(void) { return 0; }
 uint8_t wasm_dungeon_get_state(void) { return MEM8(ADDR_DUNGEON_STATE); }
 uint8_t wasm_dungeon_get_frame_phase(void) { return MEM8(ADDR_DUNGEON_FRAME_PHASE); }

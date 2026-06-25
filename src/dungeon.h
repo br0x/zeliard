@@ -12,7 +12,6 @@ uint32_t wasm_dungeon_get_full_map_ptr(void);
 uint8_t wasm_dungeon_get_viewport_top(void);
 uint16_t wasm_dungeon_get_entity_table(void);
 uint16_t wasm_dungeon_get_entity_count(void);
-uint8_t wasm_dungeon_get_sword_frame(void);
 uint8_t wasm_dungeon_get_exit_map(void);
 uint8_t wasm_dungeon_get_frame_phase(void);
 uint8_t wasm_dungeon_get_state(void);

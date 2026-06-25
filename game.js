@@ -189,28 +189,46 @@ const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL_X = 0x80;
 const ADDR_HERO_X_IN_VIEWPORT = 0x83;
-const ADDR_HERO_GOLD_HI = 0x85;
-const ADDR_HERO_GOLD_LO = 0x86;
-const ADDR_HERO_ALMAS = 0x8b;
-const ADDR_SWORD_TYPE = 0x92;
-const ADDR_SHIELD_TYPE = 0x93;
-const ADDR_SHIELD_HP = 0x94;
+const ADDR_HERO_GOLD_HI  = 0x85;
+const ADDR_HERO_GOLD_LO  = 0x86;
+const ADDR_HERO_ALMAS    = 0x8b;
+const ADDR_HERO_LEVEL    = 0x8d;
+const ADDR_HERO_XP       = 0x8e;
+const ADDR_HERO_HP       = 0x90;
+const ADDR_SWORD_TYPE    = 0x92;
+const ADDR_SHIELD_TYPE   = 0x93;
+const ADDR_SHIELD_HP     = 0x94;
 const ADDR_CURR_SPELL_TYPE = 0x9d;
 const ADDR_SPELL_COUNTS = [
     0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
 ];
-const ADDR_HERO_LEVEL    = 0x8d;
-const ADDR_HERO_XP       = 0x8e;
-const ADDR_SAGES_SPOKEN  = 0xe5;
-const ADDR_HERO_HP       = 0x90;
 const ADDR_HERO_MAX_HP   = 0xB2;
+const ADDR_FACING        = 0xC2;
 const ADDR_PLACE_MAP_ID  = 0xC4;
+const ADDR_SAGES_SPOKEN  = 0xe5;
+const ADDR_HERO_ANIM_PHASE    = 0xE7;
+const ADDR_INVINCIBILITY_FLAG = 0xE8;
 
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
-const ADDR_TOWN_DESCRIPTOR_PTR = 0xC000;
+const ADDR_TOWN_DESCRIPTOR_PTR    = 0xC000;
 const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
-const ADDR_NPC_ARRAY_PTR       = 0xC00F;
-const ADDR_FRAME_TIMER = 0xFF1A;
+const ADDR_NPC_ARRAY_PTR        = 0xC00F;
+const ADDR_FRAME_TIMER          = 0xFF1A;
+const ADDR_SQUAT_FLAG           = 0xFF38;
+const ADDR_ON_ROPE_FLAGS        = 0xFF39;
+const ADDR_HERO_HIDDEN_FLAG     = 0xFF3A;
+const ADDR_SPELL_ACTIVE_FLAG    = 0xFF3C;
+const ADDR_JUMP_PHASE_FLAGS     = 0xFF3D;
+const ADDR_BYTE_FF3E            = 0xFF3E;
+const ADDR_SHIELD_ANIM_PHASE    = 0xFF3F;
+const ADDR_SHIELD_ANIM_ACTIVE   = 0xFF40;
+const ADDR_SHIELD_VARIANT_INDEX = 0xFF41;
+const ADDR_SLOPE_DIRECTION      = 0xFF42;  // 1=right, 2=left, 0=none
+const ADDR_SWORD_SWING_FLAG     = 0xFF43;
+const ADDR_UI_ELEMENT_DIRTY     = 0xFF44;
+const ADDR_SWORD_HIT_TYPE       = 0xFF45;
+const ADDR_SWORD_MOVEMENT_PHASE = 0xFF46;
+
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
 const ADDR_DUNGEON_STATE = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
@@ -325,7 +343,6 @@ let dungeonGetViewportTop;
 let dungeonGetFullMapPtr;
 let dungeonGetEntityTable;
 let dungeonGetEntityCount;
-let dungeonGetSwordFrame;
 let dungeonGetExitMap;
 let setDungeonPassableTiles;
 let setDungeonAirflows;
@@ -915,7 +932,7 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
-        dungeonGetSwordFrame, dungeonGetExitMap, setDungeonPassableTiles, setDungeonAirflows,
+        dungeonGetExitMap, setDungeonPassableTiles, setDungeonAirflows,
         setDungeonSwordReach, dungeonGetRenderRequest, dungeonClearRenderRequest,
     } = wasmBridge);
 }
@@ -1206,17 +1223,17 @@ function getShieldCategory() {
 
 function getDungeonHeroState() {
     return {
-        facingLeft: (readU8(0x00C2) & 1) !== 0,
-        animPhase: readU8(0x00E7),
-        invincible: readU8(0x00E8) !== 0,
-        squat: readU8(0xFF38) !== 0,
-        onRope: readU8(0xFF39) !== 0,
-        hidden: readU8(0xFF3A) !== 0,
-        jump: readU8(0xFF3D),
-        shieldAnimActive: readU8(0xFF40) !== 0,
-        shieldPhase: readU8(0xFF3F),
-        shieldVariant: readU8(0xFF41),
-        slope: readU8(0xFF42),
+        facingLeft: (readU8(ADDR_FACING) & 1) !== 0,
+        animPhase: readU8(ADDR_HERO_ANIM_PHASE),
+        invincible: readU8(ADDR_INVINCIBILITY_FLAG) !== 0,
+        squat: readU8(ADDR_SQUAT_FLAG) !== 0,
+        onRope: readU8(ADDR_ON_ROPE_FLAGS) !== 0,
+        hidden: readU8(ADDR_HERO_HIDDEN_FLAG) !== 0,
+        jump: readU8(ADDR_JUMP_PHASE_FLAGS),
+        shieldAnimActive: readU8(ADDR_SHIELD_ANIM_ACTIVE) !== 0,
+        shieldPhase: readU8(ADDR_SHIELD_ANIM_PHASE),
+        shieldVariant: readU8(ADDR_SHIELD_VARIANT_INDEX),
+        slope: readU8(ADDR_SLOPE_DIRECTION),
         shieldCategory: getShieldCategory(),
     };
 }
@@ -1308,18 +1325,52 @@ function drawDungeonHero() {
 }
 
 function drawDungeonSword() {
-    if (!dungeonSwordSheetReady || !readMemory) return;
-    const frame = dungeonGetSwordFrame?.() ?? 0xFF;
-    if (frame === 0xFF) return;
+    if (!dungeonSwordSheetReady || !readMemory || !writeMemory) return;
+    const swingFlag = readMemory(ADDR_SWORD_SWING_FLAG, 1)[0];
+    if (!swingFlag) return;
+
+    let phase = readMemory(ADDR_SWORD_MOVEMENT_PHASE, 1)[0];
+    const hitType = readMemory(ADDR_SWORD_HIT_TYPE, 1)[0] || 0;
+    const swordType = Math.max(1, Math.min(6, readMemory(ADDR_SWORD_TYPE, 1)[0] || 1));
+    const facingLeft = (readMemory(ADDR_FACING, 1)[0] & 1) !== 0;
+
+    const maxPhase = [7, 5, 5][hitType] || 5;
+    if (phase >= maxPhase) {
+        writeMemory(ADDR_SWORD_SWING_FLAG, [0]);
+        return;
+    }
+
+    writeMemory(ADDR_SWORD_MOVEMENT_PHASE, [phase + 1]);
+
+    let col;
+    switch (hitType) {
+        case 1:
+            col = 5 + phase;
+            break;
+        case 2:
+            col = 9;
+            break;
+        default:
+            col = Math.min(phase, 4);
+            break;
+    }
+
+    const baseRow = (swordType - 1) * 2;
+    const row = baseRow + (facingLeft ? 1 : 0);
+    const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
+
     const heroPos = getHeroPosition?.();
     if (!heroPos) return;
-    const facingLeft = (readMemory(0x00C2, 1)[0] & 1) !== 0;
-    const sprite = (facingLeft ? DUNGEON_SWORD_SHEET_COLS : 0) + Math.min(frame, DUNGEON_SWORD_SHEET_COLS - 1);
-    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH * 2;
-    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT * 2;
+
+    let dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH * 2;
+    let dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT * 2;
+    if (readMemory(ADDR_SQUAT_FLAG, 1)[0]) {
+        dy += TILE_HEIGHT;
+    }
+
     drawSheetFrame(
         dungeonSwordSheet,
-        sprite,
+        spriteIndex,
         DUNGEON_SWORD_FRAME_W,
         DUNGEON_SWORD_FRAME_H,
         DUNGEON_SWORD_SHEET_COLS,
