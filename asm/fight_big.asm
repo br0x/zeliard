@@ -466,7 +466,7 @@ Cavern_Game_Init endp
 ;
 ; Also manages the byte_9F24 direction-change latch for sliding init.
 ; ===========================================================================
-state_machine_dispatcher proc near      ; ...
+state_machine_dispatcher proc near
                 mov     ds:slide_direction, 0
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
@@ -495,45 +495,43 @@ loc_635F:
                 jz      short loc_6399
                 test    ds:byte_9F0B, 0FFh
                 jnz     short loc_6379
-                jmp     loc_65BA
+                jmp     state_machine_dispatcher_idle_default
 ; ---------------------------------------------------------------------------
 
 loc_6379:        
                 mov     ds:byte_9F0B, 0
                 test    byte ptr ds:facing_direction, 10b ; up
                 jnz     short no_squat_mode
-                jmp     loc_65BA
+                jmp     state_machine_dispatcher_idle_default
 ; ---------------------------------------------------------------------------
 
 no_squat_mode:   
-                mov     dx, offset loc_65BA
+                mov     dx, offset state_machine_dispatcher_idle_default
                 push    dx
                 test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_6396
-                jmp     on_right_pressed
+                jmp     on_right_pressed ; and then state_machine_dispatcher_idle_default
 ; ---------------------------------------------------------------------------
 
 loc_6396:        
-                jmp     on_left_pressed
+                jmp     on_left_pressed ; and then state_machine_dispatcher_idle_default
 ; ---------------------------------------------------------------------------
 
 loc_6399:
                 push    ax                ; ah = ____right_left_down_up
-                mov     al, ds:facing_direction
-                and     al, LEFT
-                cmp     al, ds:byte_9F24
-                mov     ds:byte_9F24, al  ; sliding direction = facing direction
-                je      short loc_63AB    ; already sliding, skip
-                call    init_horizontal_sliding
-
+                    mov     al, ds:facing_direction
+                    and     al, LEFT
+                    cmp     al, ds:byte_9F24
+                    mov     ds:byte_9F24, al  ; sliding direction = facing direction
+                    je      short loc_63AB    ; already sliding, skip
+                    call    init_horizontal_sliding
 loc_63AB:        
                 pop     ax
                 mov     al, ah            ; al = ____right_left_down_up
                 push    ax
-                cmp     al, 2
-                jne     short loc_63B6
-                call    down_pressed
-
+                    cmp     al, 2
+                    jne     short loc_63B6
+                    call    down_pressed
 loc_63B6:        
                 pop     ax
                 and     al, 0Ch
@@ -782,8 +780,6 @@ sliding_physics_step endp
 
 
 
-; ===========================================================================
-; init_horizontal_sliding
 ; When the hero starts moving on an ice surface, converts the accumulated
 ; horiz_movement_sub_tile_accum into slide_ticks_remaining (capped at 10).
 ; Called each time a directional key is read in the state machine.
@@ -872,7 +868,7 @@ on_ground1:
                 mov     byte ptr ds:squat_flag, 0
                 mov     al, ds:byte_9F09
                 cmp     al, ds:jump_height_including_shoes
-                jnb     short loc_65BA
+                jnb     short state_machine_dispatcher_idle_default
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 sub     si, 35          ; points above hero head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
@@ -898,7 +894,7 @@ simple_jump:
 
 loc_65A5:        
                 test    ds:byte_9F09, 0FFh
-                jnz     short loc_65BA
+                jnz     short state_machine_dispatcher_idle_default
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_65B4
                 retn
@@ -909,7 +905,7 @@ loc_65B4:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_65BA:        
+state_machine_dispatcher_idle_default:        
                 mov     byte ptr ds:slope_direction, 0
                 mov     byte ptr ds:jump_phase_flags, 7Fh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 retn
@@ -1813,8 +1809,6 @@ loc_6AC6:
 slope_assist_on_landing endp
 
 
-; ===========================================================================
-; down_pressed
 ; Handles DOWN key press.
 ; - If on slope: do nothing (slope_direction != 0).
 ; - Try move_platform_down_damage_monster (lower active platform).
@@ -10185,7 +10179,7 @@ last_projectile_index db 0 ; 9F1F
 slide_ticks_remaining db 0 ; 9F20
 horiz_movement_sub_tile_accum db 0 ; 9F21
 ; ---- Input / animation state ----
-slide_direction       db 0      ; ADDR_SLIDE_DIRECTION
+slide_direction       db 0      ; 9F22
 byte_9F23       db 0      ; ADDR_SLIDE_DIRECTION_LOCK
 byte_9F24       db 0      
 ; ---- Temperature / cavern flags ----

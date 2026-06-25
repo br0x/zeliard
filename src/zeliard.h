@@ -768,6 +768,13 @@ void process_hero_death();
 void process_doors();
 void screen_flash_overlay();
 void clear_viewport_buffer();
+void state_machine_dispatcher_idle_default();
+void up_pressed();
+void left_up_pressed();
+void right_up_pressed();
+void move_platform_down_damage_monster();
+void down_pressed();
+void init_horizontal_sliding();
 
 // Rendering
 void main_update_render(void);

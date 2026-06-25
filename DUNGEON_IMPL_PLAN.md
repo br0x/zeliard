@@ -665,11 +665,8 @@ Replaced the main dungeon render/timing busy waits with a tick-driven frame phas
 Updated `Makefile` exports and rebuilt `zeliard.wasm`.
 Note: the remaining boss encounter waits are still present because the plan places that work in Phase 8, not phases 1-3.
 
-Edited 6 files +443-171
 
-Makefile +3-1
-game.js +138-87
-src/dungeon.c +249-83
-src/dungeon.h +6-0
-src/zeliard-wasm.js +24-0
-src/zeliard.h +23-0
+Bugs found:
+1. main_loop in dungeon.c is not decoupled.
+2. Hero falls through the ground infinitely, hero is shown in falling animation phase.
+3. Sword is drawn, though it should be in sheath.

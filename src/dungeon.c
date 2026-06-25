@@ -40,6 +40,7 @@
 #define ADDR_HORIZ_MOVEMENT_ACCUM     0x9F21
 #define ADDR_SLIDE_DIRECTION          0x9F22  // 1=right, 2=left
 #define ADDR_SLIDE_DIRECTION_LOCK     0x9F23  // 1=right movement
+#define ADDR_BYTE_9F24                0x9F24
 #define ADDR_TEMPERATURE_TIMER        0x9F25  // temperature_timer
 #define ADDR_BYTE_9F26                0x9F26
 #define ADDR_BYTE_9F27                0x9F27
@@ -1303,19 +1304,194 @@ void input_handling(void) {}
 // stub
 void magic_spell_fire_handler(void) {}
 
-// stub
-void state_machine_dispatcher(void) {}
 
+// Reads the current direction input and branches to the correct hero movement
+// handler.
+//
+// Input combinations dispatched (dirs = right/left/down/up bitfield):
+//   101b  (left+up)   -> left_up_pressed
+//   1001b (right+up)  -> right_up_pressed
+//   001b  (up only)   -> up_pressed
+//   100b  (left)      -> on_left_pressed (left_up_pressed tail)
+//   1000b (right)     -> on_right_pressed (right_up_pressed tail)
+//   010b  (down)      -> down_pressed
+//   else              -> init_horizontal_sliding + idle animation
+//
+// Also manages the byte_9F24 direction-change latch for sliding init.
+void state_machine_dispatcher()
+{
+    MEM8(ADDR_SLIDE_DIRECTION) = 0;
+ 
+    uint8_t dirs = MEM8(ADDR_INPUT_DIRS); // al: ____right_left_down_up
+ 
+    if (dirs == (KEY_LEFT | KEY_UP)) {        // 101b
+        left_up_pressed();
+        return;
+    }
+    if (dirs == (KEY_RIGHT | KEY_UP)) {       // 1001b
+        right_up_pressed();
+        return;
+    }
+    if (dirs == KEY_UP) {                     // 001b
+        up_pressed();
+        return;
+    }
+ 
+    // Squat/turn handling while airborne: only applies when not on a rope
+    // and currently mid-jump.
+    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0 && MEM8(ADDR_JUMP_PHASE_FLAGS) != 0) {
+        if (MEM8(ADDR_BYTE_9F0B) == 0) {
+            state_machine_dispatcher_idle_default();
+            return;
+        }
+        MEM8(ADDR_BYTE_9F0B) = 0;
+        if (!(MEM8(ADDR_FACING) & UP)) {
+            state_machine_dispatcher_idle_default();
+            return;
+        }
+        // no_squat_mode
+        if (MEM8(ADDR_FACING) & LEFT) {
+            on_left_pressed();
+        } else {
+            on_right_pressed();
+        }
+        state_machine_dispatcher_idle_default();
+        return;
+    }
+    // loc_6399
+    // On ground or on rope: (re)trigger sliding init only when the hero's
+    // facing direction has changed since the last call.
+    uint8_t face_left = MEM8(ADDR_FACING) & LEFT;
+    if (face_left != MEM8(ADDR_BYTE_9F24)) {
+        init_horizontal_sliding();
+    }
+    MEM8(ADDR_BYTE_9F24) = face_left; // sliding direction = facing direction
+ 
+    if (dirs == KEY_DOWN) {
+        down_pressed();
+    }
+ 
+    uint8_t lr = dirs & (KEY_LEFT | KEY_RIGHT);
+    if (lr == KEY_LEFT) {
+        on_left_pressed();
+        return;
+    }
+    if (lr == KEY_RIGHT) {
+        on_right_pressed();
+        return;
+    }
+    // loc_63C7
+    init_horizontal_sliding();
+    if (MEM8(ADDR_ON_ROPE_FLAGS) | MEM8(ADDR_SQUAT_FLAG)) {
+        return;
+    }
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+}
+ 
+void state_machine_dispatcher_idle_default()
+{
+    MEM8(ADDR_SLOPE_DIRECTION) = 0;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+}
 
-// ============================================================================
-// main_loop — per-frame game loop
-// ============================================================================
+// When the hero starts moving on an ice surface, converts the accumulated
+// horiz_movement_sub_tile_accum into slide_ticks_remaining (capped at 10).
+// Called each time a directional key is read in the state machine.
+void init_horizontal_sliding()
+{
+    if (set_zero_flag_if_slippery() != 0) {
+        return; // NZ: not slippery
+    }
+
+    if (MEM8(ADDR_SLIDE_TICKS_REMAINING) != 0) {
+        return; // already sliding
+    }
+
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        return; // on rope
+    }
+
+    uint8_t accum = MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) >> 1;
+    if (accum == 0) {
+        return;
+    }
+
+    if (accum >= 10) {
+        accum = 10;
+    }
+
+    MEM8(ADDR_SLIDE_TICKS_REMAINING) = accum;
+    MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;
+}
+
+// Handles DOWN key press.
+// - If on slope: do nothing (slope_direction != 0).
+// - Try move_platform_down_damage_monster (lower active platform).
+// - If rope above feet: dismount rope (on_rope_flags = 0x80, jump = 0x80).
+// - If on ground: set squat_flag = 0xFF (crouching).
+void down_pressed()
+{
+    MEM8(ADDR_BYTE_9F18) = 0;
+
+    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) {
+        return;
+    }
+
+    move_platform_down_damage_monster();
+
+    uint16_t si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
+    wrap_map_from_above(&si);
+
+    if (is_over_rope(si)) {
+        // Still over rope: keep descending row by row until the rope ends.
+        // for (;;) { // TODO: should be decoupled and integrated into state machine
+            si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
+            wrap_map_from_above(&si);
+
+            MEM8(ADDR_HERO_ANIM_PHASE)++;
+
+            uint8_t tile = MEM8(si);
+            if (is_non_blocking_tile(tile) != 0) {
+                // Blocked tile reached: stop falling.
+                MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
+                return;
+            }
+
+            hero_scroll_down();
+            // main_update_render(); // TODO: replace with state machine version
+
+            if (MEM8(ADDR_HERO_ANIM_PHASE) & 1) {
+                return;
+            }
+        // }
+    }
+
+    // No longer over rope.
+    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) {
+        // Was already on the ground: crouch.
+        MEM8(ADDR_FRAME_TICKS) = 0;
+        MEM8(ADDR_SQUAT_FLAG) = 0xFF;
+        return;
+    }
+
+    // Was on rope: dismount onto the ground.
+    MEM8(ADDR_ON_ROPE_FLAGS) = 0x80;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x80;
+}
+
+// Stub
+void move_platform_down_damage_monster()
+{
+
+}
+
+// Per-frame game loop
 // Checked
 void main_loop(void) {
     uint8_t restart;
     do {
         restart = 0xff;
-        if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) {
+        if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) { // normal path
             input_handling();
             sliding_physics_step();
             main_update_render();
@@ -1477,7 +1653,7 @@ void sliding_physics_step(void)
 }
 
 // Checked
-void right_up_pressed(void)
+void right_up_pressed()
 {
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
@@ -1532,7 +1708,7 @@ void init_on_ground()
 }
 
 // Checked
-void left_up_pressed(void)
+void left_up_pressed()
 {
     MEM8(ADDR_BYTE_9F0B) = 0xFF;
     jump_press_handler();
@@ -2162,7 +2338,7 @@ void try_door_interaction(uint8_t *should_break)
     si++;
     if (MEM8(si) == 0x4A) {
         // on_the_left_door_tile
-        if (MEM8(ADDR_FACING) & LEFT == 0) {
+        if ((MEM8(ADDR_FACING) & LEFT) == 0) {
             *should_break = 0xff; // simulate discard return address
             move_hero_right_if_no_obstacles();
         }
@@ -2342,7 +2518,7 @@ void after_run_animation()
         load_cavern_sprites_ai_music(); // load dchr.grp, mpp{mpp_grp_index}.grp, eai{eai_bin_index}.bin, 
                                         // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
         MEM8(ADDR_IS_BOSS_CAVERN) = (mdt_desc0 & 0x80) ? 0xFF : 0;
-        MEM8(ADDR_IS_JASHIIN_CAVERN) = (mdt_desc0 & 0x40) ? 0xFF : 0;;
+        MEM8(ADDR_IS_JASHIIN_CAVERN) = (mdt_desc0 & 0x40) ? 0xFF : 0;
         MEM8(ADDR_BOSS_BEING_HIT) = 0;
         MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
         Clear_Viewport_proc();
@@ -2566,7 +2742,7 @@ void Cavern_Game_Init(void) {
     MEM8(ADDR_FRAME_TIMER) = 0;
     MEM8(ADDR_BYTE_9F27) = 0;
 
-    main_loop();
+    // main_loop(); // Commenting out for now, until it is decoupled
 }
 
 void render_boss_hud()
