@@ -23,7 +23,9 @@ EMFLAGS = \
 "_wasm_town_building_finish","_wasm_dungeon_init","_wasm_dungeon_update","_wasm_dungeon_full_tick",\
 "_wasm_dungeon_get_viewport_top","_wasm_dungeon_get_entity_table",\
 "_wasm_dungeon_get_entity_count","_wasm_dungeon_get_sword_frame",\
-"_wasm_dungeon_get_exit_map"]' \
+"_wasm_dungeon_get_exit_map","_wasm_dungeon_get_frame_phase","_wasm_dungeon_get_state",\
+"_wasm_dungeon_set_input_dirs","_wasm_dungeon_get_render_request","_wasm_dungeon_clear_render_request",\
+"_wasm_dungeon_get_exit_map_id"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
 
 .PHONY: all clean serve

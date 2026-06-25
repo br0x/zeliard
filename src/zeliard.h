@@ -139,6 +139,29 @@ extern "C" {
 #define ADDR_BYTE_FF4B            0xFF4B
 #define ADDR_SOUND_FX_REQUEST     0xFF75  // byte
 
+#define ADDR_DUNGEON_STATE          0xFF90  // byte
+#define ADDR_DUNGEON_FRAME_PHASE    0xFF91  // byte
+#define ADDR_RENDER_REQUEST         0xFF92  // byte: 0xFF = JS should render
+#define ADDR_RENDER_DONE            0xFF93  // byte: 0xFF = JS rendered
+#define ADDR_DEATH_PHASE            0xFF94  // byte
+#define ADDR_DEATH_COUNTER          0xFF95  // byte
+#define ADDR_BOSS_ENCOUNTER_PHASE   0xFF96  // byte
+#define ADDR_ASSETS_LOAD_REQUEST    0xFF97  // byte
+#define ADDR_ASSETS_LOADED          0xFF98  // byte
+#define ADDR_MUSIC_LOAD_REQUEST     0xFF9A  // byte
+#define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
+#define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
+
+enum {
+    DUNGEON_STATE_NORMAL = 0,
+    DUNGEON_STATE_ROPE = 1,
+    DUNGEON_STATE_DEATH_FALL = 2,
+    DUNGEON_STATE_DEATH_FLASH = 3,
+    DUNGEON_STATE_DEATH_FADE = 4,
+    DUNGEON_STATE_BOSS_ENCOUNTER = 5,
+    DUNGEON_STATE_EXIT = 6,
+};
+
 // ============================================================================
 // Global Memory Array (exported for JS access)
 // ============================================================================

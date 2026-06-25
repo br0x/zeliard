@@ -654,3 +654,22 @@ Add these new exported functions to `Makefile`:
 "_wasm_dungeon_clear_render_request",
 "_wasm_dungeon_get_exit_map_id",
 ```
+
+---
+Implemented phases 1, 2, and 3.
+What changed:
+Ported basic dungeon tile/entity rendering in `game.js`
+Reworked dungeon hero rendering into layered JS frame resolution: back arm, body, front arm.
+Added dungeon render semaphores and wasm bridge accessors.
+Replaced the main dungeon render/timing busy waits with a tick-driven frame phase state machine in `dungeon.c`.
+Updated `Makefile` exports and rebuilt `zeliard.wasm`.
+Note: the remaining boss encounter waits are still present because the plan places that work in Phase 8, not phases 1-3.
+
+Edited 6 files +443-171
+
+Makefile +3-1
+game.js +138-87
+src/dungeon.c +249-83
+src/dungeon.h +6-0
+src/zeliard-wasm.js +24-0
+src/zeliard.h +23-0

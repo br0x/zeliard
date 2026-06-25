@@ -212,6 +212,10 @@ const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR       = 0xC00F;
 const ADDR_FRAME_TIMER = 0xFF1A;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
+const ADDR_DUNGEON_STATE = 0xFF90;
+const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
+const ADDR_RENDER_REQUEST = 0xFF92;
+const ADDR_RENDER_DONE = 0xFF93;
 const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
 
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
@@ -256,7 +260,7 @@ const DUNGEON_HERO_FRAME_H = 72;
 const DUNGEON_SWORD_FRAME_W = 96;
 const DUNGEON_SWORD_FRAME_H = 96;
 const DUNGEON_HERO_SHEET_COLS = 16;
-const DUNGEON_SWORD_SHEET_COLS = 11;
+const DUNGEON_SWORD_SHEET_COLS = 10;
 const ANIM_SPEED_TICKS = 8;
 const FRAME_LEFT_WALK_BASE = 0;
 const FRAME_FACING_AWAY = 4;
@@ -326,6 +330,8 @@ let dungeonGetExitMap;
 let setDungeonPassableTiles;
 let setDungeonAirflows;
 let setDungeonSwordReach;
+let dungeonGetRenderRequest;
+let dungeonClearRenderRequest;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -460,17 +466,18 @@ function onFullTick() {
     else townFullTick?.();
 
     if (engineReady) {
-        const speedC     = readMemory(0xFF33, 1)[0] || 5;
-        const target     = speedC * 4;
-        const frameTmr   = readMemory(0xFF1A, 1)[0];
-        if (frameTmr >= target) {
+        if (gameMode === 'dungeon') {
             inputUpdate?.();
-            if (gameMode === 'dungeon') {
-                dungeonUpdate?.();
-                if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
-                    handleDungeonExit(dungeonGetExitMap?.() ?? 1);
-                }
-            } else {
+            dungeonUpdate?.();
+            if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
+                handleDungeonExit(dungeonGetExitMap?.() ?? 1);
+            }
+        } else {
+            const speedC     = readMemory(0xFF33, 1)[0] || 5;
+            const target     = speedC * 4;
+            const frameTmr   = readMemory(0xFF1A, 1)[0];
+            if (frameTmr >= target) {
+                inputUpdate?.();
                 townUpdate?.();
                 const scrollFlag = readMemory(0xfff0, 1)[0];
                 if (scrollFlag) {
@@ -909,7 +916,7 @@ async function loadWasmEngine() {
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
         dungeonGetSwordFrame, dungeonGetExitMap, setDungeonPassableTiles, setDungeonAirflows,
-        setDungeonSwordReach,
+        setDungeonSwordReach, dungeonGetRenderRequest, dungeonClearRenderRequest,
     } = wasmBridge);
 }
 
@@ -1123,23 +1130,14 @@ function drawDungeonTiles() {
         for (let col = 0; col < VIEW_COLS; col++) {
             const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
             const tileId = proximity[proxRow*PROX_COLS + proxCol];
-            if (tileId === 0) continue; // empty tile
+            if (tileId === 0) continue;
 
             const dx = col * TILE_WIDTH;
             const dy = row * TILE_HEIGHT;
-            if (tileId <= 25) { // tileId = 1..25 -> mppX tiles
-                ctx.drawImage(
-                    dungeonTileSheet,
-                    (tileId-1) * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
-                    dx, dy, TILE_WIDTH, TILE_HEIGHT
-                );
-            } else if (tileId >=64 && tileId < (64+39) && dungeonDchrSheetReady) {
-                const dchrId = tileId - 64;
-                ctx.drawImage(
-                    dungeonDchrSheet,
-                    dchrId * TILE_WIDTH, 0, TILE_WIDTH, TILE_HEIGHT,
-                    dx, dy, TILE_WIDTH, TILE_HEIGHT
-                );
+            if (tileId >= 1 && tileId <= 25) {
+                drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
+            } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) {
+                drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
             }
         }
     }
@@ -1171,26 +1169,33 @@ function getDungeonEntities() {
 
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory) return;
-    const heroPos = getHeroPosition?.();
-    const proxLeft = heroPos?.hero_x_minus_18_abs ?? 0;
-    const left = proxLeft + DUNGEON_VIEW_LEFT_IN_PROX;
+    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, 2);
+    const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
     const top = dungeonGetViewportTop?.() ?? 0;
 
     for (const entity of getDungeonEntities()) {
-        const sxTiles = entity.x - left;
-        const syTiles = entity.y - top;
-        if (sxTiles < -2 || sxTiles >= VIEW_COLS || syTiles < -2 || syTiles >= VIEW_ROWS) continue;
+        const screenX = (entity.x - proxLeft - DUNGEON_VIEW_LEFT_IN_PROX) * TILE_WIDTH - TILE_WIDTH / 2;
+        const screenY = (entity.y - top) * TILE_HEIGHT - TILE_HEIGHT;
+        if (screenX < -DUNGEON_ENTITY_W || screenX > VIEW_WIDTH ||
+            screenY < -DUNGEON_ENTITY_H || screenY > VIEW_ROWS * TILE_HEIGHT) {
+            continue;
+        }
 
-        let sprite = entity.type ? entity.type - 1 : (entity.flags & 0x3F);
-        sprite = Math.max(0, Math.min(76, sprite));
-        const dx = sxTiles * TILE_WIDTH;
-        const dy = syTiles * TILE_HEIGHT - TILE_HEIGHT;
-        ctx.drawImage(
+        const sprite = Math.max(0, Math.min(76, (entity.type || 1) - 1));
+        drawSheetFrame(
             dungeonEntitySheet,
-            sprite * DUNGEON_ENTITY_W, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H,
-            dx, dy, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H
+            sprite,
+            DUNGEON_ENTITY_W,
+            DUNGEON_ENTITY_H,
+            77,
+            screenX,
+            screenY
         );
     }
+}
+
+function readU8(addr) {
+    return readMemory?.(addr, 1)?.[0] ?? 0;
 }
 
 function getShieldCategory() {
@@ -1199,45 +1204,88 @@ function getShieldCategory() {
     return shieldType >= 4 ? 2 : 1;
 }
 
-function dungeonHeroBodyFrame() {
-    const anim = readMemory(0x00E7, 1)[0];
-    const squat = readMemory(0xFF38, 1)[0];
-    const jump = readMemory(0xFF3A, 1)?.[0] ?? 0;
-    if (squat) return 5;
-    if (jump & 0x80) return 7;
-    if (anim === 0x80) return 4;
-    return anim & 3;
+function getDungeonHeroState() {
+    return {
+        facingLeft: (readU8(0x00C2) & 1) !== 0,
+        animPhase: readU8(0x00E7),
+        invincible: readU8(0x00E8) !== 0,
+        squat: readU8(0xFF38) !== 0,
+        onRope: readU8(0xFF39) !== 0,
+        hidden: readU8(0xFF3A) !== 0,
+        jump: readU8(0xFF3D),
+        shieldAnimActive: readU8(0xFF40) !== 0,
+        shieldPhase: readU8(0xFF3F),
+        shieldVariant: readU8(0xFF41),
+        slope: readU8(0xFF42),
+        shieldCategory: getShieldCategory(),
+    };
 }
 
-function dungeonHeroArmFrame() {
-    const anim = readMemory(0x00E7, 1)[0];
-    const squat = readMemory(0xFF38, 1)[0];
-    if (squat || anim === 0x80) return 3;
-    return anim & 3;
+function resolveBodyFrame(state) {
+    const base = state.facingLeft ? 13 : 0;
+    let offset;
+    if (state.hidden) offset = 26;
+    else if (state.onRope) offset = 26 + (state.animPhase & 3);
+    else if (state.invincible) offset = 10 + (state.animPhase & 3);
+    else if (state.squat) offset = 5;
+    else if (state.jump & 0x80) offset = 7;
+    else if (state.slope === 1) offset = 8;
+    else if (state.slope === 2) offset = 9;
+    else if (state.jump === 0x7F) offset = 6;
+    else if (state.animPhase === 0x80) offset = 4;
+    else offset = state.animPhase & 3;
+    return base + offset;
 }
 
-function dungeonHeroLayerIndices() {
-    const facingLeft = (readMemory(0x00C2, 1)[0] & 1) !== 0;
-    const shield = getShieldCategory();
-    const squat = readMemory(0xFF38, 1)[0] ? 1 : 0;
-    const bodyBase = facingLeft ? 13 : 0;
-    const backArmBase = facingLeft ? 49 : 31;
-    const frontArmBase = facingLeft ? 31 : 49;
-    const layers = [];
+function resolveBackArmFrame(state) {
+    if (state.invincible || state.onRope || state.hidden) return null;
 
-    let backFrame = dungeonHeroArmFrame();
-    if (shield && !facingLeft) {
-        backFrame = 12 + squat + (shield === 2 ? 3 : 0);
+    const armBase = state.facingLeft ? 49 : 31;
+    const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
+    if (state.shieldAnimActive) {
+        const phase = Math.floor(state.shieldPhase / 2);
+        if (!state.facingLeft) return 79 + phase + (state.shieldCategory * 4);
+        let off = phase + 4;
+        if (state.shieldVariant === 1) off += 4;
+        else if (state.shieldVariant === 2) off = 11;
+        return armBase + off;
     }
-    layers.push(backArmBase + backFrame);
-    layers.push(bodyBase + dungeonHeroBodyFrame());
 
-    let frontFrame = dungeonHeroArmFrame();
-    if (shield && facingLeft) {
-        frontFrame = 12 + squat + (shield === 2 ? 3 : 0);
+    if (state.shieldCategory && !state.facingLeft) {
+        return armBase + 12 + (state.squat ? 1 : 0) + shieldOffset;
     }
-    layers.push(frontArmBase + frontFrame);
-    return layers;
+
+    if (state.squat || state.animPhase === 0x80) return null;
+    const phase = (state.animPhase + 2) & 3;
+    if (phase & 1) return null;
+    return armBase + phase;
+}
+
+function resolveFrontArmFrame(state) {
+    const armBase = state.facingLeft ? 31 : 49;
+    const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
+
+    if (state.onRope || state.hidden) {
+        if (!state.shieldCategory) return null;
+        return armBase + (state.shieldCategory === 2 ? 17 : 14);
+    }
+    if (state.invincible) return null;
+
+    if (state.shieldAnimActive) {
+        const phase = Math.floor(state.shieldPhase / 2);
+        if (!state.facingLeft) return 67 + phase + (state.shieldCategory * 4);
+        let off = phase + 4;
+        if (state.shieldVariant === 1) off += 4;
+        else if (state.shieldVariant === 2) off = 11;
+        return armBase + off;
+    }
+
+    if (state.shieldCategory && state.facingLeft) {
+        return armBase + 12 + (state.squat ? 1 : 0) + shieldOffset;
+    }
+
+    if (state.squat || state.animPhase === 0x80) return armBase + 3;
+    return armBase + (state.animPhase & 3);
 }
 
 function drawDungeonHero() {
@@ -1246,16 +1294,16 @@ function drawDungeonHero() {
     if (!heroPos) return;
     const dx = heroPos.hero_x_in_viewport * TILE_WIDTH;
     const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT;
-    for (const frame of dungeonHeroLayerIndices()) {
-        drawSheetFrame(
-            dungeonHeroSheet,
-            frame,
-            DUNGEON_HERO_FRAME_W,
-            DUNGEON_HERO_FRAME_H,
-            DUNGEON_HERO_SHEET_COLS,
-            dx,
-            dy
-        );
+    const state = getDungeonHeroState();
+    const layers = [
+        resolveBackArmFrame(state),
+        resolveBodyFrame(state),
+        resolveFrontArmFrame(state),
+    ];
+    for (const frame of layers) {
+        if (frame === null) continue;
+        drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
+            DUNGEON_HERO_SHEET_COLS, dx, dy);
     }
 }
 
@@ -2171,13 +2219,16 @@ function draw() {
         renderMagicHud();
         renderShieldHud();
     } else if (gameMode === 'dungeon') {
-        // Clear canvas (or draw black background)
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        drawDungeonTiles();
-        drawDungeonEntities();
-        drawDungeonHero();
-        drawDungeonSword();
+        const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
+        if (shouldRender) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawDungeonTiles();
+            drawDungeonEntities();
+            drawDungeonHero();
+            drawDungeonSword();
+            dungeonClearRenderRequest?.();
+        }
         // HUD is drawn later (outside this branch)
     } else { // town outdoor mode
         drawTownBackground();
