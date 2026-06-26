@@ -153,6 +153,10 @@ packed_map_start                                   equ 0C01Bh
 ; seg1 offsets (code seg + 1000h)
 monster_gfx                                        equ 4000h
 fman_gfx                                           equ 6000h ; hero in dungeon
+; packed tiles data (48 bytes each)
+mpp_gfx                                            equ 8000h ; static tiles, 8000h..802Fh are headers, so tile 0 is skipped
+mpp_gfx_tile_1                                     equ 8030h
+dchr_gfx                                           equ 8C00h ; doors, platforms, etc. Tiles 40h..66h
 aggressive_ground_list                             equ 8020h
 monsters_transparency_masks                        equ 0A000h
 sword_animation_gfx                                equ 0B000h

@@ -212,7 +212,7 @@ Process_Dirty_Tile_With_Animation proc near
                 mov     al, [si-1]
                 or      al, al
                 jns     short loc_312E
-                jmp     Render_Tile_With_Border_CheckProcess_Dirty_Tile_With_Animation
+                jmp     Render_Tile_With_Border_Check
 ; ---------------------------------------------------------------------------
 
 loc_312E:

@@ -3264,14 +3264,13 @@ bring_inventory_window endp
 
 
 ; ===========================================================================
-; swap_eai_and_inventory_code_regions
 ; XOR-swaps 0x800 words (2KB each) between:
 ;   - ES:0xA000 (eai{N}.bin enemy AI code, in CS segment)
 ;   - ES:0xC000 (select.bin inventory code, in CS segment)
 ; After the swap: Monster_AI_proc at 0xA000 now runs the inventory screen.
 ; swap_eai_and_inventory_code_regions is idempotent (double-swap restores).
 ; ===========================================================================
-swap_eai_and_inventory_code_regions proc near ; ...
+swap_eai_and_inventory_code_regions proc near
                 mov     es, cs:seg1 ; =1ac5
                 mov     di, 0C000h      ; select.bin region (inventory)
                 mov     si, 0A000h      ; eai{i}.bin region (enemy AI)
@@ -4921,7 +4920,7 @@ process_mdt_descriptor endp
 load_cavern_sprites_ai_music proc near
                 mov     es, cs:seg1
                 mov     si, offset dchr_grp
-                mov     di, 8C00h       ; doors, platforms tiles gfx
+                mov     di, offset dchr_gfx  ; doors, platforms tiles gfx
                 mov     al, 2           ; fn2_segmented_load
                 call    cs:res_dispatcher_proc
                 mov     bl, ds:mpp_grp_index
@@ -4930,7 +4929,7 @@ load_cavern_sprites_ai_music proc near
                 add     ax, offset mpp_grp
                 mov     si, ax
                 mov     es, cs:seg1
-                mov     di, 8000h       ; static cavern tiles gfx
+                mov     di, mpp_gfx     ; static cavern tiles gfx
                 mov     al, 2           ; fn2_segmented_load
                 call    cs:res_dispatcher_proc
                 mov     bl, ds:eai_bin_index_

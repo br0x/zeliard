@@ -6,7 +6,6 @@ include dungeon.inc
 eai1            segment byte public 'CODE'
                 assume cs:eai1, ds:eai1
                 org 0A000h
-                assume es:nothing, ss:nothing
 start           dw offset Monster_AI
                 dw 0
                 db    0
@@ -622,7 +621,6 @@ loc_A4DB:
                 and     [si+monster.ai_state], 11110111b
                 mov     [si+monster.anim_counter], 0
                 jmp     cs:move_monster_S_proc
-; END OF FUNCTION CHUNK FOR Monster_AI
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -669,7 +667,6 @@ loc_A515:
 frog_hero_proximity_and_direction endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR Monster_AI
 
 flags11:                 
                 call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 3
