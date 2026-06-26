@@ -119,6 +119,7 @@ static ProximityResult frog_hero_proximity_and_direction(Monster *m);
 
 /* ============================================================================
  * Monster_AI - entry point (matches void Monster_AI(Monster* m); in zeliard.h)
+ * Called from dungeon.c monsters_spawning and place_monster_in_proximity_and_run_ai
  * ============================================================================
  */
 void Monster_AI(Monster *m)

@@ -7355,7 +7355,6 @@ byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 
 
 ; ===========================================================================
-; monsters_spawning
 ; Main monster AI tick (called once per frame from main_update_render).
 ; Boss/Jashiin caverns: delegate entirely to Monster_AI_proc (eai binary).
 ; Regular caverns:

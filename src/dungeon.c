@@ -1263,7 +1263,10 @@ void process_doors(void)
 void dispatch_spell_projectile_movement(void) {}
 
 // stub
-void monsters_spawning(void) {}
+void monsters_spawning(void)
+{
+    
+}
 
 // stub
 void check_hero_contact_damage(void) {}

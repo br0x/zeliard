@@ -898,3 +898,28 @@ loc_8C61:
                 mov     ds:byte_9F2A, 0FFh
                 retn
 mark_proximity_monster_as_spell_target endp
+
+; ---------------------------------------------------------------------------
+byte_8C79       db 0, 0, 1, 0, 0, 1, 1, 1
+sequences0      dw offset byte_8C99
+                dw offset byte_8CA5
+                dw offset byte_8CBD
+                dw offset byte_8CE5
+                dw offset byte_8CFD
+                dw offset byte_8D01
+sequences1      dw offset byte_8C99
+                dw offset byte_8CB1
+                dw offset byte_8CD1
+                dw offset byte_8CF1
+                dw offset byte_8CFD
+                dw offset byte_8D0D
+byte_8C99       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CA5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CB1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CBD       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CD1       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CE5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8CF1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+byte_8CFD       db 73h, 74h, 75h, 76h
+byte_8D01       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
