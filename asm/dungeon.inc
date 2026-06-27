@@ -1,7 +1,7 @@
 monster            STRUC
   currX            dw   ?  ; 0
-  currY            db   ?  ; 2
-  m_x_rel          db   ?  ; 3
+  currY            db   ?  ; 2 ; Y always 0..63, no need to call it "relative"
+  m_x_rel          db   ?  ; 3 ; X relative to proximity left (0..35)
   flags            db   ?  ; 4
   ai_flags         db   ?  ; 5
   anim_counter     db   ?  ; 6

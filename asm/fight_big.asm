@@ -2620,15 +2620,13 @@ is_non_blocking_tile_simple endp
 
 
 ; ===========================================================================
-; input_handling
-; Reads keyboard/joystick state and decides which sword-swing mode to trigger.
-; Only runs if hero has a sword (sword_type != 0).
+; Reads keyboard state and decides which sword-swing mode to trigger.
 ;
-; SPACE + ascending + down-direction → downward thrust (sword_hit_type=2)
+; SPACE + Up + Down → downward thrust (sword_hit_type=2)
 ;   If not already held (down_thrust_held_flag): play SFX 4.
 ; SPACE latched (from previous frame) → normal or overhead swing:
 ;   - Scans 4×8-tile area in front of hero for monsters; if any found → overhead
-;   - OR if UP is pressed → overhead swing (sword_hit_type=1)
+;   - OR if Up is pressed → overhead swing (sword_hit_type=1)
 ;   - Otherwise → forward hit (sword_hit_type=0)
 ; Sets sword_swing_flag=0xFF to trigger apply_sword_hit_to_map_tiles.
 ; ===========================================================================
@@ -2657,13 +2655,13 @@ loc_6E43:
                 mov     byte ptr ds:sword_movement_phase, 2
                 test    byte ptr ds:down_thrust_held_flag, 0FFh
                 jz      short loc_6E70
-                jmp     loc_6EF7
+                jmp     loc_6EF7 ; set_swing_latches (skip default body)
 ; ---------------------------------------------------------------------------
 
 loc_6E70:        
                 mov     byte ptr ds:down_thrust_held_flag, 0FFh
                 mov     byte ptr ds:soundFX_request, 4
-                jmp     short loc_6EF7
+                jmp     short loc_6EF7 ; set_swing_latches (skip default body)
 ; ---------------------------------------------------------------------------
 
 sword_default:   
@@ -2688,12 +2686,12 @@ loc_6E91:
 loc_6E99:        
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jnz     short loc_6ED6
+                ; ordinary cavern path
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                sub     si, 147         ; =E10C-(4*36+3) = E079
+                sub     si, (4*36+3)        ; =E10C-(4*36+3) = E079
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xor     dl, dl
                 mov     cx, 4
-
 four_rows:       
                 push    cx
                 mov     cx, 8
@@ -2703,6 +2701,7 @@ row_of_eight_tiles:
                 call    get_dst_monster_flags ; CF: no monster/item; NC: monster/item (NZ: non-passable, ZF: flying)
                                               ; AL = monster.flags; BX = monster struct
                 jc      short no_monster ; no monster
+                ; CF: monster
                 test    al, 01100000b
                 jnz     short no_monster
                 test    byte ptr [bx+monster.state_flags], 10h
@@ -2713,14 +2712,14 @@ no_monster:
                 inc     si
                 pop     cx
                 loop    row_of_eight_tiles
-                add     si, 28
+                add     si, (36-8)
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 pop     cx
                 loop    four_rows
                 or      dl, dl
                 jnz     short loc_6EDC
 
-loc_6ED6:        
+loc_6ED6:       ; common path for boss caverns and ordinary caverns
                 int     61h             ; ah: ____Alt_Space
                                         ; al: ____right_left_down_up
                 test    al, 1
@@ -2740,7 +2739,7 @@ no_up_pressed:
 loc_6EF2:        
                 mov     byte ptr ds:soundFX_request, 3
 
-loc_6EF7:        
+loc_6EF7:       ; set_swing_latches
                 mov     byte ptr ds:spacebar_latch, 0
                 mov     byte ptr ds:altkey_latch, 0
                 mov     byte ptr ds:sword_swing_flag, 0FFh
@@ -7403,8 +7402,8 @@ next_monster2:
 
 loc_8D38:        
                 mov     [si+monster.m_x_rel], 0FFh
-                cmp     ah, 0FFh
-                jz      short skip
+                cmp     ah, 0FFh    ; 
+                je      short skip
                 call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
                                                 ; Returns CF if outside the window, accounting for world wrap.
                                                 ;         NC if inside the window, then BL = relative X in the window.
@@ -7412,8 +7411,8 @@ loc_8D38:
                 mov     [si+monster.m_x_rel], bl
                 call    place_monster_in_proximity_and_run_ai
                 cmp     byte ptr [si+1], 0FFh ; monster x coord high byte; ff => stationary item
-                jz      short skip
-                mov     ax, word ptr [si+monster.currY]
+                je      short skip
+                mov     ax, word ptr [si+monster.currY] ; al=currY, ah=m_x_rel
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
                                         ; y &= 0x3F; // Clamp Y to 0-63
@@ -7421,9 +7420,10 @@ loc_8D38:
                 mov     bl, ds:monster_index
                 xor     bh, bh
                 mov     al, bl
-                or      al, 80h
-                xchg    al, [di]
-                mov     ds:proximity_second_layer[bx], al ; proximity map is designed to keep only one item
+                or      al, 80h ; new = monster_index | 80h
+                xchg    al, [di] ; old = [prox]; [prox] = new
+                mov     ds:proximity_second_layer[bx], al ; second[monster_index] = old
+                                        ; proximity map is designed to keep only one item
                                         ; at given address. So when we need to put other object,
                                         ; when position is already occupied by monster,
                                         ; we use second layer: 128 bytes of additional buffer
@@ -7432,12 +7432,12 @@ loc_8D38:
                 jnz     short skip
                 test    [si+monster.state_flags], 10000b
                 jz      short skip
-                xchg    si, di
-                add     si, 72
+                xchg    si, di ; si=monster_prox_addr, di points to monster struct
+                add     si, 2*36 ; si=monster_prox_addr+2*36 (below upper 2x2 tiles)
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                xchg    si, di
+                xchg    si, di ; di=monster_bottom_prox_addr, si points to monster struct
                 mov     bl, ds:monster_index
-                inc     bl
+                inc     bl ; bl=monster_index+1
                 xor     bh, bh
                 mov     al, bl
                 or      al, 80h
@@ -7447,7 +7447,6 @@ loc_8D38:
                                         ; when position is already occupied by monster,
                                         ; we use second layer: 128 bytes of additional buffer
                                         ; (1 byte per monster id)
-
 skip:            
                 test    [si+monster.state_flags], 100000b
                 jnz     short loc_8DA5
@@ -7458,7 +7457,7 @@ skip:
 
 loc_8DA0:        
                 jnz     short loc_8DA5
-                call    monster_activation
+                call    monster_activation ; pass si (pointer to monster struct)
 
 loc_8DA5:        
                 inc     byte ptr ds:monster_index
@@ -7468,7 +7467,6 @@ monsters_spawning endp
 
 
 ; ===========================================================================
-; place_monster_in_proximity_and_run_ai
 ; Places a monster in the proximity map and optionally runs its AI.
 ;
 ; 1. Converts currX/currY to proximity map address (coords_in_ax_to_proximity).
@@ -7600,7 +7598,7 @@ loc_8E3F:
 
 loc_8E54:        
                 add     [si+monster.anim_counter], 80h
-                jb      short loc_8E5B
+                jc      short loc_8E5B
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -7640,7 +7638,7 @@ flag_11:
                 sub     ah, 3
                 and     ah, 3Fh
                 cmp     ah, ds:hero_y_absolute
-                jz      short loc_8EA3
+                je      short loc_8EA3
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -7648,14 +7646,14 @@ loc_8EA3:
                 mov     al, ds:hero_x_in_viewport
                 add     al, 3
                 mov     ah, ds:facing_direction
-                and     ah, 1
+                and     ah, LEFT
                 add     ah, ah
                 add     al, ah
                 mov     cx, 2
 
 loc_8EB6:        
                 cmp     al, [si+monster.m_x_rel]
-                jz      short loc_8EC0
+                je      short loc_8EC0
                 inc     al
                 loop    loc_8EB6
                 retn
@@ -7671,7 +7669,7 @@ loc_8ECA:
                 and     [si+monster.flags], 7Fh
                 call    move_monster_S
                 add     [si+monster.anim_counter], 80h
-                jb      short loc_8ED8
+                jc      short loc_8ED8
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -7690,7 +7688,7 @@ loc_8EE2:
 flag_12:         
                 inc     [si+monster.anim_counter] ; jumptable 00008E10 case 2
                 cmp     [si+monster.anim_counter], 3
-                jz      short loc_8EF3
+                je      short loc_8EF3
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -7724,7 +7722,7 @@ loc_8F18:
 chest:           
                 call    loc_914C
                 mov     bl, [si+monster.anim_counter]
-                and     bl, 0Fh         ; 1..8
+                and     bl, 0Fh         ; chest type (1..8)
                 dec     bl
                 add     bl, bl
                 xor     bh, bh
@@ -7736,7 +7734,7 @@ off_8F33        dw offset got_50_gold
                 dw offset got_500_gold
                 dw offset got_1000_gold
                 dw offset got_crest_of_glory
-                dw offset loc_8F83
+                dw offset got_ench_sword
 ; ---------------------------------------------------------------------------
 
 got_50_gold:     
@@ -7779,7 +7777,7 @@ got_crest_of_glory:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_8F83:        
+got_ench_sword:        
                 mov     dx, offset get_enchantment_sword_str
                 call    render_notification_string
                 push    si
@@ -7834,7 +7832,7 @@ got_100_almas:
 
 flag_16:         
                 mov     dx, offset you_get_key_str ; jumptable 00008E10 case 6
-                call    loc_90D3
+                call    pickup_common
                 jnb     short got_ordinary_key
                 retn
 ; ---------------------------------------------------------------------------
@@ -7846,7 +7844,7 @@ got_ordinary_key:
 
 flag_17:         
                 mov     dx, offset get_lions_head_key_str ; jumptable 00008E10 case 7
-                call    loc_90D3
+                call    pickup_common
                 jnb     short got_lion_head_key
                 retn
 ; ---------------------------------------------------------------------------
@@ -7927,7 +7925,7 @@ loc_907A:
 
 flag_1d:         
                 mov     dx, offset get_heros_crest_str ; jumptable 00008E10 case 13
-                call    loc_90D3
+                call    pickup_common
                 jnb     short got_hero_crest
                 retn
 ; ---------------------------------------------------------------------------
@@ -7939,14 +7937,14 @@ got_hero_crest:
 
 flag_1e:         
                 mov     dx, offset get_feruza_shoes_str ; jumptable 00008E10 case 14
-                call    loc_90D3
+                call    pickup_common
                 jnb     short loc_9099
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_9099:        
                 mov     al, 1
-                jmp     short loc_90B8
+                jmp     short put_shoes_to_inventory
 ; ---------------------------------------------------------------------------
 
 flag_1a:         
@@ -7959,13 +7957,13 @@ flag_1a:
                 mov     al, [di]
                 mov     dx, [di+1]      ; different shoes strings
                 push    ax
-                call    loc_90D3
+                call    pickup_common
                 pop     ax
-                jnb     short loc_90B8
+                jnb     short put_shoes_to_inventory
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_90B8:        
+put_shoes_to_inventory:        
                 push    ax
                 mov     di, offset Feruza_Shoes
 
@@ -7990,7 +7988,7 @@ shoes_strings_array:
                 dw offset get_silkarn_shoes_str
 ; ---------------------------------------------------------------------------
 
-loc_90D3:        
+pickup_common:        
                 push    dx
                 call    move_monster_S
                 call    check_monster_aligned_to_hero_and_tick
@@ -8003,7 +8001,7 @@ loc_90DE:
                 mov     byte ptr ds:soundFX_request, 17
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
-
+; default_0toF_handler
 loc_90E6:        
                 add     byte ptr [si+monster.anim_counter], 80h
                 jc      short loc_90ED
@@ -8013,7 +8011,7 @@ loc_90E6:
 loc_90ED:        
                 inc     byte ptr [si+monster.anim_counter]
                 cmp     byte ptr [si+monster.anim_counter], 3
-                jz      short loc_90F7
+                je      short loc_90F7
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -8046,7 +8044,7 @@ loc_9122:
 
 loc_9132:        
                 cmp     al, 1
-                jz      short loc_914C
+                je      short loc_914C
                 or      al, 70h
                 or      byte ptr [si+monster.state_flags], 80h
                 mov     byte ptr [si+monster.counter], 4
@@ -8064,14 +8062,14 @@ loc_914C:
 ; ---------------------------------------------------------------------------
 
 loc_9157:        
-                mov     di, [si+monster.spwnX]
+                mov     di, [si+monster.spwnX] ; looks like it is proximity address, not X coord
                 cmp     di, 0FFFFh  ; already spawned
                 jne     short loc_9160
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_9160:        
-                mov     al, [si+monster.spwnY]
+                mov     al, [si+monster.spwnY] ; looks like it is entity index, not Y coord
                 or      [di], al
                 mov     word ptr [si+monster.spwnX], 0FFFFh
                 retn
@@ -8931,7 +8929,6 @@ if_passable_set_ZF endp
 
 
 ; ===========================================================================
-; monster_activation
 ; Spawns a monster from its spawn point when the hero comes close enough.
 ; Conditions for spawn:
 ;   - Monster currX high byte == 0xFF (currently deactivated/item state).
@@ -8942,10 +8939,11 @@ if_passable_set_ZF endp
 ; On spawn: copies spawnX → currX, spawnY → currY, type_ → flags, resets counters.
 ; Big monsters (state_flags bit 4): spawn as two consecutive table entries,
 ; placing second entry 2 rows below the first.
+; Input: SI = monster struct pointer.
 ; ===========================================================================
 monster_activation proc near  
                 cmp     byte ptr [si+1], 0FFh ; monster x coord high byte
-                jz      short loc_9506
+                je      short loc_9506
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -8980,7 +8978,7 @@ loc_9522:
 
 loc_9527:        
                 cmp     bl, 35
-                jnz     short loc_952D
+                jne     short loc_952D
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -9012,21 +9010,21 @@ loc_954A:
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 push    di
                 xchg    si, di
-                sub     si, 37
+                sub     si, (36+1)
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xor     al, al
                 mov     cx, 3
 
 loc_9569:        
-                or      al, byte ptr [si+monster.currX]
-                or      al, [si+1]   ; monster x coord high byte
-                or      al, [si+monster.currY]
+                or      al, [si+0]
+                or      al, [si+1]
+                or      al, [si+2]
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 loop    loc_9569
                 xchg    si, di
                 pop     di
-                or      al, al
+                or      al, al ; any monster within 3x3 tiles?
                 jns     short loc_9581
                 retn
 ; ---------------------------------------------------------------------------
@@ -9036,7 +9034,7 @@ loc_9581:
                 or      al, 80h
                 mov     [di], al
                 mov     ax, [si+monster.spwnX]
-                mov     [si], ax
+                mov     [si+monster.currX], ax
                 mov     al, [si+monster.spwnY]
                 mov     [si+monster.currY], al
                 mov     al, [si+monster.type_]

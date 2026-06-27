@@ -1123,7 +1123,7 @@ export function updateHorizontalPlatforms() {
 
 /**
  * Hero interaction check
- * Called every frame to check for door/item interactions
+ * Called every rAF frame to check for door/item interactions
  */
 export function heroInteractionCheck() {
     if (!wasmExports) {

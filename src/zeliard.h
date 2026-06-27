@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 
-#define MEM8(addr)   (g_mem[(addr) & 0xFFFF])
-#define MEM16(addr)  (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
+#define MEM8(addr)     (g_mem[(addr) & 0xFFFF])
+#define MEM16(addr)    (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 #define MEM8_1(addr)   (g_mem[((addr) & 0xFFFF) + 0x10000])
 #define MEM16_1(addr)  (*(uint16_t *)&g_mem[((addr) & 0xFFFF) + 0x10000])
 
@@ -28,6 +28,8 @@ extern "C" {
 #define ICE_TILE_START   0x40
 #define ICE_TILE_END     0x48
 #define SHOES_FERUZA     1
+#define SHOES_PIRIKA     2
+#define SHOES_SILKARN    3
 #define SHOES_RUZERIA    4
 #define AIRFLOW_UP       0
 #define AIRFLOW_LEFT     1
@@ -37,11 +39,32 @@ extern "C" {
 #define KEY_LEFT         4
 #define KEY_RIGHT        8
 #define KEY_ENTER        1
+#define KEY_SPACE        1
+#define KEY_ALT          2
+// String IDs to render by js
+#define YOU_GET_50_GOLD_STR         1
+#define YOU_GET_100_GOLD_STR        2
+#define NOTHING_IN_THE_BOX_STR      3
+#define YOU_GET_500_GOLD_STR        4
+#define YOU_GET_1000_GOLD_STR       5
+#define YOU_GET_GLORY_CREST_STR     6
+#define GET_ENCHANTMENT_SWORD_STR   7
+#define YOU_GET_KEY_STR             8
+#define GET_LIONS_HEAD_KEY_STR      9
+#define YOU_HAVE_RECOVERED_STR      10
+#define YOU_HAVE_RECOVERED_FULL_STR 11
+#define GET_HEROS_CREST_STR         12
+#define GET_FERUZA_SHOES_STR        13
+#define GET_RUZERIA_SHOES_STR       14
+#define GET_PIRIKA_SHOES_STR        15
+#define GET_SILKARN_SHOES_STR       16
+
+#define SWORD_ENCHANTMENT         6
 
 // ============================================================================
 // Memory Layout Constants
 // ============================================================================
-#define MEM_SAVE_DATA                 0x0000    // 256 bytes - Save data (xxx.sav)
+#define MEM_SAVE_DATA                 0       // 256 bytes - Save data (xxx.sav)
 #define ADDR_DEATH_ALREADY_PROCESSED  0x49
 #define ADDR_HERO_INVINCIBILITY       0x7F    // byte
 #define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
@@ -58,7 +81,10 @@ extern "C" {
 #define ADDR_SHIELD_TYPE              0x93
 #define ADDR_KEYS_AMOUNT              0x98
 #define ADDR_LION_KEYS_AMOUNT         0x99
+#define ADDR_CREST_OF_GLORY           0x9B    // byte
+#define ADDR_HERO_CREST               0x9C    // byte
 #define ADDR_CURRENT_ACCESSORY        0x9E
+#define ADDR_FERUZA_SHOES             0xA1    // byte
 #define ADDR_HERO_MAX_HP              0xB2    // word
 #define ADDR_FACING                   0xC2
 #define ADDR_LEFT_RUN                 0xC3
@@ -90,6 +116,7 @@ extern "C" {
 #define ADDR_TEAR_X              0xC013    // word
 #define ADDR_TEAR_Y              0xC015    // byte
 #define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016
+#define ADDR_CAVERN_SIGNS_INFO   0xC017    // word
 #define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
@@ -106,6 +133,7 @@ extern "C" {
 #define ADDR_BOSS_EXPLOSIONS_LIST 0xEDA0   // up to 32 entities (4 bytes each)
 
 #define ADDR_HEARTBEAT_VOLUME     0xFF08  // byte
+#define ADDR_INPUT_ALT_SPACE      0xFF16  // byte ____Alt_Space
 #define ADDR_INPUT_DIRS           0xFF17  // byte ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
 #define ADDR_FRAME_TIMER          0xFF1A  // byte
@@ -135,8 +163,11 @@ extern "C" {
 #define ADDR_UI_ELEMENT_DIRTY     0xFF44  // byte
 #define ADDR_SWORD_HIT_TYPE       0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
 #define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
+#define ADDR_DOWN_THRUST_HELD     0xFF47  // byte
 #define ADDR_MONSTER_INDEX        0xFF4A  // byte
 #define ADDR_BYTE_FF4B            0xFF4B
+#define ADDR_TICK_COUNTER         0xFF50  // word
+
 #define ADDR_KEYBOARD_ALT_MODE_FLAG 0xFF74  // byte
 #define ADDR_SOUND_FX_REQUEST     0xFF75  // byte
 #define ADDR_FONT_HIGHLIGHT_FLAG  0xFF77  // byte
@@ -561,20 +592,20 @@ typedef struct {
 
 // Monster Entry in MDT (16 bytes)
 typedef struct DungeonMonster {
-    uint16_t curr_x;
-    uint8_t curr_y;
-    uint8_t x_rel;
-    uint8_t flags;
-    uint8_t ai_flags;
-    uint8_t anim_counter;
-    uint8_t state_flags;
-    uint8_t hp;
-    uint8_t ai_state;
-    uint8_t ai_timer;
-    uint16_t spawn_x;
-    uint8_t spawn_y;
-    uint8_t type;
-    uint8_t counter;
+    uint16_t currX;        // 0
+    uint8_t currY;         // 2
+    uint8_t m_x_rel;       // 3
+    uint8_t flags;         // 4
+    uint8_t ai_flags;      // 5
+    uint8_t anim_counter;  // 6
+    uint8_t state_flags;   // 7
+    uint8_t hp;            // 8
+    uint8_t ai_state;      // 9
+    uint8_t ai_timer;      // 10
+    uint16_t spwnX;        // 11
+    uint8_t spwnY;         // 13
+    uint8_t type_;         // 14
+    uint8_t counter;       // 15
 } Monster;
 
 // ============================================================================

@@ -1027,6 +1027,7 @@ function drawTownSidewalk() {
     return true;
 }
 
+// some tiles in the towns are animated (like waving flags etc.)
 function updateTownAnimation() {
     const pattern = PATTERN_ASSETS[townPatId];
     const seqList = pattern?.animatedTilesSeq ?? [];
@@ -1078,7 +1079,7 @@ function drawTownTiles() {
     return true;
 }
 
-function drawHero() {
+function drawTownHero() {
     if (!heroSpriteReady || !engineReady) return;
     readMemory(0xFF33, 1)[0];
     const heroAnim = readMemory(0x00E7, 1)[0];
@@ -1104,7 +1105,7 @@ function drawHero() {
     ctx.drawImage(heroSprite, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);
 }
 
-function drawNpcs() {
+function drawTownNpcs() {
     if (!engineReady || !readMemory) return;
     const ptrBytes = readMemory(ADDR_NPC_ARRAY_PTR, 2);
     const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
@@ -2248,7 +2249,7 @@ function draw() {
     ctx.fillStyle = '#05053f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (!engineReady) {
+    if (!engineReady) { // emergency fallback
         drawLifeBar();
         updatePlaceHud('');
         renderGoldHud();
@@ -2291,8 +2292,8 @@ function draw() {
         if (townBackgroundType) 
             drawTownCeiling();
         if (drawTownTiles()) {
-            drawNpcs();
-            drawHero();
+            drawTownNpcs();
+            drawTownHero();
             drawLifeBar();
             let placeName = getTownName?.() ?? 'unknown';
             updatePlaceHud(townEntryRan ? placeName : '');
@@ -2314,7 +2315,7 @@ function loop(timestamp) {
     const dt = timestamp - lastTimestamp;
     lastTimestamp = timestamp;
     if (dt > 0) fps = Math.round(1000 / dt);
-    update();
+    update(); // Check: update should be done in one of timer handlers (full tick or slow tick)
     draw();
     requestAnimationFrame(loop);
 }
