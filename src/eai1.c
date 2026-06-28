@@ -17,8 +17,8 @@
  *   Check_collision_in_direction below.
  * - check_monster_on_aggressive_ground mirrors a jnz test: it returns
  *   nonzero exactly when the original code took the "jnz" branch (ZF=0).
- * - if_passable_set_ZF, check_collision_E2_monster and
- *   check_collision_W2_monster keep the signature/semantics already declared
+ * - if_passable_set_ZF, check_collision_E2 and
+ *   check_collision_W2 keep the signature/semantics already declared
  *   in zeliard.h.
  * - rat_hero_proximity_and_direction / frog_hero_proximity_and_direction
  *   originally returned a value in AL *and* a carry flag that the two call
@@ -34,9 +34,6 @@
 
 #include "zeliard.h"
 
-/* ---- shared monster-AI helpers (presumably shared by other eaiN.asm ports) */
-extern void Check_Vertical_Distance_Between_Hero_And_Monster(Monster *m);
-
 /* ---- movement primitives: return CF (1 = blocked/failed, 0 = success) */
 extern int move_monster_N(Monster *m);
 extern int move_monster_S(Monster *m);
@@ -51,16 +48,6 @@ extern int move_monster_SW(Monster *m);
  * (0=E,1=NE,2=N,3=NW,4=W, 5=SW,6=S,7=SE) - same encoding as the angle tables below. 
  * Both return CF (1 = blocked). */
 extern int monster_move_in_direction(Monster *m, uint8_t angle);
-extern int Check_collision_in_direction(Monster *m, uint8_t angle);
-
-extern uint8_t get_random(void);
-
-/* I don't have visibility into how the proximity map is exposed in your C
- * port outside of the 0x00-0xFF / 0xFF00-0xFFFF MEM8/MEM16 ranges, so this
- * is my one open assumption: a byte-peek into proximity-map space by raw
- * address, analogous to wasm_get_proximity_map(). Replace with whatever
- * accessor you actually use if this isn't it. */
-extern uint8_t proximity_map_peek(uint16_t addr);
 
 /* ============================================================================
  * Small helpers / tables
@@ -139,13 +126,13 @@ static void ai_flags00(Monster *m)
 {
     uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     if (!check_monster_on_aggressive_ground(mon)) {
-        Check_Vertical_Distance_Between_Hero_And_Monster(m);
+        Check_Vertical_Distance_Between_Hero_And_Monster(mon);
         return;
     }
     if (m->hp == 0) m->hp = 2;
 
     if (m->ai_flags & 0x20) {
-        Hero_Hits_monster(m, MEM8(ADDR_MONSTER_INDEX));
+        Hero_Hits_monster(mon);
         return;
     }
 
@@ -300,13 +287,13 @@ static void ai_flags01(Monster *m)
 {
     uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     if (!check_monster_on_aggressive_ground(mon)) {
-        Check_Vertical_Distance_Between_Hero_And_Monster(m);
+        Check_Vertical_Distance_Between_Hero_And_Monster(mon);
         return;
     }
     if (m->hp == 0) m->hp = 2;
 
     if (m->ai_flags & 0x20) {
-        Hero_Hits_monster(m, MEM8(ADDR_MONSTER_INDEX));
+        Hero_Hits_monster(mon);
         return;
     }
 
@@ -336,13 +323,13 @@ static void ai_flags10(Monster *m)
 
     uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     if (!check_monster_on_aggressive_ground(mon)) {
-        Check_Vertical_Distance_Between_Hero_And_Monster(m);
+        Check_Vertical_Distance_Between_Hero_And_Monster(mon);
         return;
     }
     if (m->hp == 0) m->hp = 1;
 
     if (m->ai_flags & 0x20) {
-        Hero_Hits_monster(m, MEM8(ADDR_MONSTER_INDEX));
+        Hero_Hits_monster(mon);
         return;
     }
 
@@ -405,13 +392,13 @@ static void ai_flags11(Monster *m)
 
     uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     if (!check_monster_on_aggressive_ground(mon)) {
-        Check_Vertical_Distance_Between_Hero_And_Monster(m);
+        Check_Vertical_Distance_Between_Hero_And_Monster(mon);
         return;
     }
     if (m->hp == 0) m->hp = 1;
 
     if (m->ai_flags & 0x20) {
-        Hero_Hits_monster(m, MEM8(ADDR_MONSTER_INDEX));
+        Hero_Hits_monster(mon);
         return;
     }
 
@@ -454,11 +441,11 @@ loc_A57B: {
         uint8_t r = (uint8_t)(get_random() & 0x80);
         m->ai_flags |= r;
         if (r != 0) {
-            if (check_collision_E2_monster(m)) { /* blocked */
+            if (check_collision_E2(mon)) { /* blocked */
                 m->ai_flags &= 0x7F;
             }
         } else {
-            if (check_collision_W2_monster(m)) { /* blocked */
+            if (check_collision_W2(mon)) { /* blocked */
                 m->ai_flags |= 0x80;
             }
         }
@@ -468,12 +455,12 @@ loc_A57B: {
 loc_A5C5: {
         uint16_t addr = coords_to_prox_addr(m->m_x_rel, m->currY);
 
-        uint16_t lookahead = 0x48;
+        uint16_t lookahead = 36*2;
         if (m->ai_flags & 0x80) lookahead++;
         addr = (uint16_t)(addr + lookahead);
 
         wrap_map_from_above(&addr);
-        uint8_t tile = proximity_map_peek(addr);
+        uint8_t tile = MEM8(addr);
 
         if (!if_passable_set_ZF(tile)) goto loc_A5F4;
 
@@ -517,6 +504,7 @@ loc_A60C:
 /* loc_A649: per-frame step while ai_state bit 0x08 ("jumping") is set */
 static void rat_ai_jump_step(Monster *m)
 {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     uint8_t ah = m->anim_counter;
     uint8_t al = (uint8_t)(ah + 1) & 3;
 
@@ -533,7 +521,7 @@ static void rat_ai_jump_step(Monster *m)
     const uint8_t *angle_table = (m->ai_flags & 0x80) ? jump_angles_right : jump_angles_left;
     uint8_t angle = angle_table[m->anim_counter];
 
-    if (Check_collision_in_direction(m, angle)) { /* blocked */
+    if (Check_collision_in_direction(mon, angle)) { /* blocked */
         m->ai_state = (uint8_t)((m->ai_state & 0xF7) | 0x04);
         return;
     }

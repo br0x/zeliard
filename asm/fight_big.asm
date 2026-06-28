@@ -8376,7 +8376,7 @@ incX_incY_:
 ; ---------------------------------------------------------------------------
 
 incrementX:      
-                mov     ax, [si]        ; current X coord
+                mov     ax, [si+monster.currX]        ; current X coord
                 inc     ax              ; try to move right
                 mov     bx, ax
                 sub     bx, ds:mapWidth
@@ -8467,9 +8467,9 @@ loc_92D2:
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 or      al, [si]        ; (+2, +1)|(+2, 0)|(+2, -1)
                 xchg    si, di
-                add     al, al          ; ..?
-                                        ; x.?
-                                        ; ..?
+                add     al, al          ; ..~
+                                        ; x.⭉
+                                        ; ..⭉
                 retn                    ; CF is only set if any of {(+2, +1), (+2, 0), (+2, -1)} has high bit set (negative)
 check_collision_E2 endp
 
@@ -8478,14 +8478,14 @@ check_collision_E_including_danger5 proc near
                 call    if_passable_set_ZF
                 stc
                 jz      short loc_92F4
-                retn
+                retn  ; cannot pass => CF
 ; ---------------------------------------------------------------------------
 
 loc_92F4:        
                 cmp     byte ptr ds:cavern_level, 5
                 clc
-                jz      short loc_92FD
-                retn
+                je      short loc_92FD
+                retn  ; can pass, NC
 ; ---------------------------------------------------------------------------
 
 loc_92FD:        
@@ -8499,11 +8499,11 @@ loc_92FD:
                 dec     cl
                 clc
                 jz      short category_1
-                retn
+                retn  ; can pass, NC
 ; ---------------------------------------------------------------------------
 
-category_1:      
-                stc
+category_1:     ; Left airflow - headwind
+                stc  ; cannot pass, CF
                 retn
 check_collision_E_including_danger5 endp
 
@@ -8626,7 +8626,7 @@ loc_9385:
                 or      al, [di]        ; (+1, -2)|(0, -2)
                 or      al, [di-1]      ; (+1, -2)|(0, -2)|(-1, -2)
                 add     al, al          ; ???
-                                        ; ?.?
+                                        ; .??
                                         ; .x.
                 retn                    ; CF is only set if any of {(+1, -2), (0, -2), (-1, -2)} has high bit set (negative)
 check_collision_N2 endp
@@ -8852,7 +8852,7 @@ check_collision_SW2 proc near
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 or      cl, [di]        ; cl=(-2, 0)|(-2, +1)
-                inc     di
+                inc     di              ; x++
                 mov     al, [di]        ; check (-1, +1)
                 call    if_passable_set_ZF
                 stc
@@ -8892,30 +8892,29 @@ check_collision_SW2 endp
 
 
 ; ===========================================================================
-; if_passable_set_ZF
 ; Core passability test used by monster collision checks.
 ; AL = tile value.
 ;   AL >= 0x80: NZ (non-passable — monster or item marker)
-;   AL in 73-127: NZ (solid tile range)
-;   AL < 73: search the 24-byte passable list at seg1:8000h.
+;   AL in 0x49-0x7F: NZ (solid tile range)
+;   AL < 0x49: search the 24-byte passable list at seg1:8000h.
 ;            ZF=1 if found (passable), NZ if not.
 ; Note: this is subtly different from is_non_blocking_tile_extended,
 ; which does NOT use the 73-based threshold (uses 0x40 and 0x49 variants).
 ; ===========================================================================
 if_passable_set_ZF proc near  
-                cmp     al, 73    ; aka 0x49
-                jb      short in_zero_to_72
+                cmp     al, 0x49
+                jb      short in_zero_to_x48
                 or      al, al
-                jns     short in_73_to_127
+                jns     short in_x49_to_x7F
                 retn                    ; for >= 80h return NZ (non-passable item or monster)
 ; ---------------------------------------------------------------------------
 
-in_73_to_127:    
+in_x49_to_x7F:  ; doors
                 cmp     al, al
-                retn                    ; for 73..127 return NZ (non-passable)
+                retn                    ; for 0x49..0x7F return ZF (passable)
 ; ---------------------------------------------------------------------------
 
-in_zero_to_72:   
+in_zero_to_x48:   
                 push    di
                 push    cx
                 mov     es, cs:seg1
@@ -9239,7 +9238,6 @@ is_in_proximity_window endp
 
 
 ; ===========================================================================
-; monster_split_or_die
 ; Called when a monster's HP drops to 0.
 ; Adds XP to hero (from death XP table at word_A008 indexed by flags&7).
 ; Sets monster flags |= 0x68 (death animation bits), clears AI flags.
@@ -9447,7 +9445,6 @@ check_monster_on_aggressive_ground endp
 
 
 ; ===========================================================================
-; Hero_Hits_monster
 ; Exported from fight.bin. Called by Monster_AI_proc when the AI decides
 ; the hero's sword has hit the monster.
 ;
@@ -9489,7 +9486,7 @@ loc_97D9:
 ; ---------------------------------------------------------------------------
 
 loc_97E2:        
-                mov     di, ds:death_split_table_ptr
+                mov     di, ds:death_descriptors_ptr
                 mov     bl, [si+monster.flags]
                 and     bl, 7
                 xor     bh, bh
@@ -9518,7 +9515,7 @@ loc_9815:
 ; ---------------------------------------------------------------------------
 
 loc_981E:        
-                mov     di, ds:death_split_table_ptr
+                mov     di, ds:death_descriptors_ptr
                 mov     bl, [si+monster.flags]
                 and     bl, 7
                 xor     bh, bh
@@ -9549,7 +9546,6 @@ Hero_Hits_monster endp
 ; al=9: NOP
 
 ; ===========================================================================
-; Get_Stats
 ; Returns hero combat statistics.
 ; al=0 → ah = hero_level/2 + 1 (basic defense stat)
 ; al=1 → ah = total sword damage:
@@ -9558,7 +9554,7 @@ Hero_Hits_monster endp
 ;          × (byte_E4+1)  [difficulty multiplier]
 ;          × 2 if downward thrust (sword_hit_type==2)
 ; al=2..8 → ah = byte_98BE[al-2] (static stat table: 2,4,8,16,32,64,255)
-; al=9 → NOP, return as-is
+; al=9 → ah = (hero_level+1)*4
 ; ===========================================================================
 Get_Stats       proc near 
                 mov     ah, ds:hero_level
@@ -9571,7 +9567,7 @@ Get_Stats       proc near
 
 loc_985E:        
                 cmp     al, 1
-                jz      short loc_9882
+                je      short stats_case1
                 mov     ah, ds:hero_level
                 inc     ah
                 add     ah, ah
@@ -9584,7 +9580,7 @@ loc_9870:
 
 loc_9872:        
                 cmp     al, 9
-                jnz     short al_2_8
+                jne     short al_2_8
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -9596,7 +9592,7 @@ al_2_8:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_9882:        
+stats_case1:        
                 mov     bl, ds:sword_type
                 dec     bl
                 xor     bh, bh

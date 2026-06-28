@@ -81,10 +81,395 @@ static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
 static void dungeon_finish_rope_frame(void);
 
-// stub
-void move_monster_S(uint16_t m)
-{
+uint8_t sword_damages[] = { 1, 2, 4, 8, 32, 127 };
+uint8_t byte_98BE[]     = { 2, 4, 8, 16, 32, 64, 255 };
 
+// stub
+
+static void incrementX(uint16_t m) {
+    uint16_t ax = MEM16(m+0) + 1; // .currX
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    if (ax >= mapWidth)
+        ax -= mapWidth;
+    MEM16(m+0) = ax;
+    MEM8(m+3) = MEM8(m+3) + 1; // .m_x_rel
+}
+
+static void decrementX(uint16_t m) {
+    uint16_t ax = MEM16(m+0); // .currX
+    MEM16(m+0) = (ax == 0) ? MEM16(ADDR_MAP_WIDTH) - 1 : ax - 1;
+    MEM8(m+3) = MEM8(m+3) - 1; // .m_x_rel
+}
+
+static void incrementY(uint16_t m) {
+    MEM8(m+2) = (MEM8(m+2) + 1) & 0x3F; // .currY
+}
+
+static void decrementY(uint16_t m) {
+    MEM8(m+2) = (MEM8(m+2) - 1) & 0x3F; // .currY
+}
+
+/* ---------- 8 directional move functions ---------- */
+
+void move_monster_E(uint16_t m) {
+    if (MEM8(m+3) < 34 && !check_collision_E2(m)) // .m_x_rel
+        incrementX(m);
+}
+
+void move_monster_NE(uint16_t m) {
+    if (MEM8(m+3) < 34 && !check_collision_NE2(m)) {
+        incrementX(m);
+        decrementY(m);
+    }
+}
+
+void move_monster_N(uint16_t m) {
+    uint8_t x_rel = MEM8(m+3);
+    if (x_rel != 0 && x_rel != 35 && !check_collision_N2(m))
+        decrementY(m);
+}
+
+void move_monster_NW(uint16_t m) {
+    if (MEM8(m+3) >= 2 && !check_collision_NW2(m)) {
+        decrementX(m);
+        decrementY(m);
+    }
+}
+
+void move_monster_W(uint16_t m) {
+    if (MEM8(m+3) >= 2 && !check_collision_W2(m))
+        decrementX(m);
+}
+
+void move_monster_SW(uint16_t m) {
+    if (MEM8(m+3) >= 2 && !check_collision_SW2(m)) {
+        decrementX(m);
+        incrementY(m);
+    }
+}
+
+void move_monster_S(uint16_t m) {
+    uint8_t x_rel = MEM8(m+3);
+    if (x_rel != 0 && x_rel != 35 && !check_collision_S2(m))
+        incrementY(m);
+}
+
+void move_monster_SE(uint16_t m) {
+    if (MEM8(m+3) < 34 && !check_collision_SE2(m)) {
+        incrementX(m);
+        incrementY(m);
+    }
+}
+
+
+// check_collision_E2 / W2 / N2 / S2 / NE2 / SE2 / NW2 / SW2
+// Collision detection for a 2×2-tile monster footprint.
+//
+// Each function checks a set of proximity map tiles in the direction of
+// movement. Monster occupies tiles (0,0) and (1,0) (or (0,0),(0,1) for N/S).
+// Returns CF=1 if any tile in the 'leading edge' is blocked.
+//
+// Tile categorization for level 5 (wind-tunnel) caverns:
+//   - Airflow category 1 (left-flowing): blocks Westward movement (is_left_airflow).
+//   - Airflow category 2 (right-flowing): blocks Eastward movement.
+//
+// CF detection trick: OR multiple proximity bytes together,
+// then 'add al, al' → shifts bit 7 into CF. If any byte had bit 7 set
+// (= monster/item marker), CF fires — used as second-layer monster detection.
+
+/* Danger-5 checks for East/West movement in wind-tunnel caverns */
+static uint8_t check_collision_E_including_danger5(uint16_t prox_addr)
+{
+    uint8_t tile = MEM8(prox_addr);
+    if (if_passable_set_ZF(tile)) return 0xFF;        // solid tile -> blocked
+    if (MEM8(ADDR_CAVERN_LEVEL) != 5) return 0;       // no possible airflows -> clear
+    // left airflow blocks Eastward movement
+    return get_airflow_direction(tile) == AIRFLOW_LEFT;
+}
+
+static uint8_t check_collision_W_including_danger5(uint16_t prox_addr) {
+    uint8_t tile = MEM8(prox_addr);
+    if (if_passable_set_ZF(tile)) return 0xFF;        // solid tile -> blocked
+    if (MEM8(ADDR_CAVERN_LEVEL) != 5) return 0;       // no possible airflows -> clear
+    // Right airflow blocks Westward movement
+    return get_airflow_direction(tile) == AIRFLOW_RIGHT;
+}
+
+/* ========================================================================
+ *   Collision routines for a 2x2 monster footprint
+ *   Return true (CF=1) if movement is blocked.
+ * ======================================================================== */
+// ..~
+// x.⭉
+// ..⭉
+uint8_t check_collision_E2(uint16_t m)
+{
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) + 2; // x += 2
+
+    // Leading edge passability
+    if (check_collision_E_including_danger5(di))   // (+2, 0)
+        return 0xFF;
+
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+    if (check_collision_E_including_danger5(di))   // (+2, +1)
+        return 0xFF;
+
+    // Monster/item check: bit 7 set on (+2, -1), (+2, 0) or (+2, +1)
+    uint8_t markers = MEM8(di);                    // (+2, +1)
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    markers |= MEM8(di);                           // (+2, 0)
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    markers |= MEM8(di);                           // (+2, -1)
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// ~.. 
+// ~⥲x
+// ~⥲.
+uint8_t check_collision_W2(uint16_t m)
+{
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) - 1; // x--
+
+    if (check_collision_W_including_danger5(di))     // (-1, 0)
+        return 0xFF;
+
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+    if (check_collision_W_including_danger5(di)) // (-1, +1)
+        return 0xFF;
+
+    // Monster/item check: bit 7 set on (-2, -1), (-2, 0), (-2, +1)
+    di--; // x--
+    uint8_t markers = MEM8(di);                  // (-2, +1)
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    markers |= MEM8(di);                         // (-2, 0)
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    markers |= MEM8(di);                         // (-2, -1)
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// ~~~
+// .⸛⸛
+// .x.
+uint8_t check_collision_N2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y);
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    if (if_passable_set_ZF(MEM8(di)))     // (0, -1)
+        return 0xFF;
+    if (if_passable_set_ZF(MEM8(di+1)))   // (+1, -1)
+        return 0xFF;
+
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    // Marker check on (+1, -2), (0, -2), (-1, -2)
+    uint8_t markers = MEM8(di-1)
+                    | MEM8(di)
+                    | MEM8(di+1);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// .x.
+// ...
+// ~⸛⸛
+uint8_t check_collision_S2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y);
+    di += PROX_COLS*2; // y+=2
+    wrap_map_from_above(&di);
+    if (if_passable_set_ZF(MEM8(di)))     // (0, 2)
+        return 0xFF;
+    if (if_passable_set_ZF(MEM8(di+1)))   // (+1, 2)
+        return 0xFF;
+
+    // Marker check on (+1, 2), (0, 2), (-1, 2)
+    uint8_t markers = MEM8(di-1)
+                    | MEM8(di)
+                    | MEM8(di+1);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// ~~~
+// .○⸛
+// x.⸛
+uint8_t check_collision_NE2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) + 2;
+
+    if (if_passable_set_ZF(MEM8(di)))     // (2, 0)
+        return 0xFF;
+    uint8_t markers = MEM8(di);
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+
+    if (if_passable_set_ZF(MEM8(di)))     // (2, -1)
+        return 0xFF;
+    markers |= MEM8(di);
+
+    if (if_passable_set_ZF(MEM8(di-1)))   // (1, -1)
+        return 0xFF;
+
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+
+    // Marker check: (+2, 0) | (+2, -1) | (+2, -2) | (+1, -2) | (0, -2)
+    markers |= MEM8(di)
+            | MEM8(di-1)
+            | MEM8(di-2);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// x.~
+// ..⸛
+// ~⸛⸛
+uint8_t check_collision_SE2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) + 2;
+    uint8_t markers = MEM8(di); // (+2, 0)
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+
+    if (if_passable_set_ZF(MEM8(di)))     // (2, 1)
+        return 0xFF;
+    markers |= MEM8(di);
+
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+
+    if (if_passable_set_ZF(MEM8(di)))     // (2, 2)
+        return 0xFF;
+    markers |= MEM8(di);
+
+    if (if_passable_set_ZF(MEM8(di-1)))   // (1, 2)
+        return 0xFF;
+
+    // Marker check: (+2, 0) | (+2, +1) | (+2, +2) | (+1, +2) | (0, +2)
+    markers |= MEM8(di-1)
+            | MEM8(di-2);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// ~~~
+// ~○○
+// ~○x
+uint8_t check_collision_NW2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) - 1;
+
+    if (if_passable_set_ZF(MEM8(di)))     // (-1, 0)
+        return 0xFF;
+    uint8_t markers = MEM8(di-1);         // (-2, 0)
+
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+    if (if_passable_set_ZF(MEM8(di)))     // (-1, -1)
+        return 0xFF;
+    if (if_passable_set_ZF(MEM8(di+1)))   // (0, -1)
+        return 0xFF;
+    markers |= MEM8(di-1);                // (-2, -1)
+
+    di -= PROX_COLS;
+    wrap_map_from_below(&di);
+
+    // Marker check: (-2, 0) | (-2, -1) | (0, -2) | (-1, -2) | (-2, -2)
+    markers |= MEM8(di-1)
+            | MEM8(di)
+            | MEM8(di+1);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+// ~.x
+// ~○.
+// ~⸛⸛
+uint8_t check_collision_SW2(uint16_t m) {
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) - 2;
+
+    uint8_t markers = MEM8(di);               // (-2, 0)
+
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+    markers |= MEM8(di);                     // (-2, 1)
+    if (if_passable_set_ZF(MEM8(di+1)))      // (-1, 1)
+        return 0xFF;
+
+    di += PROX_COLS;
+    wrap_map_from_above(&di);
+    if (if_passable_set_ZF(MEM8(di+1)))      // (-1, 2)
+        return 0xFF;
+    if (if_passable_set_ZF(MEM8(di+2)))      // (0, 2)
+        return 0xFF;
+
+    // Marker check: (-2, 0) | (-2, +1) | (-1, +2) | (0, +2) | (-2, +2)
+    markers |= MEM8(di)
+            | MEM8(di+1)
+            | MEM8(di+2);
+    if (markers & 0x80) return 0xFF;
+
+    return 0;
+}
+
+uint8_t Check_collision_in_direction(uint16_t m, uint8_t dir)
+{
+    switch (dir & 7)
+    {
+    case 0:
+        check_collision_E2(m);
+        break;
+    case 1:
+        check_collision_NE2(m);
+        break;
+    case 2:
+        check_collision_N2(m);
+        break;
+    case 3:
+        check_collision_NW2(m);
+        break;
+    case 4:
+        check_collision_W2(m);
+        break;
+    case 5:
+        check_collision_SW2(m);
+        break;
+    case 6:
+        check_collision_S2(m);
+        break;
+    case 7:
+        check_collision_SE2(m);
+        break;
+    default:
+        break;
+    }
 }
 
 // stub
@@ -801,6 +1186,21 @@ static uint8_t is_non_blocking_tile_simple(uint8_t tile)
         return (tile & 0x80) != 0x80;
     } else {
         return tile;
+    }
+}
+
+// we use zero value where original dos version used ZF 
+uint8_t if_passable_set_ZF(uint8_t tile)
+{
+    if (tile < 0x49) {
+        for (int i = 0; i < 24; i++) {
+            if (tile == MEM8_1(ADDR_PASSABLE_TILES + i)) {
+                return 0; // can pass
+            }
+        }
+        return 0xFF; // cannot pass
+    } else {
+        return (tile & 0x80); // if monster, cannot pass
     }
 }
 
@@ -2003,7 +2403,7 @@ static void monster_activation(uint16_t m)
     }
 }
 
-static uint8_t check_monster_on_aggressive_ground(uint16_t m)
+uint8_t check_monster_on_aggressive_ground(uint16_t m)
 {
     uint8_t y = MEM8(m+2);
     uint8_t x_rel = MEM8(m+3);
@@ -2011,6 +2411,128 @@ static uint8_t check_monster_on_aggressive_ground(uint16_t m)
     wrap_map_from_above(&di);
     uint8_t tile = MEM8(di);
     return is_tile_al_aggressive_ground(tile);
+}
+
+// Called when a monster's HP drops to 0.
+// Adds XP to hero (from death XP table at word_A008 indexed by flags&7).
+// Sets monster flags |= 0x68 (death animation bits), clears AI flags.
+// For big monsters: handles both top and bottom halves.
+// Check_Vertical_Distance_Between_Hero_And_Monster:
+void monster_split_or_die(uint16_t m)
+{
+    uint8_t al = MEM8(m+4); // .flags
+    if ((al & 0x10) == 0) {
+        al = MEM8(ADDR_XP_FOR_MONSTER + (al & 0x0F));
+        update_hero_XP(al);
+    }
+    Check_Vertical_Distance_Between_Hero_And_Monster(m);
+}
+
+uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m)
+{
+    MEM8(m+6) = 0; // .anim_counter
+    MEM8(m+4) = MEM8(m+4) | 0x68; // .flags
+    MEM8(m+5) = MEM8(m+5) & 0x80; // .ai_flags
+    if ((MEM8(m+7) & 0x10) && (MEM8(m+4) & 1)) { // .state_flags, .flags
+        MEM8(m+6) = 0x80; // .anim_counter
+        MEM8(m+16+6) = 0; // .anim_counter
+        MEM8(m+16+4) = MEM8(m+16+4) | 0x68; // .flags
+        MEM8(m+16+5) = MEM8(m+16+5) & 0x80; // .ai_flags
+    }
+    uint8_t al = (MEM8(m+2) - MEM8(ADDR_VIEWPORT_TOP_ROW) + 1) & 0x3F;
+    if (al < 19) {
+        MEM8(ADDR_SOUND_FX_REQUEST) = 7;
+    }
+}
+
+void Hero_Hits_monster(uint16_t m)
+{
+    uint8_t al = MEM8(m+5) & 0x1F; // .ai_flags
+    uint8_t ah = Get_Stats(al);
+    al = MEM8(m+8); // .hp
+    if (al > ah) {
+        MEM8(m+8) = al - ah;
+        MEM8(ADDR_SOUND_FX_REQUEST) = 6;
+        return;
+    }
+    if ((MEM8(m+4) & 1) == 0 && (MEM8(m+7) & 0x10)) { // .flags, .state_flags
+        // loc_9815 - big monster
+        if (MEM8(m+16+7) & 0x0F) { // .state_flags
+            monster_split_or_die(m);
+            return;
+        }
+        uint16_t di = MEM16(ADDR_DEATH_DESCRIPTORS_PTR);
+        uint8_t bl = MEM8(m+4) & 7; // .flags
+        di = MEM16(di + bl*2);
+        bl = (MEM8(ADDR_SWORD_HIT_TYPE) == 2) ? 0 : (get_random() & 3);
+        al = MEM8(di + bl);
+        MEM8(m+16+7) = (MEM8(m+16+7) & 0xF0) | al; // .state_flags
+        monster_split_or_die(m);
+        return;
+    }
+    if (MEM8(m+7) & 0x0F) {
+        monster_split_or_die(m);
+        return;
+    }
+    uint16_t di = MEM16(ADDR_DEATH_DESCRIPTORS_PTR);
+    uint8_t bl = MEM8(m+4) & 7; // .flags
+    di = MEM16(di + bl*2);
+    bl = (MEM8(ADDR_SWORD_HIT_TYPE) == 2) ? 0 : (get_random() & 3);
+    al = MEM8(di + bl);
+    MEM8(m+7) = (MEM8(m+7) & 0x0F) | al; // .state_flags
+    monster_split_or_die(m);
+    return;
+}
+
+
+// al=0 → ah = hero_level/2 + 1 (basic defense stat)
+// al=1 → ah = total sword damage:
+//          base = sword_damages[sword_type-1] (table: 1,2,4,8,32,127)
+//          + hero_level/2
+//          × (byte_E4+1)  [difficulty multiplier]
+//          × 2 if downward thrust (sword_hit_type==2)
+// al=2..8 → ah = byte_98BE[al-2] (static stat table: 2,4,8,16,32,64,255)
+// al=9 → ah = (hero_level+1)*4
+uint8_t Get_Stats(uint8_t al)
+{
+    uint8_t ah;
+
+    if (al == 0) {
+        return (MEM8(ADDR_HERO_LEVEL) >> 1) + 1;
+    }
+
+    if (al == 1) {
+        /* Sword damage calculation */
+        uint8_t base = sword_damages[MEM8(ADDR_SWORD_TYPE) - 1];
+        uint8_t half_level = MEM8(ADDR_HERO_LEVEL) >> 1;
+        uint16_t sum = (uint16_t)base + half_level;
+        uint8_t result;
+
+        if (sum > 0xFF) {
+            result = 0xFF;
+        } else {
+            uint16_t product = sum * (MEM8(ADDR_BYTE_E4) + 1);
+            result = (product > 0xFF) ? 0xFF : product;
+        }
+
+        ah = result;
+
+        /* Downward hit: double with saturation */
+        if (MEM8(ADDR_SWORD_HIT_TYPE) == 2) {
+            uint16_t doubled = (uint16_t)ah * 2;
+            ah = (doubled > 0xFF) ? 0xFF : (uint8_t)doubled;
+        }
+
+        return ah;
+    }
+
+    if (al == 9) {
+        uint16_t temp = (uint16_t)(MEM8(ADDR_HERO_LEVEL) + 1) * 4;
+        return (temp > 0xFF) ? 0xFF : temp;
+    }
+
+    /* al = 2..8 */
+    return byte_98BE[al - 2];
 }
 
 // Searches for tile value AL in the 4-byte 'aggressive ground' list at

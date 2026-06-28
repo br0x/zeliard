@@ -94,11 +94,14 @@ extern "C" {
 #define ADDR_LAST_SAGE_VISITED        0xC5    // byte
 #define ADDR_HEALING_TIMER            0xC6
 #define ADDR_MSD_INDEX                0xC8    // byte
+#define ADDR_BYTE_E4                  0xE4
 #define ADDR_IS_JASHIIN_CAVERN        0xE6
 #define ADDR_HERO_ANIM_PHASE          0xE7
 #define ADDR_INVINCIBILITY_FLAG       0xE8
 
 #define ADDR_BOSS_STATE_PTR                          0xA002  // word
+#define ADDR_DEATH_DESCRIPTORS_PTR                   0xA006  // word
+#define ADDR_XP_FOR_MONSTER                          0xA008
 #define ADDR_MONSTER_AI_MOVE_LEFT_FRAMES             0xA030
 #define ADDR_MONSTER_AI_DEATH_LEFT_FRAMES            0xA040
 #define ADDR_MONSTER_AI_ITEM_ANIMATION_LEFT_FRAMES   0xA050
@@ -699,7 +702,8 @@ void Monster_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
-static uint8_t check_monster_on_aggressive_ground(uint16_t m);
+uint8_t check_monster_on_aggressive_ground(uint16_t m);
+uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m);
 
 // Input Handling
 void input_init(void);
@@ -734,7 +738,7 @@ void hero_interaction_check(void);
 // Combat System
 void combat_init(void);
 void combat_update(void);
-void Hero_Hits_monster(Monster* monster, uint8_t monster_index);
+void Hero_Hits_monster(uint16_t monster);
 uint8_t Get_Stats(uint8_t request_type);
 uint8_t get_combat_timer(void);
 void set_combat_flag(uint8_t value);
@@ -748,15 +752,16 @@ uint16_t get_boss_max_hp(void);
 int is_boss_defeated(void);
 
 // Collision Detection (8 directions)
-int check_collision_E2(uint8_t x, uint8_t y);
-int check_collision_W2(uint8_t x, uint8_t y);
-int check_collision_N2(uint8_t x, uint8_t y);
-int check_collision_S2(uint8_t x, uint8_t y);
-int check_collision_NE2(uint8_t x, uint8_t y);
-int check_collision_SE2(uint8_t x, uint8_t y);
-int check_collision_NW2(uint8_t x, uint8_t y);
-int check_collision_SW2(uint8_t x, uint8_t y);
-int if_passable_set_ZF(uint8_t tile);
+uint8_t Check_collision_in_direction(uint16_t m, uint8_t dir);
+uint8_t check_collision_E2(uint16_t m);
+uint8_t check_collision_W2(uint16_t m);
+uint8_t check_collision_N2(uint16_t m);
+uint8_t check_collision_S2(uint16_t m);
+uint8_t check_collision_NE2(uint16_t m);
+uint8_t check_collision_SE2(uint16_t m);
+uint8_t check_collision_NW2(uint16_t m);
+uint8_t check_collision_SW2(uint16_t m);
+uint8_t if_passable_set_ZF(uint8_t tile);
 void set_danger_type(uint8_t type);
 uint8_t get_danger_type(void);
 
@@ -910,6 +915,7 @@ void Refresh_Dirty_Tiles();
  * lifetime counter runs out.
  */
 void Boss_Explosions_Renderer();
+uint8_t get_random();
 
 
 #ifdef __cplusplus

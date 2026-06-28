@@ -30,7 +30,7 @@ seg001:A000 Monster_AI_proc dw offset Monster_AI
 seg001:A002 word_A002       dw 0
 seg001:A004                 db    0
 seg001:A005                 db    0
-seg001:A006 death_split_table_ptr dw offset death_split_descriptors
+seg001:A006 death_descriptors_ptr dw offset death_split_descriptors
 seg001:A008                 db    3
 seg001:A009                 db    2
 seg001:A00A                 db    5

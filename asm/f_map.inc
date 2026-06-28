@@ -498,7 +498,7 @@ is_non_blocking_tile endp
 
 
 is_non_blocking_tile_extended proc near
-                cmp     al, 49h ; 'I'
+                cmp     al, 49h
                 jb      short lookup_shared
                 cmp     al, al
                 retn
@@ -542,7 +542,7 @@ is_non_blocking_tile_simple proc near
                 cmp     al, 49h ; 'I'
                 jb      short loc_6E22
                 cmp     al, al
-                retn
+                retn  ; ZF
 ; ---------------------------------------------------------------------------
 
 loc_6E22:        

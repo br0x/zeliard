@@ -558,7 +558,7 @@ loc_97D9:
 ; ---------------------------------------------------------------------------
 
 loc_97E2:        
-                mov     di, ds:death_split_table_ptr
+                mov     di, ds:death_descriptors_ptr
                 mov     bl, [si+monster.flags]
                 and     bl, 7
                 xor     bh, bh
@@ -587,7 +587,7 @@ loc_9815:
 ; ---------------------------------------------------------------------------
 
 loc_981E:        
-                mov     di, ds:death_split_table_ptr
+                mov     di, ds:death_descriptors_ptr
                 mov     bl, [si+monster.flags]
                 and     bl, 7
                 xor     bh, bh

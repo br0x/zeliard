@@ -8,10 +8,9 @@ eai1            segment byte public 'CODE'
                 org 0A000h
 start           dw offset Monster_AI
                 dw 0
-                db    0
-                db    0
+                dw 0
                 dw offset death_descriptors
-                db    3, 2, 5, 3
+                db    3, 2, 5, 3 ; XP for killing bat, slug, frog, rat
                 db    0
                 db    0
                 db    0

@@ -481,7 +481,7 @@ Monster_AI_proc                                    equ 0A000h
 boss_state_block_ptr                               equ 0A002h
 word_A002                                          equ 0A002h
 word_A004                                          equ 0A004h
-death_split_table_ptr                              equ 0A006h
+death_descriptors_ptr                              equ 0A006h
 byte_A010                                          equ 0A010h
 
 ; select.bin

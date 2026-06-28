@@ -8944,7 +8944,7 @@ fight:97DF                 jmp     monster_split_or_die
 fight:97E2 ; ---------------------------------------------------------------------------
 fight:97E2
 fight:97E2 loc_97E2:                               ; ...
-fight:97E2                 mov     di, ds:death_split_table_ptr ; =a240
+fight:97E2                 mov     di, ds:death_descriptors_ptr ; =a240
 fight:97E6                 mov     bl, [si+monster.flags]
 fight:97E9                 and     bl, 7
 fight:97EC                 xor     bh, bh
@@ -8979,7 +8979,7 @@ fight:981B                 jmp     monster_split_or_die
 fight:981E ; ---------------------------------------------------------------------------
 fight:981E
 fight:981E loc_981E:                               ; ...
-fight:981E                 mov     di, ds:death_split_table_ptr
+fight:981E                 mov     di, ds:death_descriptors_ptr
 fight:9822                 mov     bl, [si+monster.flags]
 fight:9825                 and     bl, 7
 fight:9828                 xor     bh, bh
@@ -9589,7 +9589,7 @@ fight:A000 Monster_AI_proc dw ?                    ; ...
 fight:A002 word_A002       dw ?                    ; ...
 fight:A004                 db    ? ;
 fight:A005                 db    ? ;
-fight:A006 death_split_table_ptr dw ?              ; ...
+fight:A006 death_descriptors_ptr dw ?              ; ...
 fight:A008                 db    ? ;
 fight:A009                 db    ? ;
 fight:A00A                 db    ? ;
