@@ -849,7 +849,7 @@ void Render_Sword_Overlay(void)
         sword_phase_src = &g_mem[SWORD_ANIM_GFX_BASE + si_offset + (phase_idx * 16)];
     }
 
-    Sword_Overlay_EntryPoint();
+    // Sword_Overlay_EntryPoint(); // removed: sword rendering is handled by js
 }
 
 
@@ -947,7 +947,7 @@ void render_hero_sword(void) {
     }
 
     if (threshold == (y + 5)) {
-        Sword_Overlay_EntryPoint();
+        // Sword_Overlay_EntryPoint(); // removed: sword rendering is handled by js
     }
 }
 
@@ -988,7 +988,7 @@ void Flush_Ui_Element_If_Dirty()
     if (!MEM8(ADDR_UI_ELEMENT_DIRTY))
         return;
 
-    Blit32x32SpriteToVram();
+    // Blit32x32SpriteToVram(); // removed: sword rendering is handled by js
     MEM8(ADDR_UI_ELEMENT_DIRTY) = 0;
 }
 
@@ -1001,7 +1001,7 @@ static void Blit32x32SpriteToVram()
 
     for (int y = 0; y < 32; ++y) {
         memcpy(&vram[dest_off], src, 32);
-        src += 320;
+        src += 32;
         dest_off += 320;
     }
 }
@@ -1911,7 +1911,7 @@ void Refresh_Dirty_Tiles(void)
     viewport_rows_remaining = 18;
 
     do {
-        render_hero_sword();
+        // render_hero_sword(); // removed: sword rendering is handled by js
 
         si += 3;
         uint8_t al0 = MEM8(si++);
