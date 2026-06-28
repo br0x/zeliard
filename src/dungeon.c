@@ -85,6 +85,36 @@ static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
 static void dungeon_finish_rope_frame(void);
 
+// stub
+void move_monster_S(uint16_t m)
+{
+
+}
+
+// stub
+uint8_t check_monster_aligned_to_hero_and_tick(uint16_t m)
+{
+    
+}
+
+// stub
+// TODO: signal to js for sword icon drawing
+void Render_Sword_Item_Sprite_20x18(uint8_t sword_type)
+{
+}
+
+// stub
+// TODO: signal to js for sword gfx reload
+void res_dispatcher_fn4(uint8_t sword_type)
+{
+
+}
+
+// stub
+void render_cavern_signs(uint16_t info)
+{
+
+}
 
 // Checked
 void clear_hero_in_viewport()
@@ -343,7 +373,7 @@ void load_place_and_reinit(void) {
     uint8_t saved_eai_idx = MEM8(si + 6);       // mdt_descriptor.boss_ai
     MEM8(ADDR_EAI_BIN_INDEX) = saved_eai_idx;
 
-    // Load eai<idx>.bin to 0xA000 (where Monster_AI_proc lives)
+    // Load eai<idx>.bin to 0xA000 (where Monster_AI lives)
     // Filename table entry size is 11 bytes (pascal string? but we use C string)
     // char eai_name[12];
     // snprintf(eai_name, sizeof(eai_name), "eai%d.bin", saved_eai_idx);
@@ -411,7 +441,7 @@ void update_hero_XP(uint16_t amount)
 }
 
 // Checked
-void hero_got_almas(uint16_t amount)
+static void hero_got_almas(uint16_t amount)
 {
     uint16_t almas = MEM16(ADDR_HERO_ALMAS);
     if (amount > (uint16_t)(0xFFFF - almas)) {
@@ -420,7 +450,7 @@ void hero_got_almas(uint16_t amount)
         almas += amount;
     }
     MEM16(ADDR_HERO_ALMAS) = almas;
-    // Print_Almas_Decimal_proc();
+    Print_Almas_Decimal();
 }
 
 //  Opens the inventory/equipment screen when ENTER is pressed.
@@ -1282,6 +1312,19 @@ void step_on_aggressive_ground(void) {}
 // stub
 void damage_hero(uint16_t amount) {}
 
+//stub
+// TODO: signal js to render gold amount
+void Print_Gold_Decimal()
+{
+}
+
+//stub
+// TODO: signal js to render almas amount
+static void Print_Almas_Decimal()
+{
+}
+
+//stub
 // TODO: signal js to render notification string
 void render_notification_string(uint8_t str_idx)
 {
@@ -1303,20 +1346,12 @@ static void hero_got_gold(uint16_t ax) {
     if (MEM16(ADDR_HERO_GOLD_LO) < ax)            // carry out of low word
         MEM8(ADDR_HERO_GOLD_HI) = MEM8(ADDR_HERO_GOLD_HI) + 1;
 
-    Print_Gold_Decimal_proc();
-}
-
-static void hero_got_almas(uint16_t ax) {
-    MEM16(ADDR_HERO_ALMAS) = MEM16(ADDR_HERO_ALMAS) + ax;
-    if (MEM16(ADDR_HERO_ALMAS) < ax)              // overflow – cap to 0xFFFF
-        MEM16(ADDR_HERO_ALMAS) = 0xFFFF;
-
-    Print_Almas_Decimal_proc();
+    Print_Gold_Decimal();
 }
 
 /* ------------------------- main AI tick ---------------------------- */
 // Main monster AI tick (called once per frame from main_update_render).
-// Boss/Jashiin caverns: delegate entirely to Monster_AI_proc (eai binary).
+// Boss/Jashiin caverns: delegate entirely to Monster_AI (eai binary).
 // Regular caverns:
 //   Iterates the monsters_table (each 16-byte monster struct).
 //   For each monster:
@@ -1326,16 +1361,16 @@ static void hero_got_almas(uint16_t ax) {
 //     - Write monster index | 0x80 to proximity map (primary + second layer).
 //     - If monster.state_flags bit 4: also stamp 2 rows below (big monster lower half).
 //     - If state_flags bit 5 is clear: call monster_activation (spawn check).
-//     - Else: increment monster.counter, call Monster_AI_proc on activation.
+//     - Else: increment monster.counter, call Monster_AI on activation.
 void monsters_spawning(void) {
+    uint16_t m = MEM16(ADDR_MONSTERS_LIST);
     if (MEM8(ADDR_IS_BOSS_CAVERN) != 0 || MEM8(ADDR_IS_JASHIIN_CAVERN) != 0) {
         // entire AI handled by boss procedure
-        Monster_AI_proc();
+        Monster_AI(m);
         return;
     }
     
     MEM8(ADDR_MONSTER_INDEX) = 0;
-    uint16_t m = MEM16(ADDR_MONSTERS_LIST);
 
     while (1) {
         uint16_t currX = MEM16(m+0);
@@ -1394,98 +1429,42 @@ void monsters_spawning(void) {
     }
 }
 
-/* --------------- place monster in proximity and run AI ------------- */
-// Places a monster in the proximity map and optionally runs its AI.
-//
-// 1. Converts currX/currY to proximity map address (coords_in_ax_to_proximity).
-// 2. Processes the 'spell target' flag (ai_flags bit 6 → flags bit 5).
-// 3. Reads proximity_second_layer[monster_index] and writes it to [di]
-//    (preserves any existing tile if second layer was occupied).
-// 4. For big monsters (state_flags bit 4): also stamps [di + 2*36].
-//
-// Item/monster type switch (flags bits 4:0):
-//   0x00-0x0F: regular monster → call Monster_AI_proc
-//   0x10 (flag_10): drop-item trigger (falling item / platform drop)
-//   0x11 (flag_11): projectile spawner (aims at hero Y, triggers shot at range)
-//   0x12 (flag_12): delay animation
-//   0x13 (flag_13): item pickup — contact collision check
-//   0x14/0x15/0x1B (flag_14): almas orb — falling, picked up on contact
-//     almas count: flags&0x0F: 4→1 almas, 5→10 almas, else→100 almas
-//   0x16 (flag_16): ordinary key pickup
-//   0x17 (flag_17): lion's head key pickup
-//   0x18 (flag_18): small potion (red) → healing_potion_timer += 0x0A
-//   0x19 (flag_19): large potion (blue) → healing_potion_timer += heroMaxHP/8
-//   0x1A (flag_1a): shoes pickup (Ruzeria/Pirika/Silkarn based on cavern_level-4)
-//   0x1B: see 0x14
-//   0x1C (flag_1c): dungeon sign → render_cavern_signs
-//   0x1D (flag_1d): hero's crest pickup
-//   0x1E (flag_1e): Feruza shoes pickup
-//   0x00-0x0F (default, flag_10 handled above): chest animation dispatch:
-//     chest sub-types: 50g / 100g / empty / 500g / 1000g / glory crest / enchantment sword
-//
-// On item pickup (loc_914C): set currX high byte to 0xFF00 (mark as collected),
-// optionally write the item's save achievement bitmask to savegame.
-//
-// SPRITE NOTE: Items use enp?.grp 2×2 tiles. The frame to display is encoded
-// in monster.flags low nibble (see ENP1_FRAMES lookup in grp_viewer.py).
-void place_monster_in_proximity_and_run_ai(uint16_t m)
-{
-    uint16_t di = coords_to_prox_addr(MEM8(m+3), MEM8(m+2));
-    uint8_t al = MEM8(m+5) & (~0x20); // .ai_flags, clear bit5
-    if (al & 0x40) {                    // bit6 set?
-        if (!(MEM8(m+4) & 0x20))      // .flags bit5 clear?
-            al |= 0x20;                 // set ai_flags bit5
-        al &= ~0x40;                    // clear ai_flags bit6
-    }
-    MEM8(m+5) = al;
-    uint8_t bl = MEM8(ADDR_MONSTER_INDEX);
 
-    // restore previously saved second‑layer entry for this monster
-    MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + bl);
-
-    // big monster lower half restoration
-    if ((MEM8(m+4) & 0x11) == 0 && (MEM8(m+7) & 0x10)) { // .flags, .state_flags
-        di += (2 * 36);
-        wrap_map_from_above(&di);
-        bl = MEM8(ADDR_MONSTER_INDEX) + 1;
-        MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + bl);
-    }
-
-    // --- run AI or handle items ---
-    if ((MEM8(m+4) & 0x18) == 0) {     // .flags bits 3 and 4 both clear → regular monster
-        Monster_AI_proc(m);            // call per‑monster AI
-        return;
-    }
-
-    // item / chest / special type dispatch
-    uint8_t type = MEM8(m+4) & 0x1F; // .flags
-    if (type >= 0x10) {
-        switch (type - 0x10) {
-            case 0x00: flag_10(m); break;
-            case 0x01: flag_11(m); break;
-            case 0x02: flag_12(m); break;
-            case 0x03: flag_13(m); break;
-            case 0x04:
-            case 0x05:
-            case 0x0B: flag_14_15_1b(m); break;
-            case 0x06: flag_16(m); break;
-            case 0x07: flag_17(m); break;
-            case 0x08: flag_18(m); break;
-            case 0x09: flag_19(m); break;
-            case 0x0A: flag_1a(m); break;
-            case 0x0C: flag_1c(m); break;
-            case 0x0D: flag_1d(m); break;
-            case 0x0E: flag_1e(m); break;
-            default:   default_item_handler(m); break;  // 0x0F
+/* ---------------------- item type handlers ------------------------- */
+// marks an item as collected (loc_914C)
+static void mark_collected(uint16_t m) {
+    MEM16(m+0) = 0xFF00;
+    if (MEM8(m+7) & 0x20) {          // .state_flags
+        uint16_t addr = MEM16(m+11); // .spwnX
+        if (addr != 0xFFFF) {
+            MEM8(addr) = MEM8(addr) | MEM8(m+13); // .spwnY
+            MEM16(m+11) = 0xFFFF; // .spwnX
         }
-    } else {
-        default_0toF_handler(m);         // chest subtypes (0x00–0x0F)
     }
 }
 
-/* ---------------------- item type handlers ------------------------- */
+// common pickup: move south, check alignment, play sound, show message
+static uint8_t pickup_common(uint16_t m, uint8_t msg_id) {
+    move_monster_S(m);
+    if (!check_monster_aligned_to_hero_and_tick(m))
+        return 0;
 
-// flag_10 (0x10) : drop‑item trigger?
+    MEM8(ADDR_SOUND_FX_REQUEST) = 17;
+    render_notification_string(msg_id);
+    return 0xFF;
+}
+
+// add a shoe type to Feruza_Shoes accessory slots
+// TODO: rename it to accessories or something
+static void put_shoes_to_inventory(uint16_t monster, uint8_t shoe_type) {
+    // Feruza_Shoes is an array of accessories (end marked by 0)
+    uint16_t slot = ADDR_FERUZA_SHOES;
+    while (MEM8(slot) != 0) slot++;
+    MEM8(slot) = shoe_type;
+    mark_collected(monster);  // needs access to current Monster* – pass as argument
+}
+
+// drop‑item trigger?
 static void flag_10(uint16_t m)
 {
     if (!(MEM8(m+10) & 1)) {            // .ai_timer
@@ -1523,7 +1502,7 @@ static void flag_10(uint16_t m)
     }
 }
 
-// flag_11 (0x11) : projectile spawner?
+// projectile spawner?
 static void flag_11(uint16_t m) {
     if (!(MEM8(m+10) & 1)) {           // .ai_timer
         uint8_t ah = (MEM8(m+2) - 3) & 0x3F; // .currY
@@ -1557,14 +1536,14 @@ static void flag_11(uint16_t m) {
     }
 }
 
-// flag_12 (0x12) : delay animation
+// delay animation?
 static void flag_12(uint16_t m) {
     MEM8(m+6) = MEM8(m+6) + 1; // .anim_counter
     if (MEM8(m+6) == 3)
         mark_collected(m);
 }
 
-// flag_13 (0x13) : item pickup (contact collision)
+// item pickup (contact collision)
 static void flag_13(uint16_t m) {
     if (!check_monster_aligned_to_hero_and_tick(m))
         return;
@@ -1612,8 +1591,8 @@ static void flag_13(uint16_t m) {
             render_notification_string(GET_ENCHANTMENT_SWORD_STR);
             Flush_Ui_Element_If_Dirty_proc();
             MEM8(ADDR_SWORD_TYPE) = 6;
-            Render_Sword_Item_Sprite_20x18_proc(6, 0x18AB);
-            res_dispatcher_proc(4, SWORD_ENCHANTMENT); // signal js to reload sword gfx
+            Render_Sword_Item_Sprite_20x18(6);
+            res_dispatcher_fn4(SWORD_ENCHANTMENT); // signal js to reload sword gfx
             break;
         }
         default: 
@@ -1621,7 +1600,7 @@ static void flag_13(uint16_t m) {
     }
 }
 
-// flag_14, flag_15, flag_1B : almas orb
+// almas orb
 static void flag_14_15_1b(uint16_t m) {
     move_monster_S(m);
     MEM8(m+6) = MEM8(m+6) + 1; // .anim_counter
@@ -1642,7 +1621,7 @@ static void flag_14_15_1b(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_16 : ordinary key
+// ordinary key
 static void flag_16(uint16_t m) {
     if (!pickup_common(m, YOU_GET_KEY_STR))
         return;
@@ -1650,7 +1629,7 @@ static void flag_16(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_17 : lion's head key
+// lion's head key
 static void flag_17(uint16_t m) {
     if (!pickup_common(m, GET_LIONS_HEAD_KEY_STR))
         return;
@@ -1658,7 +1637,7 @@ static void flag_17(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_18 : small potion (red)
+// small potion (red)
 static void flag_18(uint16_t m) {
     if (!check_monster_aligned_to_hero_and_tick(m))
         return;
@@ -1667,7 +1646,7 @@ static void flag_18(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_19 : large potion (blue)
+// large potion (blue)
 static void flag_19(uint16_t m) {
     move_monster_S(m);
     if (!check_monster_aligned_to_hero_and_tick(m))
@@ -1678,7 +1657,7 @@ static void flag_19(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_1c : dungeon sign
+// dungeon sign
 static void flag_1c(uint16_t m) {
     MEM8(m+15) = 0; // .counter
     if (!(MEM8(m+9) & 1)) { // ai_state
@@ -1700,7 +1679,7 @@ static void flag_1c(uint16_t m) {
     }
 }
 
-// flag_1d : hero's crest
+// hero's crest
 static void flag_1d(uint16_t m) {
     if (!pickup_common(m, GET_HEROS_CREST_STR))
         return;
@@ -1708,17 +1687,17 @@ static void flag_1d(uint16_t m) {
     mark_collected(m);
 }
 
-// flag_1e : Feruza shoes
+// Feruza shoes
 static void flag_1e(uint16_t m) {
     if (!pickup_common(m, GET_FERUZA_SHOES_STR))
         return;
-    add_shoe_item(1);
+    put_shoes_to_inventory(m, 1);
 }
 
-// flag_1a : shoes (Ruzeria/Pirika/Silkarn)
+// shoes (Ruzeria/Pirika/Silkarn)
 static void flag_1a(uint16_t m) {
     uint8_t level = MEM8(ADDR_CAVERN_LEVEL) - 4;
-    const char *shoes_str;
+    uint8_t shoes_str;
     uint8_t shoe_type;
 
     switch (level) {
@@ -1738,7 +1717,7 @@ static void flag_1a(uint16_t m) {
 
     if (!pickup_common(m, shoes_str))
         return;
-    add_shoe_item(shoe_type);
+    put_shoes_to_inventory(m, shoe_type);
 }
 
 // default handler for types 0x00–0x0F (chest animation dispatch)
@@ -1778,39 +1757,121 @@ static void default_0toF_handler(uint16_t m) {
     }
 }
 
-/* --------------------- common helper routines ---------------------- */
 
-// marks an item as collected (loc_914C)
-static void mark_collected(uint16_t m) {
-    MEM16(m+0) = 0xFF00;
-    if (MEM8(m+7) & 0x20) {          // .state_flags
-        uint16_t addr = MEM16(m+11); // .spwnX
-        if (addr != 0xFFFF) {
-            MEM8(addr) = MEM8(addr) | MEM8(m+13); // .spwnY
-            MEM16(m+11) = 0xFFFF; // .spwnX
-        }
+/* --------------- place monster in proximity and run AI ------------- */
+// Places a monster in the proximity map and optionally runs its AI.
+//
+// 1. Converts currX/currY to proximity map address (coords_in_ax_to_proximity).
+// 2. Processes the 'spell target' flag (ai_flags bit 6 → flags bit 5).
+// 3. Reads proximity_second_layer[monster_index] and writes it to [di]
+//    (preserves any existing tile if second layer was occupied).
+// 4. For big monsters (state_flags bit 4): also stamps [di + 2*36].
+//
+// Item/monster type switch (flags bits 4:0):
+//   0x00-0x0F: regular monster → call Monster_AI
+//   0x10 (flag_10): drop-item trigger (falling item / platform drop)
+//   0x11 (flag_11): projectile spawner (aims at hero Y, triggers shot at range)
+//   0x12 (flag_12): delay animation
+//   0x13 (flag_13): item pickup — contact collision check
+//   0x14/0x15/0x1B (flag_14): almas orb — falling, picked up on contact
+//     almas count: flags&0x0F: 4→1 almas, 5→10 almas, else→100 almas
+//   0x16 (flag_16): ordinary key pickup
+//   0x17 (flag_17): lion's head key pickup
+//   0x18 (flag_18): small potion (red) → healing_potion_timer += 0x0A
+//   0x19 (flag_19): large potion (blue) → healing_potion_timer += heroMaxHP/8
+//   0x1A (flag_1a): shoes pickup (Ruzeria/Pirika/Silkarn based on cavern_level-4)
+//   0x1B: see 0x14
+//   0x1C (flag_1c): dungeon sign → render_cavern_signs
+//   0x1D (flag_1d): hero's crest pickup
+//   0x1E (flag_1e): Feruza shoes pickup
+//   0x00-0x0F (default, flag_10 handled above): chest animation dispatch:
+//     chest sub-types: 50g / 100g / empty / 500g / 1000g / glory crest / enchantment sword
+//
+// On item pickup (loc_914C): set currX high byte to 0xFF00 (mark as collected),
+// optionally write the item's save achievement bitmask to savegame.
+//
+// SPRITE NOTE: Items use enp?.grp 2×2 tiles. The frame to display is encoded
+// in monster.flags low nibble (see ENP1_FRAMES lookup in grp_viewer.py).
+static void place_monster_in_proximity_and_run_ai(uint16_t m)
+{
+    uint16_t di = coords_to_prox_addr(MEM8(m+3), MEM8(m+2));
+    uint8_t al = MEM8(m+5) & (~0x20); // .ai_flags, clear bit5
+    if (al & 0x40) {                    // bit6 set?
+        if (!(MEM8(m+4) & 0x20))      // .flags bit5 clear?
+            al |= 0x20;                 // set ai_flags bit5
+        al &= ~0x40;                    // clear ai_flags bit6
     }
-}
+    MEM8(m+5) = al;
+    uint8_t bl = MEM8(ADDR_MONSTER_INDEX);
 
-// common pickup: move south, check alignment, play sound, show message
-static uint8_t pickup_common(uint16_t m, uint8_t msg_id) {
-    move_monster_S(m);
-    if (!check_monster_aligned_to_hero_and_tick(m))
-        return 0;
+    // restore previously saved second‑layer entry for this monster
+    MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + bl);
 
-    MEM8(ADDR_SOUND_FX_REQUEST) = 17;
-    render_notification_string(msg_id);
-    return 0xFF;
-}
+    // big monster lower half restoration
+    if ((MEM8(m+4) & 0x11) == 0 && (MEM8(m+7) & 0x10)) { // .flags, .state_flags
+        di += (2 * 36);
+        wrap_map_from_above(&di);
+        bl = MEM8(ADDR_MONSTER_INDEX) + 1;
+        MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + bl);
+    }
 
-// add a shoe type to Feruza_Shoes accessory slots
-// TODO: rename it to accessories or something
-static void add_shoe_item(uint8_t shoe_type) {
-    // Feruza_Shoes is an array of accessories (end marked by 0)
-    uint16_t slot = ADDR_FERUZA_SHOES;
-    while (MEM8(slot) != 0) slot++;
-    MEM8(slot) = shoe_type;
-    mark_collected(current_monster());  // needs access to current Monster* – pass as argument
+    // --- run AI or handle items ---
+    if ((MEM8(m+4) & 0x18) == 0) {     // .flags bits 3 and 4 both clear → regular monster
+        Monster_AI(m);            // call per‑monster AI
+        return;
+    }
+
+    // item / chest / special type dispatch
+    uint8_t flags = MEM8(m+4) & 0x1F; // .flags
+    if (flags >= 0x10) {
+        switch (flags) {
+            case 0x10: 
+                flag_10(m); 
+                break;
+            case 0x11: 
+                flag_11(m); 
+                break;
+            case 0x12: 
+                flag_12(m); 
+                break;
+            case 0x13: 
+                flag_13(m); 
+                break;
+            case 0x14:
+            case 0x15:
+            case 0x1B: 
+                flag_14_15_1b(m); 
+                break;
+            case 0x16: 
+                flag_16(m); 
+                break;
+            case 0x17: 
+                flag_17(m); 
+                break;
+            case 0x18: 
+                flag_18(m); 
+                break;
+            case 0x19: 
+                flag_19(m); 
+                break;
+            case 0x1A: 
+                flag_1a(m); 
+                break;
+            case 0x1C: 
+                flag_1c(m); 
+                break;
+            case 0x1D: 
+                flag_1d(m); 
+                break;
+            case 0x1E: 
+                flag_1e(m); 
+                break;
+            default:   
+                break;  // 0x1F
+        }
+    } else {
+        default_0toF_handler(m);         // chest subtypes (0x00–0x0F)
+    }
 }
 
 /*
@@ -1896,58 +1957,53 @@ static void monster_activation(uint16_t m)
     } else {
         /* ---------------- big monster (2 table entries) ---------------- */
 
-        if (m->type_ & 1)
-            return;             /* only "type1" big monsters spawn here */
+        if (MEM8(m+14) & 1) // .type_
+            return;
 
-        m->m_x_rel   = bl;
-        m[1].m_x_rel = bl;
+        MEM8(m+3) = bl; // .m_x_rel
+        MEM8(m+16+3) = bl; // .m_x_rel
 
-        di = coords_in_ax_to_proximity_map_addr_in_di(m->spwnY, bl);
-
-        scan_addr = wrap_map_from_below((uint16_t)(di - 37));
-
+        uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+2));
+        di = di_orig;
+        di -= (36 + 1);
+        wrap_map_from_below(&di);
         al = 0;
-        for (row = 0; row < 5; row++) {
-            al |= PROX(scan_addr) | PROX(scan_addr + 1) | PROX(scan_addr + 2);
-            scan_addr = wrap_map_from_above((uint16_t)(scan_addr + 36));
+        for (int row = 0; row < 5; row++) {
+            al |= MEM8(di) | MEM8(di + 1) | MEM8(di + 2);
+            di += 36;
+            wrap_map_from_above(&di);
         }
 
         if (al & 0x80)
             return;
 
-        al = monster_index | 0x80;
-        PROX(di) = al;
-
-        {
-            uint16_t di2 = wrap_map_from_above((uint16_t)(di + 72)); /* 2 rows below */
-            PROX(di2) = (uint8_t)(al + 1);
-        }
-
-        m->currX   = m->spwnX;
-        m[1].currX = m->spwnX;
-
-        m->currY   = m->spwnY;
-        m[1].currY = (uint8_t)(m->spwnY + 2) & 0x3F;
-
-        m->flags   = m->type_;
-        m[1].flags = (uint8_t)(m->type_ + 1);
-
-        m->anim_counter   = 0x10;
-        m[1].anim_counter = 0x10;
-
-        m->ai_flags   = 0;
-        m[1].ai_flags = 0;
-
-        m->ai_state   = 0;
-        m[1].ai_state = 0;
-
-        m->hp   = 0;
-        m[1].hp = 0;
-
-        m[1].state_flags &= 0xF0;
-
-        /* clears both this monster's and the next id's second-layer byte */
-        *(uint16_t *)&proximity_second_layer[monster_index] = 0;
+        al = MEM8(ADDR_MONSTER_INDEX) | 0x80;
+        di = di_orig;
+        MEM8(di) = al;
+        di += 36*2;
+        wrap_map_from_above(&di);
+        MEM8(di) = al + 1;
+        uint16_t ax = MEM16(m+11); // .spwnX
+        MEM16(m+0) = ax; // .currX
+        MEM16(m+16) = ax; // .currX
+        al = MEM8(m+13); // .spwnY
+        MEM8(m+2) = al; // .currY
+        MEM8(m+16+2) = (al + 2) & 0x3F; // .currY
+        al = MEM8(m+14); // .type_
+        MEM8(m+4) = al; // .flags
+        MEM8(m+16+4) = al+1; // .flags
+        MEM8(m+6) = 0x10; // .anim_counter
+        MEM8(m+16+6) = 0x10; // .anim_counter
+        MEM8(m+5) = 0; // .ai_flags
+        MEM8(m+16+5) = 0; // .ai_flags
+        MEM8(m+9) = 0; // .ai_state
+        MEM8(m+16+9) = 0; // .ai_state
+        MEM8(m+10) = 0; // .ai_timer
+        MEM8(m+16+10) = 0; // .ai_timer
+        MEM8(m+8) = 0; // .hp
+        MEM8(m+16+8) = 0; // .hp
+        MEM8(m+16+7) = MEM8(m+16+7) & 0xF0; // .state_flags
+        MEM8(ADDR_PROXIMITY_LAYER2 + MEM8(ADDR_MONSTER_INDEX)) = 0;
     }
 }
 
@@ -2719,7 +2775,7 @@ static uint8_t main_update_render_pre(void) {
             MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0xFF;
             MEM8(ADDR_SOUND_FX_REQUEST) = 9;
             damage_hero(0x0F);
-            render_notification_string("It's too hot !!");
+            render_notification_string(ITS_TOO_HOT_STR);
         }
     }
 
@@ -3113,7 +3169,7 @@ void enter_the_door(uint8_t *should_break)
                 if (MEM8(ADDR_BYTE_9F19) != 0) return;
                 MEM8(ADDR_BYTE_9F19) = 0xFF;
                 MEM8(ADDR_SOUND_FX_REQUEST) = 22;
-                render_notification_string("Can't open this door.");
+                render_notification_string(CANT_OPEN_THIS_DOOR_STR);
                 return;
             }
         }
@@ -3392,7 +3448,7 @@ void Cavern_Game_Init(void) {
         // render_place_and_gold_labels();
         uint16_t cavern_name_ptr = MEM16(ADDR_CAVERN_NAME_INFO);
         // Render_Pascal_String_1_proc(cavern_name_ptr);
-        // Print_Gold_Decimal_proc();
+        Print_Gold_Decimal();
     }
 // loc_618F
     // Draw_Hero_Max_Health_proc();
@@ -3522,7 +3578,7 @@ void Draw_Bordered_Rectangle_proc()
 
 }
 
-void update_all_monsters_in_map()
+static void update_all_monsters_in_map()
 {
     memset(&g_mem[ADDR_PROXIMITY_LAYER2], 0, 128);
     MEM8(ADDR_MONSTER_INDEX) = 0;

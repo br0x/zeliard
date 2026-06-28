@@ -7963,6 +7963,7 @@ flag_1a:
                 retn
 ; ---------------------------------------------------------------------------
 
+; SI points to monster struct
 put_shoes_to_inventory:        
                 push    ax
                 mov     di, offset Feruza_Shoes
@@ -8112,7 +8113,6 @@ hero_got_almas  endp
 
 
 ; ===========================================================================
-; check_monster_aligned_to_hero_and_tick
 ; Returns NC (item can be picked up) only when:
 ;   - hero_y_absolute matches one of 4 monster Y rows
 ;   - hero_x_in_viewport is within ±2 of monster m_x_rel
@@ -9069,20 +9069,20 @@ big_type1:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 push    di
-                xchg    si, di
-                sub     si, 37
+                xchg    si, di ; di: monster, si: proximity map
+                sub     si, (36+1)
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xor     al, al
                 mov     cx, 5
 
 loc_95D9:        
-                or      al, byte ptr [si+monster.currX]
+                or      al, [si+0]
                 or      al, [si+1]
-                or      al, [si+monster.currY]
+                or      al, [si+2]
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 loop    loc_95D9
-                xchg    si, di
+                xchg    si, di ; si: monster, di: proximity map
                 pop     di
                 or      al, al
                 jns     short loc_95F1
@@ -9094,32 +9094,39 @@ loc_95F1:
                 or      al, 80h
                 mov     [di], al
                 xchg    si, di
-                add     si, 72
+                add     si, 36*2
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 inc     al
                 mov     [di], al
                 mov     ax, [si+monster.spwnX]
                 mov     [si+monster.currX], ax
-                mov     [si+(monster.x+10h)], ax
+                mov     [si+(monster.currX+16)], ax
+
                 mov     al, [si+monster.spwnY]
                 mov     [si+monster.currY], al
                 add     al, 2
                 and     al, 3Fh
-                mov     [si+(monster.currY+10h)], al
+                mov     [si+(monster.currY+16)], al
+                
                 mov     al, [si+monster.type_]
                 mov     [si+monster.flags], al
                 inc     al
-                mov     [si+(monster.flags+10h)], al
+                mov     [si+(monster.flags+16)], al
+                
                 mov     [si+monster.anim_counter], 10h
-                mov     [si+(monster.anim_counter+10h)], 10h
+                mov     [si+(monster.anim_counter+16)], 10h
+                
                 mov     [si+monster.ai_flags], 0
-                mov     [si+(monster.ai_flags+10h)], 0
+                mov     [si+(monster.ai_flags+16)], 0
+                
                 mov     word ptr [si+monster.ai_state], 0
-                mov     word ptr [si+(monster.ai_state+10h)], 0
+                mov     word ptr [si+(monster.ai_state+16)], 0
+                
                 mov     [si+monster.hp], 0
-                mov     [si+(monster.hp+10h)], 0
-                and     [si+(monster.state_flags+10h)], 0F0h
+                mov     [si+(monster.hp+16)], 0
+                
+                and     [si+(monster.state_flags+16)], 0F0h
                 mov     bl, ds:monster_index
                 xor     bh, bh
                 mov     word ptr ds:proximity_second_layer[bx], 0 ; proximity map is designed to keep only one item

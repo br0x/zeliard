@@ -122,8 +122,9 @@ static ProximityResult frog_hero_proximity_and_direction(Monster *m);
  * Called from dungeon.c monsters_spawning and place_monster_in_proximity_and_run_ai
  * ============================================================================
  */
-void Monster_AI(Monster *m)
+void Monster_AI(uint16_t monster)
 {
+    Monster *m = (Monster *)&g_mem[monster];
     switch (m->flags & 0x0F) {
         case 0: ai_flags00(m); return; /* Bat  */
         case 1: ai_flags01(m); return; /* Slug */
@@ -179,9 +180,9 @@ static void bat_ai_state_00(Monster *m)
         return;
     }
 
-    uint8_t al = (uint8_t)(m->x_rel - 17);
+    uint8_t al = (uint8_t)(m->m_x_rel - 17);
     if (al >= 10) {
-        al = (uint8_t)(17 - m->x_rel);
+        al = (uint8_t)(17 - m->m_x_rel);
         if (al >= 7) {
             m->anim_counter = 0;
             return;
@@ -210,15 +211,15 @@ static void bat_ai_state_80(Monster *m)
         return;
     }
 
-    uint8_t al = (uint8_t)(MEM8(ADDR_HERO_Y) - m->curr_y);
+    uint8_t al = (uint8_t)(MEM8(ADDR_HERO_Y) - m->currY);
     al = (uint8_t)(al + 21) & 0x3F;
 
     if (al < 18) goto loc_A350;
     if (al < 24) goto loc_A32A;
 
     /* al >= 24: try SE/SW diagonal first */
-    if (m->x_rel == 0x11 || m->x_rel == 0x10) goto loc_A376;
-    if (m->x_rel < 0x10) {
+    if (m->m_x_rel == 0x11 || m->m_x_rel == 0x10) goto loc_A376;
+    if (m->m_x_rel < 0x10) {
         if (move_monster_SE(m)) goto loc_A338;
         m->ai_flags |= 0x80;
         return;
@@ -229,8 +230,8 @@ static void bat_ai_state_80(Monster *m)
     }
 
 loc_A32A:
-    if (m->x_rel == 0x11 || m->x_rel == 0x10) goto loc_A376;
-    if (m->x_rel < 0x10) goto loc_A338;
+    if (m->m_x_rel == 0x11 || m->m_x_rel == 0x10) goto loc_A376;
+    if (m->m_x_rel < 0x10) goto loc_A338;
     goto loc_A344;
 
 loc_A338:
@@ -244,8 +245,8 @@ loc_A344:
     return;
 
 loc_A350:
-    if (m->x_rel == 0x11 || m->x_rel == 0x10) goto loc_A376;
-    if (m->x_rel < 0x10) {
+    if (m->m_x_rel == 0x11 || m->m_x_rel == 0x10) goto loc_A376;
+    if (m->m_x_rel < 0x10) {
         if (move_monster_NE(m)) goto loc_A338;
         m->ai_flags |= 0x80;
         return;
@@ -318,7 +319,7 @@ static void ai_flags01(Monster *m)
     m->anim_counter = (uint8_t)(m->anim_counter + 0x41) & 0xC3;
     if (m->anim_counter & 0xF0) return;
 
-    if (m->x_rel < 17) {
+    if (m->m_x_rel < 17) {
         if (move_monster_E(m)) return; /* blocked */
         m->ai_flags |= 0x80;
     } else {
@@ -468,7 +469,7 @@ loc_A57B: {
 
 loc_A5C5: {
         /* word-read of (curr_y, x_rel) exactly as "word ptr [si+monster.currY]" did */
-        uint16_t ax = (uint16_t)m->curr_y | ((uint16_t)m->x_rel << 8);
+        uint16_t ax = (uint16_t)m->currY | ((uint16_t)m->m_x_rel << 8);
         uint16_t addr = coords_in_ax_to_proximity_map_offset_in_di(ax);
 
         uint16_t lookahead = 0x48;
@@ -583,14 +584,14 @@ static void rat_ai_hop_step(Monster *m)
  */
 static ProximityResult rat_hero_proximity_and_direction(Monster *m)
 {
-    uint8_t raw = (uint8_t)(MEM8(ADDR_HERO_Y) - m->curr_y);
+    uint8_t raw = (uint8_t)(MEM8(ADDR_HERO_Y) - m->currY);
     uint8_t al  = (raw & 0x80) ? (uint8_t)(-(int8_t)raw) : raw;
 
     if (al >= 6) {
         return (ProximityResult){ .value = 0xFF, .carry = 0 };
     }
 
-    if (m->x_rel < 17) {
+    if (m->m_x_rel < 17) {
         int carry = (m->ai_flags & 0x80) != 0;
         return (ProximityResult){ .value = 0x80, .carry = carry };
     } else {
@@ -601,14 +602,14 @@ static ProximityResult rat_hero_proximity_and_direction(Monster *m)
 
 static ProximityResult frog_hero_proximity_and_direction(Monster *m)
 {
-    uint8_t raw = (uint8_t)(MEM8(ADDR_HERO_Y) - m->curr_y);
+    uint8_t raw = (uint8_t)(MEM8(ADDR_HERO_Y) - m->currY);
     uint8_t al  = (raw & 0x80) ? (uint8_t)(-(int8_t)raw) : raw;
 
     if (al >= 8) {
         return (ProximityResult){ .value = 0xFF, .carry = 0 };
     }
 
-    if (m->x_rel < 17) {
+    if (m->m_x_rel < 17) {
         int carry = (m->ai_flags & 0x80) != 0;
         return (ProximityResult){ .value = 0x80, .carry = carry };
     } else {

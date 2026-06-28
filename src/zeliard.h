@@ -58,6 +58,8 @@ extern "C" {
 #define GET_RUZERIA_SHOES_STR       14
 #define GET_PIRIKA_SHOES_STR        15
 #define GET_SILKARN_SHOES_STR       16
+#define ITS_TOO_HOT_STR             17
+#define CANT_OPEN_THIS_DOOR_STR     18
 
 #define SWORD_ENCHANTMENT         6
 
@@ -686,8 +688,10 @@ void wasm_init_cavern_with_prepare(uint8_t spawn_x, uint8_t spawn_y, uint8_t dir
 void Cavern_Game_Init();
 
 // Monster AI
-void Monster_AI(Monster* m);
-void update_all_monsters_in_map(void);
+void Monster_AI(uint16_t m);
+static void update_all_monsters_in_map(void);
+static void place_monster_in_proximity_and_run_ai(uint16_t m);
+static void monster_activation(uint16_t m);
 
 // Input Handling
 void input_init(void);
@@ -795,7 +799,8 @@ uint16_t coords_to_prox_addr(uint8_t x, uint8_t y);
 uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel);
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct);
 void update_hero_XP(uint16_t amount);
-void hero_got_almas(uint16_t amount);
+static void hero_got_almas(uint16_t amount);
+static void Print_Almas_Decimal();
 void transit_to_sage();
 void process_hero_death();
 void process_doors();
