@@ -1,4 +1,4 @@
-/* ============================================================================
+/* 
  * eai1.c - translated from eai1.asm
  *
  * Monster AI for the 4 monster types handled by this AI overlay:
@@ -29,25 +29,11 @@
  * These are not declared in zeliard.h, so I'm declaring them here with the
  * signatures implied by how eai1.asm calls them. Adjust if the real
  * signatures differ.
- * ============================================================================
  */
 
 #include "zeliard.h"
 
-/* ---- movement primitives: return CF (1 = blocked/failed, 0 = success) */
-extern int move_monster_N(Monster *m);
-extern int move_monster_S(Monster *m);
-extern int move_monster_E(Monster *m);
-extern int move_monster_W(Monster *m);
-extern int move_monster_NE(Monster *m);
-extern int move_monster_NW(Monster *m);
-extern int move_monster_SE(Monster *m);
-extern int move_monster_SW(Monster *m);
 
-/* angle: 0=E, counter-clockwise in 45-degree steps 
- * (0=E,1=NE,2=N,3=NW,4=W, 5=SW,6=S,7=SE) - same encoding as the angle tables below. 
- * Both return CF (1 = blocked). */
-extern int monster_move_in_direction(Monster *m, uint8_t angle);
 
 /* ============================================================================
  * Small helpers / tables
@@ -155,7 +141,8 @@ static void bat_step_throttle(Monster *m)
 /* ai_state == 0x00: flying up, looking for a spot to dive */
 static void bat_ai_state_00(Monster *m)
 {
-    move_monster_N(m); /* return value unused, as in the original */
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
+    move_monster_N(mon); /* return value unused, as in the original */
 
     if (m->anim_counter != 0) {
         m->anim_counter -= 0x10;
@@ -186,6 +173,7 @@ static void bat_ai_state_40(Monster *m)
 /* ai_state == 0x80: diving toward the hero */
 static void bat_ai_state_80(Monster *m)
 {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     bat_step_throttle(m);
 
     if (MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) != 0) {
@@ -202,11 +190,11 @@ static void bat_ai_state_80(Monster *m)
     /* al >= 24: try SE/SW diagonal first */
     if (m->m_x_rel == 0x11 || m->m_x_rel == 0x10) goto loc_A376;
     if (m->m_x_rel < 0x10) {
-        if (move_monster_SE(m)) goto loc_A338;
+        if (move_monster_SE(mon)) goto loc_A338;
         m->ai_flags |= 0x80;
         return;
     } else {
-        if (move_monster_SW(m)) goto loc_A344;
+        if (move_monster_SW(mon)) goto loc_A344;
         m->ai_flags &= 0x7F;
         return;
     }
@@ -217,29 +205,29 @@ loc_A32A:
     goto loc_A344;
 
 loc_A338:
-    if (move_monster_E(m)) goto loc_A376;
+    if (move_monster_E(mon)) goto loc_A376;
     m->ai_flags |= 0x80;
     return;
 
 loc_A344:
-    if (move_monster_W(m)) goto loc_A376;
+    if (move_monster_W(mon)) goto loc_A376;
     m->ai_flags &= 0x7F;
     return;
 
 loc_A350:
     if (m->m_x_rel == 0x11 || m->m_x_rel == 0x10) goto loc_A376;
     if (m->m_x_rel < 0x10) {
-        if (move_monster_NE(m)) goto loc_A338;
+        if (move_monster_NE(mon)) goto loc_A338;
         m->ai_flags |= 0x80;
         return;
     } else {
-        if (move_monster_NW(m)) goto loc_A344;
+        if (move_monster_NW(mon)) goto loc_A344;
         m->ai_flags &= 0x7F;
         return;
     }
 
 loc_A376:
-    if (move_monster_S(m)) {
+    if (move_monster_S(mon)) {
         m->ai_state = 0xC0;
     }
 }
@@ -247,17 +235,18 @@ loc_A376:
 /* ai_state == 0xC0: climbing back up */
 static void bat_ai_state_c0(Monster *m)
 {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     if (m->ai_state & 0x20) goto loc_A3BD;
 
     bat_step_throttle(m);
     if (m->ai_flags & 0x80) {
-        if (move_monster_NE(m)) {     /* blocked */
+        if (move_monster_NE(mon)) {     /* blocked */
             m->ai_flags &= 0x7F;
             goto loc_A3AC;
         }
         return;
     } else {
-        if (move_monster_NW(m)) {     /* blocked */
+        if (move_monster_NW(mon)) {     /* blocked */
             m->ai_flags |= 0x80;
             goto loc_A3AC;
         }
@@ -265,7 +254,7 @@ static void bat_ai_state_c0(Monster *m)
     }
 
 loc_A3AC:
-    if (move_monster_N(m)) {          /* blocked */
+    if (move_monster_N(mon)) {          /* blocked */
         m->ai_state |= 0x20;
         m->anim_counter = 2;
     }
@@ -297,16 +286,16 @@ static void ai_flags01(Monster *m)
         return;
     }
 
-    if (!move_monster_S(m)) return; /* CF=0 (success) -> stop here */
+    if (!move_monster_S(mon)) return; /* CF=0 (success) -> stop here */
 
     m->anim_counter = (uint8_t)(m->anim_counter + 0x41) & 0xC3;
     if (m->anim_counter & 0xF0) return;
 
     if (m->m_x_rel < 17) {
-        if (move_monster_E(m)) return; /* blocked */
+        if (move_monster_E(mon)) return; /* blocked */
         m->ai_flags |= 0x80;
     } else {
-        if (move_monster_W(m)) return; /* blocked */
+        if (move_monster_W(mon)) return; /* blocked */
         m->ai_flags &= 0x7F;
     }
 }
@@ -336,7 +325,7 @@ static void ai_flags10(Monster *m)
     if (m->ai_state & 0x08) goto loc_A4A2; /* already mid-jump */
 
     m->anim_counter = (uint8_t)(m->anim_counter + 0x21) & 0xE1;
-    if (!move_monster_S(m)) return; /* CF=0 success -> stop */
+    if (!move_monster_S(mon)) return; /* CF=0 success -> stop */
 
     /* loc_A476: blocked moving south, decide whether to start a jump */
     pr = frog_hero_proximity_and_direction(m);
@@ -367,7 +356,7 @@ loc_A4A2:
     angle_table = (m->ai_flags & 0x80) ? jump_angles_right : jump_angles_left;
     angle = angle_table[(uint8_t)(ah - 2)];
 
-    if (monster_move_in_direction(m, angle)) { /* blocked */
+    if (monster_move_in_direction(mon, angle)) { /* blocked */
         pr = frog_hero_proximity_and_direction(m);
         if (!pr.carry) {
             m->ai_flags ^= 0x80;
@@ -379,7 +368,7 @@ loc_A4A2:
 loc_A4DB:
     m->ai_state &= 0xF7;
     m->anim_counter = 0;
-    move_monster_S(m);
+    move_monster_S(mon);
 }
 
 /* ============================================================================
@@ -405,7 +394,7 @@ static void ai_flags11(Monster *m)
     if (m->ai_state & 0x08) { rat_ai_jump_step(m); return; }
     if (m->ai_state & 0x10) { rat_ai_hop_step(m);  return; }
 
-    if (!move_monster_S(m)) return; /* CF=0 success -> stop */
+    if (!move_monster_S(mon)) return; /* CF=0 success -> stop */
 
     /* loc_A552 */
     if (!(m->ai_state & 0x04)) goto loc_A5C5;
@@ -489,12 +478,12 @@ loc_A60C:
 
     /* loc_A619 */
     if (m->ai_flags & 0x80) {
-        if (move_monster_E(m)) { /* blocked */
+        if (move_monster_E(mon)) { /* blocked */
             m->anim_counter = 0;
             m->ai_state = (uint8_t)((m->ai_state | 0x10) & 0x1F);
         }
     } else {
-        if (move_monster_W(m)) { /* blocked */
+        if (move_monster_W(mon)) { /* blocked */
             m->anim_counter = 0;
             m->ai_state = (uint8_t)((m->ai_state | 0x10) & 0x1F);
         }
@@ -512,7 +501,7 @@ static void rat_ai_jump_step(Monster *m)
         /* loc_A683: jump finished */
         m->ai_state &= 0xF7;
         m->anim_counter = 3;
-        move_monster_S(m);
+        move_monster_S(mon);
         return;
     }
 
@@ -525,12 +514,13 @@ static void rat_ai_jump_step(Monster *m)
         m->ai_state = (uint8_t)((m->ai_state & 0xF7) | 0x04);
         return;
     }
-    monster_move_in_direction(m, angle);
+    monster_move_in_direction(mon, angle);
 }
 
 /* loc_A690: per-frame step while ai_state bit 0x10 ("hopping") is set */
 static void rat_ai_hop_step(Monster *m)
 {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
     m->ai_state = (uint8_t)(m->ai_state + 0x20);
 
     if (!(m->ai_state & 0x20)) {
@@ -541,7 +531,7 @@ static void rat_ai_hop_step(Monster *m)
             /* loc_A6E3: hop finished */
             m->ai_state &= 0xEF;
             m->anim_counter = 3;
-            move_monster_S(m);
+            move_monster_S(mon);
             return;
         }
         m->anim_counter = (uint8_t)((ah & 0xF0) | al);
@@ -554,7 +544,7 @@ static void rat_ai_hop_step(Monster *m)
     const uint8_t *angle_table = (m->ai_flags & 0x80) ? rat_jump_angles_right : rat_jump_angles_left;
     uint8_t angle = angle_table[idx];
 
-    if (monster_move_in_direction(m, angle)) { /* blocked: loc_A6CF */
+    if (monster_move_in_direction(mon, angle)) { /* blocked: loc_A6CF */
         m->ai_state = (uint8_t)((m->ai_state & 0xEF) | 0x04);
         if (m->anim_counter != 0) {
             m->anim_counter = 3;

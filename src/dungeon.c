@@ -110,57 +110,104 @@ static void decrementY(uint16_t m) {
 }
 
 /* ---------- 8 directional move functions ---------- */
-
-void move_monster_E(uint16_t m) {
-    if (MEM8(m+3) < 34 && !check_collision_E2(m)) // .m_x_rel
+// Returns 0xFF on success and 0 on failure
+uint8_t move_monster_E(uint16_t m)
+{
+    if (MEM8(m+3) < 34 && !check_collision_E2(m)) { // .m_x_rel
         incrementX(m);
+        return 0xFF;
+    }
+    return 0;
 }
 
-void move_monster_NE(uint16_t m) {
+uint8_t move_monster_NE(uint16_t m) {
     if (MEM8(m+3) < 34 && !check_collision_NE2(m)) {
         incrementX(m);
         decrementY(m);
+        return 0xFF;
     }
+    return 0;
 }
 
-void move_monster_N(uint16_t m) {
+uint8_t move_monster_N(uint16_t m) {
     uint8_t x_rel = MEM8(m+3);
-    if (x_rel != 0 && x_rel != 35 && !check_collision_N2(m))
+    if (x_rel != 0 && x_rel != 35 && !check_collision_N2(m)) {
         decrementY(m);
+        return 0xFF;
+    }
+    return 0;
 }
 
-void move_monster_NW(uint16_t m) {
+uint8_t move_monster_NW(uint16_t m) {
     if (MEM8(m+3) >= 2 && !check_collision_NW2(m)) {
         decrementX(m);
         decrementY(m);
+        return 0xFF;
     }
+    return 0;
 }
 
-void move_monster_W(uint16_t m) {
-    if (MEM8(m+3) >= 2 && !check_collision_W2(m))
+uint8_t move_monster_W(uint16_t m) {
+    if (MEM8(m+3) >= 2 && !check_collision_W2(m)) {
         decrementX(m);
+        return 0xFF;
+    }
+    return 0;
 }
 
-void move_monster_SW(uint16_t m) {
+uint8_t move_monster_SW(uint16_t m) {
     if (MEM8(m+3) >= 2 && !check_collision_SW2(m)) {
         decrementX(m);
         incrementY(m);
+        return 0xFF;
     }
+    return 0;
 }
 
-void move_monster_S(uint16_t m) {
+uint8_t move_monster_S(uint16_t m) {
     uint8_t x_rel = MEM8(m+3);
-    if (x_rel != 0 && x_rel != 35 && !check_collision_S2(m))
+    if (x_rel != 0 && x_rel != 35 && !check_collision_S2(m)) {
         incrementY(m);
+        return 0xFF;
+    }
+    return 0;
 }
 
-void move_monster_SE(uint16_t m) {
+uint8_t move_monster_SE(uint16_t m) {
     if (MEM8(m+3) < 34 && !check_collision_SE2(m)) {
         incrementX(m);
         incrementY(m);
+        return 0xFF;
     }
+    return 0;
 }
 
+// Public dispatch tables exported to AI binaries (eai*.bin).
+// al = direction index 0-7 (0=E, 1=NE, 2=N, 3=NW, 4=W, 5=SW, 6=S, 7=SE)
+// counter-clockwise from East.
+// monster_move_in_direction: calls the corresponding move_monster_X.
+uint8_t monster_move_in_direction(uint16_t m, uint8_t dir)
+{
+    switch(dir & 7) {
+        case 0: 
+            return move_monster_E(m); 
+        case 1: 
+            return move_monster_NE(m); 
+        case 2: 
+            return move_monster_N(m); 
+        case 3: 
+            return move_monster_NW(m); 
+        case 4: 
+            return move_monster_W(m); 
+        case 5: 
+            return move_monster_SW(m); 
+        case 6: 
+            return move_monster_S(m); 
+        case 7: 
+            return move_monster_SE(m); 
+        return 0;
+    }
+}
 
 // check_collision_E2 / W2 / N2 / S2 / NE2 / SE2 / NW2 / SW2
 // Collision detection for a 2×2-tile monster footprint.

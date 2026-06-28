@@ -762,6 +762,15 @@ uint8_t check_collision_SE2(uint16_t m);
 uint8_t check_collision_NW2(uint16_t m);
 uint8_t check_collision_SW2(uint16_t m);
 uint8_t if_passable_set_ZF(uint8_t tile);
+uint8_t monster_move_in_direction(uint16_t m, uint8_t dir);
+uint8_t move_monster_E(uint16_t m);
+uint8_t move_monster_NE(uint16_t m);
+uint8_t move_monster_N(uint16_t m);
+uint8_t move_monster_NW(uint16_t m);
+uint8_t move_monster_W(uint16_t m);
+uint8_t move_monster_SW(uint16_t m);
+uint8_t move_monster_S(uint16_t m);
+uint8_t move_monster_SE(uint16_t m);
 void set_danger_type(uint8_t type);
 uint8_t get_danger_type(void);
 

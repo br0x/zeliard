@@ -8201,7 +8201,7 @@ move_monster_E  proc near
                                         ; if 0..33 => Carry
                 cmc                     ; if 0..33 => no carry
                 jnb     short loc_91ED
-                retn                    ; phase >= 34
+                retn                    ; m_x_rel >= 34; CF
 ; ---------------------------------------------------------------------------
 
 loc_91ED:        
