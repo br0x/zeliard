@@ -737,7 +737,6 @@ void hero_interaction_check(void);
 
 // Combat System
 void combat_init(void);
-void combat_update(void);
 void Hero_Hits_monster(uint16_t monster);
 uint8_t Get_Stats(uint8_t request_type);
 uint8_t get_combat_timer(void);
@@ -745,7 +744,6 @@ void set_combat_flag(uint8_t value);
 
 // Boss Battle System
 void init_boss_battle(void);
-void update_boss_battle(void);
 void boss_take_damage(uint16_t damage);
 uint16_t get_boss_hp(void);
 uint16_t get_boss_max_hp(void);

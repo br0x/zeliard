@@ -1173,21 +1173,6 @@ export function combatInit() {
 }
 
 /**
- * Update combat state
- * Called every frame
- */
-export function combatUpdate() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.combat_update) {
-        wasmExports.combat_update();
-    }
-}
-
-/**
  * Get combat timer (death animation timer)
  * @returns {number} Timer value (0-7)
  */
@@ -1234,21 +1219,6 @@ export function initBossBattle() {
 
     if (wasmExports.init_boss_battle) {
         wasmExports.init_boss_battle();
-    }
-}
-
-/**
- * Update boss battle
- * Called every frame during boss battle
- */
-export function updateBossBattle() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.update_boss_battle) {
-        wasmExports.update_boss_battle();
     }
 }
 

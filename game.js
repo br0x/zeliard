@@ -315,9 +315,7 @@ let heroIsMoving;
 let updateHorizontalPlatforms;
 let heroInteractionCheck;
 let combatInit;
-let combatUpdate;
 let initBossBattle;
-let updateBossBattle;
 let getHeroPosition;
 let getTownHeroPosition;
 let inputGetDebugCounter;
@@ -928,7 +926,7 @@ async function loadWasmEngine() {
         getTownPatId, getProximityMap, inputInit, inputUpdate, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
         heroGetState, heroIsMoving, updateHorizontalPlatforms, heroInteractionCheck,
-        combatInit, combatUpdate, initBossBattle, updateBossBattle, getHeroPosition,
+        combatInit, initBossBattle, getHeroPosition,
         getTownHeroPosition, inputGetDebugCounter, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
@@ -1246,11 +1244,11 @@ function getDungeonHeroState() {
 }
 
 function resolveBodyFrame(state) {
+    if (state.hidden) return 30;
+    if (state.onRope) return 26 + (state.animPhase & 3);
     const base = state.facingLeft ? 13 : 0;
     let offset;
-    if (state.hidden) offset = 26;
-    else if (state.onRope) offset = 26 + (state.animPhase & 3);
-    else if (state.invincible) offset = 10 + (state.animPhase & 3);
+    if (state.invincible) offset = 10 + (state.animPhase & 3);
     else if (state.squat) offset = 5;
     else if (state.jump & 0x80) offset = 7;
     else if (state.slope === 1) offset = 8;
@@ -1289,11 +1287,12 @@ function resolveFrontArmFrame(state) {
     const armBase = state.facingLeft ? 31 : 49;
     const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
 
+    if (state.invincible) return null;
+
     if (state.onRope || state.hidden) {
         if (!state.shieldCategory) return null;
         return armBase + (state.shieldCategory === 2 ? 17 : 14);
     }
-    if (state.invincible) return null;
 
     if (state.shieldAnimActive) {
         const phase = Math.floor(state.shieldPhase / 2);
@@ -1319,15 +1318,16 @@ function drawDungeonHero() {
     const dx = heroPos.hero_x_in_viewport * TILE_WIDTH;
     const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT;
     const state = getDungeonHeroState();
+    const armDy = state.squat ? dy + TILE_HEIGHT : dy;
     const layers = [
-        resolveBackArmFrame(state),
-        resolveBodyFrame(state),
-        resolveFrontArmFrame(state),
+        { frame: resolveBackArmFrame(state), y: armDy },
+        { frame: resolveBodyFrame(state), y: dy },
+        { frame: resolveFrontArmFrame(state), y: armDy },
     ];
-    for (const frame of layers) {
+    for (const { frame, y } of layers) {
         if (frame === null) continue;
         drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
-            DUNGEON_HERO_SHEET_COLS, dx, dy);
+            DUNGEON_HERO_SHEET_COLS, dx, y);
     }
 }
 
@@ -2243,8 +2243,6 @@ function update() {
     if (!engineReady) return;
     if (indoorActiveScene) return;
     heroInteractionCheck?.();
-    combatUpdate?.();
-    updateBossBattle?.();
     proximityMap = getProximityMap?.();
 }
 

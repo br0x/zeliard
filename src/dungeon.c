@@ -1499,14 +1499,14 @@ void hero_moves_left()
     for(;;) {
         uint16_t currX = MEM16(si + 0);
         if (currX == 0xFFFF) break;
+        uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
         if ((currX >> 8) != 0xFF && currX == left_col) {
             uint8_t currY = MEM8(si + 2);
             uint16_t prox = coords_to_prox_addr(0, currY);
-            uint8_t idx = MEM8(ADDR_MONSTER_INDEX);
             MEM8(prox) = (idx | 0x80);
-            MEM8(ADDR_MONSTER_INDEX) = idx + 1;
-            si += 16;
         }
+        MEM8(ADDR_MONSTER_INDEX) = idx + 1;
+        si += 16;
     }
 }
 
@@ -2602,7 +2602,7 @@ static uint8_t is_tile_al_aggressive_ground(uint8_t tile)
 
 // Direct translation of original code. Need to decide
 // whether to leave it here or move to game.js
-void input_handling_orig()
+void input_handling()
 {
     if (!MEM8(ADDR_SWORD_TYPE))
         return;
@@ -2677,11 +2677,6 @@ void input_handling_orig()
     MEM8(ADDR_SWORD_SWING_FLAG) = 0xFF;
 }
 
-// stub (see exact implementation above)
-void input_handling()
-{
-
-}
 
 // stub
 void magic_spell_fire_handler(void) {}
@@ -3551,8 +3546,8 @@ static void dungeon_finish_normal_frame(void)
         MEM8(ADDR_SQUAT_FLAG) = 0;
     }
 
-    if (MEM8(ADDR_INPUT_DIRS) & 2) {
-        MEM8(ADDR_FACING) &= ~2;
+    if (MEM8(ADDR_INPUT_DIRS) & UP) {
+        MEM8(ADDR_FACING) &= ~UP;
     }
 
     airborne_movement(&restart);
