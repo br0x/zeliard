@@ -3400,10 +3400,10 @@ clear_viewport_buffer endp
 
 
 ; ===========================================================================
-; is_tile_al_aggressive_ground
 ; Searches for tile value AL in the 4-byte 'aggressive ground' list at
 ; seg1:8020h. These are the tile IDs that hurt the hero when stood upon
 ; (e.g., lava, spikes), set per-dungeon in the mpp?.grp descriptor.
+; Input: AL = tile value to search for.
 ; Returns: ZF=1 (match found) or NZ (AH=0xFF, no match).
 ; ===========================================================================
 is_tile_al_aggressive_ground proc near
@@ -9425,10 +9425,10 @@ category0_moveN:
 
 
 ; ===========================================================================
-; check_monster_on_aggressive_ground
 ; Exported helper for AI: checks the proximity map at monster position Y+2.
 ; Calls is_tile_al_aggressive_ground to test if it is an 'aggressive'
 ; ground tile. Used by AIs to detect lava/spike floors for evasion.
+; Input: si = monster struct
 ; ===========================================================================
 check_monster_on_aggressive_ground proc near
                 mov     ax, word ptr [si+monster.currY]

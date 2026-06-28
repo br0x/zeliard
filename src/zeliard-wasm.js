@@ -518,6 +518,24 @@ export function setDungeonPassableTiles(tileIds) {
     }
 }
 
+export function setDungeonAggressiveGround(tileIds) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    const SEG1_OFFSET  = 0x8020; // seg1-relative offset of list data
+    const listGmemAddr = gMemoryBase + SEG1_BASE + SEG1_OFFSET; // absolute index into wasmMemory
+
+    // 4 tile bytes (zero padded) at seg1:0x8020
+    for (let i = 0; i < tileIds.length; i++) {
+        wasmMemory[listGmemAddr + i] = tileIds[i];
+    }
+    for (let i = 0; i < (4 - tileIds.length); i++) {
+        wasmMemory[listGmemAddr + tileIds.length + i] = 0;
+    }
+}
+
 export function setDungeonAirflows(tileIds) {
     if (!wasmMemory) {
         console.error('WASM not initialized');

@@ -187,6 +187,13 @@ extern "C" {
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
 
+#define ADDR_REACH_TABLE_SEG1     0xB002 // seg1-based
+
+#define ADDR_PASSABLE_TILES       0x8000 // seg1-based
+#define ADDR_AGGRESSIVE_TILES     0x8020 // seg1-based
+#define ADDR_AIRFLOW_TILES        0x8024 // seg1-based
+
+
 enum {
     DUNGEON_STATE_NORMAL = 0,
     DUNGEON_STATE_ROPE = 1,
@@ -692,6 +699,7 @@ void Monster_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
+static uint8_t check_monster_on_aggressive_ground(uint16_t m);
 
 // Input Handling
 void input_init(void);
@@ -813,6 +821,7 @@ void right_up_pressed();
 void move_platform_down_damage_monster();
 void down_pressed();
 void init_horizontal_sliding();
+static uint8_t is_tile_al_aggressive_ground(uint8_t tile);
 
 // Rendering
 void main_update_render(void);

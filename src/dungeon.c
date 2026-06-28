@@ -59,15 +59,11 @@
 #define PROXIMITY_SIZE            0x900u   // 36*64
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
 
-#define ADDR_DUNGEON_EXIT_FLAG   0xFFE2
+#define ADDR_DUNGEON_EXIT_FLAG    0xFFE2
 
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFC
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
 
-#define ADDR_REACH_TABLE_SEG1     0xB002
-
-#define ADDR_PASSABLE_TILES       0x8000 // seg1-based
-#define ADDR_AIRFLOW_TILES        0x8024u // seg1-based
 
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
@@ -2005,6 +2001,34 @@ static void monster_activation(uint16_t m)
         MEM8(m+16+7) = MEM8(m+16+7) & 0xF0; // .state_flags
         MEM8(ADDR_PROXIMITY_LAYER2 + MEM8(ADDR_MONSTER_INDEX)) = 0;
     }
+}
+
+static uint8_t check_monster_on_aggressive_ground(uint16_t m)
+{
+    uint8_t y = MEM8(m+2);
+    uint8_t x_rel = MEM8(m+3);
+    uint16_t di = coords_to_prox_addr(x_rel, y) + 2 * PROX_COLS;
+    wrap_map_from_above(&di);
+    uint8_t tile = MEM8(di);
+    return is_tile_al_aggressive_ground(tile);
+}
+
+// Searches for tile value AL in the 4-byte 'aggressive ground' list at
+// seg1:8020h. These are the tile IDs that hurt the hero when stood upon
+// (e.g., lava, spikes), set per-dungeon in the mpp?.grp descriptor.
+// Input: AL = tile value to search for.
+// Returns: ZF=1 (match found) => true
+//       or NZ (AH=0xFF, no match) => false
+static uint8_t is_tile_al_aggressive_ground(uint8_t tile)
+{
+    for (int i = 0; i < 4; i++) {
+        uint8_t aggr = MEM8_1(ADDR_AGGRESSIVE_TILES + i);
+        if (aggr == 0) 
+            return 0; // end of list
+        if (tile == aggr)
+            return 0xFF;
+    }
+    return 0;
 }
 
 // Direct translation of original code. Need to decide

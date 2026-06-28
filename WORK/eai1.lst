@@ -273,7 +273,7 @@ seg001:A268                 dw offset flags11
 seg001:A26A ; ---------------------------------------------------------------------------
 seg001:A26A
 seg001:A26A flags00:                                ; ...
-seg001:A26A                 call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 0
+seg001:A26A                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 0
 seg001:A26F                 jnz     short loc_A276
 seg001:A271                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg001:A276 ; ---------------------------------------------------------------------------
@@ -501,7 +501,7 @@ seg001:A3E7 ; ------------------------------------------------------------------
 seg001:A3E7 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg001:A3E7
 seg001:A3E7 flags01:                                ; ...
-seg001:A3E7                 call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 1
+seg001:A3E7                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 1
 seg001:A3EC                 jnz     short loc_A3F3
 seg001:A3EE                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg001:A3F3 ; ---------------------------------------------------------------------------
@@ -556,7 +556,7 @@ seg001:A43E                 retn
 seg001:A43F ; ---------------------------------------------------------------------------
 seg001:A43F
 seg001:A43F flags10:                                ; ...
-seg001:A43F                 call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 2
+seg001:A43F                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
 seg001:A444                 jnz     short loc_A44B
 seg001:A446                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg001:A44B ; ---------------------------------------------------------------------------
@@ -690,7 +690,7 @@ seg001:A517 ; ------------------------------------------------------------------
 seg001:A517 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg001:A517
 seg001:A517 flags11:                                ; ...
-seg001:A517                 call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 3
+seg001:A517                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 3
 seg001:A51C                 jnz     short loc_A523
 seg001:A51E                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg001:A523 ; ---------------------------------------------------------------------------

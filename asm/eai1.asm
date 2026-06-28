@@ -255,7 +255,7 @@ jpt_A25E        dw offset flags00
 ; ---------------------------------------------------------------------------
 
 flags00:                 
-                call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 0
+                call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 0
                 jnz     short loc_A276
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 ; ---------------------------------------------------------------------------
@@ -482,7 +482,7 @@ bat_step_throttle endp
 ; ---------------------------------------------------------------------------
 
 flags01:                 
-                call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 1
+                call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 1
                 jnz     short loc_A3F3
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 ; ---------------------------------------------------------------------------
@@ -537,7 +537,7 @@ loc_A43A:
 ; ---------------------------------------------------------------------------
 
 flags10:                 
-                call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 2
+                call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
                 jnz     short loc_A44B
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 ; ---------------------------------------------------------------------------
@@ -669,7 +669,7 @@ frog_hero_proximity_and_direction endp
 ; ---------------------------------------------------------------------------
 
 flags11:                 
-                call    cs:Check_Monster_Ids_Two_Rows_Below_Monster_proc ; jumptable 0000A25E case 3
+                call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 3
                 jnz     short loc_A523
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 ; ---------------------------------------------------------------------------

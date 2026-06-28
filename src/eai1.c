@@ -15,7 +15,7 @@
  *   means CF=1 (the original jb branch), 0 means CF=0 (jnb branch). This
  *   applies to move_monster_*, monster_move_in_direction and
  *   Check_collision_in_direction below.
- * - Check_Monster_Ids_Two_Rows_Below_Monster mirrors a jnz test: it returns
+ * - check_monster_on_aggressive_ground mirrors a jnz test: it returns
  *   nonzero exactly when the original code took the "jnz" branch (ZF=0).
  * - if_passable_set_ZF, check_collision_E2_monster and
  *   check_collision_W2_monster keep the signature/semantics already declared
@@ -35,7 +35,6 @@
 #include "zeliard.h"
 
 /* ---- shared monster-AI helpers (presumably shared by other eaiN.asm ports) */
-extern int  Check_Monster_Ids_Two_Rows_Below_Monster(Monster *m);
 extern void Check_Vertical_Distance_Between_Hero_And_Monster(Monster *m);
 
 /* ---- movement primitives: return CF (1 = blocked/failed, 0 = success) */
@@ -55,11 +54,6 @@ extern int monster_move_in_direction(Monster *m, uint8_t angle);
 extern int Check_collision_in_direction(Monster *m, uint8_t angle);
 
 extern uint8_t get_random(void);
-
-/* Proximity-map helpers. coords_in_ax_to_proximity_map_offset_in_di returns
- * the original "di" as a raw conceptual address; wrap_map_from_above(uint16_t*)
- * is already declared in zeliard.h and adjusts that address in place. */
-extern uint16_t coords_in_ax_to_proximity_map_offset_in_di(uint16_t ax);
 
 /* I don't have visibility into how the proximity map is exposed in your C
  * port outside of the 0x00-0xFF / 0xFF00-0xFFFF MEM8/MEM16 ranges, so this
@@ -143,7 +137,8 @@ void Monster_AI(uint16_t monster)
  */
 static void ai_flags00(Monster *m)
 {
-    if (!Check_Monster_Ids_Two_Rows_Below_Monster(m)) {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
+    if (!check_monster_on_aggressive_ground(mon)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
         return;
     }
@@ -303,7 +298,8 @@ loc_A3BD:
  */
 static void ai_flags01(Monster *m)
 {
-    if (!Check_Monster_Ids_Two_Rows_Below_Monster(m)) {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
+    if (!check_monster_on_aggressive_ground(mon)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
         return;
     }
@@ -338,7 +334,8 @@ static void ai_flags10(Monster *m)
     uint8_t ah, al, angle;
     const uint8_t *angle_table;
 
-    if (!Check_Monster_Ids_Two_Rows_Below_Monster(m)) {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
+    if (!check_monster_on_aggressive_ground(mon)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
         return;
     }
@@ -406,7 +403,8 @@ static void ai_flags11(Monster *m)
 {
     ProximityResult pr;
 
-    if (!Check_Monster_Ids_Two_Rows_Below_Monster(m)) {
+    uint16_t mon = (uint8_t*)m - (uint8_t*)g_mem;
+    if (!check_monster_on_aggressive_ground(mon)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
         return;
     }
@@ -468,9 +466,7 @@ loc_A57B: {
     return;
 
 loc_A5C5: {
-        /* word-read of (curr_y, x_rel) exactly as "word ptr [si+monster.currY]" did */
-        uint16_t ax = (uint16_t)m->currY | ((uint16_t)m->m_x_rel << 8);
-        uint16_t addr = coords_in_ax_to_proximity_map_offset_in_di(ax);
+        uint16_t addr = coords_to_prox_addr(m->m_x_rel, m->currY);
 
         uint16_t lookahead = 0x48;
         if (m->ai_flags & 0x80) lookahead++;
