@@ -505,39 +505,42 @@ function onFullTick() {
         const speedC     = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
         const target     = speedC * 4;
         const frameTmr   = readMemory(ADDR_FRAME_TIMER, 1)[0];
-        if (frameTmr >= target) {
-            if (gameMode === 'dungeon') {
+        if (gameMode === 'dungeon') {
+            // Bypass the speed gate during roka run so the 8-bit ADDR_FRAME_TIMER wraparound 
+            // doesn't starve dungeonUpdate() and cause frame skips
+            const isRokaRun = readMemory(ADDR_DUNGEON_STATE, 1)[0] === DUNGEON_STATE_ROKA_RUN;
+            if (isRokaRun || frameTmr >= target) {
                 inputUpdate?.();
                 dungeonUpdate?.();
                 if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
                     handleDungeonExit(dungeonGetExitMap?.() ?? 1);
                 }
-            } else { // town mode
-                inputUpdate?.();
-                townUpdate?.();
-                const scrollFlag = readMemory(0xfff0, 1)[0];
-                if (scrollFlag) {
-                    if (scrollFlag & 0x01) scrollFloorRight8px();
-                    if (scrollFlag & 0x02) scrollFloorLeft8px();
-                    if (scrollFlag & 0x04) scrollCeilingRight4px();
-                    if (scrollFlag & 0x08) scrollCeilingLeft4px();
-                    writeMemory(0xfff0, [0]);
-                }
-                const pendingTransitionFlag = getTownPendingTransitionFlag?.();
-                if (pendingTransitionFlag === 0xFF) {
-                    const transition = getTownPendingTransition?.();
-                    if (transition) {
-                        writeMemory(ADDR_PENDING_TRANSITION_FLAG, [0]);
-                        handleTownTransition(transition);
-                    }
-                }
-                const pendingDungeonFlag = readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0];
-                if (pendingDungeonFlag === 0xFF) {
-                    const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
-                    handleDungeonTransition(pendingMap);
-                }
-                checkBuildingRequest();
             }
+        } else if (frameTmr >= target) { // town mode
+            inputUpdate?.();
+            townUpdate?.();
+            const scrollFlag = readMemory(0xfff0, 1)[0];
+            if (scrollFlag) {
+                if (scrollFlag & 0x01) scrollFloorRight8px();
+                if (scrollFlag & 0x02) scrollFloorLeft8px();
+                if (scrollFlag & 0x04) scrollCeilingRight4px();
+                if (scrollFlag & 0x08) scrollCeilingLeft4px();
+                writeMemory(0xfff0, [0]);
+            }
+            const pendingTransitionFlag = getTownPendingTransitionFlag?.();
+            if (pendingTransitionFlag === 0xFF) {
+                const transition = getTownPendingTransition?.();
+                if (transition) {
+                    writeMemory(ADDR_PENDING_TRANSITION_FLAG, [0]);
+                    handleTownTransition(transition);
+                }
+            }
+            const pendingDungeonFlag = readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0];
+            if (pendingDungeonFlag === 0xFF) {
+                const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
+                handleDungeonTransition(pendingMap);
+            }
+            checkBuildingRequest();
         }
     }
 }
@@ -1428,9 +1431,6 @@ function drawDungeonRoka() {
     const shieldVariant = readU8(ADDR_SHIELD_VARIANT_INDEX);
     const shieldCategory = getShieldCategory();
 
-    // ctx.fillStyle = '#000000';
-    // ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
     if (rokaImg) {
         ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
@@ -1445,7 +1445,6 @@ function drawDungeonRoka() {
         dx = Math.round(t * (canvas.width - heroW));
     }
     const dy = 12 * TILE_HEIGHT;
-    console.log('phase:', phase, 'animPhase:', animPhase, 't:', t, 'dx:', dx, 'dy:', dy, 'timestamp:', Date.now());
 
     const state = {
         facingLeft,
