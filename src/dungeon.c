@@ -1612,14 +1612,14 @@ void roka_run()
 
 static void dungeon_update_roka_run(void)
 {
-    // Pace the animation: only advance one phase every 8 full ticks (~33ms per step,
-    // total animation ~0.88s). ADDR_FRAME_TIMER is incremented by dungeonFullTick
+    // Pace the animation: only advance one phase every 16 full ticks (~33ms per step,
+    // total animation ~1.76s). ADDR_FRAME_TIMER is incremented by dungeonFullTick
     // once per full tick before this function runs.
-    if ((MEM8(ADDR_FRAME_TIMER) & 7) != 0) {
+    if ((MEM8(ADDR_FRAME_TIMER) & 15) != 0) {
         return;
     }
     uint8_t phase = MEM8(ADDR_ROKA_PHASE);
-    if (phase >= 26) {
+    if (phase >= 25) {
         after_run_animation();
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
         MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;

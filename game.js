@@ -225,6 +225,7 @@ const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR        = 0xC00F;
 const ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT = 0xC016;
 const ADDR_FRAME_TIMER          = 0xFF1A;
+const ADDR_SPEED_CONST          = 0xFF33;
 const ADDR_SQUAT_FLAG           = 0xFF38;
 const ADDR_ON_ROPE_FLAGS        = 0xFF39;
 const ADDR_HERO_HIDDEN_FLAG     = 0xFF3A;
@@ -501,17 +502,17 @@ function onFullTick() {
     else townFullTick?.();
 
     if (engineReady) {
-        if (gameMode === 'dungeon') {
-            inputUpdate?.();
-            dungeonUpdate?.();
-            if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
-                handleDungeonExit(dungeonGetExitMap?.() ?? 1);
-            }
-        } else {
-            const speedC     = readMemory(0xFF33, 1)[0] || 5;
-            const target     = speedC * 4;
-            const frameTmr   = readMemory(0xFF1A, 1)[0];
-            if (frameTmr >= target) {
+        const speedC     = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
+        const target     = speedC * 4;
+        const frameTmr   = readMemory(ADDR_FRAME_TIMER, 1)[0];
+        if (frameTmr >= target) {
+            if (gameMode === 'dungeon') {
+                inputUpdate?.();
+                dungeonUpdate?.();
+                if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
+                    handleDungeonExit(dungeonGetExitMap?.() ?? 1);
+                }
+            } else { // town mode
                 inputUpdate?.();
                 townUpdate?.();
                 const scrollFlag = readMemory(0xfff0, 1)[0];
@@ -1421,10 +1422,14 @@ function drawDungeonRoka() {
     const colorIdx = readU8(ADDR_ROKA_COLOR);
     const phase = readU8(ADDR_ROKA_PHASE);
     const facingLeft = (readU8(ADDR_FACING) & 1) !== 0;
+    const animPhase = readU8(ADDR_HERO_ANIM_PHASE);
     const leftRun = readU8(ADDR_LEFT_RUN) !== 0;
+    const invincible = readU8(ADDR_INVINCIBILITY_FLAG) !== 0;
+    const shieldVariant = readU8(ADDR_SHIELD_VARIANT_INDEX);
+    const shieldCategory = getShieldCategory();
 
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ctx.fillStyle = '#000000';
+    // ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
     if (rokaImg) {
@@ -1435,27 +1440,26 @@ function drawDungeonRoka() {
     const heroW = DUNGEON_HERO_FRAME_W;
     let dx;
     if (leftRun) {
-        dx = Math.round((1 - t) * (canvas.width - heroW) + t * (canvas.width / 2 - heroW / 2));
+        dx = Math.round((1 - t) * (canvas.width - heroW));
     } else {
-        dx = Math.round((1 - t) * (-heroW / 2) + t * (canvas.width / 2 - heroW / 2));
+        dx = Math.round(t * (canvas.width - heroW));
     }
-    const headY = readU8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT) || 4;
-    const dy = headY * TILE_HEIGHT;
+    const dy = 12 * TILE_HEIGHT;
+    console.log('phase:', phase, 'animPhase:', animPhase, 't:', t, 'dx:', dx, 'dy:', dy, 'timestamp:', Date.now());
 
-    const animPhase = readU8(ADDR_HERO_ANIM_PHASE);
     const state = {
         facingLeft,
         animPhase,
-        invincible: false,
+        invincible,
         squat: false,
         onRope: false,
         hidden: false,
         jump: 0,
         shieldAnimActive: false,
         shieldPhase: 0,
-        shieldVariant: 0,
+        shieldVariant,
         slope: 0,
-        shieldCategory: 0,
+        shieldCategory,
     };
     const frame = resolveBodyFrame(state);
     drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
