@@ -35,7 +35,7 @@ Add helper: `drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy)` �
 
 ### 1.3 Hero Sprite Composition
 
-Replace `_choose_hero_sprite()` + `Render_Hero_Sprite_To_Buf9()` in `gfmcga.c:517–738` with JS.
+Replace `choose_hero_sprite()` + `Render_Hero_Sprite_To_Buf9()` in `gfmcga.c:517–738` with JS.
 
 **JS function: `drawDungeonHero()`** (partially exists at `game.js:1243`, needs complete rewrite).
 
@@ -279,7 +279,7 @@ In `game.js`:
 |----------|------------------------------|--------|
 | `drawDungeonTiles()` | `Refresh_Dirty_Tiles()`, `Dungeon_Static_Tile_Cached_Drawer()` | Extend existing |
 | `drawDungeonEntities()` | Entity rendering in `Refresh_Dirty_Tiles()`, `Lookup_Monster_Tile_Attributes()` | Extend existing |
-| `drawDungeonHero()` | `_choose_hero_sprite()`, `Render_Hero_Sprite_To_Buf9()`, `Sample_Neighborhood_Attributes()` | **Rewrite completely** |
+| `drawDungeonHero()` | `choose_hero_sprite()`, `Render_Hero_Sprite_To_Buf9()`, `Sample_Neighborhood_Attributes()` | **Rewrite completely** |
 | `drawDungeonSword()` | `Render_Sword_Overlay()`, `Sword_Overlay_EntryPoint()`, `CalculateSpriteBitmask()` | **Rewrite completely** |
 | `drawDungeonMagic()` | Magic projectile rendering from `update_active_projectiles_render()` | **New** |
 | `drawBossExplosions()` | `Boss_Explosions_Renderer()` | **New (simplified)** |
@@ -629,7 +629,7 @@ Once the JS rendering is complete, stub these functions in `gfmcga.c` / `dungeon
 | `Refresh_Dirty_Tiles()` | gfmcga.c | Tile refresh handled by JS rendering per frame |
 | `render_48bytes_packed_tile()` | gfmcga.c | Raw pixel decode, no longer needed |
 | `render_nibble_compressed_tile()` | gfmcga.c | Raw pixel decode, no longer needed |
-| `_choose_hero_sprite()` | gfmcga.c | Hero layering in JS |
+| `choose_hero_sprite()` | gfmcga.c | Hero layering in JS |
 | `Spawn_Boss_Explosion_Ring()` | gfmcga.c | Optional — keep for logic, stub output |
 | `render_hud_bars_with_enemy()` | dungeon.c | HUD in JS/HTML |
 | `render_boss_hud()` | dungeon.c | HUD in JS/HTML |

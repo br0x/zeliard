@@ -1761,7 +1761,7 @@ seg000:3A22                 mov     cx, 3
 seg000:3A25
 seg000:3A25 loc_3A25:                               ; ...
 seg000:3A25                 push    cx
-seg000:3A26                 mov     ax, offset choose_hero_sprite
+seg000:3A26                 mov     ax, offset hero_background_continue
 seg000:3A29                 push    ax
 seg000:3A2A                 mov     al, [di]
 seg000:3A2C                 or      al, [di+1]
@@ -1825,7 +1825,7 @@ seg000:3A88
 seg000:3A88 ; =============== S U B R O U T I N E =======================================
 seg000:3A88
 seg000:3A88
-seg000:3A88 choose_hero_sprite proc near            ; ...
+seg000:3A88 hero_background_continue proc near            ; ...
 seg000:3A88                 inc     ds:byte_4FF2
 seg000:3A8C                 inc     di
 seg000:3A8D                 inc     si
@@ -2125,7 +2125,7 @@ seg000:3CD2 loc_3CD2:                               ; ...
 seg000:3CD2                 mov     cx, 9
 seg000:3CD5                 mov     ds:byte_4FF2, 0
 seg000:3CDA                 jmp     short $+2
-seg000:3CDA choose_hero_sprite endp ; sp-analysis failed
+seg000:3CDA hero_background_continue endp ; sp-analysis failed
 seg000:3CDA
 seg000:3CDC
 seg000:3CDC ; =============== S U B R O U T I N E =======================================

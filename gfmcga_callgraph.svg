@@ -91,15 +91,15 @@
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M258,-600.76C258,-584.86 258,-561.09 258,-543.28"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="260.45,-543.05 258,-536.05 255.55,-543.05 260.45,-543.05"/>
 </g>
-<!-- _choose_hero_sprite -->
+<!-- choose_hero_sprite -->
 <g id="node4" class="node">
-<title>_choose_hero_sprite</title>
+<title>choose_hero_sprite</title>
 <path fill="#e6f1fb" stroke="black" d="M560,-435C560,-435 436,-435 436,-435 430,-435 424,-429 424,-423 424,-423 424,-411 424,-411 424,-405 430,-399 436,-399 436,-399 560,-399 560,-399 566,-399 572,-405 572,-411 572,-411 572,-423 572,-423 572,-429 566,-435 560,-435"/>
-<text text-anchor="middle" x="498" y="-413.9" font-family="Helvetica,sans-Serif" font-size="12.00">_choose_hero_sprite</text>
+<text text-anchor="middle" x="498" y="-413.9" font-family="Helvetica,sans-Serif" font-size="12.00">choose_hero_sprite</text>
 </g>
-<!-- _render_hero_3x3&#45;&gt;_choose_hero_sprite -->
+<!-- _render_hero_3x3&#45;&gt;choose_hero_sprite -->
 <g id="edge12" class="edge">
-<title>_render_hero_3x3&#45;&gt;_choose_hero_sprite</title>
+<title>_render_hero_3x3&#45;&gt;choose_hero_sprite</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M511.55,-499.91C509.67,-492.32 507.56,-483.25 506,-475 503.97,-464.25 502.22,-452.28 500.87,-442.09"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="503.28,-441.66 499.96,-435.03 498.42,-442.28 503.28,-441.66"/>
 </g>
@@ -145,9 +145,9 @@
 <path fill="#e6f1fb" stroke="black" d="M585,-348C585,-348 411,-348 411,-348 405,-348 399,-342 399,-336 399,-336 399,-324 399,-324 399,-318 405,-312 411,-312 411,-312 585,-312 585,-312 591,-312 597,-318 597,-324 597,-324 597,-336 597,-336 597,-342 591,-348 585,-348"/>
 <text text-anchor="middle" x="498" y="-326.9" font-family="Helvetica,sans-Serif" font-size="12.00">Render_Hero_Sprite_To_Buf9</text>
 </g>
-<!-- _choose_hero_sprite&#45;&gt;Render_Hero_Sprite_To_Buf9 -->
+<!-- choose_hero_sprite&#45;&gt;Render_Hero_Sprite_To_Buf9 -->
 <g id="edge13" class="edge">
-<title>_choose_hero_sprite&#45;&gt;Render_Hero_Sprite_To_Buf9</title>
+<title>choose_hero_sprite&#45;&gt;Render_Hero_Sprite_To_Buf9</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M498,-398.8C498,-386.36 498,-369.36 498,-355.5"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="500.45,-355.18 498,-348.18 495.55,-355.18 500.45,-355.18"/>
 </g>
@@ -157,9 +157,9 @@
 <path fill="#e6f1fb" stroke="black" d="M357.5,-348C357.5,-348 192.5,-348 192.5,-348 186.5,-348 180.5,-342 180.5,-336 180.5,-336 180.5,-324 180.5,-324 180.5,-318 186.5,-312 192.5,-312 192.5,-312 357.5,-312 357.5,-312 363.5,-312 369.5,-318 369.5,-324 369.5,-324 369.5,-336 369.5,-336 369.5,-342 363.5,-348 357.5,-348"/>
 <text text-anchor="middle" x="275" y="-326.9" font-family="Helvetica,sans-Serif" font-size="12.00">get_player_shield_category</text>
 </g>
-<!-- _choose_hero_sprite&#45;&gt;get_player_shield_category -->
+<!-- choose_hero_sprite&#45;&gt;get_player_shield_category -->
 <g id="edge14" class="edge">
-<title>_choose_hero_sprite&#45;&gt;get_player_shield_category</title>
+<title>choose_hero_sprite&#45;&gt;get_player_shield_category</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M453.14,-398.9C416.62,-384.98 365.04,-365.32 326.77,-350.73"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="327.2,-348.28 319.79,-348.07 325.46,-352.85 327.2,-348.28"/>
 </g>

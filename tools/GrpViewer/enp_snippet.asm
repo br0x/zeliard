@@ -107,7 +107,7 @@ viewport_row_vram_offset                   dw 0
 plane1_buf                   dw 0
 transparency_mask_bitplane_f dw 0       
 
-; used in Decode_And_Render_MonsterEntity_Tile_With_Blit, choose_hero_sprite
+; used in Decode_And_Render_MonsterEntity_Tile_With_Blit, hero_background_continue
 pal_decode_tbl     dw offset pal_decode_data0
                    dw offset pal_decode_data1
                    dw offset pal_decode_data2

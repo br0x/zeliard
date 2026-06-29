@@ -1510,7 +1510,7 @@ loc_39EA:
                 inc     dl
                 pop     cx
                 loop    loc_39C8
-_render_hero_3x3:
+_render_hero_3x3: ; first render background under hero, then 3 layers of hero sprite
                 mov     al, ds:hero_head_y_in_viewport
                 xor     ah, ah
                 mov     cx, 320*8 ; tile height = 8 pixels
@@ -1532,14 +1532,14 @@ loc_3A21:       ; outer
                 mov     cx, 3
 loc_3A25:       ; inner
                 push    cx
-                mov     ax, offset choose_hero_sprite
-                push    ax  ; push, then jump trick: will call choose_hero_sprite on return
+                mov     ax, offset hero_background_continue
+                push    ax  ; push, then jump trick: will call hero_background_continue on return
                 mov     al, [di]
                 or      al, [di+1]
                 or      al, [di+4]
                 or      al, [di+5]
                 jnz     short loc_3A3A
-                jmp     Render_Empty_Or_Cached_Tile ; then jump to choose_hero_sprite
+                jmp     Render_Empty_Or_Cached_Tile ; then jump to hero_background_continue
 ; ---------------------------------------------------------------------------
 loc_3A3A:
                 test    byte ptr [di], 0FFh
@@ -1553,7 +1553,7 @@ loc_3A3A:
                     inc     si
                     mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
+                jmp     Render_Tile_With_Palette ; then jump to hero_background_continue
 ; ---------------------------------------------------------------------------
 
 loc_3A4E:
@@ -1567,7 +1567,7 @@ loc_3A4E:
                     inc     si
                     mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
+                jmp     Render_Tile_With_Palette ; then jump to hero_background_continue
 ; ---------------------------------------------------------------------------
 
 loc_3A63:
@@ -1580,7 +1580,7 @@ loc_3A63:
                     inc     si
                     mov     al, [si]
                 pop     si
-                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
+                jmp     Render_Tile_With_Palette ; then jump to hero_background_continue
 ; ---------------------------------------------------------------------------
 
 loc_3A77:
@@ -1592,14 +1592,12 @@ loc_3A77:
                 pop     si
                 mov     [si], al
                 mov     al, cl
-                jmp     Render_Tile_With_Palette ; then jump to choose_hero_sprite
+                jmp     Render_Tile_With_Palette ; then jump to hero_background_continue
 Update_Local_Attribute_Cache endp
 
 
-; =============== S U B R O U T I N E =======================================
-
 ; called by pushing address to stack before jumping to other routine
-choose_hero_sprite proc near
+hero_background_continue proc near
                 inc     ds:hero_tile_col_idx
                 inc     di
                 inc     si
@@ -1609,7 +1607,9 @@ choose_hero_sprite proc near
                 inc     di
                 loop    loc_3A21 ; outer
                 ; loops ended
-_choose_hero_sprite:                
+
+; construct up to 3 layers of hero: back arm, body, front arm
+choose_hero_sprite:                
                 mov     bl, ds:hero_damage_this_frame
                 and     bl, 3
                 xor     bh, bh
@@ -1624,6 +1624,7 @@ _choose_hero_sprite:
                 jmp     loc_3B80
 ; ---------------------------------------------------------------------------
 ; invincibility_flag = 0, on_rope_flags = 0, hero_hidden_flag = 0
+; Layer 1: Back arm
 non_god_rope_hidden:
                 mov     cl, 0FFh ; if facing right
                 mov     si, fman_gfx + (2*13 + 4 + 1)*9  ; ARM_RIGHT_BASE
@@ -1727,7 +1728,8 @@ loc_3B75:
                 mov     cx, 9
                 mov     ds:hero_tile_col_idx, 0
                 call    Render_Hero_Sprite_To_Buf9
-
+; ---------------------------------------------------------------------------
+; Layer 2: Body
 loc_3B80:
                 mov     si, fman_gfx + (2*13 + 4)*9  ; BODY_OPEN_DOOR
                 test    byte ptr ds:hero_hidden_flag, 0FFh
@@ -1787,12 +1789,13 @@ loc_3BF2:
                 ; for invincibility mode - no more layers
                 retn
 ; ---------------------------------------------------------------------------
-
+; Layer 3: front arm
 loc_3C05:
                 mov     cl, 0FFh
                 mov     si, fman_gfx + (2*13 + 4 + 1 + 18)*9  ; ARM_LEFT_BASE
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3C16
+                ; facing right
                 xor     cl, cl
                 mov     si, fman_gfx + (2*13 + 4 + 1)*9  ; ARM_RIGHT_BASE
 
@@ -1808,7 +1811,7 @@ loc_3C16:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3C27:
+loc_3C27:       ; has shield
                 dec     al      ; 0=small shield, 1=large shield
                 shr     al, 1   ; NC=small, CF=large
                 sbb     al, al  ; 0=small, 0FFh=large
@@ -1908,7 +1911,7 @@ non_squat:
                 mov     ds:hero_tile_col_idx, 0 ; normal: 9 tiles starting at 0
                 jmp     short $+2
                 ; fall through to Render_Hero_Sprite_To_Buf9
-choose_hero_sprite endp
+hero_background_continue endp
 
 
 ; =============== S U B R O U T I N E =======================================

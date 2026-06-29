@@ -1284,7 +1284,7 @@ function resolveBackArmFrame(state) {
 }
 
 function resolveFrontArmFrame(state) {
-    const armBase = state.facingLeft ? 31 : 49;
+    const armBase = state.facingLeft ? 49 : 31;
     const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
 
     if (state.invincible) return null;

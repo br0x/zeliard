@@ -177,7 +177,7 @@ void Copy_Hero_Frame_To_VRAM();
 static void Copy_Tile_To_VRAM(uint16_t dest_off, const uint8_t *src);
 static void Blit32x32SpriteToVram();
 static void Render_Hero_Sprite_To_Buf9(const uint8_t *sprite_header, uint8_t cx);
-static void _choose_hero_sprite();
+static void choose_hero_sprite();
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx);
 
 uint8_t get_random()
@@ -395,12 +395,6 @@ void Render_Tile_With_Palette(uint8_t tile, uint8_t *nb_ptr) {
  *        → fman tile = s_frame_fman_tiles[0]  (frame data byte 1)
  *        → Render_Tile_With_Palette(fman, &si[0])
  *          (bg_tile is now positive so Translate_Tile_Index is not called)
- *
- * 3. After all 9 cells: calls choose_hero_sprite() for the arm/body layers.
- *
- * Loop advance (from the "choose_hero_sprite callback" in the original):
- *   inner loop: si++, di++, hero_tile_col_idx++ (3 times)
- *   between rows: di++ extra (to skip to the next 4-wide row in tile_load_buffer)
  */
 static void _render_hero_3x3()
 {
@@ -470,7 +464,7 @@ static void _render_hero_3x3()
                 Render_Tile_With_Palette(MEM8(frame_ptr + 0), si);
             }
 
-            /* Advance to the next cell (equivalent to choose_hero_sprite callback) */
+            /* Advance to the next cell (equivalent to hero_background_continue callback) */
             si++;
             di++;
             hero_tile_col_idx++;
@@ -484,14 +478,14 @@ static void _render_hero_3x3()
     }
 
     /* All background cells rendered; composite the hero sprite layers */
-    _choose_hero_sprite();
+    choose_hero_sprite();
 }
 
 /* 
  * Called after the 3×3 background grid has been written to nine_unpacked_tiles.
  * Composites three hero-sprite layers on top via Render_Hero_Sprite_To_Buf9():
  *
- *   Layer 1 – Back arm / weapon (drawn BEFORE the body)
+ *   Layer 1 – Back arm (drawn BEFORE the body)
  *     Skipped when invincible, on rope, or hidden.
  *     Source determined by:
  *       • facing direction (ARM_RIGHT_BASE / ARM_LEFT_BASE)
@@ -509,7 +503,6 @@ static void _render_hero_3x3()
  *
  *   Layer 3 – Front arm (drawn AFTER the body)
  *     Skipped when invincible.
- *     Uses the OPPOSITE arm base from Layer 1 (arm in front of body).
  *     Logic mirrors Layer 1 for shield states; for rope/hidden uses a fixed
  *     hardcoded offset (0x7E=small shield, 0x99=large shield from arm base).
  *     Squat: 6 tiles from col 3; normal: 9 tiles from col 0.
@@ -517,7 +510,7 @@ static void _render_hero_3x3()
  * Palette is set from pal_decode_tbl[hero_damage_this_frame & 3].
  */
 // Checked
-static void _choose_hero_sprite()
+static void choose_hero_sprite()
 {
     /* Set hero rendering palette based on current damage flash state */
     nibble_decode_lut = pal_decode_tbl[MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) & 3];
@@ -642,12 +635,10 @@ static void _choose_hero_sprite()
 
     /* 
      * Layer 3: Front arm (drawn over the body)
-     * 
-     * The front-arm uses the OPPOSITE sprite base from the back arm so that
-     * the two arms bracket the body */
+     */
     {
         /* Note the intentional inversion vs. Layer 1 */
-        const uint8_t *arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + (facing_left ? FMAN_ARM_RIGHT_BASE : FMAN_ARM_LEFT_BASE)];
+        const uint8_t *arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + (facing_left ? FMAN_ARM_LEFT_BASE : FMAN_ARM_RIGHT_BASE)];
         uint8_t cat = get_player_shield_category();
 
         if (on_rope_flags | hero_hidden_flag) {
