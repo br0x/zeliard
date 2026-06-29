@@ -189,6 +189,8 @@ extern "C" {
 #define ADDR_MUSIC_LOAD_REQUEST     0xFF9A  // byte
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
+#define ADDR_ROKA_PHASE            0xFF9D  // byte: roka_run animation step (0..25)
+#define ADDR_ROKA_COLOR            0xFF9E  // byte: roka background index (0=cyan..4=violet)
 
 #define ADDR_REACH_TABLE_SEG1     0xB002 // seg1-based
 
@@ -205,6 +207,7 @@ enum {
     DUNGEON_STATE_DEATH_FADE = 4,
     DUNGEON_STATE_BOSS_ENCOUNTER = 5,
     DUNGEON_STATE_EXIT = 6,
+    DUNGEON_STATE_ROKA_RUN = 7,
 };
 
 // ============================================================================

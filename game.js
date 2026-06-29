@@ -122,6 +122,14 @@ const TOWN_BACKGROUND_CKPD_PATH = 'assets/images/ckpd/ckpd1.png';
 const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
 const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
 const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
+const ROKA_IMAGE_PATHS = [
+    'assets/images/roka/roka_cyan.jpg',
+    'assets/images/roka/roka_red.jpg',
+    'assets/images/roka/roka_blue.jpg',
+    'assets/images/roka/roka_green.jpg',
+    'assets/images/roka/roka_violet.jpg',
+];
+
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 const KING_IMAGE_PATHS = [
@@ -205,6 +213,7 @@ const ADDR_SPELL_COUNTS = [
 ];
 const ADDR_HERO_MAX_HP   = 0xB2;
 const ADDR_FACING        = 0xC2;
+const ADDR_LEFT_RUN      = 0xC3;
 const ADDR_PLACE_MAP_ID  = 0xC4;
 const ADDR_SAGES_SPOKEN  = 0xe5;
 const ADDR_HERO_ANIM_PHASE    = 0xE7;
@@ -214,6 +223,7 @@ const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_TOWN_DESCRIPTOR_PTR    = 0xC000;
 const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR        = 0xC00F;
+const ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT = 0xC016;
 const ADDR_FRAME_TIMER          = 0xFF1A;
 const ADDR_SQUAT_FLAG           = 0xFF38;
 const ADDR_ON_ROPE_FLAGS        = 0xFF39;
@@ -235,6 +245,9 @@ const ADDR_DUNGEON_STATE = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
 const ADDR_RENDER_REQUEST = 0xFF92;
 const ADDR_RENDER_DONE = 0xFF93;
+const ADDR_ROKA_PHASE = 0xFF9D;
+const ADDR_ROKA_COLOR = 0xFF9E;
+const DUNGEON_STATE_ROKA_RUN = 7;
 const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
 
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
@@ -390,6 +403,9 @@ let dungeonHeroSheet = null;
 let dungeonHeroSheetReady = false;
 let dungeonSwordSheet = null;
 let dungeonSwordSheetReady = false;
+
+let rokaImages = [];
+let rokaImagesReady = false;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -746,6 +762,7 @@ async function startGame() {
         await loadSwordIcons();
         await loadShieldIcons();
         await loadMagicIcons();
+        await loadRokaImages();
 
         parseTownNpcCategory();
         await Promise.all(
@@ -858,6 +875,19 @@ function loadNpcSprite(spriteId) {
         img.onerror = () => reject(new Error(`Failed to load NPC sprite ${path}`));
         img.src = path;
     });
+}
+
+function loadRokaImages() {
+    if (rokaImagesReady) return Promise.resolve(rokaImages);
+    const loads = ROKA_IMAGE_PATHS.map((path, index) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${path}`));
+            img.src = path;
+        }).then(img => { rokaImages[index] = img; return img; });
+    });
+    return Promise.all(loads).then(() => { rokaImagesReady = true; return rokaImages; });
 }
 
 function loadImageOnce(path, setter) {
@@ -1386,6 +1416,52 @@ function drawDungeonSword() {
     );
 }
 
+function drawDungeonRoka() {
+    if (!rokaImagesReady || !readMemory) return;
+    const colorIdx = readU8(ADDR_ROKA_COLOR);
+    const phase = readU8(ADDR_ROKA_PHASE);
+    const facingLeft = (readU8(ADDR_FACING) & 1) !== 0;
+    const leftRun = readU8(ADDR_LEFT_RUN) !== 0;
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
+    if (rokaImg) {
+        ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
+    }
+
+    const t = phase / 25;
+    const heroW = DUNGEON_HERO_FRAME_W;
+    let dx;
+    if (leftRun) {
+        dx = Math.round((1 - t) * (canvas.width - heroW) + t * (canvas.width / 2 - heroW / 2));
+    } else {
+        dx = Math.round((1 - t) * (-heroW / 2) + t * (canvas.width / 2 - heroW / 2));
+    }
+    const headY = readU8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT) || 4;
+    const dy = headY * TILE_HEIGHT;
+
+    const animPhase = readU8(ADDR_HERO_ANIM_PHASE);
+    const state = {
+        facingLeft,
+        animPhase,
+        invincible: false,
+        squat: false,
+        onRope: false,
+        hidden: false,
+        jump: 0,
+        shieldAnimActive: false,
+        shieldPhase: 0,
+        shieldVariant: 0,
+        slope: 0,
+        shieldCategory: 0,
+    };
+    const frame = resolveBodyFrame(state);
+    drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
+        DUNGEON_HERO_SHEET_COLS, dx, dy);
+}
+
 // ─── Town transition ──────────────────────────────────────────────────────────
 let townTransitionInProgress = false;
 async function handleTownTransition(transition) {
@@ -1476,6 +1552,7 @@ async function handleDungeonTransition(mapId) {
         } else {
             setDungeonSwordReach(SWORD_REACH_LARGE);
         }
+        await loadRokaImages();
         dungeonInit?.(rawMapId); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
@@ -2277,15 +2354,24 @@ function draw() {
         renderMagicHud();
         renderShieldHud();
     } else if (gameMode === 'dungeon') {
-        const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
-        if (shouldRender) {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            drawDungeonTiles();
-            drawDungeonEntities();
-            drawDungeonHero();
-            drawDungeonSword();
-            dungeonClearRenderRequest?.();
+        const dungeonState = readU8(ADDR_DUNGEON_STATE);
+        if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
+            const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
+            if (shouldRender) {
+                drawDungeonRoka();
+                dungeonClearRenderRequest?.();
+            }
+        } else {
+            const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
+            if (shouldRender) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                drawDungeonTiles();
+                drawDungeonEntities();
+                drawDungeonHero();
+                drawDungeonSword();
+                dungeonClearRenderRequest?.();
+            }
         }
         // HUD is drawn later (outside this branch)
     } else { // town outdoor mode

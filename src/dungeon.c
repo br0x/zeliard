@@ -998,9 +998,9 @@ void hero_left_16_down_1()
         MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT)) & 0x3F;
 }
 
-// stub. Should be rendered by js
 void Render_Roca_Tilemap(uint8_t color_idx)
 {
+    MEM8(ADDR_ROKA_COLOR) = color_idx;
 }
 
 // Checked
@@ -1556,7 +1556,9 @@ void wasm_dungeon_init(uint8_t map_id) {
     prepare_dungeon();
 
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
-    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+    if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN) {
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+    }
     MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
     MEM8(ADDR_RENDER_REQUEST) = 0xFF;
     MEM8(ADDR_RENDER_DONE) = 0;
@@ -1590,50 +1592,47 @@ void prepare_dungeon()
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
     Render_Roca_Tilemap(0); // when entering the dungeon from town, always show roka_cyan background
     uint8_t map_id = MEM8(ADDR_PLACE_MAP_ID);
-    if (map_id & 0x80 == 0) {
+    if ((map_id & 0x80) == 0) {
         remove_accomplished_items();
     }
     roka_run();
-    after_run_animation();
+    // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
 }
 
 void roka_run()
 {
-    // Animate hero running into the new map
+    MEM8(ADDR_ROKA_PHASE) = 0;
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_ROKA_RUN;
     if (MEM8(ADDR_LEFT_RUN)) {
-        // run to the left
-        MEM8(ADDR_FACING) |= LEFT;   // face left
-        uint16_t bx = 0x406E; // x=40h*4=48+224-16, y=6Eh = 14+(8*12), that is 12 tiles from the top of the viewport
-        // hero starts with his right tiles outside the viewport, 2 columns visible
-        for (int i = 0; i < 26; i++) {
-            MEM8(ADDR_HERO_ANIM_PHASE)++;
-            // Update_Local_Attribute_Cache_proc();
-            // Calculate_Tile_VRAM_Address_proc(bx - 2);
-            // bx += 2;
-            // sleep_loop_handle_system_keys();
-            // Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0); // clears area
-        }
-        // Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+        MEM8(ADDR_FACING) |= LEFT;
     } else {
-        // run to the right
-        MEM8(ADDR_FACING) &= ~LEFT;  // face right
-        uint16_t bx = 0xA6E; // x=0Ah*4=48-8, y=6Eh = 14+(8*12), that is 12 tiles from the top of the viewport
-        // hero starts with his left tiles outside the viewport, 2 columns visible
-        for (int i = 0; i < 26; i++) {
-            MEM8(ADDR_HERO_ANIM_PHASE)++;
-            // Update_Local_Attribute_Cache_proc();
-            // Calculate_Tile_VRAM_Address_proc(bx + 2);
-            // bx += 2;
-            // sleep_loop_handle_system_keys();
-            // Draw_Bordered_Rectangle_proc(0x218, 0, 0, 0, 0);
-        }
-        // Draw_Bordered_Rectangle_proc(0x618, 0, 0, 0, 0);
+        MEM8(ADDR_FACING) &= ~LEFT;
     }
+}
+
+static void dungeon_update_roka_run(void)
+{
+    uint8_t phase = MEM8(ADDR_ROKA_PHASE);
+    if (phase >= 26) {
+        after_run_animation();
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+        MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
+        MEM8(ADDR_RENDER_REQUEST) = 0xFF;
+        MEM8(ADDR_RENDER_DONE) = 0;
+        return;
+    }
+    MEM8(ADDR_ROKA_PHASE) = phase + 1;
+    MEM8(ADDR_HERO_ANIM_PHASE)++;
+    MEM8(ADDR_RENDER_DONE) = 0;
+    MEM8(ADDR_RENDER_REQUEST) = 0xFF;
 }
 
 void wasm_dungeon_update(void)
 {
     switch (MEM8(ADDR_DUNGEON_STATE)) {
+    case DUNGEON_STATE_ROKA_RUN:
+        dungeon_update_roka_run();
+        break;
     case DUNGEON_STATE_ROPE:
         dungeon_update_rope();
         break;
@@ -3985,10 +3984,11 @@ void enter_opened_door(uint16_t si)
                                         // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
         // load_resource('fman.grp', fman_gfx);
         // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
+        after_run_animation();
     } else {
         roka_run();
+        // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
     }
-    after_run_animation();
 }
 
 // Final dungeon or town setup
