@@ -211,7 +211,7 @@ falter_items                equ   45h   ; +128 - Travel back to Dorado Town usin
                                         ; +16 - Key (Final)
 is_death_already_processed  equ   49h   ; 
 hero_invincibility          equ   7fh   ; 
-proximity_map_left_col_x    equ   80h   ; Proximity map is centered around hero, width=36
+proximity_map_left_col_x    equ   80h   ; word. Proximity map is centered around hero, width=36
 viewport_top_row_y          equ   82h   ; ...
 hero_x_in_viewport          equ   83h   ; byte
 hero_head_y_in_viewport     equ   84h   ; ...

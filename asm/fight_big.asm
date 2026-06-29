@@ -417,7 +417,7 @@ loc_62C5:
 no_down_pressed: 
                 call    airborne_movement
                 call    state_machine_dispatcher
-                retn                    ; jumps to main_loop or returns, if airborne_movement popped the return address
+                retn                    ; to main_loop or returns, if airborne_movement popped the return address
 ; ---------------------------------------------------------------------------
 
 over_rope:       
@@ -581,12 +581,11 @@ loc_63E2:
 ; ---------------------------------------------------------------------------
 loc_63EA:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                mov     al, [si] ; [0e10ch]=58h
+                call    is_non_blocking_tile ; ZF if can pass; 58h -> ZF, NC
                 jnz     short loc_63F5
                 retn    ; hero's top left can't be here: skip
 ; ---------------------------------------------------------------------------
-
 loc_63F5:        
                 inc     si
                 inc     si      ; si = hero top-right coord
@@ -595,7 +594,6 @@ loc_63F5:
                 jnz     short loc_63FF
                 retn    ; hero's top right can't be here: skip
 ; ---------------------------------------------------------------------------
-
 loc_63FF:        
                 add     si, 36  ; hero mid right coord
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
@@ -604,7 +602,6 @@ loc_63FF:
                 jz      short loc_640F
                 jmp     hero_moves_left
 ; ---------------------------------------------------------------------------
-
 loc_640F:        
                 jmp     hero_moves_right
 hero_interaction_check endp
@@ -825,7 +822,6 @@ init_horizontal_sliding endp
 
 
 ; ===========================================================================
-; up_pressed
 ; Handles UP direction (no left/right).
 ; Tries (in order):
 ;   1. try_door_interaction — check for a door tile above hero
@@ -855,9 +851,9 @@ up_pressed:
 ; ===========================================================================
 jump_press_handler proc near  
                 inc     ds:slide_ticks_remaining
-                cmp     ds:slide_ticks_remaining, 0Ah
+                cmp     ds:slide_ticks_remaining, 10
                 jb      short loc_6555
-                mov     ds:slide_ticks_remaining, 0Ah
+                mov     ds:slide_ticks_remaining, 10
 
 loc_6555:        
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
@@ -2544,7 +2540,7 @@ is_non_blocking_tile proc near
                 cmp     al, 40h
                 jb      short lookup_shared
                 cmp     al, al
-                retn                    ; NZ: can't pass
+                retn                    ; ZF: can pass
 is_non_blocking_tile endp
 
 
@@ -2555,7 +2551,7 @@ is_non_blocking_tile_extended proc near
                 cmp     al, 49h ; doors
                 jb      short lookup_shared
                 cmp     al, al
-                retn
+                retn                    ; ZF: can pass
 ; ---------------------------------------------------------------------------
 
 lookup_shared:   
@@ -2595,7 +2591,7 @@ is_non_blocking_tile_extended endp
 is_non_blocking_tile_simple proc near
                 cmp     al, 49h        ; =4
                 jb      short loc_6E22 ; v
-                cmp     al, al ; set NZ
+                cmp     al, al         ; ZF: can pass
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -4194,10 +4190,10 @@ loc_791D:
                 sub     cl, 4
                 xor     ch, ch
                 add     di, cx
-                mov     si, offset byte_79C8
+                mov     si, offset opened_door_tiles
                 test    ds:[bp+door.d_flags], 80h
                 jnz     short loc_7951
-                mov     si, offset byte_79B4
+                mov     si, offset closed_door_tiles
                 jmp     short loc_7951
 ; ---------------------------------------------------------------------------
 
@@ -4207,10 +4203,10 @@ loc_7933:
 ; ---------------------------------------------------------------------------
 
 loc_7938:        
-                mov     si, offset byte_79C8
+                mov     si, offset opened_door_tiles
                 test    ds:[bp+door.d_flags], 80h
                 jnz     short loc_7945
-                mov     si, offset byte_79B4
+                mov     si, offset closed_door_tiles
 
 loc_7945:        
                 mov     al, bl
@@ -4256,8 +4252,6 @@ move_if_dst_high_bit_zero proc near
                 test    byte ptr [di], 80h
                 jz      short loc_797C
                 retn
-; ---------------------------------------------------------------------------
-
 loc_797C:        
                 mov     dl, [si]
                 mov     [di], dl
@@ -4268,7 +4262,7 @@ move_if_dst_high_bit_zero endp
 ; =============== S U B R O U T I N E =======================================
 
 
-calc_object_viewport_x_offset proc near ; ...
+calc_object_viewport_x_offset proc near
                 add     ax, 3           ; platform.x+3
                 push    ax
                 sub     ax, ds:mapWidth ; ax=platform.x+3-mapWidth
@@ -4306,9 +4300,9 @@ loc_79A4:
 calc_object_viewport_x_offset endp
 
 ; ---------------------------------------------------------------------------
-byte_79B4       db 49h, 4Ah   
+closed_door_tiles       db 49h, 4Ah   
 byte_79B6       db 61h, 4Bh, 4Ch, 4Dh, 4Fh, 50h, 51h, 4Eh, 5Fh, 52h, 53h, 54h, 60h, 5Fh, 55h, 56h, 57h, 60h
-byte_79C8       db 49h, 4Ah   
+opened_door_tiles       db 49h, 4Ah   
 byte_79CA       db 61h, 4Bh, 4Ch, 4Dh, 58h, 0, 59h, 4Eh, 5Fh, 5Ah, 0, 5Bh, 60h, 5Fh, 5Ch, 5Dh, 5Eh, 60h
 
 ; =============== S U B R O U T I N E =======================================
@@ -4574,7 +4568,7 @@ loc_7C02:
                 mov     byte ptr ds:projectiles_array, 0FFh
                 test    ds:door_features, 80h
                 jz      short roka_run
-                ; load cavern
+                ; after defeating the boss, play 'RokaDemo' animation
                 mov     si, offset rokademo_bin
                 push    cs
                 pop     es
@@ -4582,6 +4576,7 @@ loc_7C02:
                 mov     al, 3           ; fn3_read_virtual_file
                 call    cs:res_dispatcher_proc
                 call    cs:roca_entrypoint
+                ; then load the cavern
                 mov     ds:enp_grp_index, 0FFh
                 mov     ds:eai_bin_index, 0FFh
                 mov     al, ds:msd_index
@@ -4611,7 +4606,7 @@ roka_run:
                 jnz     short run_to_the_left
                 and     byte ptr ds:facing_direction, 11111110b 
 ; run to the right
-                mov     bx, 0A6Eh
+                mov     bx, 0A6Eh ; x=0Ah*4=48-8, y=6Eh; => hero starts with his left tile column hidden, 2 columns visible
                 mov     cx, 26          ; 26 steps to animate
 
 loc_7C80:        
@@ -4640,7 +4635,7 @@ loc_7C80:
 
 run_to_the_left:     
                 or      byte ptr ds:facing_direction, 1
-                mov     bx, 406Eh
+                mov     bx, 406Eh ; x=40h*4=48+224-16, y=6Eh; => hero starts with his right tile column hidden, 2 columns visible
                 mov     cx, 26          ; 26 steps to animate
 
 loc_7CBF:        

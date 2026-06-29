@@ -2535,18 +2535,20 @@ CalculateSpriteBitmask endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Calculate_Tile_VRAM_Address proc near   ; ...
+; Input:
+;   BH = x_in_4px_units
+;   BL = y
+Calculate_Tile_VRAM_Address proc near
                 xor     ax, ax
-                mov     al, bh
-                mov     bh, ah
-                push    ax
-                mov     ax, 140h
-                mul     bx
+                mov     al, bh ; ax=x
+                mov     bh, ah ; 0
+                push    ax     ; x
+                mov     ax, 320
+                mul     bx     ; ax=320*y
                 pop     di
                 add     di, di
                 add     di, di
-                add     di, ax
+                add     di, ax ; 320*y + 4*x
                 mov     ds:hero_vram_base, di
                 jmp     short loc_40FD
 Calculate_Tile_VRAM_Address endp

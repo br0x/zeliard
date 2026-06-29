@@ -999,7 +999,7 @@ void hero_left_16_down_1()
 }
 
 // stub. Should be rendered by js
-void Render_Roca_Tilemap_proc()
+void Render_Roca_Tilemap(uint8_t color_idx)
 {
 }
 
@@ -1211,13 +1211,13 @@ void try_climb_rope()
 // Checked
 uint8_t is_non_blocking_tile(uint8_t tile)
 {
-    return (tile < 0x40) ? lookup_shared(tile) : tile;
+    return (tile < 0x40) ? lookup_shared(tile) : 0;
 }
 
 // Checked
 static uint8_t is_non_blocking_tile_extended(uint8_t tile) 
 {
-    return (tile < 0x49) ? lookup_shared(tile) : tile;
+    return (tile < 0x49) ? lookup_shared(tile) : 0;
 }
 
 // Original returns ZF if non-blocking, we will check for 0 on caller side
@@ -1232,7 +1232,7 @@ static uint8_t is_non_blocking_tile_simple(uint8_t tile)
         }
         return (tile & 0x80) != 0x80;
     } else {
-        return tile;
+        return 0;
     }
 }
 
@@ -1522,6 +1522,9 @@ void every_projectile_moves_right_in_viewport()
 
 }
 
+// 1.2
+// ..3
+// ...
 // Checked
 void hero_interaction_check(void)
 {
@@ -1585,7 +1588,7 @@ void prepare_dungeon()
     Clear_Viewport_proc();
     // res_dispatcher_proc("roka.grp", 0x18000);
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
-    Render_Roca_Tilemap_proc(0);
+    Render_Roca_Tilemap(0); // when entering the dungeon from town, always show roka_cyan background
     uint8_t map_id = MEM8(ADDR_PLACE_MAP_ID);
     if (map_id & 0x80 == 0) {
         remove_accomplished_items();
@@ -1600,7 +1603,8 @@ void roka_run()
     if (MEM8(ADDR_LEFT_RUN)) {
         // run to the left
         MEM8(ADDR_FACING) |= LEFT;   // face left
-        uint16_t bx = 0x406E;     // starting screen X
+        uint16_t bx = 0x406E; // x=40h*4=48+224-16, y=6Eh = 14+(8*12), that is 12 tiles from the top of the viewport
+        // hero starts with his right tiles outside the viewport, 2 columns visible
         for (int i = 0; i < 26; i++) {
             MEM8(ADDR_HERO_ANIM_PHASE)++;
             // Update_Local_Attribute_Cache_proc();
@@ -1613,7 +1617,8 @@ void roka_run()
     } else {
         // run to the right
         MEM8(ADDR_FACING) &= ~LEFT;  // face right
-        uint16_t bx = 0xA6E;
+        uint16_t bx = 0xA6E; // x=0Ah*4=48-8, y=6Eh = 14+(8*12), that is 12 tiles from the top of the viewport
+        // hero starts with his left tiles outside the viewport, 2 columns visible
         for (int i = 0; i < 26; i++) {
             MEM8(ADDR_HERO_ANIM_PHASE)++;
             // Update_Local_Attribute_Cache_proc();
@@ -1721,10 +1726,131 @@ void render_vertical_platforms_to_proximity(void) {}
 // stub
 void process_visible_collapsing_platforms(void) {}
 
-// stub
+/* 
+ *
+ *  - `calc_object_viewport_x_offset` originally returns its *useful*
+ *    result in BX (the on-screen column, later read back as BL), with
+ *    AX/CF only used to flag "off the visible 36(+3)-wide window".
+ *    I algebraically collapsed the push/pop/xchg shuffling down to the
+ *    three cases the comments in the original code already spell out;
+ *    the result matches each documented "ax=..." comment exactly.
+ */
+
+/* 4 rows x 5 columns of tile indices, selected by door "color" (bits 0-2
+ * of d_flags). Byte [2] of each row-0 is patched at runtime with the
+ * door's actual color tile before use. */
+static uint8_t closed_door_tiles[20] = {
+    0x49, 0x4A, 0x61, 0x4B, 0x4C,
+    0x4D, 0x4F, 0x50, 0x51, 0x4E,
+    0x5F, 0x52, 0x53, 0x54, 0x60,
+    0x5F, 0x55, 0x56, 0x57, 0x60
+};
+
+static uint8_t opened_door_tiles[20] = {
+    0x49, 0x4A, 0x61, 0x4B, 0x4C,
+    0x4D, 0x58, 0x00, 0x59, 0x4E,
+    0x5F, 0x5A, 0x00, 0x5B, 0x60,
+    0x5F, 0x5C, 0x5D, 0x5E, 0x60
+};
+
+/* 
+ * Computes the door's on-screen column (0..39 visible range) within the
+ * 36(+3)-wide viewport, handling a single horizontal map wrap.
+ * `offscreen` mirrors the original carry flag.
+ */
+
+static uint8_t calc_object_viewport_x_offset(uint16_t x, uint16_t *col)
+{
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    uint16_t x3  = x + 3;
+    uint16_t x3n = (x3 >= mapWidth) ? (uint16_t)(x3 - mapWidth) : x3;
+    uint8_t  cf;
+    uint16_t prox_left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+
+    if (x3n >= prox_left) {
+        /* normal case: object is at/right of the viewport's left edge */
+        *col = (uint16_t)(x3n - prox_left);
+        return (col < 39);
+    }
+
+    /* x3n < proximity_map_left_col_x: possibly off the left edge, or the
+     * map wraps around so x3n itself is already a valid column */
+    if (x3n <= 39) {
+        *col = (uint16_t)(mapWidth - prox_left + x3n);
+        return (col > 39);
+    }
+    *col = x3n;
+    return 0xFF;   /* off-screen */
+}
+
+
+/* 
+ * Only overwrite the destination tile if it isn't already "occupied"
+ * (high bit set == something else already drawn there).
+ */
+static void move_if_dst_high_bit_zero(uint16_t dst, const uint8_t *src)
+{
+    if ((MEM8(dst) & 0x80) == 0)
+        MEM8(dst) = *src;
+}
+
 void process_doors(void)
 {
+    uint16_t door = MEM16(ADDR_DOORS_LIST);
 
+    for (;;) {
+        uint16_t x0 = MEM16(door+0);
+        if (x0 == 0xFFFF)      /* end-of-list marker */
+            return;
+
+        uint16_t vp_col;
+        uint8_t vp_offscreen = calc_object_viewport_x_offset(x0, &vp_col);
+
+        if (!vp_offscreen) {
+            uint8_t d_flags = MEM8(door+3);
+            uint8_t door_color = (uint8_t)((d_flags & 7) + 0x61);
+            closed_door_tiles[2] = door_color;
+            opened_door_tiles[2] = door_color;
+
+            uint16_t di = coords_to_prox_addr(0, MEM8(door+2));
+            uint8_t  door_col = (uint8_t)vp_col;
+            uint8_t  is_open  = (d_flags & 0x80) != 0;
+            uint8_t *si;
+            uint8_t  col_count;
+
+            if (door_col >= 4) {
+                /* door's left edge is fully on screen; clip its right
+                 * edge against the right side of the viewport instead */
+                col_count = (uint8_t)(40 - door_col);
+                if (col_count > 5)
+                    col_count = 5;
+                di += (door_col - 4);
+                si = is_open ? opened_door_tiles : closed_door_tiles;
+            } else {
+                /* door's left edge is clipped off the left side of the
+                 * viewport; start partway into the tile row instead */
+                si = is_open ? opened_door_tiles : closed_door_tiles;
+                si += (4 - door_col);
+                col_count = (uint8_t)(door_col + 1);
+            }
+
+            for (int row = 0; row < 4; row++) {
+                uint16_t orig_di = di;       // save row‑start destination
+                uint8_t *orig_si = si;       // save row‑start source
+
+                for (int col = 0; col < col_count; col++) {
+                    move_if_dst_high_bit_zero(di, si);
+                    di++;
+                    si++;
+                }
+                di = orig_di + 36;           // next row, same column
+                wrap_map_from_above(&di);
+                si = orig_si + 5;            // advance source by one tile row
+            }
+        }
+
+        door += 12;
+    }
 }
 
 // stub
@@ -3706,6 +3832,7 @@ void try_door_interaction(uint8_t *should_break)
 
     si++;
     if (MEM8(si) == 0x4A) {
+        // centered on the door
         enter_the_door(should_break);
         return;
     }
@@ -3803,7 +3930,7 @@ void enter_opened_door(uint16_t si)
     MEM16(monsters_ptr) = 0xFFFF; // empty monster list
 
     uint8_t door_flags = MEM8(si + 3); // d_flags
-    uint8_t door_type = door_flags & 7;
+    uint8_t roka_color = door_flags & 7;
     uint16_t x1 = MEM16(si + 5);
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
     uint8_t y1 = MEM8(si + 7);
@@ -3833,30 +3960,12 @@ void enter_opened_door(uint16_t si)
     uint16_t mdt_descr = MEM16(ADDR_MDT);
     uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
     if ((mdt_desc0 & 1) == 0) {
-        // load RocaDemo graphics
-        // if (mdt_desc & 2) {
-        //     // Load vfs_roka_grp_2 (town set 2)
-        //     load_resource('roka.grp', packed_tile_ptr);
-        // } else {
-        //     // Load vfs_roka_grp_1 (town set 1)
-        //     load_resource('roka.grp', packed_tile_ptr);
-        // }
-        // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
-        Render_Roca_Tilemap_proc(door_type);
-        // set mman_grp_index = 0xFF, byte_FF24 = 0x0A
+        Render_Roca_Tilemap(roka_color);
         MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
         MEM8(ADDR_BYTE_FF24) = 10;
     } else {
-        // // Dungeon map – load proper graphics
-        // if (mdt_desc & 2) {
-        //     load_resource('roka.grp', packed_tile_ptr);
-        // } else {
-        //     load_resource('roka.grp', packed_tile_ptr);
-        // }
-        // Reassemble_3_Planes_To_Packed_Bitmap_proc(packed_tile_ptr, 0x80);
-        Render_Roca_Tilemap_proc(door_type);
-        process_mdt_descriptor(mdt_desc0, mdt_descr + 1); // AL: mdt_descriptor.b7b6_msd_idx_b0
-                                           // SI: &mdt_descriptor+1
+        Render_Roca_Tilemap(roka_color);
+        process_mdt_descriptor(mdt_desc0, mdt_descr + 1);
     }
 
     // Clear hero hidden flag

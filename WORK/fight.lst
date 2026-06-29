@@ -3757,10 +3757,10 @@ fight:791D loc_791D:                               ; ...
 fight:791D                 sub     cl, 4
 fight:7920                 xor     ch, ch
 fight:7922                 add     di, cx
-fight:7924                 mov     si, offset byte_79C8
+fight:7924                 mov     si, offset opened_door_tiles
 fight:7927                 test    ds:[bp+door.d_flags], 80h
 fight:792C                 jnz     short loc_7951
-fight:792E                 mov     si, offset byte_79B4
+fight:792E                 mov     si, offset closed_door_tiles
 fight:7931                 jmp     short loc_7951
 fight:7933 ; ---------------------------------------------------------------------------
 fight:7933
@@ -3770,10 +3770,10 @@ fight:7936                 jmp     short next_door
 fight:7938 ; ---------------------------------------------------------------------------
 fight:7938
 fight:7938 loc_7938:                               ; ...
-fight:7938                 mov     si, offset byte_79C8
+fight:7938                 mov     si, offset opened_door_tiles
 fight:793B                 test    ds:[bp+door.d_flags], 80h
 fight:7940                 jnz     short loc_7945
-fight:7942                 mov     si, offset byte_79B4
+fight:7942                 mov     si, offset closed_door_tiles
 fight:7945
 fight:7945 loc_7945:                               ; ...
 fight:7945                 mov     al, bl
@@ -3815,13 +3815,13 @@ fight:7976
 fight:7976 ; =============== S U B R O U T I N E =======================================
 fight:7976
 fight:7976
-fight:7976 move_if_dst_high_bit_zero proc near     ; ...
+fight:7976 move_if_dst_high_bit_zero proc near
 fight:7976                 test    byte ptr [di], 80h
 fight:7979                 jz      short loc_797C
 fight:797B                 retn
 fight:797C ; ---------------------------------------------------------------------------
 fight:797C
-fight:797C loc_797C:                               ; ...
+fight:797C loc_797C:
 fight:797C                 mov     dl, [si]
 fight:797E                 mov     [di], dl
 fight:7980                 retn
@@ -3869,9 +3869,9 @@ fight:79B3                 retn
 fight:79B3 calc_object_viewport_x_offset endp
 fight:79B3
 fight:79B3 ; ---------------------------------------------------------------------------
-fight:79B4 byte_79B4       db 49h, 4Ah             ; ...
+fight:79B4 closed_door_tiles       db 49h, 4Ah             ; ...
 fight:79B6 byte_79B6       db 61h, 4Bh, 4Ch, 4Dh, 4Fh, 50h, 51h, 4Eh, 5Fh, 52h, 53h, 54h, 60h, 5Fh, 55h, 56h, 57h, 60h ; ...
-fight:79C8 byte_79C8       db 49h, 4Ah             ; ...
+fight:79C8 opened_door_tiles       db 49h, 4Ah             ; ...
 fight:79CA byte_79CA       db 61h, 4Bh, 4Ch, 4Dh, 58h, 0, 59h, 4Eh, 5Fh, 5Ah, 0, 5Bh, 60h, 5Fh, 5Ch, 5Dh, 5Eh, 60h ; ...
 fight:79DC
 fight:79DC ; =============== S U B R O U T I N E =======================================

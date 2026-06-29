@@ -42,10 +42,10 @@ loc_791D:
                 sub     cl, 4
                 xor     ch, ch
                 add     di, cx
-                mov     si, offset byte_79C8
+                mov     si, offset opened_door_tiles
                 test    ds:[bp+door.d_flags], 80h
                 jnz     short loc_7951
-                mov     si, offset byte_79B4
+                mov     si, offset closed_door_tiles
                 jmp     short loc_7951
 ; ---------------------------------------------------------------------------
 
@@ -55,10 +55,10 @@ loc_7933:
 ; ---------------------------------------------------------------------------
 
 loc_7938:        
-                mov     si, offset byte_79C8
+                mov     si, offset opened_door_tiles
                 test    ds:[bp+door.d_flags], 80h
                 jnz     short loc_7945
-                mov     si, offset byte_79B4
+                mov     si, offset closed_door_tiles
 
 loc_7945:        
                 mov     al, bl
@@ -154,9 +154,9 @@ loc_79A4:
 calc_object_viewport_x_offset endp
 
 ; ---------------------------------------------------------------------------
-byte_79B4       db 49h, 4Ah   
+closed_door_tiles       db 49h, 4Ah   
 byte_79B6       db 61h, 4Bh, 4Ch, 4Dh, 4Fh, 50h, 51h, 4Eh, 5Fh, 52h, 53h, 54h, 60h, 5Fh, 55h, 56h, 57h, 60h
-byte_79C8       db 49h, 4Ah   
+opened_door_tiles       db 49h, 4Ah   
 byte_79CA       db 61h, 4Bh, 4Ch, 4Dh, 58h, 0, 59h, 4Eh, 5Fh, 5Ah, 0, 5Bh, 60h, 5Fh, 5Ch, 5Dh, 5Eh, 60h
 
 ; =============== S U B R O U T I N E =======================================
