@@ -2325,9 +2325,6 @@ function update() {
 }
 
 function draw() {
-    ctx.fillStyle = '#05053f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     if (!engineReady) { // emergency fallback
         drawLifeBar();
         updatePlaceHud('');
@@ -2375,6 +2372,8 @@ function draw() {
         }
         // HUD is drawn later (outside this branch)
     } else { // town outdoor mode
+        ctx.fillStyle = '#05053f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         drawTownBackground();
         drawTownSidewalk();
         if (townBackgroundType) 
