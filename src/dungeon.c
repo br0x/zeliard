@@ -1615,7 +1615,7 @@ static void dungeon_update_roka_run(void)
     // Pace the animation: only advance one phase every 8 full ticks (~33ms per step,
     // total animation ~0.88s). ADDR_FRAME_TIMER is incremented by dungeonFullTick
     // once per full tick before this function runs.
-    if ((MEM8(ADDR_FRAME_TIMER) & 15) != 0) {
+    if ((MEM8(ADDR_FRAME_TIMER) & 7) != 0) {
         return;
     }
     uint8_t phase = MEM8(ADDR_ROKA_PHASE);
@@ -1659,7 +1659,7 @@ void wasm_dungeon_full_tick(void)
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_VIEWPORT_TOP_ROW); }
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
-uint8_t wasm_dungeon_get_exit_map(void) { return 0; }
+uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_PLACE_MAP_ID); }
 uint8_t wasm_dungeon_get_state(void) { return MEM8(ADDR_DUNGEON_STATE); }
 uint8_t wasm_dungeon_get_render_request(void) { return MEM8(ADDR_RENDER_REQUEST); }
 void wasm_dungeon_clear_render_request(void) {
@@ -4001,10 +4001,17 @@ void enter_opened_door(uint16_t si)
 // Checked
 void after_run_animation()
 {
-    uint16_t mdt_descr = MEM16(ADDR_MDT);
-    uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
-    if (mdt_desc0 & 1) { // 0 ? town : dungeon
+    // Can't use ADDR_MDT here — load_mdt is a stub, so MDT data is still
+    // the old dungeon's. Use ADDR_PLACE_MAP_ID instead, which was set
+    // correctly from the door struct in enter_opened_door.
+    if (MEM8(ADDR_PLACE_MAP_ID) & 0x80) {
+        // town — signal game.js to init town entry
+        MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0xFF;
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
+    } else {
         // dungeon
+        uint16_t mdt_descr = MEM16(ADDR_MDT);
+        uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
         load_cavern_sprites_ai_music(); // load dchr.grp, mpp{mpp_grp_index}.grp, eai{eai_bin_index}.bin, 
                                         // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
         MEM8(ADDR_IS_BOSS_CAVERN) = (mdt_desc0 & 0x80) ? 0xFF : 0;
@@ -4021,26 +4028,8 @@ void after_run_animation()
         Load_Magic_Spell_Sprite_Group_proc(); // Reads corresponding sprite group fron seg2:0 buffer to seg1:9350h
                                               // Output: Loads sprite sheet for current_magic_spell
                                               // DS:SI -> seg1:9350h buffer
-        Reassemble_3_Planes_To_Packed_Bitmap_proc(0/* magic sprite data */ , 24);
+        Reassemble_3_Planes_To_Packed_Bitmap_proc(0/* magic sprite data */, 24);
         Cavern_Game_Init();
-    } else {
-        // town
-        uint8_t idx = MEM8(mdt_descr + 1);
-        static char * groups[] = { "mman.grp", "cman.grp" };
-        load_resource(groups[idx], 0x4000);
-        // Transfer to town code
-        // stop the music: implement me
-        uint16_t x;
-        uint8_t y;
-        edge_locking_scrolling_window(&x, &y);  // returns proximity_map_left_col_x and hero_x_in_viewport
-        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = x;
-        MEM8(ADDR_HERO_X_VIEW) = y;
-        uint8_t msd_idx = (mdt_desc0 >> 1) & 0x1F; // b7b6_msd_idx_b0
-        MEM8(ADDR_MSD_INDEX) = msd_idx;
-        static char * musics[] = { "mgt1.msd", "ugm1.msd", "mgt2.msd", "ugm2.msd" };
-        load_resource(musics[msd_idx], 0x3000);   // load music
-        // fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-        swap_to_town_graphics_and_jump(0);
     }
 }
 
