@@ -649,7 +649,6 @@ Add these new exported functions to `Makefile`:
 ```
 "_wasm_dungeon_get_frame_phase",
 "_wasm_dungeon_get_state",
-"_wasm_dungeon_set_input_dirs",
 "_wasm_dungeon_get_render_request",
 "_wasm_dungeon_clear_render_request",
 "_wasm_dungeon_get_exit_map_id",

@@ -1360,10 +1360,6 @@ export function dungeonGetExitMapId() {
     return wasmExports?.wasm_dungeon_get_exit_map_id?.() ?? dungeonGetExitMap();
 }
 
-export function dungeonSetInputDirs(dirs) {
-    wasmExports?.wasm_dungeon_set_input_dirs?.(dirs & 0xFF);
-}
-
 // Offsets inside segment 1
 const REACH_TABLE_OFFSET = 0xB002;  // 14 pointers (28 bytes) 0xB002..0xB01D
 const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)

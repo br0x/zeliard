@@ -1657,7 +1657,6 @@ void wasm_dungeon_clear_render_request(void) {
     MEM8(ADDR_RENDER_DONE) = 0xFF;
 }
 uint8_t wasm_dungeon_get_exit_map_id(void) { return wasm_dungeon_get_exit_map(); }
-void wasm_dungeon_set_input_dirs(uint8_t dirs) { MEM8(ADDR_INPUT_DIRS) = dirs; }
 
 // Checked
 int8_t set_zero_flag_if_slippery(void) {
