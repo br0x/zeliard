@@ -2221,6 +2221,7 @@ async function performGameRestore(saveData) {
     const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
     if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
 
+    gameMode = 'town';
     engineReady = true;
     gamePaused = false;
 
