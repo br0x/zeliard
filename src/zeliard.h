@@ -847,6 +847,7 @@ void Flush_Ui_Element_If_Dirty_proc();
 void Clear_Viewport_proc();
 void Load_Magic_Spell_Sprite_Group_proc();
 void Reassemble_3_Planes_To_Packed_Bitmap_proc(uint32_t ptr, uint8_t num_tiles);
+void Render_Sword_Overlay();
 
 // Collision Detection wrappers for MonsterEntry
 int check_collision_E2_monster(Monster* m);

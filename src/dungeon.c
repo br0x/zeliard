@@ -618,7 +618,7 @@ void apply_sword_hit_to_map_tiles()
     uint16_t idx = result & 0xFE; // zero‑extend to 16‑bit
 
     // Get the selected reachability list pointer
-    uint16_t reach_table = MEM16_1(ADDR_REACH_TABLE_SEG1);
+    uint16_t reach_table = ADDR_REACH_TABLE_SEG1;
     uint16_t list_off = MEM16_1(reach_table + idx); // 0xBxxx
 
     /* Walk the byte list */
@@ -1745,9 +1745,6 @@ void projectiles_collision_processing(void) {}
 
 // stub
 void monsters_updates(void) {}
-
-// stub
-void Render_Sword_Overlay_proc(void) {}
 
 // stub
 void step_on_aggressive_ground(void) {}
@@ -3354,7 +3351,7 @@ static uint8_t main_update_render_pre(void) {
     Flush_Ui_Element_If_Dirty_proc(); // request canvas redraw, todo
     projectiles_collision_processing();
     monsters_updates();
-    Render_Sword_Overlay_proc();
+    Render_Sword_Overlay();
     step_on_aggressive_ground();
 
     if (MEM8(ADDR_CAVERN_LEVEL) == 7 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_ASBESTOS_CAPE) { // heat damage
@@ -3453,7 +3450,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
         render_and_collision_pass_row();
         update_active_projectiles_render();
         apply_sword_hit_to_map_tiles();
-        Render_Sword_Overlay_proc();
+        Render_Sword_Overlay();
 
         MEM8(ADDR_RENDER_DONE) = 0;
         MEM8(ADDR_RENDER_REQUEST) = 0xFF;

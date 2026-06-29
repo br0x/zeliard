@@ -770,7 +770,8 @@ static void CalculateSpriteBitmask(uint16_t *ax_ptr, uint16_t *bp_out, uint16_t 
     *dx_out = dx;
 }
 
-void Render_Sword_Overlay(void)
+// TODO: rendering should be handled by js
+void Render_Sword_Overlay()
 {
     if (!MEM8(ADDR_SWORD_SWING_FLAG)) {
         return;
