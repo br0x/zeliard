@@ -1192,8 +1192,6 @@ function drawDungeonTiles() {
                 drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
             } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
                 drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
-            } else {
-                console.warn(`Unknown tile ID ${tileId} at ${row},${col}`);
             }
         }
     }
@@ -1420,6 +1418,8 @@ function drawDungeonSword() {
     );
 }
 
+let prevRokaDx = -1;
+
 function drawDungeonRoka() {
     if (!rokaImagesReady || !readMemory) return;
     const colorIdx = readU8(ADDR_ROKA_COLOR);
@@ -1428,16 +1428,17 @@ function drawDungeonRoka() {
     const animPhase = readU8(ADDR_HERO_ANIM_PHASE);
     const leftRun = readU8(ADDR_LEFT_RUN) !== 0;
     const invincible = readU8(ADDR_INVINCIBILITY_FLAG) !== 0;
+    // const shieldAnimActive = readU8(ADDR_SHIELD_ANIM_ACTIVE) !== 0;
+    // const shieldPhase = readU8(ADDR_SHIELD_ANIM_PHASE);
     const shieldVariant = readU8(ADDR_SHIELD_VARIANT_INDEX);
     const shieldCategory = getShieldCategory();
 
     const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
-    if (rokaImg) {
-        ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
-    }
+    if (!rokaImg) return;
 
     const t = phase / 25;
     const heroW = DUNGEON_HERO_FRAME_W;
+    const heroH = DUNGEON_HERO_FRAME_H;
     let dx;
     if (leftRun) {
         dx = Math.round((1 - t) * (canvas.width - heroW));
@@ -1445,6 +1446,12 @@ function drawDungeonRoka() {
         dx = Math.round(t * (canvas.width - heroW));
     }
     const dy = 12 * TILE_HEIGHT;
+
+    if (prevRokaDx === -1 || phase === 0) {
+        ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.drawImage(rokaImg, prevRokaDx, dy, heroW, heroH, prevRokaDx, dy, heroW, heroH);
+    }
 
     const state = {
         facingLeft,
@@ -1460,9 +1467,18 @@ function drawDungeonRoka() {
         slope: 0,
         shieldCategory,
     };
-    const frame = resolveBodyFrame(state);
-    drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
-        DUNGEON_HERO_SHEET_COLS, dx, dy);
+    const layers = [
+        { frame: resolveBackArmFrame(state), y: dy },
+        { frame: resolveBodyFrame(state), y: dy },
+        { frame: resolveFrontArmFrame(state), y: dy },
+    ];
+    for (const { frame, y } of layers) {
+        if (frame === null) continue;
+        drawSheetFrame(dungeonHeroSheet, frame, heroW, heroH,
+            DUNGEON_HERO_SHEET_COLS, dx, y);
+    }
+
+    prevRokaDx = dx;
 }
 
 // ─── Town transition ──────────────────────────────────────────────────────────
