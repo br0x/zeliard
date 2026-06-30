@@ -389,11 +389,11 @@ fight:6388                 mov     dx, offset loc_65BA
 fight:638B                 push    dx
 fight:638C                 test    ds:facing_direction, 1 ; left
 fight:6391                 jnz     short loc_6396
-fight:6393                 jmp     loc_67C6
+fight:6393                 jmp     on_right_pressed
 fight:6396 ; ---------------------------------------------------------------------------
 fight:6396
 fight:6396 loc_6396:                               ; ...
-fight:6396                 jmp     loc_663E
+fight:6396                 jmp     on_left_pressed
 fight:6399 ; ---------------------------------------------------------------------------
 fight:6399
 fight:6399 loc_6399:                               ; ...
@@ -418,13 +418,13 @@ fight:63B6                 pop     ax
 fight:63B7                 and     al, 0Ch
 fight:63B9                 cmp     al, 4
 fight:63BB                 jnz     short loc_63C0
-fight:63BD                 jmp     loc_663E
+fight:63BD                 jmp     on_left_pressed
 fight:63C0 ; ---------------------------------------------------------------------------
 fight:63C0
 fight:63C0 loc_63C0:                               ; ...
 fight:63C0                 cmp     al, 8
 fight:63C2                 jnz     short loc_63C7
-fight:63C4                 jmp     loc_67C6
+fight:63C4                 jmp     on_right_pressed
 fight:63C7 ; ---------------------------------------------------------------------------
 fight:63C7
 fight:63C7 loc_63C7:                               ; ...
@@ -766,7 +766,7 @@ fight:65CE                 dec     si
 fight:65CF                 call    is_over_rope    ; set CF if [si] is rope (0 or 1)
 fight:65D2                 jnb     short loc_65DC
 fight:65D4                 test    ds:facing_direction, 1
-fight:65D9                 jnz     short loc_663E
+fight:65D9                 jnz     short on_left_pressed
 fight:65DB                 retn
 fight:65DC ; ---------------------------------------------------------------------------
 fight:65DC
@@ -781,7 +781,7 @@ fight:65E4
 fight:65E4 loc_65E4:                               ; ...
 fight:65E4                 test    ds:facing_direction, 1
 fight:65E9                 jnz     short locret_65EE
-fight:65EB                 jmp     loc_67C6
+fight:65EB                 jmp     on_right_pressed
 fight:65EE ; ---------------------------------------------------------------------------
 fight:65EE
 fight:65EE locret_65EE:                            ; ...
@@ -838,7 +838,7 @@ fight:6639                 call    jump_press_handler
 fight:663C                 jmp     short $+2
 fight:663E ; ---------------------------------------------------------------------------
 fight:663E
-fight:663E loc_663E:                               ; ...
+fight:663E on_left_pressed:                               ; ...
 fight:663E                 mov     ds:byte_9F18, 0
 fight:6643                 test    ds:facing_direction, left
 fight:6648                 jnz     short loc_664D
@@ -1088,7 +1088,7 @@ fight:67C1                 call    jump_press_handler
 fight:67C4                 jmp     short $+2
 fight:67C6 ; ---------------------------------------------------------------------------
 fight:67C6
-fight:67C6 loc_67C6:                               ; ...
+fight:67C6 on_right_pressed:                               ; ...
 fight:67C6                 mov     ds:byte_9F18, 0
 fight:67CB                 test    ds:facing_direction, 1
 fight:67D0                 jnz     short flip_facing_direction
@@ -1410,11 +1410,11 @@ fight:69CF                 mov     ax, offset loc_69E0
 fight:69D2                 push    ax
 fight:69D3                 test    ds:facing_direction, 1
 fight:69D8                 jz      short loc_69DD
-fight:69DA                 jmp     loc_663E
+fight:69DA                 jmp     on_left_pressed
 fight:69DD ; ---------------------------------------------------------------------------
 fight:69DD
 fight:69DD loc_69DD:                               ; ...
-fight:69DD                 jmp     loc_67C6
+fight:69DD                 jmp     on_right_pressed
 fight:69E0 ; ---------------------------------------------------------------------------
 fight:69E0
 fight:69E0 loc_69E0:                               ; ...
@@ -1444,11 +1444,11 @@ fight:6A02
 fight:6A02 loc_6A02:                               ; ...
 fight:6A02                 test    ds:facing_direction, left
 fight:6A07                 jz      short loc_6A0C
-fight:6A09                 jmp     loc_663E
+fight:6A09                 jmp     on_left_pressed
 fight:6A0C ; ---------------------------------------------------------------------------
 fight:6A0C
 fight:6A0C loc_6A0C:                               ; ...
-fight:6A0C                 jmp     loc_67C6
+fight:6A0C                 jmp     on_right_pressed
 fight:6A0F ; ---------------------------------------------------------------------------
 fight:6A0F
 fight:6A0F left_pressed:                           ; ...

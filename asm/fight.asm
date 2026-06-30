@@ -488,7 +488,7 @@ loc_6358:
 ; ---------------------------------------------------------------------------
 
 loc_635F:        
-                mov     ah, al
+                mov     ah, al  ; ah: ____right_left_down_up
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jnz     short loc_6399
                 test    byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
@@ -534,7 +534,7 @@ loc_63AB:
                     call    down_pressed
 loc_63B6:        
                 pop     ax
-                and     al, 0Ch
+                and     al, 1100b
                 cmp     al, 4
                 jne     short loc_63C0
                 ; left pressed
@@ -1285,7 +1285,7 @@ right_up_pressed proc near
                 jmp     short $+2
 ; ---------------------------------------------------------------------------
 
-on_right_pressed:        
+on_right_pressed:        ; @67C6
                 mov     ds:byte_9F18, 0
                 test    byte ptr ds:facing_direction, LEFT
                 jnz     short flip_facing_direction
@@ -1314,7 +1314,7 @@ loc_67F3:
                 inc     ds:horiz_movement_sub_tile_accum
 
 loc_6808:        
-                or      byte ptr ds:facing_direction, 2
+                or      byte ptr ds:facing_direction, UP
                 test    byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 jz      short loc_6815
                 retn
