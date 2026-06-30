@@ -67,19 +67,43 @@ const PATTERN_ASSETS = {
 };
 
 const SWORD_REACH_SMALL = {
+    // right forward phases 0, 1
     0:  [0x46, 0x01, 0x23, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
+
+    // right forward phases 2, 3
     2:  [0x8F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF],
+    
+    // right forward phases 4, 5
     4:  [0x91, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
+    
+    // right overhead phases 0, 1
     6:  [0x47, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0xFF],
+    
+    // right overhead phases 2, 3
     8:  [0x49, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x22, 0x01, 0xFF],
+    
+    // right downward thrust single phase
     10: [0x91, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0xFF],
-    12: [],
-    14: [],
+
+    12: [], // unused
+    14: [], // unused
+
+    // left forward phases 0, 1
     16: [0x4A, 0x01, 0x22, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
+
+    // left forward phases 2, 3
     18: [0x8D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF],
+
+    // left forward phases 4, 5
     20: [0x8D, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
+
+    // left overhead phases 0, 1
     22: [0x48, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0xFF],
+
+    // left overhead phases 2, 3
     24: [0x46, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x22, 0x01, 0xFF],
+
+    // left downward thrust single phase
     26: [0x8F, 0x01, 0x23, 0x01, 0x23, 0x01, 0x01, 0x22, 0x01, 0x01, 0xFF],
 };
 const SWORD_REACH_MEDIUM = {
@@ -1276,6 +1300,7 @@ function getDungeonHeroState() {
 }
 
 function resolveBodyFrame(state) {
+    console.log('resolveBodyFrame', state);
     if (state.hidden) return 30;
     if (state.onRope) return 26 + (state.animPhase & 3);
     const base = state.facingLeft ? 13 : 0;
@@ -1373,23 +1398,25 @@ function drawDungeonSword() {
     const swordType = Math.max(1, Math.min(6, readMemory(ADDR_SWORD_TYPE, 1)[0] || 1));
     const facingLeft = (readMemory(ADDR_FACING, 1)[0] & 1) !== 0;
 
-    const maxPhase = [7, 5, 5][hitType] || 5;
+    const maxPhase = [7, 5, 2][hitType] || 1;
+    console.log('sword hit type:', hitType, 'phase:', phase);
     if (phase >= maxPhase) {
         writeMemory(ADDR_SWORD_SWING_FLAG, [0]);
         return;
     }
 
     writeMemory(ADDR_SWORD_MOVEMENT_PHASE, [phase + 1]);
+    phase--;
 
     let col;
     switch (hitType) {
-        case 1:
+        case 1: // overhead swing, phases 0..3 => column 5..8
             col = 5 + phase;
             break;
-        case 2:
+        case 2: // downward thrust, single phase => column 9
             col = 9;
             break;
-        default:
+        default: // forward hit, phases 0..5 (phases 4 and 5 are the same, use column 4)
             col = Math.min(phase, 4);
             break;
     }
@@ -1479,6 +1506,9 @@ function drawDungeonRoka() {
     }
 
     prevRokaDx = dx;
+    if (phase === 25) {
+        console.log('roka run finished');
+    }
 }
 
 // ─── Town transition ──────────────────────────────────────────────────────────

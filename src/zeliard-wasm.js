@@ -1360,7 +1360,7 @@ export function dungeonGetExitMapId() {
     return wasmExports?.wasm_dungeon_get_exit_map_id?.() ?? dungeonGetExitMap();
 }
 
-// Offsets inside segment 1
+// seg1-based offsets
 const REACH_TABLE_OFFSET = 0xB002;  // 14 pointers (28 bytes) 0xB002..0xB01D
 const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)
 
@@ -1368,8 +1368,9 @@ const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)
  * Convert the JS sword‑reach object into the layout expected by
  * apply_sword_hit_to_map_tiles() and write it to WASM memory.
  *
- * @param {Object} reachObj - Object with keys 0,2,4,…,26, each an array of
- *   byte offsets terminated by 0xFF.  Empty arrays represent unused phases.
+ * @param {Object} reachObj - Sword reachability object with keys 0,2,4,…,26, 
+ * Each value is an array of bytes representing the reachability list for that phase, FF-terminated.
+ * Empty arrays 12 and 14 provided for alignment purposes only.
  */
 export function setDungeonSwordReach(reachObj) {
     if (!wasmMemory) {
@@ -1378,21 +1379,22 @@ export function setDungeonSwordReach(reachObj) {
     }
 
     const seg1Base = gMemoryBase + SEG1_BASE;
+    let tablePtr = seg1Base + REACH_TABLE_OFFSET;
 
     // Write all byte lists contiguously starting at REACH_LISTS_OFFSET
     let listWritePtr = seg1Base + REACH_LISTS_OFFSET;
-    let tablePtr = seg1Base + REACH_TABLE_OFFSET;
 
     // The possible indices (even numbers 0..26)
     for (let idx = 0; idx <= 26; idx += 2) {
         let bytes = reachObj[idx];
+        // Compute offset BEFORE writing, so the table entry points to the START of this list
+        const off = listWritePtr - seg1Base;
         for (let i = 0; i < bytes.length; i++) {
             wasmMemory[listWritePtr++] = bytes[i];
         }
         // Write the jump table at REACH_TABLE_OFFSET
         // (14 entries, each a 16‑bit little‑endian seg1‑relative offset)
         // For empty entries idx=12 and idx=14, write any value (it will be ignored by apply_sword_hit_to_map_tiles)
-        const off = listWritePtr - seg1Base;
         wasmMemory[tablePtr++] = off & 0xFF;
         wasmMemory[tablePtr++] = (off >> 8) & 0xFF;
     }

@@ -577,11 +577,11 @@ void update_active_projectiles_render()
 
 }
 
-/* ===========================================================================
+/* 
  * called every frame while sword_swing_flag
  * is set. Reads the current reachability list and marks any live monsters
  * within the hit area by setting ai_flags bits 6 and 0.
- * =========================================================================== */
+ */
 // Checked
 void apply_sword_hit_to_map_tiles()
 {
@@ -605,8 +605,8 @@ void apply_sword_hit_to_map_tiles()
     uint8_t sword_movement_phase = MEM8(ADDR_SWORD_MOVEMENT_PHASE);
     uint8_t result = dir16;
     switch (sword_hit_type) {
-        case 0:  // Forward hit: 5 phases
-            result += sword_movement_phase;       //  0..4 (right)  or 16..20 (left)
+        case 0:  // Forward hit: 6 phases
+            result += sword_movement_phase;       //  0..5 (right)  or 16..21 (left)
             break;
         case 1:  // Overhead swing: 4 phases
             result += (sword_movement_phase + 6); //  6..9 (right)  or 22..25 (left)
@@ -2078,7 +2078,7 @@ static void flag_11(uint16_t m) {
         if (ah != MEM8(ADDR_HERO_Y))
             return;
         // item under hero feet
-        uint8_t al = MEM8(ADDR_HERO_X_VIEW) + 3;
+        uint8_t al = (uint8_t)((int8_t)MEM8(ADDR_HERO_X_VIEW) + 3);
         al += (MEM8(ADDR_FACING) & LEFT) * 2;
 
         for (int i = 0; i < 2; i++) {
