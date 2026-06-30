@@ -1224,7 +1224,7 @@ function drawDungeonTiles() {
 
 function getDungeonEntities() {
     if (!readMemory) return [];
-    const table = dungeonGetEntityTable?.() ?? 0;
+    const table = dungeonGetEntityTable?.() ?? 0; // from MDT buffer
     if (!table) return [];
     const entities = [];
     for (let i = 0; i < 160; i++) {
@@ -1300,7 +1300,7 @@ function getDungeonHeroState() {
 }
 
 function resolveBodyFrame(state) {
-    console.log('resolveBodyFrame', state);
+    console.log('[resolveBodyFrame] animPhase', state.animPhase);
     if (state.hidden) return 30;
     if (state.onRope) return 26 + (state.animPhase & 3);
     const base = state.facingLeft ? 13 : 0;
@@ -1398,26 +1398,23 @@ function drawDungeonSword() {
     const swordType = Math.max(1, Math.min(6, readMemory(ADDR_SWORD_TYPE, 1)[0] || 1));
     const facingLeft = (readMemory(ADDR_FACING, 1)[0] & 1) !== 0;
 
-    const maxPhase = [7, 5, 2][hitType] || 1;
+    // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
+    // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
+    // the swing yet — skip rendering until it does.
     console.log('sword hit type:', hitType, 'phase:', phase);
-    if (phase >= maxPhase) {
-        writeMemory(ADDR_SWORD_SWING_FLAG, [0]);
-        return;
-    }
-
-    writeMemory(ADDR_SWORD_MOVEMENT_PHASE, [phase + 1]);
-    phase--;
+    if (phase === 0) return;
+    const displayPhase = phase - 1;
 
     let col;
     switch (hitType) {
         case 1: // overhead swing, phases 0..3 => column 5..8
-            col = 5 + phase;
+            col = 5 + displayPhase;
             break;
         case 2: // downward thrust, single phase => column 9
             col = 9;
             break;
         default: // forward hit, phases 0..5 (phases 4 and 5 are the same, use column 4)
-            col = Math.min(phase, 4);
+            col = Math.min(displayPhase, 4);
             break;
     }
 
@@ -2370,7 +2367,7 @@ function update() {
     if (!engineReady) return;
     if (indoorActiveScene) return;
     heroInteractionCheck?.();
-    proximityMap = getProximityMap?.();
+    proximityMap = getProximityMap?.(); // needed for drawDungeonTiles only, maybe can use MDT itself?
 }
 
 function draw() {
@@ -2402,22 +2399,18 @@ function draw() {
     } else if (gameMode === 'dungeon') {
         const dungeonState = readU8(ADDR_DUNGEON_STATE);
         if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
-            const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
-            if (shouldRender) {
+            // const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
+            // if (shouldRender) {
                 drawDungeonRoka();
                 dungeonClearRenderRequest?.();
-            }
+            // }
         } else {
-            const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
-            if (shouldRender) {
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                drawDungeonTiles();
-                drawDungeonEntities();
-                drawDungeonHero();
-                drawDungeonSword();
-                dungeonClearRenderRequest?.();
-            }
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawDungeonTiles();
+            drawDungeonEntities();
+            drawDungeonHero();
+            drawDungeonSword();
         }
         // HUD is drawn later (outside this branch)
     } else { // town outdoor mode
