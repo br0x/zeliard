@@ -4263,40 +4263,41 @@ move_if_dst_high_bit_zero endp
 
 
 calc_object_viewport_x_offset proc near
-                add     ax, 3           ; platform.x+3
+                add     ax, 3           ; door.x0 + 3
                 push    ax
-                sub     ax, ds:mapWidth ; ax=platform.x+3-mapWidth
-                pop     bx              ; bx=platform.x+3
+                sub     ax, ds:mapWidth ; ax = door.x0 + 3 - mapWidth
+                pop     bx              ; bx = door.x0 + 3
                 jnb     short x_coord_wrapped
                 xchg    ax, bx
 
 x_coord_wrapped: 
-                push    ax              ; platform.x+3
-                sub     ax, ds:proximity_map_left_col_x ; ax=platform.x+3-(hero.x-18)
-                pop     bx              ; bx=platform.x+3
-                jb      short loc_799C
-                xchg    ax, bx          ; bx=platform.x+3-(hero.x-18)
+                push    ax              ; wrappedX3
+                sub     ax, ds:proximity_map_left_col_x ; ax = wrappedX3 - prox_left
+                pop     bx              ; bx = wrappedX3
+                jc      short loc_799C
+                ; wrappedX3 >= prox_left
+                xchg    ax, bx          ; bx = wrappedX3 - prox_left
                 mov     ax, 36+3
-                sub     ax, bx          ; ax=18+hero.x-platform.x
-                retn
+                sub     ax, bx          ; ax = 39 + prox_left - wrappedX3
+                retn    ; CF if (wrappedX3 > prox_left+39) ; outside the right edge
 ; ---------------------------------------------------------------------------
 
-loc_799C:        
+loc_799C:       ; wrappedX3 < prox_left
                 mov     ax, 36+3
-                sub     ax, bx          ; ax=36-platform.x
-                jnb     short loc_79A4
-                retn
+                sub     ax, bx          ; ax = 39 - wrappedX3
+                jnc     short loc_79A4
+                retn    ; CF if (wrappedX3 > 39) ; outside the left edge
 ; ---------------------------------------------------------------------------
 
-loc_79A4:        
+loc_79A4:       ; wrappedX3 <= 39
                 mov     ax, ds:mapWidth
                 sub     ax, ds:proximity_map_left_col_x
-                add     ax, bx          ; ax=mapWidth-(hero.x-18)+platform.x+3
-                                        ; bx=platform.x+3
-                xchg    ax, bx          ; bx=mapWidth-hero.x+18+platform.x+3
+                add     ax, bx          ; ax = mapWidth - prox_left + wrappedX3
+                                        ; bx = wrappedX3
+                xchg    ax, bx          ; bx = mapWidth - prox_left + wrappedX3
                 mov     ax, 36+3
-                sub     ax, bx          ; ax=18+hero.x-platform.x-mapWidth
-                retn
+                sub     ax, bx          ; ax = 39 + prox_left - wrappedX3 - mapWidth
+                retn    ; CF if (wrappedX3 > prox_left+39-mapWidth)
 calc_object_viewport_x_offset endp
 
 ; ---------------------------------------------------------------------------

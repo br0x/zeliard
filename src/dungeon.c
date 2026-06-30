@@ -1761,31 +1761,30 @@ static uint8_t opened_door_tiles[20] = {
 /* 
  * Computes the door's on-screen column (0..39 visible range) within the
  * 36(+3)-wide viewport, handling a single horizontal map wrap.
- * `offscreen` mirrors the original carry flag.
+ * Return `is offscreen` (mirrors the original carry flag).
  */
 
 static uint8_t calc_object_viewport_x_offset(uint16_t x, uint16_t *col)
 {
     uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
     uint16_t x3  = x + 3;
-    uint16_t x3n = (x3 >= mapWidth) ? (uint16_t)(x3 - mapWidth) : x3;
-    uint8_t  cf;
+    uint16_t x3w = (x3 >= mapWidth) ? (x3 - mapWidth) : x3;
     uint16_t prox_left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
 
-    if (x3n >= prox_left) {
+    if (x3w >= prox_left) {
         /* normal case: object is at/right of the viewport's left edge */
-        *col = (uint16_t)(x3n - prox_left);
-        return (col < 39);
+        *col = (uint16_t)(x3w - prox_left);
+        return (*col > 39);
     }
 
-    /* x3n < proximity_map_left_col_x: possibly off the left edge, or the
-     * map wraps around so x3n itself is already a valid column */
-    if (x3n <= 39) {
-        *col = (uint16_t)(mapWidth - prox_left + x3n);
-        return (col > 39);
+    /* x3w < proximity_map_left_col_x: possibly off the left edge, or the
+     * map wraps around so x3w itself is already a valid column */
+    if (x3w <= 39) {
+        *col = (uint16_t)(mapWidth - prox_left + x3w);
+        return (*col > 39);
     }
-    *col = x3n;
-    return 0xFF;   /* off-screen */
+    *col = x3w;
+    return 1;   /* off-screen */
 }
 
 

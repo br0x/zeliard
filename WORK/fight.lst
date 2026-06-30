@@ -3718,17 +3718,17 @@ fight:78DD
 fight:78DD ; =============== S U B R O U T I N E =======================================
 fight:78DD
 fight:78DD
-fight:78DD process_doors   proc near               ; ...
+fight:78DD process_doors   proc near
 fight:78DD                 mov     bp, ds:doors_table_addr ; =d57d
 fight:78E1
-fight:78E1 next_door:                              ; ...
+fight:78E1 next_door:
 fight:78E1                 mov     ax, ds:[bp+door.x0]
 fight:78E5                 cmp     ax, 0FFFFh      ; doors end marker
 fight:78E8                 jnz     short loc_78EB
 fight:78EA                 retn
 fight:78EB ; ---------------------------------------------------------------------------
 fight:78EB
-fight:78EB loc_78EB:                               ; ...
+fight:78EB loc_78EB:
 fight:78EB                 call    calc_object_viewport_x_offset
 fight:78EE                 jb      short loc_7933
 fight:78F0                 mov     al, ds:[bp+door.d_flags]
@@ -3753,7 +3753,7 @@ fight:7917                 cmp     al, 6
 fight:7919                 jb      short loc_791D
 fight:791B                 mov     al, 5
 fight:791D
-fight:791D loc_791D:                               ; ...
+fight:791D loc_791D:
 fight:791D                 sub     cl, 4
 fight:7920                 xor     ch, ch
 fight:7922                 add     di, cx
@@ -3764,18 +3764,18 @@ fight:792E                 mov     si, offset closed_door_tiles
 fight:7931                 jmp     short loc_7951
 fight:7933 ; ---------------------------------------------------------------------------
 fight:7933
-fight:7933 loc_7933:                               ; ...
+fight:7933 loc_7933:
 fight:7933                 add     bp, 0Ch
 fight:7936                 jmp     short next_door
 fight:7938 ; ---------------------------------------------------------------------------
 fight:7938
-fight:7938 loc_7938:                               ; ...
+fight:7938 loc_7938:
 fight:7938                 mov     si, offset opened_door_tiles
 fight:793B                 test    ds:[bp+door.d_flags], 80h
 fight:7940                 jnz     short loc_7945
 fight:7942                 mov     si, offset closed_door_tiles
 fight:7945
-fight:7945 loc_7945:                               ; ...
+fight:7945 loc_7945:
 fight:7945                 mov     al, bl
 fight:7947                 inc     al
 fight:7949                 mov     cl, 5
@@ -3783,16 +3783,16 @@ fight:794B                 sub     cl, al
 fight:794D                 xor     ch, ch
 fight:794F                 add     si, cx
 fight:7951
-fight:7951 loc_7951:                               ; ...
+fight:7951 loc_7951:
 fight:7951                 mov     cx, 4
 fight:7954
-fight:7954 four_times:                             ; ...
+fight:7954 four_times:
 fight:7954                 push    cx
 fight:7955                 push    ax
 fight:7956                 push    di
 fight:7957                 push    si
 fight:7958
-fight:7958 al_times:                               ; ...
+fight:7958 al_times:
 fight:7958                 call    move_if_dst_high_bit_zero
 fight:795B                 inc     di
 fight:795C                 inc     si
