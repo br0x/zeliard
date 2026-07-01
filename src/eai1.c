@@ -17,7 +17,7 @@
  *   Check_collision_in_direction below.
  * - check_monster_on_aggressive_ground mirrors a jnz test: it returns
  *   nonzero exactly when the original code took the "jnz" branch (ZF=0).
- * - if_passable_set_ZF, check_collision_E2 and
+ * - is_blocking, check_collision_E2 and
  *   check_collision_W2 keep the signature/semantics already declared
  *   in zeliard.h.
  * - rat_hero_proximity_and_direction / frog_hero_proximity_and_direction
@@ -451,7 +451,7 @@ loc_A5C5: {
         wrap_map_from_above(&addr);
         uint8_t tile = MEM8(addr);
 
-        if (!if_passable_set_ZF(tile)) goto loc_A5F4;
+        if (!is_blocking(tile)) goto loc_A5F4;
 
         m->anim_counter = 0;
         m->ai_state |= 0x08;

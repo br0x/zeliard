@@ -229,7 +229,7 @@ uint8_t monster_move_in_direction(uint16_t m, uint8_t dir)
 static uint8_t check_collision_E_including_danger5(uint16_t prox_addr)
 {
     uint8_t tile = MEM8(prox_addr);
-    if (if_passable_set_ZF(tile)) return 0xFF;        // solid tile -> blocked
+    if (is_blocking(tile)) return 0xFF;        // solid tile -> blocked
     if (MEM8(ADDR_CAVERN_LEVEL) != 5) return 0;       // no possible airflows -> clear
     // left airflow blocks Eastward movement
     return get_airflow_direction(tile) == AIRFLOW_LEFT;
@@ -237,7 +237,7 @@ static uint8_t check_collision_E_including_danger5(uint16_t prox_addr)
 
 static uint8_t check_collision_W_including_danger5(uint16_t prox_addr) {
     uint8_t tile = MEM8(prox_addr);
-    if (if_passable_set_ZF(tile)) return 0xFF;        // solid tile -> blocked
+    if (is_blocking(tile)) return 0xFF;        // solid tile -> blocked
     if (MEM8(ADDR_CAVERN_LEVEL) != 5) return 0;       // no possible airflows -> clear
     // Right airflow blocks Westward movement
     return get_airflow_direction(tile) == AIRFLOW_RIGHT;
@@ -318,9 +318,9 @@ uint8_t check_collision_N2(uint16_t m) {
     uint16_t di = coords_to_prox_addr(x_rel, y);
     di -= PROX_COLS;
     wrap_map_from_below(&di);
-    if (if_passable_set_ZF(MEM8(di)))     // (0, -1)
+    if (is_blocking(MEM8(di)))     // (0, -1)
         return 0xFF;
-    if (if_passable_set_ZF(MEM8(di+1)))   // (+1, -1)
+    if (is_blocking(MEM8(di+1)))   // (+1, -1)
         return 0xFF;
 
     di -= PROX_COLS;
@@ -343,9 +343,9 @@ uint8_t check_collision_S2(uint16_t m) {
     uint16_t di = coords_to_prox_addr(x_rel, y);
     di += PROX_COLS*2; // y+=2
     wrap_map_from_above(&di);
-    if (if_passable_set_ZF(MEM8(di)))     // (0, 2)
+    if (is_blocking(MEM8(di)))     // (0, 2)
         return 0xFF;
-    if (if_passable_set_ZF(MEM8(di+1)))   // (+1, 2)
+    if (is_blocking(MEM8(di+1)))   // (+1, 2)
         return 0xFF;
 
     // Marker check on (+1, 2), (0, 2), (-1, 2)
@@ -365,17 +365,17 @@ uint8_t check_collision_NE2(uint16_t m) {
     uint8_t x_rel = MEM8(m+3);
     uint16_t di = coords_to_prox_addr(x_rel, y) + 2;
 
-    if (if_passable_set_ZF(MEM8(di)))     // (2, 0)
+    if (is_blocking(MEM8(di)))     // (2, 0)
         return 0xFF;
     uint8_t markers = MEM8(di);
     di -= PROX_COLS;
     wrap_map_from_below(&di);
 
-    if (if_passable_set_ZF(MEM8(di)))     // (2, -1)
+    if (is_blocking(MEM8(di)))     // (2, -1)
         return 0xFF;
     markers |= MEM8(di);
 
-    if (if_passable_set_ZF(MEM8(di-1)))   // (1, -1)
+    if (is_blocking(MEM8(di-1)))   // (1, -1)
         return 0xFF;
 
     di -= PROX_COLS;
@@ -401,18 +401,18 @@ uint8_t check_collision_SE2(uint16_t m) {
     di += PROX_COLS;
     wrap_map_from_above(&di);
 
-    if (if_passable_set_ZF(MEM8(di)))     // (2, 1)
+    if (is_blocking(MEM8(di)))     // (2, 1)
         return 0xFF;
     markers |= MEM8(di);
 
     di += PROX_COLS;
     wrap_map_from_above(&di);
 
-    if (if_passable_set_ZF(MEM8(di)))     // (2, 2)
+    if (is_blocking(MEM8(di)))     // (2, 2)
         return 0xFF;
     markers |= MEM8(di);
 
-    if (if_passable_set_ZF(MEM8(di-1)))   // (1, 2)
+    if (is_blocking(MEM8(di-1)))   // (1, 2)
         return 0xFF;
 
     // Marker check: (+2, 0) | (+2, +1) | (+2, +2) | (+1, +2) | (0, +2)
@@ -431,15 +431,15 @@ uint8_t check_collision_NW2(uint16_t m) {
     uint8_t x_rel = MEM8(m+3);
     uint16_t di = coords_to_prox_addr(x_rel, y) - 1;
 
-    if (if_passable_set_ZF(MEM8(di)))     // (-1, 0)
+    if (is_blocking(MEM8(di)))     // (-1, 0)
         return 0xFF;
     uint8_t markers = MEM8(di-1);         // (-2, 0)
 
     di -= PROX_COLS;
     wrap_map_from_below(&di);
-    if (if_passable_set_ZF(MEM8(di)))     // (-1, -1)
+    if (is_blocking(MEM8(di)))     // (-1, -1)
         return 0xFF;
-    if (if_passable_set_ZF(MEM8(di+1)))   // (0, -1)
+    if (is_blocking(MEM8(di+1)))   // (0, -1)
         return 0xFF;
     markers |= MEM8(di-1);                // (-2, -1)
 
@@ -468,14 +468,14 @@ uint8_t check_collision_SW2(uint16_t m) {
     di += PROX_COLS;
     wrap_map_from_above(&di);
     markers |= MEM8(di);                     // (-2, 1)
-    if (if_passable_set_ZF(MEM8(di+1)))      // (-1, 1)
+    if (is_blocking(MEM8(di+1)))      // (-1, 1)
         return 0xFF;
 
     di += PROX_COLS;
     wrap_map_from_above(&di);
-    if (if_passable_set_ZF(MEM8(di+1)))      // (-1, 2)
+    if (is_blocking(MEM8(di+1)))      // (-1, 2)
         return 0xFF;
-    if (if_passable_set_ZF(MEM8(di+2)))      // (0, 2)
+    if (is_blocking(MEM8(di+2)))      // (0, 2)
         return 0xFF;
 
     // Marker check: (-2, 0) | (-2, +1) | (-1, +2) | (0, +2) | (-2, +2)
@@ -1207,23 +1207,23 @@ void try_climb_rope()
     } while ((MEM8(ADDR_HERO_ANIM_PHASE) & 1) == 0);
 }
 
-// is_non_blocking_tile family. 
+// is_blocking_tile family. 
 // Original assembly code returns ZF or NZ, we return 0 or nonzero values instead.
 // Checked
-uint8_t is_non_blocking_tile(uint8_t tile)
+uint8_t is_blocking_tile(uint8_t tile)
 {
     return (tile < 0x40) ? lookup_shared(tile) : 0;
 }
 
 // Checked
-static uint8_t is_non_blocking_tile_extended(uint8_t tile) 
+static uint8_t is_blocking_tile_extended(uint8_t tile) 
 {
     return (tile < 0x49) ? lookup_shared(tile) : 0;
 }
 
 // Original returns ZF if non-blocking, we will check for 0 on caller side
 // Checked
-static uint8_t is_non_blocking_tile_simple(uint8_t tile) 
+static uint8_t is_blocking_tile_simple(uint8_t tile) 
 {
     if (tile < 0x49) {
         for (int i = 0; i < 24; i++) {
@@ -1238,7 +1238,7 @@ static uint8_t is_non_blocking_tile_simple(uint8_t tile)
 }
 
 // we use zero value where original dos version used ZF 
-uint8_t if_passable_set_ZF(uint8_t tile)
+uint8_t is_blocking(uint8_t tile)
 {
     if (tile < 0x49) {
         for (int i = 0; i < 24; i++) {
@@ -1360,7 +1360,7 @@ uint8_t move_hero_right_if_no_obstacles()
     if (MEM8(ADDR_SQUAT_FLAG) == 0) {
         // head level: needs 2 checks
         uint8_t tile = MEM8(si);
-        if (is_non_blocking_tile(tile)) return 0; // blocking tile to the right of hero, can't move
+        if (is_blocking_tile(tile)) return 0; // blocking tile to the right of hero, can't move
         if (is_left_airflow(tile)) return 0; // left-flow wind blocks right movement
     }
     // head-level checks finished, now body and feet
@@ -1368,7 +1368,7 @@ uint8_t move_hero_right_if_no_obstacles()
         si += 36;
         wrap_map_from_above(&si);
         uint8_t tile = MEM8(si);
-        if (is_non_blocking_tile_simple(tile)) return 0;
+        if (is_blocking_tile_simple(tile)) return 0;
         if (is_left_airflow(tile)) return 0;
     }
     hero_moves_right();
@@ -1396,7 +1396,7 @@ uint8_t move_hero_left_if_no_obstacles()
     if (MEM8(ADDR_SQUAT_FLAG) == 0) { // not squatting
         // head level: needs 2 checks
         uint8_t tile = MEM8(si);
-        if (is_non_blocking_tile(tile)) return 0;
+        if (is_blocking_tile(tile)) return 0;
         if (is_right_airflow(tile)) return 0;
     }
     // head-level checks finished, now body and feet
@@ -1404,7 +1404,7 @@ uint8_t move_hero_left_if_no_obstacles()
         si += 36;
         wrap_map_from_above(&si);
         uint8_t tile = MEM8(si);
-        if (is_non_blocking_tile_simple(tile)) return 0;
+        if (is_blocking_tile_simple(tile)) return 0;
         if (is_right_airflow(tile)) return 0;
     }
     hero_moves_left();
@@ -1419,7 +1419,7 @@ void hero_moves_right()
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = left_col;
     left_col += (PROX_COLS - 1);
     if (left_col == mapWidth) {
-        packed_map_ptr_for_prox_right = MEM16(ADDR_PACKED_MAP_END_PTR) + 1;
+        packed_map_ptr_for_prox_right = ADDR_PACKED_MAP_END_PTR + 1; // [9F05]<-C01A (ds:[9F05]=D554)
     }
     uint8_t* dest = &g_mem[ADDR_PROXIMITY_MAP];
     memmove(dest, dest + 1, PROX_COLS * DUNGEON_HEIGHT - 1);
@@ -1533,14 +1533,14 @@ void hero_interaction_check(void)
     if (MEM8(ADDR_JUMP_PHASE_FLAGS)) return;
     uint16_t si = hero_coords_to_addr_in_proximity();
     uint8_t tile = MEM8(si);
-    if (is_non_blocking_tile(tile) == 0) return;
+    if (is_blocking_tile(tile) == 0) return;
     si += 2;
     tile = MEM8(si);
-    if (is_non_blocking_tile(tile) == 0) return;
+    if (is_blocking_tile(tile) == 0) return;
     si += 36;
     wrap_map_from_above(&si);
     tile = MEM8(si);
-    if (is_non_blocking_tile(tile) == 0) {
+    if (is_blocking_tile(tile) == 0) {
         hero_moves_right();
     } else {
         hero_moves_left();
@@ -1717,7 +1717,7 @@ void jump_press_handler()
     wrap_map_from_below(&tile_ptr);
     uint8_t tile_above = MEM8(tile_ptr);
 
-    if (!is_non_blocking_tile(tile_above)) {
+    if (!is_blocking_tile(tile_above)) {
         // Tile is clear - start jump (ascending)
         MEM8(ADDR_HERO_ANIM_PHASE) = 0;
         MEM8(ADDR_FACING) &= ~UP;      // clear Up bit (bit 1)
@@ -1763,16 +1763,16 @@ uint8_t check_floor_for_landing() {
     if (flags & 0x80) return 0;
     si = di;
     uint8_t tile = MEM8(si);
-    if (is_non_blocking_tile_simple(tile)) {
+    if (is_blocking_tile_simple(tile)) {
         return 0;
     }
     if (MEM8(ADDR_HERO_ANIM_PHASE) == 0x80) return 0xff;
     si--;
     tile = MEM8(si);
-    if (!is_non_blocking_tile_simple(tile)) return 0xff;
+    if (!is_blocking_tile_simple(tile)) return 0xff;
     si += 2;
     tile = MEM8(si);
-    if (is_non_blocking_tile_simple(tile)) return 0;
+    if (is_blocking_tile_simple(tile)) return 0;
     return 0xFF;
 }
 
@@ -3040,7 +3040,7 @@ void down_pressed()
             MEM8(ADDR_HERO_ANIM_PHASE)++;
 
             uint8_t tile = MEM8(si);
-            if (is_non_blocking_tile(tile) != 0) {
+            if (is_blocking_tile(tile) != 0) {
                 // Blocked tile reached: stop falling.
                 MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
                 return;
@@ -3438,9 +3438,9 @@ void left_default()
 {
     uint16_t si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
     wrap_map_from_above(&si);
-    if (is_non_blocking_tile(MEM8(si)) == 0) {
+    if (is_blocking_tile(MEM8(si)) == 0) {
         si++;
-        if (is_non_blocking_tile(MEM8(si))) {
+        if (is_blocking_tile(MEM8(si))) {
             move_hero_right_if_no_obstacles();
         }
     }
@@ -3451,9 +3451,9 @@ void right_default()
 {
     uint16_t si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
     wrap_map_from_above(&si);
-    if (is_non_blocking_tile(MEM8(si)) == 0) {
+    if (is_blocking_tile(MEM8(si)) == 0) {
         si--;
-        if (is_non_blocking_tile(MEM8(si))) {
+        if (is_blocking_tile(MEM8(si))) {
             move_hero_left_if_no_obstacles();
         }
     }

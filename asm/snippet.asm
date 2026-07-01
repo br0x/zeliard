@@ -31,7 +31,7 @@ on_ground1:
                 sub     si, 35          ; points above hero head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_65A5
                 mov     byte ptr ds:hero_animation_phase, 0
                 and     byte ptr ds:facing_direction, 11111101b ; clear Up bit

@@ -97,7 +97,7 @@ start:
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 dw offset wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 dw offset wrap_map_from_below ; if (si < 0E000h) si += 900h
-                dw offset if_passable_set_ZF
+                dw offset is_blocking
                 dw offset check_monster_on_aggressive_ground
                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
                 dw offset Hero_Hits_monster
@@ -581,7 +581,7 @@ loc_63E2:
 loc_63EA:        
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 mov     al, [si] ; [0e10ch]=58h
-                call    is_non_blocking_tile ; ZF if can pass; 58h -> ZF, NC
+                call    is_blocking_tile ; ZF if can pass; 58h -> ZF, NC
                 jnz     short loc_63F5
                 retn    ; hero's top left can't be here: skip
 ; ---------------------------------------------------------------------------
@@ -589,7 +589,7 @@ loc_63F5:
                 inc     si
                 inc     si      ; si = hero top-right coord
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_63FF
                 retn    ; hero's top right can't be here: skip
 ; ---------------------------------------------------------------------------
@@ -597,7 +597,7 @@ loc_63FF:
                 add     si, 36  ; hero mid right coord
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jz      short loc_640F
                 jmp     hero_moves_left
 ; ---------------------------------------------------------------------------
@@ -868,7 +868,7 @@ on_ground1:
                 sub     si, 35          ; points above hero head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_65A5
                 mov     byte ptr ds:hero_animation_phase, 0
                 and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
@@ -1108,7 +1108,7 @@ loc_66BC:
                 test    byte ptr ds:squat_flag, 0FFh ; =0
                 jnz     short loc_66DC
                 mov     al, [si]        ; tile where hero head will come
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 stc
                 jz      short loc_66D6
                 retn
@@ -1127,7 +1127,7 @@ loc_66DF:
                 add     si, 36
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]        ; map element (tile)
-                call    is_non_blocking_tile_simple
+                call    is_blocking_tile_simple
                 stc
                 jz      short loc_66EE
                 retn
@@ -1391,7 +1391,7 @@ loc_6864:
                 test    byte ptr ds:squat_flag, 0FFh
                 jnz     short loc_6884
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 stc
                 jz      short loc_687E
                 retn
@@ -1410,7 +1410,7 @@ loc_6887:
                 add     si, 36          ; y++
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
-                call    is_non_blocking_tile_simple
+                call    is_blocking_tile_simple
                 stc
                 jz      short loc_6896
                 retn
@@ -1679,7 +1679,7 @@ left_default:
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jz      short loc_6A2F
                 retn
 ; ---------------------------------------------------------------------------
@@ -1687,7 +1687,7 @@ left_default:
 loc_6A2F:        
                 inc     si
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_6A38
                 retn
 ; ---------------------------------------------------------------------------
@@ -1707,7 +1707,7 @@ right_default:
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jz      short loc_6A5B
                 retn
 ; ---------------------------------------------------------------------------
@@ -1715,7 +1715,7 @@ right_default:
 loc_6A5B:        
                 dec     si
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_6A64
                 retn
 ; ---------------------------------------------------------------------------
@@ -1845,7 +1845,7 @@ loc_6B04:
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 inc     byte ptr ds:hero_animation_phase
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jz      short loc_6B1E
                 or      byte ptr ds:hero_animation_phase, 1
                 retn
@@ -1937,7 +1937,7 @@ loc_6B89:
 loc_6B92:        
                 mov     si, di          ; (=e179)
                 mov     al, [si]        ; (=4)
-                call    is_non_blocking_tile_simple ; (CF NZ AL=0); NZ=blocking
+                call    is_blocking_tile_simple ; (CF NZ AL=0); NZ=blocking
                 stc
                 jz      short loc_6B9D ; no jump
                 retn
@@ -1949,7 +1949,7 @@ loc_6B9D:
 loc_6BA6:        
                 dec     si
                 mov     al, [si]
-                call    is_non_blocking_tile_simple
+                call    is_blocking_tile_simple
                 clc
                 jnz     short loc_6BB0
                 retn
@@ -1957,7 +1957,7 @@ loc_6BB0:
                 inc     si
                 inc     si
                 mov     al, [si]
-                call    is_non_blocking_tile_simple
+                call    is_blocking_tile_simple
                 stc
                 jz      short loc_6BBB
                 retn
@@ -2514,18 +2514,18 @@ get_dst_monster_flags endp
 ; ZF if can pass
 
 ; ===========================================================================
-; is_non_blocking_tile family
+; is_blocking_tile family
 ; Three variants checking whether a tile index in AL can be passed through.
 ;
-; is_non_blocking_tile (fastest):
+; is_blocking_tile (fastest):
 ;   AL < 0x40 → lookup in 24-byte passable-tile table at seg1:8000h.
 ;   AL >= 0x40 → NZ (solid).
 ;
-; is_non_blocking_tile_extended:
+; is_blocking_tile_extended:
 ;   AL < 0x49 → table lookup.
 ;   Also checks bits 7:5 of AL for special cases (monster/item bytes 0x90-0x91).
 ;
-; is_non_blocking_tile_simple:
+; is_blocking_tile_simple:
 ;   AL < 0x49 → table lookup.
 ;   AL >= 0x80 → NZ (non-passable).
 ;
@@ -2533,18 +2533,18 @@ get_dst_monster_flags endp
 ;   0x00 (air), 0x01/0x02 (rope), 0x08-0x19 (various walk-through tiles).
 ; Sets ZF=1 when passable, NZ when blocked.
 ; ===========================================================================
-is_non_blocking_tile proc near
+is_blocking_tile proc near
                 cmp     al, 40h
                 jb      short lookup_shared
                 cmp     al, al
                 retn                    ; ZF: can pass
-is_non_blocking_tile endp
+is_blocking_tile endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-is_non_blocking_tile_extended proc near
+is_blocking_tile_extended proc near
                 cmp     al, 49h ; doors
                 jb      short lookup_shared
                 cmp     al, al
@@ -2579,13 +2579,13 @@ cant_pass:
                 mov     al, 0FFh
                 or      al, al
                 retn                    ; NZ: cannot pass
-is_non_blocking_tile_extended endp
+is_blocking_tile_extended endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 ; Return ZF if non-blocked, NZ if blocked.
-is_non_blocking_tile_simple proc near
+is_blocking_tile_simple proc near
                 cmp     al, 49h        ; =4
                 jb      short loc_6E22 ; v
                 cmp     al, al         ; ZF: can pass
@@ -2609,7 +2609,7 @@ loc_6E36:
                 and     al, 80h ; =0
                 cmp     al, 80h ; 0 != 80h => NZ
                 retn  ; ZF (passable) if monster or item ; =NZ
-is_non_blocking_tile_simple endp
+is_blocking_tile_simple endp
 
 
 ; ===========================================================================
@@ -5184,7 +5184,7 @@ loc_807C:
                 sub     si, 36-1
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 mov     al, [si]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jz      short hero_not_blocked_above
                 retn
 ; ---------------------------------------------------------------------------
@@ -5952,7 +5952,7 @@ loc_847F:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 mov     al, [di]
-                call    is_non_blocking_tile_extended
+                call    is_blocking_tile_extended
                 jz      short loc_8490
                 mov     [si+projectile.p_x_rel], 0
                 retn
@@ -7109,10 +7109,10 @@ loc_8B20:
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 mov     al, [di]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_8B61
                 mov     al, [di+1]
-                call    is_non_blocking_tile ; ZF if can pass
+                call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_8B61
                 inc     [si+magic_projectile.mp_y_rel]
                 and     [si+magic_projectile.mp_y_rel], 3Fh
@@ -8468,7 +8468,7 @@ check_collision_E2 endp
 
 check_collision_E_including_danger5 proc near
                 mov     al, [di]
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_92F4
                 retn  ; cannot pass => CF
@@ -8548,7 +8548,7 @@ check_collision_W2 endp
 
 check_collision_W_including_danger5 proc near
                 mov     al, [di]
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_934A
                 retn
@@ -8596,7 +8596,7 @@ check_collision_N2 proc near
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xchg    si, di
                 mov     al, [di]        ; check (0, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_937B
                 retn
@@ -8604,7 +8604,7 @@ check_collision_N2 proc near
 
 loc_937B:        
                 mov     al, [di+1]      ; check (+1, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_9385
                 retn
@@ -8639,7 +8639,7 @@ check_collision_S2 proc near
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 mov     al, [di]        ; check (0, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_93B3
                 retn                    ; tile (0, +2) is solid, CF set
@@ -8647,7 +8647,7 @@ check_collision_S2 proc near
 
 loc_93B3:        
                 mov     al, [di+1]      ; check (+1, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_93BD
                 retn                    ; tile (1, +2) is solid, CF set
@@ -8675,7 +8675,7 @@ check_collision_NE2 proc near
                 inc     di
                 inc     di              ; x+=2
                 mov     al, [di]        ; check (+2, 0)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_93D6
                 retn
@@ -8688,7 +8688,7 @@ loc_93D6:
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xchg    si, di
                 mov     al, [di]        ; check (+2, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_93EB
                 retn
@@ -8697,7 +8697,7 @@ loc_93D6:
 loc_93EB:        
                 or      cl, al          ; cl=(+2, 0)|(+2, -1)
                 mov     al, [di-1]      ; check (+1, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_93F7
                 retn
@@ -8735,7 +8735,7 @@ check_collision_SE2 proc near
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di          ; di: proximity map, si: monster struc
                 mov     al, [di]        ; check tile (+2, +1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_9429
                 retn                    ; tile (+2, +1) is solid, CF set
@@ -8748,7 +8748,7 @@ loc_9429:
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di          ; di: proximity map, si: monster struc
                 mov     al, [di]        ; check tile (+2, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_943E
                 retn                    ; tile (+2, +2) is solid, CF set
@@ -8757,7 +8757,7 @@ loc_9429:
 loc_943E:        
                 or      cl, al          ; cl=(+2, 0)|(+2, +1)|(+2, +2)
                 mov     al, [di-1]      ; check tile (+1, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_944A
                 retn                    ; tile (+1, +2) is solid, CF set
@@ -8784,7 +8784,7 @@ check_collision_NW2 proc near
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 dec     di              ; x--
                 mov     al, [di]        ; check (-1, 0)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_9462
                 retn
@@ -8799,7 +8799,7 @@ loc_9462:
                 xchg    si, di
                 or      cl, [di]        ; cl=(-2, 0)|(-2, -1)
                 mov     al, [di+1]      ; check (-1, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_947B
                 retn
@@ -8807,7 +8807,7 @@ loc_9462:
 
 loc_947B:        
                 mov     al, [di+2]      ; check (0, -1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_9485
                 retn
@@ -8847,7 +8847,7 @@ check_collision_SW2 proc near
                 or      cl, [di]        ; cl=(-2, 0)|(-2, +1)
                 inc     di              ; x++
                 mov     al, [di]        ; check (-1, +1)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_94BA
                 retn
@@ -8859,7 +8859,7 @@ loc_94BA:
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 mov     al, [di]        ; check (-1, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_94CD
                 retn
@@ -8868,7 +8868,7 @@ loc_94BA:
 loc_94CD:        
                 or      cl, al          ; cl=(-2, 0)|(-2, +1)|(-1, +2)
                 mov     al, [di+1]      ; check (0, +2)
-                call    if_passable_set_ZF
+                call    is_blocking
                 stc
                 jz      short loc_94D9
                 retn
@@ -8891,10 +8891,10 @@ check_collision_SW2 endp
 ;   AL in 0x49-0x7F: NZ (solid tile range)
 ;   AL < 0x49: search the 24-byte passable list at seg1:8000h.
 ;            ZF=1 if found (passable), NZ if not.
-; Note: this is subtly different from is_non_blocking_tile_extended,
+; Note: this is subtly different from is_blocking_tile_extended,
 ; which does NOT use the 73-based threshold (uses 0x40 and 0x49 variants).
 ; ===========================================================================
-if_passable_set_ZF proc near  
+is_blocking proc near  
                 cmp     al, 49h
                 jb      short in_zero_to_x48
                 or      al, al
@@ -8917,7 +8917,7 @@ in_zero_to_x48:
                 pop     cx
                 pop     di
                 retn                    ; ZF if one of predefined passable tiles; NZ otherwise
-if_passable_set_ZF endp
+is_blocking endp
 
 
 ; ===========================================================================

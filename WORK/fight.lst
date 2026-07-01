@@ -34,7 +34,7 @@ fight:6028                                         ; y &= 0x3F; // Clamp Y to 0-
 fight:6028                                         ; uint16_t di = (y * 36) + x + 0xE000;
 fight:602A                 dw offset wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:602C                 dw offset wrap_map_from_below ; if (si < 0E000h) si += 900h
-fight:602E                 dw offset if_passable_set_ZF
+fight:602E                 dw offset is_blocking
 fight:6030                 dw offset check_monster_on_aggressive_ground
 fight:6032                 dw offset Check_Vertical_Distance_Between_Hero_And_Monster
 fight:6034                 dw offset Hero_Hits_monster
@@ -459,7 +459,7 @@ fight:63EA
 fight:63EA loc_63EA:                               ; ...
 fight:63EA                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
 fight:63ED                 mov     al, [si]        ; [e10c]=
-fight:63EF                 call    is_non_blocking_tile ; ZF if can pass
+fight:63EF                 call    is_blocking_tile ; ZF if can pass
 fight:63F2                 jnz     short loc_63F5
 fight:63F4                 retn
 fight:63F5 ; ---------------------------------------------------------------------------
@@ -468,7 +468,7 @@ fight:63F5 loc_63F5:                               ; ...
 fight:63F5                 inc     si
 fight:63F6                 inc     si
 fight:63F7                 mov     al, [si]
-fight:63F9                 call    is_non_blocking_tile ; ZF if can pass
+fight:63F9                 call    is_blocking_tile ; ZF if can pass
 fight:63FC                 jnz     short loc_63FF
 fight:63FE                 retn
 fight:63FF ; ---------------------------------------------------------------------------
@@ -477,7 +477,7 @@ fight:63FF loc_63FF:                               ; ...
 fight:63FF                 add     si, 36
 fight:6402                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:6405                 mov     al, [si]
-fight:6407                 call    is_non_blocking_tile ; ZF if can pass
+fight:6407                 call    is_blocking_tile ; ZF if can pass
 fight:640A                 jz      short loc_640F
 fight:640C                 jmp     hero_moves_left
 fight:640F ; ---------------------------------------------------------------------------
@@ -715,7 +715,7 @@ fight:656B                 call    hero_coords_to_addr_in_proximity ; Hero is 3x
 fight:656E                 sub     si, 35          ; x++, y--
 fight:6571                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
 fight:6574                 mov     al, [si]
-fight:6576                 call    is_non_blocking_tile ; ZF if can pass
+fight:6576                 call    is_blocking_tile ; ZF if can pass
 fight:6579                 jnz     short loc_65A5
 fight:657B                 mov     ds:hero_animation_phase, 0
 fight:6580                 and     ds:facing_direction, 11111101b ; clear Down direction
@@ -919,7 +919,7 @@ fight:66C4                 xchg    di, si
 fight:66C6                 test    ds:squat_flag, 0FFh ; =0
 fight:66CB                 jnz     short loc_66DC
 fight:66CD                 mov     al, [si]        ; tile where hero head will come
-fight:66CF                 call    is_non_blocking_tile ; ZF if can pass
+fight:66CF                 call    is_blocking_tile ; ZF if can pass
 fight:66D2                 stc
 fight:66D3                 jz      short loc_66D6
 fight:66D5                 retn
@@ -938,7 +938,7 @@ fight:66DF loc_66DF:                               ; ...
 fight:66DF                 add     si, 36
 fight:66E2                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:66E5                 mov     al, [si]        ; map element (tile)
-fight:66E7                 call    is_non_blocking_tile_simple
+fight:66E7                 call    is_blocking_tile_simple
 fight:66EA                 stc
 fight:66EB                 jz      short loc_66EE
 fight:66ED                 retn
@@ -1188,7 +1188,7 @@ fight:686C                 xchg    di, si
 fight:686E                 test    ds:squat_flag, 0FFh
 fight:6873                 jnz     short loc_6884
 fight:6875                 mov     al, [si]
-fight:6877                 call    is_non_blocking_tile ; ZF if can pass
+fight:6877                 call    is_blocking_tile ; ZF if can pass
 fight:687A                 stc
 fight:687B                 jz      short loc_687E
 fight:687D                 retn
@@ -1207,7 +1207,7 @@ fight:6887 loc_6887:                               ; ...
 fight:6887                 add     si, 36          ; y++
 fight:688A                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:688D                 mov     al, [si]
-fight:688F                 call    is_non_blocking_tile_simple
+fight:688F                 call    is_blocking_tile_simple
 fight:6892                 stc
 fight:6893                 jz      short loc_6896
 fight:6895                 retn
@@ -1462,7 +1462,7 @@ fight:6A1E                 call    hero_coords_to_addr_in_proximity ; Hero is 3x
 fight:6A21                 add     si, 3*36+1
 fight:6A24                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:6A27                 mov     al, [si]
-fight:6A29                 call    is_non_blocking_tile ; ZF if can pass
+fight:6A29                 call    is_blocking_tile ; ZF if can pass
 fight:6A2C                 jz      short loc_6A2F
 fight:6A2E                 retn
 fight:6A2F ; ---------------------------------------------------------------------------
@@ -1470,7 +1470,7 @@ fight:6A2F
 fight:6A2F loc_6A2F:                               ; ...
 fight:6A2F                 inc     si
 fight:6A30                 mov     al, [si]
-fight:6A32                 call    is_non_blocking_tile ; ZF if can pass
+fight:6A32                 call    is_blocking_tile ; ZF if can pass
 fight:6A35                 jnz     short loc_6A38
 fight:6A37                 retn
 fight:6A38 ; ---------------------------------------------------------------------------
@@ -1490,7 +1490,7 @@ fight:6A4A                 call    hero_coords_to_addr_in_proximity ; Hero is 3x
 fight:6A4D                 add     si, 3*36+1
 fight:6A50                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:6A53                 mov     al, [si]
-fight:6A55                 call    is_non_blocking_tile ; ZF if can pass
+fight:6A55                 call    is_blocking_tile ; ZF if can pass
 fight:6A58                 jz      short loc_6A5B
 fight:6A5A                 retn
 fight:6A5B ; ---------------------------------------------------------------------------
@@ -1498,7 +1498,7 @@ fight:6A5B
 fight:6A5B loc_6A5B:                               ; ...
 fight:6A5B                 dec     si
 fight:6A5C                 mov     al, [si]
-fight:6A5E                 call    is_non_blocking_tile ; ZF if can pass
+fight:6A5E                 call    is_blocking_tile ; ZF if can pass
 fight:6A61                 jnz     short loc_6A64
 fight:6A63                 retn
 fight:6A64 ; ---------------------------------------------------------------------------
@@ -1617,7 +1617,7 @@ fight:6B07                 add     si, 109         ; 3*36+1
 fight:6B0A                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:6B0D                 inc     ds:hero_animation_phase
 fight:6B11                 mov     al, [si]
-fight:6B13                 call    is_non_blocking_tile ; ZF if can pass
+fight:6B13                 call    is_blocking_tile ; ZF if can pass
 fight:6B16                 jz      short loc_6B1E
 fight:6B18                 or      ds:hero_animation_phase, 1
 fight:6B1D                 retn
@@ -1710,7 +1710,7 @@ fight:6B92
 fight:6B92 loc_6B92:                               ; ...
 fight:6B92                 mov     si, di
 fight:6B94                 mov     al, [si]
-fight:6B96                 call    is_non_blocking_tile_simple
+fight:6B96                 call    is_blocking_tile_simple
 fight:6B99                 stc
 fight:6B9A                 jz      short loc_6B9D
 fight:6B9C                 retn
@@ -1726,7 +1726,7 @@ fight:6BA6
 fight:6BA6 loc_6BA6:                               ; ...
 fight:6BA6                 dec     si
 fight:6BA7                 mov     al, [si]
-fight:6BA9                 call    is_non_blocking_tile_simple
+fight:6BA9                 call    is_blocking_tile_simple
 fight:6BAC                 clc
 fight:6BAD                 jnz     short loc_6BB0
 fight:6BAF                 retn
@@ -1736,7 +1736,7 @@ fight:6BB0 loc_6BB0:                               ; ...
 fight:6BB0                 inc     si
 fight:6BB1                 inc     si
 fight:6BB2                 mov     al, [si]
-fight:6BB4                 call    is_non_blocking_tile_simple
+fight:6BB4                 call    is_blocking_tile_simple
 fight:6BB7                 stc
 fight:6BB8                 jz      short loc_6BBB
 fight:6BBA                 retn
@@ -2227,18 +2227,18 @@ fight:6DE5 ; =============== S U B R O U T I N E ===============================
 fight:6DE5
 fight:6DE5 ; ZF if can pass
 fight:6DE5
-fight:6DE5 is_non_blocking_tile proc near          ; ...
+fight:6DE5 is_blocking_tile proc near          ; ...
 fight:6DE5                 cmp     al, 40h ; '@'
 fight:6DE7                 jb      short lookup_shared
 fight:6DE9                 cmp     al, al
 fight:6DEB                 retn                    ; NZ: can't pass
-fight:6DEB is_non_blocking_tile endp
+fight:6DEB is_blocking_tile endp
 fight:6DEB
 fight:6DEC
 fight:6DEC ; =============== S U B R O U T I N E =======================================
 fight:6DEC
 fight:6DEC
-fight:6DEC is_non_blocking_tile_extended proc near ; ...
+fight:6DEC is_blocking_tile_extended proc near ; ...
 fight:6DEC                 cmp     al, 49h ; 'I'
 fight:6DEE                 jb      short lookup_shared
 fight:6DF0                 cmp     al, al
@@ -2273,13 +2273,13 @@ fight:6E16 cant_pass:                              ; ...
 fight:6E16                 mov     al, 0FFh
 fight:6E18                 or      al, al
 fight:6E1A                 retn                    ; NZ: cannot pass
-fight:6E1A is_non_blocking_tile_extended endp
+fight:6E1A is_blocking_tile_extended endp
 fight:6E1A
 fight:6E1B
 fight:6E1B ; =============== S U B R O U T I N E =======================================
 fight:6E1B
 fight:6E1B
-fight:6E1B is_non_blocking_tile_simple proc near   ; ...
+fight:6E1B is_blocking_tile_simple proc near   ; ...
 fight:6E1B                 cmp     al, 49h ; 'I'
 fight:6E1D                 jb      short loc_6E22
 fight:6E1F                 cmp     al, al
@@ -2303,7 +2303,7 @@ fight:6E36 loc_6E36:                               ; ...
 fight:6E36                 and     al, 80h
 fight:6E38                 cmp     al, 80h
 fight:6E3A                 retn
-fight:6E3A is_non_blocking_tile_simple endp
+fight:6E3A is_blocking_tile_simple endp
 fight:6E3A
 fight:6E3B
 fight:6E3B ; =============== S U B R O U T I N E =======================================
@@ -4789,7 +4789,7 @@ fight:807C                 call    hero_coords_to_addr_in_proximity ; Hero is 3x
 fight:807F                 sub     si, 36-1
 fight:8082                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
 fight:8085                 mov     al, [si]
-fight:8087                 call    is_non_blocking_tile ; ZF if can pass
+fight:8087                 call    is_blocking_tile ; ZF if can pass
 fight:808A                 jz      short hero_not_blocked_above
 fight:808C                 retn
 fight:808D ; ---------------------------------------------------------------------------
@@ -5560,7 +5560,7 @@ fight:8482                                         ; uint8_t x = AH
 fight:8482                                         ; y &= 0x3F; // Clamp Y to 0-63
 fight:8482                                         ; uint16_t di = (y * 36) + x + 0xE000;
 fight:8485                 mov     al, [di]
-fight:8487                 call    is_non_blocking_tile_extended
+fight:8487                 call    is_blocking_tile_extended
 fight:848A                 jz      short loc_8490
 fight:848C                 mov     [si+projectile.x_rel], 0
 fight:848F                 retn
@@ -6728,10 +6728,10 @@ fight:8B43                 add     si, 72
 fight:8B46                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:8B49                 xchg    si, di
 fight:8B4B                 mov     al, [di]
-fight:8B4D                 call    is_non_blocking_tile ; ZF if can pass
+fight:8B4D                 call    is_blocking_tile ; ZF if can pass
 fight:8B50                 jnz     short loc_8B61
 fight:8B52                 mov     al, [di+1]
-fight:8B55                 call    is_non_blocking_tile ; ZF if can pass
+fight:8B55                 call    is_blocking_tile ; ZF if can pass
 fight:8B58                 jnz     short loc_8B61
 fight:8B5A                 inc     [si+magic_projectile.y_rel]
 fight:8B5D                 and     [si+magic_projectile.y_rel], 3Fh
@@ -8001,7 +8001,7 @@ fight:92EB
 fight:92EB
 fight:92EB check_collision_E_including_danger5 proc near ; ...
 fight:92EB                 mov     al, [di]
-fight:92ED                 call    if_passable_set_ZF
+fight:92ED                 call    is_blocking
 fight:92F0                 stc
 fight:92F1                 jz      short loc_92F4
 fight:92F3                 retn
@@ -8082,7 +8082,7 @@ fight:9341
 fight:9341
 fight:9341 check_collision_W_including_danger5 proc near ; ...
 fight:9341                 mov     al, [di]
-fight:9343                 call    if_passable_set_ZF
+fight:9343                 call    is_blocking
 fight:9346                 stc
 fight:9347                 jz      short loc_934A
 fight:9349                 retn
@@ -8130,7 +8130,7 @@ fight:936A                 sub     si, 36          ; y--
 fight:936D                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
 fight:9370                 xchg    si, di
 fight:9372                 mov     al, [di]        ; check (0, -1)
-fight:9374                 call    if_passable_set_ZF
+fight:9374                 call    is_blocking
 fight:9377                 stc
 fight:9378                 jz      short loc_937B
 fight:937A                 retn
@@ -8138,7 +8138,7 @@ fight:937B ; -------------------------------------------------------------------
 fight:937B
 fight:937B loc_937B:                               ; ...
 fight:937B                 mov     al, [di+1]      ; check (+1, -1)
-fight:937E                 call    if_passable_set_ZF
+fight:937E                 call    is_blocking
 fight:9381                 stc
 fight:9382                 jz      short loc_9385
 fight:9384                 retn
@@ -8173,7 +8173,7 @@ fight:93A2                 add     si, 36*2
 fight:93A5                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:93A8                 xchg    si, di
 fight:93AA                 mov     al, [di]        ; check (0, +2)
-fight:93AC                 call    if_passable_set_ZF
+fight:93AC                 call    is_blocking
 fight:93AF                 stc
 fight:93B0                 jz      short loc_93B3
 fight:93B2                 retn                    ; tile (0, +2) is solid, CF set
@@ -8181,7 +8181,7 @@ fight:93B3 ; -------------------------------------------------------------------
 fight:93B3
 fight:93B3 loc_93B3:                               ; ...
 fight:93B3                 mov     al, [di+1]      ; check (+1, +2)
-fight:93B6                 call    if_passable_set_ZF
+fight:93B6                 call    is_blocking
 fight:93B9                 stc
 fight:93BA                 jz      short loc_93BD
 fight:93BC                 retn                    ; tile (1, +2) is solid, CF set
@@ -8209,7 +8209,7 @@ fight:93C8                                         ; uint16_t di = (y * 36) + x 
 fight:93CB                 inc     di
 fight:93CC                 inc     di              ; x+=2
 fight:93CD                 mov     al, [di]        ; check (+2, 0)
-fight:93CF                 call    if_passable_set_ZF
+fight:93CF                 call    is_blocking
 fight:93D2                 stc
 fight:93D3                 jz      short loc_93D6
 fight:93D5                 retn
@@ -8222,7 +8222,7 @@ fight:93DA                 sub     si, 36          ; y--
 fight:93DD                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
 fight:93E0                 xchg    si, di
 fight:93E2                 mov     al, [di]        ; check (+2, -1)
-fight:93E4                 call    if_passable_set_ZF
+fight:93E4                 call    is_blocking
 fight:93E7                 stc
 fight:93E8                 jz      short loc_93EB
 fight:93EA                 retn
@@ -8231,7 +8231,7 @@ fight:93EB
 fight:93EB loc_93EB:                               ; ...
 fight:93EB                 or      cl, al          ; cl=(+2, 0)|(+2, -1)
 fight:93ED                 mov     al, [di-1]      ; check (+1, -1)
-fight:93F0                 call    if_passable_set_ZF
+fight:93F0                 call    is_blocking
 fight:93F3                 stc
 fight:93F4                 jz      short loc_93F7
 fight:93F6                 retn
@@ -8269,7 +8269,7 @@ fight:9418                 add     si, 36          ; move 1 down
 fight:941B                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:941E                 xchg    si, di          ; di: proximity map, si: monster struc
 fight:9420                 mov     al, [di]        ; check tile (+2, +1)
-fight:9422                 call    if_passable_set_ZF
+fight:9422                 call    is_blocking
 fight:9425                 stc
 fight:9426                 jz      short loc_9429
 fight:9428                 retn                    ; tile (+2, +1) is solid, CF set
@@ -8282,7 +8282,7 @@ fight:942D                 add     si, 36          ; move 1 down
 fight:9430                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:9433                 xchg    si, di          ; di: proximity map, si: monster struc
 fight:9435                 mov     al, [di]        ; check tile (+2, +2)
-fight:9437                 call    if_passable_set_ZF
+fight:9437                 call    is_blocking
 fight:943A                 stc
 fight:943B                 jz      short loc_943E
 fight:943D                 retn                    ; tile (+2, +2) is solid, CF set
@@ -8291,7 +8291,7 @@ fight:943E
 fight:943E loc_943E:                               ; ...
 fight:943E                 or      cl, al          ; cl=(+2, 0)|(+2, +1)|(+2, +2)
 fight:9440                 mov     al, [di-1]      ; check tile (+1, +2)
-fight:9443                 call    if_passable_set_ZF
+fight:9443                 call    is_blocking
 fight:9446                 stc
 fight:9447                 jz      short loc_944A
 fight:9449                 retn                    ; tile (+1, +2) is solid, CF set
@@ -8318,7 +8318,7 @@ fight:9455                                         ; y &= 0x3F; // Clamp Y to 0-
 fight:9455                                         ; uint16_t di = (y * 36) + x + 0xE000;
 fight:9458                 dec     di              ; x--
 fight:9459                 mov     al, [di]        ; check (-1, 0)
-fight:945B                 call    if_passable_set_ZF
+fight:945B                 call    is_blocking
 fight:945E                 stc
 fight:945F                 jz      short loc_9462
 fight:9461                 retn
@@ -8333,7 +8333,7 @@ fight:946A                 call    wrap_map_from_below ; if (si < 0E000h) si += 
 fight:946D                 xchg    si, di
 fight:946F                 or      cl, [di]        ; cl=(-2, 0)|(-2, -1)
 fight:9471                 mov     al, [di+1]      ; check (-1, -1)
-fight:9474                 call    if_passable_set_ZF
+fight:9474                 call    is_blocking
 fight:9477                 stc
 fight:9478                 jz      short loc_947B
 fight:947A                 retn
@@ -8341,7 +8341,7 @@ fight:947B ; -------------------------------------------------------------------
 fight:947B
 fight:947B loc_947B:                               ; ...
 fight:947B                 mov     al, [di+2]      ; check (0, -1)
-fight:947E                 call    if_passable_set_ZF
+fight:947E                 call    is_blocking
 fight:9481                 stc
 fight:9482                 jz      short loc_9485
 fight:9484                 retn
@@ -8381,7 +8381,7 @@ fight:94AC                 xchg    si, di
 fight:94AE                 or      cl, [di]        ; cl=(-2, 0)|(-2, +1)
 fight:94B0                 inc     di
 fight:94B1                 mov     al, [di]        ; check (-1, +1)
-fight:94B3                 call    if_passable_set_ZF
+fight:94B3                 call    is_blocking
 fight:94B6                 stc
 fight:94B7                 jz      short loc_94BA
 fight:94B9                 retn
@@ -8393,7 +8393,7 @@ fight:94BC                 add     si, 36          ; y++
 fight:94BF                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:94C2                 xchg    si, di
 fight:94C4                 mov     al, [di]        ; check (-1, +2)
-fight:94C6                 call    if_passable_set_ZF
+fight:94C6                 call    is_blocking
 fight:94C9                 stc
 fight:94CA                 jz      short loc_94CD
 fight:94CC                 retn
@@ -8402,7 +8402,7 @@ fight:94CD
 fight:94CD loc_94CD:                               ; ...
 fight:94CD                 or      cl, al          ; cl=(-2, 0)|(-2, +1)|(-1, +2)
 fight:94CF                 mov     al, [di+1]      ; check (0, +2)
-fight:94D2                 call    if_passable_set_ZF
+fight:94D2                 call    is_blocking
 fight:94D5                 stc
 fight:94D6                 jz      short loc_94D9
 fight:94D8                 retn
@@ -8421,7 +8421,7 @@ fight:94E1
 fight:94E1 ; =============== S U B R O U T I N E =======================================
 fight:94E1
 fight:94E1
-fight:94E1 if_passable_set_ZF proc near            ; ...
+fight:94E1 is_blocking proc near            ; ...
 fight:94E1                 cmp     al, 73
 fight:94E3                 jb      short in_zero_to_72
 fight:94E5                 or      al, al
@@ -8445,7 +8445,7 @@ fight:94FA                 repne scasb             ; al in (00 01 02 08 09 0A 0B
 fight:94FC                 pop     cx
 fight:94FD                 pop     di
 fight:94FE                 retn                    ; ZF if one of predefined passable tiles; NZ otherwise
-fight:94FE if_passable_set_ZF endp
+fight:94FE is_blocking endp
 fight:94FE
 fight:94FF
 fight:94FF ; =============== S U B R O U T I N E =======================================
