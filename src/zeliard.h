@@ -9,6 +9,7 @@
 extern "C" {
 #endif
 
+// Macros for accessing linear WASM memory
 #define MEM8(addr)     (g_mem[(addr) & 0xFFFF])
 #define MEM16(addr)    (*(uint16_t *)&g_mem[(addr) & 0xFFFF])
 #define MEM8_1(addr)   (g_mem[((addr) & 0xFFFF) + 0x10000])
@@ -62,11 +63,9 @@ extern "C" {
 #define ITS_TOO_HOT_STR             17
 #define CANT_OPEN_THIS_DOOR_STR     18
 
-#define SWORD_ENCHANTMENT         6
+#define SWORD_ENCHANTMENT           6
 
-// ============================================================================
 // Memory Layout Constants
-// ============================================================================
 #define MEM_SAVE_DATA                 0       // 256 bytes - Save data (xxx.sav)
 #define ADDR_DEATH_ALREADY_PROCESSED  0x49
 #define ADDR_HERO_INVINCIBILITY       0x7F    // byte
@@ -100,83 +99,85 @@ extern "C" {
 #define ADDR_HERO_ANIM_PHASE          0xE7
 #define ADDR_INVINCIBILITY_FLAG       0xE8
 
-#define ADDR_BOSS_STATE_PTR                          0xA002  // word
-#define ADDR_DEATH_DESCRIPTORS_PTR                   0xA006  // word
-#define ADDR_XP_FOR_MONSTER                          0xA008
-#define ADDR_MONSTER_AI_MOVE_LEFT_FRAMES             0xA030
-#define ADDR_MONSTER_AI_DEATH_LEFT_FRAMES            0xA040
-#define ADDR_MONSTER_AI_ITEM_ANIMATION_LEFT_FRAMES   0xA050
-#define ADDR_MONSTER_AI_POTIONS_LEFT_FRAMES          0xA060
-#define ADDR_MONSTER_AI_MOVE_RIGHT_FRAMES            0xA070
-#define ADDR_MONSTER_AI_DEATH_RIGHT_FRAMES           0xA080
-#define ADDR_MONSTER_AI_ITEM_ANIMATION_RIGHT_FRAMES  0xA090
-#define ADDR_MONSTER_AI_POTIONS_RIGHT_FRAMES         0xA0A0
+#define ADDR_BOSS_STATE_PTR                            0xA002  // word
+#define ADDR_DEATH_DESCRIPTORS_PTR                     0xA006  // word
+#define ADDR_XP_FOR_MONSTER                            0xA008
+#define ADDR_MONSTER_AI_MOVE_LEFT_FRAMES               0xA030
+#define ADDR_MONSTER_AI_DEATH_LEFT_FRAMES              0xA040
+#define ADDR_MONSTER_AI_ITEM_ANIMATION_LEFT_FRAMES     0xA050
+#define ADDR_MONSTER_AI_POTIONS_LEFT_FRAMES            0xA060
+#define ADDR_MONSTER_AI_MOVE_RIGHT_FRAMES              0xA070
+#define ADDR_MONSTER_AI_DEATH_RIGHT_FRAMES             0xA080
+#define ADDR_MONSTER_AI_ITEM_ANIMATION_RIGHT_FRAMES    0xA090
+#define ADDR_MONSTER_AI_POTIONS_RIGHT_FRAMES           0xA0A0
 
-#define ADDR_MDT                 0xC000    // MDT dungeon data
-#define ADDR_MAP_WIDTH           0xC002
-#define ADDR_DOORS_LIST          0xC00A
-#define ADDR_ACHIEVEMENTS_TABLE  0xC00C
-#define ADDR_CAVERN_NAME_INFO    0xC00E
-#define ADDR_MONSTERS_LIST       0xC010
-#define ADDR_CAVERN_LEVEL        0xC012
-#define ADDR_TEAR_X              0xC013    // word
-#define ADDR_TEAR_Y              0xC015    // byte
-#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT 0xC016
-#define ADDR_CAVERN_SIGNS_INFO   0xC017    // word
-#define ADDR_PACKED_MAP_END_PTR  0xC019    // [0xC019] points behind the last byte of packed map
-#define ADDR_PACKED_MAP_START    0xC01B    // Packed map offset in MDT file
-#define ADDR_PROXIMITY_MAP       0xE000    // 2304 bytes - 36x64 proximity map
-#define ADDR_VIEWPORT_ENTITIES   0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_MDT                                       0xC000    // MDT dungeon data
+#define ADDR_MAP_WIDTH                                 0xC002
+#define ADDR_VERTICAL_PLATFORMS_TABLE                  0xC004
+#define ADDR_COLLAPSING_PLATFORMS_TABLE                0xC006
+#define ADDR_HORIZ_PLATFORMS_TABLE                     0xC008
+#define ADDR_DOORS_LIST                                0xC00A
+#define ADDR_ACHIEVEMENTS_TABLE                        0xC00C
+#define ADDR_CAVERN_NAME_INFO                          0xC00E
+#define ADDR_MONSTERS_LIST                             0xC010
+#define ADDR_CAVERN_LEVEL                              0xC012
+#define ADDR_TEAR_X                                    0xC013    // word
+#define ADDR_TEAR_Y                                    0xC015    // byte
+#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT  0xC016
+#define ADDR_CAVERN_SIGNS_INFO                         0xC017    // word
+#define ADDR_PACKED_MAP_END_PTR                        0xC019    // [0xC019] points behind the last byte of packed map
+#define ADDR_PACKED_MAP_START                          0xC01B    // Packed map offset in MDT file
+#define ADDR_PROXIMITY_MAP                             0xE000    // 2304 bytes - 36x64 proximity map
+#define ADDR_VIEWPORT_ENTITIES                         0xE900    // 28*19 bytes - Monster IDs (1 byte each)
 // Note: the last row is dummy, because sometimes we need to write 2x2 tiles blocks to the row 18
 
-#define ADDR_MAGIC_PROJECTILES   0xEB15    // word
-#define ADDR_SPIRIT_SPRITE0      0xEB60    // byte
-#define ADDR_SPIRIT_SPRITE1      0xEB67    // byte
-#define ADDR_SPIRIT_SPRITE2      0xEB6E    // byte
-#define ADDR_SPIRIT_SPRITE3      0xEB75    // byte
-#define ADDR_PROJECTILES_LIST    0xEB80    // 13x32 bytes
-#define ADDR_PROXIMITY_LAYER2    0xED20    // 128 bytes
-#define ADDR_BOSS_EXPLOSIONS_LIST 0xEDA0   // up to 32 entities (4 bytes each)
+#define ADDR_MAGIC_PROJECTILES                         0xEB15  // word
+#define ADDR_SPIRIT_SPRITE0                            0xEB60  // byte
+#define ADDR_SPIRIT_SPRITE1                            0xEB67  // byte
+#define ADDR_SPIRIT_SPRITE2                            0xEB6E  // byte
+#define ADDR_SPIRIT_SPRITE3                            0xEB75  // byte
+#define ADDR_PROJECTILES_LIST                          0xEB80  // 13x32 bytes
+#define ADDR_PROXIMITY_LAYER2                          0xED20  // 128 bytes
+#define ADDR_BOSS_EXPLOSIONS_LIST                      0xEDA0  // up to 32 entities (4 bytes each)
 
-#define ADDR_HEARTBEAT_VOLUME     0xFF08  // byte
-#define ADDR_INPUT_ALT_SPACE      0xFF16  // byte ____Alt_Space
-#define ADDR_INPUT_DIRS           0xFF17  // byte ____right_left_down_up
+#define ADDR_HEARTBEAT_VOLUME                          0xFF08  // byte
+#define ADDR_INPUT_ALT_SPACE                           0xFF16  // byte ____Alt_Space
+#define ADDR_INPUT_DIRS                                0xFF17  // byte ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
-#define ADDR_FRAME_TIMER          0xFF1A  // byte
-#define ADDR_SPACEBAR_LATCH       0xFF1D
-#define ADDR_ALTKEY_LATCH         0xFF1E
-#define ADDR_BYTE_FF24            0xFF24
-#define ADDR_BOSS_BEING_HIT       0xFF2E  // byte
-#define ADDR_SPRITE_FLASH_FLAG    0xFF2F  // byte
-#define ADDR_BOSS_IS_DEAD         0xFF30  // byte
-#define ADDR_VIEWPORT_LEFT_TOP    0xFF31  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
-#define ADDR_SPEED_CONST          0xFF33  // byte
-#define ADDR_IS_BOSS_CAVERN       0xFF34  // byte
-#define ADDR_HERO_Y               0xFF35  // hero_y_absolute (byte)
-#define ADDR_HERO_DAMAGE_THIS_FRAME 0xFF36 // byte
-#define ADDR_HERO_SPRITE_PROCESSED   0xFF37  // byte
-#define ADDR_SQUAT_FLAG           0xFF38  // byte
-#define ADDR_ON_ROPE_FLAGS        0xFF39
-#define ADDR_HERO_HIDDEN_FLAG     0xFF3A  // byte
-#define ADDR_SPELL_ACTIVE_FLAG    0xFF3C  // byte
-#define ADDR_JUMP_PHASE_FLAGS     0xFF3D   // byte
-#define ADDR_BYTE_FF3E            0xFF3E
-#define ADDR_SHIELD_ANIM_PHASE    0xFF3F  // byte
-#define ADDR_SHIELD_ANIM_ACTIVE   0xFF40  // byte
-#define ADDR_SHIELD_VARIANT_INDEX 0xFF41  // byte
-#define ADDR_SLOPE_DIRECTION      0xFF42  // 1=right, 2=left, 0=none
-#define ADDR_SWORD_SWING_FLAG     0xFF43  // byte
-#define ADDR_UI_ELEMENT_DIRTY     0xFF44  // byte
-#define ADDR_SWORD_HIT_TYPE       0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
-#define ADDR_SWORD_MOVEMENT_PHASE 0xFF46  // byte
-#define ADDR_DOWN_THRUST_HELD     0xFF47  // byte
-#define ADDR_MONSTER_INDEX        0xFF4A  // byte
-#define ADDR_BYTE_FF4B            0xFF4B
-#define ADDR_TICK_COUNTER         0xFF50  // word
-
-#define ADDR_KEYBOARD_ALT_MODE_FLAG 0xFF74  // byte
-#define ADDR_SOUND_FX_REQUEST     0xFF75  // byte
-#define ADDR_FONT_HIGHLIGHT_FLAG  0xFF77  // byte
+#define ADDR_FRAME_TIMER                               0xFF1A  // byte
+#define ADDR_SPACEBAR_LATCH                            0xFF1D  // byte
+#define ADDR_ALTKEY_LATCH                              0xFF1E  // byte
+#define ADDR_BYTE_FF24                                 0xFF24
+#define ADDR_BOSS_BEING_HIT                            0xFF2E  // byte
+#define ADDR_SPRITE_FLASH_FLAG                         0xFF2F  // byte
+#define ADDR_BOSS_IS_DEAD                              0xFF30  // byte
+#define ADDR_VIEWPORT_LEFT_TOP                         0xFF31  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
+#define ADDR_SPEED_CONST                               0xFF33  // byte
+#define ADDR_IS_BOSS_CAVERN                            0xFF34  // byte
+#define ADDR_HERO_Y                                    0xFF35  // hero_y_absolute (byte)
+#define ADDR_HERO_DAMAGE_THIS_FRAME                    0xFF36  // byte
+#define ADDR_HERO_SPRITE_PROCESSED                     0xFF37  // byte
+#define ADDR_SQUAT_FLAG                                0xFF38  // byte
+#define ADDR_ON_ROPE_FLAGS                             0xFF39
+#define ADDR_HERO_HIDDEN_FLAG                          0xFF3A  // byte
+#define ADDR_SPELL_ACTIVE_FLAG                         0xFF3C  // byte
+#define ADDR_JUMP_PHASE_FLAGS                          0xFF3D  // byte
+#define ADDR_BYTE_FF3E                                 0xFF3E
+#define ADDR_SHIELD_ANIM_PHASE                         0xFF3F  // byte
+#define ADDR_SHIELD_ANIM_ACTIVE                        0xFF40  // byte
+#define ADDR_SHIELD_VARIANT_INDEX                      0xFF41  // byte
+#define ADDR_SLOPE_DIRECTION                           0xFF42  // 1=right, 2=left, 0=none
+#define ADDR_SWORD_SWING_FLAG                          0xFF43  // byte
+#define ADDR_UI_ELEMENT_DIRTY                          0xFF44  // byte
+#define ADDR_SWORD_HIT_TYPE                            0xFF45  // byte; 0=Forward hit, 1=Overhead swing, 2=Ground downward thrust
+#define ADDR_SWORD_MOVEMENT_PHASE                      0xFF46  // byte
+#define ADDR_DOWN_THRUST_HELD                          0xFF47  // byte
+#define ADDR_MONSTER_INDEX                             0xFF4A  // byte
+#define ADDR_BYTE_FF4B                                 0xFF4B
+#define ADDR_TICK_COUNTER                              0xFF50  // word
+#define ADDR_KEYBOARD_ALT_MODE_FLAG                    0xFF74  // byte
+#define ADDR_SOUND_FX_REQUEST                          0xFF75  // byte
+#define ADDR_FONT_HIGHLIGHT_FLAG                       0xFF77  // byte
 
 #define ADDR_DUNGEON_STATE          0xFF90  // byte
 #define ADDR_DUNGEON_FRAME_PHASE    0xFF91  // byte
@@ -190,17 +191,17 @@ extern "C" {
 #define ADDR_MUSIC_LOAD_REQUEST     0xFF9A  // byte
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
-#define ADDR_ROKA_PHASE            0xFF9D  // byte: roka_run animation step (0..25)
-#define ADDR_ROKA_COLOR            0xFF9E  // byte: roka background index (0=cyan..4=violet)
+#define ADDR_ROKA_PHASE             0xFF9D  // byte: roka_run animation step (0..25)
+#define ADDR_ROKA_COLOR             0xFF9E  // byte: roka background index (0=cyan..4=violet)
 
-#define ADDR_REACH_TABLE_SEG1     0xB002 // seg1-based
+// Addresses originally in seg1
+#define ADDR_PASSABLE_TILES         0x8000 // seg1-based
+#define ADDR_AGGRESSIVE_TILES       0x8020 // seg1-based
+#define ADDR_SLOPE_TILES_LEFT       0x8018 // seg1-based
+#define ADDR_SLOPE_TILES_RIGHT      0x801C // seg1-based
+#define ADDR_AIRFLOW_TILES          0x8024 // seg1-based
 
-#define ADDR_PASSABLE_TILES       0x8000 // seg1-based
-#define ADDR_AGGRESSIVE_TILES     0x8020 // seg1-based
-#define ADDR_SLOPE_TILES_LEFT     0x8018 // seg1-based
-#define ADDR_SLOPE_TILES_RIGHT    0x801C // seg1-based
-#define ADDR_AIRFLOW_TILES        0x8024 // seg1-based
-
+#define ADDR_REACH_TABLE_SEG1       0xB002 // seg1-based
 
 enum {
     DUNGEON_STATE_NORMAL = 0,
@@ -659,13 +660,6 @@ typedef enum {
     INPUT_ESC       = 0x80,
 } InputFlags;
 
-// Input buffer structure at 0xFF16-0xFF19 (4 bytes)
-typedef struct {
-    uint8_t current_keys;      // Current frame key state (bitmask)
-    uint8_t pressed_keys;      // Keys pressed this frame (edge-triggered)
-    uint8_t released_keys;     // Keys released this frame (edge-triggered)
-    uint8_t previous_keys;     // Previous frame key state (for edge detection)
-} InputBuffer;
 
 // ============================================================================
 // Public API (exported to WASM/JS)
@@ -673,10 +667,6 @@ typedef struct {
 
 // Initialize the dungeon engine
 void wasm_init(void);
-
-// Load MDT file into memory at 0xC000
-// Returns 0 on success, -1 on error
-int wasm_load_mdt(const uint8_t* mdt_data, uint32_t mdt_size);
 
 // Get pointer to MDT header
 MDTHeader* wasm_get_mdt_header(void);
@@ -690,16 +680,7 @@ uint8_t* wasm_get_proximity_map(void);
 // Get save data (0x0000)
 SaveData* wasm_get_save_data(void);
 
-// Get input buffer (0xFF16-0xFF19 - 4 bytes)
-InputBuffer* wasm_get_input_buffer(void);
-
-// Initialize cavern with spawn point
-void wasm_init_cavern(uint8_t spawn_x, uint8_t spawn_y, uint8_t direction);
-
 void prepare_dungeon(void);
-
-// Alternative entry point that uses prepare_dungeon
-void wasm_init_cavern_with_prepare(uint8_t spawn_x, uint8_t spawn_y, uint8_t direction);
 
 void Cavern_Game_Init();
 
@@ -712,7 +693,6 @@ uint8_t check_monster_on_aggressive_ground(uint16_t m);
 uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m);
 
 // Input Handling
-void input_init(void);
 void input_update(void);
 void input_set_keys(uint8_t keys);
 uint8_t input_get_current_keys(void);

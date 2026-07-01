@@ -49,10 +49,6 @@
 #define ADDR_BYTE_9F2B                0x9F2B
 #define ADDR_BYTE_9F2E                0x9F2E
 
-// MDT layout
-#define ADDR_VERTICAL_PLATFORMS_TABLE 0xC004u
-#define ADDR_COLLAPSING_PLATFORMS_TABLE 0xC006u
-#define ADDR_HORIZ_PLATFORMS_TABLE 0xC008u
 
 // Dungeon rendering buffers
 // Proximity map bounds

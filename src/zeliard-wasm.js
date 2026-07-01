@@ -268,23 +268,6 @@ export function loadSaveState(saveState) {
 }
 
 /**
- * Initialize cavern with spawn point
- * @param {number} spawnX - Hero spawn X coordinate
- * @param {number} spawnY - Hero spawn Y coordinate
- * @param {number} direction - 0=right, 1=left
- */
-export function initCavern(spawnX, spawnY, direction) {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-    
-    if (wasmExports.wasm_init_cavern) {
-        wasmExports.wasm_init_cavern(spawnX, spawnY, direction);
-    }
-}
-
-/**
  * Get MDT header data for dungeons
  * @returns {object} MDT header with all offsets
  */
@@ -885,20 +868,6 @@ export function debugDump(offset, length) {
 // Input Handling API
 // ============================================================================
 
-/**
- * Initialize input buffer
- * Call once at game startup
- */
-export function inputInit() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.input_init) {
-        wasmExports.input_init();
-    }
-}
 
 /**
  * Update input state (compute edge-triggered inputs)

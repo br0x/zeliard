@@ -343,7 +343,6 @@ let getTownMusicTrack;
 let getTownBackgroundType;
 let getTownPatId;
 let getProximityMap;
-let inputInit;
 let inputUpdate;
 let inputSetKeys;
 let heroMovementInit;
@@ -750,7 +749,6 @@ async function startGame() {
         }
 
         townInit?.();
-        inputInit?.();
 
         let saveState = null;
         if (!restoreName) {
@@ -985,7 +983,7 @@ async function loadWasmEngine() {
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getTownMusicTrack, getTownBackgroundType,
-        getTownPatId, getProximityMap, inputInit, inputUpdate, inputSetKeys,
+        getTownPatId, getProximityMap, inputUpdate, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
         heroGetState, heroIsMoving, updateHorizontalPlatforms, heroInteractionCheck,
         combatInit, initBossBattle, getHeroPosition,
