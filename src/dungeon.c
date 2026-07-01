@@ -1266,7 +1266,7 @@ uint8_t lookup_shared(uint8_t tile)
 
 // Checked
 static uint8_t is_right_airflow(uint8_t tile) {
-    if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
+    if (MEM8(ADDR_CAVERN_LEVEL) == 7) 
         return 0; // level 7, no airflows
     return get_airflow_direction(tile) == AIRFLOW_RIGHT;
 }
@@ -1274,7 +1274,7 @@ static uint8_t is_right_airflow(uint8_t tile) {
 // original assembly code returns CF as True, NC as False
 // Checked
 static uint8_t is_left_airflow(uint8_t tile) {
-    if (MEM8(ADDR_CAVERN_LEVEL) != 7) 
+    if (MEM8(ADDR_CAVERN_LEVEL) == 7) 
         return 0; // level 7, no airflows
     return get_airflow_direction(tile) == AIRFLOW_LEFT;
 }
@@ -1713,10 +1713,33 @@ uint8_t check_floor_for_landing() {
     return 0xFF;
 }
 
-// TODO: replace with actual code (AI hallucinations)
-void land_after_jump(void) {
-    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+// Return true to call state_machine_dispatcher, false to skip it
+uint8_t land_after_jump()
+{
+    if ((MEM8(ADDR_JUMP_PHASE_FLAGS) ^ 0x7F) != 0) {
+        return 1; // return to main_loop (after call airborne_movement, to state_machine_dispatcher); repeats while idle
+    }
+
+    uint8_t old_height = MEM8(ADDR_JUMP_HEIGHT_COUNTER);
+
+    // --- pop ax (discard return address) ---
+    // We cannot literally pop the return address in C.
+    // Instead, we signal the caller to do the return-skip.
+    // Should return to main_loop label (skip state_machine_dispatcher)
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;            // on ground
+    MEM8(ADDR_FRAME_TICKS) = 0;
+    MEM8(ADDR_JUMP_HEIGHT_COUNTER) = 0;
     MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+
+    // test slope_direction, 0FFh ; jz loc_6B6A
+    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) {
+        return 0;   // to main_loop label
+    }
+
+    if (old_height >= 2) {
+        MEM8(ADDR_SQUAT_FLAG) = 0xFF; // squat_after_landing_from_big_height:
+    }
+    return 0;  // to main_loop label
 }
 
 // stub
@@ -2991,6 +3014,7 @@ void move_platform_down_damage_monster()
 // Per-frame game loop
 // this looped function was decoupled to several parts: ... and dungeon_finish_normal_frame()
 // Checked
+/*
 void main_loop(void) {
     uint8_t restart;
     do {
@@ -3041,7 +3065,7 @@ void main_loop(void) {
             MEM8(ADDR_HERO_ANIM_PHASE) = 0x7F;
         }
     } while (restart); // TODO: manage it on caller side.
-}
+} */
 
 // Original assembly returns CF if true
 // Checked
@@ -3260,20 +3284,21 @@ void on_left_pressed()
 
 // Caller should set restart = 0xff before calling, and then check if it 
 // was set to 0 by this function to decide whether to restart the loop
+// Return true to call state_machine_dispatcher, false to skip it
 // Checked
-void airborne_movement(uint8_t *restart) {
+uint8_t airborne_movement(uint8_t *restart) {
     if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
-        return;
+        return 1;
     }
     if (MEM8(ADDR_JUMP_PHASE_FLAGS) & 0x80) {
-        return;
+        return 1;
     }
 
     hero_collapse_platform();
     slope_assist_on_landing();
     if (!check_floor_for_landing()) {
-        land_after_jump(); // should come here
-        return;
+        *restart = 0xFF; // should either returm normally, or jump to main_loop label
+        return land_after_jump();
     }
 
     MEM8(ADDR_JUMP_HEIGHT_COUNTER)++;
@@ -3290,15 +3315,15 @@ void airborne_movement(uint8_t *restart) {
         wrap_map_from_above(&si);
         if (is_over_rope(si)) {
             MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF; // Grab onto rope mid-air
-            return;
+            return 1;
         }
     }
 
     MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
     uint8_t old_phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
     MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
-    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) return;
-    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return;
+    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) return 1;
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return 1;
 
     if (old_phase == 0) {
         // should clear facing_direction UP on exit
@@ -3308,7 +3333,7 @@ void airborne_movement(uint8_t *restart) {
             on_right_pressed();
         }
         MEM8(ADDR_FACING) &= ~UP;
-        return;
+        return 1;
     }
 
     uint8_t horiz_input = MEM8(ADDR_INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
@@ -3342,6 +3367,7 @@ void airborne_movement(uint8_t *restart) {
             on_right_pressed();
         }
     }
+    return 1;
 }
 
 // Checked
@@ -3676,8 +3702,9 @@ static void dungeon_finish_normal_frame(void)
         MEM8(ADDR_FACING) &= ~UP;
     }
 
-    airborne_movement(&restart);
-    state_machine_dispatcher();
+    if (airborne_movement(&restart)) {
+        state_machine_dispatcher();
+    }
 
     if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_ROPE;

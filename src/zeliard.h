@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -802,7 +803,7 @@ uint8_t get_airflow_direction(uint8_t tile);
 int8_t set_zero_flag_if_slippery(void);
 void sliding_physics_step(void);
 void hero_knockback_handler();
-void airborne_movement(uint8_t *restart);
+uint8_t airborne_movement(uint8_t *restart);
 void on_right_pressed();
 void on_left_pressed();
 void init_on_ground();
@@ -864,6 +865,10 @@ int check_collision_SW2_monster(Monster* m);
 
 // Run one game frame
 void wasm_update(void);
+
+// Debug logging — calls js_log import on the JS side
+void debug_log(const char *msg);
+void debug_printf(const char *fmt, ...);
 
 // Debug: dump memory region
 void wasm_debug_dump(uint16_t offset, uint16_t length);

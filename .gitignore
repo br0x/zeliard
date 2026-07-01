@@ -8,3 +8,4 @@ asm/diff.txt
 asm/*.bin
 asm/*.drv
 build/.emcache/
+LOGCPU.TXT

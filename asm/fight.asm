@@ -1238,7 +1238,6 @@ move_hero_left_if_no_obstacles endp
 
 
 ; ===========================================================================
-; is_right_airflow
 ; Returns CF=1 (cannot pass) if tile [si] is an airflow tile of category 2
 ; (right-flowing wind). Used for left-movement blocking in level 5 caverns.
 ; get_airflow_direction → ZF + cl=0/1/2 for up/left/right.
@@ -1888,21 +1887,21 @@ hero_scroll_down endp
 
 land_after_jump proc near 
                 mov     al, ds:jump_phase_flags ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                xor     al, 7Fh
+                xor     al, 7Fh  ; 00=>7F
                 jz      short loc_6B49
-                retn
+                retn  ; return to main_loop (after call airborne_movement, to state_machine_dispatcher); repeats while idle
 ; ---------------------------------------------------------------------------
 
-loc_6B49:        
-                pop     ax              ; will return to
-                mov     dl, ds:jump_height_counter
+loc_6B49:       ; descending -> landing
+                pop     ax              ; discard return address, will return to main_loop label (skip state_machine_dispatcher)
+                mov     dl, ds:jump_height_counter ; =2
                 mov     byte ptr ds:jump_phase_flags, 0 ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
                 mov     ds:frame_ticks, 0
                 mov     ds:jump_height_counter, 0
                 mov     byte ptr ds:hero_animation_phase, 80h
                 test    byte ptr ds:slope_direction, 0FFh
                 jz      short loc_6B6A
-                retn
+                retn  ; no squats on slope
 ; ---------------------------------------------------------------------------
 
 loc_6B6A:        
@@ -1911,7 +1910,7 @@ loc_6B6A:
                 retn
 ; ---------------------------------------------------------------------------
 
-squat_after_landing_from_big_height:
+squat_after_landing_from_big_height: ; for heights >= 2
                 mov     byte ptr ds:squat_flag, 0FFh
                 retn
 land_after_jump endp

@@ -1262,6 +1262,10 @@ var _wasm_set_scroll_ceiling_left_4px = Module["_wasm_set_scroll_ceiling_left_4p
 
 var _fflush = makeInvalidEarlyAccess("_fflush");
 
+var _emscripten_stack_get_end = makeInvalidEarlyAccess("_emscripten_stack_get_end");
+
+var _emscripten_stack_get_base = makeInvalidEarlyAccess("_emscripten_stack_get_base");
+
 var _emscripten_get_sbrk_ptr = makeInvalidEarlyAccess("_emscripten_get_sbrk_ptr");
 
 var _sbrk = makeInvalidEarlyAccess("_sbrk");
@@ -1269,10 +1273,6 @@ var _sbrk = makeInvalidEarlyAccess("_sbrk");
 var _emscripten_stack_init = makeInvalidEarlyAccess("_emscripten_stack_init");
 
 var _emscripten_stack_get_free = makeInvalidEarlyAccess("_emscripten_stack_get_free");
-
-var _emscripten_stack_get_base = makeInvalidEarlyAccess("_emscripten_stack_get_base");
-
-var _emscripten_stack_get_end = makeInvalidEarlyAccess("_emscripten_stack_get_end");
 
 var __emscripten_stack_restore = makeInvalidEarlyAccess("__emscripten_stack_restore");
 
@@ -1319,12 +1319,12 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_set_scroll_ceiling_right_4px"] != "undefined", "missing Wasm export: wasm_set_scroll_ceiling_right_4px");
   assert(typeof wasmExports["wasm_set_scroll_ceiling_left_4px"] != "undefined", "missing Wasm export: wasm_set_scroll_ceiling_left_4px");
   assert(typeof wasmExports["fflush"] != "undefined", "missing Wasm export: fflush");
+  assert(typeof wasmExports["emscripten_stack_get_end"] != "undefined", "missing Wasm export: emscripten_stack_get_end");
+  assert(typeof wasmExports["emscripten_stack_get_base"] != "undefined", "missing Wasm export: emscripten_stack_get_base");
   assert(typeof wasmExports["emscripten_get_sbrk_ptr"] != "undefined", "missing Wasm export: emscripten_get_sbrk_ptr");
   assert(typeof wasmExports["sbrk"] != "undefined", "missing Wasm export: sbrk");
   assert(typeof wasmExports["emscripten_stack_init"] != "undefined", "missing Wasm export: emscripten_stack_init");
   assert(typeof wasmExports["emscripten_stack_get_free"] != "undefined", "missing Wasm export: emscripten_stack_get_free");
-  assert(typeof wasmExports["emscripten_stack_get_base"] != "undefined", "missing Wasm export: emscripten_stack_get_base");
-  assert(typeof wasmExports["emscripten_stack_get_end"] != "undefined", "missing Wasm export: emscripten_stack_get_end");
   assert(typeof wasmExports["_emscripten_stack_restore"] != "undefined", "missing Wasm export: _emscripten_stack_restore");
   assert(typeof wasmExports["_emscripten_stack_alloc"] != "undefined", "missing Wasm export: _emscripten_stack_alloc");
   assert(typeof wasmExports["emscripten_stack_get_current"] != "undefined", "missing Wasm export: emscripten_stack_get_current");
@@ -1362,12 +1362,12 @@ function assignWasmExports(wasmExports) {
   _wasm_set_scroll_ceiling_right_4px = Module["_wasm_set_scroll_ceiling_right_4px"] = createExportWrapper("wasm_set_scroll_ceiling_right_4px", 1);
   _wasm_set_scroll_ceiling_left_4px = Module["_wasm_set_scroll_ceiling_left_4px"] = createExportWrapper("wasm_set_scroll_ceiling_left_4px", 1);
   _fflush = createExportWrapper("fflush", 1);
+  _emscripten_stack_get_end = wasmExports["emscripten_stack_get_end"];
+  _emscripten_stack_get_base = wasmExports["emscripten_stack_get_base"];
   _emscripten_get_sbrk_ptr = wasmExports["emscripten_get_sbrk_ptr"];
   _sbrk = createExportWrapper("sbrk", 1);
   _emscripten_stack_init = wasmExports["emscripten_stack_init"];
   _emscripten_stack_get_free = wasmExports["emscripten_stack_get_free"];
-  _emscripten_stack_get_base = wasmExports["emscripten_stack_get_base"];
-  _emscripten_stack_get_end = wasmExports["emscripten_stack_get_end"];
   __emscripten_stack_restore = wasmExports["_emscripten_stack_restore"];
   __emscripten_stack_alloc = wasmExports["_emscripten_stack_alloc"];
   _emscripten_stack_get_current = wasmExports["emscripten_stack_get_current"];

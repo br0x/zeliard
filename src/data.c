@@ -1,6 +1,7 @@
 // data.c - Memory layout and global variables
 // Implements the memory map from PORTING_PLAN.md
 
+#include <stdio.h>
 #include "zeliard.h"
 
 /* =========================================================================
@@ -62,6 +63,22 @@ uint8_t* wasm_get_monster_buffer(void) {
 // Get proximity map
 uint8_t* wasm_get_proximity_map(void) {
     return &g_mem[ADDR_PROXIMITY_MAP];
+}
+
+// Import provided by JS (reads string from WASM linear memory and console.logs it)
+extern void js_log(const char *msg);
+
+void debug_log(const char *msg) {
+    js_log(msg);
+}
+
+void debug_printf(const char *fmt, ...) {
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    js_log(buf);
 }
 
 // Debug dump - just a marker, JS reads memory directly

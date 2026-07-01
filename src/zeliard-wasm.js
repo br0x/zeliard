@@ -60,8 +60,21 @@ export async function initWasm() {
         }
 
         const wasmBytes = await response.arrayBuffer();
+
+        // js_log: import called by C's debug_log/debug_printf
+        const jsLog = (ptr) => {
+            if (!wasmExports?.memory) return;
+            const mem = new Uint8Array(wasmExports.memory.buffer);
+            let str = '';
+            let p = ptr;
+            while (mem[p] !== 0 && str.length < 1024) {
+                str += String.fromCharCode(mem[p++]);
+            }
+            console.log('[WASM]', str);
+        };
+
         const importObject = {
-            env: createImportObject()
+            env: Object.assign(createImportObject(), { js_log: jsLog })
         };
         const wasmModule = await WebAssembly.instantiate(wasmBytes, importObject);
 

@@ -1656,11 +1656,11 @@ fight:6B41 land_after_jump proc near               ; ...
 fight:6B41                 mov     al, ds:jump_phase_flags ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
 fight:6B44                 xor     al, 7Fh
 fight:6B46                 jz      short loc_6B49
-fight:6B48                 retn
+fight:6B48                 retn    ; will return to ?
 fight:6B49 ; ---------------------------------------------------------------------------
 fight:6B49
 fight:6B49 loc_6B49:                               ; ...
-fight:6B49                 pop     ax              ; will return to
+fight:6B49                 pop     ax              ; will return to ?
 fight:6B4A                 mov     dl, ds:jump_height_counter
 fight:6B4E                 mov     ds:jump_phase_flags, 0 ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
 fight:6B53                 mov     ds:frame_ticks, 0
