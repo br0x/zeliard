@@ -3481,14 +3481,17 @@ void slope_assist_on_landing(void)
     }
 
     // height_above_ground == 0
+    uint8_t old_ticks = MEM8(ADDR_TICKS);  // test OLD value before increment (matches asm)
     MEM8(ADDR_TICKS)++;
-    if ((MEM8(ADDR_TICKS) & 3) != 0) return;
+    if ((old_ticks & 3) != 0) return;
     // every 4th tick
     uint8_t keys = MEM8(ADDR_INPUT_DIRS);
+    // Right slope \: pressing LEFT prevents sliding right
+    // Left slope  /: pressing RIGHT prevents sliding left
     if (MEM8(ADDR_SLOPE_DIRECTION) == SLOPE_RIGHT) {
-        if (!(keys & KEY_RIGHT)) move_hero_right_if_no_obstacles();
+        if (!(keys & KEY_LEFT)) move_hero_right_if_no_obstacles();
     } else {
-        if (!(keys & KEY_LEFT)) move_hero_left_if_no_obstacles();
+        if (!(keys & KEY_RIGHT)) move_hero_left_if_no_obstacles();
     }
 }
 

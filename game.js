@@ -1507,9 +1507,6 @@ function drawDungeonRoka() {
     }
 
     prevRokaDx = dx;
-    if (phase === 25) {
-        console.log('roka run finished');
-    }
 }
 
 // ─── Town transition ──────────────────────────────────────────────────────────
