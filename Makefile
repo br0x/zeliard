@@ -25,7 +25,8 @@ EMFLAGS = \
 "_wasm_dungeon_get_exit_map","_wasm_dungeon_get_state",\
 "_wasm_dungeon_get_render_request","_wasm_dungeon_clear_render_request",\
 "_wasm_dungeon_get_exit_map_id"]' \
-  -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'
+  -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+  -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
 .PHONY: all clean serve
 

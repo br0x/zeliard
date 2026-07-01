@@ -35,6 +35,8 @@ const DUNGEONS = {
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
             0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
         ],
+        slopeTilesLeft: [0xB], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0xC], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x0F, 0x0E, 0x0D], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
     },
@@ -382,6 +384,8 @@ let dungeonGetEntityTable;
 let dungeonGetEntityCount;
 let dungeonGetExitMap;
 let setDungeonPassableTiles;
+let setDungeonSlopeTilesLeft;
+let setDungeonSlopeTilesRight;
 let setDungeonAggressiveGround;
 let setDungeonAirflows;
 let setDungeonSwordReach;
@@ -992,7 +996,8 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
-        dungeonGetExitMap, setDungeonPassableTiles, setDungeonAggressiveGround, setDungeonAirflows,
+        dungeonGetExitMap, setDungeonPassableTiles, setDungeonAggressiveGround, 
+        setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, dungeonGetRenderRequest, dungeonClearRenderRequest,
     } = wasmBridge);
 }
@@ -1586,6 +1591,8 @@ async function handleDungeonTransition(mapId) {
         cavernName = getCavernName?.() || 'Cavern of Malicia';
         await loadDungeonAssets(rawMapId);
         setDungeonPassableTiles(DUNGEONS[rawMapId].passableTiles);
+        setDungeonSlopeTilesLeft(DUNGEONS[rawMapId].slopeTilesLeft);
+        setDungeonSlopeTilesRight(DUNGEONS[rawMapId].slopeTilesRight);
         setDungeonAggressiveGround(DUNGEONS[rawMapId].aggressiveGround);
         setDungeonAirflows(DUNGEONS[rawMapId].airflows);
         // set sword reachability list

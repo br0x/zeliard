@@ -197,6 +197,8 @@ extern "C" {
 
 #define ADDR_PASSABLE_TILES       0x8000 // seg1-based
 #define ADDR_AGGRESSIVE_TILES     0x8020 // seg1-based
+#define ADDR_SLOPE_TILES_LEFT     0x8018 // seg1-based
+#define ADDR_SLOPE_TILES_RIGHT    0x801C // seg1-based
 #define ADDR_AIRFLOW_TILES        0x8024 // seg1-based
 
 
@@ -810,7 +812,7 @@ void init_on_ground();
 void slope_assist_on_landing(void);
 void left_default();
 void right_default();
-uint8_t get_slope_direction_by_tile_under_feet(uint16_t si, uint8_t *dl);
+uint8_t get_slope_direction_by_tile_under_feet(uint16_t si);
 void dispatch_airflows(uint16_t si);
 void try_door_interaction(uint8_t *should_break);
 void enter_the_door(uint8_t *should_break);

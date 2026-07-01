@@ -867,7 +867,7 @@ on_ground1:
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 sub     si, 35          ; points above hero head
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
-                mov     al, [si]
+                mov     al, [si] ; 1: [E0E9]=00; 2: [E0C5]=07
                 call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_65A5
                 mov     byte ptr ds:hero_animation_phase, 0
@@ -888,7 +888,7 @@ simple_jump:
 ; ---------------------------------------------------------------------------
 
 loc_65A5:        
-                test    ds:byte_9F09, 0FFh
+                test    ds:byte_9F09, 0FFh  ; [9F09]=01
                 jnz     short state_machine_dispatcher_idle_default
                 test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 jz      short loc_65B4
@@ -1984,15 +1984,11 @@ is_over_rope    endp
 ; NZ: no slope
 ; ZF dl=1: right slope \
 ; ZF dl=2: left slope /
-
-; ===========================================================================
-; get_slope_direction_by_tile_under_feet
 ; Checks tile at [si] (hero feet position in proximity map).
 ; Searches seg1:8018h (left-slope table, up to 4 entries) and
 ; seg1:801Ch (right-slope table, up to 4 entries).
 ; Returns: ZF=1, dl=2 → left slope (/); ZF=1, dl=1 → right slope (\).
 ; Returns: NZ → not a slope tile.
-; ===========================================================================
 get_slope_direction_by_tile_under_feet proc near ; ...
                 mov     es, cs:seg1
                 mov     al, [si]        ; tile under hero feet

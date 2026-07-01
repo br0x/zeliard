@@ -206,8 +206,8 @@ uint8_t monster_move_in_direction(uint16_t m, uint8_t dir)
             return move_monster_S(m); 
         case 7: 
             return move_monster_SE(m); 
-        return 0;
     }
+    return 0;
 }
 
 // check_collision_E2 / W2 / N2 / S2 / NE2 / SE2 / NW2 / SW2
@@ -243,10 +243,10 @@ static uint8_t check_collision_W_including_danger5(uint16_t prox_addr) {
     return get_airflow_direction(tile) == AIRFLOW_RIGHT;
 }
 
-/* ========================================================================
+/* 
  *   Collision routines for a 2x2 monster footprint
  *   Return true (CF=1) if movement is blocked.
- * ======================================================================== */
+ */
 // ..~
 // x.⭉
 // ..⭉
@@ -487,37 +487,29 @@ uint8_t check_collision_SW2(uint16_t m) {
     return 0;
 }
 
+// Return true (CF=1) if movement is blocked.
 uint8_t Check_collision_in_direction(uint16_t m, uint8_t dir)
 {
     switch (dir & 7)
     {
     case 0:
-        check_collision_E2(m);
-        break;
+        return check_collision_E2(m);
     case 1:
-        check_collision_NE2(m);
-        break;
+        return check_collision_NE2(m);
     case 2:
-        check_collision_N2(m);
-        break;
+        return check_collision_N2(m);
     case 3:
-        check_collision_NW2(m);
-        break;
+        return check_collision_NW2(m);
     case 4:
-        check_collision_W2(m);
-        break;
+        return check_collision_W2(m);
     case 5:
-        check_collision_SW2(m);
-        break;
+        return check_collision_SW2(m);
     case 6:
-        check_collision_S2(m);
-        break;
+        return check_collision_S2(m);
     case 7:
-        check_collision_SE2(m);
-        break;
-    default:
-        break;
+        return check_collision_SE2(m);
     }
+    return 0;
 }
 
 // stub
@@ -1263,7 +1255,7 @@ uint8_t lookup_shared(uint8_t tile)
     }
     uint8_t masked = tile & 0x9F;
     if (masked == 0x90 || masked == 0x91) return 0xff;
-    return masked & 0x80;
+    return !(masked & 0x80);
 }
 
 // Checked
@@ -3469,12 +3461,12 @@ void slope_assist_on_landing(void)
     uint16_t si = hero_coords_to_addr_in_proximity() + 2 * PROX_COLS + 1;
     wrap_map_from_above(&si);
 
-    uint8_t dl;
     // get_slope_direction_by_tile_under_feet returns NZ if slope, ZF if none.
-    // In C we simulate: if returns 0 -> no slope.
-    if (get_slope_direction_by_tile_under_feet(si, &dl) == 0) return;
+    // In C we return 0 -> no slope, 1 -> right slope, 2 -> left slope.
+    uint8_t dl = get_slope_direction_by_tile_under_feet(si);
+    if (dl == 0) return;
 
-    MEM8(ADDR_FACING) &= ~2;
+    MEM8(ADDR_FACING) &= ~UP;
     MEM8(ADDR_SLOPE_DIRECTION) = dl;
 
     if (MEM8(ADDR_HEIGHT_ABOVE_GROUND) != 0) { // check_silkarn_shoes_and_slopes
@@ -3500,10 +3492,35 @@ void slope_assist_on_landing(void)
     }
 }
 
-// stub
-uint8_t get_slope_direction_by_tile_under_feet(uint16_t si, uint8_t *dl)
+/*
+ * Checks whether the given tile is a slope tile.
+ * Returns:  2  → left slope  (/),  ZF=1, DL=2 in original asm
+ *           1  → right slope (\),  ZF=1, DL=1
+ *           0  → not a slope tile   (NZ in original asm)
+ */
+uint8_t get_slope_direction_by_tile_under_feet(uint16_t si)
 {
-    return 0;
+    uint8_t tile = MEM8(si);
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t sl = MEM8_1(ADDR_SLOPE_TILES_LEFT + i);
+        if (sl == 0) 
+            break;
+        if (tile == sl) {
+            return SLOPE_LEFT;
+        }
+    }
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t sl = MEM8_1(ADDR_SLOPE_TILES_RIGHT + i);
+        if (sl == 0) 
+            break;
+        if (tile == sl) {
+            return SLOPE_RIGHT;
+        }
+    }
+
+    return SLOPE_NONE;
 }
 
 // Checked
