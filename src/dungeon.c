@@ -1202,7 +1202,8 @@ void try_climb_rope()
         }
 
         move_hero_up();
-        main_update_render();
+        MEM8(ADDR_RENDER_DONE) = 0;
+        MEM8(ADDR_RENDER_REQUEST) = 0xFF;
 
     } while ((MEM8(ADDR_HERO_ANIM_PHASE) & 1) == 0);
 }
@@ -3033,7 +3034,7 @@ void down_pressed()
 
     if (is_over_rope(si)) {
         // Still over rope: keep descending row by row until the rope ends.
-        // for (;;) { // TODO: should be decoupled and integrated into state machine
+        for (;;) {
             si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
             wrap_map_from_above(&si);
 
@@ -3047,12 +3048,13 @@ void down_pressed()
             }
 
             hero_scroll_down();
-            // main_update_render(); // TODO: replace with state machine version
+            MEM8(ADDR_RENDER_DONE) = 0;
+            MEM8(ADDR_RENDER_REQUEST) = 0xFF;
 
             if (MEM8(ADDR_HERO_ANIM_PHASE) & 1) {
                 return;
             }
-        // }
+        }
     }
 
     // No longer over rope.
@@ -3378,15 +3380,15 @@ uint8_t airborne_movement(uint8_t *restart) {
         wrap_map_from_above(&si);
         if (is_over_rope(si)) {
             MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF; // Grab onto rope mid-air
-            return 1;
+            return 0;
         }
     }
 
     MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
     uint8_t old_phase = MEM8(ADDR_JUMP_PHASE_FLAGS);
     MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
-    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) return 1;
-    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return 1;
+    if (MEM8(ADDR_SLOPE_DIRECTION) != 0) return 0;
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0) return 0;
 
     if (old_phase == 0) {
         // should clear facing_direction UP on exit
@@ -3396,7 +3398,7 @@ uint8_t airborne_movement(uint8_t *restart) {
             on_right_pressed();
         }
         MEM8(ADDR_FACING) &= ~UP;
-        return 1;
+        return 0;
     }
 
     uint8_t horiz_input = MEM8(ADDR_INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
@@ -3430,7 +3432,7 @@ uint8_t airborne_movement(uint8_t *restart) {
             on_right_pressed();
         }
     }
-    return 1;
+    return 0;
 }
 
 // Checked
@@ -3825,6 +3827,7 @@ static void dungeon_finish_rope_frame(void)
 
     MEM8(ADDR_FACING) &= ~UP;
     MEM8(ADDR_ON_ROPE_FLAGS) = 0;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
     MEM8(ADDR_SPACEBAR_LATCH) = 0;
     MEM8(ADDR_ALTKEY_LATCH) = 0;
     MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
