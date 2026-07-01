@@ -81,6 +81,7 @@ static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
 static void dungeon_finish_rope_frame(void);
 
+static uint8_t jump_height_including_shoes = 2;
 uint8_t sword_damages[] = { 1, 2, 4, 8, 32, 127 };
 uint8_t byte_98BE[]     = { 2, 4, 8, 16, 32, 64, 255 };
 
@@ -1678,9 +1679,71 @@ int8_t set_zero_flag_if_slippery(void) {
 
 // Assembly internal route functions / variables
 
-// Stubs for missing functional procedures
-// stub
-void jump_press_handler(void) {}
+
+// Handles the jump initiation when UP+button is pressed.
+// Increments slide_ticks_remaining (up to 10) while button is held.
+//
+// On ground:
+//   - Checks tile above hero head; if clear, sets jump_phase_flags = 0xFF
+//     (ascending), computes initial height_above_ground.
+//   - Feruza shoes: height_above_ground starts at 2 (vs 1 normally),
+//     allowing 4 vs 2 jump height steps.
+//   - If hero head y < 7 (near viewport top), calls move_hero_up instead of
+//     decrementing y directly.
+// On slope or rope: transitions to descending (jump_phase_flags = 0x7F).
+void jump_press_handler()
+{
+    MEM8(ADDR_SLIDE_TICKS_REMAINING)++;
+    if (MEM8(ADDR_SLIDE_TICKS_REMAINING) >= 10) {
+        MEM8(ADDR_SLIDE_TICKS_REMAINING) = 10;
+    }
+
+    if (MEM8(ADDR_ON_ROPE_FLAGS) != 0) {
+        return;
+    }
+
+    MEM8(ADDR_SQUAT_FLAG) = 0;
+
+    // If already reached or exceeded max jump height, go to descending
+    if (MEM8(ADDR_BYTE_9F09) >= jump_height_including_shoes) {
+        MEM8(ADDR_SLOPE_DIRECTION) = 0;
+        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+        return;
+    }
+
+    // Check tile above hero's head
+    uint16_t tile_ptr = hero_coords_to_addr_in_proximity();
+    tile_ptr -= 35;                     // point above hero's head (3x3 matrix, top-left offset)
+    wrap_map_from_below(&tile_ptr);
+    uint8_t tile_above = MEM8(tile_ptr);
+
+    if (!is_non_blocking_tile(tile_above)) {
+        // Tile is clear - start jump (ascending)
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+        MEM8(ADDR_FACING) &= ~UP;      // clear Up bit (bit 1)
+        MEM8(ADDR_JUMP_PHASE_FLAGS) = 0xFF;        // ascending
+        MEM8(ADDR_HEIGHT_ABOVE_GROUND) = jump_height_including_shoes >> 1;  // 1 normally, 2 with feruza shoes
+        MEM8(ADDR_BYTE_9F09)++;                    // advance jump step counter
+
+        if (MEM8(ADDR_HERO_HEAD_Y_VIEW) >= 7) {
+            MEM8(ADDR_HERO_HEAD_Y_VIEW)--;  // simple jump: move up one step
+        } else {
+            move_hero_up();             // near viewport top, use full move routine
+        }
+    } else {
+        // Tile is blocking
+        if (MEM8(ADDR_BYTE_9F09) != 0) {
+            // Already mid-jump? Transition to descending
+            MEM8(ADDR_SLOPE_DIRECTION) = 0;
+            MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
+            return;
+        } else { // idle
+            MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+            return;
+        }
+    }
+    return;
+}
 
 // stub
 void hero_collapse_platform(void) {}

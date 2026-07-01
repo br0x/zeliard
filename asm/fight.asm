@@ -835,7 +835,6 @@ up_pressed:
                 call    try_climb_rope
                 ; otherwise, jump
 ; ===========================================================================
-; jump_press_handler
 ; Handles the jump initiation when UP+button is pressed.
 ; Increments slide_ticks_remaining (up to 10) while button is held.
 ;

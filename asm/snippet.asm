@@ -1,154 +1,70 @@
-process_doors   proc near 
-                mov     bp, ds:doors_table_addr
+; Handles the jump initiation when UP+button is pressed.
+; Increments slide_ticks_remaining (up to 10) while button is held.
+;
+; On ground:
+;   - Checks tile above hero head; if clear, sets jump_phase_flags = 0xFF
+;     (ascending), computes initial height_above_ground.
+;   - Feruza shoes: height_above_ground starts at 2 (vs 1 normally),
+;     allowing 4 vs 2 jump height steps.
+;   - If hero head y < 7 (near viewport top), calls move_hero_up instead of
+;     decrementing y directly.
+; On slope or rope: transitions to descending (jump_phase_flags = 0x7F).
+; ===========================================================================
+jump_press_handler proc near  
+                inc     ds:slide_ticks_remaining
+                cmp     ds:slide_ticks_remaining, 10
+                jb      short loc_6555
+                mov     ds:slide_ticks_remaining, 10
 
-next_door:       
-                mov     ax, ds:[bp+door.x0]
-                cmp     ax, 0FFFFh      ; doors end marker
-                jnz     short loc_78EB
+loc_6555:        
+                test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
+                jz      short on_ground1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_78EB:        
-                call    calc_object_viewport_x_offset ; 1Ah: CF, bl=0E0h => skip; 3Dh: NC, bl=13h
-                jc      short loc_7933
-                mov     al, ds:[bp+door.d_flags]
-                and     al, 7
-                add     al, 61h
-                mov     ds:closed_door_tiles+2, al
-                mov     ds:opened_door_tiles+2, al
-                mov     al, ds:[bp+door.y0]
-                xor     ah, ah
-                call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
-                                        ; uint8_t x = AH
-                                        ; y &= 0x3F; // Clamp Y to 0-63
-                                        ; uint16_t di = (y * 36) + x + 0xE000;
-                cmp     bl, 4
-                jb      short loc_7938
-                mov     cx, bx
-                sub     bl, 36+3
-                neg     bl
-                inc     bl
-                mov     al, bl
-                cmp     al, 6
-                jb      short loc_791D
-                mov     al, 5
-
-loc_791D:        
-                sub     cl, 4
-                xor     ch, ch
-                add     di, cx
-                mov     si, offset opened_door_tiles
-                test    ds:[bp+door.d_flags], 80h
-                jnz     short loc_7951
-                mov     si, offset closed_door_tiles
-                jmp     short loc_7951
+on_ground1:       
+                mov     byte ptr ds:squat_flag, 0
+                mov     al, ds:byte_9F09
+                cmp     al, ds:jump_height_including_shoes
+                jnb     short state_machine_dispatcher_idle_default
+                call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
+                sub     si, 35          ; points above hero head
+                call    wrap_map_from_below ; if (si < 0E000h) si += 900h
+                mov     al, [si]
+                call    is_non_blocking_tile ; ZF if can pass
+                jnz     short loc_65A5
+                mov     byte ptr ds:hero_animation_phase, 0
+                and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
+                mov     byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
+                mov     al, ds:jump_height_including_shoes
+                shr     al, 1
+                mov     ds:height_above_ground, al
+                inc     ds:byte_9F09
+                cmp     byte ptr ds:hero_head_y_in_viewport, 7
+                jnb     short simple_jump
+                jmp     move_hero_up
 ; ---------------------------------------------------------------------------
 
-loc_7933:        
-                add     bp, 0Ch
-                jmp     short next_door
-; ---------------------------------------------------------------------------
-
-loc_7938:        
-                mov     si, offset opened_door_tiles
-                test    ds:[bp+door.d_flags], 80h
-                jnz     short loc_7945
-                mov     si, offset closed_door_tiles
-
-loc_7945:        
-                mov     al, bl
-                inc     al
-                mov     cl, 5
-                sub     cl, al
-                xor     ch, ch
-                add     si, cx
-
-loc_7951:        
-                mov     cx, 4
-
-four_times:      
-                push    cx
-                push    ax
-                push    di
-                push    si
-
-al_times:        
-                call    move_if_dst_high_bit_zero
-                inc     di
-                inc     si
-                dec     al
-                jnz     short al_times
-                pop     si
-                add     si, 5
-                xchg    si, di
-                pop     si
-                add     si, 36
-                call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                xchg    di, si
-                pop     ax
-                pop     cx
-                loop    four_times
-                jmp     short loc_7933
-process_doors   endp
-
-
-; Input: ax = door.x0
-calc_object_viewport_x_offset proc near
-                add     ax, 3           ; door.x0 + 3
-                push    ax
-                sub     ax, ds:mapWidth ; ax=door.x0 + 3 - mapWidth
-                pop     bx              ; bx=door.x0 + 3
-                jnb     short x_coord_wrapped
-                xchg    ax, bx
-
-x_coord_wrapped: 
-                push    ax              ; door.x0 + 3
-                sub     ax, ds:proximity_map_left_col_x ; ax=door.x0 + 3 - prox_left
-                pop     bx              ; bx=door.x0 + 3
-                jb      short loc_799C
-                xchg    ax, bx          ; bx=door.x0 + 3 - prox_left
-                mov     ax, 36+3
-                sub     ax, bx          ; ax = 36 + prox_left - door.x0
+simple_jump:     
+                dec     byte ptr ds:hero_head_y_in_viewport
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_799C:        
-                mov     ax, 36+3
-                sub     ax, bx          ; ax=36 - door.x0
-                jnb     short loc_79A4
+loc_65A5:        
+                test    ds:byte_9F09, 0FFh
+                jnz     short state_machine_dispatcher_idle_default
+                test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
+                jz      short loc_65B4
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_79A4:        
-                mov     ax, ds:mapWidth
-                sub     ax, ds:proximity_map_left_col_x
-                add     ax, bx          ; ax=mapWidth - prox_left + door.x0 + 3
-                                        ; bx=door.x0 + 3
-                xchg    ax, bx          ; bx=mapWidth - prox_left + door.x0 + 3
-                mov     ax, 36+3
-                sub     ax, bx          ; ax=18+hero.x - door.x0 - mapWidth
+loc_65B4:        
+                mov     byte ptr ds:hero_animation_phase, 80h
                 retn
-calc_object_viewport_x_offset endp
-
-
-move_if_dst_high_bit_zero proc near
-                test    byte ptr [di], 80h
-                jz      short loc_797C
-                retn
-loc_797C:        
-                mov     dl, [si]
-                mov     [di], dl
-                retn
-move_if_dst_high_bit_zero endp
-
 ; ---------------------------------------------------------------------------
 
-closed_door_tiles       db 49h, 4Ah, 61h, 4Bh, 4Ch
-                        db 4Dh, 4Fh, 50h, 51h, 4Eh
-                        db 5Fh, 52h, 53h, 54h, 60h
-                        db 5Fh, 55h, 56h, 57h, 60h
-
-opened_door_tiles       db 49h, 4Ah, 61h, 4Bh, 4Ch
-                        db 4Dh, 58h, 00h, 59h, 4Eh
-                        db 5Fh, 5Ah, 00h, 5Bh, 60h
-                        db 5Fh, 5Ch, 5Dh, 5Eh, 60h
+state_machine_dispatcher_idle_default:        
+                mov     byte ptr ds:slope_direction, 0
+                mov     byte ptr ds:jump_phase_flags, 7Fh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
+                retn
+jump_press_handler endp

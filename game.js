@@ -1300,7 +1300,6 @@ function getDungeonHeroState() {
 }
 
 function resolveBodyFrame(state) {
-    console.log('[resolveBodyFrame] animPhase', state.animPhase);
     if (state.hidden) return 30;
     if (state.onRope) return 26 + (state.animPhase & 3);
     const base = state.facingLeft ? 13 : 0;
