@@ -1573,7 +1573,7 @@ loc_6962:
 loc_696A:        
                 call    hero_collapse_platform
                 call    slope_assist_on_landing
-                call    check_floor_for_landing ; CF NZ
+                call    check_floor_for_landing ; after death: CF NZ
                 jnc     short loc_6978 ; no jump
                 jmp     land_after_jump ; on return, will jump to main_loop
 ; ---------------------------------------------------------------------------
@@ -9703,7 +9703,7 @@ process_hero_death proc near
                 mov     ds:byte_9F29, 0
                 call    cs:Draw_Hero_Health_proc
 
-repeat:          
+repeat:         ; 9929
                 mov     byte ptr ds:hero_animation_phase, 0
                 mov     byte ptr ds:on_rope_flags, 0 ; 0: on ground, ff: on rope, 80h: transition from rope to ground
                 mov     byte ptr ds:hero_sprite_hidden, 0
@@ -9711,7 +9711,7 @@ repeat:
                 mov     ax, offset repeat
                 push    ax
                 call    airborne_movement
-                pop     ax
+                pop     ax ; after death returns here
                 mov     byte ptr ds:hero_sprite_hidden, 0
 
 loc_9948:        
@@ -9719,9 +9719,9 @@ loc_9948:
                 mov     byte ptr ds:hero_sprite_hidden, 0
                 cmp     byte ptr ds:hero_animation_phase, 2
                 je      short loc_9972
-                inc     ds:byte_9F28
+                inc     ds:byte_9F28 ; after death
                 test    ds:byte_9F28, 7
-                jnz     short loc_9948
+                jnz     short loc_9948 ; repeat main_update_render 8 times
                 mov     al, ds:hero_animation_phase
                 inc     al
                 and     al, 3
@@ -9734,14 +9734,14 @@ loc_9948:
 loc_9972:        
                 inc     ds:byte_9F29
                 test    ds:byte_9F29, 0Fh
-                jz      short loc_998B
+                jz      short loc_998B ; exit flash animation loop
                 test    ds:byte_9F29, 1
                 jz      short loc_9948
                 mov     byte ptr ds:hero_sprite_hidden, 0FFh
                 jmp     short loc_9948
 ; ---------------------------------------------------------------------------
 
-loc_998B:        
+loc_998B:       ; after death flash animation
                 mov     byte ptr ds:byte_FF24, 8
                 mov     cx, 30
 
@@ -9757,7 +9757,7 @@ loc_9993:
                 mov     ax, 1  ; fn1 (Stop) - Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
                 call    cs:Fade_To_Black_Dithered_proc
-                test    byte ptr ds:is_death_already_processed, 0FFh
+                test    byte ptr ds:is_death_already_processed, 0FFh ; [0049]=0000
                 jz      short loc_99BB
                 mov     byte ptr ds:last_sage_visited, 80h
                 jmp     short skip_death_math

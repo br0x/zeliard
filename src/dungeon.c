@@ -697,14 +697,12 @@ void process_hero_death()
     MEM8(ADDR_BYTE_9F29) = 0;
     Draw_Hero_Health();
 
-    uint8_t restart = 0xFF;
     do {
         MEM8(ADDR_HERO_ANIM_PHASE) = 0;
         MEM8(ADDR_ON_ROPE_FLAGS) = 0;
         MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
         main_update_render();
-        airborne_movement(&restart);
-    } while (restart);
+    } while (!airborne_movement());
     MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
 
     for (;;) {
@@ -3816,7 +3814,7 @@ void on_left_pressed()
 // was set to 0 by this function to decide whether to restart the loop
 // Return true to call state_machine_dispatcher, false to skip it
 // Checked
-uint8_t airborne_movement(uint8_t *restart) {
+uint8_t airborne_movement() {
     if (MEM8(ADDR_AIR_UP_TILE_FOUND) != 0) {
         return 1;
     }
@@ -3827,7 +3825,7 @@ uint8_t airborne_movement(uint8_t *restart) {
     hero_collapse_platform();
     slope_assist_on_landing();
     if (!check_floor_for_landing()) {
-        *restart = 0xFF; // should either returm normally, or jump to main_loop label
+        // should either returm normally, or jump to main_loop label
         return land_after_jump();
     }
 
@@ -3838,7 +3836,7 @@ uint8_t airborne_movement(uint8_t *restart) {
     } else {
         hero_scroll_down();
     }
-    *restart = 0; // simulate pop trick
+    // simulate pop trick by returning 0
 
     if (!(MEM8(ADDR_FACING) & UP)) {
         uint16_t si = hero_coords_to_addr_in_proximity() + 2 * PROX_COLS + 1;
@@ -4245,8 +4243,6 @@ void game_loop_render_and_timing(uint8_t invincible)
 
 static void dungeon_finish_normal_frame(void)
 {
-    uint8_t restart = 0xff;
-
     magic_spell_fire_handler();
     hero_interaction_check();
     hero_knockback_handler();
@@ -4260,7 +4256,7 @@ static void dungeon_finish_normal_frame(void)
         MEM8(ADDR_FACING) &= ~UP;
     }
 
-    if (airborne_movement(&restart)) {
+    if (airborne_movement()) {
         state_machine_dispatcher();
     }
 

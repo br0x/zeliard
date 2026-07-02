@@ -786,7 +786,7 @@ uint8_t get_airflow_direction(uint8_t tile);
 int8_t set_zero_flag_if_slippery(void);
 void sliding_physics_step(void);
 void hero_knockback_handler();
-uint8_t airborne_movement(uint8_t *restart);
+uint8_t airborne_movement();
 void on_right_pressed();
 void on_left_pressed();
 void init_on_ground();
