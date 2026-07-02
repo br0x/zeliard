@@ -3393,9 +3393,9 @@ clear_viewport_buffer endp
 ; seg1:8020h. These are the tile IDs that hurt the hero when stood upon
 ; (e.g., lava, spikes), set per-dungeon in the mpp?.grp descriptor.
 ; Input: AL = tile value to search for.
-; Returns: ZF=1 (match found) or NZ (AH=0xFF, no match).
+; Returns: ZF=1 (not safe - match found) or NZ (AH=0xFF, no match, safe).
 ; ===========================================================================
-is_tile_al_aggressive_ground proc near
+is_tile_safe_to_stay proc near
                 push    di
                 mov     es, cs:seg1
                 mov     di, offset aggressive_ground_list
@@ -3405,9 +3405,9 @@ loc_73CC:
                 mov     ah, es:[di]
                 inc     di
                 or      ah, ah
-                jz      short loc_73DA
+                jz      short loc_73DA ; end of list
                 cmp     ah, al
-                je      short loc_73DE
+                je      short loc_73DE ; match found
                 loop    loc_73CC
 
 loc_73DA:        
@@ -3417,7 +3417,7 @@ loc_73DA:
 loc_73DE:        
                 pop     di
                 retn
-is_tile_al_aggressive_ground endp
+is_tile_safe_to_stay endp
 
 
 ; ===========================================================================
@@ -3552,23 +3552,22 @@ clear_hero_in_viewport endp
 
 
 ; ===========================================================================
-; step_on_aggressive_ground
 ; Deals damage to the hero if standing on harmful tiles.
 ; Pirika shoes grant immunity.
 ; Scans the hero's bottom 2-3 rows (squatting: +1 row) by calling
-; is_tile_al_aggressive_ground on each tile.
+; is_tile_safe_to_stay on each tile.
 ; Also checks the tile directly under the hero centre.
 ; If any match: set hero_damage_this_frame, play SFX 9, deal damage.
-; Damage table byte_7516: per cavern_level (1,1,4,8,20,20,20,20,20).
+; Damage table aggressive_tiles_damage_table: per cavern_level (1,1,4,8,20,20,20,20,20).
 ; ===========================================================================
-step_on_aggressive_ground proc near     ; ...
+step_on_aggressive_ground proc near
                 cmp     byte ptr ds:current_accessory, SHOES_PIRIKA
                 jnz     short no_pirika_shoes ; hero feets get hurting
                 retn
 ; ---------------------------------------------------------------------------
 
 no_pirika_shoes: 
-                mov     ds:byte_9F17, 0
+                mov     ds:danger_found, 0
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 mov     cx, 3
                 test    byte ptr ds:squat_flag, 0FFh
@@ -3585,9 +3584,9 @@ three_times:
                 push    cx
                 mov     al, [si]
                 inc     si
-                call    is_tile_al_aggressive_ground
+                call    is_tile_safe_to_stay
                 jnz     short loc_74D3
-                mov     ds:byte_9F17, 0FFh
+                mov     ds:danger_found, 0FFh
 
 loc_74D3:        
                 pop     cx
@@ -3600,12 +3599,12 @@ loc_74D3:
                 jnz     short loc_74F3
                 inc     si
                 mov     al, [si]
-                call    is_tile_al_aggressive_ground
+                call    is_tile_safe_to_stay
                 jnz     short loc_74F3
-                mov     ds:byte_9F17, 0FFh
+                mov     ds:danger_found, 0FFh
 
 loc_74F3:        
-                test    ds:byte_9F17, 0FFh
+                test    ds:danger_found, 0FFh
                 jnz     short loc_74FB
                 retn
 ; ---------------------------------------------------------------------------
@@ -3616,16 +3615,15 @@ loc_74FB:
                 mov     bl, ds:cavern_level
                 dec     bl
                 xor     bh, bh
-                mov     al, ds:byte_7516[bx]
+                mov     al, ds:aggressive_tiles_damage_table[bx]
                 xor     ah, ah
                 jmp     damage_hero     ; ax: damage level
 step_on_aggressive_ground endp
 
 ; ---------------------------------------------------------------------------
-byte_7516       db 1, 1, 4, 8, 20, 20, 20, 20, 20 ; ...
+aggressive_tiles_damage_table       db 1, 1, 4, 8, 20, 20, 20, 20, 20 ; ...
 
 ; ===========================================================================
-; check_hero_contact_damage
 ; Per-frame check: does the hero overlap any live monster?
 ; Skipped in boss caverns while boss is actively attacking.
 ;
@@ -3891,7 +3889,6 @@ get_monster_one_row_above endp
 ; =============== S U B R O U T I N E =======================================
 
 ; ax: damage level
-
 damage_hero     proc near 
                 sub     ds:hero_HP, ax
                 jnb     short loc_7691
@@ -9413,7 +9410,7 @@ category0_moveN:
 
 ; ===========================================================================
 ; Exported helper for AI: checks the proximity map at monster position Y+2.
-; Calls is_tile_al_aggressive_ground to test if it is an 'aggressive'
+; Calls is_tile_safe_to_stay to test if it is an 'aggressive'
 ; ground tile. Used by AIs to detect lava/spike floors for evasion.
 ; Input: si = monster struct
 ; ===========================================================================
@@ -9428,7 +9425,7 @@ check_monster_on_aggressive_ground proc near
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 mov     al, [di]        ; monster_id
-                jmp     is_tile_al_aggressive_ground
+                jmp     is_tile_safe_to_stay
 check_monster_on_aggressive_ground endp
 
 
@@ -10141,7 +10138,7 @@ byte_9F14       db 0
 air_up_tile_found db 0    ; 9f15h
 ; ---- Airflow ----
 ticks           db 0      ; 9F16h
-byte_9F17       db 0      
+danger_found       db 0      ; 9F17h
 byte_9F18       db 0      
 byte_9F19       db 0      
 ; ---- Map / scroll ----

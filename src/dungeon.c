@@ -544,9 +544,10 @@ void clear_hero_in_viewport()
     }
 }
 
-// stub. Should be updated regularly by game.js
-void Draw_Hero_Health_proc()
+// Signal game.js to redraw health bar
+void Draw_Hero_Health()
 {
+    MEM8(ADDR_HEALTH_BAR_REQUEST) = 0xFF;
 }
 
 // stub, will implement later, when all before projectiles is done
@@ -694,7 +695,7 @@ void process_hero_death()
     MEM8(ADDR_INVINCIBILITY_FLAG) = 0xFF;
     MEM8(ADDR_BYTE_9F28) = 0;
     MEM8(ADDR_BYTE_9F29) = 0;
-    Draw_Hero_Health_proc();
+    Draw_Hero_Health();
 
     uint8_t restart = 0xFF;
     do {
@@ -2327,11 +2328,79 @@ void projectiles_collision_processing(void) {}
 // stub
 void monsters_updates(void) {}
 
-// stub
-void step_on_aggressive_ground(void) {}
 
-// stub
-void damage_hero(uint16_t amount) {}
+/* Damage table indexed by (cavern_level - 1) */
+const uint8_t aggressive_tiles_damage_table[9] = {1, 1, 4, 8, 20, 20, 20, 20, 20};
+
+/*
+ * damage_hero – subtract damage from hero_HP, clamp to 0, redraw health.
+ */
+void damage_hero(uint16_t damage) {
+    uint16_t hero_HP = MEM16(ADDR_HERO_HP);
+    if (hero_HP >= damage) {
+        hero_HP -= damage;
+    } else {
+        hero_HP = 0;
+    }
+    MEM16(ADDR_HERO_HP) = hero_HP;
+    Draw_Hero_Health(); // signal js to redraw health
+}
+
+/*
+ * step_on_aggressive_ground
+ * Checks harmful tiles under the hero, applies damage unless Pirika shoes are worn.
+ */
+void step_on_aggressive_ground(void) {
+    /* Pirika shoes grant immunity */
+    if (MEM8(ADDR_CURRENT_ACCESSORY) == SHOES_PIRIKA) {
+        return;
+    }
+
+    uint8_t danger_found = 0;
+
+    /* Get pointer to top‑left tile of the hero’s 3×3 bounding box */
+    uint16_t ptr = hero_coords_to_addr_in_proximity();
+
+    int row_count = 3;          /* normally check all 3 rows of the hero */
+    if (MEM8(ADDR_SQUAT_FLAG) != 0) {
+        ptr += 36;              /* skip the top row (move down one row of 36 tiles) */
+        wrap_map_from_above(&ptr);
+        row_count = 2;          /* now only the bottom 2 rows are checked */
+    }
+
+    /* Scan the bottom rows (3 tiles per row) */
+    for (int row = 0; row < row_count; row++) {
+        for (int col = 0; col < 3; col++) {
+            uint8_t tile = MEM8(ptr);
+            ptr++;
+            if (!is_tile_safe_to_stay(tile)) {
+                danger_found = 0xFF;
+            }
+        }
+        ptr += (36-3);              /* 36 - 3 (already advanced) */
+        wrap_map_from_above(&ptr);
+    }
+
+    /* If not on a rope, check the tile directly under the hero’s centre */
+    if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) {
+        ptr++;                  /* move to centre column (column 1 of the row below) */
+        uint8_t tile = MEM8(ptr);
+        if (!is_tile_safe_to_stay(tile)) {
+            danger_found = 0xFF;
+        }
+    }
+
+    if (!danger_found) {
+        return;
+    }
+
+    /* Mark damage, play sound, apply damage. */
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0xFF;
+    MEM8(ADDR_SOUND_FX_REQUEST) = 9;
+
+    uint16_t dmg = aggressive_tiles_damage_table[MEM8(ADDR_CAVERN_LEVEL) - 1];
+    damage_hero(dmg);
+}
 
 //stub
 // TODO: signal js to render gold amount
@@ -3035,7 +3104,7 @@ uint8_t check_monster_on_aggressive_ground(uint16_t m)
     uint16_t di = coords_to_prox_addr(x_rel, y) + 2 * PROX_COLS;
     wrap_map_from_above(&di);
     uint8_t tile = MEM8(di);
-    return is_tile_al_aggressive_ground(tile);
+    return is_tile_safe_to_stay(tile);
 }
 
 // Called when a monster's HP drops to 0.
@@ -3160,22 +3229,22 @@ uint8_t Get_Stats(uint8_t al)
     return byte_98BE[al - 2];
 }
 
-// Searches for tile value AL in the 4-byte 'aggressive ground' list at
-// seg1:8020h. These are the tile IDs that hurt the hero when stood upon
+// Searches for tile value AL in the 4-byte 'aggressive ground' list at seg1:8020h.
+// These are the tile IDs that hurt the hero when stood upon
 // (e.g., lava, spikes), set per-dungeon in the mpp?.grp descriptor.
-// Input: AL = tile value to search for.
-// Returns: ZF=1 (match found) => true
-//       or NZ (AH=0xFF, no match) => false
-static uint8_t is_tile_al_aggressive_ground(uint8_t tile)
+// Input: tile value to search for.
+// Returns: ZF=1 (match found) => false
+//       or NZ (AH=0xFF, no match) => true
+static uint8_t is_tile_safe_to_stay(uint8_t tile)
 {
     for (int i = 0; i < 4; i++) {
         uint8_t aggr = MEM8_1(ADDR_AGGRESSIVE_TILES + i);
         if (aggr == 0) 
-            return 0; // end of list
+            return 0xFF; // end of list, no match
         if (tile == aggr)
-            return 0xFF;
+            return 0;
     }
-    return 0;
+    return 0xFF;
 }
 
 // Direct translation of original code. Need to decide
@@ -4066,11 +4135,11 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
                     MEM16(ADDR_HEALING_TIMER) = 0;
                 }
                 MEM8(ADDR_SOUND_FX_REQUEST) = 19;
-                Draw_Hero_Health_proc();
+                Draw_Hero_Health();
             }
         }
 
-        Refresh_Dirty_Tiles();
+        // Refresh_Dirty_Tiles();
 
         if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
             Boss_Explosions_Renderer();
@@ -4136,7 +4205,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
         MEM8(ADDR_BYTE_9F18) = 0;
         if (MEM16(ADDR_HERO_HP) < MEM16(ADDR_HERO_MAX_HP)) {
             MEM16(ADDR_HERO_HP) += 2;
-            Draw_Hero_Health_proc();
+            Draw_Hero_Health();
         }
     }
 

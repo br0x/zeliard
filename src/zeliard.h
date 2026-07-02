@@ -188,6 +188,7 @@ extern "C" {
 #define ADDR_BOSS_ENCOUNTER_PHASE   0xFF96  // byte
 #define ADDR_ASSETS_LOAD_REQUEST    0xFF97  // byte
 #define ADDR_ASSETS_LOADED          0xFF98  // byte
+#define ADDR_HEALTH_BAR_REQUEST     0xFF99  // byte: 0xFF = JS should call drawLifeBar()
 #define ADDR_MUSIC_LOAD_REQUEST     0xFF9A  // byte
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
@@ -819,7 +820,7 @@ void right_up_pressed();
 uint8_t move_platform_down_damage_monster();
 void down_pressed();
 void init_horizontal_sliding();
-static uint8_t is_tile_al_aggressive_ground(uint8_t tile);
+static uint8_t is_tile_safe_to_stay(uint8_t tile);
 
 // Rendering
 void main_update_render(void);

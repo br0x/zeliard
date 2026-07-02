@@ -573,7 +573,7 @@ loc_3336:
                 mov     al, [si] ; [E898]=00
                 or      al, al
                 jns     short loc_334E
-                call    Translate_Tile_Index
+                call    get_from_layer2
 loc_334E:
                 push    ax     ; 0
                 mov     al, cl ; 8C
@@ -652,7 +652,7 @@ loc_33BB:
                 mov     al, [si]
                 or      al, al
                 jns     short loc_33D1
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_33D1:
                 push    ax
@@ -706,7 +706,7 @@ Render_Tile_With_Dual_Cache proc near
                 push    dx
                 or      al, al
                 jns     short loc_3434
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3434:
                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -729,7 +729,7 @@ loc_343A:
                 mov     al, bh
                 or      al, al
                 jns     short loc_3461
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3461:
                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -838,7 +838,7 @@ Render_Tile_And_Update_Cache proc near
                 push    dx
                 or      al, al
                 jns     short loc_3535
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3535:
                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -861,7 +861,7 @@ loc_353B:
                 mov     al, bh
                 or      al, al
                 jns     short loc_3562
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3562:
                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -889,7 +889,7 @@ render_tile_neighborhood_cell_internal:
                 mov     al, [di]
                 or      al, al
                 jns     short loc_3587
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3587:
                 push    bp
@@ -1155,12 +1155,12 @@ Clear_Tile_Buffer endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Translate_Tile_Index proc near
+get_from_layer2 proc near
                 and     al, 7Fh
                 mov     bx, offset proximity_second_layer
                 xlat
                 retn
-Translate_Tile_Index endp
+get_from_layer2 endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -2039,7 +2039,7 @@ Render_Tile_With_Palette proc near
                 mov     al, [si]
                 or      al, al
                 jns     short loc_3D7A
-                call    Translate_Tile_Index
+                call    get_from_layer2
 
 loc_3D7A:
                 push    ax

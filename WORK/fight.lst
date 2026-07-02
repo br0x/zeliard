@@ -2999,7 +2999,7 @@ fight:73C0
 fight:73C0 ; =============== S U B R O U T I N E =======================================
 fight:73C0
 fight:73C0
-fight:73C0 is_tile_al_aggressive_ground proc near ; ...
+fight:73C0 is_tile_safe_to_stay proc near ; ...
 fight:73C0                 push    di
 fight:73C1                 mov     es, cs:game_segment
 fight:73C6                 assume es:nothing
@@ -3022,7 +3022,7 @@ fight:73DE
 fight:73DE loc_73DE:                               ; ...
 fight:73DE                 pop     di
 fight:73DF                 retn
-fight:73DF is_tile_al_aggressive_ground endp
+fight:73DF is_tile_safe_to_stay endp
 fight:73DF
 fight:73E0
 fight:73E0 ; =============== S U B R O U T I N E =======================================
@@ -3157,7 +3157,7 @@ fight:74A7                 retn
 fight:74A8 ; ---------------------------------------------------------------------------
 fight:74A8
 fight:74A8 no_pirika_shoes:                        ; ...
-fight:74A8                 mov     ds:byte_9F17, 0
+fight:74A8                 mov     ds:danger_found, 0
 fight:74AD                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
 fight:74B0                 mov     cx, 3
 fight:74B3                 test    ds:squat_flag, 0FFh
@@ -3174,9 +3174,9 @@ fight:74C5 three_times:                            ; ...
 fight:74C5                 push    cx
 fight:74C6                 mov     al, [si]
 fight:74C8                 inc     si
-fight:74C9                 call    is_tile_al_aggressive_ground
+fight:74C9                 call    is_tile_safe_to_stay
 fight:74CC                 jnz     short loc_74D3
-fight:74CE                 mov     ds:byte_9F17, 0FFh
+fight:74CE                 mov     ds:danger_found, 0FFh
 fight:74D3
 fight:74D3 loc_74D3:                               ; ...
 fight:74D3                 pop     cx
@@ -3189,12 +3189,12 @@ fight:74DF                 test    ds:on_rope_flags, 0FFh ; 0: on ground, ff: on
 fight:74E4                 jnz     short loc_74F3
 fight:74E6                 inc     si
 fight:74E7                 mov     al, [si]
-fight:74E9                 call    is_tile_al_aggressive_ground
+fight:74E9                 call    is_tile_safe_to_stay
 fight:74EC                 jnz     short loc_74F3
-fight:74EE                 mov     ds:byte_9F17, 0FFh
+fight:74EE                 mov     ds:danger_found, 0FFh
 fight:74F3
 fight:74F3 loc_74F3:                               ; ...
-fight:74F3                 test    ds:byte_9F17, 0FFh
+fight:74F3                 test    ds:danger_found, 0FFh
 fight:74F8                 jnz     short loc_74FB
 fight:74FA                 retn
 fight:74FB ; ---------------------------------------------------------------------------
@@ -3205,13 +3205,13 @@ fight:7500                 mov     ds:soundFX_request, 9
 fight:7505                 mov     bl, ds:cavern_level
 fight:7509                 dec     bl
 fight:750B                 xor     bh, bh
-fight:750D                 mov     al, ds:byte_7516[bx]
+fight:750D                 mov     al, ds:aggressive_tiles_damage_table[bx]
 fight:7511                 xor     ah, ah
 fight:7513                 jmp     damage_hero     ; ax: damage level
 fight:7513 step_on_aggressive_ground endp
 fight:7513
 fight:7513 ; ---------------------------------------------------------------------------
-fight:7516 byte_7516       db 1, 1, 4, 8, 20, 20, 20, 20, 20 ; ...
+fight:7516 aggressive_tiles_damage_table       db 1, 1, 4, 8, 20, 20, 20, 20, 20 ; ...
 fight:751F
 fight:751F ; =============== S U B R O U T I N E =======================================
 fight:751F
@@ -8909,7 +8909,7 @@ fight:97A8                 add     si, 2*36        ; y++
 fight:97AB                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
 fight:97AE                 xchg    si, di
 fight:97B0                 mov     al, [di]        ; monster_id
-fight:97B2                 jmp     is_tile_al_aggressive_ground
+fight:97B2                 jmp     is_tile_safe_to_stay
 fight:97B2 check_monster_on_aggressive_ground endp
 fight:97B2
 fight:97B5
@@ -9562,7 +9562,7 @@ fight:9F12 accumulated_contact_damage dw 0         ; ...
 fight:9F14 byte_9F14       db 0                    ; ...
 fight:9F15 air_up_tile_found db 0                  ; ...
 fight:9F16 ticks           db 0                    ; ...
-fight:9F17 byte_9F17       db 0                    ; ...
+fight:9F17 danger_found       db 0                    ; ...
 fight:9F18 byte_9F18       db 0                    ; ...
 fight:9F19 byte_9F19       db 0                    ; ...
 fight:9F1A hero_x_in_proximity_map dw 0            ; ...

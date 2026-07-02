@@ -286,6 +286,7 @@ const ADDR_DUNGEON_STATE = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
 const ADDR_RENDER_REQUEST = 0xFF92;
 const ADDR_RENDER_DONE = 0xFF93;
+const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
 const ADDR_ROKA_PHASE = 0xFF9D;
 const ADDR_ROKA_COLOR = 0xFF9E;
 const DUNGEON_STATE_ROKA_RUN = 7;
@@ -2460,7 +2461,10 @@ function draw() {
             drawDungeonHero();
             drawDungeonSword();
         }
-        // HUD is drawn later (outside this branch)
+        if (readMemory(ADDR_HEALTH_BAR_REQUEST, 1)[0]) {
+            drawLifeBar();
+            writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
+        }
     } else { // town outdoor mode
         ctx.fillStyle = '#05053f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);

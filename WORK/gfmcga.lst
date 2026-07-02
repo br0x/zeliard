@@ -604,7 +604,7 @@ seg000:3342                 call    wrap_e900_from_above
 seg000:3345                 mov     al, [si]
 seg000:3347                 or      al, al
 seg000:3349                 jns     short loc_334E
-seg000:334B                 call    Translate_Tile_Index
+seg000:334B                 call    get_from_layer2
 seg000:334E
 seg000:334E loc_334E:                               ; ...
 seg000:334E                 push    ax
@@ -683,7 +683,7 @@ seg000:33C5                 call    wrap_e900_from_above
 seg000:33C8                 mov     al, [si]
 seg000:33CA                 or      al, al
 seg000:33CC                 jns     short loc_33D1
-seg000:33CE                 call    Translate_Tile_Index
+seg000:33CE                 call    get_from_layer2
 seg000:33D1
 seg000:33D1 loc_33D1:                               ; ...
 seg000:33D1                 push    ax
@@ -737,7 +737,7 @@ seg000:342B                 push    si
 seg000:342C                 push    dx
 seg000:342D                 or      al, al
 seg000:342F                 jns     short loc_3434
-seg000:3431                 call    Translate_Tile_Index
+seg000:3431                 call    get_from_layer2
 seg000:3434
 seg000:3434 loc_3434:                               ; ...
 seg000:3434                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -760,7 +760,7 @@ seg000:3456                 mov     ah, al
 seg000:3458                 mov     al, bh
 seg000:345A                 or      al, al
 seg000:345C                 jns     short loc_3461
-seg000:345E                 call    Translate_Tile_Index
+seg000:345E                 call    get_from_layer2
 seg000:3461
 seg000:3461 loc_3461:                               ; ...
 seg000:3461                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -869,7 +869,7 @@ seg000:352C                 push    si
 seg000:352D                 push    dx
 seg000:352E                 or      al, al
 seg000:3530                 jns     short loc_3535
-seg000:3532                 call    Translate_Tile_Index
+seg000:3532                 call    get_from_layer2
 seg000:3535
 seg000:3535 loc_3535:                               ; ...
 seg000:3535                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -892,7 +892,7 @@ seg000:3557                 mov     ah, al
 seg000:3559                 mov     al, bh
 seg000:355B                 or      al, al
 seg000:355D                 jns     short loc_3562
-seg000:355F                 call    Translate_Tile_Index
+seg000:355F                 call    get_from_layer2
 seg000:3562
 seg000:3562 loc_3562:                               ; ...
 seg000:3562                 call    Decode_And_Render_MonsterEntity_Tile_With_Blit
@@ -918,7 +918,7 @@ seg000:357C                 mov     ah, [si]
 seg000:357E                 mov     al, [di]
 seg000:3580                 or      al, al
 seg000:3582                 jns     short loc_3587
-seg000:3584                 call    Translate_Tile_Index
+seg000:3584                 call    get_from_layer2
 seg000:3587
 seg000:3587 loc_3587:                               ; ...
 seg000:3587                 push    bp
@@ -1178,12 +1178,12 @@ seg000:36D1
 seg000:36D1 ; =============== S U B R O U T I N E =======================================
 seg000:36D1
 seg000:36D1
-seg000:36D1 Translate_Tile_Index proc near          ; ...
+seg000:36D1 get_from_layer2 proc near          ; ...
 seg000:36D1                 and     al, 7Fh
 seg000:36D3                 mov     bx, 0ED20h
 seg000:36D6                 xlat
 seg000:36D7                 retn
-seg000:36D7 Translate_Tile_Index endp
+seg000:36D7 get_from_layer2 endp
 seg000:36D7
 seg000:36D8
 seg000:36D8 ; =============== S U B R O U T I N E =======================================
@@ -2247,7 +2247,7 @@ seg000:3D6F                 mov     cl, al
 seg000:3D71                 mov     al, [si]
 seg000:3D73                 or      al, al
 seg000:3D75                 jns     short loc_3D7A
-seg000:3D77                 call    Translate_Tile_Index
+seg000:3D77                 call    get_from_layer2
 seg000:3D7A
 seg000:3D7A loc_3D7A:                               ; ...
 seg000:3D7A                 push    ax

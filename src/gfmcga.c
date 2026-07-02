@@ -163,7 +163,7 @@ uint8_t vram_shadow[1536];
 #define viewport_buffer_28x19 0xE900
 
 uint8_t get_random();
-static uint8_t Translate_Tile_Index(uint8_t al);
+static uint8_t get_from_layer2(uint8_t al);
 static void render_48bytes_packed_tile(const uint8_t *si, uint8_t *di);
 static void _render_hero_3x3();
 static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t *si, const uint8_t *bp, uint8_t *di);
@@ -335,7 +335,7 @@ void Render_Empty_Or_Cached_Tile(uint8_t *nb_ptr) {
  *
  * nb_ptr     : current position in tile_neighborhood_buffer → background tile.
  *              If bit7 is set (raw map notation), it is translated via
- *              Translate_Tile_Index() before use.
+ *              get_from_layer2() before use.
  *
  * Rendering:
  *   bg_tile ≠ 0 → render packed background tile, then blit nibble sprite on top
@@ -347,7 +347,7 @@ void Render_Tile_With_Palette(uint8_t tile, uint8_t *nb_ptr) {
     /* Background tile from the neighbourhood buffer */
     uint8_t bg_tile = *nb_ptr;
     if (bg_tile & 0x80)
-        bg_tile = Translate_Tile_Index(bg_tile);  /* → proximity_second_layer[idx] */
+        bg_tile = get_from_layer2(bg_tile);  /* → proximity_second_layer[idx] */
     
     nibble_decode_lut = pal_decode_tbl[tile_blit_mode];
     
@@ -394,7 +394,7 @@ void Render_Tile_With_Palette(uint8_t tile, uint8_t *nb_ptr) {
  *        → neighbourhood[si] is updated: si[0] = bg_tile  (side-effect!)
  *        → fman tile = s_frame_fman_tiles[0]  (frame data byte 1)
  *        → Render_Tile_With_Palette(fman, &si[0])
- *          (bg_tile is now positive so Translate_Tile_Index is not called)
+ *          (bg_tile is now positive so get_from_layer2 is not called)
  */
 static void _render_hero_3x3()
 {
@@ -457,7 +457,7 @@ static void _render_hero_3x3()
                  * Unique side-effect: the neighbourhood cell is updated with
                  * the background tile from the Lookup (proximity_second_layer
                  * result), so that Render_Tile_With_Palette sees a positive
-                 * (already-translated) background tile and skips Translate_Tile_Index.
+                 * (already-translated) background tile and skips get_from_layer2.
                  */
                 uint8_t bg_tile = Lookup_Monster_Tile_Attributes(di[5], &frame_ptr);
                 *si = bg_tile;  /* update neighbourhood buffer */
@@ -1322,7 +1322,7 @@ static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t 
 }
 
 /* al: tile idx; masked to 7 bits then looked up. */
-static uint8_t Translate_Tile_Index(uint8_t al)
+static uint8_t get_from_layer2(uint8_t al)
 {
     al &= 0x7F;
     return MEM8(ADDR_PROXIMITY_LAYER2 + al);
@@ -1383,7 +1383,7 @@ static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, u
         uint8_t ah = **si;
         uint8_t al = **di;
         if (al >= 0x80) { // monster/entity tile
-            al = Translate_Tile_Index(al);
+            al = get_from_layer2(al);
         }
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, *dx);
     }
@@ -1412,7 +1412,7 @@ static void Render_Top_Left_Corner_Entity(uint16_t si)
 
     uint8_t al = MEM8(si); // background tile, possible also a monster/entity
     if (al & 0x80) {
-        al = Translate_Tile_Index(al);
+        al = get_from_layer2(al);
     }
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
@@ -1442,7 +1442,7 @@ static void Render_Top_Right_Corner_Entity(uint16_t si)
 
     uint8_t al = MEM8(si); // background tile, possible also a monster/entity
     if (al >= 0x80) {
-        al = Translate_Tile_Index(al);
+        al = get_from_layer2(al);
     }
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
@@ -1523,7 +1523,7 @@ static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
     if (tile_cache_dirty_flags[0] != 0xFF && tile_cache_dirty_flags[0] != 0xFC) {
         uint8_t ah = MEM8(si+0);
         uint8_t al = bl;
-        if (al >= 0x80) al = Translate_Tile_Index(al);
+        if (al >= 0x80) al = get_from_layer2(al);
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 
@@ -1535,7 +1535,7 @@ static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
         uint8_t ah = MEM8(si+0);
         si++;
         uint8_t al = bh;
-        if (al >= 0x80) al = Translate_Tile_Index(al);
+        if (al >= 0x80) al = get_from_layer2(al);
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 }
@@ -1686,11 +1686,11 @@ static void Render_Tile_And_Update_Cache(uint16_t si, uint8_t *di, int col)
     if (tile_cache_dirty_flags[0] != 0xFF && tile_cache_dirty_flags[0] != 0xFC) {
         uint8_t ah = MEM8(si);
         uint8_t al = bl;
-        if (al >= 0x80) al = Translate_Tile_Index(al);
+        if (al >= 0x80) al = get_from_layer2(al);
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 
-    dx = (uint16_t)(dx + 320 * 8);
+    dx += (320 * 8);
 
     if (viewport_rows_remaining != 1 &&
         tile_cache_dirty_flags[1] != 0xFF && tile_cache_dirty_flags[1] != 0xFC) {
@@ -1698,7 +1698,7 @@ static void Render_Tile_And_Update_Cache(uint16_t si, uint8_t *di, int col)
         uint8_t ah = MEM8(si);
         si++; // unused
         uint8_t al = bh;
-        if (al >= 0x80) al = Translate_Tile_Index(al);
+        if (al >= 0x80) al = get_from_layer2(al);
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
     }
 }
