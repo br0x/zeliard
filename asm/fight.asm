@@ -9722,9 +9722,9 @@ loc_9948:
                 inc     ds:byte_9F28
                 test    ds:byte_9F28, 7
                 jnz     short loc_9948
-                mov     al, ds:hero_animation_phase ; 0, 1, 3, 4, 5, 6, 7
-                inc     al                          ; 1, 2, 4, 5, 6, 7, 8
-                and     al, 3                       ; 1, 2, 0, 1, 2, 3, 0
+                mov     al, ds:hero_animation_phase
+                inc     al
+                and     al, 3
                 cmp     al, 3
                 je      short loc_9948
                 mov     ds:hero_animation_phase, al

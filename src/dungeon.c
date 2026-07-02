@@ -2732,7 +2732,7 @@ static void flag_18(uint16_t m) {
     if (!check_monster_aligned_to_hero_and_tick(m))
         return;
     render_notification_string(YOU_HAVE_RECOVERED_STR);
-    MEM8(ADDR_HEALING_TIMER) = MEM8(ADDR_HEALING_TIMER) + 10;
+    MEM8(ADDR_HEALING_TIMER) += 10; // byte access in original!
     mark_collected(m);
 }
 
@@ -2742,8 +2742,8 @@ static void flag_19(uint16_t m) {
     if (!check_monster_aligned_to_hero_and_tick(m))
         return;
     render_notification_string(YOU_HAVE_RECOVERED_FULL_STR);
-    uint8_t amount = (MEM8(ADDR_HERO_MAX_HP) >> 3) + 1;
-    MEM8(ADDR_HEALING_TIMER) = MEM8(ADDR_HEALING_TIMER) + amount;
+    uint16_t amount = (MEM16(ADDR_HERO_MAX_HP) >> 3) + 1;
+    MEM16(ADDR_HEALING_TIMER) += amount;
     mark_collected(m);
 }
 
@@ -4200,11 +4200,11 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
         return 1;
     }
 
-    MEM8(ADDR_BYTE_9F18)++;
+    MEM8(ADDR_BYTE_9F18)++; // natural health regeneration timer?
     if (MEM8(ADDR_BYTE_9F18) >= 16) {
         MEM8(ADDR_BYTE_9F18) = 0;
         if (MEM16(ADDR_HERO_HP) < MEM16(ADDR_HERO_MAX_HP)) {
-            MEM16(ADDR_HERO_HP) += 2;
+            MEM16(ADDR_HERO_HP) += 2; // original version also has this bug (if damage was odd, health becomes eventually max+1)
             Draw_Hero_Health();
         }
     }

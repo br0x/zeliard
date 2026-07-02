@@ -92,7 +92,7 @@ extern "C" {
 #define ADDR_LEFT_RUN                 0xC3
 #define ADDR_PLACE_MAP_ID             0xC4
 #define ADDR_LAST_SAGE_VISITED        0xC5    // byte
-#define ADDR_HEALING_TIMER            0xC6
+#define ADDR_HEALING_TIMER            0xC6    // word
 #define ADDR_MSD_INDEX                0xC8    // byte
 #define ADDR_BYTE_E4                  0xE4
 #define ADDR_IS_JASHIIN_CAVERN        0xE6
