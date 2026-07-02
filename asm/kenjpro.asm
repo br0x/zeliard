@@ -7,14 +7,14 @@ kenjpro         segment byte public 'CODE'
                 assume cs:kenjpro, ds:kenjpro
                 org 0A000h
 start:
-                dw offset loc_A027
+                dw offset sage_normal
                 dw offset sub_AB47
-                dw offset sub_A006
+                dw offset sage_resurrect
 
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A006        proc near
+sage_resurrect  proc near
                 call    sub_A05A
                 mov     word_BB12, 0E17h
                 call    sub_A990
@@ -22,11 +22,11 @@ sub_A006        proc near
                 mov     cx, 3637h
                 mov     al, 0FFh
                 call    word ptr cs:Draw_Bordered_Rectangle_proc
-                mov     word ptr ds:dialog_string_ptr, offset byte_BA67
-                jmp     short loc_A047
+                mov     word ptr ds:dialog_string_ptr, offset byte_BA67 ; 'While you were...'
+                jmp     short sage_common
 ; ---------------------------------------------------------------------------
 
-loc_A027:
+sage_normal:
                 call    sub_A05A
                 mov     word_BB12, 717h
                 call    sub_A990
@@ -37,17 +37,17 @@ loc_A027:
                 call    sub_AC07
                 mov     ds:dialog_string_ptr, si
 
-loc_A047:
+sage_common:
                 call    word ptr cs:render_menu_dialog_proc
-                cmp     al, 0FFh
-                jz      short loc_A055
+                cmp     al, 0FFh ; Go outside
+                je      short loc_A055
                 call    sub_A0A4
-                jmp     short loc_A047
+                jmp     short sage_common
 ; ---------------------------------------------------------------------------
 
 loc_A055:
                 jmp     word ptr cs:Fade_To_Black_Dithered_proc
-sub_A006        endp
+sage_resurrect  endp
 
 
 ; =============== S U B R O U T I N E =======================================

@@ -4735,7 +4735,7 @@ transfer_to_town:
                     mov     di, 3000h
                     mov     al, 5           ; fn5_load_music
                     call    cs:res_dispatcher_proc
-                pop     bx
+                pop     bx               ; bx points to one of town entries
                 xor     al, al           ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
                 jmp     cs:res_dispatcher_proc ; on return will jump to the town entry code
 try_door_interaction endp
@@ -4763,7 +4763,7 @@ hero_left_16_down_1 endp
 
 
 ; =============== S U B R O U T I N E =======================================
-
+; Reads hero_x_in_proximity_map
 ; Return:
 ; AX: proximity_map_left_col_x
 ; BL: hero_x_in_viewport

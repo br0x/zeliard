@@ -143,7 +143,8 @@ accomplished_items_checker_table                   equ 0C00Ch
 cavern_name_rendering_info                         equ 0C00Eh
 monsters_table_addr                                equ 0C010h
 cavern_level                                       equ 0C012h
-tear_x                                             equ 0C013h
+tear_x                                             equ 0C013h ; word
+  ; put it to hero_x_in_proximity_map and call edge_locking_scrolling_window to place hero near sage hut
 tear_y                                             equ 0C015h
 hero_head_y_in_viewport_initial_from_mdt           equ 0C016h
 cavern_signs_rendering_info                        equ 0C017h
