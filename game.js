@@ -1362,7 +1362,7 @@ function resolveFrontArmFrame(state) {
 
     if (state.shieldAnimActive) {
         const phase = Math.floor(state.shieldPhase / 2);
-        if (!state.facingLeft) return 67 + phase + (state.shieldCategory * 4);
+        if (state.facingLeft) return 67 + phase + (state.shieldCategory * 4);
         let off = phase + 4;
         if (state.shieldVariant === 1) off += 4;
         else if (state.shieldVariant === 2) off = 11;

@@ -1791,7 +1791,7 @@ loc_3BF2:
 ; ---------------------------------------------------------------------------
 ; Layer 3: front arm
 loc_3C05:
-                mov     cl, 0FFh
+                mov     cl, 0FFh ; cl: flag is_left_facing
                 mov     si, fman_gfx + (2*13 + 4 + 1 + 18)*9  ; ARM_LEFT_BASE
                 test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_3C16
@@ -1807,61 +1807,65 @@ loc_3C16:
                 call    get_player_shield_category ; 0=no shield, 1=small, 2=large
                 or      al, al
                 jnz     short loc_3C27
-                ; no shield
+                ; on rope or hidden without shield //
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_3C27:       ; has shield
+loc_3C27:       ; on rope or hidden with shield
                 dec     al      ; 0=small shield, 1=large shield
                 shr     al, 1   ; NC=small, CF=large
                 sbb     al, al  ; 0=small, 0FFh=large
                 and     al, 1Bh ; 0=small, 1Bh=large
-                add     al, 7Eh ; 7Eh=small (14th frame from ARM BASE), 99h=large (17th frame from ARM BASE)
+                add     al, 7Eh ; (14*9)=small (14th frame from ARM BASE), (17*9)=large (17th frame from ARM BASE)
                 xor     ah, ah
-                jmp     loc_3CBF
+                jmp     loc_3CBF ; will add this delta to si //
 ; ---------------------------------------------------------------------------
 ; neither on rope, nor hidden
 loc_3C36:
                 test    byte ptr ds:shield_anim_active, 0FFh
                 jz      short loc_3C7F
 ; shield animation is active
-                inc     cl
+                inc     cl ; -> 0=left, 1=right
                 jnz     short loc_3C5B
+                ; left facing
                 mov     al, ds:shield_anim_phase ; 0..7
                 shr     al, 1  ; 0..3
                 mov     cl, 9
                 mul     cl
                 push    ax
-                call    get_player_shield_category ; 0=no shield, 1=small, 2=large
-                mov     cl, 4*9
-                mul     cl
-                pop     si
-                add     si, ax
+                    call    get_player_shield_category ; 0=no shield, 1=small, 2=large
+                    mov     cl, 4*9
+                    mul     cl
+                pop     si ; si = (shield_anim_phase >> 1) * 9
+                add     si, ax ; si = (shield_anim_phase >> 1) * 9 + cat * 4*9
                 add     si, fman_gfx + (2*13 + 4 + 1 + 2*18)*9  ; SHIELD_FRONT_BASE
-                jmp     short loc_3CC1
+                ; si = fman_gfx + SHIELD_FRONT_BASE + (shield_anim_phase >> 1) * 9 + cat * 4*9
+                jmp     short loc_3CC1 ; //
 ; ---------------------------------------------------------------------------
-
+                ; right facing
 loc_3C5B:
                 mov     al, ds:shield_anim_phase ; 0..7
                 shr     al, 1 ; 0..3
                 mov     cl, 9
-                mul     cl
-                add     ax, 4*9
-                mov     dl, ds:shield_variant_index
+                mul     cl ; ax = (shield_anim_phase >> 1) * 9 = phase_off
+                add     ax, 4*9 ; ax = (shield_anim_phase >> 1) * 9 + 4*9 = off = phase_off + 4*9
+                mov     dl, ds:shield_variant_index ; 0, 1, 2
                 dec     dl
                 jnz     short loc_3C74
-                add     ax, 4*9
-                jmp     short loc_3C7B
+                ; shield_variant_index == 1
+                add     ax, 4*9 ; ax = phase_off+4*9 = delta
+                jmp     short loc_3C7B ; will add ax delta to si
 ; ---------------------------------------------------------------------------
 
 loc_3C74:
                 dec     dl
-                jnz     short loc_3C7B
-                mov     ax, 11*9
+                jnz     short loc_3C7B ; will add ax = phase_off delta to si
+                ; shield_variant_index == 2
+                mov     ax, 11*9 ; ax = 11*9 = delta
 
-loc_3C7B:
-                add     si, ax
-                jmp     short loc_3CC1
+loc_3C7B:       ; default
+                add     si, ax ; si += off
+                jmp     short loc_3CC1 ; //
 ; ---------------------------------------------------------------------------
 
 loc_3C7F:

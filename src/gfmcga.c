@@ -643,29 +643,29 @@ static void choose_hero_sprite()
 
         if (on_rope_flags | hero_hidden_flag) {
             /* On rope or hidden: only show front layer if a shield is held */
-            if (!cat) return;
+            if (!cat) return; //
 
             /* Small shield → +14 frames from arm base
              * Large shield → +17 frames from arm base */
-            arm_si += (cat == 2) ? 17*9 : 14*9;
+            arm_si += (cat == 2) ? 17*9 : 14*9; //
 
         } else if (MEM8(ADDR_SHIELD_ANIM_ACTIVE)) {
             uint16_t phase_off = (uint16_t)(MEM8(ADDR_SHIELD_ANIM_PHASE) >> 1) * 9;
 
-            if (!facing_left) {
-                /* Facing right + active shield front → SHIELD_FRONT_BASE */
-                arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_SHIELD_FRONT_BASE + phase_off + (uint16_t)cat * (4 * 9)];
+            if (facing_left) {
+                /* Facing left + active shield front → SHIELD_FRONT_BASE */
+                arm_si = &g_mem[0x10000 + FMAN_GFX_BASE + FMAN_SHIELD_FRONT_BASE + phase_off + (uint16_t)cat * (4 * 9)]; //
             } else {
-                /* Facing left + active shield front */
+                /* Facing right + active shield front */
                 uint16_t off = phase_off + 4 * 9;
                 switch (MEM8(ADDR_SHIELD_VARIANT_INDEX)) {
                     case 1:  off += 4 * 9;  break;
                     case 2:  off  = 11 * 9; break;
                     default: break;
                 }
-                arm_si += off;
+                arm_si += off; //
             }
-        } else if (facing_left) {
+        } else if (facing_left) { // no shield animation, facing left
             if (cat) {
                 /* Facing left, holding shield (no animation) */
                 uint16_t off = (uint16_t)(squat_flag & 9) + 12 * 9;
@@ -678,8 +678,7 @@ static void choose_hero_sprite()
                     off = (uint16_t)(hero_animation_phase & 3) * 9;
                 arm_si += off;
             }
-
-        } else {
+        } else { // no shield animation, facing right
             /* Facing right, no shield animation */
             uint16_t off = 3 * 9;        /* default: squat / idle */
             if (!squat_flag && hero_animation_phase != 0x80)
@@ -687,6 +686,7 @@ static void choose_hero_sprite()
             arm_si += off;
         }
 
+        // loc_3CC1
         if (squat_flag) {
             hero_tile_col_idx = 3;
             Render_Hero_Sprite_To_Buf9(arm_si, 6);
@@ -771,8 +771,6 @@ void Render_Sword_Overlay()
     MEM8(ADDR_SWORD_MOVEMENT_PHASE)++;
     uint8_t sword_movement_phase = MEM8(ADDR_SWORD_MOVEMENT_PHASE);
     uint8_t phase_idx = sword_movement_phase - 1;
-    debug_printf("sword_movement_phase: %d\n", sword_movement_phase);
-
     uint16_t di_offset = 0; // overlay_offset
     uint16_t si_offset = 0; // sprite_composition_data
     uint16_t dx = 0;
