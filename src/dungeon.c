@@ -17,8 +17,7 @@
 #define ADDR_BYTE_9F00                0x9F00
 #define ADDR_BYTE_9F01                0x9F01
 #define ADDR_BYTE_9F02                0x9F02
-#define ADDR_PACKED_MAP_PTR_MINUS     0x9F04  // word: packed_map_ptr_for_prox_left
-#define ADDR_PACKED_MAP_PTR_PLUS      0x9F06  // word: packed_map_ptr_for_prox_right
+#define ADDR_BYTE_9F07                0x9F07  // byte
 #define ADDR_JUMP_HEIGHT_COUNTER      0x9F08
 #define ADDR_BYTE_9F09                0x9F09  // vertical scroll offset
 #define ADDR_FRAME_TICKS              0x9F0A
@@ -1797,11 +1796,271 @@ uint8_t land_after_jump()
 // stub
 void update_boss_heartbeat_volume(void) {}
 
-// stub
-void update_and_render_horiz_platforms(void) {}
+
+/* Converts an absolute map x-coordinate into a column relative to the    */
+/* proximity map's left edge (wrapping around the map). Returns:          */
+/*   *ax_out = 33 - D                                                     */
+/*   *bx_out = D                                                          */
+/*   result  = (D > 33)   -- true means "outside the proximity window"    */
+static uint8_t abs_x_to_proximity_rel(uint16_t x, uint16_t *ax_out, uint16_t *bx_out)
+{
+    uint16_t d;
+    uint16_t prox_left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+
+    if (x >= prox_left) {
+        /* case0: proximityLeft <= x < mapWidth */
+        d = (uint16_t)(x - prox_left);
+    } else if (x > 33) {
+        /* case1: 33 < x < proximityLeft */
+        d = x;
+    } else {
+        /* case2: x <= 33 < proximityLeft (wraps around the right edge of the map) */
+        d = (uint16_t)(MEM16(ADDR_MAP_WIDTH) - prox_left + x);
+    }
+
+    *bx_out = d;
+    *ax_out = (uint16_t)(33 - d);
+    return d > 33;
+}
+
+/* Same shape as abs_x_to_proximity_rel, but first shifts x by +2 (with   */
+/* map-width wraparound) and uses a threshold of 37 instead of 33. Used   */
+/* to locate/clear the platform's *previous* footprint (which is drawn    */
+/* two tiles wider than the platform itself).                             */
+static uint8_t horiz_platform_proximity_x_offset(uint16_t x, uint16_t *ax_out, uint16_t *bx_out)
+{
+    uint16_t xw = (uint16_t)(x + 2);
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    if (xw >= mapWidth) {
+        xw = (uint16_t)(xw - mapWidth);
+    }
+
+    uint16_t d;
+    uint16_t prox_left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+
+    if (xw >= prox_left) {
+        d = (uint16_t)(xw - prox_left);
+    } else if (xw > 37) {
+        d = xw;
+    } else {
+        d = (uint16_t)(mapWidth - prox_left + xw);
+    }
+
+    *bx_out = d;
+    *ax_out = (uint16_t)(37 - d);
+    return d > 37;
+}
+
+/* Writes `tile` to the proximity map at `dst`, unless that cell is       */
+/* already occupied by a monster (top bit set), in which case the value   */
+/* goes into the per-monster "second layer" buffer instead, since the     */
+/* proximity map only holds one item per cell.                            */
+static void put_dl_to_proximity_layered(uint8_t tile, uint16_t dst)
+{
+    if ((MEM8(dst) & 0x80) != 0) {
+        uint8_t monster_id = (uint8_t)(MEM8(dst) & 0x7F);
+        MEM8(ADDR_PROXIMITY_LAYER2 + monster_id) = tile;
+    } else {
+        MEM8(dst) = tile;
+    }
+}
+
+/* Returns true if the hero is NOT standing on this platform (matches the */
+/* original CF=1 "not applicable" convention), false if the hero IS       */
+/* standing on it.                                                        */
+// si points to current horizontal platform
+static uint8_t hero_on_horiz_platform(uint16_t si)
+{
+    if ((MEM8(ADDR_JUMP_PHASE_FLAGS) | MEM8(ADDR_ON_ROPE_FLAGS)) != 0) {
+        return 1; /* hero airborne / on a rope: platform doesn't apply */
+    }
+
+    uint8_t hero_row = (MEM8(ADDR_HERO_HEAD_Y_VIEW) + MEM8(ADDR_VIEWPORT_TOP_ROW) + 3) & 0x3F;
+    uint8_t platform_row = MEM8(si+2) & 0x3F; // .y_and_flags
+    if (hero_row != platform_row) {
+        return 1;
+    }
+
+    uint16_t rel_ax, rel_bx;
+    if (abs_x_to_proximity_rel(MEM16(si+0) & 0x3FFF, &rel_ax, &rel_bx)) { // .x_and_flags
+        return 1;
+    }
+
+    uint8_t platform_col = (uint8_t)rel_ax;
+    uint8_t hero_col = (uint8_t)(MEM8(ADDR_HERO_X_VIEW) + 4);
+
+    for (int i = 0; i < 3; i++) {
+        if (hero_col == platform_col) {
+            return 0; /* hero is standing on one of the 3 platform tiles */
+        }
+        hero_col++;
+    }
+    return 1;
+}
+
+/* `x` is the platform's current (masked) x coordinate, handed to this    */
+/* function by its caller (it is never re-loaded from si at entry in the  */
+/* original code).                                                        */
+static void update_horiz_platform_coords(uint16_t si, uint16_t x)
+{
+    uint8_t old_y_flags = MEM8(si+2);
+    MEM8(si+2) &= 0xBF; /* clear the "paused" bit (bit 6 of .y_and_flags) */
+
+    if (old_y_flags & 0x40) {
+        /* Platform was paused; this tick only un-pauses it. */
+        return;
+    }
+
+    uint16_t new_x;
+    uint16_t boundary;
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+
+    if (!(MEM8(si+2) & 0x80)) { /* .y_and_flags */
+        /* Moving right. */
+        new_x = (uint16_t)(x + 1);
+        if (new_x == mapWidth) {
+            new_x = 0;
+        }
+
+        if (!hero_on_horiz_platform(si)) {
+            move_hero_right_if_no_obstacles();
+        }
+        boundary = MEM8(si+5); /* .max_x */
+    } else {
+        /* Moving left. */
+        if (x == 0) {
+            new_x = (uint16_t)(mapWidth - 1);
+        } else {
+            new_x = (uint16_t)(x - 1);
+        }
+
+        if (!hero_on_horiz_platform(si)) {
+            move_hero_left_if_no_obstacles();
+        }
+        boundary = MEM8(si+3); /* .min_x */
+    }
+
+    /* Store new_x into x_and_flags while preserving the top-2 flag bits. */
+    uint8_t old_hi = (uint8_t)(MEM16(si+0) >> 8); /* .x_and_flags */
+    uint8_t new_hi = (uint8_t)((old_hi & 0xC0) | (uint8_t)(new_x >> 8));
+    MEM16(si+0) = (uint16_t)(((uint16_t)new_hi << 8) | (new_x & 0xFF));
+
+    if (boundary == new_x) {
+        MEM8(si+2) ^= 0x80; /* reverse direction, .y_and_flags */
+        MEM8(si+2) |= 0x40; /* pause for a few ticks */
+    }
+}
+
+static void update_slow_horiz_platform_coords(uint16_t si, uint16_t x)
+{
+    if (MEM8(ADDR_BYTE_9F07) & 1) {
+        update_horiz_platform_coords(si, x);
+    }
+}
+
+typedef void (*horiz_platform_update_fn)(uint16_t, uint16_t);
+
+/* Index 0 (speed_flags==1): slow update (every other tick).
+ * Index 1,2 (speed_flags==2,3): normal update (every tick). */
+static const horiz_platform_update_fn funcs_8220[3] = {
+    update_slow_horiz_platform_coords,
+    update_horiz_platform_coords,
+    update_horiz_platform_coords,
+};
+
+void update_and_render_horiz_platforms()
+{
+    MEM8(ADDR_BYTE_9F07)++;
+
+    for (uint16_t si = MEM16(ADDR_HORIZ_PLATFORMS_LIST); ; si += 7) {
+        uint16_t x_and_flags = MEM16(si+0); /* .x_and_flags */
+        if (x_and_flags == 0xFFFF) {
+            return; /* end-of-list sentinel */
+        }
+
+        uint16_t x = x_and_flags & 0x3FFF;
+
+        /* --- Clear the platform's previous footprint from the proximity map --- */
+        uint16_t off_ax, off_bx;
+        uint8_t off_cf = horiz_platform_proximity_x_offset(x, &off_ax, &off_bx);
+
+        if (!off_cf) {
+            uint16_t d = off_bx;
+            uint8_t  count;
+            uint8_t  col;
+            uint8_t  row = MEM8(si+2); /* .y_and_flags */
+            uint16_t di;
+
+            if (d >= 2) {
+                uint16_t d2 = (uint16_t)(d - 2);
+                if (d2 < 34) {
+                    /* Fully inside the visible strip. */
+                    count = 3;
+                    col = (uint8_t)d2;
+                    di = coords_to_prox_addr(col, row);
+                } else {
+                    /* Straddles the right edge of the strip. */
+                    uint16_t rem = (uint16_t)(d2 - 34);
+                    di = coords_to_prox_addr(34, row);
+                    di += rem;
+                    count = (uint8_t)(2 - (uint8_t)rem);
+                }
+            } else {
+                /* Straddles the left edge of the strip. */
+                count = (uint8_t)(d + 1);
+                di = coords_to_prox_addr(0, row);
+            }
+
+            for (uint8_t i = count; i != 0; i--) {
+                put_dl_to_proximity_layered(0, di);
+                di++;
+            }
+        }
+
+        /* --- Advance the platform's position/state (if it's time to move) --- */
+        uint16_t cur_x = MEM16(si+0) & 0x3FFF; /* .x_and_flags */
+        uint8_t speed_flags = (uint8_t)((MEM16(si+0) >> 14) & 3); /* .x_and_flags */
+        if (speed_flags != 0) {
+            funcs_8220[speed_flags - 1](si, cur_x);
+        }
+
+        /* --- Draw the platform at its (possibly new) position --- */
+        uint16_t rel_ax, rel_bx;
+        if (!abs_x_to_proximity_rel(MEM16(si+0) & 0x3FFF, &rel_ax, &rel_bx)) {  /* .x_and_flags */
+            uint16_t di = coords_to_prox_addr((uint8_t)rel_bx, MEM8(si+2)); /* .y_and_flags */
+            uint8_t tile = 0x46; /* horizontal platform tiles: 0x46, 0x47, 0x48 */
+            for (int i = 0; i < 3; i++) {
+                put_dl_to_proximity_layered(tile, di);
+                di++;
+                tile++;
+            }
+        }
+    }
+}
 
 // stub
-void render_vertical_platforms_to_proximity(void) {}
+void render_vertical_platforms_to_proximity() 
+{
+    uint16_t si = MEM16(ADDR_VERTICAL_PLATFORMS_LIST);
+    for (;;) {
+        uint16_t x = MEM16(si + 0); // .x
+        if (x == 0xFFFF)
+            return;
+        uint8_t y = MEM8(si + 2); // .y
+        uint16_t ax_rel, bx_rel;
+        ;
+        if (!abs_x_to_proximity_rel(x, &ax_rel, &bx_rel)) {
+            uint16_t di = coords_to_prox_addr((uint8_t)bx_rel, y);
+            uint8_t tile = 0x40;
+            for (int i = 0; i < 3; i++) {
+                put_dl_to_proximity_layered(tile, di);
+                di++;
+                tile++;
+            }
+        }
+        si += 3;
+    }
+}
 
 // stub
 void process_visible_collapsing_platforms(void) {}
@@ -4141,38 +4400,7 @@ void after_run_animation()
     }
 }
 
-void update_horiz_platform_coords(uint16_t si) {
-    // si points to a horiz_platform struct
-    uint8_t cl = MEM8(si + 2); // y_and_flags
-    MEM8(si + 2) &= 0xBF;      // clear pause bit
 
-    if (cl & 0x40) return;     // paused
-
-    uint16_t ax = MEM16(si);   // x (low byte of x_and_flags)
-    if (MEM8(si + 2) & 0x80) {
-        // leftward
-        ax--;
-        if (ax == 0xFFFF) {
-            ax = MEM16(ADDR_MAP_WIDTH) - 1;
-        }
-        // hero_on_horiz_platform check omitted (stub)
-        MEM16(si) = (ax & 0xFF) | (MEM16(si) & 0xFF00);
-        if (MEM16(si + 4) == ax) {
-            MEM8(si + 2) ^= 0x80; // change direction
-            MEM8(si + 2) |= 0x40; // pause
-        }
-    } else {
-        // rightward
-        ax++;
-        MEM16(si) = (ax & 0xFF) | (MEM16(si) & 0xFF00);
-        if (MEM16(si + 6) == ax) {
-            MEM8(si + 2) ^= 0x80;
-            MEM8(si + 2) |= 0x40;
-        }
-    }
-}
-
-//
 void Cavern_Game_Init(void) {
     MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
     MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;

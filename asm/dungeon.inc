@@ -45,10 +45,10 @@ vert_platform      STRUC
 vert_platform      ENDS
 
 horiz_platform     STRUC
-  x_and_flags      dw   ? ; high byte bits 6-7 = speed (0: skip, 1: normal, 2,3: fast)
-  y_and_flags      db   ? ; bit 7: direction (1=left), bit 6: pause
-  min_x            dw   ?
-  max_x            dw   ?
+  x_and_flags      dw   ? ; 0 ; high byte bits 6-7 = speed (0: skip, 1: normal, 2,3: fast)
+  y_and_flags      db   ? ; 2 ; bit 7: direction (1=left), bit 6: pause
+  min_x            dw   ? ; 3 ;
+  max_x            dw   ? ; 5 ;
 horiz_platform     ENDS
 
 ; enemy projectile

@@ -113,9 +113,9 @@ extern "C" {
 
 #define ADDR_MDT                                       0xC000    // MDT dungeon data
 #define ADDR_MAP_WIDTH                                 0xC002
-#define ADDR_VERTICAL_PLATFORMS_TABLE                  0xC004
-#define ADDR_COLLAPSING_PLATFORMS_TABLE                0xC006
-#define ADDR_HORIZ_PLATFORMS_TABLE                     0xC008
+#define ADDR_VERTICAL_PLATFORMS_LIST                   0xC004
+#define ADDR_COLLAPSING_PLATFORMS_LIST                 0xC006
+#define ADDR_HORIZ_PLATFORMS_LIST                      0xC008
 #define ADDR_DOORS_LIST                                0xC00A
 #define ADDR_ACHIEVEMENTS_TABLE                        0xC00C
 #define ADDR_CAVERN_NAME_INFO                          0xC00E

@@ -1,70 +1,32 @@
-; Handles the jump initiation when UP+button is pressed.
-; Increments slide_ticks_remaining (up to 10) while button is held.
-;
-; On ground:
-;   - Checks tile above hero head; if clear, sets jump_phase_flags = 0xFF
-;     (ascending), computes initial height_above_ground.
-;   - Feruza shoes: height_above_ground starts at 2 (vs 1 normally),
-;     allowing 4 vs 2 jump height steps.
-;   - If hero head y < 7 (near viewport top), calls move_hero_up instead of
-;     decrementing y directly.
-; On slope or rope: transitions to descending (jump_phase_flags = 0x7F).
-; ===========================================================================
-jump_press_handler proc near  
-                inc     ds:slide_ticks_remaining
-                cmp     ds:slide_ticks_remaining, 10
-                jb      short loc_6555
-                mov     ds:slide_ticks_remaining, 10
 
-loc_6555:        
-                test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
-                jz      short on_ground1
+render_vertical_platforms_to_proximity proc near
+                mov     si, ds:vertical_platforms_table_addr
+next_vert_platform:
+                mov     ax, [si+vert_platform.x]
+                cmp     ax, 0FFFFh
+                jnz     short loc_7FBD
                 retn
 ; ---------------------------------------------------------------------------
 
-on_ground1:       
-                mov     byte ptr ds:squat_flag, 0
-                mov     al, ds:byte_9F09
-                cmp     al, ds:jump_height_including_shoes
-                jnb     short state_machine_dispatcher_idle_default
-                call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
-                sub     si, 35          ; points above hero head
-                call    wrap_map_from_below ; if (si < 0E000h) si += 900h
-                mov     al, [si]
-                call    is_blocking_tile ; ZF if can pass
-                jnz     short loc_65A5
-                mov     byte ptr ds:hero_animation_phase, 0
-                and     byte ptr ds:facing_direction, 11111101b ; clear Up bit
-                mov     byte ptr ds:jump_phase_flags, 0FFh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                mov     al, ds:jump_height_including_shoes
-                shr     al, 1
-                mov     ds:height_above_ground, al
-                inc     ds:byte_9F09
-                cmp     byte ptr ds:hero_head_y_in_viewport, 7
-                jnb     short simple_jump
-                jmp     move_hero_up
-; ---------------------------------------------------------------------------
+loc_7FBD:        
+                call    abs_x_to_proximity_rel
+                jb      short loc_7FD7
+                mov     ah, bl
+                mov     al, [si+vert_platform.y]
+                call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
+                                                                ; uint8_t x = AH
+                                                                ; y &= 0x3F; // Clamp Y to 0-63
+                                                                ; uint16_t di = (y * 36) + x + 0xE000;
+                mov     cx, 3       ; 3 platform tiles
+                mov     dl, 40h     ; vertical platform has tiles 0x40, 0x41, 0x42
 
-simple_jump:     
-                dec     byte ptr ds:hero_head_y_in_viewport
-                retn
-; ---------------------------------------------------------------------------
+loc_7FCF:        
+                call    put_dl_to_proximity_layered
+                inc     di              ; x++
+                inc     dl              ; next platform tile
+                loop    loc_7FCF
 
-loc_65A5:        
-                test    ds:byte_9F09, 0FFh
-                jnz     short state_machine_dispatcher_idle_default
-                test    byte ptr ds:on_rope_flags, 0FFh ; 0: on ground, ff: on rope, 80h: transition from rope to ground
-                jz      short loc_65B4
-                retn
-; ---------------------------------------------------------------------------
-
-loc_65B4:        
-                mov     byte ptr ds:hero_animation_phase, 80h
-                retn
-; ---------------------------------------------------------------------------
-
-state_machine_dispatcher_idle_default:        
-                mov     byte ptr ds:slope_direction, 0
-                mov     byte ptr ds:jump_phase_flags, 7Fh ; 0: on ground, ff: ascending, 7f: descending, 80h: climbing down off rope
-                retn
-jump_press_handler endp
+loc_7FD7:        
+                add     si, 3
+                jmp     short next_vert_platform
+render_vertical_platforms_to_proximity endp
