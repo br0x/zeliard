@@ -430,7 +430,7 @@ typedef struct {
     uint8_t _pad10[0x35];               // 0x4A-0x7E
     uint8_t byte_7F;                    // 0x7F
     // Hero Stats (0x80-0xC8)
-    uint16_t hero_x_minus_18_abs;       // 0x80  Proximity map is centered around hero, width=36
+    uint16_t proximity_map_left_col_x;  // 0x80  Proximity map is centered around hero, width=36
     uint8_t hero_y_rel;                 // 0x82
     uint8_t hero_x_in_viewport;         // 0x83
     uint8_t hero_head_y_in_viewport;   // 0x84
@@ -505,7 +505,7 @@ typedef struct {
     uint8_t agua_active;                // 0xC0
     uint8_t guerra_active;              // 0xC1
     uint8_t starting_direction;         // 0xC2  00 & 02 = Right, 01 & 03 = Left
-    uint8_t byte_C3;                    // 0xC3
+    uint8_t is_left_run;                // 0xC3
     uint8_t place_map_id;               // 0xC4
                                         //       80h - Felishika's Castle
                                         //       81h - Muralla

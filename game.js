@@ -141,6 +141,19 @@ const SWORD_REACH_LARGE = {
     26: [0xB3, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x23, 0x01, 0x23, 0x01, 0xFF],
 };
 
+const SWORD_OVERLAY_OFFSETS = {
+    // right forward phases 0-5
+    0: [-2, -2, -2, -2, -2, -1, -2, 2, -2, 2, -2, 2],
+
+    // right overhead phases 0-3
+    1: [-2, -2, -2, -1, -2, 1, 1, 1],
+    
+    // left forward phases 0-5
+    2: [-2, 1, -2, 1, -2, 0, -2, -3, -2, -3, -2, -3],
+    
+    // left overhead phases 0-3
+    3: [-2, 1, -2, 0, -2, -2, 1, -2]
+};
 const TOWN_BACKGROUND_YMPD_PATH = 'assets/images/ympd/ympd1.png';
 const TOWN_SIDEWALK1_YMPD_PATH = 'assets/images/ympd/ympd2.png';
 const TOWN_SIDEWALK2_YMPD_PATH = 'assets/images/ympd/ympd3.png';
@@ -222,8 +235,9 @@ const NPC_FRAMES   = 8;           // frames per sheet
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
-const ADDR_PROXIMITY_MAP_LEFT_COL_X = 0x80;
-const ADDR_HERO_X_IN_VIEWPORT = 0x83;
+const ADDR_PROXIMITY_MAP_LEFT_COL = 0x80;
+const ADDR_HERO_X_VIEW   = 0x83;
+const ADDR_HERO_HEAD_Y_VIEW = 0x84;
 const ADDR_HERO_GOLD_HI  = 0x85;
 const ADDR_HERO_GOLD_LO  = 0x86;
 const ADDR_HERO_ALMAS    = 0x8b;
@@ -355,8 +369,6 @@ let updateHorizontalPlatforms;
 let heroInteractionCheck;
 let combatInit;
 let initBossBattle;
-let getHeroPosition;
-let getTownHeroPosition;
 let inputGetDebugCounter;
 let getWasmMemory;
 let townInit;
@@ -811,9 +823,6 @@ async function startGame() {
         const trackId = resolveTownMusicTrack(getTownMusicTrack());
         if (trackId) setCurrentMusicTrack(trackId);
 
-        const heroPos = getTownHeroPosition?.() ?? getHeroPosition?.();
-        console.log('Hero pos:', heroPos);
-
         engineReady = true;
 
     } catch (err) {
@@ -986,8 +995,7 @@ async function loadWasmEngine() {
         getTownPatId, getProximityMap, inputUpdate, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
         heroGetState, heroIsMoving, updateHorizontalPlatforms, heroInteractionCheck,
-        combatInit, initBossBattle, getHeroPosition,
-        getTownHeroPosition, inputGetDebugCounter, getWasmMemory, townInit,
+        combatInit, initBossBattle, inputGetDebugCounter, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
@@ -1116,10 +1124,10 @@ function drawTownTiles() {
     if (!mdtData || !townTileSheetReady) return false;
     const mapWidth = getTownMapWidth();
     if (!mapWidth) return false;
-    const heroPos = getTownHeroPosition?.();
+    
     const leftCol = Math.max(0, Math.min(
         mapWidth - VIEW_COLS,
-        (heroPos?.proximity_left_col_x ?? 0) + TOWN_VISIBLE_COL_OFFSET
+        (readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 1)[0] ?? 0) + TOWN_VISIBLE_COL_OFFSET
     ));
     for (let col = 0; col < VIEW_COLS; col++) {
         const mapCol = leftCol + col;
@@ -1171,7 +1179,7 @@ function drawTownNpcs() {
     const ptrBytes = readMemory(ADDR_NPC_ARRAY_PTR, 2);
     const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
     if (!npcArrayAddr) return;
-    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, 2);
+    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
     const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
     for (let i = 0; i < 64; i++) {
         const base = npcArrayAddr + i * 8;
@@ -1250,7 +1258,7 @@ function getDungeonEntities() {
 
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory) return;
-    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, 2);
+    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
     const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
     const top = dungeonGetViewportTop?.() ?? 0;
 
@@ -1372,10 +1380,8 @@ function resolveFrontArmFrame(state) {
 
 function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
-    const heroPos = getHeroPosition?.();
-    if (!heroPos) return;
-    const dx = heroPos.hero_x_in_viewport * TILE_WIDTH;
-    const dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT;
+    const dx = readMemory(ADDR_HERO_X_VIEW, 1)[0] * TILE_WIDTH;
+    const dy = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0] * TILE_HEIGHT;
     const state = getDungeonHeroState();
     const armDy = state.squat ? dy + TILE_HEIGHT : dy;
     const layers = [
@@ -1403,9 +1409,9 @@ function drawDungeonSword() {
     // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
     // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
     // the swing yet — skip rendering until it does.
-    console.log('sword hit type:', hitType, 'phase:', phase);
     if (phase === 0) return;
     const displayPhase = phase - 1;
+    console.log('sword hit type:', hitType, 'phase:', phase, 'display phase:', displayPhase);
 
     let col;
     switch (hitType) {
@@ -1424,14 +1430,31 @@ function drawDungeonSword() {
     const row = baseRow + (facingLeft ? 1 : 0);
     const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
 
-    const heroPos = getHeroPosition?.();
-    if (!heroPos) return;
-
-    let dx = heroPos.hero_x_in_viewport * TILE_WIDTH - TILE_WIDTH * 2;
-    let dy = heroPos.hero_head_y_in_viewport * TILE_HEIGHT - TILE_HEIGHT * 2;
+    let dx = readMemory(ADDR_HERO_X_VIEW, 1)[0] * TILE_WIDTH;
+    let dy = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0] * TILE_HEIGHT;
     if (readMemory(ADDR_SQUAT_FLAG, 1)[0]) {
         dy += TILE_HEIGHT;
     }
+
+    // Apply per-phase overlay offsets (pairs of [x, y] in tile units).
+    // C code stores these as 16-bit words: (x << 8) | y.
+    let xOff, yOff;
+    if (hitType === 2) {
+        // Downward thrust: hardcoded per facing (C: 0xFF01 for left, 0x0001 for right)
+        xOff = facingLeft ? -1 : 0;
+        yOff = 1;
+    } else {
+        const offsetKey = hitType === 0
+            ? (facingLeft ? 2 : 0)  // forward
+            : (facingLeft ? 3 : 1); // overhead
+        const offsets = SWORD_OVERLAY_OFFSETS[offsetKey];
+        const i = displayPhase*2;//Math.min(displayPhase, (offsets.length >> 1) - 1) * 2;
+        yOff = offsets[i];
+        xOff = offsets[i + 1];
+    }
+    console.log('xOff:', xOff, 'yOff:', yOff);
+    dx += xOff * TILE_WIDTH;
+    dy += yOff * TILE_HEIGHT;
 
     drawSheetFrame(
         dungeonSwordSheet,
@@ -1633,8 +1656,8 @@ async function handleDungeonExit(townMapId) {
         const heroXprox = heroXproxBytes[0] | (heroXproxBytes[1] << 8);
         if (mapWidth) {
             const { proxLeft, heroViewX } = computeTownScrollFromAbsoluteX(heroXprox, mapWidth);
-            writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL_X, [proxLeft & 0xFF, (proxLeft >> 8) & 0xFF]);
-            writeMemory(ADDR_HERO_X_IN_VIEWPORT, [heroViewX]);
+            writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, [proxLeft & 0xFF, (proxLeft >> 8) & 0xFF]);
+            writeMemory(ADDR_HERO_X_VIEW, [heroViewX]);
         }
 
         const newBgType = getTownBackgroundType();

@@ -640,55 +640,6 @@ export function getSaveData() {
 }
 
 /**
- * Get hero position from WASM save data
- * @returns {object} Hero position {x, y, xInViewport, yInViewport}
- */
-export function getHeroPosition() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return null;
-    }
-
-    const offset = gMemoryBase + MEM_SAVE_DATA;
-
-    function readU8(addr) { return wasmMemory[addr]; }
-    function readU16(addr) { return wasmMemory[addr] | (wasmMemory[addr + 1] << 8); }
-    
-    return {
-        hero_x_minus_18_abs: readU16(offset + 0x80),   // hero_x_minus_18_abs
-        hero_y_rel: readU8(offset + 0x82),             // hero_y_rel
-        hero_x_in_viewport: readU8(offset + 0x83),     // hero_x_in_viewport
-        hero_head_y_in_viewport: readU8(offset + 0x84),// hero_head_y_in_viewport
-        facing_direction: readU8(offset + 0xc2),       // facing_direction: bit0: 0=Right, 1=Left; bit1: 0=Down, 1=Up
-    };
-}
-
-/**
- * Get town hero position/state from town.c memory.
- * @returns {object|null} Town hero position data.
- */
-export function getTownHeroPosition() {
-    if (!wasmMemory) return null;
-
-    const readU8 = (addr) => wasmMemory[addr];
-    const readU16 = (addr) => wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
-
-    const heroXInViewport = readU8(gMemoryBase + 0x0083);
-    const proximityLeft   = readU16(gMemoryBase + 0x0080);
-    const heroXWord       = readU16(gMemoryBase + 0x7C49);
-    const viewportTopRowY = readU8(gMemoryBase + 0x0082);
-
-    return {
-        x: proximityLeft + heroXInViewport + 4,
-        y: readU8(gMemoryBase + 0xFF35),           // hero_y_absolute
-        hero_x_in_viewport: heroXInViewport,
-        proximity_left_col_x: proximityLeft,
-        hero_x_word: heroXWord,
-        viewport_top_row_y: viewportTopRowY
-    };
-}
-
-/**
  * Get input debug counter - verifies input code is running
  * @returns {number} Counter value
  */
@@ -767,7 +718,7 @@ export function getInputDebug() {
 
 /**
  * Set hero position in WASM save data
- * @param {number} x - Hero absolute X position (hero_x_minus_18_abs)
+ * @param {number} x - Hero absolute X position (proximity_map_left_col_x)
  * @param {number} y - Hero Y position (hero_y_rel)
  */
 export function setHeroPosition(x, y) {
@@ -779,7 +730,7 @@ export function setHeroPosition(x, y) {
     const offset = gMemoryBase + MEM_SAVE_DATA;
     const heroStatsOffset = 0x80;  // Matches Fight.asm offset
     
-    // Set hero_x_minus_18_abs (uint16 little-endian)
+    // Set proximity_map_left_col_x (uint16 little-endian)
     wasmMemory[offset + heroStatsOffset] = x & 0xFF;
     wasmMemory[offset + heroStatsOffset + 1] = (x >> 8) & 0xFF;
     
@@ -1045,19 +996,19 @@ export function getInputBuffer() {
 
 /**
  * Initialize transition from town to dungeon
- * @param {number} x hero_x_minus_18_abs
+ * @param {number} x proximity_map_left_col_x
  * @param {number} y hero_y_rel
- * @param {number} c3 byte_C3
+ * @param {number} dir is_left_run
  * @param {number} cavern_id id of the cavern to enter
  */
-export function townToDungeonTransition(x, y, c3, cavern_id) {
+export function townToDungeonTransition(x, y, dir, cavern_id) {
     if (!wasmExports) {
         console.error('WASM not initialized');
         return;
     }
 
     if (wasmExports.town_to_dungeon_transition) {
-        wasmExports.town_to_dungeon_transition(x, y, c3, cavern_id);
+        wasmExports.town_to_dungeon_transition(x, y, dir, cavern_id);
     }
 }
 

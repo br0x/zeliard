@@ -794,7 +794,9 @@ void Render_Sword_Overlay()
             
             offset_val = MEM16(SWORD_ANIM_GFX_BASE + di_offset + (phase_idx * 2));
             sword_sprite_offsets = offset_val;
-            dx = (offset_val & 0xFF) * 320*8 + ((offset_val >> 8) * 8);
+            // VRAM offset:
+            dx = (offset_val & 0xFF) * 320*8  // low byte: vertical tiles
+                + ((offset_val >> 8) * 8);    // high byte: horizontal tiles
             break;
         case 1: // Overhead swing: phases 1..4
             if (sword_movement_phase >= 5) { // last phase: finish the swing
@@ -811,7 +813,9 @@ void Render_Sword_Overlay()
             
             offset_val = MEM16(SWORD_ANIM_GFX_BASE + di_offset + (phase_idx * 2));
             sword_sprite_offsets = offset_val;
-            dx = (offset_val & 0xFF) * 320*8 + ((offset_val >> 8) * 8);
+            // VRAM offset:
+            dx = (offset_val & 0xFF) * 320*8  // low byte: vertical tiles 
+                + ((offset_val >> 8) * 8);    // high byte: horizontal tiles 
             break;
         default: // Downward thrust: single phase
             if (sword_movement_phase >= 5) {
@@ -823,9 +827,9 @@ void Render_Sword_Overlay()
                 ? (SWORD_COMPOSITION_DATA_START + SWORD_DOWNWARD_LEFT_BASE)   // ↓+←
                 : (SWORD_COMPOSITION_DATA_START + SWORD_DOWNWARD_RIGHT_BASE); // ↓+→
             sword_sprite_offsets = facing 
-                ? 0xFF01  // ↓+← hardcoded
-                : 0x0001; // ↓+→ hardcoded
-            dx = facing ? (320 * 8 - 8) : (320 * 8);
+                ? 0xFF01  // ↓+← hardcoded: +1 tile vertical, -1 tile horizontal
+                : 0x0001; // ↓+→ hardcoded: +1 tile vertical, 0 tiles horizontal
+            dx = facing ? (1 * 320 * 8 - 1 * 8) : (1 * 320 * 8 + 0 * 8);
             break;
     }
 
