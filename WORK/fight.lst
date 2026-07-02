@@ -4673,11 +4673,11 @@ fight:7FEA                 call    wrap_map_from_above ; if (si >= 0E900h) si -=
 fight:7FED                 mov     dl, 40h ; '@'   ; vertical platform: tiles 0x40, 0x41, 0x42
 fight:7FEF                 call    identify_platform_tile ; NZ: not a platform
 fight:7FEF                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
-fight:7FF2                 jz      short hor_platform_beneath
+fight:7FF2                 jz      short vert_platform_beneath
 fight:7FF4                 retn
 fight:7FF5 ; ---------------------------------------------------------------------------
 fight:7FF5
-fight:7FF5 hor_platform_beneath:                   ; ...
+fight:7FF5 vert_platform_beneath:                   ; ...
 fight:7FF5                 mov     di, ds:vertical_platforms_table_addr
 fight:7FF9                 mov     dl, 40h ; '@'
 fight:7FFB                 call    try_move_platform_down ; NC: platform is blocked
@@ -4800,11 +4800,11 @@ fight:8091                 call    wrap_map_from_above ; if (si >= 0E900h) si -=
 fight:8094                 mov     dl, 40h ; '@'   ; vertical platform: tiles 0x40, 0x41, 0x42
 fight:8096                 call    identify_platform_tile ; NZ: not a platform
 fight:8096                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
-fight:8099                 jz      short hor_platform_beneath
+fight:8099                 jz      short vert_platform_beneath
 fight:809B                 retn
 fight:809C ; ---------------------------------------------------------------------------
 fight:809C
-fight:809C hor_platform_beneath:                   ; ...
+fight:809C vert_platform_beneath:                   ; ...
 fight:809C                 mov     di, ds:vertical_platforms_table_addr ; =d555
 fight:80A0                 mov     dl, 40h ; '@'
 fight:80A2                 push    dx

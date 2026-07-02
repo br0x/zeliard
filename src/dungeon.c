@@ -75,6 +75,8 @@ static void dungeon_update_normal(void);
 static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
 static void dungeon_finish_rope_frame(void);
+static uint8_t abs_x_to_proximity_rel(uint16_t x, uint16_t *ax_out, uint16_t *bx_out);
+static void put_dl_to_proximity_layered(uint8_t tile, uint16_t dst);
 
 static uint8_t jump_height_including_shoes = 2;
 uint8_t sword_damages[] = { 1, 2, 4, 8, 32, 127 };
@@ -908,10 +910,126 @@ void bring_inventory_window()
     main_update_render();
 }
 
-// stub, will implement later
-void try_move_platform_up()
-{
+// ============================================================================
+// Vertical Platform helpers
+// ============================================================================
 
+// NZ: not a platform; ZF: platform; *dh={1, 0, -1} for {left, mid, right} tile
+static uint8_t identify_platform_tile(uint16_t si, uint8_t dl, int8_t *dh)
+{
+    *dh = 1;
+    if (dl == MEM8(si)) return 0;
+    (*dh)--;
+    dl++;
+    if (dl == MEM8(si)) return 0;
+    (*dh)--;
+    dl++;
+    return dl != MEM8(si);
+}
+
+// Find platform entry matching hero's position.
+// *di: vertical platforms table pointer (updated to found entry)
+// dh: hero offset on platform {-1, 0, 1}
+// Returns: proximity map address of platform left tile
+static uint16_t find_platform_under_hero(uint16_t *di, int8_t dh)
+{
+    uint16_t abs_x = (uint16_t)(MEM8(ADDR_HERO_X_VIEW) + 4 + dh);
+    abs_x += MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
+    if (abs_x >= mapWidth) abs_x -= mapWidth;
+
+    uint8_t feet_y = (MEM8(ADDR_VIEWPORT_TOP_ROW) + MEM8(ADDR_HERO_HEAD_Y_VIEW) + 3) & 0x3F;
+
+    uint16_t p = *di;
+    for (;;) {
+        if (MEM16(p + 0) == abs_x && MEM8(p + 2) == feet_y) break;
+        p += 3;
+    }
+
+    uint16_t rel_ax, rel_bx;
+    abs_x_to_proximity_rel(abs_x, &rel_ax, &rel_bx);
+    uint16_t prox_addr = coords_to_prox_addr((uint8_t)rel_bx, MEM8(p + 2));
+
+    *di = p;
+    return prox_addr;
+}
+
+// NC: platform is blocked (returns 0)
+// CF: platform successfully moved down (returns 0xFF)
+static uint8_t try_move_platform_down(uint16_t di, uint16_t platform_prox, uint8_t dl)
+{
+    uint16_t bx_save = platform_prox;
+    uint16_t si = platform_prox + 36 - 1;
+    wrap_map_from_above(&si);
+    if (MEM8(si) & 0x80) return 0;
+
+    for (int i = 0; i < 3; i++) {
+        si++;
+        if (MEM8(si) != 0) return 0;
+    }
+
+    si = bx_save + 36;
+    wrap_map_from_above(&si);
+
+    for (int i = 0; i < 3; i++) {
+        put_dl_to_proximity_layered(dl + i, si + i);
+        put_dl_to_proximity_layered(0, bx_save + i);
+    }
+
+    MEM8(di + 2) = (MEM8(di + 2) + 1) & 0x3F;
+    return 0xFF;
+}
+
+// Returns 0xFF on success (platform moved up), 0 otherwise
+uint8_t try_move_platform_up()
+{
+    if (MEM8(ADDR_ON_ROPE_FLAGS)) return 0;
+
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si -= 35;
+    wrap_map_from_below(&si);
+    if (is_blocking_tile(MEM8(si))) return 0;
+
+    si += 36 * 4;
+    wrap_map_from_above(&si);
+
+    int8_t dh;
+    uint8_t dl = 0x40;
+    if (identify_platform_tile(si, dl, &dh)) return 0;
+
+    uint16_t di = MEM16(ADDR_VERTICAL_PLATFORMS_LIST);
+    uint16_t platform_prox = find_platform_under_hero(&di, dh);
+    uint16_t saved_prox = platform_prox;
+
+    uint16_t bx = platform_prox - 36;
+    wrap_map_from_below(&bx);
+    uint16_t si_check = bx - 36;
+    wrap_map_from_below(&si_check);
+
+    for (int i = 0; i < 3; i++) {
+        if (MEM8(si_check) & 0x80) return 0;
+        if (MEM8(bx) != 0) return 0;
+        si_check++;
+        bx++;
+    }
+
+    platform_prox = saved_prox;
+    si = platform_prox - 36;
+    wrap_map_from_below(&si);
+
+    dl = 0x40;
+    for (int i = 0; i < 3; i++) {
+        put_dl_to_proximity_layered(dl + i, si + i);
+        put_dl_to_proximity_layered(0, platform_prox + i);
+    }
+
+    MEM8(di + 2) = (MEM8(di + 2) - 1) & 0x3F;
+
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
+    move_hero_up();
+
+    return 0xFF;
 }
 
 // stub, will implement later
@@ -3274,7 +3392,7 @@ void down_pressed()
         return;
     }
 
-    move_platform_down_damage_monster();
+    if (move_platform_down_damage_monster()) return;
 
     uint16_t si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
     wrap_map_from_above(&si);
@@ -3317,10 +3435,41 @@ void down_pressed()
     MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x80;
 }
 
-// Stub
-void move_platform_down_damage_monster()
+uint8_t move_platform_down_damage_monster()
 {
+    if (MEM8(ADDR_ON_ROPE_FLAGS)) return 0;
 
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += 3 * 36 + 1;
+    wrap_map_from_above(&si);
+
+    int8_t dh;
+    uint8_t dl = 0x40;
+    if (identify_platform_tile(si, dl, &dh)) return 0;
+
+    uint16_t di = MEM16(ADDR_VERTICAL_PLATFORMS_LIST);
+    uint16_t platform_prox = find_platform_under_hero(&di, dh);
+
+    dl = 0x40;
+    if (try_move_platform_down(di, platform_prox, dl)) {
+        MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
+        hero_scroll_down();
+        return 0xFF;
+    }
+
+    for (int i = -1; i < 3; i++) {
+        uint16_t pos = platform_prox + 36 + i;
+        wrap_map_from_above(&pos);
+        uint8_t flags;
+        uint16_t ms;
+        if (get_dst_monster_flags(pos, &flags, &ms)) {
+            if (!(flags & 0x60) && !(MEM8(ms + 5) & 0x20)) {
+                MEM8(ms + 5) = (MEM8(ms + 5) & 0xE0) | 0x40;
+            }
+            break;
+        }
+    }
+    return 0;
 }
 
 // Per-frame game loop
@@ -4172,7 +4321,7 @@ void up_pressed()
     if (should_break) { // simulate popping return address inside try_door_interaction
         return;
     }
-    try_move_platform_up();
+    if (try_move_platform_up()) return;
     try_climb_rope();
     jump_press_handler();
 }

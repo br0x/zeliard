@@ -816,7 +816,7 @@ void state_machine_dispatcher_idle_default();
 void up_pressed();
 void left_up_pressed();
 void right_up_pressed();
-void move_platform_down_damage_monster();
+uint8_t move_platform_down_damage_monster();
 void down_pressed();
 void init_horizontal_sliding();
 static uint8_t is_tile_al_aggressive_ground(uint8_t tile);

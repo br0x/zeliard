@@ -5061,16 +5061,16 @@ on_ground4:
                 call    hero_coords_to_addr_in_proximity ; Hero is 3x3 matrix. Return top-left coord in SI
                 add     si, 3*36+1
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
-                mov     dl, 40h ; '@'   ; vertical platform: tiles 0x40, 0x41, 0x42
+                mov     dl, 40h         ; vertical platform: tiles 0x40, 0x41, 0x42
                 call    identify_platform_tile ; NZ: not a platform
                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
-                jz      short hor_platform_beneath
+                jz      short vert_platform_beneath
                 retn
 ; ---------------------------------------------------------------------------
 
-hor_platform_beneath:     
+vert_platform_beneath:     
                 mov     di, ds:vertical_platforms_table_addr
-                mov     dl, 40h ; '@'
+                mov     dl, 40h
                 call    try_move_platform_down ; NC: platform is blocked
                                         ; CF: platform successfully moved down
                 jnb     short blocked
@@ -5191,11 +5191,11 @@ hero_not_blocked_above:
                 mov     dl, 40h         ; vertical platform: tiles 0x40, 0x41, 0x42
                 call    identify_platform_tile ; NZ: not a platform
                                         ; ZF: platform; dh={1, 0, -1} for {left, mid, right} tile
-                jz      short hor_platform_beneath_
+                jz      short vert_platform_beneath_
                 retn
 ; ---------------------------------------------------------------------------
 
-hor_platform_beneath_:     
+vert_platform_beneath_:     
                 mov     di, ds:vertical_platforms_table_addr
                 mov     dl, 40h
                 push    dx
