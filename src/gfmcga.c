@@ -771,6 +771,7 @@ void Render_Sword_Overlay()
     MEM8(ADDR_SWORD_MOVEMENT_PHASE)++;
     uint8_t sword_movement_phase = MEM8(ADDR_SWORD_MOVEMENT_PHASE);
     uint8_t phase_idx = sword_movement_phase - 1;
+    debug_printf("sword_movement_phase: %d\n", sword_movement_phase);
 
     uint16_t di_offset = 0; // overlay_offset
     uint16_t si_offset = 0; // sprite_composition_data

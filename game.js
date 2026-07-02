@@ -984,7 +984,6 @@ function parseTownNpcCategory() {
     const descPtrBytes = readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2);
     const descPtr = descPtrBytes[0] | (descPtrBytes[1] << 8);
     townNpcSpriteCategory = readMemory(descPtr + 1, 1)[0];
-    console.log('[NPC] town descriptor NPC category:', townNpcSpriteCategory);
 }
 
 async function loadWasmEngine() {
@@ -1399,7 +1398,10 @@ function drawDungeonHero() {
 function drawDungeonSword() {
     if (!dungeonSwordSheetReady || !readMemory || !writeMemory) return;
     const swingFlag = readMemory(ADDR_SWORD_SWING_FLAG, 1)[0];
-    if (!swingFlag) return;
+    if (!swingFlag) {
+        drawDungeonSword._swingStart = 0;
+        return;
+    }
 
     let phase = readMemory(ADDR_SWORD_MOVEMENT_PHASE, 1)[0];
     const hitType = readMemory(ADDR_SWORD_HIT_TYPE, 1)[0] || 0;
@@ -1409,9 +1411,32 @@ function drawDungeonSword() {
     // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
     // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
     // the swing yet — skip rendering until it does.
-    if (phase === 0) return;
-    const displayPhase = phase - 1;
-    console.log('sword hit type:', hitType, 'phase:', phase, 'display phase:', displayPhase);
+    if (phase === 0) {
+        drawDungeonSword._swingStart = 0;
+        return;
+    }
+
+    // JS-side timer: Render_Sword_Overlay is called twice per game cycle
+    // (~84ms apart), but the odd phases (stored by the first call) are only
+    // in memory for ~4.2ms — less than one rAF frame at 60fps.  Instead of
+    // reading the raw C phase, we step a local timer at a consistent rate,
+    // clamped to whatever the C code has already processed.
+    const now = performance.now();
+    if (!drawDungeonSword._swingStart) {
+        drawDungeonSword._swingStart = now;
+    }
+    const cDisplayPhase = phase - 1;
+    const PHASE_MS = 42; // one phase per ~42ms (2 phases per ~84ms game cycle)
+    let displayPhase = Math.min(
+        Math.floor((now - drawDungeonSword._swingStart) / PHASE_MS),
+        cDisplayPhase
+    );
+    const MAX_DISPLAY = { 0: 5, 1: 3, 2: 0 };
+    displayPhase = Math.min(displayPhase, MAX_DISPLAY[hitType] ?? 5);
+
+    if (displayPhase !== drawDungeonSword._lastDisplay) {
+        drawDungeonSword._lastDisplay = displayPhase;
+    }
 
     let col;
     switch (hitType) {
@@ -1452,7 +1477,6 @@ function drawDungeonSword() {
         yOff = offsets[i];
         xOff = offsets[i + 1];
     }
-    console.log('xOff:', xOff, 'yOff:', yOff);
     dx += xOff * TILE_WIDTH;
     dy += yOff * TILE_HEIGHT;
 
