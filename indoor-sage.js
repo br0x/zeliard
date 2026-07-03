@@ -17,7 +17,7 @@ const SAGE_MENU_TEXT_X = SAGE_MENU_X + 32;
 const SAGE_MENU_TEXT_Y = SAGE_MENU_Y + 40;
 const SAGE_CURSOR_X = SAGE_MENU_X + 8;
 const SAGE_DLG_TEXT_X = SAGE_DLG_X + 14;
-const SAGE_DLG_TEXT_Y = SAGE_DLG_Y + 22;
+const SAGE_DLG_TEXT_Y = SAGE_DLG_Y + 30;
 const SAGE_CHAR_MS = 28;
 const SAGE_FADE_IN_MS = 600, SAGE_FADE_OUT_MS = 450;
 const POWER_LINE_DELAY_MS = 1200;  // delay between power lines
@@ -183,9 +183,9 @@ export class SageScene extends IndoorSceneBase {
     // typewriter           – animates the single line currently being typed in
     // _pendingLine: string – the raw line currently being typed (not yet in buffer)
     //
-    // Max lines that fit, leaving 40px for the arrow indicator.
+    // Max lines that fit, leaving space for the arrow indicator.
     get _dlgMaxLines() {
-        return Math.floor((SAGE_DLG_H - 22 - 40) / SAGE_LINE_H_DLG);
+        return Math.floor((SAGE_DLG_H - 20) / SAGE_LINE_H_DLG);
     }
 
     /**
@@ -288,7 +288,7 @@ export class SageScene extends IndoorSceneBase {
 
     /** True when adding another line would overflow the box. */
     _dlgBoxFull() {
-        return (this.dlgBuffer.length + 1) >= this._dlgMaxLines;
+        return (this.dlgBuffer.length + 1) > this._dlgMaxLines;
     }
 
     drawContent(now, alpha) {
@@ -405,7 +405,7 @@ export class SageScene extends IndoorSceneBase {
             if (needsSpace) {
                 ctx.fillStyle = '#0ee';
                 const ax = SAGE_DLG_X + SAGE_DLG_W / 2 - 12;
-                const ay = SAGE_DLG_Y + SAGE_DLG_H - 20;
+                const ay = SAGE_DLG_Y + SAGE_DLG_H - 24;
                 ctx.beginPath();
                 ctx.moveTo(ax, ay);
                 ctx.lineTo(ax + 24, ay);
