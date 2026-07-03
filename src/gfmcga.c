@@ -832,11 +832,11 @@ void Render_Sword_Overlay()
             break;
     }
 
-    uint16_t vram_di = hero_vram_base + dx;
-    if (MEM8(ADDR_SQUAT_FLAG)) {
-        vram_di += 320 * 8;
-    }
-    entity_vram_src = vram_di;
+    // uint16_t vram_di = hero_vram_base + dx;
+    // if (MEM8(ADDR_SQUAT_FLAG)) {
+    //     vram_di += 320 * 8;
+    // }
+    // entity_vram_src = vram_di;
 
     if (MEM8(ADDR_SWORD_HIT_TYPE) == 2) { // downward thrust, single phase
         sword_phase_src = &g_mem[SWORD_ANIM_GFX_BASE + si_offset];
@@ -956,14 +956,14 @@ void Copy_Hero_Frame_To_VRAM()
 
     MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
 
-    const uint8_t *src = nine_unpacked_tiles; // uint8_t nine_unpacked_tiles[576] (3x3 frame of 8x8px tiles)
-    for (int row = 0; row < 3; ++row) {
-        for (int col = 0; col < 3; ++col) {
-            uint16_t dest_off = hero_vram_base + row * (320 * 8) + col * 8;
-            Copy_Tile_To_VRAM(dest_off, src);
-            src += 64;   // next 8x8 tile
-        }
-    }
+    // const uint8_t *src = nine_unpacked_tiles; // uint8_t nine_unpacked_tiles[576] (3x3 frame of 8x8px tiles)
+    // for (int row = 0; row < 3; ++row) {
+    //     for (int col = 0; col < 3; ++col) {
+    //         uint16_t dest_off = hero_vram_base + row * (320 * 8) + col * 8;
+    //         Copy_Tile_To_VRAM(dest_off, src);
+    //         src += 64;   // next 8x8 tile
+    //     }
+    // }
 }
 
 // All the rendering should be done in js, this is just direct translation of original
@@ -971,11 +971,11 @@ void Copy_Hero_Frame_To_VRAM()
 // Checked
 static void Copy_Tile_To_VRAM(uint16_t dest_off, const uint8_t *src)
 {
-    for (int y = 0; y < 8; ++y) {
-        memcpy(&vram[dest_off], src, 8);
-        src += 8;
-        dest_off += 320;
-    }
+    // for (int y = 0; y < 8; ++y) {
+    //     memcpy(&vram[dest_off], src, 8);
+    //     src += 8;
+    //     dest_off += 320;
+    // }
 }
 
 void Flush_Ui_Element_If_Dirty() 
