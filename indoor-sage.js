@@ -21,6 +21,9 @@ const SAGE_DLG_TEXT_Y = SAGE_DLG_Y + 22;
 const SAGE_CHAR_MS = 28;
 const SAGE_FADE_IN_MS = 600, SAGE_FADE_OUT_MS = 450;
 const POWER_LINE_DELAY_MS = 1200;  // delay between power lines
+const FLASH_INTERVAL_MS = 150;
+const FLASH_COUNT = 6;
+const FLASH_ALPHA = 0.3;
 
 const SAGE_MENU = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
 const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
@@ -121,6 +124,16 @@ export class SageScene extends IndoorSceneBase {
 
         // Whether the menu should be drawn dimmed (interactive actions in progress)
         this.menuDimmed = false;
+
+        // Flash overlay state for level-up sequence
+        this._flashActive = false;
+        this._flashStartTime = 0;
+        this._flashCallback = null;
+
+        // Power queue: trigger flash + callback between specific lines
+        this._powerFlashAfterIndex = -1;
+        this._powerFlashCallback = null;
+        this._powerScrollNextIndex = -1;
     }
 
     async onEnter(now) {
@@ -281,6 +294,7 @@ export class SageScene extends IndoorSceneBase {
     drawContent(now, alpha) {
         this._tickDlgQueue(now);
         this._tickPowerQueue(now);
+        this._tickFlash(now);
         this._drawPortraitBox();
         this._drawOrbAnimation(now, alpha);
         // Hide menu during loading and intro. During dialog/power_anim show it dimmed.
@@ -289,6 +303,7 @@ export class SageScene extends IndoorSceneBase {
             this._drawMenuBox(now, alpha * menuAlpha);
         }
         this._drawDialogBox(now, alpha);
+        this._drawFlashOverlay(now, alpha);
     }
 
     _drawPortraitBox() {
@@ -390,7 +405,7 @@ export class SageScene extends IndoorSceneBase {
             if (needsSpace) {
                 ctx.fillStyle = '#0ee';
                 const ax = SAGE_DLG_X + SAGE_DLG_W / 2 - 12;
-                const ay = SAGE_DLG_Y + SAGE_DLG_H - 40;
+                const ay = SAGE_DLG_Y + SAGE_DLG_H - 20;
                 ctx.beginPath();
                 ctx.moveTo(ax, ay);
                 ctx.lineTo(ax + 24, ay);
@@ -451,15 +466,23 @@ export class SageScene extends IndoorSceneBase {
 
 
     _startPowerQueue(queue) {
+        this._flashActive = false;
+        this._powerScrollNextIndex = -1;
         // Pre-wrap every sentence into display-width lines and flatten,
         // but record which flat-line indices are the LAST line of their sentence.
         // The inter-sentence pause only fires at those boundary lines.
         const flatLines = [];
         const sentenceEnds = new Set(); // flat indices that end a sentence
-        for (const sentence of queue) {
+        for (let si = 0; si < queue.length; si++) {
+            const sentence = queue[si];
             const wrapped = this._wrapText(sentence);
             for (const line of wrapped) flatLines.push(line);
-            sentenceEnds.add(flatLines.length - 1); // last wrapped line of this sentence
+            const lastIdx = flatLines.length - 1;
+            sentenceEnds.add(lastIdx);
+            // Map _powerFlashAfterIndex from sentence index to last flat line of that sentence
+            if (this._powerFlashAfterIndex === si) {
+                this._powerFlashAfterIndex = lastIdx;
+            }
         }
         // Clear existing dialog before power sequence begins
         this.dlgBuffer = [];
@@ -493,17 +516,26 @@ export class SageScene extends IndoorSceneBase {
         }
 
         if (!isLast && this._dlgBoxFull()) {
-            this._powerScrollNextLine = line;
-            this._powerWaitingScroll = true;
-            return;
+            if (this._powerFlashAfterIndex === currentIndex) {
+                // Flash trigger line: auto-scroll oldest line away so it fits
+                this.dlgBuffer.shift();
+            } else {
+                this._powerScrollNextLine = line;
+                this._powerScrollNextIndex = currentIndex;
+                this._powerWaitingScroll = true;
+                return;
+            }
         }
 
         this._powerScrollNextLine = null;
+        this._powerScrollNextIndex = -1;
         this._powerWaitingScroll = false;
         this._appendDialogLine(line);
 
         if (isLast) {
             this.powerLineAdvanceAt = null;           // last line: wait for Space
+        } else if (this._powerFlashAfterIndex === currentIndex) {
+            this.powerLineAdvanceAt = 'flash';        // trigger flash before next line
         } else if (isSentenceEnd) {
             this.powerLineAdvanceAt = 'pending';      // pause after sentence completes
         } else {
@@ -518,7 +550,19 @@ export class SageScene extends IndoorSceneBase {
         if (this._powerWaitingScroll) return;
         if (this.powerQueueIndex >= this.powerQueue.length) return;
 
-        if (this.powerLineAdvanceAt === 'immediate') {
+        if (this.powerLineAdvanceAt === 'flash') {
+            if (this.typewriter && this.typewriter.isDone(now)) {
+                this.powerLineAdvanceAt = null;
+                this._startFlash(now, () => {
+                    if (this._powerFlashCallback) {
+                        this._powerFlashCallback();
+                        this._powerFlashCallback = null;
+                    }
+                    this._powerFlashAfterIndex = -1;
+                    this._showNextPowerLine();
+                });
+            }
+        } else if (this.powerLineAdvanceAt === 'immediate') {
             // Mid-sentence wrap: advance as soon as current line finishes typing
             if (this.typewriter && this.typewriter.isDone(now)) {
                 this.powerLineAdvanceAt = null;
@@ -533,6 +577,37 @@ export class SageScene extends IndoorSceneBase {
             this.powerLineAdvanceAt = null;
             this._showNextPowerLine();
         }
+    }
+
+    _startFlash(now, cb) {
+        this._flashActive = true;
+        this._flashStartTime = now;
+        this._flashCallback = cb;
+    }
+
+    _tickFlash(now) {
+        if (!this._flashActive) return;
+        const elapsed = now - this._flashStartTime;
+        const totalDuration = FLASH_COUNT * FLASH_INTERVAL_MS;
+        if (elapsed >= totalDuration) {
+            this._flashActive = false;
+            const cb = this._flashCallback;
+            this._flashCallback = null;
+            if (cb) cb();
+        }
+    }
+
+    _drawFlashOverlay(now, parentAlpha) {
+        if (!this._flashActive) return;
+        const elapsed = now - this._flashStartTime;
+        const flashOn = (Math.floor(elapsed / FLASH_INTERVAL_MS) % 2) === 0;
+        if (!flashOn) return;
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.globalAlpha = FLASH_ALPHA * parentAlpha;
+        ctx.fillStyle = '#ff0';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.restore();
     }
 
     handleInput(key) {
@@ -589,10 +664,14 @@ export class SageScene extends IndoorSceneBase {
                     // Box was full; Space scrolls oldest line away, then continues
                     this._powerWaitingScroll = false;
                     const line = this._powerScrollNextLine;
+                    const currentIndex = this._powerScrollNextIndex;
                     this._powerScrollNextLine = null;
+                    this._powerScrollNextIndex = -1;
                     const isLast = this.powerQueueIndex >= this.powerQueue.length;
                     this._appendDialogLine(line);
-                    if (!isLast) {
+                    if (this._powerFlashAfterIndex === currentIndex) {
+                        this.powerLineAdvanceAt = 'flash';
+                    } else if (!isLast) {
                         this.powerLineAdvanceAt = 'pending';
                     } else {
                         this.powerLineAdvanceAt = null; // last line: wait for Space again
@@ -607,6 +686,9 @@ export class SageScene extends IndoorSceneBase {
                     }
                     this.powerQueue = null;
                     this.powerLineAdvanceAt = null;
+                    this._flashActive = false;
+                    this._powerFlashAfterIndex = -1;
+                    this._powerFlashCallback = null;
                     this.animRun = false;
                     this.animSuppressed = false;
                     this.sagePhase = 'menu';
@@ -651,16 +733,23 @@ export class SageScene extends IndoorSceneBase {
             const result = this._checkLevelUp();
             this.levelUpReady = (result >= 3);
 
-            // Build the three lines for power sequence
             const line1 = 'I shall call upon the Spirits and their powers.....';
             const line2 = 'Oh, Holy Spirits, purify my thoughts and grant me strength.';
-            let resultLine = '';
+
             if (result === 3) {
                 this.powerExhausted = true;
-                this._applyLevelUp();
-                resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
-            } else if (result === 4 && this.levelUpReady) {
-                // this.powerExhausted = true;
+                const firstPart = 'The light of the Spirits is bursting forth within you.';
+                const secondPart = 'Indeed, your power has grown.';
+                const queue = [line1, line2, firstPart, secondPart];
+                this._powerFlashAfterIndex = 2;
+                this._powerFlashCallback = () => this._applyLevelUp();
+                this.sagePhase = 'power_anim';
+                this._startPowerQueue(queue);
+                return;
+            }
+
+            let resultLine = '';
+            if (result === 4 && this.levelUpReady) {
                 resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
             } else {
                 const texts = [
@@ -671,7 +760,7 @@ export class SageScene extends IndoorSceneBase {
                 resultLine = texts[result] || texts[0];
             }
             const queue = [line1, line2, resultLine];
-            this.sagePhase = 'power_anim';  // keep animation running
+            this.sagePhase = 'power_anim';
             this._startPowerQueue(queue);
             return;
         }
@@ -682,12 +771,19 @@ export class SageScene extends IndoorSceneBase {
             return;
         }
         const result = this._checkLevelUp();
-        let resultLine = '';
         if (result === 3) {
             this.powerExhausted = true;
-            this._applyLevelUp();
-            resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
-        } else if (result >= 3 && this.levelUpReady) {
+            const firstPart = 'The light of the Spirits is bursting forth within you.';
+            const secondPart = 'Indeed, your power has grown.';
+            const queue = [firstPart, secondPart];
+            this._powerFlashAfterIndex = 0;
+            this._powerFlashCallback = () => this._applyLevelUp();
+            this.sagePhase = 'power_anim';
+            this._startPowerQueue(queue);
+            return;
+        }
+        let resultLine = '';
+        if (result >= 3 && this.levelUpReady) {
             this.powerExhausted = true;
             resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
         } else {
