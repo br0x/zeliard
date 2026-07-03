@@ -27,7 +27,7 @@ const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
       SAGE_MENU_LISTEN_KNOWLEDGE = 2, SAGE_MENU_RECORD_EXPERIENCE = 3;
 
 const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
-const SAGE_MIN_LEVEL_BY_TOWN = [3,6,9,11,13,15,18,0xFF];
+const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
 
 const ADDR_HERO_LEVEL = 0x8D;
 const ADDR_HERO_XP = 0x8E;
@@ -39,22 +39,23 @@ const ADDR_SPELLS_INVENTORY = 0xB4;
 const ADDR_INVINCIBILITY_FLAG = 0xE8;
 
 const SAGE_LEVEL_REWARDS = [
-    { hp: 0x0078, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x00a0, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x00c8, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x00f0, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x0118, spells: [0x10, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x0140, spells: [0x14, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x017c, spells: [0x18, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x01cc, spells: [0x1c, 0x0c, 0x08, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x021c, spells: [0x20, 0x12, 0x0c, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x0258, spells: [0x24, 0x18, 0x10, 0x08, 0x03, 0x04, 0x03] },
-    { hp: 0x0280, spells: [0x28, 0x1e, 0x14, 0x10, 0x03, 0x04, 0x03] },
-    { hp: 0x02a8, spells: [0x2c, 0x24, 0x18, 0x18, 0x03, 0x04, 0x03] },
-    { hp: 0x02d0, spells: [0x30, 0x2a, 0x1c, 0x20, 0x03, 0x04, 0x03] },
-    { hp: 0x02f8, spells: [0x34, 0x30, 0x24, 0x30, 0x09, 0x08, 0x06] },
-    { hp: 0x030c, spells: [0x38, 0x36, 0x2c, 0x36, 0x0f, 0x0c, 0x09] },
-    { hp: 0x0320, spells: [0x3c, 0x3c, 0x3c, 0x48, 0x15, 0x10, 0x0c] },
+                     // esp sae fue lan ras agu gue
+    { hp: 120, spells: [12,  6,  8,  8,  3,  4,  3] },
+    { hp: 160, spells: [12,  6,  8,  8,  3,  4,  3] },
+    { hp: 200, spells: [12,  6,  8,  8,  3,  4,  3] },
+    { hp: 240, spells: [12,  6,  8,  8,  3,  4,  3] },
+    { hp: 280, spells: [16,  6,  8,  8,  3,  4,  3] },
+    { hp: 320, spells: [20,  6,  8,  8,  3,  4,  3] },
+    { hp: 380, spells: [24,  6,  8,  8,  3,  4,  3] },
+    { hp: 460, spells: [28, 12,  8,  8,  3,  4,  3] },
+    { hp: 640, spells: [32, 18, 12,  8,  3,  4,  3] },
+    { hp: 600, spells: [36, 24, 16,  8,  3,  4,  3] },
+    { hp: 640, spells: [40, 30, 20, 16,  3,  4,  3] },
+    { hp: 680, spells: [44, 36, 24, 24,  3,  4,  3] },
+    { hp: 720, spells: [48, 42, 28, 32,  3,  4,  3] },
+    { hp: 760, spells: [52, 48, 36, 48,  9,  8,  6] },
+    { hp: 780, spells: [56, 54, 44, 54, 15, 12,  9] },
+    { hp: 800, spells: [60, 60, 60, 72, 21, 16, 12] },
 ];
 const SAGE_NAMES = [
     'The Sage Marid','The Sage Yasmin','The Sage Hajjar','The Sage Chiriga',
@@ -137,6 +138,7 @@ export class SageScene extends IndoorSceneBase {
         const isFirst = intro && !(spoken & intro.bit);
         if (deathEntry) {
             this.writeMemory(ADDR_INVINCIBILITY_FLAG, [0]);
+            this.menuDimmed = true;
             this._setDialog('While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.');
             this.sagePhase = 'dialog';
             this.exitAfterDialog = true;
@@ -647,25 +649,24 @@ export class SageScene extends IndoorSceneBase {
             this.animSuppressed = true;
             this.crystalMode = true;
             const result = this._checkLevelUp();
-            this.levelUpReady = (result >= 4);
+            this.levelUpReady = (result >= 3);
 
             // Build the three lines for power sequence
             const line1 = 'I shall call upon the Spirits and their powers.....';
             const line2 = 'Oh, Holy Spirits, purify my thoughts and grant me strength.';
             let resultLine = '';
-            if (result === 4) {
+            if (result === 3) {
                 this.powerExhausted = true;
                 this._applyLevelUp();
                 resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
-            } else if (result === 3 && this.levelUpReady) {
-                this.powerExhausted = true;
+            } else if (result === 4 && this.levelUpReady) {
+                // this.powerExhausted = true;
                 resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
             } else {
                 const texts = [
                     'Your experience is lacking. Persevere in your quest.',
                     'You must accumulate more experience.',
                     'I can see the faint light of the Spirits in you. You must endure a little longer.',
-                    'The light of the Spirits is bursting forth within you.',
                 ];
                 resultLine = texts[result] || texts[0];
             }
@@ -682,11 +683,11 @@ export class SageScene extends IndoorSceneBase {
         }
         const result = this._checkLevelUp();
         let resultLine = '';
-        if (result === 4) {
+        if (result === 3) {
             this.powerExhausted = true;
             this._applyLevelUp();
             resultLine = 'The light of the Spirits is bursting forth within you. Indeed, your power has grown.';
-        } else if (result === 3 && this.levelUpReady) {
+        } else if (result >= 3 && this.levelUpReady) {
             this.powerExhausted = true;
             resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
         } else {
@@ -694,7 +695,6 @@ export class SageScene extends IndoorSceneBase {
                 'Your experience is lacking. Persevere in your quest.',
                 'You must accumulate more experience.',
                 'I can see the faint light of the Spirits in you. You must endure a little longer.',
-                'The light of the Spirits is bursting forth within you.',
             ];
             resultLine = texts[result] || texts[0];
         }
@@ -733,28 +733,30 @@ export class SageScene extends IndoorSceneBase {
         const threshold = SAGE_XP_TABLE[lvl] || 60000;
         const xp = this._getHeroXp();
         const q1 = Math.floor(threshold/4), q2 = Math.floor(threshold/2), q3 = threshold - q1;
-        if (xp < q1) return 0;
-        if (xp < q2) return 1;
-        if (xp < q3) return 2;
-        const minLvl = SAGE_MIN_LEVEL_BY_TOWN[this.townIdx] || 0xFF;
-        if (lvl < minLvl) return 3;
+        if (xp < q2) return 0;
+        if (xp < q3) return 1;
+        if (xp < threshold) return 2;
+        const sageLvl = SAGE_MAX_LEVEL_BY_TOWN[this.townIdx] || 0;
+        if (lvl < sageLvl) return 3;
         return 4;
     }
 
-    _getHeroLevel() { return this.readMemory?.(ADDR_HERO_LEVEL,1)[0] || 1; }
+    _getHeroLevel() { return this.readMemory?.(ADDR_HERO_LEVEL, 1)[0] || 0; }
     _getHeroXp() {
         if (!this.readMemory) return 0;
-        const b = this.readMemory(ADDR_HERO_XP,2);
+        const b = this.readMemory(ADDR_HERO_XP, 2);
         return b[0] | (b[1] << 8);
     }
     _applyLevelUp() {
         if (!this.writeMemory) return;
         const oldLevel = this._getHeroLevel();
-        const nextLevel = oldLevel === 0xFF ? 0xFF : Math.min(0xFF, oldLevel + 1);
+        const threshold = SAGE_XP_TABLE[oldLevel] || 60000;
+        const nextLevel = Math.min(0xFF, oldLevel + 1);
         const reward = this._getLevelReward(oldLevel);
 
         this.writeMemory(ADDR_HERO_LEVEL, [nextLevel]);
-        this.writeMemory(ADDR_HERO_XP, [0,0]);
+        let xp = this._getHeroXp() - threshold;
+        this.writeMemory(ADDR_HERO_XP, [xp & 0xFF, (xp >> 8) & 0xFF]);
         this._writeWord(ADDR_HERO_MAX_HP, reward.hp);
         this._writeWord(ADDR_HERO_HP, reward.hp);
         this.writeMemory(ADDR_SPELLS_INVENTORY, reward.spells);

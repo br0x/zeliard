@@ -2554,7 +2554,7 @@ loc_70CA:
 loc_70D5:   
                 cmp     al, 0FFh
                 jnz     short loc_70DF
-                lodsb
+                lodsb ; return first byte after final FF
                 mov     ds:dialog_string_ptr, si
                 retn
 ; ---------------------------------------------------------------------------

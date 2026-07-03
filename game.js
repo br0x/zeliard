@@ -286,11 +286,14 @@ const ADDR_SWORD_MOVEMENT_PHASE = 0xFF46;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
 const ADDR_DUNGEON_STATE = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
+const ADDR_HERO_SPRITE_HIDDEN = 0xFF37;
+const ADDR_DEATH_COUNTER = 0xFF95;
 const ADDR_RENDER_REQUEST = 0xFF92;
 const ADDR_RENDER_DONE = 0xFF93;
 const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
 const ADDR_ROKA_PHASE = 0xFF9D;
 const ADDR_ROKA_COLOR = 0xFF9E;
+const DUNGEON_STATE_DEATH_FADE = 4;
 const DUNGEON_STATE_ROKA_RUN = 7;
 const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
 const ADDR_HERO_DEATH_FLAG = 0xFFE3;
@@ -1386,6 +1389,7 @@ function resolveFrontArmFrame(state) {
 
 function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
+    if (readMemory(ADDR_HERO_SPRITE_HIDDEN, 1)[0]) return;
     const dx = readMemory(ADDR_HERO_X_VIEW, 1)[0] * TILE_WIDTH;
     const dy = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0] * TILE_HEIGHT;
     const state = getDungeonHeroState();
@@ -2472,6 +2476,11 @@ function draw() {
             drawDungeonEntities();
             drawDungeonHero();
             drawDungeonSword();
+            if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
+                const fade = readU8(ADDR_DEATH_COUNTER) / 29;
+                ctx.fillStyle = `rgba(0,0,0,${fade})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
         }
         if (readMemory(ADDR_HEALTH_BAR_REQUEST, 1)[0]) {
             drawLifeBar();

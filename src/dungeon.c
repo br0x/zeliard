@@ -667,22 +667,9 @@ void restore_game()
 
 }
 
-// Hero death sequence (full original logic)
-//  Phase 1 — falling: calls airborne_movement in a loop until landed.
-//  Phase 2 — flashing: hero_animation_phase cycles 0→1→2 at 1/8 speed,
-//    while hero_sprite_hidden flickers at 1/2 speed after phase 2.
-//  Phase 3 — 30-frame fade: alternates show/hide then calls Fade_To_Black.
-// 
-//  Post-death (first death):
-//    - XP += (127 - 2 × hero_level)
-//    - Gold reset to 0.
-//    - Almas halved.
-//  Post-death (already processed, i.e. no-XP death):
-//    - last_sage_visited = 0x80 (Felishika's Castle entry sage).
-//  Both: restore HP to heroMaxHp.
-// 
-//  Resurrection: load the MDT for last_sage_visited town, restore hero_x
-//  from tear_x, load NPC sprites, transfer to town via transfer_to_town.
+// Hero death sequence — now a non-blocking state machine.
+//  Initialization only; animation is driven by dungeon_update_death_*
+//  handlers called from wasm_dungeon_update().
 // Checked
 void process_hero_death()
 {
@@ -694,57 +681,100 @@ void process_hero_death()
     MEM8(ADDR_INVINCIBILITY_FLAG) = 0xFF;
     MEM8(ADDR_BYTE_9F28) = 0;
     MEM8(ADDR_BYTE_9F29) = 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+    MEM8(ADDR_ON_ROPE_FLAGS) = 0;
+    MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
     Draw_Hero_Health();
 
-    do {
-        MEM8(ADDR_HERO_ANIM_PHASE) = 0;
-        MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
-        main_update_render();
-    } while (!airborne_movement());
+    // The death animation state machine takes over from here.
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FALL;
+}
+
+// Runs one sub-step of the dungeon render pipeline during death animation.
+// Returns 1 when a full frame is complete, 0 otherwise.
+static uint8_t dungeon_death_frame_step(void)
+{
+    if (MEM8(ADDR_DUNGEON_FRAME_PHASE) == 0) {
+        uint8_t invincible = main_update_render_pre();
+        if (invincible) {
+            MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+        }
+        dungeon_render_timing_step(invincible);
+        return 0;
+    }
+    uint8_t invincible = MEM8(ADDR_INVINCIBILITY_FLAG) != 0;
+    return dungeon_render_timing_step(invincible);
+}
+
+static void dungeon_update_death_fall(void)
+{
+    if (!dungeon_death_frame_step()) return;
+
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+    MEM8(ADDR_ON_ROPE_FLAGS) = 0;
     MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
 
-    for (;;) {
-        main_update_render();
+    if (airborne_movement()) {
         MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
-        if (MEM8(ADDR_HERO_ANIM_PHASE) == 2) {
-            MEM8(ADDR_BYTE_9F29)++;
-            if ((MEM8(ADDR_BYTE_9F29) & 0x0F) == 0) break;
-            if ((MEM8(ADDR_BYTE_9F29) & 1) == 0) continue;
-            MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
-            continue;
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FLASH;
+        MEM8(ADDR_DEATH_PHASE) = 0;
+        MEM8(ADDR_DEATH_COUNTER) = 0;
+    }
+}
+
+static void dungeon_update_death_flash(void)
+{
+    if (!dungeon_death_frame_step()) return;
+
+    MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
+
+    if (MEM8(ADDR_HERO_ANIM_PHASE) == 2) {
+        MEM8(ADDR_BYTE_9F29)++;
+        if ((MEM8(ADDR_BYTE_9F29) & 0x0F) == 0) {
+            MEM8(ADDR_BYTE_FF24) = 8;
+            MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FADE;
+            MEM8(ADDR_DEATH_PHASE) = 0;
+            MEM8(ADDR_DEATH_COUNTER) = 0;
+            return;
         }
-        MEM8(ADDR_BYTE_9F28)++;
-        if ((MEM8(ADDR_BYTE_9F28) & 7) != 0) continue;
+        if ((MEM8(ADDR_BYTE_9F29) & 1) == 0) return;
+        MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
+        return;
+    }
 
-        uint8_t al = (MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 3;
-        if (al == 3) {
-            continue;
+    MEM8(ADDR_BYTE_9F28)++;
+    if ((MEM8(ADDR_BYTE_9F28) & 7) != 0) return;
+
+    uint8_t al = (MEM8(ADDR_HERO_ANIM_PHASE) + 1) & 3;
+    if (al == 3) return;
+    MEM8(ADDR_HERO_ANIM_PHASE) = al;
+}
+
+static void dungeon_update_death_fade(void)
+{
+    if (!dungeon_death_frame_step()) return;
+
+    uint8_t i = MEM8(ADDR_DEATH_COUNTER);
+    MEM8(ADDR_HERO_SPRITE_HIDDEN) = (i & 1) ? 0 : 0xFF;
+    MEM8(ADDR_DEATH_COUNTER) = i + 1;
+
+    if (i >= 29) {
+        // stop_music();  // int 60h, ax=1
+        // Fade_To_Black_Dithered_proc();
+
+        if (MEM8(ADDR_DEATH_ALREADY_PROCESSED) != 0) {
+            MEM8(ADDR_LAST_SAGE_VISITED) = 0x80;
+        } else {
+            uint16_t xp_gain = 127 - MEM8(ADDR_HERO_LEVEL) * 2;
+            update_hero_XP(xp_gain);
+            MEM8(ADDR_HERO_GOLD_HI) = 0;
+            MEM16(ADDR_HERO_GOLD_LO) = 0;
+            MEM16(ADDR_HERO_ALMAS) >>= 1;
         }
-        MEM8(ADDR_HERO_ANIM_PHASE) = al;
-    }
 
-    MEM8(ADDR_BYTE_FF24) = 8;
-    for (int i = 0; i < 30; i++) {
-        main_update_render();
-        MEM8(ADDR_HERO_SPRITE_HIDDEN) = (i & 1) ? 0 : 0xFF;
+        MEM16(ADDR_HERO_HP) = MEM16(ADDR_HERO_MAX_HP);
+        transit_to_sage();
     }
-    // stop_music();  // int 60h, ax=1
-    // Fade_To_Black_Dithered_proc();
-
-    if (MEM8(ADDR_DEATH_ALREADY_PROCESSED) != 0) {
-        MEM8(ADDR_LAST_SAGE_VISITED) = 0x80;
-    } else {
-        uint16_t xp_gain = 127 - MEM8(ADDR_HERO_LEVEL) * 2;
-        update_hero_XP(xp_gain);
-        MEM8(ADDR_HERO_GOLD_HI) = 0;
-        MEM16(ADDR_HERO_GOLD_LO) = 0;
-        MEM16(ADDR_HERO_ALMAS) >>= 1;
-    }
-
-    // Restore full HP
-    MEM16(ADDR_HERO_HP) = MEM16(ADDR_HERO_MAX_HP);
-    transit_to_sage();
 }
 
 // Resurrection: go to last sage's hut
@@ -1741,6 +1771,15 @@ void wasm_dungeon_update(void)
         break;
     case DUNGEON_STATE_ROPE:
         dungeon_update_rope();
+        break;
+    case DUNGEON_STATE_DEATH_FALL:
+        dungeon_update_death_fall();
+        break;
+    case DUNGEON_STATE_DEATH_FLASH:
+        dungeon_update_death_flash();
+        break;
+    case DUNGEON_STATE_DEATH_FADE:
+        dungeon_update_death_fade();
         break;
     case DUNGEON_STATE_EXIT:
         return;
@@ -4281,7 +4320,11 @@ static void dungeon_update_normal(void)
 
     uint8_t invincible = MEM8(ADDR_INVINCIBILITY_FLAG) != 0;
     if (dungeon_render_timing_step(invincible)) {
-        dungeon_finish_normal_frame();
+        if (MEM8(ADDR_DUNGEON_STATE) == DUNGEON_STATE_NORMAL) {
+            dungeon_finish_normal_frame();
+        } else if (MEM8(ADDR_DUNGEON_STATE) == DUNGEON_STATE_ROPE) {
+            dungeon_finish_rope_frame();
+        }
     }
 }
 
@@ -4339,7 +4382,9 @@ static void dungeon_update_rope(void)
 
     uint8_t invincible = MEM8(ADDR_INVINCIBILITY_FLAG) != 0;
     if (dungeon_render_timing_step(invincible)) {
-        dungeon_finish_rope_frame();
+        if (MEM8(ADDR_DUNGEON_STATE) == DUNGEON_STATE_ROPE) {
+            dungeon_finish_rope_frame();
+        }
     }
 }
 

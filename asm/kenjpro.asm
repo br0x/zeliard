@@ -38,10 +38,10 @@ sage_normal:
                 mov     ds:dialog_string_ptr, si
 
 sage_common:
-                call    word ptr cs:render_menu_dialog_proc
+                call    word ptr cs:render_menu_dialog_proc ; al = dialog result
                 cmp     al, 0FFh ; Go outside
                 je      short loc_A055
-                call    sub_A0A4
+                call    on_dialog_result
                 jmp     short sage_common
 ; ---------------------------------------------------------------------------
 
@@ -81,21 +81,21 @@ sub_A05A        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A0A4        proc near
+on_dialog_result        proc near
 
                 mov     bl, al
                 xor     bh, bh
                 add     bx, bx          ; switch 14 cases
                 jmp     cs:jpt_A0AA[bx] ; switch jump
-sub_A0A4        endp
+on_dialog_result        endp
 
 ; ---------------------------------------------------------------------------
-jpt_A0AA        dw offset loc_A0CB      ; jump table for switch statement
+jpt_A0AA        dw offset loc_A0CB ; on_0
                 dw offset loc_A18E
                 dw offset sub_A914
                 dw offset loc_A862
                 dw offset sub_A410
-                dw offset sub_A2B4
+                dw offset level_up ; on_5=level_up
                 dw offset loc_A420
                 dw offset sub_A93B
                 dw offset loc_A93F
@@ -161,13 +161,13 @@ loc_A137:
                 test    byte_BB17, 0FFh
                 jz      short loc_A14B
                 mov     di, offset byte_AF03
-
+                ; I can no longer impart the power
 loc_A14B:
                 mov     ds:dialog_string_ptr, di
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A150:
+loc_A150:       ; spirits are no longer with you
                 mov     word ptr ds:dialog_string_ptr, offset byte_AE42
                 retn
 on_see_power    endp
@@ -219,10 +219,10 @@ loc_A1A9:
                 mov     byte_BB1A, 0FFh
                 call    sub_A200
                 call    word ptr cs:render_menu_dialog_proc
-                call    sub_A22E
+                call    checkLevelUp
                 add     ax, ax
                 mov     bx, ax
-                mov     ax, off_B029[bx]
+                mov     ax, dialog_by_levelup_check[bx]
                 mov     ds:dialog_string_ptr, ax
                 retn
 
@@ -287,80 +287,84 @@ sub_A200        endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-sub_A22E        proc near
+; Returns:
+;   0: xp < threshold/2
+;   1: xp < 3*threshold/4
+;   2: xp < threshold
+;   3: xp >= threshold, hero_level < sage_max_level_up
+;   4: hero_level >= sage_max_level_up
+checkLevelUp    proc near
                 xor     bx, bx
                 mov     bl, ds:hero_level
-                cmp     bl, 0Fh
+                cmp     bl, 15
                 jb      short loc_A23B
-                mov     bl, 0Fh
+                mov     bl, 15
 
 loc_A23B:
                 add     bx, bx
-                add     bx, offset word_A28C
-                mov     dx, [bx]
+                add     bx, offset xp_threshold_per_level
+                mov     dx, [bx] ; threshold for level-up; =50
                 mov     cx, dx
                 xor     ax, ax
-                shr     cx, 1
+                shr     cx, 1 ; threshold/2
                 cmp     ds:hero_xp, cx
                 jnb     short loc_A250
-                retn
+                retn ; xp < threshold/2, result 0
 ; ---------------------------------------------------------------------------
 
 loc_A250:
-                mov     ax, dx
-                shr     cx, 1
-                sub     ax, cx
+                mov     ax, dx ; threshold
+                shr     cx, 1 ; threshold/4
+                sub     ax, cx ; 3*threshold/4
                 mov     cx, ax
                 mov     ax, 1
                 cmp     ds:hero_xp, cx
                 jnb     short loc_A262
-                retn
+                retn ; xp < 3*threshold/4, result 1
 ; ---------------------------------------------------------------------------
 
 loc_A262:
                 mov     ax, 2
                 cmp     ds:hero_xp, dx
                 jnb     short loc_A26C
-                retn
+                retn ; xp < threshold, result 2
 ; ---------------------------------------------------------------------------
 
-loc_A26C:
+loc_A26C:       ; xp >= threshold, result 3
                 xor     bx, bx
                 mov     bl, ds:town_id
                 dec     bx
-                add     bx, offset byte_A2AC
+                add     bx, offset sage_max_level_up
                 mov     ax, 3
                 mov     cl, ds:hero_level
                 cmp     cl, [bx]
                 jnb     short loc_A283
-                retn
+                retn    ; hero_level < sage_max_level_up, result 3
 ; ---------------------------------------------------------------------------
 
 loc_A283:
                 mov     byte_BB17, 0FFh
                 mov     ax, 4
-                retn
-sub_A22E        endp
+                retn    ; hero_level >= sage_max_level_up, result 4
+checkLevelUp    endp
 
 ; ---------------------------------------------------------------------------
-word_A28C       dw 50, 150, 300, 420, 1000, 1500, 3000, 5000, 6000
-                dw 8000, 10000, 15000, 20000, 40000, 50000, 60000
-byte_A2AC       db 3, 6, 9, 0Bh, 0Dh, 0Fh, 12h, 0FFh
+xp_threshold_per_level  dw 50, 150, 300, 420, 1000, 1500, 3000, 5000, 6000
+                        dw 8000, 10000, 15000, 20000, 40000, 50000, 60000
+sage_max_level_up       db 3, 6, 9, 11, 13, 15, 18, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A2B4        proc near
+level_up        proc near
                 mov     byte_BB16, 0FFh
                 mov     cx, 8
-
+                ; flash screen 8 times
 loc_A2BC:
                 push    cx
                 call    word ptr cs:apply_screen_xor_grid_proc
                 mov     byte ptr ds:frame_timer, 0
-
-loc_A2C7:
+loc_A2C7:       ; delay 10 frames
                 cmp     byte ptr ds:frame_timer, 10
                 jb      short loc_A2C7
                 pop     cx
@@ -370,11 +374,11 @@ loc_A2C7:
                 mov     al, ds:hero_level
                 cmp     al, 16
                 jb      short loc_A2F5
-                mov     word_BB34, 800  ; max possible HP
+                mov     max_hp, 800  ; max possible HP
                 mov     cx, 7
                 mov     si, espada_count
-                mov     di, offset byte_BB36
-loc_A2E9:
+                mov     di, offset spells_cap
+loc_A2E9:       ; max all spells capacity
                 lodsb
                 add     al, 2
                 jnb     short loc_A2F0
@@ -385,12 +389,12 @@ loc_A2F0:
                 jmp     short loc_A306
 ; ---------------------------------------------------------------------------
 
-loc_A2F5:
+loc_A2F5:       ; update max HP and spells cap
                 mov     bl, 9
                 mul     bl
-                mov     si, offset byte_A380
+                mov     si, offset stats_per_level
                 add     si, ax
-                mov     di, offset word_BB34
+                mov     di, offset max_hp
                 mov     cx, 9
                 rep movsb
 
@@ -402,7 +406,7 @@ loc_A306:
 
 loc_A30F:
                 mov     ds:hero_level, al
-                mov     ax, word_BB34
+                mov     ax, max_hp
                 mov     ds:heroMaxHp, ax
                 mov     ds:hero_HP, ax
                 call    word ptr cs:Draw_Hero_Max_Health_proc
@@ -410,11 +414,11 @@ loc_A30F:
                 push    cs
                 pop     es
                 mov     di, espada_count
-                mov     si, offset byte_BB36
+                mov     si, offset spells_cap
                 mov     cx, 7
                 rep movsb
                 mov     di, spells_espada
-                mov     si, offset byte_BB36
+                mov     si, offset spells_cap
                 mov     cx, 7
                 rep movsb
                 test    byte ptr ds:current_magic_spell, 0FFh
@@ -425,49 +429,50 @@ loc_A349:
                 xor     bx, bx
                 mov     bl, ds:hero_level
                 dec     bl
-                cmp     bl, 0Fh
+                cmp     bl, 15
                 jb      short loc_A358
-                mov     bl, 0Fh
+                mov     bl, 15
 
 loc_A358:
                 add     bx, bx
-                mov     ax, word_A28C[bx]
+                mov     ax, xp_threshold_per_level[bx]
                 sub     ds:hero_xp, ax
                 xor     bx, bx
                 mov     bl, ds:hero_level
-                cmp     bl, 0Fh
+                cmp     bl, 15
                 jb      short loc_A36F
-                mov     bl, 0Fh
+                mov     bl, 15
 
 loc_A36F:
                 add     bx, bx
-                mov     ax, word_A28C[bx]
+                mov     ax, xp_threshold_per_level[bx]
                 cmp     ds:hero_xp, ax
                 jb      short locret_A37F
-                dec     ax
+                dec     ax ; no second level-up
                 mov     ds:hero_xp, ax
 
 locret_A37F:
                 retn
-sub_A2B4        endp
+level_up        endp
 
 ; ---------------------------------------------------------------------------
-byte_A380       db 78h, 0, 0Ch, 6, 8, 8, 3, 4, 3
-                db 0A0h, 0, 0Ch, 6, 8, 8, 3, 4, 3
-                db 0C8h, 0, 0Ch, 6, 8, 8, 3, 4, 3
-                db 0F0h, 0, 0Ch, 6, 8, 8, 3, 4, 3
-                db 18h, 1, 10h, 6, 8, 8, 3, 4, 3
-                db 40h, 1, 14h, 6, 8, 8, 3, 4, 3
-                db 7Ch, 1, 18h, 6, 8, 8, 3, 4, 3
-                db 0CCh, 1, 1Ch, 0Ch, 8, 8, 3, 4, 3
-                db 1Ch, 2, 20h, 12h, 0Ch, 8, 3, 4, 3
-                db 58h, 2, 24h, 18h, 10h, 8, 3, 4, 3
-                db 80h, 2, 28h, 1Eh, 14h, 10h, 3, 4, 3
-                db 0A8h, 2, 2Ch, 24h, 18h, 18h, 3, 4, 3
-                db 0D0h, 2, 30h, 2Ah, 1Ch, 20h, 3, 4, 3
-                db 0F8h, 2, 34h, 30h, 24h, 30h, 9, 8, 6
-                db 0Ch, 3, 38h, 36h, 2Ch, 36h, 0Fh, 0Ch, 9
-                db 20h, 3, 3Ch, 3Ch, 3Ch, 48h, 15h, 10h, 0Ch
+;                   max_hp  esp sae fue lan ras agu gue
+stats_per_level db  78h, 0, 12,  6,  8,  8,  3,  4,  3 ; max_hp=120
+                db 0A0h, 0, 12,  6,  8,  8,  3,  4,  3 ; max_hp=160
+                db 0C8h, 0, 12,  6,  8,  8,  3,  4,  3 ; max_hp=200
+                db 0F0h, 0, 12,  6,  8,  8,  3,  4,  3 ; max_hp=240
+                db  18h, 1, 16,  6,  8,  8,  3,  4,  3 ; max_hp=280
+                db  40h, 1, 20,  6,  8,  8,  3,  4,  3 ; max_hp=320
+                db  7Ch, 1, 24,  6,  8,  8,  3,  4,  3 ; max_hp=380
+                db 0CCh, 1, 28, 12,  8,  8,  3,  4,  3 ; max_hp=460
+                db  1Ch, 2, 32, 18, 12,  8,  3,  4,  3 ; max_hp=640
+                db  58h, 2, 36, 24, 16,  8,  3,  4,  3 ; max_hp=600
+                db  80h, 2, 40, 30, 20, 16,  3,  4,  3 ; max_hp=640
+                db 0A8h, 2, 44, 36, 24, 24,  3,  4,  3 ; max_hp=680
+                db 0D0h, 2, 48, 42, 28, 32,  3,  4,  3 ; max_hp=720
+                db 0F8h, 2, 52, 48, 36, 48,  9,  8,  6 ; max_hp=760
+                db  0Ch, 3, 56, 54, 44, 54, 15, 12,  9 ; max_hp=780
+                db  20h, 3, 60, 60, 60, 72, 21, 16, 12 ; max_hp=800
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -1603,27 +1608,27 @@ aOhHolySpiritsP db 'Oh, Holy Spirits, purify my thoughts and grant me strength. 
                 db    0
                 db 0FFh
                 db 0FFh
-off_B029        dw offset aYourExperience
-                dw offset aYouMustAccumul
-                dw offset aICanSeeTheFain
-                dw offset aTheLightOfTheS
-                dw offset aICanNoLongerIm_0
+dialog_by_levelup_check dw offset aYourExperience
+                        dw offset aYouMustAccumul
+                        dw offset aICanSeeTheFain
+                        dw offset aTheLightOfTheS
+                        dw offset aICanNoLongerIm_0
 aYourExperience db 'Your experience is lacking. Persevere in your quest.'
                 db 0FFh
-                db    0
+                db    0 ; on_0
 aYouMustAccumul db 'You must accumulate more experience.'
                 db 0FFh
-                db    0
+                db    0 ; on_0
 aICanSeeTheFain db 'I can see the faint light of the Spirits in you. You must endure a little longer.'
                 db 0FFh
-                db    0
+                db    0 ; on_0
 aTheLightOfTheS db 'The light of the Spirits is bursting forth within you. '
                 db 0FFh
-                db    4
+                db    4 ; on_4
                 db  0Dh
 aIndeedYourPowe db 'Indeed, your power has grown.'
                 db 0FFh
-                db    5
+                db    5 ; on_5
                 db 0FFh
                 db    4
                 db 0FFh
@@ -1639,38 +1644,38 @@ aIAmTheSageMari db 'I am the Sage Marid./You are very brave to embark on such a 
 aIAmTheSageYasm db 'I am the Sage Yasmin./I have been expecting you. I&shall teach yo'
                 db 'u the Magic Spell of Throwing Swords: Espada.'
                 db 0FFh
-                db    7
+                db    7 ; on_7
                 db 0FFh
                 db    0
 aIAmTheSageHajj db 'I am the Sage Hajjar./I am happy to see you\ve made it this far. '
                 db 'I&shall teach you the Magic Spell of Arrows: Saeta.'
                 db 0FFh
-                db    8
+                db    8 ; on_8
                 db 0FFh
                 db    0
 aIAmTheSageChir db 'I am the Sage Chiriga./You have come far, and you must be cold. I'
                 db '&shall teach you the Magic Spell of Fire: Fuego.'
                 db 0FFh
-                db    9
+                db    9 ; on_9
                 db 0FFh
                 db    0
 aIAmTheSageHish db 'I am the Sage Hisham./You are doing well to stand before me. I&sh'
                 db 'all teach you the Magic Spell of Flame: Lanzar.'
                 db 0FFh
-                db  0Ah
+                db  0Ah ; on_10
                 db 0FFh
                 db    0
 aIAmTheSageMary db 'I am the Sage Maryam./You have made the Spirits proud with your b'
                 db 'ravery. I&shall teach you the Magic Spell of Falling Rocks: Rascar.'
                 db 0FFh
-                db  0Bh
+                db  0Bh ; on_11
                 db 0FFh
                 db    0
 aIAmTheSageSaie db 'I am the Sage Saied./You have lived through much, but your journey'
                 db ' is not over. You must be hot. I&shall teach you the Magic Spell'
                 db ' of Water: Agua.'
                 db 0FFh
-                db  0Ch
+                db  0Ch ; on_12
                 db 0FFh
                 db    0
 aIAmTheSageOfAl db 'I am the Sage of All Sages, Indihar./Brave lad, you\ve done well '
@@ -1678,7 +1683,7 @@ aIAmTheSageOfAl db 'I am the Sage of All Sages, Indihar./Brave lad, you\ve done 
                 db  0Fh
 aIShallTeachYou db 'I&shall teach you the Magic Spell of Lightning: Guerra.'
                 db 0FFh
-                db  0Dh
+                db  0Dh ; on_13
                 db 0FFh
                 db    0
 aDiskErrorPleas db '      Disk error.',0Dh,'Please check your disk',0Dh,'  and press '
@@ -1786,8 +1791,8 @@ byte_BB2E       db 0
                 db    0
                 db    0
                 db    0
-word_BB34       dw 0
-byte_BB36       db 0, 0, 0, 0, 0, 0, 0
+max_hp          dw 0
+spells_cap      db 0, 0, 0, 0, 0, 0, 0
 kenjpro         ends
 
                 end     start
