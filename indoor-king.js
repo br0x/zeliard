@@ -67,11 +67,11 @@ const KING_DIALOG_SCRIPTS = {
 function selectKingDialogKey(readMemory) {
     const ADDR_SPOKE_TO_KING = 0x05;
     const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-    const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
+    const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
     if (!readMemory) return 'firstAudience';
     const spoke = readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0;
     const entered = readMemory(ADDR_ENTERED_CAVERN_FIRST_TIME, 1)[0] !== 0;
-    const death = readMemory(ADDR_IS_DEATH_ALREADY_PROCESSED, 1)[0] !== 0;
+    const death = readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1)[0] !== 0;
     if (!spoke && !entered) return 'firstAudience';
     if (!entered) return 'reminder';
     if (!death) return 'afterCavern';

@@ -234,7 +234,7 @@ const NPC_FRAMES   = 8;           // frames per sheet
 // WASM memory addresses (mirrors town.h / town.c)
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-const ADDR_IS_DEATH_ALREADY_PROCESSED = 0x49;
+const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL = 0x80;
 const ADDR_HERO_X_VIEW   = 0x83;
 const ADDR_HERO_HEAD_Y_VIEW = 0x84;
@@ -1735,7 +1735,10 @@ async function initTownFromDungeon(townMapId, isDeath) {
         gameMode = 'town';
         const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
         if (trackId) setCurrentMusicTrack(trackId);
-        console.log(`[dungeon] exited to town ${rawMapId}`);
+        console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
+        if (isDeath) {
+            startIndoorScene(2);
+        }
     } catch (err) {
         console.error('[handleDungeonExit] failed:', err);
     } finally {

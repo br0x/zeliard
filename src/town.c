@@ -498,15 +498,15 @@ static void town_entry_common(void)
     save_head_level_tiles_in_npcs();
 
     if (INVINC) {
-        /* Resurrect at sage */
-        INVINC = 0;
-        // load_town_background();
-        /* Load kenjpro.bin (sage binary) and call sage resurrection handler */
-        CALL_PROC(res_dispatcher_fn3, "KENJPRO.BIN", ADDR_SAGE_BIN_ADDR);
-        CALL_PROC(fade_to_black_dithered);
-        CALL_PROC(adlib_fn1);
-        MEM8(ADDR_TOWN_TRANSITION_FLAG) = 0xFF;
-        CALL_PROC(jump_word_a004);  /* sage resurrects hero */
+        // /* Resurrect at sage */
+        // INVINC = 0;
+        // // load_town_background();
+        // /* Load kenjpro.bin (sage binary) and call sage resurrection handler */
+        // CALL_PROC(res_dispatcher_fn3, "KENJPRO.BIN", ADDR_SAGE_BIN_ADDR);
+        // CALL_PROC(fade_to_black_dithered);
+        // CALL_PROC(adlib_fn1);
+        // MEM8(ADDR_TOWN_TRANSITION_FLAG) = 0xFF;
+        // CALL_PROC(jump_word_a004);  /* sage resurrects hero */
         return;
     }
 

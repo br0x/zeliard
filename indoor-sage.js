@@ -28,13 +28,16 @@ const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
 
 const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 const SAGE_MIN_LEVEL_BY_TOWN = [3,6,9,11,13,15,18,0xFF];
-const ADDR_HERO_LEVEL = 0x8d;
-const ADDR_HERO_XP = 0x8e;
+
+const ADDR_HERO_LEVEL = 0x8D;
+const ADDR_HERO_XP = 0x8E;
 const ADDR_HERO_HP = 0x90;
-const ADDR_CURRENT_MAGIC_SPELL = 0x9d;
-const ADDR_SPELLS_ACTIVE = 0xab;
-const ADDR_HERO_MAX_HP = 0xb2;
-const ADDR_SPELLS_INVENTORY = 0xb4;
+const ADDR_CURRENT_MAGIC_SPELL = 0x9E;
+const ADDR_SPELLS_ACTIVE = 0xAB;
+const ADDR_HERO_MAX_HP = 0xB2;
+const ADDR_SPELLS_INVENTORY = 0xB4;
+const ADDR_INVINCIBILITY_FLAG = 0xE8;
+
 const SAGE_LEVEL_REWARDS = [
     { hp: 0x0078, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
     { hp: 0x00a0, spells: [0x0c, 0x06, 0x08, 0x08, 0x03, 0x04, 0x03] },
@@ -128,13 +131,14 @@ export class SageScene extends IndoorSceneBase {
             return;
         }
         this.townIdx = getTownIdx(this.readMemory);
-        const deathEntry = this.readMemory ? this.readMemory(0x49,1)[0] : 0;
+        const deathEntry = this.readMemory ? this.readMemory(ADDR_INVINCIBILITY_FLAG, 1)[0] : 0;
         const intro = SAGE_INTROS[this.townIdx];
         const spoken = this._getSpokenBits();
         const isFirst = intro && !(spoken & intro.bit);
         if (deathEntry) {
+            this.writeMemory(ADDR_INVINCIBILITY_FLAG, [0]);
             this._setDialog('While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.');
-            this.sagePhase = 'intro';
+            this.sagePhase = 'dialog';
             this.exitAfterDialog = true;
         } else if (isFirst) {
             this._setSpokenBit(intro.bit);
