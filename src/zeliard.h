@@ -156,9 +156,9 @@ extern "C" {
 #define ADDR_IS_BOSS_CAVERN                            0xFF34  // byte
 #define ADDR_HERO_Y                                    0xFF35  // hero_y_absolute (byte)
 #define ADDR_HERO_DAMAGE_THIS_FRAME                    0xFF36  // byte
-#define ADDR_HERO_SPRITE_PROCESSED                     0xFF37  // byte
+#define ADDR_HERO_SPRITE_HIDDEN                        0xFF37  // byte
 #define ADDR_SQUAT_FLAG                                0xFF38  // byte
-#define ADDR_ON_ROPE_FLAGS                             0xFF39
+#define ADDR_ON_ROPE_FLAGS                             0xFF39  // byte
 #define ADDR_HERO_HIDDEN_FLAG                          0xFF3A  // byte
 #define ADDR_SPELL_ACTIVE_FLAG                         0xFF3C  // byte
 #define ADDR_JUMP_PHASE_FLAGS                          0xFF3D  // byte

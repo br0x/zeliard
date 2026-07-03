@@ -9750,8 +9750,8 @@ loc_9993:
                 call    main_update_render
                 pop     cx
                 mov     al, cl
-                and     al, 1
-                dec     al
+                and     al, 1 ; even: 0, odd: 1
+                dec     al ; even: 0xFF, odd: 0
                 mov     ds:hero_sprite_hidden, al
                 loop    loc_9993
                 mov     ax, 1  ; fn1 (Stop) - Silences all channels and halts the driver.

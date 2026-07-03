@@ -445,11 +445,11 @@ void dungeon_update_death() {
         case 0: // Falling
             MEM8(ADDR_HERO_ANIM_PHASE) = 0;
             MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-            MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
+            MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
             main_update_render();
             airborne_movement(&restart);
             if (!restart) {
-                MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0;
+                MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
                 MEM8(ADDR_DUNGEON_SUBSTATE) = 1;
                 MEM8(ADDR_DUNGEON_SUBSTATE_PHASE) = 0;
             }

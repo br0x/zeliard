@@ -951,10 +951,10 @@ void render_hero_sword(void) {
 // Checked
 void Copy_Hero_Frame_To_VRAM()
 {
-    if (MEM8(ADDR_HERO_SPRITE_PROCESSED))
+    if (MEM8(ADDR_HERO_SPRITE_HIDDEN))
         return;                     // already hidden, nothing to do
 
-    MEM8(ADDR_HERO_SPRITE_PROCESSED) = 0xFF;
+    MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0xFF;
 
     const uint8_t *src = nine_unpacked_tiles; // uint8_t nine_unpacked_tiles[576] (3x3 frame of 8x8px tiles)
     for (int row = 0; row < 3; ++row) {
