@@ -2326,6 +2326,7 @@ async function performGameRestore(saveData) {
     // Abort any indoor scene or conversation
     if (indoorActiveScene) {
         indoorActiveScene = null;
+        townFinishBuilding?.();  // clear WASM building state (ADDR_BUILDING_ACTIVE at 0xFFFA outside save range)
     }
     conversation.active = false;
     if (activeModal) closeModal();
