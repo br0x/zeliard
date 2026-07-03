@@ -69,6 +69,7 @@ export class SoundManager {
         this._pendingTrack  = null;   // queued during crossfade
         this._musicMuted    = false;
         this._musicVolume   = 0.7;
+        this._musicDim      = 1.0;
 
         // Track which SFX is currently playing (only one at a time per original)
         /** @type {AudioBufferSourceNode|null} */
@@ -112,7 +113,7 @@ export class SoundManager {
 
         // Shared GainNode for music so we can crossfade
         this._musicGain = this._ctx.createGain();
-        this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume;
+        this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
         this._musicGain.connect(this._ctx.destination);
 
         // Pre-load assets in parallel (non-blocking — missing files are warned)
@@ -176,7 +177,7 @@ export class SoundManager {
         source.loop   = true;
         source.connect(this._musicGain);
 
-        const targetGain = this._musicMuted ? 0 : this._musicVolume;
+        const targetGain = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
         this._musicGain.gain.setValueAtTime(0, now);
         this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
 
@@ -202,7 +203,19 @@ export class SoundManager {
         if (!this._ready || !this._musicGain) return;
 
         const now = this._ctx.currentTime;
-        const targetGain = muted ? 0 : this._musicVolume;
+        const targetGain = muted ? 0 : this._musicVolume * this._musicDim;
+        this._musicGain.gain.cancelScheduledValues(now);
+        this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
+        this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
+    }
+
+    /** Dim/restore music volume (e.g. when entering/leaving a building). */
+    setMusicDim(dim, fadeDuration = 0.25) {
+        this._musicDim = dim;
+        if (!this._ready || !this._musicGain) return;
+
+        const now = this._ctx.currentTime;
+        const targetGain = this._musicMuted ? 0 : this._musicVolume * dim;
         this._musicGain.gain.cancelScheduledValues(now);
         this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
         this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
@@ -306,6 +319,7 @@ export class SoundManager {
         const req = mem[this._ADDR_SOUND_FX_REQUEST];
         if (req !== 0) {
             mem[this._ADDR_SOUND_FX_REQUEST] = 0; // clear before play to avoid re-trigger
+            console.log(`[sound-manager] sfx ${req}`);
             this.playSfx(req);
         }
     }

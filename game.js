@@ -1615,6 +1615,7 @@ async function handleTownTransition(transition) {
         );
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townCompleteTransition?.();
+        soundManager.setMusicDim(1.0);
         const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
         if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
         console.log(`[transition] entered map ${rawMapId}`);
@@ -1737,6 +1738,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         townEntryDisablingEdgeScroll();
         townEntryRan = true;
         gameMode = 'town';
+        soundManager.setMusicDim(1.0);
         const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
@@ -1980,8 +1982,10 @@ function startIndoorScene(destId) {
         townFinishBuilding?.();
         return;
     }
+    soundManager.setMusicDim(1 / 32);
     const finishCb = () => {
         indoorActiveScene = null;
+        soundManager.setMusicDim(1.0);
         townFinishBuilding?.();
         keys.Space = false;
         lastSpace = false;
@@ -2328,6 +2332,7 @@ async function performGameRestore(saveData) {
         indoorActiveScene = null;
         townFinishBuilding?.();  // clear WASM building state (ADDR_BUILDING_ACTIVE at 0xFFFA outside save range)
     }
+    soundManager.setMusicDim(1.0);
     conversation.active = false;
     if (activeModal) closeModal();
 
