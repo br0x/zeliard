@@ -97,12 +97,12 @@ spirit             ENDS
 Refresh_Dirty_Tiles_proc                           equ 3000h
 Sample_Neighborhood_Attributes_proc                equ 3002h
 Flush_Ui_Element_If_Dirty_proc                     equ 3004h
-Render_Sword_Overlay_proc           equ 3006h
+Render_Sword_Overlay_proc                          equ 3006h
 Uncompress_And_Render_Tile_proc                    equ 3008h
 Viewport_Coords_To_Screen_Addr_proc                equ 300Ah
-Sword_Overlay_EntryPoint_proc                  equ 300Ch
-Dungeon_Static_Tile_Cached_Drawer_proc                            equ 300Eh
-Boss_Explosions_Renderer_proc                 equ 3010h
+Sword_Overlay_EntryPoint_proc                      equ 300Ch
+Dungeon_Static_Tile_Cached_Drawer_proc             equ 300Eh
+Boss_Explosions_Renderer_proc                      equ 3010h
 Render_Viewport_Tiles_proc                         equ 3012h
 Copy_Tile_Buffer_To_VRAM_proc                      equ 3014h
 Update_Local_Attribute_Cache_proc                  equ 3016h

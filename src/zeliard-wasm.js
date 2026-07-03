@@ -1309,10 +1309,6 @@ export function dungeonGetEntityCount() {
     return wasmExports?.wasm_dungeon_get_entity_count?.() ?? 0;
 }
 
-export function dungeonGetExitMap() {
-    return wasmExports?.wasm_dungeon_get_exit_map?.() ?? 0;
-}
-
 export function dungeonGetState() {
     return wasmExports?.wasm_dungeon_get_state?.() ?? 0;
 }
@@ -1323,10 +1319,6 @@ export function dungeonGetRenderRequest() {
 
 export function dungeonClearRenderRequest() {
     wasmExports?.wasm_dungeon_clear_render_request?.();
-}
-
-export function dungeonGetExitMapId() {
-    return wasmExports?.wasm_dungeon_get_exit_map_id?.() ?? dungeonGetExitMap();
 }
 
 // seg1-based offsets

@@ -255,7 +255,8 @@ const ADDR_HERO_MAX_HP   = 0xB2;
 const ADDR_FACING        = 0xC2;
 const ADDR_LEFT_RUN      = 0xC3;
 const ADDR_PLACE_MAP_ID  = 0xC4;
-const ADDR_SAGES_SPOKEN  = 0xe5;
+const ADDR_LAST_SAGE_VISITED = 0xC5;
+const ADDR_SAGES_SPOKEN  = 0xE5;
 const ADDR_HERO_ANIM_PHASE    = 0xE7;
 const ADDR_INVINCIBILITY_FLAG = 0xE8;
 
@@ -292,6 +293,7 @@ const ADDR_ROKA_PHASE = 0xFF9D;
 const ADDR_ROKA_COLOR = 0xFF9E;
 const DUNGEON_STATE_ROKA_RUN = 7;
 const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
+const ADDR_HERO_DEATH_FLAG = 0xFFE3;
 
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
 const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
@@ -395,7 +397,6 @@ let dungeonGetViewportTop;
 let dungeonGetFullMapPtr;
 let dungeonGetEntityTable;
 let dungeonGetEntityCount;
-let dungeonGetExitMap;
 let setDungeonPassableTiles;
 let setDungeonSlopeTilesLeft;
 let setDungeonSlopeTilesRight;
@@ -554,7 +555,11 @@ function onFullTick() {
                 inputUpdate?.();
                 dungeonUpdate?.();
                 if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
-                    handleDungeonExit(dungeonGetExitMap?.() ?? 1);
+                    if (readMemory(ADDR_HERO_DEATH_FLAG, 1)[0] === 0xFF) {
+                        initTownFromDungeon(readMemory(ADDR_LAST_SAGE_VISITED, 1)[0], true);
+                    } else {
+                        initTownFromDungeon(readMemory(ADDR_PLACE_MAP_ID, 1)[0], false);
+                    }
                 }
             }
         } else if (frameTmr >= target) { // town mode
@@ -1003,7 +1008,7 @@ async function loadWasmEngine() {
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
-        dungeonGetExitMap, setDungeonPassableTiles, setDungeonAggressiveGround, 
+        setDungeonPassableTiles, setDungeonAggressiveGround, 
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, dungeonGetRenderRequest, dungeonClearRenderRequest,
     } = wasmBridge);
@@ -1663,12 +1668,15 @@ async function handleDungeonTransition(mapId) {
 }
 
 let dungeonExitInProgress = false;
-async function handleDungeonExit(townMapId) {
+async function initTownFromDungeon(townMapId, isDeath) {
     if (dungeonExitInProgress) return;
     dungeonExitInProgress = true;
     engineReady = false;
     try {
         writeMemory(ADDR_DUNGEON_EXIT_FLAG, [0]);
+        if (isDeath) {
+            writeMemory(ADDR_HERO_DEATH_FLAG, [0]);
+        }
         const rawMapId = townMapId & 0x7F;
         const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
         const resp = await fetch(mdtPath);
@@ -1678,10 +1686,10 @@ async function handleDungeonExit(townMapId) {
         mdtHeader = getTownMdtHeader?.();
 
         const mapWidth = getTownMapWidth();
-        const heroXproxBytes = readMemory(ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
-        const heroXprox = heroXproxBytes[0] | (heroXproxBytes[1] << 8);
+        const xBytes = readMemory(isDeath ? ADDR_TEAR_X : ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
+        const xProx = xBytes[0] | (xBytes[1] << 8);
         if (mapWidth) {
-            const { proxLeft, heroViewX } = computeTownScrollFromAbsoluteX(heroXprox, mapWidth);
+            const { proxLeft, heroViewX } = computeTownScrollFromAbsoluteX(xProx, mapWidth);
             writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, [proxLeft & 0xFF, (proxLeft >> 8) & 0xFF]);
             writeMemory(ADDR_HERO_X_VIEW, [heroViewX]);
         }

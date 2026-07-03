@@ -12,11 +12,9 @@ uint32_t wasm_dungeon_get_full_map_ptr(void);
 uint8_t wasm_dungeon_get_viewport_top(void);
 uint16_t wasm_dungeon_get_entity_table(void);
 uint16_t wasm_dungeon_get_entity_count(void);
-uint8_t wasm_dungeon_get_exit_map(void);
 uint8_t wasm_dungeon_get_state(void);
 uint8_t wasm_dungeon_get_render_request(void);
 void wasm_dungeon_clear_render_request(void);
-uint8_t wasm_dungeon_get_exit_map_id(void);
 
 void dungeon_ai_update_monster(DungeonMonster *m, uint16_t hero_x, uint8_t hero_y);
 int dungeon_can_stand_at(uint16_t x, uint8_t y);

@@ -55,6 +55,7 @@
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
 
 #define ADDR_DUNGEON_EXIT_FLAG    0xFFE2
+#define ADDR_HERO_DEATH_FLAG      0xFFE3
 
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFC
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
@@ -753,19 +754,14 @@ void transit_to_sage()
 {
     MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
     MEM8(ADDR_PLACE_MAP_ID) = MEM8(ADDR_LAST_SAGE_VISITED);
-    // fn1_load_mdt_idx_ah (al = 1, ah = last_sage_visited)
-    // res_dispatcher_proc(1, MEM8(ADDR_LAST_SAGE_VISITED));
 
     // Set hero absolute X from tear spawn point
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = MEM16(ADDR_TEAR_X);
 
-    // Load town NPC graphics (mman_grp)
-    uint16_t si = ADDR_MDT;                // mdt_buffer
-    uint8_t mman_grp_idx = MEM8(si + 1);   // mdt_descriptor.mman_grp_idx
-    // load_resource(mman_grp_idx == 0 ? "mman.grp" : "cman.grp", 0x4000);       // load to seg1:4000h
-
-    // Transfer to town (goto town_entry_disabling_edge_scroll)
-    // transfer_to_town(0x6002);
+    // Signal game.js to load proper town MDT and init town mode near sage house
+    MEM8(ADDR_HERO_DEATH_FLAG) = 0xFF;
+    MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0xFF;
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
 }
 
 // load_place_and_reinit - Called after boss defeat to restore normal cavern state.
@@ -1765,14 +1761,12 @@ void wasm_dungeon_full_tick(void)
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_VIEWPORT_TOP_ROW); }
 uint16_t wasm_dungeon_get_entity_table(void) { return MEM16(ADDR_MDT + 0x10); }
 uint16_t wasm_dungeon_get_entity_count(void) { return dungeon_entity_count; }
-uint8_t wasm_dungeon_get_exit_map(void) { return MEM8(ADDR_PLACE_MAP_ID); }
 uint8_t wasm_dungeon_get_state(void) { return MEM8(ADDR_DUNGEON_STATE); }
 uint8_t wasm_dungeon_get_render_request(void) { return MEM8(ADDR_RENDER_REQUEST); }
 void wasm_dungeon_clear_render_request(void) {
     MEM8(ADDR_RENDER_REQUEST) = 0;
     MEM8(ADDR_RENDER_DONE) = 0xFF;
 }
-uint8_t wasm_dungeon_get_exit_map_id(void) { return wasm_dungeon_get_exit_map(); }
 
 // Checked
 int8_t set_zero_flag_if_slippery(void) {
