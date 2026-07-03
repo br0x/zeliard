@@ -1616,6 +1616,7 @@ async function handleTownTransition(transition) {
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townCompleteTransition?.();
         soundManager.setMusicDim(1.0);
+        soundManager.setSfxVolume(1.0);
         const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
         if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
         console.log(`[transition] entered map ${rawMapId}`);
@@ -1739,6 +1740,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         townEntryRan = true;
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
+        soundManager.setSfxVolume(1.0);
         const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
@@ -1983,9 +1985,11 @@ function startIndoorScene(destId) {
         return;
     }
     soundManager.setMusicDim(1 / 32);
+    soundManager.setSfxVolume(1.0);
     const finishCb = () => {
         indoorActiveScene = null;
         soundManager.setMusicDim(1.0);
+        soundManager.setSfxVolume(1.0);
         townFinishBuilding?.();
         keys.Space = false;
         lastSpace = false;
@@ -2486,6 +2490,8 @@ function draw() {
                 const fade = readU8(ADDR_DEATH_COUNTER) / 29;
                 ctx.fillStyle = `rgba(0,0,0,${fade})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                soundManager.setMusicDim(Math.max(0, 1.0 - fade), 0.1);
+                soundManager.setSfxVolume(Math.max(0, 1.0 - fade), 0.1);
             }
         }
         if (readMemory(ADDR_HEALTH_BAR_REQUEST, 1)[0]) {

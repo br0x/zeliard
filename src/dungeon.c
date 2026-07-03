@@ -750,7 +750,7 @@ static void dungeon_update_death_flash(void)
     MEM8(ADDR_HERO_ANIM_PHASE) = al;
 }
 
-static void dungeon_update_death_fade(void)
+static void dungeon_update_death_fade()
 {
     if (!dungeon_death_frame_step()) return;
 

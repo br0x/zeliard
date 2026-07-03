@@ -71,6 +71,10 @@ export class SoundManager {
         this._musicVolume   = 0.7;
         this._musicDim      = 1.0;
 
+        // SFX gain node (allows fading SFX volume independently)
+        /** @type {GainNode|null} */
+        this._sfxGain = null;
+
         // Track which SFX is currently playing (only one at a time per original)
         /** @type {AudioBufferSourceNode|null} */
         this._sfxSource = null;
@@ -115,6 +119,11 @@ export class SoundManager {
         this._musicGain = this._ctx.createGain();
         this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
         this._musicGain.connect(this._ctx.destination);
+
+        // Shared GainNode for SFX so we can fade volume independently
+        this._sfxGain = this._ctx.createGain();
+        this._sfxGain.gain.value = 1.0;
+        this._sfxGain.connect(this._ctx.destination);
 
         // Pre-load assets in parallel (non-blocking — missing files are warned)
         await Promise.all([
@@ -219,6 +228,16 @@ export class SoundManager {
         this._musicGain.gain.cancelScheduledValues(now);
         this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
         this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
+    }
+
+    /** Set SFX volume (1.0 = full, 0.0 = silent). */
+    setSfxVolume(volume, fadeDuration = 0.25) {
+        if (!this._ready || !this._sfxGain) return;
+
+        const now = this._ctx.currentTime;
+        this._sfxGain.gain.cancelScheduledValues(now);
+        this._sfxGain.gain.setValueAtTime(this._sfxGain.gain.value, now);
+        this._sfxGain.gain.linearRampToValueAtTime(volume, now + fadeDuration);
     }
 
     /**
@@ -395,7 +414,7 @@ export class SoundManager {
         }
         const source = this._ctx.createBufferSource();
         source.buffer = buffer;
-        source.connect(this._ctx.destination);
+        source.connect(this._sfxGain);
         source.start();
         source.onended = () => { this._sfxSource = null; };
         this._sfxSource = source;
