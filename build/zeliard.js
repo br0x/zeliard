@@ -902,6 +902,12 @@ var _emscripten_resize_heap = requestedSize => {
   abortOnCannotGrowMemory(requestedSize);
 };
 
+function _js_log(...args) {
+  abort("missing function: js_log");
+}
+
+_js_log.stub = true;
+
 var getCFunc = ident => {
   var func = Module["_" + ident];
   // closure exported function
@@ -1370,6 +1376,7 @@ function assignWasmExports(wasmExports) {
 var wasmImports = {
   /** @export */ alignfault,
   /** @export */ emscripten_resize_heap: _emscripten_resize_heap,
+  /** @export */ js_log: _js_log,
   /** @export */ segfault
 };
 

@@ -510,10 +510,59 @@ uint8_t Check_collision_in_direction(uint16_t m, uint8_t dir)
     return 0;
 }
 
-// stub
-uint8_t check_monster_aligned_to_hero_and_tick(uint16_t m)
+/*
+ * Returns 0 (NC, carry clear => false) when the item can be picked up,
+ * returns 1 (CF, carry set => true) when misaligned or inactive/tick fails.
+ */
+int check_monster_aligned_to_hero_and_tick(uint16_t m)
 {
-    
+    if (MEM8(ADDR_INVINCIBILITY_FLAG) != 0)
+        return 1;          /* stc; retn */
+
+    /* ---- Y alignment: check if hero_y_absolute is within 4 specific rows ---- */
+    uint8_t ah = MEM8(m+2) + 2; // .currY
+    for (int cx = 4; cx != 0; cx--) {
+        ah--;
+        ah &= 0x3F;
+        if (ah == MEM8(ADDR_HERO_Y))
+            goto x_check;
+    }
+    /* No Y match -> clear monster's active flag and return CF */
+    MEM8(m+7) &= 0x7F;        /* and [si+monster.state_flags], 7Fh */ // .state_flags
+    return 1;                      /* stc; retn */
+
+x_check:
+    /* ---- X alignment: check if hero_x_in_viewport+4 equals one of 4 offsets ---- */
+    uint8_t al = MEM8(ADDR_HERO_X_VIEW) + 4;
+    ah = MEM8(m+3) - 3; // .m_x_rel
+    for (int cx = 4; cx != 0; cx--) {
+        ah++;
+        if (ah == al)
+            goto flags_check;      /* jz loc_91D1 */
+    }
+    /* No X match -> clear active flag and return CF */
+    MEM8(m+7) &= 0x7F; // .state_flags
+    return 1;
+
+flags_check:
+    /*
+     * At this point the assembly executes:
+     *   test [si+monster.state_flags], 80h
+     *   clc
+     *   jnz loc_91D9
+     *   retn
+     */
+    if (MEM8(m+7) & 0x80) { // .state_flags
+        /* Monster is active (bit7 set) -> tick counter and throttle */
+        MEM8(m+15)++; // .counter
+        if (MEM8(m+15) & 0x07)     /* test [si+monster.counter], 111b */
+            return 1;              /* stc (jump to loc_91E3) */
+        else
+            return 0;              /* NC, retn */
+    } else {
+        /* Monster inactive (bit7 clear) -> returns NC immediately */
+        return 0;
+    }
 }
 
 // stub
@@ -2496,12 +2545,16 @@ void monsters_spawning(void) {
         if (currX == 0xFFFF) // .currX; list terminator
             return;
 
-        MEM8(m+3) = 0xFF; // .m_x_rel; not in proximity
+        MEM8(m+3) = 0xFF; // .m_x_rel; not in proximity yet, but in progress
 
         if ((currX >> 8) != 0xFF) { // else skip
             uint8_t rel_x;
             if (is_in_proximity_window(currX, &rel_x)) { // else skip
                 MEM8(m+3) = rel_x;
+                if (MEM8(ADDR_MONSTER_INDEX) == 3) {
+                    debug_printf("[monsters_spawning()] Entity %d spawning at (%d, %d) addr=0x%04X\n", 
+                        MEM8(ADDR_MONSTER_INDEX), rel_x, MEM8(m+2), m);
+                }
                 place_monster_in_proximity_and_run_ai(m);
                 currX = MEM16(m+0);
                 if ((currX >> 8) != 0xFF) {
@@ -2543,7 +2596,7 @@ void monsters_spawning(void) {
         }
 
         // advance to next monster
-        MEM8(ADDR_MONSTER_INDEX) = MEM8(ADDR_MONSTER_INDEX) + 1;
+        MEM8(ADDR_MONSTER_INDEX)++;
         m += 16;
     }
 }
@@ -2877,7 +2930,6 @@ static void default_0toF_handler(uint16_t m) {
 }
 
 
-/* --------------- place monster in proximity and run AI ------------- */
 // Places a monster in the proximity map and optionally runs its AI.
 //
 // 1. Converts currX/currY to proximity map address (coords_in_ax_to_proximity).
