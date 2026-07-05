@@ -160,7 +160,6 @@ uint8_t vram[320 * 200];
 uint8_t vram_shadow[1536];
 #define viewport_top_left_vram_offset (14*320 + 48)
 #define viewport_top_right_vram_offset (14*320 + 48 + 27 * 8)
-#define viewport_buffer_28x19 0xE900
 
 uint8_t get_random();
 static uint8_t get_from_layer2(uint8_t al);
@@ -168,14 +167,14 @@ static void render_48bytes_packed_tile(const uint8_t *si, uint8_t *di);
 static void _render_hero_3x3();
 static void decode_and_render_tile_with_blitting(uint8_t bg_tile, const uint8_t *si, const uint8_t *bp, uint8_t *di);
 static void render_nibble_compressed_tile(const uint8_t *si, uint8_t *dst);
-void Sword_Overlay_EntryPoint();
+// void Sword_Overlay_EntryPoint();
 static void render_tile_to_temp_buffer(const uint8_t *si, const uint8_t *bp, uint8_t *di);
-static void Copy4x4TilesFromScreenToShadowBuffer();
+// static void Copy4x4TilesFromScreenToShadowBuffer();
 void Clear_Tile_Cache_Around_Hero();
 void Flush_Ui_Element_If_Dirty();
 void Copy_Hero_Frame_To_VRAM();
 static void Copy_Tile_To_VRAM(uint16_t dest_off, const uint8_t *src);
-static void Blit32x32SpriteToVram();
+// static void Blit32x32SpriteToVram();
 static void Render_Hero_Sprite_To_Buf9(const uint8_t *sprite_header, uint8_t cx);
 static void choose_hero_sprite();
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx);
@@ -279,7 +278,7 @@ uint8_t Lookup_Monster_Tile_Attributes(uint8_t tile, uint16_t *frame_ptr) {
     
     uint16_t bp = ADDR_MONSTERS_LIST + cl * 16; // monster struct pointer
     
-    // each frame is 5 bytes (palette variant + 4 tile IDs)
+    // each frame is 5 bytes (palette variant + 4 tile IDs: tl, tr, bl, br)
     uint16_t offset = (MEM8(bp+6) & 0x0F) * 5; // (monster.anim_counter & 0x0F) * 5
     
     uint16_t si_base = (MEM8(bp+5) & 0x80) // monster.ai_flags bit7
@@ -287,6 +286,8 @@ uint8_t Lookup_Monster_Tile_Attributes(uint8_t tile, uint16_t *frame_ptr) {
         : ADDR_MONSTER_AI_MOVE_LEFT_FRAMES;
     
     uint8_t flags = MEM8(bp+4) & 0x1F; // monster.flags
+    // Note! In js we should create own lookup tables 
+    // to map (.anim_counter, .ai_flags bit7, and .flags) to the correct frame
     *frame_ptr = offset + MEM16(si_base + flags * 2);
     
     uint8_t al = MEM8(*frame_ptr + 0); // 1st byte = palette variant
@@ -848,75 +849,75 @@ void Render_Sword_Overlay()
 }
 
 
-void Sword_Overlay_EntryPoint()
-{
-    if (!MEM8(ADDR_SWORD_SWING_FLAG)) {
-        return; // sword sheathed
-    }
+// void Sword_Overlay_EntryPoint()
+// {
+//     if (!MEM8(ADDR_SWORD_SWING_FLAG)) {
+//         return; // sword sheathed
+//     }
 
-    MEM8(ADDR_UI_ELEMENT_DIRTY) = 0xFF;
+//     MEM8(ADDR_UI_ELEMENT_DIRTY) = 0xFF;
 
-    Clear_Tile_Cache_Around_Hero();
-    Copy4x4TilesFromScreenToShadowBuffer();//
+//     Clear_Tile_Cache_Around_Hero();
+//     Copy4x4TilesFromScreenToShadowBuffer();//
 
-    // Choose transparency colour pair
-    uint8_t sword_idx = MEM8(ADDR_SWORD_TYPE) - 1;
-    transparency_mask_bitplane_f = entity_render_tbl[sword_idx];
+//     // Choose transparency colour pair
+//     uint8_t sword_idx = MEM8(ADDR_SWORD_TYPE) - 1;
+//     transparency_mask_bitplane_f = entity_render_tbl[sword_idx];
 
-    uint16_t di_start = entity_vram_src;
-    uint8_t* si = sword_phase_src; // SWORD_ANIM_GFX_BASE + offset + (sword_movement_phase-1) * 16
+//     uint16_t di_start = entity_vram_src;
+//     uint8_t* si = sword_phase_src; // SWORD_ANIM_GFX_BASE + offset + (sword_movement_phase-1) * 16
 
-    for (int col = 0; col < 4; col++) {
-        uint16_t di = di_start;
-        for (int row = 0; row < 4; row++) {
-            uint8_t al = *si++; // one of 16 sword tile IDs
-                                // E.g. seg1:0xb000[0xd4] = 0x13
-                                // 0xce: (↓↗↓↗↓↗↓)
-                                // FF FF FF FF 
-                                // FF FF 11 FF 
-                                // FF 13 12 FF 
-                                // FF FF FF FF 
-            if (al == 0xFF) {
-                // Transparent tile, skip rendering but advance VRAM pointer
-                di += 320 * 8;
-            } else {
-                // Opaque tile: al acts as an index. Each 8x8 tile is exactly 16 bytes (2 bits per pixel).
-                uint16_t *gfx_si = (uint16_t*) &g_mem[SWORD_ANIM_GFX_BASE + al * 16];
-                uint16_t bp, dx, *p;
-                for (int line = 0; line < 8; line++) {
-                    uint16_t ax = *gfx_si++;
-                    ax = (ax >> 8) | (ax << 8);
+//     for (int col = 0; col < 4; col++) {
+//         uint16_t di = di_start;
+//         for (int row = 0; row < 4; row++) {
+//             uint8_t al = *si++; // one of 16 sword tile IDs
+//                                 // E.g. seg1:0xb000[0xd4] = 0x13
+//                                 // 0xce: (↓↗↓↗↓↗↓)
+//                                 // FF FF FF FF 
+//                                 // FF FF 11 FF 
+//                                 // FF 13 12 FF 
+//                                 // FF FF FF FF 
+//             if (al == 0xFF) {
+//                 // Transparent tile, skip rendering but advance VRAM pointer
+//                 di += 320 * 8;
+//             } else {
+//                 // Opaque tile: al acts as an index. Each 8x8 tile is exactly 16 bytes (2 bits per pixel).
+//                 uint16_t *gfx_si = (uint16_t*) &g_mem[SWORD_ANIM_GFX_BASE + al * 16];
+//                 uint16_t bp, dx, *p;
+//                 for (int line = 0; line < 8; line++) {
+//                     uint16_t ax = *gfx_si++;
+//                     ax = (ax >> 8) | (ax << 8);
                     
-                    // Process 4 groups of 4 bits per line. 
-                    // Each call consumes 4 bits from 'ax' by shifting it left.
-                    CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)&vram[di];
-                    *p = (*p & ~bp) | dx; // render 2 pixels
-                    di += 2;
+//                     // Process 4 groups of 4 bits per line. 
+//                     // Each call consumes 4 bits from 'ax' by shifting it left.
+//                     CalculateSpriteBitmask(&ax, &bp, &dx);
+//                     p = (uint16_t*)&vram[di];
+//                     *p = (*p & ~bp) | dx; // render 2 pixels
+//                     di += 2;
 
-                    CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)&vram[di];
-                    *p = (*p & ~bp) | dx; // render 2 pixels
-                    di += 2;
+//                     CalculateSpriteBitmask(&ax, &bp, &dx);
+//                     p = (uint16_t*)&vram[di];
+//                     *p = (*p & ~bp) | dx; // render 2 pixels
+//                     di += 2;
                     
-                    CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)&vram[di];
-                    *p = (*p & ~bp) | dx; // render 2 pixels
-                    di += 2;
+//                     CalculateSpriteBitmask(&ax, &bp, &dx);
+//                     p = (uint16_t*)&vram[di];
+//                     *p = (*p & ~bp) | dx; // render 2 pixels
+//                     di += 2;
                     
-                    CalculateSpriteBitmask(&ax, &bp, &dx);
-                    p = (uint16_t*)&vram[di];
-                    *p = (*p & ~bp) | dx; // render 2 pixels
-                    di += 2;
+//                     CalculateSpriteBitmask(&ax, &bp, &dx);
+//                     p = (uint16_t*)&vram[di];
+//                     *p = (*p & ~bp) | dx; // render 2 pixels
+//                     di += 2;
                     
-                    di += (320-8); // Advance to next scanline in VRAM
-                }
-            }
-        }
-        // Move to the next column (8 pixels to the right)
-        di_start += 8;
-    }
-}
+//                     di += (320-8); // Advance to next scanline in VRAM
+//                 }
+//             }
+//         }
+//         // Move to the next column (8 pixels to the right)
+//         di_start += 8;
+//     }
+// }
 
 // Checked
 void render_hero_sword(void) {
@@ -988,32 +989,32 @@ void Flush_Ui_Element_If_Dirty()
 }
 
 // All the rendering should be done in js, this is just direct translation of original
-static void Blit32x32SpriteToVram()
-{
-    // entity_vram_src and VRAM shadow at offset 64064
-    const uint8_t *src = &vram_shadow[64];   // shadow buffer
-    uint16_t dest_off = entity_vram_src;
+// static void Blit32x32SpriteToVram()
+// {
+//     // entity_vram_src and VRAM shadow at offset 64064
+//     const uint8_t *src = &vram_shadow[64];   // shadow buffer
+//     uint16_t dest_off = entity_vram_src;
 
-    for (int y = 0; y < 32; ++y) {
-        memcpy(&vram[dest_off], src, 32);
-        src += 32;
-        dest_off += 320;
-    }
-}
+//     for (int y = 0; y < 32; ++y) {
+//         memcpy(&vram[dest_off], src, 32);
+//         src += 32;
+//         dest_off += 320;
+//     }
+// }
 
 // copies 32x32 region from screen to shadow VRAM buffer
 // This should be done in js, by operating entire 4x4 tiles sprites from prepared spritesheet, and js buffers
-static void Copy4x4TilesFromScreenToShadowBuffer()
-{
-    const uint8_t *src = &vram[entity_vram_src];
-    uint8_t *dest = &vram_shadow[64]; // shadow VRAM buffer, 1024 bytes
+// static void Copy4x4TilesFromScreenToShadowBuffer()
+// {
+//     const uint8_t *src = &vram[entity_vram_src];
+//     uint8_t *dest = &vram_shadow[64]; // shadow VRAM buffer, 1024 bytes
 
-    for (int y = 0; y < 32; ++y) {
-        memcpy(dest, src, 32);
-        src += 320;
-        dest += 32;
-    }
-}
+//     for (int y = 0; y < 32; ++y) {
+//         memcpy(dest, src, 32);
+//         src += 320;
+//         dest += 32;
+//     }
+// }
 
 void Clear_Tile_Cache_Around_Hero()
 {
@@ -1049,7 +1050,7 @@ void Clear_Tile_Cache_Around_Hero()
  * 1. Segments -> flat pointers.
  *    The original code juggles ds/es/cs to reach three different things:
  *      - the game's normal data (globals defined below, e.g.
- *        viewport_buffer_28x19, tile_vram_cache, ...)
+ *        ADDR_VIEWPORT_ENTITIES, tile_vram_cache, ...)
  *      - the real VRAM / framebuffer (es = 0xA000)      -> here: VGA
  *      - a "seg1" blob holding packed/compressed tile graphics -> here: GFX
  *    I modeled the latter two as flat `uint8_t *` bases (declared extern in
@@ -1082,7 +1083,7 @@ void Clear_Tile_Cache_Around_Hero()
  *    site). I preserved every call exactly, including the ones whose
  *    result is unused, with a comment marking which is which.
  *
- * 5. Render_Tile_Neighborhood_Cell opens with `call $+3`. That instruction
+ * 5. Render_Tile_Neighborhood_Cells opens with `call $+3`. That instruction
  *    pushes a return address equal to the very next instruction (its
  *    encoded displacement is 0) and "jumps" there, so execution falls
  *    into the function body as normal - but that pushed address is still
@@ -1091,13 +1092,13 @@ void Clear_Tile_Cache_Around_Hero()
  *    own body (now with si/di/bp/dx already advanced one cell), running
  *    the whole thing a second time; only the second `retn` pops the real
  *    caller's address and actually returns. So every *single* call to
- *    Render_Tile_Neighborhood_Cell in the original renders two
+ *    Render_Tile_Neighborhood_Cells in the original renders two
  *    consecutive cells, not one - the second gated by tile_cache_dirty_
  *    flags[1] instead of [0] (and in a couple of call sites that second
  *    byte is forced to 0 beforehand, making that second cell render
  *    unconditionally). C has no equivalent of a function quietly running
  *    its own body twice via a borrowed return address, so I modeled this
- *    by writing Render_Tile_Neighborhood_Cell as a single-cell-and-
+ *    by writing Render_Tile_Neighborhood_Cells as a single-cell-and-
  *    advance helper and calling it *twice* at every site that calls it
  *    once in the original - same net effect, explicit instead of implicit.
  *
@@ -1364,19 +1365,27 @@ static void Decode_And_Render_MonsterEntity_Tile_With_Blit(uint8_t al, uint8_t a
 }
 
 /*
- * Renders one cell of a "neighborhood" of tiles used for entities and border/corner handling. 
- * *si -> nibble-compressed tile idx byte,
+ * Renders two cells of a "neighborhood" of tiles used for entities and border/corner handling. 
+ * *si -> nibble-compressed tile idx byte (overlay),
  * *di -> 6-bit packed background tile idx byte, 
  * *bp -> per-cell dirty/cache sentinel (0xFF/0xFC mean "already fresh, skip"). 
  * dx -> VRAM destination address
  * All four in/out pointers are advanced by the function before returning
  */
-static void Render_Tile_Neighborhood_Cell(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx)
+static void Render_Tile_Neighborhood_Cells(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx)
 {
     render_tile_neighborhood_cell_internal(si, di, bp, dx);
     render_tile_neighborhood_cell_internal(si, di, bp, dx);
 }
 
+/*
+ * Renders single cell of a "neighborhood" of tiles used for entities and border/corner handling. 
+ * *si -> nibble-compressed tile idx byte (overlay),
+ * *di -> 6-bit packed background tile idx byte, 
+ * *bp -> per-cell dirty/cache sentinel (0xFF/0xFC mean "already fresh, skip"). 
+ * dx -> VRAM destination address
+ * All four in/out pointers are advanced by the function before returning
+ */
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx)
 {
     if (**bp != 0xFF && **bp != 0xFC) {
@@ -1395,29 +1404,29 @@ static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, u
 
 /*
  * Handles the optional monster/entity overlay at the viewport's top-left
- * corner cell (viewport_buffer_28x19[0]). No-ops if that cell is already
+ * corner cell (ADDR_VIEWPORT_ENTITIES[0]). No-ops if that cell is already
  * marked processed (0xFF) or mid-animation (0xFC) from earlier this pass.
  */
 // Checked
 static void Render_Top_Left_Corner_Entity(uint16_t si)
 {
-    if (MEM8(viewport_buffer_28x19 + 0) == 0xFF) return;
-    if (MEM8(viewport_buffer_28x19 + 0) == 0xFC) return;
+    if (MEM8(ADDR_VIEWPORT_ENTITIES + 0) == 0xFF) return;
+    if (MEM8(ADDR_VIEWPORT_ENTITIES + 0) == 0xFC) return;
 
-    MEM8(viewport_buffer_28x19 + 0) = 0xFF;
-
-    uint8_t cl = MEM8(si); // contains a monster/entity (checked before calling this function)
-    si += (36+1); // y++, x++
-    wrap_map_from_above(&si);
-
+    MEM8(ADDR_VIEWPORT_ENTITIES + 0) = 0xFF;
+    // contains a monster/entity (checked before calling this function)
+    uint8_t cl = MEM8(si);     // ┌───┐<- overlay entity   
+    si += (36+1); // y++, x++     | ┌─┼────                
+    wrap_map_from_above(&si);  // └─┼─┘<- background entity
+                               //   |                      
     uint8_t al = MEM8(si); // background tile, possible also a monster/entity
     if (al & 0x80) {
         al = get_from_layer2(al);
     }
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
-    // si now points to the monster's frame-data
-    si += 3; // bottom right tile of the monster 2x2 sprite
+    // si now points to the overlay monster's frame-data
+    si += 3; // bottom right tile of the overlay monster 2x2 sprite
     uint8_t ah = MEM8(si);
 
     Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, viewport_top_left_vram_offset);
@@ -1425,16 +1434,21 @@ static void Render_Top_Left_Corner_Entity(uint16_t si)
 
 /*
  * Handles the optional monster/entity overlay at the viewport's top-right
- * corner cell (viewport_buffer_28x19[27]). No-ops if that cell is already
+ * corner cell (ADDR_VIEWPORT_ENTITIES[27]). No-ops if that cell is already
  * marked processed (0xFF) or mid-animation (0xFC) from earlier this pass.
  */
 // Checked
 static void Render_Top_Right_Corner_Entity(uint16_t si)
 {
-    if (MEM8(viewport_buffer_28x19 + 27) == 0xFF) return;
-    if (MEM8(viewport_buffer_28x19 + 27) == 0xFC) return;
+    if (MEM8(ADDR_VIEWPORT_ENTITIES + 27) == 0xFF) return;
+    if (MEM8(ADDR_VIEWPORT_ENTITIES + 27) == 0xFC) return;
 
-    MEM8(viewport_buffer_28x19 + 27) = 0xFF;
+    MEM8(ADDR_VIEWPORT_ENTITIES + 27) = 0xFF;
+
+    //   ┌───┐ <- overlay entity
+    // ──┼─┐ |
+    //   └─┼─┘ <- background entity
+    //     |  
 
     uint8_t cl = MEM8(si);
     si += 36;
@@ -1455,25 +1469,30 @@ static void Render_Top_Right_Corner_Entity(uint16_t si)
 
 /*
  * Renders one of the 27 regular top-row cells (columns 0..26) - and,
- * because the original's single call to Render_Tile_Neighborhood_Cell
+ * because the original's single call to Render_Tile_Neighborhood_Cells
  * actually runs that routine's body twice (see note 5 at the top of the
  * file), it *also* unconditionally renders column col+1 right alongside
- * it. `col` is also the index into viewport_buffer_28x19 (note: column 0
+ * it. `col` is also the index into ADDR_VIEWPORT_ENTITIES (note: column 0
  * overlaps with the top-left corner cell on purpose - see note 7).
  * si points to a tile with monster/entity (high bit set)
  */
 static void Render_Tile_With_Attribute_Cache(uint16_t si, int col)
 {
-    uint8_t old_value = MEM8(viewport_buffer_28x19 + col);
-    MEM8(viewport_buffer_28x19 + col) = 0xFF;
-    MEM8(viewport_buffer_28x19 + col + 1) = 0xFF;
+    uint8_t old_value = MEM8(ADDR_VIEWPORT_ENTITIES + col);
+    MEM8(ADDR_VIEWPORT_ENTITIES + col) = 0xFF;
+    MEM8(ADDR_VIEWPORT_ENTITIES + col + 1) = 0xFF;
 
     tile_cache_dirty_flags[0] = old_value;
     tile_cache_dirty_flags[1] = 0; /* forces the col+1 pass below to always render */
 
     uint16_t dest = (uint16_t)(viewport_top_left_vram_offset + col * 8);
 
-    uint8_t cl = MEM8(si);
+// ┌───┐      ┌───┐       ┌───┐ <- overlay entity
+// ├───┼──  ┌─┼───┼──   ──┼───┤
+// ├───┘    | └───┘       └───┤ <- background entity
+// |        |                 |
+
+    uint8_t cl = MEM8(si); // overlay entity
     si += 36;
     wrap_map_from_above(&si);
 
@@ -1485,10 +1504,10 @@ static void Render_Tile_With_Attribute_Cache(uint16_t si, int col)
 
     si += 2; // bottom left tile of the monster 2x2 sprite
 
-    uint8_t *nb_si = &g_mem[si];
-    uint8_t *nb_di = tile_neighborhood_buffer;
+    uint8_t *nb_si = &g_mem[si]; // 2 bottom tiles (overlay)
+    uint8_t *nb_di = tile_neighborhood_buffer; // 2 tiles (background)
     uint8_t *nb_bp = tile_cache_dirty_flags;
-    Render_Tile_Neighborhood_Cell(&nb_si, &nb_di, &nb_bp, &dest); /* column col, col+1 */
+    Render_Tile_Neighborhood_Cells(&nb_si, &nb_di, &nb_bp, &dest); /* column col, col+1 */
 }
 
 /*
@@ -1497,7 +1516,7 @@ static void Render_Tile_With_Attribute_Cache(uint16_t si, int col)
  * "dual"). 
  * `si` is the map pointer just after the entity/overlay byte was
  * read (lodsb) by the caller; Passed by value.
- * `di` is this row's column-0 cache slot in viewport_buffer_28x19.
+ * `di` is this row's column-0 cache slot in ADDR_VIEWPORT_ENTITIES.
  */
 static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
 {
@@ -1643,14 +1662,14 @@ static void Render_Tile_With_Border_Check(uint16_t si, uint8_t *di, int col)
     uint8_t *nb_bp = tile_cache_dirty_flags;
     /* Each of the original's two "calls" below doubles via the call-$+3
      * trick (see note 5 at the top of the file) into a col/col+1 pair. */
-    Render_Tile_Neighborhood_Cell(&nb_si, &nb_di, &nb_bp, &dx); /* this row, col and col+1   */
+    Render_Tile_Neighborhood_Cells(&nb_si, &nb_di, &nb_bp, &dx); /* this row, col and col+1   */
 
     if (viewport_rows_remaining == 1) {
         return;
     }
 
     dx += (320*8-16);
-    Render_Tile_Neighborhood_Cell(&nb_si, &nb_di, &nb_bp, &dx); /* row below, col and col+1  */
+    Render_Tile_Neighborhood_Cells(&nb_si, &nb_di, &nb_bp, &dx); /* row below, col and col+1  */
 
     if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_SPRITE_FLASH_FLAG)) { // boss is just defeated
         Spawn_Boss_Explosion_Ring();
@@ -1703,13 +1722,13 @@ static void Render_Tile_And_Update_Cache(uint16_t si, uint8_t *di, int col)
     }
 }
 
-/* ==========================================================================
+/* 
  * Per-cavern-level animated tile types (water, gold or magma, heat, thorns). 
  * Each is only invoked for cavern_level 5..8, dispatched by cavern_level-5 through animate_mpp58_tiles[].
- * `si` points just past the tile's overlay byte, `di` just past its
- * viewport_buffer_28x19 cache byte (both si[-1]/di[-1] are the bytes of
- * interest), matching how Process_Dirty_Tile_With_Animation calls these.
- * ========================================================================== */
+ * `si` points just past the tile's overlay byte in the proximity map, 
+ * `di` just past its viewport buffer 28x19 cache byte (both si[-1]/di[-1] are the bytes of interest), 
+ * matching how Process_Dirty_Tile_With_Animation calls these.
+ */
 
 // mpp5.grp: 0x1B↔0x1C - animated water tile
 static void Animate_Water_Cavern5(uint16_t si, uint8_t *di)
@@ -1827,12 +1846,14 @@ static const anim_func_t animate_mpp58_tiles[4] = {
 
 /*
  * Called for every cell whose underlying map byte differs from its
- * cached value in viewport_buffer_28x19 (or, for entity/overlay cells,
+ * cached value in ADDR_VIEWPORT_ENTITIES (or, for entity/overlay cells,
  * unconditionally). Routes entity cells to Render_Tile_With_Border_Check;
  * otherwise updates the tile's small redraw/animation state machine and,
  * for cavern levels 5..8, dispatches to the matching Animate_* routine.
  * `si`/`di` are positioned just past the compared bytes, 
  * `col` is the current column (0..27).
+ * si: proximity map pointer
+ * di: viewport buffer 29x18 pointer
  */
 static void Process_Dirty_Tile_With_Animation(uint16_t si, uint8_t *di, int col)
 {
@@ -1880,56 +1901,59 @@ void Refresh_Dirty_Tiles(void)
     render_counter++;
     viewport_row_vram_offset = viewport_top_left_vram_offset;
 
-    /* ---- Row 0: top-left corner, 27 regular columns, top-right corner --- */
+    /* Invisible row 0: top-left corner, 27 regular columns, top-right corner */
     uint16_t si = MEM16(ADDR_VIEWPORT_LEFT_TOP) - 36 + 3; // si points left and above of the top-left corner cell
     wrap_map_from_below(&si);
 
-    if (MEM8(si) & 0x80) {
-        Render_Top_Left_Corner_Entity(si);
-    }
+    if (MEM8(si) & 0x80) {                 // ┌───┐<- overlay entity   
+        Render_Top_Left_Corner_Entity(si); // | ┌─┼────                
+    }                                      // └─┼─┘<- background entity
+                                           //   |                      
 
     si++; // points above the viewport top cells 0..26
-    for (int col = 0; col <= 26; col++) {
-        if (MEM8(si) & 0x80) {
-            Render_Tile_With_Attribute_Cache(si, col);
-        }
+    // 27 tiles above viewport except the rightmost one
+    for (int col = 0; col <= 26; col++) {              //  ┌───┐      ┌───┐      ┌───┐ <- overlay entity
+        if (MEM8(si) & 0x80) {                         //  ├───┼──  ┌─┼───┼──  ──┼───┤
+            Render_Tile_With_Attribute_Cache(si, col); //  ├───┘    | └───┘      └───┤ <- background entity
+        }                                              //  |        |                |
         si++;
     }
 
-    if (MEM8(si) & 0x80) {
-        Render_Top_Right_Corner_Entity(si);
-    }
+    // si points above top-right corner cell //   ┌───┐ <- overlay entity
+    if (MEM8(si) & 0x80) {                   // ──┼─┐ |
+        Render_Top_Right_Corner_Entity(si);  //   └─┼─┘ <- background entity
+    }                                        //     |  
 
-    /* ---- Rows 1..18 ------------------------------------------------------ */
+    /* Rows 0..17 (actual visible rows) */
     si = MEM16(ADDR_VIEWPORT_LEFT_TOP);
-    uint8_t *di = &g_mem[viewport_buffer_28x19];
+    uint8_t *di = &g_mem[ADDR_VIEWPORT_ENTITIES];
     viewport_rows_remaining = 18;
 
     do {
         // render_hero_sword(); // removed: sword rendering is handled by js
+        // si points to proximity left, viewport top row
+        si += 3; // si points to the left of the top-left corner cell
+        uint8_t al0 = MEM8(si++);                //    ┌─┬─┬──  <- overlay entity
+        if (al0 >= 0x80) {                       //    | | |
+            Render_Tile_With_Dual_Cache(si, di); //    └─┼─┘    <- background entity
+        }                                        //      |  
 
-        si += 3;
-        uint8_t al0 = MEM8(si++);
-        if (al0 >= 0x80) {
-            Render_Tile_With_Dual_Cache(si, di);
-        }
-
-        for (int col = 0; col <= 26; col++) {
-            uint8_t map_byte = MEM8(si++);
-            uint8_t cached_byte = *di++;
-            if (map_byte != cached_byte) {
-                Process_Dirty_Tile_With_Animation(si, di, col);
+        for (int col = 0; col <= 26; col++) { //  ┌───┬──  ┌─┬───┬──  ──┬───┐ <- overlay entity
+            uint8_t map_byte = MEM8(si++);    //  |   |    | |   |      |   |
+            uint8_t cached_byte = *di++;      //  ├───┘    | └───┘      └───┤ <- background entity
+            if (map_byte != cached_byte) {    //  |        |                |
+                Process_Dirty_Tile_With_Animation(si, di, col); // process monsters and animated tiles
             }
         }
 
         /* Column 27 (last): special-cased in the original (lodsb + manual
          * compare instead of cmpsb), and entity cells here are always
          * processed regardless of whether they "changed". */
-        uint8_t al27 = MEM8(si++);
-        di++;
-        if (al27 >= 0x80) {
-            Render_Tile_And_Update_Cache(si, di, 27);
-        } else if (al27 != di[-1]) {
+        uint8_t al27 = MEM8(si++);                    // ──┬─┬─┐ <- overlay entity
+        di++;                                         //   | | |
+        if (al27 >= 0x80) { // monster/entity tile    //   └─┼─┘ <- background entity
+            Render_Tile_And_Update_Cache(si, di, 27); //     | 
+        } else if (al27 != di[-1]) { // static tile changed due to being animated
             Process_Dirty_Tile_With_Animation(si, di, 27);
         }
 
@@ -1973,15 +1997,15 @@ void Boss_Explosions_Renderer()
  
         uint8_t row = read[1];
  
-        /* Mark the 2x2 viewport_buffer_28x19 block this sprite covers as
+        /* Mark the 2x2 ADDR_VIEWPORT_ENTITIES block this sprite covers as
          * 0xFE ("mid-animation, handled specially") so the normal tile
          * redraw path leaves it alone. As in the original, this doesn't
          * bounds-check the row+1 write against the last viewport row, 
          * thats why we have 19 rows in the buffer for 28x18 viewport. */
-        MEM8(viewport_buffer_28x19 + row * 28 + col) = 0xFE;
-        MEM8(viewport_buffer_28x19 + row * 28 + col + 1) = 0xFE;
-        MEM8(viewport_buffer_28x19 + (row + 1) * 28 + col) = 0xFE;
-        MEM8(viewport_buffer_28x19 + (row + 1) * 28 + col + 1) = 0xFE;
+        MEM8(ADDR_VIEWPORT_ENTITIES + row * 28 + col) = 0xFE;
+        MEM8(ADDR_VIEWPORT_ENTITIES + row * 28 + col + 1) = 0xFE;
+        MEM8(ADDR_VIEWPORT_ENTITIES + (row + 1) * 28 + col) = 0xFE;
+        MEM8(ADDR_VIEWPORT_ENTITIES + (row + 1) * 28 + col + 1) = 0xFE;
  
         uint16_t dest = (uint16_t)(row * 320 * 8 + col * 8 + viewport_top_left_vram_offset);
  

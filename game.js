@@ -210,7 +210,7 @@ const ITEMP_MAGIC_IMAGE_PATHS = [
     'assets/images/itemp/agua_magic.png',
     'assets/images/itemp/guerra_magic.png',
 ];
-// ─── NPC sprite config ────────────────────────────────────────────────────────
+// ─── Town NPC sprite config ────────────────────────────────────────────────────────
 const NPC_SPRITE_PATHS = [
     [
         'assets/images/mman/mman0.png',   // citizen
@@ -1265,6 +1265,7 @@ function getDungeonEntities() {
     return entities;
 }
 
+// TODO: rewrite according to Refresh_Dirty_Tiles logics
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory) return;
     const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);

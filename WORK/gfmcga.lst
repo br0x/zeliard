@@ -653,7 +653,7 @@ seg000:339D                 inc     si
 seg000:339E                 inc     si
 seg000:339F                 mov     di, offset word_5014
 seg000:33A2                 mov     bp, offset byte_5010
-seg000:33A5                 call    Render_Tile_Neighborhood_Cell
+seg000:33A5                 call    Render_Tile_Neighborhood_Cells
 seg000:33A8                 pop     bx
 seg000:33A9                 pop     si
 seg000:33AA                 retn
@@ -811,11 +811,11 @@ seg000:34B2                 call    Lookup_Monster_Tile_Attributes
 seg000:34B5                 mov     di, offset word_5014
 seg000:34B8                 mov     [di], al
 seg000:34BA                 mov     bp, offset byte_5010
-seg000:34BD                 call    Render_Tile_Neighborhood_Cell
+seg000:34BD                 call    Render_Tile_Neighborhood_Cells
 seg000:34C0                 cmp     ds:byte_4FF1, 1
 seg000:34C5                 jz      short loc_34DF
 seg000:34C7                 add     dx, 9F0h
-seg000:34CB                 call    Render_Tile_Neighborhood_Cell
+seg000:34CB                 call    Render_Tile_Neighborhood_Cells
 seg000:34CE                 test    byte ptr ds:0FF34h, 0FFh
 seg000:34D3                 jz      short loc_34DF
 seg000:34D5                 test    byte ptr ds:0FF2Fh, 0FFh
@@ -908,7 +908,7 @@ seg000:356B
 seg000:356B ; =============== S U B R O U T I N E =======================================
 seg000:356B
 seg000:356B
-seg000:356B Render_Tile_Neighborhood_Cell proc near ; ...
+seg000:356B Render_Tile_Neighborhood_Cells proc near ; ...
 seg000:356B                 call    $+3
 seg000:356E                 cmp     byte ptr ds:[bp+0], 0FFh
 seg000:3573                 jz      short loc_3592
@@ -937,7 +937,7 @@ seg000:3593                 inc     di
 seg000:3594                 inc     bp
 seg000:3595                 add     dx, 8
 seg000:3598                 retn
-seg000:3598 Render_Tile_Neighborhood_Cell endp ; sp-analysis failed
+seg000:3598 Render_Tile_Neighborhood_Cells endp ; sp-analysis failed
 seg000:3598
 seg000:3599
 seg000:3599 ; =============== S U B R O U T I N E =======================================

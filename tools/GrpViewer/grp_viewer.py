@@ -984,7 +984,7 @@ def render_fman_group(data, canvas, y_offset, frame_counts=None):
 
     for group_indices in fman_groups:
         num_frames = len(group_indices) // 9
-        frames_per_row = 18
+        frames_per_row = 10
 
         for f_idx in range(num_frames):
             x0 = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap)

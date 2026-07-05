@@ -30,7 +30,7 @@ typedef struct {
 } MonsterFrame;
 
 /* ---- movement frames (ADDR_MONSTER_AI_MOVE_LEFT_FRAMES / _RIGHT_FRAMES) -- */
-
+// Each frame is 5 bytes (palette variant + 4 tile IDs: tl, tr, bl, br)
 static const MonsterFrame bat_fly_left_frames[7] = {
     { 0, 0x19, 0x1A, 0x1B, 0x1C }, /* bat idle        */
     { 0, 0x1D, 0x1E, 0x1F, 0x20 }, /* bat fly SW frame 0 */

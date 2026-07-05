@@ -622,7 +622,7 @@ Render_Tile_With_Attribute_Cache proc near
                 inc     si
                 mov     di, offset tile_neighborhood_buffer
                 mov     bp, offset tile_cache_dirty_flags
-                call    Render_Tile_Neighborhood_Cell
+                call    Render_Tile_Neighborhood_Cells
                 pop     bx
                 pop     si
                 retn
@@ -780,11 +780,11 @@ Render_Tile_With_Border_Check proc near
                 mov     di, offset tile_neighborhood_buffer
                 mov     [di], al
                 mov     bp, offset tile_cache_dirty_flags
-                call    Render_Tile_Neighborhood_Cell
+                call    Render_Tile_Neighborhood_Cells
                 cmp     ds:viewport_rows_remaining, 1
                 jz      short loc_34DF
                 add     dx, 320*8-16
-                call    Render_Tile_Neighborhood_Cell
+                call    Render_Tile_Neighborhood_Cells
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jz      short loc_34DF
                 test    byte ptr ds:sprite_flash_flag, 0FFh
@@ -878,7 +878,7 @@ Render_Tile_And_Update_Cache endp
 
 ; Calls render_tile_neighborhood_cell_internal twice, each time dx advanced by 8
 ; Output dx value is used by caller
-Render_Tile_Neighborhood_Cell proc near
+Render_Tile_Neighborhood_Cells proc near
                 call    $+3
 render_tile_neighborhood_cell_internal:
                 cmp     byte ptr ds:[bp+0], 0FFh
@@ -908,7 +908,7 @@ loc_3592:
                 inc     bp
                 add     dx, 8
                 retn
-Render_Tile_Neighborhood_Cell endp ; sp-analysis failed
+Render_Tile_Neighborhood_Cells endp ; sp-analysis failed
 
 
 ; =============== S U B R O U T I N E =======================================

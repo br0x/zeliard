@@ -3134,7 +3134,6 @@ game_loop_render_and_timing endp
 
 
 ; ===========================================================================
-; screen_flash_overlay
 ; Handles two overlay effects in the viewport buffer:
 ;   byte_9EF0 path: wide panel flash (sign display area, 18 tiles wide × byte_9EF1 rows).
 ;                   Fills viewport_buffer rows starting at row 2 with 0xFC/0xFE markers.
@@ -3146,7 +3145,7 @@ game_loop_render_and_timing endp
 screen_flash_overlay proc near
                 test    ds:byte_9EF0, 0FFh
                 jz      short loc_7242
-                mov     al, 0FCh
+                mov     al, 0FCh ; cavern signs
                 inc     ds:byte_9EEE
                 test    ds:byte_9EEE, 1Fh
                 jnz     short loc_722B
@@ -3164,7 +3163,7 @@ loc_7236:
                 push    cx
                 mov     cx, 18
                 rep stosb      ; set columns 5..22 to 0xFC/0xFE
-                add     di, 10
+                add     di, 10 ; skip to next row (28-18 = 10)
                 pop     cx
                 loop    loc_7236
 
@@ -3451,7 +3450,6 @@ render_notification_string endp
 
 
 ; ===========================================================================
-; render_cavern_signs
 ; Renders multi-line in-dungeon sign text.
 ; Input: SI → sign descriptor: [x_offset, num_lines, (x_delta, text...0xFF)...].
 ; Calls Render_Font_Glyph_proc for each character, '/' triggers newline.
@@ -3468,11 +3466,16 @@ render_cavern_signs proc near
                 mov     ds:byte_9EF1, al
                 mov     bl, 8
                 mul     bl
-                mov     bx, 1616h
-                mov     ch, 24h ; '$'
+                mov     bx, 1616h ; top = 22 = 14+8; left = 22*4 = 48+40; (row 1, col 5)
+                mov     ch, 36 ; width = 36*2 = 72px (9 tiles)
                 mov     cl, al
                 mov     al, 0FFh
-                call    cs:Draw_Bordered_Rectangle_proc
+                call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
+                                                        ; BL: top margin (y)
+                                                        ; CL: height (rows)
+                                                        ; CH: width (in 2px units)
+                                                        ; AL: 0 = fill black, non-zero = draw border
+                                                        ; ES: VRAM segment
                 pop     si
                 mov     ds:byte_9EED, 0
                 mov     ds:byte_9EEF, 0
@@ -3490,7 +3493,7 @@ loc_7446:
 
 loc_7453:        
                 lodsb
-                cmp     al, 0FFh
+                cmp     al, 0FFh ; end of string
                 jnz     short loc_7459
                 retn
 ; ---------------------------------------------------------------------------

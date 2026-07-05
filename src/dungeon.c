@@ -4220,7 +4220,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
             }
         }
 
-        // Refresh_Dirty_Tiles();
+        Refresh_Dirty_Tiles();
 
         if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
             Boss_Explosions_Renderer();
