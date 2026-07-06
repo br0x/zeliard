@@ -2496,7 +2496,7 @@ static void Print_Almas_Decimal()
 // TODO: signal js to render notification string
 void render_notification_string(uint8_t str_idx)
 {
-
+    debug_printf("[render_notification_string] idx=%d", str_idx);
 }
 
 // stub
@@ -4220,7 +4220,8 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
             }
         }
 
-        Refresh_Dirty_Tiles();
+        // Refresh_Dirty_Tiles moved to game.js
+        // JS handles tile rendering, entity overlay, and tile animation
 
         if (MEM8(ADDR_SPRITE_FLASH_FLAG) != 0) {
             Boss_Explosions_Renderer();

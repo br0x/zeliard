@@ -1039,13 +1039,24 @@ void Clear_Tile_Cache_Around_Hero()
 }
 
 /*
- * C translation of the mode 13h (320x200x256) tile-refresh routines from
- * Zeliard's MCGA graphics driver (Refresh_Dirty_Tiles and everything it
- * calls). Translated 1:1 in *behaviour*; a few purely mechanical bits were
- * cleaned up (see notes below) but nothing changes what ends up on screen.
+ * ═════════════════════════════════════════════════════════════════════════════
+ *  NOTICE: All functions below this comment have been moved to game.js.
+ *  The C code is kept for reference only — it is no longer called.
+ *  
+ *  dungeon.c no longer calls Refresh_Dirty_Tiles(). The dungeon drawing 
+ *  loop in game.js handles:
+ *    - static tile rendering  (drawDungeonTiles)
+ *    - entity overlay         (drawDungeonEntities, via enp1.png)
+ *    - tile animation         (animateDungeonTiles, for caverns 5–8)
+ *    - hero compositing       (drawDungeonHero)
+ *    - sword overlay          (drawDungeonSword)
+ *    - boss explosions        (Boss_Explosions_Renderer, kept in C for now)
+ * ═════════════════════════════════════════════════════════════════════════════
  *
- * IMPORTANT TRANSLATION NOTES / ASSUMPTIONS (please verify these against
- * your actual port before relying on this code):
+ * Original C translation of the mode 13h (320x200x256) tile-refresh routines
+ * from Zeliard's MCGA graphics driver.  Kept below as a reference / backup.
+ *
+ * IMPORTANT TRANSLATION NOTES / ASSUMPTIONS (from the original port):
  *
  * 1. Segments -> flat pointers.
  *    The original code juggles ds/es/cs to reach three different things:

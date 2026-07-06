@@ -236,6 +236,7 @@ const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL = 0x80;
+const ADDR_VIEWPORT_TOP_ROW  = 0x82;      // byte, viewport top in proximity map
 const ADDR_HERO_X_VIEW   = 0x83;
 const ADDR_HERO_HEAD_Y_VIEW = 0x84;
 const ADDR_HERO_GOLD_HI  = 0x85;
@@ -264,8 +265,14 @@ const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_TOWN_DESCRIPTOR_PTR    = 0xC000;
 const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
 const ADDR_NPC_ARRAY_PTR        = 0xC00F;
+const ADDR_MONSTERS_LIST        = 0xC010;    // word — pointer to monster table (16-byte entries)
+const ADDR_CAVERN_LEVEL         = 0xC012;
 const ADDR_TEAR_X               = 0xC013; // word
 const ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT = 0xC016;
+
+const ADDR_VIEWPORT_ENTITIES = 0xE900;    // 28*19 bytes cache buffer
+const ADDR_PROXIMITY_LAYER2  = 0xED20;    // 128 bytes layer-2 tile mapping
+
 const ADDR_FRAME_TIMER          = 0xFF1A;
 const ADDR_SPEED_CONST          = 0xFF33;
 const ADDR_SQUAT_FLAG           = 0xFF38;
@@ -1265,36 +1272,207 @@ function getDungeonEntities() {
     return entities;
 }
 
-// TODO: rewrite according to Refresh_Dirty_Tiles logics
+/*
+ * Port of Refresh_Dirty_Tiles entity overlay logic from gfmcga.c.
+ *
+ * Walks every tile in the 28×18 viewport (plus the invisible row above and the
+ * left/right edge columns) reading the proximity map.  Any cell whose byte has
+ * bit 7 set is an entity overlay — we resolve the monster type through the
+ * layer-2 table and the monsters list, then draw the corresponding enp1.png
+ * 48×48 sprite.  The ADDR_VIEWPORT_ENTITIES cache buffer (28×19) is updated
+ * with 0xFF to mark cells as processed, keeping the shared-memory state
+ * consistent with what the C side expects.
+ *
+ * Edge tiles handled:
+ *   – top-left corner      (above & left of viewport)
+ *   – top row              (27 cells above the viewport)
+ *   – top-right corner     (above & right of viewport)
+ *   – left column edge     (col −1 of each visible row)
+ *   – right column edge    (col 27 of each visible row)
+ */
 function drawDungeonEntities() {
-    if (!dungeonEntitySheetReady || !readMemory) return;
-    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
-    const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
-    const top = dungeonGetViewportTop?.() ?? 0;
+    if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
-    for (const entity of getDungeonEntities()) {
-        const screenX = (entity.x - proxLeft - DUNGEON_VIEW_LEFT_IN_PROX) * TILE_WIDTH - TILE_WIDTH / 2;
-        const screenY = (entity.y - top) * TILE_HEIGHT - TILE_HEIGHT;
-        if (screenX < -DUNGEON_ENTITY_W || screenX > VIEW_WIDTH ||
-            screenY < -DUNGEON_ENTITY_H || screenY > VIEW_ROWS * TILE_HEIGHT) {
-            continue;
-        }
+    // const proximity = getProximityMap?.();
+    // if (!proximity) return;
 
-        const sprite = Math.max(0, Math.min(76, (entity.type || 1) - 1));
-        drawSheetFrame(
-            dungeonEntitySheet,
-            sprite,
-            DUNGEON_ENTITY_W,
-            DUNGEON_ENTITY_H,
-            77,
-            screenX,
-            screenY
-        );
-    }
+    // const top        = readU8(ADDR_VIEWPORT_TOP_ROW);
+    // const leftBytes  = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
+    // const proxLeft   = leftBytes[0] | (leftBytes[1] << 8);
+    // const layer2     = readMemory(ADDR_PROXIMITY_LAYER2, 128);
+    // const mBaseBytes = readMemory(ADDR_MONSTERS_LIST, 2);
+    // const monstersBase = mBaseBytes[0] | (mBaseBytes[1] << 8);
+
+    // const proxW = PROX_COLS;           // 36
+
+    // function monsterType(proxByte) {
+    //     if (proxByte < 0x80) return 0;
+    //     const idx = layer2[proxByte & 0x7F];
+    //     if (idx === 0) return 0;
+    //     const m = readMemory(monstersBase + idx * 16, 16);
+    //     return m?.[14] ?? 0;
+    // }
+
+    // function draw(proxRow, proxCol, vRow, vCol, type) {
+    //     if (!type) return;
+    //     drawSheetFrame(
+    //         dungeonEntitySheet,
+    //         type - 1,
+    //         DUNGEON_ENTITY_W, DUNGEON_ENTITY_H, 77,
+    //         (vCol - 1) * TILE_WIDTH,
+    //         (vRow - 1) * TILE_HEIGHT,
+    //     );
+    // }
+
+    // function setCache(vpIdx) {
+    //     writeMemory(ADDR_VIEWPORT_ENTITIES + vpIdx, [0xFF]);
+    // }
+
+    // /* ── Row −1 (invisible, above the viewport) ────────────────────── */
+    // const invRow = (top - 1) & 0x3F;
+    // const left3  = proxLeft + 3;           // proximity column −1  (left edge)
+
+    // /* top-left corner cell (above & left of viewport) */
+    // const tl = proximity[invRow * proxW + left3];
+    // if (tl >= 0x80) {
+    //     setCache(0);
+    //     draw(invRow, left3, 0, 0, monsterType(tl));
+    // }
+
+    // /* 27 cells directly above the viewport (col 0 … 26) */
+    // for (let col = 0; col <= 26; col++) {
+    //     const pc = proxLeft + 4 + col;
+    //     const b = proximity[invRow * proxW + pc];
+    //     if (b >= 0x80) {
+    //         setCache(col);
+    //         draw(invRow, pc, 0, col, monsterType(b));
+    //     }
+    // }
+
+    // /* top-right corner cell (above & right of viewport) */
+    // const tr = proximity[invRow * proxW + proxLeft + 4 + 27];
+    // if (tr >= 0x80) {
+    //     setCache(27);
+    //     draw(invRow, proxLeft + 4 + 27, 0, 27, monsterType(tr));
+    // }
+
+    // /* ── Visible rows 0 … 17 ────────────────────────────────────────── */
+    // for (let row = 0; row < VIEW_ROWS; row++) {
+    //     const proxRow = (top + row) & 0x3F;
+    //     const baseIdx = row * 28;    // ADDR_VIEWPORT_ENTITIES row offset
+
+    //     /* left-column edge cell (col −1) */
+    //     const left = proximity[proxRow * proxW + left3];
+    //     if (left >= 0x80) {
+    //         setCache(baseIdx);
+    //         draw(proxRow, left3, row, 0, monsterType(left));
+    //     }
+
+    //     /* columns 0 … 26 ── entity check + dirty-track */
+    //     for (let col = 0; col <= 26; col++) {
+    //         const pc    = proxLeft + 4 + col;
+    //         const mb    = proximity[proxRow * proxW + pc];
+    //         const ci    = baseIdx + col;
+    //         const cache = readMemory(ADDR_VIEWPORT_ENTITIES + ci, 1)[0];
+
+    //         if (mb >= 0x80) {
+    //             setCache(ci);
+    //             draw(proxRow, pc, row, col, monsterType(mb));
+    //         } else if (mb !== cache) {
+    //             writeMemory(ADDR_VIEWPORT_ENTITIES + ci, [mb]);
+    //         }
+    //     }
+
+    //     /* column 27 (right edge) ── entity always renders */
+    //     const rpc   = proxLeft + 4 + 27;
+    //     const rb    = proximity[proxRow * proxW + rpc];
+    //     const rci   = baseIdx + 27;
+    //     const rch   = readMemory(ADDR_VIEWPORT_ENTITIES + rci, 1)[0];
+
+    //     if (rb >= 0x80) {
+    //         setCache(rci);
+    //         draw(proxRow, rpc, row, 27, monsterType(rb));
+    //     } else if (rb !== rch) {
+    //         writeMemory(ADDR_VIEWPORT_ENTITIES + rci, [rb]);
+    //     }
+    // }
 }
 
 function readU8(addr) {
     return readMemory?.(addr, 1)?.[0] ?? 0;
+}
+
+let dungeonRenderCounter = 0;
+
+function animateDungeonTiles() {
+    const cavernLevel = readU8(ADDR_CAVERN_LEVEL);
+    if (cavernLevel < 5 || cavernLevel > 8) return;
+
+    dungeonRenderCounter++;
+    const top = dungeonGetViewportTop?.() ?? 0;
+    const proxMap = getProximityMap?.();
+    if (!proxMap) return;
+
+    const rc = dungeonRenderCounter;
+
+    for (let row = 0; row < VIEW_ROWS; row++) {
+        const proxRow = (top + row) & 0x3F;
+        for (let col = 0; col < VIEW_COLS; col++) {
+            const idx = proxRow * PROX_COLS + col + DUNGEON_VIEW_LEFT_IN_PROX;
+            const tile = proxMap[idx];
+            if (tile === 0) continue;
+
+            if (cavernLevel === 5) {
+                if ((tile === 0x1B || tile === 0x1C) && (rc & 1)) {
+                    proxMap[idx] = tile === 0x1B ? 0x1C : 0x1B;
+                }
+            } else if (cavernLevel === 6) {
+                const al6 = tile - 0x1D;
+                if (al6 >= 6) continue;
+                if (al6 >= 4) {
+                    proxMap[idx] = ((al6 + 1) & 1) + 0x21;
+                } else {
+                    if (al6 === 0 && (Math.random() * 4 | 0) !== 0) continue;
+                    proxMap[idx] = ((al6 + 1) & 3) + 0x1D;
+                }
+            } else if (cavernLevel === 7) {
+                const al7 = (tile - 0x2C) & 0xFF;
+                if (al7 < 2) {
+                    if (!(rc & 1)) continue;
+                    proxMap[idx] = ((al7 + 1) & 1) + 0x2C;
+                    continue;
+                }
+                if (tile >= 0x3E) continue;
+                let bl;
+                switch (tile) {
+                    case 0x0E: bl = 0x33; break;
+                    case 0x0D: bl = 0x36; break;
+                    case 0x0F: bl = 0x39; break;
+                    case 0x0C: bl = 0x3C; break;
+                    case 0x10: bl = 0x3D; break;
+                    default:
+                        if (tile < 0x33) continue;
+                        const al2 = tile - 0x33;
+                        switch (al2) {
+                            case 2:  bl = 0x0E; break;
+                            case 5:  bl = 0x0D; break;
+                            case 8:  bl = 0x0F; break;
+                            case 9:  bl = 0x0C; break;
+                            case 0x0A: bl = 0x10; break;
+                            default: bl = al2 + 1 + 0x33; break;
+                        }
+                        break;
+                }
+                if (!(rc & 1)) continue;
+                proxMap[idx] = bl;
+            } else if (cavernLevel === 8) {
+                const al8 = tile - 0x25;
+                if (al8 >= 4) continue;
+                if (!(rc & 1)) continue;
+                proxMap[idx] = ((al8 + 1) & 3) + 0x25;
+            }
+        }
+    }
 }
 
 function getShieldCategory() {
@@ -2487,6 +2665,7 @@ function draw() {
             drawDungeonEntities();
             drawDungeonHero();
             drawDungeonSword();
+            animateDungeonTiles();
             if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
                 const fade = readU8(ADDR_DEATH_COUNTER) / 29;
                 ctx.fillStyle = `rgba(0,0,0,${fade})`;
