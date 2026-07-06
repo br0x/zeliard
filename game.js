@@ -1293,8 +1293,8 @@ function getDungeonEntities() {
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
-    // const proximity = getProximityMap?.();
-    // if (!proximity) return;
+    const proximity = getProximityMap?.();
+    if (!proximity) return;
 
     // const top        = readU8(ADDR_VIEWPORT_TOP_ROW);
     // const leftBytes  = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
@@ -2608,7 +2608,6 @@ async function performGameRestore(saveData) {
 // ─── Game loop ────────────────────────────────────────────────────────────────
 let lastTimestamp = 0;
 let fps = 0;
-let proximityMap = null;
 let cavernName = '';
 let mdtData = null;
 let mdtHeader = null;
@@ -2616,13 +2615,6 @@ let mdtHeader = null;
 let frameTimer  = 0;
 let tickCounter = 0;
 let animTimer   = 0;
-
-function update() {
-    if (!engineReady) return;
-    if (indoorActiveScene) return;
-    heroInteractionCheck?.();
-    proximityMap = getProximityMap?.(); // needed for drawDungeonTiles only, maybe can use MDT itself?
-}
 
 function draw() {
     if (!engineReady) { // emergency fallback
@@ -2709,7 +2701,6 @@ function loop(timestamp) {
     const dt = timestamp - lastTimestamp;
     lastTimestamp = timestamp;
     if (dt > 0) fps = Math.round(1000 / dt);
-    update(); // Check: update should be done in one of timer handlers (full tick or slow tick)
     draw();
     requestAnimationFrame(loop);
 }
