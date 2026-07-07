@@ -1364,7 +1364,7 @@ function drawDungeonEntities() {
     }
 
     function wrapMap(idx) {
-        return ((idx % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
+        return ADDR_PROXIMITY_MAP + ((idx % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
     }
 
     function getFromLayer2(entityId) {
@@ -1372,15 +1372,15 @@ function drawDungeonEntities() {
     }
 
     function getSheetFrame(entityId) {
-        const ptr = ADDR_MONSTERS_LIST + getFromLayer2(entityId) * 16;
-        const dir = readU8(ptr+5) & 0x80; // .ai_flags bit7 = monster facing direction
+        const ptr = readU16(ADDR_MONSTERS_LIST) + getFromLayer2(entityId) * 16;
+        const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
-        const offset = readU8(bp+6) & 0x0F; // .anim_counter & 0x0F
+        const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
         
-        return EAI1.dir[flags][offset];
+        return EAI1[dir][flags][offset];
     }
 
-    function drawOverlay(bgTile, ovlFrame, vpX, vpY, dx, dy) {
+    function drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy) {
         if (bgTile !== 0) {
             drawStaticTile(bgTile, vpX, vpY);
         }
@@ -1388,28 +1388,57 @@ function drawDungeonEntities() {
             dx < 0 || dy < 0 || dx >= DUNGEON_ENTITY_W || dy >= DUNGEON_ENTITY_H) return;
         const sx = ovlFrame * DUNGEON_ENTITY_W + dx;
         const sy = dy;
-        if (sx + frameW > sheet.width || sy + frameH > sheet.height) return;
+        if (sx + TILE_WIDTH >= dungeonEntitySheet.width || sy + TILE_HEIGHT >= dungeonEntitySheet.height) return;
         ctx.drawImage(dungeonEntitySheet, sx, sy, TILE_WIDTH, TILE_HEIGHT, dx, dy, TILE_WIDTH, TILE_HEIGHT);
     }
 
+    function drawOverlayTileWithCache(bgTile, ovlFrame, vpX, vpY, dx, dy) {
+        if (bgTile & 0x80) {
+            bgTile = getFromLayer2(bgTile); // original background tile
+        }
+        // draw single quadrant of the entity into (col, row) // Decode_And_Render_MonsterEntity_Tile_With_Blit
+        drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy);
+    }
+
     function renderTopLeft(si) {
-        let cache = readU8(ADDR_VIEWPORT_ENTITIES + 0);
+        const cache = readU8(ADDR_VIEWPORT_ENTITIES + 0);
         if (cache === 0xFF || cache === 0xFC) return;
         writeMemory(ADDR_VIEWPORT_ENTITIES + 0, [0xFF]);
         const cl = readU8(si);
-        si = wrapMap(si + PROX_COLS+1);
-        let al = readU8(si); // background tile, possible also a monster/entity
-        if (al & 0x80) {
-            al = getFromLayer2(al); // original background tile
-        }
         const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-        // draw bottom right quadrant of the entity into (0, 0)
-        drawOverlay(al, f, 0, 0, TILE_WIDTH, TILE_HEIGHT); // backgroundTile, frame, vX, vY, dx, dy
+        si = wrapMap(si + PROX_COLS+1);
+        // draw bottom right quadrant of the entity into (0, 0) // Decode_And_Render_MonsterEntity_Tile_With_Blit
+        drawOverlayTileWithCache(readU8(si), f, 0, 0, TILE_WIDTH, TILE_HEIGHT);
+    }
+
+    let tileCacheDirtyFlags = [0, 0, 0, 0];
+    let tileNeighborhoodBuffer = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    function renderTop(si, col) {
+        const old = readU8(ADDR_VIEWPORT_ENTITIES + col);
+        writeMemory(ADDR_VIEWPORT_ENTITIES + col, [0xFF, 0xFF]);
+        tileCacheDirtyFlags[0] = old;
+        tileCacheDirtyFlags[1] = 0; /* forces the col+1 pass below to always render */
+        const cl = readU8(si); // overlay entity
+        si = wrapMap(si + PROX_COLS);
+        tileNeighborhoodBuffer[0] = readU8(si+0);
+        tileNeighborhoodBuffer[1] = readU8(si+1);
+        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
+
+        // render 2 bottom quadrants of the entity into (col, 0):
+        // 1. bottom left quadrant
+        if (tileCacheDirtyFlags[0] != 0xFF && tileCacheDirtyFlags[0] != 0xFC) {
+            drawOverlayTileWithCache(tileNeighborhoodBuffer[0], f, col, 0, 0, TILE_HEIGHT);
+        }
+        // 2. bottom right quadrant
+        if (tileCacheDirtyFlags[1] != 0xFF && tileCacheDirtyFlags[1] != 0xFC) {
+            drawOverlayTileWithCache(tileNeighborhoodBuffer[1], f, col+1, 0, TILE_WIDTH, TILE_HEIGHT);
+        }
     }
 
     /* ── Row −1 (invisible, above the viewport) ────────────────────── */
     const invRow = (top - 1) & 0x3F;
     const left3  = proxLeft + 3;           // proximity column −1  (left edge)
+
     /* top-left corner cell (above & left of viewport) */
     let si = wrapMap(viewportLeftTop - PROX_COLS + 3);
     if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   
@@ -1420,12 +1449,11 @@ function drawDungeonEntities() {
 
     /* 27 cells directly above the viewport (col 0 … 26) */
     for (let col = 0; col <= 26; col++) {
-        const pc = proxLeft + 4 + col;
-        const b = proximity[invRow * PROX_COLS + pc];
-        if (b >= 0x80) {
-            setCache(col);
-            draw(invRow, pc, 0, col, monsterType(b));
-        }
+        if (readU8(si) & 0x80) {    //  ┌───┐      ┌───┐      ┌───┐ <- overlay entity
+            renderTop(si, col);     //  ├───┼──  ┌─┼───┼──  ──┼───┤
+        }                           //  ├───┘    | └───┘      └───┤ <- background entity
+                                    //  |0       |            26  |
+        si++;                     
     }
 
     /* top-right corner cell (above & right of viewport) */

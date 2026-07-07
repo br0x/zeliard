@@ -54,7 +54,7 @@ Refresh_Dirty_Tiles proc near
                 mov     si, ds:viewport_left_top_addr ; e894, e828
                 sub     si, 36-3  ; e894-(36-3)=e873, e828-(36-3)=e807
                 call    wrap_e000_from_below
-                xor     bx, bx
+                xor     bx, bx    ; columns counter
                 test    byte ptr [si], 80h ; [E873]=8C
                 jz      short loc_3056
                 call    Render_Top_Left_Corner_Entity
@@ -62,50 +62,45 @@ Refresh_Dirty_Tiles proc near
 loc_3056:
                 inc     si
                 mov     cx, 6
-
 loc_305A:
                 push    cx
                 test    byte ptr [si], 80h
                 jz      short loc_3063
                 call    Render_Tile_With_Attribute_Cache
-
 loc_3063:
                 inc     si
                 inc     bx
                 test    byte ptr [si], 80h
                 jz      short loc_306D
                 call    Render_Tile_With_Attribute_Cache
-
 loc_306D:
                 inc     si
                 inc     bx
                 test    byte ptr [si], 80h
                 jz      short loc_3077
                 call    Render_Tile_With_Attribute_Cache
-
 loc_3077:
                 inc     si
                 inc     bx
                 test    byte ptr [si], 80h
                 jz      short loc_3081
                 call    Render_Tile_With_Attribute_Cache
-
 loc_3081:
                 inc     si
                 inc     bx
                 pop     cx
-                loop    loc_305A
+                loop    loc_305A ; 6 times * 4 tiles = 24 tiles
+
+                ; process 3 more tiles 24...26:
                 test    byte ptr [si], 80h
                 jz      short loc_308E
                 call    Render_Tile_With_Attribute_Cache
-
 loc_308E:
                 inc     si
                 inc     bx
                 test    byte ptr [si], 80h
                 jz      short loc_3098
                 call    Render_Tile_With_Attribute_Cache
-
 loc_3098:
                 inc     si
                 inc     bx
@@ -200,7 +195,7 @@ loc_3111:
                 call    wrap_e900_from_above
                 add     ds:viewport_row_vram_offset, 320*8
                 dec     ds:viewport_rows_remaining
-                jnz     short loc_30B7
+                jnz     short loc_30B7 ; next row
                 retn
 Refresh_Dirty_Tiles endp
 
@@ -812,10 +807,10 @@ Render_Tile_And_Update_Cache proc near
                 xchg    al, [di-1]
                 mov     [bx], al
                 mov     al, 0FFh
-                xchg    al, [di+1Bh]
+                xchg    al, [di+27]
                 mov     [bx+1], al
                 mov     cl, [si-1]
-                add     si, 24h ; '$'
+                add     si, 36
                 call    wrap_e900_from_above
                 mov     dl, [si-1]
                 mov     al, cl
