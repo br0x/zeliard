@@ -1173,7 +1173,7 @@ void hero_left_16_down_1()
     uint16_t x = MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP);
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = (x < 16 ? x + MEM16(ADDR_MAP_WIDTH) : x) - 16;
     MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_DOOR_TARGET_Y) + 1 - 
-        MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT)) & 0x3F;
+        MEM8(ADDR_HERO_Y_VIEW_INIT)) & 0x3F;
 }
 
 void Render_Roca_Tilemap(uint8_t color_idx)
@@ -4691,7 +4691,7 @@ void after_run_animation()
         MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
         Clear_Viewport_proc();
         MEM8(ADDR_HERO_X_VIEW) = 12;
-        MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT);
+        MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_Y_VIEW_INIT);
         MEM8(ADDR_BYTE_9F00) = MEM8(ADDR_HERO_HEAD_Y_VIEW);
         MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
         Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 0x66);

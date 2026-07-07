@@ -41,6 +41,44 @@ const DUNGEONS = {
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
     },
 };
+
+// Frame mappings to tilesheet enp1.png
+const batFlyLeftFrames      = [0, 1, 2,  3,  4,  5,  6];
+const batFlyRightFrames     = [7, 8, 9, 10, 11, 12, 13];
+const slugWalkLeftFrames    = [14, 15, 16, 17];
+const slugWalkRightFrames   = [18, 19, 20, 21];
+const frogJumpLeftFrames    = [22, 23, 24, 25, 26, 27, 28];
+const frogJumpRightFrames   = [29, 30, 31, 32, 33, 34, 35];
+const ratRunLeftFrames      = [36, 37, 38, 39, 40, 41];
+const ratRunRightFrames     = [42, 43, 44, 45, 46, 47];
+const batDeathFrames        = [48, 49, 50];
+const slugDeathFrames       = [51, 52, 53];
+const frogDeathFrames       = [54, 55, 56];
+const ratDeathFrames        = [57, 58, 59];
+const hitFrames             = [60, 61, 62];
+const almasGlowFrames       = [63, 64, 65, 64];
+const almasGlowFramesAlt    = [66, 67, 68, 67];
+const chestFrames           = [69, 69];
+const ordinaryKeyFrames     = [70];
+const redPotionFrames       = [71];
+const bluePotionFrames      = [72];
+const wallDestructionFrames = [73, 74, 75, 76];
+const noFrames = [];   // empty slot
+// Main lookup table (matches the 32-word tables at 0xA030 and 0xA070)
+const EAI1 = {
+    left: [ // 0xA030: 32 arrays
+        batFlyLeftFrames,      slugWalkLeftFrames,    frogJumpLeftFrames, ratRunLeftFrames, noFrames,        noFrames,           noFrames,          noFrames,
+        batDeathFrames,        slugDeathFrames,       frogDeathFrames,    ratDeathFrames,   noFrames,        noFrames,           noFrames,          noFrames,
+        wallDestructionFrames, wallDestructionFrames, hitFrames,          chestFrames,      almasGlowFrames, almasGlowFramesAlt, ordinaryKeyFrames, noFrames,
+        redPotionFrames,       bluePotionFrames,      noFrames,           noFrames,         noFrames,        noFrames,           noFrames,          noFrames,
+    ],
+    right: [ // 0xA070: 32 arrays
+        batFlyRightFrames,     slugWalkRightFrames,   frogJumpRightFrames, ratRunRightFrames, noFrames,        noFrames,           noFrames,          noFrames,
+        batDeathFrames,        slugDeathFrames,       frogDeathFrames,     ratDeathFrames,    noFrames,        noFrames,           noFrames,          noFrames,
+        wallDestructionFrames, wallDestructionFrames, hitFrames,           chestFrames,       almasGlowFrames, almasGlowFramesAlt, ordinaryKeyFrames, noFrames,
+        redPotionFrames,       bluePotionFrames,      noFrames,            noFrames,          noFrames,        noFrames,           noFrames,          noFrames,
+    ],
+};
 const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
 const DUNGEON_MAGIC_SHEET_PATH = 'assets/images/magic.png';
 const DUNGEON_HERO_SHEET_PATH = 'assets/images/fman.png';
@@ -234,83 +272,88 @@ const NPC_FRAMES   = 8;           // frames per sheet
 // WASM memory addresses (mirrors town.h / town.c)
 const ADDR_SPOKE_TO_KING = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
-const ADDR_PROXIMITY_MAP_LEFT_COL = 0x80;
-const ADDR_VIEWPORT_TOP_ROW  = 0x82;      // byte, viewport top in proximity map
-const ADDR_HERO_X_VIEW   = 0x83;
-const ADDR_HERO_HEAD_Y_VIEW = 0x84;
-const ADDR_HERO_GOLD_HI  = 0x85;
-const ADDR_HERO_GOLD_LO  = 0x86;
-const ADDR_HERO_ALMAS    = 0x8b;
-const ADDR_HERO_LEVEL    = 0x8d;
-const ADDR_HERO_XP       = 0x8e;
-const ADDR_HERO_HP       = 0x90;
-const ADDR_SWORD_TYPE    = 0x92;
-const ADDR_SHIELD_TYPE   = 0x93;
-const ADDR_SHIELD_HP     = 0x94;
-const ADDR_CURR_SPELL_TYPE = 0x9d;
+const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
+const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
+const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
+const ADDR_HERO_X_VIEW               = 0x83;
+const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
+const ADDR_HERO_GOLD_HI              = 0x85;
+const ADDR_HERO_GOLD_LO              = 0x86;
+const ADDR_HERO_ALMAS                = 0x8b;
+const ADDR_HERO_LEVEL                = 0x8d;
+const ADDR_HERO_XP                   = 0x8e;
+const ADDR_HERO_HP                   = 0x90;
+const ADDR_SWORD_TYPE                = 0x92;
+const ADDR_SHIELD_TYPE               = 0x93;
+const ADDR_SHIELD_HP                 = 0x94;
+const ADDR_CURR_SPELL_TYPE           = 0x9d;
 const ADDR_SPELL_COUNTS = [
     0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
 ];
-const ADDR_HERO_MAX_HP   = 0xB2;
-const ADDR_FACING        = 0xC2;
-const ADDR_LEFT_RUN      = 0xC3;
-const ADDR_PLACE_MAP_ID  = 0xC4;
-const ADDR_LAST_SAGE_VISITED = 0xC5;
-const ADDR_SAGES_SPOKEN  = 0xE5;
+const ADDR_HERO_MAX_HP        = 0xB2;
+const ADDR_FACING             = 0xC2;
+const ADDR_LEFT_RUN           = 0xC3;
+const ADDR_PLACE_MAP_ID       = 0xC4;
+const ADDR_LAST_SAGE_VISITED  = 0xC5;
+const ADDR_SAGES_SPOKEN       = 0xE5;
 const ADDR_HERO_ANIM_PHASE    = 0xE7;
 const ADDR_INVINCIBILITY_FLAG = 0xE8;
 
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
-const ADDR_TOWN_DESCRIPTOR_PTR    = 0xC000;
-const ADDR_DUNGEON_ENTRANCE_TABLE = 0xC00B;
-const ADDR_NPC_ARRAY_PTR        = 0xC00F;
-const ADDR_MONSTERS_LIST        = 0xC010;    // word — pointer to monster table (16-byte entries)
-const ADDR_CAVERN_LEVEL         = 0xC012;
-const ADDR_TEAR_X               = 0xC013; // word
-const ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT = 0xC016;
 
-const ADDR_VIEWPORT_ENTITIES = 0xE900;    // 28*19 bytes cache buffer
-const ADDR_PROXIMITY_LAYER2  = 0xED20;    // 128 bytes layer-2 tile mapping
+const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
+const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
+const ADDR_NPC_ARRAY_PTR           = 0xC00F;
+const ADDR_MONSTERS_LIST           = 0xC010;    // word — pointer to monster table (16-byte entries)
+const ADDR_CAVERN_LEVEL            = 0xC012;
+const ADDR_TEAR_X                  = 0xC013; // word
+const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
 
-const ADDR_FRAME_TIMER          = 0xFF1A;
-const ADDR_SPEED_CONST          = 0xFF33;
-const ADDR_SQUAT_FLAG           = 0xFF38;
-const ADDR_ON_ROPE_FLAGS        = 0xFF39;
-const ADDR_HERO_HIDDEN_FLAG     = 0xFF3A;
-const ADDR_SPELL_ACTIVE_FLAG    = 0xFF3C;
-const ADDR_JUMP_PHASE_FLAGS     = 0xFF3D;
-const ADDR_BYTE_FF3E            = 0xFF3E;
-const ADDR_SHIELD_ANIM_PHASE    = 0xFF3F;
-const ADDR_SHIELD_ANIM_ACTIVE   = 0xFF40;
-const ADDR_SHIELD_VARIANT_INDEX = 0xFF41;
-const ADDR_SLOPE_DIRECTION      = 0xFF42;  // 1=right, 2=left, 0=none
-const ADDR_SWORD_SWING_FLAG     = 0xFF43;
-const ADDR_UI_ELEMENT_DIRTY     = 0xFF44;
-const ADDR_SWORD_HIT_TYPE       = 0xFF45;
-const ADDR_SWORD_MOVEMENT_PHASE = 0xFF46;
+const ADDR_PROXIMITY_MAP           = 0xE000;    // 36*64 circular buffer
+const ADDR_VIEWPORT_ENTITIES       = 0xE900;    // 28*19 bytes cache buffer
+const ADDR_PROXIMITY_LAYER2        = 0xED20;    // 128 bytes layer-2 tile mapping
 
-const ADDR_SOUND_FX_REQUEST = 0xFF75;
-const ADDR_DUNGEON_STATE = 0xFF90;
-const ADDR_DUNGEON_FRAME_PHASE = 0xFF91;
-const ADDR_HERO_SPRITE_HIDDEN = 0xFF37;
-const ADDR_DEATH_COUNTER = 0xFF95;
-const ADDR_RENDER_REQUEST = 0xFF92;
-const ADDR_RENDER_DONE = 0xFF93;
-const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
-const ADDR_ROKA_PHASE = 0xFF9D;
-const ADDR_ROKA_COLOR = 0xFF9E;
-const DUNGEON_STATE_DEATH_FADE = 4;
-const DUNGEON_STATE_ROKA_RUN = 7;
-const ADDR_DUNGEON_EXIT_FLAG = 0xFFE2;
-const ADDR_HERO_DEATH_FLAG = 0xFFE3;
+const ADDR_FRAME_TIMER             = 0xFF1A;
+const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31;  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
+const ADDR_SPEED_CONST             = 0xFF33;
+const ADDR_SQUAT_FLAG              = 0xFF38;
+const ADDR_ON_ROPE_FLAGS           = 0xFF39;
+const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
+const ADDR_SPELL_ACTIVE_FLAG       = 0xFF3C;
+const ADDR_JUMP_PHASE_FLAGS        = 0xFF3D;
+const ADDR_BYTE_FF3E               = 0xFF3E;
+const ADDR_SHIELD_ANIM_PHASE       = 0xFF3F;
+const ADDR_SHIELD_ANIM_ACTIVE      = 0xFF40;
+const ADDR_SHIELD_VARIANT_INDEX    = 0xFF41;
+const ADDR_SLOPE_DIRECTION         = 0xFF42;  // 1=right, 2=left, 0=none
+const ADDR_SWORD_SWING_FLAG        = 0xFF43;
+const ADDR_UI_ELEMENT_DIRTY        = 0xFF44;
+const ADDR_SWORD_HIT_TYPE          = 0xFF45;
+const ADDR_SWORD_MOVEMENT_PHASE    = 0xFF46;
+const ADDR_SOUND_FX_REQUEST        = 0xFF75;
+
+// Semaphores for js-wasm communication
+const ADDR_DUNGEON_STATE           = 0xFF90;
+const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
+const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
+const ADDR_DEATH_COUNTER           = 0xFF95;
+const ADDR_RENDER_REQUEST          = 0xFF92;
+const ADDR_RENDER_DONE             = 0xFF93;
+const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
+const ADDR_ROKA_PHASE              = 0xFF9D;
+const ADDR_ROKA_COLOR              = 0xFF9E;
+const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
+const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
 
 const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
-const ADDR_CONVERSATION_ACTIVE = 0xFFF5;
-const ADDR_BUILDING_ACTIVE = 0xFFFA;
-const ADDR_BUILDING_DEST_ID = 0xFFFB;
-const ADDR_PENDING_DUNGEON_MAP = 0xFFFC;
-const ADDR_PENDING_DUNGEON_FLAG = 0xFFFD;
+const ADDR_CONVERSATION_ACTIVE     = 0xFFF5;
+const ADDR_BUILDING_ACTIVE         = 0xFFFA;
+const ADDR_BUILDING_DEST_ID        = 0xFFFB;
+const ADDR_PENDING_DUNGEON_MAP     = 0xFFFC;
+const ADDR_PENDING_DUNGEON_FLAG    = 0xFFFD;
+
+const DUNGEON_STATE_DEATH_FADE = 4;
+const DUNGEON_STATE_ROKA_RUN = 7;
 
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
@@ -339,6 +382,7 @@ const HERO_FRAME_H = 72;
 const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_HEIGHT;   // row 13 → 312px
 const PROX_COLS = 36;
 const DUNGEON_MAP_HEIGHT = 64;
+const PROX_SIZE = PROX_COLS * DUNGEON_MAP_HEIGHT;
 const DUNGEON_VIEW_LEFT_IN_PROX = 4;
 const DUNGEON_ENTITY_W = 48;
 const DUNGEON_ENTITY_H = 48;
@@ -370,7 +414,6 @@ let getTownName;
 let getTownMusicTrack;
 let getTownBackgroundType;
 let getTownPatId;
-let getProximityMap;
 let inputUpdate;
 let inputSetKeys;
 let heroMovementInit;
@@ -380,7 +423,6 @@ let heroGetDirection;
 let heroGetState;
 let heroIsMoving;
 let updateHorizontalPlatforms;
-let heroInteractionCheck;
 let combatInit;
 let initBossBattle;
 let inputGetDebugCounter;
@@ -1008,9 +1050,9 @@ async function loadWasmEngine() {
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getTownMusicTrack, getTownBackgroundType,
-        getTownPatId, getProximityMap, inputUpdate, inputSetKeys,
+        getTownPatId, inputUpdate, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
-        heroGetState, heroIsMoving, updateHorizontalPlatforms, heroInteractionCheck,
+        heroGetState, heroIsMoving, updateHorizontalPlatforms,
         combatInit, initBossBattle, inputGetDebugCounter, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
@@ -1045,21 +1087,21 @@ function resetTownScrollOffsets() {
 }
 
 const scrollFloorRight8px = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX - 24 + VIEW_WIDTH) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX - 48 + VIEW_WIDTH) % VIEW_WIDTH;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX - TILE_WIDTH + VIEW_WIDTH) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX - TILE_WIDTH*2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
 const scrollFloorLeft8px = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX + 24) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX + 48) % VIEW_WIDTH;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX + TILE_WIDTH) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX + TILE_WIDTH*2) % VIEW_WIDTH;
 };
 
 const scrollCeilingRight4px = () => {
-    townCeilingOffsetX = (townCeilingOffsetX - 12 + VIEW_WIDTH) % VIEW_WIDTH;
+    townCeilingOffsetX = (townCeilingOffsetX - TILE_WIDTH/2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
 const scrollCeilingLeft4px = () => {
-    townCeilingOffsetX = (townCeilingOffsetX + 12) % VIEW_WIDTH;
+    townCeilingOffsetX = (townCeilingOffsetX + TILE_WIDTH/2) % VIEW_WIDTH;
 };
 
 // ─── Town drawing functions ───────────────────────────────────────────────────
@@ -1224,52 +1266,41 @@ function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = fr
     ctx.drawImage(sheet, sx, sy, frameW, frameH, dx, dy, dw, dh);
 }
 
+function drawStaticTile(tileId, vpX, vpY) {
+    if (tileId === 0) return;
+    const dx = vpX * TILE_WIDTH;
+    const dy = vpY * TILE_HEIGHT;
+    if (tileId >= 1 && tileId <= 25) {
+        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
+    } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
+        drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
+    }
+}
+
 function drawDungeonTiles() {
     if (!dungeonTileSheetReady || !readMemory) return false;
-    const proximity = getProximityMap?.();
-    if (!proximity) return false;
+    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
     const top = dungeonGetViewportTop?.() ?? 0;
 
     for (let row = 0; row < VIEW_ROWS; row++) {
         const proxRow = (top + row) & 0x3F;
         for (let col = 0; col < VIEW_COLS; col++) {
             const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
-            const tileId = proximity[proxRow*PROX_COLS + proxCol];
+            const tileId = proxMap[proxRow*PROX_COLS + proxCol];
             if (tileId === 0) continue;
-
-            const dx = col * TILE_WIDTH;
-            const dy = row * TILE_HEIGHT;
-            if (tileId >= 1 && tileId <= 25) {
-                drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
-            } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
-                drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
-            }
+            drawStaticTile(tileId, col, row);
         }
     }
     return true;
 }
 
-function getDungeonEntities() {
-    if (!readMemory) return [];
-    const table = dungeonGetEntityTable?.() ?? 0; // from MDT buffer
-    if (!table) return [];
-    const entities = [];
-    for (let i = 0; i < 160; i++) {
-        const base = table + i * 16;
-        const raw = readMemory(base, 16);
-        const x = raw[0] | (raw[1] << 8);
-        if (x === 0xFFFF) break;
-        entities.push({
-            x,
-            y: raw[2],
-            flags: raw[4],
-            anim: raw[6] & 3,
-            hp: raw[8],
-            type: raw[14],
-            counter: raw[15],
-        });
-    }
-    return entities;
+function readU8(addr) {
+    return readMemory?.(addr, 1)?.[0] ?? 0;
+}
+
+function readU16(addr) {
+    const mBytes = readMemory(addr, 2);
+    return mBytes[0] | (mBytes[1] << 8);
 }
 
 /*
@@ -1290,116 +1321,160 @@ function getDungeonEntities() {
  *   – left column edge     (col −1 of each visible row)
  *   – right column edge    (col 27 of each visible row)
  */
+let renderCounter = 0; // incremented every Refresh_Dirty_Tiles, used to animate tiles every odd frame
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
-    const proximity = getProximityMap?.();
-    if (!proximity) return;
+    const proximity = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
 
-    // const top        = readU8(ADDR_VIEWPORT_TOP_ROW);
-    // const leftBytes  = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
-    // const proxLeft   = leftBytes[0] | (leftBytes[1] << 8);
-    // const layer2     = readMemory(ADDR_PROXIMITY_LAYER2, 128);
-    // const mBaseBytes = readMemory(ADDR_MONSTERS_LIST, 2);
-    // const monstersBase = mBaseBytes[0] | (mBaseBytes[1] << 8);
+    const top        = readU8(ADDR_VIEWPORT_TOP_ROW);
 
-    // const proxW = PROX_COLS;           // 36
+    const leftBytes  = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
+    const proxLeft   = leftBytes[0] | (leftBytes[1] << 8);
+    
+    const layer2     = readMemory(ADDR_PROXIMITY_LAYER2, 128);
+    
+    const mBaseBytes = readMemory(ADDR_MONSTERS_LIST, 2);
+    const monstersBase = mBaseBytes[0] | (mBaseBytes[1] << 8);
 
-    // function monsterType(proxByte) {
-    //     if (proxByte < 0x80) return 0;
-    //     const idx = layer2[proxByte & 0x7F];
-    //     if (idx === 0) return 0;
-    //     const m = readMemory(monstersBase + idx * 16, 16);
-    //     return m?.[14] ?? 0;
-    // }
+    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
+    let viewportRowsRemaining = 0;
 
-    // function draw(proxRow, proxCol, vRow, vCol, type) {
-    //     if (!type) return;
-    //     drawSheetFrame(
-    //         dungeonEntitySheet,
-    //         type - 1,
-    //         DUNGEON_ENTITY_W, DUNGEON_ENTITY_H, 77,
-    //         (vCol - 1) * TILE_WIDTH,
-    //         (vRow - 1) * TILE_HEIGHT,
-    //     );
-    // }
+    function monsterType(proxByte) {
+        if (proxByte < 0x80) return 0;
+        const idx = layer2[proxByte & 0x7F];
+        if (idx === 0) return 0;
+        const m = readMemory(monstersBase + idx * 16, 16);
+        return m?.[14] ?? 0;
+    }
 
-    // function setCache(vpIdx) {
-    //     writeMemory(ADDR_VIEWPORT_ENTITIES + vpIdx, [0xFF]);
-    // }
+    function draw(proxRow, proxCol, vRow, vCol, type) {
+        if (!type) return;
+        drawSheetFrame(
+            dungeonEntitySheet,
+            type - 1,
+            DUNGEON_ENTITY_W, DUNGEON_ENTITY_H, 77,
+            (vCol - 1) * TILE_WIDTH,
+            (vRow - 1) * TILE_HEIGHT,
+        );
+    }
 
-    // /* ── Row −1 (invisible, above the viewport) ────────────────────── */
-    // const invRow = (top - 1) & 0x3F;
-    // const left3  = proxLeft + 3;           // proximity column −1  (left edge)
+    function setCache(vpIdx) {
+        writeMemory(ADDR_VIEWPORT_ENTITIES + vpIdx, [0xFF]);
+    }
 
-    // /* top-left corner cell (above & left of viewport) */
-    // const tl = proximity[invRow * proxW + left3];
-    // if (tl >= 0x80) {
-    //     setCache(0);
-    //     draw(invRow, left3, 0, 0, monsterType(tl));
-    // }
+    function wrapMap(idx) {
+        return ((idx % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
+    }
 
-    // /* 27 cells directly above the viewport (col 0 … 26) */
-    // for (let col = 0; col <= 26; col++) {
-    //     const pc = proxLeft + 4 + col;
-    //     const b = proximity[invRow * proxW + pc];
-    //     if (b >= 0x80) {
-    //         setCache(col);
-    //         draw(invRow, pc, 0, col, monsterType(b));
-    //     }
-    // }
+    function getFromLayer2(entityId) {
+        return readU8(ADDR_PROXIMITY_LAYER2 + (entityId & 0x7F));
+    }
 
-    // /* top-right corner cell (above & right of viewport) */
-    // const tr = proximity[invRow * proxW + proxLeft + 4 + 27];
-    // if (tr >= 0x80) {
-    //     setCache(27);
-    //     draw(invRow, proxLeft + 4 + 27, 0, 27, monsterType(tr));
-    // }
+    function getSheetFrame(entityId) {
+        const ptr = ADDR_MONSTERS_LIST + getFromLayer2(entityId) * 16;
+        const dir = readU8(ptr+5) & 0x80; // .ai_flags bit7 = monster facing direction
+        const flags = readU8(ptr+4) & 0x1F; // .flags
+        const offset = readU8(bp+6) & 0x0F; // .anim_counter & 0x0F
+        
+        return EAI1.dir[flags][offset];
+    }
 
-    // /* ── Visible rows 0 … 17 ────────────────────────────────────────── */
-    // for (let row = 0; row < VIEW_ROWS; row++) {
-    //     const proxRow = (top + row) & 0x3F;
-    //     const baseIdx = row * 28;    // ADDR_VIEWPORT_ENTITIES row offset
+    function drawOverlay(bgTile, ovlFrame, vpX, vpY, dx, dy) {
+        if (bgTile !== 0) {
+            drawStaticTile(bgTile, vpX, vpY);
+        }
+        if (!dungeonEntitySheet || ovlFrame < 0 || ovlFrame >= 77 || 
+            dx < 0 || dy < 0 || dx >= DUNGEON_ENTITY_W || dy >= DUNGEON_ENTITY_H) return;
+        const sx = ovlFrame * DUNGEON_ENTITY_W + dx;
+        const sy = dy;
+        if (sx + frameW > sheet.width || sy + frameH > sheet.height) return;
+        ctx.drawImage(dungeonEntitySheet, sx, sy, TILE_WIDTH, TILE_HEIGHT, dx, dy, TILE_WIDTH, TILE_HEIGHT);
+    }
 
-    //     /* left-column edge cell (col −1) */
-    //     const left = proximity[proxRow * proxW + left3];
-    //     if (left >= 0x80) {
-    //         setCache(baseIdx);
-    //         draw(proxRow, left3, row, 0, monsterType(left));
-    //     }
+    function renderTopLeft(si) {
+        let cache = readU8(ADDR_VIEWPORT_ENTITIES + 0);
+        if (cache === 0xFF || cache === 0xFC) return;
+        writeMemory(ADDR_VIEWPORT_ENTITIES + 0, [0xFF]);
+        const cl = readU8(si);
+        si = wrapMap(si + PROX_COLS+1);
+        let al = readU8(si); // background tile, possible also a monster/entity
+        if (al & 0x80) {
+            al = getFromLayer2(al); // original background tile
+        }
+        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
+        // draw bottom right quadrant of the entity into (0, 0)
+        drawOverlay(al, f, 0, 0, TILE_WIDTH, TILE_HEIGHT); // backgroundTile, frame, vX, vY, dx, dy
+    }
 
-    //     /* columns 0 … 26 ── entity check + dirty-track */
-    //     for (let col = 0; col <= 26; col++) {
-    //         const pc    = proxLeft + 4 + col;
-    //         const mb    = proximity[proxRow * proxW + pc];
-    //         const ci    = baseIdx + col;
-    //         const cache = readMemory(ADDR_VIEWPORT_ENTITIES + ci, 1)[0];
+    /* ── Row −1 (invisible, above the viewport) ────────────────────── */
+    const invRow = (top - 1) & 0x3F;
+    const left3  = proxLeft + 3;           // proximity column −1  (left edge)
+    /* top-left corner cell (above & left of viewport) */
+    let si = wrapMap(viewportLeftTop - PROX_COLS + 3);
+    if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   
+        renderTopLeft(si);      // | ┌─┼────                
+    }                           // └─┼─┘<- background entity
+                                //   | 
+    si++;                     
 
-    //         if (mb >= 0x80) {
-    //             setCache(ci);
-    //             draw(proxRow, pc, row, col, monsterType(mb));
-    //         } else if (mb !== cache) {
-    //             writeMemory(ADDR_VIEWPORT_ENTITIES + ci, [mb]);
-    //         }
-    //     }
+    /* 27 cells directly above the viewport (col 0 … 26) */
+    for (let col = 0; col <= 26; col++) {
+        const pc = proxLeft + 4 + col;
+        const b = proximity[invRow * PROX_COLS + pc];
+        if (b >= 0x80) {
+            setCache(col);
+            draw(invRow, pc, 0, col, monsterType(b));
+        }
+    }
 
-    //     /* column 27 (right edge) ── entity always renders */
-    //     const rpc   = proxLeft + 4 + 27;
-    //     const rb    = proximity[proxRow * proxW + rpc];
-    //     const rci   = baseIdx + 27;
-    //     const rch   = readMemory(ADDR_VIEWPORT_ENTITIES + rci, 1)[0];
+    /* top-right corner cell (above & right of viewport) */
+    const tr = proximity[invRow * PROX_COLS + proxLeft + 4 + 27];
+    if (tr >= 0x80) {
+        setCache(27);
+        draw(invRow, proxLeft + 4 + 27, 0, 27, monsterType(tr));
+    }
 
-    //     if (rb >= 0x80) {
-    //         setCache(rci);
-    //         draw(proxRow, rpc, row, 27, monsterType(rb));
-    //     } else if (rb !== rch) {
-    //         writeMemory(ADDR_VIEWPORT_ENTITIES + rci, [rb]);
-    //     }
-    // }
-}
+    /* ── Visible rows 0 … 17 ────────────────────────────────────────── */
+    for (let row = 0; row < VIEW_ROWS; row++) {
+        const proxRow = (top + row) & 0x3F;
+        const baseIdx = row * 28;    // ADDR_VIEWPORT_ENTITIES row offset
 
-function readU8(addr) {
-    return readMemory?.(addr, 1)?.[0] ?? 0;
+        /* left-column edge cell (col −1) */
+        const left = proximity[proxRow * PROX_COLS + left3];
+        if (left >= 0x80) {
+            setCache(baseIdx);
+            draw(proxRow, left3, row, 0, monsterType(left));
+        }
+
+        /* columns 0 … 26 ── entity check + dirty-track */
+        for (let col = 0; col <= 26; col++) {
+            const pc    = proxLeft + 4 + col;
+            const mb    = proximity[proxRow * PROX_COLS + pc];
+            const ci    = baseIdx + col;
+            const cache = readMemory(ADDR_VIEWPORT_ENTITIES + ci, 1)[0];
+
+            if (mb >= 0x80) {
+                setCache(ci);
+                draw(proxRow, pc, row, col, monsterType(mb));
+            } else if (mb !== cache) {
+                writeMemory(ADDR_VIEWPORT_ENTITIES + ci, [mb]);
+            }
+        }
+
+        /* column 27 (right edge) ── entity always renders */
+        const rpc   = proxLeft + 4 + 27;
+        const rb    = proximity[proxRow * PROX_COLS + rpc];
+        const rci   = baseIdx + 27;
+        const rch   = readMemory(ADDR_VIEWPORT_ENTITIES + rci, 1)[0];
+
+        if (rb >= 0x80) {
+            setCache(rci);
+            draw(proxRow, rpc, row, 27, monsterType(rb));
+        } else if (rb !== rch) {
+            writeMemory(ADDR_VIEWPORT_ENTITIES + rci, [rb]);
+        }
+    }
 }
 
 let dungeonRenderCounter = 0;
@@ -1410,8 +1485,7 @@ function animateDungeonTiles() {
 
     dungeonRenderCounter++;
     const top = dungeonGetViewportTop?.() ?? 0;
-    const proxMap = getProximityMap?.();
-    if (!proxMap) return;
+    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
 
     const rc = dungeonRenderCounter;
 
@@ -2645,11 +2719,8 @@ function draw() {
     } else if (gameMode === 'dungeon') {
         const dungeonState = readU8(ADDR_DUNGEON_STATE);
         if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
-            // const shouldRender = (dungeonGetRenderRequest?.() ?? readU8(ADDR_RENDER_REQUEST)) === 0xFF;
-            // if (shouldRender) {
-                drawDungeonRoka();
-                dungeonClearRenderRequest?.();
-            // }
+            drawDungeonRoka();
+            dungeonClearRenderRequest?.();
         } else {
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);

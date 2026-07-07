@@ -123,7 +123,7 @@ extern "C" {
 #define ADDR_CAVERN_LEVEL                              0xC012
 #define ADDR_TEAR_X                                    0xC013    // word
 #define ADDR_TEAR_Y                                    0xC015    // byte
-#define ADDR_HERO_HEAD_Y_IN_VIEWPORT_INITIAL_FROM_MDT  0xC016
+#define ADDR_HERO_Y_VIEW_INIT  0xC016
 #define ADDR_CAVERN_SIGNS_INFO                         0xC017    // word
 #define ADDR_PACKED_MAP_END_PTR                        0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START                          0xC01B    // Packed map offset in MDT file

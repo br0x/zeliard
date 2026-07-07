@@ -600,19 +600,6 @@ export function getMonsterBuffer() {
 }
 
 /**
- * Get proximity map (0xE000)
- * @returns {Uint8Array} View of proximity map (36x64 = 2304 bytes)
- */
-export function getProximityMap() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return null;
-    }
-
-    return new Uint8Array(wasmMemory.buffer, gMemoryBase + ADDR_PROXIMITY_MAP, 36 * 64);
-}
-
-/**
  * Get save data
  * @returns {object} Save data structure
  */
@@ -1105,21 +1092,6 @@ export function updateHorizontalPlatforms() {
 
     if (wasmExports.update_horizontal_platforms) {
         wasmExports.update_horizontal_platforms();
-    }
-}
-
-/**
- * Hero interaction check
- * Called every rAF frame to check for door/item interactions
- */
-export function heroInteractionCheck() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.hero_interaction_check) {
-        wasmExports.hero_interaction_check();
     }
 }
 

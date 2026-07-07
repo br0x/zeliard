@@ -576,9 +576,9 @@ loc_3336:
                 call    get_from_layer2
 loc_334E:
                 push    ax     ; 0
-                mov     al, cl ; 8C
-                call    Lookup_Monster_Tile_Attributes
-                add     si, 3  ; A11A+3=A11D (slug_walk_right_frames[phase3].SouthEast)
+                    mov     al, cl ; 8C = slug  0C
+                    call    Lookup_Monster_Tile_Attributes
+                    add     si, 3  ; A11A+3=A11D (slug_walk_right_frames[phase3].SouthEast)
                 pop     ax     ; al=0 (empty background)
                 mov     ah, [si] ; monster/entity tile
                 mov     dx, viewport_top_left_vram_offset
@@ -1185,7 +1185,7 @@ Lookup_Monster_Tile_Attributes proc near
                 test    byte ptr ds:[bp+5], 80h ; monster.ai_flags
                 jnz     short loc_3703
                 mov     si, offset monster_ai_move_left_frames
-                ; si = base
+                ; si = base; left and right tables offsets differ by 64 bytes, so 32 flags entries fit exactly
 loc_3703:
                 mov     bl, ds:[bp+4]   ; monster.flags
                 and     bl, 1Fh

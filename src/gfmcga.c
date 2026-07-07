@@ -279,20 +279,20 @@ uint8_t Lookup_Monster_Tile_Attributes(uint8_t tile, uint16_t *frame_ptr) {
     uint16_t bp = ADDR_MONSTERS_LIST + cl * 16; // monster struct pointer
     
     // each frame is 5 bytes (palette variant + 4 tile IDs: tl, tr, bl, br)
-    uint16_t offset = (MEM8(bp+6) & 0x0F) * 5; // (monster.anim_counter & 0x0F) * 5
+    uint16_t offset = (MEM8(bp+6) & 0x0F) * 5; // (.anim_counter & 0x0F) * 5
     
-    uint16_t si_base = (MEM8(bp+5) & 0x80) // monster.ai_flags bit7
+    uint16_t si_base = (MEM8(bp+5) & 0x80) // .ai_flags bit7 = monster facing direction
         ? ADDR_MONSTER_AI_MOVE_RIGHT_FRAMES 
         : ADDR_MONSTER_AI_MOVE_LEFT_FRAMES;
     
-    uint8_t flags = MEM8(bp+4) & 0x1F; // monster.flags
+    uint8_t flags = MEM8(bp+4) & 0x1F; // .flags
     // Note! In js we should create own lookup tables 
     // to map (.anim_counter, .ai_flags bit7, and .flags) to the correct frame
     *frame_ptr = offset + MEM16(si_base + flags * 2);
     
     uint8_t al = MEM8(*frame_ptr + 0); // 1st byte = palette variant
     
-    if (!MEM8(ADDR_IS_BOSS_CAVERN) && (MEM8(bp+5) & 0x20)) {
+    if (!MEM8(ADDR_IS_BOSS_CAVERN) && (MEM8(bp+5) & 0x20)) { // .ai_flags
         al += 3;
     }
     
@@ -1060,15 +1060,13 @@ void Clear_Tile_Cache_Around_Hero()
  *
  * 1. Segments -> flat pointers.
  *    The original code juggles ds/es/cs to reach three different things:
- *      - the game's normal data (globals defined below, e.g.
- *        ADDR_VIEWPORT_ENTITIES, tile_vram_cache, ...)
+ *      - the game's normal data 
  *      - the real VRAM / framebuffer (es = 0xA000)      -> here: VGA
  *      - a "seg1" blob holding packed/compressed tile graphics -> here: GFX
  *    I modeled the latter two as flat `uint8_t *` bases (declared extern in
  *    zeliard_tiles.h) and turned every "es:0xA000+off" / "ds:seg1+off" into
- *    "VGA + off" / "GFX + off". All addresses/offsets that were 16-bit
- *    words in the original (DX, the tile_vram_cache entries, ...) are kept
- *    as uint16_t so the same wraparound arithmetic still applies.
+ *    "VGA + off" / "GFX + off". All addresses/offsets that were 16-bit words in the original, 
+ *    are kept as uint16_t so the same wraparound arithmetic still applies.
  *
  * 2. vram_shadow_addr -> vram_shadow.
  *    The original composes a tile (background + optional sprite blit) into
@@ -1128,7 +1126,7 @@ void Clear_Tile_Cache_Around_Hero()
 
 
 uint8_t  hero_tile_row_idx;
-uint8_t  render_counter;
+uint8_t  render_counter; // incremented every Refresh_Dirty_Tiles, used to animate tiles every odd frame
 uint16_t viewport_row_vram_offset;
 
 /* See note 3 above. */
@@ -1212,7 +1210,7 @@ static void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx)
         return;
     }
 
-    if (tile_vram_cache[al] != 0) {
+    if (tile_vram_cache[al] != 0) { // tile was already decoded and cached
         uint8_t *si = tile_vram_cache[al];
         copy_8x8_within_vram(si, di);
         return;
@@ -1432,7 +1430,7 @@ static void Render_Top_Left_Corner_Entity(uint16_t si)
                                //   |                      
     uint8_t al = MEM8(si); // background tile, possible also a monster/entity
     if (al & 0x80) {
-        al = get_from_layer2(al);
+        al = get_from_layer2(al); // original background tile
     }
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
@@ -1907,6 +1905,7 @@ static void Process_Dirty_Tile_With_Animation(uint16_t si, uint8_t *di, int col)
 void Refresh_Dirty_Tiles(void)
 {
     /* Mark every tile-vram cache slot as "not drawn anywhere this pass". */
+    // Not needed in js, since we have already decoded gfx as pngs.
     memset(tile_vram_cache, 0, sizeof(tile_vram_cache));
 
     render_counter++;
