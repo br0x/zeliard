@@ -3420,27 +3420,31 @@ is_tile_safe_to_stay endp
 
 
 ; ===========================================================================
-; render_notification_string
 ; Displays a short pickup/event notification in the centre of the screen.
 ; Input: DX → pointer to a Pascal-like length-prefixed string.
 ; Draws a bordered rectangle, then renders the text.
 ; Sets byte_9EEF=0xFF to trigger the 2-row flash overlay for 0x1F ticks.
 ; ===========================================================================
-render_notification_string proc near    ; ...
+render_notification_string proc near
                 push    si
                 push    dx
-                mov     bx, 0E1Eh
-                mov     cx, 3410h
-                mov     al, 0FFh
-                call    cs:Draw_Bordered_Rectangle_proc
-                mov     ds:byte_9EED, 0
-                mov     ds:byte_9EEF, 0FFh
-                mov     ds:byte_9EEE, 0FFh
+                    mov     bx, 0E1Eh
+                    mov     cx, 3410h
+                    mov     al, 0FFh
+                    call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
+                                                            ; BL: top margin (y)
+                                                            ; CL: height (rows)
+                                                            ; CH: width (in 2px units)
+                                                            ; AL: 0 = fill black, non-zero = draw border
+                                                            ; ES: VRAM segment
+                    mov     ds:byte_9EED, 0
+                    mov     ds:byte_9EEF, 0FFh
+                    mov     ds:byte_9EEE, 0FFh
                 pop     si
-                lodsw
-                add     ax, 3Ah ; ':'
+                lodsw          ; x offset
+                add     ax, 58
                 mov     bx, ax
-                mov     cl, 22h ; '"'
+                mov     cl, 34
                 call    cs:Render_String_FF_Terminated_proc ; BX: starting x coord
                                         ; CL: starting y coord
                                         ; SI: string pointer

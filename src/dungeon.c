@@ -60,6 +60,9 @@
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFC
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
 
+#define ADDR_NOTIFICATION_MSG_ID  0xFF96
+#define ADDR_NOTIFICATION_FLAG    0xFF97
+
 
 #define PROX_COLS                36
 #define DUNGEON_HEIGHT           64
@@ -2492,11 +2495,11 @@ static void Print_Almas_Decimal()
 {
 }
 
-//stub
-// TODO: signal js to render notification string
 void render_notification_string(uint8_t str_idx)
 {
     debug_printf("[render_notification_string] idx=%d", str_idx);
+    MEM8(ADDR_NOTIFICATION_MSG_ID) = str_idx;
+    MEM8(ADDR_NOTIFICATION_FLAG) = 0xFF;
 }
 
 // stub

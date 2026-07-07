@@ -46,22 +46,23 @@ extern "C" {
 // String IDs to render by js
 #define YOU_GET_50_GOLD_STR         1
 #define YOU_GET_100_GOLD_STR        2
-#define NOTHING_IN_THE_BOX_STR      3
-#define YOU_GET_500_GOLD_STR        4
-#define YOU_GET_1000_GOLD_STR       5
-#define YOU_GET_GLORY_CREST_STR     6
-#define GET_ENCHANTMENT_SWORD_STR   7
-#define YOU_GET_KEY_STR             8
-#define GET_LIONS_HEAD_KEY_STR      9
-#define YOU_HAVE_RECOVERED_STR      10
-#define YOU_HAVE_RECOVERED_FULL_STR 11
-#define GET_HEROS_CREST_STR         12
-#define GET_FERUZA_SHOES_STR        13
-#define GET_RUZERIA_SHOES_STR       14
-#define GET_PIRIKA_SHOES_STR        15
+#define YOU_GET_500_GOLD_STR        3
+#define YOU_GET_1000_GOLD_STR       4
+#define YOU_GET_KEY_STR             5
+#define YOU_HAVE_RECOVERED_STR      6
+#define YOU_HAVE_RECOVERED_FULL_STR 7
+#define SHIELD_BROKEN_STR           8
+#define CANT_OPEN_THIS_DOOR_STR     9
+#define NOTHING_IN_THE_BOX_STR      10
+#define GET_HEROS_CREST_STR         11
+#define GET_RUZERIA_SHOES_STR       12
+#define YOU_GET_GLORY_CREST_STR     13
+#define GET_PIRIKA_SHOES_STR        14
+#define GET_FERUZA_SHOES_STR        15
 #define GET_SILKARN_SHOES_STR       16
-#define ITS_TOO_HOT_STR             17
-#define CANT_OPEN_THIS_DOOR_STR     18
+#define GET_ENCHANTMENT_SWORD_STR   17
+#define ITS_TOO_HOT_STR             18
+#define GET_LIONS_HEAD_KEY_STR      19
 
 #define SWORD_ENCHANTMENT           6
 

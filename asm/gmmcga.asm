@@ -1325,19 +1325,19 @@ Render_Font_Glyph proc near
                 push    cs
                 pop     ds
                 push    bx
-                xor     bx, bx
-                mov     bl, ah
-                mov     ah, ds:mul9[bx]
-                test    byte ptr cs:font_highlight_flag, 0FFh
-                jz      short loc_2809
-                mov     ah, bl
-                add     ah, ah
-                add     ah, ah
-                add     ah, ah
-                add     ah, ah
-                or      ah, bl
+                    xor     bx, bx
+                    mov     bl, ah
+                    mov     ah, ds:mul9[bx]
+                    test    byte ptr cs:font_highlight_flag, 0FFh
+                    jz      short loc_2809
+                    mov     ah, bl
+                    add     ah, ah
+                    add     ah, ah
+                    add     ah, ah
+                    add     ah, ah
+                    or      ah, bl
 loc_2809:
-                mov     ds:primary_color, ah
+                    mov     ds:primary_color, ah
                 pop     bx
                 xor     ah, ah
                 sub     al, 20h ; ' '
@@ -1346,15 +1346,15 @@ loc_2809:
                 add     ax, ax          ; glyphId*8
                 add     ax, word ptr ds:bold_font_8x8
                 push    ax
-                mov     al, bl
-                and     al, 3
-                add     al, al
-                mov     ds:shadow_color, al
-                mov     ax, 320
-                xor     ch, ch
-                mul     cx
-                add     ax, bx
-                mov     di, ax
+                    mov     al, bl
+                    and     al, 3
+                    add     al, al
+                    mov     ds:shadow_color, al
+                    mov     ax, 320
+                    xor     ch, ch
+                    mul     cx
+                    add     ax, bx
+                    mov     di, ax
                 pop     si
                 mov     ax, 0A000h
                 mov     es, ax
@@ -1566,7 +1566,7 @@ loc_293A:
                 pop     si
                 pop     bx
                 pop     cx
-                add     bx, 8
+                add     bx, 8  ; 8 px font width
                 jmp     short loc_2934
 ; ---------------------------------------------------------------------------
 

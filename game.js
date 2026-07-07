@@ -41,6 +41,27 @@ const DUNGEONS = {
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
     },
 };
+const NOTIFICATION_STRINGS = {
+    1:  [38, "You get 50 golds."],
+    2:  [34, "You get 100 golds."],
+    3:  [34, "You get 500 golds."],
+    4:  [30, "You get 1000 golds."],
+    5:  [50, "You get a Key."],
+    6:  [28, "You have recovered."],
+    7:  [8,  "You have recovered full."],
+    8:  [60, "Shield broken."],
+    9:  [20, "Can't open this door."],
+    10: [28, "Nothing in the box."],
+    11: [6,  "You get the Hero's Crest."],
+    12: [0,  "You get the Ruzeria shoes."],
+    13: [8,  "You get the Glory Crest."],
+    14: [6,  "You get the Pirika shoes."],
+    15: [6,  "You get the Feruza shoes."],
+    16: [0,  "You get the Silkarn shoes."],
+    17: [0,  "Get the Enchantment sword."],
+    18: [48, "It's too hot !!"],
+    19: [8,  "Get the lion's head Key."],
+};
 
 // Frame mappings to tilesheet enp1.png
 const batFlyLeftFrames      = [0, 1, 2,  3,  4,  5,  6];
@@ -316,6 +337,7 @@ const ADDR_PROXIMITY_LAYER2        = 0xED20;    // 128 bytes layer-2 tile mappin
 const ADDR_FRAME_TIMER             = 0xFF1A;
 const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31;  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 const ADDR_SPEED_CONST             = 0xFF33;
+const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
 const ADDR_SQUAT_FLAG              = 0xFF38;
 const ADDR_ON_ROPE_FLAGS           = 0xFF39;
 const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
@@ -335,10 +357,11 @@ const ADDR_SOUND_FX_REQUEST        = 0xFF75;
 // Semaphores for js-wasm communication
 const ADDR_DUNGEON_STATE           = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
-const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
-const ADDR_DEATH_COUNTER           = 0xFF95;
 const ADDR_RENDER_REQUEST          = 0xFF92;
 const ADDR_RENDER_DONE             = 0xFF93;
+const ADDR_DEATH_COUNTER           = 0xFF95;
+const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
+const ADDR_NOTIFICATION_FLAG       = 0xFF97;
 const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
 const ADDR_ROKA_PHASE              = 0xFF9D;
 const ADDR_ROKA_COLOR              = 0xFF9E;
@@ -1435,7 +1458,18 @@ function drawDungeonEntities() {
         }
     }
 
-    /* ── Row −1 (invisible, above the viewport) ────────────────────── */
+    function renderTopRight(si) {
+        const cache = readU8(ADDR_VIEWPORT_ENTITIES + 27);
+        if (cache === 0xFF || cache === 0xFC) return;
+        writeMemory(ADDR_VIEWPORT_ENTITIES + 27, [0xFF]);
+        const cl = readU8(si);
+        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
+        si = wrapMap(si + PROX_COLS); // tile at (27, 0)
+        // draw bottom left quadrant of the entity into (0, 0) // Decode_And_Render_MonsterEntity_Tile_With_Blit
+        drawOverlayTileWithCache(readU8(si), f, 27, 0, 0, TILE_HEIGHT);
+    }
+
+    /* Row -1 (invisible, above the viewport) */
     const invRow = (top - 1) & 0x3F;
     const left3  = proxLeft + 3;           // proximity column −1  (left edge)
 
@@ -1444,7 +1478,7 @@ function drawDungeonEntities() {
     if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   
         renderTopLeft(si);      // | ┌─┼────                
     }                           // └─┼─┘<- background entity
-                                //   | 
+                                //   |0
     si++;                     
 
     /* 27 cells directly above the viewport (col 0 … 26) */
@@ -1456,14 +1490,13 @@ function drawDungeonEntities() {
         si++;                     
     }
 
-    /* top-right corner cell (above & right of viewport) */
-    const tr = proximity[invRow * PROX_COLS + proxLeft + 4 + 27];
-    if (tr >= 0x80) {
-        setCache(27);
-        draw(invRow, proxLeft + 4 + 27, 0, 27, monsterType(tr));
-    }
+    /* top-right corner cell (above the viewport col 27) */
+    if (readU8(si) & 0x80) {    //   ┌───┐ <- overlay entity
+        renderTopRight(si);     // ──┼─┐ |
+    }                           //   └─┼─┘ <- background entity
+                                //   27|  
 
-    /* ── Visible rows 0 … 17 ────────────────────────────────────────── */
+    /* Visible rows 0 … 17 */
     for (let row = 0; row < VIEW_ROWS; row++) {
         const proxRow = (top + row) & 0x3F;
         const baseIdx = row * 28;    // ADDR_VIEWPORT_ENTITIES row offset
@@ -1781,6 +1814,51 @@ function drawDungeonSword() {
         dx,
         dy
     );
+}
+
+let notificationStart = 0;
+const NOTIFICATION_DURATION = 2500;
+
+function drawDungeonNotification() {
+    const flag = readU8(ADDR_NOTIFICATION_FLAG);
+    if (!flag) {
+        notificationStart = 0;
+        return;
+    }
+
+    const now = performance.now();
+    if (!notificationStart) {
+        notificationStart = now;
+    }
+
+    const elapsed = now - notificationStart;
+    if (elapsed >= NOTIFICATION_DURATION) {
+        writeMemory(ADDR_NOTIFICATION_FLAG, [0]);
+        notificationStart = 0;
+        return;
+    }
+
+    const msgId = readU8(ADDR_NOTIFICATION_MSG_ID);
+    const [leftPad, text] = NOTIFICATION_STRINGS[msgId];
+    const x = 24;
+    const y = 48;
+    const w = 624;
+    const h = 48;
+
+    ctx.save();
+    const r = 8;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.font = '24px "Press Start 2P", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + leftPad*3, y + h / 2);
+    ctx.restore();
 }
 
 let prevRokaDx = -1;
@@ -2756,6 +2834,7 @@ function draw() {
             drawDungeonEntities();
             drawDungeonHero();
             drawDungeonSword();
+            drawDungeonNotification();
             animateDungeonTiles();
             if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
                 const fade = readU8(ADDR_DEATH_COUNTER) / 29;

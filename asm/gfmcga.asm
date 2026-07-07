@@ -628,19 +628,19 @@ Render_Tile_With_Attribute_Cache endp
 
 
 Render_Top_Right_Corner_Entity proc near
-                cmp     byte ptr ds:[viewport_buffer_28x19+1Bh], 0FFh
+                cmp     byte ptr ds:[viewport_buffer_28x19+27], 0FFh
                 jnz     short loc_33B3
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_33B3:
-                cmp     byte ptr ds:[viewport_buffer_28x19+1Bh], 0FCh
+                cmp     byte ptr ds:[viewport_buffer_28x19+27], 0FCh
                 jnz     short loc_33BB
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_33BB:
-                mov     byte ptr ds:[viewport_buffer_28x19+1Bh], 0FFh
+                mov     byte ptr ds:[viewport_buffer_28x19+27], 0FFh
                 mov     cl, [si]
                 add     si, 24h ; '$'
                 call    wrap_e900_from_above
@@ -653,7 +653,7 @@ loc_33D1:
                 push    ax
                 mov     al, cl
                 call    Lookup_Monster_Tile_Attributes
-                add     si, 2
+                add     si, 2 ; bottom left quadrant of monster/entity
                 pop     ax
                 mov     ah, [si]
                 mov     dx, 14*320+48+27*8 ; points to vieport right column in VRAM
