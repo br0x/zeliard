@@ -1544,12 +1544,12 @@ static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
 
     Lookup_Monster_Tile_Attributes(cl, &si); /* side effect only; result unused here */
 
-    si++;
+    si++; // top right quadrant
 
     uint16_t dx = (uint16_t)(0 * 8 + viewport_row_vram_offset); /* column 0 */
 
     if (tile_cache_dirty_flags[0] != 0xFF && tile_cache_dirty_flags[0] != 0xFC) {
-        uint8_t ah = MEM8(si+0);
+        uint8_t ah = MEM8(si+0); // overlay tile from top right quadrant
         uint8_t al = bl;
         if (al >= 0x80) al = get_from_layer2(al);
         Decode_And_Render_MonsterEntity_Tile_With_Blit(al, ah, dx);
@@ -1560,7 +1560,7 @@ static void Render_Tile_With_Dual_Cache(uint16_t si, uint8_t *di)
     if (viewport_rows_remaining != 1 &&
         tile_cache_dirty_flags[1] != 0xFF && tile_cache_dirty_flags[1] != 0xFC) {
         si += 2;
-        uint8_t ah = MEM8(si+0);
+        uint8_t ah = MEM8(si+0); // overlay tile from bottom right quadrant
         si++;
         uint8_t al = bh;
         if (al >= 0x80) al = get_from_layer2(al);

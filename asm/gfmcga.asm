@@ -674,16 +674,16 @@ Render_Tile_With_Dual_Cache proc near
                 xchg    al, [di]
                 mov     [bx], al
                 mov     al, 0FFh
-                xchg    al, [di+1Ch]
+                xchg    al, [di+28]
                 mov     [bx+1], al
                 mov     cl, [si-1]
                 mov     dl, [si]
-                add     si, 24h ; '$'
+                add     si, 36
                 call    wrap_e900_from_above
                 mov     dh, [si]
                 mov     al, cl
                 call    Lookup_Monster_Tile_Attributes
-                inc     si
+                inc     si ; top right quadrant
                 mov     bx, dx
                 pop     dx
                 add     dx, dx
@@ -694,7 +694,7 @@ Render_Tile_With_Dual_Cache proc near
                 jz      short loc_343A
                 cmp     ds:tile_cache_dirty_flags, 0FCh
                 jz      short loc_343A
-                mov     ah, [si]
+                mov     ah, [si] ; overlay tile from top right quadrant
                 mov     al, bl
                 push    bx
                 push    si
