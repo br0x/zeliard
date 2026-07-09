@@ -138,7 +138,7 @@ seg000:30AF                 mov     di, 0E900h
 seg000:30B2                 mov     ds:byte_4FF1, 12h
 seg000:30B7
 seg000:30B7 loc_30B7:                               ; ...
-seg000:30B7                 call    render_hero_sword
+seg000:30B7                 call    render_hero_and_sword
 seg000:30BA                 xor     bx, bx
 seg000:30BC                 add     si, 3
 seg000:30BF                 lodsb
@@ -2325,7 +2325,7 @@ seg000:3DFB
 seg000:3DFB ; =============== S U B R O U T I N E =======================================
 seg000:3DFB
 seg000:3DFB
-seg000:3DFB render_hero_sword proc near             ; ...
+seg000:3DFB render_hero_and_sword proc near             ; ...
 seg000:3DFB
 seg000:3DFB ; FUNCTION CHUNK AT seg000:3FD0 SIZE 000000B6 BYTES
 seg000:3DFB
@@ -2368,7 +2368,7 @@ seg000:3E31 ; ------------------------------------------------------------------
 seg000:3E31
 seg000:3E31 loc_3E31:                               ; ...
 seg000:3E31                 jmp     Sword_Overlay_EntryPoint
-seg000:3E31 render_hero_sword endp
+seg000:3E31 render_hero_and_sword endp
 seg000:3E31
 seg000:3E34
 seg000:3E34 ; =============== S U B R O U T I N E =======================================
@@ -2616,7 +2616,7 @@ seg000:3FCF                 retn
 seg000:3FCF sub_3F86        endp
 seg000:3FCF
 seg000:3FD0 ; ---------------------------------------------------------------------------
-seg000:3FD0 ; START OF FUNCTION CHUNK FOR render_hero_sword
+seg000:3FD0 ; START OF FUNCTION CHUNK FOR render_hero_and_sword
 seg000:3FD0 ;   ADDITIONAL PARENT FUNCTION Render_Sword_Overlay
 seg000:3FD0
 seg000:3FD0 Sword_Overlay_EntryPoint:           ; ...
@@ -2711,7 +2711,7 @@ seg000:4083                 pop     ds
 seg000:4084                 pop     es
 seg000:4085                 assume es:nothing
 seg000:4085                 retn
-seg000:4085 ; END OF FUNCTION CHUNK FOR render_hero_sword
+seg000:4085 ; END OF FUNCTION CHUNK FOR render_hero_and_sword
 seg000:4085 ; ---------------------------------------------------------------------------
 seg000:4086 word_4086       dw 901h                 ; ...
 seg000:4088                 dw 2404h

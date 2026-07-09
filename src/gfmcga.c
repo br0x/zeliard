@@ -920,7 +920,7 @@ void Render_Sword_Overlay()
 // }
 
 // Checked
-void render_hero_sword(void) {
+void render_hero_and_sword(void) {
     uint8_t threshold = 18 - viewport_rows_remaining;
     uint8_t y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
 
@@ -1871,13 +1871,13 @@ static void Process_Dirty_Tile_With_Animation(uint16_t si, uint8_t *di, int col)
         Render_Tile_With_Border_Check(si, di, col);
         return;
     }
-
+    // FC -> FF -> FE -> valueFromMap
     if (di[-1] == 0xFC) {
         di[-1] = 0xFF;
     } else {
-        uint8_t wrapped = (uint8_t)(di[-1] + 1);
+        uint8_t old = di[-1];
         di[-1] = 0xFE;
-        if (wrapped != 0) {
+        if (old != 0xFF) {
             di[-1] = al;
             uint16_t dx = (uint16_t)(col * 8 + viewport_row_vram_offset);
             dx = (uint16_t)(dx >> 1);
@@ -1940,7 +1940,7 @@ void Refresh_Dirty_Tiles(void)
     viewport_rows_remaining = 18;
 
     do {
-        // render_hero_sword(); // removed: sword rendering is handled by js
+        // render_hero_and_sword(); // removed: sword rendering is handled by js
         // si points to proximity left, viewport top row
         si += 3; // si points to the left of the top-left corner cell
         uint8_t al0 = MEM8(si++);                //    ┌─┬─┬──  <- overlay entity

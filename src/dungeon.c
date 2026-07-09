@@ -590,7 +590,7 @@ void render_cavern_signs(uint16_t info)
 // Checked
 void clear_hero_in_viewport()
 {
-    uint16_t di = ADDR_VIEWPORT_ENTITIES + MEM8(ADDR_HERO_HEAD_Y_VIEW) * 28 + MEM8(ADDR_HERO_X_VIEW);
+    uint16_t di = ADDR_VIEWPORT_ENTITIES + MEM8(ADDR_HERO_HEAD_Y_VIEW) * VIEW_COLS + MEM8(ADDR_HERO_X_VIEW);
     for (int i = 0; i < 3; i++) { // hero occupies 3x3 bytes in viewport buffer
         memset(&g_mem[di], 0xFF, 3);
         di += (VIEW_COLS - 3);
@@ -4916,7 +4916,7 @@ static void update_all_monsters_in_map()
     uint16_t si = MEM16(ADDR_MONSTERS_LIST);
     uint16_t left = MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
     for(;;) {
-        uint16_t x = MEM16(si + 0);
+        uint16_t x = MEM16(si + 0); // .currX
         if (x == 0xFFFF)
             break;
         if ((x >> 8) != 0xFF) {
@@ -4924,7 +4924,7 @@ static void update_all_monsters_in_map()
             uint8_t x_rel;
             if (is_in_proximity_window(x, &x_rel)) {
                 MEM8(si + 3) = x_rel;
-                uint16_t addr = coords_to_prox_addr(x_rel, MEM8(si + 2));
+                uint16_t addr = coords_to_prox_addr(x_rel, MEM8(si + 2)); // .currY
                 MEM8(addr) = MEM8(ADDR_MONSTER_INDEX) | 0x80; // spawn the monster
             }
         }

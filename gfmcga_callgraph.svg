@@ -595,15 +595,15 @@
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M3492.11,-398.9C3535.79,-384.84 3597.68,-364.91 3643.12,-350.28"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="3644.07,-352.55 3649.98,-348.07 3642.56,-347.88 3644.07,-352.55"/>
 </g>
-<!-- render_hero_sword -->
+<!-- render_hero_and_sword -->
 <g id="node35" class="node">
-<title>render_hero_sword</title>
+<title>render_hero_and_sword</title>
 <path fill="#eeedfe" stroke="black" d="M3497.5,-536C3497.5,-536 3380.5,-536 3380.5,-536 3374.5,-536 3368.5,-530 3368.5,-524 3368.5,-524 3368.5,-512 3368.5,-512 3368.5,-506 3374.5,-500 3380.5,-500 3380.5,-500 3497.5,-500 3497.5,-500 3503.5,-500 3509.5,-506 3509.5,-512 3509.5,-512 3509.5,-524 3509.5,-524 3509.5,-530 3503.5,-536 3497.5,-536"/>
-<text text-anchor="middle" x="3439" y="-514.9" font-family="Helvetica,sans-Serif" font-size="12.00">render_hero_sword</text>
+<text text-anchor="middle" x="3439" y="-514.9" font-family="Helvetica,sans-Serif" font-size="12.00">render_hero_and_sword</text>
 </g>
-<!-- render_hero_sword&#45;&gt;Sword_Overlay_EntryPoint -->
+<!-- render_hero_and_sword&#45;&gt;Sword_Overlay_EntryPoint -->
 <g id="edge22" class="edge">
-<title>render_hero_sword&#45;&gt;Sword_Overlay_EntryPoint</title>
+<title>render_hero_and_sword&#45;&gt;Sword_Overlay_EntryPoint</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M3439,-499.76C3439,-483.86 3439,-460.09 3439,-442.28"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="3441.45,-442.05 3439,-435.05 3436.55,-442.05 3441.45,-442.05"/>
 </g>
@@ -613,9 +613,9 @@
 <path fill="#eeedfe" stroke="black" d="M3306.5,-435C3306.5,-435 3135.5,-435 3135.5,-435 3129.5,-435 3123.5,-429 3123.5,-423 3123.5,-423 3123.5,-411 3123.5,-411 3123.5,-405 3129.5,-399 3135.5,-399 3135.5,-399 3306.5,-399 3306.5,-399 3312.5,-399 3318.5,-405 3318.5,-411 3318.5,-411 3318.5,-423 3318.5,-423 3318.5,-429 3312.5,-435 3306.5,-435"/>
 <text text-anchor="middle" x="3221" y="-413.9" font-family="Helvetica,sans-Serif" font-size="12.00">Copy_Hero_Frame_To_VRAM</text>
 </g>
-<!-- render_hero_sword&#45;&gt;Copy_Hero_Frame_To_VRAM -->
+<!-- render_hero_and_sword&#45;&gt;Copy_Hero_Frame_To_VRAM -->
 <g id="edge20" class="edge">
-<title>render_hero_sword&#45;&gt;Copy_Hero_Frame_To_VRAM</title>
+<title>render_hero_and_sword&#45;&gt;Copy_Hero_Frame_To_VRAM</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M3401.52,-499.98C3363.78,-482.84 3305.54,-456.39 3265.48,-438.2"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="3266.1,-435.79 3258.72,-435.13 3264.08,-440.25 3266.1,-435.79"/>
 </g>
@@ -625,9 +625,9 @@
 <path fill="#eeedfe" stroke="black" d="M3761,-435C3761,-435 3605,-435 3605,-435 3599,-435 3593,-429 3593,-423 3593,-423 3593,-411 3593,-411 3593,-405 3599,-399 3605,-399 3605,-399 3761,-399 3761,-399 3767,-399 3773,-405 3773,-411 3773,-411 3773,-423 3773,-423 3773,-429 3767,-435 3761,-435"/>
 <text text-anchor="middle" x="3683" y="-413.9" font-family="Helvetica,sans-Serif" font-size="12.00">Flush_Ui_Element_If_Dirty</text>
 </g>
-<!-- render_hero_sword&#45;&gt;Flush_Ui_Element_If_Dirty -->
+<!-- render_hero_and_sword&#45;&gt;Flush_Ui_Element_If_Dirty -->
 <g id="edge21" class="edge">
-<title>render_hero_sword&#45;&gt;Flush_Ui_Element_If_Dirty</title>
+<title>render_hero_and_sword&#45;&gt;Flush_Ui_Element_If_Dirty</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M3480.95,-499.98C3523.45,-482.73 3589.18,-456.07 3634.05,-437.86"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="3635.22,-440.03 3640.79,-435.13 3633.38,-435.49 3635.22,-440.03"/>
 </g>
@@ -785,9 +785,9 @@
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M2334.62,-912.98C2367.83,-897.3 2407,-870.44 2407,-831 2407,-831 2407,-831 2407,-618 2407,-592.79 2423.37,-589.49 2444,-575 2452.17,-569.26 2455.68,-570.59 2465,-567 2488.94,-557.77 2515.45,-547.44 2537.72,-538.73"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="2538.86,-540.91 2544.49,-536.08 2537.07,-536.35 2538.86,-540.91"/>
 </g>
-<!-- Refresh_Dirty_Tiles&#45;&gt;render_hero_sword -->
+<!-- Refresh_Dirty_Tiles&#45;&gt;render_hero_and_sword -->
 <g id="edge72" class="edge">
-<title>Refresh_Dirty_Tiles&#45;&gt;render_hero_sword</title>
+<title>Refresh_Dirty_Tiles&#45;&gt;render_hero_and_sword</title>
 <path fill="none" stroke="#5f5e5a" stroke-width="0.9" d="M2358.14,-929.72C2570.51,-927.93 3199,-915.52 3199,-831 3199,-831 3199,-831 3199,-618 3199,-545.48 3287.66,-596.3 3354,-567 3371.5,-559.27 3390.09,-549.03 3405.41,-539.99"/>
 <polygon fill="#5f5e5a" stroke="#5f5e5a" stroke-width="0.9" points="3407.01,-541.89 3411.76,-536.2 3404.5,-537.68 3407.01,-541.89"/>
 </g>

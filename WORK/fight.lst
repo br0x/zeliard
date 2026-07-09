@@ -8668,20 +8668,20 @@ fight:9670
 fight:9670 next_monster:                           ; ...
 fight:9670                 mov     ax, [si+monster.currX]
 fight:9672                 cmp     ax, 0FFFFh
-fight:9675                 jnz     short loc_9678
+fight:9675                 jne     short loc_9678
 fight:9677                 retn                    ; no more monsters
 fight:9678 ; ---------------------------------------------------------------------------
 fight:9678
 fight:9678 loc_9678:                               ; ...
 fight:9678                 cmp     ah, 0FFh
-fight:967B                 jz      short loc_9698
+fight:967B                 je      short loc_9698
 fight:967D                 mov     [si+monster.x_rel], 0FFh
 fight:9681                 call    is_in_proximity_window ; * Calculates distance to hero and checks if within a 35-unit range.
 fight:9681                                         ;  * Accounts for world-wrapping (map edges).
 fight:9681                                         ;  * * @param monster_x The X coordinate of the monster (AX)
 fight:9681                                         ;  * @return Positive value (35 - distance) if in range,
 fight:9681                                         ;  * Sets Carry Flag (CF=1) if out of range.
-fight:9684                 jb      short loc_9698
+fight:9684                 jc      short loc_9698
 fight:9686                 mov     [si+monster.x_rel], bl
 fight:9689                 mov     al, [si+monster.currY]
 fight:968C                 mov     ah, bl

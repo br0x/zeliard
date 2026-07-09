@@ -124,12 +124,12 @@ extern "C" {
 #define ADDR_CAVERN_LEVEL                              0xC012
 #define ADDR_TEAR_X                                    0xC013    // word
 #define ADDR_TEAR_Y                                    0xC015    // byte
-#define ADDR_HERO_Y_VIEW_INIT  0xC016
+#define ADDR_HERO_Y_VIEW_INIT                          0xC016    // byte
 #define ADDR_CAVERN_SIGNS_INFO                         0xC017    // word
 #define ADDR_PACKED_MAP_END_PTR                        0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START                          0xC01B    // Packed map offset in MDT file
 #define ADDR_PROXIMITY_MAP                             0xE000    // 2304 bytes - 36x64 proximity map
-#define ADDR_VIEWPORT_ENTITIES                         0xE900    // 28*19 bytes - Monster IDs (1 byte each)
+#define ADDR_VIEWPORT_ENTITIES                         0xE900    // 532 bytes - 28*19 entity IDs (1 byte each) = 0x214 bytes
 // Note: the last row is dummy, because sometimes we need to write 2x2 tiles blocks to the row 18
 
 #define ADDR_MAGIC_PROJECTILES                         0xEB15  // word

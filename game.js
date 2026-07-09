@@ -1291,9 +1291,13 @@ function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = fr
 }
 
 function drawStaticTile(tileId, vpX, vpY) {
-    if (tileId === 0) return;
     const dx = vpX * TILE_WIDTH;
     const dy = vpY * TILE_HEIGHT;
+    if (tileId === 0) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(dx, dy, TILE_WIDTH, TILE_HEIGHT);
+        return;
+    }
     if (tileId >= 1 && tileId <= 25) {
         drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
     } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
@@ -1349,24 +1353,8 @@ let renderCounter = 0; // incremented every Refresh_Dirty_Tiles, used to animate
 function drawDungeonEntities() {
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
-    const proximity = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
-
-    const top        = readU8(ADDR_VIEWPORT_TOP_ROW);
-
-    const leftBytes  = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
-    const proxLeft   = leftBytes[0] | (leftBytes[1] << 8);
-    
-    const layer2     = readMemory(ADDR_PROXIMITY_LAYER2, 128);
-    
-    const mBaseBytes = readMemory(ADDR_MONSTERS_LIST, 2);
-    const monstersBase = mBaseBytes[0] | (mBaseBytes[1] << 8);
-
-    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
-    let viewportRowsRemaining = 0;
-
-
     function wrapMap(idx) {
-        return ADDR_PROXIMITY_MAP + ((idx % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
+        return ADDR_PROXIMITY_MAP + (((idx-ADDR_PROXIMITY_MAP) % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
     }
 
     function getFromLayer2(entityId) {
@@ -1384,7 +1372,7 @@ function drawDungeonEntities() {
 
     function drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy) {
         if (bgTile !== 0) {
-            drawStaticTile(bgTile, vpX, vpY);
+            // drawStaticTile(bgTile, vpX, vpY);
         }
         if (!dungeonEntitySheet || ovlFrame < 0 || ovlFrame >= 77 || 
             dx < 0 || dy < 0 || dx >= DUNGEON_ENTITY_W || dy >= DUNGEON_ENTITY_H) return;
@@ -1457,7 +1445,7 @@ function drawDungeonEntities() {
         drawOverlayTileWithCache(readU8(si), f, 27, 0, 0, TILE_HEIGHT);
     }
 
-    function renderLeft2(si, di, row) {
+    function renderLeft2(si, di, row) { // Render_Tile_With_Dual_Cache
         const old0 = readU8(di);
         writeMemory(di, [0xFF]);
         const old1 = readU8(di+28); /* same column, row below */
@@ -1537,8 +1525,8 @@ function drawDungeonEntities() {
         }
     }
 
-    // si: proximity pointer
-    // di: viewport entities buffer pointer
+    // si: proximity pointer                // E898: 0E
+    // di: viewport entities buffer pointer // E900: FD
     function renderMid2(si, di, col, row) { // Process_Dirty_Tile_With_Animation
         const al = readU8(si-1);
         if (al >= 0x80) { // monster/entity tiles
@@ -1549,11 +1537,11 @@ function drawDungeonEntities() {
         if (readU8(di-1) === 0xFC) {
             writeMemory(di-1, [0xFF]);
         } else {
-            const old = readU8(di-1);
+            const old = readU8(di-1); // FD
             writeMemory(di-1, [0xFE]);
             if (old !== 0xFF) {
                 writeMemory(di-1, [al]);
-                drawStaticTile(al, col, row);
+                // drawStaticTile(al, col, row); // Dungeon_Static_Tile_Cached_Drawer
             }
             /* else: old di[-1] value was 0xFF -> skip the redraw */
         }
@@ -1597,17 +1585,17 @@ function drawDungeonEntities() {
         }
     }
 
+    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP); // E894
 
     /* Row -1 (invisible, above the viewport) */
 
     /* top-left corner cell (above & left of viewport) */
-    let si = wrapMap(viewportLeftTop - PROX_COLS + 3);
-    if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   
+    let si = wrapMap(viewportLeftTop - PROX_COLS + 3); // E873
+    if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   [E873]=0F
         renderTopLeft(si);      // | ┌─┼────                
     }                           // └─┼─┘<- background entity
                                 //   |0
-    si++;                     
-
+    si++; // E874: 0F 0F 0F 03 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
     /* 27 cells directly above the viewport (col 0 … 26) */
     for (let col = 0; col <= VIEW_COLS-2; col++) {
         if (readU8(si) & 0x80) {    //  ┌───┐      ┌───┐      ┌───┐ <- overlay entity
@@ -1617,6 +1605,7 @@ function drawDungeonEntities() {
         si++;                     
     }
 
+    // E88F: 00
     /* top-right corner cell (above the viewport col 27) */
     if (readU8(si) & 0x80) {  //   ┌───┐ <- overlay entity
         renderTopRight(si);   // ──┼─┐ |
@@ -1624,22 +1613,26 @@ function drawDungeonEntities() {
                               //   27|  
 
     /* Visible rows 0 … 17 */
-    si = viewportLeftTop;
-    let di = ADDR_VIEWPORT_ENTITIES;
+    si = viewportLeftTop; // E894
+    let di = ADDR_VIEWPORT_ENTITIES; // E900
     for (let row = 0; row < VIEW_ROWS; row++) {
-        si += 3;
-        /* left-column edge cell (col −1) */
+        // render_hero_and_sword()
+        si += 3; // E897
+        // row0 E897: 0E; row1 e7bb: 
+        /* left-column edge cell (col −1) */ // Render_Tile_With_Dual_Cache
         const al0 = readU8(si++);     //    ┌─┬─┬──  <- overlay entity
         if (al0 & 0x80) {             //    | | |
             renderLeft2(si, di, row); //    └─┼─┘    <- background entity
         }                             //      |  
 
         /* columns 0 … 26 ── entity check + dirty-track */
+        // E898: 0E 0E 0E 03 06 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+        // E900: FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD
         for (let col = 0; col <= 26; col++) { //  ┌───┬──  ┌─┬───┬──  ──┬───┐ <- overlay entity
             const map_byte = readU8(si++);    //  |   |    | |   |      |   |
             const cached_byte = readU8(di++); //  ├───┘    | └───┘      └───┤ <- background entity
             if (map_byte !== cached_byte) {   //  |        |                |
-                renderMid2(si, di, col, row); // process monsters and animated tiles
+                renderMid2(si, di, col, row); // Process_Dirty_Tile_With_Animation
             }
         }
 
@@ -1651,7 +1644,7 @@ function drawDungeonEntities() {
         } else if (al27 !== di[-1]) { // static tile changed due to being animated
             renderMid2(si, di, 27, row);
         }
-        si = wrapMap(si+4);
+        si = wrapMap(si+4); // e8b4 + 4 = e8b8
     }
 }
 
@@ -1818,11 +1811,15 @@ function resolveFrontArmFrame(state) {
     return armBase + (state.animPhase & 3);
 }
 
+let lastHeroX = null;
+let lastHeroY = null;
 function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
     if (readMemory(ADDR_HERO_SPRITE_HIDDEN, 1)[0]) return;
-    const dx = readMemory(ADDR_HERO_X_VIEW, 1)[0] * TILE_WIDTH;
-    const dy = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0] * TILE_HEIGHT;
+    const x0 = readMemory(ADDR_HERO_X_VIEW, 1)[0];
+    const y0 = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0];
+    const dx = x0 * TILE_WIDTH;
+    const dy = y0 * TILE_HEIGHT;
     const state = getDungeonHeroState();
     const armDy = state.squat ? dy + TILE_HEIGHT : dy;
     const layers = [
@@ -1830,11 +1827,18 @@ function drawDungeonHero() {
         { frame: resolveBodyFrame(state), y: dy },
         { frame: resolveFrontArmFrame(state), y: armDy },
     ];
+    // if (lastHeroX && lastHeroY) {
+    //     writeMemory(ADDR_VIEWPORT_ENTITIES + lastHeroY * VIEW_COLS + lastHeroX, [0xFF, 0xFF, 0xFF]);
+    //     writeMemory(ADDR_VIEWPORT_ENTITIES + (lastHeroY+1) * VIEW_COLS + lastHeroX, [0xFF, 0xFF, 0xFF]);
+    //     writeMemory(ADDR_VIEWPORT_ENTITIES + (lastHeroY+2) * VIEW_COLS + lastHeroX, [0xFF, 0xFF, 0xFF]);
+    // }
     for (const { frame, y } of layers) {
         if (frame === null) continue;
         drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
             DUNGEON_HERO_SHEET_COLS, dx, y);
     }
+    lastHeroX = x0;
+    lastHeroY = y0;
 }
 
 function drawDungeonSword() {

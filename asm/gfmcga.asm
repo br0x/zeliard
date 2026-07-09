@@ -108,7 +108,7 @@ loc_3098:
                 jz      short loc_30A2
                 call    Render_Tile_With_Attribute_Cache
 
-loc_30A2:
+loc_30A2:       ; now the rigth tile
                 inc     si
                 test    byte ptr [si], 80h
                 jz      short loc_30AB
@@ -121,41 +121,36 @@ loc_30AB:
                 mov     ds:viewport_rows_remaining, 18
 
 loc_30B7:
-                call    render_hero_sword
+                call    render_hero_and_sword ; is it "hero AND sword"?
                 xor     bx, bx
                 add     si, 3
                 lodsb
                 or      al, al
                 jns     short loc_30C7
-                call    Render_Tile_With_Dual_Cache
+                call    Render_Tile_With_Dual_Cache ; left cell
 
 loc_30C7:
                 mov     cx, 6
-
 loc_30CA:
                 push    cx
                 cmpsb
                 jz      short loc_30D1
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30D1:
                 inc     bx
                 cmpsb
                 jz      short loc_30D8
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30D8:
                 inc     bx
                 cmpsb
                 jz      short loc_30DF
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30DF:
                 inc     bx
                 cmpsb
                 jz      short loc_30E6
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30E6:
                 inc     bx
                 pop     cx
@@ -163,20 +158,18 @@ loc_30E6:
                 cmpsb
                 jz      short loc_30F0
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30F0:
                 inc     bx
                 cmpsb
                 jz      short loc_30F7
                 call    Process_Dirty_Tile_With_Animation
-
 loc_30F7:
                 inc     bx
                 cmpsb
                 jz      short loc_30FE
                 call    Process_Dirty_Tile_With_Animation
 
-loc_30FE:
+loc_30FE:       ; rightmost tile
                 inc     bx
                 lodsb
                 inc     di
@@ -218,9 +211,9 @@ loc_312E:
 ; ---------------------------------------------------------------------------
 
 loc_313C:
-                inc     byte ptr es:[di-1]
+                inc     byte ptr es:[di-1] ; only to check Zero flag
                 mov     byte ptr es:[di-1], 0FEh
-                jz      short loc_315C
+                jz      short loc_315C ; ZF means old value was 0xFF
                 mov     es:[di-1], al
                 mov     dx, bx
                 add     dx, dx
@@ -231,7 +224,7 @@ loc_313C:
                 call    Dungeon_Static_Tile_Cached_Drawer ; AL: Tile Index
                                         ; DX: Screen destination
 
-loc_315C:
+loc_315C:       ; check for animated tiles
                 mov     al, ds:cavern_level
                 sub     al, 5
                 jnb     short loc_3164
@@ -2111,43 +2104,46 @@ load_3x3_tiles  endp
 ; =============== S U B R O U T I N E =======================================
 
 ; 3DFB
-render_hero_sword proc near
+render_hero_and_sword proc near
 
                 mov     al, ds:viewport_rows_remaining
                 neg     al
-                add     al, 18
-                mov     cl, al
+                add     al, 18 ; al = current row being rendered
+                mov     cl, al ; cl = render_row
                 test    byte ptr ds:sword_swing_flag, 0FFh
                 jnz     short loc_3E18
+                ; no sword, hero only
                 mov     al, ds:hero_head_y_in_viewport      ; hero_head_y_in_viewport
-                sub     al, 2
-                cmp     al, cl
-                jnz     short locret_3E17
+                sub     al, 2  ; hero_head - 2
+                cmp     al, cl ; == render_row?
+                jne     short locret_3E17
                 call    Copy_Hero_Frame_To_VRAM
 locret_3E17:
                 retn
 ; ---------------------------------------------------------------------------
-loc_3E18:
-                mov     al, ds:hero_head_y_in_viewport      ; 10
-                sub     al, 5                               ; -5 = 5
-                cmp     cl, al                              ; cl = 0
+loc_3E18:       ; sword is swinging
+                mov     al, ds:hero_head_y_in_viewport ; 10
+                sub     al, 5                          ; hero_head - 5
+                cmp     cl, al                         ; cl = 0
                 jnb     short loc_3E22
-                retn
+                retn  ; render_row < hero_head - 5
 ; ---------------------------------------------------------------------------
-loc_3E22:
-                jnz     short loc_3E2A                      ; cl=5
-                call    Flush_Ui_Element_If_Dirty           ; draws upper half of hero
-                jmp     Copy_Hero_Frame_To_VRAM            ; draws full hero, no sword drawn
+loc_3E22:       ; render_row >= hero_head - 5
+                jnz     short loc_3E2A                 ; cl=5
+                ; render_row == hero_head - 5
+                call    Flush_Ui_Element_If_Dirty
+                jmp     Copy_Hero_Frame_To_VRAM        ; draws hero only, sword cannot reach that high
 ; ---------------------------------------------------------------------------
 loc_3E2A:
-                add     al, 0Ah
+                add     al, 10                         ; hero_head + 5
                 cmp     al, cl
                 jz      short loc_3E31
+                ; render_row != hero_head + 5
                 retn
 ; ---------------------------------------------------------------------------
-loc_3E31:
+loc_3E31:       ; render_row == hero_head + 5; process sword overlay
                 jmp     Sword_Overlay_EntryPoint
-render_hero_sword endp
+render_hero_and_sword endp
 
 
 ; =============== S U B R O U T I N E =======================================
