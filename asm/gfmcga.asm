@@ -635,18 +635,18 @@ loc_33B3:
 loc_33BB:
                 mov     byte ptr ds:[viewport_buffer_28x19+27], 0FFh
                 mov     cl, [si]
-                add     si, 24h ; '$'
+                add     si, 36
                 call    wrap_e900_from_above
-                mov     al, [si]
+                mov     al, [si] ; [E8B3]=00
                 or      al, al
                 jns     short loc_33D1
                 call    get_from_layer2
 
 loc_33D1:
                 push    ax
-                mov     al, cl
-                call    Lookup_Monster_Tile_Attributes
-                add     si, 2 ; bottom left quadrant of monster/entity
+                    mov     al, cl
+                    call    Lookup_Monster_Tile_Attributes
+                    add     si, 2 ; bottom left quadrant of monster/entity
                 pop     ax
                 mov     ah, [si]
                 mov     dx, 14*320+48+27*8 ; points to vieport right column in VRAM
@@ -770,7 +770,7 @@ Render_Tile_With_Border_Check proc near
                 mov     bp, offset tile_cache_dirty_flags
                 call    Render_Tile_Neighborhood_Cells
                 cmp     ds:viewport_rows_remaining, 1
-                jz      short loc_34DF
+                je      short loc_34DF
                 add     dx, 320*8-16
                 call    Render_Tile_Neighborhood_Cells
                 test    byte ptr ds:is_boss_cavern, 0FFh

@@ -276,7 +276,7 @@ void Sample_Neighborhood_Attributes()
 uint8_t Lookup_Monster_Tile_Attributes(uint8_t tile, uint16_t *frame_ptr) {
     uint8_t cl = MEM8(ADDR_PROXIMITY_LAYER2 + (tile & 0x7F));
     
-    uint16_t bp = ADDR_MONSTERS_LIST + cl * 16; // monster struct pointer
+    uint16_t bp = ADDR_MONSTERS_LIST + tile * 16; // monster struct pointer
     
     // each frame is 5 bytes (palette variant + 4 tile IDs: tl, tr, bl, br)
     uint16_t offset = (MEM8(bp+6) & 0x0F) * 5; // (.anim_counter & 0x0F) * 5

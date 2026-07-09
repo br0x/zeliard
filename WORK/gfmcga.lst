@@ -678,7 +678,7 @@ seg000:33BB
 seg000:33BB loc_33BB:                               ; ...
 seg000:33BB                 mov     byte ptr ds:0E91Bh, 0FFh
 seg000:33C0                 mov     cl, [si]
-seg000:33C2                 add     si, 24h ; '$'
+seg000:33C2                 add     si, 36
 seg000:33C5                 call    wrap_e900_from_above
 seg000:33C8                 mov     al, [si]
 seg000:33CA                 or      al, al
