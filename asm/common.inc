@@ -456,8 +456,8 @@ check_collision_SW2_proc                           equ 6026h
 coords_in_ax_to_proximity_map_offset_in_di_proc    equ 6028h
 wrap_map_from_above_proc                           equ 602Ah
 wrap_map_from_below_proc                           equ 602Ch
-if_passable_set_ZF_proc                            equ 602Eh
-check_monster_on_aggressive_ground_proc      equ 6030h
+is_blocking_proc                                   equ 602Eh
+check_monster_on_aggressive_ground_proc            equ 6030h
 Check_Vertical_Distance_Between_Hero_And_Monster_proc equ 6032h
 Hero_Hits_monster_proc                             equ 6034h
 HorizDistToHero_35_proc                            equ 6036h

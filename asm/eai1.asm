@@ -247,13 +247,13 @@ Monster_AI      proc near
                 add     bx, bx          ; switch 4 cases
                 jmp     jpt_A25E[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A25E        dw offset flags00
-                dw offset flags01
-                dw offset ai_flags10
-                dw offset flags11
+jpt_A25E        dw offset bat_ai
+                dw offset slug_ai
+                dw offset frog_ai
+                dw offset rat_ai
 ; ---------------------------------------------------------------------------
 
-flags00:                 
+bat_ai:                 
                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 0
                 jnz     short loc_A276
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -279,13 +279,13 @@ loc_A28B:
                 add     bx, bx          ; switch 4 cases
                 jmp     jpt_A299[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A299        dw offset ai_state_00
-                dw offset ai_state_40
-                dw offset ai_state_80
-                dw offset ai_state_c0
+jpt_A299        dw offset bat_ai_state_00
+                dw offset bat_ai_state_40
+                dw offset bat_ai_state_80
+                dw offset bat_ai_state_c0
 ; ---------------------------------------------------------------------------
 
-ai_state_00:             
+bat_ai_state_00:             
                 call    cs:move_monster_N_proc ; jumptable 0000A299 case 0
                 test    [si+monster.anim_counter], 0FFh
                 jz      short loc_A2B5
@@ -311,7 +311,7 @@ loc_A2CB:
                 retn
 ; ---------------------------------------------------------------------------
 
-ai_state_40:             
+bat_ai_state_40:             
                 inc     [si+monster.anim_counter] ; jumptable 0000A299 case 1
                 and     [si+monster.anim_counter], 7
                 cmp     [si+monster.anim_counter], 3
@@ -324,7 +324,7 @@ loc_A2DE:
                 retn
 ; ---------------------------------------------------------------------------
 
-ai_state_80:             
+bat_ai_state_80:             
                 call    bat_step_throttle ; jumptable 0000A299 case 2
                 test    byte ptr ds:hero_damage_this_frame, 0FFh
                 jz      short loc_A2F2
@@ -341,10 +341,10 @@ loc_A2F2:
                 jb      short loc_A350
                 cmp     al, 24
                 jb      short loc_A32A
-                cmp     [si+monster.m_x_rel], 11h
-                jz      short loc_A376
-                cmp     [si+monster.m_x_rel], 10h
-                jz      short loc_A376
+                cmp     [si+monster.m_x_rel], 17
+                jz      short bat_dive_end
+                cmp     [si+monster.m_x_rel], 16
+                jz      short bat_dive_end
                 jnb     short loc_A31E
                 call    cs:move_monster_SE_proc
                 jb      short loc_A338
@@ -361,30 +361,31 @@ loc_A31E:
 
 loc_A32A:                
                 cmp     [si+monster.m_x_rel], 11h
-                jz      short loc_A376
+                jz      short bat_dive_end
                 cmp     [si+monster.m_x_rel], 10h
-                jz      short loc_A376
+                jz      short bat_dive_end
                 jnb     short loc_A344
 
 loc_A338:                
                 call    cs:move_monster_E_proc
-                jb      short loc_A376
-                or      [si+monster.ai_flags], 80h
+                jc      short bat_dive_end ; blocked
+                ; moved successfully
+                or      [si+monster.ai_flags], 80h ; facing right
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A344:                
                 call    cs:move_monster_W_proc
-                jb      short loc_A376
+                jb      short bat_dive_end
                 and     [si+monster.ai_flags], 7Fh
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A350:                
-                cmp     [si+monster.m_x_rel], 11h
-                jz      short loc_A376
-                cmp     [si+monster.m_x_rel], 10h
-                jz      short loc_A376
+                cmp     [si+monster.m_x_rel], 17
+                je      short bat_dive_end
+                cmp     [si+monster.m_x_rel], 16
+                je      short bat_dive_end
                 jnb     short loc_A36A
                 call    cs:move_monster_NE_proc
                 jb      short loc_A338
@@ -392,16 +393,16 @@ loc_A350:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A36A:                
+loc_A36A:       ; m_x_rel > 17
                 call    cs:move_monster_NW_proc
-                jb      short loc_A344
+                jc      short loc_A344 ; blocked
                 and     [si+monster.ai_flags], 7Fh
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A376:                
-                call    cs:move_monster_S_proc
-                jb      short loc_A37E
+bat_dive_end:                
+                call    cs:move_monster_S_proc ; NC: success, CF: blocked
+                jc      short loc_A37E
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -410,7 +411,7 @@ loc_A37E:
                 retn
 ; ---------------------------------------------------------------------------
 
-ai_state_c0:             
+bat_ai_state_c0:             
                 test    [si+monster.ai_state], 20h
                 jnz     short loc_A3BD
                 call    bat_step_throttle
@@ -480,7 +481,7 @@ bat_step_throttle endp
 
 ; ---------------------------------------------------------------------------
 
-flags01:                 
+slug_ai:                 
                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 1
                 jnz     short loc_A3F3
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -537,7 +538,7 @@ loc_A43A:
 
 ; =============================================================================
 ; frog @A43F
-ai_flags10:                 
+frog_ai:                 
                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
                 jnz     short loc_A44B
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -667,9 +668,9 @@ loc_A515:
                 retn
 frog_hero_proximity_and_direction endp
 
-; ---------------------------------------------------------------------------
 
-flags11:                 
+; ===========================================================================
+rat_ai:                 
                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 3
                 jnz     short loc_A523
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -700,7 +701,7 @@ loc_A541:
 
 loc_A54A:                
                 call    cs:move_monster_S_proc
-                jb      short loc_A552
+                jc      short loc_A552
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -769,25 +770,27 @@ loc_A5C0:
 loc_A5C5:                
                 mov     ax, word ptr [si+monster.currY]
                 call    cs:coords_in_ax_to_proximity_map_offset_in_di_proc
-                mov     ax, 48h ; 'H'
-                test    [si+monster.ai_flags], 80h
+                mov     ax, 36*2 ; will check the ground under the monster
+                test    [si+monster.ai_flags], 80h ; bit 7: facing direction (1=right, 0=left)
                 jz      short loc_A5D7
-                inc     ax
+                ; facing right
+                inc     ax ; lookahead offset
 
 loc_A5D7:                
-                xchg    si, di
+                xchg    si, di ; si: proximity map offset, di: monster struct
                 add     si, ax
                 call    cs:wrap_map_from_above_proc
-                xchg    si, di
-                mov     al, [di]
-                call    cs:if_passable_set_ZF_proc
+                xchg    si, di ; si: monster struct, di: proximity map offset with lookahead
+                mov     al, [di] ; check the ground tile under the monster facing side
+                call    cs:is_blocking_proc ; ZF if passable, NZ if blocking
                 jnz     short loc_A5F4
+                ; pit ahead
                 mov     [si+monster.anim_counter], 0
                 or      [si+monster.ai_state], 8
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A5F4:                
+loc_A5F4:       ; tile under monster is solid or blocking
                 inc     [si+monster.anim_counter]
                 and     [si+monster.anim_counter], 3
                 test    [si+monster.ai_state], 2
@@ -799,16 +802,16 @@ loc_A5F4:
 ; ---------------------------------------------------------------------------
 
 loc_A60C:                
-                call    rat_hero_proximity_and_direction
-                jnb     short loc_A619
+                call    rat_hero_proximity_and_direction ; CF if monster faced towards hero, al = 0 if monster to the right of hero, 80h if to the left
+                jnc     short loc_A619
                 and     [si+monster.ai_flags], 0FDh
                 mov     [si+monster.ai_timer], 0
 
 loc_A619:                
-                test    [si+monster.ai_flags], 80h
+                test    [si+monster.ai_flags], 80h ; facing direction (1=right, 0=left)
                 jz      short loc_A634
                 call    cs:move_monster_E_proc
-                jb      short loc_A627
+                jc      short loc_A627
                 retn
 ; ---------------------------------------------------------------------------
 

@@ -2,10 +2,10 @@
  * eai1.c - translated from eai1.asm
  *
  * Monster AI for the 4 monster types handled by this AI overlay:
- *   monster.flags & 0x0F == 0  ->  Bat   (flags00 in the original)
- *   monster.flags & 0x0F == 1  ->  Slug  (flags01)
- *   monster.flags & 0x0F == 2  ->  Frog  (ai_flags10)
- *   monster.flags & 0x0F == 3  ->  Rat   (flags11)
+ *   monster.flags & 0x0F == 0  ->  Bat   (bat_ai in the original)
+ *   monster.flags & 0x0F == 1  ->  Slug  (slug_ai)
+ *   monster.flags & 0x0F == 2  ->  Frog  (frog_ai)
+ *   monster.flags & 0x0F == 3  ->  Rat   (rat_ai)
  *
  * Translation conventions used below
  * ------------------------------------------------------------------
@@ -20,7 +20,7 @@
  * - is_blocking, check_collision_E2 and
  *   check_collision_W2 keep the signature/semantics already declared
  *   in zeliard.h.
- * - rat_hero_proximity_and_direction / frog_hero_proximity_and_direction
+ * - frog_rat_to_hero_proximity_and_direction
  *   originally returned a value in AL *and* a carry flag that the two call
  *   sites use independently; both are captured in ProximityResult below.
  */
@@ -33,9 +33,8 @@
  * Small helpers / tables
  */
 
-/* Carries both outputs (AL, CF) of rat_hero_proximity_and_direction /
- * frog_hero_proximity_and_direction, since both are used independently by
- * different call sites in the original code. */
+/* Carries both outputs (AL, CF) of frog_rat_to_hero_proximity_and_direction, 
+ * since both are used independently by different call sites in the original code. */
 typedef struct {
     uint8_t value; /* AL on return */
     int     carry; /* CF on return (1 = set) */
@@ -59,10 +58,10 @@ static const uint8_t rat_jump_angles_left[8]  = { 2, 3, 3, 4, 4, 5, 5, 6 };
 /* 
  * Forward declarations
  */
-static void ai_flags00(uint16_t m); /* Bat  */
-static void ai_flags01(uint16_t m); /* Slug */
-static void ai_flags10(uint16_t m); /* Frog */
-static void ai_flags11(uint16_t m); /* Rat  */
+static void bat_ai(uint16_t m);
+static void slug_ai(uint16_t m);
+static void frog_ai(uint16_t m);
+static void rat_ai(uint16_t m);
 
 static void bat_step_throttle(uint16_t m);
 static void bat_ai_state_00(uint16_t m);
@@ -70,11 +69,11 @@ static void bat_ai_state_40(uint16_t m);
 static void bat_ai_state_80(uint16_t m);
 static void bat_ai_state_c0(uint16_t m);
 
+static void frog_jump_step(uint16_t m);
 static void rat_ai_jump_step(uint16_t m); /* loc_A649 */
 static void rat_ai_hop_step(uint16_t m);  /* loc_A690 */
 
-static ProximityResult rat_hero_proximity_and_direction(uint16_t m);
-static ProximityResult frog_hero_proximity_and_direction(uint16_t m);
+static ProximityResult frog_rat_to_hero_proximity_and_direction(uint16_t m, uint8_t distance);
 
 /* 
  * Monster_AI - entry point (matches void Monster_AI(Monster* m); in zeliard.h)
@@ -83,10 +82,10 @@ static ProximityResult frog_hero_proximity_and_direction(uint16_t m);
 void Monster_AI(uint16_t m)
 {
     switch (MEM8(m+4) & 0x0F) { // .flags
-        case 0: ai_flags00(m); return; /* Bat  */
-        case 1: ai_flags01(m); return; /* Slug */
-        case 2: ai_flags10(m); return; /* Frog */
-        case 3: ai_flags11(m); return; /* Rat  */
+        case 0: bat_ai(m); return;
+        case 1: slug_ai(m); return;
+        case 2: frog_ai(m); return;
+        case 3: rat_ai(m); return;
         default:
             /* Original jump table only has 4 entries; monster.flags low
              * nibble is only ever 0..3 for this AI module by design. */
@@ -94,10 +93,7 @@ void Monster_AI(uint16_t m)
     }
 }
 
-/* ============================================================================
- * Bat
- */
-static void ai_flags00(uint16_t m)
+static void bat_ai(uint16_t m)
 {
     if (!check_monster_on_aggressive_ground(m)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
@@ -132,7 +128,7 @@ static void bat_ai_state_00(uint16_t m)
     move_monster_N(m); /* return value unused, as in the original */
 
     if (MEM8(m+6) != 0) { // .anim_counter
-        MEM8(m+6) -= 0x10;
+        MEM8(m+6) -= 16;
         return;
     }
 
@@ -160,7 +156,7 @@ static void bat_ai_state_40(uint16_t m)
 /* loc_A376: attempt to dive south; if blocked, snap to climbing-up state. */
 static void bat_dive_end(uint16_t m)
 {
-    if (move_monster_S(m)) { /* blocked */
+    if (!move_monster_S(m)) { /* blocked: can't descend further */
         MEM8(m+9) = 0xC0; // .ai_state
     }
 }
@@ -168,20 +164,20 @@ static void bat_dive_end(uint16_t m)
 /* loc_A338: try moving east; if blocked, fall back to diving south. */
 static void bat_step_E(uint16_t m)
 {
-    if (move_monster_E(m)) { /* blocked */
+    if (!move_monster_E(m)) { /* blocked */
         bat_dive_end(m);
     } else {
-        MEM8(m+5) |= 0x80; // .ai_flags
+        MEM8(m+5) |= 0x80; // .ai_flags; facing right
     }
 }
 
 /* loc_A344: try moving west; if blocked, fall back to diving south. */
 static void bat_step_W(uint16_t m)
 {
-    if (move_monster_W(m)) { /* blocked */
+    if (!move_monster_W(m)) { /* blocked */
         bat_dive_end(m);
     } else {
-        MEM8(m+5) &= 0x7F; // .ai_flags
+        MEM8(m+5) &= 0x7F; // .ai_flags; facing left
     }
 }
 
@@ -200,12 +196,21 @@ static void bat_ai_state_80(uint16_t m)
 
     if (al < 18) {
         /* --- loc_A350 --- */
-        if (MEM8(m+3) == 0x11 || MEM8(m+3) == 0x10) { bat_dive_end(m); return; } // .m_x_rel
-        if (MEM8(m+3) < 0x10) {
-            if (move_monster_NE(m)) { bat_step_E(m); return; } /* blocked */
+        if (MEM8(m+3) == 17 || MEM8(m+3) == 16) { // .m_x_rel
+            bat_dive_end(m); 
+            return; 
+        }
+        if (MEM8(m+3) < 16) {
+            if (!move_monster_NE(m)) { /* blocked */
+                bat_step_E(m); 
+                return; 
+            }
             MEM8(m+5) |= 0x80; // .ai_flags
-        } else {
-            if (move_monster_NW(m)) { bat_step_W(m); return; } /* blocked */
+        } else { // m_x_rel > 17
+            if (!move_monster_NW(m)) { /* blocked */
+                bat_step_W(m); 
+                return; 
+            }
             MEM8(m+5) &= 0x7F; // .ai_flags
         }
         return;
@@ -213,22 +218,34 @@ static void bat_ai_state_80(uint16_t m)
 
     if (al < 24) {
         /* --- loc_A32A --- */
-        if (MEM8(m+3) == 0x11 || MEM8(m+3) == 0x10) { bat_dive_end(m); return; } // .m_x_rel
-        if (MEM8(m+3) < 0x10) {
+        if (MEM8(m+3) == 17 || MEM8(m+3) == 16) { // .m_x_rel 
+            bat_dive_end(m); 
+            return; 
+        }
+        if (MEM8(m+3) < 16) {
             bat_step_E(m);
-        } else {
+        } else { // m_x_rel > 17
             bat_step_W(m);
         }
         return;
     }
 
     /* al >= 24: try SE/SW diagonal first */
-    if (MEM8(m+3) == 0x11 || MEM8(m+3) == 0x10) { bat_dive_end(m); return; } // .m_x_rel
-    if (MEM8(m+3) < 0x10) {
-        if (move_monster_SE(m)) { bat_step_E(m); return; } /* blocked */
+    if (MEM8(m+3) == 17 || MEM8(m+3) == 16) { // .m_x_rel
+        bat_dive_end(m); 
+        return; 
+    }
+    if (MEM8(m+3) < 16) {
+        if (!move_monster_SE(m)) {  /* blocked */
+            bat_step_E(m); 
+            return; 
+        }
         MEM8(m+5) |= 0x80; // .ai_flags
-    } else {
-        if (move_monster_SW(m)) { bat_step_W(m); return; } /* blocked */
+    } else { // m_x_rel > 17
+        if (!move_monster_SW(m)) {  /* blocked */
+            bat_step_W(m); 
+            return; 
+        }
         MEM8(m+5) &= 0x7F; // .ai_flags
     }
 }
@@ -273,7 +290,7 @@ static void bat_ai_state_c0(uint16_t m)
 /* ============================================================================
  * Slug
  */
-static void ai_flags01(uint16_t m)
+static void slug_ai(uint16_t m)
 {
     if (!check_monster_on_aggressive_ground(m)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
@@ -286,7 +303,7 @@ static void ai_flags01(uint16_t m)
         return;
     }
 
-    if (move_monster_S(m)) return; /* CF=0 (success) -> stop here */
+    if (move_monster_S(m)) return; // free falling
 
     MEM8(m+6) = (MEM8(m+6) + 0x41) & 0xC3; // .anim_counter
     if (MEM8(m+6) & 0xF0) return;
@@ -300,12 +317,9 @@ static void ai_flags01(uint16_t m)
     }
 }
 
-/* ============================================================================
- * Frog
- */
 /* Executes one frame of an already-started jump.
  * Corresponds to loc_A4A2..loc_A4DB in the original. */
-static void jump_step(uint16_t m)
+static void frog_jump_step(uint16_t m)
 {
     uint8_t ah = MEM8(m+6); // .anim_counter
     uint8_t al = (uint8_t)(ah + 1) & 7;
@@ -313,16 +327,17 @@ static void jump_step(uint16_t m)
     if (al < 7) {
         MEM8(m+6) = (uint8_t)(al | (ah & 0xF0)); // .anim_counter
 
-        const uint8_t *angle_table =
-            (MEM8(m+5) & 0x80) ? jump_angles_right : jump_angles_left; // .ai_flags
-        uint8_t angle = angle_table[(uint8_t)(ah - 2)]; // 3, 4, 4, 5 ; ↙←←↖
+        const uint8_t *angle_table = (MEM8(m+5) & 0x80)        // .ai_flags
+            ? jump_angles_right // 1, 0, 0, 7 ; ↗→→↘
+            : jump_angles_left; // 3, 4, 4, 5 ; ↙←←↖
+        uint8_t angle = angle_table[(uint8_t)(ah - 2)];
 
         if (monster_move_in_direction(m, angle)) {
             return; /* moved fine, jump continues next frame */
         }
 
         /* blocked mid-jump: maybe reverse direction */
-        ProximityResult pr = frog_hero_proximity_and_direction(m);
+        ProximityResult pr = frog_rat_to_hero_proximity_and_direction(m, 8);
         if (!pr.carry) {
             MEM8(m+5) ^= 0x80; // .ai_flags
         }
@@ -335,7 +350,7 @@ static void jump_step(uint16_t m)
     move_monster_S(m);
 }
 
-static void ai_flags10(uint16_t m)
+static void frog_ai(uint16_t m)
 {
     if (!check_monster_on_aggressive_ground(m)) {
         Check_Vertical_Distance_Between_Hero_And_Monster(m);
@@ -350,7 +365,7 @@ static void ai_flags10(uint16_t m)
     }
 
     if (MEM8(m+9) & 0x08) { // already mid-jump
-        jump_step(m);
+        frog_jump_step(m);
         return;
     }
 
@@ -360,11 +375,11 @@ static void ai_flags10(uint16_t m)
     /* Blocked moving south: decide whether to start a jump. */
     uint8_t start_jump = 0;
 
-    ProximityResult pr = frog_hero_proximity_and_direction(m);
+    ProximityResult pr = frog_rat_to_hero_proximity_and_direction(m, 8);
     if (pr.carry) {
         start_jump = 1;
     } else if (!(MEM8(m+6) & 0xE0)) {
-        pr = frog_hero_proximity_and_direction(m);
+        pr = frog_rat_to_hero_proximity_and_direction(m, 8);
         if (pr.value == 0xFF) {
             start_jump = 1;
         } else {
@@ -378,14 +393,11 @@ static void ai_flags10(uint16_t m)
     if (start_jump) {
         MEM8(m+6) = 2;      // .anim_counter
         MEM8(m+9) |= 0x08;  // .ai_state
-        jump_step(m);
+        frog_jump_step(m);
     }
 }
 
-/* ============================================================================
- * Rat 
- */
-static void ai_flags11(uint16_t m)
+static void rat_ai(uint16_t m)
 {
     ProximityResult pr;
 
@@ -401,8 +413,14 @@ static void ai_flags11(uint16_t m)
         return;
     }
 
-    if (MEM8(m+9) & 0x08) { rat_ai_jump_step(m); return; } // .ai_state
-    if (MEM8(m+9) & 0x10) { rat_ai_hop_step(m);  return; }
+    if (MEM8(m+9) & 0x08) {  // .ai_state
+        rat_ai_jump_step(m); 
+        return; 
+    }
+    if (MEM8(m+9) & 0x10) {  // .ai_state
+        rat_ai_hop_step(m);  
+        return; 
+    }
 
     if (move_monster_S(m)) return; /* CF=0 success -> stop */
 
@@ -417,13 +435,13 @@ static void ai_flags11(uint16_t m)
         wrap_map_from_above(&addr);
         uint8_t tile = MEM8(addr);
 
-        if (is_blocking(tile)) {
+        if (!is_blocking(tile)) { // pit ahead
             MEM8(m+6) = 0;      // .anim_counter
             MEM8(m+9) |= 0x08;  // .ai_state
             return;
         }
 
-        /* loc_A5F4 */
+        /* loc_A5F4 */ // solid ground ahead
         MEM8(m+6) = (MEM8(m+6) + 1) & 3; // .anim_counter
 
         if (!(MEM8(m+9) & 0x02)) { // .ai_state
@@ -438,7 +456,7 @@ static void ai_flags11(uint16_t m)
         }
 
         /* loc_A60C */
-        pr = rat_hero_proximity_and_direction(m);
+        pr = frog_rat_to_hero_proximity_and_direction(m, 6);
         if (pr.carry) {
             MEM8(m+5) &= 0xFD;  // .ai_flags
             MEM8(m+10) = 0;     // .ai_timer
@@ -462,11 +480,11 @@ static void ai_flags11(uint16_t m)
 
     MEM8(m+6) = (uint8_t)((MEM8(m+6) & 0xF1) | 0x04); // .anim_counter
 
-    pr = rat_hero_proximity_and_direction(m);
-    if (pr.value != 0xFF) {
-        MEM8(m+5) = (MEM8(m+5) & 0x7F) | pr.value; // .ai_flags
-        MEM8(m+6) = 0;                              // .anim_counter
-        MEM8(m+9) = (MEM8(m+9) | 0x02) & 0xFB;       // .ai_state
+    pr = frog_rat_to_hero_proximity_and_direction(m, 6);
+    if (pr.value != 0xFF) { // hero within ±6 vertically; 0 if monster to the right of hero, 80h if to the left
+        MEM8(m+5) = (MEM8(m+5) & 0x7F) | pr.value; // .ai_flags: set facing towards hero
+        MEM8(m+6) = 0;                             // .anim_counter
+        MEM8(m+9) = (MEM8(m+9) | 0x02) & 0xFB;     // .ai_state
         return;
     }
 
@@ -516,7 +534,9 @@ static void rat_ai_jump_step(uint16_t m)
 
     MEM8(m+6) = ((ah & 0xF0) | al); // .anim_counter
 
-    const uint8_t *angle_table = (MEM8(m+5) & 0x80) ? jump_angles_right : jump_angles_left; // .ai_flags
+    const uint8_t *angle_table = (MEM8(m+5) & 0x80) // .ai_flags
+        ? jump_angles_right // 1, 0, 0, 7 ; ↗→→↘
+        : jump_angles_left; // 3, 4, 4, 5 ; ↙←←↖
     uint8_t angle = angle_table[MEM8(m+6)]; // .anim_counter
 
     if (Check_collision_in_direction(m, angle)) { /* blocked */
@@ -549,7 +569,9 @@ static void rat_ai_hop_step(uint16_t m)
     uint8_t idx = rol8(MEM8(m+9), 3); // .ai_state
     idx = (uint8_t)(idx - 1) & 7;
 
-    const uint8_t *angle_table = (MEM8(m+5) & 0x80) ? rat_jump_angles_right : rat_jump_angles_left; // .ai_flags
+    const uint8_t *angle_table = (MEM8(m+5) & 0x80) // .ai_flags
+        ? rat_jump_angles_right // 2, 1, 1, 0, 0, 7, 7, 6  ;  ↑↗↗→→↘↘↓
+        : rat_jump_angles_left; // 2, 3, 3, 4, 4, 5, 5, 6  ;  ↓↙↙←←↖↖↑
     uint8_t angle = angle_table[idx];
 
     if (monster_move_in_direction(m, angle)) { /* blocked: loc_A6CF */
@@ -560,36 +582,18 @@ static void rat_ai_hop_step(uint16_t m)
     }
 }
 
-/* ============================================================================
+/* 
  * Proximity helpers shared by Frog/Rat
- * ============================================================================
  */
-static ProximityResult rat_hero_proximity_and_direction(uint16_t m)
-{
-    uint8_t dy = (uint8_t)(MEM8(ADDR_HERO_Y) - MEM8(m+2)); // .currY
-    uint8_t abs_dy  = (dy & 0x80) ? (uint8_t)(-(int8_t)dy) : dy;
-
-    if (abs_dy >= 6) {
-        return (ProximityResult){ .value = 0xFF, .carry = 0 };
-    }
-
-    if (MEM8(m+3) < 17) { // .m_x_rel
-        int carry = (MEM8(m+5) & 0x80) != 0; // .ai_flags
-        return (ProximityResult){ .value = 0x80, .carry = carry };
-    } else {
-        int carry = (MEM8(m+5) & 0x80) == 0; // .ai_flags
-        return (ProximityResult){ .value = 0x00, .carry = carry };
-    }
-}
 
 // NC, al=FF if monster is too far from hero vertically
 // CF if monster faced towards hero, al = 0 if monster to the right of hero, 80h if to the left
-static ProximityResult frog_hero_proximity_and_direction(uint16_t m)
+static ProximityResult frog_rat_to_hero_proximity_and_direction(uint16_t m, uint8_t distance)
 {
     uint8_t dy = (uint8_t)(MEM8(ADDR_HERO_Y) - MEM8(m+2)); // .currY
     uint8_t abs_dy  = (dy & 0x80) ? (uint8_t)(-(int8_t)dy) : dy;
 
-    if (abs_dy >= 8) {
+    if (abs_dy >= distance) {
         // monster too far away vertically from hero
         return (ProximityResult){ .value = 0xFF, .carry = 0 };
     }

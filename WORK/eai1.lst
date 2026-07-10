@@ -266,13 +266,13 @@ seg001:A25A                 xor     bh, bh
 seg001:A25C                 add     bx, bx          ; switch 4 cases
 seg001:A25E                 jmp     jpt_A25E[bx]    ; switch jump
 seg001:A25E ; ---------------------------------------------------------------------------
-seg001:A262 jpt_A25E        dw offset flags00       ; ...
-seg001:A264                 dw offset flags01       ; jump table for switch statement
-seg001:A266                 dw offset ai_flags10
-seg001:A268                 dw offset flags11
+seg001:A262 jpt_A25E        dw offset bat_ai       ; ...
+seg001:A264                 dw offset slug_ai       ; jump table for switch statement
+seg001:A266                 dw offset frog_ai
+seg001:A268                 dw offset rat_ai
 seg001:A26A ; ---------------------------------------------------------------------------
 seg001:A26A
-seg001:A26A flags00:                                ; ...
+seg001:A26A bat_ai:                                ; ...
 seg001:A26A                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 0
 seg001:A26F                 jnz     short loc_A276
 seg001:A271                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -298,13 +298,13 @@ seg001:A295                 xor     bh, bh
 seg001:A297                 add     bx, bx          ; switch 4 cases
 seg001:A299                 jmp     jpt_A299[bx]    ; switch jump
 seg001:A299 ; ---------------------------------------------------------------------------
-seg001:A29D jpt_A299        dw offset ai_state_00   ; ...
-seg001:A29F                 dw offset ai_state_40   ; jump table for switch statement
-seg001:A2A1                 dw offset ai_state_80
-seg001:A2A3                 dw offset ai_state_c0
+seg001:A29D jpt_A299        dw offset bat_ai_state_00   ; ...
+seg001:A29F                 dw offset bat_ai_state_40   ; jump table for switch statement
+seg001:A2A1                 dw offset bat_ai_state_80
+seg001:A2A3                 dw offset bat_ai_state_c0
 seg001:A2A5 ; ---------------------------------------------------------------------------
 seg001:A2A5
-seg001:A2A5 ai_state_00:                            ; ...
+seg001:A2A5 bat_ai_state_00:                            ; ...
 seg001:A2A5                 call    cs:move_monster_N_proc ; jumptable 0000A299 case 0
 seg001:A2AA                 test    [si+monster.anim_counter], 0FFh
 seg001:A2AE                 jz      short loc_A2B5
@@ -330,7 +330,7 @@ seg001:A2CB                 mov     [si+monster.anim_counter], 0
 seg001:A2CF                 retn
 seg001:A2D0 ; ---------------------------------------------------------------------------
 seg001:A2D0
-seg001:A2D0 ai_state_40:                            ; ...
+seg001:A2D0 bat_ai_state_40:                            ; ...
 seg001:A2D0                 inc     [si+monster.anim_counter] ; jumptable 0000A299 case 1
 seg001:A2D3                 and     [si+monster.anim_counter], 7
 seg001:A2D7                 cmp     [si+monster.anim_counter], 3
@@ -343,7 +343,7 @@ seg001:A2DE                 mov     [si+monster.ai_state], 80h
 seg001:A2E2                 retn
 seg001:A2E3 ; ---------------------------------------------------------------------------
 seg001:A2E3
-seg001:A2E3 ai_state_80:                            ; ...
+seg001:A2E3 bat_ai_state_80:                            ; ...
 seg001:A2E3                 call    bat_step_throttle ; jumptable 0000A299 case 2
 seg001:A2E6                 test    ds:hero_damage_this_frame, 0FFh
 seg001:A2EB                 jz      short loc_A2F2
@@ -429,7 +429,7 @@ seg001:A37E                 mov     [si+monster.ai_state], 0C0h
 seg001:A382                 retn
 seg001:A383 ; ---------------------------------------------------------------------------
 seg001:A383
-seg001:A383 ai_state_c0:                            ; ...
+seg001:A383 bat_ai_state_c0:                            ; ...
 seg001:A383                 test    [si+monster.ai_state], 20h ; jumptable 0000A299 case 3
 seg001:A387                 jnz     short loc_A3BD
 seg001:A389                 call    bat_step_throttle
@@ -500,7 +500,7 @@ seg001:A3E6
 seg001:A3E7 ; ---------------------------------------------------------------------------
 seg001:A3E7 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg001:A3E7
-seg001:A3E7 flags01:                                ; ...
+seg001:A3E7 slug_ai:                                ; ...
 seg001:A3E7                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 1
 seg001:A3EC                 jnz     short loc_A3F3
 seg001:A3EE                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -555,7 +555,7 @@ seg001:A43A                 and     [si+monster.ai_flags], 7Fh
 seg001:A43E                 retn
 seg001:A43F ; ---------------------------------------------------------------------------
 seg001:A43F
-seg001:A43F ai_flags10:                                ; ...
+seg001:A43F frog_ai:                                ; ...
 seg001:A43F                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
 seg001:A444                 jnz     short loc_A44B
 seg001:A446                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -689,7 +689,7 @@ seg001:A516
 seg001:A517 ; ---------------------------------------------------------------------------
 seg001:A517 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg001:A517
-seg001:A517 flags11:                                ; ...
+seg001:A517 rat_ai:                                ; ...
 seg001:A517                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 3
 seg001:A51C                 jnz     short loc_A523
 seg001:A51E                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
@@ -800,7 +800,7 @@ seg001:A5D9                 add     si, ax
 seg001:A5DB                 call    cs:wrap_map_from_above_proc
 seg001:A5E0                 xchg    si, di
 seg001:A5E2                 mov     al, [di]
-seg001:A5E4                 call    cs:if_passable_set_ZF_proc
+seg001:A5E4                 call    cs:is_blocking_proc
 seg001:A5E9                 jnz     short loc_A5F4
 seg001:A5EB                 mov     [si+monster.anim_counter], 0
 seg001:A5EF                 or      [si+monster.ai_state], 8

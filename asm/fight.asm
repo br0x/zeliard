@@ -8324,7 +8324,7 @@ move_monster_SW endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; NC: success, CF: blocked
 move_monster_S  proc near 
                 mov     al, [si+monster.m_x_rel]
                 or      al, al
