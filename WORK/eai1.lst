@@ -268,7 +268,7 @@ seg001:A25E                 jmp     jpt_A25E[bx]    ; switch jump
 seg001:A25E ; ---------------------------------------------------------------------------
 seg001:A262 jpt_A25E        dw offset flags00       ; ...
 seg001:A264                 dw offset flags01       ; jump table for switch statement
-seg001:A266                 dw offset flags10
+seg001:A266                 dw offset ai_flags10
 seg001:A268                 dw offset flags11
 seg001:A26A ; ---------------------------------------------------------------------------
 seg001:A26A
@@ -555,7 +555,7 @@ seg001:A43A                 and     [si+monster.ai_flags], 7Fh
 seg001:A43E                 retn
 seg001:A43F ; ---------------------------------------------------------------------------
 seg001:A43F
-seg001:A43F flags10:                                ; ...
+seg001:A43F ai_flags10:                                ; ...
 seg001:A43F                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
 seg001:A444                 jnz     short loc_A44B
 seg001:A446                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc

@@ -7691,8 +7691,8 @@ loc_8EF3:
 
 flag_13:         
                 call    check_monster_aligned_to_hero_and_tick ; jumptable 00008E10 case 3
-                jnb     short loc_8EFC
-                retn
+                jnc     short loc_8EFC
+                retn    ; CF
 ; ---------------------------------------------------------------------------
 
 loc_8EFC:        
@@ -8264,14 +8264,14 @@ move_monster_N  endp
 
 
 move_monster_NW proc near 
-                cmp     [si+monster.m_x_rel], 2
+                cmp     [si+monster.m_x_rel], 2 ; 0x23
                 jnb     short loc_9229
                 retn                    ; phase < 2
 ; ---------------------------------------------------------------------------
 
 loc_9229:        
-                call    check_collision_NW2
-                jnb     short decX_decY
+                call    check_collision_NW2 ; NC
+                jnc     short decX_decY
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -8384,15 +8384,15 @@ loc_928C:
 ; ---------------------------------------------------------------------------
 
 decrementX:      
-                mov     ax, [si+monster.currX]
+                mov     ax, [si+monster.currX] ; [D70E]=53
                 or      ax, ax
                 jnz     short loc_929C
                 mov     ax, ds:mapWidth
 
 loc_929C:        
                 dec     ax
-                mov     [si+monster.currX], ax
-                dec     [si+monster.m_x_rel]
+                mov     [si+monster.currX], ax ; 0x52
+                dec     [si+monster.m_x_rel]   ; 0x22
                 clc
                 retn
 ; ---------------------------------------------------------------------------
@@ -8406,7 +8406,7 @@ move_monster_S  endp
 ; ---------------------------------------------------------------------------
 
 decrementY:      
-                dec     [si+monster.currY]
+                dec     [si+monster.currY]      ; [D710]=07
                 and     [si+monster.currY], 3Fh ; wrap Y: dungeon map height is always 64
                 retn
 
@@ -8504,14 +8504,14 @@ check_collision_E_including_danger5 endp
 
 
 check_collision_W2 proc near  
-                mov     ax, word ptr [si+monster.currY]
-                call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
+                mov     ax, word ptr [si+monster.currY] ; =0x07, 0x15
+                call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL; =E111
                                         ; uint8_t x = AH
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 dec     di              ; x--, check (-1, 0)
-                call    check_collision_W_including_danger5
-                jnb     short loc_9317
+                call    check_collision_W_including_danger5 ; =NC
+                jnc     short loc_9317
                 retn                    ; CF if (-1, 0) unpassable, including danger 5
 ; ---------------------------------------------------------------------------
 
@@ -8520,8 +8520,8 @@ loc_9317:
                 add     si, 36          ; y++
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di          ; check (-1, +1)
-                call    check_collision_W_including_danger5
-                jnb     short loc_9327
+                call    check_collision_W_including_danger5 ; =NC
+                jnc     short loc_9327
                 retn                    ; CF if (-1, +1) unpassable, including danger 5
 ; ---------------------------------------------------------------------------
 
@@ -8539,7 +8539,7 @@ loc_9327:
                                         ; ??x
                                         ; ??.
                 add     al, al          ; CF is only set if any of {(-2, +1), (-2, 0), (-2, -1)} has high bit set (negative)
-                retn
+                retn                ; =NC
 check_collision_W2 endp
 
 

@@ -150,7 +150,7 @@ uint8_t move_monster_NW(uint16_t m) {
 }
 
 uint8_t move_monster_W(uint16_t m) {
-    if (MEM8(m+3) >= 2 && !check_collision_W2(m)) {
+    if (MEM8(m+3) >= 2 && !check_collision_W2(m)) { // .m_x_rel
         decrementX(m);
         return 0xFF;
     }
@@ -166,6 +166,7 @@ uint8_t move_monster_SW(uint16_t m) {
     return 0;
 }
 
+// true if monster moved south, false if blocked
 uint8_t move_monster_S(uint16_t m) {
     uint8_t x_rel = MEM8(m+3);
     if (x_rel != 0 && x_rel != 35 && !check_collision_S2(m)) {
@@ -2535,7 +2536,7 @@ static void hero_got_gold(uint16_t ax) {
 //     - Else: increment monster.counter, call Monster_AI on activation.
 void monsters_spawning(void) {
     uint16_t m = MEM16(ADDR_MONSTERS_LIST);
-    if (MEM8(ADDR_IS_BOSS_CAVERN) != 0 || MEM8(ADDR_IS_JASHIIN_CAVERN) != 0) {
+    if (MEM8(ADDR_IS_BOSS_CAVERN) || MEM8(ADDR_IS_JASHIIN_CAVERN)) {
         // entire AI handled by boss procedure
         Monster_AI(m);
         return;
@@ -2555,7 +2556,7 @@ void monsters_spawning(void) {
             if (is_in_proximity_window(currX, &rel_x)) { // else skip
                 MEM8(m+3) = rel_x;
                 if (MEM8(ADDR_MONSTER_INDEX) == 3) {
-                    debug_printf("[monsters_spawning()] Entity %d spawning at (%d, %d) addr=0x%04X\n", 
+                    debug_printf("[monsters_spawning()] Chest %d spawning at (%d, %d) addr=0x%04X\n", 
                         MEM8(ADDR_MONSTER_INDEX), rel_x, MEM8(m+2), m);
                 }
                 place_monster_in_proximity_and_run_ai(m);
@@ -2621,7 +2622,7 @@ static void mark_collected(uint16_t m) {
 // common pickup: move south, check alignment, play sound, show message
 static uint8_t pickup_common(uint16_t m, uint8_t msg_id) {
     move_monster_S(m);
-    if (!check_monster_aligned_to_hero_and_tick(m))
+    if (check_monster_aligned_to_hero_and_tick(m))
         return 0;
 
     MEM8(ADDR_SOUND_FX_REQUEST) = 17;
@@ -2720,7 +2721,7 @@ static void flag_12(uint16_t m) {
 
 // item pickup (contact collision)
 static void flag_13(uint16_t m) {
-    if (!check_monster_aligned_to_hero_and_tick(m))
+    if (check_monster_aligned_to_hero_and_tick(m))
         return;
 
     MEM8(ADDR_SOUND_FX_REQUEST) = 20;
@@ -2781,7 +2782,7 @@ static void flag_14_15_1b(uint16_t m) {
     MEM8(m+6) = MEM8(m+6) + 1; // .anim_counter
     MEM8(m+6) = MEM8(m+6) & 3;
 
-    if (!check_monster_aligned_to_hero_and_tick(m))
+    if (check_monster_aligned_to_hero_and_tick(m))
         return;
 
     MEM8(ADDR_SOUND_FX_REQUEST) = 16;
@@ -2814,7 +2815,7 @@ static void flag_17(uint16_t m) {
 
 // small potion (red)
 static void flag_18(uint16_t m) {
-    if (!check_monster_aligned_to_hero_and_tick(m))
+    if (check_monster_aligned_to_hero_and_tick(m))
         return;
     render_notification_string(YOU_HAVE_RECOVERED_STR);
     MEM8(ADDR_HEALING_TIMER) += 10; // byte access in original!
@@ -2824,7 +2825,7 @@ static void flag_18(uint16_t m) {
 // large potion (blue)
 static void flag_19(uint16_t m) {
     move_monster_S(m);
-    if (!check_monster_aligned_to_hero_and_tick(m))
+    if (check_monster_aligned_to_hero_and_tick(m))
         return;
     render_notification_string(YOU_HAVE_RECOVERED_FULL_STR);
     uint16_t amount = (MEM16(ADDR_HERO_MAX_HP) >> 3) + 1;
@@ -2836,7 +2837,7 @@ static void flag_19(uint16_t m) {
 static void flag_1c(uint16_t m) {
     MEM8(m+15) = 0; // .counter
     if (!(MEM8(m+9) & 1)) { // ai_state
-        if (!check_monster_aligned_to_hero_and_tick(m))
+        if (check_monster_aligned_to_hero_and_tick(m))
             return;
 
         MEM8(ADDR_SOUND_FX_REQUEST) = 17;
@@ -2968,10 +2969,10 @@ static void default_0toF_handler(uint16_t m) {
 // in monster.flags low nibble (see ENP1_FRAMES lookup in grp_viewer.py).
 static void place_monster_in_proximity_and_run_ai(uint16_t m)
 {
-    uint16_t di = coords_to_prox_addr(MEM8(m+3), MEM8(m+2));
-    uint8_t al = MEM8(m+5) & (~0x20); // .ai_flags, clear bit5
+    uint16_t di = coords_to_prox_addr(MEM8(m+3), MEM8(m+2)); // .m_x_rel, currY
+    uint8_t al = MEM8(m+5) & (~0x20);   // .ai_flags, clear bit5
     if (al & 0x40) {                    // bit6 set?
-        if (!(MEM8(m+4) & 0x20))      // .flags bit5 clear?
+        if (!(MEM8(m+4) & 0x20))        // .flags bit5 clear?
             al |= 0x20;                 // set ai_flags bit5
         al &= ~0x40;                    // clear ai_flags bit6
     }

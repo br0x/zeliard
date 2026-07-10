@@ -7828,14 +7828,14 @@ fight:9234 ; =============== S U B R O U T I N E ===============================
 fight:9234
 fight:9234
 fight:9234 move_monster_W  proc near               ; ...
-fight:9234                 cmp     [si+monster.x_rel], 2
+fight:9234                 cmp     [si+monster.x_rel], 2 ; =0x15
 fight:9238                 jnb     short loc_923B
 fight:923A                 retn                    ; phase < 2
 fight:923B ; ---------------------------------------------------------------------------
 fight:923B
 fight:923B loc_923B:                               ; ...
 fight:923B                 call    check_collision_W2
-fight:923E                 jnb     short loc_9241
+fight:923E                 jnc     short loc_9241
 fight:9240                 retn
 fight:9241 ; ---------------------------------------------------------------------------
 fight:9241
@@ -7927,15 +7927,15 @@ fight:9292                 retn
 fight:9293 ; ---------------------------------------------------------------------------
 fight:9293
 fight:9293 decrementX:                             ; ...
-fight:9293                 mov     ax, [si+monster.currX]
+fight:9293                 mov     ax, [si+monster.currX] ; =0x0045
 fight:9295                 or      ax, ax
 fight:9297                 jnz     short loc_929C
 fight:9299                 mov     ax, ds:mapWidth
 fight:929C
 fight:929C loc_929C:                               ; ...
-fight:929C                 dec     ax
+fight:929C                 dec     ax              ; =0x0044
 fight:929D                 mov     [si+monster.currX], ax
-fight:929F                 dec     [si+monster.x_rel]
+fight:929F                 dec     [si+monster.x_rel] ; =0x14
 fight:92A2                 clc
 fight:92A3                 retn
 fight:92A4 ; ---------------------------------------------------------------------------

@@ -249,7 +249,7 @@ Monster_AI      proc near
 ; ---------------------------------------------------------------------------
 jpt_A25E        dw offset flags00
                 dw offset flags01
-                dw offset flags10
+                dw offset ai_flags10
                 dw offset flags11
 ; ---------------------------------------------------------------------------
 
@@ -533,38 +533,40 @@ loc_A432:
 loc_A43A:                
                 and     [si+monster.ai_flags], 7Fh
                 retn
-; ---------------------------------------------------------------------------
 
-flags10:                 
+
+; =============================================================================
+; frog @A43F
+ai_flags10:                 
                 call    cs:check_monster_on_aggressive_ground_proc ; jumptable 0000A25E case 2
                 jnz     short loc_A44B
                 jmp     cs:Check_Vertical_Distance_Between_Hero_And_Monster_proc
 ; ---------------------------------------------------------------------------
 
 loc_A44B:                
-                test    [si+monster.hp], 0FFh
+                test    [si+monster.hp], 0FFh ; 1
                 jnz     short loc_A455
-                mov     [si+monster.hp], 1
+                mov     [si+monster.hp], 1  ; bp cs:a451
 
 loc_A455:                
-                test    [si+monster.ai_flags], 20h
+                test    [si+monster.ai_flags], 20h ; [D713]=00
                 jz      short loc_A460
                 jmp     cs:Hero_Hits_monster_proc
 ; ---------------------------------------------------------------------------
 
 loc_A460:                
-                test    [si+monster.ai_state], 8
+                test    [si+monster.ai_state], 8 ; 0
                 jnz     short loc_A4A2
-                add     [si+monster.anim_counter], 21h ; '!'
-                and     [si+monster.anim_counter], 11100001b
+                add     [si+monster.anim_counter], 21h
+                and     [si+monster.anim_counter], 11100001b ; initial := 0x21
                 call    cs:move_monster_S_proc
-                jb      short loc_A476
+                jc      short loc_A476 ; =CF
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A476:                
-                call    frog_hero_proximity_and_direction
-                jb      short loc_A49A
+                call    frog_hero_proximity_and_direction ; CF, al=0; ; frog faced towards hero, frog to the right of hero
+                jc      short loc_A49A
                 mov     al, [si+monster.anim_counter]
                 and     al, 11100000b
                 jz      short loc_A483
@@ -583,32 +585,32 @@ loc_A483:
 ; ---------------------------------------------------------------------------
 
 loc_A49A:                
-                mov     [si+monster.anim_counter], 2
-                or      [si+monster.ai_state], 8
+                mov     [si+monster.anim_counter], 2 ; [D714]=02
+                or      [si+monster.ai_state], 8     ; [D717]=08
 
 loc_A4A2:                
-                mov     al, [si+monster.anim_counter]
-                mov     ah, al
+                mov     al, [si+monster.anim_counter] ; =2
+                mov     ah, al ; old_anim_counter
                 inc     al
-                and     al, 7
+                and     al, 7 ; new_anim_counter
                 cmp     al, 7
                 jnb     short loc_A4DB
-                mov     ch, ah
+                mov     ch, ah ; old_anim_counter
                 and     ch, 0F0h
-                or      al, ch
-                mov     [si+monster.anim_counter], al
-                mov     bx, offset jump_angles_right
-                test    [si+monster.ai_flags], 80h
+                or      al, ch ; preserve bits 4...7
+                mov     [si+monster.anim_counter], al ; [D714]=03
+                mov     bx, offset jump_angles_right ; db 1, 0, 0, 7 ; ↗→→↘
+                test    [si+monster.ai_flags], 80h ; =0; bit 7 is facing direction (1=right, 0=left)
                 jnz     short loc_A4C5
-                mov     bx, offset jump_angles_left
+                mov     bx, offset jump_angles_left  ; db 3, 4, 4, 5 ; ↙←←↖
 
 loc_A4C5:                
-                mov     al, ah
-                sub     al, 2
-                xlat
+                mov     al, ah ; old_anim_counter (2...5)
+                sub     al, 2 ; =0
+                xlat          ; =3
                 call    cs:monster_move_in_direction_proc ; monster_move_in_direction; al=angle starting from right, counter-clockwise
-                jb      short loc_A4D2
-                retn
+                jc      short loc_A4D2 ; NC
+                retn  ; =NC
 ; ---------------------------------------------------------------------------
 
 loc_A4D2:                
@@ -623,7 +625,8 @@ loc_A4DB:
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; NC, al=FF if monster is too far from hero vertically
+; CF if monster faced towards hero, al = 0 if monster to the right of hero, 80h if to the left
 frog_hero_proximity_and_direction proc near
                 mov     al, ds:hero_y_absolute ; hero_y_absolute
                 sub     al, [si+monster.currY]
@@ -634,32 +637,31 @@ loc_A4F2:
                 cmp     al, 8
                 mov     al, 0FFh
                 jb      short loc_A4F9
-                retn
+                retn ; abs_dy >= 8 ? 0xFF ; NC, 0xFF
 ; ---------------------------------------------------------------------------
 
 loc_A4F9:                
-                cmp     [si+monster.m_x_rel], 11h
+                cmp     [si+monster.m_x_rel], 17
                 jnb     short loc_A50B
+                ; monster to the left of hero; carry if facing right
                 mov     al, 80h
-                test    [si+monster.ai_flags], 80h
+                test    [si+monster.ai_flags], 80h ; bit 7 is facing direction (1=right, 0=left)
                 stc
                 jz      short loc_A509
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_A509:                
                 clc
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A50B:                
+loc_A50B:       ; monster to the right of hero; carry if facing left
                 xor     al, al
                 test    [si+monster.ai_flags], 80h
                 stc
                 jnz     short loc_A515
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_A515:                
                 clc
                 retn
@@ -962,9 +964,9 @@ loc_A71D:
 rat_hero_proximity_and_direction endp
 
 ; ---------------------------------------------------------------------------
-jump_angles_right db 1, 0, 0, 7  
+jump_angles_right db 1, 0, 0, 7         ; -> /~~\
                                         ; NE, E, E, SE
-jump_angles_left db 3, 4, 4, 5   
+jump_angles_left db 3, 4, 4, 5          ; /~~\ <-
                                         ; NW, W, W, SW
 rat_jump_angles_right db 2, 1, 1, 0, 0, 7, 7, 6
                                         ; N, NE, NE, E, E, SE, SE, S
