@@ -586,6 +586,32 @@ export function setDungeonAirflows(tileIds) {
     }
 }
 
+export function setDungeonMonsterXp(xp) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    const listGmemAddr = gMemoryBase + 0xA008; // absolute index into wasmMemory
+
+    for (let i = 0; i < 8; i++) {
+        wasmMemory[listGmemAddr + i] = xp[i];
+    }
+}
+
+export function setDungeonMonsterDamage(damage) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    const listGmemAddr = gMemoryBase + 0xA010; // absolute index into wasmMemory
+
+    for (let i = 0; i < 8; i++) {
+        wasmMemory[listGmemAddr + i] = damage[i];
+    }
+}
+
 /**
  * Get monster buffer (0xE900)
  * @returns {Uint8Array} View of monster buffer (28*19 bytes, 1 byte per monster)

@@ -39,6 +39,8 @@ const DUNGEONS = {
         slopeTilesRight: [0xC], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x0F, 0x0E, 0x0D], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [3, 2,  5, 3, 0, 0, 0, 0],
+        monster_damage: [5, 5, 15, 8, 0, 0, 0, 0],
     },
 };
 const NOTIFICATION_STRINGS = {
@@ -479,6 +481,8 @@ let setDungeonSlopeTilesRight;
 let setDungeonAggressiveGround;
 let setDungeonAirflows;
 let setDungeonSwordReach;
+let setDungeonMonsterXp;
+let setDungeonMonsterDamage;
 let dungeonGetRenderRequest;
 let dungeonClearRenderRequest;
 
@@ -1086,7 +1090,8 @@ async function loadWasmEngine() {
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
         setDungeonPassableTiles, setDungeonAggressiveGround, 
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
-        setDungeonSwordReach, dungeonGetRenderRequest, dungeonClearRenderRequest,
+        setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage,
+        dungeonGetRenderRequest, dungeonClearRenderRequest,
     } = wasmBridge);
 }
 
@@ -2119,6 +2124,8 @@ async function handleDungeonTransition(mapId) {
         setDungeonSlopeTilesRight(DUNGEONS[rawMapId].slopeTilesRight);
         setDungeonAggressiveGround(DUNGEONS[rawMapId].aggressiveGround);
         setDungeonAirflows(DUNGEONS[rawMapId].airflows);
+        setDungeonMonsterXp(DUNGEONS[rawMapId].monster_xp);
+        setDungeonMonsterDamage(DUNGEONS[rawMapId].monster_damage);
         // set sword reachability list
         const swordType = readMemory(ADDR_SWORD_TYPE, 1)[0];
         if (swordType <= 3) {

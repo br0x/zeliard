@@ -10140,7 +10140,7 @@ jump_height_including_shoes db 2
 word_9F0E       dw 0      
 word_9F10       dw 0      
 ; ---- Damage / invincibility ----
-accumulated_contact_damage dw 0 
+accumulated_contact_damage dw 0 ; 9F12h
 byte_9F14       db 0      
 air_up_tile_found db 0    ; 9f15h
 ; ---- Airflow ----

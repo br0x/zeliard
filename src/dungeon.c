@@ -25,7 +25,8 @@
 #define ADDR_HEIGHT_ABOVE_GROUND      0x9F0C
 #define ADDR_JUMP_HEIGHT_INCLUDING_SHOES  0x9F0D  // normally 2, Feruza shoes set to 4
 #define ADDR_KNOCKBACK_VECTOR_9F0E    0x9F0E  // word
-#define ADDR_KNOCKBACK_VECTOR_9F10       0x9F10  // word
+#define ADDR_KNOCKBACK_VECTOR_9F10    0x9F10  // word
+#define ADDR_ACCUMULATED_DAMAGE       0x9F12  // word
 #define ADDR_BYTE_9F14                0x9F14
 #define ADDR_AIR_UP_TILE_FOUND        0x9F15
 #define ADDR_TICKS                    0x9F16
@@ -2395,8 +2396,104 @@ void process_doors(void)
 // stub
 void dispatch_spell_projectile_movement(void) {}
 
-// stub
-void check_hero_contact_damage(void) {}
+// Check tile at proximity addr for a non-flying monster.
+// If found, accumulate its contact damage and return 1.
+static uint8_t check_tile_contact_damage(uint16_t addr)
+{
+    uint8_t flags;
+    uint16_t monster_struct;
+    if (!get_dst_monster_flags(addr, &flags, &monster_struct))
+        return 0;
+    if (flags & 0x40)
+        return 0;
+    uint8_t idx = flags & 0x0F;
+    MEM16(ADDR_ACCUMULATED_DAMAGE) += MEM8(ADDR_MONSTER_DAMAGE + idx);
+    return 1;
+}
+
+void check_hero_contact_damage(void)
+{
+    if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_BEING_HIT))
+        return;
+
+    MEM16(0x9F12) = 0;
+
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si--;
+
+    uint16_t di = ADDR_KNOCKBACK_VECTOR_9F0E;
+
+    int rows;
+    if (!MEM8(ADDR_SQUAT_FLAG)) {
+        si -= PROX_COLS;
+        wrap_map_from_below(&si);
+        rows = 3;
+    } else {
+        rows = 2;
+    }
+
+    for (int tile = 0; tile < 4; tile++) {
+        uint16_t scan = si;
+        uint8_t found = 0;
+        for (int row = 0; row < rows; row++) {
+            if (check_tile_contact_damage(scan)) {
+                found = 1;
+                break;
+            }
+            scan += PROX_COLS;
+            wrap_map_from_above(&scan);
+        }
+
+        MEM8(di) = found ? 0xFF : 0;
+
+        if (found && !MEM8(ADDR_INVINCIBILITY_FLAG)) {
+            uint16_t damage = MEM16(0x9F12);
+
+            uint8_t no_shield;
+            if (tile < 2)
+                no_shield = !(MEM8(ADDR_FACING) & LEFT);
+            else
+                no_shield = (MEM8(ADDR_FACING) & LEFT) != 0;
+
+            if (no_shield || !MEM8(ADDR_SHIELD_TYPE)) {
+                damage_hero(damage);
+                MEM8(ADDR_SOUND_FX_REQUEST) = 9;
+            } else {
+                damage >>= 1;
+                uint8_t shift = (MEM8(ADDR_SHIELD_TYPE) + 1) >> 1;
+                damage >>= shift;
+
+                uint16_t shield_hp = MEM16(0x94);
+                if (shield_hp < damage) {
+                    MEM8(ADDR_SHIELD_TYPE) = 0;
+                    MEM16(0x94) = 0;
+                    render_notification_string(SHIELD_BROKEN_STR);
+                } else {
+                    shield_hp -= damage;
+                    MEM16(0x94) = shield_hp;
+                    if (shield_hp == 0) {
+                        MEM8(ADDR_SHIELD_TYPE) = 0;
+                        render_notification_string(SHIELD_BROKEN_STR);
+                    }
+                }
+                damage_hero(damage);
+                MEM8(ADDR_SOUND_FX_REQUEST) = 8;
+            }
+        }
+
+        si++;
+        di++;
+    }
+
+    uint8_t flags = MEM8(ADDR_KNOCKBACK_VECTOR_9F0E)
+                  | MEM8(ADDR_KNOCKBACK_VECTOR_9F0E + 1)
+                  | MEM8(ADDR_KNOCKBACK_VECTOR_9F0E + 2)
+                  | MEM8(ADDR_KNOCKBACK_VECTOR_9F0E + 3);
+    MEM8(ADDR_BYTE_9F14) = flags;
+    MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = flags;
+    if (flags)
+        Draw_Hero_Health();
+}
 
 // stub
 void Flush_Ui_Element_If_Dirty_proc()
@@ -2417,7 +2514,8 @@ const uint8_t aggressive_tiles_damage_table[9] = {1, 1, 4, 8, 20, 20, 20, 20, 20
 /*
  * damage_hero – subtract damage from hero_HP, clamp to 0, redraw health.
  */
-void damage_hero(uint16_t damage) {
+void damage_hero(uint16_t damage)
+{
     uint16_t hero_HP = MEM16(ADDR_HERO_HP);
     if (hero_HP >= damage) {
         hero_HP -= damage;

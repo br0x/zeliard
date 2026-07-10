@@ -103,6 +103,7 @@ extern "C" {
 #define ADDR_BOSS_STATE_PTR                            0xA002  // word
 #define ADDR_DEATH_DESCRIPTORS_PTR                     0xA006  // word
 #define ADDR_XP_FOR_MONSTER                            0xA008
+#define ADDR_MONSTER_DAMAGE                            0xA010  // 16 bytes
 #define ADDR_MONSTER_AI_MOVE_LEFT_FRAMES               0xA030
 #define ADDR_MONSTER_AI_DEATH_LEFT_FRAMES              0xA040
 #define ADDR_MONSTER_AI_ITEM_ANIMATION_LEFT_FRAMES     0xA050
@@ -693,6 +694,8 @@ static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
 uint8_t check_monster_on_aggressive_ground(uint16_t m);
 uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m);
+void damage_hero(uint16_t damage);
+void render_notification_string(uint8_t str_idx);
 
 // Input Handling
 void input_update(void);
