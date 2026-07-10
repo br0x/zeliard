@@ -267,12 +267,12 @@ static void bat_ai_state_c0(uint16_t m)
 
     uint8_t blocked_diag;
     if (MEM8(m+5) & 0x80) { // .ai_flags
-        blocked_diag = move_monster_NE(m);
+        blocked_diag = !move_monster_NE(m);
         if (blocked_diag) {
             MEM8(m+5) &= 0x7F; // .ai_flags
         }
     } else {
-        blocked_diag = move_monster_NW(m);
+        blocked_diag = !move_monster_NW(m);
         if (blocked_diag) {
             MEM8(m+5) |= 0x80; // .ai_flags
         }
@@ -281,7 +281,7 @@ static void bat_ai_state_c0(uint16_t m)
     if (!blocked_diag) return;
 
     /* --- loc_A3AC --- */
-    if (move_monster_N(m)) { /* blocked */
+    if (!move_monster_N(m)) { /* blocked */
         MEM8(m+9) |= 0x20; // .ai_state
         MEM8(m+6) = 2;      // .anim_counter
     }
