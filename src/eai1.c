@@ -463,12 +463,12 @@ static void rat_ai(uint16_t m)
         }
 
         if (MEM8(m+5) & 0x80) { // .ai_flags
-            if (move_monster_E(m)) { /* blocked */
+            if (!move_monster_E(m)) { /* blocked */
                 MEM8(m+6) = 0;                            // .anim_counter
                 MEM8(m+9) = (MEM8(m+9) | 0x10) & 0x1F;     // .ai_state
             }
         } else {
-            if (move_monster_W(m)) { /* blocked */
+            if (!move_monster_W(m)) { /* blocked */
                 MEM8(m+6) = 0;                            // .anim_counter
                 MEM8(m+9) = (MEM8(m+9) | 0x10) & 0x1F;     // .ai_state
             }
@@ -574,7 +574,7 @@ static void rat_ai_hop_step(uint16_t m)
         : rat_jump_angles_left; // 2, 3, 3, 4, 4, 5, 5, 6  ;  ↓↙↙←←↖↖↑
     uint8_t angle = angle_table[idx];
 
-    if (monster_move_in_direction(m, angle)) { /* blocked: loc_A6CF */
+    if (!monster_move_in_direction(m, angle)) { /* blocked: loc_A6CF */
         MEM8(m+9) = ((MEM8(m+9) & 0xEF) | 0x04); // .ai_state
         if (MEM8(m+6) != 0) { // .anim_counter
             MEM8(m+6) = 3;
