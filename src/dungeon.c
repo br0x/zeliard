@@ -61,6 +61,9 @@
 #define ADDR_PENDING_DUNGEON_MAP  0xFFFC
 #define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
 
+#define ADDR_GOLD_RENDER_REQUEST  0xFF94
+#define ADDR_ALMAS_RENDER_REQUEST 0xFF98
+
 #define ADDR_NOTIFICATION_MSG_ID  0xFF96
 #define ADDR_NOTIFICATION_FLAG    0xFF97
 
@@ -2582,16 +2585,16 @@ void step_on_aggressive_ground(void) {
     damage_hero(dmg);
 }
 
-//stub
-// TODO: signal js to render gold amount
+// Signal game.js to render gold HUD
 void Print_Gold_Decimal()
 {
+    MEM8(ADDR_GOLD_RENDER_REQUEST) = 0xFF;
 }
 
-//stub
-// TODO: signal js to render almas amount
+// Signal game.js to render almas HUD
 static void Print_Almas_Decimal()
 {
+    MEM8(ADDR_ALMAS_RENDER_REQUEST) = 0xFF;
 }
 
 void render_notification_string(uint8_t str_idx)

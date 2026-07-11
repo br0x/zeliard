@@ -116,17 +116,18 @@ const MI_WITHDRAW        = 3;
 const MI_BALANCE         = 4;
 
 // ─── Almas exchange rates by town (bankpro.asm almas_exchange_rates_by_town) ─
-// Each entry [almasNeeded, goldsGiven].  1-based town ids map to 0-based index.
+// Each entry [almasGiven, goldsReceived], matching the original ASM's
+// little-endian word layout (low byte = almas, high byte = gold).
 const ALMAS_RATES = [
-    [6, 1],   // Muralla  (town 1)
-    [6, 1],   // Satono   (town 2)
-    [8, 1],   // Bosque   (town 3)
-    [4, 1],   // Helada   (town 4)
-    [2, 1],   // Tumba    (town 5)
-    [4, 1],   // Dorado   (town 6)
-    [2, 4],   // Llama    (town 7)
-    [6, 1],   // Pureza   (town 8)
-    [8, 1],   // Esco     (town 9)
+    [1, 6],   // Muralla  (town 1) — 1 alma → 6 gold
+    [1, 6],   // Satono   (town 2)
+    [1, 8],   // Bosque   (town 3) — 1 alma → 8 gold
+    [1, 4],   // Helada   (town 4) — 1 alma → 4 gold
+    [1, 2],   // Tumba    (town 5) — 1 alma → 2 gold
+    [1, 4],   // Dorado   (town 6) — 1 alma → 4 gold
+    [4, 2],   // Llama    (town 7) — 4 almas → 2 gold
+    [1, 6],   // Pureza   (town 8) — 1 alma → 6 gold
+    [1, 8],   // Esco     (town 9) — 1 alma → 8 gold
 ];
 
 // ─── Memory addresses (common.inc) ───────────────────────────────────────────

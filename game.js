@@ -373,6 +373,8 @@ const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
 const ADDR_RENDER_REQUEST          = 0xFF92;
 const ADDR_RENDER_DONE             = 0xFF93;
 const ADDR_DEATH_COUNTER           = 0xFF95;
+const ADDR_GOLD_RENDER_REQUEST     = 0xFF94;
+const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
 const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
 const ADDR_NOTIFICATION_FLAG       = 0xFF97;
 const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
@@ -2977,6 +2979,14 @@ function draw() {
             drawLifeBar();
             writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
         }
+        if (readMemory(ADDR_GOLD_RENDER_REQUEST, 1)[0]) {
+            renderGoldHud();
+            writeMemory(ADDR_GOLD_RENDER_REQUEST, [0]);
+        }
+        if (readMemory(ADDR_ALMAS_RENDER_REQUEST, 1)[0]) {
+            renderAlmasHud();
+            writeMemory(ADDR_ALMAS_RENDER_REQUEST, [0]);
+        }
     } else { // town outdoor mode
         ctx.fillStyle = '#05053f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2991,7 +3001,7 @@ function draw() {
             let placeName = getTownName?.() ?? 'unknown';
             updatePlaceHud(townEntryRan ? placeName : '');
             renderGoldHud();
-            updateElementText('almas', 0);
+            renderAlmasHud();
             renderSwordHud();
             renderMagicHud();
             renderShieldHud();
