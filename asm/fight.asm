@@ -7363,7 +7363,7 @@ byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 ; MONSTER TABLE ENTRY (16 bytes, monster struc from dungeon.inc):
 ;   [0..1] currX     : absolute map X (0xFFFF = end of table)
 ;   [2]    currY     : absolute map Y (0-63)
-;   [3]    m_x_rel   : relative X in proximity window (0-34), 0xFF = out of range
+;   [3]    m_x_rel   : relative X in proximity window (0-35), 0xFF = out of range
 ;   [4]    flags     : monster type / behavior flags
 ;   [5]    ai_flags  : AI state bits (bit6=spell-hit, bits4:0=spell-type)
 ;   [6]    anim_counter

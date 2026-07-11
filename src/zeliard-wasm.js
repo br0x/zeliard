@@ -612,6 +612,46 @@ export function setDungeonMonsterDamage(damage) {
     }
 }
 
+export function setDeathDescriptors(descriptors) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    // Layout in g_mem:
+    //   0xA006:   WORD pointer -> dispatch array (0xA0C0)
+    //   0xA0C0:   8 WORD pointers -> individual 4-byte descriptor tables
+    //   0xA0E0+:  individual descriptor tables (each 4 bytes)
+
+    const ptrAddr = gMemoryBase + 0xA006;      // WORD: pointer to dispatch array
+    const arrayAddr = gMemoryBase + 0xA0C0;    // 8 WORD dispatch array
+    let tableAddr = gMemoryBase + 0xA0E0;      // first descriptor table
+
+    // Store the pointer (0xA0C0 as little-endian WORD)
+    wasmMemory[ptrAddr]     = 0xC0;
+    wasmMemory[ptrAddr + 1] = 0xA0;
+
+    for (let i = 0; i < 8; i++) {
+        const desc = descriptors[i];
+        if (desc.length === 0) {
+            // Empty slot: store null pointer
+            wasmMemory[arrayAddr + i * 2]     = 0;
+            wasmMemory[arrayAddr + i * 2 + 1] = 0;
+        } else {
+            // Store pointer to this table
+            const off = tableAddr - gMemoryBase;
+            wasmMemory[arrayAddr + i * 2]     = off & 0xFF;
+            wasmMemory[arrayAddr + i * 2 + 1] = (off >> 8) & 0xFF;
+
+            // Write the 4 descriptor bytes
+            for (let j = 0; j < 4; j++) {
+                wasmMemory[tableAddr + j] = desc[j] || 0;
+            }
+            tableAddr += 4;
+        }
+    }
+}
+
 /**
  * Get monster buffer (0xE900)
  * @returns {Uint8Array} View of monster buffer (28*19 bytes, 1 byte per monster)

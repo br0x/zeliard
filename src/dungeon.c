@@ -3218,7 +3218,7 @@ static void monster_activation(uint16_t m)
             return;             /* 3x3 area already has a monster */
 
         MEM8(di_orig) = MEM8(ADDR_MONSTER_INDEX) | 0x80;
-        MEM8(m+0) = MEM8(m+11); // .currX, .spwnX
+        MEM16(m+0) = MEM16(m+11); // .currX, .spwnX
         MEM8(m+2) = MEM8(m+13); // .currY, .spwnY
         MEM8(m+4) = MEM8(m+14); // .flags, .type_
         MEM8(m+6) = 0x10;       // .anim_counter
@@ -3310,7 +3310,7 @@ uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m)
     MEM8(m+6) = 0; // .anim_counter
     MEM8(m+4) = MEM8(m+4) | 0x68; // .flags
     MEM8(m+5) = MEM8(m+5) & 0x80; // .ai_flags
-    if ((MEM8(m+7) & 0x10) && (MEM8(m+4) & 1)) { // .state_flags, .flags
+    if ((MEM8(m+7) & 0x10) && (MEM8(m+4) & 1) == 0) { // .state_flags, .flags
         MEM8(m+6) = 0x80; // .anim_counter
         MEM8(m+16+6) = 0; // .anim_counter
         MEM8(m+16+4) = MEM8(m+16+4) | 0x68; // .flags
@@ -3356,7 +3356,7 @@ void Hero_Hits_monster(uint16_t m)
     di = MEM16(di + bl*2);
     bl = (MEM8(ADDR_SWORD_HIT_TYPE) == 2) ? 0 : (get_random() & 3);
     al = MEM8(di + bl);
-    MEM8(m+7) = (MEM8(m+7) & 0x0F) | al; // .state_flags
+    MEM8(m+7) = (MEM8(m+7) & 0xF0) | (al & 0x0F); // .state_flags
     monster_split_or_die(m);
     return;
 }

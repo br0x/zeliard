@@ -228,13 +228,13 @@ wall_destruction_frames db 1, 0D5h, 0D5h, 0D5h, 0D5h
                         db 1, 0D6h, 0D7h, 0D8h, 0D9h
                         db 1, 0DAh, 0DBh, 0DCh, 0DDh
                         db 1, 0, 0, 0DEh, 0DFh
-death_descriptors       dw offset slug_death_desc
-                        dw offset frog_rat_death_desc
-                        dw offset frog_rat_death_desc
-                        dw offset bat_death_desc
-bat_death_desc          db 5, 0, 0, 0
-slug_death_desc         db 5, 4, 4, 0
-frog_rat_death_desc     db 4, 0, 4, 0
+death_descriptors       dw offset bat_death_desc     ; bat
+                        dw offset slug_frog_death_desc ; slug
+                        dw offset slug_frog_death_desc ; frog
+                        dw offset rat_death_desc      ; rat
+rat_death_desc          db 5, 0, 0, 0
+bat_death_desc          db 5, 4, 4, 0
+slug_frog_death_desc    db 4, 0, 4, 0
 
 ; =============== S U B R O U T I N E =======================================
 
