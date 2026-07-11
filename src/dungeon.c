@@ -3198,7 +3198,7 @@ static void monster_activation(uint16_t m)
        at the edge of the detection window (3 <= bl < 32) — i.e. avoid
        visibly popping a monster in right in front of the hero. */
     al = (MEM8(ADDR_VIEWPORT_TOP_ROW) - 2) & 0x3F;
-    al = (MEM8(m+2) - al) & 0x3F; // .spwnY
+    al = (MEM8(m+13) - al) & 0x3F; // .spwnY
     if (al < 24 && bl >= 3 && bl < 32)
         return;
 
@@ -3227,6 +3227,7 @@ static void monster_activation(uint16_t m)
         MEM8(m+6) = 0x10;       // .anim_counter
         MEM8(m+5) = 0;          // .ai_flags
         MEM8(m+9) = 0;          // .ai_state
+        MEM8(m+10) = 0;         // .ai_timer
         MEM8(m+8) = 0;          // .hp
 
         MEM8(ADDR_PROXIMITY_LAYER2 + MEM8(ADDR_MONSTER_INDEX)) = 0;
