@@ -339,28 +339,7 @@ export function getTownMdtHeader() {
  * followed by Pascal string (length byte + characters).
  */
 export function getCavernName() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return '';
-    }
-
-    const header = getCavernMdtHeader();
-    if (!header || header.cavern_name_offset === 0) {
-        return '';
-    }
-
-    // Header offset is relative to 0xc000, so actual WASM memory address is:
-    // gMemoryBase + header.cavern_name_offset
-    // Add 3 to skip rendering info metadata and point to Pascal string length
-    const nameOffset = gMemoryBase + header.cavern_name_offset + 3;
-    const nameLength = wasmMemory[nameOffset];
-    let name = '';
-
-    for (let i = 0; i < nameLength; i++) {
-        name += String.fromCharCode(wasmMemory[nameOffset + 1 + i]);
-    }
-
-    return name;
+    return getPlaceNameFromMdt(0x0E);
 }
 
 /**
@@ -372,20 +351,24 @@ export function getCavernName() {
  * followed by Pascal string (length byte + characters).
  */
 export function getTownName() {
+    return getPlaceNameFromMdt(4);
+}
+
+function getPlaceNameFromMdt(nameInfoOffset) {
     if (!wasmMemory) {
         console.error('WASM not initialized');
         return '';
     }
 
-    const header = getTownMdtHeader();
-    if (!header || header.town_name_offset === 0) {
-        return '';
+    // Read uint16 values from memory (little-endian)
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
     }
 
     // Header offset is relative to 0xc000, so actual WASM memory address is:
     // gMemoryBase + header.town_name_offset
     // Add 3 to skip rendering info metadata and point to Pascal string length
-    const nameOffset = gMemoryBase + header.town_name_offset + 3;
+    const nameOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + nameInfoOffset) + 3;
     const nameLength = wasmMemory[nameOffset];
     let name = '';
 

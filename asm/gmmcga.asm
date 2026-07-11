@@ -594,37 +594,37 @@ loc_2309:
                 jmp     short loc_2303
 ; ---------------------------------------------------------------------------
 
-loc_2312:
-                lodsb
+loc_2312:       ; pascal string
+                lodsb       ; x in 4px units
                 mov     dl, al
                 xor     dh, dh
                 push    dx
-                lodsb
-                xor     ah, ah
-                mov     bx, 140h
-                mul     bx
+                    lodsb   ; y
+                    xor     ah, ah
+                    mov     bx, 320
+                    mul     bx
                 pop     di
                 add     di, di
                 add     di, di
-                add     di, ax
+                add     di, ax  ; 320*y + x
                 lodsb
                 xor     ah, ah
-                mov     bl, al
+                mov     bl, al  ; color?
                 add     di, ax
                 lodsb
                 xor     ch, ch
-                mov     cl, al
+                mov     cl, al ; strlen
                 mov     ax, 0A000h
                 mov     es, ax
 
 loc_2338:
                 push    cx
-                lodsb
-                push    ds
-                push    si
-                call    render_glyph
-                pop     si
-                pop     ds
+                    lodsb       ; next string char
+                    push    ds
+                    push    si
+                    call    render_glyph
+                    pop     si
+                    pop     ds
                 pop     cx
                 loop    loc_2338
                 retn

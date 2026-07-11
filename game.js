@@ -2130,7 +2130,8 @@ async function handleDungeonTransition(mapId) {
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData);
         mdtHeader = getCavernMdtHeader?.();
-        cavernName = getCavernName?.() || 'Cavern of Malicia';
+        cavernName = getCavernName?.() ?? 'Unknown';
+        updatePlaceHud(cavernName);
         await loadDungeonAssets(rawMapId);
         setDungeonPassableTiles(DUNGEONS[rawMapId].passableTiles);
         setDungeonSlopeTilesLeft(DUNGEONS[rawMapId].slopeTilesLeft);

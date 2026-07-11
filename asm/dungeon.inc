@@ -140,7 +140,7 @@ collapsing_platforms_table_addr                    equ 0C006h
 horiz_platforms_table_addr                         equ 0C008h
 doors_table_addr                                   equ 0C00Ah
 accomplished_items_checker_table                   equ 0C00Ch
-cavern_name_rendering_info                         equ 0C00Eh
+cavern_name_rendering_info                         equ 0C00Eh ; skip 3 bytes, then pascal string follows
 monsters_table_addr                                equ 0C010h
 cavern_level                                       equ 0C012h
 tear_x                                             equ 0C013h ; word
