@@ -27,6 +27,38 @@ const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 const STDPLY_PATH = 'game/stdply.bin';
 const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
+// 'mp10.mdt', 0
+// 'mp1d.mdt', 1
+// 'mp20.mdt', 2
+// 'mp21.mdt', 3
+// 'mp2d.mdt', 4
+// 'mp30.mdt', 5
+// 'mp31.mdt', 6
+// 'mp3d.mdt', 7
+// 'mp40.mdt', 8
+// 'mp41.mdt', 9
+// 'mp4d.mdt', 10
+// 'mp50.mdt', 11
+// 'mp51.mdt', 12
+// 'mp5d.mdt', 13
+// 'mp60.mdt', 14
+// 'mp61.mdt', 15
+// 'mp62.mdt', 16
+// 'mp6d.mdt', 17
+// 'mp70.mdt', 18
+// 'mp71.mdt', 19
+// 'mp72.mdt', 20
+// 'mp73.mdt', 21
+// 'mp7d.mdt', 22
+// 'mp80.mdt', 23
+// 'mp81.mdt', 24
+// 'mp82.mdt', 25
+// 'mp83.mdt', 26
+// 'mp84.mdt', 27
+// 'mp8d.mdt', 28
+// 'mp90.mdt', 29
+// 'mpa0.mdt', 30
+
 const DUNGEONS = {
     0: { 
         mdtPath: 'game/0/mp10.mdt',
@@ -303,7 +335,7 @@ const NPC_FRAME_H  = 72;
 const NPC_FRAMES   = 8;           // frames per sheet
 
 // WASM memory addresses (mirrors town.h / town.c)
-const ADDR_SPOKE_TO_KING = 0x05;
+const ADDR_SPOKE_TO_KING             = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
@@ -323,14 +355,14 @@ const ADDR_CURR_SPELL_TYPE           = 0x9d;
 const ADDR_SPELL_COUNTS = [
     0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
 ];
-const ADDR_HERO_MAX_HP        = 0xB2;
-const ADDR_FACING             = 0xC2;
-const ADDR_LEFT_RUN           = 0xC3;
-const ADDR_PLACE_MAP_ID       = 0xC4;
-const ADDR_LAST_SAGE_VISITED  = 0xC5;
-const ADDR_SAGES_SPOKEN       = 0xE5;
-const ADDR_HERO_ANIM_PHASE    = 0xE7;
-const ADDR_INVINCIBILITY_FLAG = 0xE8;
+const ADDR_HERO_MAX_HP               = 0xB2;
+const ADDR_FACING                    = 0xC2;
+const ADDR_LEFT_RUN                  = 0xC3;
+const ADDR_PLACE_MAP_ID              = 0xC4;
+const ADDR_LAST_SAGE_VISITED         = 0xC5;
+const ADDR_SAGES_SPOKEN              = 0xE5;
+const ADDR_HERO_ANIM_PHASE           = 0xE7;
+const ADDR_INVINCIBILITY_FLAG        = 0xE8;
 
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 
@@ -372,11 +404,11 @@ const ADDR_DUNGEON_STATE           = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
 const ADDR_RENDER_REQUEST          = 0xFF92;
 const ADDR_RENDER_DONE             = 0xFF93;
-const ADDR_DEATH_COUNTER           = 0xFF95;
 const ADDR_GOLD_RENDER_REQUEST     = 0xFF94;
-const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
+const ADDR_DEATH_COUNTER           = 0xFF95;
 const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
 const ADDR_NOTIFICATION_FLAG       = 0xFF97;
+const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
 const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
 const ADDR_ROKA_PHASE              = 0xFF9D;
 const ADDR_ROKA_COLOR              = 0xFF9E;
@@ -660,10 +692,10 @@ function onFullTick() {
             townUpdate?.();
             const scrollFlag = readMemory(0xfff0, 1)[0];
             if (scrollFlag) {
-                if (scrollFlag & 0x01) scrollFloorRight8px();
-                if (scrollFlag & 0x02) scrollFloorLeft8px();
-                if (scrollFlag & 0x04) scrollCeilingRight4px();
-                if (scrollFlag & 0x08) scrollCeilingLeft4px();
+                if (scrollFlag & 0x01) scrollFloorOneTileRight();
+                if (scrollFlag & 0x02) scrollFloorOneTileLeft();
+                if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
+                if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
                 writeMemory(0xfff0, [0]);
             }
             const pendingTransitionFlag = getTownPendingTransitionFlag?.();
@@ -717,10 +749,10 @@ function onSlowTick() {
 
     const scrollFlag = readMemory(0xfff0, 1)[0];
     if (scrollFlag) {
-        if (scrollFlag & 0x01) scrollFloorRight8px();
-        if (scrollFlag & 0x02) scrollFloorLeft8px();
-        if (scrollFlag & 0x04) scrollCeilingRight4px();
-        if (scrollFlag & 0x08) scrollCeilingLeft4px();
+        if (scrollFlag & 0x01) scrollFloorOneTileRight();
+        if (scrollFlag & 0x02) scrollFloorOneTileLeft();
+        if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
+        if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
         writeMemory(0xfff0, [0]);
     }
 }
@@ -1016,7 +1048,7 @@ function loadNpcSprite(spriteId) {
     });
 }
 
-function loadRokaImages() {
+async function loadRokaImages() {
     if (rokaImagesReady) return Promise.resolve(rokaImages);
     const loads = ROKA_IMAGE_PATHS.map((path, index) => {
         return new Promise((resolve, reject) => {
@@ -1026,7 +1058,9 @@ function loadRokaImages() {
             img.src = path;
         }).then(img => { rokaImages[index] = img; return img; });
     });
-    return Promise.all(loads).then(() => { rokaImagesReady = true; return rokaImages; });
+    await Promise.all(loads);
+    rokaImagesReady = true;
+    return rokaImages;
 }
 
 function loadImageOnce(path, setter) {
@@ -1128,21 +1162,21 @@ function resetTownScrollOffsets() {
     townCeilingOffsetX = 0;
 }
 
-const scrollFloorRight8px = () => {
+const scrollFloorOneTileRight = () => {
     townSidewalk1OffsetX = (townSidewalk1OffsetX - TILE_WIDTH + VIEW_WIDTH) % VIEW_WIDTH;
     townSidewalk2OffsetX = (townSidewalk2OffsetX - TILE_WIDTH*2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
-const scrollFloorLeft8px = () => {
+const scrollFloorOneTileLeft = () => {
     townSidewalk1OffsetX = (townSidewalk1OffsetX + TILE_WIDTH) % VIEW_WIDTH;
     townSidewalk2OffsetX = (townSidewalk2OffsetX + TILE_WIDTH*2) % VIEW_WIDTH;
 };
 
-const scrollCeilingRight4px = () => {
+const scrollCeilingHalfTileRight = () => {
     townCeilingOffsetX = (townCeilingOffsetX - TILE_WIDTH/2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
-const scrollCeilingLeft4px = () => {
+const scrollCeilingHalfTileLeft = () => {
     townCeilingOffsetX = (townCeilingOffsetX + TILE_WIDTH/2) % VIEW_WIDTH;
 };
 
