@@ -24,14 +24,14 @@ seg000:A000 seg000          segment byte public 'CODE'
 seg000:A000                 assume cs:seg000
 seg000:A000                 ;org 0A000h
 seg000:A000                 assume es:nothing, ss:nothing, ds:seg000
-seg000:A000                 dw offset sub_A369
+seg000:A000                 dw offset Monster_AI
 seg000:A002                 db    0
 seg000:A003                 db    0
 seg000:A004                 db    0
 seg000:A005                 db    0
-seg000:A006                 dw offset off_A349
-seg000:A008                 db 0Ah, 0Ah, 4, 0Ah, 4, 0FFh, 0, 0
-seg000:A010                 db 0Ah, 0Ah, 8, 0Ah, 8, 28h, 0, 0
+seg000:A006                 dw offset death_descriptors
+seg000:A008 monster_xp      db 10, 10, 4, 10, 4, 255, 0, 0
+seg000:A010 monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
 seg000:A018                 db    0
 seg000:A019                 db    0
 seg000:A01A                 db    0
@@ -56,37 +56,37 @@ seg000:A02C                 db    0
 seg000:A02D                 db    0
 seg000:A02E                 db    0
 seg000:A02F                 db    0
-seg000:A030                 dw offset byte_A0B0
-seg000:A032                 dw offset byte_A10F
-seg000:A034                 dw offset byte_A16E
-seg000:A036                 dw offset byte_A1B9
-seg000:A038                 dw offset byte_A218
-seg000:A03A                 dw offset byte_A26D
+seg000:A030                 dw offset monster0_left_frames
+seg000:A032                 dw offset monster1_left_frames
+seg000:A034                 dw offset monster2_left_frames
+seg000:A036                 dw offset monster3_left_frames
+seg000:A038                 dw offset monster4_left_frames ; green bat
+seg000:A03A                 dw offset monster5_left_frames ; magical bat
 seg000:A03C                 db    0
 seg000:A03D                 db    0
 seg000:A03E                 db    0
 seg000:A03F                 db    0
-seg000:A040                 dw offset byte_A100
-seg000:A042                 dw offset byte_A15F
-seg000:A044                 dw offset byte_A1AA
-seg000:A046                 dw offset byte_A209
-seg000:A048                 dw offset byte_A25E
-seg000:A04A                 dw offset byte_A2B3
+seg000:A040                 dw offset monster0_death_frames
+seg000:A042                 dw offset monster1_death_frames
+seg000:A044                 dw offset monster2_death_frames
+seg000:A046                 dw offset monster3_death_frames
+seg000:A048                 dw offset monster4_death_frames ; green bat
+seg000:A04A                 dw offset monster5_death_frames
 seg000:A04C                 db    0
 seg000:A04D                 db    0
 seg000:A04E                 db    0
 seg000:A04F                 db    0
-seg000:A050                 dw offset byte_A326
-seg000:A052                 dw offset byte_A326
-seg000:A054                 dw offset byte_A2C2
-seg000:A056                 dw offset byte_A30D
-seg000:A058                 dw offset byte_A2D1
-seg000:A05A                 dw offset byte_A2E5
-seg000:A05C                 dw offset byte_A321
+seg000:A050                 dw offset wall_destruction_frames
+seg000:A052                 dw offset wall_destruction_frames
+seg000:A054                 dw offset hit_frames
+seg000:A056                 dw offset chest_frames
+seg000:A058                 dw offset almas_glow_frames
+seg000:A05A                 dw offset almas_glow_frames_alt
+seg000:A05C                 dw offset ordinary_key_frames
 seg000:A05E                 db    0
 seg000:A05F                 db    0
-seg000:A060                 dw offset byte_A33F
-seg000:A062                 dw offset byte_A344
+seg000:A060                 dw offset red_potion_frames
+seg000:A062                 dw offset blue_potion_frames
 seg000:A064                 db    0
 seg000:A065                 db    0
 seg000:A066                 dw offset byte_A2F9
@@ -97,37 +97,37 @@ seg000:A06C                 db    0
 seg000:A06D                 db    0
 seg000:A06E                 db    0
 seg000:A06F                 db    0
-seg000:A070                 dw offset byte_A0D8
-seg000:A072                 dw offset byte_A137
-seg000:A074                 dw offset byte_A16E
-seg000:A076                 dw offset byte_A1E1
-seg000:A078                 dw offset byte_A23B
-seg000:A07A                 dw offset byte_A290
+seg000:A070                 dw offset monster0_right_frames
+seg000:A072                 dw offset monster1_right_frames
+seg000:A074                 dw offset monster2_left_frames
+seg000:A076                 dw offset monster3_right_frames
+seg000:A078                 dw offset monster4_right_frames ; green bat
+seg000:A07A                 dw offset monster5_right_frames ; magical bat
 seg000:A07C                 db    0
 seg000:A07D                 db    0
 seg000:A07E                 db    0
 seg000:A07F                 db    0
-seg000:A080                 dw offset byte_A100
-seg000:A082                 dw offset byte_A15F
-seg000:A084                 dw offset byte_A1AA
-seg000:A086                 dw offset byte_A209
-seg000:A088                 dw offset byte_A25E
-seg000:A08A                 dw offset byte_A2B3
+seg000:A080                 dw offset monster0_death_frames
+seg000:A082                 dw offset monster1_death_frames
+seg000:A084                 dw offset monster2_death_frames
+seg000:A086                 dw offset monster3_death_frames
+seg000:A088                 dw offset monster4_death_frames ; green bat
+seg000:A08A                 dw offset monster5_death_frames ; magical bat
 seg000:A08C                 db    0
 seg000:A08D                 db    0
 seg000:A08E                 db    0
 seg000:A08F                 db    0
-seg000:A090                 dw offset byte_A326
-seg000:A092                 dw offset byte_A326
-seg000:A094                 dw offset byte_A2C2
-seg000:A096                 dw offset byte_A30D
-seg000:A098                 dw offset byte_A2D1
-seg000:A09A                 dw offset byte_A2E5
-seg000:A09C                 dw offset byte_A321
+seg000:A090                 dw offset wall_destruction_frames
+seg000:A092                 dw offset wall_destruction_frames
+seg000:A094                 dw offset hit_frames
+seg000:A096                 dw offset chest_frames
+seg000:A098                 dw offset almas_glow_frames
+seg000:A09A                 dw offset almas_glow_frames_alt
+seg000:A09C                 dw offset ordinary_key_frames
 seg000:A09E                 db    0
 seg000:A09F                 db    0
-seg000:A0A0                 dw offset byte_A33F
-seg000:A0A2                 dw offset byte_A344
+seg000:A0A0                 dw offset red_potion_frames
+seg000:A0A2                 dw offset blue_potion_frames
 seg000:A0A4                 db    0
 seg000:A0A5                 db    0
 seg000:A0A6                 dw offset byte_A2F9
@@ -138,7 +138,7 @@ seg000:A0AC                 db    0
 seg000:A0AD                 db    0
 seg000:A0AE                 db    0
 seg000:A0AF                 db    0
-seg000:A0B0 byte_A0B0       db 0, 21h, 22h, 23h, 24h
+seg000:A0B0 monster0_left_frames db 0, 21h, 22h, 23h, 24h
 seg000:A0B5                 db 0, 25h, 26h, 27h, 28h
 seg000:A0BA                 db 0, 29h, 2Ah, 2Bh, 2Ch
 seg000:A0BF                 db 0, 25h, 26h, 27h, 28h
@@ -146,7 +146,7 @@ seg000:A0C4                 db 0, 25h, 26h, 27h, 28h
 seg000:A0C9                 db 0, 25h, 26h, 27h, 28h
 seg000:A0CE                 db 0, 25h, 26h, 27h, 28h
 seg000:A0D3                 db 0, 25h, 26h, 27h, 28h
-seg000:A0D8 byte_A0D8       db 0, 2Dh, 2Eh, 2Fh, 30h
+seg000:A0D8 monster0_right_frames db 0, 2Dh, 2Eh, 2Fh, 30h
 seg000:A0DD                 db 0, 31h, 32h, 33h, 34h
 seg000:A0E2                 db 0, 35h, 36h, 37h, 38h
 seg000:A0E7                 db 0, 31h, 32h, 33h, 34h
@@ -154,14 +154,14 @@ seg000:A0EC                 db 0, 31h, 32h, 33h, 34h
 seg000:A0F1                 db 0, 31h, 32h, 33h, 34h
 seg000:A0F6                 db 0, 31h, 32h, 33h, 34h
 seg000:A0FB                 db 0, 31h, 32h, 33h, 34h
-seg000:A100 byte_A100       db 0, 39h, 3Ah, 3Bh, 3Ch
+seg000:A100 monster0_death_frames db 0, 39h, 3Ah, 3Bh, 3Ch
 seg000:A105                 db 0, 3Dh, 0, 3Eh, 3Fh
 seg000:A10A                 db    0
 seg000:A10B                 db    0
 seg000:A10C                 db    0
 seg000:A10D                 db    0
 seg000:A10E                 db    0
-seg000:A10F byte_A10F       db 0, 40h, 41h, 42h, 43h
+seg000:A10F monster1_left_frames db 0, 40h, 41h, 42h, 43h
 seg000:A114                 db 0, 44h, 45h, 46h, 47h
 seg000:A119                 db 0, 48h, 49h, 4Ah, 4Bh
 seg000:A11E                 db 0, 44h, 45h, 4Ch, 4Dh
@@ -169,7 +169,7 @@ seg000:A123                 db 0, 44h, 45h, 46h, 4Eh
 seg000:A128                 db 0, 5Eh, 45h, 46h, 4Eh
 seg000:A12D                 db 0, 5Fh, 45h, 46h, 4Eh
 seg000:A132                 db 0, 5Eh, 45h, 46h, 4Eh
-seg000:A137 byte_A137       db 0, 4Fh, 50h, 51h, 52h
+seg000:A137 monster1_right_frames db 0, 4Fh, 50h, 51h, 52h
 seg000:A13C                 db 0, 53h, 54h, 55h, 56h
 seg000:A141                 db 0, 57h, 58h, 59h, 5Ah
 seg000:A146                 db 0, 53h, 54h, 5Bh, 5Ch
@@ -177,10 +177,10 @@ seg000:A14B                 db 0, 53h, 54h, 5Dh, 56h
 seg000:A150                 db 0, 53h, 60h, 5Dh, 56h
 seg000:A155                 db 0, 53h, 61h, 5Dh, 56h
 seg000:A15A                 db 0, 53h, 60h, 5Dh, 56h
-seg000:A15F byte_A15F       db 0, 62h, 63h, 64h, 65h
+seg000:A15F monster1_death_frames db 0, 62h, 63h, 64h, 65h
 seg000:A164                 db 0, 66h, 67h, 68h, 69h
 seg000:A169                 db 0, 6Ah, 6Bh, 6Ch, 6Dh
-seg000:A16E byte_A16E       db 2, 0, 0, 7Dh, 7Eh
+seg000:A16E monster2_left_frames db 2, 0, 0, 7Dh, 7Eh
 seg000:A173                 db 2, 0, 0, 7Fh, 80h
 seg000:A178                 db 2, 0, 0, 83h, 84h
 seg000:A17D                 db 2, 85h, 86h, 87h, 88h
@@ -192,10 +192,10 @@ seg000:A196                 db 2, 0, 0, 89h, 8Ah
 seg000:A19B                 db 2, 0, 0, 8Bh, 8Ch
 seg000:A1A0                 db 2, 0, 0, 89h, 8Ah
 seg000:A1A5                 db 2, 0, 0, 8Dh, 8Eh
-seg000:A1AA byte_A1AA       db 2, 0, 0, 91h, 92h
+seg000:A1AA monster2_death_frames db 2, 0, 0, 91h, 92h
 seg000:A1AF                 db 2, 93h, 94h, 95h, 96h
 seg000:A1B4                 db 2, 97h, 98h, 99h, 9Ah
-seg000:A1B9 byte_A1B9       db 0, 9Bh, 9Ch, 9Dh, 9Eh
+seg000:A1B9 monster3_left_frames db 0, 9Bh, 9Ch, 9Dh, 9Eh
 seg000:A1BE                 db 0, 9Bh, 9Ch, 9Fh, 9Eh
 seg000:A1C3                 db 0, 0A1h, 0A2h, 0A3h, 0A4h
 seg000:A1C8                 db 0, 0A5h, 0A2h, 0A6h, 0A7h
@@ -203,7 +203,7 @@ seg000:A1CD                 db 0, 0A8h, 0A9h, 0AAh, 0ABh
 seg000:A1D2                 db 0, 0ACh, 0ADh, 0AEh, 0AFh
 seg000:A1D7                 db 0, 9Bh, 9Ch, 9Dh, 9Eh
 seg000:A1DC                 db 0, 9Bh, 9Ch, 0A0h, 9Eh
-seg000:A1E1 byte_A1E1       db 0, 0B4h, 0B5h, 0B6h, 0B7h
+seg000:A1E1 monster3_right_frames db 0, 0B4h, 0B5h, 0B6h, 0B7h
 seg000:A1E6                 db 0, 0B4h, 0B5h, 0B6h, 0B8h
 seg000:A1EB                 db 0, 0BAh, 0BBh, 0BCh, 0BDh
 seg000:A1F0                 db 0, 0BAh, 0BEh, 0BFh, 0C0h
@@ -211,51 +211,51 @@ seg000:A1F5                 db 0, 0C1h, 0C2h, 0C3h, 0C4h
 seg000:A1FA                 db 0, 0C5h, 0C6h, 0C7h, 0C8h
 seg000:A1FF                 db 0, 0B4h, 0B5h, 0B6h, 0B7h
 seg000:A204                 db 0, 0B4h, 0B5h, 0B6h, 0B9h
-seg000:A209 byte_A209       db 0, 0CDh, 0CEh, 0CFh, 0D0h
+seg000:A209 monster3_death_frames db 0, 0CDh, 0CEh, 0CFh, 0D0h
 seg000:A20E                 db 0, 0D1h, 0D2h, 0D3h, 0D4h
 seg000:A213                 db 0, 0, 0, 0D7h, 0D8h
-seg000:A218 byte_A218       db 0, 0D9h, 0DAh, 0DBh, 0DCh
+seg000:A218 monster4_left_frames db 0, 0D9h, 0DAh, 0DBh, 0DCh
 seg000:A21D                 db 0, 0E1h, 0E2h, 0E3h, 0E4h
 seg000:A222                 db 0, 0E1h, 0E2h, 0E3h, 0E4h
 seg000:A227                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
 seg000:A22C                 db 0, 0E9h, 0EAh, 0EBh, 0ECh
 seg000:A231                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
 seg000:A236                 db 0, 0EDh, 0EEh, 0EFh, 0F0h
-seg000:A23B byte_A23B       db 0, 0D9h, 0DAh, 0DBh, 0DCh
+seg000:A23B monster4_right_frames db 0, 0D9h, 0DAh, 0DBh, 0DCh
 seg000:A240                 db 0, 0DDh, 0DEh, 0DFh, 0E0h
 seg000:A245                 db 0, 0DDh, 0DEh, 0DFh, 0E0h
 seg000:A24A                 db 0, 81h, 82h, 8Fh, 90h
 seg000:A24F                 db 0, 0B0h, 0B1h, 0B2h, 0B3h
 seg000:A254                 db 0, 81h, 82h, 8Fh, 90h
 seg000:A259                 db 0, 0C9h, 0CAh, 0CBh, 0CCh
-seg000:A25E byte_A25E       db 0, 0D5h, 0D6h, 0F1h, 0F2h
+seg000:A25E monster4_death_frames db 0, 0D5h, 0D6h, 0F1h, 0F2h
 seg000:A263                 db 0, 0F3h, 0F4h, 0F5h, 0F6h
 seg000:A268                 db 0, 0F7h, 0F8h, 0F9h, 0FAh
-seg000:A26D byte_A26D       db 1, 0D9h, 0DAh, 0DBh, 0DCh
+seg000:A26D monster5_left_frames db 1, 0D9h, 0DAh, 0DBh, 0DCh
 seg000:A272                 db 1, 0E1h, 0E2h, 0E3h, 0E4h
 seg000:A277                 db 1, 0E1h, 0E2h, 0E3h, 0E4h
 seg000:A27C                 db 1, 0E5h, 0E6h, 0E7h, 0E8h
 seg000:A281                 db 1, 0E9h, 0EAh, 0EBh, 0ECh
 seg000:A286                 db 1, 0E5h, 0E6h, 0E7h, 0E8h
 seg000:A28B                 db 1, 0EDh, 0EEh, 0EFh, 0F0h
-seg000:A290 byte_A290       db 1, 0D9h, 0DAh, 0DBh, 0DCh
+seg000:A290 monster5_right_frames db 1, 0D9h, 0DAh, 0DBh, 0DCh
 seg000:A295                 db 1, 0DDh, 0DEh, 0DFh, 0E0h
 seg000:A29A                 db 1, 0DDh, 0DEh, 0DFh, 0E0h
 seg000:A29F                 db 1, 81h, 82h, 8Fh, 90h
 seg000:A2A4                 db 1, 0B0h, 0B1h, 0B2h, 0B3h
 seg000:A2A9                 db 1, 81h, 82h, 8Fh, 90h
 seg000:A2AE                 db 1, 0C9h, 0CAh, 0CBh, 0CCh
-seg000:A2B3 byte_A2B3       db 1, 0D5h, 0D6h, 0F1h, 0F2h
+seg000:A2B3 monster5_death_frames db 1, 0D5h, 0D6h, 0F1h, 0F2h
 seg000:A2B8                 db 1, 0F3h, 0F4h, 0F5h, 0F6h
 seg000:A2BD                 db 1, 0F7h, 0F8h, 0F9h, 0FAh
-seg000:A2C2 byte_A2C2       db 1, 1, 2, 3, 4
+seg000:A2C2 hit_frames      db 1, 1, 2, 3, 4
 seg000:A2C7                 db 1, 5, 6, 7, 8
 seg000:A2CC                 db 1, 9, 0Ah, 0Bh, 0Ch
-seg000:A2D1 byte_A2D1       db 0, 0Dh, 0Eh, 0Fh, 10h
+seg000:A2D1 almas_glow_frames db 0, 0Dh, 0Eh, 0Fh, 10h
 seg000:A2D6                 db 0, 11h, 12h, 13h, 14h
 seg000:A2DB                 db 0, 15h, 16h, 17h, 18h
 seg000:A2E0                 db 0, 11h, 12h, 13h, 14h
-seg000:A2E5 byte_A2E5       db 2, 0Dh, 0Eh, 0Fh, 10h
+seg000:A2E5 almas_glow_frames_alt db 2, 0Dh, 0Eh, 0Fh, 10h
 seg000:A2EA                 db 2, 11h, 12h, 13h, 14h
 seg000:A2EF                 db 2, 15h, 16h, 17h, 18h
 seg000:A2F4                 db 2, 11h, 12h, 13h, 14h
@@ -263,34 +263,34 @@ seg000:A2F9 byte_A2F9       db 1, 0Dh, 0Eh, 0Fh, 10h
 seg000:A2FE                 db 1, 11h, 12h, 13h, 14h
 seg000:A303                 db 1, 15h, 16h, 17h, 18h
 seg000:A308                 db 1, 11h, 12h, 13h, 14h
-seg000:A30D byte_A30D       db 0, 19h, 1Ah, 1Bh, 1Ch
+seg000:A30D chest_frames    db 0, 19h, 1Ah, 1Bh, 1Ch
 seg000:A312                 db 0, 19h, 1Ah, 1Bh, 1Ch
 seg000:A317                 db 0, 19h, 1Ah, 1Bh, 1Ch
 seg000:A31C                 db 0, 19h, 1Ah, 1Bh, 1Ch
-seg000:A321 byte_A321       db 1, 1Dh, 1Eh, 1Fh, 20h
-seg000:A326 byte_A326       db 1, 6Eh, 6Eh, 6Eh, 6Eh
+seg000:A321 ordinary_key_frames db 1, 1Dh, 1Eh, 1Fh, 20h
+seg000:A326 wall_destruction_frames db 1, 6Eh, 6Eh, 6Eh, 6Eh
 seg000:A32B                 db 1, 6Fh, 70h, 71h, 72h
 seg000:A330                 db 1, 73h, 74h, 75h, 76h
 seg000:A335                 db 1, 0, 0, 77h, 78h
 seg000:A33A byte_A33A       db 2, 79h, 7Ah, 7Bh, 7Ch
-seg000:A33F byte_A33F       db 0, 0FBh, 0FCh, 0FDh, 0FEh
-seg000:A344 byte_A344       db 2, 0FBh, 0FCh, 0FDh, 0FEh
-seg000:A349 off_A349        dw offset byte_A355
-seg000:A34B                 dw offset byte_A355
-seg000:A34D                 dw offset byte_A359
-seg000:A34F                 dw offset byte_A35D
-seg000:A351                 dw offset byte_A361
-seg000:A353                 dw offset byte_A365
-seg000:A355 byte_A355       db 5, 5, 5, 5
-seg000:A359 byte_A359       db 4, 0, 4, 0
-seg000:A35D byte_A35D       db 5, 4, 4, 0
-seg000:A361 byte_A361       db 5, 4, 5, 0
-seg000:A365 byte_A365       db 9, 9, 9, 9
+seg000:A33F red_potion_frames db 0, 0FBh, 0FCh, 0FDh, 0FEh
+seg000:A344 blue_potion_frames db 2, 0FBh, 0FCh, 0FDh, 0FEh
+seg000:A349 death_descriptors dw offset monster01_death_desc
+seg000:A34B                 dw offset monster01_death_desc
+seg000:A34D                 dw offset monster2_death_desc
+seg000:A34F                 dw offset monster3_death_desc
+seg000:A351                 dw offset monster4_death_desc ; green bat
+seg000:A353                 dw offset monster5_death_desc ; magical bat
+seg000:A355 monster01_death_desc db 5, 5, 5, 5
+seg000:A359 monster2_death_desc db 4, 0, 4, 0
+seg000:A35D monster3_death_desc db 5, 4, 4, 0
+seg000:A361 monster4_death_desc db 5, 4, 5, 0       ; green bat
+seg000:A365 monster5_death_desc db 9, 9, 9, 9       ; magical bat
 seg000:A369
 seg000:A369 ; =============== S U B R O U T I N E =======================================
 seg000:A369
 seg000:A369
-seg000:A369 sub_A369        proc near
+seg000:A369 Monster_AI      proc near
 seg000:A369
 seg000:A369 ; FUNCTION CHUNK AT seg000:A6AB SIZE 0000002B BYTES
 seg000:A369 ; FUNCTION CHUNK AT seg000:A6D8 SIZE 000001FA BYTES
@@ -303,19 +303,19 @@ seg000:A36F                 xor     bh, bh
 seg000:A371                 add     bx, bx          ; switch 6 cases
 seg000:A373                 jmp     jpt_A373[bx]    ; switch jump
 seg000:A373 ; ---------------------------------------------------------------------------
-seg000:A377 jpt_A373        dw offset loc_A384      ; jump table for switch statement
-seg000:A379                 dw offset locret_A383
-seg000:A37B                 dw offset loc_A6D8
-seg000:A37D                 dw offset loc_A7A4
-seg000:A37F                 dw offset loc_A923
-seg000:A381                 dw offset loc_A923
+seg000:A377 jpt_A373        dw offset monster0_ai   ; jumptable 0000A373 case 1
+seg000:A379                 dw offset monster1_ai
+seg000:A37B                 dw offset monster2_ai
+seg000:A37D                 dw offset monster3_ai
+seg000:A37F                 dw offset monster45_ai
+seg000:A381                 dw offset monster45_ai
 seg000:A383 ; ---------------------------------------------------------------------------
 seg000:A383
-seg000:A383 locret_A383:                            ; jumptable 0000A373 case 1
+seg000:A383 monster1_ai:                            ; jumptable 0000A373 case 1
 seg000:A383                 retn
 seg000:A384 ; ---------------------------------------------------------------------------
 seg000:A384
-seg000:A384 loc_A384:                               ; jumptable 0000A373 case 0
+seg000:A384 monster0_ai:                            ; jumptable 0000A373 case 0
 seg000:A384                 test    byte ptr [si+8], 0FFh
 seg000:A388                 jnz     short loc_A38E
 seg000:A38A                 mov     byte ptr [si+8], 8
@@ -433,13 +433,13 @@ seg000:A452                 and     byte ptr [si+6], 3
 seg000:A456                 jmp     loc_A6BF
 seg000:A459 ; ---------------------------------------------------------------------------
 seg000:A459
-seg000:A459 loc_A459:
-seg000:A459                 call    word ptr cs:11Ah
+seg000:A459 loc_A459:                               ;
+seg000:A459                 call    word ptr cs:11Ah ; get_random
 seg000:A45E                 and     al, 3
 seg000:A460                 dec     al
 seg000:A462                 add     al, 8
 seg000:A464                 mov     byte_A6D6, al
-seg000:A467                 call    word ptr cs:11Ah
+seg000:A467                 call    word ptr cs:11Ah ; get_random
 seg000:A46C                 and     al, 3
 seg000:A46E                 sub     al, 2
 seg000:A470                 add     al, 9
@@ -455,8 +455,8 @@ seg000:A481                 mov     byte ptr [si+6], 4
 seg000:A485                 jmp     loc_A6BF
 seg000:A488 ; ---------------------------------------------------------------------------
 seg000:A488
-seg000:A488 loc_A488:
-seg000:A488                 call    word ptr cs:11Ah
+seg000:A488 loc_A488:                               ;
+seg000:A488                 call    word ptr cs:11Ah ; get_random
 seg000:A48D                 and     al, 1
 seg000:A48F                 jz      short loc_A492
 seg000:A491                 retn
@@ -508,10 +508,10 @@ seg000:A4EE                 test    byte ptr [si+9], 2
 seg000:A4F2                 jz      short loc_A4F5
 seg000:A4F4                 xchg    ax, bx
 seg000:A4F5
-seg000:A4F5 loc_A4F5:
-seg000:A4F5                 call    word ptr cs:603Ah
+seg000:A4F5 loc_A4F5:                               ;
+seg000:A4F5                 call    word ptr cs:603Ah ; Add_Projectile_To_Array
 seg000:A4FA                 jmp     loc_A6BF
-seg000:A4FA sub_A369        endp
+seg000:A4FA Monster_AI      endp
 seg000:A4FA
 seg000:A4FA ; ---------------------------------------------------------------------------
 seg000:A4FD byte_A4FD       db 0
@@ -523,8 +523,7 @@ seg000:A502                 db  40h ; @
 seg000:A503                 db    8
 seg000:A504                 db    0
 seg000:A505                 db    0
-seg000:A506                 db  31h ; 1
-seg000:A507                 db 0A5h
+seg000:A506                 dw offset byte_A531
 seg000:A508                 db    0
 seg000:A509                 db    0
 seg000:A50A byte_A50A       db 0
@@ -536,60 +535,15 @@ seg000:A50F                 db  40h ; @
 seg000:A510                 db    8
 seg000:A511                 db    0
 seg000:A512                 db    0
-seg000:A513                 db  3Dh ; =
-seg000:A514                 db 0A5h
+seg000:A513                 dw offset byte_A53D
 seg000:A515                 db    0
 seg000:A516                 db    0
 seg000:A517 byte_A517       db 0
-seg000:A518 byte_A518       db 0
-seg000:A519                 db  9Ah
-seg000:A51A                 db    0
-seg000:A51B                 db    7
-seg000:A51C                 db    0
-seg000:A51D                 db  14h
-seg000:A51E                 db    0
-seg000:A51F                 db    0
-seg000:A520                 db    0
-seg000:A521                 db    0
-seg000:A522                 db    0
-seg000:A523                 db    0
+seg000:A518 byte_A518       db 0, 9Ah, 0, 7, 0, 14h, 0, 0, 0, 0, 0, 0
 seg000:A524 byte_A524       db 0
-seg000:A525 byte_A525       db 0
-seg000:A526                 db  9Ah
-seg000:A527                 db    0
-seg000:A528                 db    7
-seg000:A529                 db    4
-seg000:A52A                 db  14h
-seg000:A52B                 db    0
-seg000:A52C                 db    0
-seg000:A52D                 db    0
-seg000:A52E                 db    0
-seg000:A52F                 db    0
-seg000:A530                 db    0
-seg000:A531                 db    1
-seg000:A532                 db    1
-seg000:A533                 db    1
-seg000:A534                 db    0
-seg000:A535                 db    0
-seg000:A536                 db    7
-seg000:A537                 db    7
-seg000:A538                 db    7
-seg000:A539                 db    7
-seg000:A53A                 db    7
-seg000:A53B                 db    7
-seg000:A53C                 db 0FFh
-seg000:A53D                 db    3
-seg000:A53E                 db    3
-seg000:A53F                 db    3
-seg000:A540                 db    4
-seg000:A541                 db    4
-seg000:A542                 db    5
-seg000:A543                 db    5
-seg000:A544                 db    5
-seg000:A545                 db    5
-seg000:A546                 db    5
-seg000:A547                 db    5
-seg000:A548                 db 0FFh
+seg000:A525 byte_A525       db 0, 9Ah, 0, 7, 4, 14h, 0, 0, 0, 0, 0, 0
+seg000:A531 byte_A531       db 1, 1, 1, 0, 0, 7, 7, 7, 7, 7, 7, 0FFh
+seg000:A53D byte_A53D       db 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 0FFh
 seg000:A549
 seg000:A549 ; =============== S U B R O U T I N E =======================================
 seg000:A549
@@ -610,7 +564,7 @@ seg000:A557
 seg000:A557 loc_A557:
 seg000:A557                 mov     bx, [si]
 seg000:A559                 inc     bx
-seg000:A55A                 mov     ax, ds:0C002h
+seg000:A55A                 mov     ax, ds:0C002h   ; mapWidth
 seg000:A55D                 sub     ax, bx
 seg000:A55F                 jnz     short loc_A562
 seg000:A561                 xchg    ax, bx
@@ -630,14 +584,14 @@ seg000:A56F
 seg000:A56F
 seg000:A56F sub_A56F        proc near
 seg000:A56F                 mov     ax, [si+2]
-seg000:A572                 call    word ptr cs:6028h
+seg000:A572                 call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
 seg000:A577                 inc     di
 seg000:A578                 inc     di
 seg000:A579                 mov     cx, 4
 seg000:A57C
 seg000:A57C loc_A57C:
 seg000:A57C                 mov     al, [di]
-seg000:A57E                 call    word ptr cs:602Eh
+seg000:A57E                 call    word ptr cs:602Eh ; is_blocking_proc
 seg000:A583                 stc
 seg000:A584                 jz      short loc_A587
 seg000:A586                 retn
@@ -646,24 +600,24 @@ seg000:A587
 seg000:A587 loc_A587:
 seg000:A587                 xchg    si, di
 seg000:A589                 add     si, 24h ; '$'
-seg000:A58C                 call    word ptr cs:602Ah
+seg000:A58C                 call    word ptr cs:602Ah ; wrap_map_from_above_proc
 seg000:A591                 xchg    si, di
 seg000:A593                 loop    loc_A57C
 seg000:A595                 xchg    si, di
 seg000:A597                 sub     si, 24h ; '$'
-seg000:A59A                 call    word ptr cs:602Ch
+seg000:A59A                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A59F                 mov     al, [si]
 seg000:A5A1                 sub     si, 24h ; '$'
-seg000:A5A4                 call    word ptr cs:602Ch
+seg000:A5A4                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A5A9                 or      al, [si]
 seg000:A5AB                 sub     si, 24h ; '$'
-seg000:A5AE                 call    word ptr cs:602Ch
+seg000:A5AE                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A5B3                 or      al, [si]
 seg000:A5B5                 sub     si, 24h ; '$'
-seg000:A5B8                 call    word ptr cs:602Ch
+seg000:A5B8                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A5BD                 or      al, [si]
 seg000:A5BF                 sub     si, 24h ; '$'
-seg000:A5C2                 call    word ptr cs:602Ch
+seg000:A5C2                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A5C7                 or      al, [si]
 seg000:A5C9                 xchg    si, di
 seg000:A5CB                 add     al, al
@@ -691,7 +645,7 @@ seg000:A5DB                 mov     ax, [si]
 seg000:A5DD                 dec     ax
 seg000:A5DE                 cmp     ax, 0FFFFh
 seg000:A5E1                 jnz     short loc_A5E7
-seg000:A5E3                 mov     ax, ds:0C002h
+seg000:A5E3                 mov     ax, ds:0C002h   ; mapWidth
 seg000:A5E6                 dec     ax
 seg000:A5E7
 seg000:A5E7 loc_A5E7:
@@ -709,13 +663,13 @@ seg000:A5F4
 seg000:A5F4
 seg000:A5F4 sub_A5F4        proc near
 seg000:A5F4                 mov     ax, [si+2]
-seg000:A5F7                 call    word ptr cs:6028h
+seg000:A5F7                 call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
 seg000:A5FC                 dec     di
 seg000:A5FD                 mov     cx, 4
 seg000:A600
 seg000:A600 loc_A600:
 seg000:A600                 mov     al, [di]
-seg000:A602                 call    word ptr cs:602Eh
+seg000:A602                 call    word ptr cs:602Eh ; is_blocking_proc
 seg000:A607                 stc
 seg000:A608                 jz      short loc_A60B
 seg000:A60A                 retn
@@ -724,25 +678,25 @@ seg000:A60B
 seg000:A60B loc_A60B:
 seg000:A60B                 xchg    si, di
 seg000:A60D                 add     si, 24h ; '$'
-seg000:A610                 call    word ptr cs:602Ah
+seg000:A610                 call    word ptr cs:602Ah ; wrap_map_from_above_proc
 seg000:A615                 xchg    si, di
 seg000:A617                 loop    loc_A600
 seg000:A619                 dec     di
 seg000:A61A                 xchg    si, di
 seg000:A61C                 sub     si, 24h ; '$'
-seg000:A61F                 call    word ptr cs:602Ch
+seg000:A61F                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A624                 mov     al, [si]
 seg000:A626                 sub     si, 24h ; '$'
-seg000:A629                 call    word ptr cs:602Ch
+seg000:A629                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A62E                 or      al, [si]
 seg000:A630                 sub     si, 24h ; '$'
-seg000:A633                 call    word ptr cs:602Ch
+seg000:A633                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A638                 or      al, [si]
 seg000:A63A                 sub     si, 24h ; '$'
-seg000:A63D                 call    word ptr cs:602Ch
+seg000:A63D                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A642                 or      al, [si]
 seg000:A644                 sub     si, 24h ; '$'
-seg000:A647                 call    word ptr cs:602Ch
+seg000:A647                 call    word ptr cs:602Ch ; wrap_map_from_below_proc
 seg000:A64C                 or      al, [si]
 seg000:A64E                 xchg    si, di
 seg000:A650                 add     al, al
@@ -788,16 +742,16 @@ seg000:A679
 seg000:A679
 seg000:A679 sub_A679        proc near
 seg000:A679                 mov     ax, [si+2]
-seg000:A67C                 call    word ptr cs:6028h
+seg000:A67C                 call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
 seg000:A681                 xchg    si, di
 seg000:A683                 add     si, 90h
-seg000:A687                 call    word ptr cs:602Ah
+seg000:A687                 call    word ptr cs:602Ah ; wrap_map_from_above_proc
 seg000:A68C                 xchg    si, di
 seg000:A68E                 mov     cx, 2
 seg000:A691
 seg000:A691 loc_A691:
 seg000:A691                 mov     al, [di]
-seg000:A693                 call    word ptr cs:602Eh
+seg000:A693                 call    word ptr cs:602Eh ; is_blocking_proc
 seg000:A698                 stc
 seg000:A699                 jz      short loc_A69C
 seg000:A69B                 retn
@@ -815,7 +769,7 @@ seg000:A6AA                 retn
 seg000:A6AA sub_A679        endp
 seg000:A6AA
 seg000:A6AB ; ---------------------------------------------------------------------------
-seg000:A6AB ; START OF FUNCTION CHUNK FOR sub_A369
+seg000:A6AB ; START OF FUNCTION CHUNK FOR Monster_AI
 seg000:A6AB
 seg000:A6AB loc_A6AB:
 seg000:A6AB                 mov     al, [si+15h]
@@ -824,7 +778,7 @@ seg000:A6B0                 or      al, 20h
 seg000:A6B2                 mov     [si+5], al
 seg000:A6B5                 or      al, 60h
 seg000:A6B7                 mov     [si+15h], al
-seg000:A6BA                 jmp     word ptr cs:6034h
+seg000:A6BA                 jmp     word ptr cs:6034h ; Hero_Hits_monster_proc
 seg000:A6BF ; ---------------------------------------------------------------------------
 seg000:A6BF
 seg000:A6BF loc_A6BF:
@@ -837,14 +791,14 @@ seg000:A6CD                 and     ah, 7Fh
 seg000:A6D0                 or      al, ah
 seg000:A6D2                 mov     [si+15h], al
 seg000:A6D5                 retn
-seg000:A6D5 ; END OF FUNCTION CHUNK FOR sub_A369
+seg000:A6D5 ; END OF FUNCTION CHUNK FOR Monster_AI
 seg000:A6D5 ; ---------------------------------------------------------------------------
 seg000:A6D6 byte_A6D6       db 8
 seg000:A6D7 byte_A6D7       db 8
 seg000:A6D8 ; ---------------------------------------------------------------------------
-seg000:A6D8 ; START OF FUNCTION CHUNK FOR sub_A369
+seg000:A6D8 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg000:A6D8
-seg000:A6D8 loc_A6D8:                               ; jumptable 0000A373 case 2
+seg000:A6D8 monster2_ai:                            ; jumptable 0000A373 case 2
 seg000:A6D8                 test    byte ptr [si+8], 0FFh
 seg000:A6DC                 jnz     short loc_A6E2
 seg000:A6DE                 mov     byte ptr [si+8], 4
@@ -852,11 +806,11 @@ seg000:A6E2
 seg000:A6E2 loc_A6E2:
 seg000:A6E2                 test    byte ptr [si+5], 20h
 seg000:A6E6                 jz      short loc_A6ED
-seg000:A6E8                 jmp     word ptr cs:6034h
+seg000:A6E8                 jmp     word ptr cs:6034h ; Hero_Hits_monster_proc
 seg000:A6ED ; ---------------------------------------------------------------------------
 seg000:A6ED
-seg000:A6ED loc_A6ED:
-seg000:A6ED                 call    word ptr cs:6014h
+seg000:A6ED loc_A6ED:                               ;
+seg000:A6ED                 call    word ptr cs:6014h ; move_monster_S_proc
 seg000:A6F2                 jb      short loc_A6F5
 seg000:A6F4                 retn
 seg000:A6F5 ; ---------------------------------------------------------------------------
@@ -892,40 +846,40 @@ seg000:A72C ; ------------------------------------------------------------------
 seg000:A72C
 seg000:A72C loc_A72C:
 seg000:A72C                 or      byte ptr [si+9], 2
-seg000:A730                 call    word ptr cs:11Ah
+seg000:A730                 call    word ptr cs:11Ah ; get_random_proc
 seg000:A735                 or      al, al
 seg000:A737                 js      short loc_A760
 seg000:A739                 mov     ax, [si+2]
-seg000:A73C                 call    word ptr cs:6028h
+seg000:A73C                 call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
 seg000:A741                 xchg    si, di
 seg000:A743                 add     si, 4Ah ; 'J'
-seg000:A746                 call    word ptr cs:602Ah
+seg000:A746                 call    word ptr cs:602Ah ; wrap_map_from_above_proc
 seg000:A74B                 xchg    si, di
 seg000:A74D                 mov     al, [di]
-seg000:A74F                 call    word ptr cs:602Eh
+seg000:A74F                 call    word ptr cs:602Eh ; is_blocking_proc
 seg000:A754                 jz      short loc_A75B
-seg000:A756                 jmp     word ptr cs:6008h
+seg000:A756                 jmp     word ptr cs:6008h ; move_monster_E_proc
 seg000:A75B ; ---------------------------------------------------------------------------
 seg000:A75B
-seg000:A75B loc_A75B:
-seg000:A75B                 jmp     word ptr cs:6010h
+seg000:A75B loc_A75B:                               ;
+seg000:A75B                 jmp     word ptr cs:6010h ; move_monster_W_proc
 seg000:A760 ; ---------------------------------------------------------------------------
 seg000:A760
 seg000:A760 loc_A760:
 seg000:A760                 mov     ax, [si+2]
-seg000:A763                 call    word ptr cs:6028h
+seg000:A763                 call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
 seg000:A768                 xchg    si, di
 seg000:A76A                 add     si, 47h ; 'G'
-seg000:A76D                 call    word ptr cs:602Ah
+seg000:A76D                 call    word ptr cs:602Ah ; wrap_map_from_above_proc
 seg000:A772                 xchg    si, di
 seg000:A774                 mov     al, [di]
-seg000:A776                 call    word ptr cs:602Eh
+seg000:A776                 call    word ptr cs:602Eh ; is_blocking_proc
 seg000:A77B                 jz      short loc_A782
-seg000:A77D                 jmp     word ptr cs:6010h
+seg000:A77D                 jmp     word ptr cs:6010h ; move_monster_W_proc
 seg000:A782 ; ---------------------------------------------------------------------------
 seg000:A782
-seg000:A782 loc_A782:
-seg000:A782                 jmp     word ptr cs:6008h
+seg000:A782 loc_A782:                               ;
+seg000:A782                 jmp     word ptr cs:6008h ; move_monster_E_proc
 seg000:A787 ; ---------------------------------------------------------------------------
 seg000:A787
 seg000:A787 loc_A787:
@@ -945,10 +899,10 @@ seg000:A79F                 mov     byte ptr [si+6], 0
 seg000:A7A3                 retn
 seg000:A7A4 ; ---------------------------------------------------------------------------
 seg000:A7A4
-seg000:A7A4 loc_A7A4:                               ; jumptable 0000A373 case 3
-seg000:A7A4                 call    word ptr cs:6030h
+seg000:A7A4 monster3_ai:                            ;
+seg000:A7A4                 call    word ptr cs:6030h ; check_monster_on_aggressive_ground_proc
 seg000:A7A9                 jnz     short loc_A7B0
-seg000:A7AB                 jmp     word ptr cs:6032h
+seg000:A7AB                 jmp     word ptr cs:6032h ; Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg000:A7B0 ; ---------------------------------------------------------------------------
 seg000:A7B0
 seg000:A7B0 loc_A7B0:
@@ -959,7 +913,7 @@ seg000:A7BA
 seg000:A7BA loc_A7BA:
 seg000:A7BA                 test    byte ptr [si+5], 20h
 seg000:A7BE                 jz      short loc_A7C5
-seg000:A7C0                 jmp     word ptr cs:6034h
+seg000:A7C0                 jmp     word ptr cs:6034h ; Hero_Hits_monster_proc
 seg000:A7C5 ; ---------------------------------------------------------------------------
 seg000:A7C5
 seg000:A7C5 loc_A7C5:
@@ -1028,16 +982,16 @@ seg000:A838                 mov     ch, ah
 seg000:A83A                 and     ch, 0F0h
 seg000:A83D                 or      al, ch
 seg000:A83F                 mov     [si+6], al
-seg000:A842                 mov     bx, 0A8ECh
+seg000:A842                 mov     bx, offset byte_A8EC
 seg000:A845                 test    byte ptr [si+5], 80h
 seg000:A849                 jnz     short loc_A84E
-seg000:A84B                 mov     bx, 0A8F0h
+seg000:A84B                 mov     bx, offset byte_A8F0
 seg000:A84E
 seg000:A84E loc_A84E:
 seg000:A84E                 mov     al, ah
 seg000:A850                 sub     al, 2
 seg000:A852                 xlat
-seg000:A853                 call    word ptr cs:6004h
+seg000:A853                 call    word ptr cs:6004h ; monster_move_in_direction_proc
 seg000:A858                 jb      short loc_A85B
 seg000:A85A                 retn
 seg000:A85B ; ---------------------------------------------------------------------------
@@ -1050,7 +1004,7 @@ seg000:A864
 seg000:A864 loc_A864:
 seg000:A864                 and     byte ptr [si+9], 0F7h
 seg000:A868                 mov     byte ptr [si+6], 0
-seg000:A86C                 jmp     word ptr cs:6014h
+seg000:A86C                 jmp     word ptr cs:6014h ; move_monster_S_proc
 seg000:A871 ; ---------------------------------------------------------------------------
 seg000:A871
 seg000:A871 loc_A871:
@@ -1078,8 +1032,8 @@ seg000:A8A1                 test    byte ptr [si+5], 80h
 seg000:A8A5                 jnz     short loc_A8AA
 seg000:A8A7                 mov     bx, offset byte_A8DF
 seg000:A8AA
-seg000:A8AA loc_A8AA:
-seg000:A8AA                 call    word ptr cs:603Ah
+seg000:A8AA loc_A8AA:                               ;
+seg000:A8AA                 call    word ptr cs:603Ah ; Add_Projectile_To_Array_proc
 seg000:A8AF                 and     byte ptr [si+9], 0FBh
 seg000:A8B3                 or      byte ptr [si+9], 2
 seg000:A8B7                 mov     byte ptr [si+0Ah], 0
@@ -1098,7 +1052,7 @@ seg000:A8CD
 seg000:A8CD loc_A8CD:
 seg000:A8CD                 and     byte ptr [si+9], 0FDh
 seg000:A8D1                 retn
-seg000:A8D1 ; END OF FUNCTION CHUNK FOR sub_A369
+seg000:A8D1 ; END OF FUNCTION CHUNK FOR Monster_AI
 seg000:A8D1 ; ---------------------------------------------------------------------------
 seg000:A8D2 byte_A8D2       db 0
 seg000:A8D3 byte_A8D3       db 0
@@ -1126,20 +1080,14 @@ seg000:A8E8                 db    0
 seg000:A8E9                 db    0
 seg000:A8EA                 db    0
 seg000:A8EB                 db    0
-seg000:A8EC                 db    1
-seg000:A8ED                 db    0
-seg000:A8EE                 db    0
-seg000:A8EF                 db    7
-seg000:A8F0                 db    3
-seg000:A8F1                 db    4
-seg000:A8F2                 db    4
-seg000:A8F3                 db    5
+seg000:A8EC byte_A8EC       db 1, 0, 0, 7
+seg000:A8F0 byte_A8F0       db 3, 4, 4, 5
 seg000:A8F4
 seg000:A8F4 ; =============== S U B R O U T I N E =======================================
 seg000:A8F4
 seg000:A8F4
 seg000:A8F4 sub_A8F4        proc near
-seg000:A8F4                 mov     al, ds:0FF35h
+seg000:A8F4                 mov     al, ds:0FF35h   ; hero_y_absolute
 seg000:A8F7                 sub     al, [si+2]
 seg000:A8FA                 jns     short loc_A8FE
 seg000:A8FC                 neg     al
@@ -1180,12 +1128,12 @@ seg000:A922                 retn
 seg000:A922 sub_A8F4        endp
 seg000:A922
 seg000:A923 ; ---------------------------------------------------------------------------
-seg000:A923 ; START OF FUNCTION CHUNK FOR sub_A369
+seg000:A923 ; START OF FUNCTION CHUNK FOR Monster_AI
 seg000:A923
-seg000:A923 loc_A923:                               ; jumptable 0000A373 cases 4,5
-seg000:A923                 call    word ptr cs:6030h
+seg000:A923 monster45_ai:                           ;
+seg000:A923                 call    word ptr cs:6030h ; check_monster_on_aggressive_ground_proc
 seg000:A928                 jnz     short loc_A92F
-seg000:A92A                 jmp     word ptr cs:6032h
+seg000:A92A                 jmp     word ptr cs:6032h ; Check_Vertical_Distance_Between_Hero_And_Monster_proc
 seg000:A92F ; ---------------------------------------------------------------------------
 seg000:A92F
 seg000:A92F loc_A92F:
@@ -1196,7 +1144,7 @@ seg000:A939
 seg000:A939 loc_A939:
 seg000:A939                 test    byte ptr [si+5], 20h
 seg000:A93D                 jz      short loc_A944
-seg000:A93F                 jmp     word ptr cs:6034h
+seg000:A93F                 jmp     word ptr cs:6034h ; Hero_Hits_monster_proc
 seg000:A944 ; ---------------------------------------------------------------------------
 seg000:A944
 seg000:A944 loc_A944:
@@ -1207,17 +1155,17 @@ seg000:A94B                 and     bl, 3
 seg000:A94E                 xor     bh, bh
 seg000:A950                 add     bx, bx          ; switch 4 cases
 seg000:A952                 jmp     jpt_A952[bx]    ; switch jump
-seg000:A952 ; END OF FUNCTION CHUNK FOR sub_A369
+seg000:A952 ; END OF FUNCTION CHUNK FOR Monster_AI
 seg000:A952 ; ---------------------------------------------------------------------------
 seg000:A956 jpt_A952        dw offset loc_A95E      ; jump table for switch statement
 seg000:A958                 dw offset loc_A989
 seg000:A95A                 dw offset loc_A99C
 seg000:A95C                 dw offset loc_AA3C
 seg000:A95E ; ---------------------------------------------------------------------------
-seg000:A95E ; START OF FUNCTION CHUNK FOR sub_A369
+seg000:A95E ; START OF FUNCTION CHUNK FOR Monster_AI
 seg000:A95E
-seg000:A95E loc_A95E:                               ; jumptable 0000A952 case 0
-seg000:A95E                 call    word ptr cs:600Ch
+seg000:A95E loc_A95E:                               ;
+seg000:A95E                 call    word ptr cs:600Ch ; move_monster_N_proc
 seg000:A963                 test    byte ptr [si+6], 0FFh
 seg000:A967                 jz      short loc_A96E
 seg000:A969                 sub     byte ptr [si+6], 10h
@@ -1257,14 +1205,14 @@ seg000:A99C ; ------------------------------------------------------------------
 seg000:A99C
 seg000:A99C loc_A99C:                               ; jumptable 0000A952 case 2
 seg000:A99C                 call    sub_AA8D
-seg000:A99F                 test    byte ptr ds:0FF36h, 0FFh
+seg000:A99F                 test    byte ptr ds:0FF36h, 0FFh ; hero_damage_this_frame
 seg000:A9A4                 jz      short loc_A9AB
 seg000:A9A6                 mov     byte ptr [si+9], 0C0h
 seg000:A9AA                 retn
 seg000:A9AB ; ---------------------------------------------------------------------------
 seg000:A9AB
-seg000:A9AB loc_A9AB:
-seg000:A9AB                 mov     al, ds:0FF35h
+seg000:A9AB loc_A9AB:                               ;
+seg000:A9AB                 mov     al, ds:0FF35h   ; hero_y_absolute
 seg000:A9AE                 sub     al, [si+2]
 seg000:A9B1                 add     al, 15h
 seg000:A9B3                 and     al, 3Fh
@@ -1277,14 +1225,14 @@ seg000:A9C1                 jz      short loc_AA2F
 seg000:A9C3                 cmp     byte ptr [si+3], 10h
 seg000:A9C7                 jz      short loc_AA2F
 seg000:A9C9                 jnb     short loc_A9D7
-seg000:A9CB                 call    word ptr cs:6016h
+seg000:A9CB                 call    word ptr cs:6016h ; move_monster_SE_proc
 seg000:A9D0                 jb      short loc_A9F1
 seg000:A9D2                 or      byte ptr [si+5], 80h
 seg000:A9D6                 retn
 seg000:A9D7 ; ---------------------------------------------------------------------------
 seg000:A9D7
-seg000:A9D7 loc_A9D7:
-seg000:A9D7                 call    word ptr cs:6012h
+seg000:A9D7 loc_A9D7:                               ;
+seg000:A9D7                 call    word ptr cs:6012h ; move_monster_SW_proc
 seg000:A9DC                 jb      short loc_A9FD
 seg000:A9DE                 and     byte ptr [si+5], 7Fh
 seg000:A9E2                 retn
@@ -1297,15 +1245,15 @@ seg000:A9E9                 cmp     byte ptr [si+3], 10h
 seg000:A9ED                 jz      short loc_AA2F
 seg000:A9EF                 jnb     short loc_A9FD
 seg000:A9F1
-seg000:A9F1 loc_A9F1:
-seg000:A9F1                 call    word ptr cs:6008h
+seg000:A9F1 loc_A9F1:                               ;
+seg000:A9F1                 call    word ptr cs:6008h ; move_monster_E_proc
 seg000:A9F6                 jb      short loc_AA2F
 seg000:A9F8                 or      byte ptr [si+5], 80h
 seg000:A9FC                 retn
 seg000:A9FD ; ---------------------------------------------------------------------------
 seg000:A9FD
-seg000:A9FD loc_A9FD:
-seg000:A9FD                 call    word ptr cs:6010h
+seg000:A9FD loc_A9FD:                               ;
+seg000:A9FD                 call    word ptr cs:6010h ; move_monster_W_proc
 seg000:AA02                 jb      short loc_AA2F
 seg000:AA04                 and     byte ptr [si+5], 7Fh
 seg000:AA08                 retn
@@ -1317,21 +1265,21 @@ seg000:AA0D                 jz      short loc_AA2F
 seg000:AA0F                 cmp     byte ptr [si+3], 10h
 seg000:AA13                 jz      short loc_AA2F
 seg000:AA15                 jnb     short loc_AA23
-seg000:AA17                 call    word ptr cs:600Ah
+seg000:AA17                 call    word ptr cs:600Ah ; move_monster_NE_proc
 seg000:AA1C                 jb      short loc_A9F1
 seg000:AA1E                 or      byte ptr [si+5], 80h
 seg000:AA22                 retn
 seg000:AA23 ; ---------------------------------------------------------------------------
 seg000:AA23
-seg000:AA23 loc_AA23:
-seg000:AA23                 call    word ptr cs:600Eh
+seg000:AA23 loc_AA23:                               ;
+seg000:AA23                 call    word ptr cs:600Eh ; move_monster_NW_proc
 seg000:AA28                 jb      short loc_A9FD
 seg000:AA2A                 and     byte ptr [si+5], 7Fh
 seg000:AA2E                 retn
 seg000:AA2F ; ---------------------------------------------------------------------------
 seg000:AA2F
-seg000:AA2F loc_AA2F:
-seg000:AA2F                 call    word ptr cs:6014h
+seg000:AA2F loc_AA2F:                               ;
+seg000:AA2F                 call    word ptr cs:6014h ; move_monster_S_proc
 seg000:AA34                 jb      short loc_AA37
 seg000:AA36                 retn
 seg000:AA37 ; ---------------------------------------------------------------------------
@@ -1347,7 +1295,7 @@ seg000:AA40                 jnz     short loc_AA76
 seg000:AA42                 call    sub_AA8D
 seg000:AA45                 test    byte ptr [si+5], 80h
 seg000:AA49                 jz      short loc_AA59
-seg000:AA4B                 call    word ptr cs:600Ah
+seg000:AA4B                 call    word ptr cs:600Ah ; move_monster_NE_proc
 seg000:AA50                 jb      short loc_AA53
 seg000:AA52                 retn
 seg000:AA53 ; ---------------------------------------------------------------------------
@@ -1357,8 +1305,8 @@ seg000:AA53                 and     byte ptr [si+5], 7Fh
 seg000:AA57                 jmp     short loc_AA65
 seg000:AA59 ; ---------------------------------------------------------------------------
 seg000:AA59
-seg000:AA59 loc_AA59:
-seg000:AA59                 call    word ptr cs:600Eh
+seg000:AA59 loc_AA59:                               ;
+seg000:AA59                 call    word ptr cs:600Eh ; move_monster_NW_proc
 seg000:AA5E                 jb      short loc_AA61
 seg000:AA60                 retn
 seg000:AA61 ; ---------------------------------------------------------------------------
@@ -1366,8 +1314,8 @@ seg000:AA61
 seg000:AA61 loc_AA61:
 seg000:AA61                 or      byte ptr [si+5], 80h
 seg000:AA65
-seg000:AA65 loc_AA65:
-seg000:AA65                 call    word ptr cs:600Ch
+seg000:AA65 loc_AA65:                               ;
+seg000:AA65                 call    word ptr cs:600Ch ; move_monster_N_proc
 seg000:AA6A                 jb      short loc_AA6D
 seg000:AA6C                 retn
 seg000:AA6D ; ---------------------------------------------------------------------------
@@ -1390,7 +1338,7 @@ seg000:AA84 loc_AA84:
 seg000:AA84                 mov     byte ptr [si+6], 70h ; 'p'
 seg000:AA88                 mov     byte ptr [si+9], 0
 seg000:AA8C                 retn
-seg000:AA8C ; END OF FUNCTION CHUNK FOR sub_A369
+seg000:AA8C ; END OF FUNCTION CHUNK FOR Monster_AI
 seg000:AA8D
 seg000:AA8D ; =============== S U B R O U T I N E =======================================
 seg000:AA8D

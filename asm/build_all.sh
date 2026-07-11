@@ -58,6 +58,8 @@ tasm /m9 select.asm >>log.txt
 tlink select.obj >>log.txt
 tasm /m9 eai1.asm >>log.txt
 tlink eai1.obj >>log.txt
+tasm /m9 eai2.asm >>log.txt
+tlink eai2.obj >>log.txt
 tasm /m9 crab.asm >>log.txt
 tlink crab.obj >>log.txt
 exit
@@ -94,6 +96,7 @@ python3 exe2bin.py INNAPRO.EXE innapro.bin 0xA000
 python3 exe2bin.py FIGHT.EXE fight.bin 0x6000
 python3 exe2bin.py SELECT.EXE select.bin 0xA000
 python3 exe2bin.py EAI1.EXE eai1.bin 0xA000
+python3 exe2bin.py EAI2.EXE eai2.bin 0xA000
 python3 exe2bin.py CRAB.EXE crab.bin 0xA000
 
 echo "ZELIARD.EXE diffs:" >diff.txt
@@ -146,6 +149,8 @@ echo "select.bin diffs:" >>diff.txt
 { cmp -l ../game/0/select.bin select.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "eai1.bin diffs:" >>diff.txt
 { cmp -l ../game/0/eai1.bin eai1.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "eai2.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/eai2.bin eai2.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "crab.bin diffs:" >>diff.txt
 { cmp -l ../game/0/crab.bin crab.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 rm *.EXE *.MAP *.OBJ build.bat
