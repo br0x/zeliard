@@ -4472,14 +4472,16 @@ loc_7B15:
                 mov     dx, offset cant_open_this_door_str
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
+; SI: door struct
 enter_opened_door:        
                 mov     bx, [si+door.d_save_achievement_addr]
                 cmp     bx, 0FFFFh
-                je      short loc_7B32
+                je      short skip_null_achievements
+                ; achievement address in the save data area, e.g. "Cangrejo is defeated" at address 0
                 mov     al, [si+door.d_achievement_flag]
                 or      [bx], al
 
-loc_7B32:        
+skip_null_achievements:        
                 push    si
                     call    Browse_Projectiles
                     call    clear_viewport_buffer
@@ -4487,7 +4489,7 @@ loc_7B32:
                     call    reset_dungeon_state_vars
                     call    game_loop_render_and_timing
                     mov     si, ds:monsters_table_addr
-                    mov     word ptr [si], 0FFFFh ; end-of-monsters marker
+                    mov     word ptr [si], 0FFFFh ; set empty monsters list
                 pop     si              ; doors struct
                 mov     al, [si+door.d_flags]
                 and     al, 111b
@@ -4507,10 +4509,9 @@ loc_7B32:
                     or      ah, 80h         ; door leads to town
 
 skip_if_cavern:  
-                    mov     ds:place_map_id, ah ; cavern/town id
+                    mov     ds:place_map_id, ah ; cavern/town id; zero based MDT index (0 for mp10.mdt)
                     mov     al, 1           ; fn_1 Load mdt
-                    call    cs:res_dispatcher_proc ; fn0_swap_town_vs_cavern_gfx_drv_and_jmp_bx
-                                            ; fn1_load_mdt_idx_ah
+                    call    cs:res_dispatcher_proc ; fn1_load_mdt_idx_ah
                     
                     test    byte ptr ds:place_map_id, 80h
                     jnz     short skip_if_town ;
@@ -6259,7 +6260,6 @@ projectile_read_curved_path_step endp
 ; =============== S U B R O U T I N E =======================================
 
 ; In: BX pointing to projectile struct
-
 Add_Projectile_To_Array proc near
                 cmp     ds:last_projectile_index, 31 ; max 32 projectiles
                 jb      short loc_8619

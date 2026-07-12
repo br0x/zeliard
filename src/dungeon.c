@@ -36,6 +36,7 @@
 #define ADDR_DOOR_TARGET_Y            0x9F1C // byte
 #define ADDR_DOOR_FEATURES            0x9F1D // byte
 #define ADDR_BYTE_9F1E                0x9F1E
+#define ADDR_LAST_PROJECTILE_INDEX    0x9F1F  // byte
 #define ADDR_SLIDE_TICKS_REMAINING    0x9F20
 #define ADDR_HORIZ_MOVEMENT_ACCUM     0x9F21
 #define ADDR_SLIDE_DIRECTION          0x9F22  // 1=right, 2=left
@@ -4731,7 +4732,7 @@ void enter_opened_door(uint16_t si)
 
     // Load new MDT (map descriptor table)
     // fn1_load_mdt_idx_ah
-    load_mdt(place_map_id);
+    load_mdt(place_map_id); // this is a stub, MDT is loaded in game.js
 
     if ((place_map_id & 0x80) == 0) {
         remove_accomplished_items(); // for caverns
@@ -4741,6 +4742,7 @@ void enter_opened_door(uint16_t si)
     hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
 
     // Check MDT descriptor bit 0 (town vs dungeon)
+    // NB! This is the old MDT, since load_mdt() is a stub.
     uint16_t mdt_descr = MEM16(ADDR_MDT);
     uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
     if ((mdt_desc0 & 1) == 0) {
@@ -4757,7 +4759,7 @@ void enter_opened_door(uint16_t si)
     MEM8(ADDR_BYTE_9EF5) = 0xFF;
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
 
-    if (door_features & 0x80) {
+    if (door_features & 0x80) { // just defeated the boss
         // load cavern
         load_resource("rokademo.bin", 0x1A000); // load to seg1:A000
         roca_entrypoint();
@@ -4771,8 +4773,13 @@ void enter_opened_door(uint16_t si)
         // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
         after_run_animation();
     } else {
-        roka_run();
+        roka_run(); // usual run without Tears animation
         // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
+    }
+    if ((place_map_id & 0x80) == 0) {
+        MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
+        MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
     }
 }
 
@@ -5079,4 +5086,50 @@ uint8_t is_in_proximity_window(uint16_t x, uint8_t *x_rel)
         *x_rel = (uint8_t)offset;
         return offset < PROX_COLS;
     }
+}
+
+
+/*
+ * Add_Projectile_To_Array
+ * In: src - address of a 13-byte projectile struct to copy into the array.
+ * Appends it to the shared projectiles_array (up to 32 live projectiles),
+ * scanning for the 0xFF end marker, copying the new entry there, and
+ * writing a fresh end marker right after it. Does nothing if the array
+ * is already full.
+ */
+void Add_Projectile_To_Array(uint8_t *src)
+{
+    if (MEM8(ADDR_LAST_PROJECTILE_INDEX) >= MAX_PROJECTILES-1)
+        return;
+
+    uint16_t di = ADDR_PROJECTILES_LIST;
+    while (MEM8(di) != 0xFF) {
+        di += PROJECTILE_STRUCT_SIZE;
+    }
+
+    for (int i = 0; i < PROJECTILE_STRUCT_SIZE; i++) {
+        MEM8(di + i) = src[i];
+    }
+    di += PROJECTILE_STRUCT_SIZE;
+    MEM8(di) = 0xFF; // new end marker
+
+    MEM8(ADDR_LAST_PROJECTILE_INDEX)++;
+}
+
+typedef void (*MonsterAIFn)(uint16_t);
+
+static MonsterAIFn current_monster_ai = Monster_AI_1;
+
+void load_eai_module(int level)
+{
+    switch (level) {
+        case 1: current_monster_ai = Monster_AI_1; break;
+        case 2: current_monster_ai = Monster_AI_2; break;
+        /* add more as more eaiN.c modules are translated */
+    }
+}
+
+void Monster_AI(uint16_t m)
+{
+    current_monster_ai(m);
 }

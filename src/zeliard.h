@@ -65,6 +65,9 @@ extern "C" {
 #define GET_LIONS_HEAD_KEY_STR      19
 
 #define SWORD_ENCHANTMENT           6
+#define PROJECTILE_STRUCT_SIZE 13
+#define MAX_PROJECTILES        32
+
 
 // Memory Layout Constants
 #define MEM_SAVE_DATA                 0       // 256 bytes - Save data (xxx.sav)
@@ -688,6 +691,9 @@ void prepare_dungeon(void);
 void Cavern_Game_Init();
 
 // Monster AI
+void load_eai_module(int level_index);
+void Monster_AI_1(uint16_t m);
+void Monster_AI_2(uint16_t m);
 void Monster_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
@@ -696,6 +702,7 @@ uint8_t check_monster_on_aggressive_ground(uint16_t m);
 uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m);
 void damage_hero(uint16_t damage);
 void render_notification_string(uint8_t str_idx);
+void Add_Projectile_To_Array(uint8_t *src);
 
 // Input Handling
 void input_update(void);

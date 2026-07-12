@@ -4035,7 +4035,7 @@ fight:7AF6
 fight:7AF6 loc_7AF6:                               ; ...
 fight:7AF6                 pop     ax
 fight:7AF7                 test    [si+door.d_flags], 80h
-fight:7AFB                 jnz     short loc_7B25
+fight:7AFB                 jnz     short enter_opened_door
 fight:7AFD                 call    open_door
 fight:7B00                 jb      short loc_7B03
 fight:7B02                 retn
@@ -4056,7 +4056,7 @@ fight:7B1F                 mov     dx, offset cant_open_this_door_str
 fight:7B22                 jmp     render_notification_string
 fight:7B25 ; ---------------------------------------------------------------------------
 fight:7B25
-fight:7B25 loc_7B25:                               ; ...
+fight:7B25 enter_opened_door:                               ; ...
 fight:7B25                 mov     bx, [si+door.field_9]
 fight:7B28                 cmp     bx, 0FFFFh
 fight:7B2B                 jz      short loc_7B32

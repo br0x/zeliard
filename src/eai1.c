@@ -79,7 +79,7 @@ static ProximityResult frog_rat_to_hero_proximity_and_direction(uint16_t m, uint
  * Monster_AI - entry point (matches void Monster_AI(Monster* m); in zeliard.h)
  * Called from dungeon.c monsters_spawning and place_monster_in_proximity_and_run_ai
  */
-void Monster_AI(uint16_t m)
+void Monster_AI_1(uint16_t m)
 {
     switch (MEM8(m+4) & 0x0F) { // .flags
         case 0: bat_ai(m); return;

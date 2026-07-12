@@ -1417,9 +1417,9 @@ func_selector   dw offset fn1_load_mdt_idx_ah ; loads packed MDT to mdt_buffer a
 fn1_load_mdt_idx_ah proc near 
                 mov     word ptr cs:virt_file_buffer, mdt_buffer
                 mov     word ptr cs:virt_file_buffer+2, cs
-                mov     al, ah
+                mov     al, ah        ; zero based MDT index (0 for mp10.mdt)
                 or      al, al
-                jns     short loc_AEC
+                jns     short loc_AEC ; load dungeon
                 and     al, 7Fh
                 add     al, 32          ; towns start at idx 32
 
@@ -2073,8 +2073,7 @@ packed_file_descriptor dd 0
 virt_file_buffer       dd 0         
 virt_file_size_lo      dw 0        
 virt_file_size_hi      dw 0        
-mp10_id         db 2          
-                db 15h
+mp10_id         dw 1502h          
 aMp10Mdt        db 'MP10.MDT',0         ; 0
                 dw 1602h
 aMp1dMdt        db 'MP1D.MDT',0         ; 1
@@ -2136,17 +2135,13 @@ aMp8dMdt        db 'MP8D.MDT',0         ; 28
 aMp90Mdt        db 'MP90.MDT',0         ; 29
                 dw 3302h
 aMpa0Mdt        db 'MPA0.MDT',0         ; 30
-                db    1
-                db    0
+                dw 0001h
                 db '        ',0         ; 31
-                db    1
-                db  25h ; %
+                dw 2501h
 aCmapMdt        db 'CMAP.MDT',0         ; 32
-                db    1
-                db  26h ; &
+                dw 2601h ; &
 aMrmpMdt        db 'MRMP.MDT',0         ; 33
-                db    1
-                db  27h ; '
+                dw 2701h ; '
 aStmpMdt        db 'STMP.MDT',0         ; 34
                 db    1
                 db  28h ; (
@@ -2166,8 +2161,7 @@ aLlmpMdt        db 'LLMP.MDT',0         ; 39
                 db    1
                 db  2Dh ; -
 aPrmpMdt        db 'PRMP.MDT',0         ; 40
-                db    1
-                db  2Eh ; .
+                dw 2E01h ; .
 aEsmpMdt        db 'ESMP.MDT',0         ; 41
 stick           ends
 

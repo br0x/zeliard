@@ -495,46 +495,34 @@ loc_A4BA:
                 mov     ax, offset byte_A524
 
 loc_A4EE:
-                test    byte ptr [si+9], 2
-                jz      short loc_A4F5
+                test    byte ptr [si+9], 2 ; .ai_state
+                jz      short loc_A4F5 ; bx is fine
+                ; use offset from ax
                 xchg    ax, bx
 
 loc_A4F5:                               ;
-                call    word ptr cs:Add_Projectile_To_Array_proc
+                call    word ptr cs:Add_Projectile_To_Array_proc ; bx points to projectile struct
                 jmp     loc_A6BF
 Monster_AI      endp
 
 ; ---------------------------------------------------------------------------
 byte_A4FD       db 0
-byte_A4FE       db 0
-                db  9Ah
-                db    0
-                db 0FFh
-                db  40h ; @
-                db    8
-                db    0
-                db    0
-                dw offset byte_A531
-                db    0
-                db    0
+byte_A4FE       db 0, 9Ah, 0, 0FFh, 40h, 8, 0, 0
+                dw offset right_trajectory ; p_curved_path_data_ptr
+                db 0, 0
 byte_A50A       db 0
-byte_A50B       db 0
-                db  9Ah
-                db    0
-                db 0FFh
-                db  40h ; @
-                db    8
-                db    0
-                db    0
-                dw offset byte_A53D
-                db    0
-                db    0
-byte_A517       db 0
+byte_A50B       db 0, 9Ah, 0, 0FFh, 40h, 8, 0, 0
+                dw offset left_trajectory ; p_curved_path_data_ptr
+                db 0, 0
+                ; projectile 1
+byte_A517       db 0 ; p_x_rel
 byte_A518       db 0, 9Ah, 0, 7, 0, 14h, 0, 0, 0, 0, 0, 0
-byte_A524       db 0
+                ; projectile 2
+byte_A524       db 0 ; p_x_rel
 byte_A525       db 0, 9Ah, 0, 7, 4, 14h, 0, 0, 0, 0, 0, 0
-byte_A531       db 1, 1, 1, 0, 0, 7, 7, 7, 7, 7, 7, 0FFh
-byte_A53D       db 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 0FFh
+
+right_trajectory db 1, 1, 1, 0, 0, 7, 7, 7, 7, 7, 7, 0FFh
+left_trajectory  db 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 

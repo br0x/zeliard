@@ -84,12 +84,53 @@ const DUNGEONS = {
             [],
         ],
     },
+    1: { // Dungeon 1 boss room — same dungeon group, shares tilesheets with index 0
+        mdtPath: 'game/0/mp1d.mdt',
+        tilesheetPath: 'assets/images/mpp1.png',
+        entitySheetPath: 'assets/images/enp1.png',
+        passableTiles: [
+            0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp:     [],
+        monster_damage: [],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+    },
     2: {
         mdtPath: 'game/0/mp20.mdt',
         tilesheetPath: 'assets/images/mpp2.png',
         entitySheetPath: 'assets/images/enp2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
-            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19,
+        ],
+        slopeTilesLeft: [0x10, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x11, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x12, 0x13, 0x14, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [10, 10, 4, 10, 4, 255, 0, 0],
+        monster_damage: [10, 10, 8, 10, 8, 40, 0, 0],
+        death_descriptors: [
+            [5, 5, 5, 5], // boarman top
+            [5, 5, 5, 5], // boarman bottom
+            [4, 0, 4, 0], // blue slime
+            [5, 4, 4, 0], // red toad
+            [5, 4, 5, 0], // green bat
+            [9, 9, 9, 9], // magic bat
+            [],
+            [],
+        ],
+    },
+    3: {
+        mdtPath: 'game/0/mp21.mdt',
+        tilesheetPath: 'assets/images/mpp2.png',
+        entitySheetPath: 'assets/images/enp2.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19,
         ],
         slopeTilesLeft: [0x10, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
         slopeTilesRight: [0x11, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
@@ -389,11 +430,15 @@ const ADDR_HERO_ANIM_PHASE           = 0xE7;
 const ADDR_INVINCIBILITY_FLAG        = 0xE8;
 
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
+const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
+const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
+const ADDR_BYTE_9F00               = 0x9F00;
+const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
 
 const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
 const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
 const ADDR_NPC_ARRAY_PTR           = 0xC00F;
-const ADDR_MONSTERS_LIST           = 0xC010;    // word — pointer to monster table (16-byte entries)
+const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)
 const ADDR_CAVERN_LEVEL            = 0xC012;
 const ADDR_TEAR_X                  = 0xC013; // word
 const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
@@ -709,6 +754,11 @@ function onFullTick() {
                     } else {
                         initTownFromDungeon(readMemory(ADDR_PLACE_MAP_ID, 1)[0], false);
                     }
+                } else if (readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0] === 0xFF) {
+                    dungeonTileSheetReady = false;
+                    dungeonEntitySheetReady = false;
+                    const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
+                    handleDungeonTransition(pendingMap);
                 }
             }
         } else if (frameTmr >= target) { // town mode
@@ -730,8 +780,7 @@ function onFullTick() {
                     handleTownTransition(transition);
                 }
             }
-            const pendingDungeonFlag = readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0];
-            if (pendingDungeonFlag === 0xFF) {
+            if (readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0] === 0xFF) {
                 const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
                 handleDungeonTransition(pendingMap);
             }
@@ -2181,7 +2230,9 @@ async function handleDungeonTransition(mapId) {
     try {
         writeMemory(ADDR_PENDING_DUNGEON_FLAG, [0]);
         const rawMapId = mapId & 0x7F;
-        const mdtPath = DUNGEONS[rawMapId].mdtPath;
+        const dungeon = DUNGEONS[rawMapId];
+        if (!dungeon) throw new Error(`No DUNGEONS entry for map ID ${rawMapId}`);
+        const mdtPath = dungeon.mdtPath;
         const resp = await fetch(mdtPath);
         if (!resp.ok) 
             throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
