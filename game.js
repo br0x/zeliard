@@ -84,6 +84,30 @@ const DUNGEONS = {
             [],
         ],
     },
+    2: {
+        mdtPath: 'game/0/mp20.mdt',
+        tilesheetPath: 'assets/images/mpp2.png',
+        entitySheetPath: 'assets/images/enp2.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ],
+        slopeTilesLeft: [0x10, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x11, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x12, 0x13, 0x14, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [10, 10, 4, 10, 4, 255, 0, 0],
+        monster_damage: [10, 10, 8, 10, 8, 40, 0, 0],
+        death_descriptors: [
+            [5, 5, 5, 5], // boarman top
+            [5, 5, 5, 5], // boarman bottom
+            [4, 0, 4, 0], // blue slime
+            [5, 4, 4, 0], // red toad
+            [5, 4, 5, 0], // green bat
+            [9, 9, 9, 9], // magic bat
+            [],
+            [],
+        ],
+    },
 };
 const NOTIFICATION_STRINGS = {
     1:  [38, "You get 50 golds."],

@@ -39,63 +39,22 @@ monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
                 db    0
                 db    0
                 db    0
-                dw offset monster0_left_frames
-                dw offset monster1_left_frames
-                dw offset monster2_left_frames
-                dw offset monster3_left_frames
-                dw offset monster4_left_frames ; green bat
-                dw offset monster5_left_frames ; magical bat
+                dw offset boarman_top_left_frames
+                dw offset boarman_bottom_left_frames
+                dw offset blue_slime_frames
+                dw offset red_toad_left_frames
+                dw offset green_bat_left_frames ; green bat
+                dw offset magic_bat_left_frames ; magical bat
                 db    0
                 db    0
                 db    0
                 db    0
-                dw offset monster0_death_frames
-                dw offset monster1_death_frames
-                dw offset monster2_death_frames
-                dw offset monster3_death_frames
-                dw offset monster4_death_frames ; green bat
-                dw offset monster5_death_frames
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset wall_destruction_frames
-                dw offset wall_destruction_frames
-                dw offset hit_frames
-                dw offset chest_frames
-                dw offset almas_glow_frames
-                dw offset almas_glow_frames_alt
-                dw offset ordinary_key_frames
-                db    0
-                db    0
-                dw offset red_potion_frames
-                dw offset blue_potion_frames
-                db    0
-                db    0
-                dw offset byte_A2F9
-                dw offset byte_A33A
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset monster0_right_frames
-                dw offset monster1_right_frames
-                dw offset monster2_left_frames
-                dw offset monster3_right_frames
-                dw offset monster4_right_frames ; green bat
-                dw offset monster5_right_frames ; magical bat
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset monster0_death_frames
-                dw offset monster1_death_frames
-                dw offset monster2_death_frames
-                dw offset monster3_death_frames
-                dw offset monster4_death_frames ; green bat
-                dw offset monster5_death_frames ; magical bat
+                dw offset boarman_top_death_frames
+                dw offset boarman_bottom_death_frames
+                dw offset blue_slime_death_frames
+                dw offset red_toad_death_frames
+                dw offset green_bat_death_frames ; green bat
+                dw offset magic_bat_death_frames
                 db    0
                 db    0
                 db    0
@@ -113,169 +72,223 @@ monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
                 dw offset blue_potion_frames
                 db    0
                 db    0
-                dw offset byte_A2F9
-                dw offset byte_A33A
+                dw offset rare_almas_frames
+                dw offset sign_frames
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
-monster0_left_frames db 0, 21h, 22h, 23h, 24h
-                db 0, 25h, 26h, 27h, 28h
-                db 0, 29h, 2Ah, 2Bh, 2Ch
-                db 0, 25h, 26h, 27h, 28h
-                db 0, 25h, 26h, 27h, 28h
-                db 0, 25h, 26h, 27h, 28h
-                db 0, 25h, 26h, 27h, 28h
-                db 0, 25h, 26h, 27h, 28h
-monster0_right_frames db 0, 2Dh, 2Eh, 2Fh, 30h
-                db 0, 31h, 32h, 33h, 34h
-                db 0, 35h, 36h, 37h, 38h
-                db 0, 31h, 32h, 33h, 34h
-                db 0, 31h, 32h, 33h, 34h
-                db 0, 31h, 32h, 33h, 34h
-                db 0, 31h, 32h, 33h, 34h
-                db 0, 31h, 32h, 33h, 34h
-monster0_death_frames db 0, 39h, 3Ah, 3Bh, 3Ch
-                db 0, 3Dh, 0, 3Eh, 3Fh
+                dw offset boarman_top_right_frames
+                dw offset boarman_bottom_right_frames
+                dw offset blue_slime_frames
+                dw offset red_toad_right_frames
+                dw offset green_bat_right_frames ; green bat
+                dw offset magic_bat_right_frames ; magical bat
+                db    0
+                db    0
+                db    0
+                db    0
+                dw offset boarman_top_death_frames
+                dw offset boarman_bottom_death_frames
+                dw offset blue_slime_death_frames
+                dw offset red_toad_death_frames
+                dw offset green_bat_death_frames ; green bat
+                dw offset magic_bat_death_frames ; magical bat
+                db    0
+                db    0
+                db    0
+                db    0
+                dw offset wall_destruction_frames
+                dw offset wall_destruction_frames
+                dw offset hit_frames
+                dw offset chest_frames
+                dw offset almas_glow_frames
+                dw offset almas_glow_frames_alt
+                dw offset ordinary_key_frames
+                db    0
+                db    0
+                dw offset red_potion_frames
+                dw offset blue_potion_frames
+                db    0
+                db    0
+                dw offset rare_almas_frames
+                dw offset sign_frames
                 db    0
                 db    0
                 db    0
                 db    0
                 db    0
-monster1_left_frames db 0, 40h, 41h, 42h, 43h
-                db 0, 44h, 45h, 46h, 47h
-                db 0, 48h, 49h, 4Ah, 4Bh
-                db 0, 44h, 45h, 4Ch, 4Dh
-                db 0, 44h, 45h, 46h, 4Eh
-                db 0, 5Eh, 45h, 46h, 4Eh
-                db 0, 5Fh, 45h, 46h, 4Eh
-                db 0, 5Eh, 45h, 46h, 4Eh
-monster1_right_frames db 0, 4Fh, 50h, 51h, 52h
-                db 0, 53h, 54h, 55h, 56h
-                db 0, 57h, 58h, 59h, 5Ah
-                db 0, 53h, 54h, 5Bh, 5Ch
-                db 0, 53h, 54h, 5Dh, 56h
-                db 0, 53h, 60h, 5Dh, 56h
-                db 0, 53h, 61h, 5Dh, 56h
-                db 0, 53h, 60h, 5Dh, 56h
-monster1_death_frames db 0, 62h, 63h, 64h, 65h
-                db 0, 66h, 67h, 68h, 69h
-                db 0, 6Ah, 6Bh, 6Ch, 6Dh
-monster2_left_frames db 2, 0, 0, 7Dh, 7Eh
-                db 2, 0, 0, 7Fh, 80h
-                db 2, 0, 0, 83h, 84h
-                db 2, 85h, 86h, 87h, 88h
-                db 2, 85h, 86h, 87h, 88h
-                db 2, 0, 0, 83h, 84h
-                db 2, 0, 0, 7Fh, 80h
-                db 2, 0, 0, 7Dh, 7Eh
-                db 2, 0, 0, 89h, 8Ah
-                db 2, 0, 0, 8Bh, 8Ch
-                db 2, 0, 0, 89h, 8Ah
-                db 2, 0, 0, 8Dh, 8Eh
-monster2_death_frames db 2, 0, 0, 91h, 92h
-                db 2, 93h, 94h, 95h, 96h
-                db 2, 97h, 98h, 99h, 9Ah
-monster3_left_frames db 0, 9Bh, 9Ch, 9Dh, 9Eh
-                db 0, 9Bh, 9Ch, 9Fh, 9Eh
-                db 0, 0A1h, 0A2h, 0A3h, 0A4h
-                db 0, 0A5h, 0A2h, 0A6h, 0A7h
-                db 0, 0A8h, 0A9h, 0AAh, 0ABh
-                db 0, 0ACh, 0ADh, 0AEh, 0AFh
-                db 0, 9Bh, 9Ch, 9Dh, 9Eh
-                db 0, 9Bh, 9Ch, 0A0h, 9Eh
-monster3_right_frames db 0, 0B4h, 0B5h, 0B6h, 0B7h
-                db 0, 0B4h, 0B5h, 0B6h, 0B8h
-                db 0, 0BAh, 0BBh, 0BCh, 0BDh
-                db 0, 0BAh, 0BEh, 0BFh, 0C0h
-                db 0, 0C1h, 0C2h, 0C3h, 0C4h
-                db 0, 0C5h, 0C6h, 0C7h, 0C8h
-                db 0, 0B4h, 0B5h, 0B6h, 0B7h
-                db 0, 0B4h, 0B5h, 0B6h, 0B9h
-monster3_death_frames db 0, 0CDh, 0CEh, 0CFh, 0D0h
-                db 0, 0D1h, 0D2h, 0D3h, 0D4h
-                db 0, 0, 0, 0D7h, 0D8h
-monster4_left_frames db 0, 0D9h, 0DAh, 0DBh, 0DCh
-                db 0, 0E1h, 0E2h, 0E3h, 0E4h
-                db 0, 0E1h, 0E2h, 0E3h, 0E4h
-                db 0, 0E5h, 0E6h, 0E7h, 0E8h
-                db 0, 0E9h, 0EAh, 0EBh, 0ECh
-                db 0, 0E5h, 0E6h, 0E7h, 0E8h
-                db 0, 0EDh, 0EEh, 0EFh, 0F0h
-monster4_right_frames db 0, 0D9h, 0DAh, 0DBh, 0DCh
-                db 0, 0DDh, 0DEh, 0DFh, 0E0h
-                db 0, 0DDh, 0DEh, 0DFh, 0E0h
-                db 0, 81h, 82h, 8Fh, 90h
-                db 0, 0B0h, 0B1h, 0B2h, 0B3h
-                db 0, 81h, 82h, 8Fh, 90h
-                db 0, 0C9h, 0CAh, 0CBh, 0CCh
-monster4_death_frames db 0, 0D5h, 0D6h, 0F1h, 0F2h
-                db 0, 0F3h, 0F4h, 0F5h, 0F6h
-                db 0, 0F7h, 0F8h, 0F9h, 0FAh
-monster5_left_frames db 1, 0D9h, 0DAh, 0DBh, 0DCh
-                db 1, 0E1h, 0E2h, 0E3h, 0E4h
-                db 1, 0E1h, 0E2h, 0E3h, 0E4h
-                db 1, 0E5h, 0E6h, 0E7h, 0E8h
-                db 1, 0E9h, 0EAh, 0EBh, 0ECh
-                db 1, 0E5h, 0E6h, 0E7h, 0E8h
-                db 1, 0EDh, 0EEh, 0EFh, 0F0h
-monster5_right_frames db 1, 0D9h, 0DAh, 0DBh, 0DCh
-                db 1, 0DDh, 0DEh, 0DFh, 0E0h
-                db 1, 0DDh, 0DEh, 0DFh, 0E0h
-                db 1, 81h, 82h, 8Fh, 90h
-                db 1, 0B0h, 0B1h, 0B2h, 0B3h
-                db 1, 81h, 82h, 8Fh, 90h
-                db 1, 0C9h, 0CAh, 0CBh, 0CCh
-monster5_death_frames db 1, 0D5h, 0D6h, 0F1h, 0F2h
-                db 1, 0F3h, 0F4h, 0F5h, 0F6h
-                db 1, 0F7h, 0F8h, 0F9h, 0FAh
-hit_frames      db 1, 1, 2, 3, 4
-                db 1, 5, 6, 7, 8
-                db 1, 9, 0Ah, 0Bh, 0Ch
-almas_glow_frames db 0, 0Dh, 0Eh, 0Fh, 10h
-                db 0, 11h, 12h, 13h, 14h
-                db 0, 15h, 16h, 17h, 18h
-                db 0, 11h, 12h, 13h, 14h
-almas_glow_frames_alt db 2, 0Dh, 0Eh, 0Fh, 10h
-                db 2, 11h, 12h, 13h, 14h
-                db 2, 15h, 16h, 17h, 18h
-                db 2, 11h, 12h, 13h, 14h
-byte_A2F9       db 1, 0Dh, 0Eh, 0Fh, 10h
-                db 1, 11h, 12h, 13h, 14h
-                db 1, 15h, 16h, 17h, 18h
-                db 1, 11h, 12h, 13h, 14h
-chest_frames    db 0, 19h, 1Ah, 1Bh, 1Ch
-                db 0, 19h, 1Ah, 1Bh, 1Ch
-                db 0, 19h, 1Ah, 1Bh, 1Ch
-                db 0, 19h, 1Ah, 1Bh, 1Ch
-ordinary_key_frames db 1, 1Dh, 1Eh, 1Fh, 20h
-wall_destruction_frames db 1, 6Eh, 6Eh, 6Eh, 6Eh
-                db 1, 6Fh, 70h, 71h, 72h
-                db 1, 73h, 74h, 75h, 76h
-                db 1, 0, 0, 77h, 78h
-byte_A33A       db 2, 79h, 7Ah, 7Bh, 7Ch
-red_potion_frames db 0, 0FBh, 0FCh, 0FDh, 0FEh
-blue_potion_frames db 2, 0FBh, 0FCh, 0FDh, 0FEh
-death_descriptors dw offset monster01_death_desc
-                dw offset monster01_death_desc
-                dw offset monster2_death_desc
-                dw offset monster3_death_desc
-                dw offset monster4_death_desc ; green bat
-                dw offset monster5_death_desc ; magical bat
-monster01_death_desc db 5, 5, 5, 5
-monster2_death_desc db 4, 0, 4, 0
-monster3_death_desc db 5, 4, 4, 0
-monster4_death_desc db 5, 4, 5, 0       ; green bat
-monster5_death_desc db 9, 9, 9, 9       ; magical bat
+                db    0
+boarman_top_left_frames     db 0, 21h, 22h, 23h, 24h
+                            db 0, 25h, 26h, 27h, 28h
+                            db 0, 29h, 2Ah, 2Bh, 2Ch
+                            db 0, 25h, 26h, 27h, 28h
+                            db 0, 25h, 26h, 27h, 28h
+                            db 0, 25h, 26h, 27h, 28h
+                            db 0, 25h, 26h, 27h, 28h
+                            db 0, 25h, 26h, 27h, 28h
+boarman_top_right_frames    db 0, 2Dh, 2Eh, 2Fh, 30h
+                            db 0, 31h, 32h, 33h, 34h
+                            db 0, 35h, 36h, 37h, 38h
+                            db 0, 31h, 32h, 33h, 34h
+                            db 0, 31h, 32h, 33h, 34h
+                            db 0, 31h, 32h, 33h, 34h
+                            db 0, 31h, 32h, 33h, 34h
+                            db 0, 31h, 32h, 33h, 34h
+boarman_top_death_frames    db 0, 39h, 3Ah, 3Bh, 3Ch
+                            db 0, 3Dh, 0, 3Eh, 3Fh
+                            db 0, 0, 0, 0, 0
+boarman_bottom_left_frames  db 0, 40h, 41h, 42h, 43h
+                            db 0, 44h, 45h, 46h, 47h
+                            db 0, 48h, 49h, 4Ah, 4Bh
+                            db 0, 44h, 45h, 4Ch, 4Dh
+                            db 0, 44h, 45h, 46h, 4Eh
+                            db 0, 5Eh, 45h, 46h, 4Eh
+                            db 0, 5Fh, 45h, 46h, 4Eh
+                            db 0, 5Eh, 45h, 46h, 4Eh
+boarman_bottom_right_frames db 0, 4Fh, 50h, 51h, 52h
+                            db 0, 53h, 54h, 55h, 56h
+                            db 0, 57h, 58h, 59h, 5Ah
+                            db 0, 53h, 54h, 5Bh, 5Ch
+                            db 0, 53h, 54h, 5Dh, 56h
+                            db 0, 53h, 60h, 5Dh, 56h
+                            db 0, 53h, 61h, 5Dh, 56h
+                            db 0, 53h, 60h, 5Dh, 56h
+boarman_bottom_death_frames db 0, 62h, 63h, 64h, 65h
+                            db 0, 66h, 67h, 68h, 69h
+                            db 0, 6Ah, 6Bh, 6Ch, 6Dh
+blue_slime_frames           db 2, 0, 0, 7Dh, 7Eh
+                            db 2, 0, 0, 7Fh, 80h
+                            db 2, 0, 0, 83h, 84h
+                            db 2, 85h, 86h, 87h, 88h
+                            db 2, 85h, 86h, 87h, 88h
+                            db 2, 0, 0, 83h, 84h
+                            db 2, 0, 0, 7Fh, 80h
+                            db 2, 0, 0, 7Dh, 7Eh
+                            db 2, 0, 0, 89h, 8Ah
+                            db 2, 0, 0, 8Bh, 8Ch
+                            db 2, 0, 0, 89h, 8Ah
+                            db 2, 0, 0, 8Dh, 8Eh
+blue_slime_death_frames     db 2, 0, 0, 91h, 92h
+                            db 2, 93h, 94h, 95h, 96h
+                            db 2, 97h, 98h, 99h, 9Ah
+red_toad_left_frames        db 0, 9Bh, 9Ch, 9Dh, 9Eh
+                            db 0, 9Bh, 9Ch, 9Fh, 9Eh
+                            db 0, 0A1h, 0A2h, 0A3h, 0A4h
+                            db 0, 0A5h, 0A2h, 0A6h, 0A7h
+                            db 0, 0A8h, 0A9h, 0AAh, 0ABh
+                            db 0, 0ACh, 0ADh, 0AEh, 0AFh
+                            db 0, 9Bh, 9Ch, 9Dh, 9Eh
+                            db 0, 9Bh, 9Ch, 0A0h, 9Eh
+red_toad_right_frames       db 0, 0B4h, 0B5h, 0B6h, 0B7h
+                            db 0, 0B4h, 0B5h, 0B6h, 0B8h
+                            db 0, 0BAh, 0BBh, 0BCh, 0BDh
+                            db 0, 0BAh, 0BEh, 0BFh, 0C0h
+                            db 0, 0C1h, 0C2h, 0C3h, 0C4h
+                            db 0, 0C5h, 0C6h, 0C7h, 0C8h
+                            db 0, 0B4h, 0B5h, 0B6h, 0B7h
+                            db 0, 0B4h, 0B5h, 0B6h, 0B9h
+red_toad_death_frames       db 0, 0CDh, 0CEh, 0CFh, 0D0h
+                            db 0, 0D1h, 0D2h, 0D3h, 0D4h
+                            db 0, 0, 0, 0D7h, 0D8h
+green_bat_left_frames       db 0, 0D9h, 0DAh, 0DBh, 0DCh
+                            db 0, 0E1h, 0E2h, 0E3h, 0E4h
+                            db 0, 0E1h, 0E2h, 0E3h, 0E4h
+                            db 0, 0E5h, 0E6h, 0E7h, 0E8h
+                            db 0, 0E9h, 0EAh, 0EBh, 0ECh
+                            db 0, 0E5h, 0E6h, 0E7h, 0E8h
+                            db 0, 0EDh, 0EEh, 0EFh, 0F0h
+green_bat_right_frames      db 0, 0D9h, 0DAh, 0DBh, 0DCh
+                            db 0, 0DDh, 0DEh, 0DFh, 0E0h
+                            db 0, 0DDh, 0DEh, 0DFh, 0E0h
+                            db 0, 81h, 82h, 8Fh, 90h
+                            db 0, 0B0h, 0B1h, 0B2h, 0B3h
+                            db 0, 81h, 82h, 8Fh, 90h
+                            db 0, 0C9h, 0CAh, 0CBh, 0CCh
+green_bat_death_frames      db 0, 0D5h, 0D6h, 0F1h, 0F2h
+                            db 0, 0F3h, 0F4h, 0F5h, 0F6h
+                            db 0, 0F7h, 0F8h, 0F9h, 0FAh
+magic_bat_left_frames       db 1, 0D9h, 0DAh, 0DBh, 0DCh
+                            db 1, 0E1h, 0E2h, 0E3h, 0E4h
+                            db 1, 0E1h, 0E2h, 0E3h, 0E4h
+                            db 1, 0E5h, 0E6h, 0E7h, 0E8h
+                            db 1, 0E9h, 0EAh, 0EBh, 0ECh
+                            db 1, 0E5h, 0E6h, 0E7h, 0E8h
+                            db 1, 0EDh, 0EEh, 0EFh, 0F0h
+magic_bat_right_frames      db 1, 0D9h, 0DAh, 0DBh, 0DCh
+                            db 1, 0DDh, 0DEh, 0DFh, 0E0h
+                            db 1, 0DDh, 0DEh, 0DFh, 0E0h
+                            db 1, 81h, 82h, 8Fh, 90h
+                            db 1, 0B0h, 0B1h, 0B2h, 0B3h
+                            db 1, 81h, 82h, 8Fh, 90h
+                            db 1, 0C9h, 0CAh, 0CBh, 0CCh
+magic_bat_death_frames      db 1, 0D5h, 0D6h, 0F1h, 0F2h
+                            db 1, 0F3h, 0F4h, 0F5h, 0F6h
+                            db 1, 0F7h, 0F8h, 0F9h, 0FAh
+hit_frames                  db 1, 1, 2, 3, 4
+                            db 1, 5, 6, 7, 8
+                            db 1, 9, 0Ah, 0Bh, 0Ch
+almas_glow_frames           db 0, 0Dh, 0Eh, 0Fh, 10h
+                            db 0, 11h, 12h, 13h, 14h
+                            db 0, 15h, 16h, 17h, 18h
+                            db 0, 11h, 12h, 13h, 14h
+almas_glow_frames_alt       db 2, 0Dh, 0Eh, 0Fh, 10h
+                            db 2, 11h, 12h, 13h, 14h
+                            db 2, 15h, 16h, 17h, 18h
+                            db 2, 11h, 12h, 13h, 14h
+rare_almas_frames           db 1, 0Dh, 0Eh, 0Fh, 10h
+                            db 1, 11h, 12h, 13h, 14h
+                            db 1, 15h, 16h, 17h, 18h
+                            db 1, 11h, 12h, 13h, 14h
+chest_frames                db 0, 19h, 1Ah, 1Bh, 1Ch
+                            db 0, 19h, 1Ah, 1Bh, 1Ch
+                            db 0, 19h, 1Ah, 1Bh, 1Ch
+                            db 0, 19h, 1Ah, 1Bh, 1Ch
+ordinary_key_frames         db 1, 1Dh, 1Eh, 1Fh, 20h
+wall_destruction_frames     db 1, 6Eh, 6Eh, 6Eh, 6Eh
+                            db 1, 6Fh, 70h, 71h, 72h
+                            db 1, 73h, 74h, 75h, 76h
+                            db 1, 0, 0, 77h, 78h
+sign_frames                 db 2, 79h, 7Ah, 7Bh, 7Ch
+red_potion_frames           db 0, 0FBh, 0FCh, 0FDh, 0FEh
+blue_potion_frames          db 2, 0FBh, 0FCh, 0FDh, 0FEh
+death_descriptors dw offset boarman_death_desc
+                  dw offset boarman_death_desc
+                  dw offset blue_slime_death_desc
+                  dw offset red_toad_death_desc
+                  dw offset green_bat_death_desc ; green bat
+                  dw offset magic_bat_death_desc ; magical bat
+boarman_death_desc    db 5, 5, 5, 5
+blue_slime_death_desc db 4, 0, 4, 0
+red_toad_death_desc   db 5, 4, 4, 0
+green_bat_death_desc  db 5, 4, 5, 0       ; green bat
+magic_bat_death_desc  db 9, 9, 9, 9       ; magical bat
 
 ; =============== S U B R O U T I N E =======================================
 
-
+; si points to monster struct:
+; monster            STRUC   ; offset
+;   currX            dw   ?  ; 0
+;   currY            db   ?  ; 2 ; Y always 0..63, no need to call it "relative"
+;   m_x_rel          db   ?  ; 3 ; X relative to proximity left (0..35)
+;   flags            db   ?  ; 4 ; bits 0..3: monster type
+;   ai_flags         db   ?  ; 5 ; bit 7: facing direction (1=right, 0=left)
+;   anim_counter     db   ?  ; 6
+;   state_flags      db   ?  ; 7
+;   hp               db   ?  ; 8
+;   ai_state         db   ?  ; 9
+;   ai_timer         db   ?  ; 10
+;   spwnX            dw   ?  ; 11
+;   spwnY            db   ?  ; 13
+;   type_            db   ?  ; 14
+;   counter          db   ?  ; 15
+; monster            ENDS
+; Access struct members with macro MEM8(si+field_offset) or MEM16(si+field_offset)
 Monster_AI      proc near
 
-                mov     bl, [si+4]
+                mov     bl, [si+4] ; monster.flags
                 and     bl, 0Fh
                 xor     bh, bh
                 add     bx, bx          ; switch 6 cases

@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/itemp.grp"
+                "${workspaceFolder}/tools/GrpViewer/enp2.grp"
             ],
             "console": "integratedTerminal",
         },

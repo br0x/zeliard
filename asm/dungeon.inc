@@ -1,8 +1,8 @@
-monster            STRUC
+monster            STRUC   ; offset
   currX            dw   ?  ; 0
   currY            db   ?  ; 2 ; Y always 0..63, no need to call it "relative"
   m_x_rel          db   ?  ; 3 ; X relative to proximity left (0..35)
-  flags            db   ?  ; 4
+  flags            db   ?  ; 4 ; bits 0..3: monster type
   ai_flags         db   ?  ; 5 ; bit 7: facing direction (1=right, 0=left)
   anim_counter     db   ?  ; 6
   state_flags      db   ?  ; 7

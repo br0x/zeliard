@@ -9,6 +9,11 @@ crab            segment byte public 'CODE'
                 assume es:nothing, ss:nothing
 start           dw offset Cangrejo_AI_proc
                 dw offset boss_state_block
+                db    0 ; 4
+                db    0
+                db    0
+                db    0
+                db    0 ; 8
                 db    0
                 db    0
                 db    0
@@ -16,13 +21,9 @@ start           dw offset Cangrejo_AI_proc
                 db    0
                 db    0
                 db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-encounter_hp_table db 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
-                db 6, 6, 6, 0Fh, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
+                ; A010
+encounter_hp_table db 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
+                   db 6, 6, 6, 6, 6, 15, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
                 ; A030
 anim_frame_table_ptrs0_8 dw offset left_eye_frames ; normal movement animation states
                 dw offset right_eye_frames
