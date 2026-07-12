@@ -4061,6 +4061,7 @@ uint8_t airborne_movement() {
             MEM8(ADDR_FACING) &= ~UP;
             MEM8(ADDR_FACING) ^= LEFT;
             left_default();
+            return 0;
         } // else default
     } else if (horiz_input == KEY_RIGHT) {
         // right_pressed
@@ -4068,14 +4069,15 @@ uint8_t airborne_movement() {
             MEM8(ADDR_FACING) &= ~UP;
             MEM8(ADDR_FACING) ^= LEFT;
             right_default();
+            return 0;
         } // else default
     }
     // default
     if ((MEM8(ADDR_FACING) & UP) == 0) { // UP mask flag checking matching layout
         if (horiz_input == KEY_LEFT) {
-            left_default();
-        } else if (horiz_input == KEY_RIGHT) {
             right_default();
+        } else if (horiz_input == KEY_RIGHT) {
+            left_default();
         }
     } else {
         if (MEM8(ADDR_FACING) & LEFT) {
