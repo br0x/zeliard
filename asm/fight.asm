@@ -160,7 +160,7 @@ Cavern_Game_Init proc near
                 mov     byte ptr ds:boss_being_hit, 0
                 mov     byte ptr ds:sprite_flash_flag, 0
                 mov     byte ptr ds:boss_is_dead, 0
-                mov     byte ptr ds:byte_9F01, 0
+                mov     byte ptr ds:boss_placement, 0
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jnz     short boss_place
                 jmp     regular_cavern
@@ -247,7 +247,7 @@ render_boss_hud:
                 mov     si, ds:boss_state_block_ptr
                 add     si, 8
                 lodsb               ; boss_state.bs_unk_8
-                mov     ds:byte_9F01, al
+                mov     ds:boss_placement, al
                 mov     si, [si]    ; boss_state.bs_name_block_ptr
                 call    cs:Render_Pascal_String_1_proc
                 mov     si, ds:boss_state_block_ptr
@@ -611,7 +611,7 @@ hero_interaction_check endp
 ; (byte_9F14 is set by check_hero_contact_damage when hit.)
 ;
 ; Behaviour:
-;   - If byte_9F01 is set (boss cavern special flag), or byte_9F0E/9F10 vectors
+;   - If boss_placement is set (boss cavern special flag), or byte_9F0E/9F10 vectors
 ;     indicate horizontal push: call move_hero_left/right twice.
 ;   - If on rope during knockback: drop off rope, enter descending state.
 ;   - If in an air-up tile: no extra push.
@@ -625,7 +625,7 @@ hero_knockback_handler proc near
 ; ---------------------------------------------------------------------------
 
 loc_641A:        
-                test    ds:byte_9F01, 0FFh
+                test    ds:boss_placement, 0FFh
                 jnz     short loc_6440
                 mov     si, offset word_9F0E
                 mov     al, [si]
@@ -634,7 +634,7 @@ loc_641A:
                 or      ah, [si+3]
                 test    al, ah
                 jz      short loc_643C
-                test    byte ptr ds:facing_direction, 1
+                test    byte ptr ds:facing_direction, LEFT
                 jnz     short loc_6440
                 jmp     short loc_6463
 ; ---------------------------------------------------------------------------
@@ -10122,7 +10122,7 @@ byte_9EFA       db 0
 eai_bin_index   db 0FFh     ; 9EFEh
 enp_grp_index   db 0FFh     ; 9EFFh
 byte_9F00       db 0      
-byte_9F01       db 0      
+boss_placement  db 0      ; 9F01
 byte_9F02       db 0      
 ; ---- Map streaming pointers ----
 packed_map_ptr_for_prox_left dw 0 ; 9f03

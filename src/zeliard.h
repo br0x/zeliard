@@ -132,6 +132,7 @@ extern "C" {
 #define ADDR_CAVERN_SIGNS_INFO                         0xC017    // word
 #define ADDR_PACKED_MAP_END_PTR                        0xC019    // [0xC019] points behind the last byte of packed map
 #define ADDR_PACKED_MAP_START                          0xC01B    // Packed map offset in MDT file
+
 #define ADDR_PROXIMITY_MAP                             0xE000    // 2304 bytes - 36x64 proximity map
 #define ADDR_VIEWPORT_ENTITIES                         0xE900    // 532 bytes - 28*19 entity IDs (1 byte each) = 0x214 bytes
 // Note: the last row is dummy, because sometimes we need to write 2x2 tiles blocks to the row 18
@@ -199,6 +200,8 @@ extern "C" {
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
 #define ADDR_ROKA_PHASE             0xFF9D  // byte: roka_run animation step (0..25)
 #define ADDR_ROKA_COLOR             0xFF9E  // byte: roka background index (0=cyan..4=violet)
+#define ADDR_BOSS_HEALTH_REQUEST    0xFF9F  // byte: 0xFF = JS should call drawBossHealth()
+#define ADDR_BOSS_MODE              0xFFA0  // byte: 0xFF: draw 'ENEMY' and boss health gauge instead of 'PLACE' and place_name, also boss name instead of Gold indicator
 
 // Addresses originally in seg1
 #define ADDR_PASSABLE_TILES         0x8000 // seg1-based
@@ -691,9 +694,10 @@ void prepare_dungeon(void);
 void Cavern_Game_Init();
 
 // Monster AI
-void load_eai_module(int level_index);
+void load_eai_module(uint8_t level_index);
 void Monster_AI_1(uint16_t m);
 void Monster_AI_2(uint16_t m);
+void Cangrejo_AI(uint16_t m);
 void Monster_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
@@ -703,6 +707,8 @@ uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m);
 void damage_hero(uint16_t damage);
 void render_notification_string(uint8_t str_idx);
 void Add_Projectile_To_Array(uint8_t *src);
+void Draw_Hero_Health();
+void Draw_Boss_Health();
 
 // Input Handling
 void input_update(void);

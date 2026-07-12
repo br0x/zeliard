@@ -202,7 +202,7 @@ loc_A2FE:
                 cmp     [si+monster.currX], 0FFFFh
                 jz      short loc_A349
                 mov     ax, [si+monster.currX]
-                call    word ptr cs:HorizDistToHero_35_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 jb      short loc_A340
                 mov     [si+monster.m_x_rel], bl
                 mov     ax, word ptr [si+monster.currY]
@@ -532,7 +532,7 @@ loc_A56F:
                 push    ax
                 mov     ax, droplet_target_x
                 push    ax
-                call    word ptr cs:HorizDistToHero_35_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 pop     ax
                 pop     cx
                 jnb     short loc_A57E
@@ -597,9 +597,9 @@ acid_descent_sequence db 0F1h, 0F1h, 0F1h, 0F1h, 0F1h, 0F8h, 0F8h, 0F8h, 0F2h
 
 death_sequence_handler proc near       
                 mov     al, death_timer
-                cmp     al, 28h ; '('
+                cmp     al, 40
                 jnb     short loc_A66B
-                cmp     al, 1Eh
+                cmp     al, 30
                 jnb     short loc_A61B
                 and     al, 1
                 jnz     short loc_A61B
@@ -671,7 +671,7 @@ loc_A69A:
                 mov     [si], ax
                 push    di
                 push    ax
-                call    word ptr cs:HorizDistToHero_35_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 jb      short loc_A6EB
                 mov     al, [di]
                 cmp     al, 0FFh

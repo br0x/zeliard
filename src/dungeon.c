@@ -15,7 +15,7 @@
 #define ADDR_EAI_BIN_INDEX            0x9EFE  // byte
 #define ADDR_ENP_GRP_INDEX            0x9EFF  // byte
 #define ADDR_BYTE_9F00                0x9F00
-#define ADDR_BYTE_9F01                0x9F01
+#define ADDR_BOSS_PLACEMENT           0x9F01
 #define ADDR_BYTE_9F02                0x9F02
 #define ADDR_BYTE_9F07                0x9F07  // byte
 #define ADDR_JUMP_HEIGHT_COUNTER      0x9F08
@@ -603,10 +603,16 @@ void clear_hero_in_viewport()
     }
 }
 
-// Signal game.js to redraw health bar
+// Signal game.js to redraw hero's health bar
 void Draw_Hero_Health()
 {
     MEM8(ADDR_HEALTH_BAR_REQUEST) = 0xFF;
+}
+
+// Signal game.js to redraw boss health bar
+void Draw_Boss_Health()
+{
+    MEM8(ADDR_BOSS_HEALTH_REQUEST) = 0xFF;
 }
 
 // stub, will implement later, when all before projectiles is done
@@ -3806,7 +3812,7 @@ void hero_knockback_handler()
 
     uint8_t moveLeft;
 
-    if (MEM8(ADDR_BYTE_9F01) != 0) {
+    if (MEM8(ADDR_BOSS_PLACEMENT) != 0) {
         moveLeft = 0xff; // true
     } else {
         uint8_t word9F0E_nonzero = MEM16(ADDR_KNOCKBACK_VECTOR_9F0E) != 0;
@@ -4745,12 +4751,11 @@ void enter_opened_door(uint16_t si)
     // NB! This is the old MDT, since load_mdt() is a stub.
     uint16_t mdt_descr = MEM16(ADDR_MDT);
     uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
+    Render_Roca_Tilemap(roka_color);
     if ((mdt_desc0 & 1) == 0) {
-        Render_Roca_Tilemap(roka_color);
         MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
         MEM8(ADDR_BYTE_FF24) = 10;
     } else {
-        Render_Roca_Tilemap(roka_color);
         process_mdt_descriptor(mdt_desc0, mdt_descr + 1);
     }
 
@@ -4780,6 +4785,7 @@ void enter_opened_door(uint16_t si)
         MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
         MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
+        load_eai_module(place_map_id);
     }
 }
 
@@ -4830,9 +4836,9 @@ void Cavern_Game_Init(void) {
     MEM8(ADDR_BOSS_BEING_HIT) = 0;
     MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
     MEM8(ADDR_BOSS_IS_DEAD) = 0;
-    MEM8(ADDR_BYTE_9F01) = 0;
+    MEM8(ADDR_BOSS_PLACEMENT) = 0;
 
-    if (MEM8(ADDR_IS_BOSS_CAVERN) != 0) {
+    if (MEM8(ADDR_IS_BOSS_CAVERN)) { // boss_place
         render_hud_bars_with_enemy();
 
         // stop music (fn1)
@@ -4982,14 +4988,16 @@ void Cavern_Game_Init(void) {
 void render_boss_hud()
 {
     uint16_t boss_state_ptr = MEM16(ADDR_BOSS_STATE_PTR);
-    MEM8(ADDR_BYTE_9F01) = MEM8(boss_state_ptr + 8);
-    uint16_t name_ptr = MEM16(boss_state_ptr + 9);
+    MEM8(ADDR_BOSS_PLACEMENT) = MEM8(boss_state_ptr + 8); // .boss_state_unk_8
+    MEM8(ADDR_BOSS_MODE) = 0xFF;
+    // uint16_t name_ptr = MEM16(boss_state_ptr + 9); // .name_block_ptr
     // Render_Pascal_String_1_proc(name_ptr);
-    uint16_t bs_hp = MEM16(boss_state_ptr + 3);
+    // uint16_t bs_hp = MEM16(boss_state_ptr + 3); // .boss_hp
     // Draw_Boss_Max_Health_proc(bs_hp);
-    // Draw_Boss_Health_proc(bs_hp);
+    Draw_Boss_Health();
 }
 
+// should singal game.js to render the boss health bar instead of
 void render_hud_bars_with_enemy()
 {
     // Clear_HUD_Bar_proc(2, 16, 0, 0x21);
@@ -5120,11 +5128,13 @@ typedef void (*MonsterAIFn)(uint16_t);
 
 static MonsterAIFn current_monster_ai = Monster_AI_1;
 
-void load_eai_module(int level)
+void load_eai_module(uint8_t place_map_id)
 {
-    switch (level) {
-        case 1: current_monster_ai = Monster_AI_1; break;
+    switch (place_map_id) {
+        case 0: current_monster_ai = Monster_AI_1; break;
+        case 1: current_monster_ai = Cangrejo_AI; break;
         case 2: current_monster_ai = Monster_AI_2; break;
+        case 3: current_monster_ai = Monster_AI_2; break;
         /* add more as more eaiN.c modules are translated */
     }
 }

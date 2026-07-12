@@ -219,7 +219,7 @@ seg000:A2FE loc_A2FE:
 seg000:A2FE                 cmp     [si+monster.currX], 0FFFFh
 seg000:A301                 jz      short loc_A349
 seg000:A303                 mov     ax, [si+monster.currX]
-seg000:A305                 call    word ptr cs:6036h ; HorizDistToHero_35_proc
+seg000:A305                 call    word ptr cs:6036h ; is_in_proximity_window_proc
 seg000:A30A                 jb      short loc_A340
 seg000:A30C                 mov     [si+monster.x_rel], bl
 seg000:A30F                 mov     ax, word ptr [si+monster.currY]
@@ -551,7 +551,7 @@ seg000:A56F loc_A56F:
 seg000:A56F                 push    ax
 seg000:A570                 mov     ax, droplet_target_x
 seg000:A573                 push    ax
-seg000:A574                 call    word ptr cs:6036h ; HorizDistToHero_35_proc
+seg000:A574                 call    word ptr cs:6036h ; is_in_proximity_window_proc
 seg000:A579                 pop     ax
 seg000:A57A                 pop     cx
 seg000:A57B                 jnb     short loc_A57E
@@ -691,7 +691,7 @@ seg000:A69A                 push    cx
 seg000:A69B                 mov     [si], ax
 seg000:A69D                 push    di
 seg000:A69E                 push    ax
-seg000:A69F                 call    word ptr cs:6036h ; HorizDistToHero_35_proc
+seg000:A69F                 call    word ptr cs:6036h ; is_in_proximity_window_proc
 seg000:A6A4                 jb      short loc_A6EB
 seg000:A6A6                 mov     al, [di]
 seg000:A6A8                 cmp     al, 0FFh

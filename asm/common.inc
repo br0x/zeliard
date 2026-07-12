@@ -460,7 +460,7 @@ is_blocking_proc                                   equ 602Eh
 check_monster_on_aggressive_ground_proc            equ 6030h
 Check_Vertical_Distance_Between_Hero_And_Monster_proc equ 6032h
 Hero_Hits_monster_proc                             equ 6034h
-HorizDistToHero_35_proc                            equ 6036h
+is_in_proximity_window_proc                            equ 6036h
 Get_Stats_proc                                     equ 6038h
 Add_Projectile_To_Array_proc                       equ 603Ah
 Browse_Projectiles_proc                            equ 603Ch

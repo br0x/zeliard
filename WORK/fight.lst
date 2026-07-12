@@ -72,7 +72,7 @@ fight:6061                 mov     word ptr magic_projectiles, ax
 fight:6064                 mov     byte_FF2E, 0
 fight:6069                 mov     byte_FF2F, 0
 fight:606E                 mov     byte_FF30, 0
-fight:6073                 mov     byte_9F01, 0
+fight:6073                 mov     boss_placement, 0
 fight:6078                 test    is_boss_cavern, 0FFh
 fight:607D                 jnz     short boss_place
 fight:607F                 jmp     regular_cavern
@@ -155,7 +155,7 @@ fight:6150 render_boss_hud:                        ; ...
 fight:6150                 mov     si, ds:word_A002
 fight:6154                 add     si, 8
 fight:6157                 lodsb
-fight:6158                 mov     ds:byte_9F01, al
+fight:6158                 mov     ds:boss_placement, al
 fight:615B                 mov     si, [si]
 fight:615D                 call    cs:Render_Pascal_String_1_proc
 fight:6162                 mov     si, ds:word_A002
@@ -497,7 +497,7 @@ fight:6419                 retn
 fight:641A ; ---------------------------------------------------------------------------
 fight:641A
 fight:641A loc_641A:                               ; ...
-fight:641A                 test    ds:byte_9F01, 0FFh
+fight:641A                 test    ds:boss_placement, 0FFh
 fight:641F                 jnz     short loc_6440
 fight:6421                 mov     si, offset word_9F0E
 fight:6424                 mov     al, [si]
@@ -9545,7 +9545,7 @@ fight:9EFD                 db    0
 fight:9EFE eai_bin_index   db 0FFh                 ; ...
 fight:9EFF enp_grp_index   db 0FFh                 ; ...
 fight:9F00 byte_9F00       db 0                    ; ...
-fight:9F01 byte_9F01       db 0                    ; ...
+fight:9F01 boss_placement       db 0                    ; ...
 fight:9F02 byte_9F02       db 0                    ; ...
 fight:9F03 packed_map_ptr_for_prox_left dw 0 ; ...
 fight:9F05 packed_map_ptr_for_prox_right dw 0  ; ...
