@@ -3084,7 +3084,6 @@ let animTimer   = 0;
 function draw() {
     if (!engineReady) { // emergency fallback
         drawLifeBar();
-        updatePlaceHud('');
         renderGoldHud();
         updateElementText('almas', 0);
         renderSwordHud();
