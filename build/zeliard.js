@@ -1332,7 +1332,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["__indirect_function_table"] != "undefined", "missing Wasm export: __indirect_function_table");
   _wasm_init = Module["_wasm_init"] = createExportWrapper("wasm_init", 0);
   _get_memory_base = Module["_get_memory_base"] = createExportWrapper("get_memory_base", 0);
-  _wasm_dungeon_init = Module["_wasm_dungeon_init"] = createExportWrapper("wasm_dungeon_init", 1);
+  _wasm_dungeon_init = Module["_wasm_dungeon_init"] = createExportWrapper("wasm_dungeon_init", 2);
   _wasm_dungeon_update = Module["_wasm_dungeon_update"] = createExportWrapper("wasm_dungeon_update", 0);
   _wasm_dungeon_full_tick = Module["_wasm_dungeon_full_tick"] = createExportWrapper("wasm_dungeon_full_tick", 0);
   _wasm_dungeon_get_viewport_top = Module["_wasm_dungeon_get_viewport_top"] = createExportWrapper("wasm_dungeon_get_viewport_top", 0);

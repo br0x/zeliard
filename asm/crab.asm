@@ -7,8 +7,8 @@ crab            segment byte public 'CODE'
                 assume cs:crab, ds:crab
                 org 0A000h
                 assume es:nothing, ss:nothing
-start           dw offset Cangrejo_AI_proc
-                dw offset boss_state_block
+start           dw offset Cangrejo_AI_proc ; A000
+                dw offset boss_state_block ; A002
                 db    0 ; 4
                 db    0
                 db    0
@@ -472,7 +472,6 @@ loc_A4F9:
 trigger_acid_drop endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR render_body_sprites
 
 loc_A501:
                 test    phase_spawning_droplet, 0FFh
@@ -558,7 +557,6 @@ loc_A57E:
                 xor     bh, bh
                 mov     ds:proximity_second_layer[bx], al
                 retn
-; END OF FUNCTION CHUNK FOR render_body_sprites
 ; ---------------------------------------------------------------------------
 acid_droplet_spawn_sequence db 80h, 80h, 80h, 80h, 80h, 81h, 82h, 3, 4, 0FFh
 
@@ -588,9 +586,9 @@ loc_A5EE:
 begin_recoil    endp
 
 ; ---------------------------------------------------------------------------
-recoil_body_states db 7, 8, 8, 0       
+recoil_body_states    db 7, 8, 8, 0       
 acid_descent_sequence db 0F1h, 0F1h, 0F1h, 0F1h, 0F1h, 0F8h, 0F8h, 0F8h, 0F2h
-                db 0F2h, 0F2h, 0F2h, 0F2h, 0FFh
+                      db 0F2h, 0F2h, 0F2h, 0F2h, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -719,28 +717,28 @@ render_body_sprites endp
 
 ; ---------------------------------------------------------------------------
 body_state_to_layout_table dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_normal
-                dw offset col_layout_acid_drip
-col_layout_normal db 0FFh, 0FFh, 0FFh, 0, 0FFh, 1, 0FFh, 0FFh, 0FFh, 0FFh
-                db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                db 0FFh, 2, 0FFh, 3, 0FFh, 4, 0FFh, 5, 0FFh, 6, 0FFh, 0FFh
-                db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                db 7, 0FFh, 10h, 0FFh, 11h, 0FFh, 12h, 0FFh, 8, 0FFh, 0FFh
-                db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_normal
+                           dw offset col_layout_acid_drip
+col_layout_normal    db 0FFh, 0FFh, 0FFh, 0, 0FFh, 1, 0FFh, 0FFh, 0FFh, 0FFh
+                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                     db 0FFh, 2, 0FFh, 3, 0FFh, 4, 0FFh, 5, 0FFh, 6, 0FFh, 0FFh
+                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                     db 7, 0FFh, 10h, 0FFh, 11h, 0FFh, 12h, 0FFh, 8, 0FFh, 0FFh
+                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
 col_layout_acid_drip db 0FFh, 0FFh, 0FFh, 0FFh, 0, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                db 0FFh, 0FFh, 3, 0FFh, 0FFh, 0FFh, 5, 0FFh, 0FFh, 0FFh
-                db 2, 0FFh, 0FFh, 0FFh, 14h, 0FFh, 0FFh, 0FFh, 6, 0FFh
-                db 0FFh, 0FFh, 90h, 0FFh, 0FFh, 0FFh, 12h, 0FFh, 0FFh
-                db 0FFh, 0FFh, 7, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 8, 0FFh
-                db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                db 0FFh, 0FFh
+                     db 0FFh, 0FFh, 3, 0FFh, 0FFh, 0FFh, 5, 0FFh, 0FFh, 0FFh
+                     db 2, 0FFh, 0FFh, 0FFh, 14h, 0FFh, 0FFh, 0FFh, 6, 0FFh
+                     db 0FFh, 0FFh, 90h, 0FFh, 0FFh, 0FFh, 12h, 0FFh, 0FFh
+                     db 0FFh, 0FFh, 7, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 8, 0FFh
+                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                     db 0FFh, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -781,7 +779,7 @@ boss_y              db 0Ch                  ; +2
 boss_hp             dw 150                  ; +3
 xp_reward           dw 120                  ; +5
 arena_center_x      db 0Ch                  ; +7
-boss_state_unk_8    db 0                    ; +8
+boss_placement      db 0                    ; +8
 name_block_ptr      dw offset name_screen_x ; +9
 almas_reward        db 150                  ; +11
                     db    0
@@ -791,36 +789,37 @@ name_screen_y       db 0BBh
 boss_name_pstring   db 8,'Cangrejo'
 active_sprite_count db 0  
 hit_monster_flags db 0    
-                                        ; Packed: bit 7 = hit monster was facing left (`flags & 0x10`); bits 4–0 = `ai_flags & 0x1F` of the monster that was hit this frame. Non-zero means a monster was struck; causes acid droplets to set their "flip" flag
+; Packed: bit 7 = hit monster was facing left (`flags & 0x10`); bits 4–0 = `ai_flags & 0x1F` of the monster that was hit this frame. Non-zero means a monster was struck; causes acid droplets to set their "flip" flag
 body_anim_state db 0      
-                                        ; Selects which body column-layout table to use (0–8 → `col_layout_normal`; 9 → `col_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
+; Selects which body column-layout table to use (0–8 → `col_layout_normal`; 9 → `col_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
 col_y_render_offset db 0  
-                                        ; Y-position offset cycled per outer row loop in `sub_A671`; produces the staggered vertical positioning of the 6 body rows
+; Y-position offset cycled per outer row loop in `sub_A671`; produces the staggered vertical positioning of the 6 body rows
 movement_direction_flag db 0           
-                                        ; `0x00` = moving toward minimum X (left); `0xFF` = moving toward maximum X (right). Toggled when a boundary is hit
+; `0x00` = moving toward minimum X (left); `0xFF` = moving toward maximum X (right). Toggled when a boundary is hit
 movement_tick_counter db 0
 phase_acid_dropping db 0  
-                                        ; `0x00` = normal horizontal patrol; `0xFF` = acid-drop approach active
+; `0x00` = normal horizontal patrol; `0xFF` = acid-drop approach active
 acid_step_index db 0      
-                                        ; Step counter (1–8) into `acid_approach_body_states`; at 8 triggers `sub_A489` (release droplet)
+; Step counter (1–8) into `acid_approach_body_states`; at 8 triggers `sub_A489` (release droplet)
 phase_recoil    db 0      
-                                        ; `0x00` = not recoiling; `0xFF` = post-drop recoil
+; `0x00` = not recoiling; `0xFF` = post-drop recoil
 recoil_step_index db 0    
-                                        ; Step counter (0–3) into `recoil_body_states`; at 4 clears `phase_recoil`
+; Step counter (0–3) into `recoil_body_states`; at 4 clears `phase_recoil`
 phase_placing_droplet db 0
-                                        ; `0x00` = idle; `0xFF` = boss has committed to a drop position
+; `0x00` = idle; `0xFF` = boss has committed to a drop position
 descent_seq_index db 0    
-                                        ; Index into `acid_descent_sequence` (`byte_A5F9`); advances each tick until `0xFF`
+; Index into `acid_descent_sequence` (`byte_A5F9`); advances each tick until `0xFF`
 phase_spawning_droplet db 0            
-                                        ; `0x00` = no active spawn; `0xFF` = acid droplet is being spawned
+; `0x00` = no active spawn; `0xFF` = acid droplet is being spawned
 spawn_seq_index db 0      
-                                        ; Index into `acid_droplet_spawn_sequence` (`byte_A5B6`); advances each tick
+; Index into `acid_droplet_spawn_sequence` (`byte_A5B6`); advances each tick
 droplet_target_x dw 0     
-                                        ; Absolute X tile coordinate where the acid droplet will be placed (set to `boss_x + 4` when the drop triggers)
+; Absolute X tile coordinate where the acid droplet will be placed (set to `boss_x + 4` when the drop triggers)
 droplet_target_y db 0     
-                                        ; Y tile coordinate for the droplet; initialized to `boss_y + 3`, then incremented each spawn tick as the droplet "falls"
-death_timer     db 0      
-crab            ends                    ; Counts up from 0 during the death sequence. `< 20`: hit-flash and sound effect every other frame; `20–39`: body holds damaged pose; `≥ 40`: sets `byte_FF30 = 0xFF` (triggers `fight.bin` victory / XP award logic)
+; Y tile coordinate for the droplet; initialized to `boss_y + 3`, then incremented each spawn tick as the droplet "falls"
+death_timer     db 0
+; Counts up from 0 during the death sequence. `< 20`: hit-flash and sound effect every other frame; `20–39`: body holds damaged pose; `≥ 40`: sets `byte_FF30 = 0xFF` (triggers `fight.bin` victory / XP award logic)      
 
+crab            ends
 
                 end      start

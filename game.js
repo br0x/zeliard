@@ -87,7 +87,7 @@ const DUNGEONS = {
     1: { // Dungeon 1 boss room — same dungeon group, shares tilesheets with index 0
         mdtPath: 'game/0/mp1d.mdt',
         tilesheetPath: 'assets/images/mpp1.png',
-        entitySheetPath: 'assets/images/enp1.png',
+        entitySheetPath: 'assets/images/crab.png',
         passableTiles: [
             0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19
         ],
@@ -100,6 +100,16 @@ const DUNGEONS = {
         death_descriptors: [
             [], [], [], [], [], [], [], [],
         ],
+        bossState: {
+            bossX: 0x2B,                // +0
+            bossY: 0x0C,                // +2
+            bossHP: 150,                // +3
+            xpReward: 120,              // +5
+            arenaCenterX: 12,           // +7
+            bossPlacement: 0,           // +8
+            almasReward: 150,           // +11
+            bossName: 'Cangrejo',
+        },
     },
     2: {
         mdtPath: 'game/0/mp20.mdt',
@@ -433,6 +443,7 @@ const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
 const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
 const ADDR_BYTE_9F00               = 0x9F00;
+const ADDR_BOSS_STATE_PTR          = 0xA002;
 const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
 
 const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
@@ -481,6 +492,8 @@ const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
 const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
 const ADDR_ROKA_PHASE              = 0xFF9D;
 const ADDR_ROKA_COLOR              = 0xFF9E;
+const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
+const ADDR_BOSS_MODE               = 0xFFA0;
 const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
 const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
 
@@ -599,6 +612,7 @@ let setDungeonMonsterDamage;
 let setDeathDescriptors;
 let dungeonGetRenderRequest;
 let dungeonClearRenderRequest;
+let getBossName;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -758,7 +772,7 @@ function onFullTick() {
                     dungeonTileSheetReady = false;
                     dungeonEntitySheetReady = false;
                     const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
-                    handleDungeonTransition(pendingMap);
+                    handleDungeonTransition(pendingMap, false);
                 }
             }
         } else if (frameTmr >= target) { // town mode
@@ -782,7 +796,7 @@ function onFullTick() {
             }
             if (readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0] === 0xFF) {
                 const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
-                handleDungeonTransition(pendingMap);
+                handleDungeonTransition(pendingMap, true);
             }
             checkBuildingRequest();
         }
@@ -1211,7 +1225,7 @@ async function loadWasmEngine() {
         setDungeonPassableTiles, setDungeonAggressiveGround, 
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors,
-        dungeonGetRenderRequest, dungeonClearRenderRequest,
+        dungeonGetRenderRequest, dungeonClearRenderRequest, getBossName,
     } = wasmBridge);
 }
 
@@ -2223,7 +2237,7 @@ async function handleTownTransition(transition) {
 }
 
 let dungeonTransitionInProgress = false;
-async function handleDungeonTransition(mapId) {
+async function handleDungeonTransition(mapId, isFromTown) {
     if (dungeonTransitionInProgress) return;
     dungeonTransitionInProgress = true;
     engineReady = false;
@@ -2260,7 +2274,7 @@ async function handleDungeonTransition(mapId) {
             setDungeonSwordReach(SWORD_REACH_LARGE);
         }
         await loadRokaImages();
-        dungeonInit?.(rawMapId); // should call dungeon::prepare_dungeon
+        dungeonInit?.(rawMapId, isFromTown); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
         setCurrentMusicTrack('Zeliard-04-CavernOfMalicia');
@@ -2671,6 +2685,36 @@ function setLife(currentLife, maxLife) {
         lifeFillMaxEl.style.width     = (maxLife/8)     + '%';
         lifeFillCurrentEl.style.width = (currentLife/8) + '%';
     }
+}
+
+let bossLifeFillCurrentEl = null;
+let bossLifeFillMaxEl     = null;
+let bossMaxHP = null;
+
+function drawBossHealth() {
+    if (!bossLifeFillCurrentEl) {
+        bossLifeFillCurrentEl = document.querySelector('.life-fill-current');
+        bossLifeFillMaxEl     = document.querySelector('.life-fill-max');
+    }
+
+    const bossStatePtr = readU16(ADDR_BOSS_STATE_PTR);
+    const currHp = gMemoryBase + readU16(bossStatePtr + 3);
+    if (!bossMaxHP) {
+        bossMaxHP = currHp;
+    }
+    if (bossLifeFillCurrentEl && bossLifeFillMaxEl && maxHp > 0) {
+        const pct = Math.min(100, (currentHp / maxHp) * 100);
+        bossLifeFillCurrentEl.style.width = (currHp/8) + '%';
+        bossLifeFillMaxEl.style.width     = (bossMaxHP/8) + '%';
+    }
+}
+
+function renderBossName() {
+    const name = getBossName();
+    const label = document.getElementById('goldLabel');
+    const value = document.getElementById('gold');
+    if (label) label.textContent = name;
+    if (value) value.textContent = '';
 }
 
 export function saveGame(saveData, saveKey = 'zeliard_save_01') {
@@ -3085,9 +3129,37 @@ function draw() {
                 soundManager.setSfxVolume(Math.max(0, 1.0 - fade), 0.1);
             }
         }
+
+        // Boss mode HUD toggle
+        const bossMode = readMemory(ADDR_BOSS_MODE, 1)[0];
+        const bossLifeBar = document.getElementById('bossLifeBarContainer');
+        const placeName = document.getElementById('currentMapName');
+        const placeLabel = document.getElementById('placeLabel');
+        const goldLabel = document.getElementById('goldLabel');
+        const goldValue = document.getElementById('gold');
+        if (bossMode) {
+            if (bossLifeBar) bossLifeBar.classList.remove('hidden');
+            if (placeName) placeName.style.display = 'none';
+            if (placeLabel) placeLabel.textContent = 'ENEMY';
+            if (goldLabel) goldLabel.textContent = '';
+            if (goldValue) goldValue.style.display = 'none';
+        } else {
+            bossMaxHP = null;
+            if (bossLifeBar) bossLifeBar.classList.add('hidden');
+            if (placeName) placeName.style.display = '';
+            if (placeLabel) placeLabel.textContent = 'PLACE';
+            if (goldLabel) goldLabel.textContent = 'GOLD';
+            if (goldValue) goldValue.style.display = '';
+        }
+
         if (readMemory(ADDR_HEALTH_BAR_REQUEST, 1)[0]) {
             drawLifeBar();
             writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
+        }
+        if (bossMode && readMemory(ADDR_BOSS_HEALTH_REQUEST, 1)[0]) {
+            drawBossHealth();
+            renderBossName();
+            writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0]);
         }
         if (readMemory(ADDR_GOLD_RENDER_REQUEST, 1)[0]) {
             renderGoldHud();

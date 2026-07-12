@@ -69,7 +69,7 @@ static uint8_t  boss_y = 0x0C;                   // +2
 static uint16_t boss_hp = 150;                    // +3
 static uint16_t xp_reward = 120;                   // +5
 static uint8_t  arena_center_x = 0x0C;               // +7
-static uint8_t  boss_state_unk_8 = 0;                 // +8
+static uint8_t  boss_placement = 0;                 // +8
 /* name_block_ptr / almas_reward / name_screen_x / name_screen_y /
  * boss_name_pstring are exported boss-info consumed by other, generic
  * "boss encounter" engine code (reward granting, name display); kept
@@ -411,7 +411,7 @@ static void apply_damage_to_boss(uint16_t damage)
     if (hp < 0) hp = 0;
     boss_hp = (uint16_t)hp;
 
-    Draw_Boss_Health(boss_hp);
+    Draw_Boss_Health();
 
     if (boss_hp != 0) return;
 

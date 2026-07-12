@@ -689,7 +689,7 @@ uint8_t* wasm_get_proximity_map(void);
 // Get save data (0x0000)
 SaveData* wasm_get_save_data(void);
 
-void prepare_dungeon(void);
+void prepare_dungeon(uint8_t is_from_town);
 
 void Cavern_Game_Init();
 

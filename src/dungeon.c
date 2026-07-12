@@ -896,8 +896,9 @@ void load_place_and_reinit(void) {
     // Original: DS:SI = monster_gfx (0x4000 in seg1), ES:BP = monsters_transparency_masks (0xA000 in seg1), CX = 0x100
     // Decompress_Tile_Data_proc(0x4000, 0xA000, 0x100);
 
-    // 3. Clear boss cavern flag
+    // 3. Clear boss cavern flag and restore normal HUD mode
     MEM8(ADDR_IS_BOSS_CAVERN) = 0;
+    MEM8(ADDR_BOSS_MODE) = 0;
 
     // 4. Process optional initializers (address/value pairs) from MDT descriptor+8
     si = ADDR_MDT + 8;
@@ -1745,9 +1746,9 @@ void hero_interaction_check(void)
 // Exported WASM functions
 // ----------------------------------------------------------------------
 // Initialization: unpack full map and setup proximity/viewport
-void wasm_dungeon_init(uint8_t map_id) {
+void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     (void)map_id;
-    prepare_dungeon();
+    prepare_dungeon(is_from_town);
 
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
     if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN) {
@@ -1763,7 +1764,7 @@ void wasm_dungeon_init(uint8_t map_id) {
     MEM8(ADDR_DUNGEON_SUBSTATE_PHASE) = 0;
 }
 
-void prepare_dungeon()
+void prepare_dungeon(uint8_t is_from_town)
 {
     int count = ADDR_BYTE_9F2E - ADDR_BYTE_9EED - 1;
     memset(&g_mem[ADDR_BYTE_9EED], 0, count);
@@ -1784,7 +1785,9 @@ void prepare_dungeon()
     Clear_Viewport_proc();
     // res_dispatcher_proc("roka.grp", 0x18000);
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
-    Render_Roca_Tilemap(0); // when entering the dungeon from town, always show roka_cyan background
+    if (is_from_town) {
+        Render_Roca_Tilemap(0); // when entering the dungeon from town, always show roka_cyan background
+    }
     uint8_t map_id = MEM8(ADDR_PLACE_MAP_ID);
     if ((map_id & 0x80) == 0) {
         remove_accomplished_items();
@@ -4893,6 +4896,7 @@ void Cavern_Game_Init(void) {
         // ------------------------------------------------------------------------
         // Regular cavern path
         // ------------------------------------------------------------------------
+        MEM8(ADDR_BOSS_MODE) = 0;
         // Clear_Place_Enemy_Bar_proc();
         // render_place_and_gold_labels();
         uint16_t cavern_name_ptr = MEM16(ADDR_CAVERN_NAME_INFO);

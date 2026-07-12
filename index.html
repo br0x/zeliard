@@ -55,11 +55,16 @@
           <div class="hud-row place-row"> <!-- Place / Enemy HP -->
             <span class="label" id="placeLabel">PLACE</span>
             <span class="value" id="currentMapName"></span>
+            <div class="life-bar-container hidden" id="bossLifeBarContainer">
+              <div class="life-fill life-fill-max"></div>
+              <div class="life-fill life-fill-current"></div>
+              <div class="ticks"></div>
+            </div>
           </div>
 
           <div class="hud-row split-row"> <!-- Gold / Almas -->
-            <div class="currency-box"> <!-- gold -->
-              <span class="label">GOLD</span>
+            <div class="currency-box" id="goldBox"> <!-- gold / boss name -->
+              <span class="label" id="goldLabel">GOLD</span>
               <span class="value" id="gold">0</span>
             </div>
             <div class="currency-box"> <!-- almas -->

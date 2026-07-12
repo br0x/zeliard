@@ -339,7 +339,14 @@ export function getTownMdtHeader() {
  * followed by Pascal string (length byte + characters).
  */
 export function getCavernName() {
-    return getPlaceNameFromMdt(0x0E);
+    // Read uint16 values from memory (little-endian)
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
+    }
+
+    // Add 3 to skip rendering info metadata and point to Pascal string length
+    const nameOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + 0x0E) + 3;
+    return getNameFromNameInfo(nameOffset);
 }
 
 /**
@@ -351,24 +358,36 @@ export function getCavernName() {
  * followed by Pascal string (length byte + characters).
  */
 export function getTownName() {
-    return getPlaceNameFromMdt(4);
-}
-
-function getPlaceNameFromMdt(nameInfoOffset) {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return '';
-    }
-
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
         return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
     }
 
-    // Header offset is relative to 0xc000, so actual WASM memory address is:
-    // gMemoryBase + header.town_name_offset
     // Add 3 to skip rendering info metadata and point to Pascal string length
-    const nameOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + nameInfoOffset) + 3;
+    const nameOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + 0x04) + 3;
+    return getNameFromNameInfo(nameOffset);
+}
+
+const ADDR_BOSS_STATE_PTR = 0xA002;
+
+export function getBossName() {
+    // Read uint16 values from memory (little-endian)
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
+    }
+
+    const bossStatePtr = readU16(gMemoryBase + ADDR_BOSS_STATE_PTR);
+    // Add 3 to skip rendering info metadata and point to Pascal string length
+    const nameOffset = gMemoryBase + readU16(gMemoryBase + bossStatePtr + 9) + 3;
+    return getNameFromNameInfo(nameOffset);
+}
+
+function getNameFromNameInfo(nameOffset) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return '';
+    }
+
     const nameLength = wasmMemory[nameOffset];
     let name = '';
 
@@ -1302,8 +1321,8 @@ export function townFinishBuilding() {
     wasmExports?.wasm_town_building_finish?.();
 }
 
-export function dungeonInit(mapId) {
-    wasmExports?.wasm_dungeon_init?.(mapId);
+export function dungeonInit(mapId, isFromTown) {
+    wasmExports?.wasm_dungeon_init?.(mapId, isFromTown);
 }
 
 export function dungeonUpdate() {
