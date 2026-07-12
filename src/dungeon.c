@@ -3183,12 +3183,12 @@ static void monster_activation(uint16_t m)
     uint16_t di, scan_addr;
 
     /* monster must currently be deactivated (in "item" state) */
-    if ((MEM16(m+0) >> 8) != 0xFF) // .currX high byte
+    if (MEM8(m+1) != 0xFF) // .currX high byte
         return; // still active
 
     /* Big monsters occupy two consecutive table entries; the second
        entry must also be deactivated */
-    if ((MEM8(m+7) & 0x10) && (MEM16(m+16) >> 8) != 0xFF) // .state_flags, other half' .currX high byte
+    if ((MEM8(m+7) & 0x10) && MEM8(m+16+1) != 0xFF) // .state_flags, other half' .currX high byte
         return;
 
     /* Must have a defined respawn point */
@@ -3216,14 +3216,14 @@ static void monster_activation(uint16_t m)
         /* ---------------- regular (small) monster ---------------- */
         MEM8(m+3) = bl; // .m_x_rel
 
-        uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+2));
+        uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+13));
         di = di_orig;
-        di -= (36 + 1);
+        di -= (PROX_COLS + 1);
         wrap_map_from_below(&di);
         al = 0;
         for (int row = 0; row < 3; row++) {
             al |= MEM8(di) | MEM8(di + 1) | MEM8(di + 2);
-            di += 36;
+            di += PROX_COLS;
             wrap_map_from_above(&di);
         }
 
@@ -3250,7 +3250,7 @@ static void monster_activation(uint16_t m)
         MEM8(m+3) = bl; // .m_x_rel
         MEM8(m+16+3) = bl; // .m_x_rel
 
-        uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+2));
+        uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+13));
         di = di_orig;
         di -= (36 + 1);
         wrap_map_from_below(&di);
@@ -3724,7 +3724,7 @@ uint8_t move_platform_down_damage_monster()
     }
 
     for (int i = -1; i < 3; i++) {
-        uint16_t pos = platform_prox + 36 + i;
+        uint16_t pos = platform_prox + PROX_COLS + i;
         wrap_map_from_above(&pos);
         uint8_t flags;
         uint16_t m;

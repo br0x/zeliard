@@ -8947,10 +8947,10 @@ loc_9506:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_9513:        
+loc_9513:
                 mov     ax, [si+monster.spwnX]
                 cmp     ax, 0FFFFh
-                jnz     short loc_951C
+                jne     short loc_951C
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -8993,6 +8993,7 @@ loc_952D:
 loc_954A:        
                 test    [si+monster.state_flags], 10h
                 jnz     short big_monster
+                ; small monster
                 mov     [si+monster.m_x_rel], bl
                 mov     al, [si+monster.spwnY]
                 mov     ah, bl
