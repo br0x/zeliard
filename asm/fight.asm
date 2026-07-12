@@ -2495,12 +2495,12 @@ get_dst_monster_flags proc near
 ; ---------------------------------------------------------------------------
 monster_there:   
                 and     al, 7Fh         ; monster id
-                mov     cl, 10h         ; 16 bytes per monster
+                mov     cl, 16          ; 16 bytes per monster
                 mul     cl
                 mov     bx, ax
                 add     bx, ds:monsters_table_addr
-                mov     al, [bx+monster.flags]
-                or      al, al  ; NC; NZ if non-passable monster (non-flying); ZF if flying monster
+                mov     al, [bx+monster.flags] ; bits 3..0 are monster type (index in eai)
+                or      al, al  ; NC; al=monster ai type
                 retn
 get_dst_monster_flags endp
 
@@ -2691,7 +2691,7 @@ row_of_eight_tiles:
                                               ; AL = monster.flags; BX = monster struct
                 jc      short no_monster ; no monster
                 ; CF: monster
-                test    al, 01100000b
+                test    al, 01100000b ; bits 6, 7: non-monster entity
                 jnz     short no_monster
                 test    byte ptr [bx+monster.state_flags], 10h
                 jnz     short no_monster
@@ -5092,7 +5092,7 @@ blocked:
 ; ---------------------------------------------------------------------------
 
 alive_or_dead_monster:    
-                and     al, 1100000b    ; dead slug (almas) = 0x74
+                and     al, 01100000b    ; dead slug (almas) = 0x74
                 jz      short alive_monster
                 retn
 ; ---------------------------------------------------------------------------

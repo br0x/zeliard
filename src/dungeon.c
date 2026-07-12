@@ -220,8 +220,8 @@ uint8_t monster_move_in_direction(uint16_t m, uint8_t dir)
 // check_collision_E2 / W2 / N2 / S2 / NE2 / SE2 / NW2 / SW2
 // Collision detection for a 2×2-tile monster footprint.
 //
-// Each function checks a set of proximity map tiles in the direction of
-// movement. Monster occupies tiles (0,0) and (1,0) (or (0,0),(0,1) for N/S).
+// Each function checks a set of proximity map tiles in the direction of movement. 
+// Monster occupies tiles (0,0) and (1,0) (or (0,0),(0,1) for N/S).
 // Returns CF=1 if any tile in the 'leading edge' is blocked.
 //
 // Tile categorization for level 5 (wind-tunnel) caverns:
@@ -272,7 +272,7 @@ uint8_t check_collision_E2(uint16_t m)
     if (check_collision_E_including_danger5(di))   // (+2, +1)
         return 0xFF;
 
-    // Monster/item check: bit 7 set on (+2, -1), (+2, 0) or (+2, +1)
+    // monster/item check: bit 7 set on (+2, -1), (+2, 0) or (+2, +1)
     uint8_t markers = MEM8(di);                    // (+2, +1)
     di -= PROX_COLS;
     wrap_map_from_below(&di);
@@ -302,7 +302,7 @@ uint8_t check_collision_W2(uint16_t m)
     if (check_collision_W_including_danger5(di)) // (-1, +1)
         return 0xFF;
 
-    // Monster/item check: bit 7 set on (-2, -1), (-2, 0), (-2, +1)
+    // monster/item check: bit 7 set on (-2, -1), (-2, 0), (-2, +1)
     di--; // x--
     uint8_t markers = MEM8(di);                  // (-2, +1)
     di -= PROX_COLS;
@@ -562,14 +562,14 @@ flags_check:
      *   retn
      */
     if (MEM8(m+7) & 0x80) { // .state_flags
-        /* Monster is active (bit7 set) -> tick counter and throttle */
+        /* monster is active (bit7 set) -> tick counter and throttle */
         MEM8(m+15)++; // .counter
         if (MEM8(m+15) & 0x07)     /* test [si+monster.counter], 111b */
             return 1;              /* stc (jump to loc_91E3) */
         else
             return 0;              /* NC, retn */
     } else {
-        /* Monster inactive (bit7 clear) -> returns NC immediately */
+        /* monster inactive (bit7 clear) -> returns NC immediately */
         return 0;
     }
 }
@@ -691,7 +691,8 @@ void apply_sword_hit_to_map_tiles()
 
         uint8_t flags;
         uint16_t monster_struct;
-        if (!get_dst_monster_flags(si, &flags, &monster_struct)) continue;
+        if (!get_dst_monster_flags(si, &flags, &monster_struct)) // no monster/item
+            continue;
         if (flags & 0x20) continue;
         uint8_t ai_flags = MEM8(monster_struct + 5);
         if (ai_flags & 0x20) continue;
@@ -1521,7 +1522,7 @@ uint8_t get_airflow_direction(uint8_t tile)
 uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_struct)
 {
     uint8_t tile = MEM8(si);
-    if ((tile & 0x80) == 0) {
+    if ((tile & 0x80) == 0) { // regular tile
         *flags = tile;
         return 0;
     }
@@ -1529,8 +1530,7 @@ uint8_t get_dst_monster_flags(uint16_t si, uint8_t* flags, uint16_t *monster_str
     tile &= 0x7F; // monster id
     uint16_t addr = MEM16(ADDR_MONSTERS_LIST) + tile * 16;
     *monster_struct = addr;
-    Monster *m = (Monster *)&g_mem[addr];
-    *flags = m->flags;
+    *flags = MEM8(addr + 4); // .flags
     return 0xFF;
 }
 
@@ -1547,7 +1547,7 @@ uint8_t move_hero_right_if_no_obstacles()
         uint16_t monster_struct;
         get_dst_monster_flags(si, &flags, &monster_struct);
         if (flags & 0x80) return 0; // destroyable wall to the right of hero, can't move
-        si += 36;
+        si += PROX_COLS;
         wrap_map_from_above(&si);
     }
     si = di;
@@ -1559,7 +1559,7 @@ uint8_t move_hero_right_if_no_obstacles()
     }
     // head-level checks finished, now body and feet
     for (int i = 0; i < 2; i++) {
-        si += 36;
+        si += PROX_COLS;
         wrap_map_from_above(&si);
         uint8_t tile = MEM8(si);
         if (is_blocking_tile_simple(tile)) return 0;
@@ -1575,15 +1575,15 @@ uint8_t move_hero_left_if_no_obstacles()
 {
     uint16_t si = hero_coords_to_addr_in_proximity();
     uint16_t di = si;
-    si -= 36;
+    si -= PROX_COLS;
     wrap_map_from_below(&si);
     si--; // tile NW of hero top left
     for (int i = 0; i < 4; i++) {
         uint8_t flags;
         uint16_t monster_struct;
-        uint8_t ret = get_dst_monster_flags(si, &flags, &monster_struct);
+        get_dst_monster_flags(si, &flags, &monster_struct);
         if (flags & 0x80) return 0; // destroyable wall to the left of hero, can't move
-        si += 36;
+        si += PROX_COLS;
         wrap_map_from_above(&si);
     }
     si = di;
@@ -1595,7 +1595,7 @@ uint8_t move_hero_left_if_no_obstacles()
     }
     // head-level checks finished, now body and feet
     for (int i = 0; i < 2; i++) {
-        si += 36;
+        si += PROX_COLS;
         wrap_map_from_above(&si);
         uint8_t tile = MEM8(si);
         if (is_blocking_tile_simple(tile)) return 0;
@@ -1954,7 +1954,7 @@ void hero_collapse_platform(void) {}
 // CF: false (blocked from below), NC: true (can move down)
 uint8_t check_floor_for_landing() {
     uint16_t si = hero_coords_to_addr_in_proximity(); // =e10c
-    si += 3*36+1;
+    si += (3*PROX_COLS+1);
     wrap_map_from_above(&si);
     uint16_t di = si; // =e179
     uint8_t flags;
@@ -2415,7 +2415,7 @@ static uint8_t check_tile_contact_damage(uint16_t addr)
 {
     uint8_t flags;
     uint16_t monster_struct;
-    if (!get_dst_monster_flags(addr, &flags, &monster_struct))
+    if (!get_dst_monster_flags(addr, &flags, &monster_struct)) // no monster/item
         return 0;
     if (flags & 0x40)
         return 0;
@@ -2748,7 +2748,7 @@ static void put_shoes_to_inventory(uint16_t monster, uint8_t shoe_type) {
     uint16_t slot = ADDR_FERUZA_SHOES;
     while (MEM8(slot) != 0) slot++;
     MEM8(slot) = shoe_type;
-    mark_collected(monster);  // needs access to current Monster* – pass as argument
+    mark_collected(monster);
 }
 
 // drop‑item trigger?
@@ -2760,27 +2760,27 @@ static void flag_10(uint16_t m)
         }
 
         MEM8(ADDR_SOUND_FX_REQUEST) = 18;
-        MEM8(m+5) = MEM8(m+5) & 0x90; // .ai_flags
-        MEM8(m+4) = MEM8(m+4) & 0x7F; // .flags
-        MEM8(m+4) = MEM8(m+4) | 0x60; // .flags
-        MEM8(m+10) = MEM8(m+10) | 1;  // .ai_timer
+        MEM8(m+5) &= 0x90; // .ai_flags
+        MEM8(m+4) &= 0x7F; // .flags
+        MEM8(m+4) |= 0x60; // .flags
+        MEM8(m+10) |= 1;   // .ai_timer
     }
 
     // Animate
-    MEM8(m+6) = MEM8(m+6) + 0x80; // .anim_counter
+    MEM8(m+6) += 0x80; // .anim_counter
     if ((MEM8(m+6) & 0x80) == 0) {
-        MEM8(m+6) = MEM8(m+6) + 1;
+        MEM8(m+6)++;
         if (MEM8(m+6) >= 4) {
             MEM8(m+6) = 0;
             uint8_t ai_state = MEM8(m+9);
             if (ai_state) {
                 if (ai_state & 0x10) {
                     ai_state |= 0x60;
-                    MEM8(m+7) = MEM8(m+7) | 0x80; // .state_flags
+                    MEM8(m+7) |= 0x80; // .state_flags
                     MEM8(m+15) = 0; // .counter
                 }
                 MEM8(m+4) = ai_state; // .flags
-                MEM8(m+5) = MEM8(m+5) & 0x80; // .ai_flags
+                MEM8(m+5) &= 0x80; // .ai_flags
                 MEM8(m+9) = 0; // .ai_state
             } else {
                 mark_collected(m);      // loc_914C
@@ -2802,7 +2802,7 @@ static void flag_11(uint16_t m) {
         for (int i = 0; i < 2; i++) {
             if (al == MEM8(m+3)) {     // .m_x_rel
                 MEM8(ADDR_SOUND_FX_REQUEST) = 18;
-                MEM8(m+10) = MEM8(m+10) | 1;  // .ai_timer
+                MEM8(m+10) |= 1;  // .ai_timer
                 return;
             }
             al++;
@@ -2811,11 +2811,11 @@ static void flag_11(uint16_t m) {
     }
 
     // armed: move south, animate
-    MEM8(m+4) = MEM8(m+4) & 0x7F;  // .flags
+    MEM8(m+4) &= 0x7F;  // .flags
     move_monster_S(m);
-    MEM8(m+6) = MEM8(m+6) + 0x80; // .anim_counter
+    MEM8(m+6) += 0x80; // .anim_counter
     if ((MEM8(m+6) & 0x80) == 0) {
-        MEM8(m+6) = MEM8(m+6) + 1;
+        MEM8(m+6)++;
         if (MEM8(m+6) >= 4) {
             MEM8(m+6) = 0;
             mark_collected(m);
@@ -2825,7 +2825,7 @@ static void flag_11(uint16_t m) {
 
 // delay animation?
 static void flag_12(uint16_t m) {
-    MEM8(m+6) = MEM8(m+6) + 1; // .anim_counter
+    MEM8(m+6)++; // .anim_counter
     if (MEM8(m+6) == 3)
         mark_collected(m);
 }
@@ -2840,7 +2840,7 @@ static void flag_13(uint16_t m) {
         uint8_t ai_state = MEM8(m+9); // .ai_state
         if (ai_state & 0x10) {
             ai_state |= 0x60;
-            MEM8(m+7) = MEM8(m+7) | 0x80; // .state_flags
+            MEM8(m+7) |= 0x80; // .state_flags
             MEM8(m+15) = 0; // .counter
         }
         MEM8(m+4) = ai_state; // .flags
@@ -3182,9 +3182,9 @@ static void monster_activation(uint16_t m)
     uint8_t  bl;
     uint16_t di, scan_addr;
 
-    /* Monster must currently be deactivated (in "item" state) */
+    /* monster must currently be deactivated (in "item" state) */
     if ((MEM16(m+0) >> 8) != 0xFF) // .currX high byte
-        return;
+        return; // still active
 
     /* Big monsters occupy two consecutive table entries; the second
        entry must also be deactivated */
@@ -3488,15 +3488,15 @@ void input_handling()
                 for (int cols = 0; cols < 8; cols++) {
                     uint8_t flags;
                     uint16_t monster_struct;
-                    if (get_dst_monster_flags(si, &flags, &monster_struct)) {
-                        if ((flags & 0x60) == 0 && (MEM8(monster_struct+7) & 0x10) == 0) { // state_flags
+                    if (get_dst_monster_flags(si, &flags, &monster_struct)) { // monster/item
+                        if ((flags & 0x60) == 0 && (MEM8(monster_struct+7) & 0x10) == 0) { // .state_flags
                             dl = 0xFF; // flying monster found
                         }
                     }
                     si++;
                 } // 8-columns loop
 
-                si += (36 - 8);
+                si += (PROX_COLS - 8);
                 wrap_map_from_above(&si);
             } // loop four_rows
 
@@ -3706,7 +3706,7 @@ uint8_t move_platform_down_damage_monster()
     if (MEM8(ADDR_ON_ROPE_FLAGS)) return 0;
 
     uint16_t si = hero_coords_to_addr_in_proximity();
-    si += 3 * 36 + 1;
+    si += 3 * PROX_COLS + 1;
     wrap_map_from_above(&si);
 
     int8_t dh;
@@ -3727,10 +3727,10 @@ uint8_t move_platform_down_damage_monster()
         uint16_t pos = platform_prox + 36 + i;
         wrap_map_from_above(&pos);
         uint8_t flags;
-        uint16_t ms;
-        if (get_dst_monster_flags(pos, &flags, &ms)) {
-            if (!(flags & 0x60) && !(MEM8(ms + 5) & 0x20)) {
-                MEM8(ms + 5) = (MEM8(ms + 5) & 0xE0) | 0x40;
+        uint16_t m;
+        if (get_dst_monster_flags(pos, &flags, &m)) { // monster/item
+            if (!(flags & 0x60) && !(MEM8(m + 5) & 0x20)) {
+                MEM8(m + 5) = (MEM8(m + 5) & 0xE0) | 0x40;
             }
             break;
         }
