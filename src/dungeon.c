@@ -4811,8 +4811,12 @@ void after_run_animation()
         MEM8(ADDR_SPRITE_FLASH_FLAG) = 0;
         Clear_Viewport_proc();
         MEM8(ADDR_HERO_X_VIEW) = 12;
-        MEM8(ADDR_HERO_HEAD_Y_VIEW) = MEM8(ADDR_HERO_Y_VIEW_INIT);
-        MEM8(ADDR_BYTE_9F00) = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        uint8_t hero_head_y = MEM8(ADDR_HERO_Y_VIEW_INIT);
+        MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_head_y;
+        MEM8(ADDR_BYTE_9F00) = hero_head_y;
+        // request_dungeon_transition used (y - 10), assuming hero_head_y_view = 10.
+        // Adjust viewport top row to match the actual value from MDT data.
+        MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_VIEWPORT_TOP_ROW) + 10 - hero_head_y) & 0x3F;
         MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
         Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 0x66);
         NoOperation_proc();
@@ -4863,19 +4867,8 @@ void Cavern_Game_Init(void) {
         // start music (fn0)
         // int60h_music(FN0_INIT_PLAY_MUSIC);
 
-        // Flash "ENCOUNTER" 6 times
-        for (int cx = 0; cx < 6; cx++) {
-            MEM8(ADDR_FRAME_TIMER) = 0;
-            while (MEM8(ADDR_FRAME_TIMER) < 65) {
-                // busy wait
-            }
-            // Draw_Bordered_Rectangle_proc(bx=0x0C28, cx=0x3828, al=0)
-            MEM8(ADDR_FRAME_TIMER) = 0;
-            while (MEM8(ADDR_FRAME_TIMER) < 65) {
-                // busy wait
-            }
-            Render_Animated_Tile_Strip_proc();
-        }
+        // ENCOUNTER flash animation (skipped: all render stubs, and busy-wait
+        // on ADDR_FRAME_TIMER would hang since it's only ticked by JS)
 
         // Override enp_grp_idx with boss_grp from mdt_descriptor
         uint16_t si = ADDR_MDT;  // mdt_buffer

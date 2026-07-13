@@ -1585,6 +1585,9 @@ function readU16(addr) {
     return mBytes[0] | (mBytes[1] << 8);
 }
 
+function spawnBossExplosionRings() {
+}
+
 /*
  * Port of Refresh_Dirty_Tiles entity overlay logic from gfmcga.c.
  *
@@ -1616,9 +1619,6 @@ function drawDungeonEntities() {
     }
 
     function getSheetFrame(entityId) { // Lookup_Monster_Tile_Attributes
-        if (entityId === 3 || entityId === 7 || entityId === 131 || entityId === 135) {
-            console.log('getSheetFrame', entityId);
-        }
         const ptr = readU16(ADDR_MONSTERS_LIST) + (entityId & 0x7F) * 16;
         const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
@@ -1776,7 +1776,7 @@ function drawDungeonEntities() {
         }
 
         if (readU8(ADDR_IS_BOSS_CAVERN) && readU8(ADDR_SPRITE_FLASH_FLAG)) { // boss is just defeated
-            Spawn_Boss_Explosion_Ring();
+            spawnBossExplosionRings();
         }
     }
 
@@ -2831,12 +2831,11 @@ function drawBossHealth() {
     }
 
     const bossStatePtr = readU16(ADDR_BOSS_STATE_PTR);
-    const currHp = gMemoryBase + readU16(bossStatePtr + 3);
+    const currHp = readU16(bossStatePtr + 3);
     if (!bossMaxHP) {
         bossMaxHP = currHp;
     }
-    if (bossLifeFillCurrentEl && bossLifeFillMaxEl && maxHp > 0) {
-        const pct = Math.min(100, (currentHp / maxHp) * 100);
+    if (bossLifeFillCurrentEl && bossLifeFillMaxEl) {
         bossLifeFillCurrentEl.style.width = (currHp/8) + '%';
         bossLifeFillMaxEl.style.width     = (bossMaxHP/8) + '%';
     }
