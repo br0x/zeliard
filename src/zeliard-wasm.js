@@ -234,7 +234,7 @@ export function townFullTick() {
  * @param {Uint8Array} mdtData - Raw MDT file data
  * @returns {number} 0 on success, -1 on error
  */
-export function loadMdt(mdtData) {
+export function loadMdt(mdtData, mdtPath) {
     if (!wasmExports) {
         console.error('WASM not initialized');
         return -1;
@@ -246,7 +246,7 @@ export function loadMdt(mdtData) {
     for (let i = 0; i < mdtData.length; i++) {
         wasmMemory[mdtStart + i] = mdtData[i];
     }
-    console.log('MDT loaded at 0x' + ADDR_MDT.toString(16));
+    console.log('MDT loaded: ' + mdtPath);
 
     return 0;
 }
@@ -262,6 +262,9 @@ export function loadSaveState(saveState) {
     // Copy saveState to WASM memory at 0
     for (let i = 0; i < saveState.length; i++) {
         wasmMemory[saveStart + i] = saveState[i];
+    }
+    for (let i = 0; i < (256 - saveState.length); i++) {
+        wasmMemory[saveStart + saveState.length + i] = 0;
     }
 
     return 0;

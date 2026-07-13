@@ -39,26 +39,23 @@ monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
                 db    0
                 db    0
                 db    0
+                ; A030
                 dw offset boarman_top_left_frames
                 dw offset boarman_bottom_left_frames
                 dw offset blue_slime_frames
                 dw offset red_toad_left_frames
                 dw offset green_bat_left_frames ; green bat
                 dw offset magic_bat_left_frames ; magical bat
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
                 dw offset boarman_top_death_frames
                 dw offset boarman_bottom_death_frames
                 dw offset blue_slime_death_frames
                 dw offset red_toad_death_frames
                 dw offset green_bat_death_frames ; green bat
                 dw offset magic_bat_death_frames
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
                 dw offset wall_destruction_frames
                 dw offset wall_destruction_frames
                 dw offset hit_frames
@@ -66,40 +63,32 @@ monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
                 dw offset almas_glow_frames
                 dw offset almas_glow_frames_alt
                 dw offset ordinary_key_frames
-                db    0
-                db    0
+                dw    0
                 dw offset red_potion_frames
                 dw offset blue_potion_frames
-                db    0
-                db    0
+                dw    0
                 dw offset rare_almas_frames
                 dw offset sign_frames
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
+                dw    0
+                ; A070
                 dw offset boarman_top_right_frames
                 dw offset boarman_bottom_right_frames
                 dw offset blue_slime_frames
                 dw offset red_toad_right_frames
                 dw offset green_bat_right_frames ; green bat
                 dw offset magic_bat_right_frames ; magical bat
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
                 dw offset boarman_top_death_frames
                 dw offset boarman_bottom_death_frames
                 dw offset blue_slime_death_frames
                 dw offset red_toad_death_frames
                 dw offset green_bat_death_frames ; green bat
                 dw offset magic_bat_death_frames ; magical bat
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
                 dw offset wall_destruction_frames
                 dw offset wall_destruction_frames
                 dw offset hit_frames
@@ -107,20 +96,15 @@ monster_damage  db 10, 10, 8, 10, 8, 40, 0, 0
                 dw offset almas_glow_frames
                 dw offset almas_glow_frames_alt
                 dw offset ordinary_key_frames
-                db    0
-                db    0
+                dw    0
                 dw offset red_potion_frames
                 dw offset blue_potion_frames
-                db    0
-                db    0
+                dw    0
                 dw offset rare_almas_frames
                 dw offset sign_frames
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
+                dw    0
+                dw    0
+                dw    0
 boarman_top_left_frames     db 0, 21h, 22h, 23h, 24h
                             db 0, 25h, 26h, 27h, 28h
                             db 0, 29h, 2Ah, 2Bh, 2Ch

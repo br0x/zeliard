@@ -59,6 +59,122 @@ const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
 // 'mp90.mdt', 29
 // 'mpa0.mdt', 30
 
+// Frame mappings to tilesheet enp1.png
+const EAI1 = {
+    left: [ // 0xA030: 32 arrays
+        [0, 1, 2, 3, 4, 5, 6], // batFlyLeftFrames
+        [14, 15, 16, 17], // slugWalkLeftFrames
+        [22, 23, 24, 25, 26, 27, 28], // frogJumpLeftFrames
+        [36, 37, 38, 39, 40, 41], // ratRunLeftFrames
+        [], [], [], [],
+        [48, 49, 50], // batDeathFrames
+        [51, 52, 53], // slugDeathFrames
+        [54, 55, 56], // frogDeathFrames
+        [57, 58, 59], // ratDeathFrames
+        [], [], [], [],
+        [73, 74, 75, 76], // wallDestructionFrames
+        [73, 74, 75, 76], // wallDestructionFrames
+        [60, 61, 62], // hitFrames
+        [69, 69], // chestFrames
+        [63, 64, 65, 64], // almasGlowFrames
+        [66, 67, 68, 67], // almasGlowFramesAlt
+        [70], // ordinaryKeyFrames
+        [],
+        [71], // redPotionFrames
+        [72], // bluePotionFrames
+        [], [], [], [], [], [],
+    ],
+    right: [ // 0xA070: 32 arrays
+        [7, 8, 9, 10, 11, 12, 13], // batFlyRightFrames
+        [18, 19, 20, 21], // slugWalkRightFrames
+        [29, 30, 31, 32, 33, 34, 35], // frogJumpRightFrames
+        [42, 43, 44, 45, 46, 47], // ratRunRightFrames
+        [], [], [], [],
+        [48, 49, 50], // batDeathFrames
+        [51, 52, 53], // slugDeathFrames
+        [54, 55, 56], // frogDeathFrames
+        [57, 58, 59], // ratDeathFrames
+        [], [], [], [],
+        [73, 74, 75, 76], // wallDestructionFrames
+        [73, 74, 75, 76], // wallDestructionFrames
+        [60, 61, 62], // hitFrames
+        [69, 69], // chestFrames
+        [63, 64, 65, 64], // almasGlowFrames
+        [66, 67, 68, 67], // almasGlowFramesAlt
+        [70], // ordinaryKeyFrames
+        [],
+        [71], // redPotionFrames
+        [72], // bluePotionFrames
+        [], [], [], [], [], [],
+    ],
+    numSprites: 77,
+};
+const EAI2 = {
+    left: [ // 0xA030: 32 arrays
+        [0, 1, 2, 3, 4, 5, 6, 7], // boarman_top_left_frames
+        [19, 20, 21, 22, 23, 24, 25, 26], // boarman_bottom_left_frames
+        [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], // blue_slime_frames
+        [53, 54, 55, 56, 57, 58, 59, 60], // red_toad_left_frames
+        [72, 73, 74, 75, 76, 77, 78], // green_bat_left_frames
+        [89, 90, 91, 92, 93, 94, 95], // magic_bat_left_frames
+        [], [],
+        [16, 17, 18], // boarman_top_death_frames
+        [35, 36, 37], // boarman_bottom_death_frames
+        [50, 51, 52], // blue_slime_death_frames
+        [69, 70, 71], // red_toad_death_frames
+        [86, 87, 88], // green_bat_death_frames
+        [103, 104, 105], // magic_bat_death_frames
+        [], [],
+        [126, 127, 128, 129], // wall_destruction_frames
+        [126, 127, 128, 129], // wall_destruction_frames
+        [106, 107, 108], // hit_frames
+        [121, 122, 123, 124], // chest_frames
+        [109, 110, 111, 112], // almas_glow_frames
+        [113, 114, 115, 116], // almas_glow_frames_alt
+        [125], // ordinary_key_frames
+        [],
+        [131], // red_potion_frames
+        [132], // blue_potion_frames
+        [],
+        [117, 118, 119, 120], // rare_almas_frames
+        [130], // sign_frames
+        [], [], [],
+    ],
+    right: [ // 0xA070: 32 arrays
+        [8, 9, 10, 11, 12, 13, 14, 15], // boarman_top_right_frames
+        [27, 28, 29, 30, 31, 32, 33, 34], // boarman_bottom_right_frames
+        [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], // blue_slime_frames
+        [61, 62, 63, 64, 65, 66, 67, 68], // red_toad_right_frames
+        [79, 80, 81, 82, 83, 84, 85], // green_bat_right_frames
+        [96, 97, 98, 99, 100, 101, 102], // magic_bat_right_frames
+        [], [],
+        [16, 17, 18], // boarman_top_death_frames
+        [35, 36, 37], // boarman_bottom_death_frames
+        [50, 51, 52], // blue_slime_death_frames
+        [69, 70, 71], // red_toad_death_frames
+        [86, 87, 88], // green_bat_death_frames
+        [103, 104, 105], // magic_bat_death_frames
+        [], [],
+        [126, 127, 128, 129], // wall_destruction_frames
+        [126, 127, 128, 129], // wall_destruction_frames
+        [106, 107, 108], // hit_frames
+        [121, 122, 123, 124], // chest_frames
+        [109, 110, 111, 112], // almas_glow_frames
+        [113, 114, 115, 116], // almas_glow_frames_alt
+        [125], // ordinary_key_frames
+        [],
+        [131], // red_potion_frames
+        [132], // blue_potion_frames
+        [],
+        [117, 118, 119, 120], // rare_almas_frames
+        [130], // sign_frames
+        [], [], [],
+    ],
+    numSprites: 133,
+};
+const CRAB = {
+};
+
 const DUNGEONS = {
     0: { 
         mdtPath: 'game/0/mp10.mdt',
@@ -83,6 +199,7 @@ const DUNGEONS = {
             [],
             [],
         ],
+        ai: EAI1,
     },
     1: { // Dungeon 1 boss room — same dungeon group, shares tilesheets with index 0
         mdtPath: 'game/0/mp1d.mdt',
@@ -110,6 +227,7 @@ const DUNGEONS = {
             almasReward: 150,           // +11
             bossName: 'Cangrejo',
         },
+        ai: CRAB,
     },
     2: {
         mdtPath: 'game/0/mp20.mdt',
@@ -134,6 +252,7 @@ const DUNGEONS = {
             [],
             [],
         ],
+        ai: EAI2,
     },
     3: {
         mdtPath: 'game/0/mp21.mdt',
@@ -158,6 +277,7 @@ const DUNGEONS = {
             [],
             [],
         ],
+        ai: EAI2,
     },
 };
 const NOTIFICATION_STRINGS = {
@@ -182,43 +302,6 @@ const NOTIFICATION_STRINGS = {
     19: [8,  "Get the lion's head Key."],
 };
 
-// Frame mappings to tilesheet enp1.png
-const batFlyLeftFrames      = [0, 1, 2,  3,  4,  5,  6];
-const batFlyRightFrames     = [7, 8, 9, 10, 11, 12, 13];
-const slugWalkLeftFrames    = [14, 15, 16, 17];
-const slugWalkRightFrames   = [18, 19, 20, 21];
-const frogJumpLeftFrames    = [22, 23, 24, 25, 26, 27, 28];
-const frogJumpRightFrames   = [29, 30, 31, 32, 33, 34, 35];
-const ratRunLeftFrames      = [36, 37, 38, 39, 40, 41];
-const ratRunRightFrames     = [42, 43, 44, 45, 46, 47];
-const batDeathFrames        = [48, 49, 50];
-const slugDeathFrames       = [51, 52, 53];
-const frogDeathFrames       = [54, 55, 56];
-const ratDeathFrames        = [57, 58, 59];
-const hitFrames             = [60, 61, 62];
-const almasGlowFrames       = [63, 64, 65, 64];
-const almasGlowFramesAlt    = [66, 67, 68, 67];
-const chestFrames           = [69, 69];
-const ordinaryKeyFrames     = [70];
-const redPotionFrames       = [71];
-const bluePotionFrames      = [72];
-const wallDestructionFrames = [73, 74, 75, 76];
-const noFrames = [];   // empty slot
-// Main lookup table (matches the 32-word tables at 0xA030 and 0xA070)
-const EAI1 = {
-    left: [ // 0xA030: 32 arrays
-        batFlyLeftFrames,      slugWalkLeftFrames,    frogJumpLeftFrames, ratRunLeftFrames, noFrames,        noFrames,           noFrames,          noFrames,
-        batDeathFrames,        slugDeathFrames,       frogDeathFrames,    ratDeathFrames,   noFrames,        noFrames,           noFrames,          noFrames,
-        wallDestructionFrames, wallDestructionFrames, hitFrames,          chestFrames,      almasGlowFrames, almasGlowFramesAlt, ordinaryKeyFrames, noFrames,
-        redPotionFrames,       bluePotionFrames,      noFrames,           noFrames,         noFrames,        noFrames,           noFrames,          noFrames,
-    ],
-    right: [ // 0xA070: 32 arrays
-        batFlyRightFrames,     slugWalkRightFrames,   frogJumpRightFrames, ratRunRightFrames, noFrames,        noFrames,           noFrames,          noFrames,
-        batDeathFrames,        slugDeathFrames,       frogDeathFrames,     ratDeathFrames,    noFrames,        noFrames,           noFrames,          noFrames,
-        wallDestructionFrames, wallDestructionFrames, hitFrames,           chestFrames,       almasGlowFrames, almasGlowFramesAlt, ordinaryKeyFrames, noFrames,
-        redPotionFrames,       bluePotionFrames,      noFrames,            noFrames,          noFrames,        noFrames,           noFrames,          noFrames,
-    ],
-};
 const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
 const DUNGEON_MAGIC_SHEET_PATH = 'assets/images/magic.png';
 const DUNGEON_HERO_SHEET_PATH = 'assets/images/fman.png';
@@ -644,6 +727,8 @@ let magicIcons = [];
 let magicIconsReady = false;
 let dungeonTileSheet = null;
 let dungeonTileSheetReady = false;
+let dungeonAI = null;
+let dungeonAIready = false;
 let dungeonDchrSheet = null;
 let dungeonDchrSheetReady = false;
 let dungeonEntitySheet = null;
@@ -1000,7 +1085,7 @@ async function startGame() {
             throw new Error(`Failed to load ${mdtPath}: ${response.status}`);
         }
         mdtData = new Uint8Array(await response.arrayBuffer());
-        loadMdt(mdtData);
+        loadMdt(mdtData, mdtPath);
         mdtHeader = getTownMdtHeader?.();
 
         townBackgroundType = getTownBackgroundType();
@@ -1161,6 +1246,10 @@ function loadImageOnce(path, setter) {
 
 async function loadDungeonAssets(rawMapId) {
     const loads = [];
+    if (!dungeonAIready) {
+        dungeonAI = DUNGEONS[rawMapId].ai;
+        dungeonAIready = true;
+    }
     if (!dungeonTileSheetReady) {
         loads.push(loadImageOnce(DUNGEONS[rawMapId].tilesheetPath, img => {
             dungeonTileSheet = img;
@@ -1501,19 +1590,22 @@ function drawDungeonEntities() {
     }
 
     function getSheetFrame(entityId) { // Lookup_Monster_Tile_Attributes
+        if (entityId === 3 || entityId === 7 || entityId === 131 || entityId === 135) {
+            console.log('getSheetFrame', entityId);
+        }
         const ptr = readU16(ADDR_MONSTERS_LIST) + (entityId & 0x7F) * 16;
         const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
         const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
         
-        return EAI1[dir][flags][offset];
+        return dungeonAI[dir][flags][offset];
     }
 
     function drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy) {
         if (bgTile !== 0) {
             // drawStaticTile(bgTile, vpX, vpY);
         }
-        if (!dungeonEntitySheet || ovlFrame < 0 || ovlFrame >= 77 || 
+        if (!dungeonEntitySheet || ovlFrame < 0 || ovlFrame >= dungeonAI["numSprites"] || 
             dx < 0 || dy < 0 || dx >= DUNGEON_ENTITY_W || dy >= DUNGEON_ENTITY_H) return;
         const sx = ovlFrame * DUNGEON_ENTITY_W + dx;
         const sy = dy;
@@ -2186,7 +2278,7 @@ async function handleTownTransition(transition) {
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData);
+        loadMdt(mdtData, mdtPath);
         mdtHeader = getTownMdtHeader?.();
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
@@ -2251,7 +2343,8 @@ async function handleDungeonTransition(mapId, isFromTown) {
         if (!resp.ok) 
             throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData);
+        loadMdt(mdtData, mdtPath);
+        dungeonAIready = false;
         mdtHeader = getCavernMdtHeader?.();
         cavernName = getCavernName?.() ?? 'Unknown';
         updatePlaceHud(cavernName);
@@ -2302,7 +2395,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData);
+        loadMdt(mdtData, mdtPath);
         mdtHeader = getTownMdtHeader?.();
 
         const mapWidth = getTownMapWidth();
@@ -2970,7 +3063,7 @@ function closeModal() {
 
 // Core restore routine: reloads full game state from 256-byte saveData
 async function performGameRestore(saveData) {
-    if (!saveData || saveData.length !== 256) {
+    if (!saveData || saveData.length > 256) {
         console.error('Invalid save data');
         return;
     }
@@ -2995,10 +3088,8 @@ async function performGameRestore(saveData) {
         try {
             const resp = await fetch(mdtPath);
             if (!resp.ok) throw new Error(`Failed to load ${mdtPath}`);
-            // ✅ CRITICAL: Update the module-level mdtData variable
-            const newMdtData = new Uint8Array(await resp.arrayBuffer());
-            mdtData = newMdtData;          // <-- this was missing!
-            loadMdt(newMdtData);
+            mdtData = new Uint8Array(await resp.arrayBuffer());
+            loadMdt(mdtData, mdtPath);
             mdtHeader = getTownMdtHeader?.();
         } catch (err) {
             console.error('Failed to load MDT for restore:', err);
@@ -3009,9 +3100,8 @@ async function performGameRestore(saveData) {
         console.warn('Restoring in dungeon – falling back to Felishika Castle');
         const resp = await fetch(TOWN_MDTS[0]);
         if (!resp.ok) throw new Error(`Failed to load ${TOWN_MDTS[0]}`);
-        const newMdtData = new Uint8Array(await resp.arrayBuffer());
-        mdtData = newMdtData;
-        loadMdt(newMdtData);
+        mdtData = new Uint8Array(await resp.arrayBuffer());
+        loadMdt(mdtData, "");
         mdtHeader = getTownMdtHeader?.();
         writeMemory(ADDR_PLACE_MAP_ID, [0]);  // ensure place_map_id points to town 0
     }
@@ -3085,7 +3175,6 @@ function draw() {
     if (!engineReady) { // emergency fallback
         drawLifeBar();
         renderGoldHud();
-        updateElementText('almas', 0);
         renderSwordHud();
         renderMagicHud();
         renderShieldHud();

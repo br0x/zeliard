@@ -2666,10 +2666,6 @@ void monsters_spawning(void) {
             uint8_t rel_x;
             if (is_in_proximity_window(currX, &rel_x)) { // else skip
                 MEM8(m+3) = rel_x;
-                if (MEM8(ADDR_MONSTER_INDEX) == 3) {
-                    debug_printf("[monsters_spawning()] Chest %d spawning at (%d, %d) addr=0x%04X\n", 
-                        MEM8(ADDR_MONSTER_INDEX), rel_x, MEM8(m+2), m);
-                }
                 place_monster_in_proximity_and_run_ai(m);
                 currX = MEM16(m+0);
                 if ((currX >> 8) != 0xFF) {
@@ -4333,7 +4329,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
                     MEM16(ADDR_HERO_HP) = MEM16(ADDR_HERO_MAX_HP);
                     MEM16(ADDR_HEALING_TIMER) = 0;
                 }
-                MEM8(ADDR_SOUND_FX_REQUEST) = 19;
+                MEM8(ADDR_SOUND_FX_REQUEST) = 19; // heal with potion
                 Draw_Hero_Health();
             }
         }
@@ -5135,10 +5131,10 @@ static MonsterAIFn current_monster_ai = Monster_AI_1;
 void load_eai_module(uint8_t place_map_id)
 {
     switch (place_map_id) {
-        case 0: current_monster_ai = Monster_AI_1; break;
-        case 1: current_monster_ai = Cangrejo_AI; break;
-        case 2: current_monster_ai = Monster_AI_2; break;
-        case 3: current_monster_ai = Monster_AI_2; break;
+        case 0: current_monster_ai = Monster_AI_1; break; // mp10.mdt
+        case 1: current_monster_ai = Cangrejo_AI; break;  // mp1d.mdt
+        case 2: current_monster_ai = Monster_AI_2; break; // mp20.mdt
+        case 3: current_monster_ai = Monster_AI_2; break; // mp21.mdt
         /* add more as more eaiN.c modules are translated */
     }
 }

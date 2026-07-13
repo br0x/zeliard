@@ -73,7 +73,7 @@ const LAUGHING_FRAMES = [
 const WRITING_FRAME_MS  = 320;   // alternation speed for writing anim
 const NOTICE_FRAME_MS   = 420;   // speed for notice sequence
 const LAUGHING_FRAME_MS = 260;   // speed for laughing loop
-const NUM_REPEAT_FRAME_MS      = 1000 / 60;
+const NUM_REPEAT_FRAME_MS      = 5;
 const NUM_REPEAT_INITIAL_FRAMES = 35;
 const NUM_REPEAT_MIN_FRAMES     = 1;
 
