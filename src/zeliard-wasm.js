@@ -402,28 +402,28 @@ function getNameFromNameInfo(nameOffset) {
 }
 
 /**
- * Get town music track id from loaded MDT
+ * Get music track id from loaded MDT
  * @returns {number} trackId
  *
  * Header offsets are relative to MDT base (0xc000).
- * First word of header points to town_descriptor, and track id is in bits 5..1 of byte 0.
+ * First word of header points to mdt_descriptor, and track id is in bits 5..1 of byte 0.
  */
-export function getTownMusicTrack() {
+export function getMusicTrackId() {
     if (!wasmMemory) {
         console.error('WASM not initialized');
         return '';
     }
 
-    const header = getTownMdtHeader();
-    if (!header || header.town_descriptor_offset === 0) {
-        return '';
+    const offset = gMemoryBase + ADDR_MDT;
+
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
     }
 
-    // Header offset is relative to 0xc000, so actual WASM memory address is:
-    // gMemoryBase + header.town_descriptor_offset
-    const musicIdOffset = gMemoryBase + header.town_descriptor_offset + 0;
+    // MDT descriptor pointer is at offset 0
+    const musicIdOffset = gMemoryBase + readU16(offset + 0) + 0;
 
-    return (wasmMemory[musicIdOffset] >> 1) & 0x3;
+    return (wasmMemory[musicIdOffset] >> 1) & 0x0F;
 }
 
 /**

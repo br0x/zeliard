@@ -482,11 +482,6 @@ ENP2_FRAMES = {
     ],
 }
 
-ENP_FRAMES_MAP = {                                                                                                                                   
-    1: ENP1_FRAMES,                                                                                                                                  
-    2: ENP2_FRAMES,                                                                                                                                  
-}                                                                                                                                                    
-
 CRAB_FRAMES = {
     "Left Eye": [
         [0, 0, 0, 0, 1],
@@ -662,6 +657,12 @@ CRAB_FRAMES = {
         [0, 0xE2, 0xE3, 0, 0],
     ],
 }
+
+ENP_FRAMES_MAP = {
+    1: ENP1_FRAMES,                                                                                                                                  
+    2: ENP2_FRAMES, 
+    3: CRAB_FRAMES,                                                                                                                                 
+}                                                                                                                                                    
 
 # ---------------------------------------------------------------------------
 # Decompression logic
@@ -1220,6 +1221,7 @@ def draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, s
         col_offset = (i % 2) * 8 * scale
         row_offset = (i // 2) * 8 * scale
         draw_tile_pixels(canvas, pixels, x_frame + col_offset, y_frame + row_offset, scale=scale)
+    # canvas.create_rectangle(x_frame-1, y_frame-1, x_frame + 16*scale, y_frame + 16*scale, outline="gray")
 
 def draw_composed_24x24_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale):
     """Draws a 24x24 frame composed of nine 8x8 tiles [by columns]."""
@@ -1323,22 +1325,22 @@ def render_boss_group(data, canvas, y_offset):
 
     # Normal layout for phases 0-8: (part_name, grid_x, grid_y)
     body_layout08 = [
-        ("Left Eye", 24, 0), ("Right Eye", 40, 0),
+                                            ("Left Eye", 24, 0), ("Right Eye", 40, 0),
         ("Left Tibia", 0, 16), ("Left Femur", 16, 16), ("Mouth", 32, 16), ("Right Femur", 48, 16), ("Right Tibia", 64, 16),
         ("Left Bottom Legs", 0, 32), ("Left Claw", 16, 32), ("Maxilla", 32, 32), ("Right Claw", 48, 32), ("Right Bottom Legs", 64, 32)
     ]
     body_layout9 = [
-        ("Left Eye", 32, 0),
-        ("Left Tibia", 0, 16), ("Left Femur", 16, 8), ("Right Femur", 48, 8), ("Right Tibia", 64, 16),
-        ("Left Bottom Legs", 8, 32), ("Left Claw", 16, 24), ("Right Claw", 48, 24), ("Right Bottom Legs", 56, 32)
+                                                ("Left Eye", 32, 0),
+        ("Left Tibia", 0, 16), ("Left Femur", 16, 8),           ("Right Femur", 48, 8), ("Right Tibia", 64, 16),
+        ("Left Bottom Legs", 8, 32), ("Left Claw", 16, 24),     ("Right Claw", 48, 24), ("Right Bottom Legs", 56, 32)
     ]
 
     frames_per_row = 3
     for phase in range(10):
-        x_base = 10 + (phase % frames_per_row) * (80 * scale + gap_x)
-        y_base = current_y + (phase // frames_per_row) * (48 * scale + gap_y)
+        x_base = 10 + (phase % frames_per_row) * (5*16 * scale + gap_x)
+        y_base = current_y + (phase // frames_per_row) * (3*16 * scale + gap_y)
         
-        canvas.create_rectangle(x_base-1, y_base-1, x_base + 80*scale, y_base + 48*scale, outline="gray")
+        canvas.create_rectangle(x_base-1, y_base-1, x_base + 5*16*scale, y_base + 3*16*scale, outline="gray")
 
         if phase < 9:
             # Standard rendering for phases 0-8
@@ -1363,7 +1365,6 @@ def render_boss_group(data, canvas, y_offset):
             y_f = current_y + (f_idx // f_per_row) * (16 * scale)
             
             draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_f, y_f, scale)
-            canvas.create_rectangle(x_f-1, y_f-1, x_f + 16*scale, y_f + 16*scale, outline="gray")
         
         num_rows = (len(frames) + f_per_row - 1) // f_per_row
         current_y += num_rows * (16 * scale + 12)

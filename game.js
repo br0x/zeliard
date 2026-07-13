@@ -173,6 +173,25 @@ const EAI2 = {
     numSprites: 133,
 };
 const CRAB = {
+    left: [ // 0xA030: 32 arrays
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9], // left_eye
+        [10, 11, 12, 13, 14, 15, 16, 17, 18], // right_eye
+        [19, 20, 21, 22, 23, 24, 25, 26, 27, 28], // left_tibia
+        [29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // left_femur
+        [39, 40, 41, 42, 43, 44, 45, 46, 47], // mouth
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57], // right_femur
+        [58, 59, 60, 61, 62, 63, 64, 65, 66, 67], // right_tibia
+        [68, 69, 70, 71, 72, 73, 74, 75, 76, 77], // left_bottom_legs
+        [78, 79, 80, 81, 82, 83, 84, 85, 86, 87], // right_bottom_legs
+        [], [], [], [], [], [], [],
+        [88, 89, 90, 91, 92, 93, 94, 95, 96, 97], // left_claw
+        [98, 99, 100, 101, 102, 103, 104, 105, 106], // maxilla
+        [107, 108, 109, 110, 111, 112, 113, 114, 115, 116], // right_claw
+        [],
+        [117, 118, 119, 120, 121, 122, 123, 124, 125, 126], // mouth_acid
+        [127, 128, 129, 130, 131], // acid_drop
+    ],
+    numSprites: 132,
 };
 
 const DUNGEONS = {
@@ -646,7 +665,7 @@ let getCavernMdtHeader;
 let getCavernName;
 let getTownMdtHeader;
 let getTownName;
-let getTownMusicTrack;
+let getMusicTrackId;
 let getTownBackgroundType;
 let getTownPatId;
 let inputUpdate;
@@ -791,8 +810,14 @@ let activeModal = null;          // instance of SaveDialog or RestoreDialog
 let gamePaused = false;          // freeze game updates while modal is open
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────
-const SFX_IDS = [10, 19, 20, 29, 30, 40, 50, 60];
-const MUSIC_TRACKS = ['mgt1', 'mgt2', 'ugm1', 'ugm2', 'Zeliard-04-CavernOfMalicia'];
+const SFX_IDS = [
+     1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 
+    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 
+    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 
+    49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 
+    65,
+];
+const MUSIC_TRACKS = ['mgt1'];
 
 const soundManager = new SoundManager({
     workletPath:   'pit-worklet.js',
@@ -814,6 +839,7 @@ function playCurrentMusic(fadeDuration = 1.5) {
 }
 
 function setCurrentMusicTrack(trackId) {
+    if (trackId === currentMusicTrack) return;
     currentMusicTrack = trackId;
     playCurrentMusic();
 }
@@ -1124,7 +1150,7 @@ async function startGame() {
             townEntryRan = true;
         }
 
-        const trackId = resolveTownMusicTrack(getTownMusicTrack());
+        const trackId = resolveMusicTrack(getMusicTrackId());
         if (trackId) setCurrentMusicTrack(trackId);
 
         engineReady = true;
@@ -1300,7 +1326,7 @@ async function loadWasmEngine() {
     const wasmBridge = await import('./src/zeliard-wasm.js');
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
-        getTownMdtHeader, getTownName, getTownMusicTrack, getTownBackgroundType,
+        getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,
         getTownPatId, inputUpdate, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
         heroGetState, heroIsMoving, updateHorizontalPlatforms,
@@ -2317,8 +2343,8 @@ async function handleTownTransition(transition) {
         townCompleteTransition?.();
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
-        if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
+        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[transition] entered map ${rawMapId}`);
     } catch (err) {
         console.error('[handleTownTransition] failed:', err);
@@ -2370,7 +2396,8 @@ async function handleDungeonTransition(mapId, isFromTown) {
         dungeonInit?.(rawMapId, isFromTown); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
-        setCurrentMusicTrack('Zeliard-04-CavernOfMalicia');
+        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] entered map ${rawMapId}`);
     } catch (err) {
         console.error('[handleDungeonTransition] failed:', err);
@@ -2448,7 +2475,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
+        const trackId = resolveMusicTrack(getMusicTrackId?.());
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
         if (isDeath) {
@@ -2462,8 +2489,21 @@ async function initTownFromDungeon(townMapId, isDeath) {
     }
 }
 
-function resolveTownMusicTrack(type) {
-    const map = { 0: 'mgt1', 1: 'ugm1', 2: 'mgt2', 3: 'ugm2' };
+function resolveMusicTrack(type) {
+    const map = { 
+        0: 'mgt1', 
+        1: 'ugm1', 
+        2: 'mgt2', 
+        3: 'ugm2',
+        4: 'Zeliard-04-CavernOfMalicia',
+        5: 'Zeliard-08-CavernOfPeligro',
+        6: 'Zeliard-10-CavernOfMadera',
+        7: 'Zeliard-11-CavernOfEscarcha',
+        8: 'Zeliard-09-CavernOfCorroer',
+        9: 'Zeliard-13-CavernOfTesoro',
+        10: 'Zeliard-12-CavernOfCaliente',
+        11: 'Zeliard-14-CavernOfAbsor',
+    };
     return map[type] ?? 'mgt1';
 }
 
@@ -3150,8 +3190,8 @@ async function performGameRestore(saveData) {
         NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, idx) => loadNpcSprite(idx))
     );
 
-    const trackId = resolveTownMusicTrack(getTownMusicTrack?.());
-    if (trackId && trackId !== currentMusicTrack) setCurrentMusicTrack(trackId);
+    const trackId = resolveMusicTrack(getMusicTrackId?.());
+    if (trackId) setCurrentMusicTrack(trackId);
 
     gameMode = 'town';
     engineReady = true;

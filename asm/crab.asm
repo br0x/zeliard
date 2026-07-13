@@ -25,37 +25,29 @@ start           dw offset Cangrejo_AI_proc ; A000
 encounter_hp_table db 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
                    db 6, 6, 6, 6, 6, 15, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
                 ; A030
-anim_frame_table_ptrs0_8 dw offset left_eye_frames ; normal movement animation states
-                dw offset right_eye_frames
-                dw offset left_tibia_frames
-                dw offset left_femur_frames
-                dw offset mouth_frames
-                dw offset right_femur_frames
-                dw offset right_tibia_frames
-                dw offset left_bottom_legs_frames
-                dw offset right_bottom_legs_frames ; a040
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
+anim_frame_table_ptrs0_8   dw offset left_eye_frames ; normal movement animation states
+                           dw offset right_eye_frames
+                           dw offset left_tibia_frames
+                           dw offset left_femur_frames
+                           dw offset mouth_frames
+                           dw offset right_femur_frames
+                           dw offset right_tibia_frames
+                           dw offset left_bottom_legs_frames
+                           dw offset right_bottom_legs_frames ; a040
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                dw    0
                 ; A050
 anim_frame_table_ptrs9_15 dw offset left_claw_frames ; death/recoil states and acid-drop body variants
-                dw offset maxilla_frames
-                dw offset right_claw_frames
-                db    0
-                db    0
-                dw offset mouth_acid_frames
-                dw offset acid_drop_frames
+                          dw offset maxilla_frames
+                          dw offset right_claw_frames
+                          dw    0
+                          dw offset mouth_acid_frames
+                          dw offset acid_drop_frames
 left_eye_frames db 0, 0, 0, 0, 1      ; movement phase 0 (rightmost leg position)
                 db 0, 0, 0, 26h, 27h
                 db 0, 0, 0, 0, 1
@@ -76,15 +68,15 @@ right_eye_frames db 0, 0, 0, 2, 0
                 db 0, 0, 0, 28h, 29h
                 db 0, 0, 0, 0, 0
 left_tibia_frames db 0, 3, 4, 0, 5
-                db 0, 2Ah, 2Bh, 2Ch, 2Dh
-                db 0, 3, 4, 0, 47h
-                db 0, 2Ah, 2Bh, 2Ch, 58h
-                db 0, 3, 4, 0, 69h
-                db 0, 2Ah, 2Bh, 2Ch, 72h
-                db 0, 3, 4, 0, 5
-                db 0, 3, 4, 0, 5
-                db 0, 8Fh, 90h, 0, 91h
-                db 0, 0ADh, 0AEh, 0AFh, 0B0h
+                  db 0, 2Ah, 2Bh, 2Ch, 2Dh
+                  db 0, 3, 4, 0, 47h
+                  db 0, 2Ah, 2Bh, 2Ch, 58h
+                  db 0, 3, 4, 0, 69h
+                  db 0, 2Ah, 2Bh, 2Ch, 72h
+                  db 0, 3, 4, 0, 5
+                  db 0, 3, 4, 0, 5
+                  db 0, 8Fh, 90h, 0, 91h
+                  db 0, 0ADh, 0AEh, 0AFh, 0B0h
 left_femur_frames db 0, 6, 7, 8, 9
                 db 0, 6, 2Fh, 30h, 31h
                 db 0, 6, 7, 48h, 49h
@@ -95,7 +87,7 @@ left_femur_frames db 0, 6, 7, 8, 9
                 db 0, 6, 2Fh, 8, 9
                 db 0, 92h, 26h, 93h, 94h
                 db 0, 0B1h, 7, 0B2h, 0B3h
-mouth_frames db 0, 0Ah, 0Bh, 0Ch, 0Dh
+mouth_frames    db 0, 0Ah, 0Bh, 0Ch, 0Dh
                 db 0, 32h, 33h, 0Ch, 0Dh
                 db 0, 0Ah, 0Bh, 0Ch, 0Dh
                 db 0, 32h, 33h, 0Ch, 0Dh
@@ -105,56 +97,56 @@ mouth_frames db 0, 0Ah, 0Bh, 0Ch, 0Dh
                 db 0, 32h, 33h, 0Ch, 0Dh
                 db 0, 27h, 28h, 32h, 33h
 right_femur_frames db 0, 0Eh, 35h, 10h, 11h ; movement phase 5 (leftmost leg position)
-                db 0, 34h, 35h, 36h, 37h
-                db 0, 0Eh, 35h, 4Ah, 4Bh
-                db 0, 34h, 35h, 5Bh, 5Ch
-                db 0, 0Eh, 35h, 5Bh, 5Ch
-                db 0, 34h, 35h, 75h, 76h
-                db 0, 34h, 35h, 84h, 85h
-                db 0, 34h, 35h, 84h, 85h
-                db 0, 29h, 95h, 96h, 97h
-                db 0, 0Eh, 0B4h, 0B5h, 0B6h
+                   db 0, 34h, 35h, 36h, 37h
+                   db 0, 0Eh, 35h, 4Ah, 4Bh
+                   db 0, 34h, 35h, 5Bh, 5Ch
+                   db 0, 0Eh, 35h, 5Bh, 5Ch
+                   db 0, 34h, 35h, 75h, 76h
+                   db 0, 34h, 35h, 84h, 85h
+                   db 0, 34h, 35h, 84h, 85h
+                   db 0, 29h, 95h, 96h, 97h
+                   db 0, 0Eh, 0B4h, 0B5h, 0B6h
 right_tibia_frames db 0, 12h, 13h, 14h, 15h ; descending phase 0 (boss lowering to drop acid)
-                db 0, 38h, 39h, 3Ah, 0
-                db 0, 12h, 13h, 4Ch, 15h
-                db 0, 38h, 39h, 5Dh, 0
-                db 0, 12h, 13h, 5Dh, 15h
-                db 0, 38h, 39h, 77h, 0
-                db 0, 12h, 13h, 14h, 15h
-                db 0, 12h, 13h, 14h, 15h
-                db 0, 98h, 99h, 9Ah, 0
-                db 0, 0B7h, 0B8h, 0B9h, 0BAh
+                   db 0, 38h, 39h, 3Ah, 0
+                   db 0, 12h, 13h, 4Ch, 15h
+                   db 0, 38h, 39h, 5Dh, 0
+                   db 0, 12h, 13h, 5Dh, 15h
+                   db 0, 38h, 39h, 77h, 0
+                   db 0, 12h, 13h, 14h, 15h
+                   db 0, 12h, 13h, 14h, 15h
+                   db 0, 98h, 99h, 9Ah, 0
+                   db 0, 0B7h, 0B8h, 0B9h, 0BAh
 left_bottom_legs_frames db 0, 0, 16h, 0, 17h
-                db 0, 0, 3Bh, 3Ch, 3Dh
-                db 0, 0, 4Dh, 0, 4Eh
-                db 0, 5Eh, 5Fh, 0, 60h
-                db 0, 0Fh, 2Eh, 6Ah, 6Bh
-                db 0, 78h, 79h, 7Ah, 7Bh
-                db 0, 86h, 87h, 0, 88h
-                db 0, 86h, 87h, 0, 88h
-                db 0, 9Bh, 9Ch, 9Dh, 9Eh
-                db 0, 0BBh, 0BFh, 0BCh, 0
+                        db 0, 0, 3Bh, 3Ch, 3Dh
+                        db 0, 0, 4Dh, 0, 4Eh
+                        db 0, 5Eh, 5Fh, 0, 60h
+                        db 0, 0Fh, 2Eh, 6Ah, 6Bh
+                        db 0, 78h, 79h, 7Ah, 7Bh
+                        db 0, 86h, 87h, 0, 88h
+                        db 0, 86h, 87h, 0, 88h
+                        db 0, 9Bh, 9Ch, 9Dh, 9Eh
+                        db 0, 0BBh, 0BFh, 0BCh, 0
 right_bottom_legs_frames db 0, 23h, 24h, 25h, 0 ; descending phase 2
-                db 0, 3Eh, 0, 3Fh, 0
-                db 0, 55h, 0, 56h, 57h
-                db 0, 65h, 66h, 67h, 68h
-                db 0, 6Fh, 70h, 71h, 0
-                db 0, 80h, 81h, 82h, 83h
-                db 0, 8Bh, 8Ch, 8Dh, 8Eh
-                db 0, 8Bh, 8Ch, 8Dh, 8Eh
-                db 0, 0A9h, 0AAh, 0ABh, 0ACh
-                db 0, 0, 0C1h, 0, 0C2h
+                         db 0, 3Eh, 0, 3Fh, 0
+                         db 0, 55h, 0, 56h, 57h
+                         db 0, 65h, 66h, 67h, 68h
+                         db 0, 6Fh, 70h, 71h, 0
+                         db 0, 80h, 81h, 82h, 83h
+                         db 0, 8Bh, 8Ch, 8Dh, 8Eh
+                         db 0, 8Bh, 8Ch, 8Dh, 8Eh
+                         db 0, 0A9h, 0AAh, 0ABh, 0ACh
+                         db 0, 0, 0C1h, 0, 0C2h
 left_claw_frames db 0, 18h, 19h, 1Ah, 1Bh ; retract phase 0 (pulling back up after drop)
-                db 0, 40h, 19h, 42h, 43h
-                db 0, 4Fh, 19h, 50h, 51h
-                db 0, 61h, 19h, 62h, 1Bh
-                db 0, 6Ch, 19h, 6Dh, 43h
-                db 0, 7Ch, 19h, 7Dh, 43h
-                db 0, 18h, 19h, 0, 1Bh
-                db 0, 18h, 19h, 0, 1Bh
-                db 0, 9Fh, 0A0h, 0A1h, 0A2h
-                db 0, 0BDh, 19h, 0BFh, 43h
-maxilla_frames db 0, 1Ch, 1Dh, 1Eh, 0
+                 db 0, 40h, 19h, 42h, 43h
+                 db 0, 4Fh, 19h, 50h, 51h
+                 db 0, 61h, 19h, 62h, 1Bh
+                 db 0, 6Ch, 19h, 6Dh, 43h
+                 db 0, 7Ch, 19h, 7Dh, 43h
+                 db 0, 18h, 19h, 0, 1Bh
+                 db 0, 18h, 19h, 0, 1Bh
+                 db 0, 9Fh, 0A0h, 0A1h, 0A2h
+                 db 0, 0BDh, 19h, 0BFh, 43h
+maxilla_frames  db 0, 1Ch, 1Dh, 1Eh, 0
                 db 0, 1Ch, 1Dh, 0, 44h
                 db 0, 1Ch, 1Dh, 1Eh, 44h
                 db 0, 1Ch, 1Dh, 1Eh, 0
@@ -164,30 +156,30 @@ maxilla_frames db 0, 1Ch, 1Dh, 1Eh, 0
                 db 0, 1Ch, 1Dh, 1Eh, 0
                 db 0, 0Ch, 0Dh, 0A3h, 0A4h
 right_claw_frames db 0, 1Fh, 20h, 21h, 22h ; retract phase 2
-                db 0, 1Fh, 41h, 45h, 46h
-                db 0, 1Fh, 52h, 53h, 54h
-                db 0, 1Fh, 63h, 21h, 64h
-                db 0, 1Fh, 63h, 21h, 6Eh
-                db 0, 1Fh, 7Eh, 53h, 7Fh
-                db 0, 1Fh, 89h, 21h, 8Ah
-                db 0, 1Fh, 89h, 21h, 8Ah
-                db 0, 0A5h, 0A6h, 0A7h, 0A8h
-                db 0, 1Fh, 0BEh, 21h, 0C0h
+                  db 0, 1Fh, 41h, 45h, 46h
+                  db 0, 1Fh, 52h, 53h, 54h
+                  db 0, 1Fh, 63h, 21h, 64h
+                  db 0, 1Fh, 63h, 21h, 6Eh
+                  db 0, 1Fh, 7Eh, 53h, 7Fh
+                  db 0, 1Fh, 89h, 21h, 8Ah
+                  db 0, 1Fh, 89h, 21h, 8Ah
+                  db 0, 0A5h, 0A6h, 0A7h, 0A8h
+                  db 0, 1Fh, 0BEh, 21h, 0C0h
 mouth_acid_frames db 0, 0C7h, 0C8h, 1Ch, 1Dh ; taking damage / death flash
-                db 0, 0C9h, 0CAh, 1Ch, 1Dh
-                db 0, 0CBh, 0CCh, 0CDh, 0CEh
-                db 0, 0CFh, 0D0h, 0D1h, 0D2h
-                db 0, 0D3h, 0D4h, 0D5h, 0D6h
-                db 0, 0C3h, 0C4h, 1Ch, 1Dh
-                db 0, 0C5h, 0C6h, 1Ch, 1Dh
-                db 0, 0Ch, 0Dh, 1Ch, 1Dh
-                db 0, 0Ch, 0Dh, 1Ch, 1Dh
-                db 0, 0Ch, 0Dh, 1Ch, 1Dh
+                  db 0, 0C9h, 0CAh, 1Ch, 1Dh
+                  db 0, 0CBh, 0CCh, 0CDh, 0CEh
+                  db 0, 0CFh, 0D0h, 0D1h, 0D2h
+                  db 0, 0D3h, 0D4h, 0D5h, 0D6h
+                  db 0, 0C3h, 0C4h, 1Ch, 1Dh
+                  db 0, 0C5h, 0C6h, 1Ch, 1Dh
+                  db 0, 0Ch, 0Dh, 1Ch, 1Dh
+                  db 0, 0Ch, 0Dh, 1Ch, 1Dh
+                  db 0, 0Ch, 0Dh, 1Ch, 1Dh
 acid_drop_frames db 0, 0D7h, 0D8h, 0D9h, 0 ; final death pose
-                db 0, 0DAh, 0DBh, 0DCh, 0DDh
-                db 0, 0DEh, 0DFh, 0, 0
-                db 0, 0E0h, 0E1h, 0, 0
-                db 0, 0E2h, 0E3h, 0, 0
+                 db 0, 0DAh, 0DBh, 0DCh, 0DDh
+                 db 0, 0DEh, 0DFh, 0, 0
+                 db 0, 0E0h, 0E1h, 0, 0
+                 db 0, 0E2h, 0E3h, 0, 0
 
 ; =============== S U B R O U T I N E =======================================
 
