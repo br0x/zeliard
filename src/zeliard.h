@@ -104,6 +104,8 @@ extern "C" {
 #define ADDR_HERO_ANIM_PHASE          0xE7
 #define ADDR_INVINCIBILITY_FLAG       0xE8
 
+#define ADDR_BOSS_STATE_BLOCK                          0x9D00
+
 #define ADDR_BOSS_STATE_PTR                            0xA002  // word
 #define ADDR_DEATH_DESCRIPTORS_PTR                     0xA006  // word
 #define ADDR_XP_FOR_MONSTER                            0xA008

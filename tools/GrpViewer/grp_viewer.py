@@ -303,21 +303,6 @@ ENP2_FRAMES = {
         [0, 0x25, 0x26, 0x27, 0x28],
         [0, 0x25, 0x26, 0x27, 0x28]
     ],
-    "monster0_right": [
-        [0, 0x2D, 0x2E, 0x2F, 0x30],
-        [0, 0x31, 0x32, 0x33, 0x34],
-        [0, 0x35, 0x36, 0x37, 0x38],
-        [0, 0x31, 0x32, 0x33, 0x34],
-        [0, 0x31, 0x32, 0x33, 0x34],
-        [0, 0x31, 0x32, 0x33, 0x34],
-        [0, 0x31, 0x32, 0x33, 0x34],
-        [0, 0x31, 0x32, 0x33, 0x34]
-    ],
-    "monster0_death": [
-        [0, 0x39, 0x3A, 0x3B, 0x3C],
-        [0, 0x3D, 0x0, 0x3E, 0x3F],
-        [0, 0, 0, 0, 0],
-    ],
     "monster1_left": [
         [0, 0x40, 0x41, 0x42, 0x43],
         [0, 0x44, 0x45, 0x46, 0x47],
@@ -328,6 +313,16 @@ ENP2_FRAMES = {
         [0, 0x5F, 0x45, 0x46, 0x4E],
         [0, 0x5E, 0x45, 0x46, 0x4E]
     ],
+    "monster0_right": [
+        [0, 0x2D, 0x2E, 0x2F, 0x30],
+        [0, 0x31, 0x32, 0x33, 0x34],
+        [0, 0x35, 0x36, 0x37, 0x38],
+        [0, 0x31, 0x32, 0x33, 0x34],
+        [0, 0x31, 0x32, 0x33, 0x34],
+        [0, 0x31, 0x32, 0x33, 0x34],
+        [0, 0x31, 0x32, 0x33, 0x34],
+        [0, 0x31, 0x32, 0x33, 0x34]
+    ],
     "monster1_right": [
         [0, 0x4F, 0x50, 0x51, 0x52],
         [0, 0x53, 0x54, 0x55, 0x56],
@@ -337,6 +332,11 @@ ENP2_FRAMES = {
         [0, 0x53, 0x60, 0x5D, 0x56],
         [0, 0x53, 0x61, 0x5D, 0x56],
         [0, 0x53, 0x60, 0x5D, 0x56]
+    ],
+    "monster0_death": [
+        [0, 0x39, 0x3A, 0x3B, 0x3C],
+        [0, 0x3D, 0x0, 0x3E, 0x3F],
+        [0, 0, 0, 0, 0],
     ],
     "monster1_death": [
         [0, 0x62, 0x63, 0x64, 0x65],
@@ -1284,7 +1284,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 0
+    gap_x = 8
     gap_y = 8
     sprite_px = 16  # Total width/height of the 2x2 tile assembly
     frames_per_row = 12
@@ -1293,11 +1293,12 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
     # Ensure the data buffer is padded to prevent index-out-of-range errors 
     # for high tile indices (e.g., 0xF8)
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
-
+    y = 0
     for anim_name, frames in frames.items():
         for f_idx, frame_data in enumerate(frames):
             # Calculate base position for the 16x16 sprite
             x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            fy = f_idx // frames_per_row
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
             # Draw frame background
             canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
@@ -1306,7 +1307,9 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
 
         # Advance Y cursor to the next animation block
         num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y)
+        y = y + 1
+        gy = gap_y # 0 if y == 1 or y == 3 or y == 5 else gap_y
+        current_y += num_rows * (sprite_px * scale + gy)
 
     return current_y - y_offset
 

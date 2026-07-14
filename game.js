@@ -2392,17 +2392,23 @@ async function handleDungeonTransition(mapId, isFromTown) {
         // Initialize boss state block if this map has one
         const bossState = DUNGEONS[rawMapId].bossState;
         if (bossState) {
-            const block = ADDR_BOSS_STATE_BLOCK;
-            writeMemory(block, [
-                bossState.bossX & 0xFF, (bossState.bossX >> 8) & 0xFF,
-                bossState.bossY,
-                bossState.bossHP & 0xFF, (bossState.bossHP >> 8) & 0xFF,
-                bossState.xpReward & 0xFF, (bossState.xpReward >> 8) & 0xFF,
-                bossState.arenaCenterX,
-                bossState.bossPlacement,
+            writeMemory(ADDR_BOSS_STATE_BLOCK, [
+                bossState.bossX & 0xFF, (bossState.bossX >> 8) & 0xFF,            // +0
+                bossState.bossY,                                                  // +2
+                bossState.bossHP & 0xFF, (bossState.bossHP >> 8) & 0xFF,          // +3
+                bossState.xpReward & 0xFF, (bossState.xpReward >> 8) & 0xFF,      // +5
+                bossState.arenaCenterX,                                           // +7
+                bossState.bossPlacement,                                          // +8
+                bossState.almasReward & 0xFF, (bossState.almasReward >> 8) & 0xFF,// +9
             ]);
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(bossState.bossName);
+            const terminated = new Uint8Array(bytes.length + 1);
+            terminated.set(bytes); // terminated[bytes.length] already 0 by default
+            writeMemory(ADDR_BOSS_STATE_BLOCK + 11, terminated);                  // +11
+
             writeMemory(ADDR_BOSS_STATE_PTR, [
-                block & 0xFF, (block >> 8) & 0xFF,
+                ADDR_BOSS_STATE_BLOCK & 0xFF, (ADDR_BOSS_STATE_BLOCK >> 8) & 0xFF,
             ]);
         }
         // set sword reachability list

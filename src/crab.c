@@ -4,14 +4,14 @@
  * This is a boss-encounter overlay module, structurally similar to the
  * eai*.asm monster-AI overlays: it is loaded at a fixed segment
  * address and exports an entry point (Cangrejo_AI_proc) plus a shared
- * "boss_state_block" (boss_x/boss_y/boss_hp/xp_reward/name, etc.) that
- * generic engine code elsewhere (health bar, victory/reward handling,
+ * "boss_state_block" injected by game.js, that
+ * generic engine uses elsewhere (health bar, victory/reward handling,
  * name display) reads via a fixed offset, regardless of which specific
  * boss module is currently loaded.
  *
  * Scope of this translation
  * ------------------------------------------------------------------
- * As with eai2.c, this file translates the AI/gameplay logic only.
+ * This file translates the AI/gameplay logic only.
  * The following are NOT translated, since they are sprite/animation
  * *asset* data read by a separate, generic boss-rendering routine
  * (via fixed offsets into this overlay, exactly like eai2.asm's frame
@@ -44,9 +44,7 @@
  *   as in eai1.c/eai2.c.
  * - boss_state_block's own fields (boss_x, boss_hp, body_anim_state,
  *   the various phase-flag and step-index fields, etc.) are
- *   module-private storage, so they are kept as plain static globals
- *   (matching how
- *   eai2.c kept its own per-module statics), not MEM8-addressed.
+ *   shared data MEM8-addressed.
  * - Local helpers that the original tested with jb/jnb (carry) return
  *   an int that IS the carry flag, exactly as in eai1.c/eai2.c.
  * - is_in_proximity_window, Get_Stats, Draw_Boss_Health, and the various
@@ -58,27 +56,6 @@
  */
 
 #include "zeliard.h"
-
-/*
- * boss_state_block - module-private state (plain statics, see note
- * above). Field offsets from the original are noted for reference;
- * nothing outside this file addresses them by offset.
- */
-static uint16_t boss_x = 0x2B;                  // +0
-static uint8_t  boss_y = 0x0C;                   // +2
-static uint16_t boss_hp = 150;                    // +3
-static uint16_t xp_reward = 120;                   // +5
-static uint8_t  arena_center_x = 0x0C;               // +7
-static uint8_t  boss_placement = 0;                 // +8
-/* name_block_ptr / almas_reward / name_screen_x / name_screen_y /
- * boss_name_pstring are exported boss-info consumed by other, generic
- * "boss encounter" engine code (reward granting, name display); kept
- * here only for documentation completeness, not used by the AI logic
- * below. */
-static const uint8_t almas_reward = 150;
-static const uint8_t name_screen_x = 0x10;
-static const uint8_t name_screen_y = 0xBB;
-static const char    boss_name[] = "Cangrejo";
 
 static uint8_t active_sprite_count = 0;
 static uint8_t hit_monster_flags = 0;
@@ -110,20 +87,19 @@ static uint8_t death_timer = 0; // counts up during the death sequence
  */
 static const uint8_t crab_layout_normal[60] = {
     0xFF,0xFF,0xFF,0x00,0xFF,0x01,0xFF,0xFF,0xFF,0xFF,
-    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
-    0xFF,0x02,0xFF,0x03,0xFF,0x04,0xFF,0x05,0xFF,0x06,0xFF,0xFF,
-    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
-    0x07,0xFF,0x10,0xFF,0x11,0xFF,0x12,0xFF,0x08,0xFF,0xFF,
-    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+    0x02,0xFF,0x03,0xFF,0x04,0xFF,0x05,0xFF,0x06,0xFF,
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+    0x07,0xFF,0x10,0xFF,0x11,0xFF,0x12,0xFF,0x08,0xFF,
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
 };
 static const uint8_t crab_layout_acid_drip[60] = {
     0xFF,0xFF,0xFF,0xFF,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,
     0xFF,0xFF,0x03,0xFF,0xFF,0xFF,0x05,0xFF,0xFF,0xFF,
     0x02,0xFF,0xFF,0xFF,0x14,0xFF,0xFF,0xFF,0x06,0xFF,
-    0xFF,0xFF,0x90,0xFF,0xFF,0xFF,0x12,0xFF,0xFF,
-    0xFF,0xFF,0x07,0xFF,0xFF,0xFF,0xFF,0xFF,0x08,0xFF,
-    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
-    0xFF,0xFF
+    0xFF,0xFF,0x90,0xFF,0xFF,0xFF,0x12,0xFF,0xFF,0xFF,
+    0xFF,0x07,0xFF,0xFF,0xFF,0xFF,0xFF,0x08,0xFF,0xFF,
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
 };
 static const uint8_t *body_state_to_layout_table[10] = {
     crab_layout_normal, crab_layout_normal, crab_layout_normal,
@@ -176,8 +152,7 @@ void Cangrejo_AI(uint16_t m)
         if (!is_in_proximity_window(MEM16(si + 0), &rel)) {
             MEM8(si + 3) = rel; // .m_x_rel
 
-            uint16_t coords = MEM16(si + 2); // .currY | (.m_x_rel << 8)
-            uint16_t di = coords_to_prox_addr((uint8_t)(coords >> 8), (uint8_t)coords);
+            uint16_t di = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
             MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count);
 
             if (MEM8(si + 5) & 0x40) { // .ai_flags: this part was hit this frame
@@ -211,7 +186,8 @@ void Cangrejo_AI(uint16_t m)
         uint16_t map_w = MEM16(ADDR_MAP_WIDTH);
         if (bound >= map_w) bound = map_w;
 
-        if ((uint16_t)(boss_x + 5) < bound) {
+        uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
+        if ((MEM16(boss_state + 0) + 5) < bound) { // .boss_x
             boss_move_left();
             boss_move_left();
         } else {
@@ -257,8 +233,9 @@ void Cangrejo_AI(uint16_t m)
  * 0 if it stepped one column left. */
 static int boss_move_left(void)
 {
-    if (boss_x != 16) {
-        boss_x--;
+    uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
+    if (MEM16(boss_state + 0) != 16) { // .boss_x
+        MEM16(boss_state + 0)--;
         return 0;
     }
     return 1;
@@ -268,8 +245,9 @@ static int boss_move_left(void)
  * 0 if it stepped one column right. */
 static int boss_move_right(void)
 {
-    if (boss_x != 49) {
-        boss_x++;
+    uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
+    if (MEM16(boss_state + 0) != 49) { // .boss_x
+        MEM16(boss_state + 0)++;
         return 0;
     }
     return 1;
@@ -300,6 +278,7 @@ static void acid_approach_step(void)
  * frame while phase_placing_droplet is active. */
 static void trigger_acid_drop(void)
 {
+    uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
     if (!phase_placing_droplet) {
         /* first entry: trigger_acid_drop proper - pick a target column
          * and initial movement direction, then fall through */
@@ -307,7 +286,7 @@ static void trigger_acid_drop(void)
         uint16_t map_w = MEM16(ADDR_MAP_WIDTH);
         uint16_t bound = (left_plus_12 < map_w) ? map_w : (uint16_t)(left_plus_12 - map_w);
 
-        movement_direction_flag = ((uint16_t)(boss_x + 5) < bound) ? 0xFF : 0x00;
+        movement_direction_flag = ((MEM16(boss_state + 0) + 5) < bound) ? 0xFF : 0x00; // .boss_x
         phase_acid_dropping = 0;
         descent_seq_index = 0;
         phase_placing_droplet = 0xFF;
@@ -327,7 +306,7 @@ static void trigger_acid_drop(void)
         uint8_t shifted = nibble >> 1;
         uint8_t carry_out = nibble & 1;
         uint8_t step = (uint8_t)(shifted - carry_out);
-        boss_y = (uint8_t)((boss_y + step) & 0x3F);
+        MEM8(boss_state + 2) = ((MEM8(boss_state + 2) + step) & 0x3F);
     }
 
     if (seq & 0xF0) {
@@ -407,13 +386,14 @@ static void death_sequence_handler(void)
  * health bar, and start the death sequence the first time HP reaches 0. */
 static void apply_damage_to_boss(uint16_t damage)
 {
-    int32_t hp = (int32_t)boss_hp - (int32_t)damage;
+    uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
+    int16_t hp = MEM16(boss_state + 3) - damage; // .boss_hp
     if (hp < 0) hp = 0;
-    boss_hp = (uint16_t)hp;
+    MEM16(boss_state + 3) = (uint16_t)hp;
 
     Draw_Boss_Health();
 
-    if (boss_hp != 0) return;
+    if (MEM16(boss_state + 3) != 0) return;
 
     if (MEM8(ADDR_BOSS_BEING_HIT)) return; // death sequence already started
 
@@ -427,8 +407,9 @@ static void apply_damage_to_boss(uint16_t damage)
  * through (render_droplets_entities) into the acid-droplet spawn/placement logic. */
 static void render_body_entities(void)
 {
+    uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
     const uint8_t *layout = body_state_to_layout_table[body_anim_state];
-    crab_entity_row = boss_y;
+    crab_entity_row = MEM8(boss_state + 2); // .boss_y
 
     uint16_t base = MEM16(ADDR_MONSTERS_LIST);
     uint16_t si = base;
@@ -436,7 +417,7 @@ static void render_body_entities(void)
 
     for (uint8_t row = 0; row < 6; row++) {
         const uint8_t *row_layout = layout + (uint16_t)row * 10;
-        uint16_t col_x = boss_x;
+        uint16_t col_x = MEM16(boss_state + 0); // .boss_x
 
         for (uint8_t col = 0; col < 10; col++) {
             MEM16(si + 0) = col_x; // .currX (tentative)
@@ -451,8 +432,7 @@ static void render_body_entities(void)
                     MEM8(si + 5) = (hit_monster_flags != 0) ? 0x20 : 0x00; // .ai_flags: hit-flash
                     MEM8(si + 6) = body_anim_state;        // .anim_counter
 
-                    uint16_t coords = MEM16(si + 2); // .currY | (.m_x_rel << 8)
-                    uint16_t di = coords_to_prox_addr((uint8_t)(coords >> 8), (uint8_t)coords);
+                    uint16_t di = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
                     uint8_t old_tile = MEM8(di);
                     MEM8(di) = (uint8_t)(active_sprite_count | 0x80);
                     MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count) = old_tile;
@@ -491,8 +471,8 @@ static void render_body_entities(void)
 
         spawn_seq_index = 0;
         phase_spawning_droplet = 0xFF;
-        droplet_target_x = (uint16_t)(boss_x + 4);
-        droplet_target_y = (uint8_t)((boss_y + 3) & 0x3F);
+        droplet_target_x = (MEM16(boss_state + 0) + 4);
+        droplet_target_y = ((MEM8(boss_state + 2) + 3) & 0x3F);
     }
 
 spawn_tick: {
@@ -517,8 +497,7 @@ spawn_tick: {
         MEM8(si + 5) = 0;                     // .ai_flags
         MEM16(si + 0x10) = 0xFFFF;            // fresh terminator right after this entry
 
-        uint16_t coords = MEM16(si + 2); // .currY | (.m_x_rel << 8)
-        uint16_t addr = coords_to_prox_addr((uint8_t)(coords >> 8), (uint8_t)coords);
+        uint16_t addr = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
         uint8_t old_tile = MEM8(addr);
         MEM8(addr) = (uint8_t)(active_sprite_count | 0x80);
         MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count) = old_tile;
