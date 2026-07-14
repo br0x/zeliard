@@ -9,10 +9,7 @@ let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
 // Memory layout constants (must match zeliard.h)
 // These are offsets within g_mem, not absolute WASM memory offsets
 const ADDR_MDT = 0xC000;
-const ADDR_PROXIMITY_MAP = 0xE000;
-const ADDR_VIEWPORT_ENTITIES = 0xE900;
 const MEM_SAVE_DATA = 0x0000;
-const MEM_INPUT_BUFFER = 0xFF16; // 4 bytes
 const MEMORY_SIZE = 64 * 1024 * 1024; // 64MB
 const SEG1_BASE = 0x10000;
 
@@ -657,150 +654,6 @@ export function setDeathDescriptors(descriptors) {
     }
 }
 
-/**
- * Get monster buffer (0xE900)
- * @returns {Uint8Array} View of monster buffer (28*19 bytes, 1 byte per monster)
- */
-export function getMonsterBuffer() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return null;
-    }
-
-    return new Uint8Array(wasmMemory.buffer, gMemoryBase + ADDR_VIEWPORT_ENTITIES, 28*19);
-}
-
-/**
- * Get save data
- * @returns {object} Save data structure
- */
-export function getSaveData() {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return null;
-    }
-
-    const offset = gMemoryBase + MEM_SAVE_DATA;
-
-    function readU8(addr) { return wasmMemory[addr]; }
-    function readU16(addr) { return wasmMemory[addr] | (wasmMemory[addr + 1] << 8); }
-
-    return {
-        hero_level: readU8(offset + 0x8D),
-        hero_hp: readU16(offset + 0x90),
-        heroMaxHp: readU16(offset + 0xB2),
-        hero_gold: readU16(offset + 0x86),
-        hero_almas: readU16(offset + 0x8B),
-        sword_type: readU8(offset + 0x92),
-        shield_type: readU8(offset + 0x93),
-        starting_direction: readU8(offset + 0xC2)
-    };
-}
-
-/**
- * Get input debug counter - verifies input code is running
- * @returns {number} Counter value
- */
-export function inputGetDebugCounter() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return 0;
-    }
-
-    if (wasmExports.input_get_debug_counter) {
-        return wasmExports.input_get_debug_counter();
-    }
-    return 0;
-}
-
-/**
- * Get debug input received by state machine
- * @returns {object} Debug info
- */
-export function getStateMachineDebug() {
-    if (!wasmMemory) {
-        return null;
-    }
-    
-    const offset = gMemoryBase;
-    const marker = wasmMemory[offset + 0xFFB5];
-    const locMarker = wasmMemory[offset + 0xFFC1];
-    const collisionMarker = wasmMemory[offset + 0xFFD2];
-    
-    const result = {
-        input_received: wasmMemory[offset + 0xFFB0],
-        on_rope_flags: wasmMemory[offset + 0xFFB1],
-        jump_phase_flags: wasmMemory[offset + 0xFFB2],
-        starting_direction: wasmMemory[offset + 0xFFB3],
-        squat_bit: wasmMemory[offset + 0xFFB4]
-    };
-    
-    if (locMarker === 0xCD) {
-        result.loc_663E_starting_dir = wasmMemory[offset + 0xFFC0];
-        result.loc_663E_step = wasmMemory[offset + 0xFFC2];
-        result.collision_result = wasmMemory[offset + 0xFFC3];
-        result.slippery = wasmMemory[offset + 0xFFC4];
-    }
-    
-    if (collisionMarker === 0xDD) {
-        result.hero_x_viewport = wasmMemory[offset + 0xFFD0];
-        result.hero_y_viewport = wasmMemory[offset + 0xFFD1];
-        result.di_offset = wasmMemory[offset + 0xFFD3] | (wasmMemory[offset + 0xFFD4] << 8);
-        result.collision_step = wasmMemory[offset + 0xFFD5];
-        result.tile_at_si = wasmMemory[offset + 0xFFD6];
-        result.tile_below = wasmMemory[offset + 0xFFD7];
-    }
-    
-    return result;
-}
-
-/**
- * Get input debug data
- * @returns {object|null} Input debug info
- */
-export function getInputDebug() {
-    if (!wasmMemory) {
-        return null;
-    }
-    
-    const offset = gMemoryBase;
-    
-    // Read from input buffer at 0xFF16
-    const inputBufferValue = wasmMemory[offset + 0xFF16];
-    
-    return {
-        input_buffer: inputBufferValue,
-        gMemoryBase: gMemoryBase
-    };
-}
-
-/**
- * Set hero position in WASM save data
- * @param {number} x - Hero absolute X position (proximity_map_left_col_x)
- * @param {number} y - Hero Y position (hero_y_rel)
- */
-export function setHeroPosition(x, y) {
-    if (!wasmMemory) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    const offset = gMemoryBase + MEM_SAVE_DATA;
-    const heroStatsOffset = 0x80;  // Matches Fight.asm offset
-    
-    // Set proximity_map_left_col_x (uint16 little-endian)
-    wasmMemory[offset + heroStatsOffset] = x & 0xFF;
-    wasmMemory[offset + heroStatsOffset + 1] = (x >> 8) & 0xFF;
-    
-    // Set hero_y_rel (uint8)
-    wasmMemory[offset + heroStatsOffset + 2] = y & 0xFF;
-    
-    // Set hero_x_in_viewport to 16 (center of 36-column proximity map)
-    wasmMemory[offset + heroStatsOffset + 3] = 16;
-    
-    // Set hero_head_y_in_viewport (height above ground, typically 2-4)
-    wasmMemory[offset + heroStatsOffset + 4] = 4;
-}
 
 /**
  * Read raw bytes from WASM memory
@@ -888,28 +741,6 @@ export function inputSetKeys(keys) {
         wasmExports.wasm_set_input_keys(bitmask);
     }
 }
-
-function writeTownInputBytes(keys) {
-    if (!wasmMemory) return;
-
-    const offset = gMemoryBase;
-    let dirs = 0;
-    if (keys & INPUT_FLAGS.UP) dirs |= 0x01;
-    if (keys & INPUT_FLAGS.DOWN) dirs |= 0x02;
-    if (keys & INPUT_FLAGS.LEFT) dirs |= 0x04;
-    if (keys & INPUT_FLAGS.RIGHT) dirs |= 0x08;
-
-    wasmMemory[offset + 0xFF17] = dirs;
-    wasmMemory[offset + 0xFF18] = (keys & INPUT_FLAGS.ENTER) ? 0x01 : 0x00;
-    wasmMemory[offset + 0xFF16] =
-        ((keys & INPUT_FLAGS.SPACE) ? 0x01 : 0x00) |
-        ((keys & INPUT_FLAGS.ALT) ? 0x02 : 0x00);
-}
-
-// ============================================================================
-// Boss Battle API
-// ============================================================================
-
 
 export function getTownPendingTransitionFlag() {
     if (!wasmMemory) return 0;
