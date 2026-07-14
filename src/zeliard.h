@@ -678,28 +678,16 @@ typedef enum {
 // Initialize the dungeon engine
 void wasm_init(void);
 
-// Get pointer to MDT header
-MDTHeader* wasm_get_mdt_header(void);
-
-// Get monster buffer (0xE900)
-uint8_t* wasm_get_monster_buffer(void);
-
-// Get proximity map (0xE000)
-uint8_t* wasm_get_proximity_map(void);
-
-// Get save data (0x0000)
-SaveData* wasm_get_save_data(void);
-
 void prepare_dungeon(uint8_t is_from_town);
 
 void Cavern_Game_Init();
 
 // Monster AI
-void load_eai_module(uint8_t level_index);
+void Monster_AI(uint16_t m); // generic entry
+void load_eai_module(uint8_t level_index); // enemy AI dispatcher
 void Monster_AI_1(uint16_t m);
 void Monster_AI_2(uint16_t m);
 void Cangrejo_AI(uint16_t m);
-void Monster_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
@@ -712,7 +700,6 @@ void Draw_Hero_Health();
 void Draw_Boss_Health();
 
 // Input Handling
-void input_update(void);
 void input_set_keys(uint8_t keys);
 uint8_t input_get_current_keys(void);
 uint8_t input_get_pressed_keys(void);
@@ -741,7 +728,6 @@ void update_horizontal_platforms(void);
 void hero_interaction_check(void);
 
 // Combat System
-void combat_init(void);
 void Hero_Hits_monster(uint16_t monster);
 uint8_t Get_Stats(uint8_t request_type);
 uint8_t get_combat_timer(void);
@@ -854,58 +840,13 @@ void Load_Magic_Spell_Sprite_Group_proc();
 void Reassemble_3_Planes_To_Packed_Bitmap_proc(uint32_t ptr, uint8_t num_tiles);
 void Render_Sword_Overlay();
 
-// Collision Detection wrappers for MonsterEntry
-int check_collision_E2_monster(Monster* m);
-int check_collision_W2_monster(Monster* m);
-int check_collision_N2_monster(Monster* m);
-int check_collision_S2_monster(Monster* m);
-int check_collision_NE2_monster(Monster* m);
-int check_collision_SE2_monster(Monster* m);
-int check_collision_NW2_monster(Monster* m);
-int check_collision_SW2_monster(Monster* m);
-
-// Run one game frame
-void wasm_update(void);
-
 // Debug logging — calls js_log import on the JS side
 void debug_log(const char *msg);
 void debug_printf(const char *fmt, ...);
 
-// Debug: dump memory region
-void wasm_debug_dump(uint16_t offset, uint16_t length);
-
-// ============================================================================
-// Physics API (Hero jump, rope physics)
-// ============================================================================
-
-// Initialization
-void physics_init(void);
-void physics_update(void);
-
-// Jump physics
-void sub_64BB(void);           // Jump trajectory calculation
-void update_jump_trajectory(void);
-
 // Rope physics
-void sub_6DB1(void);           // Rope position update
-void start_climb_rope(void);   // Start climbing rope
-void climb_up_rope(void);      // Climb up on rope
-void climb_down_rope(void);    // Climb down on rope
 uint8_t is_over_rope(uint16_t si); // Check if over rope tile
 
-// Tile helpers
-int is_walkable_tile(uint8_t tile);
-
-// State accessors
-uint8_t get_jump_phase_flags(void);
-void set_jump_phase_flags(uint8_t flags);
-uint8_t get_on_rope_flags(void);
-void set_on_rope_flags(uint8_t flags);
-int is_on_ground(void);
-int is_jumping(void);
-int is_on_rope(void);
-
-//==============================
 // From gfmcga.c
 
 // Loads the 3×3 block of tile indices around the hero’s current position from the proximity map 

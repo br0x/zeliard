@@ -45,25 +45,6 @@ uint32_t get_memory_base(void) {
 // Helper Functions
 // ============================================================================
 
-// Get save data structure
-SaveData* wasm_get_save_data(void) {
-    return (SaveData*)&g_mem[MEM_SAVE_DATA];
-}
-
-// Get MDT header
-MDTHeader* wasm_get_mdt_header(void) {
-    return (MDTHeader*)&g_mem[ADDR_MDT];
-}
-
-// Get monster buffer
-uint8_t* wasm_get_monster_buffer(void) {
-    return &g_mem[ADDR_VIEWPORT_ENTITIES];
-}
-
-// Get proximity map
-uint8_t* wasm_get_proximity_map(void) {
-    return &g_mem[ADDR_PROXIMITY_MAP];
-}
 
 // Import provided by JS (reads string from WASM linear memory and console.logs it)
 extern void js_log(const char *msg);
@@ -79,10 +60,4 @@ void debug_printf(const char *fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
     js_log(buf);
-}
-
-// Debug dump - just a marker, JS reads memory directly
-void wasm_debug_dump(uint16_t offset, uint16_t length) {
-    (void)offset;
-    (void)length;
 }

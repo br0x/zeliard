@@ -803,20 +803,6 @@ export function setHeroPosition(x, y) {
 }
 
 /**
- * Run one game frame update
- */
-export function update() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-    
-    if (wasmExports.wasm_update) {
-        wasmExports.wasm_update();
-    }
-}
-
-/**
  * Read raw bytes from WASM memory
  * @param {number} offset - Memory offset (relative to g_mem base)
  * @param {number} length - Number of bytes to read
@@ -877,21 +863,6 @@ export function debugDump(offset, length) {
 // Input Handling API
 // ============================================================================
 
-
-/**
- * Update input state (compute edge-triggered inputs)
- * Call every frame before reading input
- */
-export function inputUpdate() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.input_update) {
-        wasmExports.input_update();
-    }
-}
 
 /**
  * Set current key state
@@ -1170,19 +1141,6 @@ export function updateHorizontalPlatforms() {
 // Combat API
 // ============================================================================
 
-/**
- * Initialize combat system
- */
-export function combatInit() {
-    if (!wasmExports) {
-        console.error('WASM not initialized');
-        return;
-    }
-
-    if (wasmExports.combat_init) {
-        wasmExports.combat_init();
-    }
-}
 
 /**
  * Get combat timer (death animation timer)

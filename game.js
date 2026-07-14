@@ -689,7 +689,6 @@ let getTownName;
 let getMusicTrackId;
 let getTownBackgroundType;
 let getTownPatId;
-let inputUpdate;
 let inputSetKeys;
 let heroMovementInit;
 let townToDungeonTransition;
@@ -698,7 +697,6 @@ let heroGetDirection;
 let heroGetState;
 let heroIsMoving;
 let updateHorizontalPlatforms;
-let combatInit;
 let initBossBattle;
 let inputGetDebugCounter;
 let getWasmMemory;
@@ -892,7 +890,6 @@ function onFullTick() {
             // doesn't starve dungeonUpdate() and cause frame skips
             const isRokaRun = readMemory(ADDR_DUNGEON_STATE, 1)[0] === DUNGEON_STATE_ROKA_RUN;
             if (isRokaRun || frameTmr >= target) {
-                inputUpdate?.();
                 dungeonUpdate?.();
                 if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
                     if (readMemory(ADDR_HERO_DEATH_FLAG, 1)[0] === 0xFF) {
@@ -908,7 +905,6 @@ function onFullTick() {
                 }
             }
         } else if (frameTmr >= target) { // town mode
-            inputUpdate?.();
             townUpdate?.();
             const scrollFlag = readMemory(0xfff0, 1)[0];
             if (scrollFlag) {
@@ -1348,10 +1344,10 @@ async function loadWasmEngine() {
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,
-        getTownPatId, inputUpdate, inputSetKeys,
+        getTownPatId, inputSetKeys,
         heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
         heroGetState, heroIsMoving, updateHorizontalPlatforms,
-        combatInit, initBossBattle, inputGetDebugCounter, getWasmMemory, townInit,
+        initBossBattle, inputGetDebugCounter, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
