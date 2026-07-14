@@ -85,6 +85,7 @@ extern "C" {
 #define ADDR_HERO_HP                  0x90    // word
 #define ADDR_SWORD_TYPE               0x92
 #define ADDR_SHIELD_TYPE              0x93
+#define ADDR_SHIELD_HP                0x94    // word
 #define ADDR_KEYS_AMOUNT              0x98
 #define ADDR_LION_KEYS_AMOUNT         0x99
 #define ADDR_CREST_OF_GLORY           0x9B    // byte
@@ -195,7 +196,7 @@ extern "C" {
 #define ADDR_ASSETS_LOAD_REQUEST    0xFF97  // byte
 #define ADDR_ASSETS_LOADED          0xFF98  // byte
 #define ADDR_HEALTH_BAR_REQUEST     0xFF99  // byte: 0xFF = JS should call drawLifeBar()
-#define ADDR_MUSIC_LOAD_REQUEST     0xFF9A  // byte
+#define ADDR_SHIELD_HP_RENDER_REQUEST 0xFF9A  // byte
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
 #define ADDR_ROKA_PHASE             0xFF9D  // byte: roka_run animation step (0..25)

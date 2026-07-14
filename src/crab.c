@@ -21,8 +21,8 @@
  *   - anim_frame_table_ptrs0_8 / anim_frame_table_ptrs9_15
  *   - left_eye_frames .. acid_drop_frames (all per-part pixel/tile
  *     frame tables)
- * The body_state_to_layout_table / col_layout_normal /
- * col_layout_acid_drip tables ARE translated, since render_body_sprites
+ * The body_state_to_layout_table / crab_layout_normal /
+ * crab_layout_acid_drip tables ARE translated, since render_body_entities
  * uses them directly to decide which of the boss's 6x10 body-part
  * slots produce a hittable pseudo-monster sprite this frame.
  *
@@ -86,10 +86,10 @@ static uint8_t hit_monster_flags = 0;
  * bits 4-0 = ai_flags & 0x1F of the part that was hit this frame.
  * Non-zero means a part was struck this frame. */
 static uint8_t body_anim_state = 0;
-/* Selects which body column-layout table to use (0-8 -> col_layout_normal;
- * 9 -> col_layout_acid_drip). Also drives the leg-cycle animation:
+/* Selects which body column-layout table to use (0-8 -> crab_layout_normal;
+ * 9 -> crab_layout_acid_drip). Also drives the leg-cycle animation:
  * increments 0->5 while moving right, decrements 5->0 while moving left. */
-static uint8_t col_y_render_offset = 0;
+static uint8_t crab_entity_row = 0;
 static uint8_t movement_direction_flag = 0; // 0x00 = toward min X (left); 0xFF = toward max X (right)
 static uint8_t movement_tick_counter = 0;
 static uint8_t phase_acid_dropping = 0;      // 0xFF while the acid-drop approach is active
@@ -106,9 +106,9 @@ static uint8_t death_timer = 0; // counts up during the death sequence
 
 
 /*
- * Body-part hit-test layout tables (used directly by render_body_sprites)
+ * Body-part hit-test layout tables (used directly by render_body_entities)
  */
-static const uint8_t col_layout_normal[60] = {
+static const uint8_t crab_layout_normal[60] = {
     0xFF,0xFF,0xFF,0x00,0xFF,0x01,0xFF,0xFF,0xFF,0xFF,
     0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
     0xFF,0x02,0xFF,0x03,0xFF,0x04,0xFF,0x05,0xFF,0x06,0xFF,0xFF,
@@ -116,7 +116,7 @@ static const uint8_t col_layout_normal[60] = {
     0x07,0xFF,0x10,0xFF,0x11,0xFF,0x12,0xFF,0x08,0xFF,0xFF,
     0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
 };
-static const uint8_t col_layout_acid_drip[60] = {
+static const uint8_t crab_layout_acid_drip[60] = {
     0xFF,0xFF,0xFF,0xFF,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,
     0xFF,0xFF,0x03,0xFF,0xFF,0xFF,0x05,0xFF,0xFF,0xFF,
     0x02,0xFF,0xFF,0xFF,0x14,0xFF,0xFF,0xFF,0x06,0xFF,
@@ -126,10 +126,10 @@ static const uint8_t col_layout_acid_drip[60] = {
     0xFF,0xFF
 };
 static const uint8_t *body_state_to_layout_table[10] = {
-    col_layout_normal, col_layout_normal, col_layout_normal,
-    col_layout_normal, col_layout_normal, col_layout_normal,
-    col_layout_normal, col_layout_normal, col_layout_normal,
-    col_layout_acid_drip
+    crab_layout_normal, crab_layout_normal, crab_layout_normal,
+    crab_layout_normal, crab_layout_normal, crab_layout_normal,
+    crab_layout_normal, crab_layout_normal, crab_layout_normal,
+    crab_layout_acid_drip
 };
 
 static const uint8_t acid_approach_body_states[8] = { 7,7,8,8,8,8,8,6 };
@@ -153,7 +153,7 @@ static void trigger_acid_drop(void);          // trigger_acid_drop / loc_A4B9
 static void begin_recoil(void);                // begin_recoil / loc_A5D3
 static void death_sequence_handler(void);
 static void apply_damage_to_boss(uint16_t damage);
-static void render_body_sprites(void);         // + loc_A501 continuation
+static void render_body_entities(void);         // + render_droplets_entities continuation
 
 
 /*
@@ -193,7 +193,7 @@ void Cangrejo_AI(uint16_t m)
         si += 16;
     }
 
-    /* Reset the sprite table; render_body_sprites() will repopulate it
+    /* Reset the sprite table; render_body_entities() will repopulate it
      * fresh this frame. */
     si = base;
     MEM16(si) = 0xFFFF;
@@ -232,24 +232,24 @@ void Cangrejo_AI(uint16_t m)
 
     if (movement_direction_flag == 0) { // moving left
         movement_tick_counter++;
-        if (movement_tick_counter & 1) { render_body_sprites(); return; }
+        if (movement_tick_counter & 1) { render_body_entities(); return; }
 
         if (boss_move_left()) { // blocked at the left bound
             movement_direction_flag = 0xFF;
         }
         body_anim_state++;
         if (body_anim_state >= 6) body_anim_state = 0;
-        render_body_sprites();
+        render_body_entities();
     } else { // moving right
         movement_tick_counter++;
-        if (movement_tick_counter & 1) { render_body_sprites(); return; }
+        if (movement_tick_counter & 1) { render_body_entities(); return; }
 
         if (boss_move_right()) { // blocked at the right bound
             movement_direction_flag = 0;
         }
         body_anim_state--;
         if (body_anim_state == 0xFF) body_anim_state = 5;
-        render_body_sprites();
+        render_body_entities();
     }
 }
 
@@ -292,7 +292,7 @@ static void acid_approach_step(void)
         return;
     }
     body_anim_state = acid_approach_body_states[acid_step_index];
-    render_body_sprites();
+    render_body_entities();
 }
 
 /* trigger_acid_drop: fires once when the approach animation completes
@@ -338,7 +338,7 @@ static void trigger_acid_drop(void)
         }
     }
 
-    render_body_sprites();
+    render_body_entities();
     descent_seq_index++;
 }
 
@@ -359,7 +359,7 @@ static void begin_recoil(void)
     if (recoil_step_index == 4) {
         phase_recoil = 0;
     }
-    render_body_sprites();
+    render_body_entities();
 }
 
 /* death_sequence_handler: runs every frame once the boss has been
@@ -380,7 +380,7 @@ static void death_sequence_handler(void)
     if (death_timer >= 0x14) {
         death_timer++;
         body_anim_state = 8;
-        render_body_sprites();
+        render_body_entities();
         return;
     }
 
@@ -400,7 +400,7 @@ static void death_sequence_handler(void)
             movement_direction_flag = 0xFF;
         }
     }
-    render_body_sprites();
+    render_body_entities();
 }
 
 /* apply_damage_to_boss: subtract damage (clamped at 0), redraw the
@@ -421,14 +421,14 @@ static void apply_damage_to_boss(uint16_t damage)
     MEM8(ADDR_BOSS_BEING_HIT) = 0xFF;
 }
 
-/* render_body_sprites: lay out the boss's 6 body rows x 10 columns
+/* render_body_entities: lay out the boss's 6 body rows x 10 columns
  * using the layout table selected by body_anim_state, turning each
  * non-0xFF cell into a hittable pseudo-monster sprite entry. Falls
- * through (loc_A501) into the acid-droplet spawn/placement logic. */
-static void render_body_sprites(void)
+ * through (render_droplets_entities) into the acid-droplet spawn/placement logic. */
+static void render_body_entities(void)
 {
     const uint8_t *layout = body_state_to_layout_table[body_anim_state];
-    col_y_render_offset = boss_y;
+    crab_entity_row = boss_y;
 
     uint16_t base = MEM16(ADDR_MONSTERS_LIST);
     uint16_t si = base;
@@ -446,7 +446,7 @@ static void render_body_sprites(void)
                 uint8_t tile = row_layout[col];
                 if (tile != 0xFF) {
                     MEM8(si + 4) = tile;             // .flags <- part/tile index
-                    MEM8(si + 2) = col_y_render_offset; // .currY
+                    MEM8(si + 2) = crab_entity_row; // .currY
                     MEM8(si + 3) = rel;                  // .m_x_rel
                     MEM8(si + 5) = (hit_monster_flags != 0) ? 0x20 : 0x00; // .ai_flags: hit-flash
                     MEM8(si + 6) = body_anim_state;        // .anim_counter
@@ -465,12 +465,12 @@ static void render_body_sprites(void)
             col_x++;
         }
 
-        col_y_render_offset = (uint8_t)((col_y_render_offset + 1) & 0x3F);
+        crab_entity_row = (uint8_t)((crab_entity_row + 1) & 0x3F);
     }
 
     MEM16(si) = 0xFFFF; // terminator after the last written sprite
 
-    /* --- loc_A501: acid-droplet spawn/placement continuation --- */
+    /* --- render_droplets_entities: acid-droplet spawn/placement continuation --- */
     if (phase_spawning_droplet) {
         goto spawn_tick;
     }
@@ -478,7 +478,7 @@ static void render_body_sprites(void)
         return;
     }
     {
-        /* loc_A510: find the boss's dedicated acid-droplet visual
+        /* placing_droplet: find the boss's dedicated acid-droplet visual
          * entry (a fixed monster.flags == 0x14 "boss prop" placed by
          * the room/engine setup elsewhere) and drive its animation
          * from the descent sequence. */

@@ -3030,10 +3030,9 @@ loc_710F:
                 call    cs:Refresh_Dirty_Tiles_proc
                 test    byte ptr ds:sprite_flash_flag, 0FFh
                 jz      short loc_7125
-; combine 3x3 body, 3x3 left hand (with or without shield), 3x3 right hand from fman.grp
-; with optional 4x4 sword from sword.grp into complete hero image, depending on animation phase
+                ; if boss just killed - launch explosion animation
                 call    cs:Boss_Explosions_Renderer_proc
-                mov     byte ptr ds:byte_FF24, 0Ah
+                mov     byte ptr ds:byte_FF24, 10
 
 loc_7125:        
                 mov     cl, ds:speed_const
@@ -3096,28 +3095,28 @@ increase_hp:
                 call    cs:Draw_Hero_Health_proc
 
 loc_71C2:        
-                test    ds:byte_9F1E, 0FFh
+                test    ds:boss_reward_processed, 0FFh
                 jz      short loc_71CC
                 jmp     load_place_and_reinit
 ; ---------------------------------------------------------------------------
 
-loc_71CC:        
+loc_71CC:       ; check if we need to process reward for killed boss
                 test    byte ptr ds:is_boss_cavern, 0FFh
-                jz      short loc_71FA
+                jz      short loc_71FA ; not a boss cavern
                 test    byte ptr ds:boss_is_dead, 0FFh
-                jz      short loc_71FA
+                jz      short loc_71FA ; boss is alive
                 cmp     byte ptr ds:boss_explosion_rings_list, 0FFh
-                jne     short loc_71FA
+                jne     short loc_71FA ; explosion rings are still in progress
                 mov     si, ds:boss_state_block_ptr
                 add     si, 5
-                lodsw  ; xp_reward
-                push    si
+                lodsw  ; state+5 = xp_reward
+                push    si ; &state+7
                 call    update_hero_XP
                 pop     si
-                add     si, 4 ; almas_reward
+                add     si, 4 ; state+11 = almas_reward
                 lodsw
                 call    hero_got_almas  ; ax: almas to add
-                mov     ds:byte_9F1E, 0FFh
+                mov     ds:boss_reward_processed, 0FFh
 
 loc_71FA:        
                 test    byte ptr ds:boss_being_hit, 0FFh
@@ -3367,7 +3366,7 @@ loc_7386:
                 call    cs:Clear_HUD_Bar_proc
                 mov     ax, 1  ; fn1 (Stop) Silences all channels and halts the driver.
                 int     60h             ; mscadlib.drv
-                mov     ds:byte_9F1E, 0
+                mov     ds:boss_reward_processed, 0
                 jmp     Cavern_Game_Init
 load_place_and_reinit endp
 
@@ -4891,7 +4890,7 @@ process_mdt_descriptor proc near
                 mov     al, 0FFh
                 cmp     ah, ds:msd_index
                 je      short loc_7EB6
-                mov     byte ptr ds:byte_FF24, 0Ah
+                mov     byte ptr ds:byte_FF24, 10
                 mov     ds:msd_index, ah
                 mov     al, ah
 
@@ -10153,7 +10152,7 @@ byte_9F19       db 0
 hero_x_in_proximity_map dw 0  ; 9F1Ah
 door_target_y       db 0      ; 9F1Ch
 door_features       db 0      ; 9F1Dh
-byte_9F1E       db 0      
+boss_reward_processed  db 0   ; 9F1Eh
 ; ---- Projectile tracking ----
 last_projectile_index db 0 ; 9F1F
 ; ---- Ice slide state ----

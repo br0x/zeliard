@@ -329,7 +329,7 @@ seg000:A3E0                 jnz     short loc_A410
 seg000:A3E2                 inc     movement_tick_counter
 seg000:A3E6                 test    movement_tick_counter, 1
 seg000:A3EB                 jz      short loc_A3F0
-seg000:A3ED                 jmp     render_body_sprites
+seg000:A3ED                 jmp     render_body_entities
 seg000:A3F0 ; ---------------------------------------------------------------------------
 seg000:A3F0
 seg000:A3F0 loc_A3F0:
@@ -341,19 +341,19 @@ seg000:A3FA loc_A3FA:
 seg000:A3FA                 inc     body_anim_state
 seg000:A3FE                 cmp     body_anim_state, 6
 seg000:A403                 jnb     short loc_A408
-seg000:A405                 jmp     render_body_sprites
+seg000:A405                 jmp     render_body_entities
 seg000:A408 ; ---------------------------------------------------------------------------
 seg000:A408
 seg000:A408 loc_A408:
 seg000:A408                 mov     body_anim_state, 0
-seg000:A40D                 jmp     render_body_sprites
+seg000:A40D                 jmp     render_body_entities
 seg000:A410 ; ---------------------------------------------------------------------------
 seg000:A410
 seg000:A410 loc_A410:
 seg000:A410                 inc     movement_tick_counter
 seg000:A414                 test    movement_tick_counter, 1
 seg000:A419                 jz      short loc_A41E
-seg000:A41B                 jmp     render_body_sprites
+seg000:A41B                 jmp     render_body_entities
 seg000:A41E ; ---------------------------------------------------------------------------
 seg000:A41E
 seg000:A41E loc_A41E:
@@ -365,12 +365,12 @@ seg000:A428 loc_A428:
 seg000:A428                 dec     body_anim_state
 seg000:A42C                 cmp     body_anim_state, 0FFh
 seg000:A431                 jz      short loc_A436
-seg000:A433                 jmp     render_body_sprites
+seg000:A433                 jmp     render_body_entities
 seg000:A436 ; ---------------------------------------------------------------------------
 seg000:A436
 seg000:A436 loc_A436:
 seg000:A436                 mov     body_anim_state, 5
-seg000:A43B                 jmp     render_body_sprites
+seg000:A43B                 jmp     render_body_entities
 seg000:A43B Cangrejo_AI_proc endp
 seg000:A43B
 seg000:A43E
@@ -422,7 +422,7 @@ seg000:A471                 mov     bl, acid_step_index
 seg000:A475                 xor     bh, bh
 seg000:A477                 mov     al, acid_approach_body_states[bx]
 seg000:A47B                 mov     body_anim_state, al
-seg000:A47E                 jmp     render_body_sprites
+seg000:A47E                 jmp     render_body_entities
 seg000:A47E ; END OF FUNCTION CHUNK FOR Cangrejo_AI_proc
 seg000:A47E ; ---------------------------------------------------------------------------
 seg000:A481 acid_approach_body_states db 7, 7, 8, 8, 8, 8, 8, 6
@@ -485,23 +485,23 @@ seg000:A4F6 loc_A4F6:
 seg000:A4F6                 call    boss_move_right
 seg000:A4F9
 seg000:A4F9 loc_A4F9:
-seg000:A4F9                 call    render_body_sprites
+seg000:A4F9                 call    render_body_entities
 seg000:A4FC                 inc     descent_seq_index
 seg000:A500                 retn
 seg000:A500 trigger_acid_drop endp
 seg000:A500
 seg000:A501 ; ---------------------------------------------------------------------------
-seg000:A501 ; START OF FUNCTION CHUNK FOR render_body_sprites
+seg000:A501 ; START OF FUNCTION CHUNK FOR render_body_entities
 seg000:A501
-seg000:A501 loc_A501:
+seg000:A501 render_droplets_entities:
 seg000:A501                 test    phase_spawning_droplet, 0FFh
-seg000:A506                 jnz     short loc_A54A
+seg000:A506                 jnz     short spawning_droplet
 seg000:A508                 test    phase_placing_droplet, 0FFh
-seg000:A50D                 jnz     short loc_A510
+seg000:A50D                 jnz     short placing_droplet
 seg000:A50F                 retn
 seg000:A510 ; ---------------------------------------------------------------------------
 seg000:A510
-seg000:A510 loc_A510:                               ; monsters_table_addr
+seg000:A510 placing_droplet:                               ; monsters_table_addr
 seg000:A510                 mov     di, ds:0C010h
 seg000:A514
 seg000:A514 next_monster:
@@ -530,7 +530,7 @@ seg000:A543                 add     al, 3
 seg000:A545                 and     al, 3Fh
 seg000:A547                 mov     droplet_target_y, al
 seg000:A54A
-seg000:A54A loc_A54A:
+seg000:A54A spawning_droplet:
 seg000:A54A                 mov     bl, spawn_seq_index
 seg000:A54E                 xor     bh, bh
 seg000:A550                 inc     spawn_seq_index
@@ -577,7 +577,7 @@ seg000:A5AD                 xchg    al, [di]
 seg000:A5AF                 xor     bh, bh
 seg000:A5B1                 mov     [bx+0ED20h], al ; proximity_second_layer
 seg000:A5B5                 retn
-seg000:A5B5 ; END OF FUNCTION CHUNK FOR render_body_sprites
+seg000:A5B5 ; END OF FUNCTION CHUNK FOR render_body_entities
 seg000:A5B5 ; ---------------------------------------------------------------------------
 seg000:A5B6 acid_droplet_spawn_sequence db 80h, 80h, 80h, 80h, 80h, 81h, 82h, 3, 4, 0FFh
 seg000:A5C0
@@ -598,12 +598,12 @@ seg000:A5DD                 mov     body_anim_state, al
 seg000:A5E0                 inc     recoil_step_index
 seg000:A5E4                 cmp     recoil_step_index, 4
 seg000:A5E9                 jz      short loc_A5EE
-seg000:A5EB                 jmp     render_body_sprites
+seg000:A5EB                 jmp     render_body_entities
 seg000:A5EE ; ---------------------------------------------------------------------------
 seg000:A5EE
 seg000:A5EE loc_A5EE:
 seg000:A5EE                 mov     phase_recoil, 0
-seg000:A5F3                 jmp     short render_body_sprites
+seg000:A5F3                 jmp     short render_body_entities
 seg000:A5F3 begin_recoil    endp
 seg000:A5F3
 seg000:A5F3 ; ---------------------------------------------------------------------------
@@ -633,25 +633,25 @@ seg000:A62B                 test    movement_direction_flag, 0FFh
 seg000:A630                 jnz     short loc_A649
 seg000:A632                 inc     body_anim_state
 seg000:A636                 cmp     body_anim_state, 6
-seg000:A63B                 jb      short render_body_sprites
+seg000:A63B                 jb      short render_body_entities
 seg000:A63D                 mov     body_anim_state, 5
 seg000:A642                 mov     movement_direction_flag, 0FFh
-seg000:A647                 jmp     short render_body_sprites
+seg000:A647                 jmp     short render_body_entities
 seg000:A649 ; ---------------------------------------------------------------------------
 seg000:A649
 seg000:A649 loc_A649:
 seg000:A649                 dec     body_anim_state
 seg000:A64D                 cmp     body_anim_state, 0FFh
-seg000:A652                 jb      short render_body_sprites
+seg000:A652                 jb      short render_body_entities
 seg000:A654                 mov     body_anim_state, 0
 seg000:A659                 mov     movement_direction_flag, 0
-seg000:A65E                 jmp     short render_body_sprites
+seg000:A65E                 jmp     short render_body_entities
 seg000:A660 ; ---------------------------------------------------------------------------
 seg000:A660
 seg000:A660 loc_A660:
 seg000:A660                 inc     death_timer
 seg000:A664                 mov     body_anim_state, 8
-seg000:A669                 jmp     short render_body_sprites
+seg000:A669                 jmp     short render_body_entities
 seg000:A66B ; ---------------------------------------------------------------------------
 seg000:A66B
 seg000:A66B loc_A66B:
@@ -663,7 +663,7 @@ seg000:A671
 seg000:A671 ; =============== S U B R O U T I N E =======================================
 seg000:A671
 seg000:A671
-seg000:A671 render_body_sprites proc near
+seg000:A671 render_body_entities proc near
 seg000:A671
 seg000:A671 ; FUNCTION CHUNK AT seg000:A501 SIZE 000000B5 BYTES
 seg000:A671
@@ -672,12 +672,12 @@ seg000:A675                 add     bl, bl
 seg000:A677                 xor     bh, bh
 seg000:A679                 mov     di, body_state_to_layout_table[bx]
 seg000:A67D                 mov     al, boss_y
-seg000:A680                 mov     col_y_render_offset, al
+seg000:A680                 mov     crab_entity_row, al
 seg000:A683                 mov     si, ds:0C010h   ; monsters_table_addr
 seg000:A687                 xor     al, al
 seg000:A689                 mov     active_sprite_count, al
 seg000:A68C
-seg000:A68C loc_A68C:
+seg000:A68C next_crab_row:
 seg000:A68C                 push    di
 seg000:A68D                 push    ax
 seg000:A68E                 mov     bl, 0Ah
@@ -686,7 +686,7 @@ seg000:A692                 add     di, ax
 seg000:A694                 mov     ax, boss_x      ; boss_state_block_ptr
 seg000:A697                 mov     cx, 0Ah
 seg000:A69A
-seg000:A69A loc_A69A:
+seg000:A69A next_crab_column:
 seg000:A69A                 push    cx
 seg000:A69B                 mov     [si], ax
 seg000:A69D                 push    di
@@ -697,7 +697,7 @@ seg000:A6A6                 mov     al, [di]
 seg000:A6A8                 cmp     al, 0FFh
 seg000:A6AA                 jz      short loc_A6EB
 seg000:A6AC                 mov     [si+4], al
-seg000:A6AF                 mov     al, col_y_render_offset
+seg000:A6AF                 mov     al, crab_entity_row
 seg000:A6B2                 mov     [si+2], al
 seg000:A6B5                 mov     [si+3], bl
 seg000:A6B8                 mov     byte ptr [si+5], 0
@@ -725,36 +725,36 @@ seg000:A6EC                 inc     ax
 seg000:A6ED                 pop     di
 seg000:A6EE                 inc     di
 seg000:A6EF                 pop     cx
-seg000:A6F0                 loop    loc_A69A
-seg000:A6F2                 inc     col_y_render_offset
-seg000:A6F6                 and     col_y_render_offset, 3Fh
+seg000:A6F0                 loop    next_crab_column
+seg000:A6F2                 inc     crab_entity_row
+seg000:A6F6                 and     crab_entity_row, 3Fh
 seg000:A6FB                 pop     ax
 seg000:A6FC                 pop     di
 seg000:A6FD                 inc     al
 seg000:A6FF                 cmp     al, 6
-seg000:A701                 jnz     short loc_A68C
+seg000:A701                 jnz     short next_crab_row
 seg000:A703                 mov     word ptr [si], 0FFFFh
-seg000:A707                 jmp     loc_A501
-seg000:A707 render_body_sprites endp
+seg000:A707                 jmp     render_droplets_entities
+seg000:A707 render_body_entities endp
 seg000:A707
 seg000:A707 ; ---------------------------------------------------------------------------
-seg000:A70A body_state_to_layout_table dw offset col_layout_normal
-seg000:A70C                 dw offset col_layout_normal
-seg000:A70E                 dw offset col_layout_normal
-seg000:A710                 dw offset col_layout_normal
-seg000:A712                 dw offset col_layout_normal
-seg000:A714                 dw offset col_layout_normal
-seg000:A716                 dw offset col_layout_normal
-seg000:A718                 dw offset col_layout_normal
-seg000:A71A                 dw offset col_layout_normal
-seg000:A71C                 dw offset col_layout_acid_drip
-seg000:A71E col_layout_normal db 0FFh, 0FFh, 0FFh, 0, 0FFh, 1, 0FFh, 0FFh, 0FFh, 0FFh
+seg000:A70A body_state_to_layout_table dw offset crab_layout_normal
+seg000:A70C                 dw offset crab_layout_normal
+seg000:A70E                 dw offset crab_layout_normal
+seg000:A710                 dw offset crab_layout_normal
+seg000:A712                 dw offset crab_layout_normal
+seg000:A714                 dw offset crab_layout_normal
+seg000:A716                 dw offset crab_layout_normal
+seg000:A718                 dw offset crab_layout_normal
+seg000:A71A                 dw offset crab_layout_normal
+seg000:A71C                 dw offset crab_layout_acid_drip
+seg000:A71E crab_layout_normal db 0FFh, 0FFh, 0FFh, 0, 0FFh, 1, 0FFh, 0FFh, 0FFh, 0FFh
 seg000:A728                 db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
 seg000:A731                 db 0FFh, 2, 0FFh, 3, 0FFh, 4, 0FFh, 5, 0FFh, 6, 0FFh, 0FFh
 seg000:A73D                 db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
 seg000:A746                 db 7, 0FFh, 10h, 0FFh, 11h, 0FFh, 12h, 0FFh, 8, 0FFh, 0FFh
 seg000:A751                 db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-seg000:A75A col_layout_acid_drip db 0FFh, 0FFh, 0FFh, 0FFh, 0, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+seg000:A75A crab_layout_acid_drip db 0FFh, 0FFh, 0FFh, 0FFh, 0, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
 seg000:A764                 db 0FFh, 0FFh, 3, 0FFh, 0FFh, 0FFh, 5, 0FFh, 0FFh, 0FFh
 seg000:A76E                 db 2, 0FFh, 0FFh, 0FFh, 14h, 0FFh, 0FFh, 0FFh, 6, 0FFh
 seg000:A778                 db 0FFh, 0FFh, 90h, 0FFh, 0FFh, 0FFh, 12h, 0FFh, 0FFh
@@ -810,8 +810,8 @@ seg000:A7D2                 db    0
 seg000:A7D3 boss_name_pstring db 8,'Cangrejo'
 seg000:A7DC active_sprite_count db 0
 seg000:A7DD hit_monster_flags db 0                  ; Packed: bit 7 = hit monster was facing left (`flags & 0x10`); bits 4–0 = `ai_flags & 0x1F` of the monster that was hit this frame. Non-zero means a monster was struck; causes acid droplets to set their "flip" flag
-seg000:A7DE body_anim_state db 0                    ; Selects which body column-layout table to use (0–8 → `col_layout_normal`; 9 → `col_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
-seg000:A7DF col_y_render_offset db 0                ; Y-position offset cycled per outer row loop in `sub_A671`; produces the staggered vertical positioning of the 6 body rows
+seg000:A7DE body_anim_state db 0                    ; Selects which body column-layout table to use (0–8 → `crab_layout_normal`; 9 → `crab_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
+seg000:A7DF crab_entity_row db 0                ; Y-position offset cycled per outer row loop in `sub_A671`; produces the staggered vertical positioning of the 6 body rows
 seg000:A7E0 movement_direction_flag db 0            ; `0x00` = moving toward minimum X (left); `0xFF` = moving toward maximum X (right). Toggled when a boundary is hit
 seg000:A7E1 movement_tick_counter db 0
 seg000:A7E2 phase_acid_dropping db 0                ; `0x00` = normal horizontal patrol; `0xFF` = acid-drop approach active

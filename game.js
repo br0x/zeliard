@@ -174,6 +174,24 @@ const EAI2 = {
 };
 const CRAB = {
     left: [ // 0xA030: 32 arrays
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9], // left_eye              0
+        [10, 11, 12, 13, 14, 15, 16, 17, 18],     // right_eye             1
+        [19, 20, 21, 22, 23, 24, 25, 26, 27, 28], // left_tibia            2
+        [29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // left_femur            3
+        [39, 40, 41, 42, 43, 44, 45, 46, 47],     // mouth                 4
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57], // right_femur           5
+        [58, 59, 60, 61, 62, 63, 64, 65, 66, 67], // right_tibia           6
+        [68, 69, 70, 71, 72, 73, 74, 75, 76, 77], // left_bottom_legs      7
+        [78, 79, 80, 81, 82, 83, 84, 85, 86, 87], // right_bottom_legs     8
+        [], [], [], [], [], [], [],               //                       9...15
+        [88, 89, 90, 91, 92, 93, 94, 95, 96, 97], // left_claw             16
+        [98, 99, 100, 101, 102, 103, 104, 105, 106], // maxilla            17
+        [107, 108, 109, 110, 111, 112, 113, 114, 115, 116], // right_claw  18
+        [],                                       //                       19
+        [117, 118, 119, 120, 121, 122, 123, 124, 125, 126], // mouth_acid  20
+        [127, 128, 129, 130, 131], // acid_drop                            21
+    ],
+    right: [ // 0xA070: 32 arrays
         [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9], // left_eye
         [10, 11, 12, 13, 14, 15, 16, 17, 18], // right_eye
         [19, 20, 21, 22, 23, 24, 25, 26, 27, 28], // left_tibia
@@ -541,14 +559,16 @@ const ADDR_SAGES_SPOKEN              = 0xE5;
 const ADDR_HERO_ANIM_PHASE           = 0xE7;
 const ADDR_INVINCIBILITY_FLAG        = 0xE8;
 
+const ADDR_BOSS_STATE_BLOCK        = 0x9D00;
+const ADDR_BYTE_9F00               = 0x9F00;
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
 const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
-const ADDR_BYTE_9F00               = 0x9F00;
+
 const ADDR_BOSS_STATE_PTR          = 0xA002;
-const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
 
 const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
+const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
 const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
 const ADDR_NPC_ARRAY_PTR           = 0xC00F;
 const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)
@@ -592,6 +612,7 @@ const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
 const ADDR_NOTIFICATION_FLAG       = 0xFF97;
 const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
 const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
+const ADDR_SHIELD_HP_RENDER_REQUEST = 0xFF9A;
 const ADDR_ROKA_PHASE              = 0xFF9D;
 const ADDR_ROKA_COLOR              = 0xFF9E;
 const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
@@ -1623,6 +1644,7 @@ function drawDungeonEntities() {
         const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
         const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
+        console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
@@ -2383,6 +2405,22 @@ async function handleDungeonTransition(mapId, isFromTown) {
         setDungeonMonsterXp(DUNGEONS[rawMapId].monster_xp);
         setDungeonMonsterDamage(DUNGEONS[rawMapId].monster_damage);
         setDeathDescriptors(DUNGEONS[rawMapId].death_descriptors);
+        // Initialize boss state block if this map has one
+        const bossState = DUNGEONS[rawMapId].bossState;
+        if (bossState) {
+            const block = ADDR_BOSS_STATE_BLOCK;
+            writeMemory(block, [
+                bossState.bossX & 0xFF, (bossState.bossX >> 8) & 0xFF,
+                bossState.bossY,
+                bossState.bossHP & 0xFF, (bossState.bossHP >> 8) & 0xFF,
+                bossState.xpReward & 0xFF, (bossState.xpReward >> 8) & 0xFF,
+                bossState.arenaCenterX,
+                bossState.bossPlacement,
+            ]);
+            writeMemory(ADDR_BOSS_STATE_PTR, [
+                block & 0xFF, (block >> 8) & 0xFF,
+            ]);
+        }
         // set sword reachability list
         const swordType = readMemory(ADDR_SWORD_TYPE, 1)[0];
         if (swordType <= 3) {
@@ -3295,6 +3333,10 @@ function draw() {
         if (readMemory(ADDR_ALMAS_RENDER_REQUEST, 1)[0]) {
             renderAlmasHud();
             writeMemory(ADDR_ALMAS_RENDER_REQUEST, [0]);
+        }
+        if (readMemory(ADDR_SHIELD_HP_RENDER_REQUEST, 1)[0]) {
+            renderShieldHud();
+            writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, [0]);
         }
     } else { // town outdoor mode
         ctx.fillStyle = '#05053f';

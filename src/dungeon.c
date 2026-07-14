@@ -32,10 +32,10 @@
 #define ADDR_TICKS                    0x9F16
 #define ADDR_BYTE_9F18                0x9F18
 #define ADDR_BYTE_9F19                0x9F19
-#define ADDR_HERO_X_IN_PROXIMITY_MAP  0x9F1A // word
-#define ADDR_DOOR_TARGET_Y            0x9F1C // byte
-#define ADDR_DOOR_FEATURES            0x9F1D // byte
-#define ADDR_BYTE_9F1E                0x9F1E
+#define ADDR_HERO_X_IN_PROXIMITY_MAP  0x9F1A  // word
+#define ADDR_DOOR_TARGET_Y            0x9F1C  // byte
+#define ADDR_DOOR_FEATURES            0x9F1D  // byte
+#define ADDR_BOSS_REWARD_PROCESSED    0x9F1E  // byte
 #define ADDR_LAST_PROJECTILE_INDEX    0x9F1F  // byte
 #define ADDR_SLIDE_TICKS_REMAINING    0x9F20
 #define ADDR_HORIZ_MOVEMENT_ACCUM     0x9F21
@@ -857,8 +857,7 @@ void transit_to_sage()
     MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
 }
 
-// load_place_and_reinit - Called after boss defeat to restore normal cavern state.
-//  Called when boss_is_dead fires and the game needs to transition the cavern
+//  Called after boss defeat (boss_is_dead fires) to transition the cavern
 //  from boss mode back to post-boss state.
 // 
 //  1. Load saved monsters AI binary (eai from mdt_descriptor.boss_ai) → 0xA000.
@@ -875,7 +874,7 @@ void load_place_and_reinit(void) {
     }
 
     // Restore original enemy AI binary (eai.bin) from MDT descriptor
-    uint16_t si = ADDR_MDT;                     // mdt_buffer
+    uint16_t si = MEM16(ADDR_MDT);              // mdt_buffer → descriptor pointer
     uint8_t saved_eai_idx = MEM8(si + 6);       // mdt_descriptor.boss_ai
     MEM8(ADDR_EAI_BIN_INDEX) = saved_eai_idx;
 
@@ -902,7 +901,7 @@ void load_place_and_reinit(void) {
     MEM8(ADDR_BOSS_MODE) = 0;
 
     // 4. Process optional initializers (address/value pairs) from MDT descriptor+8
-    si = ADDR_MDT + 8;
+    si = MEM16(ADDR_MDT) + 8;
     while (1) {
         uint16_t addr = MEM16(si);
         if (addr == 0xFFFF) break;
@@ -931,7 +930,7 @@ void load_place_and_reinit(void) {
     // 7. Stop music (int 60h, ax=1)
 
     // 8. Clear reload flag and restart cavern
-    MEM8(ADDR_BYTE_9F1E) = 0;
+    MEM8(ADDR_BOSS_REWARD_PROCESSED) = 0;
     Cavern_Game_Init();                  // re‑enter main cavern loop
 }
 
@@ -2476,19 +2475,20 @@ void check_hero_contact_damage(void)
                 uint8_t shift = (MEM8(ADDR_SHIELD_TYPE) + 1) >> 1;
                 damage >>= shift;
 
-                uint16_t shield_hp = MEM16(0x94);
+                uint16_t shield_hp = MEM16(ADDR_SHIELD_HP);
                 if (shield_hp < damage) {
                     MEM8(ADDR_SHIELD_TYPE) = 0;
-                    MEM16(0x94) = 0;
+                    MEM16(ADDR_SHIELD_HP) = 0;
                     render_notification_string(SHIELD_BROKEN_STR);
                 } else {
                     shield_hp -= damage;
-                    MEM16(0x94) = shield_hp;
+                    MEM16(ADDR_SHIELD_HP) = shield_hp;
                     if (shield_hp == 0) {
                         MEM8(ADDR_SHIELD_TYPE) = 0;
                         render_notification_string(SHIELD_BROKEN_STR);
                     }
                 }
+                MEM8(ADDR_SHIELD_HP_RENDER_REQUEST) = 0xFF;
                 damage_hero(damage);
                 MEM8(ADDR_SOUND_FX_REQUEST) = 8;
             }
@@ -4405,7 +4405,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
         }
     }
 
-    if (MEM8(ADDR_BYTE_9F1E) != 0) {
+    if (MEM8(ADDR_BOSS_REWARD_PROCESSED) != 0) {
         load_place_and_reinit();
         return 1;
     }
@@ -4417,7 +4417,7 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
             update_hero_XP(xp_reward);
             uint16_t almas_reward = MEM16(si + 11);
             hero_got_almas(almas_reward);
-            MEM8(ADDR_BYTE_9F1E) = 0xFF;
+            MEM8(ADDR_BOSS_REWARD_PROCESSED) = 0xFF;
         }
     }
 

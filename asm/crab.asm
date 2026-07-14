@@ -190,9 +190,9 @@ Cangrejo_AI_proc proc near
                 mov     active_sprite_count, 0
                 mov     hit_monster_flags, 0
 
-loc_A2FE:
+loc_A2FE:       ; next body part
                 cmp     [si+monster.currX], 0FFFFh
-                jz      short loc_A349
+                jz      short loc_A349          ; crab entities are not in the map yet
                 mov     ax, [si+monster.currX]
                 call    word ptr cs:is_in_proximity_window_proc
                 jb      short loc_A340
@@ -218,11 +218,11 @@ loc_A33D:
 
 loc_A340:
                 inc     active_sprite_count
-                add     si, 10h
+                add     si, 16
                 jmp     short loc_A2FE
 ; ---------------------------------------------------------------------------
 
-loc_A349:
+loc_A349:       ; init crab entities
                 mov     si, ds:monsters_table_addr
                 mov     word ptr [si], 0FFFFh
                 test    byte ptr ds:boss_being_hit, 0FFh
@@ -304,7 +304,7 @@ loc_A3DB:
                 inc     movement_tick_counter
                 test    movement_tick_counter, 1
                 jz      short loc_A3F0
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A3F0:
@@ -316,19 +316,19 @@ loc_A3FA:
                 inc     body_anim_state
                 cmp     body_anim_state, 6
                 jnb     short loc_A408
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A408:
                 mov     body_anim_state, 0
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A410:
                 inc     movement_tick_counter
                 test    movement_tick_counter, 1
                 jz      short loc_A41E
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A41E:
@@ -340,12 +340,12 @@ loc_A428:
                 dec     body_anim_state
                 cmp     body_anim_state, 0FFh
                 jz      short loc_A436
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A436:
                 mov     body_anim_state, 5
-                jmp     render_body_sprites
+                jmp     render_body_entities
 Cangrejo_AI_proc endp
 
 
@@ -396,7 +396,7 @@ loc_A466:
                 xor     bh, bh
                 mov     al, acid_approach_body_states[bx]
                 mov     body_anim_state, al
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 acid_approach_body_states db 7, 7, 8, 8, 8, 8, 8, 6
 
@@ -458,28 +458,28 @@ loc_A4F6:
                 call    boss_move_right
 
 loc_A4F9:
-                call    render_body_sprites
+                call    render_body_entities
                 inc     descent_seq_index
                 retn
 trigger_acid_drop endp
 
 ; ---------------------------------------------------------------------------
-
-loc_A501:
+; si points to end of body entities list (ffff-term)
+render_droplets_entities:
                 test    phase_spawning_droplet, 0FFh
-                jnz     short loc_A54A
+                jnz     short spawning_droplet
                 test    phase_placing_droplet, 0FFh
-                jnz     short loc_A510
+                jnz     short placing_droplet
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A510:
+placing_droplet:
                 mov     di, ds:monsters_table_addr
 
 next_monster:             
-                cmp     [di+monster.flags], 14h
-                jz      short loc_A51F
-                add     di, 10h
+                cmp     [di+monster.flags], 14h ; crab mouth
+                je      short loc_A51F
+                add     di, 16
                 jmp     short next_monster
 ; ---------------------------------------------------------------------------
 
@@ -487,67 +487,67 @@ loc_A51F:
                 mov     al, descent_seq_index
                 mov     [di+monster.anim_counter], al
                 cmp     descent_seq_index, 4
-                jz      short loc_A52D
+                je      short loc_A52D
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A52D:
+loc_A52D:       ; anim_counter = 4, spawn the droplet
                 mov     spawn_seq_index, 0
                 mov     phase_spawning_droplet, 0FFh
                 mov     ax, boss_x      ; boss_state_block.boss_x
                 add     ax, 4
-                mov     droplet_target_x, ax
+                mov     droplet_target_x, ax ; x+4: mouth_x
                 mov     al, boss_y
                 add     al, 3
                 and     al, 3Fh
-                mov     droplet_target_y, al
-
-loc_A54A:
+                mov     droplet_target_y, al ; y+3: mouth_y
+spawning_droplet:
                 mov     bl, spawn_seq_index
                 xor     bh, bh
                 inc     spawn_seq_index
                 mov     al, acid_droplet_spawn_sequence[bx]
                 cmp     al, 0FFh
-                jnz     short loc_A562
-                mov     phase_spawning_droplet, 0
+                jne     short loc_A562
+                mov     phase_spawning_droplet, 0 ; spawn seq finished
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A562:
                 or      al, al
                 jns     short loc_A56F
-                inc     droplet_target_y
+                inc     droplet_target_y       ; move droplet down 1 tile
                 and     droplet_target_y, 3Fh
 
 loc_A56F:
                 push    ax
-                mov     ax, droplet_target_x
-                push    ax
-                call    word ptr cs:is_in_proximity_window_proc
-                pop     ax
+                  mov     ax, droplet_target_x
+                  push    ax
+                  call    word ptr cs:is_in_proximity_window_proc ; CF if outside the window, accounting for world wrap.
+                                                                  ; NC if inside the window, then BL = relative X in the window.
+                  pop     ax
                 pop     cx
-                jnb     short loc_A57E
+                jnc     short loc_A57E
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A57E:
-                mov     [si], ax
+loc_A57E:       ; extend the entities list
+                mov     [si+0], ax              ; entity.currX
                 mov     dl, droplet_target_y
-                mov     [si+2], dl
-                mov     [si+3], bl
-                mov     byte ptr [si+4], 35h ; '5'
+                mov     [si+2], dl              ; entity.currY
+                mov     [si+3], bl              ; entity.m_x_rel
+                mov     byte ptr [si+4], 35h    ; entity.flags
                 and     cl, 7Fh
-                mov     [si+6], cl
-                mov     byte ptr [si+5], 0
-                mov     word ptr [si+10h], 0FFFFh
+                mov     [si+6], cl              ; entity.anim_counter = spawn seq value
+                mov     byte ptr [si+5], 0      ; entity.ai_flags
+                mov     word ptr [si+10h], 0FFFFh ; terminate the list
                 mov     ax, [si+2]
                 call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc
                 mov     bl, active_sprite_count
                 mov     al, bl
-                or      al, 80h
-                xchg    al, [di]
+                or      al, 80h  ; create entityId
+                xchg    al, [di] ; al <- proxMap[i] <- entityId
                 xor     bh, bh
-                mov     ds:proximity_second_layer[bx], al
+                mov     ds:proximity_second_layer[bx], al ; save old value in 2nd layer
                 retn
 ; ---------------------------------------------------------------------------
 acid_droplet_spawn_sequence db 80h, 80h, 80h, 80h, 80h, 81h, 82h, 3, 4, 0FFh
@@ -569,18 +569,17 @@ loc_A5D3:
                 inc     recoil_step_index
                 cmp     recoil_step_index, 4
                 jz      short loc_A5EE
-                jmp     render_body_sprites
+                jmp     render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A5EE:
                 mov     phase_recoil, 0
-                jmp     short render_body_sprites
+                jmp     short render_body_entities
 begin_recoil    endp
 
 ; ---------------------------------------------------------------------------
 recoil_body_states    db 7, 8, 8, 0       
-acid_descent_sequence db 0F1h, 0F1h, 0F1h, 0F1h, 0F1h, 0F8h, 0F8h, 0F8h, 0F2h
-                      db 0F2h, 0F2h, 0F2h, 0F2h, 0FFh
+acid_descent_sequence db 0F1h, 0F1h, 0F1h, 0F1h, 0F1h, 0F8h, 0F8h, 0F8h, 0F2h, 0F2h, 0F2h, 0F2h, 0F2h, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -596,33 +595,33 @@ death_sequence_handler proc near
                 mov     byte ptr ds:soundFX_request, 35
 
 loc_A61B:
-                mov     byte ptr ds:0FF2Fh, 0FFh
-                cmp     death_timer, 14h
+                mov     byte ptr ds:sprite_flash_flag, 0FFh
+                cmp     death_timer, 20
                 jnb     short loc_A660
                 inc     death_timer
                 test    movement_direction_flag, 0FFh
                 jnz     short loc_A649
                 inc     body_anim_state
                 cmp     body_anim_state, 6
-                jb      short render_body_sprites
+                jb      short render_body_entities
                 mov     body_anim_state, 5
                 mov     movement_direction_flag, 0FFh
-                jmp     short render_body_sprites
+                jmp     short render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A649:
                 dec     body_anim_state
                 cmp     body_anim_state, 0FFh
-                jb      short render_body_sprites
+                jb      short render_body_entities
                 mov     body_anim_state, 0
                 mov     movement_direction_flag, 0
-                jmp     short render_body_sprites
+                jmp     short render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A660:
                 inc     death_timer
                 mov     body_anim_state, 8
-                jmp     short render_body_sprites
+                jmp     short render_body_entities
 ; ---------------------------------------------------------------------------
 
 loc_A66B:
@@ -633,104 +632,100 @@ death_sequence_handler endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-render_body_sprites proc near          
-
-
+; mp1d.mdt monsters list is initially empty, here we fill the list dynamically
+render_body_entities proc near          
                 mov     bl, body_anim_state
                 add     bl, bl
                 xor     bh, bh
                 mov     di, body_state_to_layout_table[bx]
-                mov     al, boss_y
-                mov     col_y_render_offset, al
+                mov     al, boss_y     ; boss_state_block.boss_y: top left tile of crab, Y coord
+                mov     crab_entity_row, al
                 mov     si, ds:monsters_table_addr
                 xor     al, al
                 mov     active_sprite_count, al
-
-loc_A68C:
+next_crab_row:  ; al = row counter
                 push    di
                 push    ax
                 mov     bl, 10
                 mul     bl
-                add     di, ax
-                mov     ax, boss_x      ; boss_state_block.boss_x
-                mov     cx, 10
-
-loc_A69A:
+                add     di, ax          ; di points to body layout row
+                mov     ax, boss_x      ; boss_state_block.boss_x: top left tile of crab, X coord
+                mov     cx, 10          ; crab has 10 columns
+next_crab_column:
                 push    cx
-                mov     [si], ax
+                mov     [si+0], ax      ; entity.currX: absolute X in the map
                 push    di
                 push    ax
-                call    word ptr cs:is_in_proximity_window_proc
-                jb      short loc_A6EB
-                mov     al, [di]
-                cmp     al, 0FFh
-                jz      short loc_A6EB
-                mov     [si+4], al
-                mov     al, col_y_render_offset
-                mov     [si+2], al
-                mov     [si+3], bl
-                mov     byte ptr [si+5], 0
-                test    hit_monster_flags, 0FFh
-                jz      short loc_A6C7
-                or      byte ptr [si+5], 20h
-
+                  call    word ptr cs:is_in_proximity_window_proc ; CF if outside the window, accounting for world wrap.
+                                                                  ; NC if inside the window, then BL = relative X in the window.
+                  jc      short loc_A6EB
+                  mov     al, [di]
+                  cmp     al, 0FFh       ; 0xFF = no entity here
+                  je      short loc_A6EB
+                  mov     [si+4], al     ; entity.flags: tile index
+                  mov     al, crab_entity_row
+                  mov     [si+2], al     ; entity.currY
+                  mov     [si+3], bl     ; entity.m_x_rel
+                  mov     byte ptr [si+5], 0 ; entity.ai_flags
+                  test    hit_monster_flags, 0FFh
+                  jz      short loc_A6C7
+                  or      byte ptr [si+5], 20h
 loc_A6C7:
-                mov     al, body_anim_state
-                mov     [si+6], al
-                mov     ax, [si+2]
-                call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc
-                mov     al, active_sprite_count
-                mov     bl, al
-                or      al, 80h
-                xchg    al, [di]
-                xor     bh, bh
-                mov     proximity_second_layer[bx], al
-                inc     active_sprite_count
-                add     si, 10h
-
+                  mov     al, body_anim_state
+                  mov     [si+6], al     ; entity.anim_counter
+                  mov     ax, [si+2]     ; al=entity.currY, ah=entity.m_x_rel
+                  call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc
+                  mov     al, active_sprite_count
+                  mov     bl, al
+                  or      al, 80h  ; create entityId
+                  xchg    al, [di] ; al <- proxMap[i] <- entityId
+                  xor     bh, bh
+                  mov     proximity_second_layer[bx], al ; save old value in 2nd layer
+                  inc     active_sprite_count
+                  add     si, 16   ; next entity
 loc_A6EB:
                 pop     ax
-                inc     ax
+                inc     ax  ; currX++
                 pop     di
-                inc     di
+                inc     di  ; rowLayout ptr++
                 pop     cx
-                loop    loc_A69A
-                inc     col_y_render_offset
-                and     col_y_render_offset, 3Fh
+                loop    next_crab_column
+
+                inc     crab_entity_row
+                and     crab_entity_row, 3Fh
                 pop     ax
                 pop     di
                 inc     al
                 cmp     al, 6
-                jnz     short loc_A68C
-                mov     word ptr [si], 0FFFFh
-                jmp     loc_A501
-render_body_sprites endp
+                jnz     short next_crab_row
+                mov     word ptr [si], 0FFFFh ; terminate the list
+                jmp     render_droplets_entities  ; acid droplets are separate entities, add if needed
+render_body_entities endp
 
 ; ---------------------------------------------------------------------------
-body_state_to_layout_table dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_normal
-                           dw offset col_layout_acid_drip
-col_layout_normal    db 0FFh, 0FFh, 0FFh, 0, 0FFh, 1, 0FFh, 0FFh, 0FFh, 0FFh
-                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                     db 0FFh, 2, 0FFh, 3, 0FFh, 4, 0FFh, 5, 0FFh, 6, 0FFh, 0FFh
-                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                     db 7, 0FFh, 10h, 0FFh, 11h, 0FFh, 12h, 0FFh, 8, 0FFh, 0FFh
-                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-col_layout_acid_drip db 0FFh, 0FFh, 0FFh, 0FFh, 0, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                     db 0FFh, 0FFh, 3, 0FFh, 0FFh, 0FFh, 5, 0FFh, 0FFh, 0FFh
-                     db 2, 0FFh, 0FFh, 0FFh, 14h, 0FFh, 0FFh, 0FFh, 6, 0FFh
-                     db 0FFh, 0FFh, 90h, 0FFh, 0FFh, 0FFh, 12h, 0FFh, 0FFh
-                     db 0FFh, 0FFh, 7, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 8, 0FFh
-                     db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
-                     db 0FFh, 0FFh
+body_state_to_layout_table dw offset crab_layout_normal    ; body_anim_state 0
+                           dw offset crab_layout_normal    ; body_anim_state 1
+                           dw offset crab_layout_normal    ; body_anim_state 2
+                           dw offset crab_layout_normal    ; body_anim_state 3
+                           dw offset crab_layout_normal    ; body_anim_state 4
+                           dw offset crab_layout_normal    ; body_anim_state 5
+                           dw offset crab_layout_normal    ; body_anim_state 6
+                           dw offset crab_layout_normal    ; body_anim_state 7
+                           dw offset crab_layout_normal    ; body_anim_state 8
+                           dw offset crab_layout_acid_drip ; body_anim_state 9
+crab_layout_normal    db 0FFh, 0FFh, 0FFh,   0,  0FFh,   1,  0FFh, 0FFh, 0FFh, 0FFh
+                      db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                      db   2,  0FFh,   3,  0FFh,   4,  0FFh,   5,  0FFh,   6,  0FFh
+                      db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                      db   7,  0FFh,  10h, 0FFh,  11h, 0FFh,  12h, 0FFh,   8,  0FFh
+                      db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+
+crab_layout_acid_drip db 0FFh, 0FFh, 0FFh, 0FFh,   0,  0FFh, 0FFh, 0FFh, 0FFh, 0FFh
+                      db 0FFh, 0FFh,   3,  0FFh, 0FFh, 0FFh,   5,  0FFh, 0FFh, 0FFh
+                      db   2,  0FFh, 0FFh, 0FFh,  14h, 0FFh, 0FFh, 0FFh,   6,  0FFh
+                      db 0FFh, 0FFh,  90h, 0FFh, 0FFh, 0FFh,  12h, 0FFh, 0FFh, 0FFh
+                      db 0FFh,   7,  0FFh, 0FFh, 0FFh, 0FFh, 0FFh,   8,  0FFh, 0FFh
+                      db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -773,18 +768,19 @@ xp_reward           dw 120                  ; +5
 arena_center_x      db 0Ch                  ; +7
 boss_placement      db 0                    ; +8
 name_block_ptr      dw offset name_screen_x ; +9
-almas_reward        db 150                  ; +11
-                    db    0
+almas_reward        dw 150                  ; +11
+
 name_screen_x       db 10h    
 name_screen_y       db 0BBh
                     db    0
 boss_name_pstring   db 8,'Cangrejo'
+
 active_sprite_count db 0  
 hit_monster_flags db 0    
 ; Packed: bit 7 = hit monster was facing left (`flags & 0x10`); bits 4–0 = `ai_flags & 0x1F` of the monster that was hit this frame. Non-zero means a monster was struck; causes acid droplets to set their "flip" flag
 body_anim_state db 0      
-; Selects which body column-layout table to use (0–8 → `col_layout_normal`; 9 → `col_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
-col_y_render_offset db 0  
+; Selects which body column-layout table to use (0–8 → `crab_layout_normal`; 9 → `crab_layout_acid_drip`). Also drives leg-cycle animation: increments 0→5 when moving right, decrements 5→0 when moving left
+crab_entity_row db 0  
 ; Y-position offset cycled per outer row loop in `sub_A671`; produces the staggered vertical positioning of the 6 body rows
 movement_direction_flag db 0           
 ; `0x00` = moving toward minimum X (left); `0xFF` = moving toward maximum X (right). Toggled when a boundary is hit
