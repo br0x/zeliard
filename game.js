@@ -690,14 +690,6 @@ let getMusicTrackId;
 let getTownBackgroundType;
 let getTownPatId;
 let inputSetKeys;
-let heroMovementInit;
-let townToDungeonTransition;
-let heroMovementUpdate;
-let heroGetDirection;
-let heroGetState;
-let heroIsMoving;
-let updateHorizontalPlatforms;
-let initBossBattle;
 let inputGetDebugCounter;
 let getWasmMemory;
 let townInit;
@@ -1344,10 +1336,8 @@ async function loadWasmEngine() {
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,
-        getTownPatId, inputSetKeys,
-        heroMovementInit, townToDungeonTransition, heroMovementUpdate, heroGetDirection,
-        heroGetState, heroIsMoving, updateHorizontalPlatforms,
-        initBossBattle, inputGetDebugCounter, getWasmMemory, townInit,
+        getTownPatId, inputSetKeys, 
+        inputGetDebugCounter, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,

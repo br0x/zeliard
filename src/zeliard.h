@@ -606,9 +606,8 @@ typedef struct {
 _Static_assert(sizeof(SaveData) == 256, "SaveData must be 256 bytes");
 
 // MDT Header (at 0xC000)
-// First 2 bytes are unknown, then the actual header fields
 typedef struct {
-    uint16_t unknown;               // 0xC000 - Unknown (byte 0x29 relates to normal/boss caverns)
+    uint16_t mdt_descriptor;        // 0xC000 - Unknown (byte 0x29 relates to normal/boss caverns)
     uint16_t map_width;             // 0xC002 - Dungeon width (height is always 64)
     uint16_t vert_platforms_offset; // 0xC004 - Vertical platforms
     uint16_t air_streams_offset;    // 0xC006 - Air streams
@@ -699,46 +698,15 @@ void Add_Projectile_To_Array(uint8_t *src);
 void Draw_Hero_Health();
 void Draw_Boss_Health();
 
-// Input Handling
-void input_set_keys(uint8_t keys);
-uint8_t input_get_current_keys(void);
-uint8_t input_get_pressed_keys(void);
-uint8_t input_get_released_keys(void);
-int input_is_key_pressed(uint8_t key);
-int input_is_key_held(uint8_t key);
-int input_is_key_released(uint8_t key);
-
-void town_to_dungeon_transition(uint16_t x, uint8_t y, uint8_t c3, uint8_t cavern_id);
-
 // Hero Movement State Machine
 void state_machine_dispatcher(void);  // Fight.asm 0x6343
-void hero_movement_init(void);
-void hero_movement_update(void);
-int hero_get_direction(void);
-void hero_set_direction(int direction);
-int hero_get_state(void);
-int hero_is_moving(void);
-int hero_can_change_direction(void);
-void hero_set_state(int state);
 
 // Platform Movement
-void move_platform_up(void);
-int move_platform_down(void);
-void update_horizontal_platforms(void);
 void hero_interaction_check(void);
 
 // Combat System
 void Hero_Hits_monster(uint16_t monster);
 uint8_t Get_Stats(uint8_t request_type);
-uint8_t get_combat_timer(void);
-void set_combat_flag(uint8_t value);
-
-// Boss Battle System
-void init_boss_battle(void);
-void boss_take_damage(uint16_t damage);
-uint16_t get_boss_hp(void);
-uint16_t get_boss_max_hp(void);
-int is_boss_defeated(void);
 
 // Collision Detection (8 directions)
 uint8_t Check_collision_in_direction(uint16_t m, uint8_t dir);
@@ -760,8 +728,6 @@ uint8_t move_monster_W(uint16_t m);
 uint8_t move_monster_SW(uint16_t m);
 uint8_t move_monster_S(uint16_t m);
 uint8_t move_monster_SE(uint16_t m);
-void set_danger_type(uint8_t type);
-uint8_t get_danger_type(void);
 
 void unpack_map();
 void unpack_column(uint16_t* packed_ptr, uint8_t* dest);
