@@ -61,3 +61,19 @@ void debug_printf(const char *fmt, ...) {
     va_end(args);
     js_log(buf);
 }
+
+/* JS callable: copy browser key state into the town input latch bytes */
+void wasm_set_input_keys(uint8_t keys)
+{
+    uint8_t dirs = 0;
+    if (keys & 0x01) dirs |= 0x01;  /* up */
+    if (keys & 0x02) dirs |= 0x02;  /* down */
+    if (keys & 0x04) dirs |= 0x04;  /* left */
+    if (keys & 0x08) dirs |= 0x08;  /* right */
+
+    MEM8(ADDR_INPUT_DIRS) = dirs;
+    MEM8(ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter) = (keys & 0x10) ? 0x01 : 0x00;
+    MEM8(ADDR_INPUT_ALT_SPACE) =
+        (uint8_t)(((keys & 0x20) ? 0x01 : 0x00) |
+                  ((keys & 0x40) ? 0x02 : 0x00));
+}

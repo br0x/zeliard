@@ -884,13 +884,8 @@ export function inputSetKeys(keys) {
     if (keys.Alt) bitmask |= INPUT_FLAGS.ALT;
     if (keys.Escape) bitmask |= INPUT_FLAGS.ESC;
 
-    // if (wasmExports.input_set_keys) {
-    //     wasmExports.input_set_keys(bitmask);
-    // } else 
-    if (wasmExports.wasm_town_set_input_keys) {
-        wasmExports.wasm_town_set_input_keys(bitmask);
-    } else {
-        // writeTownInputBytes(bitmask);
+    if (wasmExports.wasm_set_input_keys) {
+        wasmExports.wasm_set_input_keys(bitmask);
     }
 }
 

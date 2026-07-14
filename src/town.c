@@ -89,9 +89,9 @@
  * Shared addresses (seg0:0xFF00–0xFFFF)
  * ========================================================================= */
 #define ADDR_VIDEO_DRV_ID          0xFF14
-#define ADDR_ALT_SPACE             0xFF16
-#define ADDR_RIGHT_LEFT_DOWN_UP    0xFF17
-#define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter            0xFF18
+#define ADDR_INPUT_ALT_SPACE       0xFF16
+#define ADDR_INPUT_DIRS            0xFF17
+#define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18
 #define ADDR_FRAME_TIMER           0xFF1A
 #define ADDR_ANIM_TIMER            0xFF1B
 #define ADDR_SPACEBAR_LATCH        0xFF1D
@@ -385,8 +385,8 @@ static void swap_a000_c000_buffers(void);
 #define HERO_GOLD_LO MEM16(ADDR_HERO_GOLD_LO)
 #define HERO_GOLD_HI MEM8(ADDR_HERO_GOLD_HI)
 #define HERO_ALMAS MEM16(ADDR_HERO_ALMAS)
-#define INPUT_DIRS MEM8(ADDR_RIGHT_LEFT_DOWN_UP)   /* bits: right/left/down/up */
-#define INPUT_ALT_SPACE MEM8(ADDR_ALT_SPACE)       /* bits: alt/space */
+#define INPUT_DIRS MEM8(ADDR_INPUT_DIRS)   /* bits: right/left/down/up */
+#define INPUT_ALT_SPACE MEM8(ADDR_INPUT_ALT_SPACE)       /* bits: alt/space */
 
 /* =========================================================================
  * town_entry_disabling_edge_scroll — primary init, called from fight.bin after dungeon
@@ -2323,21 +2323,6 @@ static void town_complete_wait(void)
     g_pending_wait_target = 0;
 }
 
-/* JS callable: copy browser key state into the town input latch bytes */
-void wasm_town_set_input_keys(uint8_t keys)
-{
-    uint8_t dirs = 0;
-    if (keys & 0x01) dirs |= 0x01;  /* up */
-    if (keys & 0x02) dirs |= 0x02;  /* down */
-    if (keys & 0x04) dirs |= 0x04;  /* left */
-    if (keys & 0x08) dirs |= 0x08;  /* right */
-
-    MEM8(ADDR_RIGHT_LEFT_DOWN_UP) = dirs;
-    MEM8(ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter) = (keys & 0x10) ? 0x01 : 0x00;
-    MEM8(ADDR_ALT_SPACE) =
-        (uint8_t)(((keys & 0x20) ? 0x01 : 0x00) |
-                  ((keys & 0x40) ? 0x02 : 0x00));
-}
 
 /* JS callable: get pointer into WASM linear memory (for direct JS access) */
 uint32_t wasm_get_mem_ptr(void)   { return (uint32_t)(uintptr_t)g_mem; }
