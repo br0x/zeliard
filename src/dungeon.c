@@ -4405,17 +4405,17 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
         }
     }
 
-    if (MEM8(ADDR_BOSS_REWARD_PROCESSED) != 0) {
+    if (MEM8(ADDR_BOSS_REWARD_PROCESSED)) {
         load_place_and_reinit();
         return 1;
     }
 
-    if (MEM8(ADDR_IS_BOSS_CAVERN) != 0 && MEM8(ADDR_BOSS_IS_DEAD) != 0) {
+    if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_IS_DEAD)) {
         if (MEM8(ADDR_BOSS_EXPLOSIONS_LIST) == 0xFF) {
-            uint16_t si = MEM16(ADDR_BOSS_STATE_PTR);
-            uint16_t xp_reward = MEM16(si + 5);
+            uint16_t si = MEM16(ADDR_BOSS_STATE_PTR); // boss_state_block
+            uint16_t xp_reward = MEM16(si + 5); // .xp_reward
             update_hero_XP(xp_reward);
-            uint16_t almas_reward = MEM16(si + 11);
+            uint16_t almas_reward = MEM16(si + 9); // .almas_reward (note offset 9 differs from original 11 intentionally)
             hero_got_almas(almas_reward);
             MEM8(ADDR_BOSS_REWARD_PROCESSED) = 0xFF;
         }

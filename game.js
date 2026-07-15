@@ -190,6 +190,7 @@ const CRAB = {
         [],                                       //                       19
         [117, 118, 119, 120, 121, 122, 123, 124, 125, 126], // mouth_acid  20
         [127, 128, 129, 130, 131], // acid_drop                            21
+        [132], // ordinaryKey                                              22
     ],
     right: [ // 0xA070: 32 arrays
         [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9], // left_eye
@@ -209,7 +210,7 @@ const CRAB = {
         [117, 118, 119, 120, 121, 122, 123, 124, 125, 126], // mouth_acid
         [127, 128, 129, 130, 131], // acid_drop
     ],
-    numSprites: 132,
+    numSprites: 133,
 };
 
 const DUNGEONS = {
