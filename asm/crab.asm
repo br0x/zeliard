@@ -195,7 +195,7 @@ loc_A2FE:       ; next body part
                 jz      short loc_A349          ; crab entities are not in the map yet
                 mov     ax, [si+monster.currX]
                 call    word ptr cs:is_in_proximity_window_proc
-                jb      short loc_A340
+                jc      short loc_A340
                 mov     [si+monster.m_x_rel], bl
                 mov     ax, word ptr [si+monster.currY]
                 call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc

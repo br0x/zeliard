@@ -3322,6 +3322,7 @@ loc_72F9:
                 mov     cx, 100h
                 call    cs:Decompress_Tile_Data_proc
                 pop     ds
+                ; prepare new door struct
                 mov     byte ptr ds:is_boss_cavern, 0
                 mov     si, ds:mdt_buffer  ; mdt_buffer[0] is mdt_descriptor_addr
                 add     si, 8          ; mdt_descriptor+8 is post-boss initializers (addr - value pairs)
@@ -3355,7 +3356,7 @@ loc_737C:
 
 loc_7386:        
                 mov     si, ds:doors_table_addr
-                mov     [si], ax
+                mov     [si], ax          ; door[0].x0 (spawn a new door)
                 call    process_doors
                 call    screen_flash_overlay
                 call    clear_hero_in_viewport
@@ -4139,7 +4140,7 @@ distance_attenuation db 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0Fh, 0
 
 
 restore_game    proc near 
-                mov     bx, 601Ch       ; far jump address to the town code (restore_game)
+                mov     bx, offset restore_game_proc       ; far jump address to the town code (restore_game)
                 jmp     transfer_to_town
 restore_game    endp
 
@@ -4149,17 +4150,15 @@ restore_game    endp
 
 process_doors   proc near 
                 mov     bp, ds:doors_table_addr
-
 next_door:       
                 mov     ax, ds:[bp+door.x0]
                 cmp     ax, 0FFFFh      ; doors end marker
-                jnz     short loc_78EB
+                jne     short loc_78EB
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_78EB:        
                 call    calc_object_viewport_x_offset
-                jb      short loc_7933
+                jc      short loc_7933
                 mov     al, ds:[bp+door.d_flags]
                 and     al, 7
                 add     al, 61h ; 'a'
@@ -4181,7 +4180,6 @@ loc_78EB:
                 cmp     al, 6
                 jb      short loc_791D
                 mov     al, 5
-
 loc_791D:        
                 sub     cl, 4
                 xor     ch, ch
@@ -4192,18 +4190,15 @@ loc_791D:
                 mov     si, offset closed_door_tiles
                 jmp     short loc_7951
 ; ---------------------------------------------------------------------------
-
 loc_7933:        
                 add     bp, 12
                 jmp     short next_door
 ; ---------------------------------------------------------------------------
-
 loc_7938:        
                 mov     si, offset opened_door_tiles
                 test    ds:[bp+door.d_flags], 80h
                 jnz     short loc_7945
                 mov     si, offset closed_door_tiles
-
 loc_7945:        
                 mov     al, bl
                 inc     al
@@ -4211,22 +4206,19 @@ loc_7945:
                 sub     cl, al
                 xor     ch, ch
                 add     si, cx
-
 loc_7951:        
                 mov     cx, 4
-
 four_times:      
                 push    cx
                 push    ax
                 push    di
                 push    si
-
 al_times:        
-                call    move_if_dst_high_bit_zero
-                inc     di
-                inc     si
-                dec     al
-                jnz     short al_times
+                    call    move_if_dst_high_bit_zero
+                    inc     di
+                    inc     si
+                    dec     al
+                    jnz     short al_times
                 pop     si
                 add     si, 5
                 xchg    si, di

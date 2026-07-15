@@ -1170,7 +1170,7 @@ void remove_accomplished_items()
         if (MEM8(si - 1) & MEM8(di)) { // move_loop
             while (1) {
                 di = MEM16(si);
-                if (di == 0xFFFF) break;
+                if (di == 0xFFFF) break; // null address
                 MEM16(di) = MEM16(si + 2);
                 si += 4;
             }
@@ -4897,7 +4897,7 @@ void Cavern_Game_Init(void) {
     // Draw_Hero_Health_proc();
     // Print_Almas_Decimal_proc();
 
-    if (MEM8(ADDR_IS_JASHIIN_CAVERN) != 0) {
+    if (MEM8(ADDR_IS_JASHIIN_CAVERN)) {
         MEM8(ADDR_BYTE_9F26) = 0xFF;
         MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 41;
         MEM8(ADDR_HERO_X_VIEW) = 5;
@@ -4942,10 +4942,7 @@ void Cavern_Game_Init(void) {
         // Draw_Hero_Max_Health_proc();
         // Draw_Hero_Health_proc();
         // Print_Almas_Decimal_proc();
-    } else {
-        // ------------------------------------------------------------------------
-        // Normal cavern startup (non‑Jashiin); init_cavern
-        // ------------------------------------------------------------------------
+    } else { // non‑Jashiin cavern startup; init_cavern
         unpack_map();
         if (MEM8(ADDR_BYTE_9F27) != 0) {
             clear_viewport_buffer();
@@ -4981,7 +4978,7 @@ void Cavern_Game_Init(void) {
 void render_boss_hud()
 {
     uint16_t boss_state_ptr = MEM16(ADDR_BOSS_STATE_PTR);
-    MEM8(ADDR_BOSS_PLACEMENT) = MEM8(boss_state_ptr + 8); // .boss_state_unk_8
+    MEM8(ADDR_BOSS_PLACEMENT) = MEM8(boss_state_ptr + 8); // .boss_placement
     MEM8(ADDR_BOSS_MODE) = 0xFF;
     // uint16_t name_ptr = MEM16(boss_state_ptr + 9); // .name_block_ptr
     // Render_Pascal_String_1_proc(name_ptr);

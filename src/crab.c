@@ -149,7 +149,7 @@ void Cangrejo_AI(uint16_t m)
         if (MEM16(si + 0) == 0xFFFF) break; // .currX sentinel: end of list
 
         uint8_t rel;
-        if (!is_in_proximity_window(MEM16(si + 0), &rel)) {
+        if (is_in_proximity_window(MEM16(si + 0), &rel)) {
             MEM8(si + 3) = rel; // .m_x_rel
 
             uint16_t di = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
@@ -423,7 +423,7 @@ static void render_body_entities(void)
             MEM16(si + 0) = col_x; // .currX (tentative)
 
             uint8_t rel;
-            if (!is_in_proximity_window(col_x, &rel)) {
+            if (is_in_proximity_window(col_x, &rel)) {
                 uint8_t tile = row_layout[col];
                 if (tile != 0xFF) {
                     MEM8(si + 4) = tile;             // .flags <- part/tile index
@@ -438,7 +438,7 @@ static void render_body_entities(void)
                     MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count) = old_tile;
 
                     active_sprite_count++;
-                    si += 0x10;
+                    si += 16;
                 }
             }
 
@@ -451,20 +451,17 @@ static void render_body_entities(void)
     MEM16(si) = 0xFFFF; // terminator after the last written sprite
 
     /* --- render_droplets_entities: acid-droplet spawn/placement continuation --- */
-    if (phase_spawning_droplet) {
-        goto spawn_tick;
-    }
-    if (!phase_placing_droplet) {
-        return;
-    }
-    {
+    if (!phase_spawning_droplet) {
+        if (!phase_placing_droplet) {
+            return;
+        }
         /* placing_droplet: find the boss's dedicated acid-droplet visual
-         * entry (a fixed monster.flags == 0x14 "boss prop" placed by
-         * the room/engine setup elsewhere) and drive its animation
-         * from the descent sequence. */
+        * entry (a fixed monster.flags == 0x14 "boss prop" placed by
+        * the room/engine setup elsewhere) and drive its animation
+        * from the descent sequence. */
         uint16_t di = base;
         while (MEM8(di + 4) != 0x14) { // .flags
-            di += 0x10;
+            di += 16;
         }
         MEM8(di + 6) = descent_seq_index; // .anim_counter
         if (descent_seq_index != 4) return;
@@ -475,31 +472,30 @@ static void render_body_entities(void)
         droplet_target_y = ((MEM8(boss_state + 2) + 3) & 0x3F);
     }
 
-spawn_tick: {
-        uint8_t seq = acid_droplet_spawn_sequence[spawn_seq_index];
-        spawn_seq_index++;
-        if (seq == 0xFF) {
-            phase_spawning_droplet = 0;
-            return;
-        }
-        if (seq & 0x80) {
-            droplet_target_y = (uint8_t)((droplet_target_y + 1) & 0x3F);
-        }
-
-        uint8_t rel;
-        if (is_in_proximity_window(droplet_target_x, &rel)) return; // out of range: skip this tick
-
-        MEM16(si + 0) = droplet_target_x;     // .currX
-        MEM8(si + 2) = droplet_target_y;      // .currY
-        MEM8(si + 3) = rel;                   // .m_x_rel
-        MEM8(si + 4) = 0x35;                  // .flags: droplet sprite/tile index
-        MEM8(si + 6) = (uint8_t)(seq & 0x7F); // .anim_counter
-        MEM8(si + 5) = 0;                     // .ai_flags
-        MEM16(si + 0x10) = 0xFFFF;            // fresh terminator right after this entry
-
-        uint16_t addr = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
-        uint8_t old_tile = MEM8(addr);
-        MEM8(addr) = (uint8_t)(active_sprite_count | 0x80);
-        MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count) = old_tile;
+    // spawn_tick: 
+    uint8_t seq = acid_droplet_spawn_sequence[spawn_seq_index];
+    spawn_seq_index++;
+    if (seq == 0xFF) {
+        phase_spawning_droplet = 0;
+        return;
     }
+    if (seq & 0x80) {
+        droplet_target_y = (uint8_t)((droplet_target_y + 1) & 0x3F);
+    }
+
+    uint8_t rel;
+    if (!is_in_proximity_window(droplet_target_x, &rel)) return; // out of range: skip this tick
+
+    MEM16(si + 0) = droplet_target_x;     // .currX
+    MEM8(si + 2) = droplet_target_y;      // .currY
+    MEM8(si + 3) = rel;                   // .m_x_rel
+    MEM8(si + 4) = 0x35;                  // .flags: droplet sprite/tile index
+    MEM8(si + 6) = (uint8_t)(seq & 0x7F); // .anim_counter
+    MEM8(si + 5) = 0;                     // .ai_flags
+    MEM16(si + 16) = 0xFFFF;            // fresh terminator right after this entry
+
+    uint16_t addr = coords_to_prox_addr(MEM8(si + 3), MEM8(si + 2)); // .m_x_rel, .currY
+    uint8_t old_tile = MEM8(addr);
+    MEM8(addr) = (uint8_t)(active_sprite_count | 0x80);
+    MEM8(ADDR_PROXIMITY_LAYER2 + active_sprite_count) = old_tile;
 }

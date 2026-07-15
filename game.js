@@ -1628,7 +1628,6 @@ function drawDungeonEntities() {
         const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
         const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
-        console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
@@ -2854,8 +2853,9 @@ let bossMaxHP = null;
 
 function drawBossHealth() {
     if (!bossLifeFillCurrentEl) {
-        bossLifeFillCurrentEl = document.querySelector('.life-fill-current');
-        bossLifeFillMaxEl     = document.querySelector('.life-fill-max');
+        const container = document.getElementById('bossLifeBarContainer');
+        bossLifeFillCurrentEl = container.querySelector('.life-fill-current');
+        bossLifeFillMaxEl     = container.querySelector('.life-fill-max');
     }
 
     const bossStatePtr = readU16(ADDR_BOSS_STATE_PTR);

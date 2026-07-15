@@ -7,21 +7,21 @@ town            segment byte public 'CODE' use16
                 assume cs:town, ds:town
                 org 6000h
 start:
-                dw offset town_entry_enabling_edge_scroll
-town_exports    dw offset town_entry_disabling_edge_scroll           ; primary town init, called from fight.bin
-                dw offset render_menu_dialog        ; render FF-terminated dialog text
-                dw offset convert_ax_to_decimal     ; convert AX to 7-digit decimal string
-                dw offset show_yes_no_dialog        ; Yes/No confirmation dialog
-                dw offset check_gold_sufficient     ; check if gold subtraction fits
-                dw offset add_gold_to_hero          ; add gold to hero inventory
-                dw offset render_menu_string_list   ; render list of C-strings for menus
-                dw offset select_from_menu          ; menu selection with cursor navigation
-                dw offset render_menu_list_scrolling ; render scrollable menu list
-cursor_exports  dw offset houseCursorShow           ; draw menu cursor arrow
-                dw offset npcAnimation              ; NPC animation / frame tick handler
-cursor_up_export dw offset houseCursorUp            ; animate cursor moving up
+                   dw offset town_entry_enabling_edge_scroll
+                   dw offset town_entry_disabling_edge_scroll           ; primary town init, called from fight.bin
+                   dw offset render_menu_dialog        ; render FF-terminated dialog text
+                   dw offset convert_ax_to_decimal     ; convert AX to 7-digit decimal string
+                   dw offset show_yes_no_dialog        ; Yes/No confirmation dialog
+                   dw offset check_gold_sufficient     ; check if gold subtraction fits
+                   dw offset add_gold_to_hero          ; add gold to hero inventory
+                   dw offset render_menu_string_list   ; render list of C-strings for menus
+                   dw offset select_from_menu          ; menu selection with cursor navigation
+                   dw offset render_menu_list_scrolling ; render scrollable menu list
+cursor_exports     dw offset houseCursorShow           ; draw menu cursor arrow
+                   dw offset npcAnimation              ; NPC animation / frame tick handler
+cursor_up_export   dw offset houseCursorUp            ; animate cursor moving up
 cursor_down_export dw offset houseCursorDown        ; animate cursor moving down
-                dw offset restore_game              ; restore game from save file
+                   dw offset restore_game              ; restore game from save file ; 601C
 
 ; =============== S U B R O U T I N E =======================================
 ; town_entry_disabling_edge_scroll — Primary town initialization entry point, called from:
