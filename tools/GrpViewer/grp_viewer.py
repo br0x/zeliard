@@ -813,9 +813,10 @@ def draw_pixel(canvas, x, y, color_str, scale=SCALE):
 def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_idx=None):
     """Paint a flat list of palette indices (or None for transparent) onto the canvas."""
     for i, p_idx in enumerate(pixels):
-        if p_idx is None or p_idx == transparent_idx:
-            continue
         rx, ry = i % tile_w, i // tile_w
+        if p_idx is None or p_idx == transparent_idx:
+            draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
+            continue
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
         
 # ---------------------------------------------------------------------------
@@ -1086,7 +1087,7 @@ def render_pat_group(data, canvas, y_offset):
     indices     = data[6:HEADER_SIZE]
     tile_bank   = data[HEADER_SIZE:]
     ti_per_row  = 16
-    gap         = 8
+    gap         = 0
     total_tiles = len(tile_bank) // TILE_SIZE
 
     for idx in range(min(total_tiles, len(indices))):
@@ -1120,7 +1121,7 @@ def render_pat_group(data, canvas, y_offset):
                 if visible:
                     draw_pixel(canvas, x0 + rx*SCALE, y0 + ry*SCALE, PALETTE_STRS[pixels[rx]])
                 else:
-                    draw_pixel(canvas, x0 + rx*SCALE, y0 + ry*SCALE, "#00007d")
+                    draw_pixel(canvas, x0 + rx*SCALE, y0 + ry*SCALE, "#8c38ff")
 
     return ((total_tiles // ti_per_row) + 1) * (8 * SCALE + gap)
 
