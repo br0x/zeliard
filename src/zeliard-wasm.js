@@ -608,11 +608,8 @@ export function setDungeonMonsterDamage(damage) {
         return;
     }
 
-    const listGmemAddr = gMemoryBase + 0xA010; // absolute index into wasmMemory
-
-    for (let i = 0; i < 8; i++) {
-        wasmMemory[listGmemAddr + i] = damage[i];
-    }
+    const view = new Uint8Array(wasmMemory.buffer);
+    view.set(damage, gMemoryBase + 0xA010);
 }
 
 export function setDeathDescriptors(descriptors) {

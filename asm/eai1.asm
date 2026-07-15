@@ -6,16 +6,16 @@ include dungeon.inc
 eai1            segment byte public 'CODE'
                 assume cs:eai1, ds:eai1
                 org 0A000h
-start           dw offset Monster_AI ; 0
+start           dw offset Monster_AI ; A000
                 dw 0 ; 2
                 dw 0 ; 4
-                dw offset death_descriptors ; 6
-monster_xp      db    3, 2, 5, 3 ; XP for killing bat, slug, frog, rat ; 8
+                dw offset death_descriptors ; A006
+monster_xp      db    3, 2, 5, 3 ; XP for killing bat, slug, frog, rat ; A008
                 db    0 ; 12
                 db    0 ; 13
                 db    0 ; 14
                 db    0 ; 15
-monster_damage  db    5, 5, 15, 8 ; damage from bat, slug, frog, rat ; 16
+monster_damage  db    5, 5, 15, 8 ; damage from bat, slug, frog, rat ; A010
                 db    0
                 db    0
                 db    0

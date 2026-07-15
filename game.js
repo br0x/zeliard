@@ -251,7 +251,9 @@ const DUNGEONS = {
         aggressiveGround: [],
         airflows: [],
         monster_xp:     [],
-        monster_damage: [],
+        monster_damage: [
+            6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 15, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
+        ],
         death_descriptors: [
             [], [], [], [], [], [], [], [],
         ],
@@ -2888,8 +2890,8 @@ function renderBossName() {
     const name =  getBossName();
     const label = document.getElementById('goldLabel');
     const value = document.getElementById('gold');
-    if (label) label.textContent = name;
-    if (value) value.textContent = '';
+    if (label) label.textContent = '';
+    if (value) value.textContent = name;
 }
 
 export function saveGame(saveData, saveKey = 'zeliard_save_01') {
@@ -3311,14 +3313,14 @@ function draw() {
             if (bossLifeBar) bossLifeBar.classList.remove('hidden');
             if (placeName) placeName.style.display = 'none';
             if (placeLabel) placeLabel.textContent = 'ENEMY';
-            if (goldLabel) goldLabel.textContent = '';
-            if (goldValue) goldValue.style.display = 'none';
+            if (goldLabel) goldLabel.style.display = 'none';
+            if (goldValue) goldValue.style.display = '';
         } else {
             bossMaxHP = null;
             if (bossLifeBar) bossLifeBar.classList.add('hidden');
             if (placeName) placeName.style.display = '';
             if (placeLabel) placeLabel.textContent = 'PLACE';
-            if (goldLabel) goldLabel.textContent = 'GOLD';
+            if (goldLabel) { goldLabel.textContent = 'GOLD'; goldLabel.style.display = ''; }
             if (goldValue) goldValue.style.display = '';
         }
 
@@ -3326,14 +3328,17 @@ function draw() {
             drawLifeBar();
             writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
         }
-        if (bossMode && readMemory(ADDR_BOSS_HEALTH_REQUEST, 1)[0]) {
-            drawBossHealth();
-            renderBossName();
-            writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0]);
-        }
-        if (readMemory(ADDR_GOLD_RENDER_REQUEST, 1)[0]) {
-            renderGoldHud();
-            writeMemory(ADDR_GOLD_RENDER_REQUEST, [0]);
+        if (bossMode) {
+            if (readMemory(ADDR_BOSS_HEALTH_REQUEST, 1)[0]) {
+                drawBossHealth();
+                renderBossName();
+                writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0]);
+            }
+        } else {
+            if (readMemory(ADDR_GOLD_RENDER_REQUEST, 1)[0]) {
+                renderGoldHud();
+                writeMemory(ADDR_GOLD_RENDER_REQUEST, [0]);
+            }
         }
         if (readMemory(ADDR_ALMAS_RENDER_REQUEST, 1)[0]) {
             renderAlmasHud();
