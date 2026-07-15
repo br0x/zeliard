@@ -682,7 +682,7 @@ loc_A6C7:
                   xor     bh, bh
                   mov     proximity_second_layer[bx], al ; save old value in 2nd layer
                   inc     active_sprite_count
-                  add     si, 16   ; next entity
+                  add     si, 16   ; next entity to create
 loc_A6EB:
                 pop     ax
                 inc     ax  ; currX++
