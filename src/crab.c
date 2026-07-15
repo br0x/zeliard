@@ -284,7 +284,7 @@ static void trigger_acid_drop(void)
          * and initial movement direction, then fall through */
         uint16_t left_plus_12 = (uint16_t)(MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) + 12);
         uint16_t map_w = MEM16(ADDR_MAP_WIDTH);
-        uint16_t bound = (left_plus_12 < map_w) ? map_w : (uint16_t)(left_plus_12 - map_w);
+        uint16_t bound = (left_plus_12 < map_w) ? left_plus_12 : (uint16_t)(left_plus_12 - map_w);
 
         movement_direction_flag = ((MEM16(boss_state + 0) + 5) < bound) ? 0xFF : 0x00; // .boss_x
         phase_acid_dropping = 0;
