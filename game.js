@@ -841,6 +841,7 @@ const soundManager = new SoundManager({
 });
 
 let musicEnabled = true;
+let sfxEnabled = true;
 let currentMusicTrack = null;
 
 function playCurrentMusic(fadeDuration = 1.5) {
@@ -860,6 +861,13 @@ function toggleMusic() {
     soundManager.setMusicMuted?.(!musicEnabled, 0.25);
 
     console.log(`Music ${musicEnabled ? 'ON' : 'OFF'}`);
+}
+
+function toggleSfx() {
+    sfxEnabled = !sfxEnabled;
+    soundManager.setSfxMuted?.(!sfxEnabled, 0.25);
+
+    console.log(`SFX ${sfxEnabled ? 'ON' : 'OFF'}`);
 }
 
 // ─── PIT tick callbacks ───────────────────────────────────────────────────────
@@ -977,11 +985,16 @@ const keys = {
 };
 
 window.addEventListener('keydown', e => {
-    if (['F1', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.code))
+    if (['F1', 'F2', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.code))
         e.preventDefault();
     
     if (e.code === 'F1') {
         if (!e.repeat) toggleMusic();
+        return;
+    }
+
+    if (e.code === 'F2') {
+        if (!e.repeat) toggleSfx();
         return;
     }
 
@@ -2403,9 +2416,10 @@ async function handleDungeonTransition(mapId, isFromTown) {
             ]);
             const encoder = new TextEncoder();
             const bytes = encoder.encode(bossState.bossName);
-            const terminated = new Uint8Array(bytes.length + 1);
-            terminated.set(bytes); // terminated[bytes.length] already 0 by default
-            writeMemory(ADDR_BOSS_STATE_BLOCK + 11, terminated);                  // +11
+            const pascal = new Uint8Array(1 + bytes.length);
+            pascal[0] = bytes.length;
+            pascal.set(bytes, 1);
+            writeMemory(ADDR_BOSS_STATE_BLOCK + 11, pascal);                      // +11
 
             writeMemory(ADDR_BOSS_STATE_PTR, [
                 ADDR_BOSS_STATE_BLOCK & 0xFF, (ADDR_BOSS_STATE_BLOCK >> 8) & 0xFF,
@@ -2871,7 +2885,7 @@ function drawBossHealth() {
 }
 
 function renderBossName() {
-    const name = getBossName();
+    const name =  getBossName();
     const label = document.getElementById('goldLabel');
     const value = document.getElementById('gold');
     if (label) label.textContent = name;

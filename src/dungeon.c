@@ -1763,6 +1763,11 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     MEM8(ADDR_DUNGEON_SUBSTATE_PHASE) = 0;
 }
 
+// Saved old ADDR_HERO_Y_VIEW_INIT from enter_opened_door, used in
+// after_run_animation to correctly adjust viewport_top_row when the old MDT's
+// HERO_Y_VIEW_INIT differs from 10 (e.g. boss cavern sets it to 11).
+static uint8_t saved_y_view_init = 10;
+
 void prepare_dungeon(uint8_t is_from_town)
 {
     int count = ADDR_BYTE_9F2E - ADDR_BYTE_9EED - 1;
@@ -1770,6 +1775,8 @@ void prepare_dungeon(uint8_t is_from_town)
     MEM8(ADDR_BYTE_9EF5) = 0xFF;
     MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
     MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
+    // Only reset on actual town re-entry, not during door transitions (boss exit etc.)
+    if (is_from_town) saved_y_view_init = 10;
     reset_dungeon_state_vars();
     MEM8(ADDR_SPIRIT_SPRITE0) = 0xFF;
     MEM8(ADDR_SPIRIT_SPRITE1) = 0xFF;
@@ -4743,6 +4750,9 @@ void enter_opened_door(uint16_t si)
         remove_accomplished_items(); // for caverns
     }
 
+    // Save old ADDR_HERO_Y_VIEW_INIT before hero_left_16_down_1 uses it
+    saved_y_view_init = MEM8(ADDR_HERO_Y_VIEW_INIT);
+
     // Position hero
     hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
 
@@ -4814,9 +4824,7 @@ void after_run_animation()
         uint8_t hero_head_y = MEM8(ADDR_HERO_Y_VIEW_INIT);
         MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_head_y;
         MEM8(ADDR_BYTE_9F00) = hero_head_y;
-        // request_dungeon_transition used (y - 10), assuming hero_head_y_view = 10.
-        // Adjust viewport top row to match the actual value from MDT data.
-        MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_VIEWPORT_TOP_ROW) + 10 - hero_head_y) & 0x3F;
+        MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_VIEWPORT_TOP_ROW) + saved_y_view_init - hero_head_y) & 0x3F;
         MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
         Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 0x66);
         NoOperation_proc();

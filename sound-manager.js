@@ -74,6 +74,8 @@ export class SoundManager {
         // SFX gain node (allows fading SFX volume independently)
         /** @type {GainNode|null} */
         this._sfxGain = null;
+        this._sfxMuted  = false;
+        this._sfxVolume = 1.0;
 
         // Track which SFX is currently playing (only one at a time per original)
         /** @type {AudioBufferSourceNode|null} */
@@ -230,14 +232,28 @@ export class SoundManager {
         this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
     }
 
-    /** Set SFX volume (1.0 = full, 0.0 = silent). */
-    setSfxVolume(volume, fadeDuration = 0.25) {
+    /** Mute/unmute sound effects. */
+    setSfxMuted(muted, fadeDuration = 0.25) {
+        this._sfxMuted = muted;
         if (!this._ready || !this._sfxGain) return;
 
         const now = this._ctx.currentTime;
+        const targetGain = muted ? 0 : this._sfxVolume;
         this._sfxGain.gain.cancelScheduledValues(now);
         this._sfxGain.gain.setValueAtTime(this._sfxGain.gain.value, now);
-        this._sfxGain.gain.linearRampToValueAtTime(volume, now + fadeDuration);
+        this._sfxGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
+    }
+
+    /** Set SFX volume (1.0 = full, 0.0 = silent). */
+    setSfxVolume(volume, fadeDuration = 0.25) {
+        this._sfxVolume = volume;
+        if (!this._ready || !this._sfxGain) return;
+
+        const now = this._ctx.currentTime;
+        const targetGain = this._sfxMuted ? 0 : volume;
+        this._sfxGain.gain.cancelScheduledValues(now);
+        this._sfxGain.gain.setValueAtTime(this._sfxGain.gain.value, now);
+        this._sfxGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
     }
 
     /**

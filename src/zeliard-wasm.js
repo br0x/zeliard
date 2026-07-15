@@ -377,9 +377,10 @@ export function getBossName() {
     }
 
     const bossStatePtr = readU16(gMemoryBase + ADDR_BOSS_STATE_PTR);
-    // Add 3 to skip rendering info metadata and point to Pascal string length
-    const nameOffset = gMemoryBase + readU16(gMemoryBase + bossStatePtr + 9) + 3;
-    return getNameFromNameInfo(nameOffset);
+    // Note the offset 11 is intentionally different from the original 13 bytes, 
+    // also we don't need 3 bytes of coords metadata
+    const namePtr = (bossStatePtr + 11);
+    return getNameFromNameInfo(gMemoryBase + namePtr);
 }
 
 function getNameFromNameInfo(nameOffset) {
@@ -680,10 +681,9 @@ export function writeMemory(offset, data) {
         console.error('WASM not initialized');
         return;
     }
-
-    for (let i = 0; i < data.length; i++) {
-        wasmMemory[gMemoryBase + offset + i] = data[i];
-    }
+    
+    const view = new Uint8Array(wasmMemory.buffer);
+    view.set(data, gMemoryBase + offset);
 }
 
 /**
