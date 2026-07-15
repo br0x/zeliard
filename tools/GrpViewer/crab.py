@@ -514,12 +514,12 @@ def render_boss_group(data, canvas, y_offset):
     # -----------------------------------------------------------------------
 
     # Normal layout for phases 0-8: (part_name, grid_x, grid_y)
-    body_layout08 = [
+    body_layout_normal = [
                                             ("Left Eye", 24, 0), ("Right Eye", 40, 0),
         ("Left Tibia", 0, 16), ("Left Femur", 16, 16), ("Mouth", 32, 16), ("Right Femur", 48, 16), ("Right Tibia", 64, 16),
         ("Left Bottom Legs", 0, 32), ("Left Claw", 16, 32), ("Maxilla", 32, 32), ("Right Claw", 48, 32), ("Right Bottom Legs", 64, 32)
     ]
-    body_layout9 = [
+    body_layout_acid_drip = [
                                                 ("Left Eye", 32, 0),
         ("Left Tibia", 0, 16), ("Left Femur", 16, 8),           ("Right Femur", 48, 8), ("Right Tibia", 64, 16),
         ("Left Bottom Legs", 8, 32), ("Left Claw", 16, 24),     ("Right Claw", 48, 24), ("Right Bottom Legs", 56, 32)
@@ -534,11 +534,11 @@ def render_boss_group(data, canvas, y_offset):
 
         if phase < 9:
             # Standard rendering for phases 0-8
-            for name, gx, gy in body_layout08:
+            for name, gx, gy in body_layout_normal:
                 draw_composed_16x16_frame(canvas, CRAB_FRAMES[name][phase], tiles_raw, x_base + gx*scale, y_base + gy*scale, scale)
         else:
             # Phase 9: Special placement
-            for name, gx, gy in body_layout9:
+            for name, gx, gy in body_layout_acid_drip:
                 draw_composed_16x16_frame(canvas, CRAB_FRAMES[name][phase], tiles_raw, x_base + gx*scale, y_base + gy*scale, scale)
 
     # Advance y_cursor past the 2 rows of body phases

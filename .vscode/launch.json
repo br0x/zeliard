@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/cman.grp"
+                "${workspaceFolder}/tools/GrpViewer/crab.grp"
             ],
             "console": "integratedTerminal",
         },
