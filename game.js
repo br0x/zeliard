@@ -2227,7 +2227,9 @@ function drawDungeonNotification() {
     }
 
     const msgId = readU8(ADDR_NOTIFICATION_MSG_ID);
-    const [leftPad, text] = NOTIFICATION_STRINGS[msgId];
+    const entry = NOTIFICATION_STRINGS[msgId];
+    if (!entry) return;
+    const [leftPad, text] = entry;
     const x = 24;
     const y = 48;
     const w = 624;
