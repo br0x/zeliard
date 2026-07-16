@@ -3433,7 +3433,7 @@ render_notification_string proc near
                     mov     al, 0FFh
                     call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
                                                             ; BL: top margin (y)
-                                                            ; CL: height (rows)
+                                                            ; CL: height (px)
                                                             ; CH: width (in 2px units)
                                                             ; AL: 0 = fill black, non-zero = draw border
                                                             ; ES: VRAM segment
@@ -3460,32 +3460,32 @@ render_notification_string endp
 ; Draws a bordered rectangle sized to the text.
 ; ===========================================================================
 render_cavern_signs proc near 
-                lodsb
-                add     al, 19h
+                lodsb                 ; (text margin top - 25), pixels
+                add     al, 25
                 mov     cl, al
                 push    cx
-                lodsb
-                push    si
-                add     al, 2
-                mov     ds:byte_9EF1, al
-                mov     bl, 8
-                mul     bl
-                mov     bx, 1616h ; top = 22 = 14+8; left = 22*4 = 48+40; (row 1, col 5)
-                mov     ch, 36 ; width = 36*2 = 72px (9 tiles)
-                mov     cl, al
-                mov     al, 0FFh
-                call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
-                                                        ; BL: top margin (y)
-                                                        ; CL: height (rows)
-                                                        ; CH: width (in 2px units)
-                                                        ; AL: 0 = fill black, non-zero = draw border
-                                                        ; ES: VRAM segment
-                pop     si
-                mov     ds:byte_9EED, 0
-                mov     ds:byte_9EEF, 0
-                mov     ds:byte_9EEE, 0
-                mov     ds:byte_9EF0, 0FFh
-                mov     bx, 58h ; 'X'
+                    lodsb             ; (box height-2) in tiles
+                    push    si
+                        add     al, 2
+                        mov     ds:byte_9EF1, al ; height, tiles
+                        mov     bl, 8
+                        mul     bl     ; height, px
+                        mov     bx, 1616h ; top = 22 = 14+8; left = 22*4 = 48+40; (row 1, col 5)
+                        mov     ch, 36 ; width = 36*2 = 72px (9 tiles)
+                        mov     cl, al ; height (px)
+                        mov     al, 0FFh
+                        call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
+                                                                ; BL: top margin (y)
+                                                                ; CL: height (px)
+                                                                ; CH: width (in 2px units)
+                                                                ; AL: 0 = fill black, non-zero = draw border
+                                                                ; ES: VRAM segment
+                    pop     si
+                    mov     ds:byte_9EED, 0
+                    mov     ds:byte_9EEF, 0
+                    mov     ds:byte_9EEE, 0
+                    mov     ds:byte_9EF0, 0FFh
+                    mov     bx, 58h ; 'X'
                 pop     cx
 
 loc_7446:        
@@ -3503,8 +3503,8 @@ loc_7453:
 ; ---------------------------------------------------------------------------
 
 loc_7459:        
-                cmp     al, 2Fh ; '/'
-                jz      short loc_746F
+                cmp     al, 2Fh ; '/'   ; CR/LF marker
+                je      short loc_746F
                 mov     ah, 1
                 push    cx
                 push    bx
@@ -3513,7 +3513,7 @@ loc_7459:
                                         ; AH: Palette/colour index
                                         ; BX: X pixel coordinate in framebuffer
                                         ; CX: Y pixel coordinate (row)
-                                        ; CS:0xFF77: Flag: 0 = normal colour mode, nonzero = "bright/highlight" mode
+                                        ; font_highlight_flag: 0 = normal color mode, nonzero = highlight mode
                 pop     si
                 pop     bx
                 pop     cx
@@ -3524,7 +3524,7 @@ loc_7459:
 loc_746F:        
                 mov     bx, ds:word_9EF2
                 mov     cl, ds:byte_9EF4
-                add     cl, 0Ch
+                add     cl, 12          ; next line of text
                 jmp     short loc_7446
 render_cavern_signs endp
 

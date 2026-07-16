@@ -2394,6 +2394,8 @@ async function handleDungeonTransition(mapId, isFromTown) {
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, mdtPath);
         dungeonAIready = false;
+        dungeonTileSheetReady = false;
+        dungeonEntitySheetReady = false;
         mdtHeader = getCavernMdtHeader?.();
         cavernName = getCavernName?.() ?? 'Unknown';
         updatePlaceHud(cavernName);
@@ -2463,6 +2465,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         if (isDeath) {
             writeMemory(ADDR_HERO_DEATH_FLAG, [0]);
         }
+        resetBossHud();
         const rawMapId = townMapId & 0x7F;
         const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
         const resp = await fetch(mdtPath);
@@ -2813,6 +2816,19 @@ function startIndoorScene(destId) {
 function updateElementText(elementId, value) {
     const el = document.getElementById(elementId);
     if (el && value !== undefined) el.textContent = value;
+}
+
+function resetBossHud() {
+    const bossLifeBar = document.getElementById('bossLifeBarContainer');
+    if (bossLifeBar) bossLifeBar.classList.add('hidden');
+    const placeName = document.getElementById('currentMapName');
+    if (placeName) placeName.style.display = '';
+    const placeLabel = document.getElementById('placeLabel');
+    if (placeLabel) placeLabel.textContent = 'PLACE';
+    const goldLabel = document.getElementById('goldLabel');
+    if (goldLabel) { goldLabel.textContent = 'GOLD'; goldLabel.style.display = ''; }
+    const goldValue = document.getElementById('gold');
+    if (goldValue) goldValue.style.display = '';
 }
 
 function updatePlaceHud(name, indoor = false) {

@@ -894,7 +894,7 @@ loc_A7D7:
                 add     byte ptr [si+6], 21h ; '!'
                 and     byte ptr [si+6], 0E1h
                 call    word ptr cs:move_monster_S_proc
-                jb      short loc_A7ED
+                jc      short loc_A7ED
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -942,21 +942,21 @@ loc_A82B:
                 and     ch, 0F0h
                 or      al, ch
                 mov     [si+6], al
-                mov     bx, offset byte_A8EC
+                mov     bx, offset toad_jump_angles_right
                 test    byte ptr [si+5], 80h
                 jnz     short loc_A84E
-                mov     bx, offset byte_A8F0
+                mov     bx, offset toad_jump_angles_left
 
 loc_A84E:
                 mov     al, ah
                 sub     al, 2
-                xlat
+                xlat    ; al = angle
                 call    word ptr cs:monster_move_in_direction_proc
-                jb      short loc_A85B
+                jc      short loc_A85B
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A85B:
+loc_A85B:       ; blocked
                 call    sub_A8F4
                 jb      short loc_A864
                 xor     byte ptr [si+5], 80h
@@ -1039,8 +1039,8 @@ byte_A8E0       db 0
                 db    0
                 db    0
                 db    0
-byte_A8EC       db 1, 0, 0, 7
-byte_A8F0       db 3, 4, 4, 5
+toad_jump_angles_right  db 1, 0, 0, 7
+toad_jump_angles_left   db 3, 4, 4, 5
 
 ; =============== S U B R O U T I N E =======================================
 

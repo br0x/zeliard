@@ -609,14 +609,13 @@ static void red_toad_ai(uint16_t m)
         return;
     }
 
-    if (!(MEM8(m+9) & 8)) { // .ai_state: not jumping
-        MEM8(m+6) = (MEM8(m+6) + 0x21) & 0xE1; // .anim_counter
-        if (move_monster_S(m)) return; /* still falling */
-        toad_grounded(m);
+    if ((MEM8(m+9) & 8)) { // .ai_state: not jumping
+        toad_jump_step(m); // loc_A82B
         return;
     }
-
-    toad_jump_step(m);
+    MEM8(m+6) = (MEM8(m+6) + 0x21) & 0xE1; // .anim_counter
+    if (move_monster_S(m)) return; /* still falling */
+    toad_grounded(m); // loc_A7ED
 }
 
 /* loc_A7ED: while grounded, either react to being close & facing the
@@ -663,7 +662,7 @@ static void toad_jump_step(uint16_t m)
     uint8_t al = (uint8_t)(ah + 1) & 7;
 
     if (al >= 7) {
-        toad_end_jump(m);
+        toad_end_jump(m); // loc_A864
         return;
     }
 
@@ -675,15 +674,15 @@ static void toad_jump_step(uint16_t m)
     uint8_t angle = angle_table[(uint8_t)(ah - 2)];
 
     if (monster_move_in_direction(m, angle)) {
-        /* moved fine: check whether this hop has brought the toad
-         * close enough to the hero to cut the jump short */
-        ProxResult pr = monster_to_hero_proximity_and_direction(m);
-        if (!pr.carry) {
-            MEM8(m+5) ^= 0x80; // .ai_flags: flip facing
-        }
-        toad_end_jump(m);
+        return; /* moved fine, jump continues next frame */
     }
-    /* else: blocked this sub-step, try again next frame */
+
+    /* blocked mid-jump: maybe reverse direction, then land */
+    ProxResult pr = monster_to_hero_proximity_and_direction(m);
+    if (!pr.carry) {
+        MEM8(m+5) ^= 0x80; // .ai_flags: flip facing
+    }
+    toad_end_jump(m);
 }
 
 /* loc_A864: end the jump and fall back to the ground. */

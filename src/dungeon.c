@@ -847,6 +847,7 @@ void transit_to_sage()
 {
     MEM8(ADDR_HEARTBEAT_VOLUME) = 0;
     MEM8(ADDR_PLACE_MAP_ID) = MEM8(ADDR_LAST_SAGE_VISITED);
+    MEM8(ADDR_BOSS_MODE) = 0;
 
     // Set hero absolute X from tear spawn point
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = MEM16(ADDR_TEAR_X);
@@ -1798,6 +1799,7 @@ void prepare_dungeon(uint8_t is_from_town)
     if ((map_id & 0x80) == 0) {
         remove_accomplished_items();
     }
+    load_eai_module(map_id & 0x7F);
     roka_run();
     // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
 }
@@ -2955,17 +2957,17 @@ static void flag_1c(uint16_t m) {
             return;
 
         MEM8(ADDR_SOUND_FX_REQUEST) = 17;
-        MEM8(m+7) = MEM8(m+7) | 0x80; // .state_flags
-        MEM8(m+9) = MEM8(m+9) | 1;    // .ai_state
+        MEM8(m+7) |= 0x80; // .state_flags
+        MEM8(m+9) |= 1;    // .ai_state
         MEM8(m+10) = 0xEB;            // .ai_timer
         uint8_t idx = MEM8(m+6);      // .anim_counter
         uint16_t info = MEM16(ADDR_CAVERN_SIGNS_INFO) + idx * 2;
         render_cavern_signs(info);
     } else {
         if (MEM8(m+10) == 0) // .ai_timer
-            MEM8(m+9) = MEM8(m+9) & ~1; // .ai_state
+            MEM8(m+9) &= (~1); // .ai_state
         else
-            MEM8(m+10) = MEM8(m+10) + 1; // .ai_timer
+            MEM8(m+10)++; // .ai_timer
     }
 }
 
@@ -3325,13 +3327,13 @@ void monster_split_or_die(uint16_t m)
 uint8_t Check_Vertical_Distance_Between_Hero_And_Monster(uint16_t m)
 {
     MEM8(m+6) = 0; // .anim_counter
-    MEM8(m+4) = MEM8(m+4) | 0x68; // .flags
-    MEM8(m+5) = MEM8(m+5) & 0x80; // .ai_flags
+    MEM8(m+4) |= 0x68; // .flags
+    MEM8(m+5) &= 0x80; // .ai_flags
     if ((MEM8(m+7) & 0x10) && (MEM8(m+4) & 1) == 0) { // .state_flags, .flags
         MEM8(m+6) = 0x80; // .anim_counter
         MEM8(m+16+6) = 0; // .anim_counter
-        MEM8(m+16+4) = MEM8(m+16+4) | 0x68; // .flags
-        MEM8(m+16+5) = MEM8(m+16+5) & 0x80; // .ai_flags
+        MEM8(m+16+4) |= 0x68; // .flags
+        MEM8(m+16+5) &= 0x80; // .ai_flags
     }
     uint8_t al = (MEM8(m+2) - MEM8(ADDR_VIEWPORT_TOP_ROW) + 1) & 0x3F;
     if (al < 19) {
