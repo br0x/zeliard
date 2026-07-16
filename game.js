@@ -620,6 +620,8 @@ const ADDR_ROKA_PHASE              = 0xFF9D;
 const ADDR_ROKA_COLOR              = 0xFF9E;
 const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
 const ADDR_BOSS_MODE               = 0xFFA0;
+const ADDR_CAVERN_SIGN_FLAG        = 0xFFA1;
+const ADDR_CAVERN_SIGN_IDX         = 0xFFA2;
 const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
 const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
 
@@ -2249,6 +2251,15 @@ function drawDungeonNotification() {
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x + leftPad*3, y + h / 2);
     ctx.restore();
+}
+
+function drawDungeonSign() {
+    const flag = readU8(ADDR_CAVERN_SIGN_FLAG);
+    if (!flag) {
+        return;
+    }
+    const msgIdx = readU8(ADDR_CAVERN_SIGN_IDX);
+    // implement me
 }
 
 let prevRokaDx = -1;

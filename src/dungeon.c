@@ -53,20 +53,8 @@
 
 // Dungeon rendering buffers
 // Proximity map bounds
-#define PROXIMITY_SIZE            0x900u   // 36*64
+#define PROXIMITY_SIZE            0x900   // 36*64
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
-
-#define ADDR_DUNGEON_EXIT_FLAG    0xFFE2
-#define ADDR_HERO_DEATH_FLAG      0xFFE3
-
-#define ADDR_PENDING_DUNGEON_MAP  0xFFFC
-#define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
-
-#define ADDR_GOLD_RENDER_REQUEST  0xFF94
-#define ADDR_ALMAS_RENDER_REQUEST 0xFF98
-
-#define ADDR_NOTIFICATION_MSG_ID  0xFF96
-#define ADDR_NOTIFICATION_FLAG    0xFF97
 
 
 #define PROX_COLS                36
@@ -588,9 +576,12 @@ void res_dispatcher_fn4(uint8_t sword_type)
 }
 
 // stub
-void render_cavern_signs(uint16_t info)
+void render_cavern_signs(uint8_t idx)
 {
-
+    // uint16_t info = MEM16(ADDR_CAVERN_SIGNS_INFO) + idx * 2; // will be done in js
+    debug_printf("[render_cavern_sign] idx=%d", idx);
+    MEM8(ADDR_CAVERN_SIGN_IDX) = idx;
+    MEM8(ADDR_CAVERN_SIGN_FLAG) = 0xFF; // signal to js
 }
 
 // Checked
@@ -782,7 +773,6 @@ static void dungeon_update_death_fall(void)
     if (airborne_movement()) {
         MEM8(ADDR_HERO_SPRITE_HIDDEN) = 0;
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FLASH;
-        MEM8(ADDR_DEATH_PHASE) = 0;
         MEM8(ADDR_DEATH_COUNTER) = 0;
     }
 }
@@ -798,7 +788,6 @@ static void dungeon_update_death_flash(void)
         if ((MEM8(ADDR_BYTE_9F29) & 0x0F) == 0) {
             MEM8(ADDR_BYTE_FF24) = 8;
             MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FADE;
-            MEM8(ADDR_DEATH_PHASE) = 0;
             MEM8(ADDR_DEATH_COUNTER) = 0;
             return;
         }
@@ -1757,9 +1746,7 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
     MEM8(ADDR_RENDER_REQUEST) = 0xFF;
     MEM8(ADDR_RENDER_DONE) = 0;
-    MEM8(ADDR_DEATH_PHASE) = 0;
     MEM8(ADDR_DEATH_COUNTER) = 0;
-    MEM8(ADDR_BOSS_ENCOUNTER_PHASE) = 0;
     MEM8(ADDR_DUNGEON_SUBSTATE) = 0;
     MEM8(ADDR_DUNGEON_SUBSTATE_PHASE) = 0;
 }
@@ -2952,21 +2939,22 @@ static void flag_19(uint16_t m) {
 // dungeon sign
 static void flag_1c(uint16_t m) {
     MEM8(m+15) = 0; // .counter
-    if (!(MEM8(m+9) & 1)) { // ai_state
+    if (!(MEM8(m+9) & 1)) { // ai_state: if not displaying the sign text
         if (check_monster_aligned_to_hero_and_tick(m))
             return;
 
         MEM8(ADDR_SOUND_FX_REQUEST) = 17;
         MEM8(m+7) |= 0x80; // .state_flags
-        MEM8(m+9) |= 1;    // .ai_state
-        MEM8(m+10) = 0xEB;            // .ai_timer
+        MEM8(m+9) |= 1;    // .ai_state: display the sign text
+        MEM8(m+10) = 235;            // .ai_timer
         uint8_t idx = MEM8(m+6);      // .anim_counter
-        uint16_t info = MEM16(ADDR_CAVERN_SIGNS_INFO) + idx * 2;
-        render_cavern_signs(info);
+        // uint16_t info = MEM16(ADDR_CAVERN_SIGNS_INFO) + idx * 2;
+        render_cavern_signs(idx);
     } else {
-        if (MEM8(m+10) == 0) // .ai_timer
-            MEM8(m+9) &= (~1); // .ai_state
-        else
+        if (MEM8(m+10) == 0) { // .ai_timer
+            MEM8(m+9) &= (~1); // .ai_state: stop displaying the sign text
+            MEM8(ADDR_CAVERN_SIGN_FLAG) = 0; // signal js to stop rendering the sign
+        } else
             MEM8(m+10)++; // .ai_timer
     }
 }
@@ -4399,7 +4387,6 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
 
     if (MEM8(ADDR_HERO_INVINCIBILITY) == 0 && MEM16(ADDR_HERO_HP) == 0) {
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DEATH_FALL;
-        MEM8(ADDR_DEATH_PHASE) = 0;
         MEM8(ADDR_DEATH_COUNTER) = 0;
         process_hero_death();
         return 1;

@@ -192,19 +192,30 @@ extern "C" {
 #define ADDR_DUNGEON_FRAME_PHASE    0xFF91  // byte
 #define ADDR_RENDER_REQUEST         0xFF92  // byte: 0xFF = JS should render
 #define ADDR_RENDER_DONE            0xFF93  // byte: 0xFF = JS rendered
-#define ADDR_DEATH_PHASE            0xFF94  // byte
+#define ADDR_GOLD_RENDER_REQUEST    0xFF94  // byte
 #define ADDR_DEATH_COUNTER          0xFF95  // byte
-#define ADDR_BOSS_ENCOUNTER_PHASE   0xFF96  // byte
-#define ADDR_ASSETS_LOAD_REQUEST    0xFF97  // byte
-#define ADDR_ASSETS_LOADED          0xFF98  // byte
+#define ADDR_NOTIFICATION_MSG_ID    0xFF96  // byte
+#define ADDR_NOTIFICATION_FLAG      0xFF97  // byte
+#define ADDR_ALMAS_RENDER_REQUEST   0xFF98  // byte
+
 #define ADDR_HEALTH_BAR_REQUEST     0xFF99  // byte: 0xFF = JS should call drawLifeBar()
-#define ADDR_SHIELD_HP_RENDER_REQUEST 0xFF9A  // byte
+#define ADDR_SHIELD_HP_RENDER_REQUEST 0xFF9A // byte
 #define ADDR_DUNGEON_SUBSTATE       0xFF9B  // byte
 #define ADDR_DUNGEON_SUBSTATE_PHASE 0xFF9C  // byte
 #define ADDR_ROKA_PHASE             0xFF9D  // byte: roka_run animation step (0..25)
 #define ADDR_ROKA_COLOR             0xFF9E  // byte: roka background index (0=cyan..4=violet)
 #define ADDR_BOSS_HEALTH_REQUEST    0xFF9F  // byte: 0xFF = JS should call drawBossHealth()
 #define ADDR_BOSS_MODE              0xFFA0  // byte: 0xFF: draw 'ENEMY' and boss health gauge instead of 'PLACE' and place_name, also boss name instead of Gold indicator
+#define ADDR_CAVERN_SIGN_FLAG       0xFFA1  // byte
+#define ADDR_CAVERN_SIGN_IDX        0xFFA2  // byte
+
+#define ADDR_DUNGEON_EXIT_FLAG    0xFFE2
+#define ADDR_HERO_DEATH_FLAG      0xFFE3
+
+#define ADDR_PENDING_DUNGEON_MAP  0xFFFC
+#define ADDR_PENDING_DUNGEON_FLAG 0xFFFD
+
+
 
 // Addresses originally in seg1
 #define ADDR_PASSABLE_TILES         0x8000 // seg1-based
