@@ -66,7 +66,7 @@ start:
 ; BH: left margin (x) in 4px units
 ; BL: top margin (y)
 ; CL: height (rows)
-; CH: width (in 2px units)
+; CH: width (in 4px units)
 ; AL: 0 = fill black, non-zero = draw border
 ; ES: VRAM segment
 Draw_Bordered_Rectangle proc near
@@ -104,7 +104,7 @@ loc_2070:
                     call    clear_rectangular_region ; Input:
                                             ; DI = start offset in framebuffer,
                                             ; cl=row count,
-                                            ; ch=width-in-words (×2 = pixels, so width must be even).
+                                            ; ch=width in 4px units
                                             ; Fills cl rows × ch*2 pixels with black (0)
                 pop     di
                 xor     ax, ax
@@ -115,18 +115,17 @@ loc_2070:
                 call    draw_one_scanline_of_bordered_horiz_bar
                 push    cx
                 push    bx
-                mov     bl, ch
-                dec     bl
-                add     bx, bx
-                add     bx, bx
-                xor     bh, bh
-                xor     ch, ch
-
+                    mov     bl, ch
+                    dec     bl
+                    add     bx, bx
+                    add     bx, bx
+                    xor     bh, bh
+                    xor     ch, ch
 loc_209A:
-                mov     es:[di], dx
-                mov     es:[bx+di+2], dx
-                add     di, 320
-                loop    loc_209A
+                    mov     es:[di], dx
+                    mov     es:[bx+di+2], dx
+                    add     di, 320
+                    loop    loc_209A
                 pop     bx
                 pop     cx
                 mov     ax, 0FF00h
@@ -135,7 +134,7 @@ loc_209A:
                 xor     ax, ax
                 xor     bx, bx
 
-draw_one_scanline_of_bordered_horiz_bar:
+draw_one_scanline_of_bordered_horiz_bar: ; width = (ch-1)*4
                 push    di
                 push    cx
                 not     ax
@@ -169,7 +168,7 @@ Draw_Bordered_Rectangle endp
 ; Input:
 ; DI = start offset in framebuffer,
 ; cl=row count,
-; ch=width-in-words (×2 = pixels, so width must be even).
+; ch=width in 4px units
 ; Fills cl rows × ch*2 pixels with black (0)
 clear_rectangular_region proc near      ; ...
                 mov     ax, 0A000h

@@ -3471,13 +3471,13 @@ render_cavern_signs proc near
                         mov     bl, 8
                         mul     bl     ; height, px
                         mov     bx, 1616h ; top = 22 = 14+8 (1 tile top margin); left = 22*4 = 48+5*8; (5 tiles left margin in canvas)
-                        mov     ch, 36 ; width = 36*2 = 9*8 (9 tiles)
+                        mov     ch, 36 ; width = 36*4 = 18*8 (18 tiles)
                         mov     cl, al ; height (px)
                         mov     al, 0FFh
                         call    cs:Draw_Bordered_Rectangle_proc ; BH: left margin (x) in 4px units
                                                                 ; BL: top margin (y)
                                                                 ; CL: height (px)
-                                                                ; CH: width (in 2px units)
+                                                                ; CH: width (in 4px units)
                                                                 ; AL: 0 = fill black, non-zero = draw border
                                                                 ; ES: VRAM segment
                     pop     si
@@ -3487,14 +3487,12 @@ render_cavern_signs proc near
                     mov     ds:byte_9EF0, 0FFh
                     mov     bx, 88 ; = 48 + 5*8 (5 tiles left margin in canvas)
                 pop     cx
-
 loc_7446:        
                 mov     ds:word_9EF2, bx
                 mov     ds:byte_9EF4, cl
                 lodsb   ; New line padding in px (for 8px tiles)
                 xor     ah, ah
                 add     bx, ax ; margin+padding = x coordinate in framebuffer
-
 loc_7453:        
                 lodsb   ; char to render
                 cmp     al, 0FFh ; end of string

@@ -578,7 +578,7 @@ const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster tabl
 const ADDR_CAVERN_LEVEL            = 0xC012;
 const ADDR_TEAR_X                  = 0xC013; // word
 const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
-
+const ADDR_CAVERN_SIGNS_INFO       = 0xC017;    // word
 const ADDR_PROXIMITY_MAP           = 0xE000;    // 36*64 circular buffer
 const ADDR_VIEWPORT_ENTITIES       = 0xE900;    // 28*19 bytes cache buffer
 const ADDR_PROXIMITY_LAYER2        = 0xED20;    // 128 bytes layer-2 tile mapping
@@ -2232,34 +2232,75 @@ function drawDungeonNotification() {
     const entry = NOTIFICATION_STRINGS[msgId];
     if (!entry) return;
     const [leftPad, text] = entry;
-    const x = 24;
-    const y = 48;
-    const w = 624;
-    const h = 48;
+    const x = TILE_WIDTH;
+    const y = TILE_HEIGHT * 2;
+    const w = TILE_WIDTH * (VIEW_COLS - 2);
+    const h = TILE_HEIGHT * 2;
 
     ctx.save();
-    const r = 8;
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, r);
+    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
     ctx.fillStyle = '#000';
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = TILE_WIDTH/6; // border thickness
     ctx.stroke();
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, x + leftPad*3, y + h / 2);
+    ctx.fillText(text, x + leftPad*(TILE_WIDTH/8), y + h / 2);
     ctx.restore();
 }
 
 function drawDungeonSign() {
     const flag = readU8(ADDR_CAVERN_SIGN_FLAG);
-    if (!flag) {
-        return;
+    if (!flag) return;
+
+    const idx = readU8(ADDR_CAVERN_SIGN_IDX);
+    const tablePtr = readU16(ADDR_CAVERN_SIGNS_INFO);
+    const descPtr = readU16(tablePtr + idx * 2);
+
+    // Descriptor: [top_margin-25] [box_height-2] then (x_delta, text... terminated by 0xFF) per line, '/' = newline
+    const topY = readU8(descPtr) + TILE_HEIGHT + 3*(TILE_HEIGHT/8);
+    const h = (readU8(descPtr + 1) + 2) * TILE_HEIGHT;
+
+    const x = TILE_WIDTH * 5;
+    const y = TILE_HEIGHT;
+    const w = TILE_WIDTH * ((VIEW_COLS - 2*5));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = TILE_WIDTH/6;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.font = '24px "Press Start 2P", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'top';
+
+    let offset = descPtr + 2;
+    let cy = topY;
+
+    while (true) {
+        const xDelta = readU8(offset++);
+        let bx = x + xDelta * 3;
+
+        while (true) {
+            let ch = readU8(offset++);
+            if (ch === 0xFF) return;
+            if (ch === 0x2F) { // CR/LF
+                cy += (TILE_HEIGHT + TILE_HEIGHT/2);
+                break; // will read xDelta in outer loop
+            }
+            if (ch === 0x5C) ch = 0x27;
+            ctx.fillText(String.fromCharCode(ch), bx, cy);
+            bx += TILE_WIDTH;
+        }
     }
-    const msgIdx = readU8(ADDR_CAVERN_SIGN_IDX);
-    // implement me
 }
 
 let prevRokaDx = -1;
@@ -3321,6 +3362,7 @@ function draw() {
             drawDungeonHero();
             drawDungeonSword();
             drawDungeonNotification();
+            drawDungeonSign();
             animateDungeonTiles();
             if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
                 const fade = readU8(ADDR_DEATH_COUNTER) / 29;
