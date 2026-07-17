@@ -1373,22 +1373,19 @@ void try_climb_rope()
     MEM8(ADDR_ON_ROPE_FLAGS) = 0xFF;
     MEM8(ADDR_SQUAT_FLAG) = 0;
 
-    do {
-        si = hero_coords_to_addr_in_proximity() - 35; // tile above hero head
-        wrap_map_from_below(&si);
+    si = hero_coords_to_addr_in_proximity() - 35; // tile above hero head
+    wrap_map_from_below(&si);
 
-        MEM8(ADDR_HERO_ANIM_PHASE)--;
+    MEM8(ADDR_HERO_ANIM_PHASE)--;
 
-        if (!is_over_rope(si)) {
-            MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
-            return;
-        }
+    if (!is_over_rope(si)) {
+        MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
+        return;
+    }
 
-        move_hero_up();
-        MEM8(ADDR_RENDER_DONE) = 0;
-        MEM8(ADDR_RENDER_REQUEST) = 0xFF;
-
-    } while ((MEM8(ADDR_HERO_ANIM_PHASE) & 1) == 0);
+    move_hero_up();
+    MEM8(ADDR_RENDER_DONE) = 0;
+    MEM8(ADDR_RENDER_REQUEST) = 0xFF;
 }
 
 // is_blocking_tile family. 
@@ -3657,28 +3654,19 @@ void down_pressed()
     wrap_map_from_above(&si);
 
     if (is_over_rope(si)) {
-        // Still over rope: keep descending row by row until the rope ends.
-        for (;;) {
-            si = hero_coords_to_addr_in_proximity() + 3 * PROX_COLS + 1;
-            wrap_map_from_above(&si);
+        // Descend one step per frame while holding down on a rope.
+        MEM8(ADDR_HERO_ANIM_PHASE)++;
 
-            MEM8(ADDR_HERO_ANIM_PHASE)++;
-
-            uint8_t tile = MEM8(si);
-            if (is_blocking_tile(tile) != 0) {
-                // Blocked tile reached: stop falling.
-                MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
-                return;
-            }
-
-            hero_scroll_down();
-            MEM8(ADDR_RENDER_DONE) = 0;
-            MEM8(ADDR_RENDER_REQUEST) = 0xFF;
-
-            if (MEM8(ADDR_HERO_ANIM_PHASE) & 1) {
-                return;
-            }
+        uint8_t tile = MEM8(si);
+        if (is_blocking_tile(tile) != 0) {
+            MEM8(ADDR_HERO_ANIM_PHASE) |= 1;
+            return;
         }
+
+        hero_scroll_down();
+        MEM8(ADDR_RENDER_DONE) = 0;
+        MEM8(ADDR_RENDER_REQUEST) = 0xFF;
+        return;
     }
 
     // No longer over rope.
@@ -4514,7 +4502,6 @@ static void dungeon_finish_rope_frame(void)
 
     MEM8(ADDR_FACING) &= ~UP;
     MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-    MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
     MEM8(ADDR_SPACEBAR_LATCH) = 0;
     MEM8(ADDR_ALTKEY_LATCH) = 0;
     MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
