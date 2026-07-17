@@ -1747,6 +1747,11 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
 // HERO_Y_VIEW_INIT differs from 10 (e.g. boss cavern sets it to 11).
 static uint8_t saved_y_view_init = 10;
 
+// Saved door target X from enter_opened_door. Preserved across prepare_dungeon's
+// memset (which zeroes ADDR_HERO_X_IN_PROXIMITY_MAP at 0x9F1A) so it can be used
+// to correctly recalculate ADDR_PROXIMITY_MAP_LEFT_COL with the new MDT's width.
+uint16_t saved_door_x1 = 0;
+
 void prepare_dungeon(uint8_t is_from_town)
 {
     int count = ADDR_BYTE_9F2E - ADDR_BYTE_9EED - 1;
@@ -1768,6 +1773,18 @@ void prepare_dungeon(uint8_t is_from_town)
     uint8_t al = MEM8(mdt_descr + 0);
     process_mdt_descriptor(al, mdt_descr+1);
     Clear_Viewport_proc();
+    // Recalculate proximity map left column using the new MDT's width.
+    // hero_left_16_down_1() / request_dungeon_transition used the old map's
+    // width, which is wrong when the maps have different widths and x1 < 16.
+    // saved_door_x1 survives prepare_dungeon's memset which zeroes
+    // ADDR_HERO_X_IN_PROXIMITY_MAP (0x9F1A) .
+    uint16_t x = saved_door_x1;
+    uint16_t w = MEM16(ADDR_MAP_WIDTH);
+    MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = (x < 16 ? x + w : x) - 16;
+    // Reset hero viewport X to dungeon default (12). During town→dungeon
+    // transitions ADDR_HERO_X_VIEW still carries the town's value, which
+    // shifts hero_coords_to_addr_in_proximity's result by up to 9 columns.
+    MEM8(ADDR_HERO_X_VIEW) = 12;
     // res_dispatcher_proc("roka.grp", 0x18000);
     Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18000, 0x80);
     if (is_from_town) {
@@ -4700,6 +4717,7 @@ void enter_opened_door(uint16_t si)
     uint8_t roka_color = door_flags & 7;
     uint16_t x1 = MEM16(si + 5);
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
+    saved_door_x1 = x1; // preserve across prepare_dungeon's memset
     uint8_t y1 = MEM8(si + 7);
     MEM8(ADDR_DOOR_TARGET_Y) = y1;
     uint8_t is_left_run = (door_flags >> 6) & 1;

@@ -1534,10 +1534,13 @@ static void handle_edge_screen_transition(void)
      * JS detects ADDR_PENDING_TRANSITION_FLAG and drives the rest. */
 }
 
+extern uint16_t saved_door_x1;
+
 static void request_dungeon_transition(uint8_t dest_map_id)
 {
     uint16_t tbl = MEM16(ADDR_DUNGEON_ENTRANCE_TABLE) + dest_map_id * 5;
     uint16_t x = MEM16(tbl + 0);
+    saved_door_x1 = x; // preserve across prepare_dungeon's memset
     MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = (x >= 16) ? (x - 16) : (x - 16 + MEM16(ADDR_MAP_WIDTH));
     uint8_t y = MEM8(tbl + 2);
     MEM8(ADDR_VIEWPORT_TOP_ROW) = (y - 10) & 0x3F;

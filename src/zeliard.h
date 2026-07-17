@@ -249,6 +249,7 @@ enum {
 extern uint8_t g_mem[65536*4];  // 64KB*4 memory space
 extern uint16_t packed_map_ptr_for_prox_left;  // For left column
 extern uint16_t packed_map_ptr_for_prox_right;   // For right column
+extern uint16_t saved_door_x1;  // door X preserved across prepare_dungeon's memset
 // ============================================================================
 // Type Definitions
 // ============================================================================
