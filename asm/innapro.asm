@@ -171,7 +171,6 @@ loc_A12A:
 
 loc_A15C:
                 jmp     sub_A05F
-; END OF FUNCTION CHUNK FOR sub_A075
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -205,7 +204,7 @@ sub_A16F        endp
 
 
 sub_A17F        proc near
-                mov     cl, 14h
+                mov     cl, 20
                 mul     cl
                 add     ax, offset byte_A281
                 mov     si, ax
@@ -243,7 +242,7 @@ sub_A1AA        proc near
 
 loc_A1B3:
                 push    cx
-                mov     cx, 0Ch
+                mov     cx, 12
 
 loc_A1B7:
                 push    cx
@@ -254,7 +253,7 @@ loc_A1B7:
                 inc     bh
                 pop     cx
                 loop    loc_A1B7
-                sub     bh, 0Ch
+                sub     bh, 12
                 add     bl, 8
                 pop     cx
                 loop    loc_A1B3
@@ -262,15 +261,14 @@ loc_A1B7:
 sub_A1AA        endp
 
 ; ---------------------------------------------------------------------------
-byte_A1CF       db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0Ah, 0Bh, 0Ch, 0Dh, 0Eh
-                db 0Fh, 10h, 11h, 12h, 13h, 14h, 15h, 16h, 17h, 18h, 19h
-                db 1Ah, 1Bh, 10h, 1Ch, 1Dh, 1Eh, 1Fh, 20h, 21h, 22h, 23h
-                db 24h, 25h, 26h, 10h, 27h, 28h, 29h, 2Ah, 2Bh, 2Ch, 2Dh
-                db 2Eh, 2Fh, 30h, 31h, 32h, 33h, 34h, 35h, 36h, 37h, 38h
-                db 39h, 3Ah, 3Bh, 3Ch, 3Dh, 3Eh, 3Fh, 40h, 41h, 42h, 43h
-                db 44h, 45h, 46h, 47h, 48h, 49h, 4Ah, 4Bh, 4Ch, 4Dh, 4Eh
-                db 4Fh, 50h, 51h, 52h, 53h, 54h, 55h, 56h, 57h, 58h, 59h
-                db 5Ah, 5Bh, 5Ch, 5Dh
+byte_A1CF       db   0,   1,   2,   3,   4,   5,   6,   7,   8,   9, 0Ah, 0Bh
+                db 0Ch, 0Dh, 0Eh, 0Fh, 10h, 11h, 12h, 13h, 14h, 15h, 16h, 17h
+                db 18h, 19h, 1Ah, 1Bh, 10h, 1Ch, 1Dh, 1Eh, 1Fh, 20h, 21h, 22h
+                db 23h, 24h, 25h, 26h, 10h, 27h, 28h, 29h, 2Ah, 2Bh, 2Ch, 2Dh
+                db 2Eh, 2Fh, 30h, 31h, 32h, 33h, 34h, 35h, 36h, 37h, 38h, 39h
+                db 3Ah, 3Bh, 3Ch, 3Dh, 3Eh, 3Fh, 40h, 41h, 42h, 43h, 44h, 45h
+                db 46h, 47h, 48h, 49h, 4Ah, 4Bh, 4Ch, 4Dh, 4Eh, 4Fh, 50h, 51h
+                db 52h, 53h, 54h, 55h, 56h, 57h, 58h, 59h, 5Ah, 5Bh, 5Ch, 5Dh
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -320,31 +318,39 @@ loc_A261:
 sub_A22F        endp
 
 ; ---------------------------------------------------------------------------
-byte_A279       db 19h, 1Ah, 24h, 25h, 5Eh, 5Fh, 24h, 60h
-byte_A281       db 19h, 1Ah, 1Bh, 10h, 1Ch, 24h, 25h, 26h, 10h, 27h, 2Fh
-                db 30h, 31h, 32h, 33h, 3Bh, 3Ch, 3Dh, 3Eh, 3Fh, 19h, 1Ah
-                db 1Bh, 10h, 1Ch, 24h, 25h, 26h, 10h, 27h, 2Fh, 30h, 31h
-                db 32h, 33h, 3Bh, 3Ch, 3Dh, 3Eh, 3Fh, 19h, 1Ah, 1Bh, 10h
-                db 1Ch, 24h, 61h, 62h, 10h, 27h, 2Fh, 63h, 64h, 32h, 33h
-                db 3Bh, 65h, 66h, 3Eh, 3Fh, 19h, 1Ah, 1Bh, 10h, 1Ch, 24h
-                db 25h, 26h, 67h, 68h, 2Fh, 69h, 6Ah, 6Bh, 6Ch, 3Bh, 6Dh
-                db 6Eh, 6Fh, 3Fh
-byte_A2D1       db 0
-                db    0
-                db  1Eh
-                db    0
-                db  32h ; 2
-                db    0
-                db  46h ; F
-                db    0
-                db  64h ; d
-                db    0
-                db  96h
-                db    0
-                db 0C8h
-                db    0
-                db  90h
-                db    1
+byte_A279       db 19h, 1Ah
+                db 24h, 25h
+
+                db 5Eh, 5Fh
+                db 24h, 60h
+
+byte_A281       db 19h, 1Ah, 1Bh, 10h, 1Ch
+                db 24h, 25h, 26h, 10h, 27h
+                db 2Fh, 30h, 31h, 32h, 33h
+                db 3Bh, 3Ch, 3Dh, 3Eh, 3Fh
+
+                db 19h, 1Ah, 1Bh, 10h, 1Ch
+                db 24h, 25h, 26h, 10h, 27h
+                db 2Fh, 30h, 31h, 32h, 33h
+                db 3Bh, 3Ch, 3Dh, 3Eh, 3Fh
+                
+                db 19h, 1Ah, 1Bh, 10h, 1Ch
+                db 24h, 61h, 62h, 10h, 27h
+                db 2Fh, 63h, 64h, 32h, 33h
+                db 3Bh, 65h, 66h, 3Eh, 3Fh
+                
+                db 19h, 1Ah, 1Bh, 10h, 1Ch
+                db 24h, 25h, 26h, 67h, 68h
+                db 2Fh, 69h, 6Ah, 6Bh, 6Ch
+                db 3Bh, 6Dh, 6Eh, 6Fh, 3Fh
+byte_A2D1       dw  0
+                dw  30
+                dw  50
+                dw  70
+                dw  100
+                dw  150
+                dw  200
+                dw  400
 vfs_inn_grp     db 1
                 db 19h
 aInnGrp         db 'INN.GRP',0
@@ -353,17 +359,16 @@ byte_A2EB       db 19h
                 db    0
 aTheInn         db 7,'The Inn'
 aWelcomeSir     db 12,'Welcome, sir!/'
-aYouLookLikeYou db 'You look like you\ve come a long way./One night of rest in my inn'
-                db ' is all you need to recover your strength. You can have the best '
-                db 'room in the house for only '
+aYouLookLikeYou db 'You look like you\ve come a long way./'
+                db 'One night of rest in my inn is all you need to recover your strength. You can have the best room in the house for only '
                 db 0FFh
                 db    0
 aGoldsWillYouSt db '&golds. Will you stay? '
                 db 0FFh
                 db    1
 byte_A3BD       db 0Ch
-aOhIMSorryToHea db 'Oh, I\m sorry to hear that./Well, if you should ever need a place'
-                db ' to rest, do come back. '
+aOhIMSorryToHea db 'Oh, I\m sorry to hear that./'
+                db 'Well, if you should ever need a place to rest, do come back. '
                 db  11h
                 db 0FFh
                 db 0FFh

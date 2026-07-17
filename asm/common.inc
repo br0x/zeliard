@@ -468,6 +468,8 @@ Find_Monsters_Near_Hero_proc                       equ 603Eh
 Move_Monster_NWE_Depending_On_Whats_Below_proc     equ 6040h
 
 ; town.bin
+restore_game_proc                                  equ 601Ch
+
 word_A000                                          equ 0A000h
 sage_bin_addr                                      equ 0A000h
 town_indoors_bin_addr                              equ 0A000h
