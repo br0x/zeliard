@@ -57,12 +57,6 @@
 #define PROXIMITY_END             (ADDR_PROXIMITY_MAP + PROXIMITY_SIZE)
 
 
-#define PROX_COLS                36
-#define DUNGEON_HEIGHT           64
-#define VIEW_COLS                28
-#define VIEW_ROWS                18
-
-
 static uint16_t dungeon_map_width;
 static uint16_t dungeon_entity_count;
 

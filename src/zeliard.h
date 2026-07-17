@@ -68,6 +68,11 @@ extern "C" {
 #define PROJECTILE_STRUCT_SIZE 13
 #define MAX_PROJECTILES        32
 
+#define PROX_COLS                36
+#define DUNGEON_HEIGHT           64
+#define VIEW_COLS                28
+#define VIEW_ROWS                18
+
 
 // Memory Layout Constants
 #define MEM_SAVE_DATA                 0       // 256 bytes - Save data (xxx.sav)
@@ -835,14 +840,6 @@ uint8_t is_over_rope(uint16_t si); // Check if over rope tile
 // tile_neighborhood_buffer (9 bytes) filled with tile indices 
 // (negative values indicate valid loaded tiles, zero if blank).
 void Sample_Neighborhood_Attributes();
-
-/*
- * Redraws every tile in the 28x18 viewport whose underlying map data has
- * changed since the last call, plus anything mid-animation (based on cavern level). 
- * Row 0 (the top row, with its two corner-entity slots) is handled first, 
- * then rows 1..18 in the main loop below.
- */
-void Refresh_Dirty_Tiles();
 
 /*
  * Iterates the list of active boss explosions (max 32, 4 bytes each,

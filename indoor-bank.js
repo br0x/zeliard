@@ -49,7 +49,7 @@ const LINE_H_DLG = 20;
 const CHAR_MS    = 28;
 
 const MENU_TEXT_X  = MENU_X + 28;
-const MENU_TEXT_Y  = MENU_Y + 42;
+const MENU_TEXT_Y  = MENU_Y + 26;
 const CURSOR_X     = MENU_X + 6;
 const DLG_TEXT_X   = DLG_X  + 14;
 const DLG_TEXT_Y   = DLG_Y  + 22;
@@ -635,24 +635,24 @@ export class BankScene extends IndoorSceneBase {
         const topLabel = labels[0];
         const topVal   = this.numMode === 'deposit' ? heroG : bankG;
         ctx.fillStyle  = '#aaaaff';
-        ctx.fillText(topLabel, NUM_X + 12, NUM_Y + 34);
+        ctx.fillText(topLabel, NUM_X + 12, NUM_Y + 24);
         ctx.fillStyle  = '#ffffff';
-        ctx.fillText(String(topVal), NUM_X + 12, NUM_Y + 60);
+        ctx.fillText(String(topVal), NUM_X + 12, NUM_Y + 50);
 
         // Row 1: entry label + current entered amount
         const botLabel  = labels[1];
         ctx.fillStyle   = '#aaaaff';
-        ctx.fillText(botLabel, NUM_X + 12, NUM_Y + 100);
+        ctx.fillText(botLabel, NUM_X + 12, NUM_Y + 90);
         ctx.fillStyle   = '#ffff00';
-        ctx.fillText(String(this.numAmount), NUM_X + 12, NUM_Y + 126);
+        ctx.fillText(String(this.numAmount), NUM_X + 12, NUM_Y + 116);
 
         // Row 2: remaining (for withdraw: how much stays in bank; for deposit: hero gold remaining)
         const remaining = this.numMax - this.numAmount;
         ctx.fillStyle   = '#66dd88';
         const remLabel  = this.numMode === 'deposit' ? 'REMAINING' : 'BALANCE AFTER';
-        ctx.fillText(remLabel, NUM_X + 12, NUM_Y + 162);
+        ctx.fillText(remLabel, NUM_X + 12, NUM_Y + 152);
         ctx.fillStyle   = '#ffffff';
-        ctx.fillText(String(remaining), NUM_X + 12, NUM_Y + 188);
+        ctx.fillText(String(remaining), NUM_X + 12, NUM_Y + 178);
 
         ctx.restore();
     }
