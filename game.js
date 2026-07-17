@@ -2209,6 +2209,18 @@ function drawDungeonSword() {
 let notificationStart = 0;
 const NOTIFICATION_DURATION = 2500;
 
+function drawDungeonBox(x, y, w, h) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = TILE_WIDTH/6;
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawDungeonNotification() {
     const flag = readU8(ADDR_NOTIFICATION_FLAG);
     if (!flag) {
@@ -2237,19 +2249,11 @@ function drawDungeonNotification() {
     const w = TILE_WIDTH * (VIEW_COLS - 2);
     const h = TILE_HEIGHT * 2;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = TILE_WIDTH/6; // border thickness
-    ctx.stroke();
+    drawDungeonBox(x, y, w, h);
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x + leftPad*(TILE_WIDTH/8), y + h / 2);
-    ctx.restore();
 }
 
 function drawDungeonSign() {
@@ -2268,16 +2272,7 @@ function drawDungeonSign() {
     const y = TILE_HEIGHT;
     const w = TILE_WIDTH * ((VIEW_COLS - 2*5));
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = TILE_WIDTH/6;
-    ctx.stroke();
-    ctx.restore();
-
+    drawDungeonBox(x, y, w, h);
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'top';
@@ -3420,7 +3415,7 @@ function draw() {
             writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, [0]);
         }
     } else { // town outdoor mode
-        ctx.fillStyle = '#05053f';
+        ctx.fillStyle = townPatId === 2 ? '#000000' : '#05053f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         drawTownBackground();
         drawTownSidewalk();

@@ -231,18 +231,16 @@ export function townFullTick() {
  * @param {Uint8Array} mdtData - Raw MDT file data
  * @returns {number} 0 on success, -1 on error
  */
+//
 export function loadMdt(mdtData, mdtPath) {
     if (!wasmExports) {
         console.error('WASM not initialized');
         return -1;
     }
 
-    const mdtStart = gMemoryBase + ADDR_MDT;
+    const view = new Uint8Array(wasmMemory.buffer);
+    view.set(mdtData, gMemoryBase + ADDR_MDT);
 
-    // Copy MDT data to WASM memory at 0xC000
-    for (let i = 0; i < mdtData.length; i++) {
-        wasmMemory[mdtStart + i] = mdtData[i];
-    }
     console.log('MDT loaded: ' + mdtPath);
 
     return 0;
@@ -462,14 +460,13 @@ export function getTownPatId() {
         return '';
     }
 
-    const header = getTownMdtHeader();
-    if (!header || header.town_descriptor_offset === 0) {
-        return '';
+    function readU16(addr) {
+        return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
     }
 
     // Header offset is relative to 0xc000, so actual WASM memory address is:
     // gMemoryBase + header.town_descriptor_offset
-    const patIdOffset = gMemoryBase + header.town_descriptor_offset + 4;
+    const patIdOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + 0) + 4;
 
     return wasmMemory[patIdOffset];
 }
