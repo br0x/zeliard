@@ -13,6 +13,7 @@ import { WeaponShopScene } from './indoor-weapon-shop.js';
 import { WitchcraftShopScene } from './indoor-magic-shop.js';
 import { ChurchScene }   from './indoor-church.js';
 import { BankScene }     from './indoor-bank.js';
+import { InnScene }      from './indoor-inn.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 import { ImportExportDialog } from './import-export-ui.js';
 
@@ -817,8 +818,11 @@ const TOWN_DOORS = {
         name: 'The Bank',
         scene: BankScene,
     },
-    // 7: Inn (TODO)
-    // 8: Cavern (TODO)
+    7: {
+        name: 'The Inn',
+        scene: InnScene,
+    },
+    // 8: Cavern (implemented differently)
 };
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog
