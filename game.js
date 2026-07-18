@@ -254,6 +254,8 @@ const DUNGEONS = {
         monster_xp:     [],
         monster_damage: [
             6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 15, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
+            // temporary for testing (crab won't deal damage to Duke)
+            // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ],
         death_descriptors: [
             [], [], [], [], [], [], [], [],
