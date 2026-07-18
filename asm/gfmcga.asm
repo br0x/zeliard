@@ -1276,10 +1276,10 @@ Spawn_Boss_Explosion_Ring endp
 
 ; =============== S U B R O U T I N E =======================================
 
-; Iterates through a list of active map entities (max 32) 
+; Iterates through a list of active boss explosions (max 32) 
 ; and renders each one as a 16×16 sprite onto the viewport. 
-; Entities that have expired (flag 0FFh) are removed. 
-; Each entity is drawn using a mask table and an entity‑render‑function table 
+; Explosions that have expired (flag 0FFh) are removed. 
+; Each explosion is drawn using a mask table and an entity‑render‑function table 
 ; that defines the transparency bitplane.
 Boss_Explosions_Renderer proc near
                 push    cs

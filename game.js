@@ -1563,6 +1563,22 @@ function drawTownNpcs() {
     }
 }
 
+// try to use this for monsters being hit non-lethally
+function drawTintedSprite(ctx, img, x, y, tintColor = '#ffff00', alpha = 0.6) {
+  ctx.save();
+  
+  // Draw original sprite
+  ctx.drawImage(img, x, y);
+  
+  // Apply tint
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = 'source-atop'; // or 'multiply', 'overlay', 'screen'
+  ctx.fillStyle = tintColor;
+  ctx.fillRect(x, y, img.width, img.height);
+  
+  ctx.restore();
+}
+
 function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = frameW, dh = frameH) {
     if (!sheet || frameIndex < 0) return;
     const sx = (frameIndex % cols) * frameW;
@@ -1621,17 +1637,10 @@ function spawnBossExplosionRings() {
  * Walks every tile in the 28×18 viewport (plus the invisible row above and the
  * left/right edge columns) reading the proximity map.  Any cell whose byte has
  * bit 7 set is an entity overlay — we resolve the monster type through the
- * layer-2 table and the monsters list, then draw the corresponding enp1.png
- * 48×48 sprite.  The ADDR_VIEWPORT_ENTITIES cache buffer (28×19) is updated
+ * layer-2 table and the monsters list, then draw the corresponding enp1.png 48×48 sprite.
+ * The ADDR_VIEWPORT_ENTITIES cache buffer (28×19) is updated
  * with 0xFF to mark cells as processed, keeping the shared-memory state
  * consistent with what the C side expects.
- *
- * Edge tiles handled:
- *   – top-left corner      (above & left of viewport)
- *   – top row              (27 cells above the viewport)
- *   – top-right corner     (above & right of viewport)
- *   – left column edge     (col −1 of each visible row)
- *   – right column edge    (col 27 of each visible row)
  */
 let renderCounter = 0; // incremented every Refresh_Dirty_Tiles, used to animate tiles every odd frame
 function drawDungeonEntities() {
