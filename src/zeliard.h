@@ -36,6 +36,14 @@ extern "C" {
 #define AIRFLOW_UP       0
 #define AIRFLOW_LEFT     1
 #define AIRFLOW_RIGHT    2
+#define SHIELD_NONE      0
+#define SHIELD_CLAY      1
+#define SHIELD_WISE_MANS 2
+#define SHIELD_STONE     3
+#define SHIELD_HONOR     4
+#define SHIELD_LIGHT     5
+#define SHIELD_TITANIUM  6
+
 #define KEY_UP           1
 #define KEY_DOWN         2
 #define KEY_LEFT         4
@@ -822,6 +830,11 @@ void projectile_erase_old_tiles(uint16_t mp);
 uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x);
 void Uncompress_And_Render_Tile(uint8_t tile_idx, uint16_t screen_half_addr);
 void update_and_render_projectile_row_pair();
+void projectiles_collision_processing();
+void sub_846F(uint16_t p);
+void projectile_advance_position(uint16_t p);
+uint8_t projectile_y_vs_hero_row_dispatch(uint16_t p, uint8_t al);
+uint8_t projectile_read_curved_path_step(uint16_t p);
 
 
 // Rendering

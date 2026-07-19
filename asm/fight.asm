@@ -6143,9 +6143,9 @@ projectile_advance_position endp
 
 ; ---------------------------------------------------------------------------
 funcs_85B9      dw offset incX
+                dw offset incX_decY
                 dw offset decY
-                dw offset decY__
-                dw offset decY_
+                dw offset decX_decY
                 dw offset decX
                 dw offset decX_incY
                 dw offset incY
@@ -6154,9 +6154,9 @@ funcs_85B9      dw offset incX
 ; =============== S U B R O U T I N E =======================================
 
 
-decY            proc near 
+incX_decY            proc near 
                 dec     [si+projectile.p_y_rel]
-decY            endp
+incX_decY            endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -6181,9 +6181,9 @@ incX_incY       endp
 ; =============== S U B R O U T I N E =======================================
 
 
-decY_           proc near 
+decX_decY           proc near 
                 dec     [si+projectile.p_y_rel]
-decY_           endp
+decX_decY           endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -6217,10 +6217,10 @@ incY            endp
 ; =============== S U B R O U T I N E =======================================
 
 
-decY__          proc near 
+decY          proc near 
                 dec     [si+projectile.p_y_rel]
                 retn
-decY__          endp
+decY          endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -6232,7 +6232,7 @@ projectile_read_curved_path_step proc near
                 mov     di, [si+projectile.p_curved_path_data_ptr]
                 mov     al, [bx+di]
                 cmp     al, 0FFh
-                jnz     short loc_8607
+                jne     short loc_8607
                 mov     byte ptr [si+80h], 0
                 stc
                 retn
@@ -7324,15 +7324,15 @@ sequences1      dw offset espada_frames
                 dw offset rascar_frames
                 dw offset agua_dir1_frames
 espada_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-saeta_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-saeta_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-fuego_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-fuego_dir1_frames       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-lanzar_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-lanzar_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+saeta_dir0_frames   db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+saeta_dir1_frames   db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+fuego_dir0_frames   db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+fuego_dir1_frames   db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+lanzar_dir0_frames  db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+lanzar_dir1_frames  db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 rascar_frames       db 73h, 74h, 75h, 76h
-agua_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-agua_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+agua_dir0_frames    db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+agua_dir1_frames    db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 
 
 ; ===========================================================================

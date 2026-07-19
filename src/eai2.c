@@ -489,8 +489,10 @@ static void boarman_fire_spears(uint16_t m)
 
     spear_left[0] = x;                      spear_left[1] = y;
     spear_right[0] = (uint8_t)(x + 1);      spear_right[1] = y;
-    spear_left[9] = MEM8(ADDR_TRAJECTORIES + 12);  spear_left[10] = MEM8(ADDR_TRAJECTORIES + 12);
-    spear_right[9] = MEM8(ADDR_TRAJECTORIES + 0);  spear_right[10] = MEM8(ADDR_TRAJECTORIES + 1);
+    spear_right[9] = (ADDR_TRAJECTORIES) & 0xFF;
+    spear_right[10] = (ADDR_TRAJECTORIES >> 8) & 0xFF;
+    spear_left[9] = (ADDR_TRAJECTORIES + 12) & 0xFF;
+    spear_left[10] = ((ADDR_TRAJECTORIES + 12) >> 8) & 0xFF;
 
     spear_simple_left[0] = x;                  spear_simple_left[1] = y;
     spear_simple_right[0] = (uint8_t)(x + 1);  spear_simple_right[1] = y;

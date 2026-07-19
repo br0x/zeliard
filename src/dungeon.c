@@ -2488,8 +2488,6 @@ void Flush_Ui_Element_If_Dirty_proc()
 
 }
 
-// stub
-void projectiles_collision_processing(void) {}
 
 // stub
 void monsters_updates(void) {}
@@ -5102,62 +5100,71 @@ void Monster_AI(uint16_t m)
 
 /* Per-spell frame-data tables: sequences0 used when mp_dir != 0,
  * sequences1 when mp_dir == 0. Indexed by (current_magic_spell - 1). */
+// assets/images/magic.png frames 0, 1, 2
 static const uint8_t espada_frames[] = {
     0x67, 0x68, 0x69, 0x6A, 
     0x6B, 0x6C, 0x6D, 0x6E, 
     0x6F, 0x70, 0x71, 0x72
 };
- 
+
+// assets/images/magic.png frames 3, 4, 5
 static const uint8_t saeta_dir0_frames[] = {
     0x67, 0x68, 0x69, 0x6A, 
     0x6B, 0x6C, 0x6D, 0x6E, 
     0x6F, 0x70, 0x71, 0x72
 };
- 
+
+// assets/images/magic.png frames 6, 7, 8
 static const uint8_t saeta_dir1_frames[] = {
     0x73, 0x74, 0x75, 0x76, 
     0x77, 0x78, 0x79, 0x7A, 
     0x7B, 0x7C, 0x7D, 0x7E
 };
- 
+
+// assets/images/magic.png
 static const uint8_t fuego_dir0_frames[] = {
-    0x67, 0x68, 0x69, 0x6A, 
-    0x6F, 0x70, 0x71, 0x72, 
-    0x73, 0x74, 0x75, 0x76, 
-    0x77, 0x78, 0x79, 0x7A, 
-    0x7B, 0x7C, 0x7D, 0x7E
+    0x67, 0x68, 0x69, 0x6A, // frame 9
+    0x6F, 0x70, 0x71, 0x72, // frame 11
+    0x73, 0x74, 0x75, 0x76, // frame 12
+    0x77, 0x78, 0x79, 0x7A, // frame 13
+    0x7B, 0x7C, 0x7D, 0x7E  // frame 14
 };
  
 static const uint8_t fuego_dir1_frames[] = { // Rascar
-    0x6B, 0x6C, 0x6D, 0x6E, 
-    0x6F, 0x70, 0x71, 0x72, 
-    0x73, 0x74, 0x75, 0x76, 
-    0x77, 0x78, 0x79, 0x7A, 
-    0x7B, 0x7C, 0x7D, 0x7E
+    0x6B, 0x6C, 0x6D, 0x6E, // frame 10
+    0x6F, 0x70, 0x71, 0x72, // frame 11
+    0x73, 0x74, 0x75, 0x76, // frame 12
+    0x77, 0x78, 0x79, 0x7A, // frame 13
+    0x7B, 0x7C, 0x7D, 0x7E  // frame 14
 };
- 
+
+// assets/images/magic.png frames 15, 16, 17
 static const uint8_t lanzar_dir0_frames[] = { 
     0x67, 0x68, 0x69, 0x6A, 
     0x6B, 0x6C, 0x6D, 0x6E, 
     0x6F, 0x70, 0x71, 0x72
 };
- 
+
+// assets/images/magic.png frames 18, 19, 20
 static const uint8_t lanzar_dir1_frames[] = {
     0x73, 0x74, 0x75, 0x76, 
     0x77, 0x78, 0x79, 0x7A, 
     0x7B, 0x7C, 0x7D, 0x7E
 };
- 
+
+// assets/images/magic.png frame 21
 static const uint8_t rascar_frames[] = {
     0x73, 0x74, 0x75, 0x76
 };
- 
+
+// assets/images/magic.png frames 22, 23, 24
 static const uint8_t agua_dir0_frames[] = {
     0x67, 0x68, 0x69, 0x6A, 
     0x6B, 0x6C, 0x6D, 0x6E, 
     0x6F, 0x70, 0x71, 0x72
 };
- 
+
+// assets/images/magic.png frames 25, 26, 27
 static const uint8_t agua_dir1_frames[] = {
     0x73, 0x74, 0x75, 0x76, 
     0x77, 0x78, 0x79, 0x7A, 
@@ -5218,16 +5225,16 @@ void Browse_Projectiles()
  */
 void flush_dirty_projectile(uint16_t p)
 {
-    if (!(MEM16(p+7) & 0x8000)) // .p_vram_addr_d
-        return;
-
-    MEM16(p+7) &= 0x7FFF;
-
-    uint16_t screen_dest = MEM16(p+7);   /* dx: old screen address */
-    uint8_t  rel_x        = MEM8(p+11); // .p_cached_x_rel
-    uint8_t  rel_y        = MEM8(p+12); // .p_cached_y_rel
-
-    restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    // JS canvas redraws everything each frame — no VRAM to clean up.
+    // Original code:
+    // if (!(MEM16(p+7) & 0x8000)) // .p_vram_addr_d
+    //     return;
+    // MEM16(p+7) &= 0x7FFF;
+    // uint16_t screen_dest = MEM16(p+7);
+    // uint8_t  rel_x        = MEM8(p+11);
+    // uint8_t  rel_y        = MEM8(p+12);
+    // restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    (void)p;
 }
 
 /* 
@@ -5300,12 +5307,15 @@ void update_active_projectiles_render()
             uint8_t tile_idx = *seq;
 
             uint16_t cell = proximity_map_coords_to_viewport_offset(x, y);
-            if (MEM8(cell) != 0xFF && MEM8(cell) != 0xFC) {
-                uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(x, y);
-                MEM16(vram_slot) = screen_addr | 0x8000;
-                screen_addr &= 0x7FFF;
-                Uncompress_And_Render_Tile(tile_idx, screen_addr);
-            }
+            // VRAM render skipped — JS canvas handles it:
+            // if (MEM8(cell) != 0xFF && MEM8(cell) != 0xFC) {
+            //     uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(x, y);
+            //     MEM16(vram_slot) = screen_addr | 0x8000;
+            //     screen_addr &= 0x7FFF;
+            //     Uncompress_And_Render_Tile(tile_idx, screen_addr);
+            // }
+            (void)cell;
+            (void)vram_slot;
 
         next_subtile:
             seq++;
@@ -5333,26 +5343,23 @@ void update_and_render_projectile_row_pair()
 
         MEM8(p+12) = rel_y; // .p_cached_y_rel = rel_y
 
-        {
-            uint16_t di = proximity_map_coords_to_viewport_offset(MEM8(p+11), rel_y); // .p_cached_x_rel
-
-            if (MEM8(di) != 0xFF && MEM8(di) != 0xFC) {
-                uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(MEM8(p+11), rel_y);
-                screen_addr |= 0x8000;
-                MEM16(p+7) = screen_addr; // .p_vram_addr_d
-
-                uint8_t bl = MEM8(p+2); // .p_base_tile_idx
-                bl = (uint8_t)((bl << 2) | (bl >> 6));    /* rol bl,2 */
-                bl &= 3;
-                bl = masks[bl];
-                bl &= MEM8(p+3); // .p_trajectory_step_count
-
-                uint8_t tile_idx = ((MEM8(p+2) + bl) & 0x3F);
-
-                screen_addr &= 0x7FFF;
-                Uncompress_And_Render_Tile(tile_idx, screen_addr);
-            }
-        }
+        // VRAM render block (unused — JS canvas handles it):
+        // {
+        //     uint16_t di = proximity_map_coords_to_viewport_offset(MEM8(p+11), rel_y);
+        //     if (MEM8(di) != 0xFF && MEM8(di) != 0xFC) {
+        //         uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(MEM8(p+11), rel_y);
+        //         screen_addr |= 0x8000;
+        //         MEM16(p+7) = screen_addr;
+        //         uint8_t bl = MEM8(p+2);
+        //         bl = (uint8_t)((bl << 2) | (bl >> 6));
+        //         bl &= 3;
+        //         bl = masks[bl];
+        //         bl &= MEM8(p+3);
+        //         uint8_t tile_idx = ((MEM8(p+2) + bl) & 0x3F);
+        //         screen_addr &= 0x7FFF;
+        //         Uncompress_And_Render_Tile(tile_idx, screen_addr);
+        //     }
+        // }
         continue;
 
     deactivate:
@@ -5390,7 +5397,7 @@ uint16_t proximity_map_coords_to_viewport_offset(uint8_t x, uint8_t y)
 // Note this is just literal translation; since all the rendering is done in js, we'll use canvas coords
 // x-coord is counted from proximity left, so viewport-related x is -4
 // Also final address is divided by 2, for some reason.
-uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x)
+uint16_t Viewport_Coords_To_Screen_Addr(uint8_t x, uint8_t y)
 {
     return ((y & 0x3F) * 320 * 8 + (x - 4) * 8 + 14 * 320 + 48) >> 1;
 }
@@ -5404,32 +5411,280 @@ uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x)
 // TODO: refactor using deltas array and loop
 void projectile_erase_old_tiles(uint16_t mp)
 {
-    if (MEM16(mp+8) & 0x8000) { // .mp_vram_addr_tile00
-        MEM16(mp+8) &= 0x7FFF;
-        uint16_t screen_dest = MEM16(mp+8);
-        uint8_t  rel_x        = MEM8(mp+6); // .mp_cached_x_offset_tiles
-        uint8_t  rel_y        = MEM8(mp+7); // .mp_cached_y_offset
-        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    // JS canvas redraws everything each frame — no VRAM to clean up.
+    (void)mp;
+}
+
+/* 
+ * Walks the active-projectile list, running collision/damage handling on
+ * each entry via sub_846F, and compacts the array in place: a read cursor
+ * scans every slot, while a write cursor only advances for slots that
+ * survive, dropping (by simply not copying forward) any slot whose
+ * p_x_rel == 0 with no pending dirty-vram flag.
+ */
+void projectiles_collision_processing()
+{
+    uint16_t read  = ADDR_PROJECTILES_LIST;   /* si */
+    uint16_t write = ADDR_PROJECTILES_LIST;   /* di */
+
+    MEM8(ADDR_LAST_PROJECTILE_INDEX) = 0;
+
+    for (;;) {
+        uint8_t x = MEM8(read+0); // .p_x_rel
+
+        uint8_t needs_processing = (x != 0) || ((MEM16(read+7) & 0x8000) != 0); // .p_vram_addr_d
+
+        if (!needs_processing) {
+            read += PROJECTILE_STRUCT_SIZE;                            /* loc_846A: drop this slot */
+            continue;
+        }
+
+        if (x == 0xFF) {
+            /* end-of-list sentinel: finalize the (possibly shorter,
+             * compacted) list right at the write cursor and stop. */
+            MEM8(write+0) = 0xFF; // .p_x_rel
+            return;
+        }
+
+        MEM8(read+3)++; // .p_trajectory_step_count
+        sub_846F(read);
+
+        memmove(&g_mem[write], &g_mem[read], 13); // rep movsb, cx = 13
+
+        if (!(MEM8(write+5) & 0x40)) { // .p_trajectory_dir
+            if (MEM8(write+3) >= MEM8(write+4)) // .p_trajectory_step_count >= .p_max_step_count
+                MEM8(write+0) = 0;              // .p_x_rel
+        }
+
+        MEM8(ADDR_LAST_PROJECTILE_INDEX)++;
+        write += PROJECTILE_STRUCT_SIZE;
+        read += PROJECTILE_STRUCT_SIZE;
     }
-    if (MEM16(mp+10) & 0x8000) { // .mp_vram_addr_tile10
-        MEM16(mp+10) &= 0x7FFF;
-        uint16_t screen_dest = MEM16(mp+10);
-        uint8_t  rel_x        = MEM8(mp+6) + 1; // .mp_cached_x_offset_tiles
-        uint8_t  rel_y        = MEM8(mp+7); // .mp_cached_y_offset
-        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+}
+
+/* 
+ * Per-projectile collision handling: static-tile collision, hero-row/column
+ * hit test, and shield-block vs. damage resolution.
+ */
+void sub_846F(uint16_t p)
+{
+    projectile_advance_position(p);
+
+    if (MEM8(p+5) & 0x08) // .p_trajectory_dir
+        goto loc_8490;
+
+    if (MEM8(p+0) == 0) // .p_x_rel
+        return;
+
+    /* loc_847F: static-tile collision check */
+    {
+        uint8_t  y    = MEM8(p+1); // .p_y_rel
+        uint8_t  x    = MEM8(p+0); // .p_x_rel
+        uint16_t cell = coords_to_prox_addr(x, y);
+        uint8_t  tile = MEM8(cell);
+
+        if (is_blocking_tile_extended(tile)) {
+            MEM8(p+0) = 0; // .p_x_rel
+            return;
+        }
     }
-    if (MEM16(mp+12) & 0x8000) { // .mp_vram_addr_tile01
-        MEM16(mp+12) &= 0x7FFF;
-        uint16_t screen_dest = MEM16(mp+12);
-        uint8_t  rel_x        = MEM8(mp+6); // .mp_cached_x_offset_tiles
-        uint8_t  rel_y        = (MEM8(mp+7) + 1) & 0x3F; // .mp_cached_y_offset
-        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+
+loc_8490:
+    /* Does the projectile's row line up with the hero's head/body band? */
+    {
+        uint8_t al = MEM8(ADDR_VIEWPORT_TOP_ROW) + MEM8(ADDR_HERO_HEAD_Y_VIEW);
+
+        if (!MEM8(ADDR_SQUAT_FLAG)) {
+            al &= 0x3F;
+            if (al == MEM8(p+1)) // .p_y_rel
+                goto loc_84B4;
+        }
+
+        for (int cx = 2; cx > 0; cx--) {
+            al++;
+            al &= 0x3F;
+            if (al == MEM8(p+1)) // .p_y_rel
+                goto loc_84B4;
+        }
+        return;
     }
-    if (MEM16(mp+14) & 0x8000) { // .mp_vram_addr_tile11
-        MEM16(mp+14) &= 0x7FFF;
-        uint16_t screen_dest = MEM16(mp+14);
-        uint8_t  rel_x        = MEM8(mp+6) + 1; // .mp_cached_x_offset_tiles
-        uint8_t  rel_y        = (MEM8(mp+7) + 1) & 0x3F; // .mp_cached_y_offset
-        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+
+loc_84B4:
+    /* Does the projectile's column line up with the hero? */
+    {
+        uint8_t al = MEM8(ADDR_HERO_X_VIEW) + 4;
+        if (MEM8(ADDR_FACING) & 1)
+            al++;
+
+        if (al != MEM8(p+0)) { // .p_x_rel
+            al++;
+            if (al != MEM8(p+0)) // .p_x_rel
+                return;
+        }
     }
+
+    /* loc_84CD: hit confirmed -- projectile is consumed either way */
+    MEM8(p+0) = 0; // .p_x_rel
+
+    if (MEM8(ADDR_SHIELD_TYPE) != 0 && !MEM8(ADDR_SWORD_SWING_FLAG) && !MEM8(ADDR_ON_ROPE_FLAGS)) {
+        uint8_t dir = MEM8(p+5) & 7; // .p_trajectory_dir
+
+        if (dir != 2 && dir != 6) {
+            if (dir == 0 || dir == 1 || dir == 7) {
+                if (MEM8(ADDR_FACING) & 1)
+                    goto loc_854F;
+                /* else: not shielded from this direction -> damage */
+            } else {                          /* dir == 3, 4, or 5 */
+                if (!(MEM8(ADDR_FACING) & 1))
+                    goto loc_854F;
+                /* else: not shielded from this direction -> damage */
+            }
+        }
+    }
+
+loc_850E:
+    /* Apply damage to the hero and set the corresponding knockback direction */
+    {
+        uint16_t damage = (uint16_t)MEM8(p+6); // .p_damage
+        damage_hero(damage);
+
+        MEM8(ADDR_SOUND_FX_REQUEST) = 9;
+        MEM8(ADDR_BYTE_9F14) = 0xFF;
+        MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0xFF;
+
+        uint16_t bx = 0xFFFF;
+        uint16_t cx = 0xFFFF;
+
+        uint8_t dir = MEM8(p+5) & 7; // .p_trajectory_dir
+        if (dir != 2 && dir != 6) {
+            bx = 0;
+            if (!(dir == 0 || dir == 1 || dir == 7)) {
+                uint16_t tmp = cx;             /* xchg cx, bx */
+                cx = bx;
+                bx = tmp;
+            }
+        }
+
+        MEM16(ADDR_KNOCKBACK_VECTOR_9F0E) = cx;
+        MEM16(ADDR_KNOCKBACK_VECTOR_9F10) = bx;
+        return;
+    }
+
+loc_854F:
+    /* Shield may block the hit, depending on shield tier and hero's row */
+    if (MEM8(ADDR_SHIELD_TYPE) >= SHIELD_HONOR)
+        goto loc_856D;
+
+    {
+        uint8_t al = MEM8(ADDR_VIEWPORT_TOP_ROW) + MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        al++;
+        if (MEM8(ADDR_SQUAT_FLAG))
+            al++;
+
+        if (!projectile_y_vs_hero_row_dispatch(p, al))
+            goto loc_850E;                     /* row mismatch: shield didn't intercept it */
+    }
+
+loc_856D:
+    /* Blocked by the shield: just play the block sound */
+    MEM8(ADDR_SOUND_FX_REQUEST) = 10;
+}
+
+/* 
+ * projectile_advance_position + funcs_85B9 movement helpers
+ */
+static void incX(uint16_t p)      { MEM8(p+0)++; } // .p_x_rel
+static void incY(uint16_t p)      { MEM8(p+1)++; } // .p_y_rel
+static void decX(uint16_t p)      { MEM8(p+0)--; }
+static void decY(uint16_t p)      { MEM8(p+1)--; }
+
+/* These two mirror the original's fallthrough reuse (incX_decY falls into
+ * incX; decX_decY falls into decX) rather than being fully independent. */
+static void incX_decY(uint16_t p) { MEM8(p+1)--; incX(p); }
+static void decX_decY(uint16_t p) { MEM8(p+1)--; decX(p); }
+
+static void incX_incY(uint16_t p) { MEM8(p+1)++; MEM8(p+0)++; }
+static void decX_incY(uint16_t p) { MEM8(p+1)++; MEM8(p+0)--; }
+
+typedef void (*trajectory_step_fn)(uint16_t);
+
+static const trajectory_step_fn funcs_85B9[8] = {
+    incX, incX_decY, decY, decX_decY, decX, decX_incY, incY, incX_incY,
+};
+
+void projectile_advance_position(uint16_t p)
+{
+    if (MEM8(p+5) & 0x40) { // .p_trajectory_dir
+        if (!projectile_read_curved_path_step(p))
+            return;                            /* retn: curved path exhausted */
+    }
+
+    uint8_t dir = MEM8(p+5) & 7; // .p_trajectory_dir
+    funcs_85B9[dir](p);
+    MEM8(p+1) &= 0x3F; // .p_y_rel
+}
+
+/* 
+ * projectile_y_vs_hero_row_dispatch + funcs_857D row-check helpers
+ *
+ * Returns true when the row matches (original: plain retn, CF clear),
+ * false when it doesn't (original: stc; retn, CF set).
+ */
+static uint8_t check_y_eq_projectile_row(uint16_t p, uint8_t al)
+{
+    return al == MEM8(p+1); // .p_y_rel
+}
+
+static uint8_t check_prev_y_eq_projectile_row(uint16_t p, uint8_t al)
+{
+    al--;
+    al &= 0x3F;
+    return check_y_eq_projectile_row(p, al);
+}
+
+static uint8_t check_next_y_eq_projectile_row(uint16_t p, uint8_t al)
+{
+    al++;
+    al &= 0x3F;
+    return check_y_eq_projectile_row(p, al);
+}
+
+typedef uint8_t (*row_check_fn)(uint16_t, uint8_t);
+
+static const row_check_fn funcs_857D[8] = {
+    check_y_eq_projectile_row,
+    check_prev_y_eq_projectile_row,
+    check_prev_y_eq_projectile_row,
+    check_prev_y_eq_projectile_row,
+    check_y_eq_projectile_row,
+    check_next_y_eq_projectile_row,
+    check_next_y_eq_projectile_row,
+    check_next_y_eq_projectile_row,
+};
+
+uint8_t projectile_y_vs_hero_row_dispatch(uint16_t p, uint8_t al)
+{
+    uint8_t dir = MEM8(p+5) & 7; // .p_trajectory_dir
+    al &= 0x3F;
+    return funcs_857D[dir](p, al);
+}
+
+/* 
+ * Returns true on success (original: CF clear), false when the curved path
+ * data is exhausted (original: stc).
+ */
+uint8_t projectile_read_curved_path_step(uint16_t p)
+{
+    uint8_t        step = MEM8(p+3); // .p_trajectory_step_count
+    const uint16_t path = MEM16(p+9); // .p_curved_path_data_ptr
+    uint8_t        al   = MEM8(path + step);
+
+    if (al == 0xFF) {
+        MEM8(p+128) = 0; // why 128?
+        return 0;
+    }
+
+    al &= 7;
+    MEM8(p+5) = (MEM8(p+5) & 0xF8) | al; // .p_trajectory_dir
+    return 1;
 }

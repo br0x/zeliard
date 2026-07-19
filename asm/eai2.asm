@@ -518,7 +518,7 @@ sub_A549        proc near
                 jnb     short loc_A551
                 retn
 ; ---------------------------------------------------------------------------
-setDeathDescriptors
+
 loc_A551:
                 call    sub_A56F
                 jnb     short loc_A557

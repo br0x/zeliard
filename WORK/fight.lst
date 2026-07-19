@@ -5761,9 +5761,9 @@ fight:85C1 projectile_advance_position endp
 fight:85C1
 fight:85C1 ; ---------------------------------------------------------------------------
 fight:85C2 funcs_85B9      dw offset incX          ; ...
-fight:85C4                 dw offset decY
-fight:85C6                 dw offset decY__
-fight:85C8                 dw offset decY_
+fight:85C4                 dw offset incX_decY
+fight:85C6                 dw offset decY
+fight:85C8                 dw offset decX_decY
 fight:85CA                 dw offset decX
 fight:85CC                 dw offset decX_incY
 fight:85CE                 dw offset incY
@@ -5772,9 +5772,9 @@ fight:85D2
 fight:85D2 ; =============== S U B R O U T I N E =======================================
 fight:85D2
 fight:85D2
-fight:85D2 decY            proc near               ; ...
+fight:85D2 incX_decY            proc near               ; ...
 fight:85D2                 dec     [si+projectile.y_rel]
-fight:85D2 decY            endp
+fight:85D2 incX_decY            endp
 fight:85D2
 fight:85D5
 fight:85D5 ; =============== S U B R O U T I N E =======================================
@@ -5799,9 +5799,9 @@ fight:85DE
 fight:85DE ; =============== S U B R O U T I N E =======================================
 fight:85DE
 fight:85DE
-fight:85DE decY_           proc near               ; ...
+fight:85DE decX_decY           proc near               ; ...
 fight:85DE                 dec     [si+projectile.y_rel]
-fight:85DE decY_           endp
+fight:85DE decX_decY           endp
 fight:85DE
 fight:85E1
 fight:85E1 ; =============== S U B R O U T I N E =======================================
@@ -5835,10 +5835,10 @@ fight:85EE
 fight:85EE ; =============== S U B R O U T I N E =======================================
 fight:85EE
 fight:85EE
-fight:85EE decY__          proc near               ; ...
+fight:85EE decY          proc near               ; ...
 fight:85EE                 dec     [si+projectile.y_rel]
 fight:85F1                 retn
-fight:85F1 decY__          endp
+fight:85F1 decY          endp
 fight:85F1
 fight:85F2
 fight:85F2 ; =============== S U B R O U T I N E =======================================

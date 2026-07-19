@@ -303,6 +303,10 @@ const DUNGEONS = {
             [1,1,1,0,0,7,7,7,7,7,7,0xFF], // right: ↗↗↗→→↘↘↘↘↘↘
             [3,3,3,4,4,5,5,5,5,5,5,0xFF], // left: ↙↙↙↙↙↙←←↖↖↖
         ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [26, 27, 28, 29], // boarman axes 
+            [30, 31, 32, 33], // toad firespits
+        ],
         ai: EAI2,
     },
     3: {
@@ -551,6 +555,8 @@ const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
+const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF at byte 0
+const PROJECTILE_STRUCT_SIZE         = 13;
 const ADDR_HERO_X_VIEW               = 0x83;
 const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
 const ADDR_HERO_GOLD_HI              = 0x85;
@@ -777,6 +783,7 @@ let dungeonTileSheet = null;
 let dungeonTileSheetReady = false;
 let dungeonAI = null;
 let dungeonAIready = false;
+let dungeonProjectiles = null;
 let dungeonDchrSheet = null;
 let dungeonDchrSheetReady = false;
 let dungeonEntitySheet = null;
@@ -1318,6 +1325,7 @@ async function loadDungeonAssets(rawMapId) {
     if (!dungeonAIready) {
         dungeonAI = DUNGEONS[rawMapId].ai;
         dungeonAIready = true;
+        dungeonProjectiles = DUNGEONS[rawMapId].projectiles;
     }
     if (!dungeonTileSheetReady) {
         loads.push(loadImageOnce(DUNGEONS[rawMapId].tilesheetPath, img => {
@@ -1829,13 +1837,47 @@ function spawnBossExplosionRings(col, row) {
   writeMemory(ptr + 4, [0xFF]); // terminator for next
 }
 
+function drawDungeonProjectiles() {
+    if (!dungeonTileSheetReady || !readMemory) return;
+    if (!dungeonProjectiles) return;
+    const top = dungeonGetViewportTop?.() ?? 0;
+    const cols = Math.floor(dungeonTileSheet.width / TILE_WIDTH);
+    let p = ADDR_PROJECTILES_LIST;
+    for (;;) {
+        const p_x_rel = readMemory(p, 1)[0];
+        if (p_x_rel === 0xFF) break;
+        const vpX = p_x_rel - DUNGEON_VIEW_LEFT_IN_PROX;
+        if (vpX < 0 || vpX >= VIEW_COLS) { p += PROJECTILE_STRUCT_SIZE; continue; }
+        const p_y_rel = readMemory(p + 1, 1)[0];
+        const vpY = (p_y_rel - top) & 0x3F;
+        if (vpY >= VIEW_ROWS) { p += PROJECTILE_STRUCT_SIZE; continue; }
+        const baseIdx = readMemory(p + 2, 1)[0];
+        const stepCount = readMemory(p + 3, 1)[0];
+        let tiles;
+        if (baseIdx === 0x9A) {
+            tiles = dungeonProjectiles[0];
+        } else if (baseIdx === 0x9E) {
+            tiles = dungeonProjectiles[1];
+        } else {
+            p += PROJECTILE_STRUCT_SIZE;
+            continue;
+        }
+        if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
+        const tileId = tiles[stepCount % tiles.length];
+        const dx = vpX * TILE_WIDTH;
+        const dy = vpY * TILE_HEIGHT;
+        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, cols, dx, dy);
+        p += PROJECTILE_STRUCT_SIZE;
+    }
+}
+
 /*
  * Port of Refresh_Dirty_Tiles entity overlay logic from gfmcga.c.
  *
  * Walks every tile in the 28×18 viewport (plus the invisible row above and the
  * left/right edge columns) reading the proximity map.  Any cell whose byte has
  * bit 7 set is an entity overlay — we resolve the monster type through the
- * layer-2 table and the monsters list, then draw the corresponding enp1.png 48×48 sprite.
+ * layer-2 table and the monsters list, then draw the corresponding enp2.png 48×48 sprite.
  * The ADDR_VIEWPORT_ENTITIES cache buffer (28×19) is updated
  * with 0xFF to mark cells as processed, keeping the shared-memory state
  * consistent with what the C side expects.
@@ -2653,6 +2695,7 @@ async function handleDungeonTransition(mapId, isFromTown) {
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, mdtPath);
         dungeonAIready = false;
+        dungeonProjectiles = null;
         dungeonTileSheetReady = false;
         dungeonEntitySheetReady = false;
         mdtHeader = getCavernMdtHeader?.();
@@ -3566,6 +3609,7 @@ function draw() {
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawDungeonTiles();
+            drawDungeonProjectiles();
             drawDungeonEntities();
             drawDungeonHero();
             drawDungeonSword();
