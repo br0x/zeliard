@@ -292,6 +292,8 @@ static uint8_t g_town_update_active;
 
 static uint8_t g_pending_wait = 0;          /* non-zero when waiting for frame timer */
 static uint8_t g_pending_wait_target = 0;   /* target frame timer value */
+static uint8_t g_door_pending_dest = 0xFF;  /* 0xFF = none; otherwise pending door dest_id */
+static uint8_t g_door_pending_anim = 0;     /* non-zero during back-frame door animation */
 
 /* =========================================================================
  * Forward declarations
@@ -550,6 +552,32 @@ static void town_entry_common(void)
 
 static void town_main_loop_step(void)
 {
+    /* If a door transition is pending, freeze game logic until the
+       frame timer expires, then complete the transition.  The hero
+       stays in the back-facing frame while draw() renders each tick. */
+    if (g_door_pending_anim) {
+        if (FRAME_TMR >= (uint8_t)(SPEED_C * 4)) {
+            g_door_pending_anim = 0;
+            uint8_t dest_id = g_door_pending_dest;
+            g_door_pending_dest = 0xFF;
+            if (dest_id != 0xFF) {
+                if (dest_id >= 8) {
+                    request_dungeon_transition(dest_id - 8);
+                } else {
+                    MEM8(ADDR_BYTE_FF24) = 4;
+                    MEM8(ADDR_BUILDING_DEST_ID) = dest_id;
+                    MEM8(ADDR_BUILDING_ACTIVE) = 1;
+                    MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
+                    SPACEBAR = 0;
+                    ALTKEY = 0;
+                    INPUT_DIRS = 0;
+                    INPUT_ALT_SPACE = 0;
+                }
+            }
+        }
+        return;
+    }
+
     update_npcs_and_render();
     // If conversation active, skip all hero-related logic
     if (MEM8(ADDR_CONVERSATION_ACTIVE)) {
@@ -1631,28 +1659,15 @@ static void town_up_pressed(void)
 
     HERO_ANIM = 4;
     restore_head_level_tiles_from_npcs();
-    FRAME_TMR = 40;
-    game_loop_with_frame_wait();
-    // si points to matching town door struct
-    uint8_t dest_id = MEM8(si + 2);
-    if (dest_id == 0xFF) {
-        return; // Falter special building, TODO
-    }
 
-    if (dest_id >= 8) {
-        request_dungeon_transition(dest_id - 8);
-        return;
-    }
-
-    MEM8(ADDR_BYTE_FF24) = 4;
-    MEM8(ADDR_BUILDING_DEST_ID) = dest_id;
-    MEM8(ADDR_BUILDING_ACTIVE) = 1;
-    MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
-
-    SPACEBAR = 0;
-    ALTKEY = 0;
-    INPUT_DIRS = 0;
-    INPUT_ALT_SPACE = 0;
+    // Show the back-facing hero frame for about SPEED_C*4 ticks.
+    // town_main_loop_step() will skip game logic until the timer
+    // expires, then complete the transition in the same townUpdate
+    // call so JS detects the flag immediately.
+    FRAME_TMR = 0;
+    g_door_pending_dest = MEM8(si + 2);
+    g_door_pending_anim = 1;
+    return;
 }
 
 /* Read the pending-transition record — JS uses this after detecting the flag */

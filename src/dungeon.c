@@ -62,6 +62,7 @@ static uint16_t dungeon_entity_count;
 
 static uint8_t main_update_render_pre(void);
 static uint8_t dungeon_render_timing_step(uint8_t invincible);
+static void dungeon_complete_door_transition(void);
 static void dungeon_update_normal(void);
 static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
@@ -1114,8 +1115,8 @@ void reset_dungeon_state_vars()
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
     MEM8(ADDR_BOSS_EXPLOSIONS_LIST) = 0;
     MEM16(ADDR_MAGIC_PROJECTILES) = 0xFFFF;
-    MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
-    MEM8(ADDR_BYTE_9EF5) = 0;
+    MEM8(ADDR_HERO_HIDDEN_FLAG) = 0xFF;
+    MEM8(ADDR_BYTE_9EF5) = 0xFF;
     clear_viewport_buffer();
 }
 
@@ -1722,6 +1723,15 @@ static uint8_t saved_y_view_init = 10;
 // to correctly recalculate ADDR_PROXIMITY_MAP_LEFT_COL with the new MDT's width.
 uint16_t saved_door_x1 = 0;
 
+// State saved by enter_opened_door (phase 1) for use by
+// dungeon_complete_door_transition (phase 2).
+static uint16_t g_door_monsters_ptr;
+static uint8_t  g_door_flags;
+static uint16_t g_door_x1;
+static uint8_t  g_door_y1;
+static uint8_t  g_door_features;
+static uint8_t  g_door_place_map_id;
+
 void prepare_dungeon(uint8_t is_from_town)
 {
     int count = ADDR_BYTE_9F2E - ADDR_BYTE_9EED - 1;
@@ -1820,6 +1830,9 @@ void wasm_dungeon_update(void)
         break;
     case DUNGEON_STATE_DEATH_FADE:
         dungeon_update_death_fade();
+        break;
+    case DUNGEON_STATE_DOOR_PENDING:
+        dungeon_complete_door_transition();
         break;
     case DUNGEON_STATE_EXIT:
         return;
@@ -4675,32 +4688,55 @@ void enter_opened_door(uint16_t si)
     clear_viewport_buffer();
     Flush_Ui_Element_If_Dirty_proc();
     reset_dungeon_state_vars();
-    game_loop_render_and_timing(0); // redraw everything
+    game_loop_render_and_timing(0); // redraw everything — hero is hidden (back frame)
+
+    // Save door data for deferred completion (phase 2).
+    // Do NOT touch transition flags, hero position, or HIDDEN_FLAG yet.
+    g_door_monsters_ptr  = MEM16(ADDR_MONSTERS_LIST);
+    g_door_flags         = MEM8(si + 3);
+    g_door_x1            = MEM16(si + 5);
+    g_door_y1            = MEM8(si + 7);
+    g_door_features      = MEM8(si + 8);
+    g_door_place_map_id  = MEM8(si + 4);
+
+    // FRAME_TIMER was advanced by game_loop_render_and_timing (sets phase=1).
+    // Reset it so the back-frame delay starts counting from zero.
+    MEM8(ADDR_FRAME_TIMER) = 0;
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_DOOR_PENDING;
+}
+
+// Phase 2 of opened-door transition — runs after the back-facing frame has
+// been visible for SPEED_C*4 ticks.  Completes all the setup that was deferred
+// by enter_opened_door (position, map transition flags, etc.).
+static void dungeon_complete_door_transition(void)
+{
+    if (MEM8(ADDR_FRAME_TIMER) < (uint8_t)(MEM8(ADDR_SPEED_CONST) * 4)) {
+        return; // keep waiting for the back-frame delay
+    }
 
     // Clear monster table (write 0xFFFF at monsters_table_addr)
-    uint16_t monsters_ptr = MEM16(ADDR_MONSTERS_LIST);
-    MEM16(monsters_ptr) = 0xFFFF; // empty monster list
+    MEM16(g_door_monsters_ptr) = 0xFFFF;
 
-    uint8_t door_flags = MEM8(si + 3); // d_flags
-    uint8_t roka_color = door_flags & 7;
-    uint16_t x1 = MEM16(si + 5);
+    // Restore door data saved by enter_opened_door
+    uint8_t door_flags        = g_door_flags;
+    uint8_t roka_color        = door_flags & 7;
+    uint16_t x1               = g_door_x1;
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = x1;
-    saved_door_x1 = x1; // preserve across prepare_dungeon's memset
-    uint8_t y1 = MEM8(si + 7);
+    saved_door_x1            = x1; // preserve across prepare_dungeon's memset
+    uint8_t y1               = g_door_y1;
     MEM8(ADDR_DOOR_TARGET_Y) = y1;
-    uint8_t is_left_run = (door_flags >> 6) & 1;
-    MEM8(ADDR_LEFT_RUN) = is_left_run;
-    uint8_t door_features = MEM8(si + 8);
+    uint8_t is_left_run      = (door_flags >> 6) & 1;
+    MEM8(ADDR_LEFT_RUN)      = is_left_run;
+    uint8_t door_features    = g_door_features;
     MEM8(ADDR_DOOR_FEATURES) = door_features;
-    uint8_t place_map_id = MEM8(si + 4);
+    uint8_t place_map_id     = g_door_place_map_id;
     if (y1 == 0xFF) { // town transition
         place_map_id |= 0x80;   // door leads to town
     }
     MEM8(ADDR_PLACE_MAP_ID) = place_map_id;
 
     // Load new MDT (map descriptor table)
-    // fn1_load_mdt_idx_ah
-    load_mdt(place_map_id); // this is a stub, MDT is loaded in game.js
+    load_mdt(place_map_id); // stub — real MDT loaded in game.js
 
     if ((place_map_id & 0x80) == 0) {
         remove_accomplished_items(); // for caverns
@@ -4710,12 +4746,11 @@ void enter_opened_door(uint16_t si)
     saved_y_view_init = MEM8(ADDR_HERO_Y_VIEW_INIT);
 
     // Position hero
-    hero_left_16_down_1();          // sets hero_x_in_viewport = 0x0C, hero_head_y_in_viewport = 1
+    hero_left_16_down_1();
 
-    // Check MDT descriptor bit 0 (town vs dungeon)
-    // NB! This is the old MDT, since load_mdt() is a stub.
+    // NB! This still reads the old MDT since load_mdt() is a stub.
     uint16_t mdt_descr = MEM16(ADDR_MDT);
-    uint8_t mdt_desc0 = MEM8(mdt_descr + 0);   // b7b6_msd_idx_b0
+    uint8_t mdt_desc0 = MEM8(mdt_descr + 0);
     Render_Roca_Tilemap(roka_color);
     if ((mdt_desc0 & 1) == 0) {
         MEM8(ADDR_MMAN_GRP_INDEX) = 0xFF;
@@ -4724,28 +4759,24 @@ void enter_opened_door(uint16_t si)
         process_mdt_descriptor(mdt_desc0, mdt_descr + 1);
     }
 
-    // Clear hero hidden flag
+    // Clear hero hidden flag (set by reset_dungeon_state_vars in phase 1)
     MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
     MEM8(ADDR_BYTE_9EF5) = 0xFF;
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
 
     if (door_features & 0x80) { // just defeated the boss
-        // load cavern
-        load_resource("rokademo.bin", 0x1A000); // load to seg1:A000
+        load_resource("rokademo.bin", 0x1A000);
         roca_entrypoint();
         MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
         MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
         MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
         MEM8(ADDR_BYTE_9F02) = 0xFF;
-        load_cavern_sprites_ai_music(); // load dchr.grp, mpp{mpp_grp_index}.grp, eai{eai_bin_index}.bin, 
-                                        // enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
-        // load_resource('fman.grp', fman_gfx);
-        // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
+        load_cavern_sprites_ai_music();
         after_run_animation();
     } else {
-        roka_run(); // usual run without Tears animation
-        // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
+        roka_run();
     }
+
     if ((place_map_id & 0x80) == 0) {
         MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
         MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;

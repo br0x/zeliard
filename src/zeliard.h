@@ -250,6 +250,7 @@ enum {
     DUNGEON_STATE_BOSS_ENCOUNTER = 5,
     DUNGEON_STATE_EXIT = 6,
     DUNGEON_STATE_ROKA_RUN = 7,
+    DUNGEON_STATE_DOOR_PENDING = 8,
 };
 
 // ============================================================================
