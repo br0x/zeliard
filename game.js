@@ -1584,22 +1584,6 @@ function drawTownNpcs() {
     }
 }
 
-// try to use this for monsters being hit non-lethally
-function drawTintedSprite(ctx, img, x, y, tintColor = '#ffff00', alpha = 0.6) {
-  ctx.save();
-  
-  // Draw original sprite
-  ctx.drawImage(img, x, y);
-  
-  // Apply tint
-  ctx.globalAlpha = alpha;
-  ctx.globalCompositeOperation = 'source-atop'; // or 'multiply', 'overlay', 'screen'
-  ctx.fillStyle = tintColor;
-  ctx.fillRect(x, y, img.width, img.height);
-  
-  ctx.restore();
-}
-
 function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = frameW, dh = frameH) {
     if (!sheet || frameIndex < 0) return;
     const sx = (frameIndex % cols) * frameW;
@@ -1883,9 +1867,24 @@ function drawDungeonProjectiles() {
  * consistent with what the C side expects.
  */
 let renderCounter = 0; // incremented every Refresh_Dirty_Tiles, used to animate tiles every odd frame
+
+// entityId (bitmasked to 0x7F) -> remaining flash frames for visual hit feedback
+const _entityHitFlashTimers = new Map();
+// offscreen canvas for per-sprite tinting (avoids tinting background tiles)
+const _tintCanvas = document.createElement('canvas');
+_tintCanvas.width = TILE_WIDTH;
+_tintCanvas.height = TILE_HEIGHT;
+const _tintCtx = _tintCanvas.getContext('2d');
+
 function drawDungeonEntities() {
     _bossExplosionFrameRendered = false;
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
+
+    // decrement all active hit-flash timers
+    for (const [id, frames] of _entityHitFlashTimers) {
+        if (frames > 1) _entityHitFlashTimers.set(id, frames - 1);
+        else _entityHitFlashTimers.delete(id);
+    }
 
     function wrapMap(idx) {
         return ADDR_PROXIMITY_MAP + (((idx-ADDR_PROXIMITY_MAP) % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
@@ -1895,11 +1894,21 @@ function drawDungeonEntities() {
         return readU8(ADDR_PROXIMITY_LAYER2 + (entityId & 0x7F));
     }
 
+    let _currentEntityFlashFrames = 0;
+
     function getSheetFrame(entityId) { // Lookup_Monster_Tile_Attributes
         const ptr = readU16(ADDR_MONSTERS_LIST) + (entityId & 0x7F) * 16;
         const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
         const flags = readU8(ptr+4) & 0x1F; // .flags
         const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
+        
+        _currentEntityFlashFrames = _entityHitFlashTimers.get(entityId & 0x7F) || 0;
+        // detect hit via ai_flags bit 5 (set by C on sword hit)
+        // only for actual monsters (flags & 0x18 == 0), not items/chests
+        if ((flags & 0x18) === 0 && (readU8(ptr+5) & 0x20)) {
+            _currentEntityFlashFrames = 6;
+            _entityHitFlashTimers.set(entityId & 0x7F, 6);
+        }
         
         return dungeonAI[dir][flags][offset];
     }
@@ -1923,6 +1932,19 @@ function drawDungeonEntities() {
             TILE_WIDTH, // destination width
             TILE_HEIGHT // destination height
         );
+
+        // hit-flash: yellow tint overlay (on offscreen canvas to isolate sprite pixels)
+        if (_currentEntityFlashFrames > 0) {
+            _tintCtx.clearRect(0, 0, TILE_WIDTH, TILE_HEIGHT);
+            _tintCtx.drawImage(dungeonEntitySheet, sx, sy, TILE_WIDTH, TILE_HEIGHT, 0, 0, TILE_WIDTH, TILE_HEIGHT);
+            _tintCtx.globalCompositeOperation = 'source-atop';
+            _tintCtx.fillStyle = '#ffff00';
+            _tintCtx.globalAlpha = 0.5;
+            _tintCtx.fillRect(0, 0, TILE_WIDTH, TILE_HEIGHT);
+            _tintCtx.globalCompositeOperation = 'source-over';
+            _tintCtx.globalAlpha = 1.0;
+            ctx.drawImage(_tintCanvas, vpX * TILE_WIDTH, vpY * TILE_HEIGHT);
+        }
     }
 
     function drawOverlayTileWithCache(bgTile, ovlFrame, vpX, vpY, dx, dy) {
