@@ -95,6 +95,7 @@ extern "C" {
 #define ADDR_LION_KEYS_AMOUNT         0x99
 #define ADDR_CREST_OF_GLORY           0x9B    // byte
 #define ADDR_HERO_CREST               0x9C    // byte
+#define ADDR_CURRENT_MAGIC_SPELL      0x9D    // byte
 #define ADDR_CURRENT_ACCESSORY        0x9E
 #define ADDR_FERUZA_SHOES             0xA1    // byte
 #define ADDR_HERO_MAX_HP              0xB2    // word
@@ -123,6 +124,7 @@ extern "C" {
 #define ADDR_MONSTER_AI_DEATH_RIGHT_FRAMES             0xA080
 #define ADDR_MONSTER_AI_ITEM_ANIMATION_RIGHT_FRAMES    0xA090
 #define ADDR_MONSTER_AI_POTIONS_RIGHT_FRAMES           0xA0A0
+#define ADDR_TRAJECTORIES                              0xA531
 
 #define ADDR_MDT                                       0xC000    // MDT dungeon data
 #define ADDR_MAP_WIDTH                                 0xC002
@@ -810,6 +812,17 @@ uint8_t move_platform_down_damage_monster();
 void down_pressed();
 void init_horizontal_sliding();
 static uint8_t is_tile_safe_to_stay(uint8_t tile);
+void flush_dirty_projectile(uint16_t p);
+void Browse_Projectiles();
+void restore_bg_tile_at_given_position(uint8_t rel_x, uint8_t rel_y, uint16_t screen_dest);
+uint16_t proximity_map_coords_to_viewport_offset(uint8_t x, uint8_t y);
+void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx);
+void update_active_projectiles_render();
+void projectile_erase_old_tiles(uint16_t mp);
+uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x);
+void Uncompress_And_Render_Tile(uint8_t tile_idx, uint16_t screen_half_addr);
+void update_and_render_projectile_row_pair();
+
 
 // Rendering
 void main_update_render(void);

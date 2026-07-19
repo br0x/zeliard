@@ -5815,7 +5815,7 @@ Browse_Projectiles proc near
 
 loc_83DE:        
                 cmp     [si+projectile.p_x_rel], 0FFh
-                jz      short no_projectiles
+                je      short no_projectiles
                 push    si
                 call    flush_dirty_projectile
                 pop     si
@@ -6804,7 +6804,7 @@ update_active_projectiles_render proc near ; ...
 
 next_magic_projectile:    
                 cmp     [si+magic_projectile.mp_x_rel], 0FFFFh
-                jnz     short loc_897A
+                jne     short loc_897A
                 retn
 ; ---------------------------------------------------------------------------
 
@@ -6849,7 +6849,7 @@ loc_89A9:
                 xchg    bh, bl
                 push    si
                 add     si, 8
-                mov     bp, offset byte_8C79
+                mov     bp, offset deltas
                 mov     cx, 4
 
 loc_89D3:        
@@ -7310,29 +7310,29 @@ loc_8C61:
 mark_proximity_monster_as_spell_target endp
 
 ; ---------------------------------------------------------------------------
-byte_8C79       db 0, 0, 1, 0, 0, 1, 1, 1
-sequences0      dw offset byte_8C99
-                dw offset byte_8CA5
-                dw offset byte_8CBD
-                dw offset byte_8CE5
-                dw offset byte_8CFD
-                dw offset byte_8D01
-sequences1      dw offset byte_8C99
-                dw offset byte_8CB1
-                dw offset byte_8CD1
-                dw offset byte_8CF1
-                dw offset byte_8CFD
-                dw offset byte_8D0D
-byte_8C99       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-byte_8CA5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-byte_8CB1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-byte_8CBD       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-byte_8CD1       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-byte_8CE5       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-byte_8CF1       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
-byte_8CFD       db 73h, 74h, 75h, 76h
-byte_8D01       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
-byte_8D0D       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+deltas       db 0, 0, 1, 0, 0, 1, 1, 1
+sequences0      dw offset espada_frames
+                dw offset saeta_dir0_frames
+                dw offset fuego_dir0_frames
+                dw offset lanzar_dir0_frames
+                dw offset rascar_frames
+                dw offset agua_dir0_frames
+sequences1      dw offset espada_frames
+                dw offset saeta_dir1_frames
+                dw offset fuego_dir1_frames
+                dw offset lanzar_dir1_frames
+                dw offset rascar_frames
+                dw offset agua_dir1_frames
+espada_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+saeta_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+saeta_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+fuego_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+fuego_dir1_frames       db 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h, 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+lanzar_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+lanzar_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
+rascar_frames       db 73h, 74h, 75h, 76h
+agua_dir0_frames       db 67h, 68h, 69h, 6Ah, 6Bh, 6Ch, 6Dh, 6Eh, 6Fh, 70h, 71h, 72h
+agua_dir1_frames       db 73h, 74h, 75h, 76h, 77h, 78h, 79h, 7Ah, 7Bh, 7Ch, 7Dh, 7Eh
 
 
 ; ===========================================================================

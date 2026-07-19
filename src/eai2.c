@@ -452,8 +452,21 @@ static void boarman_random_flinch(uint16_t m)
  * the angle-table pointer are internal to Add_Projectile_To_Array and
  * are not modeled further here - they are copied verbatim from the
  * original data segment. */
-static const uint8_t spear_angles_right[12] = { 1,1,1,0,0,7,7,7,7,7,7,0xFF }; // byte_A531
-static const uint8_t spear_angles_left[12]  = { 3,3,3,4,4,5,5,5,5,5,5,0xFF }; // byte_A53D
+static const uint8_t spear_angles_right[12] = { 1,1,1,0,0,7,7,7,7,7,7,0xFF }; // byte_A531 ↗↗↗→→↘↘↘↘↘↘
+static const uint8_t spear_angles_left[12]  = { 3,3,3,4,4,5,5,5,5,5,5,0xFF }; // byte_A53D ↙↙↙↙↙↙←←↖↖↖
+
+// ; enemy projectile
+//   p_x_rel                 db   ? ; 0
+//   p_y_rel                 db   ? ; 1
+//   p_base_tile_idx         db   ? ; 2 ; bits 7,6 select a mask to AND with [si+3] (a screen dirty mask byte) and then added to the base (bits 5..0), forming a quarter-tile decomposition index
+//   p_trajectory_step_count db   ? ; 3
+//   p_max_step_count        db   ? ; 4
+//   p_trajectory_dir        db   ? ; 5 ; bits 2..0: direction 0..7
+//   p_damage                db   ? ; 6
+//   p_vram_addr_d           dw   ? ; 7 ; bit 15: dirty flag, bit 14..0: VRAM address
+//   p_curved_path_data_ptr  dw   ? ; 9 ; Pointer to curved path data table
+//   p_cached_x_rel          db   ? ; 11
+//   p_cached_y_rel          db   ? ; 12
 
 typedef struct {
     uint8_t x, y;
@@ -462,11 +475,11 @@ typedef struct {
     uint8_t tail[2];             // 0,0
 } BoarmanArcSpear;
 
-static BoarmanArcSpear spear_top_right = { 0,0, {0x9A,0,0xFF,0x40,8,0,0}, spear_angles_right, {0,0} }; // byte_A4FD
-static BoarmanArcSpear spear_top_left  = { 0,0, {0x9A,0,0xFF,0x40,8,0,0}, spear_angles_left,  {0,0} }; // byte_A50A
+static uint8_t spear_right[13] = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A4FD
+static uint8_t spear_left[13]  = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A50A
 
-static uint8_t spear_bottom_right[13] = { 0,0, 0x9A,0,7,0,0x14,0,0,0,0,0,0 }; // byte_A517/A518
-static uint8_t spear_bottom_left[13]  = { 0,0, 0x9A,0,7,4,0x14,0,0,0,0,0,0 }; // byte_A524/A525
+static uint8_t spear_simple_right[13] = { 0,0, 0x9A,0,7,0,0x14,0,0,0,0,0,0 }; // byte_A517/A518
+static uint8_t spear_simple_left[13]  = { 0,0, 0x9A,0,7,4,0x14,0,0,0,0,0,0 }; // byte_A524/A525
 
 /* loc_A4BA: fires the Boarman's paired spears (one from each half). */
 static void boarman_fire_spears(uint16_t m)
@@ -474,16 +487,19 @@ static void boarman_fire_spears(uint16_t m)
     uint8_t x = MEM8(m+3);                 // .m_x_rel
     uint8_t y = (uint8_t)(MEM8(m+2) + 2);  // .currY + 2
 
-    spear_top_left.x = x;      spear_top_left.y = y;
-    spear_bottom_left[0] = x;  spear_bottom_left[1] = y;
-    spear_top_right.x = (uint8_t)(x + 1);      spear_top_right.y = y;
-    spear_bottom_right[0] = (uint8_t)(x + 1);  spear_bottom_right[1] = y;
+    spear_left[0] = x;                      spear_left[1] = y;
+    spear_right[0] = (uint8_t)(x + 1);      spear_right[1] = y;
+    spear_left[9] = MEM8(ADDR_TRAJECTORIES + 12);  spear_left[10] = MEM8(ADDR_TRAJECTORIES + 12);
+    spear_right[9] = MEM8(ADDR_TRAJECTORIES + 0);  spear_right[10] = MEM8(ADDR_TRAJECTORIES + 1);
 
-    void *bx = &spear_top_right;
-    void *ax = &spear_bottom_right;
+    spear_simple_left[0] = x;                  spear_simple_left[1] = y;
+    spear_simple_right[0] = (uint8_t)(x + 1);  spear_simple_right[1] = y;
+
+    uint8_t *bx = spear_right;
+    uint8_t *ax = spear_simple_right;
     if (!(MEM8(m+5) & 0x80)) { // facing left
-        bx = &spear_top_left;
-        ax = &spear_bottom_left;
+        bx = spear_left;
+        ax = spear_simple_left;
     }
     if (MEM8(m+9) & 2) { // .ai_state: alternate the pairing
         bx = ax;
@@ -504,11 +520,9 @@ static ProxResult monster_to_hero_proximity_and_direction(uint16_t m)
     }
 
     if (MEM8(m+3) < 0x11) { // .m_x_rel: monster to the left of the hero
-        int carry = (MEM8(m+5) & 0x80) != 0; // facing right = facing the hero
-        return (ProxResult){ .value = 0x80, .carry = carry };
+        return (ProxResult){ .value = 0x80, .carry = (MEM8(m+5) & 0x80) != 0 }; // facing right => facing the hero
     } else { // monster to the right of (or level with) the hero
-        int carry = (MEM8(m+5) & 0x80) == 0; // facing left = facing the hero
-        return (ProxResult){ .value = 0x00, .carry = carry };
+        return (ProxResult){ .value = 0x00, .carry = (MEM8(m+5) & 0x80) == 0 }; // facing left => facing the hero
     }
 }
 
@@ -696,8 +710,32 @@ static void toad_end_jump(uint16_t m)
 /* Tongue-shot projectile templates (bytes 0-1 = X,Y, patched per shot;
  * the remainder is the fixed template copied verbatim from the
  * original data segment). */
-static uint8_t toad_shot_desc_right[13] = { 0,0, 0x9E,0,6,0,0x14,0,0,0,0,0,0 }; // byte_A8D2/A8D3 (facing right)
-static uint8_t toad_shot_desc_left[13]  = { 0,0, 0x9E,0,6,4,0x14,0,0,0,0,0,0 }; // byte_A8DF/A8E0 (facing left)
+static uint8_t toad_shot_desc_right[13] = { 
+    0,    // p_x_rel, patched per shot
+    0,    // p_y_rel, patched per shot
+    0x9E, // p_base_tile_idx
+    0,    // p_trajectory_step_count
+    6,    // p_max_step_count
+    0,    // p_trajectory_dir = right
+    20,   // p_damage
+    0, 0, // p_vram_addr_d
+    0, 0, // p_curved_path_data_ptr
+    0,    // p_cached_x_rel
+    0     // p_cached_y_rel
+}; // byte_A8D2/A8D3 (facing right)
+static uint8_t toad_shot_desc_left[13]  = { 
+    0,    // p_x_rel, patched per shot
+    0,    // p_y_rel, patched per shot
+    0x9E, // p_base_tile_idx
+    0,    // p_trajectory_step_count
+    6,    // p_max_step_count
+    4,    // p_trajectory_dir = left
+    20,   // p_damage
+    0, 0, // p_vram_addr_d
+    0, 0, // p_curved_path_data_ptr
+    0,    // p_cached_x_rel
+    0     // p_cached_y_rel
+}; // byte_A8DF/A8E0 (facing left)
 
 /* loc_A871: windup timer before firing the tongue shot. */
 static void toad_windup_and_shoot(uint16_t m)
@@ -708,10 +746,12 @@ static void toad_windup_and_shoot(uint16_t m)
 
     MEM8(m+6) = 7; // .anim_counter
 
+    // t.
+    // ..
     uint8_t y = (uint8_t)((MEM8(m+2) + 1) & 0x3F); // .currY + 1, wrapped
-    toad_shot_desc_left[0]  = MEM8(m+3);           // .m_x_rel
-    toad_shot_desc_left[1]  = y;
-    toad_shot_desc_right[0] = (uint8_t)(MEM8(m+3) + 1);
+    toad_shot_desc_left[0]  = MEM8(m+3);           // .p_x_rel = m_x_rel
+    toad_shot_desc_left[1]  = y;                   // .p_y_rel = currY
+    toad_shot_desc_right[0] = (uint8_t)(MEM8(m+3) + 1); // when faced right, starting point is right side of body
     toad_shot_desc_right[1] = y;
 
     uint8_t *desc = (MEM8(m+5) & 0x80) ? toad_shot_desc_right : toad_shot_desc_left; // .ai_flags

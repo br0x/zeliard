@@ -600,20 +600,8 @@ void Draw_Boss_Health()
     MEM8(ADDR_BOSS_HEALTH_REQUEST) = 0xFF;
 }
 
-// stub, will implement later, when all before projectiles is done
-void update_and_render_projectile_row_pair()
-{
-
-}
-
 // stub, will implement later
 void render_and_collision_pass_row()
-{
-
-}
-
-// stub, will implement later, when all before projectiles is done
-void update_active_projectiles_render()
 {
 
 }
@@ -1102,12 +1090,6 @@ uint8_t try_move_platform_up()
     move_hero_up();
 
     return 0xFF;
-}
-
-// stub, will implement later
-void Browse_Projectiles()
-{
-
 }
 
 // Checked
@@ -1683,18 +1665,6 @@ void hero_moves_left()
         MEM8(ADDR_MONSTER_INDEX) = idx + 1;
         si += 16;
     }
-}
-
-// stub. Implement later
-void every_projectile_moves_left_in_viewport()
-{
-
-}
-
-// stub. Implement later
-void every_projectile_moves_right_in_viewport()
-{
-
 }
 
 // 1.2
@@ -5101,9 +5071,7 @@ void Add_Projectile_To_Array(uint8_t *src)
         di += PROJECTILE_STRUCT_SIZE;
     }
 
-    for (int i = 0; i < PROJECTILE_STRUCT_SIZE; i++) {
-        MEM8(di + i) = src[i];
-    }
+    memmove(&g_mem[di], src, PROJECTILE_STRUCT_SIZE);
     di += PROJECTILE_STRUCT_SIZE;
     MEM8(di) = 0xFF; // new end marker
 
@@ -5128,4 +5096,340 @@ void load_eai_module(uint8_t place_map_id)
 void Monster_AI(uint16_t m)
 {
     current_monster_ai(m);
+}
+
+// Projectiles
+
+/* Per-spell frame-data tables: sequences0 used when mp_dir != 0,
+ * sequences1 when mp_dir == 0. Indexed by (current_magic_spell - 1). */
+static const uint8_t espada_frames[] = {
+    0x67, 0x68, 0x69, 0x6A, 
+    0x6B, 0x6C, 0x6D, 0x6E, 
+    0x6F, 0x70, 0x71, 0x72
+};
+ 
+static const uint8_t saeta_dir0_frames[] = {
+    0x67, 0x68, 0x69, 0x6A, 
+    0x6B, 0x6C, 0x6D, 0x6E, 
+    0x6F, 0x70, 0x71, 0x72
+};
+ 
+static const uint8_t saeta_dir1_frames[] = {
+    0x73, 0x74, 0x75, 0x76, 
+    0x77, 0x78, 0x79, 0x7A, 
+    0x7B, 0x7C, 0x7D, 0x7E
+};
+ 
+static const uint8_t fuego_dir0_frames[] = {
+    0x67, 0x68, 0x69, 0x6A, 
+    0x6F, 0x70, 0x71, 0x72, 
+    0x73, 0x74, 0x75, 0x76, 
+    0x77, 0x78, 0x79, 0x7A, 
+    0x7B, 0x7C, 0x7D, 0x7E
+};
+ 
+static const uint8_t fuego_dir1_frames[] = { // Rascar
+    0x6B, 0x6C, 0x6D, 0x6E, 
+    0x6F, 0x70, 0x71, 0x72, 
+    0x73, 0x74, 0x75, 0x76, 
+    0x77, 0x78, 0x79, 0x7A, 
+    0x7B, 0x7C, 0x7D, 0x7E
+};
+ 
+static const uint8_t lanzar_dir0_frames[] = { 
+    0x67, 0x68, 0x69, 0x6A, 
+    0x6B, 0x6C, 0x6D, 0x6E, 
+    0x6F, 0x70, 0x71, 0x72
+};
+ 
+static const uint8_t lanzar_dir1_frames[] = {
+    0x73, 0x74, 0x75, 0x76, 
+    0x77, 0x78, 0x79, 0x7A, 
+    0x7B, 0x7C, 0x7D, 0x7E
+};
+ 
+static const uint8_t rascar_frames[] = {
+    0x73, 0x74, 0x75, 0x76
+};
+ 
+static const uint8_t agua_dir0_frames[] = {
+    0x67, 0x68, 0x69, 0x6A, 
+    0x6B, 0x6C, 0x6D, 0x6E, 
+    0x6F, 0x70, 0x71, 0x72
+};
+ 
+static const uint8_t agua_dir1_frames[] = {
+    0x73, 0x74, 0x75, 0x76, 
+    0x77, 0x78, 0x79, 0x7A, 
+    0x7B, 0x7C, 0x7D, 0x7E
+};
+ 
+const uint8_t *const sequences0[] = {
+    espada_frames,
+    saeta_dir0_frames,
+    fuego_dir0_frames,
+    lanzar_dir0_frames,
+    rascar_frames,
+    agua_dir0_frames,
+};
+ 
+const uint8_t *const sequences1[] = {
+    espada_frames,
+    saeta_dir1_frames,
+    fuego_dir1_frames,
+    lanzar_dir1_frames,
+    rascar_frames,
+    agua_dir1_frames,
+};
+
+/* Per-subtile (dx, dy) offset table used by update_active_projectiles_render;
+ * 4 subtiles * 2 bytes (dx, dy) = 8 bytes. */
+const uint8_t deltas[8] = { 
+    0, 0, 
+    1, 0, 
+    0, 1, 
+    1, 1 
+};
+
+/* masks db 0, 1, 11b, 111b  -- defined right in this snippet */
+static const uint8_t masks[4] = { 0, 1, 3, 7 };
+
+
+void Browse_Projectiles()
+{
+    uint16_t p = ADDR_PROJECTILES_LIST;
+
+    for (;;) {
+        if (MEM8(p+0) == 0xFF) { // .p_x_rel
+            MEM8(ADDR_PROJECTILES_LIST+0) = 0xFF;    // .p_x_rel
+            return;
+        }
+
+        flush_dirty_projectile(p);
+        p += 13;
+    }
+}
+
+/* 
+ * If the projectile's cached vram address is marked dirty, clear the flag
+ * and fall through into restore_bg_tile_at_given_position to redraw the
+ * background tile at the projectile's last-drawn (cached) position --
+ * i.e. this "erases" the sprite that used to be there.
+ */
+void flush_dirty_projectile(uint16_t p)
+{
+    if (!(MEM16(p+7) & 0x8000)) // .p_vram_addr_d
+        return;
+
+    MEM16(p+7) &= 0x7FFF;
+
+    uint16_t screen_dest = MEM16(p+7);   /* dx: old screen address */
+    uint8_t  rel_x        = MEM8(p+11); // .p_cached_x_rel
+    uint8_t  rel_y        = MEM8(p+12); // .p_cached_y_rel
+
+    restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+}
+
+/* 
+ * screen_dest corresponds to DX, which this routine never sets itself in the
+ * original asm -- it's inherited from whatever the caller left in DX
+ * (flush_dirty_projectile sets it right before falling through here). Modeled
+ * as an explicit parameter since C has no implicit register-passing.
+ */
+void restore_bg_tile_at_given_position(uint8_t rel_x, uint8_t rel_y, uint16_t screen_dest)
+{
+    uint16_t di = proximity_map_coords_to_viewport_offset(rel_y, rel_x);
+
+    /* Only restore over "normal" tiles; 0xFC-0xFF are special markers with
+     * nothing to redraw. */
+    if (MEM8(di) >= 0xFC)
+        return;
+
+    uint8_t  abs_y = (uint8_t)(rel_y + MEM8(ADDR_VIEWPORT_TOP_ROW));
+    uint16_t bg =  coords_to_prox_addr(rel_x, abs_y);
+    uint8_t  tile_idx = MEM8(bg);
+
+    Dungeon_Static_Tile_Cached_Drawer(tile_idx, screen_dest);
+}
+
+void update_active_projectiles_render()
+{
+    uint16_t mp = ADDR_MAGIC_PROJECTILES;
+
+    for (int outer = 0; outer < 4; outer++, mp += 16) {
+        if (MEM16(mp+0) == 0xFFFF) // .mp_x_rel
+            return;                                    /* end of active list, bail entirely */
+
+        projectile_erase_old_tiles(mp);
+
+        /* high byte of mp_x_rel == 0xFF -> drifted far off world; retire slot */
+        if (MEM8(mp+1) == 0xFF) { // .mp_x_rel >> 8
+            MEM16(mp+0) = 0xFFFF;
+            continue;                                   /* -> loc_8A2B */
+        }
+
+        uint8_t frame_offset = MEM8(mp+5) * 4; // .mp_anim_frame; each spell frame has 4 tiles
+        uint8_t spell_index  = MEM8(ADDR_CURRENT_MAGIC_SPELL) - 1;
+
+        const uint8_t *const *table = MEM8(mp+3) ? sequences0 : sequences1; // .mp_dir
+        const uint8_t *seq = table[spell_index] + frame_offset;
+
+        uint8_t rel_x;
+        if (!is_in_proximity_window(MEM16(mp+0), &rel_x))
+            continue;                                   /* outside window -> loc_8A2B */
+
+        MEM8(mp+6) = rel_x; // .mp_cached_x_offset_tiles
+
+        uint8_t rel_y = (uint8_t)((MEM8(mp+2) - MEM8(ADDR_VIEWPORT_TOP_ROW)) & 0x3F);
+        MEM8(mp+7) = rel_y; // .mp_cached_y_offset
+
+        uint8_t base_x = rel_x;   /* bh after xchg */
+        uint8_t base_y = rel_y;   /* bl after xchg */
+
+        uint16_t vram_slot = mp+8; // .mp_vram_addr_tile00
+
+        for (int sub = 0; sub < 4; sub++) { // 4 sub-tiles per frame
+            uint8_t x = base_x + deltas[sub+0];
+            if (x >= VIEW_COLS + 4)
+                goto next_subtile;                       /* outside_viewport */
+
+            uint8_t y = (base_y + deltas[sub+1]) & 0x3F;
+            if (y >= 24)
+                goto next_subtile;                       /* outside_viewport */
+
+            uint8_t tile_idx = *seq;
+
+            uint16_t cell = proximity_map_coords_to_viewport_offset(x, y);
+            if (MEM8(cell) != 0xFF && MEM8(cell) != 0xFC) {
+                uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(x, y);
+                MEM16(vram_slot) = screen_addr | 0x8000;
+                screen_addr &= 0x7FFF;
+                Uncompress_And_Render_Tile(tile_idx, screen_addr);
+            }
+
+        next_subtile:
+            seq++;
+            vram_slot++;
+        }
+    }
+}
+
+void update_and_render_projectile_row_pair()
+{
+    for (uint16_t p = ADDR_PROJECTILES_LIST; ; p += 13) {
+        if (MEM8(p+0) == 0xFF) // .p_x_rel
+            return;                                     /* end of active list */
+
+        flush_dirty_projectile(p);
+
+        MEM8(p+11) = MEM8(p+0); // .p_cached_x_rel = .p_x_rel
+
+        if (MEM8(p+0) >= VIEW_COLS+4)
+            goto deactivate;                             /* outside the 28-tile row  */
+
+        uint8_t rel_y = (MEM8(p+1) - MEM8(ADDR_VIEWPORT_TOP_ROW)) & 0x3F;
+        if (rel_y >= VIEW_ROWS)
+            goto deactivate;                             /* outside the 18-row band */
+
+        MEM8(p+12) = rel_y; // .p_cached_y_rel = rel_y
+
+        {
+            uint16_t di = proximity_map_coords_to_viewport_offset(MEM8(p+11), rel_y); // .p_cached_x_rel
+
+            if (MEM8(di) != 0xFF && MEM8(di) != 0xFC) {
+                uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(MEM8(p+11), rel_y);
+                screen_addr |= 0x8000;
+                MEM16(p+7) = screen_addr; // .p_vram_addr_d
+
+                uint8_t bl = MEM8(p+2); // .p_base_tile_idx
+                bl = (uint8_t)((bl << 2) | (bl >> 6));    /* rol bl,2 */
+                bl &= 3;
+                bl = masks[bl];
+                bl &= MEM8(p+3); // .p_trajectory_step_count
+
+                uint8_t tile_idx = ((MEM8(p+2) + bl) & 0x3F);
+
+                screen_addr &= 0x7FFF;
+                Uncompress_And_Render_Tile(tile_idx, screen_addr);
+            }
+        }
+        continue;
+
+    deactivate:
+        MEM8(p+0) = 0;                                  /* loc_83D2 */
+    }
+}
+
+void every_projectile_moves_left_in_viewport()
+{
+    for (uint16_t p = ADDR_PROJECTILES_LIST; ; p += 13) {
+        if (MEM8(p+0) == 0xFF) // .p_x_rel
+            return;
+
+        if (MEM8(p+0) != 0) // .p_x_rel
+            MEM8(p+0)--;
+    }
+}
+
+void every_projectile_moves_right_in_viewport()
+{
+    for (uint16_t p = ADDR_PROJECTILES_LIST; ; p += 13) {
+        if (MEM8(p+0) == 0xFF) // .p_x_rel
+            return;
+
+        if (MEM8(p+0) != 0) // .p_x_rel
+            MEM8(p+0)++;
+    }
+}
+
+uint16_t proximity_map_coords_to_viewport_offset(uint8_t x, uint8_t y)
+{
+    return ADDR_VIEWPORT_ENTITIES + (y & 0x3F) * VIEW_COLS + x - 4;
+}
+
+// Note this is just literal translation; since all the rendering is done in js, we'll use canvas coords
+// x-coord is counted from proximity left, so viewport-related x is -4
+// Also final address is divided by 2, for some reason.
+uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x)
+{
+    return ((y & 0x3F) * 320 * 8 + (x - 4) * 8 + 14 * 320 + 48) >> 1;
+}
+
+
+/* 
+ * Erases (redraws background over) up to 4 cached subtile positions of a
+ * magic projectile's 2x2 sprite footprint: (x,y), (x+1,y), (x,y+1), (x+1,y+1).
+ * Each is only erased if its cached vram address is marked dirty.
+ */
+// TODO: refactor using deltas array and loop
+void projectile_erase_old_tiles(uint16_t mp)
+{
+    if (MEM16(mp+8) & 0x8000) { // .mp_vram_addr_tile00
+        MEM16(mp+8) &= 0x7FFF;
+        uint16_t screen_dest = MEM16(mp+8);
+        uint8_t  rel_x        = MEM8(mp+6); // .mp_cached_x_offset_tiles
+        uint8_t  rel_y        = MEM8(mp+7); // .mp_cached_y_offset
+        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    }
+    if (MEM16(mp+10) & 0x8000) { // .mp_vram_addr_tile10
+        MEM16(mp+10) &= 0x7FFF;
+        uint16_t screen_dest = MEM16(mp+10);
+        uint8_t  rel_x        = MEM8(mp+6) + 1; // .mp_cached_x_offset_tiles
+        uint8_t  rel_y        = MEM8(mp+7); // .mp_cached_y_offset
+        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    }
+    if (MEM16(mp+12) & 0x8000) { // .mp_vram_addr_tile01
+        MEM16(mp+12) &= 0x7FFF;
+        uint16_t screen_dest = MEM16(mp+12);
+        uint8_t  rel_x        = MEM8(mp+6); // .mp_cached_x_offset_tiles
+        uint8_t  rel_y        = (MEM8(mp+7) + 1) & 0x3F; // .mp_cached_y_offset
+        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    }
+    if (MEM16(mp+14) & 0x8000) { // .mp_vram_addr_tile11
+        MEM16(mp+14) &= 0x7FFF;
+        uint16_t screen_dest = MEM16(mp+14);
+        uint8_t  rel_x        = MEM8(mp+6) + 1; // .mp_cached_x_offset_tiles
+        uint8_t  rel_y        = (MEM8(mp+7) + 1) & 0x3F; // .mp_cached_y_offset
+        restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
+    }
 }

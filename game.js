@@ -238,6 +238,8 @@ const DUNGEONS = {
             [],
             [],
         ],
+        trajectories: [
+        ],
         ai: EAI1,
     },
     1: { // Dungeon 1 boss room — same dungeon group, shares tilesheets with index 0
@@ -259,6 +261,8 @@ const DUNGEONS = {
         ],
         death_descriptors: [
             [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
         ],
         bossState: {
             bossX: 0x2B,                // +0
@@ -295,6 +299,10 @@ const DUNGEONS = {
             [],
             [],
         ],
+        trajectories: [ // boarman
+            [1,1,1,0,0,7,7,7,7,7,7,0xFF], // right: ↗↗↗→→↘↘↘↘↘↘
+            [3,3,3,4,4,5,5,5,5,5,5,0xFF], // left: ↙↙↙↙↙↙←←↖↖↖
+        ],
         ai: EAI2,
     },
     3: {
@@ -319,6 +327,8 @@ const DUNGEONS = {
             [9, 9, 9, 9], // magic bat
             [],
             [],
+        ],
+        trajectories: [
         ],
         ai: EAI2,
     },
@@ -730,6 +740,7 @@ let setDungeonSwordReach;
 let setDungeonMonsterXp;
 let setDungeonMonsterDamage;
 let setDeathDescriptors;
+let setTrajectories;
 let dungeonGetRenderRequest;
 let dungeonClearRenderRequest;
 let getBossName;
@@ -1368,7 +1379,7 @@ async function loadWasmEngine() {
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
         setDungeonPassableTiles, setDungeonAggressiveGround, 
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
-        setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors,
+        setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
         dungeonGetRenderRequest, dungeonClearRenderRequest, getBossName,
     } = wasmBridge);
 }
@@ -2656,6 +2667,7 @@ async function handleDungeonTransition(mapId, isFromTown) {
         setDungeonMonsterXp(DUNGEONS[rawMapId].monster_xp);
         setDungeonMonsterDamage(DUNGEONS[rawMapId].monster_damage);
         setDeathDescriptors(DUNGEONS[rawMapId].death_descriptors);
+        setTrajectories(DUNGEONS[rawMapId].trajectories);
         // Initialize boss state block if this map has one
         const bossState = DUNGEONS[rawMapId].bossState;
         if (bossState) {

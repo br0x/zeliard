@@ -668,7 +668,7 @@ static void render_48bytes_packed_tile(const uint8_t *src, uint8_t *dst)
  * somewhere else on screen this pass (just copy the existing pixels
  * instead).
  */
-static void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx)
+void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx)
 {
     uint8_t *di = &vram[dx * 2];
 
@@ -1442,5 +1442,69 @@ void Boss_Explosions_Renderer()
             write += 4;
         }
         read += 4;
+    }
+}
+
+/* 
+ * Unpacks a 48-byte compressed 8x8 tile
+ * (6 bytes per row -> 4 packed 6-bit pixels per 3 source bytes, 2 groups per
+ * row = 8 pixels/row, 8 rows) and blits it into VGA mode 13h memory
+ * (segment 0xA000, 320 bytes/scanline).
+ *
+ * Translated as a literal register-level simulation rather than a derived
+ * bit-packing formula: the original relies on x86 sub-register aliasing
+ * (DX = DH:DL as one 16-bit value; shifting DX by 2 shifts across both
+ * halves, while later shifting DL alone only shifts its own 8 bits). That
+ * distinction is preserved exactly below via explicit 16-bit intermediates.
+ * ==========================================================================*/
+
+
+/*
+ * AL: tile index (1-based)
+ * DI: "half" of the destination screen address (doubled internally, since
+ *     the original passes di pre-halved for some reason at the call site)
+ */
+void Uncompress_And_Render_Tile(uint8_t tile_idx, uint16_t screen_half_addr)
+{
+    const uint8_t *si = &(g_mem[((DUNGEON_TILE_PACKED_BASE + (uint16_t)((uint8_t)(tile_idx - 1) * 48u)) & 0xFFFF) + 0x10000]);
+
+    uint8_t *di = vram + (uint16_t)(screen_half_addr * 2u);                        /* add di, di */
+
+    for (int row = 0; row < 8; row++) {                 /* eight_rows: mov cx,8 */
+        for (int group = 0; group < 2; group++) {       /* next_3_bytes_to_4px: mov cx,2 */
+            uint8_t byte0 = *si++;                       /* lodsw (low byte)  */
+            uint8_t byte1 = *si++;                       /* lodsw (high byte) */
+            uint16_t dx = (uint16_t)byte0 | ((uint16_t)byte1 << 8);  /* mov dx, ax */
+
+            uint8_t byte2 = *si++;                       /* lodsb   */
+            uint8_t bl = byte2;                          /* mov bl, al */
+            uint8_t bh = (uint8_t)(dx & 0xFF);           /* mov bh, dl (= byte0, before dx is shifted) */
+            uint16_t bx = (uint16_t)bl | ((uint16_t)bh << 8);
+
+            dx >>= 2;                                     /* shr dx,1 ; shr dx,1  (full 16-bit shift) */
+
+            uint8_t pixel0 = (uint8_t)(dx >> 8);          /* dh */
+            uint8_t dl     = (uint8_t)(dx & 0xFF);
+
+            if (pixel0 != 0)
+                di[0] = pixel0;
+
+            dl >>= 2;                                     /* shr dl,1 ; shr dl,1  (8-bit-only shift) */
+            if (dl != 0)
+                di[1] = dl;
+
+            bx <<= 2;                                      /* add bx,bx ; add bx,bx (full 16-bit shift) */
+            uint8_t pixel2 = (uint8_t)(bx >> 8);           /* bh */
+            pixel2 &= 0x3F;                                /* and bh, 3Fh */
+            if (pixel2 != 0)
+                di[2] = pixel2;
+
+            uint8_t pixel3 = byte2 & 0x3F;                 /* and al, 3Fh (al still holds byte2) */
+            if (pixel3 != 0)
+                di[3] = pixel3;
+
+            di += 4;                                       /* add di, 4 */
+        }
+        di += 320-8;                                          /* add di, 312 -- skip to next scanline */
     }
 }

@@ -649,6 +649,33 @@ export function setDeathDescriptors(descriptors) {
     }
 }
 
+const ADDR_TRAJECTORIES = 0xA531;
+
+export function setTrajectories(trajectories) {
+    if (!wasmMemory) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    // Layout in g_mem:
+    //   0xA531:  trajectories definitions (each 11 bytes + 12th byte = 0xFF terminator)
+
+    let tableAddr = gMemoryBase + ADDR_TRAJECTORIES;      // first descriptor table
+
+    for (let i = 0; i < trajectories.length; i++) {
+        const traj = trajectories[i];
+        if (traj.length === 0) {
+            continue;
+        } else {
+            const len = traj.length;
+            for (let j = 0; j < len; j++) {
+                wasmMemory[tableAddr + j] = traj[j] || 0;
+            }
+            tableAddr += len;
+        }
+    }
+}
+
 
 /**
  * Read raw bytes from WASM memory

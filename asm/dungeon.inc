@@ -68,19 +68,20 @@ projectile         ENDS
 
 ; hero magic projectile
 magic_projectile   STRUC
-  mp_x_rel                  dw   ?
-  mp_y_rel                  db   ?
-  mp_dir                    db   ? ; bit 7: return/deactivate flag, bit 1,0: direction
-  mp_life_timer             db   ?
-  mp_anim_frame             db   ?
-  mp_cached_x_offset_tiles  db   ?
-  mp_cached_y_offset        db   ?
-  mp_vram_addr_tile00       dw   ?
-  mp_vram_addr_tile10       dw   ?
-  mp_vram_addr_tile01       dw   ?
-  mp_vram_addr_tile11       dw   ?
+  mp_x_rel                  dw   ? ; 0
+  mp_y_rel                  db   ? ; 2
+  mp_dir                    db   ? ; 3; bit 7: return/deactivate flag, bit 1,0: direction
+  mp_life_timer             db   ? ; 4
+  mp_anim_frame             db   ? ; 5
+  mp_cached_x_offset_tiles  db   ? ; 6
+  mp_cached_y_offset        db   ? ; 7
+  mp_vram_addr_tile00       dw   ? ; 8
+  mp_vram_addr_tile10       dw   ? ; 10
+  mp_vram_addr_tile01       dw   ? ; 12
+  mp_vram_addr_tile11       dw   ? ; 14
 magic_projectile   ENDS
 
+; Unknown yet thing, the name is result of AI hallucination
 spirit             STRUC
   s_orbit_phase    db   ? ; FF: inactive; bits 3..0: orbit phase
   s_orbit_speed    db   ?

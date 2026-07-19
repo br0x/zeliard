@@ -504,8 +504,9 @@ byte_A518       db 0, 9Ah, 0, 7, 0, 14h, 0, 0, 0, 0, 0, 0
                 ; projectile 2
 byte_A524       db 0 ; p_x_rel
 byte_A525       db 0, 9Ah, 0, 7, 4, 14h, 0, 0, 0, 0, 0, 0
-
+; A531
 right_trajectory db 1, 1, 1, 0, 0, 7, 7, 7, 7, 7, 7, 0FFh
+; A53D
 left_trajectory  db 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 0FFh
 
 ; =============== S U B R O U T I N E =======================================
@@ -517,7 +518,7 @@ sub_A549        proc near
                 jnb     short loc_A551
                 retn
 ; ---------------------------------------------------------------------------
-
+setDeathDescriptors
 loc_A551:
                 call    sub_A56F
                 jnb     short loc_A557
