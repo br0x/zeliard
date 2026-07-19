@@ -1,4 +1,5 @@
-CC = emcc
+EMSCRIPTEN_ROOT ?= $(HOME)/emsdk/upstream/emscripten
+CC = $(EMSCRIPTEN_ROOT)/emcc
 
 SRCDIR = src
 BUILDDIR = build

@@ -1020,7 +1020,7 @@ static uint16_t find_platform_under_hero(uint16_t *di, int8_t dh)
 static uint8_t try_move_platform_down(uint16_t di, uint16_t platform_prox, uint8_t dl)
 {
     uint16_t bx_save = platform_prox;
-    uint16_t si = platform_prox + 36 - 1;
+    uint16_t si = platform_prox + PROX_COLS - 1;
     wrap_map_from_above(&si);
     if (MEM8(si) & 0x80) return 0;
 
@@ -1029,7 +1029,7 @@ static uint8_t try_move_platform_down(uint16_t di, uint16_t platform_prox, uint8
         if (MEM8(si) != 0) return 0;
     }
 
-    si = bx_save + 36;
+    si = bx_save + PROX_COLS;
     wrap_map_from_above(&si);
 
     for (int i = 0; i < 3; i++) {
@@ -1051,7 +1051,7 @@ uint8_t try_move_platform_up()
     wrap_map_from_below(&si);
     if (is_blocking_tile(MEM8(si))) return 0;
 
-    si += 36 * 4;
+    si += PROX_COLS * 4;
     wrap_map_from_above(&si);
 
     int8_t dh;
@@ -1062,9 +1062,9 @@ uint8_t try_move_platform_up()
     uint16_t platform_prox = find_platform_under_hero(&di, dh);
     uint16_t saved_prox = platform_prox;
 
-    uint16_t bx = platform_prox - 36;
+    uint16_t bx = platform_prox - PROX_COLS;
     wrap_map_from_below(&bx);
-    uint16_t si_check = bx - 36;
+    uint16_t si_check = bx - PROX_COLS;
     wrap_map_from_below(&si_check);
 
     for (int i = 0; i < 3; i++) {
@@ -1075,7 +1075,7 @@ uint8_t try_move_platform_up()
     }
 
     platform_prox = saved_prox;
-    si = platform_prox - 36;
+    si = platform_prox - PROX_COLS;
     wrap_map_from_below(&si);
 
     dl = 0x40;
@@ -1227,8 +1227,8 @@ void edge_locking_scrolling_window()
     uint16_t mapWidth = MEM16(ADDR_MAP_WIDTH);
     if (ax > mapWidth - 13) {
         /* right-edge lock */
-        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = mapWidth - 36;
-        MEM8(ADDR_HERO_X_VIEW) = (uint8_t)(ax - (mapWidth - 36) - 4);
+        MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = mapWidth - PROX_COLS;
+        MEM8(ADDR_HERO_X_VIEW) = (uint8_t)(ax - (mapWidth - PROX_COLS) - 4);
     } else if (ax < 17) {
         /* left-edge lock */
         MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 0;
@@ -1286,7 +1286,7 @@ uint16_t coords_to_prox_addr(uint8_t x, uint8_t y)
 uint16_t hero_coords_to_addr_in_proximity(void) {
     uint8_t head_y = MEM8(ADDR_HERO_HEAD_Y_VIEW); // =0xa
     uint8_t view_x = MEM8(ADDR_HERO_X_VIEW);
-    uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP) + head_y * 36 + view_x + 4;
+    uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP) + head_y * PROX_COLS + view_x + 4;
     wrap_map_from_above(&addr); // =0xea0c
     return addr; // within 0xe000-0xe8ff =e10c
 }
@@ -1296,7 +1296,7 @@ uint16_t hero_coords_to_addr_in_proximity(void) {
 void move_hero_up(void) {
     MEM8(ADDR_VIEWPORT_TOP_ROW)--;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
-    addr -= 36;
+    addr -= PROX_COLS;
     wrap_map_from_below(&addr);
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
 }
@@ -1306,7 +1306,7 @@ void move_hero_up(void) {
 void hero_scroll_down(void) {
     MEM8(ADDR_VIEWPORT_TOP_ROW)++;
     uint16_t addr = MEM16(ADDR_VIEWPORT_LEFT_TOP);
-    addr += 36;
+    addr += PROX_COLS;
     wrap_map_from_above(&addr);
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = addr;
 }
@@ -1503,7 +1503,7 @@ uint8_t move_hero_right_if_no_obstacles()
 {
     uint16_t si = hero_coords_to_addr_in_proximity() + 2;
     uint16_t di = si;
-    si -= 36;
+    si -= PROX_COLS;
     wrap_map_from_below(&si);
     for (int i = 0; i < 4; i++) {
         uint8_t flags;
@@ -1682,7 +1682,7 @@ void hero_interaction_check(void)
     si += 2;
     tile = MEM8(si);
     if (is_blocking_tile(tile) == 0) return;
-    si += 36;
+    si += PROX_COLS;
     wrap_map_from_above(&si);
     tile = MEM8(si);
     if (is_blocking_tile(tile) == 0) {
@@ -1700,6 +1700,7 @@ void hero_interaction_check(void)
 void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     (void)map_id;
     prepare_dungeon(is_from_town);
+    MEM8(ADDR_SPEED_CONST) = 5;
 
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
     if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN) {
@@ -2270,7 +2271,7 @@ void process_visible_collapsing_platforms(void) {}
  *
  *  - `calc_object_viewport_x_offset` originally returns its *useful*
  *    result in BX (the on-screen column, later read back as BL), with
- *    AX/CF only used to flag "off the visible 36(+3)-wide window".
+ *    AX/CF only used to flag "off the visible PROX_COLS(+3)-wide window".
  *    I algebraically collapsed the push/pop/xchg shuffling down to the
  *    three cases the comments in the original code already spell out;
  *    the result matches each documented "ax=..." comment exactly.
@@ -2295,7 +2296,7 @@ static uint8_t opened_door_tiles[20] = {
 
 /* 
  * Computes the door's on-screen column (0..39 visible range) within the
- * 36(+3)-wide viewport, handling a single horizontal map wrap.
+ * PROX_COLS(+3)-wide viewport, handling a single horizontal map wrap.
  * Return `is offscreen` (mirrors the original carry flag).
  */
 
@@ -2382,7 +2383,7 @@ void process_doors(void)
                     di++;
                     si++;
                 }
-                di = orig_di + 36;           // next row, same column
+                di = orig_di + PROX_COLS;           // next row, same column
                 wrap_map_from_above(&di);
                 si = orig_si + 5;            // advance source by one tile row
             }
@@ -2541,7 +2542,7 @@ void step_on_aggressive_ground(void) {
 
     int row_count = 3;          /* normally check all 3 rows of the hero */
     if (MEM8(ADDR_SQUAT_FLAG) != 0) {
-        ptr += 36;              /* skip the top row (move down one row of 36 tiles) */
+        ptr += PROX_COLS;              /* skip the top row (move down one row of 36 tiles) */
         wrap_map_from_above(&ptr);
         row_count = 2;          /* now only the bottom 2 rows are checked */
     }
@@ -2555,7 +2556,7 @@ void step_on_aggressive_ground(void) {
                 danger_found = 0xFF;
             }
         }
-        ptr += (36-3);              /* 36 - 3 (already advanced) */
+        ptr += (PROX_COLS-3);
         wrap_map_from_above(&ptr);
     }
 
@@ -2668,7 +2669,7 @@ void monsters_spawning(void) {
                         (MEM8(m+7) & 0x10))             // .state_flags bit4 set?
                     {
                         // stamp two rows below (monster_index+1)
-                        di += (2 * 36);
+                        di += (2 * PROX_COLS);
                         wrap_map_from_above(&di);
                         bl = MEM8(ADDR_MONSTER_INDEX) + 1;
                         al = bl | 0x80; // new
@@ -3033,7 +3034,7 @@ static void default_0toF_handler(uint16_t m) {
 // 2. Processes the 'spell target' flag (ai_flags bit 6 → flags bit 5).
 // 3. Reads proximity_second_layer[monster_index] and writes it to [di]
 //    (preserves any existing tile if second layer was occupied).
-// 4. For big monsters (state_flags bit 4): also stamps [di + 2*36].
+// 4. For big monsters (state_flags bit 4): also stamps [di + 2*PROX_COLS].
 //
 // Item/monster type switch (flags bits 4:0):
 //   0x00-0x0F: regular monster → call Monster_AI
@@ -3077,7 +3078,7 @@ static void place_monster_in_proximity_and_run_ai(uint16_t m)
 
     // big monster lower half restoration
     if ((MEM8(m+4) & 0x11) == 0 && (MEM8(m+7) & 0x10)) { // .flags, .state_flags
-        di += (2 * 36);
+        di += (2 * PROX_COLS);
         wrap_map_from_above(&di);
         bl = MEM8(ADDR_MONSTER_INDEX) + 1;
         MEM8(di) = MEM8(ADDR_PROXIMITY_LAYER2 + bl);
@@ -3178,7 +3179,7 @@ static void monster_activation(uint16_t m)
     if (spwnX == 0xFFFF)
         return;
 
-    /* Hero must be within proximity range (36 units without edges) */
+    /* Hero must be within proximity range (PROX_COLS units without edges) */
     if (!is_in_proximity_window(spwnX, &bl))
         return;                 /* out of range */
 
@@ -3234,12 +3235,12 @@ static void monster_activation(uint16_t m)
 
         uint16_t di_orig = coords_to_prox_addr(bl, MEM8(m+13));
         di = di_orig;
-        di -= (36 + 1);
+        di -= (PROX_COLS + 1);
         wrap_map_from_below(&di);
         al = 0;
         for (int row = 0; row < 5; row++) {
             al |= MEM8(di) | MEM8(di + 1) | MEM8(di + 2);
-            di += 36;
+            di += PROX_COLS;
             wrap_map_from_above(&di);
         }
 
@@ -3249,7 +3250,7 @@ static void monster_activation(uint16_t m)
         al = MEM8(ADDR_MONSTER_INDEX) | 0x80;
         di = di_orig;
         MEM8(di) = al;
-        di += 36*2;
+        di += PROX_COLS*2;
         wrap_map_from_above(&di);
         MEM8(di) = al + 1;
         uint16_t ax = MEM16(m+11); // .spwnX
@@ -3456,7 +3457,7 @@ void input_handling()
         } else {
             /* Scan 4 rows x 8 columns for a flying monster */
             uint16_t si = hero_coords_to_addr_in_proximity();
-            si -= (4 * 36 + 3);
+            si -= (4 * PROX_COLS + 3);
             wrap_map_from_below(&si);
             // 12345678.
             // 12345678.
@@ -3711,61 +3712,6 @@ uint8_t move_platform_down_damage_monster()
     return 0;
 }
 
-// Per-frame game loop
-// this looped function was decoupled to several parts: ... and dungeon_finish_normal_frame()
-// Checked
-/*
-void main_loop(void) {
-    uint8_t restart;
-    do {
-        restart = 0xff;
-        if (MEM8(ADDR_ON_ROPE_FLAGS) == 0) { // normal path
-            input_handling();
-            sliding_physics_step();
-            main_update_render();
-            // 8< =============
-            magic_spell_fire_handler();
-            hero_interaction_check();
-            hero_knockback_handler();
-
-            MEM8(ADDR_FRAME_TICKS)++;
-            if (MEM8(ADDR_FRAME_TICKS) == 2) {
-                MEM8(ADDR_SQUAT_FLAG) = 0;
-            }
-            // check input keys buffer
-            if (MEM8(ADDR_INPUT_DIRS) & KEY_DOWN) {
-                MEM8(ADDR_FACING) &= ~UP;
-            }
-            airborne_movement(&restart); // can break the loop by setting restart = 0
-            state_machine_dispatcher();
-        } else { // over_rope path
-            for (;;) {
-                MEM8(ADDR_SQUAT_FLAG) = 0;
-                MEM8(ADDR_JUMP_PHASE_FLAGS) = 0;
-                MEM8(ADDR_SLOPE_DIRECTION) = 0;
-                MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0;
-                Flush_Ui_Element_If_Dirty_proc();
-                MEM8(ADDR_SWORD_SWING_FLAG) = 0;
-                main_update_render();
-                hero_knockback_handler();
-                state_machine_dispatcher();
-                if (MEM8(ADDR_ON_ROPE_FLAGS) != 0xFF) break;
-                uint16_t si = hero_coords_to_addr_in_proximity() + 1; // hero head
-                if (is_over_rope(si)) continue;
-                si += 36; // body level
-                wrap_map_from_above(&si);
-                if (!is_over_rope(si)) break;
-            }
-            MEM8(ADDR_FACING) &= ~UP;
-            MEM8(ADDR_ON_ROPE_FLAGS) = 0;
-            MEM8(ADDR_SPACEBAR_LATCH) = 0;
-            MEM8(ADDR_ALTKEY_LATCH) = 0;
-            MEM8(ADDR_SLIDE_TICKS_REMAINING) = 0;
-            MEM8(ADDR_HORIZ_MOVEMENT_ACCUM) = 0;
-            MEM8(ADDR_HERO_ANIM_PHASE) = 0x7F;
-        }
-    } while (restart); // TODO: manage it on caller side.
-} */
 
 // Original assembly returns CF if true
 // Checked
@@ -3776,9 +3722,6 @@ uint8_t is_over_rope(uint16_t si)
     return 0;
 }
 
-// ============================================================================
-// Exported Core Assembly Functions
-// ============================================================================
 // Checked
 void hero_knockback_handler()
 {
@@ -4706,11 +4649,12 @@ void enter_opened_door(uint16_t si)
 }
 
 // Phase 2 of opened-door transition — runs after the back-facing frame has
-// been visible for SPEED_C*4 ticks.  Completes all the setup that was deferred
+// been visible for ~0.3s.  Completes all the setup that was deferred
 // by enter_opened_door (position, map transition flags, etc.).
 static void dungeon_complete_door_transition(void)
 {
-    if (MEM8(ADDR_FRAME_TIMER) < (uint8_t)(MEM8(ADDR_SPEED_CONST) * 4)) {
+    // Wait SPEED_C*14 ≈ 70 ticks ≈ 296ms at the default speed.
+    if (MEM8(ADDR_FRAME_TIMER) < (uint8_t)(MEM8(ADDR_SPEED_CONST) * 14)) {
         return; // keep waiting for the back-frame delay
     }
 

@@ -556,7 +556,7 @@ static void town_main_loop_step(void)
        frame timer expires, then complete the transition.  The hero
        stays in the back-facing frame while draw() renders each tick. */
     if (g_door_pending_anim) {
-        if (FRAME_TMR >= (uint8_t)(SPEED_C * 4)) {
+        if (FRAME_TMR >= (uint8_t)(SPEED_C * 14)) {
             g_door_pending_anim = 0;
             uint8_t dest_id = g_door_pending_dest;
             g_door_pending_dest = 0xFF;
@@ -2286,6 +2286,7 @@ void wasm_town_init(void)
     memset(g_mem, 0, sizeof(g_mem));
     g_town_return_before_main_loop = 0;
     g_town_update_active = 0;
+    MEM8(ADDR_SPEED_CONST) = 5;
     /* JS must populate g_mem with save data and MDT before calling entry */
 }
 
