@@ -826,8 +826,6 @@ void restore_bg_tile_at_given_position(uint8_t rel_x, uint8_t rel_y, uint16_t sc
 uint16_t proximity_map_coords_to_viewport_offset(uint8_t x, uint8_t y);
 void Dungeon_Static_Tile_Cached_Drawer(uint8_t al, uint16_t dx);
 void update_active_projectiles_render();
-void projectile_erase_old_tiles(uint16_t mp);
-uint16_t Viewport_Coords_To_Screen_Addr(uint8_t y, uint8_t x);
 void Uncompress_And_Render_Tile(uint8_t tile_idx, uint16_t screen_half_addr);
 void update_and_render_projectile_row_pair();
 void projectiles_collision_processing();

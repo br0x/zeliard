@@ -5212,35 +5212,13 @@ void Browse_Projectiles()
             return;
         }
 
-        flush_dirty_projectile(p);
         p += 13;
     }
 }
 
 /* 
- * If the projectile's cached vram address is marked dirty, clear the flag
- * and fall through into restore_bg_tile_at_given_position to redraw the
- * background tile at the projectile's last-drawn (cached) position --
- * i.e. this "erases" the sprite that used to be there.
- */
-void flush_dirty_projectile(uint16_t p)
-{
-    // JS canvas redraws everything each frame — no VRAM to clean up.
-    // Original code:
-    // if (!(MEM16(p+7) & 0x8000)) // .p_vram_addr_d
-    //     return;
-    // MEM16(p+7) &= 0x7FFF;
-    // uint16_t screen_dest = MEM16(p+7);
-    // uint8_t  rel_x        = MEM8(p+11);
-    // uint8_t  rel_y        = MEM8(p+12);
-    // restore_bg_tile_at_given_position(rel_x, rel_y, screen_dest);
-    (void)p;
-}
-
-/* 
  * screen_dest corresponds to DX, which this routine never sets itself in the
- * original asm -- it's inherited from whatever the caller left in DX
- * (flush_dirty_projectile sets it right before falling through here). Modeled
+ * original asm -- it's inherited from whatever the caller left in DX. Modeled
  * as an explicit parameter since C has no implicit register-passing.
  */
 void restore_bg_tile_at_given_position(uint8_t rel_x, uint8_t rel_y, uint16_t screen_dest)
@@ -5267,8 +5245,6 @@ void update_active_projectiles_render()
         if (MEM16(mp+0) == 0xFFFF) // .mp_x_rel
             return;                                    /* end of active list, bail entirely */
 
-        projectile_erase_old_tiles(mp);
-
         /* high byte of mp_x_rel == 0xFF -> drifted far off world; retire slot */
         if (MEM8(mp+1) == 0xFF) { // .mp_x_rel >> 8
             MEM16(mp+0) = 0xFFFF;
@@ -5293,8 +5269,6 @@ void update_active_projectiles_render()
         uint8_t base_x = rel_x;   /* bh after xchg */
         uint8_t base_y = rel_y;   /* bl after xchg */
 
-        uint16_t vram_slot = mp+8; // .mp_vram_addr_tile00
-
         for (int sub = 0; sub < 4; sub++) { // 4 sub-tiles per frame
             uint8_t x = base_x + deltas[sub+0];
             if (x >= VIEW_COLS + 4)
@@ -5306,20 +5280,9 @@ void update_active_projectiles_render()
 
             uint8_t tile_idx = *seq;
 
-            uint16_t cell = proximity_map_coords_to_viewport_offset(x, y);
-            // VRAM render skipped — JS canvas handles it:
-            // if (MEM8(cell) != 0xFF && MEM8(cell) != 0xFC) {
-            //     uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(x, y);
-            //     MEM16(vram_slot) = screen_addr | 0x8000;
-            //     screen_addr &= 0x7FFF;
-            //     Uncompress_And_Render_Tile(tile_idx, screen_addr);
-            // }
-            (void)cell;
-            (void)vram_slot;
 
         next_subtile:
             seq++;
-            vram_slot++;
         }
     }
 }
@@ -5329,8 +5292,6 @@ void update_and_render_projectile_row_pair()
     for (uint16_t p = ADDR_PROJECTILES_LIST; ; p += 13) {
         if (MEM8(p+0) == 0xFF) // .p_x_rel
             return;                                     /* end of active list */
-
-        flush_dirty_projectile(p);
 
         MEM8(p+11) = MEM8(p+0); // .p_cached_x_rel = .p_x_rel
 
@@ -5343,23 +5304,6 @@ void update_and_render_projectile_row_pair()
 
         MEM8(p+12) = rel_y; // .p_cached_y_rel = rel_y
 
-        // VRAM render block (unused — JS canvas handles it):
-        // {
-        //     uint16_t di = proximity_map_coords_to_viewport_offset(MEM8(p+11), rel_y);
-        //     if (MEM8(di) != 0xFF && MEM8(di) != 0xFC) {
-        //         uint16_t screen_addr = Viewport_Coords_To_Screen_Addr(MEM8(p+11), rel_y);
-        //         screen_addr |= 0x8000;
-        //         MEM16(p+7) = screen_addr;
-        //         uint8_t bl = MEM8(p+2);
-        //         bl = (uint8_t)((bl << 2) | (bl >> 6));
-        //         bl &= 3;
-        //         bl = masks[bl];
-        //         bl &= MEM8(p+3);
-        //         uint8_t tile_idx = ((MEM8(p+2) + bl) & 0x3F);
-        //         screen_addr &= 0x7FFF;
-        //         Uncompress_And_Render_Tile(tile_idx, screen_addr);
-        //     }
-        // }
         continue;
 
     deactivate:
@@ -5392,27 +5336,6 @@ void every_projectile_moves_right_in_viewport()
 uint16_t proximity_map_coords_to_viewport_offset(uint8_t x, uint8_t y)
 {
     return ADDR_VIEWPORT_ENTITIES + (y & 0x3F) * VIEW_COLS + x - 4;
-}
-
-// Note this is just literal translation; since all the rendering is done in js, we'll use canvas coords
-// x-coord is counted from proximity left, so viewport-related x is -4
-// Also final address is divided by 2, for some reason.
-uint16_t Viewport_Coords_To_Screen_Addr(uint8_t x, uint8_t y)
-{
-    return ((y & 0x3F) * 320 * 8 + (x - 4) * 8 + 14 * 320 + 48) >> 1;
-}
-
-
-/* 
- * Erases (redraws background over) up to 4 cached subtile positions of a
- * magic projectile's 2x2 sprite footprint: (x,y), (x+1,y), (x,y+1), (x+1,y+1).
- * Each is only erased if its cached vram address is marked dirty.
- */
-// TODO: refactor using deltas array and loop
-void projectile_erase_old_tiles(uint16_t mp)
-{
-    // JS canvas redraws everything each frame — no VRAM to clean up.
-    (void)mp;
 }
 
 /* 

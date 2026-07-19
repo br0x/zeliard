@@ -218,7 +218,8 @@ export class InnScene extends IndoorSceneBase {
         this._tickDlgQueue(now);
 
         if (this.scenePhase === 'paid' && !this.waitingForContinue &&
-            this._dlgQueue.length === 0 && this._isTypewriterDone(now)) {
+            this._dlgQueue.length === 0 && this._isTypewriterDone(now) &&
+            this.sleepPhase === null) {
             this._startSleep();
         }
 

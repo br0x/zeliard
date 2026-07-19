@@ -19,7 +19,7 @@
  * Translation conventions
  * ------------------------------------------------------------------
  * - "m" is the monster pointer, i.e. the original "si".
- * - The monster struct is 0x10 (16) bytes long. Boarman is drawn as two
+ * - The monster struct is 16 bytes long. Boarman is drawn as two
  *   stacked sprites (top half / bottom half) that occupy two
  *   consecutive slots in the monster array; the top half's AI pokes
  *   the bottom half's fields directly by adding 0x10 to its own
@@ -42,11 +42,6 @@
  *   (a fixed 5-row vertical distance check; c.f.
  *   frog_rat_to_hero_proximity_and_direction in eai1.c, which is the
  *   same idea with a caller-supplied distance).
- * - The projectile-descriptor byte arrays (Boarman's twin spears, the
- *   Red Toad's tongue shot) are kept as raw byte buffers copied
- *   verbatim from the original data segment; their internal field
- *   layout is opaque to this AI logic and consumed by
- *   Add_Projectile_To_Array, assumed declared elsewhere.
  */
 
 #include "zeliard.h"
@@ -142,7 +137,7 @@ static void boarman_bottom_ai(uint16_t m)
 }
 
 
-/* ============================================================================
+/* 
  * Boarman (top half runs the AI; bottom half is a passive twin)
  */
 
@@ -444,36 +439,6 @@ static void boarman_random_flinch(uint16_t m)
     boarman_end_of_frame_sync(m);
 }
 
-/* Fixed-position spear-throw descriptors, patched with (x,y) before
- * each shot. The top half throws an "arcing" spear whose per-frame
- * direction comes from spear_angles_right/left; the bottom half throws
- * a simpler, differently-tagged spear (byte_A517/A518 and
- * byte_A524/A525 in the original). Field meanings beyond position and
- * the angle-table pointer are internal to Add_Projectile_To_Array and
- * are not modeled further here - they are copied verbatim from the
- * original data segment. */
-static const uint8_t spear_angles_right[12] = { 1,1,1,0,0,7,7,7,7,7,7,0xFF }; // byte_A531 ↗↗↗→→↘↘↘↘↘↘
-static const uint8_t spear_angles_left[12]  = { 3,3,3,4,4,5,5,5,5,5,5,0xFF }; // byte_A53D ↙↙↙↙↙↙←←↖↖↖
-
-// ; enemy projectile
-//   p_x_rel                 db   ? ; 0
-//   p_y_rel                 db   ? ; 1
-//   p_base_tile_idx         db   ? ; 2 ; bits 7,6 select a mask to AND with [si+3] (a screen dirty mask byte) and then added to the base (bits 5..0), forming a quarter-tile decomposition index
-//   p_trajectory_step_count db   ? ; 3
-//   p_max_step_count        db   ? ; 4
-//   p_trajectory_dir        db   ? ; 5 ; bits 2..0: direction 0..7
-//   p_damage                db   ? ; 6
-//   p_vram_addr_d           dw   ? ; 7 ; bit 15: dirty flag, bit 14..0: VRAM address
-//   p_curved_path_data_ptr  dw   ? ; 9 ; Pointer to curved path data table
-//   p_cached_x_rel          db   ? ; 11
-//   p_cached_y_rel          db   ? ; 12
-
-typedef struct {
-    uint8_t x, y;
-    uint8_t mid[7];              // 0x9A,0,0xFF,0x40,8,0,0 (verbatim)
-    const uint8_t *angle_table;  // byte_A531 or byte_A53D
-    uint8_t tail[2];             // 0,0
-} BoarmanArcSpear;
 
 static uint8_t spear_right[13] = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A4FD
 static uint8_t spear_left[13]  = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A50A
@@ -487,15 +452,15 @@ static void boarman_fire_spears(uint16_t m)
     uint8_t x = MEM8(m+3);                 // .m_x_rel
     uint8_t y = (uint8_t)(MEM8(m+2) + 2);  // .currY + 2
 
-    spear_left[0] = x;                      spear_left[1] = y;
-    spear_right[0] = (uint8_t)(x + 1);      spear_right[1] = y;
-    spear_right[9] = (ADDR_TRAJECTORIES) & 0xFF;
+    spear_left[0] = x;              spear_left[1] = y;
+    spear_right[0] = x + 1;         spear_right[1] = y;
+    spear_right[9] = ADDR_TRAJECTORIES & 0xFF;
     spear_right[10] = (ADDR_TRAJECTORIES >> 8) & 0xFF;
     spear_left[9] = (ADDR_TRAJECTORIES + 12) & 0xFF;
     spear_left[10] = ((ADDR_TRAJECTORIES + 12) >> 8) & 0xFF;
 
-    spear_simple_left[0] = x;                  spear_simple_left[1] = y;
-    spear_simple_right[0] = (uint8_t)(x + 1);  spear_simple_right[1] = y;
+    spear_simple_left[0] = x;       spear_simple_left[1] = y;
+    spear_simple_right[0] = x + 1;  spear_simple_right[1] = y;
 
     uint8_t *bx = spear_right;
     uint8_t *ax = spear_simple_right;
@@ -529,7 +494,7 @@ static ProxResult monster_to_hero_proximity_and_direction(uint16_t m)
 }
 
 
-/* ============================================================================
+/* 
  * Blue Slime
  */
 static void blue_slime_ai(uint16_t m)
@@ -599,7 +564,7 @@ static void slime_hop_direction(uint16_t m)
 }
 
 
-/* ============================================================================
+/* 
  * Red Toad
  */
 static void red_toad_ai(uint16_t m)
@@ -709,7 +674,7 @@ static void toad_end_jump(uint16_t m)
     move_monster_S(m);
 }
 
-/* Tongue-shot projectile templates (bytes 0-1 = X,Y, patched per shot;
+/* Fire-shot projectile templates (bytes 0-1 = X,Y, patched per shot;
  * the remainder is the fixed template copied verbatim from the
  * original data segment). */
 static uint8_t toad_shot_desc_right[13] = { 
@@ -739,7 +704,7 @@ static uint8_t toad_shot_desc_left[13]  = {
     0     // p_cached_y_rel
 }; // byte_A8DF/A8E0 (facing left)
 
-/* loc_A871: windup timer before firing the tongue shot. */
+/* loc_A871: windup timer before spitting the fire shot. */
 static void toad_windup_and_shoot(uint16_t m)
 {
     MEM8(m+10)++; // .ai_timer
@@ -748,8 +713,6 @@ static void toad_windup_and_shoot(uint16_t m)
 
     MEM8(m+6) = 7; // .anim_counter
 
-    // t.
-    // ..
     uint8_t y = (uint8_t)((MEM8(m+2) + 1) & 0x3F); // .currY + 1, wrapped
     toad_shot_desc_left[0]  = MEM8(m+3);           // .p_x_rel = m_x_rel
     toad_shot_desc_left[1]  = y;                   // .p_y_rel = currY
@@ -776,7 +739,7 @@ static void toad_post_shot_recover(uint16_t m)
 }
 
 
-/* ============================================================================
+/* 
  * Bat (Green Bat / Magic Bat share this AI; logic is identical to
  * "Bat" in eai1.c, reproduced here since this is a separate overlay).
  */
