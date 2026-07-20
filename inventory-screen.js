@@ -103,7 +103,7 @@ export class InventoryScreen {
 
         this.active = false;
         this.currentTab = 0;
-        this.selectedIndex = 0;
+        this.selectedIndices = [0, 0, 0];
         this.savedMusicTrack = null;
 
         this.sheets = {};
@@ -140,7 +140,7 @@ export class InventoryScreen {
     enter() {
         this.active = true;
         this.currentTab = 0;
-        this.selectedIndex = 0;
+        this.selectedIndices = [0, 0, 0];
         this.usageMessage = '';
         this.usageTimer = 0;
 
@@ -218,18 +218,19 @@ export class InventoryScreen {
 
     _selectedId() {
         const d = this.data;
+        const idx = this.selectedIndices[this.currentTab];
         switch (this.currentTab) {
-            case 0: return d.spells[this.selectedIndex] || 0;
-            case 1: return d.wearables[this.selectedIndex] || 0;
-            case 2: return d.items[this.selectedIndex] || 0;
+            case 0: return d.spells[idx] || 0;
+            case 1: return d.wearables[idx] || 0;
+            case 2: return d.items[idx] || 0;
             default: return 0;
         }
     }
 
     _selectFirstAvailableTab() {
-        if (this.data.spells.length > 0) { this.currentTab = 0; this.selectedIndex = 0; return; }
-        if (this.data.wearables.some(v => v > 0)) { this.currentTab = 1; this.selectedIndex = 1; return; }
-        if (this.data.items.some(v => v > 0)) { this.currentTab = 2; this.selectedIndex = 1; return; }
+        if (this.data.spells.length > 0) { this.currentTab = 0; this.selectedIndices = [0, 0, 0]; return; }
+        if (this.data.wearables.some(v => v > 0)) { this.currentTab = 1; this.selectedIndices = [0, 1, 0]; return; }
+        if (this.data.items.some(v => v > 0)) { this.currentTab = 2; this.selectedIndices = [0, 0, 1]; return; }
     }
 
     _activeCount() {
@@ -276,7 +277,7 @@ export class InventoryScreen {
         const gap = 48;
         const rowW = 7 * iconSize + 6 * gap;
 
-        const selName = this.selectedIndex < spells.length ? SPELL_NAMES[spells[this.selectedIndex] - 1] : '';
+        const selName = this.selectedIndices[0] < spells.length ? SPELL_NAMES[spells[this.selectedIndices[0]] - 1] : '';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
@@ -297,14 +298,16 @@ export class InventoryScreen {
         for (let i = 0; i < 7; i++) {
             const ix = startX + i * (iconSize + gap);
             const sid = spells[i] || 0;
-            if (i === this.selectedIndex) {
+            if (i === this.selectedIndices[0]) {
                 if (this.currentTab === 0) {
                     ctx.strokeStyle = '#f62';
+                    ctx.lineWidth = 5;
+                    ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
                 } else if (sid > 0) {
                     ctx.strokeStyle = '#64d';
+                    ctx.lineWidth = 5;
+                    ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
                 }
-                ctx.lineWidth = 5;
-                ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
             }
 
             if (sid > 0) {
@@ -353,7 +356,7 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
-        const selId = this.currentTab === 1 ? d.wearables[this.selectedIndex] : 0;
+        const selId = this.currentTab === 1 ? d.wearables[this.selectedIndices[1]] : 0;
         const selName = selId > 0 ? (WEARABLE_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
@@ -373,7 +376,7 @@ export class InventoryScreen {
         for (let i = 0; i < activeCount; i++) {
             const ix = x + padX + i * (iconSize + gap);
             const id = items[i];
-            if (i === this.selectedIndex) {
+            if (i === this.selectedIndices[1]) {
                 if (this.currentTab === 1) {
                     ctx.strokeStyle = '#f00';
                 } else {
@@ -400,7 +403,7 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
-        const selId = this.currentTab === 2 ? d.items[this.selectedIndex] : 0;
+        const selId = this.currentTab === 2 ? d.items[this.selectedIndices[2]] : 0;
         const selName = selId > 0 ? (ITEM_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
@@ -421,7 +424,7 @@ export class InventoryScreen {
             const ix = x + padX + i * (iconSize + gap);
             const iid = items[i];
 
-            if (i === this.selectedIndex) {
+            if (i === this.selectedIndices[2]) {
                 if (this.currentTab === 2) {
                     ctx.strokeStyle = '#f00';
                 } else {
@@ -566,7 +569,9 @@ export class InventoryScreen {
     _navNext() {
         const n = this._activeCount();
         if (n < 2) return;
-        this.selectedIndex = (this.selectedIndex + 1) % n;
+        const idx = this.selectedIndices[this.currentTab];
+        if (idx + 1 >= n) return;
+        this.selectedIndices[this.currentTab]++;
         this._playNavSfx(12);
         this._onNavigate();
     }
@@ -574,7 +579,9 @@ export class InventoryScreen {
     _navPrev() {
         const n = this._activeCount();
         if (n < 2) return;
-        this.selectedIndex = (this.selectedIndex - 1 + n) % n;
+        const idx = this.selectedIndices[this.currentTab];
+        if (idx - 1 < 0) return;
+        this.selectedIndices[this.currentTab]--;
         this._playNavSfx(12);
         this._onNavigate();
     }
@@ -589,24 +596,28 @@ export class InventoryScreen {
 
     _tabNext() {
         const old = this.currentTab;
-        for (let i = 0; i < 3; i++) {
-            this.currentTab = (this.currentTab + 1) % 3;
-            if (this._tabHasItems(this.currentTab)) break;
+        for (let i = this.currentTab + 1; i < 3; i++) {
+            if (this._tabHasItems(i)) {
+                this.currentTab = i;
+                break;
+            }
         }
         if (this.currentTab !== old) {
-            this.selectedIndex = 0;
+            this.selectedIndices[this.currentTab] = 0;
             this._playNavSfx(13);
         }
     }
 
     _tabPrev() {
         const old = this.currentTab;
-        for (let i = 0; i < 3; i++) {
-            this.currentTab = (this.currentTab - 1 + 3) % 3;
-            if (this._tabHasItems(this.currentTab)) break;
+        for (let i = this.currentTab - 1; i >= 0; i--) {
+            if (this._tabHasItems(i)) {
+                this.currentTab = i;
+                break;
+            }
         }
         if (this.currentTab !== old) {
-            this.selectedIndex = 0;
+            this.selectedIndices[this.currentTab] = 0;
             this._playNavSfx(13);
         }
     }
@@ -653,7 +664,7 @@ export class InventoryScreen {
         let nth = 0;
         for (let i = 0; i < 5; i++) {
             if (it[i]) {
-                if (nth === this.selectedIndex - 1) { slot = i; break; }
+                if (nth === this.selectedIndices[2] - 1) { slot = i; break; }
                 nth++;
             }
         }
@@ -679,13 +690,13 @@ export class InventoryScreen {
                 this.usageMessage = 'a Kioku feather.';
                 this.usageTimer = performance.now();
                 w(ADDR_MAGIC_ITEMS + slot, [0]);
-                this.data.items[this.selectedIndex] = 0;
+                this.data.items[this.selectedIndices[2]] = 0;
                 setTimeout(() => this.exit(), 600);
                 return;
         }
 
         w(ADDR_MAGIC_ITEMS + slot, [0]);
-        this.data.items[this.selectedIndex] = 0;
+        this.data.items[this.selectedIndices[2]] = 0;
     }
 
     _healHP(amount) {
