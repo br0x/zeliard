@@ -41,7 +41,7 @@ loc_A01B:
                 mov     cx, ax
                 push    si
                 mov     al, 0FFh
-                call    word ptr cs:2000h ; Draw_Bordered_Rectangle_proc
+                call    word ptr cs:Draw_Bordered_Rectangle_proc
                 pop     si
                 pop     cx
                 loop    loc_A01B
@@ -126,14 +126,15 @@ loc_A0B8:
                 jmp     tab_switch_jump_table[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
 tab_switch_jump_table dw offset loc_magic_tab
-                dw offset loc_wear_tab
-                dw offset loc_use_tab
+                      dw offset loc_wear_tab
+                      dw offset loc_items_tab
 ; ---------------------------------------------------------------------------
 
 loc_magic_tab:                          ; jumptable case 0 - magic selection tab
                 call    Render_Menu_Labels
-                mov     al, 2
-                call    Draw_Magic_Status_Frame
+                mov     al, 2                 ; palette index
+                call    Draw_Magic_Status_Frame ; currMagic * 32
+                                                ; marginLeft = 14*4 = 56 = 48+8; marginTop = 26 = 14 + 12 (=1.5 tile size)
 
 wait_up_down_release:                   ; ah: ____Alt_Space
                 int     61h             ; al: ____right_left_down_up
@@ -141,23 +142,24 @@ wait_up_down_release:                   ; ah: ____Alt_Space
                 jnz     short wait_up_down_release
 
 loc_A0D8:
-                call    Check_Menu_Exit
-                jnb     short loc_A0DE
+                call    Check_Menu_Exit ; check if we left magic tab
+                jnc     short loc_A0DE
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A0DE:                               ; ah: ____Alt_Space
                 int     61h             ; al: ____right_left_down_up
                 and     al, 1110b
-                jz      short loc_A0D8
+                jz      short loc_A0D8 ; not left, right, or down
                 and     al, 1100b
-                jnz     short loc_A0EB
-                jmp     loc_A190
+                jnz     short loc_A0EB ; left or right
+                jmp     loc_A190       ; down
 ; ---------------------------------------------------------------------------
 
 loc_A0EB:
                 test    al, 100b
-                jnz     short loc_A116
+                jnz     short loc_A116 ; left
+                ; right pressed
                 mov     al, selected_magic_index
                 inc     al
                 mov     ah, active_magic_count
@@ -165,18 +167,18 @@ loc_A0EB:
                 cmp     ah, al
                 jb      short loc_A0D8
                 xor     al, al
-                call    Draw_Magic_Status_Frame
+                call    Draw_Magic_Status_Frame ; clear old frame
                 inc     selected_magic_index
                 mov     al, 2
-                call    Draw_Magic_Status_Frame
+                call    Draw_Magic_Status_Frame ; draw new frame
                 mov     byte ptr ds:soundFX_request, 12
                 call    Render_Selected_Magic_Detail
                 jmp     short loc_A0D8
 ; ---------------------------------------------------------------------------
 
-loc_A116:
+loc_A116:       ; left pressed
                 test    selected_magic_index, 0FFh
-                jz      short loc_A0D8
+                jz      short loc_A0D8 ; already zero, wait valid input
                 xor     al, al
                 call    Draw_Magic_Status_Frame
                 dec     selected_magic_index
@@ -228,15 +230,20 @@ Render_Selected_Magic_Detail        endp
 
 
 ; Input: selected_magic_index = magic index to highlight (bh)
+;   AL: palette index
 ; Output: Draws status frame around magic selection panel
 Draw_Magic_Status_Frame        proc near
-                mov     bh, selected_magic_index
+                mov     bh, selected_magic_index ; (0...6)
                 xor     bl, bl
                 add     bx, bx
                 add     bx, bx
-                add     bx, bx
-                add     bx, 0E1Ah
-                jmp     word ptr cs:202Eh ; Draw_Status_Frame_proc
+                add     bx, bx    ; currMagic * 8
+                add     bx, 0E1Ah ; marginLeft = 14*4 = 56 = 48+8; marginTop = 26 = 14 + 12 (=1.5 tile size)
+                jmp     word ptr cs:Draw_Status_Frame_proc  ; Inner size = 16x16 px
+                                                            ; AL: palette index
+                                                            ; BH: left margin in 4 px units
+                                                            ; BL: top margin (y)
+
 Draw_Magic_Status_Frame        endp
 
 ; ---------------------------------------------------------------------------
@@ -406,7 +413,7 @@ loc_A2AC:                               ;
                 jmp     loc_A0B8
 ; ---------------------------------------------------------------------------
 
-loc_use_tab:                              ; jumptable case 2 - use tab
+loc_items_tab:                              ; jumptable case 2 - use tab
                 call    Render_Menu_Labels
                 mov     al, 2
                 call    Draw_Item_Status_Frame
@@ -1212,7 +1219,7 @@ loc_A8C2:
                 call    word ptr cs:201Eh ; Render_Magic_Spell_Item_Sprite_16x16_proc
                 pop     bx
                 pop     si
-                add     bx, 800h
+                add     bx, 800h  ; next item in 8*4 = 32 px to the right
                 pop     cx
                 loop    loc_A8C2
                 call    Render_Magic_Counts_Panel

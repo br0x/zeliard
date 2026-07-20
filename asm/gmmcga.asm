@@ -946,7 +946,7 @@ loc_24D2:
 Render_Decimal_Digits endp
 
 ; ---------------------------------------------------------------------------
-mul9            db 0, 9, 12h, 1Bh, 24h, 2Dh, 36h, 3Fh
+mul9            db 0, 9, 18, 27, 36, 45, 54, 63
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -1647,60 +1647,61 @@ Copy_Screen_Rect_VRAM endp
 
 
 ; Draws a status indicator frame/border
-; AL: status index
-; BH: left margin
-; BL: top margin
+; Inner size = 16x16 px
+; AL: palette index
+; BH: left margin in 4 px units
+; BL: top margin (y)
 
 Draw_Status_Frame proc near
                 push    bx
-                xor     bx, bx
-                mov     bl, al
-                mov     al, mul9[bx]
-                mov     primary_color, al
-                pop     bx
+                    xor     bx, bx
+                    mov     bl, al
+                    mov     al, mul9[bx]
+                    mov     primary_color, al
+                pop     bx              ; y
                 xor     ax, ax
                 mov     al, bh
                 mov     bh, ah
                 push    ax
-                mov     ax, 140h
-                mul     bx
+                    mov     ax, 320
+                    mul     bx          ; ax=320*y
                 pop     di
                 add     di, di
-                add     di, di
-                add     di, ax
+                add     di, di          ; di=x*4
+                add     di, ax          ; di=x*4+y*320 (vram address)
                 mov     ax, 0A000h
                 mov     es, ax
-                call    _Draw_Status_Frame_Lines
-                mov     al, primary_color
-                mov     cx, 10h
+                call    _Draw_Status_Frame_Lines ; top line, width 20 px
 
+                mov     al, primary_color
+                mov     cx, 16
 loc_29F1:
-                mov     es:[di], al
+                mov     es:[di], al     ; 2 px on the left
                 mov     es:[di+1], al
-                mov     es:[di+12h], al
-                mov     es:[di+13h], al
-                add     di, 140h
+                mov     es:[di+18], al  ; 2 px on the right
+                mov     es:[di+19], al
+                add     di, 320
                 loop    loc_29F1
+                ; fall through - draw bottom line
 Draw_Status_Frame endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-; Draws horizontal border lines for status frame
+; Draws horizontal lines 2 px wide for status frame
 ; AL: primary color
 
 _Draw_Status_Frame_Lines proc near
                 mov     cx, 2
-
 loc_2A09:
                 push    cx
-                push    di
-                mov     al, primary_color
-                mov     cx, 14h
-                rep stosb
-                pop     di
-                add     di, 140h
+                    push    di
+                        mov     al, primary_color
+                        mov     cx, 20
+                        rep stosb
+                    pop     di
+                    add     di, 320
                 pop     cx
                 loop    loc_2A09
                 retn

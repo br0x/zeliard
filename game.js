@@ -16,6 +16,7 @@ import { BankScene }     from './indoor-bank.js';
 import { InnScene }      from './indoor-inn.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 import { ImportExportDialog } from './import-export-ui.js';
+import { InventoryScreen } from './inventory-screen.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
 const TILE_WIDTH  = 24;
@@ -847,6 +848,35 @@ const TOWN_DOORS = {
 
 let activeModal = null;          // instance of SaveDialog or RestoreDialog
 let gamePaused = false;          // freeze game updates while modal is open
+let inventoryScreenInstance = null; // instance of InventoryScreen
+
+function openInventory() {
+    if (inventoryScreenInstance || !engineReady) return;
+    if (activeModal || indoorActiveScene || openingIntro.active) return;
+    if (gameMode !== 'town' && gameMode !== 'dungeon') return;
+
+    gamePaused = true;
+
+    inventoryScreenInstance = new InventoryScreen({
+        canvas, ctx, readMemory, writeMemory,
+        soundManager,
+        onExit: closeInventory,
+    });
+
+    if (inventoryScreenInstance.ready) {
+        inventoryScreenInstance.enter();
+    } else {
+        inventoryScreenInstance.loadAssets().then(() => {
+            if (inventoryScreenInstance) inventoryScreenInstance.enter();
+        });
+    }
+}
+
+function closeInventory() {
+    if (!inventoryScreenInstance) return;
+    inventoryScreenInstance = null;
+    gamePaused = false;
+}
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────
 const SFX_IDS = [
@@ -1060,6 +1090,15 @@ window.addEventListener('keydown', e => {
         return;
     }
 
+    // If inventory screen is open, route arrow keys + Enter to it
+    if (inventoryScreenInstance) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code)) {
+            inventoryScreenInstance.handleInput(e.code, e.repeat);
+            e.preventDefault();
+        }
+        return;
+    }
+
     if (openingIntro.active && e.code === 'Space') {
         openingIntro.skipPage();
         return;
@@ -1080,7 +1119,15 @@ window.addEventListener('keydown', e => {
         else if (e.code === 'ArrowUp') indoorActiveScene.handleInput('ArrowUp', e.repeat);
         else if (e.code === 'ArrowDown') indoorActiveScene.handleInput('ArrowDown', e.repeat);
         else if (e.code === 'ArrowLeft') indoorActiveScene.handleInput('ArrowLeft', e.repeat);
-        else if (e.code === 'ArrowRight') indoorActiveScene.handleInput('ArrowRight', e.repeat);
+        else if (e.code === 'ArrowRight')                  indoorActiveScene.handleInput('ArrowRight', e.repeat);
+        return;
+    }
+
+    // Open inventory on Enter in town or dungeon (not during conversation)
+    if (e.code === 'Enter' && !e.repeat && engineReady && !activeModal &&
+        !conversation.active && (gameMode === 'town' || gameMode === 'dungeon')) {
+        openInventory();
+        e.preventDefault();
         return;
     }
 
@@ -3717,6 +3764,11 @@ function draw() {
     // Draw modal on top of everything (indoor scene or town)
     if (activeModal) {
         activeModal.draw(ctx, canvas.width, canvas.height, performance.now());
+    }
+
+    // Draw inventory screen on top of everything
+    if (inventoryScreenInstance && inventoryScreenInstance.active) {
+        inventoryScreenInstance.draw(performance.now());
     }
 }
 

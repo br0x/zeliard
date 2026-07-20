@@ -269,7 +269,7 @@ spells_lanzar               equ   0aeh  ; Lanzar, default: 4
 spells_rascar               equ   0afh  ; Rascar, default: 3
 spells_agua                 equ   0b0h  ; Agua, default: 4
 spells_guerra               equ   0b1h  ; Guerra, default: 3
-heroMaxHp                   equ   0b2h
+heroMaxHp                   equ   0b2h  ; word
 espada_count                equ   0b4h  ; in inventory
 saeta_count                 equ   0b5h
 fuego_count                 equ   0b6h
