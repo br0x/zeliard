@@ -3819,6 +3819,11 @@ export function saveGameToSlot(slotName, data) {
     localStorage.setItem(key, btoa(binary));
 }
 
+export function deleteGameFromSlot(slotName) {
+    const key = SAVE_PREFIX + slotName;
+    localStorage.removeItem(key);
+}
+
 export function loadGameFromSlot(slotName) {
     const key = SAVE_PREFIX + slotName;
     const base64 = localStorage.getItem(key);
@@ -3909,10 +3914,13 @@ function openImportExportModal() {
         importSaveFromFile();
         closeModal();
     };
+    const onDeleteSlot = (slotName) => {
+        deleteGameFromSlot(slotName);
+    };
     const onCancel = () => {
         closeModal();
     };
-    activeModal = new ImportExportDialog(onExportSlot, onImportFromFile, onCancel);
+    activeModal = new ImportExportDialog(onExportSlot, onImportFromFile, onDeleteSlot, onCancel);
 }
 
 window.openSaveModal = openSaveModal;

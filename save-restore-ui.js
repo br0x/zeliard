@@ -149,8 +149,15 @@ class BaseSaveRestoreDialog {
         for (let i = 0; i < this.items.length; i++) {
             const isSelected = (!this.inputActive && i === this.selectedIndex);
             ctx.fillStyle = isSelected ? '#ff8' : '#cca';
-            const prefix = isSelected ? '> ' : '  ';
-            ctx.fillText(prefix + this.items[i], x + 30, listY);
+            if (isSelected) {
+                ctx.beginPath();
+                ctx.moveTo(x + 24, listY - 19);
+                ctx.lineTo(x + 24, listY - 1);
+                ctx.lineTo(x + 24 + 10, listY - 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.fillText(this.items[i], x + 42, listY);
             listY += lineHeight;
             if (listY > y + boxHeight - 80) break;
         }
