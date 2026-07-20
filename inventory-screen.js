@@ -259,7 +259,7 @@ export class InventoryScreen {
 
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
-        ctx.strokeRect(8, 8, W - 16, H - 16);
+        ctx.strokeRect(6, 6, W - 12, H - 12);
 
         this._drawMagicSection(ctx, W);
         this._drawBottomHalf(ctx, W, H);
@@ -273,71 +273,72 @@ export class InventoryScreen {
         const icons = d.spells;
         const iconSize = 48;
         const padX = 14;
-        const gap = 6;
+        const gap = 48;
         const rowW = 7 * iconSize + 6 * gap;
 
         const selName = this.selectedIndex < icons.length ? SPELL_NAMES[icons[this.selectedIndex] - 1] : '';
 
-        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#2fd4d4';
-        ctx.fillText('SELECT-MAGIC', padX, 18);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(':', padX + 155, 18);
+        ctx.fillStyle = this.currentTab === 0 ? '#e46' : '#2dd';
+        ctx.fillText('SELECT-MAGIC:', padX, 18);
         if (selName) {
-            ctx.fillStyle = '#ff3aa0';
-            ctx.fillText(selName, padX + 168, 18);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(selName, padX + 200, 18);
         }
 
         const startX = padX + Math.floor((W - padX * 2 - rowW) / 2);
-        const iconsY = 48;
+        const iconsY = 56;
 
         for (let i = 0; i < 7; i++) {
             const ix = startX + i * (iconSize + gap);
             const sid = icons[i] || 0;
-            const isSel = this.currentTab === 0 && i === this.selectedIndex && sid > 0;
-
-            ctx.strokeStyle = isSel ? '#6a4ad4' : sid > 0 ? '#8a5a2a' : '#444';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(ix, iconsY, iconSize, iconSize);
-
-            if (isSel) {
-                ctx.strokeStyle = '#6a4ad4';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(ix - 2, iconsY - 2, iconSize + 4, iconSize + 4);
+            if (i === this.selectedIndex) {
+                if (this.currentTab === 0) {
+                    ctx.strokeStyle = '#f62';
+                } else if (sid > 0) {
+                    ctx.strokeStyle = '#64d';
+                }
+                ctx.lineWidth = 5;
+                ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
             }
 
             if (sid > 0) {
-                this._drawSheet(ctx, 'magics', sid - 1, ix + 1, iconsY + 1, iconSize - 2, iconSize - 2);
+                this._drawSheet(ctx, 'magics', sid - 1, ix, iconsY, iconSize, iconSize);
             }
 
             const cur = icons[i] ? d.spellCounts[i] : 0;
             const max = icons[i] ? d.spellMaxCounts[i] : 0;
-
-            ctx.font = 'bold 11px "Courier New", monospace';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ff9a2a';
-            ctx.fillText(String(cur).padStart(3, '0'), ix + iconSize / 2, iconsY + iconSize + 2);
-            ctx.fillStyle = '#2fd4d4';
-            ctx.fillText(`(${String(max).padStart(3, '0')})`, ix + iconSize / 2, iconsY + iconSize + 16);
+            if (max > 0) {
+                ctx.font = 'bold 14px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(String(cur).padStart(3, '0'), ix + iconSize / 2, iconsY + iconSize + 12);
+                ctx.fillStyle = '#2dd';
+                ctx.fillText(`(${String(max).padStart(3, '0')})`, ix + iconSize / 2, iconsY + iconSize + 28);
+            }
         }
     }
 
     _drawBottomHalf(ctx, W, H) {
-        const magicEnd = 130;
+        const magicEnd = 156;
         const leftW = Math.floor(W * 0.625);
         const rightW = W - leftW;
 
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
         ctx.beginPath();
+        ctx.moveTo(6, magicEnd);
+        ctx.lineTo(W-6, magicEnd);
+        ctx.moveTo(6, magicEnd+138);
+        ctx.lineTo(leftW, magicEnd+138);
         ctx.moveTo(leftW, magicEnd);
-        ctx.lineTo(leftW, H - 8);
+        ctx.lineTo(leftW, H - 6);
         ctx.stroke();
 
         this._drawWearPanel(ctx, 0, magicEnd, leftW);
-        this._drawUsePanel(ctx, 0, magicEnd + 140, leftW);
+        this._drawUsePanel(ctx, 0, magicEnd + 138, leftW);
         this._drawInventoryPanel(ctx, leftW, magicEnd, rightW);
     }
 
@@ -354,13 +355,11 @@ export class InventoryScreen {
         const selId = this.currentTab === 1 ? d.wearables[this.selectedIndex] : 0;
         const selNames = selId > 0 ? (WEARABLE_NAMES[selId] || ['', '']) : null;
 
-        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#2fd4d4';
-        ctx.fillText('WEAR', x + padX, y + 10);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(':', x + padX + 55, y + 10);
+        ctx.fillText('WEAR:', x + padX, y + 10);
 
         if (selNames) {
             ctx.fillStyle = '#fff';
@@ -404,13 +403,11 @@ export class InventoryScreen {
         const selId = this.currentTab === 2 ? d.items[this.selectedIndex] : 0;
         const selNames = selId > 0 ? (ITEM_NAMES[selId] || ['', '']) : null;
 
-        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#2fd4d4';
-        ctx.fillText('USE', x + padX, y + 10);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(':', x + padX + 42, y + 10);
+        ctx.fillText('USE:', x + padX, y + 10);
 
         if (selNames) {
             ctx.fillStyle = '#fff';
