@@ -13,23 +13,23 @@ const SPELL_NAMES = ['Espada', 'Saeta', 'Fuego', 'Lanzar', 'Rascar', 'Agua', 'Gu
 
 const WEARABLE_NAMES = [
     null,
-    ['Feruza', 'shoes'],
-    ['Pirika', 'shoes'],
-    ['Silkarn', 'shoes'],
-    ['Ruzeria', 'shoes'],
-    ['Asbestos', 'cape'],
+    'Feruza shoes',
+    'Pirika shoes',
+    'Silkarn shoes',
+    'Ruzeria shoes',
+    'Asbestos cape',
 ];
 
 const ITEM_NAMES = [
     null,
-    ['Ken\'ko', 'Potion'],
-    ['Juu-en', 'Fruit'],
-    ['Elixir', 'of Kashi'],
-    ['Chikara', 'Powder'],
-    ['Magia', 'Stone'],
-    ['Holy Water', 'of Acero'],
-    ['Sabre', 'Oil'],
-    ['Kioku', 'feather'],
+    'Ken\'ko Potion',
+    'Juu-en Fruit',
+    'Elixir of Kashi',
+    'Chikara Powder',
+    'Magia Stone',
+    'Holy Water of Acero',
+    'Sabre Oil',
+    'Kioku feather',
 ];
 
 const ITEM_USE_TEXT = [
@@ -259,7 +259,7 @@ export class InventoryScreen {
 
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
-        ctx.strokeRect(6, 6, W - 12, H - 12);
+        ctx.strokeRect(6, 6, W - 12, H - 12); // big window frame
 
         this._drawMagicSection(ctx, W);
         this._drawBottomHalf(ctx, W, H);
@@ -270,22 +270,25 @@ export class InventoryScreen {
 
     _drawMagicSection(ctx, W) {
         const d = this.data;
-        const icons = d.spells;
+        const spells = d.spells;
         const iconSize = 48;
         const padX = 14;
         const gap = 48;
         const rowW = 7 * iconSize + 6 * gap;
 
-        const selName = this.selectedIndex < icons.length ? SPELL_NAMES[icons[this.selectedIndex] - 1] : '';
+        const selName = this.selectedIndex < spells.length ? SPELL_NAMES[spells[this.selectedIndex] - 1] : '';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = this.currentTab === 0 ? '#e46' : '#2dd';
-        ctx.fillText('SELECT-MAGIC:', padX, 18);
+        ctx.fillStyle = '#50f';
+        ctx.fillText('SELECT-MAGIC:', padX + 1, 16 + 1);
+        ctx.fillStyle = this.currentTab === 0 ? '#f00' : '#0f4';
+        ctx.fillText('SELECT-MAGIC:', padX, 16);
+
         if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selName, padX + 200, 18);
+            ctx.fillText(selName, padX + 200, 16);
         }
 
         const startX = padX + Math.floor((W - padX * 2 - rowW) / 2);
@@ -293,7 +296,7 @@ export class InventoryScreen {
 
         for (let i = 0; i < 7; i++) {
             const ix = startX + i * (iconSize + gap);
-            const sid = icons[i] || 0;
+            const sid = spells[i] || 0;
             if (i === this.selectedIndex) {
                 if (this.currentTab === 0) {
                     ctx.strokeStyle = '#f62';
@@ -308,14 +311,14 @@ export class InventoryScreen {
                 this._drawSheet(ctx, 'magics', sid - 1, ix, iconsY, iconSize, iconSize);
             }
 
-            const cur = icons[i] ? d.spellCounts[i] : 0;
-            const max = icons[i] ? d.spellMaxCounts[i] : 0;
+            const cur = spells[i] ? d.spellCounts[i] : 0;
+            const max = spells[i] ? d.spellMaxCounts[i] : 0;
             if (max > 0) {
                 ctx.font = 'bold 14px "Courier New", monospace';
                 ctx.textAlign = 'center';
                 ctx.fillStyle = '#fff';
                 ctx.fillText(String(cur).padStart(3, '0'), ix + iconSize / 2, iconsY + iconSize + 12);
-                ctx.fillStyle = '#2dd';
+                ctx.fillStyle = '#0ff';
                 ctx.fillText(`(${String(max).padStart(3, '0')})`, ix + iconSize / 2, iconsY + iconSize + 28);
             }
         }
@@ -330,15 +333,15 @@ export class InventoryScreen {
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(6, magicEnd);
-        ctx.lineTo(W-6, magicEnd);
+        ctx.lineTo(W-6, magicEnd); // Horizontal separator between magic and wearables
         ctx.moveTo(6, magicEnd+138);
-        ctx.lineTo(leftW, magicEnd+138);
+        ctx.lineTo(leftW, magicEnd+138); // Horizontal separator between wearables and items
         ctx.moveTo(leftW, magicEnd);
-        ctx.lineTo(leftW, H - 6);
+        ctx.lineTo(leftW, H - 6); // Vertical separator between wearables/items and inventory
         ctx.stroke();
 
-        this._drawWearPanel(ctx, 0, magicEnd, leftW);
-        this._drawUsePanel(ctx, 0, magicEnd + 138, leftW);
+        this._drawWearPanel(ctx, 6, magicEnd, leftW-6);
+        this._drawUsePanel(ctx, 6, magicEnd + 138, leftW-6);
         this._drawInventoryPanel(ctx, leftW, magicEnd, rightW);
     }
 
@@ -346,149 +349,150 @@ export class InventoryScreen {
         const d = this.data;
         const items = d.wearables;
         const iconSize = 48;
-        const padX = 12;
-        const gap = 6;
-        const activeCount = items.slice(1).filter(v => v > 0).length + 1;
-        const rowW = activeCount * iconSize + (activeCount - 1) * gap;
-        const startX = padX + Math.floor((w - padX * 2 - rowW) / 2);
+        const padX = 18;
+        const gap = Math.floor((w-(padX*2+iconSize*6))/5);
+        const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
         const selId = this.currentTab === 1 ? d.wearables[this.selectedIndex] : 0;
-        const selNames = selId > 0 ? (WEARABLE_NAMES[selId] || ['', '']) : null;
+        const selName = selId > 0 ? (WEARABLE_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#2fd4d4';
-        ctx.fillText('WEAR:', x + padX, y + 10);
+        ctx.fillStyle = '#50f';
+        ctx.fillText('WEAR:', padX + 1, y + 10 + 1);
+        ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
+        ctx.fillText('WEAR:', padX, y + 10);
 
-        if (selNames) {
+        if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selNames[0], x + padX + 68, y + 10);
-            ctx.fillText(selNames[1], x + padX + 68, y + 26);
+            ctx.fillText(selName, x + padX + 77, y + 10);
         }
 
-        const iconsY = y + 48;
+        const iconsY = y + 54;
         for (let i = 0; i < activeCount; i++) {
-            const ix = startX + i * (iconSize + gap);
+            const ix = x + padX + i * (iconSize + gap);
             const id = items[i];
-            const isSel = this.currentTab === 1 && i === this.selectedIndex;
-
-            ctx.strokeStyle = isSel ? '#ff2020' : '#666';
-            ctx.lineWidth = isSel ? 3 : 2;
-            ctx.strokeRect(ix, iconsY, iconSize, iconSize);
+            if (i === this.selectedIndex) {
+                if (this.currentTab === 1) {
+                    ctx.strokeStyle = '#f00';
+                } else {
+                    ctx.strokeStyle = '#50f';
+                }
+                ctx.lineWidth = 5;
+                ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
+            }
 
             if (id > 0) {
-                this._drawSheet(ctx, 'wearables', id - 1, ix + 1, iconsY + 1, iconSize - 2, iconSize - 2);
+                this._drawSheet(ctx, 'wearables', id - 1, ix, iconsY, iconSize, iconSize);
             } else {
-                ctx.font = '9px "Courier New", monospace';
-                ctx.fillStyle = '#c00';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('NO', ix + iconSize / 2, iconsY + iconSize / 2 - 5);
-                ctx.fillText('USE', ix + iconSize / 2, iconsY + iconSize / 2 + 6);
+                this._drawSheet(ctx, 'no_use', 0, ix, iconsY, iconSize, iconSize);
             }
         }
     }
 
+    // Navigation here should only work in the caverns
     _drawUsePanel(ctx, x, y, w) {
         const d = this.data;
         const items = d.items;
         const iconSize = 48;
-        const padX = 12;
-        const gap = 6;
-        const activeCount = items.slice(1).filter(v => v > 0).length + 1;
-        const rowW = activeCount * iconSize + (activeCount - 1) * gap;
-        const startX = padX + Math.floor((w - padX * 2 - rowW) / 2);
+        const padX = 18;
+        const gap = Math.floor((w-(padX*2+iconSize*6))/5);
+        const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
         const selId = this.currentTab === 2 ? d.items[this.selectedIndex] : 0;
-        const selNames = selId > 0 ? (ITEM_NAMES[selId] || ['', '']) : null;
+        const selName = selId > 0 ? (ITEM_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#2fd4d4';
-        ctx.fillText('USE:', x + padX, y + 10);
+        ctx.fillStyle = '#50f';
+        ctx.fillText('USE:', padX + 1, y + 10 + 1);
+        ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
+        ctx.fillText('USE:', padX, y + 10);
 
-        if (selNames) {
+        if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selNames[0], x + padX + 56, y + 10);
-            if (selNames[1]) ctx.fillText(selNames[1], x + padX + 56, y + 26);
+            ctx.fillText(selName, x + padX + 65, y + 10);
         }
 
-        const iconsY = y + 44;
+        const iconsY = y + 54;
         for (let i = 0; i < activeCount; i++) {
-            const ix = startX + i * (iconSize + gap);
-            const id = items[i];
-            const isSel = this.currentTab === 2 && i === this.selectedIndex;
+            const ix = x + padX + i * (iconSize + gap);
+            const iid = items[i];
 
-            ctx.strokeStyle = isSel ? '#ff2020' : '#666';
-            ctx.lineWidth = isSel ? 3 : 2;
-            ctx.strokeRect(ix, iconsY, iconSize, iconSize);
+            if (i === this.selectedIndex) {
+                if (this.currentTab === 2) {
+                    ctx.strokeStyle = '#f00';
+                } else {
+                    ctx.strokeStyle = '#50f';
+                }
+                ctx.lineWidth = 5;
+                ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
+            }
 
-            if (id > 0) {
-                this._drawSheet(ctx, 'magic_items', id - 1, ix + 1, iconsY + 1, iconSize - 2, iconSize - 2);
+            if (iid > 0) {
+                this._drawSheet(ctx, 'magic_items', iid - 1, ix, iconsY, iconSize, iconSize);
             } else {
-                ctx.font = '9px "Courier New", monospace';
-                ctx.fillStyle = '#c00';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('NO', ix + iconSize / 2, iconsY + iconSize / 2 - 5);
-                ctx.fillText('USE', ix + iconSize / 2, iconsY + iconSize / 2 + 6);
+                this._drawSheet(ctx, 'no_use', 0, ix, iconsY, iconSize, iconSize);
             }
         }
     }
 
     _drawInventoryPanel(ctx, x, y, w) {
         const d = this.data;
+        const padX = 12;
 
-        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#ff3aa0';
-        ctx.fillText('INVENTORY', x + 12, y + 10);
+        ctx.fillStyle = '#50f';
+        ctx.fillText('INVENTORY', x + padX + 1, y + 10 + 1);
+        ctx.fillStyle = '#0f4';
+        ctx.fillText('INVENTORY', x + padX, y + 10);
 
         let ey = y + 42;
-        const labelX = x + 60;
+        const labelX = x + 80;
         const iconSize = 48;
 
         if (d.swordType) {
             const sn = SWORD_NAMES[d.swordType - 1] || ['', ''];
             this._drawSheet(ctx, 'swords', d.swordType - 1, x + 10, ey, 60, 48);
-            ctx.fillStyle = '#2fd4d4';
-            ctx.font = '12px "Courier New", monospace';
-            ctx.fillText(sn[0], labelX, ey + 2);
-            ctx.fillText(sn[1], labelX, ey + 18);
-            ey += 58;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px "Courier New", monospace';
+            ctx.fillText(sn[0], labelX, ey + 4);
+            ctx.fillText(sn[1], labelX, ey + 24);
+            ey += 52;
         }
 
         if (d.shieldType) {
             const shn = SHIELD_NAMES[d.shieldType - 1] || ['', ''];
             this._drawSheet(ctx, 'shields', d.shieldType - 1, x + 10, ey + 2, iconSize, iconSize);
             ctx.fillStyle = '#fff';
-            ctx.font = '12px "Courier New", monospace';
-            ctx.fillText(shn[0], labelX, ey + 4);
-            ctx.fillStyle = '#ff9a2a';
-            ctx.fillText(`(${d.shieldHP})`, labelX, ey + 20);
-            ctx.fillStyle = '#2fd4d4';
-            ctx.fillText(shn[1], labelX + 72, ey + 20);
-            ey += 58;
+            ctx.font = 'bold 18px "Courier New", monospace';
+            ctx.fillText(shn[0], labelX, ey + 8);
+            ctx.fillText(shn[1], labelX + 64, ey + 27);
+            ctx.fillStyle = '#0ff';
+            ctx.fillText(`(${d.shieldHP})`, labelX, ey + 27);
+            ey += 52;
         }
 
-        if (d.keys) {
-            this._drawSheet(ctx, 'keys', 0, x + 10, ey + 2, iconSize, iconSize);
+        if (d.keys || d.lionKeys) {
+            let cx = x + 10;
             ctx.fillStyle = '#fff';
-            ctx.font = '12px "Courier New", monospace';
+            ctx.font = 'bold 18px "Courier New", monospace';
             ctx.textAlign = 'left';
-            ctx.fillText(`\u00d7${d.keys}`, labelX, ey + 18);
-            ey += 54;
-        }
-
-        if (d.lionKeys) {
-            this._drawSheet(ctx, 'keys', 1, x + 10, ey + 2, iconSize, iconSize);
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px "Courier New", monospace';
-            ctx.fillText(`\u00d7${d.lionKeys}`, labelX, ey + 18);
-            ey += 54;
+            if (d.keys) {
+                this._drawSheet(ctx, 'keys', 0, x + 10, ey + 2, iconSize, iconSize);
+                ctx.fillText(`\u00d7${d.keys}`, labelX, ey + 18);
+                cx += 64;
+            }
+            if (d.lionKeys) {
+                this._drawSheet(ctx, 'keys', 1, x + cx + 10, ey + 2, iconSize, iconSize);
+                ctx.fillText(`\u00d7${d.lionKeys}`, cx + labelX, ey + 18);
+                cx += 64;
+            }
+            ey += 52;
         }
 
         if (d.elfCrest || d.gloryCrest || d.heroCrest) {
