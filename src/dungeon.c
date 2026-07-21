@@ -5,7 +5,8 @@
 #include "dungeon.h"
 
 
-#define ADDR_BYTE_9EED                0x9EED
+#define ADDR_BYTE_9EED                0x9EED  // set on casting "guerra"
+#define ADDR_BYTE_9EEE                0x9EEE  // set on casting "guerra"
 #define ADDR_BYTE_9EEF                0x9EEF
 #define ADDR_BYTE_9EF0                0x9EF0
 #define ADDR_BYTE_9EF5                0x9EF5
@@ -47,7 +48,8 @@
 #define ADDR_BYTE_9F27                0x9F27
 #define ADDR_BYTE_9F28                0x9F28
 #define ADDR_BYTE_9F29                0x9F29
-#define ADDR_BYTE_9F2B                0x9F2B
+#define ADDR_BYTE_9F2A                0x9F2A  // scratch "a monster was marked" flag
+#define ADDR_BYTE_9F2B                0x9F2B  // spell charge-up counter (counts 0,2,4,...)
 #define ADDR_BYTE_9F2E                0x9F2E
 
 
@@ -5584,5 +5586,509 @@ uint8_t projectile_read_curved_path_step(uint16_t p)
 
     al &= 7;
     MEM8(p+5) = (MEM8(p+5) & 0xF8) | al; // .p_trajectory_dir
+    return 1;
+}
+
+
+// C translation of the hero's magic-spell-casting assembly
+// (magic_spell_fire_handler, dispatch_spell_projectile_movement, and the
+// per-spell init_*/​*_move routines).
+//
+// Everything below that ALSO exists as an ADDR_* macro in zeliard.h is used
+// directly through MEM8()/MEM16(). A few names in the original disassembly
+// don't appear in zeliard.h at all; those are listed here so it's clear
+// what this file expects to find elsewhere in the project:
+//
+//   Functions:
+//     void Print_Magic_Left_Decimal_proc(void);      // draws the "spells left" counter
+//     void Render_Viewport_Border_Walls_proc(void);   // used by init_guerra
+//
+//   Magic-projectile array base address:
+//     MAGIC_PROJECTILES_BASE   -- uint16_t address of slot 0 of the
+//                                 magic_projectiles array (the "guerra" spell
+//                                 uses proximity-map scanning instead and
+//                                 doesn't touch this array).
+//
+// The magic-projectile record layout itself IS fully derivable from the
+// disassembly (see init_magic_projectile vs. the zeroing pattern in
+// init_rascar/init_agua, and the "add si, 10h" stride used everywhere), so
+// it's spelled out concretely below rather than left as an assumption:
+//
+//   Each record is MAGIC_PROJECTILE_STRIDE (0x10 = 16) bytes:
+//     +0x00  mp_x_rel           uint16_t   0..mapWidth-1 ; 0xFF00 = slot unused
+//     +0x02  mp_y_rel           uint8_t    0..0x3F
+//     +0x03  mp_dir             uint8_t    bit0 = travel direction,
+//                                          bit7 = "already hit, despawn next tick"
+//     +0x04  mp_life_timer      uint8_t
+//     +0x05  mp_anim_frame      uint8_t    0..2
+//     +0x06  (unused/padding)  2 bytes
+//     +0x08  mp_vram_addr_tile00  uint16_t (high byte cleared on spawn)
+//     +0x0A  mp_vram_addr_tile10  uint16_t (high byte cleared on spawn)
+//     +0x0C  mp_vram_addr_tile01  uint16_t (high byte cleared on spawn)
+//     +0x0E  mp_vram_addr_tile11  uint16_t (high byte cleared on spawn)
+//
+// ============================================================================
+
+#define MAGIC_PROJECTILE_STRIDE   0x10
+
+#define MP_X_REL(si)         MEM16(si)
+#define MP_Y_REL(si)         MEM8((si) + 2)
+#define MP_DIR(si)           MEM8((si) + 3)
+#define MP_LIFE_TIMER(si)    MEM8((si) + 4)
+#define MP_ANIM_FRAME(si)    MEM8((si) + 5)
+#define MP_VRAM_TILE00(si)   MEM16((si) + 8)
+#define MP_VRAM_TILE10(si)   MEM16((si) + 10)
+#define MP_VRAM_TILE01(si)   MEM16((si) + 12)
+#define MP_VRAM_TILE11(si)   MEM16((si) + 14)
+
+// ---------------------------------------------------------------------------
+// Forward declarations
+// ---------------------------------------------------------------------------
+
+static void init_magic_projectile(uint16_t si);
+static void init_rascar(uint16_t si);
+static void init_agua(uint16_t si);
+static void init_guerra(uint16_t si);
+
+static void espada_move(uint16_t si);
+static void saeta_move(uint16_t si);
+static void fuego_move(uint16_t si);
+static void rascar_move(uint16_t si);
+static void agua_move(uint16_t si);
+
+static void advance_projectile_anim_frame(uint16_t si);
+static void projectile_step_x_by_direction(uint16_t si);
+static void projectile_step_and_animate(uint16_t si);   // asm: sub_8BC2
+static void despawn_projectile_slots(uint16_t si, int slot_count);
+
+static uint8_t monster_is_in_spawn_range_and_clear(uint16_t si);
+static uint8_t mark_proximity_monster_as_spell_target(uint16_t addr);
+
+// Assumed to exist elsewhere (see assumptions block above):
+extern void Render_Viewport_Border_Walls_proc(void);
+
+// ---------------------------------------------------------------------------
+// magic_spell_fire_handler
+//
+// Called every frame. Handles the Alt-key press starting a spell cast, the
+// short charge-up delay, and firing the spell (spawning its projectile(s))
+// once the charge completes.
+// ---------------------------------------------------------------------------
+void Magic_Spell_Fire_Handler(void) {
+    if (MEM8(ADDR_CURRENT_MAGIC_SPELL) == 0)
+        return;
+
+    if (MEM8(ADDR_SPELL_ACTIVE_FLAG) == 0) {
+        // Not currently casting: check whether Alt was just pressed to start.
+        if (MEM8(ADDR_ALTKEY_LATCH) == 0)
+            return;
+
+        MEM8(ADDR_SPACEBAR_LATCH) = 0;
+        MEM8(ADDR_ALTKEY_LATCH) = 0;
+
+        if (MEM8(ADDR_SWORD_SWING_FLAG) != 0)
+            return; // can't start casting mid sword-swing
+
+        if (MEM8(ADDR_BYTE_FF3E) != 0)
+            return; // a spell projectile is still active/busy
+
+        MEM8(ADDR_BYTE_9F2B) = 0;
+        MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0xFF;
+        MEM8(ADDR_SOUND_FX_REQUEST) = 23; // cast-start SFX
+        return;
+    }
+
+    // Already casting: advance the charge-up counter (it increases by 2
+    // each call, so it always lands on exactly 4 before it would reach 6).
+    uint8_t counter = (uint8_t)(MEM8(ADDR_BYTE_9F2B) + 2);
+    MEM8(ADDR_BYTE_9F2B) = counter;
+
+    if (counter != 4) {
+        if (counter >= 6)
+            MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0; // charge expired without firing; cancel
+        return;
+    }
+
+    // Charge complete: try to actually fire.
+    uint8_t spell = (uint8_t)(MEM8(ADDR_CURRENT_MAGIC_SPELL) - 1); // 0..6
+
+    if (MEM8(ADDR_SPELLS_ESPADA + spell) == 0)
+        return; // out of charges for this spell
+
+    MEM8(ADDR_SPELLS_ESPADA + spell)--;
+    // Print_Magic_Left_Decimal_proc(); // is handled by game.js every frame
+    MEM8(ADDR_SOUND_FX_REQUEST) = 24; // cast-fire SFX
+
+    uint16_t si = ADDR_MAGIC_PROJECTILES;
+    MEM8(ADDR_BYTE_FF3E) = 0xFF; // mark a spell projectile as active/busy
+
+    switch (spell) {
+        case 0: init_magic_projectile(si); break; // espada
+        case 1: init_magic_projectile(si); break; // saeta
+        case 2: init_magic_projectile(si); break; // fuego
+        case 3: init_magic_projectile(si); break; // lanzar
+        case 4: init_rascar(si);           break;
+        case 5: init_agua(si);             break;
+        case 6: init_guerra(si);           break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// init_magic_projectile
+//
+// Sets up a single projectile slot from the hero's current facing/position.
+// Used directly by espada/saeta/fuego/lanzar, and as a building block by
+// init_agua.
+// ---------------------------------------------------------------------------
+static void init_magic_projectile(uint16_t si) {
+    uint8_t dir = (uint8_t)(~MEM8(ADDR_FACING)) & 1;
+    MP_DIR(si) = dir;
+
+    uint8_t y = (uint8_t)((MEM8(ADDR_SQUAT_FLAG) & 1)
+                          + MEM8(ADDR_HERO_HEAD_Y_VIEW)
+                          + MEM8(ADDR_VIEWPORT_TOP_ROW));
+    y &= 0x3F;
+    MP_Y_REL(si) = y;
+
+    uint8_t al = (uint8_t)(MEM8(ADDR_HERO_X_VIEW) + 4);
+    uint8_t ah = (uint8_t)(~MP_DIR(si)) & 1;
+    al = (uint8_t)(al + ah);
+
+    uint16_t x = (uint16_t)al + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    if (x >= MEM16(ADDR_MAP_WIDTH))
+        x -= MEM16(ADDR_MAP_WIDTH);
+    MP_X_REL(si) = x;
+
+    MP_VRAM_TILE00(si) &= 0x00FF;
+    MP_VRAM_TILE10(si) &= 0x00FF;
+    MP_VRAM_TILE01(si) &= 0x00FF;
+    MP_VRAM_TILE11(si) &= 0x00FF;
+
+    MP_LIFE_TIMER(si) = 0;
+    MP_ANIM_FRAME(si) = 0;
+
+    // Terminate the active-projectile list right after this slot.
+    MEM16(si + MAGIC_PROJECTILE_STRIDE) = 0xFFFF;
+}
+
+// ---------------------------------------------------------------------------
+// init_rascar — spawns 4 "beam" slots spread evenly across the screen width,
+// each at a slightly randomized height near the top of the viewport.
+// ---------------------------------------------------------------------------
+static void init_rascar(uint16_t si) {
+    for (uint8_t beam = 0; beam < 4; beam++) {
+        uint16_t x = (uint16_t)(6 * beam) + 2 + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+        if (x >= MEM16(ADDR_MAP_WIDTH))
+            x -= MEM16(ADDR_MAP_WIDTH);
+        MP_X_REL(si) = x;
+
+        uint8_t y = (uint8_t)(get_random() & 3);
+        y = (uint8_t)(MEM8(ADDR_VIEWPORT_TOP_ROW) - 3 - y);
+        y &= 0x3F;
+        MP_Y_REL(si) = y;
+
+        MP_VRAM_TILE00(si) &= 0x00FF;
+        MP_VRAM_TILE10(si) &= 0x00FF;
+        MP_VRAM_TILE01(si) &= 0x00FF;
+        MP_VRAM_TILE11(si) &= 0x00FF;
+        MP_LIFE_TIMER(si) = 0;
+        MP_ANIM_FRAME(si) = 0;
+
+        si += MAGIC_PROJECTILE_STRIDE;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// init_agua — spawns 3 slots via the generic projectile init, then nudges
+// the first slot's height up and the second slot's height down slightly to
+// form a 3-way spread.
+// ---------------------------------------------------------------------------
+static void init_agua(uint16_t si) {
+    uint16_t base = si;
+    uint16_t s = si;
+
+    for (int i = 0; i < 3; i++) {
+        init_magic_projectile(s);
+        s += MAGIC_PROJECTILE_STRIDE;
+    }
+
+    MP_Y_REL(base) = (uint8_t)(MP_Y_REL(base) - 2) & 0x3F;
+    MP_Y_REL(base + MAGIC_PROJECTILE_STRIDE) =
+        (uint8_t)(MP_Y_REL(base + MAGIC_PROJECTILE_STRIDE) + 2) & 0x3F;
+}
+
+// ---------------------------------------------------------------------------
+// init_guerra — the "war" spell: instantly marks every monster/item in the
+// proximity window (in a 36x19 band above the hero) as hit by the current
+// spell, unless we're in a boss cavern and the boss is already reacting to
+// a hit this frame.
+// ---------------------------------------------------------------------------
+static void init_guerra(uint16_t si) {
+    (void)si; // guerra doesn't use the magic_projectiles array
+
+    MEM8(ADDR_BYTE_9EED) = 0xFF;
+    MEM8(ADDR_BYTE_9EEE) = 0xFF;
+
+    if (!(MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_BEING_HIT))) {
+        uint16_t scan = (uint16_t)(MEM16(ADDR_VIEWPORT_LEFT_TOP) - 36); // one row above hero
+        wrap_map_from_below(&scan);
+
+        for (int row = 0; row < 19; row++) {
+            for (int col = 0; col < 36; col++) {
+                if (MEM8(scan) & 0x80)
+                    mark_proximity_monster_as_spell_target(scan);
+                scan++;
+            }
+            wrap_map_from_above(&scan);
+        }
+    }
+
+    MEM8(ADDR_BYTE_FF3E) = 0;
+    MEM8(ADDR_SOUND_FX_REQUEST) = 25;
+    Render_Viewport_Border_Walls_proc();
+    MEM8(ADDR_ALTKEY_LATCH) = 0;
+    clear_viewport_buffer();
+    main_update_render();
+}
+
+// ---------------------------------------------------------------------------
+// dispatch_spell_projectile_movement
+//
+// Called every frame while a spell projectile is active (ADDR_BYTE_FF3E !=
+// 0). Advances whichever spell type is currently equipped.
+// ---------------------------------------------------------------------------
+void Dispatch_Spell_Projectile_Movement(void) {
+    if (MEM8(ADDR_BYTE_FF3E) == 0)
+        return;
+
+    uint16_t si = ADDR_MAGIC_PROJECTILES;
+    uint8_t spell = (uint8_t)(MEM8(ADDR_CURRENT_MAGIC_SPELL) - 1); // 0..6
+
+    switch (spell) {
+        case 0: espada_move(si); break;
+        case 1: saeta_move(si);  break;
+        case 2: fuego_move(si);  break;
+        case 3: saeta_move(si);  break; // lanzar reuses saeta's movement
+        case 4: rascar_move(si); break;
+        case 5: agua_move(si);   break;
+        case 6: /* guerra: no per-frame movement */ break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// espada_move
+// ---------------------------------------------------------------------------
+static void espada_move(uint16_t si) {
+    if (MP_DIR(si) & 0x80) {
+        despawn_projectile_slots(si, 1);
+        return;
+    }
+
+    MP_LIFE_TIMER(si)++;
+    if (MP_LIFE_TIMER(si) >= 5) {
+        despawn_projectile_slots(si, 1);
+        return;
+    }
+
+    projectile_step_and_animate(si);
+
+    if (monster_is_in_spawn_range_and_clear(si))
+        MP_DIR(si) |= 0x80; // hit: mark for despawn next tick
+}
+
+// ---------------------------------------------------------------------------
+// saeta_move
+// ---------------------------------------------------------------------------
+static void saeta_move(uint16_t si) {
+    MP_LIFE_TIMER(si)++;
+    if (MP_LIFE_TIMER(si) >= 10) {
+        despawn_projectile_slots(si, 1);
+        return;
+    }
+
+    projectile_step_and_animate(si);
+    monster_is_in_spawn_range_and_clear(si);
+}
+
+// ---------------------------------------------------------------------------
+// fuego_move
+// ---------------------------------------------------------------------------
+static void fuego_move(uint16_t si) {
+    MP_LIFE_TIMER(si)++;
+    if (MP_LIFE_TIMER(si) >= 12) {
+        despawn_projectile_slots(si, 1);
+        return;
+    }
+
+    if (MP_LIFE_TIMER(si) < 4) {
+        // Still rising: drift sideways only, no animation change yet.
+        projectile_step_x_by_direction(si);
+        monster_is_in_spawn_range_and_clear(si);
+        return;
+    }
+
+    MP_ANIM_FRAME(si) = (uint8_t)((MP_ANIM_FRAME(si) & 3) + 1);
+
+    // NOTE: life_timer is always >= 4 on this path, so this comparison is
+    // never true in practice — kept for fidelity with the original code,
+    // which had the same (apparently dead) check.
+    if (MP_LIFE_TIMER(si) != 3) {
+        uint8_t rel_x;
+        if (!is_in_proximity_window(MP_X_REL(si), &rel_x) && rel_x < 33) {
+            uint16_t di = coords_to_prox_addr(rel_x, MP_Y_REL(si));
+            uint16_t below = (uint16_t)(di + 72); // two rows further down
+            wrap_map_from_above(&below);
+
+            if (!is_blocking_tile(MEM8(below)) && !is_blocking_tile(MEM8(below + 1)))
+                MP_Y_REL(si) = (uint8_t)(MP_Y_REL(si) + 1) & 0x3F;
+        }
+    }
+
+    monster_is_in_spawn_range_and_clear(si);
+}
+
+// ---------------------------------------------------------------------------
+// rascar_move — advances all 4 beam slots each frame.
+// ---------------------------------------------------------------------------
+static void rascar_move(uint16_t si) {
+    MP_LIFE_TIMER(si)++;
+    if (MP_LIFE_TIMER(si) >= 12) {
+        despawn_projectile_slots(si, 4);
+        return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        MP_Y_REL(si) = (uint8_t)(MP_Y_REL(si) + 2) & 0x3F;
+        monster_is_in_spawn_range_and_clear(si);
+        si += MAGIC_PROJECTILE_STRIDE;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// agua_move — advances all 3 bubble slots each frame.
+// ---------------------------------------------------------------------------
+static void agua_move(uint16_t si) {
+    MP_LIFE_TIMER(si)++;
+    if (MP_LIFE_TIMER(si) >= 10) {
+        despawn_projectile_slots(si, 3);
+        return;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        projectile_step_and_animate(si);
+        monster_is_in_spawn_range_and_clear(si);
+        si += MAGIC_PROJECTILE_STRIDE;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+// asm: loc_8BD0 (also the entry point called directly by fuego_move)
+static void projectile_step_x_by_direction(uint16_t si) {
+    // mp_dir bit0 == 0 -> step -2; bit0 == 1 -> step +2
+    int32_t step = ((int32_t)(MP_DIR(si) & 1) * 4) - 2;
+    int32_t x = (int32_t)MP_X_REL(si) + step;
+
+    if (x < 0)
+        x += MEM16(ADDR_MAP_WIDTH);
+    else if (x >= MEM16(ADDR_MAP_WIDTH))
+        x -= MEM16(ADDR_MAP_WIDTH);
+
+    MP_X_REL(si) = (uint16_t)x;
+}
+
+static void advance_projectile_anim_frame(uint16_t si) {
+    uint8_t frame = (uint8_t)(MP_ANIM_FRAME(si) + 1);
+    if (frame >= 3)
+        frame = 0;
+    MP_ANIM_FRAME(si) = frame;
+}
+
+// asm: sub_8BC2 (anim-frame advance, then the loc_8BD0 x-step)
+static void projectile_step_and_animate(uint16_t si) {
+    advance_projectile_anim_frame(si);
+    projectile_step_x_by_direction(si);
+}
+
+// Shared cleanup for despawning a spell's trailing projectile slot(s) and
+// marking the spell as no longer active. Mirrors the shared fallthrough
+// chain loc_8B9D -> loc_8BA5 -> loc_8BB5 in the original: rascar enters at
+// the 4-slot point, agua at the 3-slot point, and espada/saeta/fuego at the
+// 1-slot point.
+static void despawn_projectile_slots(uint16_t si, int slot_count) {
+    for (int i = slot_count - 1; i >= 1; i--)
+        MP_X_REL(si + (uint16_t)(i * MAGIC_PROJECTILE_STRIDE)) = 0xFF00;
+
+    MP_X_REL(si) = 0xFF00;
+    MEM8(ADDR_BYTE_FF3E) = 0;
+}
+
+// ---------------------------------------------------------------------------
+// monster_is_in_spawn_range_and_clear
+//
+// Returns 1 if a monster/item was found in the projectile's local 3x3
+// proximity-map neighborhood and successfully marked as hit by the current
+// spell; 0 otherwise (projectile outside the proximity window, too close to
+// its left/right edge, or mid-boss-fight while the boss is already flashing
+// from a hit this frame).
+// ---------------------------------------------------------------------------
+static uint8_t monster_is_in_spawn_range_and_clear(uint16_t si) {
+    if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_BEING_HIT))
+        return 0;
+
+    uint8_t rel_x;
+    if (is_in_proximity_window(MP_X_REL(si), &rel_x))
+        return 0; // outside the visible proximity window
+
+    if ((uint8_t)(rel_x - 2) >= 0x20)
+        return 0; // too close to the left/right edge of the window
+
+    uint16_t di = coords_to_prox_addr(rel_x, MP_Y_REL(si));
+    uint16_t scan = (uint16_t)(di - 37); // top-left corner of the 3x3 block
+    wrap_map_from_below(&scan);
+
+    uint8_t any_hit = 0;
+    for (int row = 0; row < 3; row++) {
+        for (int col = 0; col < 3; col++) {
+            if (mark_proximity_monster_as_spell_target(scan))
+                any_hit = 1;
+            scan++;
+        }
+        scan += 33; // complete the 36-wide row stride
+        wrap_map_from_above(&scan);
+    }
+
+    return any_hit;
+}
+
+// ---------------------------------------------------------------------------
+// mark_proximity_monster_as_spell_target
+//
+// Returns 1 if a monster/item was present at proximity-map address 'addr'
+// and was successfully marked as hit by the current magic spell; 0 if there
+// was nothing there, the target can't be hit this way (e.g. flying), or it
+// was already marked this frame.
+// ---------------------------------------------------------------------------
+static uint8_t mark_proximity_monster_as_spell_target(uint16_t addr) {
+    uint8_t flags;
+    uint16_t monster;
+
+    if (get_dst_monster_flags(addr, &flags, &monster))
+        return 0; // nothing there
+
+    if (flags & 0x20)
+        return 0; // e.g. flying/immune target
+
+    if (MEM8(monster+5) & 0x20) // .ai_flags
+        return 0; // already targeted/being processed this frame
+
+    uint8_t ai = MEM8(monster+5);
+    ai = (uint8_t)((ai | 0x40) & 0xE0);                              // keep status bits, set "hit" bit
+    ai |= (uint8_t)(MEM8(ADDR_CURRENT_MAGIC_SPELL) + 1);             // low bits: which spell hit it
+    MEM8(monster+5) = ai;
+
+    MEM8(ADDR_BYTE_9F2A) = 0xFF;
     return 1;
 }
