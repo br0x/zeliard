@@ -5,7 +5,7 @@
             "name": "Python: Module - SpriteEditor.decoder",
             "type": "debugpy",
             "request": "launch",
-            "module": "tools.MDTVSpriteEditoriewer",   // ← change this to match your structure
+            "module": "SpriteEditor",   // ← change this to match your structure
             "cwd": "${workspaceFolder}/tools",
             "console": "integratedTerminal"
         },

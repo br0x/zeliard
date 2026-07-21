@@ -307,7 +307,45 @@ def decode_patterns(unpacked_data):
     return tiles
 
 
-# Add this decoding logic (adapted from grp_viewer.py)
+def _decode_dungeon_tile(td: bytes) -> List[int]:
+    pixels = []
+    for ry in range(8):
+        b = td[ry*6:ry*6+6]
+        w0 = (b[0] << 8) | b[1]
+        w1 = (b[2] << 8) | b[3]
+        w2 = (b[4] << 8) | b[5]
+        p1, p2, p3, px1 = decode_4(w0, w1, w2)
+        _,  _,  _,  px2 = decode_4(p1, p2, p3)
+        pixels.extend(px1 + px2)
+    return pixels
+
+
+def decode_dungeon_grp(filepath):
+    """Decodes a .grp file of type 10 (8x8 dungeon tiles, no header)."""
+    if not os.path.exists(filepath):
+        return None
+    try:
+        raw = open(filepath, "rb").read()
+    except Exception as e:
+        messagebox.showerror('Load Error', str(e))
+        return
+
+    if raw[0] == 0:
+        skip, length, raw1 = 0, len(raw)-1, raw[1:]
+    else:
+        skip = int.from_bytes(raw[1:3], "little")
+        length = int.from_bytes(raw[3:5], "little")
+        raw1 = raw[5+skip:]
+
+    unpacked = unpack(raw1, length)
+    TILE = 48
+    total = len(unpacked) // TILE
+    tiles = []
+    for i in range(total):
+        tiles.append(_decode_dungeon_tile(unpacked[i*TILE:(i+1)*TILE]))
+    return tiles
+
+
 def decode_pat_grp(filepath):
     """Decodes a .grp file of type 7 (8x8 tiles)."""
     if not os.path.exists(filepath):
@@ -332,7 +370,16 @@ def decode_pat_grp(filepath):
     
     return tiles
 
-def _parse_descriptor(data: bytes, desc_ptr: int, n: int):
+def _parse_dungeon_descriptor(data: bytes, desc_ptr: int, n: int):
+    off = _ptr_off_safe(desc_ptr, n)
+    if off is None or off + 4 >= n:
+        return None
+
+    digit_char = str(data[off + 2]+1)
+
+    return decode_dungeon_grp(f"mpp{digit_char}.grp")
+
+def _parse_town_descriptor(data: bytes, desc_ptr: int, n: int):
     off = _ptr_off_safe(desc_ptr, n)
     if off is None or off + 4 >= n:
         return None
@@ -440,10 +487,14 @@ def decode_dung_mdt(data: bytes) -> MdtData:
     # Decode tile grid
     grid, consumed_si = _decode_tile_grid(data, 0x1B, mw, DUNG_HEIGHT, packed=True)
 
+    # Parse gfx from descriptor (mppX.grp)
+    gfx = _parse_dungeon_descriptor(data, word(0x00), n)
+
     return MdtData(
         map_width=mw,
         map_height=DUNG_HEIGHT,
         grid=grid,
+        gfx=gfx,
         desc_ptr=word(0x00),
         vplat_ptr=word(0x04),
         cplat_ptr=word(0x06),
@@ -514,7 +565,7 @@ def decode_town_mdt(data: bytes) -> TownMdtData:
     # Decode tile grid (unpacked, column-major)
     grid = _decode_tile_grid(data, 0x17, mw, TOWN_HEIGHT, packed=False)
     desc_ptr = word(0x00)
-    gfx = _parse_descriptor(data, word(0x00), n)
+    gfx = _parse_town_descriptor(data, word(0x00), n)
 
     return TownMdtData(
         map_width=mw,
