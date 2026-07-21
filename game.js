@@ -558,6 +558,9 @@ const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
 const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF at byte 0
 const PROJECTILE_STRUCT_SIZE         = 13;
+const ADDR_MAGIC_PROJECTILES         = 0xEB15;    // 4 slots × 16 bytes each
+const MAGIC_PROJECTILE_STRIDE        = 0x10;
+const ADDR_BYTE_9EED                 = 0x9EED;    // set on casting "guerra"
 const ADDR_HERO_X_VIEW               = 0x83;
 const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
 const ADDR_HERO_GOLD_HI              = 0x85;
@@ -614,7 +617,7 @@ const ADDR_ON_ROPE_FLAGS           = 0xFF39;
 const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
 const ADDR_SPELL_ACTIVE_FLAG       = 0xFF3C;
 const ADDR_JUMP_PHASE_FLAGS        = 0xFF3D;
-const ADDR_BYTE_FF3E               = 0xFF3E;
+const ADDR_BYTE_FF3E               = 0xFF3E;  // spell projectile active flag
 const ADDR_SHIELD_ANIM_PHASE       = 0xFF3F;
 const ADDR_SHIELD_ANIM_ACTIVE      = 0xFF40;
 const ADDR_SHIELD_VARIANT_INDEX    = 0xFF41;
@@ -1900,6 +1903,139 @@ function drawDungeonProjectiles() {
         drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, cols, dx, dy);
         p += PROJECTILE_STRUCT_SIZE;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Magic spell projectile rendering
+// ---------------------------------------------------------------------------
+
+function getMagicFrameIndex(spellIndex, mpDir, animFrame) {
+    if (spellIndex === 0) return animFrame;
+    if (spellIndex === 1 && mpDir) return 3 + animFrame;
+    if (spellIndex === 1) return 6 + animFrame;
+    if (spellIndex === 2 && mpDir && animFrame === 0) return 9;
+    if (spellIndex === 2 && !mpDir && animFrame === 0) return 10;
+    if (spellIndex === 2) return 10 + animFrame;
+    if (spellIndex === 3 && mpDir) return 15 + animFrame;
+    if (spellIndex === 3) return 18 + animFrame;
+    if (spellIndex === 4) return 21;
+    if (spellIndex === 5 && mpDir) return 22 + animFrame;
+    if (spellIndex === 5) return 25 + animFrame;
+    return 0;
+}
+
+function drawDungeonMagicProjectiles() {
+    if (!dungeonMagicSheetReady || !readMemory) return;
+    const currentSpell = readU8(0x9D);
+    if (currentSpell === 0 || currentSpell === 7) return;
+    const spellIndex = currentSpell - 1;
+    const top = dungeonGetViewportTop?.() ?? 0;
+
+    for (let outer = 0; outer < 4; outer++) {
+        const addr = ADDR_MAGIC_PROJECTILES + outer * MAGIC_PROJECTILE_STRIDE;
+        const xRel = readU16(addr);
+        if (xRel === 0xFFFF) return;
+        if ((xRel >> 8) === 0xFF) continue;
+
+        const yRel = readU8(addr + 2);
+        const mpDir = readU8(addr + 3);
+        const animFrame = readU8(addr + 5);
+
+        const leftCol = readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
+        const mapWidth = readU16(ADDR_MAP_WIDTH);
+
+        let relX;
+        if (xRel >= leftCol) {
+            relX = xRel - leftCol;
+            if (relX >= 36) continue;
+        } else {
+            if (xRel >= 36) continue;
+            relX = mapWidth - leftCol + xRel;
+            if (relX >= 36) continue;
+        }
+
+        const relY = (yRel - top) & 0x3F;
+        const frameIdx = getMagicFrameIndex(spellIndex, mpDir, animFrame);
+        const srcX0 = frameIdx * 48;
+
+        for (let sub = 0; sub < 4; sub++) {
+            const sx = relX + (sub & 1);
+            if (sx >= 32) continue;
+            const sy = (relY + (sub >> 1)) & 0x3F;
+            if (sy >= 24) continue;
+            ctx.drawImage(
+                dungeonMagicSheet,
+                srcX0 + (sub & 1) * TILE_WIDTH,
+                (sub >> 1) * TILE_HEIGHT,
+                TILE_WIDTH, TILE_HEIGHT,
+                sx * TILE_WIDTH, sy * TILE_HEIGHT,
+                TILE_WIDTH, TILE_HEIGHT,
+            );
+        }
+    }
+}
+
+let _guerraEffectRunning = false;
+
+async function renderViewportBorderWalls() {
+    const viewW = VIEW_COLS * TILE_WIDTH;
+    const viewH = VIEW_ROWS * TILE_HEIGHT;
+    const flashColor = 0x12;
+
+    function waitFrame() {
+        return new Promise(resolve => requestAnimationFrame(() => resolve()));
+    }
+
+    function xorViewportFlash() {
+        const img = ctx.getImageData(0, 0, viewW, viewH);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            d[i] ^= flashColor;
+            d[i + 1] ^= flashColor;
+            d[i + 2] ^= flashColor;
+        }
+        ctx.putImageData(img, 0, 0);
+    }
+
+    async function renderExpandingRing(inset, span, colorVal) {
+        let left = heroX - inset;
+        let top = heroY - inset;
+        let right = heroX - inset + span;
+        let bottom = heroY - inset + span;
+        const cssColor = colorVal === 0 ? 'rgb(0,0,0)' : 'rgb(255,255,255)';
+
+        for (let step = 0; step < 9; step++) {
+            ctx.strokeStyle = cssColor;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+                Math.max(0, left),
+                Math.max(0, top),
+                Math.min(viewW, right) - Math.max(0, left),
+                Math.min(viewH, bottom) - Math.max(0, top),
+            );
+            left = Math.max(0, left - 12);
+            top = Math.max(0, top - 12);
+            right = Math.min(viewW, right + 12);
+            bottom = Math.min(viewH, bottom + 12);
+            if (step < 8) await waitFrame();
+        }
+    }
+
+    const heroX = readU8(ADDR_HERO_X_VIEW) * TILE_WIDTH;
+    const heroY = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_HEIGHT;
+
+    xorViewportFlash();
+
+    const rings = [
+        { inset: 1, span: 0x19 },
+        { inset: 5, span: 0x21 },
+        { inset: 9, span: 0x29 },
+    ];
+
+    for (const r of rings) await renderExpandingRing(r.inset, r.span, 54);
+    for (const r of rings) await renderExpandingRing(r.inset, r.span, 0);
+
+    xorViewportFlash();
 }
 
 /*
@@ -3679,12 +3815,18 @@ function draw() {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawDungeonTiles();
             drawDungeonProjectiles();
+            drawDungeonMagicProjectiles();
             drawDungeonEntities();
             drawDungeonHero();
             drawDungeonSword();
             drawDungeonNotification();
             drawDungeonSign();
             animateDungeonTiles();
+            if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
+                writeMemory(ADDR_BYTE_9EED, [0]);
+                _guerraEffectRunning = true;
+                renderViewportBorderWalls().finally(() => { _guerraEffectRunning = false; });
+            }
             if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
                 const fade = readU8(ADDR_DEATH_COUNTER) / 29;
                 ctx.fillStyle = `rgba(0,0,0,${fade})`;

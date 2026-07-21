@@ -2395,8 +2395,11 @@ void process_doors(void)
     }
 }
 
-// stub
-void dispatch_spell_projectile_movement(void) {}
+void Dispatch_Spell_Projectile_Movement(void);
+
+void dispatch_spell_projectile_movement(void) {
+    Dispatch_Spell_Projectile_Movement();
+}
 
 // Check tile at proximity addr for a non-flying monster.
 // If found, accumulate its contact damage and return 1.
@@ -3507,8 +3510,12 @@ void input_handling()
 }
 
 
-// stub
-void magic_spell_fire_handler(void) {}
+// Forward declarations for magic spell system
+void Magic_Spell_Fire_Handler(void);
+
+void magic_spell_fire_handler(void) {
+    Magic_Spell_Fire_Handler();
+}
 
 
 // Reads the current direction input and branches to the correct hero movement
@@ -5601,7 +5608,6 @@ uint8_t projectile_read_curved_path_step(uint16_t p)
 //
 //   Functions:
 //     void Print_Magic_Left_Decimal_proc(void);      // draws the "spells left" counter
-//     void Render_Viewport_Border_Walls_proc(void);   // used by init_guerra
 //
 //   Magic-projectile array base address:
 //     MAGIC_PROJECTILES_BASE   -- uint16_t address of slot 0 of the
@@ -5664,8 +5670,11 @@ static void despawn_projectile_slots(uint16_t si, int slot_count);
 static uint8_t monster_is_in_spawn_range_and_clear(uint16_t si);
 static uint8_t mark_proximity_monster_as_spell_target(uint16_t addr);
 
-// Assumed to exist elsewhere (see assumptions block above):
-extern void Render_Viewport_Border_Walls_proc(void);
+void Render_Viewport_Border_Walls_proc(void) {
+    // init_guerra already sets ADDR_BYTE_9EED = 0xFF before calling this;
+    // JS detects that flag on the next frame and runs
+    // renderViewportBorderWalls() asynchronously on the canvas.
+}
 
 // ---------------------------------------------------------------------------
 // magic_spell_fire_handler
@@ -5741,8 +5750,13 @@ void Magic_Spell_Fire_Handler(void) {
 // init_agua.
 // ---------------------------------------------------------------------------
 static void init_magic_projectile(uint16_t si) {
-    uint8_t dir = (uint8_t)(~MEM8(ADDR_FACING)) & 1;
+    // ADDR_FACING: bit0=LEFT(1), bit1=UP(2); 0=RIGHT
+    uint8_t facing = MEM8(ADDR_FACING);
+    // dir encoding (matches original NOT(facing) & 1): 0=LEFT, 1=RIGHT
+    uint8_t dir = (uint8_t)(~facing) & 1;
     MP_DIR(si) = dir;
+    // Spawn offset from hero_x_view: LEFT→0 (left edge), RIGHT→2 (right edge)
+    int16_t offset = (facing & 1) ? 0 : 2;
 
     uint8_t y = (uint8_t)((MEM8(ADDR_SQUAT_FLAG) & 1)
                           + MEM8(ADDR_HERO_HEAD_Y_VIEW)
@@ -5750,14 +5764,12 @@ static void init_magic_projectile(uint16_t si) {
     y &= 0x3F;
     MP_Y_REL(si) = y;
 
-    uint8_t al = (uint8_t)(MEM8(ADDR_HERO_X_VIEW) + 4);
-    uint8_t ah = (uint8_t)(~MP_DIR(si)) & 1;
-    al = (uint8_t)(al + ah);
-
-    uint16_t x = (uint16_t)al + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
-    if (x >= MEM16(ADDR_MAP_WIDTH))
+    int16_t x = (int16_t)(MEM8(ADDR_HERO_X_VIEW) + offset + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL));
+    if (x < 0)
+        x += MEM16(ADDR_MAP_WIDTH);
+    else if (x >= MEM16(ADDR_MAP_WIDTH))
         x -= MEM16(ADDR_MAP_WIDTH);
-    MP_X_REL(si) = x;
+    MP_X_REL(si) = (uint16_t)x;
 
     MP_VRAM_TILE00(si) &= 0x00FF;
     MP_VRAM_TILE10(si) &= 0x00FF;
@@ -6039,7 +6051,7 @@ static uint8_t monster_is_in_spawn_range_and_clear(uint16_t si) {
         return 0;
 
     uint8_t rel_x;
-    if (is_in_proximity_window(MP_X_REL(si), &rel_x))
+    if (!is_in_proximity_window(MP_X_REL(si), &rel_x))
         return 0; // outside the visible proximity window
 
     if ((uint8_t)(rel_x - 2) >= 0x20)
@@ -6075,7 +6087,7 @@ static uint8_t mark_proximity_monster_as_spell_target(uint16_t addr) {
     uint8_t flags;
     uint16_t monster;
 
-    if (get_dst_monster_flags(addr, &flags, &monster))
+    if (!get_dst_monster_flags(addr, &flags, &monster))
         return 0; // nothing there
 
     if (flags & 0x20)
