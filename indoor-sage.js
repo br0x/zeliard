@@ -35,8 +35,9 @@ const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
 const ADDR_HERO_LEVEL = 0x8D;
 const ADDR_HERO_XP = 0x8E;
 const ADDR_HERO_HP = 0x90;
-const ADDR_CURRENT_MAGIC_SPELL = 0x9E;
+const ADDR_CURRENT_MAGIC_SPELL = 0x9D;
 const ADDR_SPELLS_ACTIVE = 0xAB;
+const ADDR_ESPADA_ACTIVE = 0xBB;
 const ADDR_HERO_MAX_HP = 0xB2;
 const ADDR_SPELLS_INVENTORY = 0xB4;
 const ADDR_INVINCIBILITY_FLAG = 0xE8;
@@ -640,7 +641,7 @@ export class SageScene extends IndoorSceneBase {
                 if (this.exitAfterDialog) {
                     this.startFadeOut(now);
                 } else {
-                    // Intro done: show menu. Dialog text stays; do NOT overwrite it.
+                    this._activateIntroSpell();
                     this.sagePhase = 'menu';
                     this.menuDimmed = false;
                     this._setDialog('How can I help you, Brave One?');
@@ -878,6 +879,14 @@ export class SageScene extends IndoorSceneBase {
         if (!this.writeMemory) return;
         const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
         this.writeMemory(addr, [v & 0xFF, (v >> 8) & 0xFF]);
+    }
+
+    _activateIntroSpell() {
+        if (!this.writeMemory) return;
+        if (this.townIdx < 1 || this.townIdx > 7) return;
+        const spellNum = this.townIdx;
+        this.writeMemory(ADDR_CURRENT_MAGIC_SPELL, [spellNum]);
+        this.writeMemory(ADDR_ESPADA_ACTIVE + spellNum - 1, [0xFF]);
     }
 
     _refreshMagicCounter() {
