@@ -383,6 +383,17 @@ class MDTViewer(tk.Tk):
 
     # ── Drawing helpers ────────────────────────────────────────────────────
     def get_tile_image(self, ctx: MapContext, tile_idx):
+        # Tile 0 in dungeons means empty/void → render as black
+        if tile_idx == 0 and not ctx.mdt.is_town:
+            bw = self.block_size
+            cache_key = (tile_idx, bw, 'void')
+            if cache_key in ctx.tile_images:
+                return ctx.tile_images[cache_key]
+            img = Image.new('RGBA', (bw, bw), (0, 0, 0, 255))
+            photo = ImageTk.PhotoImage(img)
+            ctx.tile_images[cache_key] = photo
+            return photo
+
         use_checker = self.show_checkerboard.get()
         cache_key = (tile_idx, self.block_size, use_checker)
         if cache_key in ctx.tile_images:
@@ -1157,6 +1168,10 @@ class MDTViewer(tk.Tk):
 
     # ── Save Functions ──────────────────────────────────────────────────────
     def _get_tile_image_for_export(self, ctx: MapContext, tile_id, bs):
+        # Tile 0 in dungeons means empty/void → render as black
+        if tile_id == 0 and not ctx.mdt.is_town:
+            return Image.new('RGBA', (bs, bs), (0, 0, 0, 255))
+
         if self.source_tile_candidates and tile_id in self.source_tile_candidates:
             sel = self.source_tile_selections.get(tile_id, 0)
             if sel < len(self.source_tile_candidates[tile_id]):
