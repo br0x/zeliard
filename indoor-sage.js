@@ -32,34 +32,34 @@ const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
 const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
 
-const ADDR_HERO_LEVEL = 0x8D;
-const ADDR_HERO_XP = 0x8E;
-const ADDR_HERO_HP = 0x90;
+const ADDR_HERO_LEVEL          = 0x8D;
+const ADDR_HERO_XP             = 0x8E;
+const ADDR_HERO_HP             = 0x90;
 const ADDR_CURRENT_MAGIC_SPELL = 0x9D;
-const ADDR_SPELLS_ACTIVE = 0xAB;
-const ADDR_ESPADA_ACTIVE = 0xBB;
-const ADDR_HERO_MAX_HP = 0xB2;
-const ADDR_SPELLS_INVENTORY = 0xB4;
-const ADDR_INVINCIBILITY_FLAG = 0xE8;
+const ADDR_SPELLS_ACTIVE       = 0xAB;
+const ADDR_HERO_MAX_HP         = 0xB2;
+const ADDR_SPELLS_INVENTORY    = 0xB4;
+const ADDR_ESPADA_ACTIVE       = 0xBB;
+const ADDR_INVINCIBILITY_FLAG  = 0xE8;
 
 const SAGE_LEVEL_REWARDS = [
                      // esp sae fue lan ras agu gue
-    { hp: 120, spells: [12,  6,  8,  8,  3,  4,  3] },
-    { hp: 160, spells: [12,  6,  8,  8,  3,  4,  3] },
-    { hp: 200, spells: [12,  6,  8,  8,  3,  4,  3] },
-    { hp: 240, spells: [12,  6,  8,  8,  3,  4,  3] },
-    { hp: 280, spells: [16,  6,  8,  8,  3,  4,  3] },
-    { hp: 320, spells: [20,  6,  8,  8,  3,  4,  3] },
-    { hp: 380, spells: [24,  6,  8,  8,  3,  4,  3] },
-    { hp: 460, spells: [28, 12,  8,  8,  3,  4,  3] },
-    { hp: 640, spells: [32, 18, 12,  8,  3,  4,  3] },
-    { hp: 600, spells: [36, 24, 16,  8,  3,  4,  3] },
-    { hp: 640, spells: [40, 30, 20, 16,  3,  4,  3] },
-    { hp: 680, spells: [44, 36, 24, 24,  3,  4,  3] },
-    { hp: 720, spells: [48, 42, 28, 32,  3,  4,  3] },
-    { hp: 760, spells: [52, 48, 36, 48,  9,  8,  6] },
-    { hp: 780, spells: [56, 54, 44, 54, 15, 12,  9] },
-    { hp: 800, spells: [60, 60, 60, 72, 21, 16, 12] },
+    { hp: 120, spells: [12,  6,  8,  8,  3,  4,  3] }, // 1
+    { hp: 160, spells: [12,  6,  8,  8,  3,  4,  3] }, // 2
+    { hp: 200, spells: [12,  6,  8,  8,  3,  4,  3] }, // 3
+    { hp: 240, spells: [12,  6,  8,  8,  3,  4,  3] }, // 4
+    { hp: 280, spells: [16,  6,  8,  8,  3,  4,  3] }, // 5
+    { hp: 320, spells: [20,  6,  8,  8,  3,  4,  3] }, // 6
+    { hp: 380, spells: [24,  6,  8,  8,  3,  4,  3] }, // 7
+    { hp: 460, spells: [28, 12,  8,  8,  3,  4,  3] }, // 8
+    { hp: 640, spells: [32, 18, 12,  8,  3,  4,  3] }, // 9
+    { hp: 600, spells: [36, 24, 16,  8,  3,  4,  3] }, // 10
+    { hp: 640, spells: [40, 30, 20, 16,  3,  4,  3] }, // 11
+    { hp: 680, spells: [44, 36, 24, 24,  3,  4,  3] }, // 12
+    { hp: 720, spells: [48, 42, 28, 32,  3,  4,  3] }, // 13
+    { hp: 760, spells: [52, 48, 36, 48,  9,  8,  6] }, // 14
+    { hp: 780, spells: [56, 54, 44, 54, 15, 12,  9] }, // 15
+    { hp: 800, spells: [60, 60, 60, 72, 21, 16, 12] }, // 16
 ];
 const SAGE_NAMES = [
     'The Sage Marid','The Sage Yasmin','The Sage Hajjar','The Sage Chiriga',
@@ -853,6 +853,9 @@ export class SageScene extends IndoorSceneBase {
 
         this.writeMemory(ADDR_HERO_LEVEL, [nextLevel]);
         let xp = this._getHeroXp() - threshold;
+        const newLevelClamped = Math.min(nextLevel, 15);
+        const newThreshold = SAGE_XP_TABLE[newLevelClamped] || 60000;
+        if (xp >= newThreshold) xp = newThreshold - 1;
         this.writeMemory(ADDR_HERO_XP, [xp & 0xFF, (xp >> 8) & 0xFF]);
         this._writeWord(ADDR_HERO_MAX_HP, reward.hp);
         this._writeWord(ADDR_HERO_HP, reward.hp);
