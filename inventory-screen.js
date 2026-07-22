@@ -38,7 +38,7 @@ const ITEM_USE_TEXT = [
     'a Juu-en Fruit.',
     'an Elixir of Kashi.',
     'some Chikara Powder.',
-    'a Magia Stone.',
+    '         a Magia Stone.',
     'some Holy Water of Acero.',
     'some Sabre Oil.',
     'a Kioku feather.',
@@ -82,10 +82,10 @@ const ADDR_ESPADA_COUNT = 0xB4;
 const ADDR_ESPADA_ACTIVE = 0xBB;
 const ADDR_BYTE_E4 = 0xE4;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
-const ADDR_SPIRIT_SPRITE0 = 0xEB60;
-const ADDR_SPIRIT_SPRITE1 = 0xEB67;
-const ADDR_SPIRIT_SPRITE2 = 0xEB6E;
-const ADDR_SPIRIT_SPRITE3 = 0xEB75;
+const ADDR_MAGIA_STONE_SPRITE0 = 0xEB60;
+const ADDR_MAGIA_STONE_SPRITE1 = 0xEB67;
+const ADDR_MAGIA_STONE_SPRITE2 = 0xEB6E;
+const ADDR_MAGIA_STONE_SPRITE3 = 0xEB75;
 const ADDR_HERO_LEVEL = 0x8D;
 const ADDR_HERO_XP = 0x8E;
 const ADDR_HERO_ALMAS = 0x8B;
@@ -521,19 +521,27 @@ export class InventoryScreen {
             return;
         }
 
-        ctx.font = '12px "Courier New", monospace';
-        ctx.fillStyle = '#0f0';
+        const boxW = 300;
+        const boxH = 72;
+        const x = (W - boxW) / 2;
+        const y = (H - boxH) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, boxW, boxH, 8);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.fillStyle = '#fff';
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-
-        const x = 16;
-        const y = H - 80;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.fillRect(x - 4, y - 4, 360, 50);
-        ctx.fillStyle = '#0f0';
-        ctx.fillText('I have used', x, y);
-        ctx.fillText(this.usageMessage, x, y + 18);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('I have used', x+20, y + boxH * 0.35);
+        ctx.textAlign = 'right';
+        ctx.fillText(this.usageMessage, x+boxW-20, y + boxH * 0.7);
     }
 
     _drawSheet(ctx, name, index, dx, dy, dw, dh) {
@@ -559,6 +567,9 @@ export class InventoryScreen {
                 break;
             case 'ArrowUp':
                 this._tabPrev();
+                break;
+            case 'Space':
+                if (this.currentTab === 2) this._useItem();
                 break;
             case 'Enter':
                 this.exit();
@@ -756,10 +767,10 @@ export class InventoryScreen {
     _spiritShield() {
         const w = this.writeMemory;
         if (!w) return;
-        w(ADDR_SPIRIT_SPRITE0, [0x00, 0x01, 0x50, 0, 0, 0, 0]);
-        w(ADDR_SPIRIT_SPRITE1, [0x04, 0xFF, 0x50, 0, 0, 0, 0]);
-        w(ADDR_SPIRIT_SPRITE2, [0x08, 0xFF, 0x50, 0, 0, 0, 0]);
-        w(ADDR_SPIRIT_SPRITE3, [0x0C, 0x01, 0x50, 0, 0, 0, 0]);
+        w(ADDR_MAGIA_STONE_SPRITE0, [0x00, 0x01, 0x50, 0, 0, 0, 0]);
+        w(ADDR_MAGIA_STONE_SPRITE1, [0x04, 0xFF, 0x50, 0, 0, 0, 0]);
+        w(ADDR_MAGIA_STONE_SPRITE2, [0x08, 0xFF, 0x50, 0, 0, 0, 0]);
+        w(ADDR_MAGIA_STONE_SPRITE3, [0x0C, 0x01, 0x50, 0, 0, 0, 0]);
     }
 
     _repairShield() {

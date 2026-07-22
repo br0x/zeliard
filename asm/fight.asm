@@ -6500,7 +6500,7 @@ loc_8750:
                 inc     di
                 call    proximity_cell_inject_spell_target
                 xchg    si, di
-                add     si, 35
+                add     si, (36-1)
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
                 call    proximity_cell_inject_spell_target

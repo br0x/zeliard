@@ -603,10 +603,87 @@ void Draw_Boss_Health()
     MEM8(ADDR_BOSS_HEALTH_REQUEST) = 0xFF;
 }
 
-// stub, will implement later
-void render_magia_stone_effect()
-{
+// Circle lookup table for magia stone orbit positions
+// From asm/fight.asm:6559 — each entry: (y_offset<<8 | x_offset)
+static const int8_t circle_delta_x[16] = {2, 2, 3, 4, 5, 6, 7, 8, 8, 8, 7, 6, 5, 4, 3, 2};
+static const int8_t circle_delta_y[16] = {1, 0, -1, -2, -2, -2, -1, 0, 1, 2, 3, 4, 4, 4, 3, 2};
 
+static void proximity_cell_inject_spell_target(uint16_t spirit_base, uint16_t prox_addr)
+{
+    uint8_t active_shots = MEM8(spirit_base + 2);
+    if (active_shots == 0) return;
+
+    uint8_t flags;
+    uint16_t monster_struct;
+    if (!get_dst_monster_flags(prox_addr, &flags, &monster_struct))
+        return;
+    if (flags & 0x20) return;
+    uint8_t ai_flags = MEM8(monster_struct + 5);
+    if (ai_flags & 0x20) return;
+    MEM8(monster_struct + 5) = (ai_flags & 0xE0) | 0x49;
+    MEM8(spirit_base + 2)--;
+}
+
+static void magia_stone_sprite_place_in_proximity_rows(uint16_t spirit_base, uint16_t prox_addr)
+{
+    // prox_addr = (y_abs-1)*36 + (x_view-1) + ADDR_PROX — top-left of 2×2 block
+    // Injects 3 of the 4 cells (skips bottom-right)
+    if (MEM8(ADDR_IS_BOSS_CAVERN) && MEM8(ADDR_BOSS_IS_DEAD))
+        return;
+
+    proximity_cell_inject_spell_target(spirit_base, prox_addr);       // (y-1, x-1)
+    proximity_cell_inject_spell_target(spirit_base, prox_addr + 1);   // (y-1, x)
+
+    uint16_t next_cell = prox_addr + 36;                               // (y, x-1)
+    wrap_map_from_above(&next_cell);
+    proximity_cell_inject_spell_target(spirit_base, next_cell);
+}
+
+void magia_stone_updates(void)
+{
+    for (int i = 0; i < 4; i++) {
+        uint16_t base = ADDR_MAGIA_STONE_SPRITE0 + i * 7;
+        uint8_t orbit_phase = MEM8(base + 0);
+        if (orbit_phase == 0xFF) continue;
+
+        uint8_t orbit_speed = MEM8(base + 1);
+        orbit_phase = (orbit_phase + orbit_speed) & 0x0F;
+        MEM8(base + 0) = orbit_phase;
+
+        uint8_t hero_x = MEM8(ADDR_HERO_X_VIEW);
+        uint8_t hero_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        uint8_t viewport_top = MEM8(ADDR_VIEWPORT_TOP_ROW);
+        uint8_t stone_map_x = hero_x + circle_delta_x[orbit_phase];
+        uint8_t stone_map_y = (uint8_t)((int)hero_y + circle_delta_y[orbit_phase] + viewport_top);
+        uint16_t prox_addr = coords_to_prox_addr(stone_map_x, stone_map_y);
+        prox_addr -= 37;
+        wrap_map_from_below(&prox_addr);
+        magia_stone_sprite_place_in_proximity_rows(base, prox_addr);
+    }
+}
+
+void render_magia_stone_effect(void)
+{
+    for (int i = 0; i < 4; i++) {
+        uint16_t base = ADDR_MAGIA_STONE_SPRITE0 + i * 7;
+        uint8_t orbit_phase = MEM8(base + 0);
+        if (orbit_phase == 0xFF) continue;
+
+        if (MEM8(base + 2) == 0) {
+            MEM8(base + 0) = 0xFF;
+            MEM16(base + 3) = 0;
+            MEM8(base + 5) = 0;
+            MEM8(base + 6) = 0;
+            continue;
+        }
+
+        uint8_t phase = orbit_phase & 0x0F;
+        uint8_t hero_x = MEM8(ADDR_HERO_X_VIEW);
+        uint8_t hero_y = MEM8(ADDR_HERO_HEAD_Y_VIEW);
+        MEM8(base + 5) = hero_x + circle_delta_x[phase];
+        MEM8(base + 6) = (uint8_t)(hero_y + circle_delta_y[phase]) & 0x3F;
+        MEM16(base + 3) = 0x8000;
+    }
 }
 
 /* 
@@ -1745,10 +1822,10 @@ void prepare_dungeon(uint8_t is_from_town)
     // Only reset on actual town re-entry, not during door transitions (boss exit etc.)
     if (is_from_town) saved_y_view_init = 10;
     reset_dungeon_state_vars();
-    MEM8(ADDR_SPIRIT_SPRITE0) = 0xFF;
-    MEM8(ADDR_SPIRIT_SPRITE1) = 0xFF;
-    MEM8(ADDR_SPIRIT_SPRITE2) = 0xFF;
-    MEM8(ADDR_SPIRIT_SPRITE3) = 0xFF;
+    MEM8(ADDR_MAGIA_STONE_SPRITE0) = 0xFF;
+    MEM8(ADDR_MAGIA_STONE_SPRITE1) = 0xFF;
+    MEM8(ADDR_MAGIA_STONE_SPRITE2) = 0xFF;
+    MEM8(ADDR_MAGIA_STONE_SPRITE3) = 0xFF;
     MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
     // load 'fman.grp' into fman_gfx -> done in game.js
     // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);
@@ -2508,8 +2585,6 @@ void Flush_Ui_Element_If_Dirty_proc()
 }
 
 
-// stub
-void magia_stone_updates(void) {}
 
 
 /* Damage table indexed by (cavern_level - 1) */

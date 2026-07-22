@@ -601,27 +601,28 @@ const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster tabl
 const ADDR_CAVERN_LEVEL            = 0xC012;
 const ADDR_TEAR_X                  = 0xC013; // word
 const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
-const ADDR_CAVERN_SIGNS_INFO       = 0xC017;    // word
-const ADDR_PROXIMITY_MAP           = 0xE000;    // 36*64 circular buffer
-const ADDR_VIEWPORT_ENTITIES       = 0xE900;    // 28*19 bytes cache buffer
-const ADDR_PROXIMITY_LAYER2        = 0xED20;    // 128 bytes layer-2 tile mapping
-const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0;    // up to 32 entities (4 bytes each)
+const ADDR_CAVERN_SIGNS_INFO       = 0xC017; // word
+const ADDR_PROXIMITY_MAP           = 0xE000; // 36*64 circular buffer
+const ADDR_VIEWPORT_ENTITIES       = 0xE900; // 28*19 bytes cache buffer
+const ADDR_PROXIMITY_LAYER2        = 0xED20; // 128 bytes layer-2 tile mapping
+const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes each, 4 sprites)
+const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 bytes each)
 const ADDR_FRAME_TIMER             = 0xFF1A;
-const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F;  // byte
-const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31;  // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
+const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F; // byte
+const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31; // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 const ADDR_SPEED_CONST             = 0xFF33;
-const ADDR_IS_BOSS_CAVERN          = 0xFF34;  // byte
+const ADDR_IS_BOSS_CAVERN          = 0xFF34; // byte
 const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
 const ADDR_SQUAT_FLAG              = 0xFF38;
 const ADDR_ON_ROPE_FLAGS           = 0xFF39;
 const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
 const ADDR_SPELL_ACTIVE_FLAG       = 0xFF3C;
 const ADDR_JUMP_PHASE_FLAGS        = 0xFF3D;
-const ADDR_BYTE_FF3E               = 0xFF3E;  // spell projectile active flag
+const ADDR_BYTE_FF3E               = 0xFF3E; // spell projectile active flag
 const ADDR_SHIELD_ANIM_PHASE       = 0xFF3F;
 const ADDR_SHIELD_ANIM_ACTIVE      = 0xFF40;
 const ADDR_SHIELD_VARIANT_INDEX    = 0xFF41;
-const ADDR_SLOPE_DIRECTION         = 0xFF42;  // 1=right, 2=left, 0=none
+const ADDR_SLOPE_DIRECTION         = 0xFF42; // 1=right, 2=left, 0=none
 const ADDR_SWORD_SWING_FLAG        = 0xFF43;
 const ADDR_UI_ELEMENT_DIRTY        = 0xFF44;
 const ADDR_SWORD_HIT_TYPE          = 0xFF45;
@@ -1093,9 +1094,9 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    // If inventory screen is open, route arrow keys + Enter to it
+    // If inventory screen is open, route arrow keys + Enter/Space to it
     if (inventoryScreenInstance) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code)) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Space'].includes(e.code)) {
             inventoryScreenInstance.handleInput(e.code, e.repeat);
             e.preventDefault();
         }
@@ -2548,6 +2549,20 @@ function resolveFrontArmFrame(state) {
     return armBase + (state.animPhase & 3);
 }
 
+function drawDungeonMagiaStones() {
+    if (!dungeonDchrSheetReady || !readMemory) return;
+    for (let i = 0; i < 4; i++) {
+        const base = ADDR_MAGIA_STONE_SPRITE0 + i * 7;
+        const data = readMemory(base, 7);
+        if (data[0] === 0xFF) continue;
+        if (data[2] === 0) continue;
+        const sx = data[5];
+        const sy = data[6] & 0x3F;
+        if (sy >= 19) continue; // outside viewport
+        drawSheetFrame(dungeonDchrSheet, 0x26, TILE_WIDTH, TILE_HEIGHT, 39, (sx - 4) * TILE_WIDTH, sy * TILE_HEIGHT);
+    }
+}
+
 function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
     if (readMemory(ADDR_HERO_SPRITE_HIDDEN, 1)[0]) return;
@@ -3814,6 +3829,7 @@ function draw() {
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawDungeonTiles();
+            drawDungeonMagiaStones();
             drawDungeonProjectiles();
             drawDungeonMagicProjectiles();
             drawDungeonEntities();

@@ -188,10 +188,10 @@ extern "C" {
 // Note: the last row is dummy, because sometimes we need to write 2x2 tiles blocks to the row 18
 
 #define ADDR_MAGIC_PROJECTILES                         0xEB15  // word
-#define ADDR_SPIRIT_SPRITE0                            0xEB60  // byte
-#define ADDR_SPIRIT_SPRITE1                            0xEB67  // byte
-#define ADDR_SPIRIT_SPRITE2                            0xEB6E  // byte
-#define ADDR_SPIRIT_SPRITE3                            0xEB75  // byte
+#define ADDR_MAGIA_STONE_SPRITE0                            0xEB60  // byte
+#define ADDR_MAGIA_STONE_SPRITE1                            0xEB67  // byte
+#define ADDR_MAGIA_STONE_SPRITE2                            0xEB6E  // byte
+#define ADDR_MAGIA_STONE_SPRITE3                            0xEB75  // byte
 #define ADDR_PROJECTILES_LIST                          0xEB80  // 13x32 bytes
 #define ADDR_PROXIMITY_LAYER2                          0xED20  // 128 bytes
 #define ADDR_BOSS_EXPLOSIONS_LIST                      0xEDA0  // up to 32 entities (4 bytes each)
