@@ -496,10 +496,10 @@ mapWidth                                           equ 0C002h
 proximity_map                                      equ 0E000h ; 900h bytes
 viewport_buffer_28x19                              equ 0E900h ; 28*19=532 bytes
 magic_projectiles                                  equ 0EB15h
-spirit_sprite_0                                    equ 0EB60h
-spirit_sprite_1                                    equ 0EB67h
-spirit_sprite_2                                    equ 0EB6Eh
-spirit_sprite_3                                    equ 0EB75h
+magia_stone_sprite_0                               equ 0EB60h
+magia_stone_sprite_1                               equ 0EB67h
+magia_stone_sprite_2                               equ 0EB6Eh
+magia_stone_sprite_3                               equ 0EB75h
 projectiles_array                                  equ 0EB80h ; 13x32 bytes
 proximity_second_layer                             equ 0ED20h ; proximity map is designed to keep only one item
                                                               ; at given address. So when we need to put other object,

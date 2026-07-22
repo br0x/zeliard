@@ -2847,7 +2847,7 @@ apply_sword_hit_to_map_tiles endp
 ;   - check_hero_contact_damage
 ;   - Flush UI dirty element
 ;   - projectiles_collision_processing
-;   - monsters_updates  (render)
+;   - magia_stone_updates  (render)
 ;   - step_on_aggressive_ground
 ;   - Temperature damage (cavern_level 7 = heat, every 0x40 ticks, 0x0F damage)
 ;     Protected by CAPE_ASBESTOS.
@@ -2923,7 +2923,7 @@ loc_702F:
                 call    check_hero_contact_damage
                 call    cs:Flush_Ui_Element_If_Dirty_proc
                 call    projectiles_collision_processing
-                call    monsters_updates
+                call    magia_stone_updates
                 call    cs:Render_Sword_Overlay_proc
                 call    step_on_aggressive_ground
                 cmp     byte ptr ds:cavern_level, 7 ; danger type = temperature
@@ -2962,10 +2962,10 @@ main_update_render endp
 ;
 ; Frame-rate timing:
 ;   Wait until frame_timer >= speed_const*2, then continue:
-;   7. monsters_updates (second pass — commit sprite positions).
+;   7. magia_stone_updates (second pass — commit sprite positions).
 ;   8. Flush UI dirty element.
 ;   9. update_and_render_projectile_row_pair.
-;   10. render_and_collision_pass_row.
+;   10. render_magia_stone_effect.
 ;   11. update_active_projectiles_render.
 ;   12. apply_sword_hit_to_map_tiles.
 ;   13. Render_Sword_Overlay.
@@ -3042,10 +3042,10 @@ loc_7125:
 loc_712D:        
                 cmp     ds:frame_timer, al
                 jb      short loc_712D
-                call    monsters_updates
+                call    magia_stone_updates
                 call    cs:Flush_Ui_Element_If_Dirty_proc
                 call    update_and_render_projectile_row_pair
-                call    render_and_collision_pass_row
+                call    render_magia_stone_effect
                 call    update_active_projectiles_render
                 call    apply_sword_hit_to_map_tiles
                 call    cs:Render_Sword_Overlay_proc
@@ -4315,10 +4315,10 @@ prepare_dungeon proc near
                 mov     ds:enp_grp_index, al
                 call    reset_dungeon_state_vars
                 mov     al, 0FFh
-                mov     ds:spirit_sprite_0, al
-                mov     ds:spirit_sprite_1, al
-                mov     ds:spirit_sprite_2, al
-                mov     ds:spirit_sprite_3, al
+                mov     ds:magia_stone_sprite_0, al
+                mov     ds:magia_stone_sprite_1, al
+                mov     ds:magia_stone_sprite_2, al
+                mov     ds:magia_stone_sprite_3, al
                 mov     byte ptr ds:hero_hidden_flag, 0
                 mov     es, cs:seg1
                 mov     si, offset vfs_fman_grp
@@ -6349,17 +6349,22 @@ proximity_map_coords_to_viewport_offset endp
 
 
 ; =============== S U B R O U T I N E =======================================
+; Full cycle:
+;   o       .       .       .       o       .       o       .   
+;  . .     . o     . .     . o     . .     o o     . .     o o  
+; o   o   .   .   .   o   .   .   o   o   .   .   o   .   .   . 
+;  . .     o o     . .     o o     . .     o .     . .     o .  
+;   o       .       o       .       o       .       .       .   
 
-
-render_and_collision_pass_row proc near
-                mov     si, offset spirit_sprite_0
+render_magia_stone_effect proc near
+                mov     si, offset magia_stone_sprite_0
                 mov     cx, 4
 
-next_spirit:
+next_magia_stone:
                 push    cx
                 cmp     byte ptr [si], 0FFh
-                jz      short loc_86DC
-                call    restore_bg_under_spirit_sprite
+                je      short loc_86DC
+                call    restore_bg_under_magia_stone_sprite
                 test    byte ptr [si+2], 0FFh
                 jnz     short loc_8693
                 mov     byte ptr [si], 0FFh
@@ -6373,18 +6378,18 @@ loc_8693:
                 add     bx, offset circle ;
                                         ; ..345..
                                         ; .2...6.
-                                        ; 1.....7
-                                        ; 0.....8
-                                        ; f.....9
+                                        ; 1..o..7
+                                        ; 0./)\.8
+                                        ; f./.\.9
                                         ; .e...a.
                                         ; ..dcb..
                 mov     ah, ds:hero_x_in_viewport
-                add     ah, [bx]
-                mov     [si+spirit.s_screen_x], ah
+                add     ah, [bx] ; deltaX
+                mov     [si+magia_stone.s_screen_x], ah
                 mov     al, ds:hero_head_y_in_viewport
-                add     al, [bx+1]
+                add     al, [bx+1] ; deltaY
                 and     al, 3Fh
-                mov     [si+spirit.s_screen_y], al
+                mov     [si+magia_stone.s_screen_y], al
                 push    ax
                 call    proximity_map_coords_to_viewport_offset ; AL: proximity map relative y
                                         ; AH: proximity map relative x
@@ -6398,7 +6403,7 @@ loc_8693:
                                         ; AH: x
                                         ; Returns video memory address in DI
                 or      di, 8000h
-                mov     [si+spirit.s_vram_addr], di
+                mov     [si+magia_stone.s_vram_addr], di
                 mov     al, 66h ; 'f'
                 and     di, 7FFFh  ; DI = screen address (half)
                 push    si
@@ -6407,45 +6412,45 @@ loc_8693:
                 pop     si
 
 loc_86DC:
-                add     si, 7  ; size of spirit struct
+                add     si, 7  ; size of magia_stone struct
                 pop     cx
-                loop    next_spirit
+                loop    next_magia_stone
                 retn
-render_and_collision_pass_row endp
+render_magia_stone_effect endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-restore_bg_under_spirit_sprite proc near
-                test    word ptr [si+spirit.s_vram_addr], 8000h
+restore_bg_under_magia_stone_sprite proc near
+                test    word ptr [si+magia_stone.s_vram_addr], 8000h
                 jnz     short loc_86EB
                 retn
 
 loc_86EB:
-                and     word ptr [si+spirit.s_vram_addr], 7FFFh
-                mov     dx, [si+spirit.s_vram_addr]
-                mov     ah, [si+spirit.s_screen_x]
-                mov     al, [si+spirit.s_screen_y]
+                and     word ptr [si+magia_stone.s_vram_addr], 7FFFh
+                mov     dx, [si+magia_stone.s_vram_addr]
+                mov     ah, [si+magia_stone.s_screen_x]
+                mov     al, [si+magia_stone.s_screen_y]
                 jmp     restore_bg_tile_at_given_position
-restore_bg_under_spirit_sprite endp
+restore_bg_under_magia_stone_sprite endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-monsters_updates proc near
-                mov     si, offset spirit_sprite_0
+magia_stone_updates proc near
+                mov     si, offset magia_stone_sprite_0
                 mov     cx, 4
 
-next_spirit_:     
+next_magia_stone_:     
                 push    cx
-                cmp     [si+spirit.s_orbit_phase], 0FFh
+                cmp     [si+magia_stone.s_orbit_phase], 0FFh
                 jz      short loc_873A
-                mov     bl, [si+spirit.s_orbit_phase]
-                add     bl, [si+spirit.s_orbit_speed]
+                mov     bl, [si+magia_stone.s_orbit_phase]
+                add     bl, [si+magia_stone.s_orbit_speed]
                 and     bl, 0Fh
-                mov     [si+spirit.s_orbit_phase], bl
+                mov     [si+magia_stone.s_orbit_phase], bl
                 xor     bh, bh
                 add     bx, bx
                 add     bx, offset circle ;
@@ -6466,23 +6471,23 @@ next_spirit_:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 xchg    si, di
-                sub     si, 37
+                sub     si, (36+1)
                 call    wrap_map_from_below ; if (si < 0E000h) si += 900h
                 xchg    si, di
-                call    spirit_sprite_place_in_proximity_rows
+                call    magia_stone_sprite_place_in_proximity_rows
 
 loc_873A:        
                 add     si, 7
                 pop     cx
-                loop    next_spirit_
+                loop    next_magia_stone_
                 retn
-monsters_updates endp
+magia_stone_updates endp
 
 
 ; =============== S U B R O U T I N E =======================================
 
 
-spirit_sprite_place_in_proximity_rows proc near
+magia_stone_sprite_place_in_proximity_rows proc near
                 test    byte ptr ds:is_boss_cavern, 0FFh
                 jz      short loc_8750
                 test    byte ptr ds:boss_is_dead, 0FFh
@@ -6500,7 +6505,7 @@ loc_8750:
                 xchg    si, di
                 call    proximity_cell_inject_spell_target
                 inc     di
-spirit_sprite_place_in_proximity_rows endp
+magia_stone_sprite_place_in_proximity_rows endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -8210,11 +8215,11 @@ move_monster_NE proc near
 
 loc_91FE:        
                 call    check_collision_NE2
-                jnb     short incX_decY
+                jnb     short incrX_decrY
                 retn
 ; ---------------------------------------------------------------------------
 
-incX_decY:       
+incrX_decrY:       
                 call    incrementX
                 jmp     decrementY
 move_monster_NE endp
@@ -8260,11 +8265,11 @@ move_monster_NW proc near
 
 loc_9229:        
                 call    check_collision_NW2 ; NC
-                jnc     short decX_decY
+                jnc     short decrX_decrY
                 retn
 ; ---------------------------------------------------------------------------
 
-decX_decY:       
+decrX_decrY:       
                 call    decrementX
                 jmp     short decrementY
 move_monster_NW endp

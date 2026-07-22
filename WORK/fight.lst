@@ -2580,7 +2580,7 @@ fight:7034                 mov     ds:byte_9F14, 0
 fight:7039                 call    check_hero_contact_damage
 fight:703C                 call    cs:Flush_Ui_Element_If_Dirty_proc
 fight:7041                 call    projectiles_collision_processing
-fight:7044                 call    monsters_updates
+fight:7044                 call    magia_stone_updates
 fight:7047                 call    cs:Render_Sword_Overlay_proc
 fight:704C                 call    step_on_aggressive_ground
 fight:704F                 cmp     ds:cavern_level, 7 ; danger type = temperature
@@ -2673,10 +2673,10 @@ fight:712D
 fight:712D loc_712D:                               ; ...
 fight:712D                 cmp     ds:frame_timer, al
 fight:7131                 jb      short loc_712D
-fight:7133                 call    monsters_updates
+fight:7133                 call    magia_stone_updates
 fight:7136                 call    cs:Flush_Ui_Element_If_Dirty_proc
 fight:713B                 call    update_and_render_projectile_row_pair
-fight:713E                 call    render_and_collision_pass_row
+fight:713E                 call    render_magia_stone_effect
 fight:7141                 call    update_active_projectiles_render
 fight:7144                 call    apply_sword_hit_to_map_tiles
 fight:7147                 call    cs:Render_Sword_Overlay_proc
@@ -5971,7 +5971,7 @@ fight:8679
 fight:8679 ; =============== S U B R O U T I N E =======================================
 fight:8679
 fight:8679
-fight:8679 render_and_collision_pass_row proc near ; ...
+fight:8679 render_magia_stone_effect proc near ; ...
 fight:8679                 mov     si, offset spirit_sprite_0
 fight:867C                 mov     cx, 4
 fight:867F
@@ -6032,7 +6032,7 @@ fight:86DC                 add     si, 7
 fight:86DF                 pop     cx
 fight:86E0                 loop    next_spirit
 fight:86E2                 retn
-fight:86E2 render_and_collision_pass_row endp
+fight:86E2 render_magia_stone_effect endp
 fight:86E2
 fight:86E3
 fight:86E3 ; =============== S U B R O U T I N E =======================================
@@ -6056,7 +6056,7 @@ fight:86FC
 fight:86FC ; =============== S U B R O U T I N E =======================================
 fight:86FC
 fight:86FC
-fight:86FC monsters_updates proc near              ; ...
+fight:86FC magia_stone_updates proc near              ; ...
 fight:86FC                 mov     si, offset spirit_sprite_0
 fight:86FF                 mov     cx, 4
 fight:8702
@@ -6098,7 +6098,7 @@ fight:873A                 add     si, 7
 fight:873D                 pop     cx
 fight:873E                 loop    next_spirit
 fight:8740                 retn
-fight:8740 monsters_updates endp
+fight:8740 magia_stone_updates endp
 fight:8740
 fight:8741
 fight:8741 ; =============== S U B R O U T I N E =======================================

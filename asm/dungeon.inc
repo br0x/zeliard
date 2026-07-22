@@ -81,15 +81,15 @@ magic_projectile   STRUC
   mp_vram_addr_tile11       dw   ? ; 14
 magic_projectile   ENDS
 
-; Unknown yet thing, the name is result of AI hallucination
-spirit             STRUC
+; Video effect of Magia Stone
+magia_stone        STRUC
   s_orbit_phase    db   ? ; FF: inactive; bits 3..0: orbit phase
   s_orbit_speed    db   ?
   s_active_shots   db   ?
   s_vram_addr      dw   ? ; bit 15: dirty flag, bit 14..0: VRAM address
   s_screen_x       db   ?
   s_screen_y       db   ?
-spirit             ENDS
+magia_stone        ENDS
 
 ; Following group of definitions share the same space as gtmcga.bin, 
 ; so they are in separate include files

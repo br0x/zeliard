@@ -536,7 +536,6 @@ Draw_Item_Status_Frame        proc near
 Draw_Item_Status_Frame        endp
 
 ; ---------------------------------------------------------------------------
-; ---------------------------------------------------------------------------
 
 loc_A391:
                 mov     cl, 1
@@ -632,7 +631,7 @@ item_effect_jump_table dw offset item_heal_hp
                 dw offset item_full_heal
                 dw offset item_set_espada
                 dw offset item_refresh_all_spells
-                dw offset item_spirit_shield
+                dw offset item_magia_stone
                 dw offset item_repair_shield
                 dw offset item_enchant_sword
                 dw offset item_exit_inventory
@@ -722,41 +721,40 @@ loc_A518:                               ;
                 call    word ptr cs:201Ah ; Print_ShieldHP_Decimal_proc
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
-shield_hp_values       dw 50h, 5Ah, 64h, 6Eh, 73h, 78h
-; ---------------------------------------------------------------------------
+shield_hp_values   dw 80, 90, 100, 110, 115, 120
 ; ---------------------------------------------------------------------------
 
-item_spirit_shield:
+item_magia_stone:
                 push    cs
                 pop     es
                 mov     byte ptr ds:soundFX_request, 14
-                mov     spirit_copy_src, 0
-                mov     spirit_copy_flag, 1
-                mov     si, offset spirit_copy_src
-                mov     di, 0EB60h
+                mov     magia_stone_copy_src, 0
+                mov     magia_stone_copy_flag, 1
+                mov     si, offset magia_stone_copy_src
+                mov     di, offset magia_stone_sprite_0
                 mov     cx, 7
                 rep movsb
-                mov     spirit_copy_src, 4
-                mov     spirit_copy_flag, 0FFh
-                mov     si, offset spirit_copy_src
-                mov     di, 0EB67h
+                mov     magia_stone_copy_src, 4
+                mov     magia_stone_copy_flag, 0FFh
+                mov     si, offset magia_stone_copy_src
+                mov     di, offset magia_stone_sprite_1
                 mov     cx, 7
                 rep movsb
-                mov     spirit_copy_src, 8
-                mov     si, offset spirit_copy_src
-                mov     di, 0EB6Eh
+                mov     magia_stone_copy_src, 8
+                mov     si, offset magia_stone_copy_src
+                mov     di, offset magia_stone_sprite_2
                 mov     cx, 7
                 rep movsb
-                mov     spirit_copy_src, 0Ch
-                mov     spirit_copy_flag, 1
-                mov     si, offset spirit_copy_src
-                mov     di, 0EB75h
+                mov     magia_stone_copy_src, 0Ch
+                mov     magia_stone_copy_flag, 1
+                mov     si, offset magia_stone_copy_src
+                mov     di, offset magia_stone_sprite_3
                 mov     cx, 7
                 rep movsb
                 jmp     short Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
-spirit_copy_src       db 0
-spirit_copy_flag       db 0
+magia_stone_copy_src   db 0
+magia_stone_copy_flag  db 0
                 db  50h ; P
                 db    0
                 db    0

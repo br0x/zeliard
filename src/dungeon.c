@@ -604,7 +604,7 @@ void Draw_Boss_Health()
 }
 
 // stub, will implement later
-void render_and_collision_pass_row()
+void render_magia_stone_effect()
 {
 
 }
@@ -2509,7 +2509,7 @@ void Flush_Ui_Element_If_Dirty_proc()
 
 
 // stub
-void monsters_updates(void) {}
+void magia_stone_updates(void) {}
 
 
 /* Damage table indexed by (cavern_level - 1) */
@@ -4187,7 +4187,7 @@ static uint8_t main_update_render_pre(void) {
     check_hero_contact_damage();
     Flush_Ui_Element_If_Dirty_proc(); // request canvas redraw, todo
     projectiles_collision_processing();
-    monsters_updates();
+    magia_stone_updates();
     Render_Sword_Overlay();
     step_on_aggressive_ground();
 
@@ -4282,10 +4282,10 @@ static uint8_t dungeon_render_timing_step(uint8_t invincible)
             return 0;
         }
 
-        monsters_updates();
+        magia_stone_updates();
         Flush_Ui_Element_If_Dirty_proc();
         update_and_render_projectile_row_pair();
-        render_and_collision_pass_row();
+        render_magia_stone_effect();
         update_active_projectiles_render();
         apply_sword_hit_to_map_tiles();
         Render_Sword_Overlay();
