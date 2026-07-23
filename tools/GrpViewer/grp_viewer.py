@@ -660,7 +660,145 @@ CRAB_FRAMES = {
     ],
 }
 
+# Transcribed directly from tako.asm's sprite-frame descriptor tables
+# (byte_A052..byte_A25F), selected via anim_frame_table_ptrs. Same format
+# as CRAB_FRAMES/ENP*_FRAMES: each entry is [pal_idx, tl, tr, bl, br],
+# four 8x8 sub-tile indices (0 = transparent) composed into a 16x16 frame.
+# These tables aren't read by Pulpo_AI_proc itself (they belong to a
+# separate, generic monster-rendering routine not included in tako.asm),
+# so we don't have the original semantic names for each set the way a
+# hand-curated pass previously named CRAB_FRAMES's body parts; they're
+# labeled here by their slot index in anim_frame_table_ptrs instead.
 TAKO_FRAMES = {
+    "Frame Set 00 (byte_A052)": [
+        [0, 0, 0, 1, 0],
+        [0, 2, 3, 4, 5],
+        [0, 0, 0, 6, 7],
+        [0, 0, 0, 8, 9],
+        [0, 10, 11, 12, 13],
+        [0, 14, 15, 16, 17],
+        [0, 0, 0, 0, 22],
+        [0, 23, 24, 25, 26],
+        [0, 27, 28, 29, 30],
+        [0, 0, 0, 31, 32],
+        [0, 0, 0, 33, 34],
+        [0, 35, 36, 37, 38],
+        [0, 39, 40, 41, 42],
+        [0, 0, 0, 43, 44],
+        [0, 45, 46, 47, 48],
+        [0, 49, 50, 51, 52],
+    ],
+    "Frame Set 01 (byte_A0A2)": [
+        [0, 0, 0, 0, 53],
+        [0, 54, 55, 56, 57],
+        [0, 58, 59, 60, 61],
+        [0, 0, 0, 0, 62],
+        [0, 63, 64, 65, 66],
+        [0, 67, 68, 69, 26],
+        [0, 0, 0, 70, 71],
+        [0, 72, 36, 37, 38],
+        [0, 0, 0, 73, 74],
+        [0, 75, 76, 77, 78],
+        [0, 0, 0, 79, 74],
+        [0, 80, 76, 77, 78],
+        [0, 0, 0, 33, 81],
+        [0, 35, 82, 37, 38],
+        [0, 83, 0, 84, 85],
+        [0, 0, 86, 87, 88],
+    ],
+    "Frame Set 02 (byte_A0F2)": [
+        [0, 0, 0, 3, 0],
+        [0, 89, 90, 91, 92],
+        [0, 14, 93, 94, 95],
+        [0, 0, 0, 99, 0],
+        [0, 100, 101, 102, 103],
+        [0, 104, 105, 106, 107],
+        [0, 14, 108, 109, 95],
+        [0, 113, 68, 69, 26],
+        [0, 0, 0, 114, 115],
+        [0, 116, 0, 117, 118],
+        [0, 0, 0, 119, 120],
+        [0, 121, 122, 123, 124],
+        [0, 127, 24, 25, 26],
+        [0, 128, 0, 129, 130],
+        [0, 0, 0, 0, 131],
+        [0, 0, 0, 119, 120],
+    ],
+    "Frame Set 03 (byte_A142)": [
+        [0, 132, 133, 134, 135],
+        [0, 0, 0, 0, 23],
+        [0, 138, 139, 140, 141],
+        [0, 0, 0, 142, 143],
+        [0, 144, 145, 146, 147],
+        [0, 0, 149, 150, 151],
+        [0, 102, 0, 152, 153],
+        [0, 154, 0, 155, 156],
+        [0, 0, 157, 158, 159],
+        [0, 162, 163, 0, 164],
+        [0, 0, 0, 165, 166],
+        [0, 197, 204, 198, 21],
+        [0, 10, 169, 170, 13],
+        [0, 10, 172, 173, 174],
+        [0, 14, 15, 175, 17],
+        [0, 0, 86, 0, 0],
+    ],
+    "Frame Set 04 (byte_A192)": [
+        [0, 89, 177, 0, 178],
+        [0, 14, 93, 179, 95],
+        [0, 181, 182, 0, 103],
+        [0, 183, 184, 106, 107],
+        [0, 0, 0, 117, 118],
+        [0, 0, 186, 123, 124],
+        [0, 188, 189, 134, 135],
+        [0, 206, 207, 140, 0],
+        [0, 144, 191, 0, 192],
+        [0, 0, 157, 0, 194],
+        [0, 10, 172, 173, 174],
+        [0, 14, 93, 196, 95],
+        [0, 14, 15, 196, 17],
+        [0, 14, 108, 196, 95],
+        [0, 14, 15, 196, 199],
+        [0, 23, 24, 200, 201],
+    ],
+    "Frame Set 05 (byte_A1E2)": [
+        [0, 202, 203, 29, 30],
+        [0, 14, 93, 196, 205],
+        [0, 67, 68, 200, 201],
+        [0, 14, 108, 196, 205],
+        [0, 113, 68, 200, 201],
+        [0, 127, 24, 200, 201],
+        [0, 0, 0, 8, 168],
+    ],
+    "Frame Set 15 (byte_A205)": [
+        [0, 18, 19, 20, 21],
+        [0, 96, 97, 98, 21],
+        [0, 110, 111, 112, 21],
+        [0, 125, 111, 126, 21],
+        [0, 136, 111, 137, 21],
+        [0, 148, 111, 137, 21],
+        [0, 160, 111, 161, 21],
+        [0, 171, 111, 20, 21],
+        [0, 176, 19, 20, 21],
+        [0, 180, 97, 98, 21],
+        [0, 185, 111, 112, 21],
+        [0, 187, 111, 126, 21],
+        [0, 190, 111, 137, 21],
+        [0, 193, 111, 137, 21],
+        [0, 195, 111, 137, 21],
+        [0, 197, 111, 20, 21],
+    ],
+    "Frame Set 14 (byte_A255)": [
+        [0, 197, 19, 198, 21],
+        [0, 0, 0, 167, 168],
+    ],
+    "Frame Set 16 (byte_A25F)": [
+        [2, 0, 208, 0, 209],
+        [2, 210, 211, 212, 213],
+        [2, 0, 0, 214, 215],
+        [2, 216, 217, 218, 219],
+        [2, 220, 221, 222, 223],
+        [2, 224, 225, 226, 227],
+    ],
 }
 
 ENP_FRAMES_MAP = {
@@ -1382,11 +1520,41 @@ def render_crab_group(data, canvas, y_offset):
     return current_y - y_offset
 
 def render_tako_group(data, canvas, y_offset):
+    """
+    Render tako.grp sprites (Pulpo boss) using the TAKO_FRAMES tables.
+    Same physical format as crab.grp/enpN.grp: each frame is composed of
+    four 8x8 sub-tiles (32 bytes each) with a shared per-frame palette
+    index, drawn via draw_composed_16x16_frame.
+    """
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    # implement me!
-    
+    gap_x = 8
+    gap_y = 8
+    sprite_px = 16  # Total width/height of the 2x2 tile assembly
+    frames_per_row = 16
+
+    # Ensure the data buffer is padded to prevent index-out-of-range errors
+    # for high tile indices.
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    for set_name, frames in TAKO_FRAMES.items():
+        # Label each frame set so it's clear which slot in
+        # anim_frame_table_ptrs it came from.
+        canvas.create_text(10, current_y + 8, text=set_name, anchor="w", fill="white")
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
     return current_y - y_offset
 
 # ---------------------------------------------------------------------------

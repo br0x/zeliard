@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/enp1.grp"
+                "${workspaceFolder}/tools/GrpViewer/tako.grp"
             ],
             "console": "integratedTerminal",
         },
