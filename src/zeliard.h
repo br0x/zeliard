@@ -330,6 +330,7 @@ void load_eai_module(uint8_t level_index); // enemy AI dispatcher
 void Monster_AI_1(uint16_t m);
 void Monster_AI_2(uint16_t m);
 void Cangrejo_AI(uint16_t m);
+void Pulpo_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
