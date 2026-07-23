@@ -1822,10 +1822,13 @@ void prepare_dungeon(uint8_t is_from_town)
     // Only reset on actual town re-entry, not during door transitions (boss exit etc.)
     if (is_from_town) saved_y_view_init = 10;
     reset_dungeon_state_vars();
-    MEM8(ADDR_MAGIA_STONE_SPRITE0) = 0xFF;
-    MEM8(ADDR_MAGIA_STONE_SPRITE1) = 0xFF;
-    MEM8(ADDR_MAGIA_STONE_SPRITE2) = 0xFF;
-    MEM8(ADDR_MAGIA_STONE_SPRITE3) = 0xFF;
+    // Only reset magia stones on town→dungeon entry, not cavern→cavern doors
+    if (is_from_town) {
+        MEM8(ADDR_MAGIA_STONE_SPRITE0) = 0xFF;
+        MEM8(ADDR_MAGIA_STONE_SPRITE1) = 0xFF;
+        MEM8(ADDR_MAGIA_STONE_SPRITE2) = 0xFF;
+        MEM8(ADDR_MAGIA_STONE_SPRITE3) = 0xFF;
+    }
     MEM8(ADDR_HERO_HIDDEN_FLAG) = 0;
     // load 'fman.grp' into fman_gfx -> done in game.js
     // Decompress_Tile_Data_proc(fman_gfx + 0x333, hero_transparency_masks, 230);

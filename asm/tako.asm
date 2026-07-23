@@ -24,7 +24,8 @@ start:
 encounter_hp_table db 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
                 db 10, 10, 10, 40, 10, 10, 10, 10, 10, 10, 10, 10, 10
                 db 10, 10, 10, 10, 10, 10
-anim_frame_table_ptrs dw offset byte_A052
+anim_frame_table_ptrs: ; A030
+                dw offset byte_A052
                 dw offset byte_A0A2
                 dw offset byte_A0F2
                 dw offset byte_A142

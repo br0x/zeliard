@@ -67,6 +67,7 @@ GRP_DESCRIPTOR = [
     ("enp2.grp",  11),
     ("crab.grp",  12),
     ("dman.grp",  13), # rokademo
+    ("tako.grp",  14),
 ]
 
 MODE_CFG = {
@@ -84,6 +85,7 @@ MODE_CFG = {
     11:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "enp"},
     12:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "crab"},
     13:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "dman"},
+    14:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tako"},
 }
 
 SCALE = 3
@@ -658,11 +660,15 @@ CRAB_FRAMES = {
     ],
 }
 
+TAKO_FRAMES = {
+}
+
 ENP_FRAMES_MAP = {
-    1: ENP1_FRAMES,                                                                                                                                  
-    2: ENP2_FRAMES, 
-    3: CRAB_FRAMES,                                                                                                                                 
-}                                                                                                                                                    
+    1: ENP1_FRAMES,
+    2: ENP2_FRAMES,
+    3: CRAB_FRAMES,
+    4: TAKO_FRAMES,
+}
 
 # ---------------------------------------------------------------------------
 # Decompression logic
@@ -1314,7 +1320,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
 
     return current_y - y_offset
 
-def render_boss_group(data, canvas, y_offset):
+def render_crab_group(data, canvas, y_offset):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
@@ -1373,6 +1379,14 @@ def render_boss_group(data, canvas, y_offset):
         num_rows = (len(frames) + f_per_row - 1) // f_per_row
         current_y += num_rows * (16 * scale + 12)
         
+    return current_y - y_offset
+
+def render_tako_group(data, canvas, y_offset):
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+    # implement me!
+    
     return current_y - y_offset
 
 # ---------------------------------------------------------------------------
@@ -1820,7 +1834,11 @@ class GrpViewer:
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             elif modes == 12:
-                consumed = render_boss_group(data, self.canvas, y_cursor)
+                consumed = render_crab_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+            elif modes == 14:
+                consumed = render_tako_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             elif modes == 13:
