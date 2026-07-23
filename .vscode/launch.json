@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/crab.grp"
+                "${workspaceFolder}/tools/GrpViewer/enp1.grp"
             ],
             "console": "integratedTerminal",
         },

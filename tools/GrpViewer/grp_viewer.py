@@ -821,7 +821,7 @@ def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_
     for i, p_idx in enumerate(pixels):
         rx, ry = i % tile_w, i // tile_w
         if p_idx is None or p_idx == transparent_idx:
-            draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
+            # draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
             continue
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
         
@@ -1294,7 +1294,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
     gap_x = 8
     gap_y = 8
     sprite_px = 16  # Total width/height of the 2x2 tile assembly
-    frames_per_row = 12
+    frames_per_row = 14
     frames = ENP_FRAMES_MAP.get(enp_index, ENP1_FRAMES)
 
     # Ensure the data buffer is padded to prevent index-out-of-range errors 
@@ -1308,8 +1308,8 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
             fy = f_idx // frames_per_row
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
             # Draw frame background
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
-                                     y_frame + sprite_px*scale, fill="#8c38ff", outline="")
+            # canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
+            #                          y_frame + sprite_px*scale, fill="#8c38ff", outline="")
             draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
 
         # Advance Y cursor to the next animation block
