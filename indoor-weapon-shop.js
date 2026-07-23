@@ -990,6 +990,11 @@ export class WeaponShopScene extends IndoorSceneBase {
             // Return old sword to shop inventory bitmask
             if (old) this._orSwordBitmask(itemIndexToBit(old - 1));
             this._setSwordType(itemIdx + 1);
+            // Enchantment Sword (item index 5, sword_type 6) is one-time only
+            if (itemIdx === 5) {
+                const mask = this._getSwordBitmask();
+                this._write(ADDR_SWORD_MASKS + this.townIdx, [mask & ~itemIndexToBit(5)]);
+            }
         } else {
             const old = this._getShieldType();
             if (old) this._orShieldBitmask(itemIndexToBit(old - 1));

@@ -835,8 +835,6 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         // Place item in player slot (item id = 1-based index)
         this._setPlayerMagicSlot(freeSlot, this._pendingItemIdx + 1);
 
-        // Remove item from shop stock
-        this._andMagicBitmask(itemIndexToBit(this._pendingItemIdx));
         this._buildInventoryLists();
 
         this._pendingItemIdx = null;
