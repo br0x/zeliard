@@ -86,6 +86,7 @@ export class IndoorSceneBase {
     clearAndDraw(now, alpha) {
         const ctx = this.ctx;
         ctx.save();
+        ctx.textBaseline = 'alphabetic';
         ctx.globalAlpha = alpha;
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);

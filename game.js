@@ -2724,10 +2724,12 @@ function drawDungeonNotification() {
     const h = TILE_HEIGHT * 2;
 
     drawDungeonBox(x, y, w, h);
+    ctx.save();
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x + leftPad*(TILE_WIDTH/8), y + h / 2);
+    ctx.restore();
 }
 
 function drawDungeonSign() {
@@ -2747,6 +2749,7 @@ function drawDungeonSign() {
     const w = TILE_WIDTH * ((VIEW_COLS - 2*5));
 
     drawDungeonBox(x, y, w, h);
+    ctx.save();
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'top';
@@ -2760,7 +2763,7 @@ function drawDungeonSign() {
 
         while (true) {
             let ch = readU8(offset++);
-            if (ch === 0xFF) return;
+            if (ch === 0xFF) { ctx.restore(); return; }
             if (ch === 0x2F) { // CR/LF
                 cy += (TILE_HEIGHT + TILE_HEIGHT/2);
                 break; // will read xDelta in outer loop
@@ -2770,6 +2773,7 @@ function drawDungeonSign() {
             bx += TILE_WIDTH;
         }
     }
+    ctx.restore();
 }
 
 let prevRokaDx = -1;
