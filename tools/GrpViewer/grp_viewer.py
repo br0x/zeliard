@@ -801,6 +801,76 @@ TAKO_FRAMES = {
     ],
 }
 
+
+# Tentacle layout tables (tile_group, anim_idx pairs) transcribed from
+# tako.asm byte_A5BD..byte_A993 (off_A57D pointer table), index 0..31 =
+# tentacle_anim_step (0-7) + anim_group_offset (0/8/16/24). tile_group
+# indexes into TAKO_FRAME_SET_BY_INDEX / TAKO_FRAMES; anim_idx indexes
+# into that frame set's list.
+TAKO_LAYOUT_TABLES = [
+    [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (15, 0), (0, 6), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (0, 13), (0, 14), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A5BD
+    [(1, 14), (1, 15), (2, 0), (2, 1), (2, 2), (15, 1), (0, 6), (1, 5), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A5E3
+    [(2, 3), (2, 4), (2, 5), (2, 6), (15, 2), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A607
+    [(2, 8), (2, 9), (2, 10), (2, 11), (2, 6), (15, 3), (0, 9), (2, 12), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A629
+    [(2, 13), (2, 14), (2, 15), (3, 0), (2, 6), (15, 4), (0, 6), (2, 12), (0, 8), (1, 12), (1, 13), (0, 12), (1, 10), (1, 11), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A64D
+    [(3, 1), (3, 2), (3, 3), (3, 4), (2, 6), (15, 5), (0, 6), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A671
+    [(3, 5), (3, 6), (3, 7), (3, 8), (2, 6), (15, 6), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A695
+    [(3, 9), (3, 10), (14, 1), (3, 12), (2, 2), (15, 7), (0, 9), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A6B9
+    [(0, 0), (0, 1), (5, 6), (3, 13), (3, 14), (15, 8), (0, 6), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (0, 13), (0, 14), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A6DD
+    [(1, 14), (3, 15), (2, 0), (4, 0), (4, 1), (15, 9), (0, 6), (1, 5), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A701
+    [(2, 3), (4, 2), (4, 3), (2, 6), (15, 10), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A725
+    [(4, 4), (4, 5), (2, 6), (15, 11), (0, 9), (2, 12), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A747
+    [(2, 14), (4, 6), (2, 6), (15, 12), (0, 6), (2, 12), (0, 8), (1, 12), (1, 13), (0, 12), (1, 10), (1, 11), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A767
+    [(3, 1), (4, 7), (3, 3), (4, 8), (2, 6), (15, 13), (0, 6), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A787
+    [(3, 5), (3, 7), (4, 9), (2, 6), (15, 14), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A7AB
+    [(3, 9), (14, 1), (4, 10), (4, 11), (15, 15), (0, 9), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A7CD
+    [(4, 12), (14, 0), (0, 6), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (0, 13), (0, 14), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A7EF
+    [(4, 11), (14, 0), (0, 6), (1, 5), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A80B
+    [(4, 13), (14, 0), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A827
+    [(4, 13), (14, 0), (0, 9), (2, 12), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A843
+    [(4, 13), (14, 0), (0, 6), (2, 12), (0, 8), (1, 12), (1, 13), (0, 12), (1, 10), (1, 11), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A85F
+    [(4, 13), (14, 0), (0, 6), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A87B
+    [(4, 13), (14, 0), (0, 9), (2, 7), (0, 8), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A897
+    [(4, 11), (14, 0), (0, 9), (0, 7), (0, 8), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A8B3
+    [(4, 14), (3, 11), (0, 6), (4, 15), (5, 0), (0, 10), (0, 11), (0, 12), (0, 13), (0, 14), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A8CF
+    [(5, 1), (3, 11), (0, 6), (5, 2), (5, 0), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A8EB
+    [(5, 3), (3, 11), (0, 9), (5, 4), (5, 0), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A907
+    [(5, 3), (3, 11), (0, 9), (5, 5), (5, 0), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A923
+    [(5, 3), (3, 11), (0, 6), (5, 5), (5, 0), (1, 12), (1, 13), (0, 12), (1, 10), (1, 11), (0, 15), (1, 0), (1, 1), (1, 2)],  # byte_A93F
+    [(5, 3), (3, 11), (0, 6), (5, 4), (5, 0), (1, 6), (1, 7), (0, 12), (1, 8), (1, 9), (0, 15), (1, 3), (1, 1), (1, 2)],  # byte_A95B
+    [(5, 3), (3, 11), (0, 9), (5, 4), (5, 0), (1, 6), (1, 7), (0, 12), (0, 13), (0, 14), (0, 15), (1, 3), (1, 4), (1, 2)],  # byte_A977
+    [(5, 1), (3, 11), (0, 9), (4, 15), (5, 0), (0, 10), (0, 11), (0, 12), (1, 8), (1, 9), (0, 15), (1, 0), (1, 4), (1, 2)],  # byte_A993
+]
+
+# The 7 distinct tentacle row-visibility bitmasks (byte_A9EF..byte_AA19).
+TAKO_SHAPE_BASES = [
+    (224, 96, 96, 224, 224, 224, 224),  # byte_A9EF
+    (96, 96, 96, 224, 224, 224, 224),  # byte_A9F6
+    (96, 32, 96, 224, 224, 224, 224),  # byte_A9FD
+    (192, 96, 96, 224, 224, 224, 224),  # byte_AA04
+    (32, 32, 96, 224, 224, 224, 224),  # byte_AA0B
+    (64, 96, 96, 224, 224, 224, 224),  # byte_AA12
+    (0, 0, 96, 224, 224, 224, 224),  # byte_AA19
+]
+
+# off_A9AF: which of the 7 base shape masks each of the 32 table slots uses
+# (several slots alias the same physical mask in the original data).
+TAKO_SHAPE_MAP = [0, 1, 2, 1, 1, 1, 1, 1, 3, 1, 2, 4, 4, 1, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+
+# Maps a tile_group value (as found in TAKO_LAYOUT_TABLES) to its
+# TAKO_FRAMES key -- i.e. which anim_frame_table_ptrs slot it selects.
+TAKO_FRAME_SET_BY_INDEX = {
+    0: "Frame Set 00 (byte_A052)",
+    1: "Frame Set 01 (byte_A0A2)",
+    2: "Frame Set 02 (byte_A0F2)",
+    3: "Frame Set 03 (byte_A142)",
+    4: "Frame Set 04 (byte_A192)",
+    5: "Frame Set 05 (byte_A1E2)",
+    14: "Frame Set 14 (byte_A255)",
+    15: "Frame Set 15 (byte_A205)",
+    16: "Frame Set 16 (byte_A25F)",
+}
+
 ENP_FRAMES_MAP = {
     1: ENP1_FRAMES,
     2: ENP2_FRAMES,
@@ -959,7 +1029,7 @@ def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_
     for i, p_idx in enumerate(pixels):
         rx, ry = i % tile_w, i // tile_w
         if p_idx is None or p_idx == transparent_idx:
-            # draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
+            draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
             continue
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
         
@@ -1432,7 +1502,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
     gap_x = 8
     gap_y = 8
     sprite_px = 16  # Total width/height of the 2x2 tile assembly
-    frames_per_row = 14
+    frames_per_row = 12
     frames = ENP_FRAMES_MAP.get(enp_index, ENP1_FRAMES)
 
     # Ensure the data buffer is padded to prevent index-out-of-range errors 
@@ -1446,8 +1516,8 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
             fy = f_idx // frames_per_row
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
             # Draw frame background
-            # canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
-            #                          y_frame + sprite_px*scale, fill="#8c38ff", outline="")
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
+                                     y_frame + sprite_px*scale, fill="#8c38ff", outline="")
             draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
 
         # Advance Y cursor to the next animation block
@@ -1519,12 +1589,58 @@ def render_crab_group(data, canvas, y_offset):
         
     return current_y - y_offset
 
+def compute_tako_phase_layout(table_idx):
+    """
+    Reproduce Pulpo_AI_proc's tentacle-layout walk (loc_A3E3's outer/inner
+    loop over 7 columns x 8 rows) for a single table_idx (0..31 =
+    tentacle_anim_step + anim_group_offset), returning a static snapshot:
+    a list of (col, row, tile_group, anim_idx) for every currently-visible
+    tentacle segment.
+
+    Note: in the original game the shape-mask byte is rotated in place and
+    that rotation persists across frames (and is shared between the several
+    table_idx slots that alias the same physical mask -- see
+    TAKO_SHAPE_MAP). For this static reference sheet we instead start each
+    table_idx from a fresh copy of its base mask, so every phase is shown
+    the way it looks the first time it's ever selected, rather than
+    depending on unknowable prior-frame history.
+    """
+    layout_pairs = TAKO_LAYOUT_TABLES[table_idx]
+    shape = list(TAKO_SHAPE_BASES[TAKO_SHAPE_MAP[table_idx]])
+    pair_iter = iter(layout_pairs)
+    placements = []
+
+    for col in range(7):
+        b = shape[col]
+        for row in range(8):
+            carry = (b & 0x80) != 0
+            b = ((b << 1) | (1 if carry else 0)) & 0xFF
+            if carry:
+                try:
+                    tile_group, anim_idx = next(pair_iter)
+                except StopIteration:
+                    break
+                placements.append((col, row, tile_group, anim_idx))
+
+    return placements
+
+
 def render_tako_group(data, canvas, y_offset):
     """
-    Render tako.grp sprites (Pulpo boss) using the TAKO_FRAMES tables.
-    Same physical format as crab.grp/enpN.grp: each frame is composed of
-    four 8x8 sub-tiles (32 bytes each) with a shared per-frame palette
-    index, drawn via draw_composed_16x16_frame.
+    Render tako.grp sprites (Pulpo boss).
+
+    Part 1 assembles the actual tentacle body (7 columns x up to 8 rows)
+    for each of the 32 tentacle_anim_step/anim_group_offset combinations,
+    exactly as Pulpo_AI_proc lays it out from TAKO_LAYOUT_TABLES /
+    TAKO_SHAPE_BASES, using each placement's tile_group to pick the right
+    TAKO_FRAMES set and anim_idx to pick the frame within it.
+
+    Part 2 is a plain browser over every raw frame set (same as before),
+    since one of them (Frame Set 16 / byte_A25F) is never referenced by
+    the tentacle layout tables at all -- it's some other sprite (most
+    likely the ink-droplet projectile, which Pulpo_AI_proc addresses with
+    a fixed tile id rather than through anim_frame_table_ptrs) and so has
+    no placement of its own in the composite body.
     """
     TILE_SIZE = 32
     scale = 3
@@ -1538,6 +1654,44 @@ def render_tako_group(data, canvas, y_offset):
     # for high tile indices.
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Tako Body (32 tentacle_anim_step / phase combos)
+    # -----------------------------------------------------------------------
+    body_scale = 2  # the 7x8-tile grid is much larger than crab's, scale down to fit
+    cols, rows = 7, 8
+    block_w, block_h = cols * 16 * body_scale, rows * 16 * body_scale
+    phases_per_row = 8  # table_idx 0-7/8-15/16-23/24-31 = the 4 anim_group_offset steps
+    body_gap_x, body_gap_y = 16, 28
+
+    for table_idx in range(32):
+        col_idx = table_idx % phases_per_row
+        row_idx = table_idx // phases_per_row
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base, y_base + block_h + 10, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
+                            anchor="nw", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
+            set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+            frames = TAKO_FRAMES[set_name]
+            if anim_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
+                                       x_base + gcol * 16 * body_scale,
+                                       y_base + grow * 16 * body_scale,
+                                       body_scale)
+
+    num_body_rows = (32 + phases_per_row - 1) // phases_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set (including the one the composite
+    # body never uses, Frame Set 16)
+    # -----------------------------------------------------------------------
     for set_name, frames in TAKO_FRAMES.items():
         # Label each frame set so it's clear which slot in
         # anim_frame_table_ptrs it came from.
