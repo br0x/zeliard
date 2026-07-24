@@ -1645,7 +1645,7 @@ def render_tako_group(data, canvas, y_offset):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 8
+    gap_x = 0
     gap_y = 8
     sprite_px = 16  # Total width/height of the 2x2 tile assembly
     frames_per_row = 16
@@ -1663,35 +1663,36 @@ def render_tako_group(data, canvas, y_offset):
     phases_per_row = 8  # table_idx 0-7/8-15/16-23/24-31 = the 4 anim_group_offset steps
     body_gap_x, body_gap_y = 4, 8
 
-    for table_idx in range(32):
-        col_idx = table_idx % phases_per_row
-        row_idx = table_idx // phases_per_row
-        x_base = 10 + col_idx * (block_w + body_gap_x)
-        y_base = current_y + row_idx * (block_h + body_gap_y)
+    # for table_idx in range(32):
+    #     col_idx = table_idx % phases_per_row
+    #     row_idx = table_idx // phases_per_row
+    #     x_base = 10 + col_idx * (block_w + body_gap_x)
+    #     y_base = current_y + row_idx * (block_h + body_gap_y)
 
-        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        # canvas.create_text(x_base+5, y_base + 5, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
-        #                     anchor="nw", fill="white", font=("TkDefaultFont", 7))
+    #     canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+    #     # canvas.create_text(x_base+5, y_base + 5, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
+    #     #                     anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
-        for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
-            set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
-            if set_name is None:
-                continue
-            frames = TAKO_FRAMES[set_name]
-            if anim_idx >= len(frames):
-                continue
-            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + gcol * 16 * body_scale,
-                                       y_base + grow * 16 * body_scale,
-                                       body_scale)
+    #     for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
+    #         set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
+    #         if set_name is None:
+    #             continue
+    #         frames = TAKO_FRAMES[set_name]
+    #         if anim_idx >= len(frames):
+    #             continue
+    #         draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
+    #                                    x_base + gcol * 16 * body_scale,
+    #                                    y_base + grow * 16 * body_scale,
+    #                                    body_scale)
 
-    num_body_rows = (32 + phases_per_row - 1) // phases_per_row
-    current_y += num_body_rows * (block_h + body_gap_y) + 24
+    # num_body_rows = (32 + phases_per_row - 1) // phases_per_row
+    # current_y += num_body_rows * (block_h + body_gap_y) + 24
 
     # -----------------------------------------------------------------------
     # Part 2: Render every raw frame set (including the one the composite
     # body never uses, Frame Set 16)
     # -----------------------------------------------------------------------
+    n=0
     for set_name, frames in TAKO_FRAMES.items():
         
         # Label each frame set so it's clear which slot in
@@ -1703,6 +1704,9 @@ def render_tako_group(data, canvas, y_offset):
             x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
 
+            canvas.create_text(x_frame+8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n+=1
             canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
                                      y_frame + sprite_px * scale, fill="#8c38ff", outline="")
             draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)

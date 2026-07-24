@@ -228,7 +228,7 @@ const CRAB = {
 // values (6-13, 17-31) are never emitted by the AI and are left empty.
 const TAKO = {
     left: [ // 0xA030: 32 arrays
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // tile_group 0 (byte_A052)
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile_group 0 (byte_A052)
         [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // tile_group 1 (byte_A0A2)
         [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47], // tile_group 2 (byte_A0F2)
         [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63], // tile_group 3 (byte_A142)
@@ -390,11 +390,6 @@ const DUNGEONS = {
         aggressiveGround: [],
         airflows: [],
         monster_xp: [],
-        // TODO: Get_Stats_proc's damage-per-tile_group table lives in a shared
-        // code segment referenced via `cs:` overrides in tako.asm, not inside
-        // tako.asm itself, so the real values aren't available from the given
-        // sources. Left as zeros (same 32-entry shape as CRAB's monster_damage,
-        // indexed by ai_flags & 0x1F i.e. tile_group) until that table is found.
         monster_damage: [
             10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
             40, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
