@@ -214,8 +214,46 @@ const CRAB = {
     ],
     numSprites: 133,
 };
+// Frame mappings to tilesheet tako.png (Pulpo boss).
+//
+// tako.png is the linear sprite sheet from grp_viewer.py's render_tako_group
+// Part 2: each of the 9 raw frame sets (TAKO_FRAMES, in byte_A052..byte_A25F
+// source order) is flattened back-to-back into one row, so frame N lives at
+// x = N * DUNGEON_ENTITY_W. Unlike CRAB, Pulpo doesn't have named body parts
+// -- Pulpo_AI_proc builds its body dynamically frame-by-frame from a 7x8
+// tentacle-segment bitmask (see TAKO_LAYOUT_TABLES/TAKO_SHAPE_* in
+// grp_viewer.py) -- so the index into this table (monster.flags & 0x1F,
+// i.e. "tile_group") isn't a body part id, it's simply which of the 9 raw
+// frame sets that segment's tile currently points into. Several tile_group
+// values (6-13, 17-31) are never emitted by the AI and are left empty.
 const TAKO = {
-
+    left: [ // 0xA030: 32 arrays
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // tile_group 0 (byte_A052)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // tile_group 1 (byte_A0A2)
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47], // tile_group 2 (byte_A0F2)
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63], // tile_group 3 (byte_A142)
+        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79], // tile_group 4 (byte_A192)
+        [80, 81, 82, 83, 84, 85, 86], // tile_group 5 (byte_A1E2)
+        [], [], [], [], [], [], [], [], //                                 tile_group 6...13 (unused)
+        [103, 104], // tile_group 14 (byte_A255)
+        [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], // tile_group 15 (byte_A205)
+        [105, 106, 107, 108, 109, 110], // tile_group 16 (byte_A25F); the ink-droplet projectile, which Pulpo_AI_proc addresses via a fixed tile id (0x30)
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], //     tile_group 17...31 (unused)
+    ],
+    right: [ // 0xA070: 32 arrays -- identical to `left`; like CRAB, Pulpo has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set for tentacle segments)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63],
+        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79],
+        [80, 81, 82, 83, 84, 85, 86],
+        [], [], [], [], [], [], [], [],
+        [103, 104],
+        [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102],
+        [105, 106, 107, 108, 109, 110],
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],
+    ],
+    numSprites: 111,
 };
 
 const DUNGEONS = {
@@ -344,6 +382,38 @@ const DUNGEONS = {
         mdtPath: 'game/0/mp2d.mdt',
         tilesheetPath: 'assets/images/mpp2.png',
         entitySheetPath: 'assets/images/tako.png',
+        passableTiles: [
+            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        // TODO: Get_Stats_proc's damage-per-tile_group table lives in a shared
+        // code segment referenced via `cs:` overrides in tako.asm, not inside
+        // tako.asm itself, so the real values aren't available from the given
+        // sources. Left as zeros (same 32-entry shape as CRAB's monster_damage,
+        // indexed by ai_flags & 0x1F i.e. tile_group) until that table is found.
+        monster_damage: [
+            10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+            40, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        bossState: {
+            bossX: 36,                  // +0
+            bossY: 16,                  // +2
+            bossHP: 250,                // +3
+            xpReward: 200,              // +5
+            arenaCenterX: 7,            // +7
+            bossPlacement: 0xFF,        // +8
+            almasReward: 200,           // +11
+            bossName: 'Pulpo',
+        },
         ai: TAKO,
     },
 };
