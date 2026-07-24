@@ -214,6 +214,9 @@ const CRAB = {
     ],
     numSprites: 133,
 };
+const TAKO = {
+
+};
 
 const DUNGEONS = {
     0: { 
@@ -336,6 +339,12 @@ const DUNGEONS = {
         trajectories: [
         ],
         ai: EAI2,
+    },
+    4: { // Dungeon 2 boss room
+        mdtPath: 'game/0/mp2d.mdt',
+        tilesheetPath: 'assets/images/mpp2.png',
+        entitySheetPath: 'assets/images/tako.png',
+        ai: TAKO,
     },
 };
 const NOTIFICATION_STRINGS = {
