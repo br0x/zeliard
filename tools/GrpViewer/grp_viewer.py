@@ -1029,7 +1029,7 @@ def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_
     for i, p_idx in enumerate(pixels):
         rx, ry = i % tile_w, i // tile_w
         if p_idx is None or p_idx == transparent_idx:
-            draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
+            # draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
             continue
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
         
@@ -1658,10 +1658,10 @@ def render_tako_group(data, canvas, y_offset):
     # Part 1: Render Composite Tako Body (32 tentacle_anim_step / phase combos)
     # -----------------------------------------------------------------------
     body_scale = 2  # the 7x8-tile grid is much larger than crab's, scale down to fit
-    cols, rows = 7, 8
+    cols, rows = 7, 3
     block_w, block_h = cols * 16 * body_scale, rows * 16 * body_scale
     phases_per_row = 8  # table_idx 0-7/8-15/16-23/24-31 = the 4 anim_group_offset steps
-    body_gap_x, body_gap_y = 16, 28
+    body_gap_x, body_gap_y = 4, 8
 
     for table_idx in range(32):
         col_idx = table_idx % phases_per_row
@@ -1670,8 +1670,8 @@ def render_tako_group(data, canvas, y_offset):
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base, y_base + block_h + 10, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
-                            anchor="nw", fill="white", font=("TkDefaultFont", 7))
+        # canvas.create_text(x_base+5, y_base + 5, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
+        #                     anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
             set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
@@ -1693,9 +1693,10 @@ def render_tako_group(data, canvas, y_offset):
     # body never uses, Frame Set 16)
     # -----------------------------------------------------------------------
     for set_name, frames in TAKO_FRAMES.items():
+        
         # Label each frame set so it's clear which slot in
         # anim_frame_table_ptrs it came from.
-        canvas.create_text(10, current_y + 8, text=set_name, anchor="w", fill="white")
+        # canvas.create_text(10, current_y + 8, text=set_name, anchor="w", fill="white")
         current_y += 20
 
         for f_idx, frame_data in enumerate(frames):
