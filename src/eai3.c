@@ -58,8 +58,8 @@ typedef struct {
 /* byte_A4E4 / byte_A4EA: per-facing direction cycle used by type1 while
  * crawling (indices 0..5, selected by the *previous* frame's
  * anim_counter, exactly as in the original xlat). */
-static const uint8_t type1_dir_table_right[6] = { 1, 1, 0, 0, 7, 7 }; /* byte_A4E4 */
-static const uint8_t type1_dir_table_left[6]  = { 3, 3, 4, 4, 5, 5 }; /* byte_A4EA */
+static const uint8_t type1_dir_table_right[6] = { 1, 1, 0, 0, 7, 7 }; /* byte_A4E4 */ // ↗↗→→↘↘
+static const uint8_t type1_dir_table_left[6]  = { 3, 3, 4, 4, 5, 5 }; /* byte_A4EA */ // ↙↙←←↖↖
 
 /* Projectile templates fired by type2 (byte_A654/A655 = facing-right
  * shot, byte_A661/A662 = facing-left shot); bytes 0-1 (x,y) are patched

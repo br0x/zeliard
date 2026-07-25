@@ -226,7 +226,7 @@ const TAKO = {
         [103, 104], // tile_group 14 (byte_A255)
         [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], // tile_group 15 (byte_A205)
         [105, 106, 107, 108, 109, 110], // tile_group 16 (byte_A25F); the ink-droplet projectile, which Pulpo_AI_proc addresses via a fixed tile id (0x30)
-        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], //     tile_group 17...31 (unused)
+        [111], // ordinary key
     ],
     right: [ // 0xA070: 32 arrays -- identical to `left`; like CRAB, Pulpo has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set for tentacle segments)
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -239,9 +239,9 @@ const TAKO = {
         [103, 104],
         [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102],
         [105, 106, 107, 108, 109, 110],
-        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],
+        [111], // ordinary key
     ],
-    numSprites: 111,
+    numSprites: 112,
 };
 const EAI3 = {
 
@@ -334,7 +334,7 @@ const DUNGEONS = {
         ],
         trajectories: [ // boarman
             [1,1,1,0,0,7,7,7,7,7,7,0xFF], // right: ↗↗↗→→↘↘↘↘↘↘
-            [3,3,3,4,4,5,5,5,5,5,5,0xFF], // left: ↙↙↙↙↙↙←←↖↖↖
+            [3,3,3,4,4,5,5,5,5,5,5,0xFF], // left:  ↙↙↙↙↙↙←←↖↖↖
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
             [26, 27, 28, 29], // boarman axes 
@@ -365,7 +365,13 @@ const DUNGEONS = {
             [],
             [],
         ],
-        trajectories: [
+        trajectories: [ // boarman
+            [1,1,1,0,0,7,7,7,7,7,7,0xFF], // right: ↗↗↗→→↘↘↘↘↘↘
+            [3,3,3,4,4,5,5,5,5,5,5,0xFF], // left:  ↙↙↙↙↙↙←←↖↖↖
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [26, 27, 28, 29], // boarman axes 
+            [30, 31, 32, 33], // toad firespits
         ],
         ai: EAI2,
     },
@@ -420,10 +426,15 @@ const DUNGEONS = {
             [5, 5, 0, 0],
             [4, 4, 4, 4],
             [5, 5, 5, 5],
+            [],
+            [],
+            [],
+            [],
         ],
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
+            [38, 39, 40, 41, 42],
         ],
         ai: EAI3,
     },

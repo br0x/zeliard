@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/mpp3.grp"
+                "${workspaceFolder}/tools/GrpViewer/enp3.grp"
             ],
             "console": "integratedTerminal",
         },
