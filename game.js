@@ -255,6 +255,9 @@ const TAKO = {
     ],
     numSprites: 111,
 };
+const EAI3 = {
+
+};
 
 const DUNGEONS = {
     0: { 
@@ -410,6 +413,26 @@ const DUNGEONS = {
             bossName: 'Pulpo',
         },
         ai: TAKO,
+    },
+    5: {
+        mdtPath: 'game/0/mp30.mdt',
+        tilesheetPath: 'assets/images/mpp3.png',
+        entitySheetPath: 'assets/images/enp3.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+        ],
+        slopeTilesLeft: [], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [],
+        monster_damage: [],
+        death_descriptors: [
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+        ],
+        ai: EAI3,
     },
 };
 const NOTIFICATION_STRINGS = {
