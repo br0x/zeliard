@@ -214,18 +214,6 @@ const CRAB = {
     ],
     numSprites: 133,
 };
-// Frame mappings to tilesheet tako.png (Pulpo boss).
-//
-// tako.png is the linear sprite sheet from grp_viewer.py's render_tako_group
-// Part 2: each of the 9 raw frame sets (TAKO_FRAMES, in byte_A052..byte_A25F
-// source order) is flattened back-to-back into one row, so frame N lives at
-// x = N * DUNGEON_ENTITY_W. Unlike CRAB, Pulpo doesn't have named body parts
-// -- Pulpo_AI_proc builds its body dynamically frame-by-frame from a 7x8
-// tentacle-segment bitmask (see TAKO_LAYOUT_TABLES/TAKO_SHAPE_* in
-// grp_viewer.py) -- so the index into this table (monster.flags & 0x1F,
-// i.e. "tile_group") isn't a body part id, it's simply which of the 9 raw
-// frame sets that segment's tile currently points into. Several tile_group
-// values (6-13, 17-31) are never emitted by the AI and are left empty.
 const TAKO = {
     left: [ // 0xA030: 32 arrays
         [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile_group 0 (byte_A052)
@@ -419,14 +407,19 @@ const DUNGEONS = {
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/enp3.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 7, 0x0B, 0x0C, 0x1B, 0x1C, 0x1D, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26
         ],
-        slopeTilesLeft: [], // mppX.grp.unp bytes 0x18..0x1B
-        slopeTilesRight: [], // mppX.grp.unp bytes 0x1C..0x1F
-        aggressiveGround: [], // mppX.grp.unp bytes 0x20..0x23
+        slopeTilesLeft: [0x1B, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x1C, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x1D, 0x1E, 0x1F, 0], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [],
-        monster_damage: [],
+        monster_xp:     [20, 10, 10, 20, 0, 0, 0, 0],
+        monster_damage: [40, 40, 16, 40, 0, 0, 0, 0],
         death_descriptors: [
+            [4, 4, 0, 0],
+            [5, 5, 0, 0],
+            [4, 4, 4, 4],
+            [5, 5, 5, 5],
         ],
         trajectories: [
         ],
