@@ -440,11 +440,11 @@ static void boarman_random_flinch(uint16_t m)
 }
 
 
-static uint8_t spear_right[13] = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A4FD
-static uint8_t spear_left[13]  = { 0,0, 0x9A,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A50A
+static uint8_t spear_right[13] = { 0,0, 0,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A4FD; type 0 = boarman axes
+static uint8_t spear_left[13]  = { 0,0, 0,0,0xFF,0x40,8,0,0, 0,0,  0,0 }; // byte_A50A; type 0 = boarman axes
 
-static uint8_t spear_simple_right[13] = { 0,0, 0x9A,0,7,0,0x14,0,0,0,0,0,0 }; // byte_A517/A518
-static uint8_t spear_simple_left[13]  = { 0,0, 0x9A,0,7,4,0x14,0,0,0,0,0,0 }; // byte_A524/A525
+static uint8_t spear_simple_right[13] = { 0,0, 0,0,7,0,0x14,0,0,0,0,0,0 }; // byte_A517/A518; type 0 = boarman axes
+static uint8_t spear_simple_left[13]  = { 0,0, 0,0,7,4,0x14,0,0,0,0,0,0 }; // byte_A524/A525; type 0 = boarman axes
 
 /* loc_A4BA: fires the Boarman's paired spears (one from each half). */
 static void boarman_fire_spears(uint16_t m)
@@ -680,7 +680,7 @@ static void toad_end_jump(uint16_t m)
 static uint8_t toad_shot_desc_right[13] = { 
     0,    // p_x_rel, patched per shot
     0,    // p_y_rel, patched per shot
-    0x9E, // p_base_tile_idx
+    1,    // p_projectile_type = 1 (toad firespits)
     0,    // p_trajectory_step_count
     6,    // p_max_step_count
     0,    // p_trajectory_dir = right
@@ -693,7 +693,7 @@ static uint8_t toad_shot_desc_right[13] = {
 static uint8_t toad_shot_desc_left[13]  = { 
     0,    // p_x_rel, patched per shot
     0,    // p_y_rel, patched per shot
-    0x9E, // p_base_tile_idx
+    1,    // p_projectile_type = 1 (toad firespits)
     0,    // p_trajectory_step_count
     6,    // p_max_step_count
     4,    // p_trajectory_dir = left

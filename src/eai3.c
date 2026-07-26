@@ -65,8 +65,8 @@ static const uint8_t type1_dir_table_left[6]  = { 3, 3, 4, 4, 5, 5 }; /* byte_A4
  * shot, byte_A661/A662 = facing-left shot); bytes 0-1 (x,y) are patched
  * per shot, the remainder is copied verbatim from the original data
  * segment. */
-static uint8_t type2_shot_right[13] = { 0, 0, 0x2B, 0, 0x0F, 0, 0x28, 0, 0, 0, 0, 0, 0 }; /* byte_A654/A655 */
-static uint8_t type2_shot_left[13]  = { 0, 0, 0x2B, 0, 0x0F, 4, 0x28, 0, 0, 0, 0, 0, 0 }; /* byte_A661/A662 */
+static uint8_t type2_shot_right[13] = { 0, 0, 0, 0, 0x0F, 0, 0x28, 0, 0, 0, 0, 0, 0 }; /* byte_A654/A655; type 0 = first projectile set */
+static uint8_t type2_shot_left[13]  = { 0, 0, 0, 0, 0x0F, 4, 0x28, 0, 0, 0, 0, 0, 0 }; /* byte_A661/A662; type 0 = first projectile set */
 
 
 /*

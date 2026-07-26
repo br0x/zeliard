@@ -2086,17 +2086,10 @@ function drawDungeonProjectiles() {
         const p_y_rel = readMemory(p + 1, 1)[0];
         const vpY = (p_y_rel - top) & 0x3F;
         if (vpY >= VIEW_ROWS) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const baseIdx = readMemory(p + 2, 1)[0];
+        const typeId = readMemory(p + 2, 1)[0];
         const stepCount = readMemory(p + 3, 1)[0];
-        let tiles;
-        if (baseIdx === 0x9A) {
-            tiles = dungeonProjectiles[0];
-        } else if (baseIdx === 0x9E) {
-            tiles = dungeonProjectiles[1];
-        } else {
-            p += PROJECTILE_STRUCT_SIZE;
-            continue;
-        }
+        if (typeId >= dungeonProjectiles.length) { p += PROJECTILE_STRUCT_SIZE; continue; }
+        const tiles = dungeonProjectiles[typeId];
         if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
         const tileId = tiles[stepCount % tiles.length];
         const dx = vpX * TILE_WIDTH;
