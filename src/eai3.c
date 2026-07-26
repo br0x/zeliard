@@ -185,11 +185,11 @@ static void type0_state0(uint16_t m)
     }
 
     if (!(MEM8(m+5) & 0x80)) { // facing left
-        if (move_monster_W(m)) {
+        if (!move_monster_W(m)) {
             type0_turn_around(m);
         }
     } else { // facing right
-        if (move_monster_E(m)) {
+        if (!move_monster_E(m)) {
             type0_turn_around(m);
         }
     }
@@ -198,7 +198,7 @@ static void type0_state0(uint16_t m)
 /* loc_A356: fall one row, then advance to the diagonal-dodge setup. */
 static void type0_state1(uint16_t m)
 {
-    if (move_monster_S(m)) {
+    if (!move_monster_S(m)) {
         MEM8(m+9) = 2; // .ai_state
         MEM8(m+6) = 9;  // .anim_counter
     }
@@ -224,10 +224,10 @@ static void type0_state3(uint16_t m)
 
     if (!(MEM8(m+5) & 0x80)) { // facing left
         MEM8(m+0xA)++;
-        if (move_monster_NW(m)) MEM8(m+5) ^= 0x80;
+        if (!move_monster_NW(m)) MEM8(m+5) ^= 0x80;
     } else { // facing right
         MEM8(m+0xA)++;
-        if (move_monster_NE(m)) MEM8(m+5) ^= 0x80;
+        if (!move_monster_NE(m)) MEM8(m+5) ^= 0x80;
     }
 }
 
@@ -240,10 +240,10 @@ static void type0_state4(uint16_t m)
 
     if (!(MEM8(m+5) & 0x80)) { // facing left
         MEM8(m+0xA)++;
-        if (move_monster_W(m)) MEM8(m+5) ^= 0x80;
+        if (!move_monster_W(m)) MEM8(m+5) ^= 0x80;
     } else { // facing right
         MEM8(m+0xA)++;
-        if (move_monster_E(m)) MEM8(m+5) ^= 0x80;
+        if (!move_monster_E(m)) MEM8(m+5) ^= 0x80;
     }
 }
 
@@ -252,8 +252,8 @@ static void type0_state5(uint16_t m)
 {
     MEM8(m+6) = 8; // .anim_counter
 
-    int moved = (MEM8(m+5) & 0x80) ? move_monster_SE(m) : move_monster_SW(m);
-    if (moved) {
+    int blocked = (MEM8(m+5) & 0x80) ? !move_monster_SE(m) : !move_monster_SW(m);
+    if (blocked) {
         MEM8(m+6) = 9; // .anim_counter
         MEM8(m+9) = 6;  // .ai_state
     }
@@ -273,8 +273,9 @@ static void type0_state7(uint16_t m)
     MEM8(m+6) = 8; // .anim_counter
 
     if (!(MEM8(m+5) & 0x80)) { // facing left
-        if (!move_monster_NW(m)) return; // blocked, try again next frame
+        if (move_monster_NW(m)) return; // moved NW, nothing more this frame
 
+        // blocked NW — check if we hit the ceiling
         if (check_collision_N2(m)) {
             // loc_A42C: back to full patrol
             MEM8(m+9) = 0;
@@ -284,15 +285,16 @@ static void type0_state7(uint16_t m)
             MEM8(m+5) ^= 0x80; // keep climbing, flip facing
         }
     } else { // facing right
-        if (!move_monster_NE(m)) return; // blocked, try again next frame
+        if (move_monster_NE(m)) return; // moved NE, nothing more this frame
 
-        if (move_monster_N(m)) {
-            MEM8(m+5) ^= 0x80; // kept climbing, flip facing
-        } else {
-            // loc_A42C: back to full patrol
+        // blocked NE — try moving N instead
+        if (!move_monster_N(m)) {
+            // blocked N too — reached ceiling, back to full patrol
             MEM8(m+9) = 0;
             MEM8(m+6) = 0;
             MEM8(m+0xA) = 1;
+        } else {
+            MEM8(m+5) ^= 0x80; // keep climbing, flip facing
         }
     }
 }
@@ -318,9 +320,9 @@ static void type1_ai(uint16_t m) // loc_A44D
             }
         }
 
-        if (!move_monster_S(m)) return; // grounded, nothing to do this frame
+        if (move_monster_S(m)) return; // still falling, nothing more this frame
 
-        // loc_A484: still falling - throttle the falling animation
+        // loc_A484: grounded - throttle the landing animation
         uint16_t sum = (uint16_t)(MEM8(m+6) & 0xF0) + 0x80;
         MEM8(m+6) = (uint8_t)sum;
         if (sum >= 0x100) {
@@ -342,7 +344,7 @@ static void type1_ai(uint16_t m) // loc_A44D
 
     const uint8_t *dir_table = (MEM8(m+5) & 0x80) ? type1_dir_table_right : type1_dir_table_left;
     uint8_t dir = dir_table[old_anim];
-    if (!monster_move_in_direction(m, dir)) return; // blocked, try again next frame
+    if (monster_move_in_direction(m, dir)) return; // moved, nothing more this frame
 
     MEM8(m+9) &= 0xF7; // .ai_state
     if (MEM8(m+6) == 1) {
@@ -366,7 +368,7 @@ static void type2_ai(uint16_t m) // loc_A4F0
         return;
     }
 
-    if (!move_monster_S(m)) return; // grounded, run the state machine below only once settled
+    if (move_monster_S(m)) return; // still falling, nothing more this frame
 
     switch (MEM8(m+9) & 3) { // .ai_state
         case 0: type2_state0(m); return;
@@ -528,7 +530,7 @@ static void type3_ai(uint16_t m) // loc_A66E
 
     uint8_t old_anim = MEM8(m+6); // .anim_counter, saved across the fall attempt
     MEM8(m+6) = 0;
-    if (!move_monster_S(m)) return; // grounded: leave anim_counter at 0, nothing more this frame
+    if (move_monster_S(m)) return; // still falling: leave anim_counter at 0, nothing more this frame
 
     MEM8(m+6) = old_anim; // .anim_counter: restore
 
@@ -552,10 +554,10 @@ static void type3_ai(uint16_t m) // loc_A66E
 }
 
 /* loc_A6C2: patrol step - tries a plain step in the current facing
- * direction followed immediately by a diagonal step; if both succeed,
- * the monster has escaped upward and stops patrolling. Otherwise it
- * just advances its walking animation. After a long enough patrol
- * (0x14 frames) it gives up and drops out of the engaged state. */
+ * direction followed immediately by a diagonal step; if both are
+ * blocked, the monster has hit a wall and stops patrolling (escape).
+ * Otherwise it just advances its walking animation. After a long
+ * enough patrol (0x14 frames) it gives up and drops out. */
 static void type3_patrol(uint16_t m)
 {
     MEM8(m+0xA)++; // .ai_timer
@@ -565,15 +567,15 @@ static void type3_patrol(uint16_t m)
     }
 
     if (!(MEM8(m+5) & 0x80)) { // facing left
-        if (move_monster_W(m)) {
-            if (move_monster_NW(m)) {
+        if (!move_monster_W(m)) {
+            if (!move_monster_NW(m)) {
                 MEM8(m+9) &= 0xFE; // .ai_state: escaped, stop patrolling
                 return;
             }
         }
     } else { // facing right
-        if (move_monster_E(m)) {
-            if (move_monster_NE(m)) {
+        if (!move_monster_E(m)) {
+            if (!move_monster_NE(m)) {
                 MEM8(m+9) &= 0xFE; // .ai_state: escaped, stop patrolling
                 return;
             }
