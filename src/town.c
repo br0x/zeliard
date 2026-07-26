@@ -591,9 +591,7 @@ static void town_main_loop_step(void)
     handle_edge_screen_transition();
     hero_spacebar_interaction();
 
-    if (!HERO_MOVED) {
-        check_special_npc_conversation();
-    }
+    check_special_npc_conversation();
     HERO_MOVED = 0;
 
     /* Poll input (replaces int 61h).
@@ -744,7 +742,18 @@ static void check_special_npc_conversation(void)
     if ((FACING & 1) && MEM8(npc_si + 2) & 0x80) return;
     if (!(MEM8(npc_si + 6) & 0x80)) return;
 
-    MEM8(npc_si + 4) |= 1; // n_anim_phase
+    /* Save state, put NPC in conversation mode, converse; restore will be done in wasm_town_conversation_finish */
+    MEM8(ADDR_CONVERSATION_SAVED_FACING) = MEM8(npc_si + 2);
+    MEM8(ADDR_CONVERSATION_SAVED_AI)   = MEM8(npc_si + 5);
+
+    // Freeze this NPC (AI = 7 => static)
+    MEM8(npc_si + 5) = 7;
+    // Make NPC face the hero
+    if (FACING & 1)
+        MEM8(npc_si + 2) &= 0x7F;   // face right
+    else
+        MEM8(npc_si + 2) |= 0x80;   // face left
+
     DIALOG_EXIT = 0xFF;
     start_npc_conversation(npc_si);
 }

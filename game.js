@@ -1207,10 +1207,51 @@ function onSlowTick() {
 
     if (conversation.active) {
         const spaceLatched = readMemory(0xFF1D, 1)[0];
+
+        if (conversation.yesNoMode) {
+            const dirUp = keys.ArrowUp && !lastDirUp;
+            const dirDown = keys.ArrowDown && !lastDirDown;
+            lastDirUp = keys.ArrowUp;
+            lastDirDown = keys.ArrowDown;
+            if (dirUp && conversation.yesNoCursor > 0) {
+                conversation.yesNoCursor--;
+            } else if (dirDown && conversation.yesNoCursor < 1) {
+                conversation.yesNoCursor++;
+            }
+            if (spaceLatched) {
+                writeMemory(0xFF1D, [0]);
+                const selectedYes = conversation.yesNoCursor === 0;
+                conversation.active = false;
+                conversation.savedBackground = null;
+                conversation.yesNoMode = false;
+                conversation.hasYesNo = false;
+                townFinishConversation?.();
+                const responseNpcId = selectedYes ? 0x0C : 0x0D;
+                const rawText = getNpcConversationRaw(responseNpcId);
+                if (rawText) {
+                    const parsed = parseDialogText(rawText);
+                    if (parsed.pages.length > 0) {
+                        conversation.active = true;
+                        conversation.pages = parsed.pages;
+                        conversation.page = 0;
+                        conversation.hasYesNo = false;
+                        conversation.savedBackground = null;
+                        computeBoxGeometry(conversation.facingLeft);
+                    }
+                }
+            }
+            return;
+        }
+
         if (spaceLatched) {
             writeMemory(0xFF1D, [0]);
             if (conversation.page < conversation.pages.length - 1) {
                 conversation.page++;
+                computeBoxGeometry(conversation.facingLeft);
+            } else if (conversation.hasYesNo) {
+                conversation.yesNoMode = true;
+                conversation.yesNoCursor = 0;
+                computeBoxGeometry(conversation.facingLeft, 2);
             } else {
                 conversation.active = false;
                 conversation.savedBackground = null;
@@ -1241,6 +1282,8 @@ const keys = {
     Alt:        false,
     Escape:     false,
 };
+let lastDirUp = false;
+let lastDirDown = false;
 
 window.addEventListener('keydown', e => {
     if (['F1', 'F2', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.code))
@@ -1650,6 +1693,10 @@ let conversation = {
     boxY: 0,
     boxW: 0,
     boxH: 0,
+    hasYesNo: false,
+    yesNoMode: false,
+    yesNoCursor: 0,
+    facingLeft: false,
 };
 
 // ─── Town scroll helpers ──────────────────────────────────────────────────────
@@ -3384,6 +3431,7 @@ function parseDialogText(bytes) {
     const pages = [];
     let lines  = [''];
     let lineW  = 0;
+    let hasYesNo = false;
     const MAX_W = ORIG_MAX_LINE_PX;
     const pushLine = () => {
         lines.push('');
@@ -3397,7 +3445,8 @@ function parseDialogText(bytes) {
     for (let i = 0; i < bytes.length; i++) {
         let b = bytes[i];
         if (b === 0xFF || b === 0x00) break;
-        if (b >= 0x81) break;
+        if (b === 0x81) { hasYesNo = true; break; }
+        if (b >= 0x82) break;
         if (b === 0x2F) { pushLine(); continue; }
         if (b === 0x5c) b = 0x27;
         if (b === 0x26) b = 0x20;
@@ -3408,7 +3457,7 @@ function parseDialogText(bytes) {
             let nextW = 0;
             for (let j = i + 1; j < bytes.length; j++) {
                 const nb = bytes[j];
-                if (nb === 0x20 || nb === 0x2F || nb >= 0x80) break;
+                if (nb === 0x20 || nb === 0x2F || (nb >= 0x80 && nb !== 0x81)) break;
                 if (nb >= 0x20) nextW += charOrigWidth(String.fromCharCode(nb));
             }
             if (lineW + cw + nextW >= MAX_W) {
@@ -3421,12 +3470,12 @@ function parseDialogText(bytes) {
     }
     const nonEmpty = lines.filter(l => l.length > 0);
     if (nonEmpty.length > 0) pages.push(nonEmpty);
-    return pages;
+    return { pages, hasYesNo };
 }
 
-function computeBoxGeometry(facingLeft) {
+function computeBoxGeometry(facingLeft, extraLines = 0) {
     const page = conversation.pages[conversation.page] ?? [];
-    const nLines = Math.max(page.length, 1);
+    const nLines = Math.max(page.length, 1) + extraLines;
     const bh = TEXT_FIRST_BASELINE + (nLines - 1) * TEXT_LINE_HEIGHT + TEXT_BOTTOM_PAD;
     ctx.save();
     ctx.font = `${DIALOG_FONT_SIZE + 2}px 'Courier New', monospace`;
@@ -3462,7 +3511,17 @@ function drawConversationDialog() {
     for (let i = 0; i < pageLines.length; i++) {
         ctx.fillText(pageLines[i], x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
     }
-    if (conversation.page < totalPages - 1) {
+    if (conversation.yesNoMode) {
+        const options = ['Yes', 'No'];
+        const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
+        for (let i = 0; i < options.length; i++) {
+            const cy = baseY + i * TEXT_LINE_HEIGHT;
+            ctx.fillStyle = i === conversation.yesNoCursor ? '#ffcc00' : '#ccc';
+            ctx.fillText(options[i], x + 32, cy);
+        }
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText('►', x + 12, baseY + conversation.yesNoCursor * TEXT_LINE_HEIGHT);
+    } else if (conversation.page < totalPages - 1) {
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('▼', x + width - 24, y + height - 12);
     }
@@ -3476,16 +3535,32 @@ function startConversationFromWasm() {
         npcId = readMemory(npcAddr + 7, 1)[0];
     }
     const rawText = getNpcConversationRaw(npcId);
-    const pages = parseDialogText(rawText);
-    if (pages.length === 0) {
+    let parsed = parseDialogText(rawText);
+    if (parsed.pages.length === 0) {
         townFinishConversation?.();
         return;
     }
+    const heroCrest = readMemory(0x9C, 1)[0];
+    if (heroCrest && parsed.hasYesNo) {
+        const crestText = getNpcConversationRaw(14);
+        if (crestText) {
+            parsed = parseDialogText(crestText);
+            if (parsed.pages.length === 0) {
+                townFinishConversation?.();
+                return;
+            }
+        }
+    }
+    const facingLeft = npcAddr ? (readMemory(npcAddr + 2, 1)[0] & 0x80) : false;
     conversation.active = true;
-    conversation.pages = pages;
+    conversation.pages = parsed.pages;
     conversation.page = 0;
+    conversation.hasYesNo = parsed.hasYesNo;
+    conversation.yesNoMode = false;
+    conversation.yesNoCursor = 0;
+    conversation.facingLeft = facingLeft;
     conversation.savedBackground = null;
-    computeBoxGeometry(readMemory(npcAddr + 2, 1)[0] & 0x80);
+    computeBoxGeometry(facingLeft);
 }
 
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────
