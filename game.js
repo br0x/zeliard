@@ -3020,6 +3020,7 @@ function drawDungeonSign() {
 }
 
 let prevRokaDx = -1;
+let prevDungeonState = -1;
 
 function drawDungeonRoka() {
     if (!rokaImagesReady || !readMemory) return;
@@ -4098,6 +4099,9 @@ function draw() {
     } else if (gameMode === 'dungeon') {
         const dungeonState = readU8(ADDR_DUNGEON_STATE);
         if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
+            if (prevRokaDx >= 0 && prevDungeonState !== DUNGEON_STATE_ROKA_RUN) {
+                prevRokaDx = -1;
+            }
             drawDungeonRoka();
             dungeonClearRenderRequest?.();
         } else {
@@ -4126,6 +4130,7 @@ function draw() {
                 soundManager.setSfxVolume(Math.max(0, 1.0 - fade), 0.1);
             }
         }
+        prevDungeonState = dungeonState;
 
         // Boss mode HUD toggle
         const bossMode = readMemory(ADDR_BOSS_MODE, 1)[0];

@@ -452,6 +452,7 @@ static void town_entry_common(void)
     }
 
     /* --- town_entry_internal --- */
+    init_c015_obj_if_exists(); // something to do with Hero's Crest
     SPACEBAR = 0;
     ALTKEY   = 0;
     MEM8(ADDR_BYTE_E4) = 0;
@@ -739,7 +740,14 @@ static void check_special_npc_conversation(void)
     if (MEM8(bx + 8*delta) != 0xFD) return;
     uint16_t npc_si;
     find_first_npc_at_x(abs_x, &npc_si);
-    if ((FACING & 1) && MEM8(npc_si + 2) & 0x80) return;
+    /* NPC must face TOWARD the hero for conversation to trigger */
+    if (FACING & 1) {
+        /* Hero facing LEFT → NPC must face RIGHT (bit 7 clear) */
+        if (MEM8(npc_si + 2) & 0x80) return;
+    } else {
+        /* Hero facing RIGHT → NPC must face LEFT (bit 7 set) */
+        if (!(MEM8(npc_si + 2) & 0x80)) return;
+    }
     if (!(MEM8(npc_si + 6) & 0x80)) return;
 
     /* Save state, put NPC in conversation mode, converse; restore will be done in wasm_town_conversation_finish */
@@ -764,6 +772,9 @@ static void check_special_npc_conversation(void)
  * ========================================================================= */
 static void start_npc_conversation(uint16_t si_addr)
 {
+    // Clear bit 7 of n_flags so conversation only triggers once per entry
+    MEM8(si_addr + 6) &= 0x7F;
+
     // Store NPC address and original AI/facing
     MEM16(ADDR_CONVERSATION_NPC_ADDR) = si_addr;
 

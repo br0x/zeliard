@@ -1865,6 +1865,7 @@ void prepare_dungeon(uint8_t is_from_town)
 void roka_run()
 {
     MEM8(ADDR_ROKA_PHASE) = 0;
+    MEM8(ADDR_FRAME_TIMER) = 0;
     MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_ROKA_RUN;
     if (MEM8(ADDR_LEFT_RUN)) {
         MEM8(ADDR_FACING) |= LEFT;
