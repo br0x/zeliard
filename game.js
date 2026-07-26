@@ -497,7 +497,8 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x27, 0x28, 0x29, 0x2A, 0x2B],
+            [0x2B],
+            [0x27, 0x28, 0x29, 0x2A],
         ],
         ai: EAI3,
     },
@@ -527,7 +528,8 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x27, 0x28, 0x29, 0x2A, 0x2B],
+            [0x2B],
+            [0x27, 0x28, 0x29, 0x2A],
         ],
         ai: EAI3,
     },
