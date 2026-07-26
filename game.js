@@ -216,17 +216,18 @@ const CRAB = {
 };
 const TAKO = {
     left: [ // 0xA030: 32 arrays
-        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile_group 0 (byte_A052)
-        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // tile_group 1 (byte_A0A2)
-        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47], // tile_group 2 (byte_A0F2)
-        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63], // tile_group 3 (byte_A142)
-        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79], // tile_group 4 (byte_A192)
-        [80, 81, 82, 83, 84, 85, 86], // tile_group 5 (byte_A1E2)
-        [], [], [], [], [], [], [], [], //                                 tile_group 6...13 (unused)
-        [103, 104], // tile_group 14 (byte_A255)
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15],    // tile_group 0 (byte_A052)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],    // tile_group 1 (byte_A0A2)
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],    // tile_group 2 (byte_A0F2)
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63],    // tile_group 3 (byte_A142)
+        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79],    // tile_group 4 (byte_A192)
+        [80, 81, 82, 83, 84, 85, 86],                                        // tile_group 5 (byte_A1E2)
+        [], [], [], [], [], [], [], [],                                      // tile_group 6...13 (unused)
+        [103, 104],                                                          // tile_group 14 (byte_A255)
         [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], // tile_group 15 (byte_A205)
-        [105, 106, 107, 108, 109, 110], // tile_group 16 (byte_A25F); the ink-droplet projectile, which Pulpo_AI_proc addresses via a fixed tile id (0x30)
-        [111], // ordinary key
+        [105, 106, 107, 108, 109, 110],                                      // tile_group 16 (byte_A25F); the ink-droplet projectile, which Pulpo_AI_proc addresses via a fixed tile id (0x30)
+        [], [], [], [], [],                                                  // tile_group 17...21 (unused)
+        [111], // ordinary key                                               // 22
     ],
     right: [ // 0xA070: 32 arrays -- identical to `left`; like CRAB, Pulpo has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set for tentacle segments)
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -239,12 +240,74 @@ const TAKO = {
         [103, 104],
         [87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102],
         [105, 106, 107, 108, 109, 110],
-        [111], // ordinary key
+        [], [], [], [], [],
+        [111], // ordinary key                                               // 22
     ],
     numSprites: 112,
 };
+// Frame mappings to tilesheet enp3.png
+// NOTE: index numbering below assumes the sheet was laid out in the same
+// order the frames are defined in ENP3_FRAMES / drawn by grp_viewer's
+// render_enp_group() (i.e. animation-block by animation-block, in
+// insertion order, each block's frames placed consecutively). If the
+// actual enp3.png was assembled in a different order, adjust the numbers
+// below to match.
 const EAI3 = {
-
+    left: [ // 0xA030: 32 arrays
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], // type0_left_frames
+        [27, 28, 29, 30, 31, 32], // type1_left_frames
+        [42, 43, 44, 45, 46, 47, 48], // type2_left_frames
+        [59, 60, 61, 62, 63, 64], // type3_left_frames
+        [], [], [], [],
+        [24, 25, 26], // type0_death_frames
+        [39, 40, 41], // type1_death_frames
+        [56, 57, 58], // type2_death_frames
+        [71, 72, 73], // type3_death_frames
+        [], [], [], [],
+        [90, 91, 92, 93], // wallDestructionFrames
+        [90, 91, 92, 93], // wallDestructionFrames
+        [74, 75, 76], // hitFrames
+        [85, 86, 87, 88], // chestFrames
+        [77, 78, 79, 80], // almasGlowFrames
+        [81, 82, 83, 84], // almasGlowFramesAlt
+        [89], // ordinaryKeyFrames
+        [],
+        [94], // redPotionFrames
+        [95], // bluePotionFrames
+        [],
+        [], // (no rare-almas equivalent identified for this group)
+        [96], // byte_A286Frames (unidentified single-frame item)
+        [97], // byte_A295Frames (unidentified single-frame item)
+        [], [],
+    ],
+    right: [ // 0xA070: 32 arrays
+        [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], // type0_right_frames
+        [33, 34, 35, 36, 37, 38], // type1_right_frames
+        [49, 50, 51, 52, 53, 54, 55], // type2_right_frames
+        [65, 66, 67, 68, 69, 70], // type3_right_frames
+        [], [], [], [],
+        [24, 25, 26], // type0_death_frames
+        [39, 40, 41], // type1_death_frames
+        [56, 57, 58], // type2_death_frames
+        [71, 72, 73], // type3_death_frames
+        [], [], [], [],
+        [90, 91, 92, 93], // wallDestructionFrames
+        [90, 91, 92, 93], // wallDestructionFrames
+        [74, 75, 76], // hitFrames
+        [85, 86, 87, 88], // chestFrames
+        [77, 78, 79, 80], // almasGlowFrames
+        [81, 82, 83, 84], // almasGlowFramesAlt
+        [89], // ordinaryKeyFrames
+        [],
+        [94], // redPotionFrames
+        [95], // bluePotionFrames
+        [],
+        [],
+        [96], // byte_A286Frames (unidentified single-frame item)
+        [97], // byte_A295Frames (unidentified single-frame item)
+        [], [],
+    ],
+    numSprites: 98,
 };
 
 const DUNGEONS = {
@@ -413,7 +476,7 @@ const DUNGEONS = {
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/enp3.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
-            0, 1, 2, 7, 0x0B, 0x0C, 0x1B, 0x1C, 0x1D, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26
+            0, 1, 2, 7, 0x0B, 0x0C, 0x1B, 0x1C, 0x1D, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0, 0, 0, 0, 0, 0, 0, 0,
         ],
         slopeTilesLeft: [0x1B, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
         slopeTilesRight: [0x1C, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
@@ -434,7 +497,37 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [38, 39, 40, 41, 42],
+            [0x27, 0x28, 0x29, 0x2A, 0x2B],
+        ],
+        ai: EAI3,
+    },
+    6: {
+        mdtPath: 'game/0/mp31.mdt',
+        tilesheetPath: 'assets/images/mpp3.png',
+        entitySheetPath: 'assets/images/enp3.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 7, 0x0B, 0x0C, 0x1B, 0x1C, 0x1D, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+        slopeTilesLeft: [0x1B, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x1C, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x1D, 0x1E, 0x1F, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [20, 10, 10, 20, 0, 0, 0, 0],
+        monster_damage: [40, 40, 16, 40, 0, 0, 0, 0],
+        death_descriptors: [
+            [4, 4, 0, 0],
+            [5, 5, 0, 0],
+            [4, 4, 4, 4],
+            [5, 5, 5, 5],
+            [],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x27, 0x28, 0x29, 0x2A, 0x2B],
         ],
         ai: EAI3,
     },
@@ -1752,10 +1845,16 @@ function drawStaticTile(tileId, vpX, vpY) {
         ctx.fillRect(dx, dy, TILE_WIDTH, TILE_HEIGHT);
         return;
     }
-    if (tileId >= 1 && tileId <= 25) {
-        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, 25, dx, dy);
-    } else if (tileId >= 0x40 && tileId < 0x40 + 39 && dungeonDchrSheetReady) { // 0x40..0x66
-        drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, 39, dx, dy);
+    const mppCols = Math.floor(dungeonTileSheet.width / TILE_WIDTH);
+    const mppTiles = mppCols * Math.floor(dungeonTileSheet.height / TILE_HEIGHT);
+    if (tileId >= 1 && tileId <= mppTiles) {
+        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, mppCols, dx, dy);
+    } else if (tileId >= 0x40 && dungeonDchrSheetReady) {
+        const dchrCols = Math.floor(dungeonDchrSheet.width / TILE_WIDTH);
+        const dchrTiles = dchrCols * Math.floor(dungeonDchrSheet.height / TILE_HEIGHT);
+        if (tileId - 0x40 < dchrTiles) {
+            drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, dchrCols, dx, dy);
+        }
     }
 }
 
@@ -2194,6 +2293,7 @@ function drawDungeonEntities() {
             _currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(entityId & 0x7F, 6);
         }
+        // console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
