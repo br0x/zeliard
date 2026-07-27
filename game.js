@@ -245,13 +245,6 @@ const TAKO = {
     ],
     numSprites: 112,
 };
-// Frame mappings to tilesheet enp3.png
-// NOTE: index numbering below assumes the sheet was laid out in the same
-// order the frames are defined in ENP3_FRAMES / drawn by grp_viewer's
-// render_enp_group() (i.e. animation-block by animation-block, in
-// insertion order, each block's frames placed consecutively). If the
-// actual enp3.png was assembled in a different order, adjust the numbers
-// below to match.
 const EAI3 = {
     left: [ // 0xA030: 32 arrays
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], // type0_left_frames
@@ -308,6 +301,8 @@ const EAI3 = {
         [], [],
     ],
     numSprites: 98,
+};
+const TORI = {
 };
 
 const DUNGEONS = {
@@ -533,6 +528,39 @@ const DUNGEONS = {
         ],
         ai: EAI3,
     },
+    7: { // dungeon 3 boss room
+        mdtPath: 'game/0/mp3d.mdt',
+        tilesheetPath: 'assets/images/mpp3.png',
+        entitySheetPath: 'assets/images/tori.png',
+        passableTiles: [
+            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            56, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 
+            18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        bossState: {
+            bossX: 46,                  // +0
+            bossY: 18,                  // +2
+            bossHP: 500,                // +3
+            xpReward: 500,              // +5
+            arenaCenterX: 8,            // +7
+            bossPlacement: 0xFF,        // +8
+            almasReward: 500,           // +11
+            bossName: 'Pollo',
+        },
+        ai: TORI,
+    }
 };
 const NOTIFICATION_STRINGS = {
     1:  [38, "You get 50 golds."],

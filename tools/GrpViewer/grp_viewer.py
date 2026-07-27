@@ -69,6 +69,7 @@ GRP_DESCRIPTOR = [
     ("crab.grp",  12),
     ("dman.grp",  13), # rokademo
     ("tako.grp",  14),
+    ("tori.grp",  15),
 ]
 
 MODE_CFG = {
@@ -87,6 +88,7 @@ MODE_CFG = {
     12:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "crab"},
     13:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "dman"},
     14:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tako"},
+    15:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tori"},
 }
 
 SCALE = 3
@@ -1040,6 +1042,212 @@ TAKO_FRAME_SET_BY_INDEX = {
     16: "Frame Set 16 (byte_A25F)",
 }
 
+# Transcribed directly from tori.asm's sprite-frame descriptor tables
+# (byte_A04E..byte_A1C5), pointed to by the 15-entry offset table right
+# after "start:". Same [pal_idx, tl, tr, bl, br] format as CRAB_FRAMES/
+# TAKO_FRAMES/ENP*_FRAMES. Like TAKO_FRAMES, these aren't read by
+# Tori_AI_proc itself -- they belong to the generic monster-rendering
+# routine -- so they're labeled by their slot index/original symbol
+# rather than a hand-picked body-part name.
+TORI_FRAMES = {
+    "Frame Set 00 (byte_A04E)": [
+        [0, 1, 2, 3, 4],
+        [0, 0x9C, 2, 0x9D, 4],
+        [0, 0x29, 0x2A, 0x2B, 0x2C],
+        [0, 0x6A, 0x6B, 0x6C, 0x6D],
+        [0, 0x6A, 0x6B, 0x8A, 0x6D],
+    ],
+    "Frame Set 01 (byte_A067)": [
+        [0, 0x0E, 0x0F, 0x12, 0x13],
+        [0, 0x2D, 0x32, 0x2E, 0x2F],
+        [0, 0x2D, 0x49, 0x2E, 0x50],
+        [0, 0x2D, 0, 0x2E, 0x58],
+        [0, 0, 0x62, 0x66, 0x67],
+        [0, 0x7D, 0x7E, 0, 0x87],
+        [0, 0x7D, 0x7E, 0, 0x19],
+        [0, 0, 0, 0x8F, 0x90],
+        [0, 0x96, 0x97, 0x98, 0x99],
+    ],
+    "Frame Set 02 (byte_A094)": [
+        [0, 0x10, 0x11, 0x14, 0],
+        [0, 0, 0x3B, 0x38, 0x39],
+        [0, 0x4D, 0x4E, 0x49, 0x4A],
+        [0, 0, 0, 0x59, 0x5A],
+        [0, 0x63, 0x64, 0x68, 0x69],
+        [0, 0, 0x72, 0x6E, 0x6F],
+        [0, 0x91, 0, 0x94, 0x95],
+        [0, 0x99, 0x9A, 0x28, 0x9B],
+    ],
+    "Frame Set 03 (byte_A0BC)": [
+        [0, 0, 5, 6, 7],
+        [0, 0x39, 0x3A, 0x36, 0x37],
+        [0, 0x4F, 0, 0x4B, 0x4C],
+        [0, 0, 0x5B, 0, 0x5F],
+        [0, 0x65, 0, 0xA4, 0xA5],
+        [0, 0x7A, 0, 0x76, 0x77],
+    ],
+    "Frame Set 04 (byte_A0DA)": [
+        [0, 0x15, 0x16, 0x17, 0x18],
+        [0, 0x35, 0x36, 0x33, 0x34],
+        [0, 0x50, 0x51, 0x3C, 0x3D],
+        [0, 0x5C, 0x5D, 0x60, 0x61],
+        [0, 0x2E, 0xA6, 0, 0x3C],
+        [0, 0x7B, 0x7C, 0x78, 0x79],
+        [0, 0x92, 0x93, 0xAC, 0xAB],
+        [0, 0xAA, 0x28, 0x27, 0x26],
+    ],
+    "Frame Set 05 (byte_A102)": [
+        [0, 8, 9, 0x19, 0x1A],
+        [0, 8, 9, 0x1C, 0x1D],
+        [0, 8, 9, 0x19, 0x1F],
+        [0, 8, 9, 0x21, 0x22],
+    ],
+    "Frame Set 06 (byte_A116)": [
+        [0, 9, 0x0A, 0x1A, 0x1B],
+        [0, 9, 0x0A, 0x1D, 0x1E],
+        [0, 9, 0x0A, 0x1F, 0x20],
+        [0, 9, 0x0A, 0x22, 0x23],
+    ],
+    "Frame Set 07 (byte_A12A)": [
+        [0, 0xAF, 0xB0, 0xB1, 0xB2],
+        [0, 0x0B, 0, 0x8B, 0xBA],
+        [0, 0x0B, 0, 0x8B, 0x8C],
+        [0, 0x0B, 0xB5, 0xB3, 0xB4],
+    ],
+    "Frame Set 08 (byte_A13E)": [
+        [0, 0x0B, 0xB1, 0x0C, 0x0D],
+        [0, 0, 0xAD, 0xBB, 0xAE],
+        [0, 0, 0, 0x8D, 0x8E],
+        [0, 0xB6, 0xB7, 0, 0xB8],
+    ],
+    "Frame Set 09 (byte_A152)": [
+        [0, 0xB1, 0xB2, 0x0D, 0xB9],
+    ],
+    "Frame Set 10 (byte_A157)": [
+        [0, 0x2F, 0x30, 0x3C, 0x3D],
+        [0, 0x52, 0x53, 0x3E, 0x3F],
+        [0, 0x5E, 0x3F, 0x42, 0x43],
+        [0, 0xA7, 0xA8, 0x3D, 0x3E],
+        [0, 0x73, 0x74, 0x70, 0x71],
+    ],
+    "Frame Set 11 (byte_A170)": [
+        [0, 0x31, 0, 0x3E, 0x3F],
+        [0, 0x40, 0x41, 0, 0],
+        [0, 0x9E, 0x9F, 0xA1, 0xA2],
+        [0, 0xA9, 0, 0x3F, 0],
+        [0, 0x75, 0, 0, 0x82],
+        [0, 0x75, 0, 0, 0],
+    ],
+    "Frame Set 12 (byte_A18E)": [
+        [0, 0x40, 0x41, 0, 0x44],
+        [0, 0x42, 0x43, 0x54, 0x46],
+        [0, 0xA0, 0x44, 0xA3, 0x47],
+        [0, 0x40, 0x41, 0, 0],
+        [0, 0x85, 0x86, 0x83, 0x84],
+        [0, 0x3D, 0x7F, 0x1A, 0x1B],
+    ],
+    "Frame Set 13 (byte_A1AC)": [
+        [0, 0x42, 0x43, 0x45, 0x46],
+        [0, 0x55, 0, 0x56, 0x57],
+        [0, 0x45, 0x46, 0x48, 0],
+        [0, 0x3D, 0x7F, 0x88, 0x89],
+        [0, 0x3F, 0, 0x8B, 0x8C],
+    ],
+    "Frame Set 14 (byte_A1C5)": [
+        [0, 0x44, 0x45, 0x47, 0x48],
+        [0, 0x80, 0x81, 0, 0],
+        [0, 0, 0, 0x8D, 0x8E],
+    ],
+}
+
+# Maps the high nibble of a pose byte (as found in TORI_POSE_POOLS,
+# below) to its TORI_FRAMES key -- i.e. which of the 15
+# byte_A04E..byte_A1C5 tables it selects. The low nibble of the same
+# byte then indexes the row within that table.
+TORI_FRAME_SET_BY_INDEX = {
+    0:  "Frame Set 00 (byte_A04E)",
+    1:  "Frame Set 01 (byte_A067)",
+    2:  "Frame Set 02 (byte_A094)",
+    3:  "Frame Set 03 (byte_A0BC)",
+    4:  "Frame Set 04 (byte_A0DA)",
+    5:  "Frame Set 05 (byte_A102)",
+    6:  "Frame Set 06 (byte_A116)",
+    7:  "Frame Set 07 (byte_A12A)",
+    8:  "Frame Set 08 (byte_A13E)",
+    9:  "Frame Set 09 (byte_A152)",
+    10: "Frame Set 10 (byte_A157)",
+    11: "Frame Set 11 (byte_A170)",
+    12: "Frame Set 12 (byte_A18E)",
+    13: "Frame Set 13 (byte_A1AC)",
+    14: "Frame Set 14 (byte_A1C5)",
+}
+
+# Pose source-byte pools (off_A64D, unk_A673..unk_A6C1 in tori.asm) --
+# the sequence of bytes select_pose()/sub_A552 consumes (in order) for
+# each of the 19 pose indices, one per set bit encountered scanning the
+# matching TORI_SHAPE_BASES mask. Each byte packs (table_index << 4) |
+# row_index, i.e. which TORI_FRAMES set/row to draw for that body-part
+# cell -- see Tori_AI_proc's render_boss_sprite_frame ([di+4]/[di+6]
+# split) in tori.c.
+TORI_POSE_POOLS = [
+    [0x00, 0x30],                                                  # 0  idle: recently_hit_flag == 0
+    [0x01, 0x30],                                                  # 1  idle: recently_hit_flag == 1
+    [0x80, 0x70, 0x90],                                            # 2  idle: flap_phase == 0
+    [0x71, 0x81],                                                  # 3  idle: flap_phase == 1
+    [0x72, 0x82],                                                  # 4  idle: flap_phase == 2
+    [0x73, 0x83],                                                  # 5  idle: flap_phase == 3
+    [0x50, 0x60],                                                  # 6  idle: approach_phase == 0
+    [0x51, 0x61],                                                  # 7  idle: approach_phase == 1
+    [0x52, 0x62],                                                  # 8  idle: approach_phase == 2
+    [0x53, 0x63],                                                  # 9  idle: approach_phase == 3
+    [0x10, 0x40, 0x20],                                            # 10 idle: tick_div3 == 0
+    [0x17, 0x46, 0x26],                                            # 11 idle: tick_div3 == 1
+    [0x18, 0x47, 0x27],                                            # 12 idle: tick_div3 == 2
+    [0x02, 0x11, 0xA0, 0xC0, 0x21, 0x41, 0xE0, 0x31, 0xB0, 0xD0],  # 13 attacking: attack_phase == 0
+    [0x02, 0x12, 0x22, 0x42, 0xB1, 0x32, 0xA1, 0xC1, 0xD1],        # 14 attacking: attack_phase == 1
+    [0x02, 0x33, 0xB2, 0x13, 0x43, 0xC2, 0x23, 0xA2, 0xD2],        # 15 attacking: attack_phase == 2
+    [0x02, 0x14, 0x44, 0xC3, 0x24, 0xA3, 0xC1, 0xD1, 0x34, 0xB3],  # 16 attacking: attack_phase == 3
+    [0x03, 0x25, 0x15, 0x35, 0xA4, 0xD3, 0x45, 0xB4, 0xE1, 0xC4],  # 17 death/recovering: attack_phase == 0
+    [0x04, 0x25, 0x16, 0x35, 0xA4, 0xC5, 0x45, 0xB5, 0xD4, 0xE2],  # 18 death/recovering: attack_phase == 1
+]
+
+# The 13 distinct 9-byte column-visibility masks (off_A6CB targets
+# unk_A6F1..unk_A75D in tori.asm) that select_pose()/sub_A552 rotates
+# through, MSB-first, to decide which rows in each column get a pose
+# byte this call.
+TORI_SHAPE_BASES = [
+    (0x00, 0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),  # unk_A6F1 (pose idx 0,1)
+    (0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x0C, 0x00),  # unk_A6FA (pose idx 2)
+    (0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x04),  # unk_A703 (pose idx 3,4,5)
+    (0x00, 0x00, 0x00, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00),  # unk_A70C (pose idx 6,7,8,9)
+    (0x00, 0x00, 0x00, 0x00, 0x50, 0x00, 0x40, 0x00, 0x00),  # unk_A715 (pose idx 10)
+    (0x00, 0x00, 0x00, 0x00, 0x50, 0x00, 0x20, 0x00, 0x00),  # unk_A71E (pose idx 11)
+    (0x00, 0x00, 0x00, 0x00, 0x50, 0x20, 0x00, 0x00, 0x00),  # unk_A727 (pose idx 12)
+    (0x10, 0x00, 0x10, 0x0A, 0xA1, 0x4A, 0x00, 0x00, 0x00),  # unk_A730 (pose idx 13)
+    (0x20, 0x00, 0x20, 0x54, 0x00, 0x55, 0x00, 0x00, 0x00),  # unk_A739 (pose idx 14)
+    (0x10, 0x05, 0x10, 0x05, 0x10, 0x05, 0x00, 0x00, 0x00),  # unk_A742 (pose idx 15)
+    (0x20, 0x00, 0x50, 0x04, 0x50, 0x05, 0x50, 0x00, 0x00),  # unk_A74B (pose idx 16)
+    (0x04, 0x00, 0x14, 0x00, 0x54, 0x00, 0x54, 0x00, 0x10),  # unk_A754 (pose idx 17)
+    (0x04, 0x00, 0x14, 0x00, 0x54, 0x00, 0x54, 0x00, 0x04),  # unk_A75D (pose idx 18)
+]
+
+# off_A6CB: which of the 13 base masks each of the 19 pose indices uses
+# (several pose indices deliberately alias the same physical mask in
+# the original data -- e.g. idx 0/1, 3/4/5, 6/7/8/9).
+TORI_SHAPE_MAP = [0, 0, 1, 2, 2, 2, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+# Human-readable label for each pose index, matching the al values
+# select_pose() is called with from Tori_AI_proc's render_boss_sprite_frame
+# (see tori.c).
+TORI_POSE_LABELS = [
+    "idle: recently_hit_flag=0", "idle: recently_hit_flag=1",
+    "idle: flap_phase=0", "idle: flap_phase=1", "idle: flap_phase=2", "idle: flap_phase=3",
+    "idle: approach_phase=0", "idle: approach_phase=1", "idle: approach_phase=2", "idle: approach_phase=3",
+    "idle: tick_div3=0", "idle: tick_div3=1", "idle: tick_div3=2",
+    "attacking: attack_phase=0", "attacking: attack_phase=1", "attacking: attack_phase=2", "attacking: attack_phase=3",
+    "death/recovering: attack_phase=0", "death/recovering: attack_phase=1",
+]
+
 ENP_FRAMES_MAP = {
     1: ENP1_FRAMES,
     2: ENP2_FRAMES,
@@ -1884,6 +2092,194 @@ def render_tako_group(data, canvas, y_offset):
 
     return current_y - y_offset
 
+def compute_tori_pose_layout(pose_idx):
+    """
+    Reproduce Tori_AI_proc's select_pose()/sub_A552 body-part layout walk
+    (render_boss_sprite_frame's 9-column x 8-row scan) for a single
+    pose_idx (0..18), returning a static snapshot: a list of
+    (col, row, table_index, row_index) for every body-part cell that
+    pose fills in.
+
+    Note: as with compute_tako_phase_layout, the original rotates each
+    shape-mask byte in place and that rotation is shared between the
+    several pose_idx slots that alias the same physical mask (see
+    TORI_SHAPE_MAP) -- but since a full pass always performs exactly 8
+    rotations of an 8-bit value (a full cycle back to the start), the
+    mask's value is unchanged by the time any one call returns, so
+    starting each pose_idx from a fresh copy of its base mask here
+    reproduces the same set of cells every time, just as in the game.
+    """
+    pool = TORI_POSE_POOLS[pose_idx]
+    shape = list(TORI_SHAPE_BASES[TORI_SHAPE_MAP[pose_idx]])
+    pool_iter = iter(pool)
+    placements = []
+
+    for col in range(9):
+        b = shape[col]
+        for row in range(8):
+            carry = (b & 0x80) != 0
+            b = ((b << 1) | (1 if carry else 0)) & 0xFF
+            if carry:
+                try:
+                    v = next(pool_iter)
+                except StopIteration:
+                    break
+                table_index = v >> 4
+                row_index = v & 0x0F
+                placements.append((col, row, table_index, row_index))
+
+    return placements
+
+
+def compose_tori_frame(pose_indices):
+    """
+    Combine the placements from several select_pose()/sub_A552 calls into
+    one shared 9x8 body grid, exactly as Tori_AI_proc's
+    render_boss_sprite_frame does per frame: during the "attacking" and
+    "death/recovering" states it calls select_pose() exactly once (a
+    single pose index already fills in the whole body), but during the
+    plain idle state it calls select_pose() FOUR times in a row --
+    recently_hit_flag, then approach_phase+6, then tick_div3+0x0A, then
+    flap_phase+2 -- each contributing a distinct, non-overlapping subset
+    of body-part cells (they're driven by separate mask arrays, so they
+    never write the same cell twice). Rendering any single one of those
+    four alone only shows a fragment (e.g. just a wing-tip or a head
+    bob), which is why a full idle body needs all four combined.
+    """
+    placements = []
+    for idx in pose_indices:
+        placements.extend(compute_tori_pose_layout(idx))
+    return placements
+
+
+# Named, fully-assembled body states to render in Part 1, mirroring
+# exactly which select_pose() calls render_boss_sprite_frame makes for
+# each state (see tori.c):
+#   - "attacking" and "death/recovering" states: a single pose index
+#     already produces the complete body.
+#   - the idle state: recently_hit_flag (0 or 1) + flap_phase (0..3) +
+#     approach_phase (0..3) + tick_div3 (0..2) are combined every frame.
+#     flap_phase advances every idle frame while approach_phase only
+#     advances every other frame and tick_div3 is frozen unless the boss
+#     has charged before, so they drift out of sync over real gameplay;
+#     the "flap cycle" entries below approximate a representative cycle
+#     by advancing flap_phase and approach_phase together, and separate
+#     entries show the recently-hit and tick_div3 variants in isolation.
+TORI_BODY_FRAMES = [
+    ("idle: flap cycle 0",        [0, 2, 6, 10]),
+    ("idle: flap cycle 1",        [0, 3, 7, 11]),
+    ("idle: flap cycle 2",        [0, 4, 8, 12]),
+    ("idle: flap cycle 3",        [0, 5, 9, 10]),
+    ("idle: recently hit",        [1, 2, 6, 10]),
+    ("idle: tick_div3=1 detail",  [0, 2, 6, 11]),
+    ("idle: tick_div3=2 detail",  [0, 2, 6, 12]),
+    ("attacking: phase 0",        [13]),
+    ("attacking: phase 1",        [14]),
+    ("attacking: phase 2",        [15]),
+    ("attacking: phase 3",        [16]),
+    ("death/recovering: phase 0", [17]),
+    ("death/recovering: phase 1", [18]),
+]
+
+
+def render_tori_group(data, canvas, y_offset):
+    """
+    Render tori.grp sprites (Pollo/Tori boss).
+
+    Part 1 assembles the actual, complete boss body (9 columns x 8 rows)
+    for each named state in TORI_BODY_FRAMES, exactly as
+    Tori_AI_proc's render_boss_sprite_frame lays it out from
+    TORI_POSE_POOLS / TORI_SHAPE_BASES -- combining multiple
+    select_pose() calls per frame where the game does (see
+    compose_tori_frame) -- using each placement's table_index/row_index
+    (the high/low nibble split of the pose byte written into the
+    pseudo-monster's .flags/.anim_counter fields) to pick the right
+    TORI_FRAMES set and row within it.
+
+    Part 2 is a plain browser over every raw frame set (same approach
+    as render_tako_group's Part 2), so every individual 16x16 frame can
+    be inspected regardless of whether the composite body walk reaches
+    it.
+    """
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+    gap_x = 0
+    gap_y = 8
+    sprite_px = 16  # Total width/height of the 2x2 tile assembly
+    frames_per_row = 16
+
+    # Ensure the data buffer is padded to prevent index-out-of-range errors
+    # for high tile indices.
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Tori Body (named states from TORI_BODY_FRAMES)
+    # -----------------------------------------------------------------------
+    body_scale = 2  # the 9x8-tile grid is much larger than crab's, scale down to fit
+    cols, rows = 9, 8
+    # currX/currY (and so col/row here) are in 8px world-tile units -- the
+    # same unit render_roka_group/render_dchr_group use for the dungeon
+    # map (`col * (8 * SCALE)`) -- while each composed frame is a 16x16
+    # (2x2 world-tile) sprite. So adjacent grid steps must be 8px apart
+    # (half the drawn sprite's width/height), not a full 16px sprite-width
+    # apart, or every piece ends up floating in its own cell with a gap
+    # on every side instead of overlapping/tiling with its neighbors.
+    step = 8
+    sprite_span = 16  # composed frame's own width/height
+    block_w = (cols - 1) * step * body_scale + sprite_span * body_scale
+    block_h = (rows - 1) * step * body_scale + sprite_span * body_scale
+    frames_per_row_body = 5
+    body_gap_x, body_gap_y = 12, 16
+
+    for f_idx, (label, pose_indices) in enumerate(TORI_BODY_FRAMES):
+        col_idx = f_idx % frames_per_row_body
+        row_idx = f_idx // frames_per_row_body
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
+                            anchor="w", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, table_index, row_index in compose_tori_frame(pose_indices):
+            set_name = TORI_FRAME_SET_BY_INDEX.get(table_index)
+            if set_name is None:
+                continue
+            frames = TORI_FRAMES[set_name]
+            if row_index >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[row_index], tiles_raw,
+                                       x_base + gcol * step * body_scale,
+                                       y_base + grow * step * body_scale,
+                                       body_scale)
+
+    num_body_rows = (len(TORI_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set
+    # -----------------------------------------------------------------------
+    n = 0
+    for set_name, frames in TORI_FRAMES.items():
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
 # ---------------------------------------------------------------------------
 # Roka rendering (roka.grp dungeon entrance decorations)
 # ---------------------------------------------------------------------------
@@ -2053,6 +2449,8 @@ def render_composite_hero_exact(
         if frame_off is None:
             return
         indices = get_frame(frame_off)
+        if indices is None:
+            return
         for row in range(3):
             for col in range(3):
                 tile_idx = indices[row*3 + col]
@@ -2334,6 +2732,10 @@ class GrpViewer:
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             elif modes == 14:
                 consumed = render_tako_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+            elif modes == 15:
+                consumed = render_tori_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             elif modes == 13:

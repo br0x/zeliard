@@ -5,5 +5,7 @@
     "github.copilot.nextEditSuggestions.extendedRange": false,
     "github.copilot.nextEditSuggestions.enabled": false,
     "github.copilot.nextEditSuggestions.allowWhitespaceOnlyChanges": false,
-    "editor.inlineSuggest.edits.showLongDistanceHint": false
+    "editor.inlineSuggest.edits.showLongDistanceHint": false,
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.analysis.typeCheckingMode": "standard"
 }

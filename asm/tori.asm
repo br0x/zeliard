@@ -21,7 +21,9 @@ start:
                 db    0
                 db    0
                 db    0
+                ; A010
                 db 56, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18
+                ; A030
                 dw offset byte_A04E
                 dw offset byte_A067
                 dw offset byte_A094
@@ -121,9 +123,7 @@ byte_A1C5       db 0, 44h, 45h, 47h, 48h
 
 Tori_AI_proc    proc near
 
-; FUNCTION CHUNK AT A60A SIZE 00000043 BYTES
-
-                mov     si, ds:0C010h   ; monsters_table_addr
+                mov     si, ds:monsters_table_addr
                 mov     byte_A789, 0
                 mov     byte_A791, 0
 
@@ -131,14 +131,14 @@ loc_A1E2:
                 cmp     word ptr [si], 0FFFFh
                 jz      short loc_A22D
                 mov     ax, [si]
-                call    word ptr cs:6036h ; is_in_proximity_window_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 jb      short loc_A224
                 mov     [si+3], bl
                 mov     ax, [si+2]
-                call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
+                call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc
                 mov     bl, byte_A789
                 xor     bh, bh
-                mov     al, [bx+0ED20h] ; proximity_second_layer
+                mov     al, ds:proximity_second_layer[bx]
                 mov     [di], al
                 test    byte ptr [si+5], 40h
                 jz      short loc_A224
@@ -159,15 +159,15 @@ loc_A224:
                 jmp     short loc_A1E2
 ; ---------------------------------------------------------------------------
 
-loc_A22D:                               ;
-                mov     si, ds:0C010h   ; monsters_table_addr
+loc_A22D:
+                mov     si, ds:monsters_table_addr
                 mov     word ptr [si], 0FFFh
                 mov     al, byte_A791
                 or      al, al
                 jz      short loc_A27B
                 push    ax
                 and     al, 1Fh
-                call    word ptr cs:6038h ; Get_Stats_proc
+                call    word ptr cs:Get_Stats_proc
                 mov     bl, ah
                 xor     bh, bh
                 pop     ax
@@ -177,8 +177,8 @@ loc_A22D:                               ;
                 add     bx, bx
                 add     bx, bx
 
-loc_A253:                               ;
-                mov     byte ptr ds:0FF75h, 41 ; soundFX_request
+loc_A253:
+                mov     byte ptr ds:soundFX_request, 41
                 call    sub_A5BA
                 test    byte_A78C, 0FFh
                 jz      short loc_A271
@@ -203,16 +203,16 @@ loc_A27B:
 loc_A290:
                 test    byte_A78C, 0FFh
                 jz      short loc_A2E5
-                cmp     byte_A775, 0Eh
+                cmp     boss_y, 0Eh
                 jz      short loc_A2A2
-                dec     byte_A775
+                dec     boss_y
 
 loc_A2A2:
                 inc     byte_A78D
                 and     byte_A78D, 3
                 cmp     byte_A78D, 2
                 jnz     short loc_A2B7
-                mov     byte ptr ds:0FF75h, 43 ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 43
 
 loc_A2B7:
                 call    sub_A59D
@@ -227,7 +227,7 @@ loc_A2CE:
                 mov     byte_A78C, 0
                 mov     byte_A78D, 0
                 mov     byte_A78E, 0FFh
-                mov     byte ptr ds:0FF75h, 42 ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 42
 
 loc_A2E2:
                 jmp     loc_A455
@@ -244,9 +244,9 @@ loc_A2E5:
 
 loc_A2FB:
                 mov     byte_A78D, 1
-                cmp     byte_A775, 12h
+                cmp     boss_y, 12h
                 jz      short loc_A313
-                inc     byte_A775
+                inc     boss_y
                 mov     byte_A78D, 0
                 call    sub_A58F
 
@@ -268,7 +268,7 @@ loc_A32E:
                 cmp     byte_A798, 4
                 jnb     short loc_A346
                 inc     byte_A798
-                mov     byte ptr ds:0FF75h, 42 ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 42
                 mov     byte_A795, 4
                 jmp     loc_A455
 ; ---------------------------------------------------------------------------
@@ -293,28 +293,28 @@ loc_A36C:
                 cmp     byte_A798, 2
                 jnb     short loc_A384
                 inc     byte_A798
-                mov     byte ptr ds:0FF75h, 42 ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 42
                 mov     byte_A795, 2
                 jmp     loc_A455
 ; ---------------------------------------------------------------------------
 
 loc_A384:
-                mov     ax, boss_state_block
+                mov     ax, ds:boss_x
                 add     ax, 4
-                call    word ptr cs:6036h ; is_in_proximity_window_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 mov     byte_A766, bl
-                mov     al, byte_A775
+                mov     al, boss_y
                 add     al, 4
                 and     al, 3Fh
                 mov     byte_A767, al
                 mov     bx, offset byte_A766
-                call    word ptr cs:603Ah ; Add_Projectile_To_Array_proc
+                call    word ptr cs:Add_Projectile_To_Array_proc
                 mov     byte_A79A, 0
                 jmp     loc_A455
 ; ---------------------------------------------------------------------------
 
-loc_A3AD:                               ;
-                test    byte ptr ds:0FF2Eh, 0FFh ; boss_being_hit
+loc_A3AD:
+                test    byte ptr ds:boss_being_hit, 0FFh
                 jz      short loc_A3B7
                 jmp     loc_A60A
 ; ---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ loc_A3B7:
                 and     byte_A790, 3
                 test    byte_A791, 0FFh
                 jz      short loc_A3D8
-                cmp     byte ptr boss_state_block, 14h
+                cmp     byte ptr ds:boss_x, 20
                 jb      short loc_A3D8
                 mov     byte_A797, 0FFh
                 mov     byte_A798, 0
@@ -332,7 +332,7 @@ loc_A3B7:
 loc_A3D8:
                 test    byte_A797, 0FFh
                 jnz     short loc_A3F2
-                call    word ptr cs:11Ah ; get_random_proc
+                call    word ptr cs:get_random_proc
                 and     al, 0Fh
                 jnz     short loc_A3F2
                 mov     byte_A79A, 0FFh
@@ -342,19 +342,19 @@ loc_A3F2:
                 inc     byte_A796
                 test    byte_A796, 1
                 jnz     short loc_A455
-                mov     al, ds:80h      ; proximity_map_left_col_x
-                add     al, ds:83h      ; hero_x_in_viewport
+                mov     al, ds:proximity_map_left_col_x
+                add     al, ds:hero_x_in_viewport
                 xor     ah, ah
                 mov     cx, ax
-                sub     cx, ds:0C002h   ; mapWidth
+                sub     cx, ds:mapWidth
                 jb      short loc_A40F
                 xchg    ax, cx
 
 loc_A40F:
-                mov     bl, byte ptr boss_state_block
+                mov     bl, byte ptr ds:boss_x
                 sub     bl, al
-                cmp     bl, 0Ch
-                jz      short loc_A442
+                cmp     bl, 12
+                je      short loc_A442
                 jnb     short loc_A436
                 dec     byte_A78A
                 and     byte_A78A, 3
@@ -370,19 +370,18 @@ loc_A436:
                 and     byte_A78A, 3
                 call    sub_A58F
 
-loc_A442:                               ;
-                call    word ptr cs:11Ah ; get_random_proc
+loc_A442:
+                call    word ptr cs:get_random_proc
                 and     al, 1Fh
                 jnz     short loc_A455
                 mov     byte_A797, 0FFh
                 mov     byte_A798, 0
 
 loc_A455:
-                mov     al, byte_A775
+                mov     al, boss_y
                 mov     byte_A793, al
                 push    cs
                 pop     es
-                assume es:nothing
                 mov     di, offset byte_A79C
                 mov     al, 0FFh
                 mov     cx, 72
@@ -428,8 +427,8 @@ loc_A49E:
 
 loc_A4BC:
                 mov     byte_A789, 0
-                mov     ax, boss_state_block
-                mov     di, ds:0C010h   ; monsters_table_addr
+                mov     ax, ds:boss_x
+                mov     di, ds:monsters_table_addr
                 mov     si, offset byte_A79C
                 mov     cx, 9
 
@@ -437,7 +436,7 @@ loc_A4CE:
                 push    cx
                 push    si
                 push    ax
-                call    word ptr cs:6036h ; is_in_proximity_window_proc
+                call    word ptr cs:is_in_proximity_window_proc
                 pop     ax
                 jb      short loc_A545
                 mov     byte_A792, bl
@@ -472,13 +471,13 @@ loc_A4DF:
 loc_A51B:
                 mov     ax, [di+2]
                 push    di
-                call    word ptr cs:6028h ; coords_in_ax_to_proximity_map_offset_in_di_proc
+                call    word ptr cs:coords_in_ax_to_proximity_map_offset_in_di_proc
                 mov     bl, byte_A789
                 xor     bh, bh
                 mov     al, bl
                 or      al, 80h
                 xchg    al, [di]
-                mov     [bx+0ED20h], al ; proximity_second_layer
+                mov     ds:proximity_second_layer[bx], al
                 pop     di
                 add     di, 10h
                 inc     byte_A789
@@ -556,13 +555,13 @@ sub_A57B        endp
 
 
 sub_A58F        proc near
-                cmp     byte ptr boss_state_block, 0Dh
+                cmp     byte ptr ds:boss_x, 13
                 jnb     short loc_A597
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A597:
-                dec     byte ptr boss_state_block
+                dec     byte ptr ds:boss_x
                 clc
                 retn
 sub_A58F        endp
@@ -572,13 +571,13 @@ sub_A58F        endp
 
 
 sub_A59D        proc near
-                cmp     byte ptr boss_state_block, 11h
+                cmp     byte ptr ds:boss_x, 17
                 jnb     short loc_A5A5
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A5A5:
-                dec     byte ptr boss_state_block
+                dec     byte ptr ds:boss_x
                 clc
                 retn
 sub_A59D        endp
@@ -588,14 +587,14 @@ sub_A59D        endp
 
 
 sub_A5AB        proc near
-                cmp     byte ptr boss_state_block, 30h ; '0'
+                cmp     byte ptr ds:boss_x, 48
                 cmc
                 jnb     short loc_A5B4
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_A5B4:
-                inc     byte ptr boss_state_block
+                inc     byte ptr ds:boss_x
                 clc
                 retn
 sub_A5AB        endp
@@ -614,16 +613,16 @@ loc_A5C3:
                 mov     boss_hp, ax
                 mov     bx, ax
                 push    ax
-                call    word ptr cs:200Ch ; Draw_Boss_Health_proc
+                call    word ptr cs:Draw_Boss_Health_proc
                 pop     ax
                 or      ax, ax
                 jz      short loc_A5D4
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A5D4:                               ;
-                mov     byte ptr ds:0FF2Eh, 0FFh ; boss_being_hit
-                call    word ptr cs:603Ch ; Browse_Projectiles_proc
+loc_A5D4:
+                mov     byte ptr ds:boss_being_hit, 0FFh
+                call    word ptr cs:Browse_Projectiles_proc
                 mov     byte_A797, 0
                 mov     byte_A79A, 0
                 mov     byte_A798, 0
@@ -641,13 +640,12 @@ loc_A5F5:
 sub_A5BA        endp
 
 ; ---------------------------------------------------------------------------
-; START OF FUNCTION CHUNK FOR Tori_AI_proc
 
 loc_A60A:
                 mov     al, byte_A794
-                cmp     al, 28h ; '('
+                cmp     al, 40
                 jnb     short loc_A647
-                mov     byte ptr ds:0FF2Fh, 0FFh ; sprite_flash_flag
+                mov     byte ptr ds:sprite_flash_flag, 0FFh
                 mov     byte_A78B, 1
                 mov     al, byte_A794
                 inc     byte_A794
@@ -656,7 +654,7 @@ loc_A60A:
                 call    sub_A57B
                 inc     byte_A790
                 and     byte_A790, 3
-                mov     byte ptr ds:0FF75h, 44 ; soundFX_request
+                mov     byte ptr ds:soundFX_request, 44
                 jmp     loc_A455
 ; ---------------------------------------------------------------------------
 
@@ -666,10 +664,9 @@ loc_A63A:
                 jmp     loc_A455
 ; ---------------------------------------------------------------------------
 
-loc_A647:                               ;
-                mov     byte ptr ds:0FF30h, 0FFh ; boss_is_dead
+loc_A647:
+                mov     byte ptr ds:boss_is_dead, 0FFh
                 retn
-; END OF FUNCTION CHUNK FOR Tori_AI_proc
 ; ---------------------------------------------------------------------------
 off_A64D        dw offset unk_A673
                 dw offset unk_A675
@@ -927,15 +924,15 @@ byte_A767       db 0
                 db    0
                 db    0
                 db    0
-boss_state_block dw 2Eh                 ; boss_x
-byte_A775       db 12h                  ; boss_y
+boss_state_block:
+boss_x          dw 46
+boss_y          db 18
 boss_hp         dw 500
 xp_reward       dw 500
 arena_center_x  db 8
 boss_placement  db 0FFh
 name_block_ptr  dw offset name_screen_x
-                db 0F4h
-                db    1
+                dw 500 ; almas_reward
 name_screen_x   db  12h
 name_screen_y   db 0BBh
                 db    0
