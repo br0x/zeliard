@@ -66,6 +66,8 @@ tasm /m9 crab.asm >>log.txt
 tlink crab.obj >>log.txt
 tasm /m9 tako.asm >>log.txt
 tlink tako.obj >>log.txt
+tasm /m9 tori.asm >>log.txt
+tlink tori.obj >>log.txt
 exit
 EOF
 
@@ -104,6 +106,7 @@ python3 exe2bin.py EAI2.EXE eai2.bin 0xA000
 python3 exe2bin.py EAI3.EXE eai3.bin 0xA000
 python3 exe2bin.py CRAB.EXE crab.bin 0xA000
 python3 exe2bin.py TAKO.EXE tako.bin 0xA000
+python3 exe2bin.py TORI.EXE tori.bin 0xA000
 
 echo "ZELIARD.EXE diffs:" >diff.txt
 { cmp -l ../game/zeliard.exe ZELIARD.EXE | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
@@ -163,4 +166,6 @@ echo "crab.bin diffs:" >>diff.txt
 { cmp -l ../game/0/crab.bin crab.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "tako.bin diffs:" >>diff.txt
 { cmp -l ../game/0/tako.bin tako.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "tori.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/tori.bin tori.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 rm *.EXE *.MAP *.OBJ build.bat
