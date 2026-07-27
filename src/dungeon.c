@@ -5153,6 +5153,7 @@ void load_eai_module(uint8_t place_map_id)
         case 4: current_monster_ai = Pulpo_AI; break;     // mp2d.mdt
         case 5: current_monster_ai = Monster_AI_3; break; // mp30.mdt
         case 6: current_monster_ai = Monster_AI_3; break; // mp31.mdt
+        case 7: current_monster_ai = Pollo_AI; break;     // mp3d.mdt
         /* add more as more eaiN.c modules are translated */
     }
 }

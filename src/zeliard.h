@@ -332,6 +332,7 @@ void Monster_AI_2(uint16_t m);
 void Monster_AI_3(uint16_t m);
 void Cangrejo_AI(uint16_t m);
 void Pulpo_AI(uint16_t m);
+void Pollo_AI(uint16_t m);
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
