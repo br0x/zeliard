@@ -586,8 +586,8 @@ const DUNGEONS = {
         mdtPath: 'game/0/mp3d.mdt',
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/tori.png',
-        passableTiles: [
-            0, 1, 2, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x15, 0x16, 0x17, 0x18, 0x19,
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 7, 0x0B, 0x0C, 0x1B, 0x1C, 0x1D, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
         ],
         slopeTilesLeft: [],
         slopeTilesRight: [],
