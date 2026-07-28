@@ -12,8 +12,9 @@ start:
                 db    0
                 db    0
                 db    0
-                dw offset off_A24F ; death_descriptors
-                db 0Ah, 0Ah, 0, 0, 14h, 0, 0, 0, 14h, 4, 50h, 50h, 50h, 0, 0, 0
+                dw offset death_descriptors
+monster_xp      db 10, 10, 0, 0, 20, 0, 0, 0
+monster_damage  db 20, 4, 80, 80, 80, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db    0
                 db    0
@@ -23,95 +24,73 @@ start:
                 db    0
                 db    0
                 db    0
-                dw offset byte_A0B0
-                dw offset byte_A15F
-                dw offset byte_A196
-                dw offset byte_A1A0
-                dw offset byte_A1B9
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset byte_A150
-                dw offset byte_A187
-                dw offset byte_A1AA
-                dw offset byte_A1AA
-                dw offset byte_A1CD
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset byte_A22C
-                dw offset byte_A22C
-                dw offset byte_A1DC
-                dw offset byte_A213
-                dw offset byte_A1EB
-                dw offset byte_A1FF
-                dw offset byte_A227
-                db    0
-                db    0
-                dw offset byte_A245
-                dw offset byte_A24A
-                dw offset byte_A240
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset byte_A100
-                dw offset byte_A15F
-                dw offset byte_A196
-                dw offset byte_A1A0
-                dw offset byte_A1B9
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset byte_A150
-                dw offset byte_A187
-                dw offset byte_A1AA
-                dw offset byte_A1AA
-                dw offset byte_A1CD
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                dw offset byte_A22C
-                dw offset byte_A22C
-                dw offset byte_A1DC
-                dw offset byte_A213
-                dw offset byte_A1EB
-                dw offset byte_A1FF
-                dw offset byte_A227
-                db    0
-                db    0
-                dw offset byte_A245
-                dw offset byte_A24A
-                dw offset byte_A240
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-byte_A0B0       db 1, 0, 1, 2, 3
+                ; A030 left frames
+                dw offset turtle_left
+                dw offset green_egg
+                dw offset icicle_idle
+                dw offset icicle_fall
+                dw offset arrow
+                dw    0
+                dw    0
+                dw    0
+                dw offset turtle_death
+                dw offset green_egg_death
+                dw offset icicle_break
+                dw offset icicle_break
+                dw offset arrow_death
+                dw    0
+                dw    0
+                dw    0
+                dw offset wall_destruction
+                dw offset wall_destruction
+                dw offset hit
+                dw offset chest
+                dw offset alma_red
+                dw offset alma_blue
+                dw offset ordinary_key
+                dw    0
+                dw offset red_potion
+                dw offset blue_potion
+                dw offset ruzeria_shoes
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                ; A070 right frames
+                dw offset turtle_right
+                dw offset green_egg
+                dw offset icicle_idle
+                dw offset icicle_fall
+                dw offset arrow
+                dw    0
+                dw    0
+                dw    0
+                dw offset turtle_death
+                dw offset green_egg_death
+                dw offset icicle_break
+                dw offset icicle_break
+                dw offset arrow_death
+                dw    0
+                dw    0
+                dw    0
+                dw offset wall_destruction
+                dw offset wall_destruction
+                dw offset hit
+                dw offset chest
+                dw offset alma_red
+                dw offset alma_blue
+                dw offset ordinary_key
+                dw    0
+                dw offset red_potion
+                dw offset blue_potion
+                dw offset ruzeria_shoes
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+                dw    0
+turtle_left     db 1, 0, 1, 2, 3 ; 0
                 db 1, 0, 1, 5, 6
                 db 1, 0, 1, 8, 9
                 db 1, 0, 1, 0Bh, 0Ch
@@ -126,8 +105,8 @@ byte_A0B0       db 1, 0, 1, 2, 3
                 db 1, 0, 0, 0E2h, 0A4h
                 db 1, 3Ah, 3Bh, 3Ch, 3Dh
                 db 1, 3Eh, 0, 3Fh, 0
-                db 1, 40h, 0, 41h, 0
-byte_A100       db 1, 19h, 0, 1Ah, 1Bh
+                db 1, 40h, 0, 41h, 0 ; 15
+turtle_right    db 1, 19h, 0, 1Ah, 1Bh ; 16
                 db 1, 19h, 0, 1Dh, 1Eh
                 db 1, 19h, 0, 20h, 21h
                 db 1, 19h, 0, 23h, 24h
@@ -142,59 +121,59 @@ byte_A100       db 1, 19h, 0, 1Ah, 1Bh
                 db 1, 0, 0, 0A3h, 0A2h
                 db 1, 4Bh, 4Ch, 4Dh, 4Eh
                 db 1, 0, 4Fh, 0, 50h
-                db 1, 0, 51h, 0, 52h
-byte_A150       db 1, 53h, 54h, 55h, 56h
+                db 1, 0, 51h, 0, 52h ; 31
+turtle_death    db 1, 53h, 54h, 55h, 56h ; 32
                 db 1, 57h, 58h, 59h, 5Ah
                 db 1, 5Bh, 5Ch, 5Dh, 5Eh
-byte_A15F       db 0, 5Fh, 60h, 61h, 62h
+green_egg       db 0, 5Fh, 60h, 61h, 62h ; 35
                 db 0, 63h, 60h, 65h, 66h
                 db 0, 67h, 68h, 69h, 6Ah
                 db 0, 5Fh, 6Ch, 6Dh, 6Eh
                 db 0, 6Fh, 60h, 71h, 72h
                 db 0, 73h, 74h, 75h, 76h
                 db 0, 63h, 78h, 79h, 7Ah
-                db 0, 7Bh, 6Ch, 7Dh, 7Eh
-byte_A187       db 0, 7Fh, 80h, 81h, 82h
+                db 0, 7Bh, 6Ch, 7Dh, 7Eh ; 42
+green_egg_death db 0, 7Fh, 80h, 81h, 82h ; 43
                 db 0, 83h, 84h, 85h, 86h
                 db 0, 87h, 88h, 89h, 8Ah
-byte_A196       db 2, 8Bh, 8Ch, 8Dh, 8Eh
+icicle_idle     db 2, 8Bh, 8Ch, 8Dh, 8Eh ; 46
                 db 2, 8Fh, 90h, 91h, 92h
-byte_A1A0       db 2, 9Dh, 9Dh, 9Eh, 9Eh
+icicle_fall     db 2, 9Dh, 9Dh, 9Eh, 9Eh ; 48
                 db 2, 0A1h, 0A1h, 9Eh, 9Eh
-byte_A1AA       db 2, 95h, 96h, 98h, 99h
+icicle_break    db 2, 95h, 96h, 98h, 99h ; 50
                 db 2, 99h, 9Ah, 9Bh, 9Ch
                 db 2, 0, 0, 9Fh, 0A0h
-byte_A1B9       db 0, 0A8h, 0A9h, 0AAh, 0ABh
+arrow           db 0, 0A8h, 0A9h, 0AAh, 0ABh ; 53
                 db 0, 0ACh, 0ADh, 0AEh, 0AFh
                 db 0, 0B0h, 0B1h, 0B2h, 0B3h
                 db 0, 0B4h, 0B5h, 0B6h, 0B7h
-byte_A1CD       db 0, 0B8h, 0B9h, 0BAh, 0BBh
+arrow_death     db 0, 0B8h, 0B9h, 0BAh, 0BBh ; 57
                 db 0, 0BCh, 0BDh, 0BEh, 0BFh
                 db 0, 0C0h, 0C1h, 0C2h, 0C3h
-byte_A1DC       db 1, 4, 7, 0Ah, 0Dh
+hit             db 1, 4, 7, 0Ah, 0Dh         ; 60
                 db 1, 10h, 13h, 16h, 1Ch
                 db 1, 1Fh, 22h, 25h, 28h
-byte_A1EB       db 0, 2Bh, 2Eh, 31h, 42h
+alma_red        db 0, 2Bh, 2Eh, 31h, 42h     ; 63
                 db 0, 64h, 6Bh, 70h, 77h
                 db 0, 7Ch, 0C4h, 0C5h, 0C6h
                 db 0, 64h, 6Bh, 70h, 77h
-byte_A1FF       db 2, 2Bh, 2Eh, 31h, 42h
+alma_blue       db 2, 2Bh, 2Eh, 31h, 42h     ; 67
                 db 2, 64h, 6Bh, 70h, 77h
                 db 2, 7Ch, 0C4h, 0C5h, 0C6h
                 db 2, 64h, 6Bh, 70h, 77h
-byte_A213       db 0, 0C7h, 0C8h, 0C9h, 0CAh
+chest           db 0, 0C7h, 0C8h, 0C9h, 0CAh ; 71
                 db 0, 0C7h, 0C8h, 0C9h, 0CAh
                 db 0, 0C7h, 0C8h, 0C9h, 0CAh
                 db 0, 0C7h, 0C8h, 0C9h, 0CAh
-byte_A227       db 1, 0CBh, 0CCh, 0CDh, 0CEh
-byte_A22C       db 2, 0D7h, 0D7h, 0D7h, 0D7h
+ordinary_key    db 1, 0CBh, 0CCh, 0CDh, 0CEh ; 75
+wall_destruction db 2, 0D7h, 0D7h, 0D7h, 0D7h ; 76
                 db 2, 0D8h, 0D9h, 0DAh, 0DBh
                 db 2, 0DCh, 0DDh, 0DEh, 0DFh
                 db 2, 0, 0, 0E0h, 0E1h
-byte_A240       db 0, 0CFh, 0D0h, 0D1h, 0D2h
-byte_A245       db 0, 0D3h, 0D4h, 0D5h, 0D6h
-byte_A24A       db 2, 0D3h, 0D4h, 0D5h, 0D6h
-off_A24F        dw offset byte_A259
+ruzeria_shoes   db 0, 0CFh, 0D0h, 0D1h, 0D2h ; 80
+red_potion      db 0, 0D3h, 0D4h, 0D5h, 0D6h ; 81
+blue_potion     db 2, 0D3h, 0D4h, 0D5h, 0D6h ; 82
+death_descriptors dw offset byte_A259
                 dw offset byte_A25D
                 dw offset byte_A261
                 dw offset byte_A261

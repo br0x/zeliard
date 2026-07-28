@@ -356,7 +356,57 @@ const TORI = {
     numSprites: 79,
 };
 const EAI4 = {
-
+    left: [ // 0xA030: 32 arrays
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // turtle_left
+        [35, 36, 37, 38, 39, 40, 41, 42], // green_egg
+        [46, 47], // icicle_idle
+        [48, 49], // icicle_fall
+        [53, 54, 55, 56], // arrow
+        [], [], [],
+        [32, 33, 34], // turtle_death
+        [43, 44, 45], // green_egg_death
+        [50, 51, 52], // icicle_break
+        [50, 51, 52], // icicle_break
+        [57, 58, 59], // arrow_death
+        [], [], [],
+        [76, 77, 78, 79], // wall_destruction
+        [76, 77, 78, 79], // wall_destruction
+        [60, 61, 62], // hit
+        [71, 72, 73, 74], // chest
+        [63, 64, 65, 66], // alma_red
+        [67, 68, 69, 70], // alma_blue
+        [75], // ordinary_key
+        [],
+        [81], // red_potion
+        [82], // blue_potion
+        [80], // ruzeria_shoes
+    ],
+    right: [ // 0xA070: 32 arrays
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // turtle_right
+        [35, 36, 37, 38, 39, 40, 41, 42], // green_egg
+        [46, 47], // icicle_idle
+        [48, 49], // icicle_fall
+        [53, 54, 55, 56], // arrow
+        [], [], [],
+        [32, 33, 34], // turtle_death
+        [43, 44, 45], // green_egg_death
+        [50, 51, 52], // icicle_break
+        [50, 51, 52], // icicle_break
+        [57, 58, 59], // arrow_death
+        [], [], [],
+        [76, 77, 78, 79], // wall_destruction
+        [76, 77, 78, 79], // wall_destruction
+        [60, 61, 62], // hit
+        [71, 72, 73, 74], // chest
+        [63, 64, 65, 66], // alma_red
+        [67, 68, 69, 70], // alma_blue
+        [75], // ordinary_key
+        [],
+        [81], // red_potion
+        [82], // blue_potion
+        [80], // ruzeria_shoes
+    ],
+    numSprites: 81,
 };
 
 const DUNGEONS = {
@@ -629,14 +679,44 @@ const DUNGEONS = {
         slopeTilesRight: [0x0E, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x0B, 0x0C, 0, 0], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [],
-        monster_damage: [],
+        monster_xp:     [10, 10, 0, 0, 20, 0, 0, 0],
+        monster_damage: [20, 4, 80, 80, 80, 0, 0, 0],
         death_descriptors: [
+            [5, 4, 4, 5],
+            [4, 4, 4, 4],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [5, 5, 5, 4],
             [],
             [],
             [],
-            [],
-            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x14, 0x15],
+        ],
+        ai: EAI4,
+    },
+    9: {
+        mdtPath: 'game/0/mp41.mdt',
+        tilesheetPath: 'assets/images/mpp4.png',
+        entitySheetPath: 'assets/images/enp4.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 8, 0x0B, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13
+        ],
+        slopeTilesLeft: [0x0D, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x0E, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x0B, 0x0C, 0, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [10, 10, 0, 0, 20, 0, 0, 0],
+        monster_damage: [20, 4, 80, 80, 80, 0, 0, 0],
+        death_descriptors: [
+            [5, 4, 4, 5],
+            [4, 4, 4, 4],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [5, 5, 5, 4],
             [],
             [],
             [],
@@ -2450,7 +2530,7 @@ function drawDungeonEntities() {
             _currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(entityId & 0x7F, 6);
         }
-        // console.log('DFOE: ', dir, flags, offset, entityId);
+        console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }

@@ -330,6 +330,7 @@ void load_eai_module(uint8_t level_index); // enemy AI dispatcher
 void Monster_AI_1(uint16_t m);
 void Monster_AI_2(uint16_t m);
 void Monster_AI_3(uint16_t m);
+void Monster_AI_4(uint16_t m);
 void Cangrejo_AI(uint16_t m);
 void Pulpo_AI(uint16_t m);
 void Pollo_AI(uint16_t m);

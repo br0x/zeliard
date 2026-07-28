@@ -2210,7 +2210,7 @@ static void update_horiz_platform_coords(uint16_t si, uint16_t x)
         if (!hero_on_horiz_platform(si)) {
             move_hero_right_if_no_obstacles();
         }
-        boundary = MEM8(si+5); /* .max_x */
+        boundary = MEM16(si+5); /* .max_x */
     } else {
         /* Moving left. */
         if (x == 0) {
@@ -2222,7 +2222,7 @@ static void update_horiz_platform_coords(uint16_t si, uint16_t x)
         if (!hero_on_horiz_platform(si)) {
             move_hero_left_if_no_obstacles();
         }
-        boundary = MEM8(si+3); /* .min_x */
+        boundary = MEM16(si+3); /* .min_x */
     }
 
     /* Store new_x into x_and_flags while preserving the top-2 flag bits. */
@@ -5154,6 +5154,8 @@ void load_eai_module(uint8_t place_map_id)
         case 5: current_monster_ai = Monster_AI_3; break; // mp30.mdt
         case 6: current_monster_ai = Monster_AI_3; break; // mp31.mdt
         case 7: current_monster_ai = Pollo_AI; break;     // mp3d.mdt
+        case 8: current_monster_ai = Monster_AI_4; break; // mp40.mdt
+        case 9: current_monster_ai = Monster_AI_4; break; // mp41.mdt
         /* add more as more eaiN.c modules are translated */
     }
 }
