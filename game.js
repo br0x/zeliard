@@ -303,6 +303,57 @@ const EAI3 = {
     numSprites: 98,
 };
 const TORI = {
+    // flags (.flags & 0x1F, see getSheetFrame/Lookup_Monster_Tile_Attributes)
+    // selects one of these slots (only table_index 0..14 are ever produced
+    // by render_boss_sprite_frame, so -- like CRAB/TAKO -- the array isn't
+    // padded out to the full 32 possible flags values); offset
+    // (.anim_counter & 0x0F) then indexes within it. Tori_AI_proc's
+    // render_boss_sprite_frame packs each body-part pose byte as
+    // (table_index << 4) | row_index before storing table_index in .flags
+    // and the whole byte in .anim_counter (see tori.c) -- so table_index
+    // 0..14 below corresponds exactly to the 15 byte_A04E..byte_A1C5
+    // frame-descriptor tables from tori.asm, and each slot's list is that
+    // table's rows in order, numbered linearly into tori.png (a linear
+    // 2x2-tile sheet, per grp_viewer.py's TORI_FRAMES/Part 2 numbering).
+    left: [ // 0xA030
+        [0, 1, 2, 3, 4],                       // table_index 0  (byte_A04E)
+        [5, 6, 7, 8, 9, 10, 11, 12, 13],       // table_index 1  (byte_A067)
+        [14, 15, 16, 17, 18, 19, 20, 21],      // table_index 2  (byte_A094)
+        [22, 23, 24, 25, 26, 27],              // table_index 3  (byte_A0BC)
+        [28, 29, 30, 31, 32, 33, 34, 35],      // table_index 4  (byte_A0DA)
+        [36, 37, 38, 39],                      // table_index 5  (byte_A102)
+        [40, 41, 42, 43],                      // table_index 6  (byte_A116)
+        [44, 45, 46, 47],                      // table_index 7  (byte_A12A)
+        [48, 49, 50, 51],                      // table_index 8  (byte_A13E)
+        [52],                                  // table_index 9  (byte_A152)
+        [53, 54, 55, 56, 57],                  // table_index 10 (byte_A157)
+        [58, 59, 60, 61, 62, 63],              // table_index 11 (byte_A170)
+        [64, 65, 66, 67, 68, 69],              // table_index 12 (byte_A18E)
+        [70, 71, 72, 73, 74],                  // table_index 13 (byte_A1AC)
+        [75, 76, 77],                          // table_index 14 (byte_A1C5)
+        [], [], [], [], [], [], [],            // table_index 15..21 (unused)
+        [78], // ordinary key                  // 22 
+    ],
+    right: [ // 0xA070 -- identical to `left`; like CRAB/TAKO, Pollo has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set by render_boss_sprite_frame)
+        [0, 1, 2, 3, 4],
+        [5, 6, 7, 8, 9, 10, 11, 12, 13],
+        [14, 15, 16, 17, 18, 19, 20, 21],
+        [22, 23, 24, 25, 26, 27],
+        [28, 29, 30, 31, 32, 33, 34, 35],
+        [36, 37, 38, 39],
+        [40, 41, 42, 43],
+        [44, 45, 46, 47],
+        [48, 49, 50, 51],
+        [52],
+        [53, 54, 55, 56, 57],
+        [58, 59, 60, 61, 62, 63],
+        [64, 65, 66, 67, 68, 69],
+        [70, 71, 72, 73, 74],
+        [75, 76, 77],
+        [], [], [], [], [], [], [],            // table_index 15..21 (unused)
+        [78], // ordinary key                  // 22 
+    ],
+    numSprites: 79,
 };
 
 const DUNGEONS = {
