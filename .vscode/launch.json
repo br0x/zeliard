@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/tori.grp"
+                "${workspaceFolder}/tools/GrpViewer/mpp2.grp"
             ],
             "console": "integratedTerminal",
         },

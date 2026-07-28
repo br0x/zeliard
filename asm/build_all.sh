@@ -62,6 +62,8 @@ tasm /m9 eai2.asm >>log.txt
 tlink eai2.obj >>log.txt
 tasm /m9 eai3.asm >>log.txt
 tlink eai3.obj >>log.txt
+tasm /m9 eai4.asm >>log.txt
+tlink eai4.obj >>log.txt
 tasm /m9 crab.asm >>log.txt
 tlink crab.obj >>log.txt
 tasm /m9 tako.asm >>log.txt
@@ -104,6 +106,7 @@ python3 exe2bin.py SELECT.EXE select.bin 0xA000
 python3 exe2bin.py EAI1.EXE eai1.bin 0xA000
 python3 exe2bin.py EAI2.EXE eai2.bin 0xA000
 python3 exe2bin.py EAI3.EXE eai3.bin 0xA000
+python3 exe2bin.py EAI4.EXE eai4.bin 0xA000
 python3 exe2bin.py CRAB.EXE crab.bin 0xA000
 python3 exe2bin.py TAKO.EXE tako.bin 0xA000
 python3 exe2bin.py TORI.EXE tori.bin 0xA000
@@ -162,6 +165,8 @@ echo "eai2.bin diffs:" >>diff.txt
 { cmp -l ../game/0/eai2.bin eai2.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "eai3.bin diffs:" >>diff.txt
 { cmp -l ../game/0/eai3.bin eai3.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "eai4.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/eai4.bin eai4.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "crab.bin diffs:" >>diff.txt
 { cmp -l ../game/0/crab.bin crab.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "tako.bin diffs:" >>diff.txt

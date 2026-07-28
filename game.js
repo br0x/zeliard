@@ -623,14 +623,14 @@ const DUNGEONS = {
         tilesheetPath: 'assets/images/mpp4.png',
         entitySheetPath: 'assets/images/enp4.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
-            0, 1, 2, 8, 0x0B, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 1, 2, 8, 0x0B, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13
         ],
         slopeTilesLeft: [0x0D, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
         slopeTilesRight: [0x0E, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x0B, 0x0C, 0, 0], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [20, 10, 10, 20, 0, 0, 0, 0],
-        monster_damage: [40, 40, 16, 40, 0, 0, 0, 0],
+        monster_xp:     [],
+        monster_damage: [],
         death_descriptors: [
             [],
             [],
@@ -644,8 +644,7 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [],
-            [],
+            [0x14, 0x15],
         ],
         ai: EAI4,
     },

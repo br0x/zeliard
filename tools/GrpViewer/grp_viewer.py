@@ -486,16 +486,6 @@ ENP2_FRAMES = {
         [2, 0xFB, 0xFC, 0xFD, 0xFE],
     ],
 }
-
-
-# Frame definitions transcribed from eai3.asm's per-monster-type frame
-# tables (byte_A0B0..byte_A295), pointed to by
-# ADDR_MONSTER_AI_MOVE_LEFT_FRAMES / _RIGHT_FRAMES (8 slots each, one per
-# monster.flags&0x0F type - only types 0-3 are used by this AI module),
-# ADDR_MONSTER_AI_DEATH_*_FRAMES (8 slots, shared between left/right),
-# ADDR_MONSTER_AI_ITEM_ANIMATION_*_FRAMES and ADDR_MONSTER_AI_POTIONS_*_FRAMES
-# (8 slots each, also shared between left/right). Same [pal_idx, tl, tr,
-# bl, br] format as ENP1_FRAMES/ENP2_FRAMES.
 ENP3_FRAMES = {
     # --- monster.flags&0x0F == 0 ---
     "monster0_left": [
@@ -644,9 +634,6 @@ ENP3_FRAMES = {
     "blue_potion": [
         [2, 0xED, 0xEE, 0x79, 0x7A],
     ],
-    # These two single-frame item slots don't have an obvious counterpart
-    # in ENP1_FRAMES/ENP2_FRAMES, so (as with ENP2_FRAMES's "byte_A2F9" /
-    # "byte_A33A") they're left labeled by their original asm symbol.
     "byte_A286": [
         [2, 0xE0, 0xE1, 0xE2, 0xE3],
     ],
@@ -654,7 +641,10 @@ ENP3_FRAMES = {
         [1, 0xF4, 0xF5, 0xF6, 0xF7],
     ],
 }
-
+ENP4_FRAMES = {
+    "monster0_left": [
+    ]
+}
 CRAB_FRAMES = {
     "Left Eye": [
         [0, 0, 0, 0, 1],
@@ -830,16 +820,6 @@ CRAB_FRAMES = {
         [0, 0xE2, 0xE3, 0, 0],
     ],
 }
-
-# Transcribed directly from tako.asm's sprite-frame descriptor tables
-# (byte_A052..byte_A25F), selected via anim_frame_table_ptrs. Same format
-# as CRAB_FRAMES/ENP*_FRAMES: each entry is [pal_idx, tl, tr, bl, br],
-# four 8x8 sub-tile indices (0 = transparent) composed into a 16x16 frame.
-# These tables aren't read by Pulpo_AI_proc itself (they belong to a
-# separate, generic monster-rendering routine not included in tako.asm),
-# so we don't have the original semantic names for each set the way a
-# hand-curated pass previously named CRAB_FRAMES's body parts; they're
-# labeled here by their slot index in anim_frame_table_ptrs instead.
 TAKO_FRAMES = {
     "Frame Set 00 (byte_A052)": [
         [0, 0, 0, 1, 0],
