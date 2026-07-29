@@ -2530,7 +2530,7 @@ function drawDungeonEntities() {
             _currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(entityId & 0x7F, 6);
         }
-        console.log('DFOE: ', dir, flags, offset, entityId);
+        // console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
