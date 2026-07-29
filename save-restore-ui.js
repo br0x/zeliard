@@ -16,14 +16,27 @@ class BaseSaveRestoreDialog {
         this.cursorBlink = 0;
         this.maxNameLength = 12;
         this.visible = true;
+        this.scrollOffset = 0;
     }
 
     refreshItems() {
         const slots = getSaveSlotNames();
         this.items = this.includeRestart ? ['Re-Start', ...slots] : [...slots];
         if (this.selectedIndex >= this.items.length) this.selectedIndex = Math.max(0, this.items.length - 1);
+        this._clampScroll();
         // In restore mode, ensure inputActive is false
         if (!this.showNewNameInput) this.inputActive = false;
+    }
+
+    _maxVisible() {
+        return this.showNewNameInput ? 7 : 8;
+    }
+
+    _clampScroll() {
+        const maxVis = this._maxVisible();
+        if (this.selectedIndex < this.scrollOffset) this.scrollOffset = this.selectedIndex;
+        if (this.selectedIndex >= this.scrollOffset + maxVis) this.scrollOffset = this.selectedIndex - maxVis + 1;
+        if (this.scrollOffset > Math.max(0, this.items.length - maxVis)) this.scrollOffset = Math.max(0, this.items.length - maxVis);
     }
 
     handleKey(keyCode, now) {
@@ -36,10 +49,12 @@ class BaseSaveRestoreDialog {
         if (!this.showNewNameInput) {
             if (keyCode === 'ArrowUp') {
                 this.selectedIndex = (this.selectedIndex - 1 + this.items.length) % this.items.length;
+                this._clampScroll();
                 return true;
             }
             if (keyCode === 'ArrowDown') {
                 this.selectedIndex = (this.selectedIndex + 1) % this.items.length;
+                this._clampScroll();
                 return true;
             }
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
@@ -87,6 +102,7 @@ class BaseSaveRestoreDialog {
                     this.inputActive = true;
                 } else {
                     this.selectedIndex--;
+                    this._clampScroll();
                 }
                 return true;
             }
@@ -95,6 +111,7 @@ class BaseSaveRestoreDialog {
                     this.inputActive = true;
                 } else {
                     this.selectedIndex++;
+                    this._clampScroll();
                 }
                 return true;
             }
@@ -146,8 +163,10 @@ class BaseSaveRestoreDialog {
         ctx.font = '18px "Press Start 2P", monospace';
         let listY = y + 100;
         const lineHeight = 28;
-        for (let i = 0; i < this.items.length; i++) {
-            const isSelected = (!this.inputActive && i === this.selectedIndex);
+        const maxVis = this._maxVisible();
+        for (let i = 0; i < maxVis && this.scrollOffset + i < this.items.length; i++) {
+            const idx = this.scrollOffset + i;
+            const isSelected = (!this.inputActive && idx === this.selectedIndex);
             ctx.fillStyle = isSelected ? '#ff8' : '#cca';
             if (isSelected) {
                 ctx.beginPath();
@@ -157,9 +176,18 @@ class BaseSaveRestoreDialog {
                 ctx.closePath();
                 ctx.fill();
             }
-            ctx.fillText(this.items[i], x + 42, listY);
+            ctx.fillText(this.items[idx], x + 42, listY);
             listY += lineHeight;
-            if (listY > y + boxHeight - 80) break;
+        }
+        if (this.scrollOffset > 0) {
+            ctx.fillStyle = '#888';
+            ctx.font = '14px monospace';
+            ctx.fillText('▲', x + boxWidth - 40, y + 92);
+        }
+        if (this.scrollOffset + maxVis < this.items.length) {
+            ctx.fillStyle = '#888';
+            ctx.font = '14px monospace';
+            ctx.fillText('▼', x + boxWidth - 40, listY - 22);
         }
 
         // Only draw input field if showNewNameInput is true (Save mode)
@@ -179,7 +207,7 @@ class BaseSaveRestoreDialog {
             ctx.font = '18px "Press Start 2P", monospace';
             let displayName = this.inputText;
             if (this.inputActive && this.cursorBlink) displayName += '_';
-            ctx.fillText(displayName, inputX + 8, inputY);
+            ctx.fillText(displayName, inputX + 8, inputY + 2);
         }
 
         ctx.font = '12px monospace';

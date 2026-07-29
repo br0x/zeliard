@@ -10,6 +10,7 @@ class ImportExportDialog {
         this.mode = 'export';
         this.slots = [];
         this.selectedSlotIndex = 0;
+        this.scrollOffset = 0;
         this.confirmDeleteSlot = null;
         this.refreshSlots();
         this.visible = true;
@@ -20,6 +21,18 @@ class ImportExportDialog {
         if (this.selectedSlotIndex >= this.slots.length) {
             this.selectedSlotIndex = Math.max(0, this.slots.length - 1);
         }
+        this._clampScroll();
+    }
+
+    _maxVisible() {
+        return 8;
+    }
+
+    _clampScroll() {
+        const maxVis = this._maxVisible();
+        if (this.selectedSlotIndex < this.scrollOffset) this.scrollOffset = this.selectedSlotIndex;
+        if (this.selectedSlotIndex >= this.scrollOffset + maxVis) this.scrollOffset = this.selectedSlotIndex - maxVis + 1;
+        if (this.scrollOffset > Math.max(0, this.slots.length - maxVis)) this.scrollOffset = Math.max(0, this.slots.length - maxVis);
     }
 
     handleKey(keyCode, now) {
@@ -63,12 +76,14 @@ class ImportExportDialog {
             if (keyCode === 'ArrowUp') {
                 if (this.slots.length > 0) {
                     this.selectedSlotIndex = (this.selectedSlotIndex - 1 + this.slots.length) % this.slots.length;
+                    this._clampScroll();
                 }
                 return true;
             }
             if (keyCode === 'ArrowDown') {
                 if (this.slots.length > 0) {
                     this.selectedSlotIndex = (this.selectedSlotIndex + 1) % this.slots.length;
+                    this._clampScroll();
                 }
                 return true;
             }
@@ -113,18 +128,18 @@ class ImportExportDialog {
         // Header with mode tabs
         ctx.font = 'bold 24px "Press Start 2P", monospace';
         const tabX = [x + 40, x + 200, x + 360];
-        const tabLabels = ['EXPORT', 'IMPORT', 'DELETE'];
+        const tabLabels = ['Export', 'Import', 'Delete'];
         for (let i = 0; i < 3; i++) {
             const isActive = (i === ['export', 'import', 'delete'].indexOf(this.mode));
             ctx.fillStyle = isActive ? '#ff8' : '#888';
-            ctx.fillText(tabLabels[i], tabX[i], y + 45);
+            ctx.fillText(tabLabels[i], tabX[i], y + 40);
         }
 
         // Separator line
         ctx.strokeStyle = '#862';
         ctx.beginPath();
-        ctx.moveTo(x + 10, y + 70);
-        ctx.lineTo(x + boxWidth - 10, y + 70);
+        ctx.moveTo(x + 10, y + 60);
+        ctx.lineTo(x + boxWidth - 10, y + 60);
         ctx.stroke();
 
         if (this.mode === 'export' || this.mode === 'delete') {
@@ -133,26 +148,28 @@ class ImportExportDialog {
                 ctx.font = '18px "Press Start 2P", monospace';
                 ctx.fillStyle = '#f88';
                 ctx.fillText('Delete this save?', x + 100, y + 140);
-                ctx.font = '16px monospace';
+                ctx.font = '16px "Press Start 2P", monospace';
                 ctx.fillStyle = '#ff8';
                 ctx.fillText('"' + this.confirmDeleteSlot + '"', x + 140, y + 190);
                 ctx.font = '16px "Press Start 2P", monospace';
                 ctx.fillStyle = '#aaa';
-                ctx.fillText('[ Y ] Yes   [ N ] No', x + 130, y + 250);
+                ctx.fillText('[Y] Yes   [N] No', x + 130, y + 250);
                 ctx.font = '14px monospace';
                 ctx.fillStyle = '#aaa';
                 ctx.fillText('Y: confirm   N / ESC: cancel', x + 120, y + boxHeight - 25);
             } else {
                 // List save slots
                 ctx.font = '18px "Press Start 2P", monospace';
-                let listY = y + 110;
-                const lineHeight = 30;
+                let listY = y + 100;
+                const lineHeight = 28;
                 if (this.slots.length === 0) {
                     ctx.fillStyle = '#aaa';
                     ctx.fillText('(no saved games)', x + 40, listY);
                 } else {
-                    for (let i = 0; i < this.slots.length; i++) {
-                        const isSelected = (i === this.selectedSlotIndex);
+                    const maxVis = this._maxVisible();
+                    for (let i = 0; i < maxVis && this.scrollOffset + i < this.slots.length; i++) {
+                        const idx = this.scrollOffset + i;
+                        const isSelected = (idx === this.selectedSlotIndex);
                         ctx.fillStyle = isSelected ? '#ff8' : '#cca';
                         if (isSelected) {
                             ctx.beginPath();
@@ -162,16 +179,25 @@ class ImportExportDialog {
                             ctx.closePath();
                             ctx.fill();
                         }
-                        ctx.fillText(this.slots[i], x + 42, listY);
+                        ctx.fillText(this.slots[idx], x + 42, listY);
                         listY += lineHeight;
-                        if (listY > y + boxHeight - 80) break;
+                    }
+                    if (this.scrollOffset > 0) {
+                        ctx.fillStyle = '#888';
+                        ctx.font = '14px monospace';
+                        ctx.fillText('▲', x + boxWidth - 40, y + 102);
+                    }
+                    if (this.scrollOffset + maxVis < this.slots.length) {
+                        ctx.fillStyle = '#888';
+                        ctx.font = '14px monospace';
+                        ctx.fillText('▼', x + boxWidth - 40, listY - 22);
                     }
                 }
 
                 ctx.font = '14px monospace';
                 ctx.fillStyle = '#aaa';
                 const action = this.mode === 'export' ? 'export' : 'delete';
-                ctx.fillText('←/→: switch mode   ↑/↓: select slot   ENTER: ' + action + ' slot   ESC: cancel', x + 20, y + boxHeight - 25);
+                ctx.fillText('←/→: mode   ↑/↓: slot   ENTER: ' + action + ' slot   ESC: cancel', x + 20, y + boxHeight - 25);
             }
         } 
         else { // IMPORT mode
@@ -183,7 +209,7 @@ class ImportExportDialog {
             ctx.fillText('Press ENTER to select a file', x + 110, y + 200);
             ctx.font = '14px monospace';
             ctx.fillStyle = '#aaa';
-            ctx.fillText('←/→: switch mode   ENTER: import   ESC: cancel', x + 20, y + boxHeight - 25);
+            ctx.fillText('←/→: mode   ENTER: import   ESC: cancel', x + 20, y + boxHeight - 25);
         }
     }
 }
