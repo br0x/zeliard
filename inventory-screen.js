@@ -152,6 +152,15 @@ export class InventoryScreen {
         this.soundManager?.stopMusic(0.3);
 
         this._selectFirstAvailableTab();
+
+        const d = this.data;
+        if (d) {
+            const spellIdx = d.spells.indexOf(d.currentSpell);
+            if (spellIdx >= 0) this.selectedIndices[0] = spellIdx;
+
+            const wearIdx = d.wearables.indexOf(d.currentAccessory);
+            if (wearIdx >= 0) this.selectedIndices[1] = wearIdx;
+        }
     }
 
     exit() {
@@ -499,6 +508,9 @@ export class InventoryScreen {
         }
 
         if (d.elfCrest || d.gloryCrest || d.heroCrest) {
+            if (!d.keys && !d.lionKeys) {
+                ey += 52;
+            }
             let cx = x + 10;
             if (d.elfCrest) {
                 this._drawSheet(ctx, 'crests', 0, cx, ey + 2, iconSize, iconSize);
@@ -614,7 +626,6 @@ export class InventoryScreen {
             }
         }
         if (this.currentTab !== old) {
-            this.selectedIndices[this.currentTab] = 0;
             this._playNavSfx(13);
         }
     }
@@ -628,7 +639,6 @@ export class InventoryScreen {
             }
         }
         if (this.currentTab !== old) {
-            this.selectedIndices[this.currentTab] = 0;
             this._playNavSfx(13);
         }
     }
@@ -648,7 +658,7 @@ export class InventoryScreen {
             if (id > 0) w(ADDR_CURRENT_MAGIC_SPELL, [id]);
         } else if (this.currentTab === 1) {
             const id = this._selectedId();
-            if (id > 0) w(ADDR_CURRENT_ACCESSORY, [id]);
+            w(ADDR_CURRENT_ACCESSORY, [id]);
         }
     }
 
@@ -658,7 +668,7 @@ export class InventoryScreen {
             if (id > 0) this.writeMemory?.(ADDR_CURRENT_MAGIC_SPELL, [id]);
         } else if (this.currentTab === 1) {
             const id = this._selectedId();
-            if (id > 0) this.writeMemory?.(ADDR_CURRENT_ACCESSORY, [id]);
+            this.writeMemory?.(ADDR_CURRENT_ACCESSORY, [id]);
         }
     }
 
