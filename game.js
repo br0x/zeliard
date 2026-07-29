@@ -4262,16 +4262,16 @@ function drawSpeedChangeDialog() {
     ctx.fillText('Speed change', cx, cy);
 
     const currentSpeed = 10 - (readMemory(ADDR_SPEED_CONST, 1)[0] || 5);
-
+     // strlen of "Select 0-9:" is 11
     if (speedChange.phase === 0) {
         ctx.fillStyle = '#888';
         ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
-        ctx.fillText(String(currentSpeed), cx + TILE_WIDTH * 8, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText(String(currentSpeed), cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
     } else if (speedChange.phase === 1) {
         ctx.fillStyle = '#fff';
         ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
         ctx.fillStyle = '#ffcc00';
-        ctx.fillText('_', cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5); // strlen of "Select 0-9:" is 11
+        ctx.fillText('_', cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
     } else {
         ctx.fillStyle = '#fff';
         ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
