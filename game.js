@@ -1896,7 +1896,8 @@ function parseTownNpcCategory() {
     if (!readMemory) { townNpcSpriteCategory = 0; return; }
     const descPtrBytes = readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2);
     const descPtr = descPtrBytes[0] | (descPtrBytes[1] << 8);
-    townNpcSpriteCategory = readMemory(descPtr + 1, 1)[0];
+    const raw = readMemory(descPtr + 1, 1)[0];
+    townNpcSpriteCategory = raw < NPC_SPRITE_PATHS.length ? raw : 0;
 }
 
 async function loadWasmEngine() {
@@ -4164,34 +4165,27 @@ function openSaveModal(onSaveComplete) {
 function openRestoreModal() {
     if (activeModal) return;
     gamePaused = true;
-    const onRestore = (slotName) => {
+    const onRestore = async (slotName) => {
         let saveData = null;
         if (slotName === null) {  // Re-Start
-            // Fetch default save from STDPLY_PATH
-            fetch(STDPLY_PATH)
-                .then(resp => {
-                    if (!resp.ok) throw new Error('Failed to load default save');
-                    return resp.arrayBuffer();
-                })
-                .then(buffer => {
-                    saveData = new Uint8Array(buffer);
-                    performGameRestore(saveData);
-                    closeModal();
-                })
-                .catch(err => {
-                    console.error('Re-Start failed:', err);
-                    closeModal();
-                });
+            try {
+                const resp = await fetch(STDPLY_PATH);
+                if (!resp.ok) throw new Error('Failed to load default save');
+                const buffer = await resp.arrayBuffer();
+                saveData = new Uint8Array(buffer);
+                await performGameRestore(saveData);
+            } catch (err) {
+                console.error('Re-Start failed:', err);
+            }
         } else {
             saveData = loadGameFromSlot(slotName);
             if (saveData) {
-                performGameRestore(saveData);
-                closeModal();
+                await performGameRestore(saveData);
             } else {
                 console.error('Failed to load save:', slotName);
-                closeModal();
             }
         }
+        closeModal();
     };
     const onCancel = () => {
         closeModal();
@@ -4298,7 +4292,7 @@ async function performGameRestore(saveData) {
     }
     soundManager.setMusicDim(1.0);
     conversation.active = false;
-    if (activeModal) closeModal();
+    engineReady = false;
 
     // Load the save into WASM memory
     loadSaveState(saveData);
