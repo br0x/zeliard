@@ -1000,6 +1000,7 @@ const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes ea
 const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 bytes each)
 const ADDR_FRAME_TIMER             = 0xFF1A;
 const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F; // byte
+const ADDR_BOSS_IS_DEAD            = 0xFF30; // byte — 0xFF when boss is dead
 const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31; // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 const ADDR_SPEED_CONST             = 0xFF33;
 const ADDR_IS_BOSS_CAVERN          = 0xFF34; // byte
@@ -3264,6 +3265,7 @@ function drawDungeonSign() {
 
 let prevRokaDx = -1;
 let prevDungeonState = -1;
+let encounterAnim = null;
 
 function drawDungeonRoka() {
     if (!rokaImagesReady || !readMemory) return;
@@ -3324,6 +3326,19 @@ function drawDungeonRoka() {
     }
 
     prevRokaDx = dx;
+}
+
+function drawEncounterText(alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 96px "Roboto Condensed", sans-serif';
+    ctx.fillStyle = '#FF0000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const x = canvas.width / 2;
+    const y = 3 * TILE_HEIGHT;
+    ctx.fillText('ENCOUNTER!', x, y);
+    ctx.restore();
 }
 
 // ─── Town transition ──────────────────────────────────────────────────────────
@@ -4421,29 +4436,88 @@ function draw() {
             drawDungeonRoka();
             dungeonClearRenderRequest?.();
         } else {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            drawDungeonTiles();
-            drawDungeonMagiaStones();
-            drawDungeonProjectiles();
-            drawDungeonMagicProjectiles();
-            drawDungeonEntities();
-            drawDungeonHero();
-            drawDungeonSword();
-            drawDungeonNotification();
-            drawDungeonSign();
-            animateDungeonTiles();
-            if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
-                writeMemory(ADDR_BYTE_9EED, [0]);
-                _guerraEffectRunning = true;
-                renderViewportBorderWalls().finally(() => { _guerraEffectRunning = false; });
+            // Detect encounter animation start (roka run → normal on boss cavern)
+            if (!encounterAnim && prevDungeonState === DUNGEON_STATE_ROKA_RUN) {
+                const mapId = readU8(ADDR_PLACE_MAP_ID) & 0x7F;
+                const bs = DUNGEONS[mapId]?.bossState;
+                if (bs) {
+                    const level = parseInt(DUNGEONS[mapId].mdtPath.match(/mp(\d+)d/)[1]);
+                    if (readU16((level - 1) * 8) !== 0xFFFF) {
+                        encounterAnim = {
+                            startTime: performance.now(),
+                            phase: 'flash',
+                        };
+                    }
+                }
             }
-            if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
-                const fade = readU8(ADDR_DEATH_COUNTER) / 29;
-                ctx.fillStyle = `rgba(0,0,0,${fade})`;
+
+            if (encounterAnim && encounterAnim.phase === 'flash') {
+                const now = performance.now();
+                const anim = encounterAnim;
+                const flashCycleMs = 400;
+                const elapsed = now - anim.startTime;
+                const totalFlashMs = 7 * flashCycleMs;
+
+                if (elapsed >= totalFlashMs) {
+                    anim.phase = 'crossfade';
+                    anim.crossfadeStart = now;
+                }
+
+                const cyclePos = elapsed % flashCycleMs;
+                const visible = cyclePos < (flashCycleMs / 2);
+
+                ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                soundManager.setMusicDim(Math.max(0, 1.0 - fade), 0.1);
-                soundManager.setSfxVolume(Math.max(0, 1.0 - fade), 0.1);
+                drawDungeonHero();
+                drawDungeonSword();
+                if (visible) {
+                    drawEncounterText(1.0);
+                }
+            } else {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                drawDungeonTiles();
+                drawDungeonMagiaStones();
+                drawDungeonProjectiles();
+                drawDungeonMagicProjectiles();
+                drawDungeonEntities();
+                drawDungeonHero();
+                drawDungeonSword();
+                drawDungeonNotification();
+                drawDungeonSign();
+                animateDungeonTiles();
+                if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
+                    writeMemory(ADDR_BYTE_9EED, [0]);
+                    _guerraEffectRunning = true;
+                    renderViewportBorderWalls().finally(() => { _guerraEffectRunning = false; });
+                }
+
+                if (encounterAnim && encounterAnim.phase === 'crossfade') {
+                    const now = performance.now();
+                    const elapsed = now - encounterAnim.crossfadeStart;
+                    const duration = 500;
+                    const progress = Math.min(1, elapsed / duration);
+
+                    ctx.fillStyle = `rgba(0,0,0,${1 - progress})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const textAlpha = Math.max(0, 1 - progress * 2);
+                    if (textAlpha > 0) {
+                        drawEncounterText(textAlpha);
+                    }
+
+                    if (progress >= 1) {
+                        encounterAnim = null;
+                    }
+                }
+
+                if (dungeonState === DUNGEON_STATE_DEATH_FADE) {
+                    const fade = readU8(ADDR_DEATH_COUNTER) / 29;
+                    ctx.fillStyle = `rgba(0,0,0,${fade})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    soundManager.setMusicDim(Math.max(0, 1.0 - fade), 0.1);
+                    soundManager.setSfxVolume(Math.max(0, 1.0 - fade), 0.1);
+                }
             }
         }
         prevDungeonState = dungeonState;
