@@ -1779,7 +1779,6 @@ void hero_interaction_check(void)
 void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     (void)map_id;
     prepare_dungeon(is_from_town);
-    MEM8(ADDR_SPEED_CONST) = 5;
 
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
     if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN) {
