@@ -986,12 +986,12 @@ aPause          db 'PAUSE'
 
 
 Handle_Speed_Change proc near 
-                test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 8000h
-                jnz     short loc_7C0
+                test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 8000h ; F9
+                jnz     short F9_pressed
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_7C0:
+F9_pressed:
                 call    draw_dialog_overlay_background
                 push    cs
                 pop     ds
@@ -1000,23 +1000,23 @@ loc_7C0:
                 mov     cl, 52h ; 'R'
                 call    word ptr cs:Render_String_FF_Terminated_proc
 
-loc_7D2:
+wait_F9_release:
                 test    word ptr cs:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 8000h
-                jnz     short loc_7D2
+                jnz     short wait_F9_release
                 mov     al, ds:speed_const
                 neg     al
-                add     al, 0Ah
+                add     al, 10 ; current_speed = 10 - speed_const
                 call    wait_digit_or_Esc
                 push    ax
-                add     al, 30h ; '0'
-                mov     ah, 1
-                mov     bx, 0CCh
-                mov     cl, 5Ah ; 'Z'
-                call    word ptr cs:Render_Font_Glyph_proc
+                    add     al, 30h ; '0'
+                    mov     ah, 1
+                    mov     bx, 0CCh
+                    mov     cl, 5Ah ; 'Z'
+                    call    word ptr cs:Render_Font_Glyph_proc
                 pop     ax
                 neg     al
-                add     al, 0Ah
-                mov     ds:speed_const, al
+                add     al, 10
+                mov     ds:speed_const, al ; speed_const = 10 - desired_speed
                 mov     byte ptr cs:soundFX_request, 1
                 call    flush_console_input
                 mov     byte ptr cs:____right_left_down_up, 0

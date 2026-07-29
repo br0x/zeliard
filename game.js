@@ -1508,6 +1508,14 @@ window.addEventListener('keydown', e => {
         return;
     }
 
+    if (e.code === 'F9' && !e.repeat) {
+        if (!speedChange.active && !activeModal && !gamePaused && engineReady &&
+            (gameMode === 'town' || gameMode === 'dungeon')) {
+            startSpeedChange();
+        }
+        return;
+    }
+
     // If a modal is active, route keys to it
     if (activeModal) {
         let key = e.code;
@@ -1561,6 +1569,35 @@ window.addEventListener('keydown', e => {
         return;
     }
 
+    // Route keys to speed change dialog while active
+    if (speedChange.active) {
+        if (speedChange.phase === 1) {
+            if (e.code === 'Escape') {
+                cancelSpeedChange();
+                e.preventDefault();
+                return;
+            }
+            if (e.code.startsWith('Digit') && e.code.length === 6) {
+                const digit = parseInt(e.code[5], 10);
+                if (digit >= 0 && digit <= 9) {
+                    speedChange.digit = digit;
+                    speedChange.phase = 2;
+                    writeMemory(ADDR_SPEED_CONST, [10 - digit]);
+                    writeMemory(ADDR_SOUND_FX_REQUEST, [1]);
+                    e.preventDefault();
+                }
+                return;
+            }
+        } else if (speedChange.phase === 2) {
+            if (['Space', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                finishSpeedChange();
+                e.preventDefault();
+            }
+            return;
+        }
+        return;
+    }
+
     // Open inventory on Enter in town or dungeon (not during conversation)
     if (e.code === 'Enter' && !e.repeat && engineReady && !activeModal &&
         !conversation.active && (gameMode === 'town' || gameMode === 'dungeon')) {
@@ -1580,6 +1617,10 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => {
+    if (e.code === 'F9' && speedChange.active && speedChange.phase === 0) {
+        speedChange.phase = 1;
+    }
+
     if (e.code === 'Space')                       keys.Space     = false;
     if (e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt  = false;
     if (e.code === 'Enter')                       keys.Enter     = false;
@@ -1892,6 +1933,12 @@ let conversation = {
     yesNoMode: false,
     yesNoCursor: 0,
     facingLeft: false,
+};
+
+let speedChange = {
+    active: false,
+    phase: 0,
+    digit: -1,
 };
 
 // ─── Town scroll helpers ──────────────────────────────────────────────────────
@@ -4157,6 +4204,86 @@ function closeModal() {
     gamePaused = false;
 }
 
+// ─── Speed change dialog (F9) ──────────────────────────────────────────────
+
+function startSpeedChange() {
+    if (speedChange.active || activeModal || gamePaused || !engineReady) return;
+    if (gameMode !== 'town' && gameMode !== 'dungeon') return;
+
+    speedChange.active = true;
+    speedChange.phase = 0;
+    speedChange.digit = -1;
+    gamePaused = true;
+}
+
+function getSpeedChangeBox() {
+    const w = TILE_WIDTH * 22;
+    const h = TILE_HEIGHT * 5;
+    const x = (VIEW_WIDTH - w) / 2;
+    const y = TILE_HEIGHT * 6;
+    return { x, y, w, h };
+}
+
+function finishSpeedChange() {
+    if (!speedChange.active) return;
+    speedChange.active = false;
+    speedChange.phase = 0;
+    speedChange.digit = -1;
+    gamePaused = false;
+}
+
+function cancelSpeedChange() {
+    finishSpeedChange();
+}
+
+function drawSpeedChangeDialog() {
+    if (!speedChange.active) return;
+
+    const box = getSpeedChangeBox();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(box.x, box.y, box.w, box.h, TILE_WIDTH / 3);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = TILE_WIDTH / 6;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '24px "Press Start 2P", monospace';
+    ctx.textBaseline = 'top';
+
+    const cx = box.x + TILE_WIDTH;
+    const cy = box.y + TILE_HEIGHT * 0.5;
+
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Speed change', cx, cy);
+
+    const currentSpeed = 10 - (readMemory(ADDR_SPEED_CONST, 1)[0] || 5);
+
+    if (speedChange.phase === 0) {
+        ctx.fillStyle = '#888';
+        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText(String(currentSpeed), cx + TILE_WIDTH * 8, cy + TILE_HEIGHT * 1.5);
+    } else if (speedChange.phase === 1) {
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText('_', cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5); // strlen of "Select 0-9:" is 11
+    } else {
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText(String(speedChange.digit), cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
+        ctx.fillStyle = '#888';
+        ctx.fillText('(press any key)', cx, cy + TILE_HEIGHT * 3);
+    }
+
+    ctx.restore();
+}
+
 // Core restore routine: reloads full game state from 256-byte saveData
 async function performGameRestore(saveData) {
     if (!saveData || saveData.length > 256) {
@@ -4394,6 +4521,9 @@ function draw() {
             drawConversationDialog();
         }
     }
+    // Draw speed change dialog
+    drawSpeedChangeDialog();
+
     // Draw modal on top of everything (indoor scene or town)
     if (activeModal) {
         activeModal.draw(ctx, canvas.width, canvas.height, performance.now());

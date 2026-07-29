@@ -34,7 +34,7 @@ const KING_DIALOG_MAX_LINES = 4;
 
 const KING_GOLD_GIFT_STEPS = 10;
 const KING_GOLD_GIFT_PER_STEP = 100;
-const KING_GOLD_GIFT_DELAY_FRAMES = 15;
+
 const KING_GOLD_GIFT_SFX = 19;
 const KING_GOLD_GIFT_LINE = 'I hereby bestow upon you 1000 Golds.';
 
@@ -347,13 +347,13 @@ export class KingScene extends IndoorSceneBase {
         // Already gave gold?
         if (this.readMemory(0x05, 1)[0] !== 0) return;
 
-        this.king.goldAward = { stepsDone: 0 };
+        this.king.goldAward = { stepsDone: 0, nextStepAt: now + 100 };
         this.phase = 'kingGoldAward';
         this.startTime = now;
-        this._applyGoldStep();
+        this._applyGoldStep(now);
     }
 
-    _applyGoldStep() {
+    _applyGoldStep(now) {
         const g = this.king.goldAward;
         if (!g) return;
 
@@ -364,18 +364,17 @@ export class KingScene extends IndoorSceneBase {
         if (this.renderGoldHud) this.renderGoldHud();
 
         this.writeMemory?.(0xFF75, [KING_GOLD_GIFT_SFX]);
-        this.writeMemory?.(0xFF1A, [0]);
         g.stepsDone++;
+        g.nextStepAt = now + 100;
     }
 
     _updateGoldAward(now) {
         if (!this.king.goldAward || !this.writeMemory) return;
 
-        const frameTimer = this.readMemory?.(0xFF1A, 1)[0] ?? 0;
-        if (frameTimer < KING_GOLD_GIFT_DELAY_FRAMES) return;
+        if (now < this.king.goldAward.nextStepAt) return;
 
         if (this.king.goldAward.stepsDone < KING_GOLD_GIFT_STEPS) {
-            this._applyGoldStep();
+            this._applyGoldStep(now);
         } else {
             // Animation complete
             this.writeMemory(0x05, [0xFF]);

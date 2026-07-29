@@ -420,8 +420,8 @@ loc_items_tab:                              ; jumptable case 2 - use tab
 
 loc_A2C1:                               ; ah: ____Alt_Space
                 int     61h             ; al: ____right_left_down_up
-                and     al, 3
-                jnz     short loc_A2C1
+                and     al, 00000011b
+                jnz     short loc_A2C1 ; up or down
 
 loc_A2C7:
                 call    Check_Menu_Exit
@@ -431,8 +431,8 @@ loc_A2C7:
 
 loc_A2CD:                               ;
                 cmp     word ptr ds:F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter, 1010000110b
-                jnz     short loc_A2D8
-                jmp     loc_A3B7
+                jne     short loc_A2D8
+                jmp     display_level_and_xp ; Shift+Ctrl+S+E
 ; ---------------------------------------------------------------------------
 
 loc_A2D8:                               ; ah: ____Alt_Space
@@ -555,7 +555,7 @@ loc_A3A6:
                 jmp     loc_A0B8
 ; ---------------------------------------------------------------------------
 
-loc_A3B7:
+display_level_and_xp:
                 test    screen_backed_up_flag, 0FFh
                 jz      short loc_A3C1
                 jmp     loc_A2C7
