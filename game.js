@@ -978,6 +978,7 @@ const ADDR_INVINCIBILITY_FLAG        = 0xE8;
 
 const ADDR_BOSS_STATE_BLOCK        = 0x9D00;
 const ADDR_BYTE_9F00               = 0x9F00;
+const ADDR_BOSS_PLACEMENT          = 0x9F01;
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
 const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
@@ -1049,6 +1050,7 @@ const ADDR_PENDING_DUNGEON_MAP     = 0xFFFC;
 const ADDR_PENDING_DUNGEON_FLAG    = 0xFFFD;
 
 const DUNGEON_STATE_DEATH_FADE = 4;
+const DUNGEON_STATE_BOSS_ENCOUNTER = 5;
 const DUNGEON_STATE_ROKA_RUN = 7;
 
 const TOWN_TILE_SHEET_COLS = 16;
@@ -1147,6 +1149,7 @@ let setTrajectories;
 let dungeonGetRenderRequest;
 let dungeonClearRenderRequest;
 let getBossName;
+let dungeonCompleteBossEntry;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -1917,6 +1920,7 @@ async function loadWasmEngine() {
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
         dungeonGetRenderRequest, dungeonClearRenderRequest, getBossName,
+        dungeonCompleteBossEntry,
     } = wasmBridge);
 }
 
@@ -4436,31 +4440,26 @@ function draw() {
             drawDungeonRoka();
             dungeonClearRenderRequest?.();
         } else {
-            // Detect encounter animation start (roka run → normal on boss cavern)
-            if (!encounterAnim && prevDungeonState === DUNGEON_STATE_ROKA_RUN) {
-                const mapId = readU8(ADDR_PLACE_MAP_ID) & 0x7F;
-                const bs = DUNGEONS[mapId]?.bossState;
-                if (bs) {
-                    const level = parseInt(DUNGEONS[mapId].mdtPath.match(/mp(\d+)d/)[1]);
-                    if (readU16((level - 1) * 8) !== 0xFFFF) {
-                        encounterAnim = {
-                            startTime: performance.now(),
-                            phase: 'flash',
-                        };
-                    }
-                }
+            // Detect encounter animation start (BOSS_ENCOUNTER state)
+            if (!encounterAnim && dungeonState === DUNGEON_STATE_BOSS_ENCOUNTER) {
+                encounterAnim = {
+                    startTime: performance.now(),
+                    phase: 'flash',
+                };
             }
 
             if (encounterAnim && encounterAnim.phase === 'flash') {
                 const now = performance.now();
-                const anim = encounterAnim;
+                // const anim = encounterAnim;
                 const flashCycleMs = 400;
-                const elapsed = now - anim.startTime;
+                const elapsed = now - encounterAnim.startTime;
                 const totalFlashMs = 7 * flashCycleMs;
 
                 if (elapsed >= totalFlashMs) {
-                    anim.phase = 'crossfade';
-                    anim.crossfadeStart = now;
+                    encounterAnim = {
+                        phase: 'crossfade',
+                        crossfadeStart: now,
+                    };
                 }
 
                 const cyclePos = elapsed % flashCycleMs;
@@ -4508,6 +4507,16 @@ function draw() {
 
                     if (progress >= 1) {
                         encounterAnim = null;
+                        // Initialize boss HUD from JS (boss state block already set by handleDungeonTransition)
+                        writeMemory(ADDR_BOSS_MODE, [0xFF]);                   // boss HUD visible
+                        writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0xFF]);         // trigger health bar draw
+                        const boss_placement = readMemory(ADDR_BOSS_STATE_BLOCK + 8, 1)[0];
+                        writeMemory(ADDR_BOSS_PLACEMENT, [boss_placement]);
+                        // Reset game frame state so normal loop starts cleanly
+                        writeMemory(ADDR_DUNGEON_FRAME_PHASE, [0]);
+                        writeMemory(ADDR_RENDER_REQUEST, [0xFF]);
+                        writeMemory(ADDR_RENDER_DONE, [0]);
+                        writeMemory(ADDR_DUNGEON_STATE, [0]); // NORMAL
                     }
                 }
 

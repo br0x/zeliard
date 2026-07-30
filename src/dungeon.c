@@ -1884,7 +1884,9 @@ static void dungeon_update_roka_run(void)
     uint8_t phase = MEM8(ADDR_ROKA_PHASE);
     if (phase >= 25) {
         after_run_animation();
-        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+        if (MEM8(ADDR_DUNGEON_STATE) == DUNGEON_STATE_ROKA_RUN) {
+            MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+        }
         MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
         MEM8(ADDR_RENDER_REQUEST) = 0xFF;
         MEM8(ADDR_RENDER_DONE) = 0;
@@ -1919,6 +1921,9 @@ void wasm_dungeon_update(void)
         break;
     case DUNGEON_STATE_EXIT:
         return;
+    case DUNGEON_STATE_BOSS_ENCOUNTER:
+        // Do nothing — encounter animation handled by JS renderer
+        break;
     case DUNGEON_STATE_NORMAL:
     default:
         dungeon_update_normal();
@@ -4893,20 +4898,16 @@ void Cavern_Game_Init(void) {
         // start music (fn0)
         // int60h_music(FN0_INIT_PLAY_MUSIC);
 
-        // ENCOUNTER flash animation (skipped: all render stubs, and busy-wait
-        // on ADDR_FRAME_TIMER would hang since it's only ticked by JS)
+        // Defer boss initialization — JS handles the encounter flash/crossfade
+        // animation. Set state to BOSS_ENCOUNTER so the game loop does nothing
+        // (no AI, no hero input) during animation. JS completes boss entry after the animation finishes.
 
         // Override enp_grp_idx with boss_grp from mdt_descriptor
         uint16_t si = ADDR_MDT;  // mdt_buffer
         uint8_t boss_grp = MEM8(si + 5);  // mdt_descriptor.boss_grp
         MEM8(si + 4) = boss_grp;          // mdt_descriptor.enp_grp_idx = boss_grp
 
-        // load_boss_sprites(boss_grp);
-
-        // Decompress tile data
-        // Decompress_Tile_Data_proc(0x14000, 0x1A000, 0x100);
-
-        render_boss_hud();
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_BOSS_ENCOUNTER;
     } else {
         // ------------------------------------------------------------------------
         // Regular cavern path
