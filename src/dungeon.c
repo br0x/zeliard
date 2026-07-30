@@ -5840,19 +5840,17 @@ static void init_magic_projectile(uint16_t si) {
     // dir encoding (matches original NOT(facing) & 1): 0=LEFT, 1=RIGHT
     uint8_t dir = (uint8_t)(~facing) & 1;
     MP_DIR(si) = dir;
-    // Spawn offset from hero_x_view: LEFT→0 (left edge), RIGHT→2 (right edge)
-    int16_t offset = (facing & 1) ? -1 : 2;
-
     uint8_t y = (uint8_t)((MEM8(ADDR_SQUAT_FLAG) & 1)
                           + MEM8(ADDR_HERO_HEAD_Y_VIEW)
                           + MEM8(ADDR_VIEWPORT_TOP_ROW));
     y &= 0x3F;
     MP_Y_REL(si) = y;
 
-    int16_t x = (int16_t)(MEM8(ADDR_HERO_X_VIEW) + offset + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL));
-    if (x < 0)
-        x += MEM16(ADDR_MAP_WIDTH);
-    else if (x >= MEM16(ADDR_MAP_WIDTH))
+    uint8_t x_in_prox = (uint8_t)(MEM8(ADDR_HERO_X_VIEW) + 4);
+    x_in_prox = (uint8_t)(x_in_prox + ((uint8_t)(~dir) & 1));
+
+    uint16_t x = (uint16_t)x_in_prox + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+    if (x >= MEM16(ADDR_MAP_WIDTH))
         x -= MEM16(ADDR_MAP_WIDTH);
     MP_X_REL(si) = (uint16_t)x;
 

@@ -2444,7 +2444,9 @@ function drawDungeonMagicProjectiles() {
 
         const yRel = readU8(addr + 2);
         const mpDir = readU8(addr + 3);
+        const lifeTimer = readU8(addr + 4);
         const animFrame = readU8(addr + 5);
+        if (lifeTimer === 0) continue;
 
         const leftCol = readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
         const mapWidth = readU16(ADDR_MAP_WIDTH);
@@ -2459,15 +2461,16 @@ function drawDungeonMagicProjectiles() {
             if (relX >= 36) continue;
         }
 
+        const vpX = relX - DUNGEON_VIEW_LEFT_IN_PROX;
         const relY = (yRel - top) & 0x3F;
         const frameIdx = getMagicFrameIndex(spellIndex, mpDir, animFrame);
         const srcX0 = frameIdx * 48;
 
         for (let sub = 0; sub < 4; sub++) {
-            const sx = relX + (sub & 1);
-            if (sx >= 32) continue;
+            const sx = vpX + (sub & 1);
+            if (sx < 0 || sx >= VIEW_COLS) continue;
             const sy = (relY + (sub >> 1)) & 0x3F;
-            if (sy >= 24) continue;
+            if (sy >= VIEW_ROWS) continue;
             ctx.drawImage(
                 dungeonMagicSheet,
                 srcX0 + (sub & 1) * TILE_WIDTH,
