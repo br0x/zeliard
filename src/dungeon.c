@@ -5147,13 +5147,13 @@ void load_eai_module(uint8_t place_map_id)
 {
     switch (place_map_id) {
         case 0: current_monster_ai = Monster_AI_1; break; // mp10.mdt
-        case 1: current_monster_ai = Cangrejo_AI; break;  // mp1d.mdt
+        case 1: Cangrejo_AI_reset(); current_monster_ai = Cangrejo_AI; break;  // mp1d.mdt
         case 2: current_monster_ai = Monster_AI_2; break; // mp20.mdt
         case 3: current_monster_ai = Monster_AI_2; break; // mp21.mdt
-        case 4: current_monster_ai = Pulpo_AI; break;     // mp2d.mdt
+        case 4: Pulpo_AI_reset(); current_monster_ai = Pulpo_AI; break;     // mp2d.mdt
         case 5: current_monster_ai = Monster_AI_3; break; // mp30.mdt
         case 6: current_monster_ai = Monster_AI_3; break; // mp31.mdt
-        case 7: current_monster_ai = Pollo_AI; break;     // mp3d.mdt
+        case 7: Pollo_AI_reset(); current_monster_ai = Pollo_AI; break;     // mp3d.mdt
         case 8: current_monster_ai = Monster_AI_4; break; // mp40.mdt
         case 9: current_monster_ai = Monster_AI_4; break; // mp41.mdt
         /* add more as more eaiN.c modules are translated */

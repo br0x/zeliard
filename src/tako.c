@@ -204,6 +204,24 @@ static void death_sequence_step(void);                  /* loc_A530 */
 static void render_tentacles_and_ink(uint8_t dl);        /* loc_A3E3 .. loc_A4FE */
 
 /*
+ * Pulpo_AI_reset - clear all persistent static state so a fresh
+ * encounter behaves correctly even after a save/restore cycle.
+ */
+void Pulpo_AI_reset(void)
+{
+    active_sprite_count = 0;
+    hit_monster_flags = 0;
+    col_rel_x = 0;
+    tentacle_anim_step = 0;
+    anim_group_offset = 0;
+    retract_state = 0;
+    ink_squirt_state = 0;
+    death_timer = 0;
+    ink_target_x = 0;
+    ink_target_y = 0;
+}
+
+/*
  * Pulpo_AI - entry point, called once per frame.
  */
 void Pulpo_AI(uint16_t m)

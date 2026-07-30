@@ -204,6 +204,31 @@ static void render_boss_sprite_frame(void);             /* loc_A455 */
 static void death_sequence_step(void);                  /* loc_A60A */
 
 /*
+ * Pollo_AI_reset - clear all persistent static state so a fresh encounter
+ * behaves correctly even after a save/restore cycle (the WASM port links
+ * all modules into a single image, so statics survive across encounters).
+ */
+void Pollo_AI_reset(void)
+{
+    approach_phase = 0;
+    recently_hit_flag = 0;
+    attacking = 0;
+    attack_phase = 0;
+    recovering = 0;
+    tick_div3 = 0;
+    flap_phase = 0;
+    hit_result = 0;
+    death_timer = 0;
+    hit_flash_timer = 0;
+    move_tick = 0;
+    charging = 0;
+    windup_flaps = 0;
+    death_entry_flag = 0;
+    projectile_charging = 0;
+    attack_duration = 0;
+}
+
+/*
  * Pollo_AI - entry point, called once per frame while the Pollo boss
  * encounter is active.
  */

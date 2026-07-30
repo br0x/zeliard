@@ -133,6 +133,31 @@ static void render_body_entities(void);         // + render_droplets_entities co
 
 
 /*
+ * Cangrejo_AI_reset - clear all persistent static state so a fresh
+ * encounter behaves correctly even after a save/restore cycle.
+ */
+void Cangrejo_AI_reset(void)
+{
+    active_sprite_count = 0;
+    hit_monster_flags = 0;
+    body_anim_state = 0;
+    crab_entity_row = 0;
+    movement_direction_flag = 0;
+    movement_tick_counter = 0;
+    phase_acid_dropping = 0;
+    acid_step_index = 0;
+    phase_recoil = 0;
+    recoil_step_index = 0;
+    phase_placing_droplet = 0;
+    descent_seq_index = 0;
+    phase_spawning_droplet = 0;
+    spawn_seq_index = 0;
+    droplet_target_x = 0;
+    droplet_target_y = 0;
+    death_timer = 0;
+}
+
+/*
  * Cangrejo_AI - entry point, called once per frame.
  */
 void Cangrejo_AI(uint16_t m)
