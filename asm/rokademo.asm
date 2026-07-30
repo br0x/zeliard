@@ -21,8 +21,8 @@ sub_A002        proc near
                 call    word ptr cs:res_dispatcher_proc ; fn2_segmented_load
                 push    ds
                 mov     ds, word ptr cs:seg1
-                mov     si, 6000h
-                mov     bp, 0D000h
+                mov     si, 6000h  ; seg1:6000h - decompressed dman tiles
+                mov     bp, 0D000h ; seg1:0D000h - transparency masks for dman tiles
                 mov     cx, 100h
                 call    word ptr cs:Render_Animated_Tile_Rows_proc
                                         ;  DS:SI - compressed data (will be unpacked in place)
@@ -37,7 +37,7 @@ sub_A002        proc near
                 mov     al, 1           ; big red Tear
 
 loc_A04F:
-                mov     byte_A5A4, al
+                mov     is_big_red_tear, al
                 mov     bx, 2552h
                 call    word ptr cs:Render_Icon_16x13_proc
                                         ; ; AL: tear index (0-small blue Tear, 1-large red Tear)
@@ -61,7 +61,7 @@ loc_A070:
                 call    sub_A48F
                 pop     bx
                 cmp     bh, 24h ; '$'
-                jz      short loc_A096
+                je      short loc_A096
                 push    bx
                 mov     cx, 218h
                 xor     al, al
@@ -72,18 +72,18 @@ loc_A070:
 loc_A096:
                 pop     cx
                 loop    loc_A065
+
                 mov     byte ptr ds:hero_animation_phase, 4
                 mov     bx, 246Eh
                 call    sub_A407
                 mov     cx, 5
-
 loc_A0A7:
                 push    cx
                 call    sub_A48F
                 pop     cx
                 loop    loc_A0A7
-                mov     byte ptr ds:hero_animation_phase, 5
 
+                mov     byte ptr ds:hero_animation_phase, 5
 loc_A0B3:
                 mov     bx, 246Eh
                 call    sub_A407
@@ -92,6 +92,7 @@ loc_A0B3:
                 inc     byte ptr ds:hero_animation_phase
                 cmp     byte ptr ds:hero_animation_phase, 9
                 jb      short loc_A0B3
+
                 mov     bx, 246Eh
                 call    sub_A407
                 call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
@@ -110,8 +111,8 @@ loc_A0B3:
                 mov     cx, 310h
                 xor     di, di
                 call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
-                mov     byte_A5A5, 0
 
+                mov     byte_A5A5, 0
 loc_A107:
                 mov     al, byte_A5A5
                 mov     bl, byte_A59C
@@ -130,6 +131,7 @@ loc_A107:
                 inc     byte_A5A5
                 cmp     byte_A5A5, 2
                 jb      short loc_A107
+
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -141,7 +143,6 @@ loc_A107:
                 call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
                 mov     byte ptr ds:soundFX_request, 27
                 mov     byte_A5A5, 0
-
 loc_A162:
                 mov     al, byte_A5A5
                 or      al, 80h
@@ -164,6 +165,7 @@ loc_A162:
                 inc     byte_A5A5
                 cmp     byte_A5A5, 2
                 jb      short loc_A162
+
                 mov     bx, 2552h
                 mov     cx, 410h
                 xor     al, al
@@ -197,8 +199,8 @@ loc_A1D2:
                 inc     byte_A5A5
                 cmp     byte_A5A5, 4
                 jb      short loc_A1D2
-                mov     byte_A5A7, 0C8h
 
+                mov     byte_A5A7, 0C8h
 loc_A20E:
                 inc     byte_A5A6
                 test    byte_A5A6, 1
@@ -281,7 +283,7 @@ loc_A2BB:
                 inc     byte_A5A5
                 cmp     byte_A5A5, 2
                 jb      short loc_A2BB
-                mov     al, byte_A5A4
+                mov     al, is_big_red_tear
                 mov     bl, byte ptr ds:Tears_of_Esmesanti_count
                 dec     bl
                 xor     bh, bh
@@ -297,7 +299,6 @@ loc_A2BB:
                 xor     di, di
                 call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
                 mov     byte_A5A5, 4
-
 loc_A32F:
                 mov     al, byte_A5A5
                 dec     al
@@ -316,6 +317,7 @@ loc_A32F:
                 call    word ptr cs:Put_Image_proc
                 dec     byte_A5A5
                 jnz     short loc_A32F
+
                 push    ds
                 mov     ds, word ptr cs:seg1
                 mov     si, 3000h
@@ -423,16 +425,19 @@ loc_A41A:
 sub_A407        endp
 
 ; ---------------------------------------------------------------------------
-tiles_grouping3x3 db 0, 2, 4, 1, 3, 5, 0, 0, 6
-                db 7, 9, 11, 8, 10, 12, 0, 0, 0
-                db 0, 2, 14, 1, 13, 15, 0, 0, 16
-                db 7, 9, 17, 8, 10, 18, 0, 0, 0
-                db 0, 20, 22, 19, 21, 23, 0, 0, 24
-                db 25, 0, 28, 26, 27, 29, 0, 0, 30
-                db 31, 0, 35, 32, 33, 36, 0, 34, 37
-                db 31, 0, 35, 32, 38, 40, 0, 39, 41
-                db 31, 0, 35, 42, 44, 40, 43, 45, 41
-                db 46, 49, 35, 47, 50, 52, 48, 51, 53
+; First sprite is: 0 1 0
+;                  2 3 0
+;                  4 5 6
+tiles_grouping3x3 db 0, 2, 4, 1, 3, 5, 0, 0, 6 ; by columns
+                  db 7, 9, 11, 8, 10, 12, 0, 0, 0
+                  db 0, 2, 14, 1, 13, 15, 0, 0, 16
+                  db 7, 9, 17, 8, 10, 18, 0, 0, 0
+                  db 0, 20, 22, 19, 21, 23, 0, 0, 24
+                  db 25, 0, 28, 26, 27, 29, 0, 0, 30
+                  db 31, 0, 35, 32, 33, 36, 0, 34, 37
+                  db 31, 0, 35, 32, 38, 40, 0, 39, 41
+                  db 31, 0, 35, 42, 44, 40, 43, 45, 41
+                  db 46, 49, 35, 47, 50, 52, 48, 51, 53
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -579,7 +584,7 @@ byte_A5A0       db 0
 byte_A5A1       db 0
 byte_A5A2       db 0
 byte_A5A3       db 0
-byte_A5A4       db 0
+is_big_red_tear       db 0
 byte_A5A5       db 0
 byte_A5A6       db 0
 byte_A5A7       db 0

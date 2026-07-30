@@ -878,6 +878,7 @@ const ROKA_IMAGE_PATHS = [
     'assets/images/roka/roka_green.jpg',
     'assets/images/roka/roka_violet.jpg',
 ];
+const ENCOUNTER_IMAGE_PATH = 'assets/images/encounter.png';
 
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
@@ -1197,6 +1198,7 @@ let dungeonSwordSheetReady = false;
 
 let rokaImages = [];
 let rokaImagesReady = false;
+let encounterImg = null;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -1715,6 +1717,7 @@ async function startGame() {
         await loadShieldIcons();
         await loadMagicIcons();
         await loadRokaImages();
+        await loadEncounterImage();
 
         parseTownNpcCategory();
         await Promise.all(
@@ -1839,6 +1842,16 @@ async function loadRokaImages() {
     await Promise.all(loads);
     rokaImagesReady = true;
     return rokaImages;
+}
+
+function loadEncounterImage() {
+    if (encounterImg) return Promise.resolve(encounterImg);
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { encounterImg = img; resolve(img); };
+        img.onerror = () => reject(new Error(`Failed to load ${ENCOUNTER_IMAGE_PATH}`));
+        img.src = ENCOUNTER_IMAGE_PATH;
+    });
 }
 
 function loadImageOnce(path, setter) {
@@ -3333,15 +3346,12 @@ function drawDungeonRoka() {
 }
 
 function drawEncounterText(alpha) {
+    if (!encounterImg) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = 'bold 96px "Roboto Condensed", sans-serif';
-    ctx.fillStyle = '#FF0000';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const x = canvas.width / 2;
+    const x = (canvas.width - 622) / 2;
     const y = 3 * TILE_HEIGHT;
-    ctx.fillText('ENCOUNTER!', x, y);
+    ctx.drawImage(encounterImg, x, y, 622, 192);
     ctx.restore();
 }
 
@@ -3474,6 +3484,7 @@ async function handleDungeonTransition(mapId, isFromTown) {
             setDungeonSwordReach(SWORD_REACH_LARGE);
         }
         await loadRokaImages();
+        await loadEncounterImage();
         dungeonInit?.(rawMapId, isFromTown); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
