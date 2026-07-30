@@ -1277,6 +1277,7 @@ function closeInventory() {
     if (!inventoryScreenInstance) return;
     inventoryScreenInstance = null;
     gamePaused = false;
+    renderMagicHud();
 }
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────

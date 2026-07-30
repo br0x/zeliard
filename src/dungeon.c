@@ -5810,7 +5810,7 @@ void Magic_Spell_Fire_Handler(void) {
         return; // out of charges for this spell
 
     MEM8(ADDR_SPELLS_ESPADA + spell)--;
-    // Print_Magic_Left_Decimal_proc(); // is handled by game.js every frame
+    MEM8(ADDR_MAGIC_LEFT_RENDER_REQUEST) = 0xFF; // signal JS to redraw magic counter
     MEM8(ADDR_SOUND_FX_REQUEST) = 24; // cast-fire SFX
 
     uint16_t si = ADDR_MAGIC_PROJECTILES;
@@ -5841,7 +5841,7 @@ static void init_magic_projectile(uint16_t si) {
     uint8_t dir = (uint8_t)(~facing) & 1;
     MP_DIR(si) = dir;
     // Spawn offset from hero_x_view: LEFT→0 (left edge), RIGHT→2 (right edge)
-    int16_t offset = (facing & 1) ? 0 : 2;
+    int16_t offset = (facing & 1) ? -1 : 2;
 
     uint8_t y = (uint8_t)((MEM8(ADDR_SQUAT_FLAG) & 1)
                           + MEM8(ADDR_HERO_HEAD_Y_VIEW)
@@ -6018,25 +6018,21 @@ static void fuego_move(uint16_t si) {
     }
 
     if (MP_LIFE_TIMER(si) < 4) {
-        // Still rising: drift sideways only, no animation change yet.
+        // Still horizontal phase, no animation change yet.
         projectile_step_x_by_direction(si);
         monster_is_in_spawn_range_and_clear(si);
         return;
     }
-
+    // MP_LIFE_TIMER(si) = 4...11
     MP_ANIM_FRAME(si) = (uint8_t)((MP_ANIM_FRAME(si) & 3) + 1);
 
-    // NOTE: life_timer is always >= 4 on this path, so this comparison is
-    // never true in practice — kept for fidelity with the original code,
-    // which had the same (apparently dead) check.
-    if (MP_LIFE_TIMER(si) != 3) {
+    if (MP_LIFE_TIMER(si) != 3) { // condition always true here (literal assembly translation)
         uint8_t rel_x;
-        if (!is_in_proximity_window(MP_X_REL(si), &rel_x) && rel_x < 33) {
-            uint16_t di = coords_to_prox_addr(rel_x, MP_Y_REL(si));
-            uint16_t below = (uint16_t)(di + 72); // two rows further down
-            wrap_map_from_above(&below);
+        if (is_in_proximity_window(MP_X_REL(si), &rel_x) && rel_x < 33) {
+            uint16_t di = coords_to_prox_addr(rel_x, MP_Y_REL(si)) + 2 * PROX_COLS;
+            wrap_map_from_above(&di);
 
-            if (!is_blocking_tile(MEM8(below)) && !is_blocking_tile(MEM8(below + 1)))
+            if (!is_blocking_tile(MEM8(di)) && !is_blocking_tile(MEM8(di + 1)))
                 MP_Y_REL(si) = (uint8_t)(MP_Y_REL(si) + 1) & 0x3F;
         }
     }
@@ -6115,10 +6111,9 @@ static void projectile_step_and_animate(uint16_t si) {
 // the 4-slot point, agua at the 3-slot point, and espada/saeta/fuego at the
 // 1-slot point.
 static void despawn_projectile_slots(uint16_t si, int slot_count) {
-    for (int i = slot_count - 1; i >= 1; i--)
+    for (int i = 0; i < slot_count; i++)
         MP_X_REL(si + (uint16_t)(i * MAGIC_PROJECTILE_STRIDE)) = 0xFF00;
 
-    MP_X_REL(si) = 0xFF00;
     MEM8(ADDR_BYTE_FF3E) = 0;
 }
 

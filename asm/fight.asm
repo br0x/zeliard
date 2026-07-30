@@ -7024,18 +7024,18 @@ funcs_8AC2      dw offset espada_move
 espada_move     proc near 
                 test    [si+magic_projectile.mp_dir], 80h
                 jz      short loc_8ADD
-                jmp     loc_8BB5
+                jmp     common_magic_projectile_cleanup
 ; ---------------------------------------------------------------------------
 
 loc_8ADD:        
                 inc     [si+magic_projectile.mp_life_timer]
                 cmp     [si+magic_projectile.mp_life_timer], 5  ; espada lives 5 ticks
                 jb      short espada_alive
-                jmp     loc_8BB5
+                jmp     common_magic_projectile_cleanup
 ; ---------------------------------------------------------------------------
 
 espada_alive:        
-                call    sub_8BC2
+                call    animate_mod3_and_move_horizontally
                 call    monster_is_in_spawn_range_and_clear
                 jnb     short loc_8AF2
                 retn
@@ -7054,11 +7054,11 @@ saeta_move      proc near
                 inc     [si+magic_projectile.mp_life_timer]
                 cmp     [si+magic_projectile.mp_life_timer], 0Ah
                 jb      short loc_8B03
-                jmp     loc_8BB5
+                jmp     common_magic_projectile_cleanup
 ; ---------------------------------------------------------------------------
 
 loc_8B03:        
-                call    sub_8BC2
+                call    animate_mod3_and_move_horizontally
                 jmp     monster_is_in_spawn_range_and_clear
 saeta_move      endp
 
@@ -7068,30 +7068,31 @@ saeta_move      endp
 
 fuego_move      proc near 
                 inc     [si+magic_projectile.mp_life_timer]
-                cmp     [si+magic_projectile.mp_life_timer], 0Ch
+                cmp     [si+magic_projectile.mp_life_timer], 12
                 jb      short loc_8B15
-                jmp     loc_8BB5
+                jmp     common_magic_projectile_cleanup ; mp_life_timer >= 12
 ; ---------------------------------------------------------------------------
 
 loc_8B15:        
                 cmp     [si+magic_projectile.mp_life_timer], 4
-                jnb     short loc_8B20
-                call    loc_8BD0
+                jnb     short fuego_vertical_phases
+                ; mp_life_timer = 1, 2, 3
+                call    move_magic_projectile_horizontal_step
                 jmp     short loc_8B61
 ; ---------------------------------------------------------------------------
 
-loc_8B20:        
+fuego_vertical_phases: ; mp_life_timer = 4...11
                 and     [si+magic_projectile.mp_anim_frame], 3
                 inc     [si+magic_projectile.mp_anim_frame]
                 cmp     [si+magic_projectile.mp_life_timer], 3
-                jz      short loc_8B61
+                je      short loc_8B61 ; should never jump here
                 mov     ax, [si+magic_projectile.mp_x_rel]
                 call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
                                                 ; Returns CF if outside the window, accounting for world wrap.
                                                 ;         NC if inside the window, then BL = relative X in the window.
                 jc      short loc_8B61
                 cmp     bl, 33
-                jnb     short loc_8B61
+                jnb     short loc_8B61 ; 33 <= BL < 36
                 mov     ah, bl
                 mov     al, [si+magic_projectile.mp_y_rel]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
@@ -7099,10 +7100,10 @@ loc_8B20:
                                         ; y &= 0x3F; // Clamp Y to 0-63
                                         ; uint16_t di = (y * 36) + x + 0xE000;
                 xchg    si, di
-                add     si, 72
+                add     si, 36*2
                 call    wrap_map_from_above ; if (si >= 0E900h) si -= 900h
                 xchg    si, di
-                mov     al, [di]
+                mov     al, [di] ; tile from proximity map
                 call    is_blocking_tile ; ZF if can pass
                 jnz     short loc_8B61
                 mov     al, [di+1]
@@ -7121,8 +7122,8 @@ fuego_move      endp
 
 rascar_move     proc near 
                 inc     [si+magic_projectile.mp_life_timer]
-                cmp     [si+magic_projectile.mp_life_timer], 0Ch
-                jnb     short loc_8B9D
+                cmp     [si+magic_projectile.mp_life_timer], 12
+                jnb     short rascar_cleanup
                 mov     cx, 4
 
 loc_8B70:        
@@ -7142,13 +7143,13 @@ rascar_move     endp
 
 agua_move       proc near 
                 inc     [si+magic_projectile.mp_life_timer]
-                cmp     [si+magic_projectile.mp_life_timer], 0Ah
-                jnb     short loc_8BA5
+                cmp     [si+magic_projectile.mp_life_timer], 10
+                jnb     short agua_cleanup
                 mov     cx, 3
 
 loc_8B8F:        
                 push    cx
-                call    sub_8BC2
+                call    animate_mod3_and_move_horizontally
                 call    monster_is_in_spawn_range_and_clear
                 add     si, 10h
                 pop     cx
@@ -7158,19 +7159,18 @@ locret_8B9C:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_8B9D:        
-                mov     byte ptr [si+30h], 0
-                mov     byte ptr [si+31h], 0FFh
+rascar_cleanup:        
+                mov     byte ptr [si+30h+magic_projectile.mp_x_rel], 0
+                mov     byte ptr [si+30h+magic_projectile.mp_x_rel+1], 0FFh
+agua_cleanup:        
+                mov     byte ptr [si+20h+magic_projectile.mp_x_rel], 0
+                mov     byte ptr [si+20h+magic_projectile.mp_x_rel+1], 0FFh
 
-loc_8BA5:        
-                mov     byte ptr [si+20h], 0
-                mov     byte ptr [si+21h], 0FFh
-                mov     byte ptr [si+10h], 0
-                mov     byte ptr [si+11h], 0FFh
-
-loc_8BB5:        
-                mov     byte ptr [si], 0
-                mov     byte ptr [si+1], 0FFh
+                mov     byte ptr [si+10h+magic_projectile.mp_x_rel], 0
+                mov     byte ptr [si+10h+magic_projectile.mp_x_rel+1], 0FFh
+common_magic_projectile_cleanup:        
+                mov     byte ptr [si+magic_projectile.mp_x_rel], 0
+                mov     byte ptr [si+magic_projectile.mp_x_rel+1], 0FFh
                 mov     byte ptr ds:byte_FF3E, 0
                 retn
 agua_move       endp
@@ -7179,7 +7179,7 @@ agua_move       endp
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_8BC2        proc near 
+animate_mod3_and_move_horizontally        proc near 
                 mov     al, [si+magic_projectile.mp_anim_frame]
                 inc     al
                 cmp     al, 3
@@ -7189,14 +7189,14 @@ sub_8BC2        proc near
 loc_8BCD:        
                 mov     [si+magic_projectile.mp_anim_frame], al
 
-loc_8BD0:        
+move_magic_projectile_horizontal_step:        
                 mov     ax, [si+magic_projectile.mp_x_rel]
                 mov     bl, [si+magic_projectile.mp_dir]
-                and     bx, 1
+                and     bx, 1 ; dir = 0 or 1
                 add     bx, bx
-                add     bx, bx
+                add     bx, bx ; dir*4 = 0 or 4
                 dec     bx
-                dec     bx
+                dec     bx ; dir*4-2 = -2 or 2
                 add     ax, bx
                 or      ax, ax
                 jns     short loc_8BEA
@@ -7210,9 +7210,9 @@ loc_8BEA:
                 sub     ax, ds:mapWidth
 
 loc_8BF4:        
-                mov     [si], ax
+                mov     [si+magic_projectile.mp_x_rel], ax
                 retn
-sub_8BC2        endp
+animate_mod3_and_move_horizontally        endp
 
 
 ; =============== S U B R O U T I N E =======================================

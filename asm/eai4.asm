@@ -51,7 +51,7 @@ monster_damage  db 20, 4, 80, 80, 80, 0, 0, 0
                 dw    0
                 dw offset red_potion
                 dw offset blue_potion
-                dw offset ruzeria_shoes
+                dw offset ruzeria_shoes_
                 dw    0
                 dw    0
                 dw    0
@@ -84,7 +84,7 @@ monster_damage  db 20, 4, 80, 80, 80, 0, 0, 0
                 dw    0
                 dw offset red_potion
                 dw offset blue_potion
-                dw offset ruzeria_shoes
+                dw offset ruzeria_shoes_
                 dw    0
                 dw    0
                 dw    0
@@ -170,7 +170,7 @@ wall_destruction db 2, 0D7h, 0D7h, 0D7h, 0D7h ; 76
                 db 2, 0D8h, 0D9h, 0DAh, 0DBh
                 db 2, 0DCh, 0DDh, 0DEh, 0DFh
                 db 2, 0, 0, 0E0h, 0E1h
-ruzeria_shoes   db 0, 0CFh, 0D0h, 0D1h, 0D2h ; 80
+ruzeria_shoes_  db 0, 0CFh, 0D0h, 0D1h, 0D2h ; 80
 red_potion      db 0, 0D3h, 0D4h, 0D5h, 0D6h ; 81
 blue_potion     db 2, 0D3h, 0D4h, 0D5h, 0D6h ; 82
 death_descriptors dw offset byte_A259
