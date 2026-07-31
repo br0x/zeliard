@@ -891,12 +891,6 @@ var warnOnce = text => {
   }
 };
 
-function _Find_Monsters_Near_Hero(...args) {
-  abort("missing function: Find_Monsters_Near_Hero");
-}
-
-_Find_Monsters_Near_Hero.stub = true;
-
 var abortOnCannotGrowMemory = requestedSize => {
   abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
 };
@@ -1218,6 +1212,8 @@ var _wasm_set_input_keys = Module["_wasm_set_input_keys"] = makeInvalidEarlyAcce
 
 var _wasm_dungeon_init = Module["_wasm_dungeon_init"] = makeInvalidEarlyAccess("_wasm_dungeon_init");
 
+var _wasm_finish_rokademo_transition = Module["_wasm_finish_rokademo_transition"] = makeInvalidEarlyAccess("_wasm_finish_rokademo_transition");
+
 var _wasm_dungeon_update = Module["_wasm_dungeon_update"] = makeInvalidEarlyAccess("_wasm_dungeon_update");
 
 var _wasm_dungeon_full_tick = Module["_wasm_dungeon_full_tick"] = makeInvalidEarlyAccess("_wasm_dungeon_full_tick");
@@ -1299,6 +1295,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["get_memory_base"] != "undefined", "missing Wasm export: get_memory_base");
   assert(typeof wasmExports["wasm_set_input_keys"] != "undefined", "missing Wasm export: wasm_set_input_keys");
   assert(typeof wasmExports["wasm_dungeon_init"] != "undefined", "missing Wasm export: wasm_dungeon_init");
+  assert(typeof wasmExports["wasm_finish_rokademo_transition"] != "undefined", "missing Wasm export: wasm_finish_rokademo_transition");
   assert(typeof wasmExports["wasm_dungeon_update"] != "undefined", "missing Wasm export: wasm_dungeon_update");
   assert(typeof wasmExports["wasm_dungeon_full_tick"] != "undefined", "missing Wasm export: wasm_dungeon_full_tick");
   assert(typeof wasmExports["wasm_dungeon_get_viewport_top"] != "undefined", "missing Wasm export: wasm_dungeon_get_viewport_top");
@@ -1340,6 +1337,7 @@ function assignWasmExports(wasmExports) {
   _get_memory_base = Module["_get_memory_base"] = createExportWrapper("get_memory_base", 0);
   _wasm_set_input_keys = Module["_wasm_set_input_keys"] = createExportWrapper("wasm_set_input_keys", 1);
   _wasm_dungeon_init = Module["_wasm_dungeon_init"] = createExportWrapper("wasm_dungeon_init", 2);
+  _wasm_finish_rokademo_transition = Module["_wasm_finish_rokademo_transition"] = createExportWrapper("wasm_finish_rokademo_transition", 0);
   _wasm_dungeon_update = Module["_wasm_dungeon_update"] = createExportWrapper("wasm_dungeon_update", 0);
   _wasm_dungeon_full_tick = Module["_wasm_dungeon_full_tick"] = createExportWrapper("wasm_dungeon_full_tick", 0);
   _wasm_dungeon_get_viewport_top = Module["_wasm_dungeon_get_viewport_top"] = createExportWrapper("wasm_dungeon_get_viewport_top", 0);
@@ -1380,7 +1378,6 @@ function assignWasmExports(wasmExports) {
 }
 
 var wasmImports = {
-  /** @export */ Find_Monsters_Near_Hero: _Find_Monsters_Near_Hero,
   /** @export */ alignfault,
   /** @export */ emscripten_resize_heap: _emscripten_resize_heap,
   /** @export */ js_log: _js_log,

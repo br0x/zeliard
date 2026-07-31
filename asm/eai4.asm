@@ -538,7 +538,7 @@ loc_A4B1:
                 test    byte ptr [si+7], 40h
                 jnz     short loc_A4EC
                 call    word ptr cs:Find_Monsters_Near_Hero_proc
-                jb      short loc_A4EC
+                jc      short loc_A4EC
                 mov     word ptr [di], 0FF00h
                 test    byte ptr [di+7], 40h
                 jz      short loc_A4E1

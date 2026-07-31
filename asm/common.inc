@@ -57,7 +57,7 @@ byte_4                      equ   4     ;
 spoke_to_king               equ   5     ; 00 = No, FF = Yes
 entered_cavern_first_time   equ   6     ; 00 = No, FF = Yes
 Pulpo_Defeated              equ   8     ; 0000 = No, FFFF = Yes
-peligro_items               equ   9     ; +128 - Chest, Blue Potion (With the One-time Bat)
+peligro_items               equ   0ah   ; +128 - Chest, Blue Potion (With the One-time Bat)
                                         ; +64 - Key, Under Locked Door
                                         ; +32 - Key, Under Blue Open Door
                                         ; +16 - Wall, Red Potion (Far one)
@@ -65,7 +65,7 @@ peligro_items               equ   9     ; +128 - Chest, Blue Potion (With the On
                                         ; +4 - Empty Chest
                                         ; +2 - Wall, 100 almas
                                         ; +1 - Chest, Red Potion
-peligro_items_1             equ   0ah   ; +128 - Open 1st Locked Blue Door
+peligro_items_1             equ   0bh   ; +128 - Open 1st Locked Blue Door
                                         ; +64 - Open Locked Red Door
                                         ; +32 - Open Locked Door to 3rd Dungeon
                                         ; +16 - Key, Pulpo's Lair

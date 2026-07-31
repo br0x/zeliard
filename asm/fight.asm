@@ -9625,7 +9625,6 @@ byte_98BE       db 2, 4, 8, 16, 32, 64, 255
 ; Return dl: number of monsters found nearby
 
 ; ===========================================================================
-; Find_Monsters_Near_Hero
 ; Exported from fight.bin. Counts nearby movable monsters.
 ; Iterates the monsters_table, for each non-item monster checks is_in_proximity_window.
 ; Returns DL = count of monsters in range.
@@ -9637,17 +9636,17 @@ Find_Monsters_Near_Hero proc near
                 mov     di, ds:monsters_table_addr
 
 loc_98CB:        
-                cmp     word ptr [di], 0FFFFh ; monsters end marker
+                cmp     word ptr [di+0], 0FFFFh ; monsters end marker
                 stc
-                jnz     short loc_98D2
+                jne     short loc_98D2
                 retn
 ; ---------------------------------------------------------------------------
 
 loc_98D2:        
                 cmp     [di+monster.spwnX], 0FFFFh
-                jnz     short loc_98ED
+                jne     short loc_98ED
                 cmp     byte ptr [di+1], 0FFh
-                jz      short loc_98F4
+                je      short loc_98F4
                 mov     ax, [di+monster.currX]
                 push    dx
                 call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
@@ -9667,7 +9666,7 @@ loc_98ED:
 
 loc_98F4:        
                 cmp     [di+monster.currY], 7Fh
-                jz      short loc_98ED
+                je      short loc_98ED
 
 loc_98FA:        
                 clc                     ; error

@@ -35,7 +35,10 @@
 
     <img src="assets/images/mole/mole_l.jpg" style="width: 64px; height: 600px;">
     <div id="game-wrapper" style="display: flex; flex-direction: column; width: fit-content;">
-      <img src="assets/images/mole/mole_t.jpg" style="width: 672px; height: 42px;">
+      <div id="mole-top" style="position: relative; width: 672px; height: 42px;">
+        <img src="assets/images/mole/mole_t.jpg" style="width: 672px; height: 42px; display: block;">
+        <div id="tear-overlay" style="position: absolute; top: 0; left: 0; width: 672px; height: 42px; pointer-events: none;"></div>
+      </div>
       <div id="game-container">
           <canvas id="gameCanvas"></canvas>
       </div>

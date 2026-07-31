@@ -878,7 +878,44 @@ const ROKA_IMAGE_PATHS = [
     'assets/images/roka/roka_green.jpg',
     'assets/images/roka/roka_violet.jpg',
 ];
+const DMAN_SHEET_PATH   = 'assets/images/tears/dman.png';
+const TEAR_BLUE_PATH    = 'assets/images/tears/tear_blue.png';
+const TEAR_RED_PATH     = 'assets/images/tears/tear_red.png';
+const SPARKLE_48_PATH   = 'assets/images/tears/sparkles_48x48.png';
+const SPARKLE_WIDE_PATH = 'assets/images/tears/sparkles_192x48.png';
 const ENCOUNTER_IMAGE_PATH = 'assets/images/encounter.png';
+
+// Tear of Esmesanti slots on the mole_t.jpg strip (DOM overlay above the canvas).
+const TEAR_SLOTS_BLUE = [
+    { x:  49, y: 6 }, 
+    { x: 602, y: 6 },
+    { x: 121, y: 6 }, 
+    { x: 530, y: 6 }, 
+    { x: 193, y: 6 }, 
+    { x: 458, y: 6 }, 
+    { x: 265, y: 6 },
+    { x: 386, y: 6 }, 
+];
+const TEAR_SLOT_RED = { x: 320, y: 1 };
+const MOLE_IMG_H = 42;
+
+// Per-cavern savegame flags that record a collected Tear of Esmesanti, in
+// cavern order (matches TEAR_SLOTS_BLUE / TEAR_SLOT_RED). The boss cavern's
+// exit door ORs its achievement (door.d_save_achievement_addr /
+// door.d_achievement_flag) into these bytes, so saves made before the
+// rokademo feature (which only incremented ADDR_TEAR_COUNT) still carry the
+// collected tears here. See asm/common.inc for the variable names.
+const TEAR_FLAGS = [
+    { addr: 0x03, bit: 0x20 }, // Cangrejo — malicia_items_1 (+32)
+    { addr: 0x0B, bit: 0x08 }, // Pulpo    — (exit door achievement addr 0x0B)
+    { addr: 0x13, bit: 0x02 }, // Pollo    — riza_items (+2)
+    { addr: 0x1C, bit: 0x10 }, // Agar     — escarcha_items_1 (+16)
+    { addr: 0x24, bit: 0x04 }, // Vista    — cementar_items_1 (+4)
+    { addr: 0x2D, bit: 0x10 }, // Tarso    — plata_items_2 (+16)
+    { addr: 0x36, bit: 0x80 }, // Paguro   — caliente_items_2 (+128)
+    { addr: 0x45, bit: 0x40 }, // Dragon   — falter_items (+64)
+    { addr: 0x47, bit: 0xFF }, // Jashiin  — no door achievement; 0x47 = defeated (mpa0 initializer)
+];
 
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
@@ -965,6 +1002,7 @@ const ADDR_SWORD_TYPE                = 0x92;
 const ADDR_SHIELD_TYPE               = 0x93;
 const ADDR_SHIELD_HP                 = 0x94;
 const ADDR_CURR_SPELL_TYPE           = 0x9d;
+const ADDR_TEAR_COUNT                = 0xA0;
 const ADDR_SPELL_COUNTS = [
     0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
 ];
@@ -1053,6 +1091,7 @@ const ADDR_PENDING_DUNGEON_FLAG    = 0xFFFD;
 const DUNGEON_STATE_DEATH_FADE = 4;
 const DUNGEON_STATE_BOSS_ENCOUNTER = 5;
 const DUNGEON_STATE_ROKA_RUN = 7;
+const DUNGEON_STATE_ROKADEMO = 9;
 
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
@@ -1151,6 +1190,7 @@ let dungeonGetRenderRequest;
 let dungeonClearRenderRequest;
 let getBossName;
 let dungeonCompleteBossEntry;
+let finishRokademoTransition;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -1199,6 +1239,17 @@ let dungeonSwordSheetReady = false;
 let rokaImages = [];
 let rokaImagesReady = false;
 let encounterImg = null;
+
+// ─── Rokademo (tear-collection demo) asset state ──────────────────────────────
+let dmanSheet = null;
+let dmanSheetReady = false;
+let tearBlueImg = null;
+let tearRedImg = null;
+let sparkle48Img = null;
+let sparkleWideImg = null;
+let rokademo = null;            // active demo state machine (null when idle)
+let rokademoHold = false;       // keep showing the roka bg until the post-demo transition starts
+let lastTearOverlayCount = -1;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
 const npcSprites = {
@@ -1686,6 +1737,8 @@ async function startGame() {
             saveState = loadGame();
         }
         loadSaveState(saveState);
+        lastTearOverlayCount = -1;
+        syncTearOverlay();
         const placeId = saveState[ADDR_PLACE_MAP_ID] & 0x7f;
         const mdtPath = TOWN_MDTS[placeId];
 
@@ -1719,6 +1772,7 @@ async function startGame() {
         await loadMagicIcons();
         await loadRokaImages();
         await loadEncounterImage();
+        await loadRokademoAssets();
 
         parseTownNpcCategory();
         await Promise.all(
@@ -1845,6 +1899,18 @@ async function loadRokaImages() {
     return rokaImages;
 }
 
+async function loadRokademoAssets() {
+    if (dmanSheetReady) return;
+    await Promise.all([
+        loadImageOnce(DMAN_SHEET_PATH,   img => { dmanSheet = img; }),
+        loadImageOnce(TEAR_BLUE_PATH,    img => { tearBlueImg = img; }),
+        loadImageOnce(TEAR_RED_PATH,     img => { tearRedImg = img; }),
+        loadImageOnce(SPARKLE_48_PATH,   img => { sparkle48Img = img; }),
+        loadImageOnce(SPARKLE_WIDE_PATH, img => { sparkleWideImg = img; }),
+    ]);
+    dmanSheetReady = true;
+}
+
 function loadEncounterImage() {
     if (encounterImg) return Promise.resolve(encounterImg);
     return new Promise((resolve, reject) => {
@@ -1934,7 +2000,7 @@ async function loadWasmEngine() {
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
         dungeonGetRenderRequest, dungeonClearRenderRequest, getBossName,
-        dungeonCompleteBossEntry,
+        dungeonCompleteBossEntry, finishRokademoTransition,
     } = wasmBridge);
 }
 
@@ -3349,6 +3415,396 @@ function drawDungeonRoka() {
     prevRokaDx = dx;
 }
 
+// ─── Rokademo (Tear of Esmesanti collection demo) ─────────────────────────────
+// Mirrors the original DMAN.GRP sequence: hero runs to the middle of the
+// cavern, draws his sword in a salute, the Tear of Esmesanti bursts into
+// sparkles that fly up to its slot on the mole_t.jpg strip above the canvas,
+// then the hero sheaths his sword and runs off.
+const DMAN_FRAME_W = 72;
+const DMAN_FRAME_H = 72;
+const DMAN_SHEET_COLS = 13;
+const ROKADEMO_RUN_STEPS = 13;
+const ROKADEMO_CENTER_DX = (VIEW_COLS * TILE_WIDTH - DMAN_FRAME_W) / 2;  // 300
+const ROKADEMO_HERO_Y = 12 * TILE_HEIGHT;                                // 288
+const ROKADEMO_TEAR_CENTER = { x: 336, y: 235 };
+
+const ROKADEMO_TIMING = {
+    runStepMs:     90,   // per run step (13 steps)
+    standMs:       500,
+    drawPhaseMs:   180,  // per draw-sword phase (5,6,7,8)
+    saluteMs:      600,
+    flashMs:       120,  // per small-sparkle frame
+    burstMs:       260,  // per wide-sparkle burst frame
+    flyStepMs:     16,   // per Bresenham step of the flying sparkle
+    pingEvery:     6,    // play "ping" every N fly steps
+    landBurstMs:   260,  // wide burst over the mole slot
+    landFlashMs:   130,  // per fade sparkle over the placed tear
+    sheathPhaseMs: 180,  // per sheathing phase (8,7,6,5)
+    sheathPauseMs: 500,
+    runoffStepMs:  90,   // per run-off step (13 steps)
+};
+
+const SWORD_VISIBLE_STATES = new Set([
+    'salute', 'sparkleStart', 'sparkleBurst', 'sparkleFlash',
+    'sparkleFly', 'sparkleLand', 'sparkleLandFlash',
+]);
+
+function rokademoSwordFrame(type) {
+    if (type <= 3) return 10;   // small sword (training / wise man's / spirit)
+    if (type <= 5) return 11;   // medium sword (knight's / illumination)
+    return 12;                  // large sword (enchantment)
+}
+
+function drawDmanFrame(frame, dx, dy) {
+    drawSheetFrame(dmanSheet, frame, DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS, dx, dy);
+}
+
+function drawSmallSparkle(frame, cx, cy) {
+    if (!sparkle48Img) return;
+    ctx.drawImage(sparkle48Img, frame * 48, 0, 48, 48, cx - 24, cy - 24, 48, 48);
+}
+
+function drawWideSparkle(frame, cx, cy) {
+    if (!sparkleWideImg) return;
+    ctx.drawImage(sparkleWideImg, frame * 192, 0, 192, 48, cx - 96, cy - 24, 192, 48);
+}
+
+function drawRokademoBackground() {
+    const colorIdx = readU8(ADDR_ROKA_COLOR);
+    const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
+    if (rokaImg) {
+        ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function drawRokademoTear(cx, cy) {
+    const img = rokademo.isRed ? tearRedImg : tearBlueImg;
+    if (!img) return;
+    ctx.drawImage(img, cx - (img.width >> 1), cy - (img.height >> 1));
+}
+
+// Tear slots are the top-left corner of the tear on the mole strip; this returns
+// the visual center so the flying sparkle lands on the placed tear. Coordinates
+// must be integers — the Bresenham stepper only ever moves by ±1 per step.
+// The mole strip sits ABOVE the canvas, so the resulting y is negative (the
+// sparkle flies out of the canvas top toward the slot).
+function rokademoSlotCenter(slot, isRed) {
+    const w = isRed ? 31 : 19;
+    const h = isRed ? 34 : 25;
+    return {
+        x: Math.round(slot.x + w / 2),
+        y: Math.round(-MOLE_IMG_H + slot.y + h / 2),
+    };
+}
+
+// The landing sparkle itself must be visible, so clamp the burst/flash center
+// back inside the canvas (w/h are the sparkle's sprite dimensions).
+function rokademoLandCenter(slotC, w, h) {
+    return {
+        x: Math.min(Math.max(slotC.x, w / 2), canvas.width - w / 2),
+        y: Math.min(Math.max(slotC.y, h / 2), canvas.height - h / 2),
+    };
+}
+
+function rokademoHeroDx(d) {
+    const center = ROKADEMO_CENTER_DX;
+    const s = Math.min(ROKADEMO_RUN_STEPS, d.step + 1);
+    if (d.state === 'runoff') {
+        const end = canvas.width - DMAN_FRAME_W;
+        return Math.round(center + (end - center) * s / ROKADEMO_RUN_STEPS);
+    }
+    return Math.round(center * s / ROKADEMO_RUN_STEPS);
+}
+
+function rokademoSetState(d, state, now) {
+    d.state = state;
+    d.stateStart = now;
+    d.step = 0;
+}
+
+function initBresenham(x0, y0, x1, y1) {
+    return {
+        x: x0, y: y0, x1, y1,
+        dx: Math.abs(x1 - x0),
+        dy: Math.abs(y1 - y0),
+        sx: x0 < x1 ? 1 : -1,
+        sy: y0 < y1 ? 1 : -1,
+        err: Math.abs(x1 - x0) - Math.abs(y1 - y0),
+    };
+}
+
+function stepBresenham(b) {
+    const e2 = 2 * b.err;
+    if (e2 > -b.dy) { b.err -= b.dy; b.x += b.sx; }
+    if (e2 < b.dx)  { b.err += b.dx; b.y += b.sy; }
+    return b.x === b.x1 && b.y === b.y1;
+}
+
+function startRokademo() {
+    const tearCount = Math.max(1, Math.min(getTearCount(), 9));
+    rokademo = {
+        tearCount,
+        isRed: tearCount >= 9,
+        slot: tearCount >= 9 ? TEAR_SLOT_RED : TEAR_SLOTS_BLUE[tearCount - 1],
+        swordType: Math.max(1, Math.min(6, readU8(ADDR_SWORD_TYPE) || 1)),
+        animPhase: 0,
+        tearVisible: true,
+        sparkleFrame: 0,
+        burstFrame: 0,
+        fly: null,
+        done: false,
+        lastStompStep: -1,
+        lastPingStep: -1,
+        state: 'run',
+        stateStart: 0,
+        step: 0,
+    };
+    // The new tear is already counted (roca_entrypoint incremented it), so the
+    // overlay shows only the previously collected tears until the sparkle lands.
+    setTearOverlayCount(tearCount - 1);
+    rokademoSetState(rokademo, 'run', performance.now());
+}
+
+function updateRokademo(d, now) {
+    const T = ROKADEMO_TIMING;
+    const dt = now - d.stateStart;
+    switch (d.state) {
+        case 'run': {
+            d.step = Math.min(ROKADEMO_RUN_STEPS, Math.floor(dt / T.runStepMs));
+            d.animPhase = d.step & 3;
+            if (d.step % 2 === 1 && d.lastStompStep !== d.step) {
+                d.lastStompStep = d.step;
+                soundManager.playSfx(26);
+            }
+            if (d.step >= ROKADEMO_RUN_STEPS) {
+                rokademoSetState(d, 'stand', now);
+                d.animPhase = 4;
+            }
+            break;
+        }
+        case 'stand':
+            d.animPhase = 4;
+            if (dt >= T.standMs) {
+                rokademoSetState(d, 'draw', now);
+                d.animPhase = 5;
+            }
+            break;
+        case 'draw': {
+            const i = Math.min(4, Math.floor(dt / T.drawPhaseMs));
+            d.animPhase = 5 + i;
+            if (dt >= 4 * T.drawPhaseMs) {
+                rokademoSetState(d, 'salute', now);
+                d.animPhase = 9;
+            }
+            break;
+        }
+        case 'salute':
+            d.animPhase = 9;
+            if (dt >= T.saluteMs) {
+                rokademoSetState(d, 'sparkleStart', now);
+                d.sparkleFrame = 0;
+            }
+            break;
+        case 'sparkleStart':
+            d.animPhase = 9;
+            d.sparkleFrame = Math.min(1, Math.floor(dt / T.flashMs));
+            if (dt >= 2 * T.flashMs) {
+                rokademoSetState(d, 'sparkleBurst', now);
+                d.burstFrame = 0;
+                soundManager.playSfx(27);
+            }
+            break;
+        case 'sparkleBurst':
+            d.animPhase = 9;
+            d.burstFrame = Math.min(1, Math.floor(dt / T.burstMs));
+            if (dt >= 2 * T.burstMs) {
+                d.tearVisible = false;   // the tear bursts and flies to the mole
+                rokademoSetState(d, 'sparkleFlash', now);
+                d.sparkleFrame = 0;
+            }
+            break;
+        case 'sparkleFlash':
+            d.animPhase = 9;
+            d.sparkleFrame = Math.min(3, Math.floor(dt / T.flashMs));
+            if (dt >= 4 * T.flashMs) {
+                rokademoSetState(d, 'sparkleFly', now);
+                const c = rokademoSlotCenter(d.slot, d.isRed);
+                d.fly = initBresenham(
+                    ROKADEMO_TEAR_CENTER.x, ROKADEMO_TEAR_CENTER.y,
+                    c.x, c.y
+                );
+            }
+            break;
+        case 'sparkleFly': {
+            d.animPhase = 9;
+            if (d.fly) {
+                d.step++;
+                if (d.step % T.pingEvery === 0 && d.lastPingStep !== d.step) {
+                    d.lastPingStep = d.step;
+                    soundManager.playSfx(28);
+                }
+                if (stepBresenham(d.fly)) {
+                    rokademoSetState(d, 'sparkleLand', now);
+                    d.burstFrame = 0;
+                    soundManager.playSfx(27);
+                }
+            } else {
+                rokademoSetState(d, 'sparkleLand', now);
+                d.burstFrame = 0;
+            }
+            break;
+        }
+        case 'sparkleLand':
+            d.animPhase = 9;
+            d.burstFrame = Math.min(1, Math.floor(dt / T.landBurstMs));
+            if (dt >= 2 * T.landBurstMs) {
+                setTearOverlayCount(d.tearCount);   // the tear appears in its mole slot
+                rokademoSetState(d, 'sparkleLandFlash', now);
+                d.sparkleFrame = 4;
+            }
+            break;
+        case 'sparkleLandFlash': {
+            d.animPhase = 9;
+            d.sparkleFrame = Math.max(0, 4 - Math.floor(dt / T.landFlashMs));
+            if (dt >= 4 * T.landFlashMs) {
+                rokademoSetState(d, 'sheath', now);
+            }
+            break;
+        }
+        case 'sheath': {
+            const i = Math.min(4, Math.floor(dt / T.sheathPhaseMs));
+            d.animPhase = 9 - i;   // 9,8,7,6,5
+            if (dt >= 4 * T.sheathPhaseMs + T.sheathPauseMs) {
+                rokademoSetState(d, 'runoff', now);
+            }
+            break;
+        }
+        case 'runoff':
+            d.step = Math.min(ROKADEMO_RUN_STEPS, Math.floor(dt / T.runoffStepMs));
+            d.animPhase = d.step & 3;
+            if (d.step % 2 === 1 && d.lastStompStep !== d.step) {
+                d.lastStompStep = d.step;
+                soundManager.playSfx(26);
+            }
+            if (d.step >= ROKADEMO_RUN_STEPS) {
+                d.done = true;
+            }
+            break;
+    }
+}
+
+function finishRokademoDemo(now) {
+    finishRokademoTransition?.();
+    rokademo = null;
+    rokademoHold = true;
+    // Bypass the speed gate on the next full tick so the exit/pending flags set
+    // by wasm_finish_rokademo_transition are acted on immediately.
+    const speedC = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
+    writeMemory(ADDR_FRAME_TIMER, [speedC * 4]);
+}
+
+function drawDungeonRokademo(now) {
+    if (!readMemory || !writeMemory) return;
+    if (!rokaImagesReady) return;
+
+    if (!dmanSheetReady) {
+        drawRokademoBackground();   // assets still loading: show the backdrop only
+        return;
+    }
+    if (!rokademo || rokademo.done) {
+        if (rokademo && rokademo.done) {
+            finishRokademoDemo(now);
+            return;   // final frame (hero at right edge) was already drawn
+        }
+        startRokademo();
+        if (!rokademo) return;
+    }
+
+    const d = rokademo;
+    updateRokademo(d, now);
+    const doneNow = d.done;
+    const heroDx = (d.state === 'run' || d.state === 'runoff') ? rokademoHeroDx(d) : ROKADEMO_CENTER_DX;
+    const tearC = ROKADEMO_TEAR_CENTER;
+    const slotC = rokademoSlotCenter(d.slot, d.isRed);
+
+    drawRokademoBackground();
+
+    drawDmanFrame(d.animPhase, heroDx, ROKADEMO_HERO_Y);
+    if (SWORD_VISIBLE_STATES.has(d.state)) {
+        drawDmanFrame(rokademoSwordFrame(d.swordType),
+            heroDx, ROKADEMO_HERO_Y - DMAN_FRAME_H);
+    }
+
+    if (d.tearVisible) {
+        drawRokademoTear(tearC.x, tearC.y);
+    }
+
+    if (d.state === 'sparkleStart' || d.state === 'sparkleFlash') {
+        drawSmallSparkle(d.sparkleFrame, tearC.x, tearC.y);
+    } else if (d.state === 'sparkleBurst') {
+        drawWideSparkle(d.burstFrame, tearC.x, tearC.y);
+    } else if (d.state === 'sparkleFly' && d.fly) {
+        drawSmallSparkle(2 + ((d.step >> 1) & 1), d.fly.x, d.fly.y);
+    } else if (d.state === 'sparkleLand') {
+        const burstC = rokademoLandCenter(slotC, 192, 48);
+        drawWideSparkle(d.burstFrame, burstC.x, burstC.y);
+    } else if (d.state === 'sparkleLandFlash') {
+        const flashC = rokademoLandCenter(slotC, 48, 48);
+        drawSmallSparkle(d.sparkleFrame, flashC.x, flashC.y);
+    }
+
+    if (doneNow) {
+        finishRokademoDemo(now);
+    }
+}
+
+// Sync the tear overlay on the mole_t.jpg strip with ADDR_TEAR_COUNT.
+// Idempotent — only touches the DOM when the visible count changes.
+function setTearOverlayCount(count) {
+    if (!tearOverlayEl) return;
+    count = Math.max(0, Math.min(9, count));
+    while (tearOverlayEl.children.length > count) {
+        tearOverlayEl.removeChild(tearOverlayEl.lastChild);
+    }
+    for (let i = tearOverlayEl.children.length; i < count; i++) {
+        const slot = i === 8 ? TEAR_SLOT_RED : TEAR_SLOTS_BLUE[i];
+        const el = document.createElement('img');
+        el.src = i === 8 ? TEAR_RED_PATH : TEAR_BLUE_PATH;
+        el.style.position = 'absolute';
+        el.style.left = `${slot.x}px`;
+        el.style.top = `${slot.y}px`;
+        tearOverlayEl.appendChild(el);
+    }
+    lastTearOverlayCount = count;
+}
+
+// Count collected tears from the per-cavern achievement flags.
+function countCollectedTears() {
+    let n = 0;
+    for (const f of TEAR_FLAGS) {
+        if (readU8(f.addr) & f.bit) n++;
+    }
+    return n;
+}
+
+// Authoritative tear count: the run counter (0xA0) plus the per-cavern flags.
+// The flags cover saves made before the rokademo feature, which never
+// incremented ADDR_TEAR_COUNT; the counter covers the 9th (Jashiin) tear,
+// which has no flag byte.
+function getTearCount() {
+    return Math.min(9, Math.max(readU8(ADDR_TEAR_COUNT), countCollectedTears()));
+}
+
+function syncTearOverlay() {
+    if (!readMemory || rokademo) return;   // the demo manages its own overlay
+    const count = getTearCount();
+    if (count === lastTearOverlayCount) return;
+    setTearOverlayCount(count);
+}
+
 function drawEncounterText(alpha) {
     if (!encounterImg) return;
     ctx.save();
@@ -3427,6 +3883,7 @@ async function handleDungeonTransition(mapId, isFromTown) {
     if (dungeonTransitionInProgress) return;
     dungeonTransitionInProgress = true;
     engineReady = false;
+    rokademoHold = false;
     try {
         writeMemory(ADDR_PENDING_DUNGEON_FLAG, [0]);
         const rawMapId = mapId & 0x7F;
@@ -3508,6 +3965,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
     if (dungeonExitInProgress) return;
     dungeonExitInProgress = true;
     engineReady = false;
+    rokademoHold = false;
     try {
         writeMemory(ADDR_DUNGEON_EXIT_FLAG, [0]);
         if (isDeath) {
@@ -4327,9 +4785,21 @@ async function performGameRestore(saveData) {
     soundManager.setMusicDim(1.0);
     conversation.active = false;
     engineReady = false;
+    rokademo = null;
+    rokademoHold = false;
 
     // Load the save into WASM memory
     loadSaveState(saveData);
+
+    // Saves made before the rokademo feature have ADDR_TEAR_COUNT stuck at 0
+    // while the per-cavern tear flags are set. Derive the real count from the
+    // flags and write it back so the demo slot selection and any in-game
+    // counter logic stay consistent.
+    writeMemory(ADDR_TEAR_COUNT, [getTearCount()]);
+
+    // Reflect collected Tears of Esmesanti on the mole_t strip immediately
+    lastTearOverlayCount = -1;
+    syncTearOverlay();
 
     // Get the place id (town index or dungeon)
     const placeId = readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F;
@@ -4432,6 +4902,8 @@ function draw() {
         return;
     }
 
+    syncTearOverlay();
+
     if (indoorActiveScene) {
         const scene = indoorActiveScene;
         const now = performance.now();
@@ -4453,6 +4925,13 @@ function draw() {
                 prevRokaDx = -1;
             }
             drawDungeonRoka();
+            dungeonClearRenderRequest?.();
+        } else if (dungeonState === DUNGEON_STATE_ROKADEMO) {
+            drawDungeonRokademo(performance.now());
+        } else if (rokademoHold) {
+            // Post-demo hold: keep the roka backdrop until the transition set up
+            // by wasm_finish_rokademo_transition takes over.
+            drawRokademoBackground();
             dungeonClearRenderRequest?.();
         } else {
             // Detect encounter animation start (BOSS_ENCOUNTER state)
@@ -4642,6 +5121,7 @@ const layoutWrapper = document.getElementById('layout-wrapper');
 const fpsEl  = document.getElementById('fps-value');
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
+const tearOverlayEl = document.getElementById('tear-overlay');
 canvas.width  = VIEW_COLS * TILE_WIDTH;
 canvas.height = VIEW_ROWS * TILE_HEIGHT;
 ctx.imageSmoothingEnabled = false;

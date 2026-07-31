@@ -1261,7 +1261,17 @@ void process_mdt_descriptor(uint8_t descr0, uint16_t descr_ptr1)
 // stub. The demo when the hero after defeating the boss gets the next Tear of Esmesanti
 void roca_entrypoint()
 {
-
+    uint8_t tears = (uint8_t)(MEM8(ADDR_TEAR_COUNT) + 1);
+    if (tears > 9) tears = 9;
+    MEM8(ADDR_TEAR_COUNT) = tears;
+    MEM8(ADDR_ROKA_PHASE) = 0;
+    MEM8(ADDR_FRAME_TIMER) = 0;
+    MEM8(ADDR_HERO_ANIM_PHASE) = 0;
+    MEM8(ADDR_FACING) &= (uint8_t)~LEFT;
+    MEM8(ADDR_LEFT_RUN) = 0;
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_ROKADEMO;
+    MEM8(ADDR_RENDER_DONE) = 0;
+    MEM8(ADDR_RENDER_REQUEST) = 0xFF;
 }
 
 // stub. Assets loading should be handled by js
@@ -1797,6 +1807,11 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
 // HERO_Y_VIEW_INIT differs from 10 (e.g. boss cavern sets it to 11).
 static uint8_t saved_y_view_init = 10;
 
+// Set by wasm_finish_rokademo_transition for the dungeon target: the demo
+// already played the run, so prepare_dungeon must finalize the cavern entry
+// (after_run_animation) directly instead of playing another roka run.
+static uint8_t g_skip_roka_run = 0;
+
 // Saved door target X from enter_opened_door. Preserved across prepare_dungeon's
 // memset (which zeroes ADDR_HERO_X_IN_PROXIMITY_MAP at 0x9F1A) so it can be used
 // to correctly recalculate ADDR_PROXIMITY_MAP_LEFT_COL with the new MDT's width.
@@ -1810,6 +1825,30 @@ static uint16_t g_door_x1;
 static uint8_t  g_door_y1;
 static uint8_t  g_door_features;
 static uint8_t  g_door_place_map_id;
+
+// Called by JS (wasm_finish_rokademo_transition) once the tear-collection
+// demo animation has finished. Runs the same post-roka-run setup as the
+// normal roka run so the game can transition to the next town/dungeon.
+void wasm_finish_rokademo_transition(void)
+{
+    MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
+    MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
+    MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
+    MEM8(ADDR_BYTE_9F02) = 0xFF;
+    load_cavern_sprites_ai_music();
+    after_run_animation();
+
+    if ((MEM8(ADDR_PLACE_MAP_ID) & 0x80) == 0) {
+        uint8_t place_map_id = MEM8(ADDR_PLACE_MAP_ID);
+        MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
+        MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
+        load_eai_module(place_map_id);
+        // The demo already showed the hero running in — don't play a roka run
+        // when prepare_dungeon re-initializes the target cavern below.
+        g_skip_roka_run = 1;
+    }
+}
 
 void prepare_dungeon(uint8_t is_from_town)
 {
@@ -1857,8 +1896,14 @@ void prepare_dungeon(uint8_t is_from_town)
         remove_accomplished_items();
     }
     load_eai_module(map_id & 0x7F);
-    roka_run();
-    // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
+    if (g_skip_roka_run) {
+        // Post-rokademo cavern entry: finalize directly, no second run.
+        g_skip_roka_run = 0;
+        after_run_animation();
+    } else {
+        roka_run();
+        // after_run_animation() is called by the DUNGEON_STATE_ROKA_RUN state handler
+    }
 }
 
 void roka_run()
@@ -1903,6 +1948,9 @@ void wasm_dungeon_update(void)
     switch (MEM8(ADDR_DUNGEON_STATE)) {
     case DUNGEON_STATE_ROKA_RUN:
         dungeon_update_roka_run();
+        break;
+    case DUNGEON_STATE_ROKADEMO:
+        // Tear-collection demo is animated entirely by JS; nothing to update.
         break;
     case DUNGEON_STATE_ROPE:
         dungeon_update_rope();
@@ -4808,12 +4856,15 @@ static void dungeon_complete_door_transition(void)
         MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
         MEM8(ADDR_BYTE_9F02) = 0xFF;
         load_cavern_sprites_ai_music();
-        after_run_animation();
+        // The tear-collection demo plays in DUNGEON_STATE_ROKADEMO. When the
+        // JS-side animation finishes it calls wasm_finish_rokademo_transition(),
+        // which runs after_run_animation() and sets up the next transition —
+        // so none of that must happen here.
     } else {
         roka_run();
     }
 
-    if ((place_map_id & 0x80) == 0) {
+    if (!(door_features & 0x80) && (place_map_id & 0x80) == 0) {
         MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
         MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
@@ -6181,4 +6232,33 @@ static uint8_t mark_proximity_monster_as_spell_target(uint16_t addr) {
 
     MEM8(ADDR_BYTE_9F2A) = 0xFF;
     return 1;
+}
+
+uint8_t Find_Monsters_Near_Hero(uint16_t m, uint16_t *out_partner, uint8_t *out_idx) {
+    *out_partner = MEM16(ADDR_MONSTERS_LIST);
+    *out_idx = 0;
+    while (1) {
+        uint16_t entry_x = MEM16(*out_partner+0);
+        if (entry_x == 0xFFFF) return 1; // .currX
+
+        if (MEM16(*out_partner+11) != 0xFFFF) { // .spwnX
+        } else if (MEM8(*out_partner+1) == 0xFF) { // .currX high byte
+            /* loc_98F4 equivalent */
+            if (MEM8(*out_partner+2) != 0x7F) {
+                return 0;
+            }
+        } else {
+            uint8_t rel_x;
+            if (!is_in_proximity_window(entry_x, &rel_x)) {
+                /* outside the window */
+                if (!(MEM8(*out_partner+4) & 0x10)) {
+                    return 0;
+                }
+            }
+        }
+
+        /* loc_98ED: advance to next entry */
+        *out_idx++;
+        *out_partner += 16;
+    }
 }

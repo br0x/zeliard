@@ -132,6 +132,7 @@ extern "C" {
 #define ADDR_RASCAR_COUNT             0xB8    // byte, in inventory
 #define ADDR_AGUA_COUNT               0xB9    // byte, in inventory
 #define ADDR_GUERRA_COUNT             0xBA    // byte, in inventory
+#define ADDR_TEAR_COUNT               0xA0    // byte, Tears of Esmesanti collected (0..9)
 #define ADDR_ESPADA_ACTIVE            0xBB    // byte, 00 = No, FF = Yes
 #define ADDR_SAETA_ACTIVE             0xBC    // byte, 00 = No, FF = Yes
 #define ADDR_FUEGO_ACTIVE             0xBD    // byte, 00 = No, FF = Yes
@@ -284,6 +285,7 @@ enum {
     DUNGEON_STATE_EXIT = 6,
     DUNGEON_STATE_ROKA_RUN = 7,
     DUNGEON_STATE_DOOR_PENDING = 8,
+    DUNGEON_STATE_ROKADEMO = 9,
 };
 
 // ============================================================================
@@ -348,6 +350,7 @@ void render_notification_string(uint8_t str_idx);
 void Add_Projectile_To_Array(uint8_t *src);
 void Draw_Hero_Health();
 void Draw_Boss_Health();
+uint8_t Find_Monsters_Near_Hero(uint16_t m, uint16_t *out_partner, uint8_t *out_idx);
 
 // Hero Movement State Machine
 void state_machine_dispatcher(void);  // Fight.asm 0x6343

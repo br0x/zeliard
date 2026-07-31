@@ -830,6 +830,10 @@ export function dungeonClearRenderRequest() {
     wasmExports?.wasm_dungeon_clear_render_request?.();
 }
 
+export function finishRokademoTransition() {
+    wasmExports?.wasm_finish_rokademo_transition?.();
+}
+
 // seg1-based offsets
 const REACH_TABLE_OFFSET = 0xB002;  // 14 pointers (28 bytes) 0xB002..0xB01D
 const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)
