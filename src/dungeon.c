@@ -6258,7 +6258,7 @@ uint8_t Find_Monsters_Near_Hero(uint16_t m, uint16_t *out_partner, uint8_t *out_
         }
 
         /* loc_98ED: advance to next entry */
-        *out_idx++;
+        (*out_idx)++;
         *out_partner += 16;
     }
 }
