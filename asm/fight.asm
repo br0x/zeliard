@@ -7482,7 +7482,7 @@ monsters_spawning endp
 ;   0x00-0x0F (default, flag_10 handled above): chest animation dispatch:
 ;     chest sub-types: 50g / 100g / empty / 500g / 1000g / glory crest / enchantment sword
 ;
-; On item pickup (loc_914C): set currX high byte to 0xFF00 (mark as collected),
+; On item pickup (finalize_item_spawn): set currX high byte to 0xFF00 (mark as collected),
 ; optionally write the item's save achievement bitmask to savegame.
 ;
 ; SPRITE NOTE: Items use enp?.grp 2×2 tiles. The frame to display is encoded
@@ -7601,7 +7601,7 @@ loc_8E65:
                 mov     al, [si+monster.ai_state]
                 or      al, al
                 jnz     short loc_8E73
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 loc_8E73:        
@@ -7669,7 +7669,7 @@ loc_8ED8:
 
 loc_8EE2:        
                 mov     [si+monster.anim_counter], 0
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_12:         
@@ -7680,7 +7680,7 @@ flag_12:
 ; ---------------------------------------------------------------------------
 
 loc_8EF3:        
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_13:         
@@ -7707,7 +7707,7 @@ loc_8F18:
 ; ---------------------------------------------------------------------------
 
 chest:           
-                call    loc_914C
+                call    finalize_item_spawn
                 mov     bl, [si+monster.anim_counter]
                 and     bl, 0Fh         ; chest type (1..8)
                 dec     bl
@@ -7717,7 +7717,7 @@ chest:
 ; ---------------------------------------------------------------------------
 off_8F33        dw offset got_50_gold
                 dw offset got_100_gold
-                dw offset loc_8F59
+                dw offset got_nothing
                 dw offset got_500_gold
                 dw offset got_1000_gold
                 dw offset got_crest_of_glory
@@ -7738,7 +7738,7 @@ got_100_gold:
                 jmp     hero_got_gold   ; ax: gold to add
 ; ---------------------------------------------------------------------------
 
-loc_8F59:        
+got_nothing:        
                 mov     dx, offset nothing_in_the_box_str
                 jmp     render_notification_string
 ; ---------------------------------------------------------------------------
@@ -7800,7 +7800,7 @@ almas_picked_up:
                 jnz     short loc_8FD2
                 mov     ax, 1
                 call    hero_got_almas  ; ax: almas to add
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 loc_8FD2:        
@@ -7808,13 +7808,13 @@ loc_8FD2:
                 jnz     short got_100_almas
                 mov     ax, 10
                 call    hero_got_almas  ; ax: almas to add
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 got_100_almas:   
                 mov     ax, 100
                 call    hero_got_almas  ; ax: almas to add
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_16:         
@@ -7826,7 +7826,7 @@ flag_16:
 
 got_ordinary_key:
                 inc     byte ptr ds:keys_amount
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_17:         
@@ -7838,7 +7838,7 @@ flag_17:
 
 got_lion_head_key:        
                 inc     byte ptr ds:lion_head_keys
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_18:         
@@ -7851,7 +7851,7 @@ loc_900E:
                 mov     dx, offset you_have_recovered_str
                 call    render_notification_string
                 add     byte ptr ds:healing_potion_timer, 10
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_19:         
@@ -7870,7 +7870,7 @@ loc_9025:
                 shr     ax, 1
                 inc     ax
                 add     ds:healing_potion_timer, ax
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_1c:         
@@ -7919,7 +7919,7 @@ flag_1d:
 
 got_hero_crest:  
                 mov     byte ptr ds:hero_crest, 0FFh
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 
 flag_1e:         
@@ -7965,7 +7965,7 @@ loc_90BC:
 free_slot_found: 
                 pop     ax
                 mov     [di], al
-                jmp     loc_914C
+                jmp     finalize_item_spawn
 ; ---------------------------------------------------------------------------
 shoes_strings_array:      
                 db 4
@@ -8019,7 +8019,7 @@ loc_9116:
                 test    byte ptr [si+monster.state_flags], 10h
                 jz      short loc_9122
                 test    byte ptr [si+monster.flags], 1
-                jz      short loc_914C
+                jz      short finalize_item_spawn
 
 loc_9122:        
                 mov     byte ptr [si+monster.anim_counter], 0
@@ -8032,7 +8032,7 @@ loc_9122:
 
 loc_9132:        
                 cmp     al, 1
-                je      short loc_914C
+                je      short finalize_item_spawn
                 or      al, 70h
                 or      byte ptr [si+monster.state_flags], 80h
                 mov     byte ptr [si+monster.counter], 4
@@ -8042,7 +8042,7 @@ loc_9132:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_914C:        
+finalize_item_spawn:        
                 mov     word ptr [si], 0FF00h
                 test    byte ptr [si+monster.state_flags], 20h
                 jnz     short loc_9157
