@@ -46,7 +46,7 @@ seg000:301A                 dw offset Load_Magic_Spell_Sprite_Group
 seg000:301C                 dw offset Render_Animated_Tile_Strip
 seg000:301E                 dw offset Render_Roca_Tilemap
 seg000:3020                 dw offset Calculate_Tile_VRAM_Address
-seg000:3022                 dw offset Render_16x16_Sprite
+seg000:3022                 dw offset Render_8x8_Tile
 seg000:3024                 dw offset Render_Sword_Salute
 seg000:3026                 dw offset Render_Sparkle
 seg000:3028                 dw offset Decompress_Tile_Data
@@ -3876,7 +3876,7 @@ seg000:4933
 seg000:4933 ; =============== S U B R O U T I N E =======================================
 seg000:4933
 seg000:4933
-seg000:4933 Render_16x16_Sprite proc near           ; ...
+seg000:4933 Render_8x8_Tile proc near           ; ...
 seg000:4933                 push    ds
 seg000:4934                 push    ax
 seg000:4935                 xor     ax, ax
@@ -3912,7 +3912,7 @@ seg000:4970                 pop     cx
 seg000:4971                 loop    loc_495F
 seg000:4973                 pop     ds
 seg000:4974                 retn
-seg000:4974 Render_16x16_Sprite endp
+seg000:4974 Render_8x8_Tile endp
 seg000:4974
 seg000:4975
 seg000:4975 ; =============== S U B R O U T I N E =======================================

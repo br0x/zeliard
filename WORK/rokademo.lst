@@ -430,7 +430,7 @@ seg000:A41A                 push    cx
 seg000:A41B                 lodsb
 seg000:A41C                 push    si
 seg000:A41D                 push    bx
-seg000:A41E                 call    word ptr cs:3022h ; Render_16x16_Sprite
+seg000:A41E                 call    word ptr cs:3022h ; Render_8x8_Tile
 seg000:A423                 pop     bx
 seg000:A424                 pop     si
 seg000:A425                 add     bl, 8

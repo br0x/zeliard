@@ -1,5 +1,5 @@
 include common.inc
-include gdmcga.inc
+include dungeon.inc
                 .286
                 .model small
 seg000          segment byte public 'CODE'
@@ -24,7 +24,7 @@ sub_A002        proc near
                 mov     si, 6000h  ; seg1:6000h - decompressed dman tiles
                 mov     bp, 0D000h ; seg1:0D000h - transparency masks for dman tiles
                 mov     cx, 100h
-                call    word ptr cs:Render_Animated_Tile_Rows_proc
+                call    word ptr cs:Decompress_Tile_Data_proc
                                         ;  DS:SI - compressed data (will be unpacked in place)
                                         ;  BP - transparency masks buffer
                                         ;  CX - number of 8x8 tiles to decompress
@@ -98,7 +98,7 @@ loc_A0B3:
 
                 mov     bx, 246Eh
                 call    render_hero_sprite_3x3
-                call    word ptr cs:Render_Sword_Salute_proc ; ; draws monochrome sword (small/medium/large) 2x3 tiles at (12, 9) tile coordinates
+                call    word ptr cs:Render_Sword_Salute_proc ; draws monochrome sword (small/medium/large) 2x3 tiles at (12, 9) tile coordinates
                 xor     bh, bh
                 mov     bl, byte ptr ds:Tears_of_Esmesanti_count
                 dec     bx
@@ -423,7 +423,7 @@ loc_A41A:
                 lodsb
                 push    si
                 push    bx
-                call    word ptr cs:Render_Animated_Tiles_proc
+                call    word ptr cs:Render_8x8_Tile_proc
                 pop     bx
                 pop     si
                 add     bl, 8

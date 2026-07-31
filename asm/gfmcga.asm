@@ -29,7 +29,7 @@ start:
                 dw offset Render_Animated_Tile_Strip
                 dw offset Render_Roca_Tilemap
                 dw offset Calculate_Tile_VRAM_Address
-                dw offset Render_16x16_Sprite
+                dw offset Render_8x8_Tile
                 dw offset Render_Sword_Salute
                 dw offset Render_Sparkle
                 dw offset Decompress_Tile_Data
@@ -3590,7 +3590,7 @@ db 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06h, 05h, 06
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_16x16_Sprite proc near           ; ...
+Render_8x8_Tile proc near           ; ...
                 push    ds
                 push    ax
                 xor     ax, ax
@@ -3626,7 +3626,7 @@ loc_495F:
                 loop    loc_495F
                 pop     ds
                 retn
-Render_16x16_Sprite endp
+Render_8x8_Tile endp
 
 
 ; =============== S U B R O U T I N E =======================================
