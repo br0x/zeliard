@@ -3435,8 +3435,9 @@ const ROKADEMO_TIMING = {
     saluteMs:      600,
     flashMs:       120,  // per small-sparkle frame
     burstMs:       260,  // per wide-sparkle burst frame
-    flyStepMs:     16,   // per Bresenham step of the flying sparkle
-    pingEvery:     6,    // play "ping" every N fly steps
+    flyTotalMs:    6200, // total flight time of the sparkle to the mole slot (~7s, like the original)
+    flyFrameMs:    170,  // per alternating 2/3 sparkle frame during flight (orig: 2 steps = 169ms)
+    pingEveryMs:   500,  // play "ping" roughly every half second of flight (orig: 6 steps ≈ 507ms)
     landBurstMs:   260,  // wide burst over the mole slot
     landFlashMs:   130,  // per fade sparkle over the placed tear
     sheathPhaseMs: 180,  // per sheathing phase (8,7,6,5)
@@ -3527,7 +3528,7 @@ function rokademoSetState(d, state, now) {
 
 function initBresenham(x0, y0, x1, y1) {
     return {
-        x: x0, y: y0, x1, y1,
+        x: x0, y: y0, x0, y0, x1, y1,
         dx: Math.abs(x1 - x0),
         dy: Math.abs(y1 - y0),
         sx: x0 < x1 ? 1 : -1,
@@ -3540,7 +3541,7 @@ function stepBresenham(b) {
     const e2 = 2 * b.err;
     if (e2 > -b.dy) { b.err -= b.dy; b.x += b.sx; }
     if (e2 < b.dx)  { b.err += b.dx; b.y += b.sy; }
-    return b.x === b.x1 && b.y === b.y1;
+    return b.y <= 0;
 }
 
 function startRokademo() {
@@ -3562,7 +3563,7 @@ function startRokademo() {
         stateStart: 0,
         step: 0,
     };
-    // The new tear is already counted (roca_entrypoint incremented it), so the
+    // The new tear is already counted (roka_entrypoint incremented it), so the
     // overlay shows only the previously collected tears until the sparkle lands.
     setTearOverlayCount(tearCount - 1);
     rokademoSetState(rokademo, 'run', performance.now());
@@ -3641,15 +3642,31 @@ function updateRokademo(d, now) {
         case 'sparkleFly': {
             d.animPhase = 9;
             if (d.fly) {
-                d.step++;
-                if (d.step % T.pingEvery === 0 && d.lastPingStep !== d.step) {
-                    d.lastPingStep = d.step;
-                    soundManager.playSfx(28);
+                // The flight is time-based, not framerate-bound: the sparkle
+                // travels the whole path in flyTotalMs regardless of refresh
+                // rate (the original waits ~84.5ms per step on a 236.7Hz timer).
+                const totalSteps = Math.max(
+                    Math.abs(d.fly.x1 - d.fly.x0),
+                    Math.abs(d.fly.y1 - d.fly.y0)
+                );
+                const targetStep = Math.min(totalSteps,
+                    Math.floor(dt / T.flyTotalMs * totalSteps));
+                while (d.step < targetStep) {
+                    d.step++;
+                    if (stepBresenham(d.fly)) {
+                        rokademoSetState(d, 'sparkleLand', now);
+                        d.burstFrame = 0;
+                        soundManager.playSfx(27);
+                        break;
+                    }
                 }
-                if (stepBresenham(d.fly)) {
-                    rokademoSetState(d, 'sparkleLand', now);
-                    d.burstFrame = 0;
-                    soundManager.playSfx(27);
+                // Alternating 2/3 sparkle frame, ~170ms each like the original.
+                d.sparkleFrame = 2 + ((Math.floor(dt / T.flyFrameMs)) & 1);
+                // "ping" roughly every half second of flight, like the original.
+                const pings = Math.floor(dt / T.pingEveryMs);
+                if (pings > d.lastPingStep) {
+                    d.lastPingStep = pings;
+                    soundManager.playSfx(28);
                 }
             } else {
                 rokademoSetState(d, 'sparkleLand', now);
@@ -3747,13 +3764,13 @@ function drawDungeonRokademo(now) {
     } else if (d.state === 'sparkleBurst') {
         drawWideSparkle(d.burstFrame, tearC.x, tearC.y);
     } else if (d.state === 'sparkleFly' && d.fly) {
-        drawSmallSparkle(2 + ((d.step >> 1) & 1), d.fly.x, d.fly.y);
+        drawSmallSparkle(d.sparkleFrame, d.fly.x, d.fly.y);
     } else if (d.state === 'sparkleLand') {
         const burstC = rokademoLandCenter(slotC, 192, 48);
-        drawWideSparkle(d.burstFrame, burstC.x, burstC.y);
+        drawWideSparkle(d.burstFrame, burstC.x, burstC.y-24); // we show half-height of final big sparkle
     } else if (d.state === 'sparkleLandFlash') {
         const flashC = rokademoLandCenter(slotC, 48, 48);
-        drawSmallSparkle(d.sparkleFrame, flashC.x, flashC.y);
+        drawSmallSparkle(d.sparkleFrame, flashC.x, flashC.y-24);
     }
 
     if (doneNow) {

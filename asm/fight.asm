@@ -4563,7 +4563,7 @@ loc_7C02:
                 mov     di, 0A000h      ; rokademo.bin loaded
                 mov     al, 3           ; fn3_read_virtual_file
                 call    cs:res_dispatcher_proc
-                call    cs:roca_entrypoint
+                call    cs:roka_entrypoint
                 ; then load the cavern
                 mov     ds:enp_grp_index, 0FFh
                 mov     ds:eai_bin_index, 0FFh

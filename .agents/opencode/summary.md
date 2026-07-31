@@ -20,15 +20,15 @@ The port copies 256 bytes to `gMemoryBase + 0` on save/restore. Collected tears 
 | 8 | Dragon | mp8d | 0x45 | 0x40 | falter_items |
 | 9 | Jashiin | mpa0 | 0x47 (≠0) | — | no door achievement (0xFFFF); mpa0 descriptor initializer writes 0xFFFF to byte 0x47 = "defeated" |
 
-Slot order on the mole strip (TEAR_SLOTS_BLUE / TEAR_SLOT_RED) matches cavern order; the original `tears_order_coords` (game.asm:348) equals `tears_coords` (rokademo.asm:577). `render_tears_collected` (game.asm) renders only from `Tears_of_Esmesanti_count` (0xA0), clamped at 9; index 8 is the big red tear (rokademo.asm `is_big_red_tear`).
+Slot order on the mole strip (TEAR_SLOTS_BLUE / TEAR_SLOT_RED) matches the original `tears_order_coords` (game.asm:348), which equals `tears_coords` (rokademo.asm:577). `render_tears_collected` (game.asm) renders only from `Tears_of_Esmesanti_count` (0xA0), clamped at 9; index 8 is the big red tear (rokademo.asm `is_big_red_tear`).
 
 ### Rokademo implementation facts
-- `dman.png` = 936×72 ⇒ 13 sprites of 72×72: 0–9 hero phases, 10/11/12 = small/medium/large sword. Sprite 8 = salute pose.
+- `dman.png` = 936×72 ⇒ 13 sprites of 72×72: 0–9 hero phases, 10/11/12 = small/medium/large sword. Sprite 9 = salute pose.
 - `mole_t.jpg` = 672×42 sits ABOVE the canvas (672×432). Blue slots x=[49,121,193,265,386,458,530,602] y=6; red x=320 y=1. `MOLE_IMG_H = 42`.
 - Sparkle flies to the slot ABOVE the canvas → Bresenham target y is intentionally negative (`rokademoSlotCenter`: `y = Math.round(-MOLE_IMG_H + slot.y + h/2)`). Bresenham needs INTEGER coords (only ±1 steps) or it never terminates (infinite sfx-28 ping + hang).
 - Landing burst/flash is clamped back into the canvas (`rokademoLandCenter`): wide burst 192×48, flash 48×48.
 - Original asm (fight.asm:4590) jumps straight to `after_run_animation` after the demo — no second roka run. Port uses static `g_skip_roka_run` in src/dungeon.c (set in `wasm_finish_rokademo_transition` for dungeon targets, consumed in `prepare_dungeon`).
-- Boss flow sets BOTH the flag and the counter: hero touches the placed exit door → `enter_opened_door` ORs the tear flag → DOOR_PENDING → `dungeon_complete_door_transition` sees `door_features & 0x80` → `roca_entrypoint()` (src/dungeon.c:1262) increments `ADDR_TEAR_COUNT` (clamped 9) and sets `DUNGEON_STATE_ROKADEMO`.
+- Boss flow sets BOTH the flag and the counter: hero touches the placed exit door → `enter_opened_door` ORs the tear flag → DOOR_PENDING → `dungeon_complete_door_transition` sees `door_features & 0x80` → `roka_entrypoint()` (src/dungeon.c:1262) increments `ADDR_TEAR_COUNT` (clamped 9) and sets `DUNGEON_STATE_ROKADEMO`.
 
 ## Work State
 
@@ -53,10 +53,10 @@ Slot order on the mole strip (TEAR_SLOTS_BLUE / TEAR_SLOT_RED) matches cavern or
 ## Relevant Files
 - `asm/common.inc` — savegame-area variable definitions incl. all "Collected a Tear of Esmesanti" bits; `Tears_of_Esmesanti_count equ 0a0h`
 - `asm/dungeon.inc` — `door` STRUC (+9 achievement addr, +11 flag); `tear_x equ 0C013h`
-- `asm/fight.asm` — `enter_opened_door` (4466-4473), boss demo path (roca_entrypoint call ~4566, `jmp after_run_animation` ~4590)
+- `asm/fight.asm` — `enter_opened_door` (4466-4473), boss demo path (roka_entrypoint call ~4566, `jmp after_run_animation` ~4590)
 - `asm/rokademo.asm` — demo scenario, `tear_x_mul4`/`tears_coords`, counter clamp at 9, red tear
 - `asm/game.asm` — `render_tears_collected`, `tears_order_coords`
-- `src/dungeon.c` — `roca_entrypoint` (1262), `enter_opened_door` (4763), `open_door` (4742), `try_door_interaction` (4712), `g_skip_roka_run`, `wasm_finish_rokademo_transition` (1832), `prepare_dungeon` (1853), `load_place_and_reinit` (923), `remove_accomplished_items` (1209)
+- `src/dungeon.c` — `roka_entrypoint` (1262), `enter_opened_door` (4763), `open_door` (4742), `try_door_interaction` (4712), `g_skip_roka_run`, `wasm_finish_rokademo_transition` (1832), `prepare_dungeon` (1853), `load_place_and_reinit` (923), `remove_accomplished_items` (1209)
 - `src/zeliard-wasm.js` — `loadSaveState` (249), `loadMdt` (235), `readMemory`/`writeMemory` (686/700), `MEM_SAVE_DATA=0`
 - `game.js` — `TEAR_FLAGS` (~901), `ADDR_TEAR_COUNT` (999), `TEAR_SLOTS_BLUE`/`TEAR_SLOT_RED`/`MOLE_IMG_H`, rokademo state machine, `countCollectedTears`/`getTearCount`/`syncTearOverlay`, `performGameRestore` (~4779), `startRokademo` (~3562)
 - `index.html` — `#mole-top`/`#tear-overlay` above the canvas

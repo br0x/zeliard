@@ -476,7 +476,7 @@ town_indoors_bin_addr                              equ 0A000h
 game_bin_entry                                     equ 0A000h
 
 ; rocademo.bin
-roca_entrypoint                                    equ 0A000h
+roka_entrypoint                                    equ 0A000h
 
 ; eai1.bin, crab.bin
 Monster_AI_proc                                    equ 0A000h

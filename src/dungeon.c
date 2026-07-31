@@ -1259,7 +1259,7 @@ void process_mdt_descriptor(uint8_t descr0, uint16_t descr_ptr1)
 }
 
 // stub. The demo when the hero after defeating the boss gets the next Tear of Esmesanti
-void roca_entrypoint()
+void roka_entrypoint()
 {
     uint8_t tears = (uint8_t)(MEM8(ADDR_TEAR_COUNT) + 1);
     if (tears > 9) tears = 9;
@@ -4850,7 +4850,7 @@ static void dungeon_complete_door_transition(void)
 
     if (door_features & 0x80) { // just defeated the boss
         load_resource("rokademo.bin", 0x1A000);
-        roca_entrypoint();
+        roka_entrypoint();
         MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
         MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
         MEM8(ADDR_BYTE_9EFA) = MEM8(ADDR_MSD_INDEX);
