@@ -53,7 +53,7 @@ start:
                 dw offset Render_C_String ; bh: left margin; bl: top margin
                 dw offset Render_Key_Item_Sprite_16x16
                 dw offset Render_Crest_Item_Sprite_16x16
-                dw offset Render_Icon_16x13
+                dw offset Render_Tear_16x13
                 dw offset Fade_To_Black_Dithered
                 dw offset Clear_Screen
                 dw offset Reassemble_3_Planes_To_Packed_Bitmap ; si: src
@@ -1443,7 +1443,7 @@ Capture_Screen_Rect_to_seg3 proc near   ; ...
                 mov     bl, ah
                 mov     ah, bh
                 push    bx
-                mov     bx, 140h
+                mov     bx, 320
                 mul     bx
                 pop     si
                 add     si, si
@@ -1452,7 +1452,7 @@ Capture_Screen_Rect_to_seg3 proc near   ; ...
                 add     si, ax
                 mov     ax, cs
                 add     ax, 3000h
-                mov     es, ax
+                mov     es, ax          ; seg3
                 mov     ax, 0A000h
                 mov     ds, ax
                 mov     bl, ch
@@ -1467,7 +1467,7 @@ loc_28C9:
                 mov     cx, bx
                 rep movsw
                 pop     si
-                add     si, 140h
+                add     si, 320
                 pop     cx
                 loop    loc_28C9
                 pop     ds
@@ -1713,9 +1713,9 @@ _Draw_Status_Frame_Lines endp
 
 ; Renders a Tear of Esmesanti icon (16x13 pixels)
 ; AL: tear index (0-small blue Tear, 1-large red Tear)
-; BH: left margin
-; BL: top margin
-Render_Icon_16x13 proc near
+; BH: left margin in 4px units
+; BL: top margin, px
+Render_Tear_16x13 proc near
                 push    ds
                 push    si
                 push    cs
@@ -1731,11 +1731,11 @@ Render_Icon_16x13 proc near
                 mul     bx
                 pop     di
                 add     di, di
-                add     di, di
+                add     di, di ; di=x*4
                 add     di, ax
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     si, ds:off_2A5D[si]
+                mov     si, ds:tear_gfx[si]
                 mov     cx, 13
 next_row_of_13:
                 push    cx
@@ -1756,44 +1756,38 @@ skip_opaque:
                 pop     si
                 pop     ds
                 retn
-Render_Icon_16x13 endp
+Render_Tear_16x13 endp
 
 ; ---------------------------------------------------------------------------
-off_2A5D        dw offset byte_2A61
-                dw offset byte_2B31
-byte_2A61       db 80h, 80h, 80h, 80h, 80h, 80h, 0, 0, 0, 0, 80h, 0, 80h
-                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 0, 0, 11h, 11h, 11h, 12h
-                db 0, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 0, 11h, 11h
-                db 9, 9, 1, 12h, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
-                db 0, 11h, 9, 9, 9, 28h, 2Ah, 10h, 80h, 80h, 80h, 80h, 80h
-                db 80h, 80h, 80h, 11h, 15h, 1, 9, 0Dh, 5, 5, 12h, 0, 80h
-                db 80h, 80h, 80h, 80h, 80h, 80h, 11h, 10h, 28h, 28h, 2Dh, 28h, 28h
-                db 12h, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 12h, 15h, 5, 5
-                db 5, 5, 5, 12h, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 0
-                db 12h, 5, 2Dh, 2Dh, 5, 15h, 2, 80h, 80h, 80h, 80h, 80h, 80h
-                db 80h, 80h, 0, 2, 2, 2Dh, 2Dh, 5, 12h, 0, 80h, 80h, 80h
-                db 80h, 80h, 80h, 80h, 80h, 0, 0, 2, 12h, 12h, 12h, 0, 0
-                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 0, 0, 80h, 0, 0
-                db 0, 80h, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
-                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
-                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
+tear_gfx        dw offset blue_tear_gfx
+                dw offset red_tear_gfx
+blue_tear_gfx   db 80h, 80h, 80h, 80h, 80h, 80h,   0,   0,   0,   0, 80h,  0,  80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0,   0, 11h, 11h, 11h, 12h,   0,  0,  80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0, 11h, 11h,   9,   9,   1, 12h,  0,  80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0, 11h,   9,   9,   9, 28h, 2Ah, 10h, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 11h, 15h,   1,   9, 0Dh,   5,   5, 12h,   0, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 11h, 10h, 28h, 28h, 2Dh, 28h, 28h, 12h,   0, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 12h, 15h,   5,   5,   5,   5,   5, 12h,   0, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0, 12h,   5, 2Dh, 2Dh,   5, 15h,   2, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0,   2,   2, 2Dh, 2Dh,   5, 12h,   0, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0,   0,   2, 12h, 12h, 12h,   0,   0, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0,   0, 80h,   0,   0,   0, 80h,   0, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 80h
                 
-byte_2B31       db 80h, 80h, 80h, 80h, 0, 1, 9, 9, 9, 1Bh, 3, 0, 80h
-                db 80h, 80h, 80h, 80h, 80h, 80h, 0, 9, 9, 0, 0, 0, 0
-                db 3, 1Bh, 0, 80h, 80h, 80h, 80h, 80h, 0, 9, 1, 0, 1
-                db 9, 1, 0, 0, 3, 3, 0, 80h, 80h, 80h, 80h, 1, 9
-                db 0, 9, 9, 1, 0, 0, 1, 0, 3, 3, 80h, 80h, 80h
-                db 0, 9, 1, 1, 9, 9, 0, 0, 0, 0, 1, 3, 3
-                db 0, 80h, 80h, 0, 9, 0, 9, 1, 0, 0, 2, 2, 0
-                db 0, 0, 0Bh, 0, 80h, 80h, 0, 9, 0, 1, 0, 0, 2
-                db 2, 2, 2, 2, 2, 0Bh, 0, 80h, 80h, 0, 9, 3, 1
-                db 2, 2, 2, 12h, 12h, 12h, 2, 1, 0Bh, 0, 80h, 80h, 80h
-                db 1, 1Bh, 2, 1, 2, 12h, 12h, 12h, 12h, 2, 9, 1, 80h
-                db 80h, 80h, 80h, 0, 0Bh, 3, 2, 0Ah, 1, 12h, 12h, 12h, 1
-                db 9, 0, 80h, 80h, 80h, 80h, 80h, 0, 1Bh, 3, 2, 0, 2
-                db 2, 1, 9, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h, 0, 3
-                db 1, 3, 3, 1, 3, 0, 80h, 80h, 80h, 80h, 80h, 80h, 80h
-                db 80h, 80h, 0, 0, 0, 0, 0, 0, 80h, 80h, 80h, 80h, 80h
+red_tear_gfx    db 80h, 80h, 80h, 80h,   0, 1,   9,   9,   9, 1Bh,   3,   0, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h,   0,   9, 9,   0,   0,   0,   0,   3, 1Bh,   0, 80h, 80h, 80h
+                db 80h, 80h,   0,   9,   1, 0,   1,   9,   1,   0,   0,   3,   3,   0, 80h, 80h
+                db 80h, 80h,   1,   9,   0, 9,   9,   1,   0,   0,   1,   0,   3,   3, 80h, 80h
+                db 80h,   0,   9,   1,   1, 9,   9,   0,   0,   0,   0,   1,   3,   3,   0, 80h
+                db 80h,   0,   9,   0,   9, 1,   0,   0,   2,   2,   0,   0,   0, 0Bh,   0, 80h
+                db 80h,   0,   9,   0,   1, 0,   0,   2,   2,   2,   2,   2,   2, 0Bh,   0, 80h
+                db 80h,   0,   9,   3,   1, 2,   2,   2, 12h, 12h, 12h,   2,   1, 0Bh,   0, 80h
+                db 80h, 80h,   1, 1Bh,   2, 1,   2, 12h, 12h, 12h, 12h,   2,   9,   1, 80h, 80h
+                db 80h, 80h,   0, 0Bh,   3, 2, 0Ah,   1, 12h, 12h, 12h,   1,   9,   0, 80h, 80h
+                db 80h, 80h, 80h,   0, 1Bh, 3,   2,   0,   2,   2,   1,   9,   0, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h,   0, 3,   1,   3,   3,   1,   3,   0, 80h, 80h, 80h, 80h
+                db 80h, 80h, 80h, 80h, 80h, 0,   0,   0,   0,   0,   0, 80h, 80h, 80h, 80h, 80h
 
 ; =============== S U B R O U T I N E =======================================
 

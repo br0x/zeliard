@@ -119,8 +119,8 @@ Render_Animated_Tile_Strip_proc                    equ 301Ch
 Render_Roca_Tilemap_proc                           equ 301Eh
 Calculate_Tile_VRAM_Address_proc                   equ 3020h
 Render_16x16_Sprite_proc                           equ 3022h
-Render_Status_Indicator_proc                       equ 3024h
-Render_Entity_Sprite_proc                          equ 3026h
+Render_Sword_Salute_proc                       equ 3024h
+Render_Sparkle_proc                          equ 3026h
 Decompress_Tile_Data_proc                          equ 3028h
 NoOperation_proc                                   equ 302Ah
 

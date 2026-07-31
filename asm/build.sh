@@ -8,8 +8,8 @@
 
 cat << 'EOF' > build.bat
 path D:\;%PATH%
-tasm /m9 ckpd.asm >log.txt
-tlink /t/x ckpd.obj >>log.txt
+tasm /m9 snippet.asm >log.txt
+tlink /t/x snippet.obj >>log.txt
 rem exit
 EOF
 

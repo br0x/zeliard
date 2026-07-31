@@ -38,68 +38,71 @@ sub_A002        proc near
 
 loc_A04F:
                 mov     is_big_red_tear, al
-                mov     bx, 2552h
-                call    word ptr cs:Render_Icon_16x13_proc
+                mov     bx, 2552h ; (148, 82) - starting position of the tear => in viewport (100, 68)
+                call    word ptr cs:Render_Tear_16x13_proc
                                         ; ; AL: tear index (0-small blue Tear, 1-large red Tear)
-                                        ; ; BH: left margin
+                                        ; ; BH: left margin in 4px units
                                         ; ; BL: top margin
                 and     byte ptr ds:facing_direction, 0FEh
-                mov     bx, 0C6Eh
-                mov     cx, 0Dh
-
+                mov     bx, 0C6Eh ; marginLeft=4*12=48, marginTop=110
+                mov     cx, 13    ; hero runs to the center (13 steps)
 loc_A065:
                 test    cx, 1
                 jnz     short loc_A070
-                mov     byte ptr ds:soundFX_request, 26
-
+                mov     byte ptr ds:soundFX_request, 26 ; stomp sound every other frame
 loc_A070:
                 push    cx
                 push    bx
                 inc     byte ptr ds:hero_animation_phase
                 and     byte ptr ds:hero_animation_phase, 3
-                call    sub_A407
-                call    sub_A48F
+                call    render_hero_sprite_3x3
+                call    delay_speed_based
                 pop     bx
-                cmp     bh, 24h ; '$'
+                cmp     bh, 36
                 je      short loc_A096
                 push    bx
-                mov     cx, 218h
-                xor     al, al
-                call    word ptr cs:Draw_Bordered_Rectangle_proc
+                mov     cx, 218h ; width=8px, height=24px
+                xor     al, al   ; clear rectangle
+                call    word ptr cs:Draw_Bordered_Rectangle_proc ; Draws a bordered rectangle or fills with black
+                                                                ; BH: left margin (x) in 4px units
+                                                                ; BL: top margin (y)
+                                                                ; CL: height (rows)
+                                                                ; CH: width (in 4px units)
+                                                                ; AL: 0 = fill black, non-zero = draw border
                 pop     bx
-                add     bh, 2
-
+                add     bh, 2 ; x+=8
 loc_A096:
                 pop     cx
                 loop    loc_A065
 
-                mov     byte ptr ds:hero_animation_phase, 4
+                mov     byte ptr ds:hero_animation_phase, 4 ; standing
                 mov     bx, 246Eh
-                call    sub_A407
+                call    render_hero_sprite_3x3
                 mov     cx, 5
 loc_A0A7:
                 push    cx
-                call    sub_A48F
+                call    delay_speed_based
                 pop     cx
                 loop    loc_A0A7
 
+                ; hero draws the sword
                 mov     byte ptr ds:hero_animation_phase, 5
 loc_A0B3:
-                mov     bx, 246Eh
-                call    sub_A407
-                call    sub_A48F
-                call    sub_A48F
+                mov     bx, 246Eh ; (144, 110)
+                call    render_hero_sprite_3x3
+                call    delay_speed_based
+                call    delay_speed_based
                 inc     byte ptr ds:hero_animation_phase
                 cmp     byte ptr ds:hero_animation_phase, 9
                 jb      short loc_A0B3
 
                 mov     bx, 246Eh
-                call    sub_A407
-                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                call    render_hero_sprite_3x3
+                call    word ptr cs:Render_Sword_Salute_proc ; ; draws monochrome sword (small/medium/large) 2x3 tiles at (12, 9) tile coordinates
                 xor     bh, bh
                 mov     bl, byte ptr ds:Tears_of_Esmesanti_count
                 dec     bx
-                mov     al, byte_A569[bx]
+                mov     al, tear_x_mul4[bx]
                 mov     byte_A59A, al
                 mov     byte_A59B, 2
                 call    sub_A4A3
@@ -110,24 +113,31 @@ loc_A0B3:
                 mov     al, byte_A59D
                 mov     cx, 310h
                 xor     di, di
-                call    word ptr cs:Capture_Screen_Rect_to_seg3_proc
-
+                call    word ptr cs:Capture_Screen_Rect_to_seg3_proc ; AH: x in tiles
+                                                                    ; AL: y in pixels
+                                                                    ; CL: height of the rectangle in pixels
+                                                                    ; CH: width of the rectangle in tiles
+                                                                    ; DI: destination Offset in seg3
                 mov     byte_A5A5, 0
 loc_A107:
                 mov     al, byte_A5A5
                 mov     bl, byte_A59C
                 xor     bh, bh
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
                 shr     ah, 1
                 mov     al, byte_A59D
-                mov     cx, 310h
+                mov     cx, 310h ; 3 tiles by 16 pixels
                 xor     di, di
-                call    word ptr cs:Put_Image_proc
+                call    word ptr cs:Put_Image_proc  ; AH: x in tiles
+                                                    ; AL: y in pixels
+                                                    ; CL: height of the rectangle in pixels
+                                                    ; CH: width of the rectangle in tiles
+                                                    ; DI: source Offset in seg3
                 inc     byte_A5A5
                 cmp     byte_A5A5, 2
                 jb      short loc_A107
@@ -150,18 +160,22 @@ loc_A162:
                 xor     bh, bh
                 sub     bx, 18h
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
+                call    delay_speed_based
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
                 shr     ah, 1
                 sub     ah, 6
                 mov     al, byte_A59D
-                mov     cx, 1110h
+                mov     cx, 1110h ; 17 tiles by 16 pixels
                 xor     di, di
-                call    word ptr cs:Put_Image_proc
+                call    word ptr cs:Put_Image_proc  ; AH: x in tiles
+                                                    ; AL: y in pixels
+                                                    ; CL: height of the rectangle in pixels
+                                                    ; CH: width of the rectangle in tiles
+                                                    ; DI: source Offset in seg3
                 inc     byte_A5A5
                 cmp     byte_A5A5, 2
                 jb      short loc_A162
@@ -170,7 +184,7 @@ loc_A162:
                 mov     cx, 410h
                 xor     al, al
                 call    word ptr cs:Draw_Bordered_Rectangle_proc
-                call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
+                call    word ptr cs:Render_Sword_Salute_proc
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -186,8 +200,8 @@ loc_A1D2:
                 mov     bl, byte_A59C
                 xor     bh, bh
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -237,8 +251,8 @@ loc_A232:
                 mov     bl, byte_A59C
                 xor     bh, bh
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
                 popf
                 jnb     short loc_A20E
                 mov     ah, byte_A59C
@@ -268,9 +282,9 @@ loc_A2BB:
                 xor     bh, bh
                 sub     bx, 18h
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
+                call    delay_speed_based
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -289,7 +303,7 @@ loc_A2BB:
                 xor     bh, bh
                 add     bx, bx
                 mov     bx, tears_coords[bx]
-                call    word ptr cs:Render_Icon_16x13_proc
+                call    word ptr cs:Render_Tear_16x13_proc
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -305,8 +319,8 @@ loc_A32F:
                 mov     bl, byte_A59C
                 xor     bh, bh
                 mov     cl, byte_A59D
-                call    word ptr cs:Pack_3Plane_And_Render_proc
-                call    sub_A48F
+                call    word ptr cs:Render_Sparkle_proc
+                call    delay_speed_based
                 mov     ah, byte_A59C
                 shr     ah, 1
                 shr     ah, 1
@@ -338,19 +352,19 @@ loc_A371:                               ;
 
 loc_A38F:
                 mov     bx, 246Eh
-                call    sub_A407
-                call    sub_A48F
-                call    sub_A48F
+                call    render_hero_sprite_3x3
+                call    delay_speed_based
+                call    delay_speed_based
                 dec     byte ptr ds:hero_animation_phase
                 cmp     byte ptr ds:hero_animation_phase, 5
                 jnb     short loc_A38F
                 mov     bx, 246Eh
-                call    sub_A407
+                call    render_hero_sprite_3x3
                 mov     cx, 5
 
 loc_A3AF:
                 push    cx
-                call    sub_A48F
+                call    delay_speed_based
                 pop     cx
                 loop    loc_A3AF
                 mov     bx, 246Eh
@@ -370,8 +384,8 @@ loc_A3D4:
                 push    bx
                 inc     byte ptr ds:hero_animation_phase
                 and     byte ptr ds:hero_animation_phase, 3
-                call    sub_A407
-                call    sub_A48F
+                call    render_hero_sprite_3x3
+                call    delay_speed_based
                 pop     bx
                 cmp     bh, 3Eh ; '>'
                 jz      short loc_A3FA
@@ -394,18 +408,16 @@ sub_A002        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A407        proc near
+render_hero_sprite_3x3        proc near
                 mov     al, byte ptr ds:hero_animation_phase
                 mov     cl, 9
                 mul     cl
                 add     ax, offset tiles_grouping3x3
                 mov     si, ax
                 mov     cx, 3
-
 loc_A416:
                 push    cx
                 mov     cx, 3
-
 loc_A41A:
                 push    cx
                 lodsb
@@ -422,7 +434,7 @@ loc_A41A:
                 pop     cx
                 loop    loc_A416
                 retn
-sub_A407        endp
+render_hero_sprite_3x3        endp
 
 ; ---------------------------------------------------------------------------
 ; First sprite is: 0 1 0
@@ -442,7 +454,7 @@ tiles_grouping3x3 db 0, 2, 4, 1, 3, 5, 0, 0, 6 ; by columns
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A48F        proc near
+delay_speed_based        proc near
                 mov     cl, byte ptr ds:speed_const
                 mov     al, 4
                 mul     cl
@@ -452,7 +464,7 @@ loc_A497:
                 jb      short loc_A497
                 mov     byte ptr ds:frame_timer, 0
                 retn
-sub_A48F        endp
+delay_speed_based        endp
 
 
 ; =============== S U B R O U T I N E =======================================
@@ -470,10 +482,8 @@ sub_A4A3        proc near
                 dec     cl
                 jmp     short loc_A4C2
 ; ---------------------------------------------------------------------------
-
 loc_A4C0:
                 inc     cl
-
 loc_A4C2:
                 mov     byte_A5A0, al
                 mov     byte_A59E, cl
@@ -486,10 +496,8 @@ loc_A4C2:
                 dec     cl
                 jmp     short loc_A4DE
 ; ---------------------------------------------------------------------------
-
 loc_A4DC:
                 inc     cl
-
 loc_A4DE:
                 mov     byte_A5A1, al
                 mov     byte_A59F, cl
@@ -502,7 +510,6 @@ loc_A4DE:
                 jb      short loc_A4FC
                 retn
 ; ---------------------------------------------------------------------------
-
 loc_A4FC:
                 mov     al, byte_A5A1
                 shr     al, 1
@@ -566,8 +573,8 @@ loc_A567:
 sub_A50A        endp
 
 ; ---------------------------------------------------------------------------
-byte_A569       db 3Ch, 0F4h, 54h, 0DCh, 6Ch, 0C4h, 84h, 0ACh, 98h
-tears_coords    dw 0F00h, 3D00h, 1500h, 3700h, 1B00h, 3100h, 2100h, 2B00h, 2600h
+tear_x_mul4     db 3Ch, 0F4h, 54h, 0DCh, 6Ch, 0C4h, 84h, 0ACh, 98h
+tears_coords    dw 0F00h, 3D00h, 1500h, 3700h, 1B00h, 3100h, 2100h, 2B00h, 2600h; 15, 61, 21, 55, 27, 49, 33, 43, 38
 vfs_mfan_msd    db 2
                 db 5Fh
 aMfanMsd        db 'MFAN.MSD',0

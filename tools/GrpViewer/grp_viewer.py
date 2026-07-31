@@ -4,7 +4,7 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 
-DEBUG_DRAW = True
+DEBUG_DRAW = False
 
 # ---------------------------------------------------------------------------
 # Configuration & Descriptors
@@ -1600,6 +1600,81 @@ def render_sword_group(data, mega_idx, canvas, y_offset):
 
     return current_y - y_offset
 
+# Monochrome sword-salute bitmaps. Each is a 16x24 (2x3 tiles) sprite
+# stored as 96 bytes = 24 rows x 2 words; every word holds 8 2-bit pixels,
+# MSB first (matches lodsw + xchg ah,al + CalculateSpriteBitmask). Pixel
+# value 0 is transparent; 1/2 draw dim gray (0x08) and 3 bright gray (0x09),
+# per transparency_mask_bitplane_f = 0x0908. One frame per sword size.
+SWORD_SALUTE_SMALL = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+    0x00, 0x06, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00,
+    0x00, 0x0C, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x00,
+    0x00, 0x1C, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00
+]
+SWORD_SALUTE_MEDIUM = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+    0x00, 0x01, 0x80, 0x00, 0x00, 0x03, 0x80, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x07, 0x80, 0x00,
+    0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00,
+    0x00, 0x0F, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00,
+    0x00, 0x1E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00,
+    0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00
+]
+SWORD_SALUTE_LARGE = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0xC0, 0x00,
+    0x00, 0x01, 0xC0, 0x00, 0x00, 0x03, 0x80, 0x00, 0x00, 0x03, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00,
+    0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00,
+    0x00, 0x0E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00,
+    0x00, 0x1E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00,
+    0x00, 0x1F, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x03, 0x1C, 0xC0, 0x00, 0x00, 0xFF, 0x00, 0x00
+]
+
+SWORD_SALUTE_FRAMES = [
+    ("Small", SWORD_SALUTE_SMALL),
+    ("Medium", SWORD_SALUTE_MEDIUM),
+    ("Large", SWORD_SALUTE_LARGE),
+]
+
+def decode_sword_salute(bitmap):
+    """Decode a 96-byte monochrome sword-salute bitmap into 24 rows of 16
+    palette indices (None = transparent), mirroring Render_Sword_Salute's
+    lodsw/xchg + CalculateSpriteBitmask pair decoding."""
+    pixels = []
+    for row in range(24):
+        row_pixels = []
+        for w in range(2):
+            word = (bitmap[row*4 + w*2] << 8) | bitmap[row*4 + w*2 + 1]
+            for c in range(4):
+                nib = (word >> (12 - c*4)) & 0xF
+                for v in ((nib >> 2) & 3, nib & 3):
+                    if v == 0:
+                        row_pixels.append(None)
+                    elif v == 3:
+                        row_pixels.append(0x09)
+                    else:
+                        row_pixels.append(0x08)
+        pixels.append(row_pixels)
+    return pixels
+
+def render_sword_salute_group(canvas, y_offset, scale=SCALE):
+    """Render the 3 monochrome sword-salute frames (one per sword size)."""
+    sprite_w = 16 * scale
+    sprite_h = 24 * scale
+    x_cursor = 10
+    current_y = y_offset + 14
+    for label, bitmap in SWORD_SALUTE_FRAMES:
+        canvas.create_rectangle(x_cursor, current_y, x_cursor + sprite_w,
+                                current_y + sprite_h, fill="#8c38ff", outline="")
+        for ry, row_pixels in enumerate(decode_sword_salute(bitmap)):
+            for rx, p_idx in enumerate(row_pixels):
+                if p_idx is None:
+                    continue
+                draw_pixel(canvas, x_cursor + rx * scale, current_y + ry * scale,
+                           PALETTE_STRS[p_idx], scale)
+        x_cursor += sprite_w + 16
+    return current_y + sprite_h + 8 - y_offset
+
 # ---------------------------------------------------------------------------
 # NPC / Hero rendering
 # ---------------------------------------------------------------------------
@@ -1940,7 +2015,7 @@ def render_dman_group(data, canvas, y_offset):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 16
+    gap_x = 0
     gap_y = 24
     sprite_px = 24  # Total width/height of the 3x3 tile assembly
     frames_per_row = 10
@@ -1956,14 +2031,19 @@ def render_dman_group(data, canvas, y_offset):
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
 
             # Draw frame border
-            canvas.create_rectangle(x_frame-1, y_frame-1, x_frame + sprite_px*scale, 
-                                     y_frame + sprite_px*scale, outline="gray")
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
+                                     y_frame + sprite_px*scale, fill="#8c38ff", outline="")
 
             draw_composed_24x24_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
 
         # Advance Y cursor to the next animation block
         num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
         current_y += num_rows * (sprite_px * scale + gap_y)
+
+    # Sword-salute frames: one per sword size (small/medium/large),
+    # transcribed from asm/snippet.asm (Render_Sword_Salute)
+    current_y += 12
+    current_y += render_sword_salute_group(canvas, current_y, scale)
 
     return current_y - y_offset
 

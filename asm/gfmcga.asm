@@ -30,8 +30,8 @@ start:
                 dw offset Render_Roca_Tilemap
                 dw offset Calculate_Tile_VRAM_Address
                 dw offset Render_16x16_Sprite
-                dw offset Render_Status_Indicator
-                dw offset Render_Entity_Sprite
+                dw offset Render_Sword_Salute
+                dw offset Render_Sparkle
                 dw offset Decompress_Tile_Data
                 dw offset nullsub_1
 
@@ -3654,20 +3654,19 @@ Unpack_4MaskBytes        endp
 
 ; =============== S U B R O U T I N E =======================================
 
-
-Render_Status_Indicator proc near       ; ...
+; draws monochrome sword (small/medium/large) 2x3 tiles at (12, 9) tile coordinates
+Render_Sword_Salute proc near
                 push    ds
                 mov     cs:transparency_mask_bitplane_f, 908h
-                mov     bl, ds:92h
+                mov     bl, ds:sword_type
                 dec     bl
                 xor     bh, bh
                 add     bx, bx
-                mov     si, ds:status_indicator_mask_tbl[bx]
-                mov     di, 6C10h
+                mov     si, ds:sword_bitmaps[bx]
+                mov     di, (14+72)*320+48+96 ; in viewport (96, 72)
                 mov     ax, 0A000h
                 mov     es, ax
-                mov     cx, 18h
-
+                mov     cx, 24
 loc_49B1:
                 lodsw
                 xchg    ah, al
@@ -3709,29 +3708,29 @@ loc_49B1:
                 loop    loc_49B1
                 pop     ds
                 retn
-Render_Status_Indicator endp
+Render_Sword_Salute endp
 
 ; ---------------------------------------------------------------------------
-status_indicator_mask_tbl        dw offset status_mask_null     ; ...
-                dw offset status_mask_null
-                dw offset status_mask_null
-                dw offset status_mask_partial
-                dw offset status_mask_partial
-                dw offset status_mask_full
-status_mask_null       db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ; ...
+sword_bitmaps   dw offset small_sword_bmp     ; training sword
+                dw offset small_sword_bmp     ; wise man's sword
+                dw offset small_sword_bmp     ; spirit sword
+                dw offset medium_sword_bmp    ; knight's sword
+                dw offset medium_sword_bmp    ; illumination sword
+                dw offset large_sword_bmp     ; enchantment sword
+small_sword_bmp db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ; ...
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 6, 0, 0, 0, 6
                 db 0, 0, 0, 0Eh, 0, 0, 0, 0Eh, 0, 0, 0, 0Ch, 0, 0, 0, 0Eh
                 db 0, 0, 0, 1Ch, 0, 0, 0, 0Ch, 0, 0, 0, 1Ch, 0, 0, 0, 1Ch
                 db 0, 0, 0, 1Ch, 0, 0, 0, 1Ch, 0, 0
-status_mask_partial       db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 80h, 0, 0 ; ...
+medium_sword_bmp db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 80h, 0, 0 ; ...
                 db 1, 80h, 0, 0, 3, 80h, 0, 0, 3, 0, 0, 0, 7, 80h, 0, 0
                 db 7, 0, 0, 0, 7, 0, 0, 0, 0Fh, 0, 0, 0, 0Eh, 0, 0, 0
                 db 0Fh, 0, 0, 0, 1Eh, 0, 0, 0, 0Eh, 0, 0, 0, 1Fh, 0, 0
                 db 0, 1Eh, 0, 0, 0, 1Fh, 0, 0, 0, 1Eh, 0, 0, 0, 1Eh, 0
                 db 0, 0, 1Eh, 0, 0, 0, 1Eh, 0, 0, 0, 1Ch, 0, 0, 0, 3Fh
                 db 0, 0
-status_mask_full       db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40h, 0, 0, 0, 0C0h, 0 ; ...
+large_sword_bmp db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40h, 0, 0, 0, 0C0h, 0 ; ...
                 db 0, 1, 0C0h, 0, 0, 3, 80h, 0, 0, 3, 80h, 0, 0, 7, 80h
                 db 0, 0, 7, 0, 0, 0, 7, 0, 0, 0, 0Fh, 0, 0, 0, 0Fh, 0
                 db 0, 0, 0Eh, 0, 0, 0, 1Fh, 0, 0, 0, 0Eh, 0, 0, 0, 1Fh
@@ -3742,14 +3741,14 @@ status_mask_full       db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40h, 0, 0, 0, 0C0h, 0 ; 
 ; =============== S U B R O U T I N E =======================================
 
 
-Render_Entity_Sprite proc near          ; ...
+Render_Sparkle proc near          ; ...
                 push    ds
                 or      al, al
                 js      short loc_4B66
                 and     al, 3
-                mov     dl, 40h ; '@'
+                mov     dl, 64
                 mul     dl
-                add     ax, offset sprite_data_base_right
+                add     ax, offset sparkles_16x16
                 mov     si, ax
                 mov     bp, 1
                 jmp     short loc_4B74
@@ -3759,7 +3758,7 @@ loc_4B66:
                 and     al, 1
                 mov     ah, al
                 xor     al, al
-                add     ax, offset sprite_data_base_left
+                add     ax, offset sparkles_64x16
                 mov     si, ax
                 mov     bp, 4
 
@@ -3816,777 +3815,33 @@ loc_4B90:
                 loop    loc_4B86
                 pop     ds
                 retn
-Render_Entity_Sprite endp
+Render_Sparkle endp
 
 ; ---------------------------------------------------------------------------
-sprite_data_base_right       db 0                    ; ...
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  10h
-                db    0
-                db    0
-                db  10h
-                db  60h ; `
-                db    0
-                db    0
-                db    7
-                db 0C0h
-                db    0
-                db    0
-                db    7
-                db 0C0h
-                db    0
-                db    0
-                db    7
-                db 0C0h
-                db    0
-                db    0
-                db  0Ch
-                db  10h
-                db    0
-                db    0
-                db  10h
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db  40h ; @
-                db    4
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    9
-                db  20h
-                db    0
-                db    0
-                db    3
-                db  80h
-                db    0
-                db    4
-                db  57h ; W
-                db 0D4h
-                db  80h
-                db    0
-                db    3
-                db  80h
-                db    0
-                db    0
-                db    9
-                db  20h
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db  40h ; @
-                db    4
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    2
-                db  80h
-                db    0
-                db    0
-                db  83h
-                db  80h
-                db    0
-                db    0
-                db  23h ; #
-                db  88h
-                db    0
-                db    0
-                db  0Dh
-                db 0B0h
-                db    0
-                db    0
-                db  0Bh
-                db 0E8h
-                db    0
-                db  96h
-                db 0FFh
-                db 0FFh
-                db 0B9h
-                db    0
-                db  17h
-                db 0E8h
-                db    0
-                db    0
-                db  0Bh
-                db  58h ; X
-                db    0
-                db    0
-                db  23h ; #
-                db  82h
-                db    0
-                db    0
-                db    2
-                db  80h
-                db  80h
-                db    2
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  10h
-                db  10h
-                db    0
-                db    0
-                db    0
-                db    4
-                db    0
-                db    0
-                db  80h
-                db    0
-                db  80h
-                db    3
-                db    0
-                db    0
-                db  71h ; q
-                db  0Ch
-                db    0
-                db    0
-                db  3Dh ; =
-                db  38h ; 8
-                db    0
-                db    0
-                db    7
-                db 0F0h
-                db    0
-                db    0
-                db  97h
-                db 0E5h
-                db    0
-                db    0
-                db  0Fh
-                db 0F0h
-                db    0
-                db    0
-                db  1Fh
-                db  38h ; 8
-                db    0
-                db    0
-                db  39h ; 9
-                db  0Eh
-                db    0
-                db    0
-                db 0E1h
-                db    1
-                db  80h
-                db    1
-                db    0
-                db    0
-                db  40h ; @
-                db    4
-                db    0
-                db    0
-                db    8
-                db  10h
-                db    0
-                db    0
-                db    0
-sprite_data_base_left       db 0                    ; ...
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  92h
-                db  4Ah ; J
-                db 0AAh
-                db 0EBh
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    1
-                db    1
-                db    0
-                db    0
-                db    0
-                db  82h
-                db    0
-                db    0
-                db    0
-                db 0ABh
-                db    0
-                db    0
-                db    1
-                db  5Dh ; ]
-                db    4
-                db  24h ; $
-                db 0AEh
-                db 0EFh
-                db 0FFh
-                db 0FFh
-                db 0FFh
-                db 0FFh
-                db    4
-                db  24h ; $
-                db 0ABh
-                db 0EFh
-                db    0
-                db    0
-                db    1
-                db  5Dh ; ]
-                db    0
-                db    0
-                db    0
-                db  22h ; "
-                db    0
-                db    0
-                db    0
-                db  81h
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  81h
-                db    0
-                db    0
-                db    0
-                db 0C4h
-                db    0
-                db    0
-                db    0
-                db 0BCh
-                db    0
-                db    0
-                db    0
-                db 0EEh
-                db 0EAh
-                db  24h ; $
-                db  20h
-                db 0FFh
-                db 0FFh
-                db 0FFh
-                db 0FFh
-                db 0FBh
-                db 0AAh
-                db  24h ; $
-                db  20h
-                db 0FDh
-                db  40h ; @
-                db    0
-                db    0
-                db 0E6h
-                db    0
-                db    0
-                db    0
-                db  40h ; @
-                db  80h
-                db    0
-                db    0
-                db    0
-                db  20h
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db 0D7h
-                db  55h ; U
-                db  52h ; R
-                db  49h ; I
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db 0A7h
-                db  54h ; T
-                db  90h
-                db    4
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  10h
-                db    0
-                db    0
-                db    0
-                db    4
-                db    0
-                db    0
-                db    0
-                db    0
-                db  80h
-                db    0
-                db    0
-                db    0
-                db  71h ; q
-                db    0
-                db    0
-                db    0
-                db  3Dh ; =
-                db    0
-                db    0
-                db    0
-                db    7
-                db  10h
-                db    4
-                db    0
-                db  97h
-                db    0
-                db    0
-                db    0
-                db  0Fh
-                db    0
-                db    0
-                db    0
-                db  1Fh
-                db    0
-                db    0
-                db    0
-                db  39h ; 9
-                db    0
-                db    0
-                db    0
-                db 0E1h
-                db    0
-                db    0
-                db    1
-                db    0
-                db    0
-                db    0
-                db    4
-                db    0
-                db    0
-                db    0
-                db  10h
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  10h
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  80h
-                db    0
-                db    0
-                db    3
-                db    0
-                db    0
-                db    0
-                db  0Ch
-                db    0
-                db    0
-                db    0
-                db  38h ; 8
-                db    0
-                db    0
-                db    0
-                db 0F0h
-                db    0
-                db    0
-                db    0
-                db 0E5h
-                db    2
-                db    0
-                db  10h
-                db 0F0h
-                db    0
-                db    0
-                db    0
-                db  3Ch ; <
-                db    0
-                db    0
-                db    0
-                db    7
-                db    0
-                db    0
-                db    0
-                db    0
-                db 0C0h
-                db    0
-                db    0
-                db    0
-                db  20h
-                db    0
-                db    0
-                db    0
-                db    4
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db  20h
-                db    9
-                db  2Ah ; *
-                db 0E5h
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
+sparkles_16x16 dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10h, 1000h, 60h, 700h, 0C0h
+                dw 700h, 0C0h, 700h, 0C0h, 0C00h, 10h, 1000h, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 0, 0, 0, 0, 100h, 0, 100h, 0, 4000h, 4, 100h, 0, 900h, 20h, 300h, 80h
+                dw 5704h, 80D4h, 300h, 80h, 900h, 20h, 100h, 0, 4000h, 4, 100h, 0, 100h, 0, 0, 0
+                dw 100h, 0, 100h, 0, 100h, 0, 200h, 80h, 8300h, 80h, 2300h, 88h, 0D00h, 0B0h, 0B00h, 0E8h
+                dw 0FF96h, 0B9FFh, 1700h, 0E8h, 0B00h, 58h, 2300h, 82h, 200h, 8080h, 102h, 0, 100h, 0, 100h, 0
+                dw 0, 0, 0, 1000h, 10h, 0, 4, 8000h, 8000h, 3, 7100h, 0Ch, 3D00h, 38h, 700h, 0F0h
+                dw 9700h, 0E5h, 0F00h, 0F0h, 1F00h, 38h, 3900h, 0Eh, 0E100h, 8001h, 1, 4000h, 4, 800h, 10h, 0
+sparkles_64x16 dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 4A92h, 0EBAAh, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 0, 0, 0, 100h, 0, 100h, 0, 101h, 0, 8200h, 0, 0AB00h, 0, 5D01h, 2404h, 0EFAEh
+                dw 0FFFFh, 0FFFFh, 2404h, 0EFABh, 0, 5D01h, 0, 2200h, 0, 8100h, 0, 100h, 0, 100h, 0, 0
+                dw 0, 0, 0, 0, 0, 0, 0, 0, 81h, 0, 0C4h, 0, 0BCh, 0, 0EAEEh, 2024h
+                dw 0FFFFh, 0FFFFh, 0AAFBh, 2024h, 40FDh, 0, 0E6h, 0, 8040h, 0, 2000h, 0, 0, 0, 0, 0
+                dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 55D7h, 4952h, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 54A7h, 490h, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 0, 0, 0, 0, 0, 10h, 0, 4, 0, 8000h, 0, 7100h, 0, 3D00h, 0, 700h
+                dw 410h, 9700h, 0, 0F00h, 0, 1F00h, 0, 3900h, 0, 0E100h, 0, 1, 0, 4, 0, 10h
+                dw 0, 0, 1000h, 0, 0, 0, 8000h, 0, 3, 0, 0Ch, 0, 38h, 0, 0F0h, 0
+                dw 2E5h, 1000h, 0F0h, 0, 3Ch, 0, 7, 0, 0C000h, 0, 2000h, 0, 400h, 0, 0, 0
+                dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                dw 920h, 0E52Ah, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 ; =============== S U B R O U T I N E =======================================
 

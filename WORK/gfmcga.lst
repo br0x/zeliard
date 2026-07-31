@@ -47,8 +47,8 @@ seg000:301C                 dw offset Render_Animated_Tile_Strip
 seg000:301E                 dw offset Render_Roca_Tilemap
 seg000:3020                 dw offset Calculate_Tile_VRAM_Address
 seg000:3022                 dw offset Render_16x16_Sprite
-seg000:3024                 dw offset Render_Status_Indicator
-seg000:3026                 dw offset Render_Entity_Sprite
+seg000:3024                 dw offset Render_Sword_Salute
+seg000:3026                 dw offset Render_Sparkle
 seg000:3028                 dw offset Decompress_Tile_Data
 seg000:302A                 dw offset nullsub_1
 seg000:302C
@@ -3941,7 +3941,7 @@ seg000:4990
 seg000:4990 ; =============== S U B R O U T I N E =======================================
 seg000:4990
 seg000:4990
-seg000:4990 Render_Status_Indicator proc near       ; ...
+seg000:4990 Render_Sword_Salute proc near       ; ...
 seg000:4990                 push    ds
 seg000:4991                 mov     cs:word_4FF5, 908h
 seg000:4998                 mov     bl, ds:92h
@@ -3995,7 +3995,7 @@ seg000:4A1D                 add     di, 320
 seg000:4A21                 loop    loc_49B1
 seg000:4A23                 pop     ds
 seg000:4A24                 retn
-seg000:4A24 Render_Status_Indicator endp
+seg000:4A24 Render_Sword_Salute endp
 seg000:4A24
 seg000:4A24 ; ---------------------------------------------------------------------------
 seg000:4A25 off_4A25        dw offset byte_4A31     ; ...
@@ -4028,7 +4028,7 @@ seg000:4B51
 seg000:4B51 ; =============== S U B R O U T I N E =======================================
 seg000:4B51
 seg000:4B51
-seg000:4B51 Render_Entity_Sprite proc near          ; ...
+seg000:4B51 Render_Sparkle proc near          ; ...
 seg000:4B51                 push    ds
 seg000:4B52                 or      al, al
 seg000:4B54                 js      short loc_4B66
@@ -4102,7 +4102,7 @@ seg000:4BD8                 pop     cx
 seg000:4BD9                 loop    loc_4B86
 seg000:4BDB                 pop     ds
 seg000:4BDC                 retn
-seg000:4BDC Render_Entity_Sprite endp
+seg000:4BDC Render_Sparkle endp
 seg000:4BDC
 seg000:4BDC ; ---------------------------------------------------------------------------
 seg000:4BDD byte_4BDD       db 0                    ; ...
