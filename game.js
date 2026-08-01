@@ -1594,10 +1594,9 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    // If inventory screen is open, route arrow keys + Enter/Space to it
+    // If inventory screen is open, route keys to it
     if (inventoryScreenInstance) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Space'].includes(e.code)) {
-            inventoryScreenInstance.handleInput(e.code, e.repeat);
+        if (inventoryScreenInstance.handleKey(e.code, e.ctrlKey, e.shiftKey, e.repeat)) {
             e.preventDefault();
         }
         return;
@@ -1677,6 +1676,11 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
     if (e.code === 'F9' && speedChange.active && speedChange.phase === 0) {
         speedChange.phase = 1;
+    }
+
+    if (inventoryScreenInstance &&
+        (e.code === 'ControlLeft' || e.code === 'ControlRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight')) {
+        inventoryScreenInstance.resetDebugCombo();
     }
 
     if (e.code === 'Space')                       keys.Space     = false;

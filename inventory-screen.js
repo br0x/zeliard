@@ -113,6 +113,10 @@ export class InventoryScreen {
         this.usageMessage = '';
         this.usageTimer = 0;
 
+        this.debugPopup = false;
+        this._debugS = false;
+        this._debugE = false;
+
         this._lastNavSound = 0;
     }
 
@@ -274,6 +278,7 @@ export class InventoryScreen {
         this._drawMagicSection(ctx, W);
         this._drawBottomHalf(ctx, W, H);
         this._drawUsageMessage(ctx, W, H);
+        this._drawDebugPopup(ctx, W, H);
 
         ctx.restore();
     }
@@ -554,6 +559,74 @@ export class InventoryScreen {
         ctx.fillText('I have used', x+20, y + boxH * 0.35);
         ctx.textAlign = 'right';
         ctx.fillText(this.usageMessage, x+boxW-20, y + boxH * 0.7);
+    }
+
+    _drawDebugPopup(ctx, W, H) {
+        if (!this.debugPopup) return;
+
+        const boxW = 280;
+        const boxH = 96;
+        const x = (W - boxW) / 2;
+        const y = (H - boxH) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, boxW, boxH, 8);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`LEVEL: ${this.data.level}`, x + 20, y + boxH * 0.3);
+        ctx.fillText(`EXP: ${this.data.heroXP}`, x + 20, y + boxH * 0.7);
+    }
+
+    _showDebugPopup() {
+        const r = this.readMemory;
+        if (r) {
+            this.data.level = r(ADDR_HERO_LEVEL, 1)[0];
+            const xp = r(ADDR_HERO_XP, 2);
+            this.data.heroXP = xp[0] | (xp[1] << 8);
+        }
+        this.debugPopup = true;
+    }
+
+    resetDebugCombo() {
+        this._debugS = false;
+        this._debugE = false;
+    }
+
+    handleKey(code, ctrlKey, shiftKey, repeat) {
+        if (this.debugPopup) {
+            const isModifier = ['ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(code);
+            if (!repeat && !isModifier) {
+                this.debugPopup = false;
+                this._playNavSfx(12);
+            }
+            return true;
+        }
+
+        if (ctrlKey && shiftKey && !repeat && (code === 'KeyS' || code === 'KeyE')) {
+            if (code === 'KeyS') this._debugS = true;
+            if (code === 'KeyE') this._debugE = true;
+            if (this._debugS && this._debugE) {
+                this._debugS = false;
+                this._debugE = false;
+                if (this.currentTab === 2) this._showDebugPopup();
+            }
+            return true;
+        }
+
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Space'].includes(code)) {
+            this.handleInput(code, repeat);
+            return true;
+        }
+        return false;
     }
 
     _drawSheet(ctx, name, index, dx, dy, dw, dh) {
