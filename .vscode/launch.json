@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/zela.grp"
+                "${workspaceFolder}/tools/GrpViewer/enp5.grp"
             ],
             "console": "integratedTerminal",
         },

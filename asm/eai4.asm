@@ -7,7 +7,7 @@ eai4            segment byte public 'CODE'
                 assume cs:eai4, ds:eai4
                 org 0A000h
 start:
-                dw offset sub_A269
+                dw offset Monster_AI
                 db    0
                 db    0
                 db    0
@@ -186,7 +186,7 @@ byte_A265       db 5, 5, 5, 4
 ; =============== S U B R O U T I N E =======================================
 
 
-sub_A269        proc near
+Monster_AI        proc near
 
                 mov     bl, [si+4]
                 and     bl, 0Fh
@@ -767,7 +767,7 @@ loc_A64C:
 loc_A674:
                 or      byte ptr [di+9], 1
                 retn
-sub_A269        endp
+Monster_AI        endp
 
 
 ; =============== S U B R O U T I N E =======================================

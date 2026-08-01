@@ -408,6 +408,9 @@ const EAI4 = {
     ],
     numSprites: 81,
 };
+const EAI5 = {
+
+};
 const ZELA = {
     // flags (.flags & 0x1F, see getSheetFrame/Lookup_Monster_Tile_Attributes)
     // selects one of these slots. Unlike CRAB/TAKO/TORI, Zela_AI_proc
@@ -637,8 +640,7 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x2B],
-            [0x27, 0x28, 0x29, 0x2A],
+            [0x2B], // earthworm projectile
         ],
         ai: EAI3,
     },
@@ -668,8 +670,7 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x2B],
-            [0x27, 0x28, 0x29, 0x2A],
+            [0x2B], // earthworm projectile
         ],
         ai: EAI3,
     },
@@ -810,6 +811,66 @@ const DUNGEONS = {
             bossName: 'Agar',
         },
         ai: ZELA,
+    },
+    11: {
+        mdtPath: 'game/0/mp50.mdt',
+        tilesheetPath: 'assets/images/mpp5.png',
+        entitySheetPath: 'assets/images/enp5.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2D, 0x2E, 0x2F
+        ],
+        slopeTilesLeft: [0x21, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x22, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x1A, 0x1B, 0x1C, 0x1D], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0, 0, 0, 0, 0x25, 0x26, 0, 0, 0x23, 0x24, 0, 0], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [], // from eaiN.bin
+        monster_damage: [], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x31, 0x32, 0x33, 0x34],
+        ],
+        ai: EAI5,
+    },
+    12: {
+        mdtPath: 'game/0/mp51.mdt',
+        tilesheetPath: 'assets/images/mpp5.png',
+        entitySheetPath: 'assets/images/enp5.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2D, 0x2E, 0x2F
+        ],
+        slopeTilesLeft: [0x21, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x22, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x1A, 0x1B, 0x1C, 0x1D], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0, 0, 0, 0, 0x25, 0x26, 0, 0, 0x23, 0x24, 0, 0], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [], // from eaiN.bin
+        monster_damage: [], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x31, 0x32, 0x33, 0x34],
+        ],
+        ai: EAI5,
     },
 };
 const NOTIFICATION_STRINGS = {
