@@ -1,6 +1,4 @@
 /*
- * eai5.c - translated from eai5.asm
- *
  * Monster AI for the 5 monster types handled by this AI overlay
  * (monster.flags & 0x0F):
  *   0 -> "Sentry" top half    (man_top_ai)    - drives itself
@@ -19,10 +17,6 @@
  *        (eyeball_ai).
  *   4 -> a flying monster that climbs, hovers, dives at the hero, then
  *        climbs back up (vestlet_ai).
- *
- * The real names of these monsters are not recoverable from the
- * disassembly alone, so the identifiers below are descriptive rather
- * than canonical.
  *
  * Translation conventions
  * ------------------------------------------------------------------
@@ -50,16 +44,9 @@
  *   returning both a "value" byte and a carry flag exactly as the
  *   original sub does (analogous to, but not identical in threshold
  *   to, sub_A8F4 in eai2.c, which uses a 5-row range).
- * - Move_Monster_NWE_Depending_On_Whats_Below is a shared generic
- *   monster-movement helper used by several AI overlays; it is not
- *   yet declared in zeliard.h, so it is forward-declared here as
- *   extern (implemented elsewhere in the engine).
  */
 
 #include "zeliard.h"
-
-/* Shared generic monster-movement helper (not yet in zeliard.h). */
-extern void Move_Monster_NWE_Depending_On_Whats_Below(uint16_t m);
 
 /*
  * Small helpers / tables
@@ -617,7 +604,7 @@ static void red_egg_finalize_teleported_partner(uint16_t m, uint16_t partner, ui
  * "dive" animation. */
 static void red_egg_move_and_state(uint16_t m)
 {
-    Move_Monster_NWE_Depending_On_Whats_Below(m);
+    if(move_monster_NWE_if_on_airflow(m)) return;
 
     uint8_t old_state = MEM8(m+9);
     MEM8(m+9) &= 0xFE;
@@ -715,7 +702,7 @@ static void eyeball_ai(uint16_t m)
         return;
     }
 
-    Move_Monster_NWE_Depending_On_Whats_Below(m);
+    if(move_monster_NWE_if_on_airflow(m)) return;
 
     if (MEM8(m+9) & 4) { // .ai_state: charge-dash mode
         eyeball_charge_dash(m); // loc_A8DB
@@ -854,7 +841,7 @@ static void vestlet_ai(uint16_t m)
         return;
     }
 
-    Move_Monster_NWE_Depending_On_Whats_Below(m);
+    if(move_monster_NWE_if_on_airflow(m)) return;
 
     if (MEM8(m+9) & 1) {
         vestlet_dive_state(m); // loc_A993

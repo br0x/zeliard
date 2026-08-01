@@ -6265,3 +6265,30 @@ uint8_t Find_Monsters_Near_Hero(uint16_t m, uint16_t *out_partner, uint8_t *out_
         *out_partner += 16;
     }
 }
+
+// ..
+// ?? Check if monster bottom tiles sit on an airflow, then move
+// Original assembly proc manipulates the stack (pops return address if airflow handled), 
+// we return true and caller handles the return
+uint8_t move_monster_NWE_if_on_airflow(uint16_t m) {
+    uint8_t y = MEM8(m+2);            // .currY
+    uint8_t x_rel = MEM8(m+3);        // .m_x_rel
+    uint16_t di = coords_to_prox_addr(x_rel, y) + PROX_COLS;
+    wrap_map_from_above(&di);
+
+    // The monster occupies 2 horizontal tiles; check both for airflow
+    for (uint16_t i = 0; i < 2; i++) {
+        uint8_t tile = MEM8(di+i);
+        uint8_t dir = get_airflow_direction(tile);
+        if (dir == 0xFF) continue;     // no airflow
+
+        // Airflow tile found – move monster in the indicated direction
+        switch (dir) {
+            case 0: move_monster_N(m); move_monster_N(m); break;
+            case 1: move_monster_W(m); move_monster_W(m); break;
+            case 2: move_monster_E(m); move_monster_E(m); break;
+        }
+        return 1;   // signal the caller to return
+    }
+    return 0;   // no airflow found
+}

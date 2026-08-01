@@ -355,6 +355,7 @@ void Add_Projectile_To_Array(uint8_t *src);
 void Draw_Hero_Health();
 void Draw_Boss_Health();
 uint8_t Find_Monsters_Near_Hero(uint16_t m, uint16_t *out_partner, uint8_t *out_idx);
+uint8_t move_monster_NWE_if_on_airflow(uint16_t m);
 
 // Hero Movement State Machine
 void state_machine_dispatcher(void);  // Fight.asm 0x6343

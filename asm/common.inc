@@ -465,7 +465,7 @@ Get_Stats_proc                                     equ 6038h
 Add_Projectile_To_Array_proc                       equ 603Ah
 Browse_Projectiles_proc                            equ 603Ch
 Find_Monsters_Near_Hero_proc                       equ 603Eh
-Move_Monster_NWE_Depending_On_Whats_Below_proc     equ 6040h
+move_monster_NWE_if_on_airflow_proc     equ 6040h
 
 ; town.bin
 restore_game_proc                                  equ 601Ch

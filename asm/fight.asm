@@ -112,7 +112,7 @@ start:
                 dw offset Add_Projectile_To_Array ; In: BX pointing to projectile struct
                 dw offset Browse_Projectiles
                 dw offset Find_Monsters_Near_Hero ; Return dl: number of monsters found nearby
-                dw offset Move_Monster_NWE_Depending_On_Whats_Below ; si points to monster struc
+                dw offset move_monster_NWE_if_on_airflow ; si points to monster struc
 
 ; ===========================================================================
 ; Entry point called when the dungeon scene begins (after MDT load).
@@ -9351,7 +9351,7 @@ funcs_9747      dw offset check_collision_E2
 ; Used by flying/swimming monster AIs that follow air/water currents.
 ; Airflow categories: 0=Up → move N; 1=Left → move W; 2=Right → move E.
 ; ===========================================================================
-Move_Monster_NWE_Depending_On_Whats_Below proc near
+move_monster_NWE_if_on_airflow proc near
                 mov     ax, word ptr [si+monster.currY]
                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
                                         ; uint8_t x = AH
@@ -9372,7 +9372,7 @@ loc_976E:
                                         ; Output:
                                         ; NZ, cl=0xff (no airflow)
                                         ; ZF, cl=0 (Up), 1 (Left), 2 (Right)
-                mov     bl, cl          ; category
+                mov     bl, cl          ; direction
                 pop     si
                 pop     cx
                 jz      short loc_977F
@@ -9382,11 +9382,11 @@ loc_976E:
 ; ---------------------------------------------------------------------------
 
 loc_977F:        
-                pop     ax
+                pop     ax              ; pops return address if airflow handled
                 xor     bh, bh
                 add     bx, bx          ; switch 3 cases
                 jmp     ds:jpt_9784[bx] ; switch jump
-Move_Monster_NWE_Depending_On_Whats_Below endp
+move_monster_NWE_if_on_airflow endp
 
 ; ---------------------------------------------------------------------------
 jpt_9784        dw offset category0_moveN

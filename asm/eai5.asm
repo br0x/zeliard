@@ -915,7 +915,7 @@ loc_A77C:
                 or      byte ptr [si+9], 1
 
 loc_A780:
-                call    word ptr cs:Move_Monster_NWE_Depending_On_Whats_Below_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
                 mov     al, [si+9]
                 and     byte ptr [si+9], 0FEh
                 test    al, 1
@@ -1009,7 +1009,7 @@ loc_A81C:
 ; ---------------------------------------------------------------------------
 
 loc_A827:
-                call    word ptr cs:Move_Monster_NWE_Depending_On_Whats_Below_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
                 test    byte ptr [si+9], 4
                 jz      short loc_A835
                 jmp     loc_A8DB
@@ -1170,7 +1170,7 @@ loc_A924:
 ; ---------------------------------------------------------------------------
 
 loc_A92F:
-                call    word ptr cs:Move_Monster_NWE_Depending_On_Whats_Below_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
                 test    byte ptr [si+9], 1
                 jnz     short loc_A993
                 test    byte ptr [si+9], 2

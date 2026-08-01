@@ -50,7 +50,7 @@ fight:6038                                         ; al=9: NOP
 fight:603A                 dw offset Add_Projectile_To_Array ; In: BX pointing to projectile struct
 fight:603C                 dw offset Browse_Projectiles
 fight:603E                 dw offset Find_Monsters_Near_Hero ; Return dl: number of monsters found nearby
-fight:6040                 dw offset Move_Monster_NWE_Depending_On_Whats_Below ; si points to monster struc
+fight:6040                 dw offset move_monster_NWE_if_on_airflow ; si points to monster struc
 fight:6042
 fight:6042 ; =============== S U B R O U T I N E =======================================
 fight:6042
@@ -8838,7 +8838,7 @@ fight:975B ; =============== S U B R O U T I N E ===============================
 fight:975B
 fight:975B ; si points to monster struc
 fight:975B
-fight:975B Move_Monster_NWE_Depending_On_Whats_Below proc near ; ...
+fight:975B move_monster_NWE_if_on_airflow proc near ; ...
 fight:975B                 mov     ax, word ptr [si+monster.currY]
 fight:975E                 call    coords_in_ax_to_proximity_map_addr_in_di ; uint8_t y = AL
 fight:975E                                         ; uint8_t x = AH
@@ -8873,7 +8873,7 @@ fight:977F                 pop     ax
 fight:9780                 xor     bh, bh
 fight:9782                 add     bx, bx          ; switch 3 cases
 fight:9784                 jmp     ds:jpt_9784[bx] ; switch jump
-fight:9784 Move_Monster_NWE_Depending_On_Whats_Below endp
+fight:9784 move_monster_NWE_if_on_airflow endp
 fight:9784
 fight:9784 ; ---------------------------------------------------------------------------
 fight:9788 jpt_9784        dw offset category0_moveN ; ...
