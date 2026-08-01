@@ -24,6 +24,7 @@ DEBUG_DRAW = False
 # 10; 8x8 static dungeon tiles (dchr.grp, mppX.grp)
 # 11: 16x16 monsters Sprites (enpX.grp)
 # 12: boss sprites (crab.grp)
+# 16: boss sprites (zela.grp)
 GRP_DESCRIPTOR = [
     ("itemp.grp", [0, 1, 1, 1, 1, 1, 1]),
     ("font.grp",  [2, 2, 2]),
@@ -71,6 +72,7 @@ GRP_DESCRIPTOR = [
     ("dman.grp",  13), # rokademo
     ("tako.grp",  14),
     ("tori.grp",  15),
+    ("zela.grp",  16),
 ]
 
 MODE_CFG = {
@@ -90,6 +92,7 @@ MODE_CFG = {
     13:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "dman"},
     14:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tako"},
     15:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tori"},
+    16:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "zela"},
 }
 
 SCALE = 3
@@ -2462,6 +2465,231 @@ def render_tori_group(data, canvas, y_offset):
     return current_y - y_offset
 
 # ---------------------------------------------------------------------------
+# Zela (Agar boss) rendering
+# ---------------------------------------------------------------------------
+
+# Transcribed directly from zela.asm's byte_A03A/byte_A08A/byte_A0D0/
+# byte_A116/byte_A166 tables, pointed to by the 5-entry offset table
+# right after "start:" (ADDR_MONSTER_AI_MOVE_LEFT_FRAMES). Same
+# [pal_idx, tl, tr, bl, br] format as CRAB_FRAMES/TAKO_FRAMES/
+# TORI_FRAMES. Unlike Tako/Tori, Zela_AI_proc addresses these directly:
+# it writes a tile-group id (0-4, from movement_facing_table below) into
+# each body segment's .flags and a frame index (0-11) into
+# .anim_counter, and the generic sprite-composition routine reads
+# straight from the matching table here -- there's no shape-mask walk
+# to reproduce.
+ZELA_FRAMES = {
+    "Tile Group 0 (byte_A03A)": [
+        [2, 0x01, 0x02, 0x03, 0x04],
+        [2, 0x11, 0x07, 0x12, 0x13],
+        [2, 0x1E, 0x16, 0x1F, 0x20],
+        [2, 0x05, 0x06, 0x07, 0x08],
+        [2, 0x14, 0x15, 0x16, 0x17],
+        [2, 0x21, 0x22, 0x23, 0x24],
+        [2, 0x09, 0x0A, 0x0B, 0x0C],
+        [2, 0x18, 0x19, 0x1A, 0x1B],
+        [2, 0x25, 0x26, 0x27, 0x1D],
+        [2, 0x0D, 0x0E, 0x0F, 0x10],
+        [2, 0x1C, 0x10, 0x1D, 0x10],
+        [2, 0x28, 0x10, 0x29, 0x2A],
+        [2, 0x18, 0x2B, 0x1A, 0x2C],
+        [2, 0x2D, 0x10, 0x2E, 0x10],
+        [2, 0x11, 0x07, 0x12, 0x2F],
+        [2, 0x30, 0x15, 0x31, 0x17],
+    ],
+    "Tile Group 1 (byte_A08A)": [
+        [2, 0x32, 0x33, 0x34, 0x35],
+        [2, 0x41, 0x42, 0x43, 0x44],
+        [2, 0x1E, 0x50, 0x1F, 0x51],
+        [2, 0x36, 0x37, 0x38, 0x39],
+        [2, 0x45, 0x46, 0x47, 0x48],
+        [2, 0x52, 0x53, 0x54, 0x24],
+        [2, 0x3A, 0x3B, 0x3C, 0x3D],
+        [2, 0x49, 0x4A, 0x4B, 0x4C],
+        [2, 0x55, 0x4F, 0x56, 0x57],
+        [2, 0x3E, 0x00, 0x3F, 0x40],
+        [2, 0x4D, 0x4E, 0x4F, 0x10],
+        [2, 0x58, 0x10, 0x59, 0x2A],
+        [2, 0x49, 0x5A, 0x4B, 0x5B],
+        [2, 0x5C, 0x4E, 0x5D, 0x5E],
+    ],
+    "Tile Group 2 (byte_A0D0)": [
+        [2, 0x00, 0x32, 0x5F, 0x60],
+        [2, 0x6B, 0x6C, 0x6D, 0x6E],
+        [2, 0x79, 0x7A, 0x7B, 0x7C],
+        [2, 0x61, 0x62, 0x63, 0x64],
+        [2, 0x6F, 0x70, 0x71, 0x72],
+        [2, 0x7D, 0x7E, 0x7F, 0x24],
+        [2, 0x65, 0x66, 0x67, 0x68],
+        [2, 0x73, 0x1D, 0x74, 0x75],
+        [2, 0x80, 0x4F, 0x81, 0x59],
+        [2, 0x69, 0x00, 0x6A, 0x00],
+        [2, 0x76, 0x77, 0x4F, 0x78],
+        [2, 0x82, 0x10, 0x59, 0x2A],
+        [2, 0x73, 0x83, 0x74, 0x84],
+        [2, 0x76, 0x77, 0x4F, 0x78],
+    ],
+    "Tile Group 3 (byte_A116)": [
+        [2, 0x00, 0x85, 0x86, 0x87],
+        [2, 0x93, 0x94, 0x95, 0x96],
+        [2, 0x1E, 0xA1, 0xA2, 0xA3],
+        [2, 0x88, 0x89, 0x8A, 0x8B],
+        [2, 0x97, 0x98, 0x99, 0x9A],
+        [2, 0xA4, 0xA5, 0xA6, 0xA7],
+        [2, 0x8C, 0x8D, 0x8E, 0x67],
+        [2, 0x9B, 0x9C, 0x9D, 0x9E],
+        [2, 0x25, 0x26, 0x27, 0x1D],
+        [2, 0x8F, 0x90, 0x91, 0x92],
+        [2, 0x1D, 0x9F, 0xA0, 0x10],
+        [2, 0x28, 0x10, 0x29, 0x2A],
+        [2, 0x00, 0x00, 0x00, 0x00],
+        [2, 0x00, 0x00, 0x00, 0x00],
+        [2, 0x93, 0xA8, 0x95, 0xA9],
+        [2, 0xAA, 0xAB, 0xAC, 0xAD],
+    ],
+    "Tile Group 4 (byte_A166)": [
+        [2, 0x00, 0xAE, 0x00, 0xAF],
+        [2, 0xBB, 0xBC, 0xBD, 0xBE],
+        [2, 0x1E, 0xCA, 0xA2, 0xCB],
+        [2, 0xB0, 0xB1, 0xB2, 0xB3],
+        [2, 0xBF, 0xC0, 0xC1, 0xC2],
+        [2, 0xCC, 0xCD, 0xCE, 0xCF],
+        [2, 0xB4, 0xB5, 0xB6, 0xB7],
+        [2, 0xC3, 0xC4, 0xC5, 0xC6],
+        [2, 0xD0, 0xD1, 0xD2, 0xD3],
+        [2, 0xB8, 0x00, 0xB9, 0xBA],
+        [2, 0xC7, 0xC8, 0x4F, 0xC9],
+        [2, 0xD4, 0x10, 0x1D, 0x2A],
+        [2, 0x00, 0x00, 0x00, 0x00],
+        [2, 0x00, 0x00, 0x00, 0x00],
+        [2, 0xBB, 0xBC, 0xBD, 0xBE],
+        [2, 0xBF, 0xD5, 0xC1, 0xD6],
+    ],
+}
+
+# Maps a tile-group id (as written into a body segment's .flags field)
+# to its ZELA_FRAMES key.
+ZELA_FRAME_SET_BY_INDEX = {
+    0: "Tile Group 0 (byte_A03A)",
+    1: "Tile Group 1 (byte_A08A)",
+    2: "Tile Group 2 (byte_A0D0)",
+    3: "Tile Group 3 (byte_A116)",
+    4: "Tile Group 4 (byte_A166)",
+}
+
+# byte_A4EA: per-anim_phase tile-group id, indexed by anim_phase (0-7).
+ZELA_MOVEMENT_FACING_TABLE = [2, 1, 0, 3, 4, 3, 0, 1]
+
+
+def compute_zela_body_layout(anim_phase):
+    """
+    Reproduce Zela_AI_proc's body-segment layout (stage_body_segments /
+    loc_A3DA feeding place_boss_body_segments / loc_A467) for a single
+    anim_phase (0-7): a fixed 4-column x 3-row grid where every one of
+    the 12 slots uses the same tile group
+    (ZELA_MOVEMENT_FACING_TABLE[anim_phase], i.e. byte_A4EA) and a frame
+    index equal to its column-major position in the grid (column 0's
+    3 rows are frames 0-2, column 1's are 3-5, and so on) -- unlike
+    Tako/Tori, Zela has no shape-mask walk gating which cells appear;
+    all 12 are always placed.
+    """
+    tile_group = ZELA_MOVEMENT_FACING_TABLE[anim_phase & 7]
+    placements = []
+    idx = 0
+    for col in range(4):
+        for row in range(3):
+            placements.append((col, row, tile_group, idx))
+            idx += 1
+    return placements
+
+
+def render_zela_group(data, canvas, y_offset):
+    """
+    Render zela.grp sprites (Agar/Zela boss).
+
+    Part 1 assembles the actual boss body (4 columns x 3 rows) for each
+    of the 8 anim_phase values (0-7), exactly as Zela_AI_proc lays it
+    out every frame: stage_body_segments() fills all 12 slots from
+    ZELA_MOVEMENT_FACING_TABLE[anim_phase] with sequential frame
+    indices 0-11, and place_boss_body_segments() lays those 12 slots
+    into the 4x3 grid in column-major order (column, then row).
+
+    Part 2 is a plain browser over every raw frame set (ZELA_FRAMES),
+    including the frames beyond index 11 that the composite body never
+    reaches -- tables 3 and 4 have two trailing all-zero (blank)
+    entries at indices 12-13, and all five tables have a couple of
+    entries beyond that the body walk never selects; same caveat as
+    Tako's unused Frame Set 16.
+    """
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+
+    # Ensure the data buffer is padded to prevent index-out-of-range
+    # errors for high tile indices.
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Zela Body (anim_phase 0-7)
+    # -----------------------------------------------------------------------
+    cols, rows = 4, 3
+    block_w, block_h = cols * 16 * scale, rows * 16 * scale
+    phases_per_row = 4
+    body_gap_x, body_gap_y = 24, 32
+
+    for phase in range(8):
+        col_idx = phase % phases_per_row
+        row_idx = phase // phases_per_row
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 2, y_base - 8, text=f"anim_phase {phase}",
+                            anchor="w", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, tile_group, frame_idx in compute_zela_body_layout(phase):
+            set_name = ZELA_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+            frames = ZELA_FRAMES[set_name]
+            if frame_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[frame_idx], tiles_raw,
+                                       x_base + gcol * 16 * scale,
+                                       y_base + grow * 16 * scale,
+                                       scale)
+
+    num_body_rows = (8 + phases_per_row - 1) // phases_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set (including frames the composite
+    # body never reaches)
+    # -----------------------------------------------------------------------
+    gap_x, gap_y = 0, 8
+    sprite_px = 16
+    frames_per_row = 16
+    n = 0
+    for set_name, frames in ZELA_FRAMES.items():
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
+# ---------------------------------------------------------------------------
 # Roka rendering (roka.grp dungeon entrance decorations)
 # ---------------------------------------------------------------------------
 
@@ -2923,6 +3151,10 @@ class GrpViewer:
                 consumed = render_dman_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | RokaDemo Sprites")
+            elif modes == 16:
+                consumed = render_zela_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             else:  # 5 or 6
                 consumed = render_npc_group(data, self.canvas, y_cursor, is_hero=(modes == 6))
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))

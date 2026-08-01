@@ -5,7 +5,7 @@
  * This is a boss-encounter overlay module, structurally identical to
  * crab.asm/crab.c ("Cangrejo") and tako.asm/tako.c ("Pulpo"): it is
  * loaded at a fixed segment address and exports an entry point
- * (Agar_AI, originally Zela_AI_proc) plus a shared "boss_state_block"
+ * (Agar_AI, originally Agar_AI_proc) plus a shared "boss_state_block"
  * that the generic engine reads elsewhere (health bar, victory/reward
  * handling, name display) via a fixed offset, regardless of which boss
  * module is currently loaded.
@@ -14,15 +14,18 @@
  * ------------------------------------------------------------------
  * This file translates the AI/gameplay logic only. The following are
  * NOT translated, since they are sprite/animation *asset* data read by
- * a separate, generic boss-rendering/monster-AI routine at fixed
- * offsets into this overlay (never touched by Zela_AI_proc itself),
- * exactly like the excluded tables in crab.c / tako.c:
+ * a separate, generic sprite-composition routine at fixed offsets into
+ * this overlay (never touched by Zela_AI_proc itself):
  *   - the "start:" export header and its reserved padding
- *   - byte_A03A .. byte_A166 (5 tables of encounter-frame indices,
- *     reached via ADDR_MONSTER_AI_MOVE_LEFT_FRAMES and friends): these
- *     belong to the regular, non-boss "Agar" monster's per-difficulty
- *     movement/death/item/potion animation frame tables, not to the
- *     boss AI
+ *   - byte_A03A .. byte_A166 (5 tables of [pal_idx, tl, tr, bl, br]
+ *     16x16-sprite descriptors, reached via the offset table at
+ *     ADDR_MONSTER_AI_MOVE_LEFT_FRAMES): these are exactly the boss's
+ *     own body-segment sprites -- movement_facing_table (byte_A4EA,
+ *     values 0-4) selects which of the 5 tables, and each body
+ *     segment's anim_counter (0-11, from stage_body_segments) selects
+ *     the frame within it -- transcribed as ZELA_FRAMES in
+ *     tools/GrpViewer/grp_viewer.py rather than duplicated here, same
+ *     as CRAB_FRAMES/TAKO_FRAMES/TORI_FRAMES for the other bosses
  *   - boss_state_block's own non-AI fields (xp_reward, arena_center_x,
  *     boss_placement, name_block_ptr, almas_reward, name_screen_x/y,
  *     boss_name_pstring) -- these are populated/read by the generic

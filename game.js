@@ -408,6 +408,47 @@ const EAI4 = {
     ],
     numSprites: 81,
 };
+const ZELA = {
+    // flags (.flags & 0x1F, see getSheetFrame/Lookup_Monster_Tile_Attributes)
+    // selects one of these slots. Unlike CRAB/TAKO/TORI, Zela_AI_proc
+    // doesn't need a bit-packed table_index/pose scheme: every body
+    // segment's .flags is written directly from
+    // movement_facing_table[anim_phase] (byte_A4EA, values 0-4), and
+    // .anim_counter (0-11, from stage_body_segments) is used as-is for
+    // the offset within that group -- so index 0-4 below map 1:1 onto
+    // zela.asm's 5 real frame-descriptor tables (byte_A03A/A08A/A0D0/
+    // A116/A166), each slot's list being that table's rows in order,
+    // numbered linearly into zela.png (a linear 2x2-tile sheet, per
+    // grp_viewer.py's ZELA_FRAMES/Part 2 numbering).
+    left: [ // 0xA030
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],           // tile group 0 (byte_A03A)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],        // tile group 1 (byte_A08A)
+        [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],        // tile group 2 (byte_A0D0)
+        [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59], // tile group 3 (byte_A116)
+        [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75], // tile group 4 (byte_A166)
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],  // 5..21 (unused)
+        [76],  // ordinary key                                               // 22
+    ],
+    right: [ // 0xA070 -- identical to `left`; like CRAB/TAKO, Agar has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set by place_boss_body_segments)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+        [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
+        [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59],
+        [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75],
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],  // 5..21 (unused)
+        [76],  // ordinary key                                               // 22
+    ],
+    // NOTE: zela.asm's projectile templates (proj_near/proj_far, fed to
+    // Add_Projectile_To_Array) don't correspond to any extra frame group
+    // here -- unlike CRAB's acid-drop (index 20/21) or TAKO's ink-droplet
+    // (index 16), there's no confirmed extra tile-group in
+    // byte_A03A..byte_A166 for Zela's shot, and the projectile struct's
+    // fixed byte (0x15/0x14) isn't documented well enough to map with
+    // confidence. If/when the real projectile sprite is identified, add
+    // its frames here and reference the group's index from wherever the
+    // WASM side reports the projectile's .flags.
+    numSprites: 76,
+};
 
 const DUNGEONS = {
     0: { 
@@ -727,6 +768,48 @@ const DUNGEONS = {
             [0x14, 0x15],
         ],
         ai: EAI4,
+    },
+    10: { // dungeon 4 boss room
+        mdtPath: 'game/0/mp4d.mdt',
+        tilesheetPath: 'assets/images/mpp4.png',
+        entitySheetPath: 'assets/images/zela.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 8, 0x0B, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x14, 0x15],
+        ],
+        bossState: {
+            // NOTE: boss_state_block's initial values aren't part of
+            // Zela_AI_proc either (populated by the generic overlay
+            // loader/encounter setup) -- bossX/bossY are estimates within
+            // the arena bounds Zela_AI_proc itself enforces (x: 17-50,
+            // y: mod 64), and bossHP/xpReward/almasReward continue the
+            // progression from Cangrejo(150)/Pulpo(250)/Pollo(500).
+            bossX: 48,                // +0
+            bossY: 12,                // +2
+            bossHP: 500,              // +3
+            xpReward: 1000,           // +5
+            arenaCenterX: 12,         // +7
+            bossPlacement: 0,         // +8
+            almasReward: 600,         // +11
+            bossName: 'Agar',
+        },
+        ai: ZELA,
     },
 };
 const NOTIFICATION_STRINGS = {
