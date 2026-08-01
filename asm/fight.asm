@@ -9346,7 +9346,6 @@ funcs_9747      dw offset check_collision_E2
 ; si points to monster struc
 
 ; ===========================================================================
-; Move_Monster_NWE_Depending_On_Whats_Below
 ; Exported helper for AI: checks the tile BELOW the monster (y+1) for
 ; airflow direction. Calls move_monster_N/W/E accordingly (twice each).
 ; Used by flying/swimming monster AIs that follow air/water currents.

@@ -5208,6 +5208,8 @@ void load_eai_module(uint8_t place_map_id)
         case 8: current_monster_ai = Monster_AI_4; break; // mp40.mdt
         case 9: current_monster_ai = Monster_AI_4; break; // mp41.mdt
         case 10: Agar_AI_reset(); current_monster_ai = Agar_AI; break;         // mp4d.mdt
+        case 11: current_monster_ai = Monster_AI_5; break; // mp50.mdt
+        case 12: current_monster_ai = Monster_AI_5; break; // mp51.mdt
         /* add more as more eaiN/boss modules are translated */
     }
 }

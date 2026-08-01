@@ -409,7 +409,59 @@ const EAI4 = {
     numSprites: 81,
 };
 const EAI5 = {
-
+    left: [ // 0xA030: 32 arrays
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],           // man_top_left
+        [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // man_bottom_left
+        [54, 55, 56, 57, 58, 59, 60, 61],                 // red_egg
+        [65, 66, 67, 68, 69, 70],                         // eyeball_left
+        [80, 81, 82, 83, 84, 85, 86, 87],                 // vestlet
+        [], [], [],
+        [24, 25, 26],                                     // man_top_death
+        [51, 52, 53],                                     // man_bottom_death
+        [62, 63, 64],                                     // red_egg_death
+        [77, 78, 79],                                     // eyeball_death
+        [88, 89, 90],                                     // vestlet_death
+        [], [], [],
+        [114, 115, 116, 117],                             // destroyable_wall1
+        [118, 119, 120, 121],                             // destroyable_wall2
+        [91, 92, 93],                                     // hit
+        [106, 107, 108, 109, 110, 111, 112],              // chest
+        [94, 95, 96, 97],                                 // alma_red
+        [98, 99, 100, 101],                               // alma_blue
+        [113],                                            // ordinary_key (always 22nd group)
+        [],
+        [123],                                            // red_potion
+        [124],                                            // blue_potion
+        [122],                                            // pirika_shoe
+        [102, 103, 104, 105],                             // alma_rare
+    ],
+    right: [ // 0xA070: 32 arrays
+        [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], // man_top_right
+        [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], // man_bottom_right
+        [54, 55, 56, 57, 58, 59, 60, 61],                 // red_egg
+        [71, 72, 73, 74, 75, 76],                         // eyeball_right
+        [80, 81, 82, 83, 84, 85, 86, 87],                 // vestlet
+        [], [], [],
+        [24, 25, 26],                                     // man_top_death
+        [51, 52, 53],                                     // man_bottom_death
+        [62, 63, 64],                                     // red_egg_death
+        [77, 78, 79],                                     // eyeball_death
+        [88, 89, 90],                                     // vestlet_death
+        [], [], [],
+        [114, 115, 116, 117],                             // destroyable_wall1
+        [118, 119, 120, 121],                             // destroyable_wall2
+        [91, 92, 93],                                     // hit
+        [106, 107, 108, 109, 110, 111, 112],              // chest
+        [94, 95, 96, 97],                                 // alma_red
+        [98, 99, 100, 101],                               // alma_blue
+        [113],                                            // ordinary_key (always 22nd group)
+        [],
+        [123],                                            // red_potion
+        [124],                                            // blue_potion
+        [122],                                            // pirika_shoe
+        [102, 103, 104, 105],                             // alma_rare
+    ],
+    numSprites: 0,
 };
 const ZELA = {
     // flags (.flags & 0x1F, see getSheetFrame/Lookup_Monster_Tile_Attributes)
