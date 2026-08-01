@@ -875,14 +875,14 @@ const DUNGEONS = {
         slopeTilesRight: [0x22, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x1A, 0x1B, 0x1C, 0x1D], // mppX.grp.unp bytes 0x20..0x23
         airflows: [0, 0, 0, 0, 0x25, 0x26, 0, 0, 0x23, 0x24, 0, 0], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [], // from eaiN.bin
-        monster_damage: [], // from eaiN.bin
+        monster_xp:     [50, 50, 20, 10, 10], // from eaiN.bin
+        monster_damage: [40, 40, 20, 20, 10], // from eaiN.bin
         death_descriptors: [ // from eaiN.bin
-            [],
-            [],
-            [],
-            [],
-            [],
+            [11, 5, 5, 5],
+            [11, 5, 5, 5],
+            [5, 4, 5, 4],
+            [5, 0, 5, 0],
+            [5, 0, 5, 0],
             [],
             [],
             [],
@@ -905,14 +905,14 @@ const DUNGEONS = {
         slopeTilesRight: [0x22, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x1A, 0x1B, 0x1C, 0x1D], // mppX.grp.unp bytes 0x20..0x23
         airflows: [0, 0, 0, 0, 0x25, 0x26, 0, 0, 0x23, 0x24, 0, 0], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [], // from eaiN.bin
-        monster_damage: [], // from eaiN.bin
+        monster_xp:     [50, 50, 20, 10, 10], // from eaiN.bin
+        monster_damage: [40, 40, 20, 20, 10], // from eaiN.bin
         death_descriptors: [ // from eaiN.bin
-            [],
-            [],
-            [],
-            [],
-            [],
+            [11, 5, 5, 5],
+            [11, 5, 5, 5],
+            [5, 4, 5, 4],
+            [5, 0, 5, 0],
+            [5, 0, 5, 0],
             [],
             [],
             [],
@@ -2867,7 +2867,7 @@ function drawDungeonEntities() {
             _currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(entityId & 0x7F, 6);
         }
-        console.log('DFOE: ', dir, flags, offset, entityId);
+        // console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
