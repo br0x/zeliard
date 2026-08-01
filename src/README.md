@@ -10,10 +10,11 @@ Install **Emscripten**
 ## Build
 
 ```bash
-./build.sh
+# from the repository root
+make
 ```
 
-This creates `build/zeliard.wasm`.
+This creates `build/zeliard.js` + `build/zeliard.wasm`.
 
 ## Test
 

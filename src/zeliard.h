@@ -340,6 +340,9 @@ void Pulpo_AI(uint16_t m);
 void Pulpo_AI_reset(void);
 void Pollo_AI(uint16_t m);
 void Pollo_AI_reset(void);
+void Agar_AI(uint16_t m);
+void Agar_AI_reset(void);
+
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);
 static void monster_activation(uint16_t m);
