@@ -249,7 +249,7 @@ Process_Dirty_Tile_With_Animation endp
 
 ; ---------------------------------------------------------------------------
 animate_mpp58_tiles  dw offset Animate_Water_Cavern5
-                dw offset Animate_Gold_Magma_Cavern6
+                dw offset Animate_Gold_Cavern6
                 dw offset Animate_Hot_Cavern7
                 dw offset Animate_Thorn_Cavern8
 
@@ -283,7 +283,7 @@ Animate_Water_Cavern5 endp
 ; =============== S U B R O U T I N E =======================================
 
 
-Animate_Gold_Magma_Cavern6 proc near      ; ...
+Animate_Gold_Cavern6 proc near      ; ...
                 mov     al, [si-1]
                 sub     al, 1Dh
                 cmp     al, 6
@@ -297,15 +297,15 @@ loc_31A8:
                 jnb     short loc_31CA
                 or      al, al
                 jnz     short loc_31C0
-                push    ax
+                push    ax ; tile == 1Dh
                 call    word ptr cs:get_random_proc
-                and     al, 3
+                and     al, 3 ; al = rnd & 3
                 pop     ax
                 jz      short loc_31C0
-                retn
+                retn ; 75% chance (rnd = 1..3)
 ; ---------------------------------------------------------------------------
 
-loc_31C0:
+loc_31C0:       ; tile == 1Dh && rnd == 0
                 inc     al
                 and     al, 3
                 add     al, 1Dh
@@ -319,7 +319,7 @@ loc_31CA:
                 add     al, 21h ; '!'
                 mov     [si-1], al
                 retn
-Animate_Gold_Magma_Cavern6 endp
+Animate_Gold_Cavern6 endp
 
 
 ; =============== S U B R O U T I N E =======================================

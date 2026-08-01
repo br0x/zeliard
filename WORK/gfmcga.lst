@@ -273,7 +273,7 @@ seg000:3175 Process_Dirty_Tile_With_Animation endp
 seg000:3175
 seg000:3175 ; ---------------------------------------------------------------------------
 seg000:3176 animate_mpp58_tiles      dw offset Animate_Water_Cavern5 ; ...
-seg000:3178                 dw offset Animate_Gold_Magma_Cavern6
+seg000:3178                 dw offset Animate_Gold_Cavern6
 seg000:317A                 dw offset Animate_Hot_Cavern7
 seg000:317C                 dw offset Animate_Thorn_Cavern8
 seg000:317E
@@ -307,7 +307,7 @@ seg000:319E
 seg000:319E ; =============== S U B R O U T I N E =======================================
 seg000:319E
 seg000:319E
-seg000:319E Animate_Gold_Magma_Cavern6 proc near      ; ...
+seg000:319E Animate_Gold_Cavern6 proc near      ; ...
 seg000:319E                 mov     al, [si-1]
 seg000:31A1                 sub     al, 1Dh
 seg000:31A3                 cmp     al, 6
@@ -343,7 +343,7 @@ seg000:31CC                 and     al, 1
 seg000:31CE                 add     al, 21h ; '!'
 seg000:31D0                 mov     [si-1], al
 seg000:31D3                 retn
-seg000:31D3 Animate_Gold_Magma_Cavern6 endp
+seg000:31D3 Animate_Gold_Cavern6 endp
 seg000:31D3
 seg000:31D4
 seg000:31D4 ; =============== S U B R O U T I N E =======================================

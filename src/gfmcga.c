@@ -1221,8 +1221,8 @@ static void Animate_Water_Cavern5(uint16_t si, uint8_t *di)
     MEM8(si-1) = al;
 }
 
-// mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (magma) animated tiles
-static void Animate_Gold_Magma_Cavern6(uint16_t si, uint8_t *di)
+// mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (melted gold) animated tiles
+static void Animate_Gold_Cavern6(uint16_t si, uint8_t *di)
 {
     uint8_t al = (uint8_t)(MEM8(si-1) - 0x1D);
     if (al >= 6) {
@@ -1236,13 +1236,12 @@ static void Animate_Gold_Magma_Cavern6(uint16_t si, uint8_t *di)
         return;
     }
 
-    if (al == 0) { // 25% chance to skip the animation
-        if ((get_random() & 3) != 0) {
+    if (al == 0) { // 0x1D
+        if ((get_random() & 3) != 0) { // 75% chance to skip the animation
             return;
         }
-        al = 0;
     }
-
+    // cyclic animation
     al = (uint8_t)(((al + 1) & 3) + 0x1D);
     MEM8(si-1) = al;
 }
@@ -1315,7 +1314,7 @@ static void Animate_Thorn_Cavern8(uint16_t si, uint8_t *di)
 typedef void (*anim_func_t)(uint16_t si, uint8_t *di);
 static const anim_func_t animate_mpp58_tiles[4] = {
     Animate_Water_Cavern5, // cavern level 5
-    Animate_Gold_Magma_Cavern6, // cavern level 6
+    Animate_Gold_Cavern6, // cavern level 6
     Animate_Hot_Cavern7, // cavern level 7
     Animate_Thorn_Cavern8, // cavern level 8
 };

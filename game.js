@@ -461,7 +461,7 @@ const EAI5 = {
         [122],                                            // pirika_shoe
         [102, 103, 104, 105],                             // alma_rare
     ],
-    numSprites: 0,
+    numSprites: 125,
 };
 const ZELA = {
     // flags (.flags & 0x1F, see getSheetFrame/Lookup_Monster_Tile_Attributes)
@@ -2834,6 +2834,7 @@ _tintCanvas.height = TILE_HEIGHT;
 const _tintCtx = _tintCanvas.getContext('2d');
 
 function drawDungeonEntities() {
+    renderCounter = (renderCounter + 1) & 0xFF;
     _bossExplosionFrameRendered = false;
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
@@ -2866,7 +2867,7 @@ function drawDungeonEntities() {
             _currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(entityId & 0x7F, 6);
         }
-        // console.log('DFOE: ', dir, flags, offset, entityId);
+        console.log('DFOE: ', dir, flags, offset, entityId);
         
         return dungeonAI[dir][flags][offset];
     }
@@ -3058,14 +3059,100 @@ function drawDungeonEntities() {
             /* else: old di[-1] value was 0xFF -> skip the redraw */
         }
 
-        if (readU8(ADDR_CAVERN_LEVEL) < 5) {
-            return;
-        }
-        const idx = readU8(ADDR_CAVERN_LEVEL) - 5;
-        if (idx >= 4) {
-            return;
-        }
-        // animate_mpp58_tiles[idx](si, di); // for cavern levels 5..8
+        switch (readU8(ADDR_CAVERN_LEVEL)) {
+            case 5: // Animate_Water_Cavern5; mpp5.grp: 0x1B↔0x1C - animated water tile
+                {
+                    let al = readU8(si-1) - 0x1B;
+                    if (al < 0 || al >= 2) {
+                        break;
+                    }
+                    writeMemory(di-1, [0xFE]); // is animated
+                    if (!(renderCounter & 1)) {
+                        break;
+                    }
+                    writeMemory(si-1, [((al + 1) & 1) + 0x1B]);
+                }
+                break;
+            case 6: // Animate_Gold_Cavern6; mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (melted gold) animated tiles
+                {
+                    let al = readU8(si-1) - 0x1D;
+                    if (al < 0 || al >= 6) {
+                        break;
+                    }
+                    writeMemory(di-1, [0xFE]); // is animated
+
+                    if (al >= 4) {
+                        writeMemory(si-1, [((al + 1) & 1) + 0x21]);
+                        break;
+                    }
+
+                    if (al === 0) { // 75% chance to skip the animation
+                        if ((getRandomInt(0, 255) & 3) !== 0) {
+                            break;
+                        }
+                    }
+                    writeMemory(si-1, [((al + 1) & 3) + 0x1D]);
+                }
+                break;
+            case 7: // Animate_Hot_Cavern7; mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
+                {
+                    let al = readU8(si-1);
+                    if (al === 0x2C || al === 0x2D) {
+                        writeMemory(di-1, [0xFE]); // is animated
+                        if (!(renderCounter & 1)) {
+                            break;
+                        }
+                        writeMemory(si-1, [((al + 1) & 1) + 0x2C]);
+                        break;
+                    }
+
+                    if (al >= 0x3E) {
+                        break;
+                    }
+
+                    const mapping = {
+                        0x0E: 0x33,
+                        0x0D: 0x36,
+                        0x0F: 0x39,
+                        0x0C: 0x3C,
+                        0x10: 0x3D,
+                        0x35: 0x0E,
+                        0x38: 0x0D,
+                        0x3B: 0x0F,
+                        0x3C: 0x0C,
+                        0x3D: 0x10,
+                    };
+
+                    let bl;
+                    if (al in mapping) {
+                        bl = mapping[al];
+                    } else if (al >= 0x33) {
+                        bl = al + 1; // 33→34, 34→35, 36→37, 37→38, 39→3A, 3A→3B
+                    }
+
+                    writeMemory(di-1, [0xFE]); // is animated
+                    if (!(renderCounter & 1)) {
+                        break;
+                    }
+                    writeMemory(si-1, [bl]);
+                }
+                break;
+            case 8: // Animate_Thorn_Cavern8; mpp8.grp: 0x25..0x28 (thorns) animated tiles
+                {
+                    let al = readU8(si-1) - 0x25;
+                    if (al < 0 || al >= 4) {
+                        break;
+                    }
+                    writeMemory(di-1, [0xFE]); // is animated
+                    if (!(renderCounter & 1)) {
+                        break;
+                    }
+                    writeMemory(si-1, [((al + 1) & 3) + 0x25]);
+                }
+                break;
+            default:
+                break;
+        } // tiles animation switch
     }
 
     // si: proximity pointer
@@ -3157,78 +3244,6 @@ function drawDungeonEntities() {
             renderMid2(si, di, VIEW_COLS-1, row);
         }
         si = wrapMap(si+4); // e8b4 + 4 = e8b8
-    }
-}
-
-let dungeonRenderCounter = 0;
-
-function animateDungeonTiles() {
-    const cavernLevel = readU8(ADDR_CAVERN_LEVEL);
-    if (cavernLevel < 5 || cavernLevel > 8) return;
-
-    dungeonRenderCounter++;
-    const top = dungeonGetViewportTop?.() ?? 0;
-    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
-
-    const rc = dungeonRenderCounter;
-
-    for (let row = 0; row < VIEW_ROWS; row++) {
-        const proxRow = (top + row) & 0x3F;
-        for (let col = 0; col < VIEW_COLS; col++) {
-            const idx = proxRow * PROX_COLS + col + DUNGEON_VIEW_LEFT_IN_PROX;
-            const tile = proxMap[idx];
-            if (tile === 0) continue;
-
-            if (cavernLevel === 5) {
-                if ((tile === 0x1B || tile === 0x1C) && (rc & 1)) {
-                    proxMap[idx] = tile === 0x1B ? 0x1C : 0x1B;
-                }
-            } else if (cavernLevel === 6) {
-                const al6 = tile - 0x1D;
-                if (al6 >= 6) continue;
-                if (al6 >= 4) {
-                    proxMap[idx] = ((al6 + 1) & 1) + 0x21;
-                } else {
-                    if (al6 === 0 && (Math.random() * 4 | 0) !== 0) continue;
-                    proxMap[idx] = ((al6 + 1) & 3) + 0x1D;
-                }
-            } else if (cavernLevel === 7) {
-                const al7 = (tile - 0x2C) & 0xFF;
-                if (al7 < 2) {
-                    if (!(rc & 1)) continue;
-                    proxMap[idx] = ((al7 + 1) & 1) + 0x2C;
-                    continue;
-                }
-                if (tile >= 0x3E) continue;
-                let bl;
-                switch (tile) {
-                    case 0x0E: bl = 0x33; break;
-                    case 0x0D: bl = 0x36; break;
-                    case 0x0F: bl = 0x39; break;
-                    case 0x0C: bl = 0x3C; break;
-                    case 0x10: bl = 0x3D; break;
-                    default:
-                        if (tile < 0x33) continue;
-                        const al2 = tile - 0x33;
-                        switch (al2) {
-                            case 2:  bl = 0x0E; break;
-                            case 5:  bl = 0x0D; break;
-                            case 8:  bl = 0x0F; break;
-                            case 9:  bl = 0x0C; break;
-                            case 0x0A: bl = 0x10; break;
-                            default: bl = al2 + 1 + 0x33; break;
-                        }
-                        break;
-                }
-                if (!(rc & 1)) continue;
-                proxMap[idx] = bl;
-            } else if (cavernLevel === 8) {
-                const al8 = tile - 0x25;
-                if (al8 >= 4) continue;
-                if (!(rc & 1)) continue;
-                proxMap[idx] = ((al8 + 1) & 3) + 0x25;
-            }
-        }
     }
 }
 
@@ -5195,7 +5210,6 @@ function draw() {
                 drawDungeonSword();
                 drawDungeonNotification();
                 drawDungeonSign();
-                animateDungeonTiles();
                 if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
                     writeMemory(ADDR_BYTE_9EED, [0]);
                     _guerraEffectRunning = true;
