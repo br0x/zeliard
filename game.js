@@ -1598,12 +1598,16 @@ function onFullTick() {
             // doesn't starve dungeonUpdate() and cause frame skips
             const isRokaRun = readMemory(ADDR_DUNGEON_STATE, 1)[0] === DUNGEON_STATE_ROKA_RUN;
             if (isRokaRun || frameTmr >= target) {
-                if (!isRokaRun) {
-                    // mirrors `inc render_counter` in Refresh_Dirty_Tiles: advance once per
-                    // game loop. Skipped during roka run (cavern tiles aren't rendered then).
+                const phaseBefore = readU8(ADDR_DUNGEON_FRAME_PHASE);
+                dungeonUpdate?.();
+                // mirrors `inc render_counter` in Refresh_Dirty_Tiles: advance once
+                // per completed dungeon frame. The WASM phase machine splits each
+                // frame into 3 sub-steps (0→1→2→0), so dungeonUpdate() is called 3x
+                // per frame; only step phase 2→0 finishes a frame. Incrementing on
+                // every call made cavern tile animation 3x too fast and bursty.
+                if (isRokaRun || (phaseBefore === 2 && readU8(ADDR_DUNGEON_FRAME_PHASE) === 0)) {
                     renderCounter = (renderCounter + 1) & 0xFF;
                 }
-                dungeonUpdate?.();
                 if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
                     if (readMemory(ADDR_HERO_DEATH_FLAG, 1)[0] === 0xFF) {
                         initTownFromDungeon(readMemory(ADDR_LAST_SAGE_VISITED, 1)[0], true);
@@ -2822,8 +2826,7 @@ async function renderViewportBorderWalls() {
     xorViewportFlash();
 }
 
-let renderCounter = 0; // incremented once per dungeon game tick (port of `inc render_counter`
-                       // in Refresh_Dirty_Tiles), used to animate tiles every odd frame
+let renderCounter = 0; // incremented once per dungeon game tick, used to animate tiles every or every odd frame
 
 // entityId (bitmasked to 0x7F) -> remaining flash frames for visual hit feedback
 const _entityHitFlashTimers = new Map();
