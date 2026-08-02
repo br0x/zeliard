@@ -1,3 +1,4 @@
+
 EMSCRIPTEN_ROOT ?= $(HOME)/emsdk/upstream/emscripten
 CC = $(EMSCRIPTEN_ROOT)/emcc
 
