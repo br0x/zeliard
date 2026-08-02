@@ -424,8 +424,14 @@ static void man_attack_step(uint16_t m)
     man_end_of_frame_sync(m); // loc_A449
 }
 
-static uint8_t man_shot_right[13] = { 0,0, 0xB1,0, 0x14, 0,    0x28, 0,0,0,0,0,0 }; // byte_A41B/A41C (facing right, dir=0)
-static uint8_t man_shot_left[13]  = { 0,0, 0xB1,0, 0x14, 4,    0x28, 0,0,0,0,0,0 }; // byte_A428/A429 (facing left, dir=4)
+/* The original byte_A41B/A428 put the raw base tile index 0xB1 here.
+ * In this JS port byte 2 is a *projectile-type index* into the DUNGEONS[]
+ * `projectiles` table (same remap as eai2/eai3: toad=1, boarman=0,
+ * earthworm=0); mp50/mp51 define the Sentry's shot as group 0, whose
+ * frames [0x31,0x32,0x33,0x34] are exactly the tiles the original
+ * computes from base tile 0xB1. */
+static uint8_t man_shot_right[13] = { 0,0, 0, 0, 0x14, 0, 0x28, 0,0,0,0,0,0 }; // byte_A41B/A41C (facing right, dir=0)
+static uint8_t man_shot_left[13]  = { 0,0, 0, 0, 0x14, 4, 0x28, 0,0,0,0,0,0 }; // byte_A428/A429 (facing left, dir=4)
 
 /* loc_A3F2: fires a single projectile in the direction the monster is
  * currently facing. */
@@ -489,7 +495,7 @@ static void red_egg_try_teleport_partner(uint16_t m)
 {
     uint16_t partner;
     uint8_t idx;
-    if (!Find_Monsters_Near_Hero(m, &partner, &idx)) {
+    if (Find_Monsters_Near_Hero(m, &partner, &idx)) { // returns 1 when NO free slot is found
         red_egg_move_and_state(m); // loc_A780
         return;
     }
@@ -512,19 +518,22 @@ static void red_egg_teleport_west(uint16_t m, uint16_t partner, uint8_t idx, uin
     if (signed_x < 0) { red_egg_move_and_state(m); return; } // never true in practice
     if ((uint8_t)signed_x >= 0x20) { red_egg_move_and_state(m); return; }
 
-    uint16_t addr = (uint16_t)(own_addr + 2);
-    addr -= 0x24;
+    // ..01
+    // Ee23
+    // ee45
+    uint16_t addr = (uint16_t)(own_addr + 2 - PROX_COLS); // start from point 0
     wrap_map_from_below(&addr);
 
     for (int row = 0; row < 3; row++) {
+        // check tile at point 0, 2, 4
         if (is_blocking(MEM8(addr))) { red_egg_move_and_state(m); return; }
-        addr++;
+        addr++; // check tile at point 1, 3, 5
         if (is_blocking(MEM8(addr))) { red_egg_move_and_state(m); return; }
-        addr += 0x22;
+        addr += (PROX_COLS - 1); // return to column 0, 2, 4
         wrap_map_from_above(&addr);
     }
 
-    addr -= 0x48;
+    addr -= (2 * PROX_COLS); // back to point 2
     wrap_map_from_below(&addr);
 
     uint8_t old_tile = MEM8(addr);
@@ -548,19 +557,22 @@ static void red_egg_teleport_east(uint16_t m, uint16_t partner, uint8_t idx, uin
     if ((int8_t)x < 0) { red_egg_move_and_state(m); return; } // never true in practice
     if (x < 4) { red_egg_move_and_state(m); return; }
 
-    uint16_t addr = (uint16_t)(own_addr - 2);
-    addr -= 0x25;
+    // 01.
+    // 23.Ee
+    // 45.ee
+    uint16_t addr = (uint16_t)(own_addr - PROX_COLS - 3); // start from point 0
     wrap_map_from_below(&addr);
 
     for (int row = 0; row < 3; row++) {
+        // check tile at point 0, 2, 4
         if (is_blocking(MEM8(addr))) { red_egg_move_and_state(m); return; }
-        addr++;
+        addr++; // check tile at point 1, 3, 5
         if (is_blocking(MEM8(addr))) { red_egg_move_and_state(m); return; }
-        addr += 0x22;
+        addr += (PROX_COLS - 1); // return to column 0, 2, 4
         wrap_map_from_above(&addr);
     }
 
-    addr -= 0x47;
+    addr -= (2 * PROX_COLS - 1); // back to point 3
     wrap_map_from_below(&addr);
 
     uint8_t old_tile = MEM8(addr);
@@ -616,10 +628,8 @@ static void red_egg_move_and_state(uint16_t m)
     }
 
     MEM8(m+6) = (uint8_t)((MEM8(m+6) + 1) & 0xF3); // .anim_counter
-    if (move_monster_S(m)) {
-        red_egg_after_fall_step(m); // loc_A7A9
-    }
-    /* else: blocked -> stop this frame */
+    if (move_monster_S(m)) return; // moved down (airborne) -> stop this frame
+    red_egg_after_fall_step(m); // loc_A7A9: grounded -> run the dive counter
 }
 
 /* loc_A7FF */
@@ -674,8 +684,8 @@ static void red_egg_aligned_row(uint16_t m)
 static void red_egg_try_move_west_then_east(uint16_t m)
 {
     MEM8(m+5) &= 0x7F; // face left
-    if (!move_monster_W(m)) return; // blocked, stop
-    red_egg_try_move_east_then_west(m); // loc_A7EA
+    if (move_monster_W(m)) return; // moved -> stop this frame
+    red_egg_try_move_east_then_west(m); // loc_A7EA: blocked -> try the other way
 }
 
 /* loc_A7EA: face right and try to step east; on success, face left
@@ -683,9 +693,9 @@ static void red_egg_try_move_west_then_east(uint16_t m)
 static void red_egg_try_move_east_then_west(uint16_t m)
 {
     MEM8(m+5) |= 0x80; // face right
-    if (!move_monster_E(m)) return; // blocked, stop
+    if (move_monster_E(m)) return; // moved -> stop this frame
     MEM8(m+5) &= 0x7F; // face left
-    move_monster_W(m); // loc_A7F6, result unused
+    move_monster_W(m); // loc_A7F6: blocked -> one final step west, result unused
 }
 
 
@@ -709,7 +719,10 @@ static void eyeball_ai(uint16_t m)
         return;
     }
 
-    if (!move_monster_S(m)) return; // blocked -> stop this frame
+    /* loc_A835: move_monster_S returns CF=0 on success (moved down) and
+     * CF=1 on blocked, so the "jb loc_A83D" in the asm means the walk/
+     * charge AI only runs while GROUNDED; while airborne it just falls. */
+    if (move_monster_S(m)) return; // moved down (airborne) -> stop this frame
     eyeball_after_fall(m); // loc_A83D
 }
 
@@ -759,7 +772,7 @@ static void eyeball_maybe_start_charge(uint16_t m)
         MEM8(m+10) = 0;   // .ai_timer
         return;
     }
-    if (get_random() & 0x80) return; // 50% chance: do nothing
+    if (!(get_random() & 0x80)) return; // 50% chance: do nothing
     MEM8(m+9) = 0;   // .ai_state: reset
     MEM8(m+10) = 0;   // .ai_timer
 }
@@ -892,10 +905,10 @@ static void vestlet_fly_step(uint16_t m)
 static void vestlet_after_fly_throttle(uint16_t m)
 {
     if (MEM8(m+3) > 0x10) { // .m_x_rel
-        if (move_monster_W(m)) move_monster_E(m);
+        if (!move_monster_W(m)) move_monster_E(m);
         return;
     }
-    if (move_monster_E(m)) move_monster_W(m);
+    if (!move_monster_E(m)) move_monster_W(m);
 }
 
 /* loc_A993: dive animation; only actually descends once the low 3
@@ -914,8 +927,8 @@ static void vestlet_dive_state(uint16_t m)
 static void vestlet_dive_step(uint16_t m)
 {
     move_monster_S(m); // first attempt, result unused
-    if (!move_monster_S(m)) return; // blocked on the second attempt -> stop
-    vestlet_dive_advance(m); // loc_A9AD
+    if (move_monster_S(m)) return; // second attempt moved -> keep diving
+    vestlet_dive_advance(m); // loc_A9AD: grounded -> advance the dive counter
 }
 
 /* loc_A9AD */
@@ -939,16 +952,16 @@ static void vestlet_climb_state(uint16_t m)
 static void vestlet_climb_ne(uint16_t m)
 {
     move_monster_N(m); // result unused
-    if (!move_monster_NE(m)) return; // blocked -> stop
-    if (!move_monster_N(m)) return;  // blocked -> stop
-    MEM8(m+9) &= 0xFD; // .ai_state: climb finished
+    if (move_monster_NE(m)) return; // moved -> stop this frame
+    if (move_monster_N(m)) return;  // moved -> stop this frame
+    MEM8(m+9) &= 0xFD; // .ai_state: both blocked -> climb finished
 }
 
 /* loc_A9DD */
 static void vestlet_climb_nw(uint16_t m)
 {
     move_monster_N(m); // result unused
-    if (!move_monster_NW(m)) return; // blocked -> stop
-    if (!move_monster_N(m)) return;  // blocked -> stop
-    MEM8(m+9) &= 0xFD; // .ai_state: climb finished
+    if (move_monster_NW(m)) return; // moved -> stop this frame
+    if (move_monster_N(m)) return;  // moved -> stop this frame
+    MEM8(m+9) &= 0xFD; // .ai_state: both blocked -> climb finished
 }

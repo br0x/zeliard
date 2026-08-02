@@ -266,18 +266,18 @@ Monster_AI        proc near
                 add     bx, bx          ; switch 5 cases
                 jmp     jpt_A341[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A341        dw offset loc_A350      ; jump table for switch statement
-                dw offset locret_A34F
-                dw offset loc_A5F1
-                dw offset loc_A812
-                dw offset loc_A91A
+jpt_A341        dw offset man_top_ai      ; jump table for switch statement
+                dw offset man_bottom_ai
+                dw offset red_egg_ai
+                dw offset eyeball_ai
+                dw offset vestlet_ai
 ; ---------------------------------------------------------------------------
 
-locret_A34F:                            ; jumptable 0000A341 case 1
+man_bottom_ai:                            ; jumptable 0000A341 case 1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A350:                               ; jumptable 0000A341 case 0
+man_top_ai:                               ; jumptable 0000A341 case 0
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A35A
                 mov     byte ptr [si+8], 18h
@@ -705,18 +705,18 @@ sub_A5C2        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A5F1:                               ; jumptable 0000A341 case 2
+red_egg_ai:                               ; jumptable 0000A341 case 2
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A5FB
                 mov     byte ptr [si+8], 10h
 
 loc_A5FB:
                 test    byte ptr [si+5], 20h
-                jnz     short loc_A604
+                jnz     short red_egg_hit_check
                 jmp     loc_A780
 ; ---------------------------------------------------------------------------
 
-loc_A604:
+red_egg_hit_check:
                 mov     al, [si+5]
                 and     al, 1Fh
                 cmp     al, 4
@@ -747,11 +747,11 @@ loc_A624:
 loc_A634:
                 and     byte ptr [si+5], 0DFh
                 test    byte ptr [si+9], 2
-                jz      short loc_A641
+                jz      short red_egg_try_teleport_partner
                 jmp     loc_A780
 ; ---------------------------------------------------------------------------
 
-loc_A641:
+red_egg_try_teleport_partner:
                 call    word ptr cs:Find_Monsters_Near_Hero_proc
                 jnb     short loc_A64B
                 jmp     loc_A780
@@ -764,55 +764,58 @@ loc_A64B:
                 mov     bx, di
                 pop     di
                 test    byte ptr [si+5], 80h
-                jnz     short loc_A6D9
+                jnz     short red_egg_teleport_east
                 mov     al, [si+3]
                 or      al, al
-                jns     short loc_A667
-                jmp     loc_A780
+                jns     short red_egg_teleport_west
+                jmp     loc_A780 ; red_egg_move_and_state(m); return;
 ; ---------------------------------------------------------------------------
 
-loc_A667:
+red_egg_teleport_west:
                 cmp     al, 20h ; ' '
                 jb      short loc_A66E
-                jmp     loc_A780
+                jmp     loc_A780 ; red_egg_move_and_state(m); return;
 ; ---------------------------------------------------------------------------
-
+; ..01
+; Ee23
+; ee45
 loc_A66E:
                 inc     bx
                 inc     bx
                 xchg    bx, si
-                sub     si, 24h ; '$'
+                sub     si, 36 ; start from point 0
                 call    word ptr cs:wrap_map_from_below_proc
+
                 mov     cx, 3
-
 loc_A67D:
-                lodsb
-                call    word ptr cs:is_blocking_proc
+                lodsb ; check tile at point 0, 2, 4
+                call    word ptr cs:is_blocking_proc ; ZF if passable, NZ if blocked
                 xchg    bx, si
-                jz      short loc_A68A
-                jmp     loc_A780
+                    jz      short loc_A68A
+                    ; blocked
+                    jmp     loc_A780 ; red_egg_move_and_state(m); return;
 ; ---------------------------------------------------------------------------
-
 loc_A68A:
                 xchg    bx, si
-                lodsb
+                lodsb ; check tile at point 1, 3, 5
                 call    word ptr cs:is_blocking_proc
                 xchg    bx, si
-                jz      short loc_A699
-                jmp     loc_A780
+                    jz      short loc_A699
+                    ; blocked
+                    jmp     loc_A780 ; red_egg_move_and_state(m); return;
 ; ---------------------------------------------------------------------------
-
 loc_A699:
                 xchg    bx, si
-                add     si, 22h ; '"'
+                add     si, 36-2 ; move to next row
                 call    word ptr cs:wrap_map_from_above_proc
                 loop    loc_A67D
-                sub     si, 48h ; 'H'
+
+                sub     si, 2*36 ; return to point 2
                 call    word ptr cs:wrap_map_from_below_proc
                 xchg    si, bx
                 push    dx
                 or      dl, 80h
-                xchg    dl, [bx]
+                xchg    dl, [bx] ; spawn new egg
                 pop     bx
                 xor     bh, bh
                 mov     ds:proximity_second_layer[bx], dl
@@ -835,7 +838,7 @@ loc_A6CD:
                 jmp     short loc_A749
 ; ---------------------------------------------------------------------------
 
-loc_A6D9:
+red_egg_teleport_east:
                 mov     al, [si+3]
                 or      al, al
                 jns     short loc_A6E3
@@ -847,35 +850,37 @@ loc_A6E3:
                 jnb     short loc_A6EA
                 jmp     loc_A780
 ; ---------------------------------------------------------------------------
-
+;01.
+;23.Ee
+;45.ee
 loc_A6EA:
                 dec     bx
                 dec     bx
                 xchg    bx, si
-                sub     si, 25h ; '%'
+                sub     si, 36+1 ; start from point 0
                 call    word ptr cs:wrap_map_from_below_proc
                 mov     cx, 3
-
 loc_A6F9:
-                lodsb
+                lodsb ; check tile at point 0, 2, 4
                 call    word ptr cs:is_blocking_proc
                 xchg    bx, si
                 jnz     short loc_A780
                 xchg    bx, si
-                lodsb
+                lodsb ; check tile at point 1, 3, 5
                 call    word ptr cs:is_blocking_proc
                 xchg    bx, si
                 jnz     short loc_A780
                 xchg    bx, si
-                add     si, 22h ; '"'
+                add     si, 36-2 ; move to next row
                 call    word ptr cs:wrap_map_from_above_proc
                 loop    loc_A6F9
-                sub     si, 47h ; 'G'
+
+                sub     si, 2*36-1 ; return to point 3
                 call    word ptr cs:wrap_map_from_below_proc
                 xchg    si, bx
                 push    dx
                 or      dl, 80h
-                xchg    dl, [bx]
+                xchg    dl, [bx] ; spawn new egg
                 pop     bx
                 xor     bh, bh
                 mov     ds:proximity_second_layer[bx], dl
@@ -915,7 +920,7 @@ loc_A77C:
                 or      byte ptr [si+9], 1
 
 loc_A780:
-                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc ; pops return address if airflow handled
                 mov     al, [si+9]
                 and     byte ptr [si+9], 0FEh
                 test    al, 1
@@ -997,7 +1002,7 @@ loc_A809:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A812:                               ; jumptable 0000A341 case 3
+eyeball_ai:                               ; jumptable 0000A341 case 3
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A81C
                 mov     byte ptr [si+8], 8
@@ -1009,7 +1014,7 @@ loc_A81C:
 ; ---------------------------------------------------------------------------
 
 loc_A827:
-                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc ; pops return address if airflow handled
                 test    byte ptr [si+9], 4
                 jz      short loc_A835
                 jmp     loc_A8DB
@@ -1158,7 +1163,7 @@ loc_A911:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A91A:                               ; jumptable 0000A341 case 4
+vestlet_ai:                               ; jumptable 0000A341 case 4
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A924
                 mov     byte ptr [si+8], 8
@@ -1170,7 +1175,7 @@ loc_A924:
 ; ---------------------------------------------------------------------------
 
 loc_A92F:
-                call    word ptr cs:move_monster_NWE_if_on_airflow_proc
+                call    word ptr cs:move_monster_NWE_if_on_airflow_proc ; pops return address if airflow handled
                 test    byte ptr [si+9], 1
                 jnz     short loc_A993
                 test    byte ptr [si+9], 2
