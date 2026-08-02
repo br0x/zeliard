@@ -1598,6 +1598,11 @@ function onFullTick() {
             // doesn't starve dungeonUpdate() and cause frame skips
             const isRokaRun = readMemory(ADDR_DUNGEON_STATE, 1)[0] === DUNGEON_STATE_ROKA_RUN;
             if (isRokaRun || frameTmr >= target) {
+                if (!isRokaRun) {
+                    // mirrors `inc render_counter` in Refresh_Dirty_Tiles: advance once per
+                    // game loop. Skipped during roka run (cavern tiles aren't rendered then).
+                    renderCounter = (renderCounter + 1) & 0xFF;
+                }
                 dungeonUpdate?.();
                 if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
                     if (readMemory(ADDR_HERO_DEATH_FLAG, 1)[0] === 0xFF) {
@@ -2824,7 +2829,22 @@ async function renderViewportBorderWalls() {
  * with 0xFF to mark cells as processed, keeping the shared-memory state
  * consistent with what the C side expects.
  */
-let renderCounter = 0; // incremented every Refresh_Dirty_Tiles, used to animate tiles every odd frame
+let renderCounter = 0; // incremented once per dungeon game tick (port of `inc render_counter`
+                       // in Refresh_Dirty_Tiles), used to animate tiles every odd frame
+
+// Per-tile animation gating. drawDungeonEntities runs every rAF, but in the original
+// the cavern handlers ran once per Refresh_Dirty_Tiles (once per game tick). Without
+// this gate a tile would advance every rAF and flicker at display rate (~145 FPS).
+// Each proximity tile is advanced at most once per game tick; `everyTick` disables
+// the odd-tick parity gate (gold cavern tiles animate on every tick in the original).
+const _cavernTileAnimTick = new Map(); // proximity addr -> last game tick the tile advanced
+function cavernTileShouldAdvance(si, everyTick) {
+    if (!everyTick && !(renderCounter & 1)) return false;
+    const addr = si - 1;
+    if (_cavernTileAnimTick.get(addr) === renderCounter) return false;
+    _cavernTileAnimTick.set(addr, renderCounter);
+    return true;
+}
 
 // entityId (bitmasked to 0x7F) -> remaining flash frames for visual hit feedback
 const _entityHitFlashTimers = new Map();
@@ -2835,7 +2855,6 @@ _tintCanvas.height = TILE_HEIGHT;
 const _tintCtx = _tintCanvas.getContext('2d');
 
 function drawDungeonEntities() {
-    renderCounter = (renderCounter + 1) & 0xFF;
     _bossExplosionFrameRendered = false;
     if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
 
@@ -2952,10 +2971,10 @@ function drawDungeonEntities() {
 
     function renderTopRight(si) { // Render_Top_Right_Corner_Entity
         const cache = readU8(ADDR_VIEWPORT_ENTITIES + VIEW_COLS-1);
-        if (cache === 0xFF || cache === 0xFC) return; // [E91B]=FE; set by renderMid2
-        writeMemory(ADDR_VIEWPORT_ENTITIES + VIEW_COLS-1, [0xFF]); // [E91B] := FF; 
-        const cl = readU8(si); // [E88F]=8C
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes; slug_walk_left_frames[0].SW; slug_walk_left_frames[1].SW
+        if (cache === 0xFF || cache === 0xFC) return;
+        writeMemory(ADDR_VIEWPORT_ENTITIES + VIEW_COLS-1, [0xFF]);
+        const cl = readU8(si);
+        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
         si = wrapMap(si + PROX_COLS); // tile at (27, 0)
         // draw bottom left quadrant of the entity into (27, 0) // Decode_And_Render_MonsterEntity_Tile_With_Blit
         drawOverlayTileWithCache(readU8(si), f, VIEW_COLS-1, 0, 0, TILE_HEIGHT); // [E8B3]=00; [E8B3]=00
@@ -3039,8 +3058,8 @@ function drawDungeonEntities() {
         }
     }
 
-    // si: proximity pointer                // E898: 0E
-    // di: viewport entities buffer pointer // E900: FD
+    // si: proximity pointer 
+    // di: viewport entities buffer pointer
     function renderMid2(si, di, col, row) { // Process_Dirty_Tile_With_Animation
         const al = readU8(si-1);
         if (al & 0x80) { // monster/entity tiles
@@ -3068,7 +3087,7 @@ function drawDungeonEntities() {
                         break;
                     }
                     writeMemory(di-1, [0xFE]); // is animated
-                    if (!(renderCounter & 1)) {
+                    if (!cavernTileShouldAdvance(si)) {
                         break;
                     }
                     writeMemory(si-1, [((al + 1) & 1) + 0x1B]);
@@ -3081,6 +3100,9 @@ function drawDungeonEntities() {
                         break;
                     }
                     writeMemory(di-1, [0xFE]); // is animated
+                    if (!cavernTileShouldAdvance(si, true)) {
+                        break;
+                    }
 
                     if (al >= 4) {
                         writeMemory(si-1, [((al + 1) & 1) + 0x21]);
@@ -3100,7 +3122,7 @@ function drawDungeonEntities() {
                     let al = readU8(si-1);
                     if (al === 0x2C || al === 0x2D) {
                         writeMemory(di-1, [0xFE]); // is animated
-                        if (!(renderCounter & 1)) {
+                        if (!cavernTileShouldAdvance(si)) {
                             break;
                         }
                         writeMemory(si-1, [((al + 1) & 1) + 0x2C]);
@@ -3132,7 +3154,7 @@ function drawDungeonEntities() {
                     }
 
                     writeMemory(di-1, [0xFE]); // is animated
-                    if (!(renderCounter & 1)) {
+                    if (!cavernTileShouldAdvance(si)) {
                         break;
                     }
                     writeMemory(si-1, [bl]);
@@ -3145,7 +3167,7 @@ function drawDungeonEntities() {
                         break;
                     }
                     writeMemory(di-1, [0xFE]); // is animated
-                    if (!(renderCounter & 1)) {
+                    if (!cavernTileShouldAdvance(si)) {
                         break;
                     }
                     writeMemory(si-1, [((al + 1) & 3) + 0x25]);
@@ -5199,7 +5221,7 @@ function draw() {
                 if (visible) {
                     drawEncounterText(1.0);
                 }
-            } else {
+            } else { // normal dungeon rendering
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 drawDungeonTiles();

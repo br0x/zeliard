@@ -28,7 +28,7 @@ const FLASH_ALPHA = 0.3;
 const SAGE_MENU = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
 const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
       SAGE_MENU_LISTEN_KNOWLEDGE = 2, SAGE_MENU_RECORD_EXPERIENCE = 3;
-
+//             Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
 const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
 

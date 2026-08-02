@@ -91,6 +91,8 @@ const ADDR_HERO_XP = 0x8E;
 const ADDR_HERO_ALMAS = 0x8B;
 
 const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
+//        Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
+const XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 
 export class InventoryScreen {
     constructor({ canvas, ctx, readMemory, writeMemory, soundManager, onExit }) {
@@ -576,11 +578,14 @@ export class InventoryScreen {
         ctx.restore();
 
         ctx.font = 'bold 24px "Courier New", monospace';
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#fd0';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`LEVEL: ${this.data.level}`, x + 20, y + boxH * 0.3);
-        ctx.fillText(`EXP: ${this.data.heroXP}`, x + 20, y + boxH * 0.7);
+        ctx.fillText(`LEVEL ${this.data.level}`, x + 20, y + boxH * 0.3);
+        ctx.fillText(`EXP ${this.data.heroXP}/${XP_TABLE[this.data.level+1]}`, x + 20, y + boxH * 0.7);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`LEVEL`, x + 20, y + boxH * 0.3);
+        ctx.fillText(`EXP`, x + 20, y + boxH * 0.7);
     }
 
     _showDebugPopup() {
