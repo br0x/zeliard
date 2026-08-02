@@ -45,6 +45,7 @@ _TOWN_MAPS = {
     0x07: 'LLMP.MDT  (7. Llama Town)',
     0x08: 'PRMP.MDT  (8-1. Pureza Town)',
     0x09: 'ESMP.MDT  (8-2. Esco Village)',
+    0x0A: 'TMMP.MDT  (5. Tumba Town)',
 }
 
 # Derive town stems for filename detection

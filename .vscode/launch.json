@@ -5,7 +5,7 @@
             "name": "Python: Module - SpriteEditor.decoder",
             "type": "debugpy",
             "request": "launch",
-            "module": "SpriteEditor",   // ← change this to match your structure
+            "module": "SpriteEditor",
             "cwd": "${workspaceFolder}/tools",
             "console": "integratedTerminal"
         },
@@ -13,7 +13,7 @@
             "name": "Python: Module - MdtViewer.decoder",
             "type": "debugpy",
             "request": "launch",
-            "module": "tools.MdtViewer",   // ← change this to match your structure
+            "module": "tools.MdtViewer",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/enp5.grp"
+                "${workspaceFolder}/tools/GrpViewer/mpp5.grp"
             ],
             "console": "integratedTerminal",
         },
