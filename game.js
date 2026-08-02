@@ -1274,6 +1274,7 @@ const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
 const ADDR_BOSS_MODE               = 0xFFA0;
 const ADDR_CAVERN_SIGN_FLAG        = 0xFFA1;
 const ADDR_CAVERN_SIGN_IDX         = 0xFFA2;
+const ADDR_MAGIC_LEFT_RENDER_REQUEST = 0xFFA3;
 const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
 const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
 
@@ -5301,6 +5302,10 @@ function draw() {
         if (readMemory(ADDR_SHIELD_HP_RENDER_REQUEST, 1)[0]) {
             renderShieldHud();
             writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, [0]);
+        }
+        if (readMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, 1)[0]) {
+            renderMagicHud();
+            writeMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, [0]);
         }
     } else { // town outdoor mode
         ctx.fillStyle = townPatId === 2 ? '#000000' : '#05053f';
