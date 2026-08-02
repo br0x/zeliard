@@ -2444,13 +2444,17 @@ function drawStaticTile(tileId, vpX, vpY) {
 function drawDungeonTiles() {
     if (!dungeonTileSheetReady || !readMemory) return false;
     const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
+    const layer2 = readMemory(ADDR_PROXIMITY_LAYER2, 0x80);
     const top = dungeonGetViewportTop?.() ?? 0;
 
     for (let row = 0; row < VIEW_ROWS; row++) {
         const proxRow = (top + row) & 0x3F;
         for (let col = 0; col < VIEW_COLS; col++) {
             const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
-            const tileId = proxMap[proxRow*PROX_COLS + proxCol];
+            let tileId = proxMap[proxRow*PROX_COLS + proxCol];
+            // Entity markers temporarily replace the real map tile. The
+            // original compositor restores that background from layer 2.
+            if (tileId & 0x80) tileId = layer2[tileId & 0x7F];
             if (tileId === 0) continue;
             drawStaticTile(tileId, col, row);
         }
@@ -2818,455 +2822,218 @@ async function renderViewportBorderWalls() {
     xorViewportFlash();
 }
 
-/*
- * Port of Refresh_Dirty_Tiles entity overlay logic from gfmcga.c.
- *
- * Walks every tile in the 28×18 viewport (plus the invisible row above and the
- * left/right edge columns) reading the proximity map.  Any cell whose byte has
- * bit 7 set is an entity overlay — we resolve the monster type through the
- * layer-2 table and the monsters list, then draw the corresponding enp2.png 48×48 sprite.
- * The ADDR_VIEWPORT_ENTITIES cache buffer (28×19) is updated
- * with 0xFF to mark cells as processed, keeping the shared-memory state
- * consistent with what the C side expects.
- */
 let renderCounter = 0; // incremented once per dungeon game tick (port of `inc render_counter`
                        // in Refresh_Dirty_Tiles), used to animate tiles every odd frame
-
-// Per-tile animation gating. drawDungeonEntities runs every rAF, but in the original
-// the cavern handlers ran once per Refresh_Dirty_Tiles (once per game tick). Without
-// this gate a tile would advance every rAF and flicker at display rate (~145 FPS).
-// Each proximity tile is advanced at most once per game tick; `everyTick` disables
-// the odd-tick parity gate (gold cavern tiles animate on every tick in the original).
-const _cavernTileAnimTick = new Map(); // proximity addr -> last game tick the tile advanced
-function cavernTileShouldAdvance(si, everyTick) {
-    if (!everyTick && !(renderCounter & 1)) return false;
-    const addr = si - 1;
-    if (_cavernTileAnimTick.get(addr) === renderCounter) return false;
-    _cavernTileAnimTick.set(addr, renderCounter);
-    return true;
-}
 
 // entityId (bitmasked to 0x7F) -> remaining flash frames for visual hit feedback
 const _entityHitFlashTimers = new Map();
 // offscreen canvas for per-sprite tinting (avoids tinting background tiles)
 const _tintCanvas = document.createElement('canvas');
-_tintCanvas.width = TILE_WIDTH;
-_tintCanvas.height = TILE_HEIGHT;
+_tintCanvas.width = DUNGEON_ENTITY_W;
+_tintCanvas.height = DUNGEON_ENTITY_H;
 const _tintCtx = _tintCanvas.getContext('2d');
 
-function drawDungeonEntities() {
-    _bossExplosionFrameRendered = false;
-    if (!dungeonEntitySheetReady || !readMemory || !writeMemory) return;
+function wrapProximityAddress(addr) {
+    return ADDR_PROXIMITY_MAP
+        + (((addr - ADDR_PROXIMITY_MAP) % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
+}
 
-    // decrement all active hit-flash timers
-    for (const [id, frames] of _entityHitFlashTimers) {
-        if (frames > 1) _entityHitFlashTimers.set(id, frames - 1);
-        else _entityHitFlashTimers.delete(id);
-    }
+// The original calls the cavern handlers once per Refresh_Dirty_Tiles. Keep
+// animation independent from rAF rendering so a tile advances at most once per
+// game tick, even when the canvas is drawn multiple times.
+let lastAnimatedRenderCounter = renderCounter;
+function animateDungeonTiles() {
+    if (!readMemory || !writeMemory || lastAnimatedRenderCounter === renderCounter) return;
+    lastAnimatedRenderCounter = renderCounter;
 
-    function wrapMap(idx) {
-        return ADDR_PROXIMITY_MAP + (((idx-ADDR_PROXIMITY_MAP) % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
-    }
+    const cavernLevel = readU8(ADDR_CAVERN_LEVEL);
+    if (cavernLevel < 5 || cavernLevel > 8) return;
 
-    function getFromLayer2(entityId) {
-        return readU8(ADDR_PROXIMITY_LAYER2 + (entityId & 0x7F));
-    }
+    const oddTick = (renderCounter & 1) !== 0;
+    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
 
-    let _currentEntityFlashFrames = 0;
-
-    function getSheetFrame(entityId) { // Lookup_Monster_Tile_Attributes
-        const ptr = readU16(ADDR_MONSTERS_LIST) + (entityId & 0x7F) * 16;
-        const dir = readU8(ptr+5) & 0x80 ? "right" : "left"; // .ai_flags bit7 = monster facing direction        
-        const flags = readU8(ptr+4) & 0x1F; // .flags
-        const offset = readU8(ptr+6) & 0x0F; // .anim_counter & 0x0F
-        
-        _currentEntityFlashFrames = _entityHitFlashTimers.get(entityId & 0x7F) || 0;
-        // detect hit via ai_flags bit 5 (set by C on sword hit)
-        // only for actual monsters (flags & 0x18 == 0), not items/chests
-        if ((flags & 0x18) === 0 && (readU8(ptr+5) & 0x20)) {
-            _currentEntityFlashFrames = 6;
-            _entityHitFlashTimers.set(entityId & 0x7F, 6);
-        }
-        // console.log('DFOE: ', dir, flags, offset, entityId);
-        
-        return dungeonAI[dir][flags][offset];
-    }
-
-    function drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy) {
-        if (bgTile !== 0) {
-            // drawStaticTile(bgTile, vpX, vpY);
-        }
-        if (!dungeonEntitySheet || ovlFrame < 0 || ovlFrame >= dungeonAI["numSprites"] || 
-            dx < 0 || dy < 0 || dx >= DUNGEON_ENTITY_W || dy >= DUNGEON_ENTITY_H) return;
-        const sx = ovlFrame * DUNGEON_ENTITY_W + dx;
-        const sy = dy;
-        if (sx + TILE_WIDTH > dungeonEntitySheet.width || sy + TILE_HEIGHT > dungeonEntitySheet.height) return;
-        ctx.drawImage(dungeonEntitySheet, // source image
-            sx, // source x
-            sy, // source y
-            TILE_WIDTH, // source width
-            TILE_HEIGHT, // source height
-            vpX * TILE_WIDTH, // destination x
-            vpY * TILE_HEIGHT, // destination y
-            TILE_WIDTH, // destination width
-            TILE_HEIGHT // destination height
+    for (let row = 0; row < VIEW_ROWS; row++) {
+        let addr = wrapProximityAddress(
+            viewportLeftTop + row * PROX_COLS + DUNGEON_VIEW_LEFT_IN_PROX
         );
+        for (let col = 0; col < VIEW_COLS; col++, addr = wrapProximityAddress(addr + 1)) {
+            const tile = readU8(addr);
+            // Entity markers are not animated. Their background is held in
+            // layer 2 until the game restores it after the entity moves.
+            if (tile & 0x80) continue;
 
-        // hit-flash: yellow tint overlay (on offscreen canvas to isolate sprite pixels)
-        if (_currentEntityFlashFrames > 0) {
-            _tintCtx.clearRect(0, 0, TILE_WIDTH, TILE_HEIGHT);
-            _tintCtx.drawImage(dungeonEntitySheet, sx, sy, TILE_WIDTH, TILE_HEIGHT, 0, 0, TILE_WIDTH, TILE_HEIGHT);
-            _tintCtx.globalCompositeOperation = 'source-atop';
-            _tintCtx.fillStyle = '#ffff00';
-            _tintCtx.globalAlpha = 0.5;
-            _tintCtx.fillRect(0, 0, TILE_WIDTH, TILE_HEIGHT);
-            _tintCtx.globalCompositeOperation = 'source-over';
-            _tintCtx.globalAlpha = 1.0;
-            ctx.drawImage(_tintCanvas, vpX * TILE_WIDTH, vpY * TILE_HEIGHT);
-        }
-    }
-
-    function drawOverlayTileWithCache(bgTile, ovlFrame, vpX, vpY, dx, dy) {
-        if (bgTile & 0x80) {
-            bgTile = getFromLayer2(bgTile); // original background tile
-        }
-        // draw single quadrant of the entity into (col, row) // Decode_And_Render_MonsterEntity_Tile_With_Blit
-        drawOverlayTile(bgTile, ovlFrame, vpX, vpY, dx, dy);
-    }
-
-    function renderTopLeft(si) {
-        const cache = readU8(ADDR_VIEWPORT_ENTITIES + 0);
-        if (cache === 0xFF || cache === 0xFC) return;
-        writeMemory(ADDR_VIEWPORT_ENTITIES + 0, [0xFF]);
-        const cl = readU8(si);
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-        si = wrapMap(si + PROX_COLS+1);
-        // draw bottom right quadrant of the entity into (0, 0) // Decode_And_Render_MonsterEntity_Tile_With_Blit
-        drawOverlayTileWithCache(readU8(si), f, 0, 0, TILE_WIDTH, TILE_HEIGHT);
-    }
-
-    let tileCacheDirtyFlags = [0, 0, 0, 0];
-    let tileNeighborhoodBuffer = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    function renderTop(si, col) {
-        const old = readU8(ADDR_VIEWPORT_ENTITIES + col);
-        writeMemory(ADDR_VIEWPORT_ENTITIES + col, [0xFF, 0xFF]);
-        tileCacheDirtyFlags[0] = old;
-        tileCacheDirtyFlags[1] = 0; /* forces the col+1 pass below to always render */
-        const cl = readU8(si); // overlay entity
-        si = wrapMap(si + PROX_COLS);
-        tileNeighborhoodBuffer[0] = readU8(si+0);
-        tileNeighborhoodBuffer[1] = readU8(si+1);
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-
-        // render 2 bottom quadrants of the entity into (col, 0):
-        // 1. bottom left quadrant
-        if (tileCacheDirtyFlags[0] !== 0xFF && tileCacheDirtyFlags[0] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[0], f, col, 0, 0, TILE_HEIGHT);
-        }
-        // 2. bottom right quadrant
-        if (tileCacheDirtyFlags[1] !== 0xFF && tileCacheDirtyFlags[1] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[1], f, col+1, 0, TILE_WIDTH, TILE_HEIGHT);
-        }
-    }
-
-    function renderTopRight(si) { // Render_Top_Right_Corner_Entity
-        const cache = readU8(ADDR_VIEWPORT_ENTITIES + VIEW_COLS-1);
-        if (cache === 0xFF || cache === 0xFC) return;
-        writeMemory(ADDR_VIEWPORT_ENTITIES + VIEW_COLS-1, [0xFF]);
-        const cl = readU8(si);
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-        si = wrapMap(si + PROX_COLS); // tile at (27, 0)
-        // draw bottom left quadrant of the entity into (27, 0) // Decode_And_Render_MonsterEntity_Tile_With_Blit
-        drawOverlayTileWithCache(readU8(si), f, VIEW_COLS-1, 0, 0, TILE_HEIGHT); // [E8B3]=00; [E8B3]=00
-    }
-
-    function renderLeft2(si, di, row) { // Render_Tile_With_Dual_Cache
-        const old0 = readU8(di);
-        writeMemory(di, [0xFF]);
-        const old1 = readU8(di+28); /* same column, row below */
-        writeMemory(di+VIEW_COLS, [0xFF]);
-        tileCacheDirtyFlags[0] = old0;
-        tileCacheDirtyFlags[1] = old1;
-
-        const cl = readU8(si-1);  /* entity/overlay byte, re-read from memory */
-        const f = getSheetFrame(cl); // will use top right quadrant
-
-        const bl = readU8(si+0);   /* background tile idx, this row    */
-        si = wrapMap(si+PROX_COLS);
-        const bh = readU8(si+0);   /* background tile idx, row below   */
-
-        if (tileCacheDirtyFlags[0] !== 0xFF && tileCacheDirtyFlags[0] !== 0xFC) {
-            // draw top right quadrant of the entity into (0, row)
-            drawOverlayTileWithCache(bl, f, 0, row, TILE_WIDTH, 0);
-        }
-
-        if (row !== (VIEW_ROWS-1) &&
-            tileCacheDirtyFlags[1] !== 0xFF && tileCacheDirtyFlags[1] !== 0xFC) {
-            // draw bottom right quadrant of the entity into (0, row+1)
-            drawOverlayTileWithCache(bh, f, 0, row+1, TILE_WIDTH, TILE_HEIGHT);
-        }
-    }
-
-    // si: proximity pointer
-    // di: viewport entities buffer pointer
-    function renderEntity4(si, di, col, row) { // Render_Tile_With_Border_Check
-        const old_a = readU8(di-1); // tl
-        const old_b = readU8(di); // tr
-        writeMemory(di-1, [0xFE, 0xFF]);
-        tileCacheDirtyFlags[0] = old_a;
-        tileCacheDirtyFlags[1] = old_b;
-
-        const old_c = readU8(di+VIEW_COLS-1); // bl
-        const old_d = readU8(di+VIEW_COLS); // br
-        writeMemory(di+VIEW_COLS-1, [0xFF, 0xFF]);
-        tileCacheDirtyFlags[2] = old_c;
-        tileCacheDirtyFlags[3] = old_d;
-
-        const cl = readU8(si-1); // tl
-        tileNeighborhoodBuffer[1] = readU8(si+0); // tr
-        si = wrapMap(si+PROX_COLS);
-        tileNeighborhoodBuffer[2] = readU8(si-1); // bl
-        tileNeighborhoodBuffer[3] = readU8(si+0); // br
-
-        tileNeighborhoodBuffer[0] = readU8(ADDR_PROXIMITY_LAYER2 + (cl & 0x7F));
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-
-        // 1. top left quadrant
-        if (tileCacheDirtyFlags[0] !== 0xFF && tileCacheDirtyFlags[0] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[0], f, col, row, 0, 0);
-        }
-        // 2. top right quadrant
-        if (tileCacheDirtyFlags[1] !== 0xFF && tileCacheDirtyFlags[1] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[1], f, col+1, row, TILE_WIDTH, 0);
-        }
-
-        if (row === (VIEW_ROWS-1)) {
-            return;
-        }
-
-        // 3. bottom left quadrant
-        if (tileCacheDirtyFlags[2] !== 0xFF && tileCacheDirtyFlags[2] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[2], f, col, row+1, 0, TILE_HEIGHT);
-        }
-        // 4. bottom right quadrant
-        if (tileCacheDirtyFlags[3] !== 0xFF && tileCacheDirtyFlags[3] !== 0xFC) {
-            drawOverlayTileWithCache(tileNeighborhoodBuffer[3], f, col+1, row+1, TILE_WIDTH, TILE_HEIGHT);
-        }
-
-        if (readU8(ADDR_IS_BOSS_CAVERN) && readU8(ADDR_SPRITE_FLASH_FLAG)) { // boss is just defeated
-            spawnBossExplosionRings(col, row);
-        }
-    }
-
-    // si: proximity pointer 
-    // di: viewport entities buffer pointer
-    function renderMid2(si, di, col, row) { // Process_Dirty_Tile_With_Animation
-        const al = readU8(si-1);
-        if (al & 0x80) { // monster/entity tiles
-            renderEntity4(si, di, col, row);
-            return;
-        }
-        // FC -> FF -> FE -> valueFromMap
-        if (readU8(di-1) === 0xFC) {
-            writeMemory(di-1, [0xFF]);
-        } else {
-            const old = readU8(di-1); // FD
-            writeMemory(di-1, [0xFE]);
-            if (old !== 0xFF) {
-                writeMemory(di-1, [al]);
-                // drawStaticTile(al, col, row); // Dungeon_Static_Tile_Cached_Drawer
-            }
-            /* else: old di[-1] value was 0xFF -> skip the redraw */
-        }
-
-        switch (readU8(ADDR_CAVERN_LEVEL)) {
-            case 5: // Animate_Water_Cavern5; mpp5.grp: 0x1B↔0x1C - animated water tile
-                {
-                    let al = readU8(si-1) - 0x1B;
-                    if (al < 0 || al >= 2) {
-                        break;
-                    }
-                    writeMemory(di-1, [0xFE]); // is animated
-                    if (!cavernTileShouldAdvance(si)) {
-                        break;
-                    }
-                    writeMemory(si-1, [((al + 1) & 1) + 0x1B]);
+            let nextTile;
+            if (cavernLevel === 5) { // Animate_Water_Cavern5; mpp5.grp: 0x1B↔0x1C - animated water tile
+                if (!oddTick || (tile !== 0x1B && tile !== 0x1C)) continue;
+                nextTile = tile === 0x1B ? 0x1C : 0x1B;
+            } else if (cavernLevel === 6) { // Animate_Gold_Cavern6; mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (melted gold) animated tiles
+                const phase = tile - 0x1D;
+                if (phase < 0 || phase >= 6) continue;
+                if (phase >= 4) {
+                    nextTile = ((phase + 1) & 1) + 0x21;
+                } else {
+                    // Tile 1D pauses 75% of the time in the original.
+                    if (phase === 0 && (getRandomInt(0, 255) & 3) !== 0) continue;
+                    nextTile = ((phase + 1) & 3) + 0x1D;
                 }
-                break;
-            case 6: // Animate_Gold_Cavern6; mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (melted gold) animated tiles
-                {
-                    let al = readU8(si-1) - 0x1D;
-                    if (al < 0 || al >= 6) {
-                        break;
-                    }
-                    writeMemory(di-1, [0xFE]); // is animated
-                    if (!cavernTileShouldAdvance(si, true)) {
-                        break;
-                    }
-
-                    if (al >= 4) {
-                        writeMemory(si-1, [((al + 1) & 1) + 0x21]);
-                        break;
-                    }
-
-                    if (al === 0) { // 75% chance to skip the animation
-                        if ((getRandomInt(0, 255) & 3) !== 0) {
-                            break;
-                        }
-                    }
-                    writeMemory(si-1, [((al + 1) & 3) + 0x1D]);
-                }
-                break;
-            case 7: // Animate_Hot_Cavern7; mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
-                {
-                    let al = readU8(si-1);
-                    if (al === 0x2C || al === 0x2D) {
-                        writeMemory(di-1, [0xFE]); // is animated
-                        if (!cavernTileShouldAdvance(si)) {
-                            break;
-                        }
-                        writeMemory(si-1, [((al + 1) & 1) + 0x2C]);
-                        break;
-                    }
-
-                    if (al >= 0x3E) {
-                        break;
-                    }
-
-                    const mapping = {
+            } else if (cavernLevel === 7) { // Animate_Hot_Cavern7; mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
+                if (!oddTick) continue;
+                if (tile === 0x2C || tile === 0x2D) {
+                    nextTile = tile === 0x2C ? 0x2D : 0x2C;
+                } else {
+                    const starts = {
                         0x0E: 0x33,
                         0x0D: 0x36,
                         0x0F: 0x39,
                         0x0C: 0x3C,
                         0x10: 0x3D,
-                        0x35: 0x0E,
-                        0x38: 0x0D,
-                        0x3B: 0x0F,
-                        0x3C: 0x0C,
-                        0x3D: 0x10,
                     };
-
-                    let bl;
-                    if (al in mapping) {
-                        bl = mapping[al];
-                    } else if (al >= 0x33) {
-                        bl = al + 1; // 33→34, 34→35, 36→37, 37→38, 39→3A, 3A→3B
+                    if (Object.hasOwn(starts, tile)) {
+                        nextTile = starts[tile];
+                    } else if (tile >= 0x33 && tile < 0x3E) {
+                        const ends = {
+                            0x35: 0x0E,
+                            0x38: 0x0D,
+                            0x3B: 0x0F,
+                            0x3C: 0x0C,
+                            0x3D: 0x10,
+                        };
+                        nextTile = Object.hasOwn(ends, tile) ? ends[tile] : tile + 1;
+                    } else {
+                        continue;
                     }
-
-                    writeMemory(di-1, [0xFE]); // is animated
-                    if (!cavernTileShouldAdvance(si)) {
-                        break;
-                    }
-                    writeMemory(si-1, [bl]);
                 }
-                break;
-            case 8: // Animate_Thorn_Cavern8; mpp8.grp: 0x25..0x28 (thorns) animated tiles
-                {
-                    let al = readU8(si-1) - 0x25;
-                    if (al < 0 || al >= 4) {
-                        break;
-                    }
-                    writeMemory(di-1, [0xFE]); // is animated
-                    if (!cavernTileShouldAdvance(si)) {
-                        break;
-                    }
-                    writeMemory(si-1, [((al + 1) & 3) + 0x25]);
-                }
-                break;
-            default:
-                break;
-        } // tiles animation switch
-    }
+            } else { // Animate_Thorn_Cavern8; mpp8.grp: 0x25..0x28 (thorns) animated tiles
+                const phase = tile - 0x25;
+                if (!oddTick || phase < 0 || phase >= 4) continue;
+                nextTile = ((phase + 1) & 3) + 0x25;
+            }
 
-    // si: proximity pointer
-    // di: viewport entities buffer pointer
-    function renderRight2(si, di, row) { // Render_Tile_And_Update_Cache
-        const old_a = readU8(di-1); // [EA33]=00
-        writeMemory(di-1, [0xFE]);
-        tileCacheDirtyFlags[0] = old_a;
-
-        const old_b = readU8(di+VIEW_COLS-1); /* same column, row below */
-        writeMemory(di+VIEW_COLS-1, [0xFF]);
-        tileCacheDirtyFlags[1] = old_b;
-
-        const cl = readU8(si-1); // [E11B]=8E
-        si = wrapMap(si+PROX_COLS);
-
-        const dl = readU8(si-1); // 0                           /* background idx, row below */ // 0
-        const bl = readU8(ADDR_PROXIMITY_LAYER2 + (cl & 0x7F)); /* background idx, this row  */ // 0
-        const f = getSheetFrame(cl); // see Lookup_Monster_Tile_Attributes
-        const bh = dl;
-
-        if (tileCacheDirtyFlags[0] !== 0xFF && tileCacheDirtyFlags[0] !== 0xFC) {
-            drawOverlayTileWithCache(bl, f, VIEW_COLS-1, row, 0, 0);
-        }
-
-        if (row !== (VIEW_ROWS-1) &&
-            tileCacheDirtyFlags[1] !== 0xFF && tileCacheDirtyFlags[1] !== 0xFC) {
-            drawOverlayTileWithCache(bh, f, VIEW_COLS-1, row+1, 0, TILE_HEIGHT);
+            writeMemory(addr, [nextTile]);
         }
     }
+}
 
-    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP); // E894
+/*
+ * Entity half of Refresh_Dirty_Tiles for a freshly cleared canvas.
+ *
+ * DOS kept VRAM between refreshes, so its 28x19 cache prevents individual
+ * 8x8 quadrants from being overwritten. Replaying that cache after clearing
+ * the browser canvas makes quadrants disappear or get drawn more than once.
+ * Here the background is already complete, and each 2x2 entity is painted
+ * exactly once in the same row-major order as the assembly scan.
+ */
+function drawDungeonEntities() {
+    if (!dungeonEntitySheetReady || !readMemory) return;
 
-    /* Row -1 (invisible, above the viewport) */
+    // In Refresh_Dirty_Tiles, 0xFF cache entries mean an earlier sprite (or
+    // the hero) owns this destination tile. Recreate that ownership locally
+    // for this freshly cleared frame; never carry it across rAF callbacks.
+    const claimedTiles = new Uint8Array(VIEW_COLS * VIEW_ROWS);
+    const bossExplosionActive =
+        readU8(ADDR_IS_BOSS_CAVERN) && readU8(ADDR_SPRITE_FLASH_FLAG);
+    // Spawn while scanning, but render the rings after every entity, as the
+    // original Boss_Explosions_Renderer call does.
+    _bossExplosionFrameRendered = Boolean(bossExplosionActive);
 
-    /* top-left corner cell (above & left of viewport) */
-    let si = wrapMap(viewportLeftTop - PROX_COLS + 3); // E873
-    if (readU8(si) & 0x80) {    // ┌───┐<- overlay entity   [E873]=0F
-        renderTopLeft(si);      // | ┌─┼────                
-    }                           // └─┼─┘<- background entity
-                                //   |0
-    si++; // E874: 0F 0F 0F 03 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-    /* 27 cells directly above the viewport (col 0 … 26) */
-    for (let col = 0; col <= VIEW_COLS-2; col++) {
-        if (readU8(si) & 0x80) {    //  ┌───┐      ┌───┐      ┌───┐ <- overlay entity
-            renderTop(si, col);     //  ├───┼──  ┌─┼───┼──  ──┼───┤
-        }                           //  ├───┘    | └───┘      └───┤ <- background entity
-                                    //  |0       |            26  |
-        si++;                     
+    for (const [id, frames] of _entityHitFlashTimers) {
+        if (frames > 1) _entityHitFlashTimers.set(id, frames - 1);
+        else _entityHitFlashTimers.delete(id);
     }
 
-    // E88F: 00; [E88F]=8C
-    /* top-right corner cell (above the viewport col 27) */
-    if (readU8(si) & 0x80) {  //   ┌───┐ <- overlay entity    // 8C
-        renderTopRight(si);   // ──┼─┐ |
-    }                         //   └─┼─┘ <- background entity
-                              //   27|  
+    let currentEntityFlashFrames = 0;
 
-    /* Visible rows 0 … 17 */
-    si = viewportLeftTop; // E894
-    let di = ADDR_VIEWPORT_ENTITIES; // E900
-    for (let row = 0; row < VIEW_ROWS; row++) {
-        // render_hero_and_sword()
-        si += 3; // E897
-        // row0 E897: 0E; row1 e7bb: 
-        /* left-column edge cell (col −1) */ // Render_Tile_With_Dual_Cache
-        const al0 = readU8(si++);     //    ┌─┬─┬──  <- overlay entity
-        if (al0 & 0x80) {             //    | | |
-            renderLeft2(si, di, row); //    └─┼─┘    <- background entity
-        }                             //      |  
+    function getSheetFrame(entityId) {
+        const id = entityId & 0x7F;
+        const ptr = readU16(ADDR_MONSTERS_LIST) + id * 16;
+        const dir = readU8(ptr + 5) & 0x80 ? "right" : "left";
+        const flags = readU8(ptr + 4) & 0x1F;
+        const offset = readU8(ptr + 6) & 0x0F;
 
-        /* columns 0 … 26 ── entity check + dirty-track */
-        // E898: 0E 0E 0E 03 06 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-        // E900: FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD FD
-        for (let col = 0; col <= VIEW_COLS-2; col++) { //  ┌───┬──  ┌─┬───┬──  ──┬───┐ <- overlay entity
-            const map_byte = readU8(si++);             //  |   |    | |   |      |   |
-            const cached_byte = readU8(di++);          //  ├───┘    | └───┘      └───┤ <- background entity
-            if (map_byte !== cached_byte) {            //  |        |                |
-                renderMid2(si, di, col, row); // Process_Dirty_Tile_With_Animation
+        currentEntityFlashFrames = _entityHitFlashTimers.get(id) || 0;
+        if ((flags & 0x18) === 0 && (readU8(ptr + 5) & 0x20)) {
+            currentEntityFlashFrames = 6;
+            _entityHitFlashTimers.set(id, 6);
+        }
+        // console.log('DFOE: ', dir, flags, offset, entityId);
+
+        return dungeonAI[dir][flags][offset];
+    }
+
+    function drawEntity(frame, vpX, vpY) {
+        if (!dungeonEntitySheet || frame < 0 || frame >= dungeonAI["numSprites"]) return;
+        const sx = frame * DUNGEON_ENTITY_W;
+        if (sx + DUNGEON_ENTITY_W > dungeonEntitySheet.width ||
+            DUNGEON_ENTITY_H > dungeonEntitySheet.height) return;
+
+        const tinted = currentEntityFlashFrames > 0;
+        if (tinted) {
+            _tintCtx.clearRect(0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H);
+            _tintCtx.drawImage(
+                dungeonEntitySheet,
+                sx, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H,
+                0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H
+            );
+            _tintCtx.globalCompositeOperation = 'source-atop';
+            _tintCtx.fillStyle = '#ffff00';
+            _tintCtx.globalAlpha = 0.5;
+            _tintCtx.fillRect(0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H);
+            _tintCtx.globalCompositeOperation = 'source-over';
+            _tintCtx.globalAlpha = 1.0;
+        }
+
+        for (let tileY = 0; tileY < 2; tileY++) {
+            const destY = vpY + tileY;
+            if (destY < 0 || destY >= VIEW_ROWS) continue;
+            for (let tileX = 0; tileX < 2; tileX++) {
+                const destX = vpX + tileX;
+                if (destX < 0 || destX >= VIEW_COLS) continue;
+
+                const claimedIndex = destY * VIEW_COLS + destX;
+                if (claimedTiles[claimedIndex]) continue;
+                claimedTiles[claimedIndex] = 1;
+
+                const sourceX = tileX * TILE_WIDTH;
+                const sourceY = tileY * TILE_HEIGHT;
+                const dx = destX * TILE_WIDTH;
+                const dy = destY * TILE_HEIGHT;
+                ctx.drawImage(
+                    dungeonEntitySheet,
+                    sx + sourceX, sourceY, TILE_WIDTH, TILE_HEIGHT,
+                    dx, dy, TILE_WIDTH, TILE_HEIGHT
+                );
+                if (tinted) {
+                    ctx.drawImage(
+                        _tintCanvas,
+                        sourceX, sourceY, TILE_WIDTH, TILE_HEIGHT,
+                        dx, dy, TILE_WIDTH, TILE_HEIGHT
+                    );
+                }
             }
         }
+    }
 
-        /* column 27 (right edge) ── entity always renders */
-        const al27 = readU8(si++);                    // ──┬─┬─┐ <- overlay entity    // [E11B]=8E
-        di++;                                         //   | | |
-        if (al27 & 0x80) { // monster/entity tile     //   └─┼─┘ <- background entity
-            renderRight2(si, di, VIEW_COLS-1);        //     | 
-        } else if (al27 !== di[-1]) { // static tile changed due to being animated
-            renderMid2(si, di, VIEW_COLS-1, row);
+    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
+
+    // Include the invisible row and left edge so partially visible sprites
+    // are naturally clipped by the canvas, matching the assembly helpers.
+    for (let row = -1; row < VIEW_ROWS; row++) {
+        let si = wrapProximityAddress(viewportLeftTop + row * PROX_COLS + 3);
+        for (let col = -1; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
+            const entityId = readU8(si);
+            if (!(entityId & 0x80)) continue;
+
+            drawEntity(getSheetFrame(entityId), col, row);
+
+            if (row >= 0 && col >= 0 && bossExplosionActive) {
+                spawnBossExplosionRings(col, row);
+            }
         }
-        si = wrapMap(si+4); // e8b4 + 4 = e8b8
+    }
+
+    if (bossExplosionActive) {
+        _bossExplosionFrameRendered = false;
+        spawnBossExplosionRings(0, VIEW_ROWS); // draw only; row 18 cannot spawn
     }
 }
 
@@ -5225,11 +4992,12 @@ function draw() {
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 drawDungeonTiles(); // background cavern tiles
+                animateDungeonTiles(); // advance cavern 5–8 tiles once per game tick
+                drawDungeonEntities(); // monsters/items, in original row-major order
+                drawDungeonHero(); // hero 3x3 tiles sprite
                 drawDungeonMagiaStones(); // video effect of Magia Stone item
                 drawDungeonProjectiles(); // monsters projectiles
                 drawDungeonMagicProjectiles(); // hero magic spell projectiles
-                drawDungeonEntities(); // monsters/items
-                drawDungeonHero(); // hero 3x3 tiles sprite
                 drawDungeonSword(); // hero's sword 4x4 tiles sprite
                 drawDungeonNotification(); // notification text boxes (pickup items etc)
                 drawDungeonSign(); // text boxes when reading the signposts
