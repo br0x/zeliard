@@ -1181,7 +1181,7 @@ const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
-const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF at byte 0
+const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF (enemy projectiles)
 const PROJECTILE_STRUCT_SIZE         = 13;
 const ADDR_MAGIC_PROJECTILES         = 0xEB15;    // 4 slots × 16 bytes each
 const MAGIC_PROJECTILE_STRIDE        = 0x10;
@@ -2655,7 +2655,7 @@ function spawnBossExplosionRings(col, row) {
   writeMemory(ptr + 4, [0xFF]); // terminator for next
 }
 
-function drawDungeonProjectiles() {
+function drawDungeonProjectiles() { // monsters projectiles
     if (!dungeonTileSheetReady || !readMemory) return;
     if (!dungeonProjectiles) return;
     const top = dungeonGetViewportTop?.() ?? 0;
@@ -5224,15 +5224,15 @@ function draw() {
             } else { // normal dungeon rendering
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                drawDungeonTiles();
-                drawDungeonMagiaStones();
-                drawDungeonProjectiles();
-                drawDungeonMagicProjectiles();
-                drawDungeonEntities();
-                drawDungeonHero();
-                drawDungeonSword();
-                drawDungeonNotification();
-                drawDungeonSign();
+                drawDungeonTiles(); // background cavern tiles
+                drawDungeonMagiaStones(); // video effect of Magia Stone item
+                drawDungeonProjectiles(); // monsters projectiles
+                drawDungeonMagicProjectiles(); // hero magic spell projectiles
+                drawDungeonEntities(); // monsters/items
+                drawDungeonHero(); // hero 3x3 tiles sprite
+                drawDungeonSword(); // hero's sword 4x4 tiles sprite
+                drawDungeonNotification(); // notification text boxes (pickup items etc)
+                drawDungeonSign(); // text boxes when reading the signposts
                 if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
                     writeMemory(ADDR_BYTE_9EED, [0]);
                     _guerraEffectRunning = true;
