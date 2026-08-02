@@ -71,8 +71,6 @@ const TEXT_THANK_YOU =
 const TEXT_MORNING =
     "I trust you had a good night's sleep. We'll be looking forward to seeing you again.";
 
-let hasSleptThisSession = false;
-
 export class InnScene extends IndoorSceneBase {
     constructor(context) {
         super(context);
@@ -118,12 +116,8 @@ export class InnScene extends IndoorSceneBase {
         this.townIdx = this._getTownIdx();
         this.price = PRICES[Math.min(this.townIdx, PRICES.length - 1)];
 
-        if (hasSleptThisSession) {
-            this._setDialog(TEXT_MORNING);
-        } else {
-            const priceStr = this.price > 0 ? `${this.price} ` : '';
-            this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
-        }
+        const priceStr = this.price > 0 ? `${this.price} ` : '';
+        this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
         this.scenePhase = 'greeting';
 
         this.phase = 'shown';
@@ -259,7 +253,6 @@ export class InnScene extends IndoorSceneBase {
             if (now - this.sleepStartTime >= SLEEP_HEAL_WAIT_MS) {
                 this.sleepPhase = null;
                 this.sleepAlpha = 0;
-                hasSleptThisSession = true;
                 this._setDialog(TEXT_MORNING);
                 this.scenePhase = 'morning';
             }

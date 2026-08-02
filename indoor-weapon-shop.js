@@ -352,6 +352,13 @@ export class WeaponShopScene extends IndoorSceneBase {
         return this._read(ADDR_CREST_OF_GLORY, 1)[0] !== 0;
     }
 
+    _crestTraded() {
+        // True once the Crest of Glory has been traded for the Knight's Sword
+        // (cementar_items_1 bit 1, set by _executeCrestTrade).  Until then the
+        // Tumba smith refuses to sell the Knight's Sword (armrpro.asm sub_A47B).
+        return (this._read(ADDR_CEMENTAR_1, 1)[0] & 0x02) !== 0;
+    }
+
     _buildInventoryLists() {
         this._swordIndices  = bitmaskToItemIndices(this._getSwordBitmask());
         this._shieldIndices = bitmaskToItemIndices(this._getShieldBitmask());
@@ -920,6 +927,18 @@ export class WeaponShopScene extends IndoorSceneBase {
         const kind    = this.subKind;          // 'sword' | 'shield'
         const itemIdx = this.subItems[this.subSel]; // 0-based item index
 
+        // Knight's Sword (index 3) can't be bought in Tumba until the Crest of
+        // Glory has been returned (armrpro.asm sub_A47B → unk_B24C).
+        if (kind === 'sword' && itemIdx === 3 && this.townIdx === 4 && !this._crestTraded()) {
+            this._setDialog(
+                "I do not sell that weapon. I haven't a single one in stock. " +
+                'Please choose another.'
+            );
+            this.shopPhase       = 'dialog';
+            this.exitAfterDialog = false;
+            return;
+        }
+
         // Trying to buy the same item already owned?
         if (kind === 'sword') {
             const cur = this._getSwordType();
@@ -1042,6 +1061,16 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     _onExplainItem(now) {
         const flatIdx = this.subItems[this.subSel];   // 0–5 sword, 6–11 shield
+
+        // The Tumba smith dodges questions about the Knight's Sword until the
+        // Crest of Glory has been returned (armrpro.asm sub_A8E0 → unk_B240).
+        if (flatIdx === 3 && this.townIdx === 4 && !this._crestTraded()) {
+            this._setDialog('Uh......');
+            this.shopPhase       = 'dialog';
+            this.exitAfterDialog = false;
+            return;
+        }
+
         const name    = flatIdx < 6 ? SWORD_NAMES[flatIdx] : SHIELD_NAMES[flatIdx - 6];
         const desc    = ITEM_DESCRIPTIONS[flatIdx] || 'A fine piece of craftsmanship.';
         this._setDialog(`Oh, the ${name}? ${desc}`);

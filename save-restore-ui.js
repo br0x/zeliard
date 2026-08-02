@@ -74,7 +74,9 @@ class BaseSaveRestoreDialog {
             if (keyCode === 'ArrowUp' || keyCode === 'ArrowDown') {
                 this.inputActive = false;
                 if (this.items.length === 0) this.selectedIndex = 0;
+                else if (keyCode === 'ArrowUp') this.selectedIndex = this.items.length - 1;
                 else if (this.selectedIndex >= this.items.length) this.selectedIndex = this.items.length - 1;
+                this._clampScroll();
                 return true;
             }
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
