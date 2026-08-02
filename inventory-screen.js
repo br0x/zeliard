@@ -200,10 +200,7 @@ export class InventoryScreen {
         d.currentAccessory = r(ADDR_CURRENT_ACCESSORY, 1)[0];
 
         const it = r(ADDR_MAGIC_ITEMS, 5);
-        d.items = [0];
-        for (let i = 0; i < 5; i++) {
-            d.items.push(it[i] || 0);
-        }
+        d.items = [0, ...it.filter(v => v > 0)];
 
         d.swordType = r(ADDR_SWORD_TYPE, 1)[0];
         d.shieldType = r(ADDR_SHIELD_TYPE, 1)[0];
@@ -784,13 +781,15 @@ export class InventoryScreen {
                 this.usageMessage = 'a Kioku feather.';
                 this.usageTimer = performance.now();
                 w(ADDR_MAGIC_ITEMS + slot, [0]);
-                this.data.items[this.selectedIndices[2]] = 0;
+                this.data.items.splice(this.selectedIndices[2], 1);
+                this.selectedIndices[2] = 0;
                 setTimeout(() => this.exit(), 600);
                 return;
         }
 
         w(ADDR_MAGIC_ITEMS + slot, [0]);
-        this.data.items[this.selectedIndices[2]] = 0;
+        this.data.items.splice(this.selectedIndices[2], 1);
+        this.selectedIndices[2] = 0;
     }
 
     _healHP(amount) {
