@@ -2868,6 +2868,301 @@ def render_zela_group(data, canvas, y_offset):
     return current_y - y_offset
 
 # ---------------------------------------------------------------------------
+# Meda (Vista boss) rendering
+# ---------------------------------------------------------------------------
+
+# Transcribed directly from meda.asm's byte_A050/byte_A0A0/byte_A0F0/
+# byte_A140/byte_A18B/byte_A1DB tables, pointed to by the offset table at
+# A030. Same [pal_idx, tl, tr, bl, br] format as CRAB_FRAMES/TAKO_FRAMES/
+# TORI_FRAMES/ZELA_FRAMES.
+MEDA_FRAMES = {
+    "Tile Group 0 (byte_A050)": [
+        [0, 0x01, 0x00, 0x02, 0x03],
+        [0, 0x00, 0x04, 0x05, 0x06],
+        [0, 0x00, 0x07, 0x16, 0x09],
+        [0, 0x08, 0x0B, 0x0A, 0x0C],
+        [0, 0x0D, 0x0E, 0x0F, 0x10],
+        [0, 0x11, 0x12, 0x13, 0x0A],
+        [0, 0x14, 0x00, 0x0A, 0x15],
+        [0, 0x00, 0x17, 0x18, 0x19],
+        [0, 0x1A, 0x1B, 0x1C, 0x0A],
+        [0, 0x1D, 0x1E, 0x1F, 0x20],
+        [0, 0x21, 0x22, 0x0A, 0x23],
+        [0, 0x0A, 0x24, 0x0A, 0x25],
+        [0, 0x26, 0x0A, 0x27, 0x0A],
+        [0, 0x28, 0x0A, 0x29, 0x0A],
+        [0, 0x2A, 0x0A, 0x2B, 0x0A],
+        [0, 0x0A, 0x0A, 0x0A, 0x2C],
+    ],
+    "Tile Group 1 (byte_A0A0)": [
+        [0, 0x2D, 0x00, 0x0A, 0x2E],
+        [0, 0x0A, 0x2F, 0x0A, 0x30],
+        [0, 0x0A, 0x31, 0x32, 0x33],
+        [0, 0x34, 0x00, 0x35, 0x36],
+        [0, 0x00, 0x00, 0x37, 0x38],
+        [0, 0x00, 0x39, 0x3A, 0x3B],
+        [0, 0x00, 0x00, 0x3C, 0x3D],
+        [0, 0x3E, 0x3F, 0x40, 0x41],
+        [0, 0x42, 0x43, 0x44, 0x45],
+        [0, 0x46, 0x47, 0x48, 0x49],
+        [0, 0x5A, 0x5B, 0x5C, 0x5D],
+        [0, 0x5E, 0x5F, 0x60, 0x61],
+        [0, 0x62, 0x63, 0x64, 0x65],
+        [0, 0x66, 0x67, 0x68, 0x69],
+        [0, 0x6A, 0x6B, 0x6C, 0x6D],
+        [0, 0x6E, 0x6F, 0x70, 0x71],
+    ],
+    "Tile Group 2 (byte_A0F0)": [
+        [0, 0x72, 0x73, 0x74, 0x75],
+        [0, 0x76, 0x77, 0x78, 0x79],
+        [0, 0x7A, 0x7B, 0x7C, 0x7D],
+        [0, 0x7E, 0x7F, 0x68, 0x69],
+        [0, 0x80, 0x81, 0x6C, 0x6D],
+        [0, 0x82, 0x83, 0x70, 0x71],
+        [0, 0x72, 0x84, 0x85, 0x86],
+        [0, 0x76, 0x87, 0x88, 0x89],
+        [0, 0x62, 0x63, 0x8A, 0x8B],
+        [0, 0x8C, 0x8D, 0x68, 0x69],
+        [0, 0x8E, 0x8F, 0x6C, 0x6D],
+        [0, 0x90, 0x91, 0x70, 0x71],
+        [0, 0x92, 0x84, 0x93, 0x94],
+        [0, 0x95, 0x96, 0x97, 0x98],
+        [0, 0x99, 0x63, 0x8A, 0x9A],
+        [0, 0x9B, 0x9C, 0x68, 0x69],
+    ],
+    "Tile Group 3 (byte_A140)": [
+        [0, 0x9D, 0x9E, 0x6C, 0x6D],
+        [0, 0x9F, 0xA0, 0x70, 0x71],
+        [0, 0x72, 0xA1, 0xA2, 0xA3],
+        [0, 0x76, 0x77, 0xA4, 0xA5],
+        [0, 0x62, 0x63, 0xA6, 0xA7],
+        [0, 0xA8, 0xA9, 0x68, 0x69],
+        [0, 0x6A, 0xAA, 0x6C, 0x6D],
+        [0, 0xAB, 0xAC, 0x70, 0x71],
+        [0, 0x5A, 0xAD, 0xAE, 0xAF],
+        [0, 0xB0, 0xB1, 0xB2, 0xB3],
+        [0, 0xB4, 0x7B, 0xB5, 0xB6],
+        [0, 0xB7, 0xB8, 0xB9, 0xBA],
+        [0, 0xBB, 0xBC, 0x6C, 0xBD],
+        [0, 0xBE, 0xBF, 0x70, 0x71],
+        [0, 0x42, 0x43, 0x44, 0xCC],
+    ],
+    "Tile Group 14 (byte_A18B)": [
+        [0, 0x4A, 0x4B, 0x4C, 0x4D],
+        [0, 0x4E, 0x4F, 0x50, 0x51],
+        [0, 0x52, 0x53, 0x54, 0x55],
+        [0, 0x56, 0x57, 0x58, 0x59],
+        [0, 0xC0, 0xC1, 0xC2, 0xC3],
+        [0, 0xC4, 0xC5, 0xC6, 0xC7],
+        [0, 0x00, 0x00, 0xC8, 0xC9],
+        [0, 0x00, 0x00, 0xCA, 0xCB],
+        [0, 0xC0, 0xC1, 0xCD, 0xCE],
+        [0, 0xCF, 0xC5, 0xC6, 0xC7],
+        [0, 0xC0, 0xC1, 0xD0, 0xD1],
+        [0, 0xD2, 0xC5, 0xC6, 0xC7],
+        [0, 0x00, 0x00, 0xC8, 0xD3],
+        [0, 0x00, 0x00, 0x00, 0xD4],
+        [0, 0xC0, 0xC1, 0xD5, 0xD6],
+        [0, 0xD7, 0xC5, 0xD8, 0xC7],
+    ],
+    "Tile Group 15 (byte_A1DB)": [
+        [0, 0x00, 0xD9, 0xDA, 0xDB],
+        [0, 0xC0, 0xC1, 0xC2, 0xDC],
+        [0, 0xDD, 0xC5, 0xDE, 0xC7],
+    ],
+}
+
+MEDA_FRAME_SET_BY_INDEX = {
+    0: "Tile Group 0 (byte_A050)",
+    1: "Tile Group 1 (byte_A0A0)",
+    2: "Tile Group 2 (byte_A0F0)",
+    3: "Tile Group 3 (byte_A140)",
+    14: "Tile Group 14 (byte_A18B)",
+    15: "Tile Group 15 (byte_A1DB)",
+}
+
+MEDA_LAYOUT_BODY1 = [
+    (0, 7), (0, 8), (0, 9), (0, 0), (0, 2), (0, 0x0A), (0, 0x0B), (0, 0x0C), (0, 3), (1, 7),
+    (0, 4), (0, 5), (1, 9), (0, 6), (0, 0x0D), (0, 0x0E), (0, 0x0F), (0, 1), (1, 0), (1, 1), (1, 2)
+]
+MEDA_SHAPE_BODY1 = [0x2A, 0x80, 0x55, 0x00, 0x41, 0x00, 0x40, 0x00, 0x41, 0x00, 0x55, 0x80, 0x2A]
+
+MEDA_LAYOUT_BODY2 = [
+    (1, 3), (1, 4), (0x0E, 2), (0x0E, 0), (0x0E, 1), (0x0E, 3), (1, 5), (1, 6)
+]
+MEDA_SHAPE_BODY2 = [0xC0, 0x10, 0x40, 0, 0, 0, 0, 0, 0x40, 0x10, 0xC0]
+
+MEDA_LAYOUT_DIR = [
+    [(1, 0x0A), (1, 0x0D), (1, 0x0B), (1, 0x0E), (1, 0x0C), (1, 0x0F)],  # dir 0
+    [(2, 0), (2, 3), (2, 1), (2, 4), (2, 2), (2, 5)],                      # dir 1
+    [(2, 6), (2, 9), (2, 7), (2, 0x0A), (2, 8), (2, 0x0B)],              # dir 2
+    [(2, 0x0C), (2, 0x0F), (2, 0x0D), (3, 0), (2, 0x0E), (3, 1)],         # dir 3
+    [(3, 2), (3, 5), (3, 3), (3, 6), (3, 4), (3, 7)],                      # dir 4
+    [(3, 8), (3, 0x0B), (3, 9), (3, 0x0C), (3, 0x0A), (3, 0x0D)]          # dir 5
+]
+MEDA_SHAPE_DIR = [0xA0, 0, 0xA0, 0, 0xA0]
+
+MEDA_LAYOUT_WING = [
+    [(0x0E, 6), (0x0E, 4), (1, 8), (0x0E, 5), (0x0E, 7)],                 # wing 0
+    [(0x0E, 6), (0x0E, 8), (3, 0x0E), (0x0E, 9), (0x0E, 7)],               # wing 1
+    [(0x0E, 0x0C), (0x0E, 0x0A), (0x0E, 0x0D), (1, 8), (0x0E, 0x0B), (0x0E, 7)], # wing 2
+    [(0x0E, 6), (0x0E, 0x0E), (0x0F, 0), (1, 8), (0x0E, 0x0F), (0x0E, 7)], # wing 3
+    [(0x0E, 6), (0x0F, 1), (1, 8), (0x0F, 2), (0x0E, 7)]                  # wing 4
+]
+MEDA_SHAPE_WING = [
+    [0x10, 0x20, 0x80, 0x20, 0x10],  # wing 0
+    [0x10, 0x20, 0x80, 0x20, 0x10],  # wing 1
+    [0x10, 0x30, 0x80, 0x20, 0x10],  # wing 2
+    [0x10, 0x28, 0x80, 0x20, 0x10],  # wing 3
+    [0x10, 0x20, 0x80, 0x20, 0x10],  # wing 4
+]
+
+
+def place_meda_body_part_into_grid(grid, layout, shape, col_base, row_base):
+    grid_cols, grid_rows = 14, 12
+    pair_iter = iter(layout)
+    col = col_base
+    row = row_base
+
+    for mask_byte in shape:
+        b = mask_byte
+        for bit_idx in range(8):
+            carry = (b & 0x80) != 0
+            b = ((b << 1) | (1 if carry else 0)) & 0xFF
+            if carry:
+                try:
+                    tile_group, anim_idx = next(pair_iter)
+                    if 0 <= col < grid_cols and 0 <= row < grid_rows:
+                        grid[col][row] = (tile_group, anim_idx)
+                except StopIteration:
+                    pass
+            row += 1
+            if row >= grid_rows:
+                col += row // grid_rows
+                row = row % grid_rows
+
+        row += 4
+        if row >= grid_rows:
+            col += row // grid_rows
+            row = row % grid_rows
+
+
+def compute_meda_body_layout(direction_zone, anim_frame):
+    """
+    Reproduce Meda_AI_proc's body-part layout assembly (build_frame_sprite_list /
+    place_body_part) for a given direction_zone (0-5) and anim_frame (0-4),
+    returning a list of (col, row, tile_group, anim_idx) for every populated
+    cell in the 14-column x 12-row grid.
+    """
+    grid: list[list[tuple[int, int] | None]] = [[None for _ in range(12)] for _ in range(14)]
+    place_meda_body_part_into_grid(grid, MEDA_LAYOUT_BODY1, MEDA_SHAPE_BODY1, 0, 0)
+    place_meda_body_part_into_grid(grid, MEDA_LAYOUT_BODY2, MEDA_SHAPE_BODY2, 1, 8)
+    place_meda_body_part_into_grid(grid, MEDA_LAYOUT_DIR[direction_zone], MEDA_SHAPE_DIR, 4, 3)
+    place_meda_body_part_into_grid(grid, MEDA_LAYOUT_WING[anim_frame], MEDA_SHAPE_WING[anim_frame], 4, 7)
+
+    placements = []
+    for col in range(14):
+        for row in range(12):
+            cell = grid[col][row]
+            if cell is not None:
+                tile_group, anim_idx = cell
+                placements.append((col, row, tile_group, anim_idx))
+    return placements
+
+
+def render_meda_group(data, canvas, y_offset):
+    """
+    Render meda.grp sprites (Vista / Meda boss).
+
+    Part 1 assembles the composite Meda body (14 columns x 12 rows grid)
+    for various direction_zone (0-5) and anim_frame (0-4) combinations,
+    reproducing build_frame_sprite_list() from meda.c / meda.asm.
+
+    Part 2 renders every raw frame set (MEDA_FRAMES).
+    """
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Meda Body
+    # -----------------------------------------------------------------------
+    body_scale = 2
+    step = 8
+    cols, rows = 14, 12
+    sprite_span = 16
+    block_w = int((cols - 1) * step * body_scale + sprite_span * body_scale)
+    block_h = int((rows - 1) * step * body_scale + sprite_span * body_scale)
+    phases_per_row = 4
+    body_gap_x, body_gap_y = 16, 24
+
+    poses_to_render = [
+        ("dir 0: far left (wing 0)", 0, 0),
+        ("dir 1: left (wing 0)", 1, 0),
+        ("dir 2: center (wing 0)", 2, 0),
+        ("dir 3: right (wing 0)", 3, 0),
+        ("dir 4: far right (wing 0)", 4, 0),
+        ("dir 5: death pose", 5, 0),
+        ("wing flap 1 (center)", 2, 1),
+        ("wing flap 2 (center)", 2, 2),
+        ("wing flap 3 (center)", 2, 3),
+        ("wing flap 4 (center)", 2, 4),
+    ]
+
+    for f_idx, (label, dz, wf) in enumerate(poses_to_render):
+        col_idx = f_idx % phases_per_row
+        row_idx = f_idx // phases_per_row
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
+                            anchor="w", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, tile_group, anim_idx in compute_meda_body_layout(dz, wf):
+            set_name = MEDA_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+            frames = MEDA_FRAMES[set_name]
+            if anim_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
+                                       x_base + int(gcol * step * body_scale),
+                                       y_base + int(grow * step * body_scale),
+                                       body_scale)
+
+    num_body_rows = (len(poses_to_render) + phases_per_row - 1) // phases_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set
+    # -----------------------------------------------------------------------
+    gap_x, gap_y = 0, 8
+    sprite_px = 16
+    frames_per_row = 16
+    n = 0
+    for set_name, frames in MEDA_FRAMES.items():
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
+# ---------------------------------------------------------------------------
 # Roka rendering (roka.grp dungeon entrance decorations)
 # ---------------------------------------------------------------------------
 
