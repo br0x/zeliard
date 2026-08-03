@@ -582,7 +582,7 @@ export class InventoryScreen {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(`LEVEL ${this.data.level}`, x + 20, y + boxH * 0.3);
-        ctx.fillText(`EXP ${this.data.heroXP}/${XP_TABLE[this.data.level+1]}`, x + 20, y + boxH * 0.7);
+        ctx.fillText(`EXP ${this.data.heroXP}/${XP_TABLE[this.data.level]}`, x + 20, y + boxH * 0.7);
         ctx.fillStyle = '#fff';
         ctx.fillText(`LEVEL`, x + 20, y + boxH * 0.3);
         ctx.fillText(`EXP`, x + 20, y + boxH * 0.7);
