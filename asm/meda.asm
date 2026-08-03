@@ -631,7 +631,7 @@ loc_A58F:
 loc_A597:
                 mov     byte_A733, 0
                 mov     byte ptr ds:boss_being_hit, 0FFh
-                jmp     word ptr cs:603Ch
+                jmp     word ptr cs:Browse_Projectiles_proc
 sub_A575        endp
 
 ; ---------------------------------------------------------------------------
