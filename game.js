@@ -414,13 +414,13 @@ const EAI5 = {
         [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // man_bottom_left
         [54, 55, 56, 57, 58, 59, 60, 61],                 // red_egg
         [65, 66, 67, 68, 69, 70],                         // eyeball_left
-        [80, 81, 82, 83, 84, 85, 86, 87],                 // vestlet
+        [80, 81, 82, 83, 84, 85, 86, 87],                 // vistlet
         [], [], [],
         [24, 25, 26],                                     // man_top_death
         [51, 52, 53],                                     // man_bottom_death
         [62, 63, 64],                                     // red_egg_death
         [77, 78, 79],                                     // eyeball_death
-        [88, 89, 90],                                     // vestlet_death
+        [88, 89, 90],                                     // vistlet_death
         [], [], [],
         [114, 115, 116, 117],                             // destroyable_wall1
         [118, 119, 120, 121],                             // destroyable_wall2
@@ -440,13 +440,13 @@ const EAI5 = {
         [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], // man_bottom_right
         [54, 55, 56, 57, 58, 59, 60, 61],                 // red_egg
         [71, 72, 73, 74, 75, 76],                         // eyeball_right
-        [80, 81, 82, 83, 84, 85, 86, 87],                 // vestlet
+        [80, 81, 82, 83, 84, 85, 86, 87],                 // vistlet
         [], [], [],
         [24, 25, 26],                                     // man_top_death
         [51, 52, 53],                                     // man_bottom_death
         [62, 63, 64],                                     // red_egg_death
         [77, 78, 79],                                     // eyeball_death
-        [88, 89, 90],                                     // vestlet_death
+        [88, 89, 90],                                     // vistlet_death
         [], [], [],
         [114, 115, 116, 117],                             // destroyable_wall1
         [118, 119, 120, 121],                             // destroyable_wall2

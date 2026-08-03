@@ -44,7 +44,7 @@ monster_damage  db 40, 40, 20, 20, 10, 0, 0, 0
                 dw offset man_bottom_left   ; 27..38
                 dw offset red_egg           ; 54..61
                 dw offset eyeball_left      ; 65..70
-                dw offset vestlet           ; 80..87
+                dw offset vistlet           ; 80..87
                 dw 0
                 dw 0
                 dw 0
@@ -52,7 +52,7 @@ monster_damage  db 40, 40, 20, 20, 10, 0, 0, 0
                 dw offset man_bottom_death  ; 51..53
                 dw offset red_egg_death     ; 62..64
                 dw offset eyeball_death     ; 77..79
-                dw offset vestlet_death     ; 88..90
+                dw offset vistlet_death     ; 88..90
                 dw 0
                 dw 0
                 dw 0
@@ -77,7 +77,7 @@ monster_damage  db 40, 40, 20, 20, 10, 0, 0, 0
                 dw offset man_bottom_right  ; 39..50
                 dw offset red_egg           ; 54..61
                 dw offset eyeball_right     ; 71..76
-                dw offset vestlet           ; 80..87
+                dw offset vistlet           ; 80..87
                 dw 0
                 dw 0
                 dw 0
@@ -85,7 +85,7 @@ monster_damage  db 40, 40, 20, 20, 10, 0, 0, 0
                 dw offset man_bottom_death  ; 51..53
                 dw offset red_egg_death     ; 62..64
                 dw offset eyeball_death     ; 77..79
-                dw offset vestlet_death     ; 88..90
+                dw offset vistlet_death     ; 88..90
                 dw 0
                 dw 0
                 dw 0
@@ -185,7 +185,7 @@ eyeball_right   db 0, 27h, 28h, 29h, 2Ah ; 71..76
 eyeball_death   db 0, 43h, 44h, 45h, 46h ; 77..79
                 db 0, 47h, 48h, 49h, 4Ah
                 db 0, 4Bh, 4Ch, 4Dh, 4Eh
-vestlet         db 0, 4Fh, 50h, 51h, 52h ; 80..87
+vistlet         db 0, 4Fh, 50h, 51h, 52h ; 80..87
                 db 0, 53h, 54h, 55h, 56h
                 db 0, 57h, 58h, 51h, 52h
                 db 0, 59h, 5Ah, 51h, 52h
@@ -193,7 +193,7 @@ vestlet         db 0, 4Fh, 50h, 51h, 52h ; 80..87
                 db 0, 5Fh, 60h, 61h, 62h
                 db 0, 63h, 64h, 65h, 66h
                 db 0, 0, 0, 69h, 6Ah
-vestlet_death   db 0, 6Bh, 6Ch, 6Dh, 6Eh ; 88..90
+vistlet_death   db 0, 6Bh, 6Ch, 6Dh, 6Eh ; 88..90
                 db 0, 4Bh, 4Ch, 4Dh, 4Eh
                 db 0, 73h, 74h, 75h, 76h
 hit             db 1, 3, 6, 0Ah, 26h     ; 91..93
@@ -270,7 +270,7 @@ jpt_A341        dw offset man_top_ai      ; jump table for switch statement
                 dw offset man_bottom_ai
                 dw offset red_egg_ai
                 dw offset eyeball_ai
-                dw offset vestlet_ai
+                dw offset vistlet_ai
 ; ---------------------------------------------------------------------------
 
 man_bottom_ai:                            ; jumptable 0000A341 case 1
@@ -1163,7 +1163,7 @@ loc_A911:
                 retn
 ; ---------------------------------------------------------------------------
 
-vestlet_ai:                               ; jumptable 0000A341 case 4
+vistlet_ai:                               ; jumptable 0000A341 case 4
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A924
                 mov     byte ptr [si+8], 8

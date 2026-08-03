@@ -16,7 +16,7 @@
  *   3 -> a ground monster with a walk/charge-dash behaviour
  *        (eyeball_ai).
  *   4 -> a flying monster that climbs, hovers, dives at the hero, then
- *        climbs back up (vestlet_ai).
+ *        climbs back up (vistlet_ai).
  *
  * Translation conventions
  * ------------------------------------------------------------------
@@ -64,7 +64,7 @@ static void man_top_ai(uint16_t m);
 static void man_bottom_ai(uint16_t m);
 static void red_egg_ai(uint16_t m);
 static void eyeball_ai(uint16_t m);
-static void vestlet_ai(uint16_t m);
+static void vistlet_ai(uint16_t m);
 
 /* Shared helpers */
 static ProxResult monster_to_hero_proximity_and_direction(uint16_t m); /* sub_A5C2 */
@@ -109,16 +109,16 @@ static void eyeball_single_step(uint16_t m);              /* loc_A8BB */
 static void eyeball_charge_dash(uint16_t m);               /* loc_A8DB */
 
 /* Type 4 helpers */
-static void vestlet_search_state(uint16_t m);      /* default state */
-static void vestlet_cycle_anim(uint16_t m);          /* loc_A958 */
-static void vestlet_fly_step(uint16_t m);              /* loc_A966 */
-static void vestlet_after_fly_throttle(uint16_t m);      /* loc_A972 */
-static void vestlet_dive_state(uint16_t m);                /* loc_A993 */
-static void vestlet_dive_step(uint16_t m);                   /* loc_A9A0 */
-static void vestlet_dive_advance(uint16_t m);                  /* loc_A9AD */
-static void vestlet_climb_state(uint16_t m);                     /* loc_A9BC */
-static void vestlet_climb_ne(uint16_t m);                          /* loc_A9BC (m_x_rel<=0x10) */
-static void vestlet_climb_nw(uint16_t m);                            /* loc_A9DD */
+static void vistlet_search_state(uint16_t m);      /* default state */
+static void vistlet_cycle_anim(uint16_t m);          /* loc_A958 */
+static void vistlet_fly_step(uint16_t m);              /* loc_A966 */
+static void vistlet_after_fly_throttle(uint16_t m);      /* loc_A972 */
+static void vistlet_dive_state(uint16_t m);                /* loc_A993 */
+static void vistlet_dive_step(uint16_t m);                   /* loc_A9A0 */
+static void vistlet_dive_advance(uint16_t m);                  /* loc_A9AD */
+static void vistlet_climb_state(uint16_t m);                     /* loc_A9BC */
+static void vistlet_climb_ne(uint16_t m);                          /* loc_A9BC (m_x_rel<=0x10) */
+static void vistlet_climb_nw(uint16_t m);                            /* loc_A9DD */
 
 
 /*
@@ -133,7 +133,7 @@ void Monster_AI_5(uint16_t m)
         case 1: man_bottom_ai(m); return;
         case 2: red_egg_ai(m);    return;
         case 3: eyeball_ai(m);    return;
-        case 4: vestlet_ai(m);    return;
+        case 4: vistlet_ai(m);    return;
         default:
             /* Original jump table only has 5 entries; monster.flags
              * low nibble is only ever 0..4 for this AI module. */
@@ -845,7 +845,7 @@ static void eyeball_charge_dash(uint16_t m)
  * up.
  */
 
-static void vestlet_ai(uint16_t m)
+static void vistlet_ai(uint16_t m)
 {
     if (MEM8(m+8) == 0) MEM8(m+8) = 8; // .hp
 
@@ -857,52 +857,52 @@ static void vestlet_ai(uint16_t m)
     if(move_monster_NWE_if_on_airflow(m)) return;
 
     if (MEM8(m+9) & 1) {
-        vestlet_dive_state(m); // loc_A993
+        vistlet_dive_state(m); // loc_A993
         return;
     }
     if (MEM8(m+9) & 2) {
-        vestlet_climb_state(m); // loc_A9BC
+        vistlet_climb_state(m); // loc_A9BC
         return;
     }
-    vestlet_search_state(m);
+    vistlet_search_state(m);
 }
 
 /* default state: if close to the center column (0x10..0x12), begin a
  * dive; otherwise keep cycling the hover animation. */
-static void vestlet_search_state(uint16_t m)
+static void vistlet_search_state(uint16_t m)
 {
     if (MEM8(m+3) <= 0x0F || MEM8(m+3) > 0x12) { // .m_x_rel
-        vestlet_cycle_anim(m); // loc_A958
+        vistlet_cycle_anim(m); // loc_A958
         return;
     }
     MEM8(m+9) |= 1; // .ai_state: begin dive
     MEM8(m+6) = 4;   // .anim_counter
-    vestlet_fly_step(m); // loc_A966
+    vistlet_fly_step(m); // loc_A966
 }
 
 /* loc_A958 */
-static void vestlet_cycle_anim(uint16_t m)
+static void vistlet_cycle_anim(uint16_t m)
 {
     uint8_t low = (uint8_t)((MEM8(m+6) + 1) & 3);
     MEM8(m+6) = (uint8_t)((MEM8(m+6) & 0xF0) | low);
-    vestlet_fly_step(m); // loc_A966
+    vistlet_fly_step(m); // loc_A966
 }
 
 /* loc_A966 */
-static void vestlet_fly_step(uint16_t m)
+static void vistlet_fly_step(uint16_t m)
 {
     move_monster_N(m); // result unused
 
     int sum = MEM8(m+6) + 0x80;
     MEM8(m+6) = (uint8_t)sum;
     if (sum < 0x100) return; // not due yet
-    vestlet_after_fly_throttle(m); // loc_A972
+    vistlet_after_fly_throttle(m); // loc_A972
 }
 
 /* loc_A972: nudges sideways toward the center column, with a
  * follow-up check in the opposite direction on success (same
  * oscillation pattern as red_egg's row-alignment chain). */
-static void vestlet_after_fly_throttle(uint16_t m)
+static void vistlet_after_fly_throttle(uint16_t m)
 {
     if (MEM8(m+3) > 0x10) { // .m_x_rel
         if (!move_monster_W(m)) move_monster_E(m);
@@ -913,26 +913,26 @@ static void vestlet_after_fly_throttle(uint16_t m)
 
 /* loc_A993: dive animation; only actually descends once the low 3
  * bits of anim_counter reach 5. */
-static void vestlet_dive_state(uint16_t m)
+static void vistlet_dive_state(uint16_t m)
 {
     uint8_t phase = MEM8(m+6) & 7;
     if (phase < 5) {
         MEM8(m+6)++; // full-byte increment (not masked), as in the original
         return;
     }
-    vestlet_dive_step(m); // loc_A9A0
+    vistlet_dive_step(m); // loc_A9A0
 }
 
 /* loc_A9A0 */
-static void vestlet_dive_step(uint16_t m)
+static void vistlet_dive_step(uint16_t m)
 {
     move_monster_S(m); // first attempt, result unused
     if (move_monster_S(m)) return; // second attempt moved -> keep diving
-    vestlet_dive_advance(m); // loc_A9AD: grounded -> advance the dive counter
+    vistlet_dive_advance(m); // loc_A9AD: grounded -> advance the dive counter
 }
 
 /* loc_A9AD */
-static void vestlet_dive_advance(uint16_t m)
+static void vistlet_dive_advance(uint16_t m)
 {
     MEM8(m+6) = (MEM8(m+6) + 1) & 7;
     if (MEM8(m+6) != 0) return;
@@ -940,16 +940,16 @@ static void vestlet_dive_advance(uint16_t m)
 }
 
 /* loc_A9BC: climb back up, diagonally toward the center column. */
-static void vestlet_climb_state(uint16_t m)
+static void vistlet_climb_state(uint16_t m)
 {
     if (MEM8(m+3) > 0x10) { // .m_x_rel
-        vestlet_climb_nw(m); // loc_A9DD
+        vistlet_climb_nw(m); // loc_A9DD
         return;
     }
-    vestlet_climb_ne(m);
+    vistlet_climb_ne(m);
 }
 
-static void vestlet_climb_ne(uint16_t m)
+static void vistlet_climb_ne(uint16_t m)
 {
     move_monster_N(m); // result unused
     if (move_monster_NE(m)) return; // moved -> stop this frame
@@ -958,7 +958,7 @@ static void vestlet_climb_ne(uint16_t m)
 }
 
 /* loc_A9DD */
-static void vestlet_climb_nw(uint16_t m)
+static void vistlet_climb_nw(uint16_t m)
 {
     move_monster_N(m); // result unused
     if (move_monster_NW(m)) return; // moved -> stop this frame

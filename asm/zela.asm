@@ -8,7 +8,7 @@ zela          segment byte public 'CODE'
                 org 0A000h
 start:
                 dw offset Zela_AI_proc
-                dw offset boss_x
+                dw offset boss_state_block
                 db    0
                 db    0
                 db    0
