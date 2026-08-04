@@ -382,11 +382,17 @@ static void type0_charge_tick(uint16_t m)
 }
 
 /* Fire-shot projectile templates (bytes 0-1 = X,Y, patched per shot;
- * remainder copied verbatim from the original data segment). The
- * "right" template (facing right) fires from one column further right
- * than the "left" template. */
-static uint8_t type0_shot_right[13] = { 0, 0, 0x63, 0, 0x14, 0, 0x14, 0, 0, 0, 0, 0, 0 }; // byte_A4DD/A4DE
-static uint8_t type0_shot_left[13]  = { 0, 0, 0x63, 0, 0x14, 4, 0x14, 0, 0, 0, 0, 0, 0 }; // byte_A4EA/A4EB
+ * remainder derived from the original data segment). The "right"
+ * template (facing right) fires from one column further right than the
+ * "left" template.
+ *
+ * p_projectile_type byte 2 indexes game.js's DUNGEONS[rawMapId].projectiles
+ * array (see drawDungeonProjectiles, which reads it as typeId). All EAI6
+ * dungeons define a single projectile type at index 0 ([0x23, 0x24]), so it
+ * is remapped to 0 here -- the original 0x63 (99) was the raw base-tile
+ * index in mpp6.png, not an array offset. */
+static uint8_t type0_shot_right[13] = { 0,0, 0, 0,0x14,0, 0x14,0,0,0,0,0,0 }; // byte_A4DD/A4DE
+static uint8_t type0_shot_left[13]  = { 0,0, 0, 0,0x14,4, 0x14,0,0,0,0,0,0 }; // byte_A4EA/A4EB
 
 /* loc_A4A4 tail: patches and fires the single shot appropriate to the
  * current facing. */

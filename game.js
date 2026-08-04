@@ -531,10 +531,62 @@ const MEDA = {
 };
 const EAI6 = {
     left: [ // 0xA030: 32 arrays
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // group 0 (woman_top_left)
+        [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], // group 1 (woman_bottom_left)
+        [70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85], // group 2 (ghost_left)
+        [105, 106, 107, 108, 109, 110, 111, 112],                         // group 3 (chicken_left)
+        [124, 125, 126, 127],                                             // group 4 (destructible wall)
+        [], [], [],                                                       // 5..7 unused
+        [32, 33, 34],                                                     // group 8 (woman_top_death)
+        [67, 68, 69],                                                     // group 9 (woman_bottom_death)
+        [102, 103, 104],                                                  // group 10 (ghost_death)
+        [121, 122, 123],                                                  // group 11 (chicken_death)
+        [128, 129, 130],                                                  // group 12 (falling_ceiling)
+        [], [], [],                                                       // 13..15 unused
+        [157, 158, 159, 160],                                             // group 16 (dropping_floor)
+        [157, 158, 159, 160],                                             // group 17 (dropping_floor)
+        [131, 132, 133],                                                  // group 18 (hit)
+        [146, 147, 148, 149, 150, 151, 152, 153],                         // group 19 (chest)
+        [134, 135, 136, 137],                                             // group 20 (red_alma)
+        [138, 139, 140, 141],                                             // group 21 (blue_alma)
+        [154],                                                            // group 22 (ordinary_key)
+        [],                                                               // 23 unused
+        [155],                                                            // group 24 (red_potion)
+        [156],                                                            // group 25 (blue_potion)
+        [161],                                                            // group 26 (silkarn_shoe)
+        [142, 143, 144, 145],                                             // group 27 (rare_alma)
+        [], [],                                                           // 28, 29 unused
+        [162],                                                            // group 30 (feruza_shoe)
     ],
     right: [ // 0xA070: 32 arrays
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],   // group 0 (woman_top_right)
+        [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66],   // group 1 (woman_bottom_right)
+        [86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101], // group 2 (ghost_right)
+        [113, 114, 115, 116, 117, 118, 119, 120],                           // group 3 (chicken_right)
+        [124, 125, 126, 127],                                             // group 4 (destructible wall)
+        [], [], [],                                                       // 5..7 unused
+        [32, 33, 34],                                                     // group 8 (woman_top_death)
+        [67, 68, 69],                                                     // group 9 (woman_bottom_death)
+        [102, 103, 104],                                                  // group 10 (ghost_death)
+        [121, 122, 123],                                                  // group 11 (chicken_death)
+        [128, 129, 130],                                                  // group 12 (falling_ceiling)
+        [], [], [],                                                       // 13..15 unused
+        [157, 158, 159, 160],                                             // group 16 (dropping_floor)
+        [157, 158, 159, 160],                                             // group 17 (dropping_floor)
+        [131, 132, 133],                                                  // group 18 (hit)
+        [146, 147, 148, 149, 150, 151, 152, 153],                         // group 19 (chest)
+        [134, 135, 136, 137],                                             // group 20 (red_alma)
+        [138, 139, 140, 141],                                             // group 21 (blue_alma)
+        [154],                                                            // group 22 (ordinary_key)
+        [],                                                               // 23 unused
+        [155],                                                            // group 24 (red_potion)
+        [156],                                                            // group 25 (blue_potion)
+        [161],                                                            // group 26 (silkarn_shoe)
+        [142, 143, 144, 145],                                             // group 27 (rare_alma)
+        [], [],                                                           // 28, 29 unused
+        [162],                                                            // group 30 (feruza_shoe)
     ],
-    numSprites: 0,
+    numSprites: 163,
 };
 
 const DUNGEONS = {

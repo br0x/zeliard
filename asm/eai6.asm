@@ -40,70 +40,70 @@ monster_damage  db 80, 80, 40, 40, 80, 0, 0, 0
                 db    0
                 db    0
                 ; A030
-                dw offset woman_top_left
-                dw offset woman_bottom_left
-                dw offset ghost_left
-                dw offset chicken_left
-                dw offset destructible_wall
+                dw offset woman_top_left ; 0..15
+                dw offset woman_bottom_left ; 35..50
+                dw offset ghost_left ; 70..85
+                dw offset chicken_left ; 105..112
+                dw offset destructible_wall ; 124..127
                 dw 0
                 dw 0
                 dw 0
-                dw offset woman_top_death
-                dw offset woman_bottom_death
-                dw offset ghost_death ; 
-                dw offset chicken_death ; 
-                dw offset falling_ceiling ; 
+                dw offset woman_top_death ; 32..34
+                dw offset woman_bottom_death ; 67..69
+                dw offset ghost_death ; 102..104
+                dw offset chicken_death ; 121..123
+                dw offset falling_ceiling ; 128..130
                 dw 0
                 dw 0
                 dw 0
-                dw offset dropping_floor ; 
-                dw offset dropping_floor
-                dw offset hit ; 
-                dw offset chest ; 
-                dw offset red_alma ; 
-                dw offset blue_alma ; 
-                dw offset ordinary_key ; 
+                dw offset dropping_floor ; 157..160
+                dw offset dropping_floor ; 157..160
+                dw offset hit ; 131..133
+                dw offset chest ; 146..153
+                dw offset red_alma ; 134..137
+                dw offset blue_alma ; 138..141
+                dw offset ordinary_key ; 154
                 dw 0
-                dw offset red_potion ; 
-                dw offset blue_potion ; 
-                dw offset silkarn_shoe ; 
-                dw offset rare_alma ; 
+                dw offset red_potion ; 155
+                dw offset blue_potion ; 156
+                dw offset silkarn_shoe ; 161
+                dw offset rare_alma ; 142..145
                 dw 0
                 dw 0
-                dw offset feruza_shoe
+                dw offset feruza_shoe ; 162
                 dw 0
                 ; A070
-                dw offset woman_top_right
-                dw offset woman_bottom_right
-                dw offset ghost_right
-                dw offset chicken_right
-                dw offset destructible_wall
+                dw offset woman_top_right ; 16..31
+                dw offset woman_bottom_right ; 51..66
+                dw offset ghost_right ; 86..101
+                dw offset chicken_right ; 113..120
+                dw offset destructible_wall ; 124..127
                 dw 0
                 dw 0
                 dw 0
-                dw offset woman_top_death
-                dw offset woman_bottom_death
-                dw offset ghost_death
-                dw offset chicken_death
-                dw offset falling_ceiling
+                dw offset woman_top_death ; 32..34
+                dw offset woman_bottom_death ; 67..69
+                dw offset ghost_death ; 102..104
+                dw offset chicken_death ; 121..123
+                dw offset falling_ceiling ; 128..130
                 dw 0
                 dw 0
                 dw 0
-                dw offset dropping_floor
-                dw offset dropping_floor
-                dw offset hit
-                dw offset chest
-                dw offset red_alma
-                dw offset blue_alma
-                dw offset ordinary_key
+                dw offset dropping_floor ; 157..160
+                dw offset dropping_floor ; 157..160
+                dw offset hit ; 131..133
+                dw offset chest ; 146..153
+                dw offset red_alma ; 134..137
+                dw offset blue_alma ; 138..141
+                dw offset ordinary_key ; 154
                 dw 0
-                dw offset red_potion
-                dw offset blue_potion
-                dw offset silkarn_shoe
-                dw offset rare_alma
+                dw offset red_potion ; 155
+                dw offset blue_potion ; 156
+                dw offset silkarn_shoe ; 161
+                dw offset rare_alma ; 142..145
                 dw 0
                 dw 0
-                dw offset feruza_shoe
+                dw offset feruza_shoe ; 162
                 dw 0
 woman_top_left       db 0, 1, 2, 3, 4        ; 0
                 db 0, 0, 0, 0, 0
@@ -289,18 +289,18 @@ Monster_AI      proc near
                 add     bx, bx          ; switch 5 cases
                 jmp     jpt_A403[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A403        dw offset loc_A412      ; jump table for switch statement
+jpt_A403        dw offset woman_top_ai      ; jump table for switch statement
                 dw offset locret_A411
-                dw offset loc_A6B8
-                dw offset loc_A857
-                dw offset loc_A95F
+                dw offset ghost_ai
+                dw offset chicken_ai
+                dw offset falling_ceiling_ai
 ; ---------------------------------------------------------------------------
 
 locret_A411:                            ; jumptable 0000A403 case 1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A412:                               ; jumptable 0000A403 case 0
+woman_top_ai:                               ; jumptable 0000A403 case 0
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A41C
                 mov     byte ptr [si+8], 30h ; '0'
@@ -723,7 +723,7 @@ sub_A686        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A6B8:                               ; jumptable 0000A403 case 2
+ghost_ai:                               ; jumptable 0000A403 case 2
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A6C2
                 mov     byte ptr [si+8], 10h
@@ -958,7 +958,7 @@ sub_A828        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A857:                               ; jumptable 0000A403 case 3
+chicken_ai:                               ; jumptable 0000A403 case 3
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A861
                 mov     byte ptr [si+8], 8
@@ -1115,7 +1115,7 @@ sub_A947        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A95F:                               ; jumptable 0000A403 case 4
+falling_ceiling_ai:                               ; jumptable 0000A403 case 4
                 or      byte ptr [si+4], 20h
                 test    byte ptr [si+9], 2
                 jnz     short loc_A9B4
