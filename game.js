@@ -4987,6 +4987,7 @@ async function performGameRestore(saveData) {
     const trackId = resolveMusicTrack(getMusicTrackId?.());
     if (trackId) setCurrentMusicTrack(trackId);
 
+    resetBossHud();
     gameMode = 'town';
     engineReady = true;
     gamePaused = false;
