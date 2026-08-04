@@ -22,11 +22,12 @@ start:
                 db    0
                 db    0
                 ; A010
-                db 56, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18
+                db 56, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18
+                db 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18
                 ; A030
-                dw offset byte_A04E
-                dw offset byte_A067
-                dw offset byte_A094
+                dw offset byte_A04E ; 0..4
+                dw offset byte_A067 ; 5..13
+                dw offset byte_A094 ; 14..21
                 dw offset byte_A0BC
                 dw offset byte_A0DA
                 dw offset byte_A102

@@ -477,12 +477,12 @@ const ZELA = {
     // grp_viewer.py's ZELA_FRAMES/Part 2 numbering).
     left: [ // 0xA030
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],           // tile group 0 (byte_A03A)
-        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],        // tile group 1 (byte_A08A)
-        [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],        // tile group 2 (byte_A0D0)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],         // tile group 1 (byte_A08A)
+        [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],         // tile group 2 (byte_A0D0)
         [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59], // tile group 3 (byte_A116)
         [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75], // tile group 4 (byte_A166)
-        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],  // 5..21 (unused)
-        [76],  // ordinary key                                               // 22
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], // 5..21 (unused)
+        [76],                                                             // 22 (ordinary key)
     ],
     right: [ // 0xA070 -- identical to `left`; like CRAB/TAKO, Agar has no facing-direction variant (getSheetFrame() falls back to "left" since ai_flags bit 0x80 is never set by place_boss_body_segments)
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -490,8 +490,8 @@ const ZELA = {
         [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
         [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59],
         [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75],
-        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],  // 5..21 (unused)
-        [76],  // ordinary key                                               // 22
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], // 5..21 (unused)
+        [76],                                                               // 22 (ordinary key)
     ],
     // NOTE: zela.asm's projectile templates (proj_near/proj_far, fed to
     // Add_Projectile_To_Array) don't correspond to any extra frame group
@@ -503,6 +503,33 @@ const ZELA = {
     // its frames here and reference the group's index from wherever the
     // WASM side reports the projectile's .flags.
     numSprites: 76,
+};
+const MEDA = {
+    left: [ // 0xA030
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile group 0 (byte_A050)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // tile group 1 (byte_A0A0)
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47], // tile group 2 (byte_A0F0)
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62],     // tile group 3 (byte_A140)
+        [], [], [], [], [], [], [], [], [], [],                           // 4...13 (unused)
+        [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78], // tile group 14 (byte_A18B)
+        [79, 80, 81],                                                     // tile group 15 (byte_A1DB)
+        [], [], [], [], [], [],                                           // 16...21 (unused)
+        [82],                                                             // 22 (ordinary key)
+    ],
+    right: [ // 0xA070
+        [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile group 0 (byte_A050)
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], // tile group 1 (byte_A0A0)
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47], // tile group 2 (byte_A0F0)
+        [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62],     // tile group 3 (byte_A140)
+        [], [], [], [], [], [], [], [], [], [],                           // 4...13 (unused)
+        [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78], // tile group 14 (byte_A18B)
+        [79, 80, 81],                                                     // tile group 15 (byte_A1DB)
+        [], [], [], [], [], [],                                           // 16...21 (unused)
+        [82],                                                             // 22 (ordinary key)
+    ],
+    numSprites: 83,
+};
+const EAI6 = {
 };
 
 const DUNGEONS = {
@@ -847,12 +874,6 @@ const DUNGEONS = {
             [0x14, 0x15],
         ],
         bossState: {
-            // NOTE: boss_state_block's initial values aren't part of
-            // Zela_AI_proc either (populated by the generic overlay
-            // loader/encounter setup) -- bossX/bossY are estimates within
-            // the arena bounds Zela_AI_proc itself enforces (x: 17-50,
-            // y: mod 64), and bossHP/xpReward/almasReward continue the
-            // progression from Cangrejo(150)/Pulpo(250)/Pollo(500).
             bossX: 48,                // +0
             bossY: 12,                // +2
             bossHP: 500,              // +3
@@ -924,7 +945,74 @@ const DUNGEONS = {
         ],
         ai: EAI5,
     },
+    13: {
+        mdtPath: 'game/0/mp5d.mdt',
+        tilesheetPath: 'assets/images/mpp5.png',
+        entitySheetPath: 'assets/images/meda.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2D, 0x2E, 0x2F
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x30],
+        ],
+        bossState: {
+            bossX: 48,                // +0
+            bossY: 11,                // +2
+            bossHP: 700,              // +3
+            xpReward: 3000,           // +5
+            arenaCenterX: 12,         // +7
+            bossPlacement: 0,         // +8
+            almasReward: 800,         // +11
+            bossName: 'Vista',
+        },
+        ai: MEDA,
+    },
+    14: {
+        mdtPath: 'game/0/mp60.mdt',
+        tilesheetPath: 'assets/images/mpp6.png',
+        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
+        ],
+        slopeTilesLeft: [0x19, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x18, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x16, 0x21, 0x22, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [], // from eaiN.bin
+        monster_damage: [], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x23, 0x24],
+        ],
+        ai: EAI6,
+    },
 };
+
 const NOTIFICATION_STRINGS = {
     1:  [38, "You get 50 golds."],
     2:  [34, "You get 100 golds."],

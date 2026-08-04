@@ -25,10 +25,10 @@ start:
                 db 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh
                 db 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh, 1Eh
                 ; A030
-                dw offset byte_A050
-                dw offset byte_A0A0
-                dw offset byte_A0F0
-                dw offset byte_A140
+                dw offset byte_A050 ; 0..15
+                dw offset byte_A0A0 ; 16..31
+                dw offset byte_A0F0 ; 32..47
+                dw offset byte_A140 ; 48..62
                 dw 0
                 dw 0
                 dw 0
@@ -39,8 +39,8 @@ start:
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A18B
-                dw offset byte_A1DB
+                dw offset byte_A18B ; 63..78
+                dw offset byte_A1DB ; 79..81
 byte_A050       db 0, 1, 0, 2, 3
                 db 0, 0, 4, 5, 6
                 db 0, 0, 7, 16h, 9
