@@ -247,30 +247,29 @@ const TAKO = {
 };
 const EAI3 = {
     left: [ // 0xA030: 32 arrays
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], // type0_left_frames
-        [27, 28, 29, 30, 31, 32], // type1_left_frames
-        [42, 43, 44, 45, 46, 47, 48], // type2_left_frames
-        [59, 60, 61, 62, 63, 64], // type3_left_frames
-        [], [], [], [],
-        [24, 25, 26], // type0_death_frames
-        [39, 40, 41], // type1_death_frames
-        [56, 57, 58], // type2_death_frames
-        [71, 72, 73], // type3_death_frames
-        [], [], [], [],
-        [90, 91, 92, 93], // wallDestructionFrames
-        [90, 91, 92, 93], // wallDestructionFrames
-        [74, 75, 76], // hitFrames
-        [85, 86, 87, 88], // chestFrames
-        [77, 78, 79, 80], // almasGlowFrames
-        [81, 82, 83, 84], // almasGlowFramesAlt
-        [89], // ordinaryKeyFrames
-        [],
-        [94], // redPotionFrames
-        [95], // bluePotionFrames
-        [],
-        [], // (no rare-almas equivalent identified for this group)
-        [96], // byte_A286Frames (unidentified single-frame item)
-        [97], // byte_A295Frames (unidentified single-frame item)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], // 0 type0_left_frames
+        [27, 28, 29, 30, 31, 32],               // 1 type1_left_frames
+        [42, 43, 44, 45, 46, 47, 48],           // 2 type2_left_frames
+        [59, 60, 61, 62, 63, 64],               // 3 type3_left_frames
+        [], [], [], [],                         // 4..7 unused
+        [24, 25, 26],                           // 8 type0_death_frames
+        [39, 40, 41],                           // 9 type1_death_frames
+        [56, 57, 58],                           // 10 type2_death_frames
+        [71, 72, 73],                           // 11 type3_death_frames
+        [], [], [], [],                         // 12..15 unused
+        [90, 91, 92, 93],                       // 16 wallDestructionFrames
+        [90, 91, 92, 93],                       // 17 wallDestructionFrames
+        [74, 75, 76],                           // 18 hitFrames
+        [85, 86, 87, 88],                       // 19 chestFrames
+        [77, 78, 79, 80],                       // 20 almasGlowFrames
+        [81, 82, 83, 84],                       // 21 almasGlowFramesAlt
+        [89],                                   // 22 ordinaryKeyFrames
+        [],                                     // 23 unused
+        [94],                                   // 24 redPotionFrames
+        [95],                                   // 25 bluePotionFrames
+        [], [],                                 // 26, 27 unused
+        [96],                                   // 28 signpost
+        [97],                                   // 29 crest
         [], [],
     ],
     right: [ // 0xA070: 32 arrays
@@ -294,10 +293,9 @@ const EAI3 = {
         [],
         [94], // redPotionFrames
         [95], // bluePotionFrames
-        [],
-        [],
-        [96], // byte_A286Frames (unidentified single-frame item)
-        [97], // byte_A295Frames (unidentified single-frame item)
+        [], [],
+        [96], // signpost
+        [97], // crest
         [], [],
     ],
     numSprites: 98,
@@ -410,30 +408,30 @@ const EAI4 = {
 };
 const EAI5 = {
     left: [ // 0xA030: 32 arrays
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],           // man_top_left
-        [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // man_bottom_left
-        [54, 55, 56, 57, 58, 59, 60, 61],                 // red_egg
-        [65, 66, 67, 68, 69, 70],                         // eyeball_left
-        [80, 81, 82, 83, 84, 85, 86, 87],                 // vistlet
-        [], [], [],
-        [24, 25, 26],                                     // man_top_death
-        [51, 52, 53],                                     // man_bottom_death
-        [62, 63, 64],                                     // red_egg_death
-        [77, 78, 79],                                     // eyeball_death
-        [88, 89, 90],                                     // vistlet_death
-        [], [], [],
-        [114, 115, 116, 117],                             // destroyable_wall1
-        [118, 119, 120, 121],                             // destroyable_wall2
-        [91, 92, 93],                                     // hit
-        [106, 107, 108, 109, 110, 111, 112],              // chest
-        [94, 95, 96, 97],                                 // alma_red
-        [98, 99, 100, 101],                               // alma_blue
-        [113],                                            // ordinary_key (always 22nd group)
-        [],
-        [123],                                            // red_potion
-        [124],                                            // blue_potion
-        [122],                                            // pirika_shoe
-        [102, 103, 104, 105],                             // alma_rare
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],           // 0 man_top_left
+        [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], // 1 man_bottom_left
+        [54, 55, 56, 57, 58, 59, 60, 61],                 // 2 red_egg
+        [65, 66, 67, 68, 69, 70],                         // 3 eyeball_left
+        [80, 81, 82, 83, 84, 85, 86, 87],                 // 4 vistlet
+        [], [], [],                                       // 5..7
+        [24, 25, 26],                                     // 8 man_top_death
+        [51, 52, 53],                                     // 9 man_bottom_death
+        [62, 63, 64],                                     // 10 red_egg_death
+        [77, 78, 79],                                     // 11 eyeball_death
+        [88, 89, 90],                                     // 12 vistlet_death
+        [], [], [],                                       // 13..15
+        [114, 115, 116, 117],                             // 16 destroyable_wall1
+        [118, 119, 120, 121],                             // 17 destroyable_wall2
+        [91, 92, 93],                                     // 18 hit
+        [106, 107, 108, 109, 110, 111, 112],              // 19 chest
+        [94, 95, 96, 97],                                 // 20 alma_red
+        [98, 99, 100, 101],                               // 21 alma_blue
+        [113],                                            // 22 ordinary_key (always 22nd group)
+        [],                                               // 23
+        [123],                                            // 24 red_potion
+        [124],                                            // 25 blue_potion
+        [122],                                            // 26 pirika_shoe
+        [102, 103, 104, 105],                             // 27 alma_rare
     ],
     right: [ // 0xA070: 32 arrays
         [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], // man_top_right
@@ -513,8 +511,8 @@ const MEDA = {
         [], [], [], [], [], [], [], [], [], [],                           // 4...13 (unused)
         [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78], // tile group 14 (byte_A18B)
         [79, 80, 81],                                                     // tile group 15 (byte_A1DB)
-        [], [], [], [], [], [],                                           // 16...21 (unused)
-        [82],                                                             // 22 (ordinary key)
+        [], [], [], [], [], [], [], [], [],                               // 16...24 (unused)
+        [82],                                                             // 25 (blue potion)
     ],
     right: [ // 0xA070
         [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15], // tile group 0 (byte_A050)
@@ -524,8 +522,8 @@ const MEDA = {
         [], [], [], [], [], [], [], [], [], [],                           // 4...13 (unused)
         [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78], // tile group 14 (byte_A18B)
         [79, 80, 81],                                                     // tile group 15 (byte_A1DB)
-        [], [], [], [], [], [],                                           // 16...21 (unused)
-        [82],                                                             // 22 (ordinary key)
+        [], [], [], [], [], [], [], [], [],                               // 16...24 (unused)
+        [82],                                                             // 25 (blue potion)
     ],
     numSprites: 83,
 };
