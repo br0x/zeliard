@@ -3079,7 +3079,7 @@ function animateDungeonTiles() {
                     nextTile = ((phase + 1) & 1) + 0x21;
                 } else {
                     // Tile 1D pauses 75% of the time in the original.
-                    if (phase === 0 && (getRandomInt(0, 255) & 3) !== 0) continue;
+                    if (phase === 0 && (Math.floor(Math.random() * 65536) & 3) !== 0) continue;
                     nextTile = ((phase + 1) & 3) + 0x1D;
                 }
             } else if (cavernLevel === 7) { // Animate_Hot_Cavern7; mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
