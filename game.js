@@ -945,7 +945,7 @@ const DUNGEONS = {
         ],
         ai: EAI5,
     },
-    13: {
+    13: { // dungeon 5 boss room
         mdtPath: 'game/0/mp5d.mdt',
         tilesheetPath: 'assets/images/mpp5.png',
         entitySheetPath: 'assets/images/meda.png',

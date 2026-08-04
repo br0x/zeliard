@@ -183,8 +183,12 @@ static const uint8_t terrain_height_table[41] = {
 };
 
 /* byte_A6E0.. : fixed 13-byte (PROJECTILE_STRUCT_SIZE) projectile template; only
- * the first two bytes (x_rel, y) are patched per shot before spawning. */
-static uint8_t projectile_template[13] = { 0,0, 0x30,0, 0x32,6, 0x50,0, 0,0,0,0,0 };
+ * the first two bytes (x_rel, y) are patched per shot before spawning. The
+ * original put the raw base tile index 0x30 at byte 2; in this JS port byte 2
+ * is a *projectile-type index* into the DUNGEONS[] projectiles table (same
+ * remap as eai2/eai3/eai5), and mp5d defines Vista's shot as group 0, whose
+ * tile [0x30] is exactly what the original renders from that base index. */
+static uint8_t projectile_template[13] = { 0,0, 0,0, 0x32,6, 0x50,0, 0,0,0,0,0 };
 
 /*
  * ============================================================================

@@ -120,10 +120,15 @@ static const uint8_t movement_facing_table[8] = { 2, 1, 0, 3, 4, 3, 0, 1 };
  * Projectile templates (byte_A552.. and byte_A55F.. in the original),
  * PROJECTILE_STRUCT_SIZE bytes each. Index 0 (rel-x) and index 1 (y)
  * are filled in dynamically by fire_projectile(); the rest are fixed
- * asset data copied verbatim from the original bytes.
+ * asset data copied from the original bytes. The original put the raw
+ * base tile indices 0x15/0x14 here (near/far shot); in this JS port
+ * byte 2 is a *projectile-type index* into the DUNGEONS[] projectiles
+ * table (same remap as eai2/eai3/eai5), and mp4d defines Agar's shot as
+ * group 0, whose frames [0x14,0x15] are exactly the tiles the original
+ * renders from those base indices.
  */
-static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0x15, 0x00, 0x32, 0x04, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A552 */
-static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0x14, 0x00, 0x32, 0x00, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A55F */
+static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0x00, 0x00, 0x32, 0x04, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A552 */
+static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0x00, 0x00, 0x32, 0x00, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A55F */
 
 /*
  * Forward declarations
