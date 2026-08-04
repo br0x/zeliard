@@ -530,6 +530,11 @@ const MEDA = {
     numSprites: 83,
 };
 const EAI6 = {
+    left: [ // 0xA030: 32 arrays
+    ],
+    right: [ // 0xA070: 32 arrays
+    ],
+    numSprites: 0,
 };
 
 const DUNGEONS = {
@@ -992,14 +997,74 @@ const DUNGEONS = {
         slopeTilesRight: [0x18, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
         aggressiveGround: [0x16, 0x21, 0x22, 0], // mppX.grp.unp bytes 0x20..0x23
         airflows: [], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [], // from eaiN.bin
-        monster_damage: [], // from eaiN.bin
+        monster_xp:     [100, 100, 50, 50], // from eaiN.bin
+        monster_damage: [80, 80, 40, 40, 80], // from eaiN.bin
         death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 11],
+            [11, 11, 11, 11],
+            [5, 5, 5, 5],
+            [5, 5, 0, 0],
+            [0, 0, 0, 0],
             [],
             [],
             [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x23, 0x24],
+        ],
+        ai: EAI6,
+    },
+    15: {
+        mdtPath: 'game/0/mp61.mdt',
+        tilesheetPath: 'assets/images/mpp6.png',
+        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
+        ],
+        slopeTilesLeft: [0x19, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x18, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x16, 0x21, 0x22, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [100, 100, 50, 50], // from eaiN.bin
+        monster_damage: [80, 80, 40, 40, 80], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 11],
+            [11, 11, 11, 11],
+            [5, 5, 5, 5],
+            [5, 5, 0, 0],
+            [0, 0, 0, 0],
             [],
             [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x23, 0x24],
+        ],
+        ai: EAI6,
+    },
+    16: {
+        mdtPath: 'game/0/mp62.mdt',
+        tilesheetPath: 'assets/images/mpp6.png',
+        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
+        ],
+        slopeTilesLeft: [0x19, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x18, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x16, 0x21, 0x22, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [100, 100, 50, 50], // from eaiN.bin
+        monster_damage: [80, 80, 40, 40, 80], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 11],
+            [11, 11, 11, 11],
+            [5, 5, 5, 5],
+            [5, 5, 0, 0],
+            [0, 0, 0, 0],
             [],
             [],
             [],

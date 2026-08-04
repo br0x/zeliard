@@ -5211,6 +5211,9 @@ void load_eai_module(uint8_t place_map_id)
         case 11: current_monster_ai = Monster_AI_5; break; // mp50.mdt
         case 12: current_monster_ai = Monster_AI_5; break; // mp51.mdt
         case 13: Vista_AI_reset(); current_monster_ai = Vista_AI; break;       // mp5d.mdt
+        case 14: current_monster_ai = Monster_AI_6; break; // mp60.mdt
+        case 15: current_monster_ai = Monster_AI_6; break; // mp61.mdt
+        case 16: current_monster_ai = Monster_AI_6; break; // mp62.mdt
         /* add more as more eaiN/boss modules are translated */
     }
 }

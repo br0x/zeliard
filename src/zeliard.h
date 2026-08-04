@@ -335,6 +335,7 @@ void Monster_AI_2(uint16_t m);
 void Monster_AI_3(uint16_t m);
 void Monster_AI_4(uint16_t m);
 void Monster_AI_5(uint16_t m);
+void Monster_AI_6(uint16_t m);
 void Cangrejo_AI(uint16_t m);
 void Cangrejo_AI_reset(void);
 void Pulpo_AI(uint16_t m);

@@ -38,74 +38,74 @@ monster_damage  db 80, 80, 40, 40, 80, 0, 0, 0
                 db    0
                 db    0
                 db    0
-                db    0                 ;
-                                        ; A030
-                dw offset byte_A0B0
-                dw offset byte_A15F
-                dw offset byte_A20E
-                dw offset byte_A2BD
-                dw offset byte_A31C
+                db    0
+                ; A030
+                dw offset woman_top_left
+                dw offset woman_bottom_left
+                dw offset ghost_left
+                dw offset chicken_left
+                dw offset destructible_wall
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A150
-                dw offset byte_A1FF
-                dw offset byte_A2AE
-                dw offset byte_A30D
-                dw offset byte_A330
+                dw offset woman_top_death
+                dw offset woman_bottom_death
+                dw offset ghost_death ; 
+                dw offset chicken_death ; 
+                dw offset falling_ceiling ; 
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A3C1
-                dw offset byte_A3C1
-                dw offset byte_A33F
-                dw offset byte_A38A
-                dw offset byte_A34E
-                dw offset byte_A362
-                dw offset byte_A3B2
+                dw offset dropping_floor ; 
+                dw offset dropping_floor
+                dw offset hit ; 
+                dw offset chest ; 
+                dw offset red_alma ; 
+                dw offset blue_alma ; 
+                dw offset ordinary_key ; 
                 dw 0
-                dw offset byte_A3B7
-                dw offset byte_A3BC
-                dw offset byte_A3D5
-                dw offset byte_A376
-                dw 0
-                dw 0
-                dw offset byte_A3DA
-                dw 0                    ;
-                                        ; A070
-                dw offset byte_A100
-                dw offset byte_A1AF
-                dw offset byte_A25E
-                dw offset byte_A2E5
-                dw offset byte_A31C
+                dw offset red_potion ; 
+                dw offset blue_potion ; 
+                dw offset silkarn_shoe ; 
+                dw offset rare_alma ; 
                 dw 0
                 dw 0
+                dw offset feruza_shoe
                 dw 0
-                dw offset byte_A150
-                dw offset byte_A1FF
-                dw offset byte_A2AE
-                dw offset byte_A30D
-                dw offset byte_A330
+                ; A070
+                dw offset woman_top_right
+                dw offset woman_bottom_right
+                dw offset ghost_right
+                dw offset chicken_right
+                dw offset destructible_wall
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A3C1
-                dw offset byte_A3C1
-                dw offset byte_A33F
-                dw offset byte_A38A
-                dw offset byte_A34E
-                dw offset byte_A362
-                dw offset byte_A3B2
-                dw 0
-                dw offset byte_A3B7
-                dw offset byte_A3BC
-                dw offset byte_A3D5
-                dw offset byte_A376
+                dw offset woman_top_death
+                dw offset woman_bottom_death
+                dw offset ghost_death
+                dw offset chicken_death
+                dw offset falling_ceiling
                 dw 0
                 dw 0
-                dw offset byte_A3DA
                 dw 0
-byte_A0B0       db 0, 1, 2, 3, 4
+                dw offset dropping_floor
+                dw offset dropping_floor
+                dw offset hit
+                dw offset chest
+                dw offset red_alma
+                dw offset blue_alma
+                dw offset ordinary_key
+                dw 0
+                dw offset red_potion
+                dw offset blue_potion
+                dw offset silkarn_shoe
+                dw offset rare_alma
+                dw 0
+                dw 0
+                dw offset feruza_shoe
+                dw 0
+woman_top_left       db 0, 1, 2, 3, 4        ; 0
                 db 0, 0, 0, 0, 0
                 db 0, 1, 2, 3, 4
                 db 0, 0, 0, 0, 0
@@ -120,8 +120,8 @@ byte_A0B0       db 0, 1, 2, 3, 4
                 db 0, 0, 0, 0, 0
                 db 0, 1, 2, 3, 4
                 db 0, 0, 0, 0, 0
-                db 0, 1, 2, 3, 4
-byte_A100       db 0, 9, 0Ah, 0Bh, 0Ch
+                db 0, 1, 2, 3, 4         ; 15
+woman_top_right       db 0, 9, 0Ah, 0Bh, 0Ch   ; 16
                 db 0, 0, 0, 0, 0
                 db 0, 9, 0Ah, 0Bh, 0Ch
                 db 0, 0, 0, 0, 0
@@ -136,11 +136,11 @@ byte_A100       db 0, 9, 0Ah, 0Bh, 0Ch
                 db 0, 0, 0, 0, 0
                 db 0, 9, 0Ah, 0Bh, 0Ch
                 db 0, 0, 0, 0, 0
-                db 0, 9, 0Ah, 0Bh, 0Ch
-byte_A150       db 0, 1Bh, 1Ch, 1Dh, 1Eh
+                db 0, 9, 0Ah, 0Bh, 0Ch   ; 31
+woman_top_death       db 0, 1Bh, 1Ch, 1Dh, 1Eh ; 32
                 db 0, 0, 0, 1Bh, 1Ch
-                db 0, 0, 0, 26h, 27h
-byte_A15F       db 0, 11h, 6, 7, 8
+                db 0, 0, 0, 26h, 27h     ; 34
+woman_bottom_left       db 0, 11h, 6, 7, 8       ; 35
                 db 0, 0, 0, 0, 0
                 db 0, 11h, 6, 7, 8
                 db 0, 0, 0, 0, 0
@@ -155,8 +155,8 @@ byte_A15F       db 0, 11h, 6, 7, 8
                 db 0, 0, 0, 0, 0
                 db 0, 11h, 6, 7, 8
                 db 0, 0, 0, 0, 0
-                db 0, 11h, 6, 7, 8
-byte_A1AF       db 0, 0Dh, 16h, 0Fh, 10h
+                db 0, 11h, 6, 7, 8       ; 50
+woman_bottom_right       db 0, 0Dh, 16h, 0Fh, 10h ; 51
                 db 0, 0, 0, 0, 0
                 db 0, 0Dh, 16h, 0Fh, 10h
                 db 0, 0, 0, 0, 0
@@ -171,11 +171,11 @@ byte_A1AF       db 0, 0Dh, 16h, 0Fh, 10h
                 db 0, 0, 0, 0, 0
                 db 0, 0Dh, 16h, 0Fh, 10h
                 db 0, 0, 0, 0, 0
-                db 0, 0Dh, 16h, 0Fh, 10h
-byte_A1FF       db 0, 1Fh, 20h, 21h, 22h
+                db 0, 0Dh, 16h, 0Fh, 10h ; 66
+woman_bottom_death       db 0, 1Fh, 20h, 21h, 22h ; 67
                 db 0, 1Dh, 23h, 24h, 25h
-                db 0, 28h, 23h, 29h, 25h
-byte_A20E       db 0, 2Ah, 2Bh, 2Ch, 2Dh
+                db 0, 28h, 23h, 29h, 25h ; 69
+ghost_left       db 0, 2Ah, 2Bh, 2Ch, 2Dh ; 70
                 db 0, 2Eh, 2Fh, 30h, 31h
                 db 0, 32h, 33h, 34h, 35h
                 db 0, 36h, 37h, 38h, 39h
@@ -190,8 +190,8 @@ byte_A20E       db 0, 2Ah, 2Bh, 2Ch, 2Dh
                 db 0, 63h, 0, 65h, 0
                 db 0, 4Eh, 4Fh, 50h, 51h
                 db 0, 4Ah, 4Bh, 4Ch, 4Dh
-                db 0, 36h, 37h, 38h, 39h
-byte_A25E       db 0, 3Ah, 3Bh, 3Ch, 3Dh
+                db 0, 36h, 37h, 38h, 39h ; 85
+ghost_right       db 0, 3Ah, 3Bh, 3Ch, 3Dh ; 86
                 db 0, 3Eh, 3Fh, 40h, 41h
                 db 0, 42h, 43h, 44h, 45h
                 db 0, 46h, 47h, 48h, 49h
@@ -206,68 +206,68 @@ byte_A25E       db 0, 3Ah, 3Bh, 3Ch, 3Dh
                 db 0, 72h, 73h, 74h, 75h
                 db 0, 56h, 57h, 58h, 59h
                 db 0, 52h, 53h, 54h, 55h
-                db 0, 46h, 47h, 48h, 49h
-byte_A2AE       db 0, 76h, 77h, 78h, 39h
+                db 0, 46h, 47h, 48h, 49h     ; 101
+ghost_death       db 0, 76h, 77h, 78h, 39h     ; 102
                 db 0, 7Ah, 7Bh, 7Ch, 7Dh
-                db 0, 0, 0, 80h, 81h
-byte_A2BD       db 1, 0C2h, 0C3h, 0C4h, 0C5h
+                db 0, 0, 0, 80h, 81h         ; 104
+chicken_left       db 1, 0C2h, 0C3h, 0C4h, 0C5h ; 105
                 db 1, 0C6h, 0C7h, 0C8h, 0C9h
                 db 1, 0C2h, 0C3h, 0C4h, 0CAh
                 db 1, 0C6h, 0C7h, 0CBh, 0CCh
                 db 1, 9Ch, 9Dh, 9Eh, 9Fh
                 db 1, 0B7h, 0B8h, 0B9h, 0BAh
                 db 1, 0, 0BBh, 0BCh, 0BDh
-                db 1, 0BEh, 0BFh, 0C0h, 0C1h
-byte_A2E5       db 1, 0CDh, 0CEh, 0CFh, 0D0h
+                db 1, 0BEh, 0BFh, 0C0h, 0C1h ; 112
+chicken_right       db 1, 0CDh, 0CEh, 0CFh, 0D0h ; 113
                 db 1, 0D1h, 0D2h, 0D3h, 0D4h
                 db 1, 0CDh, 0CEh, 0D5h, 0D0h
                 db 1, 0D1h, 0D2h, 0D6h, 0D7h
                 db 1, 0A4h, 0A5h, 0A6h, 0A7h
                 db 1, 0ACh, 0ADh, 0AEh, 0AFh
                 db 1, 0B0h, 0, 0B1h, 0B2h
-                db 1, 0B3h, 0B4h, 0B5h, 0B6h
-byte_A30D       db 1, 0D8h, 0D9h, 0DAh, 0DBh
+                db 1, 0B3h, 0B4h, 0B5h, 0B6h ; 120
+chicken_death       db 1, 0D8h, 0D9h, 0DAh, 0DBh ; 121
                 db 1, 0DCh, 0DDh, 0DEh, 0DFh
-                db 1, 0E0h, 0E1h, 0E2h, 0E3h
-byte_A31C       db 1, 5, 5, 5, 5
+                db 1, 0E0h, 0E1h, 0E2h, 0E3h ; 123
+destructible_wall       db 1, 5, 5, 5, 5             ; 124
                 db 1, 0Eh, 0Eh, 5Bh, 5Eh
                 db 1, 61h, 64h, 79h, 7Eh
-                db 1, 7Fh, 82h, 83h, 84h
-byte_A330       db 1, 85h, 86h, 87h, 88h
+                db 1, 7Fh, 82h, 83h, 84h     ; 127
+falling_ceiling       db 1, 85h, 86h, 87h, 88h     ; 128
                 db 1, 89h, 8Ah, 8Bh, 8Bh
-                db 1, 8Ch, 8Ch, 0, 0
-byte_A33F       db 1, 8Dh, 8Eh, 8Fh, 90h
+                db 1, 8Ch, 8Ch, 0, 0         ; 130
+hit       db 1, 8Dh, 8Eh, 8Fh, 90h     ; 131
                 db 1, 91h, 92h, 93h, 94h
-                db 1, 95h, 96h, 97h, 98h
-byte_A34E       db 0, 99h, 9Ah, 9Bh, 0A0h
+                db 1, 95h, 96h, 97h, 98h     ; 133
+red_alma       db 0, 99h, 9Ah, 9Bh, 0A0h    ; 134
                 db 0, 0A1h, 0A2h, 0A3h, 0A8h
                 db 0, 0A9h, 0AAh, 0ABh, 0E4h
-                db 0, 0A1h, 0A2h, 0A3h, 0A8h
-byte_A362       db 2, 99h, 9Ah, 9Bh, 0A0h
+                db 0, 0A1h, 0A2h, 0A3h, 0A8h ; 137
+blue_alma       db 2, 99h, 9Ah, 9Bh, 0A0h    ; 138
                 db 2, 0A1h, 0A2h, 0A3h, 0A8h
                 db 2, 0A9h, 0AAh, 0ABh, 0E4h
-                db 2, 0A1h, 0A2h, 0A3h, 0A8h
-byte_A376       db 1, 99h, 9Ah, 9Bh, 0A0h
+                db 2, 0A1h, 0A2h, 0A3h, 0A8h ; 141
+rare_alma       db 1, 99h, 9Ah, 9Bh, 0A0h    ; 142
                 db 1, 0A1h, 0A2h, 0A3h, 0A8h
                 db 1, 0A9h, 0AAh, 0ABh, 0E4h
-                db 1, 0A1h, 0A2h, 0A3h, 0A8h
-byte_A38A       db 0, 0E5h, 0E6h, 0E7h, 0E8h
+                db 1, 0A1h, 0A2h, 0A3h, 0A8h ; 145
+chest       db 0, 0E5h, 0E6h, 0E7h, 0E8h ; 146
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
                 db 0, 0E5h, 0E6h, 0E7h, 0E8h
-                db 0, 0E5h, 0E6h, 0E7h, 0E8h
-byte_A3B2       db 1, 0E9h, 0EAh, 0EBh, 0ECh
-byte_A3B7       db 0, 0EDh, 0EEh, 0EFh, 0F0h
-byte_A3BC       db 2, 0EDh, 0EEh, 0EFh, 0F0h
-byte_A3C1       db 1, 0FEh, 0FEh, 0FEh, 0FEh
+                db 0, 0E5h, 0E6h, 0E7h, 0E8h ; 153
+ordinary_key       db 1, 0E9h, 0EAh, 0EBh, 0ECh ; 154
+red_potion       db 0, 0EDh, 0EEh, 0EFh, 0F0h ; 155
+blue_potion       db 2, 0EDh, 0EEh, 0EFh, 0F0h ; 156
+dropping_floor       db 1, 0FEh, 0FEh, 0FEh, 0FEh ; 157
                 db 1, 0F1h, 0F2h, 0F3h, 0F4h
                 db 1, 0F5h, 0F6h, 0F7h, 0F7h
-                db 1, 0, 0, 0F8h, 0F8h
-byte_A3D5       db 0, 0, 0, 0F9h, 0FAh
-byte_A3DA       db 1, 0, 0FBh, 0FCh, 0FDh
+                db 1, 0, 0, 0F8h, 0F8h       ; 160
+silkarn_shoe       db 0, 0, 0, 0F9h, 0FAh       ; 161
+feruza_shoe       db 1, 0, 0FBh, 0FCh, 0FDh    ; 162
 death_descriptors dw offset byte_A3E9
                 dw offset byte_A3E9
                 dw offset byte_A3ED
