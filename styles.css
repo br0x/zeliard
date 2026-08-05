@@ -375,9 +375,9 @@ body.touch-mode {
   font-size: 48px;
   line-height: 1.5;
   padding: 4px;
-  transform: translateY(-8px);
+  transform: translateY(-20px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   text-align: center;
   cursor: pointer;
