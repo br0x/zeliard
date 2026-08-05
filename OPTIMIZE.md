@@ -87,7 +87,15 @@ function onFullTick() {
 beyond what `onSlowTick` already does. The `onSlowTick` handler still handles
 `updateInputLatches` (space/alt edge detection) and town-mode conversation logic.
 
-### Phase 2: Eliminate `readMemory` GC Pressure (High Priority — Reduces GC Pauses)
+### Phase 2: Eliminate `readMemory` GC Pressure (High Priority — Reduces GC Pauses) — ✅ DONE
+
+**Status**: Implemented. `src/zeliard-wasm.js` caches a g_mem-relative `Uint8Array`
+view (`gMemView`) that is rebuilt whenever WASM memory grows (the old buffer is
+detached by `memory.grow`), so cached views never go stale. `getWasmMemory()`
+returns the cached view, `readMemory()`/`writeMemory()` use `subarray()`/`set()`
+on it. `game.js` gained a `gMem(addr)` accessor (direct indexed access, zero
+allocation) and `readU8`/`readU16` now read through it; the 236 Hz `onFullTick`
+and per-frame dungeon/town render loops use `gMem()` instead of `readMemory(addr,1)`.
 
 **Problem**: Every `readMemory(addr, 1)` / `readU8` call allocates a new `Uint8Array`,
 causing GC pauses that further delay message processing.
@@ -143,7 +151,15 @@ Then replace `readU8(addr)` → `gMem(addr)` in hot loops.
 **Risk**: Low. `subarray` returns a view (no allocation) unlike `new Uint8Array(...)`.
 Direct indexed access is the simplest change with the biggest allocation reduction.
 
-### Phase 3: Batch-Read Proximity Map in `drawDungeonEntities` (Medium Priority)
+### Phase 3: Batch-Read Proximity Map in `drawDungeonEntities` (Medium Priority) — ✅ DONE
+
+**Status**: Implemented. `drawDungeonEntities` reads the whole 36×64 proximity map
+once (`readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE)`) and indexes the local array
+with `proxMap[si - ADDR_PROXIMITY_MAP]` (always in range since
+`wrapProximityAddress` bounds `si` to the circular buffer). `getSheetFrame` reads
+the 16-byte monster entry once instead of four single-byte lookups. `animateDungeonTiles`
+also batch-reads the map and writes animated tiles directly into the shared WASM
+view (`proxMap[idx] = nextTile`), dropping per-tile `writeMemory` calls entirely.
 
 **Problem**: `drawDungeonEntities` (game.js:3238–3250) calls `readU8(si)` for **every**
 tile in the viewport (~560 calls, each allocating a `Uint8Array`). On later levels with
@@ -265,13 +281,13 @@ attempted after Phase 1–3 are validated.
 
 ## Implementation Order
 
-| Phase | Priority | Effort | Impact on Input Lag |
-|-------|----------|--------|---------------------|
-| 1     | High     | Low    | **Direct fix** — input written at 236 Hz |
-| 2     | High     | Low    | Reduces GC pauses that delay ticks |
-| 3     | High     | Low    | Eliminates ~33K allocs/sec from rendering |
-| 4     | Medium   | Medium | Reduces 60 Hz RAF contention |
-| 5     | Low      | High   | Architectural — only if 1–4 insufficient |
+| Phase | Priority | Effort | Impact on Input Lag | Status |
+|-------|----------|--------|---------------------|--------|
+| 1     | High     | Low    | **Direct fix** — input written at 236 Hz | ✅ Done |
+| 2     | High     | Low    | Reduces GC pauses that delay ticks | ✅ Done |
+| 3     | High     | Low    | Eliminates ~33K allocs/sec from rendering | ✅ Done |
+| 4     | Medium   | Medium | Reduces 60 Hz RAF contention | — |
+| 5     | Low      | High   | Architectural — only if 1–4 insufficient | — |
 
 ## File Locations Reference
 
@@ -279,14 +295,15 @@ attempted after Phase 1–3 are validated.
 |------|-------------|
 | `game.js:1791` | `onFullTick` — adds `inputSetKeys(keys)` call |
 | `game.js:1860` | `onSlowTick` — keeps `updateInputLatches` + `inputSetKeys` for town mode |
-| `game.js:2663` | `drawDungeonTiles` — already batch-reads proximity map (good pattern) |
-| `game.js:3144` | `drawDungeonEntities` — per-tile `readU8` (needs batch optimization) |
-| `game.js:3164` | `getSheetFrame` — multiple `readU8`/`readU16` per entity |
-| `game.js:3063` | `animateDungeonTiles` — per-tile `readU8`/`writeMemory` |
+| `game.js:2664` | `drawDungeonTiles` — already batch-reads proximity map (good pattern) |
+| `game.js:~3256` | `drawDungeonEntities` — batch-reads proximity map into local array |
+| `game.js:~3183` | `getSheetFrame` — batch-reads 16-byte monster entry |
+| `game.js:3075` | `animateDungeonTiles` — batch-reads prox map, direct array writes |
 | `game.js:5362` | `loop` — RAF draw loop |
-| `src/zeliard-wasm.js:686` | `readMemory` — creates new `Uint8Array` per call |
-| `src/zeliard-wasm.js:700` | `writeMemory` — also allocates |
-| `src/zeliard-wasm.js:134` | `getWasmMemory` — already caches view |
+| `src/zeliard-wasm.js:707` | `readMemory` — `gMemView.subarray()` on cached view (no alloc) |
+| `src/zeliard-wasm.js:723` | `writeMemory` — `gMemView.set()` on cached view |
+| `src/zeliard-wasm.js:140` | `refreshMemViews` — rebuilds cached views when WASM memory grows |
+| `src/zeliard-wasm.js:161` | `getWasmMemory` — returns cached g_mem view |
 | `sound-manager.js:315` | `_onWorkletMessage` — sequential message dispatch |
 | `pit-worklet.js:110` | `_fireTick` — fires full_tick + slow_tick messages |
 | `src/dungeon.c:2770` | `monsters_spawning` — iterates all monster structs |

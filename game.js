@@ -3073,7 +3073,7 @@ function wrapProximityAddress(addr) {
 // game tick, even when the canvas is drawn multiple times.
 let lastAnimatedRenderCounter = renderCounter;
 function animateDungeonTiles() {
-    if (!readMemory || !writeMemory || lastAnimatedRenderCounter === renderCounter) return;
+    if (!readMemory || lastAnimatedRenderCounter === renderCounter) return;
     lastAnimatedRenderCounter = renderCounter;
 
     const cavernLevel = readU8(ADDR_CAVERN_LEVEL);
@@ -3082,12 +3082,19 @@ function animateDungeonTiles() {
     const oddTick = (renderCounter & 1) !== 0;
     const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
 
+    // Batch-read the whole proximity map once. It is a direct view into WASM
+    // g_mem, so advancing a tile is a plain array write (no allocation, no
+    // per-tile writeMemory). Nothing here re-enters WASM, so the view cannot
+    // be invalidated while this synchronous loop runs.
+    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE);
+
     for (let row = 0; row < VIEW_ROWS; row++) {
-        let addr = wrapProximityAddress(
+        let si = wrapProximityAddress(
             viewportLeftTop + row * PROX_COLS + DUNGEON_VIEW_LEFT_IN_PROX
         );
-        for (let col = 0; col < VIEW_COLS; col++, addr = wrapProximityAddress(addr + 1)) {
-            const tile = readU8(addr);
+        for (let col = 0; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
+            const idx = si - ADDR_PROXIMITY_MAP;
+            const tile = proxMap[idx];
             // Entity markers are not animated. Their background is held in
             // layer 2 until the game restores it after the entity moves.
             if (tile & 0x80) continue;
@@ -3139,7 +3146,7 @@ function animateDungeonTiles() {
                 nextTile = ((phase + 1) & 3) + 0x25;
             }
 
-            writeMemory(addr, [nextTile]);
+            proxMap[idx] = nextTile;
         }
     }
 }
@@ -3176,12 +3183,15 @@ function drawDungeonEntities() {
     function getSheetFrame(entityId) {
         const id = entityId & 0x7F;
         const ptr = readU16(ADDR_MONSTERS_LIST) + id * 16;
-        const dir = readU8(ptr + 5) & 0x80 ? "right" : "left";
-        const flags = readU8(ptr + 4) & 0x1F;
-        const offset = readU8(ptr + 6) & 0x0F;
+        // Batch-read the 16-byte monster entry (bytes 4/5/6 hold flags/dir/frame)
+        // instead of four separate single-byte lookups.
+        const entry = readMemory(ptr, 16);
+        const dir = entry[5] & 0x80 ? "right" : "left";
+        const flags = entry[4] & 0x1F;
+        const offset = entry[6] & 0x0F;
 
         currentEntityFlashFrames = _entityHitFlashTimers.get(id) || 0;
-        if ((flags & 0x18) === 0 && (readU8(ptr + 5) & 0x20)) {
+        if ((flags & 0x18) === 0 && (entry[5] & 0x20)) {
             currentEntityFlashFrames = 6;
             _entityHitFlashTimers.set(id, 6);
         }
@@ -3243,6 +3253,10 @@ function drawDungeonEntities() {
         }
     }
 
+    // Batch-read the whole proximity map once instead of a per-tile lookup,
+    // then index the local array (si - ADDR_PROXIMITY_MAP is always in range
+    // because wrapProximityAddress bounds si to the 36*64 circular buffer).
+    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE);
     const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
 
     // Include the invisible row and left edge so partially visible sprites
@@ -3250,7 +3264,7 @@ function drawDungeonEntities() {
     for (let row = -1; row < VIEW_ROWS; row++) {
         let si = wrapProximityAddress(viewportLeftTop + row * PROX_COLS + 3);
         for (let col = -1; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
-            const entityId = readU8(si);
+            const entityId = proxMap[si - ADDR_PROXIMITY_MAP];
             if (!(entityId & 0x80)) continue;
 
             drawEntity(getSheetFrame(entityId), col, row);
