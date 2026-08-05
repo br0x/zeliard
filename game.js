@@ -2440,6 +2440,12 @@ let speedChange = {
     digit: -1,
 };
 
+// Used by touch-controls.js to show a mobile digit pad while the
+// speed-change dialog is waiting for input.
+export function getSpeedChangePhase() {
+    return speedChange.active ? speedChange.phase : -1;
+}
+
 // ─── Town scroll helpers ──────────────────────────────────────────────────────
 function resetTownScrollOffsets() {
     townSidewalk1OffsetX = 0;

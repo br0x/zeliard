@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zeliard Web Port</title>
     <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -29,7 +30,17 @@
 
   <div id="layout-wrapper" class="hidden" style="display: flex; align-items: flex-start; justify-content: center; width: 100%; max-width: 1200px;">
 
-    <div style="width: 200px;"></div>
+    <div id="touch-joystick" class="touch-controls" aria-hidden="true">
+      <button class="touch-dpad-btn" data-codes="ArrowUp,ArrowLeft" aria-label="Up-Left"><span class="touch-dpad-arrow touch-dpad-arrow--nw"></span></button>
+      <button class="touch-dpad-btn" data-codes="ArrowUp" aria-label="Up"><span class="touch-dpad-arrow touch-dpad-arrow--up"></span></button>
+      <button class="touch-dpad-btn" data-codes="ArrowUp,ArrowRight" aria-label="Up-Right"><span class="touch-dpad-arrow touch-dpad-arrow--ne"></span></button>
+      <button class="touch-dpad-btn" data-codes="ArrowLeft" aria-label="Left"><span class="touch-dpad-arrow touch-dpad-arrow--left"></span></button>
+      <span class="touch-dpad-cell"></span>
+      <button class="touch-dpad-btn" data-codes="ArrowRight" aria-label="Right"><span class="touch-dpad-arrow touch-dpad-arrow--right"></span></button>
+      <span class="touch-dpad-cell"></span>
+      <button class="touch-dpad-btn" data-codes="ArrowDown" aria-label="Down"><span class="touch-dpad-arrow touch-dpad-arrow--down"></span></button>
+      <span class="touch-dpad-cell"></span>
+    </div>
 
     <img src="assets/images/mole/mole_l.jpg" style="width: 64px; height: 600px;">
     <div id="game-wrapper" style="display: flex; flex-direction: column; width: fit-content;">
@@ -93,9 +104,40 @@
     </div>
     <img src="assets/images/mole/mole_r.jpg" style="width: 64px; height: 600px;">
 
-    <div style="width: 200px;"></div>
+    <div id="touch-actions" class="touch-controls" aria-hidden="true">
+      <button class="touch-action-btn" data-code="Enter" aria-label="Inventory">🎒</button>
+      <button class="touch-action-btn" data-code="AltLeft" aria-label="Magic">🪄</button>
+      <button class="touch-action-btn" data-code="Space" aria-label="Hit / Action">⚔️</button>
+    </div>
+  </div>
+
+  <div id="settings-menu">
+    <button id="settings-toggle" aria-label="Settings" title="Settings">⚙</button>
+    <div id="settings-panel" class="hidden">
+      <button data-key="F1">Music On/Off</button>
+      <button data-key="F2">Sound FX On/Off</button>
+      <button data-key="F7">Restore / Restart</button>
+      <button data-key="F8">Import / Export</button>
+      <button data-key="F9">Change Speed</button>
+    </div>
+  </div>
+
+  <div id="speed-pad" class="hidden" aria-hidden="true">
+    <button class="speed-digit" data-digit="1">1</button>
+    <button class="speed-digit" data-digit="2">2</button>
+    <button class="speed-digit" data-digit="3">3</button>
+    <button class="speed-digit" data-digit="4">4</button>
+    <button class="speed-digit" data-digit="5">5</button>
+    <button class="speed-digit" data-digit="6">6</button>
+    <button class="speed-digit" data-digit="7">7</button>
+    <button class="speed-digit" data-digit="8">8</button>
+    <button class="speed-digit" data-digit="9">9</button>
+    <button class="speed-digit" data-digit="0">0</button>
+    <button class="speed-pad-wide" id="speed-cancel">CANCEL</button>
+    <button class="speed-pad-wide" id="speed-ok">OK</button>
   </div>
 
   <script src="game.js" type="module"></script>
+  <script src="touch-controls.js" type="module"></script>
 </body>
 </html>
