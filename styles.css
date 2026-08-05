@@ -303,6 +303,10 @@ body.touch-mode {
   touch-action: none;
 }
 
+body.touch-mode #touch-joystick {
+  margin-right: 16px;
+}
+
 #touch-joystick {
   display: grid;
   grid-template-columns: repeat(3, 76px);
