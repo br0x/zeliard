@@ -246,16 +246,10 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-
-  /* 1. Set up the container and the outermost layer */
-  position: relative; /* Allows pseudo-elements to position themselves inside */
+  position: relative;
   border-style: solid;
   border-width: 1px;
-  /* top | right | bottom | left */
   border-color: #d6d6d6 #858585 #5a5a5a #dedede; 
-  
-  /* 2. Add padding to act as physical space for the inner 2 borders, 
-        ensuring your flex content doesn't get covered up. */
   padding: 2px; 
 }
 
@@ -264,8 +258,8 @@ canvas {
 .slot::after {
   content: "";
   position: absolute;
-  pointer-events: none; /* Ensures clicks pass right through to your content */
-  box-sizing: border-box; /* Forces the border to draw inward */
+  pointer-events: none;
+  box-sizing: border-box;
   border-style: solid;
   border-width: 1px;
 }
@@ -276,7 +270,6 @@ canvas {
   right: 0; 
   bottom: 0; 
   left: 0;
-  /* top | right | bottom | left */
   border-color: #a5a5a5 #d7d7d7 #8c8c8c #a5a5a5;
 }
 
@@ -286,7 +279,6 @@ canvas {
   right: 1px; 
   bottom: 1px; 
   left: 1px;
-  /* top | right | bottom | left */
   border-color: #6f6f6f #a4a4a4 #dedede #6f6f6f;
 }
 
@@ -301,6 +293,7 @@ canvas {
   -webkit-touch-callout: none;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  font-size: 32px;
 }
 
 body.touch-mode .touch-controls {
