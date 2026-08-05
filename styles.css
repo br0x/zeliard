@@ -372,11 +372,11 @@ body.touch-mode {
   background: rgba(30, 60, 110, 0.45);
   color: #fff;
   font-family: 'Press Start 2P', monospace;
-  font-size: 50px;
+  font-size: 48px;
   line-height: 1.5;
   padding: 0 4px 4px 4px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   text-align: center;
   cursor: pointer;
