@@ -1426,6 +1426,7 @@ const ADDR_BOSS_STATE_PTR          = 0xA002;
 const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
 const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
 const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
+const ADDR_NPC_CONVERSATIONS       = 0xC00D;
 const ADDR_NPC_ARRAY_PTR           = 0xC00F;
 const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)
 const ADDR_CAVERN_LEVEL            = 0xC012;
@@ -1438,6 +1439,8 @@ const ADDR_PROXIMITY_LAYER2        = 0xED20; // 128 bytes layer-2 tile mapping
 const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes each, 4 sprites)
 const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 bytes each)
 const ADDR_FRAME_TIMER             = 0xFF1A;
+const ADDR_SPACEBAR_LATCH          = 0xFF1D  // byte
+const ADDR_ALTKEY_LATCH            = 0xFF1E  // byte
 const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F; // byte
 const ADDR_BOSS_IS_DEAD            = 0xFF30; // byte — 0xFF when boss is dead
 const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31; // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
@@ -1871,7 +1874,7 @@ function onSlowTick() {
     }
 
     if (conversation.active) {
-        const spaceLatched = readMemory(0xFF1D, 1)[0];
+        const spaceLatched = readMemory(ADDR_SPACEBAR_LATCH, 1)[0];
 
         if (conversation.yesNoMode) {
             const dirUp = keys.ArrowUp && !lastDirUp;
@@ -1884,7 +1887,7 @@ function onSlowTick() {
                 conversation.yesNoCursor++;
             }
             if (spaceLatched) {
-                writeMemory(0xFF1D, [0]);
+                writeMemory(ADDR_SPACEBAR_LATCH, [0]);
                 const selectedYes = conversation.yesNoCursor === 0;
                 conversation.active = false;
                 conversation.savedBackground = null;
@@ -1909,7 +1912,7 @@ function onSlowTick() {
         }
 
         if (spaceLatched) {
-            writeMemory(0xFF1D, [0]);
+            writeMemory(ADDR_SPACEBAR_LATCH, [0]);
             if (conversation.page < conversation.pages.length - 1) {
                 conversation.page++;
                 computeBoxGeometry(conversation.facingLeft);
@@ -4354,14 +4357,14 @@ let lastAlt = false;
 function updateInputLatches() {
     const currentSpace = keys.Space;
     const currentAlt = keys.Alt;
-    if (currentSpace && !lastSpace) writeMemory(0xFF1D, [1]);
-    if (currentAlt && !lastAlt) writeMemory(0xFF1E, [1]);
+    if (currentSpace && !lastSpace) writeMemory(ADDR_SPACEBAR_LATCH, [1]);
+    if (currentAlt && !lastAlt) writeMemory(ADDR_ALTKEY_LATCH, [1]);
     lastSpace = currentSpace;
     lastAlt = currentAlt;
 }
 
 function getNpcConversationRaw(npcId) {
-    let ptr = readMemory(0xC00D, 2);
+    let ptr = readMemory(ADDR_NPC_CONVERSATIONS, 2);
     const convTablePtr = ptr[0] | (ptr[1] << 8);
     if (!convTablePtr) return null;
     const textPtr = readMemory(convTablePtr + npcId * 2, 2);
