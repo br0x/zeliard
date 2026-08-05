@@ -582,6 +582,15 @@ body.touch-mode #escape-toggle {
   background: rgba(255, 200, 80, 0.35);
 }
 
+.mole-side {
+  width: 64px;
+  height: 600px;
+}
+
+body.touch-mode .mole-side {
+  width: 1px;
+}
+
 /* Hide the desktop-only FPS counter and keyboard hints bar on touch devices */
 body.touch-mode #fps-display,
 body.touch-mode #ui {
