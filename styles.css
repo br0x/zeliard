@@ -313,20 +313,21 @@ body.touch-mode {
 
 #touch-joystick {
   display: grid;
-  grid-template-columns: repeat(3, 60px);
-  grid-template-rows: repeat(3, 60px);
-  gap: 4px;
+  grid-template-columns: repeat(3, 76px);
+  grid-template-rows: repeat(3, 76px);
+  gap: 0;
   justify-content: center;
 }
 
 .touch-dpad-cell {
-  width: 60px;
-  height: 60px;
+  width: 76px;
+  height: 76px;
 }
 
 .touch-dpad-btn {
   width: 60px;
   height: 60px;
+  margin: 8px 16px 8px 0;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.10);
@@ -334,7 +335,6 @@ body.touch-mode {
   align-items: center;
   justify-content: center;
   padding: 0;
-  margin: 0;
   cursor: pointer;
   font-family: inherit;
   touch-action: none;
