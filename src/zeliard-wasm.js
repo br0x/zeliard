@@ -5,6 +5,7 @@ let wasmInstance = null;
 let wasmMemory = null;
 let wasmExports = null;
 let gMemoryBase = 0;  // Offset of g_mem array in WASM linear memory
+let gMemView = null;  // Cached Uint8Array view over g_mem (rebuilt when WASM memory grows)
 
 // Memory layout constants (must match zeliard.h)
 // These are offsets within g_mem, not absolute WASM memory offsets
@@ -126,22 +127,43 @@ export function hasWasmExport(name) {
 }
 
 /**
+ * Ensure the cached memory views point at the *current* WASM linear memory.
+ *
+ * WASM memory can grow at runtime (memory.grow), which replaces the module's
+ * ArrayBuffer. The old buffer is detached and every Uint8Array view created
+ * from it becomes stale/invalid. Callers therefore re-validate on each access
+ * by comparing the cached view's buffer with wasmExports.memory.buffer and
+ * rebuild the views when they differ.
+ * @returns {Uint8Array|null} The full WASM memory view (absolute addressing),
+ *   or null if the WASM module is not initialized.
+ */
+function refreshMemViews() {
+    if (!wasmExports?.memory) return null;
+
+    if (!wasmMemory || wasmMemory.buffer !== wasmExports.memory.buffer) {
+        // WASM memory grew (or first access): detach-time rebuild.
+        wasmMemory = new Uint8Array(wasmExports.memory.buffer);
+        gMemView = wasmMemory.subarray(gMemoryBase);
+    } else if (!gMemView) {
+        gMemView = wasmMemory.subarray(gMemoryBase);
+    }
+    return wasmMemory;
+}
+
+/**
  * Get a Uint8Array view of the WASM linear memory, offset to the g_mem
  * array so that callers can index with game-relative offsets.
  * SoundManager uses this to poll shared bytes such as 0xFF75.
+ * The view is cached and rebuilt when WASM memory grows; do not retain
+ * the returned array across calls into WASM that may grow memory.
  * @returns {Uint8Array|null} WASM g_mem memory view.
  */
 export function getWasmMemory() {
-    if (!wasmExports?.memory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return null;
     }
-
-    if (!wasmMemory || wasmMemory.buffer !== wasmExports.memory.buffer) {
-        wasmMemory = new Uint8Array(wasmExports.memory.buffer);
-    }
-
-    return wasmMemory.subarray(gMemoryBase);
+    return gMemView;
 }
 
 /**
@@ -233,13 +255,12 @@ export function townFullTick() {
  */
 //
 export function loadMdt(mdtData, mdtPath) {
-    if (!wasmExports) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return -1;
     }
 
-    const view = new Uint8Array(wasmMemory.buffer);
-    view.set(mdtData, gMemoryBase + ADDR_MDT);
+    wasmMemory.set(mdtData, gMemoryBase + ADDR_MDT);
 
     console.log('MDT loaded: ' + mdtPath);
 
@@ -247,7 +268,7 @@ export function loadMdt(mdtData, mdtPath) {
 }
 
 export function loadSaveState(saveState) {
-    if (!wasmExports) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -270,7 +291,7 @@ export function loadSaveState(saveState) {
  * @returns {object} MDT header with all offsets
  */
 export function getCavernMdtHeader() {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return null;
     }
@@ -299,7 +320,7 @@ export function getCavernMdtHeader() {
  * @returns {object} MDT header with all offsets
  */
 export function getTownMdtHeader() {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return null;
     }
@@ -337,6 +358,7 @@ export function getTownMdtHeader() {
  * followed by Pascal string (length byte + characters).
  */
 export function getCavernName() {
+    if (!refreshMemViews()) return '';
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
         return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
@@ -356,6 +378,7 @@ export function getCavernName() {
  * followed by Pascal string (length byte + characters).
  */
 export function getTownName() {
+    if (!refreshMemViews()) return '';
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
         return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
@@ -369,6 +392,7 @@ export function getTownName() {
 const ADDR_BOSS_STATE_PTR = 0xA002;
 
 export function getBossName() {
+    if (!refreshMemViews()) return '';
     // Read uint16 values from memory (little-endian)
     function readU16(addr) {
         return wasmMemory[addr] | (wasmMemory[addr + 1] << 8);
@@ -382,7 +406,7 @@ export function getBossName() {
 }
 
 function getNameFromNameInfo(nameOffset) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return '';
     }
@@ -405,7 +429,7 @@ function getNameFromNameInfo(nameOffset) {
  * First word of header points to mdt_descriptor, and track id is in bits 5..1 of byte 0.
  */
 export function getMusicTrackId() {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return '';
     }
@@ -430,7 +454,7 @@ export function getMusicTrackId() {
  * First word of header points to town_descriptor, and background type is in byte 3.
  */
 export function getTownBackgroundType() {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return '';
     }
@@ -455,7 +479,7 @@ export function getTownBackgroundType() {
  * First word of header points to town_descriptor, and patId is in byte 4.
  */
 export function getTownPatId() {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return '';
     }
@@ -472,7 +496,7 @@ export function getTownPatId() {
 }
 
 export function setSpecialTileList(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM memory not ready');
         return;
     }
@@ -497,7 +521,7 @@ export function setSpecialTileList(tileIds) {
 }
 
 export function setDungeonPassableTiles(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM memory not ready');
         return;
     }
@@ -515,7 +539,7 @@ export function setDungeonPassableTiles(tileIds) {
 }
 
 export function setDungeonSlopeTilesLeft(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -533,7 +557,7 @@ export function setDungeonSlopeTilesLeft(tileIds) {
 }
 
 export function setDungeonSlopeTilesRight(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -551,7 +575,7 @@ export function setDungeonSlopeTilesRight(tileIds) {
 }
 
 export function setDungeonAggressiveGround(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -569,7 +593,7 @@ export function setDungeonAggressiveGround(tileIds) {
 }
 
 export function setDungeonAirflows(tileIds) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -587,7 +611,7 @@ export function setDungeonAirflows(tileIds) {
 }
 
 export function setDungeonMonsterXp(xp) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -600,17 +624,16 @@ export function setDungeonMonsterXp(xp) {
 }
 
 export function setDungeonMonsterDamage(damage) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
 
-    const view = new Uint8Array(wasmMemory.buffer);
-    view.set(damage, gMemoryBase + 0xA010);
+    wasmMemory.set(damage, gMemoryBase + 0xA010);
 }
 
 export function setDeathDescriptors(descriptors) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -652,7 +675,7 @@ export function setDeathDescriptors(descriptors) {
 const ADDR_TRAJECTORIES = 0xA531;
 
 export function setTrajectories(trajectories) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
@@ -684,12 +707,14 @@ export function setTrajectories(trajectories) {
  * @returns {Uint8Array} Bytes from memory
  */
 export function readMemory(offset, length) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return null;
     }
 
-    return new Uint8Array(wasmMemory.buffer, gMemoryBase + offset, length);
+    // subarray() shares the cached g_mem view instead of allocating a fresh
+    // Uint8Array from the detached-then-resized underlying buffer.
+    return gMemView.subarray(offset, offset + length);
 }
 
 /**
@@ -698,13 +723,12 @@ export function readMemory(offset, length) {
  * @param {Uint8Array} data - Bytes to write
  */
 export function writeMemory(offset, data) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return;
     }
-    
-    const view = new Uint8Array(wasmMemory.buffer);
-    view.set(data, gMemoryBase + offset);
+
+    gMemView.set(data, offset);
 }
 
 /**
@@ -714,7 +738,7 @@ export function writeMemory(offset, data) {
  * @returns {string} Hex dump
  */
 export function debugDump(offset, length) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM not initialized');
         return '';
     }
@@ -764,12 +788,12 @@ export function inputSetKeys(keys) {
 }
 
 export function getTownPendingTransitionFlag() {
-    if (!wasmMemory) return 0;
+    if (!refreshMemViews()) return 0;
     return wasmMemory[gMemoryBase + 0xFFF4];
 }
 
 export function getTownPendingTransition() {
-    if (!wasmMemory) return null;
+    if (!refreshMemViews()) return null;
     const base = gMemoryBase;
     return {
         mapId:     wasmMemory[base + 0xFFF1],  // dest map id (0x80 already set)
@@ -847,7 +871,7 @@ const REACH_LISTS_OFFSET = 0xB01E;  // actual byte lists (grows forward)
  * Empty arrays 12 and 14 provided for alignment purposes only.
  */
 export function setDungeonSwordReach(reachObj) {
-    if (!wasmMemory) {
+    if (!refreshMemViews()) {
         console.error('WASM memory not ready');
         return;
     }

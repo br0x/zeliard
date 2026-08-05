@@ -1800,13 +1800,13 @@ function onFullTick() {
 
     if (engineReady) {
         inputSetKeys(keys);  // refresh input at 236 Hz before any dungeonUpdate reads it
-        const speedC     = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
+        const speedC     = gMem(ADDR_SPEED_CONST) || 5;
         const target     = speedC * 4;
-        const frameTmr   = readMemory(ADDR_FRAME_TIMER, 1)[0];
+        const frameTmr   = gMem(ADDR_FRAME_TIMER);
         if (gameMode === 'dungeon') {
             // Bypass the speed gate during roka run so the 8-bit ADDR_FRAME_TIMER wraparound 
             // doesn't starve dungeonUpdate() and cause frame skips
-            const isRokaRun = readMemory(ADDR_DUNGEON_STATE, 1)[0] === DUNGEON_STATE_ROKA_RUN;
+            const isRokaRun = gMem(ADDR_DUNGEON_STATE) === DUNGEON_STATE_ROKA_RUN;
             if (isRokaRun || frameTmr >= target) {
                 const phaseBefore = readU8(ADDR_DUNGEON_FRAME_PHASE);
                 dungeonUpdate?.();
@@ -1818,22 +1818,22 @@ function onFullTick() {
                 if (isRokaRun || (phaseBefore === 2 && readU8(ADDR_DUNGEON_FRAME_PHASE) === 0)) {
                     renderCounter = (renderCounter + 1) & 0xFF;
                 }
-                if (readMemory(ADDR_DUNGEON_EXIT_FLAG, 1)[0] === 0xFF) {
-                    if (readMemory(ADDR_HERO_DEATH_FLAG, 1)[0] === 0xFF) {
-                        initTownFromDungeon(readMemory(ADDR_LAST_SAGE_VISITED, 1)[0], true);
+                if (gMem(ADDR_DUNGEON_EXIT_FLAG) === 0xFF) {
+                    if (gMem(ADDR_HERO_DEATH_FLAG) === 0xFF) {
+                        initTownFromDungeon(gMem(ADDR_LAST_SAGE_VISITED), true);
                     } else {
-                        initTownFromDungeon(readMemory(ADDR_PLACE_MAP_ID, 1)[0], false);
+                        initTownFromDungeon(gMem(ADDR_PLACE_MAP_ID), false);
                     }
-                } else if (readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0] === 0xFF) {
+                } else if (gMem(ADDR_PENDING_DUNGEON_FLAG) === 0xFF) {
                     dungeonTileSheetReady = false;
                     dungeonEntitySheetReady = false;
-                    const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
+                    const pendingMap = gMem(ADDR_PENDING_DUNGEON_MAP);
                     handleDungeonTransition(pendingMap, false);
                 }
             }
         } else if (frameTmr >= target) { // town mode
             townUpdate?.();
-            const scrollFlag = readMemory(0xfff0, 1)[0];
+            const scrollFlag = gMem(0xfff0);
             if (scrollFlag) {
                 if (scrollFlag & 0x01) scrollFloorOneTileRight();
                 if (scrollFlag & 0x02) scrollFloorOneTileLeft();
@@ -1849,8 +1849,8 @@ function onFullTick() {
                     handleTownTransition(transition);
                 }
             }
-            if (readMemory(ADDR_PENDING_DUNGEON_FLAG, 1)[0] === 0xFF) {
-                const pendingMap = readMemory(ADDR_PENDING_DUNGEON_MAP, 1)[0];
+            if (gMem(ADDR_PENDING_DUNGEON_FLAG) === 0xFF) {
+                const pendingMap = gMem(ADDR_PENDING_DUNGEON_MAP);
                 handleDungeonTransition(pendingMap, true);
             }
             checkBuildingRequest();
@@ -1868,14 +1868,14 @@ function onSlowTick() {
     if (gameMode === 'dungeon') return;
 
     if (!conversation.active) {
-        const activeFlag = readMemory(0xFFF5, 1)[0];
+        const activeFlag = gMem(0xFFF5);
         if (activeFlag) {
             startConversationFromWasm();
         }
     }
 
     if (conversation.active) {
-        const spaceLatched = readMemory(ADDR_SPACEBAR_LATCH, 1)[0];
+        const spaceLatched = gMem(ADDR_SPACEBAR_LATCH);
 
         if (conversation.yesNoMode) {
             const dirUp = keys.ArrowUp && !lastDirUp;
@@ -1930,7 +1930,7 @@ function onSlowTick() {
         return;
     }
 
-    const scrollFlag = readMemory(0xfff0, 1)[0];
+    const scrollFlag = gMem(0xfff0);
     if (scrollFlag) {
         if (scrollFlag & 0x01) scrollFloorOneTileRight();
         if (scrollFlag & 0x02) scrollFloorOneTileLeft();
@@ -2559,7 +2559,7 @@ function drawTownTiles() {
     
     const leftCol = Math.max(0, Math.min(
         mapWidth - VIEW_COLS,
-        (readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 1)[0] ?? 0) + TOWN_VISIBLE_COL_OFFSET
+        (gMem(ADDR_PROXIMITY_MAP_LEFT_COL) ?? 0) + TOWN_VISIBLE_COL_OFFSET
     ));
     for (let col = 0; col < VIEW_COLS; col++) {
         const mapCol = leftCol + col;
@@ -2582,9 +2582,9 @@ function drawTownTiles() {
 
 function drawTownHero() {
     if (!heroSpriteReady || !engineReady) return;
-    readMemory(0xFF33, 1)[0];
-    const heroAnim = readMemory(0x00E7, 1)[0];
-    const facing   = readMemory(0x00C2, 1)[0] & 1;
+    gMem(0xFF33);
+    const heroAnim = gMem(0x00E7);
+    const facing   = gMem(0x00C2) & 1;
     const moving = keys.ArrowLeft || keys.ArrowRight;
     let frame;
     if (heroAnim === 4) {
@@ -2600,7 +2600,7 @@ function drawTownHero() {
         }
     }
     const sx = frame * HERO_FRAME_W;
-    const viewportX = readMemory(0x0083, 1)[0];
+    const viewportX = gMem(0x0083);
     const dx = viewportX * TILE_WIDTH;
     const dy = HERO_BASE_Y;
     ctx.drawImage(heroSprite, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);
@@ -2682,13 +2682,24 @@ function drawDungeonTiles() {
     return true;
 }
 
+// Direct byte access into the cached WASM g_mem view. getWasmMemory()
+// re-validates the view on every call and rebuilds it if the WASM memory
+// buffer grew (old views are detached). Unlike readMemory(addr, 1)[0]
+// this performs no Uint8Array allocation, which removes GC churn from the
+// 236 Hz tick and per-frame render loops.
+function gMem(addr) {
+    const mem = getWasmMemory?.();
+    return mem ? mem[addr] : 0;
+}
+
 function readU8(addr) {
-    return readMemory?.(addr, 1)?.[0] ?? 0;
+    return gMem(addr);
 }
 
 function readU16(addr) {
-    const mBytes = readMemory(addr, 2);
-    return mBytes[0] | (mBytes[1] << 8);
+    const mem = getWasmMemory?.();
+    if (!mem) return 0;
+    return mem[addr] | (mem[addr + 1] << 8);
 }
 
 // ─── Boss explosion ring sprite data ─────────────────────────────────────────
@@ -2886,15 +2897,15 @@ function drawDungeonProjectiles() { // monsters projectiles
     const cols = Math.floor(dungeonTileSheet.width / TILE_WIDTH);
     let p = ADDR_PROJECTILES_LIST;
     for (;;) {
-        const p_x_rel = readMemory(p, 1)[0];
+        const p_x_rel = gMem(p);
         if (p_x_rel === 0xFF) break;
         const vpX = p_x_rel - DUNGEON_VIEW_LEFT_IN_PROX;
         if (vpX < 0 || vpX >= VIEW_COLS) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const p_y_rel = readMemory(p + 1, 1)[0];
+        const p_y_rel = gMem(p + 1);
         const vpY = (p_y_rel - top) & 0x3F;
         if (vpY >= VIEW_ROWS) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const typeId = readMemory(p + 2, 1)[0];
-        const stepCount = readMemory(p + 3, 1)[0];
+        const typeId = gMem(p + 2);
+        const stepCount = gMem(p + 3);
         if (typeId >= dungeonProjectiles.length) { p += PROJECTILE_STRUCT_SIZE; continue; }
         const tiles = dungeonProjectiles[typeId];
         if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
@@ -3257,7 +3268,7 @@ function drawDungeonEntities() {
 }
 
 function getShieldCategory() {
-    const shieldType = readMemory?.(ADDR_SHIELD_TYPE, 1)?.[0] ?? 0;
+    const shieldType = gMem(ADDR_SHIELD_TYPE);
     if (!shieldType) return 0;
     return shieldType >= 4 ? 2 : 1;
 }
@@ -3351,11 +3362,10 @@ function drawDungeonMagiaStones() {
     if (!dungeonDchrSheetReady || !readMemory) return;
     for (let i = 0; i < 4; i++) {
         const base = ADDR_MAGIA_STONE_SPRITE0 + i * 7;
-        const data = readMemory(base, 7);
-        if (data[0] === 0xFF) continue;
-        if (data[2] === 0) continue;
-        const sx = data[5];
-        const sy = data[6] & 0x3F;
+        if (gMem(base) === 0xFF) continue;
+        if (gMem(base + 2) === 0) continue;
+        const sx = gMem(base + 5);
+        const sy = gMem(base + 6) & 0x3F;
         if (sy >= 19) continue; // outside viewport
         drawSheetFrame(dungeonDchrSheet, 0x26, TILE_WIDTH, TILE_HEIGHT, 39, (sx - 4) * TILE_WIDTH, sy * TILE_HEIGHT);
     }
@@ -3363,9 +3373,9 @@ function drawDungeonMagiaStones() {
 
 function drawDungeonHero() {
     if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
-    if (readMemory(ADDR_HERO_SPRITE_HIDDEN, 1)[0]) return;
-    const x0 = readMemory(ADDR_HERO_X_VIEW, 1)[0];
-    const y0 = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0];
+    if (gMem(ADDR_HERO_SPRITE_HIDDEN)) return;
+    const x0 = gMem(ADDR_HERO_X_VIEW);
+    const y0 = gMem(ADDR_HERO_HEAD_Y_VIEW);
     const dx = x0 * TILE_WIDTH;
     const dy = y0 * TILE_HEIGHT;
     const state = getDungeonHeroState();
@@ -3384,16 +3394,16 @@ function drawDungeonHero() {
 
 function drawDungeonSword() {
     if (!dungeonSwordSheetReady || !readMemory || !writeMemory) return;
-    const swingFlag = readMemory(ADDR_SWORD_SWING_FLAG, 1)[0];
+    const swingFlag = gMem(ADDR_SWORD_SWING_FLAG);
     if (!swingFlag) {
         drawDungeonSword._swingStart = 0;
         return;
     }
 
-    let phase = readMemory(ADDR_SWORD_MOVEMENT_PHASE, 1)[0];
-    const hitType = readMemory(ADDR_SWORD_HIT_TYPE, 1)[0] || 0;
-    const swordType = Math.max(1, Math.min(6, readMemory(ADDR_SWORD_TYPE, 1)[0] || 1));
-    const facingLeft = (readMemory(ADDR_FACING, 1)[0] & 1) !== 0;
+    let phase = gMem(ADDR_SWORD_MOVEMENT_PHASE);
+    const hitType = gMem(ADDR_SWORD_HIT_TYPE) || 0;
+    const swordType = Math.max(1, Math.min(6, gMem(ADDR_SWORD_TYPE) || 1));
+    const facingLeft = (gMem(ADDR_FACING) & 1) !== 0;
 
     // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
     // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
@@ -3442,9 +3452,9 @@ function drawDungeonSword() {
     const row = baseRow + (facingLeft ? 1 : 0);
     const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
 
-    let dx = readMemory(ADDR_HERO_X_VIEW, 1)[0] * TILE_WIDTH;
-    let dy = readMemory(ADDR_HERO_HEAD_Y_VIEW, 1)[0] * TILE_HEIGHT;
-    if (readMemory(ADDR_SQUAT_FLAG, 1)[0]) {
+    let dx = gMem(ADDR_HERO_X_VIEW) * TILE_WIDTH;
+    let dy = gMem(ADDR_HERO_HEAD_Y_VIEW) * TILE_HEIGHT;
+    if (gMem(ADDR_SQUAT_FLAG)) {
         dy += TILE_HEIGHT;
     }
 
@@ -4543,9 +4553,9 @@ function startConversationFromWasm() {
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────
 function checkBuildingRequest() {
     if (!engineReady || !readMemory || indoorActiveScene) return;
-    const active = readMemory(ADDR_BUILDING_ACTIVE, 1)[0];
+    const active = gMem(ADDR_BUILDING_ACTIVE);
     if (!active) return;
-    const destId = readMemory(ADDR_BUILDING_DEST_ID, 1)[0];
+    const destId = gMem(ADDR_BUILDING_DEST_ID);
     startIndoorScene(destId);
 }
 
@@ -5276,7 +5286,7 @@ function draw() {
         prevDungeonState = dungeonState;
 
         // Boss mode HUD toggle
-        const bossMode = readMemory(ADDR_BOSS_MODE, 1)[0];
+        const bossMode = gMem(ADDR_BOSS_MODE);
         const bossLifeBar = document.getElementById('bossLifeBarContainer');
         const placeName = document.getElementById('currentMapName');
         const placeLabel = document.getElementById('placeLabel');
@@ -5297,31 +5307,31 @@ function draw() {
             if (goldValue) goldValue.style.display = '';
         }
 
-        if (readMemory(ADDR_HEALTH_BAR_REQUEST, 1)[0]) {
+        if (gMem(ADDR_HEALTH_BAR_REQUEST)) {
             drawLifeBar();
             writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
         }
         if (bossMode) {
-            if (readMemory(ADDR_BOSS_HEALTH_REQUEST, 1)[0]) {
+            if (gMem(ADDR_BOSS_HEALTH_REQUEST)) {
                 drawBossHealth();
                 renderBossName();
                 writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0]);
             }
         } else {
-            if (readMemory(ADDR_GOLD_RENDER_REQUEST, 1)[0]) {
+            if (gMem(ADDR_GOLD_RENDER_REQUEST)) {
                 renderGoldHud();
                 writeMemory(ADDR_GOLD_RENDER_REQUEST, [0]);
             }
         }
-        if (readMemory(ADDR_ALMAS_RENDER_REQUEST, 1)[0]) {
+        if (gMem(ADDR_ALMAS_RENDER_REQUEST)) {
             renderAlmasHud();
             writeMemory(ADDR_ALMAS_RENDER_REQUEST, [0]);
         }
-        if (readMemory(ADDR_SHIELD_HP_RENDER_REQUEST, 1)[0]) {
+        if (gMem(ADDR_SHIELD_HP_RENDER_REQUEST)) {
             renderShieldHud();
             writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, [0]);
         }
-        if (readMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, 1)[0]) {
+        if (gMem(ADDR_MAGIC_LEFT_RENDER_REQUEST)) {
             renderMagicHud();
             writeMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, [0]);
         }
