@@ -460,6 +460,24 @@ body.touch-mode #settings-menu {
   background: rgba(80, 80, 80, 0.9);
 }
 
+#fullscreen-toggle {
+  width: 46px;
+  height: 46px;
+  margin-top: 8px;
+  border-radius: 50%;
+  border: 2px solid #888;
+  background: rgba(25, 25, 25, 0.85);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#fullscreen-toggle:active {
+  background: rgba(80, 80, 80, 0.9);
+}
+
 #settings-panel {
   margin-top: 8px;
   display: flex;

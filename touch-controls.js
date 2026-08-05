@@ -80,6 +80,33 @@ function bindTapButton(btn) {
     btn.addEventListener('pointercancel', release);
 }
 
+// ─── Fullscreen toggle (hide browser chrome on smartphones) ───────────────────
+async function enterFullscreen() {
+    const elem = document.documentElement;
+
+    if (elem.requestFullscreen) {
+        await elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+        await elem.webkitRequestFullscreen(); // Safari
+    }
+}
+
+function initFullscreenToggle() {
+    const btn = document.getElementById('fullscreen-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+        try {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                await (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.());
+            } else {
+                await enterFullscreen();
+            }
+        } catch (err) {
+            console.warn('[Fullscreen] failed:', err);
+        }
+    });
+}
+
 // ─── Settings menu (F1/F2/F7/F8/F9) ──────────────────────────────────────────
 function initSettingsMenu() {
     const toggle = document.getElementById('settings-toggle');
@@ -101,7 +128,8 @@ function initSettingsMenu() {
 
     document.addEventListener('click', e => {
         if (panel.classList.contains('hidden')) return;
-        if (panel.contains(e.target) || toggle.contains(e.target)) return;
+        const fsBtn = document.getElementById('fullscreen-toggle');
+        if (panel.contains(e.target) || toggle.contains(e.target) || fsBtn?.contains(e.target)) return;
         panel.classList.add('hidden');
     });
 }
@@ -233,6 +261,7 @@ function init() {
     document.body.classList.add('touch-mode');
 
     initSettingsMenu();
+    initFullscreenToggle();
 
     const joystick = document.getElementById('touch-joystick');
     const actions = document.getElementById('touch-actions');
