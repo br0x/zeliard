@@ -195,9 +195,9 @@ function initNamePad() {
     const controlRow = document.createElement('div');
     controlRow.className = 'name-pad-row';
     controlRow.appendChild(makeNameKey('⌫', 'name-key--wide'));
-    controlRow.appendChild(makeNameKey('SPACE', 'name-key--wide'));
-    controlRow.appendChild(makeNameKey('CANCEL', 'name-key--cancel'));
-    controlRow.appendChild(makeNameKey('OK', 'name-key--ok'));
+    controlRow.appendChild(makeNameKey('␣', 'name-key--wide'));
+    controlRow.appendChild(makeNameKey('❌', 'name-key--cancel'));
+    controlRow.appendChild(makeNameKey('✅', 'name-key--ok'));
     pad.appendChild(controlRow);
 
     setInterval(() => {
