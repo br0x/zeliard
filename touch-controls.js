@@ -107,6 +107,16 @@ function initFullscreenToggle() {
     });
 }
 
+// ─── Cancel / Back (Esc) button ───────────────────────────────────────────────
+function initEscapeToggle() {
+    const btn = document.getElementById('escape-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        sendKey('keydown', 'Escape');
+        sendKey('keyup', 'Escape');
+    });
+}
+
 // ─── Settings menu (F1/F2/F7/F8/F9) ──────────────────────────────────────────
 function initSettingsMenu() {
     const toggle = document.getElementById('settings-toggle');
@@ -262,6 +272,7 @@ function init() {
 
     initSettingsMenu();
     initFullscreenToggle();
+    initEscapeToggle();
 
     const joystick = document.getElementById('touch-joystick');
     const actions = document.getElementById('touch-actions');

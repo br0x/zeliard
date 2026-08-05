@@ -443,6 +443,33 @@ body.touch-mode #settings-menu {
   display: flex;
 }
 
+/* Cancel / Back (Esc) button, top-left corner, touch devices only */
+#escape-toggle {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1001;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid #888;
+  background: rgba(25, 25, 25, 0.85);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.touch-mode #escape-toggle {
+  display: block;
+}
+
+#escape-toggle:active {
+  background: rgba(80, 80, 80, 0.9);
+}
+
 #settings-toggle {
   width: 46px;
   height: 46px;
