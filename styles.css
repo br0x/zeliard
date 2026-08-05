@@ -293,7 +293,6 @@ canvas {
   -webkit-touch-callout: none;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  font-size: 32px;
 }
 
 body.touch-mode .touch-controls {
@@ -373,7 +372,7 @@ body.touch-mode {
   background: rgba(30, 60, 110, 0.45);
   color: #fff;
   font-family: 'Press Start 2P', monospace;
-  font-size: 11px;
+  font-size: 32px;
   line-height: 1.5;
   padding: 4px;
   display: flex;
