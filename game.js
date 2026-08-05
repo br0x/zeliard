@@ -1799,6 +1799,7 @@ function onFullTick() {
     else townFullTick?.();
 
     if (engineReady) {
+        inputSetKeys(keys);  // refresh input at 236 Hz before any dungeonUpdate reads it
         const speedC     = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
         const target     = speedC * 4;
         const frameTmr   = readMemory(ADDR_FRAME_TIMER, 1)[0];
