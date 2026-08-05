@@ -4928,6 +4928,13 @@ function closeModal() {
     gamePaused = false;
 }
 
+// True while the active modal is the save-name text input (SaveDialog with the
+// name field focused). Used by the touch-mode on-screen keyboard to know when
+// to show itself.
+export function getModalInputActive() {
+    return activeModal !== null && activeModal.inputActive === true;
+}
+
 // ─── Speed change dialog (F9) ──────────────────────────────────────────────
 
 function startSpeedChange() {

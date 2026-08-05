@@ -4,7 +4,7 @@
 // buttons to the right, and a digit pad for the speed-change dialog. All
 // buttons drive the existing game input by dispatching synthetic keyboard
 // events, so modal / inventory / conversation routing keeps working.
-import { getSpeedChangePhase } from './game.js';
+import { getSpeedChangePhase, getModalInputActive } from './game.js';
 
 const useTouchControls =
     navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches;
@@ -142,6 +142,67 @@ function initSettingsMenu() {
         if (panel.contains(e.target) || toggle.contains(e.target) || fsBtn?.contains(e.target)) return;
         panel.classList.add('hidden');
     });
+}
+
+// ─── Save-name on-screen keyboard (mobile) ───────────────────────────────────
+// The save dialog's name field only accepts real keyboard events, which a
+// phone has no way to produce — so show a tappable A-Z/0-9 pad and feed it
+// through the same synthetic-keyboard channel as the other touch controls.
+const NAME_KEY_ROWS = [
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+];
+
+function nameKeyEvent(label) {
+    if (/^[A-Z]$/.test(label)) return { code: 'Key' + label, key: label };
+    if (/^[0-9]$/.test(label)) return { code: 'Digit' + label, key: label };
+    return null;
+}
+
+const NAME_CONTROL_KEYS = {
+    '⌫': 'Backspace',
+    '␣': 'Space',
+    '❌': 'Escape',
+    '✅': 'Enter',
+};
+
+function makeNameKey(label, extraClass = '') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'name-key' + (extraClass ? ' ' + extraClass : '');
+    btn.textContent = label;
+    btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const code = (nameKeyEvent(label)?.code) ?? NAME_CONTROL_KEYS[label];
+        if (code) sendKey('keydown', code);
+    });
+    return btn;
+}
+
+function initNamePad() {
+    const pad = document.getElementById('name-pad');
+    if (!pad) return;
+
+    for (const row of NAME_KEY_ROWS) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'name-pad-row';
+        for (const label of row) rowEl.appendChild(makeNameKey(label));
+        pad.appendChild(rowEl);
+    }
+
+    const controlRow = document.createElement('div');
+    controlRow.className = 'name-pad-row';
+    controlRow.appendChild(makeNameKey('⌫', 'name-key--wide'));
+    controlRow.appendChild(makeNameKey('SPACE', 'name-key--wide'));
+    controlRow.appendChild(makeNameKey('CANCEL', 'name-key--cancel'));
+    controlRow.appendChild(makeNameKey('OK', 'name-key--ok'));
+    pad.appendChild(controlRow);
+
+    setInterval(() => {
+        pad.classList.toggle('hidden', !getModalInputActive());
+    }, 200);
 }
 
 // ─── Speed-change digit pad (mobile F9) ──────────────────────────────────────
@@ -283,6 +344,7 @@ function init() {
     introActions?.querySelectorAll('.touch-action-btn').forEach(bindTapButton);
 
     initSpeedPad();
+    initNamePad();
     fitLayoutToViewport();
 }
 
