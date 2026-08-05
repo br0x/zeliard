@@ -236,9 +236,11 @@ function init() {
 
     const joystick = document.getElementById('touch-joystick');
     const actions = document.getElementById('touch-actions');
+    const introActions = document.getElementById('intro-actions');
 
     joystick?.querySelectorAll('.touch-dpad-btn').forEach(bindHoldButton);
     actions?.querySelectorAll('.touch-action-btn').forEach(bindTapButton);
+    introActions?.querySelectorAll('.touch-action-btn').forEach(bindTapButton);
 
     initSpeedPad();
     fitLayoutToViewport();
