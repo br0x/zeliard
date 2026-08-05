@@ -1751,8 +1751,9 @@ const soundManager = new SoundManager({
     onSlowTick:    onSlowTick,
 });
 
-let musicEnabled = true;
-let sfxEnabled = true;
+const SETTINGS_PREFIX = 'zeliard_';
+let musicEnabled = localStorage.getItem(`${SETTINGS_PREFIX}music`) === 'on';
+let sfxEnabled = localStorage.getItem(`${SETTINGS_PREFIX}sfx`) !== 'off';
 let currentMusicTrack = null;
 
 function playCurrentMusic(fadeDuration = 1.5) {
@@ -1769,6 +1770,7 @@ function setCurrentMusicTrack(trackId) {
 
 function toggleMusic() {
     musicEnabled = !musicEnabled;
+    localStorage.setItem(`${SETTINGS_PREFIX}music`, musicEnabled ? 'on' : 'off');
     soundManager.setMusicMuted?.(!musicEnabled, 0.25);
 
     console.log(`Music ${musicEnabled ? 'ON' : 'OFF'}`);
@@ -1776,6 +1778,7 @@ function toggleMusic() {
 
 function toggleSfx() {
     sfxEnabled = !sfxEnabled;
+    localStorage.setItem(`${SETTINGS_PREFIX}sfx`, sfxEnabled ? 'on' : 'off');
     soundManager.setSfxMuted?.(!sfxEnabled, 0.25);
 
     console.log(`SFX ${sfxEnabled ? 'ON' : 'OFF'}`);
