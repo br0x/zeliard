@@ -374,8 +374,7 @@ body.touch-mode {
   font-family: 'Press Start 2P', monospace;
   font-size: 48px;
   line-height: 1.5;
-  padding: 4px;
-  transform: translateY(-20px);
+  padding: 0 4px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
