@@ -608,10 +608,10 @@ static void monster3_ai(uint16_t m)
         return;
     }
 
-    if (move_monster_S(m)) { // still actively descending this frame
+    if (!move_monster_S(m)) { // grounded / can't descend this frame
         type3_after_fall_step(m); // loc_A87A
     }
-    /* else: blocked/grounded, nothing further this frame */
+    /* else: fell one row, nothing further this frame */
 }
 
 /* loc_A87A: once grounded/settled, check alignment with the hero; if
@@ -679,7 +679,7 @@ static void type3_state_jump(uint16_t m)
 
     if (MEM8(m+5) & 0x80) { // facing right
         move_monster_E(m);
-        if (move_monster_E(m)) { // second step succeeded
+        if (!move_monster_E(m)) { // second step blocked
             if (type3_check_vertical_block(m)) { // sub_A947
                 type3_flip_and_recover(m); // sub_A927 (tail call in the original)
                 return;
@@ -687,7 +687,7 @@ static void type3_state_jump(uint16_t m)
         }
     } else { // facing left
         move_monster_W(m);
-        if (move_monster_W(m)) { // second step succeeded
+        if (!move_monster_W(m)) { // second step blocked
             if (type3_check_vertical_block(m)) { // sub_A947
                 type3_flip_and_recover(m); // sub_A927 (tail call in the original)
                 return;
@@ -716,15 +716,16 @@ static void type3_state_jump(uint16_t m)
 }
 
 /* sub_A947: checks whether the jump should be deflected vertically.
- * While still ascending (bit 0x4 of .ai_state clear) this simply
- * mirrors move_monster_S's own result; once ascending has been
- * recorded (bit 0x4 set) it always reports "not blocked" regardless
- * of whether the upward step itself succeeded (the original's "or"
- * instruction unconditionally clears the carry flag here). */
+ * While still ascending (bit 0x4 of .ai_state clear) this returns
+ * move_monster_S's carry flag (nonzero = the downward step is blocked,
+ * mirroring CF=1); once ascending has been recorded (bit 0x4 set) it
+ * always reports "not blocked" regardless of whether the upward step
+ * itself succeeded (the original's "or" instruction unconditionally
+ * clears the carry flag here). */
 static int type3_check_vertical_block(uint16_t m)
 {
     if (!(MEM8(m+9) & 4)) { // .ai_state
-        return move_monster_S(m);
+        return !move_monster_S(m); // nonzero (CF=1) when the down-step is blocked
     }
     move_monster_N(m); /* side effect only; result intentionally discarded */
     return 0;
@@ -805,11 +806,13 @@ static void monster4_ai(uint16_t m)
     }
 }
 
-/* loc_A98C: begin falling once there's room to drop; plays a warning
- * sound if the drop lands close enough to the top of the viewport. */
+/* loc_A98C: while armed, the block descends one row per frame; once it
+ * can no longer descend (move_monster_S blocked: it has reached the
+ * floor), begin the falling-crush sequence. Plays a warning sound if
+ * the block is close enough to the top of the viewport. */
 static void type4_start_fall(uint16_t m)
 {
-    if (!move_monster_S(m)) return; // blocked, can't start falling yet
+    if (move_monster_S(m)) return; // still descending this frame; keep waiting
 
     MEM8(m+9) |= 2;  // .ai_state
     MEM8(m+6) = 1;    // .anim_counter
