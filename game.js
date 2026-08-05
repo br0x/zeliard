@@ -4581,6 +4581,7 @@ function updateElementText(elementId, value) {
 }
 
 function resetBossHud() {
+    if (writeMemory) writeMemory(ADDR_BOSS_MODE, [0]);
     const bossLifeBar = document.getElementById('bossLifeBarContainer');
     if (bossLifeBar) bossLifeBar.classList.add('hidden');
     const placeName = document.getElementById('currentMapName');
