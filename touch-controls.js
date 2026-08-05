@@ -154,29 +154,76 @@ function fitLayoutToViewport() {
     const wrapper = document.getElementById('layout-wrapper');
     if (!wrapper) return;
 
-    const fit = () => {
-        const w = wrapper.offsetWidth;
-        const h = wrapper.offsetHeight;
-        if (!w || !h) return;
+    const apply = () => {
+        if (wrapper.classList.contains('hidden')) return;
+
+        // Measure the natural (unscaled) content bounds of the flex children.
+        const prev = wrapper.style.transform;
+        wrapper.style.transform = 'none';
+        const wRect = wrapper.getBoundingClientRect();
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const el of wrapper.children) {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) continue;
+            minX = Math.min(minX, r.left - wRect.left);
+            maxX = Math.max(maxX, r.right - wRect.left);
+            minY = Math.min(minY, r.top - wRect.top);
+            maxY = Math.max(maxY, r.bottom - wRect.top);
+        }
+        wrapper.style.transform = prev;
+        if (!isFinite(minX)) return;
+
+        const cw = maxX - minX;
+        const ch = maxY - minY;
         const pad = 8;
         const scale = Math.min(
             1,
-            (window.innerWidth - pad) / w,
-            (window.innerHeight - pad) / h
+            (window.innerWidth - pad) / cw,
+            (window.innerHeight - pad) / ch
         );
-        if (wrapper._fitScale !== scale) {
-            wrapper._fitScale = scale;
-            wrapper.style.transform = `scale(${scale})`;
-            wrapper.style.transformOrigin = 'top center';
+
+        // translate+scale around the wrapper's top-left so the scaled
+        // content stays centered in the viewport.
+        const tx = window.innerWidth / 2 - wRect.left - scale * (minX + maxX) / 2;
+        const ty = window.innerHeight / 2 - wRect.top - scale * (minY + maxY) / 2;
+        const t = scale >= 1 ? 'none' : `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+        if (wrapper._fitTransform !== t) {
+            wrapper._fitTransform = t;
+            wrapper.style.transformOrigin = '0 0';
+            wrapper.style.transform = t;
         }
     };
 
-    fit();
-    window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
+    apply();
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', apply);
+    window.addEventListener('load', apply);
     if (typeof ResizeObserver !== 'undefined') {
-        new ResizeObserver(fit).observe(wrapper);
+        // The wrapper's own box stops changing once content settles, so
+        // observe the children too – otherwise a measurement taken while the
+        // game/canvas was still sizing up is never corrected.
+        const ro = new ResizeObserver(apply);
+        ro.observe(wrapper);
+        for (const el of wrapper.children) ro.observe(el);
     }
+
+    // The game content keeps sizing up during the intro/startup, and no
+    // resize/observer event is guaranteed to fire once the wrapper's own box
+    // is stable. Poll briefly while the layout is visible so the fit
+    // converges after the canvas/HUD reach their final size.
+    const startedAt = performance.now();
+    const poll = () => {
+        if (wrapper.classList.contains('hidden')) {
+            requestAnimationFrame(poll);
+            return;
+        }
+        apply();
+        if (performance.now() - startedAt < 10000) {
+            requestAnimationFrame(poll);
+        }
+    };
+    requestAnimationFrame(poll);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
