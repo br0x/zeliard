@@ -4509,7 +4509,7 @@ static void dungeon_finish_normal_frame(void)
         MEM8(ADDR_SQUAT_FLAG) = 0;
     }
 
-    if (MEM8(ADDR_INPUT_DIRS) & UP) {
+    if (MEM8(ADDR_INPUT_DIRS) & KEY_DOWN) {
         MEM8(ADDR_FACING) &= ~UP;
     }
 

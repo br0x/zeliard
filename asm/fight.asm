@@ -394,7 +394,7 @@ main_loop:
                 ; normal path
                 call    input_handling
                 call    sliding_physics_step
-                call    main_update_render
+                call    main_update_render ; dungeon.c: dungeon_finish_normal_frame() follows
                 call    magic_spell_fire_handler
                 call    hero_interaction_check
                 call    hero_knockback_handler
