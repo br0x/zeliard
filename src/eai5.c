@@ -804,18 +804,19 @@ static void eyeball_throttled_step(uint16_t m)
     eyeball_single_step(m); // loc_A8BB
 }
 
-/* loc_A8BB: one step in the current facing direction; on success,
- * flags the walk-cycle mode to begin. */
+/* loc_A8BB: one step in the current facing direction; on a blocked
+ * step, flags the walk-cycle mode to begin. */
 static void eyeball_single_step(uint16_t m)
 {
     if (MEM8(m+5) & 0x80) { // facing right
-        if (move_monster_E(m)) MEM8(m+9) = 2;
+        if (!move_monster_E(m)) MEM8(m+9) = 2;
     } else {
-        if (move_monster_W(m)) MEM8(m+9) = 2;
+        if (!move_monster_W(m)) MEM8(m+9) = 2;
     }
 }
 
-/* loc_A8DB: counts up to the charge, then dashes two steps at once. */
+/* loc_A8DB: counts up to the charge, then dashes two steps at once;
+ * only stops dashing (back to walk mode) once a step is blocked. */
 static void eyeball_charge_dash(uint16_t m)
 {
     MEM8(m+10)++; // .ai_timer
@@ -826,13 +827,13 @@ static void eyeball_charge_dash(uint16_t m)
     MEM8(m+6) = 5; // .anim_counter
     if (MEM8(m+5) & 0x80) { // facing right
         move_monster_E(m);
-        if (move_monster_E(m)) {
+        if (!move_monster_E(m)) { // second step blocked
             MEM8(m+9) = 2;
             MEM8(m+6) = 4;
         }
     } else {
         move_monster_W(m);
-        if (move_monster_W(m)) {
+        if (!move_monster_W(m)) { // second step blocked
             MEM8(m+9) = 2;
             MEM8(m+6) = 0;
         }
