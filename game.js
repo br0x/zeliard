@@ -2951,9 +2951,11 @@ function drawDungeonMagicProjectiles() {
 
         const yRel = readU8(addr + 2);
         const mpDir = readU8(addr + 3);
-        const lifeTimer = readU8(addr + 4);
         const animFrame = readU8(addr + 5);
-        if (lifeTimer === 0) continue;
+        // NOTE: no lifeTimer gate here. The original asm renders every active
+        // slot; only slot 0's mp_life_timer is ever incremented for the
+        // multi-slot spells (rascar/agua), so a `lifeTimer === 0` check would
+        // silently skip the other beams/bubbles.
 
         const leftCol = readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
         const mapWidth = readU16(ADDR_MAP_WIDTH);

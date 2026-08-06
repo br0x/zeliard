@@ -82,6 +82,7 @@ const ADDR_ESPADA_COUNT = 0xB4;
 const ADDR_ESPADA_ACTIVE = 0xBB;
 const ADDR_BYTE_E4 = 0xE4;
 const ADDR_SOUND_FX_REQUEST = 0xFF75;
+const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
 const ADDR_MAGIA_STONE_SPRITE0 = 0xEB60;
 const ADDR_MAGIA_STONE_SPRITE1 = 0xEB67;
 const ADDR_MAGIA_STONE_SPRITE2 = 0xEB6E;
@@ -768,10 +769,8 @@ export class InventoryScreen {
 
         this.soundManager?.playSfx(14);
 
-        if (itemId >= 3 && itemId <= 7) {
-            this.usageMessage = ITEM_USE_TEXT[itemId] || '';
-            this.usageTimer = performance.now();
-        }
+        this.usageMessage = ITEM_USE_TEXT[itemId] || '';
+        this.usageTimer = performance.now();
 
         switch (itemId) {
             case 1: this._healHP(0x80); break;
@@ -783,8 +782,6 @@ export class InventoryScreen {
             case 7: this._enchantSword(); break;
             case 8:
                 this.soundManager?.playSfx(15);
-                this.usageMessage = 'a Kioku feather.';
-                this.usageTimer = performance.now();
                 w(ADDR_MAGIC_ITEMS + slot, [0]);
                 this.data.items.splice(this.selectedIndices[2], 1);
                 this.selectedIndices[2] = 0;
@@ -807,6 +804,7 @@ export class InventoryScreen {
         const maxVal = mx[0] | (mx[1] << 8);
         val = Math.min(maxVal, val + amount);
         w(ADDR_HERO_HP, [val & 0xFF, (val >> 8) & 0xFF]);
+        w(ADDR_HEALTH_BAR_REQUEST, [0xFF]);
         this.data.heroHP = val;
     }
 
@@ -816,6 +814,7 @@ export class InventoryScreen {
         const mx = this.readMemory(ADDR_HERO_MAX_HP, 2);
         const maxVal = mx[0] | (mx[1] << 8);
         w(ADDR_HERO_HP, [maxVal & 0xFF, (maxVal >> 8) & 0xFF]);
+        w(ADDR_HEALTH_BAR_REQUEST, [0xFF]);
         this.data.heroHP = maxVal;
     }
 

@@ -5930,7 +5930,8 @@ static void init_magic_projectile(uint16_t si) {
 // ---------------------------------------------------------------------------
 static void init_rascar(uint16_t si) {
     for (uint8_t beam = 0; beam < 4; beam++) {
-        uint16_t x = (uint16_t)(6 * beam) + 2 + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
+        // asm: mov al,6; mul cl (cl = 4..1); add ax,2  ->  x = left_col + {26,20,14,8}
+        uint16_t x = (uint16_t)(6 * (4 - beam)) + 2 + MEM16(ADDR_PROXIMITY_MAP_LEFT_COL);
         if (x >= MEM16(ADDR_MAP_WIDTH))
             x -= MEM16(ADDR_MAP_WIDTH);
         MP_X_REL(si) = x;
