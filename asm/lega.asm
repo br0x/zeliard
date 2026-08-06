@@ -23,14 +23,14 @@ start:
                 db    0
                 db 160, 160, 160, 160, 160, 160, 80, 10, 10, 10, 10, 10, 10, 10, 10, 10
                 db 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
-                dw offset byte_A03E
-                dw offset byte_A08E
-                dw offset byte_A0DE
-                dw offset byte_A12E
-                dw offset byte_A17E
-                dw offset byte_A1CE
-                dw offset byte_A205
-byte_A03E       db 2, 0, 0, 0, 3
+                dw offset byte_A03E  ; 0..15
+                dw offset byte_A08E  ; 16..31
+                dw offset byte_A0DE  ; 32..47
+                dw offset byte_A12E  ; 48..63
+                dw offset byte_A17E  ; 64..79
+                dw offset byte_A1CE  ; 80..90
+                dw offset byte_A205  ; 91..96
+byte_A03E       db 2, 0, 0, 0, 3             ; 0
                 db 2, 0, 0, 4, 0
                 db 2, 0, 0, 0, 5
                 db 2, 0, 0, 6, 0
@@ -45,8 +45,8 @@ byte_A03E       db 2, 0, 0, 0, 3
                 db 2, 0, 0, 0, 1
                 db 2, 0, 0, 2, 0
                 db 2, 0, 0, 0, 0BBh
-                db 2, 0, 0, 0BCh, 0
-byte_A08E       db 0, 9, 0Ah, 0Bh, 0Ch
+                db 2, 0, 0, 0BCh, 0          ; 15
+byte_A08E       db 0, 9, 0Ah, 0Bh, 0Ch       ; 16
                 db 0, 0Dh, 0Eh, 10h, 11h
                 db 0, 0Eh, 0Fh, 11h, 12h
                 db 0, 13h, 14h, 15h, 16h
@@ -61,8 +61,8 @@ byte_A08E       db 0, 9, 0Ah, 0Bh, 0Ch
                 db 0, 1Ah, 1Bh, 1Dh, 1Eh
                 db 0, 0Dh, 0Eh, 26h, 27h
                 db 0, 0Fh, 0, 28h, 29h
-                db 0, 2Ah, 2Bh, 2Eh, 2Fh
-byte_A0DE       db 0, 2Ch, 2Dh, 30h, 31h
+                db 0, 2Ah, 2Bh, 2Eh, 2Fh     ; 31
+byte_A0DE       db 0, 2Ch, 2Dh, 30h, 31h     ; 32
                 db 0, 32h, 33h, 36h, 37h
                 db 0, 34h, 35h, 19h, 1Ah
                 db 0, 36h, 37h, 3Ah, 3Bh
@@ -77,8 +77,8 @@ byte_A0DE       db 0, 2Ch, 2Dh, 30h, 31h
                 db 0, 34h, 35h, 58h, 59h
                 db 0, 4Bh, 4Ch, 4Eh, 4Fh
                 db 0, 50h, 51h, 0, 44h
-                db 0, 58h, 59h, 5Ah, 5Bh
-byte_A12E       db 0, 53h, 54h, 56h, 57h
+                db 0, 58h, 59h, 5Ah, 5Bh     ; 47
+byte_A12E       db 0, 53h, 54h, 56h, 57h     ; 48
                 db 0, 4Eh, 4Fh, 54h, 55h
                 db 0, 0, 0, 52h, 53h
                 db 0, 0Dh, 0Eh, 5Dh, 27h
@@ -93,8 +93,8 @@ byte_A12E       db 0, 53h, 54h, 56h, 57h
                 db 0, 62h, 63h, 65h, 66h
                 db 0, 64h, 65h, 67h, 68h
                 db 0, 0Dh, 0Eh, 73h, 74h
-                db 0, 0Eh, 0Fh, 74h, 12h
-byte_A17E       db 0, 76h, 77h, 7Ah, 7Bh
+                db 0, 0Eh, 0Fh, 74h, 12h     ; 63
+byte_A17E       db 0, 76h, 77h, 7Ah, 7Bh     ; 64
                 db 0, 78h, 79h, 7Ch, 7Dh
                 db 0, 17h, 7Ah, 19h, 1Ah
                 db 0, 19h, 1Ah, 1Ch, 1Dh
@@ -109,8 +109,8 @@ byte_A17E       db 0, 76h, 77h, 7Ah, 7Bh
                 db 0, 1Ah, 1Bh, 1Dh, 0ABh
                 db 0, 19h, 1Ah, 0A9h, 1Dh
                 db 0, 0, 0A6h, 0A7h, 0A8h
-                db 0, 86h, 87h, 88h, 89h
-byte_A1CE       db 0, 8Bh, 8Ch, 8Eh, 8Fh
+                db 0, 86h, 87h, 88h, 89h     ; 79
+byte_A1CE       db 0, 8Bh, 8Ch, 8Eh, 8Fh     ; 80
                 db 0, 89h, 8Ah, 8Ch, 8Dh
                 db 0, 92h, 93h, 96h, 97h
                 db 0, 8Fh, 90h, 93h, 94h
@@ -120,13 +120,13 @@ byte_A1CE       db 0, 8Bh, 8Ch, 8Eh, 8Fh
                 db 0, 9Bh, 9Ch, 9Eh, 9Fh
                 db 0, 91h, 92h, 95h, 96h
                 db 0, 17h, 98h, 19h, 1Ah
-                db 0, 19h, 1Ah, 1Ch, 9Dh
-byte_A205       db 2, 0BDh, 0BEh, 0BFh, 0C0h
+                db 0, 19h, 1Ah, 1Ch, 9Dh     ; 90
+byte_A205       db 2, 0BDh, 0BEh, 0BFh, 0C0h ; 91
                 db 2, 0C1h, 0C2h, 0C3h, 0C4h
                 db 2, 0C5h, 0C6h, 0C7h, 0C8h
                 db 2, 0C9h, 0CAh, 0CBh, 0CCh
                 db 2, 0CDh, 0CEh, 0CFh, 0D0h
-                db 2, 0, 0, 0D1h, 0D2h
+                db 2, 0, 0, 0D1h, 0D2h       ; 96
 
 ; =============== S U B R O U T I N E =======================================
 

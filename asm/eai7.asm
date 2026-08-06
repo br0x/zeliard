@@ -73,11 +73,11 @@ monster_damage  db 80, 80, 80, 80, 40, 0, 0, 0
                 dw 0
                 dw 0
                 ; A070
-                dw offset byte_A0D8
-                dw offset byte_A137
-                dw offset byte_A196
-                dw offset byte_A1F5
-                dw offset byte_A240
+                dw offset byte_A0D8  ; 8..15
+                dw offset byte_A137  ; 27..34
+                dw offset byte_A196  ; 46..53
+                dw offset byte_A1F5  ; 65..72
+                dw offset byte_A240  ; 80..83
                 dw 0
                 dw 0
                 dw 0

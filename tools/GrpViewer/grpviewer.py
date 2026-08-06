@@ -22,6 +22,7 @@ GRP_DESCRIPTOR = [
     ("tori.grp",  15),
     ("zela.grp",  16),
     ("meda.grp",  17),
+    ("lega.grp",  18),
 ]
 
 MODE_CFG = {
@@ -30,6 +31,7 @@ MODE_CFG = {
     15:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "tori"},
     16:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "zela"},
     17:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "meda"},
+    18:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "lega"},
 }
 
 SCALE = 3
@@ -637,6 +639,347 @@ TORI_POSE_LABELS = [
     "attacking: attack_phase=0", "attacking: attack_phase=1", "attacking: attack_phase=2", "attacking: attack_phase=3",
     "death/recovering: attack_phase=0", "death/recovering: attack_phase=1",
 ]
+
+# For Lega body tiles, the tile byte written by Lega_AI_proc is decoded as:
+#
+#   group = (tile >> 4) & 7
+#   frame = tile & 0x0F
+#
+# The projectile pseudo-monster uses fixed flags 0x26, which also selects
+# group 6, and its anim_counter selects the frame within byte_A205.
+
+LEGA_FRAMES = {
+    "Tile Group 0 (byte_A03E)": [
+        [2, 0x00, 0x00, 0x00, 0x03],
+        [2, 0x00, 0x00, 0x04, 0x00],
+        [2, 0x00, 0x00, 0x00, 0x05],
+        [2, 0x00, 0x00, 0x06, 0x00],
+        [2, 0x00, 0x00, 0x00, 0x07],
+        [2, 0x00, 0x00, 0x08, 0x00],
+        [2, 0x00, 0xAD, 0x00, 0xAF],
+        [2, 0xAE, 0x00, 0xB0, 0x00],
+        [2, 0xB1, 0xB2, 0xB5, 0xB6],
+        [2, 0xB3, 0xB4, 0xB7, 0xB8],
+        [2, 0xB9, 0xBA, 0x39, 0x01],
+        [2, 0x75, 0xAA, 0x02, 0x38],
+        [2, 0x00, 0x00, 0x00, 0x01],
+        [2, 0x00, 0x00, 0x02, 0x00],
+        [2, 0x00, 0x00, 0x00, 0xBB],
+        [2, 0x00, 0x00, 0xBC, 0x00],
+    ],
+
+    "Tile Group 1 (byte_A08E)": [
+        [0, 0x09, 0x0A, 0x0B, 0x0C],
+        [0, 0x0D, 0x0E, 0x10, 0x11],
+        [0, 0x0E, 0x0F, 0x11, 0x12],
+        [0, 0x13, 0x14, 0x15, 0x16],
+        [0, 0x17, 0x18, 0x19, 0x1A],
+        [0, 0x19, 0x1A, 0x1C, 0x1D],
+        [0, 0x1A, 0x1B, 0x1D, 0x1E],
+        [0, 0x1F, 0x13, 0x20, 0x21],
+        [0, 0x13, 0x14, 0x21, 0x16],
+        [0, 0x20, 0x21, 0x22, 0x23],
+        [0, 0x21, 0x16, 0x23, 0x18],
+        [0, 0x24, 0x1A, 0x25, 0x1D],
+        [0, 0x1A, 0x1B, 0x1D, 0x1E],
+        [0, 0x0D, 0x0E, 0x26, 0x27],
+        [0, 0x0F, 0x00, 0x28, 0x29],
+        [0, 0x2A, 0x2B, 0x2E, 0x2F],
+    ],
+
+    "Tile Group 2 (byte_A0DE)": [
+        [0, 0x2C, 0x2D, 0x30, 0x31],
+        [0, 0x32, 0x33, 0x36, 0x37],
+        [0, 0x34, 0x35, 0x19, 0x1A],
+        [0, 0x36, 0x37, 0x3A, 0x3B],
+        [0, 0x19, 0x1A, 0x1C, 0x1D],
+        [0, 0x1A, 0x00, 0x1D, 0x1E],
+        [0, 0x0D, 0x0E, 0x3D, 0x27],
+        [0, 0x3C, 0x3D, 0x3E, 0x3F],
+        [0, 0x3F, 0x40, 0x43, 0x44],
+        [0, 0x41, 0x42, 0x45, 0x46],
+        [0, 0x47, 0x48, 0x49, 0x00],
+        [0, 0x4A, 0x0E, 0x4D, 0x27],
+        [0, 0x34, 0x35, 0x58, 0x59],
+        [0, 0x4B, 0x4C, 0x4E, 0x4F],
+        [0, 0x50, 0x51, 0x00, 0x44],
+        [0, 0x58, 0x59, 0x5A, 0x5B],
+    ],
+
+    "Tile Group 3 (byte_A12E)": [
+        [0, 0x53, 0x54, 0x56, 0x57],
+        [0, 0x4E, 0x4F, 0x54, 0x55],
+        [0, 0x00, 0x00, 0x52, 0x53],
+        [0, 0x0D, 0x0E, 0x5D, 0x27],
+        [0, 0x0E, 0x0F, 0x27, 0x28],
+        [0, 0x61, 0x2C, 0x6A, 0x6B],
+        [0, 0x2C, 0x69, 0x6B, 0x6C],
+        [0, 0x6B, 0x6C, 0x6D, 0x6E],
+        [0, 0x6E, 0x6F, 0x70, 0x71],
+        [0, 0x70, 0x71, 0x5A, 0x72],
+        [0, 0x00, 0x5C, 0x5E, 0x5F],
+        [0, 0x5C, 0x5D, 0x5F, 0x60],
+        [0, 0x62, 0x63, 0x65, 0x66],
+        [0, 0x64, 0x65, 0x67, 0x68],
+        [0, 0x0D, 0x0E, 0x73, 0x74],
+        [0, 0x0E, 0x0F, 0x74, 0x12],
+    ],
+
+    "Tile Group 4 (byte_A17E)": [
+        [0, 0x76, 0x77, 0x7A, 0x7B],
+        [0, 0x78, 0x79, 0x7C, 0x7D],
+        [0, 0x17, 0x7A, 0x19, 0x1A],
+        [0, 0x19, 0x1A, 0x1C, 0x1D],
+        [0, 0x1A, 0x1B, 0x1D, 0x1E],
+        [0, 0x7E, 0x7F, 0x82, 0x83],
+        [0, 0x80, 0x81, 0x84, 0x85],
+        [0, 0x19, 0x1A, 0xA2, 0xA3],
+        [0, 0x1A, 0x1B, 0xA3, 0xA4],
+        [0, 0x7E, 0x7F, 0xA5, 0x83],
+        [0, 0x00, 0x00, 0xA0, 0xA1],
+        [0, 0x7E, 0x7F, 0xAC, 0x83],
+        [0, 0x1A, 0x1B, 0x1D, 0xAB],
+        [0, 0x19, 0x1A, 0xA9, 0x1D],
+        [0, 0x00, 0xA6, 0xA7, 0xA8],
+        [0, 0x86, 0x87, 0x88, 0x89],
+    ],
+
+    "Tile Group 5 (byte_A1CE)": [
+        [0, 0x8B, 0x8C, 0x8E, 0x8F],
+        [0, 0x89, 0x8A, 0x8C, 0x8D],
+        [0, 0x92, 0x93, 0x96, 0x97],
+        [0, 0x8F, 0x90, 0x93, 0x94],
+        [0, 0x98, 0x99, 0x1A, 0x9B],
+        [0, 0x99, 0x9A, 0x9B, 0x9C],
+        [0, 0x1A, 0x9B, 0x9D, 0x9E],
+        [0, 0x9B, 0x9C, 0x9E, 0x9F],
+        [0, 0x91, 0x92, 0x95, 0x96],
+        [0, 0x17, 0x98, 0x19, 0x1A],
+        [0, 0x19, 0x1A, 0x1C, 0x9D],
+    ],
+
+    # Projectile / special frames. Lega_AI_proc's projectile pseudo-monster
+    # uses flags 0x26 and anim_counter 0..5, selecting this group.
+    "Tile Group 6 (byte_A205)": [
+        [2, 0xBD, 0xBE, 0xBF, 0xC0],
+        [2, 0xC1, 0xC2, 0xC3, 0xC4],
+        [2, 0xC5, 0xC6, 0xC7, 0xC8],
+        [2, 0xC9, 0xCA, 0xCB, 0xCC],
+        [2, 0xCD, 0xCE, 0xCF, 0xD0],
+        [2, 0x00, 0x00, 0xD1, 0xD2],
+    ],
+}
+
+LEGA_FRAME_SET_BY_INDEX = {
+    0: "Tile Group 0 (byte_A03E)",
+    1: "Tile Group 1 (byte_A08E)",
+    2: "Tile Group 2 (byte_A0DE)",
+    3: "Tile Group 3 (byte_A12E)",
+    4: "Tile Group 4 (byte_A17E)",
+    5: "Tile Group 5 (byte_A1CE)",
+    6: "Tile Group 6 (byte_A205)",
+}
+
+# ---------------------------------------------------------------------------
+# Lega composite body layout tables
+# ---------------------------------------------------------------------------
+# These are the AI-used tables from lega.asm:
+#
+#   off_A6C8 -> layout tile streams
+#   off_A744 -> 8-byte shape masks
+#
+# Lega_AI_proc expands them into an 8 column x 10 row local buffer:
+#
+#   rows 0..1   normally empty, then patched with head tiles
+#   rows 2..9   filled by the shape-mask walk
+#
+# The head patch writes:
+#
+#   buffer[col 4][row] = head_anim * 2
+#   buffer[col 6][row] = head_anim * 2 + 1
+#
+# where row is 0, except when anim_step/table_idx is 6 or >= 8, in which
+# case row is 1.
+
+LEGA_LAYOUT_TABLES = [
+    # byte_A6DC
+    [0x11, 0x10, 0x12, 0x13, 0x14, 0x15, 0x16],
+
+    # byte_A6E3
+    [0x11, 0x17, 0x19, 0x10, 0x12, 0x18, 0x1A, 0x1B, 0x1C],
+
+    # byte_A6EC
+    [0x1D, 0x1F, 0x21, 0x23, 0x10, 0x1E, 0x20, 0x22, 0x24, 0x25],
+
+    # byte_A6F6
+    [0x29, 0x2A, 0x27, 0x26, 0x28, 0x10, 0x1E, 0x20, 0x22, 0x24, 0x25],
+
+    # byte_A701
+    [0x32, 0x30, 0x2D, 0x31, 0x2B, 0x2E, 0x10, 0x1E, 0x20, 0x2C, 0x2F],
+
+    # byte_A70C
+    [0x3D, 0x3A, 0x3C, 0x3B, 0x33, 0x10, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39],
+
+    # byte_A718
+    [0x42, 0x43, 0x40, 0x44, 0x3E, 0x10, 0x3F, 0x41, 0x45, 0x46],
+
+    # byte_A722
+    [0x58, 0x59, 0x5A, 0x4F, 0x50, 0x52, 0x54, 0x56, 0x51, 0x53, 0x55, 0x57],
+
+    # byte_A72E
+    [0xCA, 0x42, 0x47, 0x40, 0x48, 0x3E, 0x10, 0x3F, 0x41, 0x45, 0x46],
+
+    # byte_A739
+    [0xCE, 0x42, 0x4D, 0x40, 0x4C, 0x3E, 0x10, 0x3F, 0x41, 0x45, 0x46],
+]
+
+# Deliberately aliased in the last two slots in the original data.
+_lega_shape_a798 = (0x01, 0x00, 0x03, 0x05, 0x10, 0x55, 0x00, 0x01)
+
+LEGA_SHAPE_TABLES = [
+    # byte_A758
+    (0x00, 0x00, 0x00, 0x00, 0x20, 0xAB, 0x01, 0x00),
+
+    # byte_A760
+    (0x00, 0x00, 0x00, 0x00, 0x2C, 0xAD, 0x01, 0x00),
+
+    # byte_A768
+    (0x00, 0x00, 0x00, 0x00, 0x2B, 0x80, 0x2B, 0x01),
+
+    # byte_A770
+    (0x00, 0x00, 0x05, 0x10, 0x28, 0x80, 0x2B, 0x01),
+
+    # byte_A778
+    (0x08, 0x04, 0x18, 0x00, 0x28, 0x80, 0x2B, 0x00),
+
+    # byte_A780
+    (0x00, 0x02, 0x14, 0x10, 0x20, 0xA8, 0x0C, 0x03),
+
+    # byte_A788
+    (0x00, 0x00, 0x03, 0x05, 0x10, 0x55, 0x00, 0x01),
+
+    # byte_A790
+    (0x00, 0x00, 0x00, 0x00, 0x0B, 0xAB, 0x53, 0x00),
+
+    # byte_A798, used by table 8
+    _lega_shape_a798,
+
+    # byte_A798, used by table 9
+    _lega_shape_a798,
+]
+
+# Representative named body states.
+#
+# The first eight approximate the normal idle walk cycle, using the same
+# head-animation pattern byte_A41B gives: 0, 1, 2, 1, 0, 1, 2, 1.
+#
+# The additional entries show the special head states used by the charge
+# attack and death hold.
+LEGA_BODY_FRAMES = [
+    ("idle: table 0, head 0",        0, 0),
+    ("idle: table 1, head 1",        1, 1),
+    ("idle: table 2, head 2",        2, 2),
+    ("idle: table 3, head 1",        3, 1),
+    ("idle: table 4, head 0",        4, 0),
+    ("idle: table 5, head 1",        5, 1),
+    ("idle: table 6, head 2",        6, 2),
+    ("idle: table 7, head 1",        7, 1),
+
+    # Charge launch uses table 8 and head_anim 6 in the original.
+    ("charge launch: table 8, head 6", 8, 6),
+
+    # Table 9 exists in the original pointer tables. It is not obviously
+    # reached by the normal AI state machine, but show it for completeness.
+    ("unused/table 9, head 1",         9, 1),
+
+    # Charge recovery frames: table 6 with special head animations.
+    ("charge recover: table 6, head 7", 6, 7),
+    ("charge end: table 6, head 0",     6, 0),
+
+    # Death hold: after the first death phase the original stays on table 1
+    # with head_anim 6.
+    ("death hold: table 1, head 6",     1, 6),
+]
+
+
+def compute_lega_phase_layout(table_idx, head_anim):
+    """
+    Reproduce Lega_AI_proc's buffer build for one layout/shape table pair.
+
+    Returns a list of:
+
+        (col, row, tile_group, frame_idx)
+
+    for every non-empty cell in the 8x10 sprite buffer.
+
+    The original game places body cells into buffer rows 2..9, then patches
+    the head tiles into row 0 or 1 at columns 4 and 6.
+    """
+    if table_idx < 0 or table_idx >= len(LEGA_LAYOUT_TABLES):
+        return []
+
+    # grid[col][row], row 0..9
+    grid = [[None for _ in range(10)] for _ in range(8)]
+
+    layout = LEGA_LAYOUT_TABLES[table_idx]
+    shape = LEGA_SHAPE_TABLES[table_idx]
+    layout_iter = iter(layout)
+
+    # Shape-mask expansion: 8 columns, 8 rows each, MSB first.
+    # Consumes one layout tile for every set bit.
+    for col in range(8):
+        b = shape[col]
+
+        for row in range(8):
+            carry = (b & 0x80) != 0
+            b = ((b << 1) | (1 if carry else 0)) & 0xFF
+
+            if carry:
+                try:
+                    tile = next(layout_iter)
+                except StopIteration:
+                    tile = 0xFF
+
+                if tile != 0xFF:
+                    grid[col][2 + row] = tile
+
+    # Head patch.
+    #
+    # Original:
+    #   cmp byte_A7B9, 6
+    #   jz loc_A49A
+    #   cmp byte_A7B9, 8
+    #   jb loc_A49B
+    # loc_A49A:
+    #   inc di
+    #
+    # So row is 1 for table_idx 6 or table_idx >= 8, otherwise 0.
+    head_row = 1 if (table_idx == 6 or table_idx >= 8) else 0
+
+    first_head_tile = head_anim * 2
+
+    # First head tile at column 4.
+    grid[4][head_row] = first_head_tile
+
+    # Second head tile is written 20 bytes later in the local buffer.
+    # Since each column is 10 bytes wide, this is column 6, same row.
+    grid[6][head_row] = first_head_tile + 1
+
+    placements = []
+
+    for col in range(8):
+        for row in range(10):
+            tile = grid[col][row]
+
+            if tile is None or tile == 0xFF:
+                continue
+
+            tile_group = (tile >> 4) & 7
+            frame_idx = tile & 0x0F
+
+            placements.append((col, row, tile_group, frame_idx))
+
+    return placements
 
 # ---------------------------------------------------------------------------
 # Decompression logic
@@ -1734,6 +2077,136 @@ def render_meda_group(data, canvas, y_offset):
     return current_y - y_offset
 
 
+def render_lega_group(data, canvas, y_offset):
+    """
+    Lega / Tarso boss.
+
+    Part 1 assembles the composite boss body for the named states in
+    LEGA_BODY_FRAMES, reproducing Lega_AI_proc's 8x10 buffer layout.
+
+    Lega's world coordinates advance by 1 per column and 1 per row, so the
+    16x16 sprite parts overlap on an 8px grid, like Tori/Meda, not on a
+    16px grid like Crab/Tako.
+
+    Part 2 is a plain browser over every raw frame set, including group 6,
+    which is the projectile/special animation set.
+    """
+    TILE_SIZE = 32
+
+    current_y = y_offset
+
+    # Pad to avoid index errors on high tile indices.
+    tiles_raw = data + b"\x00" * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render composite Lega body
+    # -----------------------------------------------------------------------
+    body_scale = 2
+    step = 8
+    cols, rows = 8, 10
+    sprite_span = 16
+
+    block_w = int((cols - 1) * step * body_scale + sprite_span * body_scale)
+    block_h = int((rows - 1) * step * body_scale + sprite_span * body_scale)
+
+    frames_per_row = 5
+    body_gap_x, body_gap_y = 12, 16
+
+    for f_idx, (label, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
+        col_idx = f_idx % frames_per_row
+        row_idx = f_idx // frames_per_row
+
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(
+            x_base - 1,
+            y_base - 1,
+            x_base + block_w,
+            y_base + block_h,
+            outline="gray"
+        )
+
+        canvas.create_text(
+            x_base + 2,
+            y_base - 8,
+            text=f"{f_idx}: {label}",
+            anchor="w",
+            fill="white",
+            font=("TkDefaultFont", 7)
+        )
+
+        for gcol, grow, tile_group, frame_idx in compute_lega_phase_layout(table_idx, head_anim):
+            set_name = LEGA_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+
+            frames = LEGA_FRAMES[set_name]
+            if frame_idx >= len(frames):
+                continue
+
+            draw_composed_16x16_frame(
+                canvas,
+                frames[frame_idx],
+                tiles_raw,
+                x_base + int(gcol * step * body_scale),
+                y_base + int(grow * step * body_scale),
+                body_scale
+            )
+
+    num_body_rows = (len(LEGA_BODY_FRAMES) + frames_per_row - 1) // frames_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set
+    # -----------------------------------------------------------------------
+    gap_x, gap_y = 0, 8
+    sprite_px = 16
+    scale = 3
+    frames_per_row = 16
+
+    n = 0
+
+    for set_name, frames in LEGA_FRAMES.items():
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(
+                x_frame + 8,
+                y_frame - 8,
+                text=f"{n}",
+                fill="white",
+                font=("TkDefaultFont", 7)
+            )
+
+            n += 1
+
+            canvas.create_rectangle(
+                x_frame,
+                y_frame,
+                x_frame + sprite_px * scale,
+                y_frame + sprite_px * scale,
+                fill="#8c38ff",
+                outline=""
+            )
+
+            draw_composed_16x16_frame(
+                canvas,
+                frame_data,
+                tiles_raw,
+                x_frame,
+                y_frame,
+                scale
+            )
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
 # ---------------------------------------------------------------------------
 # Main Application
 # ---------------------------------------------------------------------------
@@ -1825,6 +2298,10 @@ class GrpViewer:
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             elif modes == 17:
                 consumed = render_meda_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+            elif modes == 18:
+                consumed = render_lega_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
             else:

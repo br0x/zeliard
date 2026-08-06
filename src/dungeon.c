@@ -3409,7 +3409,9 @@ static void monster_activation(uint16_t m)
         MEM8(m+8) = 0; // .hp
         MEM8(m+16+8) = 0; // .hp
         MEM8(m+16+7) = MEM8(m+16+7) & 0xF0; // .state_flags
-        MEM8(ADDR_PROXIMITY_LAYER2 + MEM8(ADDR_MONSTER_INDEX)) = 0;
+        // original: "mov word ptr ds:proximity_second_layer[bx], 0"
+        // clears the backup tile for BOTH halves (bx and bx+1)
+        MEM16(ADDR_PROXIMITY_LAYER2 + MEM8(ADDR_MONSTER_INDEX)) = 0;
     }
 }
 
