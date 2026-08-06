@@ -115,7 +115,7 @@ canvas {
 .label {
   color: var(--text-green);
   padding: 0 8px;
-  min-width: 70px;
+  min-width: calc(5ch + 16px); /* widest label (ENEMY = 5 chars) + 8px padding each side, keeps LIFE/ENEMY rows aligned */
   text-shadow: 2px 2px #e00;
 }
 

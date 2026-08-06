@@ -4852,11 +4852,17 @@ function drawLifeBar() {
     setLife(getHeroHp(), getHeroMaxHp());
 }
 
+// Mirrors the original normalize_health_to_100 (asm/gmmcga.asm):
+//   hp > 800 -> 100, otherwise -> hp >> 3 (integer truncation).
 // Max possible HP is 800 (which corresponds to 100% of the bar)
+function normalizeHealthTo100(hp) {
+    return hp > 800 ? 100 : Math.floor(hp / 8);
+}
+
 function setLife(currentLife, maxLife) {
     if (lifeFillCurrentEl && lifeFillMaxEl) {
-        lifeFillMaxEl.style.width     = (maxLife/8)     + '%';
-        lifeFillCurrentEl.style.width = (currentLife/8) + '%';
+        lifeFillMaxEl.style.width     = normalizeHealthTo100(maxLife)     + '%';
+        lifeFillCurrentEl.style.width = normalizeHealthTo100(currentLife) + '%';
     }
 }
 
@@ -4877,8 +4883,8 @@ function drawBossHealth() {
         bossMaxHP = currHp;
     }
     if (bossLifeFillCurrentEl && bossLifeFillMaxEl) {
-        bossLifeFillCurrentEl.style.width = (currHp/8) + '%';
-        bossLifeFillMaxEl.style.width     = (bossMaxHP/8) + '%';
+        bossLifeFillCurrentEl.style.width = normalizeHealthTo100(currHp)  + '%';
+        bossLifeFillMaxEl.style.width     = normalizeHealthTo100(bossMaxHP) + '%';
     }
 }
 
