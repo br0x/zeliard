@@ -5214,6 +5214,11 @@ void load_eai_module(uint8_t place_map_id)
         case 14: current_monster_ai = Monster_AI_6; break; // mp60.mdt
         case 15: current_monster_ai = Monster_AI_6; break; // mp61.mdt
         case 16: current_monster_ai = Monster_AI_6; break; // mp62.mdt
+        case 17: Tarso_AI_reset(); current_monster_ai = Tarso_AI; break;       // mp6d.mdt
+        case 18: current_monster_ai = Monster_AI_7; break; // mp70.mdt
+        case 19: current_monster_ai = Monster_AI_7; break; // mp71.mdt
+        case 20: current_monster_ai = Monster_AI_7; break; // mp72.mdt
+        case 21: current_monster_ai = Monster_AI_7; break; // mp73.mdt
         /* add more as more eaiN/boss modules are translated */
     }
 }

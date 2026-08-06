@@ -586,7 +586,12 @@ const EAI6 = {
     ],
     numSprites: 163,
 };
+const LEGA = {
 
+};
+const EAI7 = {
+
+};
 const DUNGEONS = {
     0: { 
         mdtPath: 'game/0/mp10.mdt',
@@ -1039,7 +1044,7 @@ const DUNGEONS = {
     14: {
         mdtPath: 'game/0/mp60.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
-        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
             0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
         ],
@@ -1069,7 +1074,7 @@ const DUNGEONS = {
     15: {
         mdtPath: 'game/0/mp61.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
-        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
             0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
         ],
@@ -1099,7 +1104,7 @@ const DUNGEONS = {
     16: {
         mdtPath: 'game/0/mp62.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
-        entitySheetPath: 'assets/images/enp6.png', // implement me!
+        entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
             0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
         ],
@@ -1125,6 +1130,177 @@ const DUNGEONS = {
             [0x23, 0x24],
         ],
         ai: EAI6,
+    },
+    17: { // dungeon 6 boss room
+        mdtPath: 'game/0/mp6d.mdt',
+        tilesheetPath: 'assets/images/mpp6.png',
+        entitySheetPath: 'assets/images/lega.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 6, 0x0A, 0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x21, 0x22,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            160, 160, 160, 160, 160, 160, 80, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+            10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+        ],
+        bossState: {
+            bossX: 38,                // +0
+            bossY: 7,                // +2
+            bossHP: 640,              // +3
+            xpReward: 6000,           // +5
+            arenaCenterX: 8,         // +7
+            bossPlacement: 0xFF,         // +8
+            almasReward: 1500,         // +11
+            bossName: 'Tarso',
+        },
+        ai: LEGA,
+    },
+    18: {
+        mdtPath: 'game/0/mp70.mdt',
+        tilesheetPath: 'assets/images/mpp7.png',
+        entitySheetPath: 'assets/images/enp7.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x14, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x23, 
+            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        ],
+        slopeTilesLeft: [0x1E, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x23, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x2B, 0x2C, 0x2D, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0x2A, 0, 0, 0, 0x29, 0, 0, 0, 0x28], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [80, 80, 200, 200, 50], // from eaiN.bin
+        monster_damage: [80, 80, 80, 80, 40], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 5, 5, 0],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x2F],
+            [0x30],
+            [0x31],
+            [0x32],
+        ],
+        ai: EAI7,
+    },
+    19: {
+        mdtPath: 'game/0/mp71.mdt',
+        tilesheetPath: 'assets/images/mpp7.png',
+        entitySheetPath: 'assets/images/enp7.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x14, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x23, 
+            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        ],
+        slopeTilesLeft: [0x1E, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x23, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x2B, 0x2C, 0x2D, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0x2A, 0, 0, 0, 0x29, 0, 0, 0, 0x28], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [80, 80, 200, 200, 50], // from eaiN.bin
+        monster_damage: [80, 80, 80, 80, 40], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 5, 5, 0],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x2F],
+            [0x30],
+            [0x31],
+            [0x32],
+        ],
+        ai: EAI7,
+    },
+    20: {
+        mdtPath: 'game/0/mp72.mdt',
+        tilesheetPath: 'assets/images/mpp7.png',
+        entitySheetPath: 'assets/images/enp7.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x14, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x23, 
+            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        ],
+        slopeTilesLeft: [0x1E, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x23, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x2B, 0x2C, 0x2D, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0x2A, 0, 0, 0, 0x29, 0, 0, 0, 0x28], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [80, 80, 200, 200, 50], // from eaiN.bin
+        monster_damage: [80, 80, 80, 80, 40], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 5, 5, 0],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x2F],
+            [0x30],
+            [0x31],
+            [0x32],
+        ],
+        ai: EAI7,
+    },
+    21: {
+        mdtPath: 'game/0/mp73.mdt',
+        tilesheetPath: 'assets/images/mpp7.png',
+        entitySheetPath: 'assets/images/enp7.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 0x14, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x23, 
+            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        ],
+        slopeTilesLeft: [0x1E, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [0x23, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [0x2B, 0x2C, 0x2D, 0], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [0x2A, 0, 0, 0, 0x29, 0, 0, 0, 0x28], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [80, 80, 200, 200, 50], // from eaiN.bin
+        monster_damage: [80, 80, 80, 80, 40], // from eaiN.bin
+        death_descriptors: [ // from eaiN.bin
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 11, 11, 5],
+            [11, 5, 5, 0],
+            [],
+            [],
+            [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+            [0x2F],
+            [0x30],
+            [0x31],
+            [0x32],
+        ],
+        ai: EAI7,
     },
 };
 

@@ -123,8 +123,7 @@ static void type4_fall_throttle(uint16_t m);     /* loc_A9B4 */
 
 
 /*
- * Monster_AI_6 - entry point (matches void Monster_AI(uint16_t m); as
- * used throughout the game engine / dungeon.c)
+ * entry point (matches void Monster_AI(uint16_t m); as used throughout the game engine / dungeon.c)
  */
 void Monster_AI_6(uint16_t m)
 {

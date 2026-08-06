@@ -38,41 +38,41 @@ monster_damage  db 80, 80, 80, 80, 40, 0, 0, 0
                 db    0
                 db    0
                 db    0
-                db    0                 ;
-                                        ; A030
-                dw offset byte_A0B0
-                dw offset byte_A10F
-                dw offset byte_A16E
-                dw offset byte_A1CD
-                dw offset byte_A22C
+                db    0
+                ; A030
+                dw offset byte_A0B0  ; 0..7
+                dw offset byte_A10F  ; 19..26
+                dw offset byte_A16E  ; 38..45
+                dw offset byte_A1CD  ; 57..64
+                dw offset byte_A22C  ; 76..79
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A100
-                dw offset byte_A15F
-                dw offset byte_A1BE
-                dw offset byte_A21D
-                dw offset byte_A254
+                dw offset byte_A100  ; 16..18
+                dw offset byte_A15F  ; 35..37
+                dw offset byte_A1BE  ; 54..56
+                dw offset byte_A21D  ; 73..75
+                dw offset byte_A254  ; 84..86
                 dw 0
                 dw 0
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A263
-                dw offset byte_A2AE
-                dw offset byte_A272
-                dw offset byte_A286
-                dw offset byte_A2CC
+                dw offset byte_A263  ; 87..89
+                dw offset byte_A2AE  ; 102..107
+                dw offset byte_A272  ; 90..93
+                dw offset byte_A286  ; 94..97
+                dw offset byte_A2CC  ; 108
                 dw 0
-                dw offset byte_A2D1
-                dw offset byte_A2D6
+                dw offset byte_A2D1  ; 109
+                dw offset byte_A2D6  ; 110
                 dw 0
-                dw offset byte_A29A
+                dw offset byte_A29A  ; 98..101
                 dw 0
                 dw 0
                 dw 0
-                dw 0                    ;
-                                        ; A070
+                dw 0
+                ; A070
                 dw offset byte_A0D8
                 dw offset byte_A137
                 dw offset byte_A196
@@ -81,141 +81,141 @@ monster_damage  db 80, 80, 80, 80, 40, 0, 0, 0
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A100
-                dw offset byte_A15F
-                dw offset byte_A1BE
-                dw offset byte_A21D
-                dw offset byte_A254
+                dw offset byte_A100  ; 16..18
+                dw offset byte_A15F  ; 35..37
+                dw offset byte_A1BE  ; 54..56
+                dw offset byte_A21D  ; 73..75
+                dw offset byte_A254  ; 84..86
                 dw 0
                 dw 0
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A263
-                dw offset byte_A2AE
-                dw offset byte_A272
-                dw offset byte_A286
-                dw offset byte_A2CC
+                dw offset byte_A263  ; 87..89
+                dw offset byte_A2AE  ; 102..107
+                dw offset byte_A272  ; 90..93
+                dw offset byte_A286  ; 94..97
+                dw offset byte_A2CC  ; 108
                 dw 0
-                dw offset byte_A2D1
-                dw offset byte_A2D6
+                dw offset byte_A2D1  ; 109
+                dw offset byte_A2D6  ; 110
                 dw 0
-                dw offset byte_A29A
-                dw 0
-                dw 0
+                dw offset byte_A29A  ; 98..101
                 dw 0
                 dw 0
-byte_A0B0       db 0, 0B0h, 0B1h, 0B2h, 0B3h
+                dw 0
+                dw 0
+byte_A0B0       db 0, 0B0h, 0B1h, 0B2h, 0B3h   ; 0
                 db 0, 0B8h, 0B9h, 0BAh, 0BBh
                 db 0, 0B0h, 0B1h, 0C0h, 0B3h
                 db 0, 0B8h, 0B9h, 0BAh, 0BBh
                 db 0, 0B0h, 0B1h, 0B2h, 0B3h
                 db 0, 0B0h, 0B1h, 0B2h, 0B3h
                 db 0, 0D1h, 0D2h, 0D3h, 0D4h
-                db 0, 0D1h, 0D2h, 0D3h, 0D4h
-byte_A0D8       db 0, 0D7h, 0D8h, 0D9h, 11h
+                db 0, 0D1h, 0D2h, 0D3h, 0D4h   ; 7
+byte_A0D8       db 0, 0D7h, 0D8h, 0D9h, 11h    ; 8
                 db 0, 26h, 27h, 28h, 35h
                 db 0, 0D7h, 0D8h, 0D9h, 58h
                 db 0, 26h, 27h, 28h, 35h
                 db 0, 0D7h, 0D8h, 81h, 82h
                 db 0, 0D7h, 0D8h, 81h, 82h
                 db 0, 97h, 98h, 99h, 9Ah
-                db 0, 97h, 98h, 99h, 9Ah
-byte_A100       db 0, 7Fh, 80h, 0A9h, 0CDh
+                db 0, 97h, 98h, 99h, 9Ah        ; 15
+byte_A100       db 0, 7Fh, 80h, 0A9h, 0CDh      ; 16
                 db 0, 0, 0, 0CBh, 0CCh
-                db 0, 0, 0, 0, 0
-byte_A10F       db 0, 0B4h, 0B5h, 0B6h, 0B7h
+                db 0, 0, 0, 0, 0                ; 18
+byte_A10F       db 0, 0B4h, 0B5h, 0B6h, 0B7h    ; 19
                 db 0, 0BCh, 0BDh, 0BEh, 0BFh
                 db 0, 0C1h, 0C2h, 0C3h, 0C4h
                 db 0, 0BCh, 0BDh, 0BEh, 0BFh
                 db 0, 0C7h, 0C8h, 0C9h, 0CAh
                 db 0, 0C7h, 0C8h, 0C9h, 0CAh
                 db 0, 0D5h, 0D6h, 0C9h, 0CAh
-                db 0, 0D5h, 0D6h, 0C9h, 0CAh
-byte_A137       db 0, 12h, 13h, 14h, 25h
+                db 0, 0D5h, 0D6h, 0C9h, 0CAh    ; 26
+byte_A137       db 0, 12h, 13h, 14h, 25h        ; 27
                 db 0, 3Ch, 43h, 4Ah, 51h
                 db 0, 5Fh, 66h, 7Dh, 7Eh
                 db 0, 3Ch, 43h, 4Ah, 51h
                 db 0, 83h, 94h, 95h, 96h
                 db 0, 83h, 94h, 95h, 96h
                 db 0, 9Bh, 0AFh, 95h, 96h
-                db 0, 9Bh, 0AFh, 95h, 96h
-byte_A15F       db 0, 0CEh, 0C5h, 0C6h, 0
+                db 0, 9Bh, 0AFh, 95h, 96h       ; 34
+byte_A15F       db 0, 0CEh, 0C5h, 0C6h, 0       ; 35
                 db 0, 0CDh, 0C5h, 0CEh, 0
-                db 0, 0CFh, 0D0h, 0DAh, 0DBh
-byte_A16E       db 1, 0, 0, 36h, 37h
+                db 0, 0CFh, 0D0h, 0DAh, 0DBh    ; 37
+byte_A16E       db 1, 0, 0, 36h, 37h            ; 38
                 db 1, 0, 0, 3Dh, 3Eh
                 db 1, 0, 0, 44h, 45h
                 db 1, 0, 0, 4Bh, 4Ch
                 db 1, 6Dh, 0, 6Fh, 70h
                 db 1, 6Dh, 0, 6Fh, 70h
                 db 1, 75h, 76h, 77h, 78h
-                db 1, 75h, 76h, 77h, 78h
-byte_A196       db 1, 0, 0, 52h, 53h
+                db 1, 75h, 76h, 77h, 78h        ; 45
+byte_A196       db 1, 0, 0, 52h, 53h            ; 46
                 db 1, 0, 0, 59h, 5Ah
                 db 1, 0, 0, 60h, 61h
                 db 1, 0, 0, 67h, 68h
                 db 1, 0, 85h, 86h, 87h
                 db 1, 0, 85h, 86h, 87h
                 db 1, 8Ch, 8Dh, 8Eh, 8Fh
-                db 1, 8Ch, 8Dh, 8Eh, 8Fh
-byte_A1BE       db 1, 0, 9Ch, 9Dh, 9Eh
+                db 1, 8Ch, 8Dh, 8Eh, 8Fh        ; 53
+byte_A1BE       db 1, 0, 9Ch, 9Dh, 9Eh          ; 54
                 db 1, 0A3h, 0A4h, 0A5h, 0A6h
-                db 1, 0AAh, 0ABh, 0ACh, 0
-byte_A1CD       db 1, 38h, 39h, 3Ah, 3Bh
+                db 1, 0AAh, 0ABh, 0ACh, 0       ; 56
+byte_A1CD       db 1, 38h, 39h, 3Ah, 3Bh        ; 57
                 db 1, 3Fh, 40h, 41h, 42h
                 db 1, 46h, 47h, 48h, 49h
                 db 1, 4Dh, 4Eh, 4Fh, 50h
                 db 1, 71h, 72h, 73h, 74h
                 db 1, 71h, 72h, 73h, 74h
                 db 1, 79h, 7Ah, 7Bh, 7Ch
-                db 1, 79h, 7Ah, 7Bh, 7Ch
-byte_A1F5       db 1, 54h, 55h, 56h, 57h
+                db 1, 79h, 7Ah, 7Bh, 7Ch        ; 64
+byte_A1F5       db 1, 54h, 55h, 56h, 57h        ; 65
                 db 1, 5Bh, 5Ch, 5Dh, 5Eh
                 db 1, 62h, 63h, 64h, 65h
                 db 1, 69h, 6Ah, 6Bh, 6Ch
                 db 1, 88h, 89h, 8Ah, 8Bh
                 db 1, 88h, 89h, 8Ah, 8Bh
                 db 1, 90h, 91h, 92h, 93h
-                db 1, 90h, 91h, 92h, 93h
-byte_A21D       db 1, 9Fh, 0A0h, 0A1h, 0A2h
+                db 1, 90h, 91h, 92h, 93h        ; 72
+byte_A21D       db 1, 9Fh, 0A0h, 0A1h, 0A2h     ; 73
                 db 1, 0A7h, 0A8h, 0, 0
-                db 1, 0, 0, 0, 0
-byte_A22C       db 2, 1, 2, 3, 4
+                db 1, 0, 0, 0, 0                ; 75
+byte_A22C       db 2, 1, 2, 3, 4                ; 76
                 db 2, 5, 6, 7, 8
                 db 2, 9, 0Ah, 0Bh, 0Ch
-                db 2, 0Dh, 0Eh, 0Fh, 10h
-byte_A240       db 2, 15h, 16h, 17h, 18h
+                db 2, 0Dh, 0Eh, 0Fh, 10h        ; 79
+byte_A240       db 2, 15h, 16h, 17h, 18h        ; 80
                 db 2, 19h, 1Ah, 1Bh, 1Ch
                 db 2, 1Dh, 1Eh, 1Fh, 20h
-                db 2, 21h, 22h, 23h, 24h
-byte_A254       db 2, 29h, 2Ah, 2Bh, 2Ch
+                db 2, 21h, 22h, 23h, 24h        ; 83
+byte_A254       db 2, 29h, 2Ah, 2Bh, 2Ch        ; 84
                 db 2, 2Dh, 2Eh, 2Fh, 30h
-                db 2, 31h, 32h, 33h, 34h
-byte_A263       db 1, 0DCh, 0DDh, 0DEh, 0DFh
+                db 2, 31h, 32h, 33h, 34h        ; 86
+byte_A263       db 1, 0DCh, 0DDh, 0DEh, 0DFh    ; 87
                 db 1, 0E0h, 0E1h, 0E2h, 0E3h
-                db 1, 0E4h, 0E5h, 0E6h, 0E7h
-byte_A272       db 0, 0E8h, 0E9h, 0EAh, 0EBh
+                db 1, 0E4h, 0E5h, 0E6h, 0E7h    ; 89
+byte_A272       db 0, 0E8h, 0E9h, 0EAh, 0EBh    ; 90
                 db 0, 0ECh, 0EDh, 0EEh, 0EFh
                 db 0, 0F0h, 0F1h, 0F2h, 0F3h
-                db 0, 0ECh, 0EDh, 0EEh, 0EFh
-byte_A286       db 2, 0E8h, 0E9h, 0EAh, 0EBh
+                db 0, 0ECh, 0EDh, 0EEh, 0EFh    ; 93
+byte_A286       db 2, 0E8h, 0E9h, 0EAh, 0EBh    ; 94
                 db 2, 0ECh, 0EDh, 0EEh, 0EFh
                 db 2, 0F0h, 0F1h, 0F2h, 0F3h
-                db 2, 0ECh, 0EDh, 0EEh, 0EFh
-byte_A29A       db 1, 0E8h, 0E9h, 0EAh, 0EBh
+                db 2, 0ECh, 0EDh, 0EEh, 0EFh    ; 97
+byte_A29A       db 1, 0E8h, 0E9h, 0EAh, 0EBh    ; 98
                 db 1, 0ECh, 0EDh, 0EEh, 0EFh
                 db 1, 0F0h, 0F1h, 0F2h, 0F3h
-                db 1, 0ECh, 0EDh, 0EEh, 0EFh
-byte_A2AE       db 0, 0F4h, 0F5h, 0F6h, 0F7h
+                db 1, 0ECh, 0EDh, 0EEh, 0EFh    ; 101
+byte_A2AE       db 0, 0F4h, 0F5h, 0F6h, 0F7h    ; 102
                 db 0, 0F4h, 0F5h, 0F6h, 0F7h
                 db 0, 0F4h, 0F5h, 0F6h, 0F7h
                 db 0, 0F4h, 0F5h, 0F6h, 0F7h
                 db 0, 0F4h, 0F5h, 0F6h, 0F7h
-                db 0, 0F4h, 0F5h, 0F6h, 0F7h
-byte_A2CC       db 1, 0F8h, 0F9h, 0FAh, 0FBh
-byte_A2D1       db 0, 0FCh, 0FDh, 6Eh, 84h
-byte_A2D6       db 2, 0FCh, 0FDh, 6Eh, 84h
+                db 0, 0F4h, 0F5h, 0F6h, 0F7h    ; 107
+byte_A2CC       db 1, 0F8h, 0F9h, 0FAh, 0FBh    ; 108
+byte_A2D1       db 0, 0FCh, 0FDh, 6Eh, 84h      ; 109
+byte_A2D6       db 2, 0FCh, 0FDh, 6Eh, 84h      ; 110
 death_descriptors dw offset byte_A2E5
                 dw offset byte_A2E5
                 dw offset byte_A2E9

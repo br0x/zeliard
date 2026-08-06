@@ -891,6 +891,18 @@ var warnOnce = text => {
   }
 };
 
+function _Tarso_AI(...args) {
+  abort("missing function: Tarso_AI");
+}
+
+_Tarso_AI.stub = true;
+
+function _Tarso_AI_reset(...args) {
+  abort("missing function: Tarso_AI_reset");
+}
+
+_Tarso_AI_reset.stub = true;
+
 var abortOnCannotGrowMemory = requestedSize => {
   abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
 };
@@ -1378,6 +1390,8 @@ function assignWasmExports(wasmExports) {
 }
 
 var wasmImports = {
+  /** @export */ Tarso_AI: _Tarso_AI,
+  /** @export */ Tarso_AI_reset: _Tarso_AI_reset,
   /** @export */ alignfault,
   /** @export */ emscripten_resize_heap: _emscripten_resize_heap,
   /** @export */ js_log: _js_log,
