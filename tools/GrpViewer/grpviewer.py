@@ -23,6 +23,7 @@ GRP_DESCRIPTOR = [
     ("zela.grp",  16),
     ("meda.grp",  17),
     ("lega.grp",  18),
+    ("drgn.grp",  19),
 ]
 
 MODE_CFG = {
@@ -32,6 +33,7 @@ MODE_CFG = {
     16:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "zela"},
     17:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "meda"},
     18:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "lega"},
+    19:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "drgn"},
 }
 
 SCALE = 3
@@ -232,6 +234,263 @@ CRAB_FRAMES = {
         [0, 0xE2, 0xE3, 0, 0],
     ],
 }
+# Transcribed directly from drgn.asm A030 pointer table / byte_A044..byte_A297.
+# Each entry is [pal_idx, tl, tr, bl, br], matching the other boss frame tables.
+# Dragon layout bytes use their high nibble as this table-group index and low nibble
+# as the frame index within that group.
+DRGN_FRAMES = {
+    "Tile Group 0 (byte_A044)": [
+        [0, 0x66, 0, 0x67, 0x6C],
+        [0, 0x68, 0x69, 0x6D, 0x6E],
+        [0, 0x6C, 0x6D, 0x72, 0x73],
+        [0, 0x83, 0x84, 0, 0x86],
+        [0, 0x95, 0xB1, 0x98, 0x99],
+        [0, 0x9A, 0x9B, 0x9D, 0x9E],
+        [0, 0x68, 0x90, 0x6D, 0x91],
+        [0, 0x9A, 0x9B, 0x9D, 0xFE],
+    ],
+    "Tile Group 1 (byte_A06C)": [
+        [0, 0x73, 0x74, 0, 0],
+        [0, 0x6A, 0x6B, 0x6F, 0x70],
+        [0, 0x70, 0x71, 0x75, 0x76],
+        [0, 0x77, 0x78, 0x7A, 0x7B],
+        [0, 0x78, 0x79, 0x7B, 0x7C],
+        [0, 0x7D, 0x7E, 0x77, 0x10],
+        [0, 0x7F, 1, 0x0C, 0x0D],
+        [0, 0x77, 0x10, 0, 0x0E],
+        [0, 0x97, 0, 0x70, 0x71],
+        [0, 0xB3, 0x75, 0, 0x77],
+        [0, 0x76, 0, 0x78, 0x79],
+        [0, 0xA6, 0x9F, 0x87, 0xA1],
+        [0, 0x99, 0x87, 0xB3, 0x88],
+        [0, 0xA1, 0xA3, 0x8C, 0x89],
+        [0, 0x8A, 0, 0xAD, 0x8D],
+        [0, 0xAD, 0x8D, 0x8B, 0x10],
+    ],
+    "Tile Group 2 (byte_A0BC)": [
+        [0, 0x8D, 0x8F, 0x10, 0x7E],
+        [0, 0xA6, 1, 0x0C, 0x0D],
+        [0, 0x8E, 0x10, 0x67, 0x0E],
+        [0, 0x6E, 0x6F, 0x73, 0xA7],
+        [0, 0x6A, 0x6B, 0x6F, 0xA0],
+        [0, 0xA0, 0xA1, 0xA8, 0xA9],
+        [0, 0x9F, 0x9F, 0xA1, 0xA2],
+        [0, 0xA2, 0xA3, 0xAA, 0xAB],
+        [0, 0xA4, 0xA5, 0xAC, 0xAD],
+        [0, 0xAC, 0xAD, 0x67, 0x0E],
+        [0, 0x6E, 0x6F, 0x85, 0xA7],
+        [0, 0x80, 0x82, 0x81, 0xAE],
+        [0, 0xB4, 0xD3, 0xC4, 0x94],
+        [0, 0xD3, 0, 0x94, 0x9C],
+        [0, 0x85, 0x74, 0, 0],
+    ],
+    "Tile Group 3 (byte_A107)": [
+        [0, 0, 0xDF, 0xE8, 0xE9],
+        [0, 0xE0, 0xE1, 0xEA, 0xEA],
+        [0, 0xE2, 0xE2, 0xEA, 0xEB],
+        [0, 0xE3, 0xE4, 0, 0],
+        [0, 0xE4, 0xE5, 0, 0],
+        [0, 0, 0xE7, 0xEC, 0xED],
+        [0, 0, 0xF5, 0xF9, 0xFA],
+        [0, 0xED, 0xEE, 0xF6, 0xF7],
+        [0, 0xEF, 0xF0, 0xF8, 0xEA],
+        [0, 0xF1, 0xF2, 0xEA, 0xEB],
+        [0, 0xF3, 0xF4, 0, 0],
+        [0, 0, 0, 0xF4, 0],
+        [0, 0xFB, 0xFC, 0xB2, 0x96],
+        [0, 0xFD, 0xFD, 0xEA, 0xEA],
+        [0, 0xFD, 0xF3, 0xE6, 0xA6],
+    ],
+    "Tile Group 4 (byte_A152)": [
+        [0, 0, 0x92, 0xF9, 0xFA],
+        [0, 0x93, 0xBB, 0xBA, 0xBF],
+        [0, 0, 0xCC, 0xC8, 0xE9],
+        [0, 0xCF, 0xCF, 0xEA, 0xEB],
+        [0, 0xD0, 0xD1, 0, 0],
+        [0, 0xAF, 0, 0, 0xB0],
+        [0, 0xBC, 0xC1, 0xB2, 0x96],
+        [0, 0xCA, 0xF1, 0xFD, 0xFD],
+        [0, 0xF2, 0xF3, 0xFD, 0xF3],
+        [0, 0xF3, 0xF4, 0xF3, 0xF4],
+        [0, 0xFD, 0xFD, 0xEA, 0xEA],
+        [0, 0xFD, 0xF3, 0xE6, 0xA6],
+    ],
+    "Tile Group 5 (byte_A18E)": [
+        [0, 0, 0x0E, 0x20, 0x21],
+        [0, 0x0F, 0x10, 0x22, 0x23],
+        [0, 2, 3, 0x19, 0x10],
+        [0, 4, 5, 0x1A, 0x1B],
+        [0, 0x1C, 0x1D, 0x24, 0x25],
+        [0, 0x1E, 0x1F, 0x26, 0x27],
+        [0, 0x0E, 0x0F, 0x20, 0x12],
+        [0, 0x0F, 0x10, 0x12, 0x3C],
+        [0, 2, 3, 0x19, 0x28],
+        [0, 4, 5, 0x29, 0x2A],
+        [0, 0x1C, 0x2B, 0x3D, 0x26],
+        [0, 0x2C, 0x11, 0x27, 0x31],
+        [0, 0x0F, 0x10, 0x37, 0x38],
+        [0, 2, 3, 0x32, 0x33],
+        [0, 4, 5, 0x34, 0x35],
+        [0, 0x36, 0x2C, 0x26, 0x27],
+    ],
+    "Tile Group 6 (byte_A1DE)": [
+        [0, 0x11, 0x11, 0x31, 0x39],
+        [0, 6, 7, 0x11, 0x5C],
+        [0, 0x11, 0x42, 0x3B, 0x48],
+        [0, 8, 9, 0x3E, 0x3F],
+        [0, 0x43, 0x44, 0x49, 0x4A],
+        [0, 0x45, 0x46, 0x4B, 0x4C],
+        [0, 0x47, 0x16, 0x4D, 0x4E],
+        [0, 0x11, 0x4F, 0x55, 0x56],
+        [0, 0x54, 0x16, 0x5B, 0x4E],
+        [0, 0x50, 0x51, 0x57, 0x58],
+        [0, 0x52, 0x53, 0x59, 0x5A],
+        [0, 0x11, 0x5E, 0x64, 0x65],
+        [0, 8, 9, 0x5D, 0x3F],
+    ],
+    "Tile Group 7 (byte_A21F)": [
+        [0, 0x5F, 0x60, 0x2D, 0x2E],
+        [0, 0x61, 0x62, 0x2F, 0x30],
+        [0, 0x63, 0x16, 0x3A, 0x4E],
+        [0, 0x0A, 0x0B, 0x40, 0x41],
+        [0, 0, 0, 0x14, 0x15],
+        [0, 6, 7, 0x11, 0x11],
+        [0, 0x13, 0x75, 0x17, 0x77],
+        [0, 0x17, 0x77, 0x18, 0x7A],
+    ],
+    "Tile Group 8 (byte_A247)": [
+        [1, 0, 0xB6, 0xB7, 0],
+        [1, 0, 0xB5, 0xB6, 0],
+        [1, 0, 0xB6, 0xB7, 0],
+        [1, 0, 0xB7, 0xB8, 0],
+        [1, 0, 0xB6, 0xB5, 0],
+        [1, 0xB9, 0xB6, 0xB8, 0],
+        [1, 0xBE, 0xB8, 0xB8, 0xC0],
+        [1, 0xB8, 0xC0, 0xC5, 0xC6],
+        [1, 0, 0, 0xC2, 0xC7],
+        [1, 0xBD, 0xBE, 0xC5, 0xC3],
+        [1, 0, 0, 0xBD, 0xC2],
+        [1, 0xC9, 0xB7, 0xCB, 0],
+        [1, 0xC9, 0xCD, 0xCD, 0xCE],
+        [1, 0, 0xC9, 0xBE, 0xD2],
+        [1, 0, 0xCD, 0xC2, 0xD2],
+        [1, 0xCE, 0, 0xC2, 0xD4],
+    ],
+    "Tile Group 9 (byte_A297)": [
+        [1, 0, 0, 0xD5, 0xD8],
+        [1, 0, 0, 0xD8, 0xD9],
+        [1, 0, 0, 0xDA, 0xDC],
+        [1, 0, 0, 0xDB, 0xDC],
+        [1, 0, 0, 0xDB, 0xDE],
+        [1, 0, 0, 0xD5, 0xD6],
+        [1, 0, 0, 0xD6, 0xD6],
+        [1, 0, 0, 0xD7, 0xD7],
+        [1, 0, 0, 0xD6, 0xD7],
+        [1, 0, 0, 0xD8, 0xD9],
+        [1, 0, 0, 0xDA, 0xDB],
+        [1, 0, 0, 0xDB, 0xDC],
+        [1, 0, 0, 0xDC, 0xDB],
+        [1, 0, 0, 0xDD, 0xDE],
+    ],
+}
+
+DRGN_FRAME_SET_BY_INDEX = {
+    0: "Tile Group 0 (byte_A044)",
+    1: "Tile Group 1 (byte_A06C)",
+    2: "Tile Group 2 (byte_A0BC)",
+    3: "Tile Group 3 (byte_A107)",
+    4: "Tile Group 4 (byte_A152)",
+    5: "Tile Group 5 (byte_A18E)",
+    6: "Tile Group 6 (byte_A1DE)",
+    7: "Tile Group 7 (byte_A21F)",
+    8: "Tile Group 8 (byte_A247)",
+    9: "Tile Group 9 (byte_A297)",
+}
+
+# Dragon composite body data, transcribed from drgn.asm off_A783..off_A8FD.
+# sub_A758 writes each sparse layer into a shared 29-column x 10-row buffer.
+DRGN_BODY_TILES = [
+    [0x00,0x02,0x01,0x10,0x11,0x12,0x13,0x14,0x15,0x17,0x16],
+    [0x00,0x03,0x01,0x2E,0x11,0x12,0x13,0x14,0x15,0x17,0x16],
+    [0x00,0x02,0x06,0x10,0x11,0x12,0x13,0x14,0x15,0x17,0x16],
+    [0x00,0x03,0x06,0x2E,0x11,0x12,0x13,0x14,0x15,0x17,0x16],
+    [0x05,0x04,0x19,0x18,0x13,0x1A,0x14,0x15,0x17,0x16],
+    [0x07,0x04,0x76,0x77,0x18,0x13,0x1A,0x14,0x15,0x17,0x16],
+    [0x05,0x04,0x1C,0x1B,0x1D,0x1E,0x1F,0x20,0x22,0x16],
+    [0x00,0x02,0x01,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x21],
+    [0x00,0x03,0x06,0x2A,0x24,0x25,0x26,0x27,0x28,0x29,0x21],
+    [0x00,0x02,0x06,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x21],
+    [0x00,0x03,0x06,0x2A,0x24,0x25,0x26,0x27,0x28,0x29,0x21],
+]
+DRGN_BODY_MASKS = [
+    [0,0,0,0x80,0x40,0x80,0x20,0x80,0x50,0x16,0,0x04],
+    [0,0,0,0x80,0x20,0x80,0x20,0x80,0x50,0x16,0,0x04],
+    [0,0,0,0x80,0x40,0x80,0x20,0x80,0x50,0x16,0,0x04],
+    [0,0,0,0x80,0x20,0x80,0x20,0x80,0x50,0x16,0,0x04],
+    [0,0,0,0,0,0x20,0x80,0x20,0x90,0x36,0,0x04],
+    [0,0,0,0,0,0x20,0x80,0x30,0x90,0x36,0,0x04],
+    [0,0,0x08,0x20,0x10,0x20,0x10,0,0x18,0x0A,0,0x04],
+    [0x08,0x04,0x08,0x04,0x08,0x04,0x08,0x04,0,0x06,0,0x04],
+    [0x08,0x02,0x08,0x04,0x08,0x04,0x08,0x04,0,0x06,0,0x04],
+    [0x08,0x04,0x08,0x04,0x08,0x04,0x08,0x04,0,0x06,0,0x04],
+    [0x08,0x02,0x08,0x04,0x08,0x04,0x08,0x04,0,0x06,0,0x04],
+]
+
+DRGN_DETAIL_TILES = [0x2B,0x2C,0x2D]
+DRGN_DETAIL_MASK = [0x80,0,0x80,0x80]
+
+DRGN_LIMB_TILES = [
+    [0x50,0x51,0x52,0x54,0x53,0x55],
+    [0x56,0x57,0x58,0x5A,0x59,0x5B],
+    [0x5C,0x5D,0x5F,0x5E,0x60],
+    [0x56,0x57,0x58,0x5A,0x59,0x5B],
+]
+DRGN_LIMB_MASKS = [
+    [0x20,0,0x20,0,0xA0,0,0xA0],
+    [0,0x20,0x20,0,0xA0,0,0xA0],
+    [0,0,0x20,0,0xA0,0,0xA0],
+    [0,0x20,0x20,0,0xA0,0,0xA0],
+]
+
+DRGN_RLIMB_TILES = [
+    [0x75,0x62,0x63,0x64,0x73,0x65,0x74,0x66],
+    [0x75,0x67,0x63,0x69,0x73,0x6A,0x74,0x68],
+    [0x61,0x6B,0x6C,0x70,0x73,0x71,0x74,0x72],
+    [0x75,0x67,0x63,0x69,0x73,0x6A,0x74,0x68],
+]
+DRGN_RLIMB_MASK = [0xA0,0,0xA0,0,0xA0,0,0xA0]
+
+DRGN_ANIM_TILES = [
+    [0x36,0x35,0x37,0x3C,0x30,0x38,0x3D,0x31,0x39,0x3E,0x32,0x3A,0x3B,0x33,0x34],
+    [0x40,0x41,0x46,0x42,0x47,0x4A,0x43,0x48,0x4B,0x49,0x44,0x45],
+]
+DRGN_ANIM_MASKS = [
+    [0x10,0x40,0x28,0x80,0x28,0x80,0x28,0x80,0x30,0x80,0x80],
+    [0x10,0,0x28,0,0x58,0,0x58,0x10,0x40,0,0x40],
+]
+
+# Optional breath layer. It is rendered outside the 29x10 body buffer by the AI.
+DRGN_BREATH_LEFT_TILES = [
+    [0x80], [0x83,0x82,0x81], [0x8A,0x89,0x86,0x87,0x85,0x88,0x84],
+    [0x8D,0x8E,0x8C,0x8F,0x8B,0x81],
+]
+DRGN_BREATH_LEFT_MASKS = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0x80],
+    [0,0,0,0,0,0,0,0,0,0x10,0,0x40,0x80],
+    [0,0,0,0,0,0x08,0,0x08,0,0x18,0x20,0x08,0x80],
+    [0,0,0,0,0,0x08,0,0x08,0x10,0x08,0x20,0,0x80],
+]
+DRGN_BREATH_RIGHT_TILES = [
+    [0x90,0x91], [0x92,0x93,0x94], [0x95,0x96,0x97,0x98,0x96,0x99],
+    [0x9A,0x9B,0x9B,0x9C,0x9B,0x9D],
+]
+DRGN_BREATH_RIGHT_MASKS = [
+    [0,0,0,0,0,0,0,0,0x20,0x20,0,0,0],
+    [0,0,0,0,0,0x20,0,0x20,0,0x20,0,0,0],
+    [0x20,0x20,0,0x20,0,0x20,0,0x20,0,0x20,0,0,0],
+    [0x20,0x20,0,0x20,0,0x20,0,0x20,0,0x20,0,0,0],
+]
+
 TAKO_FRAMES = {
     "Frame Set 00 (byte_A052)": [
         [0, 0, 0, 1, 0],
@@ -1239,6 +1498,173 @@ def render_crab_group(data, canvas, y_offset):
         current_y += num_rows * (16 * scale + 12)
         
     return current_y - y_offset
+
+def _drgn_apply_sparse_layer(grid, x0, y0, tiles, masks):
+    """Equivalent of drgn.asm sub_A758 for one sparse layer."""
+    tile_iter = iter(tiles)
+    for col, mask in enumerate(masks):
+        for row in range(8):
+            if mask & (0x80 >> row):
+                try:
+                    grid[x0 + col][y0 + row] = next(tile_iter)
+                except StopIteration:
+                    return
+
+
+def compute_drgn_body_layout(pose, anim_phase=0, motion_phase=0):
+    """
+    Recreate render_dragon/loc_A542's complete 29x10 shared layout buffer.
+    Returns (col, row, tile_group, frame_idx) entries; Dragon packs those
+    last two values into one byte as (group << 4) | frame.
+    """
+    grid = [[None for _ in range(10)] for _ in range(29)]
+
+    _drgn_apply_sparse_layer(grid, 0, 1, DRGN_BODY_TILES[pose], DRGN_BODY_MASKS[pose])
+
+    a = anim_phase & 1
+    _drgn_apply_sparse_layer(grid, 12, 0, DRGN_ANIM_TILES[a], DRGN_ANIM_MASKS[a])
+
+    m = motion_phase & 3
+    _drgn_apply_sparse_layer(grid, 9, 6, DRGN_LIMB_TILES[m], DRGN_LIMB_MASKS[m])
+    _drgn_apply_sparse_layer(grid, 17, 6, DRGN_RLIMB_TILES[m], DRGN_RLIMB_MASK)
+
+    _drgn_apply_sparse_layer(grid, 25, 8, DRGN_DETAIL_TILES, DRGN_DETAIL_MASK)
+
+    placements = []
+    for col in range(29):
+        for row in range(10):
+            tile = grid[col][row]
+            if tile is None:
+                continue
+            placements.append((col, row, (tile >> 4) & 0x0F, tile & 0x0F))
+    return placements
+
+
+def compute_drgn_breath_layout(pose, breath_frame):
+    """
+    Recreate loc_A693's optional 13-column breath layer. Coordinates are
+    returned relative to the Dragon body's boss_x/boss_y origin, so x can
+    be negative (the flame extends left of the main 29x10 body).
+    """
+    bf = breath_frame & 3
+    if pose < 6:
+        tiles = DRGN_BREATH_LEFT_TILES[bf]
+        masks = DRGN_BREATH_LEFT_MASKS[bf]
+        x0 = -6 if pose == 5 else -10
+    else:
+        tiles = DRGN_BREATH_RIGHT_TILES[bf]
+        masks = DRGN_BREATH_RIGHT_MASKS[bf]
+        x0 = -10
+
+    tile_iter = iter(tiles)
+    placements = []
+    for col, mask in enumerate(masks):
+        for row in range(8):
+            if mask & (0x80 >> row):
+                try:
+                    tile = next(tile_iter)
+                except StopIteration:
+                    return placements
+                placements.append((x0 + col, 4 + row, (tile >> 4) & 0x0F, tile & 0x0F))
+    return placements
+
+
+# A compact set that exposes every independently varying Dragon layer without
+# expanding the sheet to all 11*2*4 Cartesian combinations. Main poses use
+# anim=0/motion=0; additional entries isolate the alternate anim/motion layers
+# and all four breath-frame masks on both facing families.
+DRGN_BODY_FRAMES = (
+    [(f"pose {pose}", pose, 0, 0, None) for pose in range(11)]
+    + [("anim phase 1", 0, 1, 0, None)]
+    + [(f"motion phase {m}", 0, 0, m, None) for m in range(1, 4)]
+    + [(f"left breath {bf}", 0, 0, 0, bf) for bf in range(4)]
+    + [(f"right breath {bf}", 6, 0, 0, bf) for bf in range(4)]
+)
+
+
+def render_drgn_group(data, canvas, y_offset):
+    """
+    Dragon boss.
+
+    Part 1 renders complete 29x10 Dragon bodies assembled from the same five
+    sparse layers used by Drgn_AI_proc, plus representative complete bodies
+    with each breath frame attached. Grid positions are 8px world-tile steps
+    while each descriptor draws a 16x16 composed sprite, exactly like Tori/Lega.
+
+    Part 2 renders every raw 16x16 descriptor in DRGN_FRAMES for inspection.
+    """
+    TILE_SIZE = 32
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+    current_y = y_offset
+
+    body_scale = 1
+    step = 8
+    sprite_span = 16
+    # Breath may extend 10 cells left. Normalize the display to x=-10..28.
+    min_col, max_col = -10, 28
+    cols = max_col - min_col + 1
+    rows = 12  # breath reaches body-relative row 11
+    block_w = (cols - 1) * step * body_scale + sprite_span * body_scale
+    block_h = (rows - 1) * step * body_scale + sprite_span * body_scale
+    frames_per_row_body = 3
+    body_gap_x, body_gap_y = 12, 18
+
+    for f_idx, (label, pose, anim_phase, motion_phase, breath_frame) in enumerate(DRGN_BODY_FRAMES):
+        col_idx = f_idx % frames_per_row_body
+        row_idx = f_idx // frames_per_row_body
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1,
+                                x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
+                           anchor="w", fill="white", font=("TkDefaultFont", 7))
+
+        placements = compute_drgn_body_layout(pose, anim_phase, motion_phase)
+        if breath_frame is not None:
+            placements += compute_drgn_breath_layout(pose, breath_frame)
+
+        for gcol, grow, tile_group, frame_idx in placements:
+            set_name = DRGN_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+            frames = DRGN_FRAMES[set_name]
+            if frame_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(
+                canvas, frames[frame_idx], tiles_raw,
+                x_base + (gcol - min_col) * step * body_scale,
+                y_base + grow * step * body_scale,
+                body_scale)
+
+    num_body_rows = (len(DRGN_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # Raw descriptor browser.
+    scale = 3
+    sprite_px = 16
+    frames_per_row = 16
+    gap_x, gap_y = 0, 8
+    n = 0
+    for set_name, frames in DRGN_FRAMES.items():
+        current_y += 20
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                               fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame,
+                                    x_frame + sprite_px * scale,
+                                    y_frame + sprite_px * scale,
+                                    fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw,
+                                       x_frame, y_frame, scale)
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
 
 def compute_tako_phase_layout(table_idx):
     """
@@ -2304,6 +2730,10 @@ class GrpViewer:
                 consumed = render_lega_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+            elif modes == 19:
+                consumed = render_drgn_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Dragon Boss Sprites")
             else:
                 return
             return

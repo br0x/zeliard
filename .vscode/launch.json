@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/enp8.grp"
+                "${workspaceFolder}/tools/GrpViewer/drgn.grp"
             ],
             "console": "integratedTerminal",
         },
