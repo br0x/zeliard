@@ -2022,7 +2022,7 @@ const TOWN_MDTS = [
     'game/0/hlmp.mdt', // Hellada Town
     'game/0/tmmp.mdt', // Tumba
     'game/0/drmp.mdt', // Dorado
-    'game/0/lmmp.mdt', // Llama
+    'game/0/llmp.mdt', // Llama
     'game/0/prmp.mdt', // Pureza
     'game/0/esmp.mdt', // Esco
 ];
