@@ -13,8 +13,8 @@ start:
                 db    0
                 db    0
                 dw offset death_descriptors
-monster_xp      db 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0, 0, 0
-monster_damage  db 0A0h, 0A0h, 3Ch, 50h, 50h, 0, 0, 0
+monster_xp      db 255, 255, 255, 255, 255, 0, 0, 0
+monster_damage  db 160, 160, 60, 80, 80, 0, 0, 0
                 db    0
                 db    0
                 db    0
@@ -39,73 +39,72 @@ monster_damage  db 0A0h, 0A0h, 3Ch, 50h, 50h, 0, 0, 0
                 db    0
                 db    0
                 db    0
-                dw offset byte_A0B0
-                dw offset byte_A0FB
-                dw offset byte_A146
-                dw offset byte_A1A5
-                dw offset byte_A1E6
+                ; A030
+                dw offset byte_A0B0  ; 0..5
+                dw offset byte_A0FB  ; 15..20
+                dw offset byte_A146  ; 30..37
+                dw offset byte_A1A5  ; 49..53
+                dw offset byte_A1E6  ; 62..65
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A0EC
-                dw offset byte_A137
-                dw offset byte_A196
-                dw offset byte_A1D7
-                dw offset byte_A1FA
+                dw offset byte_A0EC  ; 12..14
+                dw offset byte_A137  ; 27..29
+                dw offset byte_A196  ; 46..48
+                dw offset byte_A1D7  ; 59..61
+                dw offset byte_A1FA  ; 66..68
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A286
+                dw offset byte_A286  ; 94..97
                 dw 0
-                dw offset byte_A209
-                dw offset byte_A254
-                dw offset byte_A218
-                dw offset byte_A22C
-                dw offset byte_A27C
-                dw offset byte_A281
-                dw offset byte_A272
-                dw offset byte_A277
+                dw offset byte_A209  ; 69..71
+                dw offset byte_A254  ; 84..89
+                dw offset byte_A218  ; 72..75
+                dw offset byte_A22C  ; 76..79
+                dw offset byte_A27C  ; 92
+                dw offset byte_A281  ; 93
+                dw offset byte_A272  ; 90
+                dw offset byte_A277  ; 91
                 dw 0
-                dw offset byte_A240
-                dw offset byte_A29A
-                dw 0
-                dw 0
-                dw 0
-                dw offset byte_A0CE
-                dw offset byte_A119
-                dw offset byte_A16E
-                dw offset byte_A1BE
-                dw offset byte_A1E6
+                dw offset byte_A240  ; 80..83
+                dw offset byte_A29A  ; 98
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A0EC
-                dw offset byte_A137
-                dw offset byte_A196
-                dw offset byte_A1D7
-                dw offset byte_A1FA
+                ; A070
+                dw offset byte_A0CE  ; 6..11
+                dw offset byte_A119  ; 21..26
+                dw offset byte_A16E  ; 38..45
+                dw offset byte_A1BE  ; 54..58
+                dw offset byte_A1E6  ; 62..65
                 dw 0
                 dw 0
                 dw 0
-                dw offset byte_A286
+                dw offset byte_A0EC  ; 12..14
+                dw offset byte_A137  ; 27..29
+                dw offset byte_A196  ; 46..48
+                dw offset byte_A1D7  ; 59..61
+                dw offset byte_A1FA  ; 66..68
                 dw 0
-                dw offset byte_A209
-                dw offset byte_A254
-                dw offset byte_A218
-                dw offset byte_A22C
-                dw offset byte_A27C
-                dw offset byte_A281
-                dw offset byte_A272
-                dw offset byte_A277
                 dw 0
-                dw offset byte_A240
-                dw offset byte_A29A
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
-                db    0
+                dw 0
+                dw offset byte_A286  ; 94..97
+                dw 0
+                dw offset byte_A209  ; 69..71
+                dw offset byte_A254  ; 84..89
+                dw offset byte_A218  ; 72..75
+                dw offset byte_A22C  ; 76..79
+                dw offset byte_A27C  ; 92
+                dw offset byte_A281  ; 93
+                dw offset byte_A272  ; 90
+                dw offset byte_A277  ; 91
+                dw 0
+                dw offset byte_A240  ; 80..83
+                dw offset byte_A29A  ; 98
+                dw 0
+                dw 0
+                dw 0
 byte_A0B0       db 0, 1, 2, 3, 4           ; 0
                 db 0, 1, 2, 3, 4
                 db 0, 1, 2, 3, 4
