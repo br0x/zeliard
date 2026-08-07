@@ -447,7 +447,7 @@ static void update_projectile(void)
         cmp byte ptr word_A7C3, 12h
         If the projectile reached the left side, switch to its ending anim.
         */
-        if ((uint8_t)(projectile_x & 0xFF) < 0x12) {
+        if ((uint8_t)(projectile_x & 0xFF) < 18) {
             projectile_done = 0xFF;
             projectile_anim = 3;
             MEM8(ADDR_SOUND_FX_REQUEST) = 50;
@@ -478,7 +478,7 @@ static void update_projectile(void)
             cmp byte_A7C7, 10h
             adc byte_A7C7, 0
         */
-        if (projectile_counter < 0x10) {
+        if (projectile_counter < 16) {
             projectile_counter++;
         }
 
@@ -618,8 +618,6 @@ static void maybe_start_charge(void)
         mov ax, cs:boss_x
         sub ax, 20
         jb short loc_A39F
-
-    The constant is decimal 20 in the listing.
     */
     if (MEM16(boss_state + 0) < 20) {
         return;

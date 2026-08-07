@@ -82,6 +82,8 @@ tasm /m9 meda.asm >>log.txt
 tlink meda.obj >>log.txt
 tasm /m9 lega.asm >>log.txt
 tlink lega.obj >>log.txt
+tasm /m9 drgn.asm >>log.txt
+tlink drgn.obj >>log.txt
 exit
 EOF
 
@@ -128,6 +130,7 @@ python3 exe2bin.py TORI.EXE tori.bin 0xA000
 python3 exe2bin.py ZELA.EXE zela.bin 0xA000
 python3 exe2bin.py MEDA.EXE meda.bin 0xA000
 python3 exe2bin.py LEGA.EXE lega.bin 0xA000
+python3 exe2bin.py DRGN.EXE drgn.bin 0xA000
 
 
 echo "ZELIARD.EXE diffs:" >diff.txt
@@ -204,4 +207,6 @@ echo "meda.bin diffs:" >>diff.txt
 { cmp -l ../game/0/meda.bin meda.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 echo "lega.bin diffs:" >>diff.txt
 { cmp -l ../game/0/lega.bin lega.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
+echo "drgn.bin diffs:" >>diff.txt
+{ cmp -l ../game/0/drgn.bin drgn.bin | gawk '{printf "0x%08X: %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'; } >>diff.txt 2>&1
 rm *.EXE *.MAP *.OBJ build.bat

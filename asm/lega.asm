@@ -3,8 +3,8 @@ include dungeon.inc
                 .286
                 .model small
 
-seg000          segment byte public 'CODE'
-                assume cs:seg000, ds:seg000
+lega          segment byte public 'CODE'
+                assume cs:lega, ds:lega
                 org 0A000h
 start:
                 dw offset Lega_AI_proc
@@ -894,6 +894,6 @@ unk_A7F1        db    0
                 db    0
                 db    0
 
-seg000          ends
+lega          ends
 
                 end start
