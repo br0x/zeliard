@@ -1886,11 +1886,15 @@ const NPC_FRAME_H  = 72;
 const NPC_FRAMES   = 8;           // frames per sheet
 
 // WASM memory addresses (mirrors town.h / town.c)
+const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (tear spoken to King)
+const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
 const ADDR_SPOKE_TO_KING             = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
+const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
+const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
 const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF (enemy projectiles)
 const PROJECTILE_STRUCT_SIZE         = 13;
 const ADDR_MAGIC_PROJECTILES         = 0xEB15;    // 4 slots × 16 bytes each
@@ -4956,6 +4960,24 @@ function parseDialogText(bytes) {
         let b = bytes[i];
         if (b === 0xFF || b === 0x00) break;
         if (b === 0x81) { hasYesNo = true; break; }
+        if (b === 0x83) {
+            // Control code 0x83: citizen gives Elf Crest after defeating Paguro
+            // (original: or caliente_items,80h; mov elf_crest,0FFh; call init_c015_obj_if_exists)
+            if (writeMemory && readMemory) {
+                const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
+                writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
+                writeMemory(ADDR_ELF_CREST, [0xFF]);
+            }
+            break;
+        }
+        if (b === 0x8B) {
+            // Control code 0x8B: tear collection (original: or byte_4,80h)
+            if (writeMemory && readMemory) {
+                const b4 = readMemory(ADDR_BYTE4, 1)[0];
+                writeMemory(ADDR_BYTE4, [b4 | 0x80]);
+            }
+            break;
+        }
         if (b >= 0x82) break;
         if (b === 0x2F) { pushLine(); continue; }
         if (b === 0x5c) b = 0x27;
@@ -5050,7 +5072,7 @@ function startConversationFromWasm() {
         townFinishConversation?.();
         return;
     }
-    const heroCrest = readMemory(0x9C, 1)[0];
+    const heroCrest = readMemory(ADDR_HERO_CREST, 1)[0];
     if (heroCrest && parsed.hasYesNo) {
         const crestText = getNpcConversationRaw(14);
         if (crestText) {
