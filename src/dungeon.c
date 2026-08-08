@@ -1791,7 +1791,12 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     prepare_dungeon(is_from_town);
 
     MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0;
-    if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN) {
+    // prepare_dungeon may have finalized directly into a boss cavern (town→boss
+    // skips the roka run), in which case Cavern_Game_Init set the state to
+    // DUNGEON_STATE_BOSS_ENCOUNTER for the JS encounter flash. Preserve that;
+    // only force NORMAL when no roka run and no encounter were started.
+    if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN &&
+        MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_BOSS_ENCOUNTER) {
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
     }
     MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
@@ -1812,10 +1817,20 @@ static uint8_t saved_y_view_init = 10;
 // (after_run_animation) directly instead of playing another roka run.
 static uint8_t g_skip_roka_run = 0;
 
+// True while entering a dungeon directly from a town. Set by prepare_dungeon;
+// after_run_animation uses it to skip the viewport_top_row adjustment that is
+// only correct for cavern→cavern doors (where the hero's absolute height is
+// carried across). Town→dungeon entries land from the roka run / encounter, so
+// the viewport set up by request_dungeon_transition must be preserved.
+static uint8_t g_is_from_town = 0;
+
 // Saved door target X from enter_opened_door. Preserved across prepare_dungeon's
 // memset (which zeroes ADDR_HERO_X_IN_PROXIMITY_MAP at 0x9F1A) so it can be used
 // to correctly recalculate ADDR_PROXIMITY_MAP_LEFT_COL with the new MDT's width.
 uint16_t saved_door_x1 = 0;
+
+// TEMP TEST ONLY — set saved_door_x1 from JS. Remove after verification.
+void wasm_set_door_x1(uint16_t x1) { saved_door_x1 = x1; }
 
 // State saved by enter_opened_door (phase 1) for use by
 // dungeon_complete_door_transition (phase 2).
@@ -1858,6 +1873,7 @@ void prepare_dungeon(uint8_t is_from_town)
     MEM8(ADDR_EAI_BIN_INDEX) = 0xFF;
     MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;
     // Only reset on actual town re-entry, not during door transitions (boss exit etc.)
+    g_is_from_town = is_from_town;
     if (is_from_town) saved_y_view_init = 10;
     reset_dungeon_state_vars();
     // Only reset magia stones on town→dungeon entry, not cavern→cavern doors
@@ -1896,8 +1912,13 @@ void prepare_dungeon(uint8_t is_from_town)
         remove_accomplished_items();
     }
     load_eai_module(map_id & 0x7F);
-    if (g_skip_roka_run) {
-        // Post-rokademo cavern entry: finalize directly, no second run.
+    // Town→boss cavern entries show only the encounter flash (the original
+    // never plays the roka run here). Detect the boss cavern from the new MDT
+    // descriptor byte 0 bit 7 — the same check after_run_animation uses for
+    // IS_BOSS_CAVERN.
+    int is_boss_cavern = (MEM8(mdt_descr + 0) & 0x80) ? 1 : 0;
+    if (g_skip_roka_run || (is_from_town && is_boss_cavern)) {
+        // Post-rokademo cavern entry, or town→boss entry: finalize directly, no roka run.
         g_skip_roka_run = 0;
         after_run_animation();
     } else {
@@ -4936,7 +4957,14 @@ void after_run_animation()
         uint8_t hero_head_y = MEM8(ADDR_HERO_Y_VIEW_INIT);
         MEM8(ADDR_HERO_HEAD_Y_VIEW) = hero_head_y;
         MEM8(ADDR_BYTE_9F00) = hero_head_y;
-        MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_VIEWPORT_TOP_ROW) + saved_y_view_init - hero_head_y) & 0x3F;
+        // For cavern→cavern doors the hero keeps the old map's absolute height
+        // (saved_y_view_init = old HERO_Y_VIEW_INIT). Town→dungeon entries land
+        // on the new room's floor, so the viewport_top_row set up by
+        // request_dungeon_transition ((door_y - 10) & 0x3F) must be preserved —
+        // adjusting it here lifts the hero up to two tiles above the ground.
+        if (!g_is_from_town) {
+            MEM8(ADDR_VIEWPORT_TOP_ROW) = (MEM8(ADDR_VIEWPORT_TOP_ROW) + saved_y_view_init - hero_head_y) & 0x3F;
+        }
         MEM8(ADDR_HERO_ANIM_PHASE) = 0x80;
         Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 0x66);
         NoOperation_proc();

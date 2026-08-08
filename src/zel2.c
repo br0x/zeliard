@@ -131,6 +131,12 @@ static uint8_t boundary_reached_flag = 0;       /* byte_A602: set when a movemen
 static uint8_t body_tile[12];
 static uint8_t body_frame[12];
 
+/* Written only, never read in this module - see file header comment. */
+static uint8_t byte_A606 = 0;
+static uint8_t byte_A60C = 0;
+static uint8_t byte_A612 = 0;
+static uint8_t byte_A618 = 0;
+
 /*
  * byte_A4DB: per-anim_phase facing/body-tile id, indexed by anim_phase
  * (0..7).
@@ -147,8 +153,8 @@ static const uint8_t movement_facing_table[8] = { 2, 1, 0, 3, 4, 3, 0, 1 };
  * convention as the other bosses); the exact group for Paguro's shot
  * is asset-pipeline data, not reproduced/guessed here.
  */
-static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0, 0, 0x32, 4, 0x78, 0, 0, 0, 0, 0, 0 }; /* byte_A543 */
-static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0, 0, 0x32, 0, 0x78, 0, 0, 0, 0, 0, 0 }; /* byte_A550 */
+static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0, 0, 50, 4, 120, 0, 0, 0, 0, 0, 0 }; /* byte_A543 */
+static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0, 0, 50, 0, 120, 0, 0, 0, 0, 0, 0 }; /* byte_A550 */
 
 /*
  * Forward declarations
@@ -158,7 +164,6 @@ static void apply_damage_to_boss(uint16_t damage);  /* sub_A55D */
 static void idle_or_hitflash_branch(void);          /* loc_A362 */
 static void idle_position_sync(void);               /* loc_A380 .. loc_A3B9 */
 static void attack_pattern_step(void);              /* loc_A2AF */
-static void alignment_adjust(void);                 /* sub_A339 / loc_A341 .. loc_A358 */
 static void render_and_projectile_tail(void);       /* loc_A3B9 */
 static void random_projectile_trigger_check(void);  /* loc_A3EB */
 static void near_shot_prepare(void);                /* loc_A444 */
@@ -172,6 +177,7 @@ static uint8_t move_boss_right(void);               /* sub_A525 */
 static uint8_t move_boss_left(void);                /* sub_A534 */
 static void move_boss_N(void);                      /* sub_A325 */
 static void move_boss_S(void);                      /* sub_A31B */
+static void alignment_adjust(void);                 /* sub_A339 / loc_A341 .. loc_A358 */
 static void movement_step_0(void);
 static void movement_step_N_align(void);
 static void movement_step_align_only(void);
@@ -214,6 +220,10 @@ void Paguro_AI_reset(void)
     last_col_rel_x = 0;
     death_timer = 0;
     boundary_reached_flag = 0;
+    byte_A606 = 0;
+    byte_A60C = 0;
+    byte_A612 = 0;
+    byte_A618 = 0;
 }
 
 /*
@@ -245,21 +255,15 @@ void Paguro_AI(uint16_t m)
         }
     }
 
-    /* --- loc_A254: a shot already armed (near or far) takes priority
-     * over everything else this frame - go straight to the idle/hit-
-     * flash tail (which itself still checks boss_being_hit first). --- */
-    if (projectile_request != 0) {
-        idle_or_hitflash_branch();
+    /* --- loc_A254 --- */
+    if (MEM8(ADDR_BOSS_BEING_HIT)) {
+        hit_flash_and_death_step();
         return;
     }
 
     if (!attack_active) {
         uint8_t r = (uint8_t)(get_random() & 0x0F);
-        if (r != 0) {
-            idle_or_hitflash_branch();
-            return;
-        }
-        if (MEM8(ADDR_BOSS_BEING_HIT)) {
+        if (r != 0 || MEM8(ADDR_BOSS_BEING_HIT)) {
             idle_or_hitflash_branch();
             return;
         }
@@ -340,6 +344,7 @@ static void apply_damage_to_boss(uint16_t damage)
     Draw_Boss_Health();
 
     if (hp != 0) return;
+    if (MEM8(ADDR_BOSS_BEING_HIT)) return; /* death sequence already started */
 
     /* See file header comment: unlike zela.c's equivalent, there is no
      * guard here against re-entering this branch on a later frame if
@@ -425,25 +430,6 @@ static void attack_pattern_step(void)
 }
 
 /*
- * sub_A339 / loc_A341 .. loc_A358: if the boss isn't already flagged as
- * having hit a wall this sequence, nudge it one step toward the
- * reference column (left_col_x + 12, wrapped) and flag on failure.
- */
-static void alignment_adjust(void)
-{
-    if (boundary_reached_flag) return;
-
-    uint16_t col = wrap_col(0x0C);
-    if (get_boss_x() == col) return;
-
-    if (approach_side_flag) {
-        if (!move_boss_left()) boundary_reached_flag = 0xFF;
-    } else {
-        if (!move_boss_right()) boundary_reached_flag = 0xFF;
-    }
-}
-
-/*
  * loc_A3B9: shared per-frame tail - refresh the body-segment staging
  * table for the current anim_phase, optionally arm/fire a projectile
  * (only while no attack sequence is active), then place the 4x3 body
@@ -475,7 +461,7 @@ static void random_projectile_trigger_check(void)
     uint8_t r = get_random();
     if (r & 1) return; /* 50%: no roll this frame */
 
-    uint16_t col = wrap_col(0x12);
+    uint16_t col = wrap_col(18);
     if (get_boss_x() >= col) {
         /* loc_A438 */
         if (anim_phase != 2) return;
@@ -484,7 +470,6 @@ static void random_projectile_trigger_check(void)
         return;
     }
 
-    /* boss_x < col */
     uint16_t col2 = (uint16_t)(col - 2);
     if ((uint16_t)(get_boss_x() + 7) >= col2) return; /* too far: abort */
     if (anim_phase != 6) return;
@@ -500,8 +485,8 @@ static void random_projectile_trigger_check(void)
  */
 static void near_shot_prepare(void)
 {
-    body_frame[1] = 0x0E;
-    body_frame[4] = 0x0F;
+    byte_A606 = 0x0E;
+    byte_A60C = 0x0F;
     if (anim_phase != 4) return;
     fire_projectile();
 }
@@ -512,8 +497,8 @@ static void near_shot_prepare(void)
  */
 static void far_shot_prepare(void)
 {
-    body_frame[7] = 0x0C;
-    body_frame[10] = 0x0D;
+    byte_A612 = 0x0C;
+    byte_A618 = 0x0D;
     if (anim_phase != 0) return;
     fire_projectile();
 }
@@ -669,6 +654,25 @@ static uint8_t move_boss_left(void)
 
 static void move_boss_N(void) { set_boss_y((uint8_t)((get_boss_y() - 1) & 0x3F)); } /* sub_A325 */
 static void move_boss_S(void) { set_boss_y((uint8_t)((get_boss_y() + 1) & 0x3F)); } /* sub_A31B */
+
+/*
+ * sub_A339 / loc_A341 .. loc_A358: if the boss isn't already flagged as
+ * having hit a wall this sequence, nudge it one step toward the
+ * reference column (left_col_x + 12, wrapped) and flag on failure.
+ */
+static void alignment_adjust(void)
+{
+    if (boundary_reached_flag) return;
+
+    uint16_t col = wrap_col(0x0C);
+    if (get_boss_x() == col) return;
+
+    if (approach_side_flag) {
+        if (!move_boss_left()) boundary_reached_flag = 0xFF;
+    } else {
+        if (!move_boss_right()) boundary_reached_flag = 0xFF;
+    }
+}
 
 /* funcs_A2F1[0] (sub_A325) */
 static void movement_step_0(void) { move_boss_N(); }

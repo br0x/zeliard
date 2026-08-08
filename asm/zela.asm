@@ -157,7 +157,7 @@ loc_A207:                               ;
                 shr     bl, 1
                 xor     bh, bh
                 cmp     al, 4
-                jnz     short loc_A237
+                jne     short loc_A237
                 add     bx, bx
                 add     bx, bx
                 mov     byte ptr ds:soundFX_request, 36
@@ -597,9 +597,9 @@ byte_A552       db 0
 byte_A553       db 0
                 db  15h
                 db    0
-                db  32h ; 2
+                db  50 ; p_max_step_count
                 db    4
-                db  50h ; P
+                db  80 ; p_damage
                 db    0
                 db    0
                 db    0
@@ -610,9 +610,9 @@ byte_A55F       db 0
 byte_A560       db 0
                 db  14h
                 db    0
-                db  32h ; 2
+                db  50 ; p_max_step_count
                 db    0
-                db  50h ; P
+                db  80 ; p_damage
                 db    0
                 db    0
                 db    0

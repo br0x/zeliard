@@ -127,8 +127,8 @@ static const uint8_t movement_facing_table[8] = { 2, 1, 0, 3, 4, 3, 0, 1 };
  * group 0, whose frames [0x14,0x15] are exactly the tiles the original
  * renders from those base indices.
  */
-static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0, 0, 0x32, 0x04, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A552 */
-static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0, 0, 0x32, 0x00, 0x50, 0, 0, 0, 0, 0, 0 }; /* byte_A55F */
+static uint8_t proj_near[PROJECTILE_STRUCT_SIZE] = { 0, 0, 0, 0, 50, 4, 80, 0, 0, 0, 0, 0, 0 }; /* byte_A552 */
+static uint8_t proj_far[PROJECTILE_STRUCT_SIZE]  = { 0, 0, 0, 0, 50, 0, 80, 0, 0, 0, 0, 0, 0 }; /* byte_A55F */
 
 /*
  * Forward declarations
@@ -140,7 +140,6 @@ static void idle_position_sync(void);               /* loc_A38F .. loc_A3BE */
 static void attack_pattern_step(void);              /* loc_A2BE */
 static void render_and_projectile_tail(void);       /* loc_A3C8 */
 static void random_projectile_trigger_check(void);  /* loc_A3FA */
-static void far_check_A447(void);                   /* loc_A447 */
 static void near_shot_prepare(void);                /* loc_A453 */
 static void far_shot_prepare(void);                 /* loc_A431 */
 static void fire_projectile(void);                  /* sub_A4F2 */
@@ -437,9 +436,12 @@ static void random_projectile_trigger_check(void)
     uint8_t r = get_random();
     if (r & 1) return; /* 50%: no roll this frame */
 
-    uint16_t col = wrap_col(0x12);
+    uint16_t col = wrap_col(18);
     if (get_boss_x() >= col) {
-        far_check_A447();
+        /* loc_A447 */
+        if (anim_phase != 2) return;
+        projectile_request = 1;
+        near_shot_prepare();
         return;
     }
 
@@ -449,14 +451,6 @@ static void random_projectile_trigger_check(void)
 
     projectile_request = 2;
     far_shot_prepare();
-}
-
-/* loc_A447 */
-static void far_check_A447(void)
-{
-    if (anim_phase != 2) return;
-    projectile_request = 1;
-    near_shot_prepare();
 }
 
 /* loc_A453 */

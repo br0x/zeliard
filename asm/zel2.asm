@@ -321,7 +321,7 @@ sub_A339        proc near
 
 loc_A341:
                 mov     ax, ds:proximity_map_left_col_x
-                add     ax, 0Ch
+                add     ax, 12
                 mov     bx, ax
                 sub     ax, ds:mapWidth
                 jb      short loc_A350
@@ -356,7 +356,7 @@ loc_A36C:
 
 loc_A380:
                 mov     ax, ds:proximity_map_left_col_x
-                add     ax, 12h
+                add     ax, 18
                 mov     bx, ax
                 sub     ax, ds:mapWidth
                 jnb     short loc_A38F
@@ -390,7 +390,7 @@ loc_A3B9:
                 mov     dl, byte_A4DB[bx]
                 xor     dh, dh
                 mov     di, offset unk_A603
-                mov     cx, 0Ch
+                mov     cx, 12
 
 loc_A3CB:
                 mov     [di], dx
@@ -411,7 +411,7 @@ loc_A3EB:
                 and     al, 1
                 jnz     short loc_A458
                 mov     ax, ds:proximity_map_left_col_x
-                add     ax, 12h
+                add     ax, 18
                 mov     bx, ax
                 sub     ax, ds:mapWidth
                 jb      short loc_A403
@@ -588,9 +588,9 @@ byte_A543       db 0
 byte_A544       db 0
                 db    5
                 db    0
-                db  32h ; 2
+                db  50 ; p_max_step_count
                 db    4
-                db  78h ; x
+                db  120 ; p_damage
                 db    0
                 db    0
                 db    0
@@ -601,9 +601,9 @@ byte_A550       db 0
 byte_A551       db 0
                 db    4
                 db    0
-                db  32h ; 2
+                db  50 ; p_max_step_count
                 db    0
-                db  78h ; x
+                db  120 ; p_damage
                 db    0
                 db    0
                 db    0
@@ -649,7 +649,7 @@ loc_A58B:
                 jnb     short loc_A5D2
                 test    byte_A601, 3
                 jnz     short loc_A5AE
-                mov     byte ptr ds:soundFX_request, 28h ; '('
+                mov     byte ptr ds:soundFX_request, 40
 
 loc_A5AE:
                 inc     byte_A5F6

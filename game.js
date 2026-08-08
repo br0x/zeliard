@@ -1401,7 +1401,7 @@ const DUNGEONS = {
         ],
         ai: EAI7,
     },
-    21: {
+    21: { // Llama hut with Paguro boss
         mdtPath: 'game/0/mp73.mdt',
         tilesheetPath: 'assets/images/mppb.png',
         entitySheetPath: 'assets/images/zel2.png',
@@ -1425,6 +1425,16 @@ const DUNGEONS = {
         projectiles: [ // 1-based tile indices in mppX.png sheet
             [4, 5],
         ],
+        bossState: {
+            bossX: 48,          // +0
+            bossY: 12,          // +2
+            bossHP: 600,        // +3
+            xpReward: 3000,     // +5
+            arenaCenterX: 12,   // +7
+            bossPlacement: 0,   // +8
+            almasReward: 1600,  // +9
+            bossName: 'Paguro',
+        },
         ai: ZEL2,
     },
     22: { // dungeon 7 boss room
