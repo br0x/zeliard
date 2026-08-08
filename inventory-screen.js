@@ -505,8 +505,8 @@ export class InventoryScreen {
                 cx += 64;
             }
             if (d.lionKeys) {
-                this._drawSheet(ctx, 'keys', 1, x + cx + 10, ey + 2, iconSize, iconSize);
-                ctx.fillText(`\u00d7${d.lionKeys}`, cx + labelX, ey + 18);
+                this._drawSheet(ctx, 'keys', 1, cx, ey + 2, iconSize, iconSize);
+                ctx.fillText(`×${d.lionKeys}`, cx + 70, ey + 18);
                 cx += 64;
             }
             ey += 52;
