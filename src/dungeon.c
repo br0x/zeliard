@@ -5220,7 +5220,7 @@ void load_eai_module(uint8_t place_map_id)
         case 18: current_monster_ai = Monster_AI_7; break; // mp70.mdt
         case 19: current_monster_ai = Monster_AI_7; break; // mp71.mdt
         case 20: current_monster_ai = Monster_AI_7; break; // mp72.mdt
-        case 21: current_monster_ai = Monster_AI_7; break; // mp73.mdt
+        case 21: Paguro_AI_reset(); current_monster_ai = Paguro_AI; break;     // mp73.mdt
         case 22: Dragon_AI_reset(); current_monster_ai = Dragon_AI; break;     // mp7d.mdt
         case 23: current_monster_ai = Monster_AI_8; break; // mp80.mdt
         case 24: current_monster_ai = Monster_AI_8; break; // mp81.mdt

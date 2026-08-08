@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/drgn.grp"
+                "${workspaceFolder}/tools/GrpViewer/zel2.grp"
             ],
             "console": "integratedTerminal",
         },
