@@ -5020,7 +5020,7 @@ void Cavern_Game_Init(void) {
         // (no AI, no hero input) during animation. JS completes boss entry after the animation finishes.
 
         // Override enp_grp_idx with boss_grp from mdt_descriptor
-        uint16_t si = ADDR_MDT;  // mdt_buffer
+        uint16_t si = MEM16(ADDR_MDT);  // mdt_descriptor
         uint8_t boss_grp = MEM8(si + 5);  // mdt_descriptor.boss_grp
         MEM8(si + 4) = boss_grp;          // mdt_descriptor.enp_grp_idx = boss_grp
 
