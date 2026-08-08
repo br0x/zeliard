@@ -375,7 +375,8 @@ def _parse_dungeon_descriptor(data: bytes, desc_ptr: int, n: int):
     if off is None or off + 4 >= n:
         return None
 
-    digit_char = str(data[off + 2]+1)
+    digit = data[off + 2]+1
+    digit_char = str(digit) if digit < 10 else chr(ord('a') + digit - 10)
 
     return decode_dungeon_grp(f"mpp{digit_char}.grp")
 

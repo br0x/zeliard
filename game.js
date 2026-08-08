@@ -1406,37 +1406,26 @@ const DUNGEONS = {
     },
     21: {
         mdtPath: 'game/0/mp73.mdt',
-        tilesheetPath: 'assets/images/mpp7.png',
-        entitySheetPath: 'assets/images/enp7.png',
+        tilesheetPath: 'assets/images/mppb.png',
+        entitySheetPath: 'assets/images/zel2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
-            0, 1, 2, 0x14, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x23, 
-            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+            0,
         ],
-        slopeTilesLeft: [0x1E, 0, 0, 0], // mppX.grp.unp bytes 0x18..0x1B
-        slopeTilesRight: [0x23, 0, 0, 0], // mppX.grp.unp bytes 0x1C..0x1F
-        aggressiveGround: [0x2B, 0x2C, 0x2D, 0], // mppX.grp.unp bytes 0x20..0x23
-        airflows: [0x2A, 0, 0, 0, 0x29, 0, 0, 0, 0x28], // mppX.grp.unp bytes 0x24..0x2f
-        monster_xp:     [80, 80, 200, 200, 50], // from eaiN.bin
+        slopeTilesLeft: [], // mppX.grp.unp bytes 0x18..0x1B
+        slopeTilesRight: [], // mppX.grp.unp bytes 0x1C..0x1F
+        aggressiveGround: [], // mppX.grp.unp bytes 0x20..0x23
+        airflows: [], // mppX.grp.unp bytes 0x24..0x2f
+        monster_xp:     [], // from eaiN.bin
         monster_damage: [80, 80, 80, 80, 40], // from eaiN.bin
         death_descriptors: [ // from eaiN.bin
-            [11, 11, 11, 5],
-            [11, 11, 11, 5],
-            [11, 11, 11, 5],
-            [11, 11, 11, 5],
-            [11, 5, 5, 0],
-            [],
-            [],
-            [],
+            [], [], [], [], [], [], [], [],
         ],
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x2F],
-            [0x30],
-            [0x31],
-            [0x32],
+            [4, 5],
         ],
-        ai: EAI7,
+        ai: ZEL2,
     },
     22: { // dungeon 7 boss room
         mdtPath: 'game/0/mp7d.mdt',
