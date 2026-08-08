@@ -2070,8 +2070,24 @@ void jump_press_handler()
     return;
 }
 
-// stub
-void hero_collapse_platform(void) {}
+// Collapse any crumbling platform the hero is standing on.
+// Original asm: fight.asm hero_collapse_platform (0x8197).
+// Note: collapsing and vertical platforms share the same struct.
+void hero_collapse_platform(void)
+{
+    uint16_t si = hero_coords_to_addr_in_proximity();
+    si += 3 * PROX_COLS + 1;
+    wrap_map_from_above(&si);
+
+    int8_t dh;
+    if (identify_platform_tile(si, 0x43, &dh)) return; // not a collapsing platform
+
+    uint16_t di = MEM16(ADDR_COLLAPSING_PLATFORMS_LIST);
+    uint16_t platform_prox = find_platform_under_hero(&di, dh);
+    if (try_move_platform_down(di, platform_prox, 0x43)) { // CF: platform moved down
+        hero_scroll_down();
+    }
+}
 
 // CF: false (blocked from below), NC: true (can move down)
 uint8_t check_floor_for_landing() {
@@ -2399,8 +2415,28 @@ void render_vertical_platforms_to_proximity()
     }
 }
 
-// stub
-void process_visible_collapsing_platforms(void) {}
+// Note: collapsing and vertical platforms share the same struct.
+// Original asm: fight.asm process_visible_collapsing_platforms (0x8168).
+void process_visible_collapsing_platforms(void)
+{
+    uint16_t si = MEM16(ADDR_COLLAPSING_PLATFORMS_LIST);
+    for (;;) {
+        uint16_t x = MEM16(si + 0); // .x
+        if (x == 0xFFFF)
+            return;
+        uint16_t ax_rel, bx_rel;
+        if (!abs_x_to_proximity_rel(x, &ax_rel, &bx_rel)) {
+            uint16_t di = coords_to_prox_addr((uint8_t)bx_rel, MEM8(si + 2)); // .y
+            uint8_t tile = 0x43; // collapsing platform tiles are 0x43, 0x44, 0x45
+            for (int i = 0; i < 3; i++) {
+                put_dl_to_proximity_layered(tile, di);
+                di++;
+                tile++;
+            }
+        }
+        si += 3;
+    }
+}
 
 /* 
  *
