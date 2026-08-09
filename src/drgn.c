@@ -349,9 +349,9 @@ void Dragon_AI(uint16_t m)
         } else {
             edge = (uint8_t)(edge - 5);
             if (edge >= x)
-                pose = (pose < 7) ? 0 : 6;
-            else
                 pose = (pose < 7) ? 4 : 6;
+            else
+                pose = (pose < 7) ? 0 : 6;
         }
     }
 

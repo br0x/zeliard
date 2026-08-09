@@ -1462,13 +1462,13 @@ const DUNGEONS = {
         projectiles: [ // 1-based tile indices in mppX.png sheet
         ],
         bossState: {
-            bossX: 30,                // +0
+            bossX: 30,               // +0
             bossY: 8,                // +2
-            bossHP: 800,              // +3
-            xpReward: 12000,           // +5
+            bossHP: 800,             // +3
+            xpReward: 12000,         // +5
             arenaCenterX: 5,         // +7
-            bossPlacement: 0,         // +8
-            almasReward: 2500,         // +11
+            bossPlacement: 0,        // +8
+            almasReward: 2500,       // +11
             bossName: 'Dragon',
         },
         ai: DRGN,
