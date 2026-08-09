@@ -257,6 +257,8 @@ extern "C" {
 #define ADDR_CAVERN_SIGN_FLAG       0xFFA1  // byte
 #define ADDR_CAVERN_SIGN_IDX        0xFFA2  // byte
 #define ADDR_MAGIC_LEFT_RENDER_REQUEST 0xFFA3  // byte: 0xFF = JS should redraw magic left counter
+#define ADDR_SWORD_RENDER_REQUEST 0xFFA4  // byte: 0xFF = JS should redraw sword HUD icon
+#define ADDR_SWORD_GFX_RELOAD_REQUEST 0xFFA5  // byte: 0xFF = JS should reload sword gfx (longer sword)
 
 #define ADDR_DUNGEON_EXIT_FLAG    0xFFE2
 #define ADDR_HERO_DEATH_FLAG      0xFFE3

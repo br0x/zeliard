@@ -1994,6 +1994,8 @@ const ADDR_BOSS_MODE               = 0xFFA0;
 const ADDR_CAVERN_SIGN_FLAG        = 0xFFA1;
 const ADDR_CAVERN_SIGN_IDX         = 0xFFA2;
 const ADDR_MAGIC_LEFT_RENDER_REQUEST = 0xFFA3;
+const ADDR_SWORD_RENDER_REQUEST     = 0xFFA4;
+const ADDR_SWORD_GFX_RELOAD_REQUEST = 0xFFA5;
 const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
 const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
 
@@ -4671,6 +4673,18 @@ function drawEncounterText(alpha) {
     ctx.restore();
 }
 
+// set sword reachability list
+function updateDungeonSwordReach() {
+    const swordType = readMemory(ADDR_SWORD_TYPE, 1)[0];
+    if (swordType <= 3) {
+        setDungeonSwordReach(SWORD_REACH_SMALL);
+    } else if (swordType <= 5) {
+        setDungeonSwordReach(SWORD_REACH_MEDIUM);
+    } else {
+        setDungeonSwordReach(SWORD_REACH_LARGE);
+    }
+}
+
 // ─── Town transition ──────────────────────────────────────────────────────────
 let townTransitionInProgress = false;
 async function handleTownTransition(transition) {
@@ -4791,15 +4805,7 @@ async function handleDungeonTransition(mapId, isFromTown) {
                 ADDR_BOSS_STATE_BLOCK & 0xFF, (ADDR_BOSS_STATE_BLOCK >> 8) & 0xFF,
             ]);
         }
-        // set sword reachability list
-        const swordType = readMemory(ADDR_SWORD_TYPE, 1)[0];
-        if (swordType <= 3) {
-            setDungeonSwordReach(SWORD_REACH_SMALL);
-        } else if (swordType <= 5) {
-            setDungeonSwordReach(SWORD_REACH_MEDIUM);
-        } else {
-            setDungeonSwordReach(SWORD_REACH_LARGE);
-        }
+        updateDungeonSwordReach();
         await loadRokaImages();
         await loadEncounterImage();
         dungeonInit?.(rawMapId, isFromTown); // should call dungeon::prepare_dungeon
@@ -6030,6 +6036,14 @@ function draw() {
         if (gMem(ADDR_MAGIC_LEFT_RENDER_REQUEST)) {
             renderMagicHud();
             writeMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, [0]);
+        }
+        if (gMem(ADDR_SWORD_RENDER_REQUEST)) {
+            renderSwordHud();
+            writeMemory(ADDR_SWORD_RENDER_REQUEST, [0]);
+        }
+        if (gMem(ADDR_SWORD_GFX_RELOAD_REQUEST)) {
+            updateDungeonSwordReach(); 
+            writeMemory(ADDR_SWORD_GFX_RELOAD_REQUEST, [0]);
         }
     } else { // town outdoor mode
         ctx.fillStyle = townPatId === 2 ? '#000000' : '#05053f';

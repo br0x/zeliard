@@ -558,24 +558,24 @@ flags_check:
     }
 }
 
-// stub
-// TODO: signal to js for sword icon drawing
+// Signal game.js to redraw the sword HUD icon (bottom-right).
+// Mirrors the gold/almas/shield/magic render-request pattern; the JS
+// dungeon render loop watches ADDR_SWORD_RENDER_REQUEST and calls
+// renderSwordHud(), which reads ADDR_SWORD_TYPE and swaps the icon.
 void Render_Sword_Item_Sprite_20x18(uint8_t sword_type)
 {
+    MEM8(ADDR_SWORD_RENDER_REQUEST) = 0xFF;
 }
 
-// stub
-// TODO: signal to js for sword gfx reload
+// signal game.js for sword gfx reload
 void res_dispatcher_fn4(uint8_t sword_type)
 {
-
+    MEM8(ADDR_SWORD_GFX_RELOAD_REQUEST) = 0xFF;
 }
 
 // stub
 void render_cavern_signs(uint8_t idx)
 {
-    // uint16_t info = MEM16(ADDR_CAVERN_SIGNS_INFO) + idx * 2; // will be done in js
-    debug_printf("[render_cavern_sign] idx=%d", idx);
     MEM8(ADDR_CAVERN_SIGN_IDX) = idx;
     MEM8(ADDR_CAVERN_SIGN_FLAG) = 0xFF; // signal to js
 }
