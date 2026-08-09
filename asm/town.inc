@@ -83,21 +83,21 @@ npc_patrol_boundaries                              equ 0C011h
 word_C015                                          equ 0C015h
 town_tiles                                         equ 0C017h
 town_head_level_tiles                              equ town_tiles+5 ; the row where NPC IDs live
-;Offset | Muralla Town | Details
-;-----------------------------------------------
-; c000  | c6d3         | Town descriptor: 00 00 ff 00 01
-; c002  | 00d7         | mapWidth
-; c004  | c6d8         | Town name rendering info
-; c006  | 1            |
-; c007  | c6e8         | town_transition_table
-; c009  | c6ec         | Town doors array (struct size = 3)
-; c00b  | c700         | 3D 00 07 00 00 FF FF
-; c00d  | c707         | array of pointers to ff-terminated strings (NPC conversation)
-; c00f  | ceaf         | NPC array (struct size = 8)
-; c011  | c6cf         | 05 00 96 00
-; c013  | 00ac         |
-; c015  | c705         | ff ff
-; c017  | -            | Unpacked town map c017...c6cf = 0x6b8 bytes = 0xd7 * 8 (8 x 1 vertical blocks)
+;Offset | Details
+;--------------------------------
+; c000  | Town descriptor
+; c002  | mapWidth
+; c004  | Town name rendering info
+; c006  |
+; c007  | town_transition_table
+; c009  | Town doors array (struct size = 3)
+; c00b  | 
+; c00d  | array of pointers to ff-terminated strings (NPC conversation)
+; c00f  | NPC array (struct size = 8)
+; c011  | 
+; c013  |
+; c015  | 
+; c017  | Unpacked town map c017... (8 x 1 vertical blocks)
 
 viewport_buffer                                    equ 0E000h
 word_E001                                          equ 0E001h

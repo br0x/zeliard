@@ -2085,6 +2085,7 @@ let townCompleteTransition;
 let townEntryEnablingEdgeScroll;
 let townFinishConversation;
 let townFinishBuilding;
+let initC015ObjIfExists;
 let dungeonInit;
 let dungeonUpdate;
 let dungeonFullTick;
@@ -2978,7 +2979,7 @@ async function loadWasmEngine() {
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
-        townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding,
+        townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding, initC015ObjIfExists,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
         dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
         setDungeonPassableTiles, setDungeonAggressiveGround, 
@@ -3120,11 +3121,22 @@ function getAnimatedTownTileId(tileId) {
     return seq[newPos];
 }
 
+/**
+ * Draw the 28-column town tile map.
+ *
+ * Reads tile IDs directly from WASM linear memory (g_mem) rather than from
+ * the JS-side mdtData copy. This is necessary because the WASM code's
+ * init_c015_obj_if_exists() and save/restore_head_level_tiles_in_npcs()
+ * dynamically modify the tile map in g_mem during town entry and conversation,
+ * and those changes must be visible to the renderer.
+ */
 function drawTownTiles() {
     if (!mdtData || !townTileSheetReady) return false;
     const mapWidth = getTownMapWidth();
     if (!mapWidth) return false;
-    
+
+    const mem = getWasmMemory?.();
+
     const leftCol = Math.max(0, Math.min(
         mapWidth - VIEW_COLS,
         (gMem(ADDR_PROXIMITY_MAP_LEFT_COL) ?? 0) + TOWN_VISIBLE_COL_OFFSET
@@ -3132,8 +3144,17 @@ function drawTownTiles() {
     for (let col = 0; col < VIEW_COLS; col++) {
         const mapCol = leftCol + col;
         for (let row = 0; row < TOWN_VIEW_ROWS; row++) {
-            const mdtOffset = TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
-            let tileId = mdtData[mdtOffset] ?? 0;
+            const mdtOffset  = TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
+            const wasmAddr   = ADDR_TOWN_DESCRIPTOR_PTR + TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
+            let tileId;
+            if (mem) {
+                tileId = mem[wasmAddr];
+                if (tileId === 0xFD) {
+                    tileId = mdtData[mdtOffset] ?? 0;
+                }
+            } else {
+                tileId = mdtData[mdtOffset] ?? 0;
+            }
             tileId = getAnimatedTownTileId(tileId);
             const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_WIDTH;
             const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_HEIGHT;
@@ -5025,6 +5046,7 @@ function parseDialogText(bytes) {
                 const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
                 writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
                 writeMemory(ADDR_ELF_CREST, [0xFF]);
+                initC015ObjIfExists();
             }
             break;
         }

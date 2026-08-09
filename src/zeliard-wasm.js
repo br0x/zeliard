@@ -224,6 +224,20 @@ export function townEntryEnablingEdgeScroll() {
     wasmExports.wasm_town_entry_enabling_edge_scroll();
 }
 
+// run init_c015_obj_if_exists
+export function initC015ObjIfExists() {
+    if (!wasmExports) {
+        console.error('WASM not initialized');
+        return;
+    }
+
+    if (!wasmExports.wasm_init_c015_obj_if_exists) {
+        throw new Error('wasm_init_c015_obj_if_exists is not exported');
+    }
+
+    wasmExports.wasm_init_c015_obj_if_exists();
+}
+
 /**
  * Run one extracted town main-loop update.
  */

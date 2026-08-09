@@ -1254,6 +1254,8 @@ var _wasm_town_update = Module["_wasm_town_update"] = makeInvalidEarlyAccess("_w
 
 var _wasm_town_full_tick = Module["_wasm_town_full_tick"] = makeInvalidEarlyAccess("_wasm_town_full_tick");
 
+var _wasm_init_c015_obj_if_exists = Module["_wasm_init_c015_obj_if_exists"] = makeInvalidEarlyAccess("_wasm_init_c015_obj_if_exists");
+
 var _wasm_get_mem_ptr = Module["_wasm_get_mem_ptr"] = makeInvalidEarlyAccess("_wasm_get_mem_ptr");
 
 var _wasm_set_scroll_floor_right_8px = Module["_wasm_set_scroll_floor_right_8px"] = makeInvalidEarlyAccess("_wasm_set_scroll_floor_right_8px");
@@ -1316,6 +1318,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports["wasm_town_entry_enabling_edge_scroll"] != "undefined", "missing Wasm export: wasm_town_entry_enabling_edge_scroll");
   assert(typeof wasmExports["wasm_town_update"] != "undefined", "missing Wasm export: wasm_town_update");
   assert(typeof wasmExports["wasm_town_full_tick"] != "undefined", "missing Wasm export: wasm_town_full_tick");
+  assert(typeof wasmExports["wasm_init_c015_obj_if_exists"] != "undefined", "missing Wasm export: wasm_init_c015_obj_if_exists");
   assert(typeof wasmExports["wasm_get_mem_ptr"] != "undefined", "missing Wasm export: wasm_get_mem_ptr");
   assert(typeof wasmExports["wasm_set_scroll_floor_right_8px"] != "undefined", "missing Wasm export: wasm_set_scroll_floor_right_8px");
   assert(typeof wasmExports["wasm_set_scroll_floor_left_8px"] != "undefined", "missing Wasm export: wasm_set_scroll_floor_left_8px");
@@ -1358,6 +1361,7 @@ function assignWasmExports(wasmExports) {
   _wasm_town_entry_enabling_edge_scroll = Module["_wasm_town_entry_enabling_edge_scroll"] = createExportWrapper("wasm_town_entry_enabling_edge_scroll", 0);
   _wasm_town_update = Module["_wasm_town_update"] = createExportWrapper("wasm_town_update", 0);
   _wasm_town_full_tick = Module["_wasm_town_full_tick"] = createExportWrapper("wasm_town_full_tick", 0);
+  _wasm_init_c015_obj_if_exists = Module["_wasm_init_c015_obj_if_exists"] = createExportWrapper("wasm_init_c015_obj_if_exists", 0);
   _wasm_get_mem_ptr = Module["_wasm_get_mem_ptr"] = createExportWrapper("wasm_get_mem_ptr", 0);
   _wasm_set_scroll_floor_right_8px = Module["_wasm_set_scroll_floor_right_8px"] = createExportWrapper("wasm_set_scroll_floor_right_8px", 1);
   _wasm_set_scroll_floor_left_8px = Module["_wasm_set_scroll_floor_left_8px"] = createExportWrapper("wasm_set_scroll_floor_left_8px", 1);

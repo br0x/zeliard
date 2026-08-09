@@ -390,16 +390,14 @@ static void swap_a000_c000_buffers(void);
 #define INPUT_DIRS MEM8(ADDR_INPUT_DIRS)   /* bits: right/left/down/up */
 #define INPUT_ALT_SPACE MEM8(ADDR_INPUT_ALT_SPACE)       /* bits: alt/space */
 
-/* =========================================================================
- * town_entry_disabling_edge_scroll — primary init, called from fight.bin after dungeon
- * town_entry_enabling_edge_scroll — re-entry after sage resurrection / falter warp
- * ========================================================================= */
+// primary init, called from fight.bin after dungeon
 void town_entry_disabling_edge_scroll(void)
 {
     MEM8(ADDR_DISABLE_EDGE_SCROLL) = 0xFF;
     town_entry_common();
 }
 
+// re-entry after sage resurrection / falter warp
 void town_entry_enabling_edge_scroll(void)
 {
     MEM8(ADDR_DISABLE_EDGE_SCROLL) = 0x00;
@@ -452,7 +450,7 @@ static void town_entry_common(void)
     }
 
     /* --- town_entry_internal --- */
-    init_c015_obj_if_exists(); // something to do with Hero's Crest
+    init_c015_obj_if_exists(); // something to do with town quests
     SPACEBAR = 0;
     ALTKEY   = 0;
     MEM8(ADDR_BYTE_E4) = 0;
@@ -1462,7 +1460,6 @@ static void load_hero_town_sprite(void)
 }
 
 /* =========================================================================
- * init_c015_obj_if_exists
  * Copies/skips blocks according to the descriptor table at word_C015.
  * Format: dst_addr(word), flag_byte — terminated by 0xFFFF.
  * ========================================================================= */
@@ -1471,24 +1468,22 @@ static void init_c015_obj_if_exists(void)
     uint16_t si = MEM16(ADDR_WORD_C015);
     for (;;) {
         uint16_t dst = MEM16(si); si += 2;
-        if ((dst & 0xFF) == 0xFF && (dst >> 8) == 0xFF) return;
+        if (dst == 0xFFFF) return;
 
         uint8_t flag = MEM8(si++);
         if (!(flag & g_mem[dst])) {
-            /* skip until next 0xFFFF */
             for (;;) {
                 uint16_t w = MEM16(si); si += 2;
-                if ((w & 0xFF) == 0xFF && (w >> 8) == 0xFF) break;
+                if (w == 0xFFFF) break;
                 si++;
             }
             continue;
         }
-        /* copy mode: dst/byte pairs until 0xFFFF */
         for (;;) {
             uint16_t d2 = MEM16(si); si += 2;
-            if ((d2 & 0xFF) == 0xFF && (d2 >> 8) == 0xFF) break;
+            if (d2 == 0xFFFF) break;
             uint8_t val = MEM8(si++);
-            g_mem[d2] = val;
+            MEM8(d2) = val;
         }
     }
 }
@@ -2341,6 +2336,12 @@ void wasm_town_full_tick(void)
     if (g_pending_wait && MEM8(ADDR_FRAME_TIMER) >= g_pending_wait_target) {
         town_complete_wait();
     }
+}
+
+// JS callable
+void wasm_init_c015_obj_if_exists(void)
+{
+    init_c015_obj_if_exists();
 }
 
 static void town_complete_wait(void)

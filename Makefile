@@ -19,7 +19,7 @@ EMFLAGS = \
 "_wasm_town_set_return_before_main_loop","_wasm_town_entry_disabling_edge_scroll","_wasm_town_entry_enabling_edge_scroll",\
 "_wasm_town_update","_wasm_town_full_tick","_wasm_set_input_keys","_wasm_set_scroll_floor_right_8px",\
 "_wasm_set_scroll_floor_left_8px","_wasm_set_scroll_ceiling_right_4px","_wasm_set_scroll_ceiling_left_4px",\
-"_wasm_town_complete_transition","_wasm_get_pending_transition_map",\
+"_wasm_town_complete_transition","_wasm_get_pending_transition_map","_wasm_init_c015_obj_if_exists",\
 "_wasm_get_pending_transition_pat","_wasm_get_pending_transition_dir","_wasm_town_conversation_finish",\
 "_wasm_town_building_finish","_wasm_dungeon_init","_wasm_dungeon_update","_wasm_dungeon_full_tick",\
 "_wasm_dungeon_get_viewport_top","_wasm_dungeon_get_entity_table","_wasm_dungeon_get_entity_count",\
