@@ -72,7 +72,6 @@ static void dungeon_finish_rope_frame(void);
 static uint8_t abs_x_to_proximity_rel(uint16_t x, uint16_t *ax_out, uint16_t *bx_out);
 static void put_dl_to_proximity_layered(uint8_t tile, uint16_t dst);
 
-static uint8_t jump_height_including_shoes = 2;
 uint8_t sword_damages[] = { 1, 2, 4, 8, 32, 127 };
 uint8_t byte_98BE[]     = { 2, 4, 8, 16, 32, 64, 255 };
 
@@ -2051,7 +2050,7 @@ void jump_press_handler()
     MEM8(ADDR_SQUAT_FLAG) = 0;
 
     // If already reached or exceeded max jump height, go to descending
-    if (MEM8(ADDR_BYTE_9F09) >= jump_height_including_shoes) {
+    if (MEM8(ADDR_BYTE_9F09) >= MEM8(ADDR_JUMP_HEIGHT_INCLUDING_SHOES)) {
         MEM8(ADDR_SLOPE_DIRECTION) = 0;
         MEM8(ADDR_JUMP_PHASE_FLAGS) = 0x7F;
         return;
@@ -2068,7 +2067,7 @@ void jump_press_handler()
         MEM8(ADDR_HERO_ANIM_PHASE) = 0;
         MEM8(ADDR_FACING) &= ~UP;      // clear Up bit (bit 1)
         MEM8(ADDR_JUMP_PHASE_FLAGS) = 0xFF;        // ascending
-        MEM8(ADDR_HEIGHT_ABOVE_GROUND) = jump_height_including_shoes >> 1;  // 1 normally, 2 with feruza shoes
+        MEM8(ADDR_HEIGHT_ABOVE_GROUND) = MEM8(ADDR_JUMP_HEIGHT_INCLUDING_SHOES) >> 1;  // 1 normally, 2 with feruza shoes
         MEM8(ADDR_BYTE_9F09)++;                    // advance jump step counter
 
         if (MEM8(ADDR_HERO_HEAD_Y_VIEW) >= 7) {
