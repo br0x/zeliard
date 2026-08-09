@@ -1885,21 +1885,18 @@ const NPC_FRAME_W  = 48;
 const NPC_FRAME_H  = 72;
 const NPC_FRAMES   = 8;           // frames per sheet
 
-// WASM memory addresses (mirrors town.h / town.c)
+const LLAMA_TOWN_ID                  = 7;        // TOWN_MDTS index for llmp.mdt (Asbestos Cape merchant)
+const PROJECTILE_STRUCT_SIZE         = 13;
+const MAGIC_PROJECTILE_STRIDE        = 0x10;
+
+// WASM memory addresses
 const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (tear spoken to King)
-const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
 const ADDR_SPOKE_TO_KING             = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
+const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
-const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
-const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
-const ADDR_PROJECTILES_LIST          = 0xEB80;    // 13×32 bytes, terminated by 0xFF (enemy projectiles)
-const PROJECTILE_STRUCT_SIZE         = 13;
-const ADDR_MAGIC_PROJECTILES         = 0xEB15;    // 4 slots × 16 bytes each
-const MAGIC_PROJECTILE_STRIDE        = 0x10;
-const ADDR_BYTE_9EED                 = 0x9EED;    // set on casting "guerra"
 const ADDR_HERO_X_VIEW               = 0x83;
 const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
 const ADDR_HERO_GOLD_HI              = 0x85;
@@ -1911,6 +1908,8 @@ const ADDR_HERO_HP                   = 0x90;
 const ADDR_SWORD_TYPE                = 0x92;
 const ADDR_SHIELD_TYPE               = 0x93;
 const ADDR_SHIELD_HP                 = 0x94;
+const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
+const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
 const ADDR_CURR_SPELL_TYPE           = 0x9d;
 const ADDR_TEAR_COUNT                = 0xA0;
 const ADDR_SPELL_COUNTS = [
@@ -1926,6 +1925,7 @@ const ADDR_HERO_ANIM_PHASE           = 0xE7;
 const ADDR_INVINCIBILITY_FLAG        = 0xE8;
 
 const ADDR_BOSS_STATE_BLOCK        = 0x9D00;
+const ADDR_BYTE_9EED               = 0x9EED; // set on casting "guerra"
 const ADDR_BYTE_9F00               = 0x9F00;
 const ADDR_BOSS_PLACEMENT          = 0x9F01;
 const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
@@ -1946,8 +1946,10 @@ const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
 const ADDR_CAVERN_SIGNS_INFO       = 0xC017; // word
 const ADDR_PROXIMITY_MAP           = 0xE000; // 36*64 circular buffer
 const ADDR_VIEWPORT_ENTITIES       = 0xE900; // 28*19 bytes cache buffer
-const ADDR_PROXIMITY_LAYER2        = 0xED20; // 128 bytes layer-2 tile mapping
+const ADDR_MAGIC_PROJECTILES       = 0xEB15; // 4 slots × 16 bytes each
 const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes each, 4 sprites)
+const ADDR_PROJECTILES_LIST        = 0xEB80; // 13×32 bytes, terminated by 0xFF (enemy projectiles)
+const ADDR_PROXIMITY_LAYER2        = 0xED20; // 128 bytes layer-2 tile mapping
 const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 bytes each)
 const ADDR_FRAME_TIMER             = 0xFF1A;
 const ADDR_SPACEBAR_LATCH          = 0xFF1D  // byte
@@ -2388,6 +2390,47 @@ function onSlowTick() {
     if (conversation.active) {
         const spaceLatched = gMem(ADDR_SPACEBAR_LATCH);
 
+        if (conversation.purchaseMode) {
+            const dirUp = keys.ArrowUp && !lastDirUp;
+            const dirDown = keys.ArrowDown && !lastDirDown;
+            lastDirUp = keys.ArrowUp;
+            lastDirDown = keys.ArrowDown;
+            if (dirUp && conversation.purchaseCursor > 0) {
+                conversation.purchaseCursor--;
+            } else if (dirDown && conversation.purchaseCursor < 1) {
+                conversation.purchaseCursor++;
+            }
+            if (spaceLatched) {
+                writeMemory(ADDR_SPACEBAR_LATCH, [0]);
+                conversation.purchaseMode = false;
+                if (conversation.purchaseCursor === 0) {
+                    // "Take" — buy the Asbestos cape for 2500 almas
+                    const almas = getHeroAlmasValue();
+                    if (almas >= 2500) {
+                        setHeroAlmasValue(almas - 2500);
+                        renderAlmasHud();
+                        // caliente_items bit6 = bought Asbestos Cape
+                        const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
+                        writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x40]);
+                        // Insert Asbestos Cape (item id 5) into first empty slot
+                        for (let slot = 0xA1; slot < 0xFF; slot++) {
+                            if (readMemory(slot, 1)[0] === 0) {
+                                writeMemory(slot, [5]);
+                                break;
+                            }
+                        }
+                        loadConversationPattern(8);
+                    } else {
+                        loadConversationPattern(7);
+                    }
+                } else {
+                    // "No Take"
+                    loadConversationPattern(6);
+                }
+            }
+            return;
+        }
+
         if (conversation.yesNoMode) {
             const dirUp = keys.ArrowUp && !lastDirUp;
             const dirDown = keys.ArrowDown && !lastDirDown;
@@ -2415,6 +2458,7 @@ function onSlowTick() {
                         conversation.pages = parsed.pages;
                         conversation.page = 0;
                         conversation.hasYesNo = false;
+                        conversation.endCode = null;
                         conversation.savedBackground = null;
                         computeBoxGeometry(conversation.facingLeft);
                     }
@@ -2431,6 +2475,16 @@ function onSlowTick() {
             } else if (conversation.hasYesNo) {
                 conversation.yesNoMode = true;
                 conversation.yesNoCursor = 0;
+                computeBoxGeometry(conversation.facingLeft, 2);
+            } else if (conversation.endCode === 0x87) {
+                // Asbestos cape: second part ("It's not free though...")
+                conversation.endCode = null;
+                loadConversationPattern(5);
+            } else if (conversation.endCode === 0x89) {
+                // Asbestos cape: Take/No Take purchase confirmation
+                conversation.endCode = null;
+                conversation.purchaseMode = true;
+                conversation.purchaseCursor = 0;
                 computeBoxGeometry(conversation.facingLeft, 2);
             } else {
                 conversation.active = false;
@@ -2949,6 +3003,9 @@ let conversation = {
     hasYesNo: false,
     yesNoMode: false,
     yesNoCursor: 0,
+    endCode: null,
+    purchaseMode: false,
+    purchaseCursor: 0,
     facingLeft: false,
 };
 
@@ -4946,6 +5003,7 @@ function parseDialogText(bytes) {
     let lines  = [''];
     let lineW  = 0;
     let hasYesNo = false;
+    let endCode = null;
     const MAX_W = ORIG_MAX_LINE_PX;
     const pushLine = () => {
         lines.push('');
@@ -4968,6 +5026,25 @@ function parseDialogText(bytes) {
                 writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
                 writeMemory(ADDR_ELF_CREST, [0xFF]);
             }
+            break;
+        }
+        if (b === 0x85) {
+            // Control code 0x85: Asbestos cape intro jumps to pattern 4 text
+            // (original: on_flag_0x85 re-renders pattern 4; text 3 is a 0x85
+            //  stub whose remainder is exactly pattern 4, so skipping it is
+            //  equivalent to the original re-render)
+            continue;
+        }
+        if (b === 0x87) {
+            // Control code 0x87: Asbestos cape — wait for input, then show
+            // pattern 5 text ("It's not free though...")
+            endCode = 0x87;
+            break;
+        }
+        if (b === 0x89) {
+            // Control code 0x89: Asbestos cape — show Take/No Take purchase
+            // dialog (patterns 8 = bought, 7 = not enough almas, 6 = refused)
+            endCode = 0x89;
             break;
         }
         if (b === 0x8B) {
@@ -5002,7 +5079,7 @@ function parseDialogText(bytes) {
     }
     const nonEmpty = lines.filter(l => l.length > 0);
     if (nonEmpty.length > 0) pages.push(nonEmpty);
-    return { pages, hasYesNo };
+    return { pages, hasYesNo, endCode };
 }
 
 function computeBoxGeometry(facingLeft, extraLines = 0) {
@@ -5043,7 +5120,17 @@ function drawConversationDialog() {
     for (let i = 0; i < pageLines.length; i++) {
         ctx.fillText(pageLines[i], x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
     }
-    if (conversation.yesNoMode) {
+    if (conversation.purchaseMode) {
+        const options = ['Take', 'No Take'];
+        const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
+        for (let i = 0; i < options.length; i++) {
+            const cy = baseY + i * TEXT_LINE_HEIGHT;
+            ctx.fillStyle = i === conversation.purchaseCursor ? '#ffcc00' : '#ccc';
+            ctx.fillText(options[i], x + 32, cy);
+        }
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText('►', x + 12, baseY + conversation.purchaseCursor * TEXT_LINE_HEIGHT);
+    } else if (conversation.yesNoMode) {
         const options = ['Yes', 'No'];
         const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
         for (let i = 0; i < options.length; i++) {
@@ -5065,6 +5152,12 @@ function startConversationFromWasm() {
     let npcId = 0;
     if (npcAddr) {
         npcId = readMemory(npcAddr + 7, 1)[0];
+    }
+    // After buying the Asbestos Cape in Llama, its merchant (npc id 3) stops
+    // re-selling it and only talks about the cape (conversation pattern 9).
+    if (npcId === 3 && (readMemory(ADDR_CALIENTE_ITEMS, 1)[0] & 0x40) !== 0 &&
+        (readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F) === LLAMA_TOWN_ID) {
+        npcId = 9;
     }
     const rawText = getNpcConversationRaw(npcId);
     let parsed = parseDialogText(rawText);
@@ -5090,9 +5183,39 @@ function startConversationFromWasm() {
     conversation.hasYesNo = parsed.hasYesNo;
     conversation.yesNoMode = false;
     conversation.yesNoCursor = 0;
+    conversation.purchaseMode = false;
+    conversation.purchaseCursor = 0;
+    conversation.endCode = parsed.endCode;
     conversation.facingLeft = facingLeft;
     conversation.savedBackground = null;
     computeBoxGeometry(facingLeft);
+}
+
+function loadConversationPattern(patternIdx) {
+    const rawText = getNpcConversationRaw(patternIdx);
+    if (!rawText) {
+        conversation.active = false;
+        conversation.savedBackground = null;
+        townFinishConversation?.();
+        return;
+    }
+    const parsed = parseDialogText(rawText);
+    if (parsed.pages.length === 0) {
+        conversation.active = false;
+        conversation.savedBackground = null;
+        townFinishConversation?.();
+        return;
+    }
+    conversation.pages = parsed.pages;
+    conversation.page = 0;
+    conversation.hasYesNo = parsed.hasYesNo;
+    conversation.yesNoMode = false;
+    conversation.yesNoCursor = 0;
+    conversation.purchaseMode = false;
+    conversation.purchaseCursor = 0;
+    conversation.endCode = parsed.endCode;
+    conversation.savedBackground = null;
+    computeBoxGeometry(conversation.facingLeft);
 }
 
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────
