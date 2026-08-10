@@ -1894,6 +1894,7 @@ const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8
 const ADDR_SPOKE_TO_KING             = 0x05;
 const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
+const ADDR_FALTER_ITEMS              = 0x45;     // bit7 = Pureza warp building used (0xFF dest id)
 const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
@@ -2492,7 +2493,10 @@ function onSlowTick() {
             } else {
                 conversation.active = false;
                 conversation.savedBackground = null;
+                const onComplete = conversation.onComplete;
+                conversation.onComplete = null;
                 townFinishConversation?.();
+                if (onComplete) onComplete();
             }
         }
         return;
@@ -3010,6 +3014,7 @@ let conversation = {
     purchaseMode: false,
     purchaseCursor: 0,
     facingLeft: false,
+    onComplete: null, // called once when a JS-initiated dialog is closed (e.g. Pureza to Dorado warp)
 };
 
 let speedChange = {
@@ -3141,7 +3146,7 @@ function drawTownTiles() {
 
     const leftCol = Math.max(0, Math.min(
         mapWidth - VIEW_COLS,
-        (gMem(ADDR_PROXIMITY_MAP_LEFT_COL) ?? 0) + TOWN_VISIBLE_COL_OFFSET
+        readU16(ADDR_PROXIMITY_MAP_LEFT_COL) + TOWN_VISIBLE_COL_OFFSET
     ));
     for (let col = 0; col < VIEW_COLS; col++) {
         const mapCol = leftCol + col;
@@ -5216,6 +5221,7 @@ function startConversationFromWasm() {
     conversation.endCode = parsed.endCode;
     conversation.facingLeft = facingLeft;
     conversation.savedBackground = null;
+    conversation.onComplete = null;
     computeBoxGeometry(facingLeft);
 }
 
@@ -5243,16 +5249,134 @@ function loadConversationPattern(patternIdx) {
     conversation.purchaseCursor = 0;
     conversation.endCode = parsed.endCode;
     conversation.savedBackground = null;
+    conversation.onComplete = null;
     computeBoxGeometry(conversation.facingLeft);
 }
 
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────
 function checkBuildingRequest() {
     if (!engineReady || !readMemory || indoorActiveScene) return;
+    if (conversation.active) return;
     const active = gMem(ADDR_BUILDING_ACTIVE);
     if (!active) return;
     const destId = gMem(ADDR_BUILDING_DEST_ID);
+    if (destId === 0xFF) {
+        startWarpPureza2Dorado();
+        return;
+    }
     startIndoorScene(destId);
+}
+
+// warp building (Pureza, door x=294, td_dest_id 0xFF).  Matches the
+// original loc_6F77: on first use show the "Fooled again..." dialog (NPC
+// conversation pattern 0), then teleport to Dorado.  Once used (falter_items
+// bit7) the warp happens immediately.
+function startWarpPureza2Dorado() {
+    const falter = readMemory(ADDR_FALTER_ITEMS, 1)[0];
+    if (falter & 0x80) {
+        handleWarp();
+        return;
+    }
+    const rawText = getNpcConversationRaw(0);
+    const parsed = parseDialogText(rawText);
+    if (parsed.pages.length === 0) {
+        handleWarp();
+        return;
+    }
+    conversation.active = true;
+    conversation.pages = parsed.pages;
+    conversation.page = 0;
+    conversation.hasYesNo = false;
+    conversation.yesNoMode = false;
+    conversation.yesNoCursor = 0;
+    conversation.purchaseMode = false;
+    conversation.purchaseCursor = 0;
+    conversation.endCode = null;
+    conversation.facingLeft = false;
+    conversation.savedBackground = null;
+    conversation.onComplete = handleWarp;
+    computeBoxGeometry(conversation.facingLeft);
+}
+
+// warp building — teleports the hero to Dorado (place map id 6).
+// Re-enters town exactly like the original loc_6F77: drop the hero at the
+// Dorado building door landing spot (prox col 132 / view x 13) and re-run town entry
+// with edge scroll disabled.
+async function handleWarp() {
+    if (townTransitionInProgress) return;
+    townTransitionInProgress = true;
+    engineReady = false;
+    rokademoHold = false;
+    try {
+        // Mark Falter building as used (bit7 of falter_items) so the dialog
+        // and warp cannot repeat.
+        const falter = readMemory(ADDR_FALTER_ITEMS, 1)[0];
+        writeMemory(ADDR_FALTER_ITEMS, [falter | 0x80]);
+        writeMemory(ADDR_PLACE_MAP_ID, [6]); // Dorado
+        townFinishBuilding?.();
+
+        const mdtPath = TOWN_MDTS[6];
+        const resp = await fetch(mdtPath);
+        if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
+        mdtData = new Uint8Array(await resp.arrayBuffer());
+        loadMdt(mdtData, mdtPath);
+        mdtHeader = getTownMdtHeader?.();
+
+        const newBgType = getTownBackgroundType();
+        if (newBgType !== townBackgroundType) {
+            townBackgroundType = newBgType;
+            townBackgroundReady = false;
+            townBackground = null;
+            townCeilingReady = false;
+            townCeiling = null;
+            townSidewalk1Ready = false;
+            townSidewalk1 = null;
+            townSidewalk2Ready = false;
+            townSidewalk2 = null;
+        }
+        await loadTownBackground();
+        await loadTownCeiling();
+        await loadTownSidewalk1();
+        await loadTownSidewalk2();
+        resetTownScrollOffsets();
+
+        const newPatId = getTownPatId();
+        if (newPatId !== townPatId) {
+            townPatId = newPatId;
+            townTileSheetReady = false;
+            townTileSheet = null;
+        }
+        const pattern = PATTERN_ASSETS[townPatId];
+        if (pattern) {
+            await loadTownTileSheet(pattern.imagePath);
+            setSpecialTileList(pattern.specialTiles);
+            updateTownAnimation();
+        }
+
+        parseTownNpcCategory();
+        await Promise.all(
+            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+        );
+
+        // Landing spot: Falter building door, prox col 132 / view x 13, face-left.
+        writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, [132, 0]);
+        writeMemory(ADDR_HERO_X_VIEW, [13]);
+        writeMemory(ADDR_FACING, [0x01]); // face left
+        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
+        townEntryDisablingEdgeScroll();
+        townEntryRan = true;
+        gameMode = 'town';
+        soundManager.setMusicDim(1.0);
+        soundManager.setSfxVolume(1.0);
+        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        if (trackId) setCurrentMusicTrack(trackId);
+        console.log('[falter] warped to Dorado');
+    } catch (err) {
+        console.error('[handleWarp] failed:', err);
+    } finally {
+        townTransitionInProgress = false;
+        engineReady = true;
+    }
 }
 
 function startIndoorScene(destId) {

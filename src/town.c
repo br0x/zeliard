@@ -559,19 +559,31 @@ static void town_main_loop_step(void)
             g_door_pending_anim = 0;
             uint8_t dest_id = g_door_pending_dest;
             g_door_pending_dest = 0xFF;
-            if (dest_id != 0xFF) {
-                if (dest_id >= 8) {
-                    request_dungeon_transition(dest_id - 8);
-                } else {
-                    MEM8(ADDR_BYTE_FF24) = 4;
-                    MEM8(ADDR_BUILDING_DEST_ID) = dest_id;
-                    MEM8(ADDR_BUILDING_ACTIVE) = 1;
-                    MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
-                    SPACEBAR = 0;
-                    ALTKEY = 0;
-                    INPUT_DIRS = 0;
-                    INPUT_ALT_SPACE = 0;
-                }
+            if (dest_id == 0xFF) {
+                /* Falter warp building (TOWN_DOOR.td_dest_id 0xFF):
+                   reuse the building handshake so JS sees dest_id 0xFF.
+                   JS shows the "Fooled again..." dialog on first use
+                   (falter_items bit7 clear) and always performs the warp
+                   to Dorado. */
+                MEM8(ADDR_BYTE_FF24) = 4;
+                MEM8(ADDR_BUILDING_DEST_ID) = 0xFF;
+                MEM8(ADDR_BUILDING_ACTIVE) = 1;
+                MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
+                SPACEBAR = 0;
+                ALTKEY = 0;
+                INPUT_DIRS = 0;
+                INPUT_ALT_SPACE = 0;
+            } else if (dest_id >= 8) {
+                request_dungeon_transition(dest_id - 8);
+            } else {
+                MEM8(ADDR_BYTE_FF24) = 4;
+                MEM8(ADDR_BUILDING_DEST_ID) = dest_id;
+                MEM8(ADDR_BUILDING_ACTIVE) = 1;
+                MEM8(ADDR_SOUND_FX_REQUEST) = 0x32;
+                SPACEBAR = 0;
+                ALTKEY = 0;
+                INPUT_DIRS = 0;
+                INPUT_ALT_SPACE = 0;
             }
         }
         return;

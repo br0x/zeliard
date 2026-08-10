@@ -2979,7 +2979,7 @@ def compute_akma_body_layout(phase, pose_idx, arm_parity=0, overlay_idx=0):
     apply_slot(sec_base + 16, sec_src[idx2 + 1])
 
     placements = []
-    for pos, (grp, idx) in grid.items():
+    for pos, (grp, idx) in sorted(grid.items()):
         col, row = pos // 16, pos % 16
         placements.append((col, row, grp, idx))
     return placements
@@ -3008,7 +3008,7 @@ def render_akma_group(data, canvas, y_offset):
     scale = 3
     current_y = y_offset
     gap_x = 0
-    gap_y = 4
+    gap_y = 8
     sprite_px = 16
     frames_per_row = 16
 
@@ -3017,9 +3017,19 @@ def render_akma_group(data, canvas, y_offset):
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Akma Body (6 pose combos: 3 poses x 2 phases)
     # -----------------------------------------------------------------------
-    body_scale = 1.5
+    # Each grid (col, row) step is one world-coordinate unit -- and the
+    # game's base map tile is 8px, not 16 -- so adjacent 16x16 composed
+    # pieces must be placed 8px apart (half their own width/height) to
+    # overlap and tile together into a single connected sprite, exactly
+    # like Akma_AI_proc's own currX/currY (boss_x+col, boss_y+row)
+    # placement onto the 8px proximity map. Using a full 16px step here
+    # (one step per whole sprite) is what produced the disconnected
+    # "island" pieces with gaps between them.
+    GRID_STEP = 8
+    body_scale = 3
     cols, rows = 13, 16
-    block_w, block_h = cols * 16 * body_scale, rows * 16 * body_scale
+    block_w = ((cols - 1) * GRID_STEP + 16) * body_scale
+    block_h = ((rows - 1) * GRID_STEP + 16) * body_scale
     poses_per_row = 3
     body_gap_x, body_gap_y = 20, 30
 
@@ -3043,8 +3053,8 @@ def render_akma_group(data, canvas, y_offset):
             if anim_idx >= len(frames):
                 continue
             draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + gcol * 16 * body_scale,
-                                       y_base + grow * 16 * body_scale,
+                                       x_base + gcol * GRID_STEP * body_scale,
+                                       y_base + grow * GRID_STEP * body_scale,
                                        body_scale)
 
     num_body_rows = (len(combos) + poses_per_row - 1) // poses_per_row
@@ -3056,7 +3066,7 @@ def render_akma_group(data, canvas, y_offset):
     # -----------------------------------------------------------------------
     n = 0
     for set_name, frames in AKMA_FRAMES.items():
-        current_y += 4
+        current_y += 20
 
         for f_idx, frame_data in enumerate(frames):
             x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
