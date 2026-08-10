@@ -71,6 +71,9 @@ extern "C" {
 #define GET_ENCHANTMENT_SWORD_STR   17
 #define ITS_TOO_HOT_STR             18
 #define GET_LIONS_HEAD_KEY_STR      19
+#define JASHIIN_FINALLY_STR         20
+#define JASHIIN_ENJOYED_STR         21
+#define JASHIIN_COMEON_STR          22
 
 #define SWORD_ENCHANTMENT           6
 #define PROJECTILE_STRUCT_SIZE 13
@@ -358,7 +361,8 @@ void Paguro_AI(uint16_t m);
 void Paguro_AI_reset(void);
 void Alguien_AI(uint16_t m);
 void Alguien_AI_reset(void);
-
+void Jashiin1_AI(uint16_t m);
+void Jashiin1_AI_reset(void);
 
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);

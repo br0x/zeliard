@@ -844,10 +844,6 @@ export function dungeonGetViewportTop() {
     return wasmExports?.wasm_dungeon_get_viewport_top?.() ?? 0;
 }
 
-export function dungeonGetFullMapPtr() {
-    return wasmExports?.wasm_dungeon_get_full_map_ptr?.() ?? 0x30000;
-}
-
 export function dungeonGetEntityTable() {
     return wasmExports?.wasm_dungeon_get_entity_table?.() ?? 0;
 }

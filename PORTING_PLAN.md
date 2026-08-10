@@ -64,7 +64,7 @@ The game is **fully playable from the title screen through the town ↔ dungeon 
 - **Rendering:** C never draws. The C side writes render requests / entity state into `g_mem`, and JS reads them each frame:
   - `wasm_dungeon_get_render_request` / `wasm_dungeon_clear_render_request`
   - `wasm_dungeon_get_entity_count` / `wasm_dungeon_get_entity_table`
-  - `wasm_dungeon_get_full_map_ptr` / `wasm_dungeon_get_viewport_top`
+  - `wasm_dungeon_get_viewport_top`
 - **State machine:** dungeon states handled include `NORMAL(0)`, `DEATH_FADE(4)`, `BOSS_ENCOUNTER(5)`, `ROKA_RUN(7)`, `ROKADEMO(9)`. Transitions (dungeon↔town, indoors, boss demos) go through `ADDR_PENDING_DUNGEON_FLAG`-style memory flags read by JS, plus exports like `wasm_town_complete_transition`, `wasm_finish_rokademo_transition`, `wasm_town_building_finish`, `wasm_town_conversation_finish`.
 
 ### 1.2 Memory Layout
@@ -155,7 +155,7 @@ wasm_init, wasm_set_input_keys,
 wasm_dungeon_init, wasm_dungeon_update, wasm_dungeon_full_tick,
 wasm_dungeon_get_state, wasm_dungeon_get_render_request, wasm_dungeon_clear_render_request,
 wasm_dungeon_get_entity_count, wasm_dungeon_get_entity_table,
-wasm_dungeon_get_full_map_ptr, wasm_dungeon_get_viewport_top,
+wasm_dungeon_get_viewport_top,
 wasm_set_scroll_ceiling_left_4px, wasm_set_scroll_ceiling_right_4px,
 wasm_set_scroll_floor_left_8px, wasm_set_scroll_floor_right_8px,
 wasm_town_init, wasm_town_update, wasm_town_full_tick,

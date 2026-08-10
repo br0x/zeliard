@@ -1785,6 +1785,9 @@ const NOTIFICATION_STRINGS = {
     17: [0,  "Get the Enchantment sword."],
     18: [48, "It's too hot !!"],
     19: [8,  "Get the lion's head Key."],
+    20: [12, "Finally, you reached me."],
+    21: [24, "I enjoyed your show."],
+    22: [12, "Come on!  I'll kill you."],
 };
 
 const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
@@ -2223,7 +2226,6 @@ let dungeonInit;
 let dungeonUpdate;
 let dungeonFullTick;
 let dungeonGetViewportTop;
-let dungeonGetFullMapPtr;
 let dungeonGetEntityTable;
 let dungeonGetEntityCount;
 let setDungeonPassableTiles;
@@ -3117,7 +3119,7 @@ async function loadWasmEngine() {
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
         townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding, initC015ObjIfExists,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
-        dungeonGetFullMapPtr, dungeonGetEntityTable, dungeonGetEntityCount,
+        dungeonGetEntityTable, dungeonGetEntityCount,
         setDungeonPassableTiles, setDungeonAggressiveGround, 
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
