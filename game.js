@@ -724,6 +724,31 @@ const ZEL2 = {
     ],
     numSprites: 76,
 };
+const AKMA = {
+    left: [ // 0xA030
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],                               // tile group 0
+        [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34], // tile group 1
+        [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64], // tile group 2
+        [80, 81, 82, 83, 84, 85, 86],                                 // tile group 3
+        [94, 95, 96, 97, 98, 99, 100],                                // tile group 4
+        [109, 110],                                                   // tile group 5
+        [113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124], // tile group 6
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], // 7..24 unused
+        [137],                                                        // 25 (blue potion)
+    ],
+    right: [ // 0xA070
+        [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],                      // tile group 0
+        [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],  // tile group 1
+        [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79],  // tile group 2
+        [87, 88, 89, 90, 91, 92, 93],                                  // tile group 3
+        [101, 102, 103, 104, 105, 106, 107, 108],                      // tile group 4
+        [111, 112],                                                    // tile group 5
+        [125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],  // tile group 6
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], // 7..24 unused
+        [137],                                                         // 25 (blue potion)
+    ],
+    numSprites: 138,
+};
 
 const DUNGEONS = {
     0: { 
@@ -1632,6 +1657,41 @@ const DUNGEONS = {
             [0x2B],
         ],
         ai: EAI8,
+    },
+    28: { // dungeon 8 boss room
+        mdtPath: 'game/0/mp8d.mdt',
+        tilesheetPath: 'assets/images/mpp8.png',
+        entitySheetPath: 'assets/images/akma.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 8, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x25, 0x26, 0x27, 0x28, 0x29,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            40, 40, 40, 40, 40, 40, 80, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+            40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+        ],
+        bossState: {
+            bossX: 42,               // +0
+            bossY: 0,                // +2
+            bossHP: 800,             // +3
+            xpReward: 30000,         // +5
+            arenaCenterX: 12,        // +7
+            bossPlacement: 0,        // +8
+            almasReward: 3800,       // +11
+            bossName: 'Alguien',
+        },
+        ai: AKMA,
     },
 };
 
