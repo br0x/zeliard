@@ -1693,6 +1693,76 @@ const DUNGEONS = {
         },
         ai: AKMA,
     },
+    29: { // Jashiin room 1
+        mdtPath: 'game/0/mp90.mdt',
+        tilesheetPath: 'assets/images/mpp9.png',
+        entitySheetPath: 'assets/images/mao1.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            40, 40, 40, 40, 40, 40, 80, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+            40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+        ],
+        bossState: {
+            bossX: 42,               // +0
+            bossY: 0,                // +2
+            bossHP: 800,             // +3
+            xpReward: 30000,         // +5
+            arenaCenterX: 12,        // +7
+            bossPlacement: 0,        // +8
+            almasReward: 3800,       // +11
+            bossName: 'Jashiin',
+        },
+        ai: MAO1,
+    },
+    30: { // Jashiin room 2
+        mdtPath: 'game/0/mpa0.mdt',
+        tilesheetPath: 'assets/images/mppa.png',
+        entitySheetPath: 'assets/images/mao2.png',
+        passableTiles: [ // mppX.grp.unp bytes 0..0x17
+            0, 9, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x11, 0x12, 0x13,
+        ],
+        slopeTilesLeft: [],
+        slopeTilesRight: [],
+        aggressiveGround: [],
+        airflows: [],
+        monster_xp: [],
+        monster_damage: [
+            40, 40, 40, 40, 40, 40, 80, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+            40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+        ],
+        death_descriptors: [
+            [], [], [], [], [], [], [], [],
+        ],
+        trajectories: [
+        ],
+        projectiles: [ // 1-based tile indices in mppX.png sheet
+        ],
+        bossState: {
+            bossX: 42,               // +0
+            bossY: 0,                // +2
+            bossHP: 800,             // +3
+            xpReward: 30000,         // +5
+            arenaCenterX: 12,        // +7
+            bossPlacement: 0,        // +8
+            almasReward: 3800,       // +11
+            bossName: 'Jashiin',
+        },
+        ai: MAO2,
+    },
 };
 
 const NOTIFICATION_STRINGS = {
