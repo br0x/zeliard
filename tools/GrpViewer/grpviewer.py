@@ -16,6 +16,7 @@ DEBUG_DRAW = False
 # 15: boss sprites (tori.grp)
 # 16: boss sprites (zela.grp)
 # 17: boss sprites (meda.grp)
+# 21: boss sprites (akma.grp)
 GRP_DESCRIPTOR = [
     ("crab.grp",  12),
     ("tako.grp",  14),
@@ -25,6 +26,7 @@ GRP_DESCRIPTOR = [
     ("lega.grp",  18),
     ("drgn.grp",  19),
     ("zel2.grp",  20),
+    ("akma.grp",  21),
 ]
 
 MODE_CFG = {
@@ -36,6 +38,7 @@ MODE_CFG = {
     18:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "lega"},
     19:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "drgn"},
     20:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "zel2"},
+    21:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "akma"},
 }
 
 SCALE = 3
@@ -2723,6 +2726,355 @@ def render_lega_group(data, canvas, y_offset):
 
     return current_y - y_offset
 
+
+# ---------------------------------------------------------------------------
+# Akma (Alguien) boss rendering (akma.grp)
+# ---------------------------------------------------------------------------
+#
+# Transcribed directly from akma.asm's "start:" export header: two
+# 7-pointer tables (offsets 0x1A and 0x3C from "start") point at
+# byte_A07E..byte_A2B3 and byte_A0B0..byte_A2EF respectively. Same
+# [pal_idx, tl, tr, bl, br] row format as CRAB_FRAMES/TAKO_FRAMES. Like
+# TAKO_FRAMES, none of this is read by Akma_AI_proc itself -- confirmed
+# by grepping akma.asm, these labels only ever appear in that header
+# table -- it belongs to the generic monster/boss-rendering routine, so
+# entries are labeled by their table-slot ("Group N") and which of the
+# two parallel pointer tables they came from ("Phase 0"/"Phase 1",
+# matching Akma_AI_proc's byte_AA21 flight-phase flag) rather than a
+# hand-picked body-part name.
+#
+# Groups 0-2 and 5 are combined by the pose-mask walk below into the
+# boss's main body; group 3 is a small 5-slot "arm/weapon" overlay;
+# group 4 is a 2-slot "head" overlay; group 6 (byte_A2B3/byte_A2EF) is
+# never referenced by the pose or overlay tables at all -- like TAKO's
+# Frame Set 16, it's some other sprite (its contents, a run of
+# progressively-different last tiles built around a repeated 0xEB/0x19
+# tile, look like a hit-spark/impact effect) and so has no placement of
+# its own in the composite body; it's still included below for
+# reference in Part 2.
+AKMA_FRAMES = {
+    "Group 0 Phase 0 (byte_A07E)": [
+        [0, 0, 2, 3, 4], [0, 5, 6, 7, 8], [0, 9, 10, 13, 14], [0, 11, 12, 15, 16],
+        [0, 15, 16, 17, 189], [0, 243, 0, 187, 244], [0, 187, 244, 190, 191],
+        [0, 244, 188, 191, 192], [0, 187, 90, 190, 191], [0, 90, 91, 191, 192],
+    ],
+    "Group 0 Phase 1 (byte_A0B0)": [
+        [0, 18, 0, 21, 22], [0, 19, 20, 23, 24], [0, 28, 29, 32, 33], [0, 26, 27, 30, 31],
+        [0, 30, 31, 198, 34], [0, 0, 245, 246, 194], [0, 246, 194, 196, 197],
+        [0, 193, 246, 195, 196], [0, 166, 167, 195, 196], [0, 167, 194, 196, 197],
+    ],
+    "Group 1 Phase 0 (byte_A0E2)": [
+        [0, 0, 53, 60, 61], [0, 61, 62, 65, 66], [0, 49, 50, 53, 54], [0, 0, 42, 46, 35],
+        [0, 36, 37, 42, 0], [0, 0, 44, 47, 45], [0, 51, 35, 55, 56], [0, 35, 35, 67, 35],
+        [0, 68, 69, 70, 71], [0, 38, 39, 45, 35], [0, 35, 35, 35, 35], [0, 57, 58, 35, 64],
+        [0, 35, 64, 64, 0], [0, 0, 41, 39, 40], [0, 35, 0, 58, 59],
+    ],
+    "Group 1 Phase 1 (byte_A12D)": [
+        [0, 113, 0, 0, 115], [0, 115, 116, 119, 120], [0, 119, 112, 119, 112],
+        [0, 130, 131, 136, 112], [0, 136, 112, 0, 136], [0, 0, 119, 129, 130],
+        [0, 121, 122, 120, 121], [0, 112, 120, 132, 133], [0, 112, 112, 112, 140],
+        [0, 143, 144, 145, 146], [0, 117, 118, 122, 123], [0, 123, 0, 124, 125],
+        [0, 127, 128, 134, 135], [0, 137, 138, 141, 142], [0, 135, 0, 138, 139],
+    ],
+    "Group 2 Phase 0 (byte_A178)": [
+        [0, 0, 0, 72, 73], [0, 0, 0, 0, 75], [0, 78, 79, 83, 84], [0, 76, 77, 80, 81],
+        [0, 85, 35, 87, 88], [0, 82, 0, 35, 86], [0, 35, 89, 91, 89], [0, 75, 94, 103, 104],
+        [0, 95, 96, 105, 35], [0, 68, 110, 70, 71], [0, 0, 0, 75, 76], [0, 97, 98, 35, 107],
+        [0, 0, 0, 76, 77], [0, 99, 100, 108, 109], [0, 0, 0, 101, 102],
+    ],
+    "Group 2 Phase 1 (byte_A1C3)": [
+        [0, 0, 152, 0, 157], [0, 162, 112, 162, 166], [0, 75, 76, 153, 154],
+        [0, 158, 159, 163, 164], [0, 0, 0, 77, 0], [0, 155, 156, 160, 161],
+        [0, 0, 0, 75, 151], [0, 177, 178, 184, 185], [0, 175, 176, 112, 183],
+        [0, 143, 144, 145, 146], [0, 0, 0, 76, 77], [0, 173, 174, 181, 112],
+        [0, 0, 0, 75, 76], [0, 171, 172, 179, 180], [0, 0, 0, 169, 170],
+    ],
+    "Group 3 Arm Phase 0 (byte_A20E)": [
+        [0, 203, 204, 205, 206], [0, 0, 201, 207, 208], [0, 199, 200, 201, 202],
+        [0, 210, 0, 212, 213], [0, 212, 213, 214, 215], [0, 213, 201, 215, 208],
+        [0, 199, 200, 201, 202],
+    ],
+    "Group 3 Arm Phase 1 (byte_A231)": [
+        [0, 216, 217, 218, 219], [0, 219, 0, 221, 222], [0, 225, 226, 223, 224],
+        [0, 216, 217, 218, 219], [0, 227, 228, 229, 230], [0, 219, 229, 221, 231],
+        [0, 229, 230, 231, 232],
+    ],
+    "Group 4 Head Phase 0 (byte_A254)": [
+        [0, 1, 233, 0, 0], [0, 233, 234, 0, 0], [0, 1, 235, 0, 0], [0, 235, 236, 0, 237],
+        [0, 1, 235, 248, 247], [0, 1, 235, 0, 250], [0, 1, 235, 0, 252],
+    ],
+    "Group 4 Head Phase 1 (byte_A277)": [
+        [0, 238, 239, 0, 0], [0, 239, 25, 0, 0], [0, 240, 241, 242, 0], [0, 241, 25, 0, 0],
+        [0, 240, 241, 242, 74], [0, 240, 241, 242, 52], [0, 240, 241, 242, 255],
+        [0, 241, 25, 74, 92],
+    ],
+    "Group 5 Phase 0 (byte_A29F)": [
+        [0, 0, 111, 106, 147], [0, 114, 126, 148, 149],
+    ],
+    "Group 5 Phase 1 (byte_A2A9)": [
+        [0, 150, 165, 182, 186], [0, 168, 0, 209, 211],
+    ],
+    "Group 6 Unused Phase 0 (byte_A2B3)": [
+        [0, 1, 235, 249, 247], [0, 1, 235, 248, 247], [0, 0, 0, 249, 247], [0, 0, 0, 248, 247],
+        [0, 1, 235, 0, 251], [0, 1, 235, 0, 250], [0, 0, 250, 251, 0], [0, 0, 250, 250, 0],
+        [0, 1, 235, 0, 254], [0, 1, 235, 0, 252], [0, 0, 253, 254, 0], [0, 0, 253, 252, 0],
+    ],
+    "Group 6 Unused Phase 1 (byte_A2EF)": [
+        [0, 241, 25, 74, 93], [0, 241, 25, 74, 92], [0, 0, 0, 74, 93], [0, 0, 0, 74, 92],
+        [0, 241, 25, 63, 0], [0, 241, 25, 52, 0], [0, 52, 0, 0, 63], [0, 52, 0, 0, 52],
+        [0, 241, 25, 48, 0], [0, 241, 25, 255, 0], [0, 43, 0, 0, 48], [0, 43, 0, 0, 255],
+    ],
+}
+
+# Maps a (flight_phase, tile_group) pair -- flight_phase 0/1 mirroring
+# Akma_AI_proc's byte_AA21 -- to the AKMA_FRAMES key holding that group's
+# frame rows, i.e. which of the two parallel header pointer tables is
+# active for that group.
+AKMA_FRAME_SET_BY_INDEX = {
+    0: {
+        0: "Group 0 Phase 0 (byte_A07E)",
+        1: "Group 1 Phase 0 (byte_A0E2)",
+        2: "Group 2 Phase 0 (byte_A178)",
+        3: "Group 3 Arm Phase 0 (byte_A20E)",
+        4: "Group 4 Head Phase 0 (byte_A254)",
+        5: "Group 5 Phase 0 (byte_A29F)",
+        6: "Group 6 Unused Phase 0 (byte_A2B3)",
+    },
+    1: {
+        0: "Group 0 Phase 1 (byte_A0B0)",
+        1: "Group 1 Phase 1 (byte_A12D)",
+        2: "Group 2 Phase 1 (byte_A1C3)",
+        3: "Group 3 Arm Phase 1 (byte_A231)",
+        4: "Group 4 Head Phase 1 (byte_A277)",
+        5: "Group 5 Phase 1 (byte_A2A9)",
+        6: "Group 6 Unused Phase 1 (byte_A2EF)",
+    },
+}
+
+# Pose layout tables (off_A7EE/off_A7F4 -> unk_A7FA..unk_A85E in akma.asm):
+# each raw tile byte's high nibble selects the tile_group (an
+# AKMA_FRAME_SET_BY_INDEX key) and low nibble selects the frame index
+# within that group's AKMA_FRAMES list. AKMA_LAYOUT_TABLES[phase][pose]
+# is one full pose (3 poses per phase, matching Akma_AI_proc's byte_AA20
+# 0..2 cycle).
+AKMA_LAYOUT_TABLES = {
+    0: [  # flight_phase == 0 (off_A7EE)
+        [(0, 0), (5, 0), (1, 0), (1, 3), (1, 2), (1, 1), (0, 1), (0, 2), (5, 1), (1, 4),
+         (1, 5), (1, 6), (1, 7), (1, 8), (0, 3), (0, 4), (1, 9), (1, 10), (1, 11), (1, 12),
+         (0, 5), (0, 6), (1, 13), (1, 14), (0, 7)],  # unk_A7FA
+        [(0, 0), (5, 0), (2, 0), (0, 1), (0, 2), (5, 1), (2, 1), (2, 2), (0, 3), (0, 4),
+         (2, 3), (2, 4), (0, 8), (0, 9), (2, 5), (2, 6)],  # unk_A82C
+        [(0, 0), (5, 0), (2, 7), (0, 1), (0, 2), (5, 1), (2, 8), (2, 9), (0, 3), (0, 4),
+         (2, 10), (2, 11), (0, 5), (0, 6), (0, 7), (2, 12), (2, 13), (2, 14)],  # unk_A84C
+    ],
+    1: [  # flight_phase != 0 (off_A7F4)
+        [(1, 0), (1, 5), (0, 7), (1, 1), (1, 2), (1, 3), (1, 4), (0, 5), (0, 6), (1, 6),
+         (1, 7), (1, 8), (1, 9), (0, 3), (0, 4), (1, 10), (1, 11), (1, 12), (1, 13), (0, 1),
+         (0, 2), (5, 0), (1, 14), (0, 0), (5, 1)],  # unk_A813
+        [(2, 0), (2, 1), (0, 8), (2, 2), (2, 3), (0, 9), (2, 4), (2, 5), (0, 3), (0, 4),
+         (2, 6), (0, 1), (0, 2), (5, 0), (0, 0), (5, 1)],  # unk_A83C
+        [(2, 14), (2, 12), (2, 13), (0, 7), (2, 10), (2, 11), (0, 5), (0, 6), (2, 8), (2, 9),
+         (0, 3), (0, 4), (2, 7), (0, 1), (0, 2), (5, 0), (0, 0), (5, 1)],  # unk_A85E
+    ],
+}
+
+# Pose mask tables (off_A870/off_A876 -> unk_A87C..unk_A8FE): 13 groups
+# of 2 bytes = 26 bytes each, consumed/rotated bit-by-bit (MSB first) the
+# same way tako.asm's tentacle shape tables are. AKMA_SHAPE_BASES[phase]
+# lines up 1:1 with AKMA_LAYOUT_TABLES[phase].
+AKMA_SHAPE_BASES = {
+    0: [  # off_A870
+        (0x00, 0x00, 0x01, 0x08, 0x04, 0x00, 0x2A, 0xA8, 0x40, 0x00, 0x2A, 0xB0, 0x00, 0x00,
+         0x56, 0x30, 0x88, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),  # unk_A87C
+        (0x00, 0x00, 0x01, 0x08, 0x00, 0x00, 0x02, 0xA8, 0x00, 0x00, 0x02, 0xB0, 0x00, 0x00,
+         0x01, 0x50, 0x00, 0x10, 0x00, 0xA0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),  # unk_A8B0
+        (0x00, 0x00, 0x01, 0x08, 0x00, 0x00, 0x02, 0xA8, 0x00, 0x00, 0x02, 0xB0, 0x00, 0x00,
+         0x0A, 0x30, 0x00, 0x10, 0x0A, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00),  # unk_A8E4
+    ],
+    1: [  # off_A876
+        (0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x10, 0x56, 0x30, 0x00, 0x00, 0x2A, 0xB0,
+         0x40, 0x00, 0x2A, 0xA8, 0x04, 0x00, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00),  # unk_A896
+        (0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0x00, 0x10, 0x01, 0x50, 0x00, 0x00, 0x02, 0xB0,
+         0x00, 0x00, 0x02, 0xA8, 0x00, 0x00, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00),  # unk_A8CA
+        (0x04, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x10, 0x0A, 0x30, 0x00, 0x00, 0x02, 0xB0,
+         0x00, 0x00, 0x02, 0xA8, 0x00, 0x00, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00),  # unk_A8FE
+    ],
+}
+
+# "Arm" overlay (unk_A918/unk_A92C): 2 alternating 10-byte pose variants
+# (selected by Akma_AI_proc's frame_counter parity), written 5x2 bytes
+# starting at grid offset AKMA_ARM_GRID_BASE[phase].
+AKMA_ARM_OVERLAY_BYTES = {
+    0: (0xFF, 0x30, 0xFF, 0xFF, 0xFF, 0x31, 0x32, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0x33, 0x34, 0xFF, 0x35, 0x36, 0xFF, 0xFF, 0xFF),  # unk_A918
+    1: (0x30, 0xFF, 0xFF, 0x31, 0xFF, 0xFF, 0xFF, 0x32, 0xFF, 0xFF,
+        0x33, 0xFF, 0xFF, 0x35, 0x34, 0x36, 0xFF, 0xFF, 0xFF, 0xFF),  # unk_A92C
+}
+AKMA_ARM_GRID_BASE = {0: 93, 1: 61}  # byte_AA87 / byte_AA67 (col*16 + row)
+
+# "Head" overlay (unk_A940/unk_A94A): 5 pose bytes each, indexed by
+# Akma_AI_proc's overlay_frame (0..~3), written 2 bytes 16 grid-slots
+# apart starting at grid offset AKMA_SECONDARY_GRID_BASE[phase].
+AKMA_SECONDARY_OVERLAY_BYTES = {
+    0: (0x40, 0x41, 0x42, 0x43, 0x44, 0x43, 0x45, 0x43, 0x46, 0x43),  # unk_A940
+    1: (0x40, 0x41, 0x42, 0x43, 0x44, 0x47, 0x45, 0x43, 0x46, 0x43),  # unk_A94A
+}
+AKMA_SECONDARY_GRID_BASE = {0: 9, 1: 169}  # byte_AA33 / byte_AAD3
+
+
+def compute_akma_body_layout(phase, pose_idx, arm_parity=0, overlay_idx=0):
+    """
+    Reproduce Akma_AI_proc's per-frame body build (populate_limb_grid() +
+    apply_overlay_arm() + apply_overlay_secondary() in akma.c) for one
+    (phase, pose_idx) combination, returning a static snapshot: a list of
+    (col, row, tile_group, anim_idx) for every currently-visible
+    body/limb/overlay segment in the 13-column x 16-row limb grid.
+
+    Note: as in compute_tako_phase_layout, the mask bytes are rotated in
+    place in the original and that rotation persists across frames; here
+    each call starts from a fresh copy of the base mask so every pose is
+    shown the way it looks the first time it's ever selected.
+    """
+    grid = {}  # linear grid offset (col*16 + row) -> (tile_group, anim_idx)
+
+    mask = list(AKMA_SHAPE_BASES[phase][pose_idx])
+    pair_iter = iter(AKMA_LAYOUT_TABLES[phase][pose_idx])
+
+    di = 0
+    for col in range(13):
+        for sub in range(2):
+            b = mask[col * 2 + sub]
+            for _bit in range(8):
+                carry = (b & 0x80) != 0
+                b = ((b << 1) | (1 if carry else 0)) & 0xFF
+                if carry:
+                    try:
+                        grid[di] = next(pair_iter)
+                    except StopIteration:
+                        pass
+                di += 1
+
+    def apply_slot(pos, byte_val):
+        if byte_val == 0xFF:
+            grid.pop(pos, None)
+        else:
+            grid[pos] = (byte_val >> 4, byte_val & 0x0F)
+
+    # Arm overlay (group 3): 5 slots of 2 adjacent bytes, spaced 16 grid
+    # slots (1 "column") apart, matching apply_overlay_arm()/loc_A54C.
+    arm_src = AKMA_ARM_OVERLAY_BYTES[phase]
+    arm_base = AKMA_ARM_GRID_BASE[phase]
+    off = 0x0A if (arm_parity & 1) else 0x00
+    for i in range(5):
+        pos = arm_base + i * 16
+        apply_slot(pos, arm_src[off + i * 2])
+        apply_slot(pos + 1, arm_src[off + i * 2 + 1])
+
+    # Head/secondary overlay (group 4): 2 bytes, 16 grid slots apart,
+    # matching apply_overlay_secondary()/loc_A566.
+    sec_src = AKMA_SECONDARY_OVERLAY_BYTES[phase]
+    sec_base = AKMA_SECONDARY_GRID_BASE[phase]
+    idx2 = (overlay_idx * 2) % len(sec_src)
+    apply_slot(sec_base, sec_src[idx2])
+    apply_slot(sec_base + 16, sec_src[idx2 + 1])
+
+    placements = []
+    for pos, (grp, idx) in grid.items():
+        col, row = pos // 16, pos % 16
+        placements.append((col, row, grp, idx))
+    return placements
+
+
+def render_akma_group(data, canvas, y_offset):
+    """
+    Akma (Alguien) boss.
+
+    Part 1 assembles the actual boss body (13 columns x 16 rows) for
+    each of the 6 anim_phase/flight_phase pose combinations, exactly as
+    Akma_AI_proc lays it out from AKMA_LAYOUT_TABLES/AKMA_SHAPE_BASES
+    plus the arm/head overlay tables, using each placement's tile_group
+    to pick the right AKMA_FRAMES set and anim_idx to pick the frame
+    within it. The overlay pieces are shown in their default state
+    (arm_parity=0, overlay_idx=0); Part 2 below includes every raw frame
+    (including the other overlay/parity variants and the unused Group 6)
+    for full reference.
+
+    Part 2 is a plain browser over every raw frame set, since Group 6
+    (byte_A2B3/byte_A2EF) is never referenced by the pose/overlay tables
+    at all -- like TAKO_FRAMES' Frame Set 16, it has no placement of its
+    own in the composite body.
+    """
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+    gap_x = 0
+    gap_y = 4
+    sprite_px = 16
+    frames_per_row = 16
+
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Akma Body (6 pose combos: 3 poses x 2 phases)
+    # -----------------------------------------------------------------------
+    body_scale = 1.5
+    cols, rows = 13, 16
+    block_w, block_h = cols * 16 * body_scale, rows * 16 * body_scale
+    poses_per_row = 3
+    body_gap_x, body_gap_y = 20, 30
+
+    combos = [(phase, pose_idx) for phase in (0, 1) for pose_idx in range(3)]
+
+    for combo_idx, (phase, pose_idx) in enumerate(combos):
+        col_idx = combo_idx % poses_per_row
+        row_idx = combo_idx // poses_per_row
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 4, y_base - 10, text=f"phase {phase} / pose {pose_idx}",
+                            anchor="nw", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, tile_group, anim_idx in compute_akma_body_layout(phase, pose_idx):
+            set_name = AKMA_FRAME_SET_BY_INDEX.get(phase, {}).get(tile_group)
+            if set_name is None:
+                continue
+            frames = AKMA_FRAMES[set_name]
+            if anim_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
+                                       x_base + gcol * 16 * body_scale,
+                                       y_base + grow * 16 * body_scale,
+                                       body_scale)
+
+    num_body_rows = (len(combos) + poses_per_row - 1) // poses_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set (including Group 6, which the
+    # composite body never uses)
+    # -----------------------------------------------------------------------
+    n = 0
+    for set_name, frames in AKMA_FRAMES.items():
+        current_y += 4
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
+
 # ---------------------------------------------------------------------------
 # Main Application
 # ---------------------------------------------------------------------------
@@ -2828,6 +3180,10 @@ class GrpViewer:
                 consumed = render_zela_group(data, self.canvas, y_cursor, layout=ZELA2_FRAMES)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+            elif modes == 21:
+                consumed = render_akma_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Akma (Alguien) Boss Sprites")
             else:
                 return
             return

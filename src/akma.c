@@ -4,7 +4,7 @@
  * This is a boss-encounter overlay module, structurally identical to
  * crab.asm/crab.c ("Cangrejo") and tako.asm/tako.c ("Pulpo"): it is
  * loaded at a fixed segment address and exports an entry point
- * (Akma_AI, originally Akma_AI_proc) plus a shared "boss_state_block"
+ * (Alguien_AI, originally Alguien_AI_proc) plus a shared "boss_state_block"
  * that the generic engine reads elsewhere (health bar, victory/reward
  * handling, name display) via a fixed offset, regardless of which boss
  * module is currently loaded.
@@ -18,7 +18,7 @@
  *   - the "start:" export header and its reserved padding, including
  *     the jump-table-like list of `dw offset byte_Axxx` pointers
  *   - byte_A07E .. byte_A2EF: only ever referenced from that header
- *     table, never read by Akma_AI_proc itself (confirmed: no other
+ *     table, never read by Alguien_AI_proc itself (confirmed: no other
  *     code in akma.asm references these labels)
  *   - boss_state_block's own non-AI fields (xp_reward, arena_center_x,
  *     boss_placement, name_block_ptr, almas_reward, name_screen_x/y,
@@ -29,7 +29,7 @@
  * and off_A870/off_A876 -> unk_A87C..unk_A8FE), the two small overlay
  * tables (unk_A918/unk_A92C, unk_A940/unk_A94A), and the flight-path
  * Y-lookup tables (unk_A954/unk_A969) ARE translated, since
- * Akma_AI_proc reads them directly every frame to build the boss's
+ * Alguien_AI_proc reads them directly every frame to build the boss's
  * hittable body -- same rationale as tako.c's tentacle layout/shape
  * tables.
  *

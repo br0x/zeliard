@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/zel2.grp"
+                "${workspaceFolder}/tools/GrpViewer/akma.grp"
             ],
             "console": "integratedTerminal",
         },
