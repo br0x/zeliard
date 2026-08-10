@@ -1852,8 +1852,8 @@ void wasm_finish_rokademo_transition(void)
     load_cavern_sprites_ai_music();
     after_run_animation();
 
-    if ((MEM8(ADDR_PLACE_MAP_ID) & 0x80) == 0) {
-        uint8_t place_map_id = MEM8(ADDR_PLACE_MAP_ID);
+    uint8_t place_map_id = MEM8(ADDR_PLACE_MAP_ID);
+    if ((place_map_id & 0x80) == 0) {
         MEM8(ADDR_PENDING_DUNGEON_MAP) = place_map_id;
         MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
@@ -4934,9 +4934,6 @@ static void dungeon_complete_door_transition(void)
 // Checked
 void after_run_animation()
 {
-    // Can't use ADDR_MDT here — load_mdt is a stub, so MDT data is still
-    // the old dungeon's. Use ADDR_PLACE_MAP_ID instead, which was set
-    // correctly from the door struct in enter_opened_door.
     if (MEM8(ADDR_PLACE_MAP_ID) & 0x80) {
         // town — signal game.js to init town entry
         MEM8(ADDR_DUNGEON_EXIT_FLAG) = 0xFF;
@@ -5290,6 +5287,7 @@ void load_eai_module(uint8_t place_map_id)
         case 25: current_monster_ai = Monster_AI_8; break; // mp82.mdt
         case 26: current_monster_ai = Monster_AI_8; break; // mp83.mdt
         case 27: current_monster_ai = Monster_AI_8; break; // mp84.mdt
+        case 28: Alguien_AI_reset(); current_monster_ai = Alguien_AI; break;   // mp8d.mdt
         /* add more as more eaiN/boss modules are translated */
     }
 }

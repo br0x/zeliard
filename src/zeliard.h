@@ -356,6 +356,8 @@ void Dragon_AI(uint16_t m);
 void Dragon_AI_reset(void);
 void Paguro_AI(uint16_t m);
 void Paguro_AI_reset(void);
+void Alguien_AI(uint16_t m);
+void Alguien_AI_reset(void);
 
 
 static void update_all_monsters_in_map(void);
