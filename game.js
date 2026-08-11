@@ -749,6 +749,20 @@ const AKMA = {
     ],
     numSprites: 138,
 };
+const MAO1 = {
+    left: [ // 0xA030
+    ],
+    right: [ // 0xA070
+    ],
+    numSprites: 0,
+};
+const MAO2 = {
+    left: [ // 0xA030
+    ],
+    right: [ // 0xA070
+    ],
+    numSprites: 0,
+};
 
 const DUNGEONS = {
     0: { 

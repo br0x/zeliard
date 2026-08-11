@@ -54,14 +54,14 @@ start:
                 db    0
                 db    0
                 ; A030
-                dw offset byte_A03E
-                dw offset byte_A08E
-                dw offset byte_A0DE
-                dw offset byte_A12E
-                dw offset byte_A17E
-                dw offset byte_A1CE
-                dw offset byte_A219
-byte_A03E       db 1, 1, 2, 3, 4
+                dw offset byte_A03E  ; 0..15
+                dw offset byte_A08E  ; 16..31
+                dw offset byte_A0DE  ; 32..47
+                dw offset byte_A12E  ; 48..63
+                dw offset byte_A17E  ; 64..79
+                dw offset byte_A1CE  ; 80..94
+                dw offset byte_A219  ; 95..101
+byte_A03E       db 1, 1, 2, 3, 4            ; 0
                 db 1, 5, 6, 0Ch, 0
                 db 1, 0, 0, 0Ah, 0Bh
                 db 1, 0, 0, 8, 9
@@ -76,8 +76,8 @@ byte_A03E       db 1, 1, 2, 3, 4
                 db 1, 20h, 0, 0, 0
                 db 1, 0, 14h, 1Ah, 1Bh
                 db 1, 7, 1Fh, 0Fh, 10h
-                db 1, 28h, 0, 2Fh, 30h
-byte_A08E       db 1, 26h, 27h, 2Dh, 2Eh
+                db 1, 28h, 0, 2Fh, 30h      ; 15
+byte_A08E       db 1, 26h, 27h, 2Dh, 2Eh    ; 16
                 db 1, 13h, 0, 18h, 22h
                 db 1, 1, 2, 3, 4
                 db 1, 11h, 12h, 16h, 21h
@@ -92,8 +92,8 @@ byte_A08E       db 1, 26h, 27h, 2Dh, 2Eh
                 db 1, 3Dh, 45h, 48h, 49h
                 db 1, 4Dh, 4Eh, 52h, 53h
                 db 1, 0, 0, 0, 1
-                db 1, 0, 3, 37h, 38h
-byte_A0DE       db 1, 3Bh, 3Ch, 3Fh, 40h
+                db 1, 0, 3, 37h, 38h        ; 31
+byte_A0DE       db 1, 3Bh, 3Ch, 3Fh, 40h    ; 32
                 db 1, 43h, 44h, 46h, 47h
                 db 1, 4Bh, 4Ch, 50h, 51h
                 db 1, 0, 4Ah, 0, 4Fh
@@ -108,8 +108,8 @@ byte_A0DE       db 1, 3Bh, 3Ch, 3Fh, 40h
                 db 1, 4, 0, 61h, 3Ah
                 db 1, 62h, 3Eh, 3Dh, 42h
                 db 1, 0, 3, 5Eh, 38h
-                db 1, 5Fh, 60h, 58h, 40h
-byte_A12E       db 1, 4, 0, 67h, 68h
+                db 1, 5Fh, 60h, 58h, 40h    ; 47
+byte_A12E       db 1, 4, 0, 67h, 68h        ; 48
                 db 1, 0, 3, 65h, 66h
                 db 1, 0, 0, 63h, 64h
                 db 1, 6Ch, 6Dh, 6Fh, 70h
@@ -124,8 +124,8 @@ byte_A12E       db 1, 4, 0, 67h, 68h
                 db 1, 89h, 8Ah, 85h, 71h
                 db 1, 0, 0, 8Bh, 0
                 db 1, 8Ch, 8Dh, 77h, 8Eh
-                db 1, 7Dh, 3, 81h, 82h
-byte_A17E       db 1, 80h, 71h, 85h, 80h
+                db 1, 7Dh, 3, 81h, 82h      ; 63
+byte_A17E       db 1, 80h, 71h, 85h, 80h    ; 64
                 db 1, 0, 85h, 0, 47h
                 db 1, 0, 0, 41h, 79h
                 db 1, 7Bh, 7Ch, 7Fh, 80h
@@ -140,8 +140,8 @@ byte_A17E       db 1, 80h, 71h, 85h, 80h
                 db 1, 0AAh, 0ABh, 0AEh, 0AFh
                 db 1, 0B2h, 0B3h, 0, 0B5h
                 db 1, 0, 4Ch, 76h, 51h
-                db 1, 92h, 93h, 98h, 99h
-byte_A1CE       db 1, 9Eh, 9Fh, 0A3h, 0A4h
+                db 1, 92h, 93h, 98h, 99h     ; 79
+byte_A1CE       db 1, 9Eh, 9Fh, 0A3h, 0A4h   ; 80
                 db 1, 0A8h, 0A9h, 0, 0
                 db 1, 90h, 91h, 96h, 97h
                 db 1, 9Ch, 9Dh, 0, 0A2h
@@ -155,14 +155,14 @@ byte_A1CE       db 1, 9Eh, 9Fh, 0A3h, 0A4h
                 db 1, 0BCh, 0BDh, 0C2h, 0C3h
                 db 1, 0C9h, 3, 0, 0CEh
                 db 1, 0, 0D1h, 0, 0D2h
-                db 1, 0, 0B3h, 0, 0B5h
-byte_A219       db 1, 0, 0, 0, 0B8h
+                db 1, 0, 0B3h, 0, 0B5h       ; 94
+byte_A219       db 1, 0, 0, 0, 0B8h          ; 95
                 db 1, 0, 0, 0, 0B7h
                 db 1, 0BAh, 0BBh, 0C0h, 0C1h
                 db 1, 0, 0B9h, 0BEh, 0BFh
                 db 1, 0C7h, 0C8h, 0CCh, 0CDh
                 db 1, 0, 0C6h, 0, 0CBh
-                db 1, 0, 0, 0, 7
+                db 1, 0, 0, 0, 7             ; 101
 
 ; =============== S U B R O U T I N E =======================================
 
