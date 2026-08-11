@@ -363,6 +363,8 @@ void Alguien_AI(uint16_t m);
 void Alguien_AI_reset(void);
 void Jashiin1_AI(uint16_t m);
 void Jashiin1_AI_reset(void);
+void Jashiin2_AI(uint16_t m);
+void Jashiin2_AI_reset(void);
 
 static void update_all_monsters_in_map(void);
 static void place_monster_in_proximity_and_run_ai(uint16_t m);

@@ -765,10 +765,22 @@ const MAO1 = {
 };
 const MAO2 = {
     left: [ // 0xA030
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],            // tile group 0
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],  // tile group 1
+        [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],  // tile group 2
+        [48, 49, 50, 51, 52, 53, 54],                                      // tile group 3
+        [55, 56, 57, 58, 59],                                              // tile group 4
+        [60, 61, 62],                                                      // tile group 5
     ],
     right: [ // 0xA070
+        [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78],            // tile group 0
+        [79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94],            // tile group 1
+        [95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110], // tile group 2
+        [111, 112, 113, 114, 115, 116, 117],                                         // tile group 3
+        [118, 119, 120, 121, 122],                                                   // tile group 4
+        [123, 124, 125],                                                             // tile group 5
     ],
-    numSprites: 0,
+    numSprites: 126,
 };
 
 const DUNGEONS = {
@@ -1727,8 +1739,8 @@ const DUNGEONS = {
         airflows: [],
         monster_xp: [],
         monster_damage: [
-            40, 40, 40, 40, 40, 40, 80, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-            40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ],
         death_descriptors: [
             [], [], [], [], [], [], [], [],
@@ -1738,13 +1750,13 @@ const DUNGEONS = {
         projectiles: [ // 1-based tile indices in mppX.png sheet
         ],
         bossState: {
-            bossX: 42,               // +0
-            bossY: 0,                // +2
-            bossHP: 800,             // +3
-            xpReward: 30000,         // +5
-            arenaCenterX: 12,        // +7
-            bossPlacement: 0,        // +8
-            almasReward: 3800,       // +11
+            bossX: 16,               // +0
+            bossY: 1,                // +2
+            bossHP: 250,             // +3
+            xpReward: 200,           // +5
+            arenaCenterX: 5,         // +7
+            bossPlacement: 0xff,     // +8
+            almasReward: 0,          // +11
             bossName: 'Jashiin',
         },
         ai: MAO1,
@@ -1762,8 +1774,8 @@ const DUNGEONS = {
         airflows: [],
         monster_xp: [],
         monster_damage: [
-            40, 40, 40, 40, 40, 40, 80, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-            40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+            80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80,
+            80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80,
         ],
         death_descriptors: [
             [], [], [], [], [], [], [], [],
@@ -1773,13 +1785,13 @@ const DUNGEONS = {
         projectiles: [ // 1-based tile indices in mppX.png sheet
         ],
         bossState: {
-            bossX: 42,               // +0
-            bossY: 0,                // +2
+            bossX: 48,               // +0
+            bossY: 9,                // +2
             bossHP: 800,             // +3
-            xpReward: 30000,         // +5
+            xpReward: 10000,         // +5
             arenaCenterX: 12,        // +7
             bossPlacement: 0,        // +8
-            almasReward: 3800,       // +11
+            almasReward: 0,          // +11
             bossName: 'Jashiin',
         },
         ai: MAO2,

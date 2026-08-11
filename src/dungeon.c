@@ -5288,8 +5288,8 @@ void load_eai_module(uint8_t place_map_id)
         case 26: current_monster_ai = Monster_AI_8; break; // mp83.mdt
         case 27: current_monster_ai = Monster_AI_8; break; // mp84.mdt
         case 28: Alguien_AI_reset(); current_monster_ai = Alguien_AI; break;   // mp8d.mdt
-        case 29: Jashiin1_AI_reset(); current_monster_ai = Jashiin1_AI; break;   // mpa0.mdt
-        /* add more as more eaiN/boss modules are translated */
+        case 29: Jashiin1_AI_reset(); current_monster_ai = Jashiin1_AI; break;   // mp90.mdt
+        case 30: Jashiin2_AI_reset(); current_monster_ai = Jashiin2_AI; break;   // mpa0.mdt
     }
 }
 
