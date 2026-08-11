@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/akma.grp"
+                "${workspaceFolder}/tools/GrpViewer/mao1.grp"
             ],
             "console": "integratedTerminal",
         },

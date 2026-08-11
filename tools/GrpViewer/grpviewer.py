@@ -27,6 +27,7 @@ GRP_DESCRIPTOR = [
     ("drgn.grp",  19),
     ("zel2.grp",  20),
     ("akma.grp",  21),
+    ("mao1.grp",  22),
 ]
 
 MODE_CFG = {
@@ -39,6 +40,7 @@ MODE_CFG = {
     19:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "drgn"},
     20:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "zel2"},
     21:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "akma"},
+    22:{"w": 16, "h": 8,  "stride": 4,  "bytes": 32,  "type": "mao1"},
 }
 
 SCALE = 3
@@ -3086,6 +3088,263 @@ def render_akma_group(data, canvas, y_offset):
 
 
 # ---------------------------------------------------------------------------
+# Mao1 (Jashiin, room 1) boss rendering (mao1.grp)
+# ---------------------------------------------------------------------------
+#
+# Transcribed directly from mao1.asm's "start:" export header: the 7-pointer
+# table at address 0xA030 (right after the AI/state-block pointers and their
+# reserved padding) points at byte_A03E, byte_A08E, byte_A0DE, byte_A12E,
+# byte_A17E, byte_A1CE and byte_A219. Same [pal_idx, tl, tr, bl, br] row
+# format as CRAB_FRAMES/TAKO_FRAMES/AKMA_FRAMES (pal_idx is always 1 here).
+# None of this is read by Mao1_AI_proc itself -- it belongs to the generic
+# monster/boss-rendering routine -- so entries are labeled by their table
+# slot/original symbol rather than a hand-picked body-part name, same as
+# TAKO_FRAMES/AKMA_FRAMES.
+MAO1_FRAMES = {
+    "Group 0 (byte_A03E)": [
+        [1, 0x01, 0x02, 0x03, 0x04], [1, 0x05, 0x06, 0x0C, 0x00], [1, 0x00, 0x00, 0x0A, 0x0B],
+        [1, 0x00, 0x00, 0x08, 0x09], [1, 0x0E, 0x00, 0x00, 0x00], [1, 0x07, 0x0D, 0x0F, 0x10],
+        [1, 0x00, 0x00, 0x01, 0x02], [1, 0x03, 0x04, 0x11, 0x12], [1, 0x00, 0x00, 0x13, 0x00],
+        [1, 0x18, 0x19, 0x1E, 0x00], [1, 0x16, 0x17, 0x0A, 0x1D], [1, 0x00, 0x15, 0x1C, 0x09],
+        [1, 0x20, 0x00, 0x00, 0x00], [1, 0x00, 0x14, 0x1A, 0x1B], [1, 0x07, 0x1F, 0x0F, 0x10],
+        [1, 0x28, 0x00, 0x2F, 0x30],
+    ],
+    "Group 1 (byte_A08E)": [
+        [1, 0x26, 0x27, 0x2D, 0x2E], [1, 0x13, 0x00, 0x18, 0x22], [1, 0x01, 0x02, 0x03, 0x04],
+        [1, 0x11, 0x12, 0x16, 0x21], [1, 0x24, 0x25, 0x2B, 0x2C], [1, 0x34, 0x00, 0x00, 0x00],
+        [1, 0x00, 0x23, 0x29, 0x2A], [1, 0x32, 0x33, 0x35, 0x36], [1, 0x00, 0x31, 0x00, 0x00],
+        [1, 0x00, 0x00, 0x02, 0x00], [1, 0x04, 0x00, 0x39, 0x3A], [1, 0x3D, 0x3E, 0x3D, 0x42],
+        [1, 0x3D, 0x45, 0x48, 0x49], [1, 0x4D, 0x4E, 0x52, 0x53], [1, 0x00, 0x00, 0x00, 0x01],
+        [1, 0x00, 0x03, 0x37, 0x38],
+    ],
+    "Group 2 (byte_A0DE)": [
+        [1, 0x3B, 0x3C, 0x3F, 0x40], [1, 0x43, 0x44, 0x46, 0x47], [1, 0x4B, 0x4C, 0x50, 0x51],
+        [1, 0x00, 0x4A, 0x00, 0x4F], [1, 0x00, 0x03, 0x54, 0x38], [1, 0x57, 0x3C, 0x58, 0x40],
+        [1, 0x59, 0x44, 0x46, 0x47], [1, 0x55, 0x56, 0x00, 0x00], [1, 0x00, 0x03, 0x5D, 0x38],
+        [1, 0x58, 0x3C, 0x58, 0x40], [1, 0x00, 0x00, 0x5B, 0x5C], [1, 0x00, 0x00, 0x00, 0x5A],
+        [1, 0x04, 0x00, 0x61, 0x3A], [1, 0x62, 0x3E, 0x3D, 0x42], [1, 0x00, 0x03, 0x5E, 0x38],
+        [1, 0x5F, 0x60, 0x58, 0x40],
+    ],
+    "Group 3 (byte_A12E)": [
+        [1, 0x04, 0x00, 0x67, 0x68], [1, 0x00, 0x03, 0x65, 0x66], [1, 0x00, 0x00, 0x63, 0x64],
+        [1, 0x6C, 0x6D, 0x6F, 0x70], [1, 0x6A, 0x6B, 0x69, 0x6E], [1, 0x00, 0x69, 0x00, 0x00],
+        [1, 0x71, 0x45, 0x72, 0x73], [1, 0x00, 0x69, 0x00, 0x47], [1, 0x74, 0x75, 0x77, 0x78],
+        [1, 0x00, 0x4C, 0x76, 0x51], [1, 0x04, 0x00, 0x83, 0x84], [1, 0x86, 0x87, 0x71, 0x88],
+        [1, 0x89, 0x8A, 0x85, 0x71], [1, 0x00, 0x00, 0x8B, 0x00], [1, 0x8C, 0x8D, 0x77, 0x8E],
+        [1, 0x7D, 0x03, 0x81, 0x82],
+    ],
+    "Group 4 (byte_A17E)": [
+        [1, 0x80, 0x71, 0x85, 0x80], [1, 0x00, 0x85, 0x00, 0x47], [1, 0x00, 0x00, 0x41, 0x79],
+        [1, 0x7B, 0x7C, 0x7F, 0x80], [1, 0x00, 0x7A, 0x00, 0x7E], [1, 0x00, 0x85, 0x00, 0x00],
+        [1, 0x04, 0x00, 0xA7, 0x00], [1, 0xAC, 0xAD, 0xB0, 0xB1], [1, 0xB4, 0x00, 0xB6, 0x00],
+        [1, 0x8C, 0x8D, 0x77, 0x8E], [1, 0x94, 0x00, 0x9A, 0x01], [1, 0xA0, 0xA1, 0xA5, 0xA6],
+        [1, 0xAA, 0xAB, 0xAE, 0xAF], [1, 0xB2, 0xB3, 0x00, 0xB5], [1, 0x00, 0x4C, 0x76, 0x51],
+        [1, 0x92, 0x93, 0x98, 0x99],
+    ],
+    "Group 5 (byte_A1CE)": [
+        [1, 0x9E, 0x9F, 0xA3, 0xA4], [1, 0xA8, 0xA9, 0x00, 0x00], [1, 0x90, 0x91, 0x96, 0x97],
+        [1, 0x9C, 0x9D, 0x00, 0xA2], [1, 0x00, 0x8F, 0x00, 0x95], [1, 0x00, 0x9B, 0x00, 0x00],
+        [1, 0x00, 0x00, 0xC4, 0xC5], [1, 0x04, 0xCA, 0xCF, 0xD0], [1, 0xAC, 0xAD, 0xB0, 0xB1],
+        [1, 0xB4, 0x00, 0xB6, 0x00], [1, 0x8C, 0x8D, 0x77, 0x8E], [1, 0xBC, 0xBD, 0xC2, 0xC3],
+        [1, 0xC9, 0x03, 0x00, 0xCE], [1, 0x00, 0xD1, 0x00, 0xD2], [1, 0x00, 0xB3, 0x00, 0xB5],
+    ],
+    "Group 6 (byte_A219)": [
+        [1, 0x00, 0x00, 0x00, 0xB8], [1, 0x00, 0x00, 0x00, 0xB7], [1, 0xBA, 0xBB, 0xC0, 0xC1],
+        [1, 0x00, 0xB9, 0xBE, 0xBF], [1, 0xC7, 0xC8, 0xCC, 0xCD], [1, 0x00, 0xC6, 0x00, 0xCB],
+        [1, 0x00, 0x00, 0x00, 0x07],
+    ],
+}
+
+# Maps a tile_group value (the high nibble of a packed byte in
+# MAO1_LAYOUT_TABLES / off_A495's byte_A4AB..byte_A51F pose tile tables)
+# to its MAO1_FRAMES key.
+MAO1_FRAME_SET_BY_INDEX = {
+    0: "Group 0 (byte_A03E)",
+    1: "Group 1 (byte_A08E)",
+    2: "Group 2 (byte_A0DE)",
+    3: "Group 3 (byte_A12E)",
+    4: "Group 4 (byte_A17E)",
+    5: "Group 5 (byte_A1CE)",
+    6: "Group 6 (byte_A219)",
+}
+
+# Pose layout tables (off_A495 -> byte_A4AB..byte_A51F in mao1.asm): each
+# raw tile byte's high nibble selects the tile_group (a MAO1_FRAME_SET_BY_INDEX
+# key) and low nibble selects the frame index within that group's MAO1_FRAMES
+# list -- pre-split into (tile_group, anim_idx) tuples here, same convention
+# as TAKO_LAYOUT_TABLES/AKMA_LAYOUT_TABLES. MAO1_LAYOUT_TABLES[pose] lines up
+# 1:1 with MAO1_SHAPE_BASES[pose] (11 poses, matching Mao1_AI_proc's
+# byte_A59B pose selector, 0..0x0A).
+MAO1_LAYOUT_TABLES = [
+    [(0, 0x5), (0, 0x3), (0, 0x4), (0, 0x2), (0, 0x0), (0, 0x1)],  # byte_A4AB
+    [(0, 0xD), (0, 0xE), (0, 0xB), (0, 0xC), (0, 0x6), (0, 0x7), (0, 0xA), (0, 0x8), (0, 0x9)],  # byte_A4B1
+    [(1, 0x8), (1, 0x6), (1, 0x7), (1, 0x2), (1, 0x3), (1, 0x4), (1, 0x5), (1, 0x1), (1, 0x0), (0, 0xF)],  # byte_A4BA
+    [(2, 0x3), (1, 0xE), (1, 0xF), (2, 0x0), (2, 0x1), (2, 0x2), (1, 0x9), (1, 0xA), (1, 0xB), (1, 0xC), (1, 0xD)],  # byte_A4C4
+    [(2, 0x7), (2, 0x3), (1, 0xE), (2, 0x4), (2, 0x5), (2, 0x6), (2, 0x2), (1, 0x9), (1, 0xA), (1, 0xB), (1, 0xC), (1, 0xD)],  # byte_A4CF
+    [(2, 0xB), (2, 0xA), (2, 0x3), (1, 0xE), (2, 0x8), (2, 0x9), (2, 0x6), (2, 0x2), (1, 0x9), (1, 0xA), (1, 0xB), (1, 0xC), (1, 0xD)],  # byte_A4DB
+    [(2, 0x3), (1, 0xE), (2, 0xE), (2, 0xF), (2, 0x6), (2, 0x2), (1, 0x9), (2, 0xC), (2, 0xD), (1, 0xC), (1, 0xD)],  # byte_A4E8
+    [(3, 0x2), (3, 0x5), (1, 0xE), (3, 0x1), (3, 0x4), (3, 0x7), (3, 0x9), (1, 0x9), (3, 0x0), (3, 0x3), (3, 0x6), (3, 0x8)],  # byte_A4F3
+    [(4, 0x4), (4, 0x2), (4, 0x3), (4, 0x5), (1, 0xE), (3, 0xF), (4, 0x0), (4, 0x1), (3, 0x9), (1, 0x9), (3, 0xA), (3, 0xB), (3, 0xC), (3, 0xE), (3, 0xD)],  # byte_A4FF
+    [(5, 0x4), (5, 0x5), (5, 0x2), (5, 0x3), (4, 0xF), (5, 0x0), (5, 0x1), (4, 0xA), (4, 0xB), (4, 0xC), (4, 0xD), (4, 0xE), (1, 0x9), (4, 0x6), (4, 0x7), (4, 0x8), (4, 0x9)],  # byte_A50E
+    [(6, 0x1), (6, 0x3), (6, 0x5), (6, 0x0), (6, 0x2), (6, 0x4), (5, 0xB), (5, 0xC), (5, 0xD), (5, 0xE), (4, 0xE), (5, 0x6), (5, 0x7), (5, 0x8), (5, 0x9), (5, 0xA)],  # byte_A51F
+]
+
+# Pose mask tables (off_A52F -> byte_A545..byte_A57B in mao1.asm): 6 bytes
+# each, one bit per potential row (up to 8) per column (6 columns),
+# consumed MSB-first via rotate, same scheme as TAKO_SHAPE_BASES/
+# AKMA_SHAPE_BASES. Poses 3 and 6 share the exact same physical mask byte
+# (byte_A557) in the original data layout.
+MAO1_SHAPE_BASES = [
+    (0x00, 0x00, 0x04, 0x0C, 0x08, 0x18),  # byte_A545 (pose 0)
+    (0x00, 0x00, 0x0C, 0x0C, 0x38, 0x18),  # byte_A54B (pose 1)
+    (0x00, 0x04, 0x0C, 0x3C, 0x18, 0x08),  # byte_A551 (pose 2)
+    (0x00, 0x00, 0x04, 0x7C, 0x7C, 0x00),  # byte_A557 (pose 3)
+    (0x00, 0x00, 0x14, 0x7C, 0x7C, 0x00),  # byte_A55D (pose 4)
+    (0x00, 0x20, 0x24, 0x7C, 0x7C, 0x00),  # byte_A563 (pose 5)
+    (0x00, 0x00, 0x04, 0x7C, 0x7C, 0x00),  # byte_A557 again (pose 6, shared with pose 3)
+    (0x00, 0x00, 0x30, 0x7C, 0x7C, 0x00),  # byte_A569 (pose 7)
+    (0x00, 0x20, 0x70, 0x7C, 0x7C, 0x08),  # byte_A56F (pose 8)
+    (0x60, 0x60, 0x70, 0x7C, 0x7C, 0x00),  # byte_A575 (pose 9)
+    (0x00, 0xE0, 0xE0, 0x7C, 0x7C, 0x00),  # byte_A57B (pose 10 / 0x0A)
+]
+
+
+def compute_mao1_pose_layout(pose_idx):
+    """
+    Reproduce Mao1_AI_proc's per-pose body layout walk (loc_A290's
+    outer/inner loop over 6 columns x 8 rows) for a single pose (0..10),
+    returning a static snapshot: a list of (col, row, tile_group, anim_idx)
+    for every currently-visible body-part segment.
+
+    Note: in the original game the mask byte is rotated in place and that
+    rotation persists across frames, and poses 3 and 6 share the exact same
+    physical mask byte (byte_A557 -- see MAO1_SHAPE_BASES). For this static
+    reference sheet we instead start from a fresh copy of the pose's base
+    mask, exactly as compute_tako_phase_layout / compute_akma_body_layout do.
+    """
+    layout_pairs = MAO1_LAYOUT_TABLES[pose_idx]
+    mask = list(MAO1_SHAPE_BASES[pose_idx])
+    pair_iter = iter(layout_pairs)
+    placements = []
+
+    for col in range(6):
+        b = mask[col]
+        for row in range(8):
+            carry = (b & 0x80) != 0
+            b = ((b << 1) | (1 if carry else 0)) & 0xFF
+            if carry:
+                try:
+                    tile_group, anim_idx = next(pair_iter)
+                except StopIteration:
+                    break
+                placements.append((col, row, tile_group, anim_idx))
+
+    return placements
+
+
+def render_mao1_group(data, canvas, y_offset):
+    """
+    Jashiin boss, room 1 (mao1.grp).
+
+    Unlike the fighting bosses, this is a pure cutscene -- Mao1_AI_proc has
+    no hit-detection pass and boss_hp is never touched (see mao1.c); it just
+    plays a scripted idle-animation timeline that walks through 11 body
+    poses and pops the occasional dialog box.
+
+    Part 1 assembles the actual boss body (6 columns x 8 rows) for each of
+    the 11 poses, exactly as Mao1_AI_proc lays it out from
+    MAO1_LAYOUT_TABLES / MAO1_SHAPE_BASES, using each placement's
+    tile_group to pick the right MAO1_FRAMES set and anim_idx to pick the
+    frame within it.
+
+    Part 2 is a plain browser over every raw frame set, same pattern as
+    render_tako_group/render_akma_group.
+    """
+    TILE_SIZE = 32
+    scale = 3
+    current_y = y_offset
+    gap_x = 0
+    gap_y = 8
+    sprite_px = 16
+    frames_per_row = 16
+
+    tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # -----------------------------------------------------------------------
+    # Part 1: Render Composite Jashiin Body (11 poses)
+    # -----------------------------------------------------------------------
+    # Mao1_AI_proc advances both column and row by 2 world-tile units per
+    # step (col_x += 2 per column; currY = boss_y + row*2), and the game's
+    # base map tile is 8px -- not 16 -- so each grid step here is
+    # 2 * 8px = 16px, which lands pieces edge-to-edge rather than
+    # overlapping (unlike Akma's 1-unit/8px-per-column step, which
+    # deliberately overlaps its 16x16 pieces). Deriving the step from the
+    # 8px world-tile size instead of hardcoding 16 keeps this consistent
+    # with how the engine actually places these pieces on the 8px
+    # proximity map.
+    WORLD_TILE_PX = 8
+    COL_STEP_UNITS = 2
+    ROW_STEP_UNITS = 2
+    GRID_STEP_X = COL_STEP_UNITS * WORLD_TILE_PX  # 16
+    GRID_STEP_Y = ROW_STEP_UNITS * WORLD_TILE_PX  # 16
+
+    body_scale = 2
+    cols, rows = 6, 8
+    block_w = ((cols - 1) * GRID_STEP_X + 16) * body_scale
+    block_h = ((rows - 1) * GRID_STEP_Y + 16) * body_scale
+    poses_per_row = 4
+    body_gap_x, body_gap_y = 16, 24
+
+    for pose_idx in range(11):
+        col_idx = pose_idx % poses_per_row
+        row_idx = pose_idx // poses_per_row
+        x_base = 10 + col_idx * (block_w + body_gap_x)
+        y_base = current_y + row_idx * (block_h + body_gap_y)
+
+        canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
+        canvas.create_text(x_base + 4, y_base - 10, text=f"pose {pose_idx}",
+                            anchor="nw", fill="white", font=("TkDefaultFont", 7))
+
+        for gcol, grow, tile_group, anim_idx in compute_mao1_pose_layout(pose_idx):
+            set_name = MAO1_FRAME_SET_BY_INDEX.get(tile_group)
+            if set_name is None:
+                continue
+            frames = MAO1_FRAMES[set_name]
+            if anim_idx >= len(frames):
+                continue
+            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
+                                       x_base + gcol * GRID_STEP_X * body_scale,
+                                       y_base + grow * GRID_STEP_Y * body_scale,
+                                       body_scale)
+
+    num_body_rows = (11 + poses_per_row - 1) // poses_per_row
+    current_y += num_body_rows * (block_h + body_gap_y) + 24
+
+    # -----------------------------------------------------------------------
+    # Part 2: Render every raw frame set
+    # -----------------------------------------------------------------------
+    n = 0
+    for set_name, frames in MAO1_FRAMES.items():
+        current_y += 20
+
+        for f_idx, frame_data in enumerate(frames):
+            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
+            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
+
+            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
+                                fill="white", font=("TkDefaultFont", 7))
+            n += 1
+            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
+                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
+            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
+
+        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
+        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+
+    return current_y - y_offset
+
+
+# ---------------------------------------------------------------------------
 # Main Application
 # ---------------------------------------------------------------------------
 
@@ -3194,6 +3453,10 @@ class GrpViewer:
                 consumed = render_akma_group(data, self.canvas, y_cursor)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Akma (Alguien) Boss Sprites")
+            elif modes == 22:
+                consumed = render_mao1_group(data, self.canvas, y_cursor)
+                self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
+                self.info_label.config(text=f"File: {filename} | Mao1 (Jashiin) Boss Sprites")
             else:
                 return
             return
