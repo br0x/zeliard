@@ -1216,8 +1216,8 @@ sub_AB88        endp
 
 loc_ABC4:
                 mov     al, byte_AC20
-                cmp     al, 28h ; '('
-                jnb     short loc_ABF3
+                cmp     al, 40
+                jnb     short jashiin_is_dead
                 test    byte_AC20, 7
                 jnz     short loc_ABD7
                 mov     byte ptr ds:soundFX_request, 35
@@ -1225,7 +1225,7 @@ loc_ABC4:
 loc_ABD7:
                 mov     byte ptr ds:sprite_flash_flag, 0FFh
                 inc     byte_AC20
-                cmp     al, 14h
+                cmp     al, 20
                 jb      short loc_ABE7
                 jmp     sub_A6BC
 ; ---------------------------------------------------------------------------
@@ -1238,7 +1238,7 @@ loc_ABE7:
                 jmp     sub_A6BC
 ; ---------------------------------------------------------------------------
 
-loc_ABF3:
+jashiin_is_dead:
                 mov     byte ptr ds:boss_is_dead, 0FFh
                 retn
 ; ---------------------------------------------------------------------------
