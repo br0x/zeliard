@@ -225,18 +225,18 @@ Monster_AI      proc near
                 add     bx, bx          ; switch 5 cases
                 jmp     jpt_A2C3[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A2C3        dw offset loc_A2D2      ; jump table for switch statement
-                dw offset locret_A2D1
-                dw offset loc_A483
-                dw offset loc_A538
-                dw offset loc_A68F
+jpt_A2C3        dw offset medusa_top      ; type 0 (medusa)
+                dw offset medusa_bottom   ; type 1 (passive bottom part of medusa)
+                dw offset crab            ; type 2 (crab)
+                dw offset slime           ; type 3 (slime)
+                dw offset plasma          ; type 4 (plasma)
 ; ---------------------------------------------------------------------------
 
-locret_A2D1:                            ; jumptable 0000A2C3 case 1
+medusa_bottom:                            ; jumptable 0000A2C3 case 1
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A2D2:                               ; jumptable 0000A2C3 case 0
+medusa_top:                               ; jumptable 0000A2C3 case 0
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A2DC
                 mov     byte ptr [si+8], 64h ; 'd'
@@ -495,7 +495,7 @@ sub_A424        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A483:                               ; jumptable 0000A2C3 case 2
+crab:                               ; jumptable 0000A2C3 case 2
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A48D
                 mov     byte ptr [si+8], 30h ; '0'
@@ -590,7 +590,7 @@ loc_A533:
                 retn
 ; ---------------------------------------------------------------------------
 
-loc_A538:                               ; jumptable 0000A2C3 case 3
+slime:                               ; jumptable 0000A2C3 case 3
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A542
                 mov     byte ptr [si+8], 40h ; '@'
@@ -797,7 +797,7 @@ sub_A680        endp
 
 ; ---------------------------------------------------------------------------
 
-loc_A68F:                               ; jumptable 0000A2C3 case 4
+plasma:                               ; jumptable 0000A2C3 case 4
                 test    byte ptr [si+8], 0FFh
                 jnz     short loc_A699
                 mov     byte ptr [si+8], 60h ; '`'

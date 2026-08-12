@@ -1557,7 +1557,6 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x29],
             [0x2A],
             [0x2B],
         ],
@@ -1589,7 +1588,6 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x29],
             [0x2A],
             [0x2B],
         ],
@@ -1621,7 +1619,6 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x29],
             [0x2A],
             [0x2B],
         ],
@@ -1653,7 +1650,6 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x29],
             [0x2A],
             [0x2B],
         ],
@@ -1685,7 +1681,6 @@ const DUNGEONS = {
         trajectories: [
         ],
         projectiles: [ // 1-based tile indices in mppX.png sheet
-            [0x29],
             [0x2A],
             [0x2B],
         ],
@@ -2495,8 +2490,7 @@ function onFullTick() {
                 // mirrors `inc render_counter` in Refresh_Dirty_Tiles: advance once
                 // per completed dungeon frame. The WASM phase machine splits each
                 // frame into 3 sub-steps (0→1→2→0), so dungeonUpdate() is called 3x
-                // per frame; only step phase 2→0 finishes a frame. Incrementing on
-                // every call made cavern tile animation 3x too fast and bursty.
+                // per frame; only step phase 2→0 finishes a frame
                 if (isRokaRun || (phaseBefore === 2 && readU8(ADDR_DUNGEON_FRAME_PHASE) === 0)) {
                     renderCounter = (renderCounter + 1) & 0xFF;
                 }
@@ -3269,7 +3263,7 @@ function drawTownSidewalk() {
     return true;
 }
 
-// some tiles in the towns are animated (like waving flags etc.)
+// some tiles in the towns are animated (like waving flags, torches etc.)
 function updateTownAnimation() {
     const pattern = PATTERN_ASSETS[townPatId];
     const seqList = pattern?.animatedTilesSeq ?? [];

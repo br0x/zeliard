@@ -43,28 +43,35 @@ static const uint8_t type4_dir_right[8] = { 0, 0, 1, 0, 0, 0, 7, 0 }; /* unk_A71
 static const uint8_t type4_dir_left[8]  = { 4, 4, 3, 4, 4, 4, 5, 4 }; /* unk_A723 */
 
 /* Projectile descriptors from byte_A666 and byte_A673.  X/Y are patched
- * immediately before Add_Projectile_To_Array(). */
+ * immediately before Add_Projectile_To_Array().
+ *
+ * Descriptor byte 2 indexes game.js's DUNGEONS[rawMapId].projectiles array
+ * (see drawDungeonProjectiles, which reads it as typeId).  The EAI8 dungeons
+ * define two projectile types:
+ *     index 0 -> tile 0x2A, index 1 -> tile 0x2B
+ * The original 0x2A (right-facing) and 0x2B (left-facing) were raw base-tile
+ * indices in mpp8.png, not array offsets, so they are remapped to 0 and 1. */
 static uint8_t type3_shot_right[13] = {
-    0, 0, 0x2A, 0, 0x12, 0, 0x50, 0, 0, 0, 0, 0, 0
+    0, 0, 0, 0, 0x12, 0, 0x50, 0, 0, 0, 0, 0, 0
 };
 static uint8_t type3_shot_left[13] = {
-    0, 0, 0x2B, 0, 0x12, 4, 1, 0, 0, 0, 0, 0, 0
+    0, 0, 1, 0, 0x12, 4, 1, 0, 0, 0, 0, 0, 0
 };
 
 void Monster_AI_8(uint16_t m)
 {
     switch (MEM8(m + 4) & 0x0F) {
-        case 0: type0_ai(m); return;
-        case 1: type1_ai(m); return;
-        case 2: type2_ai(m); return;
-        case 3: type3_ai(m); return;
-        case 4: type4_ai(m); return;
+        case 0: type0_ai(m); return; // medusa top
+        case 1: type1_ai(m); return; // medusa bottom
+        case 2: type2_ai(m); return; // crab
+        case 3: type3_ai(m); return; // slime
+        case 4: type4_ai(m); return; // plasma
         default: return;
     }
 }
 
 /* ------------------------------------------------------------------------- */
-/* Type 0: large two-slot monster.  The second slot is passive. */
+/* Type 0: large two-slot monster (medusa).  The second slot (bottom) is passive. */
 
 static void type1_ai(uint16_t m)
 {
