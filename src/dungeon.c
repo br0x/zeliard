@@ -5037,7 +5037,7 @@ void Cavern_Game_Init(void) {
     // Draw_Hero_Health_proc();
     // Print_Almas_Decimal_proc();
 
-    if (MEM8(ADDR_IS_JASHIIN_CAVERN)) {
+    if (MEM8(ADDR_IS_JASHIIN_CAVERN)) { // Jashiin room 1 cutscene
         MEM8(ADDR_BYTE_9F26) = 0xFF;
         MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 41;
         MEM8(ADDR_HERO_X_VIEW) = 5;
@@ -5053,7 +5053,7 @@ void Cavern_Game_Init(void) {
 
         MEM8(ADDR_BYTE_9F02) = 0;
 
-        // Load Jashiin room MDT
+        // Load Jashiin room 2 MDT (should be loaded by the game.js)
         // res_dispatcher_proc("MPA0.MDT", 0xC000);
 
         MEM8(ADDR_IS_BOSS_CAVERN) = 0xFF;
