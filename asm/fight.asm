@@ -2064,11 +2064,11 @@ skip_loop:
 ; ---------------------------------------------------------------------------
 
 move_loop:       
-                mov     di, [si]        ; =c013, d65e,
+                mov     di, [si]        ; ds:[C3BF]=0049
                 cmp     di, 0FFFFh
                 jz      short loc_6C2F
-                mov     ax, [si+2]
-                mov     [di], ax
+                mov     ax, [si+2]      ; ds:[C3C1]=00FF
+                mov     [di], ax        ; [49] = FF; [4A] = 00
                 add     si, 4
                 jmp     short move_loop
 ; ---------------------------------------------------------------------------

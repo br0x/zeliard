@@ -19,11 +19,10 @@ import { ImportExportDialog } from './import-export-ui.js';
 import { InventoryScreen } from './inventory-screen.js';
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
-const TILE_WIDTH  = 24;
-const TILE_HEIGHT = 24;
+const TILE_SIZE = 24;
 const VIEW_COLS   = 28;
 const VIEW_ROWS   = 18;
-const VIEW_WIDTH  = VIEW_COLS * TILE_WIDTH;
+const VIEW_WIDTH  = VIEW_COLS * TILE_SIZE;
 // ─── Feature flags ────────────────────────────────────────────────────────────
 const RUN_TOWN_ENTRY_ON_START = true;
 const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
@@ -2197,7 +2196,7 @@ const TOWN_MDTS = [
 ];
 const HERO_FRAME_W = 48;
 const HERO_FRAME_H = 72;
-const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_HEIGHT;   // row 13 → 312px
+const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_SIZE;   // row 13 → 312px
 const PROX_COLS = 36;
 const DUNGEON_MAP_HEIGHT = 64;
 const PROX_SIZE = PROX_COLS * DUNGEON_MAP_HEIGHT;
@@ -3196,21 +3195,21 @@ function resetTownScrollOffsets() {
 }
 
 const scrollFloorOneTileRight = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX - TILE_WIDTH + VIEW_WIDTH) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX - TILE_WIDTH*2 + VIEW_WIDTH) % VIEW_WIDTH;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX - TILE_SIZE + VIEW_WIDTH) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX - TILE_SIZE*2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
 const scrollFloorOneTileLeft = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX + TILE_WIDTH) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX + TILE_WIDTH*2) % VIEW_WIDTH;
+    townSidewalk1OffsetX = (townSidewalk1OffsetX + TILE_SIZE) % VIEW_WIDTH;
+    townSidewalk2OffsetX = (townSidewalk2OffsetX + TILE_SIZE*2) % VIEW_WIDTH;
 };
 
 const scrollCeilingHalfTileRight = () => {
-    townCeilingOffsetX = (townCeilingOffsetX - TILE_WIDTH/2 + VIEW_WIDTH) % VIEW_WIDTH;
+    townCeilingOffsetX = (townCeilingOffsetX - TILE_SIZE/2 + VIEW_WIDTH) % VIEW_WIDTH;
 };
 
 const scrollCeilingHalfTileLeft = () => {
-    townCeilingOffsetX = (townCeilingOffsetX + TILE_WIDTH/2) % VIEW_WIDTH;
+    townCeilingOffsetX = (townCeilingOffsetX + TILE_SIZE/2) % VIEW_WIDTH;
 };
 
 // ─── Town drawing functions ───────────────────────────────────────────────────
@@ -3222,16 +3221,16 @@ function drawTownBackground() {
 
 function drawTownCeiling() {
     if (!townBackgroundType || !townCeilingReady || !townBackgroundReady) return false;
-    ctx.drawImage(townBackground, 0, 0, canvas.width, TILE_HEIGHT*2, 0, 0, canvas.width, TILE_HEIGHT*2);
+    ctx.drawImage(townBackground, 0, 0, canvas.width, TILE_SIZE*2, 0, 0, canvas.width, TILE_SIZE*2);
     const rightPartWidth = canvas.width - townCeilingOffsetX;
     if (rightPartWidth > 0) {
-        ctx.drawImage(townCeiling, townCeilingOffsetX, 0, rightPartWidth, TILE_HEIGHT*2,
-                      0, 0, rightPartWidth, TILE_HEIGHT*2);
+        ctx.drawImage(townCeiling, townCeilingOffsetX, 0, rightPartWidth, TILE_SIZE*2,
+                      0, 0, rightPartWidth, TILE_SIZE*2);
     }
     const leftPartWidth = townCeilingOffsetX;
     if (leftPartWidth > 0) {
-        ctx.drawImage(townCeiling, 0, 0, leftPartWidth, TILE_HEIGHT*2,
-                      rightPartWidth, 0, leftPartWidth, TILE_HEIGHT*2);
+        ctx.drawImage(townCeiling, 0, 0, leftPartWidth, TILE_SIZE*2,
+                      rightPartWidth, 0, leftPartWidth, TILE_SIZE*2);
     }
     return true;
 }
@@ -3239,26 +3238,26 @@ function drawTownCeiling() {
 function drawTownSidewalk() {
     if (!townSidewalk1Ready || !townSidewalk2Ready) return false;
     const rightPartWidth1 = canvas.width - townSidewalk1OffsetX;
-    let y = TOWN_SIDEWALK1_START_ROW*TILE_HEIGHT;
+    let y = TOWN_SIDEWALK1_START_ROW*TILE_SIZE;
     if (rightPartWidth1 > 0) {
-        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth1, TILE_HEIGHT,
-                      0, y, rightPartWidth1, TILE_HEIGHT);
+        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth1, TILE_SIZE,
+                      0, y, rightPartWidth1, TILE_SIZE);
     }
     const leftPartWidth1 = townSidewalk1OffsetX;
     if (leftPartWidth1 > 0) {
-        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth1, TILE_HEIGHT,
-                      rightPartWidth1, y, leftPartWidth1, TILE_HEIGHT);
+        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth1, TILE_SIZE,
+                      rightPartWidth1, y, leftPartWidth1, TILE_SIZE);
     }
     const rightPartWidth2 = canvas.width - townSidewalk2OffsetX;
-    y = TOWN_SIDEWALK2_START_ROW*TILE_HEIGHT;
+    y = TOWN_SIDEWALK2_START_ROW*TILE_SIZE;
     if (rightPartWidth2 > 0) {
-        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth2, TILE_HEIGHT,
-                      0, y, rightPartWidth2, TILE_HEIGHT);
+        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth2, TILE_SIZE,
+                      0, y, rightPartWidth2, TILE_SIZE);
     }
     const leftPartWidth2 = townSidewalk2OffsetX;
     if (leftPartWidth2 > 0) {
-        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth2, TILE_HEIGHT,
-                      rightPartWidth2, y, leftPartWidth2, TILE_HEIGHT);
+        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth2, TILE_SIZE,
+                      rightPartWidth2, y, leftPartWidth2, TILE_SIZE);
     }
     return true;
 }
@@ -3322,13 +3321,13 @@ function drawTownTiles() {
                 tileId = mdtData[mdtOffset] ?? 0;
             }
             tileId = getAnimatedTownTileId(tileId);
-            const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_WIDTH;
-            const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_HEIGHT;
+            const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_SIZE;
+            const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_SIZE;
             ctx.drawImage(
                 townTileSheet,
-                sx, sy, TILE_WIDTH, TILE_HEIGHT,
-                col * TILE_WIDTH, (row + TOWN_MAP_START_ROW) * TILE_HEIGHT,
-                TILE_WIDTH, TILE_HEIGHT
+                sx, sy, TILE_SIZE, TILE_SIZE,
+                col * TILE_SIZE, (row + TOWN_MAP_START_ROW) * TILE_SIZE,
+                TILE_SIZE, TILE_SIZE
             );
         }
     }
@@ -3356,7 +3355,7 @@ function drawTownHero() {
     }
     const sx = frame * HERO_FRAME_W;
     const viewportX = gMem(0x0083);
-    const dx = viewportX * TILE_WIDTH;
+    const dx = viewportX * TILE_SIZE;
     const dy = HERO_BASE_Y;
     ctx.drawImage(heroSprite, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);
 }
@@ -3378,7 +3377,7 @@ function drawTownNpcs() {
         if (!sprite) continue;
         const nAnimPhase = npcMem[4];
         const screenCol = nx - proxLeft - TOWN_VISIBLE_COL_OFFSET;
-        const screenX   = screenCol * TILE_WIDTH;
+        const screenX   = screenCol * TILE_SIZE;
         if (screenX < -NPC_FRAME_W || screenX >= VIEW_WIDTH) continue;
         const animIdx = nAnimPhase & 3;
         let frame = (nFacing & 0x80) !== 0 ? animIdx : (4 + animIdx);
@@ -3396,22 +3395,22 @@ function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = fr
 }
 
 function drawStaticTile(tileId, vpX, vpY) {
-    const dx = vpX * TILE_WIDTH;
-    const dy = vpY * TILE_HEIGHT;
+    const dx = vpX * TILE_SIZE;
+    const dy = vpY * TILE_SIZE;
     if (tileId === 0) {
         ctx.fillStyle = '#000000';
-        ctx.fillRect(dx, dy, TILE_WIDTH, TILE_HEIGHT);
+        ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
         return;
     }
-    const mppCols = Math.floor(dungeonTileSheet.width / TILE_WIDTH);
-    const mppTiles = mppCols * Math.floor(dungeonTileSheet.height / TILE_HEIGHT);
+    const mppCols = Math.floor(dungeonTileSheet.width / TILE_SIZE);
+    const mppTiles = mppCols * Math.floor(dungeonTileSheet.height / TILE_SIZE);
     if (tileId >= 1 && tileId <= mppTiles) {
-        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, mppCols, dx, dy);
+        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, mppCols, dx, dy);
     } else if (tileId >= 0x40 && dungeonDchrSheetReady) {
-        const dchrCols = Math.floor(dungeonDchrSheet.width / TILE_WIDTH);
-        const dchrTiles = dchrCols * Math.floor(dungeonDchrSheet.height / TILE_HEIGHT);
+        const dchrCols = Math.floor(dungeonDchrSheet.width / TILE_SIZE);
+        const dchrTiles = dchrCols * Math.floor(dungeonDchrSheet.height / TILE_SIZE);
         if (tileId - 0x40 < dchrTiles) {
-            drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_WIDTH, TILE_HEIGHT, dchrCols, dx, dy);
+            drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_SIZE, TILE_SIZE, dchrCols, dx, dy);
         }
     }
 }
@@ -3591,7 +3590,7 @@ function spawnBossExplosionRings(col, row) {
   if (!_bossExplosionFrameRendered) {
     _bossExplosionFrameRendered = true;
 
-    const scale = TILE_WIDTH / 8; // 3 for 24px tiles
+    const scale = TILE_SIZE / 8; // 3 for 24px tiles
     let ptr = ADDR_BOSS_EXPLOSIONS_LIST;
 
     for (;;) {
@@ -3604,7 +3603,7 @@ function spawnBossExplosionRings(col, row) {
 
       const phase = life & 3;
       const ring = _getExplosionRingCanvas(variant, phase, scale);
-      ctx.drawImage(ring, x * TILE_WIDTH, y * TILE_HEIGHT);
+      ctx.drawImage(ring, x * TILE_SIZE, y * TILE_SIZE);
 
       ptr += 4;
     }
@@ -3649,7 +3648,7 @@ function drawDungeonProjectiles() { // monsters projectiles
     if (!dungeonTileSheetReady || !readMemory) return;
     if (!dungeonProjectiles) return;
     const top = dungeonGetViewportTop?.() ?? 0;
-    const cols = Math.floor(dungeonTileSheet.width / TILE_WIDTH);
+    const cols = Math.floor(dungeonTileSheet.width / TILE_SIZE);
     let p = ADDR_PROJECTILES_LIST;
     for (;;) {
         const p_x_rel = gMem(p);
@@ -3665,9 +3664,9 @@ function drawDungeonProjectiles() { // monsters projectiles
         const tiles = dungeonProjectiles[typeId];
         if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
         const tileId = tiles[stepCount % tiles.length];
-        const dx = vpX * TILE_WIDTH;
-        const dy = vpY * TILE_HEIGHT;
-        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_WIDTH, TILE_HEIGHT, cols, dx, dy);
+        const dx = vpX * TILE_SIZE;
+        const dy = vpY * TILE_SIZE;
+        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, cols, dx, dy);
         p += PROJECTILE_STRUCT_SIZE;
     }
 }
@@ -3737,11 +3736,11 @@ function drawDungeonMagicProjectiles() {
             if (sy >= VIEW_ROWS) continue;
             ctx.drawImage(
                 dungeonMagicSheet,
-                srcX0 + (sub & 1) * TILE_WIDTH,
-                (sub >> 1) * TILE_HEIGHT,
-                TILE_WIDTH, TILE_HEIGHT,
-                sx * TILE_WIDTH, sy * TILE_HEIGHT,
-                TILE_WIDTH, TILE_HEIGHT,
+                srcX0 + (sub & 1) * TILE_SIZE,
+                (sub >> 1) * TILE_SIZE,
+                TILE_SIZE, TILE_SIZE,
+                sx * TILE_SIZE, sy * TILE_SIZE,
+                TILE_SIZE, TILE_SIZE,
             );
         }
     }
@@ -3749,9 +3748,9 @@ function drawDungeonMagicProjectiles() {
 
 let _guerraEffectRunning = false;
 
-async function renderViewportBorderWalls() {
-    const viewW = VIEW_COLS * TILE_WIDTH;
-    const viewH = VIEW_ROWS * TILE_HEIGHT;
+async function renderGuerraEffect() {
+    const viewW = VIEW_COLS * TILE_SIZE;
+    const viewH = VIEW_ROWS * TILE_SIZE;
     const flashColor = 0x12;
 
     function waitFrame() {
@@ -3793,8 +3792,8 @@ async function renderViewportBorderWalls() {
         }
     }
 
-    const heroX = readU8(ADDR_HERO_X_VIEW) * TILE_WIDTH;
-    const heroY = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_HEIGHT;
+    const heroX = readU8(ADDR_HERO_X_VIEW) * TILE_SIZE;
+    const heroY = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
 
     xorViewportFlash();
 
@@ -3990,20 +3989,20 @@ function drawDungeonEntities() {
                 if (claimedTiles[claimedIndex]) continue;
                 claimedTiles[claimedIndex] = 1;
 
-                const sourceX = tileX * TILE_WIDTH;
-                const sourceY = tileY * TILE_HEIGHT;
-                const dx = destX * TILE_WIDTH;
-                const dy = destY * TILE_HEIGHT;
+                const sourceX = tileX * TILE_SIZE;
+                const sourceY = tileY * TILE_SIZE;
+                const dx = destX * TILE_SIZE;
+                const dy = destY * TILE_SIZE;
                 ctx.drawImage(
                     dungeonEntitySheet,
-                    sx + sourceX, sourceY, TILE_WIDTH, TILE_HEIGHT,
-                    dx, dy, TILE_WIDTH, TILE_HEIGHT
+                    sx + sourceX, sourceY, TILE_SIZE, TILE_SIZE,
+                    dx, dy, TILE_SIZE, TILE_SIZE
                 );
                 if (tinted) {
                     ctx.drawImage(
                         _tintCanvas,
-                        sourceX, sourceY, TILE_WIDTH, TILE_HEIGHT,
-                        dx, dy, TILE_WIDTH, TILE_HEIGHT
+                        sourceX, sourceY, TILE_SIZE, TILE_SIZE,
+                        dx, dy, TILE_SIZE, TILE_SIZE
                     );
                 }
             }
@@ -4138,7 +4137,7 @@ function drawDungeonMagiaStones() {
         const sx = gMem(base + 5);
         const sy = gMem(base + 6) & 0x3F;
         if (sy >= 19) continue; // outside viewport
-        drawSheetFrame(dungeonDchrSheet, 0x26, TILE_WIDTH, TILE_HEIGHT, 39, (sx - 4) * TILE_WIDTH, sy * TILE_HEIGHT);
+        drawSheetFrame(dungeonDchrSheet, 0x26, TILE_SIZE, TILE_SIZE, 39, (sx - 4) * TILE_SIZE, sy * TILE_SIZE);
     }
 }
 
@@ -4147,10 +4146,10 @@ function drawDungeonHero() {
     if (gMem(ADDR_HERO_SPRITE_HIDDEN)) return;
     const x0 = gMem(ADDR_HERO_X_VIEW);
     const y0 = gMem(ADDR_HERO_HEAD_Y_VIEW);
-    const dx = x0 * TILE_WIDTH;
-    const dy = y0 * TILE_HEIGHT;
+    const dx = x0 * TILE_SIZE;
+    const dy = y0 * TILE_SIZE;
     const state = getDungeonHeroState();
-    const armDy = state.squat ? dy + TILE_HEIGHT : dy;
+    const armDy = state.squat ? dy + TILE_SIZE : dy;
     const layers = [
         { frame: resolveBackArmFrame(state), y: armDy },
         { frame: resolveBodyFrame(state), y: dy },
@@ -4223,10 +4222,10 @@ function drawDungeonSword() {
     const row = baseRow + (facingLeft ? 1 : 0);
     const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
 
-    let dx = gMem(ADDR_HERO_X_VIEW) * TILE_WIDTH;
-    let dy = gMem(ADDR_HERO_HEAD_Y_VIEW) * TILE_HEIGHT;
+    let dx = gMem(ADDR_HERO_X_VIEW) * TILE_SIZE;
+    let dy = gMem(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
     if (gMem(ADDR_SQUAT_FLAG)) {
-        dy += TILE_HEIGHT;
+        dy += TILE_SIZE;
     }
 
     // Apply per-phase overlay offsets (pairs of [x, y] in tile units).
@@ -4245,8 +4244,8 @@ function drawDungeonSword() {
         yOff = offsets[i];
         xOff = offsets[i + 1];
     }
-    dx += xOff * TILE_WIDTH;
-    dy += yOff * TILE_HEIGHT;
+    dx += xOff * TILE_SIZE;
+    dy += yOff * TILE_SIZE;
 
     drawSheetFrame(
         dungeonSwordSheet,
@@ -4265,11 +4264,11 @@ const NOTIFICATION_DURATION = 2500;
 function drawDungeonBox(x, y, w, h) {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, TILE_WIDTH/3);
+    ctx.roundRect(x, y, w, h, TILE_SIZE/3);
     ctx.fillStyle = '#000';
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = TILE_WIDTH/6;
+    ctx.lineWidth = TILE_SIZE/6;
     ctx.stroke();
     ctx.restore();
 }
@@ -4297,17 +4296,17 @@ function drawDungeonNotification() {
     const entry = NOTIFICATION_STRINGS[msgId];
     if (!entry) return;
     const [leftPad, text] = entry;
-    const x = TILE_WIDTH;
-    const y = TILE_HEIGHT * 2;
-    const w = TILE_WIDTH * (VIEW_COLS - 2);
-    const h = TILE_HEIGHT * 2;
+    const x = TILE_SIZE;
+    const y = TILE_SIZE * 2;
+    const w = TILE_SIZE * (VIEW_COLS - 2);
+    const h = TILE_SIZE * 2;
 
     drawDungeonBox(x, y, w, h);
     ctx.save();
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.fillStyle = '#fff';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, x + leftPad*(TILE_WIDTH/8), y + h / 2);
+    ctx.fillText(text, x + leftPad*(TILE_SIZE/8), y + h / 2);
     ctx.restore();
 }
 
@@ -4320,12 +4319,12 @@ function drawDungeonSign() {
     const descPtr = readU16(tablePtr + idx * 2);
 
     // Descriptor: [top_margin-25] [box_height-2] then (x_delta, text... terminated by 0xFF) per line, '/' = newline
-    const topY = readU8(descPtr) + TILE_HEIGHT + 3*(TILE_HEIGHT/8);
-    const h = (readU8(descPtr + 1) + 2) * TILE_HEIGHT;
+    const topY = readU8(descPtr) + TILE_SIZE + 3*(TILE_SIZE/8);
+    const h = (readU8(descPtr + 1) + 2) * TILE_SIZE;
 
-    const x = TILE_WIDTH * 5;
-    const y = TILE_HEIGHT;
-    const w = TILE_WIDTH * ((VIEW_COLS - 2*5));
+    const x = TILE_SIZE * 5;
+    const y = TILE_SIZE;
+    const w = TILE_SIZE * ((VIEW_COLS - 2*5));
 
     drawDungeonBox(x, y, w, h);
     ctx.save();
@@ -4344,12 +4343,12 @@ function drawDungeonSign() {
             let ch = readU8(offset++);
             if (ch === 0xFF) { ctx.restore(); return; }
             if (ch === 0x2F) { // CR/LF
-                cy += (TILE_HEIGHT + TILE_HEIGHT/2);
+                cy += (TILE_SIZE + TILE_SIZE/2);
                 break; // will read xDelta in outer loop
             }
             if (ch === 0x5C) ch = 0x27;
             ctx.fillText(String.fromCharCode(ch), bx, cy);
-            bx += TILE_WIDTH;
+            bx += TILE_SIZE;
         }
     }
     ctx.restore();
@@ -4384,7 +4383,7 @@ function drawDungeonRoka() {
     } else {
         dx = Math.round(t * (canvas.width - heroW));
     }
-    const dy = 12 * TILE_HEIGHT;
+    const dy = 12 * TILE_SIZE;
 
     if (prevRokaDx === -1 || phase === 0) {
         ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
@@ -4429,8 +4428,8 @@ const DMAN_FRAME_W = 72;
 const DMAN_FRAME_H = 72;
 const DMAN_SHEET_COLS = 13;
 const ROKADEMO_RUN_STEPS = 13;
-const ROKADEMO_CENTER_DX = (VIEW_COLS * TILE_WIDTH - DMAN_FRAME_W) / 2;  // 300
-const ROKADEMO_HERO_Y = 12 * TILE_HEIGHT;                                // 288
+const ROKADEMO_CENTER_DX = (VIEW_COLS * TILE_SIZE - DMAN_FRAME_W) / 2;  // 300
+const ROKADEMO_HERO_Y = 12 * TILE_SIZE;                                // 288
 const ROKADEMO_TEAR_CENTER = { x: 336, y: 235 };
 
 const ROKADEMO_TIMING = {
@@ -4832,7 +4831,7 @@ function drawEncounterText(alpha) {
     ctx.save();
     ctx.globalAlpha = alpha;
     const x = (canvas.width - 622) / 2;
-    const y = 3 * TILE_HEIGHT;
+    const y = 3 * TILE_SIZE;
     ctx.drawImage(encounterImg, x, y, 622, 192);
     ctx.restore();
 }
@@ -5178,7 +5177,7 @@ const DIALOG_LINES_PER_PAGE = 15;
 const DIALOG_PADDING_X = 10;
 const DIALOG_MAX_WIDTH = VIEW_WIDTH - 24;
 const TOWN_HEADS_ROW = TOWN_MAP_START_ROW + 5;
-const DIALOG_BOTTOM_Y = TOWN_HEADS_ROW * TILE_HEIGHT - 4;
+const DIALOG_BOTTOM_Y = TOWN_HEADS_ROW * TILE_SIZE - 4;
 const TEXT_FIRST_BASELINE = 32;
 const TEXT_LINE_HEIGHT = 24;
 const TEXT_BOTTOM_PAD = 20;
@@ -5947,10 +5946,10 @@ function startSpeedChange() {
 }
 
 function getSpeedChangeBox() {
-    const w = TILE_WIDTH * 22;
-    const h = TILE_HEIGHT * 5;
+    const w = TILE_SIZE * 22;
+    const h = TILE_SIZE * 5;
     const x = (VIEW_WIDTH - w) / 2;
-    const y = TILE_HEIGHT * 6;
+    const y = TILE_SIZE * 6;
     return { x, y, w, h };
 }
 
@@ -5973,11 +5972,11 @@ function drawSpeedChangeDialog() {
 
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(box.x, box.y, box.w, box.h, TILE_WIDTH / 3);
+    ctx.roundRect(box.x, box.y, box.w, box.h, TILE_SIZE / 3);
     ctx.fillStyle = '#000';
     ctx.fill();
     ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = TILE_WIDTH / 6;
+    ctx.lineWidth = TILE_SIZE / 6;
     ctx.stroke();
     ctx.restore();
 
@@ -5985,8 +5984,8 @@ function drawSpeedChangeDialog() {
     ctx.font = '24px "Press Start 2P", monospace';
     ctx.textBaseline = 'top';
 
-    const cx = box.x + TILE_WIDTH;
-    const cy = box.y + TILE_HEIGHT * 0.5;
+    const cx = box.x + TILE_SIZE;
+    const cy = box.y + TILE_SIZE * 0.5;
 
     ctx.fillStyle = '#fff';
     ctx.fillText('Speed change', cx, cy);
@@ -5995,20 +5994,20 @@ function drawSpeedChangeDialog() {
      // strlen of "Select 0-9:" is 11
     if (speedChange.phase === 0) {
         ctx.fillStyle = '#888';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
-        ctx.fillText(String(currentSpeed), cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
+        ctx.fillText(String(currentSpeed), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
     } else if (speedChange.phase === 1) {
         ctx.fillStyle = '#fff';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
-        ctx.fillText('_', cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText('_', cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
     } else {
         ctx.fillStyle = '#fff';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
-        ctx.fillText(String(speedChange.digit), cx + TILE_WIDTH * 11, cy + TILE_HEIGHT * 1.5);
+        ctx.fillText(String(speedChange.digit), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#888';
-        ctx.fillText('(press any key)', cx, cy + TILE_HEIGHT * 3);
+        ctx.fillText('(press any key)', cx, cy + TILE_SIZE * 3);
     }
 
     ctx.restore();
@@ -6227,7 +6226,7 @@ function draw() {
                 if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
                     writeMemory(ADDR_BYTE_9EED, [0]);
                     _guerraEffectRunning = true;
-                    renderViewportBorderWalls().finally(() => { _guerraEffectRunning = false; });
+                    renderGuerraEffect().finally(() => { _guerraEffectRunning = false; });
                 }
 
                 if (encounterAnim && encounterAnim.phase === 'crossfade') {
@@ -6379,8 +6378,8 @@ const fpsEl  = document.getElementById('fps-value');
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 const tearOverlayEl = document.getElementById('tear-overlay');
-canvas.width  = VIEW_COLS * TILE_WIDTH;
-canvas.height = VIEW_ROWS * TILE_HEIGHT;
+canvas.width  = VIEW_COLS * TILE_SIZE;
+canvas.height = VIEW_ROWS * TILE_SIZE;
 ctx.imageSmoothingEnabled = false;
 
 const openingIntro = new OpeningIntro({
