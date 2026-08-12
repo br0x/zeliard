@@ -2466,6 +2466,14 @@ function toggleSfx() {
 // ─── PIT tick callbacks ───────────────────────────────────────────────────────
 function onFullTick() {
     if (gamePaused) return;
+    if (_fullTickWaiters.length) {
+        const stillWaiting = [];
+        for (const waiter of _fullTickWaiters) {
+            if (--waiter.remaining <= 0) waiter.resolve();
+            else stillWaiting.push(waiter);
+        }
+        _fullTickWaiters = stillWaiting;
+    }
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
@@ -3747,66 +3755,77 @@ function drawDungeonMagicProjectiles() {
 }
 
 let _guerraEffectRunning = false;
+let _guerraFlashActive   = false;
+let _guerraRings         = null; // outline rects accumulated while the effect runs
+// How many full ticks (~236.7 Hz each) each rectangle stays on screen before
+// the next one is drawn. ~2 keeps the whole process close to the original.
+const _guerraFullTicksPerRect = 3;
+let _fullTickWaiters = [];
 
-async function renderGuerraEffect() {
-    const viewW = VIEW_COLS * TILE_SIZE;
-    const viewH = VIEW_ROWS * TILE_SIZE;
-    const flashColor = 0x12;
+// Resolves after `count` game full ticks. The Guerra effect advances one
+// rectangle per interval while rendering continues every rAF frame.
+function waitFullTicks(count) {
+    return new Promise(resolve => _fullTickWaiters.push({ remaining: count, resolve }));
+}
 
-    function waitFrame() {
-        return new Promise(resolve => requestAnimationFrame(() => resolve()));
-    }
-
-    function xorViewportFlash() {
+// Renders the persistent Guerra overlay each frame: the red XOR flash plus the
+// expanding yellow/black outline rectangles drawn so far.
+function drawGuerraOverlay() {
+    if (_guerraFlashActive) {
+        const viewW = VIEW_COLS * TILE_SIZE;
+        const viewH = VIEW_ROWS * TILE_SIZE;
         const img = ctx.getImageData(0, 0, viewW, viewH);
         const d = img.data;
         for (let i = 0; i < d.length; i += 4) {
-            d[i] ^= flashColor;
-            d[i + 1] ^= flashColor;
-            d[i + 2] ^= flashColor;
+            d[i] ^= 0xFF; // XOR the viewport content with red
         }
         ctx.putImageData(img, 0, 0);
     }
+    if (_guerraRings) {
+        const t = 3; // flat border thickness in px
+        for (const ring of _guerraRings) {
+            ctx.fillStyle = ring.color;
+            ctx.fillRect(ring.left, ring.top, ring.width, t);
+            ctx.fillRect(ring.left, ring.top + ring.height - t, ring.width, t);
+            ctx.fillRect(ring.left, ring.top, t, ring.height);
+            ctx.fillRect(ring.left + ring.width - t, ring.top, t, ring.height);
+        }
+    }
+}
 
-    async function renderExpandingRing(inset, span, colorVal) {
-        let left = heroX - inset;
-        let top = heroY - inset;
-        let right = heroX - inset + span;
-        let bottom = heroY - inset + span;
-        const cssColor = colorVal === 0 ? 'rgb(0,0,0)' : 'rgb(255,255,255)';
+async function renderGuerraEffect() {
+    const heroX   = readU8(ADDR_HERO_X_VIEW) * TILE_SIZE;
+    const heroY   = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
+    const baseW   = 3 * TILE_SIZE;   // hero box: 3x3 tiles
+    const baseH   = 3 * TILE_SIZE;
+    const grow    = 1.5 * TILE_SIZE; // each rectangle is 3 tiles bigger than the previous
+    const offsets = [0, 0.5, 1];     // interleaved so consecutive rings grow every half tile
+    const viewW   = VIEW_COLS * TILE_SIZE;
+    const viewH   = VIEW_ROWS * TILE_SIZE;
 
-        for (let step = 0; step < 9; step++) {
-            ctx.strokeStyle = cssColor;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(
-                Math.max(0, left),
-                Math.max(0, top),
-                Math.min(viewW, right) - Math.max(0, left),
-                Math.min(viewH, bottom) - Math.max(0, top),
-            );
-            left = Math.max(0, left - 12);
-            top = Math.max(0, top - 12);
-            right = Math.min(viewW, right + 12);
-            bottom = Math.min(viewH, bottom + 12);
-            if (step < 8) await waitFrame();
+    _guerraRings = [];
+    _guerraFlashActive = true;
+
+    for (const pass of [
+        { color: 'rgb(255,255,0)', rounds: 3 }, // yellow: 3 rounds of 9 rectangles
+        { color: 'rgb(0,0,0)',     rounds: 3 }, // black: clear the rings above
+    ]) {
+        for (let round = 0; round < pass.rounds; round++) {
+            const start = offsets[round] * TILE_SIZE;
+            for (let i = 0; i < 9; i++) {
+                const r       = start + i * grow;
+                const left    = Math.max(0, heroX - r);
+                const top     = Math.max(0, heroY - r);
+                const right   = Math.min(viewW, heroX + baseW + r);
+                const bottom  = Math.min(viewH, heroY + baseH + r);
+                _guerraRings.push({ left, top, width: right - left, height: bottom - top, color: pass.color });
+                await waitFullTicks(_guerraFullTicksPerRect);
+            }
         }
     }
 
-    const heroX = readU8(ADDR_HERO_X_VIEW) * TILE_SIZE;
-    const heroY = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
-
-    xorViewportFlash();
-
-    const rings = [
-        { inset: 1, span: 0x19 },
-        { inset: 5, span: 0x21 },
-        { inset: 9, span: 0x29 },
-    ];
-
-    for (const r of rings) await renderExpandingRing(r.inset, r.span, 54);
-    for (const r of rings) await renderExpandingRing(r.inset, r.span, 0);
-
-    xorViewportFlash();
+    _guerraRings = null;
+    _guerraFlashActive = false;
 }
 
 let renderCounter = 0; // incremented once per dungeon game tick, used to animate tiles every or every odd frame
@@ -6228,6 +6247,7 @@ function draw() {
                     _guerraEffectRunning = true;
                     renderGuerraEffect().finally(() => { _guerraEffectRunning = false; });
                 }
+                drawGuerraOverlay();
 
                 if (encounterAnim && encounterAnim.phase === 'crossfade') {
                     const now = performance.now();
