@@ -215,7 +215,7 @@ void Alguien_AI_reset(void)
     active_sprite_count = 0;
     hit_flags = 0;
     anim_phase = 0;
-    flight_phase = 0;
+    flight_phase = 0xFF; /* byte_AA21 starts at 0FFh in the asm segment data */
     last_rel_x = 0;
     frame_counter = 0;
     overlay_frame = 0;
@@ -290,36 +290,53 @@ void Alguien_AI(uint16_t m)
 
     frame_counter++;
 
+    int recompute_y = 0;
+
     if (!flight_phase) {
         /* loc_A3D1: crawling toward the left wall */
-        if (!try_move_boss_left()) {
+        if (try_move_boss_left()) {
+            recompute_y = 1; /* move succeeded -> jmp loc_A47A */
+        } else {
             /* loc_A3E4: hit the left wall -- climb one row */
             uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
             uint8_t y = (uint8_t)((MEM8(boss_state + 2) - 2) & 0x3F);
             MEM8(boss_state + 2) = y;
             if (y == 0x3D) {
-                /* loc_A3F5: reached the top -- flip to the "returning" phase and start a sweep-attack telegraph */
+                /* loc_A3F5: reached the top -- flip to the "returning" phase,
+                 * start a sweep-attack telegraph, then fall into the Y-lookup
+                 * (which now runs against the new flight_phase). */
                 start_attack_telegraph(0xFF, 0x28, 0);
+                recompute_y = 1;
             }
-            /* else: fall through to the Y-lookup below, same as the asm's "jmp loc_A492" */
+            /* else: the climb alone set boss_y and control jumps straight to
+             * loc_A492 -- the Y-lookup must NOT run in this case. */
         }
-        /* if the move succeeded: fall straight through to the Y-lookup below, like the asm's "jmp loc_A47A" */
     } else {
         /* loc_A42E: crawling toward the right wall */
-        if (!try_move_boss_right()) {
+        if (try_move_boss_right()) {
+            recompute_y = 1; /* move succeeded -> jnb loc_A47A */
+        } else {
             /* hit the right wall -- climb one row */
             uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
             uint8_t y = (uint8_t)((MEM8(boss_state + 2) - 2) & 0x3F);
             MEM8(boss_state + 2) = y;
             if (y == 0x3D) {
-                /* reached the top -- flip back to the "approaching" phase and start a sweep-attack telegraph */
+                /* reached the top -- flip back to the "approaching" phase,
+                 * start a sweep-attack telegraph, then fall into the Y-lookup. */
                 start_attack_telegraph(0, 0x14, 1);
+                recompute_y = 1;
             }
+            /* else: jnz loc_A492 -- the Y-lookup must NOT run. */
         }
     }
 
-    /* --- loc_A47A/loc_A487: recompute boss_y from boss_x via the flight-path table --- */
-    {
+    /* --- loc_A47A/loc_A487: recompute boss_y from boss_x via the flight-path
+     * table. Reached only after a successful move or a top-of-climb flip, never
+     * after a plain mid-wall climb (which set boss_y directly and went to
+     * loc_A492 instead) -- letting it run there would pin boss_y to the table
+     * value for the wall's X each frame, so y could never reach 0x3D, the boss
+     * would never flip direction or fire a sweep attack. --- */
+    if (recompute_y) {
         uint16_t boss_state = MEM16(ADDR_BOSS_STATE_PTR);
         const uint8_t *table = flight_phase ? path_y_a954 : path_y_a969;
         uint8_t bx_low = (uint8_t)MEM16(boss_state + 0);
