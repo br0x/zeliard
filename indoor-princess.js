@@ -1,6 +1,7 @@
 import { IndoorSceneBase } from './indoor-base.js';
 
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
+const PRINCESS_HOLD_MS      = 2000;
 
 const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
 
@@ -12,9 +13,11 @@ export class PrincessScene extends IndoorSceneBase {
         this.fadeOutMs = 450;
         this.startEndingDemo = context.startEndingDemo;
         this.revivePrincess = false;
+        this.shownStartTime = 0;
     }
 
     async onEnter(now) {
+        this.shownStartTime = 0;
         if (this.readMemory) {
             const death = this.readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1)[0];
             if (death === 0xFF) {
@@ -40,12 +43,17 @@ export class PrincessScene extends IndoorSceneBase {
     }
 
     /**
-     * After the fade-in completes, if the demon has been defeated, immediately
-     * begin fading out so the ending demo can take over.
+     * After the fade-in completes, if the demon has been defeated, hold for
+     * 2 seconds before fading out so the ending demo can take over.
      */
     draw(now) {
         if (this.phase === 'shown' && this.revivePrincess) {
-            this.startFadeOut(now);
+            if (!this.shownStartTime) {
+                this.shownStartTime = now;
+            }
+            if (now - this.shownStartTime >= PRINCESS_HOLD_MS) {
+                this.startFadeOut(now);
+            }
         }
         return super.draw(now);
     }

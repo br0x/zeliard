@@ -5,7 +5,7 @@ const INTRO_DUKE0_SRC           = 'assets/images/opdemo/duke0.png';
 const INTRO_DUKE1_SRC           = 'assets/images/opdemo/duke1.png';
 const INTRO_DUKE2_SRC           = 'assets/images/opdemo/duke2.png';
 const INTRO_PRINCESS_SRC        = 'assets/images/enddemo/princess_full.png';
-const INTRO_TEMPLATE1_SRC       = 'assets/images/opdemo/template1.png';
+const INTRO_TEMPLATE2_SRC       = 'assets/images/opdemo/template2.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,8 +50,20 @@ const CURTAIN_X2                    = 607;
 const CURTAIN_Y2                    = 239;
 const CURTAIN_COLOR                 = '#56040a';
 const CURTAIN_MS                    = 1000;
-const PRINCESS_CROSSFADE_MS         = 1000;
-const SCENE_CROSSFADE_MS            = 2000;
+const DUKE_FADE_IN_MS               = 1000;
+const PRINCESS_FADE_IN_MS           = 1000;
+const PRINCESS_SCROLL_DURATION_MS   = 7000;
+const DUKE_X                        = 94;
+const DUKE_Y                        = 45;
+const DUKE_SIZE                     = 180;
+const PRINCESS_CLIP_SIZE            = 180;
+const PRINCESS_SRC_X                = 4;
+const PRINCESS_SRC_START_Y          = 340;
+const PRINCESS_SRC_END_Y            = 0;
+const PRINCESS_DST_X                = 366;
+const PRINCESS_DST_START_Y          = 175;
+const PRINCESS_DST_END_Y            = 45;
+
 // ── Window border colours (used in expandWindow line-drawing) ──────────────
 const WIN_TOP_COLORS = [
     '#51060a',
@@ -123,6 +135,27 @@ async function loadStoryFont() {
 
 function buildTimeline(images) {
   return [
+    // ── 1. Duke static + Princess scroll ───────────────────────────────────────
+    {
+      type: 'dukeAndPrincessScroll',
+      dukeImage: images.duke0,
+      princessImage: images.princess,
+      dukeFadeInMs: DUKE_FADE_IN_MS,
+      princessFadeInMs: PRINCESS_FADE_IN_MS,
+      scrollDurationMs: PRINCESS_SCROLL_DURATION_MS,
+      dukeX: DUKE_X,
+      dukeY: DUKE_Y,
+      dukeWidth: DUKE_SIZE,
+      dukeHeight: DUKE_SIZE,
+      clipWidth: PRINCESS_CLIP_SIZE,
+      clipHeight: PRINCESS_CLIP_SIZE,
+      princessSrcX: PRINCESS_SRC_X,
+      princessSrcStartY: PRINCESS_SRC_START_Y,
+      princessSrcEndY: PRINCESS_SRC_END_Y,
+      princessDstX: PRINCESS_DST_X,
+      princessDstStartY: PRINCESS_DST_START_Y,
+      princessDstEndY: PRINCESS_DST_END_Y,
+    },
   ];
 }
 
@@ -188,23 +221,23 @@ export class EndingDemo {
     const [
       princess,
       duke0, duke1, duke2,
-      template1,
+      template2,
       spirit,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_SRC),
       loadImage(INTRO_DUKE0_SRC),
       loadImage(INTRO_DUKE1_SRC),
       loadImage(INTRO_DUKE2_SRC),
-      loadImage(INTRO_TEMPLATE1_SRC),
+      loadImage(INTRO_TEMPLATE2_SRC),
       loadImage(INTRO_SPIRIT_SRC),
       loadStoryFont(),
     ]);
 
     this.images = {
       princess,
-      spirit,
       duke0, duke1, duke2,
-      template1,
+      template2,
+      spirit,
     };
   }
 
@@ -282,6 +315,7 @@ export class EndingDemo {
 
   _drawStep(step, s, ts) {
     switch (step.type) {
+      case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -299,6 +333,74 @@ export class EndingDemo {
   // ─────────────────────────────────────────────────────────────────────────
   // Step renderers
   // ─────────────────────────────────────────────────────────────────────────
+
+  _drawDukeAndPrincessScroll(step, s, ts) {
+    const elapsed = ts - s.startTime;
+    const dukeFadeInMs     = step.dukeFadeInMs     ?? 1000;
+    const princessFadeInMs = step.princessFadeInMs ?? 1000;
+    const scrollDurationMs = step.scrollDurationMs ?? 7000;
+    const totalDurationMs  = dukeFadeInMs + princessFadeInMs + scrollDurationMs;
+
+    // Phase 1: Duke fades in (0 .. dukeFadeInMs)
+    const dukeAlpha = Math.min(1, Math.max(0, elapsed / dukeFadeInMs));
+
+    // Phase 2: Princess initial frame fades in (dukeFadeInMs .. dukeFadeInMs + princessFadeInMs)
+    const princessAlpha = elapsed < dukeFadeInMs
+      ? 0
+      : Math.min(1, Math.max(0, (elapsed - dukeFadeInMs) / princessFadeInMs));
+
+    // Phase 3: Princess frame motion (after dukeFadeInMs + princessFadeInMs for scrollDurationMs)
+    const scrollElapsed = elapsed - dukeFadeInMs - princessFadeInMs;
+    const progress = Math.min(1, Math.max(0, scrollElapsed / scrollDurationMs));
+
+    const srcX = step.princessSrcX;
+    const srcY = Math.round(step.princessSrcStartY + (step.princessSrcEndY - step.princessSrcStartY) * progress);
+    const srcW = step.clipWidth;
+    const srcH = step.clipHeight;
+
+    const dstX = step.princessDstX;
+    const dstY = Math.round(step.princessDstStartY + (step.princessDstEndY - step.princessDstStartY) * progress);
+    const dstW = step.clipWidth;
+    const dstH = step.clipHeight;
+
+    this._clearBlack();
+
+    // 1. Static Duke0 image (94, 45), 180x180 px
+    if (step.dukeImage && dukeAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = dukeAlpha;
+      this.ctx.drawImage(
+        step.dukeImage,
+        step.dukeX,
+        step.dukeY,
+        step.dukeWidth,
+        step.dukeHeight
+      );
+      this.ctx.restore();
+    }
+
+    // 2. Moving clip of Princess image (180x180 px)
+    if (step.princessImage && princessAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = princessAlpha;
+      this.ctx.drawImage(
+        step.princessImage,
+        srcX,
+        srcY,
+        srcW,
+        srcH,
+        dstX,
+        dstY,
+        dstW,
+        dstH
+      );
+      this.ctx.restore();
+    }
+
+    if (elapsed >= totalDurationMs) {
+      this._nextStep();
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Shared rendering utilities
