@@ -63,6 +63,7 @@ const PRINCESS_SRC_END_Y            = 0;
 const PRINCESS_DST_X                = 366;
 const PRINCESS_DST_START_Y          = 175;
 const PRINCESS_DST_END_Y            = 45;
+const TEMPLATE2_FADE_IN_MS = 1000;
 
 // ── Window border colours (used in expandWindow line-drawing) ──────────────
 const WIN_TOP_COLORS = [
@@ -140,9 +141,11 @@ function buildTimeline(images) {
       type: 'dukeAndPrincessScroll',
       dukeImage: images.duke0,
       princessImage: images.princess,
+      template2Image: images.template2,
       dukeFadeInMs: DUKE_FADE_IN_MS,
       princessFadeInMs: PRINCESS_FADE_IN_MS,
       scrollDurationMs: PRINCESS_SCROLL_DURATION_MS,
+      template2FadeInMs: TEMPLATE2_FADE_IN_MS,
       dukeX: DUKE_X,
       dukeY: DUKE_Y,
       dukeWidth: DUKE_SIZE,
@@ -246,7 +249,14 @@ export class EndingDemo {
   _enterStep(index) {
     this.stepIndex = index;
     const step = this.timeline[index];
-    if (!step) { this.finish(); return; }
+    if (!step) {
+      // End of timeline: stop animating but keep the last frame visible
+      this.active = false;
+      cancelAnimationFrame(this.frameId);
+      // Notify completion but do NOT hide the screen
+      if (this.onComplete) this.onComplete();
+      return;
+    }
     this.stepState = this._buildStepState(step);
   }
 
@@ -339,64 +349,79 @@ export class EndingDemo {
     const dukeFadeInMs     = step.dukeFadeInMs     ?? 1000;
     const princessFadeInMs = step.princessFadeInMs ?? 1000;
     const scrollDurationMs = step.scrollDurationMs ?? 7000;
-    const totalDurationMs  = dukeFadeInMs + princessFadeInMs + scrollDurationMs;
+    const template2FadeInMs = step.template2FadeInMs ?? 1000;
 
-    // Phase 1: Duke fades in (0 .. dukeFadeInMs)
-    const dukeAlpha = Math.min(1, Math.max(0, elapsed / dukeFadeInMs));
+    const totalDurationMs = dukeFadeInMs + princessFadeInMs + scrollDurationMs + template2FadeInMs;
 
-    // Phase 2: Princess initial frame fades in (dukeFadeInMs .. dukeFadeInMs + princessFadeInMs)
-    const princessAlpha = elapsed < dukeFadeInMs
-      ? 0
-      : Math.min(1, Math.max(0, (elapsed - dukeFadeInMs) / princessFadeInMs));
+    // -- Phase calculations --
+    let dukeAlpha = 0;
+    let princessAlpha = 0;
+    let scrollProgress = 0;
+    let template2Alpha = 0;
 
-    // Phase 3: Princess frame motion (after dukeFadeInMs + princessFadeInMs for scrollDurationMs)
-    const scrollElapsed = elapsed - dukeFadeInMs - princessFadeInMs;
-    const progress = Math.min(1, Math.max(0, scrollElapsed / scrollDurationMs));
+    // Phase 1: Duke fades in
+    if (elapsed < dukeFadeInMs) {
+      dukeAlpha = Math.min(1, elapsed / dukeFadeInMs);
+    } else {
+      dukeAlpha = 1;
+      // Phase 2: Princess fades in (after duke is fully visible)
+      const princessElapsed = elapsed - dukeFadeInMs;
+      if (princessElapsed < princessFadeInMs) {
+        princessAlpha = Math.min(1, princessElapsed / princessFadeInMs);
+      } else {
+        princessAlpha = 1;
+        // Phase 3: Princess scrolls
+        const scrollElapsed = elapsed - dukeFadeInMs - princessFadeInMs;
+        if (scrollElapsed < scrollDurationMs) {
+          scrollProgress = Math.min(1, scrollElapsed / scrollDurationMs);
+        } else {
+          scrollProgress = 1;
+          // Phase 4: Template2 fades in over the scene
+          const templateElapsed = elapsed - dukeFadeInMs - princessFadeInMs - scrollDurationMs;
+          template2Alpha = Math.min(1, templateElapsed / template2FadeInMs);
+        }
+      }
+    }
 
+    // Calculate princess source and destination positions based on scrollProgress
     const srcX = step.princessSrcX;
-    const srcY = Math.round(step.princessSrcStartY + (step.princessSrcEndY - step.princessSrcStartY) * progress);
+    const srcY = Math.round(step.princessSrcStartY + (step.princessSrcEndY - step.princessSrcStartY) * scrollProgress);
     const srcW = step.clipWidth;
     const srcH = step.clipHeight;
 
     const dstX = step.princessDstX;
-    const dstY = Math.round(step.princessDstStartY + (step.princessDstEndY - step.princessDstStartY) * progress);
+    const dstY = Math.round(step.princessDstStartY + (step.princessDstEndY - step.princessDstStartY) * scrollProgress);
     const dstW = step.clipWidth;
     const dstH = step.clipHeight;
 
+    // ── Draw ──
     this._clearBlack();
 
-    // 1. Static Duke0 image (94, 45), 180x180 px
+    // 1. Duke
     if (step.dukeImage && dukeAlpha > 0) {
       this.ctx.save();
       this.ctx.globalAlpha = dukeAlpha;
-      this.ctx.drawImage(
-        step.dukeImage,
-        step.dukeX,
-        step.dukeY,
-        step.dukeWidth,
-        step.dukeHeight
-      );
+      this.ctx.drawImage(step.dukeImage, step.dukeX, step.dukeY, step.dukeWidth, step.dukeHeight);
       this.ctx.restore();
     }
 
-    // 2. Moving clip of Princess image (180x180 px)
+    // 2. Princess clip
     if (step.princessImage && princessAlpha > 0) {
       this.ctx.save();
       this.ctx.globalAlpha = princessAlpha;
-      this.ctx.drawImage(
-        step.princessImage,
-        srcX,
-        srcY,
-        srcW,
-        srcH,
-        dstX,
-        dstY,
-        dstW,
-        dstH
-      );
+      this.ctx.drawImage(step.princessImage, srcX, srcY, srcW, srcH, dstX, dstY, dstW, dstH);
       this.ctx.restore();
     }
 
+    // 3. Template2 overlay (fills entire canvas)
+    if (step.template2Image && template2Alpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = template2Alpha;
+      this.ctx.drawImage(step.template2Image, 0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
+
+    // Advance when all phases are complete
     if (elapsed >= totalDurationMs) {
       this._nextStep();
     }
