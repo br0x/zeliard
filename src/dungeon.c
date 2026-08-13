@@ -73,6 +73,11 @@ static void dungeon_finish_rope_frame(void);
 static uint8_t abs_x_to_proximity_rel(uint16_t x, uint16_t *ax_out, uint16_t *bx_out);
 static void put_dl_to_proximity_layered(uint8_t tile, uint16_t dst);
 
+// Map-column X where the hero wakes up in Felishika's Castle after falling at
+// Jashiin's hand (cmap.mdt): the plaza between the two chambers, walkable and
+// well inside the viewport.
+#define CASTLE_RESURRECTION_X 40
+
 uint8_t sword_damages[] = { 1, 2, 4, 8, 32, 127 };
 uint8_t byte_98BE[]     = { 2, 4, 8, 16, 32, 64, 255 };
 
@@ -880,6 +885,10 @@ static void dungeon_update_death_fade()
 
         if (MEM8(ADDR_DEATH_ALREADY_PROCESSED) != 0) {
             MEM8(ADDR_LAST_SAGE_VISITED) = 0x80;
+            // Spawn the hero in Felishika's Castle plaza (cmap.mdt column 40,
+            // walkable floor between the two chambers) instead of at the raw
+            // tear_x, which is zero here and would leave the hero off-screen.
+            MEM16(ADDR_TEAR_X) = CASTLE_RESURRECTION_X;
         } else {
             uint16_t xp_gain = 127 - MEM8(ADDR_HERO_LEVEL) * 2;
             update_hero_XP(xp_gain);
@@ -1853,6 +1862,15 @@ void wasm_finish_rokademo_transition(void)
     MEM8(ADDR_BYTE_9F02) = 0xFF;
     load_cavern_sprites_ai_music();
     after_run_animation();
+
+    // After the final (Jashiin) demo the hero is meant to die: Cavern_Game_Init
+    // started the death sequence because is_death_already_processed was set when
+    // the hero left through the boss door. Let it play out — transit_to_sage
+    // resurrects the hero in the castle — instead of re-entering this dungeon.
+    uint8_t state = MEM8(ADDR_DUNGEON_STATE);
+    if (state >= DUNGEON_STATE_DEATH_FALL && state <= DUNGEON_STATE_DEATH_FADE) {
+        return;
+    }
 
     uint8_t place_map_id = MEM8(ADDR_PLACE_MAP_ID);
     if ((place_map_id & 0x80) == 0) {

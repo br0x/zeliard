@@ -17,6 +17,7 @@ sub_6002        proc near
                 mov     cs:off_6630, offset unk_6AA8
                 mov     ax, 6
                 call    word ptr cs:GDMCGA_Fade_Palette_proc
+
                 push    cs
                 pop     es
                 mov     si, offset vfs_yuup_grp
@@ -25,8 +26,9 @@ sub_6002        proc near
                 call    word ptr cs:res_dispatcher_proc
                 mov     es, word ptr cs:seg1
                 mov     si, 0A000h
-                mov     di, 4000h
+                mov     di, 4000h          ; yuup
                 call    sub_696D
+
                 push    cs
                 pop     es
                 mov     si, offset vfs_new1_grp
@@ -35,8 +37,9 @@ sub_6002        proc near
                 call    word ptr cs:res_dispatcher_proc
                 mov     es, word ptr cs:seg1
                 mov     si, 0A000h
-                mov     di, 8000h
+                mov     di, 8000h          ; new1
                 call    sub_696D
+
                 mov     es, word ptr cs:seg1
                 mov     di, 4000h
                 mov     al, 0FFh
@@ -61,13 +64,6 @@ sub_6002        proc near
                 mov     byte ptr cs:frame_timer, 0
                 mov     al, 0FFh
                 call    sub_62EE
-sub_6002        endp
-
-
-; =============== S U B R O U T I N E =======================================
-
-sub_609A        proc near
-
                 mov     cx, 89
 loc_609D:
                 push    cx
@@ -270,12 +266,10 @@ loc_62C0:
                 mov     cx, 50C8h
                 call    word ptr cs:Render_With_MaskErase_Callback_proc
                 jmp     loc_6638
-sub_609A        endp
+sub_6002        endp
 
 
 ; =============== S U B R O U T I N E =======================================
-
-; Attributes: noreturn
 
 sub_62EE        proc near
                 call    sub_62FF
@@ -1205,8 +1199,6 @@ sub_6945        endp
 
 
 ; =============== S U B R O U T I N E =======================================
-
-; Attributes: noreturn
 
 sub_6956        proc near
                 push    si
