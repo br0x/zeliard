@@ -798,7 +798,7 @@ function buildTimeline(images) {
 export class OpeningIntro {
   constructor({ screen, canvas, onComplete }) {
     this.screen     = screen;
-    this.canvas     = canvas;
+    this.canvas     = canvas; // 640x400
     this.ctx        = canvas.getContext('2d');
     this.onComplete = onComplete;
 
