@@ -4638,18 +4638,24 @@ static void dungeon_update_jashiin_cutscene(void)
     }
 
     // Cutscene done: set up room 2 (mpa0) exactly as the original
-    // jashiin_place block did after the blocking loop. prepare_dungeon()
+    // jashiin_place block did after the blocking loop. This isn't a door
+    // crossing, so there's no door record to consume: prepare_dungeon()
     // recomputes PROXIMITY_MAP_LEFT_COL from saved_door_x1 once the new
-    // MDT is loaded, and after_run_animation() re-derives VIEWPORT_TOP_ROW
-    // from saved_y_view_init, so the hero lands on mpa0's floor (not the
-    // previous map's absolute height — which is why room 2 looked "too high").
+    // MDT is loaded, and we anchor the viewport to mpa0's floor directly
+    // (the previous map's absolute height is what made room 2 look "too high").
+    //
+    // The hero feet sit at VIEWPORT_TOP_ROW + HERO_HEAD_Y_VIEW + 3; mpa0's
+    // floor is at absolute row 18 and HERO_HEAD_Y_VIEW = 12 (mpa0's
+    // HERO_Y_VIEW_INIT), so VIEWPORT_TOP_ROW must be 18 - 12 - 3 = 3.
+    // after_run_animation() later nudges VIEWPORT_TOP_ROW by
+    // (saved_y_view_init - mpa0's HERO_Y_VIEW_INIT); setting saved_y_view_init
+    // to mpa0's value (0x0C = 12, see mpa0.mdt header) turns that into a no-op.
     MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = 24;
     saved_door_x1 = 24;
-    MEM8(ADDR_DOOR_TARGET_Y) = 13;
     MEM8(ADDR_HERO_X_VIEW) = 12;
     MEM8(ADDR_BYTE_9F00) = 12;
-    saved_y_view_init = MEM8(ADDR_HERO_Y_VIEW_INIT); // mp90's (0x0D), not the stale door value
-    hero_left_16_down_1();
+    MEM8(ADDR_VIEWPORT_TOP_ROW) = 3;
+    saved_y_view_init = 12; // mpa0's HERO_Y_VIEW_INIT: after_run's adjustment becomes a no-op
 
     // mpa0 is a boss cavern entered straight from the cutscene — the original
     // never plays a roka run here, so make prepare_dungeon() finalize directly.
