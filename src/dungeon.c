@@ -4981,6 +4981,7 @@ static void dungeon_complete_door_transition(void)
     MEM8(ADDR_PROJECTILES_LIST) = 0xFF;
 
     if (door_features & 0x80) { // just defeated the boss
+        remove_accomplished_items();
         load_resource("rokademo.bin", 0x1A000);
         roka_entrypoint();
         MEM8(ADDR_ENP_GRP_INDEX) = 0xFF;

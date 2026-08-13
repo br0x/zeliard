@@ -1980,7 +1980,6 @@ const TEAR_FLAGS = [
     { addr: 0x2D, bit: 0x10 }, // Tarso    — plata_items_2 (+16)
     { addr: 0x36, bit: 0x80 }, // Paguro   — caliente_items_2 (+128)
     { addr: 0x45, bit: 0x40 }, // Dragon   — falter_items (+64)
-    { addr: 0x47, bit: 0xFF }, // Jashiin  — no door achievement; 0x47 = defeated (mpa0 initializer)
 ];
 
 const HERO_SPRITE_PATH = 'assets/images/tman.png';
@@ -2167,6 +2166,7 @@ const ADDR_BUILDING_DEST_ID        = 0xFFFB;
 const ADDR_PENDING_DUNGEON_MAP     = 0xFFFC;
 const ADDR_PENDING_DUNGEON_FLAG    = 0xFFFD;
 
+const DUNGEON_STATE_DEATH_FALL = 2;
 const DUNGEON_STATE_DEATH_FADE = 4;
 const DUNGEON_STATE_BOSS_ENCOUNTER = 5;
 const DUNGEON_STATE_ROKA_RUN = 7;
@@ -5077,7 +5077,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         const trackId = resolveMusicTrack(getMusicTrackId?.());
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
-        if (isDeath) {
+        if (isDeath && readU8(ADDR_DEATH_ALREADY_PROCESSED) === 0) {
             startIndoorScene(2);
         }
     } catch (err) {
@@ -6191,9 +6191,9 @@ function draw() {
             dungeonClearRenderRequest?.();
         } else if (dungeonState === DUNGEON_STATE_ROKADEMO) {
             drawDungeonRokademo(performance.now());
-        } else if (rokademoHold) {
+        } else if (rokademoHold && !(dungeonState >= DUNGEON_STATE_DEATH_FALL && dungeonState <= DUNGEON_STATE_DEATH_FADE)) {
             // Post-demo hold: keep the roka backdrop until the transition set up
-            // by wasm_finish_rokademo_transition takes over.
+            // by wasm_finish_rokademo_transition takes over (except when playing hero death sequence).
             drawRokademoBackground();
             dungeonClearRenderRequest?.();
         } else {
