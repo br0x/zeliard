@@ -450,7 +450,7 @@ static void town_entry_common(void)
     }
 
     /* --- town_entry_internal --- */
-    init_c015_obj_if_exists(); // something to do with town quests
+    init_c015_obj_if_exists();
     SPACEBAR = 0;
     ALTKEY   = 0;
     MEM8(ADDR_BYTE_E4) = 0;
@@ -1472,8 +1472,8 @@ static void load_hero_town_sprite(void)
 }
 
 /* =========================================================================
- * Copies/skips blocks according to the descriptor table at word_C015.
- * Format: dst_addr(word), flag_byte — terminated by 0xFFFF.
+ * Dynamic town configuration (depending on various flags)
+ * Format: list_of[{if flag, then set variables to values}], FFFF terminated
  * ========================================================================= */
 static void init_c015_obj_if_exists(void)
 {

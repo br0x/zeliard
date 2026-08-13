@@ -5,7 +5,7 @@ const INTRO_DUKE0_SRC           = 'assets/images/opdemo/duke0.png';
 const INTRO_DUKE1_SRC           = 'assets/images/opdemo/duke1.png';
 const INTRO_DUKE2_SRC           = 'assets/images/opdemo/duke2.png';
 const INTRO_PRINCESS_SRC        = 'assets/images/enddemo/princess_full.png';
-const INTRO_TEMPLATE2_SRC       = 'assets/images/opdemo/template2.png';
+const INTRO_TEMPLATE1_SRC       = 'assets/images/opdemo/template1.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,8 +199,6 @@ export class EndingDemo {
       loadImage(INTRO_SPIRIT_SRC),
       loadStoryFont(),
     ]);
-
-    const demonFrames = rest.slice(0, INTRO_DEMON_SRCS.length);
 
     this.images = {
       princess,

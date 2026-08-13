@@ -5,6 +5,7 @@
  * system is used by Sage and can be reused by other buildings.
  */
 import { OpeningIntro }  from './opening-intro.js';
+import { EndingDemo }    from './ending-demo.js';
 import { SoundManager }  from './sound-manager.js';
 import { KingScene }     from './indoor-king.js';
 import { PrincessScene } from './indoor-princess.js';
@@ -2383,7 +2384,7 @@ let inventoryScreenInstance = null; // instance of InventoryScreen
 
 function openInventory() {
     if (inventoryScreenInstance || !engineReady) return;
-    if (activeModal || indoorActiveScene || openingIntro.active) return;
+    if (activeModal || indoorActiveScene || openingIntro.active || endingDemo.active) return;
     if (gameMode !== 'town' && gameMode !== 'dungeon') return;
 
     gamePaused = true;
@@ -2758,6 +2759,11 @@ window.addEventListener('keydown', e => {
 
     if (openingIntro.active && e.code === 'Space') {
         openingIntro.skipPage();
+        return;
+    }
+
+    if (endingDemo.active && e.code === 'Space') {
+        endingDemo.skipPage();
         return;
     }
 
@@ -5584,6 +5590,7 @@ function startIndoorScene(destId) {
         renderSwordHud,
         renderMagicHud,
         renderShieldHud,
+        startEndingDemo,
     };
 
     const building = TOWN_DOORS[destId];
@@ -6407,6 +6414,34 @@ const openingIntro = new OpeningIntro({
     canvas:     introCanvas,
     onComplete: startGame,
 });
+
+const endingDemo = new EndingDemo({
+    screen:     introScreen,
+    canvas:     introCanvas,
+    onComplete: endingDemoComplete,
+});
+
+function endingDemoComplete() {
+    // After the ending the game is over — do NOT restore the in-game UI.
+    // EndingDemo.finish() already hides the intro screen, leaving a black
+    // "The End" screen until the player restarts.
+}
+
+// Called by the PrincessScene when the hero enters the chamber after the
+// demon has been defeated: completes the indoor scene transition (same as the
+// normal finish callback), then hides the game UI, shows the intro canvas, and
+// starts the ending demo.
+function startEndingDemo() {
+    indoorActiveScene = null;
+    soundManager.setMusicDim(1.0);
+    soundManager.setSfxVolume(1.0);
+    townFinishBuilding?.();
+    keys.Space = false;
+    lastSpace = false;
+    uiScreen.classList.add('hidden');
+    layoutWrapper.classList.add('hidden');
+    endingDemo.start();
+}
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 // ========== Save slot helpers (localStorage) ==========
