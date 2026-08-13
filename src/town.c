@@ -1626,16 +1626,12 @@ void wasm_town_complete_transition(void)
     /* Clear the flag first — JS checks it and we don't want re-entry */
     MEM8(ADDR_PENDING_TRANSITION_FLAG) = 0;
 
-    /* Apply NPC sprite mask (same as load_town_transition_data did) */
-    uint8_t npc_type = MEM8(ADDR_TOWN_DESCRIPTOR + 1);
-    // CALL_PROC(apply_sprite_mask,
-    //           SEG1_BASE + SEG1_MMAN_CMAN_GFX + 0x100,
-    //           SEG2_BASE + 0x7000, 160);
+    /* 1. Apply conditional MDT changes (barriers, NPC array pointer, dialogue flags) */
+    init_c015_obj_if_exists();
 
     /* Decompress patterns if pat_id changed */
     if (pat_new != PAT_ID) {
         PAT_ID = pat_new;
-        // load_and_decompress_patterns();
     }
 
     /* Set hero re-entry scroll position */
@@ -1653,8 +1649,14 @@ void wasm_town_complete_transition(void)
 
     FACING = going_left ? 1 : 0;  /* face into the new town */
 
-    /* Re-enter town (loads background, starts music, inits NPCs, etc.) */
-    // town_entry_common();
+    /* 2. Replace NPC head tiles with 0xFD using the updated NPC array */
+    save_head_level_tiles_in_npcs();
+
+    /* 3. Reset input and transition latches */
+    SPACEBAR = 0;
+    ALTKEY   = 0;
+    MEM8(ADDR_BYTE_E4) = 0;
+    MEM8(ADDR_BYTE_9F) = 0;
 }
 
 /* =========================================================================

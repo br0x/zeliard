@@ -6153,7 +6153,7 @@ async function performGameRestore(saveData) {
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 let lastTimestamp = 0;
-let fps = 0;
+// let fps = 0;
 let cavernName = '';
 let mdtData = null;
 let mdtHeader = null;
@@ -6390,8 +6390,8 @@ function draw() {
 }
 
 function loop(timestamp) {
-    if (timestamp > lastTimestamp) fpsEl.textContent = Math.round(1000 / (timestamp - lastTimestamp));
-    lastTimestamp = timestamp;
+    // if (timestamp > lastTimestamp) fpsEl.textContent = Math.round(1000 / (timestamp - lastTimestamp));
+    // lastTimestamp = timestamp;
     draw();
     requestAnimationFrame(loop);
 }
@@ -6401,7 +6401,7 @@ const introScreen  = document.getElementById('intro-screen');
 const introCanvas  = document.getElementById('introCanvas');
 const uiScreen     = document.getElementById('ui');
 const layoutWrapper = document.getElementById('layout-wrapper');
-const fpsEl  = document.getElementById('fps-value');
+// const fpsEl  = document.getElementById('fps-value');
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 const tearOverlayEl = document.getElementById('tear-overlay');
