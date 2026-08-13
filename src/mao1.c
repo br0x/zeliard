@@ -19,15 +19,14 @@
  * ------------------------------------------------------------------
  * This file translates the AI/gameplay logic only. The following are
  * NOT translated, since they are asset data / engine-managed fields
- * read by generic code that never goes through Jashiin1_AI_proc, exactly
- * like the excluded data in tako.c:
+ * read by generic code that never goes through Jashiin1_AI_proc:
  *   - the "start:" export header and its reserved padding
  *   - boss_state_block's non-AI fields (boss_hp, xp_reward,
  *     arena_center_x, boss_placement, name_block_ptr, name_screen_x/y,
  *     aJashiin boss-name pstring) -- populated/read by the generic
  *     overlay loader, encounter/reward code, and name renderer, not by
  *     this AI. (boss_x/boss_y ARE translated below: Jashiin1_AI_proc reads
- *     and writes them directly, same as crab.c/tako.c.)
+ *     and writes them directly)
  *
  * The pose sprite-layout tables (off_A495/byte_A4AB.. and
  * off_A52F/byte_A545..) and the per-frame cutscene script
@@ -209,8 +208,9 @@ void Jashiin1_AI(uint16_t m)
 
     restore_previous_frame_sprites();
 
-    /* loc_A273: reset this frame's sprite list before laying it out again */
-    MEM16(ADDR_MONSTERS_LIST) = 0xFFFF;
+    /* loc_A273: reset this frame's sprite list before laying it out again. */
+    uint16_t base = MEM16(ADDR_MONSTERS_LIST);
+    MEM16(base) = 0xFFFF;
 
     script_cursor++;
     uint8_t op = (script_cursor < sizeof(cutscene_script))

@@ -196,7 +196,7 @@ loc_A273:
                 mov     word ptr [si], 0FFFFh
                 inc     byte_A59C
                 mov     al, byte_A59C
-                mov     bx, offset byte_A3BB
+                mov     bx, offset cutscene_script
                 xlat
                 or      al, al
                 jns     short loc_A28D
@@ -224,7 +224,6 @@ loc_A29D:
                 mov     ax, boss_x
                 mov     si, ds:monsters_table_addr
                 mov     cx, 6
-
 loc_A2C2:
                 push    cx
                 push    ax
@@ -232,13 +231,12 @@ loc_A2C2:
                 pop     ax
                 mov     byte_A59A, bl
                 jnb     short loc_A2DE
-                mov     cx, 8
 
+                mov     cx, 8
 loc_A2D3:
                 rol     byte ptr ds:[bp+0], 1
                 jnb     short loc_A2DA
                 inc     di
-
 loc_A2DA:
                 loop    loc_A2D3
                 jmp     short loc_A340
@@ -387,7 +385,7 @@ loc_A3AC:
 Mao1_AI_proc    endp
 
 ; ---------------------------------------------------------------------------
-byte_A3BB       db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 80h, 0, 0, 0, 0
+cutscene_script db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 80h, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0C0h, 0, 1, 1
                 db 2, 2, 3, 3, 3, 3, 3, 81h, 3, 3, 3, 3, 3, 3, 3

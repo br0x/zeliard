@@ -66,6 +66,7 @@ static uint8_t main_update_render_pre(void);
 static uint8_t dungeon_render_timing_step(uint8_t invincible);
 static void dungeon_complete_door_transition(void);
 static void dungeon_update_normal(void);
+static void dungeon_update_jashiin_cutscene(void);
 static void dungeon_update_rope(void);
 static void dungeon_finish_normal_frame(void);
 static void dungeon_finish_rope_frame(void);
@@ -1795,7 +1796,8 @@ void wasm_dungeon_init(uint8_t map_id, uint8_t is_from_town) {
     // DUNGEON_STATE_BOSS_ENCOUNTER for the JS encounter flash. Preserve that;
     // only force NORMAL when no roka run and no encounter were started.
     if (MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_ROKA_RUN &&
-        MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_BOSS_ENCOUNTER) {
+        MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_BOSS_ENCOUNTER &&
+        MEM8(ADDR_DUNGEON_STATE) != DUNGEON_STATE_JASHIIN_CUTSCENE) {
         MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
     }
     MEM8(ADDR_DUNGEON_FRAME_PHASE) = 0;
@@ -1991,6 +1993,9 @@ void wasm_dungeon_update(void)
         return;
     case DUNGEON_STATE_BOSS_ENCOUNTER:
         // Do nothing — encounter animation handled by JS renderer
+        break;
+    case DUNGEON_STATE_JASHIIN_CUTSCENE:
+        dungeon_update_jashiin_cutscene();
         break;
     case DUNGEON_STATE_NORMAL:
     default:
@@ -4612,6 +4617,51 @@ static void dungeon_update_normal(void)
     }
 }
 
+static void dungeon_update_jashiin_cutscene(void)
+{
+    if (MEM8(ADDR_DUNGEON_FRAME_PHASE) == 0) {
+        uint8_t invincible = main_update_render_pre();
+        if (invincible) {
+            MEM8(ADDR_HERO_DAMAGE_THIS_FRAME) = 0;
+        }
+        dungeon_render_timing_step(invincible);
+        return;
+    }
+
+    uint8_t invincible = MEM8(ADDR_INVINCIBILITY_FLAG) != 0;
+    if (!dungeon_render_timing_step(invincible)) {
+        return;
+    }
+
+    if (MEM8(ADDR_IS_JASHIIN_CAVERN) != 0) {
+        return; // still in the cutscene room 1
+    }
+
+    // Cutscene done: set up room 2 (mpa0) exactly as the original
+    // jashiin_place block did after the blocking loop. prepare_dungeon()
+    // recomputes PROXIMITY_MAP_LEFT_COL from saved_door_x1 once the new
+    // MDT is loaded, and after_run_animation() re-derives VIEWPORT_TOP_ROW
+    // from saved_y_view_init, so the hero lands on mpa0's floor (not the
+    // previous map's absolute height — which is why room 2 looked "too high").
+    MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = 24;
+    saved_door_x1 = 24;
+    MEM8(ADDR_DOOR_TARGET_Y) = 13;
+    MEM8(ADDR_HERO_X_VIEW) = 12;
+    MEM8(ADDR_BYTE_9F00) = 12;
+    saved_y_view_init = MEM8(ADDR_HERO_Y_VIEW_INIT); // mp90's (0x0D), not the stale door value
+    hero_left_16_down_1();
+
+    // mpa0 is a boss cavern entered straight from the cutscene — the original
+    // never plays a roka run here, so make prepare_dungeon() finalize directly.
+    g_skip_roka_run = 1;
+
+    MEM8(ADDR_PLACE_MAP_ID) = 30; // mpa0.mdt, Jashiin room 2
+    MEM8(ADDR_PENDING_DUNGEON_MAP) = 30;
+    MEM8(ADDR_PENDING_DUNGEON_FLAG) = 0xFF;
+    MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_EXIT;
+    load_eai_module(30);
+}
+
 static void dungeon_finish_rope_frame(void)
 {
     hero_knockback_handler();
@@ -5020,7 +5070,17 @@ void Cavern_Game_Init(void) {
         uint8_t boss_grp = MEM8(si + 5);  // mdt_descriptor.boss_grp
         MEM8(si + 4) = boss_grp;          // mdt_descriptor.enp_grp_idx = boss_grp
 
-        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_BOSS_ENCOUNTER;
+        // Jashiin room 2 (mpa0) is entered straight from the room-1 cutscene.
+        // The original sets it up in-stream (render_boss_hud + main loop) with
+        // NO encounter flash — the fight starts immediately. Everything else
+        // (Alguien etc.) enters via a door and uses BOSS_ENCOUNTER.
+        if ((MEM8(ADDR_PLACE_MAP_ID) & 0x7F) == 30) {
+            render_boss_hud();
+            MEM8(ADDR_MAO2_START_LATCH) = 0xFF; // release Jashiin2_AI's encounter gate
+            MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_NORMAL;
+        } else {
+            MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_BOSS_ENCOUNTER;
+        }
     } else {
         // ------------------------------------------------------------------------
         // Regular cavern path
@@ -5037,51 +5097,14 @@ void Cavern_Game_Init(void) {
     // Draw_Hero_Health_proc();
     // Print_Almas_Decimal_proc();
 
-    if (MEM8(ADDR_IS_JASHIIN_CAVERN)) { // Jashiin room 1 cutscene
+    if ((MEM8(ADDR_IS_JASHIIN_CAVERN)) &&
+        (MEM8(ADDR_PLACE_MAP_ID) & 0x7F) == 29) { // Jashiin room 1 (mp90) cutscene only
         MEM8(ADDR_BYTE_9F26) = 0xFF;
         MEM16(ADDR_PROXIMITY_MAP_LEFT_COL) = 41;
         MEM8(ADDR_HERO_X_VIEW) = 5;
         unpack_map();
         clear_viewport_buffer();
-
-        do {
-            main_update_render();
-        } while (MEM8(ADDR_IS_JASHIIN_CAVERN) != 0);
-
-        // Start music (fn0)
-        // int60h_music(FN0_INIT_PLAY_MUSIC);
-
-        MEM8(ADDR_BYTE_9F02) = 0;
-
-        // Load Jashiin room 2 MDT (should be loaded by the game.js)
-        // res_dispatcher_proc("MPA0.MDT", 0xC000);
-
-        MEM8(ADDR_IS_BOSS_CAVERN) = 0xFF;
-        MEM8(ADDR_BYTE_9F27) = 0xFF;
-
-        uint16_t mdt_descr = MEM16(ADDR_MDT);
-        uint8_t desc_byte0 = MEM8(mdt_descr);
-        process_mdt_descriptor(desc_byte0, mdt_descr+1);
-
-        load_cavern_sprites_ai_music(); // load dchr.grp, load mpp{mpp_grp_index}.grp, load eai{eai_bin_index}.bin
-                                        // load enp{enp_grp_index}.grp, load mgt{mgt_msd_index}.msd
-
-        Reassemble_3_Planes_To_Packed_Bitmap_proc(0x18030, 102);
-        NoOperation_proc();
-        Load_Magic_Spell_Sprite_Group_proc();
-        Reassemble_3_Planes_To_Packed_Bitmap_proc(/* magic sprite data */ 0x9350, 24); // address from Load_Magic_Spell_Sprite_Group_proc
-
-        MEM16(ADDR_HERO_X_IN_PROXIMITY_MAP) = 24;
-        MEM8(ADDR_DOOR_TARGET_Y) = 13;
-        MEM8(ADDR_HERO_X_VIEW) = 12;
-        MEM8(ADDR_BYTE_9F00) = 12;
-        hero_left_16_down_1();
-        render_hud_bars_with_enemy();
-        render_boss_hud();
-
-        // Draw_Hero_Max_Health_proc();
-        // Draw_Hero_Health_proc();
-        // Print_Almas_Decimal_proc();
+        MEM8(ADDR_DUNGEON_STATE) = DUNGEON_STATE_JASHIIN_CUTSCENE;
     } else { // non‑Jashiin cavern startup; init_cavern
         unpack_map();
         if (MEM8(ADDR_BYTE_9F27) != 0) {

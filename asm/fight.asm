@@ -285,7 +285,7 @@ loc_618F:
 jashiin_place:   
                 mov     ds:byte_9F26, 0FFh
                 mov     word ptr ds:proximity_map_left_col_x, 41
-                mov     byte ptr ds:hero_x_in_viewport, 5 ; 5+36=41; in the Jashiin's cavern hero appears not centered in viewport
+                mov     byte ptr ds:hero_x_in_viewport, 5 ; in the Jashiin's cavern hero appears not centered in viewport
                 call    unpack_map
                 call    clear_viewport_buffer
 

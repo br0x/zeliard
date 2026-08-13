@@ -208,6 +208,7 @@ extern "C" {
 #define ADDR_SPACEBAR_LATCH                            0xFF1D  // byte
 #define ADDR_ALTKEY_LATCH                              0xFF1E  // byte
 #define ADDR_BYTE_FF24                                 0xFF24
+#define ADDR_MAO2_START_LATCH                          0xFF21  // byte — set to 0xFF to start the Jashiin room-2 (mpa0) boss encounter
 #define ADDR_BOSS_BEING_HIT                            0xFF2E  // byte
 #define ADDR_SPRITE_FLASH_FLAG                         0xFF2F  // byte
 #define ADDR_BOSS_IS_DEAD                              0xFF30  // byte
@@ -291,6 +292,7 @@ enum {
     DUNGEON_STATE_ROKA_RUN = 7,
     DUNGEON_STATE_DOOR_PENDING = 8,
     DUNGEON_STATE_ROKADEMO = 9,
+    DUNGEON_STATE_JASHIIN_CUTSCENE = 10,
 };
 
 // ============================================================================

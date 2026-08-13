@@ -22,8 +22,8 @@
 
 #include "zeliard.h"
 
-#define ADDR_MAO2_START_LATCH 0xFF21
-
+/* ADDR_MAO2_START_LATCH (0xFF21) is defined in zeliard.h; it is set to 0xFF
+   by the mpa0 (Jashiin room 2) boss setup to start this encounter. */
 /* ---- persistent state: byte_AC1B .. byte_AC38 ---- */
 static uint8_t anim_index;             /* AC1B */
 static uint8_t active_sprite_count;    /* AC1C */
