@@ -8,6 +8,14 @@ const INTRO_PRINCESS_SRC        = 'assets/images/enddemo/princess_full.png';
 const INTRO_TEMPLATE2_SRC       = 'assets/images/opdemo/template2.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 
+const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
+const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
+// Overlay assets (lips and eyes)
+const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..3
+const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..2
+const PRINCESS_LIPS_SRC_BASE    = 'assets/images/enddemo/princess_lips_'; // 0..3
+const PRINCESS_EYES_SRC_BASE    = 'assets/images/enddemo/princess_eyes_'; // 0..2
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Text content
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +35,20 @@ const SPIRIT_LINES = [
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Timing & layout constants
+// Dialogue script (extracted from enddemo.asm up to "Father!")
+// ─────────────────────────────────────────────────────────────────────────────
+const DIALOGUE_SCRIPT = [
+  { speaker: 'narrator', text: 'At long last, Jashiin was destroyed and the nine Tears of Esmesanti were returned to their rightful place.' },
+  { speaker: 'narrator', text: 'Princess Felicia was restored to her true form.' },
+  { speaker: 'duke', text: 'You are as beautiful as a rose in bloom!' },
+  { speaker: 'princess', text: 'Thank you, Duke Garland.' },
+  { speaker: 'princess', text: 'You have done a great deed in defeating Jashiin. Although my body was here, my soul was with you, watching you.' },
+  { speaker: 'princess', text: "I don't know how to thank you for rescuing me and saving my country." },
+  { speaker: 'princess', text: 'Father!' },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Timing & layout constants (added for dialogue)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const INTRO_FADE_IN_MS              = 2000;
@@ -92,8 +113,23 @@ const DIRECT_SPEECH_TEXT_COLOR      = '#fbfbfb';
 const DIRECT_SPEECH_SHADOW_COLOR    = '#0000fb';
 const DIRECT_SPEECH_SHADOW_OFFSET   = 2;
 
+const DIALOGUE_TEXT_X            = 20;
+const DIALOGUE_TEXT_Y            = 280;
+const DIALOGUE_TEXT_MAX_WIDTH    = 600;
+const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
+const DIALOGUE_CHAR_DELAY_MS     = 45;
+const DIALOGUE_LINE_PAUSE_MS     = 1200;   // wait after line is fully typed
+const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
+const DIALOGUE_BOX_RECT          = { x: 16, y: 266, w: 608, h: 120 };
+const DIALOGUE_FONT              = '16px "Press Start 2P", monospace';
+const DIALOGUE_TEXT_COLOR        = '#fbfbfb';
+
+// Face overlay positions (assume overlays are same size as base and fully opaque where needed)
+const DUKE_POS = { x: 94, y: 45, w: 180, h: 180 };
+const PRINCESS_POS = { x: 366, y: 45, w: 180, h: 180 };
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Helpers (existing) + new face animation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function loadImage(src) {
@@ -113,6 +149,22 @@ async function loadStoryFont() {
   } catch (error) {
     console.warn('Failed to load intro font; using fallback font.', error);
   }
+}
+
+// Returns lip index (0‑3) cycling every few characters
+function getLipIndex(visibleCount) {
+  return (Math.floor(visibleCount / 3) % 4);
+}
+
+// Returns eye index (0‑2) with blinking
+function getEyeIndex(timestamp) {
+  const cycle = 4000;        // blink every 4 seconds
+  const blinkDuration = 150; // closed for 150 ms
+  const t = timestamp % cycle;
+  if (t < blinkDuration) return 1;      // closed
+  if (t < blinkDuration + 200) return 0; // opening
+  if (t < cycle - blinkDuration) return 0; // normal
+  return 1; // closing
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,13 +211,112 @@ function buildTimeline(images) {
       princessDstStartY: PRINCESS_DST_START_Y,
       princessDstEndY: PRINCESS_DST_END_Y,
     },
+    // ── 2. Dialogue scene (Duke & Princess exchange) ────────────────────────
+    {
+      type: 'dialogueScene',
+      script: DIALOGUE_SCRIPT,
+      // The renderer uses the images object for overlays
+    },
   ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EndingDemo — timeline engine
+// EndingDemo — updated class
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Raw script data from enddemo.asm (unk_6AA8 up to "Father!")
+  // ─────────────────────────────────────────────────────────────────────────────
+const RAW_SCRIPT = [
+  0xF0, 0xFA, 0xF3, 0x41, 0x74, 0x20, 0x6C, 0x6F, 0x6E, 0x67, 0x20, 0x6C, 0x61, 0x73, 0x74, 0x2C,
+  0x20, 0x4A, 0x61, 0x73, 0x68, 0x69, 0x69, 0x6E, 0x20, 0x77, 0x61, 0x73, 0x20, 0x64, 0x65, 0x73,
+  0x74, 0x72, 0x6F, 0x79, 0x65, 0x64, 0x20, 0x61, 0x6E, 0x64, 0x20, 0x74, 0x68, 0x65, 0x20, 0x6E,
+  0x69, 0x6E, 0x65, 0x20, 0x54, 0x65, 0x61, 0x72, 0x73, 0x20, 0x6F, 0x66, 0x20, 0x45, 0x73, 0x6D,
+  0x65, 0x73, 0x61, 0x6E, 0x74, 0x69, 0x20, 0x77, 0x65, 0x72, 0x65, 0x20, 0x72, 0x65, 0x74, 0x75,
+  0x72, 0x6E, 0x65, 0x64, 0x20, 0x74, 0x6F, 0x20, 0x74, 0x68, 0x65, 0x69, 0x72, 0x20, 0x72, 0x69,
+  0x67, 0x68, 0x74, 0x66, 0x75, 0x6C, 0x20, 0x70, 0x6C, 0x61, 0x63, 0x65, 0x2E, 0xF5, 0xF5, 0xF5,
+  0xFE, 0xF3, 0x50, 0x72, 0x69, 0x6E, 0x63, 0x65, 0x73, 0x73, 0x20, 0x46, 0x65, 0x6C, 0x69, 0x63,
+  0x69, 0x61, 0x20, 0x77, 0x61, 0x73, 0x20, 0x72, 0x65, 0x73, 0x74, 0x6F, 0x72, 0x65, 0x64, 0x20,
+  0x74, 0x6F, 0x20, 0x68, 0x65, 0x72, 0x20, 0x74, 0x72, 0x75, 0x65, 0x20, 0x66, 0x6F, 0x72, 0x6D,
+  0x2E, 0xF5, 0xF5, 0xF5, 0xFB, 0xFE, 0xF3, 0xEF, 0x22, 0x95, 0x59, 0x6F, 0x75, 0x20, 0x90, 0x61,
+  0x72, 0x65, 0x94, 0x20, 0x90, 0x61, 0x95, 0x73, 0x20, 0x92, 0x62, 0x65, 0x95, 0x61, 0x75, 0x92,
+  0x74, 0x69, 0x95, 0x66, 0x75, 0x93, 0x6C, 0x20, 0x90, 0x61, 0x95, 0x73, 0x20, 0x90, 0x61, 0x20,
+  0x93, 0x72, 0x6F, 0x91, 0x73, 0x65, 0x20, 0x92, 0x69, 0x94, 0x6E, 0x20, 0x93, 0x62, 0x95, 0x6C,
+  0x6F, 0x6F, 0x94, 0x6D, 0x21, 0x22, 0xF5, 0xF2, 0xEB, 0xA3, 0x22, 0xA4, 0xA0, 0x54, 0xA5, 0x68,
+  0xA4, 0x61, 0xA3, 0xA2, 0x6E, 0xA1, 0x6B, 0x20, 0xA2, 0x79, 0x6F, 0x75, 0x2C, 0x20, 0xA1, 0xA3,
+  0x44, 0xA4, 0x75, 0xA5, 0x6B, 0xA4, 0x65, 0xA3, 0x20, 0xA0, 0x47, 0x61, 0x72, 0xA1, 0x6C, 0x61,
+  0xA2, 0x6E, 0x64, 0x2E, 0x22, 0xA1, 0xF5, 0xF5, 0xF5, 0xFE, 0xF3, 0x22, 0xA1, 0x59, 0x6F, 0x75,
+  0x20, 0xA0, 0x68, 0x61, 0xA2, 0x76, 0x65, 0x20, 0xA1, 0x64, 0x6F, 0xA2, 0x6E, 0x65, 0x20, 0xA0,
+  0x61, 0x20, 0xA1, 0x67, 0x72, 0x65, 0xA0, 0x61, 0x74, 0x20, 0xA1, 0x64, 0x65, 0x65, 0x64, 0x20,
+  0xA2, 0x69, 0x6E, 0x20, 0xA0, 0x64, 0x65, 0x66, 0x65, 0x61, 0xA1, 0x74, 0xA2, 0x69, 0x6E, 0x67,
+  0x20, 0xA1, 0x4A, 0x61, 0x73, 0x68, 0x69, 0xA2, 0x69, 0x6E, 0x2E, 0xA1, 0x20, 0x20, 0xF5, 0xA0,
+  0xA4, 0x41, 0xA5, 0x6C, 0xA4, 0xA2, 0x74, 0xA3, 0x68, 0x6F, 0x75, 0xA1, 0x67, 0x68, 0x20, 0xA0,
+  0x6D, 0x79, 0x20, 0xA1, 0x62, 0x6F, 0x64, 0xA1, 0x79, 0x20, 0xA0, 0x77, 0x61, 0xA1, 0x73, 0x20,
+  0xA1, 0x68, 0xA0, 0x65, 0x72, 0x65, 0x2C, 0x20, 0xA4, 0x6D, 0xA5, 0xA1, 0x79, 0xA4, 0x20, 0xA3,
+  0xA1, 0x73, 0x6F, 0xA2, 0x75, 0x6C, 0x20, 0xA0, 0x77, 0x61, 0xA2, 0x73, 0x20, 0xA2, 0x77, 0xA1,
+  0x69, 0x74, 0x68, 0x20, 0xA0, 0x74, 0x68, 0x65, 0x20, 0xA1, 0x48, 0x6F, 0xA2, 0x6C, 0x79, 0x20,
+  0xA2, 0x53, 0xA1, 0x70, 0x69, 0xA0, 0x72, 0xA2, 0x69, 0x74, 0x2C, 0x20, 0xA0, 0x77, 0x61, 0x74,
+  0xA1, 0x63, 0x68, 0xA2, 0x69, 0x6E, 0x67, 0x20, 0xA1, 0x79, 0x6F, 0x75, 0x2E, 0x22, 0xF5, 0xF5,
+  0xF5, 0xFE, 0xF3, 0x22, 0xA0, 0x49, 0x20, 0xA1, 0x64, 0x6F, 0xA2, 0x6E, 0x27, 0x74, 0x20, 0xA1,
+  0x6B, 0xA2, 0x6E, 0x6F, 0x77, 0x20, 0xA0, 0x68, 0x6F, 0xA2, 0x77, 0x20, 0xA1, 0x74, 0x6F, 0x20,
+  0xA0, 0x74, 0x68, 0x61, 0xA2, 0x6E, 0x6B, 0x20, 0xA1, 0x79, 0x6F, 0x75, 0x20, 0xA2, 0x66, 0x6F,
+  0x72, 0x20, 0xA1, 0x72, 0x65, 0xA2, 0x73, 0x63, 0x75, 0xA1, 0x69, 0x6E, 0x67, 0x20, 0xA2, 0x6D,
+  0x65, 0x20, 0xA0, 0x61, 0x6E, 0x64, 0x20, 0xA1, 0x73, 0x61, 0x76, 0xA2, 0x69, 0x6E, 0x67, 0x20,
+  0xA0, 0x6D, 0x79, 0x20, 0xA1, 0x63, 0x6F, 0xA0, 0x75, 0x6E, 0xA2, 0x74, 0x72, 0x79, 0x2E, 0x22,
+  0xA1, 0xF5, 0xF5, 0xF5, 0xFE, 0xFD, 0xF3,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parser – builds a flat array of command objects
+// ─────────────────────────────────────────────────────────────────────────────
+function parseDialogueScript(bytes) {
+  const commands = [];
+  let i = 0;
+  let currentSpeaker = 'narrator';
+  let currentColor = '#fbfbfb'; // default
+  let pendingText = '';
+
+  function flushText() {
+    if (pendingText) {
+      commands.push({ type: 'text', speaker: currentSpeaker, text: pendingText, color: currentColor });
+      pendingText = '';
+    }
+  }
+
+  while (i < bytes.length) {
+    const b = bytes[i++];
+    if (b === 0xFF) break; // end of script
+
+    // Control codes
+    if (b >= 0xF0) {
+      flushText();
+      switch (b) {
+        case 0xF0: currentSpeaker = 'narrator'; break;
+        case 0xEF: currentSpeaker = 'duke'; break;
+        case 0xEB: currentSpeaker = 'princess'; break;
+        case 0xEC: currentSpeaker = 'spirit'; break;
+        case 0xF3: break; // unknown
+        case 0xF5: break; // unknown
+        case 0xFA: break; // unknown
+        case 0xFB: break; // unknown
+        case 0xFC: break; // unknown
+        case 0xFD: break; // unknown
+        case 0xFE: break;
+        default: /* ignore */ break;
+      }
+    } else if (b >= 0x90 && b <= 0x98) {
+      // Duke eyes/lips choice
+    } else if (b >= 0xA0 && b <= 0xA5) {
+      // princess eyes/lips choice
+    } else {
+      // Normal printable character (ASCII)
+      pendingText += String.fromCharCode(b);
+    }
+  }
+  flushText();
+  return commands;
+}
 export class EndingDemo {
   constructor({ screen, canvas, onComplete }) {
     this.screen     = screen;
@@ -221,6 +372,7 @@ export class EndingDemo {
   // ── Asset loading ──────────────────────────────────────────────────────────
 
   async _loadAssets() {
+    // Load base images
     const [
       princess,
       duke0, duke1, duke2,
@@ -236,11 +388,41 @@ export class EndingDemo {
       loadStoryFont(),
     ]);
 
+    // Load overlay images (lips & eyes) for Duke and Princess
+    const lipEyePromises = [];
+    for (let i = 0; i < 4; i++) {
+      lipEyePromises.push(loadImage(`${DUKE_LIPS_SRC_BASE}${i}.png`));
+      lipEyePromises.push(loadImage(`${PRINCESS_LIPS_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 3; i++) {
+      lipEyePromises.push(loadImage(`${DUKE_EYES_SRC_BASE}${i}.png`));
+      lipEyePromises.push(loadImage(`${PRINCESS_EYES_SRC_BASE}${i}.png`));
+    }
+    const overlayResults = await Promise.allSettled(lipEyePromises);
+
+    // Organise overlays by name
+    const overlays = {};
+    const names = [];
+    for (let i = 0; i < 4; i++) {
+      names.push(`duke_lips${i}`, `princess_lips${i}`);
+    }
+    for (let i = 0; i < 3; i++) {
+      names.push(`duke_eyes${i}`, `princess_eyes${i}`);
+    }
+    overlayResults.forEach((result, idx) => {
+      if (result.status === 'fulfilled') {
+        overlays[names[idx]] = result.value;
+      } else {
+        console.warn(`Failed to load overlay: ${names[idx]}`, result.reason);
+      }
+    });
+
     this.images = {
       princess,
       duke0, duke1, duke2,
       template2,
       spirit,
+      ...overlays,
     };
   }
 
@@ -326,6 +508,7 @@ export class EndingDemo {
   _drawStep(step, s, ts) {
     switch (step.type) {
       case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
+      case 'dialogueScene':         return this._drawDialogueScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -336,6 +519,7 @@ export class EndingDemo {
       case 'expandWindow':   return this._drawExpandWindow(step, s, ts);
       case 'curtainOnly':    return this._drawCurtainOnly(step, s, ts);
       case 'windowText':     return this._drawWindowText(step, s, ts);    
+      default: break;
     }
   }
 
@@ -426,6 +610,126 @@ export class EndingDemo {
       this._nextStep();
     }
   }
+
+  // ── Dialogue scene renderer ──────────────────────────────────────────────
+
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EndingDemo._drawDialogueScene – now uses parsed commands
+  // ─────────────────────────────────────────────────────────────────────────────
+  _drawDialogueScene(step, s, ts) {
+  if (!s.commands) {
+    s.commands = parseDialogueScript(RAW_SCRIPT);
+    s.cmdIndex = 0;
+    s.charPos = 0;
+    s.lineStartTime = 0;
+    s.pauseUntil = 0;
+    s.currentSpeaker = 'narrator';
+    s.currentColor = '#fbfbfb';
+  }
+
+  // Advance through commands if we've finished the current one
+  while (s.cmdIndex < s.commands.length) {
+    const cmd = s.commands[s.cmdIndex];
+    if (cmd.type === 'pause') {
+      if (!s.pauseStart) s.pauseStart = ts;
+      if (ts - s.pauseStart < cmd.ms) {
+        // still pausing – draw current state
+        break;
+      } else {
+        s.pauseStart = null;
+        s.cmdIndex++;
+        continue;
+      }
+    } else if (cmd.type === 'newline') {
+      // Just a line break – we handle it during text rendering
+      s.cmdIndex++;
+      continue;
+    } else if (cmd.type === 'text') {
+      // Typewriter
+      if (s.charPos === 0) s.lineStartTime = ts;
+      const elapsed = ts - s.lineStartTime;
+      const totalChars = cmd.text.length;
+      const visibleCount = Math.min(Math.floor(elapsed / CHAR_DELAY_MS), totalChars);
+      // Update current speaker and colour for overlay and text style
+      s.currentSpeaker = cmd.speaker;
+      s.currentColor = cmd.color;
+      // Store visible text for drawing
+      s.displayText = cmd.text.slice(0, visibleCount);
+      s.isComplete = (visibleCount === totalChars);
+
+      if (s.isComplete) {
+        // Wait a little before moving to next command
+        if (!s.doneTime) s.doneTime = ts;
+        if (ts - s.doneTime < LINE_PAUSE_MS) {
+          // still waiting – draw
+          break;
+        } else {
+          s.doneTime = null;
+          s.cmdIndex++;
+          s.charPos = 0;
+          s.lineStartTime = 0;
+          continue;
+        }
+      } else {
+        s.charPos = visibleCount;
+        break; // draw current state
+      }
+    } else {
+      s.cmdIndex++;
+    }
+  }
+
+  // ── Drawing ──────────────────────────────────────────────────────────────
+  this._clearBlack();
+
+  // Draw Duke and Princess base (always visible)
+  this.ctx.drawImage(this.images.duke0, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+  this.ctx.drawImage(this.images.princess, 4, 0, 180, 180, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
+
+  // Animate lips/eyes for the speaker
+  const speaker = s.currentSpeaker;
+  if (speaker === 'duke' || speaker === 'princess') {
+    const isDuke = speaker === 'duke';
+    const basePos = isDuke ? DUKE_POS : PRINCESS_POS;
+    const lipIdx = getLipIndex(s.charPos || 0);
+    const eyeIdx = getEyeIndex(ts);
+    const lipKey = `${speaker}_lips${lipIdx}`;
+    const eyeKey = `${speaker}_eyes${eyeIdx}`;
+    const lipImg = this.images[lipKey];
+    const eyeImg = this.images[eyeKey];
+    if (lipImg) this.ctx.drawImage(lipImg, basePos.x, basePos.y, basePos.w, basePos.h);
+    if (eyeImg) this.ctx.drawImage(eyeImg, basePos.x, basePos.y, basePos.w, basePos.h);
+  }
+
+  // Draw text box and typewriter text
+  const box = DIALOGUE_BOX_RECT;
+  this.ctx.fillStyle = DIALOGUE_BOX_BG;
+  this.ctx.fillRect(box.x, box.y, box.w, box.h);
+
+  this.ctx.save();
+  this.ctx.font = DIALOGUE_FONT;
+  this.ctx.fillStyle = s.currentColor || DIALOGUE_TEXT_COLOR;
+  this.ctx.textBaseline = 'top';
+  this.ctx.textAlign = 'left';
+
+  // Wrap text to fit
+  const fullText = s.displayText || '';
+  const wrapped = this._wrapText(fullText, DIALOGUE_TEXT_MAX_WIDTH);
+  for (let i = 0; i < wrapped.length; i++) {
+    this.ctx.fillText(
+      wrapped[i].text,
+      DIALOGUE_TEXT_X,
+      DIALOGUE_TEXT_Y + i * DIALOGUE_TEXT_LINE_HEIGHT
+    );
+  }
+  this.ctx.restore();
+
+  // Advance if finished all commands
+  if (s.cmdIndex >= s.commands.length) {
+    this._nextStep();
+  }
+}
 
   // ─────────────────────────────────────────────────────────────────────────
   // Shared rendering utilities

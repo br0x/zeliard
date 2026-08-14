@@ -45,7 +45,11 @@ sub_6002        proc near
                 mov     al, 0FFh
                 mov     bx, 0B18h
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 mov     ax, cs
                 add     ax, 2000h
                 mov     es, ax  ; seg2
@@ -60,7 +64,11 @@ sub_6002        proc near
                 mov     al, 0FFh
                 mov     bx, 2D71h
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 mov     byte ptr cs:frame_timer, 0
                 mov     al, 0FFh
                 call    sub_62EE
@@ -86,7 +94,15 @@ loc_609D:
                 mov     bh, 2Dh ; '-'
                 mov     di, 0
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 mov     al, 0Ah
                 call    sub_62EE
                 pop     cx
@@ -126,7 +142,11 @@ loc_609D:
                 mov     al, 0FFh
                 mov     bx, 1D12h
                 mov     cx, 1C64h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 call    sub_6318
                 push    cs
                 pop     es
@@ -175,7 +195,15 @@ loc_609D:
                 mov     di, 4000h
                 mov     bx, 0B18h
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 mov     bx, 2C15h
                 mov     cx, 1A5Dh
                 call    word ptr cs:GDMCGA_Draw_Bordered_Rect_proc
@@ -183,7 +211,15 @@ loc_609D:
                 mov     di, 8000h
                 mov     bx, 2D18h
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 call    sub_6318
                 push    cs
                 pop     es
@@ -200,7 +236,11 @@ loc_609D:
                 mov     al, 0FFh
                 mov     bx, 2D18h
                 mov     cx, 1858h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 call    sub_6318
                 push    cs
                 pop     es
@@ -231,13 +271,21 @@ loc_609D:
                 mov     al, 0FFh
                 mov     bx, 0B12h
                 mov     cx, 1A64h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 mov     es, word ptr cs:seg1
                 mov     di, 8000h
                 mov     al, 0FFh
                 mov     bx, 3325h
                 mov     cx, 1251h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 call    sub_6318
                 mov     es, word ptr cs:seg1
                 mov     di, 4000h
@@ -258,7 +306,11 @@ loc_62C0:
                 mov     di, 4000h
                 mov     bx, 0B12h
                 mov     cx, 1A64h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 call    sub_6318
 ; ---------------------------------------------------------------------------
                 mov     al, 0FFh
@@ -589,7 +641,15 @@ loc_64E3:
                 mov     di, ax
                 mov     bx, 1350h
                 mov     cx, 920h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -605,7 +665,15 @@ loc_650F:
                 mov     di, ax
                 mov     bx, 1238h
                 mov     cx, 0B10h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -621,7 +689,15 @@ loc_6530:
                 mov     di, ax
                 mov     bx, 3548h
                 mov     cx, 50Bh
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -633,7 +709,15 @@ loc_654F:
                 mov     di, ax
                 mov     bx, 343Eh
                 mov     cx, 708h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -649,7 +733,15 @@ loc_6568:
                 mov     di, ax
                 mov     bx, 3850h
                 mov     cx, 718h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -667,7 +759,15 @@ loc_658C:
                 mov     di, ax
                 mov     bx, 3450h
                 mov     cx, 918h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc  ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -683,7 +783,15 @@ loc_65B4:
                 mov     di, ax
                 mov     bx, 3338h
                 mov     cx, 0A18h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 ; ---------------------------------------------------------------------------
 
@@ -697,7 +805,15 @@ loc_65D5:
                 mov     di, ax
                 mov     bx, 3840h
                 mov     cx, 208h
-                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                call    word ptr cs:Decompress_And_Copy_To_VRAM_proc ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
                 jmp     loc_6323
 sub_6318        endp
 
@@ -1060,7 +1176,11 @@ sub_682E        proc near
                 mov     al, 0FFh
                 mov     bx, 0B08h
                 mov     cx, 399Ah
-                jmp     word ptr cs:Decompress_3Plane_Interleaved_proc
+                jmp     word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
 sub_682E        endp
 
 
@@ -1085,7 +1205,11 @@ sub_685A        proc near
                 mov     al, 0FFh
                 mov     bx, 2114h
                 mov     cx, 2F72h
-                jmp     word ptr cs:Decompress_3Plane_Interleaved_proc
+                jmp     word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
 sub_685A        endp
 
 
@@ -1156,7 +1280,11 @@ sub_68CF        proc near
                 mov     al, 0FFh
                 mov     bx, 0
                 mov     cx, 5086h
-                call    word ptr cs:Decompress_3Plane_Interleaved_proc
+                call    word ptr cs:Decompress_3Plane_Interleaved_proc ; Input:
+                                                                        ;   CH = height (number of tile rows)
+                                                                        ;   CL = width (number of tile columns)
+                                                                        ;   DI = source data pointer (DS:DI)
+
                 push    ds
                 mov     ax, cs
                 add     ax, 2000h
@@ -1180,7 +1308,15 @@ sub_6932        proc near
                 mov     di, 4000h
                 mov     bx, 0
                 mov     cx, 5086h
-                jmp     word ptr cs:Decompress_And_Copy_To_VRAM_proc
+                jmp     word ptr cs:Decompress_And_Copy_To_VRAM_proc ; Decompress 3-plane graphics and copy directly to VRAM
+                                                                    ;   Input:
+                                                                    ;     CH = height
+                                                                    ;     CL = width
+                                                                    ;     DI = source data pointer (DS:DI)
+                                                                    ;     ES = destination segment (VRAM)
+                                                                    ;     BH = screen Y
+                                                                    ;     BL = screen X
+
 sub_6932        endp
 
 
@@ -1426,9 +1562,9 @@ loc_6A8B:
                 pop     ds
                 retn
 ; ---------------------------------------------------------------------------
-unk_6AA8        db 0F0h
-                db 0FAh
-                db 0F3h
+unk_6AA8        db 0F0h ; narrator speaks
+                db 0FAh ;
+                db 0F3h ; start typing
 aAtLongLastJash db 'At long last, Jashiin was destroyed and the nine Tears of Esmesan'
                 db 'ti were returned to their rightful place.'
                 db 0F5h
@@ -1443,7 +1579,7 @@ aPrincessFelici db 'Princess Felicia was restored to her true form.'
                 db 0FBh
                 db 0FEh
                 db 0F3h
-                db 0EFh
+                db 0EFh ; Duke speaks (articulation: 90h..98h)
                 db  22h ; "
                 db  95h
                 db  59h ; Y
@@ -1508,7 +1644,7 @@ aPrincessFelici db 'Princess Felicia was restored to her true form.'
                 db  22h ; "
                 db 0F5h
                 db 0F2h
-                db 0EBh
+                db 0EBh ; Princess speaks (articulation 0A0h..0A5h)
                 db 0A3h
                 db  22h ; "
                 db 0A4h
@@ -1847,7 +1983,7 @@ aFather         db '"Father!"'
                 db 0F5h
                 db 0F5h
                 db 0F2h
-                db 0EEh
+                db 0EEh ; King speaks
 aMyDarlingFelic db '"My darling Felicia!  '
                 db 0F5h
 aHowIVeLongedTo db 'How I',27h,'ve longed to hold you in my arms and hear your sweet '
@@ -1858,7 +1994,7 @@ aHowIVeLongedTo db 'How I',27h,'ve longed to hold you in my arms and hear your s
                 db 0FAh
                 db 0FEh
                 db 0F3h
-                db 0F0h
+                db 0F0h ; narrator speaks
 aOutsideTheLand db 'Outside, the land cursed by the evil magic of Jashiin began to re'
                 db 'sume its original lushness.'
                 db 0F5h
@@ -1883,9 +2019,8 @@ aTheGuardianSpi db 'The Guardian Spirit of the Holy Land of Zeliard appeared bef
                 db 0FEh
                 db 0F3h
                 db 0FBh
-                db 0ECh
-aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Garland'
-                db '."'
+                db 0ECh ; Spirit speaks (articulation 80h..85h )
+aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Garland."'
                 db 0F5h
                 db 0F5h
                 db 0F5h
@@ -2075,7 +2210,7 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db 0F5h
                 db 0FEh
                 db 0F7h
-                db 0EFh
+                db 0EFh ; Duke speaks
                 db  22h ; "
                 db  90h
                 db  4Dh ; M
@@ -2110,7 +2245,7 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db  96h
                 db 0F5h
                 db 0F3h
-                db 0ECh
+                db 0ECh ; Spirit speaks (articulation 80h..85h )
                 db  22h ; "
                 db  81h
                 db  54h ; T
