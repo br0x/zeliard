@@ -11,10 +11,25 @@ const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
 const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
 // Overlay assets (lips and eyes)
-const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..3
-const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..2
+const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
+const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
 const PRINCESS_LIPS_SRC_BASE    = 'assets/images/enddemo/princess_lips_'; // 0..3
 const PRINCESS_EYES_SRC_BASE    = 'assets/images/enddemo/princess_eyes_'; // 0..2
+
+// Face overlay layout: position (relative to each base image) and native size.
+const FACE_LAYOUT = {
+  duke: {
+    eyes: { x: 51,  y: 74,  w: 90, h: 31 },
+    lips: { x: 54,  y: 128, w: 84, h: 51 },
+  },
+  princess: {
+    eyes: { x: 49,  y: 63,  w: 54, h: 25 },
+    lips: { x: 62,  y: 86,  w: 48, h: 35 },
+  },
+};
+const DUKE_FACE_DEFAULT       = { eyes: 0, lips: 0 };
+const PRINCESS_FACE_DEFAULT   = { eyes: 0, lips: 3 };
+const PRINCESS_CROSSFADE_MS   = 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Text content
@@ -151,22 +166,6 @@ async function loadStoryFont() {
   }
 }
 
-// Returns lip index (0‑3) cycling every few characters
-function getLipIndex(visibleCount) {
-  return (Math.floor(visibleCount / 3) % 4);
-}
-
-// Returns eye index (0‑2) with blinking
-function getEyeIndex(timestamp) {
-  const cycle = 4000;        // blink every 4 seconds
-  const blinkDuration = 150; // closed for 150 ms
-  const t = timestamp % cycle;
-  if (t < blinkDuration) return 1;      // closed
-  if (t < blinkDuration + 200) return 0; // opening
-  if (t < cycle - blinkDuration) return 0; // normal
-  return 1; // closing
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Timeline definition
 //
@@ -193,6 +192,7 @@ function buildTimeline(images) {
       type: 'dukeAndPrincessScroll',
       dukeImage: images.duke0,
       princessImage: images.princess,
+      princessBaseImage: images.princessBase,
       template2Image: images.template2,
       dukeFadeInMs: DUKE_FADE_IN_MS,
       princessFadeInMs: PRINCESS_FADE_IN_MS,
@@ -265,6 +265,9 @@ const RAW_SCRIPT = [
   0x65, 0x20, 0xA0, 0x61, 0x6E, 0x64, 0x20, 0xA1, 0x73, 0x61, 0x76, 0xA2, 0x69, 0x6E, 0x67, 0x20,
   0xA0, 0x6D, 0x79, 0x20, 0xA1, 0x63, 0x6F, 0xA0, 0x75, 0x6E, 0xA2, 0x74, 0x72, 0x79, 0x2E, 0x22,
   0xA1, 0xF5, 0xF5, 0xF5, 0xFE, 0xFD, 0xF3,
+   // aFather: "Father!"
+   0x22, 0x46, 0x61, 0x74, 0x68, 0x65, 0x72, 0x21, 0x22,
+   0xF5, 0xF5, 0xF2, 0xEE, 0xFF,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -276,11 +279,20 @@ function parseDialogueScript(bytes) {
   let currentSpeaker = 'narrator';
   let currentColor = '#fbfbfb'; // default
   let pendingText = '';
+  let faceChanges = [];
+  let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 } };
 
   function flushText() {
     if (pendingText) {
-      commands.push({ type: 'text', speaker: currentSpeaker, text: pendingText, color: currentColor });
+      commands.push({
+        type: 'text',
+        speaker: currentSpeaker,
+        text: pendingText,
+        color: currentColor,
+        faceChanges: faceChanges,
+      });
       pendingText = '';
+      faceChanges = [];
     }
   }
 
@@ -293,22 +305,39 @@ function parseDialogueScript(bytes) {
       flushText();
       switch (b) {
         case 0xF0: currentSpeaker = 'narrator'; break;
-        case 0xEF: currentSpeaker = 'duke'; break;
-        case 0xEB: currentSpeaker = 'princess'; break;
-        case 0xEC: currentSpeaker = 'spirit'; break;
         case 0xF3: break; // unknown
         case 0xF5: break; // unknown
         case 0xFA: break; // unknown
         case 0xFB: break; // unknown
         case 0xFC: break; // unknown
-        case 0xFD: break; // unknown
         case 0xFE: break;
         default: /* ignore */ break;
       }
+    } else if (b >= 0xEB && b <= 0xEF) {
+      // Speaker codes (0xEB-0xEF)
+      flushText();
+      switch (b) {
+        case 0xEB: currentSpeaker = 'princess'; break;
+        case 0xEC: currentSpeaker = 'spirit'; break;
+        case 0xED: currentSpeaker = 'king'; break;
+        case 0xEE: currentSpeaker = 'king'; break;
+        case 0xEF: currentSpeaker = 'duke'; break;
+        default: break;
+      }
     } else if (b >= 0x90 && b <= 0x98) {
-      // Duke eyes/lips choice
+      // Duke eyes/lips: 0x90-0x95 eyes, 0x96-0x98 lips
+      const rel = b - 0x90;
+      const part = rel < 6 ? 'eyes' : 'lips';
+      const index = rel < 6 ? rel : rel - 6;
+      face.duke[part] = index;
+      faceChanges.push({ at: pendingText.length, speaker: 'duke', part: part, index: index });
     } else if (b >= 0xA0 && b <= 0xA5) {
-      // princess eyes/lips choice
+      // Princess eyes/lips: 0xA0-0xA2 eyes, 0xA3-0xA5 lips
+      const rel = b - 0xA0;
+      const part = rel < 3 ? 'eyes' : 'lips';
+      const index = rel < 3 ? rel : rel - 3;
+      face.princess[part] = index;
+      faceChanges.push({ at: pendingText.length, speaker: 'princess', part: part, index: index });
     } else {
       // Normal printable character (ASCII)
       pendingText += String.fromCharCode(b);
@@ -375,11 +404,13 @@ export class EndingDemo {
     // Load base images
     const [
       princess,
+      princessBase,
       duke0, duke1, duke2,
       template2,
       spirit,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_SRC),
+      loadImage(PRINCESS_SRC_BASE),
       loadImage(INTRO_DUKE0_SRC),
       loadImage(INTRO_DUKE1_SRC),
       loadImage(INTRO_DUKE2_SRC),
@@ -390,12 +421,16 @@ export class EndingDemo {
 
     // Load overlay images (lips & eyes) for Duke and Princess
     const lipEyePromises = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       lipEyePromises.push(loadImage(`${DUKE_LIPS_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 4; i++) {
       lipEyePromises.push(loadImage(`${PRINCESS_LIPS_SRC_BASE}${i}.png`));
     }
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       lipEyePromises.push(loadImage(`${DUKE_EYES_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 3; i++) {
       lipEyePromises.push(loadImage(`${PRINCESS_EYES_SRC_BASE}${i}.png`));
     }
     const overlayResults = await Promise.allSettled(lipEyePromises);
@@ -403,11 +438,17 @@ export class EndingDemo {
     // Organise overlays by name
     const overlays = {};
     const names = [];
+    for (let i = 0; i < 3; i++) {
+      names.push(`duke_lips${i}`);
+    }
     for (let i = 0; i < 4; i++) {
-      names.push(`duke_lips${i}`, `princess_lips${i}`);
+      names.push(`princess_lips${i}`);
+    }
+    for (let i = 0; i < 6; i++) {
+      names.push(`duke_eyes${i}`);
     }
     for (let i = 0; i < 3; i++) {
-      names.push(`duke_eyes${i}`, `princess_eyes${i}`);
+      names.push(`princess_eyes${i}`);
     }
     overlayResults.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
@@ -419,6 +460,7 @@ export class EndingDemo {
 
     this.images = {
       princess,
+      princessBase,
       duke0, duke1, duke2,
       template2,
       spirit,
@@ -535,13 +577,14 @@ export class EndingDemo {
     const scrollDurationMs = step.scrollDurationMs ?? 7000;
     const template2FadeInMs = step.template2FadeInMs ?? 1000;
 
-    const totalDurationMs = dukeFadeInMs + princessFadeInMs + scrollDurationMs + template2FadeInMs;
+    const totalDurationMs = dukeFadeInMs + princessFadeInMs + scrollDurationMs + template2FadeInMs + PRINCESS_CROSSFADE_MS;
 
     // -- Phase calculations --
     let dukeAlpha = 0;
     let princessAlpha = 0;
     let scrollProgress = 0;
     let template2Alpha = 0;
+    let crossfadeAlpha = 0;
 
     // Phase 1: Duke fades in
     if (elapsed < dukeFadeInMs) {
@@ -563,6 +606,9 @@ export class EndingDemo {
           // Phase 4: Template2 fades in over the scene
           const templateElapsed = elapsed - dukeFadeInMs - princessFadeInMs - scrollDurationMs;
           template2Alpha = Math.min(1, templateElapsed / template2FadeInMs);
+          // Phase 5: Princess final cropped image cross-fades into princess_base
+          const crossfadeElapsed = elapsed - dukeFadeInMs - princessFadeInMs - scrollDurationMs - template2FadeInMs;
+          crossfadeAlpha = Math.min(1, crossfadeElapsed / PRINCESS_CROSSFADE_MS);
         }
       }
     }
@@ -605,6 +651,14 @@ export class EndingDemo {
       this.ctx.restore();
     }
 
+    // 4. Princess final cropped image cross-fades into princess_base
+    if (step.princessBaseImage && crossfadeAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = crossfadeAlpha;
+      this.ctx.drawImage(step.princessBaseImage, dstX, dstY, dstW, dstH);
+      this.ctx.restore();
+    }
+
     // Advance when all phases are complete
     if (elapsed >= totalDurationMs) {
       this._nextStep();
@@ -626,6 +680,7 @@ export class EndingDemo {
     s.pauseUntil = 0;
     s.currentSpeaker = 'narrator';
     s.currentColor = '#fbfbfb';
+    s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT } };
   }
 
   // Advance through commands if we've finished the current one
@@ -658,10 +713,17 @@ export class EndingDemo {
       s.displayText = cmd.text.slice(0, visibleCount);
       s.isComplete = (visibleCount === totalChars);
 
+      // Apply face changes that have been revealed so far
+      for (const fc of cmd.faceChanges || []) {
+        if (fc.at <= visibleCount) {
+          s.face[fc.speaker][fc.part] = fc.index;
+        }
+      }
+
       if (s.isComplete) {
         // Wait a little before moving to next command
         if (!s.doneTime) s.doneTime = ts;
-        if (ts - s.doneTime < LINE_PAUSE_MS) {
+        if (ts - s.doneTime < DIALOGUE_LINE_PAUSE_MS) {
           // still waiting – draw
           break;
         } else {
@@ -685,21 +747,19 @@ export class EndingDemo {
 
   // Draw Duke and Princess base (always visible)
   this.ctx.drawImage(this.images.duke0, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
-  this.ctx.drawImage(this.images.princess, 4, 0, 180, 180, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
+  this.ctx.drawImage(this.images.princessBase, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
 
-  // Animate lips/eyes for the speaker
-  const speaker = s.currentSpeaker;
-  if (speaker === 'duke' || speaker === 'princess') {
-    const isDuke = speaker === 'duke';
-    const basePos = isDuke ? DUKE_POS : PRINCESS_POS;
-    const lipIdx = getLipIndex(s.charPos || 0);
-    const eyeIdx = getEyeIndex(ts);
-    const lipKey = `${speaker}_lips${lipIdx}`;
-    const eyeKey = `${speaker}_eyes${eyeIdx}`;
-    const lipImg = this.images[lipKey];
-    const eyeImg = this.images[eyeKey];
-    if (lipImg) this.ctx.drawImage(lipImg, basePos.x, basePos.y, basePos.w, basePos.h);
-    if (eyeImg) this.ctx.drawImage(eyeImg, basePos.x, basePos.y, basePos.w, basePos.h);
+  // Draw face overlays (lips & eyes) for both characters at native size/offset
+  for (const speaker of ['duke', 'princess']) {
+    const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS_POS;
+    const layout = FACE_LAYOUT[speaker];
+    const face = s.face[speaker];
+    for (const part of ['eyes', 'lips']) {
+      const img = this.images[`${speaker}_${part}${face[part]}`];
+      if (!img) continue;
+      const off = layout[part];
+      this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
+    }
   }
 
   // Draw text box and typewriter text
