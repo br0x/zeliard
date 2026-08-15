@@ -1581,64 +1581,64 @@ aPrincessFelici db 'Princess Felicia was restored to her true form.'
                 db 0F3h
                 db 0EFh ; Duke speaks (articulation: 90h..98h)
                 db  22h ; "
-                db  95h
+                db  95h      ; big O
                 db  59h ; Y
                 db  6Fh ; o
                 db  75h ; u
                 db  20h
-                db  90h
+                db  90h      ; open with corners
                 db  61h ; a
                 db  72h ; r
                 db  65h ; e
-                db  94h
+                db  94h      ; closed lips
                 db  20h
-                db  90h
+                db  90h      ; open with corners
                 db  61h ; a
-                db  95h
+                db  95h      ; big O
                 db  73h ; s
                 db  20h
-                db  92h
+                db  92h      ; min open
                 db  62h ; b
                 db  65h ; e
-                db  95h
+                db  95h      ; big O
                 db  61h ; a
                 db  75h ; u
-                db  92h
+                db  92h      ; min open
                 db  74h ; t
                 db  69h ; i
-                db  95h
+                db  95h      ; big O
                 db  66h ; f
                 db  75h ; u
-                db  93h
+                db  93h      ; small o
                 db  6Ch ; l
                 db  20h
-                db  90h
+                db  90h      ; open with corners
                 db  61h ; a
-                db  95h
+                db  95h      ; big O
                 db  73h ; s
                 db  20h
-                db  90h
+                db  90h      ; open with corners
                 db  61h ; a
                 db  20h
-                db  93h
+                db  93h      ; small o
                 db  72h ; r
                 db  6Fh ; o
-                db  91h
+                db  91h      ; half open
                 db  73h ; s
                 db  65h ; e
                 db  20h
-                db  92h
+                db  92h      ; min open
                 db  69h ; i
-                db  94h
+                db  94h      ; closed lips
                 db  6Eh ; n
                 db  20h
-                db  93h
+                db  93h      ; small o
                 db  62h ; b
-                db  95h
+                db  95h      ; big O
                 db  6Ch ; l
                 db  6Fh ; o
                 db  6Fh ; o
-                db  94h
+                db  94h      ; closed lips
                 db  6Dh ; m
                 db  21h ; !
                 db  22h ; "
@@ -1647,49 +1647,49 @@ aPrincessFelici db 'Princess Felicia was restored to her true form.'
                 db 0EBh ; Princess speaks (articulation 0A0h..0A5h)
                 db 0A3h
                 db  22h ; "
-                db 0A4h
-                db 0A0h
+                db 0A4h      ; princess eyes half closed
+                db 0A0h      ; princess lips v
                 db  54h ; T
-                db 0A5h
+                db 0A5h      ; princess eyes closed
                 db  68h ; h
-                db 0A4h
+                db 0A4h      ; princess eyes half closed
                 db  61h ; a
-                db 0A3h
-                db 0A2h
+                db 0A3h      ; princess eyes open
+                db 0A2h      ; princess lips V
                 db  6Eh ; n
-                db 0A1h
+                db 0A1h      ; princess lips closed
                 db  6Bh ; k
                 db  20h
-                db 0A2h
+                db 0A2h      ; princess lips V
                 db  79h ; y
                 db  6Fh ; o
                 db  75h ; u
                 db  2Ch ; ,
                 db  20h
-                db 0A1h
-                db 0A3h
+                db 0A1h      ; princess lips closed
+                db 0A3h      ; princess eyes open
                 db  44h ; D
-                db 0A4h
+                db 0A4h      ; princess eyes half closed
                 db  75h ; u
-                db 0A5h
+                db 0A5h      ; princess eyes closed
                 db  6Bh ; k
-                db 0A4h
+                db 0A4h      ; princess eyes half closed
                 db  65h ; e
-                db 0A3h
+                db 0A3h      ; princess eyes open
                 db  20h
-                db 0A0h
+                db 0A0h      ; princess lips v
                 db  47h ; G
                 db  61h ; a
                 db  72h ; r
-                db 0A1h
+                db 0A1h      ; princess lips closed
                 db  6Ch ; l
                 db  61h ; a
-                db 0A2h
+                db 0A2h      ; princess lips V
                 db  6Eh ; n
                 db  64h ; d
                 db  2Eh ; .
                 db  22h ; "
-                db 0A1h
+                db 0A1h      ; princess lips closed
                 db 0F5h
                 db 0F5h
                 db 0F5h
@@ -2212,37 +2212,37 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db 0F7h
                 db 0EFh ; Duke speaks
                 db  22h ; "
-                db  90h
+                db  90h      ; open with corners
                 db  4Dh ; M
-                db  92h
+                db  92h      ; min open
                 db  79h ; y
                 db  20h
-                db  91h
+                db  91h      ; half open
                 db  6Eh ; n
                 db  65h ; e
-                db  93h
+                db  93h      ; small o
                 db  78h ; x
                 db  74h ; t
                 db  20h
-                db  92h
+                db  92h      ; min open
                 db  6Dh ; m
                 db  69h ; i
-                db  93h
+                db  93h      ; small o
                 db  73h ; s
                 db  73h ; s
                 db  69h ; i
                 db  6Fh ; o
-                db  94h
+                db  94h      ; closed
                 db  6Eh ; n
                 db  3Fh ; ?
                 db  22h ; "
-                db  97h
+                db  97h      ; eye half closed
                 db  20h
-                db  98h
+                db  98h      ; eye closed
                 db  20h
-                db  97h
+                db  97h      ; eye half closed
                 db  20h
-                db  96h
+                db  96h      ; eye open (normal)
                 db 0F5h
                 db 0F3h
                 db 0ECh ; Spirit speaks (articulation 80h..85h )
@@ -2421,14 +2421,14 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db 0F5h
                 db 0F5h
                 db 0FEh
-                db 0F0h
+                db 0F0h ; narrator speaks
                 db 0F3h
                 db 0FAh
 aThereWasNoTime db 'There was no time to rest, '
-                db  97h
+                db  97h      ; Duke eye half closed
                 db  61h ; a
                 db  6Eh ; n
-                db  98h
+                db  98h      ; Duke eye closed
 aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db 0F5h
                 db 0F5h
@@ -2437,10 +2437,10 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db 0FEh
                 db 0F3h
                 db 0FBh
-                db 0EBh
-                db  97h
+                db 0EBh ; princess speaks (articulation 0B0h.. )
+                db  97h      ; Duke eye half closed
                 db  22h ; "
-                db  96h
+                db  96h      ; Duke eye open (normal)
                 db 0B0h
                 db  4Dh ; M
                 db  75h ; u
@@ -2545,7 +2545,7 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db  91h
                 db  63h ; c
                 db  65h ; e
-                db  93h
+                db  93h       ; small o
                 db  73h ; s
                 db  73h ; s
                 db  20h

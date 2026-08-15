@@ -325,9 +325,9 @@ function parseDialogueScript(bytes) {
         default: break;
       }
     } else if (b >= 0x90 && b <= 0x98) {
-      // Duke eyes/lips: 0x90-0x95 eyes, 0x96-0x98 lips
+      // Duke eyes/lips: 0x90-0x95 lips, 0x96-0x98 eyes
       const rel = b - 0x90;
-      const part = rel < 6 ? 'eyes' : 'lips';
+      const part = rel < 6 ? 'lips' : 'eyes';
       const index = rel < 6 ? rel : rel - 6;
       face.duke[part] = index;
       faceChanges.push({ at: pendingText.length, speaker: 'duke', part: part, index: index });
