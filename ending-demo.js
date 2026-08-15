@@ -1,10 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Assets
 // ─────────────────────────────────────────────────────────────────────────────
-const INTRO_DUKE0_SRC           = 'assets/images/opdemo/duke0.png';
-const INTRO_DUKE1_SRC           = 'assets/images/opdemo/duke1.png';
-const INTRO_DUKE2_SRC           = 'assets/images/opdemo/duke2.png';
-const INTRO_PRINCESS_SRC        = 'assets/images/enddemo/princess_full.png';
+const INTRO_PRINCESS_FULL_SRC   = 'assets/images/enddemo/princess_full.png';
 const INTRO_TEMPLATE2_SRC       = 'assets/images/opdemo/template2.png';
 const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 
@@ -27,8 +24,8 @@ const FACE_LAYOUT = {
     lips: { x: 62,  y: 86,  w: 48, h: 35 },
   },
 };
-const DUKE_FACE_DEFAULT       = { eyes: 0, lips: 0 };
-const PRINCESS_FACE_DEFAULT   = { eyes: 0, lips: 3 };
+const DUKE_FACE_DEFAULT       = { eyes: 0, lips: 4 };
+const PRINCESS_FACE_DEFAULT   = { eyes: 0, lips: 1 };
 const PRINCESS_CROSSFADE_MS   = 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +41,6 @@ const STORY_LINES = [
 const CREDITS_LINES = [
 ];
 
-
 const SPIRIT_LINES = [
 ];
 
@@ -59,7 +55,6 @@ const DIALOGUE_SCRIPT = [
   { speaker: 'princess', text: 'Thank you, Duke Garland.' },
   { speaker: 'princess', text: 'You have done a great deed in defeating Jashiin. Although my body was here, my soul was with you, watching you.' },
   { speaker: 'princess', text: "I don't know how to thank you for rescuing me and saving my country." },
-  { speaker: 'princess', text: 'Father!' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,7 +127,7 @@ const DIALOGUE_TEXT_X            = 20;
 const DIALOGUE_TEXT_Y            = 280;
 const DIALOGUE_TEXT_MAX_WIDTH    = 600;
 const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
-const DIALOGUE_CHAR_DELAY_MS     = 45;
+const DIALOGUE_CHAR_DELAY_MS     = 80;
 const DIALOGUE_LINE_PAUSE_MS     = 1200;   // wait after line is fully typed
 const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
 const DIALOGUE_BOX_RECT          = { x: 16, y: 266, w: 608, h: 120 };
@@ -190,8 +185,8 @@ function buildTimeline(images) {
     // ── 1. Duke static + Princess scroll ───────────────────────────────────────
     {
       type: 'dukeAndPrincessScroll',
-      dukeImage: images.duke0,
-      princessImage: images.princess,
+      dukeImage: images.dukeBase,
+      princessImage: images.princessFull,
       princessBaseImage: images.princessBase,
       template2Image: images.template2,
       dukeFadeInMs: DUKE_FADE_IN_MS,
@@ -215,6 +210,7 @@ function buildTimeline(images) {
     {
       type: 'dialogueScene',
       script: DIALOGUE_SCRIPT,
+      background: images.template2,
       // The renderer uses the images object for overlays
     },
   ];
@@ -265,9 +261,6 @@ const RAW_SCRIPT = [
   0x65, 0x20, 0xA0, 0x61, 0x6E, 0x64, 0x20, 0xA1, 0x73, 0x61, 0x76, 0xA2, 0x69, 0x6E, 0x67, 0x20,
   0xA0, 0x6D, 0x79, 0x20, 0xA1, 0x63, 0x6F, 0xA0, 0x75, 0x6E, 0xA2, 0x74, 0x72, 0x79, 0x2E, 0x22,
   0xA1, 0xF5, 0xF5, 0xF5, 0xFE, 0xFD, 0xF3,
-   // aFather: "Father!"
-   0x22, 0x46, 0x61, 0x74, 0x68, 0x65, 0x72, 0x21, 0x22,
-   0xF5, 0xF5, 0xF2, 0xEE, 0xFF,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -332,9 +325,9 @@ function parseDialogueScript(bytes) {
       face.duke[part] = index;
       faceChanges.push({ at: pendingText.length, speaker: 'duke', part: part, index: index });
     } else if (b >= 0xA0 && b <= 0xA5) {
-      // Princess eyes/lips: 0xA0-0xA2 eyes, 0xA3-0xA5 lips
+      // Princess eyes/lips: 0xA0-0xA2 lips, 0xA3-0xA5 eyes
       const rel = b - 0xA0;
-      const part = rel < 3 ? 'eyes' : 'lips';
+      const part = rel < 3 ? 'lips' : 'eyes';
       const index = rel < 3 ? rel : rel - 3;
       face.princess[part] = index;
       faceChanges.push({ at: pendingText.length, speaker: 'princess', part: part, index: index });
@@ -403,17 +396,15 @@ export class EndingDemo {
   async _loadAssets() {
     // Load base images
     const [
-      princess,
+      princessFull,
       princessBase,
-      duke0, duke1, duke2,
+      dukeBase,
       template2,
       spirit,
     ] = await Promise.all([
-      loadImage(INTRO_PRINCESS_SRC),
+      loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
-      loadImage(INTRO_DUKE0_SRC),
-      loadImage(INTRO_DUKE1_SRC),
-      loadImage(INTRO_DUKE2_SRC),
+      loadImage(DUKE_SRC_BASE),
       loadImage(INTRO_TEMPLATE2_SRC),
       loadImage(INTRO_SPIRIT_SRC),
       loadStoryFont(),
@@ -421,13 +412,13 @@ export class EndingDemo {
 
     // Load overlay images (lips & eyes) for Duke and Princess
     const lipEyePromises = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       lipEyePromises.push(loadImage(`${DUKE_LIPS_SRC_BASE}${i}.png`));
     }
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       lipEyePromises.push(loadImage(`${PRINCESS_LIPS_SRC_BASE}${i}.png`));
     }
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 3; i++) {
       lipEyePromises.push(loadImage(`${DUKE_EYES_SRC_BASE}${i}.png`));
     }
     for (let i = 0; i < 3; i++) {
@@ -438,13 +429,13 @@ export class EndingDemo {
     // Organise overlays by name
     const overlays = {};
     const names = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       names.push(`duke_lips${i}`);
     }
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       names.push(`princess_lips${i}`);
     }
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 3; i++) {
       names.push(`duke_eyes${i}`);
     }
     for (let i = 0; i < 3; i++) {
@@ -459,9 +450,9 @@ export class EndingDemo {
     });
 
     this.images = {
-      princess,
+      princessFull,
       princessBase,
-      duke0, duke1, duke2,
+      dukeBase,
       template2,
       spirit,
       ...overlays,
@@ -702,7 +693,7 @@ export class EndingDemo {
       continue;
     } else if (cmd.type === 'text') {
       // Typewriter
-      if (s.charPos === 0) s.lineStartTime = ts;
+      if (!s.lineStartTime) s.lineStartTime = ts;
       const elapsed = ts - s.lineStartTime;
       const totalChars = cmd.text.length;
       const visibleCount = Math.min(Math.floor(elapsed / CHAR_DELAY_MS), totalChars);
@@ -745,8 +736,13 @@ export class EndingDemo {
   // ── Drawing ──────────────────────────────────────────────────────────────
   this._clearBlack();
 
+  // Draw the scene background (template2) so it remains from the previous step
+  if (step.background) {
+    this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
+  }
+
   // Draw Duke and Princess base (always visible)
-  this.ctx.drawImage(this.images.duke0, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+  this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
   this.ctx.drawImage(this.images.princessBase, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
 
   // Draw face overlays (lips & eyes) for both characters at native size/offset
