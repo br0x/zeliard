@@ -2436,28 +2436,28 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db 0FEh
                 db 0F3h
                 db 0FBh
-                db 0EBh ; princess speaks (articulation 0B0h.. )
+                db 0EBh ; princess speaks (articulation 0B0h..0B8h )
                 db  97h      ; Duke eye half closed
                 db  22h ; "
                 db  96h      ; Duke eye open (normal)
-                db 0B0h
+                db 0B0h      ; princess lips open2 with corners
                 db  4Dh ; M
                 db  75h ; u
-                db 0B3h
+                db 0B3h      ; princess lips V
                 db  73h ; s
-                db 0B4h
+                db 0B4h      ; princess lips closed (normal)
                 db  74h ; t
                 db  20h
                 db  79h ; y
                 db  6Fh ; o
                 db  75h ; u
                 db  20h
-                db 0B2h
+                db 0B2h      ; princess lips open1
                 db  6Ch ; l
                 db  65h ; e
-                db 0B1h
+                db 0B1h      ; princess lips open3
                 db  61h ; a
-                db 0B3h
+                db 0B3h      ; princess lips V
                 db  76h ; v
                 db  65h ; e
                 db 0B4h
@@ -2466,7 +2466,7 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db  73h ; s
                 db  6Fh ; o
                 db  20h
-                db 0B5h
+                db 0B5h      ; princess lips open4
                 db  73h ; s
                 db  6Fh ; o
                 db  6Fh ; o
@@ -2474,15 +2474,15 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db  6Eh ; n
                 db  2Ch ; ,
                 db  20h
-                db 0B7h
-                db 0B3h
+                db 0B7h      ; princess eyes half closed
+                db 0B3h      ; princess lips V
                 db  44h ; D
-                db 0B8h
+                db 0B8h      ; princess eyes closed
                 db  75h ; u
-                db 0B1h
-                db 0B7h
+                db 0B1h      ; princess lips open3
+                db 0B7h      ; princess eyes half closed
                 db  6Bh ; k
-                db 0B6h
+                db 0B6h      ; princess eyes open
                 db  65h ; e
                 db  20h
                 db 0B0h
@@ -2499,15 +2499,15 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db  20h
                 db 0F5h
                 db 0F2h
-                db 0B7h
+                db 0B7h      ; princess eyes half closed
                 db 0B0h
                 db  49h ; I
-                db 0B8h
+                db 0B8h      ; princess eyes closed
                 db  20h
-                db 0B7h
+                db 0B7h      ; princess eyes half closed
                 db 0B5h
                 db  77h ; w
-                db 0B6h
+                db 0B6h      ; princess eyes open
                 db 0B0h
                 db  61h ; a
                 db  73h ; s
@@ -2532,7 +2532,7 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db 0F5h
                 db 0FEh
                 db 0F7h
-                db 0EFh
+                db 0EFh ; Duke speaks
                 db  22h ; "
                 db  95h
                 db  50h ; P

@@ -26,9 +26,13 @@ const FACE_LAYOUT = {
     eyes: { x: 49,  y: 63,  w: 54, h: 25 },
     lips: { x: 62,  y: 86,  w: 48, h: 35 },
   },
+  spirit: {
+    lips: { x: 74, y: 108, w: 23, h: 26 },
+  },
 };
 const DUKE_FACE_DEFAULT       = { eyes: 0, lips: 4 };
 const PRINCESS_FACE_DEFAULT   = { eyes: 0, lips: 1 };
+const SPIRIT_FACE_DEFAULT     = { lips: 0 };
 const PRINCESS_CROSSFADE_MS   = 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +153,7 @@ const DIALOGUE_CHAR_DELAY_MS    = Math.round(0x0A * DIALOGUE_FRAME_MS);  // 10 f
 // Face overlay positions (assume overlays are same size as base and fully opaque where needed)
 const DUKE_POS = { x: 94, y: 45, w: 180, h: 180 };
 const PRINCESS_POS = { x: 366, y: 45, w: 180, h: 180 };
+const SPIRIT_POS = { x: 366, y: 45, w: 180, h: 180 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers (existing) + new face animation helpers
@@ -242,6 +247,12 @@ function buildTimeline(images) {
       entryFromSnapshot: true,
       crossfadeMs: SPIRIT_CROSSFADE_MS,
       curtainMs: CURTAIN_MS,
+    },
+    // ── 5. Duke & Spirit dialogue (template2 reveals, Duke left, Spirit right) ──
+    {
+      type: 'dukeSpiritScene',
+      background: images.template2,
+      fadeInMs: TEMPLATE2_FADE_IN_MS,
     },
   ];
 }
@@ -369,6 +380,82 @@ const SPIRIT_SCRIPT = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Raw script data from enddemo.asm (unk_6AA8 after the Spirit arrival scene)
+// ─────────────────────────────────────────────────────────────────────────────
+const DUKE_SPIRIT_SCRIPT = [
+  // Spirit speaks (direct speech), row 1
+  0xFB, 0xF3, 0xEC,
+  // '"You fought bravely to accomplish this quest.  '
+  // (0x80-0x85 are Spirit lip articulation codes)
+  0x22, 0x83, 0x59, 0x6F, 0x75, 0x20, 0x81, 0x66, 0x6F, 0x75, 0x82,
+  0x67, 0x68, 0x74, 0x20, 0x83, 0x62, 0x81, 0x72, 0x61, 0x83, 0x76, 0x65,
+  0x82, 0x6C, 0x79, 0x20, 0x83, 0x74, 0x6F, 0x20, 0x80, 0x61, 0x83, 0x63,
+  0x63, 0x6F, 0x84, 0x6D, 0x82, 0x70, 0x6C, 0x69, 0x83, 0x73, 0x68, 0x20,
+  0x82, 0x74, 0x68, 0x69, 0x83, 0x73, 0x20, 0x83, 0x71, 0x75, 0x81, 0x65,
+  0x83, 0x73, 0x74, 0x2E, 0x20, 0x20,
+  0xF5,
+  // 'But this was only the beginning.  '
+  0x80, 0x42, 0x75, 0x83, 0x74, 0x20, 0x82, 0x74, 0x68, 0x69, 0x83, 0x73,
+  0x20, 0x80, 0x77, 0x61, 0x83, 0x73, 0x20, 0x6F, 0x84, 0x6E, 0x82, 0x6C,
+  0x79, 0x20, 0x81, 0x74, 0x68, 0x65, 0x20, 0x82, 0x62, 0x65, 0x67, 0x69,
+  0x6E, 0x84, 0x6E, 0x69, 0x6E, 0x83, 0x67, 0x2E, 0x20, 0x20, 0x84,
+  0xF5,
+  // 'Your next mission awaits you in a new land."'
+  0x83, 0x59, 0x6F, 0x75, 0x80, 0x72, 0x20, 0x81, 0x6E, 0x65, 0x83, 0x78,
+  0x74, 0x20, 0x82, 0x6D, 0x69, 0x83, 0x73, 0x73, 0x69, 0x82, 0x6F, 0x84,
+  0x6E, 0x20, 0x80, 0x61, 0x77, 0x61, 0x82, 0x69, 0x83, 0x74, 0x73, 0x20,
+  0x83, 0x79, 0x6F, 0x75, 0x20, 0x82, 0x69, 0x84, 0x6E, 0x20, 0x80, 0x61,
+  0x20, 0x82, 0x6E, 0x65, 0x83, 0x77, 0x20, 0x80, 0x6C, 0x61, 0x84, 0x6E,
+  0x64, 0x2E, 0x22,
+  0xF5, 0xF5, 0xF5, 0xFE,
+  // Duke speaks (direct speech), row 0
+  0xF7, 0xEF,
+  // '"My next mission?"'
+  0x22, 0x90, 0x4D, 0x92, 0x79, 0x20, 0x91, 0x6E, 0x65, 0x93, 0x78, 0x74,
+  0x20, 0x92, 0x6D, 0x69, 0x93, 0x73, 0x73, 0x69, 0x6F, 0x94, 0x6E, 0x3F,
+  0x22,
+  // Duke eye animation (half-closed, closed, half-closed, open)
+  0x97, 0x20, 0x98, 0x20, 0x97, 0x20, 0x96,
+  0xF5,
+  // Spirit speaks (direct speech), row 1
+  0xF3, 0xEC,
+  // '"There are many who have needed your special talents.  '
+  0x22, 0x81, 0x54, 0x68, 0x65, 0x80, 0x72, 0x65, 0x20, 0x80, 0x61, 0x72,
+  0x65, 0x20, 0x81, 0x6D, 0x61, 0x84, 0x6E, 0x79, 0x20, 0x83, 0x77, 0x68,
+  0x6F, 0x20, 0x81, 0x68, 0x61, 0x83, 0x76, 0x65, 0x20, 0x82, 0x6E, 0x65,
+  0x65, 0x83, 0x64, 0x20, 0x6F, 0x66, 0x84, 0x20, 0x83, 0x79, 0x6F, 0x80,
+  0x75, 0x72, 0x20, 0x83, 0x73, 0x81, 0x70, 0x65, 0x82, 0x63, 0x69, 0x80,
+  0x61, 0x83, 0x6C, 0x20, 0x80, 0x74, 0x61, 0x81, 0x6C, 0x65, 0x84, 0x6E,
+  0x74, 0x73, 0x2E, 0x20, 0x20, 0x84,
+  0xF5,
+  // 'Follow me and I will show you the way.  '
+  0x83, 0x46, 0x6F, 0x6C, 0x6C, 0x6F, 0x77, 0x20, 0x82, 0x6D, 0x65, 0x20,
+  0x80, 0x61, 0x84, 0x6E, 0x64, 0x20, 0x80, 0x49, 0x20, 0x83, 0x77, 0x82,
+  0x69, 0x6C, 0x6C, 0x20, 0x83, 0x73, 0x68, 0x6F, 0x77, 0x81, 0x20, 0x85,
+  0x79, 0x6F, 0x75, 0x20, 0x81, 0x74, 0x68, 0x65, 0x20, 0x83, 0x77, 0x80,
+  0x61, 0x82, 0x79, 0x2E, 0x84, 0x20, 0x20,
+  0xF5,
+  // 'We must depart quickly."'
+  0x83, 0x57, 0x82, 0x65, 0x20, 0x80, 0x6D, 0x75, 0x83, 0x73, 0x74, 0x20,
+  0x81, 0x64, 0x65, 0x80, 0x70, 0x61, 0x72, 0x83, 0x74, 0x20, 0x85, 0x71,
+  0x75, 0x82, 0x69, 0x63, 0x83, 0x6B, 0x82, 0x6C, 0x79, 0x2E, 0x22, 0x84,
+  0xF5, 0xF5, 0xF5, 0xFE,
+  // Narrator (normal attribute), row 1
+  0xF0, 0xF3, 0xFA,
+  // 'There was no time to rest, and no time to stay in this peaceful land.'
+  // (0x97/0x98 animate the Duke's eyes mid-line)
+  0x54, 0x68, 0x65, 0x72, 0x65, 0x20, 0x77, 0x61, 0x73, 0x20, 0x6E, 0x6F,
+  0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F, 0x20, 0x72, 0x65, 0x73,
+  0x74, 0x2C, 0x20,
+  0x97, 0x61, 0x6E, 0x98,
+  0x64, 0x20, 0x6E, 0x6F, 0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F,
+  0x20, 0x73, 0x74, 0x61, 0x79, 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x69,
+  0x73, 0x20, 0x70, 0x65, 0x61, 0x63, 0x65, 0x66, 0x75, 0x6C, 0x20, 0x6C,
+  0x61, 0x6E, 0x64, 0x2E,
+  0xF5, 0xF5, 0xF5, 0xFD,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Parser – builds a flat array of command objects
 //
 // Control codes, as decoded from asm/enddemo.asm (sub_6318 / sub_66CD):
@@ -381,6 +468,7 @@ const SPIRIT_SCRIPT = [
 //   0xFE        same as 0xFC but ends the current page
 //   0xFD 0xFF   end of script
 //   0xEB-0xEF   speaker select (princess / spirit / king / duke)
+//   0x80-0x85   Spirit lip articulation codes
 //   0x80-0xCF   lip/eye articulation codes
 // ─────────────────────────────────────────────────────────────────────────────
 function parseDialogueScript(bytes) {
@@ -393,7 +481,7 @@ function parseDialogueScript(bytes) {
   let pendingText = '';
   let pendingHolds = [];   // { at, ms } pause points within pendingText
   let faceChanges = [];
-  let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 } };
+  let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 }, spirit: { lips: 0 } };
 
   function flushText() {
     if (pendingText) {
@@ -507,6 +595,11 @@ function parseDialogueScript(bytes) {
       const index = rel < 3 ? rel : rel - 3;
       face.princess[part] = index;
       faceChanges.push({ at: pendingText.length, speaker: 'princess', part: part, index: index });
+    } else if (b >= 0x80 && b <= 0x85) {
+      // Spirit lips: 0x80-0x85 (six articulation frames)
+      const index = b - 0x80;
+      face.spirit.lips = index;
+      faceChanges.push({ at: pendingText.length, speaker: 'spirit', part: 'lips', index: index });
     } else {
       // Normal printable character (ASCII)
       pendingText += String.fromCharCode(b);
@@ -578,6 +671,7 @@ export class EndingDemo {
       template2,
       spirit,
       kingPrincess,
+      spiritBase,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
@@ -585,10 +679,11 @@ export class EndingDemo {
       loadImage(INTRO_TEMPLATE2_SRC),
       loadImage(INTRO_SPIRIT_SRC),
       loadImage(KING_PRINCESS_SRC),
+      loadImage(SPIRIT_SRC_BASE),
       loadStoryFont(),
     ]);
 
-    // Load overlay images (lips & eyes) for Duke and Princess
+    // Load overlay images (lips & eyes) for Duke, Princess and Spirit
     const lipEyePromises = [];
     for (let i = 0; i < 6; i++) {
       lipEyePromises.push(loadImage(`${DUKE_LIPS_SRC_BASE}${i}.png`));
@@ -601,6 +696,9 @@ export class EndingDemo {
     }
     for (let i = 0; i < 3; i++) {
       lipEyePromises.push(loadImage(`${PRINCESS_EYES_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 6; i++) {
+      lipEyePromises.push(loadImage(`${SPIRIT_LIPS_SRC_BASE}${i}.png`));
     }
     const overlayResults = await Promise.allSettled(lipEyePromises);
 
@@ -619,6 +717,9 @@ export class EndingDemo {
     for (let i = 0; i < 3; i++) {
       names.push(`princess_eyes${i}`);
     }
+    for (let i = 0; i < 6; i++) {
+      names.push(`spirit_lips${i}`);
+    }
     overlayResults.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
         overlays[names[idx]] = result.value;
@@ -634,6 +735,7 @@ export class EndingDemo {
       template2,
       spirit,
       kingPrincess,
+      spiritBase,
       ...overlays,
     };
   }
@@ -698,6 +800,15 @@ export class EndingDemo {
       };
     }
 
+    if (step.type === 'dukeSpiritScene') {
+      const entryImage = this.snapshotForNext;
+      this.snapshotForNext = null;
+      return {
+        ...base,
+        entryImage: entryImage,
+      };
+    }
+
     if (step.type === 'windowText') {
       return {
         ...base,
@@ -735,6 +846,7 @@ export class EndingDemo {
       case 'dialogueScene':         return this._drawDukePrincessDialogueScene(step, s, ts);
       case 'kingPrincessScene':     return this._drawKingPrincessScene(step, s, ts);
       case 'spiritScene':           return this._drawSpiritScene(step, s, ts);
+      case 'dukeSpiritScene':       return this._drawDukeSpiritScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -871,7 +983,7 @@ export class EndingDemo {
     s.currentSpeaker = 'narrator';
     s.currentColor = DIALOGUE_TEXT_COLOR;
     s.currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
-    s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT } };
+    s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT }, spirit: { ...SPIRIT_FACE_DEFAULT } };
   }
 
   // ── Command processing + typewriter reveal ────────────────────────────────
@@ -1168,6 +1280,74 @@ export class EndingDemo {
       this._drawCurtainClose(curtainProgress, s.curtainSnapshot);
 
       if (curtainProgress >= 1) {
+        this._nextStep();
+      }
+    }
+  }
+
+  // ── Duke & Spirit dialogue scene ─────────────────────────────────────────
+  // Reveals template2 (fade in) over the closed curtain from the Spirit
+  // arrival scene, then plays the Duke/Spirit dialogue. Duke (left) uses the
+  // same base + lip/eye overlays as the princess dialogue; Spirit (right) only
+  // animates its lips.
+  _drawDukeSpiritScene(step, s, ts) {
+    const elapsed = ts - s.startTime;
+
+    // Snapshot the incoming (curtain-closed) frame so template2 can reveal over it
+    if (!s.entryImage) {
+      s.entryImage = this._makeOffscreen();
+      s.entryImage.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+
+    const fadeInMs = step.fadeInMs ?? TEMPLATE2_FADE_IN_MS;
+    const progress = Math.min(elapsed / fadeInMs, 1);
+
+    this._clearBlack();
+
+    if (progress < 1 && s.entryImage) {
+      this.ctx.save();
+      this.ctx.globalAlpha = 1 - progress;
+      this.ctx.drawImage(s.entryImage, 0, 0);
+      this.ctx.restore();
+    }
+
+    if (progress > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = progress;
+      if (step.background) {
+        this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
+      }
+      this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+      this.ctx.drawImage(this.images.spiritBase, SPIRIT_POS.x, SPIRIT_POS.y, SPIRIT_POS.w, SPIRIT_POS.h);
+      this.ctx.restore();
+    }
+
+    if (progress >= 1) {
+      if (!s.commands) this._initDialogueState(s, DUKE_SPIRIT_SCRIPT);
+      this._processDialogueCommands(s, ts);
+
+      // Face overlays – Duke (eyes + lips) and Spirit (lips only)
+      this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+      this.ctx.drawImage(this.images.spiritBase, SPIRIT_POS.x, SPIRIT_POS.y, SPIRIT_POS.w, SPIRIT_POS.h);
+      for (const speaker of ['duke', 'spirit']) {
+        const basePos = speaker === 'duke' ? DUKE_POS : SPIRIT_POS;
+        const layout = FACE_LAYOUT[speaker];
+        const face = s.face[speaker];
+        for (const part of ['eyes', 'lips']) {
+          const off = layout[part];
+          if (!off) continue; // spirit has no eyes overlay
+          const img = this.images[`${speaker}_${part}${face[part]}`];
+          if (!img) continue;
+          this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
+        }
+      }
+
+      this._drawDialogueTextBox(s);
+
+      // Only advance once the script is fully consumed AND the last line is
+      // done typing/holding (cmdIndex reaches the end as soon as the final
+      // text command is pushed to pageLines, before it is even typed).
+      if (s.cmdIndex >= s.commands.length && s.typingLine >= s.pageLines.length) {
         this._nextStep();
       }
     }
