@@ -2011,8 +2011,7 @@ aTheDreadfulPow db 'The dreadful power of Jashiin was washed from the earth, and
                 db 0FDh
                 db 0FAh
                 db 0F3h
-aTheGuardianSpi db 'The Guardian Spirit of the Holy Land of Zeliard appeared before D'
-                db 'uke Garland once again.'
+aTheGuardianSpi db 'The Guardian Spirit of the Holy Land of Zeliard appeared before Duke Garland once again.'
                 db 0F5h
                 db 0F5h
                 db 0F5h

@@ -8,6 +8,7 @@ const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
 const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
 const KING_PRINCESS_SRC         = 'assets/images/enddemo/king_princess.png'
+const SPIRIT_SRC                = 'assets/images/opdemo/spirit.png';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
@@ -242,7 +243,7 @@ function buildTimeline(images) {
   // ─────────────────────────────────────────────────────────────────────────────
   // Raw script data from enddemo.asm (unk_6AA8 up to "Father!")
   // ─────────────────────────────────────────────────────────────────────────────
-const RAW_SCRIPT = [
+const DUKE_PRINCESS_SCRIPT = [
   0xF0, 0xFA, 0xF3, 0x41, 0x74, 0x20, 0x6C, 0x6F, 0x6E, 0x67, 0x20, 0x6C, 0x61, 0x73, 0x74, 0x2C,
   0x20, 0x4A, 0x61, 0x73, 0x68, 0x69, 0x69, 0x6E, 0x20, 0x77, 0x61, 0x73, 0x20, 0x64, 0x65, 0x73,
   0x74, 0x72, 0x6F, 0x79, 0x65, 0x64, 0x20, 0x61, 0x6E, 0x64, 0x20, 0x74, 0x68, 0x65, 0x20, 0x6E,
@@ -679,7 +680,7 @@ export class EndingDemo {
   _drawStep(step, s, ts) {
     switch (step.type) {
       case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
-      case 'dialogueScene':         return this._drawDialogueScene(step, s, ts);
+      case 'dialogueScene':         return this._drawDukePrincessDialogueScene(step, s, ts);
       case 'kingPrincessScene':     return this._drawKingPrincessScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
@@ -799,7 +800,7 @@ export class EndingDemo {
 
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // EndingDemo._drawDialogueScene – now uses parsed commands
+  // EndingDemo._drawDukePrincessDialogueScene – now uses parsed commands
   // ─────────────────────────────────────────────────────────────────────────────
 
   _initDialogueState(s, script) {
@@ -975,8 +976,8 @@ export class EndingDemo {
     this.ctx.restore();
   }
 
-  _drawDialogueScene(step, s, ts) {
-    if (!s.commands) this._initDialogueState(s, RAW_SCRIPT);
+  _drawDukePrincessDialogueScene(step, s, ts) {
+    if (!s.commands) this._initDialogueState(s, DUKE_PRINCESS_SCRIPT);
     this._processDialogueCommands(s, ts);
 
     // ── Drawing ──────────────────────────────────────────────────────────────
