@@ -70,6 +70,14 @@ const CURTAIN_X2                    = 607;
 const CURTAIN_Y2                    = 239;
 const CURTAIN_COLOR                 = '#56040a';
 const CURTAIN_MS                    = 1000;
+
+// King & Princess scene curtain (clears the window interior before the new image)
+const ENDING_CURTAIN_X      = 35;
+const ENDING_CURTAIN_Y      = 35;
+const ENDING_CURTAIN_W      = 571;
+const ENDING_CURTAIN_H      = 203;
+const ENDING_CURTAIN_COLOR  = '#f906ed';
+const KING_PRINCESS_FADE_IN_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
 const PRINCESS_FADE_IN_MS           = 1000;
 const PRINCESS_SCROLL_DURATION_MS   = 7000;
@@ -117,7 +125,7 @@ const DIALOGUE_TEXT_Y            = 280;
 const DIALOGUE_TEXT_MAX_WIDTH    = 600;
 const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
 const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
-const DIALOGUE_BOX_RECT          = { x: 16, y: 266, w: 608, h: 120 };
+const DIALOGUE_BOX_RECT          = { x: 16, y: 276, w: 608, h: 110 };
 const DIALOGUE_FONT              = '16px "Press Start 2P", monospace';
 const DIALOGUE_TEXT_COLOR        = '#fbfbfb';
 // Text shadow colours map to the game's text attribute (byte_6635/byte_6636):
@@ -213,6 +221,16 @@ function buildTimeline(images) {
       background: images.template2,
       // The renderer uses the images object for overlays
     },
+    // ── 3. Curtain clears the window interior, then King & Princess ──────
+    {
+      type: 'kingPrincessScene',
+      background: images.template2,
+      image: images.kingPrincess,
+      rect: { x: ENDING_CURTAIN_X, y: ENDING_CURTAIN_Y, w: ENDING_CURTAIN_W, h: ENDING_CURTAIN_H },
+      curtainColor: ENDING_CURTAIN_COLOR,
+      curtainMs: CURTAIN_MS,
+      fadeInMs: KING_PRINCESS_FADE_IN_MS,
+    },
   ];
 }
 
@@ -261,6 +279,52 @@ const RAW_SCRIPT = [
   0x65, 0x20, 0xA0, 0x61, 0x6E, 0x64, 0x20, 0xA1, 0x73, 0x61, 0x76, 0xA2, 0x69, 0x6E, 0x67, 0x20,
   0xA0, 0x6D, 0x79, 0x20, 0xA1, 0x63, 0x6F, 0xA0, 0x75, 0x6E, 0xA2, 0x74, 0x72, 0x79, 0x2E, 0x22,
   0xA1, 0xF5, 0xF5, 0xF5, 0xFE, 0xFD, 0xF3,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Raw script data from enddemo.asm (unk_6AA8 after the Duke & Princess scene)
+// ─────────────────────────────────────────────────────────────────────────────
+const KING_PRINCESS_SCRIPT = [
+  0xF5, 0xF5, 0xF5, 0xFE, 0xFD, 0xF3,
+  // Princess speaks with the direct-speech attribute (blue shadow)
+  0xFB, 0xEB,
+  // '"Father!"'
+  0x22, 0x46, 0x61, 0x74, 0x68, 0x65, 0x72, 0x21, 0x22,
+  0xF5, 0xF5, 0xF2, 0xEE, // King speaks (blue shadow, inherited from 0xFB)
+  // '"My darling Felicia!  '
+  0x22, 0x4D, 0x79, 0x20, 0x64, 0x61, 0x72, 0x6C, 0x69, 0x6E, 0x67, 0x20, 0x46,
+  0x65, 0x6C, 0x69, 0x63, 0x69, 0x61, 0x21, 0x20, 0x20,
+  0xF5,
+  // 'How I',27h,'ve longed to hold you in my arms and hear your sweet voice!"'
+  0x48, 0x6F, 0x77, 0x20, 0x49, 0x27, 0x76, 0x65, 0x20, 0x6C, 0x6F, 0x6E, 0x67,
+  0x65, 0x64, 0x20, 0x74, 0x6F, 0x20, 0x68, 0x6F, 0x6C, 0x64, 0x20, 0x79, 0x6F,
+  0x75, 0x20, 0x69, 0x6E, 0x20, 0x6D, 0x79, 0x20, 0x61, 0x72, 0x6D, 0x73, 0x20,
+  0x61, 0x6E, 0x64, 0x20, 0x68, 0x65, 0x61, 0x72, 0x20, 0x79, 0x6F, 0x75, 0x72,
+  0x20, 0x73, 0x77, 0x65, 0x65, 0x74, 0x20, 0x76, 0x6F, 0x69, 0x63, 0x65, 0x21,
+  0x22,
+  0xF5, 0xF5, 0xF5, 0xFA, 0xFE, 0xF3, 0xF0, // narrator speaks
+  // 'Outside, the land cursed by the evil magic of Jashiin began to resume its
+  //  original lushness.'
+  0x4F, 0x75, 0x74, 0x73, 0x69, 0x64, 0x65, 0x2C, 0x20, 0x74, 0x68, 0x65, 0x20,
+  0x6C, 0x61, 0x6E, 0x64, 0x20, 0x63, 0x75, 0x72, 0x73, 0x65, 0x64, 0x20, 0x62,
+  0x79, 0x20, 0x74, 0x68, 0x65, 0x20, 0x65, 0x76, 0x69, 0x6C, 0x20, 0x6D, 0x61,
+  0x67, 0x69, 0x63, 0x20, 0x6F, 0x66, 0x20, 0x4A, 0x61, 0x73, 0x68, 0x69, 0x69,
+  0x6E, 0x20, 0x62, 0x65, 0x67, 0x61, 0x6E, 0x20, 0x74, 0x6F, 0x20, 0x72, 0x65,
+  0x73, 0x75, 0x6D, 0x65, 0x20, 0x69, 0x74, 0x73, 0x20, 0x6F, 0x72, 0x69, 0x67,
+  0x69, 0x6E, 0x61, 0x6C, 0x20, 0x6C, 0x75, 0x73, 0x68, 0x6E, 0x65, 0x73, 0x73,
+  0x2E,
+  0xF5, 0xF5, 0xF5, 0xFE, 0xF3,
+  // 'The dreadful power of Jashiin was washed from the earth, and the land of
+  //  Zeliard was peaceful once more.'
+  0x54, 0x68, 0x65, 0x20, 0x64, 0x72, 0x65, 0x61, 0x64, 0x66, 0x75, 0x6C, 0x20,
+  0x70, 0x6F, 0x77, 0x65, 0x72, 0x20, 0x6F, 0x66, 0x20, 0x4A, 0x61, 0x73, 0x68,
+  0x69, 0x69, 0x6E, 0x20, 0x77, 0x61, 0x73, 0x20, 0x77, 0x61, 0x73, 0x68, 0x65,
+  0x64, 0x20, 0x66, 0x72, 0x6F, 0x6D, 0x20, 0x74, 0x68, 0x65, 0x20, 0x65, 0x61,
+  0x72, 0x74, 0x68, 0x2C, 0x20, 0x61, 0x6E, 0x64, 0x20, 0x74, 0x68, 0x65, 0x20,
+  0x6C, 0x61, 0x6E, 0x64, 0x20, 0x6F, 0x66, 0x20, 0x5A, 0x65, 0x6C, 0x69, 0x61,
+  0x72, 0x64, 0x20, 0x77, 0x61, 0x73, 0x20, 0x70, 0x65, 0x61, 0x63, 0x65, 0x66,
+  0x75, 0x6C, 0x20, 0x6F, 0x6E, 0x63, 0x65, 0x20, 0x6D, 0x6F, 0x72, 0x65, 0x2E,
+  0xF5, 0xF5, 0xF5, 0xFE, 0xFD,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -472,12 +536,14 @@ export class EndingDemo {
       dukeBase,
       template2,
       spirit,
+      kingPrincess,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
       loadImage(DUKE_SRC_BASE),
       loadImage(INTRO_TEMPLATE2_SRC),
       loadImage(INTRO_SPIRIT_SRC),
+      loadImage(KING_PRINCESS_SRC),
       loadStoryFont(),
     ]);
 
@@ -526,6 +592,7 @@ export class EndingDemo {
       dukeBase,
       template2,
       spirit,
+      kingPrincess,
       ...overlays,
     };
   }
@@ -613,6 +680,7 @@ export class EndingDemo {
     switch (step.type) {
       case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
       case 'dialogueScene':         return this._drawDialogueScene(step, s, ts);
+      case 'kingPrincessScene':     return this._drawKingPrincessScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -733,9 +801,9 @@ export class EndingDemo {
   // ─────────────────────────────────────────────────────────────────────────────
   // EndingDemo._drawDialogueScene – now uses parsed commands
   // ─────────────────────────────────────────────────────────────────────────────
-  _drawDialogueScene(step, s, ts) {
-  if (!s.commands) {
-    s.commands = parseDialogueScript(RAW_SCRIPT);
+
+  _initDialogueState(s, script) {
+    s.commands = parseDialogueScript(script);
     s.cmdIndex = 0;
     s.row = 0;                 // next text row within the current box page
     s.pageLines = [];          // lines on the current box page
@@ -755,184 +823,245 @@ export class EndingDemo {
   // ── Command processing + typewriter reveal ────────────────────────────────
   // Advance the typewriter, and consume commands whenever no line is being
   // typed or held. Stop as soon as we must draw the current state.
-  let drawing = false;
-  while (!drawing) {
-    // 1. Type / hold the current line, if any
-    if (s.typingLine < s.pageLines.length) {
-      const line = s.pageLines[s.typingLine];
-      const holds = line.holds || [];
+  _processDialogueCommands(s, ts) {
+    let drawing = false;
+    while (!drawing) {
+      // 1. Type / hold the current line, if any
+      if (s.typingLine < s.pageLines.length) {
+        const line = s.pageLines[s.typingLine];
+        const holds = line.holds || [];
 
-      // Finish an active hold (a 0xF5 wait at a character offset)
-      if (s.holdStart !== 0) {
-        const hold = holds[s.holdIndex];
-        if (hold && ts - s.holdStart >= hold.ms) {
-          s.holdStart = 0;
-          s.holdIndex++;
-          s.baseChars = hold.at;
-          s.lineStartTime = ts;
-        } else {
-          s.charCount = hold ? hold.at : line.text.length;
-          drawing = true; // still holding
+        // Finish an active hold (a 0xF5 wait at a character offset)
+        if (s.holdStart !== 0) {
+          const hold = holds[s.holdIndex];
+          if (hold && ts - s.holdStart >= hold.ms) {
+            s.holdStart = 0;
+            s.holdIndex++;
+            s.baseChars = hold.at;
+            s.lineStartTime = ts;
+          } else {
+            s.charCount = hold ? hold.at : line.text.length;
+            drawing = true; // still holding
+            break;
+          }
+        }
+
+        // Normal typewriter progress, clamped so it never overshoots a hold
+        if (!s.lineStartTime) s.lineStartTime = ts;
+        const nextHoldAt = s.holdIndex < holds.length ? holds[s.holdIndex].at : line.text.length;
+        const revealed = s.baseChars + Math.floor((ts - s.lineStartTime) / DIALOGUE_CHAR_DELAY_MS);
+        s.charCount = Math.min(revealed, line.text.length, nextHoldAt);
+
+        // Reach a hold offset → begin holding
+        if (s.holdIndex < holds.length && s.charCount >= holds[s.holdIndex].at) {
+          s.charCount = holds[s.holdIndex].at;
+          s.holdStart = ts;
+          drawing = true; // begin holding
           break;
         }
-      }
 
-      // Normal typewriter progress, clamped so it never overshoots a hold
-      if (!s.lineStartTime) s.lineStartTime = ts;
-      const nextHoldAt = s.holdIndex < holds.length ? holds[s.holdIndex].at : line.text.length;
-      const revealed = s.baseChars + Math.floor((ts - s.lineStartTime) / DIALOGUE_CHAR_DELAY_MS);
-      s.charCount = Math.min(revealed, line.text.length, nextHoldAt);
+        if (s.charCount < line.text.length) {
+          drawing = true; // still typing
+          break;
+        }
 
-      // Reach a hold offset → begin holding
-      if (s.holdIndex < holds.length && s.charCount >= holds[s.holdIndex].at) {
-        s.charCount = holds[s.holdIndex].at;
-        s.holdStart = ts;
-        drawing = true; // begin holding
-        break;
-      }
-
-      if (s.charCount < line.text.length) {
-        drawing = true; // still typing
-        break;
-      }
-
-      // Line fully typed – move to the next one
-      s.typingLine++;
-      s.baseChars = 0;
-      s.holdIndex = 0;
-      s.holdStart = 0;
-      s.lineStartTime = 0;
-      s.charCount = 0;
-      continue;
-    }
-
-    // 2. No line pending – consume the next command
-    if (s.cmdIndex >= s.commands.length) break;
-    const cmd = s.commands[s.cmdIndex];
-    switch (cmd.type) {
-      case 'pause': // standalone pause (edge case; 0xF5 usually becomes a hold)
-        if (!s.pauseStart) s.pauseStart = ts;
-        if (ts - s.pauseStart < cmd.ms) { drawing = true; break; }
-        s.pauseStart = 0;
-        s.cmdIndex++;
-        continue;
-      case 'color':
-        s.currentColor = cmd.color;
-        s.currentShadow = cmd.shadow;
-        s.cmdIndex++;
-        continue;
-      case 'newline':
-        s.row = cmd.row;
-        s.cmdIndex++;
-        continue;
-      case 'clear':
-      case 'pageBreak':
-        s.pageLines = [];
-        s.row = 0;
-        s.typingLine = 0;
+        // Line fully typed – move to the next one
+        s.typingLine++;
         s.baseChars = 0;
         s.holdIndex = 0;
         s.holdStart = 0;
-        s.charCount = 0;
         s.lineStartTime = 0;
-        s.cmdIndex++;
+        s.charCount = 0;
         continue;
-      case 'text':
-        s.pageLines.push({
-          row: cmd.row,
-          text: cmd.text,
-          speaker: cmd.speaker,
-          color: cmd.color,
-          shadow: cmd.shadow,
-          holds: cmd.holds || [],
-          faceChanges: cmd.faceChanges,
-        });
-        s.cmdIndex++;
-        continue; // type it next
-      default:
-        s.cmdIndex++;
-        continue;
+      }
+
+      // 2. No line pending – consume the next command
+      if (s.cmdIndex >= s.commands.length) break;
+      const cmd = s.commands[s.cmdIndex];
+      switch (cmd.type) {
+        case 'pause': // standalone pause (edge case; 0xF5 usually becomes a hold)
+          if (!s.pauseStart) s.pauseStart = ts;
+          if (ts - s.pauseStart < cmd.ms) { drawing = true; break; }
+          s.pauseStart = 0;
+          s.cmdIndex++;
+          continue;
+        case 'color':
+          s.currentColor = cmd.color;
+          s.currentShadow = cmd.shadow;
+          s.cmdIndex++;
+          continue;
+        case 'newline':
+          s.row = cmd.row;
+          s.cmdIndex++;
+          continue;
+        case 'clear':
+        case 'pageBreak':
+          s.pageLines = [];
+          s.row = 0;
+          s.typingLine = 0;
+          s.baseChars = 0;
+          s.holdIndex = 0;
+          s.holdStart = 0;
+          s.charCount = 0;
+          s.lineStartTime = 0;
+          s.cmdIndex++;
+          continue;
+        case 'text':
+          s.pageLines.push({
+            row: cmd.row,
+            text: cmd.text,
+            speaker: cmd.speaker,
+            color: cmd.color,
+            shadow: cmd.shadow,
+            holds: cmd.holds || [],
+            faceChanges: cmd.faceChanges,
+          });
+          s.cmdIndex++;
+          continue; // type it next
+        default:
+          s.cmdIndex++;
+          continue;
+      }
+      break;
     }
-    break;
   }
 
-  // ── Drawing ──────────────────────────────────────────────────────────────
-  this._clearBlack();
+  // Draws the dialogue box and the typewriter text for the current page.
+  _drawDialogueTextBox(s) {
+    const box = DIALOGUE_BOX_RECT;
+    this.ctx.fillStyle = DIALOGUE_BOX_BG;
+    this.ctx.fillRect(box.x, box.y, box.w, box.h);
 
-  // Draw the scene background (template2) so it remains from the previous step
-  if (step.background) {
-    this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
-  }
+    this.ctx.save();
+    this.ctx.font = DIALOGUE_FONT;
+    this.ctx.textBaseline = 'top';
+    this.ctx.textAlign = 'left';
 
-  // Draw Duke and Princess base (always visible)
-  this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
-  this.ctx.drawImage(this.images.princessBase, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
+    let nextFreeRow = 0;
+    for (let li = 0; li < s.pageLines.length && li <= s.typingLine; li++) {
+      const line = s.pageLines[li];
+      const visibleCount = li < s.typingLine ? line.text.length : s.charCount;
+      if (!visibleCount) continue;
 
-  // Draw face overlays (lips & eyes) for both characters at native size/offset
-  for (const speaker of ['duke', 'princess']) {
-    const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS_POS;
-    const layout = FACE_LAYOUT[speaker];
-    const face = s.face[speaker];
-    for (const part of ['eyes', 'lips']) {
-      const img = this.images[`${speaker}_${part}${face[part]}`];
-      if (!img) continue;
-      const off = layout[part];
-      this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
+      // Apply face changes that have been revealed so far on this line
+      for (const fc of line.faceChanges || []) {
+        if (fc.at <= visibleCount) {
+          s.face[fc.speaker][fc.part] = fc.index;
+        }
+      }
+
+      // Lay the line out from its script row, but never let a wrapped line spill
+      // into a row already claimed by an earlier line (the game's proportional
+      // font keeps each line on a single row; with our wider monospace font a
+      // line can wrap, so the next line must be pushed below it instead of
+      // overlapping).  Positions use the FULL text so they never shift mid-type.
+      const wrapped = this._wrapText(line.text, DIALOGUE_TEXT_MAX_WIDTH);
+      const startRow = Math.max(line.row, nextFreeRow);
+      nextFreeRow = startRow + wrapped.length;
+
+      let shown = visibleCount;
+      for (let wi = 0; wi < wrapped.length && shown > 0; wi++) {
+        const { text } = wrapped[wi];
+        const chunkVisible = Math.min(shown, text.length);
+        shown -= chunkVisible;
+        if (chunkVisible <= 0) break;
+        const rowY = DIALOGUE_TEXT_Y + (startRow + wi) * DIALOGUE_TEXT_LINE_HEIGHT;
+        this.ctx.fillStyle = line.shadow;
+        this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, rowY + DIRECT_SPEECH_SHADOW_OFFSET);
+        this.ctx.fillStyle = line.color;
+        this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X, rowY);
+      }
     }
+    this.ctx.restore();
   }
 
-  // Draw text box and typewriter text (one row per page line)
-  const box = DIALOGUE_BOX_RECT;
-  this.ctx.fillStyle = DIALOGUE_BOX_BG;
-  this.ctx.fillRect(box.x, box.y, box.w, box.h);
+  _drawDialogueScene(step, s, ts) {
+    if (!s.commands) this._initDialogueState(s, RAW_SCRIPT);
+    this._processDialogueCommands(s, ts);
 
-  this.ctx.save();
-  this.ctx.font = DIALOGUE_FONT;
-  this.ctx.textBaseline = 'top';
-  this.ctx.textAlign = 'left';
+    // ── Drawing ──────────────────────────────────────────────────────────────
+    this._clearBlack();
 
-  let nextFreeRow = 0;
-  for (let li = 0; li < s.pageLines.length && li <= s.typingLine; li++) {
-    const line = s.pageLines[li];
-    const visibleCount = li < s.typingLine ? line.text.length : s.charCount;
-    if (!visibleCount) continue;
+    // Draw the scene background (template2) so it remains from the previous step
+    if (step.background) {
+      this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
+    }
 
-    // Apply face changes that have been revealed so far on this line
-    for (const fc of line.faceChanges || []) {
-      if (fc.at <= visibleCount) {
-        s.face[fc.speaker][fc.part] = fc.index;
+    // Draw Duke and Princess base (always visible)
+    this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+    this.ctx.drawImage(this.images.princessBase, PRINCESS_POS.x, PRINCESS_POS.y, PRINCESS_POS.w, PRINCESS_POS.h);
+
+    // Draw face overlays (lips & eyes) for both characters at native size/offset
+    for (const speaker of ['duke', 'princess']) {
+      const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS_POS;
+      const layout = FACE_LAYOUT[speaker];
+      const face = s.face[speaker];
+      for (const part of ['eyes', 'lips']) {
+        const img = this.images[`${speaker}_${part}${face[part]}`];
+        if (!img) continue;
+        const off = layout[part];
+        this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
       }
     }
 
-    // Lay the line out from its script row, but never let a wrapped line spill
-    // into a row already claimed by an earlier line (the game's proportional
-    // font keeps each line on a single row; with our wider monospace font a
-    // line can wrap, so the next line must be pushed below it instead of
-    // overlapping).  Positions use the FULL text so they never shift mid-type.
-    const wrapped = this._wrapText(line.text, DIALOGUE_TEXT_MAX_WIDTH);
-    const startRow = Math.max(line.row, nextFreeRow);
-    nextFreeRow = startRow + wrapped.length;
+    this._drawDialogueTextBox(s);
 
-    let shown = visibleCount;
-    for (let wi = 0; wi < wrapped.length && shown > 0; wi++) {
-      const { text } = wrapped[wi];
-      const chunkVisible = Math.min(shown, text.length);
-      shown -= chunkVisible;
-      if (chunkVisible <= 0) break;
-      const rowY = DIALOGUE_TEXT_Y + (startRow + wi) * DIALOGUE_TEXT_LINE_HEIGHT;
-      this.ctx.fillStyle = line.shadow;
-      this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, rowY + DIRECT_SPEECH_SHADOW_OFFSET);
-      this.ctx.fillStyle = line.color;
-      this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X, rowY);
+    // Advance if finished all commands
+    if (s.cmdIndex >= s.commands.length) {
+      this._nextStep();
     }
   }
-  this.ctx.restore();
 
-  // Advance if finished all commands
-  if (s.cmdIndex >= s.commands.length) {
-    this._nextStep();
+  // ── King & Princess scene ─────────────────────────────────────────────────
+  // After the Duke & Princess dialogue, a curtain clears the window interior
+  // (rect), then the King & Princess image fades in over the same area and a
+  // typewriter dialogue plays.  No face animations.
+  _drawKingPrincessScene(step, s, ts) {
+    const elapsed = ts - s.startTime;
+
+    // Snapshot the finished dialogue scene so the closing curtain can reveal it
+    if (!s.snapshot) {
+      s.snapshot = this._makeOffscreen();
+      s.snapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+
+    const curtainProgress = Math.min(elapsed / step.curtainMs, 1);
+    this._drawCurtainRect(curtainProgress, s.snapshot, step.rect, step.curtainColor);
+
+    if (curtainProgress >= 1) {
+      // Curtain fully closed – fade the new image into the cleared area
+      const fadeProgress = Math.min((elapsed - step.curtainMs) / step.fadeInMs, 1);
+
+      this._clearBlack();
+      if (step.background) {
+        this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
+      }
+
+      // The cleared area remains curtain-coloured until the image covers it
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.rect(step.rect.x, step.rect.y, step.rect.w, step.rect.h);
+      this.ctx.clip();
+      this.ctx.fillStyle = step.curtainColor;
+      this.ctx.fillRect(step.rect.x, step.rect.y, step.rect.w, step.rect.h);
+      if (fadeProgress > 0 && step.image) {
+        this.ctx.globalAlpha = fadeProgress;
+        this.ctx.drawImage(step.image, step.rect.x, step.rect.y, step.rect.w, step.rect.h);
+      }
+      this.ctx.restore();
+
+      // Once fully faded in, run the King & Princess typewriter dialogue
+      if (fadeProgress >= 1) {
+        if (!s.commands) this._initDialogueState(s, KING_PRINCESS_SCRIPT);
+        this._processDialogueCommands(s, ts);
+        this._drawDialogueTextBox(s);
+
+        if (s.cmdIndex >= s.commands.length) {
+          this._nextStep();
+        }
+      }
+    }
   }
-}
 
   // ─────────────────────────────────────────────────────────────────────────
   // Shared rendering utilities
@@ -1102,15 +1231,22 @@ export class EndingDemo {
   // ── Curtain ────────────────────────────────────────────────────────────────
 
   _drawCurtainClose(progress, backgroundImage) {
+    this._drawCurtainRect(progress, backgroundImage, {
+      x: CURTAIN_X1, y: CURTAIN_Y1, w: CURTAIN_X2 - CURTAIN_X1, h: CURTAIN_Y2 - CURTAIN_Y1,
+    }, CURTAIN_COLOR);
+  }
+
+  // Parameterized curtain-close over an arbitrary rect + colour.
+  _drawCurtainRect(progress, backgroundImage, rect, color) {
     if (progress <= 0) return;
 
-    const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
-    const rw  = CURTAIN_X2 - CURTAIN_X1, rh = CURTAIN_Y2 - CURTAIN_Y1;
+    const rx1 = rect.x, ry1 = rect.y;
+    const rw  = rect.w, rh = rect.h;
     const maxInset = Math.floor(Math.min(rw, rh) / 2);
     const inset    = Math.ceil(progress * maxInset);
 
     this.ctx.save();
-    this.ctx.fillStyle = CURTAIN_COLOR;
+    this.ctx.fillStyle = color;
     this.ctx.fillRect(rx1, ry1, rw, rh);
 
     const innerX = rx1 + inset, innerY = ry1 + inset;
