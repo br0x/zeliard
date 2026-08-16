@@ -46,18 +46,6 @@ const SPIRIT_LINES = [
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dialogue script (extracted from enddemo.asm up to "Father!")
-// ─────────────────────────────────────────────────────────────────────────────
-const DIALOGUE_SCRIPT = [
-  { speaker: 'narrator', text: 'At long last, Jashiin was destroyed and the nine Tears of Esmesanti were returned to their rightful place.' },
-  { speaker: 'narrator', text: 'Princess Felicia was restored to her true form.' },
-  { speaker: 'duke', text: 'You are as beautiful as a rose in bloom!' },
-  { speaker: 'princess', text: 'Thank you, Duke Garland.' },
-  { speaker: 'princess', text: 'You have done a great deed in defeating Jashiin. Although my body was here, my soul was with you, watching you.' },
-  { speaker: 'princess', text: "I don't know how to thank you for rescuing me and saving my country." },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Timing & layout constants (added for dialogue)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -70,7 +58,7 @@ const STORY_FONT_SAMPLE             = 'The Age of Darkness.';
 const STORY_LINE_HEIGHT             = 20;
 const STORY_START_Y                 = 400;
 const STORY_SCROLL_SPEED            = 28;   // px / second
-const CHAR_DELAY_MS                 = 45;
+const CHAR_DELAY_MS                 = 100;
 const CREDITS_FONT                  = '16px "Press Start 2P", monospace';
 const CREDITS_LINE_HEIGHT           = 20;
 const CREDITS_START_Y               = 400;
@@ -127,12 +115,24 @@ const DIALOGUE_TEXT_X            = 20;
 const DIALOGUE_TEXT_Y            = 280;
 const DIALOGUE_TEXT_MAX_WIDTH    = 600;
 const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
-const DIALOGUE_CHAR_DELAY_MS     = 80;
-const DIALOGUE_LINE_PAUSE_MS     = 1200;   // wait after line is fully typed
 const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
 const DIALOGUE_BOX_RECT          = { x: 16, y: 266, w: 608, h: 120 };
 const DIALOGUE_FONT              = '16px "Press Start 2P", monospace';
 const DIALOGUE_TEXT_COLOR        = '#fbfbfb';
+// Text shadow colours map to the game's text attribute (byte_6635/byte_6636):
+//   0xFA → shadow colour 0 (black, invisible on the dark box)
+//   0xFB → shadow colour 1 (blue, used for direct speech)
+const DIALOGUE_TEXT_SHADOW_COLOR = '#000000';
+
+// Frame timing for the 0xF5/0xF6 wait commands (asm/enddemo.asm sub_62EE) and the
+// 0x0A-frame-per-character typewriter (sub_66CD).  The game reprograms PIT Timer 0
+// with reload value 0x13B1 = 5041 (asm/zeliard.asm start), giving a ~236.70 Hz tick
+// (1,193,182 / 5041).  timer_ISR_int8_chained (asm/stick.asm) increments frame_timer
+// once per IRQ0; kbd_chain_divider = 13 keeps the BIOS clock at 236.70/13 ≈ 18.2 Hz.
+const DIALOGUE_TICK_HZ          = 1193182 / 5041;
+const DIALOGUE_FRAME_MS         = 1000 / DIALOGUE_TICK_HZ;
+const DIALOGUE_PAUSE_MS         = Math.round(0xF0 * DIALOGUE_FRAME_MS);  // 0xF5 → ~1.01 s
+const DIALOGUE_CHAR_DELAY_MS    = Math.round(0x0A * DIALOGUE_FRAME_MS);  // 10 frames/char
 
 // Face overlay positions (assume overlays are same size as base and fully opaque where needed)
 const DUKE_POS = { x: 94, y: 45, w: 180, h: 180 };
@@ -209,7 +209,6 @@ function buildTimeline(images) {
     // ── 2. Dialogue scene (Duke & Princess exchange) ────────────────────────
     {
       type: 'dialogueScene',
-      script: DIALOGUE_SCRIPT,
       background: images.template2,
       // The renderer uses the images object for overlays
     },
@@ -265,13 +264,28 @@ const RAW_SCRIPT = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser – builds a flat array of command objects
+//
+// Control codes, as decoded from asm/enddemo.asm (sub_6318 / sub_66CD):
+//   0xF0        narrator speaks (silent – clears the character voice)
+//   0xF1 0xF2 0xF3 0xF7   move the text cursor to row 3 / 2 / 1 / 0, column 0
+//   0xF5        wait 0xF0 (240) frames before continuing (sub_62EE)
+//   0xF6        wait 3 × 0xF0 (720) frames
+//   0xF9 0xFA 0xFB   text attribute FG/BG = 2/6, 0/7 (normal), 1/7 (direct speech)
+//   0xFC        clear the text box and reset the cursor to row 0, column 0
+//   0xFE        same as 0xFC but ends the current page
+//   0xFD 0xFF   end of script
+//   0xEB-0xEF   speaker select (princess / spirit / king / duke)
+//   0x80-0xCF   lip/eye articulation codes
 // ─────────────────────────────────────────────────────────────────────────────
 function parseDialogueScript(bytes) {
   const commands = [];
   let i = 0;
   let currentSpeaker = 'narrator';
-  let currentColor = '#fbfbfb'; // default
+  let currentColor = DIALOGUE_TEXT_COLOR;
+  let currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
+  let currentRow = 0;
   let pendingText = '';
+  let pendingHolds = [];   // { at, ms } pause points within pendingText
   let faceChanges = [];
   let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 } };
 
@@ -282,11 +296,18 @@ function parseDialogueScript(bytes) {
         speaker: currentSpeaker,
         text: pendingText,
         color: currentColor,
+        shadow: currentShadow,
+        row: currentRow,
+        holds: pendingHolds,
         faceChanges: faceChanges,
       });
-      pendingText = '';
-      faceChanges = [];
+    } else {
+      // No text accumulated – emit any queued waits as standalone pauses
+      for (const h of pendingHolds) commands.push({ type: 'pause', ms: h.ms });
     }
+    pendingText = '';
+    pendingHolds = [];
+    faceChanges = [];
   }
 
   while (i < bytes.length) {
@@ -295,16 +316,65 @@ function parseDialogueScript(bytes) {
 
     // Control codes
     if (b >= 0xF0) {
-      flushText();
       switch (b) {
-        case 0xF0: currentSpeaker = 'narrator'; break;
-        case 0xF3: break; // unknown
-        case 0xF5: break; // unknown
-        case 0xFA: break; // unknown
-        case 0xFB: break; // unknown
-        case 0xFC: break; // unknown
-        case 0xFE: break;
-        default: /* ignore */ break;
+        case 0xF0:
+          flushText();
+          currentSpeaker = 'narrator';
+          break;
+        // Cursor row select (sub_6318 loc_6424 → loc_649E)
+        case 0xF7:
+          flushText();
+          currentRow = 0;
+          commands.push({ type: 'newline', row: 0 });
+          break;
+        case 0xF3:
+          flushText();
+          currentRow = 1;
+          commands.push({ type: 'newline', row: 1 });
+          break;
+        case 0xF2:
+          flushText();
+          currentRow = 2;
+          commands.push({ type: 'newline', row: 2 });
+          break;
+        case 0xF1:
+          flushText();
+          currentRow = 3;
+          commands.push({ type: 'newline', row: 3 });
+          break;
+        // Wait 0xF0 frames (sub_6318 loc_64C9 / loc_64D1). Does NOT break the
+        // line – the pause is applied at the current character offset.
+        case 0xF5:
+          pendingHolds.push({ at: pendingText.length, ms: DIALOGUE_PAUSE_MS });
+          break;
+        case 0xF6:
+          pendingHolds.push({ at: pendingText.length, ms: DIALOGUE_PAUSE_MS * 3 });
+          break;
+        // Text attribute (sub_6318 loc_640F / loc_63FB)
+        case 0xFA:
+          flushText();
+          currentColor = DIALOGUE_TEXT_COLOR;
+          currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
+          commands.push({ type: 'color', color: currentColor, shadow: currentShadow });
+          break;
+        case 0xFB:
+          flushText();
+          currentColor = DIRECT_SPEECH_TEXT_COLOR;
+          currentShadow = DIRECT_SPEECH_SHADOW_COLOR;
+          commands.push({ type: 'color', color: currentColor, shadow: currentShadow });
+          break;
+        // Clear the text box (sub_6318 loc_64B8, sub_66CD loc_67AD)
+        case 0xFC:
+          flushText();
+          currentRow = 0;
+          commands.push({ type: 'clear' });
+          break;
+        case 0xFE:
+          flushText();
+          currentRow = 0;
+          commands.push({ type: 'pageBreak' });
+          break;
+        default: /* 0xFD and others are ignored */ break;
       }
     } else if (b >= 0xEB && b <= 0xEF) {
       // Speaker codes (0xEB-0xEF)
@@ -666,71 +736,123 @@ export class EndingDemo {
   if (!s.commands) {
     s.commands = parseDialogueScript(RAW_SCRIPT);
     s.cmdIndex = 0;
-    s.charPos = 0;
+    s.row = 0;                 // next text row within the current box page
+    s.pageLines = [];          // lines on the current box page
+    s.typingLine = 0;          // index into pageLines currently being typed
+    s.charCount = 0;           // chars revealed on typingLine
+    s.baseChars = 0;           // chars already revealed before the current typing segment
+    s.holdIndex = 0;           // index into the active line's holds[]
+    s.holdStart = 0;           // timestamp when the active hold began (0 = not holding)
     s.lineStartTime = 0;
-    s.pauseUntil = 0;
+    s.pauseStart = 0;
     s.currentSpeaker = 'narrator';
-    s.currentColor = '#fbfbfb';
+    s.currentColor = DIALOGUE_TEXT_COLOR;
+    s.currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
     s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT } };
   }
 
-  // Advance through commands if we've finished the current one
-  while (s.cmdIndex < s.commands.length) {
-    const cmd = s.commands[s.cmdIndex];
-    if (cmd.type === 'pause') {
-      if (!s.pauseStart) s.pauseStart = ts;
-      if (ts - s.pauseStart < cmd.ms) {
-        // still pausing – draw current state
+  // ── Command processing + typewriter reveal ────────────────────────────────
+  // Advance the typewriter, and consume commands whenever no line is being
+  // typed or held. Stop as soon as we must draw the current state.
+  let drawing = false;
+  while (!drawing) {
+    // 1. Type / hold the current line, if any
+    if (s.typingLine < s.pageLines.length) {
+      const line = s.pageLines[s.typingLine];
+      const holds = line.holds || [];
+
+      // Finish an active hold (a 0xF5 wait at a character offset)
+      if (s.holdStart !== 0) {
+        const hold = holds[s.holdIndex];
+        if (hold && ts - s.holdStart >= hold.ms) {
+          s.holdStart = 0;
+          s.holdIndex++;
+          s.baseChars = hold.at;
+          s.lineStartTime = ts;
+        } else {
+          s.charCount = hold ? hold.at : line.text.length;
+          drawing = true; // still holding
+          break;
+        }
+      }
+
+      // Normal typewriter progress, clamped so it never overshoots a hold
+      if (!s.lineStartTime) s.lineStartTime = ts;
+      const nextHoldAt = s.holdIndex < holds.length ? holds[s.holdIndex].at : line.text.length;
+      const revealed = s.baseChars + Math.floor((ts - s.lineStartTime) / DIALOGUE_CHAR_DELAY_MS);
+      s.charCount = Math.min(revealed, line.text.length, nextHoldAt);
+
+      // Reach a hold offset → begin holding
+      if (s.holdIndex < holds.length && s.charCount >= holds[s.holdIndex].at) {
+        s.charCount = holds[s.holdIndex].at;
+        s.holdStart = ts;
+        drawing = true; // begin holding
         break;
-      } else {
-        s.pauseStart = null;
+      }
+
+      if (s.charCount < line.text.length) {
+        drawing = true; // still typing
+        break;
+      }
+
+      // Line fully typed – move to the next one
+      s.typingLine++;
+      s.baseChars = 0;
+      s.holdIndex = 0;
+      s.holdStart = 0;
+      s.lineStartTime = 0;
+      s.charCount = 0;
+      continue;
+    }
+
+    // 2. No line pending – consume the next command
+    if (s.cmdIndex >= s.commands.length) break;
+    const cmd = s.commands[s.cmdIndex];
+    switch (cmd.type) {
+      case 'pause': // standalone pause (edge case; 0xF5 usually becomes a hold)
+        if (!s.pauseStart) s.pauseStart = ts;
+        if (ts - s.pauseStart < cmd.ms) { drawing = true; break; }
+        s.pauseStart = 0;
         s.cmdIndex++;
         continue;
-      }
-    } else if (cmd.type === 'newline') {
-      // Just a line break – we handle it during text rendering
-      s.cmdIndex++;
-      continue;
-    } else if (cmd.type === 'text') {
-      // Typewriter
-      if (!s.lineStartTime) s.lineStartTime = ts;
-      const elapsed = ts - s.lineStartTime;
-      const totalChars = cmd.text.length;
-      const visibleCount = Math.min(Math.floor(elapsed / CHAR_DELAY_MS), totalChars);
-      // Update current speaker and colour for overlay and text style
-      s.currentSpeaker = cmd.speaker;
-      s.currentColor = cmd.color;
-      // Store visible text for drawing
-      s.displayText = cmd.text.slice(0, visibleCount);
-      s.isComplete = (visibleCount === totalChars);
-
-      // Apply face changes that have been revealed so far
-      for (const fc of cmd.faceChanges || []) {
-        if (fc.at <= visibleCount) {
-          s.face[fc.speaker][fc.part] = fc.index;
-        }
-      }
-
-      if (s.isComplete) {
-        // Wait a little before moving to next command
-        if (!s.doneTime) s.doneTime = ts;
-        if (ts - s.doneTime < DIALOGUE_LINE_PAUSE_MS) {
-          // still waiting – draw
-          break;
-        } else {
-          s.doneTime = null;
-          s.cmdIndex++;
-          s.charPos = 0;
-          s.lineStartTime = 0;
-          continue;
-        }
-      } else {
-        s.charPos = visibleCount;
-        break; // draw current state
-      }
-    } else {
-      s.cmdIndex++;
+      case 'color':
+        s.currentColor = cmd.color;
+        s.currentShadow = cmd.shadow;
+        s.cmdIndex++;
+        continue;
+      case 'newline':
+        s.row = cmd.row;
+        s.cmdIndex++;
+        continue;
+      case 'clear':
+      case 'pageBreak':
+        s.pageLines = [];
+        s.row = 0;
+        s.typingLine = 0;
+        s.baseChars = 0;
+        s.holdIndex = 0;
+        s.holdStart = 0;
+        s.charCount = 0;
+        s.lineStartTime = 0;
+        s.cmdIndex++;
+        continue;
+      case 'text':
+        s.pageLines.push({
+          row: cmd.row,
+          text: cmd.text,
+          speaker: cmd.speaker,
+          color: cmd.color,
+          shadow: cmd.shadow,
+          holds: cmd.holds || [],
+          faceChanges: cmd.faceChanges,
+        });
+        s.cmdIndex++;
+        continue; // type it next
+      default:
+        s.cmdIndex++;
+        continue;
     }
+    break;
   }
 
   // ── Drawing ──────────────────────────────────────────────────────────────
@@ -758,26 +880,50 @@ export class EndingDemo {
     }
   }
 
-  // Draw text box and typewriter text
+  // Draw text box and typewriter text (one row per page line)
   const box = DIALOGUE_BOX_RECT;
   this.ctx.fillStyle = DIALOGUE_BOX_BG;
   this.ctx.fillRect(box.x, box.y, box.w, box.h);
 
   this.ctx.save();
   this.ctx.font = DIALOGUE_FONT;
-  this.ctx.fillStyle = s.currentColor || DIALOGUE_TEXT_COLOR;
   this.ctx.textBaseline = 'top';
   this.ctx.textAlign = 'left';
 
-  // Wrap text to fit
-  const fullText = s.displayText || '';
-  const wrapped = this._wrapText(fullText, DIALOGUE_TEXT_MAX_WIDTH);
-  for (let i = 0; i < wrapped.length; i++) {
-    this.ctx.fillText(
-      wrapped[i].text,
-      DIALOGUE_TEXT_X,
-      DIALOGUE_TEXT_Y + i * DIALOGUE_TEXT_LINE_HEIGHT
-    );
+  let nextFreeRow = 0;
+  for (let li = 0; li < s.pageLines.length && li <= s.typingLine; li++) {
+    const line = s.pageLines[li];
+    const visibleCount = li < s.typingLine ? line.text.length : s.charCount;
+    if (!visibleCount) continue;
+
+    // Apply face changes that have been revealed so far on this line
+    for (const fc of line.faceChanges || []) {
+      if (fc.at <= visibleCount) {
+        s.face[fc.speaker][fc.part] = fc.index;
+      }
+    }
+
+    // Lay the line out from its script row, but never let a wrapped line spill
+    // into a row already claimed by an earlier line (the game's proportional
+    // font keeps each line on a single row; with our wider monospace font a
+    // line can wrap, so the next line must be pushed below it instead of
+    // overlapping).  Positions use the FULL text so they never shift mid-type.
+    const wrapped = this._wrapText(line.text, DIALOGUE_TEXT_MAX_WIDTH);
+    const startRow = Math.max(line.row, nextFreeRow);
+    nextFreeRow = startRow + wrapped.length;
+
+    let shown = visibleCount;
+    for (let wi = 0; wi < wrapped.length && shown > 0; wi++) {
+      const { text } = wrapped[wi];
+      const chunkVisible = Math.min(shown, text.length);
+      shown -= chunkVisible;
+      if (chunkVisible <= 0) break;
+      const rowY = DIALOGUE_TEXT_Y + (startRow + wi) * DIALOGUE_TEXT_LINE_HEIGHT;
+      this.ctx.fillStyle = line.shadow;
+      this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X + DIRECT_SPEECH_SHADOW_OFFSET, rowY + DIRECT_SPEECH_SHADOW_OFFSET);
+      this.ctx.fillStyle = line.color;
+      this.ctx.fillText(text.slice(0, chunkVisible), DIALOGUE_TEXT_X, rowY);
+    }
   }
   this.ctx.restore();
 
