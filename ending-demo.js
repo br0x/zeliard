@@ -7,6 +7,7 @@ const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 
 const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
 const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
+const KING_PRINCESS_SRC         = 'assets/images/enddemo/king_princess.png'
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
