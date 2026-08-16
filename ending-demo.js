@@ -8,12 +8,13 @@ const INTRO_SPIRIT_SRC          = 'assets/images/opdemo/spirit.png';
 const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
 const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
 const KING_PRINCESS_SRC         = 'assets/images/enddemo/king_princess.png'
-const SPIRIT_SRC                = 'assets/images/opdemo/spirit.png';
+const SPIRIT_SRC_BASE           = 'assets/images/enddemo/spirit_base.png';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
 const PRINCESS_LIPS_SRC_BASE    = 'assets/images/enddemo/princess_lips_'; // 0..3
 const PRINCESS_EYES_SRC_BASE    = 'assets/images/enddemo/princess_eyes_'; // 0..2
+const SPIRIT_LIPS_SRC_BASE      = 'assets/images/enddemo/spirit_lips_'; // 0..5
 
 // Face overlay layout: position (relative to each base image) and native size.
 const FACE_LAYOUT = {

@@ -2028,16 +2028,16 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db 0FBh
                 db 0F3h
                 db  22h ; "
-                db  83h
+                db  83h      ; small o
                 db  59h ; Y
                 db  6Fh ; o
                 db  75h ; u
                 db  20h
-                db  81h
+                db  81h      ; half open with corners
                 db  66h ; f
                 db  6Fh ; o
                 db  75h ; u
-                db  82h
+                db  82h      ; min open
                 db  67h ; g
                 db  68h ; h
                 db  74h ; t
@@ -2058,13 +2058,13 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db  74h ; t
                 db  6Fh ; o
                 db  20h
-                db  80h
+                db  80h     ; max open with corners
                 db  61h ; a
                 db  83h
                 db  63h ; c
                 db  63h ; c
                 db  6Fh ; o
-                db  84h
+                db  84h     ; closed
                 db  6Dh ; m
                 db  82h
                 db  70h ; p
@@ -2358,9 +2358,9 @@ aYouHaveSuffere db '"You have suffered many hardships to defeat Jashiin, Duke Ga
                 db  68h ; h
                 db  6Fh ; o
                 db  77h ; w
-                db  81h
+                db  81h      ; half open with corners
                 db  20h
-                db  85h
+                db  85h      ; full open
                 db  79h ; y
                 db  6Fh ; o
                 db  75h ; u
