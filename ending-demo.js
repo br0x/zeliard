@@ -79,6 +79,7 @@ const ENDING_CURTAIN_W      = 571;
 const ENDING_CURTAIN_H      = 203;
 const ENDING_CURTAIN_COLOR  = '#f906ed';
 const KING_PRINCESS_FADE_IN_MS = 1000;
+const SPIRIT_CROSSFADE_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
 const PRINCESS_FADE_IN_MS           = 1000;
 const PRINCESS_SCROLL_DURATION_MS   = 7000;
@@ -231,6 +232,15 @@ function buildTimeline(images) {
       curtainColor: ENDING_CURTAIN_COLOR,
       curtainMs: CURTAIN_MS,
       fadeInMs: KING_PRINCESS_FADE_IN_MS,
+      snapshotOnComplete: true,
+    },
+    // ── 4. Spirit arrival scene (cross-fades from the King & Princess) ──
+    {
+      type: 'spiritScene',
+      image: images.spirit,
+      entryFromSnapshot: true,
+      crossfadeMs: SPIRIT_CROSSFADE_MS,
+      curtainMs: CURTAIN_MS,
     },
   ];
 }
@@ -325,6 +335,35 @@ const KING_PRINCESS_SCRIPT = [
   0x6C, 0x61, 0x6E, 0x64, 0x20, 0x6F, 0x66, 0x20, 0x5A, 0x65, 0x6C, 0x69, 0x61,
   0x72, 0x64, 0x20, 0x77, 0x61, 0x73, 0x20, 0x70, 0x65, 0x61, 0x63, 0x65, 0x66,
   0x75, 0x6C, 0x20, 0x6F, 0x6E, 0x63, 0x65, 0x20, 0x6D, 0x6F, 0x72, 0x65, 0x2E,
+  0xF5, 0xF5, 0xF5, 0xFE, 0xFD,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Raw script data from enddemo.asm (unk_6AA8 after the King & Princess scene)
+// ─────────────────────────────────────────────────────────────────────────────
+const SPIRIT_SCRIPT = [
+  // Narrator (normal attribute), cursor row 1
+  0xFA, 0xF3,
+  // 'The Guardian Spirit of the Holy Land of Zeliard appeared before Duke
+  //  Garland once again.'
+  0x54, 0x68, 0x65, 0x20, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6E,
+  0x20, 0x53, 0x70, 0x69, 0x72, 0x69, 0x74, 0x20, 0x6F, 0x66, 0x20, 0x74,
+  0x68, 0x65, 0x20, 0x48, 0x6F, 0x6C, 0x79, 0x20, 0x4C, 0x61, 0x6E, 0x64,
+  0x20, 0x6F, 0x66, 0x20, 0x5A, 0x65, 0x6C, 0x69, 0x61, 0x72, 0x64, 0x20,
+  0x61, 0x70, 0x70, 0x65, 0x61, 0x72, 0x65, 0x64, 0x20, 0x62, 0x65, 0x66,
+  0x6F, 0x72, 0x65, 0x20, 0x44, 0x75, 0x6B, 0x65, 0x20, 0x47, 0x61, 0x72,
+  0x6C, 0x61, 0x6E, 0x64, 0x20, 0x6F, 0x6E, 0x63, 0x65, 0x20, 0x61, 0x67,
+  0x61, 0x69, 0x6E, 0x2E,
+  0xF5, 0xF5, 0xF5, 0xFE,
+  // Spirit speaks with the direct-speech attribute (blue shadow), row 1
+  0xF3, 0xFB, 0xEC,
+  // '"You have suffered many hardships to defeat Jashiin, Duke Garland."'
+  0x22, 0x59, 0x6F, 0x75, 0x20, 0x68, 0x61, 0x76, 0x65, 0x20, 0x73, 0x75,
+  0x66, 0x66, 0x65, 0x72, 0x65, 0x64, 0x20, 0x6D, 0x61, 0x6E, 0x79, 0x20,
+  0x68, 0x61, 0x72, 0x64, 0x73, 0x68, 0x69, 0x70, 0x73, 0x20, 0x74, 0x6F,
+  0x20, 0x64, 0x65, 0x66, 0x65, 0x61, 0x74, 0x20, 0x4A, 0x61, 0x73, 0x68,
+  0x69, 0x69, 0x6E, 0x2C, 0x20, 0x44, 0x75, 0x6B, 0x65, 0x20, 0x47, 0x61,
+  0x72, 0x6C, 0x61, 0x6E, 0x64, 0x2E, 0x22,
   0xF5, 0xF5, 0xF5, 0xFE, 0xFD,
 ];
 
@@ -646,6 +685,18 @@ export class EndingDemo {
       return { ...base, snapshot: null, done: false };
     }
 
+    if (step.type === 'spiritScene') {
+      const entryImage = this.snapshotForNext;
+      this.snapshotForNext = null;
+      return {
+        ...base,
+        entryImage: entryImage,
+        crossfadeDone: false,
+        curtainStartTime: 0,
+        curtainSnapshot: null,
+      };
+    }
+
     if (step.type === 'windowText') {
       return {
         ...base,
@@ -682,6 +733,7 @@ export class EndingDemo {
       case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
       case 'dialogueScene':         return this._drawDukePrincessDialogueScene(step, s, ts);
       case 'kingPrincessScene':     return this._drawKingPrincessScene(step, s, ts);
+      case 'spiritScene':           return this._drawSpiritScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -1060,6 +1112,62 @@ export class EndingDemo {
         if (s.cmdIndex >= s.commands.length) {
           this._nextStep();
         }
+      }
+    }
+  }
+
+  // ── Spirit arrival scene ─────────────────────────────────────────────────
+  // Cross-fades from the captured King & Princess scene into the spirit image,
+  // types the narrator + Spirit dialogue, then a standard curtain
+  // (CURTAIN_COLOR) closes over the scene to clear it.
+  _drawSpiritScene(step, s, ts) {
+    const elapsed = ts - s.startTime;
+
+    // Phase 1: cross-fade from the snapshot to the spirit image
+    if (!s.crossfadeDone) {
+      const progress = Math.min(elapsed / step.crossfadeMs, 1);
+      this._clearBlack();
+
+      if (s.entryImage && progress < 1) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(s.entryImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
+      }
+
+      if (progress >= 1) s.crossfadeDone = true;
+      return;
+    }
+
+    // Phase 2: spirit image + typewriter dialogue
+    this._clearBlack();
+    this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
+
+    if (!s.commands) this._initDialogueState(s, SPIRIT_SCRIPT);
+    this._processDialogueCommands(s, ts);
+    this._drawDialogueTextBox(s);
+
+    // Phase 3: when the dialogue is done, a curtain (standard CURTAIN_COLOR)
+    // closes over the scene to clear it
+    if (s.cmdIndex >= s.commands.length) {
+      if (!s.curtainSnapshot) {
+        s.curtainSnapshot = this._makeOffscreen();
+        s.curtainSnapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+        s.curtainStartTime = ts;
+      }
+      const curtainProgress = Math.min((ts - s.curtainStartTime) / step.curtainMs, 1);
+      this._clearBlack();
+      this.ctx.drawImage(s.curtainSnapshot, 0, 0);
+      this._drawCurtainClose(curtainProgress, s.curtainSnapshot);
+
+      if (curtainProgress >= 1) {
+        this._nextStep();
       }
     }
   }
