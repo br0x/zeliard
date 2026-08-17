@@ -9,12 +9,15 @@ const DUKE_SRC_BASE             = 'assets/images/opdemo/duke0.png';
 const PRINCESS_SRC_BASE         = 'assets/images/enddemo/princess_base.png';
 const KING_PRINCESS_SRC         = 'assets/images/enddemo/king_princess.png'
 const SPIRIT_SRC_BASE           = 'assets/images/enddemo/spirit_base.png';
+const PRINCESS1_SRC_BASE        = 'assets/images/enddemo/princess1_base.png';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
 const PRINCESS_LIPS_SRC_BASE    = 'assets/images/enddemo/princess_lips_'; // 0..3
 const PRINCESS_EYES_SRC_BASE    = 'assets/images/enddemo/princess_eyes_'; // 0..2
 const SPIRIT_LIPS_SRC_BASE      = 'assets/images/enddemo/spirit_lips_'; // 0..5
+const PRINCESS1_LIPS_SRC_BASE   = 'assets/images/enddemo/princess1_lips_'; // 0..5
+const PRINCESS1_EYES_SRC_BASE   = 'assets/images/enddemo/princess1_eyes_'; // 0..2
 
 // Face overlay layout: position (relative to each base image) and native size.
 const FACE_LAYOUT = {
@@ -29,10 +32,15 @@ const FACE_LAYOUT = {
   spirit: {
     lips: { x: 74, y: 108, w: 23, h: 26 },
   },
+  princess1: {
+    eyes: { x: 36,  y: 85,  w: 64, h: 28 },
+    lips: { x: 54,  y: 126,  w: 55, h: 37 },
+  },
 };
 const DUKE_FACE_DEFAULT       = { eyes: 0, lips: 4 };
 const PRINCESS_FACE_DEFAULT   = { eyes: 0, lips: 1 };
 const SPIRIT_FACE_DEFAULT     = { lips: 0 };
+const PRINCESS1_FACE_DEFAULT  = { eyes: 0, lips: 4 };
 const PRINCESS_CROSSFADE_MS   = 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +91,8 @@ const ENDING_CURTAIN_Y      = 35;
 const ENDING_CURTAIN_W      = 571;
 const ENDING_CURTAIN_H      = 203;
 const ENDING_CURTAIN_COLOR  = '#f906ed';
+// Curtain that closes over the Duke & Princess Felicia farewell scene
+const PRINCESS1_CURTAIN_COLOR = '#00007d';
 const KING_PRINCESS_FADE_IN_MS = 1000;
 const SPIRIT_CROSSFADE_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
@@ -154,6 +164,7 @@ const DIALOGUE_CHAR_DELAY_MS    = Math.round(0x0A * DIALOGUE_FRAME_MS);  // 10 f
 const DUKE_POS = { x: 94, y: 45, w: 180, h: 180 };
 const PRINCESS_POS = { x: 366, y: 45, w: 180, h: 180 };
 const SPIRIT_POS = { x: 366, y: 45, w: 180, h: 180 };
+const PRINCESS1_POS = { x: 366, y: 45, w: 180, h: 180 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers (existing) + new face animation helpers
@@ -253,6 +264,14 @@ function buildTimeline(images) {
       type: 'dukeSpiritScene',
       background: images.template2,
       fadeInMs: TEMPLATE2_FADE_IN_MS,
+    },
+    // ── 6. Princess Felicia scene (Spirit cross-fades into the new princess) ──
+    {
+      type: 'princess1Scene',
+      background: images.template2,
+      crossfadeMs: SPIRIT_CROSSFADE_MS,
+      curtainColor: PRINCESS1_CURTAIN_COLOR,
+      curtainMs: CURTAIN_MS,
     },
   ];
 }
@@ -442,16 +461,76 @@ const DUKE_SPIRIT_SCRIPT = [
   0xF5, 0xF5, 0xF5, 0xFE,
   // Narrator (normal attribute), row 1
   0xF0, 0xF3, 0xFA,
-  // 'There was no time to rest, and no time to stay in this peaceful land.'
-  // (0x97/0x98 animate the Duke's eyes mid-line)
-  0x54, 0x68, 0x65, 0x72, 0x65, 0x20, 0x77, 0x61, 0x73, 0x20, 0x6E, 0x6F,
-  0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F, 0x20, 0x72, 0x65, 0x73,
-  0x74, 0x2C, 0x20,
-  0x97, 0x61, 0x6E, 0x98,
-  0x64, 0x20, 0x6E, 0x6F, 0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F,
-  0x20, 0x73, 0x74, 0x61, 0x79, 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x69,
-  0x73, 0x20, 0x70, 0x65, 0x61, 0x63, 0x65, 0x66, 0x75, 0x6C, 0x20, 0x6C,
-  0x61, 0x6E, 0x64, 0x2E,
+// 'There was no time to rest, and no time to stay in this peaceful land.'
+   // (0x97/0x98 animate the Duke's eyes mid-line)
+   0x54, 0x68, 0x65, 0x72, 0x65, 0x20, 0x77, 0x61, 0x73, 0x20, 0x6E, 0x6F,
+   0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F, 0x20, 0x72, 0x65, 0x73,
+   0x74, 0x2C, 0x20,
+   0x97, 0x61, 0x6E, 0x98,
+   0x64, 0x20, 0x6E, 0x6F, 0x20, 0x74, 0x69, 0x6D, 0x65, 0x20, 0x74, 0x6F,
+   0x20, 0x73, 0x74, 0x61, 0x79, 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x69,
+   0x73, 0x20, 0x70, 0x65, 0x61, 0x63, 0x65, 0x66, 0x75, 0x6C, 0x20, 0x6C,
+   0x61, 0x6E, 0x64, 0x2E,
+   0xF5, 0xF5, 0xF5, 0xFD,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Raw script data from enddemo.asm (unk_6AA8 after the Duke & Spirit scene)
+// ─────────────────────────────────────────────────────────────────────────────
+const PRINCESS1_SCRIPT = [
+  // Princess Felicia speaks (direct speech), row 1.  She has replaced the Spirit
+  // on the right.  (0x90-0x98 are Duke lip/eye codes; 0xB0-0xB8 are the new
+  // princess lip/eye articulation codes.)
+  0xFE,
+  0xF3, 0xFB, 0xEB,
+  // '"Must you leave so soon, Duke Garland?  '
+  0x97, 0x22, 0x96, 0xB0, 0x4D, 0x75, 0xB3, 0x73, 0xB4, 0x74, 0x20, 0x79,
+  0x6F, 0x75, 0x20, 0xB2, 0x6C, 0x65, 0xB1, 0x61, 0xB3, 0x76, 0x65, 0xB4,
+  0x20, 0xB3, 0x73, 0x6F, 0x20, 0xB5, 0x73, 0x6F, 0x6F, 0xB4, 0x6E, 0x2C,
+  0x20, 0xB7, 0xB3, 0x44, 0xB8, 0x75, 0xB1, 0xB7, 0x6B, 0xB6, 0x65, 0x20,
+  0xB0, 0x47, 0x61, 0x72, 0x6C, 0x61, 0xB4, 0x6E, 0x64, 0x3F, 0x20, 0x20,
+  0xF5,
+  // 'I was hoping..."' (row 2)
+  0xF2, 0xB7, 0xB0, 0x49, 0xB8, 0x20, 0xB7, 0xB5, 0x77, 0xB6, 0xB0, 0x61,
+  0x73, 0x20, 0xB3, 0x68, 0x6F, 0x70, 0xB2, 0x69, 0xB4, 0x6E, 0xB3, 0x67,
+  0x2E, 0x2E, 0x2E, 0xB4, 0x22,
+  0xF5, 0xF5, 0xF5, 0xFE,
+  // Duke speaks (direct speech), row 0
+  0xF7, 0xEF,
+  // '"Princess Felicia, I must bid you farewell.  '
+  0x22, 0x95, 0x50, 0x72, 0x92, 0x69, 0x94, 0x6E, 0x91, 0x63, 0x65, 0x93,
+  0x73, 0x73, 0x20, 0x91, 0x46, 0x65, 0x92, 0x6C, 0x69, 0x63, 0x69, 0x90,
+  0x61, 0x2C, 0x20, 0x97, 0x90, 0x49, 0x98, 0x92, 0x20, 0x97, 0x90, 0x6D,
+  0x96, 0x75, 0x93, 0x73, 0x74, 0x20, 0x92, 0x62, 0x69, 0x93, 0x64, 0x20,
+  0x93, 0x79, 0x6F, 0x75, 0x20, 0x91, 0x66, 0x61, 0x90, 0x72, 0x65, 0x91,
+  0x77, 0x65, 0x93, 0x6C, 0x6C, 0x2E, 0x94, 0x20, 0x20,
+  0xF5,
+  // 'Morning is coming soon, and I will miss the light of Spirit unless I
+  //  start before the dawn."'
+  0x93, 0x4D, 0x6F, 0x72, 0x94, 0x6E, 0x69, 0x6E, 0x95, 0x67, 0x20, 0x92,
+  0x69, 0x95, 0x73, 0x20, 0x90, 0x63, 0x6F, 0x6D, 0x92, 0x69, 0x94, 0x6E,
+  0x67, 0x20, 0x93, 0x73, 0x6F, 0x6F, 0x94, 0x6E, 0x2C, 0x20, 0x90, 0x61,
+  0x94, 0x6E, 0x64, 0x20, 0x90, 0x49, 0x92, 0x20, 0x97, 0x92, 0x77, 0x98,
+  0x69, 0x93, 0x97, 0x6C, 0x96, 0x6C, 0x20, 0x92, 0x6D, 0x69, 0x93, 0x73,
+  0x73, 0x20, 0x91, 0x74, 0x68, 0x65, 0x20, 0x90, 0x6C, 0x91, 0x69, 0x67,
+  0x93, 0x68, 0x74, 0x20, 0x6F, 0x95, 0x66, 0x20, 0x93, 0x53, 0x92, 0x70,
+  0x69, 0x72, 0x69, 0x93, 0x74, 0x20, 0x75, 0x94, 0x6E, 0x91, 0x6C, 0x65,
+  0x93, 0x73, 0x73, 0x20, 0x90, 0x49, 0x92, 0x20, 0x73, 0x90, 0x74, 0x61,
+  0x72, 0x94, 0x74, 0x20, 0x91, 0x62, 0x65, 0x93, 0x66, 0x6F, 0x90, 0x72,
+  0x65, 0x20, 0x91, 0x74, 0x68, 0x65, 0x20, 0x90, 0x64, 0x61, 0x94, 0x77,
+  0x6E, 0x2E, 0x22,
+  0xF5, 0xF5, 0xF5, 0xFE,
+  // Narrator (normal attribute), row 1
+  0xF0, 0xF3, 0xFA,
+  // 'The Duke answered quickly, as if to head off the next words of Princess
+  //  Felicia.'
+  0x54, 0x68, 0x65, 0x20, 0x44, 0x75, 0x6B, 0x65, 0x20, 0x61, 0x6E, 0x73,
+  0x77, 0x65, 0x72, 0x65, 0x64, 0x20, 0x71, 0x75, 0x69, 0x63, 0x6B, 0x6C,
+  0x79, 0x2C, 0x20, 0x61, 0x73, 0x20, 0x69, 0x66, 0x20, 0x74, 0x6F, 0x20,
+  0x68, 0x65, 0x61, 0x64, 0x20, 0x6F, 0x66, 0x66, 0x20, 0x74, 0x68, 0x65,
+  0x20, 0x6E, 0x65, 0x78, 0x74, 0x20, 0x77, 0x6F, 0x72, 0x64, 0x73, 0x20,
+  0x6F, 0x66, 0x20, 0x50, 0x72, 0x69, 0x6E, 0x63, 0x65, 0x73, 0x73, 0x20,
+  0x46, 0x65, 0x6C, 0x69, 0x63, 0x69, 0x61, 0x2E,
   0xF5, 0xF5, 0xF5, 0xFD,
 ];
 
@@ -481,7 +560,7 @@ function parseDialogueScript(bytes) {
   let pendingText = '';
   let pendingHolds = [];   // { at, ms } pause points within pendingText
   let faceChanges = [];
-  let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 }, spirit: { lips: 0 } };
+  let face = { duke: { eyes: 0, lips: 0 }, princess: { eyes: 0, lips: 3 }, spirit: { lips: 0 }, princess1: { eyes: 0, lips: 0 } };
 
   function flushText() {
     if (pendingText) {
@@ -600,6 +679,13 @@ function parseDialogueScript(bytes) {
       const index = b - 0x80;
       face.spirit.lips = index;
       faceChanges.push({ at: pendingText.length, speaker: 'spirit', part: 'lips', index: index });
+    } else if (b >= 0xB0 && b <= 0xB8) {
+      // Princess1 eyes/lips: 0xB0-0xB5 lips, 0xB6-0xB8 eyes
+      const rel = b - 0xB0;
+      const part = rel < 6 ? 'lips' : 'eyes';
+      const index = rel < 6 ? rel : rel - 6;
+      face.princess1[part] = index;
+      faceChanges.push({ at: pendingText.length, speaker: 'princess1', part: part, index: index });
     } else {
       // Normal printable character (ASCII)
       pendingText += String.fromCharCode(b);
@@ -672,6 +758,7 @@ export class EndingDemo {
       spirit,
       kingPrincess,
       spiritBase,
+      princess1Base,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
@@ -680,6 +767,7 @@ export class EndingDemo {
       loadImage(INTRO_SPIRIT_SRC),
       loadImage(KING_PRINCESS_SRC),
       loadImage(SPIRIT_SRC_BASE),
+      loadImage(PRINCESS1_SRC_BASE),
       loadStoryFont(),
     ]);
 
@@ -699,6 +787,12 @@ export class EndingDemo {
     }
     for (let i = 0; i < 6; i++) {
       lipEyePromises.push(loadImage(`${SPIRIT_LIPS_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 6; i++) {
+      lipEyePromises.push(loadImage(`${PRINCESS1_LIPS_SRC_BASE}${i}.png`));
+    }
+    for (let i = 0; i < 3; i++) {
+      lipEyePromises.push(loadImage(`${PRINCESS1_EYES_SRC_BASE}${i}.png`));
     }
     const overlayResults = await Promise.allSettled(lipEyePromises);
 
@@ -720,6 +814,12 @@ export class EndingDemo {
     for (let i = 0; i < 6; i++) {
       names.push(`spirit_lips${i}`);
     }
+    for (let i = 0; i < 6; i++) {
+      names.push(`princess1_lips${i}`);
+    }
+    for (let i = 0; i < 3; i++) {
+      names.push(`princess1_eyes${i}`);
+    }
     overlayResults.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
         overlays[names[idx]] = result.value;
@@ -736,6 +836,7 @@ export class EndingDemo {
       spirit,
       kingPrincess,
       spiritBase,
+      princess1Base,
       ...overlays,
     };
   }
@@ -809,6 +910,18 @@ export class EndingDemo {
       };
     }
 
+    if (step.type === 'princess1Scene') {
+      const entryImage = this.snapshotForNext;
+      this.snapshotForNext = null;
+      return {
+        ...base,
+        entryImage: entryImage,
+        crossfadeDone: false,
+        curtainStartTime: 0,
+        curtainSnapshot: null,
+      };
+    }
+
     if (step.type === 'windowText') {
       return {
         ...base,
@@ -847,6 +960,7 @@ export class EndingDemo {
       case 'kingPrincessScene':     return this._drawKingPrincessScene(step, s, ts);
       case 'spiritScene':           return this._drawSpiritScene(step, s, ts);
       case 'dukeSpiritScene':       return this._drawDukeSpiritScene(step, s, ts);
+      case 'princess1Scene':        return this._drawPrincess1Scene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -983,7 +1097,7 @@ export class EndingDemo {
     s.currentSpeaker = 'narrator';
     s.currentColor = DIALOGUE_TEXT_COLOR;
     s.currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
-    s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT }, spirit: { ...SPIRIT_FACE_DEFAULT } };
+    s.face = { duke: { ...DUKE_FACE_DEFAULT }, princess: { ...PRINCESS_FACE_DEFAULT }, spirit: { ...SPIRIT_FACE_DEFAULT }, princess1: { ...PRINCESS1_FACE_DEFAULT } };
   }
 
   // ── Command processing + typewriter reveal ────────────────────────────────
@@ -1351,6 +1465,104 @@ export class EndingDemo {
         this._nextStep();
       }
     }
+  }
+
+  // ── Princess Felicia (princess1) scene ────────────────────────────────────
+  // Cross-fades from the Duke & Spirit scene into the new princess image on the
+  // right (Duke stays put, Spirit becomes Princess Felicia), plays the farewell
+  // dialogue, then closes a dark-blue curtain over the scene.
+  _drawPrincess1Scene(step, s, ts) {
+    const elapsed = ts - s.startTime;
+
+    // Snapshot the incoming (Duke & Spirit) frame so the new scene can
+    // cross-fade over it.
+    if (!s.entryImage) {
+      s.entryImage = this._makeOffscreen();
+      s.entryImage.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+
+    // Initialise the dialogue state up front so the cross-fade can draw the
+    // (empty) dialogue box over the scene.
+    if (!s.commands) this._initDialogueState(s, PRINCESS1_SCRIPT);
+
+    const crossfadeMs = step.crossfadeMs ?? SPIRIT_CROSSFADE_MS;
+
+    // Phase 1: cross-fade Spirit → Princess Felicia (whole-frame cross-fade;
+    // only the right-hand character actually changes).
+    if (!s.crossfadeDone) {
+      const progress = Math.min(elapsed / crossfadeMs, 1);
+      this._clearBlack();
+
+      if (progress < 1 && s.entryImage) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(s.entryImage, 0, 0);
+        this.ctx.restore();
+      }
+
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this._drawPrincess1Base(step);
+        this._drawDialogueTextBox(s);
+        this.ctx.restore();
+      }
+
+      if (progress >= 1) s.crossfadeDone = true;
+      return;
+    }
+
+    // Phase 2: princess1 image + typewriter dialogue
+    this._clearBlack();
+    this._drawPrincess1Base(step);
+
+    this._processDialogueCommands(s, ts);
+
+    // Face overlays – Duke (eyes + lips) and Princess1 (eyes + lips)
+    for (const speaker of ['duke', 'princess1']) {
+      const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS1_POS;
+      const layout = FACE_LAYOUT[speaker];
+      const face = s.face[speaker];
+      for (const part of ['eyes', 'lips']) {
+        const off = layout[part];
+        if (!off) continue;
+        const img = this.images[`${speaker}_${part}${face[part]}`];
+        if (!img) continue;
+        this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
+      }
+    }
+
+    this._drawDialogueTextBox(s);
+
+    // Phase 3: when the dialogue is done, a dark-blue curtain closes over the
+    // scene to clear it.
+    if (s.cmdIndex >= s.commands.length && s.typingLine >= s.pageLines.length) {
+      if (!s.curtainSnapshot) {
+        s.curtainSnapshot = this._makeOffscreen();
+        s.curtainSnapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+        s.curtainStartTime = ts;
+      }
+      const curtainProgress = Math.min((ts - s.curtainStartTime) / step.curtainMs, 1);
+      this._clearBlack();
+      this.ctx.drawImage(s.curtainSnapshot, 0, 0);
+      this._drawCurtainRect(curtainProgress, s.curtainSnapshot, {
+        x: CURTAIN_X1, y: CURTAIN_Y1, w: CURTAIN_X2 - CURTAIN_X1, h: CURTAIN_Y2 - CURTAIN_Y1,
+      }, step.curtainColor);
+
+      if (curtainProgress >= 1) {
+        this._nextStep();
+      }
+    }
+  }
+
+  // Draws template2 + Duke (left) + Princess Felicia (right) with no dialogue
+  // box or face overlays.
+  _drawPrincess1Base(step) {
+    if (step.background) {
+      this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
+    }
+    this.ctx.drawImage(this.images.dukeBase, DUKE_POS.x, DUKE_POS.y, DUKE_POS.w, DUKE_POS.h);
+    this.ctx.drawImage(this.images.princess1Base, PRINCESS1_POS.x, PRINCESS1_POS.y, PRINCESS1_POS.w, PRINCESS1_POS.h);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -2745,8 +2745,7 @@ aDNoTimeToStayI db 'd no time to stay in this peaceful land.'
                 db 0F0h
                 db 0F3h
                 db 0FAh
-aTheDukeAnswere db 'The Duke answered quickly, as if to head off the next words of Pr'
-                db 'incess Felicia.'
+aTheDukeAnswere db 'The Duke answered quickly, as if to head off the next words of Princess Felicia.'
                 db 0F5h
                 db 0F5h
                 db 0F5h
