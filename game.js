@@ -6419,6 +6419,7 @@ const endingDemo = new EndingDemo({
     screen:     introScreen,
     canvas:     introCanvas,
     onComplete: endingDemoComplete,
+    soundManager,
 });
 
 function endingDemoComplete() {

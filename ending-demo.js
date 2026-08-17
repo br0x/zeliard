@@ -11,6 +11,7 @@ const KING_PRINCESS_SRC         = 'assets/images/enddemo/king_princess.png'
 const SPIRIT_SRC_BASE           = 'assets/images/enddemo/spirit_base.png';
 const PRINCESS1_SRC_BASE        = 'assets/images/enddemo/princess1_base.png';
 const FAREWELL_SRC_BASE         = 'assets/images/enddemo/farewell.png';
+const CASTLE_SRC_BASE           = 'assets/images/enddemo/castle.jpg';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
@@ -104,6 +105,12 @@ const FAREWELL_CROSSFADE_MS    = 1000;
 const FAREWELL_FADE_MS         = 2000;
 const FAREWELL_FADE_COLOR      = '#000367';
 const FAREWELL_FADE_RECT       = { x: 101, y: 34, w: 205, h: 205 };
+// Final castle scene – cross-fades from the farewell scene to the castle image
+// while the outro music ("Guinever (Aquarium 1981)") begins
+const CASTLE_CROSSFADE_MS      = 2000;
+const CASTLE_HOLD_MS           = 3000;
+const CASTLE_MUSIC_TRACK       = 'outro/Guinever (Aquarium 1981)';
+const CASTLE_MUSIC_FADE_MS     = 1500;
 const KING_PRINCESS_FADE_IN_MS = 1000;
 const SPIRIT_CROSSFADE_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
@@ -294,6 +301,14 @@ function buildTimeline(images) {
       fadeMs: FAREWELL_FADE_MS,
       fadeColor: FAREWELL_FADE_COLOR,
       fadeRect: FAREWELL_FADE_RECT,
+    },
+    // ── 8. Final castle scene – cross-fades to castle.jpg and starts the outro
+    //        music ("Guinever (Aquarium 1981)") ──
+    {
+      type: 'castleScene',
+      image: images.castle,
+      crossfadeMs: CASTLE_CROSSFADE_MS,
+      holdMs: CASTLE_HOLD_MS,
     },
   ];
 }
@@ -828,11 +843,12 @@ function parseDialogueScript(bytes) {
   return commands;
 }
 export class EndingDemo {
-  constructor({ screen, canvas, onComplete }) {
+  constructor({ screen, canvas, onComplete, soundManager }) {
     this.screen     = screen;
     this.canvas     = canvas; // 640x400
     this.ctx        = canvas.getContext('2d');
     this.onComplete = onComplete;
+    this.soundManager = soundManager;   // shared SoundManager from game.js (may be undefined in tests)
 
     this.active   = false;
     this.frameId  = 0;
@@ -850,6 +866,11 @@ export class EndingDemo {
     this.active = true;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
+
+    // The demo takes over from a location where the standard theme is still
+    // playing (dimmed).  Silence it here; only the final castle scene starts
+    // the outro track.
+    this.soundManager?.stopMusic(0);
 
     try {
       await this._loadAssets();
@@ -893,6 +914,7 @@ export class EndingDemo {
       spiritBase,
       princess1Base,
       farewell,
+      castle,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
@@ -903,6 +925,7 @@ export class EndingDemo {
       loadImage(SPIRIT_SRC_BASE),
       loadImage(PRINCESS1_SRC_BASE),
       loadImage(FAREWELL_SRC_BASE),
+      loadImage(CASTLE_SRC_BASE),
       loadStoryFont(),
     ]);
 
@@ -979,6 +1002,7 @@ export class EndingDemo {
       spiritBase,
       princess1Base,
       farewell,
+      castle,
       ...overlays,
     };
   }
@@ -1075,6 +1099,17 @@ export class EndingDemo {
       };
     }
 
+    if (step.type === 'castleScene') {
+      const entryImage = this.snapshotForNext;
+      this.snapshotForNext = null;
+      return {
+        ...base,
+        entryImage: entryImage,
+        phase: 'crossfade',   // crossfade → hold
+        holdStartTime: 0,
+      };
+    }
+
     if (step.type === 'windowText') {
       return {
         ...base,
@@ -1115,6 +1150,7 @@ export class EndingDemo {
       case 'dukeSpiritScene':       return this._drawDukeSpiritScene(step, s, ts);
       case 'princess1Scene':        return this._drawPrincess1Scene(step, s, ts);
       case 'farewellScene':         return this._drawFarewellScene(step, s, ts);
+      case 'castleScene':           return this._drawCastleScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -1831,6 +1867,59 @@ export class EndingDemo {
     const img = this.images[`princess2_lips${s.face.princess2.lips}`];
     if (!img) return;
     this.ctx.drawImage(img, off.x, off.y, off.w, off.h);
+  }
+
+  // ── Final castle scene ─────────────────────────────────────────────────────
+  // Cross-fades from the farewell screen into the castle image while the outro
+  // music ("Guinever (Aquarium 1981)") starts, holds the final frame, then
+  // completes the demo (leaving the castle visible).
+  _drawCastleScene(step, s, ts) {
+    // Snapshot the incoming farewell frame for the cross-fade
+    if (!s.entryImage) {
+      s.entryImage = this._makeOffscreen();
+      s.entryImage.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+    // Start the outro music once, as the castle fades in
+    if (!s.musicStarted && this.soundManager) {
+      s.musicStarted = true;
+      this.soundManager.playMusic(CASTLE_MUSIC_TRACK, CASTLE_MUSIC_FADE_MS / 1000);
+    }
+
+    const crossfadeMs = step.crossfadeMs ?? CASTLE_CROSSFADE_MS;
+
+    // Phase 1: cross-fade the farewell screen into the castle image
+    if (s.phase === 'crossfade') {
+      const progress = Math.min((ts - s.startTime) / crossfadeMs, 1);
+      this._clearBlack();
+
+      if (progress < 1 && s.entryImage) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(s.entryImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
+      }
+
+      if (progress >= 1) {
+        s.phase = 'hold';
+        s.holdStartTime = ts;
+      }
+      return;
+    }
+
+    // Phase 2: hold the castle image, then finish the demo
+    const holdMs = step.holdMs ?? CASTLE_HOLD_MS;
+    this._clearBlack();
+    this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
+
+    if (ts - s.holdStartTime >= holdMs) {
+      this._nextStep();
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
