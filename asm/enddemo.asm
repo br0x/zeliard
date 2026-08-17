@@ -2753,8 +2753,7 @@ aTheDukeAnswere db 'The Duke answered quickly, as if to head off the next words 
                 db 0FEh
                 db 0F3h
                 db 0FAh
-aForIfHeHeardTh db 'For if he heard those words, he might not be able to leave, as he'
-                db ' knew he must.  '
+aForIfHeHeardTh db 'For if he heard those words, he might not be able to leave, as he knew he must.  '
                 db 0F5h
 aHeTurnedAndWal db 'He turned and walked away...'
                 db 0F5h
