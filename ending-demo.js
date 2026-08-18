@@ -12,6 +12,9 @@ const SPIRIT_SRC_BASE           = 'assets/images/enddemo/spirit_base.png';
 const PRINCESS1_SRC_BASE        = 'assets/images/enddemo/princess1_base.png';
 const FAREWELL_SRC_BASE         = 'assets/images/enddemo/farewell.png';
 const CASTLE_SRC_BASE           = 'assets/images/enddemo/castle.jpg';
+const DUKE_HORSE_SRC            = 'assets/images/enddemo/duke_horse.jpg';
+const PRINCESS_BALCONY_SRC      = 'assets/images/enddemo/princess_balcony.jpg';
+const DUKE_PRINCESS_SRC         = 'assets/images/enddemo/duke_princess.jpg';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
@@ -108,9 +111,31 @@ const FAREWELL_FADE_RECT       = { x: 101, y: 34, w: 205, h: 205 };
 // Final castle scene – cross-fades from the farewell scene to the castle image
 // while the outro music ("Guinever (Aquarium 1981)") begins
 const CASTLE_CROSSFADE_MS      = 2000;
-const CASTLE_HOLD_MS           = 3000;
+const CASTLE_HOLD_MS           = 15000;
 const CASTLE_MUSIC_TRACK       = 'outro/Guinever (Aquarium 1981)';
 const CASTLE_MUSIC_FADE_MS     = 1500;
+// End credits – typed faster than the dialogue (7 frames/char vs 10) with a
+// solid white square cursor that precedes each character (asm/enddemo.asm
+// sub_66CD).  Three background images are shown (duke on horseback → duke &
+// princess → princess on the balcony), then the canvas clears and the
+// copyright notice is typed.
+const CREDITS_CROSSFADE_MS       = 2000;
+const CREDITS_HORSE_MS           = 50000;   // duke_horse.jpg, STAFF → SOUND EFFECTS
+const CREDITS_PRINCESS_MS        = 20000;   // duke_princess.jpg, no text
+const CREDITS_BALCONY_MS         = 55000;   // princess_balcony.jpg, SPECIAL THANKS → Absor
+const ENDING_CREDITS_FONT        = '16px "Press Start 2P", monospace';
+const ENDING_CREDITS_LINE_HEIGHT = 28;
+const CREDITS_BOX_RECT           = { x: 16, y: 295, w: 608, h: 140 };
+const CREDITS_BOX_BG             = 'rgba(0,0,0,0.85)';
+const CREDITS_TEXT_Y             = 296;
+const CREDITS_LEFT_X             = 56;
+const CREDITS_RIGHT_X            = 344;
+const CREDITS_TEXT_COLOR         = '#ffffff';
+const CREDITS_CURSOR_SIZE        = 16;
+const CREDITS_SCREEN_HOLD_MS     = 4800;    // pause after each staff screen
+const CREDITS_THANKS_HOLD_MS     = 6500;    // pause after each thanks screen
+const CREDITS_MONSTERS_HOLD_MS   = 1500;    // pause after each serving-monsters screen
+const CREDITS_COPYRIGHT_HOLD_MS  = 3000;    // pause after the copyright text
 const KING_PRINCESS_FADE_IN_MS = 1000;
 const SPIRIT_CROSSFADE_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
@@ -156,11 +181,11 @@ const DIRECT_SPEECH_SHADOW_COLOR    = '#0000fb';
 const DIRECT_SPEECH_SHADOW_OFFSET   = 2;
 
 const DIALOGUE_TEXT_X            = 20;
-const DIALOGUE_TEXT_Y            = 280;
+const DIALOGUE_TEXT_Y            = 285;
 const DIALOGUE_TEXT_MAX_WIDTH    = 600;
 const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
 const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
-const DIALOGUE_BOX_RECT          = { x: 16, y: 276, w: 608, h: 110 };
+const DIALOGUE_BOX_RECT          = { x: 16, y: 281, w: 608, h: 110 };
 const DIALOGUE_FONT              = '16px "Press Start 2P", monospace';
 const DIALOGUE_TEXT_COLOR        = '#fbfbfb';
 // Text shadow colours map to the game's text attribute (byte_6635/byte_6636):
@@ -177,6 +202,7 @@ const DIALOGUE_TICK_HZ          = 1193182 / 5041;
 const DIALOGUE_FRAME_MS         = 1000 / DIALOGUE_TICK_HZ;
 const DIALOGUE_PAUSE_MS         = Math.round(0xF0 * DIALOGUE_FRAME_MS);  // 0xF5 → ~1.01 s
 const DIALOGUE_CHAR_DELAY_MS    = Math.round(0x0A * DIALOGUE_FRAME_MS);  // 10 frames/char
+const ENDING_CREDITS_CHAR_DELAY_MS = Math.round(0x07 * DIALOGUE_FRAME_MS); // 7 frames/char ≈30 ms
 
 // Face overlay positions (assume overlays are same size as base and fully opaque where needed)
 const DUKE_POS = { x: 94, y: 45, w: 180, h: 180 };
@@ -303,12 +329,21 @@ function buildTimeline(images) {
       fadeRect: FAREWELL_FADE_RECT,
     },
     // ── 8. Final castle scene – cross-fades to castle.jpg and starts the outro
-    //        music ("Guinever (Aquarium 1981)") ──
+    //        music ("Guinever (Aquarium 1981)"), holds for 15 s ──
     {
       type: 'castleScene',
       image: images.castle,
       crossfadeMs: CASTLE_CROSSFADE_MS,
       holdMs: CASTLE_HOLD_MS,
+      snapshotOnComplete: true,
+    },
+    // ── 9. End credits – typed over the duke-on-horse, duke & princess and
+    //        princess-on-balcony backgrounds, then the copyright notice ──
+    {
+      type: 'creditsScene',
+      horseImage: images.dukeHorse,
+      princessImage: images.dukePrincess,
+      balconyImage: images.princessBalcony,
     },
   ];
 }
@@ -671,6 +706,94 @@ const FAREWELL_SCRIPT_PART2 = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// End credits screens
+//
+// Decoded from the credits script in asm/enddemo.asm (sub_66CD, from "STAFF"
+// up to the copyright notice).  Each screen is one "page" typed inside the
+// credits box; a row is either a plain string (centered) or { left, right }
+// (two columns, e.g. dungeon names vs boss names).  `hold` is the pause after
+// the screen finishes typing before the next screen appears.
+// ─────────────────────────────────────────────────────────────────────────────
+const CREDITS_STAFF_SCREENS = [
+  { rows: ['STAFF'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['PRODUCER - JAPANESE VERSION', 'Mitsuhiro Mazda'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['PRODUCER - ENGLISH VERSION', 'Josh Mandel'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['LEAD PROGRAMMER', 'Tomoyuki Shimada'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['GRAPHIC DESIGNERS', 'Akihiko Yoshida', 'Masatoshi Azumi'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['ENGLISH TEXT TRANSLATION', 'Marti McKenna'], hold: CREDITS_SCREEN_HOLD_MS },
+  {
+    rows: ['MUSIC COMPOSERS', '-- MECANO ASSOCIATES --', 'Fumihito Kasatani', 'Nobuyuki Aoshima'],
+    hold: CREDITS_SCREEN_HOLD_MS,
+  },
+  { rows: ['STORY MAKER', 'Masaru Takeuchi'], hold: CREDITS_SCREEN_HOLD_MS },
+  { rows: ['SOUND EFFECTS', 'Tomoyuki Shimada'], hold: 0 },
+];
+
+const CREDITS_THANKS_SCREENS = [
+  { rows: ['SPECIAL THANKS'], hold: CREDITS_THANKS_HOLD_MS },
+  {
+    rows: [
+      { left: 'Toshiyuki Uchida', right: 'Yuzo Sunaga' },
+      { left: 'Takeshi Miyaji',   right: 'Naozumi Honma' },
+      { left: 'Ray E. Nakazato',  right: 'Toshi Masubuchi' },
+    ],
+    hold: CREDITS_THANKS_HOLD_MS,
+  },
+  {
+    rows: [
+      { left: 'Hiroyuki Koyama', right: 'Satoshi Uesaka' },
+      '-- Sierra On-Line Japan, Inc. --',
+      'Eiji (Ed) Nagano',
+    ],
+    hold: CREDITS_THANKS_HOLD_MS,
+  },
+  {
+    rows: ['ADVISERS', 'Osamu Harada', 'Hiromi Ohba', 'Greg Miyaji'],
+    hold: CREDITS_THANKS_HOLD_MS,
+  },
+  { rows: ['SYSTEM DESIGNER', 'Rocky Cave Maker'], hold: CREDITS_THANKS_HOLD_MS },
+  { rows: ['SERVING MONSTERS'], hold: CREDITS_MONSTERS_HOLD_MS },
+  {
+    rows: [
+      { left: 'Cavern of Maricia', right: 'CANGREJO' },
+      { left: 'Peligro',           right: 'PULPO' },
+      { left: 'Riza',              right: 'POLLO' },
+    ],
+    hold: CREDITS_MONSTERS_HOLD_MS,
+  },
+  {
+    rows: [
+      { left: 'Cavern of Glacial', right: 'AGER' },
+      { left: 'Cementar',          right: 'VISTA' },
+      { left: 'Tesoro',            right: 'TARSO' },
+    ],
+    hold: CREDITS_MONSTERS_HOLD_MS,
+  },
+  {
+    rows: [
+      { left: 'Llama Town',         right: 'PAGURO' },
+      { left: 'Cavern of Caliente', right: 'DRAGON' },
+      { left: 'Absor',              right: 'ALGUIEN' },
+    ],
+    hold: 0,
+  },
+];
+
+const CREDITS_COPYRIGHT_SCREENS = [
+  {
+    rows: [
+      'Copyright (C)1987,1990 GAME ARTS',
+      'Copyright (C)1990 Sierra On-Line',
+      'This edition first published 1987 by',
+      'GAME ARTS Co.,Ltd./ Tomoyuki Shimada',
+    ],
+    hold: 0,
+  },
+];
+
+const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} ———————————————————————— Reverse engineering: {brox} ———————————————————————— Graphics: {brox} ———————————————————————— Code: {brox + free LLMs (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} ———————————————————————— QA: {Gene} ———————————————————————— Non-free LLM provided by: {Gene} ———————————————————————— End Credits music: 'Guinever' ©1981 {Aquarium}";
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Parser – builds a flat array of command objects
 //
 // Control codes, as decoded from asm/enddemo.asm (sub_6318 / sub_66CD):
@@ -915,6 +1038,9 @@ export class EndingDemo {
       princess1Base,
       farewell,
       castle,
+      dukeHorse,
+      dukePrincess,
+      princessBalcony,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
@@ -926,6 +1052,9 @@ export class EndingDemo {
       loadImage(PRINCESS1_SRC_BASE),
       loadImage(FAREWELL_SRC_BASE),
       loadImage(CASTLE_SRC_BASE),
+      loadImage(DUKE_HORSE_SRC),
+      loadImage(DUKE_PRINCESS_SRC),
+      loadImage(PRINCESS_BALCONY_SRC),
       loadStoryFont(),
     ]);
 
@@ -1003,6 +1132,9 @@ export class EndingDemo {
       princess1Base,
       farewell,
       castle,
+      dukeHorse,
+      dukePrincess,
+      princessBalcony,
       ...overlays,
     };
   }
@@ -1110,6 +1242,23 @@ export class EndingDemo {
       };
     }
 
+    if (step.type === 'creditsScene') {
+      const entryImage = this.snapshotForNext;
+      this.snapshotForNext = null;
+      return {
+        ...base,
+        entryImage: entryImage,
+        phase: 'horseFade',
+        phaseStart: 0,
+        screens: [],
+        screenIndex: 0,
+        rowIndex: 0,
+        charCount: 0,
+        lineStartTime: 0,
+        screenTypedAt: 0,
+      };
+    }
+
     if (step.type === 'windowText') {
       return {
         ...base,
@@ -1151,6 +1300,7 @@ export class EndingDemo {
       case 'princess1Scene':        return this._drawPrincess1Scene(step, s, ts);
       case 'farewellScene':         return this._drawFarewellScene(step, s, ts);
       case 'castleScene':           return this._drawCastleScene(step, s, ts);
+      case 'creditsScene':          return this._drawCreditsScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -1920,6 +2070,265 @@ export class EndingDemo {
     if (ts - s.holdStartTime >= holdMs) {
       this._nextStep();
     }
+  }
+
+  // ── End credits scene ─────────────────────────────────────────────────────
+  // After the final castle scene the credits are typed over three background
+  // images (duke on horseback → duke & princess → princess on the balcony),
+  // then the canvas clears to black and the copyright notice is typed.  Unlike
+  // the dialogue typewriter, the credits are typed faster (7 frames/char) and
+  // a solid white square cursor precedes each character (asm/enddemo.asm
+  // sub_66CD).
+  _drawCreditsScene(step, s, ts) {
+    const fadeMs = CREDITS_CROSSFADE_MS;
+
+    // Phase 1: cross-fade from the castle into the duke-on-horse image
+    if (s.phase === 'horseFade') {
+      const progress = Math.min((ts - s.startTime) / fadeMs, 1);
+      this._clearBlack();
+      if (progress < 1 && s.entryImage) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(s.entryImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.horseImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress >= 1) {
+        s.phase = 'horseText';
+        s.phaseStart = ts;
+        this._initCreditsState(s, CREDITS_STAFF_SCREENS);
+      }
+      return;
+    }
+
+    // Phase 2: type the staff credits over the horse image (50 s)
+    if (s.phase === 'horseText') {
+      this._clearBlack();
+      this.ctx.drawImage(step.horseImage, 0, 0);
+      this._drawCreditsTextBox(s, true);
+      this._typeCreditsScreen(s, ts);
+      if (ts - s.phaseStart >= CREDITS_HORSE_MS) {
+        s.phase = 'princessFade';
+        s.phaseStart = ts;
+      }
+      return;
+    }
+
+    // Phase 3: cross-fade into the duke & princess image (no text)
+    if (s.phase === 'princessFade') {
+      const progress = Math.min((ts - s.phaseStart) / fadeMs, 1);
+      this._clearBlack();
+      if (progress < 1) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(step.horseImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.princessImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress >= 1) {
+        s.phase = 'princessHold';
+        s.phaseStart = ts;
+      }
+      return;
+    }
+
+    // Phase 4: hold the duke & princess image (20 s, no text)
+    if (s.phase === 'princessHold') {
+      this._clearBlack();
+      this.ctx.drawImage(step.princessImage, 0, 0);
+      if (ts - s.phaseStart >= CREDITS_PRINCESS_MS) {
+        s.phase = 'balconyFade';
+        s.phaseStart = ts;
+      }
+      return;
+    }
+
+    // Phase 5: cross-fade into the princess-on-balcony image
+    if (s.phase === 'balconyFade') {
+      const progress = Math.min((ts - s.phaseStart) / fadeMs, 1);
+      this._clearBlack();
+      if (progress < 1) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - progress;
+        this.ctx.drawImage(step.princessImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.balconyImage, 0, 0);
+        this.ctx.restore();
+      }
+      if (progress >= 1) {
+        s.phase = 'balconyText';
+        s.phaseStart = ts;
+        this._initCreditsState(s, CREDITS_THANKS_SCREENS);
+      }
+      return;
+    }
+
+    // Phase 6: type the special-thanks + serving-monsters credits (55 s)
+    if (s.phase === 'balconyText') {
+      this._clearBlack();
+      this.ctx.drawImage(step.balconyImage, 0, 0);
+      this._drawCreditsTextBox(s, true);
+      this._typeCreditsScreen(s, ts);
+      if (ts - s.phaseStart >= CREDITS_BALCONY_MS) {
+        s.phase = 'copyright';
+        s.phaseStart = ts;
+        this._initCreditsState(s, CREDITS_COPYRIGHT_SCREENS);
+      }
+      return;
+    }
+
+    // Phase 7: clear to black and type the copyright notice, then finish
+    this._clearBlack();
+    this._drawCreditsTextBox(s, false);
+    this._typeCreditsScreen(s, ts);
+    if (
+      s.screenTypedAt !== 0 &&
+      s.screenIndex === s.screens.length - 1 &&
+      ts - s.screenTypedAt >= CREDITS_COPYRIGHT_HOLD_MS
+    ) {
+      this._nextStep();
+    }
+  }
+
+  _initCreditsState(s, screens) {
+    s.screens = screens;
+    s.screenIndex = 0;
+    s.rowIndex = 0;
+    s.charCount = 0;
+    s.lineStartTime = 0;
+    s.screenTypedAt = 0;
+  }
+
+  // Advances the credits typewriter: types the current row char-by-char, moves
+  // to the next row when one finishes, and (after the screen's hold) advances
+  // to the next screen.  The last screen stays on screen until the phase ends.
+  _typeCreditsScreen(s, ts) {
+    if (s.screenIndex >= s.screens.length) return;
+
+    const screen = s.screens[s.screenIndex];
+    const row = screen.rows[s.rowIndex];
+    const rowText = this._creditsRowFull(row);
+
+    if (s.screenTypedAt === 0) {
+      if (!s.lineStartTime) s.lineStartTime = ts;
+      s.charCount = Math.min(
+        Math.floor((ts - s.lineStartTime) / ENDING_CREDITS_CHAR_DELAY_MS),
+        rowText.length,
+      );
+
+      if (s.charCount >= rowText.length) {
+        if (s.rowIndex + 1 < screen.rows.length) {
+          s.rowIndex++;
+          s.charCount = 0;
+          s.lineStartTime = 0;
+        } else {
+          s.screenTypedAt = ts;
+        }
+      }
+    }
+
+    if (s.screenTypedAt !== 0) {
+      const hold = screen.hold ?? 0;
+      if (hold && ts - s.screenTypedAt >= hold && s.screenIndex + 1 < s.screens.length) {
+        s.screenIndex++;
+        s.rowIndex = 0;
+        s.charCount = 0;
+        s.lineStartTime = 0;
+        s.screenTypedAt = 0;
+      }
+    }
+  }
+
+  _creditsRowFull(row) {
+    return typeof row === 'object' ? row.left + row.right : row;
+  }
+
+  // Draws the credits box (if requested) and the partially-typed current
+  // screen, including the solid white square block cursor at the position of
+  // the next character.
+  _drawCreditsTextBox(s, drawBox) {
+    if (drawBox) {
+      const box = CREDITS_BOX_RECT;
+      this.ctx.fillStyle = CREDITS_BOX_BG;
+      this.ctx.fillRect(box.x, box.y, box.w, box.h);
+    }
+
+    const screen = s.screens[s.screenIndex];
+    if (!screen) return;
+
+    this.ctx.save();
+    this.ctx.font = ENDING_CREDITS_FONT;
+    this.ctx.textBaseline = 'top';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillStyle = CREDITS_TEXT_COLOR;
+
+    for (let r = 0; r <= s.rowIndex && r < screen.rows.length; r++) {
+      const row = screen.rows[r];
+      const isPair = typeof row === 'object';
+      const full = this._creditsRowFull(row);
+      const visible = r < s.rowIndex ? full.length : s.charCount;
+      if (visible <= 0) continue;
+
+      const y = CREDITS_TEXT_Y + r * ENDING_CREDITS_LINE_HEIGHT;
+      if (isPair) {
+        const leftVisible = Math.min(visible, row.left.length);
+        if (leftVisible > 0) this.ctx.fillText(row.left.slice(0, leftVisible), CREDITS_LEFT_X, y);
+        const rightVisible = Math.min(visible - leftVisible, row.right.length);
+        if (rightVisible > 0) this.ctx.fillText(row.right.slice(0, rightVisible), CREDITS_RIGHT_X, y);
+      } else {
+        const x = this._creditsCenteredX(row);
+        this.ctx.fillText(row.slice(0, visible), x, y);
+      }
+    }
+
+    // Solid white square cursor at the position of the next character
+    if (s.charCount > 0) {
+      const cur = this._currentCreditsRow(s);
+      if (cur) {
+        const row = cur.row;
+        const y = CREDITS_TEXT_Y + cur.index * ENDING_CREDITS_LINE_HEIGHT;
+        let cx;
+        if (typeof row === 'object') {
+          if (s.charCount <= row.left.length) {
+            cx = CREDITS_LEFT_X + this.ctx.measureText(row.left.slice(0, s.charCount)).width;
+          } else {
+            cx = CREDITS_RIGHT_X + this.ctx.measureText(row.right.slice(0, s.charCount - row.left.length)).width;
+          }
+        } else {
+          cx = this._creditsCenteredX(row) + this.ctx.measureText(row.slice(0, s.charCount)).width;
+        }
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillRect(Math.round(cx), Math.round(y), CREDITS_CURSOR_SIZE, CREDITS_CURSOR_SIZE);
+      }
+    }
+
+    this.ctx.restore();
+  }
+
+  _currentCreditsRow(s) {
+    if (s.screenIndex >= s.screens.length) return null;
+    const screen = s.screens[s.screenIndex];
+    if (s.rowIndex >= screen.rows.length) return null;
+    return { row: screen.rows[s.rowIndex], index: s.rowIndex };
+  }
+
+  _creditsCenteredX(text) {
+    const w = this.ctx.measureText(text).width;
+    return Math.round((CREDITS_BOX_RECT.x + CREDITS_BOX_RECT.w / 2) - w / 2);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
