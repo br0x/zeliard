@@ -114,6 +114,7 @@ const CASTLE_CROSSFADE_MS      = 2000;
 const CASTLE_HOLD_MS           = 15000;
 const CASTLE_MUSIC_TRACK       = 'outro/Guinever (Aquarium 1981)';
 const CASTLE_MUSIC_FADE_MS     = 1500;
+const END_CREDITS_MUSIC_TRACK  = 'outro/Zeliard-End-Credits';
 // End credits – typed faster than the dialogue (7 frames/char vs 10) with a
 // solid white square cursor that precedes each character (asm/enddemo.asm
 // sub_66CD).  Three background images are shown (duke on horseback → duke &
@@ -2033,17 +2034,25 @@ export class EndingDemo {
   // ── Final castle scene ─────────────────────────────────────────────────────
   // Cross-fades from the farewell screen into the castle image while the outro
   // music ("Guinever (Aquarium 1981)") starts, holds the final frame, then
-  // completes the demo (leaving the castle visible).
+  // completes the demo (leaving the castle visible).  The outro track plays a
+  // single pass (no loop); when it ends the end-credits track takes over.
   _drawCastleScene(step, s, ts) {
     // Snapshot the incoming farewell frame for the cross-fade
     if (!s.entryImage) {
       s.entryImage = this._makeOffscreen();
       s.entryImage.getContext('2d').drawImage(this.canvas, 0, 0);
     }
-    // Start the outro music once, as the castle fades in
+    // Start the outro music once, as the castle fades in.  It plays only once;
+    // when it finishes, the end-credits track starts (while the demo is active).
     if (!s.musicStarted && this.soundManager) {
       s.musicStarted = true;
-      this.soundManager.playMusic(CASTLE_MUSIC_TRACK, CASTLE_MUSIC_FADE_MS / 1000);
+      this.soundManager.playMusic(CASTLE_MUSIC_TRACK, CASTLE_MUSIC_FADE_MS / 1000, {
+        loop: false,
+        onEnded: () => {
+          if (!this.active || !this.soundManager) return;
+          this.soundManager.playMusic(END_CREDITS_MUSIC_TRACK, CASTLE_MUSIC_FADE_MS / 1000);
+        },
+      });
     }
 
     const crossfadeMs = step.crossfadeMs ?? CASTLE_CROSSFADE_MS;

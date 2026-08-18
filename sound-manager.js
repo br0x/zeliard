@@ -158,10 +158,15 @@ export class SoundManager {
      * Play a music track by ID.
      * If a track is already playing, crossfades over `fadeDuration` seconds.
      *
-     * @param {string} trackId    e.g. 'mgt1', 'ugm2'
+     * @param {string} trackId    e.g. 'mgt1', 'ugm2', 'outro/Guinever (Aquarium 1981)'
      * @param {number} [fadeDuration=1.5]
+     * @param {object} [options={}]
+     * @param {boolean} [options.loop=true]   Whether the track repeats indefinitely
+     * @param {Function} [options.onEnded]    Called once after a non-looping track
+     *                                        finishes naturally (fired only while this
+     *                                        track is still the active one)
      */
-    async playMusic(trackId, fadeDuration = 1.5) {
+    async playMusic(trackId, fadeDuration = 1.5, { loop = true, onEnded = null } = {}) {
         if (!this._ready || trackId === this._currentTrack) return;
 
         const buffer = await this._loadAudio(this._musicBase, trackId);
@@ -185,12 +190,22 @@ export class SoundManager {
         // Fade in new track
         const source = this._ctx.createBufferSource();
         source.buffer = buffer;
-        source.loop   = true;
+        source.loop   = loop;
         source.connect(this._musicGain);
 
         const targetGain = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
         this._musicGain.gain.setValueAtTime(0, now);
         this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
+
+        // When a non-looping track finishes, release the music slot and hand
+        // off to the caller (e.g. the ending demo starts the credits track).
+        // Stopping/replacing the source elsewhere never triggers onEnded here.
+        source.onended = () => {
+            if (this._musicSource !== source) return;
+            this._musicSource = null;
+            this._currentTrack = null;
+            if (onEnded) onEnded();
+        };
 
         source.start(now);
         this._musicSource = source;
