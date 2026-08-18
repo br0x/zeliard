@@ -121,15 +121,22 @@ const CASTLE_MUSIC_FADE_MS     = 1500;
 // copyright notice is typed.
 const CREDITS_CROSSFADE_MS       = 2000;
 const CREDITS_HORSE_MS           = 50000;   // duke_horse.jpg, STAFF → SOUND EFFECTS
-const CREDITS_PRINCESS_MS        = 20000;   // duke_princess.jpg, no text
 const CREDITS_BALCONY_MS         = 55000;   // princess_balcony.jpg, SPECIAL THANKS → Absor
+// Phase 4 – the duke & princess image holds while PORT_CREDITS scrolls right to
+// left along a 1990s-demoscene-style curve y = 343 - 0.8·e^(0.0067x)·sin(0.05154x).
+const PORT_CREDITS_FONT             = '24px "Press Start 2P", monospace';
+const PORT_CREDITS_SPEED            = 120;   // px / second
+const PORT_CREDITS_COLOR            = '#ffffff';
+const PORT_CREDITS_HIGHLIGHT_COLOR  = '#00ffff';  // characters inside {…}
+const PORT_CREDITS_LEFT_BOUNDARY    = 10;    // phase ends once the whole text crosses x=10
+const PORT_CREDITS_CURVE_Y          = (x) => 343 - 0.8 * Math.exp(0.0067 * x) * Math.sin(0.05154 * x);
 const ENDING_CREDITS_FONT        = '16px "Press Start 2P", monospace';
 const ENDING_CREDITS_LINE_HEIGHT = 28;
 const CREDITS_BOX_RECT           = { x: 16, y: 295, w: 608, h: 140 };
 const CREDITS_BOX_BG             = 'rgba(0,0,0,0.85)';
 const CREDITS_TEXT_Y             = 296;
-const CREDITS_LEFT_X             = 56;
-const CREDITS_RIGHT_X            = 344;
+const CREDITS_LEFT_X             = 46;
+const CREDITS_RIGHT_X            = 354;
 const CREDITS_TEXT_COLOR         = '#ffffff';
 const CREDITS_CURSOR_SIZE        = 16;
 const CREDITS_SCREEN_HOLD_MS     = 4800;    // pause after each staff screen
@@ -791,7 +798,7 @@ const CREDITS_COPYRIGHT_SCREENS = [
   },
 ];
 
-const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} ———————————————————————— Reverse engineering: {brox} ———————————————————————— Graphics: {brox} ———————————————————————— Code: {brox + free LLMs (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} ———————————————————————— QA: {Gene} ———————————————————————— Non-free LLM provided by: {Gene} ———————————————————————— End Credits music: 'Guinever' ©1981 {Aquarium}";
+const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} •••••••••••••••• Reverse engineering: {brox} •••••••••••••••• Graphics: {brox} •••••••••••••••• Code: {brox + free LLMs (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} •••••••••••••••• QA: {Gene} •••••••••••••••• Non-free LLM provided by: {Gene} •••••••••••••••• End Credits music: 'Guinever' ©1981 {Aquarium}";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser – builds a flat array of command objects
@@ -1256,6 +1263,10 @@ export class EndingDemo {
         charCount: 0,
         lineStartTime: 0,
         screenTypedAt: 0,
+        scroll: 0,          // port-credits scroller offset (px)
+        scrollTs: 0,        // last tick timestamp for the scroller
+        portLayout: null,   // cached PORT_CREDITS measurement
+        endScroll: 0,       // scroll offset at which the text fully crosses x=10
       };
     }
 
@@ -2136,17 +2147,27 @@ export class EndingDemo {
         this.ctx.restore();
       }
       if (progress >= 1) {
-        s.phase = 'princessHold';
+        s.phase = 'princessScroll';
         s.phaseStart = ts;
+        s.scroll = 0;
+        s.scrollTs = ts;
       }
       return;
     }
 
-    // Phase 4: hold the duke & princess image (20 s, no text)
-    if (s.phase === 'princessHold') {
+    // Phase 4: the duke & princess image holds while PORT_CREDITS scrolls
+    // smoothly (sub-pixel) right to left along the curve.  The phase ends only
+    // when the whole text has fully crossed the left boundary (x = 10).
+    if (s.phase === 'princessScroll') {
+      const delta = ts - s.scrollTs;
+      s.scrollTs = ts;
+      s.scroll += (delta * PORT_CREDITS_SPEED) / 1000;
+
       this._clearBlack();
       this.ctx.drawImage(step.princessImage, 0, 0);
-      if (ts - s.phaseStart >= CREDITS_PRINCESS_MS) {
+      this._drawPortCreditsScroll(s);
+
+      if (s.scroll >= s.endScroll) {
         s.phase = 'balconyFade';
         s.phaseStart = ts;
       }
@@ -2329,6 +2350,62 @@ export class EndingDemo {
   _creditsCenteredX(text) {
     const w = this.ctx.measureText(text).width;
     return Math.round((CREDITS_BOX_RECT.x + CREDITS_BOX_RECT.w / 2) - w / 2);
+  }
+
+  // ── Port-credits smooth scroller ──────────────────────────────────────────
+  // Phase 4 scrolls PORT_CREDITS right to left along the curve
+  // y = 343 - 0.8·e^(0.0067x)·sin(0.05154x), one character at a time with a
+  // sub-pixel offset.  The braces {…} are control codes only – they are never
+  // drawn and take no space; characters they enclose are drawn cyan, all
+  // others white.  Monospace widths are measured once per character so x
+  // positions never drift.
+  _buildPortCreditsLayout() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.font = PORT_CREDITS_FONT;
+    const text = PORT_CREDITS;
+    const glyphs = [];
+    let total = 0;
+    let inBraces = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '{') { inBraces = true; continue; }
+      if (ch === '}') { inBraces = false; continue; }
+      const w = ctx.measureText(ch).width;
+      glyphs.push({ ch, w, cyan: inBraces });
+      total += w;
+    }
+    ctx.restore();
+    return { glyphs, total, startX: this.canvas.width };
+  }
+
+  _drawPortCreditsScroll(s) {
+    if (!s.portLayout) {
+      s.portLayout = this._buildPortCreditsLayout();
+      s.endScroll = this.canvas.width + s.portLayout.total - PORT_CREDITS_LEFT_BOUNDARY;
+    }
+    const { glyphs } = s.portLayout;
+    const startX = s.portLayout.startX;
+
+    this.ctx.save();
+    this.ctx.font = PORT_CREDITS_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    let x = startX - s.scroll;   // left edge of the first drawn character
+    for (let i = 0; i < glyphs.length; i++) {
+      const g = glyphs[i];
+      if (x + g.w < 0) { x += g.w; continue; }  // off the left edge (later chars are further right)
+      if (x > this.canvas.width) break;         // past the right edge – the rest is off-screen
+
+      const cy = PORT_CREDITS_CURVE_Y(x);
+      if (cy >= -32 && cy <= this.canvas.height) {
+        this.ctx.fillStyle = g.cyan ? PORT_CREDITS_HIGHLIGHT_COLOR : PORT_CREDITS_COLOR;
+        this.ctx.fillText(g.ch, x, cy);
+      }
+      x += g.w;
+    }
+    this.ctx.restore();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
