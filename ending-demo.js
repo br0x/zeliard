@@ -17,6 +17,30 @@ const PRINCESS_BALCONY_SRC      = 'assets/images/enddemo/princess_balcony.jpg';
 const DUKE_PRINCESS_SRC         = 'assets/images/enddemo/duke_princess.jpg';
 const FIN_SRC                   = 'assets/images/enddemo/fin.jpg';
 const FIN_FIN_SRC               = 'assets/images/enddemo/fin_fin.png';
+const CANGREJO_SRC              = 'assets/images/enddemo/crab.gif';
+const PULPO_SRC                 = 'assets/images/enddemo/tako.gif';
+const POLLO_SRC                 = 'assets/images/enddemo/tori.gif';
+const AGAR_SRC                  = 'assets/images/enddemo/zela.gif';
+const VISTA_SRC                 = 'assets/images/enddemo/meda.gif';
+const TARSO_SRC                 = 'assets/images/enddemo/lega.gif';
+const PAGURO_SRC                = 'assets/images/enddemo/zel2.gif';
+const DRAGON_SRC                = 'assets/images/enddemo/drgn.gif';
+const ALGUIEN_SRC               = 'assets/images/enddemo/akma.gif';
+
+// Serving-monsters credits: maps each monster name (the right-hand column of a
+// serving-monsters row) to its animated gif.
+const MONSTER_IMAGES = {
+  CANGREJO: { key: 'cangrejo', src: CANGREJO_SRC },
+  PULPO:    { key: 'pulpo',    src: PULPO_SRC },
+  POLLO:    { key: 'pollo',    src: POLLO_SRC },
+  AGAR:     { key: 'agar',     src: AGAR_SRC },
+  VISTA:    { key: 'vista',    src: VISTA_SRC },
+  TARSO:    { key: 'tarso',    src: TARSO_SRC },
+  PAGURO:   { key: 'paguro',   src: PAGURO_SRC },
+  DRAGON:   { key: 'dragon',   src: DRAGON_SRC },
+  ALGUIEN:  { key: 'alguien',  src: ALGUIEN_SRC },
+};
+
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
@@ -124,7 +148,7 @@ const END_CREDITS_MUSIC_TRACK  = 'outro/Zeliard-End-Credits';
 // copyright notice is typed.
 const CREDITS_CROSSFADE_MS       = 2000;
 const CREDITS_HORSE_MS           = 50000;   // duke_horse.jpg, STAFF → SOUND EFFECTS
-const CREDITS_BALCONY_MS         = 55000;   // princess_balcony.jpg, SPECIAL THANKS → Absor
+const CREDITS_BALCONY_MS         = 80000;   // hard cap for the balcony credits (normally ends on completion)
 // Phase 4 – the duke & princess image holds while PORT_CREDITS scrolls right to
 // left along a 1990s-demoscene-style curve y = 343 - 0.8·e^(0.0067x)·sin(0.05154x).
 const PORT_CREDITS_FONT             = '24px "Press Start 2P", monospace';
@@ -150,6 +174,23 @@ const CREDITS_SCREEN_HOLD_MS     = 4800;    // pause after each staff screen
 const CREDITS_THANKS_HOLD_MS     = 6500;    // pause after each thanks screen
 const CREDITS_MONSTERS_HOLD_MS   = 1500;    // pause after each serving-monsters screen
 const CREDITS_COPYRIGHT_HOLD_MS  = 3000;    // pause after the copyright text
+// Serving-monsters: the 3 sections on the right side of the princess-balcony
+// screen where each group of 3 monster gifs lands.  Images rise from below the
+// bottom line (clipped at MONSTER_BOTTOM_CLIP_Y), centred on x=543, and stop
+// centred in their target section.
+const MONSTER_COLUMN_X      = 446;
+const MONSTER_COLUMN_W      = 194;
+const MONSTER_CENTER_X      = 543;
+const MONSTER_BOTTOM_CLIP_Y = 279;
+const MONSTER_SECTION_H     = 89;
+const MONSTER_CLEAR_RECT    = { x: 446, y: 12, w: 194, h: 268 };  // images area cleared when the 3 monster lines are cleared
+const MONSTER_SECTIONS = [
+  { y0: 12,   y1: 101 },   // top
+  { y0: 101,  y1: 190 },   // middle
+  { y0: 190,  y1: 279 },   // bottom
+];
+const MONSTER_MOVE_MS       = 2000;  // duration of the vertical rise / fall
+const MONSTER_GROUP_HOLD_MS = 5000;  // pause after each group of 3 monsters lands
 const KING_PRINCESS_FADE_IN_MS = 1000;
 const SPIRIT_CROSSFADE_MS = 1000;
 const DUKE_FADE_IN_MS               = 1000;
@@ -235,6 +276,79 @@ function loadImage(src) {
     image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     image.src = src;
   });
+}
+
+// Decode an animated GIF into all of its frames (ImageBitmap) so the canvas
+// animation is driven by our own timer instead of relying on the browser's GIF
+// frame scheduler (which freezes images that are off-document / off-screen).
+// Falls back to a rendered-but-invisible <img> when ImageDecoder is unavailable.
+async function loadAnimatedImage(src) {
+  if ('ImageDecoder' in window) {
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`HTTP ${response.status} for ${src}`);
+      // ImageDecoder needs a ReadableStream (response.body); a Blob is rejected
+      // by some Chromium builds.
+      const decoder = new ImageDecoder({ data: response.body, type: 'image/gif' });
+      await decoder.tracks.ready;
+      const track = decoder.tracks.selectedTrack;
+      const frames = [];
+      const durations = [];   // ms per frame (100 ms fallback)
+      let width = 0;
+      let height = 0;
+      // decode() yields a VideoFrame (or an ImageBitmap in some browsers).
+      // Chromium recycles VideoFrame buffers across decode() calls, so each
+      // frame is copied into a stable ImageBitmap before the next decode(),
+      // or the retained frames would all show the same content.
+      //
+      // The GIF's frame table can still be growing when tracks.ready resolves
+      // (under concurrent loads track.frameCount may under-report), and
+      // `complete` is unreliable, so decode sequentially until decode() throws
+      // RangeError for an out-of-range index, retrying while the reported
+      // frameCount is still larger than what we have.
+      let i = 0;
+      let retries = 0;
+      while (i < 1000) {
+        let image;
+        try {
+          const { image: img } = await decoder.decode({ frameIndex: i });
+          image = img;
+        } catch (error) {
+          const frameCount = track.frameCount;
+          if (frameCount > frames.length && retries < 50) {
+            retries++;
+            await new Promise((r) => setTimeout(r, 1));
+            continue;
+          }
+          if (error.name !== 'RangeError') {
+            console.warn(`ImageDecoder decode error for ${src} at frame ${i}:`, error);
+          }
+          break;
+        }
+        retries = 0;
+        let frame = image;
+        if (typeof VideoFrame !== 'undefined' && image instanceof VideoFrame) {
+          frame = await createImageBitmap(image);
+          image.close();
+        }
+        frames.push(frame);
+        width = width || frame.width;
+        height = height || frame.height;
+        durations.push((track.frames?.[i]?.duration ?? 100000) / 1000);
+        i++;
+      }
+      decoder.close();
+      return { frames, durations, width, height, mode: 'decoded' };
+    } catch (error) {
+      console.warn(`ImageDecoder failed for ${src}; falling back to <img>.`, error);
+    }
+  }
+  // Fallback: keep the <img> painted (visible, transparent) so the browser
+  // advances its frames; each drawImage() then captures the current frame.
+  const image = await loadImage(src);
+  image.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
+  document.body.appendChild(image);
+  return { image, width: image.naturalWidth, height: image.naturalHeight, mode: 'dom' };
 }
 
 async function loadStoryFont() {
@@ -777,18 +891,30 @@ const CREDITS_THANKS_SCREENS = [
   { rows: ['SERVING MONSTERS'], hold: CREDITS_MONSTERS_HOLD_MS },
   {
     rows: [
-      { left: 'Cavern of Maricia', right: 'CANGREJO' },
+      { left: 'Cavern of Malicia', right: 'CANGREJO' },
       { left: 'Peligro',           right: 'PULPO' },
       { left: 'Riza',              right: 'POLLO' },
     ],
+    monsters: [
+      { name: 'CANGREJO', imageKey: 'cangrejo', section: 0 },
+      { name: 'PULPO',    imageKey: 'pulpo',    section: 1 },
+      { name: 'POLLO',    imageKey: 'pollo',    section: 2 },
+    ],
+    group: 0,
     hold: CREDITS_MONSTERS_HOLD_MS,
   },
   {
     rows: [
-      { left: 'Cavern of Glacial', right: 'AGER' },
+      { left: 'Cavern of Glacial', right: 'AGAR' },
       { left: 'Cementar',          right: 'VISTA' },
       { left: 'Tesoro',            right: 'TARSO' },
     ],
+    monsters: [
+      { name: 'AGAR',   imageKey: 'agar',   section: 0 },
+      { name: 'VISTA',  imageKey: 'vista',  section: 1 },
+      { name: 'TARSO',  imageKey: 'tarso',  section: 2 },
+    ],
+    group: 1,
     hold: CREDITS_MONSTERS_HOLD_MS,
   },
   {
@@ -797,6 +923,12 @@ const CREDITS_THANKS_SCREENS = [
       { left: 'Cavern of Caliente', right: 'DRAGON' },
       { left: 'Absor',              right: 'ALGUIEN' },
     ],
+    monsters: [
+      { name: 'PAGURO',  imageKey: 'paguro',  section: 0 },
+      { name: 'DRAGON',  imageKey: 'dragon',  section: 1 },
+      { name: 'ALGUIEN', imageKey: 'alguien', section: 2 },
+    ],
+    group: 2,
     hold: 0,
   },
 ];
@@ -1086,6 +1218,20 @@ export class EndingDemo {
       loadStoryFont(),
     ]);
 
+    // Load the serving-monsters gifs (right side of the princess-balcony screen)
+    const monsterImages = await Promise.all(
+      Object.values(MONSTER_IMAGES).map((m) =>
+        loadAnimatedImage(m.src).catch((error) => {
+          console.warn(`Failed to load monster image: ${m.src}`, error);
+          return null;
+        }),
+      ),
+    );
+    const monsterImagesObj = {};
+    Object.values(MONSTER_IMAGES).forEach((m, i) => {
+      if (monsterImages[i]) monsterImagesObj[m.key] = monsterImages[i];
+    });
+
     // Load overlay images (lips & eyes) for Duke, Princess and Spirit
     const lipEyePromises = [];
     for (let i = 0; i < 6; i++) {
@@ -1165,6 +1311,7 @@ export class EndingDemo {
       princessBalcony,
       fin,
       finFin,
+      ...monsterImagesObj,
       ...overlays,
     };
   }
@@ -1290,6 +1437,9 @@ export class EndingDemo {
         scrollTs: 0,        // last tick timestamp for the scroller
         portLayout: null,   // cached PORT_CREDITS measurement
         endScroll: 0,       // scroll offset at which the text fully crosses x=10
+        monsters: [],               // serving-monsters rise/fall states
+        currentMonsterGroup: -1,    // group index currently on screen
+        monsterGroupHoldUntil: 0,   // ts until which credits typing is held
       };
     }
 
@@ -2237,13 +2387,21 @@ export class EndingDemo {
       return;
     }
 
-    // Phase 6: type the special-thanks + serving-monsters credits (55 s)
+    // Phase 6: type the special-thanks + serving-monsters credits.  Ends once
+    // every screen is typed AND the final monster group's display hold elapsed
+    // (the fixed-time cap CREDITS_BALCONY_MS only guards against a hang).
     if (s.phase === 'balconyText') {
       this._clearBlack();
       this.ctx.drawImage(step.balconyImage, 0, 0);
       this._drawCreditsTextBox(s, true);
       this._typeCreditsScreen(s, ts);
-      if (ts - s.phaseStart >= CREDITS_BALCONY_MS) {
+      this._updateMonsters(s, ts);
+      this._drawMonsters(s, ts);
+      const lastScreenDone =
+        s.screenIndex >= s.screens.length - 1 && s.screenTypedAt !== 0;
+      const monsterHoldDone =
+        !s.monsterGroupHoldUntil || ts >= s.monsterGroupHoldUntil;
+      if ((lastScreenDone && monsterHoldDone) || ts - s.phaseStart >= CREDITS_BALCONY_MS) {
         s.phase = 'copyright';
         s.phaseStart = ts;
         this._initCreditsState(s, CREDITS_COPYRIGHT_SCREENS);
@@ -2328,6 +2486,20 @@ export class EndingDemo {
     s.charCount = 0;
     s.lineStartTime = 0;
     s.screenTypedAt = 0;
+    this._disposeMonsters(s);
+    s.currentMonsterGroup = -1;
+    s.monsterGroupHoldUntil = 0;
+  }
+
+  // Releases the frame bitmaps of any active monster moves so their GPU memory
+  // is freed (a no-op for the <img> fallback).
+  _disposeMonsters(s) {
+    for (const move of s.monsters || []) {
+      if (move.asset?.mode === 'decoded') {
+        for (const frame of move.asset.frames) frame.close?.();
+      }
+    }
+    s.monsters = [];
   }
 
   // Advances the credits typewriter: types the current row char-by-char, moves
@@ -2335,6 +2507,8 @@ export class EndingDemo {
   // to the next screen.  The last screen stays on screen until the phase ends.
   _typeCreditsScreen(s, ts) {
     if (s.screenIndex >= s.screens.length) return;
+    // Pause the typewriter while a freshly-landed group of monsters is on show
+    if (s.monsterGroupHoldUntil > ts) return;
 
     const screen = s.screens[s.screenIndex];
     const row = screen.rows[s.rowIndex];
@@ -2448,6 +2622,111 @@ export class EndingDemo {
   _creditsCenteredX(text) {
     const w = this.ctx.measureText(text).width;
     return Math.round((CREDITS_BOX_RECT.x + CREDITS_BOX_RECT.w / 2) - w / 2);
+  }
+
+  // ── Serving-monsters animation (princess-balcony credits) ─────────────────
+  // When a serving-monsters row finishes typing, its gif rises from below the
+  // bottom line (clipped at MONSTER_BOTTOM_CLIP_Y) to the centre of its target
+  // section.  Once all 3 monsters of a group have landed, the credits
+  // typewriter is held for MONSTER_GROUP_HOLD_MS; when those 3 text lines are
+  // then cleared (the next screen starts), MONSTER_CLEAR_RECT is cleared at the
+  // same time so the next group is processed fresh.
+  _updateMonsters(s, ts) {
+    if (!s.monsters) s.monsters = [];
+    const screen = s.screens[s.screenIndex];
+
+    // The credits advanced to a new monster group: the 3 monster text lines
+    // were cleared, so clear the images area simultaneously.
+    if (screen && screen.monsters && s.monsters.length && screen.group !== s.currentMonsterGroup) {
+      this._disposeMonsters(s);
+      s.currentMonsterGroup = -1;
+    }
+
+    if (screen && screen.monsters) {
+      for (let r = 0; r < screen.monsters.length; r++) {
+        const rowText = this._creditsRowFull(screen.rows[r]);
+        const rowDone = r < s.rowIndex || (r === s.rowIndex && s.charCount >= rowText.length);
+        if (rowDone) {
+          const started = this._startMonsterMove(s, screen.monsters[r], screen.group, ts);
+          // The group's last monster just started rising: hold the typewriter
+          // while it lands (MONSTER_MOVE_MS) and then stays on show
+          // (MONSTER_GROUP_HOLD_MS), so the next screen can't start mid-flight.
+          if (started && r === screen.monsters.length - 1) {
+            s.monsterGroupHoldUntil = ts + MONSTER_MOVE_MS + MONSTER_GROUP_HOLD_MS;
+          }
+        }
+      }
+    }
+    this._advanceMonsterMoves(s, ts);
+  }
+
+  _startMonsterMove(s, m, group, ts) {
+    if (s.monsters.some((x) => x.name === m.name)) return false;
+    const asset = this.images[m.imageKey];
+    if (!asset) return false;
+    const w = asset.width;
+    const h = asset.height;
+    if (!w || !h) return false;
+
+    s.currentMonsterGroup = group;
+    const section = MONSTER_SECTIONS[m.section];
+    const scale = Math.min(MONSTER_COLUMN_W / w, MONSTER_SECTION_H / h);
+    const drawW = w * scale;
+    const drawH = h * scale;
+    s.monsters.push({
+      name: m.name,
+      group: group,
+      asset: asset,
+      drawW: drawW,
+      drawH: drawH,
+      centerX: MONSTER_CENTER_X,
+      startCenterY: MONSTER_BOTTOM_CLIP_Y + drawH / 2,
+      targetCenterY: (section.y0 + section.y1) / 2,
+      stateStart: ts,
+    });
+    return true;
+  }
+
+  _advanceMonsterMoves(s, ts) {
+    for (const move of s.monsters) {
+      const t = Math.min((ts - move.stateStart) / MONSTER_MOVE_MS, 1);
+      const eased = this._easeOutCubic(t);
+      move.centerY = move.startCenterY + (move.targetCenterY - move.startCenterY) * eased;
+      if (t >= 1) move.arrived = true;
+    }
+  }
+
+  _drawMonsters(s, ts) {
+    if (!s.monsters || !s.monsters.length) return;
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(MONSTER_COLUMN_X, 0, MONSTER_COLUMN_W, MONSTER_BOTTOM_CLIP_Y);
+    this.ctx.clip();
+    for (const move of s.monsters) {
+      const img = move.asset.frames
+        ? this._gifFrame(move.asset, ts - move.stateStart)
+        : move.asset.image;
+      const drawY = move.centerY - move.drawH / 2;
+      this.ctx.drawImage(img, move.centerX - move.drawW / 2, drawY, move.drawW, move.drawH);
+    }
+    this.ctx.restore();
+  }
+
+  // Returns the GIF frame to show after `elapsedMs` of animation (looping).
+  _gifFrame(asset, elapsedMs) {
+    const { frames, durations } = asset;
+    let total = 0;
+    for (const d of durations) total += d;
+    let t = elapsedMs % total;
+    for (let i = 0; i < frames.length; i++) {
+      if (t < durations[i]) return frames[i];
+      t -= durations[i];
+    }
+    return frames[frames.length - 1];
+  }
+
+  _easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
 
   // ── Port-credits smooth scroller ──────────────────────────────────────────
