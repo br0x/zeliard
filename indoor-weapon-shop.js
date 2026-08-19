@@ -242,6 +242,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._dlgQueue            = [];
         this._dlgQueueIndex       = 0;
         this._dlgQueueAdvanceAt   = null;
+        this._repairCompleteTimer = null;
 
         this.fadeInMs  = 650;
         this.fadeOutMs = 450;
@@ -411,6 +412,10 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     _setDialog(text) {
+        if (this._repairCompleteTimer) {
+            clearTimeout(this._repairCompleteTimer);
+            this._repairCompleteTimer = null;
+        }
         const lines = this._wrapText(text);
         if (!lines.length) return;
         this.dlgBuffer          = [];
@@ -876,7 +881,8 @@ export class WeaponShopScene extends IndoorSceneBase {
         // "complete" message.  We replicate the feel with two sequential dialogs.
         this._setDialog("Please wait here, I'll only be a moment.");
         // Chain the completion message after a short delay matching the ASM pause.
-        setTimeout(() => {
+        this._repairCompleteTimer = setTimeout(() => {
+            this._repairCompleteTimer = null;
             this._setDialog('The repairs to your armour are complete. It is now as good as new.');
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
