@@ -2420,7 +2420,7 @@ const SFX_IDS = [
     49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 
     65, 66,
 ];
-const MUSIC_TRACKS = ['mgt1'];
+const MUSIC_TRACKS = ['mgt1', 'encounter'];
 
 const soundManager = new SoundManager({
     workletPath:   'pit-worklet.js',
@@ -6222,6 +6222,10 @@ function draw() {
                     startTime: performance.now(),
                     phase: 'flash',
                 };
+                // Original plays the loaded boss music during the ENCOUNTER flash
+                // (fight.asm boss_place). Play encounter.ogg once; music is stopped
+                // when the boss fight starts (crossfade completion) for silence.
+                soundManager.playMusic('encounter', 0.1, { loop: false });
             }
 
             if (encounterAnim && encounterAnim.phase === 'flash') {
@@ -6294,6 +6298,8 @@ function draw() {
                         writeMemory(ADDR_RENDER_REQUEST, [0xFF]);
                         writeMemory(ADDR_RENDER_DONE, [0]);
                         writeMemory(ADDR_DUNGEON_STATE, [0]); // NORMAL
+                        // encounter.ogg plays once during the flash, then silence for the fight
+                        soundManager.stopMusic(0.1);
                     }
                 }
 
