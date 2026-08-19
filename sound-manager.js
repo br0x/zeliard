@@ -10,7 +10,9 @@
  *      them to the registered WASM / JS game callbacks.
  *   4. Implement sound_drv_poll() and music_drv_poll() to service the
  *      ADDR_SOUND_FX_REQUEST byte that town.c / fight.c write.
- *   5. Expose a simple public API consumed by game.js.
+ *   5. Drive the boss-heartbeat loop (assets/sfx/heartbeat.ogg) whose volume
+ *      tracks ADDR_HEARTBEAT_VOLUME written by update_boss_heartbeat_volume().
+ *   6. Expose a simple public API consumed by game.js.
  *
  * Sound effect triggering (mirrors DOS int 60h fn0 / Adlib SFX):
  *   Game C code writes a byte to ADDR_SOUND_FX_REQUEST (0xFF75).
@@ -81,12 +83,27 @@ export class SoundManager {
         /** @type {AudioBufferSourceNode|null} */
         this._sfxSource = null;
 
+        // Boss heartbeat: a looping playback of assets/sfx/heartbeat.ogg whose
+        // gain tracks ADDR_HEARTBEAT_VOLUME (written by update_boss_heartbeat_volume
+        // in dungeon.c).  The loop runs on its own source (so one-shot SFX never
+        // cut it off) but feeds the shared SFX gain (so mute/volume apply).
+        /** @type {AudioBuffer|null} */
+        this._heartbeatBuffer = null;
+        /** @type {AudioBufferSourceNode|null} */
+        this._heartbeatSource = null;
+        /** @type {GainNode|null} */
+        this._heartbeatGain = null;
+        this._heartbeatVolume = 0;
+
         // Debug counters (updated from worklet heartbeats)
         this.fullTicks = 0;
         this.slowTicks = 0;
 
         // WASM memory address of the sound FX request byte
         this._ADDR_SOUND_FX_REQUEST = 0xFF75;
+
+        // WASM memory address of the boss-heartbeat volume byte (0xFF08)
+        this._ADDR_HEARTBEAT_VOLUME = 0xFF08;
 
         this._ready = false;
     }
@@ -131,6 +148,7 @@ export class SoundManager {
         await Promise.all([
             this._preloadSfx(),
             this._preloadMusic(),
+            this._preloadHeartbeat(),
         ]);
 
         this._ready = true;
@@ -372,6 +390,68 @@ export class SoundManager {
             console.log(`[sound-manager] sfx ${req}`);
             this.playSfx(req);
         }
+
+        this._heartbeatPoll(mem);
+    }
+
+    /**
+     * heartbeat_poll — called every full tick from sound_drv_poll, mirroring
+     * the DOS timer ISR's HeartbeatTick.
+     *
+     * Reads ADDR_HEARTBEAT_VOLUME (0xFF08), which dungeon.c's
+     * update_boss_heartbeat_volume() recomputes every frame from the hero's
+     * distance to the door guarding a living boss.  A non-zero volume keeps a
+     * looping playback of assets/sfx/heartbeat.ogg running at a gain that
+     * scales with the volume (0x06 = faint at the edge of range, 0x0F = loud
+     * right next to the door); a zero volume fades the loop out.
+     *
+     * @param {Uint8Array} mem  WASM linear memory
+     */
+    _heartbeatPoll(mem) {
+        const volume = mem[this._ADDR_HEARTBEAT_VOLUME] || 0;
+        if (volume === this._heartbeatVolume) return;
+        this._heartbeatVolume = volume;
+        this._applyHeartbeatVolume(volume);
+    }
+
+    _applyHeartbeatVolume(volume) {
+        if (!this._ready || !this._heartbeatBuffer) return;
+        const now = this._ctx.currentTime;
+
+        if (volume === 0) {
+            if (this._heartbeatSource) {
+                this._heartbeatGain.gain.cancelScheduledValues(now);
+                this._heartbeatGain.gain.setValueAtTime(this._heartbeatGain.gain.value, now);
+                this._heartbeatGain.gain.setTargetAtTime(0, now, 0.08);
+                const src = this._heartbeatSource;
+                this._heartbeatSource = null;
+                src.stop(now + 0.5);
+            }
+            return;
+        }
+
+        if (!this._heartbeatSource) {
+            const source = this._ctx.createBufferSource();
+            source.buffer = this._heartbeatBuffer;
+            source.loop = true;
+            this._heartbeatGain = this._ctx.createGain();
+            this._heartbeatGain.gain.value = 0;
+            this._heartbeatGain.connect(this._sfxGain);
+            source.connect(this._heartbeatGain);
+            source.onended = () => {
+                if (this._heartbeatSource === source) this._heartbeatSource = null;
+            };
+            source.start();
+            this._heartbeatSource = source;
+        }
+
+        // Range is 0x06..0x0F (from the distance_attenuation table); scale to
+        // 0..1.  The loop feeds the shared SFX gain, so the SFX mute/volume
+        // controls apply on top of this.
+        const target = volume / 15;
+        this._heartbeatGain.gain.cancelScheduledValues(now);
+        this._heartbeatGain.gain.setValueAtTime(this._heartbeatGain.gain.value, now);
+        this._heartbeatGain.gain.setTargetAtTime(target, now, 0.08);
     }
 
     /**
@@ -409,6 +489,10 @@ export class SoundManager {
             await this._loadAudio(this._musicBase, id);
         });
         await Promise.allSettled(promises);
+    }
+
+    async _preloadHeartbeat() {
+        this._heartbeatBuffer = await this._loadAudio(this._sfxBase, 'heartbeat');
     }
 
     /**

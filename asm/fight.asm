@@ -4058,7 +4058,7 @@ get_airflow_direction endp
 
 update_boss_heartbeat_volume proc near
                 mov     ax, ds:tear_x
-                cmp     ax, 0FFFFh
+                cmp     ax, 0FFFFh              ; boss is dead (tear already acquired)
                 je      short distance_big
                 call    is_in_proximity_window  ; Checks if given map X lies within the proximity window (width 36).
                                                 ; Returns CF if outside the window, accounting for world wrap.

@@ -2136,6 +2136,7 @@ const ADDR_UI_ELEMENT_DIRTY        = 0xFF44;
 const ADDR_SWORD_HIT_TYPE          = 0xFF45;
 const ADDR_SWORD_MOVEMENT_PHASE    = 0xFF46;
 const ADDR_SOUND_FX_REQUEST        = 0xFF75;
+const ADDR_HEARTBEAT_VOLUME        = 0xFF08; // boss-heartbeat volume; not part of a saved scene
 // Semaphores for js-wasm communication
 const ADDR_DUNGEON_STATE           = 0xFF90;
 const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
@@ -2901,6 +2902,11 @@ async function startGame() {
             saveState = loadGame();
         }
         loadSaveState(saveState);
+        // ADDR_HEARTBEAT_VOLUME (0xFF08) lives outside the save area, so it
+        // survives a restore with the stale dungeon value and would keep the
+        // boss-heartbeat loop going in town. Clear it here; the dungeon code
+        // (update_boss_heartbeat_volume) recomputes it on the next frame.
+        writeMemory(ADDR_HEARTBEAT_VOLUME, [0]);
         lastTearOverlayCount = -1;
         syncTearOverlay();
         const placeId = saveState[ADDR_PLACE_MAP_ID] & 0x7f;
@@ -6059,6 +6065,12 @@ async function performGameRestore(saveData) {
 
     // Load the save into WASM memory
     loadSaveState(saveData);
+
+    // ADDR_HEARTBEAT_VOLUME (0xFF08) is outside the 0x0000..0x00FF save area,
+    // so a restore keeps whatever stale dungeon value was last written there.
+    // Clear it so the heartbeat loop stops in town; the dungeon code recomputes
+    // it on the next frame.
+    writeMemory(ADDR_HEARTBEAT_VOLUME, [0]);
 
     // Saves made before the rokademo feature have ADDR_TEAR_COUNT stuck at 0
     // while the per-cavern tear flags are set. Derive the real count from the
