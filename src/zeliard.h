@@ -205,6 +205,7 @@ extern "C" {
 #define ADDR_INPUT_DIRS                                0xFF17  // byte ____right_left_down_up
 #define ADDR_F9_F7_F2_F1_KREJSNYQ_Esc_Ctrl_Shift_Enter 0xFF18  // word
 #define ADDR_FRAME_TIMER                               0xFF1A  // byte
+#define ADDR_ANIM_TIMER                                0xFF1B  // word; advanced every PIT tick (mirrors asm/stick.asm:215)
 #define ADDR_SPACEBAR_LATCH                            0xFF1D  // byte
 #define ADDR_ALTKEY_LATCH                              0xFF1E  // byte
 #define ADDR_BYTE_FF24                                 0xFF24

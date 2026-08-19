@@ -175,9 +175,25 @@ void Copy_Hero_Frame_To_VRAM();
 static void Copy_Tile_To_VRAM(uint16_t dest_off, const uint8_t *src);
 static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, uint8_t **bp, uint16_t *dx);
 
+static uint16_t entropy_accum = 0; /* mirrors cs:entropy_accum (asm/stick.asm:1178) */
+
 uint8_t get_random()
 {
-    return rand() & 0xFF;
+    /* Original (asm/stick.asm:1168):
+     *   mov ax, anim_timer
+     *   add al, ah        ; al = (lo + hi) & 0xFF, carry out
+     *   adc ah, 0         ; ah += carry
+     *   add ax, entropy_accum
+     *   mov entropy_accum, ax */
+    uint16_t anim = MEM16(ADDR_ANIM_TIMER);
+    uint8_t al = (uint8_t)anim;
+    uint8_t ah = (uint8_t)(anim >> 8);
+    uint8_t carry = (uint8_t)((al + ah) >> 8);
+    al = (uint8_t)(al + ah);
+    ah = (uint8_t)(ah + carry);
+    uint16_t result = (uint16_t)((((uint16_t)ah << 8) | al) + entropy_accum);
+    entropy_accum = result;
+    return (uint8_t)result;
 }
 
 void Clear_Tile_Buffer(uint8_t *dest)

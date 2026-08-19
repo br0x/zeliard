@@ -2024,7 +2024,12 @@ void wasm_dungeon_update(void)
 
 void wasm_dungeon_full_tick(void)
 {
+    /* Mirror the DOS timer ISR (asm/stick.asm:213-215): frame_timer,
+     * tick_counter and anim_timer all advance once per PIT tick (~236.7 Hz).
+     * anim_timer feeds get_random()'s entropy. */
     MEM8(ADDR_FRAME_TIMER)++;
+    MEM16(ADDR_TICK_COUNTER) = (uint16_t)(MEM16(ADDR_TICK_COUNTER) + 1);
+    MEM16(ADDR_ANIM_TIMER) = (uint16_t)(MEM16(ADDR_ANIM_TIMER) + 1);
 }
 
 uint8_t wasm_dungeon_get_viewport_top(void) { return MEM8(ADDR_VIEWPORT_TOP_ROW); }
