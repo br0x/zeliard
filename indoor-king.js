@@ -35,7 +35,7 @@ const KING_DIALOG_MAX_LINES = 4;
 const KING_GOLD_GIFT_STEPS = 10;
 const KING_GOLD_GIFT_PER_STEP = 100;
 
-const KING_GOLD_GIFT_SFX = 19;
+const KING_GOLD_GIFT_SFX = 67;
 const KING_GOLD_GIFT_LINE = 'I hereby bestow upon you 1000 Golds.';
 
 const KING_DIALOG_SCRIPTS = {
@@ -363,7 +363,7 @@ export class KingScene extends IndoorSceneBase {
         // Update the HUD so the gold counter visibly increases
         if (this.renderGoldHud) this.renderGoldHud();
 
-        this.writeMemory?.(0xFF75, [KING_GOLD_GIFT_SFX]);
+        this.writeMemory?.(0xFF75, [KING_GOLD_GIFT_SFX]); // ADDR_SOUND_FX_REQUEST
         g.stepsDone++;
         g.nextStepAt = now + 100;
     }
@@ -377,7 +377,7 @@ export class KingScene extends IndoorSceneBase {
             this._applyGoldStep(now);
         } else {
             // Animation complete
-            this.writeMemory(0x05, [0xFF]);
+            this.writeMemory(0x05, [0xFF]); // spoke_to_king
             this.king.goldAward = null;
             // Advance to next page (or fade out)
             if (this.king.page < this.king.pages.length - 1) {
