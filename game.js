@@ -2418,9 +2418,9 @@ const SFX_IDS = [
     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 
     33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 
     49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 
-    65, 66,
+    65, 66, 67,
 ];
-const MUSIC_TRACKS = ['mgt1', 'encounter'];
+const MUSIC_TRACKS = ['mgt1', 'encounter', 'tear'];
 
 const soundManager = new SoundManager({
     workletPath:   'pit-worklet.js',
@@ -4478,11 +4478,12 @@ const ROKADEMO_TIMING = {
     sheathPhaseMs: 180,  // per sheathing phase (8,7,6,5)
     sheathPauseMs: 500,
     runoffStepMs:  90,   // per run-off step (13 steps)
+    tearMusicTimeoutMs: 16000, // fail-safe: continue the demo if tear.ogg never finishes
 };
 
 const SWORD_VISIBLE_STATES = new Set([
     'salute', 'sparkleStart', 'sparkleBurst', 'sparkleFlash',
-    'sparkleFly', 'sparkleLand', 'sparkleLandFlash',
+    'sparkleFly', 'sparkleLand', 'sparkleLandFlash', 'tearMusic',
 ]);
 
 function rokademoSwordFrame(type) {
@@ -4722,10 +4723,27 @@ function updateRokademo(d, now) {
             d.animPhase = 9;
             d.sparkleFrame = Math.max(0, 4 - Math.floor(dt / T.landFlashMs));
             if (dt >= 4 * T.landFlashMs) {
-                rokademoSetState(d, 'sheath', now);
+                // The Tear is in place: hold the salute while the Tear theme
+                // plays once; only finish the salute once it has finished.
+                rokademoSetState(d, 'tearMusic', now);
+                d.tearMusicDone = false;
+                if (soundManager?.isReady) {
+                    soundManager.playMusic('tear', 0.1, {
+                        loop: false,
+                        onEnded: () => { d.tearMusicDone = true; },
+                    });
+                } else {
+                    d.tearMusicDone = true;   // audio unavailable: don't stall the demo
+                }
             }
             break;
         }
+        case 'tearMusic':
+            d.animPhase = 9;   // keep saluting while the Tear theme plays
+            if (d.tearMusicDone || dt >= T.tearMusicTimeoutMs) {
+                rokademoSetState(d, 'sheath', now);
+            }
+            break;
         case 'sheath': {
             const i = Math.min(4, Math.floor(dt / T.sheathPhaseMs));
             d.animPhase = 9 - i;   // 9,8,7,6,5
