@@ -15,6 +15,8 @@ const CASTLE_SRC_BASE           = 'assets/images/enddemo/castle.jpg';
 const DUKE_HORSE_SRC            = 'assets/images/enddemo/duke_horse.jpg';
 const PRINCESS_BALCONY_SRC      = 'assets/images/enddemo/princess_balcony.jpg';
 const DUKE_PRINCESS_SRC         = 'assets/images/enddemo/duke_princess.jpg';
+const FIN_SRC                   = 'assets/images/enddemo/fin.jpg';
+const FIN_FIN_SRC               = 'assets/images/enddemo/fin_fin.png';
 // Overlay assets (lips and eyes)
 const DUKE_LIPS_SRC_BASE        = 'assets/images/enddemo/duke_lips_';   // 0..2
 const DUKE_EYES_SRC_BASE        = 'assets/images/enddemo/duke_eyes_';   // 0..5
@@ -133,9 +135,13 @@ const PORT_CREDITS_LEFT_BOUNDARY    = 10;    // phase ends once the whole text c
 const PORT_CREDITS_CURVE_Y          = (x) => 343 - 0.8 * Math.exp(0.0067 * x) * Math.sin(0.05154 * x);
 const ENDING_CREDITS_FONT        = '16px "Press Start 2P", monospace';
 const ENDING_CREDITS_LINE_HEIGHT = 28;
+const FIN_CROSSFADE_MS        = 2000;
+const FIN_IMAGE_POS           = { x: 165, y: 93 };
 const CREDITS_BOX_RECT           = { x: 16, y: 295, w: 608, h: 140 };
 const CREDITS_BOX_BG             = 'rgba(0,0,0,0.85)';
 const CREDITS_TEXT_Y             = 296;
+const CREDITS_COPYRIGHT_TEXT_Y   = 308;
+const CREDITS_COPYRIGHT_LINE_HEIGHT = 25;
 const CREDITS_LEFT_X             = 46;
 const CREDITS_RIGHT_X            = 354;
 const CREDITS_TEXT_COLOR         = '#ffffff';
@@ -352,6 +358,14 @@ function buildTimeline(images) {
       horseImage: images.dukeHorse,
       princessImage: images.dukePrincess,
       balconyImage: images.princessBalcony,
+    },
+    // ── 10. Final screen – fades fin.jpg in behind the copyright notice (which
+    //        stays visible), places fin_fin.png on top and ends the demo ──
+    {
+      type: 'finScene',
+      image: images.fin,
+      finImage: images.finFin,
+      crossfadeMs: FIN_CROSSFADE_MS,
     },
   ];
 }
@@ -792,9 +806,11 @@ const CREDITS_COPYRIGHT_SCREENS = [
     rows: [
       'Copyright (C)1987,1990 GAME ARTS',
       'Copyright (C)1990 Sierra On-Line',
-      'This edition first published 1987 by',
+      'First published 1987 by',
       'GAME ARTS Co.,Ltd./ Tomoyuki Shimada',
     ],
+    textY: CREDITS_COPYRIGHT_TEXT_Y,
+    lineHeight: CREDITS_COPYRIGHT_LINE_HEIGHT,
     hold: 0,
   },
 ];
@@ -1049,6 +1065,8 @@ export class EndingDemo {
       dukeHorse,
       dukePrincess,
       princessBalcony,
+      fin,
+      finFin,
     ] = await Promise.all([
       loadImage(INTRO_PRINCESS_FULL_SRC),
       loadImage(PRINCESS_SRC_BASE),
@@ -1063,6 +1081,8 @@ export class EndingDemo {
       loadImage(DUKE_HORSE_SRC),
       loadImage(DUKE_PRINCESS_SRC),
       loadImage(PRINCESS_BALCONY_SRC),
+      loadImage(FIN_SRC),
+      loadImage(FIN_FIN_SRC),
       loadStoryFont(),
     ]);
 
@@ -1143,6 +1163,8 @@ export class EndingDemo {
       dukeHorse,
       dukePrincess,
       princessBalcony,
+      fin,
+      finFin,
       ...overlays,
     };
   }
@@ -1280,6 +1302,13 @@ export class EndingDemo {
       };
     }
 
+    if (step.type === 'finScene') {
+      return {
+        ...base,
+        phase: 'fade',   // fade → finImage
+      };
+    }
+
     return base;
   }
 
@@ -1313,6 +1342,7 @@ export class EndingDemo {
       case 'farewellScene':         return this._drawFarewellScene(step, s, ts);
       case 'castleScene':           return this._drawCastleScene(step, s, ts);
       case 'creditsScene':          return this._drawCreditsScene(step, s, ts);
+      case 'finScene':              return this._drawFinScene(step, s, ts);
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
       case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
@@ -2221,7 +2251,7 @@ export class EndingDemo {
       return;
     }
 
-    // Phase 7: clear to black and type the copyright notice, then finish
+    // Phase 7: clear to black and type the copyright notice
     this._clearBlack();
     this._drawCreditsTextBox(s, false);
     this._typeCreditsScreen(s, ts);
@@ -2232,6 +2262,63 @@ export class EndingDemo {
     ) {
       this._nextStep();
     }
+  }
+
+  // ── Final screen (finScene) ───────────────────────────────────────────────
+  // Fades fin.jpg in over the black credits screen while the copyright notice
+  // (already typed by the credits scene) stays visible, then places fin_fin.png
+  // on top and ends the demo. This is the true end of the ending-demo
+  _drawFinScene(step, s, ts) {
+    const crossfadeMs = step.crossfadeMs ?? FIN_CROSSFADE_MS;
+
+    // Phase 1: fade fin.jpg in behind the copyright notice
+    if (s.phase === 'fade') {
+      const progress = Math.min((ts - s.startTime) / crossfadeMs, 1);
+      this._clearBlack();
+
+      if (progress > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = progress;
+        this.ctx.drawImage(step.image, 0, 0);
+        this.ctx.restore();
+      }
+
+      // Keep the existing copyright notice on top of the fading image
+      this._drawFinCopyright();
+
+      if (progress >= 1) s.phase = 'finImage';
+      return;
+    }
+
+    // Phase 2: fin_fin.png on top of fin.jpg, then the real end (the final
+    // frame stays on screen – the timeline is exhausted).
+    this._clearBlack();
+    this.ctx.drawImage(step.image, 0, 0);
+    this._drawFinCopyright();
+    if (step.finImage) {
+      this.ctx.drawImage(step.finImage, FIN_IMAGE_POS.x, FIN_IMAGE_POS.y);
+    }
+    this._nextStep();
+  }
+
+  // Draws the existing copyright notice (the same rows typed by the credits
+  // scene's final phase) centered in the credits box so it remains visible over
+  // fin.jpg.
+  _drawFinCopyright() {
+    const screen = CREDITS_COPYRIGHT_SCREENS[0];
+    const rows = screen.rows;
+    const textY = screen.textY ?? CREDITS_TEXT_Y;
+    const lineHeight = screen.lineHeight ?? ENDING_CREDITS_LINE_HEIGHT;
+    this.ctx.save();
+    this.ctx.font = ENDING_CREDITS_FONT;
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+    this.ctx.fillStyle = CREDITS_TEXT_COLOR;
+    for (let i = 0; i < rows.length; i++) {
+      const y = textY + i * lineHeight;
+      this.ctx.fillText(rows[i], this._creditsCenteredX(rows[i]), y);
+    }
+    this.ctx.restore();
   }
 
   _initCreditsState(s, screens) {
@@ -2299,6 +2386,8 @@ export class EndingDemo {
 
     const screen = s.screens[s.screenIndex];
     if (!screen) return;
+    const textY = screen.textY ?? CREDITS_TEXT_Y;
+    const lineHeight = screen.lineHeight ?? ENDING_CREDITS_LINE_HEIGHT;
 
     this.ctx.save();
     this.ctx.font = ENDING_CREDITS_FONT;
@@ -2313,7 +2402,7 @@ export class EndingDemo {
       const visible = r < s.rowIndex ? full.length : s.charCount;
       if (visible <= 0) continue;
 
-      const y = CREDITS_TEXT_Y + r * ENDING_CREDITS_LINE_HEIGHT;
+      const y = textY + r * lineHeight;
       if (isPair) {
         const leftVisible = Math.min(visible, row.left.length);
         if (leftVisible > 0) this.ctx.fillText(row.left.slice(0, leftVisible), CREDITS_LEFT_X, y);
@@ -2330,7 +2419,7 @@ export class EndingDemo {
       const cur = this._currentCreditsRow(s);
       if (cur) {
         const row = cur.row;
-        const y = CREDITS_TEXT_Y + cur.index * ENDING_CREDITS_LINE_HEIGHT;
+        const y = textY + cur.index * lineHeight;
         let cx;
         if (typeof row === 'object') {
           if (s.charCount <= row.left.length) {
