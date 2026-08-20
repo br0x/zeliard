@@ -444,13 +444,13 @@ static void update_projectile(void)
 
     if (!projectile_done) {
         /*
-        cmp byte ptr word_A7C3, 12h
+        cmp byte ptr word_A7C3, 18
         If the projectile reached the left side, switch to its ending anim.
         */
         if ((uint8_t)(projectile_x & 0xFF) < 18) {
             projectile_done = 0xFF;
             projectile_anim = 3;
-            MEM8(ADDR_SOUND_FX_REQUEST) = 50;
+            MEM8(ADDR_SOUND_FX_REQUEST) = 66;
             return;
         }
 
