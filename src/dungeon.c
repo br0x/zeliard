@@ -6181,6 +6181,8 @@ static void init_agua(uint16_t si) {
 // spell, unless we're in a boss cavern and the boss is already reacting to
 // a hit this frame.
 // ---------------------------------------------------------------------------
+static uint8_t g_test_skip_guerra_render = 0; // TEMP test flag (revert)
+
 static void init_guerra(uint16_t si) {
     (void)si; // guerra doesn't use the magic_projectiles array
 
@@ -6205,8 +6207,26 @@ static void init_guerra(uint16_t si) {
     MEM8(ADDR_SOUND_FX_REQUEST) = 25;
     Render_Viewport_Border_Walls_proc();
     MEM8(ADDR_ALTKEY_LATCH) = 0;
-    clear_viewport_buffer();
-    main_update_render();
+    if (!g_test_skip_guerra_render) {
+        clear_viewport_buffer();
+        main_update_render();
+    }
+}
+
+// TEMP test export (revert after use)
+uint8_t wasm_test_guerra(void) {
+    g_test_skip_guerra_render = 1;
+    MEM8(ADDR_CURRENT_MAGIC_SPELL) = 7;
+    MEM8(ADDR_SPELLS_ESPADA + 6) = 1;
+    MEM8(ADDR_BYTE_FF3E) = 0;
+    MEM8(ADDR_ALTKEY_LATCH) = 0xFF;
+    MEM8(ADDR_SPELL_ACTIVE_FLAG) = 0;
+    magic_spell_fire_handler(); // start cast
+    magic_spell_fire_handler(); // 9F2B = 2
+    magic_spell_fire_handler(); // 9F2B = 4 -> fire -> init_guerra
+    uint8_t r = MEM8(ADDR_BYTE_9EED);
+    g_test_skip_guerra_render = 0;
+    return r;
 }
 
 // ---------------------------------------------------------------------------

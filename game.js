@@ -3717,6 +3717,18 @@ function drawDungeonMagicProjectiles() {
     const spellIndex = currentSpell - 1;
     const top = dungeonGetViewportTop?.() ?? 0;
 
+    // The original fires the spell at the very end of a game frame, and only
+    // renders the projectile after the NEXT frame's dispatch has advanced it
+    // (update_active_projectiles_render runs after dispatch_spell_projectile_movement).
+    // Until then the master slot's mp_life_timer is 0, so skip the whole spell
+    // rather than draw it at the spawn position (on top of the hero).
+    // Only the master slot's timer is ever incremented (rascar/agua leave the
+    // other slots' timers at 0 forever), so a per-slot `lifeTimer === 0` check
+    // would wrongly hide those beams/bubbles.
+    const masterXRel = readU16(ADDR_MAGIC_PROJECTILES);
+    const masterLife = (masterXRel & 0xFF00) === 0xFF00 ? 0xFF : readU8(ADDR_MAGIC_PROJECTILES + 4);
+    if (masterLife === 0) return;
+
     for (let outer = 0; outer < 4; outer++) {
         const addr = ADDR_MAGIC_PROJECTILES + outer * MAGIC_PROJECTILE_STRIDE;
         const xRel = readU16(addr);
@@ -3726,10 +3738,6 @@ function drawDungeonMagicProjectiles() {
         const yRel = readU8(addr + 2);
         const mpDir = readU8(addr + 3);
         const animFrame = readU8(addr + 5);
-        // NOTE: no lifeTimer gate here. The original asm renders every active
-        // slot; only slot 0's mp_life_timer is ever incremented for the
-        // multi-slot spells (rascar/agua), so a `lifeTimer === 0` check would
-        // silently skip the other beams/bubbles.
 
         const leftCol = readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
         const mapWidth = readU16(ADDR_MAP_WIDTH);
@@ -6275,11 +6283,11 @@ function draw() {
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 drawDungeonTiles(); // background cavern tiles
                 animateDungeonTiles(); // advance cavern 5–8 tiles once per game tick
+                drawDungeonMagicProjectiles(); // hero magic spell projectiles (blitted into the tile layer in the original)
                 drawDungeonEntities(); // monsters/items, in original row-major order
                 drawDungeonHero(); // hero 3x3 tiles sprite
                 drawDungeonMagiaStones(); // video effect of Magia Stone item
                 drawDungeonProjectiles(); // monsters projectiles
-                drawDungeonMagicProjectiles(); // hero magic spell projectiles
                 drawDungeonSword(); // hero's sword 4x4 tiles sprite
                 drawDungeonNotification(); // notification text boxes (pickup items etc)
                 drawDungeonSign(); // text boxes when reading the signposts
