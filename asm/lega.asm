@@ -189,7 +189,7 @@ loc_A296:
 loc_A29C:
                 call    sub_A644
                 mov     byte ptr ds:soundFX_request, 47
-                cmp     byte ptr boss_x, 2Fh ; '/'
+                cmp     byte ptr boss_x, 47
                 jnb     short loc_A2B5
                 mov     byte_A7BF, 14h
                 mov     byte_A7BD, 0FFh
@@ -544,7 +544,7 @@ loc_A544:
 loc_A553:
                 test    byte_A7C8, 0FFh
                 jnz     short loc_A5C6
-                cmp     byte ptr word_A7C3, 12h
+                cmp     byte ptr word_A7C3, 18
                 jnb     short loc_A571
                 mov     byte_A7C8, 0FFh
                 mov     byte_A7C6, 3
@@ -560,7 +560,7 @@ loc_A571:
                 add     byte ptr word_A7C3, al
                 mov     al, byte_A5D9[bx]
                 add     byte_A7C5, al
-                cmp     byte_A7C7, 10h
+                cmp     byte_A7C7, 16
                 adc     byte_A7C7, 0
                 mov     al, byte_A7C6
                 inc     al
@@ -575,12 +575,12 @@ loc_A59E:
                 mov     byte ptr ds:soundFX_request, 49
 
 loc_A5AD:
-                cmp     byte_A7C7, 0Ch
+                cmp     byte_A7C7, 12
                 jnz     short loc_A5B9
                 mov     byte ptr ds:soundFX_request, 49
 
 loc_A5B9:
-                cmp     byte_A7C7, 0Fh
+                cmp     byte_A7C7, 15
                 jnz     short locret_A5C5
                 mov     byte ptr ds:soundFX_request, 49
 
