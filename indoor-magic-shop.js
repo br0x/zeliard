@@ -17,7 +17,7 @@
  */
 
 import { IndoorSceneBase } from './indoor-base.js';
-import { TypewriterText }  from './ui-menu-dialog.js';
+import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -58,6 +58,14 @@ const SHOP_SUB_TEXT_X  = SHOP_SUB_X + 8;
 const SHOP_SUB_TEXT_Y  = SHOP_SUB_Y + 22;
 const SHOP_DLG_TEXT_X  = SHOP_DLG_X + 14;
 const SHOP_DLG_TEXT_Y  = SHOP_DLG_Y + 22;
+
+// Yes/No confirmation box — small box centred over the (dimmed) sub-menu,
+// mirroring the original show_yes_no_dialog (Draw_Bordered_Rectangle at
+// 2F2Bh,0C19h over the item menu).
+const SHOP_YESNO_W = 170;
+const SHOP_YESNO_H = 110;
+const SHOP_YESNO_X = SHOP_MENU_X + (SHOP_MENU_W - SHOP_YESNO_W) / 2;
+const SHOP_YESNO_Y = SHOP_SUB_Y + (SHOP_SUB_H - SHOP_YESNO_H) / 2;
 
 // ─── Animation ────────────────────────────────────────────────────────────────
 
@@ -211,6 +219,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subKind         = null;  // 'buy' | 'sell' | 'describe'
         this.exitAfterDialog = false;
         this.menuDimmed      = false;
+        this.yesNoDialog     = null;   // YesNoDialog shown during confirm phases
 
         // ── Pending transaction ──────────────────────────────────────────────
         this._pendingItemIdx  = null;   // 0-based item index
@@ -433,8 +442,42 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         return (
             this.shopPhase === 'greeting'    ||
             this.shopPhase === 'dialog'      ||
-            this.shopPhase === 'confirm_buy' ||
-            this.shopPhase === 'confirm_sell'
+            this.shopPhase === 'confirm_buy'
+        );
+    }
+
+    /** True once the current confirm question is fully typed out. */
+    _confirmDialogDone(now) {
+        return (
+            this.typewriter && this.typewriter.isDone(now) &&
+            (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)
+        );
+    }
+
+    /** "No" on a Yes/No confirm → drop back to the main menu. */
+    _confirmDeclined(now) {
+        this.yesNoDialog = null;
+        this._setDialog("Is there something I can do for you?");
+        this.shopPhase       = 'dialog';
+        this.exitAfterDialog = false;
+    }
+
+    _drawYesNoDialog(now, alpha) {
+        if (!this.yesNoDialog || !this._confirmDialogDone(now)) return;
+        this.yesNoDialog.draw(this.ctx, alpha);
+    }
+
+    _newYesNoDialog() {
+        return new YesNoDialog(
+            this.ctx, SHOP_FONT_MENU, SHOP_YESNO_X, SHOP_YESNO_Y,
+            SHOP_YESNO_W, SHOP_YESNO_H, 0, {
+                borderOuter: '#a4f',
+                borderInner: '#609',
+                bg: '#080015',
+                text: '#e3f',
+                selected: '#dbf',
+                cursor: '#f20',
+            }
         );
     }
 
@@ -470,6 +513,9 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             this._drawSubMenu(alpha);
         }
         this._drawDialogBox(now, alpha);
+        if (this.shopPhase === 'confirm_sell') {
+            this._drawYesNoDialog(now, alpha);
+        }
     }
 
     // ── Scene image ────────────────────────────────────────────────────────────
@@ -671,7 +717,9 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
         if (key === 'ArrowUp' || key === 'ArrowDown') {
             const dir = key === 'ArrowUp' ? -1 : 1;
-            if (this.shopPhase === 'menu' && !this.menuDimmed) {
+            if (this.shopPhase === 'confirm_sell') {
+                if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
+            } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
                 this.menuSel = (this.menuSel + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
             } else if (
                 this.shopPhase === 'sub_buy'      ||
@@ -726,7 +774,8 @@ export class WitchcraftShopScene extends IndoorSceneBase {
                 break;
 
             case 'confirm_sell':
-                this._executeSell(now);
+                if (this.yesNoDialog && this.yesNoDialog.isYes) this._executeSell(now);
+                else this._confirmDeclined(now);
                 break;
 
             case 'dialog':
@@ -741,11 +790,11 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     _onCancel(now) {
-        if (this.shopPhase === 'sub_buy'      ||
-            this.shopPhase === 'sub_sell'     ||
-            this.shopPhase === 'sub_describe' ||
-            this.shopPhase === 'confirm_buy'  ||
-            this.shopPhase === 'confirm_sell') {
+        if (this.shopPhase === 'confirm_buy' || this.shopPhase === 'confirm_sell') {
+            this._confirmDeclined(now);
+        } else if (this.shopPhase === 'sub_buy' ||
+                   this.shopPhase === 'sub_sell' ||
+                   this.shopPhase === 'sub_describe') {
             this._setDialog("Is there something I can do for you?");
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
@@ -881,6 +930,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._pendingItemIdx = itemIdx;
         this._pendingPrice   = sellPrice;
 
+        this.yesNoDialog = this._newYesNoDialog();
         this._setDialog(`You'd like to sell a ${name}. I'll give you ${sellPrice} golds for that. Will that be all right?`);
         this.shopPhase = 'confirm_sell';
     }
@@ -888,6 +938,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     _executeSell(now) {
         const itemIdx   = this._pendingItemIdx;
         const sellPrice = this._pendingPrice;
+        this.yesNoDialog = null;
 
         // Find and clear the player's slot for this item
         const itemId1 = itemIdx + 1;

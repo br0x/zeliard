@@ -18,7 +18,7 @@
  */
 
 import { IndoorSceneBase } from './indoor-base.js';
-import { TypewriterText }  from './ui-menu-dialog.js';
+import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const PANEL_W = 672;
@@ -53,6 +53,13 @@ const MENU_TEXT_Y  = MENU_Y + 26;
 const CURSOR_X     = MENU_X + 6;
 const DLG_TEXT_X   = DLG_X  + 14;
 const DLG_TEXT_Y   = DLG_Y  + 22;
+
+// Yes/No confirmation box — small box centred over the (dimmed) menu,
+// mirroring the original show_yes_no_dialog.
+const YESNO_W = 170;
+const YESNO_H = 110;
+const YESNO_X = MENU_X + (MENU_W - YESNO_W) / 2;
+const YESNO_Y = MENU_Y + (MENU_H - YESNO_H) / 2;
 
 // ─── Animation image paths ────────────────────────────────────────────────────
 const WRITING_FRAMES  = [
@@ -184,6 +191,7 @@ export class BankScene extends IndoorSceneBase {
         // 'exiting'     → exit animation plays, then fade out
         this.bankPhase       = 'loading';
         this.menuSel         = 0;
+        this.yesNoDialog     = null;   // YesNoDialog shown during confirm_exchange
 
         // numeric-entry state
         this.numLabels       = DEPOSIT_LABELS;  // which labels to show
@@ -432,9 +440,23 @@ export class BankScene extends IndoorSceneBase {
         if (this._dlgAutoAdvance) return false;
         if (!this._dlgDone(now)) return false;
         return (
-            this.bankPhase === 'dialog'          ||
-            this.bankPhase === 'confirm_exchange'
+            this.bankPhase === 'dialog'
         );
+    }
+
+    /** "No" on the exchange confirm → drop back to the menu. */
+    _confirmDeclined(now) {
+        this.yesNoDialog = null;
+        this._clearDlgArea();
+        this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
+            this.bankPhase = 'menu';
+        });
+        this.bankPhase = 'dialog';
+    }
+
+    _drawYesNoDialog(now, alpha) {
+        if (!this.yesNoDialog || !this._dlgDone(now)) return;
+        this.yesNoDialog.draw(this.ctx, alpha);
     }
 
     _finishDialog(now) {
@@ -513,6 +535,9 @@ export class BankScene extends IndoorSceneBase {
             this._drawNumEntry(now, alpha);
         }
         this._drawDialogBox(now, alpha);
+        if (this.bankPhase === 'confirm_exchange') {
+            this._drawYesNoDialog(now, alpha);
+        }
     }
 
     _tickBankLogic(now) {
@@ -836,25 +861,34 @@ export class BankScene extends IndoorSceneBase {
         // "Our exchange rate is X almas to Y golds. Will that be all right?"
         const msg = `Our exchange rate is ${from} almas to ${to} golds.\nWill that be all right?`;
         this._setDialog(msg);
+        this.yesNoDialog = new YesNoDialog(
+            this.ctx, FONT_MENU, YESNO_X, YESNO_Y, YESNO_W, YESNO_H, 0, {
+                borderOuter: '#008888',
+                borderInner: '#004444',
+                bg: '#000a0a',
+                text: '#aadddd',
+                selected: '#ffff00',
+                cursor: '#ff2200',
+            }
+        );
         this.bankPhase = 'confirm_exchange';
     }
 
     _handleConfirmExchange(key, now) {
-        // Two-button yes/no: Enter/Space = yes, Escape = no.
+        // Skip still-typing dialog first.
         if (this.typewriter && !this.typewriter.isDone(now)) {
             if (key === 'Space' || key === 'Enter') this.typewriter.skip(now);
             return;
         }
+        if (key === 'ArrowUp')   { this.yesNoDialog?.handleArrow(-1); return; }
+        if (key === 'ArrowDown') { this.yesNoDialog?.handleArrow( 1); return; }
         if (key === 'Escape') {
-            this._clearDlgArea();
-            this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
-                this.bankPhase = 'menu';
-            });
-            this.bankPhase = 'dialog';
+            this._confirmDeclined(now);
             return;
         }
         if (key === 'Space' || key === 'Enter') {
-            this._executeExchange(now);
+            if (this.yesNoDialog && this.yesNoDialog.isYes) this._executeExchange(now);
+            else this._confirmDeclined(now);
         }
     }
 
@@ -862,6 +896,7 @@ export class BankScene extends IndoorSceneBase {
         const almas = this._getAlmas();
         const from  = this._almasRateFrom;
         const to    = this._almasRateTo;
+        this.yesNoDialog = null;
 
         // How many full batches can be exchanged?
         const batches = Math.floor(almas / from);

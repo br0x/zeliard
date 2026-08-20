@@ -169,3 +169,92 @@ export class MenuList {
         ctx.fill();
     }
 }
+
+/**
+ * Small "Yes / No" confirmation box drawn on top of a dimmed menu,
+ * mirroring the original's show_yes_no_dialog.  Cursor starts on "Yes";
+ * ArrowUp/ArrowDown toggles the selection, Enter/Space picks it, and the
+ * caller treats Escape as "No".
+ */
+export class YesNoDialog {
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {string} font
+     * @param {number} x  box left edge
+     * @param {number} y  box top edge
+     * @param {number} w  box width
+     * @param {number} h  box height
+     * @param {number} selectedIndex  0 = Yes, 1 = No
+     * @param {object} colors  optional per-scene overrides
+     */
+    constructor(ctx, font, x, y, w, h, selectedIndex = 0, colors = {}) {
+        this.ctx = ctx;
+        this.font = font;
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.selectedIndex = selectedIndex;
+        this.colors = {
+            borderOuter: '#ccc',
+            borderInner: '#888',
+            bg: '#000',
+            text: '#fff',
+            selected: '#ff0',
+            cursor: '#f00',
+            ...colors,
+        };
+    }
+
+    get isYes() { return this.selectedIndex === 0; }
+
+    handleArrow(dir) {
+        this.selectedIndex = Math.max(0, Math.min(1, this.selectedIndex + dir));
+    }
+
+    draw(ctx, alpha = 1) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        ctx.strokeStyle = this.colors.borderOuter;
+        ctx.lineWidth   = 2;
+        ctx.strokeRect(this.x - 2, this.y - 2, this.w + 4, this.h + 4);
+        ctx.strokeStyle = this.colors.borderInner;
+        ctx.lineWidth   = 1;
+        ctx.strokeRect(this.x, this.y, this.w, this.h);
+        ctx.fillStyle = this.colors.bg;
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+
+        const items  = ['Yes', 'No'];
+        const textX  = this.x + 30;
+        const firstY = this.y + 34;
+        const lineH  = 40;
+        ctx.font = this.font;
+        for (let i = 0; i < items.length; i++) {
+            const yi  = firstY + i * lineH;
+            const sel = i === this.selectedIndex;
+            ctx.fillStyle = sel ? this.colors.selected : this.colors.text;
+            ctx.fillText(items[i], textX, yi);
+            if (sel) {
+                ctx.fillStyle = this.colors.cursor;
+                this._triangle(ctx, this.x + 10, yi - 16, 10, 16, false);
+            }
+        }
+        ctx.restore();
+    }
+
+    _triangle(ctx, x, y, w, h, down) {
+        ctx.beginPath();
+        if (down) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x + w / 2, y + h);
+        } else {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h / 2);
+            ctx.lineTo(x, y + h);
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+}

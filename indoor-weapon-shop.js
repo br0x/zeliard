@@ -15,7 +15,7 @@
  */
 
 import { IndoorSceneBase } from './indoor-base.js';
-import { TypewriterText }  from './ui-menu-dialog.js';
+import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -52,6 +52,13 @@ const SHOP_SUB_TEXT_X  = SHOP_SUB_X + 8;
 const SHOP_SUB_TEXT_Y  = SHOP_SUB_Y + 22;
 const SHOP_DLG_TEXT_X  = SHOP_DLG_X + 14;
 const SHOP_DLG_TEXT_Y  = SHOP_DLG_Y + 22;
+
+// Yes/No confirmation box — small box centred over the (dimmed) sub-menu,
+// mirroring the original show_yes_no_dialog.
+const SHOP_YESNO_W = 170;
+const SHOP_YESNO_H = 110;
+const SHOP_YESNO_X = SHOP_MENU_X + (SHOP_MENU_W - SHOP_YESNO_W) / 2;
+const SHOP_YESNO_Y = SHOP_SUB_Y + (SHOP_SUB_H - SHOP_YESNO_H) / 2;
 
 // ─── Animation ────────────────────────────────────────────────────────────────
 const CALM_FRAMES = [
@@ -223,6 +230,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.angryAfterDialog  = false;  // play angry anim when dialog dismisses
         this.menuDimmed    = false;
         this.boughtSomething = false;
+        this.yesNoDialog   = null;   // YesNoDialog shown during confirm phases
 
         // ── Pending transaction ──────────────────────────────────────────────
         this._pendingItemIdx  = null;
@@ -458,12 +466,45 @@ export class WeaponShopScene extends IndoorSceneBase {
     _dlgArrowVisible() {
         if (this._dlgQueue && this._dlgQueueIndex < this._dlgQueue.length) return false;
         return (
-            this.shopPhase === 'greeting'      ||
-            this.shopPhase === 'dialog'        ||
-            this.shopPhase === 'crest_trade'   ||
-            this.shopPhase === 'confirm_repair'||
-            this.shopPhase === 'confirm_buy'   ||
-            this.shopPhase === 'confirm_crest'
+            this.shopPhase === 'greeting'    ||
+            this.shopPhase === 'dialog'      ||
+            this.shopPhase === 'crest_trade'
+        );
+    }
+
+    /** True once the current confirm question is fully typed out. */
+    _confirmDialogDone(now) {
+        return (
+            this.typewriter && this.typewriter.isDone(now) &&
+            (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)
+        );
+    }
+
+    /** "No" on a Yes/No confirm → drop back to the main menu. */
+    _confirmDeclined(now) {
+        this.yesNoDialog = null;
+        this._clearPending();
+        this.shopPhase  = 'menu';
+        this.menuDimmed = false;
+        this._setDialog('Is there something I can do for you, sir?');
+    }
+
+    _drawYesNoDialog(now, alpha) {
+        if (!this.yesNoDialog || !this._confirmDialogDone(now)) return;
+        this.yesNoDialog.draw(this.ctx, alpha);
+    }
+
+    _newYesNoDialog() {
+        return new YesNoDialog(
+            this.ctx, SHOP_FONT_MENU, SHOP_YESNO_X, SHOP_YESNO_Y,
+            SHOP_YESNO_W, SHOP_YESNO_H, 0, {
+                borderOuter: '#cc8800',
+                borderInner: '#664400',
+                bg: '#0a0502',
+                text: '#ddcc88',
+                selected: '#ffee00',
+                cursor: '#ff2200',
+            }
         );
     }
 
@@ -497,6 +538,11 @@ export class WeaponShopScene extends IndoorSceneBase {
             this._drawSubMenu(alpha);
         }
         this._drawDialogBox(now, alpha);
+        if (this.shopPhase === 'confirm_repair' ||
+            this.shopPhase === 'confirm_buy'     ||
+            this.shopPhase === 'confirm_crest') {
+            this._drawYesNoDialog(now, alpha);
+        }
     }
 
     // ── Portrait & animation ──────────────────────────────────────────────────
@@ -687,7 +733,11 @@ export class WeaponShopScene extends IndoorSceneBase {
 
         if (key === 'ArrowUp' || key === 'ArrowDown') {
             const dir = key === 'ArrowUp' ? -1 : 1;
-            if (this.shopPhase === 'menu' && !this.menuDimmed) {
+            if (this.shopPhase === 'confirm_repair' ||
+                this.shopPhase === 'confirm_buy'     ||
+                this.shopPhase === 'confirm_crest') {
+                if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
+            } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
                 this.menuSel = (this.menuSel + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
             } else if (
                 this.shopPhase === 'sub_weapon' ||
@@ -723,7 +773,9 @@ export class WeaponShopScene extends IndoorSceneBase {
             // ─ Crest-of-glory trigger dialog ────────────────────────────────
             case 'crest_trade':
                 this._setDialog("Might I trade you a knight's sword for it?");
-                this.shopPhase = 'confirm_crest';
+                this.shopPhase  = 'confirm_crest';
+                this.menuDimmed = true;
+                this.yesNoDialog = this._newYesNoDialog();
                 break;
 
             // ─ Main menu ────────────────────────────────────────────────────
@@ -743,15 +795,18 @@ export class WeaponShopScene extends IndoorSceneBase {
 
             // ─ Yes/No confirms ───────────────────────────────────────────────
             case 'confirm_repair':
-                this._executeRepair(now);
+                if (this.yesNoDialog && this.yesNoDialog.isYes) this._executeRepair(now);
+                else this._confirmDeclined(now);
                 break;
 
             case 'confirm_buy':
-                this._executeBuy(now);
+                if (this.yesNoDialog && this.yesNoDialog.isYes) this._executeBuy(now);
+                else this._confirmDeclined(now);
                 break;
 
             case 'confirm_crest':
-                this._executeCrestTrade(now);
+                if (this.yesNoDialog && this.yesNoDialog.isYes) this._executeCrestTrade(now);
+                else this._confirmDeclined(now);
                 break;
 
             // ─ Generic dialog (information only) ────────────────────────────
@@ -778,13 +833,15 @@ export class WeaponShopScene extends IndoorSceneBase {
             case 'sub_weapon':
             case 'sub_shield':
             case 'sub_explain':
-            case 'confirm_repair':
-            case 'confirm_buy':
-            case 'confirm_crest':
                 this._clearPending();
                 this.shopPhase  = 'menu';
                 this.menuDimmed = false;
                 this._setDialog('Is there something I can do for you, sir?');
+                break;
+            case 'confirm_repair':
+            case 'confirm_buy':
+            case 'confirm_crest':
+                this._confirmDeclined(now);
                 break;
         }
     }
@@ -855,6 +912,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         // Cost = ceil((maxHP - hp) / 2)  (ASM: shr ax,1; adc ax,0)
         const cost = Math.ceil((maxHP - hp) / 2);
         this._pendingPrice = cost;
+        this.yesNoDialog = this._newYesNoDialog();
         this._setDialog(
             `I'll be glad to repair your shield, sir, for the low price of ${cost} golds. Shall I proceed?`
         );
@@ -863,6 +921,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     _executeRepair(now) {
         const gold = this._getGold();
+        this.yesNoDialog = null;
         if (gold < this._pendingPrice) {
             this._setDialog(
                 "I'm sorry sir, you aren't carrying enough gold. Perhaps after you've visited the bank..."
@@ -972,6 +1031,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
         msg += ' Will that be all right?';
 
+        this.yesNoDialog = this._newYesNoDialog();
         this._setDialog(`Oh, the ${itemName}! ${msg}`);
         this.shopPhase = 'confirm_buy';
     }
@@ -995,6 +1055,7 @@ export class WeaponShopScene extends IndoorSceneBase {
     _executeBuy(now) {
         const gold    = this._getGold();
         const netCost = this._pendingPrice - this._pendingTradeIn;
+        this.yesNoDialog = null;
 
         if (gold < netCost) {
             this._setDialog(
@@ -1092,6 +1153,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     _executeCrestTrade(now) {
         // Permanently mark crest traded; give Knight's Sword; remove from inventory
+        this.yesNoDialog = null;
         const cem1 = this._read(ADDR_CEMENTAR_1, 1)[0];
         this._write(ADDR_CEMENTAR_1, [(cem1 | 0x02) & 0xFF]);
         this._write(ADDR_CREST_OF_GLORY, [0x00]);
