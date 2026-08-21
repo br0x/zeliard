@@ -360,7 +360,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     /** Calculate how many items fit in the sub-menu based on available height. */
     _maxVisibleItems() {
         const availableHeight = SHOP_SUB_H - 22;  // subtract top offset
-        return Math.floor(availableHeight / SHOP_LINE_H_MENU);
+        return Math.floor(availableHeight / SHOP_LINE_H_MENU) + 1;
     }
 
     /** Clamp scroll offset to keep selected item visible. */
