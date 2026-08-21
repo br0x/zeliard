@@ -291,7 +291,7 @@ export class BankScene extends IndoorSceneBase {
         return (hi * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
     }
     _setHeroGold(amount) {
-        const v  = Math.max(0, Math.floor(amount));
+        const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
         this._write(ADDR_GOLD_HI, [hi]);
@@ -306,7 +306,7 @@ export class BankScene extends IndoorSceneBase {
         return (hi * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
     }
     _setBankGold(amount) {
-        const v  = Math.max(0, Math.floor(amount)) & 0xFFFFFF;
+        const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
         this._write(ADDR_BANK_HI, [hi]);
