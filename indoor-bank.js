@@ -141,8 +141,8 @@ const ALMAS_RATES = [
 const ADDR_PLACE_MAP_ID  = 0xC4;   // town id byte (0x81..0x89 = towns 1..9)
 const ADDR_GOLD_HI       = 0x85;   // 24-bit hero gold: hi byte
 const ADDR_GOLD_LO       = 0x86;   // 24-bit hero gold: lo word (2 bytes, LE)
-const ADDR_BANK_HI       = 0x88;   // 16-bit bank gold: hi byte
-const ADDR_BANK_LO       = 0x89;   // 16-bit bank gold: lo byte (word at 0x88)
+const ADDR_BANK_HI       = 0x88;   // 24-bit bank gold: hi byte (bits 16-23)
+const ADDR_BANK_LO       = 0x89;   // 24-bit bank gold: lo word (2 bytes, LE) at 0x89-0x8A
 const ADDR_ALMAS         = 0x8B;   // 16-bit hero almas (word, LE)
 
 // ─── Numeric-entry labels (mirroring the on-screen layout in original) ────────
@@ -299,14 +299,18 @@ export class BankScene extends IndoorSceneBase {
         this.renderGoldHud?.();
     }
 
-    /** Bank gold: 16-bit – hi byte at 0x88, lo byte at 0x89 (LE word) */
+    /** Bank gold: 24-bit – hi byte at 0x88, lo word at 0x89 (LE) */
     _getBankGold() {
-        const b = this._read(ADDR_BANK_HI, 2);
-        return (b[0] & 0xFF) | ((b[1] & 0xFF) << 8);
+        const hi = this._read(ADDR_BANK_HI, 1)[0] & 0xFF;
+        const b  = this._read(ADDR_BANK_LO, 2);
+        return (hi * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
     }
     _setBankGold(amount) {
-        const v = Math.max(0, Math.floor(amount)) & 0xFFFF;
-        this._write(ADDR_BANK_HI, [v & 0xFF, (v >> 8) & 0xFF]);
+        const v  = Math.max(0, Math.floor(amount)) & 0xFFFFFF;
+        const hi = (v >>> 16) & 0xFF;
+        const lo = v & 0xFFFF;
+        this._write(ADDR_BANK_HI, [hi]);
+        this._write(ADDR_BANK_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
     }
 
     /** Hero almas: 16-bit word at 0x8B (LE) */
