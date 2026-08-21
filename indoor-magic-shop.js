@@ -220,6 +220,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.exitAfterDialog = false;
         this.menuDimmed      = false;
         this.yesNoDialog     = null;   // YesNoDialog shown during confirm phases
+        this.subScrollOffset = 0;     // scroll offset for sub-menu items
 
         // ── Pending transaction ──────────────────────────────────────────────
         this._pendingItemIdx  = null;   // 0-based item index
@@ -354,6 +355,31 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._shopItemIndices = bitmaskToItemIndices(this._getMagicBitmask());
         // Items the player is currently carrying
         this._playerItemIds   = this._getPlayerMagicItems();
+    }
+
+    /** Calculate how many items fit in the sub-menu based on available height. */
+    _maxVisibleItems() {
+        const availableHeight = SHOP_SUB_H - 22;  // subtract top offset
+        return Math.floor(availableHeight / SHOP_LINE_H_MENU);
+    }
+
+    /** Clamp scroll offset to keep selected item visible. */
+    _clampScroll() {
+        const maxVis = this._maxVisibleItems();
+        const len = this.subItems.length;
+        if (len <= maxVis) {
+            this.subScrollOffset = 0;
+            return;
+        }
+        if (this.subSel < this.subScrollOffset) {
+            this.subScrollOffset = this.subSel;
+        }
+        if (this.subSel >= this.subScrollOffset + maxVis) {
+            this.subScrollOffset = this.subSel - maxVis + 1;
+        }
+        if (this.subScrollOffset > Math.max(0, len - maxVis)) {
+            this.subScrollOffset = Math.max(0, len - maxVis);
+        }
     }
 
     _getItemPrice(itemIdx) {
@@ -651,9 +677,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         ctx.fillStyle = '#080015';
         ctx.fillRect(SHOP_SUB_X, SHOP_SUB_Y, SHOP_SUB_W, SHOP_SUB_H);
 
+        const maxVis = this._maxVisibleItems();
+        const startIdx = this.subScrollOffset;
+        const endIdx = Math.min(startIdx + maxVis, names.length);
+
         ctx.font = SHOP_FONT_MENU;
-        for (let i = 0; i < names.length; i++) {
-            const yi  = SHOP_SUB_TEXT_Y + i * SHOP_LINE_H_MENU;
+        for (let i = startIdx; i < endIdx; i++) {
+            const yi  = SHOP_SUB_TEXT_Y + (i - startIdx) * SHOP_LINE_H_MENU;
             const sel = (i === this.subSel);
             ctx.fillStyle = sel ? '#dbf' : '#e3f';
             ctx.fillText(names[i], SHOP_SUB_TEXT_X + 16, yi);
@@ -662,6 +692,19 @@ export class WitchcraftShopScene extends IndoorSceneBase {
                 this._triangle(ctx, SHOP_SUB_X + 2, yi - 16, 10, 16, false);
             }
         }
+
+        // Draw scroll indicators
+        if (this.subScrollOffset > 0) {
+            ctx.fillStyle = '#a4f';
+            ctx.font = '14px monospace';
+            ctx.fillText('▲', SHOP_SUB_X + SHOP_SUB_W - 20, SHOP_SUB_TEXT_Y - 10);
+        }
+        if (endIdx < names.length) {
+            ctx.fillStyle = '#a4f';
+            ctx.font = '14px monospace';
+            ctx.fillText('▼', SHOP_SUB_X + SHOP_SUB_W - 20, SHOP_SUB_TEXT_Y + maxVis * SHOP_LINE_H_MENU - 10);
+        }
+
         ctx.restore();
     }
 
@@ -727,7 +770,10 @@ export class WitchcraftShopScene extends IndoorSceneBase {
                 this.shopPhase === 'sub_describe'
             ) {
                 const len = this._subItemNames().length;
-                if (len) this.subSel = (this.subSel + dir + len) % len;
+                if (len) {
+                    this.subSel = (this.subSel + dir + len) % len;
+                    this._clampScroll();
+                }
             }
             return;
         }
@@ -837,6 +883,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
         this.subItems      = [...this._shopItemIndices];
         this.subSel        = 0;
+        this.subScrollOffset = 0;
         this.subKind       = 'buy';
         this.shopPhase     = 'sub_buy';
         this.menuDimmed    = true;
@@ -914,6 +961,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
         this.subItems      = playerCarrying;
         this.subSel        = 0;
+        this.subScrollOffset = 0;
         this.subKind       = 'sell';
         this.shopPhase     = 'sub_sell';
         this.menuDimmed    = true;
@@ -977,6 +1025,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
         this.subItems   = [...this._shopItemIndices];
         this.subSel     = 0;
+        this.subScrollOffset = 0;
         this.subKind    = 'describe';
         this.shopPhase  = 'sub_describe';
         this.menuDimmed = true;
