@@ -3155,7 +3155,7 @@ function parseTownNpcCategory() {
 }
 
 async function loadWasmEngine() {
-    const wasmBridge = await import('./src/zeliard-wasm.js');
+    const wasmBridge = await import('../wasm/zeliard-wasm.js');
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,

@@ -5,11 +5,17 @@ SRCDIR = src
 BUILDDIR = build
 TARGET = $(BUILDDIR)/zeliard.js
 EM_CACHE_DIR = $(CURDIR)/$(BUILDDIR)/.emcache
-SOURCE_MAP_BASE ?= http://localhost:8000/build/
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 
+# Release build by default; `make DEBUG=1` for a debuggable wasm
+# (-O0 + source maps + runtime assertions).
+ifeq ($(DEBUG),1)
+SOURCE_MAP_BASE ?= http://localhost:5173/build/
 CFLAGS = -O0 -Wall -Wextra -g3 -gsource-map --source-map-base "$(SOURCE_MAP_BASE)" -s ASSERTIONS=1 -s SAFE_HEAP=1
+else
+CFLAGS = -O2 -Wall -Wextra
+endif
 
 EMFLAGS = \
   -s WASM=1 \

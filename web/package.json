@@ -1,0 +1,23 @@
+{
+  "name": "zeliard-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "sync:wasm": "mkdir -p public/build && cp ../build/zeliard.wasm public/build/",
+    "predev": "npm run sync:wasm",
+    "dev": "vite",
+    "prebuild": "npm run sync:wasm",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}
