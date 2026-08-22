@@ -245,6 +245,13 @@ Completed so far:
     `initTownFromDungeon`, `handleWarp`) stay in game.js until render/ and the
     asset owners exist. Tested: edge-lock branches (middle/right/left/wrap/
     small-map), full music table + fallbacks, exact boss block byte layout.
+15. ✅ `input/key-router.ts` — the keyboard dispatch chain: `KeyRouter`
+    (F1/F2/F7/F8/F9 shortcuts, then modal → inventory → intro/ending skip →
+    indoor scene → speed-dialog phases → Enter-opens-inventory → polled key
+    state, with preventDefault decisions returned to a thin DOM adapter) and
+    `KeyEdgeLatches` (the Space/Alt edge detector feeding the wasm latches).
+    Tested: every route + guard combination, priority order, consumption
+    propagation, phase-specific speed-dialog keys, latch edges + reset.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions

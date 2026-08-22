@@ -27,6 +27,7 @@ import {
     loadGame,
 } from '../platform/save.js';
 import { keys, setKeyState } from '../input/key-state.js';
+import { KeyRouter, KeyEdgeLatches, PREVENT_DEFAULT_CODES } from '../input/key-router.js';
 import {
     TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
     RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
@@ -460,7 +461,7 @@ function onSlowTick() {
     if (gamePaused) return;
     if (!engineReady) return;
 
-    updateInputLatches();
+    inputLatches.update(keys.Space, keys.Alt);
     inputSetKeys(keys);
 
     if (gameMode === 'dungeon') return;
@@ -497,130 +498,53 @@ function onSlowTick() {
 let lastDirUp = false;
 let lastDirDown = false;
 
+const keyRouter = new KeyRouter({
+    // state
+    modalActive: () => modalManager.isActive,
+    inventoryOpen: () => !!inventoryScreenInstance,
+    introActive: () => openingIntro.active,
+    endingActive: () => endingDemo.active,
+    indoorScene: () => indoorActiveScene,
+    speedDialog: () => speedDialog,
+    engineReady: () => engineReady,
+    gamePaused: () => gamePaused,
+    gameMode: () => gameMode,
+    conversationActive: () => conversation.active,
+
+    // commands
+    toggleMusic,
+    toggleSfx,
+    openRestoreModal,
+    openImportExportModal,
+    startSpeedChange,
+    cancelSpeedChange,
+    finishSpeedChange,
+    speedBeginSelect: () => speedDialog.beginSelect(),
+    setSpeedDigit: (digit) => {
+        writeMemory(ADDR_SPEED_CONST, [10 - digit]);
+        writeMemory(ADDR_SOUND_FX_REQUEST, [1]);
+    },
+    openInventory,
+    setKey: setKeyState,
+    resetInventoryCombo: () => inventoryScreenInstance?.resetDebugCombo(),
+    modalHandleKey: (code, now) => modalManager.handleKey(code, now),
+    inventoryHandleKey: (code, ctrl, shift, repeat) =>
+        inventoryScreenInstance.handleKey(code, ctrl, shift, repeat),
+    introSkipPage: () => openingIntro.skipPage(),
+    endingSkipPage: () => endingDemo.skipPage(),
+});
+
 window.addEventListener('keydown', e => {
-    if (['F1', 'F2', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.code))
-        e.preventDefault();
-    
-    if (e.code === 'F1') {
-        if (!e.repeat) toggleMusic();
-        return;
-    }
-
-    if (e.code === 'F2') {
-        if (!e.repeat) toggleSfx();
-        return;
-    }
-
-    if (e.code === 'F7') {
-        if (!modalManager.isActive && !gamePaused) {
-            openRestoreModal();
-        }
-        return;
-    }
-
-    if (e.code === 'F8') {
-        if (!modalManager.isActive && !gamePaused && engineReady) {
-            openImportExportModal();
-        }
-        return;
-    }
-
-    if (e.code === 'F9' && !e.repeat) {
-        if (!speedDialog.isActive && !modalManager.isActive && !gamePaused && engineReady &&
-            (gameMode === 'town' || gameMode === 'dungeon')) {
-            startSpeedChange();
-        }
-        return;
-    }
-
-    // If a modal is active, route keys to it (translation happens in the manager)
-    if (modalManager.isActive) {
-        if (modalManager.handleKey(e.code, performance.now())) {
-            e.preventDefault();
-        }
-        return;
-    }
-
-    // If inventory screen is open, route keys to it
-    if (inventoryScreenInstance) {
-        if (inventoryScreenInstance.handleKey(e.code, e.ctrlKey, e.shiftKey, e.repeat)) {
-            e.preventDefault();
-        }
-        return;
-    }
-
-    if (openingIntro.active && e.code === 'Space') {
-        openingIntro.skipPage();
-        return;
-    }
-
-    if (endingDemo.active && e.code === 'Space') {
-        endingDemo.skipPage();
-        return;
-    }
-
-    if (indoorActiveScene) {
-        setKeyState(e.code, true);
-
-        if (e.code === 'Space' && !e.repeat) indoorActiveScene.handleInput('Space', e.repeat);
-        else if (e.code === 'Enter' && !e.repeat) indoorActiveScene.handleInput('Enter', e.repeat);
-        else if (e.code === 'Escape' && !e.repeat) indoorActiveScene.handleInput('Escape', e.repeat);
-        else if (e.code === 'ArrowUp') indoorActiveScene.handleInput('ArrowUp', e.repeat);
-        else if (e.code === 'ArrowDown') indoorActiveScene.handleInput('ArrowDown', e.repeat);
-        else if (e.code === 'ArrowLeft') indoorActiveScene.handleInput('ArrowLeft', e.repeat);
-        else if (e.code === 'ArrowRight')                  indoorActiveScene.handleInput('ArrowRight', e.repeat);
-        return;
-    }
-
-    // Route keys to speed change dialog while active
-    if (speedDialog.isActive) {
-        if (speedDialog.currentPhase === 1) {
-            if (e.code === 'Escape') {
-                cancelSpeedChange();
-                e.preventDefault();
-                return;
-            }
-            if (e.code.startsWith('Digit') && e.code.length === 6) {
-                const digit = parseInt(e.code[5], 10);
-                if (digit >= 0 && digit <= 9 && speedDialog.selectDigit(digit)) {
-                    writeMemory(ADDR_SPEED_CONST, [10 - digit]);
-                    writeMemory(ADDR_SOUND_FX_REQUEST, [1]);
-                    e.preventDefault();
-                }
-                return;
-            }
-        } else if (speedDialog.currentPhase === 2) {
-            if (['Space', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-                finishSpeedChange();
-                e.preventDefault();
-            }
-            return;
-        }
-        return;
-    }
-
-    // Open inventory on Enter in town or dungeon (not during conversation)
-    if (e.code === 'Enter' && !e.repeat && engineReady && !modalManager.isActive &&
-        !conversation.active && (gameMode === 'town' || gameMode === 'dungeon')) {
-        openInventory();
-        e.preventDefault();
-        return;
-    }
-
-    setKeyState(e.code, true);
+    if (PREVENT_DEFAULT_CODES.has(e.code)) e.preventDefault();
+    const consumed = keyRouter.keyDown(
+        { code: e.code, repeat: e.repeat, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey },
+        performance.now(),
+    );
+    if (consumed) e.preventDefault();
 });
 
 window.addEventListener('keyup', e => {
-    if (e.code === 'F9' && speedDialog.isActive && speedDialog.currentPhase === 0) {
-        speedDialog.beginSelect();
-    }
-
-    if (inventoryScreenInstance &&
-        (e.code === 'ControlLeft' || e.code === 'ControlRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight')) {
-        inventoryScreenInstance.resetDebugCombo();
-    }
-
-    setKeyState(e.code, false);
+    keyRouter.keyUp({ code: e.code, repeat: e.repeat, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey });
 });
 
 // ─── Intro screen / game start ────────────────────────────────────────────────
@@ -2584,17 +2508,10 @@ async function initTownFromDungeon(townMapId, isDeath) {
 }
 
 // ─── Conversation (NPC dialog) ────────────────────────────────────────────────
-let lastSpace = false;
-let lastAlt = false;
-
-function updateInputLatches() {
-    const currentSpace = keys.Space;
-    const currentAlt = keys.Alt;
-    if (currentSpace && !lastSpace) writeMemory(ADDR_SPACEBAR_LATCH, [1]);
-    if (currentAlt && !lastAlt) writeMemory(ADDR_ALTKEY_LATCH, [1]);
-    lastSpace = currentSpace;
-    lastAlt = currentAlt;
-}
+const inputLatches = new KeyEdgeLatches(
+    () => writeMemory?.(ADDR_SPACEBAR_LATCH, [1]),
+    () => writeMemory?.(ADDR_ALTKEY_LATCH, [1]),
+);
 
 function getNpcConversationRaw(npcId) {
     return readNpcConversationBytes(readMemory, npcId);
@@ -2772,7 +2689,7 @@ function startIndoorScene(destId) {
         soundManager.setSfxVolume(1.0);
         townFinishBuilding?.();
         keys.Space = false;
-        lastSpace = false;
+        inputLatches.reset();
     };
     const context = {
         canvas, ctx, readMemory, writeMemory,
@@ -3395,7 +3312,7 @@ function startEndingDemo() {
     soundManager.setSfxVolume(1.0);
     townFinishBuilding?.();
     keys.Space = false;
-    lastSpace = false;
+    inputLatches.reset();
     uiScreen.classList.add('hidden');
     layoutWrapper.classList.add('hidden');
     endingDemo.start();
