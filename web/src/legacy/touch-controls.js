@@ -4,7 +4,7 @@
 // buttons to the right, and a digit pad for the speed-change dialog. All
 // buttons drive the existing game input by dispatching synthetic keyboard
 // events, so modal / inventory / conversation routing keeps working.
-import { getSpeedChangePhase, getModalInputActive } from './game.js';
+import { getSpeedChangePhase, getModalInputActive } from '../main.js';
 
 const useTouchControls =
     navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches;

@@ -1,5 +1,5 @@
 // save-restore-ui.js – Canvas‑based save/restore dialogs for Zeliard
-import { getSaveSlotNames, saveGameToSlot, loadGameFromSlot } from './game.js';
+import { getSaveSlotNames, saveGameToSlot, loadGameFromSlot } from '../main.js';
 
 // Base class for both save and restore dialogs
 class BaseSaveRestoreDialog {

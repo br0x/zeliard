@@ -149,7 +149,7 @@ regression checklist (see bottom) passing, and a deploy to Pages.
   MDT header pointer fields are seg0-absolute (e.g. `0xC030`), not
   MDT-relative.
 
-### Stage 2 — Decompose `game.js` into engine services (still JS semantics) 🔶 *(in progress)*
+### Stage 2 — Decompose `game.js` into engine services (still JS semantics) ✅ *(completed)*
 
 Extract responsibilities from the 6.6k-line monolith into modules, converting
 each to TS as it's extracted. **Every extraction lands together with its unit
@@ -286,15 +286,18 @@ Completed so far:
     transitions, tick/game-loop dispatch, and scene wiring.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
-- `render/` — canvas setup/scaling plus the town/dungeon drawing functions
-  (largest chunk: `ctx` is shared across ~100 call sites; extract alongside
-  the drawing-code owners)
-- Input event *routing* (modal/inventory/conversation dispatch) → `core/`
-- Conversation system, Rokademo demo, town-transition flow
-- Game loop + boot → `main.ts`
+- ~~`render/` — canvas setup/scaling plus the town/dungeon drawing functions~~ ✅ (items 16–19)
+- ~~Input event *routing* (modal/inventory/conversation dispatch) → `core/`~~ ✅ (item 15)
+- ~~Conversation system, Rokademo demo, town-transition flow~~ ✅ (items 12–14)
+- ~~Game loop + boot → `main.ts`~~ ✅ (item 20)
 
-`game.js` shrinks until it's just `main.ts`.
-- **Exit criteria:** `game.js` deleted; every feature has a single owner module.
+20. ✅ `game.js` → `src/main.ts` — the monolith is gone. main.ts is now only
+    the composition root: tick loops, draw() dispatch, asset loaders,
+    town/dungeon transition orchestrators, save/restore flow, HUD shims, and
+    boot; every feature lives in its own owner module. The file carries
+    `@ts-nocheck` with a Stage 3 TODO — converting its ~2.2k lines to strict
+    TS is exactly Stage 3's remaining-feature-module work.
+- **Exit criteria:** `game.js` deleted; every feature has a single owner module. ✅
 
 ### Stage 3 — Convert remaining feature modules
 Mechanical conversion, largest-last risk ordering:

@@ -1,5 +1,5 @@
 // import-export-ui.js – Canvas‑based Import/Export dialog for Zeliard
-import { getSaveSlotNames } from './game.js';
+import { getSaveSlotNames } from '../main.js';
 
 class ImportExportDialog {
     constructor(onExportSlot, onImportFromFile, onDeleteSlot, onCancel) {

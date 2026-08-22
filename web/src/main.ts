@@ -1,23 +1,24 @@
+// @ts-nocheck -- TODO(Stage 3): remove while converting this file to strict TS
 /**
  * game.js — Zeliard web port, main entry point (refactored).
  *
  * Indoor activities moved to separate modules. A generic menu/dialog
  * system is used by Sage and can be reused by other buildings.
  */
-import { OpeningIntro }  from './opening-intro.js';
-import { EndingDemo }    from './ending-demo.js';
-import { KingScene }     from './indoor-king.js';
-import { PrincessScene } from './indoor-princess.js';
-import { SageScene }     from './indoor-sage.js';
-import { WeaponShopScene } from './indoor-weapon-shop.js';
-import { WitchcraftShopScene } from './indoor-magic-shop.js';
-import { ChurchScene }   from './indoor-church.js';
-import { BankScene }     from './indoor-bank.js';
-import { InnScene }      from './indoor-inn.js';
-import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
-import { ImportExportDialog } from './import-export-ui.js';
-import { InventoryScreen } from './inventory-screen.js';
-import { SoundManager } from '../audio/sound-manager.js';
+import { OpeningIntro }  from './legacy/opening-intro.js';
+import { EndingDemo }    from './legacy/ending-demo.js';
+import { KingScene }     from './legacy/indoor-king.js';
+import { PrincessScene } from './legacy/indoor-princess.js';
+import { SageScene }     from './legacy/indoor-sage.js';
+import { WeaponShopScene } from './legacy/indoor-weapon-shop.js';
+import { WitchcraftShopScene } from './legacy/indoor-magic-shop.js';
+import { ChurchScene }   from './legacy/indoor-church.js';
+import { BankScene }     from './legacy/indoor-bank.js';
+import { InnScene }      from './legacy/indoor-inn.js';
+import { SaveDialog, RestoreDialog } from './legacy/save-restore-ui.js';
+import { ImportExportDialog } from './legacy/import-export-ui.js';
+import { InventoryScreen } from './legacy/inventory-screen.js';
+import { SoundManager } from './audio/sound-manager.js';
 import {
     getSaveSlotNames,
     saveGameToSlot,
@@ -25,12 +26,12 @@ import {
     loadGameFromSlot,
     saveGame,
     loadGame,
-} from '../platform/save.js';
-import { keys, setKeyState } from '../input/key-state.js';
-import { KeyRouter, KeyEdgeLatches, PREVENT_DEFAULT_CODES } from '../input/key-router.js';
-import { drawSheetFrame } from '../render/sheets.js';
-import { getExplosionRingCanvas } from '../render/explosion-ring.js';
-import { setupGameCanvas } from '../render/canvas.js';
+} from './platform/save.js';
+import { keys, setKeyState } from './input/key-state.js';
+import { KeyRouter, KeyEdgeLatches, PREVENT_DEFAULT_CODES } from './input/key-router.js';
+import { drawSheetFrame } from './render/sheets.js';
+import { getExplosionRingCanvas } from './render/explosion-ring.js';
+import { setupGameCanvas } from './render/canvas.js';
 import {
     initTownRenderer,
     parseTownNpcCategory,
@@ -47,7 +48,7 @@ import {
     drawTownTiles,
     drawTownHero,
     drawTownNpcs,
-} from '../render/town.js';
+} from './render/town.js';
 import {
     initDungeonRenderer,
     resolveFullTickWaiters,
@@ -67,12 +68,12 @@ import {
     drawEncounterText,
     drawGuerraOverlay,
     maybeStartGuerraEffect,
-} from '../render/dungeon.js';
+} from './render/dungeon.js';
 import {
     getMagicFrameIndex,
     nextAnimatedTile,
     wrapProximityAddress,
-} from '../render/dungeon-logic.js';
+} from './render/dungeon-logic.js';
 import {
     TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
     RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
@@ -85,7 +86,7 @@ import {
     DUNGEON_SWORD_FRAME_H, DUNGEON_HERO_SHEET_COLS, DUNGEON_SWORD_SHEET_COLS, ANIM_SPEED_TICKS,
     FRAME_LEFT_WALK_BASE, FRAME_FACING_AWAY, FRAME_RIGHT_WALK_BASE, FRAME_LEFT_STAND,
     FRAME_RIGHT_STAND,
-} from '../config/engine.js';
+} from './config/engine.js';
 import {
     DUNGEON_DCHR_SHEET_PATH, DUNGEON_MAGIC_SHEET_PATH, DUNGEON_HERO_SHEET_PATH, DUNGEON_SWORD_SHEET_PATH,
     PATTERN_ASSETS, SWORD_REACH_SMALL, SWORD_REACH_MEDIUM, SWORD_REACH_LARGE,
@@ -98,11 +99,11 @@ import {
     ITEMP_SHIELD_IMAGE_PATHS, ITEMP_MAGIC_IMAGE_PATHS, NPC_SPRITE_PATHS, NPC_FRAME_W,
     NPC_FRAME_H, NPC_FRAMES, LLAMA_TOWN_ID, PROJECTILE_STRUCT_SIZE,
     MAGIC_PROJECTILE_STRIDE,
-} from '../data/assets.js';
+} from './data/assets.js';
 
-import { Hud } from '../ui/hud.js';
-import { ModalManager } from '../ui/modal-manager.js';
-import { SpeedChangeDialog, displayedSpeed } from '../core/speed-change.js';
+import { Hud } from './ui/hud.js';
+import { ModalManager } from './ui/modal-manager.js';
+import { SpeedChangeDialog, displayedSpeed } from './core/speed-change.js';
 import {
     RokaDemo,
     ROKADEMO_CENTER_DX, ROKADEMO_HERO_Y, ROKADEMO_TEAR_CENTER,
@@ -110,17 +111,17 @@ import {
     SWORD_VISIBLE_STATES,
     rokademoSwordFrame, rokademoSlotCenter, rokademoLandCenter,
     DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS,
-} from '../core/roka-demo.js';
-import { ConversationManager, readNpcConversationBytes } from '../core/conversation.js';
-import { parseDialogText as parseDialogTextImpl } from '../core/conversation-text.js';
-import { layoutConversationBox, drawConversationBox } from '../ui/conversation-draw.js';
+} from './core/roka-demo.js';
+import { ConversationManager, readNpcConversationBytes } from './core/conversation.js';
+import { parseDialogText as parseDialogTextImpl } from './core/conversation-text.js';
+import { layoutConversationBox, drawConversationBox } from './ui/conversation-draw.js';
 import {
     computeTownScrollFromAbsoluteX,
     encodeBossState,
     getTownMapWidth,
     resolveMusicTrack,
-} from '../core/transitions.js';
-import { downloadSaveFile, pickSaveFile } from '../platform/save-file.js';
+} from './core/transitions.js';
+import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
 // so save-restore-ui.js / import-export-ui.js keep importing from game.js.
@@ -140,7 +141,7 @@ import {
     ZELA, MEDA, EAI6, LEGA,
     EAI7, DRGN, EAI8, ZEL2,
     AKMA, MAO1, MAO2, DUNGEONS,
-} from '../data/dungeons.js';
+} from './data/dungeons.js';
 
 
 
@@ -175,62 +176,62 @@ import {
     ADDR_PENDING_TRANSITION_FLAG, ADDR_CONVERSATION_ACTIVE, ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID,
     ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL, DUNGEON_STATE_DEATH_FADE,
     DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
-} from '../wasm/memory.js';
+} from './wasm/memory.js';
 
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
 let engineReady  = false;
 let gameStarted  = false;
 
-let initWasm;
-let loadSaveState;
-let loadMdt;
-let getCavernMdtHeader;
-let getCavernName;
-let getTownMdtHeader;
-let getTownName;
-let getMusicTrackId;
-let getTownBackgroundType;
-let getTownPatId;
-let inputSetKeys;
-let getWasmMemory;
-let townInit;
-let townSetReturnBeforeMainLoop;
-let townEntryDisablingEdgeScroll;
-let townUpdate;
-let townFullTick;
-let hasWasmExport;
-let setSpecialTileList;
-let readMemory;
-let writeMemory;
-let getTownPendingTransitionFlag;
-let getTownPendingTransition;
-let townCompleteTransition;
-let townEntryEnablingEdgeScroll;
-let townFinishConversation;
-let townFinishBuilding;
-let initC015ObjIfExists;
-let dungeonInit;
-let dungeonUpdate;
-let dungeonFullTick;
-let dungeonGetViewportTop;
-let dungeonGetEntityTable;
-let dungeonGetEntityCount;
-let setDungeonPassableTiles;
-let setDungeonSlopeTilesLeft;
-let setDungeonSlopeTilesRight;
-let setDungeonAggressiveGround;
-let setDungeonAirflows;
-let setDungeonSwordReach;
-let setDungeonMonsterXp;
-let setDungeonMonsterDamage;
-let setDeathDescriptors;
-let setTrajectories;
-let dungeonGetRenderRequest;
-let dungeonClearRenderRequest;
-let getBossName;
-let dungeonCompleteBossEntry;
-let finishRokademoTransition;
+let initWasm: any;
+let loadSaveState: any;
+let loadMdt: any;
+let getCavernMdtHeader: any;
+let getCavernName: any;
+let getTownMdtHeader: any;
+let getTownName: any;
+let getMusicTrackId: any;
+let getTownBackgroundType: any;
+let getTownPatId: any;
+let inputSetKeys: any;
+let getWasmMemory: any;
+let townInit: any;
+let townSetReturnBeforeMainLoop: any;
+let townEntryDisablingEdgeScroll: any;
+let townUpdate: any;
+let townFullTick: any;
+let hasWasmExport: any;
+let setSpecialTileList: any;
+let readMemory: any;
+let writeMemory: any;
+let getTownPendingTransitionFlag: any;
+let getTownPendingTransition: any;
+let townCompleteTransition: any;
+let townEntryEnablingEdgeScroll: any;
+let townFinishConversation: any;
+let townFinishBuilding: any;
+let initC015ObjIfExists: any;
+let dungeonInit: any;
+let dungeonUpdate: any;
+let dungeonFullTick: any;
+let dungeonGetViewportTop: any;
+let dungeonGetEntityTable: any;
+let dungeonGetEntityCount: any;
+let setDungeonPassableTiles: any;
+let setDungeonSlopeTilesLeft: any;
+let setDungeonSlopeTilesRight: any;
+let setDungeonAggressiveGround: any;
+let setDungeonAirflows: any;
+let setDungeonSwordReach: any;
+let setDungeonMonsterXp: any;
+let setDungeonMonsterDamage: any;
+let setDeathDescriptors: any;
+let setTrajectories: any;
+let dungeonGetRenderRequest: any;
+let dungeonClearRenderRequest: any;
+let getBossName: any;
+let dungeonCompleteBossEntry: any;
+let finishRokademoTransition: any;
 
 let restoreName = null;
 let RENDER_CONFIG;
@@ -880,7 +881,7 @@ async function loadDungeonAssets(rawMapId) {
 }
 
 async function loadWasmEngine() {
-    const wasmBridge = await import('../wasm/bridge.js');
+    const wasmBridge = await import('./wasm/bridge.js');
     ({
         initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
         getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,
