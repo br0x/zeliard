@@ -260,6 +260,14 @@ Completed so far:
     injectable document factory). Tested: resolution/smoothing/error paths,
     source-rect math + bounds guards + scaling, 2bpp decode vs known words,
     opaque-pixel counts, inner/outer color mapping, cache identity.
+17. ✅ `render/dungeon-logic.ts` — pure rules extracted from the dungeon
+    renderer ahead of the wholesale drawing move: `getMagicFrameIndex`
+    (spell → 48px sheet frame mapping), `wrapProximityAddress` (circular
+    proximity-window arithmetic), `nextAnimatedTile` (the four cavern
+    animation rule sets — water/gold/hot/thorns — with rng-injected gold
+    pause). The memory scans and blits stay in game.js for now. Tested:
+    every spell branch, wrap in both directions, all four rule sets incl.
+    chain start/end cells, odd-tick gating, entity-marker exclusion.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions

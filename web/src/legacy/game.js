@@ -32,6 +32,11 @@ import { drawSheetFrame } from '../render/sheets.js';
 import { getExplosionRingCanvas } from '../render/explosion-ring.js';
 import { setupGameCanvas } from '../render/canvas.js';
 import {
+    getMagicFrameIndex,
+    nextAnimatedTile,
+    wrapProximityAddress,
+} from '../render/dungeon-logic.js';
+import {
     TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
     RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
     NOTIFICATION_STRINGS, TOWN_TILE_SHEET_COLS, TOWN_MAP_TILE_OFFSET, TOWN_VIEW_ROWS,
@@ -1247,21 +1252,6 @@ function drawDungeonProjectiles() { // monsters projectiles
 // Magic spell projectile rendering
 // ---------------------------------------------------------------------------
 
-function getMagicFrameIndex(spellIndex, mpDir, animFrame) {
-    if (spellIndex === 0) return animFrame;
-    if (spellIndex === 1 && mpDir) return 3 + animFrame;
-    if (spellIndex === 1) return 6 + animFrame;
-    if (spellIndex === 2 && mpDir && animFrame === 0) return 9;
-    if (spellIndex === 2 && !mpDir && animFrame === 0) return 10;
-    if (spellIndex === 2) return 10 + animFrame;
-    if (spellIndex === 3 && mpDir) return 15 + animFrame;
-    if (spellIndex === 3) return 18 + animFrame;
-    if (spellIndex === 4) return 21;
-    if (spellIndex === 5 && mpDir) return 22 + animFrame;
-    if (spellIndex === 5) return 25 + animFrame;
-    return 0;
-}
-
 function drawDungeonMagicProjectiles() {
     if (!dungeonMagicSheetReady || !readMemory) return;
     const currentSpell = readU8(0x9D);
@@ -1410,11 +1400,6 @@ _tintCanvas.width = DUNGEON_ENTITY_W;
 _tintCanvas.height = DUNGEON_ENTITY_H;
 const _tintCtx = _tintCanvas.getContext('2d');
 
-function wrapProximityAddress(addr) {
-    return ADDR_PROXIMITY_MAP
-        + (((addr - ADDR_PROXIMITY_MAP) % PROX_SIZE) + PROX_SIZE) % PROX_SIZE;
-}
-
 // The original calls the cavern handlers once per Refresh_Dirty_Tiles. Keep
 // animation independent from rAF rendering so a tile advances at most once per
 // game tick, even when the canvas is drawn multiple times.
@@ -1441,58 +1426,8 @@ function animateDungeonTiles() {
         );
         for (let col = 0; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
             const idx = si - ADDR_PROXIMITY_MAP;
-            const tile = proxMap[idx];
-            // Entity markers are not animated. Their background is held in
-            // layer 2 until the game restores it after the entity moves.
-            if (tile & 0x80) continue;
-
-            let nextTile;
-            if (cavernLevel === 5) { // Animate_Water_Cavern5; mpp5.grp: 0x1B↔0x1C - animated water tile
-                if (!oddTick || (tile !== 0x1B && tile !== 0x1C)) continue;
-                nextTile = tile === 0x1B ? 0x1C : 0x1B;
-            } else if (cavernLevel === 6) { // Animate_Gold_Cavern6; mpp6.grp: 0x1D..0x20 (shiny gold) and 0x21↔0x22 (melted gold) animated tiles
-                const phase = tile - 0x1D;
-                if (phase < 0 || phase >= 6) continue;
-                if (phase >= 4) {
-                    nextTile = ((phase + 1) & 1) + 0x21;
-                } else {
-                    // Tile 1D pauses 75% of the time in the original.
-                    if (phase === 0 && (Math.floor(Math.random() * 65536) & 3) !== 0) continue;
-                    nextTile = ((phase + 1) & 3) + 0x1D;
-                }
-            } else if (cavernLevel === 7) { // Animate_Hot_Cavern7; mpp7.grp: 0x2C↔0x2D (jet), 0x0C..0x10, 0x33..0x3D (hot) animated tiles
-                if (!oddTick) continue;
-                if (tile === 0x2C || tile === 0x2D) {
-                    nextTile = tile === 0x2C ? 0x2D : 0x2C;
-                } else {
-                    const starts = {
-                        0x0E: 0x33,
-                        0x0D: 0x36,
-                        0x0F: 0x39,
-                        0x0C: 0x3C,
-                        0x10: 0x3D,
-                    };
-                    if (Object.hasOwn(starts, tile)) {
-                        nextTile = starts[tile];
-                    } else if (tile >= 0x33 && tile < 0x3E) {
-                        const ends = {
-                            0x35: 0x0E,
-                            0x38: 0x0D,
-                            0x3B: 0x0F,
-                            0x3C: 0x0C,
-                            0x3D: 0x10,
-                        };
-                        nextTile = Object.hasOwn(ends, tile) ? ends[tile] : tile + 1;
-                    } else {
-                        continue;
-                    }
-                }
-            } else { // Animate_Thorn_Cavern8; mpp8.grp: 0x25..0x28 (thorns) animated tiles
-                const phase = tile - 0x25;
-                if (!oddTick || phase < 0 || phase >= 4) continue;
-                nextTile = ((phase + 1) & 3) + 0x25;
-            }
-
+            const nextTile = nextAnimatedTile(proxMap[idx], { cavernLevel, oddTick });
+            if (nextTile === null) continue;
             proxMap[idx] = nextTile;
         }
     }
