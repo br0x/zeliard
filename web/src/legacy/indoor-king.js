@@ -1,4 +1,4 @@
-import { IndoorSceneBase } from './indoor-base.js';
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 
 const KING_IMAGE_PATHS = [
     null,

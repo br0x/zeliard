@@ -7,7 +7,7 @@
  * wait near the end of the dialog.
  */
 
-import { IndoorSceneBase } from './indoor-base.js';
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import { TypewriterText } from './ui-menu-dialog.js';
 
 const PANEL_W = 672;

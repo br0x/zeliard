@@ -149,18 +149,36 @@ regression checklist (see bottom) passing, and a deploy to Pages.
   MDT header pointer fields are seg0-absolute (e.g. `0xC030`), not
   MDT-relative.
 
-### Stage 2 — Decompose `game.js` into engine services (still JS semantics)
+### Stage 2 — Decompose `game.js` into engine services (still JS semantics) 🔶 *(in progress)*
+
 Extract responsibilities from the 6.6k-line monolith into modules, converting
 each to TS as it's extracted. **Every extraction lands together with its unit
 tests** (see the table above) — the test is written against the new module's
 public interface, proving the extraction preserved behavior:
-1. `render/` — canvas setup, palettes, blitting, scaling
-2. `input/` — keyboard/touch → InputState bitmask
-3. `audio/` — absorb `sound-manager.js` behind AudioManager
-4. `platform/save.ts` — localStorage slots, file import/export
-5. `core/` — game loop + scene stack; `scenes/*` implement a common
-   `Scene { enter(); update(dt); render(); exit(); }` interface
-   (formalizes what `indoor-base.js` already implies)
+
+Completed so far:
+1. ✅ `platform/save.ts` — base64 codec + localStorage slot storage with
+   injectable `SaveStorage`; `game.js` re-exports so UI modules keep their
+   import paths. Tested: codec round-trip, slot CRUD, 256-byte validation,
+   corrupt-payload handling.
+2. ✅ `audio/sound-manager.ts` — typed conversion of `sound-manager.js`.
+   Tested: worklet message dispatch, SFX request-byte poll semantics
+   (play-and-clear, no re-trigger), heartbeat volume-change detection.
+3. ✅ `input/key-state.ts` — the polled key-latch singleton + `setKeyState`
+   mapping from `e.code`; `game.js` handlers now delegate. Tested: mapping,
+   Alt-left/right aliasing, clearKeys.
+4. ✅ `core/scene.ts` + `core/indoor-scene-base.ts` — formal `Scene`
+   interface and typed fade lifecycle base class; all 8 indoor scenes import
+   the TS base. Tested: fade-in/hold/fade-out math, completion protocol,
+   finish-callback semantics.
+
+Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
+- `render/` — canvas setup/scaling plus the town/dungeon drawing functions
+  (largest chunk: `ctx` is shared across ~100 call sites; extract alongside
+  the drawing-code owners)
+- Input event *routing* (modal/inventory/conversation dispatch) → `core/`
+- Conversation system, Rokademo demo, town-transition flow
+- Game loop + boot → `main.ts`
 
 `game.js` shrinks until it's just `main.ts`.
 - **Exit criteria:** `game.js` deleted; every feature has a single owner module.

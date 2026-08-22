@@ -1,5 +1,5 @@
 /**
- * sound-manager.js
+ * sound-manager.ts
  *
  * Main-thread audio system for the Zeliard web port.
  *
@@ -25,87 +25,111 @@
  * -------------------------------------------------------------------------
  * Asset layout convention
  *   assets/sfx/sfx_{decimal}.{ogg,mp3}    — sound effects keyed by request byte
- *   assets/music/{trackId}.{ogg,mp3}  — background music tracks
+ *   assets/music/{trackId}.{ogg,mp3}      — background music tracks
  *
  *   All assets are tried in the order [ogg, mp3] so you can ship either.
  * -------------------------------------------------------------------------
  */
 
+export interface SoundManagerOptions {
+    /** Path to pit-worklet.js */
+    workletPath?: string;
+    /** e.g. 'assets/sfx/' */
+    sfxBasePath?: string;
+    /** e.g. 'assets/music/' */
+    musicBasePath?: string;
+    /** Request-byte values to pre-load */
+    sfxIds?: number[];
+    /** Track IDs to pre-load */
+    musicTracks?: string[];
+    /** Called every ~236.7 Hz tick */
+    onFullTick?: (() => void) | null;
+    /** Called every ~47.3 Hz tick */
+    onSlowTick?: (() => void) | null;
+    /** Returns Uint8Array of WASM linear memory */
+    getWasmMem?: (() => Uint8Array | null) | null;
+}
+
+export interface PlayMusicOptions {
+    /** Whether the track repeats indefinitely */
+    loop?: boolean;
+    /** Called once after a non-looping track finishes naturally */
+    onEnded?: (() => void) | null;
+}
+
+interface WorkletMessage {
+    type: 'ready' | 'full_tick' | 'slow_tick' | 'counters' | string;
+    full?: number;
+    slow?: number;
+}
+
+// Module-level decoded-audio cache shared across all SoundManager instances
+const _audioBufferCache = new Map<string, AudioBuffer>();
+
 export class SoundManager {
-    /**
-     * @param {object} opts
-     * @param {string}   opts.workletPath    Path to pit-worklet.js
-     * @param {string}   opts.sfxBasePath    e.g. 'assets/sfx/'
-     * @param {string}   opts.musicBasePath  e.g. 'assets/music/'
-     * @param {number[]} opts.sfxIds         Request-byte values to pre-load
-     * @param {string[]} opts.musicTracks    Track IDs to pre-load
-     * @param {Function} opts.onFullTick     Called every ~236.7 Hz tick
-     * @param {Function} opts.onSlowTick     Called every ~47.3 Hz tick
-     * @param {Function} [opts.getWasmMem]   Returns Uint8Array of WASM linear memory
-     */
-    constructor(opts = {}) {
-        this._workletPath   = opts.workletPath   ?? 'pit-worklet.js';
-        this._sfxBase       = opts.sfxBasePath   ?? 'assets/sfx/';
-        this._musicBase     = opts.musicBasePath ?? 'assets/music/';
-        this._sfxIds        = opts.sfxIds        ?? [];
-        this._musicTracks   = opts.musicTracks   ?? [];
-        this._onFullTick    = opts.onFullTick    ?? null;
-        this._onSlowTick    = opts.onSlowTick    ?? null;
-        this._getWasmMem    = opts.getWasmMem    ?? null;
+    private readonly _workletPath: string;
+    private readonly _sfxBase: string;
+    private readonly _musicBase: string;
+    private readonly _sfxIds: number[];
+    private readonly _musicTracks: string[];
 
-        /** @type {AudioContext|null} */
-        this._ctx       = null;
-        /** @type {AudioWorkletNode|null} */
-        this._pitNode   = null;
+    private _onFullTick: (() => void) | null;
+    private _onSlowTick: (() => void) | null;
+    private _getWasmMem: (() => Uint8Array | null) | null;
 
-        // Sound effect cache: requestByte → AudioBuffer
-        /** @type {Map<number, AudioBuffer>} */
-        this._sfxCache  = new Map();
+    private _ctx: AudioContext | null = null;
+    private _pitNode: AudioWorkletNode | null = null;
 
-        // Music state
-        /** @type {AudioBufferSourceNode|null} */
-        this._musicSource   = null;
-        /** @type {GainNode|null} */
-        this._musicGain     = null;
-        this._currentTrack  = null;
-        this._pendingTrack  = null;   // queued during crossfade
-        this._musicMuted    = false;
-        this._musicVolume   = 0.7;
-        this._musicDim      = 1.0;
+    // Sound effect cache: requestByte → AudioBuffer
+    private readonly _sfxCache = new Map<number, AudioBuffer>();
 
-        // SFX gain node (allows fading SFX volume independently)
-        /** @type {GainNode|null} */
-        this._sfxGain = null;
-        this._sfxMuted  = false;
-        this._sfxVolume = 1.0;
+    // Music state
+    private _musicSource: AudioBufferSourceNode | null = null;
+    private _musicGain: GainNode | null = null;
+    private _currentTrack: string | null = null;
+    private _pendingTrack: string | null = null; // queued during crossfade
+    private _musicMuted = false;
+    private readonly _musicVolume = 0.7;
+    private _musicDim = 1.0;
 
-        // Track which SFX is currently playing (only one at a time per original)
-        /** @type {AudioBufferSourceNode|null} */
-        this._sfxSource = null;
+    // SFX gain node (allows fading SFX volume independently)
+    private _sfxGain: GainNode | null = null;
+    private _sfxMuted = false;
+    private _sfxVolume = 1.0;
 
-        // Boss heartbeat: a looping playback of assets/sfx/heartbeat.ogg whose
-        // gain tracks ADDR_HEARTBEAT_VOLUME (written by update_boss_heartbeat_volume
-        // in dungeon.c).  The loop runs on its own source (so one-shot SFX never
-        // cut it off) but feeds the shared SFX gain (so mute/volume apply).
-        /** @type {AudioBuffer|null} */
-        this._heartbeatBuffer = null;
-        /** @type {AudioBufferSourceNode|null} */
-        this._heartbeatSource = null;
-        /** @type {GainNode|null} */
-        this._heartbeatGain = null;
-        this._heartbeatVolume = 0;
+    // Track which SFX is currently playing (only one at a time per original)
+    private _sfxSource: AudioBufferSourceNode | null = null;
 
-        // Debug counters (updated from worklet heartbeats)
-        this.fullTicks = 0;
-        this.slowTicks = 0;
+    // Boss heartbeat: a looping playback of assets/sfx/heartbeat.ogg whose
+    // gain tracks ADDR_HEARTBEAT_VOLUME (written by update_boss_heartbeat_volume
+    // in dungeon.c). The loop runs on its own source (so one-shot SFX never
+    // cut it off) but feeds the shared SFX gain (so mute/volume apply).
+    private _heartbeatBuffer: AudioBuffer | null = null;
+    private _heartbeatSource: AudioBufferSourceNode | null = null;
+    private _heartbeatGain: GainNode | null = null;
+    private _heartbeatVolume = 0;
 
-        // WASM memory address of the sound FX request byte
-        this._ADDR_SOUND_FX_REQUEST = 0xFF75;
+    // Debug counters (updated from worklet heartbeats)
+    fullTicks = 0;
+    slowTicks = 0;
 
-        // WASM memory address of the boss-heartbeat volume byte (0xFF08)
-        this._ADDR_HEARTBEAT_VOLUME = 0xFF08;
+    // WASM memory address of the sound FX request byte
+    private readonly _ADDR_SOUND_FX_REQUEST = 0xff75;
 
-        this._ready = false;
+    // WASM memory address of the boss-heartbeat volume byte (0xFF08)
+    private readonly _ADDR_HEARTBEAT_VOLUME = 0xff08;
+
+    private _ready = false;
+
+    constructor(opts: SoundManagerOptions = {}) {
+        this._workletPath = opts.workletPath ?? 'pit-worklet.js';
+        this._sfxBase = opts.sfxBasePath ?? 'assets/sfx/';
+        this._musicBase = opts.musicBasePath ?? 'assets/music/';
+        this._sfxIds = opts.sfxIds ?? [];
+        this._musicTracks = opts.musicTracks ?? [];
+        this._onFullTick = opts.onFullTick ?? null;
+        this._onSlowTick = opts.onSlowTick ?? null;
+        this._getWasmMem = opts.getWasmMem ?? null;
     }
 
     // =========================================================================
@@ -116,33 +140,34 @@ export class SoundManager {
      * Initialise AudioContext and worklet, pre-load assets.
      * Must be called from a user-gesture handler (click / keydown).
      */
-    async init() {
+    async init(): Promise<void> {
         if (this._ready) return;
 
-        this._ctx = new AudioContext();
+        const ctx = new AudioContext();
+        this._ctx = ctx;
 
         // Unlock context on iOS / Safari (requires a buffered source touch)
-        if (this._ctx.state === 'suspended') {
-            await this._ctx.resume();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
         }
 
         // Register + instantiate the PIT worklet
-        await this._ctx.audioWorklet.addModule(this._workletPath);
-        this._pitNode = new AudioWorkletNode(this._ctx, 'pit-worklet');
-        this._pitNode.connect(this._ctx.destination);
+        await ctx.audioWorklet.addModule(this._workletPath);
+        this._pitNode = new AudioWorkletNode(ctx, 'pit-worklet');
+        this._pitNode.connect(ctx.destination);
 
         // Wire worklet messages → local handlers
-        this._pitNode.port.onmessage = (e) => this._onWorkletMessage(e.data);
+        this._pitNode.port.onmessage = (e) => this._onWorkletMessage(e.data as WorkletMessage);
 
         // Shared GainNode for music so we can crossfade
-        this._musicGain = this._ctx.createGain();
+        this._musicGain = ctx.createGain();
         this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
-        this._musicGain.connect(this._ctx.destination);
+        this._musicGain.connect(ctx.destination);
 
         // Shared GainNode for SFX so we can fade volume independently
-        this._sfxGain = this._ctx.createGain();
+        this._sfxGain = ctx.createGain();
         this._sfxGain.gain.value = 1.0;
-        this._sfxGain.connect(this._ctx.destination);
+        this._sfxGain.connect(ctx.destination);
 
         // Pre-load assets in parallel (non-blocking — missing files are warned)
         await Promise.all([
@@ -155,18 +180,18 @@ export class SoundManager {
     }
 
     /** Start firing PIT ticks. */
-    start() {
+    start(): void {
         this._assertReady('start');
-        this._pitNode.port.postMessage({ type: 'start' });
+        this._pitNode!.port.postMessage({ type: 'start' });
     }
 
     /** Pause PIT ticks (phase is preserved). */
-    stop() {
+    stop(): void {
         this._pitNode?.port.postMessage({ type: 'stop' });
     }
 
     /** Stop + reset all counters (use when returning to title screen). */
-    reset() {
+    reset(): void {
         this._pitNode?.port.postMessage({ type: 'reset' });
         this.fullTicks = 0;
         this.slowTicks = 0;
@@ -176,29 +201,26 @@ export class SoundManager {
      * Play a music track by ID.
      * If a track is already playing, crossfades over `fadeDuration` seconds.
      *
-     * @param {string} trackId    e.g. 'mgt1', 'ugm2', 'outro/Guinever (Aquarium 1981)'
-     * @param {number} [fadeDuration=1.5]
-     * @param {object} [options={}]
-     * @param {boolean} [options.loop=true]   Whether the track repeats indefinitely
-     * @param {Function} [options.onEnded]    Called once after a non-looping track
-     *                                        finishes naturally (fired only while this
-     *                                        track is still the active one)
+     * @param trackId       e.g. 'mgt1', 'ugm2', 'outro/Guinever (Aquarium 1981)'
+     * @param fadeDuration
+     * @param options
      */
-    async playMusic(trackId, fadeDuration = 1.5, { loop = true, onEnded = null } = {}) {
+    async playMusic(trackId: string, fadeDuration = 1.5, { loop = true, onEnded = null }: PlayMusicOptions = {}): Promise<void> {
         if (!this._ready || trackId === this._currentTrack) return;
+        const ctx = this._ctx!;
 
         const buffer = await this._loadAudio(this._musicBase, trackId);
         if (!buffer) return;
 
-        const now = this._ctx.currentTime;
+        const now = ctx.currentTime;
 
         // Fade out current track
         if (this._musicSource) {
             const oldSource = this._musicSource;
-            const oldGain   = this._ctx.createGain();
-            oldGain.gain.setValueAtTime(this._musicGain.gain.value, now);
+            const oldGain = ctx.createGain();
+            oldGain.gain.setValueAtTime(this._musicGain!.gain.value, now);
             oldGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
-            oldGain.connect(this._ctx.destination);
+            oldGain.connect(ctx.destination);
             oldSource.disconnect();
             oldSource.connect(oldGain);
             oldSource.stop(now + fadeDuration + 0.1);
@@ -206,14 +228,14 @@ export class SoundManager {
         }
 
         // Fade in new track
-        const source = this._ctx.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = buffer;
-        source.loop   = loop;
-        source.connect(this._musicGain);
+        source.loop = loop;
+        source.connect(this._musicGain!);
 
         const targetGain = this._musicMuted ? 0 : this._musicVolume * this._musicDim;
-        this._musicGain.gain.setValueAtTime(0, now);
-        this._musicGain.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
+        this._musicGain!.gain.setValueAtTime(0, now);
+        this._musicGain!.gain.linearRampToValueAtTime(targetGain, now + fadeDuration);
 
         // When a non-looping track finishes, release the music slot and hand
         // off to the caller (e.g. the ending demo starts the credits track).
@@ -231,22 +253,22 @@ export class SoundManager {
     }
 
     /** Stop music immediately (or with optional fade). */
-    stopMusic(fadeDuration = 0.5) {
+    stopMusic(fadeDuration = 0.5): void {
         if (!this._musicSource) return;
-        const now = this._ctx.currentTime;
-        this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
-        this._musicGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+        const now = this._ctx!.currentTime;
+        this._musicGain!.gain.setValueAtTime(this._musicGain!.gain.value, now);
+        this._musicGain!.gain.linearRampToValueAtTime(0, now + fadeDuration);
         this._musicSource.stop(now + fadeDuration + 0.05);
         this._musicSource = null;
         this._currentTrack = null;
     }
 
     /** Mute/unmute music without stopping the current track. */
-    setMusicMuted(muted, fadeDuration = 0.25) {
+    setMusicMuted(muted: boolean, fadeDuration = 0.25): void {
         this._musicMuted = muted;
         if (!this._ready || !this._musicGain) return;
 
-        const now = this._ctx.currentTime;
+        const now = this._ctx!.currentTime;
         const targetGain = muted ? 0 : this._musicVolume * this._musicDim;
         this._musicGain.gain.cancelScheduledValues(now);
         this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
@@ -254,11 +276,11 @@ export class SoundManager {
     }
 
     /** Dim/restore music volume (e.g. when entering/leaving a building). */
-    setMusicDim(dim, fadeDuration = 0.25) {
+    setMusicDim(dim: number, fadeDuration = 0.25): void {
         this._musicDim = dim;
         if (!this._ready || !this._musicGain) return;
 
-        const now = this._ctx.currentTime;
+        const now = this._ctx!.currentTime;
         const targetGain = this._musicMuted ? 0 : this._musicVolume * dim;
         this._musicGain.gain.cancelScheduledValues(now);
         this._musicGain.gain.setValueAtTime(this._musicGain.gain.value, now);
@@ -266,11 +288,11 @@ export class SoundManager {
     }
 
     /** Mute/unmute sound effects. */
-    setSfxMuted(muted, fadeDuration = 0.25) {
+    setSfxMuted(muted: boolean, fadeDuration = 0.25): void {
         this._sfxMuted = muted;
         if (!this._ready || !this._sfxGain) return;
 
-        const now = this._ctx.currentTime;
+        const now = this._ctx!.currentTime;
         const targetGain = muted ? 0 : this._sfxVolume;
         this._sfxGain.gain.cancelScheduledValues(now);
         this._sfxGain.gain.setValueAtTime(this._sfxGain.gain.value, now);
@@ -278,11 +300,11 @@ export class SoundManager {
     }
 
     /** Set SFX volume (1.0 = full, 0.0 = silent). */
-    setSfxVolume(volume, fadeDuration = 0.25) {
+    setSfxVolume(volume: number, fadeDuration = 0.25): void {
         this._sfxVolume = volume;
         if (!this._ready || !this._sfxGain) return;
 
-        const now = this._ctx.currentTime;
+        const now = this._ctx!.currentTime;
         const targetGain = this._sfxMuted ? 0 : volume;
         this._sfxGain.gain.cancelScheduledValues(now);
         this._sfxGain.gain.setValueAtTime(this._sfxGain.gain.value, now);
@@ -293,14 +315,14 @@ export class SoundManager {
      * Trigger a sound effect by its request-byte value.
      * Mirrors the Adlib SFX call triggered when C code sets ADDR_SOUND_FX_REQUEST.
      *
-     * @param {number} sfxId   1–65  (0 = silence / no-op)
+     * @param sfxId 1–65 (0 = silence / no-op)
      */
-    playSfx(sfxId) {
+    playSfx(sfxId: number): void {
         if (!this._ready || sfxId === 0) return;
         const buffer = this._sfxCache.get(sfxId);
         if (!buffer) {
             // Not pre-loaded — attempt dynamic load (fire and forget)
-            this._loadAudio(this._sfxBase, `sfx_${sfxId.toString(10).padStart(2, '0')}`).then(buf => {
+            this._loadAudio(this._sfxBase, sfxFileName(sfxId)).then((buf) => {
                 if (buf) {
                     this._sfxCache.set(sfxId, buf);
                     this._playBuffer(buf);
@@ -315,7 +337,7 @@ export class SoundManager {
      * Allow the game to register/replace tick callbacks after construction.
      * Useful if WASM isn't loaded until after SoundManager.init().
      */
-    setTickCallbacks(onFullTick, onSlowTick) {
+    setTickCallbacks(onFullTick: (() => void) | null, onSlowTick: (() => void) | null): void {
         this._onFullTick = onFullTick;
         this._onSlowTick = onSlowTick;
     }
@@ -323,29 +345,30 @@ export class SoundManager {
     /**
      * Wire up the WASM memory accessor so sound_drv_poll can read
      * ADDR_SOUND_FX_REQUEST directly from WASM linear memory.
-     * @param {Function} getWasmMem  () => Uint8Array
      */
-    setWasmMemAccessor(getWasmMem) {
+    setWasmMemAccessor(getWasmMem: () => Uint8Array | null): void {
         this._getWasmMem = getWasmMem;
     }
 
     /**
      * Change the PIT reload divisor at runtime.
      * Original: timer reprogrammed for specific boss fights / attract mode.
-     * @param {number} reload  16-bit divisor (0 = 65536)
+     * @param reload 16-bit divisor (0 = 65536)
      */
-    setPitReload(reload) {
+    setPitReload(reload: number): void {
         this._pitNode?.port.postMessage({ type: 'set_reload', value: reload });
     }
 
     /** True after init() resolves successfully. */
-    get isReady() { return this._ready; }
+    get isReady(): boolean {
+        return this._ready;
+    }
 
     // =========================================================================
     // Internal — worklet message handler
     // =========================================================================
 
-    _onWorkletMessage(msg) {
+    _onWorkletMessage(msg: WorkletMessage): void {
         switch (msg.type) {
             case 'ready':
                 // Worklet processor is alive — nothing to do here
@@ -362,8 +385,8 @@ export class SoundManager {
                 break;
 
             case 'counters':
-                this.fullTicks = msg.full;
-                this.slowTicks = msg.slow;
+                this.fullTicks = msg.full ?? 0;
+                this.slowTicks = msg.slow ?? 0;
                 break;
         }
     }
@@ -379,7 +402,7 @@ export class SoundManager {
      * triggers the corresponding sound clip, then clears the request byte.
      * This exactly mirrors the DOS timer ISR calling sound_drv_poll_farproc.
      */
-    _soundDrvPoll() {
+    _soundDrvPoll(): void {
         if (!this._getWasmMem) return;
         const mem = this._getWasmMem();
         if (!mem) return;
@@ -400,29 +423,28 @@ export class SoundManager {
      *
      * Reads ADDR_HEARTBEAT_VOLUME (0xFF08), which dungeon.c's
      * update_boss_heartbeat_volume() recomputes every frame from the hero's
-     * distance to the door guarding a living boss.  A non-zero volume keeps a
+     * distance to the door guarding a living boss. A non-zero volume keeps a
      * looping playback of assets/sfx/heartbeat.ogg running at a gain that
      * scales with the volume (0x06 = faint at the edge of range, 0x0F = loud
      * right next to the door); a zero volume fades the loop out.
-     *
-     * @param {Uint8Array} mem  WASM linear memory
      */
-    _heartbeatPoll(mem) {
+    _heartbeatPoll(mem: Uint8Array): void {
         const volume = mem[this._ADDR_HEARTBEAT_VOLUME] || 0;
         if (volume === this._heartbeatVolume) return;
         this._heartbeatVolume = volume;
         this._applyHeartbeatVolume(volume);
     }
 
-    _applyHeartbeatVolume(volume) {
+    _applyHeartbeatVolume(volume: number): void {
         if (!this._ready || !this._heartbeatBuffer) return;
-        const now = this._ctx.currentTime;
+        const ctx = this._ctx!;
+        const now = ctx.currentTime;
 
         if (volume === 0) {
             if (this._heartbeatSource) {
-                this._heartbeatGain.gain.cancelScheduledValues(now);
-                this._heartbeatGain.gain.setValueAtTime(this._heartbeatGain.gain.value, now);
-                this._heartbeatGain.gain.setTargetAtTime(0, now, 0.08);
+                this._heartbeatGain!.gain.cancelScheduledValues(now);
+                this._heartbeatGain!.gain.setValueAtTime(this._heartbeatGain!.gain.value, now);
+                this._heartbeatGain!.gain.setTargetAtTime(0, now, 0.08);
                 const src = this._heartbeatSource;
                 this._heartbeatSource = null;
                 src.stop(now + 0.5);
@@ -431,12 +453,12 @@ export class SoundManager {
         }
 
         if (!this._heartbeatSource) {
-            const source = this._ctx.createBufferSource();
+            const source = ctx.createBufferSource();
             source.buffer = this._heartbeatBuffer;
             source.loop = true;
-            this._heartbeatGain = this._ctx.createGain();
+            this._heartbeatGain = ctx.createGain();
             this._heartbeatGain.gain.value = 0;
-            this._heartbeatGain.connect(this._sfxGain);
+            this._heartbeatGain.connect(this._sfxGain!);
             source.connect(this._heartbeatGain);
             source.onended = () => {
                 if (this._heartbeatSource === source) this._heartbeatSource = null;
@@ -446,12 +468,12 @@ export class SoundManager {
         }
 
         // Range is 0x06..0x0F (from the distance_attenuation table); scale to
-        // 0..1.  The loop feeds the shared SFX gain, so the SFX mute/volume
+        // 0..1. The loop feeds the shared SFX gain, so the SFX mute/volume
         // controls apply on top of this.
         const target = volume / 15;
-        this._heartbeatGain.gain.cancelScheduledValues(now);
-        this._heartbeatGain.gain.setValueAtTime(this._heartbeatGain.gain.value, now);
-        this._heartbeatGain.gain.setTargetAtTime(target, now, 0.08);
+        this._heartbeatGain!.gain.cancelScheduledValues(now);
+        this._heartbeatGain!.gain.setValueAtTime(this._heartbeatGain!.gain.value, now);
+        this._heartbeatGain!.gain.setTargetAtTime(target, now, 0.08);
     }
 
     /**
@@ -461,7 +483,7 @@ export class SoundManager {
      * In our port, music is streamed audio — we just flush any pending
      * track-change requests that were queued during a previous slow_tick.
      */
-    _musicDrvPoll() {
+    _musicDrvPoll(): void {
         if (this._pendingTrack && this._pendingTrack !== this._currentTrack) {
             const track = this._pendingTrack;
             this._pendingTrack = null;
@@ -473,16 +495,15 @@ export class SoundManager {
     // Internal — asset loading
     // =========================================================================
 
-    async _preloadSfx() {
+    async _preloadSfx(): Promise<void> {
         const promises = this._sfxIds.map(async (id) => {
-            const name = `sfx_${id.toString(10).padStart(2, '0')}`;
-            const buf = await this._loadAudio(this._sfxBase, name);
+            const buf = await this._loadAudio(this._sfxBase, sfxFileName(id));
             if (buf) this._sfxCache.set(id, buf);
         });
         await Promise.allSettled(promises);
     }
 
-    async _preloadMusic() {
+    async _preloadMusic(): Promise<void> {
         const promises = this._musicTracks.map(async (id) => {
             // Just warm the browser cache; we don't store the buffer here
             // because playMusic() re-fetches from cache anyway.
@@ -491,15 +512,15 @@ export class SoundManager {
         await Promise.allSettled(promises);
     }
 
-    async _preloadHeartbeat() {
+    async _preloadHeartbeat(): Promise<void> {
         this._heartbeatBuffer = await this._loadAudio(this._sfxBase, 'heartbeat');
     }
 
     /**
-     * Try ogg first, then mp3.  Returns null if neither is available.
+     * Try ogg first, then mp3. Returns null if neither is available.
      * Results are cached in a module-level Map keyed by full URL.
      */
-    async _loadAudio(basePath, name) {
+    async _loadAudio(basePath: string, name: string): Promise<AudioBuffer | null> {
         const extensions = ['ogg', 'mp3'];
         for (const ext of extensions) {
             const url = `${basePath}${name}.${ext}`;
@@ -510,10 +531,10 @@ export class SoundManager {
                 const resp = await fetch(url);
                 if (!resp.ok) continue;
                 const arrayBuf = await resp.arrayBuffer();
-                const audioBuf = await this._ctx.decodeAudioData(arrayBuf);
+                const audioBuf = await this._ctx!.decodeAudioData(arrayBuf);
                 _audioBufferCache.set(url, audioBuf);
                 return audioBuf;
-            } catch (_) {
+            } catch {
                 // try next extension
             }
         }
@@ -521,26 +542,28 @@ export class SoundManager {
         return null;
     }
 
-    _playBuffer(buffer) {
+    _playBuffer(buffer: AudioBuffer): void {
         // Stop currently playing SFX (matches original: only one SFX at a time)
         if (this._sfxSource) {
-            try { this._sfxSource.stop(); } catch (_) {}
+            try { this._sfxSource.stop(); } catch { /* already stopped */ }
             this._sfxSource = null;
         }
-        const source = this._ctx.createBufferSource();
+        const source = this._ctx!.createBufferSource();
         source.buffer = buffer;
-        source.connect(this._sfxGain);
+        source.connect(this._sfxGain!);
         source.start();
         source.onended = () => { this._sfxSource = null; };
         this._sfxSource = source;
     }
 
-    _assertReady(method) {
+    _assertReady(method: string): void {
         if (!this._ready) {
             throw new Error(`SoundManager.${method}(): call init() first`);
         }
     }
 }
 
-// Module-level decoded-audio cache shared across all SoundManager instances
-const _audioBufferCache = new Map();
+/** Build the asset base name for a numeric SFX request byte: 3 -> "sfx_03". */
+export function sfxFileName(sfxId: number): string {
+    return `sfx_${sfxId.toString(10).padStart(2, '0')}`;
+}

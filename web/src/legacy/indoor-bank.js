@@ -17,7 +17,7 @@
  * Memory layout mirrors common.inc / bankpro.asm variable names.
  */
 
-import { IndoorSceneBase } from './indoor-base.js';
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────

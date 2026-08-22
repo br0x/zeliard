@@ -1,4 +1,4 @@
-import { IndoorSceneBase } from './indoor-base.js';
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 const PRINCESS_HOLD_MS      = 2000;

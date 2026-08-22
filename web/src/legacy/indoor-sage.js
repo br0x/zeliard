@@ -1,4 +1,4 @@
-import { IndoorSceneBase } from './indoor-base.js';
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import { TypewriterText } from './ui-menu-dialog.js';
 
 const SAGE_IMAGE_PATH = 'assets/images/kenjya/kenjya.png';

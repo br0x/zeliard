@@ -6,7 +6,6 @@
  */
 import { OpeningIntro }  from './opening-intro.js';
 import { EndingDemo }    from './ending-demo.js';
-import { SoundManager }  from './sound-manager.js';
 import { KingScene }     from './indoor-king.js';
 import { PrincessScene } from './indoor-princess.js';
 import { SageScene }     from './indoor-sage.js';
@@ -18,6 +17,27 @@ import { InnScene }      from './indoor-inn.js';
 import { SaveDialog, RestoreDialog } from './save-restore-ui.js';
 import { ImportExportDialog } from './import-export-ui.js';
 import { InventoryScreen } from './inventory-screen.js';
+import { SoundManager } from '../audio/sound-manager.js';
+import {
+    getSaveSlotNames,
+    saveGameToSlot,
+    deleteGameFromSlot,
+    loadGameFromSlot,
+    saveGame,
+    loadGame,
+} from '../platform/save.js';
+import { keys, setKeyState } from '../input/key-state.js';
+
+// Save persistence now lives in platform/save.ts (Stage 2); re-exported here
+// so save-restore-ui.js / import-export-ui.js keep importing from game.js.
+export {
+    getSaveSlotNames,
+    saveGameToSlot,
+    deleteGameFromSlot,
+    loadGameFromSlot,
+    saveGame,
+    loadGame,
+};
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
 const TILE_SIZE = 24;
@@ -2681,16 +2701,7 @@ function onSlowTick() {
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-const keys = {
-    ArrowUp:    false,
-    ArrowDown:  false,
-    ArrowLeft:  false,
-    ArrowRight: false,
-    Space:      false,
-    Enter:      false,
-    Alt:        false,
-    Escape:     false,
-};
+// Key state lives in input/key-state.ts; DOM handlers here only route events.
 let lastDirUp = false;
 let lastDirDown = false;
 
@@ -2769,13 +2780,7 @@ window.addEventListener('keydown', e => {
     }
 
     if (indoorActiveScene) {
-        if (e.code === 'Space')                       keys.Space     = true;
-        if (e.code === 'Enter')                       keys.Enter     = true;
-        if (e.code === 'Escape')                      keys.Escape    = true;
-        if (e.code === 'ArrowUp')                     keys.ArrowUp   = true;
-        if (e.code === 'ArrowDown')                   keys.ArrowDown = true;
-        if (e.code === 'ArrowLeft')                   keys.ArrowLeft = true;
-        if (e.code === 'ArrowRight')                  keys.ArrowRight = true;
+        setKeyState(e.code, true);
 
         if (e.code === 'Space' && !e.repeat) indoorActiveScene.handleInput('Space', e.repeat);
         else if (e.code === 'Enter' && !e.repeat) indoorActiveScene.handleInput('Enter', e.repeat);
@@ -2824,14 +2829,7 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    if (e.code === 'Space')                       keys.Space     = true;
-    if (e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt  = true;
-    if (e.code === 'Enter')                       keys.Enter     = true;
-    if (e.code === 'Escape')                      keys.Escape    = true;
-    if (e.code === 'ArrowUp')                     keys.ArrowUp   = true;
-    if (e.code === 'ArrowDown')                   keys.ArrowDown = true;
-    if (e.code === 'ArrowLeft')                   keys.ArrowLeft = true;
-    if (e.code === 'ArrowRight')                  keys.ArrowRight = true;
+    setKeyState(e.code, true);
 });
 
 window.addEventListener('keyup', e => {
@@ -2844,14 +2842,7 @@ window.addEventListener('keyup', e => {
         inventoryScreenInstance.resetDebugCombo();
     }
 
-    if (e.code === 'Space')                       keys.Space     = false;
-    if (e.code === 'AltLeft' || e.code === 'AltRight') keys.Alt  = false;
-    if (e.code === 'Enter')                       keys.Enter     = false;
-    if (e.code === 'Escape')                      keys.Escape    = false;
-    if (e.code === 'ArrowUp')                     keys.ArrowUp   = false;
-    if (e.code === 'ArrowDown')                   keys.ArrowDown = false;
-    if (e.code === 'ArrowLeft')                   keys.ArrowLeft = false;
-    if (e.code === 'ArrowRight')                  keys.ArrowRight = false;
+    setKeyState(e.code, false);
 });
 
 // ─── Intro screen / game start ────────────────────────────────────────────────
@@ -5740,34 +5731,6 @@ function renderBossName() {
     if (value) value.textContent = name;
 }
 
-export function saveGame(saveData, saveKey = 'zeliard_save_01') {
-    if (saveData.length !== 256) {
-        console.error(`saveGame: expected 256 bytes, got ${saveData.length}`);
-        return;
-    }
-    // Build a binary string from the bytes, then base64‑encode
-    const binary = String.fromCharCode(...saveData);
-    const base64 = btoa(binary);
-    localStorage.setItem(saveKey, base64);
-    console.log('Game saved (base64,', base64.length, 'chars).');
-}
-
-export function loadGame(saveKey = 'zeliard_save_01') {
-    const base64 = localStorage.getItem(saveKey);
-    if (!base64) return null;
-    try {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        if (bytes.length !== 256) return null;
-        console.log('Game loaded.');
-        return bytes;
-    } catch (err) {
-        console.error('loadGame: failed to decode save data', err);
-        return null;
-    }
-}
-
 function getHeroGoldValue() {
     if (!readMemory) return 0;
     const goldBytes = readMemory(ADDR_HERO_GOLD_LO, 2);
@@ -6489,46 +6452,8 @@ function startEndingDemo() {
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
-// ========== Save slot helpers (localStorage) ==========
-const SAVE_PREFIX = 'zeliard_save_';
-
-export function getSaveSlotNames() {
-    const slots = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(SAVE_PREFIX)) {
-            slots.push(key.slice(SAVE_PREFIX.length));
-        }
-    }
-    slots.sort();
-    return slots;
-}
-
-export function saveGameToSlot(slotName, data) {
-    const key = SAVE_PREFIX + slotName;
-    const binary = String.fromCharCode(...data);
-    localStorage.setItem(key, btoa(binary));
-}
-
-export function deleteGameFromSlot(slotName) {
-    const key = SAVE_PREFIX + slotName;
-    localStorage.removeItem(key);
-}
-
-export function loadGameFromSlot(slotName) {
-    const key = SAVE_PREFIX + slotName;
-    const base64 = localStorage.getItem(key);
-    if (!base64) return null;
-    try {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return bytes;
-    } catch (err) {
-        console.error('Failed to load save', slotName, err);
-        return null;
-    }
-}
+// Save slot helpers live in platform/save.ts and are re-exported at the top
+// of this file.
 
 // Hidden file input used for import
 let fileInput = null;
