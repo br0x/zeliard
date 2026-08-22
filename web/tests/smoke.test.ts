@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasWasmExport, getWasmMemory } from '../src/wasm/zeliard-wasm.js';
+import { hasWasmExport, getWasmMemory } from '../src/wasm/bridge.js';
 
 /**
  * Stage 0 smoke test: proves the Vitest + TS harness resolves the app's ES

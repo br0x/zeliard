@@ -111,7 +111,7 @@ ABI change breaks CI immediately rather than at runtime.
 Each stage = one PR-sized unit of work, ending with the unit test suite, the
 regression checklist (see bottom) passing, and a deploy to Pages.
 
-### Stage 0 — Toolchain foundation, zero code changes
+### Stage 0 — Toolchain foundation, zero code changes ✅ *(completed)*
 - Add `package.json`, `vite.config.ts`, `tsconfig.json`
   (`strict: true, allowJs: true, checkJs: false, noEmit: true`).
 - Add Vitest with one smoke test (imports the entry module, asserts constants)
@@ -122,8 +122,11 @@ regression checklist (see bottom) passing, and a deploy to Pages.
   to Pages; keep the old root setup working until the new pipeline is verified.
 - **Exit criteria:** game byte-for-byte equivalent in behavior, deployed from
   the new pipeline. Old root entry removed.
+- **Done:** shipped as branch `main`, deployed live. Extras landed along the way:
+  pnpm instead of npm, release-by-default wasm build (`make DEBUG=1` restores
+  debug), Node 24-native action versions.
 
-### Stage 1 — Type the seams (no logic moves)
+### Stage 1 — Type the seams (no logic moves) ✅ *(completed)*
 - Convert `config/constants`, `INPUT_FLAGS`, and `src/zeliard-wasm.js` →
   `wasm/bridge.ts`: typed exports interface, `MemoryView` management class,
   documented memory map.
@@ -134,6 +137,17 @@ regression checklist (see bottom) passing, and a deploy to Pages.
   rebuild on `memory.grow()`; INPUT_FLAGS round-trip. These tests are the
   safety net for every later stage.
 - **Exit criteria:** bridge fully typed and tested; game plays identically.
+- **Done:** `web/src/wasm/memory.ts` (layout constants + `INPUT_FLAGS` +
+  header/transition types) and `web/src/wasm/bridge.ts` (full typed port,
+  `ZeliardExports` interface, exported testable `LinearMemory` class,
+  byte-injectable `initWasmFromBytes` for Node tests). Legacy import path in
+  `game.js` updated; no other legacy file touched. 24 tests pass, including:
+  constants cross-checked against `src/zeliard.h` text (drift guard),
+  end-to-end `inputSetKeys` → g_mem latch bytes at `0xFF16..18`, synthetic-MDT
+  header/name/music parsing, real `cmap.mdt` sanity, save-state padding, and
+  `LinearMemory` rebuild-on-grow/base-change lifecycle. Documented discovery:
+  MDT header pointer fields are seg0-absolute (e.g. `0xC030`), not
+  MDT-relative.
 
 ### Stage 2 — Decompose `game.js` into engine services (still JS semantics)
 Extract responsibilities from the 6.6k-line monolith into modules, converting
