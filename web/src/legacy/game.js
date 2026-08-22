@@ -27,9 +27,37 @@ import {
     loadGame,
 } from '../platform/save.js';
 import { keys, setKeyState } from '../input/key-state.js';
+import {
+    TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
+    RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
+    NOTIFICATION_STRINGS, TOWN_TILE_SHEET_COLS, TOWN_MAP_TILE_OFFSET, TOWN_VIEW_ROWS,
+    TOWN_MAP_START_ROW, TOWN_HEADS_START_ROW, TOWN_SIDEWALK1_START_ROW, TOWN_SIDEWALK2_START_ROW,
+    TOWN_VISIBLE_COL_OFFSET, TOWN_ANIMATION_FULL_TICKS, TOWN_BACKGROUND_ROWS, TOWN_MDTS,
+    HERO_FRAME_W, HERO_FRAME_H, HERO_BASE_Y, PROX_COLS,
+    DUNGEON_MAP_HEIGHT, PROX_SIZE, DUNGEON_VIEW_LEFT_IN_PROX, DUNGEON_ENTITY_W,
+    DUNGEON_ENTITY_H, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H, DUNGEON_SWORD_FRAME_W,
+    DUNGEON_SWORD_FRAME_H, DUNGEON_HERO_SHEET_COLS, DUNGEON_SWORD_SHEET_COLS, ANIM_SPEED_TICKS,
+    FRAME_LEFT_WALK_BASE, FRAME_FACING_AWAY, FRAME_RIGHT_WALK_BASE, FRAME_LEFT_STAND,
+    FRAME_RIGHT_STAND,
+} from '../config/engine.js';
+import {
+    DUNGEON_DCHR_SHEET_PATH, DUNGEON_MAGIC_SHEET_PATH, DUNGEON_HERO_SHEET_PATH, DUNGEON_SWORD_SHEET_PATH,
+    PATTERN_ASSETS, SWORD_REACH_SMALL, SWORD_REACH_MEDIUM, SWORD_REACH_LARGE,
+    SWORD_OVERLAY_OFFSETS, TOWN_BACKGROUND_YMPD_PATH, TOWN_SIDEWALK1_YMPD_PATH, TOWN_SIDEWALK2_YMPD_PATH,
+    TOWN_BACKGROUND_CKPD_PATH, TOWN_BACKGROUND0_CKPD_PATH, TOWN_SIDEWALK1_CKPD_PATH, TOWN_SIDEWALK2_CKPD_PATH,
+    ROKA_IMAGE_PATHS, DMAN_SHEET_PATH, TEAR_BLUE_PATH, TEAR_RED_PATH,
+    SPARKLE_48_PATH, SPARKLE_WIDE_PATH, ENCOUNTER_IMAGE_PATH, TEAR_SLOTS_BLUE,
+    TEAR_SLOT_RED, MOLE_IMG_H, TEAR_FLAGS, HERO_SPRITE_PATH,
+    PRINCESS_CHAMBER_PATH, KING_IMAGE_PATHS, SAGE_IMAGE_PATH, ITEMP_SWORD_IMAGE_PATHS,
+    ITEMP_SHIELD_IMAGE_PATHS, ITEMP_MAGIC_IMAGE_PATHS, NPC_SPRITE_PATHS, NPC_FRAME_W,
+    NPC_FRAME_H, NPC_FRAMES, LLAMA_TOWN_ID, PROJECTILE_STRUCT_SIZE,
+    MAGIC_PROJECTILE_STRIDE,
+} from '../data/assets.js';
+
 import { Hud } from '../ui/hud.js';
 import { ModalManager } from '../ui/modal-manager.js';
 import { SpeedChangeDialog, displayedSpeed } from '../core/speed-change.js';
+import { ConversationManager } from '../core/conversation.js';
 import {
     parseDialogText as parseDialogTextImpl,
     computeDialogGeometry,
@@ -51,49 +79,6 @@ export {
 };
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
-const TILE_SIZE = 24;
-const VIEW_COLS   = 28;
-const VIEW_ROWS   = 18;
-const VIEW_WIDTH  = VIEW_COLS * TILE_SIZE;
-// ─── Feature flags ────────────────────────────────────────────────────────────
-const RUN_TOWN_ENTRY_ON_START = true;
-const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
-const STDPLY_PATH = 'game/stdply.bin';
-const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
-// 'mp10.mdt', 0
-// 'mp1d.mdt', 1
-// 'mp20.mdt', 2
-// 'mp21.mdt', 3
-// 'mp2d.mdt', 4
-// 'mp30.mdt', 5
-// 'mp31.mdt', 6
-// 'mp3d.mdt', 7
-// 'mp40.mdt', 8
-// 'mp41.mdt', 9
-// 'mp4d.mdt', 10
-// 'mp50.mdt', 11
-// 'mp51.mdt', 12
-// 'mp5d.mdt', 13
-// 'mp60.mdt', 14
-// 'mp61.mdt', 15
-// 'mp62.mdt', 16
-// 'mp6d.mdt', 17
-// 'mp70.mdt', 18
-// 'mp71.mdt', 19
-// 'mp72.mdt', 20
-// 'mp73.mdt', 21
-// 'mp7d.mdt', 22
-// 'mp80.mdt', 23
-// 'mp81.mdt', 24
-// 'mp82.mdt', 25
-// 'mp83.mdt', 26
-// 'mp84.mdt', 27
-// 'mp8d.mdt', 28
-// 'mp90.mdt', 29
-// 'mpa0.mdt', 30
-
-
-// Dungeon/enemy data tables live in data/dungeons.ts (Stage 2).
 import {
     EAI1, EAI2, CRAB, TAKO,
     EAI3, TORI, EAI4, EAI5,
@@ -103,261 +88,7 @@ import {
 } from '../data/dungeons.js';
 
 
-const NOTIFICATION_STRINGS = {
-    1:  [38, "You get 50 golds."],
-    2:  [34, "You get 100 golds."],
-    3:  [34, "You get 500 golds."],
-    4:  [30, "You get 1000 golds."],
-    5:  [50, "You get a Key."],
-    6:  [28, "You have recovered."],
-    7:  [8,  "You have recovered full."],
-    8:  [60, "Shield broken."],
-    9:  [20, "Can't open this door."],
-    10: [28, "Nothing in the box."],
-    11: [6,  "You get the Hero's Crest."],
-    12: [0,  "You get the Ruzeria shoes."],
-    13: [8,  "You get the Glory Crest."],
-    14: [6,  "You get the Pirika shoes."],
-    15: [6,  "You get the Feruza shoes."],
-    16: [0,  "You get the Silkarn shoes."],
-    17: [0,  "Get the Enchantment sword."],
-    18: [48, "It's too hot !!"],
-    19: [8,  "Get the lion's head Key."],
-    20: [12, "Finally, you reached me."],
-    21: [24, "I enjoyed your show."],
-    22: [12, "Come on!  I'll kill you."],
-};
 
-const DUNGEON_DCHR_SHEET_PATH = 'assets/images/dchr.png';
-const DUNGEON_MAGIC_SHEET_PATH = 'assets/images/magic.png';
-const DUNGEON_HERO_SHEET_PATH = 'assets/images/fman.png';
-const DUNGEON_SWORD_SHEET_PATH = 'assets/images/sword.png';
-const PATTERN_ASSETS = {
-    0: { // CPAT
-        imagePath: 'assets/images/cpat/cmap_x24.png',
-        specialTiles: [0x3C, 0x3D],   // pillars (screen edges)
-        animatedTilesSeq: [[2, 3, 4, 5]]
-    },
-    1: { // MPAT
-        imagePath: 'assets/images/mpat/mmap_x24.png',
-        specialTiles: [0x96, 0x97],   // pillars (screen edges)
-        animatedTilesSeq: [[]]
-    },
-    2: { // DPAT
-        imagePath: 'assets/images/dpat/dmap_x24.png',
-        specialTiles: [0xbf],
-        animatedTilesSeq: [
-            [1, 2, 3, 4, 5, 6], 
-            [7, 8, 9, 10, 11, 12], 
-            [13, 14, 15, 16, 17, 18], 
-            [19, 20, 21, 22, 23, 24]
-        ]
-    }
-};
-
-const SWORD_REACH_SMALL = {
-    // right forward phases 0, 1
-    0:  [0x46, 0x01, 0x23, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
-
-    // right forward phases 2, 3
-    2:  [0x8F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF],
-    
-    // right forward phases 4, 5
-    4:  [0x91, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
-    
-    // right overhead phases 0, 1
-    6:  [0x47, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0xFF],
-    
-    // right overhead phases 2, 3
-    8:  [0x49, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x22, 0x01, 0xFF],
-    
-    // right downward thrust single phase
-    10: [0x91, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0xFF],
-
-    12: [], // unused
-    14: [], // unused
-
-    // left forward phases 0, 1
-    16: [0x4A, 0x01, 0x22, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
-
-    // left forward phases 2, 3
-    18: [0x8D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF],
-
-    // left forward phases 4, 5
-    20: [0x8D, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0xFF],
-
-    // left overhead phases 0, 1
-    22: [0x48, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0xFF],
-
-    // left overhead phases 2, 3
-    24: [0x46, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x22, 0x01, 0xFF],
-
-    // left downward thrust single phase
-    26: [0x8F, 0x01, 0x23, 0x01, 0x23, 0x01, 0x01, 0x22, 0x01, 0x01, 0xFF],
-};
-const SWORD_REACH_MEDIUM = {
-    0:  [0x22, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0xFF], 
-    2:  [0x6A, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1E, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    4:  [0x91, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    6:  [0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    8:  [0x4A, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0xFF], 
-    10: [0x90, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0xFF], 
-    12: [],
-    14: [],
-    16: [0x26, 0x01, 0x23, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0xFF], 
-    18: [0x6C, 0x01, 0x01, 0x01, 0x1D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    20: [0x8C, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    22: [0x24, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    24: [0x45, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0xFF], 
-    26: [0x8F, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x23, 0x01, 0xFF],
-};
-const SWORD_REACH_LARGE = {
-    0:  [0x22, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x23, 0x01, 0xFF], 
-    2:  [0x6A, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1E, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    4:  [0x91, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    6:  [0x00, 0x01, 0x20, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    8:  [0x25, 0x01, 0x01, 0x22, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0xFF], 
-    10: [0xB4, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x23, 0x01, 0xFF], 
-    12: [],
-    14: [],
-    16: [0x26, 0x01, 0x23, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0xFF], 
-    18: [0x6D, 0x01, 0x01, 0x1D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    20: [0x8C, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    22: [0x00, 0x01, 0x23, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0xFF], 
-    24: [0x22, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x21, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x20, 0x01, 0x01, 0xFF], 
-    26: [0xB3, 0x01, 0x01, 0x22, 0x01, 0x01, 0x22, 0x01, 0x01, 0x23, 0x01, 0x23, 0x01, 0xFF],
-};
-
-const SWORD_OVERLAY_OFFSETS = {
-    // right forward phases 0-5
-    0: [-2, -2, -2, -2, -2, -1, -2, 2, -2, 2, -2, 2],
-
-    // right overhead phases 0-3
-    1: [-2, -2, -2, -1, -2, 1, 1, 1],
-    
-    // left forward phases 0-5
-    2: [-2, 1, -2, 1, -2, 0, -2, -3, -2, -3, -2, -3],
-    
-    // left overhead phases 0-3
-    3: [-2, 1, -2, 0, -2, -2, 1, -2]
-};
-const TOWN_BACKGROUND_YMPD_PATH = 'assets/images/ympd/ympd1.png';
-const TOWN_SIDEWALK1_YMPD_PATH = 'assets/images/ympd/ympd2.png';
-const TOWN_SIDEWALK2_YMPD_PATH = 'assets/images/ympd/ympd3.png';
-const TOWN_BACKGROUND_CKPD_PATH = 'assets/images/ckpd/ckpd1.png';
-const TOWN_BACKGROUND0_CKPD_PATH = 'assets/images/ckpd/ckpd0.png';
-const TOWN_SIDEWALK1_CKPD_PATH = 'assets/images/ckpd/ckpd2.png';
-const TOWN_SIDEWALK2_CKPD_PATH = 'assets/images/ckpd/ckpd3.png';
-const ROKA_IMAGE_PATHS = [
-    'assets/images/roka/roka_cyan.jpg',
-    'assets/images/roka/roka_red.jpg',
-    'assets/images/roka/roka_blue.jpg',
-    'assets/images/roka/roka_green.jpg',
-    'assets/images/roka/roka_violet.jpg',
-];
-const DMAN_SHEET_PATH   = 'assets/images/tears/dman.png';
-const TEAR_BLUE_PATH    = 'assets/images/tears/tear_blue.png';
-const TEAR_RED_PATH     = 'assets/images/tears/tear_red.png';
-const SPARKLE_48_PATH   = 'assets/images/tears/sparkles_48x48.png';
-const SPARKLE_WIDE_PATH = 'assets/images/tears/sparkles_192x48.png';
-const ENCOUNTER_IMAGE_PATH = 'assets/images/encounter.png';
-
-// Tear of Esmesanti slots on the mole_t.jpg strip (DOM overlay above the canvas).
-const TEAR_SLOTS_BLUE = [
-    { x:  49, y: 6 }, 
-    { x: 602, y: 6 },
-    { x: 121, y: 6 }, 
-    { x: 530, y: 6 }, 
-    { x: 193, y: 6 }, 
-    { x: 458, y: 6 }, 
-    { x: 265, y: 6 },
-    { x: 386, y: 6 }, 
-];
-const TEAR_SLOT_RED = { x: 320, y: 1 };
-const MOLE_IMG_H = 42;
-
-// Per-cavern savegame flags that record a collected Tear of Esmesanti, in
-// cavern order (matches TEAR_SLOTS_BLUE / TEAR_SLOT_RED). The boss cavern's
-// exit door ORs its achievement (door.d_save_achievement_addr /
-// door.d_achievement_flag) into these bytes, so saves made before the
-// rokademo feature (which only incremented ADDR_TEAR_COUNT) still carry the
-// collected tears here. See asm/common.inc for the variable names.
-const TEAR_FLAGS = [
-    { addr: 0x03, bit: 0x20 }, // Cangrejo — malicia_items_1 (+32)
-    { addr: 0x0B, bit: 0x08 }, // Pulpo    — (exit door achievement addr 0x0B)
-    { addr: 0x13, bit: 0x02 }, // Pollo    — riza_items (+2)
-    { addr: 0x1C, bit: 0x10 }, // Agar     — escarcha_items_1 (+16)
-    { addr: 0x24, bit: 0x04 }, // Vista    — cementar_items_1 (+4)
-    { addr: 0x2D, bit: 0x10 }, // Tarso    — plata_items_2 (+16)
-    { addr: 0x36, bit: 0x80 }, // Paguro   — caliente_items_2 (+128)
-    { addr: 0x45, bit: 0x40 }, // Dragon   — falter_items (+64)
-];
-
-const HERO_SPRITE_PATH = 'assets/images/tman.png';
-const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
-const KING_IMAGE_PATHS = [
-    null,
-    'assets/images/king/king1.png',
-    'assets/images/king/king2.png',
-    'assets/images/king/king3.png',
-    'assets/images/king/king4.png',
-    'assets/images/king/king5.png',
-    'assets/images/king/king6.png',
-    'assets/images/king/king7.png',
-    'assets/images/king/king8.png',
-    'assets/images/king/king9.png',
-];
-const SAGE_IMAGE_PATH     = 'assets/images/kenjya/kenjya.png';
-
-const ITEMP_SWORD_IMAGE_PATHS = [
-    'assets/images/itemp/training_sword.png',
-    'assets/images/itemp/wiseman_sword.png',
-    'assets/images/itemp/spirit_sword.png',
-    'assets/images/itemp/knight_sword.png',
-    'assets/images/itemp/illumination_sword.png',
-    'assets/images/itemp/enchantment_sword.png',
-];
-const ITEMP_SHIELD_IMAGE_PATHS = [
-    'assets/images/itemp/clay_shield.png',
-    'assets/images/itemp/wiseman_shield.png',
-    'assets/images/itemp/stone_shield.png',
-    'assets/images/itemp/honor_shield.png',
-    'assets/images/itemp/light_shield.png',
-    'assets/images/itemp/titanium_shield.png',
-];
-const ITEMP_MAGIC_IMAGE_PATHS = [
-    'assets/images/itemp/espada_magic.png',
-    'assets/images/itemp/saeta_magic.png',
-    'assets/images/itemp/fuego_magic.png',
-    'assets/images/itemp/lanzar_magic.png',
-    'assets/images/itemp/rascar_magic.png',
-    'assets/images/itemp/agua_magic.png',
-    'assets/images/itemp/guerra_magic.png',
-];
-// ─── Town NPC sprite config ────────────────────────────────────────────────────────
-const NPC_SPRITE_PATHS = [
-    [
-        'assets/images/mman/mman0.png',   // citizen
-        'assets/images/mman/mman1.png',   // soldier
-        'assets/images/mman/mman2.png',   // citizen
-        'assets/images/mman/mman3.png',   // citizen 
-        'assets/images/mman/mman4.png',   // citizen
-    ],
-    [
-        'assets/images/cman/cman0.png',   // all are citizens
-        'assets/images/cman/cman1.png',
-        'assets/images/cman/cman2.png',
-        'assets/images/cman/cman3.png',
-        'assets/images/cman/cman4.png',
-    ],
-];
-const NPC_FRAME_W  = 48;
-const NPC_FRAME_H  = 72;
-const NPC_FRAMES   = 8;           // frames per sheet
-
-const LLAMA_TOWN_ID                  = 7;        // TOWN_MDTS index for llmp.mdt (Asbestos Cape merchant)
-const PROJECTILE_STRUCT_SIZE         = 13;
-const MAGIC_PROJECTILE_STRIDE        = 0x10;
 
 import {
     ADDR_BYTE4, ADDR_SPOKE_TO_KING, ADDR_ENTERED_CAVERN_FIRST_TIME, ADDR_CALIENTE_ITEMS,
@@ -390,49 +121,6 @@ import {
     ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL, DUNGEON_STATE_DEATH_FADE,
     DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
 } from '../wasm/memory.js';
-const TOWN_TILE_SHEET_COLS = 16;
-const TOWN_MAP_TILE_OFFSET = 0x17;
-const TOWN_VIEW_ROWS = 8;
-const TOWN_MAP_START_ROW = 8;
-const TOWN_HEADS_START_ROW = TOWN_MAP_START_ROW + 5;
-const TOWN_SIDEWALK1_START_ROW = TOWN_MAP_START_ROW + TOWN_VIEW_ROWS;
-const TOWN_SIDEWALK2_START_ROW = TOWN_SIDEWALK1_START_ROW + 1;
-const TOWN_VISIBLE_COL_OFFSET = 4;
-const TOWN_ANIMATION_FULL_TICKS = 24;
-const TOWN_BACKGROUND_ROWS = 11;
-const TOWN_MDTS = [
-    'game/0/cmap.mdt', // Felishika's Castle
-    'game/0/mrmp.mdt', // Muralla Town
-    'game/0/stmp.mdt', // Satono town
-    'game/0/bsmp.mdt', // Bosque Village
-    'game/0/hlmp.mdt', // Hellada Town
-    'game/0/tmmp.mdt', // Tumba
-    'game/0/drmp.mdt', // Dorado
-    'game/0/llmp.mdt', // Llama
-    'game/0/prmp.mdt', // Pureza
-    'game/0/esmp.mdt', // Esco
-];
-const HERO_FRAME_W = 48;
-const HERO_FRAME_H = 72;
-const HERO_BASE_Y = TOWN_HEADS_START_ROW * TILE_SIZE;   // row 13 → 312px
-const PROX_COLS = 36;
-const DUNGEON_MAP_HEIGHT = 64;
-const PROX_SIZE = PROX_COLS * DUNGEON_MAP_HEIGHT;
-const DUNGEON_VIEW_LEFT_IN_PROX = 4;
-const DUNGEON_ENTITY_W = 48;
-const DUNGEON_ENTITY_H = 48;
-const DUNGEON_HERO_FRAME_W = 72;
-const DUNGEON_HERO_FRAME_H = 72;
-const DUNGEON_SWORD_FRAME_W = 96;
-const DUNGEON_SWORD_FRAME_H = 96;
-const DUNGEON_HERO_SHEET_COLS = 16;
-const DUNGEON_SWORD_SHEET_COLS = 10;
-const ANIM_SPEED_TICKS = 8;
-const FRAME_LEFT_WALK_BASE = 0;
-const FRAME_FACING_AWAY = 4;
-const FRAME_RIGHT_WALK_BASE = 5;
-const FRAME_LEFT_STAND = 10;
-const FRAME_RIGHT_STAND = 11;
 
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
@@ -776,113 +464,12 @@ function onSlowTick() {
     }
 
     if (conversation.active) {
-        const spaceLatched = gMem(ADDR_SPACEBAR_LATCH);
-
-        if (conversation.purchaseMode) {
-            const dirUp = keys.ArrowUp && !lastDirUp;
-            const dirDown = keys.ArrowDown && !lastDirDown;
-            lastDirUp = keys.ArrowUp;
-            lastDirDown = keys.ArrowDown;
-            if (dirUp && conversation.purchaseCursor > 0) {
-                conversation.purchaseCursor--;
-            } else if (dirDown && conversation.purchaseCursor < 1) {
-                conversation.purchaseCursor++;
-            }
-            if (spaceLatched) {
-                writeMemory(ADDR_SPACEBAR_LATCH, [0]);
-                conversation.purchaseMode = false;
-                if (conversation.purchaseCursor === 0) {
-                    // "Take" — buy the Asbestos cape for 2500 almas
-                    const almas = getHeroAlmasValue();
-                    if (almas >= 2500) {
-                        setHeroAlmasValue(almas - 2500);
-                        renderAlmasHud();
-                        // caliente_items bit6 = bought Asbestos Cape
-                        const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
-                        writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x40]);
-                        // Insert Asbestos Cape (item id 5) into first empty slot
-                        for (let slot = 0xA1; slot < 0xFF; slot++) {
-                            if (readMemory(slot, 1)[0] === 0) {
-                                writeMemory(slot, [5]);
-                                break;
-                            }
-                        }
-                        loadConversationPattern(8);
-                    } else {
-                        loadConversationPattern(7);
-                    }
-                } else {
-                    // "No Take"
-                    loadConversationPattern(6);
-                }
-            }
-            return;
-        }
-
-        if (conversation.yesNoMode) {
-            const dirUp = keys.ArrowUp && !lastDirUp;
-            const dirDown = keys.ArrowDown && !lastDirDown;
-            lastDirUp = keys.ArrowUp;
-            lastDirDown = keys.ArrowDown;
-            if (dirUp && conversation.yesNoCursor > 0) {
-                conversation.yesNoCursor--;
-            } else if (dirDown && conversation.yesNoCursor < 1) {
-                conversation.yesNoCursor++;
-            }
-            if (spaceLatched) {
-                writeMemory(ADDR_SPACEBAR_LATCH, [0]);
-                const selectedYes = conversation.yesNoCursor === 0;
-                conversation.active = false;
-                conversation.savedBackground = null;
-                conversation.yesNoMode = false;
-                conversation.hasYesNo = false;
-                townFinishConversation?.();
-                const responseNpcId = selectedYes ? 0x0C : 0x0D;
-                const rawText = getNpcConversationRaw(responseNpcId);
-                if (rawText) {
-                    const parsed = parseDialogText(rawText);
-                    if (parsed.pages.length > 0) {
-                        conversation.active = true;
-                        conversation.pages = parsed.pages;
-                        conversation.page = 0;
-                        conversation.hasYesNo = false;
-                        conversation.endCode = null;
-                        conversation.savedBackground = null;
-                        computeBoxGeometry(conversation.facingLeft);
-                    }
-                }
-            }
-            return;
-        }
-
-        if (spaceLatched) {
-            writeMemory(ADDR_SPACEBAR_LATCH, [0]);
-            if (conversation.page < conversation.pages.length - 1) {
-                conversation.page++;
-                computeBoxGeometry(conversation.facingLeft);
-            } else if (conversation.hasYesNo) {
-                conversation.yesNoMode = true;
-                conversation.yesNoCursor = 0;
-                computeBoxGeometry(conversation.facingLeft, 2);
-            } else if (conversation.endCode === 0x87) {
-                // Asbestos cape: second part ("It's not free though...")
-                conversation.endCode = null;
-                loadConversationPattern(5);
-            } else if (conversation.endCode === 0x89) {
-                // Asbestos cape: Take/No Take purchase confirmation
-                conversation.endCode = null;
-                conversation.purchaseMode = true;
-                conversation.purchaseCursor = 0;
-                computeBoxGeometry(conversation.facingLeft, 2);
-            } else {
-                conversation.active = false;
-                conversation.savedBackground = null;
-                const onComplete = conversation.onComplete;
-                conversation.onComplete = null;
-                townFinishConversation?.();
-                if (onComplete) onComplete();
-            }
-        }
+        // Direction edges share state with the dungeon input path above.
+        const dirUp = keys.ArrowUp && !lastDirUp;
+        const dirDown = keys.ArrowDown && !lastDirDown;
+        lastDirUp = keys.ArrowUp;
+        lastDirDown = keys.ArrowDown;
+        conversation.handleTick(!!dirUp, !!dirDown);
         return;
     }
 
@@ -1346,27 +933,6 @@ async function loadWasmEngine() {
         dungeonCompleteBossEntry, finishRokademoTransition,
     } = wasmBridge);
 }
-
-// Conversation state (NPC dialog overlay)
-let conversation = {
-    active: false,
-    pages: [],
-    page: 0,
-    pageSize: 6,
-    savedBackground: null,
-    boxX: 0,
-    boxY: 0,
-    boxW: 0,
-    boxH: 0,
-    hasYesNo: false,
-    yesNoMode: false,
-    yesNoCursor: 0,
-    endCode: null,
-    purchaseMode: false,
-    purchaseCursor: 0,
-    facingLeft: false,
-    onComplete: null, // called once when a JS-initiated dialog is closed (e.g. Pureza to Dorado warp)
-};
 
 const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine
 
@@ -3470,78 +3036,23 @@ function drawConversationDialog() {
     }
 }
 
+const conversation = new ConversationManager({
+    readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
+    writeMemory: (offset, data) => writeMemory?.(offset, data),
+    getNpcConversationRaw: getNpcConversationRaw,
+    townFinishConversation: () => townFinishConversation?.(),
+    getHeroAlmasValue,
+    setHeroAlmasValue,
+    renderAlmasHud,
+    layout: (facingLeft, extraLines) => computeBoxGeometry(facingLeft, extraLines),
+});
+
 function startConversationFromWasm() {
-    const npcAddrBytes = readMemory(0xFFF6, 2);
-    const npcAddr = npcAddrBytes[0] | (npcAddrBytes[1] << 8);
-    let npcId = 0;
-    if (npcAddr) {
-        npcId = readMemory(npcAddr + 7, 1)[0];
-    }
-    // After buying the Asbestos Cape in Llama, its merchant (npc id 3) stops
-    // re-selling it and only talks about the cape (conversation pattern 9).
-    if (npcId === 3 && (readMemory(ADDR_CALIENTE_ITEMS, 1)[0] & 0x40) !== 0 &&
-        (readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F) === LLAMA_TOWN_ID) {
-        npcId = 9;
-    }
-    const rawText = getNpcConversationRaw(npcId);
-    let parsed = parseDialogText(rawText);
-    if (parsed.pages.length === 0) {
-        townFinishConversation?.();
-        return;
-    }
-    const heroCrest = readMemory(ADDR_HERO_CREST, 1)[0];
-    if (heroCrest && parsed.hasYesNo) {
-        const crestText = getNpcConversationRaw(14);
-        if (crestText) {
-            parsed = parseDialogText(crestText);
-            if (parsed.pages.length === 0) {
-                townFinishConversation?.();
-                return;
-            }
-        }
-    }
-    const facingLeft = npcAddr ? (readMemory(npcAddr + 2, 1)[0] & 0x80) : false;
-    conversation.active = true;
-    conversation.pages = parsed.pages;
-    conversation.page = 0;
-    conversation.hasYesNo = parsed.hasYesNo;
-    conversation.yesNoMode = false;
-    conversation.yesNoCursor = 0;
-    conversation.purchaseMode = false;
-    conversation.purchaseCursor = 0;
-    conversation.endCode = parsed.endCode;
-    conversation.facingLeft = facingLeft;
-    conversation.savedBackground = null;
-    conversation.onComplete = null;
-    computeBoxGeometry(facingLeft);
+    conversation.startFromWasm();
 }
 
 function loadConversationPattern(patternIdx) {
-    const rawText = getNpcConversationRaw(patternIdx);
-    if (!rawText) {
-        conversation.active = false;
-        conversation.savedBackground = null;
-        townFinishConversation?.();
-        return;
-    }
-    const parsed = parseDialogText(rawText);
-    if (parsed.pages.length === 0) {
-        conversation.active = false;
-        conversation.savedBackground = null;
-        townFinishConversation?.();
-        return;
-    }
-    conversation.pages = parsed.pages;
-    conversation.page = 0;
-    conversation.hasYesNo = parsed.hasYesNo;
-    conversation.yesNoMode = false;
-    conversation.yesNoCursor = 0;
-    conversation.purchaseMode = false;
-    conversation.purchaseCursor = 0;
-    conversation.endCode = parsed.endCode;
-    conversation.savedBackground = null;
-    conversation.onComplete = null;
-    computeBoxGeometry(conversation.facingLeft);
+    conversation.loadPattern(patternIdx);
 }
 
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────

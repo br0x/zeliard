@@ -204,6 +204,21 @@ Completed so far:
    module. Tested: wrapping/paging boundaries, char remaps, every control
    code, effect firing, geometry docking/sizing/clamping — the highest-value
    test target so far since it drives all NPC dialogs.
+11. ✅ `core/conversation.ts` — the conversation state machine itself:
+   `ConversationManager owning start-from-wasm (NPC id resolution incl. the
+   Asbestos Cape reroute), pattern loading, paging, Yes/No responses
+   (patterns 0x0C/0x0D), the full purchase flow (almas deduction, caliente
+   flag, item-slot insertion), end-code chaining (0x87/0x89), and close
+   semantics. The ~120-line tick block in game.js collapsed to edge-detect +
+   one `handleTick()` call; drawing stays in game.js reading manager fields.
+   Tested: 15 scenarios covering every mode transition and side effect.
+11. ✅ `config/engine.ts` + `data/assets.ts` — remaining static config moved
+   out of `game.js`: engine/canvas constants, feature flags, town/dungeon
+   layout metrics, notification strings, and all asset-path tables.
+   Tested structurally (view math, town table, contiguous notification ids,
+   icon tiers). `game.js` is now ~4.0k lines, down from 6.6k — the remainder
+   is actual logic: rendering functions, conversation flow, rokademo,
+   transitions, and the game loop.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
