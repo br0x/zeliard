@@ -28,6 +28,9 @@ import {
 } from '../platform/save.js';
 import { keys, setKeyState } from '../input/key-state.js';
 import { KeyRouter, KeyEdgeLatches, PREVENT_DEFAULT_CODES } from '../input/key-router.js';
+import { drawSheetFrame } from '../render/sheets.js';
+import { getExplosionRingCanvas } from '../render/explosion-ring.js';
+import { setupGameCanvas } from '../render/canvas.js';
 import {
     TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
     RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
@@ -1074,14 +1077,6 @@ function drawTownNpcs() {
     }
 }
 
-function drawSheetFrame(sheet, frameIndex, frameW, frameH, cols, dx, dy, dw = frameW, dh = frameH) {
-    if (!sheet || frameIndex < 0) return;
-    const sx = (frameIndex % cols) * frameW;
-    const sy = Math.floor(frameIndex / cols) * frameH;
-    if (sx + frameW > sheet.width || sy + frameH > sheet.height) return;
-    ctx.drawImage(sheet, sx, sy, frameW, frameH, dx, dy, dw, dh);
-}
-
 function drawStaticTile(tileId, vpX, vpY) {
     const dx = vpX * TILE_SIZE;
     const dy = vpY * TILE_SIZE;
@@ -1093,12 +1088,12 @@ function drawStaticTile(tileId, vpX, vpY) {
     const mppCols = Math.floor(dungeonTileSheet.width / TILE_SIZE);
     const mppTiles = mppCols * Math.floor(dungeonTileSheet.height / TILE_SIZE);
     if (tileId >= 1 && tileId <= mppTiles) {
-        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, mppCols, dx, dy);
+        drawSheetFrame(ctx, dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, mppCols, dx, dy);
     } else if (tileId >= 0x40 && dungeonDchrSheetReady) {
         const dchrCols = Math.floor(dungeonDchrSheet.width / TILE_SIZE);
         const dchrTiles = dchrCols * Math.floor(dungeonDchrSheet.height / TILE_SIZE);
         if (tileId - 0x40 < dchrTiles) {
-            drawSheetFrame(dungeonDchrSheet, tileId - 0x40, TILE_SIZE, TILE_SIZE, dchrCols, dx, dy);
+            drawSheetFrame(ctx, dungeonDchrSheet, tileId - 0x40, TILE_SIZE, TILE_SIZE, dchrCols, dx, dy);
         }
     }
 }
@@ -1144,117 +1139,6 @@ function readU16(addr) {
     return mem[addr] | (mem[addr + 1] << 8);
 }
 
-// ─── Boss explosion ring sprite data ─────────────────────────────────────────
-// Decoded from C gfmcga.c: each phase is 16×16 pixels, 2 bits/pixel (0=transparent,
-// 1/2=inner color, 3=outer color).  Phases are ordered as in C
-// boss_explosion_ring_phases[]: index 0 = frame 0 (most decayed) … index 3 = frame 3.
-const BOSS_EXPLOSION_RING_DATA = (() => {
-  const raw = [
-    // Reordered to match C boss_explosion_ring_phases indexing:
-    //   frame/life=0 → index 0 (most decayed), frame/life=3 → index 3 (most intact)
-    // phase 3 – most decayed (C: boss_explosion_ring_phases[0])
-    [ 0b0000000000101111, 0b1111010000000000, 0b0000000101111111, 0b1111111010000000,
-      0b0000011111010000, 0b0000101111100000, 0b0000111100000000, 0b0000000011110000,
-      0b0011110000000000, 0b0000000000111100, 0b0111100000000000, 0b0000000000011110,
-      0b0111000000000000, 0b0000000000001110, 0b1111000000000000, 0b0000000000001111,
-      0b1111000000000000, 0b0000000000001111, 0b0111000000000000, 0b0000000000001110,
-      0b0111100000000000, 0b0000000000011110, 0b0011110000000000, 0b0000000000111100,
-      0b0000111100000000, 0b0000000011110000, 0b0000011111010000, 0b0000101111100000,
-      0b0000000101111111, 0b1111111010000000, 0b0000000000101111, 0b1111010000000000 ],
-    // phase 2 (C: boss_explosion_ring_phases[1])
-    [ 0b0000000000101111, 0b1111010000000000, 0b0000000101111111, 0b1111111010000000,
-      0b0000011111111111, 0b1111111111100000, 0b0000111111111111, 0b1111111111110000,
-      0b0011111111110100, 0b0010111111111100, 0b0111111110100000, 0b0000010111111110,
-      0b0111111110000000, 0b0000000111111110, 0b1111111100000000, 0b0000000011111111,
-      0b1111111100000000, 0b0000000011111111, 0b0111111110000000, 0b0000000111111110,
-      0b0111111110100000, 0b0000010111111110, 0b0011111111110100, 0b0010111111111100,
-      0b0000111111111111, 0b1111111111110000, 0b0000011111111111, 0b1111111111100000,
-      0b0000000101111111, 0b1111111010000000, 0b0000000000101111, 0b1111010000000000 ],
-    // phase 1 (C: boss_explosion_ring_phases[2])
-    [ 0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000,
-      0b0000000000101111, 0b1111010000000000, 0b0000000011111111, 0b1111111100000000,
-      0b0000001111111111, 0b1111111111000000, 0b0000011111111111, 0b1111111111100000,
-      0b0000111111111010, 0b0101111111110000, 0b0000111111110000, 0b0000111111110000,
-      0b0000111111110000, 0b0000111111110000, 0b0000111111111010, 0b0101111111110000,
-      0b0000011111111111, 0b1111111111100000, 0b0000001111111111, 0b1111111111000000,
-      0b0000000011111111, 0b1111111100000000, 0b0000000000101111, 0b1111010000000000,
-      0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000 ],
-    // phase 0 – most intact (C: boss_explosion_ring_phases[3])
-    [ 0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000,
-      0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000,
-      0b0000000000001011, 0b1101000000000000, 0b0000000001011111, 0b1111101000000000,
-      0b0000000001111111, 0b1111111000000000, 0b0000000011111111, 0b1111111100000000,
-      0b0000000011111111, 0b1111111100000000, 0b0000000001111111, 0b1111111000000000,
-      0b0000000001011111, 0b1111101000000000, 0b0000000000001011, 0b1101000000000000,
-      0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000,
-      0b0000000000000000, 0b0000000000000000, 0b0000000000000000, 0b0000000000000000 ]
-  ];
-  // Decode each phase into a flat Uint8Array of 256 pixel values (0–3)
-  return raw.map(words => {
-    const px = new Uint8Array(256);
-    for (let i = 0; i < 32; i++) {
-      let w = words[i];
-      for (let j = 0; j < 8; j++) {
-        px[i * 8 + j] = (w >> 14) & 3;
-        w <<= 2;
-      }
-    }
-    return px;
-  });
-})();
-
-// Color tables for each mask variant.  Values are 0–255 RGB derived from the
-// original VGA palette indices in boss_explosion_mask_variants:
-//   variant 0: 0x1210 → palette indices 0x10(inner), 0x12(outer)
-//   variant 1: 0x3630 → 0x30, 0x36
-//   variant 2: 0x3F38 → 0x38, 0x3F
-//   variant 3: 0x3630 → same as variant 1
-const BOSS_EXPLOSION_COLORS = [
-  { inner: [125,   0,   0], outer: [251,   0,   0] }, // red
-  { inner: [125, 125,   0], outer: [251, 251,   0] }, // yellow
-  { inner: [125,   0, 125], outer: [251,   0, 251] }, // magenta
-  { inner: [125, 125,   0], outer: [251, 251,   0] }  // yellow
-];
-
-// Pre-rendered offscreen canvases for each (variant, phase) combo.
-const _explosionRingCache = {};
-
-function _getExplosionRingCanvas(variant, phase, scale) {
-  const key = `${variant}_${phase}_${scale}`;
-  if (_explosionRingCache[key]) return _explosionRingCache[key];
-
-  const size = 16 * scale;
-  const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
-  const cx = c.getContext('2d');
-  const img = cx.createImageData(size, size);
-  const d = img.data;
-
-  const colors = BOSS_EXPLOSION_COLORS[variant];
-  const pixels = BOSS_EXPLOSION_RING_DATA[phase]; // 256 values
-
-  for (let y = 0; y < 16; y++) {
-    for (let x = 0; x < 16; x++) {
-      const pv = pixels[y * 16 + x];
-      if (pv === 0) continue;
-      const rgb = pv === 3 ? colors.outer : colors.inner;
-      for (let sy = 0; sy < scale; sy++) {
-        for (let sx = 0; sx < scale; sx++) {
-          const di = ((y * scale + sy) * size + (x * scale + sx)) * 4;
-          d[di]     = rgb[0];
-          d[di + 1] = rgb[1];
-          d[di + 2] = rgb[2];
-          d[di + 3] = 255;
-        }
-      }
-    }
-  }
-  cx.putImageData(img, 0, 0);
-  _explosionRingCache[key] = c;
-  return c;
-}
-
 // Tracks whether the explosion rings have been rendered this frame.
 let _bossExplosionFrameRendered = false;
 
@@ -1290,7 +1174,7 @@ function spawnBossExplosionRings(col, row) {
       const variant = readU8(ptr + 3);
 
       const phase = life & 3;
-      const ring = _getExplosionRingCanvas(variant, phase, scale);
+      const ring = getExplosionRingCanvas(variant, phase, scale);
       ctx.drawImage(ring, x * TILE_SIZE, y * TILE_SIZE);
 
       ptr += 4;
@@ -1354,7 +1238,7 @@ function drawDungeonProjectiles() { // monsters projectiles
         const tileId = tiles[stepCount % tiles.length];
         const dx = vpX * TILE_SIZE;
         const dy = vpY * TILE_SIZE;
-        drawSheetFrame(dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, cols, dx, dy);
+        drawSheetFrame(ctx, dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, cols, dx, dy);
         p += PROJECTILE_STRUCT_SIZE;
     }
 }
@@ -1844,7 +1728,7 @@ function drawDungeonMagiaStones() {
         const sx = gMem(base + 5);
         const sy = gMem(base + 6) & 0x3F;
         if (sy >= 19) continue; // outside viewport
-        drawSheetFrame(dungeonDchrSheet, 0x26, TILE_SIZE, TILE_SIZE, 39, (sx - 4) * TILE_SIZE, sy * TILE_SIZE);
+        drawSheetFrame(ctx, dungeonDchrSheet, 0x26, TILE_SIZE, TILE_SIZE, 39, (sx - 4) * TILE_SIZE, sy * TILE_SIZE);
     }
 }
 
@@ -1864,7 +1748,7 @@ function drawDungeonHero() {
     ];
     for (const { frame, y } of layers) {
         if (frame === null) continue;
-        drawSheetFrame(dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
+        drawSheetFrame(ctx, dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
             DUNGEON_HERO_SHEET_COLS, dx, y);
     }
 }
@@ -1954,7 +1838,7 @@ function drawDungeonSword() {
     dx += xOff * TILE_SIZE;
     dy += yOff * TILE_SIZE;
 
-    drawSheetFrame(
+    drawSheetFrame(ctx, 
         dungeonSwordSheet,
         spriteIndex,
         DUNGEON_SWORD_FRAME_W,
@@ -2119,7 +2003,7 @@ function drawDungeonRoka() {
     ];
     for (const { frame, y } of layers) {
         if (frame === null) continue;
-        drawSheetFrame(dungeonHeroSheet, frame, heroW, heroH,
+        drawSheetFrame(ctx, dungeonHeroSheet, frame, heroW, heroH,
             DUNGEON_HERO_SHEET_COLS, dx, y);
     }
 
@@ -2127,7 +2011,7 @@ function drawDungeonRoka() {
 }
 
 function drawDmanFrame(frame, dx, dy) {
-    drawSheetFrame(dmanSheet, frame, DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS, dx, dy);
+    drawSheetFrame(ctx, dmanSheet, frame, DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS, dx, dy);
 }
 
 function drawSmallSparkle(frame, cx, cy) {
@@ -3277,11 +3161,8 @@ const uiScreen     = document.getElementById('ui');
 const layoutWrapper = document.getElementById('layout-wrapper');
 // const fpsEl  = document.getElementById('fps-value');
 const canvas = document.getElementById('gameCanvas');
-const ctx    = canvas.getContext('2d');
 const tearOverlayEl = document.getElementById('tear-overlay');
-canvas.width  = VIEW_COLS * TILE_SIZE;
-canvas.height = VIEW_ROWS * TILE_SIZE;
-ctx.imageSmoothingEnabled = false;
+const ctx    = setupGameCanvas(canvas);
 
 const openingIntro = new OpeningIntro({
     screen:     introScreen,

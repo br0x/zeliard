@@ -252,6 +252,14 @@ Completed so far:
     `KeyEdgeLatches` (the Space/Alt edge detector feeding the wasm latches).
     Tested: every route + guard combination, priority order, consumption
     propagation, phase-specific speed-dialog keys, latch edges + reset.
+16. ✅ `render/` foundations — `render/canvas.ts` (`setupGameCanvas`: fixed
+    672×432 internal resolution + smoothing off; display scaling is CSS
+    pixelated, so no JS resize layer exists), `render/sheets.ts`
+    (`drawSheetFrame`, ctx now explicit), and `render/explosion-ring.ts`
+    (gfmcga.c 2bpp ring decode, color variants, cached pre-render with an
+    injectable document factory). Tested: resolution/smoothing/error paths,
+    source-rect math + bounds guards + scaling, 2bpp decode vs known words,
+    opaque-pixel counts, inner/outer color mapping, cache identity.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
