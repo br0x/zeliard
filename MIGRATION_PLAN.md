@@ -278,6 +278,12 @@ Completed so far:
     the draw()-loop dispatch, encounter-animation state machine, and asset
     loading. Hero frame resolution exported pure. Tested: body/arm/sword
     frame selection for every state priority and shield category/variant.
+19. ✅ `render/town.ts` — the town renderer: backdrop, parallax ceiling,
+    two scrolling sidewalk strips (offset state + scroll helpers owned by
+    the module), g_mem-backed tile map with animated-tile sequences, hero
+    walk-cycle sprite, NPCs, and NPC sprite-category parsing. Same env
+    injection as the dungeon renderer. game.js now holds only loaders,
+    transitions, tick/game-loop dispatch, and scene wiring.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions

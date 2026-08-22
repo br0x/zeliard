@@ -32,6 +32,23 @@ import { drawSheetFrame } from '../render/sheets.js';
 import { getExplosionRingCanvas } from '../render/explosion-ring.js';
 import { setupGameCanvas } from '../render/canvas.js';
 import {
+    initTownRenderer,
+    parseTownNpcCategory,
+    getTownNpcCategory,
+    resetTownScrollOffsets,
+    scrollFloorOneTileRight,
+    scrollFloorOneTileLeft,
+    scrollCeilingHalfTileRight,
+    scrollCeilingHalfTileLeft,
+    updateTownAnimation,
+    drawTownBackground,
+    drawTownCeiling,
+    drawTownSidewalk,
+    drawTownTiles,
+    drawTownHero,
+    drawTownNpcs,
+} from '../render/town.js';
+import {
     initDungeonRenderer,
     resolveFullTickWaiters,
     bumpRenderCounter,
@@ -282,7 +299,6 @@ const npcSprites = {
     0: [], // mman cache
     1: []  // cman cache
 };
-let townNpcSpriteCategory = 0;   // 0: mman, 1: cman
 let townAnimTileMap = {};
 
 // ─── Indoor scene manager ─────────────────────────────────────────────────────
@@ -663,7 +679,7 @@ async function startGame() {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
         );
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
@@ -755,15 +771,15 @@ function loadHeroTownSprite() {
 }
 
 function loadNpcSprite(spriteId) {
-    if (npcSprites[townNpcSpriteCategory][spriteId]) {
-        return Promise.resolve(npcSprites[townNpcSpriteCategory][spriteId]);
+    if (npcSprites[getTownNpcCategory()][spriteId]) {
+        return Promise.resolve(npcSprites[getTownNpcCategory()][spriteId]);
     }
-    const path = NPC_SPRITE_PATHS[townNpcSpriteCategory][spriteId];
+    const path = NPC_SPRITE_PATHS[getTownNpcCategory()][spriteId];
     if (!path) return Promise.resolve(null);
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-            npcSprites[townNpcSpriteCategory][spriteId] = img;
+            npcSprites[getTownNpcCategory()][spriteId] = img;
             resolve(img);
         };
         img.onerror = () => reject(new Error(`Failed to load NPC sprite ${path}`));
@@ -863,14 +879,6 @@ async function loadDungeonAssets(rawMapId) {
     await Promise.all(loads);
 }
 
-function parseTownNpcCategory() {
-    if (!readMemory) { townNpcSpriteCategory = 0; return; }
-    const descPtrBytes = readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2);
-    const descPtr = descPtrBytes[0] | (descPtrBytes[1] << 8);
-    const raw = readMemory(descPtr + 1, 1)[0];
-    townNpcSpriteCategory = raw < NPC_SPRITE_PATHS.length ? raw : 0;
-}
-
 async function loadWasmEngine() {
     const wasmBridge = await import('../wasm/bridge.js');
     ({
@@ -900,204 +908,6 @@ export function getSpeedChangePhase() {
 }
 
 // ─── Town scroll helpers ──────────────────────────────────────────────────────
-function resetTownScrollOffsets() {
-    townSidewalk1OffsetX = 0;
-    townSidewalk2OffsetX = 0;
-    townCeilingOffsetX = 0;
-}
-
-const scrollFloorOneTileRight = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX - TILE_SIZE + VIEW_WIDTH) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX - TILE_SIZE*2 + VIEW_WIDTH) % VIEW_WIDTH;
-};
-
-const scrollFloorOneTileLeft = () => {
-    townSidewalk1OffsetX = (townSidewalk1OffsetX + TILE_SIZE) % VIEW_WIDTH;
-    townSidewalk2OffsetX = (townSidewalk2OffsetX + TILE_SIZE*2) % VIEW_WIDTH;
-};
-
-const scrollCeilingHalfTileRight = () => {
-    townCeilingOffsetX = (townCeilingOffsetX - TILE_SIZE/2 + VIEW_WIDTH) % VIEW_WIDTH;
-};
-
-const scrollCeilingHalfTileLeft = () => {
-    townCeilingOffsetX = (townCeilingOffsetX + TILE_SIZE/2) % VIEW_WIDTH;
-};
-
-// ─── Town drawing functions ───────────────────────────────────────────────────
-function drawTownBackground() {
-    if (!townBackgroundReady) return false;
-    ctx.drawImage(townBackground, 0, 0);
-    return true;
-}
-
-function drawTownCeiling() {
-    if (!townBackgroundType || !townCeilingReady || !townBackgroundReady) return false;
-    ctx.drawImage(townBackground, 0, 0, canvas.width, TILE_SIZE*2, 0, 0, canvas.width, TILE_SIZE*2);
-    const rightPartWidth = canvas.width - townCeilingOffsetX;
-    if (rightPartWidth > 0) {
-        ctx.drawImage(townCeiling, townCeilingOffsetX, 0, rightPartWidth, TILE_SIZE*2,
-                      0, 0, rightPartWidth, TILE_SIZE*2);
-    }
-    const leftPartWidth = townCeilingOffsetX;
-    if (leftPartWidth > 0) {
-        ctx.drawImage(townCeiling, 0, 0, leftPartWidth, TILE_SIZE*2,
-                      rightPartWidth, 0, leftPartWidth, TILE_SIZE*2);
-    }
-    return true;
-}
-
-function drawTownSidewalk() {
-    if (!townSidewalk1Ready || !townSidewalk2Ready) return false;
-    const rightPartWidth1 = canvas.width - townSidewalk1OffsetX;
-    let y = TOWN_SIDEWALK1_START_ROW*TILE_SIZE;
-    if (rightPartWidth1 > 0) {
-        ctx.drawImage(townSidewalk1, townSidewalk1OffsetX, 0, rightPartWidth1, TILE_SIZE,
-                      0, y, rightPartWidth1, TILE_SIZE);
-    }
-    const leftPartWidth1 = townSidewalk1OffsetX;
-    if (leftPartWidth1 > 0) {
-        ctx.drawImage(townSidewalk1, 0, 0, leftPartWidth1, TILE_SIZE,
-                      rightPartWidth1, y, leftPartWidth1, TILE_SIZE);
-    }
-    const rightPartWidth2 = canvas.width - townSidewalk2OffsetX;
-    y = TOWN_SIDEWALK2_START_ROW*TILE_SIZE;
-    if (rightPartWidth2 > 0) {
-        ctx.drawImage(townSidewalk2, townSidewalk2OffsetX, 0, rightPartWidth2, TILE_SIZE,
-                      0, y, rightPartWidth2, TILE_SIZE);
-    }
-    const leftPartWidth2 = townSidewalk2OffsetX;
-    if (leftPartWidth2 > 0) {
-        ctx.drawImage(townSidewalk2, 0, 0, leftPartWidth2, TILE_SIZE,
-                      rightPartWidth2, y, leftPartWidth2, TILE_SIZE);
-    }
-    return true;
-}
-
-// some tiles in the towns are animated (like waving flags, torches etc.)
-function updateTownAnimation() {
-    const pattern = PATTERN_ASSETS[townPatId];
-    const seqList = pattern?.animatedTilesSeq ?? [];
-    townAnimTileMap = {};
-    if (!seqList.length || (seqList.length === 1 && !seqList[0].length)) return;
-    for (const seq of seqList) {
-        for (let pos = 0; pos < seq.length; pos++) {
-            const tileId = seq[pos];
-            townAnimTileMap[tileId] = { seq, pos };
-        }
-    }
-}
-
-function getAnimatedTownTileId(tileId) {
-    const entry = townAnimTileMap[tileId];
-    if (!entry) return tileId;
-    const { seq, pos } = entry;
-    const len = seq.length;
-    const phase = Math.floor(frameTimer / TOWN_ANIMATION_FULL_TICKS) % len;
-    const newPos = (pos + phase) % len;
-    return seq[newPos];
-}
-
-/**
- * Draw the 28-column town tile map.
- *
- * Reads tile IDs directly from WASM linear memory (g_mem) rather than from
- * the JS-side mdtData copy. This is necessary because the WASM code's
- * init_c015_obj_if_exists() and save/restore_head_level_tiles_in_npcs()
- * dynamically modify the tile map in g_mem during town entry and conversation,
- * and those changes must be visible to the renderer.
- */
-function drawTownTiles() {
-    if (!mdtData || !townTileSheetReady) return false;
-    const mapWidth = getTownMapWidth(mdtData);
-    if (!mapWidth) return false;
-
-    const mem = getWasmMemory?.();
-
-    const leftCol = Math.max(0, Math.min(
-        mapWidth - VIEW_COLS,
-        readU16(ADDR_PROXIMITY_MAP_LEFT_COL) + TOWN_VISIBLE_COL_OFFSET
-    ));
-    for (let col = 0; col < VIEW_COLS; col++) {
-        const mapCol = leftCol + col;
-        for (let row = 0; row < TOWN_VIEW_ROWS; row++) {
-            const mdtOffset  = TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
-            const wasmAddr   = ADDR_TOWN_DESCRIPTOR_PTR + TOWN_MAP_TILE_OFFSET + mapCol * TOWN_VIEW_ROWS + row;
-            let tileId;
-            if (mem) {
-                tileId = mem[wasmAddr];
-                if (tileId === 0xFD) {
-                    tileId = mdtData[mdtOffset] ?? 0;
-                }
-            } else {
-                tileId = mdtData[mdtOffset] ?? 0;
-            }
-            tileId = getAnimatedTownTileId(tileId);
-            const sx = (tileId % TOWN_TILE_SHEET_COLS) * TILE_SIZE;
-            const sy = Math.floor(tileId / TOWN_TILE_SHEET_COLS) * TILE_SIZE;
-            ctx.drawImage(
-                townTileSheet,
-                sx, sy, TILE_SIZE, TILE_SIZE,
-                col * TILE_SIZE, (row + TOWN_MAP_START_ROW) * TILE_SIZE,
-                TILE_SIZE, TILE_SIZE
-            );
-        }
-    }
-    return true;
-}
-
-function drawTownHero() {
-    if (!heroSpriteReady || !engineReady) return;
-    gMem(0xFF33);
-    const heroAnim = gMem(0x00E7);
-    const facing   = gMem(0x00C2) & 1;
-    const moving = keys.ArrowLeft || keys.ArrowRight;
-    let frame;
-    if (heroAnim === 4) {
-        frame = FRAME_FACING_AWAY;
-    } else if (!moving) {
-        frame = (facing === 0) ? FRAME_RIGHT_STAND : FRAME_LEFT_STAND;
-    } else {
-        const phase = heroAnim & 3;
-        if (facing === 0) {
-            frame = FRAME_RIGHT_WALK_BASE + phase;
-        } else {
-            frame = FRAME_LEFT_WALK_BASE + phase;
-        }
-    }
-    const sx = frame * HERO_FRAME_W;
-    const viewportX = gMem(0x0083);
-    const dx = viewportX * TILE_SIZE;
-    const dy = HERO_BASE_Y;
-    ctx.drawImage(heroSprite, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);
-}
-
-function drawTownNpcs() {
-    if (!engineReady || !readMemory) return;
-    const ptrBytes = readMemory(ADDR_NPC_ARRAY_PTR, 2);
-    const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
-    if (!npcArrayAddr) return;
-    const proxLeftBytes = readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2);
-    const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
-    for (let i = 0; i < 64; i++) {
-        const base = npcArrayAddr + i * 8;
-        const npcMem = readMemory(base, 8);
-        const nx = npcMem[0] | (npcMem[1] << 8);
-        if (nx === 0xFFFF) break;
-        const nFacing    = npcMem[2];
-        const sprite  = npcSprites[townNpcSpriteCategory][nFacing & 0xf];
-        if (!sprite) continue;
-        const nAnimPhase = npcMem[4];
-        const screenCol = nx - proxLeft - TOWN_VISIBLE_COL_OFFSET;
-        const screenX   = screenCol * TILE_SIZE;
-        if (screenX < -NPC_FRAME_W || screenX >= VIEW_WIDTH) continue;
-        const animIdx = nAnimPhase & 3;
-        let frame = (nFacing & 0x80) !== 0 ? animIdx : (4 + animIdx);
-        const sx = frame * NPC_FRAME_W;
-        ctx.drawImage(sprite, sx, 0, NPC_FRAME_W, NPC_FRAME_H, screenX, HERO_BASE_Y, NPC_FRAME_W, NPC_FRAME_H);
-    }
-}
-
 // Direct byte access into the cached WASM g_mem view. getWasmMemory()
 // re-validates the view on every call and rebuilds it if the WASM memory
 // buffer grew (old views are detached). Unlike readMemory(addr, 1)[0]
@@ -1326,7 +1136,7 @@ async function handleTownTransition(transition) {
         }
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
         );
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townCompleteTransition?.();
@@ -1466,7 +1276,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
         );
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townEntryDisablingEdgeScroll();
@@ -1632,7 +1442,7 @@ async function handleWarp() {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
         );
 
         // Landing spot: Falter building door, prox col 132 / view x 13, face-left.
@@ -1988,7 +1798,7 @@ async function performGameRestore(saveData) {
     // Reload NPC sprites (category may have changed)
     parseTownNpcCategory();
     await Promise.all(
-        NPC_SPRITE_PATHS[townNpcSpriteCategory].map((_, idx) => loadNpcSprite(idx))
+        NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, idx) => loadNpcSprite(idx))
     );
 
     const trackId = resolveMusicTrack(getMusicTrackId?.());
@@ -2279,6 +2089,33 @@ initDungeonRenderer({
         rokaImages, rokaImagesReady,
     }),
     encounterImg: () => encounterImg,
+});
+
+// Town renderer: same injection pattern as the dungeon renderer.
+initTownRenderer({
+    ctx,
+    viewW: () => canvas.width,
+    engineReady: () => engineReady,
+    gMem,
+    readU16,
+    readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
+    memByte: (addr) => {
+        const mem = getWasmMemory?.();
+        return mem ? mem[addr] : -1;
+    },
+    keys: () => keys,
+    frameTimer: () => frameTimer,
+    townPatId: () => townPatId,
+    assets: () => ({
+        background: townBackground, backgroundReady: townBackgroundReady,
+        ceiling: townCeiling, ceilingReady: townCeilingReady,
+        sidewalk1: townSidewalk1, sidewalk1Ready: townSidewalk1Ready,
+        sidewalk2: townSidewalk2, sidewalk2Ready: townSidewalk2Ready,
+        tileSheet: townTileSheet, tileSheetReady: townTileSheetReady,
+        heroSprite, heroSpriteReady,
+        npcSprites,
+        mdtData,
+    }),
 });
 
 const openingIntro = new OpeningIntro({
