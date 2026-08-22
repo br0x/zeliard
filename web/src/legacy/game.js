@@ -27,6 +27,7 @@ import {
     loadGame,
 } from '../platform/save.js';
 import { keys, setKeyState } from '../input/key-state.js';
+import { Hud } from '../ui/hud.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
 // so save-restore-ui.js / import-export-ui.js keep importing from game.js.
@@ -2069,131 +2070,37 @@ const LLAMA_TOWN_ID                  = 7;        // TOWN_MDTS index for llmp.mdt
 const PROJECTILE_STRUCT_SIZE         = 13;
 const MAGIC_PROJECTILE_STRIDE        = 0x10;
 
-// WASM memory addresses
-const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (tear spoken to King)
-const ADDR_SPOKE_TO_KING             = 0x05;
-const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
-const ADDR_FALTER_ITEMS              = 0x45;     // bit7 = Pureza warp building used (0xFF dest id)
-const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
-const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
-const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
-const ADDR_HERO_X_VIEW               = 0x83;
-const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
-const ADDR_HERO_GOLD_HI              = 0x85;
-const ADDR_HERO_GOLD_LO              = 0x86;
-const ADDR_HERO_ALMAS                = 0x8b;
-const ADDR_HERO_LEVEL                = 0x8d;
-const ADDR_HERO_XP                   = 0x8e;
-const ADDR_HERO_HP                   = 0x90;
-const ADDR_SWORD_TYPE                = 0x92;
-const ADDR_SHIELD_TYPE               = 0x93;
-const ADDR_SHIELD_HP                 = 0x94;
-const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
-const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
-const ADDR_CURR_SPELL_TYPE           = 0x9d;
-const ADDR_TEAR_COUNT                = 0xA0;
-const ADDR_SPELL_COUNTS = [
-    0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
-];
-const ADDR_HERO_MAX_HP               = 0xB2;
-const ADDR_FACING                    = 0xC2;
-const ADDR_LEFT_RUN                  = 0xC3;
-const ADDR_PLACE_MAP_ID              = 0xC4;
-const ADDR_LAST_SAGE_VISITED         = 0xC5;
-const ADDR_SAGES_SPOKEN              = 0xE5;
-const ADDR_HERO_ANIM_PHASE           = 0xE7;
-const ADDR_INVINCIBILITY_FLAG        = 0xE8;
-
-const ADDR_BOSS_STATE_BLOCK        = 0x9D00;
-const ADDR_BYTE_9EED               = 0x9EED; // set on casting "guerra"
-const ADDR_BYTE_9F00               = 0x9F00;
-const ADDR_BOSS_PLACEMENT          = 0x9F01;
-const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
-const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
-const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
-
-const ADDR_BOSS_STATE_PTR          = 0xA002;
-
-const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
-const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
-const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
-const ADDR_NPC_CONVERSATIONS       = 0xC00D;
-const ADDR_NPC_ARRAY_PTR           = 0xC00F;
-const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)
-const ADDR_CAVERN_LEVEL            = 0xC012;
-const ADDR_TEAR_X                  = 0xC013; // word
-const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
-const ADDR_CAVERN_SIGNS_INFO       = 0xC017; // word
-const ADDR_PROXIMITY_MAP           = 0xE000; // 36*64 circular buffer
-const ADDR_VIEWPORT_ENTITIES       = 0xE900; // 28*19 bytes cache buffer
-const ADDR_MAGIC_PROJECTILES       = 0xEB15; // 4 slots × 16 bytes each
-const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes each, 4 sprites)
-const ADDR_PROJECTILES_LIST        = 0xEB80; // 13×32 bytes, terminated by 0xFF (enemy projectiles)
-const ADDR_PROXIMITY_LAYER2        = 0xED20; // 128 bytes layer-2 tile mapping
-const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 bytes each)
-const ADDR_FRAME_TIMER             = 0xFF1A;
-const ADDR_SPACEBAR_LATCH          = 0xFF1D  // byte
-const ADDR_ALTKEY_LATCH            = 0xFF1E  // byte
-const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F; // byte
-const ADDR_BOSS_IS_DEAD            = 0xFF30; // byte — 0xFF when boss is dead
-const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31; // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
-const ADDR_SPEED_CONST             = 0xFF33;
-const ADDR_IS_BOSS_CAVERN          = 0xFF34; // byte
-const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
-const ADDR_SQUAT_FLAG              = 0xFF38;
-const ADDR_ON_ROPE_FLAGS           = 0xFF39;
-const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
-const ADDR_SPELL_ACTIVE_FLAG       = 0xFF3C;
-const ADDR_JUMP_PHASE_FLAGS        = 0xFF3D;
-const ADDR_BYTE_FF3E               = 0xFF3E; // spell projectile active flag
-const ADDR_SHIELD_ANIM_PHASE       = 0xFF3F;
-const ADDR_SHIELD_ANIM_ACTIVE      = 0xFF40;
-const ADDR_SHIELD_VARIANT_INDEX    = 0xFF41;
-const ADDR_SLOPE_DIRECTION         = 0xFF42; // 1=right, 2=left, 0=none
-const ADDR_SWORD_SWING_FLAG        = 0xFF43;
-const ADDR_UI_ELEMENT_DIRTY        = 0xFF44;
-const ADDR_SWORD_HIT_TYPE          = 0xFF45;
-const ADDR_SWORD_MOVEMENT_PHASE    = 0xFF46;
-const ADDR_SOUND_FX_REQUEST        = 0xFF75;
-const ADDR_HEARTBEAT_VOLUME        = 0xFF08; // boss-heartbeat volume; not part of a saved scene
-// Semaphores for js-wasm communication
-const ADDR_DUNGEON_STATE           = 0xFF90;
-const ADDR_DUNGEON_FRAME_PHASE     = 0xFF91;
-const ADDR_RENDER_REQUEST          = 0xFF92;
-const ADDR_RENDER_DONE             = 0xFF93;
-const ADDR_GOLD_RENDER_REQUEST     = 0xFF94;
-const ADDR_DEATH_COUNTER           = 0xFF95;
-const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
-const ADDR_NOTIFICATION_FLAG       = 0xFF97;
-const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
-const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
-const ADDR_SHIELD_HP_RENDER_REQUEST = 0xFF9A;
-const ADDR_ROKA_PHASE              = 0xFF9D;
-const ADDR_ROKA_COLOR              = 0xFF9E;
-const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
-const ADDR_BOSS_MODE               = 0xFFA0;
-const ADDR_CAVERN_SIGN_FLAG        = 0xFFA1;
-const ADDR_CAVERN_SIGN_IDX         = 0xFFA2;
-const ADDR_MAGIC_LEFT_RENDER_REQUEST = 0xFFA3;
-const ADDR_SWORD_RENDER_REQUEST     = 0xFFA4;
-const ADDR_SWORD_GFX_RELOAD_REQUEST = 0xFFA5;
-const ADDR_DUNGEON_EXIT_FLAG       = 0xFFE2;
-const ADDR_HERO_DEATH_FLAG         = 0xFFE3;
-
-const ADDR_PENDING_TRANSITION_FLAG = 0xFFF4;
-const ADDR_CONVERSATION_ACTIVE     = 0xFFF5;
-const ADDR_BUILDING_ACTIVE         = 0xFFFA;
-const ADDR_BUILDING_DEST_ID        = 0xFFFB;
-const ADDR_PENDING_DUNGEON_MAP     = 0xFFFC;
-const ADDR_PENDING_DUNGEON_FLAG    = 0xFFFD;
-
-const DUNGEON_STATE_DEATH_FALL = 2;
-const DUNGEON_STATE_DEATH_FADE = 4;
-const DUNGEON_STATE_BOSS_ENCOUNTER = 5;
-const DUNGEON_STATE_ROKA_RUN = 7;
-const DUNGEON_STATE_ROKADEMO = 9;
-
+import {
+    ADDR_BYTE4, ADDR_SPOKE_TO_KING, ADDR_ENTERED_CAVERN_FIRST_TIME, ADDR_CALIENTE_ITEMS,
+    ADDR_FALTER_ITEMS, ADDR_DEATH_ALREADY_PROCESSED, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_VIEWPORT_TOP_ROW,
+    ADDR_HERO_X_VIEW, ADDR_HERO_HEAD_Y_VIEW, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
+    ADDR_HERO_ALMAS, ADDR_HERO_LEVEL, ADDR_HERO_XP, ADDR_HERO_HP,
+    ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP, ADDR_ELF_CREST,
+    ADDR_HERO_CREST, ADDR_CURR_SPELL_TYPE, ADDR_TEAR_COUNT, ADDR_SPELL_COUNTS,
+    ADDR_HERO_MAX_HP, ADDR_FACING, ADDR_LEFT_RUN, ADDR_PLACE_MAP_ID,
+    ADDR_LAST_SAGE_VISITED, ADDR_SAGES_SPOKEN, ADDR_HERO_ANIM_PHASE, ADDR_INVINCIBILITY_FLAG,
+    ADDR_BOSS_STATE_BLOCK, ADDR_BYTE_9EED, ADDR_BYTE_9F00, ADDR_BOSS_PLACEMENT,
+    ADDR_HERO_X_IN_PROXIMITY_MAP, ADDR_DOOR_TARGET_Y, ADDR_DOOR_FEATURES, ADDR_BOSS_STATE_PTR,
+    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_MAP_WIDTH, ADDR_DUNGEON_ENTRANCE_TABLE, ADDR_NPC_CONVERSATIONS,
+    ADDR_NPC_ARRAY_PTR, ADDR_MONSTERS_LIST, ADDR_CAVERN_LEVEL, ADDR_TEAR_X,
+    ADDR_HERO_Y_VIEW_INIT, ADDR_CAVERN_SIGNS_INFO, ADDR_PROXIMITY_MAP, ADDR_VIEWPORT_ENTITIES,
+    ADDR_MAGIC_PROJECTILES, ADDR_MAGIA_STONE_SPRITE0, ADDR_PROJECTILES_LIST, ADDR_PROXIMITY_LAYER2,
+    ADDR_BOSS_EXPLOSIONS_LIST, ADDR_FRAME_TIMER, ADDR_SPACEBAR_LATCH, ADDR_ALTKEY_LATCH,
+    ADDR_SPRITE_FLASH_FLAG, ADDR_BOSS_IS_DEAD, ADDR_VIEWPORT_LEFT_TOP, ADDR_SPEED_CONST,
+    ADDR_IS_BOSS_CAVERN, ADDR_HERO_SPRITE_HIDDEN, ADDR_SQUAT_FLAG, ADDR_ON_ROPE_FLAGS,
+    ADDR_HERO_HIDDEN_FLAG, ADDR_SPELL_ACTIVE_FLAG, ADDR_JUMP_PHASE_FLAGS, ADDR_BYTE_FF3E,
+    ADDR_SHIELD_ANIM_PHASE, ADDR_SHIELD_ANIM_ACTIVE, ADDR_SHIELD_VARIANT_INDEX, ADDR_SLOPE_DIRECTION,
+    ADDR_SWORD_SWING_FLAG, ADDR_UI_ELEMENT_DIRTY, ADDR_SWORD_HIT_TYPE, ADDR_SWORD_MOVEMENT_PHASE,
+    ADDR_SOUND_FX_REQUEST, ADDR_HEARTBEAT_VOLUME, ADDR_DUNGEON_STATE, ADDR_DUNGEON_FRAME_PHASE,
+    ADDR_RENDER_REQUEST, ADDR_RENDER_DONE, ADDR_GOLD_RENDER_REQUEST, ADDR_DEATH_COUNTER,
+    ADDR_NOTIFICATION_MSG_ID, ADDR_NOTIFICATION_FLAG, ADDR_ALMAS_RENDER_REQUEST, ADDR_HEALTH_BAR_REQUEST,
+    ADDR_SHIELD_HP_RENDER_REQUEST, ADDR_ROKA_PHASE, ADDR_ROKA_COLOR, ADDR_BOSS_HEALTH_REQUEST,
+    ADDR_BOSS_MODE, ADDR_CAVERN_SIGN_FLAG, ADDR_CAVERN_SIGN_IDX, ADDR_MAGIC_LEFT_RENDER_REQUEST,
+    ADDR_SWORD_RENDER_REQUEST, ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG,
+    ADDR_PENDING_TRANSITION_FLAG, ADDR_CONVERSATION_ACTIVE, ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID,
+    ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL, DUNGEON_STATE_DEATH_FADE,
+    DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
+} from '../wasm/memory.js';
 const TOWN_TILE_SHEET_COLS = 16;
 const TOWN_MAP_TILE_OFFSET = 0x17;
 const TOWN_VIEW_ROWS = 8;
@@ -5625,271 +5532,54 @@ function startIndoorScene(destId) {
 }
 
 // ─── UI helpers (gold, sword, shield, magic) ──────────────────────────────────
-function updateElementText(elementId, value) {
-    const el = document.getElementById(elementId);
-    if (el && value !== undefined) el.textContent = value;
-}
+// HUD rendering lives in ui/hud.ts; these bindings wire it to the wasm bridge.
+// Delegating function declarations keep hoisting semantics for earlier code.
+const hud = new Hud({
+    mem: {
+        readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
+        writeMemory: (offset, data) => writeMemory?.(offset, data),
+    },
+    iconPaths: {
+        sword: ITEMP_SWORD_IMAGE_PATHS,
+        shield: ITEMP_SHIELD_IMAGE_PATHS,
+        magic: ITEMP_MAGIC_IMAGE_PATHS,
+    },
+    getBossName: () => getBossName?.() ?? '',
+});
 
-function resetBossHud() {
-    if (writeMemory) writeMemory(ADDR_BOSS_MODE, [0]);
-    const bossLifeBar = document.getElementById('bossLifeBarContainer');
-    if (bossLifeBar) bossLifeBar.classList.add('hidden');
-    const placeName = document.getElementById('currentMapName');
-    if (placeName) placeName.style.display = '';
-    const placeLabel = document.getElementById('placeLabel');
-    if (placeLabel) placeLabel.textContent = 'PLACE';
-    const goldLabel = document.getElementById('goldLabel');
-    if (goldLabel) { goldLabel.textContent = 'GOLD'; goldLabel.style.display = ''; }
-    const goldValue = document.getElementById('gold');
-    if (goldValue) goldValue.style.display = '';
-}
-
-function updatePlaceHud(name, indoor = false) {
-    const placeRow = document.querySelector('.place-row');
-    const placeLabel = document.getElementById('placeLabel');
-    if (placeRow) placeRow.classList.toggle('indoor-place', indoor);
-    if (placeLabel) placeLabel.textContent = indoor ? '' : 'PLACE';
-    updateElementText('currentMapName', name);
-}
-
-function getHeroHp() {
-    if (!readMemory) return 0;
-    const hpBytes = readMemory(ADDR_HERO_HP, 2);
-    return (hpBytes[0] | (hpBytes[1] << 8));
-}
-
-function setHeroHp(hp) {
-    if (!writeMemory) return;
-    const clamped = Math.max(0, Math.min(0xFFFF, hp));
-    writeMemory(ADDR_HERO_HP, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
-}
-
-function getHeroMaxHp() {
-    if (!readMemory) return 0;
-    const hpBytes = readMemory(ADDR_HERO_MAX_HP, 2);
-    return (hpBytes[0] | (hpBytes[1] << 8));
-}
-
-function setHeroMaxHp(maxHp) {
-    if (!writeMemory) return;
-    const clamped = Math.max(0, Math.min(0xFFFF, maxHp));
-    writeMemory(ADDR_HERO_MAX_HP, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
-}
-
-let lifeFillCurrentEl = null;
-let lifeFillMaxEl     = null;
-
-function drawLifeBar() {
-    if (!lifeFillCurrentEl) {
-        lifeFillCurrentEl = document.querySelector('.life-fill-current');
-        lifeFillMaxEl     = document.querySelector('.life-fill-max');
-    }
-    setLife(getHeroHp(), getHeroMaxHp());
-}
-
-// Mirrors the original normalize_health_to_100 (asm/gmmcga.asm):
-//   hp > 800 -> 100, otherwise -> hp >> 3 (integer truncation).
-// Max possible HP is 800 (which corresponds to 100% of the bar)
-function normalizeHealthTo100(hp) {
-    return hp > 800 ? 100 : Math.floor(hp / 8);
-}
-
-function setLife(currentLife, maxLife) {
-    if (lifeFillCurrentEl && lifeFillMaxEl) {
-        lifeFillMaxEl.style.width     = normalizeHealthTo100(maxLife)     + '%';
-        lifeFillCurrentEl.style.width = normalizeHealthTo100(currentLife) + '%';
-    }
-}
-
-let bossLifeFillCurrentEl = null;
-let bossLifeFillMaxEl     = null;
-let bossMaxHP = null;
-
-function drawBossHealth() {
-    if (!bossLifeFillCurrentEl) {
-        const container = document.getElementById('bossLifeBarContainer');
-        bossLifeFillCurrentEl = container.querySelector('.life-fill-current');
-        bossLifeFillMaxEl     = container.querySelector('.life-fill-max');
-    }
-
-    const bossStatePtr = readU16(ADDR_BOSS_STATE_PTR);
-    const currHp = readU16(bossStatePtr + 3);
-    if (!bossMaxHP) {
-        bossMaxHP = currHp;
-    }
-    if (bossLifeFillCurrentEl && bossLifeFillMaxEl) {
-        bossLifeFillCurrentEl.style.width = normalizeHealthTo100(currHp)  + '%';
-        bossLifeFillMaxEl.style.width     = normalizeHealthTo100(bossMaxHP) + '%';
-    }
-}
-
-function renderBossName() {
-    const name =  getBossName();
-    const label = document.getElementById('goldLabel');
-    const value = document.getElementById('gold');
-    if (label) label.textContent = '';
-    if (value) value.textContent = name;
-}
-
-function getHeroGoldValue() {
-    if (!readMemory) return 0;
-    const goldBytes = readMemory(ADDR_HERO_GOLD_LO, 2);
-    const goldLo = goldBytes[0] | (goldBytes[1] << 8);
-    const goldHi = readMemory(ADDR_HERO_GOLD_HI, 1)[0];
-    return goldLo + goldHi * 0x10000;
-}
-
-function setHeroGoldValue(value) {
-    if (!writeMemory) return;
-    const clamped = Math.max(0, Math.min(0xFFFFFF, value));
-    writeMemory(ADDR_HERO_GOLD_LO, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
-    writeMemory(ADDR_HERO_GOLD_HI, [(clamped >> 16) & 0xFF]);
-}
-
-function renderGoldHud() {
-    updateElementText('gold', getHeroGoldValue());
-}
-
-function getHeroAlmasValue() {
-    if (!readMemory) return 0;
-    const almasBytes = readMemory(ADDR_HERO_ALMAS, 2);
-    const almas = almasBytes[0] | (almasBytes[1] << 8);
-    return almas;
-}
-
-function setHeroAlmasValue(value) {
-    if (!writeMemory) return;
-    const clamped = Math.max(0, Math.min(0xFFFF, value));
-    writeMemory(ADDR_HERO_ALMAS, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
-}
-
-function renderAlmasHud() {
-    updateElementText('almas', getHeroAlmasValue());
-}
-
-async function loadSwordIcons() {
-    if (swordIconsReady) return Promise.resolve(swordIcons);
-    const loads = ITEMP_SWORD_IMAGE_PATHS.map((path, index) => {
-        if (!path) return Promise.resolve(null);
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load ${path}`));
-            img.src = path;
-        }).then(img => { swordIcons[index] = img; return img; });
-    });
-    await Promise.all(loads);
-    swordIconsReady = true;
-    return swordIcons;
-}
-
-function getHeroSwordType() {
-    if (!readMemory) return 0;
-    return readMemory(ADDR_SWORD_TYPE, 1)[0];
-}
-
-function setHeroSwordType(type) {
-    if (!writeMemory) return;
-    writeMemory(ADDR_SWORD_TYPE, [type]);
-}
-
-function renderSwordHud() {
-    const type = getHeroSwordType() - 1;
-    const icon = document.getElementById("activeSwordIcon");
-    icon.src = type >= 0 && swordIcons[type] ? swordIcons[type].src : "";
-}
-
-async function loadShieldIcons() {
-    if (shieldIconsReady) return Promise.resolve(shieldIcons);
-    const loads = ITEMP_SHIELD_IMAGE_PATHS.map((path, index) => {
-        if (!path) return Promise.resolve(null);
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load ${path}`));
-            img.src = path;
-        }).then(img => { shieldIcons[index] = img; return img; });
-    });
-    await Promise.all(loads);
-    shieldIconsReady = true;
-    return shieldIcons;
-}
-
-function getHeroShieldType() {
-    if (!readMemory) return 0;
-    return readMemory(ADDR_SHIELD_TYPE, 1)[0];
-}
-
-function setHeroShieldType(type) {
-    if (!writeMemory) return;
-    writeMemory(ADDR_SHIELD_TYPE, [type]);
-}
-
-function getHeroShieldHP() {
-    if (!readMemory) return 0;
-    const hpBytes = readMemory(ADDR_SHIELD_HP, 2);
-    return hpBytes[0] | (hpBytes[1] << 8);
-}
-
-function setHeroShieldHP(hp) {
-    if (!writeMemory) return;
-    writeMemory(ADDR_SHIELD_HP, [hp & 0xff, (hp >> 8) & 0xff]);
-}
-
-function renderShieldHud() {
-    const type = getHeroShieldType() - 1;
-    const icon = document.getElementById("activeShieldIcon");
-    icon.src = type >= 0 && shieldIcons[type] ? shieldIcons[type].src : "";
-    updateElementText('shieldHp', type >= 0 ? getHeroShieldHP() : '');
-}
-
-async function loadMagicIcons() {
-    if (magicIconsReady) return Promise.resolve(magicIcons);
-    const loads = ITEMP_MAGIC_IMAGE_PATHS.map((path, index) => {
-        if (!path) return Promise.resolve(null);
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load ${path}`));
-            img.src = path;
-        }).then(img => { magicIcons[index] = img; return img; });
-    });
-    await Promise.all(loads);
-    magicIconsReady = true;
-    return magicIcons;
-}
-
-function getHeroMagicType() {
-    if (!readMemory) return 0;
-    return readMemory(ADDR_CURR_SPELL_TYPE, 1)[0];
-}
-
-function setHeroMagicType(type) {
-    if (!writeMemory) return;
-    writeMemory(ADDR_CURR_SPELL_TYPE, [type]);
-}
-
-function getHeroMagicCount(type) {
-    if (!readMemory) return 0;
-    const idx = type - 1;
-    if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length) return 0;
-    return readMemory(ADDR_SPELL_COUNTS[idx], 1)[0];
-}
-
-function setHeroMagicCount(type, count) {
-    if (!writeMemory) return;
-    const idx = type - 1;
-    if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length || count < 0 || count > 255) return;
-    writeMemory(ADDR_SPELL_COUNTS[idx], [count]);
-}
-
-function renderMagicHud() {
-    const type0 = getHeroMagicType() - 1;
-    const icon = document.getElementById("activeSpellIcon");
-    icon.src = type0 >= 0 && magicIcons[type0] ? magicIcons[type0].src : "";
-    updateElementText('spellCounter', type0 >= 0 ? getHeroMagicCount(type0+1) : '');
-}
-
+function updateElementText(elementId, value) { hud.updateElementText(elementId, value); }
+function resetBossHud() { hud.resetBossHud(); }
+function updatePlaceHud(name, indoor) { hud.updatePlaceHud(name, indoor); }
+function renderBossName() { hud.renderBossName(); }
+function drawLifeBar() { hud.drawLifeBar(); }
+function setLife(currentLife, maxLife) { hud.setLife(currentLife, maxLife); }
+function drawBossHealth() { hud.drawBossHealth(); }
+function getHeroHp() { return hud.getHeroHp(); }
+function setHeroHp(hp) { hud.setHeroHp(hp); }
+function getHeroMaxHp() { return hud.getHeroMaxHp(); }
+function setHeroMaxHp(maxHp) { hud.setHeroMaxHp(maxHp); }
+function getHeroGoldValue() { return hud.getHeroGoldValue(); }
+function setHeroGoldValue(value) { hud.setHeroGoldValue(value); }
+function renderGoldHud() { hud.renderGoldHud(); }
+function getHeroAlmasValue() { return hud.getHeroAlmasValue(); }
+function setHeroAlmasValue(value) { hud.setHeroAlmasValue(value); }
+function renderAlmasHud() { hud.renderAlmasHud(); }
+function loadSwordIcons() { return hud.loadSwordIcons(); }
+function getHeroSwordType() { return hud.getHeroSwordType(); }
+function setHeroSwordType(type) { hud.setHeroSwordType(type); }
+function renderSwordHud() { hud.renderSwordHud(); }
+function loadShieldIcons() { return hud.loadShieldIcons(); }
+function getHeroShieldType() { return hud.getHeroShieldType(); }
+function setHeroShieldType(type) { hud.setHeroShieldType(type); }
+function getHeroShieldHP() { return hud.getHeroShieldHP(); }
+function setHeroShieldHP(hp) { hud.setHeroShieldHP(hp); }
+function renderShieldHud() { hud.renderShieldHud(); }
+function loadMagicIcons() { return hud.loadMagicIcons(); }
+function getHeroMagicType() { return hud.getHeroMagicType(); }
+function setHeroMagicType(type) { hud.setHeroMagicType(type); }
+function getHeroMagicCount(type) { return hud.getHeroMagicCount(type); }
+function setHeroMagicCount(type, count) { hud.setHeroMagicCount(type, count); }
+function renderMagicHud() { hud.renderMagicHud(); }
 // Open Save Modal (called from Sage scene)
 function openSaveModal(onSaveComplete) {
     if (activeModal) return;
@@ -6317,7 +6007,7 @@ function draw() {
             if (goldLabel) goldLabel.style.display = 'none';
             if (goldValue) goldValue.style.display = '';
         } else {
-            bossMaxHP = null;
+            hud.resetBossMaxHp();
             if (bossLifeBar) bossLifeBar.classList.add('hidden');
             if (placeName) placeName.style.display = '';
             if (placeLabel) placeLabel.textContent = 'PLACE';

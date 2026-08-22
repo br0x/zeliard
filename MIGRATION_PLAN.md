@@ -171,6 +171,13 @@ Completed so far:
    interface and typed fade lifecycle base class; all 8 indoor scenes import
    the TS base. Tested: fade-in/hold/fade-out math, completion protocol,
    finish-callback semantics.
+5. ✅ `wasm/memory.ts` absorbed the full `ADDR_*` / `DUNGEON_STATE_*` block
+   from `game.js` (~120 g_mem addresses) — the memory map now has a single
+   owner module shared by JS and TS code.
+6. ✅ `ui/hud.ts` — `Hud` class owning all DOM HUD rendering (HP/life bar with
+   asm-parity `normalizeHealthTo100`, gold/almas, sword/shield/magic icons and
+   counts, boss bar/name); `game.js` keeps hoisted delegating shims. Tested:
+   address-level byte assertions for every stat, clamping rules, DOM output.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
