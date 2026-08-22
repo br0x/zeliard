@@ -29,6 +29,7 @@ import {
 import { keys, setKeyState } from '../input/key-state.js';
 import { Hud } from '../ui/hud.js';
 import { ModalManager } from '../ui/modal-manager.js';
+import { SpeedChangeDialog, displayedSpeed } from '../core/speed-change.js';
 import { downloadSaveFile, pickSaveFile } from '../platform/save-file.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
@@ -922,7 +923,7 @@ window.addEventListener('keydown', e => {
     }
 
     if (e.code === 'F9' && !e.repeat) {
-        if (!speedChange.active && !modalManager.isActive && !gamePaused && engineReady &&
+        if (!speedDialog.isActive && !modalManager.isActive && !gamePaused && engineReady &&
             (gameMode === 'town' || gameMode === 'dungeon')) {
             startSpeedChange();
         }
@@ -969,8 +970,8 @@ window.addEventListener('keydown', e => {
     }
 
     // Route keys to speed change dialog while active
-    if (speedChange.active) {
-        if (speedChange.phase === 1) {
+    if (speedDialog.isActive) {
+        if (speedDialog.currentPhase === 1) {
             if (e.code === 'Escape') {
                 cancelSpeedChange();
                 e.preventDefault();
@@ -978,16 +979,14 @@ window.addEventListener('keydown', e => {
             }
             if (e.code.startsWith('Digit') && e.code.length === 6) {
                 const digit = parseInt(e.code[5], 10);
-                if (digit >= 0 && digit <= 9) {
-                    speedChange.digit = digit;
-                    speedChange.phase = 2;
+                if (digit >= 0 && digit <= 9 && speedDialog.selectDigit(digit)) {
                     writeMemory(ADDR_SPEED_CONST, [10 - digit]);
                     writeMemory(ADDR_SOUND_FX_REQUEST, [1]);
                     e.preventDefault();
                 }
                 return;
             }
-        } else if (speedChange.phase === 2) {
+        } else if (speedDialog.currentPhase === 2) {
             if (['Space', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
                 finishSpeedChange();
                 e.preventDefault();
@@ -1009,8 +1008,8 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => {
-    if (e.code === 'F9' && speedChange.active && speedChange.phase === 0) {
-        speedChange.phase = 1;
+    if (e.code === 'F9' && speedDialog.isActive && speedDialog.currentPhase === 0) {
+        speedDialog.beginSelect();
     }
 
     if (inventoryScreenInstance &&
@@ -1362,16 +1361,12 @@ let conversation = {
     onComplete: null, // called once when a JS-initiated dialog is closed (e.g. Pureza to Dorado warp)
 };
 
-let speedChange = {
-    active: false,
-    phase: 0,
-    digit: -1,
-};
+const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine
 
 // Used by touch-controls.js to show a mobile digit pad while the
 // speed-change dialog is waiting for input.
 export function getSpeedChangePhase() {
-    return speedChange.active ? speedChange.phase : -1;
+    return speedDialog.touchPhase;
 }
 
 // ─── Town scroll helpers ──────────────────────────────────────────────────────
@@ -3916,12 +3911,10 @@ export function getModalInputActive() {
 // ─── Speed change dialog (F9) ──────────────────────────────────────────────
 
 function startSpeedChange() {
-    if (speedChange.active || modalManager.isActive || gamePaused || !engineReady) return;
+    if (speedDialog.isActive || modalManager.isActive || gamePaused || !engineReady) return;
     if (gameMode !== 'town' && gameMode !== 'dungeon') return;
 
-    speedChange.active = true;
-    speedChange.phase = 0;
-    speedChange.digit = -1;
+    speedDialog.begin();
     gamePaused = true;
 }
 
@@ -3934,10 +3927,8 @@ function getSpeedChangeBox() {
 }
 
 function finishSpeedChange() {
-    if (!speedChange.active) return;
-    speedChange.active = false;
-    speedChange.phase = 0;
-    speedChange.digit = -1;
+    if (!speedDialog.isActive) return;
+    speedDialog.finish();
     gamePaused = false;
 }
 
@@ -3946,7 +3937,7 @@ function cancelSpeedChange() {
 }
 
 function drawSpeedChangeDialog() {
-    if (!speedChange.active) return;
+    if (!speedDialog.isActive) return;
 
     const box = getSpeedChangeBox();
 
@@ -3970,13 +3961,13 @@ function drawSpeedChangeDialog() {
     ctx.fillStyle = '#fff';
     ctx.fillText('Speed change', cx, cy);
 
-    const currentSpeed = 10 - (readMemory(ADDR_SPEED_CONST, 1)[0] || 5);
+    const currentSpeed = displayedSpeed(readMemory(ADDR_SPEED_CONST, 1)[0]);
      // strlen of "Select 0-9:" is 11
-    if (speedChange.phase === 0) {
+    if (speedDialog.currentPhase === 0) {
         ctx.fillStyle = '#888';
         ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
         ctx.fillText(String(currentSpeed), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
-    } else if (speedChange.phase === 1) {
+    } else if (speedDialog.currentPhase === 1) {
         ctx.fillStyle = '#fff';
         ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
@@ -3985,7 +3976,7 @@ function drawSpeedChangeDialog() {
         ctx.fillStyle = '#fff';
         ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
-        ctx.fillText(String(speedChange.digit), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
+        ctx.fillText(String(speedDialog.selectedDigit), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#888';
         ctx.fillText('(press any key)', cx, cy + TILE_SIZE * 3);
     }

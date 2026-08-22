@@ -188,9 +188,14 @@ Completed so far:
    active modal, key-code translation KeyA→a / Digit5→5 / Space→space, draw
    forwarding, input-active tracking for the on-screen keyboard) and .sav
    file download/picker with size validation; `game.js` now drives dialogs
-   through a typed manager instead of the raw `activeModal flag. Tested:
+   through a typed manager instead of the raw `activeModal` flag. Tested:
    lifecycle guards, key translation/routing, picker callbacks incl.
    wrong-size rejection and detached-input re-attachment.
+9. ✅ `core/speed-change.ts` — F9 game-speed dialog state machine
+   (begin → beginSelect → selectDigit → confirm, cancel anywhere) as a pure,
+   injected-effects class; drawing and wasm writes stay in `game.js`.
+   Tested: every legal/illegal transition, idempotent finish/restart,
+   stored-byte→displayed-speed conversion incl. zero fallback.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
