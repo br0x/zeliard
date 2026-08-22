@@ -57,14 +57,17 @@ import {
 import { Hud } from '../ui/hud.js';
 import { ModalManager } from '../ui/modal-manager.js';
 import { SpeedChangeDialog, displayedSpeed } from '../core/speed-change.js';
-import { ConversationManager } from '../core/conversation.js';
 import {
-    parseDialogText as parseDialogTextImpl,
-    computeDialogGeometry,
-    DIALOG_FONT_SIZE,
-    TEXT_FIRST_BASELINE,
-    TEXT_LINE_HEIGHT,
-} from '../core/conversation-text.js';
+    RokaDemo,
+    ROKADEMO_CENTER_DX, ROKADEMO_HERO_Y, ROKADEMO_TEAR_CENTER,
+    ROKADEMO_RUN_STEPS,
+    SWORD_VISIBLE_STATES,
+    rokademoSwordFrame, rokademoSlotCenter, rokademoLandCenter,
+    DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS,
+} from '../core/roka-demo.js';
+import { ConversationManager, readNpcConversationBytes } from '../core/conversation.js';
+import { parseDialogText as parseDialogTextImpl } from '../core/conversation-text.js';
+import { layoutConversationBox, drawConversationBox } from '../ui/conversation-draw.js';
 import { downloadSaveFile, pickSaveFile } from '../platform/save-file.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
@@ -101,7 +104,7 @@ import {
     ADDR_LAST_SAGE_VISITED, ADDR_SAGES_SPOKEN, ADDR_HERO_ANIM_PHASE, ADDR_INVINCIBILITY_FLAG,
     ADDR_BOSS_STATE_BLOCK, ADDR_BYTE_9EED, ADDR_BYTE_9F00, ADDR_BOSS_PLACEMENT,
     ADDR_HERO_X_IN_PROXIMITY_MAP, ADDR_DOOR_TARGET_Y, ADDR_DOOR_FEATURES, ADDR_BOSS_STATE_PTR,
-    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_MAP_WIDTH, ADDR_DUNGEON_ENTRANCE_TABLE, ADDR_NPC_CONVERSATIONS,
+    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_MAP_WIDTH, ADDR_DUNGEON_ENTRANCE_TABLE,
     ADDR_NPC_ARRAY_PTR, ADDR_MONSTERS_LIST, ADDR_CAVERN_LEVEL, ADDR_TEAR_X,
     ADDR_HERO_Y_VIEW_INIT, ADDR_CAVERN_SIGNS_INFO, ADDR_PROXIMITY_MAP, ADDR_VIEWPORT_ENTITIES,
     ADDR_MAGIC_PROJECTILES, ADDR_MAGIA_STONE_SPRITE0, ADDR_PROJECTILES_LIST, ADDR_PROXIMITY_LAYER2,
@@ -2193,48 +2196,6 @@ function drawDungeonRoka() {
     prevRokaDx = dx;
 }
 
-// ─── Rokademo (Tear of Esmesanti collection demo) ─────────────────────────────
-// Mirrors the original DMAN.GRP sequence: hero runs to the middle of the
-// cavern, draws his sword in a salute, the Tear of Esmesanti bursts into
-// sparkles that fly up to its slot on the mole_t.jpg strip above the canvas,
-// then the hero sheaths his sword and runs off.
-const DMAN_FRAME_W = 72;
-const DMAN_FRAME_H = 72;
-const DMAN_SHEET_COLS = 13;
-const ROKADEMO_RUN_STEPS = 13;
-const ROKADEMO_CENTER_DX = (VIEW_COLS * TILE_SIZE - DMAN_FRAME_W) / 2;  // 300
-const ROKADEMO_HERO_Y = 12 * TILE_SIZE;                                // 288
-const ROKADEMO_TEAR_CENTER = { x: 336, y: 235 };
-
-const ROKADEMO_TIMING = {
-    runStepMs:     90,   // per run step (13 steps)
-    standMs:       500,
-    drawPhaseMs:   180,  // per draw-sword phase (5,6,7,8)
-    saluteMs:      600,
-    flashMs:       120,  // per small-sparkle frame
-    burstMs:       260,  // per wide-sparkle burst frame
-    flyTotalMs:    6200, // total flight time of the sparkle to the mole slot (~7s, like the original)
-    flyFrameMs:    170,  // per alternating 2/3 sparkle frame during flight (orig: 2 steps = 169ms)
-    pingEveryMs:   500,  // play "ping" roughly every half second of flight (orig: 6 steps ≈ 507ms)
-    landBurstMs:   260,  // wide burst over the mole slot
-    landFlashMs:   130,  // per fade sparkle over the placed tear
-    sheathPhaseMs: 180,  // per sheathing phase (8,7,6,5)
-    sheathPauseMs: 500,
-    runoffStepMs:  90,   // per run-off step (13 steps)
-    tearMusicTimeoutMs: 16000, // fail-safe: continue the demo if tear.ogg never finishes
-};
-
-const SWORD_VISIBLE_STATES = new Set([
-    'salute', 'sparkleStart', 'sparkleBurst', 'sparkleFlash',
-    'sparkleFly', 'sparkleLand', 'sparkleLandFlash', 'tearMusic',
-]);
-
-function rokademoSwordFrame(type) {
-    if (type <= 3) return 10;   // small sword (training / wise man's / spirit)
-    if (type <= 5) return 11;   // medium sword (knight's / illumination)
-    return 12;                  // large sword (enchantment)
-}
-
 function drawDmanFrame(frame, dx, dy) {
     drawSheetFrame(dmanSheet, frame, DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS, dx, dy);
 }
@@ -2266,250 +2227,18 @@ function drawRokademoTear(cx, cy) {
     ctx.drawImage(img, cx - (img.width >> 1), cy - (img.height >> 1));
 }
 
-// Tear slots are the top-left corner of the tear on the mole strip; this returns
-// the visual center so the flying sparkle lands on the placed tear. Coordinates
-// must be integers — the Bresenham stepper only ever moves by ±1 per step.
-// The mole strip sits ABOVE the canvas, so the resulting y is negative (the
-// sparkle flies out of the canvas top toward the slot).
-function rokademoSlotCenter(slot, isRed) {
-    const w = isRed ? 31 : 19;
-    const h = isRed ? 34 : 25;
-    return {
-        x: Math.round(slot.x + w / 2),
-        y: Math.round(-MOLE_IMG_H + slot.y + h / 2),
-    };
-}
-
-// The landing sparkle itself must be visible, so clamp the burst/flash center
-// back inside the canvas (w/h are the sparkle's sprite dimensions).
-function rokademoLandCenter(slotC, w, h) {
-    return {
-        x: Math.min(Math.max(slotC.x, w / 2), canvas.width - w / 2),
-        y: Math.min(Math.max(slotC.y, h / 2), canvas.height - h / 2),
-    };
-}
-
-function rokademoHeroDx(d) {
-    const center = ROKADEMO_CENTER_DX;
-    const s = Math.min(ROKADEMO_RUN_STEPS, d.step + 1);
-    if (d.state === 'runoff') {
-        const end = canvas.width - DMAN_FRAME_W;
-        return Math.round(center + (end - center) * s / ROKADEMO_RUN_STEPS);
-    }
-    return Math.round(center * s / ROKADEMO_RUN_STEPS);
-}
-
-function rokademoSetState(d, state, now) {
-    d.state = state;
-    d.stateStart = now;
-    d.step = 0;
-}
-
-function initBresenham(x0, y0, x1, y1) {
-    return {
-        x: x0, y: y0, x0, y0, x1, y1,
-        dx: Math.abs(x1 - x0),
-        dy: Math.abs(y1 - y0),
-        sx: x0 < x1 ? 1 : -1,
-        sy: y0 < y1 ? 1 : -1,
-        err: Math.abs(x1 - x0) - Math.abs(y1 - y0),
-    };
-}
-
-function stepBresenham(b) {
-    const e2 = 2 * b.err;
-    if (e2 > -b.dy) { b.err -= b.dy; b.x += b.sx; }
-    if (e2 < b.dx)  { b.err += b.dx; b.y += b.sy; }
-    return b.y <= 0;
-}
-
 function startRokademo() {
-    const tearCount = Math.max(1, Math.min(getTearCount(), 9));
-    rokademo = {
-        tearCount,
-        isRed: tearCount >= 9,
-        slot: tearCount >= 9 ? TEAR_SLOT_RED : TEAR_SLOTS_BLUE[tearCount - 1],
-        swordType: Math.max(1, Math.min(6, readU8(ADDR_SWORD_TYPE) || 1)),
-        animPhase: 0,
-        tearVisible: true,
-        sparkleFrame: 0,
-        burstFrame: 0,
-        fly: null,
-        done: false,
-        lastStompStep: -1,
-        lastPingStep: -1,
-        state: 'run',
-        stateStart: 0,
-        step: 0,
-    };
-    // The new tear is already counted (roka_entrypoint incremented it), so the
-    // overlay shows only the previously collected tears until the sparkle lands.
-    setTearOverlayCount(tearCount - 1);
-    rokademoSetState(rokademo, 'run', performance.now());
+    rokademo = new RokaDemo({
+        playSfx: (id) => soundManager.playSfx(id),
+        hasAudio: () => !!soundManager?.isReady,
+        playTearMusic: (onEnded) =>
+            soundManager.playMusic('tear', 0.1, { loop: false, onEnded }),
+        setTearOverlayCount,
+    }, { viewW: canvas.width, viewH: canvas.height });
+    rokademo.start(getTearCount(), readU8(ADDR_SWORD_TYPE), performance.now());
 }
 
-function updateRokademo(d, now) {
-    const T = ROKADEMO_TIMING;
-    const dt = now - d.stateStart;
-    switch (d.state) {
-        case 'run': {
-            d.step = Math.min(ROKADEMO_RUN_STEPS, Math.floor(dt / T.runStepMs));
-            d.animPhase = d.step & 3;
-            if (d.step % 2 === 1 && d.lastStompStep !== d.step) {
-                d.lastStompStep = d.step;
-                soundManager.playSfx(26);
-            }
-            if (d.step >= ROKADEMO_RUN_STEPS) {
-                rokademoSetState(d, 'stand', now);
-                d.animPhase = 4;
-            }
-            break;
-        }
-        case 'stand':
-            d.animPhase = 4;
-            if (dt >= T.standMs) {
-                rokademoSetState(d, 'draw', now);
-                d.animPhase = 5;
-            }
-            break;
-        case 'draw': {
-            const i = Math.min(4, Math.floor(dt / T.drawPhaseMs));
-            d.animPhase = 5 + i;
-            if (dt >= 4 * T.drawPhaseMs) {
-                rokademoSetState(d, 'salute', now);
-                d.animPhase = 9;
-            }
-            break;
-        }
-        case 'salute':
-            d.animPhase = 9;
-            if (dt >= T.saluteMs) {
-                rokademoSetState(d, 'sparkleStart', now);
-                d.sparkleFrame = 0;
-            }
-            break;
-        case 'sparkleStart':
-            d.animPhase = 9;
-            d.sparkleFrame = Math.min(1, Math.floor(dt / T.flashMs));
-            if (dt >= 2 * T.flashMs) {
-                rokademoSetState(d, 'sparkleBurst', now);
-                d.burstFrame = 0;
-                soundManager.playSfx(27);
-            }
-            break;
-        case 'sparkleBurst':
-            d.animPhase = 9;
-            d.burstFrame = Math.min(1, Math.floor(dt / T.burstMs));
-            if (dt >= 2 * T.burstMs) {
-                d.tearVisible = false;   // the tear bursts and flies to the mole
-                rokademoSetState(d, 'sparkleFlash', now);
-                d.sparkleFrame = 0;
-            }
-            break;
-        case 'sparkleFlash':
-            d.animPhase = 9;
-            d.sparkleFrame = Math.min(3, Math.floor(dt / T.flashMs));
-            if (dt >= 4 * T.flashMs) {
-                rokademoSetState(d, 'sparkleFly', now);
-                const c = rokademoSlotCenter(d.slot, d.isRed);
-                d.fly = initBresenham(
-                    ROKADEMO_TEAR_CENTER.x, ROKADEMO_TEAR_CENTER.y,
-                    c.x, c.y
-                );
-            }
-            break;
-        case 'sparkleFly': {
-            d.animPhase = 9;
-            if (d.fly) {
-                // The flight is time-based, not framerate-bound: the sparkle
-                // travels the whole path in flyTotalMs regardless of refresh
-                // rate (the original waits ~84.5ms per step on a 236.7Hz timer).
-                const totalSteps = Math.max(
-                    Math.abs(d.fly.x1 - d.fly.x0),
-                    Math.abs(d.fly.y1 - d.fly.y0)
-                );
-                const targetStep = Math.min(totalSteps,
-                    Math.floor(dt / T.flyTotalMs * totalSteps));
-                while (d.step < targetStep) {
-                    d.step++;
-                    if (stepBresenham(d.fly)) {
-                        rokademoSetState(d, 'sparkleLand', now);
-                        d.burstFrame = 0;
-                        soundManager.playSfx(27);
-                        break;
-                    }
-                }
-                // Alternating 2/3 sparkle frame, ~170ms each like the original.
-                d.sparkleFrame = 2 + ((Math.floor(dt / T.flyFrameMs)) & 1);
-                // "ping" roughly every half second of flight, like the original.
-                const pings = Math.floor(dt / T.pingEveryMs);
-                if (pings > d.lastPingStep) {
-                    d.lastPingStep = pings;
-                    soundManager.playSfx(28);
-                }
-            } else {
-                rokademoSetState(d, 'sparkleLand', now);
-                d.burstFrame = 0;
-            }
-            break;
-        }
-        case 'sparkleLand':
-            d.animPhase = 9;
-            d.burstFrame = Math.min(1, Math.floor(dt / T.landBurstMs));
-            if (dt >= 2 * T.landBurstMs) {
-                setTearOverlayCount(d.tearCount);   // the tear appears in its mole slot
-                rokademoSetState(d, 'sparkleLandFlash', now);
-                d.sparkleFrame = 4;
-            }
-            break;
-        case 'sparkleLandFlash': {
-            d.animPhase = 9;
-            d.sparkleFrame = Math.max(0, 4 - Math.floor(dt / T.landFlashMs));
-            if (dt >= 4 * T.landFlashMs) {
-                // The Tear is in place: hold the salute while the Tear theme
-                // plays once; only finish the salute once it has finished.
-                rokademoSetState(d, 'tearMusic', now);
-                d.tearMusicDone = false;
-                if (soundManager?.isReady) {
-                    soundManager.playMusic('tear', 0.1, {
-                        loop: false,
-                        onEnded: () => { d.tearMusicDone = true; },
-                    });
-                } else {
-                    d.tearMusicDone = true;   // audio unavailable: don't stall the demo
-                }
-            }
-            break;
-        }
-        case 'tearMusic':
-            d.animPhase = 9;   // keep saluting while the Tear theme plays
-            if (d.tearMusicDone || dt >= T.tearMusicTimeoutMs) {
-                rokademoSetState(d, 'sheath', now);
-            }
-            break;
-        case 'sheath': {
-            const i = Math.min(4, Math.floor(dt / T.sheathPhaseMs));
-            d.animPhase = 9 - i;   // 9,8,7,6,5
-            if (dt >= 4 * T.sheathPhaseMs + T.sheathPauseMs) {
-                rokademoSetState(d, 'runoff', now);
-            }
-            break;
-        }
-        case 'runoff':
-            d.step = Math.min(ROKADEMO_RUN_STEPS, Math.floor(dt / T.runoffStepMs));
-            d.animPhase = d.step & 3;
-            if (d.step % 2 === 1 && d.lastStompStep !== d.step) {
-                d.lastStompStep = d.step;
-                soundManager.playSfx(26);
-            }
-            if (d.step >= ROKADEMO_RUN_STEPS) {
-                d.done = true;
-            }
-            break;
-    }
-}
-
-function finishRokademoDemo(now) {
+function finishRokaDemo(now) {
     finishRokademoTransition?.();
     rokademo = null;
     rokademoHold = true;
@@ -2529,7 +2258,7 @@ function drawDungeonRokademo(now) {
     }
     if (!rokademo || rokademo.done) {
         if (rokademo && rokademo.done) {
-            finishRokademoDemo(now);
+            finishRokaDemo(now);
             return;   // final frame (hero at right edge) was already drawn
         }
         startRokademo();
@@ -2537,9 +2266,9 @@ function drawDungeonRokademo(now) {
     }
 
     const d = rokademo;
-    updateRokademo(d, now);
+    rokademo.update(now);
     const doneNow = d.done;
-    const heroDx = (d.state === 'run' || d.state === 'runoff') ? rokademoHeroDx(d) : ROKADEMO_CENTER_DX;
+    const heroDx = (d.state === 'run' || d.state === 'runoff') ? rokademo.heroDx() : ROKADEMO_CENTER_DX;
     const tearC = ROKADEMO_TEAR_CENTER;
     const slotC = rokademoSlotCenter(d.slot, d.isRed);
 
@@ -2562,15 +2291,15 @@ function drawDungeonRokademo(now) {
     } else if (d.state === 'sparkleFly' && d.fly) {
         drawSmallSparkle(d.sparkleFrame, d.fly.x, d.fly.y);
     } else if (d.state === 'sparkleLand') {
-        const burstC = rokademoLandCenter(slotC, 192, 48);
+        const burstC = rokademoLandCenter(slotC, 192, 48, canvas.width, canvas.height);
         drawWideSparkle(d.burstFrame, burstC.x, burstC.y-24); // we show half-height of final big sparkle
     } else if (d.state === 'sparkleLandFlash') {
-        const flashC = rokademoLandCenter(slotC, 48, 48);
+        const flashC = rokademoLandCenter(slotC, 48, 48, canvas.width, canvas.height);
         drawSmallSparkle(d.sparkleFrame, flashC.x, flashC.y-24);
     }
 
     if (doneNow) {
-        finishRokademoDemo(now);
+        finishRokaDemo(now);
     }
 }
 
@@ -2941,19 +2670,7 @@ function updateInputLatches() {
 }
 
 function getNpcConversationRaw(npcId) {
-    let ptr = readMemory(ADDR_NPC_CONVERSATIONS, 2);
-    const convTablePtr = ptr[0] | (ptr[1] << 8);
-    if (!convTablePtr) return null;
-    const textPtr = readMemory(convTablePtr + npcId * 2, 2);
-    const textAddr = textPtr[0] | (textPtr[1] << 8);
-    if (!textAddr) return null;
-    let bytes = [];
-    let b;
-    while ((b = readMemory(textAddr + bytes.length, 1)[0]) !== 0xFF) {
-        if (b === 0) break;
-        bytes.push(b);
-    }
-    return new Uint8Array(bytes);
+    return readNpcConversationBytes(readMemory, npcId);
 }
 
 // Dialog text parsing + geometry live in core/conversation-text.ts (Stage 2).
@@ -2965,75 +2682,19 @@ const dialogEffects = {
         writeMemory(ADDR_ELF_CREST, [0xFF]);
         initC015ObjIfExists();
     },
-    // 0x8B: tear collection (original: or byte_4,80h)
-    onTearCollected: () => {
+    // 0x8B: endgame flag — final boss Jashiin defeated + 9th Tear of
+    // Esmesanti delivered (original: or byte_4,80h; jmp init_c015_obj_if_exists).
+    // Together with death_already_processed=FF it switches the King's and
+    // citizens' conversations in Felishika's Castle town (place map id 0x80).
+    onFinalTearCollected: () => {
         const b4 = readMemory(ADDR_BYTE4, 1)[0];
         writeMemory(ADDR_BYTE4, [b4 | 0x80]);
+        initC015ObjIfExists();
     },
 };
 
 function parseDialogText(bytes) {
     return parseDialogTextImpl(bytes, dialogEffects);
-}
-
-function computeBoxGeometry(facingLeft, extraLines = 0) {
-    const page = conversation.pages[conversation.page] ?? [];
-    ctx.save();
-    ctx.font = `${DIALOG_FONT_SIZE + 2}px 'Courier New', monospace`;
-    const geo = computeDialogGeometry({
-        pageLines: page,
-        facingLeft,
-        extraLines,
-        measureText: (line) => ctx.measureText(line).width,
-    });
-    ctx.restore();
-    conversation.boxX = geo.x;
-    conversation.boxY = geo.y;
-    conversation.boxW = geo.w;
-    conversation.boxH = geo.h;
-}
-
-function drawConversationDialog() {
-    if (!conversation.active || !conversation.pages.length) return;
-    const pageLines = conversation.pages[conversation.page] || [];
-    const totalPages = conversation.pages.length;
-    const width = conversation.boxW || 300;
-    const height = conversation.boxH || 100;
-    const x = conversation.boxX || 10;
-    const y = conversation.boxY || 10;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.99)';
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#ccc';
-    ctx.strokeRect(x, y, width, height);
-    ctx.font = '20px "Courier New", monospace';
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < pageLines.length; i++) {
-        ctx.fillText(pageLines[i], x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
-    }
-    if (conversation.purchaseMode) {
-        const options = ['Take', 'No Take'];
-        const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
-        for (let i = 0; i < options.length; i++) {
-            const cy = baseY + i * TEXT_LINE_HEIGHT;
-            ctx.fillStyle = i === conversation.purchaseCursor ? '#ffcc00' : '#ccc';
-            ctx.fillText(options[i], x + 32, cy);
-        }
-        ctx.fillStyle = '#ffcc00';
-        ctx.fillText('►', x + 12, baseY + conversation.purchaseCursor * TEXT_LINE_HEIGHT);
-    } else if (conversation.yesNoMode) {
-        const options = ['Yes', 'No'];
-        const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
-        for (let i = 0; i < options.length; i++) {
-            const cy = baseY + i * TEXT_LINE_HEIGHT;
-            ctx.fillStyle = i === conversation.yesNoCursor ? '#ffcc00' : '#ccc';
-            ctx.fillText(options[i], x + 32, cy);
-        }
-        ctx.fillStyle = '#ffcc00';
-        ctx.fillText('►', x + 12, baseY + conversation.yesNoCursor * TEXT_LINE_HEIGHT);
-    } else if (conversation.page < totalPages - 1) {
-        ctx.fillStyle = '#ffcc00';
-        ctx.fillText('▼', x + width - 24, y + height - 12);
-    }
 }
 
 const conversation = new ConversationManager({
@@ -3044,7 +2705,8 @@ const conversation = new ConversationManager({
     getHeroAlmasValue,
     setHeroAlmasValue,
     renderAlmasHud,
-    layout: (facingLeft, extraLines) => computeBoxGeometry(facingLeft, extraLines),
+    layout: (facingLeft, extraLines) => layoutConversationBox(ctx, conversation, extraLines),
+    effects: dialogEffects,
 });
 
 function startConversationFromWasm() {
@@ -3085,19 +2747,7 @@ function startWarpPureza2Dorado() {
         handleWarp();
         return;
     }
-    conversation.active = true;
-    conversation.pages = parsed.pages;
-    conversation.page = 0;
-    conversation.hasYesNo = false;
-    conversation.yesNoMode = false;
-    conversation.yesNoCursor = 0;
-    conversation.purchaseMode = false;
-    conversation.purchaseCursor = 0;
-    conversation.endCode = null;
-    conversation.facingLeft = false;
-    conversation.savedBackground = null;
-    conversation.onComplete = handleWarp;
-    computeBoxGeometry(conversation.facingLeft);
+    conversation.startDialog(parsed, handleWarp);
 }
 
 // warp building — teleports the hero to Dorado (place map id 6).
@@ -3754,7 +3404,7 @@ function draw() {
             renderSwordHud();
             renderMagicHud();
             renderShieldHud();
-            drawConversationDialog();
+            drawConversationBox(ctx, conversation);
         }
     }
     // Draw speed change dialog

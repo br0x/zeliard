@@ -13,11 +13,12 @@
 import {
     ADDR_CALIENTE_ITEMS,
     ADDR_HERO_CREST,
+    ADDR_NPC_CONVERSATIONS,
     ADDR_PLACE_MAP_ID,
     ADDR_SPACEBAR_LATCH,
 } from '../wasm/memory.js';
 import { LLAMA_TOWN_ID } from '../data/assets.js';
-import { parseDialogText, type ParsedDialog } from './conversation-text.js';
+import { parseDialogText, type DialogEffects, type ParsedDialog } from './conversation-text.js';
 
 export const ASBESTOS_CAPE_ITEM_ID = 5;
 export const ASBESTOS_CAPE_PRICE = 2500;
@@ -41,6 +42,31 @@ export const PATTERN_BOUGHT = 8;
 const PATTERN_CAPE_ONLY_TALK = 9;
 const PATTERN_CREST_TEXT = 14;
 
+/**
+ * Walk the wasm NPC conversation pointer table: `ADDR_NPC_CONVERSATIONS`
+ * points at a per-NPC array of text addresses; each text runs until 0xFF
+ * (or an early 0x00 terminator). Returns null when the table, the entry,
+ * or the text address is empty.
+ */
+export function readNpcConversationBytes(
+    readMemory: (offset: number, length: number) => Uint8Array | null,
+    npcId: number,
+): Uint8Array | null {
+    const ptr = readMemory(ADDR_NPC_CONVERSATIONS, 2) ?? new Uint8Array(2);
+    const convTablePtr = ptr[0] | (ptr[1] << 8);
+    if (!convTablePtr) return null;
+    const textPtr = readMemory(convTablePtr + npcId * 2, 2) ?? new Uint8Array(2);
+    const textAddr = textPtr[0] | (textPtr[1] << 8);
+    if (!textAddr) return null;
+    const bytes: number[] = [];
+    let b: number;
+    while ((b = (readMemory(textAddr + bytes.length, 1) ?? new Uint8Array(1))[0]) !== 0xff) {
+        if (b === 0) break;
+        bytes.push(b);
+    }
+    return new Uint8Array(bytes);
+}
+
 export interface ConversationDeps {
     readMemory(offset: number, length: number): Uint8Array | null;
     writeMemory(offset: number, data: ArrayLike<number>): void;
@@ -56,6 +82,12 @@ export interface ConversationDeps {
      * result into boxX/Y/W/H (game.js measures text via its canvas context).
      */
     layout(facingLeft: unknown, extraLines?: number): void;
+    /**
+     * Control-code side effects applied while parsing dialog bytes
+     * (0x83 Elf Crest grant, 0x8B tear collection). Without these the
+     * engine state mutations behind those codes never happen.
+     */
+    effects?: DialogEffects;
 }
 
 export class ConversationManager {
@@ -92,7 +124,7 @@ export class ConversationManager {
     }
 
     private parse(raw: Uint8Array | null): ParsedDialog | null {
-        const parsed = parseDialogText(raw ?? []);
+        const parsed = parseDialogText(raw ?? [], this.deps.effects);
         return parsed.pages.length > 0 ? parsed : null;
     }
 
@@ -158,6 +190,18 @@ export class ConversationManager {
             return;
         }
         this.applyParsed(parsed, true);
+        this.deps.layout(this.facingLeft);
+    }
+
+    /**
+     * Start a dialog from pre-parsed pages with a completion callback
+     * (e.g. the Pureza warp building's "Fooled again..." dialog). The caller
+     * runs its own parse (it may need custom control-code effects); no-ops
+     * are the caller's responsibility — parsed pages must be non-empty.
+     */
+    startDialog(parsed: ParsedDialog, onComplete: () => void): void {
+        this.applyParsed(parsed, false);
+        this.onComplete = onComplete;
         this.deps.layout(this.facingLeft);
     }
 

@@ -127,7 +127,7 @@ export interface TownPendingTransition {
     patId: number;
     goingLeft: boolean;
 }
-export const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (tear spoken to King)
+export const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (endgame: final Tear of Esmesanti delivered)
 export const ADDR_SPOKE_TO_KING             = 0x05;
 export const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 export const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape

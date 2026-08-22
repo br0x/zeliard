@@ -44,8 +44,14 @@ export const TEXT_BOTTOM_PAD = 20;
 export interface DialogEffects {
     /** 0x83: grant Elf Crest (caliente_items bit7, elf_crest=FF, init_c015). */
     onElfCrest?: () => void;
-    /** 0x8B: tear collected (byte_4 |= 80h). */
-    onTearCollected?: () => void;
+    /**
+     * 0x8B: endgame flag (byte_4 |= 80h + init_c015). Fired by the
+     * victory dialogs after the final boss Jashiin falls and the last
+     * (9th) Tear of Esmesanti is brought to the King — byte_4 bit7 plus
+     * death_already_processed=FF switch the King's and the citizens'
+     * conversations in Felishika's Castle town (place map id 0x80).
+     */
+    onFinalTearCollected?: () => void;
 }
 
 export interface ParsedDialog {
@@ -102,7 +108,7 @@ export function parseDialogText(bytes: ArrayLike<number>, effects: DialogEffects
         if (b === 0x87) { endCode = 0x87; break; }
         if (b === 0x89) { endCode = 0x89; break; }
         if (b === 0x8b) {
-            effects.onTearCollected?.();
+            effects.onFinalTearCollected?.();
             break;
         }
         if (b >= 0x82) break;

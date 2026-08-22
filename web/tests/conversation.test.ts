@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     ConversationManager,
+    readNpcConversationBytes,
     ASBESTOS_CAPE_ITEM_ID,
     ASBESTOS_CAPE_PRICE,
 } from '../src/core/conversation.js';
+import { ADDR_NPC_CONVERSATIONS } from '../src/wasm/memory.js';
 
 const ADDR_NPC_ADDR_LATCH = 0xfff6;
 const ADDR_CALIENTE_ITEMS = 0x34;
@@ -23,7 +25,7 @@ function toBytes(stream: Stream): Uint8Array {
     return new Uint8Array(out);
 }
 
-function makeFixture(conversations: Record<number, Stream>) {
+function makeFixture(conversations: Record<number, Stream>, effects: Record<string, () => void> = {}) {
     const buf = new Uint8Array(0x10000);
     let almas = 5000;
 
@@ -45,6 +47,7 @@ function makeFixture(conversations: Record<number, Stream>) {
         setHeroAlmasValue: (v: number) => void (almas = v),
         renderAlmasHud,
         layout,
+        effects,
     };
     const mgr = new ConversationManager(deps);
     return { mgr, buf, townFinishConversation, renderAlmasHud, layout, getAlmas: () => almas, setAlmas: (v: number) => void (almas = v) };
@@ -286,5 +289,124 @@ describe('end code 0x87 chain', () => {
         tick(f);
         expect(f.mgr.pages).toEqual([['Part two']]);
         expect(f.mgr.endCode).toBeNull();
+    });
+});
+
+// ─── readNpcConversationBytes (extracted from game.js) ───────────────────────
+
+describe('readNpcConversationBytes', () => {
+    function tableFixture(entries: Record<number, string | null>) {
+        const TABLE_BASE = 0x100;
+        const buf = new Uint8Array(0x10000);
+        buf[ADDR_NPC_CONVERSATIONS] = TABLE_BASE & 0xff;
+        buf[ADDR_NPC_CONVERSATIONS + 1] = TABLE_BASE >> 8;
+        // Conversation text blobs, laid out sequentially from 0x300.
+        let next = 0x300;
+        for (const [id, text] of Object.entries(entries)) {
+            if (text === null) continue; // entry address stays 0
+            const addr = next;
+            const bytes = [...text].map((c) => c.charCodeAt(0));
+            buf.set([...bytes, 0xff], addr);
+            buf[TABLE_BASE + Number(id) * 2] = addr & 0xff;
+            buf[TABLE_BASE + Number(id) * 2 + 1] = addr >> 8;
+            next += bytes.length + 1;
+        }
+        const readMemory = (offset: number, length: number) =>
+            buf.subarray(offset & 0xffff, (offset & 0xffff) + length);
+        return { buf, readMemory };
+    }
+
+    it('walks the pointer table and collects bytes up to 0xFF', () => {
+        const { readMemory } = tableFixture({ 0: 'Hi', 2: 'Yo!' });
+        expect(readNpcConversationBytes(readMemory, 0)).toEqual(toBytes(['Hi']));
+        expect(readNpcConversationBytes(readMemory, 2)).toEqual(toBytes(['Yo!']));
+    });
+
+    it('returns null when the conversation table pointer is unset', () => {
+        const empty = new Uint8Array(0x100);
+        expect(
+            readNpcConversationBytes(() => empty.subarray(0, 2), 0),
+        ).toBeNull();
+    });
+
+    it('returns null when the NPC entry address is zero', () => {
+        const { readMemory } = tableFixture({ 1: null });
+        expect(readNpcConversationBytes(readMemory, 1)).toBeNull();
+    });
+
+    it('stops at a 0x00 terminator before 0xFF', () => {
+        const m = new Uint8Array(0x10000);
+        // Text at 0x300: "A", NUL terminator, junk, 0xFF.
+        m.set([0x41, 0x00, 0x42, 0xff], 0x300);
+        m[0x100 + 2 * 2] = 0x00; // npc 2 entry -> 0x0300
+        m[0x100 + 2 * 2 + 1] = 0x03;
+        m[ADDR_NPC_CONVERSATIONS] = 0x00;
+        m[ADDR_NPC_CONVERSATIONS + 1] = 0x01; // table @ 0x100
+        const readMemory = (offset: number, length: number) =>
+            m.subarray(offset & 0xffff, (offset & 0xffff) + length);
+        expect(readNpcConversationBytes(readMemory, 2)).toEqual(new Uint8Array([0x41]));
+    });
+});
+
+// ─── startDialog (Pureza warp building path) ─────────────────────────────────
+
+describe('startDialog', () => {
+    it('activates with parsed pages and fires onComplete on close', () => {
+        const f = makeFixture({});
+        f.mgr.purchaseMode = true; // stale state must be reset
+        f.mgr.yesNoCursor = 1;
+        f.mgr.facingLeft = true;
+
+        const onComplete = vi.fn();
+        f.mgr.startDialog({ pages: [['Fooled again...']], hasYesNo: true, endCode: 3 }, onComplete);
+
+        expect(f.mgr.active).toBe(true);
+        expect(f.mgr.pages).toEqual([['Fooled again...']]);
+        expect(f.mgr.page).toBe(0);
+        expect(f.mgr.hasYesNo).toBe(true); // taken from the parse result
+        expect(f.mgr.yesNoMode).toBe(false);
+        expect(f.mgr.yesNoCursor).toBe(0);
+        expect(f.mgr.purchaseMode).toBe(false);
+        expect(f.mgr.endCode).toBe(3);
+        expect(f.mgr.facingLeft).toBe(false); // reset like the legacy block
+        expect(f.mgr.onComplete).toBe(onComplete);
+        expect(f.layout).toHaveBeenCalledWith(false);
+
+        f.mgr.close(true);
+        expect(onComplete).toHaveBeenCalledTimes(1);
+        expect(f.mgr.active).toBe(false);
+        expect(f.mgr.onComplete).toBeNull();
+    });
+});
+
+describe('control-code effects (regression: Elf Crest never granted)', () => {
+    it('fires onElfCrest when a wasm-started dialog contains 0x83', () => {
+        const onElfCrest = vi.fn();
+        const f = makeFixture({ 0: ['Take this.', 0x83] }, { onElfCrest });
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(onElfCrest).toHaveBeenCalledTimes(1);
+        expect(f.mgr.active).toBe(true);
+    });
+
+    it('fires onFinalTearCollected for 0x8B dialogs', () => {
+        const onFinalTearCollected = vi.fn();
+        const f = makeFixture({ 0: ['A tear!', 0x8b] }, { onFinalTearCollected });
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(onFinalTearCollected).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fire effects for plain dialogs', () => {
+        const onElfCrest = vi.fn();
+        const onFinalTearCollected = vi.fn();
+        const f = makeFixture({ 0: ['Hello.'] }, { onElfCrest, onFinalTearCollected });
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(onElfCrest).not.toHaveBeenCalled();
+        expect(onFinalTearCollected).not.toHaveBeenCalled();
     });
 });

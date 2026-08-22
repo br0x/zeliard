@@ -77,9 +77,9 @@ describe('control codes', () => {
     });
 
     it('0x8B fires the tear effect', () => {
-        const onTearCollected = vi.fn();
-        const r = parseDialogText([0x8b], { onTearCollected });
-        expect(onTearCollected).toHaveBeenCalledTimes(1);
+        const onFinalTearCollected = vi.fn();
+        const r = parseDialogText([0x8b], { onFinalTearCollected });
+        expect(onFinalTearCollected).toHaveBeenCalledTimes(1);
         expect(r.pages).toEqual([]); // nothing printable before the code
     });
 

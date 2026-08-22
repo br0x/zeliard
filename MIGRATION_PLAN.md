@@ -213,12 +213,29 @@ Completed so far:
    one `handleTick()` call; drawing stays in game.js reading manager fields.
    Tested: 15 scenarios covering every mode transition and side effect.
 11. ✅ `config/engine.ts` + `data/assets.ts` — remaining static config moved
-   out of `game.js`: engine/canvas constants, feature flags, town/dungeon
-   layout metrics, notification strings, and all asset-path tables.
-   Tested structurally (view math, town table, contiguous notification ids,
-   icon tiers). `game.js` is now ~4.0k lines, down from 6.6k — the remainder
-   is actual logic: rendering functions, conversation flow, rokademo,
-   transitions, and the game loop.
+    out of `game.js`: engine/canvas constants, feature flags, town/dungeon
+    layout metrics, notification strings, and all asset-path tables.
+    Tested structurally (view math, town table, contiguous notification ids,
+    icon tiers). `game.js` is now ~4.0k lines, down from 6.6k — the remainder
+    is actual logic: rendering functions, conversation flow, rokademo,
+    transitions, and the game loop.
+12. ✅ Conversation leftovers — `readNpcConversationBytes` (the NPC pointer-
+    table walk) extracted as a pure exported function of `core/conversation.ts`;
+    `ui/conversation-draw.ts` owns box layout (`layoutConversationBox`) and all
+    dialog drawing (`drawConversationBox`) behind a `ConversationDrawState`
+    view interface; and a new `ConversationManager.startDialog(parsed,
+    onComplete)` method replaced game.js's direct field-poking in the Pureza
+    warp-building path. Tested: table-walk terminators (0xFF / 0x00 / null
+    entries), draw output incl. choice cursors and ▼ indicator, layout
+    measure/geometry write-back, startDialog state reset + completion callback.
+13. ✅ `core/roka-demo.ts` — the post-boss Tear of Esmesanti collection demo:
+    full time-driven state machine (run → salute → sparkle burst/flight
+    (Bresenham) → land → tear theme → sheath → runoff), timing table, slot/
+    sword-frame/land-clamp geometry helpers. SFX, tear-music and mole-strip
+    overlay effects are injected; assets and drawing stay in game.js. Tested:
+    every state transition in order, stomp/burst/ping SFX placement, overlay
+    count before/after landing, start clamping (tear count/sword type),
+    audio-unavailable and 16s music-timeout fail-safes, Bresenham landing.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
