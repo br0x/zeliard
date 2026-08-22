@@ -178,6 +178,19 @@ Completed so far:
    asm-parity `normalizeHealthTo100`, gold/almas, sword/shield/magic icons and
    counts, boss bar/name); `game.js` keeps hoisted delegating shims. Tested:
    address-level byte assertions for every stat, clamping rules, DOM output.
+7. ✅ `data/dungeons.ts` — the ~1,700-line static block moved verbatim out of
+   `game.js`: EAI1–8 enemy frame mappings, boss sprite segment tables, and
+   the 31-entry `DUNGEONS` map table (now typed via `DungeonDefinition`).
+   Zero logic; tested structurally (contiguous ids 0..30, required asset
+   paths, paired left/right frame lists, sprite counts). This alone cut
+   `game.js` from 6.2k to ~4.5k lines.
+8. ✅ `ui/modal-manager.ts` + `platform/save-file.ts` — modal lifecycle (single
+   active modal, key-code translation KeyA→a / Digit5→5 / Space→space, draw
+   forwarding, input-active tracking for the on-screen keyboard) and .sav
+   file download/picker with size validation; `game.js` now drives dialogs
+   through a typed manager instead of the raw `activeModal flag. Tested:
+   lifecycle guards, key translation/routing, picker callbacks incl.
+   wrong-size rejection and detached-input re-attachment.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
