@@ -236,6 +236,15 @@ Completed so far:
     every state transition in order, stomp/burst/ping SFX placement, overlay
     count before/after landing, start clamping (tear count/sword type),
     audio-unavailable and 16s music-timeout fail-safes, Bresenham landing.
+14. ✅ `core/transitions.ts` — pure transition helpers extracted from the
+    town/dungeon flows: `computeTownScrollFromAbsoluteX` (fight.asm
+    edge-locking viewport math used on town re-entry), `resolveMusicTrack`
+    (town/cavern music mapping), `encodeBossState` (boss descriptor → g_mem
+    block + Pascal name, typed `BossState` interface), `getTownMapWidth`.
+    The async orchestrators (`handleTownTransition`, `handleDungeonTransition`,
+    `initTownFromDungeon`, `handleWarp`) stay in game.js until render/ and the
+    asset owners exist. Tested: edge-lock branches (middle/right/left/wrap/
+    small-map), full music table + fallbacks, exact boss block byte layout.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions

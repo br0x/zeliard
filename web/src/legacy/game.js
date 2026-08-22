@@ -68,6 +68,12 @@ import {
 import { ConversationManager, readNpcConversationBytes } from '../core/conversation.js';
 import { parseDialogText as parseDialogTextImpl } from '../core/conversation-text.js';
 import { layoutConversationBox, drawConversationBox } from '../ui/conversation-draw.js';
+import {
+    computeTownScrollFromAbsoluteX,
+    encodeBossState,
+    getTownMapWidth,
+    resolveMusicTrack,
+} from '../core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from '../platform/save-file.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
@@ -1055,7 +1061,7 @@ function getAnimatedTownTileId(tileId) {
  */
 function drawTownTiles() {
     if (!mdtData || !townTileSheetReady) return false;
-    const mapWidth = getTownMapWidth();
+    const mapWidth = getTownMapWidth(mdtData);
     if (!mapWidth) return false;
 
     const mem = getWasmMemory?.();
@@ -2469,22 +2475,9 @@ async function handleDungeonTransition(mapId, isFromTown) {
         // Initialize boss state block if this map has one
         const bossState = DUNGEONS[rawMapId].bossState;
         if (bossState) {
-            writeMemory(ADDR_BOSS_STATE_BLOCK, [
-                bossState.bossX & 0xFF, (bossState.bossX >> 8) & 0xFF,            // +0
-                bossState.bossY,                                                  // +2
-                bossState.bossHP & 0xFF, (bossState.bossHP >> 8) & 0xFF,          // +3
-                bossState.xpReward & 0xFF, (bossState.xpReward >> 8) & 0xFF,      // +5
-                bossState.arenaCenterX,                                           // +7
-                bossState.bossPlacement,                                          // +8
-                bossState.almasReward & 0xFF, (bossState.almasReward >> 8) & 0xFF,// +9
-            ]);
-            const encoder = new TextEncoder();
-            const bytes = encoder.encode(bossState.bossName);
-            const pascal = new Uint8Array(1 + bytes.length);
-            pascal[0] = bytes.length;
-            pascal.set(bytes, 1);
-            writeMemory(ADDR_BOSS_STATE_BLOCK + 11, pascal);                      // +11
-
+            const { block, namePascal } = encodeBossState(bossState);
+            writeMemory(ADDR_BOSS_STATE_BLOCK, block);
+            writeMemory(ADDR_BOSS_STATE_BLOCK + 11, namePascal);   // +11
             writeMemory(ADDR_BOSS_STATE_PTR, [
                 ADDR_BOSS_STATE_BLOCK & 0xFF, (ADDR_BOSS_STATE_BLOCK >> 8) & 0xFF,
             ]);
@@ -2526,7 +2519,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
         loadMdt(mdtData, mdtPath);
         mdtHeader = getTownMdtHeader?.();
 
-        const mapWidth = getTownMapWidth();
+        const mapWidth = getTownMapWidth(mdtData);
         const xBytes = readMemory(isDeath ? ADDR_TEAR_X : ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
         const xProx = xBytes[0] | (xBytes[1] << 8);
         if (mapWidth) {
@@ -2588,72 +2581,6 @@ async function initTownFromDungeon(townMapId, isDeath) {
         dungeonExitInProgress = false;
         engineReady = true;
     }
-}
-
-function resolveMusicTrack(type) {
-    const map = { 
-        0: 'mgt1', 
-        1: 'ugm1', 
-        2: 'mgt2', 
-        3: 'ugm2',
-        4: 'Zeliard-04-CavernOfMalicia',
-        5: 'Zeliard-08-CavernOfPeligro',
-        6: 'Zeliard-10-CavernOfMadera',
-        7: 'Zeliard-11-CavernOfEscarcha',
-        8: 'Zeliard-09-CavernOfCorroer',
-        9: 'Zeliard-13-CavernOfTesoro',
-        10: 'Zeliard-12-CavernOfCaliente',
-        11: 'Zeliard-14-CavernOfAbsor',
-    };
-    return map[type] ?? 'mgt1';
-}
-
-function computeTownScrollFromAbsoluteX(heroProxX, mapWidth) {
-    // Edge locking logic from fight.asm (edge_locking_scrolling_window)
-    let heroViewX = 13;
-    let proxLeft = 0;
-
-    if (heroProxX > mapWidth - 13)
-    {
-        // ── Right-edge lock ──────────────────────────────────────────────
-        // Hero is within 13 columns of the right edge; freeze the viewport
-        // so the map's rightmost column stays visible.
-        const  carry = (mapWidth >= PROX_COLS) ? 1 : 0;
-        const left_col = mapWidth - PROX_COLS;
-
-        proxLeft = left_col;
-        heroViewX = (heroProxX - left_col - carry) - 3;
-    }
-    else
-    {
-        // Subtract 17; the result wraps to a large uint16 when hero_x < 17,
-        // which is exactly what `or ah, ah / jnz` detected in the original.
-        const ax = (heroProxX + 65536 - 17) & 0xFFFF;
-
-        if (ax > 255)
-        {
-            // ── Left-edge lock ───────────────────────────────────────────
-            // Hero is within 17 columns of the left edge (or hero_x wrapped
-            // past 272, which shouldn't occur in practice).
-            // Freeze the viewport at column 0; hero sits 4 tiles from left.
-            proxLeft = 0;
-            heroViewX = heroProxX - 4;
-        }
-        else
-        {
-            // ── Middle (free scrolling) ──────────────────────────────────
-            // Hero is far enough from both edges; scroll the map so the hero
-            // always appears at viewport column 13 (bx=13 was set at entry).
-            proxLeft = ax;   // hero_x_in_proximity_map - 17
-            heroViewX = 13;
-        }
-    }
-    return { proxLeft, heroViewX };
-}
-
-function getTownMapWidth() {
-    if (!mdtData || mdtData.length < 4) return 0;
-    return mdtData[2] | (mdtData[3] << 8);
 }
 
 // ─── Conversation (NPC dialog) ────────────────────────────────────────────────
