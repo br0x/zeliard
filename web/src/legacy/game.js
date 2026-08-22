@@ -32,6 +32,26 @@ import { drawSheetFrame } from '../render/sheets.js';
 import { getExplosionRingCanvas } from '../render/explosion-ring.js';
 import { setupGameCanvas } from '../render/canvas.js';
 import {
+    initDungeonRenderer,
+    resolveFullTickWaiters,
+    bumpRenderCounter,
+    drawDungeonTiles,
+    animateDungeonTiles,
+    drawDungeonProjectiles,
+    drawDungeonMagicProjectiles,
+    drawDungeonEntities,
+    drawDungeonMagiaStones,
+    drawDungeonHero,
+    drawDungeonSword,
+    drawDungeonNotification,
+    drawDungeonSign,
+    beginRokaRunFrame,
+    drawDungeonRoka,
+    drawEncounterText,
+    drawGuerraOverlay,
+    maybeStartGuerraEffect,
+} from '../render/dungeon.js';
+import {
     getMagicFrameIndex,
     nextAnimatedTile,
     wrapProximityAddress,
@@ -243,6 +263,9 @@ let rokaImages = [];
 let rokaImagesReady = false;
 let encounterImg = null;
 
+let prevDungeonState = -1;
+let encounterAnim = null;
+
 // ─── Rokademo (tear-collection demo) asset state ──────────────────────────────
 let dmanSheet = null;
 let dmanSheetReady = false;
@@ -390,14 +413,7 @@ function toggleSfx() {
 // ─── PIT tick callbacks ───────────────────────────────────────────────────────
 function onFullTick() {
     if (gamePaused) return;
-    if (_fullTickWaiters.length) {
-        const stillWaiting = [];
-        for (const waiter of _fullTickWaiters) {
-            if (--waiter.remaining <= 0) waiter.resolve();
-            else stillWaiting.push(waiter);
-        }
-        _fullTickWaiters = stillWaiting;
-    }
+    resolveFullTickWaiters();
     frameTimer  = (frameTimer  + 1) & 0xFF;
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
@@ -423,7 +439,7 @@ function onFullTick() {
                 // frame into 3 sub-steps (0→1→2→0), so dungeonUpdate() is called 3x
                 // per frame; only step phase 2→0 finishes a frame
                 if (isRokaRun || (phaseBefore === 2 && readU8(ADDR_DUNGEON_FRAME_PHASE) === 0)) {
-                    renderCounter = (renderCounter + 1) & 0xFF;
+                    bumpRenderCounter();
                 }
                 if (gMem(ADDR_DUNGEON_EXIT_FLAG) === 0xFF) {
                     if (gMem(ADDR_HERO_DEATH_FLAG) === 0xFF) {
@@ -1082,48 +1098,6 @@ function drawTownNpcs() {
     }
 }
 
-function drawStaticTile(tileId, vpX, vpY) {
-    const dx = vpX * TILE_SIZE;
-    const dy = vpY * TILE_SIZE;
-    if (tileId === 0) {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
-        return;
-    }
-    const mppCols = Math.floor(dungeonTileSheet.width / TILE_SIZE);
-    const mppTiles = mppCols * Math.floor(dungeonTileSheet.height / TILE_SIZE);
-    if (tileId >= 1 && tileId <= mppTiles) {
-        drawSheetFrame(ctx, dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, mppCols, dx, dy);
-    } else if (tileId >= 0x40 && dungeonDchrSheetReady) {
-        const dchrCols = Math.floor(dungeonDchrSheet.width / TILE_SIZE);
-        const dchrTiles = dchrCols * Math.floor(dungeonDchrSheet.height / TILE_SIZE);
-        if (tileId - 0x40 < dchrTiles) {
-            drawSheetFrame(ctx, dungeonDchrSheet, tileId - 0x40, TILE_SIZE, TILE_SIZE, dchrCols, dx, dy);
-        }
-    }
-}
-
-function drawDungeonTiles() {
-    if (!dungeonTileSheetReady || !readMemory) return false;
-    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_COLS * DUNGEON_MAP_HEIGHT);
-    const layer2 = readMemory(ADDR_PROXIMITY_LAYER2, 0x80);
-    const top = dungeonGetViewportTop?.() ?? 0;
-
-    for (let row = 0; row < VIEW_ROWS; row++) {
-        const proxRow = (top + row) & 0x3F;
-        for (let col = 0; col < VIEW_COLS; col++) {
-            const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
-            let tileId = proxMap[proxRow*PROX_COLS + proxCol];
-            // Entity markers temporarily replace the real map tile. The
-            // original compositor restores that background from layer 2.
-            if (tileId & 0x80) tileId = layer2[tileId & 0x7F];
-            if (tileId === 0) continue;
-            drawStaticTile(tileId, col, row);
-        }
-    }
-    return true;
-}
-
 // Direct byte access into the cached WASM g_mem view. getWasmMemory()
 // re-validates the view on every call and rebuilds it if the WASM memory
 // buffer grew (old views are detached). Unlike readMemory(addr, 1)[0]
@@ -1142,807 +1116,6 @@ function readU16(addr) {
     const mem = getWasmMemory?.();
     if (!mem) return 0;
     return mem[addr] | (mem[addr + 1] << 8);
-}
-
-// Tracks whether the explosion rings have been rendered this frame.
-let _bossExplosionFrameRendered = false;
-
-/*
- * Mirrors the spawning half of C Spawn_Boss_Explosion_Ring.
- *
- * Called per entity-tile processed by drawDungeonEntities while the boss
- * death flash is active.  Spawning writes a new ring into the shared
- * memory list at ADDR_BOSS_EXPLOSIONS_LIST.  The C-side
- * Boss_Explosions_Renderer handles decrement, compaction and VRAM
- * rendering; this function only draws the rings onto the canvas.
- *
- * Entity layout (4 bytes):
- *   [0] tile column (0..27)
- *   [1] tile row    (0..18)
- *   [2] lifetime counter (3→0, then removed; masked to 2 bits = frame index)
- *   [3] variant (0..3), selects boss_explosion_mask_variants
- */
-function spawnBossExplosionRings(col, row) {
-  // ── 1. Render existing rings onto canvas (read-only, once per frame) ────
-  if (!_bossExplosionFrameRendered) {
-    _bossExplosionFrameRendered = true;
-
-    const scale = TILE_SIZE / 8; // 3 for 24px tiles
-    let ptr = ADDR_BOSS_EXPLOSIONS_LIST;
-
-    for (;;) {
-      const x = readU8(ptr);
-      if (x === 0xFF) break;
-
-      const y = readU8(ptr + 1);
-      const life = readU8(ptr + 2);
-      const variant = readU8(ptr + 3);
-
-      const phase = life & 3;
-      const ring = getExplosionRingCanvas(variant, phase, scale);
-      ctx.drawImage(ring, x * TILE_SIZE, y * TILE_SIZE);
-
-      ptr += 4;
-    }
-  }
-
-  // ── 2. Spawn a new ring (probabilistic, each call) ───────────────────────
-  if (row >= 16) return;
-  if ((Math.random() * 16 | 0) >= 2) return; // ~⅛ probability (C: (r&0x0F)<14)
-
-  // Find terminator
-  let ptr = ADDR_BOSS_EXPLOSIONS_LIST;
-  let count = 0;
-  while (readU8(ptr) !== 0xFF) {
-    ptr += 4;
-    if (++count > 32) return;
-  }
-  if (count >= 32) return;
-
-  // Random x offset – one of {-1,0,1} from the entity column
-  let sx = (Math.random() * 4 | 0);
-  while (sx === 3) sx = (Math.random() * 4 | 0);
-  sx = sx - 1 + col;
-  if (sx === 0xFF) sx = 4;
-  if (sx >= 27)    sx = 26;
-
-  // Random y offset – one of {-1,0,1} from the entity row
-  let sy = (Math.random() * 4 | 0);
-  while (sy === 3) sy = (Math.random() * 4 | 0);
-  sy = sy - 1 + row;
-  if (sy === 0xFF) sy = 0;
-
-  const variant = Math.random() * 4 | 0;
-
-  writeMemory(ptr,     [sx]);
-  writeMemory(ptr + 1, [sy]);
-  writeMemory(ptr + 2, [3]); // starting lifetime
-  writeMemory(ptr + 3, [variant]);
-  writeMemory(ptr + 4, [0xFF]); // terminator for next
-}
-
-function drawDungeonProjectiles() { // monsters projectiles
-    if (!dungeonTileSheetReady || !readMemory) return;
-    if (!dungeonProjectiles) return;
-    const top = dungeonGetViewportTop?.() ?? 0;
-    const cols = Math.floor(dungeonTileSheet.width / TILE_SIZE);
-    let p = ADDR_PROJECTILES_LIST;
-    for (;;) {
-        const p_x_rel = gMem(p);
-        if (p_x_rel === 0xFF) break;
-        const vpX = p_x_rel - DUNGEON_VIEW_LEFT_IN_PROX;
-        if (vpX < 0 || vpX >= VIEW_COLS) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const p_y_rel = gMem(p + 1);
-        const vpY = (p_y_rel - top) & 0x3F;
-        if (vpY >= VIEW_ROWS) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const typeId = gMem(p + 2);
-        const stepCount = gMem(p + 3);
-        if (typeId >= dungeonProjectiles.length) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const tiles = dungeonProjectiles[typeId];
-        if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const tileId = tiles[stepCount % tiles.length];
-        const dx = vpX * TILE_SIZE;
-        const dy = vpY * TILE_SIZE;
-        drawSheetFrame(ctx, dungeonTileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, cols, dx, dy);
-        p += PROJECTILE_STRUCT_SIZE;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Magic spell projectile rendering
-// ---------------------------------------------------------------------------
-
-function drawDungeonMagicProjectiles() {
-    if (!dungeonMagicSheetReady || !readMemory) return;
-    const currentSpell = readU8(0x9D);
-    if (currentSpell === 0 || currentSpell === 7) return;
-    const spellIndex = currentSpell - 1;
-    const top = dungeonGetViewportTop?.() ?? 0;
-
-    // The original fires the spell at the very end of a game frame, and only
-    // renders the projectile after the NEXT frame's dispatch has advanced it
-    // (update_active_projectiles_render runs after dispatch_spell_projectile_movement).
-    // Until then the master slot's mp_life_timer is 0, so skip the whole spell
-    // rather than draw it at the spawn position (on top of the hero).
-    // Only the master slot's timer is ever incremented (rascar/agua leave the
-    // other slots' timers at 0 forever), so a per-slot `lifeTimer === 0` check
-    // would wrongly hide those beams/bubbles.
-    const masterXRel = readU16(ADDR_MAGIC_PROJECTILES);
-    const masterLife = (masterXRel & 0xFF00) === 0xFF00 ? 0xFF : readU8(ADDR_MAGIC_PROJECTILES + 4);
-    if (masterLife === 0) return;
-
-    for (let outer = 0; outer < 4; outer++) {
-        const addr = ADDR_MAGIC_PROJECTILES + outer * MAGIC_PROJECTILE_STRIDE;
-        const xRel = readU16(addr);
-        if (xRel === 0xFFFF) return;
-        if ((xRel >> 8) === 0xFF) continue;
-
-        const yRel = readU8(addr + 2);
-        const mpDir = readU8(addr + 3);
-        const animFrame = readU8(addr + 5);
-
-        const leftCol = readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
-        const mapWidth = readU16(ADDR_MAP_WIDTH);
-
-        let relX;
-        if (xRel >= leftCol) {
-            relX = xRel - leftCol;
-            if (relX >= 36) continue;
-        } else {
-            if (xRel >= 36) continue;
-            relX = mapWidth - leftCol + xRel;
-            if (relX >= 36) continue;
-        }
-
-        const vpX = relX - DUNGEON_VIEW_LEFT_IN_PROX;
-        const relY = (yRel - top) & 0x3F;
-        const frameIdx = getMagicFrameIndex(spellIndex, mpDir, animFrame);
-        const srcX0 = frameIdx * 48;
-
-        for (let sub = 0; sub < 4; sub++) {
-            const sx = vpX + (sub & 1);
-            if (sx < 0 || sx >= VIEW_COLS) continue;
-            const sy = (relY + (sub >> 1)) & 0x3F;
-            if (sy >= VIEW_ROWS) continue;
-            ctx.drawImage(
-                dungeonMagicSheet,
-                srcX0 + (sub & 1) * TILE_SIZE,
-                (sub >> 1) * TILE_SIZE,
-                TILE_SIZE, TILE_SIZE,
-                sx * TILE_SIZE, sy * TILE_SIZE,
-                TILE_SIZE, TILE_SIZE,
-            );
-        }
-    }
-}
-
-let _guerraEffectRunning = false;
-let _guerraFlashActive   = false;
-let _guerraRings         = null; // outline rects accumulated while the effect runs
-// How many full ticks (~236.7 Hz each) each rectangle stays on screen before
-// the next one is drawn. ~2 keeps the whole process close to the original.
-const _guerraFullTicksPerRect = 3;
-let _fullTickWaiters = [];
-
-// Resolves after `count` game full ticks. The Guerra effect advances one
-// rectangle per interval while rendering continues every rAF frame.
-function waitFullTicks(count) {
-    return new Promise(resolve => _fullTickWaiters.push({ remaining: count, resolve }));
-}
-
-// Renders the persistent Guerra overlay each frame: the red XOR flash plus the
-// expanding yellow/black outline rectangles drawn so far.
-function drawGuerraOverlay() {
-    if (_guerraFlashActive) {
-        const viewW = VIEW_COLS * TILE_SIZE;
-        const viewH = VIEW_ROWS * TILE_SIZE;
-        const img = ctx.getImageData(0, 0, viewW, viewH);
-        const d = img.data;
-        for (let i = 0; i < d.length; i += 4) {
-            d[i] ^= 0xFF; // XOR the viewport content with red
-        }
-        ctx.putImageData(img, 0, 0);
-    }
-    if (_guerraRings) {
-        const t = 3; // flat border thickness in px
-        for (const ring of _guerraRings) {
-            ctx.fillStyle = ring.color;
-            ctx.fillRect(ring.left, ring.top, ring.width, t);
-            ctx.fillRect(ring.left, ring.top + ring.height - t, ring.width, t);
-            ctx.fillRect(ring.left, ring.top, t, ring.height);
-            ctx.fillRect(ring.left + ring.width - t, ring.top, t, ring.height);
-        }
-    }
-}
-
-async function renderGuerraEffect() {
-    const heroX   = readU8(ADDR_HERO_X_VIEW) * TILE_SIZE;
-    const heroY   = readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
-    const baseW   = 3 * TILE_SIZE;   // hero box: 3x3 tiles
-    const baseH   = 3 * TILE_SIZE;
-    const grow    = 1.5 * TILE_SIZE; // each rectangle is 3 tiles bigger than the previous
-    const offsets = [0, 0.5, 1];     // interleaved so consecutive rings grow every half tile
-    const viewW   = VIEW_COLS * TILE_SIZE;
-    const viewH   = VIEW_ROWS * TILE_SIZE;
-
-    _guerraRings = [];
-    _guerraFlashActive = true;
-
-    for (const pass of [
-        { color: 'rgb(255,255,0)', rounds: 3 }, // yellow: 3 rounds of 9 rectangles
-        { color: 'rgb(0,0,0)',     rounds: 3 }, // black: clear the rings above
-    ]) {
-        for (let round = 0; round < pass.rounds; round++) {
-            const start = offsets[round] * TILE_SIZE;
-            for (let i = 0; i < 9; i++) {
-                const r       = start + i * grow;
-                const left    = Math.max(0, heroX - r);
-                const top     = Math.max(0, heroY - r);
-                const right   = Math.min(viewW, heroX + baseW + r);
-                const bottom  = Math.min(viewH, heroY + baseH + r);
-                _guerraRings.push({ left, top, width: right - left, height: bottom - top, color: pass.color });
-                await waitFullTicks(_guerraFullTicksPerRect);
-            }
-        }
-    }
-
-    _guerraRings = null;
-    _guerraFlashActive = false;
-}
-
-let renderCounter = 0; // incremented once per dungeon game tick, used to animate tiles every or every odd frame
-
-// entityId (bitmasked to 0x7F) -> remaining flash frames for visual hit feedback
-const _entityHitFlashTimers = new Map();
-// offscreen canvas for per-sprite tinting (avoids tinting background tiles)
-const _tintCanvas = document.createElement('canvas');
-_tintCanvas.width = DUNGEON_ENTITY_W;
-_tintCanvas.height = DUNGEON_ENTITY_H;
-const _tintCtx = _tintCanvas.getContext('2d');
-
-// The original calls the cavern handlers once per Refresh_Dirty_Tiles. Keep
-// animation independent from rAF rendering so a tile advances at most once per
-// game tick, even when the canvas is drawn multiple times.
-let lastAnimatedRenderCounter = renderCounter;
-function animateDungeonTiles() {
-    if (!readMemory || lastAnimatedRenderCounter === renderCounter) return;
-    lastAnimatedRenderCounter = renderCounter;
-
-    const cavernLevel = readU8(ADDR_CAVERN_LEVEL);
-    if (cavernLevel < 5 || cavernLevel > 8) return;
-
-    const oddTick = (renderCounter & 1) !== 0;
-    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
-
-    // Batch-read the whole proximity map once. It is a direct view into WASM
-    // g_mem, so advancing a tile is a plain array write (no allocation, no
-    // per-tile writeMemory). Nothing here re-enters WASM, so the view cannot
-    // be invalidated while this synchronous loop runs.
-    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE);
-
-    for (let row = 0; row < VIEW_ROWS; row++) {
-        let si = wrapProximityAddress(
-            viewportLeftTop + row * PROX_COLS + DUNGEON_VIEW_LEFT_IN_PROX
-        );
-        for (let col = 0; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
-            const idx = si - ADDR_PROXIMITY_MAP;
-            const nextTile = nextAnimatedTile(proxMap[idx], { cavernLevel, oddTick });
-            if (nextTile === null) continue;
-            proxMap[idx] = nextTile;
-        }
-    }
-}
-
-/*
- * Entity half of Refresh_Dirty_Tiles for a freshly cleared canvas.
- *
- * DOS kept VRAM between refreshes, so its 28x19 cache prevents individual
- * 8x8 quadrants from being overwritten. Replaying that cache after clearing
- * the browser canvas makes quadrants disappear or get drawn more than once.
- * Here the background is already complete, and each 2x2 entity is painted
- * exactly once in the same row-major order as the assembly scan.
- */
-function drawDungeonEntities() {
-    if (!dungeonEntitySheetReady || !readMemory) return;
-
-    // In Refresh_Dirty_Tiles, 0xFF cache entries mean an earlier sprite (or
-    // the hero) owns this destination tile. Recreate that ownership locally
-    // for this freshly cleared frame; never carry it across rAF callbacks.
-    const claimedTiles = new Uint8Array(VIEW_COLS * VIEW_ROWS);
-    const bossExplosionActive =
-        readU8(ADDR_IS_BOSS_CAVERN) && readU8(ADDR_SPRITE_FLASH_FLAG);
-    // Spawn while scanning, but render the rings after every entity, as the
-    // original Boss_Explosions_Renderer call does.
-    _bossExplosionFrameRendered = Boolean(bossExplosionActive);
-
-    for (const [id, frames] of _entityHitFlashTimers) {
-        if (frames > 1) _entityHitFlashTimers.set(id, frames - 1);
-        else _entityHitFlashTimers.delete(id);
-    }
-
-    let currentEntityFlashFrames = 0;
-
-    function getSheetFrame(entityId) {
-        const id = entityId & 0x7F;
-        const ptr = readU16(ADDR_MONSTERS_LIST) + id * 16;
-        // Batch-read the 16-byte monster entry (bytes 4/5/6 hold flags/dir/frame)
-        // instead of four separate single-byte lookups.
-        const entry = readMemory(ptr, 16);
-        const dir = entry[5] & 0x80 ? "right" : "left";
-        const flags = entry[4] & 0x1F;
-        const offset = entry[6] & 0x0F;
-
-        currentEntityFlashFrames = _entityHitFlashTimers.get(id) || 0;
-        if ((flags & 0x18) === 0 && (entry[5] & 0x20)) {
-            currentEntityFlashFrames = 6;
-            _entityHitFlashTimers.set(id, 6);
-        }
-        // console.log('DFOE: ', dir, flags, offset, entityId);
-
-        return dungeonAI[dir][flags][offset];
-    }
-
-    function drawEntity(frame, vpX, vpY) {
-        if (!dungeonEntitySheet || frame < 0 || frame >= dungeonAI["numSprites"]) return;
-        const sx = frame * DUNGEON_ENTITY_W;
-        if (sx + DUNGEON_ENTITY_W > dungeonEntitySheet.width ||
-            DUNGEON_ENTITY_H > dungeonEntitySheet.height) return;
-
-        const tinted = currentEntityFlashFrames > 0;
-        if (tinted) {
-            _tintCtx.clearRect(0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H);
-            _tintCtx.drawImage(
-                dungeonEntitySheet,
-                sx, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H,
-                0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H
-            );
-            _tintCtx.globalCompositeOperation = 'source-atop';
-            _tintCtx.fillStyle = '#ffff00';
-            _tintCtx.globalAlpha = 0.5;
-            _tintCtx.fillRect(0, 0, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H);
-            _tintCtx.globalCompositeOperation = 'source-over';
-            _tintCtx.globalAlpha = 1.0;
-        }
-
-        for (let tileY = 0; tileY < 2; tileY++) {
-            const destY = vpY + tileY;
-            if (destY < 0 || destY >= VIEW_ROWS) continue;
-            for (let tileX = 0; tileX < 2; tileX++) {
-                const destX = vpX + tileX;
-                if (destX < 0 || destX >= VIEW_COLS) continue;
-
-                const claimedIndex = destY * VIEW_COLS + destX;
-                if (claimedTiles[claimedIndex]) continue;
-                claimedTiles[claimedIndex] = 1;
-
-                const sourceX = tileX * TILE_SIZE;
-                const sourceY = tileY * TILE_SIZE;
-                const dx = destX * TILE_SIZE;
-                const dy = destY * TILE_SIZE;
-                ctx.drawImage(
-                    dungeonEntitySheet,
-                    sx + sourceX, sourceY, TILE_SIZE, TILE_SIZE,
-                    dx, dy, TILE_SIZE, TILE_SIZE
-                );
-                if (tinted) {
-                    ctx.drawImage(
-                        _tintCanvas,
-                        sourceX, sourceY, TILE_SIZE, TILE_SIZE,
-                        dx, dy, TILE_SIZE, TILE_SIZE
-                    );
-                }
-            }
-        }
-    }
-
-    // Batch-read the whole proximity map once instead of a per-tile lookup,
-    // then index the local array (si - ADDR_PROXIMITY_MAP is always in range
-    // because wrapProximityAddress bounds si to the 36*64 circular buffer).
-    const proxMap = readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE);
-    const viewportLeftTop = readU16(ADDR_VIEWPORT_LEFT_TOP);
-
-    // Include the invisible row and left edge so partially visible sprites
-    // are naturally clipped by the canvas, matching the assembly helpers.
-    for (let row = -1; row < VIEW_ROWS; row++) {
-        let si = wrapProximityAddress(viewportLeftTop + row * PROX_COLS + 3);
-        for (let col = -1; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
-            const entityId = proxMap[si - ADDR_PROXIMITY_MAP];
-            if (!(entityId & 0x80)) continue;
-
-            drawEntity(getSheetFrame(entityId), col, row);
-
-            if (row >= 0 && col >= 0 && bossExplosionActive) {
-                spawnBossExplosionRings(col, row);
-            }
-        }
-    }
-
-    if (bossExplosionActive) {
-        _bossExplosionFrameRendered = false;
-        spawnBossExplosionRings(0, VIEW_ROWS); // draw only; row 18 cannot spawn
-    }
-}
-
-function getShieldCategory() {
-    const shieldType = gMem(ADDR_SHIELD_TYPE);
-    if (!shieldType) return 0;
-    return shieldType >= 4 ? 2 : 1;
-}
-
-function getDungeonHeroState() {
-    return {
-        facingLeft: (readU8(ADDR_FACING) & 1) !== 0,
-        animPhase: readU8(ADDR_HERO_ANIM_PHASE),
-        invincible: readU8(ADDR_INVINCIBILITY_FLAG) !== 0,
-        squat: readU8(ADDR_SQUAT_FLAG) !== 0,
-        onRope: readU8(ADDR_ON_ROPE_FLAGS) !== 0,
-        hidden: readU8(ADDR_HERO_HIDDEN_FLAG) !== 0,
-        jump: readU8(ADDR_JUMP_PHASE_FLAGS),
-        shieldAnimActive: readU8(ADDR_SHIELD_ANIM_ACTIVE) !== 0,
-        shieldPhase: readU8(ADDR_SHIELD_ANIM_PHASE),
-        shieldVariant: readU8(ADDR_SHIELD_VARIANT_INDEX),
-        slope: readU8(ADDR_SLOPE_DIRECTION),
-        shieldCategory: getShieldCategory(),
-    };
-}
-
-function resolveBodyFrame(state) {
-    if (state.hidden) return 30;
-    if (state.onRope) return 26 + (state.animPhase & 3);
-    const base = state.facingLeft ? 13 : 0;
-    let offset;
-    if (state.invincible) offset = 10 + (state.animPhase & 3);
-    else if (state.squat) offset = 5;
-    else if (state.jump & 0x80) offset = 7;
-    else if (state.slope === 1) offset = 8;
-    else if (state.slope === 2) offset = 9;
-    else if (state.jump === 0x7F) offset = 6;
-    else if (state.animPhase === 0x80) offset = 4;
-    else offset = state.animPhase & 3;
-    return base + offset;
-}
-
-function resolveBackArmFrame(state) {
-    if (state.invincible || state.onRope || state.hidden) return null;
-
-    const armBase = state.facingLeft ? 49 : 31;
-    const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
-    if (state.shieldAnimActive) {
-        const phase = Math.floor(state.shieldPhase / 2);
-        if (!state.facingLeft) return 79 + phase + (state.shieldCategory * 4);
-        let off = phase + 4;
-        if (state.shieldVariant === 1) off += 4;
-        else if (state.shieldVariant === 2) off = 11;
-        return armBase + off;
-    }
-
-    if (state.shieldCategory && !state.facingLeft) {
-        return armBase + 12 + (state.squat ? 1 : 0) + shieldOffset;
-    }
-
-    if (state.squat || state.animPhase === 0x80) return null;
-    const phase = (state.animPhase + 2) & 3;
-    if (phase & 1) return null;
-    return armBase + phase;
-}
-
-function resolveFrontArmFrame(state) {
-    const armBase = state.facingLeft ? 49 : 31;
-    const shieldOffset = state.shieldCategory === 2 ? 3 : 0;
-
-    if (state.invincible) return null;
-
-    if (state.onRope || state.hidden) {
-        if (!state.shieldCategory) return null;
-        return armBase + (state.shieldCategory === 2 ? 17 : 14);
-    }
-
-    if (state.shieldAnimActive) {
-        const phase = Math.floor(state.shieldPhase / 2);
-        if (state.facingLeft) return 67 + phase + (state.shieldCategory * 4);
-        let off = phase + 4;
-        if (state.shieldVariant === 1) off += 4;
-        else if (state.shieldVariant === 2) off = 11;
-        return armBase + off;
-    }
-
-    if (state.shieldCategory && state.facingLeft) {
-        return armBase + 12 + (state.squat ? 1 : 0) + shieldOffset;
-    }
-
-    if (state.squat || state.animPhase === 0x80) return armBase + 3;
-    return armBase + (state.animPhase & 3);
-}
-
-function drawDungeonMagiaStones() {
-    if (!dungeonDchrSheetReady || !readMemory) return;
-    for (let i = 0; i < 4; i++) {
-        const base = ADDR_MAGIA_STONE_SPRITE0 + i * 7;
-        if (gMem(base) === 0xFF) continue;
-        if (gMem(base + 2) === 0) continue;
-        const sx = gMem(base + 5);
-        const sy = gMem(base + 6) & 0x3F;
-        if (sy >= 19) continue; // outside viewport
-        drawSheetFrame(ctx, dungeonDchrSheet, 0x26, TILE_SIZE, TILE_SIZE, 39, (sx - 4) * TILE_SIZE, sy * TILE_SIZE);
-    }
-}
-
-function drawDungeonHero() {
-    if (!dungeonHeroSheetReady || !engineReady || !readMemory) return;
-    if (gMem(ADDR_HERO_SPRITE_HIDDEN)) return;
-    const x0 = gMem(ADDR_HERO_X_VIEW);
-    const y0 = gMem(ADDR_HERO_HEAD_Y_VIEW);
-    const dx = x0 * TILE_SIZE;
-    const dy = y0 * TILE_SIZE;
-    const state = getDungeonHeroState();
-    const armDy = state.squat ? dy + TILE_SIZE : dy;
-    const layers = [
-        { frame: resolveBackArmFrame(state), y: armDy },
-        { frame: resolveBodyFrame(state), y: dy },
-        { frame: resolveFrontArmFrame(state), y: armDy },
-    ];
-    for (const { frame, y } of layers) {
-        if (frame === null) continue;
-        drawSheetFrame(ctx, dungeonHeroSheet, frame, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H,
-            DUNGEON_HERO_SHEET_COLS, dx, y);
-    }
-}
-
-function drawDungeonSword() {
-    if (!dungeonSwordSheetReady || !readMemory || !writeMemory) return;
-    const swingFlag = gMem(ADDR_SWORD_SWING_FLAG);
-    if (!swingFlag) {
-        drawDungeonSword._swingStart = 0;
-        return;
-    }
-
-    let phase = gMem(ADDR_SWORD_MOVEMENT_PHASE);
-    const hitType = gMem(ADDR_SWORD_HIT_TYPE) || 0;
-    const swordType = Math.max(1, Math.min(6, gMem(ADDR_SWORD_TYPE) || 1));
-    const facingLeft = (gMem(ADDR_FACING) & 1) !== 0;
-
-    // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
-    // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
-    // the swing yet — skip rendering until it does.
-    if (phase === 0) {
-        drawDungeonSword._swingStart = 0;
-        return;
-    }
-
-    // JS-side timer: Render_Sword_Overlay is called twice per game cycle
-    // (~84ms apart), but the odd phases (stored by the first call) are only
-    // in memory for ~4.2ms — less than one rAF frame at 60fps.  Instead of
-    // reading the raw C phase, we step a local timer at a consistent rate,
-    // clamped to whatever the C code has already processed.
-    const now = performance.now();
-    if (!drawDungeonSword._swingStart) {
-        drawDungeonSword._swingStart = now;
-    }
-    const cDisplayPhase = phase - 1;
-    const PHASE_MS = 42; // one phase per ~42ms (2 phases per ~84ms game cycle)
-    let displayPhase = Math.min(
-        Math.floor((now - drawDungeonSword._swingStart) / PHASE_MS),
-        cDisplayPhase
-    );
-    const MAX_DISPLAY = { 0: 5, 1: 3, 2: 0 };
-    displayPhase = Math.min(displayPhase, MAX_DISPLAY[hitType] ?? 5);
-
-    if (displayPhase !== drawDungeonSword._lastDisplay) {
-        drawDungeonSword._lastDisplay = displayPhase;
-    }
-
-    let col;
-    switch (hitType) {
-        case 1: // overhead swing, phases 0..3 => column 5..8
-            col = 5 + displayPhase;
-            break;
-        case 2: // downward thrust, single phase => column 9
-            col = 9;
-            break;
-        default: // forward hit, phases 0..5 (phases 4 and 5 are the same, use column 4)
-            col = Math.min(displayPhase, 4);
-            break;
-    }
-
-    const baseRow = (swordType - 1) * 2;
-    const row = baseRow + (facingLeft ? 1 : 0);
-    const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
-
-    let dx = gMem(ADDR_HERO_X_VIEW) * TILE_SIZE;
-    let dy = gMem(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
-    if (gMem(ADDR_SQUAT_FLAG)) {
-        dy += TILE_SIZE;
-    }
-
-    // Apply per-phase overlay offsets (pairs of [x, y] in tile units).
-    // C code stores these as 16-bit words: (x << 8) | y.
-    let xOff, yOff;
-    if (hitType === 2) {
-        // Downward thrust: hardcoded per facing (C: 0xFF01 for left, 0x0001 for right)
-        xOff = facingLeft ? -1 : 0;
-        yOff = 1;
-    } else {
-        const offsetKey = hitType === 0
-            ? (facingLeft ? 2 : 0)  // forward
-            : (facingLeft ? 3 : 1); // overhead
-        const offsets = SWORD_OVERLAY_OFFSETS[offsetKey];
-        const i = displayPhase*2;//Math.min(displayPhase, (offsets.length >> 1) - 1) * 2;
-        yOff = offsets[i];
-        xOff = offsets[i + 1];
-    }
-    dx += xOff * TILE_SIZE;
-    dy += yOff * TILE_SIZE;
-
-    drawSheetFrame(ctx, 
-        dungeonSwordSheet,
-        spriteIndex,
-        DUNGEON_SWORD_FRAME_W,
-        DUNGEON_SWORD_FRAME_H,
-        DUNGEON_SWORD_SHEET_COLS,
-        dx,
-        dy
-    );
-}
-
-let notificationStart = 0;
-const NOTIFICATION_DURATION = 2500;
-
-function drawDungeonBox(x, y, w, h) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, TILE_SIZE/3);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = TILE_SIZE/6;
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawDungeonNotification() {
-    const flag = readU8(ADDR_NOTIFICATION_FLAG);
-    if (!flag) {
-        notificationStart = 0;
-        return;
-    }
-
-    const now = performance.now();
-    if (!notificationStart) {
-        notificationStart = now;
-    }
-
-    const elapsed = now - notificationStart;
-    if (elapsed >= NOTIFICATION_DURATION) {
-        writeMemory(ADDR_NOTIFICATION_FLAG, [0]);
-        notificationStart = 0;
-        return;
-    }
-
-    const msgId = readU8(ADDR_NOTIFICATION_MSG_ID);
-    const entry = NOTIFICATION_STRINGS[msgId];
-    if (!entry) return;
-    const [leftPad, text] = entry;
-    const x = TILE_SIZE;
-    const y = TILE_SIZE * 2;
-    const w = TILE_SIZE * (VIEW_COLS - 2);
-    const h = TILE_SIZE * 2;
-
-    drawDungeonBox(x, y, w, h);
-    ctx.save();
-    ctx.font = '24px "Press Start 2P", monospace';
-    ctx.fillStyle = '#fff';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, x + leftPad*(TILE_SIZE/8), y + h / 2);
-    ctx.restore();
-}
-
-function drawDungeonSign() {
-    const flag = readU8(ADDR_CAVERN_SIGN_FLAG);
-    if (!flag) return;
-
-    const idx = readU8(ADDR_CAVERN_SIGN_IDX);
-    const tablePtr = readU16(ADDR_CAVERN_SIGNS_INFO);
-    const descPtr = readU16(tablePtr + idx * 2);
-
-    // Descriptor: [top_margin-25] [box_height-2] then (x_delta, text... terminated by 0xFF) per line, '/' = newline
-    const topY = readU8(descPtr) + TILE_SIZE + 3*(TILE_SIZE/8);
-    const h = (readU8(descPtr + 1) + 2) * TILE_SIZE;
-
-    const x = TILE_SIZE * 5;
-    const y = TILE_SIZE;
-    const w = TILE_SIZE * ((VIEW_COLS - 2*5));
-
-    drawDungeonBox(x, y, w, h);
-    ctx.save();
-    ctx.font = '24px "Press Start 2P", monospace';
-    ctx.fillStyle = '#fff';
-    ctx.textBaseline = 'top';
-
-    let offset = descPtr + 2;
-    let cy = topY;
-
-    while (true) {
-        const xDelta = readU8(offset++);
-        let bx = x + xDelta * 3;
-
-        while (true) {
-            let ch = readU8(offset++);
-            if (ch === 0xFF) { ctx.restore(); return; }
-            if (ch === 0x2F) { // CR/LF
-                cy += (TILE_SIZE + TILE_SIZE/2);
-                break; // will read xDelta in outer loop
-            }
-            if (ch === 0x5C) ch = 0x27;
-            ctx.fillText(String.fromCharCode(ch), bx, cy);
-            bx += TILE_SIZE;
-        }
-    }
-    ctx.restore();
-}
-
-let prevRokaDx = -1;
-let prevDungeonState = -1;
-let encounterAnim = null;
-
-function drawDungeonRoka() {
-    if (!rokaImagesReady || !readMemory) return;
-    const colorIdx = readU8(ADDR_ROKA_COLOR);
-    const phase = readU8(ADDR_ROKA_PHASE);
-    const facingLeft = (readU8(ADDR_FACING) & 1) !== 0;
-    const animPhase = readU8(ADDR_HERO_ANIM_PHASE);
-    const leftRun = readU8(ADDR_LEFT_RUN) !== 0;
-    const invincible = readU8(ADDR_INVINCIBILITY_FLAG) !== 0;
-    // const shieldAnimActive = readU8(ADDR_SHIELD_ANIM_ACTIVE) !== 0;
-    // const shieldPhase = readU8(ADDR_SHIELD_ANIM_PHASE);
-    const shieldVariant = readU8(ADDR_SHIELD_VARIANT_INDEX);
-    const shieldCategory = getShieldCategory();
-
-    const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
-    if (!rokaImg) return;
-
-    const t = phase / 25;
-    const heroW = DUNGEON_HERO_FRAME_W;
-    const heroH = DUNGEON_HERO_FRAME_H;
-    let dx;
-    if (leftRun) {
-        dx = Math.round((1 - t) * (canvas.width - heroW));
-    } else {
-        dx = Math.round(t * (canvas.width - heroW));
-    }
-    const dy = 12 * TILE_SIZE;
-
-    if (prevRokaDx === -1 || phase === 0) {
-        ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
-    } else {
-        ctx.drawImage(rokaImg, prevRokaDx, dy, heroW, heroH, prevRokaDx, dy, heroW, heroH);
-    }
-
-    const state = {
-        facingLeft,
-        animPhase,
-        invincible,
-        squat: false,
-        onRope: false,
-        hidden: false,
-        jump: 0,
-        shieldAnimActive: false,
-        shieldPhase: 0,
-        shieldVariant,
-        slope: 0,
-        shieldCategory,
-    };
-    const layers = [
-        { frame: resolveBackArmFrame(state), y: dy },
-        { frame: resolveBodyFrame(state), y: dy },
-        { frame: resolveFrontArmFrame(state), y: dy },
-    ];
-    for (const { frame, y } of layers) {
-        if (frame === null) continue;
-        drawSheetFrame(ctx, dungeonHeroSheet, frame, heroW, heroH,
-            DUNGEON_HERO_SHEET_COLS, dx, y);
-    }
-
-    prevRokaDx = dx;
 }
 
 function drawDmanFrame(frame, dx, dy) {
@@ -1975,7 +1148,6 @@ function drawRokademoTear(cx, cy) {
     if (!img) return;
     ctx.drawImage(img, cx - (img.width >> 1), cy - (img.height >> 1));
 }
-
 function startRokademo() {
     rokademo = new RokaDemo({
         playSfx: (id) => soundManager.playSfx(id),
@@ -2094,16 +1266,6 @@ function syncTearOverlay() {
     const count = getTearCount();
     if (count === lastTearOverlayCount) return;
     setTearOverlayCount(count);
-}
-
-function drawEncounterText(alpha) {
-    if (!encounterImg) return;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    const x = (canvas.width - 622) / 2;
-    const y = 3 * TILE_SIZE;
-    ctx.drawImage(encounterImg, x, y, 622, 192);
-    ctx.restore();
 }
 
 // set sword reachability list
@@ -2880,9 +2042,7 @@ function draw() {
     } else if (gameMode === 'dungeon') {
         const dungeonState = readU8(ADDR_DUNGEON_STATE);
         if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
-            if (prevRokaDx >= 0 && prevDungeonState !== DUNGEON_STATE_ROKA_RUN) {
-                prevRokaDx = -1;
-            }
+            beginRokaRunFrame(prevDungeonState !== DUNGEON_STATE_ROKA_RUN);
             drawDungeonRoka();
             dungeonClearRenderRequest?.();
         } else if (dungeonState === DUNGEON_STATE_ROKADEMO) {
@@ -2942,11 +2102,7 @@ function draw() {
                 drawDungeonSword(); // hero's sword 4x4 tiles sprite
                 drawDungeonNotification(); // notification text boxes (pickup items etc)
                 drawDungeonSign(); // text boxes when reading the signposts
-                if (!_guerraEffectRunning && readU8(ADDR_BYTE_9EED) === 0xFF) {
-                    writeMemory(ADDR_BYTE_9EED, [0]);
-                    _guerraEffectRunning = true;
-                    renderGuerraEffect().finally(() => { _guerraEffectRunning = false; });
-                }
+                maybeStartGuerraEffect();
                 drawGuerraOverlay();
 
                 if (encounterAnim && encounterAnim.phase === 'crossfade') {
@@ -3098,6 +2254,32 @@ const layoutWrapper = document.getElementById('layout-wrapper');
 const canvas = document.getElementById('gameCanvas');
 const tearOverlayEl = document.getElementById('tear-overlay');
 const ctx    = setupGameCanvas(canvas);
+
+// Dungeon renderer: memory accessors + mutable asset bundle.
+initDungeonRenderer({
+    ctx,
+    viewW: () => canvas.width,
+    viewH: () => canvas.height,
+    engineReady: () => engineReady,
+    gMem,
+    readU8,
+    readU16,
+    readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
+    writeMemory: (offset, data) => writeMemory?.(offset, data),
+    viewportTop: () => dungeonGetViewportTop?.() ?? 0,
+    assets: () => ({
+        tileSheet: dungeonTileSheet, tileSheetReady: dungeonTileSheetReady,
+        dchrSheet: dungeonDchrSheet, dchrSheetReady: dungeonDchrSheetReady,
+        entitySheet: dungeonEntitySheet, entitySheetReady: dungeonEntitySheetReady,
+        magicSheet: dungeonMagicSheet, magicSheetReady: dungeonMagicSheetReady,
+        heroSheet: dungeonHeroSheet, heroSheetReady: dungeonHeroSheetReady,
+        swordSheet: dungeonSwordSheet, swordSheetReady: dungeonSwordSheetReady,
+        projectiles: dungeonProjectiles,
+        ai: dungeonAI,
+        rokaImages, rokaImagesReady,
+    }),
+    encounterImg: () => encounterImg,
+});
 
 const openingIntro = new OpeningIntro({
     screen:     introScreen,

@@ -268,6 +268,16 @@ Completed so far:
     pause). The memory scans and blits stay in game.js for now. Tested:
     every spell branch, wrap in both directions, all four rule sets incl.
     chain start/end cells, odd-tick gating, entity-marker exclusion.
+18. ✅ `render/dungeon.ts` — the full dungeon renderer moved out of game.js
+    (~830 lines): tiles + animated tiles, entities (row-major 2×2 blits with
+    yellow hit-flash tinting), hero body/arm layers, sword swing overlay,
+    monster + magic projectiles, magia stones, notification/sign boxes,
+    roka run, boss explosion ring spawning, and the Guerra effect with its
+    full-tick waiter machinery. Memory accessors and the mutable asset
+    bundle are injected via `initDungeonRenderer(env)`; game.js keeps only
+    the draw()-loop dispatch, encounter-animation state machine, and asset
+    loading. Hero frame resolution exported pure. Tested: body/arm/sword
+    frame selection for every state priority and shield category/variant.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
