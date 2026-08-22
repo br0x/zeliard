@@ -30,6 +30,13 @@ import { keys, setKeyState } from '../input/key-state.js';
 import { Hud } from '../ui/hud.js';
 import { ModalManager } from '../ui/modal-manager.js';
 import { SpeedChangeDialog, displayedSpeed } from '../core/speed-change.js';
+import {
+    parseDialogText as parseDialogTextImpl,
+    computeDialogGeometry,
+    DIALOG_FONT_SIZE,
+    TEXT_FIRST_BASELINE,
+    TEXT_LINE_HEIGHT,
+} from '../core/conversation-text.js';
 import { downloadSaveFile, pickSaveFile } from '../platform/save-file.js';
 
 // Save persistence now lives in platform/save.ts (Stage 2); re-exported here
@@ -3383,134 +3390,41 @@ function getNpcConversationRaw(npcId) {
     return new Uint8Array(bytes);
 }
 
-const CHAR_WIDTH_TABLE = [
-    5,4,4,4,6,8,5,3,4,4,6,6,6,5,6,8,7,5,7,7,7,7,7,7,7,7,3,4,6,6,6,7,
-    8,8,8,8,8,8,8,8,8,5,8,8,8,8,8,8,8,8,8,8,7,8,8,8,8,8,7,5,3,5,6,7,
-    7,8,8,7,8,7,7,8,8,5,6,8,5,8,7,7,8,8,8,7,6,8,8,8,7,7,7,4,8,4,7,8,
-];
-const ORIG_MAX_LINE_PX = 256;
-const TEXT_AREA_WIDTH = 624; // DIALOG_MAX_WIDTH - 2*DIALOG_PADDING_X
-const WIDTH_SCALE = TEXT_AREA_WIDTH / ORIG_MAX_LINE_PX;
-const DIALOG_FONT_SIZE = 18;
-const DIALOG_LINES_PER_PAGE = 15;
-const DIALOG_PADDING_X = 10;
-const DIALOG_MAX_WIDTH = VIEW_WIDTH - 24;
-const TOWN_HEADS_ROW = TOWN_MAP_START_ROW + 5;
-const DIALOG_BOTTOM_Y = TOWN_HEADS_ROW * TILE_SIZE - 4;
-const TEXT_FIRST_BASELINE = 32;
-const TEXT_LINE_HEIGHT = 24;
-const TEXT_BOTTOM_PAD = 20;
-
-function charOrigWidth(ch) {
-    const idx = ch.charCodeAt(0) - 0x20;
-    if (idx < 0 || idx >= CHAR_WIDTH_TABLE.length) return 6;
-    return CHAR_WIDTH_TABLE[idx];
-}
+// Dialog text parsing + geometry live in core/conversation-text.ts (Stage 2).
+const dialogEffects = {
+    // 0x83: citizen gives Elf Crest after defeating Paguro
+    onElfCrest: () => {
+        const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
+        writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
+        writeMemory(ADDR_ELF_CREST, [0xFF]);
+        initC015ObjIfExists();
+    },
+    // 0x8B: tear collection (original: or byte_4,80h)
+    onTearCollected: () => {
+        const b4 = readMemory(ADDR_BYTE4, 1)[0];
+        writeMemory(ADDR_BYTE4, [b4 | 0x80]);
+    },
+};
 
 function parseDialogText(bytes) {
-    const pages = [];
-    let lines  = [''];
-    let lineW  = 0;
-    let hasYesNo = false;
-    let endCode = null;
-    const MAX_W = ORIG_MAX_LINE_PX;
-    const pushLine = () => {
-        lines.push('');
-        lineW = 0;
-        if (lines.length - 1 === DIALOG_LINES_PER_PAGE) {
-            const trimmed = lines.slice(0, DIALOG_LINES_PER_PAGE);
-            pages.push(trimmed);
-            lines = [''];
-        }
-    };
-    for (let i = 0; i < bytes.length; i++) {
-        let b = bytes[i];
-        if (b === 0xFF || b === 0x00) break;
-        if (b === 0x81) { hasYesNo = true; break; }
-        if (b === 0x83) {
-            // Control code 0x83: citizen gives Elf Crest after defeating Paguro
-            // (original: or caliente_items,80h; mov elf_crest,0FFh; call init_c015_obj_if_exists)
-            if (writeMemory && readMemory) {
-                const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
-                writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
-                writeMemory(ADDR_ELF_CREST, [0xFF]);
-                initC015ObjIfExists();
-            }
-            break;
-        }
-        if (b === 0x85) {
-            // Control code 0x85: Asbestos cape intro jumps to pattern 4 text
-            // (original: on_flag_0x85 re-renders pattern 4; text 3 is a 0x85
-            //  stub whose remainder is exactly pattern 4, so skipping it is
-            //  equivalent to the original re-render)
-            continue;
-        }
-        if (b === 0x87) {
-            // Control code 0x87: Asbestos cape — wait for input, then show
-            // pattern 5 text ("It's not free though...")
-            endCode = 0x87;
-            break;
-        }
-        if (b === 0x89) {
-            // Control code 0x89: Asbestos cape — show Take/No Take purchase
-            // dialog (patterns 8 = bought, 7 = not enough almas, 6 = refused)
-            endCode = 0x89;
-            break;
-        }
-        if (b === 0x8B) {
-            // Control code 0x8B: tear collection (original: or byte_4,80h)
-            if (writeMemory && readMemory) {
-                const b4 = readMemory(ADDR_BYTE4, 1)[0];
-                writeMemory(ADDR_BYTE4, [b4 | 0x80]);
-            }
-            break;
-        }
-        if (b >= 0x82) break;
-        if (b === 0x2F) { pushLine(); continue; }
-        if (b === 0x5c) b = 0x27;
-        if (b === 0x26) b = 0x20;
-        if (b < 0x20) continue;
-        const ch = String.fromCharCode(b);
-        const cw = charOrigWidth(ch);
-        if (b === 0x20) {
-            let nextW = 0;
-            for (let j = i + 1; j < bytes.length; j++) {
-                const nb = bytes[j];
-                if (nb === 0x20 || nb === 0x2F || (nb >= 0x80 && nb !== 0x81)) break;
-                if (nb >= 0x20) nextW += charOrigWidth(String.fromCharCode(nb));
-            }
-            if (lineW + cw + nextW >= MAX_W) {
-                pushLine();
-                continue;
-            }
-        }
-        lines[lines.length - 1] += ch;
-        lineW += cw;
-    }
-    const nonEmpty = lines.filter(l => l.length > 0);
-    if (nonEmpty.length > 0) pages.push(nonEmpty);
-    return { pages, hasYesNo, endCode };
+    return parseDialogTextImpl(bytes, dialogEffects);
 }
 
 function computeBoxGeometry(facingLeft, extraLines = 0) {
     const page = conversation.pages[conversation.page] ?? [];
-    const nLines = Math.max(page.length, 1) + extraLines;
-    const bh = TEXT_FIRST_BASELINE + (nLines - 1) * TEXT_LINE_HEIGHT + TEXT_BOTTOM_PAD;
     ctx.save();
     ctx.font = `${DIALOG_FONT_SIZE + 2}px 'Courier New', monospace`;
-    let maxW = 0;
-    for (const line of page) {
-        const w = ctx.measureText(line).width;
-        if (w > maxW) maxW = w;
-    }
+    const geo = computeDialogGeometry({
+        pageLines: page,
+        facingLeft,
+        extraLines,
+        measureText: (line) => ctx.measureText(line).width,
+    });
     ctx.restore();
-    const bw = Math.min(Math.max(maxW + 2 * DIALOG_PADDING_X + 16, 160), DIALOG_MAX_WIDTH);
-    let bx = facingLeft ? VIEW_WIDTH - bw - 12 : 12;
-    const by = DIALOG_BOTTOM_Y - bh;
-    conversation.boxX = bx;
-    conversation.boxY = Math.max(by, 4);
-    conversation.boxW = bw;
-    conversation.boxH = bh;
+    conversation.boxX = geo.x;
+    conversation.boxY = geo.y;
+    conversation.boxW = geo.w;
+    conversation.boxH = geo.h;
 }
 
 function drawConversationDialog() {

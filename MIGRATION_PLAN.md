@@ -196,6 +196,14 @@ Completed so far:
    injected-effects class; drawing and wasm writes stay in `game.js`.
    Tested: every legal/illegal transition, idempotent finish/restart,
    stored-byte→displayed-speed conversion incl. zero fallback.
+10. ✅ `core/conversation-text.ts` — the NPC-dialog text engine: byte-stream
+   parser (line wrapping at original 256px font metrics, 15-line paging,
+   control codes 0x81/0x83/0x85/0x87/0x89/0x8B with wasm side-effects as
+   injected callbacks) and dialog-box geometry math. game.js keeps the
+   conversation state machine and canvas drawing, delegating to the pure
+   module. Tested: wrapping/paging boundaries, char remaps, every control
+   code, effect firing, geometry docking/sizing/clamping — the highest-value
+   test target so far since it drives all NPC dialogs.
 
 Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
 - `render/` — canvas setup/scaling plus the town/dungeon drawing functions
