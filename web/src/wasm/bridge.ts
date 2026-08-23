@@ -823,6 +823,19 @@ export function getTownPendingTransitionFlag(): number {
     return mem.abs[gMemoryBase + 0xfff4] ?? 0;
 }
 
+/** Raw export wrappers for the pending-transition scratch getters (Stage 5e ports). */
+export function getPendingTransitionMap(): number {
+    return wasmExports?.wasm_get_pending_transition_map?.() ?? 0;
+}
+
+export function getPendingTransitionPat(): number {
+    return wasmExports?.wasm_get_pending_transition_pat?.() ?? 0;
+}
+
+export function getPendingTransitionDir(): number {
+    return wasmExports?.wasm_get_pending_transition_dir?.() ?? 0;
+}
+
 export function getTownPendingTransition(): TownPendingTransition | null {
     if (!mem.isLive) return null;
     const base = gMemoryBase;

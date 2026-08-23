@@ -139,51 +139,94 @@ import {
 
 
 // ─── WASM bridge (lazy-loaded) ────────────────────────────────────────────────
+import { EngineDispatch } from './wasm/dispatch.js';
+import type { DispatchableName } from './wasm/dispatch.js';
+import { ShadowHarness } from './wasm/parity/shadow.js';
+import { ReplayRecorder, getActiveRecorder, setActiveRecorder } from './wasm/parity/recorder.js';
+import { PORTED_EXPORTS, PORTED_NAMES } from './wasm/parity/ports.js';
+
+/** Golden-replay capture mode (?zeliard_record=1) — Stage 5d. */
+const REPLAY_RECORDING =
+    typeof location !== 'undefined' &&
+    new URLSearchParams(location.search).has('zeliard_record');
+const recorder = new ReplayRecorder(() => getWasmMemory());
+
+/** TS port serving (?zeliard_ports=shadow|cutover) — Stage 5e. */
+const TS_PORTS_MODE =
+    typeof location !== 'undefined'
+        ? new URLSearchParams(location.search).get('zeliard_ports')
+        : null;
+
+/** name → mode for currently enabled ports (debug hook surface). */
+const activePorts = new Map<string, 'shadow' | 'cutover'>();
+
+/** Dual-run `name` between its active wasm implementation and `tsImpl`. */
+function shadowAttach(name: DispatchableName, tsImpl: unknown): void {
+    const wasmFn = engine.impl(name);
+    if (!wasmFn) throw new Error(`no active implementation for ${name}`);
+    engine.override(name, shadow.wrap(name, wasmFn, tsImpl as never));
+}
+
+function shadowDetach(name: DispatchableName): void {
+    engine.reset(name);
+}
+
+function enablePorts(
+    mode: 'shadow' | 'cutover',
+    names: readonly string[] = PORTED_NAMES,
+): void {
+    for (const name of names) {
+        const entry = PORTED_EXPORTS[name];
+        if (!entry) throw new Error(`no such ported export: ${name}`);
+        const tsImpl = entry.make(() => getWasmMemory());
+        if (mode === 'cutover') {
+            engine.override(name as DispatchableName, tsImpl);
+        } else {
+            shadowAttach(name as DispatchableName, tsImpl);
+        }
+        activePorts.set(name, mode);
+    }
+}
+
+function disablePorts(names: readonly string[] = [...activePorts.keys()]): void {
+    for (const name of names) {
+        const mode = activePorts.get(name);
+        if (!mode) continue;
+        if (mode === 'cutover') engine.reset(name as DispatchableName);
+        else shadowDetach(name as DispatchableName);
+        activePorts.delete(name);
+    }
+}
+
+/**
+ * The engine seam: every wasm-engine invocation below goes through this.
+ * TS ports (Phase B) install themselves with `engine.override(...)` without
+ * touching call sites; the `__zeliard` debug hook exposes the same control.
+ */
+const engine = new EngineDispatch();
+
+/**
+ * Parity shadow harness (Stage 5c). Inert until something attaches it to an
+ * export via `__zeliard.shadow.attach(name, tsImpl)`.
+ */
+const shadow = new ShadowHarness(() => getWasmMemory());
+
 let engineReady  = false;
 let gameStarted  = false;
 
 let initWasm: any;
-let loadSaveState: any;
-let loadMdt: any;
 let getCavernName: any;
 let getTownName: any;
 let getMusicTrackId: any;
 let getTownBackgroundType: any;
 let getTownPatId: any;
-let inputSetKeys: any;
 let getWasmMemory: any;
-let townInit: any;
-let townSetReturnBeforeMainLoop: any;
-let townEntryDisablingEdgeScroll: any;
-let townUpdate: any;
-let townFullTick: any;
 let hasWasmExport: any;
-let setSpecialTileList: any;
 let readMemory: any;
 let writeMemory: any;
 let getTownPendingTransitionFlag: any;
 let getTownPendingTransition: any;
-let townCompleteTransition: any;
-let townFinishConversation: any;
-let townFinishBuilding: any;
-let initC015ObjIfExists: any;
-let dungeonInit: any;
-let dungeonUpdate: any;
-let dungeonFullTick: any;
-let dungeonGetViewportTop: any;
-let setDungeonPassableTiles: any;
-let setDungeonSlopeTilesLeft: any;
-let setDungeonSlopeTilesRight: any;
-let setDungeonAggressiveGround: any;
-let setDungeonAirflows: any;
-let setDungeonSwordReach: any;
-let setDungeonMonsterXp: any;
-let setDungeonMonsterDamage: any;
-let setDeathDescriptors: any;
-let setTrajectories: any;
-let dungeonClearRenderRequest: any;
 let getBossName: any;
-let finishRokademoTransition: any;
 
 let restoreName: string | null = null;
 let gameMode = 'town';
@@ -374,12 +417,12 @@ function onFullTick() {
     tickCounter = (tickCounter + 1) & 0xFFFF;
     animTimer   = (animTimer   + 1) & 0xFFFF;
     if (gameMode === 'dungeon') {
-        dungeonFullTick?.();
+        engine.call('wasm_dungeon_full_tick');
     }
-    else townFullTick?.();
+    else engine.call('wasm_town_full_tick');
 
     if (engineReady) {
-        inputSetKeys(keys);  // refresh input at 236 Hz before any dungeonUpdate reads it
+        engine.call('wasm_set_input_keys', keys);  // refresh input at 236 Hz before any dungeonUpdate reads it
         const speedC     = gMem(ADDR_SPEED_CONST) || 5;
         const target     = speedC * 4;
         const frameTmr   = gMem(ADDR_FRAME_TIMER);
@@ -389,7 +432,7 @@ function onFullTick() {
             const isRokaRun = gMem(ADDR_DUNGEON_STATE) === DUNGEON_STATE_ROKA_RUN;
             if (isRokaRun || frameTmr >= target) {
                 const phaseBefore = readU8(ADDR_DUNGEON_FRAME_PHASE);
-                dungeonUpdate?.();
+                engine.call('wasm_dungeon_update');
                 // mirrors `inc render_counter` in Refresh_Dirty_Tiles: advance once
                 // per completed dungeon frame. The WASM phase machine splits each
                 // frame into 3 sub-steps (0→1→2→0), so dungeonUpdate() is called 3x
@@ -411,7 +454,7 @@ function onFullTick() {
                 }
             }
         } else if (frameTmr >= target) { // town mode
-            townUpdate?.();
+            engine.call('wasm_town_update');
             const scrollFlag = gMem(0xfff0);
             if (scrollFlag) {
                 if (scrollFlag & 0x01) scrollFloorOneTileRight();
@@ -442,7 +485,7 @@ function onSlowTick() {
     if (!engineReady) return;
 
     inputLatches.update(!!keys.Space, !!keys.Alt);
-    inputSetKeys(keys);
+    engine.call('wasm_set_input_keys', keys);
 
     if (gameMode === 'dungeon') return;
 
@@ -562,7 +605,7 @@ async function startGame() {
             soundManager.setWasmMemAccessor(getWasmMemory);
         }
 
-        townInit?.();
+        engine.call('wasm_town_init');
 
         let saveState: Uint8Array | null = null;
         if (!restoreName) {
@@ -574,7 +617,7 @@ async function startGame() {
         } else {
             saveState = loadGame();
         }
-        loadSaveState(saveState);
+        engine.call('loadSaveState', saveState as Uint8Array);
         // ADDR_HEARTBEAT_VOLUME (0xFF08) lives outside the save area, so it
         // survives a restore with the stale dungeon value and would keep the
         // boss-heartbeat loop going in town. Clear it here; the dungeon code
@@ -590,7 +633,7 @@ async function startGame() {
             throw new Error(`Failed to load ${mdtPath}: ${response.status}`);
         }
         mdtData = new Uint8Array(await response.arrayBuffer());
-        loadMdt(mdtData, mdtPath);
+        engine.call('loadMdt', mdtData, mdtPath);
 
         townBackgroundType = getTownBackgroundType();
         await loadTownBackground();
@@ -603,7 +646,7 @@ async function startGame() {
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
-            setSpecialTileList(pattern.specialTiles);
+            engine.call('setSpecialTileList', pattern.specialTiles);
             updateTownAnimation();
         } else {
             console.warn(`Unknown pattern ID ${townPatId}, movement may be blocked`);
@@ -625,8 +668,8 @@ async function startGame() {
                 throw new Error('wasm_town_entry_disabling_edge_scroll is missing from build/zeliard.wasm');
             }
 
-            townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
-            townEntryDisablingEdgeScroll();
+            engine.call('wasm_town_set_return_before_main_loop', RETURN_BEFORE_TOWN_MAIN_LOOP);
+            engine.call('wasm_town_entry_disabling_edge_scroll');
             townEntryRan = true;
         }
 
@@ -821,20 +864,34 @@ async function loadDungeonAssets(rawMapId: number): Promise<void> {
 async function loadWasmEngine() {
     const wasmBridge = await import('./wasm/bridge.js');
     ({
-        initWasm, loadSaveState, loadMdt, getCavernName,
+        initWasm, getCavernName,
         getTownName, getMusicTrackId, getTownBackgroundType,
-        getTownPatId, inputSetKeys, getWasmMemory, townInit,
-        townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
-        townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
-        getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
-        townFinishConversation, townFinishBuilding, initC015ObjIfExists,
-        dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
-        setDungeonPassableTiles, setDungeonAggressiveGround,
-        setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
-        setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
-        dungeonClearRenderRequest, getBossName,
-        finishRokademoTransition,
+        getTownPatId, getWasmMemory, hasWasmExport,
+        readMemory,
+        getTownPendingTransitionFlag, getTownPendingTransition,
+        getBossName,
     } = wasmBridge);
+    // Route all engine interactions through the dispatch layer
+    // (Phase B cutover point + replay-recording chokepoint).
+    engine.useBridge(wasmBridge as unknown as Record<string, unknown>);
+
+    // Wrap writeMemory so every TS-side g_mem write is visible to the
+    // replay recorder. All modules receive this wrapper via injection.
+    const rawWriteMemory: typeof wasmBridge.writeMemory = wasmBridge.writeMemory;
+    writeMemory = ((offset: number, data: Uint8Array | number[]): void => {
+        rawWriteMemory(offset, data as Uint8Array);
+        getActiveRecorder()?.notePoke(offset, data);
+    }) as typeof wasmBridge.writeMemory;
+
+    if (REPLAY_RECORDING) {
+        setActiveRecorder(recorder);
+        recorder.install(engine);
+    }
+
+    // Stage 5e: serve leaf exports from TS, optionally under shadow parity.
+    if (TS_PORTS_MODE === 'shadow' || TS_PORTS_MODE === 'cutover') {
+        enablePorts(TS_PORTS_MODE);
+    }
 }
 
 const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine
@@ -908,7 +965,7 @@ function startRokademo() {
 }
 
 function finishRokaDemo(now: number): void {
-    finishRokademoTransition?.();
+    engine.call('wasm_finish_rokademo_transition');
     rokademo = null;
     rokademoHold = true;
     // Bypass the speed gate on the next full tick so the exit/pending flags set
@@ -1020,11 +1077,11 @@ function syncTearOverlay() {
 function updateDungeonSwordReach() {
     const swordType = readMemory(ADDR_SWORD_TYPE, 1)[0];
     if (swordType <= 3) {
-        setDungeonSwordReach(SWORD_REACH_SMALL);
+        engine.call('setDungeonSwordReach', SWORD_REACH_SMALL);
     } else if (swordType <= 5) {
-        setDungeonSwordReach(SWORD_REACH_MEDIUM);
+        engine.call('setDungeonSwordReach', SWORD_REACH_MEDIUM);
     } else {
-        setDungeonSwordReach(SWORD_REACH_LARGE);
+        engine.call('setDungeonSwordReach', SWORD_REACH_LARGE);
     }
 }
 
@@ -1041,7 +1098,7 @@ async function handleTownTransition(transition: any): Promise<void> {
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData, mdtPath);
+        engine.call('loadMdt', mdtData, mdtPath);
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
             townBackgroundType = newBgType;
@@ -1068,15 +1125,15 @@ async function handleTownTransition(transition: any): Promise<void> {
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
-            setSpecialTileList(pattern.specialTiles);
+            engine.call('setSpecialTileList', pattern.specialTiles);
             updateTownAnimation();
         }
         parseTownNpcCategory();
         await Promise.all(
             NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
-        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
-        townCompleteTransition?.();
+        engine.call('wasm_town_set_return_before_main_loop', RETURN_BEFORE_TOWN_MAIN_LOOP);
+        engine.call('wasm_town_complete_transition');
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
         const trackId = resolveMusicTrack(getMusicTrackId?.());
@@ -1106,7 +1163,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         if (!resp.ok) 
             throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData, mdtPath);
+        engine.call('loadMdt', mdtData, mdtPath);
         dungeonAIready = false;
         dungeonProjectiles = null;
         dungeonTileSheetReady = false;
@@ -1114,15 +1171,16 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         cavernName = getCavernName?.() ?? 'Unknown';
         updatePlaceHud(cavernName, true);
         await loadDungeonAssets(rawMapId);
-        setDungeonPassableTiles(DUNGEONS[rawMapId]!.passableTiles as unknown as Uint8Array);
-        setDungeonSlopeTilesLeft(DUNGEONS[rawMapId]!.slopeTilesLeft);
-        setDungeonSlopeTilesRight(DUNGEONS[rawMapId]!.slopeTilesRight);
-        setDungeonAggressiveGround(DUNGEONS[rawMapId]!.aggressiveGround);
-        setDungeonAirflows(DUNGEONS[rawMapId]!.airflows);
-        setDungeonMonsterXp(DUNGEONS[rawMapId]!.monster_xp);
-        setDungeonMonsterDamage(DUNGEONS[rawMapId]!.monster_damage);
-        setDeathDescriptors(DUNGEONS[rawMapId]!.death_descriptors);
-        setTrajectories(DUNGEONS[rawMapId]!.trajectories);
+        const cfg = DUNGEONS[rawMapId]!;
+        engine.call('setDungeonPassableTiles', cfg.passableTiles as unknown as Uint8Array);
+        engine.call('setDungeonSlopeTilesLeft', cfg.slopeTilesLeft ?? []);
+        engine.call('setDungeonSlopeTilesRight', cfg.slopeTilesRight ?? []);
+        engine.call('setDungeonAggressiveGround', cfg.aggressiveGround ?? []);
+        engine.call('setDungeonAirflows', cfg.airflows ?? []);
+        engine.call('setDungeonMonsterXp', cfg.monster_xp ?? []);
+        engine.call('setDungeonMonsterDamage', cfg.monster_damage ?? []);
+        engine.call('setDeathDescriptors', cfg.death_descriptors ?? []);
+        engine.call('setTrajectories', cfg.trajectories ?? []);
         // Initialize boss state block if this map has one
         const bossState = DUNGEONS[rawMapId]!.bossState;
         if (bossState) {
@@ -1136,7 +1194,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         updateDungeonSwordReach();
         await loadRokaImages();
         await loadEncounterImage();
-        dungeonInit?.(rawMapId, isFromTown); // should call dungeon::prepare_dungeon
+        engine.call('wasm_dungeon_init', rawMapId, isFromTown); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
         const trackId = resolveMusicTrack(getMusicTrackId?.());
@@ -1167,7 +1225,7 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData, mdtPath);
+        engine.call('loadMdt', mdtData, mdtPath);
 
         const mapWidth = getTownMapWidth(mdtData);
         const xBytes = readMemory(isDeath ? ADDR_TEAR_X : ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
@@ -1205,7 +1263,7 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
-            setSpecialTileList(pattern.specialTiles);
+            engine.call('setSpecialTileList', pattern.specialTiles);
             updateTownAnimation();
         }
 
@@ -1213,8 +1271,8 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
         await Promise.all(
             NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
-        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
-        townEntryDisablingEdgeScroll();
+        engine.call('wasm_town_set_return_before_main_loop', RETURN_BEFORE_TOWN_MAIN_LOOP);
+        engine.call('wasm_town_entry_disabling_edge_scroll');
         townEntryRan = true;
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
@@ -1250,7 +1308,7 @@ const dialogEffects = {
         const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
         writeMemory(ADDR_CALIENTE_ITEMS, Uint8Array.of(ci | 0x80));
         writeMemory(ADDR_ELF_CREST, Uint8Array.of(0xFF));
-        initC015ObjIfExists();
+        engine.call('wasm_init_c015_obj_if_exists');
     },
     // 0x8B: endgame flag — final boss Jashiin defeated + 9th Tear of
     // Esmesanti delivered (original: or byte_4,80h; jmp init_c015_obj_if_exists).
@@ -1259,7 +1317,7 @@ const dialogEffects = {
     onFinalTearCollected: () => {
         const b4 = readMemory(ADDR_BYTE4, 1)[0];
         writeMemory(ADDR_BYTE4, Uint8Array.of(b4 | 0x80));
-        initC015ObjIfExists();
+        engine.call('wasm_init_c015_obj_if_exists');
     },
 };
 
@@ -1271,7 +1329,7 @@ const conversation = new ConversationManager({
     readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
     writeMemory: (offset, data) => writeMemory?.(offset, data),
     getNpcConversationRaw: getNpcConversationRaw,
-    townFinishConversation: () => townFinishConversation?.(),
+    townFinishConversation: () => { engine.call('wasm_town_conversation_finish'); },
     getHeroAlmasValue,
     setHeroAlmasValue,
     renderAlmasHud,
@@ -1331,13 +1389,13 @@ async function handleWarp() {
         const falter = readMemory(ADDR_FALTER_ITEMS, 1)[0];
         writeMemory(ADDR_FALTER_ITEMS, Uint8Array.of(falter | 0x80));
         writeMemory(ADDR_PLACE_MAP_ID, Uint8Array.of(6)); // Dorado
-        townFinishBuilding?.();
+        engine.call('wasm_town_building_finish');
 
         const mdtPath = TOWN_MDTS[6]!;
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData, mdtPath);
+        engine.call('loadMdt', mdtData, mdtPath);
 
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
@@ -1366,7 +1424,7 @@ async function handleWarp() {
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
-            setSpecialTileList(pattern.specialTiles);
+            engine.call('setSpecialTileList', pattern.specialTiles);
             updateTownAnimation();
         }
 
@@ -1379,8 +1437,8 @@ async function handleWarp() {
         writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, Uint8Array.of(132, 0));
         writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(13));
         writeMemory(ADDR_FACING, Uint8Array.of(0x01)); // face left
-        townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
-        townEntryDisablingEdgeScroll();
+        engine.call('wasm_town_set_return_before_main_loop', RETURN_BEFORE_TOWN_MAIN_LOOP);
+        engine.call('wasm_town_entry_disabling_edge_scroll');
         townEntryRan = true;
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
@@ -1399,7 +1457,7 @@ async function handleWarp() {
 function startIndoorScene(destId: number): void {
     if (!TOWN_DOORS[destId]) {
         console.warn(`[building] destination ${destId} not implemented`);
-        townFinishBuilding?.();
+        engine.call('wasm_town_building_finish');
         return;
     }
     soundManager.setMusicDim(1 / 32);
@@ -1408,7 +1466,7 @@ function startIndoorScene(destId: number): void {
         indoorActiveScene = null;
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        townFinishBuilding?.();
+        engine.call('wasm_town_building_finish');
         keys.Space = false;
         inputLatches.reset();
     };
@@ -1622,7 +1680,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
     // Abort any indoor scene or conversation
     if (indoorActiveScene) {
         indoorActiveScene = null;
-        townFinishBuilding?.();  // clear WASM building state (ADDR_BUILDING_ACTIVE at 0xFFFA outside save range)
+        engine.call('wasm_town_building_finish');  // clear WASM building state (ADDR_BUILDING_ACTIVE at 0xFFFA outside save range)
     }
     soundManager.setMusicDim(1.0);
     conversation.active = false;
@@ -1631,7 +1689,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
     rokademoHold = false;
 
     // Load the save into WASM memory
-    loadSaveState(saveData);
+    engine.call('loadSaveState', saveData);
 
     // ADDR_HEARTBEAT_VOLUME (0xFF08) is outside the 0x0000..0x00FF save area,
     // so a restore keeps whatever stale dungeon value was last written there.
@@ -1658,7 +1716,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
             const resp = await fetch(mdtPath);
             if (!resp.ok) throw new Error(`Failed to load ${mdtPath}`);
             mdtData = new Uint8Array(await resp.arrayBuffer());
-            loadMdt(mdtData, mdtPath);
+            engine.call('loadMdt', mdtData, mdtPath);
         } catch (err) {
             console.error('Failed to load MDT for restore:', err);
             return;
@@ -1669,13 +1727,13 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
         const resp = await fetch(TOWN_MDTS[0]!);
         if (!resp.ok) throw new Error(`Failed to load ${TOWN_MDTS[0]}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
-        loadMdt(mdtData, "");
+        engine.call('loadMdt', mdtData, "");
         writeMemory(ADDR_PLACE_MAP_ID, Uint8Array.of(0));  // ensure place_map_id points to town 0
     }
 
     // Re‑initialise the town engine – reads hero position from restored save data
-    townSetReturnBeforeMainLoop(true);
-    townEntryDisablingEdgeScroll();
+    engine.call('wasm_town_set_return_before_main_loop', true);
+    engine.call('wasm_town_entry_disabling_edge_scroll');
     townEntryRan = true;
 
     // ------------------- Reload JS-side visual assets -------------------
@@ -1706,7 +1764,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
-            setSpecialTileList(pattern.specialTiles);
+            engine.call('setSpecialTileList', pattern.specialTiles);
             updateTownAnimation();   // rebuild townAnimTileMap based on new patId
         }
     }
@@ -1773,14 +1831,14 @@ function draw() {
         if (dungeonState === DUNGEON_STATE_ROKA_RUN) {
             beginRokaRunFrame(prevDungeonState !== DUNGEON_STATE_ROKA_RUN);
             drawDungeonRoka();
-            dungeonClearRenderRequest?.();
+            engine.call('wasm_dungeon_clear_render_request');
         } else if (dungeonState === DUNGEON_STATE_ROKADEMO) {
             drawDungeonRokademo(performance.now());
         } else if (rokademoHold && !(dungeonState >= DUNGEON_STATE_DEATH_FALL && dungeonState <= DUNGEON_STATE_DEATH_FADE)) {
             // Post-demo hold: keep the roka backdrop until the transition set up
             // by wasm_finish_rokademo_transition takes over (except when playing hero death sequence).
             drawRokademoBackground();
-            dungeonClearRenderRequest?.();
+            engine.call('wasm_dungeon_clear_render_request');
         } else {
             // Detect encounter animation start (BOSS_ENCOUNTER state)
             if (!encounterAnim && dungeonState === DUNGEON_STATE_BOSS_ENCOUNTER) {
@@ -1993,7 +2051,7 @@ initDungeonRenderer({
     readU16,
     readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
     writeMemory: (offset, data) => writeMemory?.(offset, data),
-    viewportTop: () => dungeonGetViewportTop?.() ?? 0,
+    viewportTop: () => engine.call('wasm_dungeon_get_viewport_top') ?? 0,
     assets: () => ({
         tileSheet: dungeonTileSheet, tileSheetReady: dungeonTileSheetReady,
         dchrSheet: dungeonDchrSheet, dchrSheetReady: dungeonDchrSheetReady,
@@ -2062,7 +2120,7 @@ function startEndingDemo() {
     indoorActiveScene = null;
     soundManager.setMusicDim(1.0);
     soundManager.setSfxVolume(1.0);
-    townFinishBuilding?.();
+    engine.call('wasm_town_building_finish');
     keys.Space = false;
     inputLatches.reset();
     uiScreen.classList.add('hidden');
@@ -2131,6 +2189,71 @@ function openImportExportModal() {
     enterDungeon: (mapId: number): Promise<void> => handleDungeonTransition(mapId, false),
     /** Return from the dungeon to the starting town. */
     returnToTown: (): Promise<void> => initTownFromDungeon(1, false),
+    /**
+     * Engine cutover controls (Phase B): reroute dispatched exports between
+     * wasm and TS implementations without touching call sites.
+     */
+    dispatch: {
+        override: (name: string, impl: unknown): void =>
+            engine.override(name as DispatchableName, impl as never),
+        reset: (name?: string): void =>
+            engine.reset(name as DispatchableName | undefined),
+        state: () => ({
+            overridden: engine.overriddenNames(),
+            wired: engine.overriddenNames().length === 0,
+        }),
+    },
+    /**
+     * Shadow-mode parity checks (Stage 5c): attach a TS implementation to a
+     * dispatched export and every subsequent call dual-runs both sides.
+     * Detach restores plain wasm. `state()` reports calls/divergences so E2E
+     * can assert a clean run.
+     */
+    shadow: {
+        attach: (name: string, tsImpl: unknown): void =>
+            shadowAttach(name as DispatchableName, tsImpl),
+        detach: (name: string): void => shadowDetach(name as DispatchableName),
+        state: () => ({
+            ...shadow.totals(),
+            clean: shadow.isClean(),
+        }),
+    },
+    /**
+     * TS port control (Stage 5e): enable/disable leaf-export implementations
+     * in shadow (dual-run parity) or cutover (TS serves the call) mode.
+     */
+    ports: {
+        enable: (mode: 'shadow' | 'cutover', names?: string[]): void =>
+            enablePorts(mode, names),
+        disable: (names?: string[]): void => disablePorts(names),
+        state: () => Object.fromEntries(activePorts),
+    },
+    /**
+     * Golden-replay capture (Stage 5d), active under ?zeliard_record=1.
+     * `stop()` detaches the tap and resolves to the fixture JSON.
+     */
+    recorder: {
+        stats: (): { events: number; checkpoints: number } | null =>
+            REPLAY_RECORDING
+                ? (getActiveRecorder() ?? recorder).stats()
+                : null,
+        stop: async (): Promise<string> => {
+            engine.tap(null);
+            const bytes = new Uint8Array(await (await fetch('build/zeliard.wasm')).arrayBuffer());
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            const wasmSha256 = [...new Uint8Array(digest)]
+                .slice(0, 8)
+                .map((b) => b.toString(16).padStart(2, '0'))
+                .join('');
+            return JSON.stringify(
+                recorder.toFixture({
+                    createdAt: new Date().toISOString(),
+                    wasmSha256,
+                    session: 'town-dungeon-basics',
+                }),
+            );
+        },
+    },
 };
 
 // ─── Touch controls (smartphone mode) ─────────────────────────────────────────

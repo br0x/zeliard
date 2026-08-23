@@ -55,6 +55,11 @@ export const INPUT_FLAGS = {
     ESC: 0x80,
 } as const;
 
+/** Polled-input latch bytes written by _set_input_keys (zeliard.h 0xFF16..18). */
+export const ADDR_INPUT_ALT_SPACE = 0xff16;
+export const ADDR_INPUT_DIRS = 0xff17;
+export const ADDR_F9_F7_F2_F1_KREJSNYQ_ESC_CTRL_SHIFT_ENTER = 0xff18;
+
 export type InputFlagName = Exclude<keyof typeof INPUT_FLAGS, 'NONE'>;
 
 /** Key-state object as produced by the input layer (game.js key tracking). */

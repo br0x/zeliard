@@ -437,13 +437,13 @@ Numeric-fidelity rules for all ports (the classic JS/wasm pitfalls):
   idiomatic cleanup only after parity is proven (cleanup can then be verified
   by re-running the same golden tests).
 
-### Stage 5 — Parity infrastructure & engine inventory
+### Stage 5 — Parity infrastructure & engine inventory ✅ *(completed)*
 
 Five PR-sized steps (5a–5e), each ending with tests green + deploy. The wasm
 binary stays the live engine throughout; this stage only builds the safety
 net that makes stages 6–10 mechanical.
 
-#### 5a — Engine inventory & porting tracker
+#### 5a — Engine inventory & porting tracker ✅ *(completed)*
 
 Turn the implicit knowledge in `wasm/memory.ts` (~120 `ADDR_*` constants) and
 `ZeliardExports` into an explicit, machine-readable ownership map.
@@ -469,8 +469,23 @@ Turn the implicit knowledge in `wasm/memory.ts` (~120 `ADDR_*` constants) and
 
 Deliverable: the porting order and per-subsystem progress tracker used by
 every later stage. No behavior change.
+- **Done:** `web/src/wasm/inventory.ts` — 25 g_mem regions (owner, extents,
+  seg0/seg1 addressing, port stage) and all 31 exports of `ZeliardExports`
+  (signature, owner, regions read/written, port stage). Regions import
+  nothing per-address; the drift-guard test enumerates every numeric
+  `ADDR_*`/`MEM_*`/`REACH_*` constant exported by `memory.ts` (incl. array
+  elements like `ADDR_SPELL_COUNTS`) and requires exactly-one-region
+  coverage, so a new constant without an inventory row fails CI. Exhaustive
+  export listing is enforced twice: at compile time
+  (`EXPORT_LIST_IS_EXHAUSTIVE` conditional-type guard) and against the real
+  wasm binary in tests. Tracker helpers `exportsForStage`/`regionsForStage`
+  give each stage its work list; stages 6/9 correctly carry regions only
+  (their C internals have no dedicated export surface). Discovered during
+  region mapping: exit/death flags (`0xFFE2/3`) sat in an uncovered gap
+  between runtime flags and transition scratch — now their own region.
+  12 new tests; suite at **426**.
 
-#### 5b — Dispatch layer (the cutover mechanism)
+#### 5b — Dispatch layer (the cutover mechanism) ✅ *(completed)*
 
 Today `main.ts` calls bridge wrappers directly (`townUpdate()`,
 `dungeonUpdate()`, …). Insert one indirection so any export can be rerouted
@@ -486,8 +501,25 @@ to TS without touching call sites:
   reset clears; unknown-name override throws.
 
 This is the only main.ts-touching step of the stage.
+- **Done:** `web/src/wasm/dispatch.ts` — `EngineDispatch` keyed by raw wasm
+  export names (so `inventory.ts` doubles as this layer's port tracker).
+  `useBridge()` wires the loaded bridge module's wrappers as defaults and
+  throws at boot if any wrapper is missing (ABI drift guard); `override()`
+  installs a TS implementation; `reset()` restores wasm; pre-bridge calls
+  are dropped, matching the legacy optional-chaining call sites. main.ts
+  migrated: 16 module-level bridge vars deleted, all ~21 engine call sites
+  now go through `engine.call(...)`, and the `__zeliard` hook grew a
+  `dispatch` surface (`override`/`reset`/`state`) for live cutover from E2E
+  or console. Dispatched set = 19 exports; memory readers
+  (`getTownPendingTransition*`, `readMemory`, …) stay direct bridge calls —
+  they become pure TS accessors in 5e rather than dispatch targets. Tested:
+  default routing to real wrappers, arg forwarding + return passthrough,
+  override-wins/reset-restores, missing-wrapper boot throw, drop-before-init.
+  Verified end-to-end: tsc clean, suite at **435**, production build green,
+  Playwright smoke (boot → town → dungeon → town) passing through the new
+  seam.
 
-#### 5c — Shadow-mode harness
+#### 5c — Shadow-mode harness ✅ *(completed)*
 
 New `web/src/wasm/parity/shadow.ts` implementing the dual-run technique:
 
@@ -510,8 +542,25 @@ New `web/src/wasm/parity/shadow.ts` implementing the dual-run technique:
 Unit tests with fake wasm/ts pairs over a synthetic `LinearMemory`:
 match case, byte-mismatch case, return-value mismatch, restoration
 correctness (TS sees pristine pre-state).
+- **Done:** `web/src/wasm/parity/shadow.ts` — `ShadowHarness.wrap(name,
+  wasmFn, tsFn, spec)`: snapshots the spec's watched regions (inventory
+  names, seg1 mapping applied), runs wasm, restores pre-state so the TS side
+  sees exactly what wasm saw, runs TS, then compares return value
+  (`Object.is` or a custom comparator) and region bytes. Divergences carry
+  region-relative offsets + hex dumps of both sides and surface as
+  console errors; per-export stats (`calls`, `divergences`, `isClean()`)
+  feed E2E "shadow clean" assertions. Returns the wasm result always — game
+  behavior unchanged either way. No memory view → wasm passthrough.
+  Wired to `__zeliard.shadow.attach/detach/state`: attaching wraps the
+  export's active implementation through the dispatch layer, detaching
+  restores plain wasm; inert (zero cost) unless attached. RNG caveat
+  documented in-module: once ported, RNG state must be a watched region or
+  every roll diverges. Tested: agreement, byte mismatch w/ offsets+dumps,
+  return mismatch, custom comparator, restore-before-TS correctness, seg1
+  addressing, diff capping, no-view passthrough, reset. Suite: **444**
+  unit tests; build + Playwright smoke green.
 
-#### 5d — Golden-replay recorder & runner
+#### 5d — Golden-replay recorder & runner ✅ *(completed)*
 
 - **Recorder** (`web/e2e/record.spec.ts`, not run in normal CI): Playwright
   drives gameplay via `__zeliard`; a hook installed by dispatch.ts records
@@ -530,8 +579,38 @@ correctness (TS sees pristine pre-state).
 - Fixture schema lives in `wasm/parity/replay-types.ts`, shared by recorder
   and runner. A schema-version field so old fixtures fail loudly after ABI
   changes instead of producing confusing diffs.
+- **Done:** all three pieces landed.
+  - *Capture completeness:* the dispatchable surface grew from 19 to 32 ops —
+    the TS→memory configuration writes (`loadMdt`, `setDungeonPassableTiles`,
+    `setDeathDescriptors`, …) now go through the dispatch too, since a replay
+    cannot reproduce dungeon boot without them. main.ts's module-level
+    `writeMemory` became a recording wrapper: every TS-side g_mem write
+    across all injected modules is captured as a `poke` event (audio-owned
+    regions are excluded from verification — the sound driver consumes them
+    asynchronously and has no Node counterpart).
+  - *Recorder:* `parity/recorder.ts` taps the dispatch (`EngineDispatch.tap`)
+    and pokes, digests all 23 non-audio inventory regions every 50 events
+    (FNV-1a), and stores raw bytes for regions ≤64B so mismatches report
+    exact byte offsets. Activated by `?zeliard_record=1`;
+    `__zeliard.recorder.stop()` returns the fixture with a wasm SHA-256
+    prefix. `e2e/record.spec.ts` scripts the session (intro skip → town
+    walk → enterDungeon(1) + movement/sword swing → returnToTown) gated
+    behind `REPLAY_RECORD=1`.
+  - *Runner:* `tests/replay.test.ts` replays each fixture in Node against
+    the real wasm via the bridge singleton (`parity/replay-runner.ts`),
+    verifying every checkpoint. Stale-fixture guard: header wasm hash must
+    match the local binary.
+  - *Bugs found by actually running it:* (1) Uint8Array call args were
+    destroyed by JSON serialization (`loadMdt` wrote nothing → C descriptor
+    scan span forever); fixed with toTransferable/thawArgs marshaling.
+    (2) The dispatch tap fired before invocation, so browser checkpoints
+    snapshotted memory *before* the tapped call's effects — every replay
+    diverged by exactly one frame-timer increment; tap now fires after the
+    impl runs. Found via the new raw-byte diff output (addr 0xFF1A/B always
+    +1). Suite: **449** unit tests + recorded fixture replaying clean;
+    build + smoke green.
 
-#### 5e — First leaf ports (proof of process)
+#### 5e — First leaf ports (proof of process) ✅ *(completed)*
 
 Port the smallest exports end-to-end through the whole pipeline
 (implementation → dispatch override → shadow check → golden replay), one PR:
@@ -549,11 +628,31 @@ Port the smallest exports end-to-end through the whole pipeline
 
 Each port lands with: parity tests (shadow harness in Node against real
 wasm), golden-replay section re-run, regression checklist items 1–2 spot-run.
-
 - **Exit criteria:** harness + recorder run in CI (recorder scheduled/manual);
   inventory table complete and drift-guarded; dispatch layer carries all
   engine calls; ≥3 leaf exports served from TS behind the dispatch with
   clean shadow runs.
+- **Done:** nine exports now have TS implementations in `web/src/engine/`
+  (`input.ts` setInputKeys; `town-state.ts` pending-transition getters;
+  `dungeon-state.ts` viewport-top/state/render-request getters +
+  clearRenderRequest + entity-table word). `wasm/parity/ports.ts` is the
+  registry mapping each port to its implementation factory + shadow spec;
+  enabled live via `?zeliard_ports=shadow|cutover` or `__zeliard.ports`.
+  Scope adjustments, documented: the scroll-proc setters were **not**
+  ported — they store JS function pointers consumed by C internals, so they
+  only become portable with town.c itself (Stage 7); `entity_count` returns
+  a C global invisible to g_mem and moves with Stage 8's entity-table
+  accessor layer. Verification stack, all green: exhaustive 256-bitmask
+  input-latch parity + seeded-state getter parity against the real wasm in
+  Node (tests/leaf-ports.test.ts); golden replay re-run with
+  `wasm_set_input_keys` served *entirely* from TS via the runner's new
+  impls-rerouting param (fresh engine boot per replay); and two new live
+  E2E specs playing boot→intro→town→dungeon→town with walking + sword
+  swings — cutover mode fully on TS ports, shadow mode reporting zero
+  divergences across 100+ dual-run calls. Bridge gained thin wrappers for
+  the three raw pending-transition exports so they could join the dispatch.
+  Suite: **458** unit tests + 5 E2E (+1 recorder, skipped by default);
+  tsc strict-clean, production build green.
 
 ### Stage 6 — Data layer: formats, unpacking, graphics decode
 Port `unpack.c`, `data.c` (MDT map parsing), and the graphics decoders
