@@ -97,7 +97,7 @@ export function nextAnimatedTile(tile: number, ctx: TileAnimContext): number | n
                 0x10: 0x3d,
             };
             if (Object.hasOwn(starts, tile)) {
-                nextTile = starts[tile];
+                nextTile = starts[tile]!;
             } else if (tile >= 0x33 && tile < 0x3e) {
                 const ends: Record<number, number> = {
                     0x35: 0x0e,
@@ -106,7 +106,7 @@ export function nextAnimatedTile(tile: number, ctx: TileAnimContext): number | n
                     0x3c: 0x0c,
                     0x3d: 0x10,
                 };
-                nextTile = Object.hasOwn(ends, tile) ? ends[tile] : tile + 1;
+                nextTile = Object.hasOwn(ends, tile) ? ends[tile]! : tile + 1;
             } else {
                 return null;
             }

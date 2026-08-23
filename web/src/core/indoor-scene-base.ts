@@ -19,7 +19,7 @@ export class IndoorSceneBase implements Scene {
     protected readonly renderGoldHud: () => void;
     protected readonly renderAlmasHud: () => void;
     protected readonly drawLifeBar: () => void;
-    protected readonly setLife: (value: number) => void;
+    protected readonly setLife: (value: number, maxHp?: number) => void;
     protected readonly renderSwordHud: () => void;
     protected readonly renderMagicHud: () => void;
     protected readonly renderShieldHud: () => void;

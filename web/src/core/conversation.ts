@@ -53,14 +53,14 @@ export function readNpcConversationBytes(
     npcId: number,
 ): Uint8Array | null {
     const ptr = readMemory(ADDR_NPC_CONVERSATIONS, 2) ?? new Uint8Array(2);
-    const convTablePtr = ptr[0] | (ptr[1] << 8);
+    const convTablePtr = (ptr[0] ?? 0) | ((ptr[1] ?? 0) << 8);
     if (!convTablePtr) return null;
     const textPtr = readMemory(convTablePtr + npcId * 2, 2) ?? new Uint8Array(2);
-    const textAddr = textPtr[0] | (textPtr[1] << 8);
+    const textAddr = (textPtr[0] ?? 0) | ((textPtr[1] ?? 0) << 8);
     if (!textAddr) return null;
     const bytes: number[] = [];
     let b: number;
-    while ((b = (readMemory(textAddr + bytes.length, 1) ?? new Uint8Array(1))[0]) !== 0xff) {
+    while ((b = (readMemory(textAddr + bytes.length, 1) ?? new Uint8Array(1))[0] ?? 0xff) !== 0xff) {
         if (b === 0) break;
         bytes.push(b);
     }
@@ -144,17 +144,17 @@ export class ConversationManager {
      */
     startFromWasm(): void {
         const npcAddrBytes = this.mem(ADDR_NPC_ADDR_LATCH, 2);
-        const npcAddr = npcAddrBytes[0] | (npcAddrBytes[1] << 8);
+        const npcAddr = (npcAddrBytes[0] ?? 0) | ((npcAddrBytes[1] ?? 0) << 8);
         let npcId = 0;
         if (npcAddr) {
-            npcId = this.mem(npcAddr + 7, 1)[0];
+            npcId = this.mem(npcAddr + 7, 1)[0] ?? 0;
         }
         // After buying the Asbestos Cape in Llama, its merchant (npc id 3)
         // stops re-selling it and only talks about the cape (pattern 9).
         if (
             npcId === 3 &&
-            (this.mem(ADDR_CALIENTE_ITEMS, 1)[0] & 0x40) !== 0 &&
-            (this.mem(ADDR_PLACE_MAP_ID, 1)[0] & 0x7f) === LLAMA_TOWN_ID
+            ((this.mem(ADDR_CALIENTE_ITEMS, 1)[0] ?? 0) & 0x40) !== 0 &&
+            ((this.mem(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7f) === LLAMA_TOWN_ID
         ) {
             npcId = PATTERN_CAPE_ONLY_TALK;
         }
@@ -177,7 +177,7 @@ export class ConversationManager {
             this.applyParsed(parsed, false);
         }
 
-        const facingLeft = npcAddr ? this.mem(npcAddr + 2, 1)[0] & 0x80 : false;
+        const facingLeft = npcAddr ? (this.mem(npcAddr + 2, 1)[0] ?? 0) & 0x80 : false;
         this.facingLeft = facingLeft;
         this.deps.layout(facingLeft);
     }
@@ -305,7 +305,7 @@ export class ConversationManager {
                 this.deps.setHeroAlmasValue(almas - ASBESTOS_CAPE_PRICE);
                 this.deps.renderAlmasHud();
                 // caliente_items bit6 = bought Asbestos Cape
-                const ci = this.mem(ADDR_CALIENTE_ITEMS, 1)[0];
+                const ci = this.mem(ADDR_CALIENTE_ITEMS, 1)[0] ?? 0;
                 this.deps.writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x40]);
                 // Insert the cape (item id 5) into the first empty inventory slot.
                 for (let slot = ITEM_SLOT_SCAN_START; slot < ITEM_SLOT_SCAN_END; slot++) {

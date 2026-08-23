@@ -105,8 +105,8 @@ describe('drawConversationBox', () => {
         const texts = textCalls(f.calls);
         const baseY = 20 + TEXT_FIRST_BASELINE + 1 * TEXT_LINE_HEIGHT + 8;
         expect(texts.map((t) => t.args[0])).toEqual(['Choose.', 'Yes', 'No', '►']);
-        expect(texts[1].args).toEqual(['Yes', 42, baseY]);
-        expect(texts[3].args).toEqual(['►', 22, baseY + TEXT_LINE_HEIGHT]); // cursor on row 1
+        expect(texts[1]!.args).toEqual(['Yes', 42, baseY]);
+        expect(texts[3]!.args).toEqual(['►', 22, baseY + TEXT_LINE_HEIGHT]); // cursor on row 1
         const styles = f.calls
             .filter((c) => c.op === 'fillStyle')
             .map((c) => c.args[0]);
@@ -126,7 +126,7 @@ describe('drawConversationBox', () => {
         );
         const texts = textCalls(f.calls);
         expect(texts.map((t) => t.args[0])).toEqual(["It's not free...", 'Take', 'No Take', '►']);
-        expect(texts[3].args[2]).toBe(20 + TEXT_FIRST_BASELINE + TEXT_LINE_HEIGHT + 8); // cursor row 0
+        expect(texts[3]!.args[2]).toBe(20 + TEXT_FIRST_BASELINE + TEXT_LINE_HEIGHT + 8); // cursor row 0
     });
 });
 

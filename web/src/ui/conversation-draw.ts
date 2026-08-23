@@ -78,7 +78,7 @@ export function drawConversationBox(
     ctx.font = '20px "Courier New", monospace';
     ctx.fillStyle = '#fff';
     for (let i = 0; i < pageLines.length; i++) {
-        ctx.fillText(pageLines[i], x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
+        ctx.fillText(pageLines[i]!, x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
     }
     if (state.purchaseMode) {
         const options = ['Take', 'No Take'];
@@ -86,7 +86,7 @@ export function drawConversationBox(
         for (let i = 0; i < options.length; i++) {
             const cy = baseY + i * TEXT_LINE_HEIGHT;
             ctx.fillStyle = i === state.purchaseCursor ? '#ffcc00' : '#ccc';
-            ctx.fillText(options[i], x + 32, cy);
+            ctx.fillText(options[i]!, x + 32, cy);
         }
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('►', x + 12, baseY + state.purchaseCursor * TEXT_LINE_HEIGHT);
@@ -96,7 +96,7 @@ export function drawConversationBox(
         for (let i = 0; i < options.length; i++) {
             const cy = baseY + i * TEXT_LINE_HEIGHT;
             ctx.fillStyle = i === state.yesNoCursor ? '#ffcc00' : '#ccc';
-            ctx.fillText(options[i], x + 32, cy);
+            ctx.fillText(options[i]!, x + 32, cy);
         }
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('►', x + 12, baseY + state.yesNoCursor * TEXT_LINE_HEIGHT);

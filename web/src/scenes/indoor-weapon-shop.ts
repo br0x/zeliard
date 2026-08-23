@@ -15,7 +15,8 @@
  */
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -86,7 +87,7 @@ const ANGRY_FRAME_MS      = 400;   // ms per angry frame
 const ANGRY_LAST_HOLD_MS  = 800;   // extra hold on last angry frame before fade-out
 
 // ─── Main menu ────────────────────────────────────────────────────────────────
-const MENU_ITEMS = [
+export const WEAPON_MENU_ITEMS = [
     'Go outside',
     'Repair shield',
     'Buy weapon',
@@ -100,7 +101,7 @@ const MENU_BUY_SHIELD    = 3;
 const MENU_EXPLAIN_GOODS = 4;
 
 // ─── Item tables (armrpro.asm off_AD05 / off_AD11) ───────────────────────────
-const SWORD_NAMES = [
+export const SWORD_NAMES = [
     'Training sword',
     "Wise man's sword",
     'Spirit sword',
@@ -108,7 +109,7 @@ const SWORD_NAMES = [
     'Illumination sword',
     'Enchantment sword',
 ];
-const SHIELD_NAMES = [
+export const SHIELD_NAMES = [
     'Clay shield',
     "Wise man's shield",
     'Stone shield',
@@ -119,7 +120,7 @@ const SHIELD_NAMES = [
 
 // Item descriptions for "Explain goods" (armrpro.asm off_B3DE).
 // Indices 0–5 = swords, 6–11 = shields.
-const ITEM_DESCRIPTIONS = [
+export const WEAPON_ITEM_DESCRIPTIONS = [
     "Well, I'd say this sword is all right for a beginner. You get what you pay for. It's your standard, maintenance-free sword. If money's a problem, this one's for you.",
     "This one is just a bit better than the Training Sword. Once you get the hang of it, it's an easy one to wield. The price is a bit higher, but you can't lose on this one. Why not take it with you?",
     "You like this one? A wise choice. This is a high grade product. It's one of my biggest sellers.",
@@ -135,7 +136,7 @@ const ITEM_DESCRIPTIONS = [
 ];
 
 // Shield max HP (armrpro.asm word_A6BF)
-const SHIELD_MAX_HP = [30, 80, 180, 300, 300, 600];
+export const SHIELD_MAX_HP = [30, 80, 180, 300, 300, 600] as const;
 
 // ─── Price tables ─────────────────────────────────────────────────────────────
 // Source: prices_by_town data (document index 3).
@@ -144,7 +145,7 @@ const SHIELD_MAX_HP = [30, 80, 180, 300, 300, 600];
 // Price flag byte = 1 means the item exists in that town's range but is priced
 // at an absurdly high value (90000/69800) — it is still "in stock" per the
 // bitmask; we store the true numeric price and let the bitmask gate availability.
-const PRICES_BY_TOWN = [
+export const WEAPON_PRICES_BY_TOWN = [
     // Muralla (town 0)
     [400, 1500, 6800, 9800, 90000, 4,  50, 150, 2980, 9800, 14800, 39800],
     // Satono (town 1)
@@ -167,8 +168,8 @@ const PRICES_BY_TOWN = [
 
 // ─── Inventory bitmask defaults (common.inc) ──────────────────────────────────
 // Bit 7=item0(Training/Clay), bit 6=item1, …, bit 2=item5.
-const DEFAULT_SWORD_BITMASKS  = [0xC0, 0xC0, 0xE0, 0xE0, 0x70, 0x38, 0x38, 0xF8, 0xF8];
-const DEFAULT_SHIELD_BITMASKS = [0xC0, 0xE0, 0xE0, 0x70, 0x30, 0x38, 0x1C, 0x1C, 0xFC];
+export const DEFAULT_SWORD_BITMASKS  = [0xC0, 0xC0, 0xE0, 0xE0, 0x70, 0x38, 0x38, 0xF8, 0xF8];
+export const DEFAULT_SHIELD_BITMASKS = [0xC0, 0xE0, 0xE0, 0x70, 0x30, 0x38, 0x1C, 0x1C, 0xFC];
 
 // ─── Memory addresses (common.inc) ───────────────────────────────────────────
 const ADDR_TOWN_ID        = 0xC4;
@@ -185,21 +186,68 @@ const ADDR_SHIELD_MASKS   = 0xDB;  // one byte per town
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function bitmaskToItemIndices(bitmask) {
-    const out = [];
+export function weaponBitmaskToItemIndices(bitmask: number): number[] {
+    const out: number[] = [];
     for (let i = 0; i < 6; i++) {
         if (bitmask & (0x80 >> i)) out.push(i);
     }
     return out;
 }
 
-function itemIndexToBit(i) { return 0x80 >> i; }
+export function itemIndexToBit(i: number): number { return 0x80 >> i; }
 
 // ─── Scene class ──────────────────────────────────────────────────────────────
 
+type ShopPhase =
+    | 'loading' | 'greeting' | 'menu' | 'crest_trade'
+    | 'sub_weapon' | 'sub_shield' | 'sub_explain'
+    | 'confirm_repair' | 'confirm_buy' | 'confirm_crest' | 'dialog';
+
 export class WeaponShopScene extends IndoorSceneBase {
 
-    constructor(context) {
+    // ── Animation state ──
+    private calmImages: HTMLImageElement[];
+    private angryImages: HTMLImageElement[];
+    private calmSeqIdx: number;
+    private lastFrameTime: number;
+    private animPhase: 'calm' | 'angry_wait' | 'angry_play' | 'angry_hold';
+    private angryFrameIdx: number;
+    private lastAngryTime: number;
+    private angryHoldStart: number;
+
+    // ── Shop logic state ──
+    private shopPhase: ShopPhase;
+    private menuSel: number;
+    private subSel: number;
+    private subItems: number[];
+    private subKind: 'sword' | 'shield' | 'explain' | null;
+    private exitAfterDialog: boolean;
+    private angryAfterDialog: boolean;
+    private menuDimmed: boolean;
+    private boughtSomething: boolean;
+    private yesNoDialog: YesNoDialog | null;
+
+    // ── Pending transaction ──
+    private _pendingItemIdx: number | null;
+    private _pendingItemKind: 'sword' | 'shield' | null;
+    private _pendingPrice: number;
+    private _pendingTradeIn: number;
+
+    // ── Town / inventory ──
+    private townIdx: number;
+    private _swordIndices: number[];
+    private _shieldIndices: number[];
+
+    // ── Dialog typewriter ──
+    private typewriter: TypewriterText | null;
+    private dlgBuffer: string[];
+    private _pendingLine: string | null;
+    private _dlgQueue: string[];
+    private _dlgQueueIndex: number;
+    private _dlgQueueAdvanceAt: number | 'pending' | null;
+    private _repairCompleteTimer: ReturnType<typeof setTimeout> | null;
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
 
         // ── Animation state ──────────────────────────────────────────────────
@@ -258,7 +306,11 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    async onEnter(now) {
+    protected override onEnter(now: number): void {
+        void this._loadAndBegin(now);
+    }
+
+    private async _loadAndBegin(now: number): Promise<void> {
         const [calms, angrys] = await Promise.all([
             Promise.all(CALM_FRAMES.map(p => this._loadImg(p))),
             Promise.all(ANGRY_FRAMES.map(p => this._loadImg(p))),
@@ -289,8 +341,8 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
     }
 
-    _loadImg(src) {
-        return new Promise((resolve, reject) => {
+    private _loadImg(src: string): Promise<HTMLImageElement> {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
             img.onload  = () => resolve(img);
             img.onerror = () => reject(new Error(`Failed: ${src}`));
@@ -300,82 +352,82 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Memory helpers ────────────────────────────────────────────────────────
 
-    _read(addr, len = 1) {
-        return this.readMemory ? this.readMemory(addr, len) : new Array(len).fill(0);
+    private _read(addr: number, len = 1): Uint8Array {
+        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
     }
 
-    _write(addr, bytes) {
+    private _write(addr: number, bytes: Uint8Array): void {
         if (this.writeMemory) this.writeMemory(addr, bytes);
     }
 
-    _getTownIdx() {
-        const raw = this._read(ADDR_TOWN_ID, 1)[0] & 0x7F;
+    private _getTownIdx(): number {
+        const raw = (this._read(ADDR_TOWN_ID, 1)[0] ?? 0) & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
-    _getGold() {
-        const hi = this._read(ADDR_GOLD_HI, 1)[0];
+    private _getGold(): number {
+        const hi = this._read(ADDR_GOLD_HI, 1)[0] ?? 0;
         const b  = this._read(ADDR_GOLD_LO, 2);
-        return ((hi & 0xFF) * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
+        return ((hi & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
 
-    _setGold(amount) {
+    private _setGold(amount: number): void {
         const v  = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, [hi]);
-        this._write(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
         this.renderGoldHud?.();
     }
 
-    _getSwordType()    { return this._read(ADDR_SWORD_TYPE,  1)[0]; }
-    _setSwordType(v)   { this._write(ADDR_SWORD_TYPE,  [v]); this.renderSwordHud?.(); }
-    _getShieldType()   { return this._read(ADDR_SHIELD_TYPE, 1)[0]; }
-    _setShieldType(v)  { this._write(ADDR_SHIELD_TYPE, [v]); this.renderShieldHud?.(); }
+    private _getSwordType(): number    { return this._read(ADDR_SWORD_TYPE, 1)[0] ?? 0; }
+    private _setSwordType(v: number): void   { this._write(ADDR_SWORD_TYPE, Uint8Array.of(v)); this.renderSwordHud(); }
+    private _getShieldType(): number   { return this._read(ADDR_SHIELD_TYPE, 1)[0] ?? 0; }
+    private _setShieldType(v: number): void  { this._write(ADDR_SHIELD_TYPE, Uint8Array.of(v)); this.renderShieldHud(); }
 
-    _getShieldHP()     { const b = this._read(ADDR_SHIELD_HP,     2); return b[0] | (b[1] << 8); }
-    _getShieldMaxHP()  { const b = this._read(ADDR_SHIELD_MAX_HP, 2); return b[0] | (b[1] << 8); }
-    _setShieldHP(v)    { this._write(ADDR_SHIELD_HP,     [v & 0xFF, (v >> 8) & 0xFF]); this.renderShieldHud?.(); }
-    _setShieldMaxHP(v) { this._write(ADDR_SHIELD_MAX_HP, [v & 0xFF, (v >> 8) & 0xFF]); this.renderShieldHud?.(); }
+    private _getShieldHP(): number     { const b = this._read(ADDR_SHIELD_HP, 2); return (b[0] ?? 0) | ((b[1] ?? 0) << 8); }
+    private _getShieldMaxHP(): number  { const b = this._read(ADDR_SHIELD_MAX_HP, 2); return (b[0] ?? 0) | ((b[1] ?? 0) << 8); }
+    private _setShieldHP(v: number): void    { this._write(ADDR_SHIELD_HP, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF)); this.renderShieldHud(); }
+    private _setShieldMaxHP(v: number): void { this._write(ADDR_SHIELD_MAX_HP, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF)); this.renderShieldHud(); }
 
     _getSwordBitmask()  {
-        return this._read(ADDR_SWORD_MASKS  + this.townIdx, 1)[0]
-            || DEFAULT_SWORD_BITMASKS[this.townIdx];
+        return (this._read(ADDR_SWORD_MASKS  + this.townIdx, 1)[0]
+            || DEFAULT_SWORD_BITMASKS[this.townIdx]) ?? 0;
     }
     _getShieldBitmask() {
-        return this._read(ADDR_SHIELD_MASKS + this.townIdx, 1)[0]
-            || DEFAULT_SHIELD_BITMASKS[this.townIdx];
+        return (this._read(ADDR_SHIELD_MASKS + this.townIdx, 1)[0]
+            || DEFAULT_SHIELD_BITMASKS[this.townIdx]) ?? 0;
     }
-    _orSwordBitmask(bit)  {
-        this._write(ADDR_SWORD_MASKS  + this.townIdx, [this._getSwordBitmask()  | bit]);
+    private _orSwordBitmask(bit: number): void {
+        this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(this._getSwordBitmask() | bit));
     }
-    _orShieldBitmask(bit) {
-        this._write(ADDR_SHIELD_MASKS + this.townIdx, [this._getShieldBitmask() | bit]);
+    private _orShieldBitmask(bit: number): void {
+        this._write(ADDR_SHIELD_MASKS + this.townIdx, Uint8Array.of(this._getShieldBitmask() | bit));
     }
 
-    _isCrestTradeActive() {
+    private _isCrestTradeActive(): boolean {
         // townIdx 4 = Tumba (town_id 5 in ASM, 1-based).
         if (this.townIdx !== 4) return false;
-        const cem1  = this._read(ADDR_CEMENTAR_1, 1)[0];
+        const cem1  = this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0;
         if (cem1 & 0x02) return false;    // already traded
         return this._read(ADDR_CREST_OF_GLORY, 1)[0] !== 0;
     }
 
-    _crestTraded() {
+    private _crestTraded(): boolean {
         // True once the Crest of Glory has been traded for the Knight's Sword
         // (cementar_items_1 bit 1, set by _executeCrestTrade).  Until then the
         // Tumba smith refuses to sell the Knight's Sword (armrpro.asm sub_A47B).
-        return (this._read(ADDR_CEMENTAR_1, 1)[0] & 0x02) !== 0;
+        return ((this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0) & 0x02) !== 0;
     }
 
-    _buildInventoryLists() {
-        this._swordIndices  = bitmaskToItemIndices(this._getSwordBitmask());
-        this._shieldIndices = bitmaskToItemIndices(this._getShieldBitmask());
+    private _buildInventoryLists(): void {
+        this._swordIndices  = weaponBitmaskToItemIndices(this._getSwordBitmask());
+        this._shieldIndices = weaponBitmaskToItemIndices(this._getShieldBitmask());
     }
 
-    _getItemPrice(kind, itemIdx) {
+    private _getItemPrice(kind: 'sword' | 'shield', itemIdx: number): number {
         const t  = Math.min(this.townIdx, 8);
-        const row = PRICES_BY_TOWN[t];
+        const row = WEAPON_PRICES_BY_TOWN[t] ?? [];
         if (kind === 'sword')  return row[itemIdx]     || 0;
         if (kind === 'shield') return row[6 + itemIdx] || 0;
         return 0;
@@ -383,15 +435,15 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Dialog machinery (mirrors SageScene) ──────────────────────────────────
 
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((SHOP_DLG_H - 22 - 40) / SHOP_LINE_H_DLG);
     }
 
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
         this.ctx.save();
         this.ctx.font = SHOP_FONT_DLG;
         const maxW  = SHOP_DLG_W - 28;
-        const lines = [];
+        const lines: string[] = [];
         for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
@@ -410,7 +462,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         return lines;
     }
 
-    _startTypewriterLine(line) {
+    private _startTypewriterLine(line: string): void {
         this._pendingLine = line;
         this.typewriter   = new TypewriterText(
             line, SHOP_FONT_DLG, SHOP_DLG_W - 28,
@@ -419,7 +471,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.typewriter.start(performance.now());
     }
 
-    _setDialog(text) {
+    private _setDialog(text: string): void {
         if (this._repairCompleteTimer) {
             clearTimeout(this._repairCompleteTimer);
             this._repairCompleteTimer = null;
@@ -434,9 +486,9 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._showNextDlgLine();
     }
 
-    _showNextDlgLine() {
+    private _showNextDlgLine(): void {
         if (this._dlgQueueIndex >= this._dlgQueue.length) return;
-        const line   = this._dlgQueue[this._dlgQueueIndex++];
+        const line   = this._dlgQueue[this._dlgQueueIndex++]!;
         const isLast = this._dlgQueueIndex >= this._dlgQueue.length;
         if (this._pendingLine !== null) {
             this.dlgBuffer.push(this._pendingLine);
@@ -446,7 +498,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._dlgQueueAdvanceAt = isLast ? null : 'pending';
     }
 
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length) return;
         if (this._dlgQueueAdvanceAt === 'pending') {
             if (this.typewriter && this.typewriter.isDone(now)) {
@@ -458,12 +510,12 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
     }
 
-    _dlgScrollTop() {
+    private _dlgScrollTop(): number {
         return Math.max(0, this.dlgBuffer.length + 1 - this._dlgMaxLines);
     }
 
     /** Show the Space-to-continue arrow only when we are genuinely waiting. */
-    _dlgArrowVisible() {
+    private _dlgArrowVisible(): boolean {
         if (this._dlgQueue && this._dlgQueueIndex < this._dlgQueue.length) return false;
         return (
             this.shopPhase === 'greeting'    ||
@@ -473,7 +525,7 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     /** True once the current confirm question is fully typed out. */
-    _confirmDialogDone(now) {
+    private _confirmDialogDone(now: number): boolean | null {
         return (
             this.typewriter && this.typewriter.isDone(now) &&
             (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)
@@ -481,7 +533,7 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     /** "No" on a Yes/No confirm → drop back to the main menu. */
-    _confirmDeclined(now) {
+    private _confirmDeclined(_now: number): void {
         this.yesNoDialog = null;
         this._clearPending();
         this.shopPhase  = 'menu';
@@ -489,12 +541,12 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._setDialog('Is there something I can do for you, sir?');
     }
 
-    _drawYesNoDialog(now, alpha) {
+    private _drawYesNoDialog(now: number, alpha: number): void {
         if (!this.yesNoDialog || !this._confirmDialogDone(now)) return;
         this.yesNoDialog.draw(this.ctx, alpha);
     }
 
-    _newYesNoDialog() {
+    private _newYesNoDialog(): YesNoDialog {
         return new YesNoDialog(
             this.ctx, SHOP_FONT_MENU, SHOP_YESNO_X, SHOP_YESNO_Y,
             SHOP_YESNO_W, SHOP_YESNO_H, 0, {
@@ -510,7 +562,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Main draw ─────────────────────────────────────────────────────────────
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickDlgQueue(now);
         this._tickAngryAnim(now);
 
@@ -547,7 +599,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Portrait & animation ──────────────────────────────────────────────────
 
-    _drawPortraitBox(now) {
+    private _drawPortraitBox(now: number): void {
         const ctx = this.ctx;
         ctx.strokeStyle = '#993300';
         ctx.lineWidth   = 3;
@@ -561,7 +613,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
     }
 
-    _currentAnimFrame(now) {
+    private _currentAnimFrame(now: number): HTMLImageElement | null {
         if (this.animPhase === 'angry_play' || this.animPhase === 'angry_hold') {
             return this.angryImages[this.angryFrameIdx] || null;
         }
@@ -570,7 +622,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             this.lastFrameTime = now;
             this.calmSeqIdx = (this.calmSeqIdx + 1) % CALM_SEQ.length;
         }
-        return this.calmImages[CALM_SEQ[this.calmSeqIdx]] || null;
+        return this.calmImages[CALM_SEQ[this.calmSeqIdx] ?? 0] || null;
     }
 
     /**
@@ -583,7 +635,7 @@ export class WeaponShopScene extends IndoorSceneBase {
      *   → angry_hold  (last angry frame held for ANGRY_LAST_HOLD_MS)
      *   → startFadeOut()
      */
-    _tickAngryAnim(now) {
+    private _tickAngryAnim(now: number): void {
         if (this.animPhase === 'angry_play') {
             if (now - this.lastAngryTime >= ANGRY_FRAME_MS) {
                 this.lastAngryTime = now;
@@ -603,7 +655,7 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     /** Transition from angry_wait → angry_play. Call when dialog is dismissed. */
-    _startAngryPlay(now) {
+    private _startAngryPlay(now: number): void {
         this.animPhase     = 'angry_play';
         this.angryFrameIdx = 0;
         this.lastAngryTime = now;
@@ -611,7 +663,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Rendering: main menu ──────────────────────────────────────────────────
 
-    _drawMainMenu(alpha) {
+    private _drawMainMenu(alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = this.menuDimmed ? alpha * 0.25 : alpha;
@@ -624,11 +676,11 @@ export class WeaponShopScene extends IndoorSceneBase {
         ctx.fillRect(SHOP_MENU_X, SHOP_MENU_Y, SHOP_MENU_W, SHOP_MENU_H);
 
         ctx.font = SHOP_FONT_MENU;
-        for (let i = 0; i < MENU_ITEMS.length; i++) {
+        for (let i = 0; i < WEAPON_MENU_ITEMS.length; i++) {
             const yi  = SHOP_MENU_TEXT_Y + i * SHOP_LINE_H_MENU;
             const sel = (i === this.menuSel) && (this.shopPhase === 'menu');
             ctx.fillStyle = sel ? '#ffee00' : '#ddcc88';
-            ctx.fillText(MENU_ITEMS[i], SHOP_MENU_TEXT_X, yi);
+            ctx.fillText(WEAPON_MENU_ITEMS[i]!, SHOP_MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#ff2200';
                 this._triangle(ctx, SHOP_CURSOR_X, yi - 16, 10, 16, false);
@@ -639,21 +691,21 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Rendering: sub-menu ───────────────────────────────────────────────────
 
-    _subItemNames() {
-        if (this.shopPhase === 'sub_weapon')  return this.subItems.map(i => SWORD_NAMES[i]);
-        if (this.shopPhase === 'sub_shield')  return this.subItems.map(i => SHIELD_NAMES[i]);
+    private _subItemNames(): string[] {
+        if (this.shopPhase === 'sub_weapon')  return this.subItems.map(i => SWORD_NAMES[i] ?? '');
+        if (this.shopPhase === 'sub_shield')  return this.subItems.map(i => SHIELD_NAMES[i] ?? '');
         if (this.shopPhase === 'sub_explain') {
             const swordCount = this._swordIndices.length;
             return this.subItems.map((flatIdx, pos) =>
                 pos < swordCount
-                    ? SWORD_NAMES[flatIdx]
-                    : SHIELD_NAMES[flatIdx - 6]
+                    ? SWORD_NAMES[flatIdx] ?? ''
+                    : SHIELD_NAMES[flatIdx - 6] ?? ''
             );
         }
         return [];
     }
 
-    _drawSubMenu(alpha) {
+    private _drawSubMenu(alpha: number): void {
         const ctx   = this.ctx;
         const names = this._subItemNames();
         ctx.save();
@@ -669,7 +721,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             const yi  = SHOP_SUB_TEXT_Y + i * SHOP_LINE_H_MENU;
             const sel = (i === this.subSel);
             ctx.fillStyle = sel ? '#ffee00' : '#ccccff';
-            ctx.fillText(names[i], SHOP_SUB_TEXT_X + 16, yi);
+            ctx.fillText(names[i]!, SHOP_SUB_TEXT_X + 16, yi);
             if (sel) {
                 ctx.fillStyle = '#ff2200';
                 this._triangle(ctx, SHOP_SUB_X + 2, yi - 16, 10, 16, false);
@@ -680,7 +732,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Rendering: dialog box ─────────────────────────────────────────────────
 
-    _drawDialogBox(now, alpha) {
+    private _drawDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -704,7 +756,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             const vis = this.typewriter.getVisibleLines(now);
             if (vis.length) {
                 ctx.fillStyle = '#eecc88';
-                ctx.fillText(vis[0], SHOP_DLG_TEXT_X, SHOP_DLG_TEXT_Y + row * SHOP_LINE_H_DLG);
+                ctx.fillText(vis[0]!, SHOP_DLG_TEXT_X, SHOP_DLG_TEXT_Y + row * SHOP_LINE_H_DLG);
             }
             if (this.typewriter.isDone(now) && this._dlgArrowVisible()) {
                 // Down-arrow: "press Space to continue"
@@ -724,7 +776,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
-    handleInput(key) {
+    override handleInput(key: string): void {
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
 
@@ -738,7 +790,7 @@ export class WeaponShopScene extends IndoorSceneBase {
                 this.shopPhase === 'confirm_crest') {
                 if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
             } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
-                this.menuSel = (this.menuSel + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
+                this.menuSel = (this.menuSel + dir + WEAPON_MENU_ITEMS.length) % WEAPON_MENU_ITEMS.length;
             } else if (
                 this.shopPhase === 'sub_weapon' ||
                 this.shopPhase === 'sub_shield'  ||
@@ -754,7 +806,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         if (key === 'Escape')                   this._onCancel(now);
     }
 
-    _onConfirm(now) {
+    private _onConfirm(now: number): void {
         // Skip still-typing dialog first; then re-evaluate on the next press.
         if (this.typewriter && !this.typewriter.isDone(now)) {
             this.typewriter.skip(now);
@@ -828,7 +880,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
     }
 
-    _onCancel(now) {
+    private _onCancel(now: number): void {
         switch (this.shopPhase) {
             case 'sub_weapon':
             case 'sub_shield':
@@ -848,7 +900,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Menu actions ──────────────────────────────────────────────────────────
 
-    _activateMenuItem(sel, now) {
+    private _activateMenuItem(sel: number, now: number): void {
         switch (sel) {
             case MENU_GO_OUTSIDE:    this._doGoOutside(now);    break;
             case MENU_REPAIR_SHIELD: this._doRepairMenu(now);   break;
@@ -860,7 +912,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Go outside ────────────────────────────────────────────────────────────
 
-    _doGoOutside(now) {
+    private _doGoOutside(_now: number): void {
         this.menuDimmed = true;
         if (this.boughtSomething) {
             // Friendly farewell, then straight fade-out
@@ -888,7 +940,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Repair shield ─────────────────────────────────────────────────────────
 
-    _doRepairMenu(now) {
+    private _doRepairMenu(_now: number): void {
         this.menuDimmed = true;
         const shieldType = this._getShieldType();
 
@@ -919,7 +971,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.shopPhase = 'confirm_repair';
     }
 
-    _executeRepair(now) {
+    private _executeRepair(_now: number): void {
         const gold = this._getGold();
         this.yesNoDialog = null;
         if (gold < this._pendingPrice) {
@@ -952,7 +1004,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Buy weapon ────────────────────────────────────────────────────────────
 
-    _doBuyWeaponMenu(now) {
+    private _doBuyWeaponMenu(_now: number): void {
         this.menuDimmed = true;
         this._buildInventoryLists();
         if (!this._swordIndices.length) {
@@ -970,7 +1022,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Buy shield ────────────────────────────────────────────────────────────
 
-    _doBuyShieldMenu(now) {
+    private _doBuyShieldMenu(_now: number): void {
         this.menuDimmed = true;
         this._buildInventoryLists();
         if (!this._shieldIndices.length) {
@@ -988,9 +1040,9 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Item selection (weapon or shield) ─────────────────────────────────────
 
-    _onSelectItem(now) {
-        const kind    = this.subKind;          // 'sword' | 'shield'
-        const itemIdx = this.subItems[this.subSel]; // 0-based item index
+    private _onSelectItem(_now: number): void {
+        const kind    = (this.subKind ?? 'sword') as 'sword' | 'shield';
+        const itemIdx = this.subItems[this.subSel] ?? 0; // 0-based item index
 
         // Knight's Sword (index 3) can't be bought in Tumba until the Crest of
         // Glory has been returned (armrpro.asm sub_A47B → unk_B24C).
@@ -1008,7 +1060,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         if (kind === 'sword') {
             const cur = this._getSwordType();
             if (cur > 0 && cur - 1 === itemIdx) {
-                this._setDialog(ITEM_DESCRIPTIONS[5]);  // "Isn't that the sword you brought in…"
+                this._setDialog(WEAPON_ITEM_DESCRIPTIONS[5] ?? '');  // "Isn't that the sword you brought in…"
                 this.shopPhase       = 'dialog';
                 this.exitAfterDialog = false;
                 return;
@@ -1040,7 +1092,7 @@ export class WeaponShopScene extends IndoorSceneBase {
      * Trade-in = floor(current item's price / 2).
      * ASM: shr dl,1; rcr ax,1 on the current item's 3-byte price record.
      */
-    _calcTradeIn(kind) {
+    private _calcTradeIn(kind: 'sword' | 'shield'): number {
         if (kind === 'sword') {
             const cur = this._getSwordType();
             if (!cur) return 0;
@@ -1052,7 +1104,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
     }
 
-    _executeBuy(now) {
+    private _executeBuy(_now: number): void {
         const gold    = this._getGold();
         const netCost = this._pendingPrice - this._pendingTradeIn;
         this.yesNoDialog = null;
@@ -1068,8 +1120,8 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
 
         this._setGold(gold - netCost);
-        const kind    = this._pendingItemKind;
-        const itemIdx = this._pendingItemIdx;
+        const kind    = this._pendingItemKind ?? 'sword';
+        const itemIdx = this._pendingItemIdx ?? 0;
 
         if (kind === 'sword') {
             const old = this._getSwordType();
@@ -1079,7 +1131,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             // Enchantment Sword (item index 5, sword_type 6) is one-time only
             if (itemIdx === 5) {
                 const mask = this._getSwordBitmask();
-                this._write(ADDR_SWORD_MASKS + this.townIdx, [mask & ~itemIndexToBit(5)]);
+                this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(mask & ~itemIndexToBit(5)));
             }
         } else {
             const old = this._getShieldType();
@@ -1101,7 +1153,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Explain goods ─────────────────────────────────────────────────────────
 
-    _doExplainMenu(now) {
+    private _doExplainMenu(_now: number): void {
         this.menuDimmed = true;
         this._buildInventoryLists();
 
@@ -1126,8 +1178,8 @@ export class WeaponShopScene extends IndoorSceneBase {
         );
     }
 
-    _onExplainItem(now) {
-        const flatIdx = this.subItems[this.subSel];   // 0–5 sword, 6–11 shield
+    private _onExplainItem(_now: number): void {
+        const flatIdx = this.subItems[this.subSel] ?? 0;   // 0–5 sword, 6–11 shield
 
         // The Tumba smith dodges questions about the Knight's Sword until the
         // Crest of Glory has been returned (armrpro.asm sub_A8E0 → unk_B240).
@@ -1139,24 +1191,22 @@ export class WeaponShopScene extends IndoorSceneBase {
         }
 
         const name    = flatIdx < 6 ? SWORD_NAMES[flatIdx] : SHIELD_NAMES[flatIdx - 6];
-        const desc    = ITEM_DESCRIPTIONS[flatIdx] || 'A fine piece of craftsmanship.';
+        const desc    = WEAPON_ITEM_DESCRIPTIONS[flatIdx] || 'A fine piece of craftsmanship.';
         this._setDialog(`Oh, the ${name}? ${desc}`);
         // After explain, ask "Is there another item?" (ASM: aIsThereAnother)
         // We return to the explain sub-menu directly (player can press Escape to exit).
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
-        // Override: when they press Space on this dialog, re-enter sub_explain
-        this._explainReturnPending = true;
     }
 
     // ── Crest of Glory trade ──────────────────────────────────────────────────
 
-    _executeCrestTrade(now) {
+    private _executeCrestTrade(_now: number): void {
         // Permanently mark crest traded; give Knight's Sword; remove from inventory
         this.yesNoDialog = null;
-        const cem1 = this._read(ADDR_CEMENTAR_1, 1)[0];
-        this._write(ADDR_CEMENTAR_1, [(cem1 | 0x02) & 0xFF]);
-        this._write(ADDR_CREST_OF_GLORY, [0x00]);
+        const cem1 = this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0;
+        this._write(ADDR_CEMENTAR_1, Uint8Array.of((cem1 | 0x02) & 0xFF));
+        this._write(ADDR_CREST_OF_GLORY, Uint8Array.of(0x00));
 
         const old = this._getSwordType();
         if (old) this._orSwordBitmask(itemIndexToBit(old - 1));
@@ -1164,7 +1214,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
         // Remove Knight's Sword bit from town's sword bitmask (bit 4 = index 3)
         const mask = this._getSwordBitmask();
-        this._write(ADDR_SWORD_MASKS + this.townIdx, [mask & ~itemIndexToBit(3)]);
+        this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(mask & ~itemIndexToBit(3)));
         this._buildInventoryLists();
 
         this.boughtSomething = true;
@@ -1179,14 +1229,14 @@ export class WeaponShopScene extends IndoorSceneBase {
 
     // ── Utility ───────────────────────────────────────────────────────────────
 
-    _clearPending() {
+    private _clearPending(): void {
         this._pendingItemIdx  = null;
         this._pendingItemKind = null;
         this._pendingPrice    = 0;
         this._pendingTradeIn  = 0;
     }
 
-    _triangle(ctx, x, y, w, h, down) {
+    private _triangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, down: boolean): void {
         ctx.beginPath();
         if (down) {
             ctx.moveTo(x, y);         ctx.lineTo(x + w, y);
@@ -1199,7 +1249,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    getName() {
+    getName(): string {
         return 'Weapon and Armour Shop';
     }
 }

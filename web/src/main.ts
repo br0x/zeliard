@@ -1,23 +1,22 @@
-// @ts-nocheck -- TODO(Stage 3): remove while converting this file to strict TS
 /**
  * game.js — Zeliard web port, main entry point (refactored).
  *
  * Indoor activities moved to separate modules. A generic menu/dialog
  * system is used by Sage and can be reused by other buildings.
  */
-import { OpeningIntro }  from './legacy/opening-intro.js';
-import { EndingDemo }    from './legacy/ending-demo.js';
-import { KingScene }     from './legacy/indoor-king.js';
-import { PrincessScene } from './legacy/indoor-princess.js';
-import { SageScene }     from './legacy/indoor-sage.js';
-import { WeaponShopScene } from './legacy/indoor-weapon-shop.js';
-import { WitchcraftShopScene } from './legacy/indoor-magic-shop.js';
-import { ChurchScene }   from './legacy/indoor-church.js';
-import { BankScene }     from './legacy/indoor-bank.js';
-import { InnScene }      from './legacy/indoor-inn.js';
-import { SaveDialog, RestoreDialog } from './legacy/save-restore-ui.js';
-import { ImportExportDialog } from './legacy/import-export-ui.js';
-import { InventoryScreen } from './legacy/inventory-screen.js';
+import { OpeningIntro }  from './scenes/opening-intro.js';
+import { EndingDemo }    from './scenes/ending-demo.js';
+import { KingScene }     from './scenes/indoor-king.js';
+import { PrincessScene } from './scenes/indoor-princess.js';
+import { SageScene }     from './scenes/indoor-sage.js';
+import { WeaponShopScene } from './scenes/indoor-weapon-shop.js';
+import { WitchcraftShopScene } from './scenes/indoor-magic-shop.js';
+import { ChurchScene }   from './scenes/indoor-church.js';
+import { BankScene }     from './scenes/indoor-bank.js';
+import { InnScene }      from './scenes/indoor-inn.js';
+import { SaveDialog, RestoreDialog } from './ui/save-restore.js';
+import { ImportExportDialog } from './ui/import-export.js';
+import { InventoryScreen } from './ui/inventory-screen.js';
 import { SoundManager } from './audio/sound-manager.js';
 import {
     getSaveSlotNames,
@@ -29,8 +28,8 @@ import {
 } from './platform/save.js';
 import { keys, setKeyState } from './input/key-state.js';
 import { KeyRouter, KeyEdgeLatches, PREVENT_DEFAULT_CODES } from './input/key-router.js';
+import { initTouchControls, detectTouchDevice } from './input/touch-input.js';
 import { drawSheetFrame } from './render/sheets.js';
-import { getExplosionRingCanvas } from './render/explosion-ring.js';
 import { setupGameCanvas } from './render/canvas.js';
 import {
     initTownRenderer,
@@ -70,44 +69,29 @@ import {
     maybeStartGuerraEffect,
 } from './render/dungeon.js';
 import {
-    getMagicFrameIndex,
-    nextAnimatedTile,
-    wrapProximityAddress,
-} from './render/dungeon-logic.js';
-import {
-    TILE_SIZE, VIEW_COLS, VIEW_ROWS, VIEW_WIDTH,
-    RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH, START_TOWN_MDT_PATH,
-    NOTIFICATION_STRINGS, TOWN_TILE_SHEET_COLS, TOWN_MAP_TILE_OFFSET, TOWN_VIEW_ROWS,
-    TOWN_MAP_START_ROW, TOWN_HEADS_START_ROW, TOWN_SIDEWALK1_START_ROW, TOWN_SIDEWALK2_START_ROW,
-    TOWN_VISIBLE_COL_OFFSET, TOWN_ANIMATION_FULL_TICKS, TOWN_BACKGROUND_ROWS, TOWN_MDTS,
-    HERO_FRAME_W, HERO_FRAME_H, HERO_BASE_Y, PROX_COLS,
-    DUNGEON_MAP_HEIGHT, PROX_SIZE, DUNGEON_VIEW_LEFT_IN_PROX, DUNGEON_ENTITY_W,
-    DUNGEON_ENTITY_H, DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H, DUNGEON_SWORD_FRAME_W,
-    DUNGEON_SWORD_FRAME_H, DUNGEON_HERO_SHEET_COLS, DUNGEON_SWORD_SHEET_COLS, ANIM_SPEED_TICKS,
-    FRAME_LEFT_WALK_BASE, FRAME_FACING_AWAY, FRAME_RIGHT_WALK_BASE, FRAME_LEFT_STAND,
-    FRAME_RIGHT_STAND,
+    TILE_SIZE, VIEW_WIDTH,
+    RUN_TOWN_ENTRY_ON_START, RETURN_BEFORE_TOWN_MAIN_LOOP, STDPLY_PATH,
+    TOWN_MDTS,
 } from './config/engine.js';
 import {
     DUNGEON_DCHR_SHEET_PATH, DUNGEON_MAGIC_SHEET_PATH, DUNGEON_HERO_SHEET_PATH, DUNGEON_SWORD_SHEET_PATH,
     PATTERN_ASSETS, SWORD_REACH_SMALL, SWORD_REACH_MEDIUM, SWORD_REACH_LARGE,
-    SWORD_OVERLAY_OFFSETS, TOWN_BACKGROUND_YMPD_PATH, TOWN_SIDEWALK1_YMPD_PATH, TOWN_SIDEWALK2_YMPD_PATH,
+    TOWN_BACKGROUND_YMPD_PATH, TOWN_SIDEWALK1_YMPD_PATH, TOWN_SIDEWALK2_YMPD_PATH,
     TOWN_BACKGROUND_CKPD_PATH, TOWN_BACKGROUND0_CKPD_PATH, TOWN_SIDEWALK1_CKPD_PATH, TOWN_SIDEWALK2_CKPD_PATH,
     ROKA_IMAGE_PATHS, DMAN_SHEET_PATH, TEAR_BLUE_PATH, TEAR_RED_PATH,
     SPARKLE_48_PATH, SPARKLE_WIDE_PATH, ENCOUNTER_IMAGE_PATH, TEAR_SLOTS_BLUE,
-    TEAR_SLOT_RED, MOLE_IMG_H, TEAR_FLAGS, HERO_SPRITE_PATH,
-    PRINCESS_CHAMBER_PATH, KING_IMAGE_PATHS, SAGE_IMAGE_PATH, ITEMP_SWORD_IMAGE_PATHS,
-    ITEMP_SHIELD_IMAGE_PATHS, ITEMP_MAGIC_IMAGE_PATHS, NPC_SPRITE_PATHS, NPC_FRAME_W,
-    NPC_FRAME_H, NPC_FRAMES, LLAMA_TOWN_ID, PROJECTILE_STRUCT_SIZE,
-    MAGIC_PROJECTILE_STRIDE,
+    TEAR_SLOT_RED, TEAR_FLAGS, HERO_SPRITE_PATH,
+    ITEMP_SWORD_IMAGE_PATHS,
+    ITEMP_SHIELD_IMAGE_PATHS, ITEMP_MAGIC_IMAGE_PATHS, NPC_SPRITE_PATHS,
 } from './data/assets.js';
 
+import { IndoorSceneBase } from './core/indoor-scene-base.js';
 import { Hud } from './ui/hud.js';
 import { ModalManager } from './ui/modal-manager.js';
 import { SpeedChangeDialog, displayedSpeed } from './core/speed-change.js';
 import {
     RokaDemo,
     ROKADEMO_CENTER_DX, ROKADEMO_HERO_Y, ROKADEMO_TEAR_CENTER,
-    ROKADEMO_RUN_STEPS,
     SWORD_VISIBLE_STATES,
     rokademoSwordFrame, rokademoSlotCenter, rokademoLandCenter,
     DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS,
@@ -135,47 +119,22 @@ export {
 };
 
 // ─── Engine / Canvas config ───────────────────────────────────────────────────
-import {
-    EAI1, EAI2, CRAB, TAKO,
-    EAI3, TORI, EAI4, EAI5,
-    ZELA, MEDA, EAI6, LEGA,
-    EAI7, DRGN, EAI8, ZEL2,
-    AKMA, MAO1, MAO2, DUNGEONS,
-} from './data/dungeons.js';
+import { DUNGEONS } from './data/dungeons.js';
 
 
 
 
 import {
-    ADDR_BYTE4, ADDR_SPOKE_TO_KING, ADDR_ENTERED_CAVERN_FIRST_TIME, ADDR_CALIENTE_ITEMS,
-    ADDR_FALTER_ITEMS, ADDR_DEATH_ALREADY_PROCESSED, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_VIEWPORT_TOP_ROW,
-    ADDR_HERO_X_VIEW, ADDR_HERO_HEAD_Y_VIEW, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
-    ADDR_HERO_ALMAS, ADDR_HERO_LEVEL, ADDR_HERO_XP, ADDR_HERO_HP,
-    ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP, ADDR_ELF_CREST,
-    ADDR_HERO_CREST, ADDR_CURR_SPELL_TYPE, ADDR_TEAR_COUNT, ADDR_SPELL_COUNTS,
-    ADDR_HERO_MAX_HP, ADDR_FACING, ADDR_LEFT_RUN, ADDR_PLACE_MAP_ID,
-    ADDR_LAST_SAGE_VISITED, ADDR_SAGES_SPOKEN, ADDR_HERO_ANIM_PHASE, ADDR_INVINCIBILITY_FLAG,
-    ADDR_BOSS_STATE_BLOCK, ADDR_BYTE_9EED, ADDR_BYTE_9F00, ADDR_BOSS_PLACEMENT,
-    ADDR_HERO_X_IN_PROXIMITY_MAP, ADDR_DOOR_TARGET_Y, ADDR_DOOR_FEATURES, ADDR_BOSS_STATE_PTR,
-    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_MAP_WIDTH, ADDR_DUNGEON_ENTRANCE_TABLE,
-    ADDR_NPC_ARRAY_PTR, ADDR_MONSTERS_LIST, ADDR_CAVERN_LEVEL, ADDR_TEAR_X,
-    ADDR_HERO_Y_VIEW_INIT, ADDR_CAVERN_SIGNS_INFO, ADDR_PROXIMITY_MAP, ADDR_VIEWPORT_ENTITIES,
-    ADDR_MAGIC_PROJECTILES, ADDR_MAGIA_STONE_SPRITE0, ADDR_PROJECTILES_LIST, ADDR_PROXIMITY_LAYER2,
-    ADDR_BOSS_EXPLOSIONS_LIST, ADDR_FRAME_TIMER, ADDR_SPACEBAR_LATCH, ADDR_ALTKEY_LATCH,
-    ADDR_SPRITE_FLASH_FLAG, ADDR_BOSS_IS_DEAD, ADDR_VIEWPORT_LEFT_TOP, ADDR_SPEED_CONST,
-    ADDR_IS_BOSS_CAVERN, ADDR_HERO_SPRITE_HIDDEN, ADDR_SQUAT_FLAG, ADDR_ON_ROPE_FLAGS,
-    ADDR_HERO_HIDDEN_FLAG, ADDR_SPELL_ACTIVE_FLAG, ADDR_JUMP_PHASE_FLAGS, ADDR_BYTE_FF3E,
-    ADDR_SHIELD_ANIM_PHASE, ADDR_SHIELD_ANIM_ACTIVE, ADDR_SHIELD_VARIANT_INDEX, ADDR_SLOPE_DIRECTION,
-    ADDR_SWORD_SWING_FLAG, ADDR_UI_ELEMENT_DIRTY, ADDR_SWORD_HIT_TYPE, ADDR_SWORD_MOVEMENT_PHASE,
-    ADDR_SOUND_FX_REQUEST, ADDR_HEARTBEAT_VOLUME, ADDR_DUNGEON_STATE, ADDR_DUNGEON_FRAME_PHASE,
-    ADDR_RENDER_REQUEST, ADDR_RENDER_DONE, ADDR_GOLD_RENDER_REQUEST, ADDR_DEATH_COUNTER,
-    ADDR_NOTIFICATION_MSG_ID, ADDR_NOTIFICATION_FLAG, ADDR_ALMAS_RENDER_REQUEST, ADDR_HEALTH_BAR_REQUEST,
-    ADDR_SHIELD_HP_RENDER_REQUEST, ADDR_ROKA_PHASE, ADDR_ROKA_COLOR, ADDR_BOSS_HEALTH_REQUEST,
-    ADDR_BOSS_MODE, ADDR_CAVERN_SIGN_FLAG, ADDR_CAVERN_SIGN_IDX, ADDR_MAGIC_LEFT_RENDER_REQUEST,
-    ADDR_SWORD_RENDER_REQUEST, ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG,
-    ADDR_PENDING_TRANSITION_FLAG, ADDR_CONVERSATION_ACTIVE, ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID,
-    ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL, DUNGEON_STATE_DEATH_FADE,
-    DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
+    ADDR_BYTE4, ADDR_CALIENTE_ITEMS, ADDR_FALTER_ITEMS, ADDR_DEATH_ALREADY_PROCESSED, ADDR_PROXIMITY_MAP_LEFT_COL,
+    ADDR_HERO_X_VIEW, ADDR_SWORD_TYPE, ADDR_ELF_CREST, ADDR_TEAR_COUNT, ADDR_FACING, ADDR_PLACE_MAP_ID, ADDR_LAST_SAGE_VISITED,
+    ADDR_BOSS_STATE_BLOCK, ADDR_BOSS_PLACEMENT, ADDR_HERO_X_IN_PROXIMITY_MAP, ADDR_BOSS_STATE_PTR, ADDR_TEAR_X,
+    ADDR_FRAME_TIMER, ADDR_SPACEBAR_LATCH, ADDR_ALTKEY_LATCH, ADDR_SPEED_CONST, ADDR_SOUND_FX_REQUEST, ADDR_HEARTBEAT_VOLUME,
+    ADDR_DUNGEON_STATE, ADDR_DUNGEON_FRAME_PHASE, ADDR_RENDER_REQUEST, ADDR_RENDER_DONE, ADDR_GOLD_RENDER_REQUEST,
+    ADDR_DEATH_COUNTER, ADDR_ALMAS_RENDER_REQUEST, ADDR_HEALTH_BAR_REQUEST, ADDR_SHIELD_HP_RENDER_REQUEST,
+    ADDR_ROKA_COLOR, ADDR_BOSS_HEALTH_REQUEST, ADDR_BOSS_MODE, ADDR_MAGIC_LEFT_RENDER_REQUEST, ADDR_SWORD_RENDER_REQUEST,
+    ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG, ADDR_PENDING_TRANSITION_FLAG,
+    ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID, ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL,
+    DUNGEON_STATE_DEATH_FADE, DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
 } from './wasm/memory.js';
 
 
@@ -186,9 +145,7 @@ let gameStarted  = false;
 let initWasm: any;
 let loadSaveState: any;
 let loadMdt: any;
-let getCavernMdtHeader: any;
 let getCavernName: any;
-let getTownMdtHeader: any;
 let getTownName: any;
 let getMusicTrackId: any;
 let getTownBackgroundType: any;
@@ -207,7 +164,6 @@ let writeMemory: any;
 let getTownPendingTransitionFlag: any;
 let getTownPendingTransition: any;
 let townCompleteTransition: any;
-let townEntryEnablingEdgeScroll: any;
 let townFinishConversation: any;
 let townFinishBuilding: any;
 let initC015ObjIfExists: any;
@@ -215,8 +171,6 @@ let dungeonInit: any;
 let dungeonUpdate: any;
 let dungeonFullTick: any;
 let dungeonGetViewportTop: any;
-let dungeonGetEntityTable: any;
-let dungeonGetEntityCount: any;
 let setDungeonPassableTiles: any;
 let setDungeonSlopeTilesLeft: any;
 let setDungeonSlopeTilesRight: any;
@@ -227,85 +181,70 @@ let setDungeonMonsterXp: any;
 let setDungeonMonsterDamage: any;
 let setDeathDescriptors: any;
 let setTrajectories: any;
-let dungeonGetRenderRequest: any;
 let dungeonClearRenderRequest: any;
 let getBossName: any;
-let dungeonCompleteBossEntry: any;
 let finishRokademoTransition: any;
 
-let restoreName = null;
-let RENDER_CONFIG;
-let renderDungeonObjects;
+let restoreName: string | null = null;
 let gameMode = 'town';
 let townEntryRan = false;
-let townBackgroundType = null;
-let townPatId = null;
-let townBackground = null;
+let townBackgroundType: number | null = null;
+let townPatId: number | null = null;
+let townBackground: HTMLImageElement | null = null;
 let townBackgroundReady = false;
-let townCeiling = null;
+let townCeiling: HTMLImageElement | null = null;
 let townCeilingReady = false;
-let townTileSheet = null;
+let townTileSheet: HTMLImageElement | null = null;
 let townTileSheetReady = false;
-let townCeilingOffsetX = 0;
-let townSidewalk1OffsetX = 0;
-let townSidewalk2OffsetX = 0;
-let townSidewalk1 = null;
+let townSidewalk1: HTMLImageElement | null = null;
 let townSidewalk1Ready = false;
-let townSidewalk2 = null;
+let townSidewalk2: HTMLImageElement | null = null;
 let townSidewalk2Ready = false;
-let heroSprite = null;
+let heroSprite: HTMLImageElement | null = null;
 let heroSpriteReady = false;
-let swordIcons = [];
-let swordIconsReady = false;
-let shieldIcons = [];
-let shieldIconsReady = false;
-let magicIcons = [];
-let magicIconsReady = false;
-let dungeonTileSheet = null;
+let dungeonTileSheet: HTMLImageElement | null = null;
 let dungeonTileSheetReady = false;
-let dungeonAI = null;
+let dungeonAI: Uint8Array | null = null;
 let dungeonAIready = false;
-let dungeonProjectiles = null;
-let dungeonDchrSheet = null;
+let dungeonProjectiles: Uint8Array | null = null;
+let dungeonDchrSheet: HTMLImageElement | null = null;
 let dungeonDchrSheetReady = false;
-let dungeonEntitySheet = null;
+let dungeonEntitySheet: HTMLImageElement | null = null;
 let dungeonEntitySheetReady = false;
-let dungeonMagicSheet = null;
+let dungeonMagicSheet: HTMLImageElement | null = null;
 let dungeonMagicSheetReady = false;
-let dungeonHeroSheet = null;
+let dungeonHeroSheet: HTMLImageElement | null = null;
 let dungeonHeroSheetReady = false;
-let dungeonSwordSheet = null;
+let dungeonSwordSheet: HTMLImageElement | null = null;
 let dungeonSwordSheetReady = false;
 
-let rokaImages = [];
+const rokaImages: HTMLImageElement[] = [];
 let rokaImagesReady = false;
-let encounterImg = null;
+let encounterImg: HTMLImageElement | null = null;
 
 let prevDungeonState = -1;
-let encounterAnim = null;
+let encounterAnim: any = null;
 
 // ─── Rokademo (tear-collection demo) asset state ──────────────────────────────
-let dmanSheet = null;
+let dmanSheet: HTMLImageElement | null = null;
 let dmanSheetReady = false;
-let tearBlueImg = null;
-let tearRedImg = null;
-let sparkle48Img = null;
-let sparkleWideImg = null;
-let rokademo = null;            // active demo state machine (null when idle)
+let tearBlueImg: HTMLImageElement | null = null;
+let tearRedImg: HTMLImageElement | null = null;
+let sparkle48Img: HTMLImageElement | null = null;
+let sparkleWideImg: HTMLImageElement | null = null;
+let rokademo: InstanceType<typeof RokaDemo> | null = null;            // active demo state machine (null when idle)
 let rokademoHold = false;       // keep showing the roka bg until the post-demo transition starts
 let lastTearOverlayCount = -1;
 
 // ─── NPC sprite state ─────────────────────────────────────────────────────────
-const npcSprites = {
+const npcSprites: Record<number, HTMLImageElement[]> = {
     0: [], // mman cache
     1: []  // cman cache
 };
-let townAnimTileMap = {};
-
 // ─── Indoor scene manager ─────────────────────────────────────────────────────
-let indoorActiveScene = null;   // instance of IndoorSceneBase
+let indoorActiveScene: IndoorSceneBase | null = null;   // active indoor scene
 
-const TOWN_DOORS = {
+const TOWN_DOORS: Record<number, { name: string; scene: new (context: any) => IndoorSceneBase & { getName?: () => string } }> = {
     0: {
         name: 'King of Felishika',
         scene: KingScene,
@@ -343,7 +282,7 @@ const TOWN_DOORS = {
 
 const modalManager = new ModalManager(); // save/restore/import-export dialogs
 let gamePaused = false;          // freeze game updates while modal is open
-let inventoryScreenInstance = null; // instance of InventoryScreen
+let inventoryScreenInstance: InventoryScreen | null = null;
 
 function openInventory() {
     if (inventoryScreenInstance || !engineReady) return;
@@ -353,7 +292,7 @@ function openInventory() {
     gamePaused = true;
 
     inventoryScreenInstance = new InventoryScreen({
-        canvas, ctx, readMemory, writeMemory,
+        canvas: canvas as HTMLCanvasElement, ctx, readMemory, writeMemory,
         soundManager,
         onExit: closeInventory,
     });
@@ -397,17 +336,17 @@ const soundManager = new SoundManager({
 const SETTINGS_PREFIX = 'zeliard_';
 let musicEnabled = localStorage.getItem(`${SETTINGS_PREFIX}music`) === 'on';
 let sfxEnabled = localStorage.getItem(`${SETTINGS_PREFIX}sfx`) !== 'off';
-let currentMusicTrack = null;
+let currentMusicTrack: number | string | null = null;
 
-function playCurrentMusic(fadeDuration = 1.5) {
+function playCurrentMusic(fadeDuration = 1.5): void {
     if (!currentMusicTrack) return;
-    soundManager.playMusic(currentMusicTrack, fadeDuration);
+    soundManager.playMusic(currentMusicTrack as string, fadeDuration);
     soundManager.setMusicMuted?.(!musicEnabled, 0);
 }
 
-function setCurrentMusicTrack(trackId) {
+function setCurrentMusicTrack(trackId: number | string): void {
     if (trackId === currentMusicTrack) return;
-    currentMusicTrack = trackId;
+    currentMusicTrack = trackId as number;
     playCurrentMusic();
 }
 
@@ -479,13 +418,13 @@ function onFullTick() {
                 if (scrollFlag & 0x02) scrollFloorOneTileLeft();
                 if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
                 if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
-                writeMemory(0xfff0, [0]);
+                writeMemory(0xfff0, Uint8Array.of(0));
             }
             const pendingTransitionFlag = getTownPendingTransitionFlag?.();
             if (pendingTransitionFlag === 0xFF) {
                 const transition = getTownPendingTransition?.();
                 if (transition) {
-                    writeMemory(ADDR_PENDING_TRANSITION_FLAG, [0]);
+                    writeMemory(ADDR_PENDING_TRANSITION_FLAG, Uint8Array.of(0));
                     handleTownTransition(transition);
                 }
             }
@@ -502,7 +441,7 @@ function onSlowTick() {
     if (gamePaused) return;
     if (!engineReady) return;
 
-    inputLatches.update(keys.Space, keys.Alt);
+    inputLatches.update(!!keys.Space, !!keys.Alt);
     inputSetKeys(keys);
 
     if (gameMode === 'dungeon') return;
@@ -516,11 +455,11 @@ function onSlowTick() {
 
     if (conversation.active) {
         // Direction edges share state with the dungeon input path above.
-        const dirUp = keys.ArrowUp && !lastDirUp;
-        const dirDown = keys.ArrowDown && !lastDirDown;
-        lastDirUp = keys.ArrowUp;
-        lastDirDown = keys.ArrowDown;
-        conversation.handleTick(!!dirUp, !!dirDown);
+        const dirUp = !!keys.ArrowUp && !lastDirUp;
+        const dirDown = !!keys.ArrowDown && !lastDirDown;
+        lastDirUp = !!keys.ArrowUp;
+        lastDirDown = !!keys.ArrowDown;
+        conversation.handleTick(dirUp, dirDown);
         return;
     }
 
@@ -530,7 +469,7 @@ function onSlowTick() {
         if (scrollFlag & 0x02) scrollFloorOneTileLeft();
         if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
         if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
-        writeMemory(0xfff0, [0]);
+        writeMemory(0xfff0, Uint8Array.of(0));
     }
 }
 
@@ -562,15 +501,15 @@ const keyRouter = new KeyRouter({
     finishSpeedChange,
     speedBeginSelect: () => speedDialog.beginSelect(),
     setSpeedDigit: (digit) => {
-        writeMemory(ADDR_SPEED_CONST, [10 - digit]);
-        writeMemory(ADDR_SOUND_FX_REQUEST, [1]);
+        writeMemory(ADDR_SPEED_CONST, Uint8Array.of(10 - digit));
+        writeMemory(ADDR_SOUND_FX_REQUEST, Uint8Array.of(1));
     },
     openInventory,
     setKey: setKeyState,
     resetInventoryCombo: () => inventoryScreenInstance?.resetDebugCombo(),
     modalHandleKey: (code, now) => modalManager.handleKey(code, now),
     inventoryHandleKey: (code, ctrl, shift, repeat) =>
-        inventoryScreenInstance.handleKey(code, ctrl, shift, repeat),
+        inventoryScreenInstance!.handleKey(code, ctrl, shift, repeat),
     introSkipPage: () => openingIntro.skipPage(),
     endingSkipPage: () => endingDemo.skipPage(),
 });
@@ -625,7 +564,7 @@ async function startGame() {
 
         townInit?.();
 
-        let saveState = null;
+        let saveState: Uint8Array | null = null;
         if (!restoreName) {
             const resp = await fetch(STDPLY_PATH);
             if (!resp.ok) {
@@ -640,11 +579,11 @@ async function startGame() {
         // survives a restore with the stale dungeon value and would keep the
         // boss-heartbeat loop going in town. Clear it here; the dungeon code
         // (update_boss_heartbeat_volume) recomputes it on the next frame.
-        writeMemory(ADDR_HEARTBEAT_VOLUME, [0]);
+        writeMemory(ADDR_HEARTBEAT_VOLUME, Uint8Array.of(0));
         lastTearOverlayCount = -1;
         syncTearOverlay();
-        const placeId = saveState[ADDR_PLACE_MAP_ID] & 0x7f;
-        const mdtPath = TOWN_MDTS[placeId];
+        const placeId = ((saveState as Uint8Array)[ADDR_PLACE_MAP_ID] ?? 0) & 0x7f;
+        const mdtPath = TOWN_MDTS[placeId]!;
 
         const response = await fetch(mdtPath);
         if (!response.ok) {
@@ -652,7 +591,6 @@ async function startGame() {
         }
         mdtData = new Uint8Array(await response.arrayBuffer());
         loadMdt(mdtData, mdtPath);
-        mdtHeader = getTownMdtHeader?.();
 
         townBackgroundType = getTownBackgroundType();
         await loadTownBackground();
@@ -662,7 +600,7 @@ async function startGame() {
         resetTownScrollOffsets();
 
         townPatId = getTownPatId();
-        const pattern = PATTERN_ASSETS[townPatId];
+        const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
@@ -680,7 +618,7 @@ async function startGame() {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
         if (RUN_TOWN_ENTRY_ON_START) {
             if (!hasWasmExport?.('wasm_town_entry_disabling_edge_scroll')) {
@@ -751,7 +689,7 @@ function loadTownSidewalk2() {
     });
 }
 
-function loadTownTileSheet(tileSheetPath) {
+function loadTownTileSheet(tileSheetPath: string): Promise<HTMLImageElement | null> {
     if (townTileSheetReady) return Promise.resolve(townTileSheet);
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -771,16 +709,16 @@ function loadHeroTownSprite() {
     });
 }
 
-function loadNpcSprite(spriteId) {
-    if (npcSprites[getTownNpcCategory()][spriteId]) {
-        return Promise.resolve(npcSprites[getTownNpcCategory()][spriteId]);
+function loadNpcSprite(spriteId: number): Promise<HTMLImageElement | null> {
+    if (npcSprites[getTownNpcCategory()]?.[spriteId]) {
+        return Promise.resolve(npcSprites[getTownNpcCategory()]?.[spriteId] ?? null);
     }
-    const path = NPC_SPRITE_PATHS[getTownNpcCategory()][spriteId];
+    const path = NPC_SPRITE_PATHS[getTownNpcCategory()]?.[spriteId];
     if (!path) return Promise.resolve(null);
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-            npcSprites[getTownNpcCategory()][spriteId] = img;
+            npcSprites[getTownNpcCategory()]![spriteId] = img;
             resolve(img);
         };
         img.onerror = () => reject(new Error(`Failed to load NPC sprite ${path}`));
@@ -796,7 +734,7 @@ async function loadRokaImages() {
             img.onload = () => resolve(img);
             img.onerror = () => reject(new Error(`Failed to load ${path}`));
             img.src = path;
-        }).then(img => { rokaImages[index] = img; return img; });
+        }).then(((img: HTMLImageElement) => { rokaImages[index] = img; return img; }) as (value: unknown) => HTMLImageElement);
     });
     await Promise.all(loads);
     rokaImagesReady = true;
@@ -806,11 +744,11 @@ async function loadRokaImages() {
 async function loadRokademoAssets() {
     if (dmanSheetReady) return;
     await Promise.all([
-        loadImageOnce(DMAN_SHEET_PATH,   img => { dmanSheet = img; }),
-        loadImageOnce(TEAR_BLUE_PATH,    img => { tearBlueImg = img; }),
+        loadImageOnce(DMAN_SHEET_PATH,   (img: HTMLImageElement) => { dmanSheet = img; }),
+        loadImageOnce(TEAR_BLUE_PATH,    (img: HTMLImageElement) => { tearBlueImg = img; }),
         loadImageOnce(TEAR_RED_PATH,     img => { tearRedImg = img; }),
-        loadImageOnce(SPARKLE_48_PATH,   img => { sparkle48Img = img; }),
-        loadImageOnce(SPARKLE_WIDE_PATH, img => { sparkleWideImg = img; }),
+        loadImageOnce(SPARKLE_48_PATH,   (img: HTMLImageElement) => { sparkle48Img = img; }),
+        loadImageOnce(SPARKLE_WIDE_PATH, (img: HTMLImageElement) => { sparkleWideImg = img; }),
     ]);
     dmanSheetReady = true;
 }
@@ -825,7 +763,7 @@ function loadEncounterImage() {
     });
 }
 
-function loadImageOnce(path, setter) {
+function loadImageOnce(path: string, setter: (img: HTMLImageElement) => void): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => { setter(img); resolve(img); };
@@ -834,45 +772,45 @@ function loadImageOnce(path, setter) {
     });
 }
 
-async function loadDungeonAssets(rawMapId) {
-    const loads = [];
+async function loadDungeonAssets(rawMapId: number): Promise<void> {
+    const loads: Array<Promise<unknown>> = [];
     if (!dungeonAIready) {
-        dungeonAI = DUNGEONS[rawMapId].ai;
+        dungeonAI = DUNGEONS[rawMapId]!.ai as Uint8Array;
         dungeonAIready = true;
-        dungeonProjectiles = DUNGEONS[rawMapId].projectiles;
+        dungeonProjectiles = DUNGEONS[rawMapId]!.projectiles as unknown as Uint8Array;
     }
     if (!dungeonTileSheetReady) {
-        loads.push(loadImageOnce(DUNGEONS[rawMapId].tilesheetPath, img => {
+        loads.push(loadImageOnce(DUNGEONS[rawMapId]!.tilesheetPath, (img: HTMLImageElement) => {
             dungeonTileSheet = img;
             dungeonTileSheetReady = true;
         }));
     }
     if (!dungeonDchrSheetReady) {
-        loads.push(loadImageOnce(DUNGEON_DCHR_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEON_DCHR_SHEET_PATH, (img: HTMLImageElement) => {
             dungeonDchrSheet = img;
             dungeonDchrSheetReady = true;
         }));
     }
     if (!dungeonEntitySheetReady) {
-        loads.push(loadImageOnce(DUNGEONS[rawMapId].entitySheetPath, img => {
+        loads.push(loadImageOnce(DUNGEONS[rawMapId]!.entitySheetPath, (img: HTMLImageElement) => {
             dungeonEntitySheet = img;
             dungeonEntitySheetReady = true;
         }));
     }
     if (!dungeonMagicSheetReady) {
-        loads.push(loadImageOnce(DUNGEON_MAGIC_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEON_MAGIC_SHEET_PATH, (img: HTMLImageElement) => {
             dungeonMagicSheet = img;
             dungeonMagicSheetReady = true;
         }));
     }
     if (!dungeonHeroSheetReady) {
-        loads.push(loadImageOnce(DUNGEON_HERO_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEON_HERO_SHEET_PATH, (img: HTMLImageElement) => {
             dungeonHeroSheet = img;
             dungeonHeroSheetReady = true;
         }));
     }
     if (!dungeonSwordSheetReady) {
-        loads.push(loadImageOnce(DUNGEON_SWORD_SHEET_PATH, img => {
+        loads.push(loadImageOnce(DUNGEON_SWORD_SHEET_PATH, (img: HTMLImageElement) => {
             dungeonSwordSheet = img;
             dungeonSwordSheetReady = true;
         }));
@@ -883,20 +821,19 @@ async function loadDungeonAssets(rawMapId) {
 async function loadWasmEngine() {
     const wasmBridge = await import('./wasm/bridge.js');
     ({
-        initWasm, loadSaveState, loadMdt, getCavernMdtHeader, getCavernName,
-        getTownMdtHeader, getTownName, getMusicTrackId, getTownBackgroundType,
+        initWasm, loadSaveState, loadMdt, getCavernName,
+        getTownName, getMusicTrackId, getTownBackgroundType,
         getTownPatId, inputSetKeys, getWasmMemory, townInit,
         townSetReturnBeforeMainLoop, townEntryDisablingEdgeScroll, townUpdate,
         townFullTick, hasWasmExport, setSpecialTileList, readMemory, writeMemory,
         getTownPendingTransitionFlag, getTownPendingTransition, townCompleteTransition,
-        townEntryEnablingEdgeScroll, townFinishConversation, townFinishBuilding, initC015ObjIfExists,
+        townFinishConversation, townFinishBuilding, initC015ObjIfExists,
         dungeonInit, dungeonUpdate, dungeonFullTick, dungeonGetViewportTop,
-        dungeonGetEntityTable, dungeonGetEntityCount,
-        setDungeonPassableTiles, setDungeonAggressiveGround, 
+        setDungeonPassableTiles, setDungeonAggressiveGround,
         setDungeonSlopeTilesLeft, setDungeonSlopeTilesRight, setDungeonAirflows,
         setDungeonSwordReach, setDungeonMonsterXp, setDungeonMonsterDamage, setDeathDescriptors, setTrajectories,
-        dungeonGetRenderRequest, dungeonClearRenderRequest, getBossName,
-        dungeonCompleteBossEntry, finishRokademoTransition,
+        dungeonClearRenderRequest, getBossName,
+        finishRokademoTransition,
     } = wasmBridge);
 }
 
@@ -914,38 +851,38 @@ export function getSpeedChangePhase() {
 // buffer grew (old views are detached). Unlike readMemory(addr, 1)[0]
 // this performs no Uint8Array allocation, which removes GC churn from the
 // 236 Hz tick and per-frame render loops.
-function gMem(addr) {
+function gMem(addr: number): number {
     const mem = getWasmMemory?.();
     return mem ? mem[addr] : 0;
 }
 
-function readU8(addr) {
+function readU8(addr: number): number {
     return gMem(addr);
 }
 
-function readU16(addr) {
+function readU16(addr: number): number {
     const mem = getWasmMemory?.();
     if (!mem) return 0;
     return mem[addr] | (mem[addr + 1] << 8);
 }
 
-function drawDmanFrame(frame, dx, dy) {
+function drawDmanFrame(frame: number, dx: number, dy: number): void {
     drawSheetFrame(ctx, dmanSheet, frame, DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS, dx, dy);
 }
 
-function drawSmallSparkle(frame, cx, cy) {
+function drawSmallSparkle(frame: number, cx: number, cy: number): void {
     if (!sparkle48Img) return;
     ctx.drawImage(sparkle48Img, frame * 48, 0, 48, 48, cx - 24, cy - 24, 48, 48);
 }
 
-function drawWideSparkle(frame, cx, cy) {
+function drawWideSparkle(frame: number, cx: number, cy: number): void {
     if (!sparkleWideImg) return;
     ctx.drawImage(sparkleWideImg, frame * 192, 0, 192, 48, cx - 96, cy - 24, 192, 48);
 }
 
 function drawRokademoBackground() {
     const colorIdx = readU8(ADDR_ROKA_COLOR);
-    const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)];
+    const rokaImg = rokaImages[Math.min(colorIdx, ROKA_IMAGE_PATHS.length - 1)] ?? null;
     if (rokaImg) {
         ctx.drawImage(rokaImg, 0, 0, canvas.width, canvas.height);
     } else {
@@ -954,8 +891,8 @@ function drawRokademoBackground() {
     }
 }
 
-function drawRokademoTear(cx, cy) {
-    const img = rokademo.isRed ? tearRedImg : tearBlueImg;
+function drawRokademoTear(cx: number, cy: number): void {
+    const img = rokademo?.isRed ? tearRedImg : tearBlueImg;
     if (!img) return;
     ctx.drawImage(img, cx - (img.width >> 1), cy - (img.height >> 1));
 }
@@ -970,17 +907,17 @@ function startRokademo() {
     rokademo.start(getTearCount(), readU8(ADDR_SWORD_TYPE), performance.now());
 }
 
-function finishRokaDemo(now) {
+function finishRokaDemo(now: number): void {
     finishRokademoTransition?.();
     rokademo = null;
     rokademoHold = true;
     // Bypass the speed gate on the next full tick so the exit/pending flags set
     // by wasm_finish_rokademo_transition are acted on immediately.
     const speedC = readMemory(ADDR_SPEED_CONST, 1)[0] || 5;
-    writeMemory(ADDR_FRAME_TIMER, [speedC * 4]);
+    writeMemory(ADDR_FRAME_TIMER, Uint8Array.of(speedC * 4));
 }
 
-function drawDungeonRokademo(now) {
+function drawDungeonRokademo(now: number): void {
     if (!readMemory || !writeMemory) return;
     if (!rokaImagesReady) return;
 
@@ -1037,14 +974,14 @@ function drawDungeonRokademo(now) {
 
 // Sync the tear overlay on the mole_t.jpg strip with ADDR_TEAR_COUNT.
 // Idempotent — only touches the DOM when the visible count changes.
-function setTearOverlayCount(count) {
+function setTearOverlayCount(count: number): void {
     if (!tearOverlayEl) return;
     count = Math.max(0, Math.min(9, count));
     while (tearOverlayEl.children.length > count) {
-        tearOverlayEl.removeChild(tearOverlayEl.lastChild);
+        tearOverlayEl.removeChild(tearOverlayEl.lastChild as ChildNode);
     }
     for (let i = tearOverlayEl.children.length; i < count; i++) {
-        const slot = i === 8 ? TEAR_SLOT_RED : TEAR_SLOTS_BLUE[i];
+        const slot = i === 8 ? TEAR_SLOT_RED : TEAR_SLOTS_BLUE[i]!;
         const el = document.createElement('img');
         el.src = i === 8 ? TEAR_RED_PATH : TEAR_BLUE_PATH;
         el.style.position = 'absolute';
@@ -1093,7 +1030,7 @@ function updateDungeonSwordReach() {
 
 // ─── Town transition ──────────────────────────────────────────────────────────
 let townTransitionInProgress = false;
-async function handleTownTransition(transition) {
+async function handleTownTransition(transition: any): Promise<void> {
     if (townTransitionInProgress) return;
     townTransitionInProgress = true;
     engineReady = false;
@@ -1105,7 +1042,6 @@ async function handleTownTransition(transition) {
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, mdtPath);
-        mdtHeader = getTownMdtHeader?.();
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
             townBackgroundType = newBgType;
@@ -1129,7 +1065,7 @@ async function handleTownTransition(transition) {
             townTileSheetReady = false;
             townTileSheet = null;
         }
-        const pattern = PATTERN_ASSETS[townPatId];
+        const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
@@ -1137,7 +1073,7 @@ async function handleTownTransition(transition) {
         }
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townCompleteTransition?.();
@@ -1155,13 +1091,13 @@ async function handleTownTransition(transition) {
 }
 
 let dungeonTransitionInProgress = false;
-async function handleDungeonTransition(mapId, isFromTown) {
+async function handleDungeonTransition(mapId: number, isFromTown: boolean): Promise<void> {
     if (dungeonTransitionInProgress) return;
     dungeonTransitionInProgress = true;
     engineReady = false;
     rokademoHold = false;
     try {
-        writeMemory(ADDR_PENDING_DUNGEON_FLAG, [0]);
+        writeMemory(ADDR_PENDING_DUNGEON_FLAG, Uint8Array.of(0));
         const rawMapId = mapId & 0x7F;
         const dungeon = DUNGEONS[rawMapId];
         if (!dungeon) throw new Error(`No DUNGEONS entry for map ID ${rawMapId}`);
@@ -1175,28 +1111,27 @@ async function handleDungeonTransition(mapId, isFromTown) {
         dungeonProjectiles = null;
         dungeonTileSheetReady = false;
         dungeonEntitySheetReady = false;
-        mdtHeader = getCavernMdtHeader?.();
         cavernName = getCavernName?.() ?? 'Unknown';
-        updatePlaceHud(cavernName);
+        updatePlaceHud(cavernName, true);
         await loadDungeonAssets(rawMapId);
-        setDungeonPassableTiles(DUNGEONS[rawMapId].passableTiles);
-        setDungeonSlopeTilesLeft(DUNGEONS[rawMapId].slopeTilesLeft);
-        setDungeonSlopeTilesRight(DUNGEONS[rawMapId].slopeTilesRight);
-        setDungeonAggressiveGround(DUNGEONS[rawMapId].aggressiveGround);
-        setDungeonAirflows(DUNGEONS[rawMapId].airflows);
-        setDungeonMonsterXp(DUNGEONS[rawMapId].monster_xp);
-        setDungeonMonsterDamage(DUNGEONS[rawMapId].monster_damage);
-        setDeathDescriptors(DUNGEONS[rawMapId].death_descriptors);
-        setTrajectories(DUNGEONS[rawMapId].trajectories);
+        setDungeonPassableTiles(DUNGEONS[rawMapId]!.passableTiles as unknown as Uint8Array);
+        setDungeonSlopeTilesLeft(DUNGEONS[rawMapId]!.slopeTilesLeft);
+        setDungeonSlopeTilesRight(DUNGEONS[rawMapId]!.slopeTilesRight);
+        setDungeonAggressiveGround(DUNGEONS[rawMapId]!.aggressiveGround);
+        setDungeonAirflows(DUNGEONS[rawMapId]!.airflows);
+        setDungeonMonsterXp(DUNGEONS[rawMapId]!.monster_xp);
+        setDungeonMonsterDamage(DUNGEONS[rawMapId]!.monster_damage);
+        setDeathDescriptors(DUNGEONS[rawMapId]!.death_descriptors);
+        setTrajectories(DUNGEONS[rawMapId]!.trajectories);
         // Initialize boss state block if this map has one
-        const bossState = DUNGEONS[rawMapId].bossState;
+        const bossState = DUNGEONS[rawMapId]!.bossState;
         if (bossState) {
-            const { block, namePascal } = encodeBossState(bossState);
+            const { block, namePascal } = encodeBossState(bossState as Parameters<typeof encodeBossState>[0]);
             writeMemory(ADDR_BOSS_STATE_BLOCK, block);
             writeMemory(ADDR_BOSS_STATE_BLOCK + 11, namePascal);   // +11
-            writeMemory(ADDR_BOSS_STATE_PTR, [
+            writeMemory(ADDR_BOSS_STATE_PTR, Uint8Array.of(
                 ADDR_BOSS_STATE_BLOCK & 0xFF, (ADDR_BOSS_STATE_BLOCK >> 8) & 0xFF,
-            ]);
+            ));
         }
         updateDungeonSwordReach();
         await loadRokaImages();
@@ -1216,32 +1151,31 @@ async function handleDungeonTransition(mapId, isFromTown) {
 }
 
 let dungeonExitInProgress = false;
-async function initTownFromDungeon(townMapId, isDeath) {
+async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise<void> {
     if (dungeonExitInProgress) return;
     dungeonExitInProgress = true;
     engineReady = false;
     rokademoHold = false;
     try {
-        writeMemory(ADDR_DUNGEON_EXIT_FLAG, [0]);
+        writeMemory(ADDR_DUNGEON_EXIT_FLAG, Uint8Array.of(0));
         if (isDeath) {
-            writeMemory(ADDR_HERO_DEATH_FLAG, [0]);
+            writeMemory(ADDR_HERO_DEATH_FLAG, Uint8Array.of(0));
         }
         resetBossHud();
         const rawMapId = townMapId & 0x7F;
-        const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0];
+        const mdtPath = TOWN_MDTS[rawMapId] ?? TOWN_MDTS[1] ?? TOWN_MDTS[0]!;
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, mdtPath);
-        mdtHeader = getTownMdtHeader?.();
 
         const mapWidth = getTownMapWidth(mdtData);
         const xBytes = readMemory(isDeath ? ADDR_TEAR_X : ADDR_HERO_X_IN_PROXIMITY_MAP, 2);
         const xProx = xBytes[0] | (xBytes[1] << 8);
         if (mapWidth) {
             const { proxLeft, heroViewX } = computeTownScrollFromAbsoluteX(xProx, mapWidth);
-            writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, [proxLeft & 0xFF, (proxLeft >> 8) & 0xFF]);
-            writeMemory(ADDR_HERO_X_VIEW, [heroViewX]);
+            writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, Uint8Array.of(proxLeft & 0xFF, (proxLeft >> 8) & 0xFF));
+            writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(heroViewX));
         }
 
         const newBgType = getTownBackgroundType();
@@ -1268,7 +1202,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
             townTileSheetReady = false;
             townTileSheet = null;
         }
-        const pattern = PATTERN_ASSETS[townPatId];
+        const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
@@ -1277,7 +1211,7 @@ async function initTownFromDungeon(townMapId, isDeath) {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townEntryDisablingEdgeScroll();
@@ -1305,7 +1239,7 @@ const inputLatches = new KeyEdgeLatches(
     () => writeMemory?.(ADDR_ALTKEY_LATCH, [1]),
 );
 
-function getNpcConversationRaw(npcId) {
+function getNpcConversationRaw(npcId: number) {
     return readNpcConversationBytes(readMemory, npcId);
 }
 
@@ -1314,8 +1248,8 @@ const dialogEffects = {
     // 0x83: citizen gives Elf Crest after defeating Paguro
     onElfCrest: () => {
         const ci = readMemory(ADDR_CALIENTE_ITEMS, 1)[0];
-        writeMemory(ADDR_CALIENTE_ITEMS, [ci | 0x80]);
-        writeMemory(ADDR_ELF_CREST, [0xFF]);
+        writeMemory(ADDR_CALIENTE_ITEMS, Uint8Array.of(ci | 0x80));
+        writeMemory(ADDR_ELF_CREST, Uint8Array.of(0xFF));
         initC015ObjIfExists();
     },
     // 0x8B: endgame flag — final boss Jashiin defeated + 9th Tear of
@@ -1324,12 +1258,12 @@ const dialogEffects = {
     // citizens' conversations in Felishika's Castle town (place map id 0x80).
     onFinalTearCollected: () => {
         const b4 = readMemory(ADDR_BYTE4, 1)[0];
-        writeMemory(ADDR_BYTE4, [b4 | 0x80]);
+        writeMemory(ADDR_BYTE4, Uint8Array.of(b4 | 0x80));
         initC015ObjIfExists();
     },
 };
 
-function parseDialogText(bytes) {
+function parseDialogText(bytes: Uint8Array) {
     return parseDialogTextImpl(bytes, dialogEffects);
 }
 
@@ -1347,10 +1281,6 @@ const conversation = new ConversationManager({
 
 function startConversationFromWasm() {
     conversation.startFromWasm();
-}
-
-function loadConversationPattern(patternIdx) {
-    conversation.loadPattern(patternIdx);
 }
 
 // ─── Indoor scene entry / exit ────────────────────────────────────────────────
@@ -1377,7 +1307,7 @@ function startWarpPureza2Dorado() {
         handleWarp();
         return;
     }
-    const rawText = getNpcConversationRaw(0);
+    const rawText = getNpcConversationRaw(0) ?? new Uint8Array();
     const parsed = parseDialogText(rawText);
     if (parsed.pages.length === 0) {
         handleWarp();
@@ -1399,16 +1329,15 @@ async function handleWarp() {
         // Mark Falter building as used (bit7 of falter_items) so the dialog
         // and warp cannot repeat.
         const falter = readMemory(ADDR_FALTER_ITEMS, 1)[0];
-        writeMemory(ADDR_FALTER_ITEMS, [falter | 0x80]);
-        writeMemory(ADDR_PLACE_MAP_ID, [6]); // Dorado
+        writeMemory(ADDR_FALTER_ITEMS, Uint8Array.of(falter | 0x80));
+        writeMemory(ADDR_PLACE_MAP_ID, Uint8Array.of(6)); // Dorado
         townFinishBuilding?.();
 
-        const mdtPath = TOWN_MDTS[6];
+        const mdtPath = TOWN_MDTS[6]!;
         const resp = await fetch(mdtPath);
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, mdtPath);
-        mdtHeader = getTownMdtHeader?.();
 
         const newBgType = getTownBackgroundType();
         if (newBgType !== townBackgroundType) {
@@ -1434,7 +1363,7 @@ async function handleWarp() {
             townTileSheetReady = false;
             townTileSheet = null;
         }
-        const pattern = PATTERN_ASSETS[townPatId];
+        const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
@@ -1443,13 +1372,13 @@ async function handleWarp() {
 
         parseTownNpcCategory();
         await Promise.all(
-            NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, index) => loadNpcSprite(index))
+            NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
 
         // Landing spot: Falter building door, prox col 132 / view x 13, face-left.
-        writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, [132, 0]);
-        writeMemory(ADDR_HERO_X_VIEW, [13]);
-        writeMemory(ADDR_FACING, [0x01]); // face left
+        writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, Uint8Array.of(132, 0));
+        writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(13));
+        writeMemory(ADDR_FACING, Uint8Array.of(0x01)); // face left
         townSetReturnBeforeMainLoop?.(RETURN_BEFORE_TOWN_MAIN_LOOP);
         townEntryDisablingEdgeScroll();
         townEntryRan = true;
@@ -1467,7 +1396,7 @@ async function handleWarp() {
     }
 }
 
-function startIndoorScene(destId) {
+function startIndoorScene(destId: number): void {
     if (!TOWN_DOORS[destId]) {
         console.warn(`[building] destination ${destId} not implemented`);
         townFinishBuilding?.();
@@ -1500,9 +1429,14 @@ function startIndoorScene(destId) {
 
     const building = TOWN_DOORS[destId];
     if (building) {
-        indoorActiveScene = new building.scene(context);
-        indoorActiveScene.building = building;
-        indoorActiveScene.enter(performance.now());
+        const scene = new building.scene(context) as IndoorSceneBase & {
+            building?: { name: string };
+            getName?: () => string;
+            handleHeldInput?: (keys: Record<string, boolean>, now: number) => void;
+        };
+        scene.building = building;
+        indoorActiveScene = scene;
+        scene.enter(performance.now());
     }
 }
 
@@ -1522,44 +1456,27 @@ const hud = new Hud({
     getBossName: () => getBossName?.() ?? '',
 });
 
-function updateElementText(elementId, value) { hud.updateElementText(elementId, value); }
 function resetBossHud() { hud.resetBossHud(); }
-function updatePlaceHud(name, indoor) { hud.updatePlaceHud(name, indoor); }
+function updatePlaceHud(name: string, indoor: boolean): void { hud.updatePlaceHud(name, indoor); }
 function renderBossName() { hud.renderBossName(); }
 function drawLifeBar() { hud.drawLifeBar(); }
-function setLife(currentLife, maxLife) { hud.setLife(currentLife, maxLife); }
+function setLife(currentLife: number, maxLife: number): void { hud.setLife(currentLife, maxLife); }
 function drawBossHealth() { hud.drawBossHealth(); }
-function getHeroHp() { return hud.getHeroHp(); }
-function setHeroHp(hp) { hud.setHeroHp(hp); }
-function getHeroMaxHp() { return hud.getHeroMaxHp(); }
-function setHeroMaxHp(maxHp) { hud.setHeroMaxHp(maxHp); }
-function getHeroGoldValue() { return hud.getHeroGoldValue(); }
-function setHeroGoldValue(value) { hud.setHeroGoldValue(value); }
 function renderGoldHud() { hud.renderGoldHud(); }
 function getHeroAlmasValue() { return hud.getHeroAlmasValue(); }
-function setHeroAlmasValue(value) { hud.setHeroAlmasValue(value); }
+function setHeroAlmasValue(value: number): void { hud.setHeroAlmasValue(value); }
 function renderAlmasHud() { hud.renderAlmasHud(); }
 function loadSwordIcons() { return hud.loadSwordIcons(); }
-function getHeroSwordType() { return hud.getHeroSwordType(); }
-function setHeroSwordType(type) { hud.setHeroSwordType(type); }
 function renderSwordHud() { hud.renderSwordHud(); }
 function loadShieldIcons() { return hud.loadShieldIcons(); }
-function getHeroShieldType() { return hud.getHeroShieldType(); }
-function setHeroShieldType(type) { hud.setHeroShieldType(type); }
-function getHeroShieldHP() { return hud.getHeroShieldHP(); }
-function setHeroShieldHP(hp) { hud.setHeroShieldHP(hp); }
 function renderShieldHud() { hud.renderShieldHud(); }
 function loadMagicIcons() { return hud.loadMagicIcons(); }
-function getHeroMagicType() { return hud.getHeroMagicType(); }
-function setHeroMagicType(type) { hud.setHeroMagicType(type); }
-function getHeroMagicCount(type) { return hud.getHeroMagicCount(type); }
-function setHeroMagicCount(type, count) { hud.setHeroMagicCount(type, count); }
 function renderMagicHud() { hud.renderMagicHud(); }
 // Open Save Modal (called from Sage scene)
-function openSaveModal(onSaveComplete) {
+function openSaveModal(onSaveComplete: (success: boolean) => void): void {
     if (modalManager.isActive) return;
     gamePaused = true;
-    const onSave = (slotName) => {
+    const onSave = (slotName: string | null): void => {
         const saveState = readMemory(0, 256);
         if (slotName === null) {
             onSaveComplete?.(false);
@@ -1579,7 +1496,7 @@ function openSaveModal(onSaveComplete) {
 function openRestoreModal() {
     if (modalManager.isActive) return;
     gamePaused = true;
-    const onRestore = async (slotName) => {
+    const onRestore = async (slotName: string | null): Promise<void> => {
         let saveData = null;
         if (slotName === null) {  // Re-Start
             try {
@@ -1696,7 +1613,7 @@ function drawSpeedChangeDialog() {
 }
 
 // Core restore routine: reloads full game state from 256-byte saveData
-async function performGameRestore(saveData) {
+async function performGameRestore(saveData: Uint8Array): Promise<void> {
     if (!saveData || saveData.length > 256) {
         console.error('Invalid save data');
         return;
@@ -1720,13 +1637,13 @@ async function performGameRestore(saveData) {
     // so a restore keeps whatever stale dungeon value was last written there.
     // Clear it so the heartbeat loop stops in town; the dungeon code recomputes
     // it on the next frame.
-    writeMemory(ADDR_HEARTBEAT_VOLUME, [0]);
+    writeMemory(ADDR_HEARTBEAT_VOLUME, Uint8Array.of(0));
 
     // Saves made before the rokademo feature have ADDR_TEAR_COUNT stuck at 0
     // while the per-cavern tear flags are set. Derive the real count from the
     // flags and write it back so the demo slot selection and any in-game
     // counter logic stay consistent.
-    writeMemory(ADDR_TEAR_COUNT, [getTearCount()]);
+    writeMemory(ADDR_TEAR_COUNT, Uint8Array.of(getTearCount()));
 
     // Reflect collected Tears of Esmesanti on the mole_t strip immediately
     lastTearOverlayCount = -1;
@@ -1736,13 +1653,12 @@ async function performGameRestore(saveData) {
     const placeId = readMemory(ADDR_PLACE_MAP_ID, 1)[0] & 0x7F;
 
     if (placeId < TOWN_MDTS.length) {
-        const mdtPath = TOWN_MDTS[placeId];
+        const mdtPath = TOWN_MDTS[placeId]!;
         try {
             const resp = await fetch(mdtPath);
             if (!resp.ok) throw new Error(`Failed to load ${mdtPath}`);
             mdtData = new Uint8Array(await resp.arrayBuffer());
             loadMdt(mdtData, mdtPath);
-            mdtHeader = getTownMdtHeader?.();
         } catch (err) {
             console.error('Failed to load MDT for restore:', err);
             return;
@@ -1750,12 +1666,11 @@ async function performGameRestore(saveData) {
     } else {
         // Fallback to starting town (index 0) for dungeons
         console.warn('Restoring in dungeon – falling back to Felishika Castle');
-        const resp = await fetch(TOWN_MDTS[0]);
+        const resp = await fetch(TOWN_MDTS[0]!);
         if (!resp.ok) throw new Error(`Failed to load ${TOWN_MDTS[0]}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         loadMdt(mdtData, "");
-        mdtHeader = getTownMdtHeader?.();
-        writeMemory(ADDR_PLACE_MAP_ID, [0]);  // ensure place_map_id points to town 0
+        writeMemory(ADDR_PLACE_MAP_ID, Uint8Array.of(0));  // ensure place_map_id points to town 0
     }
 
     // Re‑initialise the town engine – reads hero position from restored save data
@@ -1788,7 +1703,7 @@ async function performGameRestore(saveData) {
         townPatId = newPatId;
         townTileSheetReady = false;
         townTileSheet = null;
-        const pattern = PATTERN_ASSETS[townPatId];
+        const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
             setSpecialTileList(pattern.specialTiles);
@@ -1799,7 +1714,7 @@ async function performGameRestore(saveData) {
     // Reload NPC sprites (category may have changed)
     parseTownNpcCategory();
     await Promise.all(
-        NPC_SPRITE_PATHS[getTownNpcCategory()].map((_, idx) => loadNpcSprite(idx))
+        NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, idx) => loadNpcSprite(idx))
     );
 
     const trackId = resolveMusicTrack(getMusicTrackId?.());
@@ -1814,11 +1729,9 @@ async function performGameRestore(saveData) {
 }
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
-let lastTimestamp = 0;
 // let fps = 0;
 let cavernName = '';
-let mdtData = null;
-let mdtHeader = null;
+let mdtData: Uint8Array | null = null;
 
 let frameTimer  = 0;
 let tickCounter = 0;
@@ -1837,10 +1750,15 @@ function draw() {
     syncTearOverlay();
 
     if (indoorActiveScene) {
-        const scene = indoorActiveScene;
+        const scene = indoorActiveScene!;
         const now = performance.now();
-        const sceneName = scene.getName?.() ?? scene.building?.name ?? '';
-        scene.handleHeldInput?.(keys, now);
+        const ext = scene as unknown as {
+            getName?: () => string;
+            building?: { name: string };
+            handleHeldInput?: (keys: Record<string, boolean>, now: number) => void;
+        };
+        const sceneName = ext.getName?.() ?? ext.building?.name ?? '';
+        ext.handleHeldInput?.(keys as unknown as Record<string, boolean>, now);
         const stillActive = scene.draw(now);
         if (!stillActive && indoorActiveScene === scene) indoorActiveScene = null;
         updatePlaceHud(stillActive ? sceneName : '', stillActive);
@@ -1933,15 +1851,15 @@ function draw() {
                     if (progress >= 1) {
                         encounterAnim = null;
                         // Initialize boss HUD from JS (boss state block already set by handleDungeonTransition)
-                        writeMemory(ADDR_BOSS_MODE, [0xFF]);                   // boss HUD visible
-                        writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0xFF]);         // trigger health bar draw
+                        writeMemory(ADDR_BOSS_MODE, Uint8Array.of(0xFF));                   // boss HUD visible
+                        writeMemory(ADDR_BOSS_HEALTH_REQUEST, Uint8Array.of(0xFF));         // trigger health bar draw
                         const boss_placement = readMemory(ADDR_BOSS_STATE_BLOCK + 8, 1)[0];
-                        writeMemory(ADDR_BOSS_PLACEMENT, [boss_placement]);
+                        writeMemory(ADDR_BOSS_PLACEMENT, Uint8Array.of(boss_placement));
                         // Reset game frame state so normal loop starts cleanly
-                        writeMemory(ADDR_DUNGEON_FRAME_PHASE, [0]);
-                        writeMemory(ADDR_RENDER_REQUEST, [0xFF]);
-                        writeMemory(ADDR_RENDER_DONE, [0]);
-                        writeMemory(ADDR_DUNGEON_STATE, [0]); // NORMAL
+                        writeMemory(ADDR_DUNGEON_FRAME_PHASE, Uint8Array.of(0));
+                        writeMemory(ADDR_RENDER_REQUEST, Uint8Array.of(0xFF));
+                        writeMemory(ADDR_RENDER_DONE, Uint8Array.of(0));
+                        writeMemory(ADDR_DUNGEON_STATE, Uint8Array.of(0)); // NORMAL
                         // encounter.ogg plays once during the flash, then silence for the fight
                         soundManager.stopMusic(0.1);
                     }
@@ -1982,39 +1900,39 @@ function draw() {
 
         if (gMem(ADDR_HEALTH_BAR_REQUEST)) {
             drawLifeBar();
-            writeMemory(ADDR_HEALTH_BAR_REQUEST, [0]);
+            writeMemory(ADDR_HEALTH_BAR_REQUEST, Uint8Array.of(0));
         }
         if (bossMode) {
             if (gMem(ADDR_BOSS_HEALTH_REQUEST)) {
                 drawBossHealth();
                 renderBossName();
-                writeMemory(ADDR_BOSS_HEALTH_REQUEST, [0]);
+                writeMemory(ADDR_BOSS_HEALTH_REQUEST, Uint8Array.of(0));
             }
         } else {
             if (gMem(ADDR_GOLD_RENDER_REQUEST)) {
                 renderGoldHud();
-                writeMemory(ADDR_GOLD_RENDER_REQUEST, [0]);
+                writeMemory(ADDR_GOLD_RENDER_REQUEST, Uint8Array.of(0));
             }
         }
         if (gMem(ADDR_ALMAS_RENDER_REQUEST)) {
             renderAlmasHud();
-            writeMemory(ADDR_ALMAS_RENDER_REQUEST, [0]);
+            writeMemory(ADDR_ALMAS_RENDER_REQUEST, Uint8Array.of(0));
         }
         if (gMem(ADDR_SHIELD_HP_RENDER_REQUEST)) {
             renderShieldHud();
-            writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, [0]);
+            writeMemory(ADDR_SHIELD_HP_RENDER_REQUEST, Uint8Array.of(0));
         }
         if (gMem(ADDR_MAGIC_LEFT_RENDER_REQUEST)) {
             renderMagicHud();
-            writeMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, [0]);
+            writeMemory(ADDR_MAGIC_LEFT_RENDER_REQUEST, Uint8Array.of(0));
         }
         if (gMem(ADDR_SWORD_RENDER_REQUEST)) {
             renderSwordHud();
-            writeMemory(ADDR_SWORD_RENDER_REQUEST, [0]);
+            writeMemory(ADDR_SWORD_RENDER_REQUEST, Uint8Array.of(0));
         }
         if (gMem(ADDR_SWORD_GFX_RELOAD_REQUEST)) {
             updateDungeonSwordReach(); 
-            writeMemory(ADDR_SWORD_GFX_RELOAD_REQUEST, [0]);
+            writeMemory(ADDR_SWORD_GFX_RELOAD_REQUEST, Uint8Array.of(0));
         }
     } else { // town outdoor mode
         ctx.fillStyle = townPatId === 2 ? '#000000' : '#05053f';
@@ -2028,7 +1946,7 @@ function draw() {
             drawTownHero();
             drawLifeBar();
             let placeName = getTownName?.() ?? 'unknown';
-            updatePlaceHud(townEntryRan ? placeName : '');
+            updatePlaceHud(townEntryRan ? placeName : '', false);
             renderGoldHud();
             renderAlmasHud();
             renderSwordHud();
@@ -2049,20 +1967,18 @@ function draw() {
     }
 }
 
-function loop(timestamp) {
-    // if (timestamp > lastTimestamp) fpsEl.textContent = Math.round(1000 / (timestamp - lastTimestamp));
-    // lastTimestamp = timestamp;
+function loop(timestamp: number): void {
     draw();
     requestAnimationFrame(loop);
 }
 
 // ─── DOM references ───────────────────────────────────────────────────────────
-const introScreen  = document.getElementById('intro-screen');
-const introCanvas  = document.getElementById('introCanvas');
-const uiScreen     = document.getElementById('ui');
-const layoutWrapper = document.getElementById('layout-wrapper');
+const introScreen  = document.getElementById('intro-screen') as HTMLElement;
+const introCanvas  = document.getElementById('introCanvas') as HTMLCanvasElement;
+const uiScreen     = document.getElementById('ui') as HTMLElement;
+const layoutWrapper = document.getElementById('layout-wrapper') as HTMLElement;
 // const fpsEl  = document.getElementById('fps-value');
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const tearOverlayEl = document.getElementById('tear-overlay');
 const ctx    = setupGameCanvas(canvas);
 
@@ -2085,8 +2001,8 @@ initDungeonRenderer({
         magicSheet: dungeonMagicSheet, magicSheetReady: dungeonMagicSheetReady,
         heroSheet: dungeonHeroSheet, heroSheetReady: dungeonHeroSheetReady,
         swordSheet: dungeonSwordSheet, swordSheetReady: dungeonSwordSheetReady,
-        projectiles: dungeonProjectiles,
-        ai: dungeonAI,
+        projectiles: dungeonProjectiles as unknown as Uint8Array[],
+        ai: dungeonAI as unknown as Uint8Array[],
         rokaImages, rokaImagesReady,
     }),
     encounterImg: () => encounterImg,
@@ -2104,9 +2020,9 @@ initTownRenderer({
         const mem = getWasmMemory?.();
         return mem ? mem[addr] : -1;
     },
-    keys: () => keys,
+    keys: () => ({ ArrowLeft: !!keys.ArrowLeft, ArrowRight: !!keys.ArrowRight }),
     frameTimer: () => frameTimer,
-    townPatId: () => townPatId,
+    townPatId: () => townPatId ?? 0,
     assets: () => ({
         background: townBackground, backgroundReady: townBackgroundReady,
         ceiling: townCeiling, ceilingReady: townCeilingReady,
@@ -2114,7 +2030,7 @@ initTownRenderer({
         sidewalk2: townSidewalk2, sidewalk2Ready: townSidewalk2Ready,
         tileSheet: townTileSheet, tileSheetReady: townTileSheetReady,
         heroSprite, heroSpriteReady,
-        npcSprites,
+        npcSprites: [npcSprites[0] ?? [], npcSprites[1] ?? []],
         mdtData,
     }),
 });
@@ -2159,7 +2075,7 @@ function startEndingDemo() {
 // of this file.
 
 // File import/export now lives in platform/save-file.ts (Stage 2).
-function exportSlotToFile(slotName) {
+function exportSlotToFile(slotName: string): void {
     const saveData = loadGameFromSlot(slotName);
     if (!saveData) {
         console.error(`No save data found for slot "${slotName}"`);
@@ -2186,7 +2102,7 @@ function openImportExportModal() {
     if (modalManager.isActive) return;
     gamePaused = true;
 
-    const onExportSlot = (slotName) => {
+    const onExportSlot = (slotName: string): void => {
         exportSlotToFile(slotName);
         closeModal();
     };
@@ -2194,7 +2110,7 @@ function openImportExportModal() {
         importSaveFromFile();
         closeModal();
     };
-    const onDeleteSlot = (slotName) => {
+    const onDeleteSlot = (slotName: string): void => {
         deleteGameFromSlot(slotName);
     };
     const onCancel = () => {
@@ -2203,7 +2119,27 @@ function openImportExportModal() {
     modalManager.open(new ImportExportDialog(onExportSlot, onImportFromFile, onDeleteSlot, onCancel));
 }
 
-window.openSaveModal = openSaveModal;
+(window as unknown as { openSaveModal?: typeof openSaveModal }).openSaveModal = openSaveModal;
+
+// ─── Debug/E2E hook ───────────────────────────────────────────────────────────
+// Small surface for the Playwright smoke test: query engine state and force
+// scene transitions without depending on map layout. Not used by gameplay.
+(window as unknown as Record<string, unknown>).__zeliard = {
+    ready: () => engineReady && !openingIntro.active && !endingDemo.active,
+    mode: (): string => gameMode,
+    /** Jump from town into dungeon `mapId` (0..15), as if walking in. */
+    enterDungeon: (mapId: number): Promise<void> => handleDungeonTransition(mapId, false),
+    /** Return from the dungeon to the starting town. */
+    returnToTown: (): Promise<void> => initTownFromDungeon(1, false),
+};
+
+// ─── Touch controls (smartphone mode) ─────────────────────────────────────────
+if (detectTouchDevice(navigator, window)) {
+    initTouchControls({
+        getSpeedChangePhase,
+        getModalInputActive,
+    });
+}
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 init();

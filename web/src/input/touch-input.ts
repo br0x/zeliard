@@ -1,44 +1,53 @@
-// touch-controls.js – On-screen touch controls for the Zeliard web port.
-//
-// In "smartphone mode" this shows a D-pad left of the game, three action
-// buttons to the right, and a digit pad for the speed-change dialog. All
-// buttons drive the existing game input by dispatching synthetic keyboard
-// events, so modal / inventory / conversation routing keeps working.
-import { getSpeedChangePhase, getModalInputActive } from '../main.js';
+/**
+ * touch-input.ts – On-screen touch controls for the Zeliard web port.
+ *
+ * In "smartphone mode" this shows a D-pad left of the game, three action
+ * buttons to the right, and a digit pad for the speed-change dialog. All
+ * buttons drive the existing game input by dispatching synthetic keyboard
+ * events, so modal / inventory / conversation routing keeps working.
+ *
+ * The binding logic lives in initTouchControls(deps) so tests can drive it
+ * with fakes; main.ts calls it at boot on touch devices.
+ */
 
-const useTouchControls =
-    navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches;
-
-const heldCodes = new Set();
-
-function sendKey(type, code) {
-    window.dispatchEvent(new KeyboardEvent(type, {
-        code,
-        key: code,
-        bubbles: true,
-        cancelable: true,
-    }));
+export interface TouchInputDeps {
+    /** Current speed-change dialog phase (0 = closed). */
+    getSpeedChangePhase(): number;
+    /** True while a modal dialog's text-input field has focus. */
+    getModalInputActive(): boolean;
 }
 
-// Release every held key if the page loses focus/visibility, so a missed
-// pointerup never leaves the game stuck with a button held down.
-function releaseAllHeld() {
+export type SendKeyFn = (type: 'keydown' | 'keyup', code: string) => void;
+
+const heldCodes = new Set<string>();
+
+/** Send a synthetic keyboard event through the window (game input channel). */
+function makeSendKey(target: Window): SendKeyFn {
+    return (type, code) => {
+        target.dispatchEvent(new KeyboardEvent(type, {
+            code,
+            key: code,
+            bubbles: true,
+            cancelable: true,
+        }));
+    };
+}
+
+/** Release every held key if the page loses focus/visibility, so a missed
+ *  pointerup never leaves the game stuck with a button held down. */
+function releaseAllHeld(sendKey: SendKeyFn, doc: Document): void {
     if (heldCodes.size === 0) return;
     heldCodes.forEach(code => sendKey('keyup', code));
     heldCodes.clear();
-    document.querySelectorAll('.touch-controls .pressed').forEach(el => {
+    doc.querySelectorAll('.touch-controls .pressed').forEach(el => {
         el.classList.remove('pressed');
     });
 }
-window.addEventListener('blur', releaseAllHeld);
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) releaseAllHeld();
-});
 
 // ─── D-pad / joystick (held buttons) ─────────────────────────────────────────
-function bindHoldButton(btn) {
-    const codes = btn.dataset.codes.split(',');
-    const pointers = new Set();
+function bindHoldButton(btn: HTMLElement, sendKey: SendKeyFn): void {
+    const codes = (btn.dataset.codes ?? '').split(',');
+    const pointers = new Set<number>();
 
     btn.addEventListener('pointerdown', e => {
         e.preventDefault();
@@ -50,7 +59,7 @@ function bindHoldButton(btn) {
         try { btn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     });
 
-    const release = e => {
+    const release = (e: PointerEvent) => {
         pointers.delete(e.pointerId);
         if (pointers.size === 0) {
             btn.classList.remove('pressed');
@@ -62,8 +71,8 @@ function bindHoldButton(btn) {
 }
 
 // ─── Action buttons (tap = press + release) ──────────────────────────────────
-function bindTapButton(btn) {
-    const code = btn.dataset.code;
+function bindTapButton(btn: HTMLElement, sendKey: SendKeyFn): void {
+    const code = btn.dataset.code ?? '';
     btn.addEventListener('pointerdown', e => {
         e.preventDefault();
         btn.classList.add('pressed');
@@ -80,9 +89,18 @@ function bindTapButton(btn) {
     btn.addEventListener('pointercancel', release);
 }
 
+interface FullscreenDocument extends Document {
+    webkitFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void>;
+}
+
+interface FullscreenElement extends HTMLElement {
+    webkitRequestFullscreen?: () => Promise<void>;
+}
+
 // ─── Fullscreen toggle (hide browser chrome on smartphones) ───────────────────
-async function enterFullscreen() {
-    const elem = document.documentElement;
+async function enterFullscreen(doc: Document): Promise<void> {
+    const elem = doc.documentElement as FullscreenElement;
 
     if (elem.requestFullscreen) {
         await elem.requestFullscreen();
@@ -91,15 +109,16 @@ async function enterFullscreen() {
     }
 }
 
-function initFullscreenToggle() {
-    const btn = document.getElementById('fullscreen-toggle');
+function initFullscreenToggle(doc: Document): void {
+    const btn = doc.getElementById('fullscreen-toggle');
     if (!btn) return;
+    const fdoc = doc as FullscreenDocument;
     btn.addEventListener('click', async () => {
         try {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                await (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.());
+            if (doc.fullscreenElement || fdoc.webkitFullscreenElement) {
+                await (doc.exitFullscreen?.() ?? fdoc.webkitExitFullscreen?.());
             } else {
-                await enterFullscreen();
+                await enterFullscreen(doc);
             }
         } catch (err) {
             console.warn('[Fullscreen] failed:', err);
@@ -108,8 +127,8 @@ function initFullscreenToggle() {
 }
 
 // ─── Cancel / Back (Esc) button ───────────────────────────────────────────────
-function initEscapeToggle() {
-    const btn = document.getElementById('escape-toggle');
+function initEscapeToggle(sendKey: SendKeyFn, doc: Document): void {
+    const btn = doc.getElementById('escape-toggle');
     if (!btn) return;
     btn.addEventListener('click', () => {
         sendKey('keydown', 'Escape');
@@ -118,9 +137,9 @@ function initEscapeToggle() {
 }
 
 // ─── Settings menu (F1/F2/F7/F8/F9) ──────────────────────────────────────────
-function initSettingsMenu() {
-    const toggle = document.getElementById('settings-toggle');
-    const panel = document.getElementById('settings-panel');
+function initSettingsMenu(sendKey: SendKeyFn, doc: Document): void {
+    const toggle = doc.getElementById('settings-toggle');
+    const panel = doc.getElementById('settings-panel');
     if (!toggle || !panel) return;
 
     toggle.addEventListener('click', e => {
@@ -130,16 +149,20 @@ function initSettingsMenu() {
 
     panel.querySelectorAll('button[data-key]').forEach(btn => {
         btn.addEventListener('click', () => {
-            sendKey('keydown', btn.dataset.key);
-            sendKey('keyup', btn.dataset.key);
+            const key = (btn as HTMLElement).dataset.key;
+            if (!key) return;
+            sendKey('keydown', key);
+            sendKey('keyup', key);
             panel.classList.add('hidden');
         });
     });
 
-    document.addEventListener('click', e => {
+    doc.addEventListener('click', e => {
         if (panel.classList.contains('hidden')) return;
-        const fsBtn = document.getElementById('fullscreen-toggle');
-        if (panel.contains(e.target) || toggle.contains(e.target) || fsBtn?.contains(e.target)) return;
+        const fsBtn = doc.getElementById('fullscreen-toggle');
+        const target = e.target instanceof Node ? e.target : null;
+        if (!target) return;
+        if (panel.contains(target) || toggle.contains(target) || (fsBtn && fsBtn.contains(target))) return;
         panel.classList.add('hidden');
     });
 }
@@ -153,64 +176,66 @@ const NAME_KEY_ROWS = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
     ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-];
+] as const;
 
-function nameKeyEvent(label) {
+/** Alphanumeric label → synthetic KeyboardEvent code ("A"→"KeyA", "5"→"Digit5"). */
+export function nameKeyEvent(label: string): { code: string; key: string } | null {
     if (/^[A-Z]$/.test(label)) return { code: 'Key' + label, key: label };
     if (/^[0-9]$/.test(label)) return { code: 'Digit' + label, key: label };
     return null;
 }
 
-const NAME_CONTROL_KEYS = {
+/** Control-label → KeyboardEvent.code mapping used by the name pad. */
+export const NAME_CONTROL_KEYS: Readonly<Record<string, string>> = {
     '⌫': 'Backspace',
     '␣': 'Space',
     '❌': 'Escape',
     '✅': 'Enter',
 };
 
-function makeNameKey(label, extraClass = '') {
-    const btn = document.createElement('button');
+function makeNameKey(label: string, sendKey: SendKeyFn, doc: Document, extraClass = ''): HTMLButtonElement {
+    const btn = doc.createElement('button');
     btn.type = 'button';
     btn.className = 'name-key' + (extraClass ? ' ' + extraClass : '');
     btn.textContent = label;
     btn.addEventListener('pointerdown', e => {
         e.preventDefault();
-        const code = (nameKeyEvent(label)?.code) ?? NAME_CONTROL_KEYS[label];
+        const code = nameKeyEvent(label)?.code ?? NAME_CONTROL_KEYS[label];
         if (code) sendKey('keydown', code);
     });
     return btn;
 }
 
-function initNamePad() {
-    const pad = document.getElementById('name-pad');
+function initNamePad(deps: TouchInputDeps, sendKey: SendKeyFn, doc: Document): void {
+    const pad = doc.getElementById('name-pad');
     if (!pad) return;
 
     for (const row of NAME_KEY_ROWS) {
-        const rowEl = document.createElement('div');
+        const rowEl = doc.createElement('div');
         rowEl.className = 'name-pad-row';
-        for (const label of row) rowEl.appendChild(makeNameKey(label));
+        for (const label of row) rowEl.appendChild(makeNameKey(label, sendKey, doc));
         pad.appendChild(rowEl);
     }
 
-    const controlRow = document.createElement('div');
+    const controlRow = doc.createElement('div');
     controlRow.className = 'name-pad-row';
-    controlRow.appendChild(makeNameKey('⌫', 'name-key--wide'));
-    controlRow.appendChild(makeNameKey('␣', 'name-key--wide'));
-    controlRow.appendChild(makeNameKey('❌', 'name-key--cancel'));
-    controlRow.appendChild(makeNameKey('✅', 'name-key--ok'));
+    controlRow.appendChild(makeNameKey('⌫', sendKey, doc, 'name-key--wide'));
+    controlRow.appendChild(makeNameKey('␣', sendKey, doc, 'name-key--wide'));
+    controlRow.appendChild(makeNameKey('❌', sendKey, doc, 'name-key--cancel'));
+    controlRow.appendChild(makeNameKey('✅', sendKey, doc, 'name-key--ok'));
     pad.appendChild(controlRow);
 
     setInterval(() => {
-        pad.classList.toggle('hidden', !getModalInputActive());
+        pad.classList.toggle('hidden', !deps.getModalInputActive());
     }, 200);
 }
 
 // ─── Speed-change digit pad (mobile F9) ──────────────────────────────────────
-function initSpeedPad() {
-    const pad = document.getElementById('speed-pad');
+function initSpeedPad(deps: TouchInputDeps, sendKey: SendKeyFn, doc: Document): void {
+    const pad = doc.getElementById('speed-pad');
     if (!pad) return;
 
-    pad.querySelectorAll('.speed-digit').forEach(btn => {
+    pad.querySelectorAll<HTMLElement>('.speed-digit').forEach(btn => {
         btn.addEventListener('pointerdown', e => {
             e.preventDefault();
             sendKey('keydown', 'Digit' + btn.dataset.digit);
@@ -235,7 +260,7 @@ function initSpeedPad() {
     }
 
     setInterval(() => {
-        const phase = getSpeedChangePhase();
+        const phase = deps.getSpeedChangePhase();
         if (phase === 1) {
             pad.classList.remove('hidden');
             pad.classList.add('phase-1');
@@ -249,19 +274,20 @@ function initSpeedPad() {
 }
 
 // ─── Fit the 1200px layout onto a phone screen ───────────────────────────────
-function fitLayoutToViewport() {
-    const wrapper = document.getElementById('layout-wrapper');
+function fitLayoutToViewport(win: Window, doc: Document): void {
+    const wrapper = doc.getElementById('layout-wrapper');
     if (!wrapper) return;
+    const wrapperEl = wrapper as HTMLElement & { _fitTransform?: string };
 
     const apply = () => {
-        if (wrapper.classList.contains('hidden')) return;
+        if (wrapperEl.classList.contains('hidden')) return;
 
         // Measure the natural (unscaled) content bounds of the flex children.
-        const prev = wrapper.style.transform;
-        wrapper.style.transform = 'none';
-        const wRect = wrapper.getBoundingClientRect();
+        const prev = wrapperEl.style.transform;
+        wrapperEl.style.transform = 'none';
+        const wRect = wrapperEl.getBoundingClientRect();
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (const el of wrapper.children) {
+        for (const el of wrapperEl.children) {
             const r = el.getBoundingClientRect();
             if (r.width === 0 && r.height === 0) continue;
             minX = Math.min(minX, r.left - wRect.left);
@@ -269,7 +295,7 @@ function fitLayoutToViewport() {
             minY = Math.min(minY, r.top - wRect.top);
             maxY = Math.max(maxY, r.bottom - wRect.top);
         }
-        wrapper.style.transform = prev;
+        wrapperEl.style.transform = prev;
         if (!isFinite(minX)) return;
 
         const cw = maxX - minX;
@@ -277,34 +303,34 @@ function fitLayoutToViewport() {
         const pad = 8;
         const scale = Math.min(
             1,
-            (window.innerWidth - pad) / cw,
-            (window.innerHeight - pad) / ch
+            (win.innerWidth - pad) / cw,
+            (win.innerHeight - pad) / ch
         );
 
         // translate+scale around the wrapper's top-left so the scaled
         // content stays centered in the viewport.
-        const tx = window.innerWidth / 2 - wRect.left - scale * (minX + maxX) / 2;
-        const ty = window.innerHeight / 2 - wRect.top - scale * (minY + maxY) / 2;
+        const tx = win.innerWidth / 2 - wRect.left - scale * (minX + maxX) / 2;
+        const ty = win.innerHeight / 2 - wRect.top - scale * (minY + maxY) / 2;
         const t = scale >= 1 ? 'none' : `translate(${tx}px, ${ty}px) scale(${scale})`;
 
-        if (wrapper._fitTransform !== t) {
-            wrapper._fitTransform = t;
-            wrapper.style.transformOrigin = '0 0';
-            wrapper.style.transform = t;
+        if (wrapperEl._fitTransform !== t) {
+            wrapperEl._fitTransform = t;
+            wrapperEl.style.transformOrigin = '0 0';
+            wrapperEl.style.transform = t;
         }
     };
 
     apply();
-    window.addEventListener('resize', apply);
-    window.addEventListener('orientationchange', apply);
-    window.addEventListener('load', apply);
+    win.addEventListener('resize', apply);
+    win.addEventListener('orientationchange', apply);
+    win.addEventListener('load', apply);
     if (typeof ResizeObserver !== 'undefined') {
         // The wrapper's own box stops changing once content settles, so
         // observe the children too – otherwise a measurement taken while the
         // game/canvas was still sizing up is never corrected.
         const ro = new ResizeObserver(apply);
-        ro.observe(wrapper);
-        for (const el of wrapper.children) ro.observe(el);
+        ro.observe(wrapperEl);
+        for (const el of wrapperEl.children) ro.observe(el);
     }
 
     // The game content keeps sizing up during the intro/startup, and no
@@ -313,7 +339,7 @@ function fitLayoutToViewport() {
     // converges after the canvas/HUD reach their final size.
     const startedAt = performance.now();
     const poll = () => {
-        if (wrapper.classList.contains('hidden')) {
+        if (wrapperEl.classList.contains('hidden')) {
             requestAnimationFrame(poll);
             return;
         }
@@ -326,26 +352,37 @@ function fitLayoutToViewport() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-function init() {
-    if (!useTouchControls) return;
+
+/** Activate smartphone-mode controls. No-op-safe to call once at boot. */
+export function initTouchControls(deps: TouchInputDeps): void {
+    const sendKey = makeSendKey(window);
 
     document.body.classList.add('touch-mode');
 
-    initSettingsMenu();
-    initFullscreenToggle();
-    initEscapeToggle();
+    initSettingsMenu(sendKey, document);
+    initFullscreenToggle(document);
+    initEscapeToggle(sendKey, document);
 
     const joystick = document.getElementById('touch-joystick');
     const actions = document.getElementById('touch-actions');
     const introActions = document.getElementById('intro-actions');
 
-    joystick?.querySelectorAll('.touch-dpad-btn').forEach(bindHoldButton);
-    actions?.querySelectorAll('.touch-action-btn').forEach(bindTapButton);
-    introActions?.querySelectorAll('.touch-action-btn').forEach(bindTapButton);
+    joystick?.querySelectorAll<HTMLElement>('.touch-dpad-btn').forEach(btn => bindHoldButton(btn, sendKey));
+    actions?.querySelectorAll<HTMLElement>('.touch-action-btn').forEach(btn => bindTapButton(btn, sendKey));
+    introActions?.querySelectorAll<HTMLElement>('.touch-action-btn').forEach(btn => bindTapButton(btn, sendKey));
 
-    initSpeedPad();
-    initNamePad();
-    fitLayoutToViewport();
+    initSpeedPad(deps, sendKey, document);
+    initNamePad(deps, sendKey, document);
+    fitLayoutToViewport(window, document);
+
+    // Release held keys on blur/visibility loss.
+    window.addEventListener('blur', () => releaseAllHeld(sendKey, document));
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) releaseAllHeld(sendKey, document);
+    });
 }
 
-init();
+/** True on coarse-pointer touch devices (phones/tablets). */
+export function detectTouchDevice(win: Navigator & { maxTouchPoints: number }, docWindow: Window): boolean {
+    return win.maxTouchPoints > 0 && docWindow.matchMedia('(pointer: coarse)').matches;
+}

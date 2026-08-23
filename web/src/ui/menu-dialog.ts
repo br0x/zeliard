@@ -1,44 +1,51 @@
 /**
- * ui-menu-dialog.js – Reusable typewriter text and vertical menu components.
+ * menu-dialog.ts — Reusable typewriter text and vertical menu components.
  */
+
+export interface YesNoColors {
+    borderOuter?: string;
+    borderInner?: string;
+    bg?: string;
+    text?: string;
+    selected?: string;
+    cursor?: string;
+}
+
 export class TypewriterText {
-    /**
-     * @param {string} text  raw text (newlines preserved)
-     * @param {string} font  canvas font, e.g. '14px "Press Start 2P"'
-     * @param {number} maxWidth  maximum pixel width for word wrap
-     * @param {number} charMs  milliseconds per character
-     * @param {number} lineHeight  px between baselines
-     * @param {number} dlgHeight  px height of the dialog box
-     * @param {CanvasRenderingContext2D} ctx  (used for measureText)
-     */
-    constructor(text, font, maxWidth, charMs, lineHeight, dlgHeight, ctx) {
+    readonly text: string;
+    readonly font: string;
+    readonly maxWidth: number;
+    readonly charMs: number;
+    readonly lineHeight: number;
+    readonly dlgHeight: number;
+
+    /** wrapped lines */
+    readonly lines: string[];
+    readonly totalChars: number;
+
+    startTime = 0;
+    done = false;
+
+    constructor(text: string, font: string, maxWidth: number, charMs: number,
+                lineHeight: number, dlgHeight: number, ctx: CanvasRenderingContext2D) {
         this.text = text;
         this.font = font;
         this.maxWidth = maxWidth;
         this.charMs = charMs;
         this.lineHeight = lineHeight;
         this.dlgHeight = dlgHeight;
-        this.ctx = ctx;
 
-        this.lines = [];          // wrapped lines (array of strings)
-        this.totalChars = 0;
-        this.startTime = 0;
-        this.done = false;
-        this._wrap();
-    }
-
-    _wrap() {
         // Set the font before measuring, restore afterwards
-        this.ctx.save();
-        this.ctx.font = this.font;
+        ctx.save();
+        ctx.font = font;
 
-        const lines = [];
-        for (const para of this.text.split('\n')) {
+        const lines: string[] = [];
+        for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
             for (const word of words) {
                 const candidate = line ? line + ' ' + word : word;
-                if (line && this.ctx.measureText(candidate).width > this.maxWidth) {
+                if (line && ctx.measureText(candidate).width > maxWidth) {
                     lines.push(line);
                     line = word;
                 } else {
@@ -50,24 +57,27 @@ export class TypewriterText {
         this.lines = lines;
         this.totalChars = lines.reduce((s, l) => s + l.length, 0);
 
-        this.ctx.restore();
+        ctx.restore();
     }
 
-    start(now) {
+    start(now: number): void {
         this.startTime = now;
         this.done = false;
     }
 
-    /** Fast‑forward to end */
-    skip(now) {
+    /** Fast-forward to end */
+    skip(now: number): void {
         this.startTime = now - this.totalChars * this.charMs;
     }
 
+    getVisibleChars(now: number): number {
+        return Math.min(this.totalChars, Math.floor((now - this.startTime) / this.charMs));
+    }
+
     /** Returns array of visible lines (each line clipped to visible chars) */
-    getVisibleLines(now) {
-        const elapsed = now - this.startTime;
-        let remaining = Math.min(this.totalChars, Math.floor(elapsed / this.charMs));
-        const out = [];
+    getVisibleLines(now: number): string[] {
+        let remaining = Math.min(this.totalChars, Math.floor((now - this.startTime) / this.charMs));
+        const out: string[] = [];
         for (const line of this.lines) {
             if (remaining <= 0) break;
             const visible = line.slice(0, Math.min(line.length, remaining));
@@ -77,57 +87,61 @@ export class TypewriterText {
         return out;
     }
 
-    isDone(now) {
+    isDone(now: number): boolean {
         return this.done || this.getVisibleChars(now) >= this.totalChars;
     }
 
-    getVisibleChars(now) {
-        return Math.min(this.totalChars, Math.floor((now - this.startTime) / this.charMs));
-    }
-
     /** Draw all visible lines at (x,y) */
-    draw(ctx, x, y, now, alpha = 1) {
+    draw(ctx: CanvasRenderingContext2D, x: number, y: number, now: number, alpha = 1): void {
         ctx.save();
         ctx.font = this.font;
         ctx.fillStyle = '#fff';
         ctx.globalAlpha = alpha;
         const lines = this.getVisibleLines(now);
         for (let i = 0; i < lines.length; i++) {
-            ctx.fillText(lines[i], x, y + i * this.lineHeight);
+            ctx.fillText(lines[i]!, x, y + i * this.lineHeight);
         }
         // show cursor when fully revealed
         if (this.isDone(now) && lines.length) {
             ctx.fillStyle = '#0ee';
-            this._drawDownwardArrow(ctx, x + this.maxWidth / 2 - 12, y + this.dlgHeight - 40);
+            drawDownwardArrow(ctx, x + this.maxWidth / 2 - 12, y + this.dlgHeight - 40);
         }
         ctx.restore();
     }
+}
 
-    _drawDownwardArrow(ctx, x, y) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + 24, y);
-        ctx.lineTo(x + 12, y + 14);
-        ctx.closePath();
-        ctx.fill();
-    }
+function drawDownwardArrow(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 24, y);
+    ctx.lineTo(x + 12, y + 14);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawRightTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fill();
 }
 
 export class MenuList {
-    /**
-     * @param {string[]} items
-     * @param {string} font
-     * @param {number} lineHeight
-     * @param {number} selectedIndex
-     */
-    constructor(items, font, lineHeight, selectedIndex = 0) {
+    readonly items: string[];
+    readonly font: string;
+    readonly lineHeight: number;
+    selectedIndex: number;
+
+    constructor(items: string[], font: string, lineHeight: number, selectedIndex = 0) {
         this.items = items;
         this.font = font;
         this.lineHeight = lineHeight;
         this.selectedIndex = selectedIndex;
     }
 
-    handleArrow(dir) {
+    handleArrow(dir: number): void {
         const n = this.items.length;
         this.selectedIndex = (this.selectedIndex + dir + n) % n;
     }
@@ -136,7 +150,7 @@ export class MenuList {
      * Draw menu at (x, y). The text is drawn at (x, y + i*lineHeight),
      * and the cursor is drawn 24px to the left of x.
      */
-    draw(ctx, x, y, now, alpha = 1) {
+    draw(ctx: CanvasRenderingContext2D, x: number, y: number, _now: number, alpha = 1): void {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.font = this.font;
@@ -144,29 +158,14 @@ export class MenuList {
             const yi = y + i * this.lineHeight;
             const selected = i === this.selectedIndex;
             ctx.fillStyle = selected ? '#ff0' : '#fff';
-            ctx.fillText(this.items[i], x, yi);
+            ctx.fillText(this.items[i]!, x, yi);
             if (selected) {
-                // red right‑pointing triangle, placed to the left of the text
+                // red right-pointing triangle, placed to the left of the text
                 ctx.fillStyle = '#f00';
-                this._triangle(ctx, x - 24, yi - 18, 14, 18, false);
+                drawRightTriangle(ctx, x - 24, yi - 18, 14, 18);
             }
         }
         ctx.restore();
-    }
-
-    _triangle(ctx, x, y, w, h, down) {
-        ctx.beginPath();
-        if (down) {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + w, y);
-            ctx.lineTo(x + w / 2, y + h);
-        } else {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + w, y + h / 2);
-            ctx.lineTo(x, y + h);
-        }
-        ctx.closePath();
-        ctx.fill();
     }
 }
 
@@ -177,18 +176,16 @@ export class MenuList {
  * caller treats Escape as "No".
  */
 export class YesNoDialog {
-    /**
-     * @param {CanvasRenderingContext2D} ctx
-     * @param {string} font
-     * @param {number} x  box left edge
-     * @param {number} y  box top edge
-     * @param {number} w  box width
-     * @param {number} h  box height
-     * @param {number} selectedIndex  0 = Yes, 1 = No
-     * @param {object} colors  optional per-scene overrides
-     */
-    constructor(ctx, font, x, y, w, h, selectedIndex = 0, colors = {}) {
-        this.ctx = ctx;
+    readonly font: string;
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+    selectedIndex: number;
+    colors: Required<YesNoColors>;
+
+    constructor(_ctx: CanvasRenderingContext2D, font: string, x: number, y: number, w: number, h: number,
+                selectedIndex = 0, colors: YesNoColors = {}) {
         this.font = font;
         this.x = x;
         this.y = y;
@@ -206,13 +203,15 @@ export class YesNoDialog {
         };
     }
 
-    get isYes() { return this.selectedIndex === 0; }
+    get isYes(): boolean {
+        return this.selectedIndex === 0;
+    }
 
-    handleArrow(dir) {
+    handleArrow(dir: number): void {
         this.selectedIndex = Math.max(0, Math.min(1, this.selectedIndex + dir));
     }
 
-    draw(ctx, alpha = 1) {
+    draw(ctx: CanvasRenderingContext2D, alpha = 1): void {
         ctx.save();
         ctx.globalAlpha = alpha;
 
@@ -234,27 +233,12 @@ export class YesNoDialog {
             const yi  = firstY + i * lineH;
             const sel = i === this.selectedIndex;
             ctx.fillStyle = sel ? this.colors.selected : this.colors.text;
-            ctx.fillText(items[i], textX, yi);
+            ctx.fillText(items[i]!, textX, yi);
             if (sel) {
                 ctx.fillStyle = this.colors.cursor;
-                this._triangle(ctx, this.x + 10, yi - 16, 10, 16, false);
+                drawRightTriangle(ctx, this.x + 10, yi - 16, 10, 16);
             }
         }
         ctx.restore();
-    }
-
-    _triangle(ctx, x, y, w, h, down) {
-        ctx.beginPath();
-        if (down) {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + w, y);
-            ctx.lineTo(x + w / 2, y + h);
-        } else {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + w, y + h / 2);
-            ctx.lineTo(x, y + h);
-        }
-        ctx.closePath();
-        ctx.fill();
     }
 }

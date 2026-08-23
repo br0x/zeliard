@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
     RokaDemo,
     ROKADEMO_CENTER_DX,
@@ -71,8 +71,8 @@ describe('bresenham stepper', () => {
     it('reaches y <= 0 exactly at the target row', () => {
         const b = initBresenham(
             ROKADEMO_TEAR_CENTER.x, ROKADEMO_TEAR_CENTER.y,
-            rokademoSlotCenter(TEAR_SLOTS_BLUE[0], false).x,
-            rokademoSlotCenter(TEAR_SLOTS_BLUE[0], false).y,
+            rokademoSlotCenter(TEAR_SLOTS_BLUE[0]!, false).x,
+            rokademoSlotCenter(TEAR_SLOTS_BLUE[0]!, false).y,
         );
         let steps = 0;
         let landed = false;

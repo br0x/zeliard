@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     ConversationManager,
     readNpcConversationBytes,
@@ -36,7 +36,7 @@ function makeFixture(conversations: Record<number, Stream>, effects: Record<stri
     const deps = {
         readMemory: (offset: number, length: number) => buf.subarray(offset & 0xffff, (offset & 0xffff) + length),
         writeMemory: (offset: number, data: ArrayLike<number>) => {
-            for (let i = 0; i < data.length; i++) buf[(offset + i) & 0xffff] = data[i];
+            for (let i = 0; i < data.length; i++) buf[(offset + i) & 0xffff] = data[i] ?? 0;
         },
         getNpcConversationRaw: (id: number) => {
             const stream = conversations[id];
@@ -135,8 +135,6 @@ describe('startFromWasm', () => {
 
 describe('paging', () => {
     it('space advances pages, closing only on the last', () => {
-        const lines = Array.from({ length: 17 }, (_, i) => `L${i}`).join('/');
-        const f = makeFixture({ 0: [lines.replace(/\//g, '/' )] , 1: [] });
         // Rebuild with explicit breaks: 17 lines -> 15-line page + remainder.
         const f2 = makeFixture({ 0: Array.from({ length: 16 }, (_, i) => [`L${i}`, '/']).flat() });
 
@@ -244,7 +242,7 @@ describe('Asbestos Cape purchase flow', () => {
 
         expect(f.getAlmas()).toBe(100);
         expect(f.renderAlmasHud).toHaveBeenCalled();
-        expect(f.buf[ADDR_CALIENTE_ITEMS] & 0x40).toBe(0x40);
+        expect((f.buf[ADDR_CALIENTE_ITEMS] ?? 0) & 0x40).toBe(0x40);
         expect(f.buf[0xa1]).toBe(ASBESTOS_CAPE_ITEM_ID); // first empty slot
         expect(f.mgr.pages).toEqual([['Pleasure doing business.']]);
     });

@@ -18,8 +18,26 @@ cd web
 pnpm install
 pnpm dev                  # dev server at http://localhost:5173
 pnpm test                 # unit tests (vitest)
-pnpm build                # typecheck + tests + static build into dist/
+pnpm test --coverage      # unit tests with coverage report
+pnpm e2e                  # Playwright smoke test (boots the game in a browser)
+pnpm build                # typecheck + static build into dist/
 ```
 
 Deployment to GitHub Pages is automatic on push to `main`
 (see `.github/workflows/deploy.yml`).
+
+### Code layout
+
+- `web/src/main.ts` — composition root: boot, game loop, town/dungeon
+  transition orchestration, save/restore flow.
+- `web/src/core/`, `render/`, `scenes/`, `ui/`, `input/`, `audio/`,
+  `platform/`, `wasm/`, `data/`, `config/` — one owner module per feature;
+  all strict TypeScript (`noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes`, `noUnusedLocals`). No JavaScript ships in
+  `src/`; the only plain-JS artifact is `public/pit-worklet.js` (loaded by
+  URL inside an AudioWorklet realm).
+- `web/tests/` — Vitest unit suites (414 tests); pure logic (save codec,
+  conversation engine, shop/bank transaction rules, memory map, bridge) is
+  covered at or near 100%.
+- `web/e2e/` — Playwright smoke test: boots the real game, skips the intro,
+  screenshots the town canvas, warps into a dungeon room and back.

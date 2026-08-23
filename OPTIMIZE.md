@@ -1,5 +1,11 @@
 # Performance Optimization Plan: Input Lag on Later Levels
 
+> **Note (post Stage-4 of MIGRATION_PLAN):** the files referenced below have
+> since been split and converted to TypeScript — `game.js` is now `web/src/main.ts`
+> plus owner modules under `web/src/`, and `src/zeliard-wasm.js` is
+> `web/src/wasm/bridge.ts`. Line numbers are from the monolith era; the
+> described mechanisms are unchanged.
+
 ## Problem Summary
 
 Direction keys feel laggy/unresponsive on later dungeon levels (mp40–mp62). The

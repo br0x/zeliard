@@ -1,5 +1,5 @@
 /**
- * indoor-church.js - The Church indoor scene.
+ * indoor-church.ts — The Church indoor scene.
  *
  * Port of asm/churpro.asm. This building has no interactive menu: the bytes
  * returned by render_menu_dialog_proc are scripted actions, and the scene runs
@@ -8,7 +8,8 @@
  */
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText } from '../ui/menu-dialog.js';
 
 const PANEL_W = 672;
 const PANEL_H = 432;
@@ -36,9 +37,9 @@ const DLG_TEXT_X = DLG_X + 14;
 const DLG_TEXT_Y = DLG_Y + 22;
 
 const FULL_TICK_MS = 1000 / 236.7;
-const WAIT_250_MS = 250 * FULL_TICK_MS;
-const HEAL_TICK_MS = 20 * FULL_TICK_MS;
-const ANIM_32_TICK_MS = 32 * FULL_TICK_MS;
+export const WAIT_250_MS = 250 * FULL_TICK_MS;
+export const HEAL_TICK_MS = 20 * FULL_TICK_MS;
+export const ANIM_32_TICK_MS = 32 * FULL_TICK_MS;
 
 const CHURCH_FRAMES = [
     'assets/images/church/church1.png',
@@ -74,103 +75,120 @@ const TEXT_FATIGUED =
 const TEXT_MAY_GOD =
     'May God go with you.';
 
-const OP = {
-    CLEAR: 'clear',
-    TEXT: 'text',
-    WAIT: 'wait',
-    HEAL_RESTORE: 'heal_restore',
-    RESTORE: 'restore',
-    COMMON: 'common',
-    BLESS: 'bless',
-    CONTINUE: 'continue',
-    EXIT: 'exit',
-};
+export type ChurchOp =
+    | 'clear'
+    | 'text'
+    | 'wait'
+    | 'heal_restore'
+    | 'restore'
+    | 'common'
+    | 'bless'
+    | 'continue'
+    | 'exit';
 
-const COMMON_SCRIPT = [
-    { op: OP.TEXT, text: TEXT_FATIGUED },
-    { op: OP.WAIT, ms: WAIT_250_MS },
-    { op: OP.TEXT, text: TEXT_MAY_GOD },
-    { op: OP.BLESS },
-    { op: OP.CONTINUE },
-    { op: OP.EXIT },
+export type ChurchScriptStep =
+    | { op: 'clear' }
+    | { op: 'text'; text: string }
+    | { op: 'wait'; ms: number }
+    | { op: 'heal_restore' }
+    | { op: 'restore' }
+    | { op: 'common' }
+    | { op: 'bless' }
+    | { op: 'continue' }
+    | { op: 'exit' };
+
+export const COMMON_SCRIPT: ChurchScriptStep[] = [
+    { op: 'text', text: TEXT_FATIGUED },
+    { op: 'wait', ms: WAIT_250_MS },
+    { op: 'text', text: TEXT_MAY_GOD },
+    { op: 'bless' },
+    { op: 'continue' },
+    { op: 'exit' },
 ];
 
-function buildChurchScript(hp, maxHp) {
+/** Full-heal path when HP already maxed; heal+restore otherwise (asm parity). */
+export function buildChurchScript(hp: number, maxHp: number): ChurchScriptStep[] {
     if (hp >= maxHp) {
         return [
-            { op: OP.CLEAR },
-            { op: OP.TEXT, text: TEXT_TIRED },
-            { op: OP.RESTORE },
-            { op: OP.COMMON },
+            { op: 'clear' },
+            { op: 'text', text: TEXT_TIRED },
+            { op: 'restore' },
+            { op: 'common' },
         ];
     }
 
     return [
-        { op: OP.CLEAR },
-        { op: OP.TEXT, text: TEXT_WEARY },
-        { op: OP.WAIT, ms: WAIT_250_MS },
-        { op: OP.WAIT, ms: WAIT_250_MS },
-        { op: OP.TEXT, text: TEXT_HOLY },
-        { op: OP.HEAL_RESTORE },
-        { op: OP.COMMON },
+        { op: 'clear' },
+        { op: 'text', text: TEXT_WEARY },
+        { op: 'wait', ms: WAIT_250_MS },
+        { op: 'wait', ms: WAIT_250_MS },
+        { op: 'text', text: TEXT_HOLY },
+        { op: 'heal_restore' },
+        { op: 'common' },
     ];
 }
 
+type BlessPhase = 'idle' | 'playing' | 'done';
+type HealPhase = 'idle' | 'healing';
+
 export class ChurchScene extends IndoorSceneBase {
-    constructor(context) {
+    private churchImages: HTMLImageElement[] = [];
+    private candleImages: HTMLImageElement[] = [];
+
+    private candleFrameIdx = 0;
+    private lastCandleTime = 0;
+
+    private blessPhase: BlessPhase = 'idle';
+    private blessStage = 0;
+    private lastBlessTime = 0;
+
+    private healPhase: HealPhase = 'idle';
+    private lastHealTime = 0;
+
+    private script: ChurchScriptStep[] = [];
+    private scriptIndex = 0;
+    private scriptWaitUntil: number | null = null;
+    private scriptBlockedBy: ChurchOp | null = null;
+    private sceneReady = false;
+
+    private typewriter: TypewriterText | null = null;
+    private dlgBuffer: string[] = [];
+    private _pendingLine: string | null = null;
+    private _dlgQueue: string[] = [];
+    private waitingForContinue = false;
+    private dialogFullAcknowledged = false;
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
-
-        this.churchImages = [];
-        this.candleImages = [];
-
-        this.candleFrameIdx = 0;
-        this.lastCandleTime = 0;
-
-        this.blessPhase = 'idle';
-        this.blessStage = 0;
-        this.lastBlessTime = 0;
-
-        this.healPhase = 'idle';
-        this.lastHealTime = 0;
-
-        this.script = [];
-        this.scriptIndex = 0;
-        this.scriptWaitUntil = null;
-        this.scriptBlockedBy = null;
-        this.sceneReady = false;
-
-        this.typewriter = null;
-        this.dlgBuffer = [];
-        this._pendingLine = null;
-        this._dlgQueue = [];
-        this.waitingForContinue = false;
-        this.dialogFullAcknowledged = false;
 
         this.fadeInMs = 650;
         this.fadeOutMs = 450;
     }
 
-    async onEnter(now) {
-        try {
-            const [churches, candles] = await Promise.all([
-                Promise.all(CHURCH_FRAMES.map(path => this._loadImg(path))),
-                Promise.all(CANDLE_FRAMES.map(path => this._loadImg(path))),
-            ]);
-            this.churchImages = churches;
-            this.candleImages = candles;
-        } catch (error) {
-            console.error('[ChurchScene] image load failed:', error);
-            this.finish();
-            return;
-        }
-
-        this.lastCandleTime = now;
-        this.script = buildChurchScript(this._getHeroHP(), this._getHeroMaxHp());
-        this.scriptIndex = 0;
-        this.sceneReady = true;
+    protected override onEnter(now: number): void {
+        Promise.all([
+            Promise.all(CHURCH_FRAMES.map(path => this._loadImg(path))),
+            Promise.all(CANDLE_FRAMES.map(path => this._loadImg(path))),
+        ])
+            .then(([churches, candles]) => {
+                this.churchImages = churches;
+                this.candleImages = candles;
+            })
+            .catch((error: unknown) => {
+                console.error('[ChurchScene] image load failed:', error);
+                this.finish();
+                return;
+            })
+            .then(() => {
+                if (this.sceneReady || this.phase !== 'fadeIn') return;
+                this.lastCandleTime = now;
+                this.script = buildChurchScript(this._getHeroHP(), this._getHeroMaxHp());
+                this.scriptIndex = 0;
+                this.sceneReady = true;
+            });
     }
 
-    _loadImg(src) {
+    private _loadImg(src: string): Promise<HTMLImageElement> {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
@@ -179,52 +197,55 @@ export class ChurchScene extends IndoorSceneBase {
         });
     }
 
-    _readWord(addr) {
+    private _readWord(addr: number): number {
         if (!this.readMemory) return 0;
         const bytes = this.readMemory(addr, 2);
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
+        if (!bytes) return 0;
+        return ((bytes[0] ?? 0) & 0xFF) | ((bytes[1] ?? 0) & 0xFF) << 8;
     }
 
-    _writeWord(addr, value) {
+    private _writeWord(addr: number, value: number): void {
         if (!this.writeMemory) return;
         const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, [v & 0xFF, (v >> 8) & 0xFF]);
+        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
     }
 
-    _readByte(addr) {
+    private _readByte(addr: number): number {
         if (!this.readMemory) return 0;
-        return this.readMemory(addr, 1)[0] & 0xFF;
+        return (this.readMemory(addr, 1)?.[0] ?? 0) & 0xFF;
     }
 
-    _getHeroHP() {
+    private _getHeroHP(): number {
         return this._readWord(ADDR_HERO_HP);
     }
 
-    _getHeroMaxHp() {
+    private _getHeroMaxHp(): number {
         return this._readWord(ADDR_HERO_MAX);
     }
 
-    _setHeroHP(value) {
+    private _setHeroHP(value: number): void {
         this._writeWord(ADDR_HERO_HP, value);
         this._refreshLifeHud();
     }
 
-    _restoreSpells() {
+    private _restoreSpells(): void {
         if (!this.readMemory || !this.writeMemory) return;
-        this.writeMemory(ADDR_SPELLS_ACT, this.readMemory(ADDR_SPELLS_INV, 7));
+        const inv = this.readMemory(ADDR_SPELLS_INV, 7);
+        if (!inv) return;
+        this.writeMemory(ADDR_SPELLS_ACT, inv);
         this._refreshMagicHud();
     }
 
-    _refreshMagicHud() {
+    private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
         const activeSpell = this._readByte(ADDR_SPELL_ACT);
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = this._readByte(ADDR_SPELLS_ACT + activeSpell - 1);
-        this.renderMagicHud?.();
+        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACT + activeSpell - 1));
+        this.renderMagicHud();
     }
 
-    _refreshLifeHud() {
+    private _refreshLifeHud(): void {
         if (this.drawLifeBar) {
             this.drawLifeBar();
         } else {
@@ -232,7 +253,7 @@ export class ChurchScene extends IndoorSceneBase {
         }
     }
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickCandleAnim(now);
         this._tickBlessingAnim(now);
         this._tickHealing(now);
@@ -243,7 +264,7 @@ export class ChurchScene extends IndoorSceneBase {
         this._drawDialogBox(now, alpha);
     }
 
-    _drawSceneImage(alpha) {
+    private _drawSceneImage(alpha: number): void {
         const ctx = this.ctx;
 
         ctx.save();
@@ -277,14 +298,14 @@ export class ChurchScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _tickCandleAnim(now) {
+    private _tickCandleAnim(now: number): void {
         if (!this.candleImages.length) return;
         if (now - this.lastCandleTime < ANIM_32_TICK_MS) return;
         this.lastCandleTime = now;
         this.candleFrameIdx = (this.candleFrameIdx + 1) % this.candleImages.length;
     }
 
-    _tickBlessingAnim(now) {
+    private _tickBlessingAnim(now: number): void {
         if (this.blessPhase !== 'playing') return;
         if (now - this.lastBlessTime < ANIM_32_TICK_MS) return;
 
@@ -294,11 +315,11 @@ export class ChurchScene extends IndoorSceneBase {
         if (this.blessStage >= BLESS_STAGE_FRAME.length) {
             this.blessPhase = 'done';
             this.blessStage = BLESS_STAGE_FRAME.length - 1;
-            if (this.scriptBlockedBy === OP.BLESS) this.scriptBlockedBy = null;
+            if (this.scriptBlockedBy === 'bless') this.scriptBlockedBy = null;
         }
     }
 
-    _tickHealing(now) {
+    private _tickHealing(now: number): void {
         if (this.healPhase !== 'healing') return;
         if (now - this.lastHealTime < HEAL_TICK_MS) return;
 
@@ -311,13 +332,13 @@ export class ChurchScene extends IndoorSceneBase {
             this._setHeroHP(maxHp);
             this._restoreSpells();
             this.healPhase = 'idle';
-            if (this.scriptBlockedBy === OP.HEAL_RESTORE) this.scriptBlockedBy = null;
+            if (this.scriptBlockedBy === 'heal_restore') this.scriptBlockedBy = null;
         } else {
             this._setHeroHP(nextHp);
         }
     }
 
-    _tickScript(now) {
+    private _tickScript(now: number): void {
         if (!this.sceneReady || this.phase === 'fadeOut') return;
         if (this.waitingForContinue || this.scriptBlockedBy) return;
         if (!this._dialogIdle(now)) return;
@@ -328,55 +349,60 @@ export class ChurchScene extends IndoorSceneBase {
         }
 
         while (this.scriptIndex < this.script.length) {
-            const step = this.script[this.scriptIndex++];
+            const step = this.script[this.scriptIndex++]!;
 
             switch (step.op) {
-                case OP.CLEAR:
+                case 'clear':
                     this._clearDialog();
                     break;
-                case OP.TEXT:
+                case 'text':
                     this._queueText(step.text);
                     return;
-                case OP.WAIT:
+                case 'wait':
                     this.scriptWaitUntil = now + step.ms;
                     return;
-                case OP.HEAL_RESTORE:
+                case 'heal_restore':
                     this._startHealing(now);
                     return;
-                case OP.RESTORE:
+                case 'restore':
                     this._restoreSpells();
                     break;
-                case OP.COMMON:
+                case 'common':
                     this.script.splice(this.scriptIndex, 0, ...COMMON_SCRIPT);
                     break;
-                case OP.BLESS:
+                case 'bless':
                     this._startBlessing(now);
                     return;
-                case OP.CONTINUE:
+                case 'continue':
                     this.waitingForContinue = true;
                     this.dialogFullAcknowledged = false;
                     return;
-                case OP.EXIT:
+                case 'exit':
                     this.startFadeOut(now);
                     return;
             }
         }
     }
 
-    _startHealing(now) {
-        this.healPhase = 'healing';
-        this.lastHealTime = now;
-        this.scriptBlockedBy = OP.HEAL_RESTORE;
+    /** Exposed for tests: current script-blocking animation op, if any. */
+    get blockedBy(): ChurchOp | null {
+        return this.scriptBlockedBy;
     }
 
-    _startBlessing(now) {
+    private _startHealing(_now: number): void {
+        this.healPhase = 'healing';
+        this.lastHealTime = _now;
+        this.scriptBlockedBy = 'heal_restore';
+    }
+
+    private _startBlessing(now: number): void {
         this.blessPhase = 'playing';
         this.blessStage = 0;
         this.lastBlessTime = now;
-        this.scriptBlockedBy = OP.BLESS;
+        this.scriptBlockedBy = 'bless';
     }
 
-    _dialogIdle(now) {
+    private _dialogIdle(now: number): boolean {
         if (this._dlgQueue.length > 0) return false;
         if (this.typewriter && !this.typewriter.isDone(now)) return false;
         if (this.typewriter && this._pendingLine !== null) {
@@ -387,11 +413,11 @@ export class ChurchScene extends IndoorSceneBase {
         return true;
     }
 
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((DLG_H - 22 - 40) / LINE_H_DLG);
     }
 
-    _clearDialog() {
+    private _clearDialog(): void {
         this.dlgBuffer = [];
         this._pendingLine = null;
         this._dlgQueue = [];
@@ -400,16 +426,16 @@ export class ChurchScene extends IndoorSceneBase {
         this.dialogFullAcknowledged = false;
     }
 
-    _queueText(text) {
+    private _queueText(text: string): void {
         this._dlgQueue.push(...this._wrapText(text));
     }
 
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
         this.ctx.save();
         this.ctx.font = FONT_DLG;
 
         const maxW = DLG_W - 28;
-        const lines = [];
+        const lines: string[] = [];
         for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
@@ -430,7 +456,7 @@ export class ChurchScene extends IndoorSceneBase {
         return lines;
     }
 
-    _startTypewriterLine(line, now) {
+    private _startTypewriterLine(line: string, now: number): void {
         this._pendingLine = line;
         this.typewriter = new TypewriterText(
             line,
@@ -444,7 +470,7 @@ export class ChurchScene extends IndoorSceneBase {
         this.typewriter.start(now);
     }
 
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (this.waitingForContinue) return;
 
         if (this.typewriter) {
@@ -463,10 +489,10 @@ export class ChurchScene extends IndoorSceneBase {
         }
 
         this.dialogFullAcknowledged = false;
-        this._startTypewriterLine(this._dlgQueue.shift(), now);
+        this._startTypewriterLine(this._dlgQueue.shift() as string, now);
     }
 
-    _drawDialogBox(now, alpha) {
+    private _drawDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -494,7 +520,7 @@ export class ChurchScene extends IndoorSceneBase {
         if (this.typewriter && row < this._dlgMaxLines) {
             const vis = this.typewriter.getVisibleLines(now);
             if (vis.length) {
-                ctx.fillText(vis[0], DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
+                ctx.fillText(vis[0]!, DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
             }
         }
 
@@ -505,7 +531,7 @@ export class ChurchScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawContinueArrow(ctx) {
+    private _drawContinueArrow(ctx: CanvasRenderingContext2D): void {
         ctx.fillStyle = '#cc9933';
         const ax = DLG_X + DLG_W / 2 - 12;
         const ay = DLG_Y + DLG_H - 36;
@@ -517,14 +543,14 @@ export class ChurchScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    handleInput(key) {
+    handleInput(key: string): void {
         if (key !== 'Space' || !this.waitingForContinue) return;
 
         this.waitingForContinue = false;
         this.dialogFullAcknowledged = this._dlgQueue.length > 0;
     }
 
-    getName() {
+    getName(): string {
         return 'The Church';
     }
 }

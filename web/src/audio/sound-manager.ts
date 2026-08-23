@@ -407,7 +407,7 @@ export class SoundManager {
         const mem = this._getWasmMem();
         if (!mem) return;
 
-        const req = mem[this._ADDR_SOUND_FX_REQUEST];
+        const req = mem[this._ADDR_SOUND_FX_REQUEST] ?? 0;
         if (req !== 0) {
             mem[this._ADDR_SOUND_FX_REQUEST] = 0; // clear before play to avoid re-trigger
             console.log(`[sound-manager] sfx ${req}`);

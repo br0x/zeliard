@@ -62,7 +62,7 @@ export const BOSS_EXPLOSION_RING_DATA: readonly Uint8Array[] = (() => {
     return raw.map((words) => {
         const px = new Uint8Array(256);
         for (let i = 0; i < 32; i++) {
-            let w = words[i];
+            let w = words[i]!;
             for (let j = 0; j < 8; j++) {
                 px[i * 8 + j] = (w >> 14) & 3;
                 w <<= 2;
@@ -117,8 +117,8 @@ export function getExplosionRingCanvas(
     const img = cx.createImageData(size, size);
     const d = img.data;
 
-    const colors = BOSS_EXPLOSION_COLORS[variant];
-    const pixels = BOSS_EXPLOSION_RING_DATA[phase]; // 256 values
+    const colors = BOSS_EXPLOSION_COLORS[variant]!;
+    const pixels = BOSS_EXPLOSION_RING_DATA[phase]!; // 256 values
 
     for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) {

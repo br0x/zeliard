@@ -241,10 +241,10 @@ export function drawDungeonTiles(): boolean {
         const proxRow = (top + row) & 0x3f;
         for (let col = 0; col < VIEW_COLS; col++) {
             const proxCol = col + DUNGEON_VIEW_LEFT_IN_PROX;
-            let tileId = proxMap[proxRow * PROX_COLS + proxCol];
+            let tileId = proxMap[proxRow * PROX_COLS + proxCol] ?? 0;
             // Entity markers temporarily replace the real map tile. The
             // original compositor restores that background from layer 2.
-            if (tileId & 0x80) tileId = layer2[tileId & 0x7f];
+            if (tileId & 0x80) tileId = layer2[tileId & 0x7f] ?? 0;
             if (tileId === 0) continue;
             drawStaticTile(tileId, col, row);
         }
@@ -288,7 +288,7 @@ export function animateDungeonTiles(): void {
         );
         for (let col = 0; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
             const idx = si - ADDR_PROXIMITY_MAP;
-            const nextTile = nextAnimatedTile(proxMap[idx], { cavernLevel, oddTick });
+            const nextTile = nextAnimatedTile(proxMap[idx]!, { cavernLevel, oddTick });
             if (nextTile === null) continue;
             proxMap[idx] = nextTile;
         }
@@ -389,7 +389,7 @@ export function drawDungeonProjectiles(): void {
         if (typeId >= assets.projectiles.length) { p += PROJECTILE_STRUCT_SIZE; continue; }
         const tiles = assets.projectiles[typeId];
         if (!tiles || tiles.length === 0) { p += PROJECTILE_STRUCT_SIZE; continue; }
-        const tileId = tiles[stepCount % tiles.length];
+        const tileId = tiles[stepCount % tiles.length] ?? 0;
         drawSheetFrame(env.ctx, assets.tileSheet, tileId - 1, TILE_SIZE, TILE_SIZE, cols,
             vpX * TILE_SIZE, vpY * TILE_SIZE);
         p += PROJECTILE_STRUCT_SIZE;
@@ -503,7 +503,7 @@ export function drawGuerraOverlay(): void {
         const img = env.ctx.getImageData(0, 0, viewW, viewH);
         const d = img.data;
         for (let i = 0; i < d.length; i += 4) {
-            d[i] ^= 0xff;   // XOR the viewport content with red
+            d[i] = (d[i] ?? 0) ^ 0xff;   // XOR the viewport content with red
         }
         env.ctx.putImageData(img, 0, 0);
     }
@@ -541,7 +541,7 @@ async function renderGuerraEffect(): Promise<void> {
         { color: 'rgb(0,0,0)', rounds: 3 },       // black: clear the rings above
     ]) {
         for (let round = 0; round < pass.rounds; round++) {
-            const start = offsets[round] * TILE_SIZE;
+            const start = (offsets[round] ?? 0) * TILE_SIZE;
             for (let i = 0; i < 9; i++) {
                 const r = start + i * grow;
                 const left = Math.max(0, heroX - r);
@@ -621,12 +621,12 @@ export function drawDungeonEntities(): void {
         // Batch-read the 16-byte monster entry (bytes 4/5/6 hold flags/dir/frame)
         // instead of four separate single-byte lookups.
         const entry = env.readMemory(ptr, 16)!;
-        const dir = entry[5] & 0x80 ? 'right' : 'left';
-        const flags = entry[4] & 0x1f;
-        const offset = entry[6] & 0x0f;
+        const dir = (entry[5] ?? 0) & 0x80 ? 'right' : 'left';
+        const flags = (entry[4] ?? 0) & 0x1f;
+        const offset = (entry[6] ?? 0) & 0x0f;
 
         currentEntityFlashFrames = entityHitFlashTimers.get(id) || 0;
-        if ((flags & 0x18) === 0 && (entry[5] & 0x20)) {
+        if ((flags & 0x18) === 0 && ((entry[5] ?? 0) & 0x20)) {
             currentEntityFlashFrames = 6;
             entityHitFlashTimers.set(id, 6);
         }
@@ -700,7 +700,7 @@ export function drawDungeonEntities(): void {
     for (let row = -1; row < VIEW_ROWS; row++) {
         let si = wrapProximityAddress(viewportLeftTop + row * PROX_COLS + 3);
         for (let col = -1; col < VIEW_COLS; col++, si = wrapProximityAddress(si + 1)) {
-            const entityId = proxMap[si - ADDR_PROXIMITY_MAP];
+            const entityId = proxMap[si - ADDR_PROXIMITY_MAP] ?? 0;
             if (!(entityId & 0x80)) continue;
 
             drawEntity(getSheetFrame(entityId), col, row);
@@ -831,8 +831,8 @@ export function drawDungeonSword(): void {
             : (facingLeft ? 3 : 1);   // overhead
         const offsets = SWORD_OVERLAY_OFFSETS[offsetKey];
         const i = displayPhase * 2;
-        yOff = offsets[i];
-        xOff = offsets[i + 1];
+        yOff = offsets[i] ?? 0;
+        xOff = offsets[i + 1] ?? 0;
     }
     dx += xOff * TILE_SIZE;
     dy += yOff * TILE_SIZE;

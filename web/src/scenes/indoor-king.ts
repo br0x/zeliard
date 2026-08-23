@@ -1,6 +1,14 @@
-import { IndoorSceneBase } from '../core/indoor-scene-base.js';
+/**
+ * indoor-king.ts — the King of Felishika's audience chamber.
+ *
+ * Entry animation → paged typewriter dialog (script chosen from g_mem
+ * progress flags) → optional animated gold gift on the first audience.
+ */
 
-const KING_IMAGE_PATHS = [
+import { IndoorSceneBase } from '../core/indoor-scene-base.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+
+const KING_IMAGE_PATHS: Array<string | null> = [
     null,
     'assets/images/king/king1.png',
     'assets/images/king/king2.png',
@@ -28,17 +36,19 @@ const KING_DIALOG_W = VIEW_WIDTH - KING_DIALOG_X * 2;
 const KING_DIALOG_H = 18 * 24 - KING_DIALOG_Y - 14;
 const KING_DIALOG_TEXT_X = KING_DIALOG_X + 18;
 const KING_DIALOG_TEXT_Y = KING_DIALOG_Y + 12;
-const KING_DIALOG_LINE_HEIGHT = 23;
+export const KING_DIALOG_LINE_HEIGHT = 23;
 const KING_DIALOG_FONT = '14px "Press Start 2P", monospace';
-const KING_DIALOG_MAX_LINES = 4;
+export const KING_DIALOG_MAX_LINES = 4;
 
 const KING_GOLD_GIFT_STEPS = 10;
 const KING_GOLD_GIFT_PER_STEP = 100;
 
 const KING_GOLD_GIFT_SFX = 67;
-const KING_GOLD_GIFT_LINE = 'I hereby bestow upon you 1000 Golds.';
+export const KING_GOLD_GIFT_LINE = 'I hereby bestow upon you 1000 Golds.';
 
-const KING_DIALOG_SCRIPTS = {
+export type KingDialogKey = 'firstAudience' | 'reminder' | 'afterCavern' | 'victory';
+
+export const KING_DIALOG_SCRIPTS: Record<KingDialogKey, string[]> = {
     firstAudience: [
         'Brave Duke Garland, you\'ll need money for your journey.',
         KING_GOLD_GIFT_LINE,
@@ -64,25 +74,30 @@ const KING_DIALOG_SCRIPTS = {
     ],
 };
 
-function selectKingDialogKey(readMemory) {
-    const ADDR_SPOKE_TO_KING = 0x05;
-    const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-    const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
+// g_mem progress flags consulted when choosing the audience script
+const ADDR_SPOKE_TO_KING = 0x05;
+const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
+const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
+
+type MemoryReader = (offset: number, length: number) => Uint8Array | null;
+
+/** Pick the dialog script from the hero's progress flags. */
+export function selectKingDialogKey(readMemory: MemoryReader | null): KingDialogKey {
     if (!readMemory) return 'firstAudience';
-    const spoke = readMemory(ADDR_SPOKE_TO_KING, 1)[0] !== 0;
-    const entered = readMemory(ADDR_ENTERED_CAVERN_FIRST_TIME, 1)[0] !== 0;
-    const death = readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1)[0] !== 0;
+    const spoke = readMemory(ADDR_SPOKE_TO_KING, 1)?.[0] !== 0;
+    const entered = readMemory(ADDR_ENTERED_CAVERN_FIRST_TIME, 1)?.[0] !== 0;
+    const death = readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1)?.[0] !== 0;
     if (!spoke && !entered) return 'firstAudience';
     if (!entered) return 'reminder';
     if (!death) return 'afterCavern';
     return 'victory';
 }
 
-function wrapText(ctx, text, maxWidth) {
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
     ctx.save();
     ctx.font = KING_DIALOG_FONT;
     const words = text.split(/\s+/);
-    const lines = [];
+    const lines: string[] = [];
     let line = '';
     for (const word of words) {
         const candidate = line ? line + ' ' + word : word;
@@ -98,11 +113,17 @@ function wrapText(ctx, text, maxWidth) {
     return lines;
 }
 
-function buildDialogPages(ctx, dialogKey) {
-    const paragraphs = KING_DIALOG_SCRIPTS[dialogKey] || KING_DIALOG_SCRIPTS.firstAudience;
-    const pages = [];
+export interface KingDialogPages {
+    pages: string[][];
+    goldAwardPage: number;
+}
+
+/** Wrap the chosen script into ≤4-line dialog pages; marks the gold-gift page. */
+export function buildDialogPages(ctx: CanvasRenderingContext2D, dialogKey: string): KingDialogPages {
+    const paragraphs = KING_DIALOG_SCRIPTS[dialogKey as KingDialogKey] ?? KING_DIALOG_SCRIPTS.firstAudience;
+    const pages: string[][] = [];
     let goldAwardPage = -1;
-    let cur = [];
+    let cur: string[] = [];
 
     for (const para of paragraphs) {
         const wrapped = wrapText(ctx, para, KING_DIALOG_W - 36);
@@ -125,57 +146,65 @@ function buildDialogPages(ctx, dialogKey) {
     return { pages: pages.length ? pages : [['...']], goldAwardPage };
 }
 
+interface KingState {
+    images: Array<HTMLImageElement | null>;
+    dialogKey: KingDialogKey;
+    pages: string[][];
+    goldAwardPage: number;
+    page: number;
+    pageStart: number;
+    goldAward: { stepsDone: number; nextStepAt: number } | null;
+}
+
 export class KingScene extends IndoorSceneBase {
-    constructor(context) {
+    private king: KingState | null = null;
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
-        this.kingImages = [];
-        this.king = null;
         this.fadeInMs = 650;
         this.fadeOutMs = KING_FADE_OUT_MS;
-        // renderGoldHud callback is now available from the context
-        this.renderGoldHud = context.renderGoldHud;
     }
 
-    async onEnter(now) {
-        try {
-            this.kingImages = await this._loadKingImages();
-        } catch (e) {
-            console.error('[King] failed to load images:', e);
-            this.finish();
-            return;
-        }
+    protected override onEnter(now: number): void {
+        this._loadKingImages()
+            .then(images => {
 
-        const dialogKey = selectKingDialogKey(this.readMemory);
-        const { pages, goldAwardPage } = buildDialogPages(this.ctx, dialogKey);
-        this.king = {
-            images: this.kingImages,
-            dialogKey,
-            pages,
-            goldAwardPage,
-            page: 0,
-            pageStart: now,
-            goldAward: null,
-        };
+                const dialogKey = selectKingDialogKey(this.readMemory);
+                const { pages, goldAwardPage } = buildDialogPages(this.ctx, dialogKey);
+                this.king = {
+                    images,
+                    dialogKey,
+                    pages,
+                    goldAwardPage,
+                    page: 0,
+                    pageStart: now,
+                    goldAward: null,
+                };
 
-        this.alpha = 1;
-        this.phase = 'kingEntering';
-        this.startTime = now;
+                this.alpha = 1;
+                this.phase = 'kingEntering';
+                this.startTime = now;
+            })
+            .catch(e => {
+                console.error('[King] failed to load images:', e);
+                this.finish();
+            });
     }
 
-    _loadKingImages() {
-        return Promise.all(KING_IMAGE_PATHS.map((path, i) => {
+    private _loadKingImages(): Promise<Array<HTMLImageElement | null>> {
+        return Promise.all(KING_IMAGE_PATHS.map((path) => {
             if (!path) return Promise.resolve(null);
-            return new Promise((resolve, reject) => {
+            return new Promise<HTMLImageElement>((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => resolve(img);
                 img.onerror = () => reject(new Error(`Failed to load ${path}`));
                 img.src = path;
-            }).then(img => { this.kingImages[i] = img; return img; });
+            });
         }));
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         if (!this.king) return;
         const king = this.king;
         const ctx = this.ctx;
@@ -185,7 +214,7 @@ export class KingScene extends IndoorSceneBase {
             return;
         }
 
-        const imgIndex = this.phase === 'kingFadeOut' ? 8 : this._getSpeechImageIndex(now);
+        const imgIndex = this.phase === 'fadeOut' ? 8 : this._getSpeechImageIndex(now);
         if (king.images[imgIndex]) {
             ctx.drawImage(king.images[imgIndex], KING_IMAGE_X, 0, KING_IMAGE_W, KING_IMAGE_H);
         }
@@ -197,24 +226,25 @@ export class KingScene extends IndoorSceneBase {
         }
     }
 
-    _drawKingEntryAnimation(now) {
+    private _drawKingEntryAnimation(now: number): void {
         const elapsed = now - this.startTime;
         const frame = Math.min(KING_ENTRY_SEQUENCE.length - 1, Math.floor(elapsed / KING_ENTRY_FRAME_MS));
-        const imgIdx = KING_ENTRY_SEQUENCE[frame];
-        if (this.king.images[imgIdx]) {
+        const imgIdx = KING_ENTRY_SEQUENCE[frame]!;
+        if (this.king && this.king.images[imgIdx]) {
             this.ctx.drawImage(this.king.images[imgIdx], KING_IMAGE_X, 0, KING_IMAGE_W, KING_IMAGE_H);
         }
         if (frame === KING_ENTRY_SEQUENCE.length - 1 && elapsed >= KING_ENTRY_SEQUENCE.length * KING_ENTRY_FRAME_MS) {
             this.phase = 'kingDialog';
             this.startTime = now;
-            this.king.pageStart = now;
+            if (this.king) this.king.pageStart = now;
         }
     }
 
-    _drawKingDialogBox(now, alpha) {
+    private _drawKingDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
+        if (!this.king) return;
         const king = this.king;
-        const pageLines = king.pages[king.page] || [];
+        const pageLines = king.pages[king.page] ?? [];
         const visibleChars = this._getVisibleCharCount(now);
         const visibleLines = this._getVisibleLines(pageLines, visibleChars);
 
@@ -233,7 +263,7 @@ export class KingScene extends IndoorSceneBase {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         for (let i = 0; i < visibleLines.length; i++) {
-            ctx.fillText(visibleLines[i], KING_DIALOG_TEXT_X, KING_DIALOG_TEXT_Y + i * KING_DIALOG_LINE_HEIGHT);
+            ctx.fillText(visibleLines[i]!, KING_DIALOG_TEXT_X, KING_DIALOG_TEXT_Y + i * KING_DIALOG_LINE_HEIGHT);
         }
 
         const totalChars = pageLines.join('').length;
@@ -251,9 +281,9 @@ export class KingScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _getSpeechImageIndex(now) {
-        if (this.phase !== 'kingDialog') return 8;
-        const pageLines = this.king.pages[this.king.page] || [];
+    private _getSpeechImageIndex(now: number): number {
+        if (this.phase !== 'kingDialog' || !this.king) return 8;
+        const pageLines = this.king.pages[this.king.page] ?? [];
         const visibleChars = this._getVisibleCharCount(now);
         const totalChars = pageLines.join('').length;
         const typing = visibleChars < totalChars;
@@ -261,7 +291,7 @@ export class KingScene extends IndoorSceneBase {
         let currentChar = '';
         if (totalChars > 0 && visibleChars > 0) {
             const charIndex = Math.max(0, Math.min(visibleChars - 1, totalChars - 1));
-            currentChar = pageLines.join('')[charIndex] || '';
+            currentChar = pageLines.join('')[charIndex] ?? '';
         }
 
         const mouthOpen = typing && currentChar.trim() !== '' && Math.floor(now / 95) % 2 === 0;
@@ -273,18 +303,19 @@ export class KingScene extends IndoorSceneBase {
     }
 
     // ── Typewriter helpers ────────────────────────────────────────────────────
-    _getPageCharCount(pageLines) {
+    private _getPageCharCount(pageLines: string[]): number {
         return pageLines.join('').length;
     }
 
-    _getVisibleCharCount(now) {
-        const pageLines = this.king.pages[this.king.page] || [];
+    private _getVisibleCharCount(now: number): number {
+        if (!this.king) return 0;
+        const pageLines = this.king.pages[this.king.page] ?? [];
         const pageCharCount = this._getPageCharCount(pageLines);
         return Math.min(pageCharCount, Math.floor((now - this.king.pageStart) / KING_DIALOG_CHAR_MS));
     }
 
-    _getVisibleLines(pageLines, visibleChars) {
-        const lines = [];
+    private _getVisibleLines(pageLines: string[], visibleChars: number): string[] {
+        const lines: string[] = [];
         let remaining = visibleChars;
         for (const line of pageLines) {
             if (remaining <= 0) break;
@@ -295,16 +326,17 @@ export class KingScene extends IndoorSceneBase {
     }
 
     // ── Input handling ────────────────────────────────────────────────────────
-    handleInput(key) {
+    handleInput(key: string): void {
         if (key !== 'Space') return;
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
+        if (!this.king) return;
 
         if (this.phase === 'kingDialog' || this.phase === 'kingGoldAward') {
             // Do nothing if gold animation is running (it plays automatically)
             if (this.king.goldAward) return;
 
-            const pageLines = this.king.pages[this.king.page] || [];
+            const pageLines = this.king.pages[this.king.page] ?? [];
             const visibleChars = this._getVisibleCharCount(now);
             const totalChars = this._getPageCharCount(pageLines);
 
@@ -319,8 +351,9 @@ export class KingScene extends IndoorSceneBase {
         }
     }
 
-    _advanceDialog(now) {
+    private _advanceDialog(now: number): void {
         const king = this.king;
+        if (!king) return;
 
         // Gold award not yet started on the gold-award page? Start it.
         if (king.dialogKey === 'firstAudience' && king.page === king.goldAwardPage && !king.goldAward) {
@@ -342,34 +375,35 @@ export class KingScene extends IndoorSceneBase {
     }
 
     // ── Gold award ────────────────────────────────────────────────────────────
-    _startGoldAward(now) {
+    private _startGoldAward(now: number): void {
         if (!this.readMemory) return;
         // Already gave gold?
-        if (this.readMemory(0x05, 1)[0] !== 0) return;
+        if (this.readMemory(0x05, 1)?.[0] !== 0) return;
 
+        if (!this.king) return;
         this.king.goldAward = { stepsDone: 0, nextStepAt: now + 100 };
         this.phase = 'kingGoldAward';
         this.startTime = now;
         this._applyGoldStep(now);
     }
 
-    _applyGoldStep(now) {
-        const g = this.king.goldAward;
+    private _applyGoldStep(now: number): void {
+        const g = this.king?.goldAward;
         if (!g) return;
 
         const next = this._getHeroGold() + KING_GOLD_GIFT_PER_STEP;
         this._setHeroGold(next);
 
         // Update the HUD so the gold counter visibly increases
-        if (this.renderGoldHud) this.renderGoldHud();
+        this.renderGoldHud();
 
-        this.writeMemory?.(0xFF75, [KING_GOLD_GIFT_SFX]); // ADDR_SOUND_FX_REQUEST
+        this.writeMemory?.(0xFF75, Uint8Array.of(KING_GOLD_GIFT_SFX)); // ADDR_SOUND_FX_REQUEST
         g.stepsDone++;
         g.nextStepAt = now + 100;
     }
 
-    _updateGoldAward(now) {
-        if (!this.king.goldAward || !this.writeMemory) return;
+    private _updateGoldAward(now: number): void {
+        if (!this.king?.goldAward || !this.writeMemory) return;
 
         if (now < this.king.goldAward.nextStepAt) return;
 
@@ -377,7 +411,7 @@ export class KingScene extends IndoorSceneBase {
             this._applyGoldStep(now);
         } else {
             // Animation complete
-            this.writeMemory(0x05, [0xFF]); // spoke_to_king
+            this.writeMemory(0x05, Uint8Array.of(0xFF)); // spoke_to_king
             this.king.goldAward = null;
             // Advance to next page (or fade out)
             if (this.king.page < this.king.pages.length - 1) {
@@ -390,21 +424,22 @@ export class KingScene extends IndoorSceneBase {
         }
     }
 
-    _getHeroGold() {
+    private _getHeroGold(): number {
         if (!this.readMemory) return 0;
         const lo = this.readMemory(0x86, 2);
-        const hi = this.readMemory(0x85, 1)[0];
-        return (lo[0] | (lo[1] << 8)) + hi * 0x10000;
+        const hi = this.readMemory(0x85, 1);
+        if (!lo || !hi) return 0;
+        return ((lo[0] ?? 0) | (lo[1] ?? 0) << 8) + (hi[0] ?? 0) * 0x10000;
     }
 
-    _setHeroGold(value) {
+    private _setHeroGold(value: number): void {
         if (!this.writeMemory) return;
         const clamped = Math.max(0, Math.min(0xFFFFFF, value));
-        this.writeMemory(0x86, [clamped & 0xFF, (clamped >> 8) & 0xFF]);
-        this.writeMemory(0x85, [(clamped >> 16) & 0xFF]);
+        this.writeMemory(0x86, Uint8Array.of(clamped & 0xFF, (clamped >> 8) & 0xFF));
+        this.writeMemory(0x85, Uint8Array.of((clamped >> 16) & 0xFF));
     }
 
-    getName() {
+    getName(): string {
         return 'King of Felishika';
     }
 }

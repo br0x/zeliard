@@ -175,7 +175,7 @@ export class RokaDemo {
         this.isRed = tearCount >= 9;
         this.slot = tearCount >= 9
             ? TEAR_SLOT_RED
-            : TEAR_SLOTS_BLUE[tearCount - 1];
+            : TEAR_SLOTS_BLUE[tearCount - 1]!;
         this.swordType = Math.max(1, Math.min(6, rawSwordType || 1));
         this.animPhase = 0;
         this.tearVisible = true;

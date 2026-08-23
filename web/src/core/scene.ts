@@ -36,8 +36,17 @@ export interface Scene {
 
 /**
  * Fade phases shared by scenes with the classic fade-in/fade-out behavior.
+ * The king* states are the KingScene's audience sub-phases (entry animation,
+ * dialog paging, gold-award animation) layered between fadeIn and fadeOut.
  */
-export type FadePhase = 'idle' | 'fadeIn' | 'shown' | 'fadeOut';
+export type FadePhase =
+    | 'idle'
+    | 'fadeIn'
+    | 'shown'
+    | 'fadeOut'
+    | 'kingEntering'
+    | 'kingDialog'
+    | 'kingGoldAward';
 
 /** Dependencies injected into indoor building scenes by game.js. */
 export interface IndoorSceneDependencies {
@@ -50,7 +59,7 @@ export interface IndoorSceneDependencies {
     renderGoldHud: () => void;
     renderAlmasHud: () => void;
     drawLifeBar: () => void;
-    setLife: (value: number) => void;
+    setLife: (value: number, maxHp?: number) => void;
     renderSwordHud: () => void;
     renderMagicHud: () => void;
     renderShieldHud: () => void;

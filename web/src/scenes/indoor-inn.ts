@@ -1,5 +1,8 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText } from '../ui/menu-dialog.js';
+
+export const INN_PRICES = [0, 30, 50, 70, 100, 150, 200, 400] as const;
 
 const PANEL_W = 672;
 const PANEL_H = 432;
@@ -44,7 +47,6 @@ const ADDR_SPELL_ACT = 0x9D; // current_magic_spell
 const ADDR_SPELLS_ACT = 0xAB; // spells_espada
 const ADDR_SPELLS_INV = 0xB4; // espada_count
 
-const PRICES = [0, 30, 50, 70, 100, 150, 200, 400];
 
 const INN1_MS = 250;
 const INN2_MS = 5000;
@@ -72,7 +74,25 @@ const TEXT_MORNING =
     "I trust you had a good night's sleep. We'll be looking forward to seeing you again.";
 
 export class InnScene extends IndoorSceneBase {
-    constructor(context) {
+    private innImages: HTMLImageElement[];
+    private animFrameIdx: number;
+    private lastAnimTime: number;
+    /** loading → greeting → menu → paid/dialog/leave/morning */
+    private scenePhase: 'loading' | 'greeting' | 'menu' | 'paid' | 'dialog' | 'leave' | 'morning';
+    private menuSel: number;
+    private townIdx: number;
+    private price: number;
+    private typewriter: TypewriterText | null;
+    private dlgBuffer: string[];
+    private _pendingLine: string | null;
+    private _dlgQueue: string[];
+    private waitingForContinue: boolean;
+    private dialogFullAcknowledged: boolean;
+    private sleepPhase: 'fade' | 'heal' | null;
+    private sleepStartTime: number;
+    private sleepAlpha: number;
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
 
         this.innImages = [];
@@ -99,32 +119,35 @@ export class InnScene extends IndoorSceneBase {
         this.fadeOutMs = 450;
     }
 
-    async onEnter(now) {
-        try {
-            const images = await Promise.all([
-                this._loadImg('assets/images/inn/inn1.png'),
-                this._loadImg('assets/images/inn/inn2.png'),
-            ]);
-            this.innImages = images;
-        } catch (error) {
-            console.error('[InnScene] image load failed:', error);
-            this.finish();
-            return;
-        }
+    protected override onEnter(now: number): void {
+        Promise.all([
+            this._loadImg('assets/images/inn/inn1.png'),
+            this._loadImg('assets/images/inn/inn2.png'),
+        ])
+            .then(images => {
+                this.innImages = images;
+            })
+            .catch((error: unknown) => {
+                console.error('[InnScene] image load failed:', error);
+                this.finish();
+                return;
+            })
+            .then(() => {
+                if (this.phase !== 'fadeIn') return; // load failed
+                this.lastAnimTime = performance.now();
+                this.townIdx = this._getTownIdx();
+                this.price = INN_PRICES[Math.min(this.townIdx, INN_PRICES.length - 1)] ?? 0;
 
-        this.lastAnimTime = performance.now();
-        this.townIdx = this._getTownIdx();
-        this.price = PRICES[Math.min(this.townIdx, PRICES.length - 1)];
+                const priceStr = this.price > 0 ? `${this.price} ` : '';
+                this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
+                this.scenePhase = 'greeting';
 
-        const priceStr = this.price > 0 ? `${this.price} ` : '';
-        this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
-        this.scenePhase = 'greeting';
-
-        this.phase = 'shown';
-        this.alpha = 1;
+                this.phase = 'shown';
+                this.alpha = 1;
+            });
     }
 
-    _loadImg(src) {
+    private _loadImg(src: string): Promise<HTMLImageElement> {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
@@ -133,72 +156,75 @@ export class InnScene extends IndoorSceneBase {
         });
     }
 
-    _readWord(addr) {
+    private _readWord(addr: number): number {
         if (!this.readMemory) return 0;
         const bytes = this.readMemory(addr, 2);
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
+        if (!bytes) return 0;
+        return ((bytes[0] ?? 0) & 0xFF) | ((bytes[1] ?? 0) & 0xFF) << 8;
     }
 
-    _writeWord(addr, value) {
+    private _writeWord(addr: number, value: number): void {
         if (!this.writeMemory) return;
         const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, [v & 0xFF, (v >> 8) & 0xFF]);
+        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
     }
 
-    _readByte(addr) {
+    private _readByte(addr: number): number {
         if (!this.readMemory) return 0;
-        return this.readMemory(addr, 1)[0] & 0xFF;
+        return (this.readMemory(addr, 1)?.[0] ?? 0) & 0xFF;
     }
 
-    _getTownIdx() {
+    private _getTownIdx(): number {
         const raw = this._readByte(ADDR_TOWN_ID);
         const idx = (raw & 0x7F) - 1;
         return Math.max(0, Math.min(7, idx));
     }
 
-    _getGold() {
+    private _getGold(): number {
         const hi = this._readByte(ADDR_GOLD_HI);
         const lo = this._readWord(ADDR_GOLD_LO);
-        return (hi * 0x10000) + lo;
+        return hi * 0x10000 + lo;
     }
 
-    _setGold(amount) {
+    private _setGold(amount: number): void {
         const v = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this.writeMemory(ADDR_GOLD_HI, [hi]);
-        this.writeMemory(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this.writeMemory?.(ADDR_GOLD_HI, Uint8Array.of(hi));
+        this.writeMemory?.(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
     }
 
-    _getHeroHP() {
+    private _getHeroHP(): number {
         return this._readWord(ADDR_HERO_HP);
     }
 
-    _getHeroMaxHp() {
+    private _getHeroMaxHp(): number {
         return this._readWord(ADDR_HERO_MAX);
     }
 
-    _setHeroHP(value) {
+    private _setHeroHP(value: number): void {
         this._writeWord(ADDR_HERO_HP, value);
         this._refreshLifeHud();
     }
 
-    _restoreSpells() {
+    private _restoreSpells(): void {
         if (!this.readMemory || !this.writeMemory) return;
-        this.writeMemory(ADDR_SPELLS_ACT, this.readMemory(ADDR_SPELLS_INV, 7));
+        const inv = this.readMemory(ADDR_SPELLS_INV, 7);
+        if (!inv) return;
+        this.writeMemory(ADDR_SPELLS_ACT, inv);
         this._refreshMagicHud();
     }
 
-    _refreshMagicHud() {
+    private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
         const activeSpell = this._readByte(ADDR_SPELL_ACT);
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = this._readByte(ADDR_SPELLS_ACT + activeSpell - 1);
-        this.renderMagicHud?.();
+        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACT + activeSpell - 1));
+        this.renderMagicHud();
     }
 
-    _refreshLifeHud() {
+    private _refreshLifeHud(): void {
         if (this.drawLifeBar) {
             this.drawLifeBar();
         } else {
@@ -206,7 +232,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickAnim(now);
         this._tickSleep(now);
         this._tickDlgQueue(now);
@@ -230,7 +256,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _tickAnim(now) {
+    private _tickAnim(now: number): void {
         if (!this.innImages.length) return;
         const duration = this.animFrameIdx === 0 ? INN1_MS : INN2_MS;
         if (now - this.lastAnimTime < duration) return;
@@ -238,7 +264,7 @@ export class InnScene extends IndoorSceneBase {
         this.animFrameIdx = (this.animFrameIdx + 1) % 2;
     }
 
-    _tickSleep(now) {
+    private _tickSleep(now: number): void {
         if (!this.sleepPhase) return;
 
         if (this.sleepPhase === 'fade') {
@@ -259,13 +285,13 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _healHero() {
+    private _healHero(): void {
         const maxHp = this._getHeroMaxHp();
         this._setHeroHP(maxHp);
         this._restoreSpells();
     }
 
-    _drawSceneImage() {
+    private _drawSceneImage(): void {
         const ctx = this.ctx;
 
         ctx.strokeStyle = '#443322';
@@ -286,7 +312,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _drawMenu() {
+    private _drawMenu(): void {
         const ctx = this.ctx;
 
         ctx.save();
@@ -306,7 +332,7 @@ export class InnScene extends IndoorSceneBase {
             const sel = i === this.menuSel;
 
             ctx.fillStyle = sel ? '#ddbb88' : '#998866';
-            ctx.fillText(MENU_ITEMS[i], MENU_TEXT_X, y);
+            ctx.fillText(MENU_ITEMS[i]!, MENU_TEXT_X, y);
 
             if (sel) {
                 ctx.fillStyle = '#cc9933';
@@ -322,7 +348,7 @@ export class InnScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawDialogBox(now) {
+    private _drawDialogBox(now: number): void {
         const ctx = this.ctx;
         ctx.save();
 
@@ -349,7 +375,7 @@ export class InnScene extends IndoorSceneBase {
         if (this.typewriter && row < this._dlgMaxLines) {
             const vis = this.typewriter.getVisibleLines(now);
             if (vis.length) {
-                ctx.fillText(vis[0], DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
+                ctx.fillText(vis[0]!, DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
             }
         }
 
@@ -360,7 +386,7 @@ export class InnScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawContinueArrow(ctx) {
+    private _drawContinueArrow(ctx: CanvasRenderingContext2D): void {
         ctx.fillStyle = '#cc9933';
         const ax = DLG_X + DLG_W / 2 - 12;
         const ay = DLG_Y + DLG_H - 26;
@@ -372,11 +398,11 @@ export class InnScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((DLG_H - 16 - 20) / LINE_H_DLG);
     }
 
-    _clearDialog() {
+    private _clearDialog(): void {
         this.dlgBuffer = [];
         this._pendingLine = null;
         this._dlgQueue = [];
@@ -385,16 +411,16 @@ export class InnScene extends IndoorSceneBase {
         this.dialogFullAcknowledged = false;
     }
 
-    _setDialog(text) {
+    private _setDialog(text: string): void {
         this._clearDialog();
         this._dlgQueue.push(...this._wrapText(text));
     }
 
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
+        const lines: string[] = [];
         this.ctx.save();
         this.ctx.font = FONT_DLG;
         const maxW = DLG_W - 28;
-        const lines = [];
         for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
@@ -413,7 +439,7 @@ export class InnScene extends IndoorSceneBase {
         return lines;
     }
 
-    _startTypewriterLine(line, now) {
+    private _startTypewriterLine(line: string, now: number): void {
         this._pendingLine = line;
         this.typewriter = new TypewriterText(
             line,
@@ -427,7 +453,7 @@ export class InnScene extends IndoorSceneBase {
         this.typewriter.start(now);
     }
 
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (this.waitingForContinue) return;
 
         if (this.typewriter) {
@@ -446,14 +472,14 @@ export class InnScene extends IndoorSceneBase {
         }
 
         this.dialogFullAcknowledged = false;
-        this._startTypewriterLine(this._dlgQueue.shift(), now);
+        this._startTypewriterLine(this._dlgQueue.shift() as string, now);
     }
 
-    _isTypewriterDone(now) {
+    private _isTypewriterDone(now: number): boolean {
         return !this.typewriter || this.typewriter.isDone(now);
     }
 
-    handleInput(key) {
+    override handleInput(key: string): void {
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
         if (this.sleepPhase) return;
@@ -486,7 +512,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _handleConfirm(now) {
+    private _handleConfirm(now: number): void {
         switch (this.scenePhase) {
             case 'greeting':
                 if (!this._isTypewriterDone(now)) return;
@@ -512,7 +538,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _activateMenuItem(idx, now) {
+    private _activateMenuItem(idx: number, now: number): void {
         switch (idx) {
             case MENU_STAY:
                 this._handleStay(now);
@@ -523,7 +549,7 @@ export class InnScene extends IndoorSceneBase {
         }
     }
 
-    _handleStay(now) {
+    private _handleStay(_now: number): void {
         const gold = this._getGold();
 
         if (gold < this.price) {
@@ -539,19 +565,19 @@ export class InnScene extends IndoorSceneBase {
         this.scenePhase = 'paid';
     }
 
-    _handleLeave(now) {
+    private _handleLeave(_now: number): void {
         this._setDialog(TEXT_LEAVE);
         this.scenePhase = 'leave';
     }
 
-    _startSleep() {
+    private _startSleep(): void {
         this._clearDialog();
         this.sleepPhase = 'fade';
         this.sleepStartTime = performance.now();
         this.sleepAlpha = 0;
     }
 
-    getName() {
+    getName(): string {
         return 'The Inn';
     }
 }

@@ -14,7 +14,6 @@ import {
     ADDR_BOSS_STATE_PTR,
     ADDR_MDT,
     ADDR_TRAJECTORIES,
-    INPUT_FLAGS,
     MEM_SAVE_DATA,
     REACH_LISTS_OFFSET,
     REACH_TABLE_OFFSET,
@@ -148,7 +147,7 @@ function instantiate(bytes: ArrayBuffer | Uint8Array): WebAssembly.Instance {   
         let str = '';
         let p = ptr;
         while (memAbs[p] !== 0 && str.length < 1024) {
-            str += String.fromCharCode(memAbs[p++]);
+            str += String.fromCharCode(memAbs[p++] ?? 0);
         }
         console.log('[WASM]', str);
     };
@@ -391,7 +390,7 @@ export function loadSaveState(saveState: Uint8Array): number | undefined {
 
     // Copy saveState to WASM memory at 0, zero-padding to 256 bytes
     for (let i = 0; i < saveState.length; i++) {
-        abs[saveStart + i] = saveState[i];
+        abs[saveStart + i] = saveState[i] ?? 0;
     }
     for (let i = 0; i < 256 - saveState.length; i++) {
         abs[saveStart + saveState.length + i] = 0;
@@ -402,7 +401,7 @@ export function loadSaveState(saveState: Uint8Array): number | undefined {
 
 function readU16(addr: number): number {
     const abs = mem.abs;
-    return abs[addr] | (abs[addr + 1] << 8);
+    return (abs[addr] ?? 0) | ((abs[addr + 1] ?? 0) << 8);
 }
 
 /**
@@ -443,7 +442,7 @@ export function getTownMdtHeader(): TownMdtHeader | null {
         town_descriptor_offset: readU16(offset + 0),
         map_width: readU16(offset + 2),
         town_name_offset: readU16(offset + 4),
-        town_id: mem.abs[offset + 6],
+        town_id: mem.abs[offset + 6] ?? 0,
         town_transition_table: readU16(offset + 7),
         doors_offset: readU16(offset + 9),
         dungeon_entrance_table: readU16(offset + 0xb),
@@ -466,11 +465,11 @@ function getNameFromNameInfo(nameOffset: number): string {
     }
 
     const abs = mem.abs;
-    const nameLength = abs[nameOffset];
+    const nameLength = abs[nameOffset] ?? 0;
     let name = '';
 
     for (let i = 0; i < nameLength; i++) {
-        name += String.fromCharCode(abs[nameOffset + 1 + i]).replace('\\', '\u02BC');
+        name += String.fromCharCode(abs[nameOffset + 1 + i] ?? 0).replace('\\', '\u02BC');
     }
 
     return name;
@@ -531,7 +530,7 @@ export function getMusicTrackId(): number | '' {
 
     const musicIdOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT + 0);
 
-    return (mem.abs[musicIdOffset] >> 1) & 0x0f;
+    return ((mem.abs[musicIdOffset] ?? 0) >> 1) & 0x0f;
 }
 
 /**
@@ -553,7 +552,7 @@ export function getTownBackgroundType(): number | '' {
     // gMemoryBase + header.town_descriptor_offset
     const backgroundTypeOffset = gMemoryBase + header.town_descriptor_offset + 3;
 
-    return mem.abs[backgroundTypeOffset];
+    return mem.abs[backgroundTypeOffset] ?? 0;
 }
 
 /**
@@ -570,7 +569,7 @@ export function getTownPatId(): number | '' {
     // gMemoryBase + header.town_descriptor_offset
     const patIdOffset = gMemoryBase + readU16(gMemoryBase + ADDR_MDT) + 4;
 
-    return mem.abs[patIdOffset];
+    return mem.abs[patIdOffset] ?? 0;
 }
 
 export function setSpecialTileList(tileIds: ArrayLike<number>): void {
@@ -587,7 +586,7 @@ export function setSpecialTileList(tileIds: ArrayLike<number>): void {
     // Write count + tile bytes at seg1:0x9000
     mem.abs[listGmemAddr] = tileIds.length;
     for (let i = 0; i < tileIds.length; i++) {
-        mem.abs[listGmemAddr + 1 + i] = tileIds[i];
+        mem.abs[listGmemAddr + 1 + i] = tileIds[i] ?? 0;
     }
 
     // Write the pointer word at seg1:0x8002.
@@ -649,7 +648,7 @@ function writeFixedList(items: ArrayLike<number>, seg1Offset: number, size: numb
     const count = Math.min(items.length, size);
 
     for (let i = 0; i < count; i++) {
-        mem.abs[listGmemAddr + i] = items[i];
+        mem.abs[listGmemAddr + i] = items[i] ?? 0;
     }
     for (let i = count; i < size; i++) {
         mem.abs[listGmemAddr + i] = 0;
@@ -665,7 +664,7 @@ export function setDungeonMonsterXp(xp: ArrayLike<number>): void {
     const listGmemAddr = gMemoryBase + 0xa008; // absolute index into wasmMemory
 
     for (let i = 0; i < 8; i++) {
-        mem.abs[listGmemAddr + i] = xp[i];
+        mem.abs[listGmemAddr + i] = xp[i] ?? 0;
     }
 }
 
@@ -703,7 +702,7 @@ export function setDeathDescriptors(descriptors: ReadonlyArray<ArrayLike<number>
 
     for (let i = 0; i < 8; i++) {
         const desc = descriptors[i];
-        if (desc.length === 0) {
+        if (!desc || desc.length === 0) {
             // Empty slot: store null pointer
             abs[arrayAddr + i * 2] = 0;
             abs[arrayAddr + i * 2 + 1] = 0;
@@ -736,7 +735,7 @@ export function setTrajectories(trajectories: ReadonlyArray<ArrayLike<number>>):
 
     for (let i = 0; i < trajectories.length; i++) {
         const traj = trajectories[i];
-        if (traj.length === 0) {
+        if (!traj || traj.length === 0) {
             continue;
         }
         const len = traj.length;
@@ -791,7 +790,7 @@ export function debugDump(offset: number, length: number): string {
             console.log(hex);
             hex = '';
         }
-        hex += mem.abs[gMemoryBase + offset + i].toString(16).padStart(2, '0') + ' ';
+        hex += (mem.abs[gMemoryBase + offset + i] ?? 0).toString(16).padStart(2, '0') + ' ';
     }
     if (hex) {
         console.log(hex);
@@ -821,16 +820,16 @@ export function inputSetKeys(keys: KeyState): void {
 
 export function getTownPendingTransitionFlag(): number {
     if (!mem.isLive) return 0;
-    return mem.abs[gMemoryBase + 0xfff4];
+    return mem.abs[gMemoryBase + 0xfff4] ?? 0;
 }
 
 export function getTownPendingTransition(): TownPendingTransition | null {
     if (!mem.isLive) return null;
     const base = gMemoryBase;
     return {
-        mapId: mem.abs[base + 0xfff1], // dest map id (0x80 already set)
-        patId: mem.abs[base + 0xfff2],
-        goingLeft: mem.abs[base + 0xfff3] !== 0,
+        mapId: mem.abs[base + 0xfff1] ?? 0, // dest map id (0x80 already set)
+        patId: mem.abs[base + 0xfff2] ?? 0,
+        goingLeft: (mem.abs[base + 0xfff3] ?? 0) !== 0,
     };
 }
 
@@ -908,11 +907,11 @@ export function setDungeonSwordReach(reachObj: Readonly<Record<number, ArrayLike
 
     // The possible indices (even numbers 0..26)
     for (let idx = 0; idx <= 26; idx += 2) {
-        const bytes = reachObj[idx];
+        const bytes = reachObj[idx] ?? [];
         // Compute offset BEFORE writing, so the table entry points to the START of this list
         const off = listWritePtr - seg1Base;
         for (let i = 0; i < bytes.length; i++) {
-            mem.abs[listWritePtr++] = bytes[i];
+            mem.abs[listWritePtr++] = bytes[i] ?? 0;
         }
         // Write the jump table at REACH_TABLE_OFFSET
         // (14 entries, each a 16-bit little-endian seg1-relative offset)

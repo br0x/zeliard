@@ -38,3 +38,18 @@ describe('setKeyState', () => {
         expect(keys.Enter).toBe(false);
     });
 });
+
+describe('setKeyState remaining mappings', () => {
+    it('maps Enter and Escape', () => {
+        clearKeys();
+        expect(setKeyState('Enter', true)).toBe(true);
+        expect(keys.Enter).toBe(true);
+        expect(setKeyState('Escape', true)).toBe(true);
+        expect(keys.Escape).toBe(true);
+    });
+
+    it('returns false for unmapped codes', () => {
+        expect(setKeyState('F1', true)).toBe(false);
+        expect(setKeyState('KeyQ', true)).toBe(false);
+    });
+});

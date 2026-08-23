@@ -18,7 +18,8 @@
  */
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const PANEL_W = 672;
@@ -94,8 +95,10 @@ const WRITING_REPEAT = 5;   // ASM: mov cx, 5 at loc_A071
 // Build the flat frame list for entering (forward) sequence:
 //   writing1, writing2, writing1, writing2, …  (WRITING_REPEAT pairs)
 //   notice1, notice2, notice3
-function buildEnterSequence() {
-    const seq = [];
+interface AnimFrame { type: 'writing' | 'notice'; idx: number }
+
+export function buildEnterSequence(): AnimFrame[] {
+    const seq: AnimFrame[] = [];
     for (let i = 0; i < WRITING_REPEAT; i++) {
         seq.push({ type: 'writing', idx: 0 });
         seq.push({ type: 'writing', idx: 1 });
@@ -105,11 +108,11 @@ function buildEnterSequence() {
     seq.push({ type: 'notice', idx: 2 });
     return seq;
 }
-const ENTER_SEQ = buildEnterSequence();
-const EXIT_SEQ  = [...ENTER_SEQ].reverse();
+export const ENTER_SEQ = buildEnterSequence();
+export const EXIT_SEQ: AnimFrame[] = [...ENTER_SEQ].reverse();
 
 // ─── Main menu ────────────────────────────────────────────────────────────────
-const MENU_ITEMS = [
+export const BANK_MENU_ITEMS = [
     'Go outside',
     'Exchange almas',
     'Deposit money',
@@ -125,7 +128,7 @@ const MI_BALANCE         = 4;
 // ─── Almas exchange rates by town (bankpro.asm almas_exchange_rates_by_town) ─
 // Each entry [almasGiven, goldsReceived], matching the original ASM's
 // little-endian word layout (low byte = almas, high byte = gold).
-const ALMAS_RATES = [
+export const ALMAS_RATES = [
     [1, 6],   // Muralla  (town 1) — 1 alma → 6 gold
     [1, 6],   // Satono   (town 2)
     [1, 8],   // Bosque   (town 3) — 1 alma → 8 gold
@@ -154,12 +157,71 @@ const WITHDRAW_LABELS = ['GOLD IN BANK', 'WITHDRAW AMT'];
 
 // ─── Scene class ──────────────────────────────────────────────────────────────
 
+type BankPhase =
+    | 'loading' | 'entering' | 'greeting' | 'menu' | 'dialog'
+    | 'numentry' | 'confirm_exchange' | 'exiting';
+
 export class BankScene extends IndoorSceneBase {
 
-    constructor(context) {
+    private readonly renderGoldHudCb: () => void;
+    private readonly renderAlmasHudCb: () => void;
+
+    // ── Image caches ──
+    private writingImgs: HTMLImageElement[];
+    private noticeImgs: HTMLImageElement[];
+    private laughingImgs: HTMLImageElement[];
+
+    // ── Animation state ──
+    private animPhase: 'entering' | 'idle' | 'laughing' | 'exiting';
+    private animSeqIdx: number;
+    private animFrameTimer: number;
+    private laughFrameIdx: number;
+    private laughLastSwitch: number;
+
+    // ── Bank logic phase ──
+    private bankPhase: BankPhase;
+    private menuSel: number;
+    private yesNoDialog: YesNoDialog | null;
+
+    // numeric-entry state
+    private numLabels: string[];
+    private numAmount: number;
+    private numMax: number;
+    private numMode: 'deposit' | 'withdraw';
+    private _numRepeatTimer: number;
+    private _numKeyHeld: string | null;
+    private _numRepeatDelay: number;
+
+    // flags mirroring bankpro.asm local variables
+    private _hadLargeDeposit: boolean;
+    private _hadLargeSum: boolean;
+    private _laughingActive: boolean;
+    private _almasRateFrom: number;
+    private _almasRateTo: number;
+
+
+    // dialog machinery
+    private typewriter: TypewriterText | null;
+    private dlgBuffer: string[];
+    private _pendingLine: string | null;
+    private _dlgQueue: string[];
+    private _dlgQueueIndex: number;
+    private _dlgQueueAdvanceAt: number | 'pending' | null;
+    private _dlgCharMs: number;
+    private _dlgRevealFirstChar: boolean;
+    private _dlgAutoAdvance: boolean;
+
+    /** after dialog dismissed: called on Space press */
+    private _afterDialog: ((now: number) => void) | null;
+
+    /** entrance stage gate (0=dots, 1=excuse, 2=done) */
+    private _enterStage = 0;
+
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
-        this.renderGoldHud = context.renderGoldHud;
-        this.renderAlmasHud = context.renderAlmasHud;
+        this.renderGoldHudCb = context.renderGoldHud;
+        this.renderAlmasHudCb = context.renderAlmasHud;
 
         // ── Image caches ─────────────────────────────────────────────────────
         this.writingImgs  = [];
@@ -175,8 +237,6 @@ export class BankScene extends IndoorSceneBase {
         this.animPhase       = 'entering';
         this.animSeqIdx      = 0;       // index into current sequence
         this.animFrameTimer  = 0;       // ms timestamp of last frame switch
-        this.idleFrameIdx    = 0;       // 0 or 1 for writing loop
-        this.idleLastSwitch  = 0;
         this.laughFrameIdx   = 0;
         this.laughLastSwitch = 0;
 
@@ -210,7 +270,6 @@ export class BankScene extends IndoorSceneBase {
         this._almasRateTo      = 0;       // byte_AD26
 
         // exit-goodbye variant (mirrors which dialog is set on "Go outside")
-        this._goodbyeMsg     = null;
 
         // dialog machinery
         this.typewriter           = null;
@@ -232,7 +291,11 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    async onEnter(now) {
+    protected override onEnter(now: number): void {
+        void this._loadAndBegin();
+    }
+
+    private async _loadAndBegin(): Promise<void> {
         try {
             const [w, n, l] = await Promise.all([
                 Promise.all(WRITING_FRAMES .map(p => this._loadImg(p))),
@@ -248,6 +311,7 @@ export class BankScene extends IndoorSceneBase {
             return;
         }
 
+
         const startNow = performance.now();
         this.animSeqIdx     = 0;
         this.animFrameTimer = startNow;
@@ -260,8 +324,8 @@ export class BankScene extends IndoorSceneBase {
         // After dots finish, "Oh, excuse me. " is shown (set inside _tickEnterAnim)
     }
 
-    _loadImg(src) {
-        return new Promise((resolve, reject) => {
+    private _loadImg(src: string): Promise<HTMLImageElement> {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
             const img   = new Image();
             img.onload  = () => resolve(img);
             img.onerror = () => reject(new Error(`Failed: ${src}`));
@@ -271,70 +335,70 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Memory helpers ────────────────────────────────────────────────────────
 
-    _read(addr, len = 1) {
-        return this.readMemory ? this.readMemory(addr, len) : new Array(len).fill(0);
+    private _read(addr: number, len = 1): Uint8Array {
+        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
     }
-    _write(addr, bytes) {
+    private _write(addr: number, bytes: Uint8Array): void {
         if (this.writeMemory) this.writeMemory(addr, bytes);
     }
 
-    _getTownId() {
+    private _getTownId(): number {
         // place_map_id: 0x81=Muralla, 0x82=Satono, … 0x89=Esco.
         // 1-based town index = (place_map_id & 0x7F) – 0x80 + 1 = raw & 0x0F
-        return (this._read(ADDR_PLACE_MAP_ID, 1)[0] & 0x0F) || 1;
+        return ((this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x0F) || 1;
     }
 
     /** Hero gold: 24-bit – hi byte at 0x85, lo word at 0x86 (LE) */
-    _getHeroGold() {
-        const hi = this._read(ADDR_GOLD_HI, 1)[0] & 0xFF;
+    private _getHeroGold(): number {
+        const hi = (this._read(ADDR_GOLD_HI, 1)[0] ?? 0) & 0xFF;
         const b  = this._read(ADDR_GOLD_LO, 2);
-        return (hi * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
+        return (hi * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
-    _setHeroGold(amount) {
+    private _setHeroGold(amount: number): void {
         const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, [hi]);
-        this._write(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
-        this.renderGoldHud?.();
+        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.renderGoldHudCb();
     }
 
     /** Bank gold: 24-bit – hi byte at 0x88, lo word at 0x89 (LE) */
-    _getBankGold() {
-        const hi = this._read(ADDR_BANK_HI, 1)[0] & 0xFF;
+    private _getBankGold(): number {
+        const hi = (this._read(ADDR_BANK_HI, 1)[0] ?? 0) & 0xFF;
         const b  = this._read(ADDR_BANK_LO, 2);
-        return (hi * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
+        return (hi * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
-    _setBankGold(amount) {
+    private _setBankGold(amount: number): void {
         const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_BANK_HI, [hi]);
-        this._write(ADDR_BANK_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this._write(ADDR_BANK_HI, Uint8Array.of(hi));
+        this._write(ADDR_BANK_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
     }
 
     /** Hero almas: 16-bit word at 0x8B (LE) */
-    _getAlmas() {
+    private _getAlmas(): number {
         const b = this._read(ADDR_ALMAS, 2);
-        return (b[0] & 0xFF) | ((b[1] & 0xFF) << 8);
+        return ((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8;
     }
-    _setAlmas(amount) {
+    private _setAlmas(amount: number): void {
         const v = Math.max(0, Math.floor(amount)) & 0xFFFF;
-        this._write(ADDR_ALMAS, [v & 0xFF, (v >> 8) & 0xFF]);
-        this.renderAlmasHud?.();
+        this._write(ADDR_ALMAS, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
+        this.renderAlmasHudCb();
     }
 
     // ── Dialog machinery ──────────────────────────────────────────────────────
 
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((DLG_H - 22 - 40) / LINE_H_DLG);
     }
 
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
         this.ctx.save();
         this.ctx.font = FONT_DLG;
         const maxW = DLG_W - 28;
-        const lines = [];
+        const lines: string[] = [];
         for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
@@ -353,7 +417,7 @@ export class BankScene extends IndoorSceneBase {
         return lines;
     }
 
-    _startTypewriterLine(line) {
+    private _startTypewriterLine(line: string): void {
         this._pendingLine = line;
         this.typewriter   = new TypewriterText(
             line, FONT_DLG, DLG_W - 28,
@@ -364,7 +428,7 @@ export class BankScene extends IndoorSceneBase {
         this._dlgRevealFirstChar = false;
     }
 
-    _setDialog(text, afterFn = null, charMs = CHAR_MS, revealFirstChar = false, autoAdvance = false) {
+    private _setDialog(text: string, afterFn: ((now: number) => void) | null = null, charMs = CHAR_MS, revealFirstChar = false, autoAdvance = false): void {
         const lines = this._wrapText(text);
         if (!lines.length) return;
         this.dlgBuffer          = [];
@@ -379,14 +443,14 @@ export class BankScene extends IndoorSceneBase {
         this._showNextDlgLine();
     }
 
-    _setAutoDialog(text, afterFn = null) {
+    private _setAutoDialog(text: string, afterFn: ((now: number) => void) | null = null): void {
         this._setDialog(text, afterFn, CHAR_MS, false, true);
     }
 
-    _appendDialogText(text, afterFn = null, charMs = CHAR_MS, autoAdvance = false) {
-        const base = this._pendingLine !== null
+    private _appendDialogText(text: string, afterFn: ((now: number) => void) | null = null, charMs = CHAR_MS, autoAdvance = false): void {
+        const base: string = this._pendingLine !== null
             ? this._pendingLine
-            : (this.dlgBuffer.length ? this.dlgBuffer.pop() : '');
+            : (this.dlgBuffer.length ? this.dlgBuffer.pop() ?? '' : '');
         const line = base + text;
 
         this._pendingLine       = line;
@@ -405,9 +469,9 @@ export class BankScene extends IndoorSceneBase {
         this.typewriter.start(performance.now() - base.length * charMs);
     }
 
-    _showNextDlgLine() {
+    private _showNextDlgLine(): void {
         if (this._dlgQueueIndex >= this._dlgQueue.length) return;
-        const line   = this._dlgQueue[this._dlgQueueIndex++];
+        const line   = this._dlgQueue[this._dlgQueueIndex++]!;
         const isLast = this._dlgQueueIndex >= this._dlgQueue.length;
         if (this._pendingLine !== null) {
             this.dlgBuffer.push(this._pendingLine);
@@ -417,7 +481,7 @@ export class BankScene extends IndoorSceneBase {
         this._dlgQueueAdvanceAt = isLast ? null : 'pending';
     }
 
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length) return;
         if (this._dlgQueueAdvanceAt === 'pending') {
             if (this.typewriter && this.typewriter.isDone(now)) {
@@ -429,18 +493,18 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _dlgScrollTop() {
+    private _dlgScrollTop(): number {
         return Math.max(0, this.dlgBuffer.length + 1 - this._dlgMaxLines);
     }
 
-    _dlgDone(now) {
+    private _dlgDone(now: number): boolean | null {
         return (
             this.typewriter && this.typewriter.isDone(now) &&
             (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)
         );
     }
 
-    _dlgArrowVisible(now) {
+    private _dlgArrowVisible(now: number): boolean | null {
         if (this._dlgAutoAdvance) return false;
         if (!this._dlgDone(now)) return false;
         return (
@@ -449,7 +513,7 @@ export class BankScene extends IndoorSceneBase {
     }
 
     /** "No" on the exchange confirm → drop back to the menu. */
-    _confirmDeclined(now) {
+    private _confirmDeclined(_now: number): void {
         this.yesNoDialog = null;
         this._clearDlgArea();
         this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
@@ -458,12 +522,12 @@ export class BankScene extends IndoorSceneBase {
         this.bankPhase = 'dialog';
     }
 
-    _drawYesNoDialog(now, alpha) {
+    private _drawYesNoDialog(now: number, alpha: number): void {
         if (!this.yesNoDialog || !this._dlgDone(now)) return;
         this.yesNoDialog.draw(this.ctx, alpha);
     }
 
-    _finishDialog(now) {
+    private _finishDialog(now: number): void {
         if (this._pendingLine !== null) {
             this.dlgBuffer.push(this._pendingLine);
             this._pendingLine = null;
@@ -479,7 +543,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Animation helpers ─────────────────────────────────────────────────────
 
-    _currentFrame(now) {
+    private _currentFrame(now: number): HTMLImageElement | null {
         switch (this.animPhase) {
             case 'entering':
             case 'exiting': {
@@ -508,7 +572,7 @@ export class BankScene extends IndoorSceneBase {
      * Advance the entering/exiting frame sequence.
      * Returns true once the full sequence has completed.
      */
-    _tickEnterExitAnim(now) {
+    private _tickEnterExitAnim(now: number): boolean {
         const seq   = this.animPhase === 'exiting' ? EXIT_SEQ : ENTER_SEQ;
         const entry = seq[this.animSeqIdx];
         if (!entry) return true;
@@ -523,7 +587,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Main draw ─────────────────────────────────────────────────────────────
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickDlgQueue(now);
         this._tickBankLogic(now);
         if (this._dlgAutoAdvance && this._dlgDone(now)) {
@@ -544,7 +608,7 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _tickBankLogic(now) {
+    private _tickBankLogic(now: number): void {
         // ── Entering phase ───────────────────────────────────────────────────
         // The ASM structure (sub_A004):
         //   1. Show dialog "....." (unk_A989 + 5× unk_A98B = form-feed + 5 dots)
@@ -554,8 +618,6 @@ export class BankScene extends IndoorSceneBase {
         //
         // We gate each stage by tracking _enterStage (0=dots, 1=excuse, 2=done).
         if (this.bankPhase === 'entering') {
-            if (this._enterStage === undefined) this._enterStage = 0;
-
             this._tickEnterExitAnim(now);   // advance animation regardless
 
             if (this._enterStage === 0) {
@@ -573,9 +635,7 @@ export class BankScene extends IndoorSceneBase {
                 if (seqDone && this._dlgDone(now)) {
                     this._enterStage = 2;
                     this.animPhase      = 'idle';
-                    this.idleFrameIdx   = 0;
-                    this.idleLastSwitch = now;
-
+                    
                     this.bankPhase = 'greeting';
                     this._appendDialogText('Can I help you?', (n) => {
                         this.bankPhase = 'menu';
@@ -604,7 +664,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Rendering ─────────────────────────────────────────────────────────────
 
-    _drawClerkPortrait(now) {
+    private _drawClerkPortrait(now: number): void {
         const ctx = this.ctx;
         ctx.strokeStyle = '#44aacc';
         ctx.lineWidth   = 3;
@@ -617,7 +677,7 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _drawMainMenu(alpha) {
+    private _drawMainMenu(alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         // Dim the menu when numeric entry or confirm overlays are shown.
@@ -632,11 +692,11 @@ export class BankScene extends IndoorSceneBase {
         ctx.fillRect(MENU_X, MENU_Y, MENU_W, MENU_H);
 
         ctx.font = FONT_MENU;
-        for (let i = 0; i < MENU_ITEMS.length; i++) {
+        for (let i = 0; i < BANK_MENU_ITEMS.length; i++) {
             const yi  = MENU_TEXT_Y + i * LINE_H_MNU;
             const sel = (i === this.menuSel) && !dimmed;
             ctx.fillStyle = sel ? '#ffff00' : '#aadddd';
-            ctx.fillText(MENU_ITEMS[i], MENU_TEXT_X, yi);
+            ctx.fillText(BANK_MENU_ITEMS[i]!, MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#ff2200';
                 this._triangle(ctx, CURSOR_X, yi - 18, 12, 18, false);
@@ -645,7 +705,7 @@ export class BankScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawNumEntry(now, alpha) {
+    private _drawNumEntry(_now: number, alpha: number): void {
         const ctx    = this.ctx;
         const heroG  = this._getHeroGold();
         const bankG  = this._getBankGold();
@@ -661,7 +721,7 @@ export class BankScene extends IndoorSceneBase {
         ctx.font = FONT_MENU;
 
         // Row 0: holdings label + value
-        const topLabel = labels[0];
+        const topLabel = labels[0] ?? '';
         const topVal   = this.numMode === 'deposit' ? heroG : bankG;
         ctx.fillStyle  = '#aaaaff';
         ctx.fillText(topLabel, NUM_X + 12, NUM_Y + 24);
@@ -669,7 +729,7 @@ export class BankScene extends IndoorSceneBase {
         ctx.fillText(String(topVal), NUM_X + 12, NUM_Y + 50);
 
         // Row 1: entry label + current entered amount
-        const botLabel  = labels[1];
+        const botLabel  = labels[1] ?? '';
         ctx.fillStyle   = '#aaaaff';
         ctx.fillText(botLabel, NUM_X + 12, NUM_Y + 90);
         ctx.fillStyle   = '#ffff00';
@@ -686,7 +746,7 @@ export class BankScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawDialogBox(now, alpha) {
+    private _drawDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -710,7 +770,7 @@ export class BankScene extends IndoorSceneBase {
             const vis = this.typewriter.getVisibleLines(now);
             if (vis.length) {
                 ctx.fillStyle = '#aaddcc';
-                ctx.fillText(vis[0], DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
+                ctx.fillText(vis[0]!, DLG_TEXT_X, DLG_TEXT_Y + row * LINE_H_DLG);
             }
         }
         if (this._dlgArrowVisible(now)) {
@@ -729,7 +789,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
-    handleInput(key, repeat = false) {
+    override handleInput(key: string, repeat = false): void {
         const now = performance.now();
         if (this.phase === 'fadeOut')    return;
         if (this.bankPhase === 'loading')    return;
@@ -742,14 +802,14 @@ export class BankScene extends IndoorSceneBase {
         }
         if (this.bankPhase === 'numentry')   { this._handleNumEntry(key, now, repeat); return; }
         if (this.bankPhase === 'menu') {
-            if (key === 'ArrowUp')   this.menuSel = (this.menuSel - 1 + MENU_ITEMS.length) % MENU_ITEMS.length;
-            if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % MENU_ITEMS.length;
+            if (key === 'ArrowUp')   this.menuSel = (this.menuSel - 1 + BANK_MENU_ITEMS.length) % BANK_MENU_ITEMS.length;
+            if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % BANK_MENU_ITEMS.length;
             if (key === 'Space' || key === 'Enter') this._selectMenuItem(now);
             if (key === 'Escape') this._doGoOutside(now);
         }
     }
 
-    handleHeldInput(keys, now) {
+    handleHeldInput(keys: Record<string, boolean> | null, now: number): void {
         if (this.bankPhase !== 'numentry') {
             this._resetNumRepeat();
             return;
@@ -776,7 +836,7 @@ export class BankScene extends IndoorSceneBase {
         this._numRepeatDelay = Math.max(NUM_REPEAT_MIN_FRAMES, this._numRepeatDelay - 1);
     }
 
-    _handleEnterInput(key, now) {
+    private _handleEnterInput(key: string, now: number): void {
         // During entering animation, Space/Enter skips the current typewriter.
         if (key === 'Space' || key === 'Enter') {
             if (this.typewriter && !this.typewriter.isDone(now)) {
@@ -785,7 +845,7 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _onConfirmDialog(now) {
+    private _onConfirmDialog(now: number): void {
         // If the typewriter is still running, skip it first.
         if (this.typewriter && !this.typewriter.isDone(now)) {
             this.typewriter.skip(now);
@@ -804,11 +864,10 @@ export class BankScene extends IndoorSceneBase {
         this._finishDialog(now);
     }
 
-    _selectMenuItem(now) {
+    private _selectMenuItem(now: number): void {
         // Stop laughing animation when any menu option is chosen.
         if (this.animPhase === 'laughing') {
             this.animPhase      = 'idle';
-            this.idleLastSwitch = now;
         }
         switch (this.menuSel) {
             case MI_GO_OUTSIDE:     this._doGoOutside(now);     break;
@@ -821,8 +880,9 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Menu action: Go outside ────────────────────────────────────────────────
 
-    _doGoOutside(now) {
-        let msg;
+    private _doGoOutside(now: number): void {
+        void now;
+        let msg: string;
         if (this._hadLargeSum) {
             msg = "Thank you. Come again to make a deposit for a large sum in savings. ";
         } else if (this._hadLargeDeposit) {
@@ -843,7 +903,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Menu action: Exchange almas ────────────────────────────────────────────
 
-    _doExchangeAlmas(now) {
+    private _doExchangeAlmas(_now: number): void {
         this._clearDlgArea();
 
         const almas = this._getAlmas();
@@ -858,7 +918,8 @@ export class BankScene extends IndoorSceneBase {
         // Look up rate for this town.
         const townId = this._getTownId();           // 1-based
         const rateIdx = Math.max(0, Math.min(8, townId - 1));
-        const [from, to] = ALMAS_RATES[rateIdx];
+        const rate = ALMAS_RATES[rateIdx]!;
+        const from = rate[0] ?? 0, to = rate[1] ?? 0;
         this._almasRateFrom = from;
         this._almasRateTo   = to;
 
@@ -878,7 +939,7 @@ export class BankScene extends IndoorSceneBase {
         this.bankPhase = 'confirm_exchange';
     }
 
-    _handleConfirmExchange(key, now) {
+    private _handleConfirmExchange(key: string, now: number): void {
         // Skip still-typing dialog first.
         if (this.typewriter && !this.typewriter.isDone(now)) {
             if (key === 'Space' || key === 'Enter') this.typewriter.skip(now);
@@ -896,7 +957,7 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _executeExchange(now) {
+    private _executeExchange(_now: number): void {
         const almas = this._getAlmas();
         const from  = this._almasRateFrom;
         const to    = this._almasRateTo;
@@ -929,7 +990,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Menu action: Deposit money ─────────────────────────────────────────────
 
-    _doDeposit(now) {
+    private _doDeposit(_now: number): void {
         this._clearDlgArea();
         const heroGold = this._getHeroGold();
         if (!heroGold) {
@@ -949,7 +1010,7 @@ export class BankScene extends IndoorSceneBase {
         this.bankPhase = 'numentry';
     }
 
-    _doWithdraw(now) {
+    private _doWithdraw(_now: number): void {
         this._clearDlgArea();
         const bankGold = this._getBankGold();
         if (!bankGold) {
@@ -973,7 +1034,7 @@ export class BankScene extends IndoorSceneBase {
     // Arrow keys: Up = +1, Down = -1; Left = +10, Right = -10.
     // Space/Enter = confirm; Escape = cancel.
 
-    _handleNumEntry(key, now, repeat = false) {
+    private _handleNumEntry(key: string, now: number, repeat = false): void {
         const isConfirm = key === 'Space' || key === 'Enter';
         if (key === 'Escape' || isConfirm && !this.numAmount) {
             this._clearDlgArea();
@@ -1004,12 +1065,12 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _isNumArrowKey(key) {
+    private _isNumArrowKey(key: string): boolean {
         return key === 'ArrowUp' || key === 'ArrowDown' ||
                key === 'ArrowLeft' || key === 'ArrowRight';
     }
 
-    _numHeldKeyFromState(keys) {
+    private _numHeldKeyFromState(keys: Record<string, boolean> | null): string | null {
         if (!keys) return null;
         if (keys.ArrowRight) return 'ArrowRight';
         if (keys.ArrowLeft)  return 'ArrowLeft';
@@ -1018,7 +1079,7 @@ export class BankScene extends IndoorSceneBase {
         return null;
     }
 
-    _adjustNumAmountForKey(key) {
+    private _adjustNumAmountForKey(key: string): void {
         if (key === 'ArrowUp' || key === 'ArrowLeft') {
             const delta = (key === 'ArrowLeft') ? 10 : 1;
             this.numAmount = Math.min(this.numAmount + delta, this.numMax);
@@ -1028,13 +1089,13 @@ export class BankScene extends IndoorSceneBase {
         }
     }
 
-    _resetNumRepeat() {
+    private _resetNumRepeat(): void {
         this._numRepeatTimer = 0;
         this._numKeyHeld = null;
         this._numRepeatDelay = NUM_REPEAT_INITIAL_FRAMES;
     }
 
-    _executeDeposit(now) {
+    private _executeDeposit(now: number): void {
         const amount = this.numAmount;
         const hero   = this._getHeroGold();
         if (amount > hero) {
@@ -1061,7 +1122,7 @@ export class BankScene extends IndoorSceneBase {
         }
 
         const bankGold = this._getBankGold();
-        let msg;
+        let msg: string;
         if (this._laughingActive) {
             msg = 'Thank you. Please come again.';
         } else if (!bankGold) {
@@ -1078,7 +1139,7 @@ export class BankScene extends IndoorSceneBase {
         this.bankPhase = 'dialog';
     }
 
-    _executeWithdraw(now) {
+    private _executeWithdraw(now: number): void {
         const amount   = this.numAmount;
         const bankGold = this._getBankGold();
         if (amount > bankGold) {
@@ -1096,14 +1157,14 @@ export class BankScene extends IndoorSceneBase {
         this._hadLargeDeposit = true;  // byte_AD23: any transaction counts
 
         const newBank = this._getBankGold();
-        let handOverMsg;
+        let handOverMsg: string;
         if (amount === 1) {
             handOverMsg = 'Here you are, sir. One gold.';
         } else {
             handOverMsg = `Here you are, sir. ${amount} golds.`;
         }
 
-        let balanceMsg;
+        let balanceMsg: string;
         if (!newBank) {
             balanceMsg = 'Your account is now empty.';
         } else if (newBank === 1) {
@@ -1121,10 +1182,10 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Menu action: Check balance ─────────────────────────────────────────────
 
-    _doBalance(now) {
+    private _doBalance(_now: number): void {
         this._clearDlgArea();
         const bankGold = this._getBankGold();
-        let msg;
+        let msg: string;
         if (!bankGold) {
             msg = 'Your account is empty.';
         } else if (bankGold === 1) {
@@ -1141,7 +1202,7 @@ export class BankScene extends IndoorSceneBase {
 
     // ── Utility ───────────────────────────────────────────────────────────────
 
-    _clearDlgArea() {
+    private _clearDlgArea(): void {
         this.dlgBuffer          = [];
         this._pendingLine       = null;
         this._dlgQueue          = [];
@@ -1152,7 +1213,7 @@ export class BankScene extends IndoorSceneBase {
         this.typewriter         = null;
     }
 
-    _triangle(ctx, x, y, w, h, down) {
+    private _triangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, down: boolean): void {
         ctx.beginPath();
         if (down) {
             ctx.moveTo(x,         y);
@@ -1167,5 +1228,5 @@ export class BankScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    getName() { return 'The Bank'; }
+    getName(): string { return 'The Bank'; }
 }

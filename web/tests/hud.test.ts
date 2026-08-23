@@ -12,7 +12,7 @@ function makeMem() {
         buf,
         readMemory: (offset: number, length: number) => buf.subarray(offset, offset + length),
         writeMemory: (offset: number, data: ArrayLike<number>) => {
-            for (let i = 0; i < data.length; i++) buf[offset + i] = data[i];
+            for (let i = 0; i < data.length; i++) buf[offset + i] = data[i] ?? 0;
         },
     };
 }

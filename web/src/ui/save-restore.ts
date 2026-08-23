@@ -1,25 +1,37 @@
-// save-restore-ui.js – Canvas‑based save/restore dialogs for Zeliard
-import { getSaveSlotNames, saveGameToSlot, loadGameFromSlot } from '../main.js';
+// save-restore.ts – Canvas-based save/restore dialogs for Zeliard
+import { getSaveSlotNames } from '../platform/save.js';
+
+type ConfirmCallback = (slotName: string | null) => void;
+type CancelCallback = () => void;
 
 // Base class for both save and restore dialogs
 class BaseSaveRestoreDialog {
-    constructor(title, includeRestart = false, showNewNameInput = true, onConfirm, onCancel) {
+    readonly title: string;
+    readonly includeRestart: boolean;
+    readonly showNewNameInput: boolean;  // true for Save, false for Restore
+    readonly onConfirm: ConfirmCallback;
+    readonly onCancel: CancelCallback;
+
+    items: string[] = [];
+    selectedIndex = 0;
+    inputText = '';
+    inputActive: boolean;
+    cursorBlink = false;
+    maxNameLength = 12;
+    visible = true;
+    scrollOffset = 0;
+
+    constructor(title: string, includeRestart: boolean, showNewNameInput: boolean,
+                onConfirm: ConfirmCallback, onCancel: CancelCallback) {
         this.title = title;
         this.includeRestart = includeRestart;
-        this.showNewNameInput = showNewNameInput;  // true for Save, false for Restore
+        this.showNewNameInput = showNewNameInput;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
-        this.items = [];
-        this.selectedIndex = 0;
-        this.inputText = '';
-        this.inputActive = showNewNameInput;       // only active if input is shown
-        this.cursorBlink = 0;
-        this.maxNameLength = 12;
-        this.visible = true;
-        this.scrollOffset = 0;
+        this.inputActive = showNewNameInput; // only active if input is shown
     }
 
-    refreshItems() {
+    refreshItems(): void {
         const slots = getSaveSlotNames();
         this.items = this.includeRestart ? ['Re-Start', ...slots] : [...slots];
         if (this.selectedIndex >= this.items.length) this.selectedIndex = Math.max(0, this.items.length - 1);
@@ -28,20 +40,20 @@ class BaseSaveRestoreDialog {
         if (!this.showNewNameInput) this.inputActive = false;
     }
 
-    _maxVisible() {
+    _maxVisible(): number {
         return this.showNewNameInput ? 7 : 8;
     }
 
-    _clampScroll() {
+    _clampScroll(): void {
         const maxVis = this._maxVisible();
         if (this.selectedIndex < this.scrollOffset) this.scrollOffset = this.selectedIndex;
         if (this.selectedIndex >= this.scrollOffset + maxVis) this.scrollOffset = this.selectedIndex - maxVis + 1;
         if (this.scrollOffset > Math.max(0, this.items.length - maxVis)) this.scrollOffset = Math.max(0, this.items.length - maxVis);
     }
 
-    handleKey(keyCode, now) {
+    handleKey(keyCode: string, _now: number): boolean {
         if (keyCode === 'Escape') {
-            this.onCancel?.();
+            this.onCancel();
             return true;
         }
 
@@ -60,9 +72,9 @@ class BaseSaveRestoreDialog {
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 const selected = this.items[this.selectedIndex];
                 if (selected === 'Re-Start') {
-                    this.onConfirm?.(null);
+                    this.onConfirm(null);
                 } else if (selected) {
-                    this.onConfirm?.(selected);
+                    this.onConfirm(selected);
                 }
                 return true;
             }
@@ -82,7 +94,7 @@ class BaseSaveRestoreDialog {
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 const name = this.inputText.trim();
                 if (name.length > 0) {
-                    this.onConfirm?.(name);
+                    this.onConfirm(name);
                 }
                 return true;
             }
@@ -120,9 +132,9 @@ class BaseSaveRestoreDialog {
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 const selected = this.items[this.selectedIndex];
                 if (selected === 'Re-Start') {
-                    this.onConfirm?.(null);
+                    this.onConfirm(null);
                 } else if (selected) {
-                    this.onConfirm?.(selected);
+                    this.onConfirm(selected);
                 }
                 return true;
             }
@@ -135,7 +147,7 @@ class BaseSaveRestoreDialog {
         }
     }
 
-    draw(ctx, canvasWidth, canvasHeight, now) {
+    draw(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number, now: number): void {
         this.cursorBlink = Math.sin(now / 500) > 0;
 
         const boxWidth = 480;
@@ -178,7 +190,7 @@ class BaseSaveRestoreDialog {
                 ctx.closePath();
                 ctx.fill();
             }
-            ctx.fillText(this.items[idx], x + 42, listY);
+            ctx.fillText(this.items[idx]!, x + 42, listY);
             listY += lineHeight;
         }
         if (this.scrollOffset > 0) {
@@ -219,7 +231,7 @@ class BaseSaveRestoreDialog {
 }
 
 export class SaveDialog extends BaseSaveRestoreDialog {
-    constructor(onSave, onCancel) {
+    constructor(onSave: ConfirmCallback, onCancel: CancelCallback) {
         super('Save your Game', false, true, onSave, onCancel);
         this.refreshItems();
         this.inputActive = true;
@@ -228,7 +240,7 @@ export class SaveDialog extends BaseSaveRestoreDialog {
 }
 
 export class RestoreDialog extends BaseSaveRestoreDialog {
-    constructor(onRestore, onCancel) {
+    constructor(onRestore: ConfirmCallback, onCancel: CancelCallback) {
         super('Restore Game', true, false, onRestore, onCancel);
         this.refreshItems();
         this.inputActive = false;

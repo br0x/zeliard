@@ -66,7 +66,7 @@ export interface ParsedDialog {
 export function charOrigWidth(ch: string): number {
     const idx = ch.charCodeAt(0) - 0x20;
     if (idx < 0 || idx >= CHAR_WIDTH_TABLE.length) return 6;
-    return CHAR_WIDTH_TABLE[idx];
+    return CHAR_WIDTH_TABLE[idx] ?? 6;
 }
 
 /**
@@ -93,7 +93,7 @@ export function parseDialogText(bytes: ArrayLike<number>, effects: DialogEffects
     };
 
     for (let i = 0; i < bytes.length; i++) {
-        let b = bytes[i];
+        let b = bytes[i]!;
         if (b === 0xff || b === 0x00) break;
         if (b === 0x81) { hasYesNo = true; break; }
         if (b === 0x83) {
@@ -123,7 +123,7 @@ export function parseDialogText(bytes: ArrayLike<number>, effects: DialogEffects
             // Break before a word that would overflow the line.
             let nextW = 0;
             for (let j = i + 1; j < bytes.length; j++) {
-                const nb = bytes[j];
+                const nb = bytes[j]!;
                 if (nb === 0x20 || nb === 0x2f || (nb >= 0x80 && nb !== 0x81)) break;
                 if (nb >= 0x20) nextW += charOrigWidth(String.fromCharCode(nb));
             }

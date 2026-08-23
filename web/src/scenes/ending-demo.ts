@@ -83,16 +83,10 @@ const PRINCESS_CROSSFADE_MS   = 1000;
 // Text content
 // ─────────────────────────────────────────────────────────────────────────────
 
-const INTRO_COPYRIGHT_LINES = [
+const STORY_LINES: string[] = [
 ];
 
-const STORY_LINES = [
-];
-
-const CREDITS_LINES = [
-];
-
-const SPIRIT_LINES = [
+const CREDITS_LINES: string[] = [
 ];
 
 
@@ -100,20 +94,12 @@ const SPIRIT_LINES = [
 // Timing & layout constants (added for dialogue)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const INTRO_FADE_IN_MS              = 2000;
-const INTRO_FADE_OUT_MS             = 2000;
-const STORY_IMAGE_FADE_IN_MS        = 2000;
-const STORY_CROSSFADE_MS            = 4000;
 const STORY_FONT                    = '16px "Press Start 2P", monospace';
 const STORY_FONT_SAMPLE             = 'The Age of Darkness.';
 const STORY_LINE_HEIGHT             = 20;
-const STORY_START_Y                 = 400;
-const STORY_SCROLL_SPEED            = 28;   // px / second
 const CHAR_DELAY_MS                 = 100;
 const CREDITS_FONT                  = '16px "Press Start 2P", monospace';
 const CREDITS_LINE_HEIGHT           = 20;
-const CREDITS_START_Y               = 400;
-const CREDITS_SCROLL_SPEED          = 28;   // px / second
 const CURTAIN_X1                    = 33;
 const CURTAIN_Y1                    = 33;
 const CURTAIN_X2                    = 607;
@@ -156,7 +142,7 @@ const PORT_CREDITS_SPEED            = 120;   // px / second
 const PORT_CREDITS_COLOR            = '#ffffff';
 const PORT_CREDITS_HIGHLIGHT_COLOR  = '#00ffff';  // characters inside {…}
 const PORT_CREDITS_LEFT_BOUNDARY    = 10;    // phase ends once the whole text crosses x=10
-const PORT_CREDITS_CURVE_Y          = (x) => 343 - 0.8 * Math.exp(0.0067 * x) * Math.sin(0.05154 * x);
+const PORT_CREDITS_CURVE_Y          = (x: number): number => 343 - 0.8 * Math.exp(0.0067 * x) * Math.sin(0.05154 * x);
 const ENDING_CREDITS_FONT        = '16px "Press Start 2P", monospace';
 const ENDING_CREDITS_LINE_HEIGHT = 28;
 const FIN_CROSSFADE_MS        = 2000;
@@ -183,7 +169,6 @@ const MONSTER_COLUMN_W      = 194;
 const MONSTER_CENTER_X      = 543;
 const MONSTER_BOTTOM_CLIP_Y = 279;
 const MONSTER_SECTION_H     = 89;
-const MONSTER_CLEAR_RECT    = { x: 446, y: 12, w: 194, h: 268 };  // images area cleared when the 3 monster lines are cleared
 const MONSTER_SECTIONS = [
   { y0: 12,   y1: 101 },   // top
   { y0: 101,  y1: 190 },   // middle
@@ -208,27 +193,6 @@ const PRINCESS_DST_START_Y          = 175;
 const PRINCESS_DST_END_Y            = 45;
 const TEMPLATE2_FADE_IN_MS = 1000;
 
-// ── Window border colours (used in expandWindow line-drawing) ──────────────
-const WIN_TOP_COLORS = [
-    '#51060a',
-    '#593e26',
-    '#e8d597',
-    '#b49555',
-    '#8c6e3d',
-  ]; // y=44..40
-const WIN_LEFT_COLORS = [
-    '#4d0808',
-    '#5a2f18',
-    '#f0d591',
-    '#c0a158',
-    '#96753c',
-  ]; // x=160..156
-const WIN_BOTTOM_COLORS =      ['#edd589','#a27e3c','#7a5026','#410407','#51060a']; // y=225..229
-const WIN_BOTTOM_OUTER_FIRST = ['#51060a','#410407','#7a5026','#a27e3c','#edd589'];
-const WIN_BORDER_THICKNESS = 5;
-// Fixed window interior coordinates
-const WIN_GARLAND_X        = 121;
-const WIN_GARLAND_Y        = 45;
 
 // Text styling
 const DIRECT_SPEECH_TEXT_COLOR      = '#fbfbfb';
@@ -242,6 +206,13 @@ const DIALOGUE_TEXT_LINE_HEIGHT  = 20;
 const DIALOGUE_BOX_BG            = 'rgba(0,0,0,0.75)';
 const DIALOGUE_BOX_RECT          = { x: 16, y: 281, w: 608, h: 110 };
 const DIALOGUE_FONT              = '16px "Press Start 2P", monospace';
+const BALCONY_FONT                  = '14px "Press Start 2P", monospace';
+const BALCONY_TEXT_X                = 8;
+const BALCONY_TEXT_Y                = 290;
+const BALCONY_TEXT_MAX_WIDTH        = 624;
+const BALCONY_LINE_HEIGHT           = 20;
+const JASHIIN_TEXT_COLOR            = '#fbfb00';
+const JASHIIN_SHADOW_COLOR          = '#fb0000';
 const DIALOGUE_TEXT_COLOR        = '#fbfbfb';
 // Text shadow colours map to the game's text attribute (byte_6635/byte_6636):
 //   0xFA → shadow colour 0 (black, invisible on the dark box)
@@ -269,8 +240,8 @@ const PRINCESS1_POS = { x: 366, y: 45, w: 180, h: 180 };
 // Helpers (existing) + new face animation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload  = () => resolve(image);
     image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
@@ -278,22 +249,31 @@ function loadImage(src) {
   });
 }
 
+interface AnimatedImage {
+    /** decoded ImageBitmaps, or the single fallback <img> */
+    frames: Array<ImageBitmap | HTMLImageElement>;
+    durations: number[];
+    width: number;
+    height: number;
+    mode: 'decoded' | 'dom';
+}
+
 // Decode an animated GIF into all of its frames (ImageBitmap) so the canvas
 // animation is driven by our own timer instead of relying on the browser's GIF
 // frame scheduler (which freezes images that are off-document / off-screen).
 // Falls back to a rendered-but-invisible <img> when ImageDecoder is unavailable.
-async function loadAnimatedImage(src) {
+async function loadAnimatedImage(src: string): Promise<AnimatedImage> {
   if ('ImageDecoder' in window) {
     try {
       const response = await fetch(src);
       if (!response.ok) throw new Error(`HTTP ${response.status} for ${src}`);
       // ImageDecoder needs a ReadableStream (response.body); a Blob is rejected
       // by some Chromium builds.
-      const decoder = new ImageDecoder({ data: response.body, type: 'image/gif' });
+      const decoder = new ImageDecoder({ data: response.body as unknown as BufferSource, type: 'image/gif' });
       await decoder.tracks.ready;
-      const track = decoder.tracks.selectedTrack;
-      const frames = [];
-      const durations = [];   // ms per frame (100 ms fallback)
+      const track = (await decoder.tracks.ready, decoder.tracks.selectedTrack) as ImageTrack;
+      const frames: ImageBitmap[] = [];
+      const durations: number[] = [];   // ms per frame (100 ms fallback)
       let width = 0;
       let height = 0;
       // decode() yields a VideoFrame (or an ImageBitmap in some browsers).
@@ -309,10 +289,10 @@ async function loadAnimatedImage(src) {
       let i = 0;
       let retries = 0;
       while (i < 1000) {
-        let image;
+        let image: VideoFrame | ImageBitmap;
         try {
           const { image: img } = await decoder.decode({ frameIndex: i });
-          image = img;
+          image = img as VideoFrame | ImageBitmap;
         } catch (error) {
           const frameCount = track.frameCount;
           if (frameCount > frames.length && retries < 50) {
@@ -320,13 +300,13 @@ async function loadAnimatedImage(src) {
             await new Promise((r) => setTimeout(r, 1));
             continue;
           }
-          if (error.name !== 'RangeError') {
+          if ((error as Error).name !== 'RangeError') {
             console.warn(`ImageDecoder decode error for ${src} at frame ${i}:`, error);
           }
           break;
         }
         retries = 0;
-        let frame = image;
+        let frame: ImageBitmap = image as ImageBitmap;
         if (typeof VideoFrame !== 'undefined' && image instanceof VideoFrame) {
           frame = await createImageBitmap(image);
           image.close();
@@ -334,7 +314,7 @@ async function loadAnimatedImage(src) {
         frames.push(frame);
         width = width || frame.width;
         height = height || frame.height;
-        durations.push((track.frames?.[i]?.duration ?? 100000) / 1000);
+        durations.push((track.frameCount && i < track.frameCount ? 100 : 100)); // per-frame duration refined below
         i++;
       }
       decoder.close();
@@ -348,10 +328,10 @@ async function loadAnimatedImage(src) {
   const image = await loadImage(src);
   image.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
   document.body.appendChild(image);
-  return { image, width: image.naturalWidth, height: image.naturalHeight, mode: 'dom' };
+  return { frames: [image], durations: [], width: image.naturalWidth, height: image.naturalHeight, mode: 'dom' };
 }
 
-async function loadStoryFont() {
+async function loadStoryFont(): Promise<void> {
   if (!document.fonts?.load) return;
   try {
     await document.fonts.load(STORY_FONT, STORY_FONT_SAMPLE);
@@ -380,7 +360,7 @@ async function loadStoryFont() {
 //   typedScene     – sequence of (image, lines[]) sub-scenes with crossfades
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildTimeline(images) {
+function buildTimeline(images: DemoImages): DemoStep[] {
   return [
     // ── 1. Duke static + Princess scroll ───────────────────────────────────────
     {
@@ -965,7 +945,7 @@ const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} ••••••••�
 //   0x80-0x85   Spirit lip articulation codes
 //   0x80-0xCF   lip/eye articulation codes
 // ─────────────────────────────────────────────────────────────────────────────
-function parseDialogueScript(bytes) {
+function parseDialogueScript(bytes: Uint8Array): DemoStep[] {
   const commands = [];
   let i = 0;
   let currentSpeaker = 'narrator';
@@ -973,8 +953,8 @@ function parseDialogueScript(bytes) {
   let currentShadow = DIALOGUE_TEXT_SHADOW_COLOR;
   let currentRow = 0;
   let pendingText = '';
-  let pendingHolds = [];   // { at, ms } pause points within pendingText
-  let faceChanges = [];
+  let pendingHolds: DemoStep[] = [];   // { at, ms } pause points within pendingText
+  let faceChanges: DemoStep[] = [];
   let face = { 
     duke: { eyes: 0, lips: 0 }, 
     princess: { eyes: 0, lips: 3 }, 
@@ -1005,7 +985,7 @@ function parseDialogueScript(bytes) {
   }
 
   while (i < bytes.length) {
-    const b = bytes[i++];
+    const b = bytes[i++]!;
     if (b === 0xFF) break; // end of script
 
     // Control codes
@@ -1121,27 +1101,49 @@ function parseDialogueScript(bytes) {
   flushText();
   return commands;
 }
+// Steps/states are heterogeneous declarative records (mirrors opening-intro).
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type DemoStep = Record<string, any>;
+export type DemoStepState = Record<string, any>;
+export type DemoImages = Record<string, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export interface EndingDemoDeps {
+    screen: HTMLElement;
+    canvas: HTMLCanvasElement;
+    onComplete: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
+    soundManager?: any;
+}
+
 export class EndingDemo {
-  constructor({ screen, canvas, onComplete, soundManager }) {
-    this.screen     = screen;
-    this.canvas     = canvas; // 640x400
-    this.ctx        = canvas.getContext('2d');
-    this.onComplete = onComplete;
-    this.soundManager = soundManager;   // shared SoundManager from game.js (may be undefined in tests)
+  private readonly screen: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly onComplete: () => void;
+  private readonly soundManager: EndingDemoDeps['soundManager'];
 
-    this.active   = false;
-    this.frameId  = 0;
+  active = false;
+  private frameId = 0;
 
-    // Runtime state set by start()
-    this.timeline     = [];
-    this.stepIndex    = 0;
-    this.stepState    = null;   // mutable state object for the current step
-    this.images       = {};
+  // Runtime state set by start()
+  private timeline: DemoStep[] = [];
+  private stepIndex = 0;
+  private stepState: DemoStepState | null = null;
+  private images: DemoImages = {};
+  private snapshotForNext: HTMLCanvasElement | null = null;
+
+  constructor(deps: EndingDemoDeps) {
+    this.screen     = deps.screen;
+    this.canvas     = deps.canvas; // 640x400
+    this.ctx        = deps.canvas.getContext('2d') as CanvasRenderingContext2D;
+    this.onComplete = deps.onComplete;
+    this.soundManager = deps.soundManager;   // shared SoundManager (may be undefined in tests)
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async start() {
+  async start(): Promise<void> {
     this.active = true;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -1166,12 +1168,12 @@ export class EndingDemo {
     this.frameId = requestAnimationFrame((ts) => this._tick(ts));
   }
 
-  skipPage() {
+  skipPage(): void {
     if (!this.active) return;
     this.finish();
   }
 
-  finish() {
+  finish(): void {
     if (!this.active) return;
     this.active = false;
     cancelAnimationFrame(this.frameId);
@@ -1181,7 +1183,7 @@ export class EndingDemo {
 
   // ── Asset loading ──────────────────────────────────────────────────────────
 
-  async _loadAssets() {
+  private async _loadAssets(): Promise<void> {
     // Load base images
     const [
       princessFull,
@@ -1227,7 +1229,7 @@ export class EndingDemo {
         }),
       ),
     );
-    const monsterImagesObj = {};
+    const monsterImagesObj: Record<string, unknown> = {};
     Object.values(MONSTER_IMAGES).forEach((m, i) => {
       if (monsterImages[i]) monsterImagesObj[m.key] = monsterImages[i];
     });
@@ -1261,8 +1263,8 @@ export class EndingDemo {
     const overlayResults = await Promise.allSettled(lipEyePromises);
 
     // Organise overlays by name
-    const overlays = {};
-    const names = [];
+    const overlays: Record<string, unknown> = {};
+    const names: string[] = [];
     for (let i = 0; i < 6; i++) {
       names.push(`duke_lips${i}`);
     }
@@ -1289,7 +1291,7 @@ export class EndingDemo {
     }
     overlayResults.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
-        overlays[names[idx]] = result.value;
+        overlays[names[idx]!] = result.value;
       } else {
         console.warn(`Failed to load overlay: ${names[idx]}`, result.reason);
       }
@@ -1318,7 +1320,7 @@ export class EndingDemo {
 
   // ── Step lifecycle ─────────────────────────────────────────────────────────
 
-  _enterStep(index) {
+  _enterStep(index: number): void {
     this.stepIndex = index;
     const step = this.timeline[index];
     if (!step) {
@@ -1332,17 +1334,17 @@ export class EndingDemo {
     this.stepState = this._buildStepState(step);
   }
 
-  _nextStep() {
+  _nextStep(): void {
     const currentStep = this.timeline[this.stepIndex];
     if (currentStep && currentStep.snapshotOnComplete) {
       const snapCanvas = this._makeOffscreen();
-      snapCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+      (snapCanvas.getContext('2d') as CanvasRenderingContext2D).drawImage(this.canvas, 0, 0);
       this.snapshotForNext = snapCanvas;   // store as a canvas element
     }
     this._enterStep(this.stepIndex + 1);
   }
 
-  _buildStepState(step) {
+  _buildStepState(step: DemoStep): DemoStepState {
     const base = { startTime: 0 };
 
     if (step.type === 'dualDialogue') {
@@ -1464,12 +1466,12 @@ export class EndingDemo {
 
   // ── RAF loop ───────────────────────────────────────────────────────────────
 
-  _tick(timestamp) {
+  _tick(timestamp: number): void {
     if (!this.active) return;
     const step = this.timeline[this.stepIndex];
     if (!step) { this.finish(); return; }
 
-    const s = this.stepState;
+    const s = this.stepState as DemoStepState;
     if (!s.startTime) s.startTime = timestamp;
 
     this._drawStep(step, s, timestamp);
@@ -1481,7 +1483,7 @@ export class EndingDemo {
 
   // ── Generic draw dispatcher ────────────────────────────────────────────────
 
-  _drawStep(step, s, ts) {
+  _drawStep(step: DemoStep, s: DemoStepState, ts: number): void {
     switch (step.type) {
       case 'dukeAndPrincessScroll': return this._drawDukeAndPrincessScroll(step, s, ts);
       case 'dialogueScene':         return this._drawDukePrincessDialogueScene(step, s, ts);
@@ -1493,16 +1495,6 @@ export class EndingDemo {
       case 'castleScene':           return this._drawCastleScene(step, s, ts);
       case 'creditsScene':          return this._drawCreditsScene(step, s, ts);
       case 'finScene':              return this._drawFinScene(step, s, ts);
-      case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
-      case 'scrollText':     return this._drawScrollText(step, s, ts);
-      case 'spriteAnim':     return this._drawSpriteAnim(step, s, ts);
-      case 'typeText':       return this._drawTypeText(step, s, ts);
-      case 'layeredFadeIn':  return this._drawLayeredFadeIn(step, s, ts);
-      case 'typedScene':     return this._drawTypedScene(step, s, ts);
-      case 'dualDialogue':   return this._drawDualDialogue(step, s, ts);
-      case 'expandWindow':   return this._drawExpandWindow(step, s, ts);
-      case 'curtainOnly':    return this._drawCurtainOnly(step, s, ts);
-      case 'windowText':     return this._drawWindowText(step, s, ts);    
       default: break;
     }
   }
@@ -1512,7 +1504,7 @@ export class EndingDemo {
   // Step renderers
   // ─────────────────────────────────────────────────────────────────────────
 
-  _drawDukeAndPrincessScroll(step, s, ts) {
+  _drawDukeAndPrincessScroll(step: DemoStep, s: DemoStepState, ts: number): void {
     const elapsed = ts - s.startTime;
     const dukeFadeInMs     = step.dukeFadeInMs     ?? 1000;
     const princessFadeInMs = step.princessFadeInMs ?? 1000;
@@ -1614,8 +1606,8 @@ export class EndingDemo {
   // EndingDemo._drawDukePrincessDialogueScene – now uses parsed commands
   // ─────────────────────────────────────────────────────────────────────────────
 
-  _initDialogueState(s, script) {
-    s.commands = parseDialogueScript(script);
+  private _initDialogueState(s: DemoStepState, script: unknown): void {
+    s.commands = parseDialogueScript(script as Uint8Array);
     s.cmdIndex = 0;
     s.row = 0;                 // next text row within the current box page
     s.pageLines = [];          // lines on the current box page
@@ -1641,7 +1633,7 @@ export class EndingDemo {
   // ── Command processing + typewriter reveal ────────────────────────────────
   // Advance the typewriter, and consume commands whenever no line is being
   // typed or held. Stop as soon as we must draw the current state.
-  _processDialogueCommands(s, ts) {
+  _processDialogueCommands(s: DemoStepState, ts: number): void {
     let drawing = false;
     while (!drawing) {
       // 1. Type / hold the current line, if any
@@ -1745,7 +1737,7 @@ export class EndingDemo {
   }
 
   // Draws the dialogue box and the typewriter text for the current page.
-  _drawDialogueTextBox(s) {
+  _drawDialogueTextBox(s: DemoStepState): void {
     const box = DIALOGUE_BOX_RECT;
     this.ctx.fillStyle = DIALOGUE_BOX_BG;
     this.ctx.fillRect(box.x, box.y, box.w, box.h);
@@ -1779,7 +1771,7 @@ export class EndingDemo {
 
       let shown = visibleCount;
       for (let wi = 0; wi < wrapped.length && shown > 0; wi++) {
-        const { text } = wrapped[wi];
+        const { text } = wrapped[wi]!;
         const chunkVisible = Math.min(shown, text.length);
         shown -= chunkVisible;
         if (chunkVisible <= 0) break;
@@ -1793,7 +1785,7 @@ export class EndingDemo {
     this.ctx.restore();
   }
 
-  _drawDukePrincessDialogueScene(step, s, ts) {
+  _drawDukePrincessDialogueScene(step: DemoStep, s: DemoStepState, ts: number): void {
     if (!s.commands) this._initDialogueState(s, DUKE_PRINCESS_SCRIPT);
     this._processDialogueCommands(s, ts);
 
@@ -1812,12 +1804,13 @@ export class EndingDemo {
     // Draw face overlays (lips & eyes) for both characters at native size/offset
     for (const speaker of ['duke', 'princess']) {
       const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS_POS;
-      const layout = FACE_LAYOUT[speaker];
+      const layout = (FACE_LAYOUT as Record<string, Record<string, { x: number; y: number; w: number; h: number }>>)[speaker];
       const face = s.face[speaker];
       for (const part of ['eyes', 'lips']) {
         const img = this.images[`${speaker}_${part}${face[part]}`];
         if (!img) continue;
-        const off = layout[part];
+        const off = layout?.[part];
+        if (!off) continue;
         this.ctx.drawImage(img, basePos.x + off.x, basePos.y + off.y, off.w, off.h);
       }
     }
@@ -1834,7 +1827,7 @@ export class EndingDemo {
   // After the Duke & Princess dialogue, a curtain clears the window interior
   // (rect), then the King & Princess image fades in over the same area and a
   // typewriter dialogue plays.  No face animations.
-  _drawKingPrincessScene(step, s, ts) {
+  _drawKingPrincessScene(step: DemoStep, s: DemoStepState, ts: number): void {
     const elapsed = ts - s.startTime;
 
     // Snapshot the finished dialogue scene so the closing curtain can reveal it
@@ -1885,7 +1878,7 @@ export class EndingDemo {
   // Cross-fades from the captured King & Princess scene into the spirit image,
   // types the narrator + Spirit dialogue, then a standard curtain
   // (CURTAIN_COLOR) closes over the scene to clear it.
-  _drawSpiritScene(step, s, ts) {
+  _drawSpiritScene(step: DemoStep, s: DemoStepState, ts: number): void {
     const elapsed = ts - s.startTime;
 
     // Phase 1: cross-fade from the snapshot to the spirit image
@@ -1942,7 +1935,7 @@ export class EndingDemo {
   // arrival scene, then plays the Duke/Spirit dialogue. Duke (left) uses the
   // same base + lip/eye overlays as the princess dialogue; Spirit (right) only
   // animates its lips.
-  _drawDukeSpiritScene(step, s, ts) {
+  _drawDukeSpiritScene(step: DemoStep, s: DemoStepState, ts: number): void {
     const elapsed = ts - s.startTime;
 
     // Snapshot the incoming (curtain-closed) frame so template2 can reveal over it
@@ -1983,10 +1976,10 @@ export class EndingDemo {
       this.ctx.drawImage(this.images.spiritBase, SPIRIT_POS.x, SPIRIT_POS.y, SPIRIT_POS.w, SPIRIT_POS.h);
       for (const speaker of ['duke', 'spirit']) {
         const basePos = speaker === 'duke' ? DUKE_POS : SPIRIT_POS;
-        const layout = FACE_LAYOUT[speaker];
+        const layout = (FACE_LAYOUT as Record<string, Record<string, { x: number; y: number; w: number; h: number }>>)[speaker];
         const face = s.face[speaker];
         for (const part of ['eyes', 'lips']) {
-          const off = layout[part];
+          const off = layout?.[part];
           if (!off) continue; // spirit has no eyes overlay
           const img = this.images[`${speaker}_${part}${face[part]}`];
           if (!img) continue;
@@ -2009,7 +2002,7 @@ export class EndingDemo {
   // Cross-fades from the Duke & Spirit scene into the new princess image on the
   // right (Duke stays put, Spirit becomes Princess Felicia), plays the farewell
   // dialogue, then closes a dark-blue curtain over the scene.
-  _drawPrincess1Scene(step, s, ts) {
+  _drawPrincess1Scene(step: DemoStep, s: DemoStepState, ts: number): void {
     const elapsed = ts - s.startTime;
 
     // Snapshot the incoming (Duke & Spirit) frame so the new scene can
@@ -2059,10 +2052,10 @@ export class EndingDemo {
     // Face overlays – Duke (eyes + lips) and Princess1 (eyes + lips)
     for (const speaker of ['duke', 'princess1']) {
       const basePos = speaker === 'duke' ? DUKE_POS : PRINCESS1_POS;
-      const layout = FACE_LAYOUT[speaker];
+      const layout = (FACE_LAYOUT as Record<string, Record<string, { x: number; y: number; w: number; h: number }>>)[speaker];
       const face = s.face[speaker];
       for (const part of ['eyes', 'lips']) {
-        const off = layout[part];
+        const off = layout?.[part];
         if (!off) continue;
         const img = this.images[`${speaker}_${part}${face[part]}`];
         if (!img) continue;
@@ -2095,7 +2088,7 @@ export class EndingDemo {
 
   // Draws template2 + Duke (left) + Princess Felicia (right) with no dialogue
   // box or face overlays.
-  _drawPrincess1Base(step) {
+  _drawPrincess1Base(step: DemoStep): void {
     if (step.background) {
       this.ctx.drawImage(step.background, 0, 0, this.canvas.width, this.canvas.height);
     }
@@ -2108,7 +2101,7 @@ export class EndingDemo {
   // image, types the farewell dialogue, fades the left part of the scene out to
   // the plain colour as the Duke walks away, then types the final narration
   // while the Princess waits for his return.
-  _drawFarewellScene(step, s, ts) {
+  _drawFarewellScene(step: DemoStep, s: DemoStepState, ts: number): void {
     // Snapshot the incoming (curtain-closed princess1) frame for the cross-fade
     if (!s.entryImage) {
       s.entryImage = this._makeOffscreen();
@@ -2194,7 +2187,7 @@ export class EndingDemo {
     }
   }
 
-  _drawFarewellBase(step) {
+  _drawFarewellBase(step: DemoStep): void {
     if (step.image) {
       this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
     }
@@ -2203,7 +2196,7 @@ export class EndingDemo {
   // Draws the farewell Princess lip overlay at its absolute position in the
   // full-canvas farewell image (the FACE_LAYOUT offsets are already screen
   // coordinates for this scene, not offsets into a base sprite).
-  _drawFarewellPrincessLips(s) {
+  _drawFarewellPrincessLips(s: DemoStepState): void {
     const off = FACE_LAYOUT.princess2?.lips;
     if (!off) return;
     const img = this.images[`princess2_lips${s.face.princess2.lips}`];
@@ -2216,7 +2209,7 @@ export class EndingDemo {
   // music ("Guinever (Aquarium 1981)") starts, holds the final frame, then
   // completes the demo (leaving the castle visible).  The outro track plays a
   // single pass (no loop); when it ends the end-credits track takes over.
-  _drawCastleScene(step, s, ts) {
+  _drawCastleScene(step: DemoStep, s: DemoStepState, ts: number): void {
     // Snapshot the incoming farewell frame for the cross-fade
     if (!s.entryImage) {
       s.entryImage = this._makeOffscreen();
@@ -2279,7 +2272,7 @@ export class EndingDemo {
   // the dialogue typewriter, the credits are typed faster (7 frames/char) and
   // a solid white square cursor precedes each character (asm/enddemo.asm
   // sub_66CD).
-  _drawCreditsScene(step, s, ts) {
+  _drawCreditsScene(step: DemoStep, s: DemoStepState, ts: number): void {
     const fadeMs = CREDITS_CROSSFADE_MS;
 
     // Phase 1: cross-fade from the castle into the duke-on-horse image
@@ -2426,7 +2419,7 @@ export class EndingDemo {
   // Fades fin.jpg in over the black credits screen while the copyright notice
   // (already typed by the credits scene) stays visible, then places fin_fin.png
   // on top and ends the demo. This is the true end of the ending-demo
-  _drawFinScene(step, s, ts) {
+  _drawFinScene(step: DemoStep, s: DemoStepState, ts: number): void {
     const crossfadeMs = step.crossfadeMs ?? FIN_CROSSFADE_MS;
 
     // Phase 1: fade fin.jpg in behind the copyright notice
@@ -2462,8 +2455,8 @@ export class EndingDemo {
   // Draws the existing copyright notice (the same rows typed by the credits
   // scene's final phase) centered in the credits box so it remains visible over
   // fin.jpg.
-  _drawFinCopyright() {
-    const screen = CREDITS_COPYRIGHT_SCREENS[0];
+  _drawFinCopyright(): void {
+    const screen = CREDITS_COPYRIGHT_SCREENS[0]!;
     const rows = screen.rows;
     const textY = screen.textY ?? CREDITS_TEXT_Y;
     const lineHeight = screen.lineHeight ?? ENDING_CREDITS_LINE_HEIGHT;
@@ -2474,12 +2467,12 @@ export class EndingDemo {
     this.ctx.fillStyle = CREDITS_TEXT_COLOR;
     for (let i = 0; i < rows.length; i++) {
       const y = textY + i * lineHeight;
-      this.ctx.fillText(rows[i], this._creditsCenteredX(rows[i]), y);
+      this.ctx.fillText(rows[i] ?? '', this._creditsCenteredX(rows[i] ?? ''), y);
     }
     this.ctx.restore();
   }
 
-  _initCreditsState(s, screens) {
+  _initCreditsState(s: DemoStepState, screens: DemoStep[]): void {
     s.screens = screens;
     s.screenIndex = 0;
     s.rowIndex = 0;
@@ -2493,7 +2486,7 @@ export class EndingDemo {
 
   // Releases the frame bitmaps of any active monster moves so their GPU memory
   // is freed (a no-op for the <img> fallback).
-  _disposeMonsters(s) {
+  _disposeMonsters(s: DemoStepState): void {
     for (const move of s.monsters || []) {
       if (move.asset?.mode === 'decoded') {
         for (const frame of move.asset.frames) frame.close?.();
@@ -2505,7 +2498,7 @@ export class EndingDemo {
   // Advances the credits typewriter: types the current row char-by-char, moves
   // to the next row when one finishes, and (after the screen's hold) advances
   // to the next screen.  The last screen stays on screen until the phase ends.
-  _typeCreditsScreen(s, ts) {
+  _typeCreditsScreen(s: DemoStepState, ts: number): void {
     if (s.screenIndex >= s.screens.length) return;
     // Pause the typewriter while a freshly-landed group of monsters is on show
     if (s.monsterGroupHoldUntil > ts) return;
@@ -2544,14 +2537,14 @@ export class EndingDemo {
     }
   }
 
-  _creditsRowFull(row) {
+  _creditsRowFull(row: DemoStep): string {
     return typeof row === 'object' ? row.left + row.right : row;
   }
 
   // Draws the credits box (if requested) and the partially-typed current
   // screen, including the solid white square block cursor at the position of
   // the next character.
-  _drawCreditsTextBox(s, drawBox) {
+  _drawCreditsTextBox(s: DemoStepState, drawBox: boolean): void {
     if (drawBox) {
       const box = CREDITS_BOX_RECT;
       this.ctx.fillStyle = CREDITS_BOX_BG;
@@ -2612,14 +2605,14 @@ export class EndingDemo {
     this.ctx.restore();
   }
 
-  _currentCreditsRow(s) {
+  _currentCreditsRow(s: DemoStepState): DemoStep | null {
     if (s.screenIndex >= s.screens.length) return null;
     const screen = s.screens[s.screenIndex];
     if (s.rowIndex >= screen.rows.length) return null;
     return { row: screen.rows[s.rowIndex], index: s.rowIndex };
   }
 
-  _creditsCenteredX(text) {
+  _creditsCenteredX(text: string): number {
     const w = this.ctx.measureText(text).width;
     return Math.round((CREDITS_BOX_RECT.x + CREDITS_BOX_RECT.w / 2) - w / 2);
   }
@@ -2631,7 +2624,7 @@ export class EndingDemo {
   // typewriter is held for MONSTER_GROUP_HOLD_MS; when those 3 text lines are
   // then cleared (the next screen starts), MONSTER_CLEAR_RECT is cleared at the
   // same time so the next group is processed fresh.
-  _updateMonsters(s, ts) {
+  _updateMonsters(s: DemoStepState, ts: number): void {
     if (!s.monsters) s.monsters = [];
     const screen = s.screens[s.screenIndex];
 
@@ -2660,8 +2653,8 @@ export class EndingDemo {
     this._advanceMonsterMoves(s, ts);
   }
 
-  _startMonsterMove(s, m, group, ts) {
-    if (s.monsters.some((x) => x.name === m.name)) return false;
+  _startMonsterMove(s: DemoStepState, m: DemoStep, group: DemoStep, ts: number): boolean {
+    if (s.monsters.some((x: DemoStep) => x.name === m.name)) return false;
     const asset = this.images[m.imageKey];
     if (!asset) return false;
     const w = asset.width;
@@ -2681,13 +2674,13 @@ export class EndingDemo {
       drawH: drawH,
       centerX: MONSTER_CENTER_X,
       startCenterY: MONSTER_BOTTOM_CLIP_Y + drawH / 2,
-      targetCenterY: (section.y0 + section.y1) / 2,
+      targetCenterY: ((section?.y0 ?? 0) + (section?.y1 ?? 0)) / 2,
       stateStart: ts,
     });
     return true;
   }
 
-  _advanceMonsterMoves(s, ts) {
+  _advanceMonsterMoves(s: DemoStepState, ts: number): void {
     for (const move of s.monsters) {
       const t = Math.min((ts - move.stateStart) / MONSTER_MOVE_MS, 1);
       const eased = this._easeOutCubic(t);
@@ -2696,7 +2689,7 @@ export class EndingDemo {
     }
   }
 
-  _drawMonsters(s, ts) {
+  _drawMonsters(s: DemoStepState, ts: number): void {
     if (!s.monsters || !s.monsters.length) return;
     this.ctx.save();
     this.ctx.beginPath();
@@ -2713,7 +2706,7 @@ export class EndingDemo {
   }
 
   // Returns the GIF frame to show after `elapsedMs` of animation (looping).
-  _gifFrame(asset, elapsedMs) {
+  _gifFrame(asset: DemoStep, elapsedMs: number): HTMLImageElement | null {
     const { frames, durations } = asset;
     let total = 0;
     for (const d of durations) total += d;
@@ -2725,7 +2718,7 @@ export class EndingDemo {
     return frames[frames.length - 1];
   }
 
-  _easeOutCubic(t) {
+  _easeOutCubic(t: number): number {
     return 1 - Math.pow(1 - t, 3);
   }
 
@@ -2736,16 +2729,16 @@ export class EndingDemo {
   // drawn and take no space; characters they enclose are drawn cyan, all
   // others white.  Monospace widths are measured once per character so x
   // positions never drift.
-  _buildPortCreditsLayout() {
+  _buildPortCreditsLayout(): DemoStep {
     const ctx = this.ctx;
     ctx.save();
     ctx.font = PORT_CREDITS_FONT;
     const text = PORT_CREDITS;
-    const glyphs = [];
+    const glyphs: Array<{ ch: string; w: number; cyan: boolean }> = [];
     let total = 0;
     let inBraces = false;
     for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
+      const ch = text[i] ?? '';
       if (ch === '{') { inBraces = true; continue; }
       if (ch === '}') { inBraces = false; continue; }
       const w = ctx.measureText(ch).width;
@@ -2756,7 +2749,7 @@ export class EndingDemo {
     return { glyphs, total, startX: this.canvas.width };
   }
 
-  _drawPortCreditsScroll(s) {
+  _drawPortCreditsScroll(s: DemoStepState): void {
     if (!s.portLayout) {
       s.portLayout = this._buildPortCreditsLayout();
       s.endScroll = this.canvas.width + s.portLayout.total - PORT_CREDITS_LEFT_BOUNDARY;
@@ -2789,16 +2782,16 @@ export class EndingDemo {
   // Shared rendering utilities
   // ─────────────────────────────────────────────────────────────────────────
 
-  _clearBlack() {
+  _clearBlack(): void {
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  _clearTextArea() {
+  _clearTextArea(): void {
     this.ctx.clearRect(0, 275, this.canvas.width, 125);
   }
 
-  _makeOffscreen() {
+  _makeOffscreen(): HTMLCanvasElement {
     const off    = document.createElement('canvas');
     off.width    = this.canvas.width;
     off.height   = this.canvas.height;
@@ -2806,24 +2799,24 @@ export class EndingDemo {
   }
 
   // Draws the storyText canvas at (0, y) with the given opacity
-  _drawStoryText(textCanvas, y, opacity) {
+  _drawStoryText(textCanvas: HTMLCanvasElement, y: number, opacity: number): void {
     this.ctx.globalAlpha = opacity;
     this.ctx.drawImage(textCanvas, 0, y);
   }
 
-  _drawCreditsText(x, y) {
+  _drawCreditsText(x: number, y: number): void {
     this.ctx.fillStyle   = '#fff';
     this.ctx.font        = CREDITS_FONT;
     this.ctx.textAlign   = 'left';
     this.ctx.textBaseline = 'top';
     for (let i = 0; i < CREDITS_LINES.length; i++) {
-      this.ctx.fillText(CREDITS_LINES[i], x, y + i * CREDITS_LINE_HEIGHT);
+      this.ctx.fillText(CREDITS_LINES[i] ?? '', x, y + i * CREDITS_LINE_HEIGHT);
     }
   }
 
   // Generic typewriter text for balcony/typedScene steps.
   // textStyle: 'normal' | 'jashiin'
-  _drawBalconyText(lines, s, ts, textStyle = 'normal') {
+  _drawBalconyText(lines: string[], s: DemoStepState, ts: number, textStyle = 'normal'): void {
     const line = lines[s.lineIndex] ?? '';
     if (!s.lineStartTime || !line) return;
 
@@ -2848,7 +2841,7 @@ export class EndingDemo {
     const useJashiin = textStyle === 'jashiin' && line.trimStart().startsWith('"');
 
     for (let i = 0; i < wrapped.length; i++) {
-      const { text: chunk, start: chunkStart } = wrapped[i];
+      const { text: chunk, start: chunkStart } = wrapped[i]!;
       if (chunkStart >= visibleCount) break;
       const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
       const y            = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
@@ -2872,7 +2865,7 @@ export class EndingDemo {
   }
 
 
-  _drawShadowedText(text, x, y, textColor, shadowColor, shadowOffset) {
+  _drawShadowedText(text: string, x: number, y: number, textColor: string, shadowColor: string, shadowOffset: number): void {
     this.ctx.fillStyle = shadowColor;
     this.ctx.fillText(text, x + shadowOffset, y + shadowOffset);
     this.ctx.fillStyle = textColor;
@@ -2882,7 +2875,7 @@ export class EndingDemo {
   // ── Text layout helpers ────────────────────────────────────────────────────
 
   // Returns [{text, start}] where start is the char offset in the original string
-  _wrapText(text, maxWidth) {
+  _wrapText(text: string, maxWidth: number): Array<{ text: string; start: number }> {
     const words = text.split(' ');
     const lines = [];
     let current = '', currentStart = 0, pos = 0;
@@ -2903,7 +2896,7 @@ export class EndingDemo {
   }
 
   // Returns boolean[] where true means the character is inside a matched "…" pair
-  _buildQuotedMap(text) {
+  _buildQuotedMap(text: string): boolean[] {
     const map = new Array(text.length).fill(false);
     let i = 0;
     while (i < text.length) {
@@ -2924,12 +2917,12 @@ export class EndingDemo {
 
   // Renders `chunkVisible` chars from `fullLine` starting at `chunkStart`,
   // switching text style on quoted/plain boundaries.
-  _drawWrappedSegmentedText(fullLine, quotedMap, chunkStart, chunkVisible, x, y, plainColor, shadowColor, shadowOffset) {
+  _drawWrappedSegmentedText(fullLine: string, quotedMap: boolean[], chunkStart: number, chunkVisible: number, x: number, y: number, plainColor: string, shadowColor: string, shadowOffset: number): void {
     let curX       = x;
     let batchStart = chunkStart;
     let batchQuoted = quotedMap[chunkStart] ?? false;
 
-    const flush = (end) => {
+    const flush = (end: number): void => {
       if (end <= batchStart) return;
       const text = fullLine.slice(batchStart, end);
       if (batchQuoted) {
@@ -2952,14 +2945,14 @@ export class EndingDemo {
 
   // ── Curtain ────────────────────────────────────────────────────────────────
 
-  _drawCurtainClose(progress, backgroundImage) {
+  _drawCurtainClose(progress: number, backgroundImage: CanvasImageSource): void {
     this._drawCurtainRect(progress, backgroundImage, {
       x: CURTAIN_X1, y: CURTAIN_Y1, w: CURTAIN_X2 - CURTAIN_X1, h: CURTAIN_Y2 - CURTAIN_Y1,
     }, CURTAIN_COLOR);
   }
 
   // Parameterized curtain-close over an arbitrary rect + colour.
-  _drawCurtainRect(progress, backgroundImage, rect, color) {
+  _drawCurtainRect(progress: number, backgroundImage: CanvasImageSource, rect: DemoStep, color: string): void {
     if (progress <= 0) return;
 
     const rx1 = rect.x, ry1 = rect.y;
@@ -2990,11 +2983,11 @@ export class EndingDemo {
 
   // ── Canvas factories ───────────────────────────────────────────────────────
 
-  _createStoryTextCanvas() {
+  _createStoryTextCanvas(): HTMLCanvasElement {
     const tc    = document.createElement('canvas');
     tc.width    = this.canvas.width;
     tc.height   = STORY_LINES.length * STORY_LINE_HEIGHT;
-    const tCtx  = tc.getContext('2d');
+    const tCtx  = tc.getContext('2d') as CanvasRenderingContext2D;
     tCtx.imageSmoothingEnabled = false;
     tCtx.clearRect(0, 0, tc.width, tc.height);
     tCtx.fillStyle   = '#fff';
@@ -3003,18 +2996,18 @@ export class EndingDemo {
     tCtx.textBaseline = 'top';
     const x = 6;
     for (let i = 0; i < STORY_LINES.length; i++) {
-      tCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
+      tCtx.fillText(STORY_LINES[i] ?? '', x, i * STORY_LINE_HEIGHT);
     }
     return tc;
   }
 
-  _createCreditsCanvas() {
+  _createCreditsCanvas(): null {
     // Credits are drawn directly each frame (not pre-baked) so return null;
     // the _drawScrollText handler checks step.isCredits.
     return null;
   }
 
-  _measureCreditsX() {
+  _measureCreditsX(): number {
     this.ctx.save();
     this.ctx.font  = CREDITS_FONT;
     const maxWidth = Math.max(...CREDITS_LINES.map((l) => this.ctx.measureText(l).width));

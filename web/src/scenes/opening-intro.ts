@@ -334,8 +334,8 @@ const DEMON_SPEECH_START_Y          = 330;
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload  = () => resolve(image);
     image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
@@ -343,7 +343,7 @@ function loadImage(src) {
   });
 }
 
-async function loadStoryFont() {
+async function loadStoryFont(): Promise<void> {
   if (!document.fonts?.load) return;
   try {
     await document.fonts.load(STORY_FONT, STORY_FONT_SAMPLE);
@@ -374,7 +374,7 @@ async function loadStoryFont() {
 //   typedScene     – sequence of (image, lines[]) sub-scenes with crossfades
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildTimeline(images) {
+export function buildTimeline(images: IntroImages): IntroStep[] {
   return [
     // ── 1. Logo ──────────────────────────────────────────────────────────────
     {
@@ -384,7 +384,7 @@ function buildTimeline(images) {
       holdMs: 3000,
       fadeOutMs: INTRO_FADE_OUT_MS,
       // Extra overlay drawn on top of the image during this step
-      overlay: (ctx, canvas, opacity) => {
+      overlay: (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, opacity: number) => {
         ctx.save();
         ctx.globalAlpha = opacity;
         ctx.fillStyle = '#fff';
@@ -393,12 +393,12 @@ function buildTimeline(images) {
         ctx.textBaseline = 'top';
         const startY = 290, lineHeight = 20;
         for (let i = 0; i < INTRO_COPYRIGHT_LINES.length; i++) {
-          ctx.fillText(INTRO_COPYRIGHT_LINES[i], canvas.width / 2, startY + i * lineHeight);
+          ctx.fillText(INTRO_COPYRIGHT_LINES[i] ?? '', canvas.width / 2, startY + i * lineHeight);
         }
         ctx.restore();
       },
       // Custom opacity curve: image starts at 0.18 and ramps to 1
-      opacityCurve: (fadeInProgress) => 0.18 + fadeInProgress * 0.82,
+      opacityCurve: (fadeInProgress: number) => 0.18 + fadeInProgress * 0.82,
     },
 
     // ── 2. Story scroll (nec → nec_gold crossfade) ───────────────────────────
@@ -442,13 +442,13 @@ function buildTimeline(images) {
       type: 'typeText',
       lines: DEMON_SPEECH_LINES,
       // Mouth animation while speaking; idle frame when done
-      getImage: (elapsed, charsDone, totalChars) => {
+      getImage: (elapsed: number, charsDone: number, totalChars: number): HTMLImageElement => {
         if (charsDone >= totalChars) return images.demonFrames[3];
-        return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2]];
+        return images.demonFrames[[4, 5][Math.floor(elapsed / DEMON_MOUTH_FRAME_DELAY_MS) % 2] ?? 4];
       },
       font: DEMON_SPEECH_FONT,
       textAlign: 'center',
-      textX: (canvas) => canvas.width / 2,
+      textX: (canvas: HTMLCanvasElement) => canvas.width / 2,
       startY: DEMON_SPEECH_START_Y,
       lineHeight: DEMON_SPEECH_LINE_HEIGHT,
       charDelayMs: CHAR_DELAY_MS,
@@ -793,28 +793,51 @@ function buildTimeline(images) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpeningIntro — timeline engine
+//
+// Steps are heterogeneous declarative objects built by buildTimeline(); their
+// per-step mutable state lives in plain records. Both are intentionally loose
+// (Record<string, any>) at this stage — Stage 4 tightens them once Playwright
+// baselines guard the visuals.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type IntroStep = Record<string, any>;
+export type StepState = Record<string, any>;
+export type IntroImages = Record<string, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export interface OpeningIntroDeps {
+    screen: HTMLElement;
+    canvas: HTMLCanvasElement;
+    onComplete: () => void;
+}
+
 export class OpeningIntro {
-  constructor({ screen, canvas, onComplete }) {
-    this.screen     = screen;
-    this.canvas     = canvas; // 640x400
-    this.ctx        = canvas.getContext('2d');
-    this.onComplete = onComplete;
+  private readonly screen: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly onComplete: () => void;
 
-    this.active   = false;
-    this.frameId  = 0;
+  active = false;
+  private frameId = 0;
 
-    // Runtime state set by start()
-    this.timeline     = [];
-    this.stepIndex    = 0;
-    this.stepState    = null;   // mutable state object for the current step
-    this.images       = {};
+  // Runtime state set by start()
+  private timeline: IntroStep[] = [];
+  private stepIndex = 0;
+  private stepState: StepState | null = null;
+  private images: IntroImages = {};
+  private snapshotForNext: HTMLCanvasElement | null = null;
+
+  constructor(deps: OpeningIntroDeps) {
+    this.screen     = deps.screen;
+    this.canvas     = deps.canvas; // 640x400
+    this.ctx        = deps.canvas.getContext('2d') as CanvasRenderingContext2D;
+    this.onComplete = deps.onComplete;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async start() {
+  async start(): Promise<void> {
     this.active = true;
     this.ctx.imageSmoothingEnabled = false;
     this.screen.classList.remove('hidden');
@@ -834,7 +857,7 @@ export class OpeningIntro {
     this.frameId = requestAnimationFrame((ts) => this._tick(ts));
   }
 
-  skipPage() {
+  skipPage(): void {
     if (!this.active) return;
 
     const idx = this.stepIndex;
@@ -855,7 +878,7 @@ export class OpeningIntro {
     }
   }
 
-  finish() {
+  finish(): void {
     if (!this.active) return;
     this.active = false;
     cancelAnimationFrame(this.frameId);
@@ -865,7 +888,7 @@ export class OpeningIntro {
 
   // ── Asset loading ──────────────────────────────────────────────────────────
 
-  async _loadAssets() {
+  private async _loadAssets(): Promise<void> {
     const [
       logo, nec, necGold, necBroken, blueGem, redGem,
       necklace, logoTransp, panno,
@@ -934,35 +957,35 @@ export class OpeningIntro {
 
   // ── Step lifecycle ─────────────────────────────────────────────────────────
 
-  _enterStep(index) {
+  private _enterStep(index: number): void {
     this.stepIndex = index;
     const step = this.timeline[index];
     if (!step) { this.finish(); return; }
     this.stepState = this._buildStepState(step);
   }
 
-  _nextStep() {
+  private _nextStep(): void {
     const currentStep = this.timeline[this.stepIndex];
     if (currentStep && currentStep.snapshotOnComplete) {
       const snapCanvas = this._makeOffscreen();
-      snapCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+      (snapCanvas.getContext('2d') as CanvasRenderingContext2D).drawImage(this.canvas, 0, 0);
       this.snapshotForNext = snapCanvas;   // store as a canvas element
     }
     this._enterStep(this.stepIndex + 1);
   }
 
-  _buildStepState(step) {
-    const base = { startTime: 0 };
+  private _buildStepState(step: IntroStep): StepState {
+    const base: StepState = { startTime: 0 };
 
     if (step.type === 'scrollText') {
-      let canvas;
+      let canvas: HTMLCanvasElement | null;
       if (step.finalScroll) {
         // Build canvas for final scroller
         const tc = document.createElement('canvas');
         const lines = FINAL_SCROLL_LINES;
         tc.width = this.canvas.width;
         tc.height = lines.length * STORY_LINE_HEIGHT;
-        const tCtx = tc.getContext('2d');
+        const tCtx = tc.getContext('2d') as CanvasRenderingContext2D;
         tCtx.imageSmoothingEnabled = false;
         tCtx.fillStyle = '#fff';
         tCtx.font = STORY_FONT;
@@ -970,7 +993,7 @@ export class OpeningIntro {
         tCtx.textBaseline = 'top';
         const x = 6;                             // same offset as story
         for (let i = 0; i < lines.length; i++) {
-          tCtx.fillText(lines[i], x, i * STORY_LINE_HEIGHT);
+          tCtx.fillText(lines[i] ?? '', x, i * STORY_LINE_HEIGHT);
         }
         canvas = tc;
       } else if (step.isCredits) {
@@ -1067,12 +1090,12 @@ export class OpeningIntro {
 
   // ── RAF loop ───────────────────────────────────────────────────────────────
 
-  _tick(timestamp) {
+  private _tick(timestamp: number): void {
     if (!this.active) return;
     const step = this.timeline[this.stepIndex];
     if (!step) { this.finish(); return; }
 
-    const s = this.stepState;
+    const s = this.stepState as StepState;
     if (!s.startTime) s.startTime = timestamp;
 
     this._drawStep(step, s, timestamp);
@@ -1084,7 +1107,7 @@ export class OpeningIntro {
 
   // ── Generic draw dispatcher ────────────────────────────────────────────────
 
-  _drawStep(step, s, ts) {
+  private _drawStep(step: IntroStep, s: StepState, ts: number): void {
     switch (step.type) {
       case 'fadeInImage':    return this._drawFadeInImage(step, s, ts);
       case 'scrollText':     return this._drawScrollText(step, s, ts);
@@ -1101,67 +1124,6 @@ export class OpeningIntro {
     }
   }
 
-  // ── Generic skip dispatcher ────────────────────────────────────────────────
-
-  _skipStep(step, s) {
-    switch (step.type) {
-      case 'fadeInImage':
-        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
-        break;
-
-      case 'scrollText':
-        if (step.crossfadeMs && !s.crossfadeStartTime) {
-          s.crossfadeStartTime = performance.now() - (step.crossfadeMs - 500); 
-        } else if (!step.crossfadeMs) {
-          this._nextStep();
-        }        
-        break;
-
-      case 'gemExplosion':
-        this._nextStep();
-        break;
-
-      case 'spriteAnim':
-        this._nextStep();
-        break;
-
-      case 'typeText':
-        // Snap text to fully typed; if already done, jump immediately
-        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
-        break;
-
-      case 'layeredFadeIn':
-        if (!s.fadeOutStartTime) s.fadeOutStartTime = performance.now();
-        break;
-
-      case 'balcony':
-        this._advanceBalconyLine(step, s, performance.now());
-        break;
-
-      case 'typedScene':
-        this._advanceTypedSceneLine(step, s, performance.now());
-        break;
-
-      case 'dualDialogue':
-        this._advanceDualDialogueLine(step, s, performance.now());
-        break;
-
-      case 'expandWindow':
-        // Jump to end
-        s.animationDone = true;
-        this._nextStep();
-        break;
-
-      case 'curtainOnly':
-        s.done = true;
-        this._nextStep();
-        break;
-
-      case 'windowText':
-        this._advanceWindowTextLine(step, s, performance.now());
-        break;
-      }
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Step renderers
@@ -1169,7 +1131,7 @@ export class OpeningIntro {
 
   // ── fadeInImage ────────────────────────────────────────────────────────────
 
-  _drawFadeInImage(step, s, ts) {
+  private _drawFadeInImage(step: IntroStep, s: StepState, ts: number): void {
     const elapsed      = ts - s.startTime;
     const fadeInProg   = Math.min(elapsed / step.fadeInMs, 1);
     const rawOpacity   = step.opacityCurve ? step.opacityCurve(fadeInProg) : fadeInProg;
@@ -1198,7 +1160,7 @@ export class OpeningIntro {
 
   // ── scrollText ─────────────────────────────────────────────────────────────
 
-  _drawScrollText(step, s, ts) {
+  private _drawScrollText(step: IntroStep, s: StepState, ts: number): void {
     const elapsed     = ts - s.startTime;
     const imageOpacity = step.imagefadeInMs
       ? Math.min(elapsed / step.imagefadeInMs, 1)
@@ -1250,7 +1212,7 @@ export class OpeningIntro {
 
   // ── gemExplosion ───────────────────────────────────────────────────────────
 
-  _drawGemExplosion(step, s, ts) {
+  private _drawGemExplosion(step: IntroStep, s: StepState, ts: number): void {
     const elapsed     = ts - s.startTime;
     const gemElapsed  = Math.max(elapsed - step.flashInMs, 0);
     const gemProgress = Math.min(gemElapsed / step.explodeMs, 1);
@@ -1300,7 +1262,7 @@ export class OpeningIntro {
 
   // ── spriteAnim ─────────────────────────────────────────────────────────────
 
-  _drawSpriteAnim(step, s, ts) {
+  private _drawSpriteAnim(step: IntroStep, s: StepState, ts: number): void {
     const elapsed       = ts - s.startTime;
     const sequenceIndex = Math.min(
       Math.floor(elapsed / step.frameDelayMs),
@@ -1318,9 +1280,9 @@ export class OpeningIntro {
 
   // ── typeText ───────────────────────────────────────────────────────────────
 
-  _drawTypeText(step, s, ts) {
+  private _drawTypeText(step: IntroStep, s: StepState, ts: number): void {
     const elapsed    = ts - s.startTime;
-    const totalChars = step.lines.reduce((n, l) => n + l.length, 0);
+    const totalChars = (step.lines as string[]).reduce((n: number, l: string) => n + l.length, 0);
     const charsDone  = Math.min(Math.floor(elapsed / step.charDelayMs), totalChars);
     const image      = step.getImage(elapsed, charsDone, totalChars);
 
@@ -1352,7 +1314,7 @@ export class OpeningIntro {
 
   // ── layeredFadeIn ──────────────────────────────────────────────────────────
 
-  _drawLayeredFadeIn(step, s, ts) {
+  private _drawLayeredFadeIn(step: IntroStep, s: StepState, ts: number): void {
     const elapsed     = ts - s.startTime;
     const lastLayer   = step.layers[step.layers.length - 1];
     const totalTimeMs = lastLayer.delayMs + step.eachFadeInMs + step.holdAfterMs;
@@ -1386,7 +1348,7 @@ export class OpeningIntro {
 
   // ── balcony ────────────────────────────────────────────────────────────────
 
-  _drawBalcony(step, s, ts) {
+  private _drawBalcony(step: IntroStep, s: StepState, ts: number): void {
     // lineStartTime is derived once from s.startTime (set by _tick on first frame)
     if (!s.lineStartTime) {
       s.lineStartTime = s.startTime + step.fadeInMs;
@@ -1432,7 +1394,7 @@ export class OpeningIntro {
     }
   }
 
-  _advanceBalconyLine(step, s, ts) {
+  private _advanceBalconyLine(step: IntroStep, s: StepState, ts: number): void {
     if (!s.lineStartTime) return;   // fade-in not yet complete, nothing to advance
     const part  = s.part === 1 ? step.part1 : step.part2;
     const lines = part.lines;
@@ -1461,7 +1423,7 @@ export class OpeningIntro {
     s.lineFullyTypedTime = 0;
   }
 
-  _autoAdvanceBalcony(step, s, lines, ts) {
+  private _autoAdvanceBalcony(step: IntroStep, s: StepState, lines: string[], ts: number): void {
     if (!s.lineStartTime) return;   // not yet initialised (fade still pending)
     const line       = lines[s.lineIndex] ?? '';
     const lineElapsed = ts - s.lineStartTime;
@@ -1485,8 +1447,8 @@ export class OpeningIntro {
   //   'curtainAfter' – close curtain after last sub-scene, then type curtainLines
   //   'done'         – advance to next timeline step
 
-  _drawTypedScene(step, s, ts) {
-    const sub = step.subScenes[s.subSceneIndex];
+  private _drawTypedScene(step: IntroStep, s: StepState, ts: number): void {
+    const sub = step.subScenes[s.subSceneIndex as number];
 
     switch (s.phase) {
       case 'curtain':          return this._drawTypedSceneCurtain(step, s, sub, ts);
@@ -1498,7 +1460,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneEntryCrossfade(step, s, sub, ts) {
+  private _drawTypedSceneEntryCrossfade(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
     if (!s.crossfadeStartTime) s.crossfadeStartTime = ts;
     const progress = Math.min((ts - s.crossfadeStartTime) / step.entryCrossfadeMs, 1);
 
@@ -1523,7 +1485,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneCurtain(step, s, sub, ts) {
+  private _drawTypedSceneCurtain(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
     const elapsed          = ts - s.startTime;
     const curtainProgress  = Math.min(elapsed / step.curtainMs, 1);
     const crossfadeElapsed = Math.max(elapsed - step.curtainMs, 0);
@@ -1538,7 +1500,7 @@ export class OpeningIntro {
     } else {
       // Offscreen: sand + closed curtain rect, crossfading to princess
       const off    = this._makeOffscreen();
-      const offCtx = off.getContext('2d');
+      const offCtx = off.getContext('2d') as CanvasRenderingContext2D;
       offCtx.imageSmoothingEnabled = false;
       offCtx.drawImage(step.curtainImage, 0, 0);
       offCtx.fillStyle = CURTAIN_COLOR;
@@ -1563,8 +1525,8 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneCrossfade(step, s, sub, ts) {
-    const prevSub  = step.subScenes[s.subSceneIndex - 1];
+  private _drawTypedSceneCrossfade(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
+    const prevSub  = step.subScenes[(s.subSceneIndex as number) - 1];
     const outImage = prevSub?.image ?? sub.image;
     const inImage  = sub.image;
     const cfMs     = s.crossfadeDuration || 1;   // ← use stored duration, not sub.crossfadeMs
@@ -1587,7 +1549,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneText(step, s, sub, ts) {
+  private _drawTypedSceneText(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
     this._clearBlack();
     this.ctx.save();
     this.ctx.globalAlpha = 1;
@@ -1601,8 +1563,8 @@ export class OpeningIntro {
     this._autoAdvanceTypedScene(step, s, sub, ts);
   }
 
-  _autoAdvanceTypedScene(step, s, sub, ts) {
-    const lines  = sub.lines ?? [];
+  private _autoAdvanceTypedScene(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
+    const lines: string[]  = sub.lines ?? [];
     const line   = lines[s.lineIndex] ?? '';
     const elapsed = ts - s.lineStartTime;
     const fullyTyped = elapsed >= line.length * step.charDelayMs;
@@ -1616,8 +1578,8 @@ export class OpeningIntro {
     }
   }
 
-  _advanceTypedSceneLine(step, s, ts) {
-    const sub   = step.subScenes[s.subSceneIndex];
+  private _advanceTypedSceneLine(step: IntroStep, s: StepState, ts: number): void {
+    const sub   = step.subScenes[s.subSceneIndex as number];
     const lines = sub.lines ?? [];
     const line  = lines[s.lineIndex] ?? '';
     const elapsed    = ts - (s.lineStartTime || ts);
@@ -1671,7 +1633,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneCurtainAfter(step, s, sub, ts) {
+  private _drawTypedSceneCurtainAfter(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
     const elapsed  = ts - s.crossfadeStartTime;
     const progress = Math.min(elapsed / CURTAIN_MS, 1);
 
@@ -1690,8 +1652,8 @@ export class OpeningIntro {
     }
   }
 
-  _drawTypedSceneCurtainAfterText(step, s, sub, ts) {
-    const lines = sub.curtainLines ?? [];
+  private _drawTypedSceneCurtainAfterText(step: IntroStep, s: StepState, sub: IntroStep, ts: number): void {
+    const lines: string[] = sub.curtainLines ?? [];
 
     this._clearBlack();
     this.ctx.save();
@@ -1710,7 +1672,7 @@ export class OpeningIntro {
       if (!s.lineFullyTypedTime) {
         s.lineFullyTypedTime = ts;
       } else if (ts - s.lineFullyTypedTime >= step.autoAdvanceMs) {
-        if (s.lineIndex < lines.length - 1) {
+        if ((s.lineIndex as number) < lines.length - 1) {
           s.lineIndex++;
           s.lineStartTime      = ts;
           s.lineFullyTypedTime = 0;
@@ -1721,29 +1683,29 @@ export class OpeningIntro {
     }
   }
 
-  _drawDualDialogue(step, s, ts) {
+  private _drawDualDialogue(step: IntroStep, s: StepState, ts: number): void {
     // ── Fade in ────────────────────────────────────────────────────────────
     const elapsed   = ts - s.startTime;
     const fadeProg  = Math.min(elapsed / step.fadeInMs, 1);
 
     // ── Composite scene on a temp canvas to respect globalAlpha ─────────────
     const off = this._makeOffscreen();
-    const offCtx = off.getContext('2d');
+    const offCtx = off.getContext('2d') as CanvasRenderingContext2D;
     offCtx.imageSmoothingEnabled = false;
 
     // 1. Background
     offCtx.drawImage(step.background, 0, 0);
 
     // 2. Characters
-    const scriptItem = step.script[s.scriptIndex];
+    const scriptItem = step.script[s.scriptIndex as number];
     const speaker    = scriptItem?.speaker;
 
-    for (const [name, char] of Object.entries(step.characters)) {
+    for (const [name, char] of Object.entries(step.characters as Record<string, IntroStep>)) {
         const isSpeaking = speaker === name && scriptItem;
-        let img = char.closedImage;                     // fallback
+        let img: HTMLImageElement = char.closedImage;   // fallback
 
         if (isSpeaking) {
-            const lines   = scriptItem.lines;
+            const lines: string[] = scriptItem.lines;
             const line    = lines[s.lineIndex] ?? '';
             const lineElapsed = s.lineStartTime ? ts - s.lineStartTime : 0;
             const fullyTyped  = lineElapsed >= line.length * step.charDelayMs;
@@ -1788,8 +1750,8 @@ export class OpeningIntro {
     }
   }
 
-  _autoAdvanceDualDialogue(step, s, scriptItem, ts) {
-    const lines       = scriptItem.lines;
+  private _autoAdvanceDualDialogue(step: IntroStep, s: StepState, scriptItem: IntroStep, ts: number): void {
+    const lines: string[] = scriptItem.lines;
     const line        = lines[s.lineIndex] ?? '';
     const elapsed     = ts - s.lineStartTime;
     const fullyTyped  = elapsed >= line.length * step.charDelayMs;
@@ -1803,15 +1765,15 @@ export class OpeningIntro {
     }
   }
 
-  _advanceDualDialogueLine(step, s, ts) {
-    const scriptItem = step.script[s.scriptIndex];
+  private _advanceDualDialogueLine(step: IntroStep, s: StepState, ts: number): void {
+    const scriptItem = step.script[s.scriptIndex as number];
     if (!scriptItem) {
       this.finish();
       return;
     }
 
-    const lines = scriptItem.lines;
-    const line  = lines[s.lineIndex] ?? '';
+    const lines: string[] = scriptItem.lines;
+    const line  = lines[s.lineIndex as number] ?? '';
     const elapsed = ts - (s.lineStartTime || ts);
     const fullyTyped = !line || elapsed >= line.length * step.charDelayMs;
 
@@ -1823,7 +1785,7 @@ export class OpeningIntro {
     }
 
     // Advance line within current script item
-    if (s.lineIndex < lines.length - 1) {
+    if ((s.lineIndex as number) < lines.length - 1) {
       s.lineIndex++;
       s.lineStartTime      = ts;
       s.lineFullyTypedTime = 0;
@@ -1831,7 +1793,7 @@ export class OpeningIntro {
     }
 
     // Move to next script item (or finish)
-    if (s.scriptIndex < step.script.length - 1) {
+    if ((s.scriptIndex as number) < step.script.length - 1) {
       s.scriptIndex++;
       s.lineIndex         = 0;
       s.lineStartTime     = ts;
@@ -1845,7 +1807,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawExpandWindow(step, s, ts) {
+  private _drawExpandWindow(step: IntroStep, s: StepState, ts: number): void {
     this._clearBlack();
 
     const elapsed  = ts - s.startTime;
@@ -1861,7 +1823,7 @@ export class OpeningIntro {
 
     // ── 2. Static decorations from template0 (interior cleared) ─────────────
     const off = this._makeOffscreen();
-    const offCtx = off.getContext('2d');
+    const offCtx = off.getContext('2d') as CanvasRenderingContext2D;
     offCtx.imageSmoothingEnabled = false;
     offCtx.drawImage(step.shrunkImage, 0, 0);
     offCtx.clearRect(innerLeft, 45, 545 - innerLeft, 179);
@@ -1870,10 +1832,10 @@ export class OpeningIntro {
     // ── 3. Top and bottom horizontal borders (full width) ──────────────────
     for (let i = 0; i < WIN_BORDER_THICKNESS; i++) {
       // Top border: y = 40 .. 44
-      this.ctx.fillStyle = WIN_TOP_COLORS[i];
+      this.ctx.fillStyle = WIN_TOP_COLORS[i] ?? '';
       this.ctx.fillRect(outerLeft, 40 + i, 545 - outerLeft, 1);
       // Bottom border: y = 225 .. 229
-      this.ctx.fillStyle = WIN_BOTTOM_COLORS[i];   // inner‑first ordering is fine here
+      this.ctx.fillStyle = WIN_BOTTOM_COLORS[i] ?? '';   // inner‑first ordering is fine here
       this.ctx.fillRect(outerLeft, 225 + i, 545 - outerLeft, 1);
     }
 
@@ -1883,7 +1845,7 @@ export class OpeningIntro {
 
       // Top corner: draw WIN_TOP_COLORS[j] for j = 0..i-1 at y = 40+j
       for (let j = 0; j < i; j++) {
-        this.ctx.fillStyle = WIN_TOP_COLORS[j];
+        this.ctx.fillStyle = WIN_TOP_COLORS[j] ?? '';
         this.ctx.fillRect(x, 40 + j, 1, 1);
       }
 
@@ -1891,13 +1853,13 @@ export class OpeningIntro {
       const startY = 40 + i + 1;
       const endY   = 229 - i - 1;
       if (startY <= endY) {
-        this.ctx.fillStyle = WIN_LEFT_COLORS[i];
+        this.ctx.fillStyle = WIN_LEFT_COLORS[i] ?? '';
         this.ctx.fillRect(x, startY, 1, endY - startY + 1);
       }
 
       // Bottom corner: draw WIN_BOTTOM_OUTER_FIRST[j] for j = 0..i-1 at y = 229 - j
       for (let j = 0; j < i; j++) {
-        this.ctx.fillStyle = WIN_BOTTOM_OUTER_FIRST[j];
+        this.ctx.fillStyle = WIN_BOTTOM_OUTER_FIRST[j] ?? '';
         this.ctx.fillRect(x, 229 - j, 1, 1);
       }
     }
@@ -1913,7 +1875,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawCurtainOnly(step, s, ts) {
+  private _drawCurtainOnly(step: IntroStep, s: StepState, ts: number): void {
     if (!s.snapshot) {
         s.snapshot = this._makeOffscreen();
         s.snapshot.getContext('2d').drawImage(this.canvas, 0, 0);
@@ -1930,7 +1892,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawWindowText(step, s, ts) {
+  private _drawWindowText(step: IntroStep, s: StepState, ts: number): void {
     this._clearBlack();
     this.ctx.drawImage(step.backgroundImage, step.bgX, step.bgY);
     this.ctx.drawImage(step.frameImage, 0, 0);
@@ -1939,7 +1901,7 @@ export class OpeningIntro {
     this._autoAdvanceWindowText(step, s, step.lines, ts);
   }
 
-  _autoAdvanceWindowText(step, s, lines, ts) {
+  private _autoAdvanceWindowText(step: IntroStep, s: StepState, lines: string[], ts: number): void {
     const line = lines[s.lineIndex] ?? '';
     const elapsed = ts - s.lineStartTime;
     const fullyTyped = elapsed >= line.length * step.charDelayMs;
@@ -1950,9 +1912,9 @@ export class OpeningIntro {
     }
   }
 
-  _advanceWindowTextLine(step, s, ts) {
+  private _advanceWindowTextLine(step: IntroStep, s: StepState, ts: number): void {
     const lines = step.lines;
-    if (s.lineIndex < lines.length - 1) {
+    if ((s.lineIndex as number) < lines.length - 1) {
       s.lineIndex++;
       s.lineStartTime = ts;
       s.lineFullyTypedTime = 0;
@@ -1965,16 +1927,16 @@ export class OpeningIntro {
   // Shared rendering utilities
   // ─────────────────────────────────────────────────────────────────────────
 
-  _clearBlack() {
+  private _clearBlack(): void {
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  _clearTextArea() {
+  private _clearTextArea(): void {
     this.ctx.clearRect(0, 275, this.canvas.width, 125);
   }
 
-  _makeOffscreen() {
+  private _makeOffscreen(): HTMLCanvasElement {
     const off    = document.createElement('canvas');
     off.width    = this.canvas.width;
     off.height   = this.canvas.height;
@@ -1982,25 +1944,25 @@ export class OpeningIntro {
   }
 
   // Draws the storyText canvas at (0, y) with the given opacity
-  _drawStoryText(textCanvas, y, opacity) {
+  private _drawStoryText(textCanvas: HTMLCanvasElement, y: number, opacity: number): void {
     this.ctx.globalAlpha = opacity;
     this.ctx.drawImage(textCanvas, 0, y);
   }
 
-  _drawCreditsText(x, y) {
+  private _drawCreditsText(x: number, y: number): void {
     this.ctx.fillStyle   = '#fff';
     this.ctx.font        = CREDITS_FONT;
     this.ctx.textAlign   = 'left';
     this.ctx.textBaseline = 'top';
     for (let i = 0; i < CREDITS_LINES.length; i++) {
-      this.ctx.fillText(CREDITS_LINES[i], x, y + i * CREDITS_LINE_HEIGHT);
+      this.ctx.fillText(CREDITS_LINES[i] ?? '', x, y + i * CREDITS_LINE_HEIGHT);
     }
   }
 
   // Generic typewriter text for balcony/typedScene steps.
   // textStyle: 'normal' | 'jashiin'
-  _drawBalconyText(lines, s, ts, textStyle = 'normal') {
-    const line = lines[s.lineIndex] ?? '';
+  private _drawBalconyText(lines: string[], s: StepState, ts: number, textStyle = 'normal'): void {
+    const line = lines[s.lineIndex as number] ?? '';
     if (!s.lineStartTime || !line) return;
 
     const elapsed      = ts - s.lineStartTime;
@@ -2024,7 +1986,7 @@ export class OpeningIntro {
     const useJashiin = textStyle === 'jashiin' && line.trimStart().startsWith('"');
 
     for (let i = 0; i < wrapped.length; i++) {
-      const { text: chunk, start: chunkStart } = wrapped[i];
+      const { text: chunk, start: chunkStart } = wrapped[i]!;
       if (chunkStart >= visibleCount) break;
       const chunkVisible = Math.min(visibleCount - chunkStart, chunk.length);
       const y            = BALCONY_TEXT_Y + i * BALCONY_LINE_HEIGHT;
@@ -2048,7 +2010,7 @@ export class OpeningIntro {
   }
 
   // Draws lines for the demon-speech typeText step (centred)
-  _drawTypeTextLines(step, charsDone) {
+  private _drawTypeTextLines(step: IntroStep, charsDone: number): void {
     this.ctx.font         = step.font;
     this.ctx.textAlign    = step.textAlign;
     this.ctx.textBaseline = 'top';
@@ -2073,7 +2035,7 @@ export class OpeningIntro {
     }
   }
 
-  _drawShadowedText(text, x, y, textColor, shadowColor, shadowOffset) {
+  private _drawShadowedText(text: string, x: number, y: number, textColor: string, shadowColor: string, shadowOffset: number): void {
     this.ctx.fillStyle = shadowColor;
     this.ctx.fillText(text, x + shadowOffset, y + shadowOffset);
     this.ctx.fillStyle = textColor;
@@ -2083,9 +2045,9 @@ export class OpeningIntro {
   // ── Text layout helpers ────────────────────────────────────────────────────
 
   // Returns [{text, start}] where start is the char offset in the original string
-  _wrapText(text, maxWidth) {
+  private _wrapText(text: string, maxWidth: number): Array<{ text: string; start: number }> {
     const words = text.split(' ');
-    const lines = [];
+    const lines: Array<{ text: string; start: number }> = [];
     let current = '', currentStart = 0, pos = 0;
 
     for (const word of words) {
@@ -2104,8 +2066,8 @@ export class OpeningIntro {
   }
 
   // Returns boolean[] where true means the character is inside a matched "…" pair
-  _buildQuotedMap(text) {
-    const map = new Array(text.length).fill(false);
+  private _buildQuotedMap(text: string): boolean[] {
+    const map: boolean[] = new Array(text.length).fill(false);
     let i = 0;
     while (i < text.length) {
       if (text[i] === '"') {
@@ -2125,12 +2087,12 @@ export class OpeningIntro {
 
   // Renders `chunkVisible` chars from `fullLine` starting at `chunkStart`,
   // switching text style on quoted/plain boundaries.
-  _drawWrappedSegmentedText(fullLine, quotedMap, chunkStart, chunkVisible, x, y, plainColor, shadowColor, shadowOffset) {
+  private _drawWrappedSegmentedText(fullLine: string, quotedMap: boolean[], chunkStart: number, chunkVisible: number, x: number, y: number, plainColor: string, shadowColor: string, shadowOffset: number): void {
     let curX       = x;
     let batchStart = chunkStart;
     let batchQuoted = quotedMap[chunkStart] ?? false;
 
-    const flush = (end) => {
+    const flush = (end: number): void => {
       if (end <= batchStart) return;
       const text = fullLine.slice(batchStart, end);
       if (batchQuoted) {
@@ -2153,7 +2115,7 @@ export class OpeningIntro {
 
   // ── Curtain ────────────────────────────────────────────────────────────────
 
-  _drawCurtainClose(progress, backgroundImage) {
+  private _drawCurtainClose(progress: number, backgroundImage: CanvasImageSource): void {
     if (progress <= 0) return;
 
     const rx1 = CURTAIN_X1, ry1 = CURTAIN_Y1;
@@ -2183,8 +2145,8 @@ export class OpeningIntro {
 
   // ── Gem explosion helpers ──────────────────────────────────────────────────
 
-  _createExplosionGems(step) {
-    return step.gemCoords.map((gem) => {
+  private _createExplosionGems(step: IntroStep): Array<{ image: HTMLImageElement; x: number; y: number; dx: number; dy: number }> {
+    return step.gemCoords.map((gem: IntroStep) => {
       const image   = gem.image === 'red' ? step.redGemImage : step.blueGemImage;
       const centerX = gem.x + image.width  / 2;
       const centerY = gem.y + image.height / 2;
@@ -2198,7 +2160,7 @@ export class OpeningIntro {
     });
   }
 
-  _drawExplosionGems(gems, progress) {
+  private _drawExplosionGems(gems: Array<{ image: HTMLImageElement; x: number; y: number; dx: number; dy: number }>, progress: number): void {
     if (progress >= 1) return;
     for (const gem of gems) {
       const x = gem.x + gem.dx * progress;
@@ -2207,19 +2169,19 @@ export class OpeningIntro {
     }
   }
 
-  _getBrokenNecFlashOpacity(elapsed, step) {
+  private _getBrokenNecFlashOpacity(elapsed: number, step: IntroStep): number {
     if (elapsed < step.flashInMs) return elapsed / step.flashInMs;
     const flashOutElapsed = elapsed - step.flashInMs;
     if (flashOutElapsed < step.flashOutMs) return 1 - flashOutElapsed / step.flashOutMs;
     return 0;
   }
 
-  _shouldAutoAdvanceGemExplosion(elapsed, step) {
+  private _shouldAutoAdvanceGemExplosion(elapsed: number, step: IntroStep): boolean {
     const waitBeforeFade = Math.max(step.autoAdvanceMs - step.fadeOutMs, 0);
     return elapsed >= step.flashInMs + step.explodeMs + waitBeforeFade;
   }
 
-  _getCanvasEdgeRay(x, y, angle) {
+  private _getCanvasEdgeRay(x: number, y: number, angle: number): { dx: number; dy: number } {
     const vx = Math.cos(angle), vy = Math.sin(angle);
     const distances = [];
     if (vx > 0)  distances.push((this.canvas.width  - x) / vx);
@@ -2232,11 +2194,11 @@ export class OpeningIntro {
 
   // ── Canvas factories ───────────────────────────────────────────────────────
 
-  _createStoryTextCanvas() {
+  private _createStoryTextCanvas(): HTMLCanvasElement {
     const tc    = document.createElement('canvas');
     tc.width    = this.canvas.width;
     tc.height   = STORY_LINES.length * STORY_LINE_HEIGHT;
-    const tCtx  = tc.getContext('2d');
+    const tCtx  = tc.getContext('2d') as CanvasRenderingContext2D;
     tCtx.imageSmoothingEnabled = false;
     tCtx.clearRect(0, 0, tc.width, tc.height);
     tCtx.fillStyle   = '#fff';
@@ -2245,18 +2207,12 @@ export class OpeningIntro {
     tCtx.textBaseline = 'top';
     const x = 6;
     for (let i = 0; i < STORY_LINES.length; i++) {
-      tCtx.fillText(STORY_LINES[i], x, i * STORY_LINE_HEIGHT);
+      tCtx.fillText(STORY_LINES[i] ?? '', x, i * STORY_LINE_HEIGHT);
     }
     return tc;
   }
 
-  _createCreditsCanvas() {
-    // Credits are drawn directly each frame (not pre-baked) so return null;
-    // the _drawScrollText handler checks step.isCredits.
-    return null;
-  }
-
-  _measureCreditsX() {
+  private _measureCreditsX(): number {
     this.ctx.save();
     this.ctx.font  = CREDITS_FONT;
     const maxWidth = Math.max(...CREDITS_LINES.map((l) => this.ctx.measureText(l).width));

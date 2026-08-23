@@ -158,7 +158,7 @@ export class KeyRouter {
                     return true;
                 }
                 if (e.code.startsWith('Digit') && e.code.length === 6) {
-                    const digit = parseInt(e.code[5], 10);
+                    const digit = parseInt(e.code[5]!, 10);
                     if (digit >= 0 && digit <= 9 && speed.selectDigit(digit)) {
                         d.setSpeedDigit(digit);
                         return true;

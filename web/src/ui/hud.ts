@@ -27,7 +27,7 @@ export interface HudOptions {
 }
 
 function readU16At(bytes: Uint8Array, offset: number): number {
-    return bytes[offset] | (bytes[offset + 1] << 8);
+    return (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8);
 }
 
 /**
@@ -114,7 +114,7 @@ export class Hud {
 
     getHeroHp(): number {
         const hpBytes = this.mem.readMemory(0x90 /* ADDR_HERO_HP */, 2);
-        return hpBytes ? hpBytes[0] | (hpBytes[1] << 8) : 0;
+        return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroHp(hp: number): void {
@@ -124,7 +124,7 @@ export class Hud {
 
     getHeroMaxHp(): number {
         const hpBytes = this.mem.readMemory(0xb2 /* ADDR_HERO_MAX_HP */, 2);
-        return hpBytes ? hpBytes[0] | (hpBytes[1] << 8) : 0;
+        return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroMaxHp(maxHp: number): void {
@@ -176,7 +176,7 @@ export class Hud {
         const lo = this.mem.readMemory(0x86 /* ADDR_HERO_GOLD_LO */, 2);
         const hi = this.mem.readMemory(0x85 /* ADDR_HERO_GOLD_HI */, 1);
         if (!lo || !hi) return 0;
-        return (lo[0] | (lo[1] << 8)) + hi[0] * 0x10000;
+        return ((lo[0] ?? 0) | ((lo[1] ?? 0) << 8)) + (hi[0] ?? 0) * 0x10000;
     }
 
     setHeroGoldValue(value: number): void {
@@ -191,7 +191,7 @@ export class Hud {
 
     getHeroAlmasValue(): number {
         const almasBytes = this.mem.readMemory(0x8b /* ADDR_HERO_ALMAS */, 2);
-        return almasBytes ? almasBytes[0] | (almasBytes[1] << 8) : 0;
+        return almasBytes ? (almasBytes[0] ?? 0) | ((almasBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroAlmasValue(value: number): void {
@@ -211,7 +211,7 @@ export class Hud {
 
     getHeroSwordType(): number {
         const bytes = this.mem.readMemory(0x92 /* ADDR_SWORD_TYPE */, 1);
-        return bytes ? bytes[0] : 0;
+        return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroSwordType(type: number): void {
@@ -232,7 +232,7 @@ export class Hud {
 
     getHeroShieldType(): number {
         const bytes = this.mem.readMemory(0x93 /* ADDR_SHIELD_TYPE */, 1);
-        return bytes ? bytes[0] : 0;
+        return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroShieldType(type: number): void {
@@ -241,7 +241,7 @@ export class Hud {
 
     getHeroShieldHP(): number {
         const hpBytes = this.mem.readMemory(0x94 /* ADDR_SHIELD_HP */, 2);
-        return hpBytes ? hpBytes[0] | (hpBytes[1] << 8) : 0;
+        return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroShieldHP(hp: number): void {
@@ -263,7 +263,7 @@ export class Hud {
 
     getHeroMagicType(): number {
         const bytes = this.mem.readMemory(0x9d /* ADDR_CURR_SPELL_TYPE */, 1);
-        return bytes ? bytes[0] : 0;
+        return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroMagicType(type: number): void {
@@ -275,14 +275,14 @@ export class Hud {
     getHeroMagicCount(type: number): number {
         const idx = type - 1;
         if (idx < 0 || idx >= Hud.SPELL_COUNT_ADDRS.length) return 0;
-        const bytes = this.mem.readMemory(Hud.SPELL_COUNT_ADDRS[idx], 1);
-        return bytes ? bytes[0] : 0;
+        const bytes = this.mem.readMemory(Hud.SPELL_COUNT_ADDRS[idx]!, 1);
+        return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroMagicCount(type: number, count: number): void {
         const idx = type - 1;
         if (idx < 0 || idx >= Hud.SPELL_COUNT_ADDRS.length || count < 0 || count > 255) return;
-        this.mem.writeMemory(Hud.SPELL_COUNT_ADDRS[idx], [count]);
+        this.mem.writeMemory(Hud.SPELL_COUNT_ADDRS[idx]!, [count]);
     }
 
     renderMagicHud(): void {

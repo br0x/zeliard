@@ -20,8 +20,8 @@ export interface Modal {
 
 /** Translate an e.code value into the character/dialog key it represents. */
 export function translateKeyForDialog(code: string): string {
-    if (code.startsWith('Key')) return code[3].toLowerCase(); // 'KeyA' -> 'a'
-    if (code.startsWith('Digit')) return code[5]; // 'Digit1' -> '1'
+    if (code.startsWith('Key')) return code[3]!.toLowerCase(); // 'KeyA' -> 'a'
+    if (code.startsWith('Digit')) return code[5]!; // 'Digit1' -> '1'
     if (code === 'Space') return ' ';
     return code; // Backspace, ArrowUp/Down, Enter, Escape stay unchanged
 }

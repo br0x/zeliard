@@ -9,9 +9,9 @@ const SHEETS = {
     swords: { path: 'assets/images/swords.png', frameW: 60, frameH: 54 },
 };
 
-const SPELL_NAMES = ['Espada', 'Saeta', 'Fuego', 'Lanzar', 'Rascar', 'Agua', 'Guerra'];
+export const SPELL_NAMES = ['Espada', 'Saeta', 'Fuego', 'Lanzar', 'Rascar', 'Agua', 'Guerra'];
 
-const WEARABLE_NAMES = [
+export const WEARABLE_NAMES = [
     null,
     'Feruza shoes',
     'Pirika shoes',
@@ -20,7 +20,7 @@ const WEARABLE_NAMES = [
     'Asbestos cape',
 ];
 
-const ITEM_NAMES = [
+export const ITEM_NAMES = [
     null,
     'Ken\'ko Potion',
     'Juu-en Fruit',
@@ -32,7 +32,7 @@ const ITEM_NAMES = [
     'Kioku feather',
 ];
 
-const ITEM_USE_TEXT = [
+export const ITEM_USE_TEXT = [
     null,
     'a Ken\'ko Potion.',
     'a Juu-en Fruit.',
@@ -44,7 +44,7 @@ const ITEM_USE_TEXT = [
     'a Kioku feather.',
 ];
 
-const SWORD_NAMES = [
+export const SWORD_NAMES = [
     ['Training', 'Sword'],
     ['Wise man\'s', 'Sword'],
     ['Spirit', 'Sword'],
@@ -53,7 +53,7 @@ const SWORD_NAMES = [
     ['Enchantment', 'Sword'],
 ];
 
-const SHIELD_NAMES = [
+export const SHIELD_NAMES = [
     ['Clay', 'Shield'],
     ['Wise Man\'s', 'Shield'],
     ['Stone', 'Shield'],
@@ -81,7 +81,6 @@ const ADDR_HERO_MAX_HP = 0xB2;
 const ADDR_ESPADA_COUNT = 0xB4;
 const ADDR_ESPADA_ACTIVE = 0xBB;
 const ADDR_BYTE_E4 = 0xE4;
-const ADDR_SOUND_FX_REQUEST = 0xFF75;
 const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
 const ADDR_MAGIA_STONE_SPRITE0 = 0xEB60;
 const ADDR_MAGIA_STONE_SPRITE1 = 0xEB67;
@@ -91,43 +90,91 @@ const ADDR_HERO_LEVEL = 0x8D;
 const ADDR_HERO_XP = 0x8E;
 const ADDR_HERO_ALMAS = 0x8B;
 
-const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
+export const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
 //        Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
-const XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
+export const XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
+
+export interface InventoryDeps {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    readMemory: ((offset: number, length: number) => Uint8Array | null) | null;
+    writeMemory: ((offset: number, data: Uint8Array) => void) | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
+    soundManager?: any;
+    onExit?: (() => void) | null;
+}
+
+interface SheetCfg { path: string; frameW: number; frameH: number }
+interface LoadedSheet { img: HTMLImageElement; cfg: SheetCfg; count: number }
+
+export interface InventoryData {
+    spells: number[];
+    spellCounts: number[];
+    spellMaxCounts: number[];
+    wearables: number[];
+    currentAccessory: number;
+    items: number[];
+    swordType: number;
+    shieldType: number;
+    shieldHP: number;
+    shieldMaxHP: number;
+    keys: number;
+    lionKeys: number;
+    elfCrest: boolean;
+    gloryCrest: boolean;
+    heroCrest: boolean;
+    currentSpell: number;
+    enchantCount: number;
+    heroHP: number;
+    heroMaxHP: number;
+    level: number;
+    heroXP: number;
+    almas: number;
+}
 
 export class InventoryScreen {
-    constructor({ canvas, ctx, readMemory, writeMemory, soundManager, onExit }) {
-        this.canvas = canvas;
-        this.ctx = ctx;
-        this.readMemory = readMemory;
-        this.writeMemory = writeMemory;
-        this.soundManager = soundManager;
-        this.onExit = onExit;
+    private readonly canvas: HTMLCanvasElement;
+    private readonly ctx: CanvasRenderingContext2D;
+    private readonly readMemory: InventoryDeps['readMemory'];
+    private readonly writeMemory: InventoryDeps['writeMemory'];
+    private readonly soundManager: InventoryDeps['soundManager'];
+    private readonly onExit: InventoryDeps['onExit'];
 
-        this.active = false;
-        this.currentTab = 0;
-        this.selectedIndices = [0, 0, 0];
-        this.savedMusicTrack = null;
+    active = false;
+    currentTab = 0;
+    selectedIndices: number[] = [0, 0, 0];
+    private savedMusicTrack: unknown = null;
 
-        this.sheets = {};
-        this.sheetsReady = false;
-        this.sheetsLoading = false;
+    private sheets: Record<string, LoadedSheet> = {};
+    private sheetsReady = false;
+    private sheetsLoading = false;
 
-        this.usageMessage = '';
-        this.usageTimer = 0;
+    usageMessage = '';
+    usageTimer = 0;
 
-        this.debugPopup = false;
-        this._debugS = false;
-        this._debugE = false;
+    debugPopup = false;
+    private _debugS = false;
+    private _debugE = false;
 
-        this._lastNavSound = 0;
+    private _lastNavSound = 0;
+
+    /** game-state snapshot read from g_mem on enter() */
+    data!: InventoryData;
+
+    constructor(deps: InventoryDeps) {
+        this.canvas = deps.canvas;
+        this.ctx = deps.ctx;
+        this.readMemory = deps.readMemory;
+        this.writeMemory = deps.writeMemory;
+        this.soundManager = deps.soundManager;
+        this.onExit = deps.onExit ?? null;
     }
 
-    async loadAssets() {
+    async loadAssets(): Promise<void> {
         if (this.sheetsReady || this.sheetsLoading) return;
         this.sheetsLoading = true;
         const loads = Object.entries(SHEETS).map(([name, cfg]) =>
-            new Promise(resolve => {
+            new Promise<void>(resolve => {
                 const img = new Image();
                 img.onload = () => {
                     this.sheets[name] = { img, cfg, count: Math.floor(img.width / cfg.frameW) };
@@ -142,9 +189,9 @@ export class InventoryScreen {
         this.sheetsLoading = false;
     }
 
-    get ready() { return this.sheetsReady; }
+    get ready(): boolean { return this.sheetsReady; }
 
-    enter() {
+    enter(): void {
         this.active = true;
         this.currentTab = 0;
         this.selectedIndices = [0, 0, 0];
@@ -170,7 +217,7 @@ export class InventoryScreen {
         }
     }
 
-    exit() {
+    exit(): void {
         this.active = false;
         if (this.savedMusicTrack) {
             this.soundManager?.playMusic(this.savedMusicTrack, 0.3);
@@ -178,20 +225,32 @@ export class InventoryScreen {
         if (this.onExit) this.onExit();
     }
 
-    _readGameData() {
-        const r = this.readMemory;
-        if (!r) return;
-        const d = this.data = {};
+    private _readGameData(): void {
+        const r0 = this.readMemory;
+        if (!r0) return;
+        // reads are guaranteed present once we know memory is live
+        const r = (addr: number, len: number): Uint8Array =>
+            r0(addr, len) ?? new Uint8Array(len);
+        /** single g_mem byte (0 when out of range) */
+        const u8 = (addr: number): number => r(addr, 1)[0] ?? 0;
+        /** little-endian g_mem word */
+        const le16 = (addr: number): number =>
+            (r(addr, 2)[0] ?? 0) | ((r(addr, 2)[1] ?? 0) << 8);
 
-        d.spells = [];
-        d.spellCounts = [];
-        d.spellMaxCounts = [];
+        const d: InventoryData = {
+            spells: [], spellCounts: [], spellMaxCounts: [],
+            wearables: [], currentAccessory: 0, items: [],
+            swordType: 0, shieldType: 0, shieldHP: 0, shieldMaxHP: 0,
+            keys: 0, lionKeys: 0, elfCrest: false, gloryCrest: false, heroCrest: false,
+            currentSpell: 0, enchantCount: 0, heroHP: 0, heroMaxHP: 0,
+            level: 0, heroXP: 0, almas: 0,
+        };
+
         for (let i = 0; i < 7; i++) {
-            const active = r(ADDR_ESPADA_ACTIVE + i, 1)[0];
-            if (active) {
+            if (u8(ADDR_ESPADA_ACTIVE + i)) {
                 d.spells.push(i + 1);
-                d.spellCounts.push(r(ADDR_SPELLS_ESPADA + i, 1)[0]);
-                d.spellMaxCounts.push(r(ADDR_ESPADA_COUNT + i, 1)[0]);
+                d.spellCounts.push(u8(ADDR_SPELLS_ESPADA + i));
+                d.spellMaxCounts.push(u8(ADDR_ESPADA_COUNT + i));
             }
         }
 
@@ -200,53 +259,49 @@ export class InventoryScreen {
         for (let i = 0; i < 5; i++) {
             d.wearables.push(acc[i] || 0);
         }
-        d.currentAccessory = r(ADDR_CURRENT_ACCESSORY, 1)[0];
+        d.currentAccessory = u8(ADDR_CURRENT_ACCESSORY);
 
         const it = r(ADDR_MAGIC_ITEMS, 5);
-        d.items = [0, ...it.filter(v => v > 0)];
+        d.items = [0, ...Array.from(it).filter(v => v > 0)];
 
-        d.swordType = r(ADDR_SWORD_TYPE, 1)[0];
-        d.shieldType = r(ADDR_SHIELD_TYPE, 1)[0];
-        const shp = r(ADDR_SHIELD_HP, 2);
-        d.shieldHP = shp[0] | (shp[1] << 8);
-        const smx = r(ADDR_SHIELD_MAX_HP, 2);
-        d.shieldMaxHP = smx[0] | (smx[1] << 8);
-        d.keys = r(ADDR_KEYS_AMOUNT, 1)[0];
-        d.lionKeys = r(ADDR_LION_KEYS_AMOUNT, 1)[0];
-        d.elfCrest = !!r(ADDR_ELF_CREST, 1)[0];
-        d.gloryCrest = !!r(ADDR_CREST_OF_GLORY, 1)[0];
-        d.heroCrest = !!r(ADDR_HERO_CREST, 1)[0];
-        d.currentSpell = r(ADDR_CURRENT_MAGIC_SPELL, 1)[0];
-        d.enchantCount = r(ADDR_BYTE_E4, 1)[0];
-        const hp = r(ADDR_HERO_HP, 2);
-        d.heroHP = hp[0] | (hp[1] << 8);
-        const mx = r(ADDR_HERO_MAX_HP, 2);
-        d.heroMaxHP = mx[0] | (mx[1] << 8);
-        d.level = r(ADDR_HERO_LEVEL, 1)[0];
-        const xp = r(ADDR_HERO_XP, 2);
-        d.heroXP = xp[0] | (xp[1] << 8);
-        const al = r(ADDR_HERO_ALMAS, 2);
-        d.almas = al[0] | (al[1] << 8);
+        d.swordType = u8(ADDR_SWORD_TYPE);
+        d.shieldType = u8(ADDR_SHIELD_TYPE);
+        d.shieldHP = le16(ADDR_SHIELD_HP);
+        d.shieldMaxHP = le16(ADDR_SHIELD_MAX_HP);
+        d.keys = u8(ADDR_KEYS_AMOUNT);
+        d.lionKeys = u8(ADDR_LION_KEYS_AMOUNT);
+        d.elfCrest = !!u8(ADDR_ELF_CREST);
+        d.gloryCrest = !!u8(ADDR_CREST_OF_GLORY);
+        d.heroCrest = !!u8(ADDR_HERO_CREST);
+        d.currentSpell = u8(ADDR_CURRENT_MAGIC_SPELL);
+        d.enchantCount = u8(ADDR_BYTE_E4);
+        d.heroHP = le16(ADDR_HERO_HP);
+        d.heroMaxHP = le16(ADDR_HERO_MAX_HP);
+        d.level = u8(ADDR_HERO_LEVEL);
+        d.heroXP = le16(ADDR_HERO_XP);
+        d.almas = le16(ADDR_HERO_ALMAS);
+
+        this.data = d;
     }
 
-    _selectedId() {
+    private _selectedId(): number {
         const d = this.data;
-        const idx = this.selectedIndices[this.currentTab];
+        const idx = this.selectedIndices[this.currentTab] ?? 0;
         switch (this.currentTab) {
-            case 0: return d.spells[idx] || 0;
-            case 1: return d.wearables[idx] || 0;
-            case 2: return d.items[idx] || 0;
+            case 0: return d.spells[idx] ?? 0;
+            case 1: return d.wearables[idx] ?? 0;
+            case 2: return d.items[idx] ?? 0;
             default: return 0;
         }
     }
 
-    _selectFirstAvailableTab() {
+    private _selectFirstAvailableTab(): void {
         if (this.data.spells.length > 0) { this.currentTab = 0; this.selectedIndices = [0, 0, 0]; return; }
         if (this.data.wearables.some(v => v > 0)) { this.currentTab = 1; this.selectedIndices = [0, 1, 0]; return; }
         if (this.data.items.some(v => v > 0)) { this.currentTab = 2; this.selectedIndices = [0, 0, 1]; return; }
     }
 
-    _activeCount() {
+    private _activeCount(): number {
         const d = this.data;
         switch (this.currentTab) {
             case 0: return d.spells.length;
@@ -262,7 +317,7 @@ export class InventoryScreen {
         }
     }
 
-    draw(now) {
+    draw(_now?: number): void {
         const ctx = this.ctx;
         const W = this.canvas.width;
         const H = this.canvas.height;
@@ -283,7 +338,7 @@ export class InventoryScreen {
         ctx.restore();
     }
 
-    _drawMagicSection(ctx, W) {
+    private _drawMagicSection(ctx: CanvasRenderingContext2D, W: number): void {
         const d = this.data;
         const spells = d.spells;
         const iconSize = 48;
@@ -291,7 +346,9 @@ export class InventoryScreen {
         const gap = 48;
         const rowW = 7 * iconSize + 6 * gap;
 
-        const selName = this.selectedIndices[0] < spells.length ? SPELL_NAMES[spells[this.selectedIndices[0]] - 1] : '';
+        const selName = (this.selectedIndices[0] ?? 0) < spells.length
+            ? SPELL_NAMES[(spells[this.selectedIndices[0] as number] ?? 1) - 1]
+            : '';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
@@ -328,8 +385,8 @@ export class InventoryScreen {
                 this._drawSheet(ctx, 'magics', sid - 1, ix, iconsY, iconSize, iconSize);
             }
 
-            const cur = spells[i] ? d.spellCounts[i] : 0;
-            const max = spells[i] ? d.spellMaxCounts[i] : 0;
+            const cur = spells[i] ? d.spellCounts[i] ?? 0 : 0;
+            const max: number = spells[i] ? d.spellMaxCounts[i] ?? 0 : 0;
             if (max > 0) {
                 ctx.font = 'bold 14px "Courier New", monospace';
                 ctx.textAlign = 'center';
@@ -341,7 +398,7 @@ export class InventoryScreen {
         }
     }
 
-    _drawBottomHalf(ctx, W, H) {
+    private _drawBottomHalf(ctx: CanvasRenderingContext2D, W: number, H: number): void {
         const magicEnd = 156;
         const leftW = Math.floor(W * 0.625);
         const rightW = W - leftW;
@@ -362,7 +419,7 @@ export class InventoryScreen {
         this._drawInventoryPanel(ctx, leftW, magicEnd, rightW);
     }
 
-    _drawWearPanel(ctx, x, y, w) {
+    private _drawWearPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number): void {
         const d = this.data;
         const items = d.wearables;
         const iconSize = 48;
@@ -370,7 +427,7 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
-        const selId = this.currentTab === 1 ? d.wearables[this.selectedIndices[1]] : 0;
+        const selId: number = (this.currentTab === 1 ? d.wearables[this.selectedIndices[1] ?? 0] : 0) ?? 0;
         const selName = selId > 0 ? (WEARABLE_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
@@ -400,8 +457,8 @@ export class InventoryScreen {
                 ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
             }
 
-            if (id > 0) {
-                this._drawSheet(ctx, 'wearables', id - 1, ix, iconsY, iconSize, iconSize);
+            if ((id ?? 0) > 0) {
+                this._drawSheet(ctx, 'wearables', (id as number) - 1, ix, iconsY, iconSize, iconSize);
             } else {
                 this._drawSheet(ctx, 'no_use', 0, ix, iconsY, iconSize, iconSize);
             }
@@ -409,7 +466,7 @@ export class InventoryScreen {
     }
 
     // Navigation here should only work in the caverns
-    _drawUsePanel(ctx, x, y, w) {
+    private _drawUsePanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number): void {
         const d = this.data;
         const items = d.items;
         const iconSize = 48;
@@ -417,7 +474,7 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
-        const selId = this.currentTab === 2 ? d.items[this.selectedIndices[2]] : 0;
+        const selId: number = (this.currentTab === 2 ? d.items[this.selectedIndices[2] ?? 0] : 0) ?? 0;
         const selName = selId > 0 ? (ITEM_NAMES[selId] || 'NO USE') : 'NO USE';
 
         ctx.font = 'bold 24px "Courier New", monospace';
@@ -448,15 +505,15 @@ export class InventoryScreen {
                 ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
             }
 
-            if (iid > 0) {
-                this._drawSheet(ctx, 'magic_items', iid - 1, ix, iconsY, iconSize, iconSize);
+            if ((iid ?? 0) > 0) {
+                this._drawSheet(ctx, 'magic_items', (iid as number) - 1, ix, iconsY, iconSize, iconSize);
             } else {
                 this._drawSheet(ctx, 'no_use', 0, ix, iconsY, iconSize, iconSize);
             }
         }
     }
 
-    _drawInventoryPanel(ctx, x, y, w) {
+    private _drawInventoryPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number): void {
         const d = this.data;
         const padX = 12;
 
@@ -477,8 +534,8 @@ export class InventoryScreen {
             this._drawSheet(ctx, 'swords', d.swordType - 1, x + 10, ey, 60, 48);
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 18px "Courier New", monospace';
-            ctx.fillText(sn[0], labelX, ey + 4);
-            ctx.fillText(sn[1], labelX, ey + 24);
+            ctx.fillText(sn[0] ?? '', labelX, ey + 4);
+            ctx.fillText(sn[1] ?? '', labelX, ey + 24);
             ey += 52;
         }
 
@@ -487,8 +544,8 @@ export class InventoryScreen {
             this._drawSheet(ctx, 'shields', d.shieldType - 1, x + 10, ey + 2, iconSize, iconSize);
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 18px "Courier New", monospace';
-            ctx.fillText(shn[0], labelX, ey + 8);
-            ctx.fillText(shn[1], labelX + 64, ey + 27);
+            ctx.fillText(shn[0] ?? '', labelX, ey + 8);
+            ctx.fillText(shn[1] ?? '', labelX + 64, ey + 27);
             ctx.fillStyle = '#0ff';
             ctx.fillText(`(${d.shieldHP})`, labelX, ey + 27);
             ey += 52;
@@ -531,7 +588,7 @@ export class InventoryScreen {
         }
     }
 
-    _drawUsageMessage(ctx, W, H) {
+    private _drawUsageMessage(ctx: CanvasRenderingContext2D, W: number, H: number): void {
         if (!this.usageMessage) return;
         if (performance.now() - this.usageTimer > 3000) {
             this.usageMessage = '';
@@ -561,7 +618,7 @@ export class InventoryScreen {
         ctx.fillText(this.usageMessage, x+boxW-20, y + boxH * 0.7);
     }
 
-    _drawDebugPopup(ctx, W, H) {
+    private _drawDebugPopup(ctx: CanvasRenderingContext2D, W: number, H: number): void {
         if (!this.debugPopup) return;
 
         const boxW = 280;
@@ -589,22 +646,22 @@ export class InventoryScreen {
         ctx.fillText(`EXP`, x + 20, y + boxH * 0.7);
     }
 
-    _showDebugPopup() {
+    private _showDebugPopup(): void {
         const r = this.readMemory;
         if (r) {
-            this.data.level = r(ADDR_HERO_LEVEL, 1)[0];
-            const xp = r(ADDR_HERO_XP, 2);
-            this.data.heroXP = xp[0] | (xp[1] << 8);
+            this.data.level = (r(ADDR_HERO_LEVEL, 1) ?? new Uint8Array(1))[0] ?? 0;
+            const xp = r(ADDR_HERO_XP, 2) ?? new Uint8Array(2);
+            this.data.heroXP = (xp[0] ?? 0) | ((xp[1] ?? 0) << 8);
         }
         this.debugPopup = true;
     }
 
-    resetDebugCombo() {
+    resetDebugCombo(): void {
         this._debugS = false;
         this._debugE = false;
     }
 
-    handleKey(code, ctrlKey, shiftKey, repeat) {
+    handleKey(code: string, ctrlKey: boolean, shiftKey: boolean, repeat: boolean): boolean {
         if (this.debugPopup) {
             const isModifier = ['ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(code);
             if (!repeat && !isModifier) {
@@ -632,7 +689,7 @@ export class InventoryScreen {
         return false;
     }
 
-    _drawSheet(ctx, name, index, dx, dy, dw, dh) {
+    private _drawSheet(ctx: CanvasRenderingContext2D, name: string, index: number, dx: number, dy: number, dw?: number, dh?: number): void {
         const s = this.sheets[name];
         if (!s) return;
         if (index < 0 || index >= s.count) return;
@@ -640,7 +697,7 @@ export class InventoryScreen {
         ctx.drawImage(s.img, sx, 0, s.cfg.frameW, s.cfg.frameH, dx, dy, dw || s.cfg.frameW, dh || s.cfg.frameH);
     }
 
-    handleInput(code, repeat) {
+    handleInput(code: string, repeat = false): void {
         if (repeat) return;
 
         switch (code) {
@@ -665,27 +722,27 @@ export class InventoryScreen {
         }
     }
 
-    _navNext() {
+    private _navNext(): void {
         const n = this._activeCount();
         if (n < 2) return;
-        const idx = this.selectedIndices[this.currentTab];
+        const idx = this.selectedIndices[this.currentTab] ?? 0;
         if (idx + 1 >= n) return;
-        this.selectedIndices[this.currentTab]++;
+        this.selectedIndices[this.currentTab] = idx + 1;
         this._playNavSfx(12);
         this._onNavigate();
     }
 
-    _navPrev() {
+    private _navPrev(): void {
         const n = this._activeCount();
         if (n < 2) return;
-        const idx = this.selectedIndices[this.currentTab];
+        const idx = this.selectedIndices[this.currentTab] ?? 0;
         if (idx - 1 < 0) return;
-        this.selectedIndices[this.currentTab]--;
+        this.selectedIndices[this.currentTab] = idx - 1;
         this._playNavSfx(12);
         this._onNavigate();
     }
 
-    _tabHasItems(tab) {
+    private _tabHasItems(tab: number): boolean {
         const d = this.data;
         if (tab === 0) return d.spells.length > 0;
         if (tab === 1) return d.wearables.slice(1).some(v => v > 0);
@@ -693,7 +750,7 @@ export class InventoryScreen {
         return false;
     }
 
-    _tabNext() {
+    private _tabNext(): void {
         const old = this.currentTab;
         for (let i = this.currentTab + 1; i < 3; i++) {
             if (this._tabHasItems(i)) {
@@ -706,7 +763,7 @@ export class InventoryScreen {
         }
     }
 
-    _tabPrev() {
+    private _tabPrev(): void {
         const old = this.currentTab;
         for (let i = this.currentTab - 1; i >= 0; i--) {
             if (this._tabHasItems(i)) {
@@ -719,36 +776,26 @@ export class InventoryScreen {
         }
     }
 
-    _playNavSfx(id) {
+    private _playNavSfx(id: number): void {
         const now = performance.now();
         if (now - this._lastNavSound < 80) return;
         this._lastNavSound = now;
         this.soundManager?.playSfx(id);
     }
 
-    _onNavigate() {
+    private _onNavigate(): void {
         const w = this.writeMemory;
         if (!w) return;
         if (this.currentTab === 0) {
             const id = this._selectedId();
-            if (id > 0) w(ADDR_CURRENT_MAGIC_SPELL, [id]);
+            if (id > 0) w(ADDR_CURRENT_MAGIC_SPELL, Uint8Array.of(id));
         } else if (this.currentTab === 1) {
             const id = this._selectedId();
-            w(ADDR_CURRENT_ACCESSORY, [id]);
+            w(ADDR_CURRENT_ACCESSORY, Uint8Array.of(id));
         }
     }
 
-    _selectCurrent() {
-        if (this.currentTab === 0) {
-            const id = this._selectedId();
-            if (id > 0) this.writeMemory?.(ADDR_CURRENT_MAGIC_SPELL, [id]);
-        } else if (this.currentTab === 1) {
-            const id = this._selectedId();
-            this.writeMemory?.(ADDR_CURRENT_ACCESSORY, [id]);
-        }
-    }
-
-    _useItem() {
+    private _useItem(): void {
         const itemId = this._selectedId();
         if (itemId === 0) return;
 
@@ -756,12 +803,12 @@ export class InventoryScreen {
         const w = this.writeMemory;
         if (!r || !w) return;
 
-        const it = r(ADDR_MAGIC_ITEMS, 5);
+        const it = r(ADDR_MAGIC_ITEMS, 5) ?? new Uint8Array(5);
         let slot = -1;
         let nth = 0;
         for (let i = 0; i < 5; i++) {
             if (it[i]) {
-                if (nth === this.selectedIndices[2] - 1) { slot = i; break; }
+                if (nth === (this.selectedIndices[2] ?? 0) - 1) { slot = i; break; }
                 nth++;
             }
         }
@@ -782,51 +829,59 @@ export class InventoryScreen {
             case 7: this._enchantSword(); break;
             case 8:
                 this.soundManager?.playSfx(15);
-                w(ADDR_MAGIC_ITEMS + slot, [0]);
-                this.data.items.splice(this.selectedIndices[2], 1);
+                w(ADDR_MAGIC_ITEMS + slot, Uint8Array.of(0));
+                this.data.items.splice(this.selectedIndices[2] ?? 0, 1);
                 this.selectedIndices[2] = 0;
                 setTimeout(() => this.exit(), 600);
                 return;
         }
 
-        w(ADDR_MAGIC_ITEMS + slot, [0]);
-        this.data.items.splice(this.selectedIndices[2], 1);
+        w(ADDR_MAGIC_ITEMS + slot, Uint8Array.of(0));
+        this.data.items.splice(this.selectedIndices[2] ?? 0, 1);
         this.selectedIndices[2] = 0;
     }
 
-    _healHP(amount) {
+    /** read a single g_mem byte, 0 when memory is unavailable */
+    private _byte(addr: number): number {
+        return (this.readMemory?.(addr, 1) ?? new Uint8Array(1))[0] ?? 0;
+    }
+
+    /** read a little-endian g_mem word */
+    private _word(addr: number): number {
+        const v = this.readMemory?.(addr, 2) ?? new Uint8Array(2);
+        return (v[0] ?? 0) | ((v[1] ?? 0) << 8);
+    }
+
+    private _healHP(amount: number): void {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const hp = r(ADDR_HERO_HP, 2);
-        let val = hp[0] | (hp[1] << 8);
-        const mx = r(ADDR_HERO_MAX_HP, 2);
-        const maxVal = mx[0] | (mx[1] << 8);
+        let val = this._word(ADDR_HERO_HP);
+        const maxVal = this._word(ADDR_HERO_MAX_HP);
         val = Math.min(maxVal, val + amount);
-        w(ADDR_HERO_HP, [val & 0xFF, (val >> 8) & 0xFF]);
-        w(ADDR_HEALTH_BAR_REQUEST, [0xFF]);
+        w(ADDR_HERO_HP, Uint8Array.of(val & 0xFF, (val >> 8) & 0xFF));
+        w(ADDR_HEALTH_BAR_REQUEST, Uint8Array.of(0xFF));
         this.data.heroHP = val;
     }
 
-    _fullHeal() {
+    private _fullHeal(): void {
         const w = this.writeMemory;
         if (!w) return;
-        const mx = this.readMemory(ADDR_HERO_MAX_HP, 2);
-        const maxVal = mx[0] | (mx[1] << 8);
-        w(ADDR_HERO_HP, [maxVal & 0xFF, (maxVal >> 8) & 0xFF]);
-        w(ADDR_HEALTH_BAR_REQUEST, [0xFF]);
+        const maxVal = this._word(ADDR_HERO_MAX_HP);
+        w(ADDR_HERO_HP, Uint8Array.of(maxVal & 0xFF, (maxVal >> 8) & 0xFF));
+        w(ADDR_HEALTH_BAR_REQUEST, Uint8Array.of(0xFF));
         this.data.heroHP = maxVal;
     }
 
-    _refillSpell() {
+    private _refillSpell(): void {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const cur = r(ADDR_CURRENT_MAGIC_SPELL, 1)[0];
+        const cur = this._byte(ADDR_CURRENT_MAGIC_SPELL);
         if (!cur) return;
         const idx = cur - 1;
-        const max = r(ADDR_ESPADA_COUNT + idx, 1)[0];
-        w(ADDR_SPELLS_ESPADA + idx, [max]);
+        const max = this._byte(ADDR_ESPADA_COUNT + idx);
+        w(ADDR_SPELLS_ESPADA + idx, Uint8Array.of(max));
         for (let i = 0; i < this.data.spells.length; i++) {
             if (this.data.spells[i] === cur) {
                 this.data.spellCounts[i] = max;
@@ -835,51 +890,47 @@ export class InventoryScreen {
         }
     }
 
-    _refillAllSpells() {
+    private _refillAllSpells(): void {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
         for (let i = 0; i < 7; i++) {
-            const max = r(ADDR_ESPADA_COUNT + i, 1)[0];
-            w(ADDR_SPELLS_ESPADA + i, [max]);
+            w(ADDR_SPELLS_ESPADA + i, Uint8Array.of(this._byte(ADDR_ESPADA_COUNT + i)));
         }
         for (let i = 0; i < this.data.spells.length; i++) {
-            const sid = this.data.spells[i];
-            const max = r(ADDR_ESPADA_COUNT + sid - 1, 1)[0];
-            this.data.spellCounts[i] = max;
+            const sid = this.data.spells[i] as number;
+            this.data.spellCounts[i] = this._byte(ADDR_ESPADA_COUNT + sid - 1);
         }
     }
 
-    _spiritShield() {
+    private _spiritShield(): void {
         const w = this.writeMemory;
         if (!w) return;
-        w(ADDR_MAGIA_STONE_SPRITE0, [0x00, 0x01, 0x50, 0, 0, 0, 0]);
-        w(ADDR_MAGIA_STONE_SPRITE1, [0x04, 0xFF, 0x50, 0, 0, 0, 0]);
-        w(ADDR_MAGIA_STONE_SPRITE2, [0x08, 0xFF, 0x50, 0, 0, 0, 0]);
-        w(ADDR_MAGIA_STONE_SPRITE3, [0x0C, 0x01, 0x50, 0, 0, 0, 0]);
+        w(ADDR_MAGIA_STONE_SPRITE0, Uint8Array.of(0x00, 0x01, 0x50, 0, 0, 0, 0));
+        w(ADDR_MAGIA_STONE_SPRITE1, Uint8Array.of(0x04, 0xFF, 0x50, 0, 0, 0, 0));
+        w(ADDR_MAGIA_STONE_SPRITE2, Uint8Array.of(0x08, 0xFF, 0x50, 0, 0, 0, 0));
+        w(ADDR_MAGIA_STONE_SPRITE3, Uint8Array.of(0x0C, 0x01, 0x50, 0, 0, 0, 0));
     }
 
-    _repairShield() {
+    private _repairShield(): void {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const st = r(ADDR_SHIELD_TYPE, 1)[0];
+        const st = this._byte(ADDR_SHIELD_TYPE);
         if (!st) return;
-        const hp = r(ADDR_SHIELD_HP, 2);
-        let val = hp[0] | (hp[1] << 8);
-        const mx = r(ADDR_SHIELD_MAX_HP, 2);
-        const maxVal = mx[0] | (mx[1] << 8);
+        let val = this._word(ADDR_SHIELD_HP);
+        const maxVal = this._word(ADDR_SHIELD_MAX_HP);
         val = Math.min(maxVal, val + (SHIELD_HP_VALUES[st - 1] || 0));
-        w(ADDR_SHIELD_HP, [val & 0xFF, (val >> 8) & 0xFF]);
+        w(ADDR_SHIELD_HP, Uint8Array.of(val & 0xFF, (val >> 8) & 0xFF));
         this.data.shieldHP = val;
     }
 
-    _enchantSword() {
+    private _enchantSword(): void {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const c = r(ADDR_BYTE_E4, 1)[0] + 1;
-        w(ADDR_BYTE_E4, [c]);
+        const c = this._byte(ADDR_BYTE_E4) + 1;
+        w(ADDR_BYTE_E4, Uint8Array.of(c));
         this.data.enchantCount = c;
     }
 }

@@ -39,14 +39,14 @@ describe('parseDialogText basics', () => {
 
     it('remaps 0x5C to apostrophe and 0x26 to space', () => {
         const r = parseDialogText([0x49, 0x5c, 0x6d]); // I ' m
-        expect(r.pages[0][0]).toBe("I'm");
+        expect(r.pages[0]![0]).toBe("I'm");
         const r2 = parseDialogText([...s('a'), 0x26, ...s('b')]);
-        expect(r2.pages[0][0]).toBe('a b');
+        expect(r2.pages[0]![0]).toBe('a b');
     });
 
     it('skips control chars below 0x20 and unknown high bytes terminate', () => {
-        expect(parseDialogText([...s('ab'), 0x05, ...s('c')]).pages[0][0]).toBe('abc');
-        expect(parseDialogText([...s('keep'), 0x84, ...s('drop')]).pages[0][0]).toBe('keep');
+        expect(parseDialogText([...s('ab'), 0x05, ...s('c')]).pages[0]![0]).toBe('abc');
+        expect(parseDialogText([...s('keep'), 0x84, ...s('drop')]).pages[0]![0]).toBe('keep');
     });
 });
 
@@ -61,7 +61,7 @@ describe('control codes', () => {
         const onElfCrest = vi.fn();
         const r = parseDialogText([...s('Take this.'), 0x83, ...s('rest')], { onElfCrest });
         expect(onElfCrest).toHaveBeenCalledTimes(1);
-        expect(r.pages[0][0]).toBe('Take this.');
+        expect(r.pages[0]![0]).toBe('Take this.');
     });
 
     it('0x87 and 0x89 set end codes', () => {
@@ -72,7 +72,7 @@ describe('control codes', () => {
     it('0x85 stub is skipped without side effects', () => {
         const onElfCrest = vi.fn();
         const r = parseDialogText([...s('AB'), 0x85, ...s('CD')], { onElfCrest });
-        expect(r.pages[0][0]).toBe('ABCD');
+        expect(r.pages[0]![0]).toBe('ABCD');
         expect(onElfCrest).not.toHaveBeenCalled();
     });
 
@@ -115,7 +115,7 @@ describe('line wrapping at 256 original pixels', () => {
     it('does not leave trailing spaces at wrap points', () => {
         // Space that triggers the wrap is dropped (continue), not appended.
         const r = parseDialogText(s('nnnnnnnnnnnnnnnnnnnnnnnnnnnnnn nn x'));
-        const first = r.pages[0][0];
+        const first = r.pages[0]![0]!;
         expect(first.startsWith(' ')).toBe(false);
         expect(first.endsWith(' ')).toBe(false);
     });
@@ -133,7 +133,7 @@ describe('paging at 15 lines per page', () => {
         expect(r.pages[0]).toHaveLength(15);
         expect(r.pages[1]).toHaveLength(15);
         // Final page only keeps non-empty lines.
-        expect(r.pages[2].every((l) => l.length > 0)).toBe(true);
+        expect(r.pages[2]!.every((l) => l.length > 0)).toBe(true);
     });
 });
 

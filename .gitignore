@@ -9,3 +9,4 @@ asm/*.bin
 asm/*.drv
 build/.emcache/
 LOGCPU.TXT
+web/coverage/

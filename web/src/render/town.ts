@@ -16,8 +16,7 @@
  */
 
 import {
-    TILE_SIZE, VIEW_COLS, VIEW_WIDTH, VIEW_ROWS,
-    TOWN_VIEW_ROWS, TOWN_VISIBLE_COL_OFFSET, TOWN_MAP_TILE_OFFSET,
+    TILE_SIZE, VIEW_COLS, VIEW_WIDTH, TOWN_VIEW_ROWS, TOWN_VISIBLE_COL_OFFSET, TOWN_MAP_TILE_OFFSET,
     TOWN_MAP_START_ROW, TOWN_TILE_SHEET_COLS, TOWN_SIDEWALK1_START_ROW,
     TOWN_SIDEWALK2_START_ROW, TOWN_ANIMATION_FULL_TICKS,
     HERO_FRAME_W, HERO_FRAME_H, HERO_BASE_Y,
@@ -29,7 +28,6 @@ import {
 } from '../wasm/memory.js';
 import { PATTERN_ASSETS, NPC_FRAME_W, NPC_FRAME_H } from '../data/assets.js';
 import { getTownMapWidth } from '../core/transitions.js';
-import type { SpriteSheetLike } from './dungeon.js';
 
 /** Minimal key-state view used for the hero walk cycle. */
 export interface TownKeyState {
@@ -96,8 +94,8 @@ export function getTownNpcCategory(): number {
 export function parseTownNpcCategory(): void {
     if (!env.readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2)) { townNpcSpriteCategory = 0; return; }
     const descPtrBytes = env.readMemory(ADDR_TOWN_DESCRIPTOR_PTR, 2)!;
-    const descPtr = descPtrBytes[0] | (descPtrBytes[1] << 8);
-    const raw = env.readMemory(descPtr + 1, 1)![0];
+    const descPtr = (descPtrBytes[0] ?? 0) | ((descPtrBytes[1] ?? 0) << 8);
+    const raw = env.readMemory(descPtr + 1, 1)![0] ?? 0;
     const count = A().npcSprites.length;
     townNpcSpriteCategory = raw < count ? raw : 0;
 }
@@ -199,10 +197,10 @@ export function updateTownAnimation(): void {
     const pattern = (PATTERN_ASSETS as unknown as Record<number, { animatedTilesSeq?: number[][] } | undefined>)[env.townPatId()];
     const seqList = pattern?.animatedTilesSeq ?? [];
     townAnimTileMap = {};
-    if (!seqList.length || (seqList.length === 1 && !seqList[0].length)) return;
+    if (!seqList.length || (seqList.length === 1 && !seqList[0]!.length)) return;
     for (const seq of seqList) {
         for (let pos = 0; pos < seq.length; pos++) {
-            const tileId = seq[pos];
+            const tileId = seq[pos]!;
             townAnimTileMap[tileId] = { seq, pos };
         }
     }
@@ -215,7 +213,7 @@ function getAnimatedTownTileId(tileId: number): number {
     const len = seq.length;
     const phase = Math.floor(env.frameTimer() / TOWN_ANIMATION_FULL_TICKS) % len;
     const newPos = (pos + phase) % len;
-    return seq[newPos];
+    return seq[newPos] ?? tileId;
 }
 
 /**
@@ -298,20 +296,20 @@ export function drawTownNpcs(): void {
     if (!env.engineReady()) return;
     const ptrBytes = env.readMemory(ADDR_NPC_ARRAY_PTR, 2);
     if (!ptrBytes) return;
-    const npcArrayAddr = ptrBytes[0] | (ptrBytes[1] << 8);
+    const npcArrayAddr = (ptrBytes[0] ?? 0) | ((ptrBytes[1] ?? 0) << 8);
     if (!npcArrayAddr) return;
     const proxLeftBytes = env.readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2)!;
-    const proxLeft = proxLeftBytes[0] | (proxLeftBytes[1] << 8);
-    const sprites = A().npcSprites[townNpcSpriteCategory];
+    const proxLeft = (proxLeftBytes[0] ?? 0) | ((proxLeftBytes[1] ?? 0) << 8);
+    const sprites = A().npcSprites[townNpcSpriteCategory]!;
     for (let i = 0; i < 64; i++) {
         const base = npcArrayAddr + i * 8;
         const npcMem = env.readMemory(base, 8)!;
-        const nx = npcMem[0] | (npcMem[1] << 8);
+        const nx = (npcMem[0] ?? 0) | ((npcMem[1] ?? 0) << 8);
         if (nx === 0xffff) break;
-        const nFacing = npcMem[2];
+        const nFacing = npcMem[2] ?? 0;
         const sprite = sprites[nFacing & 0xf];
         if (!sprite) continue;
-        const nAnimPhase = npcMem[4];
+        const nAnimPhase = npcMem[4] ?? 0;
         const screenCol = nx - proxLeft - TOWN_VISIBLE_COL_OFFSET;
         const screenX = screenCol * TILE_SIZE;
         if (screenX < -NPC_FRAME_W || screenX >= VIEW_WIDTH) continue;

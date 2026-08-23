@@ -17,7 +17,8 @@
  */
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText, YesNoDialog } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -90,7 +91,7 @@ const MAGIC_FRAMES = [
 const MAGIC_FRAME_MS = 400;
 
 // ─── Main menu ────────────────────────────────────────────────────────────────
-const MENU_ITEMS = [
+export const SHOP_MENU_ITEMS = [
     'Go outside',
     'Buy item',
     'Sell item',
@@ -102,7 +103,7 @@ const MENU_SELL_ITEM    = 2;
 const MENU_DESCRIBE     = 3;
 
 // ─── Item tables (drugpro.asm off_B08A) ──────────────────────────────────────
-const ITEM_NAMES = [
+export const MAGIC_ITEM_NAMES = [
     "Ken'ko Potion",        // 0
     'Juu-en Fruit',         // 1
     'Elixir of Kashi',      // 2
@@ -114,7 +115,7 @@ const ITEM_NAMES = [
 ];
 
 // Item descriptions (drugpro.asm off_AB3A / aWellItSASpecia .. aThisFeatherRem)
-const ITEM_DESCRIPTIONS = [
+export const MAGIC_ITEM_DESCRIPTIONS = [
     "Well, it's a special blend of yunkel fruit and ripodi leaf. It's low in price and as a mild health tonic, it's perfect.",
     "This is the fruit of the Juu-en tree which bears only once every ten years. The price is a bit high, but it provides excellent relief from wounds and exhaustion -- it's quite a bit better than the Ken'ko potion.",
     "This potion is made from the broth of mistletoe simmered on the night of a full moon. It restores magical powers. It's very bitter, but the price is low.",
@@ -129,7 +130,7 @@ const ITEM_DESCRIPTIONS = [
 // Each row: [item0_price, item1_price, …, item7_price]  (8 magic items)
 // Price records in ASM are 3 bytes each: flag byte (always 0) + word price.
 // The flag byte appears to be unused; we store the word price directly.
-const PRICES_BY_TOWN = [
+export const MAGIC_PRICES_BY_TOWN = [
     // Muralla  (town 0, 1-based town_id=1)
     [  50,  240,   60,  320, 1000,  100, 1200,  350 ],
     // Satono   (town 1)
@@ -154,7 +155,7 @@ const PRICES_BY_TOWN = [
 
 // ─── Default per-town inventory bitmasks (common.inc) ─────────────────────────
 // Bit 7 = item 0 (Ken'ko Potion), bit 6 = item 1, …, bit 0 = item 7 (Kioku Feather)
-const DEFAULT_MAGIC_BITMASKS = [
+export const DEFAULT_MAGIC_BITMASKS = [
     0x8A,  // Muralla  — Ken'ko (7), Elixir (5), Chikara (3) ← ASM default: 8a
     0xA6,  // Satono   — Ken'ko (7), Elixir (5), Holy Water (2), Oil (1)
     0x6B,  // Bosque
@@ -176,7 +177,7 @@ const ADDR_MAGIC_MASKS    = 0xC9;   // one byte per town (9 towns), Muralla..Esc
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Convert a bitmask to an array of 0-based item indices that are set. */
-function bitmaskToItemIndices(bitmask) {
+export function bitmaskToItemIndices(bitmask: number): number[] {
     const out = [];
     for (let i = 0; i < 8; i++) {
         if (bitmask & (0x80 >> i)) out.push(i);
@@ -184,13 +185,55 @@ function bitmaskToItemIndices(bitmask) {
     return out;
 }
 
-function itemIndexToBit(i) { return 0x80 >> i; }
+export function itemIndexToBit(i: number): number { return 0x80 >> i; }
 
 // ─── Scene class ──────────────────────────────────────────────────────────────
 
+type ShopPhase =
+    | 'loading' | 'greeting' | 'menu'
+    | 'sub_buy' | 'sub_sell' | 'sub_describe'
+    | 'confirm_buy' | 'confirm_sell' | 'dialog';
+
 export class WitchcraftShopScene extends IndoorSceneBase {
 
-    constructor(context) {
+    // ── Animation state ──
+    private fireImages: HTMLImageElement[];
+    private magicImages: HTMLImageElement[];
+    private fireFrameIdx: number;
+    private lastFireTime: number;
+    private magicAnimPhase: 'idle' | 'enter' | 'exit';
+    private magicFrameIdx: number;
+    private lastMagicTime: number;
+    private magicDirection: 1 | -1;
+
+    // ── Shop logic state ──
+    private shopPhase: ShopPhase;
+    private menuSel: number;
+    private subSel: number;
+    private subItems: number[];
+    private exitAfterDialog: boolean;
+    private menuDimmed: boolean;
+    private yesNoDialog: YesNoDialog | null;
+    private subScrollOffset: number;
+
+    // ── Pending transaction ──
+    private _pendingItemIdx: number | null;
+    private _pendingPrice: number;
+
+    // ── Town / inventory ──
+    private townIdx: number;
+    private _shopItemIndices: number[];
+    private _playerItemIds: number[];
+
+    // ── Dialog typewriter ──
+    private typewriter: TypewriterText | null;
+    private dlgBuffer: string[];
+    private _pendingLine: string | null;
+    private _dlgQueue: string[];
+    private _dlgQueueIndex: number;
+    private _dlgQueueAdvanceAt: number | 'pending' | null;
+
+    constructor(context: IndoorSceneDependencies) {
         super(context);
 
         // ── Animation state ──────────────────────────────────────────────────
@@ -216,7 +259,6 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.menuSel         = 0;
         this.subSel          = 0;
         this.subItems        = [];    // array of 0-based item indices
-        this.subKind         = null;  // 'buy' | 'sell' | 'describe'
         this.exitAfterDialog = false;
         this.menuDimmed      = false;
         this.yesNoDialog     = null;   // YesNoDialog shown during confirm phases
@@ -245,7 +287,11 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-    async onEnter(now) {
+    protected override onEnter(now: number): void {
+        void this._loadAndBegin(now);
+    }
+
+    private async _loadAndBegin(now: number): Promise<void> {
         const [fires, magics] = await Promise.all([
             Promise.all(FIRE_FRAMES.map(p  => this._loadImg(p))),
             Promise.all(MAGIC_FRAMES.map(p => this._loadImg(p))),
@@ -274,8 +320,8 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.shopPhase = 'greeting';
     }
 
-    _loadImg(src) {
-        return new Promise((resolve, reject) => {
+    private _loadImg(src: string): Promise<HTMLImageElement> {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
             img.onload  = () => resolve(img);
             img.onerror = () => reject(new Error(`Failed: ${src}`));
@@ -285,72 +331,66 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Memory helpers ─────────────────────────────────────────────────────────
 
-    _read(addr, len = 1) {
-        return this.readMemory ? this.readMemory(addr, len) : new Array(len).fill(0);
+    private _read(addr: number, len = 1): Uint8Array {
+        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
     }
 
-    _write(addr, bytes) {
+    private _write(addr: number, bytes: Uint8Array): void {
         if (this.writeMemory) this.writeMemory(addr, bytes);
     }
 
-    _getTownIdx() {
+    private _getTownIdx(): number {
         // place_map_id: 0x81=Muralla..0x89=Esco → index 0..8
-        const raw = this._read(ADDR_TOWN_ID, 1)[0] & 0x7F;
+        const raw = (this._read(ADDR_TOWN_ID, 1)[0] ?? 0) & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
-    _getGold() {
+    private _getGold(): number {
         const hi = this._read(ADDR_GOLD_HI, 1)[0];
         const b  = this._read(ADDR_GOLD_LO, 2);
-        return ((hi & 0xFF) * 0x10000) + ((b[0] & 0xFF) | ((b[1] & 0xFF) << 8));
+        return (((hi ?? 0) & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
 
-    _setGold(amount) {
+    private _setGold(amount: number): void {
         const v  = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, [hi]);
-        this._write(ADDR_GOLD_LO, [lo & 0xFF, (lo >> 8) & 0xFF]);
+        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
     }
 
-    _getMagicBitmask() {
-        return this._read(ADDR_MAGIC_MASKS + this.townIdx, 1)[0]
-            || DEFAULT_MAGIC_BITMASKS[this.townIdx];
+    private _getMagicBitmask(): number {
+        return (this._read(ADDR_MAGIC_MASKS + this.townIdx, 1)[0]
+            || DEFAULT_MAGIC_BITMASKS[this.townIdx]) ?? 0;
     }
 
-    _andMagicBitmask(bit) {
-        // Remove bit from shop's stock (player bought it)
-        const cur = this._getMagicBitmask();
-        this._write(ADDR_MAGIC_MASKS + this.townIdx, [(cur & ~bit) & 0xFF]);
-    }
-
-    _orMagicBitmask(bit) {
+    private _orMagicBitmask(bit: number): void {
         // Return bit to shop's stock (player sold it)
         const cur = this._getMagicBitmask();
-        this._write(ADDR_MAGIC_MASKS + this.townIdx, [(cur | bit) & 0xFF]);
+        this._write(ADDR_MAGIC_MASKS + this.townIdx, Uint8Array.of((cur | bit) & 0xFF));
     }
 
     /** Return player's magic item IDs (1-based) currently held (up to 5 slots). */
-    _getPlayerMagicItems() {
+    private _getPlayerMagicItems(): number[] {
         return Array.from(this._read(ADDR_MAGIC_ITEMS, 5));
     }
 
-    _setPlayerMagicSlot(slotIdx, itemId) {
-        this._write(ADDR_MAGIC_ITEMS + slotIdx, [itemId]);
+    private _setPlayerMagicSlot(slotIdx: number, itemId: number): void {
+        this._write(ADDR_MAGIC_ITEMS + slotIdx, Uint8Array.of(itemId));
     }
 
-    _findEmptyMagicSlot() {
+    private _findEmptyMagicSlot(): number {
         const items = this._getPlayerMagicItems();
         const idx   = items.indexOf(0);
         return idx;  // -1 if full
     }
 
-    _findMagicSlotByItemId(itemId1based) {
+    private _findMagicSlotByItemId(itemId1based: number): number {
         const items = this._getPlayerMagicItems();
         return items.indexOf(itemId1based);
     }
 
-    _buildInventoryLists() {
+    private _buildInventoryLists(): void {
         // Items the shop has in stock
         this._shopItemIndices = bitmaskToItemIndices(this._getMagicBitmask());
         // Items the player is currently carrying
@@ -358,13 +398,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     /** Calculate how many items fit in the sub-menu based on available height. */
-    _maxVisibleItems() {
+    private _maxVisibleItems(): number {
         const availableHeight = SHOP_SUB_H - 22;  // subtract top offset
         return Math.floor(availableHeight / SHOP_LINE_H_MENU) + 1;
     }
 
     /** Clamp scroll offset to keep selected item visible. */
-    _clampScroll() {
+    private _clampScroll(): void {
         const maxVis = this._maxVisibleItems();
         const len = this.subItems.length;
         if (len <= maxVis) {
@@ -382,21 +422,21 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         }
     }
 
-    _getItemPrice(itemIdx) {
-        return PRICES_BY_TOWN[Math.min(this.townIdx, 8)][itemIdx] || 0;
+    private _getItemPrice(itemIdx: number): number {
+        return MAGIC_PRICES_BY_TOWN[Math.min(this.townIdx, 8)]?.[itemIdx] || 0;
     }
 
     // ── Dialog machinery ───────────────────────────────────────────────────────
 
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((SHOP_DLG_H - 22 - 40) / SHOP_LINE_H_DLG);
     }
 
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
         this.ctx.save();
         this.ctx.font = SHOP_FONT_DLG;
         const maxW  = SHOP_DLG_W - 28;
-        const lines = [];
+        const lines: string[] = [];
         for (const para of text.split('\n')) {
             const words = para.split(' ');
             let line = '';
@@ -415,7 +455,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         return lines;
     }
 
-    _startTypewriterLine(line) {
+    private _startTypewriterLine(line: string): void {
         this._pendingLine = line;
         this.typewriter   = new TypewriterText(
             line, SHOP_FONT_DLG, SHOP_DLG_W - 28,
@@ -424,7 +464,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.typewriter.start(performance.now());
     }
 
-    _setDialog(text) {
+    private _setDialog(text: string): void {
         const lines = this._wrapText(text);
         if (!lines.length) return;
         this.dlgBuffer          = [];
@@ -435,9 +475,9 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._showNextDlgLine();
     }
 
-    _showNextDlgLine() {
+    private _showNextDlgLine(): void {
         if (this._dlgQueueIndex >= this._dlgQueue.length) return;
-        const line   = this._dlgQueue[this._dlgQueueIndex++];
+        const line   = this._dlgQueue[this._dlgQueueIndex++]!;
         const isLast = this._dlgQueueIndex >= this._dlgQueue.length;
         if (this._pendingLine !== null) {
             this.dlgBuffer.push(this._pendingLine);
@@ -447,7 +487,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._dlgQueueAdvanceAt = isLast ? null : 'pending';
     }
 
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length) return;
         if (this._dlgQueueAdvanceAt === 'pending') {
             if (this.typewriter && this.typewriter.isDone(now)) {
@@ -459,11 +499,11 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         }
     }
 
-    _dlgScrollTop() {
+    private _dlgScrollTop(): number {
         return Math.max(0, this.dlgBuffer.length + 1 - this._dlgMaxLines);
     }
 
-    _dlgArrowVisible() {
+    private _dlgArrowVisible(): boolean {
         if (this._dlgQueue && this._dlgQueueIndex < this._dlgQueue.length) return false;
         return (
             this.shopPhase === 'greeting'    ||
@@ -473,7 +513,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     /** True once the current confirm question is fully typed out. */
-    _confirmDialogDone(now) {
+    private _confirmDialogDone(now: number): boolean | null {
         return (
             this.typewriter && this.typewriter.isDone(now) &&
             (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length)
@@ -481,19 +521,19 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     /** "No" on a Yes/No confirm → drop back to the main menu. */
-    _confirmDeclined(now) {
+    private _confirmDeclined(_now: number): void {
         this.yesNoDialog = null;
         this._setDialog("Is there something I can do for you?");
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
 
-    _drawYesNoDialog(now, alpha) {
+    private _drawYesNoDialog(now: number, alpha: number): void {
         if (!this.yesNoDialog || !this._confirmDialogDone(now)) return;
         this.yesNoDialog.draw(this.ctx, alpha);
     }
 
-    _newYesNoDialog() {
+    private _newYesNoDialog(): YesNoDialog {
         return new YesNoDialog(
             this.ctx, SHOP_FONT_MENU, SHOP_YESNO_X, SHOP_YESNO_Y,
             SHOP_YESNO_W, SHOP_YESNO_H, 0, {
@@ -509,7 +549,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Main draw ──────────────────────────────────────────────────────────────
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickDlgQueue(now);
         this._tickMagicAnim(now);
         this._tickFireAnim(now);
@@ -551,7 +591,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
      *   Left  (178 px wide): current magic frame (entry/exit animation or last frame)
      *   Right (113 px wide): current fire frame  (idle loop)
      */
-    _drawSceneImage(now) {
+    private _drawSceneImage(_now: number): void {
         const ctx = this.ctx;
 
         // Border
@@ -574,7 +614,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Animation tickers ──────────────────────────────────────────────────────
 
-    _tickFireAnim(now) {
+    private _tickFireAnim(now: number): void {
         if (now - this.lastFireTime >= FIRE_FRAME_MS) {
             this.lastFireTime = now;
             this.fireFrameIdx = (this.fireFrameIdx + 1) % FIRE_FRAMES.length;
@@ -592,7 +632,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
      *   When player leaves (go-outside), loc_A0EB plays byte_A74F
      *     byte_A74F: BDh,A7h (magic4), A1h,A7h (magic3), 85h,A7h (magic2), 69h,A7h (magic1), FFFF → backward
      */
-    _tickMagicAnim(now) {
+    private _tickMagicAnim(now: number): void {
         if (this.magicAnimPhase === 'idle') return;
 
         if (now - this.lastMagicTime < MAGIC_FRAME_MS) return;
@@ -617,7 +657,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     /** Begin exit sequence: play magic frames backward, then fade out. */
-    _startExitAnim(now) {
+    private _startExitAnim(now: number): void {
         if (this.magicAnimPhase === 'exit') return;
         this.magicAnimPhase = 'exit';
         this.magicFrameIdx  = MAGIC_FRAMES.length - 1;
@@ -627,7 +667,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Rendering: main menu ───────────────────────────────────────────────────
 
-    _drawMainMenu(alpha) {
+    private _drawMainMenu(alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = this.menuDimmed ? alpha * 0.25 : alpha;
@@ -640,11 +680,11 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         ctx.fillRect(SHOP_MENU_X, SHOP_MENU_Y, SHOP_MENU_W, SHOP_MENU_H);
 
         ctx.font = SHOP_FONT_MENU;
-        for (let i = 0; i < MENU_ITEMS.length; i++) {
+        for (let i = 0; i < SHOP_MENU_ITEMS.length; i++) {
             const yi  = SHOP_MENU_TEXT_Y + i * SHOP_LINE_H_MENU;
             const sel = (i === this.menuSel) && (this.shopPhase === 'menu');
             ctx.fillStyle = sel ? '#e9f' : '#b0e';
-            ctx.fillText(MENU_ITEMS[i], SHOP_MENU_TEXT_X, yi);
+            ctx.fillText(SHOP_MENU_ITEMS[i]!, SHOP_MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#f20';
                 this._triangle(ctx, SHOP_CURSOR_X, yi - 16, 10, 16, false);
@@ -655,18 +695,18 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Rendering: sub-menu ────────────────────────────────────────────────────
 
-    _subItemNames() {
+    private _subItemNames(): string[] {
         if (this.shopPhase === 'sub_buy' || this.shopPhase === 'sub_describe') {
-            return this.subItems.map(i => ITEM_NAMES[i]);
+            return this.subItems.map(i => MAGIC_ITEM_NAMES[i] ?? '');
         }
         if (this.shopPhase === 'sub_sell') {
             // subItems holds 0-based item indices derived from player slots
-            return this.subItems.map(i => ITEM_NAMES[i]);
+            return this.subItems.map(i => MAGIC_ITEM_NAMES[i] ?? '');
         }
         return [];
     }
 
-    _drawSubMenu(alpha) {
+    private _drawSubMenu(alpha: number): void {
         const ctx   = this.ctx;
         const names = this._subItemNames();
         ctx.save();
@@ -686,7 +726,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             const yi  = SHOP_SUB_TEXT_Y + (i - startIdx) * SHOP_LINE_H_MENU;
             const sel = (i === this.subSel);
             ctx.fillStyle = sel ? '#dbf' : '#e3f';
-            ctx.fillText(names[i], SHOP_SUB_TEXT_X + 16, yi);
+            ctx.fillText(names[i]!, SHOP_SUB_TEXT_X + 16, yi);
             if (sel) {
                 ctx.fillStyle = '#f20';
                 this._triangle(ctx, SHOP_SUB_X + 2, yi - 16, 10, 16, false);
@@ -710,7 +750,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Rendering: dialog box ──────────────────────────────────────────────────
 
-    _drawDialogBox(now, alpha) {
+    private _drawDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -734,7 +774,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             const vis = this.typewriter.getVisibleLines(now);
             if (vis.length) {
                 ctx.fillStyle = '#eecc88';
-                ctx.fillText(vis[0], SHOP_DLG_TEXT_X, SHOP_DLG_TEXT_Y + row * SHOP_LINE_H_DLG);
+                ctx.fillText(vis[0]!, SHOP_DLG_TEXT_X, SHOP_DLG_TEXT_Y + row * SHOP_LINE_H_DLG);
             }
             if (this.typewriter.isDone(now) && this._dlgArrowVisible()) {
                 ctx.fillStyle = '#ffaa00';
@@ -753,7 +793,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Input ──────────────────────────────────────────────────────────────────
 
-    handleInput(key) {
+    override handleInput(key: string): void {
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
         if (this.magicAnimPhase === 'exit')  return;  // block during exit anim
@@ -763,7 +803,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             if (this.shopPhase === 'confirm_sell') {
                 if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
             } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
-                this.menuSel = (this.menuSel + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
+                this.menuSel = (this.menuSel + dir + SHOP_MENU_ITEMS.length) % SHOP_MENU_ITEMS.length;
             } else if (
                 this.shopPhase === 'sub_buy'      ||
                 this.shopPhase === 'sub_sell'     ||
@@ -782,7 +822,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         if (key === 'Escape')                   this._onCancel(now);
     }
 
-    _onConfirm(now) {
+    private _onConfirm(now: number): void {
         // Skip still-typing dialog first
         if (this.typewriter && !this.typewriter.isDone(now)) {
             this.typewriter.skip(now);
@@ -835,7 +875,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         }
     }
 
-    _onCancel(now) {
+    private _onCancel(now: number): void {
         if (this.shopPhase === 'confirm_buy' || this.shopPhase === 'confirm_sell') {
             this._confirmDeclined(now);
         } else if (this.shopPhase === 'sub_buy' ||
@@ -851,7 +891,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Menu dispatch ──────────────────────────────────────────────────────────
 
-    _activateMenuItem(idx, now) {
+    private _activateMenuItem(idx: number, now: number): void {
         switch (idx) {
             case MENU_GO_OUTSIDE:   this._doGoOutside(now);      break;
             case MENU_BUY_ITEM:     this._doBuyMenu(now);         break;
@@ -862,7 +902,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Go outside ─────────────────────────────────────────────────────────────
 
-    _doGoOutside(now) {
+    private _doGoOutside(_now: number): void {
         // ASM: unk_AB0E dialog ("Thank you, sir. Please come again."), then exit
         this._setDialog("Thank you, sir. Please come again.");
         this.shopPhase       = 'dialog';
@@ -871,7 +911,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Buy item ───────────────────────────────────────────────────────────────
 
-    _doBuyMenu(now) {
+    private _doBuyMenu(_now: number): void {
         this._buildInventoryLists();
 
         if (!this._shopItemIndices.length) {
@@ -884,16 +924,15 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subItems      = [...this._shopItemIndices];
         this.subSel        = 0;
         this.subScrollOffset = 0;
-        this.subKind       = 'buy';
         this.shopPhase     = 'sub_buy';
         this.menuDimmed    = true;
         this._setDialog("What are you looking for?");
     }
 
-    _onBuyItemSelected(now) {
-        const itemIdx = this.subItems[this.subSel];
+    private _onBuyItemSelected(_now: number): void {
+        const itemIdx = this.subItems[this.subSel] ?? 0;
         const price   = this._getItemPrice(itemIdx);
-        const name    = ITEM_NAMES[itemIdx];
+        const name    = MAGIC_ITEM_NAMES[itemIdx];
 
         this._pendingItemIdx = itemIdx;
         this._pendingPrice   = price;
@@ -902,7 +941,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.shopPhase = 'confirm_buy';
     }
 
-    _executeBuy(now) {
+    private _executeBuy(_now: number): void {
         const gold = this._getGold();
 
         if (gold < this._pendingPrice) {
@@ -929,7 +968,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._setGold(gold - this._pendingPrice);
 
         // Place item in player slot (item id = 1-based index)
-        this._setPlayerMagicSlot(freeSlot, this._pendingItemIdx + 1);
+        this._setPlayerMagicSlot(freeSlot, (this._pendingItemIdx ?? 0) + 1);
 
         this._buildInventoryLists();
 
@@ -943,11 +982,11 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Sell item ──────────────────────────────────────────────────────────────
 
-    _doSellMenu(now) {
+    private _doSellMenu(_now: number): void {
         this._buildInventoryLists();
 
         // Build list of items the player is carrying (using their 0-based item indices)
-        const playerCarrying = [];
+        const playerCarrying: number[] = [];
         for (const id of this._playerItemIds) {
             if (id > 0 && id <= 8) playerCarrying.push(id - 1);  // convert to 0-based
         }
@@ -962,18 +1001,17 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subItems      = playerCarrying;
         this.subSel        = 0;
         this.subScrollOffset = 0;
-        this.subKind       = 'sell';
         this.shopPhase     = 'sub_sell';
         this.menuDimmed    = true;
         this._setDialog("What would you like to sell?");
     }
 
-    _onSellItemSelected(now) {
-        const itemIdx   = this.subItems[this.subSel];
+    private _onSellItemSelected(_now: number): void {
+        const itemIdx   = this.subItems[this.subSel] ?? 0;
         const buyPrice  = this._getItemPrice(itemIdx);
         // Sell price = floor(buy_price / 2) — mirrors ASM shr/rcr
         const sellPrice = Math.floor(buyPrice / 2);
-        const name      = ITEM_NAMES[itemIdx];
+        const name      = MAGIC_ITEM_NAMES[itemIdx];
 
         this._pendingItemIdx = itemIdx;
         this._pendingPrice   = sellPrice;
@@ -983,8 +1021,8 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.shopPhase = 'confirm_sell';
     }
 
-    _executeSell(now) {
-        const itemIdx   = this._pendingItemIdx;
+    private _executeSell(_now: number): void {
+        const itemIdx   = (this._pendingItemIdx ?? 0);
         const sellPrice = this._pendingPrice;
         this.yesNoDialog = null;
 
@@ -1013,7 +1051,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Describe item ──────────────────────────────────────────────────────────
 
-    _doDescribeMenu(now) {
+    private _doDescribeMenu(_now: number): void {
         this._buildInventoryLists();
 
         if (!this._shopItemIndices.length) {
@@ -1026,16 +1064,15 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subItems   = [...this._shopItemIndices];
         this.subSel     = 0;
         this.subScrollOffset = 0;
-        this.subKind    = 'describe';
         this.shopPhase  = 'sub_describe';
         this.menuDimmed = true;
         this._setDialog("Which item can I tell you about?");
     }
 
-    _onDescribeItemSelected(now) {
-        const itemIdx = this.subItems[this.subSel];
-        const name    = ITEM_NAMES[itemIdx];
-        const desc    = ITEM_DESCRIPTIONS[itemIdx] || 'A very special item.';
+    private _onDescribeItemSelected(_now: number): void {
+        const itemIdx = this.subItems[this.subSel] ?? 0;
+        const name    = MAGIC_ITEM_NAMES[itemIdx];
+        const desc    = MAGIC_ITEM_DESCRIPTIONS[itemIdx] || 'A very special item.';
         this._setDialog(`You're interested in the ${name}. ${desc}`);
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
@@ -1043,7 +1080,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     // ── Utility ────────────────────────────────────────────────────────────────
 
-    _triangle(ctx, x, y, w, h, down) {
+    private _triangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, down: boolean): void {
         ctx.beginPath();
         if (down) {
             ctx.moveTo(x, y);         ctx.lineTo(x + w, y);
@@ -1056,7 +1093,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    getName() {
+    getName(): string {
         return 'Witchcraft Implement Shop';
     }
 }

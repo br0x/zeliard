@@ -1,5 +1,11 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
-import { TypewriterText } from './ui-menu-dialog.js';
+import type { IndoorSceneDependencies } from '../core/scene.js';
+import { TypewriterText } from '../ui/menu-dialog.js';
+
+export interface SageSceneDependencies extends IndoorSceneDependencies {
+    /** Legacy single-slot save hook (used when window.openSaveModal is absent). */
+    saveGame?: ((data: Uint8Array) => boolean) | null;
+}
 
 const SAGE_IMAGE_PATH = 'assets/images/kenjya/kenjya.png';
 const SAGE_PANEL_W = 672;
@@ -25,12 +31,14 @@ const FLASH_INTERVAL_MS = 150;
 const FLASH_COUNT = 6;
 const FLASH_ALPHA = 0.3;
 
-const SAGE_MENU = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
-const SAGE_MENU_GO_OUTSIDE = 0, SAGE_MENU_SEE_POWER = 1,
-      SAGE_MENU_LISTEN_KNOWLEDGE = 2, SAGE_MENU_RECORD_EXPERIENCE = 3;
+export const SAGE_MENU_ITEMS = ['Go outside', 'See Power', 'Listen Knowledge', 'Record Experience'];
+export const SAGE_MENU_GO_OUTSIDE = 0;
+export const SAGE_MENU_SEE_POWER = 1;
+export const SAGE_MENU_LISTEN_KNOWLEDGE = 2;
+export const SAGE_MENU_RECORD_EXPERIENCE = 3;
 //             Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
-const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
-const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
+export const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
+export const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
 
 const ADDR_HERO_LEVEL          = 0x8D;
 const ADDR_HERO_XP             = 0x8E;
@@ -42,7 +50,7 @@ const ADDR_SPELLS_INVENTORY    = 0xB4;
 const ADDR_ESPADA_ACTIVE       = 0xBB;
 const ADDR_INVINCIBILITY_FLAG  = 0xE8;
 
-const SAGE_LEVEL_REWARDS = [
+export const SAGE_LEVEL_REWARDS = [
                      // esp sae fue lan ras agu gue
     { hp: 120, spells: [12,  6,  8,  8,  3,  4,  3] }, // 1
     { hp: 160, spells: [12,  6,  8,  8,  3,  4,  3] }, // 2
@@ -86,13 +94,56 @@ const SAGE_KNOWLEDGE = [
     'At the edge of this world is the final foe, Jashiin.\nTo fight Jashiin, you must have the Sword of the Fairy Flame. And to get there, you must topple the invincible monster Alguien.',
 ];
 
-function getTownIdx(readMemory) {
+function getTownIdx(readMemory: ((offset: number, length: number) => Uint8Array | null) | null): number {
     if (!readMemory) return 0;
-    return Math.max(0, Math.min(7, (readMemory(0xC4, 1)[0] & 0x7F) - 1));
+    return Math.max(0, Math.min(7, ((readMemory(0xC4, 1)?.[0] ?? 0) & 0x7F) - 1));
 }
 
 export class SageScene extends IndoorSceneBase {
-    constructor(context) {
+    private image: HTMLImageElement | null;
+    private menuSel: number;
+    private hasPower: boolean;
+    private powerExhausted: boolean;
+    private levelUpReady: boolean;
+    private animRun: boolean;
+    private crystalMode: boolean;
+    private sagePhase: 'loading' | 'intro' | 'menu' | 'dialog' | 'power_anim';
+    private exitAfterDialog: boolean;
+    private townIdx: number;
+    private typewriter: TypewriterText | null;
+    /** committed wrapped lines (fully typed) */
+    private dlgBuffer: string[];
+    /** line currently being typed */
+    private _pendingLine: string | null;
+    /** pending lines for sequential _setDialog typing */
+    private _dlgQueue: string[];
+    private _dlgQueueIndex: number;
+    private _dlgQueueAdvanceAt: number | 'pending' | null;
+    private modalOpen: boolean;
+
+    // For power sequence auto-advance
+    private powerQueue: string[] | null;
+    private powerQueueIndex: number;
+    private powerQueueSentenceEnds: Set<number>;
+    private powerLineAdvanceAt: number | 'pending' | 'immediate' | 'flash' | null;
+    private _powerWaitingScroll: boolean;
+    private _powerScrollNextLine: string | null;
+
+    /** Whether the menu should be drawn dimmed (interactive actions in progress) */
+    private menuDimmed: boolean;
+
+    // Flash overlay state for level-up sequence
+    private _flashActive: boolean;
+    private _flashStartTime: number;
+    private _flashCallback: (() => void) | null;
+
+    // Power queue: trigger flash + callback between specific lines
+    private _powerFlashAfterIndex: number;
+    private _powerFlashCallback: (() => void) | null;
+    private _powerScrollNextIndex: number;
+    private readonly saveGame: SageSceneDependencies['saveGame'];
+
+    constructor(context: SageSceneDependencies) {
         super(context);
         this.image = null;
         this.menuSel = 0;
@@ -100,7 +151,6 @@ export class SageScene extends IndoorSceneBase {
         this.powerExhausted = false;
         this.levelUpReady = false;
         this.animRun = false;
-        this.animSuppressed = false;
         this.crystalMode = false;
         this.sagePhase = 'loading';
         this.exitAfterDialog = false;
@@ -111,6 +161,7 @@ export class SageScene extends IndoorSceneBase {
         this._dlgQueue = [];       // pending lines for sequential _setDialog typing
         this._dlgQueueIndex = 0;
         this._dlgQueueAdvanceAt = null;
+        this.saveGame = context.saveGame ?? null;
         this.fadeInMs = SAGE_FADE_IN_MS;
         this.fadeOutMs = SAGE_FADE_OUT_MS;
         this.modalOpen = false;
@@ -137,21 +188,26 @@ export class SageScene extends IndoorSceneBase {
         this._powerScrollNextIndex = -1;
     }
 
-    async onEnter(now) {
-        try {
-            this.image = await this._loadImage();
-        } catch (e) {
-            console.error('[Sage] image load failed:', e);
-            this.finish();
-            return;
-        }
+    protected override onEnter(_now: number): void {
+        this._loadImage()
+            .then(img => {
+                this.image = img;
+                this._beginAudience();
+            })
+            .catch((e: unknown) => {
+                console.error('[Sage] image load failed:', e);
+                this.finish();
+            });
+    }
+
+    private _beginAudience(): void {
         this.townIdx = getTownIdx(this.readMemory);
-        const deathEntry = this.readMemory ? this.readMemory(ADDR_INVINCIBILITY_FLAG, 1)[0] : 0;
+        const deathEntry = (this.readMemory?.(ADDR_INVINCIBILITY_FLAG, 1)?.[0] ?? 0);
         const intro = SAGE_INTROS[this.townIdx];
         const spoken = this._getSpokenBits();
         const isFirst = intro && !(spoken & intro.bit);
         if (deathEntry) {
-            this.writeMemory(ADDR_INVINCIBILITY_FLAG, [0]);
+            this.writeMemory(ADDR_INVINCIBILITY_FLAG, Uint8Array.of(0));
             this.menuDimmed = true;
             this._setDialog('While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.');
             this.sagePhase = 'dialog';
@@ -167,8 +223,8 @@ export class SageScene extends IndoorSceneBase {
         // _setDialog already calls typewriter.start(); no extra call needed
     }
 
-    _loadImage() {
-        return new Promise((resolve, reject) => {
+    private _loadImage(): Promise<HTMLImageElement> {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
             img.onerror = () => reject(new Error('Sage image load error'));
@@ -176,8 +232,8 @@ export class SageScene extends IndoorSceneBase {
         });
     }
 
-    _getSpokenBits() { return this.readMemory?.(0xe5,1)[0] || 0; }
-    _setSpokenBit(bit) { if (this.writeMemory) this.writeMemory(0xe5, [this._getSpokenBits() | bit]); }
+    private _getSpokenBits(): number { return this.readMemory?.(0xe5, 1)?.[0] ?? 0; }
+    private _setSpokenBit(bit: number): void { if (this.writeMemory) this.writeMemory(0xe5, Uint8Array.of(this._getSpokenBits() | bit)); }
 
     // ── Dialog line buffer ────────────────────────────────────────────────────
     // dlgBuffer: string[]  – fully-committed wrapped lines (already typed out)
@@ -185,7 +241,7 @@ export class SageScene extends IndoorSceneBase {
     // _pendingLine: string – the raw line currently being typed (not yet in buffer)
     //
     // Max lines that fit, leaving space for the arrow indicator.
-    get _dlgMaxLines() {
+    private get _dlgMaxLines(): number {
         return Math.floor((SAGE_DLG_H - 20) / SAGE_LINE_H_DLG);
     }
 
@@ -195,7 +251,7 @@ export class SageScene extends IndoorSceneBase {
      * Uses the same power-queue machinery so each line types in fully before
      * the next begins (with no inter-line pause).
      */
-    _setDialog(text) {
+    private _setDialog(text: string): void {
         const wrappedLines = this._wrapText(text);
         if (wrappedLines.length === 0) return;
         // Clear buffer completely
@@ -212,9 +268,9 @@ export class SageScene extends IndoorSceneBase {
     }
 
     /** Advance to next line in the _setDialog sequential queue (zero-delay). */
-    _showNextDlgLine() {
+    private _showNextDlgLine(): void {
         if (this._dlgQueueIndex >= this._dlgQueue.length) return;
-        const line = this._dlgQueue[this._dlgQueueIndex];
+        const line = this._dlgQueue[this._dlgQueueIndex]!;
         this._dlgQueueIndex++;
         const isLast = this._dlgQueueIndex >= this._dlgQueue.length;
         // Commit whatever was typing before
@@ -230,7 +286,7 @@ export class SageScene extends IndoorSceneBase {
      * Append one new line to the dialog (power-queue path).
      * Commits the previously-typing line into dlgBuffer, then types the new one.
      */
-    _appendDialogLine(line) {
+    private _appendDialogLine(line: string): void {
         if (this._pendingLine !== null) {
             this.dlgBuffer.push(this._pendingLine);
             this._pendingLine = null;
@@ -239,7 +295,7 @@ export class SageScene extends IndoorSceneBase {
     }
 
     /** Wrap raw text into display lines (no animation). */
-    _wrapText(text) {
+    private _wrapText(text: string): string[] {
         this.ctx.save();
         this.ctx.font = SAGE_FONT_DLG;
         const maxW = SAGE_DLG_W - 28;
@@ -263,7 +319,7 @@ export class SageScene extends IndoorSceneBase {
     }
 
     /** Begin animating a single plain line string. */
-    _startTypewriterLine(line) {
+    private _startTypewriterLine(line: string): void {
         this._pendingLine = line;
         this.typewriter = new TypewriterText(
             line,
@@ -281,18 +337,18 @@ export class SageScene extends IndoorSceneBase {
      * Scroll info: which committed lines are visible given current buffer size.
      * Returns { scrollTop } — first dlgBuffer index to display.
      */
-    _dlgScrollTop() {
+    private _dlgScrollTop(): number {
         const max = this._dlgMaxLines;
         const total = this.dlgBuffer.length + 1; // +1 for the typing line
         return Math.max(0, total - max);
     }
 
     /** True when adding another line would overflow the box. */
-    _dlgBoxFull() {
+    private _dlgBoxFull(): boolean {
         return (this.dlgBuffer.length + 1) > this._dlgMaxLines;
     }
 
-    drawContent(now, alpha) {
+    protected override drawContent(now: number, alpha: number): void {
         this._tickDlgQueue(now);
         this._tickPowerQueue(now);
         this._tickFlash(now);
@@ -307,7 +363,7 @@ export class SageScene extends IndoorSceneBase {
         this._drawFlashOverlay(now, alpha);
     }
 
-    _drawPortraitBox() {
+    private _drawPortraitBox(): void {
         const ctx = this.ctx;
         ctx.strokeStyle = '#cc0';
         ctx.lineWidth = 2;
@@ -317,11 +373,11 @@ export class SageScene extends IndoorSceneBase {
         if (this.image) ctx.drawImage(this.image, SAGE_IMG_X, SAGE_IMG_Y, SAGE_IMG_W, SAGE_IMG_H);
     }
 
-    _drawOrbAnimation(now, parentAlpha) {
+    private _drawOrbAnimation(now: number, parentAlpha: number): void {
         const orbX = SAGE_IMG_X + SAGE_IMG_W * 0.508;
         const orbY = SAGE_IMG_Y + SAGE_IMG_H * 0.604;
         const ctx = this.ctx;
-        let glowColor, glowR, glowAlpha;
+        let glowColor: string, glowR: number, glowAlpha: number;
         if (this.animRun) {
             const blinkOn = Math.floor(now/150)%2 === 0;
             glowColor = blinkOn ? '#fff' : '#88f';
@@ -343,7 +399,7 @@ export class SageScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawMenuBox(now, alpha) {
+    private _drawMenuBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -357,11 +413,11 @@ export class SageScene extends IndoorSceneBase {
         ctx.fillRect(SAGE_MENU_X, SAGE_MENU_Y, SAGE_MENU_W, SAGE_MENU_H);
 
         ctx.font = SAGE_FONT_MENU;
-        for (let i = 0; i < SAGE_MENU.length; i++) {
+        for (let i = 0; i < SAGE_MENU_ITEMS.length; i++) {
             const y = SAGE_MENU_TEXT_Y + i * SAGE_LINE_H_MENU;
             const sel = i === this.menuSel;
             ctx.fillStyle = sel ? '#ff0' : '#fff';
-            ctx.fillText(SAGE_MENU[i], SAGE_MENU_TEXT_X, y);
+            ctx.fillText(SAGE_MENU_ITEMS[i]!, SAGE_MENU_TEXT_X, y);
             if (sel) {
                 ctx.fillStyle = '#f00';
                 this._triangle(ctx, SAGE_CURSOR_X, y - 18, 10, 18, false);
@@ -370,7 +426,7 @@ export class SageScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    _drawDialogBox(now, alpha) {
+    private _drawDialogBox(now: number, alpha: number): void {
         const ctx = this.ctx;
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -399,7 +455,7 @@ export class SageScene extends IndoorSceneBase {
             const visLines = this.typewriter.getVisibleLines(now);
             if (visLines.length > 0) {
                 ctx.fillStyle = '#fff';
-                ctx.fillText(visLines[0], SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y + row * SAGE_LINE_H_DLG);
+                ctx.fillText(visLines[0]!, SAGE_DLG_TEXT_X, SAGE_DLG_TEXT_Y + row * SAGE_LINE_H_DLG);
             }
             // Show down-arrow when typing is done and a Space press is expected
             const needsSpace = this.typewriter.isDone(now) && this._dlgArrowVisible();
@@ -423,7 +479,7 @@ export class SageScene extends IndoorSceneBase {
      * Only shown when typing is fully done AND we are genuinely waiting for Space —
      * not during automatic mid-sequence line advances.
      */
-    _dlgArrowVisible() {
+    private _dlgArrowVisible(): boolean {
         // Suppress arrow while a _setDialog multi-line queue is still advancing
         if (this._dlgQueue && this._dlgQueueIndex < this._dlgQueue.length) return false;
         if (this.sagePhase === 'intro') return true;
@@ -436,7 +492,7 @@ export class SageScene extends IndoorSceneBase {
         return false;
     }
 
-    _triangle(ctx, x, y, w, h, down) {
+    private _triangle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, down: boolean): void {
         ctx.beginPath();
         if (down) {
             ctx.moveTo(x, y);
@@ -452,7 +508,7 @@ export class SageScene extends IndoorSceneBase {
     }
 
     /** Called every frame to auto-advance sequential dialog lines (from _setDialog). */
-    _tickDlgQueue(now) {
+    private _tickDlgQueue(now: number): void {
         if (!this._dlgQueue || this._dlgQueueIndex >= this._dlgQueue.length) return;
         if (this._dlgQueueAdvanceAt === 'pending') {
             if (this.typewriter && this.typewriter.isDone(now)) {
@@ -466,16 +522,16 @@ export class SageScene extends IndoorSceneBase {
 
 
 
-    _startPowerQueue(queue) {
+    private _startPowerQueue(queue: string[]): void {
         this._flashActive = false;
         this._powerScrollNextIndex = -1;
         // Pre-wrap every sentence into display-width lines and flatten,
         // but record which flat-line indices are the LAST line of their sentence.
         // The inter-sentence pause only fires at those boundary lines.
-        const flatLines = [];
-        const sentenceEnds = new Set(); // flat indices that end a sentence
+        const flatLines: string[] = [];
+        const sentenceEnds = new Set<number>(); // flat indices that end a sentence
         for (let si = 0; si < queue.length; si++) {
-            const sentence = queue[si];
+            const sentence = queue[si]!;
             const wrapped = this._wrapText(sentence);
             for (const line of wrapped) flatLines.push(line);
             const lastIdx = flatLines.length - 1;
@@ -501,10 +557,10 @@ export class SageScene extends IndoorSceneBase {
         this._showNextPowerLine();
     }
 
-    _showNextPowerLine() {
-        if (this.powerQueueIndex >= this.powerQueue.length) return;
+    private _showNextPowerLine(): void {
+        if (!this.powerQueue || this.powerQueueIndex >= this.powerQueue.length) return;
 
-        const line = this.powerQueue[this.powerQueueIndex];
+        const line = this.powerQueue[this.powerQueueIndex]!;
         const currentIndex = this.powerQueueIndex;
         this.powerQueueIndex++;
         const isLast = this.powerQueueIndex >= this.powerQueue.length;
@@ -545,11 +601,11 @@ export class SageScene extends IndoorSceneBase {
     }
 
     /** Called from drawContent each frame to auto-advance power queue mid-lines. */
-    _tickPowerQueue(now) {
+    private _tickPowerQueue(now: number): void {
         if (this.sagePhase !== 'power_anim') return;
         if (this.powerQueue === null) return;
         if (this._powerWaitingScroll) return;
-        if (this.powerQueueIndex >= this.powerQueue.length) return;
+        if (!this.powerQueue || this.powerQueueIndex >= this.powerQueue.length) return;
 
         if (this.powerLineAdvanceAt === 'flash') {
             if (this.typewriter && this.typewriter.isDone(now)) {
@@ -580,13 +636,13 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _startFlash(now, cb) {
+    private _startFlash(now: number, cb: () => void): void {
         this._flashActive = true;
         this._flashStartTime = now;
         this._flashCallback = cb;
     }
 
-    _tickFlash(now) {
+    private _tickFlash(now: number): void {
         if (!this._flashActive) return;
         const elapsed = now - this._flashStartTime;
         const totalDuration = FLASH_COUNT * FLASH_INTERVAL_MS;
@@ -598,7 +654,7 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _drawFlashOverlay(now, parentAlpha) {
+    private _drawFlashOverlay(now: number, parentAlpha: number): void {
         if (!this._flashActive) return;
         const elapsed = now - this._flashStartTime;
         const flashOn = (Math.floor(elapsed / FLASH_INTERVAL_MS) % 2) === 0;
@@ -611,15 +667,15 @@ export class SageScene extends IndoorSceneBase {
         ctx.restore();
     }
 
-    handleInput(key) {
+    override handleInput(key: string): void {
         if (this.modalOpen) return;
         const now = performance.now();
         if (this.phase === 'fadeOut') return;
 
         // Arrow keys navigate the menu
         if (this.sagePhase === 'menu' && !this.menuDimmed && (key === 'ArrowUp' || key === 'ArrowDown')) {
-            if (key === 'ArrowUp') this.menuSel = (this.menuSel - 1 + SAGE_MENU.length) % SAGE_MENU.length;
-            else if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % SAGE_MENU.length;
+            if (key === 'ArrowUp') this.menuSel = (this.menuSel - 1 + SAGE_MENU_ITEMS.length) % SAGE_MENU_ITEMS.length;
+            else if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % SAGE_MENU_ITEMS.length;
             return;
         }
 
@@ -628,7 +684,7 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _onSpace(now) {
+    private _onSpace(now: number): void {
         // If typewriter is still typing, skip to end — unless we're waiting for
         // the player to scroll (box full), in which case fall through to the switch.
         if (!this._powerWaitingScroll && this.typewriter && !this.typewriter.isDone(now)) {
@@ -664,12 +720,11 @@ export class SageScene extends IndoorSceneBase {
                 if (this._powerWaitingScroll) {
                     // Box was full; Space scrolls oldest line away, then continues
                     this._powerWaitingScroll = false;
-                    const line = this._powerScrollNextLine;
+                    const line = this._powerScrollNextLine as string;
                     const currentIndex = this._powerScrollNextIndex;
                     this._powerScrollNextLine = null;
                     this._powerScrollNextIndex = -1;
-                    const isLast = this.powerQueueIndex >= this.powerQueue.length;
-                    this._appendDialogLine(line);
+                    const isLast = (this.powerQueue?.length ?? 0) <= this.powerQueueIndex;                    this._appendDialogLine(line);
                     if (this._powerFlashAfterIndex === currentIndex) {
                         this.powerLineAdvanceAt = 'flash';
                     } else if (!isLast) {
@@ -691,8 +746,7 @@ export class SageScene extends IndoorSceneBase {
                     this._powerFlashAfterIndex = -1;
                     this._powerFlashCallback = null;
                     this.animRun = false;
-                    this.animSuppressed = false;
-                    this.sagePhase = 'menu';
+                                this.sagePhase = 'menu';
                     this.menuDimmed = false;
                     this._setDialog('Is there anything else I can do for you?');
                 }
@@ -700,7 +754,7 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _activateMenuItem(sel, now) {
+    private _activateMenuItem(sel: number, now: number): void {
         switch (sel) {
             case SAGE_MENU_GO_OUTSIDE:
                 this._setDialog('The Spirits are with you.');
@@ -713,7 +767,7 @@ export class SageScene extends IndoorSceneBase {
                 this._seePower(now);
                 break;
             case SAGE_MENU_LISTEN_KNOWLEDGE:
-                this._setDialog(SAGE_KNOWLEDGE[this.townIdx] || 'The Spirits guide your path.');
+                this._setDialog(SAGE_KNOWLEDGE[this.townIdx] ?? 'The Spirits guide your path.');
                 this.sagePhase = 'dialog';
                 this.exitAfterDialog = false;
                 this.menuDimmed = true;
@@ -725,12 +779,11 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _seePower(now) {
+    private _seePower(now: number): void {
         if (!this.hasPower) {
             this.hasPower = true;
             this.animRun = true;
-            this.animSuppressed = true;
-            this.crystalMode = true;
+                this.crystalMode = true;
             const result = this._checkLevelUp();
             this.levelUpReady = (result >= 3);
 
@@ -758,7 +811,7 @@ export class SageScene extends IndoorSceneBase {
                     'You must accumulate more experience.',
                     'I can see the faint light of the Spirits in you. You must endure a little longer.',
                 ];
-                resultLine = texts[result] || texts[0];
+                resultLine = (texts[result] || texts[0]) ?? '';
             }
             const queue = [line1, line2, resultLine];
             this.sagePhase = 'power_anim';
@@ -793,7 +846,7 @@ export class SageScene extends IndoorSceneBase {
                 'You must accumulate more experience.',
                 'I can see the faint light of the Spirits in you. You must endure a little longer.',
             ];
-            resultLine = texts[result] || texts[0];
+            resultLine = (texts[result] || texts[0]) ?? '';
         }
         // Single line case (already seen power before)
         this._setDialog(resultLine);
@@ -801,10 +854,13 @@ export class SageScene extends IndoorSceneBase {
         this.exitAfterDialog = false;
     }
 
-    _recordExperience(now) {
-        if (typeof window.openSaveModal === 'function') {
+    private _recordExperience(now: number): void {
+        const openSaveModal = (window as unknown as {
+            openSaveModal?: (cb: (success: boolean) => void) => void;
+        }).openSaveModal;
+        if (typeof openSaveModal === 'function') {
             this.modalOpen = true;
-            window.openSaveModal((success) => {
+            openSaveModal((success: boolean) => {
                 this.modalOpen = false;
                 if (success) {
                     this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
@@ -817,7 +873,10 @@ export class SageScene extends IndoorSceneBase {
             });
         } else {
             if (this.readMemory && this.saveGame) {
-                try { this.saveGame(this.readMemory(0,256)); } catch(e) { console.error(e); }
+                const snap = this.readMemory(0, 256);
+                if (snap) {
+                    try { this.saveGame(snap); } catch (e) { console.error(e); }
+                }
             }
             this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
             this.sagePhase = 'dialog';
@@ -825,7 +884,7 @@ export class SageScene extends IndoorSceneBase {
         }
     }
 
-    _checkLevelUp() {
+    private _checkLevelUp(): number {
         const lvl = Math.min(this._getHeroLevel(), 15);
         const threshold = SAGE_XP_TABLE[lvl] || 60000;
         const xp = this._getHeroXp();
@@ -838,69 +897,72 @@ export class SageScene extends IndoorSceneBase {
         return 4;
     }
 
-    _getHeroLevel() { return this.readMemory?.(ADDR_HERO_LEVEL, 1)[0] || 0; }
-    _getHeroXp() {
+    private _getHeroLevel(): number { return this.readMemory?.(ADDR_HERO_LEVEL, 1)?.[0] ?? 0; }
+    private _getHeroXp(): number {
         if (!this.readMemory) return 0;
         const b = this.readMemory(ADDR_HERO_XP, 2);
-        return b[0] | (b[1] << 8);
+        if (!b) return 0;
+        return (b[0] ?? 0) | (b[1] ?? 0) << 8;
     }
-    _applyLevelUp() {
+    private _applyLevelUp(): void {
         if (!this.writeMemory) return;
         const oldLevel = this._getHeroLevel();
         const threshold = SAGE_XP_TABLE[oldLevel] || 60000;
         const nextLevel = Math.min(0xFF, oldLevel + 1);
         const reward = this._getLevelReward(oldLevel);
 
-        this.writeMemory(ADDR_HERO_LEVEL, [nextLevel]);
+        this.writeMemory(ADDR_HERO_LEVEL, Uint8Array.of(nextLevel));
         let xp = this._getHeroXp() - threshold;
         const newLevelClamped = Math.min(nextLevel, 15);
         const newThreshold = SAGE_XP_TABLE[newLevelClamped] || 60000;
         if (xp >= newThreshold) xp = newThreshold - 1;
-        this.writeMemory(ADDR_HERO_XP, [xp & 0xFF, (xp >> 8) & 0xFF]);
+        this.writeMemory(ADDR_HERO_XP, Uint8Array.of(xp & 0xFF, (xp >> 8) & 0xFF));
         this._writeWord(ADDR_HERO_MAX_HP, reward.hp);
         this._writeWord(ADDR_HERO_HP, reward.hp);
-        this.writeMemory(ADDR_SPELLS_INVENTORY, reward.spells);
-        this.writeMemory(ADDR_SPELLS_ACTIVE, reward.spells);
+        this.writeMemory(ADDR_SPELLS_INVENTORY, Uint8Array.from(reward.spells));
+        this.writeMemory(ADDR_SPELLS_ACTIVE, Uint8Array.from(reward.spells));
 
-        this.drawLifeBar?.();
-        this.renderMagicHud?.();
+        this.drawLifeBar();
+        this.renderMagicHud();
         this._refreshMagicCounter();
     }
 
-    _getLevelReward(level) {
+    private _getLevelReward(level: number): { hp: number; spells: number[] } {
         if (level >= 16) {
-            const spells = this.readMemory ? Array.from(this.readMemory(ADDR_SPELLS_INVENTORY, 7)) : [0,0,0,0,0,0,0];
+            const spells = this.readMemory
+                ? Array.from(this.readMemory(ADDR_SPELLS_INVENTORY, 7) ?? [0, 0, 0, 0, 0, 0, 0])
+                : [0, 0, 0, 0, 0, 0, 0];
             return {
                 hp: 800,
                 spells: spells.map(count => Math.min(0xFF, count + 2)),
             };
         }
-        return SAGE_LEVEL_REWARDS[Math.max(0, Math.min(SAGE_LEVEL_REWARDS.length - 1, level))];
+        return SAGE_LEVEL_REWARDS[Math.max(0, Math.min(SAGE_LEVEL_REWARDS.length - 1, level))]!;
     }
 
-    _writeWord(addr, value) {
+    private _writeWord(addr: number, value: number): void {
         if (!this.writeMemory) return;
         const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, [v & 0xFF, (v >> 8) & 0xFF]);
+        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
     }
 
-    _activateIntroSpell() {
+    private _activateIntroSpell(): void {
         if (!this.writeMemory) return;
         if (this.townIdx < 1 || this.townIdx > 7) return;
         const spellNum = this.townIdx;
-        this.writeMemory(ADDR_CURRENT_MAGIC_SPELL, [spellNum]);
-        this.writeMemory(ADDR_ESPADA_ACTIVE + spellNum - 1, [0xFF]);
+        this.writeMemory(ADDR_CURRENT_MAGIC_SPELL, Uint8Array.of(spellNum));
+        this.writeMemory(ADDR_ESPADA_ACTIVE + spellNum - 1, Uint8Array.of(0xFF));
     }
 
-    _refreshMagicCounter() {
+    private _refreshMagicCounter(): void {
         if (typeof document === 'undefined' || !this.readMemory) return;
-        const spell = this.readMemory(ADDR_CURRENT_MAGIC_SPELL, 1)[0] & 0xFF;
+        const spell = (this.readMemory(ADDR_CURRENT_MAGIC_SPELL, 1)?.[0] ?? 0) & 0xFF;
         if (!spell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = this.readMemory(ADDR_SPELLS_ACTIVE + spell - 1, 1)[0] & 0xFF;
+        if (counter) counter.textContent = String((this.readMemory(ADDR_SPELLS_ACTIVE + spell - 1, 1)?.[0] ?? 0) & 0xFF);
     }
 
-    getName() {
+    getName(): string {
         return SAGE_NAMES[this.townIdx] || 'The Sage';
     }
 }

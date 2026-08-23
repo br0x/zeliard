@@ -299,32 +299,105 @@ Remaining for this stage's exit criteria (`game.js` reduced to `main.ts`):
     TS is exactly Stage 3's remaining-feature-module work.
 - **Exit criteria:** `game.js` deleted; every feature has a single owner module. ✅
 
-### Stage 3 — Convert remaining feature modules
+### Stage 3 — Convert remaining feature modules ✅ *(completed)*
 Mechanical conversion, largest-last risk ordering:
-- `ui/` dialogs, `touch-controls` → `input/TouchInput`
-- indoor scenes one at a time (bank, weapon shop, magic shop, sage, inn,
-  church, king, princess) — they share `IndoorScene` base, so the first
-  conversion defines the pattern
-- `inventory-screen.js`
-- `opening-intro.js` (2,266 lines) and `ending-demo.js` (3,024 lines) last —
-  biggest, most self-contained
-- **Exit criteria:** `allowJs: false`; no `.js` left in `src/`; every converted
-  module's logic (scene transitions, dialog/menu state, shop/bank transaction
-  rules) is covered by unit tests.
+- ~~`ui/` dialogs, `touch-controls` → `input/TouchInput`~~ ✅
+  - `ui/menu-dialog.ts` — TypewriterText / MenuList / YesNoDialog. Tested:
+    word-wrap boundaries incl. dropped wrap spaces, timed reveal/skip,
+    menu arrow wrap-around, Yes/No clamping + color override merging.
+  - `ui/save-restore.ts` — Save/Restore dialogs now import slot storage from
+    `platform/save.ts` directly (main.js re-export cycle removed). Tested:
+    name-input rules (trim, 12-char cap, Backspace), input↔list focus dance,
+    Re-Start → null confirm, selection clamp on refresh.
+  - `ui/import-export.ts` — export/import/delete mode cycling, scroll window,
+    delete confirmation state machine (y/Y/Enter confirm, n/N/Escape dismiss,
+    all other keys swallowed). Tested incl. external-deletion clamping.
+  - `input/touch-input.ts` — the side-effect-at-import module became an
+    injectable-deps `initTouchControls(deps)` factory called by main.ts at
+    boot on coarse-pointer devices; index.html's second `<script>` tag is
+    gone. Tested: D-pad hold/release with multi-pointer tracking, tap
+    buttons, speed-pad phase polling (fake timers), name-pad construction.
+- ~~indoor scenes one at a time~~ ✅ all 8 in `web/src/scenes/`:
+  princess (pattern-setter), king, church, inn, sage, magic shop, bank,
+  weapon shop. Each keeps its asm-faithful behavior; exported data tables
+  (dialog scripts, price/rate/reward tables, XP thresholds) are tested
+  structurally. Highest-value logic covered by unit tests:
+  - king: dialog-key selection from g_mem flags, page building/gold-award
+    page marking, 10×100 gold gift steps with SFX writes + spoke flag.
+  - church: script builder (full-HP vs wounded paths), +8 HP heal ticks to
+    max, spell restore, bless animation unblocking, continuation wait.
+  - inn: per-town price table, gold deduction/refusal, sleep fade → full
+    heal + spell restore, morning flow.
+  - sage: intro-vs-menu-vs-death-entry routing, spoken bits, town spell
+    grant on first audience, level-up quartile buckets and reward table
+    application with XP carryover clamped to next threshold.
+  - magic shop: bitmask→stock mapping, buy (deduct + slot fill), sell
+    (half-price, slot clear, stock bit restore), no-funds refusal.
+  - bank: deposit/withdraw numeric entry (+1/+10 keys, clamping), large-
+    deposit laugh trigger, almas exchange in full batches at per-town rates
+    (Llama 4→2 verified), balance messages.
+  - weapon shop: trade-in = floor(old price/2) net-cost buys, same-sword
+    brush-off, shield HP table on purchase, repair cost ceil((max−hp)/2),
+    Crest-of-Glory trade gating Knight's sword in Tumba.
+- ~~`inventory-screen.js`~~ ✅ → `ui/inventory-screen.ts`. Tested: g_mem
+  snapshot parsing (spells/wearables/items), item-use effects (heal clamp,
+  full heal, single/all spell refill, shield repair by tier value, enchant
+  counter, Kioku feather exit), tab skipping, Ctrl+Shift+S/E debug combo.
+- ~~`opening-intro.js` (2,266 lines) and `ending-demo.js` (3,024 lines)~~ ✅
+  last — biggest, most self-contained. Both converted as timeline engines
+  with loose `IntroStep`/`DemoStep` record types (tightening deferred to
+  Stage 4). Tested: timeline shape (21 intro steps), skip routing
+  (early→credits→balcony→finish), finish() screen hiding + callback,
+  music silencing, wrap/quoted-map/easing helpers.
+- **Exit criteria:** ✅ `allowJs: false`; no `.js` left in `src/`
+  (`pit-worklet.js` stays a static asset in `public/`); every converted
+  module's logic covered by unit tests — suite grew from 257 to **410
+  tests** across 37 files. Bonus: main.ts's `@ts-nocheck` was removed and
+  its ~2.2k lines now compile under `strict` (Stage 4 can go straight to
+  the stricter flag set).
+- **Done notes:** touch-controls' circular import of main.js was inverted
+  (composition root calls the factory); save/import dialogs read
+  platform/save.ts directly; dead code surfaced during conversion was
+  deleted only where provably unreachable (e.g. ending-demo dispatcher
+  cases for step types its timeline never emits).
 
-### Stage 4 — Hardening & cleanup
-- Turn on the strictest flags that still pass: `noUncheckedIndexedAccess`,
-  `exactOptionalPropertyTypes`, `verbatimModuleSyntax`.
-- Delete dead code surfaced by the compiler; replace magic numbers flagged
-  during conversion with named constants (cross-check against `asm/` when
-  semantics are uncertain — asm stays the source of truth).
-- Playwright E2E smoke test driving intro→town→one dungeon room with
-  screenshot comparison against Stage 0 baselines; runs in CI alongside Vitest.
-- Coverage review (`vitest run --coverage`): fill gaps in any pure logic that
-  escaped testing during the rush of Stage 3.
-- Update README/OPTIMIZE notes.
-- **Exit criteria:** end of Phase A — fully typed, tested codebase; wasm still
-  runs the simulation, unchanged.
+### Stage 4 — Hardening & cleanup ✅ *(completed)*
+- ~~Turn on the strictest flags that still pass~~ ✅ `noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes`, plus `noUnusedLocals` are now on
+  (`verbatimModuleSyntax` was already enabled in Stage 0). ~490 mechanical
+  index/null-safety fixes across all modules — `?? fallback` on memory reads
+  (arithmetic grouping preserved for asm-parity math), optional chaining,
+  non-null assertions only where provably guarded.
+- ~~Delete dead code surfaced by the compiler~~ ✅ removed: ending-demo's
+  copy-over constants from opening-intro (window-border tables, unused
+  timings), opening-intro's never-called `_skipStep`/`_createCreditsCanvas`,
+  magic-shop's unused `_andMagicBitmask`, bank's write-only idle-frame and
+  goodbye-message fields, sage's `animSuppressed`, inventory-screen's
+  `_selectCurrent`, ~120 unused imports/locals in main.ts, dead dispatcher
+  cases in ending-demo for step types its timeline never emits.
+- ~~Playwright E2E smoke test driving intro→town→one dungeon room with
+  screenshot comparison against Stage 0 baselines~~ ✅ `web/e2e/smoke.spec.ts`
+  boots the real game, skips the intro via Space, screenshots the town canvas,
+  warps into a dungeon room through a new minimal `window.__zeliard` debug
+  hook (`ready/mode/enterDungeon/returnToTown`), screenshots it, returns to
+  town, and asserts zero console errors throughout. Baselines live in
+  `web/e2e/__screenshots__/`; runs in CI alongside Vitest (2% pixel-diff
+  tolerance for animation noise).
+- ~~Coverage review~~ ✅ `@vitest/coverage-v8` wired into `vitest --coverage`
+  with thresholds (70% statements / 58% branches / 75% functions / 72% lines)
+  enforced in `vite.config.ts`. Pure logic is at or near full coverage
+  (conversation-text 100%, transitions ~100%, roka-demo 98%, save codec 98%);
+  gaps filled where they were genuine logic (sage power-queue state machine,
+  key-state mappings). Excluded from the metric per the plan's testing-strategy
+  table: main.ts (composition root) and the canvas renderers + intro/ending
+  timeline engines, whose pixel output is now verified by the E2E screenshots.
+- ~~Update README/OPTIMIZE notes~~ ✅ README documents the new scripts
+  (`test --coverage`, `e2e`), the code layout, and the strict-TS status;
+  OPTIMIZE.md carries a note mapping its game.js-era line references onto the
+  new module layout.
+- **Exit criteria:** ✅ end of Phase A — fully typed, tested codebase; wasm
+  still runs the simulation, unchanged. Suite: **414 unit tests + 3 E2E
+  tests**, `tsc` clean under the strictest flag set, production build green.
 
 ---
 

@@ -36,7 +36,7 @@ describe('data/dungeons.ts tables', () => {
         let withMonsters = 0;
         for (const id of ids) {
             const d = DUNGEONS[String(id)];
-            if (!d.monster_xp && !d.monster_damage && !d.ai) continue;
+            if (!d?.monster_xp && !d?.monster_damage && !d?.ai) continue;
             withMonsters++;
         }
         // Most maps have monsters; a handful are transition/boss-approach maps.

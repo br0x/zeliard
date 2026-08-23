@@ -118,7 +118,7 @@ describe('explosion ring data (gfmcga.c decode)', () => {
     it('matches the manual 2bpp decode of a known word', () => {
         // Phase 3 (most intact), word 8 = 0b0000000000001011 packs pixels 64..71;
         // the final two 2-bit pairs are 10 and 11 → values 2 and 3.
-        const px = BOSS_EXPLOSION_RING_DATA[3];
+        const px = BOSS_EXPLOSION_RING_DATA[3]!;
         expect(px[70]).toBe(2);
         expect(px[71]).toBe(3);
         expect(px[64]).toBe(0);
@@ -139,13 +139,13 @@ describe('getExplosionRingCanvas', () => {
         expect(other).not.toBe(a);
         expect(doc.built).toHaveLength(2);
 
-        const surface = doc.built[0];
+        const surface = doc.built[0]!;
         expect(surface.width).toBe(16 * scale);
         expect(surface.height).toBe(16 * scale);
 
         // Every lit source pixel becomes a scale×scale opaque block.
         const data = surface.imageData!.data;
-        const litPixels = BOSS_EXPLOSION_RING_DATA[3].reduce((n, v) => n + (v !== 0 ? 1 : 0), 0);
+        const litPixels = BOSS_EXPLOSION_RING_DATA[3]!.reduce((n, v) => n + (v !== 0 ? 1 : 0), 0);
         let opaque = 0;
         for (let i = 3; i < data.length; i += 4) if (data[i] === 255) opaque++;
         expect(opaque).toBe(litPixels * scale * scale);
@@ -154,13 +154,13 @@ describe('getExplosionRingCanvas', () => {
     it('maps value 3 to the outer color and 1/2 to the inner color', () => {
         const doc = makeRingDoc();
         getExplosionRingCanvas(2, 3, 1, doc);   // magenta variant
-        const data = doc.built[0].imageData!.data;
+        const data = doc.built[0]!.imageData!.data;
 
-        const colors = BOSS_EXPLOSION_COLORS[2];
+        const colors = BOSS_EXPLOSION_COLORS[2]!;
         let sawInner = false;
         let sawOuter = false;
         for (let p = 0; p < 256; p++) {
-            const v = BOSS_EXPLOSION_RING_DATA[3][p];
+            const v = BOSS_EXPLOSION_RING_DATA[3]![p];
             if (v === 0) continue;
             const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
             if (v === 3) {

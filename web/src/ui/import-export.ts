@@ -1,22 +1,33 @@
-// import-export-ui.js – Canvas‑based Import/Export dialog for Zeliard
-import { getSaveSlotNames } from '../main.js';
+// import-export.ts – Canvas-based Import/Export dialog for Zeliard
+import { getSaveSlotNames } from '../platform/save.js';
+
+export type ImportExportMode = 'export' | 'import' | 'delete';
 
 class ImportExportDialog {
-    constructor(onExportSlot, onImportFromFile, onDeleteSlot, onCancel) {
+    readonly onExportSlot: (slotName: string) => void;
+    readonly onImportFromFile: () => void;
+    readonly onDeleteSlot: (slotName: string) => void;
+    readonly onCancel: () => void;
+
+    mode: ImportExportMode = 'export';
+    slots: string[] = [];
+    selectedSlotIndex = 0;
+    scrollOffset = 0;
+    confirmDeleteSlot: string | null = null;
+    visible = true;
+
+    constructor(onExportSlot: (slotName: string) => void,
+                onImportFromFile: () => void,
+                onDeleteSlot: (slotName: string) => void,
+                onCancel: () => void) {
         this.onExportSlot = onExportSlot;
         this.onImportFromFile = onImportFromFile;
         this.onDeleteSlot = onDeleteSlot;
         this.onCancel = onCancel;
-        this.mode = 'export';
-        this.slots = [];
-        this.selectedSlotIndex = 0;
-        this.scrollOffset = 0;
-        this.confirmDeleteSlot = null;
         this.refreshSlots();
-        this.visible = true;
     }
 
-    refreshSlots() {
+    refreshSlots(): void {
         this.slots = getSaveSlotNames();
         if (this.selectedSlotIndex >= this.slots.length) {
             this.selectedSlotIndex = Math.max(0, this.slots.length - 1);
@@ -24,23 +35,24 @@ class ImportExportDialog {
         this._clampScroll();
     }
 
-    _maxVisible() {
+    _maxVisible(): number {
         return 8;
     }
 
-    _clampScroll() {
+    _clampScroll(): void {
         const maxVis = this._maxVisible();
         if (this.selectedSlotIndex < this.scrollOffset) this.scrollOffset = this.selectedSlotIndex;
         if (this.selectedSlotIndex >= this.scrollOffset + maxVis) this.scrollOffset = this.selectedSlotIndex - maxVis + 1;
         if (this.scrollOffset > Math.max(0, this.slots.length - maxVis)) this.scrollOffset = Math.max(0, this.slots.length - maxVis);
     }
 
-    handleKey(keyCode, now) {
+    handleKey(keyCode: string, _now: number): boolean {
         // Confirmation state: Y / Enter to confirm, N / Escape to cancel
         if (this.confirmDeleteSlot) {
             if (keyCode === 'y' || keyCode === 'Y' || keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
-                this.onDeleteSlot?.(this.confirmDeleteSlot);
+                const slot = this.confirmDeleteSlot;
                 this.confirmDeleteSlot = null;
+                this.onDeleteSlot(slot);
                 this.refreshSlots();
                 return true;
             }
@@ -53,21 +65,21 @@ class ImportExportDialog {
 
         // Escape always cancels
         if (keyCode === 'Escape') {
-            this.onCancel?.();
+            this.onCancel();
             return true;
         }
 
-        const modes = ['export', 'import', 'delete'];
+        const modes: ImportExportMode[] = ['export', 'import', 'delete'];
 
         // Left/Right cycle mode
         if (keyCode === 'ArrowLeft') {
             const idx = (modes.indexOf(this.mode) - 1 + modes.length) % modes.length;
-            this.mode = modes[idx];
+            this.mode = modes[idx]!;
             return true;
         }
         if (keyCode === 'ArrowRight') {
             const idx = (modes.indexOf(this.mode) + 1) % modes.length;
-            this.mode = modes[idx];
+            this.mode = modes[idx]!;
             return true;
         }
 
@@ -89,9 +101,9 @@ class ImportExportDialog {
             }
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 if (this.slots.length > 0 && this.selectedSlotIndex < this.slots.length) {
-                    const slotName = this.slots[this.selectedSlotIndex];
+                    const slotName = this.slots[this.selectedSlotIndex]!;
                     if (this.mode === 'export') {
-                        this.onExportSlot?.(slotName);
+                        this.onExportSlot(slotName);
                     } else {
                         this.confirmDeleteSlot = slotName;
                     }
@@ -100,7 +112,7 @@ class ImportExportDialog {
             }
         } else if (this.mode === 'import') {
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
-                this.onImportFromFile?.();
+                this.onImportFromFile();
                 return true;
             }
         }
@@ -108,7 +120,7 @@ class ImportExportDialog {
         return false;
     }
 
-    draw(ctx, canvasWidth, canvasHeight, now) {
+    draw(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number, _now: number): void {
         const boxWidth = 520;
         const boxHeight = 360;
         const x = (canvasWidth - boxWidth) / 2;
@@ -130,9 +142,9 @@ class ImportExportDialog {
         const tabX = [x + 40, x + 200, x + 360];
         const tabLabels = ['Export', 'Import', 'Delete'];
         for (let i = 0; i < 3; i++) {
-            const isActive = (i === ['export', 'import', 'delete'].indexOf(this.mode));
+            const isActive = (i === modesOrder.indexOf(this.mode));
             ctx.fillStyle = isActive ? '#ff8' : '#888';
-            ctx.fillText(tabLabels[i], tabX[i], y + 40);
+            ctx.fillText(tabLabels[i]!, tabX[i]!, y + 40);
         }
 
         // Separator line
@@ -179,7 +191,7 @@ class ImportExportDialog {
                             ctx.closePath();
                             ctx.fill();
                         }
-                        ctx.fillText(this.slots[idx], x + 42, listY);
+                        ctx.fillText(this.slots[idx]!, x + 42, listY);
                         listY += lineHeight;
                     }
                     if (this.scrollOffset > 0) {
@@ -199,7 +211,7 @@ class ImportExportDialog {
                 const action = this.mode === 'export' ? 'export' : 'delete';
                 ctx.fillText('←/→: mode   ↑/↓: slot   ENTER: ' + action + ' slot   ESC: cancel', x + 20, y + boxHeight - 25);
             }
-        } 
+        }
         else { // IMPORT mode
             ctx.font = '18px "Press Start 2P", monospace';
             ctx.fillStyle = '#ff8';
@@ -213,5 +225,7 @@ class ImportExportDialog {
         }
     }
 }
+
+const modesOrder: ImportExportMode[] = ['export', 'import', 'delete'];
 
 export { ImportExportDialog };

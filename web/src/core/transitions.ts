@@ -13,7 +13,7 @@ import { PROX_COLS } from '../config/engine.js';
 /** Map width word from a town MDT header (little-endian at offset 2). */
 export function getTownMapWidth(mdt: Uint8Array | null | undefined): number {
     if (!mdt || mdt.length < 4) return 0;
-    return mdt[2] | (mdt[3] << 8);
+    return (mdt[2] ?? 0) | ((mdt[3] ?? 0) << 8);
 }
 
 /**
