@@ -438,16 +438,122 @@ Numeric-fidelity rules for all ports (the classic JS/wasm pitfalls):
   by re-running the same golden tests).
 
 ### Stage 5 — Parity infrastructure & engine inventory
-- Document every export in `ZeliardExports` and every region of `g_mem`
-  (owner subsystem, read/write access) — this becomes the porting order and
-  progress tracker.
-- Build the shadow-mode harness and fixture recorder (Stage-4 Playwright
-  drives gameplay while recording).
-- Port the leaf utilities first as proof of the process: input-flag handling,
-  simple getters/setters, scroll helpers (`wasm_set_scroll_*`,
-  `_set_input_keys`).
-- **Exit criteria:** harness runs in CI; first exports served from TS behind
-  the dispatch layer.
+
+Five PR-sized steps (5a–5e), each ending with tests green + deploy. The wasm
+binary stays the live engine throughout; this stage only builds the safety
+net that makes stages 6–10 mechanical.
+
+#### 5a — Engine inventory & porting tracker
+
+Turn the implicit knowledge in `wasm/memory.ts` (~120 `ADDR_*` constants) and
+`ZeliardExports` into an explicit, machine-readable ownership map.
+
+- New `web/src/wasm/inventory.ts`: a typed table covering
+  - **every export** of `ZeliardExports` (32 functions + memory): signature,
+    owning subsystem (`town` / `dungeon` / `data` / `glue`), what it reads
+    and writes;
+  - **every g_mem region**: address range, owner subsystem, read/write access
+    from the C side vs the TS side, whether it survives scene changes, and
+    whether it's part of the save image. Derive ranges from the existing
+    constants (e.g. `ADDR_PROXIMITY_MAP 0xE000..0xE8FF`, semaphore block at
+    `0xFF90..0xFF9F`, input latches `0xFF16..18`, transition scratch
+    `0xFFF1..FFF4`) rather than restating them — import the constants so the
+    inventory cannot drift from `memory.ts`.
+- A structural unit test asserts completeness: every export name in the
+  interface appears exactly once; no two regions overlap unless explicitly
+  marked `overlapsWith`; every constant exported by `memory.ts` is claimed
+  by exactly one region. This test *is* the drift guard for later stages.
+- Mark each row with its **port stage** (6–10 or "never — deleted in 10").
+  The plan doc gains a progress checklist generated from (or mirrored to)
+  this table.
+
+Deliverable: the porting order and per-subsystem progress tracker used by
+every later stage. No behavior change.
+
+#### 5b — Dispatch layer (the cutover mechanism)
+
+Today `main.ts` calls bridge wrappers directly (`townUpdate()`,
+`dungeonUpdate()`, …). Insert one indirection so any export can be rerouted
+to TS without touching call sites:
+
+- New `web/src/wasm/dispatch.ts`: `EngineDispatch` mapping export names →
+  implementations. Default bindings point at the existing bridge wrappers.
+  `override(name, impl)` installs a TS implementation; `reset()` restores
+  wasm. Expose overrides through the existing `window.__zeliard` debug hook
+  so Playwright/E2E and manual sessions can flip them without rebuilds.
+- Migrate `main.ts` call sites to the dispatch (mechanical, ~15 call sites).
+- Unit tests: default routing reaches the bridge wrapper; override wins;
+  reset clears; unknown-name override throws.
+
+This is the only main.ts-touching step of the stage.
+
+#### 5c — Shadow-mode harness
+
+New `web/src/wasm/parity/shadow.ts` implementing the dual-run technique:
+
+- `shadowWrap(name, wasmFn, tsFn, spec)` where `spec` declares: argument
+  types, **watched memory regions** (which g_mem ranges constitute the
+  function's observable output — taken from the 5a inventory), and optional
+  comparison hooks for float-ish values.
+- Per tick: snapshot watched regions → call wasm fn → snapshot → restore
+  pre-state → call TS fn → compare return value + region bytes. On mismatch,
+  log a divergence record: inputs, first differing offset(s), hex dump of
+  both sides (reuse `debugDump`).
+- State-restoration subtlety: the TS fn must see the same pre-state the wasm
+  fn saw, so the harness snapshots/restores the union of watched regions
+  around each call pair. RNG state (once it exists as bytes in g_mem) must be
+  included in watched regions — note this requirement in the module docs.
+- Enabled behind a debug flag (query param / `__zeliard.shadow.enable(...)`),
+  zero cost when off. Divergences surface as console errors + a counter on
+  the debug hook so E2E can assert "shadow clean".
+
+Unit tests with fake wasm/ts pairs over a synthetic `LinearMemory`:
+match case, byte-mismatch case, return-value mismatch, restoration
+correctness (TS sees pristine pre-state).
+
+#### 5d — Golden-replay recorder & runner
+
+- **Recorder** (`web/e2e/record.spec.ts`, not run in normal CI): Playwright
+  drives gameplay via `__zeliard`; a hook installed by dispatch.ts records
+  every dispatched export call `(name, args, frame)` plus periodic g_mem
+  checkpoints (input latch writes included). Sessions scripted now:
+  town walk + building entry, dungeon run incl. combat + death, boss fight
+  warm-up. Output: JSON fixtures under `web/tests/fixtures/replay/*.json`
+  (header: build hash of zeliard.wasm, session metadata; body: event list +
+  snapshots).
+- **Runner** (`web/tests/replay.test.ts`): Vitest loads the real
+  `build/zeliard.wasm` in Node via `initWasmFromBytes` (pattern proven by the
+  Stage 1 bridge suite), replays events at thousands of frames/sec, and
+  asserts final + checkpointed memory states match the fixture. Initially
+  trivially green (replaying wasm against itself) — its job is to become the
+  verification target for every TS port in stages 6–10.
+- Fixture schema lives in `wasm/parity/replay-types.ts`, shared by recorder
+  and runner. A schema-version field so old fixtures fail loudly after ABI
+  changes instead of producing confusing diffs.
+
+#### 5e — First leaf ports (proof of process)
+
+Port the smallest exports end-to-end through the whole pipeline
+(implementation → dispatch override → shadow check → golden replay), one PR:
+
+1. `_set_input_keys` (data.c:66) — bitmask fan-out into the three input
+   latch bytes (`0xFF16..18`). Pure function of its argument; shadow spec
+   watches exactly those 3 bytes; replay fixtures cover every key combo.
+2. The four scroll-proc setters (`town.c:2402–2405`) — they only write
+   `g_town_procs` slots. Port means TS owns the proc-table entries; shadow
+   verifies by reading back the C globals' effect on the next tick (the
+   watched region is whatever the procs mutate, per inventory).
+3. Simple getters already bridged (`get_pending_transition_*`,
+   `dungeon_get_viewport_top/state/entity_count`) as pure g_mem readers —
+   port to typed accessors and shadow-compare.
+
+Each port lands with: parity tests (shadow harness in Node against real
+wasm), golden-replay section re-run, regression checklist items 1–2 spot-run.
+
+- **Exit criteria:** harness + recorder run in CI (recorder scheduled/manual);
+  inventory table complete and drift-guarded; dispatch layer carries all
+  engine calls; ≥3 leaf exports served from TS behind the dispatch with
+  clean shadow runs.
 
 ### Stage 6 — Data layer: formats, unpacking, graphics decode
 Port `unpack.c`, `data.c` (MDT map parsing), and the graphics decoders
