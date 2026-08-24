@@ -830,6 +830,73 @@ management, render-request generation.
    — they pull hero_knockback_handler, state_machine_dispatcher and the
    render/timing machinery), plus the multi-move hero-parity skip whose
    symptoms refined to a proxRight off-by-one under mixed L/R sequences.
+- **8c slice 1 ✅ `engine/dungeon-monsters.ts`:** the monster lifecycle
+  pipeline (AI bodies themselves stay in eai1..eai8.c for Stage 9):
+  `is_in_proximity_window` (all four window/wrap cases),
+  `update_all_monsters_in_map` (layer2 clear + whole-table re-marker walk),
+  `check_monster_aligned_to_hero_and_tick` (Y/X alignment gating + ÷8 AI
+  tick throttle, carry semantics preserved), `monster_activation`
+  (small-monster 3×3 occupancy scan and big two-entry monster 5×3 scan with
+  the `(idx|0x80)+1` uint8-wrap second marker and word-wide layer2 clear),
+  `check_monster_on_aggressive_ground` + `is_tile_safe_to_stay`.
+  Verified by four parity tests over **800 randomized scenarios** against
+  four new test-only C oracles (`wasm_debug_update_all_monsters/
+  monster_activation/check_aligned_tick/check_aggressive_ground`),
+  comparing full g_mem + return values; scenario forces alignment/spawn
+  deep paths every seed (random positioning reaches them <0.5% of the
+  time), mutation-tested (tick-throttle mask and occupancy-scan bound both
+  caught). Test-infra lesson recorded: this repo's LCG rng yields raw
+  uint32s — every probability check must go through `frac()` and every
+  index pick through `% N`; `Math.floor(rand() * N)` silently produces
+  out-of-range indices (older parity suites still carry a few benign
+  instances — both sides see identical bytes so they remain valid).
+- **8c slice 2 ✅ `engine/dungeon-combat.ts`:** the combat & monster-death
+  pipeline — `get_random` (the asm/stick.asm entropy accumulator ported
+  exactly, with the uint16 static mirrored as module state exposed via
+  get/setEntropy; C side pins it through new `wasm_debug_set_entropy/
+  get_entropy/get_random` accessors so both sides roll identically),
+  `Get_Stats` (defense/sword-damage/level formulas incl. saturating
+  multiplies), `apply_sword_hit_to_map_tiles` (per-phase reach-list walk
+  from the seg1 table at 0xB002, hit-marking ai_flags 0x41),
+  `Hero_Hits_monster` (HP subtraction vs Get_Stats damage, big/small death
+  paths, random-vs-downward-thrust descriptor selection), 
+  `monster_split_or_die`, `Check_Vertical_Distance_Between_Hero_And_Monster`
+  (death animation bits, near-viewport SFX 7), `update_hero_XP`
+  (saturating word add) and the sword_damages/byte_98BE tables.
+  Verified by five parity tests over **~1,000 randomized scenarios**
+  against six new oracles (`wasm_debug_apply_sword_hit/hero_hits_monster/
+  get_stats/update_hero_xp/set_entropy/get_entropy/get_random`),
+  full-g_mem comparison with pinned entropy; mutation-tested (damage
+  doubling removal, missing death-descriptor mask — both caught).
+  Test-infra findings: the death-descriptor lists live in g_mem (plain
+  MEM8 after the pointer chase), and HERO_XP must be re-seeded between
+  parity passes since applyBase doesn't own it.
+- **8c slice 3 ✅ `engine/dungeon-items.ts`:** the item/chest dispatch and
+  the per-frame spawn tick — `render_notification_string` and the
+  render-request writers (gold/almas HUD, sword icon, enchantment gfx,
+  cavern signs), `hero_got_gold` (32-bit carry), `mark_collected`,
+  `pickup_common`, `put_shoes_to_inventory`, all item handlers (`flag_10`
+  drop-item, `flag_11` projectile spawner, `flag_12` delay, `flag_13`
+  pickup+chests, `flag_14_15_1b` almas orbs, `flag_16/17` keys,
+  `flag_18/19` potions, `flag_1a` cavern shoes, `flag_1c` signs,
+  `flag_1d/1e` crest/Feruza shoes), `default_0toF_handler` (chest
+  animation state machine incl. cross-monster reset via ai_timer),
+  `place_monster_in_proximity_and_run_ai` (layer-2 restore + spell-target
+  flag handling + subtype dispatch) and `monsters_spawning` (full per-frame
+  walk: proximity stamping with big-monster double markers + layer2
+  backups, activation countdown, boss/jashiin delegation). The eai AI
+  bodies are injected as a callback (no-op until Stage 9). Verified by
+  **16 parity tests over ~1,900 randomized scenarios** against 15 new
+  wasm oracles (one per handler plus spawning/dispatch), full-g_mem
+  comparison; mutation-tested (chest gold amount, big-monster stamping —
+  both caught after scenario fixes). Scenario requirements recorded:
+  hero position must be forced into alignment range for pickup gates,
+  flags must stay in the item/chest range (&0x18≠0) so the wasm oracle
+  never runs real eai AI against the TS no-op, boss/jashiin gates off,
+  and every engine-owned word the handlers touch (almas, XP…) must be
+  re-seeded between parity passes.
+- **8c remaining:** hero-side damage (`check_hero_contact_damage`,
+  `damage_hero`, knockback tail) — small; candidates to fold into 8d.
 - **8c — monsters AI & combat:** per-monster tick (alignment/tick gating,
   EAI dispatch via entity table), sword hit application, damage/drops.
 - **8d — state machine wrapper:** `wasm_dungeon_update` dispatcher +

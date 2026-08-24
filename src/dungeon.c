@@ -2044,6 +2044,33 @@ void wasm_dungeon_clear_render_request(void) {
 
 static void jump_press_handler(void);
 
+/* Forward decls for the Stage 8c monster-lifecycle + combat debug oracles. */
+static void update_all_monsters_in_map(void);
+static void monster_activation(uint16_t m);
+static void monsters_spawning(void);
+static void place_monster_in_proximity_and_run_ai(uint16_t m);
+typedef void (*MonsterAIFn)(uint16_t);
+static void default_0toF_handler(uint16_t m);
+static void mark_collected(uint16_t m);
+static uint8_t pickup_common(uint16_t m, uint8_t msg_id);
+static void put_shoes_to_inventory(uint16_t monster, uint8_t shoe_type);
+static void flag_10(uint16_t m);
+static void flag_11(uint16_t m);
+static void flag_12(uint16_t m);
+static void flag_13(uint16_t m);
+static void flag_14_15_1b(uint16_t m);
+static void flag_16(uint16_t m);
+static void flag_17(uint16_t m);
+static void flag_18(uint16_t m);
+static void flag_19(uint16_t m);
+static void flag_1a(uint16_t m);
+static void flag_1c(uint16_t m);
+static void flag_1d(uint16_t m);
+static void flag_1e(uint16_t m);
+void apply_sword_hit_to_map_tiles(void);
+void Hero_Hits_monster(uint16_t m);
+uint8_t Get_Stats(uint8_t al);
+
 /* Forward decls for the Stage 8b slice-3 vertical-mechanics debug oracles
  * (their definitions live further down in this file). */
 void hero_collapse_platform(void);
@@ -2133,6 +2160,82 @@ void wasm_debug_slope_assist(void)
 uint8_t wasm_debug_move_platform_down(void)
 {
     return move_platform_down_damage_monster();
+}
+
+/* JS-callable debug oracles for the Stage 8c monster-lifecycle parity
+ * tests (monster table walks, spawn activation, hero alignment gating). */
+void wasm_debug_update_all_monsters(void)
+{
+    update_all_monsters_in_map();
+}
+
+void wasm_debug_monster_activation(uint16_t m)
+{
+    monster_activation(m);
+}
+
+uint8_t wasm_debug_check_aligned_tick(uint16_t m)
+{
+    return check_monster_aligned_to_hero_and_tick(m);
+}
+
+uint8_t wasm_debug_check_aggressive_ground(uint16_t m)
+{
+    return check_monster_on_aggressive_ground(m);
+}
+
+/* JS-callable debug oracle: run the whole per-frame spawn/AI tick with a
+ * no-op AI (item handlers + activation still run). */
+void wasm_debug_monsters_spawning(void)
+{
+    monsters_spawning();
+}
+
+/* JS-callable debug oracle: run the proximity stamp + item dispatch for
+ * one monster. */
+void wasm_debug_place_monster_run_ai(uint16_t m)
+{
+    place_monster_in_proximity_and_run_ai(m);
+}
+
+/* JS-callable debug oracles: individual item handlers. */
+void wasm_debug_flag_10(uint16_t m) { flag_10(m); }
+void wasm_debug_flag_11(uint16_t m) { flag_11(m); }
+void wasm_debug_flag_12(uint16_t m) { flag_12(m); }
+void wasm_debug_flag_13(uint16_t m) { flag_13(m); }
+void wasm_debug_flag_14(uint16_t m) { flag_14_15_1b(m); }
+void wasm_debug_flag_16(uint16_t m) { flag_16(m); }
+void wasm_debug_flag_17(uint16_t m) { flag_17(m); }
+void wasm_debug_flag_18(uint16_t m) { flag_18(m); }
+void wasm_debug_flag_19(uint16_t m) { flag_19(m); }
+void wasm_debug_flag_1a(uint16_t m) { flag_1a(m); }
+void wasm_debug_flag_1c(uint16_t m) { flag_1c(m); }
+void wasm_debug_flag_1d(uint16_t m) { flag_1d(m); }
+void wasm_debug_flag_1e(uint16_t m) { flag_1e(m); }
+void wasm_debug_chest_handler(uint16_t m) { default_0toF_handler(m); }
+
+/* JS-callable debug oracles for the Stage 8c combat parity tests (sword
+ * reach walks, hit application, death descriptor selection, XP). The
+ * entropy setter pins get_random()'s static so both sides roll
+ * identically. */
+void wasm_debug_apply_sword_hit(void)
+{
+    apply_sword_hit_to_map_tiles();
+}
+
+void wasm_debug_hero_hits_monster(uint16_t m)
+{
+    Hero_Hits_monster(m);
+}
+
+uint8_t wasm_debug_get_stats(uint8_t al)
+{
+    return Get_Stats(al);
+}
+
+void wasm_debug_update_hero_xp(uint16_t amount)
+{
+    update_hero_XP(amount);
 }
 
 // Checked

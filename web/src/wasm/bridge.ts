@@ -91,6 +91,47 @@ export interface ZeliardExports {
     wasm_debug_slope_assist(): void;
     /** Test-only oracle: run move_platform_down_damage_monster. */
     wasm_debug_move_platform_down(): number;
+    /** Test-only oracle: run update_all_monsters_in_map against current memory. */
+    wasm_debug_update_all_monsters(): void;
+    /** Test-only oracle: run monster_activation(m) against current memory. */
+    wasm_debug_monster_activation(m: number): void;
+    /** Test-only oracle: run check_monster_aligned_to_hero_and_tick(m). */
+    wasm_debug_check_aligned_tick(m: number): number;
+    /** Test-only oracle: run check_monster_on_aggressive_ground(m). */
+    wasm_debug_check_aggressive_ground(m: number): number;
+    /** Test-only oracle: run apply_sword_hit_to_map_tiles. */
+    wasm_debug_apply_sword_hit(): void;
+    /** Test-only oracle: run Hero_Hits_monster(m). */
+    wasm_debug_hero_hits_monster(m: number): void;
+    /** Test-only oracle: run Get_Stats(al). */
+    wasm_debug_get_stats(al: number): number;
+    /** Test-only oracle: run update_hero_XP(amount). */
+    wasm_debug_update_hero_xp(amount: number): void;
+    /** Test-only accessor: pin get_random()'s entropy accumulator. */
+    wasm_debug_set_entropy(v: number): void;
+    /** Test-only accessor: read get_random()'s entropy accumulator. */
+    wasm_debug_get_entropy(): number;
+    /** Test-only oracle: run get_random() (mutates entropy state). */
+    wasm_debug_get_random(): number;
+    /** Stage 8c oracle: run the per-frame spawn/AI tick with no-op AI. */
+    wasm_debug_monsters_spawning(): void;
+    /** Stage 8c oracle: proximity stamp + item dispatch for one monster. */
+    wasm_debug_place_monster_run_ai(m: number): void;
+    /** Stage 8c oracles: individual item handlers. */
+    wasm_debug_flag_10(m: number): void;
+    wasm_debug_flag_11(m: number): void;
+    wasm_debug_flag_12(m: number): void;
+    wasm_debug_flag_13(m: number): void;
+    wasm_debug_flag_14(m: number): void;
+    wasm_debug_flag_16(m: number): void;
+    wasm_debug_flag_17(m: number): void;
+    wasm_debug_flag_18(m: number): void;
+    wasm_debug_flag_19(m: number): void;
+    wasm_debug_flag_1a(m: number): void;
+    wasm_debug_flag_1c(m: number): void;
+    wasm_debug_flag_1d(m: number): void;
+    wasm_debug_flag_1e(m: number): void;
+    wasm_debug_chest_handler(m: number): void;
 }
 
 let wasmInstance: WebAssembly.Instance | null = null;
@@ -994,6 +1035,87 @@ export function debugSlopeAssist(): void {
 
 export function debugMovePlatformDown(): number {
     return wasmExports?.wasm_debug_move_platform_down?.() ?? 0;
+}
+
+/** Test-only oracles for Stage 8c monster-lifecycle parity tests. */
+export function debugUpdateAllMonsters(): void {
+    wasmExports?.wasm_debug_update_all_monsters?.();
+}
+
+export function debugMonsterActivation(m: number): void {
+    wasmExports?.wasm_debug_monster_activation?.(m);
+}
+
+export function debugCheckAlignedTick(m: number): number {
+    return wasmExports?.wasm_debug_check_aligned_tick?.(m) ?? 0;
+}
+
+export function debugCheckAggressiveGround(m: number): number {
+    return wasmExports?.wasm_debug_check_aggressive_ground?.(m) ?? 0;
+}
+
+/** Test-only oracles for Stage 8c combat parity tests. */
+export function debugApplySwordHit(): void {
+    wasmExports?.wasm_debug_apply_sword_hit?.();
+}
+
+export function debugHeroHitsMonster(m: number): void {
+    wasmExports?.wasm_debug_hero_hits_monster?.(m);
+}
+
+export function debugGetStats(al: number): number {
+    return wasmExports?.wasm_debug_get_stats?.(al) ?? 0;
+}
+
+export function debugUpdateHeroXp(amount: number): void {
+    wasmExports?.wasm_debug_update_hero_xp?.(amount);
+}
+
+export function debugSetEntropy(v: number): void {
+    wasmExports?.wasm_debug_set_entropy?.(v);
+}
+
+export function debugGetEntropy(): number {
+    return wasmExports?.wasm_debug_get_entropy?.() ?? 0;
+}
+
+export function debugGetRandom(): number {
+    return wasmExports?.wasm_debug_get_random?.() ?? 0;
+}
+
+/** Stage 8c oracles: item dispatch + spawn tick (AI injected as no-op). */
+export function debugMonstersSpawning(): void {
+    wasmExports?.wasm_debug_monsters_spawning?.();
+}
+
+export function debugPlaceMonsterRunAi(m: number): void {
+    wasmExports?.wasm_debug_place_monster_run_ai?.(m);
+}
+
+const FLAG_ORACLES: Record<string, string> = {
+    '10': 'wasm_debug_flag_10',
+    '11': 'wasm_debug_flag_11',
+    '12': 'wasm_debug_flag_12',
+    '13': 'wasm_debug_flag_13',
+    '14': 'wasm_debug_flag_14',
+    '16': 'wasm_debug_flag_16',
+    '17': 'wasm_debug_flag_17',
+    '18': 'wasm_debug_flag_18',
+    '19': 'wasm_debug_flag_19',
+    '1a': 'wasm_debug_flag_1a',
+    '1c': 'wasm_debug_flag_1c',
+    '1d': 'wasm_debug_flag_1d',
+    '1e': 'wasm_debug_flag_1e',
+};
+
+/** Run the C item handler for a flags-nibble value (e.g. '10'…'1e'), or
+ * 'chest' for the default 0x00-0x0F chest handler. */
+export function debugRunItemHandler(handler: string, m: number): void {
+    const name = handler === 'chest' ? 'wasm_debug_chest_handler' : FLAG_ORACLES[handler];
+    if (!name) throw new Error(`unknown item handler ${handler}`);
+    type FlagOracle = { [k: string]: ((m: number) => void) | undefined };
+    const exports = wasmExports as unknown as FlagOracle | null;
+    exports?.[name]?.(m);
 }
 
 /** Test-only: dump packed cursors into g_mem at 0xB100 (left) / 0xB102 (right). */

@@ -177,6 +177,17 @@ static void render_tile_neighborhood_cell_internal(uint8_t **si, uint8_t **di, u
 
 static uint16_t entropy_accum = 0; /* mirrors cs:entropy_accum (asm/stick.asm:1178) */
 
+/* Test-only accessors for the Stage 8c combat parity tests: get_random()'s
+ * static accumulator lives outside g_mem, so parity tests pin it here. */
+void wasm_debug_set_entropy(uint16_t v) { entropy_accum = v; }
+uint16_t wasm_debug_get_entropy(void) { return entropy_accum; }
+
+/* Test-only oracle for Stage 8c combat parity tests. */
+uint8_t wasm_debug_get_random(void)
+{
+    return get_random();
+}
+
 uint8_t get_random()
 {
     /* Original (asm/stick.asm:1168):
