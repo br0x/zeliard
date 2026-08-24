@@ -148,12 +148,13 @@ describe('stage 8a movement/collision parity vs real wasm', () => {
 });
 
 describe('stage 8b hero movement parity vs real wasm', () => {
-    // FIXME(stage-8b): skipped — multi-move sequences diverge ONLY in
-    // monster edge-markers (col 35 cells like 0x85/0x86 written by wasm's
-    // re-marking scan but missing in TS). Movement returns, cursors, and all
-    // other prox bytes match; the marker condition depends on LEFT_COL
-    // bookkeeping under mixed L/R sequences (diagnostics regenerate to
-    // /tmp/opencode/{cursor-pre,hero-parity-diff}.log).
+    // FIXME(stage-8b): skipped — re-checked after slice 3 landed (with the
+    // seg1 read fix below in place): multi-move mixed L/R sequences now show
+    // a proxRight off-by-one (wasm=0xc032 vs ts=0xc031 on seed 9 move#0)
+    // plus a correspondingly shifted col-35; single moves and all slice-3
+    // vertical paths match bit-exact. Suspect: cursor pinning semantics of
+    // debugHeroReset vs the real prepare_dungeon cursor setup under mixed
+    // sequences (diagnostics regenerate to /tmp/opencode/hero-parity-diff.log).
     it.skip('move sequences match wasm across randomized scenarios', () => {
         const diffLog: string[] = [];
         for (let seed = 1; seed <= 60; seed++) {

@@ -20,6 +20,7 @@
 import { SEG1_BASE } from '../wasm/memory.js';
 import {
     isBlockingTile,
+    isBlockingTileSimple,
     isLeftAirflow,
     isRightAirflow,
 } from './dungeon-entities.js';
@@ -246,7 +247,7 @@ export function moveHeroRightIfNoObstacles(g: Uint8Array): number {
     for (let i = 0; i < 2; i++) {
         si = wrapMapFromAbove(si + PROX_COLS);
         const tile = g8(g, si);
-        if (isSimpleBlocking(g, tile)) return 0;
+        if (isBlockingTileSimple(g, tile) !== 0) return 0;
         if (isLeftAirflow(g, tile)) return 0;
     }
     heroMovesRight(g);
@@ -272,7 +273,7 @@ export function moveHeroLeftIfNoObstacles(g: Uint8Array): number {
     for (let i = 0; i < 2; i++) {
         si = wrapMapFromAbove(si + PROX_COLS);
         const tile = g8(g, si);
-        if (isSimpleBlocking(g, tile)) return 0;
+        if (isBlockingTileSimple(g, tile) !== 0) return 0;
         if (isRightAirflow(g, tile)) return 0;
     }
     heroMovesLeft(g);
@@ -370,13 +371,3 @@ export function jumpPressHandler(g: Uint8Array): void {
     }
 }
 
-function isSimpleBlocking(g: Uint8Array, tile: number): boolean {
-    // is_blocking_tile_simple (dungeon.c:1482)
-    if (tile < 0x49) {
-        for (let i = 0; i < 24; i++) {
-            if (tile === g8(g, SEG1_BASE + 0x8000 + i)) return false;
-        }
-        return (tile & 0x80) !== 0x80;
-    }
-    return false;
-}

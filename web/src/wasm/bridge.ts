@@ -77,6 +77,20 @@ export interface ZeliardExports {
     wasm_debug_get_packed_cursors(): void;
     /** Test-only oracle: run jump_press_handler against current memory. */
     wasm_debug_jump_press(): void;
+    /** Test-only oracle: run try_climb_rope against current memory. */
+    wasm_debug_try_climb_rope(): void;
+    /** Test-only oracle: run try_move_platform_up against current memory. */
+    wasm_debug_platform_up(): number;
+    /** Test-only oracle: run hero_collapse_platform against current memory. */
+    wasm_debug_platform_collapse(): void;
+    /** Test-only oracle: run check_floor_for_landing against current memory. */
+    wasm_debug_check_floor(): number;
+    /** Test-only oracle: run land_after_jump against current memory. */
+    wasm_debug_land_after_jump(): number;
+    /** Test-only oracle: run slope_assist_on_landing against current memory. */
+    wasm_debug_slope_assist(): void;
+    /** Test-only oracle: run move_platform_down_damage_monster. */
+    wasm_debug_move_platform_down(): number;
 }
 
 let wasmInstance: WebAssembly.Instance | null = null;
@@ -951,6 +965,35 @@ export function debugMoveHeroLeft(): number {
 /** Test-only oracle: run jump_press_handler against current memory. */
 export function debugJumpPress(): void {
     wasmExports?.wasm_debug_jump_press?.();
+}
+
+/** Test-only oracles for Stage 8b slice-3 vertical-mechanics parity tests. */
+export function debugTryClimbRope(): void {
+    wasmExports?.wasm_debug_try_climb_rope?.();
+}
+
+export function debugPlatformUp(): number {
+    return wasmExports?.wasm_debug_platform_up?.() ?? 0;
+}
+
+export function debugPlatformCollapse(): void {
+    wasmExports?.wasm_debug_platform_collapse?.();
+}
+
+export function debugCheckFloor(): number {
+    return wasmExports?.wasm_debug_check_floor?.() ?? 0;
+}
+
+export function debugLandAfterJump(): number {
+    return wasmExports?.wasm_debug_land_after_jump?.() ?? 0;
+}
+
+export function debugSlopeAssist(): void {
+    wasmExports?.wasm_debug_slope_assist?.();
+}
+
+export function debugMovePlatformDown(): number {
+    return wasmExports?.wasm_debug_move_platform_down?.() ?? 0;
 }
 
 /** Test-only: dump packed cursors into g_mem at 0xB100 (left) / 0xB102 (right). */

@@ -798,14 +798,38 @@ management, render-request generation.
   initialized the monsters-list pointer word (0xC010), so the wasm oracle
   scanned real leftover entity-table data while TS scanned the deterministic
   scratch list — a test bug, not a port bug; pointer now pinned.
-  Slice 2 ✅ `jump_press_handler` ported and verified bit-exact against a
-  `wasm_debug_jump_press` oracle across **400 randomized scenarios**
-  (rope/squat/height-counter/near-viewport-top cases, ceiling-blocked vs
-  ascend transitions). Slice 3 (open): remaining vertical mechanics —
-  rope traversal (`dungeon_update_rope`), slopes, crumbling platforms
-  (`identify_platform_tile`, `find_platform_under_hero`, `try_move_*`),
-  landing checks (`check_floor_for_landing`), plus re-checking the multi-move
-  marker bookkeeping once those land.
+   Slice 2 ✅ `jump_press_handler` ported and verified bit-exact against a
+   `wasm_debug_jump_press` oracle across **400 randomized scenarios**
+   (rope/squat/height-counter/near-viewport-top cases, ceiling-blocked vs
+   ascend transitions).
+   Slice 3 ✅ `engine/dungeon-vertical.ts` (~470 lines): the full vertical
+   mechanics family — `hero_scroll_down`, `is_over_rope`, `set_zero_flag_
+   if_slippery`, `init_on_ground`, `on_left/right_pressed`,
+   `try_climb_rope` (rope grab incl. side-step centering through the ported
+   on_*_pressed handlers), `identify_platform_tile`,
+   `abs_x_to_proximity_rel`, `put_dl_to_proximity_layered`,
+   `find_platform_under_hero`, `try_move_platform_down/up`,
+   `move_platform_down_damage_monster`, `hero_collapse_platform`
+   (crumbling platforms), `check_floor_for_landing`, `land_after_jump`,
+   `get_slope_direction_by_tile_under_feet`, `slope_assist_on_landing`.
+   Verified by seven parity tests over **1,220 randomized scenarios**
+   (full-g_mem + packed-cursor + return-value comparison against seven new
+   test-only C oracles: `wasm_debug_try_climb_rope/platform_up/platform_
+   collapse/check_floor/land_after_jump/slope_assist/move_platform_down`).
+   The harness caught a **real Stage 8a port bug**: dungeon-entities' and
+   dungeon-hero's byte readers masked addresses with `& 0xffff`, so every
+   seg1 read (`0x18000+`) silently truncated to seg0 — all tile
+   classification (passable/slope/airflow lists) had been reading the wrong
+   region; fixed via seg-aware readers (existing 8a/8b suites still green,
+   jump-parity now genuinely exercises seeded lists). Scenario-builder
+   lessons recorded in `web/tests/vertical-scenario.ts`: live scratch tables
+   must sit in the band above the proximity window that column-decoder
+   overshoot can't reach, and the packed-map stream is a solid `0x55` RLE
+   run so columns decode exactly from any cursor alignment. Remaining
+   open: `dungeon_update_rope`/`dungeon_finish_rope_frame` (deferred to 8d
+   — they pull hero_knockback_handler, state_machine_dispatcher and the
+   render/timing machinery), plus the multi-move hero-parity skip whose
+   symptoms refined to a proxRight off-by-one under mixed L/R sequences.
 - **8c — monsters AI & combat:** per-monster tick (alignment/tick gating,
   EAI dispatch via entity table), sword hit application, damage/drops.
 - **8d — state machine wrapper:** `wasm_dungeon_update` dispatcher +

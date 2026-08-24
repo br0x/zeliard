@@ -2044,6 +2044,15 @@ void wasm_dungeon_clear_render_request(void) {
 
 static void jump_press_handler(void);
 
+/* Forward decls for the Stage 8b slice-3 vertical-mechanics debug oracles
+ * (their definitions live further down in this file). */
+void hero_collapse_platform(void);
+uint8_t check_floor_for_landing(void);
+uint8_t land_after_jump(void);
+void slope_assist_on_landing(void);
+uint8_t move_platform_down_damage_monster(void);
+void try_climb_rope(void);
+
 /* JS-callable debug oracles for the Stage 8a movement/collision parity
  * tests: run the real decoders against arbitrary synthetic memory states
  * without any of the tick's surrounding side effects. */
@@ -2087,6 +2096,43 @@ uint8_t wasm_debug_move_hero_left(void)
 void wasm_debug_jump_press(void)
 {
     jump_press_handler();
+}
+
+/* JS-callable debug oracles for the Stage 8b slice-3 vertical-mechanics
+ * parity tests: platforms, slopes, rope grab, landing checks. */
+void wasm_debug_try_climb_rope(void)
+{
+    try_climb_rope();
+}
+
+uint8_t wasm_debug_platform_up(void)
+{
+    return try_move_platform_up();
+}
+
+void wasm_debug_platform_collapse(void)
+{
+    hero_collapse_platform();
+}
+
+uint8_t wasm_debug_check_floor(void)
+{
+    return check_floor_for_landing();
+}
+
+uint8_t wasm_debug_land_after_jump(void)
+{
+    return land_after_jump();
+}
+
+void wasm_debug_slope_assist(void)
+{
+    slope_assist_on_landing();
+}
+
+uint8_t wasm_debug_move_platform_down(void)
+{
+    return move_platform_down_damage_monster();
 }
 
 // Checked

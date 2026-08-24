@@ -43,6 +43,11 @@ function g8(g: Uint8Array, addr: number): number {
     return g[addr & 0xffff] ?? 0;
 }
 
+/** seg1 reads must NOT be truncated to 16 bits (seg1 lives past 0x10000). */
+function seg8(g: Uint8Array, addr: number): number {
+    return g[addr & 0xffffff] ?? 0;
+}
+
 function s8(g: Uint8Array, addr: number, v: number): void {
     g[addr & 0xffff] = v & 0xff;
 }
@@ -81,7 +86,7 @@ export function wrapMapFromBelow(addr: number): number {
 /** lookup_shared (dungeon.c:1512). Returns 1 = blocking. */
 export function lookupShared(g: Uint8Array, tile: number): number {
     for (let i = 0; i < 24; i++) {
-        if (tile === g8(g, SEG1_PASSABLE_TILES + i)) return 0;
+        if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
     }
     const masked = tile & 0x9f;
     if (masked === 0x90 || masked === 0x91) return 0xff;
@@ -97,7 +102,7 @@ export function isBlockingTile(g: Uint8Array, tile: number): boolean {
 export function isBlocking(g: Uint8Array, tile: number): number {
     if (tile < 0x49) {
         for (let i = 0; i < 24; i++) {
-            if (tile === g8(g, SEG1_PASSABLE_TILES + i)) return 0;
+            if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
         }
         return 0xff;
     }
@@ -108,7 +113,7 @@ export function isBlocking(g: Uint8Array, tile: number): number {
 export function isBlockingTileSimple(g: Uint8Array, tile: number): number {
     if (tile < 0x49) {
         for (let i = 0; i < 24; i++) {
-            if (tile === g8(g, SEG1_PASSABLE_TILES + i)) return 0;
+            if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
         }
         return (tile & 0x80) !== 0x80 ? 1 : 0;
     }
@@ -131,17 +136,17 @@ export function isLeftAirflow(g: Uint8Array, tile: number): boolean {
 export function getAirflowDirection(g: Uint8Array, tile: number): number {
     if (tile !== 0) {
         for (let i = 0; i < 4; i++) {
-            const af = g8(g, SEG1_AIRFLOW_TILES + i);
+            const af = seg8(g, SEG1_AIRFLOW_TILES + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_UP;
         }
         for (let i = 0; i < 4; i++) {
-            const af = g8(g, SEG1_AIRFLOW_TILES + 4 + i);
+            const af = seg8(g, SEG1_AIRFLOW_TILES + 4 + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_LEFT;
         }
         for (let i = 0; i < 4; i++) {
-            const af = g8(g, SEG1_AIRFLOW_TILES + 8 + i);
+            const af = seg8(g, SEG1_AIRFLOW_TILES + 8 + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_RIGHT;
         }

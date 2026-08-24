@@ -31,7 +31,8 @@ EMFLAGS = \
 "_wasm_dungeon_get_viewport_top","_wasm_dungeon_get_entity_table","_wasm_dungeon_get_entity_count",\
 "_wasm_dungeon_get_state","_wasm_dungeon_get_render_request","_wasm_dungeon_clear_render_request",\
 "_wasm_finish_rokademo_transition",\
-"_wasm_debug_unpack_map","_wasm_debug_monster_move","_wasm_debug_check_collision","_wasm_debug_hero_reset","_wasm_debug_get_packed_cursors","_wasm_debug_move_hero_right","_wasm_debug_move_hero_left","_wasm_debug_jump_press","_wasm_set_door_x1","_wasm_test_guerra"]' \
+"_wasm_debug_unpack_map","_wasm_debug_monster_move","_wasm_debug_check_collision","_wasm_debug_hero_reset","_wasm_debug_get_packed_cursors","_wasm_debug_move_hero_right","_wasm_debug_move_hero_left","_wasm_debug_jump_press",\
+"_wasm_debug_try_climb_rope","_wasm_debug_platform_up","_wasm_debug_platform_collapse","_wasm_debug_check_floor","_wasm_debug_land_after_jump","_wasm_debug_slope_assist","_wasm_debug_move_platform_down","_wasm_set_door_x1","_wasm_test_guerra"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
