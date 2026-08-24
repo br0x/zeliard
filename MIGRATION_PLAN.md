@@ -598,8 +598,11 @@ correctness (TS sees pristine pre-state).
     behind `REPLAY_RECORD=1`.
   - *Runner:* `tests/replay.test.ts` replays each fixture in Node against
     the real wasm via the bridge singleton (`parity/replay-runner.ts`),
-    verifying every checkpoint. Stale-fixture guard: header wasm hash must
-    match the local binary.
+    verifying every checkpoint. Fixture staleness is enforced
+    **behaviorally** — the header's wasm hash is diagnostic metadata only
+    (CI rebuilds the binary with unpinned emsdk, so byte identity across
+    environments is not achievable; any observable engine change makes the
+    checkpoint digests diverge loudly instead).
   - *Bugs found by actually running it:* (1) Uint8Array call args were
     destroyed by JSON serialization (`loadMdt` wrote nothing → C descriptor
     scan span forever); fixed with toTransferable/thawArgs marshaling.
