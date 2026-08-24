@@ -33,6 +33,7 @@ import {
     getPendingTransitionMap,
     getPendingTransitionPat,
 } from '../../engine/town-state.js';
+import { makeDungeonUpdate } from '../../engine/dungeon-cutover.js';
 import type { ShadowSpec } from './shadow.js';
 
 export type ViewAccessor = () => Uint8Array | null;
@@ -179,6 +180,15 @@ export const PORTED_EXPORTS: Record<string, PortedExport> = {
         name: 'wasm_dungeon_full_tick',
         make: (getView) => () => dungeonFullTick(requireView(getView)),
         spec: { regions: ['dungeon-runtime-flags'] },
+    },
+    // Stage 8d: the whole dungeon tick is served from TS. Like the town
+    // family, shadow dual-run is impossible (C statics), verified by
+    // golden-replay cutover + live E2E.
+    wasm_dungeon_update: {
+        name: 'wasm_dungeon_update',
+        verifyVia: 'replay',
+        make: (getView) => makeDungeonUpdate(getView),
+        spec: { regions: ['proximity-map', 'monster-config', 'dungeon-runtime-flags'] },
     },
     wasm_dungeon_get_entity_table: {
         name: 'wasm_dungeon_get_entity_table',

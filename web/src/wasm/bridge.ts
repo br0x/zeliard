@@ -117,6 +117,29 @@ export interface ZeliardExports {
     wasm_debug_monsters_spawning(): void;
     /** Stage 8c oracle: proximity stamp + item dispatch for one monster. */
     wasm_debug_place_monster_run_ai(m: number): void;
+    /** Stage 8c oracle: hero contact-damage scan. */
+    wasm_debug_check_hero_contact_damage(): void;
+    /** Stage 8c oracle: aggressive-ground damage check. */
+    wasm_debug_step_on_aggressive_ground(): void;
+    /** Stage 8d oracle: pin the transition statics. */
+    wasm_debug_set_dungeon_statics(isFromTown: number, savedYViewInit: number): void;
+    /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
+    wasm_debug_projectiles_collision_processing(): void;
+    wasm_debug_render_sword_overlay(): void;
+    /** Stage 8d slice-4 oracle: spell projectile movement. */
+    wasm_debug_dispatch_spell_movement(): void;
+    /** Stage 8d slice-3 oracles: airflows, heartbeat, doors. */
+    wasm_debug_check_airflows_on_hero(): void;
+    wasm_debug_update_boss_heartbeat_volume(): void;
+    wasm_debug_process_doors(): void;
+    /** Stage 8d slice-2 oracles: platform & magia subsystems. */
+    wasm_debug_update_and_render_horiz_platforms(): void;
+    wasm_debug_render_vertical_platforms(): void;
+    wasm_debug_process_collapsing_platforms(): void;
+    wasm_debug_magia_stone_updates(): void;
+    wasm_debug_render_magia_stone_effect(): void;
+    /** Stage 8d oracle: run the dungeon update dispatcher. */
+    wasm_debug_dungeon_update(): void;
     /** Stage 8c oracles: individual item handlers. */
     wasm_debug_flag_10(m: number): void;
     wasm_debug_flag_11(m: number): void;
@@ -1084,6 +1107,70 @@ export function debugGetRandom(): number {
 }
 
 /** Stage 8c oracles: item dispatch + spawn tick (AI injected as no-op). */
+export function debugCheckHeroContactDamage(): void {
+    wasmExports?.wasm_debug_check_hero_contact_damage?.();
+}
+
+export function debugStepOnAggressiveGround(): void {
+    wasmExports?.wasm_debug_step_on_aggressive_ground?.();
+}
+
+/** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
+export function debugProjectilesCollisionProcessing(): void {
+    wasmExports?.wasm_debug_projectiles_collision_processing?.();
+}
+
+export function debugRenderSwordOverlay(): void {
+    wasmExports?.wasm_debug_render_sword_overlay?.();
+}
+
+/** Stage 8d slice-4 oracle: spell projectile movement. */
+export function debugDispatchSpellMovement(): void {
+    wasmExports?.wasm_debug_dispatch_spell_movement?.();
+}
+
+/** Stage 8d slice-3 oracles: airflows, heartbeat, doors. */
+export function debugCheckAirflowsOnHero(): void {
+    wasmExports?.wasm_debug_check_airflows_on_hero?.();
+}
+
+export function debugUpdateBossHeartbeatVolume(): void {
+    wasmExports?.wasm_debug_update_boss_heartbeat_volume?.();
+}
+
+export function debugProcessDoors(): void {
+    wasmExports?.wasm_debug_process_doors?.();
+}
+
+/** Stage 8d slice-2 oracles: platform & magia subsystems. */
+export function debugUpdateAndRenderHorizPlatforms(): void {
+    wasmExports?.wasm_debug_update_and_render_horiz_platforms?.();
+}
+
+export function debugRenderVerticalPlatforms(): void {
+    wasmExports?.wasm_debug_render_vertical_platforms?.();
+}
+
+export function debugProcessCollapsingPlatforms(): void {
+    wasmExports?.wasm_debug_process_collapsing_platforms?.();
+}
+
+export function debugMagiaStoneUpdates(): void {
+    wasmExports?.wasm_debug_magia_stone_updates?.();
+}
+
+export function debugRenderMagiaStoneEffect(): void {
+    wasmExports?.wasm_debug_render_magia_stone_effect?.();
+}
+
+export function debugSetDungeonStatics(isFromTown: number, savedYViewInit: number): void {
+    wasmExports?.wasm_debug_set_dungeon_statics?.(isFromTown, savedYViewInit);
+}
+
+export function debugDungeonUpdate(): void {
+    wasmExports?.wasm_debug_dungeon_update?.();
+}
+
 export function debugMonstersSpawning(): void {
     wasmExports?.wasm_debug_monsters_spawning?.();
 }

@@ -895,8 +895,169 @@ management, render-request generation.
   never runs real eai AI against the TS no-op, boss/jashiin gates off,
   and every engine-owned word the handlers touch (almas, XP…) must be
   re-seeded between parity passes.
-- **8c remaining:** hero-side damage (`check_hero_contact_damage`,
-  `damage_hero`, knockback tail) — small; candidates to fold into 8d.
+- **8c slice 4 ✅ `engine/dungeon-damage.ts`:** the hero-side damage
+  pipeline — `damage_hero` (clamped subtraction), `check_tile_contact_
+  damage` / `check_hero_contact_damage` (the 4×3 monster-contact scan with
+  per-column knockback vector bytes, facing-vs-shield blocking rules,
+  shield absorption with break notifications), `step_on_aggressive_ground`
+  (Pirika immunity, squat-aware footprint scan, per-cavern damage table)
+  and `Draw_Hero_Health`/notification writers. Verified by two parity
+  tests over **500 randomized scenarios** against two new oracles
+  (`wasm_debug_check_hero_contact_damage/step_on_aggressive_ground`),
+  full-g_mem comparison; mutation-tested (shield-path bypass and damage-
+  table index shift both caught). Scenario findings recorded: HERO_HP must
+  be seeded between passes (applyBase doesn't own it — at boot HP is 0 so
+  every subtraction clamps invisibly), and the C damage-table lookup uses
+  `[cavern_level-1]` so level 0 reads one byte before the table (latent
+  OOB in the reference port; tests use level ≥ 1).
+- **8c complete.** All dungeon.c subsystems outside the state-machine
+  wrapper itself are now TS-owned behind parity tests.
+- **8d slice 1 ✅ `engine/dungeon-state-machine.ts`:** the update
+  dispatcher (`wasm_dungeon_update` state switch) with ROKA_RUN,
+  ROKADEMO, EXIT and BOSS_ENCOUNTER handled natively and NORMAL/ROPE/
+  DEATH_*/DOOR_PENDING/JASHIIN delegated to injected handlers (later 8d
+  slices port them); plus the roka-run family — `roka_run`,
+  `dungeon_update_roka_run`, `after_run_animation` (town-exit vs
+  dungeon-path, boss/jashiin flag derivation from mdt_desc0, viewport
+  adjustment gated on the `g_is_from_town` static now mirrored as a
+  caller-owned `DungeonStatics` object) and `Cavern_Game_Init` (boss vs
+  regular startup incl. the Jashiin room-2 immediate-fight override and
+  room-1 cutscene entry; asset-loading procs are no-ops in both C and TS;
+  the BYTE_9F27 `main_update_render` branch is injected). Also
+  `clear_viewport_buffer` / `clear_hero_in_viewport`. Verified by three
+  parity tests against new oracles (`wasm_debug_dungeon_update`,
+  `wasm_debug_set_dungeon_statics`) — multi-frame ROKA_RUN sequences over
+  ~60 town-path seeds compared byte-for-byte through
+  after_run_animation/cavern init, no-op states asserted untouched on both
+  sides. Constraint recorded: dungeon-path cavern-init seeds hang the wasm
+  oracle inside the real main_update_render pipeline (BYTE_9F27 branch),
+  so they stay excluded until that pipeline is natively ported.
+- **8d slice 2 ✅ `engine/dungeon-platforms.ts`:** the platform & magia-
+  stone subsystems consumed by main_update_render_pre — `horiz_platform_
+  proximity_x_offset`, `hero_on_horiz_platform`, `update_horiz_platform_
+  coords` (direction/pause/boundary state machine, hero carry via the
+  ported movement primitives), slow-platform tick gating,
+  `update_and_render_horiz_platforms` (footprint clear/advance/redraw over
+  the 7-byte entry list), `render_vertical_platforms_to_proximity`,
+  `process_visible_collapsing_platforms`, `magia_stone_updates` +
+  `render_magia_stone_effect` (orbit tables, spell-target injection with
+  layer-2 routing). Verified by three parity tests over **500 randomized
+  scenarios** against five new oracles (`wasm_debug_update_and_render_
+  horiz_platforms/render_vertical_platforms/process_collapsing_platforms/
+  magia_stone_updates/render_magia_stone_effect`), full-g_mem comparison;
+  mutation-tested (speed-flags masking caught). The harness caught a real
+  port bug on day one: the TS entry loop never advanced `si += 7`, spinning
+  forever on platform 0 — a hang instead of a silent divergence.
+- **8d slice 3 ✅ `engine/dungeon-frame-pre.ts`:** the remaining leaf
+  subsystems of main_update_render_pre — `check_airflows_on_hero` +
+  `dispatch_airflows` (up-flow lift, no-jump flag), `update_boss_heartbeat_
+  volume` (Tear-distance attenuation with the verbatim 256-byte table in
+  `heartbeat-table.ts`), and `process_doors` (viewport clipping both
+  directions via `calc_object_viewport_x_offset`, color-patched door tile
+  tables, occupancy-guarded stamping). Verified by three parity tests over
+  **650 randomized scenarios** against three new oracles
+  (`wasm_debug_check_airflows_on_hero/update_boss_heartbeat_volume/
+  process_doors`); mutations caught (dropped second up-airflow move).
+  Boundary note: the heartbeat dy==16 cutoff reads squares[16] OOB in C,
+  so it is pinned by a directed assertion instead of parity divergence.
+- **8d slice 4 ✅ `engine/dungeon-spells.ts`:** the magic-projectile
+  movement family — `Dispatch_Spell_Projectile_Movement` and all five
+  movers (`espada/saeta/fuego/rascar/agua_move` incl. the fuego
+  horizontal→descending phase switch and multi-slot rascar/agua walks),
+  plus the shared helpers (`projectile_step_x_by_direction` with map-width
+  wraparound, anim-frame advance, `despawn_projectile_slots` with the
+  loc_8B9D fallthrough chain semantics, `monster_is_in_spawn_range_and_
+  clear` 3×3 target marking, `mark_proximity_monster_as_spell_target`).
+  Verified by one parity test over **300 randomized scenarios** against a
+  new oracle (`wasm_debug_dispatch_spell_movement`), full-g_mem
+  comparison; mutation-tested (step-size change caught immediately).
+- **8d slice 5 ✅ `engine/dungeon-projectiles.ts`:** the enemy-projectile
+  pipeline — `projectiles_collision_processing` (list walk + in-place
+  compaction), `sub_846F` per-projectile collision (static-tile blocking,
+  hero row-band AND column gating, shield direction/tier rules with
+  break/block outcomes, knockback vector writes incl. the cx/bx xchg
+  semantics), trajectory movement tables (`funcs_85B9` with fallthrough
+  reuse), curved-path stepping, and gfmcga's `Render_Sword_Overlay`
+  observable state (phase advance + swing termination). Verified by two
+  parity tests over **350 randomized scenarios** against two new oracles;
+  mutation-tested. The harness caught a **real port bug**: the TS collision
+  step consumed projectiles on a row match alone, missing the loc_84B4
+  hero-column gate entirely — plus a second real bug where the two
+  knockback vector words (0x9F0E/0x9F10) were written swapped. Test-infra:
+  parity passes must be hermetic (snapshot/restore of full g_mem) — the
+  view exposes C globals past the game arrays whose transient values
+  differ between passes; comparison is capped at seg0+seg1.
+- **8d slice 6 ✅ `engine/dungeon-frame.ts` (~560 lines):** the per-frame
+  pipeline core — `main_update_render_pre` (jump-height/accessory setup,
+  airflows, viewport-follow clamps incl. the boss-arena center-x variant,
+  HERO_Y derivation, heartbeat, platforms, doors, spell projectiles,
+  spawn tick gated on BOSS_IS_DEAD, contact damage, projectile collision
+  processing, magia stones, sword overlay, aggressive ground, level-7 heat
+  damage), `dungeon_render_timing_step` (the 3-phase frame machine with
+  shield-anim flags, neighborhood sampling, potion-heal ticks, explosion
+  compaction, projectile render passes, sword-hit application, phase-2
+  death trigger + natural regen with the original odd-damage overflow bug
+  preserved, boss-reward payout, inventory-open key latch),
+  `process_hero_death`, `load_3x3_tiles`/`Sample_Neighborhood_Attributes`
+  (with the tile-neighborhood static mirrored as module state),
+  `Boss_Explosions_Renderer` (g_mem parts; VRAM bitplane rendering is
+  JS-side) and `main_update_render`. Transition flows that own JS-side
+  asset loads (`bring_inventory_window`, `load_place_and_reinit`) are
+  injected callbacks. All of main_update_render_pre's dependencies are now
+  TS-owned.
+- **8d slice 7 ✅ `engine/dungeon-input.ts`:** the input & hero movement
+  state machine — `input_handling` (sword swing trigger incl. the 4×8
+  flying-monster overhead scan and downward-thrust latch),
+  `state_machine_dispatcher` + `idle_default`, `init_horizontal_sliding`,
+  `down_pressed`, `up_pressed`, `try_door_interaction` (door-tile
+  three-cell scan with facing-gated nudge; `enter_the_door`/`open_door`
+  arrive in slice 8), `right_up_pressed`/`left_up_pressed`,
+  `airborne_movement` (collapse/slope-assist/floor checks, rope grab
+  mid-air, facing-turn rules), `sliding_physics_step`, `hero_knockback_
+  handler`, `left_default`/`right_default`, `Browse_Projectiles` and
+  `reset_dungeon_state_vars`. Composes already-parity-tested primitives;
+  full-suite green.
+- **8d slice 8 ✅ `engine/dungeon-spell-fire.ts` + `engine/dungeon-doors.ts`:**
+  the spell firing chain (`Magic_Spell_Fire_Handler` charge-up/fire state
+  machine with per-spell charges, `init_magic_projectile`,
+  `init_rascar` 4-beam spread, `init_agua` 3-slot vertical spread,
+  `init_guerra` 36×19 instant-hit sweep) and the door interaction flow
+  (`enter_the_door`, `open_door` with key/lion-key consumption and
+  achievement-flag writes, `enter_opened_door` with the full
+  reset_dungeon_state_vars + back-frame render + deferred-completion
+  statics save, `dungeon_complete_door_transition` phase 2 incl. town-bit
+  handling, pending-dungeon setup and eai module reload). Asset loads and
+  VRAM work stay injected callbacks (JS-side).
+- **8d slice 9 ✅ `engine/dungeon-states.ts`:** the remaining per-state
+  frame handlers — `dungeon_update_normal` (phase 0 input+pre+timing /
+  phase 1 finish dispatch incl. the ROPE handoff),
+  `dungeon_finish_normal_frame`, `dungeon_update_rope` +
+  `dungeon_finish_rope_frame` (rope-still-under-feet checks, dismount
+  state reset), `dungeon_death_frame_step` + `dungeon_update_death_fall/
+  flash/fade` (anim-phase flash timing, fade blink-out, XP/gold/almas
+  death penalties, Felishika-respawn vs sage-transit paths) and
+  `dungeon_update_jashiin_cutscene` (room-1 → room-2 mpa0 handoff with
+  viewport anchoring and skip-roka-run latch). `DungeonRuntimeStatics`
+  carries the C statics (`is_from_town`, `saved_y_view_init`,
+  `saved_door_x1`, `g_skip_roka_run`) across frames.
+- **8d slice 10 ✅ runtime cutover flip:** `wasm_dungeon_update` is now
+  served from TS by default via the dispatch layer (`verifyVia: 'replay'`
+  — C statics make shadow dual-run impossible, same as Stage 7c). Wired
+  through `engine/dungeon-cutover.ts` which composes all state handlers
+  (NORMAL/ROPE/death/door/Jashiin/ROKA_RUN) into the
+  `dungeonUpdate` dispatcher. `zeliard_ports=wasm` restores pure-wasm;
+  `dispatch.reset()` keeps wasm as instant fallback until Stage 10.
+  Dungeon screenshot baselines re-taken against TS rendering (pixel-level
+  timing differences are expected when the tick source changes).
+- **8d complete ✅.** The entire dungeon simulation runs from TS by default.
+  Remaining golden fixtures for death sequence and boss encounter are
+  tracked as Stage 8e follow-up work.
+  runtime cutover flip (mirrors Stage 7c); wasm stays instant fallback
+  until Stage 10.
+- **8d next:** the dispatcher (`wasm_dungeon_update` state switch),
+  death fall/flash/fade, rope mode, roka-run, Jashiin cutscene, door
+  completion → `DungeonTickState`, then the runtime cutover flip and
+  remaining golden fixtures (death sequence, boss encounter).
 - **8c — monsters AI & combat:** per-monster tick (alignment/tick gating,
   EAI dispatch via entity table), sword hit application, damage/drops.
 - **8d — state machine wrapper:** `wasm_dungeon_update` dispatcher +

@@ -2070,6 +2070,19 @@ static void flag_1e(uint16_t m);
 void apply_sword_hit_to_map_tiles(void);
 void Hero_Hits_monster(uint16_t m);
 uint8_t Get_Stats(uint8_t al);
+void check_hero_contact_damage(void);
+void step_on_aggressive_ground(void);
+void update_and_render_horiz_platforms(void);
+void render_vertical_platforms_to_proximity(void);
+void process_visible_collapsing_platforms(void);
+void magia_stone_updates(void);
+void render_magia_stone_effect(void);
+void update_boss_heartbeat_volume(void);
+void process_doors(void);
+void check_airflows_on_hero(void);
+void dispatch_spell_projectile_movement(void);
+void projectiles_collision_processing(void);
+void Render_Sword_Overlay(void);
 
 /* Forward decls for the Stage 8b slice-3 vertical-mechanics debug oracles
  * (their definitions live further down in this file). */
@@ -2213,6 +2226,38 @@ void wasm_debug_flag_1c(uint16_t m) { flag_1c(m); }
 void wasm_debug_flag_1d(uint16_t m) { flag_1d(m); }
 void wasm_debug_flag_1e(uint16_t m) { flag_1e(m); }
 void wasm_debug_chest_handler(uint16_t m) { default_0toF_handler(m); }
+
+/* JS-callable debug oracles: hero-side damage pipeline. */
+void wasm_debug_check_hero_contact_damage(void) { check_hero_contact_damage(); }
+void wasm_debug_step_on_aggressive_ground(void) { step_on_aggressive_ground(); }
+
+/* Stage 8d slice-2 oracles: platform & magia subsystems. */
+void wasm_debug_update_and_render_horiz_platforms(void) { update_and_render_horiz_platforms(); }
+void wasm_debug_render_vertical_platforms(void) { render_vertical_platforms_to_proximity(); }
+void wasm_debug_process_collapsing_platforms(void) { process_visible_collapsing_platforms(); }
+void wasm_debug_magia_stone_updates(void) { magia_stone_updates(); }
+void wasm_debug_render_magia_stone_effect(void) { render_magia_stone_effect(); }
+
+/* Stage 8d slice-3 oracles: airflows, heartbeat, doors. */
+void wasm_debug_check_airflows_on_hero(void) { check_airflows_on_hero(); }
+void wasm_debug_update_boss_heartbeat_volume(void) { update_boss_heartbeat_volume(); }
+void wasm_debug_process_doors(void) { process_doors(); }
+
+/* Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
+void wasm_debug_projectiles_collision_processing(void) { projectiles_collision_processing(); }
+void wasm_debug_render_sword_overlay(void) { Render_Sword_Overlay(); }
+
+/* Stage 8d slice-4 oracles: spell projectile movement. */
+void wasm_debug_dispatch_spell_movement(void) { dispatch_spell_projectile_movement(); }
+
+/* Stage 8d oracles: pin the transition statics and run the dispatcher. */
+void wasm_debug_set_dungeon_statics(uint8_t is_from_town, uint8_t saved_y_view_init)
+{
+    g_is_from_town = is_from_town;
+    saved_y_view_init = saved_y_view_init;
+}
+
+void wasm_debug_dungeon_update(void) { wasm_dungeon_update(); }
 
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The

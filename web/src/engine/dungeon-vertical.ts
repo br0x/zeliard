@@ -286,6 +286,8 @@ export function identifyPlatformTile(
 export interface AbsProxRel {
     ax: number;
     bx: number;
+    /** C carry flag: true when the cell is off the visible window width. */
+    cf: boolean;
 }
 
 /** abs_x_to_proximity_rel (dungeon.c:2329). */
@@ -301,7 +303,7 @@ export function absXToProximityRel(g: Uint8Array, x: number): AbsProxRel {
         d = (g16(g, MAP_WIDTH) - proxLeft + x) & 0xffff;
     }
 
-    return { ax: (33 - d) & 0xffff, bx: d };
+    return { ax: (33 - d) & 0xffff, bx: d, cf: d > 33 };
 }
 
 /**

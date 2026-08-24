@@ -154,7 +154,7 @@ export function heroGotGold(g: Uint8Array, ax: number): void {
     printGoldDecimal(g);
 }
 
-function heroGotAlmas(g: Uint8Array, amount: number): void {
+export function heroGotAlmas(g: Uint8Array, amount: number): void {
     const almas = g16(g, 0x8b); // ADDR_HERO_ALMAS word
     let next: number;
     if (amount > ((0xffff - almas) & 0xffff)) {
