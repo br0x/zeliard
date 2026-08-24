@@ -1111,6 +1111,14 @@ The last structural step: stop sharing linear memory altogether.
 7. Touch controls on mobile viewport; window resize scaling
 8. Ending demo playback
 
+## Agent rules (MANDATORY)
+
+- **NEVER commit to git.** The developer handles all commits. Do not run
+  `git commit`, `git push`, or any other state-changing git operation.
+- **NEVER re-take E2E screenshot baselines** without explicit approval —
+  a failing screenshot means something changed and needs investigation,
+  not a silent baseline update.
+
 ## Scope rules per phase
 
 - **Phase A:** `src/*.c` and the wasm ABI are frozen — the bridge is the only
