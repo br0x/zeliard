@@ -195,6 +195,8 @@ describe('ported export wiring', () => {
             'wasm_town_building_finish',
             'wasm_town_update',
             'wasm_town_full_tick',
+            // Stage 8: pure counter increments, no hidden state
+            'wasm_dungeon_full_tick',
         ];
         const missing = required.filter((n) => !names.has(n));
         expect(missing, 'missing ported exports').toEqual([]);

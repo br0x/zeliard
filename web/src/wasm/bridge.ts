@@ -63,6 +63,20 @@ export interface ZeliardExports {
     wasm_debug_unpack_map(): void;
     /** Stage 7: preserve town→dungeon door x across prepare_dungeon memset. */
     wasm_set_door_x1(x1: number): void;
+    /** Test-only oracle: monster_move_in_direction against current memory. */
+    wasm_debug_monster_move(m: number, dir: number): number;
+    /** Test-only oracle: Check_collision_in_direction against current memory. */
+    wasm_debug_check_collision(m: number, dir: number): number;
+    /** Test-only oracle: reset packed-map cursors for deterministic sequences. */
+    wasm_debug_hero_reset(): void;
+    /** Test-only oracle: move_hero_right_if_no_obstacles. */
+    wasm_debug_move_hero_right(): number;
+    /** Test-only oracle: move_hero_left_if_no_obstacles. */
+    wasm_debug_move_hero_left(): number;
+    /** Test-only oracle: dump packed cursors to g_mem 0xB100/0xB102. */
+    wasm_debug_get_packed_cursors(): void;
+    /** Test-only oracle: run jump_press_handler against current memory. */
+    wasm_debug_jump_press(): void;
 }
 
 let wasmInstance: WebAssembly.Instance | null = null;
@@ -910,6 +924,38 @@ export function debugUnpackMap(): void {
 /** Stage 7: preserve town→dungeon door x across prepare_dungeon's memset. */
 export function setDoorX1(x1: number): void {
     wasmExports?.wasm_set_door_x1?.(x1);
+}
+
+/** Test-only oracles for Stage 8a movement/collision parity tests. */
+export function debugMonsterMove(m: number, dir: number): number {
+    return wasmExports?.wasm_debug_monster_move?.(m, dir) ?? 0;
+}
+
+export function debugCheckCollision(m: number, dir: number): number {
+    return wasmExports?.wasm_debug_check_collision?.(m, dir) ?? 0;
+}
+
+/** Test-only oracles for Stage 8b hero-movement parity tests. */
+export function debugHeroReset(): void {
+    wasmExports?.wasm_debug_hero_reset?.();
+}
+
+export function debugMoveHeroRight(): number {
+    return wasmExports?.wasm_debug_move_hero_right?.() ?? 0;
+}
+
+export function debugMoveHeroLeft(): number {
+    return wasmExports?.wasm_debug_move_hero_left?.() ?? 0;
+}
+
+/** Test-only oracle: run jump_press_handler against current memory. */
+export function debugJumpPress(): void {
+    wasmExports?.wasm_debug_jump_press?.();
+}
+
+/** Test-only: dump packed cursors into g_mem at 0xB100 (left) / 0xB102 (right). */
+export function debugGetPackedCursors(): void {
+    wasmExports?.wasm_debug_get_packed_cursors?.();
 }
 
 /**

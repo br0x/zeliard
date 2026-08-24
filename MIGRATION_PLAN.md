@@ -757,7 +757,7 @@ edge-scroll logic (`wasm_town_update` / `_full_tick` family).
   fallback until Stage 10. Suite: 818 unit tests + 5 E2E; tsc strict-clean;
   build + smoke green with TS ticks as the default path.
 
-### Stage 8 — Dungeon core
+### Stage 8 — Dungeon core 🚧 *(in progress — 8a landed)*
 Port `dungeon.c`: player physics/collision, scrolling, entity table
 management, render-request generation.
 - The entity table is the trickiest shared-memory structure — port its
@@ -766,6 +766,60 @@ management, render-request generation.
   transitions and the death sequence.
 - **Exit criteria:** dungeon playable with zero calls into wasm dungeon
   exports.
+
+**Sub-steps** *(detalized from code survey; dungeon.c = 6.5k lines)*:
+- **8a — monster movement & collision primitives ✅**
+  `engine/dungeon-entities.ts`: increment/decrement X/Y (uint16 wrap by map
+  width, 6-bit Y), all 8 directional `move_monster_*` with their x_rel
+  window guards, `monster_move_in_direction`, the full 2×2-footprint
+  `check_collision_*2` family (leading-edge blocking, bit7 monster/item
+  marker OR-masks, per-direction wrap order), `Check_collision_in_direction`,
+  plus tile classification (`coords_to_prox_addr`, proximity row wraps,
+  `is_blocking*`/`lookup_shared` against the seg1 passable list,
+  `get_airflow_direction` with wind-tunnel level-5 danger checks).
+  Verified by two new test-only C oracles (`wasm_debug_monster_move`,
+  `wasm_debug_check_collision`) over **2,568 randomized scenarios**
+  (120 seeds × 8 dirs for moves incl. record-byte mutation checks;
+  201 seeds × 8 dirs for collisions; cavern levels 0/1/4/5/6/7, random
+  passable/airflow lists, full-range proximity bytes incl. markers).
+- **8b — hero physics (slice 1 landed ✅, slice 2 open):**
+  `engine/dungeon-hero.ts` ports `get_dst_monster_flags`,
+  `move_hero_left/right_if_no_obstacles`, `hero_moves_right/left`
+  (byte-exact window slide via copyWithin + incremental column unpack
+  through the shared packed cursors + enemy projectile shifts + monster
+  edge re-marking), `every_projectile_moves_*`, `hero_interaction_check`,
+  and `hero_coords_to_addr_in_proximity`. Verified via three new oracles
+  (`wasm_debug_hero_reset/move_hero_right/move_hero_left`) with
+  deterministic scenario sequences: single-move parity passes including
+  cursor and full-window comparison; multi-move sequences match except
+  monster edge-markers under mixed L/R input (LEFT_COL bookkeeping detail —
+  test kept as documented skip with regenerating diagnostics; collision
+  primitives from 8a are unaffected). RESOLVED: the scenario never
+  initialized the monsters-list pointer word (0xC010), so the wasm oracle
+  scanned real leftover entity-table data while TS scanned the deterministic
+  scratch list — a test bug, not a port bug; pointer now pinned.
+  Slice 2 ✅ `jump_press_handler` ported and verified bit-exact against a
+  `wasm_debug_jump_press` oracle across **400 randomized scenarios**
+  (rope/squat/height-counter/near-viewport-top cases, ceiling-blocked vs
+  ascend transitions). Slice 3 (open): remaining vertical mechanics —
+  rope traversal (`dungeon_update_rope`), slopes, crumbling platforms
+  (`identify_platform_tile`, `find_platform_under_hero`, `try_move_*`),
+  landing checks (`check_floor_for_landing`), plus re-checking the multi-move
+  marker bookkeeping once those land.
+- **8c — monsters AI & combat:** per-monster tick (alignment/tick gating,
+  EAI dispatch via entity table), sword hit application, damage/drops.
+- **8d — state machine wrapper:** `wasm_dungeon_update` dispatcher +
+  death fall/flash/fade, rope mode, roka-run, Jashiin cutscene, door
+  completion; C statics → `DungeonTickState`. Runtime cutover flip here
+  (mirrors Stage 7c); wasm stays instant fallback until Stage 10.
+- **8e — golden fixtures (partially landed ✅):** fixtures now cover
+  - `town-dungeon-basics.json` — town walk + one dungeon room (Stage 5d);
+  - `town-buildings.json` — King entry/exit + edge transitions both
+    directions through the neighboring town (~20.5k events, 409 checkpoints);
+  - `dungeon-combat-map5.json` — combat-heavy run on a second dungeon map.
+  All three replay bit-for-bit under pure-wasm AND TS-cutover passes.
+  Still to record: a death sequence and a boss encounter (needs scripted
+  hazard/boss positioning); extend coverage to remaining cavern maps.
 
 ### Stage 9 — Enemies & bosses, one file per PR
 Port the AI files individually — they're naturally independent staging units,

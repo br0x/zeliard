@@ -149,6 +149,12 @@ export const unpackCursors = {
     proxRight: 0,
 };
 
+/** Test/parity helper: pin both cursors to a known packed offset. */
+export function resetUnpackCursors(addr: number): void {
+    unpackCursors.proxLeft = addr;
+    unpackCursors.proxRight = addr;
+}
+
 /**
  * Full proximity-map expansion — port of unpack_map(). Reads the current
  * left-column/viewport state from g_mem and writes the 36×64 tile window

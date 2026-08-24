@@ -2042,6 +2042,53 @@ void wasm_dungeon_clear_render_request(void) {
     MEM8(ADDR_RENDER_DONE) = 0xFF;
 }
 
+static void jump_press_handler(void);
+
+/* JS-callable debug oracles for the Stage 8a movement/collision parity
+ * tests: run the real decoders against arbitrary synthetic memory states
+ * without any of the tick's surrounding side effects. */
+uint8_t wasm_debug_monster_move(uint16_t m, uint8_t dir)
+{
+    return monster_move_in_direction(m, dir);
+}
+
+uint8_t wasm_debug_check_collision(uint16_t m, uint8_t dir)
+{
+    return Check_collision_in_direction(m, dir);
+}
+
+/* JS-callable debug oracles for the Stage 8b hero-movement parity tests:
+ * reset the packed-map cursors to a known state and run the real
+ * move_hero_*_if_no_obstacles paths against synthetic memory. */
+void wasm_debug_hero_reset(void)
+{
+    packed_map_ptr_for_prox_left = ADDR_PACKED_MAP_START;
+    packed_map_ptr_for_prox_right = ADDR_PACKED_MAP_START;
+}
+
+uint8_t wasm_debug_move_hero_right(void)
+{
+    return move_hero_right_if_no_obstacles();
+}
+
+/* Test-only: expose the packed-map cursors through g_mem scratch so the
+ * TS-side mirror (engine/unpack.ts unpackCursors) can be diffed exactly. */
+void wasm_debug_get_packed_cursors(void)
+{
+    MEM16(0xB100) = packed_map_ptr_for_prox_left;
+    MEM16(0xB102) = packed_map_ptr_for_prox_right;
+}
+
+uint8_t wasm_debug_move_hero_left(void)
+{
+    return move_hero_left_if_no_obstacles();
+}
+
+void wasm_debug_jump_press(void)
+{
+    jump_press_handler();
+}
+
 // Checked
 int8_t set_zero_flag_if_slippery(void) {
     if (MEM8(ADDR_CAVERN_LEVEL) == 4 && MEM8(ADDR_CURRENT_ACCESSORY) != ACCESSORY_RUZERIA_SHOES) {

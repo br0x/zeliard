@@ -14,6 +14,7 @@ import type { DispatchableEngine, DispatchableName } from '../dispatch.js';
 import { keyStateToBitmask } from '../memory.js';
 import type { KeyState } from '../memory.js';
 import { initC015ObjIfExists as initC015ObjIfExistsTs } from '../../engine/town.js';
+import { dungeonFullTick } from '../../engine/dungeon-tick.js';
 import {
     townBuildingFinish,
     townCompleteTransition,
@@ -171,6 +172,13 @@ export const PORTED_EXPORTS: Record<string, PortedExport> = {
         verifyVia: 'replay',
         make: (getView) => () => townBuildingFinish(requireView(getView)),
         spec: { regions: ['scene-flow-flags'] },
+    },
+    // Stage 8: pure counter increments — no hidden state, safe to serve
+    // from TS unconditionally (verified by replay checkpoints).
+    wasm_dungeon_full_tick: {
+        name: 'wasm_dungeon_full_tick',
+        make: (getView) => () => dungeonFullTick(requireView(getView)),
+        spec: { regions: ['dungeon-runtime-flags'] },
     },
     wasm_dungeon_get_entity_table: {
         name: 'wasm_dungeon_get_entity_table',
