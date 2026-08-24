@@ -1,7 +1,7 @@
 {
  "header": {
-  "createdAt": "2026-08-23T22:49:14.393Z",
-  "wasmSha256": "99ee23632346f536",
+  "createdAt": "2026-08-24T00:22:48.926Z",
+  "wasmSha256": "af41b57c2a68dfb1",
   "session": "town-dungeon-basics",
   "schemaVersion": 1
  },
@@ -25092,16 +25092,74 @@
    ]
   },
   {
-   "k": "poke",
-   "addr": 65533,
-   "bytes": [
-    0
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": true,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
    ]
   },
   {
    "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": true,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": true,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "poke",
+   "addr": 65533,
+   "bytes": [
+    0
+   ]
   },
   {
    "k": "call",
@@ -25707,6 +25765,11 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
    "name": "setDungeonPassableTiles",
    "args": [
     [
@@ -26079,37 +26142,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_dungeon_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -26123,16 +26155,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
   },
   {
    "k": "call",
@@ -26159,22 +26181,6 @@
    "k": "call",
    "name": "wasm_dungeon_update",
    "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
   },
   {
    "k": "call",
@@ -26205,32 +26211,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_clear_render_request",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_update",
    "args": []
   },
   {
@@ -27271,11 +27251,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
-  },
-  {
-   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -27350,6 +27325,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -28110,11 +28090,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -28209,6 +28184,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -28360,11 +28340,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -28421,6 +28396,11 @@
   },
   {
    "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
+  },
+  {
+   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -29220,11 +29200,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
   },
   {
    "k": "call",
@@ -29276,6 +29251,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -29848,7 +29828,7 @@
      "ArrowUp": false,
      "ArrowDown": false,
      "ArrowLeft": false,
-     "ArrowRight": true,
+     "ArrowRight": false,
      "Space": false,
      "Enter": false,
      "Alt": false,
@@ -29874,7 +29854,7 @@
      "ArrowUp": false,
      "ArrowDown": false,
      "ArrowLeft": false,
-     "ArrowRight": true,
+     "ArrowRight": false,
      "Space": false,
      "Enter": false,
      "Alt": false,
@@ -29885,6 +29865,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -29980,11 +29965,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
   },
   {
    "k": "call",
@@ -30036,11 +30016,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -30139,6 +30114,11 @@
   },
   {
    "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
+  },
+  {
+   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -31129,11 +31109,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -31203,6 +31178,11 @@
      "Escape": false
     }
    ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
   },
   {
    "k": "call",
@@ -31963,11 +31943,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
   },
   {
    "k": "call",
@@ -31993,6 +31968,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -32226,11 +32206,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
-  },
-  {
-   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -32295,6 +32270,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -33055,11 +33035,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -33112,6 +33087,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -34148,11 +34128,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -34209,6 +34184,11 @@
   },
   {
    "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
+  },
+  {
+   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -34965,11 +34945,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -35038,6 +35013,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -35673,11 +35653,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -35693,7 +35668,7 @@
      "ArrowUp": false,
      "ArrowDown": false,
      "ArrowLeft": false,
-     "ArrowRight": false,
+     "ArrowRight": true,
      "Space": false,
      "Enter": false,
      "Alt": false,
@@ -35719,7 +35694,7 @@
      "ArrowUp": false,
      "ArrowDown": false,
      "ArrowLeft": false,
-     "ArrowRight": false,
+     "ArrowRight": true,
      "Space": false,
      "Enter": false,
      "Alt": false,
@@ -35730,6 +35705,16 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -35824,11 +35809,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -36032,11 +36012,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -36131,6 +36106,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -36891,11 +36871,6 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -36991,6 +36966,11 @@
      "Escape": false
     }
    ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
   },
   {
    "k": "call",
@@ -37754,11 +37734,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
-  },
-  {
-   "k": "call",
    "name": "wasm_dungeon_full_tick",
    "args": []
   },
@@ -37781,6 +37756,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -37920,7 +37900,7 @@
     {
      "ArrowUp": false,
      "ArrowDown": false,
-     "ArrowLeft": true,
+     "ArrowLeft": false,
      "ArrowRight": false,
      "Space": false,
      "Enter": false,
@@ -37946,7 +37926,7 @@
     {
      "ArrowUp": false,
      "ArrowDown": false,
-     "ArrowLeft": true,
+     "ArrowLeft": false,
      "ArrowRight": false,
      "Space": false,
      "Enter": false,
@@ -37958,6 +37938,11 @@
   {
    "k": "call",
    "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
    "args": []
   },
   {
@@ -38053,11 +38038,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_dungeon_clear_render_request",
-   "args": []
   },
   {
    "k": "call",
@@ -38719,6 +38699,105 @@
    "k": "call",
    "name": "wasm_dungeon_update",
    "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": true,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_clear_render_request",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": true,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": true,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": true,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
   },
   {
    "k": "call",
@@ -38759,6 +38838,16 @@
    "bytes": [
     0
    ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_dungeon_full_tick",
+   "args": []
   },
   {
    "k": "call",
@@ -43753,64 +43842,6 @@
    ]
   },
   {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": true,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": true,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": true,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
    "k": "poke",
    "addr": 65506,
    "bytes": [
@@ -43823,21 +43854,6 @@
    "bytes": [
     0
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -47713,16 +47729,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
    "name": "setSpecialTileList",
    "args": [
     [
@@ -47766,85 +47772,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
   },
@@ -48147,6 +48074,227 @@
    "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
   },
   {
    "k": "call",
@@ -48255,6 +48403,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -48615,27 +49273,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -48744,6 +49381,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -49104,27 +50251,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -49233,6 +50359,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -49593,27 +51229,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -49722,6 +51337,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -50082,27 +52207,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -50211,6 +52315,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -50571,27 +53185,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -50700,6 +53293,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -51060,27 +54163,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -51189,6 +54271,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -51549,27 +55141,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -51678,6 +55249,516 @@
   },
   {
    "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_update",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_town_full_tick",
+   "args": []
+  },
+  {
+   "k": "call",
+   "name": "wasm_set_input_keys",
+   "args": [
+    {
+     "ArrowUp": false,
+     "ArrowDown": false,
+     "ArrowLeft": false,
+     "ArrowRight": false,
+     "Space": false,
+     "Enter": false,
+     "Alt": false,
+     "Escape": false
+    }
+   ]
+  },
+  {
+   "k": "call",
    "name": "wasm_set_input_keys",
    "args": [
     {
@@ -52038,27 +56119,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -52167,4018 +56227,6 @@
   },
   {
    "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_update",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
-  },
-  {
-   "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
   },
@@ -56302,22 +56350,6 @@
    "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
   },
   {
    "k": "call",
@@ -56334,11 +56366,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -56423,22 +56450,6 @@
    "k": "call",
    "name": "wasm_town_full_tick",
    "args": []
-  },
-  {
-   "k": "call",
-   "name": "wasm_set_input_keys",
-   "args": [
-    {
-     "ArrowUp": false,
-     "ArrowDown": false,
-     "ArrowLeft": false,
-     "ArrowRight": false,
-     "Space": false,
-     "Enter": false,
-     "Alt": false,
-     "Escape": false
-    }
-   ]
   },
   {
    "k": "call",
@@ -56476,11 +56487,6 @@
      "Escape": false
     }
    ]
-  },
-  {
-   "k": "call",
-   "name": "wasm_town_full_tick",
-   "args": []
   },
   {
    "k": "call",
@@ -73807,16 +73813,16 @@
    "digests": {
     "save-state": "100:6e28f888",
     "input-latches": "3:24ae7d4e",
-    "dungeon-runtime-flags": "36:1f7d661b",
+    "dungeon-runtime-flags": "36:fecdc65d",
     "engine-semaphores": "16:290628dd",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
     "scene-flow-flags": "9:c8e581ff",
     "boss-state-ptr": "2:117697cd",
-    "monster-config": "ba:821690d6",
+    "monster-config": "ba:48ef5e2d",
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
-    "boss-state-block": "300:ed16faf6",
+    "boss-state-block": "300:f59c39c5",
     "mdt-window": "2000:f6b9e2e8",
     "proximity-map": "900:636ed877",
     "viewport-entities-cache": "215:90b4a9cf",
@@ -73836,8 +73842,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     7,
-     159,
+     10,
+     162,
      3,
      0,
      0,
@@ -74229,7 +74235,7 @@
    "digests": {
     "save-state": "100:b30dd703",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:4e977576",
+    "dungeon-runtime-flags": "36:b535a3c5",
     "engine-semaphores": "16:132a7cc3",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -74258,8 +74264,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     14,
-     173,
+     12,
+     174,
      3,
      0,
      0,
@@ -74651,7 +74657,7 @@
    "digests": {
     "save-state": "100:5b387350",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:8b368702",
+    "dungeon-runtime-flags": "36:76d46ac9",
     "engine-semaphores": "16:f1e1bbd0",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -74680,8 +74686,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     28,
-     187,
+     26,
+     188,
      3,
      0,
      0,
@@ -75073,7 +75079,7 @@
    "digests": {
     "save-state": "100:62b89e69",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:6639cf42",
+    "dungeon-runtime-flags": "36:076255c7",
     "engine-semaphores": "16:55bbfea9",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -75102,8 +75108,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     43,
-     202,
+     41,
+     203,
      3,
      0,
      0,
@@ -75495,7 +75501,7 @@
    "digests": {
     "save-state": "100:0ae33ab6",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:f614fb86",
+    "dungeon-runtime-flags": "36:e24f0be7",
     "engine-semaphores": "16:34733db6",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -75524,8 +75530,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     57,
-     216,
+     55,
+     217,
      3,
      0,
      0,
@@ -75917,7 +75923,7 @@
    "digests": {
     "save-state": "100:126365cf",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:9c095ed2",
+    "dungeon-runtime-flags": "36:013b96a9",
     "engine-semaphores": "16:984d808f",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -75946,8 +75952,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     72,
-     231,
+     70,
+     232,
      3,
      0,
      0,
@@ -76339,7 +76345,7 @@
    "digests": {
     "save-state": "100:ba8e021c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:bdd7ab96",
+    "dungeon-runtime-flags": "36:1988db95",
     "engine-semaphores": "16:7704bf9c",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -76368,8 +76374,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     86,
-     245,
+     84,
+     246,
      3,
      0,
      0,
@@ -76761,7 +76767,7 @@
    "digests": {
     "save-state": "100:c20e2d35",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:855ecd0d",
+    "dungeon-runtime-flags": "36:75ade538",
     "engine-semaphores": "16:dadf0275",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -76790,8 +76796,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     100,
-     3,
+     99,
+     5,
      4,
      0,
      0,
@@ -77183,7 +77189,7 @@
    "digests": {
     "save-state": "100:6a38c982",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:72b2b06d",
+    "dungeon-runtime-flags": "36:24d7da90",
     "engine-semaphores": "16:b9964182",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -77212,8 +77218,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     115,
-     18,
+     113,
+     19,
      4,
      0,
      0,
@@ -77603,10 +77609,10 @@
   {
    "afterEvent": 2549,
    "digests": {
-    "save-state": "100:71b8f49b",
+    "save-state": "100:6a38c982",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:79093f69",
-    "engine-semaphores": "16:1d70845b",
+    "dungeon-runtime-flags": "36:4a71f022",
+    "engine-semaphores": "16:b9964182",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
     "scene-flow-flags": "9:c8e581ff",
@@ -77634,8 +77640,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     129,
-     32,
+     128,
+     34,
      4,
      0,
      0,
@@ -77703,7 +77709,7 @@
      0,
      0,
      0,
-     8,
+     7,
      0,
      0,
      0,
@@ -78027,7 +78033,7 @@
    "digests": {
     "save-state": "100:71b8f49b",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:b6278add",
+    "dungeon-runtime-flags": "36:ebb6a4f6",
     "engine-semaphores": "16:1d70845b",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -78056,8 +78062,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     144,
-     47,
+     142,
+     48,
      4,
      0,
      0,
@@ -78449,7 +78455,7 @@
    "digests": {
     "save-state": "100:19e390e8",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:6a81cad9",
+    "dungeon-runtime-flags": "36:81ef84ca",
     "engine-semaphores": "16:fc27c368",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -78478,8 +78484,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     158,
-     61,
+     156,
+     62,
      4,
      0,
      0,
@@ -78871,7 +78877,7 @@
    "digests": {
     "save-state": "100:2163bc01",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:a7f6feb1",
+    "dungeon-runtime-flags": "36:40189d68",
     "engine-semaphores": "16:60020641",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -78900,8 +78906,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     173,
-     76,
+     171,
+     77,
      4,
      0,
      0,
@@ -79293,7 +79299,7 @@
    "digests": {
     "save-state": "100:c98e584e",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:990d29bd",
+    "dungeon-runtime-flags": "36:224e52f0",
     "engine-semaphores": "16:3eb9454e",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -79322,8 +79328,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     187,
-     90,
+     185,
+     91,
      4,
      0,
      0,
@@ -79715,7 +79721,7 @@
    "digests": {
     "save-state": "100:d10e8367",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:f6255ab1",
+    "dungeon-runtime-flags": "36:b628c4c2",
     "engine-semaphores": "16:a2938827",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -79744,8 +79750,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     202,
-     105,
+     200,
+     106,
      4,
      0,
      0,
@@ -80137,7 +80143,7 @@
    "digests": {
     "save-state": "100:79391fb4",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:1a7ac2ad",
+    "dungeon-runtime-flags": "36:7aabfeb0",
     "engine-semaphores": "16:814ac734",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -80166,8 +80172,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     216,
-     119,
+     215,
+     121,
      4,
      0,
      0,
@@ -80559,7 +80565,7 @@
    "digests": {
     "save-state": "100:80b94acd",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:ea8f76bd",
+    "dungeon-runtime-flags": "36:29bbeae8",
     "engine-semaphores": "16:e5250a0d",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -80588,8 +80594,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     231,
-     134,
+     229,
+     135,
      4,
      0,
      0,
@@ -80981,8 +80987,8 @@
    "digests": {
     "save-state": "100:28e3e71a",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:41a5b3e1",
-    "engine-semaphores": "16:c3dc491a",
+    "dungeon-runtime-flags": "36:7caf467a",
+    "engine-semaphores": "16:16bfbd40",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
     "scene-flow-flags": "9:c8e581ff",
@@ -81010,8 +81016,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     245,
-     148,
+     244,
+     150,
      4,
      0,
      0,
@@ -81068,8 +81074,8 @@
     "engine-semaphores": [
      7,
      0,
-     0,
      255,
+     0,
      0,
      0,
      0,
@@ -81403,8 +81409,8 @@
    "digests": {
     "save-state": "100:35b79bd3",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:6a17630d",
-    "engine-semaphores": "16:fe9e6d93",
+    "dungeon-runtime-flags": "36:10ac91b6",
+    "engine-semaphores": "16:1e8f1aad",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
     "scene-flow-flags": "9:c8e581ff",
@@ -81432,8 +81438,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     4,
-     163,
+     2,
+     164,
      4,
      0,
      0,
@@ -81490,8 +81496,8 @@
     "engine-semaphores": [
      7,
      0,
-     0,
      255,
+     0,
      0,
      0,
      0,
@@ -81825,7 +81831,7 @@
    "digests": {
     "save-state": "100:dde23820",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:d98c6ca1",
+    "dungeon-runtime-flags": "36:d024f862",
     "engine-semaphores": "16:fd4659ba",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -81854,8 +81860,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     18,
-     177,
+     16,
+     178,
      4,
      0,
      0,
@@ -82245,10 +82251,10 @@
   {
    "afterEvent": 3099,
    "digests": {
-    "save-state": "100:e5626339",
+    "save-state": "100:dde23820",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:21603069",
-    "engine-semaphores": "16:dbfd98c7",
+    "dungeon-runtime-flags": "36:a6f8cd70",
+    "engine-semaphores": "16:dd55aca0",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
     "scene-flow-flags": "9:c8e581ff",
@@ -82276,8 +82282,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     33,
-     192,
+     31,
+     193,
      4,
      0,
      0,
@@ -82334,6 +82340,7 @@
     "engine-semaphores": [
      7,
      0,
+     0,
      255,
      0,
      0,
@@ -82344,8 +82351,7 @@
      0,
      0,
      0,
-     0,
-     18,
+     17,
      0,
      0,
      0,
@@ -82669,7 +82675,7 @@
    "digests": {
     "save-state": "100:e5626339",
     "input-latches": "3:1a9d246f",
-    "dungeon-runtime-flags": "36:aaeba66d",
+    "dungeon-runtime-flags": "36:ac1f5c18",
     "engine-semaphores": "16:412fef79",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -82698,8 +82704,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     47,
-     206,
+     45,
+     207,
      4,
      0,
      0,
@@ -83091,7 +83097,7 @@
    "digests": {
     "save-state": "100:8d8cff86",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:36580359",
+    "dungeon-runtime-flags": "36:69677f48",
     "engine-semaphores": "16:1fe72e86",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -83120,7 +83126,7 @@
      0
     ],
     "dungeon-runtime-flags": [
-     62,
+     59,
      221,
      4,
      0,
@@ -83513,7 +83519,7 @@
    "digests": {
     "save-state": "100:950d2a9f",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:9585bbfd",
+    "dungeon-runtime-flags": "36:ade4a866",
     "engine-semaphores": "16:83c1715f",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -83542,8 +83548,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     76,
-     235,
+     74,
+     236,
      4,
      0,
      0,
@@ -83935,7 +83941,7 @@
    "digests": {
     "save-state": "100:3d37c6ec",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:1cc21efd",
+    "dungeon-runtime-flags": "36:0706e8f0",
     "engine-semaphores": "16:6278b06c",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -83964,8 +83970,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     91,
-     250,
+     89,
+     251,
      4,
      0,
      0,
@@ -84357,7 +84363,7 @@
    "digests": {
     "save-state": "100:44b7f205",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:c4d68f68",
+    "dungeon-runtime-flags": "36:9343ff31",
     "engine-semaphores": "16:c652f345",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -84386,8 +84392,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     105,
-     8,
+     103,
+     9,
      5,
      0,
      0,
@@ -84779,7 +84785,7 @@
    "digests": {
     "save-state": "100:ece28e52",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:ea9a423c",
+    "dungeon-runtime-flags": "36:32a92e7f",
     "engine-semaphores": "16:a50a3252",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -84808,8 +84814,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     119,
-     22,
+     118,
+     24,
      5,
      0,
      0,
@@ -85201,7 +85207,7 @@
    "digests": {
     "save-state": "100:f462b96b",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:60f11c18",
+    "dungeon-runtime-flags": "36:c10d3103",
     "engine-semaphores": "16:08e4752b",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -85230,8 +85236,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     134,
-     37,
+     132,
+     38,
      5,
      0,
      0,
@@ -85623,7 +85629,7 @@
    "digests": {
     "save-state": "100:9c8d55b8",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:9fd8da6c",
+    "dungeon-runtime-flags": "36:211d4319",
     "engine-semaphores": "16:e79bb438",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -85652,8 +85658,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     148,
-     51,
+     147,
+     53,
      5,
      0,
      0,
@@ -86043,9 +86049,9 @@
   {
    "afterEvent": 3549,
    "digests": {
-    "save-state": "100:16b196aa",
+    "save-state": "100:9c8d55b8",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:e275eb0e",
+    "dungeon-runtime-flags": "36:97625991",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -86055,8 +86061,8 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:6920c015",
-    "proximity-map": "900:0618adc5",
+    "mdt-window": "2000:f6b9e2e8",
+    "proximity-map": "900:636ed877",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
     "magia-stone-sprites": "20:0b2ae445",
@@ -86064,7 +86070,7 @@
     "layer2-tile-map": "80:a7b537c5",
     "boss-explosions-list": "80:a7b537c5",
     "sword-reach-tables": "3fe:efdbec83",
-    "dungeon-config-lists": "30:8b69fca8",
+    "dungeon-config-lists": "30:bdc27782",
     "special-tile-list": "40:61ad2d56"
    },
    "rawSmall": {
@@ -86074,8 +86080,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     0,
-     64,
+     161,
+     67,
      5,
      0,
      0,
@@ -86090,8 +86096,8 @@
      0,
      0,
      0,
-     23,
-     192,
+     7,
+     193,
      0,
      0,
      0,
@@ -86347,8 +86353,8 @@
     "dungeon-config-lists": [
      0,
      1,
-     0,
-     144,
+     2,
+     8,
      9,
      10,
      11,
@@ -86465,9 +86471,9 @@
   {
    "afterEvent": 3599,
    "digests": {
-    "save-state": "100:b95154fd",
+    "save-state": "100:16b196aa",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:33c14d02",
+    "dungeon-runtime-flags": "36:dd464b4d",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -86477,7 +86483,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:869476a5",
+    "mdt-window": "2000:6920c015",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -86496,8 +86502,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     2,
-     86,
+     19,
+     88,
      5,
      0,
      0,
@@ -86889,7 +86895,7 @@
    "digests": {
     "save-state": "100:35f721cb",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:10e057a8",
+    "dungeon-runtime-flags": "36:f3139075",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -86918,8 +86924,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     5,
-     109,
+     1,
+     110,
      5,
      0,
      0,
@@ -87311,7 +87317,7 @@
    "digests": {
     "save-state": "100:3a76231d",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:8fd5b7c0",
+    "dungeon-runtime-flags": "36:00287019",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -87340,8 +87346,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     7,
-     131,
+     3,
+     132,
      5,
      0,
      0,
@@ -87733,7 +87739,7 @@
    "digests": {
     "save-state": "100:adb2170b",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:87eb6178",
+    "dungeon-runtime-flags": "36:886565ad",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -87762,8 +87768,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     9,
-     153,
+     5,
+     154,
      5,
      0,
      0,
@@ -88155,7 +88161,7 @@
    "digests": {
     "save-state": "100:22194ee9",
     "input-latches": "3:b2a70e13",
-    "dungeon-runtime-flags": "36:51c9f0c0",
+    "dungeon-runtime-flags": "36:289b22f9",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -88184,8 +88190,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     11,
-     175,
+     7,
+     176,
      5,
      0,
      0,
@@ -88577,7 +88583,7 @@
    "digests": {
     "save-state": "100:92f5173f",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:fb200879",
+    "dungeon-runtime-flags": "36:695c6a05",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -88606,8 +88612,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     14,
-     199,
+     8,
+     197,
      5,
      0,
      0,
@@ -88999,7 +89005,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:33cd6fe5",
+    "dungeon-runtime-flags": "36:4b92fcb9",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -89028,8 +89034,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     16,
-     221,
+     11,
+     220,
      5,
      0,
      0,
@@ -89421,7 +89427,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:6c8a72e9",
+    "dungeon-runtime-flags": "36:19c9723d",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -89450,8 +89456,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     18,
-     243,
+     13,
+     242,
      5,
      0,
      0,
@@ -89843,7 +89849,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:7fb685ca",
+    "dungeon-runtime-flags": "36:26e738ea",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -89853,7 +89859,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:c4837762",
+    "mdt-window": "2000:52f3c392",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -89872,8 +89878,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     0,
-     9,
+     15,
+     8,
      6,
      0,
      0,
@@ -90265,7 +90271,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:b3d4e92e",
+    "dungeon-runtime-flags": "36:f37fd116",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -90275,7 +90281,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:cbc76594",
+    "mdt-window": "2000:c4837762",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -90294,8 +90300,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     2,
-     31,
+     17,
+     30,
      6,
      0,
      0,
@@ -90687,7 +90693,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:efea4d6a",
+    "dungeon-runtime-flags": "36:a7c23f2a",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -90697,7 +90703,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:cfe79644",
+    "mdt-window": "2000:cbc76594",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -90716,8 +90722,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     5,
-     54,
+     20,
+     53,
      6,
      0,
      0,
@@ -91109,7 +91115,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:424bfe3e",
+    "dungeon-runtime-flags": "36:366cd0fa",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -91138,8 +91144,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     7,
-     76,
+     1,
+     74,
      6,
      0,
      0,
@@ -91531,7 +91537,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:d535b37a",
+    "dungeon-runtime-flags": "36:c6cb0366",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -91560,8 +91566,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     9,
-     98,
+     4,
+     97,
      6,
      0,
      0,
@@ -91953,7 +91959,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:af3e83e6",
+    "dungeon-runtime-flags": "36:49c0eba2",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -91982,8 +91988,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     11,
-     120,
+     6,
+     119,
      6,
      0,
      0,
@@ -92375,7 +92381,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:5fa7e072",
+    "dungeon-runtime-flags": "36:438c254e",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -92404,8 +92410,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     14,
-     143,
+     8,
+     141,
      6,
      0,
      0,
@@ -92797,7 +92803,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:c313fbfe",
+    "dungeon-runtime-flags": "36:91d78742",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -92826,8 +92832,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     16,
-     165,
+     11,
+     164,
      6,
      0,
      0,
@@ -93219,7 +93225,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:f10830e2",
+    "dungeon-runtime-flags": "36:928f38d6",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -93248,8 +93254,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     18,
-     187,
+     13,
+     186,
      6,
      0,
      0,
@@ -93641,7 +93647,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:6677dce2",
+    "dungeon-runtime-flags": "36:9ef3ce82",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -93651,7 +93657,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:2a9aa920",
+    "mdt-window": "2000:58cb8570",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -93670,8 +93676,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     0,
-     209,
+     15,
+     208,
      6,
      0,
      0,
@@ -94063,7 +94069,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:fdcf9516",
+    "dungeon-runtime-flags": "36:a985252e",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -94073,7 +94079,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:15e46a29",
+    "mdt-window": "2000:2a9aa920",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -94092,8 +94098,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     2,
-     231,
+     17,
+     230,
      6,
      0,
      0,
@@ -94485,7 +94491,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:5b067252",
+    "dungeon-runtime-flags": "36:50d72292",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -94495,7 +94501,7 @@
     "death-descriptors": "40:dfde6ac5",
     "trajectories": "3cf:17df8b07",
     "boss-state-block": "300:afff8e99",
-    "mdt-window": "2000:06a9a779",
+    "mdt-window": "2000:15e46a29",
     "proximity-map": "900:0618adc5",
     "viewport-entities-cache": "215:d69dca53",
     "magic-projectiles": "40:16fdc82b",
@@ -94514,8 +94520,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     5,
-     254,
+     20,
+     253,
      6,
      0,
      0,
@@ -94907,7 +94913,7 @@
    "digests": {
     "save-state": "100:3b1fb38c",
     "input-latches": "3:4ab0f7b7",
-    "dungeon-runtime-flags": "36:a5e3d2cb",
+    "dungeon-runtime-flags": "36:8279bef7",
     "engine-semaphores": "16:65239fcf",
     "exit-death-flags": "2:117697cd",
     "town-transition-scratch": "4:4b95f515",
@@ -94936,8 +94942,8 @@
      0
     ],
     "dungeon-runtime-flags": [
-     7,
-     20,
+     1,
+     18,
      7,
      0,
      0,

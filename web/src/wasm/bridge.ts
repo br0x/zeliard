@@ -59,6 +59,8 @@ export interface ZeliardExports {
     wasm_dungeon_get_render_request(): number;
     wasm_dungeon_clear_render_request(): void;
     wasm_finish_rokademo_transition(): void;
+    /** Test-only oracle: runs unpack_map() against current memory state. */
+    wasm_debug_unpack_map(): void;
 }
 
 let wasmInstance: WebAssembly.Instance | null = null;
@@ -896,6 +898,11 @@ export function dungeonClearRenderRequest(): void {
 
 export function finishRokademoTransition(): void {
     wasmExports?.wasm_finish_rokademo_transition?.();
+}
+
+/** Test-only oracle: run unpack_map() against current memory state (Stage 6b). */
+export function debugUnpackMap(): void {
+    wasmExports?.wasm_debug_unpack_map?.();
 }
 
 /**

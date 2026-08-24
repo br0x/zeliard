@@ -201,3 +201,11 @@ void unpack_map() {
     packed_map_ptr_for_prox_right = end_addr - 1;         // both sides are uint16_t
     MEM16(ADDR_VIEWPORT_LEFT_TOP) = ADDR_PROXIMITY_MAP + (MEM8(ADDR_VIEWPORT_TOP_ROW) & 0x3f) * 36;
 }
+
+/* JS-callable debug oracle: run unpack_map against the current memory state
+   without any of dungeon_init's surrounding side effects (entity markers,
+   state transitions). Used by the Stage 6 TS-port parity tests. */
+void wasm_debug_unpack_map(void)
+{
+    unpack_map();
+}

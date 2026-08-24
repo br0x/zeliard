@@ -654,7 +654,7 @@ wasm), golden-replay section re-run, regression checklist items 1–2 spot-run.
   Suite: **458** unit tests + 5 E2E (+1 recorder, skipped by default);
   tsc strict-clean, production build green.
 
-### Stage 6 — Data layer: formats, unpacking, graphics decode
+### Stage 6 — Data layer: formats, unpacking, graphics decode ✅ *(completed)*
 Port `unpack.c`, `data.c` (MDT map parsing), and the graphics decoders
 (`gfmcga.c`, `lega.c`) to TS operating on `Uint8Array`s instead of g_mem
 offsets.
@@ -663,6 +663,41 @@ offsets.
   fixtures.
 - **Exit criteria:** all assets load and decode through TS; rendered output
   pixel-identical.
+
+**Done notes:**
+- **6a — MDT parsing (`engine/mdt.ts`)** ✅ Town/cavern headers, Pascal names
+  (incl. the backslash→ʼ remap), music track id, background type and pat id,
+  parsed from raw file bytes with seg0-absolute→file-offset conversion.
+  Parity-tested against the wasm-derived bridge getters for **every `.mdt`
+  shipped under public/game** (289 checks; degenerate name pointers whose
+  length byte runs past EOF are skipped — the wasm side there reads stale
+  g_mem leftovers from earlier loads, which is no contract). Fully cut over:
+  main.ts's 16 MDT getter call sites now parse the raw bytes it already
+  retains (`mdtData`); the bridge getters survive only as parity oracles.
+- **6b — Map unpacking (`engine/unpack.ts`)** ✅ Full port of unpack.c:
+  step forward/backward RLE decoders, column expansion (incl. the original's
+  overshoot-spill quirk and uint16 pointer wraparound), skip-column, full
+  `unpackMap`, and the two packed-data cursors that Stage 8's incremental
+  scroll will consume. Verified byte-for-byte against a new test-only C
+  oracle `_wasm_debug_unpack_map` (exported via Makefile; wrapped through
+  bridge/dispatch/inventory like any export) across **all 31 dungeons × 3
+  scroll positions each** (left edge, mid-map, right-edge wrap) — 93 parity
+  checks. Using dungeon_init as the oracle was tried first and rejected:
+  entity markers get baked into the proximity map *after* unpack, which is
+  spawn logic, not decoder contract. The oracle caught a real port bug on
+  day one: `dest` was reset per RLE segment instead of persisting down the
+  column (C keeps the pointer across segments) — exactly the class of slip
+  this stage exists to catch.
+- **Scope adjustments, documented:** `data.c` is memory layout + the input
+  setter — both already TS-owned since Stages 2/5e. The big graphics
+  decoders never run at runtime in this port (sheets are pre-converted
+  PNGs); the one runtime decode path (gfmcga explosion rings) has been TS
+  since Stage 2 item 16. Porting lega.c/gfmcga.c wholesale would be dead
+  code — filed for Stage 10 cleanup instead.
+- Suite: **813 unit tests** (+27 skipped degenerate-name cases) + 5 E2E;
+  tsc strict-clean, production build green, Playwright smoke + ports specs
+  passing (rendered output unchanged ⇒ pixel-identical by the existing
+  screenshot baselines). Fixture re-recorded against the new binary hash.
 
 ### Stage 7 — Town simulation
 Port `town.c`: NPC placement/AI, conversations, building transitions,

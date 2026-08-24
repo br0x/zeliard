@@ -50,6 +50,8 @@ export interface DispatchableEngine {
     wasm_dungeon_get_render_request(): number;
     wasm_dungeon_clear_render_request(): void;
     wasm_finish_rokademo_transition(): void;
+    /** Test-only oracle (parity tests); deleted together with the binary. */
+    wasm_debug_unpack_map(): void;
 
     // ─── TS→memory configuration/data writes ───
     loadMdt(mdtData: Uint8Array, mdtPath: string): number;
@@ -94,6 +96,7 @@ const BRIDGE_WRAPPER: { [N in DispatchableName]: string } = {
     wasm_dungeon_get_render_request: 'dungeonGetRenderRequest',
     wasm_dungeon_clear_render_request: 'dungeonClearRenderRequest',
     wasm_finish_rokademo_transition: 'finishRokademoTransition',
+    wasm_debug_unpack_map: 'debugUnpackMap',
 
     loadMdt: 'loadMdt',
     loadSaveState: 'loadSaveState',

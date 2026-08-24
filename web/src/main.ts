@@ -144,6 +144,13 @@ import type { DispatchableName } from './wasm/dispatch.js';
 import { ShadowHarness } from './wasm/parity/shadow.js';
 import { ReplayRecorder, getActiveRecorder, setActiveRecorder } from './wasm/parity/recorder.js';
 import { PORTED_EXPORTS, PORTED_NAMES } from './wasm/parity/ports.js';
+import {
+    getTownName as tsGetTownName,
+    getCavernName as tsGetCavernName,
+    getMusicTrackId as tsGetMusicTrackId,
+    getTownBackgroundType as tsGetTownBackgroundType,
+    getTownPatId as tsGetTownPatId,
+} from './engine/mdt.js';
 
 /** Golden-replay capture mode (?zeliard_record=1) — Stage 5d. */
 const REPLAY_RECORDING =
@@ -215,11 +222,6 @@ let engineReady  = false;
 let gameStarted  = false;
 
 let initWasm: any;
-let getCavernName: any;
-let getTownName: any;
-let getMusicTrackId: any;
-let getTownBackgroundType: any;
-let getTownPatId: any;
 let getWasmMemory: any;
 let hasWasmExport: any;
 let readMemory: any;
@@ -635,14 +637,14 @@ async function startGame() {
         mdtData = new Uint8Array(await response.arrayBuffer());
         engine.call('loadMdt', mdtData, mdtPath);
 
-        townBackgroundType = getTownBackgroundType();
+        townBackgroundType = numOrNull(tsGetTownBackgroundType(mdtBytes()));
         await loadTownBackground();
         await loadTownCeiling();
         await loadTownSidewalk1();
         await loadTownSidewalk2();
         resetTownScrollOffsets();
 
-        townPatId = getTownPatId();
+        townPatId = numOrNull(tsGetTownPatId(mdtBytes()));
         const pattern = (PATTERN_ASSETS as Record<number, { imagePath: string; specialTiles: number[]; animatedTilesSeq: number[][] }>)[townPatId as number];
         if (pattern) {
             await loadTownTileSheet(pattern.imagePath);
@@ -673,7 +675,7 @@ async function startGame() {
             townEntryRan = true;
         }
 
-        const trackId = resolveMusicTrack(getMusicTrackId());
+        const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
 
         engineReady = true;
@@ -864,9 +866,8 @@ async function loadDungeonAssets(rawMapId: number): Promise<void> {
 async function loadWasmEngine() {
     const wasmBridge = await import('./wasm/bridge.js');
     ({
-        initWasm, getCavernName,
-        getTownName, getMusicTrackId, getTownBackgroundType,
-        getTownPatId, getWasmMemory, hasWasmExport,
+        initWasm,
+        getWasmMemory, hasWasmExport,
         readMemory,
         getTownPendingTransitionFlag, getTownPendingTransition,
         getBossName,
@@ -1099,7 +1100,7 @@ async function handleTownTransition(transition: any): Promise<void> {
         if (!resp.ok) throw new Error(`Failed to load ${mdtPath}: ${resp.status}`);
         mdtData = new Uint8Array(await resp.arrayBuffer());
         engine.call('loadMdt', mdtData, mdtPath);
-        const newBgType = getTownBackgroundType();
+        const newBgType = numOrNull(tsGetTownBackgroundType(mdtBytes()));
         if (newBgType !== townBackgroundType) {
             townBackgroundType = newBgType;
             townBackgroundReady = false;
@@ -1136,7 +1137,7 @@ async function handleTownTransition(transition: any): Promise<void> {
         engine.call('wasm_town_complete_transition');
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[transition] entered map ${rawMapId}`);
     } catch (err) {
@@ -1168,7 +1169,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         dungeonProjectiles = null;
         dungeonTileSheetReady = false;
         dungeonEntitySheetReady = false;
-        cavernName = getCavernName?.() ?? 'Unknown';
+        cavernName = tsGetCavernName(mdtBytes());
         updatePlaceHud(cavernName, true);
         await loadDungeonAssets(rawMapId);
         const cfg = DUNGEONS[rawMapId]!;
@@ -1197,7 +1198,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         engine.call('wasm_dungeon_init', rawMapId, isFromTown); // should call dungeon::prepare_dungeon
         gameMode = 'dungeon';
         townEntryRan = false;
-        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] entered map ${rawMapId}`);
     } catch (err) {
@@ -1236,7 +1237,7 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
             writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(heroViewX));
         }
 
-        const newBgType = getTownBackgroundType();
+        const newBgType = numOrNull(tsGetTownBackgroundType(mdtBytes()));
         if (newBgType !== townBackgroundType) {
             townBackgroundType = newBgType;
             townBackgroundReady = false;
@@ -1254,7 +1255,7 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
         await loadTownSidewalk2();
         resetTownScrollOffsets();
 
-        const newPatId = getTownPatId();
+        const newPatId = numOrNull(tsGetTownPatId(mdtBytes()));
         if (newPatId !== townPatId) {
             townPatId = newPatId;
             townTileSheetReady = false;
@@ -1277,7 +1278,7 @@ async function initTownFromDungeon(townMapId: number, isDeath: boolean): Promise
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
         console.log(`[dungeon] exited to town ${rawMapId}, isDeath=${isDeath}`);
         if (isDeath && readU8(ADDR_DEATH_ALREADY_PROCESSED) === 0) {
@@ -1397,7 +1398,7 @@ async function handleWarp() {
         mdtData = new Uint8Array(await resp.arrayBuffer());
         engine.call('loadMdt', mdtData, mdtPath);
 
-        const newBgType = getTownBackgroundType();
+        const newBgType = numOrNull(tsGetTownBackgroundType(mdtBytes()));
         if (newBgType !== townBackgroundType) {
             townBackgroundType = newBgType;
             townBackgroundReady = false;
@@ -1415,7 +1416,7 @@ async function handleWarp() {
         await loadTownSidewalk2();
         resetTownScrollOffsets();
 
-        const newPatId = getTownPatId();
+        const newPatId = numOrNull(tsGetTownPatId(mdtBytes()));
         if (newPatId !== townPatId) {
             townPatId = newPatId;
             townTileSheetReady = false;
@@ -1443,7 +1444,7 @@ async function handleWarp() {
         gameMode = 'town';
         soundManager.setMusicDim(1.0);
         soundManager.setSfxVolume(1.0);
-        const trackId = resolveMusicTrack(getMusicTrackId?.());
+        const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
         console.log('[falter] warped to Dorado');
     } catch (err) {
@@ -1737,8 +1738,8 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
     townEntryRan = true;
 
     // ------------------- Reload JS-side visual assets -------------------
-    const newBgType = getTownBackgroundType();
-    const newPatId = getTownPatId();
+    const newBgType = numOrNull(tsGetTownBackgroundType(mdtBytes()));
+    const newPatId = numOrNull(tsGetTownPatId(mdtBytes()));
 
     if (newBgType !== townBackgroundType || !townBackgroundReady) {
         townBackgroundType = newBgType;
@@ -1775,7 +1776,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
         NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, idx) => loadNpcSprite(idx))
     );
 
-    const trackId = resolveMusicTrack(getMusicTrackId?.());
+    const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
     if (trackId) setCurrentMusicTrack(trackId);
 
     resetBossHud();
@@ -1790,6 +1791,17 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
 // let fps = 0;
 let cavernName = '';
 let mdtData: Uint8Array | null = null;
+
+/** Raw MDT bytes for TS-side parsing (set by every loadMdt site). */
+function mdtBytes(): Uint8Array {
+    if (!mdtData) throw new Error('MDT not loaded');
+    return mdtData;
+}
+
+/** Stage 6a: MDT header fields are parsed in TS from raw file bytes. */
+function numOrNull(v: number | ''): number | null {
+    return v === '' ? null : v;
+}
 
 let frameTimer  = 0;
 let tickCounter = 0;
@@ -2003,7 +2015,7 @@ function draw() {
             drawTownNpcs();
             drawTownHero();
             drawLifeBar();
-            let placeName = getTownName?.() ?? 'unknown';
+            let placeName = tsGetTownName(mdtBytes());
             updatePlaceHud(townEntryRan ? placeName : '', false);
             renderGoldHud();
             renderAlmasHud();

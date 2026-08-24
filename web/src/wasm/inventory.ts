@@ -375,6 +375,15 @@ export const ENGINE_EXPORT_ENTRIES: readonly ExportEntry[] = [
         notes: 'Legacy g_mem pointer accessor; unused by TS code.',
     },
     {
+        name: 'wasm_debug_unpack_map',
+        signature: 'void wasm_debug_unpack_map(void)',
+        owner: 'glue',
+        reads: ['mdt-window'],
+        writes: ['proximity-map', 'dungeon-runtime-flags'],
+        portStage: 10,
+        notes: 'Test-only unpack_map oracle for Stage 6 parity tests; no game code calls it.',
+    },
+    {
         name: 'wasm_set_input_keys',
         signature: 'void wasm_set_input_keys(uint8_t keys)',
         owner: 'glue',
