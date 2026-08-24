@@ -1040,18 +1040,20 @@ management, render-request generation.
   viewport anchoring and skip-roka-run latch). `DungeonRuntimeStatics`
   carries the C statics (`is_from_town`, `saved_y_view_init`,
   `saved_door_x1`, `g_skip_roka_run`) across frames.
-- **8d slice 10 ✅ runtime cutover flip:** `wasm_dungeon_update` is now
-  served from TS by default via the dispatch layer (`verifyVia: 'replay'`
-  — C statics make shadow dual-run impossible, same as Stage 7c). Wired
-  through `engine/dungeon-cutover.ts` which composes all state handlers
-  (NORMAL/ROPE/death/door/Jashiin/ROKA_RUN) into the
-  `dungeonUpdate` dispatcher. `zeliard_ports=wasm` restores pure-wasm;
-  `dispatch.reset()` keeps wasm as instant fallback until Stage 10.
-  Dungeon screenshot baselines re-taken against TS rendering (pixel-level
-  timing differences are expected when the tick source changes).
-- **8d complete ✅.** The entire dungeon simulation runs from TS by default.
-  Remaining golden fixtures for death sequence and boss encounter are
-  tracked as Stage 8e follow-up work.
+- **8d slice 10 ⚠️ runtime cutover (REGRESSION → REVERTED):** making
+  `wasm_town_update` and `wasm_dungeon_update` default to TS caused two
+  gameplay regressions: (1) town movement restricted after restore,
+  (2) hero walks past map boundaries into wrong areas, (3) dungeon entry
+  at wrong coords. Root cause: the C-side statics (`g_is_from_town`,
+  `saved_y_view_init`, `saved_door_x1`, door-pending state) are set by
+  `wasm_dungeon_init`/`prepare_dungeon` running in WASM but never
+  communicated to the TS runtime statics object — a split-brain state
+  problem. The cutover has been reverted to opt-in (`zeliard_ports=
+  cutover|shadow`) until the TS implementations receive proper statics
+  synchronization from the init path. The full port code remains in place
+  and passes all unit tests.
+- **8d status:** all dungeon.c subsystems ported to TS with parity tests.
+  Runtime cutover deferred until statics synchronization is implemented.
   runtime cutover flip (mirrors Stage 7c); wasm stays instant fallback
   until Stage 10.
 - **8d next:** the dispatcher (`wasm_dungeon_update` state switch),

@@ -899,16 +899,16 @@ async function loadWasmEngine() {
         setDoorX1: (x: number): void => engine.call('wasm_set_door_x1', x),
     });
 
-    // Stage 5e/7: serve leaf exports + town ticks from TS by default.
-    // zeliard_ports=wasm restores the pure-wasm path; =shadow keeps wasm
-    // authoritative while dual-running the leaf ports.
-    if (TS_PORTS_MODE === 'wasm') {
-        // pure-wasm debugging: nothing overridden
-    } else if (TS_PORTS_MODE === 'shadow') {
+    // Stage 5e/7/8: serve leaf exports + town/dungeon ticks from TS.
+    // zeliard_ports=cutover enables TS serving; zeliard_ports=shadow keeps
+    // wasm authoritative while dual-running. Default: pure-wasm until the
+    // TS implementations are fully parity-verified (see MIGRATION_PLAN.md).
+    if (TS_PORTS_MODE === 'shadow') {
         enablePorts('shadow');
-    } else {
+    } else if (TS_PORTS_MODE === 'cutover') {
         enablePorts('cutover');
     }
+    // default (no param): pure-wasm debugging — nothing overridden
 }
 
 const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine
