@@ -34,7 +34,7 @@ export const DEFAULT_DIGEST_REGIONS: readonly string[] = ENGINE_REGIONS.filter(
 
 /** Regions at or below this size are additionally stored raw per checkpoint,
  * letting the runner report exact byte offsets instead of digest mismatches. */
-export const RAW_SNAPSHOT_MAX_BYTES = 64;
+export const RAW_SNAPSHOT_MAX_BYTES = 256;
 
 export class ReplayRecorder {
     private events: ReplayEvent[] = [];

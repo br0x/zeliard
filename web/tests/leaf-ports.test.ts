@@ -170,9 +170,11 @@ describe('pure getter parity vs real wasm', () => {
 });
 
 describe('ported export wiring', () => {
-    it('ports module covers the planned stage-5e surface', async () => {
+    it('ports module covers the planned stage-5e + stage-7 surface', async () => {
         const { PORTED_NAMES } = await import('../src/wasm/parity/ports.js');
-        expect(PORTED_NAMES).toEqual([
+        const names = new Set(PORTED_NAMES);
+        const required = [
+            // Stage 5e leaf ports
             'wasm_set_input_keys',
             'wasm_get_pending_transition_map',
             'wasm_get_pending_transition_pat',
@@ -182,7 +184,21 @@ describe('ported export wiring', () => {
             'wasm_dungeon_get_render_request',
             'wasm_dungeon_clear_render_request',
             'wasm_dungeon_get_entity_table',
-        ]);
+            // Stage 7 town family (replay cutover + E2E verified)
+            'wasm_town_init',
+            'wasm_town_set_return_before_main_loop',
+            'wasm_town_entry_disabling_edge_scroll',
+            'wasm_town_entry_enabling_edge_scroll',
+            'wasm_town_complete_transition',
+            'wasm_init_c015_obj_if_exists',
+            'wasm_town_conversation_finish',
+            'wasm_town_building_finish',
+            'wasm_town_update',
+            'wasm_town_full_tick',
+        ];
+        const missing = required.filter((n) => !names.has(n));
+        expect(missing, 'missing ported exports').toEqual([]);
+        expect(names.size).toBe(required.length);
     });
 
     it('g_mem base offset is stable across builds (view-relative pokes stay valid)', () => {

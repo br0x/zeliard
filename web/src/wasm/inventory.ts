@@ -384,6 +384,15 @@ export const ENGINE_EXPORT_ENTRIES: readonly ExportEntry[] = [
         notes: 'Test-only unpack_map oracle for Stage 6 parity tests; no game code calls it.',
     },
     {
+        name: 'wasm_set_door_x1',
+        signature: 'void wasm_set_door_x1(uint16_t x1)',
+        owner: 'town',
+        reads: [],
+        writes: [],
+        portStage: 8,
+        notes: 'Bridges the town→dungeon door-x C global across prepare_dungeon; disappears at Stage 8.',
+    },
+    {
         name: 'wasm_set_input_keys',
         signature: 'void wasm_set_input_keys(uint8_t keys)',
         owner: 'glue',

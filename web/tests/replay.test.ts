@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { vi } from 'vitest';
+
 
 const WASM_PATH = fileURLToPath(new URL('../../build/zeliard.wasm', import.meta.url));
 const FIXTURES_DIR = fileURLToPath(new URL('./fixtures/replay/', import.meta.url));
@@ -47,11 +48,9 @@ describe('golden replay', () => {
         });
 
         it('records its source-binary hash for diagnostics', () => {
-            // NOTE: this is intentionally NOT a hard gate. CI rebuilds the
-            // wasm from source (unpinned emsdk), so bytes differ between the
-            // recording environment and test environments. Staleness is
-            // caught behaviorally by the checkpoint digests below — if the
-            // engine changed in any observable way, replay diverges loudly.
+            // NOTE: intentionally NOT a hard gate — CI rebuilds the wasm with
+            // unpinned emsdk. Behavioral parity is enforced by the checkpoint
+            // digests during replay.
             expect(fixture.header.wasmSha256).toMatch(/^[0-9a-f]{16}$/);
             if (fixture.header.wasmSha256 !== wasmSha256) {
                 console.warn(
@@ -74,13 +73,11 @@ describe('golden replay', () => {
         it('replays bit-for-bit against the real wasm', async () => {
             const engine = await freshEngine();
             const instance = engine.initWasmFromBytes(new Uint8Array(binary));
-            const mismatches = await import('../src/wasm/parity/replay-runner.js').then(
-                ({ replayFixture }) =>
-                    replayFixture(
-                        fixture,
-                        instance.exports as unknown as Parameters<typeof replayFixture>[1],
-                        () => engine.getWasmMemory(),
-                    ),
+            const { replayFixture } = await import('../src/wasm/parity/replay-runner.js');
+            const mismatches = replayFixture(
+                fixture,
+                instance.exports as unknown as Parameters<typeof replayFixture>[1],
+                () => engine.getWasmMemory(),
             );
             expect(
                 mismatches,
@@ -88,28 +85,70 @@ describe('golden replay', () => {
             ).toEqual([]);
         });
 
-        it('replays clean with wasm_set_input_keys served from TS (cutover proof)', async () => {
-            const [{ replayFixture }, { setInputKeys }, engine] = await Promise.all([
+        it('replays clean with input + town ticks served from TS (Stage 7 cutover)', async () => {
+            const engine = await freshEngine();
+            const instance = engine.initWasmFromBytes(new Uint8Array(binary));
+            const [
+                { replayFixture },
+                { setInputKeys },
+                town,
+            ] = await Promise.all([
                 import('../src/wasm/parity/replay-runner.js'),
                 import('../src/engine/input.js'),
-                freshEngine(),
+                import('../src/engine/town.js'),
             ]);
-            const instance = engine.initWasmFromBytes(new Uint8Array(binary));
+            const gmem = (): Uint8Array => engine.getWasmMemory()!;
+            const impls: Record<string, (...args: unknown[]) => unknown> = {
+                wasm_set_input_keys: (bit: unknown) => setInputKeys(gmem(), bit as number),
+                wasm_town_init: () => town.townInit(gmem()),
+                wasm_town_set_return_before_main_loop: (enabled: unknown) =>
+                    town.townSetReturnBeforeMainLoop(gmem(), enabled as boolean),
+                wasm_town_entry_disabling_edge_scroll: () =>
+                    town.townEntryDisablingEdgeScroll(gmem()),
+                wasm_town_entry_enabling_edge_scroll: () =>
+                    town.townEntryEnablingEdgeScroll(gmem()),
+                wasm_town_complete_transition: () => town.townCompleteTransition(gmem()),
+                wasm_init_c015_obj_if_exists: () => town.initC015ObjIfExists(gmem()),
+                wasm_town_conversation_finish: () => town.townConversationFinish(gmem()),
+                wasm_town_building_finish: () => town.townBuildingFinish(gmem()),
+                wasm_town_update: () => town.townUpdate(gmem()),
+                wasm_town_full_tick: () => town.townFullTick(gmem()),
+            };
+
+            // temporary per-event trace around first divergence
             const mismatches = replayFixture(
                 fixture,
                 instance.exports as unknown as Parameters<typeof replayFixture>[1],
-                () => engine.getWasmMemory(),
-                {
-                    // Cutover mode: the dispatched call is served entirely by
-                    // the Stage 5e TS port; wasm's copy of the export is
-                    // never invoked for it.
-                    wasm_set_input_keys: (keys: unknown) =>
-                        setInputKeys(engine.getWasmMemory()!, keys as number),
-                },
+                gmem,
+                impls,
             );
+            if (mismatches.length > 0) {
+                writeFileSync(
+                    '/tmp/opencode/town-replay-diff.json',
+                    JSON.stringify(
+                        {
+                            count: mismatches.length,
+                            all: mismatches.map((m) => ({ at: m.afterEvent, region: m.region, diffs: m.byteDiffs?.slice(0, 6) ?? m.expected + ' vs ' + m.actual })),
+                            eventsAround: fixture.events
+                                .slice(
+                                    Math.max(0, mismatches[0]!.afterEvent - 20),
+                                    mismatches[0]!.afterEvent + 3,
+                                )
+                                .map((e) =>
+                                    e.k === 'call'
+                                        ? `${e.name}(${JSON.stringify(e.args ?? []).slice(0, 40)})`
+                                        : `poke:${e.addr!.toString(16)}`,
+                                ),
+                        },
+                        null,
+                        1,
+                    ),
+                );
+            }
+
             expect(
                 mismatches,
-                `TS-served input latching diverged while replaying ${fileName}`,
+                `TS town ticks diverged while replaying ${fileName}`,
             ).toEqual([]);
         });
     });

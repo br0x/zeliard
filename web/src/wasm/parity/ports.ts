@@ -13,6 +13,18 @@
 import type { DispatchableEngine, DispatchableName } from '../dispatch.js';
 import { keyStateToBitmask } from '../memory.js';
 import type { KeyState } from '../memory.js';
+import { initC015ObjIfExists as initC015ObjIfExistsTs } from '../../engine/town.js';
+import {
+    townBuildingFinish,
+    townCompleteTransition,
+    townConversationFinish,
+    townEntryDisablingEdgeScroll,
+    townEntryEnablingEdgeScroll,
+    townFullTick,
+    townInit,
+    townSetReturnBeforeMainLoop,
+    townUpdate,
+} from '../../engine/town.js';
 import { clearRenderRequest, getDungeonState, getEntityTable, getRenderRequest, getViewportTop } from '../../engine/dungeon-state.js';
 import { setInputKeys } from '../../engine/input.js';
 import {
@@ -29,6 +41,13 @@ export interface PortedExport {
     /** Build the TS implementation bound to a live g_mem view accessor. */
     make: (getView: ViewAccessor) => DispatchableEngine[DispatchableName];
     spec: ShadowSpec;
+    /**
+     * 'shadow' (default): safe to dual-run against wasm per call.
+     * 'replay': stateful — C statics make per-call dual-run impossible;
+     * verified by golden-replay cutover + live E2E instead. Excluded from
+     * shadow-mode enables.
+     */
+    verifyVia?: 'shadow' | 'replay';
 }
 
 function requireView(getView: ViewAccessor): Uint8Array {
@@ -87,6 +106,71 @@ export const PORTED_EXPORTS: Record<string, PortedExport> = {
         name: 'wasm_dungeon_clear_render_request',
         make: (getView) => () => clearRenderRequest(requireView(getView)),
         spec: { regions: ['engine-semaphores'] },
+    },
+    wasm_town_init: {
+        name: 'wasm_town_init',
+        verifyVia: 'replay',
+        make: (getView) => () => townInit(requireView(getView)),
+        spec: {},
+    },
+    wasm_town_set_return_before_main_loop: {
+        name: 'wasm_town_set_return_before_main_loop',
+        verifyVia: 'replay',
+        make: (getView) => (enabled: boolean) =>
+            townSetReturnBeforeMainLoop(requireView(getView), enabled),
+        spec: {},
+    },
+    wasm_town_entry_disabling_edge_scroll: {
+        name: 'wasm_town_entry_disabling_edge_scroll',
+        verifyVia: 'replay',
+        make: (getView) => () => townEntryDisablingEdgeScroll(requireView(getView)),
+        spec: { regions: ['town-transition-scratch', 'scene-flow-flags'] },
+    },
+    wasm_town_entry_enabling_edge_scroll: {
+        name: 'wasm_town_entry_enabling_edge_scroll',
+        verifyVia: 'replay',
+        make: (getView) => () => townEntryEnablingEdgeScroll(requireView(getView)),
+        spec: { regions: ['town-transition-scratch', 'scene-flow-flags'] },
+    },
+    wasm_town_complete_transition: {
+        name: 'wasm_town_complete_transition',
+        verifyVia: 'replay',
+        make: (getView) => () => townCompleteTransition(requireView(getView)),
+        spec: { regions: ['town-transition-scratch', 'scene-flow-flags'] },
+    },
+    wasm_init_c015_obj_if_exists: {
+        name: 'wasm_init_c015_obj_if_exists',
+        verifyVia: 'replay',
+        make: (getView) => () => initC015ObjIfExistsTs(requireView(getView)),
+        spec: { regions: ['mdt-window'] },
+    },
+    // Stage 7: the whole town tick family is served from TS. Per-tick shadow
+    // dual-run is impossible (the C tick mutates private statics that memory
+    // snapshots cannot rewind), so these are verified by golden-replay
+    // cutover + live E2E instead of the shadow harness.
+    wasm_town_update: {
+        name: 'wasm_town_update',
+        verifyVia: 'replay',
+        make: (getView) => () => townUpdate(requireView(getView)),
+        spec: { regions: ['town-transition-scratch', 'scene-flow-flags'] },
+    },
+    wasm_town_full_tick: {
+        name: 'wasm_town_full_tick',
+        verifyVia: 'replay',
+        make: (getView) => () => townFullTick(requireView(getView)),
+        spec: { regions: ['dungeon-runtime-flags'] },
+    },
+    wasm_town_conversation_finish: {
+        name: 'wasm_town_conversation_finish',
+        verifyVia: 'replay',
+        make: (getView) => () => townConversationFinish(requireView(getView)),
+        spec: { regions: ['scene-flow-flags'] },
+    },
+    wasm_town_building_finish: {
+        name: 'wasm_town_building_finish',
+        verifyVia: 'replay',
+        make: (getView) => () => townBuildingFinish(requireView(getView)),
+        spec: { regions: ['scene-flow-flags'] },
     },
     wasm_dungeon_get_entity_table: {
         name: 'wasm_dungeon_get_entity_table',

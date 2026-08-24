@@ -702,13 +702,48 @@ offsets.
   passing (rendered output unchanged ⇒ pixel-identical by the existing
   screenshot baselines). Fixture re-recorded against the new binary hash.
 
-### Stage 7 — Town simulation
+### Stage 7 — Town simulation 🚧 *(in progress — 7a landed)*
 Port `town.c`: NPC placement/AI, conversations, building transitions,
 edge-scroll logic (`wasm_town_update` / `_full_tick` family).
 - Shadow-run town ticks during full regression checklist sessions.
+  *(Adjusted during implementation: per-tick shadow dual-run is impossible
+  for the town family — the C tick mutates private statics (door-pending,
+  pending-wait, return-before-main-loop) that memory snapshot/restore cannot
+  rewind. Verification instead uses golden-replay cutover + live E2E.)*
 - Golden fixtures: scripted walks through every town, entering/exiting every
   building.
 - **Exit criteria:** town runs entirely from TS; wasm town code unreachable.
+
+**7a — tick + entry family ported (`engine/town.ts`, ~700 lines)** ✅
+- Full 1:1 port of: `town_main_loop_step` (hero movement/collision vs
+  special-tile list and non-passable NPCs, viewport-threshold edge scroll
+  with scroll-request bits, door detection via the doors list, door-pending
+  animation state machine incl. the Falter-warp 0xFF dest and dungeon-door
+  split), `hero_spacebar_interaction`, `check_special_npc_conversation`,
+  `start_npc_conversation`, the complete 8-entry NPC AI table (look-and-bob,
+  1/2-bit patrols, face-hero, bob-in-place, bounce patrols, static),
+  head-tile save/restore, `handle_inventory_key` (incl. the real seg1
+  A000↔C000 buffer swaps and 0xFE viewport fill), `handle_edge_screen_
+  transition`, `request_dungeon_transition` (+ door-x handoff to the still-
+  wasm prepare_dungeon via the newly exported `wasm_set_door_x1`),
+  `town_complete_wait`/pending-wait machinery, `wasm_town_init`,
+  `town_entry_common` (descriptor FF-scans, middle-layer/pat-id, c015
+  conditional patch list), `wasm_town_complete_transition`,
+  conversation/building finish. C file statics → `TownTickState`.
+- Wired through dispatch + ports registry (`verifyVia: 'replay'`; excluded
+  from shadow enables); live E2E cutover mode plays boot→intro→town walk→
+  sword swing→dungeon→return-to-town entirely on TS ticks, shadow E2E clean.
+- **Open item (7b) RESOLVED ✅:** the recorded-replay cutover divergence was
+  a genuine port bug found by the harness — the edge-scroll branch adjusted
+  `PROX_START` by ±1 instead of ±8 (one tile = 8px). With that fixed, the
+  full town family replays the recorded session bit-for-bit: all 184
+  checkpoint digests across every region match with input latching AND the
+  entire tick/entry/transition surface served from TS. Test un-skipped and
+  asserting clean.
+- **Remaining for exit criteria:** golden fixtures covering every town and
+  building pair (current fixture covers one town + one dungeon); then flip
+  the default dispatch bindings so town runs from TS without debug flags
+  (wasm stays as instant fallback until Stage 10).
 
 ### Stage 8 — Dungeon core
 Port `dungeon.c`: player physics/collision, scrolling, entity table

@@ -52,6 +52,8 @@ export interface DispatchableEngine {
     wasm_finish_rokademo_transition(): void;
     /** Test-only oracle (parity tests); deleted together with the binary. */
     wasm_debug_unpack_map(): void;
+    /** Stage 7: town→dungeon handoff for the door x C global. */
+    wasm_set_door_x1(x1: number): void;
 
     // ─── TS→memory configuration/data writes ───
     loadMdt(mdtData: Uint8Array, mdtPath: string): number;
@@ -97,6 +99,7 @@ const BRIDGE_WRAPPER: { [N in DispatchableName]: string } = {
     wasm_dungeon_clear_render_request: 'dungeonClearRenderRequest',
     wasm_finish_rokademo_transition: 'finishRokademoTransition',
     wasm_debug_unpack_map: 'debugUnpackMap',
+    wasm_set_door_x1: 'setDoorX1',
 
     loadMdt: 'loadMdt',
     loadSaveState: 'loadSaveState',

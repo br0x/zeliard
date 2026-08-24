@@ -107,6 +107,11 @@ export function replayFixture(
         if (!cp) return;
         const mem = getGmemView();
         if (!mem) throw new Error('g_mem view unavailable at checkpoint');
+        const TRACECP = typeof process !== 'undefined' && !!process.env.TOWN_TRACE;
+        if (TRACECP) {
+            // eslint-disable-next-line no-console
+            console.error(`[cp] ${index} pstartLo=${mem[0xff2a]} xv=${mem[0x83]} ftmr=${mem[0xff1a]}`);
+        }
         for (const [regionName, expectedDigest] of Object.entries(cp.digests)) {
             const actual = digestRegionByName(mem, regionName);
             if (actual === expectedDigest) continue;

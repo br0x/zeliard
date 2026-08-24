@@ -61,6 +61,8 @@ export interface ZeliardExports {
     wasm_finish_rokademo_transition(): void;
     /** Test-only oracle: runs unpack_map() against current memory state. */
     wasm_debug_unpack_map(): void;
+    /** Stage 7: preserve town→dungeon door x across prepare_dungeon memset. */
+    wasm_set_door_x1(x1: number): void;
 }
 
 let wasmInstance: WebAssembly.Instance | null = null;
@@ -903,6 +905,11 @@ export function finishRokademoTransition(): void {
 /** Test-only oracle: run unpack_map() against current memory state (Stage 6b). */
 export function debugUnpackMap(): void {
     wasmExports?.wasm_debug_unpack_map?.();
+}
+
+/** Stage 7: preserve town→dungeon door x across prepare_dungeon's memset. */
+export function setDoorX1(x1: number): void {
+    wasmExports?.wasm_set_door_x1?.(x1);
 }
 
 /**

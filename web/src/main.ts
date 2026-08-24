@@ -144,6 +144,7 @@ import type { DispatchableName } from './wasm/dispatch.js';
 import { ShadowHarness } from './wasm/parity/shadow.js';
 import { ReplayRecorder, getActiveRecorder, setActiveRecorder } from './wasm/parity/recorder.js';
 import { PORTED_EXPORTS, PORTED_NAMES } from './wasm/parity/ports.js';
+import { installTownHooks } from './engine/town.js';
 import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
@@ -185,6 +186,10 @@ function enablePorts(
     for (const name of names) {
         const entry = PORTED_EXPORTS[name];
         if (!entry) throw new Error(`no such ported export: ${name}`);
+        // Stateful ticks (town family) cannot shadow dual-run: the C side
+        // mutates private statics between the two executions. They are
+        // verified by golden-replay cutover + live E2E instead.
+        if (mode === 'shadow' && entry.verifyVia === 'replay') continue;
         const tsImpl = entry.make(() => getWasmMemory());
         if (mode === 'cutover') {
             engine.override(name as DispatchableName, tsImpl);
@@ -889,7 +894,12 @@ async function loadWasmEngine() {
         recorder.install(engine);
     }
 
-    // Stage 5e: serve leaf exports from TS, optionally under shadow parity.
+    // Stage 7: let the TS tick push the door-x global into the wasm side.
+    installTownHooks({
+        setDoorX1: (x: number): void => engine.call('wasm_set_door_x1', x),
+    });
+
+    // Stage 5e/7: serve leaf exports + town ticks from TS.
     if (TS_PORTS_MODE === 'shadow' || TS_PORTS_MODE === 'cutover') {
         enablePorts(TS_PORTS_MODE);
     }
