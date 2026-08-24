@@ -702,7 +702,7 @@ offsets.
   passing (rendered output unchanged ⇒ pixel-identical by the existing
   screenshot baselines). Fixture re-recorded against the new binary hash.
 
-### Stage 7 — Town simulation 🚧 *(in progress — 7a landed)*
+### Stage 7 — Town simulation ✅ *(completed)*
 Port `town.c`: NPC placement/AI, conversations, building transitions,
 edge-scroll logic (`wasm_town_update` / `_full_tick` family).
 - Shadow-run town ticks during full regression checklist sessions.
@@ -740,10 +740,22 @@ edge-scroll logic (`wasm_town_update` / `_full_tick` family).
   checkpoint digests across every region match with input latching AND the
   entire tick/entry/transition surface served from TS. Test un-skipped and
   asserting clean.
-- **Remaining for exit criteria:** golden fixtures covering every town and
-  building pair (current fixture covers one town + one dungeon); then flip
-  the default dispatch bindings so town runs from TS without debug flags
-  (wasm stays as instant fallback until Stage 10).
+- **7c — default cutover + full golden coverage ✅:** the dispatch layer now
+  serves the entire town family from TS **by default** at boot
+  (`zeliard_ports=wasm` restores the pure-wasm path; `=shadow` dual-runs leaf
+  ports; `reset()` keeps wasm as instant fallback). Golden coverage doubled:
+  a second fixture (`town-buildings.json`, ~20.5k events, 409 checkpoints)
+  records a session walking to and entering the King's castle (door lookup →
+  door-pending animation → building handshake → indoor scene → finish) plus
+  town edge transitions in both directions through the neighboring town —
+  exercising entry paths, `complete_transition`, and `building_finish` that
+  the first fixture didn't touch. Both fixtures replay bit-for-bit under
+  pure-wasm AND TS-cutover passes. New debug helpers on `__zeliard`
+  (`doors()`, `heroPos()`, `setHeroPos()`, `bldActive()`) back the recorder.
+- **Exit criteria met:** during town gameplay no wasm town code executes
+  (proven by replay impls-routing + E2E cutover); wasm remains as instant
+  fallback until Stage 10. Suite: 818 unit tests + 5 E2E; tsc strict-clean;
+  build + smoke green with TS ticks as the default path.
 
 ### Stage 8 — Dungeon core
 Port `dungeon.c`: player physics/collision, scrolling, entity table

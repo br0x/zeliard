@@ -899,9 +899,15 @@ async function loadWasmEngine() {
         setDoorX1: (x: number): void => engine.call('wasm_set_door_x1', x),
     });
 
-    // Stage 5e/7: serve leaf exports + town ticks from TS.
-    if (TS_PORTS_MODE === 'shadow' || TS_PORTS_MODE === 'cutover') {
-        enablePorts(TS_PORTS_MODE);
+    // Stage 5e/7: serve leaf exports + town ticks from TS by default.
+    // zeliard_ports=wasm restores the pure-wasm path; =shadow keeps wasm
+    // authoritative while dual-running the leaf ports.
+    if (TS_PORTS_MODE === 'wasm') {
+        // pure-wasm debugging: nothing overridden
+    } else if (TS_PORTS_MODE === 'shadow') {
+        enablePorts('shadow');
+    } else {
+        enablePorts('cutover');
     }
 }
 
@@ -2250,6 +2256,33 @@ function openImportExportModal() {
         disable: (names?: string[]): void => disablePorts(names),
         state: () => Object.fromEntries(activePorts),
     },
+    /**
+     * Stage 7 tooling: door positions for the current town plus hero
+     * position read/write, for scripted building-entry sessions.
+     */
+    doors: (): Array<{ x: number; dest: number }> => {
+        const mem = getWasmMemory();
+        if (!mem) return [];
+        const g16 = (a: number): number => (mem[a] ?? 0) | ((mem[a + 1] ?? 0) << 8);
+        let si = g16(0xc009);
+        const out: Array<{ x: number; dest: number }> = [];
+        for (;;) {
+            const x = g16(si);
+            if (x === 0xffff) return out;
+            out.push({ x, dest: mem[si + 2] ?? 0 });
+            si += 3;
+        }
+    },
+    heroPos: (): { lcol: number; xv: number } => {
+        const mem = getWasmMemory() ?? new Uint8Array(0);
+        return { lcol: (mem[0x80] ?? 0) | ((mem[0x81] ?? 0) << 8), xv: mem[0x83] ?? 0 };
+    },
+    /** Teleport hero (recorded as pokes when recording). */
+    setHeroPos: (lcol: number, xv: number): void => {
+        writeMemory(0x80, Uint8Array.of(lcol & 0xff, (lcol >> 8) & 0xff));
+        writeMemory(0x83, Uint8Array.of(xv & 0xff));
+    },
+    bldActive: (): number => getWasmMemory()?.[0xfffa] ?? 0,
     /**
      * Golden-replay capture (Stage 5d), active under ?zeliard_record=1.
      * `stop()` detaches the tap and resolves to the fixture JSON.
