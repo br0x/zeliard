@@ -346,6 +346,7 @@ void Monster_AI_5(uint16_t m);
 void Monster_AI_6(uint16_t m);
 void Monster_AI_7(uint16_t m);
 void Monster_AI_8(uint16_t m);
+void eai7_set_distances(uint8_t right, uint8_t left); // test-only pin
 void Cangrejo_AI(uint16_t m);
 void Cangrejo_AI_reset(void);
 void Pulpo_AI(uint16_t m);

@@ -1164,7 +1164,39 @@ each verifiable in isolation:
   across src/ before committing a parity suite. Harness lesson: reset ALL
   engine-owned counters (`LAST_PROJECTILE_INDEX`) between passes — applyBase
   doesn't cover them, and leftovers masquerade as port divergences.
-  Registry rows 8/9/11/12 now serve TS AI.
+   Registry rows 8/9/11/12 now serve TS AI.
+- **9e ✅ — `eai6.c` + `eai7.c` + `eai8.c`:** the final three regular-enemy
+  overlays — Type0 twin pair (wander + charge-up shot with twin mirroring),
+  hovering/diving flier (vertical homing + throttled diagonal steps +
+  hit/settle/recover states), grounded hopper (patrol → aligned leap with
+  vertical deflect), stationary drop hazard (armed fall + crush sequence +
+  warning SFX); eai7's paired ranged twins with overlay-global preferred
+  firing distances (pinned through new `wasm_debug_set_eai7_distances` on
+  the C side / `setEai7Distances` on TS), centre-patrolling ranged pair,
+  ledge/wall trajectory crawler (XLAT-overlap direction tables); eai8's
+  medusa two-slot walker, crab horizontal mover, slime burst-walker with
+  the original's XCHG-probe quirk preserved verbatim, hovering seeker.
+  Verified by 1,200 randomized multi-tick parity scenarios vs three new
+  oracles (`wasm_debug_monster_ai_6/_7/_8`), full-g_mem comparison with
+  pinned entropy AND pinned distances; mutation-tested (6 mutations incl.
+  twin-sync drop, fire-frame shift, distance re-roll off-by-one, trajectory
+  phase advance — all caught).
+  *Scenario-domain lessons recorded:* randomly-seeded Ys align with the
+  hero (<5 rows) only ~14% of the time, starving every proximity-gated
+  branch — monsters must be seeded near the hero's row; permanently-set
+  random hit bits route every tick into the hit-reaction path (clear them
+  ~85%); walled-in monsters freeze in place so their hero-distance never
+  sweeps through the firing-distance boundaries — an open corridor must be
+  stamped for eai7 type0, otherwise the distance re-roll mutation survives
+  2,600 ticks unnoticed. Harness lesson learned the hard way: pinning
+  module statics through the *TS* setter only leaves the wasm oracle with
+  stale leftovers — each side needs its own pin call (the resulting seed-67
+  "wasm does nothing" ghost cost a debugging session; the parity dump's
+  entropy field exposed it).
+- **All regular enemies (eai1–eai8) now TS-owned.** Registry rows 0–20 and
+  23–27 serve TS AI; only boss overlays remain (rows 1/4/7/10/13/17/21/22/
+  28/29/30, stages 9f–9i). Journey-harness gate + default cutover stay
+  parked until those land.
 - **Journey harness now fully green:** cmap → Muralla → cavern door →
   TS `wasm_dungeon_init(is_from_town=true)` → 400 ticks of cavern play
   with real ported AI replays bit-for-bit vs wasm
@@ -1228,12 +1260,7 @@ The last structural step: stop sharing linear memory altogether.
 
 ## Known reference quirks (filed, do not fix mid-migration)
 
-- `src/town.c:137` defines `ADDR_HERO_GOLD_HI = 0x88`, contradicting
-  `asm/common.inc` (`hero_gold_hi = 85h`; 0x88 is the BANK hi slot).
-  Latent: nothing calls `wasm_add_gold`, and all TS gold accessors follow
-  common.inc. Moot after Stage 10 deletes the wasm. (User-reported bank
-  balance corruption of 2026-08 traces to stale saves written by a
-  pre-migration build, not to this.)
+- none
 
 ## Agent rules (MANDATORY)
 

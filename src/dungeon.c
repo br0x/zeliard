@@ -2270,6 +2270,18 @@ void wasm_debug_monster_ai_3(uint16_t m) { Monster_AI_3(m); }
 void wasm_debug_monster_ai_4(uint16_t m) { Monster_AI_4(m); }
 void wasm_debug_monster_ai_5(uint16_t m) { Monster_AI_5(m); }
 
+/* Stage 9e oracles: run a seeded monster record through one AI tick.
+ * The eai7 pin mirrors wasm_debug_set_entropy: eai7's preferred firing
+ * distances are overlay globals shared by all type-0 instances, so both
+ * sides must start each parity pass from identical state. */
+void wasm_debug_monster_ai_6(uint16_t m) { Monster_AI_6(m); }
+void wasm_debug_monster_ai_7(uint16_t m) { Monster_AI_7(m); }
+void wasm_debug_monster_ai_8(uint16_t m) { Monster_AI_8(m); }
+void wasm_debug_set_eai7_distances(uint8_t right, uint8_t left)
+{
+    eai7_set_distances(right, left);
+}
+
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The
  * entropy setter pins get_random()'s static so both sides roll

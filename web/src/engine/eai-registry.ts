@@ -15,6 +15,9 @@ import { monsterAi2 } from './eai2.js';
 import { monsterAi3 } from './eai3.js';
 import { monsterAi4 } from './eai4.js';
 import { monsterAi5 } from './eai5.js';
+import { monsterAi6 } from './eai6.js';
+import { monsterAi7 } from './eai7.js';
+import { monsterAi8 } from './eai8.js';
 
 interface EaiModule {
     ai: MonsterAiFn | null; // null = not ported yet (no-op)
@@ -39,20 +42,20 @@ const REGISTRY: Record<number, EaiModule> = {
     11: { ai: monsterAi5 }, // mp50.mdt
     12: { ai: monsterAi5 }, // mp51.mdt
     13: { ai: null }, // mp5d.mdt — Vista, Stage 9i
-    14: { ai: null }, // mp60.mdt — Monster_AI_6, Stage 9d
-    15: { ai: null }, // mp61.mdt — Monster_AI_6
-    16: { ai: null }, // mp62.mdt — Monster_AI_6
+    14: { ai: monsterAi6 }, // mp60.mdt — Monster_AI_6
+    15: { ai: monsterAi6 }, // mp61.mdt — Monster_AI_6
+    16: { ai: monsterAi6 }, // mp62.mdt — Monster_AI_6
     17: { ai: null }, // mp6d.mdt — Tarso, Stage 9i
-    18: { ai: null }, // mp70.mdt — Monster_AI_7, Stage 9e
-    19: { ai: null }, // mp71.mdt — Monster_AI_7
-    20: { ai: null }, // mp72.mdt — Monster_AI_7
+    18: { ai: monsterAi7 }, // mp70.mdt — Monster_AI_7
+    19: { ai: monsterAi7 }, // mp71.mdt — Monster_AI_7
+    20: { ai: monsterAi7 }, // mp72.mdt — Monster_AI_7
     21: { ai: null }, // mp73.mdt — Paguro, Stage 9i
     22: { ai: null }, // mp7d.mdt — Dragon (drgn.c), Stage 9i
-    23: { ai: null }, // mp80.mdt — Monster_AI_8, Stage 9e
-    24: { ai: null }, // mp81.mdt — Monster_AI_8
-    25: { ai: null }, // mp82.mdt — Monster_AI_8
-    26: { ai: null }, // mp83.mdt — Monster_AI_8
-    27: { ai: null }, // mp84.mdt — Monster_AI_8
+    23: { ai: monsterAi8 }, // mp80.mdt — Monster_AI_8
+    24: { ai: monsterAi8 }, // mp81.mdt — Monster_AI_8
+    25: { ai: monsterAi8 }, // mp82.mdt — Monster_AI_8
+    26: { ai: monsterAi8 }, // mp83.mdt — Monster_AI_8
+    27: { ai: monsterAi8 }, // mp84.mdt — Monster_AI_8
     28: { ai: null }, // mp8d.mdt — Alguien (mao1.c), Stage 9i
     29: { ai: null }, // mp90.mdt — Jashiin1 (mao2.c), Stage 9i
     30: { ai: null }, // mpa0.mdt — Jashiin2 (mao2.c), Stage 9i

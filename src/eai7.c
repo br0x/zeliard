@@ -35,6 +35,14 @@ typedef struct {
 static uint8_t type0_right_distance = 8;
 static uint8_t type0_left_distance  = 8;
 
+/* Test-only accessor (Stage 9e parity tests): pin both distances so the
+ * wasm oracle and the TS port start each pass from identical state. */
+void eai7_set_distances(uint8_t right, uint8_t left)
+{
+    type0_right_distance = right;
+    type0_left_distance = left;
+}
+
 
 /* Type-4 trajectory tables (direction encoding:
  * 0=E, 1=NE, 2=N, 3=NW, 4=W, 5=SW, 6=S, 7=SE). */

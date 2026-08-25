@@ -129,6 +129,11 @@ export interface ZeliardExports {
     wasm_debug_monster_ai_3(m: number): void;
     wasm_debug_monster_ai_4(m: number): void;
     wasm_debug_monster_ai_5(m: number): void;
+    wasm_debug_monster_ai_6(m: number): void;
+    wasm_debug_monster_ai_7(m: number): void;
+    wasm_debug_monster_ai_8(m: number): void;
+    /** Stage 9e: pin eai7's overlay-global preferred firing distances. */
+    wasm_debug_set_eai7_distances(right: number, left: number): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1197,6 +1202,22 @@ export function debugMonsterAi4(m: number): void {
 
 export function debugMonsterAi5(m: number): void {
     wasmExports?.wasm_debug_monster_ai_5?.(m);
+}
+
+export function debugMonsterAi6(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_6?.(m);
+}
+
+export function debugMonsterAi7(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_7?.(m);
+}
+
+export function debugMonsterAi8(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_8?.(m);
+}
+
+export function debugSetEai7Distances(right: number, left: number): void {
+    wasmExports?.wasm_debug_set_eai7_distances?.(right, left);
 }
 
 export function debugDungeonUpdate(): void {
