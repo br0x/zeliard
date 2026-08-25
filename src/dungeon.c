@@ -2267,6 +2267,8 @@ void wasm_debug_dungeon_update(void) { wasm_dungeon_update(); }
 void wasm_debug_monster_ai_1(uint16_t m) { Monster_AI_1(m); }
 void wasm_debug_monster_ai_2(uint16_t m) { Monster_AI_2(m); }
 void wasm_debug_monster_ai_3(uint16_t m) { Monster_AI_3(m); }
+void wasm_debug_monster_ai_4(uint16_t m) { Monster_AI_4(m); }
+void wasm_debug_monster_ai_5(uint16_t m) { Monster_AI_5(m); }
 
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The

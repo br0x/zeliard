@@ -118,7 +118,7 @@ function boarmanTopAi(g: Uint8Array, m: number): void {
 /** sub_A653: returns 1 when grounded (walk/attack logic), 0 when it fell. */
 function boarmanTryFall(g: Uint8Array, m: number): number {
     if (g8(g, m + 3) === 0) return 1; // left edge
-    if (g8(g, m + 3) === 0x23) return 1; // MUTATION-KEEP
+    if (g8(g, m + 3) === 0x23) return 1; // right edge
 
     if (checkLedgeBelow(g, m) !== 0) return 1;
 

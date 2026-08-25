@@ -127,6 +127,8 @@ export interface ZeliardExports {
     wasm_debug_monster_ai_1(m: number): void;
     wasm_debug_monster_ai_2(m: number): void;
     wasm_debug_monster_ai_3(m: number): void;
+    wasm_debug_monster_ai_4(m: number): void;
+    wasm_debug_monster_ai_5(m: number): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1187,6 +1189,14 @@ export function debugMonsterAi2(m: number): void {
 
 export function debugMonsterAi3(m: number): void {
     wasmExports?.wasm_debug_monster_ai_3?.(m);
+}
+
+export function debugMonsterAi4(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_4?.(m);
+}
+
+export function debugMonsterAi5(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_5?.(m);
 }
 
 export function debugDungeonUpdate(): void {

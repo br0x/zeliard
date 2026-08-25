@@ -13,6 +13,8 @@ import type { MonsterAiFn } from './dungeon-items.js';
 import { monsterAi1 } from './eai1.js';
 import { monsterAi2 } from './eai2.js';
 import { monsterAi3 } from './eai3.js';
+import { monsterAi4 } from './eai4.js';
+import { monsterAi5 } from './eai5.js';
 
 interface EaiModule {
     ai: MonsterAiFn | null; // null = not ported yet (no-op)
@@ -31,11 +33,11 @@ const REGISTRY: Record<number, EaiModule> = {
     5: { ai: monsterAi3 }, // mp30.mdt
     6: { ai: monsterAi3 }, // mp31.mdt
     7: { ai: null }, // mp3d.mdt — Pollo (tori.c), Stage 9g
-    8: { ai: null }, // mp40.mdt — Monster_AI_4, Stage 9c
-    9: { ai: null }, // mp41.mdt — Monster_AI_4
+    8: { ai: monsterAi4 }, // mp40.mdt
+    9: { ai: monsterAi4 }, // mp41.mdt
     10: { ai: null }, // mp4d.mdt — Agar (akma.c), Stage 9h
-    11: { ai: null }, // mp50.mdt — Monster_AI_5, Stage 9d
-    12: { ai: null }, // mp51.mdt — Monster_AI_5
+    11: { ai: monsterAi5 }, // mp50.mdt
+    12: { ai: monsterAi5 }, // mp51.mdt
     13: { ai: null }, // mp5d.mdt — Vista, Stage 9i
     14: { ai: null }, // mp60.mdt — Monster_AI_6, Stage 9d
     15: { ai: null }, // mp61.mdt — Monster_AI_6

@@ -1150,6 +1150,21 @@ each verifiable in isolation:
   counters must be seeded 2..5 and rat mid-jump/hop counters high-nibble-
   zero (the original indexes its angle tables with values only guaranteed
   in-bounds by design).
+- **9d ✅ — `eai4.c` + `eai5.c`:** Turtle (bitmask state machine +
+  trajectory drift), Green Egg (two-tile linking via
+  `Find_Monsters_Near_Hero`, ported too; sword-hit absorption rules),
+  Icicle trap, Arrow preset-path crawler; Sentry twin pair (center-column
+  pacing + single shot), Red Egg (partner teleport beside the hero),
+  Eyeball (walk/charge-dash), Vistlet (fly/dive/climb) — plus
+  `move_monster_NWE_if_on_airflow`. Verified by 600 randomized multi-call
+  parity scenarios vs new oracles (`wasm_debug_monster_ai_4/_5`), full-g_mem
+  comparison with pinned entropy; mutations caught on both files.
+  *Discipline lesson:* a mutation revert that doesn't match exactly leaves
+  live test-breaking code — after this round, always `grep -c MUTATION`
+  across src/ before committing a parity suite. Harness lesson: reset ALL
+  engine-owned counters (`LAST_PROJECTILE_INDEX`) between passes — applyBase
+  doesn't cover them, and leftovers masquerade as port divergences.
+  Registry rows 8/9/11/12 now serve TS AI.
 - **Journey harness now fully green:** cmap → Muralla → cavern door →
   TS `wasm_dungeon_init(is_from_town=true)` → 400 ticks of cavern play
   with real ported AI replays bit-for-bit vs wasm
