@@ -28,6 +28,7 @@ import {
     DUNGEON_STATE_JASHIIN_CUTSCENE,
 } from './dungeon-state-machine.js';
 import { resetDungeonStateVars } from './dungeon-input.js';
+import { loadEaiModule } from './eai-registry.js';
 import type { DungeonRuntimeStatics } from './dungeon-states.js';
 
 // g_mem addresses (dungeon.c defines / zeliard.h)
@@ -187,8 +188,7 @@ export function prepareDungeon(
     if ((mapId & 0x80) === 0) {
         removeAccomplishedItems(g);
     }
-    // load_eai_module(map_id & 0x7F): AI function-pointer select — no g_mem
-    // effect; becomes a registry select when Stage 9 lands.
+    loadEaiModule(mapId & 0x7f); // load_eai_module (dungeon.c:1933)
 
     // Town→boss cavern entries show only the encounter flash (the original
     // never plays the roka run here).
@@ -265,7 +265,7 @@ export function finishRokademoTransition(
         s8(g, PENDING_DUNGEON_MAP, placeMapId);
         s8(g, PENDING_DUNGEON_FLAG, 0xff);
         s8(g, DUNGEON_STATE, 6 /* DUNGEON_STATE_EXIT */);
-        // load_eai_module(place_map_id): no-op until Stage 9
+        loadEaiModule(placeMapId & 0x7f); // load_eai_module (dungeon.c:1880)
         // The demo already showed the hero running in — don't play a roka
         // run when prepare_dungeon re-initializes the target cavern below.
         statics.skipRokaRun = true;

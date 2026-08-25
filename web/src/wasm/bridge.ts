@@ -124,6 +124,9 @@ export interface ZeliardExports {
     /** Stage 8d oracle: pin the transition statics. */
     wasm_debug_set_dungeon_statics(isFromTown: number, savedYViewInit: number): void;
     wasm_debug_set_skip_roka_run(skip: number): void;
+    wasm_debug_monster_ai_1(m: number): void;
+    wasm_debug_monster_ai_2(m: number): void;
+    wasm_debug_monster_ai_3(m: number): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1171,6 +1174,19 @@ export function debugSetDungeonStatics(isFromTown: number, savedYViewInit: numbe
 /** Test-only pin for the rokademo handoff latch (dungeon.c g_skip_roka_run). */
 export function debugSetSkipRokaRun(skip: number): void {
     wasmExports?.wasm_debug_set_skip_roka_run?.(skip);
+}
+
+/** Stage 9b/c oracles: run a seeded monster record through one AI tick. */
+export function debugMonsterAi1(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_1?.(m);
+}
+
+export function debugMonsterAi2(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_2?.(m);
+}
+
+export function debugMonsterAi3(m: number): void {
+    wasmExports?.wasm_debug_monster_ai_3?.(m);
 }
 
 export function debugDungeonUpdate(): void {

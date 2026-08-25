@@ -46,6 +46,7 @@ import {
     doorPendingState,
     dungeonRuntimeStatics as statics,
 } from './dungeon-runtime.js';
+import { loadEaiModule } from './eai-registry.js';
 import { mainUpdateRender, processHeroDeath } from './dungeon-frame.js';
 
 function requireView(getView: ViewAccessor): Uint8Array {
@@ -58,7 +59,10 @@ const doorCbs = {
     // game_loop_render_and_timing(0): full frame redraw with the hero hidden
     gameLoopRenderAndTiming: (g: Uint8Array): void => mainUpdateRender(g, frameCallbacks),
     rokaRun: (g: Uint8Array): void => rokaRun(g),
-    loadEaiModule: (_g: Uint8Array, _placeMapId: number): void => undefined, // Stage 9
+    // load_eai_module — registry select + boss reset (dungeon.c:303)
+    loadEaiModule: (_g: Uint8Array, placeMapId: number): void => {
+        loadEaiModule(placeMapId);
+    },
 };
 
 const frameCallbacks = {

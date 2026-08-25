@@ -300,6 +300,22 @@ function applyDamageAndKnockback(g: Uint8Array, p: number): void {
     s16(g, KNOCKBACK_VECTOR + 2, bx); // ADDR_KNOCKBACK_VECTOR_9F10
 }
 
+/**
+ * Add_Projectile_To_Array (dungeon.c:5615): append a 13-byte projectile
+ * descriptor at the list's 0xFF terminator (max 32 entries).
+ */
+export function addProjectileToArray(g: Uint8Array, src: ArrayLike<number>): void {
+    if ((g8(g, LAST_PROJECTILE_INDEX) ?? 0) >= 32 - 1) return;
+    let di = PROJECTILES_LIST;
+    while (g8(g, di) !== 0xff) di += PROJECTILE_STRUCT_SIZE;
+    for (let i = 0; i < PROJECTILE_STRUCT_SIZE; i++) {
+        s8(g, di + i, src[i] ?? 0);
+    }
+    di += PROJECTILE_STRUCT_SIZE;
+    s8(g, di, 0xff);
+    s8(g, LAST_PROJECTILE_INDEX, (g8(g, LAST_PROJECTILE_INDEX) + 1) & 0xff);
+}
+
 // ─── list processing (dungeon.c:5912) ───
 
 /**

@@ -319,7 +319,11 @@ export function mainUpdateRenderPre(g: Uint8Array, callbacks: FramePreCallbacks)
     checkAirflowsOnHero(g);
 
     if (g8(g, JUMP_PHASE_FLAGS) === 0) {
-        s8(g, BYTE_9F00, 0);
+        // C zeroes ADDR_BYTE_9F09 (the jump-step counter) here — NOT
+        // BYTE_9F00, which holds the viewport-follow target set at cavern
+        // init and must survive this frame (zeroing it made the follow
+        // branch fire on every grounded frame).
+        s8(g, 0x9f09 /* BYTE_9F09 */, 0);
         if (g8(g, BYTE_9F00) !== g8(g, HERO_HEAD_Y_VIEW)) {
             if (g8(g, BYTE_9F00) < g8(g, HERO_HEAD_Y_VIEW)) {
                 heroScrollDown(g);
@@ -353,7 +357,7 @@ export function mainUpdateRenderPre(g: Uint8Array, callbacks: FramePreCallbacks)
     dispatchSpellProjectileMovement(g);
 
     if (g8(g, BOSS_IS_DEAD) === 0) {
-        monstersSpawning(g, () => undefined); // AI bodies arrive in Stage 9
+        monstersSpawning(g, runMonsterAi); // Stage 9: ported AIs via the registry
     }
 
     s8(g, HERO_DAMAGE_THIS_FRAME, 0);
@@ -529,6 +533,7 @@ export function dungeonRenderTimingStep(
 }
 
 // Late-bound imports kept lazy to avoid cycles at module init.
+import { runMonsterAi } from './eai-registry.js';
 import { magiaStoneUpdates as magiaStoneUpdatesTick } from './dungeon-platforms.js';
 import { renderMagiaStoneEffect as renderMagiaStoneEffectTick } from './dungeon-platforms.js';
 import { applySwordHitToMapTiles } from './dungeon-combat.js';

@@ -2263,6 +2263,11 @@ void wasm_debug_set_skip_roka_run(uint8_t skip) { g_skip_roka_run = skip; }
 
 void wasm_debug_dungeon_update(void) { wasm_dungeon_update(); }
 
+/* Stage 9b/c oracles: run a seeded monster record through one AI tick. */
+void wasm_debug_monster_ai_1(uint16_t m) { Monster_AI_1(m); }
+void wasm_debug_monster_ai_2(uint16_t m) { Monster_AI_2(m); }
+void wasm_debug_monster_ai_3(uint16_t m) { Monster_AI_3(m); }
+
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The
  * entropy setter pins get_random()'s static so both sides roll

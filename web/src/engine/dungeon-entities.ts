@@ -436,6 +436,17 @@ function moveSE(g: Uint8Array, m: number): number {
     return 0;
 }
 
+// Exported directional movers (move_monster_* in dungeon.c) — used by the
+// Stage 9 eai modules. Nonzero (=0xFF) on success, 0 when blocked.
+export const moveMonsterE = moveE;
+export const moveMonsterNE = moveNE;
+export const moveMonsterN = moveN;
+export const moveMonsterNW = moveNW;
+export const moveMonsterW = moveW;
+export const moveMonsterSW = moveSW;
+export const moveMonsterS = moveS;
+export const moveMonsterSE = moveSE;
+
 /** monster_move_in_direction (dungeon.c:187). dir 0=E … 7=SE; 0xFF on success. */
 export function monsterMoveInDirection(g: Uint8Array, m: number, dir: number): number {
     switch (dir & 7) {

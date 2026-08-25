@@ -1083,15 +1083,24 @@ management, render-request generation.
      verified (`engine/dungeon-init.ts`, shared runtime store, init-family
      parity tests, FRAME_TIMER/TICKS de-conflation, door-completion gap
      fixes, C debug-pin fix).
-   - **REMAINING BLOCKER (the last one before re-flipping the default):**
-     the town→dungeon journey harness diverges ~11 frames after cavern
-     entry under TS dungeon ticks — VIEWPORT_TOP_ROW 61 vs 62 and
-     HERO_HEAD_Y_VIEW 10 vs 9 during NORMAL-state frame phase 1, i.e. the
-     viewport-follow/hero-scroll path in main_update_render_pre. This is
-     very likely regression #3 ("hero appears at wrong y"). Reproducer:
-     `journeyToDungeon` in town-dual-run.test.ts (kept as an explicit
-     `it.fails` gate). Until it is fixed, the default stays pure-wasm;
+   - **REMAINING BLOCKER narrowed to Stage 9 scope:** after fixing the last
+     true port bug, the town→dungeon journey harness diverges only inside
+     the monster table (0xD6A0+ anim/flag fields): the C side runs real eai
+     AI bodies while the TS spawning tick injects no-ops "until Stage 9".
+     The bug that caused regression #3 ("hero at wrong y after dungeon
+     entry") was found via single-tick native↔TS replay of the harness's
+     pre-divergence dump: `mainUpdateRenderPre` (dungeon-frame.ts) zeroed
+     **BYTE_9F00** — the viewport-follow target — where C zeroes
+     **BYTE_9F09** (the jump-step counter, dungeon.c:4686), so the TS side
+     scrolled the viewport one row per grounded frame. Fixed; entry is now
+     bit-exact. The journey stays as an explicit `it.fails` gate until
+     Stage 9 lands (then flip it + the default cutover in main.ts).
+     Until then the default remains pure-wasm;
      `?zeliard_ports=shadow|cutover` remain opt-in.
+   - *New debugging technique proven here:* dump the pre-divergence g_mem
+     from the dual-run harness, then replay that single tick natively
+     (gcc-built src/*.c) vs TS in isolation — pinpoints a divergence to one
+     function without touching the emcc build.
 - **8e — golden fixtures (partially landed ✅):** fixtures now cover
   - `town-dungeon-basics.json` — town walk + one dungeon room (Stage 5d);
   - `town-buildings.json` — King entry/exit + edge transitions both
@@ -1110,6 +1119,44 @@ each verifiable in isolation:
 - Each lands with: shadow mode clean, golden replay of a recorded boss fight,
   regression checklist section re-run.
 - **Exit criteria:** no enemy/boss behavior originates from wasm.
+
+**Progress:**
+- **9a ✅ — AI dispatch layer:** `engine/eai-registry.ts` mirrors
+  `load_eai_module`'s place_map_id table (dungeon.c:5629): each entry is
+  `{ai, reset?}`; unported rows resolve to a no-op AI (monsters hold
+  position). `runMonsterAi` replaces the injected no-op in
+  dungeon-frame's spawning tick; `loadEaiModule` is now called from the
+  ported `prepare_dungeon`, `wasm_finish_rokademo_transition` and the
+  door-completion callback (boss `_reset` hooks therefore fire exactly
+  once per selection, like C).
+- **9c ✅ — `eai2.c` + `eai3.c`:** Boarman (twin-half sync, spear pairs
+  via the newly ported `Add_Projectile_To_Array` in dungeon-projectiles),
+  Blue Slime, Red Toad (windup/fire/recover), Green/Magic Bat; eai3's
+  airborne 8-state dodger, crawler, stationary shooter and grounded chaser.
+  Verified by 550 randomized single-monster parity scenarios vs new oracles
+  (`wasm_debug_monster_ai_2/_3`), full-g_mem comparison with pinned entropy;
+  mutation-tested on both files. Scenario-domain constraints: boarman twin
+  records seeded as valid big-monster halves; toad mid-jump counters 2..5;
+  eai3 type1 crawl counters 0..5 (dir table is 6 entries — OOB in C beyond).
+  Registry rows 2/3/5/6 now serve TS AI.
+- **9b (first file) ✅ — `eai1.c` → `engine/eai1.ts`:** Bat/Slug/Frog/Rat
+  AI ported 1:1 on top of the Stage 8a movement/collision primitives.
+  Verified by 401 randomized single-monster scenarios vs a new test-only C
+  oracle (`wasm_debug_monster_ai_1`), full-g_mem comparison with pinned
+  entropy; mutation-tested (dropped facing-flip invisible in single-call
+  parity — slug's terminal write; throttle reset value caught ×10).
+  Scenario-domain lessons recorded: `ai_flags & 0x1F` must stay ≤ 8
+  (Get_Stats indexes byte_98BE — OOB in C beyond the table); frog mid-jump
+  counters must be seeded 2..5 and rat mid-jump/hop counters high-nibble-
+  zero (the original indexes its angle tables with values only guaranteed
+  in-bounds by design).
+- **Journey harness now fully green:** cmap → Muralla → cavern door →
+  TS `wasm_dungeon_init(is_from_town=true)` → 400 ticks of cavern play
+  with real ported AI replays bit-for-bit vs wasm
+  (`journeyToDungeon` in tests/town-dual-run.test.ts). The default cutover
+  flip stays parked until all AI bodies are ported — flipping earlier
+  would freeze monsters in not-yet-ported caverns (visible behavior
+  change), violating the "never break playability" rule.
 
 Detalized steps *(from code survey; the AI entry point is
 `Monster_AI(m)` → `current_monster_ai` selected by `load_eai_module`'s
@@ -1163,6 +1210,15 @@ The last structural step: stop sharing linear memory altogether.
 6. Music + SFX (including worklet path), tab-blur/resume
 7. Touch controls on mobile viewport; window resize scaling
 8. Ending demo playback
+
+## Known reference quirks (filed, do not fix mid-migration)
+
+- `src/town.c:137` defines `ADDR_HERO_GOLD_HI = 0x88`, contradicting
+  `asm/common.inc` (`hero_gold_hi = 85h`; 0x88 is the BANK hi slot).
+  Latent: nothing calls `wasm_add_gold`, and all TS gold accessors follow
+  common.inc. Moot after Stage 10 deletes the wasm. (User-reported bank
+  balance corruption of 2026-08 traces to stale saves written by a
+  pre-migration build, not to this.)
 
 ## Agent rules (MANDATORY)
 

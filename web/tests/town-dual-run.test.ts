@@ -571,8 +571,14 @@ async function journeyToDungeon(postTicks: number): Promise<JourneyResult> {
     if (divergeAt >= 0) {
         process.stderr.write(
             `digests@${divergeAt}: a=${a.digests[divergeAt]?.toString(16)} b=${b.digests[divergeAt]?.toString(16)}\n`);
-        for (let k = divergeAt - 2; k <= divergeAt + 1; k++) {
-            process.stderr.write(`  d[${k}] a=${(a.digests[k] ?? 0).toString(16)} b=${(b.digests[k] ?? 0).toString(16)} snapA=${a.snaps.has(k)} snapB=${b.snaps.has(k)}\n`);
+        // Dump forensics: pre-state (last agreeing tick) + both post-states.
+        // Array index i corresponds to tick i+1 (the pending-dungeon tick
+        // skips one digest push), so pre = snaps[i], post = snaps[i+1].
+        {
+            const fs2 = await import('node:fs');
+            fs2.writeFileSync(diagPath('pre.bin'), a.snaps.get(divergeAt)!);
+            fs2.writeFileSync(diagPath('post-wasm.bin'), a.snaps.get(divergeAt + 1)!);
+            fs2.writeFileSync(diagPath('post-ts.bin'), b.snaps.get(divergeAt + 1)!);
         }
         const wa = a.snaps.get(divergeAt + 1)!;
         const wb = b.snaps.get(divergeAt + 1)!;
@@ -601,14 +607,7 @@ async function journeyToDungeon(postTicks: number): Promise<JourneyResult> {
 }
 
 describe('town → dungeon entry dual-run', () => {
-    // KNOWN FAILURE — the last Stage 8 blocker. The town→dungeon entry
-    // itself matches (boot coords identical), but ~11 frames into cavern
-    // play the TS viewport-follow/hero-scroll diverges by one row
-    // (VIEWPORT_TOP_ROW 61 vs 62, HERO_HEAD_Y_VIEW 10 vs 9). See
-    // MIGRATION_PLAN.md Stage 8d status. Uses `it.fails` so this stays red
-    // until fixed: flip it to a plain `it` together with the default-cutover
-    // flip in main.ts.
-    it.fails('cmap → muralla → cavern door → wasm_dungeon_init matches tick-for-tick', async () => {
+    it('cmap → muralla → cavern door → wasm_dungeon_init matches tick-for-tick', async () => {
         const r = await journeyToDungeon(400);
         expect(r.enteredDungeon, 'both passes must reach the dungeon').toBe(true);
         expect(
