@@ -1193,10 +1193,41 @@ each verifiable in isolation:
   stale leftovers — each side needs its own pin call (the resulting seed-67
   "wasm does nothing" ghost cost a debugging session; the parity dump's
   entropy field exposed it).
+- **9f ✅ — bosses, simple-contact trio:** `crab.c` + `tako.c` + `tori.c` →
+  `engine/boss-crab.ts` / `engine/boss-tako.ts` / `engine/boss-tori.ts`
+  (~1,700 lines): Cangrejo's body-layout pseudo-monster rendering
+  (6×10 hittable parts), acid-drop approach/descent/recoil phases with the
+  flags==0x14 droplet-prop animation and spawn sequence, hit recoil and
+  death wiggle; Pulpo's 32-slot tentacle layout/shape table pairs with the
+  original's deliberate array aliasing preserved (shape masks rotate in
+  place), provoked-phase group advance (0→8→16) on hits, retract flinch,
+  ink-volley windup/spawn state machine and thrash death; Pollo's
+  dive-charge attack (windup flaps → duration-limited charge with
+  mid-attack hit cancel), projectile wind-up, pose-pool/shape-mask body
+  rendering, heavy-hit priority damage (stat×8) and death sequence.
+  Registered as rows 1/4/7 with their `_reset` hooks firing exactly once
+  per selection. Verified by **900 randomized 48-tick encounter scenarios**
+  vs three new C oracle pairs (`wasm_debug_{cangrejo,pulpo,pollo}_ai/_reset`),
+  full-g_mem comparison with pinned entropy; mutation-tested (9 mutations:
+  damage shifts, descent-step sign, heavy-segment boundary, ink/proj target
+  coords, provoke cap, approach threshold, death length — all caught).
+  *Harness lessons:* the boss scenario must reset the projectile list AND
+  counter between passes (only tori fires — crab/pulpo stayed green while
+  pollo diverged); the proximity window is pinned at leftCol=18 so the
+  crab's unbounded `flags==0x14` prop scan always finds its target (a long
+  leftward descent otherwise walks the prop out of the window and the wasm
+  oracle hangs — latent UB the real game avoids via arena bounds); and a
+  deterministic external hit-injector (ai_flags |= 0x40 after each frame)
+  is required because renders rewrite `.ai_flags` fresh every frame —
+  without it the seeded last-frame hits are the only ones ever processed
+  and the damage/provoke/flinch chains never run.
+- **Remaining Stage 9 work:** meda.c/akma.c/mao1.c/mao2.c/drgn.c
+  (registry rows 10/13/17/21/22/28/29/30), plus recorded golden fixtures
+  of at least one full scripted boss fight per the stage checklist.
 - **All regular enemies (eai1–eai8) now TS-owned.** Registry rows 0–20 and
-  23–27 serve TS AI; only boss overlays remain (rows 1/4/7/10/13/17/21/22/
-  28/29/30, stages 9f–9i). Journey-harness gate + default cutover stay
-  parked until those land.
+  23–27 serve TS AI; only boss overlays remain (rows 10/13/17/21/22/28/
+  29/30). Journey-harness gate + default cutover stay parked until those
+  land.
 - **Journey harness now fully green:** cmap → Muralla → cavern door →
   TS `wasm_dungeon_init(is_from_town=true)` → 400 ticks of cavern play
   with real ported AI replays bit-for-bit vs wasm

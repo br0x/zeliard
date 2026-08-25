@@ -150,7 +150,7 @@ function clearViewportBufferLocal(g: Uint8Array): void {
     g.fill(0xfd, 0xe900, 0xe900 + 28 * 19);
 }
 
-function browseProjectiles(g: Uint8Array): void {
+export function browseProjectiles(g: Uint8Array): void {
     let p = 0xeb80;
     for (;;) {
         if (g8(g, p) === 0xff) {

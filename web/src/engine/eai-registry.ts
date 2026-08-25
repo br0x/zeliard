@@ -18,6 +18,9 @@ import { monsterAi5 } from './eai5.js';
 import { monsterAi6 } from './eai6.js';
 import { monsterAi7 } from './eai7.js';
 import { monsterAi8 } from './eai8.js';
+import { cangrejoAi, cangrejoAiReset } from './boss-crab.js';
+import { pulpoAi, pulpoAiReset } from './boss-tako.js';
+import { polloAi, polloAiReset } from './boss-tori.js';
 
 interface EaiModule {
     ai: MonsterAiFn | null; // null = not ported yet (no-op)
@@ -29,13 +32,13 @@ const noopAi: MonsterAiFn = () => undefined;
 /** place_map_id → AI module (dungeon.c:5631-5663). */
 const REGISTRY: Record<number, EaiModule> = {
     0: { ai: monsterAi1 }, // mp10.mdt
-    1: { ai: null }, // mp1d.mdt — Cangrejo (crab.c), Stage 9f
+    1: { ai: cangrejoAi, reset: cangrejoAiReset }, // mp1d.mdt — Cangrejo (crab.c)
     2: { ai: monsterAi2 }, // mp20.mdt
     3: { ai: monsterAi2 }, // mp21.mdt
-    4: { ai: null }, // mp2d.mdt — Pulpo (tako.c), Stage 9f
+    4: { ai: pulpoAi, reset: pulpoAiReset }, // mp2d.mdt — Pulpo (tako.c)
     5: { ai: monsterAi3 }, // mp30.mdt
     6: { ai: monsterAi3 }, // mp31.mdt
-    7: { ai: null }, // mp3d.mdt — Pollo (tori.c), Stage 9g
+    7: { ai: polloAi, reset: polloAiReset }, // mp3d.mdt — Pollo (tori.c)
     8: { ai: monsterAi4 }, // mp40.mdt
     9: { ai: monsterAi4 }, // mp41.mdt
     10: { ai: null }, // mp4d.mdt — Agar (akma.c), Stage 9h

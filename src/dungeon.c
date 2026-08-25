@@ -2282,6 +2282,17 @@ void wasm_debug_set_eai7_distances(uint8_t right, uint8_t left)
     eai7_set_distances(right, left);
 }
 
+/* Stage 9f boss oracles: run one frame of a seeded boss encounter. The
+ * reset accessors mirror the Cangrejo_AI_reset/Pulpo_AI_reset/Pollo_AI_
+ * reset calls load_eai_module performs, so parity passes can start each
+ * side from identical overlay state. */
+void wasm_debug_cangrejo_ai(uint16_t m) { Cangrejo_AI(m); }
+void wasm_debug_cangrejo_reset(void) { Cangrejo_AI_reset(); }
+void wasm_debug_pulpo_ai(uint16_t m) { Pulpo_AI(m); }
+void wasm_debug_pulpo_reset(void) { Pulpo_AI_reset(); }
+void wasm_debug_pollo_ai(uint16_t m) { Pollo_AI(m); }
+void wasm_debug_pollo_reset(void) { Pollo_AI_reset(); }
+
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The
  * entropy setter pins get_random()'s static so both sides roll

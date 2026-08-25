@@ -134,6 +134,13 @@ export interface ZeliardExports {
     wasm_debug_monster_ai_8(m: number): void;
     /** Stage 9e: pin eai7's overlay-global preferred firing distances. */
     wasm_debug_set_eai7_distances(right: number, left: number): void;
+    /** Stage 9f boss oracles: one frame of a seeded boss encounter (+ reset). */
+    wasm_debug_cangrejo_ai(m: number): void;
+    wasm_debug_cangrejo_reset(): void;
+    wasm_debug_pulpo_ai(m: number): void;
+    wasm_debug_pulpo_reset(): void;
+    wasm_debug_pollo_ai(m: number): void;
+    wasm_debug_pollo_reset(): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1218,6 +1225,30 @@ export function debugMonsterAi8(m: number): void {
 
 export function debugSetEai7Distances(right: number, left: number): void {
     wasmExports?.wasm_debug_set_eai7_distances?.(right, left);
+}
+
+export function debugCangrejoAi(m: number): void {
+    wasmExports?.wasm_debug_cangrejo_ai?.(m);
+}
+
+export function debugCangrejoReset(): void {
+    wasmExports?.wasm_debug_cangrejo_reset?.();
+}
+
+export function debugPulpoAi(m: number): void {
+    wasmExports?.wasm_debug_pulpo_ai?.(m);
+}
+
+export function debugPulpoReset(): void {
+    wasmExports?.wasm_debug_pulpo_reset?.();
+}
+
+export function debugPolloAi(m: number): void {
+    wasmExports?.wasm_debug_pollo_ai?.(m);
+}
+
+export function debugPolloReset(): void {
+    wasmExports?.wasm_debug_pollo_reset?.();
 }
 
 export function debugDungeonUpdate(): void {
