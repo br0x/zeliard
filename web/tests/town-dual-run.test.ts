@@ -14,6 +14,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { diagPath } from './diag-path.js';
 import { fileURLToPath } from 'node:url';
 
 const WASM_PATH = fileURLToPath(new URL('../../build/zeliard.wasm', import.meta.url));
@@ -311,8 +312,8 @@ describe('town tick dual-run vs real wasm', () => {
                             if ((ws[i] ?? 0) !== (tsp[i] ?? 0)) diffs.push(i);
                         }
                         const fs = await import('node:fs');
-                        fs.writeFileSync('/tmp/opencode/pre1219.bin', ws);
-                        fs.writeFileSync('/tmp/opencode/pre1219-ts.bin', tsp);
+                        fs.writeFileSync(diagPath('pre1219.bin'), ws);
+                        fs.writeFileSync(diagPath('pre1219-ts.bin'), tsp);
                         console.log(
                             `tick ${t} (pre-state): ${diffs.length} diffs: ` +
                             diffs.slice(0, 40).map((i) =>
@@ -584,8 +585,8 @@ async function journeyToDungeon(postTicks: number): Promise<JourneyResult> {
             `[state] dstate w=${wa[0xff90]} ts=${wb[0xff90]} phase w=${wa[0xff91]} ts=${wb[0xff91]} ` +
             `top w=${wa[0x82]} ts=${wb[0x82]} ftmr w=${wa[0xff1a]} ts=${wb[0xff1a]}\n`);
         const fs = await import('node:fs');
-        fs.writeFileSync('/tmp/opencode/ja.bin', wa);
-        fs.writeFileSync('/tmp/opencode/jb.bin', wb);
+        fs.writeFileSync(diagPath('ja.bin'), wa);
+        fs.writeFileSync(diagPath('jb.bin'), wb);
         process.stderr.write(
             `tick ${divergeAt}: ${diffs.length} diffs: ` +
             diffs.slice(0, 30).map((i) => `0x${i.toString(16)}:${wa[i]}->${wb[i]}`).join(' ') + '\n',

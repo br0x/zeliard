@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
+import { diagPath } from './diag-path.js';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { vi } from 'vitest';
@@ -124,7 +125,7 @@ describe('golden replay', () => {
             );
             if (mismatches.length > 0) {
                 writeFileSync(
-                    '/tmp/opencode/town-replay-diff.json',
+                    diagPath('town-replay-diff.json'),
                     JSON.stringify(
                         {
                             count: mismatches.length,
@@ -186,7 +187,7 @@ describe('golden replay', () => {
             );
             if (mismatches.length > 0) {
                 writeFileSync(
-                    '/tmp/opencode/full-ts-replay-diff.json',
+                    diagPath('full-ts-replay-diff.json'),
                     JSON.stringify(
                         {
                             count: mismatches.length,

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync, appendFileSync } from 'node:fs';
+import { diagPath } from './diag-path.js';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -154,7 +155,7 @@ describe('stage 8b hero movement parity vs real wasm', () => {
     // plus a correspondingly shifted col-35; single moves and all slice-3
     // vertical paths match bit-exact. Suspect: cursor pinning semantics of
     // debugHeroReset vs the real prepare_dungeon cursor setup under mixed
-    // sequences (diagnostics regenerate to /tmp/opencode/hero-parity-diff.log).
+    // sequences (diagnostics regenerate via diagPath('hero-parity-diff.log')).
     it.skip('move sequences match wasm across randomized scenarios', () => {
         const diffLog: string[] = [];
         for (let seed = 1; seed <= 60; seed++) {
@@ -167,7 +168,7 @@ describe('stage 8b hero movement parity vs real wasm', () => {
                 debugGetPackedCursors();
                 const cl = ((view[0xb101] ?? 0) << 8) | (view[0xb100] ?? 0);
                 const cr = ((view[0xb103] ?? 0) << 8) | (view[0xb102] ?? 0);
-                appendFileSync('/tmp/opencode/cursor-pre.log', `seed ${seed}: PRE cl=0x${cl.toString(16)} cr=0x${cr.toString(16)}\n`);
+                appendFileSync(diagPath('cursor-pre.log'), `seed ${seed}: PRE cl=0x${cl.toString(16)} cr=0x${cr.toString(16)}\n`);
             }
             const traceA: Array<{ mv: string; ret: number; prox: number[]; cl: number; cr: number }> = [];
             for (const mv of sc.moves) {
@@ -188,7 +189,7 @@ describe('stage 8b hero movement parity vs real wasm', () => {
             {
                 const cl = unpackCursors.proxLeft;
                 const cr = unpackCursors.proxRight;
-                appendFileSync('/tmp/opencode/cursor-pre.log', `seed ${seed}: TSPRE cl=0x${cl.toString(16)} cr=0x${cr.toString(16)}\n`);
+                appendFileSync(diagPath('cursor-pre.log'), `seed ${seed}: TSPRE cl=0x${cl.toString(16)} cr=0x${cr.toString(16)}\n`);
             }
             const traceB: Array<{ mv: string; ret: number; prox: number[]; cl: number; cr: number }> = [];
             for (const mv of sc.moves) {
@@ -203,7 +204,7 @@ describe('stage 8b hero movement parity vs real wasm', () => {
             }
 
             if (seed <= 3) {
-                appendFileSync('/tmp/opencode/cursor-pre.log',
+                appendFileSync(diagPath('cursor-pre.log'),
                     `seed ${seed} WASM: ` + sc.moves.map((m, j) => `${j}:${m} cl=${traceA[j]!.cl.toString(16)} cr=${traceA[j]!.cr.toString(16)} ret=${traceA[j]!.ret}`).join(' | ') + '\n' +
                     `seed ${seed} TS  : ` + sc.moves.map((m, j) => `${j}:${m} cl=${traceB[j]!.cl.toString(16)} cr=${traceB[j]!.cr.toString(16)} ret=${traceB[j]!.ret}`).join(' | ') + '\n');
             }
@@ -243,7 +244,7 @@ describe('stage 8b hero movement parity vs real wasm', () => {
             }
         }
         if (diffLog.length > 0) {
-            appendFileSync('/tmp/opencode/hero-parity-diff.log', diffLog.join('\n') + '\n');
+            appendFileSync(diagPath('hero-parity-diff.log'), diffLog.join('\n') + '\n');
         }
         expect(diffLog).toEqual([]);
     });

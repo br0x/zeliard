@@ -2,9 +2,10 @@ import { beforeAll, expect, it } from 'vitest';
 import { readFileSync, appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { vi } from 'vitest';
+import { diagPath } from './diag-path.js';
 
 const WASM_PATH = fileURLToPath(new URL('../../build/zeliard.wasm', import.meta.url));
-const LOG = '/tmp/opencode/jump-parity.log';
+
 
 let view: Uint8Array;
 
@@ -83,7 +84,7 @@ it('jump_press_handler parity vs real wasm', async () => {
         }
         checked++;
     }
-    appendFileSync(LOG, `checked=${checked}\n${lines.join('\n')}\n`);
+    appendFileSync(diagPath('jump-parity.log'), `checked=${checked}\n${lines.join('\n')}\n`);
     if (lines.length > 0) console.error('JUMP PARITY FAILURES:\n' + lines.slice(0, 10).join('\n'));
     expect(lines.filter((l) => l.startsWith('seed')).length).toBe(0);
 }, 30_000);

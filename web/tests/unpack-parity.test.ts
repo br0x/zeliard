@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { diagPath } from './diag-path.js';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -63,7 +64,7 @@ function expectUnpackParity(mapId: number): void {
         }
     }
     if (diffs.length > 0) {
-        writeFileSync('/tmp/opencode/unpack-parity-diff.log', `${mapId}: ${diffs.join('; ')}\n`, { flag: 'a' });
+        writeFileSync(diagPath('unpack-parity-diff.log'), `${mapId}: ${diffs.join('; ')}\n`, { flag: 'a' });
     }
 
     expect(Array.from(view.slice(PROX_ADDR, PROX_ADDR + PROX_BYTES)))
