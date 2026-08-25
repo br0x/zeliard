@@ -133,8 +133,8 @@
 /* Hero stats */
 #define ADDR_PROXIMITY_MAP_LEFT_COL   0x80    // word
 #define ADDR_VIEWPORT_TOP_ROW         0x82    // byte
+#define ADDR_HERO_GOLD_HI             0x85  /* byte */
 #define ADDR_HERO_GOLD_LO             0x86  /* word */
-#define ADDR_HERO_GOLD_HI             0x88
 #define ADDR_HERO_ALMAS               0x8b  /* word */
 #define ADDR_HERO_LEVEL               0x8d
 #define ADDR_HERO_XP                  0x8e  /* word */
