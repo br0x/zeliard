@@ -9,6 +9,12 @@ import {
     debugPulpoReset,
     debugPolloAi,
     debugPolloReset,
+    debugAgarAi,
+    debugAgarReset,
+    debugVistaAi,
+    debugVistaReset,
+    debugTarsoAi,
+    debugTarsoReset,
     debugSetEntropy,
     getWasmMemory,
     initWasmFromBytes,
@@ -16,6 +22,9 @@ import {
 import { cangrejoAi, cangrejoAiReset } from '../src/engine/boss-crab.js';
 import { pulpoAi, pulpoAiReset } from '../src/engine/boss-tako.js';
 import { polloAi, polloAiReset } from '../src/engine/boss-tori.js';
+import { agarAi, agarAiReset } from '../src/engine/boss-agar.js';
+import { vistaAi, vistaAiReset } from '../src/engine/boss-vista.js';
+import { tarsoAi, tarsoAiReset } from '../src/engine/boss-tarso.js';
 import { setEntropy } from '../src/engine/dungeon-combat.js';
 import { applyBossScenario, SCRATCH } from './boss-scenario.js';
 import { frac, rng } from './vertical-scenario.js';
@@ -39,7 +48,7 @@ function firstDiff(a: Uint8Array, b: Uint8Array): number {
 
 interface BossDef {
     name: string;
-    kind: 'crab' | 'tako' | 'tori';
+    kind: 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso';
     tsFn: (g: Uint8Array, m: number) => void;
     oracle: (m: number) => void;
     resetTs: () => void;
@@ -47,9 +56,12 @@ interface BossDef {
 }
 
 const BOSSES: BossDef[] = [
+    { name: 'vista', kind: 'vista', tsFn: vistaAi, oracle: debugVistaAi, resetTs: vistaAiReset, resetWasm: debugVistaReset },
     { name: 'cangrejo', kind: 'crab', tsFn: cangrejoAi, oracle: debugCangrejoAi, resetTs: cangrejoAiReset, resetWasm: debugCangrejoReset },
     { name: 'pulpo', kind: 'tako', tsFn: pulpoAi, oracle: debugPulpoAi, resetTs: pulpoAiReset, resetWasm: debugPulpoReset },
     { name: 'pollo', kind: 'tori', tsFn: polloAi, oracle: debugPolloAi, resetTs: polloAiReset, resetWasm: debugPolloReset },
+    { name: 'agar', kind: 'agar', tsFn: agarAi, oracle: debugAgarAi, resetTs: agarAiReset, resetWasm: debugAgarReset },
+    { name: 'tarso', kind: 'tarso', tsFn: tarsoAi, oracle: debugTarsoAi, resetTs: tarsoAiReset, resetWasm: debugTarsoReset },
 ];
 
 describe.each(BOSSES)('stage 9f: %s boss parity vs real wasm', (boss) => {
@@ -86,15 +98,22 @@ describe.each(BOSSES)('stage 9f: %s boss parity vs real wasm', (boss) => {
             boss.resetWasm();
             debugSetEntropy((seed * 46599) & 0xffff);
             for (let r = 0; r < repeats; r++) {
+                // Advance ANIM_TIMER deterministically: get_random mixes it
+                // in, so a frozen timer makes the roll stream a fixed
+                // arithmetic progression whose trigger positions correlate
+                // with frame parity (starving odd-phase coverage).
+                view[0xff1b] = (seed * 13 + r * 7) & 0xff;
+                view[0xff1c] = (seed * 5 + r * 3) & 0xff;
                 boss.oracle(SCRATCH);
                 injectHit(seed, r);
             }
             const wMem = view.slice();
-
             applyBossScenario(view, seed, { kind: boss.kind });
             boss.resetTs();
             setEntropy((seed * 46599) & 0xffff);
             for (let r = 0; r < repeats; r++) {
+                view[0xff1b] = (seed * 13 + r * 7) & 0xff;
+                view[0xff1c] = (seed * 5 + r * 3) & 0xff;
                 boss.tsFn(view, SCRATCH);
                 injectHit(seed, r);
             }

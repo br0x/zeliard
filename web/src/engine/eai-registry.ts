@@ -21,6 +21,9 @@ import { monsterAi8 } from './eai8.js';
 import { cangrejoAi, cangrejoAiReset } from './boss-crab.js';
 import { pulpoAi, pulpoAiReset } from './boss-tako.js';
 import { polloAi, polloAiReset } from './boss-tori.js';
+import { agarAi, agarAiReset } from './boss-agar.js';
+import { vistaAi, vistaAiReset } from './boss-vista.js';
+import { tarsoAi, tarsoAiReset } from './boss-tarso.js';
 
 interface EaiModule {
     ai: MonsterAiFn | null; // null = not ported yet (no-op)
@@ -41,14 +44,14 @@ const REGISTRY: Record<number, EaiModule> = {
     7: { ai: polloAi, reset: polloAiReset }, // mp3d.mdt — Pollo (tori.c)
     8: { ai: monsterAi4 }, // mp40.mdt
     9: { ai: monsterAi4 }, // mp41.mdt
-    10: { ai: null }, // mp4d.mdt — Agar (akma.c), Stage 9h
+    10: { ai: agarAi, reset: agarAiReset }, // mp4d.mdt — Agar (zela.c)
     11: { ai: monsterAi5 }, // mp50.mdt
     12: { ai: monsterAi5 }, // mp51.mdt
-    13: { ai: null }, // mp5d.mdt — Vista, Stage 9i
+    13: { ai: vistaAi, reset: vistaAiReset }, // mp5d.mdt — Vista
     14: { ai: monsterAi6 }, // mp60.mdt — Monster_AI_6
     15: { ai: monsterAi6 }, // mp61.mdt — Monster_AI_6
     16: { ai: monsterAi6 }, // mp62.mdt — Monster_AI_6
-    17: { ai: null }, // mp6d.mdt — Tarso, Stage 9i
+    17: { ai: tarsoAi, reset: tarsoAiReset }, // mp6d.mdt — Tarso
     18: { ai: monsterAi7 }, // mp70.mdt — Monster_AI_7
     19: { ai: monsterAi7 }, // mp71.mdt — Monster_AI_7
     20: { ai: monsterAi7 }, // mp72.mdt — Monster_AI_7

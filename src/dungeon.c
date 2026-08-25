@@ -2293,6 +2293,14 @@ void wasm_debug_pulpo_reset(void) { Pulpo_AI_reset(); }
 void wasm_debug_pollo_ai(uint16_t m) { Pollo_AI(m); }
 void wasm_debug_pollo_reset(void) { Pollo_AI_reset(); }
 
+/* Stage 9g boss oracles: Agar (zela.c), Vista (meda.c), Tarso (lega.c). */
+void wasm_debug_agar_ai(uint16_t m) { Agar_AI(m); }
+void wasm_debug_agar_reset(void) { Agar_AI_reset(); }
+void wasm_debug_vista_ai(uint16_t m) { Vista_AI(m); }
+void wasm_debug_vista_reset(void) { Vista_AI_reset(); }
+void wasm_debug_tarso_ai(uint16_t m) { Tarso_AI(m); }
+void wasm_debug_tarso_reset(void) { Tarso_AI_reset(); }
+
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The
  * entropy setter pins get_random()'s static so both sides roll

@@ -141,6 +141,13 @@ export interface ZeliardExports {
     wasm_debug_pulpo_reset(): void;
     wasm_debug_pollo_ai(m: number): void;
     wasm_debug_pollo_reset(): void;
+    /** Stage 9g boss oracles: Agar (zela.c), Vista (meda.c), Tarso (lega.c). */
+    wasm_debug_agar_ai(m: number): void;
+    wasm_debug_agar_reset(): void;
+    wasm_debug_vista_ai(m: number): void;
+    wasm_debug_vista_reset(): void;
+    wasm_debug_tarso_ai(m: number): void;
+    wasm_debug_tarso_reset(): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1249,6 +1256,30 @@ export function debugPolloAi(m: number): void {
 
 export function debugPolloReset(): void {
     wasmExports?.wasm_debug_pollo_reset?.();
+}
+
+export function debugAgarAi(m: number): void {
+    wasmExports?.wasm_debug_agar_ai?.(m);
+}
+
+export function debugAgarReset(): void {
+    wasmExports?.wasm_debug_agar_reset?.();
+}
+
+export function debugVistaAi(m: number): void {
+    wasmExports?.wasm_debug_vista_ai?.(m);
+}
+
+export function debugVistaReset(): void {
+    wasmExports?.wasm_debug_vista_reset?.();
+}
+
+export function debugTarsoAi(m: number): void {
+    wasmExports?.wasm_debug_tarso_ai?.(m);
+}
+
+export function debugTarsoReset(): void {
+    wasmExports?.wasm_debug_tarso_reset?.();
 }
 
 export function debugDungeonUpdate(): void {

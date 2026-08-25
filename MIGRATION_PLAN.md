@@ -1221,9 +1221,47 @@ each verifiable in isolation:
   is required because renders rewrite `.ai_flags` fresh every frame —
   without it the seeded last-frame hits are the only ones ever processed
   and the damage/provoke/flinch chains never run.
-- **Remaining Stage 9 work:** meda.c/akma.c/mao1.c/mao2.c/drgn.c
-  (registry rows 10/13/17/21/22/28/29/30), plus recorded golden fixtures
-  of at least one full scripted boss fight per the stage checklist.
+- **9g ✅ — bosses, projectile users:** `zela.c` + `meda.c` + `lega.c` →
+  `engine/boss-agar.ts` / `engine/boss-vista.ts` / `engine/boss-tarso.ts`
+  (~1,600 lines): Agar's 4×3 body blob with the 10-step movement-pattern
+  attack sequence (N/S steps + wall-flagged alignment nudges + the
+  fall-through finalize step), near/far shot arming gated on anim phase
+  and the wrapped reference column, and the last-hit-wins collect quirk
+  (the original's first-hit guard is dead code — preserved); Vista's
+  ceiling patrol on the fixed terrain-height profile, hero-band dive
+  trigger with climb-back, wing-flap volley (two shots, viewport-gated),
+  14×12 body grid from four overlays whose shape masks rotate in place
+  (wing slots alias 3 physical arrays — preserved), and the
+  request==1/sword≥4 ×32 damage rule; Tarso's left-walk animation table
+  stepping, hit-triggered back-off state, charge/projectile state machine
+  with the arc velocity table (low-byte-only X adds), head-tile patching
+  into the 8×10 render buffer, tile→flags packing, and a reset that also
+  restores its mutable (aliased) shape masks. Registry rows 10/13/17 now
+  serve TS AI; only mao1/mao2/drgn remain.
+  Verified by **1,800 randomized 48-tick encounter scenarios** vs three
+  new C oracle pairs (`wasm_debug_{agar,vista,tarso}_ai/_reset`),
+  full-g_mem comparison with pinned entropy, animated ANIM_TIMER, and the
+  external hit injector; mutation-tested (6 mutations: damage shifts,
+  phase mask, sword gate, dive bottom bound, double-damage id, head-patch
+  offset — all caught).
+  *Harness lessons (costly, recorded for the remaining bosses):* an early
+  scenario edit silently dropped the `view[0xC010] = SCRATCH` pointer
+  write — every boss then ran against applyBase's leftover monster table,
+  producing moving-target "divergences" that cost a long debugging session
+  (the give-away was a divergence address that no code path could write);
+  vista's ~40-entry renders overrun the old 0xe9e0 scratch into the
+  projectile area (0xEB80), clobbering Add_Projectile_To_Array's 0xFF
+  terminator — boss lists now live at 0xB100 with ~2.7 KB headroom; and a
+  frozen ANIM_TIMER makes get_random's roll stream a fixed arithmetic
+  progression whose trigger positions correlate with frame parity, so the
+  harness advances it deterministically each tick to keep odd-phase
+  branches reachable.
+- **Remaining Stage 9 work:** zel2.c (Paguro, row 21), drgn.c (Dragon,
+  row 22), akma.c (Alguien, row 28), mao1.c/mao2.c (Jashiin1/2,
+  rows 29/30) — plus recorded golden fixtures of at least one full
+  scripted boss fight per the stage checklist. After those land: flip the
+  journey-harness gate and re-enable the default TS cutover (Stage 8d
+  slice-10 redo).
 - **All regular enemies (eai1–eai8) now TS-owned.** Registry rows 0–20 and
   23–27 serve TS AI; only boss overlays remain (rows 10/13/17/21/22/28/
   29/30). Journey-harness gate + default cutover stay parked until those

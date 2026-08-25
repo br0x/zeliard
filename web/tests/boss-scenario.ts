@@ -6,11 +6,19 @@ import { applyBase, bindView, frac, rng } from './vertical-scenario.js';
 
 /** Scratch address of the seeded boss_state_block (+0 x word, +2 y, +3 hp word). */
 export const BOSS_STATE = 0xb000;
-export const SCRATCH = 0xe9e0;
+/**
+ * Monsters-list scratch for boss encounters. Unlike the Stage 8 suites
+ * (≤8 entries), bosses render up to ~170 pseudo-monster entries per frame
+ * (~2.7 KB); 0xe9e0 + that overruns 0xEB80 — the enemy-projectile list —
+ * clobbering its 0xFF terminator, after which Add_Projectile_To_Array's
+ * unbounded scan wraps into low memory. Park the list above everything
+ * (projectiles end ≈0xED30, layer2 ends 0xEDA0): 0xF000 + 0xAA0 < 0xF800.
+ */
+export const SCRATCH = 0xb100;
 
 export interface BossSeedOpts {
     /** Which boss: drives the pseudo-monster tile-value domain. */
-    kind: 'crab' | 'tako' | 'tori';
+    kind: 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso';
 }
 
 /**
@@ -44,7 +52,16 @@ export function applyBossScenario(
     // 36-column window for EVERY legal boss_x (16..49). Without this, a
     // long leftward descent walks the prop out of view and the wasm oracle
     // hangs in that scan (latent UB the real game avoids via arena bounds).
-    const bossX = 16 + (rand() % 34);
+    const xRange: Record<BossSeedOpts['kind'], [number, number]> = {
+        crab: [16, 34],   // movement guards 16..49
+        tako: [16, 34],
+        tori: [16, 40],
+        agar: [18, 32],   // movement guards 17..50
+        vista: [12, 36],  // patrol limits 10..49; terrain idx boss_x-9 >= 1
+        tarso: [17, 32],  // left wall 0x0E..0x0F, right bound 50
+    };
+    const [xMin, xSpan] = xRange[opts.kind];
+    const bossX = xMin + (rand() % xSpan);
     const bossY = rand() % 64;
     const leftCol = 18;
 
@@ -52,6 +69,13 @@ export function applyBossScenario(
     if (leftCol >= mapWidth) throw new Error('scenario: mapWidth < 19');
     view[0x80] = leftCol & 0xff;
     view[0x81] = (leftCol >> 8) & 0xff;
+
+    // Point the monsters list at the boss scratch table.
+    view[0xc010] = SCRATCH & 0xff;
+    view[0xc011] = SCRATCH >> 8;
+
+    // Sword type: vista's heavy-hit path keys on sword type >= 4.
+    view[0x92] = rand() % 7;
 
     // boss_state_block
     view[BOSS_STATE + 0] = bossX & 0xff;
@@ -76,8 +100,17 @@ export function applyBossScenario(
     view.fill(0, 0xeb80, 0xed20);
     view[0xeb80] = 0xff; // empty projectile list
 
+    // NOTE: no clear of the list region itself — both passes start from
+    // identical leftovers and rewrite the rendered span contiguously up to
+    // the fresh sentinel, so stale bytes beyond it are never observed.
+    // Clearing here would instead wipe C-side statics that live in high
+    // linear memory and persist across oracle calls.
+
     // Layer-2 tile backup: applyBase doesn't own it.
     view.fill(0, 0xed20, 0xed20 + 128);
+
+    // Initialize the list region (fresh zeros both passes).
+    view.fill(0, 0xb100, 0xba00);
 
     // Last frame's pseudo-monster entries.
     const entryCount = 3 + (rand() % 4); // 3..6 entries
@@ -94,16 +127,23 @@ export function applyBossScenario(
             tile = frac(rand) < 0.3 ? 0x0e + (rand() % 3) : rand() % 6;
         } else if (opts.kind === 'tori') {
             tile = rand() % 16; // pose high nibble domain
+        } else if (opts.kind === 'vista') {
+            // eye body tiles; bit 3 set (0x08/0x09) marks vulnerable parts
+            tile = frac(rand) < 0.3 ? 0x08 + (rand() % 2) : rand() % 8;
+        } else if (opts.kind === 'agar') {
+            tile = rand() % 5; // movement_facing_table domain; id 4 = heavy
         } else {
-            // crab part tiles from its layout tables (incl. the 0x14 prop)
-            tile = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                0x10, 0x11, 0x12, 0x14, 0x90][rand() % 14]!;
+            tile = rand() % 256; // tarso: flags derive from the tile byte
         }
         if (opts.kind === 'crab' && i === 0) tile = 0x14; // droplet prop: unbounded scan target
         view[si + 4] = tile;
         let aiFlags = rand() % 256;
         if (frac(rand) < 0.85) aiFlags &= ~(0x20 | 0x40) & 0xff; // mostly un-hit
-        aiFlags = ((aiFlags & ~0x1f) | (rand() % 9)) & 0xff;     // Get_Stats domain
+        // Get_Stats domain: <= 8 hits the byte_98BE table, 9 has its own
+        // formula; tarso's damage rules distinguish 1 / 9 / others, so its
+        // seeded hit ids span 0..9.
+        const statMax = opts.kind === 'tarso' ? 10 : 9;
+        aiFlags = ((aiFlags & ~0x1f) | (rand() % statMax)) & 0xff;
         view[si + 5] = aiFlags;
         view[si + 6] = rand() % 256; // .anim_counter
         si += 16;
