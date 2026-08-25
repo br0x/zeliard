@@ -910,18 +910,20 @@ async function loadWasmEngine() {
         },
     });
 
-    // Stage 5e/7/8: leaf exports + town/dungeon engines can be served from
-    // TS. Default: pure-wasm — the town tick still has unresolved movement/
-    // collision divergences (Bosque post-restore movement lock, cmap/mrmp
-    // map-edge escape into a dungeon) and the town→dungeon entry path shows
-    // a wrong hero Y under TS init. Opt-in via ?zeliard_ports=shadow|cutover;
-    // see MIGRATION_PLAN.md Stage 8d slice-10 status.
-    if (TS_PORTS_MODE === 'shadow') {
+    // Stage 5e/7/8/9: leaf exports + the town/dungeon engines and every
+    // enemy/boss AI body are served from TS. Default: TS cutover — the
+    // journey harness (tests/town-dual-run.test.ts) replays the full
+    // town→dungeon path tick-for-tick bit-exact, and the golden fixtures +
+    // E2E specs run on the TS path. `?zeliard_ports=wasm` restores the
+    // pure-wasm engine; `=shadow` dual-runs the leaf ports. See
+    // MIGRATION_PLAN.md Stages 8d slice-10 (root causes fixed) and 9.
+    if (TS_PORTS_MODE === 'wasm') {
+        // pure-wasm fallback — nothing overridden
+    } else if (TS_PORTS_MODE === 'shadow') {
         enablePorts('shadow');
-    } else if (TS_PORTS_MODE === 'cutover') {
+    } else {
         enablePorts('cutover');
     }
-    // default (no param): pure-wasm — nothing overridden
 }
 
 const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine
@@ -2226,8 +2228,15 @@ function openImportExportModal() {
 (window as unknown as Record<string, unknown>).__zeliard = {
     ready: () => engineReady && !openingIntro.active && !endingDemo.active,
     mode: (): string => gameMode,
-    /** Jump from town into dungeon `mapId` (0..15), as if walking in. */
-    enterDungeon: (mapId: number): Promise<void> => handleDungeonTransition(mapId, false),
+    /** Jump from town into dungeon `mapId` (0..30), as if walking in.
+     * `isFromTown` defaults to false; boss caverns need true (skips the
+     * roka-run, like the real town→boss door path). Mirrors the real
+     * door flow's contract: PLACE_MAP_ID is set before prepare_dungeon
+     * reads it (town.c request_dungeon_transition does the same). */
+    enterDungeon: (mapId: number, isFromTown?: boolean): Promise<void> => {
+        writeMemory(ADDR_PLACE_MAP_ID, Uint8Array.of(mapId & 0x7f));
+        return handleDungeonTransition(mapId, isFromTown ?? false);
+    },
     /** Return from the dungeon to the starting town. */
     returnToTown: (): Promise<void> => initTownFromDungeon(1, false),
     /**
@@ -2296,6 +2305,14 @@ function openImportExportModal() {
         writeMemory(0x83, Uint8Array.of(xv & 0xff));
     },
     bldActive: (): number => getWasmMemory()?.[0xfffa] ?? 0,
+    /** Read one g_mem byte (scripted sessions / boss-fight recording). */
+    mem: (addr: number): number => getWasmMemory()?.[addr] ?? 0,
+    /** Read a g_mem word (little-endian). */
+    mem16: (addr: number): number =>
+        (getWasmMemory()?.[addr] ?? 0) | ((getWasmMemory()?.[addr + 1] ?? 0) << 8),
+    /** Write g_mem bytes (recorded as pokes; scripted sessions only). */
+    writeMem: (addr: number, ...vals: number[]): void =>
+        writeMemory(addr, Uint8Array.of(...vals)),
     /**
      * Golden-replay capture (Stage 5d), active under ?zeliard_record=1.
      * `stop()` detaches the tap and resolves to the fixture JSON.

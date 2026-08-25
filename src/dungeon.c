@@ -2301,6 +2301,19 @@ void wasm_debug_vista_reset(void) { Vista_AI_reset(); }
 void wasm_debug_tarso_ai(uint16_t m) { Tarso_AI(m); }
 void wasm_debug_tarso_reset(void) { Tarso_AI_reset(); }
 
+/* Stage 9i boss oracles: Paguro (zel2.c), Dragon (drgn.c),
+ * Alguien (akma.c), Jashiin1/2 (mao1.c/mao2.c). */
+void wasm_debug_paguro_ai(uint16_t m) { Paguro_AI(m); }
+void wasm_debug_paguro_reset(void) { Paguro_AI_reset(); }
+void wasm_debug_dragon_ai(uint16_t m) { Dragon_AI(m); }
+void wasm_debug_dragon_reset(void) { Dragon_AI_reset(); }
+void wasm_debug_alguien_ai(uint16_t m) { Alguien_AI(m); }
+void wasm_debug_alguien_reset(void) { Alguien_AI_reset(); }
+void wasm_debug_jashiin1_ai(uint16_t m) { Jashiin1_AI(m); }
+void wasm_debug_jashiin1_reset(void) { Jashiin1_AI_reset(); }
+void wasm_debug_jashiin2_ai(uint16_t m) { Jashiin2_AI(m); }
+void wasm_debug_jashiin2_reset(void) { Jashiin2_AI_reset(); }
+
 /* JS-callable debug oracles for the Stage 8c combat parity tests (sword
  * reach walks, hit application, death descriptor selection, XP). The
  * entropy setter pins get_random()'s static so both sides roll

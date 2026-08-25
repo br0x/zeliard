@@ -148,6 +148,18 @@ export interface ZeliardExports {
     wasm_debug_vista_reset(): void;
     wasm_debug_tarso_ai(m: number): void;
     wasm_debug_tarso_reset(): void;
+    /** Stage 9i boss oracles: Paguro (zel2.c), Dragon (drgn.c),
+     * Alguien (akma.c), Jashiin1/2 (mao1.c/mao2.c). */
+    wasm_debug_paguro_ai(m: number): void;
+    wasm_debug_paguro_reset(): void;
+    wasm_debug_dragon_ai(m: number): void;
+    wasm_debug_dragon_reset(): void;
+    wasm_debug_alguien_ai(m: number): void;
+    wasm_debug_alguien_reset(): void;
+    wasm_debug_jashiin1_ai(m: number): void;
+    wasm_debug_jashiin1_reset(): void;
+    wasm_debug_jashiin2_ai(m: number): void;
+    wasm_debug_jashiin2_reset(): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1280,6 +1292,46 @@ export function debugTarsoAi(m: number): void {
 
 export function debugTarsoReset(): void {
     wasmExports?.wasm_debug_tarso_reset?.();
+}
+
+export function debugPaguroAi(m: number): void {
+    wasmExports?.wasm_debug_paguro_ai?.(m);
+}
+
+export function debugPaguroReset(): void {
+    wasmExports?.wasm_debug_paguro_reset?.();
+}
+
+export function debugDragonAi(m: number): void {
+    wasmExports?.wasm_debug_dragon_ai?.(m);
+}
+
+export function debugDragonReset(): void {
+    wasmExports?.wasm_debug_dragon_reset?.();
+}
+
+export function debugAlguienAi(m: number): void {
+    wasmExports?.wasm_debug_alguien_ai?.(m);
+}
+
+export function debugAlguienReset(): void {
+    wasmExports?.wasm_debug_alguien_reset?.();
+}
+
+export function debugJashiin1Ai(m: number): void {
+    wasmExports?.wasm_debug_jashiin1_ai?.(m);
+}
+
+export function debugJashiin1Reset(): void {
+    wasmExports?.wasm_debug_jashiin1_reset?.();
+}
+
+export function debugJashiin2Ai(m: number): void {
+    wasmExports?.wasm_debug_jashiin2_ai?.(m);
+}
+
+export function debugJashiin2Reset(): void {
+    wasmExports?.wasm_debug_jashiin2_reset?.();
 }
 
 export function debugDungeonUpdate(): void {

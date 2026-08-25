@@ -65,9 +65,9 @@ test.describe('stage 5e leaf ports under load', () => {
         page.on('pageerror', err => consoleErrors.push(String(err)));
     });
 
-    test('cutover mode plays intro→town→dungeon→town entirely on TS ports', async ({ page }) => {
+    test('default boot plays intro→town→dungeon→town entirely on TS ports', async ({ page }) => {
         test.setTimeout(90_000);
-        await boot(page, 'zeliard_ports=cutover');
+        await boot(page, '');
         const ports = await page.evaluate('window.__zeliard.ports.state()') as Record<string, string>;
         expect(Object.keys(ports).length).toBeGreaterThanOrEqual(9);
         expect(Object.values(ports).every((m) => m === 'cutover')).toBe(true);

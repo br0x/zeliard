@@ -365,6 +365,8 @@ export function stateMachineDispatcher(
     g: Uint8Array,
     deps: {
         movePlatformDownDamageMonster: (g: Uint8Array) => boolean;
+        tryMovePlatformUp?: ((g: Uint8Array) => boolean) | undefined;
+        enterTheDoor?: ((g: Uint8Array, shouldBreak: { v: number }) => void) | undefined;
     },
 ): void {
     s8(g, SLIDE_DIRECTION, 0);
@@ -435,15 +437,16 @@ export function stateMachineDispatcher(
 
 function upPressedDispatch(
     g: Uint8Array,
-    _deps: { movePlatformDownDamageMonster: (g: Uint8Array) => boolean },
+    deps: {
+        tryMovePlatformUp?: ((g: Uint8Array) => boolean) | undefined;
+        enterTheDoor?: ((g: Uint8Array, sb: { v: number }) => void) | undefined;
+    },
 ): void {
-    // up_pressed without door/platform injection points beyond the caller's
-    // scope here; doors are wired through tryDoorInteraction's optional hook.
     s8(g, BYTE_9F18, 0);
     const shouldBreak = { v: 0 };
-    tryDoorInteraction(g, shouldBreak);
+    tryDoorInteraction(g, shouldBreak, deps.enterTheDoor);
     if (shouldBreak.v !== 0) return;
-    // try_move_platform_up is injected by the caller-facing wrapper
+    if (deps.tryMovePlatformUp?.(g)) return;
     tryClimbRope(g);
     jumpPressHandler(g);
 }
@@ -561,10 +564,18 @@ export function airborneMovement(g: Uint8Array): number {
 
     s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x80);
     const oldPhase = g8(g, JUMP_PHASE_FLAGS);
-    void oldPhase;
     s8(g, JUMP_PHASE_FLAGS, 0x7f);
     if (g8(g, SLOPE_DIRECTION) !== 0) return 0;
     if (g8(g, INVINCIBILITY_FLAG) !== 0) return 0;
+
+    if (oldPhase === 0) {
+        // Landing frame: re-center facing (dungeon.c:4570 — the
+        // on_left/on_right_pressed calls also zero BYTE_9F18).
+        if ((g8(g, FACING) & LEFT_FLAG) !== 0) onLeftPressed(g);
+        else onRightPressed(g);
+        s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
+        return 0;
+    }
 
     const horizInput = g8(g, INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
 

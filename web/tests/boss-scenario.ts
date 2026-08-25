@@ -18,7 +18,9 @@ export const SCRATCH = 0xb100;
 
 export interface BossSeedOpts {
     /** Which boss: drives the pseudo-monster tile-value domain. */
-    kind: 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso';
+    kind:
+        | 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso'
+        | 'paguro' | 'dragon' | 'alguien' | 'jashiin1' | 'jashiin2';
 }
 
 /**
@@ -52,6 +54,9 @@ export function applyBossScenario(
     // 36-column window for EVERY legal boss_x (16..49). Without this, a
     // long leftward descent walks the prop out of view and the wasm oracle
     // hangs in that scan (latent UB the real game avoids via arena bounds).
+    // Dragon varies leftCol instead: its pose selection compares
+    // (left+16)/(left+11) against boss_x, and with a fixed leftCol only
+    // some branches would ever run.
     const xRange: Record<BossSeedOpts['kind'], [number, number]> = {
         crab: [16, 34],   // movement guards 16..49
         tako: [16, 34],
@@ -59,11 +64,16 @@ export function applyBossScenario(
         agar: [18, 32],   // movement guards 17..50
         vista: [12, 36],  // patrol limits 10..49; terrain idx boss_x-9 >= 1
         tarso: [17, 32],  // left wall 0x0E..0x0F, right bound 50
+        paguro: [18, 32], // movement guards 17..50
+        dragon: [17, 13], // bounds: blocked at x<=14 / x>30
+        alguien: [12, 36],// move-2 guards: blocked at x-2<=9 / x+2>0x33
+        jashiin1: [16, 24], // boss_x overwritten every frame (0x10/0x0D)
+        jashiin2: [17, 28], // walk guards: blocked at x<=14 / x>53
     };
     const [xMin, xSpan] = xRange[opts.kind];
     const bossX = xMin + (rand() % xSpan);
     const bossY = rand() % 64;
-    const leftCol = 18;
+    const leftCol = opts.kind === 'dragon' ? 14 + (rand() % 14) : 18;
 
     const mapWidth = (view[0xc002] ?? 0) | ((view[0xc003] ?? 0) << 8);
     if (leftCol >= mapWidth) throw new Error('scenario: mapWidth < 19');
@@ -130,10 +140,18 @@ export function applyBossScenario(
         } else if (opts.kind === 'vista') {
             // eye body tiles; bit 3 set (0x08/0x09) marks vulnerable parts
             tile = frac(rand) < 0.3 ? 0x08 + (rand() % 2) : rand() % 8;
-        } else if (opts.kind === 'agar') {
-            tile = rand() % 5; // movement_facing_table domain; id 4 = heavy
+        } else if (opts.kind === 'agar' || opts.kind === 'paguro') {
+            tile = rand() % 5; // movement_facing_table domain; agar id 4 = heavy
+        } else if (opts.kind === 'dragon') {
+            // zero low-nibble marks the vulnerable parts — seed both classes
+            tile = frac(rand) < 0.35
+                ? (frac(rand) < 0.5 ? 0x00 : 0x80)
+                : rand() % 256;
+        } else if (opts.kind === 'alguien') {
+            // .flags == 5 exactly marks the vulnerable segment
+            tile = frac(rand) < 0.25 ? 5 : rand() % 256;
         } else {
-            tile = rand() % 256; // tarso: flags derive from the tile byte
+            tile = rand() % 256; // tarso/jashiin: flags derive from the byte
         }
         if (opts.kind === 'crab' && i === 0) tile = 0x14; // droplet prop: unbounded scan target
         view[si + 4] = tile;
@@ -145,11 +163,26 @@ export function applyBossScenario(
         const statMax = opts.kind === 'tarso' ? 10 : 9;
         aiFlags = ((aiFlags & ~0x1f) | (rand() % statMax)) & 0xff;
         view[si + 5] = aiFlags;
-        view[si + 6] = rand() % 256; // .anim_counter
+        let animCounter = rand() % 256;
+        // jashiin2's special hit class: flags low-5 zero AND anim low
+        // nibble zero — seed matching pairs so the path is reachable.
+        if (opts.kind === 'jashiin2' && (tile & 0x1f) === 0 && frac(rand) < 0.6) {
+            animCounter &= ~0x0f & 0xff;
+        }
+        view[si + 6] = animCounter;
         si += 16;
     }
     view[si + 0] = 0xff; // .currX sentinel: end of list
     view[si + 1] = 0xff;
+
+    // Kind-specific extra seeds.
+    if (opts.kind === 'jashiin1') {
+        view[0xe6] = 0xff; // IS_JASHIIN_CAVERN: script end clears it (observable)
+    }
+    if (opts.kind === 'jashiin2') {
+        // Encounter-start latch: mostly started so the AI body actually runs.
+        view[0xff21] = frac(rand) < 0.85 ? 0xff : 0;
+    }
 
     return { bossX, d0: Math.abs(bossX - (leftCol + (view[0x83] ?? 0))) };
 }

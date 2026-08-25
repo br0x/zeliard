@@ -15,6 +15,16 @@ import {
     debugVistaReset,
     debugTarsoAi,
     debugTarsoReset,
+    debugPaguroAi,
+    debugPaguroReset,
+    debugDragonAi,
+    debugDragonReset,
+    debugAlguienAi,
+    debugAlguienReset,
+    debugJashiin1Ai,
+    debugJashiin1Reset,
+    debugJashiin2Ai,
+    debugJashiin2Reset,
     debugSetEntropy,
     getWasmMemory,
     initWasmFromBytes,
@@ -25,6 +35,11 @@ import { polloAi, polloAiReset } from '../src/engine/boss-tori.js';
 import { agarAi, agarAiReset } from '../src/engine/boss-agar.js';
 import { vistaAi, vistaAiReset } from '../src/engine/boss-vista.js';
 import { tarsoAi, tarsoAiReset } from '../src/engine/boss-tarso.js';
+import { paguroAi, paguroAiReset } from '../src/engine/boss-paguro.js';
+import { dragonAi, dragonAiReset } from '../src/engine/boss-dragon.js';
+import { alguienAi, alguienAiReset } from '../src/engine/boss-alguien.js';
+import { jashiin1Ai, jashiin1AiReset } from '../src/engine/boss-jashiin1.js';
+import { jashiin2Ai, jashiin2AiReset } from '../src/engine/boss-jashiin2.js';
 import { setEntropy } from '../src/engine/dungeon-combat.js';
 import { applyBossScenario, SCRATCH } from './boss-scenario.js';
 import { frac, rng } from './vertical-scenario.js';
@@ -48,7 +63,9 @@ function firstDiff(a: Uint8Array, b: Uint8Array): number {
 
 interface BossDef {
     name: string;
-    kind: 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso';
+    kind:
+        | 'crab' | 'tako' | 'tori' | 'agar' | 'vista' | 'tarso'
+        | 'paguro' | 'dragon' | 'alguien' | 'jashiin1' | 'jashiin2';
     tsFn: (g: Uint8Array, m: number) => void;
     oracle: (m: number) => void;
     resetTs: () => void;
@@ -62,6 +79,11 @@ const BOSSES: BossDef[] = [
     { name: 'pollo', kind: 'tori', tsFn: polloAi, oracle: debugPolloAi, resetTs: polloAiReset, resetWasm: debugPolloReset },
     { name: 'agar', kind: 'agar', tsFn: agarAi, oracle: debugAgarAi, resetTs: agarAiReset, resetWasm: debugAgarReset },
     { name: 'tarso', kind: 'tarso', tsFn: tarsoAi, oracle: debugTarsoAi, resetTs: tarsoAiReset, resetWasm: debugTarsoReset },
+    { name: 'paguro', kind: 'paguro', tsFn: paguroAi, oracle: debugPaguroAi, resetTs: paguroAiReset, resetWasm: debugPaguroReset },
+    { name: 'dragon', kind: 'dragon', tsFn: dragonAi, oracle: debugDragonAi, resetTs: dragonAiReset, resetWasm: debugDragonReset },
+    { name: 'alguien', kind: 'alguien', tsFn: alguienAi, oracle: debugAlguienAi, resetTs: alguienAiReset, resetWasm: debugAlguienReset },
+    { name: 'jashiin1', kind: 'jashiin1', tsFn: jashiin1Ai, oracle: debugJashiin1Ai, resetTs: jashiin1AiReset, resetWasm: debugJashiin1Reset },
+    { name: 'jashiin2', kind: 'jashiin2', tsFn: jashiin2Ai, oracle: debugJashiin2Ai, resetTs: jashiin2AiReset, resetWasm: debugJashiin2Reset },
 ];
 
 describe.each(BOSSES)('stage 9f: %s boss parity vs real wasm', (boss) => {

@@ -122,8 +122,7 @@ export function dungeonFinishNormalFrame(
     // magic_spell_fire_handler()
     magicSpellFireHandlerLocal(g);
 
-    // hero_interaction_check() / hero_knockback_handler() live in their
-    // own modules — injected via deps where they need dispatcher glue:
+    heroInteractionCheck(g);
     heroKnockbackHandler(g);
 
     s8(g, FRAME_TICKS, (g8(g, FRAME_TICKS) + 1) & 0xff);
@@ -175,6 +174,8 @@ function stateMachineDispatcherTick(
 ): void {
     stateMachineDispatcher(g, {
         movePlatformDownDamageMonster: deps.movePlatformDownDamageMonster,
+        tryMovePlatformUp: deps.tryMovePlatformUp,
+        enterTheDoor: deps.enterTheDoor,
     });
 }
 
@@ -208,7 +209,7 @@ export function dungeonUpdateNormal(
         if (g8(g, 0xff90) === DUNGEON_STATE_NORMAL) {
             dungeonFinishNormalFrame(g, deps, callbacks);
         } else if (g8(g, 0xff90) === DUNGEON_STATE_ROPE) {
-            dungeonFinishRopeFrame(g);
+            dungeonFinishRopeFrame(g, deps);
         }
     }
 }
@@ -251,7 +252,6 @@ export function dungeonUpdateJashiinCutscene(
     s8(g, 0xfffd /* PENDING_DUNGEON_FLAG */, 0xff);
     s8(g, 0xffe2 /* DUNGEON_EXIT_FLAG */, 0xff);
     s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
-    void deps;
 }
 
 function BYTE_9F00_UNUSED(): number {
@@ -261,11 +261,11 @@ function BYTE_9F00_UNUSED(): number {
 // ─── rope mode ───
 
 /** dungeon_finish_rope_frame (dungeon.c:5030). */
-export function dungeonFinishRopeFrame(g: Uint8Array): void {
+export function dungeonFinishRopeFrame(g: Uint8Array, deps?: StateFrameDeps): void {
     heroKnockbackHandler(g);
     // state_machine_dispatcher needs platform-down dep via caller scope;
     // use a neutral dispatcher wrapper through the exported signature.
-    stateMachineDispatcherRope(g);
+    stateMachineDispatcherRope(g, deps);
 
     if (g8(g, ON_ROPE_FLAGS) === 0xff) {
         let si = wrapCheck(heroCoordsToAddr(g) + 1);
@@ -295,12 +295,17 @@ export function dungeonFinishRopeFrame(g: Uint8Array): void {
 }
 
 import { isOverRope as isOverRopeTick, setZeroFlagIfSlippery as slipperyCheck } from './dungeon-vertical.js';
-import { heroCoordsToAddrInProximity as heroCoordsToAddr } from './dungeon-hero.js';
+import { heroCoordsToAddrInProximity as heroCoordsToAddr, heroInteractionCheck } from './dungeon-hero.js';
 import { movePlatformDownDamageMonster as movePlatformDownImpl } from './dungeon-vertical.js';
 
-function stateMachineDispatcherRope(g: Uint8Array): void {
+function stateMachineDispatcherRope(
+    g: Uint8Array,
+    deps?: StateFrameDeps,
+): void {
     stateMachineDispatcher(g, {
         movePlatformDownDamageMonster: (gg) => movePlatformDownImpl(gg),
+        tryMovePlatformUp: deps?.tryMovePlatformUp,
+        enterTheDoor: deps?.enterTheDoor,
     });
 }
 
@@ -337,10 +342,9 @@ export function dungeonUpdateRope(
     const invincible = g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
     if (dungeonRenderTimingStep(g, invincible, callbacks) !== 0) {
         if (g8(g, 0xff90) === DUNGEON_STATE_ROPE) {
-            dungeonFinishRopeFrame(g);
+            dungeonFinishRopeFrame(g, deps);
         }
     }
-    void deps;
 }
 
 // ─── death sequence ───
@@ -375,7 +379,7 @@ export function dungeonUpdateDeathFall(
 
     if (airborneMovementTick(g) !== 0) {
         s8(g, HERO_SPRITE_HIDDEN, 0);
-        s8(g, 0xff90 /* DUNGEON_STATE */, 2 /* DEATH_FLASH */);
+        s8(g, 0xff90 /* DUNGEON_STATE */, 3 /* DEATH_FLASH */);
         s8(g, DEATH_COUNTER, 0);
     }
 }

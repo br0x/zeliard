@@ -18,6 +18,8 @@ import type { ViewAccessor } from '../wasm/parity/ports.js';
 import {
     bindMainUpdateRender,
     bindProcessHeroDeath,
+    clearHeroInViewport,
+    cavernGameInit,
     dungeonUpdate,
     rokaRun,
 } from './dungeon-state-machine.js';
@@ -47,7 +49,62 @@ import {
     dungeonRuntimeStatics as statics,
 } from './dungeon-runtime.js';
 import { loadEaiModule } from './eai-registry.js';
-import { mainUpdateRender, processHeroDeath } from './dungeon-frame.js';
+import { heroCoordsToAddrInProximity } from './dungeon-hero.js';
+import { processDoors } from './dungeon-frame-pre.js';
+import {
+    mainUpdateRender,
+    processHeroDeath,
+} from './dungeon-frame.js';
+
+// ─── load_place_and_reinit (dungeon.c:932) ───
+//
+// Post-boss-reward cavern restart: restore the saved eai/enp indices from
+// the MDT descriptor, clear the boss flags, run the MDT initializer list,
+// recompute the (defeat) door position, and re-enter Cavern_Game_Init.
+// Asset loads are stubs, exactly as in the C translation.
+function loadPlaceAndReinit(g: Uint8Array): void {
+    const g8 = (a: number): number => g[a & 0xffff] ?? 0;
+    const g16 = (a: number): number => (g[a & 0xffff] ?? 0) | ((g[(a + 1) & 0xffff] ?? 0) << 8);
+    const s8 = (a: number, v: number): void => { g[a & 0xffff] = v & 0xff; };
+    const s16 = (a: number, v: number): void => {
+        g[a & 0xffff] = v & 0xff;
+        g[(a + 1) & 0xffff] = (v >> 8) & 0xff;
+    };
+
+    if (g8(0xe8 /* INVINCIBILITY_FLAG */) !== 0) return;
+
+    const mdt = g16(0xc000); // mdt_buffer → descriptor pointer
+    s8(0x9efe /* EAI_BIN_INDEX */, g8(mdt + 6)); // .boss_ai
+    s8(0x9eff /* ENP_GRP_INDEX */, g8(mdt + 7)); // .saved_enp_grp_idx
+    // (eai/enp loads + tile decompression are JS-side stubs, as in C)
+
+    s8(0xff34 /* IS_BOSS_CAVERN */, 0);
+    s8(0xffa0 /* BOSS_MODE */, 0);
+
+    // Optional initializers from MDT descriptor+8 (addr/value word pairs).
+    let si = (mdt + 8) & 0xffff;
+    for (;;) {
+        const addr = g16(si);
+        if (addr === 0xffff) break;
+        s16(addr, g16(si + 2));
+        si = (si + 4) & 0xffff;
+    }
+
+    // Position and spawn the new door.
+    const heroTl = heroCoordsToAddrInProximity(g);
+    let absX = (g16(0x80) + g8(0x83)) & 0xffff;
+    if (g8((heroTl - 5) & 0xffff) !== 0) absX = (absX + 9) & 0xffff;
+    const mapW = g16(0xc002);
+    if (absX >= mapW) absX -= mapW;
+    si = g16(0xc00a /* DOORS_LIST */);
+    s16(si + 0, absX); // door[0].x0
+    processDoors(g);
+    // screen_flash_overlay(): stub
+    clearHeroInViewport(g);
+
+    s8(0x9f1e /* BOSS_REWARD_PROCESSED */, 0);
+    cavernGameInit(g, statics); // default mainUpdateRender hook already bound
+}
 
 function requireView(getView: ViewAccessor): Uint8Array {
     const view = getView();
@@ -67,7 +124,7 @@ const doorCbs = {
 
 const frameCallbacks = {
     bringInventoryWindow: (_g: Uint8Array): void => undefined, // key-router handles Enter in JS
-    loadPlaceAndReinit: (_g: Uint8Array): void => undefined, // set via setLoadPlaceAndReinit
+    loadPlaceAndReinit: (g: Uint8Array): void => loadPlaceAndReinit(g),
 };
 
 /**

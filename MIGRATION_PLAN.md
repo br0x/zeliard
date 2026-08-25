@@ -757,17 +757,14 @@ edge-scroll logic (`wasm_town_update` / `_full_tick` family).
   fallback until Stage 10. Suite: 818 unit tests + 5 E2E; tsc strict-clean;
   build + smoke green with TS ticks as the default path.
 
-### Stage 8 — Dungeon core 🚧 *(code complete; runtime cutover gated on one divergence)*
+### Stage 8 — Dungeon core ✅ *(completed; runtime cutover completed in Stage 9i)*
 Port `dungeon.c`: player physics/collision, scrolling, entity table
 management, render-request generation.
 - All dungeon.c subsystems are ported to TS with parity tests (8a–8d).
 - **Exit criteria** ("dungeon playable with zero calls into wasm dungeon
-  exports") is met under `?zeliard_ports=cutover` for the recorded fixtures
-  and E2E paths — but the default remains pure-wasm until the
-  town→dungeon journey harness (`journeyToDungeon` in
-  web/tests/town-dual-run.test.ts) replays clean end-to-end: the TS
-  viewport-follow path still diverges by one row ~11 frames after cavern
-  entry (see 8d slice-10 status).
+  exports") is met by default as of Stage 9i: the journey harness
+  (`journeyToDungeon` in web/tests/town-dual-run.test.ts) replays clean
+  end-to-end and main.ts serves the dispatched surface from TS at boot.
 
 **Sub-steps** *(detalized from code survey; dungeon.c = 6.5k lines)*:
 - **8a — monster movement & collision primitives ✅**
@@ -1095,8 +1092,10 @@ management, render-request generation.
      scrolled the viewport one row per grounded frame. Fixed; entry is now
      bit-exact. The journey stays as an explicit `it.fails` gate until
      Stage 9 lands (then flip it + the default cutover in main.ts).
-     Until then the default remains pure-wasm;
-     `?zeliard_ports=shadow|cutover` remain opt-in.
+      Until then the default remains pure-wasm;
+      `?zeliard_ports=shadow|cutover` remain opt-in.
+      *(RESOLVED in Stage 9i: root causes fixed, default TS cutover
+      re-enabled — see Stage 9.)*
    - *New debugging technique proven here:* dump the pre-divergence g_mem
      from the dual-run harness, then replay that single tick natively
      (gcc-built src/*.c) vs TS in isolation — pinpoints a divergence to one
@@ -1110,7 +1109,7 @@ management, render-request generation.
   Still to record: a death sequence and a boss encounter (needs scripted
   hazard/boss positioning); extend coverage to remaining cavern maps.
 
-### Stage 9 — Enemies & bosses, one file per PR
+### Stage 9 — Enemies & bosses, one file per PR ✅ *(completed)*
 Port the AI files individually — they're naturally independent staging units,
 each verifiable in isolation:
 - Regular enemies: `eai1.c` … `eai8.c` (one or two per stage-step)
@@ -1256,23 +1255,97 @@ each verifiable in isolation:
   progression whose trigger positions correlate with frame parity, so the
   harness advances it deterministically each tick to keep odd-phase
   branches reachable.
-- **Remaining Stage 9 work:** zel2.c (Paguro, row 21), drgn.c (Dragon,
-  row 22), akma.c (Alguien, row 28), mao1.c/mao2.c (Jashiin1/2,
-  rows 29/30) — plus recorded golden fixtures of at least one full
-  scripted boss fight per the stage checklist. After those land: flip the
-  journey-harness gate and re-enable the default TS cutover (Stage 8d
-  slice-10 redo).
-- **All regular enemies (eai1–eai8) now TS-owned.** Registry rows 0–20 and
-  23–27 serve TS AI; only boss overlays remain (rows 10/13/17/21/22/28/
-  29/30). Journey-harness gate + default cutover stay parked until those
-  land.
-- **Journey harness now fully green:** cmap → Muralla → cavern door →
-  TS `wasm_dungeon_init(is_from_town=true)` → 400 ticks of cavern play
-  with real ported AI replays bit-for-bit vs wasm
-  (`journeyToDungeon` in tests/town-dual-run.test.ts). The default cutover
-  flip stays parked until all AI bodies are ported — flipping earlier
-  would freeze monsters in not-yet-ported caverns (visible behavior
-  change), violating the "never break playability" rule.
+- **9h ✅ — final bosses:** `zel2.c` + `drgn.c` + `akma.c` + `mao1.c` +
+  `mao2.c` → `engine/boss-paguro.ts` / `engine/boss-dragon.ts` /
+  `engine/boss-alguien.ts` / `engine/boss-jashiin1.ts` /
+  `engine/boss-jashiin2.ts`: Paguro (Agar-structure blob with the SFX-36
+  plain-damage rule and 120-byte shot templates), the Dragon (29×10 sparse
+  composite layout, motion-driven appendages, windup+breath flame extension,
+  vulnerable-segment ×2 damage and hit-reaction pose sequences), Alguien
+  (wall-crawl/climb flight with top-of-climb sweep-attack telegraphs —
+  ground vs diagonal pattern from the hero's wrapped edge position — and
+  in-place-rotating mask tables), Jashiin room 1 (non-interactive cutscene:
+  script cursor driving poses/dialog signals, aliased mask_d at pose slots
+  3/6) and Jashiin room 2 (encounter latch 0xFF21, intro teleport/pose
+  sequence, chase/walk/jump AI with facing-relative distances, two
+  independent projectile attacks, HP<200 regeneration phase). Registry rows
+  21/22/28/29/30 now serve TS AI — **every row 0–30 is TS-owned; no enemy/
+  boss behavior originates from wasm.**
+  Verified by ~1,500 randomized 48-tick encounter scenarios across the five
+  files vs five new C oracle pairs
+  (`wasm_debug_{paguro,dragon,alguien,jashiin1,jashiin2}_ai/_reset`),
+  full-g_mem comparison with pinned entropy; mutation-tested on all five
+  (SFX id, dragon damage shift, alguien telegraph threshold, jashiin1 pose
+  boundary, jashiin2 second-shift condition — all caught).
+- **9i ✅ — boss-fight golden fixture + default cutover flip:**
+  - *Fixture:* `boss-cangrejo.json` — a full Cangrejo encounter recorded
+    through the real dispatch/poke chokepoints: town boot → town→boss door
+    entry (`enterDungeon(1, true)`), encounter flash, live crab AI ticks,
+    scripted sword swings, then a poke-assisted kill (HP→1 + one
+    apply_sword_hit-style `0x41` mark on a body part) so the engine's own
+    collect → Get_Stats → apply_damage → death-flash → BOSS_IS_DEAD →
+    reward → `load_place_and_reinit` restart always completes on camera.
+    Replays bit-for-bit under pure-wasm AND full-TS cutover routing.
+  - *Real port bugs caught by the fixture:* (1)
+    `dungeonFinishNormalFrame` never called `heroInteractionCheck`
+    (dungeon-states.ts) — the hero-inside-blocking-tile window slide was
+    missing entirely from TS; found via a lcol off-by-one that appeared
+    only when the boss-arena centering branch ran. (2) The TS cutover
+    layer's `loadPlaceAndReinit` callback was an unwired no-op — ported
+    natively in dungeon-cutover.ts (eai/enp index restore, MDT initializer
+    list, defeat-door repositioning, `Cavern_Game_Init` re-entry).
+  - *Debug-hook fixes:* `__zeliard.enterDungeon` now writes
+    `ADDR_PLACE_MAP_ID` before `wasm_dungeon_init` (the real door paths set
+    it in town.c/door completion; without it prepare_dungeon read stale
+    garbage and routed boss entries to the town-exit branch), gained an
+    `isFromTown` parameter (boss caverns skip the roka run), plus
+    `mem`/`mem16`/`writeMem` accessors for scripted sessions.
+  - *Harness lessons recorded:* hero proximity column is `xv+4`, the small
+    sword's forward reach band covers roughly +2..+8 columns in the facing
+    direction at headY−2..headY+1 — scripts must stop with the boss leading
+    by ~6–10 columns, not adjacent; the crab's acid rain kills a fresh
+    20-HP hero in seconds (top up HERO_HP or keep sessions short); walking
+    blindly finds the arena's exit doors (watch dstate 6 / mode changes).
+- **Default TS cutover re-enabled ✅:** with all AI bodies ported and the
+  journey harness green, main.ts serves the entire dispatched surface from
+  TS at boot. `?zeliard_ports=wasm` restores the pure-wasm reference;
+  `=shadow` dual-runs the leaf ports. E2E updated: default-boot spec asserts
+  every port is TS-served through a full play session; screenshot baselines
+  pass unchanged under TS rendering; shadow E2E reports zero divergences;
+  the recorder pins `zeliard_ports=wasm` so fixtures keep capturing the
+  reference implementation.
+- **Exit criteria met:** no enemy/boss behavior originates from wasm.
+  Suite: **7,037 unit tests** (+6 replay tests for the new fixture) + 6 E2E
+  (+1 recorder, skipped by default); tsc strict-clean; production build
+  green.
+- **9j ✅ — play-test regression fixes (first live sessions on the default
+  TS cutover):** recorded a long real-input combat session
+  (`combat-walk.json`: walking both directions, constant sword swings,
+  kills, doubling back over corpses, Up/Down presses, an actual hero death
+  sequence) and bisected its full-TS cutover divergences to five root
+  causes, all fixed:
+  - `heroInteractionCheck` was missing C's second early-out
+    (`JUMP_PHASE_FLAGS != 0 → skip`) — TS scrolled the whole proximity
+    window by one column during airborne frames near blocking tiles, which
+    plays exactly like invisible obstacles appearing at the hero's position;
+  - `airborneMovement` dropped C's entire landing branch (`old_phase == 0`
+    → `on_left/on_right_pressed()` + clear FACING.UP + return): landings
+    never re-centered facing nor reset the BYTE_9F18 regen timer (the
+    ported `oldPhase` was computed then discarded via `void`);
+  - `upPressedDispatch` never called `tryMovePlatformUp` (left as an
+    admitted no-op when the dispatcher deps were narrowed) — pressing Up on
+    a vertical platform always fell through to rope-grab/jump; the
+    platform-up and enter-the-door hooks are now threaded through the
+    dispatcher deps from dungeon-cutover's wired implementations;
+  - the death sequence wrote `DEATH_FLASH` as literal 2 (= DEATH_FALL), so
+    under TS the hero's death animation stalled forever in the fall state;
+  - (plus the boss-fixture-found `load_place_and_reinit` /
+    `hero_interaction_check` gaps documented under 9i.)
+  Verified by: the new fixture replaying bit-for-bit under wasm AND full-TS
+  cutover; a kill+corpse-walk repro (24 monsters killed through the real
+  `Hero_Hits_monster` path, then walked over) producing zero stale
+  proximity markers and identical digests on both engines. Suite:
+  **7,043 unit tests** + 6 E2E; tsc strict-clean; production build green.
 
 Detalized steps *(from code survey; the AI entry point is
 `Monster_AI(m)` → `current_monster_ai` selected by `load_eai_module`'s

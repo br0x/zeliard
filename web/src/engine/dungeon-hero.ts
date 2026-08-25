@@ -286,6 +286,7 @@ export function moveHeroLeftIfNoObstacles(g: Uint8Array): number {
  */
 export function heroInteractionCheck(g: Uint8Array): void {
     if (g8(g, SQUAT_FLAG) !== 0) return;
+    if (g8(g, JUMP_PHASE_FLAGS) !== 0) return;
     let si = heroCoordsToAddrInProximity(g);
     let tile = g8(g, si);
     if (!isBlockingTile(g, tile)) return;

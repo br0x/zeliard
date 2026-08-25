@@ -54,7 +54,9 @@ test('records town + dungeon session', async ({ page }) => {
     let consoleErrors = 0;
     page.on('pageerror', () => consoleErrors++);
 
-    await page.goto('/?zeliard_record=1');
+    // Fixtures must capture the wasm reference implementation, so pin the
+    // pure-wasm engine even though TS cutover is now the default.
+    await page.goto('/?zeliard_record=1&zeliard_ports=wasm');
 
     // Skip the intro into town.
     await hookInstalled(page);

@@ -24,6 +24,11 @@ import { polloAi, polloAiReset } from './boss-tori.js';
 import { agarAi, agarAiReset } from './boss-agar.js';
 import { vistaAi, vistaAiReset } from './boss-vista.js';
 import { tarsoAi, tarsoAiReset } from './boss-tarso.js';
+import { paguroAi, paguroAiReset } from './boss-paguro.js';
+import { dragonAi, dragonAiReset } from './boss-dragon.js';
+import { alguienAi, alguienAiReset } from './boss-alguien.js';
+import { jashiin1Ai, jashiin1AiReset } from './boss-jashiin1.js';
+import { jashiin2Ai, jashiin2AiReset } from './boss-jashiin2.js';
 
 interface EaiModule {
     ai: MonsterAiFn | null; // null = not ported yet (no-op)
@@ -55,16 +60,16 @@ const REGISTRY: Record<number, EaiModule> = {
     18: { ai: monsterAi7 }, // mp70.mdt — Monster_AI_7
     19: { ai: monsterAi7 }, // mp71.mdt — Monster_AI_7
     20: { ai: monsterAi7 }, // mp72.mdt — Monster_AI_7
-    21: { ai: null }, // mp73.mdt — Paguro, Stage 9i
-    22: { ai: null }, // mp7d.mdt — Dragon (drgn.c), Stage 9i
+    21: { ai: paguroAi, reset: paguroAiReset }, // mp73.mdt — Paguro (zel2.c)
+    22: { ai: dragonAi, reset: dragonAiReset }, // mp7d.mdt — Dragon (drgn.c)
     23: { ai: monsterAi8 }, // mp80.mdt — Monster_AI_8
     24: { ai: monsterAi8 }, // mp81.mdt — Monster_AI_8
     25: { ai: monsterAi8 }, // mp82.mdt — Monster_AI_8
     26: { ai: monsterAi8 }, // mp83.mdt — Monster_AI_8
     27: { ai: monsterAi8 }, // mp84.mdt — Monster_AI_8
-    28: { ai: null }, // mp8d.mdt — Alguien (mao1.c), Stage 9i
-    29: { ai: null }, // mp90.mdt — Jashiin1 (mao2.c), Stage 9i
-    30: { ai: null }, // mpa0.mdt — Jashiin2 (mao2.c), Stage 9i
+    28: { ai: alguienAi, reset: alguienAiReset }, // mp8d.mdt — Alguien (akma.c)
+    29: { ai: jashiin1Ai, reset: jashiin1AiReset }, // mp90.mdt — Jashiin1 (mao1.c)
+    30: { ai: jashiin2Ai, reset: jashiin2AiReset }, // mpa0.mdt — Jashiin2 (mao2.c)
 };
 
 let current: EaiModule = { ai: null };
