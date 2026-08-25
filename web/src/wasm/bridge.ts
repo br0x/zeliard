@@ -123,6 +123,7 @@ export interface ZeliardExports {
     wasm_debug_step_on_aggressive_ground(): void;
     /** Stage 8d oracle: pin the transition statics. */
     wasm_debug_set_dungeon_statics(isFromTown: number, savedYViewInit: number): void;
+    wasm_debug_set_skip_roka_run(skip: number): void;
     /** Stage 8d slice-5 oracles: enemy projectiles + sword overlay. */
     wasm_debug_projectiles_collision_processing(): void;
     wasm_debug_render_sword_overlay(): void;
@@ -1165,6 +1166,11 @@ export function debugRenderMagiaStoneEffect(): void {
 
 export function debugSetDungeonStatics(isFromTown: number, savedYViewInit: number): void {
     wasmExports?.wasm_debug_set_dungeon_statics?.(isFromTown, savedYViewInit);
+}
+
+/** Test-only pin for the rokademo handoff latch (dungeon.c g_skip_roka_run). */
+export function debugSetSkipRokaRun(skip: number): void {
+    wasmExports?.wasm_debug_set_skip_roka_run?.(skip);
 }
 
 export function debugDungeonUpdate(): void {

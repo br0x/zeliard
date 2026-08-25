@@ -199,6 +199,9 @@ describe('ported export wiring', () => {
             'wasm_dungeon_full_tick',
             // Stage 8d: full dungeon tick cutover
             'wasm_dungeon_update',
+            // Stage 8d slice-10 redo: init family owns the transition statics
+            'wasm_dungeon_init',
+            'wasm_finish_rokademo_transition',
         ];
         const missing = required.filter((n) => !names.has(n));
         expect(missing, 'missing ported exports').toEqual([]);

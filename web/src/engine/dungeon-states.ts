@@ -53,7 +53,9 @@ const TEAR_X = 0xc013; // word
 const PLACE_MAP_ID = 0xc4;
 const BYTE_9F28 = 0x9f28;
 const BYTE_9F29 = 0x9f29;
-const FRAME_TIMER = 0x9f0a;
+/** ADDR_FRAME_TICKS (0x9F0A) — squat-clear counter in the finish-frame step
+ * (dungeon.c:4914); NOT the global ADDR_FRAME_TIMER at 0xFF1A. */
+const FRAME_TICKS = 0x9f0a;
 const FACING = 0xc2;
 const UP_FLAG = 2;
 const IS_JASHIIN_CAVERN = 0xe6;
@@ -124,8 +126,8 @@ export function dungeonFinishNormalFrame(
     // own modules — injected via deps where they need dispatcher glue:
     heroKnockbackHandler(g);
 
-    s8(g, FRAME_TIMER, (g8(g, FRAME_TIMER) + 1) & 0xff);
-    if (g8(g, FRAME_TIMER) === 2) {
+    s8(g, FRAME_TICKS, (g8(g, FRAME_TICKS) + 1) & 0xff);
+    if (g8(g, FRAME_TICKS) === 2) {
         s8(g, SQUAT_FLAG, 0);
     }
 

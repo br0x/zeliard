@@ -757,15 +757,17 @@ edge-scroll logic (`wasm_town_update` / `_full_tick` family).
   fallback until Stage 10. Suite: 818 unit tests + 5 E2E; tsc strict-clean;
   build + smoke green with TS ticks as the default path.
 
-### Stage 8 — Dungeon core 🚧 *(in progress — 8a landed)*
+### Stage 8 — Dungeon core 🚧 *(code complete; runtime cutover gated on one divergence)*
 Port `dungeon.c`: player physics/collision, scrolling, entity table
 management, render-request generation.
-- The entity table is the trickiest shared-memory structure — port its
-  accessor layer first, then the update loop.
-- Golden fixtures: recorded dungeon runs across several maps including
-  transitions and the death sequence.
-- **Exit criteria:** dungeon playable with zero calls into wasm dungeon
-  exports.
+- All dungeon.c subsystems are ported to TS with parity tests (8a–8d).
+- **Exit criteria** ("dungeon playable with zero calls into wasm dungeon
+  exports") is met under `?zeliard_ports=cutover` for the recorded fixtures
+  and E2E paths — but the default remains pure-wasm until the
+  town→dungeon journey harness (`journeyToDungeon` in
+  web/tests/town-dual-run.test.ts) replays clean end-to-end: the TS
+  viewport-follow path still diverges by one row ~11 frames after cavern
+  entry (see 8d slice-10 status).
 
 **Sub-steps** *(detalized from code survey; dungeon.c = 6.5k lines)*:
 - **8a — monster movement & collision primitives ✅**
@@ -1041,31 +1043,55 @@ management, render-request generation.
   carries the C statics (`is_from_town`, `saved_y_view_init`,
   `saved_door_x1`, `g_skip_roka_run`) across frames.
 - **8d slice 10 ⚠️ runtime cutover (REGRESSION → REVERTED):** making
-  `wasm_town_update` and `wasm_dungeon_update` default to TS caused two
+  `wasm_town_update` and `wasm_dungeon_update` default to TS caused three
   gameplay regressions: (1) town movement restricted after restore,
   (2) hero walks past map boundaries into wrong areas, (3) dungeon entry
   at wrong coords. Root cause: the C-side statics (`g_is_from_town`,
-  `saved_y_view_init`, `saved_door_x1`, door-pending state) are set by
-  `wasm_dungeon_init`/`prepare_dungeon` running in WASM but never
-  communicated to the TS runtime statics object — a split-brain state
-  problem. The cutover has been reverted to opt-in (`zeliard_ports=
-  cutover|shadow`) until the TS implementations receive proper statics
-  synchronization from the init path. The full port code remains in place
-  and passes all unit tests.
-- **8d status:** all dungeon.c subsystems ported to TS with parity tests.
-  Runtime cutover deferred until statics synchronization is implemented.
-  runtime cutover flip (mirrors Stage 7c); wasm stays instant fallback
-  until Stage 10.
-- **8d next:** the dispatcher (`wasm_dungeon_update` state switch),
-  death fall/flash/fade, rope mode, roka-run, Jashiin cutscene, door
-  completion → `DungeonTickState`, then the runtime cutover flip and
-  remaining golden fixtures (death sequence, boss encounter).
-- **8c — monsters AI & combat:** per-monster tick (alignment/tick gating,
-  EAI dispatch via entity table), sword hit application, damage/drops.
-- **8d — state machine wrapper:** `wasm_dungeon_update` dispatcher +
-  death fall/flash/fade, rope mode, roka-run, Jashiin cutscene, door
-  completion; C statics → `DungeonTickState`. Runtime cutover flip here
-  (mirrors Stage 7c); wasm stays instant fallback until Stage 10.
+  `saved_y_view_init`, `saved_door_x1`, `g_skip_roka_run`, door-pending
+  state) are set by `wasm_dungeon_init`/`prepare_dungeon` running in WASM
+  but never communicated to the TS runtime statics object — a split-brain
+  state problem. The cutover has been reverted to opt-in (`zeliard_ports=
+  cutover|shadow`) until fixed. The full port code remains in place and
+  passes all unit tests.
+- **8d slice 10 (REDO) — PARTIAL; default cutover RE-REVERTED.** The
+   statics-ownership work below landed and is verified, but play-testing
+   after re-enabling the default cutover reproduced the original town
+   regressions — because the earlier "fix" (62b231a) had only disabled TS
+   ticks, never diagnosed them. Proper root-cause work this round:
+   - **ROOT CAUSE of regressions #1 & #2 found & fixed:** `tileInSpecialList`
+     (engine/town.ts) passed a seg1-based address (0x18002) to the `g8`/`g16`
+     helpers, which mask addresses with `& 0xffff` — the read silently
+     truncated to seg0:0x8002, so the special-tile (non-passable) collision
+     list never matched. TS town ticks let the hero walk through blocking
+     tiles: over the left edge of cmap into the dungeon-trigger tiles
+     (regression #2), and into arbitrarily blocked terrain in bsmp after a
+     restore (regression #1 "moves 5 tiles right then stops"). Fixed with
+     dedicated `seg1_8`/`seg1_16` accessors mirroring C's SEG1_8/SEG1_16
+     macros; audit found no other masked seg1 reads in town.ts.
+   - **NEW regression harness** (`web/tests/town-dual-run.test.ts`): boots
+     the real game state in Node (stdply + actual .mdt files), mirrors
+     main.ts's boot sequence AND its async handlers (town→town transition
+     incl. MDT reload, town→dungeon transition incl. the full dungeon boot),
+     and dual-runs every tick pure-wasm vs TS-ported with per-tick g_mem
+     digests. Scenarios now green tick-for-tick: cmap left-edge push,
+     cmap→Muralla crossing + right-edge push, Bosque restore walk.
+     (Lesson recorded: the golden fixtures and E2E specs all enter dungeons
+     via `__zeliard.enterDungeon`, i.e. `is_from_town=false`, and never push
+     map edges or exercise restore — that's why they stayed green while the
+     game regressed.)
+   - The statics-ownership ports from the previous round remain landed and
+     verified (`engine/dungeon-init.ts`, shared runtime store, init-family
+     parity tests, FRAME_TIMER/TICKS de-conflation, door-completion gap
+     fixes, C debug-pin fix).
+   - **REMAINING BLOCKER (the last one before re-flipping the default):**
+     the town→dungeon journey harness diverges ~11 frames after cavern
+     entry under TS dungeon ticks — VIEWPORT_TOP_ROW 61 vs 62 and
+     HERO_HEAD_Y_VIEW 10 vs 9 during NORMAL-state frame phase 1, i.e. the
+     viewport-follow/hero-scroll path in main_update_render_pre. This is
+     very likely regression #3 ("hero appears at wrong y"). Reproducer:
+     `journeyToDungeon` in town-dual-run.test.ts (kept as an explicit
+     `it.fails` gate). Until it is fixed, the default stays pure-wasm;
+     `?zeliard_ports=shadow|cutover` remain opt-in.
 - **8e — golden fixtures (partially landed ✅):** fixtures now cover
   - `town-dungeon-basics.json` — town walk + one dungeon room (Stage 5d);
   - `town-buildings.json` — King entry/exit + edge transitions both
@@ -1084,6 +1110,33 @@ each verifiable in isolation:
 - Each lands with: shadow mode clean, golden replay of a recorded boss fight,
   regression checklist section re-run.
 - **Exit criteria:** no enemy/boss behavior originates from wasm.
+
+Detalized steps *(from code survey; the AI entry point is
+`Monster_AI(m)` → `current_monster_ai` selected by `load_eai_module`'s
+place_map_id switch, dungeon.c:5629)*:
+- **9a — AI dispatch layer:** port the `load_eai_module` selection as a TS
+  registry (`engine/eai-registry.ts`): place_map_id → AI implementation +
+  reset hook; `dungeon-items.ts`'s injected eai callback now routes through
+  it (no-op entries until 9b+ land). Boss-reset functions
+  (`Cangrejo_AI_reset` etc.) become part of each ported AI module. Register
+  the per-map selection in the inventory as `data`-owned (no g_mem effect).
+- **9b–9e — regular enemies, two per step** (eai1+eai2, eai3+eai4, eai5+eai6,
+  eai7+eai8): each AI is a per-monster tick over the entity table using the
+  already-parity-tested 8a movement/collision primitives. Verification per
+  file: a test-only C oracle (`wasm_debug_monster_ai_<n>` running one tick on
+  a seeded entity table) + randomized full-g_mem parity (the 8c pattern),
+  mutation-tested. The AI tick throttle/alignment gating from 8c slice 1 is
+  the shared caller.
+- **9f–9i — bosses**, ordered by fight complexity: crab/tako/tori (simple
+  contact patterns), akma/meda (projectile users — compose the 8d spell/
+  projectile primitives), mao1/mao2 (multi-phase, Jashiin cutscene
+  adjacency), drgn (final). Each boss lands with its `_reset` + tick port,
+  randomized parity vs a dedicated oracle, and — where the fight is
+  scriptable via `__zeliard.setHeroPos`/debug hooks — a recorded golden
+  fixture of at least one full fight.
+- Shadow-mode note carries over from 7a/8d: the AI ticks mutate C statics
+  (per-AI state machines), so verification is replay-cutover + oracles, not
+  per-tick dual-run.
 
 ### Stage 10 — State ownership & wasm deletion
 The last structural step: stop sharing linear memory altogether.

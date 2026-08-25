@@ -447,7 +447,7 @@ export function dungeonRenderTimingStep(
     }
 
     if (phase === 1) {
-        if (g8(g, 0x9f0a /* FRAME_TIMER */) < ((2 * speed) & 0xff)) {
+        if (g8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((2 * speed) & 0xff)) {
             return 0;
         }
 
@@ -466,7 +466,7 @@ export function dungeonRenderTimingStep(
         return 0;
     }
 
-    if (g8(g, 0x9f0a /* FRAME_TIMER */) < ((4 * speed) & 0xff)) {
+    if (g8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((4 * speed) & 0xff)) {
         // Confirm_Exit / Handle_Pause / Handle_Speed_Change: stubs
         return 0;
     }
@@ -474,7 +474,7 @@ export function dungeonRenderTimingStep(
     // Handle_Restore_Game_proc(): stub (returns 0)
     // restore_game(): not reached
 
-    s8(g, 0x9f0a /* FRAME_TIMER */, 0);
+    s8(g, 0xff1a /* ADDR_FRAME_TIMER */, 0);
     s8(g, DUNGEON_FRAME_PHASE, 0);
 
     if (g8(g, INVINCIBILITY_FLAG) !== 0) {

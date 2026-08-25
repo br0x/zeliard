@@ -56,6 +56,14 @@ const DUNGEON_STATE = 0xff90;
 const DUNGEON_FRAME_PHASE = 0xff91;
 const RENDER_REQUEST = 0xff92;
 const RENDER_DONE = 0xff93;
+const DEATH_ALREADY_PROCESSED = 0x49;
+const BYTE_9F02 = 0x9f02;
+const BYTE_9F27_ADDR = 0x9f27;
+const SPACEBAR_LATCH = 0xff1d;
+const ALTKEY_LATCH = 0xff1e;
+/** ADDR_FRAME_TIMER — the global tick counter at 0xFF1A (NOT the dungeon
+ * frame-ticks byte at 0x9F0A). */
+const FRAME_TIMER = 0xff1a;
 const MAO2_START_LATCH = 0xff21;
 const GOLD_RENDER_REQUEST = 0xff94;
 const BOSS_MODE = 0xffa0;
@@ -81,6 +89,18 @@ function s16(g: Uint8Array, addr: number, v: number): void {
 export interface DungeonStatics {
     isFromTown: boolean;
     savedYViewInit: number;
+}
+
+// Late-bound composition-root hooks (avoid an import cycle with
+// dungeon-frame.ts, which imports this module's state constants). Bound by
+// dungeon-cutover.ts when the dispatched implementation is created.
+let mainUpdateRenderHook: ((g: Uint8Array) => void) | undefined;
+export function bindMainUpdateRender(fn: (g: Uint8Array) => void): void {
+    mainUpdateRenderHook = fn;
+}
+let processHeroDeathHook: ((g: Uint8Array) => void) | undefined;
+export function bindProcessHeroDeath(fn: (g: Uint8Array) => void): void {
+    processHeroDeathHook = fn;
 }
 
 /**
@@ -118,7 +138,7 @@ export function clearHeroInViewport(g: Uint8Array): void {
 /** roka_run (dungeon.c:1949): begin the post-boss run-out animation. */
 export function rokaRun(g: Uint8Array): void {
     s8(g, ROKA_PHASE, 0);
-    s8(g, 0x9f0a /* FRAME_TIMER */, 0);
+    s8(g, FRAME_TIMER, 0); // ADDR_FRAME_TIMER (0xFF1A)
     s8(g, DUNGEON_STATE, DUNGEON_STATE_ROKA_RUN);
     if ((g8(g, LEFT_RUN) & 1) !== 0) {
         s8(g, FACING, g8(g, FACING) | LEFT_FLAG);
@@ -134,7 +154,11 @@ export function rokaRun(g: Uint8Array): void {
  * load_cavern_sprites_ai_music, Clear_Viewport) are no-ops here exactly as
  * they are in the reference C port.
  */
-export function afterRunAnimation(g: Uint8Array, statics: DungeonStatics): void {
+export function afterRunAnimation(
+    g: Uint8Array,
+    statics: DungeonStatics,
+    mainUpdateRender: ((g: Uint8Array) => void) | undefined = mainUpdateRenderHook,
+): void {
     if ((g8(g, PLACE_MAP_ID) & 0x80) !== 0) {
         // town — signal game.js to init town entry
         s8(g, 0xffe2 /* DUNGEON_EXIT_FLAG */, 0xff);
@@ -171,14 +195,14 @@ export function afterRunAnimation(g: Uint8Array, statics: DungeonStatics): void 
     // Reassemble_3_Planes_To_Packed_Bitmap_proc stubs ×2
     // Load_Magic_Spell_Sprite_Group_proc stub
 
-    cavernGameInit(g, statics);
+    cavernGameInit(g, statics, mainUpdateRender);
 }
 
-/** Cavern_Game_Init (dungeon.c:5179). */
+/** Cavern_Game_Init (dungeon.c:5373). */
 export function cavernGameInit(
     g: Uint8Array,
     statics: DungeonStatics,
-    mainUpdateRender?: (g: Uint8Array) => void,
+    mainUpdateRender: ((g: Uint8Array) => void) | undefined = mainUpdateRenderHook,
 ): void {
     s8(g, 0x9f20 /* SLIDE_TICKS_REMAINING */, 0);
     s8(g, 0x9f21 /* HORIZ_MOVEMENT_ACCUM */, 0);
@@ -247,7 +271,24 @@ export function cavernGameInit(
             clearViewportBuffer(g);
             updateAllMonstersInMap(g);
         }
+        // loc_6266
+        if (g8(g, DEATH_ALREADY_PROCESSED) !== 0) {
+            processHeroDeathHook?.(g);
+            return;
+        }
+        // not_dead
+        if (g8(g, BYTE_9F02) !== 0) {
+            s8(g, BYTE_9F02, 0);
+            // int60h_music(FN0_INIT_PLAY_MUSIC)
+        }
     }
+
+    s8(g, SPACEBAR_LATCH, 0);
+    s8(g, ALTKEY_LATCH, 0);
+    s8(g, FRAME_TIMER, 0);
+    s8(g, BYTE_9F27_ADDR, 0);
+
+    // main_loop(); // decoupled — driven by the composition root
 }
 
 /**
@@ -257,8 +298,9 @@ export function dungeonUpdateRokaRun(
     g: Uint8Array,
     statics: DungeonStatics,
 ): void {
-    // advance one phase every 16 full ticks (~33ms per step, ~1.76s total)
-    if ((g8(g, 0x9f0a /* FRAME_TIMER */) & 15) !== 0) return;
+    // advance one phase every 16 full ticks (~33ms per step, ~1.76s total).
+    // Paced on ADDR_FRAME_TIMER (0xFF1A), incremented by dungeonFullTick.
+    if ((g8(g, FRAME_TIMER) & 15) !== 0) return;
     const phase = g8(g, ROKA_PHASE);
     if (phase >= 25) {
         afterRunAnimation(g, statics);

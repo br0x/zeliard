@@ -71,13 +71,22 @@ const TOWN_TILES = 0xc017;
 const NPC_HEAD_TILES = 0xc01c;
 
 const VIEWPORT_BUFFER = 0xe000;
-const SEG1_SPECIAL_TILE_LIST_PTR = seg1(0x8002);
+/** seg1-relative pointer word to the special (non-passable) tile list. */
+const SPECIAL_TILE_LIST_PTR = 0x8002;
 const NPC_RECORD_SIZE = 8;
 const NPC_TERMINATOR = 0xffff;
 const PROX_COLS = 28;
 
-function seg1(offset: number): number {
-    return SEG1_BASE + offset;
+// ─── seg1 accessors — mirrors of C's SEG1_8/SEG1_16 macros (town.c:85-86).
+// NOTE: g8/g16 mask addresses to 16 bits, so they must NEVER be handed a
+// seg1-based address (0x10000+): the read would silently truncate to seg0.
+function seg1_8(g: Uint8Array, off: number): number {
+    return g[SEG1_BASE + (off & 0xffff)] ?? 0;
+}
+
+function seg1_16(g: Uint8Array, off: number): number {
+    const base = SEG1_BASE + (off & 0xffff);
+    return (g[base] ?? 0) | ((g[base + 1] ?? 0) << 8);
 }
 
 // ─── little-endian accessors with DOS uint16 address masking ───
@@ -148,11 +157,11 @@ export function installTownHooks(h: Partial<ExternalHooks>): void {
 
 /** check_tile_in_special_list: tile ∈ seg1 count-prefixed special list. */
 function tileInSpecialList(g: Uint8Array, tile: number): boolean {
-    const si = g16(g, SEG1_SPECIAL_TILE_LIST_PTR);
-    const count = g8(g, seg1(si));
+    const si = seg1_16(g, SPECIAL_TILE_LIST_PTR);
+    const count = seg1_8(g, si);
     if (count === 0) return false;
     for (let i = 0; i < count; i++) {
-        if (g8(g, seg1(si + 1 + i)) === tile) return true;
+        if (seg1_8(g, si + 1 + i) === tile) return true;
     }
     return false;
 }
@@ -488,8 +497,8 @@ function townUpPressed(g: Uint8Array, st: TownTickState): void {
 
 /** swap_a000_c000_buffers: exchange 2 KB between seg1:0xA000 and seg1:0xC000. */
 function swapA000C000Buffers(g: Uint8Array): void {
-    const a = seg1(0xa000);
-    const c = seg1(0xc000);
+    const a = SEG1_BASE + 0xa000;
+    const c = SEG1_BASE + 0xc000;
     for (let i = 0; i < 0x800; i++) {
         const tmp = g[c + i] ?? 0;
         g[c + i] = g[a + i] ?? 0;

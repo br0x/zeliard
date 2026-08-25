@@ -151,5 +151,62 @@ describe('golden replay', () => {
                 `TS town ticks diverged while replaying ${fileName}`,
             ).toEqual([]);
         });
+
+        it('replays clean with every ported export served from TS (Stage 8d cutover)', async () => {
+            const engine = await freshEngine();
+            const instance = engine.initWasmFromBytes(new Uint8Array(binary));
+            const [{ replayFixture }, { PORTED_EXPORTS }] = await Promise.all([
+                import('../src/wasm/parity/replay-runner.js'),
+                import('../src/wasm/parity/ports.js'),
+            ]);
+            const gmem = (): Uint8Array => engine.getWasmMemory()!;
+            // Route the ENTIRE ported surface (leaf ports + town family +
+            // dungeon tick + init family) through TS — the runtime-cutover
+            // configuration, verified against recorded real gameplay.
+            // NOTE: the replay runner pre-marshals wasm_set_input_keys args
+            // into a raw bitmask, so that one op bypasses the registry's
+            // KeyState-taking wrapper.
+            const { setInputKeys } = await import('../src/engine/input.js');
+            const impls: Record<string, (...args: unknown[]) => unknown> =
+                Object.fromEntries(
+                    Object.entries(PORTED_EXPORTS).map(([name, entry]) => [
+                        name,
+                        name === 'wasm_set_input_keys'
+                            ? (bit: unknown) => setInputKeys(gmem(), bit as number)
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            : entry.make(gmem) as any,
+                    ]),
+                );
+
+            const mismatches = replayFixture(
+                fixture,
+                instance.exports as unknown as Parameters<typeof replayFixture>[1],
+                gmem,
+                impls,
+            );
+            if (mismatches.length > 0) {
+                writeFileSync(
+                    '/tmp/opencode/full-ts-replay-diff.json',
+                    JSON.stringify(
+                        {
+                            count: mismatches.length,
+                            all: mismatches.map((m) => ({
+                                at: m.afterEvent,
+                                region: m.region,
+                                diffs: m.byteDiffs?.slice(0, 6) ??
+                                    m.expected + ' vs ' + m.actual,
+                            })),
+                        },
+                        null,
+                        1,
+                    ),
+                );
+            }
+
+            expect(
+                mismatches,
+                `full-TS cutover diverged while replaying ${fileName}`,
+            ).toEqual([]);
+        });
     });
 });

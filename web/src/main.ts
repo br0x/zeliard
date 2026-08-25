@@ -146,6 +146,10 @@ import { ReplayRecorder, getActiveRecorder, setActiveRecorder } from './wasm/par
 import { PORTED_EXPORTS, PORTED_NAMES } from './wasm/parity/ports.js';
 import { installTownHooks } from './engine/town.js';
 import {
+    dungeonRuntimeStatics,
+    resetDungeonRuntimeState,
+} from './engine/dungeon-runtime.js';
+import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
     getMusicTrackId as tsGetMusicTrackId,
@@ -613,6 +617,7 @@ async function startGame() {
         }
 
         engine.call('wasm_town_init');
+        resetDungeonRuntimeState();
 
         let saveState: Uint8Array | null = null;
         if (!restoreName) {
@@ -895,20 +900,28 @@ async function loadWasmEngine() {
     }
 
     // Stage 7: let the TS tick push the door-x global into the wasm side.
+    // The value is also recorded into the shared TS statics so a TS
+    // prepare_dungeon (cutover mode) recomputes the proximity left column
+    // exactly like C's request_dungeon_transition → saved_door_x1.
     installTownHooks({
-        setDoorX1: (x: number): void => engine.call('wasm_set_door_x1', x),
+        setDoorX1: (x: number): void => {
+            engine.call('wasm_set_door_x1', x);
+            dungeonRuntimeStatics.savedDoorX1 = x;
+        },
     });
 
-    // Stage 5e/7/8: serve leaf exports + town/dungeon ticks from TS.
-    // zeliard_ports=cutover enables TS serving; zeliard_ports=shadow keeps
-    // wasm authoritative while dual-running. Default: pure-wasm until the
-    // TS implementations are fully parity-verified (see MIGRATION_PLAN.md).
+    // Stage 5e/7/8: leaf exports + town/dungeon engines can be served from
+    // TS. Default: pure-wasm — the town tick still has unresolved movement/
+    // collision divergences (Bosque post-restore movement lock, cmap/mrmp
+    // map-edge escape into a dungeon) and the town→dungeon entry path shows
+    // a wrong hero Y under TS init. Opt-in via ?zeliard_ports=shadow|cutover;
+    // see MIGRATION_PLAN.md Stage 8d slice-10 status.
     if (TS_PORTS_MODE === 'shadow') {
         enablePorts('shadow');
     } else if (TS_PORTS_MODE === 'cutover') {
         enablePorts('cutover');
     }
-    // default (no param): pure-wasm debugging — nothing overridden
+    // default (no param): pure-wasm — nothing overridden
 }
 
 const speedDialog = new SpeedChangeDialog(); // F9 game-speed state machine

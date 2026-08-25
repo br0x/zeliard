@@ -41,9 +41,10 @@ const LION_KEYS_AMOUNT = 0x99;
 const HERO_X_IN_PROXIMITY_MAP = 0x9f1a; // word
 const DOOR_TARGET_Y = 0x9f1c;
 const DOOR_FEATURES = 0x9f1d;
-const FRAME_TIMER = 0x9f0a;
+const FRAME_TIMER = 0xff1a; // ADDR_FRAME_TIMER (the door-wait + back-frame delay counter)
 const SPEED_CONST = 0xff33;
 const SOUND_FX_REQUEST = 0xff75;
+const ROKA_COLOR = 0xff9e;
 const PENDING_DUNGEON_MAP_UNUSED = 0xff22;
 void PENDING_DUNGEON_MAP_UNUSED;
 
@@ -223,7 +224,7 @@ const MAGIC_PROJECTILES_ADDR = 0xeb15;
 export function dungeonCompleteDoorTransition(
     g: Uint8Array,
     state: DoorPendingState,
-    statics: { savedYViewInit: number },
+    statics: { savedYViewInit: number; savedDoorX1: number },
     callbacks: DoorCallbacks & {
         removeAccomplishedItems: (g: Uint8Array) => void;
         heroLeft16Down1: (g: Uint8Array) => void;
@@ -238,11 +239,14 @@ export function dungeonCompleteDoorTransition(
     // clear monster table
     s16(g, state.monstersPtr, 0xffff);
 
+    // door data saved by enter_opened_door
     const doorFlags = state.flags;
     const rokaColor = doorFlags & 7;
-    void rokaColor; // Render_Roca_Tilemap color — JS-side switch
     const x1 = state.x1;
     s16(g, HERO_X_IN_PROXIMITY_MAP, x1);
+    // Preserve across prepare_dungeon's memset (which zeroes 0x9F1A) so it
+    // can recalculate PROXIMITY_MAP_LEFT_COL with the new MDT's width.
+    statics.savedDoorX1 = x1;
     const y1 = state.y1;
     s8(g, DOOR_TARGET_Y, y1);
     const isLeftRun = ((doorFlags >> 6) & 1) !== 0;
@@ -266,9 +270,10 @@ export function dungeonCompleteDoorTransition(
 
     callbacks.heroLeft16Down1(g);
 
+    // NB! This still reads the old MDT since load_mdt() is a stub.
     const mdtDescr = g16(g, MDT);
     const mdtDesc0 = g8(g, mdtDescr);
-    // Render_Roca_Tilemap(roka_color): JS-side tilemap color switch
+    s8(g, ROKA_COLOR, rokaColor); // Render_Roca_Tilemap(roka_color)
     if ((mdtDesc0 & 1) === 0) {
         s8(g, MSD_INDEX, 0xff);
         s8(g, 0xff24, 10);

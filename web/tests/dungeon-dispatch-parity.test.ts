@@ -104,7 +104,7 @@ describe('stage 8d dispatcher + roka-run parity vs real wasm', () => {
                 view[0xc011] = 0xe9e0 >> 8;
                 view[0xff90] = DUNGEON_STATE_ROKA_RUN;
                 view[0xff9d] = phase; // ROKA_PHASE
-                view[0x9f0a] = frameTimer; // FRAME_TIMER (set by full tick)
+                view[0xff1a] = frameTimer; // ADDR_FRAME_TIMER (set by full tick)
                 view[0xc3] = r() % 2; // LEFT_RUN
                 view[0xff92] = 0;
                 view[0xff93] = 0;
@@ -121,7 +121,7 @@ describe('stage 8d dispatcher + roka-run parity vs real wasm', () => {
             let wFrames = 0;
             for (let f = 0; f < 30; f++) {
                 // advance FRAME_TIMER like dungeonFullTick does
-                view[0x9f0a] = (view[0x9f0a]! + 16) & 0xff; // multiples of 16 so phases advance
+                view[0xff1a] = (view[0xff1a]! + 16) & 0xff; // multiples of 16 so phases advance
                 debugDungeonUpdate();
                 wFrames++;
                 if (view[0xff90] !== DUNGEON_STATE_ROKA_RUN) break;
@@ -132,7 +132,7 @@ describe('stage 8d dispatcher + roka-run parity vs real wasm', () => {
 
             apply(0, 0);
             for (let f = 0; f < 30 && view[0xff90] === DUNGEON_STATE_ROKA_RUN; f++) {
-                view[0x9f0a] = (view[0x9f0a]! + 16) & 0xff;
+                view[0xff1a] = (view[0xff1a]! + 16) & 0xff;
                 dungeonUpdate(
                     view,
                     {
@@ -188,7 +188,7 @@ describe('stage 8d dispatcher + roka-run parity vs real wasm', () => {
             const facingPre = view[0xc2] ?? 0;
             rokaRun(view);
             expect(view[0xff9d]).toBe(0);
-            expect(view[0x9f0a]).toBe(0);
+            expect(view[0xff1a]).toBe(0); // ADDR_FRAME_TIMER cleared
             expect(view[0xff90]).toBe(DUNGEON_STATE_ROKA_RUN);
             const leftRun = view[0xc3] ?? 0;
             if (leftRun !== 0) expect((view[0xc2] ?? 0) & 1).toBe(1);

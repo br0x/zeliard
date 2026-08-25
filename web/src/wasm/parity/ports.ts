@@ -33,7 +33,7 @@ import {
     getPendingTransitionMap,
     getPendingTransitionPat,
 } from '../../engine/town-state.js';
-import { makeDungeonUpdate } from '../../engine/dungeon-cutover.js';
+import { makeDungeonInit, makeDungeonUpdate, makeFinishRokademoTransition } from '../../engine/dungeon-cutover.js';
 import type { ShadowSpec } from './shadow.js';
 
 export type ViewAccessor = () => Uint8Array | null;
@@ -180,6 +180,23 @@ export const PORTED_EXPORTS: Record<string, PortedExport> = {
         name: 'wasm_dungeon_full_tick',
         make: (getView) => () => dungeonFullTick(requireView(getView)),
         spec: { regions: ['dungeon-runtime-flags'] },
+    },
+    // Stage 8d slice-10 redo: the init family is served from TS so the
+    // shared statics (isFromTown, savedYViewInit, savedDoorX1, skipRokaRun)
+    // have a single writer — this removes the split-brain that reverted the
+    // first cutover attempt. Like the tick family, shadow dual-run is
+    // impossible (C statics); verified by golden-replay cutover + live E2E.
+    wasm_dungeon_init: {
+        name: 'wasm_dungeon_init',
+        verifyVia: 'replay',
+        make: (getView) => makeDungeonInit(getView),
+        spec: {},
+    },
+    wasm_finish_rokademo_transition: {
+        name: 'wasm_finish_rokademo_transition',
+        verifyVia: 'replay',
+        make: (getView) => makeFinishRokademoTransition(getView),
+        spec: {},
     },
     // Stage 8d: the whole dungeon tick is served from TS. Like the town
     // family, shadow dual-run is impossible (C statics), verified by

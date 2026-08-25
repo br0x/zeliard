@@ -2251,11 +2251,15 @@ void wasm_debug_render_sword_overlay(void) { Render_Sword_Overlay(); }
 void wasm_debug_dispatch_spell_movement(void) { dispatch_spell_projectile_movement(); }
 
 /* Stage 8d oracles: pin the transition statics and run the dispatcher. */
-void wasm_debug_set_dungeon_statics(uint8_t is_from_town, uint8_t saved_y_view_init)
+void wasm_debug_set_dungeon_statics(uint8_t is_from_town, uint8_t y_view_init)
 {
     g_is_from_town = is_from_town;
-    saved_y_view_init = saved_y_view_init;
+    saved_y_view_init = y_view_init;
 }
+
+/* Test-only pin for the rokademo handoff latch (prepare_dungeon's
+ * skip branch). Mirrors wasm_debug_set_dungeon_statics. */
+void wasm_debug_set_skip_roka_run(uint8_t skip) { g_skip_roka_run = skip; }
 
 void wasm_debug_dungeon_update(void) { wasm_dungeon_update(); }
 
