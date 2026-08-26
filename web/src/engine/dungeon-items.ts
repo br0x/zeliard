@@ -474,7 +474,7 @@ export function default0toFHandler(g: Uint8Array, m: number): void {
         }
         s8(g, m + 7, g8(g, m + 7) | 0x80);
         s8(g, m + 15, 4);
-        s8(g, m + 4, stateNibble);
+        s8(g, m + 4, (stateNibble | 0x70) & 0xff);
         s8(g, m + 5, g8(g, m + 5) & 0x80);
         s8(g, m + 7, g8(g, m + 7) & 0xf0);
     } else {

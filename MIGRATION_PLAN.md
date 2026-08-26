@@ -1346,6 +1346,26 @@ each verifiable in isolation:
   `Hero_Hits_monster` path, then walked over) producing zero stale
   proximity markers and identical digests on both engines. Suite:
   **7,043 unit tests** + 6 E2E; tsc strict-clean; production build green.
+- **9k ✅ — dead-monster drop regression (user-reported, precise repro):
+  killing a monster that "drops almas" left an invisible, blocking entity
+  at the corpse spot.** Reproduced with a real-input combat dual-run
+  (`combat-dual-run.test.ts`: boot through the actual Muralla door path →
+  walk right → SPACEBAR-latch swings until the approaching frog dies →
+  walk over the corpse, per-tick full-seg digests wasm vs TS): both sides
+  kill at the same tick, then diverge exactly when the death animation
+  completes. Root cause: `default_0toF_handler`'s respawn branch writes
+  `state_nibble | 0x70` (corpse class) — the TS port wrote the bare
+  nibble, turning the dead monster into a *live* monster-class entry
+  (flags 4): invisible, AI-driven, re-stamping its proximity marker — the
+  invisible non-passable spot. Fixed in dungeon-items.ts; mutation-checked
+  (reverting reproduces the divergence at the exact tick). The dual-run is
+  kept as `tests/combat-dual-run.test.ts`. No synthetic parity scenario
+  had covered this branch (seeded state nibbles never reached the ≥2
+  respawn path with observable consequences) — lesson recorded: every
+  enumerated branch of a state machine needs at least one parity scenario
+  that observes its *post-branch routing*, not just its field writes.
+  Suite: **7,044 unit tests** + 6 E2E; tsc strict-clean; production build
+  green.
 
 Detalized steps *(from code survey; the AI entry point is
 `Monster_AI(m)` → `current_monster_ai` selected by `load_eai_module`'s
