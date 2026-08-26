@@ -189,7 +189,7 @@ describe('yes/no flow', () => {
         expect(f.mgr.yesNoCursor).toBe(0);
     });
 
-    it('answering closes, finishes wasm state, then shows the response pattern', () => {
+    it('answering shows the response pattern and defers wasm finish until close', () => {
         const f = yesNoFixture();
         f.mgr.startFromWasm();
         pressSpace(f);
@@ -200,10 +200,13 @@ describe('yes/no flow', () => {
         pressSpace(f);
         tick(f); // confirm
 
-        expect(f.townFinishConversation).toHaveBeenCalled();
+        expect(f.townFinishConversation).not.toHaveBeenCalled();
         expect(f.mgr.active).toBe(true);
         expect(f.mgr.pages).toEqual([['Maybe later.']]);
         expect(f.mgr.yesNoMode).toBe(false);
+
+        f.mgr.close(true);
+        expect(f.townFinishConversation).toHaveBeenCalledTimes(1);
     });
 });
 
