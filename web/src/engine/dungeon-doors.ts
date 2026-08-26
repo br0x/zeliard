@@ -45,6 +45,13 @@ const FRAME_TIMER = 0xff1a; // ADDR_FRAME_TIMER (the door-wait + back-frame dela
 const SPEED_CONST = 0xff33;
 const SOUND_FX_REQUEST = 0xff75;
 const ROKA_COLOR = 0xff9e;
+const RENDER_DONE = 0xff93;
+const RENDER_REQUEST = 0xff92;
+const FACING = 0xc2;
+const LEFT_FLAG = 0x01; // FACING bit 0 (matches dungeon-input's LEFT_FLAG)
+const TEAR_COUNT = 0xa0;
+const ROKA_PHASE = 0xff9d;
+const DUNGEON_STATE_ROKADEMO = 9;
 const PENDING_DUNGEON_MAP_UNUSED = 0xff22;
 void PENDING_DUNGEON_MAP_UNUSED;
 
@@ -289,7 +296,22 @@ export function dungeonCompleteDoorTransition(
         // just defeated the boss → tear-collection demo follows
         callbacks.removeAccomplishedItems(g);
         // load_resource("rokademo.bin", ...): JS-side asset load
-        // roka_entrypoint(): sets up demo state — flag-only in this port
+
+        // roka_entrypoint (dungeon.c:1271): tear count + demo state setup.
+        // The DUNGEON_STATE_ROKADEMO write is what hands control to the
+        // JS-side animation; omitting it wedges the door in DOOR_PENDING.
+        let tears = (g8(g, TEAR_COUNT) + 1) & 0xff;
+        if (tears > 9) tears = 9;
+        s8(g, TEAR_COUNT, tears);
+        s8(g, ROKA_PHASE, 0);
+        s8(g, FRAME_TIMER, 0);
+        s8(g, HERO_ANIM_PHASE, 0);
+        s8(g, FACING, g8(g, FACING) & ~LEFT_FLAG);
+        s8(g, LEFT_RUN, 0);
+        s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_ROKADEMO);
+        s8(g, RENDER_DONE, 0);
+        s8(g, RENDER_REQUEST, 0xff);
+
         s8(g, ENP_GRP_INDEX, 0xff);
         s8(g, EAI_BIN_INDEX, 0xff);
         s8(g, 0x9efa, g8(g, MSD_INDEX));

@@ -140,8 +140,17 @@ async function combatRun(mode: 'wasm' | 'ts') {
             up = place === DUNGEON_DOOR_TOWN && heroAbs >= DUNGEON_DOOR_X - 1;
             right = !up;
         } else {
-            right = true;
-            swing = killTick < 0 && dungeonTicks > 250 && dungeonTicks % 12 === 0;
+            // Post-kill: sweep left/right with periodic Up presses to find
+            // and enter the post-boss exit door.
+            const postKill = t - killTick;
+            if (killTick >= 0 && postKill > 120) {
+                const cycle = Math.floor(postKill / 400);
+                right = cycle % 2 === 1;
+                up = postKill % 400 > 200;
+            } else {
+                right = true;
+                swing = killTick < 0 && dungeonTicks > 250 && dungeonTicks % 12 === 0;
+            }
         }
 
         invoke('wasm_town_full_tick');

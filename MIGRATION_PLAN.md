@@ -1366,6 +1366,29 @@ each verifiable in isolation:
   that observes its *post-branch routing*, not just its field writes.
   Suite: **7,044 unit tests** + 6 E2E; tsc strict-clean; production build
   green.
+- **9l ✅ — post-boss rokademo regression (user-reported): exiting the boss
+  room after victory wedged the hero in a walled, impassable room instead
+  of playing the tear-collection demo.** Root cause found with a forced
+  door-entry dual-run (stamp 0x4A door tiles + fill doors[0] to match the
+  hero, hold Up) plus a native-gcc single-tick oracle:
+  `dungeon_complete_door_transition`'s boss branch called `roka_entrypoint`
+  in C — which sets TEAR_COUNT+1 (capped 9), ROKA_PHASE=0, FRAME_TIMER=0,
+  HERO_ANIM_PHASE=0, FACING &= ~LEFT, LEFT_RUN=0,
+  **DUNGEON_STATE_ROKADEMO**, and the render-request pair — but the TS port
+  had replaced it with a "flag-only" comment writing only the ENP/EAI
+  index stubs. Without the ROKADEMO state write, main.ts never starts the
+  JS-side tear animation nor calls `wasm_finish_rokademo_transition`, so
+  dstate stays in DOOR_PENDING and the hero stands frozen in the
+  back-frame cavern. Fixed in dungeon-doors.ts; completion verified
+  byte-identical against the native oracle from a captured real
+  DOOR_PENDING snapshot (checked in as
+  `tests/fixtures/boss-exit/door-pending.bin`), locked in by
+  `tests/boss-exit-completion.test.ts`. Harness lesson: TS module state
+  that mirrors C file-scope statics (DoorPendingState) does not survive
+  memory-snapshot handoff between engines — dual-run scenarios crossing
+  that boundary must re-inject the mirrored values explicitly.
+  Suite: **7,045 unit tests** + 6 E2E; tsc strict-clean; production build
+  green.
 
 Detalized steps *(from code survey; the AI entry point is
 `Monster_AI(m)` → `current_monster_ai` selected by `load_eai_module`'s
