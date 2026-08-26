@@ -91,6 +91,7 @@ export class InnScene extends IndoorSceneBase {
     private sleepPhase: 'fade' | 'heal' | null;
     private sleepStartTime: number;
     private sleepAlpha: number;
+    private _initialized: boolean;
 
     constructor(context: IndoorSceneDependencies) {
         super(context);
@@ -114,6 +115,7 @@ export class InnScene extends IndoorSceneBase {
         this.sleepPhase = null;
         this.sleepStartTime = 0;
         this.sleepAlpha = 0;
+        this._initialized = false;
 
         this.fadeInMs = 650;
         this.fadeOutMs = 450;
@@ -133,18 +135,24 @@ export class InnScene extends IndoorSceneBase {
                 return;
             })
             .then(() => {
-                if (this.phase !== 'fadeIn') return; // load failed
-                this.lastAnimTime = performance.now();
-                this.townIdx = this._getTownIdx();
-                this.price = INN_PRICES[Math.min(this.townIdx, INN_PRICES.length - 1)] ?? 0;
-
-                const priceStr = this.price > 0 ? `${this.price} ` : '';
-                this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
-                this.scenePhase = 'greeting';
-
-                this.phase = 'shown';
-                this.alpha = 1;
+                this._initScene();
             });
+    }
+
+    private _initScene(): void {
+        if (this._initialized) return;
+        this._initialized = true;
+
+        this.lastAnimTime = performance.now();
+        this.townIdx = this._getTownIdx();
+        this.price = INN_PRICES[Math.min(this.townIdx, INN_PRICES.length - 1)] ?? 0;
+
+        const priceStr = this.price > 0 ? `${this.price} ` : '';
+        this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
+        this.scenePhase = 'greeting';
+
+        this.phase = 'shown';
+        this.alpha = 1;
     }
 
     private _loadImg(src: string): Promise<HTMLImageElement> {
@@ -233,6 +241,8 @@ export class InnScene extends IndoorSceneBase {
     }
 
     protected override drawContent(now: number, alpha: number): void {
+        if (!this._initialized) return;
+
         this._tickAnim(now);
         this._tickSleep(now);
         this._tickDlgQueue(now);
