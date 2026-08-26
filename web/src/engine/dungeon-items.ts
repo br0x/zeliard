@@ -49,6 +49,7 @@ const HERO_LEVEL_UNUSED = 0x8d;
 void HERO_LEVEL_UNUSED;
 const SWORD_TYPE = 0x92;
 const CREST_OF_GLORY = 0x9b;
+const HERO_CREST = 0x9c;
 const FERUZA_SHOES = 0xa1; // 0-terminated accessory array
 const HERO_MAX_HP = 0xb2; // word
 const HEALING_TIMER = 0xc6; // word
@@ -409,7 +410,7 @@ function renderCavernSigns(g: Uint8Array, idx: number): void {
 /** flag_1d (dungeon.c:3368): hero's crest. */
 export function flag1d(g: Uint8Array, m: number): void {
     if (pickupCommon(g, m, STR.GET_HEROS_CREST) === 0) return;
-    s8(g, CREST_OF_GLORY, 0xff);
+    s8(g, HERO_CREST, 0xff);
     markCollected(g, m);
 }
 

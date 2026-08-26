@@ -282,19 +282,24 @@ export class ConversationManager {
         this.savedBackground = null;
         this.yesNoMode = false;
         this.hasYesNo = false;
-        this.deps.townFinishConversation();
 
         const responsePattern = selectedYes ? PATTERN_YES_RESPONSE : PATTERN_NO_RESPONSE;
         const parsed = this.parse(this.deps.getNpcConversationRaw(responsePattern));
-        if (parsed) {
-            this.active = true;
-            this.pages = parsed.pages;
-            this.page = 0;
-            this.hasYesNo = false;
-            this.endCode = null;
-            this.savedBackground = null;
-            this.deps.layout(this.facingLeft);
+        if (!parsed) {
+            // Nothing more to show: release the wasm conversation latch now.
+            this.deps.townFinishConversation();
+            return;
         }
+        // Keep the wasm conversation latch set while the response text is on
+        // screen (matches the original conversation loop): hero movement stays
+        // blocked until the final space press closes the dialog via close().
+        this.active = true;
+        this.pages = parsed.pages;
+        this.page = 0;
+        this.hasYesNo = false;
+        this.endCode = null;
+        this.savedBackground = null;
+        this.deps.layout(this.facingLeft);
     }
 
     private handlePurchaseSelection(take: boolean): void {
