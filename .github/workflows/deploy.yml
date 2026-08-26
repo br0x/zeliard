@@ -20,26 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Cache emsdk
-        uses: actions/cache@v5
-        id: emsdk-cache
-        with:
-          path: ~/emsdk
-          key: emsdk-latest
-
-      - name: Install emsdk
-        if: steps.emsdk-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
-          cd ~/emsdk
-          ./emsdk install latest
-          ./emsdk activate latest
-
-      - name: Build wasm engine
-        run: |
-          source ~/emsdk/emsdk_env.sh
-          make
-
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: web/package.json

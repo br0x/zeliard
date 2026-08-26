@@ -1417,20 +1417,145 @@ place_map_id switch, dungeon.c:5629)*:
   (per-AI state machines), so verification is replay-cutover + oracles, not
   per-tick dual-run.
 
-### Stage 10 — State ownership & wasm deletion
-The last structural step: stop sharing linear memory altogether.
-- Migrate remaining state from g_mem byte regions to idiomatic TS objects
-  (mechanically safe now: every reader/writer is TS; the Stage 6–9 golden
-  tests verify the refactor).
-- Re-baseline save compatibility: localStorage saves and `stdply.bin` must
-  load identically (save-format codec tests from Stage 2 already guard this).
-- Delete: `src/*.c`, `Makefile` emcc target, `build/` artifacts, emsdk from
-  CI (deploys get much faster), the bridge's memory-view machinery.
-- Final architecture: `engine/` modules (town, dungeon, entities, rng)
-  owning plain TS state; `render/` consuming draw lists directly — no
-  indirection through shared bytes.
-- **Exit criteria:** `zeliard.wasm` gone from the repo; CI builds Vite output
-  only; game plays identically. Project is 100% TypeScript.
+### Stage 10 — State ownership & wasm deletion *(in progress)*
+
+The last structural step: stop sharing linear memory altogether and delete the
+wasm binary, C sources, and emcc build from the repo.
+
+**Architecture insight:** the engine modules already operate on a plain
+`Uint8Array` passed as a `g` parameter — they have no WASM dependency. The
+entire wasm layer exists only to (a) provide that buffer and (b) expose
+functions that TS already implements via the dispatch layer. Stage 10
+therefore replaces the WASM memory source with a TS-owned buffer and deletes
+the bridge.
+
+#### 10a — TS-owned memory buffer ✅ *(completed)*
+
+New `web/src/wasm/ts-memory.ts` (later relocated to `web/src/core/memory.ts`):
+- `GMEM_SIZE = 0x40000` (256 KB), `g_mem = new Uint8Array(GMEM_SIZE)`
+- `getGmem(): Uint8Array` accessor
+- `zeroMemory()`: `g_mem.fill(0)` — replaces `wasm_town_init`'s `memset`
+- `loadSaveState(saveData: Uint8Array)`: writes 256 bytes to `g_mem[0..255]`,
+  zero-padded; this is the same codec as `bridge.ts:loadSaveState` but
+  operates on the plain buffer
+- `readMemory(offset, len)`, `writeMemory(offset, data)`: thin wrappers for
+  the renderer/UI access patterns (backward-compatible signatures)
+- `gMem(addr)`, `readU8(addr)`, `readU16(addr)`: single-byte/word reads
+  replacing the bridge-backed helpers in `main.ts`
+
+The 43 engine files continue using their existing `g8(g, addr)` /
+`s8(g, addr, v)` helpers unchanged — they receive `g_mem` via the
+`ViewAccessor` injection from the dispatch layer, which now returns
+`getGmem()` instead of the WASM memory view.
+
+**Tests:** `loadSaveState` round-trip (write → read-back bytes match);
+`zeroMemory` clears full buffer; `readMemory`/`writeMemory` boundary
+correctness; `stdply.bin` loads and key offsets contain expected values.
+
+#### 10b — Replace remaining WASM bridge callers in main.ts ✅ *(completed)*
+
+Fifteen WASM functions are still called directly from `main.ts` via
+`engine.call(...)` (not through the dispatch layer). Each is replaced by a
+pure TS equivalent:
+
+| WASM function | TS replacement | Notes |
+|---|---|---|
+| `wasm_init` | `zeroMemory()` + `loadSaveState()` | Bootstrap: zero buffer + load save data. C's `wasm_init` only sets a few bytes that `townInit` also sets. |
+| `wasm_town_init` | `townInit(g, statics)` (already ported) | Dispatch already routes this; main.ts switches to direct call. |
+| `wasm_town_entry_disabling_edge_scroll` | `townEntryDisablingEdgeScroll(g, statics)` | Already ported; direct call. |
+| `wasm_town_set_return_before_main_loop` | `setReturnBeforeMainLoop(statics, v)` | Thin setter on `TownTickState`. |
+| `wasm_town_building_finish` | `townBuildingFinish(g, statics)` | Already ported; direct call. |
+| `wasm_town_complete_transition` | `townCompleteTransition(g, statics)` | Already ported; direct call. |
+| `wasm_town_full_tick` | `townFullTick(g, statics)` | Already ported; direct call. |
+| `wasm_town_conversation_finish` | `townConversationFinish(g, statics)` | Already ported; direct call. |
+| `wasm_dungeon_init` | `wasmDungeonInit(g, ...)` | Already ported in `dungeon-init.ts`. |
+| `wasm_dungeon_update` | `dungeonUpdate(g, ...)` | Already ported; dispatch already routes. |
+| `wasm_dungeon_full_tick` | `dungeonFullTick(g, ...)` | Already ported. |
+| `wasm_dungeon_get_viewport_top` | `getViewportTop(g)` | Already ported in `dungeon-state.ts`. |
+| `wasm_dungeon_clear_render_request` | `clearRenderRequest(g)` | Already ported. |
+| `wasm_finish_rokademo_transition` | `finishRokademoTransition(g, ...)` | Already ported. |
+| `wasm_set_door_x1` | `setDoorX1(statics, v)` | Thin setter on `DungeonRuntimeStatics`. |
+| `loadSaveState` | `loadSaveState()` from `ts-memory.ts` | Direct buffer write, no bridge. |
+| `wasm_init_c015_obj_if_exists` | `initC015ObjIfExists(g)` | Already ported in `town.ts`. |
+| `setSpecialTileList` | `setSpecialTileList(g, list)` | Already ported. |
+| `setDungeonSwordReach` | `setDungeonSwordReach(g, ...)` | Already ported. |
+| `setDungeonPassableTiles` | `setDungeonPassableTiles(g, ...)` | Already ported. |
+| `setDungeonAggressiveGround` | `setDungeonAggressiveGround(g, ...)` | Already ported. |
+| `setDungeonAirflows` | `setDungeonAirflows(g, ...)` | Already ported. |
+| `setDungeonSlopeTilesLeft/Right` | `setDungeonSlopeTilesLeft/Right(g, ...)` | Already ported. |
+| `setDungeonMonsterXp/Damage` | `setDungeonMonsterXp/Damage(g, ...)` | Already ported. |
+| `setDeathDescriptors` | `setDeathDescriptors(g, ...)` | Already ported. |
+| `setTrajectories` | `setTrajectories(g, ...)` | Already ported. |
+| `loadMdt` | `loadMdt(g, ...)` | Already ported in `engine/mdt.ts`. |
+
+The key change in `main.ts`: replace `loadWasmEngine()` (lines 876–927)
+with a simple `initTsMemory()` call. Remove the `import('./wasm/bridge.js')`
+dynamic import, the `initWasm()` call, and the dispatch `useBridge()` wiring.
+The `engine` variable becomes a thin facade over direct TS function calls
+(no dispatch indirection needed since everything is TS).
+
+**Boot sequence rewrite:**
+1. `zeroMemory()` — replaces `engine.call('wasm_town_init')`
+2. `loadSaveState(stdplyData)` — replaces `engine.call('loadSaveState', ...)`
+3. `loadMdt(g, ...)` — direct call, no `engine.call`
+4. `townInit(g, statics)` + `townEntryDisablingEdgeScroll(g, statics)` — direct
+
+**Exit criteria:** `main.ts` has zero imports from `wasm/bridge.ts`,
+`wasm/dispatch.ts`, or `wasm/parity/*`. The `engine.call()` pattern is gone.
+`tsc` clean. Game boots and plays correctly.
+
+#### 10c — Delete wasm/ directory, parity harness, and dispatch layer
+
+Remove:
+- `web/src/wasm/bridge.ts` (1,415 lines)
+- `web/src/wasm/dispatch.ts` (202 lines)
+- `web/src/wasm/inventory.ts` (1,214 lines)
+- `web/src/wasm/parity/shadow.ts` (230 lines)
+- `web/src/wasm/parity/recorder.ts` (106 lines)
+- `web/src/wasm/parity/replay-runner.ts` (150 lines)
+- `web/src/wasm/parity/replay-types.ts` (118 lines)
+- `web/src/wasm/parity/ports.ts` (220 lines)
+- `web/src/wasm/ts-memory.ts` → relocated to `web/src/core/memory.ts`
+
+**Tests removed:** all 458+ bridge/inventory/shadow/replay tests (these
+verified WASM parity — no longer relevant). Suite shrinks significantly but
+every engine-level test (town, dungeon, entities, AI, combat, items) remains.
+
+**E2E:** the `__zeliard.dispatch` surface is removed from the debug hook;
+`__zeliard.ports` is removed; Playwright specs updated to boot without wasm.
+
+#### 10d — Delete C sources, Makefile, build artifacts, update CI
+
+Delete:
+- `src/*.c` (24 files, ~24,085 lines)
+- `src/zeliard.h`
+- `src/asm/` (original DOS assembly reference)
+- `Makefile` (emcc build)
+- `build/` directory (zeliard.js, zeliard.wasm)
+
+Update `.github/workflows/deploy.yml`:
+- Remove emsdk install + caching steps (~15 lines)
+- Remove `make` build step
+- Pipeline becomes: install pnpm → typecheck → tests → Vite build → deploy
+
+**Tests removed:** the golden replay tests (`tests/replay.test.ts`) that
+load the real `zeliard.wasm` in Node. The replay fixtures
+(`tests/fixtures/replay/*.json`) are kept as historical records but no
+longer run. The `combat-dual-run.test.ts` and `town-dual-run.test.ts`
+dual-run harnesses are also removed (they compared wasm vs TS output).
+
+#### 10e — Final cleanup & save-compatibility verification
+
+- Verify `stdply.bin` loads and the game boots correctly (manual + E2E).
+- Verify localStorage saves from previous stages still load (the 256-byte
+  format at `g_mem[0..255]` is unchanged).
+- Remove the `?zeliard_ports=wasm|shadow|cutover` query-param handling from
+  main.ts (no wasm to fall back to).
+- Remove `ZeliardExports` interface references from all type files.
+- Clean up any remaining `@ts-nocheck` directives.
+- Update README: project is 100% TypeScript, no emsdk/Makefile required.
+- **Exit criteria:** `zeliard.wasm` gone from repo; CI builds Vite output
+  only; game plays identically; save/load works; suite passes; E2E green.
 
 ## Regression checklist (run at the end of every stage)
 

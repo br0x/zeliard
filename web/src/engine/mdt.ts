@@ -1,17 +1,15 @@
 /**
- * mdt.ts — TS port of the MDT parsing the bridge does over g_mem (Stage 6a).
+ * mdt.ts — TS port of the MDT parsing (originally in bridge.ts over g_mem).
  *
- * Operates on the RAW MDT file bytes instead of the wasm linear-memory
- * window. The two coordinate systems differ by a constant: header pointer
- * fields are seg0-absolute (0xC000-based, see memory.ts TownMdtHeader note),
- * so file offset = absolute address − MDT_BASE.
+ * Operates on the RAW MDT file bytes. Header pointer fields are
+ * seg0-absolute (0xC000-based, see memory.ts TownMdtHeader note), so
+ * file offset = absolute address − MDT_BASE.
  *
- * Semantics are ported 1:1 from bridge.ts's getters (themselves ported from
- * the C/asm readers); tests/parse-mdt-parity.test.ts verifies them against
- * the wasm-derived values for every .mdt asset shipped in public/game.
+ * Semantics are ported 1:1 from the C/asm readers; tests verify them
+ * against the expected values for every .mdt asset shipped in public/game.
  */
 
-import type { CavernMdtHeader, TownMdtHeader } from '../wasm/memory.js';
+import type { CavernMdtHeader, TownMdtHeader } from '../core/memory.js';
 
 /** Absolute seg0 address where the MDT image is placed in g_mem. */
 export const MDT_BASE = 0xc000;

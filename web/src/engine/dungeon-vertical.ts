@@ -23,7 +23,7 @@
  * C file statics stay in g_mem; no hidden TS state.
  */
 
-import { SEG1_BASE } from '../wasm/memory.js';
+import { SEG1_BASE } from '../core/memory.js';
 import {
     coordsToProxAddr,
     isBlockingTile,

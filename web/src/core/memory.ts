@@ -1,13 +1,10 @@
 /**
- * memory.ts — Zeliard WASM linear-memory layout (single source of truth).
+ * memory.ts — Zeliard g_mem layout (single source of truth).
  *
- * The C engine owns a flat `g_mem` array inside WASM linear memory and shares
- * it with JS. All constants here are *offsets within g_mem* (not absolute
- * addresses); the bridge adds the runtime `get_memory_base()` offset.
- *
- * IMPORTANT: every constant must match its counterpart in src/zeliard.h.
- * tests/bridge.test.ts cross-checks a subset against the header text so the
- * two sides cannot drift silently.
+ * All constants here are *offsets within g_mem* (the 256KB Uint8Array
+ * owned by ts-memory.ts). The original layout was derived from the C
+ * engine's linear memory (zeliard.h); constants are now consumed only
+ * by the TS engine modules.
  */
 
 /** Size of g_mem in C: 64KB * 4 segments (zeliard.h). */

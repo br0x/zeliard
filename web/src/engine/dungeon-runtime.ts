@@ -1,14 +1,13 @@
 /**
- * dungeon-runtime.ts — shared runtime statics for the Stage 8d TS cutover.
+ * dungeon-runtime.ts — shared runtime statics for the dungeon engine.
  *
  * The C dungeon statics (`g_is_from_town`, `saved_y_view_init`,
  * `saved_door_x1`, `g_skip_roka_run` — dungeon.c:1823-1840) and the
- * door-pending block (dungeon.c:1847-1852) must have exactly one TS owner:
- * the ported init family (dungeon-init.ts) and the dispatched tick both
- * read/write these singletons, so there is never a wasm↔TS mirror to
- * synchronize (the split-brain that reverted the first cutover attempt).
+ * door-pending block (dungeon.c:1847-1852) have exactly one TS owner:
+ * the init family (dungeon-init.ts) and the tick both read/write these
+ * singletons, so there is no mirror to synchronize.
  *
- * The composition root resets the store at boot alongside `wasm_town_init`.
+ * The composition root resets the store at boot.
  */
 
 import type { DungeonRuntimeStatics } from './dungeon-states.js';

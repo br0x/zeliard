@@ -18,7 +18,7 @@ import {
     ADDR_PROXIMITY_MAP,
     ADDR_VIEWPORT_LEFT_TOP,
     ADDR_VIEWPORT_TOP_ROW,
-} from '../wasm/memory.js';
+} from '../core/memory.js';
 
 export const PROXIMITY_MAP_WIDTH = 36;
 export const MAP_HEIGHT = 64;

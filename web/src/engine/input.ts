@@ -1,8 +1,8 @@
 /**
- * input.ts — TS port of the polled-input latch fan-out (Stage 5e).
+ * input.ts — TS port of the polled-input latch fan-out.
  *
- * Port of wasm_set_input_keys (src/data.c). Pure function of its bitmask
- * argument and the g_mem view: no wasm calls, no hidden state.
+ * Port of set_input_keys (src/data.c). Pure function of its bitmask
+ * argument and the g_mem view: no hidden state.
  *
  * C reference (data.c):
  *   dirs = bits 0..3 of keys, verbatim
@@ -15,7 +15,7 @@ import {
     ADDR_INPUT_ALT_SPACE,
     ADDR_INPUT_DIRS,
     INPUT_FLAGS,
-} from '../wasm/memory.js';
+} from '../core/memory.js';
 
 export function setInputKeys(gmem: Uint8Array, keys: number): void {
     let dirs = 0;

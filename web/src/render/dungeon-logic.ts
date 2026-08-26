@@ -4,7 +4,7 @@
  * these functions hold the actual rules and are unit-testable.
  */
 
-import { ADDR_PROXIMITY_MAP } from '../wasm/memory.js';
+import { ADDR_PROXIMITY_MAP } from '../core/memory.js';
 import { PROX_SIZE } from '../config/engine.js';
 
 /**

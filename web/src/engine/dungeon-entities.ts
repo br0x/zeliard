@@ -19,7 +19,7 @@
  * detection, and the wind-tunnel (cavern level 5) airflow blocking.
  */
 
-import { SEG1_BASE } from '../wasm/memory.js';
+import { SEG1_BASE } from '../core/memory.js';
 
 // ─── addresses ───
 const ADDR_PROXIMITY_MAP = 0xe000;

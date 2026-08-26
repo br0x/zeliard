@@ -6,10 +6,9 @@
  * magia stones, notification/sign boxes, the roka run, boss death explosion
  * rings, and the Guerra effect.
  *
- * All wasm memory access and asset references are injected once via
- * `initDungeonRenderer(env)`; every function body is ported verbatim from
- * game.js (Stage 2). The pure hero frame-resolution helpers are exported
- * for unit testing.
+ * All memory access and asset references are injected once via
+ * `initDungeonRenderer(env)`. The pure hero frame-resolution helpers are
+ * exported for unit testing.
  */
 
 import { drawSheetFrame } from './sheets.js';
@@ -41,7 +40,7 @@ import {
     ADDR_ROKA_COLOR, ADDR_ROKA_PHASE, ADDR_LEFT_RUN,
     ADDR_CAVERN_LEVEL, ADDR_VIEWPORT_LEFT_TOP, ADDR_BYTE_9EED,
     ADDR_CURR_SPELL_TYPE,
-} from '../wasm/memory.js';
+} from '../core/memory.js';
 
 /** Minimal description of a loaded sprite sheet image. */
 export interface SpriteSheetLike {

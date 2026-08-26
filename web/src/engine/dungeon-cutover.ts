@@ -1,20 +1,13 @@
 /**
- * dungeon-cutover.ts — Stage 8d runtime cutover: serves the dungeon tick
- * and the init/transition exports (`wasm_dungeon_init`,
- * `wasm_finish_rokademo_transition`) from TS, mirroring the Stage 7c town
- * cutover. Verified by golden-replay + live E2E (the C tick mutates statics
- * that memory snapshots cannot rewind, so shadow dual-run is not
- * applicable). `zeliard_ports=wasm` restores the pure-wasm path;
- * `dispatch.reset()` keeps wasm as instant fallback.
+ * dungeon-cutover.ts — Runtime cutover: serves the dungeon tick and the
+ * init/transition exports (`dungeonInit`, `finishRokademoTransition`) from TS.
  *
  * Statics ownership: the singletons live in dungeon-runtime.ts and are
  * written by dungeon-init.ts's ports of prepare_dungeon /
- * finish_rokademo_transition — the same functions that write g_mem — so
- * there is no wasm↔TS mirror to get out of sync.
+ * finish_rokademo_transition — the same functions that write g_mem.
  */
 
-import type { DispatchableEngine } from '../wasm/dispatch.js';
-import type { ViewAccessor } from '../wasm/parity/ports.js';
+
 import {
     bindMainUpdateRender,
     bindProcessHeroDeath,
@@ -106,7 +99,7 @@ function loadPlaceAndReinit(g: Uint8Array): void {
     cavernGameInit(g, statics); // default mainUpdateRender hook already bound
 }
 
-function requireView(getView: ViewAccessor): Uint8Array {
+function requireView(getView: () => Uint8Array | null): Uint8Array {
     const view = getView();
     if (!view) throw new Error('g_mem view unavailable for TS port');
     return view;
@@ -195,8 +188,8 @@ function initCallbacks(): PrepareDungeonCallbacks {
  * Build the TS `wasm_dungeon_update` implementation.
  */
 export function makeDungeonUpdate(
-    getView: ViewAccessor,
-): DispatchableEngine['wasm_dungeon_update'] {
+    getView: () => Uint8Array | null,
+): () => void {
     return (): void => {
         const g = requireView(getView);
         dungeonUpdate(g, handlers, statics);
@@ -208,8 +201,8 @@ export function makeDungeonUpdate(
  * post-init fixups).
  */
 export function makeDungeonInit(
-    getView: ViewAccessor,
-): DispatchableEngine['wasm_dungeon_init'] {
+    getView: () => Uint8Array | null,
+): (mapId: number, isFromTown: number | boolean) => void {
     return (mapId: number, isFromTown: number | boolean): void => {
         const g = requireView(getView);
         wasmDungeonInit(g, mapId, !!isFromTown, statics, initCallbacks());
@@ -220,8 +213,8 @@ export function makeDungeonInit(
  * Build the TS `wasm_finish_rokademo_transition` implementation.
  */
 export function makeFinishRokademoTransition(
-    getView: ViewAccessor,
-): DispatchableEngine['wasm_finish_rokademo_transition'] {
+    getView: () => Uint8Array | null,
+): () => void {
     return (): void => {
         const g = requireView(getView);
         finishRokademoTransition(g, statics, initCallbacks());

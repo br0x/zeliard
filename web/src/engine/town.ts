@@ -1,7 +1,7 @@
 /**
- * town.ts — TS port of src/town.c's tick family (Stage 7).
+ * town.ts — TS port of src/town.c's tick family.
  *
- * Ports wasm_town_update/wasm_town_full_tick and everything they reach:
+ * Ports town_update/town_full_tick and everything they reach:
  * town_main_loop_step, hero movement + collision, door detection, edge
  * transitions, spacebar/special-NPC conversation triggers, the full NPC AI
  * table, head-tile save/restore, the inventory-key path, and the
@@ -11,17 +11,10 @@
  *
  * C file statics become TownTickState owned here: door-pending animation,
  * pending frame waits. The dungeon-handoff `saved_door_x1` C global is
- * pushed to the wasm side via the `wasm_set_door_x1` bridge op at the moment
- * request_dungeon_transition fires, so the still-wasm prepare_dungeon keeps
- * working unchanged.
- *
- * Verified by golden-replay cutover (recorded sessions rerouted through
- * these functions via the replay runner's impls param) and live E2E in
- * cutover mode — per-tick shadow dual-run is impossible here because the C
- * tick mutates private statics that memory snapshot/restore cannot rewind.
+ * written via setDoorX1() at the moment request_dungeon_transition fires.
  */
 
-import { SEG1_BASE } from '../wasm/memory.js';
+import { SEG1_BASE } from '../core/memory.js';
 
 // ─── g_mem-relative addresses (zeliard.h / town.c) ───
 const INPUT_ALT_SPACE = 0xff16;

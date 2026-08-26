@@ -1,23 +1,23 @@
 /**
- * dungeon-init.ts — TS port of dungeon.c's init/transition family
- * (Stage 8d slice-10 redo). Owning these writers in TS is what removes the
- * wasm↔TS split-brain around the C statics: `prepare_dungeon` writes both
- * g_mem and the shared DungeonRuntimeStatics, so under cutover the tick's
- * view of the statics is produced by the same code that produced g_mem.
+ * dungeon-init.ts — TS port of dungeon.c's init/transition family.
+ *
+ * `prepare_dungeon` writes both g_mem and the shared DungeonRuntimeStatics,
+ * so the tick's view of the statics is produced by the same code that
+ * produced g_mem.
  *
  * Ports, 1:1 from src/dungeon.c:
  *   - remove_accomplished_items            (1218)
  *   - hero_left_16_down_1                  (1242)
  *   - process_mdt_descriptor               (1256)
  *   - prepare_dungeon                      (1887)
- *   - wasm_dungeon_init                    (1798)
- *   - wasm_finish_rokademo_transition      (1857)
+ *   - dungeon_init                         (1798)
+ *   - finish_rokademo_transition           (1857)
  *
  * JS-side work stays injected: asset loads are stubs exactly as in the C
  * reference; `load_eai_module` is a function-pointer select with no g_mem
- * effect until Stage 9 ports the AI bodies; `mainUpdateRender` (the
- * BYTE_9F27 branch of Cavern_Game_Init) and `processHeroDeath` are bound by
- * the composition root via dungeon-state-machine/dungeon-frame.
+ * effect; `mainUpdateRender` (the BYTE_9F27 branch of Cavern_Game_Init)
+ * and `processHeroDeath` are bound by the composition root via
+ * dungeon-state-machine/dungeon-frame.
  */
 
 import {

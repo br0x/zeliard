@@ -2,12 +2,10 @@
  * conversation.ts — NPC conversation state machine.
  *
  * Owns the dialog state (pages, paging, Yes/No choice, Asbestos Cape
- * purchase) and the tick-driven transitions. All wasm/game side-effects
- * (memory reads/writes, almas deduction, item insertion, finish callbacks)
- * go through the injected deps; drawing stays with the caller, which reads
- * the public fields (boxX/Y/W/H etc.) exactly like the legacy code did.
- *
- * Ported verbatim from game.js (Stage 2).
+ * purchase) and the tick-driven transitions. All side-effects (memory
+ * reads/writes, almas deduction, item insertion, finish callbacks) go
+ * through the injected deps; drawing stays with the caller, which reads
+ * the public fields (boxX/Y/W/H etc.).
  */
 
 import {
@@ -16,7 +14,7 @@ import {
     ADDR_NPC_CONVERSATIONS,
     ADDR_PLACE_MAP_ID,
     ADDR_SPACEBAR_LATCH,
-} from '../wasm/memory.js';
+} from '../core/memory.js';
 import { LLAMA_TOWN_ID } from '../data/assets.js';
 import { parseDialogText, type DialogEffects, type ParsedDialog } from './conversation-text.js';
 

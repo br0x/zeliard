@@ -1,10 +1,9 @@
 /**
- * dungeon-tick.ts — TS port of wasm_dungeon_full_tick (dungeon.c).
+ * dungeon-tick.ts — TS port of dungeon_full_tick (dungeon.c).
  *
  * Mirrors the DOS timer ISR: frame/tick/anim counters advance once per PIT
  * tick (~236.7 Hz); anim_timer feeds get_random()'s entropy. No hidden
- * state — safe to serve from TS unconditionally (unlike the stateful town
- * ticks, this needs no oracle: the operation is three counter increments).
+ * state — the operation is three counter increments.
  */
 
 export function dungeonFullTick(g: Uint8Array): void {

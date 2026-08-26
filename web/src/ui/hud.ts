@@ -1,12 +1,12 @@
 /**
  * hud.ts — DOM HUD: hero stats (HP/gold/almas), equipment icons, boss bar.
  *
- * All game state lives in wasm g_mem; this module only reads/writes the
+ * All game state lives in g_mem; this module only reads/writes the
  * relevant addresses and mirrors them into the DOM. Memory accessors and
  * asset paths are injected so tests can run headless.
  */
 
-import { ADDR_BOSS_MODE } from '../wasm/memory.js';
+import { ADDR_BOSS_MODE } from '../core/memory.js';
 
 /** Minimal memory accessor surface used by the HUD. */
 export interface HudMemoryAccess {

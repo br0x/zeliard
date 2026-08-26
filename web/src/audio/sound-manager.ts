@@ -7,7 +7,7 @@
  *   1. Create and manage the AudioContext + PITWorklet node.
  *   2. Pre-load and cache all sound effects and music tracks (mp3 / ogg).
  *   3. Receive full_tick / slow_tick messages from the worklet and forward
- *      them to the registered WASM / JS game callbacks.
+ *      them to the registered game callbacks.
  *   4. Implement sound_drv_poll() and music_drv_poll() to service the
  *      ADDR_SOUND_FX_REQUEST byte that town.c / fight.c write.
  *   5. Drive the boss-heartbeat loop (assets/sfx/heartbeat.ogg) whose volume

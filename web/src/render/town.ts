@@ -3,7 +3,7 @@
  *
  * Draws everything visible while walking a town: the static backdrop,
  * parallax ceiling strip, two scrolling sidewalk strips, the tile map
- * (read from wasm g_mem so dynamic tile changes are visible), the hero,
+ * (read from g_mem so dynamic tile changes are visible), the hero,
  * and NPCs.
  *
  * Also owns the town-specific render state that belongs to those layers:
@@ -11,8 +11,7 @@
  * sprite category parsed from the town descriptor.
  *
  * Asset references and memory accessors are injected via
- * `initTownRenderer(env)`; every body is ported verbatim from game.js
- * (Stage 2).
+ * `initTownRenderer(env)`.
  */
 
 import {
@@ -25,7 +24,7 @@ import {
 } from '../config/engine.js';
 import {
     ADDR_TOWN_DESCRIPTOR_PTR, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_NPC_ARRAY_PTR,
-} from '../wasm/memory.js';
+} from '../core/memory.js';
 import { PATTERN_ASSETS, NPC_FRAME_W, NPC_FRAME_H } from '../data/assets.js';
 import { getTownMapWidth } from '../core/transitions.js';
 

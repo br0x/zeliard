@@ -2,14 +2,14 @@
  * key-state.ts — shared keyboard state for the game loop.
  *
  * A single mutable record of "currently held" action keys. The DOM event
- * handlers in game.js set/clear flags; the frame/tick loop reads the object
- * and forwards it to the wasm input latch via the bridge's inputSetKeys().
+ * handlers set/clear flags; the frame/tick loop reads the object and
+ * forwards it to the engine's input latch via setInputKeys().
  *
  * Kept as a plain mutable singleton (not events) to mirror the original
  * game's polled keyboard latch semantics.
  */
 
-import type { KeyState } from '../wasm/memory.js';
+import type { KeyState } from '../core/memory.js';
 
 /** The live key state, mutated by input handlers and read every tick. */
 export const keys: Required<KeyState> = {

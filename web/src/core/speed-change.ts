@@ -1,7 +1,7 @@
 /**
  * speed-change.ts — game-speed dialog (F9) state machine.
  *
- * Pure state transitions; DOM/canvas drawing and wasm side-effects stay in
+ * Pure state transitions; DOM/canvas drawing and side-effects stay in
  * the caller. Mirrors the legacy flow:
  *   start()        → active, phase 0 ("press F9 again" prompt released)
  *   beginSelect()  → phase 1 (waiting for a digit)

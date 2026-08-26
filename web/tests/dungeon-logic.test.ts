@@ -4,7 +4,7 @@ import {
     nextAnimatedTile,
     wrapProximityAddress,
 } from '../src/render/dungeon-logic.js';
-import { ADDR_PROXIMITY_MAP } from '../src/wasm/memory.js';
+import { ADDR_PROXIMITY_MAP } from '../src/core/memory.js';
 import { PROX_SIZE } from '../src/config/engine.js';
 
 // ─── magic projectile frames ─────────────────────────────────────────────────

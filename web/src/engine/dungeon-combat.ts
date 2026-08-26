@@ -19,7 +19,7 @@
  * tests).
  */
 
-import { SEG1_BASE } from '../wasm/memory.js';
+import { SEG1_BASE } from '../core/memory.js';
 import {
     heroCoordsToAddrInProximity,
     getDstMonsterFlags,

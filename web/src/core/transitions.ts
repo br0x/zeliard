@@ -1,11 +1,9 @@
 /**
  * transitions.ts — pure helpers for town/dungeon transition flows.
  *
- * Extracted from game.js (Stage 2): the asm-parity viewport scroll math
- * used when re-entering a town, the music-track mapping shared by all
- * transition entry points, the boss state block encoder, and the MDT
- * map-width reader. The async orchestration (asset loading, wasm calls)
- * stays with the caller in game.js until render/ has an owner.
+ * The viewport scroll math used when re-entering a town, the music-track
+ * mapping shared by all transition entry points, the boss state block
+ * encoder, and the MDT map-width reader.
  */
 
 import { PROX_COLS } from '../config/engine.js';

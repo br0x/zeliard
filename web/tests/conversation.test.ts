@@ -5,7 +5,7 @@ import {
     ASBESTOS_CAPE_ITEM_ID,
     ASBESTOS_CAPE_PRICE,
 } from '../src/core/conversation.js';
-import { ADDR_NPC_CONVERSATIONS } from '../src/wasm/memory.js';
+import { ADDR_NPC_CONVERSATIONS } from '../src/core/memory.js';
 
 const ADDR_NPC_ADDR_LATCH = 0xfff6;
 const ADDR_CALIENTE_ITEMS = 0x34;

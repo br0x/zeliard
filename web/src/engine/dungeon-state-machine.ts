@@ -1,13 +1,11 @@
 /**
  * dungeon-state-machine.ts — TS port of dungeon.c's dungeon update
- * dispatcher and the roka-run / cavern-init transition family (Stage 8d,
- * slice 1).
+ * dispatcher and the roka-run / cavern-init transition family.
  *
  * Ports, 1:1 from src/dungeon.c:
- *   - wasm_dungeon_update          (1986) — the DUNGEON_STATE switch.
- *     States whose per-frame logic is not ported yet (NORMAL, ROPE, death
- *     fall/flash/fade, DOOR_PENDING, JASHIIN cutscene) are delegated to
- *     injected handlers; later 8d slices replace them with native ports.
+ *   - dungeon_update               (1986) — the DUNGEON_STATE switch.
+ *     States whose per-frame logic is delegated to injected handlers
+ *     (NORMAL, ROPE, death fall/flash/fade, DOOR_PENDING, JASHIIN cutscene).
  *   - roka_run                     (1949)
  *   - dungeon_update_roka_run      (1961)
  *   - after_run_animation          (5138)
