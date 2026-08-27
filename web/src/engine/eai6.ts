@@ -65,11 +65,11 @@ const TYPE2_DIR_TABLE_LEFT = [4, 4, 3, 4, 4, 4, 5, 4]; // byte_A766
 /** Monster_AI_6 (eai6.c:128). */
 export function monsterAi6(g: Uint8Array, m: number): void {
     switch (g8(g, m + 4) & 0x0f) { // .flags
-        case 0: type0TopAi(g, m); return;
-        case 1: type0BottomAi(g, m); return;
-        case 2: type2Ai(g, m); return;
-        case 3: type3Ai(g, m); return;
-        case 4: type4Ai(g, m); return;
+        case 0: type0TopAi(g, m); return; // woman top half
+        case 1: type0BottomAi(g, m); return; // woman bottom half (NOP)
+        case 2: type2Ai(g, m); return; // ghost
+        case 3: type3Ai(g, m); return; // chicken
+        case 4: type4Ai(g, m); return; // falling ceiling
         default: return; // 5-entry jump table by design
     }
 }
@@ -511,11 +511,11 @@ function type3PatrolStep(g: Uint8Array, m: number): void {
     s8(g, m + 6, (g8(g, m + 6) + 1) & 0xf3); // .anim_counter
 
     if ((g8(g, m + 5) & 0x80) !== 0) { // facing right
-        if (moveMonsterE(g, m) !== 0) {
+        if (moveMonsterE(g, m) === 0) {
             s8(g, m + 5, g8(g, m + 5) ^ 0x80);
         }
     } else { // facing left
-        if (moveMonsterW(g, m) !== 0) {
+        if (moveMonsterW(g, m) === 0) {
             s8(g, m + 5, g8(g, m + 5) ^ 0x80);
         }
     }

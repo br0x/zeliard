@@ -289,11 +289,11 @@ Monster_AI      proc near
                 add     bx, bx          ; switch 5 cases
                 jmp     jpt_A403[bx]    ; switch jump
 ; ---------------------------------------------------------------------------
-jpt_A403        dw offset woman_top_ai      ; jump table for switch statement
-                dw offset locret_A411
-                dw offset ghost_ai
-                dw offset chicken_ai
-                dw offset falling_ceiling_ai
+jpt_A403        dw offset woman_top_ai      ; 0
+                dw offset locret_A411       ; 1
+                dw offset ghost_ai          ; 2
+                dw offset chicken_ai        ; 3
+                dw offset falling_ceiling_ai ; 4
 ; ---------------------------------------------------------------------------
 
 locret_A411:                            ; jumptable 0000A403 case 1
