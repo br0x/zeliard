@@ -23,8 +23,6 @@ const HERO_HP = 0x90; // word
 const SHIELD_TYPE = 0x93;
 const SHIELD_HP = 0x94; // word
 const CURRENT_ACCESSORY = 0x9e;
-const BYTE_E4_UNUSED = 0xe4;
-void BYTE_E4_UNUSED;
 const INVINCIBILITY_FLAG = 0xe8;
 const ACCUMULATED_DAMAGE = 0x9f12; // word
 const KNOCKBACK_VECTOR = 0x9f0e; // 4 bytes

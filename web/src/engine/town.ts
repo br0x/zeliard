@@ -706,7 +706,7 @@ const GMEM_SIZE = 0x40000;
 
 const IS_DEATH_PROCESSED = 0x49;
 const INVINCIBILITY_FLAG = 0xe8;
-const BYTE_E4 = 0xe4;
+const SWORD_ENCHANTMENT_LEVEL = 0xe4;
 const BYTE_9F = 0x9f;
 const PAT_ID = 0x7c46;
 const TOWN_DESCRIPTOR = 0xc000;
@@ -809,7 +809,7 @@ function townEntryCommon(g: Uint8Array, st: TownTickState): void {
     initC015ObjIfExists(g);
     s8(g, SPACEBAR, 0);
     s8(g, ALTKEY, 0);
-    s8(g, BYTE_E4, 0);
+    s8(g, SWORD_ENCHANTMENT_LEVEL, 0);
     s8(g, BYTE_9F, 0);
 
     // clear_hud_bar / render_* procs: no-ops in the web build
@@ -912,7 +912,7 @@ export function townCompleteTransition(g: Uint8Array, st: TownTickState = townTi
 
     s8(g, SPACEBAR, 0);
     s8(g, ALTKEY, 0);
-    s8(g, BYTE_E4, 0);
+    s8(g, SWORD_ENCHANTMENT_LEVEL, 0);
     s8(g, BYTE_9F, 0);
 }
 

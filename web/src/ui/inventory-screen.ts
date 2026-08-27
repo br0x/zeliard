@@ -80,7 +80,7 @@ const ADDR_HERO_HP = 0x90;
 const ADDR_HERO_MAX_HP = 0xB2;
 const ADDR_ESPADA_COUNT = 0xB4;
 const ADDR_ESPADA_ACTIVE = 0xBB;
-const ADDR_BYTE_E4 = 0xE4;
+const ADDR_SWORD_ENCHANTMENT_LEVEL = 0xE4;
 const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
 const ADDR_MAGIA_STONE_SPRITE0 = 0xEB60;
 const ADDR_MAGIA_STONE_SPRITE1 = 0xEB67;
@@ -274,7 +274,7 @@ export class InventoryScreen {
         d.gloryCrest = !!u8(ADDR_CREST_OF_GLORY);
         d.heroCrest = !!u8(ADDR_HERO_CREST);
         d.currentSpell = u8(ADDR_CURRENT_MAGIC_SPELL);
-        d.enchantCount = u8(ADDR_BYTE_E4);
+        d.enchantCount = u8(ADDR_SWORD_ENCHANTMENT_LEVEL);
         d.heroHP = le16(ADDR_HERO_HP);
         d.heroMaxHP = le16(ADDR_HERO_MAX_HP);
         d.level = u8(ADDR_HERO_LEVEL);
@@ -929,8 +929,8 @@ export class InventoryScreen {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const c = this._byte(ADDR_BYTE_E4) + 1;
-        w(ADDR_BYTE_E4, Uint8Array.of(c));
+        const c = this._byte(ADDR_SWORD_ENCHANTMENT_LEVEL) + 1;
+        w(ADDR_SWORD_ENCHANTMENT_LEVEL, Uint8Array.of(c));
         this.data.enchantCount = c;
     }
 }

@@ -34,7 +34,7 @@ const HERO_LEVEL = 0x8d;
 const HERO_XP = 0x8e; // word
 const FACING = 0xc2;
 const LEFT_FLAG = 1;
-const BYTE_E4 = 0xe4;
+const SWORD_ENCHANTMENT_LEVEL = 0xe4;
 const SQUAT_FLAG = 0xff38;
 const IS_BOSS_CAVERN = 0xff34;
 const BOSS_BEING_HIT = 0xff2e;
@@ -126,7 +126,7 @@ export function getStats(g: Uint8Array, al: number): number {
         if (sum > 0xff) {
             ah = 0xff;
         } else {
-            const product = sum * ((g8(g, BYTE_E4) + 1) & 0xff);
+            const product = sum * ((g8(g, SWORD_ENCHANTMENT_LEVEL) + 1) & 0xff);
             ah = product > 0xff ? 0xff : product;
         }
         if (g8(g, SWORD_HIT_TYPE) === 2) {
