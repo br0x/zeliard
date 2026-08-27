@@ -292,6 +292,8 @@ export function animateDungeonTiles(): void {
             proxMap[idx] = nextTile;
         }
     }
+
+    env.writeMemory(ADDR_PROXIMITY_MAP, proxMap);
 }
 
 // ─── Boss explosion rings ─────────────────────────────────────────────────────
