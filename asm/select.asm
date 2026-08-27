@@ -692,7 +692,7 @@ item_refresh_all_spells:
 
 item_enchant_sword:
                 mov     byte ptr ds:soundFX_request, 14
-                inc     byte ptr ds:byte_E4
+                inc     byte ptr ds:sword_enchantment_level
                 call    Render_Enchantment_Count
                 jmp     Render_Item_Usage_Text
 ; ---------------------------------------------------------------------------
@@ -1164,10 +1164,10 @@ Render_Shield_HP_Detail        endp
 ; =============== S U B R O U T I N E =======================================
 
 
-; Input: byte_E4 = enchantment count
+; Input: sword_enchantment_level = enchantment count
 ; Output: Renders enchantment count in parentheses if non-zero
 Render_Enchantment_Count        proc near
-                test    byte ptr ds:byte_E4, 0FFh
+                test    byte ptr ds:sword_enchantment_level, 0FFh
                 jnz     short loc_A876
                 retn
 ; ---------------------------------------------------------------------------
@@ -1182,7 +1182,7 @@ loc_A876:
                 mov     al, 28h ; '('
                 mov     ah, 1
                 call    word ptr cs:2022h ; Render_Font_Glyph_proc
-                mov     al, ds:byte_E4
+                mov     al, ds:sword_enchantment_level
                 xor     ah, ah
                 mov     dx, 3457h
                 mov     bl, 1

@@ -9538,7 +9538,7 @@ Hero_Hits_monster endp
 ; al=1 → ah = total sword damage:
 ;          base = sword_damages[sword_type-1] (table: 1,2,4,8,32,127)
 ;          + hero_level/2
-;          × (byte_E4+1)  [difficulty multiplier]
+;          × (sword_enchantment_level+1)  [sword damage multiplier]
 ;          × 2 if downward thrust (sword_hit_type==2)
 ; al=2..8 → ah = byte_98BE[al-2] (static stat table: 2,4,8,16,32,64,255)
 ; al=9 → ah = (hero_level+1)*4
@@ -9588,7 +9588,7 @@ stats_case1:
                 shr     bl, 1
                 add     al, bl          ; base_damage[sword_type] + hero_level/2
                 jb      short loc_98A4
-                mov     cl, ds:byte_E4
+                mov     cl, ds:sword_enchantment_level
                 inc     cl
                 mul     cl
                 or      ah, ah

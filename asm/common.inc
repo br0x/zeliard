@@ -353,7 +353,7 @@ esco_arm_shields_inventory_bitmask equ 0e3h ; Default: FC
                                         ; + 16 - Honor Shield
                                         ; + 8 - Light Shield
                                         ; + 4 - Titanium Shield
-byte_E4                     equ   0e4h  ;
+sword_enchantment_level     equ   0e4h  ;
 sages_spoken_to_hero        equ   0e5h  ; + 128 - Muralla
                                         ; + 64 - Satono
                                         ; + 32 - Bosque

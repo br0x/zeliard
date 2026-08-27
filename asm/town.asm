@@ -108,7 +108,7 @@ town_entry_internal:
                 xor     al, al
                 mov     byte ptr ds:spacebar_latch, al
                 mov     byte ptr ds:altkey_latch, al
-                mov     byte ptr ds:byte_E4, al
+                mov     byte ptr ds:sword_enchantment_level, al
                 mov     byte ptr ds:byte_9F, al
                 mov     bx, 204h
                 xor     al, al
