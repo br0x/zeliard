@@ -1,5 +1,5 @@
 /**
- * game.js — Zeliard web port, main entry point (refactored).
+ * main.ts — Zeliard web port composition root.
  *
  * Indoor activities moved to separate modules. A generic menu/dialog
  * system is used by Sage and can be reused by other buildings.
@@ -107,8 +107,8 @@ import {
 } from './core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
 
-// Save persistence now lives in platform/save.ts (Stage 2); re-exported here
-// so save-restore-ui.js / import-export-ui.js keep importing from game.js.
+// Save persistence lives in platform/save.ts. These exports preserve the
+// legacy public module contract used by older UI modules/tools.
 export {
     getSaveSlotNames,
     saveGameToSlot,
@@ -598,7 +598,7 @@ async function startGame() {
     }
 
     try {
-        await loadWasmEngine();
+        installEngineRuntimeHooks();
 
         if (getWasmMemory) {
             soundManager.setWasmMemAccessor(getWasmMemory);
@@ -857,7 +857,7 @@ async function loadDungeonAssets(rawMapId: number): Promise<void> {
     await Promise.all(loads);
 }
 
-async function loadWasmEngine() {
+function installEngineRuntimeHooks(): void {
     // Memory accessors already point to ts-memory.ts implementations.
 
     // Install town hooks: setDoorX1 writes directly to the shared statics.
@@ -1466,7 +1466,7 @@ function startIndoorScene(destId: number): void {
 }
 
 // ─── UI helpers (gold, sword, shield, magic) ──────────────────────────────────
-// HUD rendering lives in ui/hud.ts; these bindings wire it to the wasm bridge.
+// HUD rendering lives in ui/hud.ts; these bindings wire it to TS memory.
 // Delegating function declarations keep hoisting semantics for earlier code.
 const hud = new Hud({
     mem: {
