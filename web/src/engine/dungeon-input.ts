@@ -60,6 +60,7 @@ void HERO_GOLD_HI_UNUSED;
 const FACING = 0xc2;
 const INVINCIBILITY_FLAG = 0xe8;
 const INPUT_ALT_SPACE = 0xff16;
+const ALT_SPACE_SPACE = 0x01;
 const INPUT_DIRS = 0xff17;
 const JUMP_HEIGHT_COUNTER_UNUSED = 0x9f08;
 void JUMP_HEIGHT_COUNTER_UNUSED;
@@ -80,6 +81,8 @@ const SWORD_SWING_FLAG = 0xff43;
 const UI_ELEMENT_DIRTY = 0xff44;
 const ALTKEY_LATCH = 0xff1e;
 const SPACEBAR_LATCH = 0xff1d;
+const SWORD_HIT_TYPE = 0xff45;
+const SWORD_MOVEMENT_PHASE = 0xff46;
 const DOWN_THRUST_HELD = 0xff47;
 const IS_BOSS_CAVERN = 0xff34;
 const RENDER_REQUEST = 0xff92;
@@ -136,13 +139,13 @@ export function inputHandling(g: Uint8Array): void {
     const dirs = g8(g, INPUT_DIRS);
 
     if (
-        (altSpace & 0x02 /* KEY_SPACE */) === 0 ||
+        (altSpace & ALT_SPACE_SPACE) === 0 ||
         g8(g, JUMP_PHASE_FLAGS) === 0 ||
         g8(g, SLOPE_DIRECTION) !== 0 ||
         (dirs & KEY_DOWN) === 0
     ) {
         // sword_default
-        s8(g, 0xff47 /* DOWN_THRUST_HELD */, 0);
+        s8(g, DOWN_THRUST_HELD, 0);
 
         if (
             g8(g, SPACEBAR_LATCH) === 0 ||
@@ -179,13 +182,13 @@ export function inputHandling(g: Uint8Array): void {
             }
             overhead = dl !== 0 ? 0xff : dirs & KEY_UP;
         }
-        s8(g, 0xff45 /* SWORD_HIT_TYPE */, overhead !== 0 ? 1 : 0);
-        s8(g, 0xff46 /* SWORD_MOVEMENT_PHASE */, 0);
+        s8(g, SWORD_HIT_TYPE, overhead !== 0 ? 1 : 0);
+        s8(g, SWORD_MOVEMENT_PHASE, 0);
         s8(g, SOUND_FX_REQUEST, 3);
     } else {
         // downward thrust (space + up + down held)
-        s8(g, 0xff45, 2);
-        s8(g, 0xff46, 2);
+        s8(g, SWORD_HIT_TYPE, 2);
+        s8(g, SWORD_MOVEMENT_PHASE, 2);
         if (g8(g, DOWN_THRUST_HELD) === 0) {
             s8(g, DOWN_THRUST_HELD, 0xff);
             s8(g, SOUND_FX_REQUEST, 4);
