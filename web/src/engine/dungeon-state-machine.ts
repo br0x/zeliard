@@ -230,10 +230,14 @@ export function cavernGameInit(
         // Jashiin room 2 (mpa0) enters straight from the room-1 cutscene:
         // fight starts immediately, no encounter flash.
         if ((g8(g, PLACE_MAP_ID) & 0x7f) === 30) {
-            // render_boss_hud()
+            // render_boss_hud() — asm draws boss name + max/current HP bars
+            // directly into VRAM.  In the JS port we trigger the health bar
+            // render via the deferred BOSS_HEALTH_REQUEST flag so the HUD
+            // layer picks it up on the next frame.
             const bossStatePtr = g16(g, 0xa002 /* ADDR_BOSS_STATE_PTR */);
             s8(g, 0x9f01 /* BOSS_PLACEMENT */, g8(g, bossStatePtr + 8));
             s8(g, 0xffa0 /* BOSS_MODE */, 0xff);
+            s8(g, 0xff9f /* BOSS_HEALTH_REQUEST */, 0xff);
             s8(g, MAO2_START_LATCH, 0xff);
             s8(g, DUNGEON_STATE, DUNGEON_STATE_NORMAL);
         } else {

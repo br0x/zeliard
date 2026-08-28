@@ -250,7 +250,10 @@ export function dungeonUpdateJashiinCutscene(
     s8(g, PLACE_MAP_ID, 30); // mpa0.mdt, Jashiin room 2
     s8(g, 0xfffc /* PENDING_DUNGEON_MAP */, 30);
     s8(g, 0xfffd /* PENDING_DUNGEON_FLAG */, 0xff);
-    s8(g, 0xffe2 /* DUNGEON_EXIT_FLAG */, 0xff);
+    // NOTE: Do NOT set DUNGEON_EXIT_FLAG here — that would trigger
+    // initTownFromDungeon (town path).  The asm jashiin_place flow stays
+    // inside Cavern_Game_Init and loads room 2 via the PENDING_DUNGEON_FLAG
+    // → handleDungeonTransition path, same as a dungeon-to-dungeon door.
     s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
 }
 
