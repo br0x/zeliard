@@ -578,7 +578,7 @@ export function townMainLoopStep(g: Uint8Array, st: TownTickState): void {
             const destId = st.doorPendingDest;
             st.doorPendingDest = 0xff;
             if (destId === 0xff) {
-                // Falter warp building: reuse the building handshake.
+                // warp building: reuse the building handshake.
                 s8(g, BYTE_FF24, 4);
                 s8(g, BUILDING_DEST_ID, 0xff);
                 s8(g, BUILDING_ACTIVE, 1);

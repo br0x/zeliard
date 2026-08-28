@@ -558,7 +558,7 @@ export class InventoryScreen {
             ctx.textAlign = 'left';
             if (d.keys) {
                 this._drawSheet(ctx, 'keys', 0, x + 10, ey + 2, iconSize, iconSize);
-                ctx.fillText(`\u00d7${d.keys}`, labelX, ey + 18);
+                ctx.fillText(`×${d.keys}`, labelX, ey + 18);
                 cx += 64;
             }
             if (d.lionKeys) {

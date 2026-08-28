@@ -1351,7 +1351,7 @@ async function handleWarp() {
     engineReady = false;
     rokademoHold = false;
     try {
-        // Mark Falter building as used (bit7 of falter_items) so the dialog
+        // Mark Pureza building as used (bit7 of falter_items) so the dialog
         // and warp cannot repeat.
         const falter = readMemory(ADDR_FALTER_ITEMS, 1)[0];
         writeMemory(ADDR_FALTER_ITEMS, Uint8Array.of(falter | 0x80));
@@ -1400,7 +1400,7 @@ async function handleWarp() {
             NPC_SPRITE_PATHS[getTownNpcCategory()]!.map((_, index) => loadNpcSprite(index))
         );
 
-        // Landing spot: Falter building door, prox col 132 / view x 13, face-left.
+        // Landing spot: Dorado building door, prox col 132 / view x 13, face-left.
         writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, Uint8Array.of(132, 0));
         writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(13));
         writeMemory(ADDR_FACING, Uint8Array.of(0x01)); // face left
@@ -1412,7 +1412,7 @@ async function handleWarp() {
         soundManager.setSfxVolume(1.0);
         const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
         if (trackId) setCurrentMusicTrack(trackId);
-        console.log('[falter] warped to Dorado');
+        console.log('[PurezaBuilding] warped to Dorado');
     } catch (err) {
         console.error('[handleWarp] failed:', err);
     } finally {

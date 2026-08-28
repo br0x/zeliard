@@ -29,6 +29,7 @@ import {
     ADDR_MAGIC_PROJECTILES, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_MAP_WIDTH,
     ADDR_MONSTERS_LIST, ADDR_MAGIA_STONE_SPRITE0,
     ADDR_IS_BOSS_CAVERN, ADDR_SPRITE_FLASH_FLAG, ADDR_BOSS_EXPLOSIONS_LIST,
+    ADDR_BOSS_IS_DEAD,
     ADDR_HERO_X_VIEW, ADDR_HERO_HEAD_Y_VIEW, ADDR_FACING, ADDR_HERO_ANIM_PHASE,
     ADDR_INVINCIBILITY_FLAG, ADDR_SQUAT_FLAG, ADDR_ON_ROPE_FLAGS,
     ADDR_HERO_HIDDEN_FLAG, ADDR_JUMP_PHASE_FLAGS, ADDR_SHIELD_ANIM_ACTIVE,
@@ -334,6 +335,7 @@ function spawnBossExplosionRings(col: number, row: number): void {
     }
 
     // ── 2. Spawn a new ring (probabilistic, each call) ─────────────────────
+    if (env.readU8(ADDR_BOSS_IS_DEAD)) return; // stop spawning after boss dies
     if (row >= 16) return;
     if ((Math.random() * 16 | 0) >= 2) return; // ~⅛ probability (C: (r&0x0F)<14)
 

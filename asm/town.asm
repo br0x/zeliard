@@ -35,8 +35,8 @@ town_entry_disabling_edge_scroll   proc near
                 jmp     short town_entry_common
 ; ---------------------------------------------------------------------------
 
-; town_entry_enabling_edge_scroll — Town re-entry after transitions (sage resurrection,
-;   falter warp). Clears disable_edge_scroll to enable edge-scroll handler.
+; town_entry_enabling_edge_scroll — Town re-entry after transitions (sage resurrection, Pureza->Dorado warp).
+; Clears disable_edge_scroll to enable edge-scroll handler.
 ;   Input: (none — state already set in shared memory)
 town_entry_enabling_edge_scroll:
                 mov     cs:disable_edge_scroll, 0
@@ -2294,7 +2294,7 @@ door_x_coord_match:
                 mov     al, [si+TOWN_DOOR.td_dest_id]
                 cmp     al, 0FFh
                 jne     short loc_6E77
-                jmp     loc_6F77 ; Falter special building
+                jmp     loc_6F77 ; special building
 ; ---------------------------------------------------------------------------
 
 loc_6E77:   
@@ -2404,7 +2404,7 @@ loc_6F9D:
 loc_6FC1:   
                 test    byte ptr ds:music_status_flag, 0FFh
                 jz      short loc_6FC1
-                mov     si, offset falter_transition_desc
+                mov     si, offset vfs_ugm2_msd
                 mov     es, cs:seg1
                 mov     di, town_msd_music
                 mov     al, 5 ; fn5_load_music
@@ -2414,8 +2414,8 @@ loc_6FC1:
                 call    cs:fade_to_black_dithered_proc
                 jmp     town_entry_disabling_edge_scroll
 ; ---------------------------------------------------------------------------
-falter_transition_desc dw 3201h                ; falter warp descriptor
-aUgm2Msd               db 'UGM2.MSD',0
+vfs_ugm2_msd    dw 3201h
+aUgm2Msd        db 'UGM2.MSD',0
 ; ---------------------------------------------------------------------------
 ; Input:
 ;   AL: dest_map_id

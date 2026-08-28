@@ -723,7 +723,7 @@ edge-scroll logic (`wasm_town_update` / `_full_tick` family).
 - Full 1:1 port of: `town_main_loop_step` (hero movement/collision vs
   special-tile list and non-passable NPCs, viewport-threshold edge scroll
   with scroll-request bits, door detection via the doors list, door-pending
-  animation state machine incl. the Falter-warp 0xFF dest and dungeon-door
+  animation state machine incl. the Pureza-Dorado-warp 0xFF dest and dungeon-door
   split), `hero_spacebar_interaction`, `check_special_npc_conversation`,
   `start_npc_conversation`, the complete 8-entry NPC AI table (look-and-bob,
   1/2-bit patrols, face-hero, bob-in-place, bounce patrols, static),
