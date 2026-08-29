@@ -675,7 +675,7 @@ async function startGame() {
         engineReady = true;
 
     } catch (err) {
-        console.error('[startGame] WASM init error:', err);
+        console.error('[startGame] init error:', err);
     }
 
     soundManager.start();
