@@ -19,6 +19,10 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import {
+    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
+    ADDR_MAGIC_ITEMS, ADDR_MAGIC_MASKS,
+} from '../core/memory.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -166,13 +170,6 @@ export const DEFAULT_MAGIC_BITMASKS = [
     0x01,  // Pureza
     0xFF,  // Esco
 ];
-
-// ─── Memory addresses (common.inc) ───────────────────────────────────────────
-const ADDR_TOWN_ID        = 0xC4;   // place_map_id; 0x81=Muralla..0x89=Esco
-const ADDR_GOLD_HI        = 0x85;
-const ADDR_GOLD_LO        = 0x86;   // word (lo byte, then hi byte)
-const ADDR_MAGIC_ITEMS    = 0xA6;   // 5 slots, each 0=empty or 1..8 = item id
-const ADDR_MAGIC_MASKS    = 0xC9;   // one byte per town (9 towns), Muralla..Esco
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -341,13 +338,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     private _getTownIdx(): number {
         // place_map_id: 0x81=Muralla..0x89=Esco → index 0..8
-        const raw = (this._read(ADDR_TOWN_ID, 1)[0] ?? 0) & 0x7F;
+        const raw = (this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
     private _getGold(): number {
-        const hi = this._read(ADDR_GOLD_HI, 1)[0];
-        const b  = this._read(ADDR_GOLD_LO, 2);
+        const hi = this._read(ADDR_HERO_GOLD_HI, 1)[0];
+        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
         return (((hi ?? 0) & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
 
@@ -355,8 +352,8 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         const v  = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
     }
 
     private _getMagicBitmask(): number {

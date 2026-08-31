@@ -7,6 +7,10 @@
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
+import {
+    ADDR_SPOKE_TO_KING, ADDR_ENTERED_CAVERN_FIRST_TIME, ADDR_DEATH_ALREADY_PROCESSED,
+    ADDR_SOUND_FX_REQUEST, ADDR_HERO_GOLD_LO, ADDR_HERO_GOLD_HI,
+} from '../core/memory.js';
 
 const KING_IMAGE_PATHS: Array<string | null> = [
     null,
@@ -73,11 +77,6 @@ export const KING_DIALOG_SCRIPTS: Record<KingDialogKey, string[]> = {
         'The crystals will bring her back to life.',
     ],
 };
-
-// g_mem progress flags consulted when choosing the audience script
-const ADDR_SPOKE_TO_KING = 0x05;
-const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
-const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
 
 type MemoryReader = (offset: number, length: number) => Uint8Array | null;
 
@@ -378,7 +377,7 @@ export class KingScene extends IndoorSceneBase {
     private _startGoldAward(now: number): void {
         if (!this.readMemory) return;
         // Already gave gold?
-        if (this.readMemory(0x05, 1)?.[0] !== 0) return;
+        if (this.readMemory(ADDR_SPOKE_TO_KING, 1)?.[0] !== 0) return;
 
         if (!this.king) return;
         this.king.goldAward = { stepsDone: 0, nextStepAt: now + 100 };
@@ -397,7 +396,7 @@ export class KingScene extends IndoorSceneBase {
         // Update the HUD so the gold counter visibly increases
         this.renderGoldHud();
 
-        this.writeMemory?.(0xFF75, Uint8Array.of(KING_GOLD_GIFT_SFX)); // ADDR_SOUND_FX_REQUEST
+        this.writeMemory?.(ADDR_SOUND_FX_REQUEST, Uint8Array.of(KING_GOLD_GIFT_SFX));
         g.stepsDone++;
         g.nextStepAt = now + 100;
     }
@@ -411,7 +410,7 @@ export class KingScene extends IndoorSceneBase {
             this._applyGoldStep(now);
         } else {
             // Animation complete
-            this.writeMemory(0x05, Uint8Array.of(0xFF)); // spoke_to_king
+            this.writeMemory(ADDR_SPOKE_TO_KING, Uint8Array.of(0xFF));
             this.king.goldAward = null;
             // Advance to next page (or fade out)
             if (this.king.page < this.king.pages.length - 1) {
@@ -426,8 +425,8 @@ export class KingScene extends IndoorSceneBase {
 
     private _getHeroGold(): number {
         if (!this.readMemory) return 0;
-        const lo = this.readMemory(0x86, 2);
-        const hi = this.readMemory(0x85, 1);
+        const lo = this.readMemory(ADDR_HERO_GOLD_LO, 2);
+        const hi = this.readMemory(ADDR_HERO_GOLD_HI, 1);
         if (!lo || !hi) return 0;
         return ((lo[0] ?? 0) | (lo[1] ?? 0) << 8) + (hi[0] ?? 0) * 0x10000;
     }
@@ -435,8 +434,8 @@ export class KingScene extends IndoorSceneBase {
     private _setHeroGold(value: number): void {
         if (!this.writeMemory) return;
         const clamped = Math.max(0, Math.min(0xFFFFFF, value));
-        this.writeMemory(0x86, Uint8Array.of(clamped & 0xFF, (clamped >> 8) & 0xFF));
-        this.writeMemory(0x85, Uint8Array.of((clamped >> 16) & 0xFF));
+        this.writeMemory(ADDR_HERO_GOLD_LO, Uint8Array.of(clamped & 0xFF, (clamped >> 8) & 0xFF));
+        this.writeMemory(ADDR_HERO_GOLD_HI, Uint8Array.of((clamped >> 16) & 0xFF));
     }
 
     getName(): string {

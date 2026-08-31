@@ -13,6 +13,8 @@ import {
     REACH_TABLE_OFFSET,
     REACH_LISTS_OFFSET,
     ADDR_TRAJECTORIES,
+    ADDR_MONSTER_XP_TABLE,
+    ADDR_MONSTER_DAMAGE_TABLE,
 } from './memory.js';
 
 /** Size of g_mem in bytes (64KB × 4 segments, matching zeliard.h). */
@@ -142,19 +144,17 @@ export function setDungeonAirflowsToBuffer(tileIds: ArrayLike<number>): void {
     writeFixedList(tileIds, 0x8024, 12);
 }
 
-/** Monster XP table → g_mem[0xA008] (8 bytes). */
+/** Monster XP table → g_mem[ADDR_MONSTER_XP_TABLE] (8 bytes). */
 export function setDungeonMonsterXpToBuffer(xp: ArrayLike<number>): void {
-    const addr = 0xa008;
     for (let i = 0; i < 8; i++) {
-        g_mem[addr + i] = (xp[i] ?? 0) & 0xff;
+        g_mem[ADDR_MONSTER_XP_TABLE + i] = (xp[i] ?? 0) & 0xff;
     }
 }
 
-/** Monster damage table → g_mem[0xA010] (8 bytes). */
+/** Monster damage table → g_mem[ADDR_MONSTER_DAMAGE_TABLE] (8 bytes). */
 export function setDungeonMonsterDamageToBuffer(damage: ArrayLike<number>): void {
-    const addr = 0xa010;
     for (let i = 0; i < 8; i++) {
-        g_mem[addr + i] = (damage[i] ?? 0) & 0xff;
+        g_mem[ADDR_MONSTER_DAMAGE_TABLE + i] = (damage[i] ?? 0) & 0xff;
     }
 }
 

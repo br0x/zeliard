@@ -20,6 +20,10 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import {
+    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
+    ADDR_BANK_HI, ADDR_BANK_LO, ADDR_HERO_ALMAS,
+} from '../core/memory.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const PANEL_W = 672;
@@ -139,14 +143,6 @@ export const ALMAS_RATES = [
     [1, 6],   // Pureza   (town 8) — 1 alma → 6 gold
     [1, 8],   // Esco     (town 9) — 1 alma → 8 gold
 ];
-
-// ─── Memory addresses (common.inc) ───────────────────────────────────────────
-const ADDR_PLACE_MAP_ID  = 0xC4;   // town id byte (0x81..0x89 = towns 1..9)
-const ADDR_GOLD_HI       = 0x85;   // 24-bit hero gold: hi byte
-const ADDR_GOLD_LO       = 0x86;   // 24-bit hero gold: lo word (2 bytes, LE)
-const ADDR_BANK_HI       = 0x88;   // 24-bit bank gold: hi byte (bits 16-23)
-const ADDR_BANK_LO       = 0x89;   // 24-bit bank gold: lo word (2 bytes, LE) at 0x89-0x8A
-const ADDR_ALMAS         = 0x8B;   // 16-bit hero almas (word, LE)
 
 // ─── Numeric-entry labels (mirroring the on-screen layout in original) ────────
 // In the original, the deposit/withdraw screen shows two rows:
@@ -350,16 +346,16 @@ export class BankScene extends IndoorSceneBase {
 
     /** Hero gold: 24-bit – hi byte at 0x85, lo word at 0x86 (LE) */
     private _getHeroGold(): number {
-        const hi = (this._read(ADDR_GOLD_HI, 1)[0] ?? 0) & 0xFF;
-        const b  = this._read(ADDR_GOLD_LO, 2);
+        const hi = (this._read(ADDR_HERO_GOLD_HI, 1)[0] ?? 0) & 0xFF;
+        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
         return (hi * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
     private _setHeroGold(amount: number): void {
         const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
         this.renderGoldHudCb();
     }
 
@@ -379,12 +375,12 @@ export class BankScene extends IndoorSceneBase {
 
     /** Hero almas: 16-bit word at 0x8B (LE) */
     private _getAlmas(): number {
-        const b = this._read(ADDR_ALMAS, 2);
+        const b = this._read(ADDR_HERO_ALMAS, 2);
         return ((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8;
     }
     private _setAlmas(amount: number): void {
         const v = Math.max(0, Math.floor(amount)) & 0xFFFF;
-        this._write(ADDR_ALMAS, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
+        this._write(ADDR_HERO_ALMAS, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
         this.renderAlmasHudCb();
     }
 

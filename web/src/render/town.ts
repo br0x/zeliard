@@ -24,6 +24,7 @@ import {
 } from '../config/engine.js';
 import {
     ADDR_TOWN_DESCRIPTOR_PTR, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_NPC_ARRAY_PTR,
+    ADDR_SPEED_CONST, ADDR_HERO_ANIM_PHASE, ADDR_FACING, ADDR_HERO_X_VIEW,
 } from '../core/memory.js';
 import { PATTERN_ASSETS, NPC_FRAME_W, NPC_FRAME_H } from '../data/assets.js';
 import { getTownMapWidth } from '../core/transitions.js';
@@ -266,9 +267,9 @@ export function drawTownTiles(): boolean {
 
 export function drawTownHero(): void {
     if (!A().heroSpriteReady || !env.engineReady()) return;
-    env.gMem(0xff33);
-    const heroAnim = env.gMem(0x00e7);
-    const facing = env.gMem(0x00c2) & 1;
+    env.gMem(ADDR_SPEED_CONST);
+    const heroAnim = env.gMem(ADDR_HERO_ANIM_PHASE);
+    const facing = env.gMem(ADDR_FACING) & 1;
     const keys = env.keys();
     const moving = keys.ArrowLeft || keys.ArrowRight;
     let frame: number;
@@ -285,7 +286,7 @@ export function drawTownHero(): void {
         }
     }
     const sx = frame * HERO_FRAME_W;
-    const viewportX = env.gMem(0x0083);
+    const viewportX = env.gMem(ADDR_HERO_X_VIEW);
     const dx = viewportX * TILE_SIZE;
     const dy = HERO_BASE_Y;
     env.ctx.drawImage(A().heroSprite!, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);

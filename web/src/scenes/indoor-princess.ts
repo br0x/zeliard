@@ -8,11 +8,10 @@
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
+import { ADDR_DEATH_ALREADY_PROCESSED } from '../core/memory.js';
 
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 const PRINCESS_HOLD_MS      = 2000;
-
-const ADDR_DEATH_ALREADY_PROCESSED = 0x49;
 
 export interface PrincessSceneDependencies extends IndoorSceneDependencies {
     startEndingDemo?: (() => void) | null;

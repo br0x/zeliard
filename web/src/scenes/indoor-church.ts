@@ -10,6 +10,10 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
+import {
+    ADDR_HERO_HP, ADDR_HERO_MAX_HP, ADDR_CURR_SPELL_TYPE,
+    ADDR_SPELLS_ACTIVE, ADDR_SPELLS_INVENTORY,
+} from '../core/memory.js';
 
 const PANEL_W = 672;
 const PANEL_H = 432;
@@ -57,12 +61,6 @@ const CANDLE_FRAMES = [
     'assets/images/church/candle3.png',
     'assets/images/church/candle4.png',
 ];
-
-const ADDR_HERO_HP = 0x90;
-const ADDR_HERO_MAX = 0xB2;
-const ADDR_SPELL_ACT = 0x9D;
-const ADDR_SPELLS_ACT = 0xAB;
-const ADDR_SPELLS_INV = 0xB4;
 
 const TEXT_TIRED =
     "Brave Knight, whenever you're tired come to this church.";
@@ -220,7 +218,7 @@ export class ChurchScene extends IndoorSceneBase {
     }
 
     private _getHeroMaxHp(): number {
-        return this._readWord(ADDR_HERO_MAX);
+        return this._readWord(ADDR_HERO_MAX_HP);
     }
 
     private _setHeroHP(value: number): void {
@@ -230,18 +228,18 @@ export class ChurchScene extends IndoorSceneBase {
 
     private _restoreSpells(): void {
         if (!this.readMemory || !this.writeMemory) return;
-        const inv = this.readMemory(ADDR_SPELLS_INV, 7);
+        const inv = this.readMemory(ADDR_SPELLS_INVENTORY, 7);
         if (!inv) return;
-        this.writeMemory(ADDR_SPELLS_ACT, inv);
+        this.writeMemory(ADDR_SPELLS_ACTIVE, inv);
         this._refreshMagicHud();
     }
 
     private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
-        const activeSpell = this._readByte(ADDR_SPELL_ACT);
+        const activeSpell = this._readByte(ADDR_CURR_SPELL_TYPE);
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACT + activeSpell - 1));
+        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACTIVE + activeSpell - 1));
         this.renderMagicHud();
     }
 

@@ -17,6 +17,11 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import {
+    ADDR_PLACE_MAP_ID, ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP,
+    ADDR_SHIELD_MAX_HP, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO, ADDR_CEMENTAR_1,
+    ADDR_CREST_OF_GLORY, ADDR_SWORD_MASKS, ADDR_SHIELD_MASKS,
+} from '../core/memory.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -170,19 +175,6 @@ export const WEAPON_PRICES_BY_TOWN = [
 // Bit 7=item0(Training/Clay), bit 6=item1, …, bit 2=item5.
 export const DEFAULT_SWORD_BITMASKS  = [0xC0, 0xC0, 0xE0, 0xE0, 0x70, 0x38, 0x38, 0xF8, 0xF8];
 export const DEFAULT_SHIELD_BITMASKS = [0xC0, 0xE0, 0xE0, 0x70, 0x30, 0x38, 0x1C, 0x1C, 0xFC];
-
-// ─── Memory addresses (common.inc) ───────────────────────────────────────────
-const ADDR_TOWN_ID        = 0xC4;
-const ADDR_SWORD_TYPE     = 0x92;
-const ADDR_SHIELD_TYPE    = 0x93;
-const ADDR_SHIELD_HP      = 0x94;  // word (lo, hi)
-const ADDR_SHIELD_MAX_HP  = 0x96;  // word
-const ADDR_GOLD_HI        = 0x85;
-const ADDR_GOLD_LO        = 0x86;  // word (lo, hi)
-const ADDR_CEMENTAR_1     = 0x24;  // bit 1 = Returned Crest of Glory
-const ADDR_CREST_OF_GLORY = 0x9B;
-const ADDR_SWORD_MASKS    = 0xD2;  // one byte per town (9 towns)
-const ADDR_SHIELD_MASKS   = 0xDB;  // one byte per town
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -361,13 +353,13 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     private _getTownIdx(): number {
-        const raw = (this._read(ADDR_TOWN_ID, 1)[0] ?? 0) & 0x7F;
+        const raw = (this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
     private _getGold(): number {
-        const hi = this._read(ADDR_GOLD_HI, 1)[0] ?? 0;
-        const b  = this._read(ADDR_GOLD_LO, 2);
+        const hi = this._read(ADDR_HERO_GOLD_HI, 1)[0] ?? 0;
+        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
         return ((hi & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
     }
 
@@ -375,8 +367,8 @@ export class WeaponShopScene extends IndoorSceneBase {
         const v  = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this._write(ADDR_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
+        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
         this.renderGoldHud?.();
     }
 

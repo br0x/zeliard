@@ -62,33 +62,16 @@ export const SHIELD_NAMES = [
     ['Titanium', 'Shield'],
 ];
 
-const ADDR_SWORD_TYPE = 0x92;
-const ADDR_SHIELD_TYPE = 0x93;
-const ADDR_SHIELD_HP = 0x94;
-const ADDR_SHIELD_MAX_HP = 0x96;
-const ADDR_KEYS_AMOUNT = 0x98;
-const ADDR_LION_KEYS_AMOUNT = 0x99;
-const ADDR_ELF_CREST = 0x9A;
-const ADDR_CREST_OF_GLORY = 0x9B;
-const ADDR_HERO_CREST = 0x9C;
-const ADDR_CURRENT_MAGIC_SPELL = 0x9D;
-const ADDR_CURRENT_ACCESSORY = 0x9E;
-const ADDR_FERUZA_SHOES = 0xA1;
-const ADDR_MAGIC_ITEMS = 0xA6;
-const ADDR_SPELLS_ESPADA = 0xAB;
-const ADDR_HERO_HP = 0x90;
-const ADDR_HERO_MAX_HP = 0xB2;
-const ADDR_ESPADA_COUNT = 0xB4;
-const ADDR_ESPADA_ACTIVE = 0xBB;
-const ADDR_SWORD_ENCHANTMENT_LEVEL = 0xE4;
-const ADDR_HEALTH_BAR_REQUEST = 0xFF99;
-const ADDR_MAGIA_STONE_SPRITE0 = 0xEB60;
-const ADDR_MAGIA_STONE_SPRITE1 = 0xEB67;
-const ADDR_MAGIA_STONE_SPRITE2 = 0xEB6E;
-const ADDR_MAGIA_STONE_SPRITE3 = 0xEB75;
-const ADDR_HERO_LEVEL = 0x8D;
-const ADDR_HERO_XP = 0x8E;
-const ADDR_HERO_ALMAS = 0x8B;
+import {
+    ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP, ADDR_SHIELD_MAX_HP,
+    ADDR_KEYS_AMOUNT, ADDR_LION_KEYS_AMOUNT, ADDR_ELF_CREST, ADDR_CREST_OF_GLORY,
+    ADDR_HERO_CREST, ADDR_CURR_SPELL_TYPE, ADDR_CURRENT_ACCESSORY, ADDR_FERUZA_SHOES,
+    ADDR_MAGIC_ITEMS, ADDR_SPELLS_ACTIVE, ADDR_HERO_HP, ADDR_HERO_MAX_HP,
+    ADDR_SPELLS_INVENTORY, ADDR_ESPADA_ACTIVE, ADDR_SWORD_ENCHANTMENT_LEVEL,
+    ADDR_HEALTH_BAR_REQUEST, ADDR_MAGIA_STONE_SPRITE0, ADDR_MAGIA_STONE_SPRITE1,
+    ADDR_MAGIA_STONE_SPRITE2, ADDR_MAGIA_STONE_SPRITE3, ADDR_HERO_LEVEL, ADDR_HERO_XP,
+    ADDR_HERO_ALMAS,
+} from '../core/memory.js';
 
 export const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
 //        Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
@@ -249,8 +232,8 @@ export class InventoryScreen {
         for (let i = 0; i < 7; i++) {
             if (u8(ADDR_ESPADA_ACTIVE + i)) {
                 d.spells.push(i + 1);
-                d.spellCounts.push(u8(ADDR_SPELLS_ESPADA + i));
-                d.spellMaxCounts.push(u8(ADDR_ESPADA_COUNT + i));
+                d.spellCounts.push(u8(ADDR_SPELLS_ACTIVE + i));
+                d.spellMaxCounts.push(u8(ADDR_SPELLS_INVENTORY + i));
             }
         }
 
@@ -273,7 +256,7 @@ export class InventoryScreen {
         d.elfCrest = !!u8(ADDR_ELF_CREST);
         d.gloryCrest = !!u8(ADDR_CREST_OF_GLORY);
         d.heroCrest = !!u8(ADDR_HERO_CREST);
-        d.currentSpell = u8(ADDR_CURRENT_MAGIC_SPELL);
+        d.currentSpell = u8(ADDR_CURR_SPELL_TYPE);
         d.enchantCount = u8(ADDR_SWORD_ENCHANTMENT_LEVEL);
         d.heroHP = le16(ADDR_HERO_HP);
         d.heroMaxHP = le16(ADDR_HERO_MAX_HP);
@@ -788,7 +771,7 @@ export class InventoryScreen {
         if (!w) return;
         if (this.currentTab === 0) {
             const id = this._selectedId();
-            if (id > 0) w(ADDR_CURRENT_MAGIC_SPELL, Uint8Array.of(id));
+            if (id > 0) w(ADDR_CURR_SPELL_TYPE, Uint8Array.of(id));
         } else if (this.currentTab === 1) {
             const id = this._selectedId();
             w(ADDR_CURRENT_ACCESSORY, Uint8Array.of(id));
@@ -877,11 +860,11 @@ export class InventoryScreen {
         const r = this.readMemory;
         const w = this.writeMemory;
         if (!r || !w) return;
-        const cur = this._byte(ADDR_CURRENT_MAGIC_SPELL);
+        const cur = this._byte(ADDR_CURR_SPELL_TYPE);
         if (!cur) return;
         const idx = cur - 1;
-        const max = this._byte(ADDR_ESPADA_COUNT + idx);
-        w(ADDR_SPELLS_ESPADA + idx, Uint8Array.of(max));
+        const max = this._byte(ADDR_SPELLS_INVENTORY + idx);
+        w(ADDR_SPELLS_ACTIVE + idx, Uint8Array.of(max));
         for (let i = 0; i < this.data.spells.length; i++) {
             if (this.data.spells[i] === cur) {
                 this.data.spellCounts[i] = max;
@@ -895,11 +878,11 @@ export class InventoryScreen {
         const w = this.writeMemory;
         if (!r || !w) return;
         for (let i = 0; i < 7; i++) {
-            w(ADDR_SPELLS_ESPADA + i, Uint8Array.of(this._byte(ADDR_ESPADA_COUNT + i)));
+            w(ADDR_SPELLS_ACTIVE + i, Uint8Array.of(this._byte(ADDR_SPELLS_INVENTORY + i)));
         }
         for (let i = 0; i < this.data.spells.length; i++) {
             const sid = this.data.spells[i] as number;
-            this.data.spellCounts[i] = this._byte(ADDR_ESPADA_COUNT + sid - 1);
+            this.data.spellCounts[i] = this._byte(ADDR_SPELLS_INVENTORY + sid - 1);
         }
     }
 

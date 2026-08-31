@@ -135,6 +135,7 @@ import {
     ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG, ADDR_PENDING_TRANSITION_FLAG,
     ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID, ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL,
     DUNGEON_STATE_DEATH_FADE, DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
+    ADDR_SCROLL_FLAG, ADDR_CONVERSATION_ACTIVE, MEM_SAVE_DATA,
 } from './core/memory.js';
 
 // ─── TS-owned memory buffer (replaces WASM linear memory) ────────────────────
@@ -455,13 +456,13 @@ function onFullTick() {
             }
         } else if (frameTmr >= target) { // town mode
             townUpdate(g());
-            const scrollFlag = gMem(0xfff0);
+            const scrollFlag = gMem(ADDR_SCROLL_FLAG);
             if (scrollFlag) {
                 if (scrollFlag & 0x01) scrollFloorOneTileRight();
                 if (scrollFlag & 0x02) scrollFloorOneTileLeft();
                 if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
                 if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
-                writeMemory(0xfff0, Uint8Array.of(0));
+                writeMemory(ADDR_SCROLL_FLAG, Uint8Array.of(0));
             }
             const pendingTransitionFlag = getTownPendingTransitionFlag?.();
             if (pendingTransitionFlag === 0xFF) {
@@ -490,7 +491,7 @@ function onSlowTick() {
     if (gameMode === 'dungeon') return;
 
     if (!conversation.active) {
-        const activeFlag = gMem(0xFFF5);
+        const activeFlag = gMem(ADDR_CONVERSATION_ACTIVE);
         if (activeFlag) {
             startConversationFromWasm();
         }
@@ -506,13 +507,13 @@ function onSlowTick() {
         return;
     }
 
-    const scrollFlag = gMem(0xfff0);
+    const scrollFlag = gMem(ADDR_SCROLL_FLAG);
     if (scrollFlag) {
         if (scrollFlag & 0x01) scrollFloorOneTileRight();
         if (scrollFlag & 0x02) scrollFloorOneTileLeft();
         if (scrollFlag & 0x04) scrollCeilingHalfTileRight();
         if (scrollFlag & 0x08) scrollCeilingHalfTileLeft();
-        writeMemory(0xfff0, Uint8Array.of(0));
+        writeMemory(ADDR_SCROLL_FLAG, Uint8Array.of(0));
     }
 }
 
@@ -1502,7 +1503,7 @@ function openSaveModal(onSaveComplete: (success: boolean) => void): void {
     if (modalManager.isActive) return;
     gamePaused = true;
     const onSave = (slotName: string | null): void => {
-        const saveState = readMemory(0, 256);
+        const saveState = readMemory(MEM_SAVE_DATA, 256);
         if (slotName === null) {
             onSaveComplete?.(false);
         } else {
@@ -2189,14 +2190,14 @@ function openImportExportModal() {
     },
     heroPos: (): { lcol: number; xv: number } => {
         const mem = getGmem();
-        return { lcol: (mem[0x80] ?? 0) | ((mem[0x81] ?? 0) << 8), xv: mem[0x83] ?? 0 };
+        return { lcol: (mem[ADDR_PROXIMITY_MAP_LEFT_COL] ?? 0) | ((mem[(ADDR_PROXIMITY_MAP_LEFT_COL + 1)] ?? 0) << 8), xv: mem[ADDR_HERO_X_VIEW] ?? 0 };
     },
     /** Teleport hero. */
     setHeroPos: (lcol: number, xv: number): void => {
-        writeMemory(0x80, Uint8Array.of(lcol & 0xff, (lcol >> 8) & 0xff));
-        writeMemory(0x83, Uint8Array.of(xv & 0xff));
+        writeMemory(ADDR_PROXIMITY_MAP_LEFT_COL, Uint8Array.of(lcol & 0xff, (lcol >> 8) & 0xff));
+        writeMemory(ADDR_HERO_X_VIEW, Uint8Array.of(xv & 0xff));
     },
-    bldActive: (): number => getGmem()[0xfffa] ?? 0,
+    bldActive: (): number => getGmem()[ADDR_BUILDING_ACTIVE] ?? 0,
     /** Read one g_mem byte. */
     mem: (addr: number): number => getGmem()[addr] ?? 0,
     /** Read a g_mem word (little-endian). */

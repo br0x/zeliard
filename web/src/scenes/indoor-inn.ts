@@ -1,6 +1,10 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
+import {
+    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO, ADDR_HERO_HP,
+    ADDR_HERO_MAX_HP, ADDR_CURR_SPELL_TYPE, ADDR_SPELLS_ACTIVE, ADDR_SPELLS_INVENTORY,
+} from '../core/memory.js';
 
 export const INN_PRICES = [0, 30, 50, 70, 100, 150, 200, 400] as const;
 
@@ -37,15 +41,6 @@ const MENU_CURSOR_X = MENU_X + 6;
 const FULL_TICK_MS = 1000 / 236.7;
 const SLEEP_FADE_MS = 450;
 const SLEEP_HEAL_WAIT_MS = 150 * FULL_TICK_MS;
-
-const ADDR_TOWN_ID = 0xC4;
-const ADDR_GOLD_HI = 0x85;
-const ADDR_GOLD_LO = 0x86;
-const ADDR_HERO_HP = 0x90;
-const ADDR_HERO_MAX = 0xB2;
-const ADDR_SPELL_ACT = 0x9D; // current_magic_spell
-const ADDR_SPELLS_ACT = 0xAB; // spells_espada
-const ADDR_SPELLS_INV = 0xB4; // espada_count
 
 
 const INN1_MS = 250;
@@ -183,14 +178,14 @@ export class InnScene extends IndoorSceneBase {
     }
 
     private _getTownIdx(): number {
-        const raw = this._readByte(ADDR_TOWN_ID);
+        const raw = this._readByte(ADDR_PLACE_MAP_ID);
         const idx = (raw & 0x7F) - 1;
         return Math.max(0, Math.min(7, idx));
     }
 
     private _getGold(): number {
-        const hi = this._readByte(ADDR_GOLD_HI);
-        const lo = this._readWord(ADDR_GOLD_LO);
+        const hi = this._readByte(ADDR_HERO_GOLD_HI);
+        const lo = this._readWord(ADDR_HERO_GOLD_LO);
         return hi * 0x10000 + lo;
     }
 
@@ -198,8 +193,8 @@ export class InnScene extends IndoorSceneBase {
         const v = Math.max(0, Math.floor(amount));
         const hi = (v >>> 16) & 0xFF;
         const lo = v & 0xFFFF;
-        this.writeMemory?.(ADDR_GOLD_HI, Uint8Array.of(hi));
-        this.writeMemory?.(ADDR_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.writeMemory?.(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
+        this.writeMemory?.(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
     }
 
     private _getHeroHP(): number {
@@ -207,7 +202,7 @@ export class InnScene extends IndoorSceneBase {
     }
 
     private _getHeroMaxHp(): number {
-        return this._readWord(ADDR_HERO_MAX);
+        return this._readWord(ADDR_HERO_MAX_HP);
     }
 
     private _setHeroHP(value: number): void {
@@ -217,18 +212,18 @@ export class InnScene extends IndoorSceneBase {
 
     private _restoreSpells(): void {
         if (!this.readMemory || !this.writeMemory) return;
-        const inv = this.readMemory(ADDR_SPELLS_INV, 7);
+        const inv = this.readMemory(ADDR_SPELLS_INVENTORY, 7);
         if (!inv) return;
-        this.writeMemory(ADDR_SPELLS_ACT, inv);
+        this.writeMemory(ADDR_SPELLS_ACTIVE, inv);
         this._refreshMagicHud();
     }
 
     private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
-        const activeSpell = this._readByte(ADDR_SPELL_ACT);
+        const activeSpell = this._readByte(ADDR_CURR_SPELL_TYPE);
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACT + activeSpell - 1));
+        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACTIVE + activeSpell - 1));
         this.renderMagicHud();
     }
 

@@ -1,6 +1,12 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
+import {
+    ADDR_HERO_LEVEL, ADDR_HERO_XP, ADDR_HERO_HP, ADDR_CURR_SPELL_TYPE,
+    ADDR_SPELLS_ACTIVE, ADDR_HERO_MAX_HP, ADDR_SPELLS_INVENTORY,
+    ADDR_ESPADA_ACTIVE, ADDR_INVINCIBILITY_FLAG, ADDR_PLACE_MAP_ID, ADDR_SAGES_SPOKEN,
+    MEM_SAVE_DATA,
+} from '../core/memory.js';
 
 export interface SageSceneDependencies extends IndoorSceneDependencies {
     /** Legacy single-slot save hook (used when window.openSaveModal is absent). */
@@ -39,16 +45,6 @@ export const SAGE_MENU_RECORD_EXPERIENCE = 3;
 //             Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
 export const SAGE_XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,15000,20000,40000,50000,60000];
 export const SAGE_MAX_LEVEL_BY_TOWN = [3, 6, 9, 11, 13, 15, 18, 0xFF];
-
-const ADDR_HERO_LEVEL          = 0x8D;
-const ADDR_HERO_XP             = 0x8E;
-const ADDR_HERO_HP             = 0x90;
-const ADDR_CURRENT_MAGIC_SPELL = 0x9D;
-const ADDR_SPELLS_ACTIVE       = 0xAB;
-const ADDR_HERO_MAX_HP         = 0xB2;
-const ADDR_SPELLS_INVENTORY    = 0xB4;
-const ADDR_ESPADA_ACTIVE       = 0xBB;
-const ADDR_INVINCIBILITY_FLAG  = 0xE8;
 
 export const SAGE_LEVEL_REWARDS = [
                      // esp sae fue lan ras agu gue
@@ -96,7 +92,7 @@ const SAGE_KNOWLEDGE = [
 
 function getTownIdx(readMemory: ((offset: number, length: number) => Uint8Array | null) | null): number {
     if (!readMemory) return 0;
-    return Math.max(0, Math.min(7, ((readMemory(0xC4, 1)?.[0] ?? 0) & 0x7F) - 1));
+    return Math.max(0, Math.min(7, ((readMemory(ADDR_PLACE_MAP_ID, 1)?.[0] ?? 0) & 0x7F) - 1));
 }
 
 export class SageScene extends IndoorSceneBase {
@@ -232,8 +228,8 @@ export class SageScene extends IndoorSceneBase {
         });
     }
 
-    private _getSpokenBits(): number { return this.readMemory?.(0xe5, 1)?.[0] ?? 0; }
-    private _setSpokenBit(bit: number): void { if (this.writeMemory) this.writeMemory(0xe5, Uint8Array.of(this._getSpokenBits() | bit)); }
+    private _getSpokenBits(): number { return this.readMemory?.(ADDR_SAGES_SPOKEN, 1)?.[0] ?? 0; }
+    private _setSpokenBit(bit: number): void { if (this.writeMemory) this.writeMemory(ADDR_SAGES_SPOKEN, Uint8Array.of(this._getSpokenBits() | bit)); }
 
     // ── Dialog line buffer ────────────────────────────────────────────────────
     // dlgBuffer: string[]  – fully-committed wrapped lines (already typed out)
@@ -873,7 +869,7 @@ export class SageScene extends IndoorSceneBase {
             });
         } else {
             if (this.readMemory && this.saveGame) {
-                const snap = this.readMemory(0, 256);
+                const snap = this.readMemory(MEM_SAVE_DATA, 256);
                 if (snap) {
                     try { this.saveGame(snap); } catch (e) { console.error(e); }
                 }
@@ -950,13 +946,13 @@ export class SageScene extends IndoorSceneBase {
         if (!this.writeMemory) return;
         if (this.townIdx < 1 || this.townIdx > 7) return;
         const spellNum = this.townIdx;
-        this.writeMemory(ADDR_CURRENT_MAGIC_SPELL, Uint8Array.of(spellNum));
+        this.writeMemory(ADDR_CURR_SPELL_TYPE, Uint8Array.of(spellNum));
         this.writeMemory(ADDR_ESPADA_ACTIVE + spellNum - 1, Uint8Array.of(0xFF));
     }
 
     private _refreshMagicCounter(): void {
         if (typeof document === 'undefined' || !this.readMemory) return;
-        const spell = (this.readMemory(ADDR_CURRENT_MAGIC_SPELL, 1)?.[0] ?? 0) & 0xFF;
+        const spell = (this.readMemory(ADDR_CURR_SPELL_TYPE, 1)?.[0] ?? 0) & 0xFF;
         if (!spell) return;
         const counter = document.getElementById('spellCounter');
         if (counter) counter.textContent = String((this.readMemory(ADDR_SPELLS_ACTIVE + spell - 1, 1)?.[0] ?? 0) & 0xFF);

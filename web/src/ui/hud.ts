@@ -6,7 +6,11 @@
  * asset paths are injected so tests can run headless.
  */
 
-import { ADDR_BOSS_MODE } from '../core/memory.js';
+import {
+    ADDR_BOSS_MODE, ADDR_BOSS_STATE_PTR, ADDR_HERO_HP, ADDR_HERO_MAX_HP,
+    ADDR_HERO_GOLD_LO, ADDR_HERO_GOLD_HI, ADDR_HERO_ALMAS, ADDR_SWORD_TYPE,
+    ADDR_SHIELD_TYPE, ADDR_SHIELD_HP, ADDR_CURR_SPELL_TYPE, ADDR_SPELL_COUNTS,
+} from '../core/memory.js';
 
 /** Minimal memory accessor surface used by the HUD. */
 export interface HudMemoryAccess {
@@ -113,23 +117,23 @@ export class Hud {
     // ── hero HP ──────────────────────────────────────────────────────────
 
     getHeroHp(): number {
-        const hpBytes = this.mem.readMemory(0x90 /* ADDR_HERO_HP */, 2);
+        const hpBytes = this.mem.readMemory(ADDR_HERO_HP, 2);
         return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroHp(hp: number): void {
         const clamped = Math.max(0, Math.min(0xffff, hp));
-        this.mem.writeMemory(0x90, [clamped & 0xff, (clamped >> 8) & 0xff]);
+        this.mem.writeMemory(ADDR_HERO_HP, [clamped & 0xff, (clamped >> 8) & 0xff]);
     }
 
     getHeroMaxHp(): number {
-        const hpBytes = this.mem.readMemory(0xb2 /* ADDR_HERO_MAX_HP */, 2);
+        const hpBytes = this.mem.readMemory(ADDR_HERO_MAX_HP, 2);
         return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroMaxHp(maxHp: number): void {
         const clamped = Math.max(0, Math.min(0xffff, maxHp));
-        this.mem.writeMemory(0xb2, [clamped & 0xff, (clamped >> 8) & 0xff]);
+        this.mem.writeMemory(ADDR_HERO_MAX_HP, [clamped & 0xff, (clamped >> 8) & 0xff]);
     }
 
     drawLifeBar(): void {
@@ -155,7 +159,7 @@ export class Hud {
             this.bossLifeFillMaxEl = container.querySelector('.life-fill-max');
         }
 
-        const memView = this.mem.readMemory(0xa002 /* ADDR_BOSS_STATE_PTR */, 2);
+        const memView = this.mem.readMemory(ADDR_BOSS_STATE_PTR, 2);
         if (!memView) return;
         const bossStatePtr = readU16At(memView, 0);
         const hpBytes = this.mem.readMemory(bossStatePtr + 3, 2);
@@ -173,16 +177,16 @@ export class Hud {
     // ── gold / almas ─────────────────────────────────────────────────────
 
     getHeroGoldValue(): number {
-        const lo = this.mem.readMemory(0x86 /* ADDR_HERO_GOLD_LO */, 2);
-        const hi = this.mem.readMemory(0x85 /* ADDR_HERO_GOLD_HI */, 1);
+        const lo = this.mem.readMemory(ADDR_HERO_GOLD_LO, 2);
+        const hi = this.mem.readMemory(ADDR_HERO_GOLD_HI, 1);
         if (!lo || !hi) return 0;
         return ((lo[0] ?? 0) | ((lo[1] ?? 0) << 8)) + (hi[0] ?? 0) * 0x10000;
     }
 
     setHeroGoldValue(value: number): void {
         const clamped = Math.max(0, Math.min(0xffffff, value));
-        this.mem.writeMemory(0x86, [clamped & 0xff, (clamped >> 8) & 0xff]);
-        this.mem.writeMemory(0x85, [(clamped >> 16) & 0xff]);
+        this.mem.writeMemory(ADDR_HERO_GOLD_LO, [clamped & 0xff, (clamped >> 8) & 0xff]);
+        this.mem.writeMemory(ADDR_HERO_GOLD_HI, [(clamped >> 16) & 0xff]);
     }
 
     renderGoldHud(): void {
@@ -190,13 +194,13 @@ export class Hud {
     }
 
     getHeroAlmasValue(): number {
-        const almasBytes = this.mem.readMemory(0x8b /* ADDR_HERO_ALMAS */, 2);
+        const almasBytes = this.mem.readMemory(ADDR_HERO_ALMAS, 2);
         return almasBytes ? (almasBytes[0] ?? 0) | ((almasBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroAlmasValue(value: number): void {
         const clamped = Math.max(0, Math.min(0xffff, value));
-        this.mem.writeMemory(0x8b, [clamped & 0xff, (clamped >> 8) & 0xff]);
+        this.mem.writeMemory(ADDR_HERO_ALMAS, [clamped & 0xff, (clamped >> 8) & 0xff]);
     }
 
     renderAlmasHud(): void {
@@ -210,12 +214,12 @@ export class Hud {
     }
 
     getHeroSwordType(): number {
-        const bytes = this.mem.readMemory(0x92 /* ADDR_SWORD_TYPE */, 1);
+        const bytes = this.mem.readMemory(ADDR_SWORD_TYPE, 1);
         return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroSwordType(type: number): void {
-        this.mem.writeMemory(0x92, [type]);
+        this.mem.writeMemory(ADDR_SWORD_TYPE, [type]);
     }
 
     renderSwordHud(): void {
@@ -231,21 +235,21 @@ export class Hud {
     }
 
     getHeroShieldType(): number {
-        const bytes = this.mem.readMemory(0x93 /* ADDR_SHIELD_TYPE */, 1);
+        const bytes = this.mem.readMemory(ADDR_SHIELD_TYPE, 1);
         return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroShieldType(type: number): void {
-        this.mem.writeMemory(0x93, [type]);
+        this.mem.writeMemory(ADDR_SHIELD_TYPE, [type]);
     }
 
     getHeroShieldHP(): number {
-        const hpBytes = this.mem.readMemory(0x94 /* ADDR_SHIELD_HP */, 2);
+        const hpBytes = this.mem.readMemory(ADDR_SHIELD_HP, 2);
         return hpBytes ? (hpBytes[0] ?? 0) | ((hpBytes[1] ?? 0) << 8) : 0;
     }
 
     setHeroShieldHP(hp: number): void {
-        this.mem.writeMemory(0x94, [hp & 0xff, (hp >> 8) & 0xff]);
+        this.mem.writeMemory(ADDR_SHIELD_HP, [hp & 0xff, (hp >> 8) & 0xff]);
     }
 
     renderShieldHud(): void {
@@ -262,27 +266,25 @@ export class Hud {
     }
 
     getHeroMagicType(): number {
-        const bytes = this.mem.readMemory(0x9d /* ADDR_CURR_SPELL_TYPE */, 1);
+        const bytes = this.mem.readMemory(ADDR_CURR_SPELL_TYPE, 1);
         return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroMagicType(type: number): void {
-        this.mem.writeMemory(0x9d, [type]);
+        this.mem.writeMemory(ADDR_CURR_SPELL_TYPE, [type]);
     }
-
-    private static readonly SPELL_COUNT_ADDRS = [0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1];
 
     getHeroMagicCount(type: number): number {
         const idx = type - 1;
-        if (idx < 0 || idx >= Hud.SPELL_COUNT_ADDRS.length) return 0;
-        const bytes = this.mem.readMemory(Hud.SPELL_COUNT_ADDRS[idx]!, 1);
+        if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length) return 0;
+        const bytes = this.mem.readMemory(ADDR_SPELL_COUNTS[idx]!, 1);
         return bytes ? (bytes[0] ?? 0) : 0;
     }
 
     setHeroMagicCount(type: number, count: number): void {
         const idx = type - 1;
-        if (idx < 0 || idx >= Hud.SPELL_COUNT_ADDRS.length || count < 0 || count > 255) return;
-        this.mem.writeMemory(Hud.SPELL_COUNT_ADDRS[idx]!, [count]);
+        if (idx < 0 || idx >= ADDR_SPELL_COUNTS.length || count < 0 || count > 255) return;
+        this.mem.writeMemory(ADDR_SPELL_COUNTS[idx]!, [count]);
     }
 
     renderMagicHud(): void {
