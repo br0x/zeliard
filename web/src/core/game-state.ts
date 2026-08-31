@@ -682,3 +682,215 @@ export function heroStateFromBytes(data: Uint8Array): HeroState {
     for (let i = 0; i < len; i++) buf[i] = data[i] ?? 0;
     return readHeroState(buf);
 }
+
+// ─── Live views over a g_mem-like buffer ────────────────────────────────────
+
+function clampByte(v: number): number { return v & 0xff; }
+function clamp24(v: number): number { return v & 0xffffff; }
+
+function liveBool(g: Uint8Array, addr: number): boolean {
+    return (g[addr] ?? 0) !== 0;
+}
+function liveBoolFF(g: Uint8Array, addr: number): boolean {
+    return (g[addr] ?? 0) === 0xff;
+}
+function liveByte(g: Uint8Array, addr: number): number { return g[addr] ?? 0; }
+function liveWord(g: Uint8Array, addr: number): number {
+    return (g[addr] ?? 0) | ((g[addr + 1] ?? 0) << 8);
+}
+function live24(g: Uint8Array, loAddr: number, hiAddr: number): number {
+    return ((g[loAddr] ?? 0) | ((g[loAddr + 1] ?? 0) << 8)) + ((g[hiAddr] ?? 0) << 16);
+}
+
+function liveWriteBool(g: Uint8Array, addr: number, v: boolean): void { g[addr] = v ? 1 : 0; }
+function liveWriteBoolFF(g: Uint8Array, addr: number, v: boolean): void { g[addr] = v ? 0xff : 0; }
+function liveWriteByte(g: Uint8Array, addr: number, v: number): void { g[addr] = clampByte(v); }
+function liveWriteWord(g: Uint8Array, addr: number, v: number): void {
+    g[addr] = clampByte(v);
+    g[addr + 1] = clampByte(v >> 8);
+}
+function liveWrite24(g: Uint8Array, loAddr: number, hiAddr: number, v: number): void {
+    g[loAddr] = clampByte(v);
+    g[loAddr + 1] = clampByte(v >> 8);
+    g[hiAddr] = clampByte(v >> 16);
+}
+
+function liveReadSlice(g: Uint8Array, addr: number, len: number): Uint8Array {
+    return g.subarray(addr, addr + len);
+}
+
+function desc<T>(get: () => T, set: (v: T) => void): PropertyDescriptor {
+    return { get, set, enumerable: true, configurable: true };
+}
+
+/**
+ * Create a HeroState object whose fields are live views over a 256-byte buffer.
+ * The buffer should be the first 256 bytes of g_mem (the save-image region).
+ * Writes through the object update the buffer immediately so engine code that
+ * reads g_mem directly still observes the change.
+ */
+export function createLiveHeroState(g: Uint8Array): HeroState {
+    const bool = (addr: number): PropertyDescriptor =>
+        desc<boolean>(() => liveBool(g, addr), (v) => liveWriteBool(g, addr, v));
+    const boolFF = (addr: number): PropertyDescriptor =>
+        desc<boolean>(() => liveBoolFF(g, addr), (v) => liveWriteBoolFF(g, addr, v));
+    const flag = (addr: number, mask: number): PropertyDescriptor =>
+        desc<boolean>(() => ((g[addr] ?? 0) & mask) !== 0, (v) => {
+            const cur = g[addr] ?? 0;
+            g[addr] = v ? (cur | mask) : (cur & ~mask);
+        });
+    const byte = (addr: number): PropertyDescriptor =>
+        desc<number>(() => liveByte(g, addr), (v) => liveWriteByte(g, addr, v));
+    const word = (addr: number): PropertyDescriptor =>
+        desc<number>(() => liveWord(g, addr), (v) => liveWriteWord(g, addr, v));
+    const wide24 = (loAddr: number, hiAddr: number): PropertyDescriptor =>
+        desc<number>(() => live24(g, loAddr, hiAddr), (v) => liveWrite24(g, loAddr, hiAddr, clamp24(v)));
+
+    return Object.defineProperties({} as HeroState, {
+        raw: { value: g.subarray(0, SAVE_SIZE), enumerable: true },
+        endgameFlag: flag(0x04, 0x80),
+        spokeToKing: boolFF(0x05),
+        enteredCavernFirstTime: bool(0x06),
+        cementar1Flags: byte(0x24),
+        calienteItemsFlags: byte(0x34),
+        falterItemsFlags: byte(0x45),
+        deathAlreadyProcessed: bool(0x49),
+
+        proxMapLeftCol: word(0x80),
+        viewportTopRow: byte(0x82),
+        xView: byte(0x83),
+        headYView: byte(0x84),
+
+        gold: wide24(0x86, 0x85),
+        bankGold: wide24(0x89, 0x88),
+        almas: word(0x8B),
+
+        level: byte(0x8D),
+        xp: word(0x8E),
+        hp: word(0x90),
+        maxHp: word(0xB2),
+
+        swordType: byte(0x92),
+        shieldType: byte(0x93),
+        shieldHp: word(0x94),
+        shieldMaxHp: word(0x96),
+        keys: byte(0x98),
+        lionKeys: byte(0x99),
+        elfCrest: boolFF(0x9A),
+        crestOfGlory: bool(0x9B),
+        heroCrest: boolFF(0x9C),
+        currentSpellType: byte(0x9D),
+        currentAccessory: byte(0x9E),
+
+        tearCount: byte(0xA0),
+        shoes: { value: liveReadSlice(g, 0xA1, 5), enumerable: true },
+        magicItems: { value: liveReadSlice(g, 0xA6, 5), enumerable: true },
+        spellCounts: { value: liveReadSlice(g, 0xAB, 7), enumerable: true },
+        spellInventory: { value: liveReadSlice(g, 0xB4, 7), enumerable: true },
+        espadaActive: { value: liveReadSlice(g, 0xBB, 7), enumerable: true },
+
+        magicMasks: { value: liveReadSlice(g, 0xC9, 9), enumerable: true },
+        swordMasks: { value: liveReadSlice(g, 0xD2, 9), enumerable: true },
+        shieldMasks: { value: liveReadSlice(g, 0xDB, 9), enumerable: true },
+
+        facing: byte(0xC2),
+        leftRun: bool(0xC3),
+        placeMapId: byte(0xC4),
+        lastSageVisited: byte(0xC5),
+        swordEnchantmentLevel: byte(0xE4),
+        sagesSpoken: byte(0xE5),
+        animPhase: byte(0xE7),
+        invincible: bool(0xE8),
+    });
+}
+
+/**
+ * Create a DungeonRuntimeState object whose fields are live views over g_mem.
+ * Mutations update g_mem immediately.
+ */
+export function createLiveDungeonState(g: Uint8Array): DungeonRuntimeState {
+    const bool = (addr: number, ff = false): PropertyDescriptor =>
+        desc<boolean>(() => ff ? liveBoolFF(g, addr) : liveBool(g, addr), (v) => ff ? liveWriteBoolFF(g, addr, v) : liveWriteBool(g, addr, v));
+    const byte = (addr: number): PropertyDescriptor =>
+        desc<number>(() => liveByte(g, addr), (v) => liveWriteByte(g, addr, v));
+    const word = (addr: number): PropertyDescriptor =>
+        desc<number>(() => liveWord(g, addr), (v) => liveWriteWord(g, addr, v));
+
+    return Object.defineProperties({} as DungeonRuntimeState, {
+        heroY: byte(0xFF35),
+        heroDamageThisFrame: byte(0xFF36),
+        heroSpriteHidden: bool(0xFF37),
+        squatFlag: bool(0xFF38),
+        onRopeFlags: byte(0xFF39),
+        heroHiddenFlag: bool(0xFF3A),
+        jumpPhaseFlags: byte(0xFF3D),
+        slopeDirection: byte(0xFF42),
+
+        swordSwingFlag: bool(0xFF43),
+        uiElementDirty: bool(0xFF44),
+        swordHitType: byte(0xFF45),
+        swordMovementPhase: byte(0xFF46),
+
+        shieldAnimPhase: byte(0xFF3F),
+        shieldAnimActive: bool(0xFF40),
+        shieldVariantIndex: byte(0xFF41),
+
+        spellActiveFlag: bool(0xFF3C),
+        byteFF3E: bool(0xFF3E),
+
+        viewportLeftTop: word(0xFF31),
+        speedConst: byte(0xFF33),
+
+        isBossCavern: bool(0xFF34),
+        bossIsDead: bool(0xFF30, true),
+        bossBeingHit: bool(0xFF2E, true),
+        bossMode: byte(0xFFA0),
+        bossStatePtr: word(0xA002),
+        bossRewardProcessed: bool(0x9F1E),
+
+        heroDeathFlag: bool(0xFFE3, true),
+        dungeonExitFlag: bool(0xFFE2, true),
+        deathCounter: byte(0xFF95),
+
+        soundFxRequest: byte(0xFF75),
+        heartbeatVolume: byte(0xFF08),
+        spriteFlashFlag: bool(0xFF2F),
+
+        dungeonState: byte(0xFF90),
+        dungeonFramePhase: byte(0xFF91),
+        renderRequest: bool(0xFF92),
+        renderDone: bool(0xFF93, true),
+
+        goldRenderRequest: bool(0xFF94),
+        almasRenderRequest: bool(0xFF98),
+        healthBarRequest: bool(0xFF99),
+        shieldHpRenderRequest: bool(0xFF9A),
+        magicLeftRenderRequest: bool(0xFFA3),
+        swordRenderRequest: bool(0xFFA4),
+        swordGfxReloadRequest: bool(0xFFA5),
+        bossHealthRequest: bool(0xFF9F),
+
+        notificationMsgId: byte(0xFF96),
+        notificationFlag: bool(0xFF97),
+
+        rokaPhase: byte(0xFF9D),
+        rokaColor: byte(0xFF9E),
+
+        cavernSignFlag: bool(0xFFA1),
+        cavernSignIdx: byte(0xFFA2),
+
+        byte9F00: bool(0x9F00),
+        byte9F02: byte(0x9F02),
+        jumpHeightIncludingShoes: byte(0x9F0D),
+        byte9F18: byte(0x9F18),
+        temperatureTimer: byte(0x9F25),
+        byte9F27: byte(0x9F27),
+        byte9F2B: byte(0x9F2B),
+        isJashiinCavern: bool(0xE6),
+        healingTimer: word(0xC6),
+        animTimer: word(0xFF1B),
+        byteFF24: bool(0xFF24),
+        mao2StartLatch: bool(0xFF21),
+        monsterIndex: byte(0xFF4A),
+    });
+}

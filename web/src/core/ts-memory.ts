@@ -35,15 +35,17 @@ export function zeroMemory(): void {
 
 /**
  * Load a 256-byte save state into g_mem[0x0000..0x00FF].
- * Zero-padded to 256 bytes if shorter. Matches bridge.ts loadSaveState.
+ * Zero-pads short data to 256 bytes; truncates data longer than 256 bytes.
+ * Matches bridge.ts loadSaveState.
  */
 export function loadSaveState(saveData: Uint8Array): void {
     const saveStart = MEM_SAVE_DATA; // always 0
-    for (let i = 0; i < saveData.length; i++) {
+    const writeLen = Math.min(saveData.length, 256);
+    for (let i = 0; i < writeLen; i++) {
         g_mem[saveStart + i] = saveData[i] ?? 0;
     }
-    for (let i = 0; i < 256 - saveData.length; i++) {
-        g_mem[saveStart + saveData.length + i] = 0;
+    for (let i = writeLen; i < 256; i++) {
+        g_mem[saveStart + i] = 0;
     }
 }
 

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Hud, normalizeHealthTo100 } from '../src/ui/hud.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 /**
  * Fake g_mem: real byte buffer addressed exactly like the wasm-shared array,
@@ -8,8 +9,10 @@ import { Hud, normalizeHealthTo100 } from '../src/ui/hud.js';
  */
 function makeMem() {
     const buf = new Uint8Array(0x10000);
+    const hero = createLiveHeroState(buf);
     return {
         buf,
+        hero,
         readMemory: (offset: number, length: number) => buf.subarray(offset, offset + length),
         writeMemory: (offset: number, data: ArrayLike<number>) => {
             for (let i = 0; i < data.length; i++) buf[offset + i] = data[i] ?? 0;
@@ -24,7 +27,7 @@ const ICON_PATHS = {
 };
 
 function makeHud(mem = makeMem(), getBossName = () => 'DRAGON') {
-    const hud = new Hud({ mem, iconPaths: ICON_PATHS, getBossName });
+    const hud = new Hud({ hero: mem.hero, mem, iconPaths: ICON_PATHS, getBossName });
     return { hud, mem };
 }
 

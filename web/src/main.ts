@@ -150,6 +150,7 @@ import {
     gMemAt, readU8 as tsReadU8, readU16 as tsReadU16,
     readMemory as tsReadMemory, writeMemory as tsWriteMemory,
 } from './core/ts-memory.js';
+import { createLiveHeroState } from './core/game-state.js';
 
 
 // ─── Engine imports (direct TS calls, no dispatch layer) ──────────────────────
@@ -1469,7 +1470,9 @@ function startIndoorScene(destId: number): void {
 // ─── UI helpers (gold, sword, shield, magic) ──────────────────────────────────
 // HUD rendering lives in ui/hud.ts; these bindings wire it to TS memory.
 // Delegating function declarations keep hoisting semantics for earlier code.
+const heroState = createLiveHeroState(getGmem());
 const hud = new Hud({
+    hero: heroState,
     mem: {
         readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
         writeMemory: (offset, data) => writeMemory?.(offset, data),

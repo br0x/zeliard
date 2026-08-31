@@ -62,13 +62,18 @@ export function getSaveSlotNames(storage: SaveStorage = localStorage): string[] 
     return slots;
 }
 
-/** Store raw save bytes in a named slot (base64-encoded, no size validation). */
+/** Store raw save bytes in a named slot (base64-encoded). Data must be exactly SAVE_SIZE bytes. */
 export function saveGameToSlot(
     slotName: string,
     data: Uint8Array,
     storage: SaveStorage = localStorage,
-): void {
+): boolean {
+    if (data.length !== SAVE_SIZE) {
+        console.error(`saveGameToSlot: expected ${SAVE_SIZE} bytes, got ${data.length}`);
+        return false;
+    }
     storage.setItem(slotKey(slotName), encodeSave(data));
+    return true;
 }
 
 /** Delete a named save slot. */
@@ -78,13 +83,20 @@ export function deleteGameFromSlot(slotName: string, storage: SaveStorage = loca
 
 /**
  * Load raw save bytes from a named slot.
- * @returns decoded bytes, or null when missing/corrupt.
+ * @returns exactly SAVE_SIZE bytes, or null when missing, the wrong size, or corrupt.
  */
 export function loadGameFromSlot(slotName: string, storage: SaveStorage = localStorage): Uint8Array | null {
     const base64 = storage.getItem(slotKey(slotName));
     if (!base64) return null;
     const bytes = decodeSave(base64);
-    if (!bytes) console.error('Failed to load save', slotName);
+    if (!bytes) {
+        console.error('Failed to load save', slotName);
+        return null;
+    }
+    if (bytes.length !== SAVE_SIZE) {
+        console.error(`loadGameFromSlot(${slotName}): expected ${SAVE_SIZE} bytes, got ${bytes.length}`);
+        return null;
+    }
     return bytes;
 }
 
