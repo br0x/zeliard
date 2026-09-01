@@ -33,6 +33,14 @@ SWORD_FRAME_W = 96      # DUNGEON_SWORD_FRAME_W  (4 tiles * 24px)
 SWORD_FRAME_H = 96      # DUNGEON_SWORD_FRAME_H
 SWORD_SHEET_COLS = 10   # DUNGEON_SWORD_SHEET_COLS
 
+# Binary GRP tile constants
+GRP_TILE_PX = 8          # each GRP tile is 8x8 pixels
+GRP_FMAN_TILES_PER_FRAME = 9  # 3x3 grid of tiles per hero frame
+GRP_FMAN_FRAME_BYTES = GRP_FMAN_TILES_PER_FRAME  # header bytes per frame
+
+# GRP native tiles are 8×8, dungeon tiles are 24×24.
+GRP_DUNGEON_SCALE = TILE_SIZE // GRP_TILE_PX  # 3
+
 # Sword overlay offsets — pairs of (yOff, xOff) in tile units.
 # Keys: 0=right-forward, 1=right-overhead, 2=left-forward, 3=left-overhead
 SWORD_OVERLAY_OFFSETS: dict[int, list[int]] = {
@@ -46,6 +54,7 @@ SWORD_OVERLAY_OFFSETS: dict[int, list[int]] = {
 _DEFAULT_ASSETS_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "web", "public", "assets", "images"
 )
+_DEFAULT_GRP_DIR = os.path.dirname(__file__)
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +80,179 @@ class HeroState:
     sword_hit_type: int = 0           # 0=forward, 1=overhead, 2=downward
     sword_type: int = 1               # 1..6
     sword_phase: int = 0              # stored phase (display_phase + 1, 0 = no swing)
+
+
+# ---------------------------------------------------------------------------
+# Binary GRP decoding (for comparison with pre-rendered PNG sheets)
+# ---------------------------------------------------------------------------
+
+# MCGA palette (64 entries) — matches grp_viewer.py build_palette()
+_GRP_PALETTE_RAW: list[tuple[int, int, int]] = [
+    (0,0,0),(31,31,31),(31,0,0),(0,31,0),(0,31,31),(0,0,31),(31,31,0),(31,0,31),
+    (31,31,31),(62,62,62),(62,31,31),(31,62,31),(31,62,62),(31,31,62),(62,62,31),(62,31,62),
+    (31,0,0),(62,31,31),(62,0,0),(31,31,0),(31,31,31),(31,0,31),(62,31,0),(62,0,31),
+    (0,31,0),(31,62,31),(31,31,0),(0,62,0),(0,62,31),(0,31,31),(31,62,0),(31,31,31),
+    (0,31,31),(31,62,62),(31,31,31),(0,62,31),(0,62,62),(0,31,62),(31,62,31),(31,31,62),
+    (0,0,31),(31,31,62),(31,0,31),(0,31,31),(0,31,62),(0,0,62),(31,31,31),(31,0,62),
+    (31,31,0),(62,62,31),(62,31,0),(31,62,0),(31,62,31),(31,31,31),(62,62,0),(62,31,31),
+    (31,0,31),(62,31,62),(62,0,31),(31,31,31),(31,31,62),(31,0,62),(62,31,31),(62,0,62),
+]
+# Palette as hex strings for tkinter: "#rrggbb"
+_PALETTE_STRS = [f"#{r*4:02x}{g*4:02x}{b*4:02x}" for r, g, b in _GRP_PALETTE_RAW]
+# Palette as RGB tuples for PIL
+_PALETTE_RGB = [(r*4, g*4, b*4) for r, g, b in _GRP_PALETTE_RAW]
+
+# PAL_DECODE_TABLES — maps raw 4-bit nibble to palette index
+PAL_DECODE_TABLES: list[bytes] = [
+    bytes([0x00,0x01,0x02,0x03, 0x08,0x09,0x0A,0x0B,
+           0x10,0x11,0x12,0x13, 0x18,0x19,0x1A,0x1B]),
+    bytes([0x00,0x02,0x04,0x06, 0x10,0x12,0x14,0x16,
+           0x20,0x22,0x24,0x26, 0x30,0x32,0x34,0x36]),
+    bytes([0x00,0x01,0x04,0x05, 0x08,0x09,0x0C,0x0D,
+           0x20,0x21,0x24,0x25, 0x28,0x29,0x2C,0x2D]),
+    bytes([0x00,0x05,0x06,0x07, 0x28,0x2D,0x2E,0x2F,
+           0x30,0x35,0x36,0x37, 0x38,0x3D,0x3E,0x3F]),
+    bytes([0x00,0x06,0x05,0x07, 0x30,0x36,0x35,0x37,
+           0x28,0x2E,0x2D,0x2F, 0x38,0x3E,0x3D,0x3F]),
+]
+PAL_DECODE_TABLES.append(PAL_DECODE_TABLES[3])  # index 5 aliases 3
+
+# Sword color pairs per mega-group: [(high, low), ...]
+_SWORD_COLORS: list[list[tuple[int, int]]] = [
+    [(0x09, 0x01), (0x24, 0x04), (0x1B, 0x03)],
+    [(0x09, 0x01), (0x24, 0x04)],
+    [(0x36, 0x06)],
+]
+
+# Cache for sword.grp groups
+_SWORD_GRP_CACHE: list[bytes] | None = None
+
+
+def _grp_load(path: str) -> bytes:
+    """Load a .grp file, parse header, decompress, return raw tile data.
+    Uses grp_viewer.unpack for correct decompression."""
+    import grp_viewer as _gv
+    raw = open(path, "rb").read()
+    if raw[0] == 0:
+        skip, length, raw1 = 0, len(raw)-1, raw[1:]
+    else:
+        skip   = int.from_bytes(raw[1:3], "little")
+        length = int.from_bytes(raw[3:5], "little")
+        raw1   = raw[5+skip:]
+    return _gv.unpack(raw1, length)
+
+
+def _load_sword_grp_groups() -> list[bytes]:
+    """Load sword.grp and return a list of 3 group_data slices (one per mega-group).
+    Each group_data includes the 15-byte header and macro-tiles."""
+    global _SWORD_GRP_CACHE
+    if _SWORD_GRP_CACHE is not None:
+        return _SWORD_GRP_CACHE
+    data = _grp_load(os.path.join(_DEFAULT_GRP_DIR, "sword.grp"))
+    # Header: 3 groups (modes 4,4,4), each offset is LE 16-bit
+    num_groups = 3
+    offsets = [int.from_bytes(data[i*2:(i+1)*2], "little") for i in range(num_groups)]
+    groups = []
+    for i, off in enumerate(offsets):
+        end = offsets[i+1] if i+1 < len(offsets) else len(data)
+        groups.append(data[off:end])
+    _SWORD_GRP_CACHE = groups
+    return groups
+
+
+def _decode_fman_tile(t_data: bytes, lut: bytes) -> list[int | None]:
+    """Decode one 8x8 fman tile from 32 bytes. Uses grp_viewer.decode_fman_tile."""
+    import grp_viewer as _gv
+    return _gv.decode_fman_tile(t_data, lut)
+
+
+def _tile_pixels_to_image(pixels: list[int | None], size: int = GRP_TILE_PX) -> Image.Image:
+    """Convert flat palette-index pixel list to an RGBA PIL Image."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))  # type: ignore[arg-type]
+    for i, p_idx in enumerate(pixels):
+        rx, ry = i % size, i // size
+        if p_idx is not None:
+            r, g, b = _PALETTE_RGB[p_idx]
+            img.putpixel((rx, ry), (r, g, b, 255))
+    return img
+
+
+def _compose_fman_frame(tiles_raw: bytes, tile_indices: list[int],
+                        lut: bytes, scale: int = 1) -> Image.Image:
+    """Compose a 24x24 hero frame from 9 (3x3) decoded 8x8 tiles.
+    Tile layout: row * 3 + col (top-left, top-center, top-right, ...)."""
+    frame = Image.new("RGBA", (GRP_TILE_PX * 3 * scale, GRP_TILE_PX * 3 * scale), (0, 0, 0, 0))  # type: ignore[arg-type]
+    # Pre-decode all tiles (same logic as grp_viewer.py render_fman_group)
+    decoded_tiles = [
+        _decode_fman_tile(tiles_raw[t * 32 : (t + 1) * 32], lut)
+        for t in range(len(tiles_raw) // 32)
+    ]
+    for row in range(3):
+        for col in range(3):
+            t_idx = tile_indices[row * 3 + col]
+            if t_idx == 0 or t_idx == 0xFF:
+                continue
+            if t_idx >= len(decoded_tiles):
+                continue
+            pixels = decoded_tiles[t_idx]
+            tile_img = _tile_pixels_to_image(pixels)
+            if scale != 1:
+                tile_img = tile_img.resize((GRP_TILE_PX * scale, GRP_TILE_PX * scale),
+                                           Image.Resampling.NEAREST)
+            frame.paste(tile_img, (col * GRP_TILE_PX * scale, row * GRP_TILE_PX * scale))
+    return frame
+
+
+def load_fman_grp(path: str | None = None) -> tuple[bytes, list[list[int]]]:
+    """Load fman.grp, return (tiles_raw, frame_tile_lists).
+    Each frame_tile_lists[i] is a list of 9 tile indices for frame i."""
+    if path is None:
+        path = os.path.join(_DEFAULT_GRP_DIR, "fman.grp")
+    data = _grp_load(path)
+    # Header: 91 frames × 9 bytes = 819 bytes, then tile definitions
+    num_frames = 91
+    header_size = num_frames * GRP_FMAN_TILES_PER_FRAME
+    tiles_raw = data[header_size:] + b'\x00\x00\x00'
+    frames = []
+    for f in range(num_frames):
+        start = f * GRP_FMAN_TILES_PER_FRAME
+        frames.append(list(data[start : start + GRP_FMAN_TILES_PER_FRAME]))
+    return tiles_raw, frames
+
+
+def render_fman_frame_as_image(tiles_raw: bytes, frame_tiles: list[int],
+                                lut_idx: int = 0, scale: int = 3) -> Image.Image:
+    """Render a single fman hero frame as a PIL Image at given scale."""
+    lut = PAL_DECODE_TABLES[lut_idx]
+    return _compose_fman_frame(tiles_raw, frame_tiles, lut, scale)
+
+
+def _render_sword_macro_tile_as_image(macro_def: bytes, tile_bank: bytes,
+                                       color_pair: tuple[int, int],
+                                       scale: int = 3) -> Image.Image:
+    """Render a single sword macro-tile (32x32 native) as a PIL Image."""
+    import grp_viewer as _gv
+    img = Image.new("RGBA", (GRP_TILE_PX * 4 * scale, GRP_TILE_PX * 4 * scale), (0, 0, 0, 0))  # type: ignore[arg-type]
+    for col in range(4):
+        for row in range(4):
+            t_idx = macro_def[col * 4 + row]
+            if t_idx == 0xFF:
+                continue
+            pixels = _gv.decode_sword_8x8(tile_bank[t_idx*16:(t_idx+1)*16], color_pair)
+            tile_img = Image.new("RGBA", (GRP_TILE_PX, GRP_TILE_PX), (0, 0, 0, 0))  # type: ignore[arg-type]
+            for i, p_idx in enumerate(pixels):
+                if p_idx is None:
+                    continue
+                rx, ry = i % GRP_TILE_PX, i // GRP_TILE_PX
+                r, g, b = _PALETTE_RGB[p_idx]
+                tile_img.putpixel((rx, ry), (r, g, b, 255))
+            if scale != 1:
+                tile_img = tile_img.resize((GRP_TILE_PX * scale, GRP_TILE_PX * scale),
+                                           Image.Resampling.NEAREST)
+            img.paste(tile_img, (col * GRP_TILE_PX * scale, row * GRP_TILE_PX * scale))
+    return img
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +501,197 @@ def render_hero(canvas, state: HeroState,
 
 
 # ---------------------------------------------------------------------------
+# Comparison rendering — PNG sheets vs binary GRP
+# ---------------------------------------------------------------------------
+
+def render_hero_from_grp(canvas, state: HeroState,
+                         fman_tiles: bytes, fman_frames: list[list[int]],
+                         x: int = 0, y: int = 0,
+                         scale: int = 3):
+    """Render the composite hero from original binary GRP data onto a tkinter Canvas.
+    Uses the same frame resolution logic as render_hero(), but decodes from .grp files.
+    """
+    try:
+        from PIL import ImageTk
+    except ImportError:
+        raise RuntimeError("Pillow (PIL) is required")
+
+    body_frame = resolve_body_frame(state)
+    back_arm = resolve_back_arm_frame(state)
+    front_arm = resolve_front_arm_frame(state)
+
+    lut = PAL_DECODE_TABLES[0]
+
+    def _draw_grp_frame(frame_idx: int | None, dx: int, dy: int):
+        if frame_idx is None or frame_idx >= len(fman_frames):
+            return
+        tile_indices = fman_frames[frame_idx]
+        frame_img = _compose_fman_frame(fman_tiles, tile_indices, lut, scale)
+        photo = ImageTk.PhotoImage(frame_img)
+        key = f"_grp_lyr_{dx}_{dy}_{frame_idx}"
+        setattr(canvas, key, photo)
+        canvas.create_image(dx * scale, dy * scale, anchor="nw", image=photo)
+
+    _draw_grp_frame(back_arm, x, y)
+    _draw_grp_frame(body_frame, x, y)
+    _draw_grp_frame(front_arm, x, y)
+
+
+def render_comparison(canvas, state: HeroState,
+                      hero_sheet: Image.Image | None = None,
+                      sword_sheet: Image.Image | None = None,
+                      fman_tiles: bytes | None = None,
+                      fman_frames: list[list[int]] | None = None,
+                      x: int = 0, y: int = 0,
+                      scale: int = 3):
+    """Render PNG (left) and GRP (right) side-by-side for visual comparison."""
+    try:
+        from PIL import ImageTk, ImageDraw, ImageFont
+    except ImportError:
+        raise RuntimeError("Pillow (PIL) is required")
+
+    if hero_sheet is None:
+        hero_sheet = load_hero_sheet()
+    if sword_sheet is None:
+        sword_sheet = load_sword_sheet()
+    if fman_tiles is None or fman_frames is None:
+        fman_tiles, fman_frames = load_fman_grp()
+
+    # --- PNG side (left) ---
+    body_frame = resolve_body_frame(state)
+    back_arm = resolve_back_arm_frame(state)
+    front_arm = resolve_front_arm_frame(state)
+
+    png_layers: list[tuple[int | None, int, int]] = [
+        (back_arm, x, y),
+        (body_frame, x, y),
+        (front_arm, x, y),
+    ]
+
+    def _draw_sheet_frame(frame_idx: int | None, dx: int, dy: int, prefix: str):
+        if frame_idx is None:
+            return
+        col = frame_idx % HERO_SHEET_COLS
+        row = frame_idx // HERO_SHEET_COLS
+        left = col * HERO_FRAME_W
+        upper = row * HERO_FRAME_H
+        frame_img = hero_sheet.crop((left, upper,
+                                     left + HERO_FRAME_W,
+                                     upper + HERO_FRAME_H))
+        if scale != 1:
+            frame_img = frame_img.resize(
+                (HERO_FRAME_W * scale, HERO_FRAME_H * scale),
+                Image.Resampling.NEAREST)
+        photo = ImageTk.PhotoImage(frame_img)
+        key = f"_{prefix}_{dx}_{dy}_{frame_idx}"
+        setattr(canvas, key, photo)
+        canvas.create_image(dx * scale, dy * scale, anchor="nw", image=photo)
+
+    # Draw PNG side
+    for frame_idx, dx, dy in png_layers:
+        _draw_sheet_frame(frame_idx, dx, dy, "png")
+
+    # Sword overlay for PNG side
+    sword_info = resolve_sword_frame(state)
+    if sword_info:
+        sprite_idx, sx_off, sy_off, _ = sword_info
+        sx = x + sx_off * TILE_SIZE
+        sy = y + sy_off * TILE_SIZE
+        s_col = sprite_idx % SWORD_SHEET_COLS
+        s_row = sprite_idx // SWORD_SHEET_COLS
+        left = s_col * SWORD_FRAME_W
+        upper = s_row * SWORD_FRAME_H
+        sword_img = sword_sheet.crop((left, upper,
+                                      left + SWORD_FRAME_W,
+                                      upper + SWORD_FRAME_H))
+        if scale != 1:
+            sword_img = sword_img.resize(
+                (SWORD_FRAME_W * scale, SWORD_FRAME_H * scale),
+                Image.Resampling.NEAREST)
+        photo = ImageTk.PhotoImage(sword_img)
+        canvas._png_sword_ref = photo
+        canvas.create_image(sx * scale, sy * scale, anchor="nw", image=photo)
+
+    # --- GRP side (right) ---
+    gap = 80  # pixels between PNG and GRP renders
+    grp_x = (x + HERO_FRAME_W) * scale + gap  # convert tile units to pixels, then offset
+    lut = PAL_DECODE_TABLES[0]
+    # GRP tiles are 8px, dungeon tiles are 24px — need 3× extra scale
+    grp_scale = scale * GRP_DUNGEON_SCALE
+
+    def _draw_grp_frame(frame_idx: int | None, dx: int, dy: int):
+        if frame_idx is None or frame_idx >= len(fman_frames):
+            return
+        tile_indices = fman_frames[frame_idx]
+        frame_img = _compose_fman_frame(fman_tiles, tile_indices, lut, grp_scale)
+        photo = ImageTk.PhotoImage(frame_img)
+        key = f"_grp_{dx}_{dy}_{frame_idx}"
+        setattr(canvas, key, photo)
+        canvas.create_image(dx, dy * scale, anchor="nw", image=photo)
+
+    for frame_idx, dx, dy in png_layers:
+        _draw_grp_frame(frame_idx, grp_x, dy)
+
+    # Sword overlay for GRP side — reuse grp_viewer's exact rendering loop
+    if sword_info:
+        import grp_viewer as _gv
+        sprite_idx, sx_off, sy_off, _ = sword_info
+        sx = grp_x + sx_off * TILE_SIZE * scale
+        sy = (y + sy_off * TILE_SIZE) * scale
+
+        # Map TypeScript sword sheet (row, col) to sword.grp macro-tile
+        s_col = sprite_idx % SWORD_SHEET_COLS
+        s_row = sprite_idx // SWORD_SHEET_COLS
+        sword_type = (s_row // 2) + 1
+        facing_left = (s_row % 2) == 1
+
+        # Determine mega-group and color pair from sword_type
+        if sword_type <= 3:
+            mega_idx = 0
+            color_idx = sword_type - 1
+        elif sword_type <= 5:
+            mega_idx = 1
+            color_idx = sword_type - 4
+        else:
+            mega_idx = 2
+            color_idx = 0
+
+        # Load sword.grp data
+        groups = _load_sword_grp_groups()
+        group_data = groups[mega_idx]
+        # Parse group header (15 LE offsets)
+        header = [int.from_bytes(group_data[i*2:i*2+2], 'little') for i in range(15)]
+        tile_bank = group_data[header[0]:]
+        macro_defs = [group_data[0x1E + i*16 : 0x1E + (i+1)*16] for i in range(22)]
+        color_pair = _gv.SWORD_COLORS[mega_idx][color_idx]
+
+        # Map column to macro-tile index (matches grp_viewer subgroups)
+        if s_col <= 4:    # forward phases 0-4
+            macro_idx = (11 + s_col) if facing_left else s_col
+        elif s_col <= 8:  # overhead phases 5-8
+            macro_idx = (17 + (s_col - 5)) if facing_left else (6 + (s_col - 5))
+        else:             # downward phase 9
+            macro_idx = 21 if facing_left else 10
+
+        m_def = macro_defs[macro_idx]
+        # Exact same loop as grp_viewer.render_sword_group, single macro-tile
+        for col in range(4):
+            for row in range(4):
+                t_idx = m_def[col * 4 + row]
+                if t_idx == 0xFF:
+                    continue
+                pixels = _gv.decode_sword_8x8(tile_bank[t_idx*16:(t_idx+1)*16], color_pair)
+                for i, p_idx in enumerate(pixels):
+                    if p_idx is None:
+                        continue
+                    rx, ry = i % 8, i // 8
+                    _gv.draw_pixel(canvas,
+                                   sx + (col*8 + rx) * grp_scale,
+                                   sy + (row*8 + ry) * grp_scale,
+                                   _gv.PALETTE_STRS[p_idx], grp_scale)
+
+
+# ---------------------------------------------------------------------------
 # CLI demo — tkinter window with radio-button controls for every state param
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -345,6 +718,7 @@ if __name__ == "__main__":
 
     hero_sheet = load_hero_sheet()
     sword_sheet = load_sword_sheet()
+    fman_tiles, fman_frames = load_fman_grp()
 
     # --- build state from UI vars ----------------------------------------
     def build_state() -> HeroState:
@@ -415,13 +789,14 @@ if __name__ == "__main__":
     v_jump.trace_add("write", _update_anim_buttons)
 
     # --- canvas + redraw --------------------------------------------------
-    canvas = tk.Canvas(root, width=400, height=400, bg=CANVAS_BG)
+    canvas = tk.Canvas(root, width=800, height=400, bg=CANVAS_BG)
     canvas.grid(row=0, column=0, rowspan=20, padx=5, pady=5, sticky="nsew")
 
     def redraw(*_args):
         canvas.delete("all")
-        render_hero(canvas, build_state(), hero_sheet, sword_sheet,
-                    x=24, y=40, scale=3)
+        render_comparison(canvas, build_state(), hero_sheet, sword_sheet,
+                         fman_tiles, fman_frames,
+                         x=24, y=40, scale=3)
 
     # --- radio-button helper -----------------------------------------------
     def _rb(parent, label, var, options, row, col=0, command=None):
