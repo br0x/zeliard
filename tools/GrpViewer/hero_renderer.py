@@ -614,7 +614,7 @@ def render_comparison(canvas, state: HeroState,
 
     # --- GRP side (right) ---
     gap = 80  # pixels between PNG and GRP renders
-    grp_x = (x + HERO_FRAME_W) * scale + gap  # convert tile units to pixels, then offset
+    grp_x = (x + SWORD_FRAME_W) * scale + gap  # convert tile units to pixels, then offset
     lut = PAL_DECODE_TABLES[0]
     # GRP tiles are 8px, dungeon tiles are 24px — need 3× extra scale
     grp_scale = scale * GRP_DUNGEON_SCALE
@@ -789,14 +789,14 @@ if __name__ == "__main__":
     v_jump.trace_add("write", _update_anim_buttons)
 
     # --- canvas + redraw --------------------------------------------------
-    canvas = tk.Canvas(root, width=800, height=400, bg=CANVAS_BG)
+    canvas = tk.Canvas(root, width=1024, height=400, bg=CANVAS_BG)
     canvas.grid(row=0, column=0, rowspan=20, padx=5, pady=5, sticky="nsew")
 
     def redraw(*_args):
         canvas.delete("all")
         render_comparison(canvas, build_state(), hero_sheet, sword_sheet,
                          fman_tiles, fman_frames,
-                         x=24, y=40, scale=3)
+                         x=73, y=48, scale=3)
 
     # --- radio-button helper -----------------------------------------------
     def _rb(parent, label, var, options, row, col=0, command=None):
@@ -862,19 +862,27 @@ if __name__ == "__main__":
             v_sword_phase.set(1)
         redraw()
 
-    ttk.Checkbutton(sword_f, text="Swing Active", variable=v_sword_swing,
+    sword_row1 = ttk.Frame(sword_f)
+    sword_row1.pack(side="top", anchor="w")
+    ttk.Checkbutton(sword_row1, text="Swing Active  ", variable=v_sword_swing,
                     command=_on_swing_toggle).pack(side="left")
-    ttk.Label(sword_f, text="Type:").pack(side="left")
+    ttk.Label(sword_row1, text="Sword Type:").pack(side="left")
     for t in range(1, 7):
-        ttk.Radiobutton(sword_f, text=str(t), variable=v_sword_type, value=t,
+        ttk.Radiobutton(sword_row1, text=str(t), variable=v_sword_type, value=t,
                         command=redraw).pack(side="left")
-    ttk.Label(sword_f, text="Hit:").pack(side="left")
+
+    sword_row2 = ttk.Frame(sword_f)
+    sword_row2.pack(side="top", anchor="w")
+    ttk.Label(sword_row2, text="Hit Type:").pack(side="left")
     for text, val in [("Fwd", "forward"), ("Over", "overhead"), ("Down", "downward")]:
-        ttk.Radiobutton(sword_f, text=text, variable=v_sword_hit, value=val,
+        ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=val,
                         command=redraw).pack(side="left")
-    ttk.Label(sword_f, text="Phase:").pack(side="left")
+
+    sword_row3 = ttk.Frame(sword_f)
+    sword_row3.pack(side="top", anchor="w")
+    ttk.Label(sword_row3, text="Phase:").pack(side="left")
     for p in range(8):
-        ttk.Radiobutton(sword_f, text=str(p), variable=v_sword_phase, value=p,
+        ttk.Radiobutton(sword_row3, text=str(p), variable=v_sword_phase, value=p,
                         command=redraw).pack(side="left")
 
     # --- initial draw + run -----------------------------------------------
