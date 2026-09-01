@@ -543,8 +543,14 @@ def render_comparison(canvas, state: HeroState,
                       fman_tiles: bytes | None = None,
                       fman_frames: list[list[int]] | None = None,
                       x: int = 0, y: int = 0,
-                      scale: int = 3):
-    """Render PNG (left) and GRP (right) side-by-side for visual comparison."""
+                      scale: int = 3,
+                      hide_body: bool = False,
+                      hide_front_arm: bool = False):
+    """Render PNG (left) and GRP (right) side-by-side for visual comparison.
+
+    hide_body / hide_front_arm let a caller suppress those layers (e.g. for
+    debugging individual layers) without affecting frame-resolution logic.
+    """
     try:
         from PIL import ImageTk, ImageDraw, ImageFont
     except ImportError:
@@ -558,9 +564,9 @@ def render_comparison(canvas, state: HeroState,
         fman_tiles, fman_frames = load_fman_grp()
 
     # --- PNG side (left) ---
-    body_frame = resolve_body_frame(state)
+    body_frame = None if hide_body else resolve_body_frame(state)
     back_arm = resolve_back_arm_frame(state)
-    front_arm = resolve_front_arm_frame(state)
+    front_arm = None if hide_front_arm else resolve_front_arm_frame(state)
 
     png_layers: list[tuple[int | None, int, int]] = [
         (back_arm, x, y),
@@ -715,6 +721,8 @@ if __name__ == "__main__":
     v_sword_type  = tk.IntVar(value=1)
     v_sword_hit   = tk.StringVar(value="forward")
     v_sword_phase = tk.IntVar(value=0)
+    v_hide_body      = tk.IntVar(value=0)
+    v_hide_front_arm = tk.IntVar(value=0)
 
     hero_sheet = load_hero_sheet()
     sword_sheet = load_sword_sheet()
@@ -789,14 +797,16 @@ if __name__ == "__main__":
     v_jump.trace_add("write", _update_anim_buttons)
 
     # --- canvas + redraw --------------------------------------------------
-    canvas = tk.Canvas(root, width=1024, height=400, bg=CANVAS_BG)
+    canvas = tk.Canvas(root, width=900, height=400, bg=CANVAS_BG)
     canvas.grid(row=0, column=0, rowspan=20, padx=5, pady=5, sticky="nsew")
 
     def redraw(*_args):
         canvas.delete("all")
         render_comparison(canvas, build_state(), hero_sheet, sword_sheet,
                          fman_tiles, fman_frames,
-                         x=73, y=48, scale=3)
+                         x=73, y=48, scale=3,
+                         hide_body=(v_hide_body.get() == 1),
+                         hide_front_arm=(v_hide_front_arm.get() == 1))
 
     # --- radio-button helper -----------------------------------------------
     def _rb(parent, label, var, options, row, col=0, command=None):
@@ -864,16 +874,16 @@ if __name__ == "__main__":
 
     sword_row1 = ttk.Frame(sword_f)
     sword_row1.pack(side="top", anchor="w")
-    ttk.Checkbutton(sword_row1, text="Swing Active  ", variable=v_sword_swing,
+    ttk.Checkbutton(sword_row1, text="Swing Active", variable=v_sword_swing,
                     command=_on_swing_toggle).pack(side="left")
-    ttk.Label(sword_row1, text="Sword Type:").pack(side="left")
+    ttk.Label(sword_row1, text="Type:").pack(side="left")
     for t in range(1, 7):
         ttk.Radiobutton(sword_row1, text=str(t), variable=v_sword_type, value=t,
                         command=redraw).pack(side="left")
 
     sword_row2 = ttk.Frame(sword_f)
     sword_row2.pack(side="top", anchor="w")
-    ttk.Label(sword_row2, text="Hit Type:").pack(side="left")
+    ttk.Label(sword_row2, text="Hit:").pack(side="left")
     for text, val in [("Fwd", "forward"), ("Over", "overhead"), ("Down", "downward")]:
         ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=val,
                         command=redraw).pack(side="left")
@@ -884,6 +894,14 @@ if __name__ == "__main__":
     for p in range(8):
         ttk.Radiobutton(sword_row3, text=str(p), variable=v_sword_phase, value=p,
                         command=redraw).pack(side="left")
+
+    # Layer visibility toggles
+    layers_f = ttk.LabelFrame(ctrl, text="Hide Layers")
+    layers_f.grid(row=8, column=0, sticky="w", padx=4, pady=2)
+    ttk.Checkbutton(layers_f, text="Front Arm", variable=v_hide_front_arm,
+                    command=redraw).pack(side="left")
+    ttk.Checkbutton(layers_f, text="Body", variable=v_hide_body,
+                    command=redraw).pack(side="left")
 
     # --- initial draw + run -----------------------------------------------
     _update_anim_buttons()
