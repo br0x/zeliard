@@ -3827,167 +3827,48 @@ def render_dchr_group(tile_bank_raw, canvas, y_offset, layout=None):
 
 def render_composite_hero_exact(
     canvas,
-    fman_data: bytes,          # decompressed fman.grp
-    sword_data: bytes,         # decompressed sword.grp
-    facing: int,               # 0=right, 1=left
-    anim_phase: int,           # 0..3 (walk cycle) or 0x80 (idle)
+    fman_data: bytes,
+    sword_data: bytes,
+    facing: int,
+    anim_phase: int,
     squat: bool,
     on_rope: bool,
     invincible: bool,
     hero_hidden: bool,
-    jump_phase_flags: int,     # 0, 0x7F, 0x80, 0xFF
-    slope_direction: int,      # 0 (no slope), 1 (\), 2 (/)
-    shield_type: int,          # 0, 1, 2
+    jump_phase_flags: int,
+    slope_direction: int,
+    shield_type: int,
     shield_anim_active: bool,
     shield_anim_phase: int,
-    sword_type: int,           # 1..6
-    swing_type: int,           # 0, 1, 2
-    swing_phase: int,          # 0..7 (0 = no swing)
+    sword_type: int,
+    swing_type: int,
+    swing_phase: int,
     x: int, y: int, scale: int = SCALE
 ):
-    # ------------------------------------------------------------------
-    # Helper to get a 9-byte frame from fman_data (frame index table)
-    def get_frame(offset):
-        if offset is None:
-            return None
-        indices = []
-        for i in range(9):
-            idx = fman_data[offset + i]
-            indices.append(idx)
-        return indices
-
-    # Helper to render a 3x3 tile block
-    # fman data length = 8176; 91 frames 3x3 tiles = 819 tiles = 0x333 (header)
-    def draw_layer(frame_off, x0, y0):
-        if frame_off is None:
-            return
-        indices = get_frame(frame_off)
-        if indices is None:
-            return
-        for row in range(3):
-            for col in range(3):
-                tile_idx = indices[row*3 + col]
-                if tile_idx == 0:
-                    continue
-                # Decode tile from fman_data (tiles start at offset 0x333, each 32 bytes)
-                tile_off = 0x333 + tile_idx * 32
-                tile_raw = fman_data[tile_off:tile_off+32]
-                # Hero tiles always use palette 0 (PAL_DECODE_TABLES[0])
-                pixels = decode_fman_tile(tile_raw, PAL_DECODE_TABLES[0])
-                tx = x0 + col * 8 * scale
-                ty = y0 + row * 8 * scale
-                draw_tile_pixels(canvas, pixels, tx, ty, scale=scale)
-
-    # Body frames
-    BODY_RIGHT_BASE = 0x00        # fman_gfx + 0
-    BODY_LEFT_BASE  = 0x75        # fman_gfx + 13*9
-    BODY_ROPE_BASE  = 0xea        # fman_gfx + 2*13*9
-    BODY_OPEN_DOOR  = 0x10e       # fman_gfx + (2*13 + 4)*9
-    # Right hand (sword arm) frames
-    ARM_RIGHT_BASE  = 0x117       # fman_gfx + (2*13 + 4 + 1)*9
-    ARM_LEFT_BASE   = 0x1B9       # fman_gfx + (2*13 + 4 + 1 + 18)*9
-    # Left hand (shield arm) frames
-    SHIELD_FRONT_BASE = 0x25B        # fman_gfx + (2*13 + 4 + 1 + 2*18)*9
-    SHIELD_BACK_BASE  = 0x2c7        # fman_gfx + (2*13 + 4 + 1 + 2*18 + 12)*9
-
-    # ------------------------------------------------------------------
-    # 1. Left arm (shield)
-    left_arm_off = None
-    if facing == 0:  # right-facing
-        base = ARM_RIGHT_BASE
-        if shield_anim_active:
-            left_arm_off = base + shield_anim_phase * 9
-        elif shield_type != 0:
-            offset = 12*9 # 12th frame 0-based
-            if squat:
-                offset += 9 # 13th frame 0-based
-            if shield_type == 2:
-                offset += 27 # 15th frame 0-based
-            left_arm_off = base + offset
-        # else no shield -> left arm not drawn
-    else:  # left-facing
-        base = ARM_LEFT_BASE
-        if shield_anim_active:
-            # Use shield animation? Not in assembly, we'll skip
-            pass
-        else:
-            # Draw with walk cycle (only even phases)
-            if not squat and anim_phase != 0x80:
-                # Phase mapping as in loc_3B43
-                phase = (anim_phase + 2) & 3
-                if (phase & 1) == 0:
-                    left_arm_off = base + phase * 9
-    draw_layer(left_arm_off, x, y)
-
-    # ------------------------------------------------------------------
-    # 2. Body
-    body_off = BODY_RIGHT_BASE if facing == 0 else BODY_LEFT_BASE
-    if invincible:
-        body_off += 0x90
-    if squat:
-        body_off += 0x2D  # 5rd frame 0-based
-    elif (jump_phase_flags & 0x80) != 0:
-        body_off += 0x3F  # 7th frame 0-based
-    elif slope_direction == 1:
-        body_off += 0x48  # 8th frame 0-based
-    elif slope_direction == 2:
-        body_off += 0x51  # 9th frame 0-based
-    elif jump_phase_flags == 0x7F:
-        body_off += 0x36  # 6th frame 0-based
-    elif anim_phase == 0x80:
-        body_off += 0x24  # 4th frame 0-based => stay still
-    else:
-        body_off += (anim_phase & 3) * 9
-    draw_layer(body_off, x, y)
-
-    # ------------------------------------------------------------------
-    # 3. Right arm (sword)
-    right_arm_off = None
-    if not (on_rope or hero_hidden):
-        base = ARM_LEFT_BASE if facing == 0 else ARM_RIGHT_BASE
-        if squat:
-            # Squat uses a 2x3 tile block starting at offset 0x27? We'll use the same base for now.
-            right_arm_off = base + 0x27   # approximate
-        else:
-            phase = anim_phase & 3
-            right_arm_off = base + phase * 9
-    draw_layer(right_arm_off, x, y)
-
-    # ------------------------------------------------------------------
-    # 4. Sword swing overlay (if active)
-    if swing_phase > 0:
-        # Determine macro-tile block pointer (offsets from sword_data)
-        # These offsets are taken directly from fight.asm (lines 0x3E5E-0x3EEE)
-        if swing_type == 0:  # forward
-            macro_base = 0x0B01E if facing == 0 else 0x0B0CE
-        elif swing_type == 1:  # overhead
-            macro_base = 0x0B07E if facing == 0 else 0x0B12E
-        else:  # downward thrust
-            macro_base = 0x0B0BE if facing == 0 else 0x0B16E
-        macro_off = (swing_phase - 1) * 16
-        tile_indices = sword_data[macro_base + macro_off : macro_base + macro_off + 16]
-        # Position the overlay relative to hero
-        offset_x = 8 * scale if facing == 0 else -8 * scale
-        offset_y = -8 * scale
-        if squat:
-            offset_y += 8 * scale
-        # Draw 4x4 tiles
-        for row in range(4):
-            for col in range(4):
-                t_idx = tile_indices[row * 4 + col]
-                if t_idx == 0xFF:
-                    continue
-                # Decode sword tile (16 bytes per tile, 2bpp planar)
-                tile_off = t_idx * 16
-                tile_raw = sword_data[tile_off:tile_off+16]
-                # Colour pair is determined by sword_type (see SWORD_COLORS in grp_viewer)
-                # sword_type 1..6 -> index (sword_type-1)//2? Actually SWORD_COLORS has 3 groups.
-                # We'll reuse decode_sword_8x8 from grp_viewer.
-                color_pair = SWORD_COLORS[(sword_type-1)//2][(sword_type-1)%2]
-                pixels = decode_sword_8x8(tile_raw, color_pair)
-                tx = x + offset_x + col * 8 * scale
-                ty = y + offset_y + row * 8 * scale
-                draw_tile_pixels(canvas, pixels, tx, ty, scale)
+    """Legacy wrapper — delegates to hero_renderer using pre-rendered sheets."""
+    from hero_renderer import HeroState, render_hero, load_hero_sheet, load_sword_sheet
+    state = HeroState(
+        facing_left=(facing == 1),
+        anim_phase=anim_phase,
+        invincible=invincible,
+        squat=squat,
+        on_rope=on_rope,
+        hidden=hero_hidden,
+        jump=jump_phase_flags,
+        shield_anim_active=shield_anim_active,
+        shield_phase=shield_anim_phase,
+        shield_variant=0,
+        slope=slope_direction,
+        shield_category=shield_type,
+        sword_swing_active=(swing_phase > 0),
+        sword_hit_type=swing_type,
+        sword_type=sword_type,
+        sword_phase=swing_phase,
+    )
+    hero_sheet = load_hero_sheet()
+    sword_sheet = load_sword_sheet()
+    render_hero(canvas, state, hero_sheet, sword_sheet,
+                x=x, y=y, scale=scale)
 
 # ---------------------------------------------------------------------------
 # Main Application
@@ -4033,57 +3914,17 @@ class GrpViewer:
             self.load_file(path)
 
     def load_fman_sword(self):
+        from hero_renderer import HeroState, render_hero, load_hero_sheet, load_sword_sheet
         try:
-            raw = open("tools/GrpViewer/fman.grp", "rb").read()
+            hero_sheet = load_hero_sheet()
+            sword_sheet = load_sword_sheet()
         except Exception as e:
             self.info_label.config(text=f"Error: {e}")
             return
 
-        if raw[0] == 0:
-            skip, length, raw1 = 0, len(raw)-1, raw[1:]
-        else:
-            skip   = int.from_bytes(raw[1:3], "little")
-            length = int.from_bytes(raw[3:5], "little")
-            raw1   = raw[5+skip:]
-
-        unpacked_fman = unpack(raw1, length)
-
-        try:
-            raw = open("tools/GrpViewer/sword.grp", "rb").read()
-        except Exception as e:
-            self.info_label.config(text=f"Error: {e}")
-            return
-
-        if raw[0] == 0:
-            skip, length, raw1 = 0, len(raw)-1, raw[1:]
-        else:
-            skip   = int.from_bytes(raw[1:3], "little")
-            length = int.from_bytes(raw[3:5], "little")
-            raw1   = raw[5+skip:]
-
-        unpacked_sword = unpack(raw1, length)
-        render_composite_hero_exact(
-            self.canvas, 
-            unpacked_fman, 
-            unpacked_sword, 
-            0, # facing
-            0, # anim_phase
-            False, # squat
-            False, # on_rope
-            False, # invincible
-            False, # hero_hidden
-            0, # jump_phase_flags
-            0, # slope_direction
-            0, # shield_type
-            False, # shield_anim_active
-            0, # shield_anim_phase
-            1, # sword_type
-            0, # swing_type
-            0, # swing_phase
-            100, # x
-            100, # y
-            3
-        )
+        state = HeroState()  # default idle, facing right
+        render_hero(self.canvas, state, hero_sheet, sword_sheet,
+                    x=100, y=100, scale=SCALE)
 
     def load_file(self, path):
         try:
