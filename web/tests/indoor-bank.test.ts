@@ -8,6 +8,7 @@ import {
     EXIT_SEQ,
 } from '../src/scenes/indoor-bank.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -19,12 +20,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -129,14 +131,14 @@ describe('BankScene transactions', () => {
     });
 
     it('reaches the menu after the entrance sequence', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 100);
         const env = await enter(state);
         expect(env.s.bankPhase).toBe('menu');
     });
 
     it('deposit moves hero gold into the bank and laughs at ≥1000', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 1500);
         const env = await enter(state);
 
@@ -159,7 +161,7 @@ describe('BankScene transactions', () => {
     });
 
     it('withdraw transfers bank gold back and reports the balance', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 10);
         setBank(state, 500);
         const env = await enter(state);
@@ -179,7 +181,7 @@ describe('BankScene transactions', () => {
     });
 
     it('deposit of zero amount cancels via the confirm-with-zero guard', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 100);
         const env = await enter(state);
         env.s.menuSel = 2;
@@ -189,7 +191,7 @@ describe('BankScene transactions', () => {
     });
 
     it('exchanges almas at the town rate in full batches only', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setAlmas(state, 10);
         setGold(state, 0);
         const env = await enter(state);
@@ -205,7 +207,7 @@ describe('BankScene transactions', () => {
     });
 
     it("Llama's 4-almas-per-2-gold rate leaves remainders untouched", async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setAlmas(state, 9);
         setGold(state, 5);
         const env = await enter(state, 7); // Llama
@@ -221,7 +223,7 @@ describe('BankScene transactions', () => {
     });
 
     it('balance check reports the account contents', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setBank(state, 1234);
         const env = await enter(state);
         env.s.menuSel = 4;

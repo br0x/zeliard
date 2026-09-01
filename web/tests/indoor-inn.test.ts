@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InnScene, INN_PRICES } from '../src/scenes/indoor-inn.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -14,12 +15,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -104,15 +106,15 @@ describe('inn pricing', () => {
     });
 
     it('selects the price from the town id (raw&0x7F - 1, clamped)', async () => {
-        const s1 = { bytes: new Map<number, number>() };
+        const s1 = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         const a = await enterScene(s1, 3); // idx 2 → 50
         expect(a.s.price).toBe(50);
 
-        const s2 = { bytes: new Map<number, number>() };
+        const s2 = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         const b = await enterScene(s2, 0x80 | 9); // high-bit raw, idx clamped to 7
         expect(b.s.price).toBe(INN_PRICES[7]);
 
-        const s3 = { bytes: new Map<number, number>() };
+        const s3 = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         const c = await enterScene(s3, 0); // idx -1 → clamped 0
         expect(c.s.price).toBe(0);
     });
@@ -120,7 +122,7 @@ describe('inn pricing', () => {
 
 describe('InnScene stay flow', () => {
     it('deducts the price and heals HP/spells after the sleep fade', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 500);
         setHp(state, 20, 77);
         for (let i = 0; i < 7; i++) state.bytes.set(0xB4 + i, i + 3);
@@ -150,7 +152,7 @@ describe('InnScene stay flow', () => {
     });
 
     it('refuses stay without funds and keeps gold untouched', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 10);
         setHp(state, 5, 50);
         const env = await toMenu(await enterScene(state));
@@ -165,7 +167,7 @@ describe('InnScene stay flow', () => {
 
 describe('InnScene leave flow', () => {
     it('Leave shows the farewell and Space then fades out', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 999);
         const env = await toMenu(await enterScene(state));
         env.s.menuSel = 1; // Leave
@@ -177,7 +179,7 @@ describe('InnScene leave flow', () => {
     });
 
     it('Escape from the menu fades out directly', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
         const env = await toMenu(await enterScene(state));
         env.scene.handleInput('Escape');
@@ -185,7 +187,7 @@ describe('InnScene leave flow', () => {
     });
 
     it('ArrowUp/ArrowDown wrap the two menu entries', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
         const env = await toMenu(await enterScene(state));
         env.scene.handleInput('ArrowUp');

@@ -48,14 +48,17 @@ export type FadePhase =
     | 'kingDialog'
     | 'kingGoldAward';
 
+import type { HeroState } from './game-state.js';
+
 /** Dependencies injected into indoor building scenes by game.js. */
 export interface IndoorSceneDependencies {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
+    heroState: HeroState;
     readMemory: (offset: number, length: number) => Uint8Array | null;
     writeMemory: (offset: number, data: Uint8Array) => void;
     finishCallback?: (() => void) | null;
-    soundManager: unknown; // audio/SoundManager — typed once game.js migrates
+    soundManager: unknown;
     renderGoldHud: () => void;
     renderAlmasHud: () => void;
     drawLifeBar: () => void;
