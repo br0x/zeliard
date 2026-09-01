@@ -20,10 +20,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
-import {
-    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
-    ADDR_BANK_HI, ADDR_BANK_LO, ADDR_HERO_ALMAS,
-} from '../core/memory.js';
+
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const PANEL_W = 672;
@@ -329,58 +326,30 @@ export class BankScene extends IndoorSceneBase {
         });
     }
 
-    // ── Memory helpers ────────────────────────────────────────────────────────
-
-    private _read(addr: number, len = 1): Uint8Array {
-        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
-    }
-    private _write(addr: number, bytes: Uint8Array): void {
-        if (this.writeMemory) this.writeMemory(addr, bytes);
-    }
-
     private _getTownId(): number {
-        // place_map_id: 0x81=Muralla, 0x82=Satono, … 0x89=Esco.
-        // 1-based town index = (place_map_id & 0x7F) – 0x80 + 1 = raw & 0x0F
-        return ((this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x0F) || 1;
+        return (this.heroState.placeMapId & 0x0F) || 1;
     }
 
-    /** Hero gold: 24-bit – hi byte at 0x85, lo word at 0x86 (LE) */
     private _getHeroGold(): number {
-        const hi = (this._read(ADDR_HERO_GOLD_HI, 1)[0] ?? 0) & 0xFF;
-        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
-        return (hi * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
+        return this.heroState.gold;
     }
     private _setHeroGold(amount: number): void {
-        const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
-        const hi = (v >>> 16) & 0xFF;
-        const lo = v & 0xFFFF;
-        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.heroState.gold = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
         this.renderGoldHudCb();
     }
 
-    /** Bank gold: 24-bit – hi byte at 0x88, lo word at 0x89 (LE) */
     private _getBankGold(): number {
-        const hi = (this._read(ADDR_BANK_HI, 1)[0] ?? 0) & 0xFF;
-        const b  = this._read(ADDR_BANK_LO, 2);
-        return (hi * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
+        return this.heroState.bankGold;
     }
     private _setBankGold(amount: number): void {
-        const v  = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
-        const hi = (v >>> 16) & 0xFF;
-        const lo = v & 0xFFFF;
-        this._write(ADDR_BANK_HI, Uint8Array.of(hi));
-        this._write(ADDR_BANK_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.heroState.bankGold = Math.min(0xFFFFFF, Math.max(0, Math.floor(amount)));
     }
 
-    /** Hero almas: 16-bit word at 0x8B (LE) */
     private _getAlmas(): number {
-        const b = this._read(ADDR_HERO_ALMAS, 2);
-        return ((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8;
+        return this.heroState.almas;
     }
     private _setAlmas(amount: number): void {
-        const v = Math.max(0, Math.floor(amount)) & 0xFFFF;
-        this._write(ADDR_HERO_ALMAS, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
+        this.heroState.almas = Math.max(0, Math.floor(amount)) & 0xFFFF;
         this.renderAlmasHudCb();
     }
 

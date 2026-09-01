@@ -11,6 +11,7 @@ import {
     weaponBitmaskToItemIndices,
 } from '../src/scenes/indoor-weapon-shop.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -22,12 +23,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -125,7 +127,7 @@ describe('WeaponShopScene transactions', () => {
     });
 
     it('buying a sword with a trade-in charges the net price', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 5000);
         state.bytes.set(0x92, 1); // currently owns Training sword (id 1)
         const env = await enter(state);
@@ -158,7 +160,7 @@ describe('WeaponShopScene transactions', () => {
     });
 
     it("buying the sword you already own gets you the salesman's brush-off", async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 5000);
         state.bytes.set(0x92, 1); // owns Training sword
         const env = await enter(state);
@@ -174,7 +176,7 @@ describe('WeaponShopScene transactions', () => {
     });
 
     it('buying a shield sets its max/current HP from the table', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 40000);
         const env = await enter(state);
 
@@ -204,7 +206,7 @@ describe('WeaponShopScene transactions', () => {
     });
 
     it('repair costs ceil((max-hp)/2) and restores the shield', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 1000);
         state.bytes.set(0x93, 2);           // Wise man's shield
         state.bytes.set(0x96, 80); state.bytes.set(0x97, 0);   // max 80
@@ -228,7 +230,7 @@ describe('WeaponShopScene transactions', () => {
     });
 
     it('Crest of Glory trade in Tumba grants the Knight\'s sword', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
         state.bytes.set(0x24, 0x01);       // cementar_1: not yet traded
         state.bytes.set(0x9B, 0x05);       // carrying Crest of Glory

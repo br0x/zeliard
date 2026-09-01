@@ -8,6 +8,7 @@ import {
     selectKingDialogKey,
 } from '../src/scenes/indoor-king.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -35,9 +36,11 @@ function makeDeps(overrides: {
 } = {}) {
     const writes: Array<{ offset: number; data: number[] }> = [];
     const gold = overrides.gold ?? 0;
+    const heroBuf = new Uint8Array(0x10000);
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(heroBuf),
         readMemory: overrides.readMemory ?? ((offset, length) => {
             const flags = { ...(overrides.flags ?? {}) };
             // encode current gold into 0x85..0x87 reads

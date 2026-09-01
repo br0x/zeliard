@@ -9,6 +9,7 @@ import {
     buildChurchScript,
 } from '../src/scenes/indoor-church.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -21,12 +22,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -113,7 +115,7 @@ describe('buildChurchScript', () => {
 
 describe('ChurchScene scripted flow', () => {
     it('runs the wounded script: heals to max in +8 steps, restores spells, waits for continue', async () => {
-        const state: MemState = { bytes: new Map() };
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 30, 60);
         // inventory spells to copy into the active bank
         for (let i = 0; i < 7; i++) state.bytes.set(0xB4 + i, i + 1);
@@ -152,7 +154,7 @@ describe('ChurchScene scripted flow', () => {
     });
 
     it('full-HP path does not trigger healing', async () => {
-        const state: MemState = { bytes: new Map() };
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 99, 99);
         const { scene } = await enterScene(state);
         let t = 1000;
@@ -161,7 +163,7 @@ describe('ChurchScene scripted flow', () => {
     });
 
     it('blessing animation plays through its stages before unblocking the script', async () => {
-        const state: MemState = { bytes: new Map() };
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 100, 100); // full-HP script reaches bless via common tail
         const { scene, s } = await enterScene(state);
         let t = 1000;
@@ -174,7 +176,7 @@ describe('ChurchScene scripted flow', () => {
     });
 
     it('Space does nothing when not waiting for continue', async () => {
-        const state: MemState = { bytes: new Map() };
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 10, 10);
         const { scene, s } = await enterScene(state);
         scene.handleInput('Space');
@@ -182,7 +184,7 @@ describe('ChurchScene scripted flow', () => {
     });
 
     it('reports its building name', async () => {
-        const state: MemState = { bytes: new Map() };
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 1, 2);
         const { scene } = await enterScene(state);
         expect((scene as unknown as { getName: () => string }).getName()).toBe('The Church');

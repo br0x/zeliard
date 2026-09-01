@@ -10,6 +10,7 @@ import {
     itemIndexToBit,
 } from '../src/scenes/indoor-magic-shop.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -21,12 +22,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -125,7 +127,7 @@ describe('WitchcraftShopScene transactions', () => {
     });
 
     it('buy: deducts gold, fills an empty slot and clears the stock bit', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 1000);
         setGold(state, 1000);
         const env = await toMenu(await enter(state));
@@ -155,7 +157,7 @@ describe('WitchcraftShopScene transactions', () => {
     });
 
     it('buy without funds keeps gold and shows the refusal', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
         const env = await toMenu(await enter(state));
         env.s.menuSel = 1;
@@ -175,7 +177,7 @@ describe('WitchcraftShopScene transactions', () => {
     });
 
     it('sell: pays half price, clears the slot and restores the stock bit', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 100);
         state.bytes.set(0xA6, 5); // Holy Water of Acero (id 5) carried
         const env = await toMenu(await enter(state));
@@ -203,7 +205,7 @@ describe('WitchcraftShopScene transactions', () => {
     });
 
     it('sell with empty inventory refuses politely', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 50);
         const env = await toMenu(await enter(state));
         env.s.menuSel = 2;
@@ -214,7 +216,7 @@ describe('WitchcraftShopScene transactions', () => {
     });
 
     it("Go outside sets exitAfterDialog then plays the reverse animation before fading", async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
         const env = await toMenu(await enter(state));
         env.s.menuSel = 0;

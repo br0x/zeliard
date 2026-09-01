@@ -7,6 +7,7 @@ import {
     SAGE_XP_TABLE,
 } from '../src/scenes/indoor-sage.js';
 import type { SageSceneDependencies } from '../src/scenes/indoor-sage.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {},
@@ -21,12 +22,13 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeDeps(state: MemState) {
     const deps: SageSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
             const out = new Uint8Array(length);
             for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
@@ -87,7 +89,7 @@ beforeEach(() => {
 
 describe('SageScene entry routing', () => {
     it('first visit plays the town intro and marks the spoken bit', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3 }); // Hajjar, bit 0x20
         const { s } = await enterScene(state);
         expect(s.sagePhase).toBe('intro');
@@ -96,14 +98,14 @@ describe('SageScene entry routing', () => {
     });
 
     it('return visit skips straight to the menu', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, spoken: 0x20 });
         const { s } = await enterScene(state);
         expect(s.sagePhase).toBe('menu');
     });
 
     it('death entry clears the invincibility flag and exits after dialog', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, spoken: 0x20 });
         state.bytes.set(0xE8, 0xFF);
         const { scene, s } = await enterScene(state);
@@ -120,7 +122,7 @@ describe('SageScene entry routing', () => {
     });
 
     it('reports the per-town sage name', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 2 });
         const { scene } = await enterScene(state);
         expect((scene as unknown as { getName(): string }).getName()).toBe('The Sage Yasmin');
@@ -129,7 +131,7 @@ describe('SageScene entry routing', () => {
 
 describe('intro spell activation', () => {
     it('Space after the intro grants the town spell slot', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, level: 1, xp: 0 }); // town idx 2 → spell 2 (Saeta)
         const { scene, s } = await enterScene(state);
         // finish typing then acknowledge
@@ -144,7 +146,7 @@ describe('intro spell activation', () => {
     });
 
     it('town 1 intro grants nothing (legacy guard)', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1 });
         const { scene } = await enterScene(state);
         let t = 50000;
@@ -164,7 +166,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
     }
 
     it('threshold quartiles map to result buckets 0..4', () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1, level: 0 });
         const threshold = SAGE_XP_TABLE[0]!; // 50
         const cases: Array<[number, number]> = [
@@ -183,7 +185,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
     });
 
     it('caps the impartable level by town (result 4)', () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1, level: SAGE_MAX_LEVEL_BY_TOWN[0] }); // town 0 caps at 3
         state.bytes.set(0x8E, 0xE8); state.bytes.set(0x8F, 0x03); // xp 1000 ≥ threshold
         return enterScene(state).then(({ scene }) => {
@@ -192,7 +194,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
     });
 
     it('applies the reward table on level-up', () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1, level: 2, xp: 300 }); // threshold for lvl2 is 300
         const reward = SAGE_LEVEL_REWARDS[2]!;
         return enterScene(state).then(({ scene }) => {
@@ -208,7 +210,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
     });
 
     it('carries leftover XP into the next level without exceeding its threshold', () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1, level: 0, xp: SAGE_XP_TABLE[0]! + 999 });
         return enterScene(state).then(({ scene }) => {
             applyLevelUp(scene);
@@ -221,7 +223,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
 
 describe('Record Experience', () => {
     it('falls back to injected saveGame when window.openSaveModal is absent', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, spoken: 0x20 });
         const { scene, s } = await enterScene(state);
         const saveGame = (scene as unknown as { saveGame: ReturnType<typeof vi.fn> }).saveGame;
@@ -258,8 +260,8 @@ describe('power-queue machinery (_startPowerQueue / _tickPowerQueue)', () => {
     });
 
     it('flattens sentences into wrapped lines and records sentence ends', async () => {
-        setProgress({ bytes: new Map<number, number>() }, { townId: 3, spoken: 0x20 });
-        const scene = await enterScene({ bytes: new Map<number, number>() }).then(e => e.scene);
+        setProgress({ bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) }, { townId: 3, spoken: 0x20 });
+        const scene = await enterScene({ bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) }).then(e => e.scene);
         const t = internals(scene);
         // two short "sentences", each fits on one line
         t._startPowerQueue(['Short one.', 'Also short.']);
@@ -270,7 +272,7 @@ describe('power-queue machinery (_startPowerQueue / _tickPowerQueue)', () => {
     });
 
     it('pauses at sentence ends until the line finishes typing plus the delay', async () => {
-        const state = { bytes: new Map<number, number>() };
+        const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, spoken: 0x20 });
         const scene = (await enterScene(state)).scene;
         const t = internals(scene);

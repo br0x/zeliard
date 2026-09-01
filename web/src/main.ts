@@ -1440,7 +1440,7 @@ function startIndoorScene(destId: number): void {
         inputLatches.reset();
     };
     const context = {
-        canvas, ctx, readMemory, writeMemory,
+        canvas, ctx, heroState, readMemory, writeMemory,
         finishCallback: finishCb,
         soundManager,
         saveGame,

@@ -7,10 +7,12 @@
  */
 
 import type { FadePhase, IndoorSceneDependencies, Scene, Timestamp } from './scene.js';
+import type { HeroState } from './game-state.js';
 
 export class IndoorSceneBase implements Scene {
     protected readonly canvas: HTMLCanvasElement;
     protected readonly ctx: CanvasRenderingContext2D;
+    protected readonly heroState: HeroState;
     protected readonly readMemory: (offset: number, length: number) => Uint8Array | null;
     protected readonly writeMemory: (offset: number, data: Uint8Array) => void;
     protected readonly finishCallback: (() => void) | null;
@@ -36,6 +38,7 @@ export class IndoorSceneBase implements Scene {
     constructor(deps: IndoorSceneDependencies) {
         this.canvas = deps.canvas;
         this.ctx = deps.ctx;
+        this.heroState = deps.heroState;
         this.readMemory = deps.readMemory;
         this.writeMemory = deps.writeMemory;
         this.finishCallback = deps.finishCallback ?? null;
