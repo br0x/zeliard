@@ -322,14 +322,16 @@ Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls �
 
 **Note:** Track A (replacing `g8(g, 0xff38)` with `dungeonState.squatFlag` for simple flag reads) was deferred — the consolidation of buffer-region helpers provides the main benefit of Phase 5 (eliminating copy-paste). Simple flag reads through `g8` are still fast (direct array index) and the typed state objects are already used in the renderers and scenes.
 
-### Phase 6: Save/Load
+### Phase 6: Save/Load ✅ DONE
 
 **Files:** `platform/save.ts`, `platform/save-file.ts`, `main.ts`
 
-1. Save: `heroStateToBytes(heroState)` → 256-byte blob → base64 → localStorage
-2. Load: localStorage → base64 → 256-byte blob → `heroStateFromBytes(bytes)` → `heroState`
-3. Remove `readMemory(MEM_SAVE_DATA, 256)` / `loadSaveState(bytes)` from hot path
-4. Keep `g_mem[0..255]` as a "shadow copy" for MDT/proximity/monster data that overlaps with the save region
+1. Save: `heroStateToBytes(heroState)` → 256-byte blob → base64 → localStorage ✅ (replaced `readMemory(MEM_SAVE_DATA, 256)` in `openSaveModal`)
+2. Load: localStorage → base64 → 256-byte blob → `loadSaveState` → g_mem[0..255] → live `heroState` view auto-syncs ✅
+3. Remove `readMemory(MEM_SAVE_DATA, 256)` from hot path ✅ (removed from `openSaveModal`)
+4. Keep `g_mem[0..255]` as a "shadow copy" for MDT/proximity/monster data that overlaps with the save region ✅ (restore path still uses `tsLoadSaveState` which writes to g_mem; the live `heroState` view picks up the changes automatically)
+
+**Note:** `heroStateFromBytes` exists in `game-state.ts` for standalone use (tests, snapshots) but isn't needed in the main save/load flow since the live view handles synchronization. The restore path uses `tsLoadSaveState` (which writes to g_mem) followed by the live view picking up the changes — this is simpler than creating a new HeroState object and manually copying fields.
 
 ### Phase 7: Cleanup
 
@@ -358,7 +360,7 @@ Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls �
 | Phase 3 | inventory-screen.ts, main.ts | Low | Medium | ✅ Done |
 | Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | ✅ Done |
 | Phase 5 | ~25 engine files | High | Large | ✅ Done |
-| Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | Pending |
+| Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | ✅ Done |
 | Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | Pending |
 
 **Total:** ~50 files, with Phases 0-4 being low-risk and Phase 5 being the bulk of the work.

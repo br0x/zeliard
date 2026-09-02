@@ -135,7 +135,7 @@ import {
     ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG, ADDR_PENDING_TRANSITION_FLAG,
     ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID, ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL,
     DUNGEON_STATE_DEATH_FADE, DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
-    ADDR_SCROLL_FLAG, ADDR_CONVERSATION_ACTIVE, MEM_SAVE_DATA,
+    ADDR_SCROLL_FLAG, ADDR_CONVERSATION_ACTIVE,
 } from './core/memory.js';
 
 // ─── TS-owned memory buffer (replaces WASM linear memory) ────────────────────
@@ -150,7 +150,7 @@ import {
     gMemAt, readU8 as tsReadU8, readU16 as tsReadU16,
     readMemory as tsReadMemory, writeMemory as tsWriteMemory,
 } from './core/ts-memory.js';
-import { createLiveHeroState, createLiveDungeonState } from './core/game-state.js';
+import { createLiveHeroState, createLiveDungeonState, heroStateToBytes } from './core/game-state.js';
 
 
 // ─── Engine imports (direct TS calls, no dispatch layer) ──────────────────────
@@ -1509,7 +1509,7 @@ function openSaveModal(onSaveComplete: (success: boolean) => void): void {
     if (modalManager.isActive) return;
     gamePaused = true;
     const onSave = (slotName: string | null): void => {
-        const saveState = readMemory(MEM_SAVE_DATA, 256);
+        const saveState = heroStateToBytes(heroState);
         if (slotName === null) {
             onSaveComplete?.(false);
         } else {
