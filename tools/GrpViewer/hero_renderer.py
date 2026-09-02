@@ -564,9 +564,12 @@ def render_comparison(canvas, state: HeroState,
         fman_tiles, fman_frames = load_fman_grp()
 
     # --- PNG side (left) ---
-    body_frame = None if hide_body else resolve_body_frame(state)
+    body_frame_raw = resolve_body_frame(state)
     back_arm = resolve_back_arm_frame(state)
-    front_arm = None if hide_front_arm else resolve_front_arm_frame(state)
+    front_arm_raw = resolve_front_arm_frame(state)
+
+    body_frame = None if hide_body else body_frame_raw
+    front_arm = None if hide_front_arm else front_arm_raw
 
     png_layers: list[tuple[int | None, int, int]] = [
         (back_arm, x, y),
@@ -696,6 +699,23 @@ def render_comparison(canvas, state: HeroState,
                                    sy + (row*8 + ry) * grp_scale,
                                    _gv.PALETTE_STRS[p_idx], grp_scale)
 
+    # --- Composition info text (bottom of canvas) ---
+    def _hexfmt(v: int | None) -> str:
+        return f"0x{v:02X}" if v is not None else "None"
+
+    info_text = (f"Back: {_hexfmt(back_arm)}; "
+                 f"Body: {_hexfmt(body_frame_raw)}; "
+                 f"Front: {_hexfmt(front_arm_raw)}")
+    canvas.update_idletasks()
+    canvas_h = canvas.winfo_height()
+    if canvas_h <= 1:
+        try:
+            canvas_h = int(canvas.cget("height"))
+        except Exception:
+            canvas_h = 400
+    canvas.create_text(10, canvas_h - 10, anchor="sw",
+                        text=info_text, fill="white", font=("Consolas", 10))
+
 
 # ---------------------------------------------------------------------------
 # CLI demo — tkinter window with radio-button controls for every state param
@@ -797,7 +817,7 @@ if __name__ == "__main__":
     v_jump.trace_add("write", _update_anim_buttons)
 
     # --- canvas + redraw --------------------------------------------------
-    canvas = tk.Canvas(root, width=900, height=400, bg=CANVAS_BG)
+    canvas = tk.Canvas(root, width=1024, height=400, bg=CANVAS_BG)
     canvas.grid(row=0, column=0, rowspan=20, padx=5, pady=5, sticky="nsew")
 
     def redraw(*_args):
