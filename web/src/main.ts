@@ -2037,6 +2037,8 @@ initDungeonRenderer({
     readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
     writeMemory: (offset, data) => writeMemory?.(offset, data),
     viewportTop: () => getViewportTop(g()),
+    heroState,
+    dungeonState: dungeonStateObj,
     assets: () => ({
         tileSheet: dungeonTileSheet, tileSheetReady: dungeonTileSheetReady,
         dchrSheet: dungeonDchrSheet, dchrSheetReady: dungeonDchrSheetReady,
@@ -2063,6 +2065,7 @@ initTownRenderer({
     keys: () => ({ ArrowLeft: !!keys.ArrowLeft, ArrowRight: !!keys.ArrowRight }),
     frameTimer: () => frameTimer,
     townPatId: () => townPatId ?? 0,
+    heroState,
     assets: () => ({
         background: townBackground, backgroundReady: townBackgroundReady,
         ceiling: townCeiling, ceilingReady: townCeilingReady,

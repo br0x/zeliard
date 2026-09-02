@@ -24,23 +24,14 @@ import {
 } from '../config/engine.js';
 import { SWORD_OVERLAY_OFFSETS, MAGIC_PROJECTILE_STRIDE, PROJECTILE_STRUCT_SIZE } from '../data/assets.js';
 import { getMagicFrameIndex } from './dungeon-logic.js';
+import type { HeroState, DungeonRuntimeState } from '../core/game-state.js';
 import {
     ADDR_PROXIMITY_MAP, ADDR_PROXIMITY_LAYER2, ADDR_PROJECTILES_LIST,
-    ADDR_MAGIC_PROJECTILES, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_MAP_WIDTH,
+    ADDR_MAGIC_PROJECTILES, ADDR_MAP_WIDTH,
     ADDR_MONSTERS_LIST, ADDR_MAGIA_STONE_SPRITE0,
-    ADDR_IS_BOSS_CAVERN, ADDR_SPRITE_FLASH_FLAG, ADDR_BOSS_EXPLOSIONS_LIST,
-    ADDR_BOSS_IS_DEAD,
-    ADDR_HERO_X_VIEW, ADDR_HERO_HEAD_Y_VIEW, ADDR_FACING, ADDR_HERO_ANIM_PHASE,
-    ADDR_INVINCIBILITY_FLAG, ADDR_SQUAT_FLAG, ADDR_ON_ROPE_FLAGS,
-    ADDR_HERO_HIDDEN_FLAG, ADDR_JUMP_PHASE_FLAGS, ADDR_SHIELD_ANIM_ACTIVE,
-    ADDR_SHIELD_ANIM_PHASE, ADDR_SHIELD_VARIANT_INDEX, ADDR_SLOPE_DIRECTION,
-    ADDR_SHIELD_TYPE, ADDR_HERO_SPRITE_HIDDEN,
-    ADDR_SWORD_SWING_FLAG, ADDR_SWORD_MOVEMENT_PHASE, ADDR_SWORD_HIT_TYPE,
-    ADDR_SWORD_TYPE, ADDR_NOTIFICATION_FLAG, ADDR_NOTIFICATION_MSG_ID,
-    ADDR_CAVERN_SIGN_FLAG, ADDR_CAVERN_SIGN_IDX, ADDR_CAVERN_SIGNS_INFO,
-    ADDR_ROKA_COLOR, ADDR_ROKA_PHASE, ADDR_LEFT_RUN,
-    ADDR_CAVERN_LEVEL, ADDR_VIEWPORT_LEFT_TOP, ADDR_BYTE_9EED,
-    ADDR_CURR_SPELL_TYPE,
+    ADDR_BOSS_EXPLOSIONS_LIST,
+    ADDR_CAVERN_SIGNS_INFO,
+    ADDR_BYTE_9EED,
 } from '../core/memory.js';
 
 /** Minimal description of a loaded sprite sheet image. */
@@ -85,6 +76,10 @@ export interface DungeonRenderEnv {
     assets(): DungeonAssets;
     /** Loaded boss-encounter splash image (drawEncounterText). */
     encounterImg(): CanvasImageSource | null;
+    /** Typed hero state for simple flag/position reads. */
+    heroState: HeroState;
+    /** Typed dungeon runtime state for simple flag reads. */
+    dungeonState: DungeonRuntimeState;
 }
 
 let env: DungeonRenderEnv;
@@ -184,24 +179,26 @@ export function resolveFrontArmFrame(state: HeroVisualState): number | null {
 }
 
 function getShieldCategory(): number {
-    const shieldType = env.gMem(ADDR_SHIELD_TYPE);
+    const shieldType = env.heroState.shieldType;
     if (!shieldType) return 0;
     return shieldType >= 4 ? 2 : 1;
 }
 
 function getDungeonHeroState(): HeroVisualState {
+    const hs = env.heroState;
+    const ds = env.dungeonState;
     return {
-        facingLeft: (env.readU8(ADDR_FACING) & 1) !== 0,
-        animPhase: env.readU8(ADDR_HERO_ANIM_PHASE),
-        invincible: env.readU8(ADDR_INVINCIBILITY_FLAG) !== 0,
-        squat: env.readU8(ADDR_SQUAT_FLAG) !== 0,
-        onRope: env.readU8(ADDR_ON_ROPE_FLAGS) !== 0,
-        hidden: env.readU8(ADDR_HERO_HIDDEN_FLAG) !== 0,
-        jump: env.readU8(ADDR_JUMP_PHASE_FLAGS),
-        shieldAnimActive: env.readU8(ADDR_SHIELD_ANIM_ACTIVE) !== 0,
-        shieldPhase: env.readU8(ADDR_SHIELD_ANIM_PHASE),
-        shieldVariant: env.readU8(ADDR_SHIELD_VARIANT_INDEX),
-        slope: env.readU8(ADDR_SLOPE_DIRECTION),
+        facingLeft: (hs.facing & 1) !== 0,
+        animPhase: hs.animPhase,
+        invincible: hs.invincible,
+        squat: ds.squatFlag,
+        onRope: ds.onRopeFlags !== 0,
+        hidden: ds.heroHiddenFlag,
+        jump: ds.jumpPhaseFlags,
+        shieldAnimActive: ds.shieldAnimActive,
+        shieldPhase: ds.shieldAnimPhase,
+        shieldVariant: ds.shieldVariantIndex,
+        slope: ds.slopeDirection,
         shieldCategory: getShieldCategory(),
     };
 }
@@ -270,11 +267,11 @@ export function animateDungeonTiles(): void {
     if (!env.readMemory(ADDR_PROXIMITY_MAP, 1) || lastAnimatedRenderCounter === renderCounter) return;
     lastAnimatedRenderCounter = renderCounter;
 
-    const cavernLevel = env.readU8(ADDR_CAVERN_LEVEL);
+    const cavernLevel = env.readU8(0xC012);
     if (cavernLevel < 5 || cavernLevel > 8) return;
 
     const oddTick = (renderCounter & 1) !== 0;
-    const viewportLeftTop = env.readU16(ADDR_VIEWPORT_LEFT_TOP);
+    const viewportLeftTop = env.dungeonState.viewportLeftTop;
 
     // Batch-read the whole proximity map once. It is a direct view into WASM
     // g_mem, so advancing a tile is a plain array write (no allocation, no
@@ -335,7 +332,7 @@ function spawnBossExplosionRings(col: number, row: number): void {
     }
 
     // ── 2. Spawn a new ring (probabilistic, each call) ─────────────────────
-    if (env.readU8(ADDR_BOSS_IS_DEAD)) return; // stop spawning after boss dies
+    if (env.dungeonState.bossIsDead) return; // stop spawning after boss dies
     if (row >= 16) return;
     if ((Math.random() * 16 | 0) >= 2) return; // ~⅛ probability (C: (r&0x0F)<14)
 
@@ -403,7 +400,7 @@ export function drawDungeonProjectiles(): void {
 
 export function drawDungeonMagicProjectiles(): void {
     if (!A().magicSheetReady || !env.readMemory(ADDR_PROXIMITY_MAP, 1)) return;
-    const currentSpell = env.readU8(ADDR_CURR_SPELL_TYPE);
+    const currentSpell = env.heroState.currentSpellType;
     if (currentSpell === 0 || currentSpell === 7) return;
     const spellIndex = currentSpell - 1;
     const top = env.viewportTop();
@@ -430,7 +427,7 @@ export function drawDungeonMagicProjectiles(): void {
         const mpDir = env.readU8(addr + 3);
         const animFrame = env.readU8(addr + 5);
 
-        const leftCol = env.readU16(ADDR_PROXIMITY_MAP_LEFT_COL);
+        const leftCol = env.heroState.proxMapLeftCol;
         const mapWidth = env.readU16(ADDR_MAP_WIDTH);
 
         let relX: number;
@@ -527,8 +524,8 @@ export function isGuerraEffectRunning(): boolean {
 }
 
 async function renderGuerraEffect(): Promise<void> {
-    const heroX = env.readU8(ADDR_HERO_X_VIEW) * TILE_SIZE;
-    const heroY = env.readU8(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
+    const heroX = env.heroState.xView * TILE_SIZE;
+    const heroY = env.heroState.headYView * TILE_SIZE;
     const baseW = 3 * TILE_SIZE;      // hero box: 3x3 tiles
     const baseH = 3 * TILE_SIZE;
     const grow = 1.5 * TILE_SIZE;     // each rectangle is 3 tiles bigger
@@ -606,7 +603,7 @@ export function drawDungeonEntities(): void {
     // for this freshly cleared frame; never carry it across rAF callbacks.
     const claimedTiles = new Uint8Array(VIEW_COLS * VIEW_ROWS);
     const bossExplosionActive =
-        env.readU8(ADDR_IS_BOSS_CAVERN) && env.readU8(ADDR_SPRITE_FLASH_FLAG);
+        env.dungeonState.isBossCavern && env.dungeonState.spriteFlashFlag;
     // Spawn while scanning, but render the rings after every entity, as the
     // original Boss_Explosions_Renderer call does.
     bossExplosionFrameRendered = Boolean(bossExplosionActive);
@@ -696,7 +693,7 @@ export function drawDungeonEntities(): void {
     // then index the local array (si - ADDR_PROXIMITY_MAP is always in range
     // because wrapProximityAddress bounds si to the 36*64 circular buffer).
     const proxMap = env.readMemory(ADDR_PROXIMITY_MAP, PROX_SIZE)!;
-    const viewportLeftTop = env.readU16(ADDR_VIEWPORT_LEFT_TOP);
+    const viewportLeftTop = env.dungeonState.viewportLeftTop;
 
     // Include the invisible row and left edge so partially visible sprites
     // are naturally clipped by the canvas, matching the assembly helpers.
@@ -738,9 +735,9 @@ export function drawDungeonMagiaStones(): void {
 
 export function drawDungeonHero(): void {
     if (!A().heroSheetReady || !env.engineReady() || !env.readMemory(ADDR_PROXIMITY_MAP, 1)) return;
-    if (env.gMem(ADDR_HERO_SPRITE_HIDDEN)) return;
-    const x0 = env.gMem(ADDR_HERO_X_VIEW);
-    const y0 = env.gMem(ADDR_HERO_HEAD_Y_VIEW);
+    if (env.dungeonState.heroSpriteHidden) return;
+    const x0 = env.heroState.xView;
+    const y0 = env.heroState.headYView;
     const dx = x0 * TILE_SIZE;
     const dy = y0 * TILE_SIZE;
     const state = getDungeonHeroState();
@@ -761,20 +758,20 @@ let swordSwingStart: number | null = null;
 
 export function drawDungeonSword(): void {
     if (!A().swordSheetReady || !env.readMemory(ADDR_PROXIMITY_MAP, 1)) return;
-    const swingFlag = env.gMem(ADDR_SWORD_SWING_FLAG);
+    const swingFlag = env.dungeonState.swordSwingFlag;
     if (!swingFlag) {
         swordSwingStart = null;
         return;
     }
 
-    const hitType = env.gMem(ADDR_SWORD_HIT_TYPE) || 0;
-    const swordType = Math.max(1, Math.min(6, env.gMem(ADDR_SWORD_TYPE) || 1));
-    const facingLeft = (env.gMem(ADDR_FACING) & 1) !== 0;
+    const hitType = env.dungeonState.swordHitType || 0;
+    const swordType = Math.max(1, Math.min(6, env.heroState.swordType || 1));
+    const facingLeft = (env.heroState.facing & 1) !== 0;
 
     // C code's Render_Sword_Overlay already increments ADDR_SWORD_MOVEMENT_PHASE,
     // so the stored value is display_phase + 1. If phase is 0, C hasn't processed
     // the swing yet — skip rendering until it does.
-    const storedPhase = env.gMem(ADDR_SWORD_MOVEMENT_PHASE);
+    const storedPhase = env.dungeonState.swordMovementPhase;
     if (storedPhase === 0) {
         swordSwingStart = null;
         return;
@@ -815,9 +812,9 @@ export function drawDungeonSword(): void {
     const row = baseRow + (facingLeft ? 1 : 0);
     const spriteIndex = row * DUNGEON_SWORD_SHEET_COLS + col;
 
-    let dx = env.gMem(ADDR_HERO_X_VIEW) * TILE_SIZE;
-    let dy = env.gMem(ADDR_HERO_HEAD_Y_VIEW) * TILE_SIZE;
-    if (env.gMem(ADDR_SQUAT_FLAG)) {
+    let dx = env.heroState.xView * TILE_SIZE;
+    let dy = env.heroState.headYView * TILE_SIZE;
+    if (env.dungeonState.squatFlag) {
         dy += TILE_SIZE;
     }
 
@@ -869,7 +866,7 @@ function drawDungeonBox(x: number, y: number, w: number, h: number): void {
 }
 
 export function drawDungeonNotification(): void {
-    const flag = env.readU8(ADDR_NOTIFICATION_FLAG);
+    const flag = env.dungeonState.notificationFlag;
     if (!flag) {
         notificationStart = 0;
         return;
@@ -882,12 +879,12 @@ export function drawDungeonNotification(): void {
 
     const elapsed = now - notificationStart;
     if (elapsed >= NOTIFICATION_DURATION) {
-        env.writeMemory(ADDR_NOTIFICATION_FLAG, [0]);
+        env.dungeonState.notificationFlag = false;
         notificationStart = 0;
         return;
     }
 
-    const msgId = env.readU8(ADDR_NOTIFICATION_MSG_ID);
+    const msgId = env.dungeonState.notificationMsgId;
     const entry = (NOTIFICATION_STRINGS as unknown as Record<number, [number, string]>)[msgId];
     if (!entry) return;
     const [leftPad, text] = entry;
@@ -906,10 +903,10 @@ export function drawDungeonNotification(): void {
 }
 
 export function drawDungeonSign(): void {
-    const flag = env.readU8(ADDR_CAVERN_SIGN_FLAG);
+    const flag = env.dungeonState.cavernSignFlag;
     if (!flag) return;
 
-    const idx = env.readU8(ADDR_CAVERN_SIGN_IDX);
+    const idx = env.dungeonState.cavernSignIdx;
     const tablePtr = env.readU16(ADDR_CAVERN_SIGNS_INFO);
     const descPtr = env.readU16(tablePtr + idx * 2);
 
@@ -965,13 +962,15 @@ export function beginRokaRunFrame(startedThisTick: boolean): void {
 
 export function drawDungeonRoka(): void {
     if (!A().rokaImagesReady || !env.readMemory(ADDR_PROXIMITY_MAP, 1)) return;
-    const colorIdx = env.readU8(ADDR_ROKA_COLOR);
-    const phase = env.readU8(ADDR_ROKA_PHASE);
-    const facingLeft = (env.readU8(ADDR_FACING) & 1) !== 0;
-    const animPhase = env.readU8(ADDR_HERO_ANIM_PHASE);
-    const leftRun = env.readU8(ADDR_LEFT_RUN) !== 0;
-    const invincible = env.readU8(ADDR_INVINCIBILITY_FLAG) !== 0;
-    const shieldVariant = env.readU8(ADDR_SHIELD_VARIANT_INDEX);
+    const hs = env.heroState;
+    const ds = env.dungeonState;
+    const colorIdx = ds.rokaColor;
+    const phase = ds.rokaPhase;
+    const facingLeft = (hs.facing & 1) !== 0;
+    const animPhase = hs.animPhase;
+    const leftRun = hs.leftRun;
+    const invincible = hs.invincible;
+    const shieldVariant = ds.shieldVariantIndex;
     const shieldCategory = getShieldCategory();
 
     const rokaImg = A().rokaImages[Math.min(colorIdx, A().rokaImages.length - 1)];

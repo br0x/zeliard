@@ -297,17 +297,14 @@ This avoids the complexity of keeping two representations in sync.
 
 Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls — they live in the monster/projectile buffer region per the plan and are consumed by `render/dungeon.ts`.
 
-### Phase 4: Renderers
+### Phase 4: Renderers ✅ DONE
 
 **Files:** `render/dungeon.ts`, `render/town.ts`
 
-Currently: `env.gMem(0x83)` for hero position, `env.readU8(0xE8)` for flags
-After: `heroState.xView`, `heroState.invincible`
-
-1. Update `DungeonRenderEnv` and `TownRenderEnv` to include state objects
-2. Replace `env.gMem(ADDR)` with `heroState.field` or `dungeonState.field`
-3. Keep `env.readMemory` for proximity map / MDT buffer access
-4. Keep `env.gMem` for monster struct fields (computed offsets)
+1. Update `DungeonRenderEnv` and `TownRenderEnv` to include state objects ✅ (added `heroState` + `dungeonState` to dungeon env, `heroState` to town env)
+2. Replace `env.gMem(ADDR)` with `heroState.field` or `dungeonState.field` ✅ (hero state fields in hot paths: xView, headYView, facing, animPhase, invincible, squat, swordType, currentSpellType, etc.)
+3. Keep `env.readMemory` for proximity map / MDT buffer access ✅
+4. Keep `env.gMem` for monster struct fields (computed offsets) ✅
 
 ### Phase 5: Engine Files (most invasive)
 
@@ -362,7 +359,7 @@ For Track B, **consolidate** `g8/g16/s8/s16`:
 | Phase 1 | hud.ts, main.ts | Low | Small | ✅ Done |
 | Phase 2 | 8 scene files, scene.ts, main.ts | Low | Medium | ✅ Done |
 | Phase 3 | inventory-screen.ts, main.ts | Low | Medium | ✅ Done |
-| Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | Pending |
+| Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | ✅ Done |
 | Phase 5 | ~25 engine files | High | Large | Pending |
 | Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | Pending |
 | Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | Pending |

@@ -23,9 +23,9 @@ import {
     FRAME_LEFT_WALK_BASE, FRAME_RIGHT_WALK_BASE,
 } from '../config/engine.js';
 import {
-    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_PROXIMITY_MAP_LEFT_COL, ADDR_NPC_ARRAY_PTR,
-    ADDR_SPEED_CONST, ADDR_HERO_ANIM_PHASE, ADDR_FACING, ADDR_HERO_X_VIEW,
+    ADDR_TOWN_DESCRIPTOR_PTR, ADDR_NPC_ARRAY_PTR,
 } from '../core/memory.js';
+import type { HeroState } from '../core/game-state.js';
 import { PATTERN_ASSETS, NPC_FRAME_W, NPC_FRAME_H } from '../data/assets.js';
 import { getTownMapWidth } from '../core/transitions.js';
 
@@ -69,6 +69,8 @@ export interface TownRenderEnv {
     /** Current town pattern id (owned by the transition code). */
     townPatId(): number;
     assets(): TownAssets;
+    /** Typed hero state for simple flag/position reads. */
+    heroState: HeroState;
 }
 
 let env: TownRenderEnv;
@@ -234,7 +236,7 @@ export function drawTownTiles(): boolean {
 
     const leftCol = Math.max(0, Math.min(
         mapWidth - VIEW_COLS,
-        env.readU16(ADDR_PROXIMITY_MAP_LEFT_COL) + TOWN_VISIBLE_COL_OFFSET
+        env.heroState.proxMapLeftCol + TOWN_VISIBLE_COL_OFFSET
     ));
     for (let col = 0; col < VIEW_COLS; col++) {
         const mapCol = leftCol + col;
@@ -267,9 +269,8 @@ export function drawTownTiles(): boolean {
 
 export function drawTownHero(): void {
     if (!A().heroSpriteReady || !env.engineReady()) return;
-    env.gMem(ADDR_SPEED_CONST);
-    const heroAnim = env.gMem(ADDR_HERO_ANIM_PHASE);
-    const facing = env.gMem(ADDR_FACING) & 1;
+    const heroAnim = env.heroState.animPhase;
+    const facing = env.heroState.facing & 1;
     const keys = env.keys();
     const moving = keys.ArrowLeft || keys.ArrowRight;
     let frame: number;
@@ -286,7 +287,7 @@ export function drawTownHero(): void {
         }
     }
     const sx = frame * HERO_FRAME_W;
-    const viewportX = env.gMem(ADDR_HERO_X_VIEW);
+    const viewportX = env.heroState.xView;
     const dx = viewportX * TILE_SIZE;
     const dy = HERO_BASE_Y;
     env.ctx.drawImage(A().heroSprite!, sx, 0, HERO_FRAME_W, HERO_FRAME_H, dx, dy, HERO_FRAME_W, HERO_FRAME_H);
@@ -298,8 +299,7 @@ export function drawTownNpcs(): void {
     if (!ptrBytes) return;
     const npcArrayAddr = (ptrBytes[0] ?? 0) | ((ptrBytes[1] ?? 0) << 8);
     if (!npcArrayAddr) return;
-    const proxLeftBytes = env.readMemory(ADDR_PROXIMITY_MAP_LEFT_COL, 2)!;
-    const proxLeft = (proxLeftBytes[0] ?? 0) | ((proxLeftBytes[1] ?? 0) << 8);
+    const proxLeft = env.heroState.proxMapLeftCol;
     const sprites = A().npcSprites[townNpcSpriteCategory]!;
     for (let i = 0; i < 64; i++) {
         const base = npcArrayAddr + i * 8;
