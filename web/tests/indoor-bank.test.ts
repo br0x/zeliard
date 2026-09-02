@@ -49,26 +49,35 @@ function makeDeps(state: MemState) {
 }
 
 const goldOf = (s: MemState) =>
-    ((s.bytes.get(0x85) ?? 0) * 0x10000) +
-    ((s.bytes.get(0x86) ?? 0) | ((s.bytes.get(0x87) ?? 0) << 8));
+    ((s.buf[0x85] ?? 0) * 0x10000) +
+    ((s.buf[0x86] ?? 0) | ((s.buf[0x87] ?? 0) << 8));
 const setGold = (s: MemState, v: number) => {
     s.bytes.set(0x85, (v >>> 16) & 0xFF);
     s.bytes.set(0x86, v & 0xFF);
     s.bytes.set(0x87, (v >> 8) & 0xFF);
+    // Also write to buf so createLiveHeroState's live descriptors see the value
+    s.buf[0x85] = (v >>> 16) & 0xFF;
+    s.buf[0x86] = v & 0xFF;
+    s.buf[0x87] = (v >> 8) & 0xFF;
 };
 const bankOf = (s: MemState) =>
-    ((s.bytes.get(0x88) ?? 0) * 0x10000) +
-    ((s.bytes.get(0x89) ?? 0) | ((s.bytes.get(0x8A) ?? 0) << 8));
+    ((s.buf[0x88] ?? 0) * 0x10000) +
+    ((s.buf[0x89] ?? 0) | ((s.buf[0x8A] ?? 0) << 8));
 const setBank = (s: MemState, v: number) => {
     s.bytes.set(0x88, (v >>> 16) & 0xFF);
     s.bytes.set(0x89, v & 0xFF);
     s.bytes.set(0x8A, (v >> 8) & 0xFF);
+    s.buf[0x88] = (v >>> 16) & 0xFF;
+    s.buf[0x89] = v & 0xFF;
+    s.buf[0x8A] = (v >> 8) & 0xFF;
 };
 const almasOf = (s: MemState) =>
-    ((s.bytes.get(0x8B) ?? 0) | ((s.bytes.get(0x8C) ?? 0) << 8));
+    ((s.buf[0x8B] ?? 0) | ((s.buf[0x8C] ?? 0) << 8));
 const setAlmas = (s: MemState, v: number) => {
     s.bytes.set(0x8B, v & 0xFF);
     s.bytes.set(0x8C, (v >> 8) & 0xFF);
+    s.buf[0x8B] = v & 0xFF;
+    s.buf[0x8C] = (v >> 8) & 0xFF;
 };
 
 describe('bank tables', () => {
@@ -105,6 +114,7 @@ describe('BankScene transactions', () => {
 
     async function enter(state: MemState, townId = 1) {
         state.bytes.set(0xC4, townId);
+        state.buf[0xC4] = townId;
         stubImages();
         const clock = { ms: 50000 };
         vi.spyOn(performance, 'now').mockImplementation(() => clock.ms);
