@@ -333,13 +333,15 @@ Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls �
 
 **Note:** `heroStateFromBytes` exists in `game-state.ts` for standalone use (tests, snapshots) but isn't needed in the main save/load flow since the live view handles synchronization. The restore path uses `tsLoadSaveState` (which writes to g_mem) followed by the live view picking up the changes — this is simpler than creating a new HeroState object and manually copying fields.
 
-### Phase 7: Cleanup
+### Phase 7: Cleanup ✅ DONE
 
-1. Remove all unused `ADDR_*` constants from `memory.ts`
-2. Remove local `g8/g16/s8/s16` definitions from engine files
-3. Remove `readMemory`/`writeMemory` from DI interfaces where no longer needed
-4. Remove `gMemAt`, `readU8`, `readU16` exports if no longer needed
-5. Consider removing the `g_mem` export entirely (keep it internal to ts-memory.ts)
+1. Remove all unused `ADDR_*` constants from `memory.ts` ✅ (removed 71 of 159 constants — all were hero/dungeon state addresses migrated to typed state objects)
+2. Remove local `g8/g16/s8/s16` definitions from engine files ✅ (done in Phase 5)
+3. Remove `readMemory`/`writeMemory` from DI interfaces where no longer needed ✅ (kept where still needed: HUD for boss HP at computed pointer, indoor scenes for `selectKingDialogKey`/`getTownIdx` external helpers and SFX/save writes)
+4. Remove `gMemAt`, `readU8`, `readU16` exports if no longer needed ✅ (kept — still used in main.ts for one-off reads like `gMemAt(0xfff4)`, `readU8(ADDR_DUNGEON_FRAME_PHASE)`, etc.)
+5. Consider removing the `g_mem` export entirely (keep it internal to ts-memory.ts) ✅ (kept exported — needed by `createLiveHeroState`/`createLiveDungeonState` which are called from main.ts)
+
+**Final state:** 88 ADDR_ constants remain (down from 159), all actively used by engine code for buffer-relative reads (monster structs, proximity map, projectiles, MDT data, seg1 config). The typed state objects (`heroState`, `dungeonState`, `townState`) handle all simple flag/word reads.
 
 ## Risk Assessment
 
@@ -361,6 +363,6 @@ Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls �
 | Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | ✅ Done |
 | Phase 5 | ~25 engine files | High | Large | ✅ Done |
 | Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | ✅ Done |
-| Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | Pending |
+| Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | ✅ Done |
 
 **Total:** ~50 files, with Phases 0-4 being low-risk and Phase 5 being the bulk of the work.

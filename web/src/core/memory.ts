@@ -29,7 +29,6 @@ export const ADDR_TRAJECTORIES = 0xA531;
 export const ADDR_TOWN_TRANSITION_MAP = 0xFFF1;
 export const ADDR_TOWN_TRANSITION_PAT = 0xFFF2;
 export const ADDR_TOWN_TRANSITION_DIR = 0xFFF3;
-export const ADDR_TOWN_TRANSITION_FLAG = 0xFFF4;
 
 /**
  * Sword-reach tables written by setDungeonSwordReach, consumed by
@@ -130,99 +129,45 @@ export interface TownPendingTransition {
     goingLeft: boolean;
 }
 export const ADDR_BYTE4                     = 0x04;     // bit7 set by control code 0x8B (endgame: final Tear of Esmesanti delivered)
-export const ADDR_SPOKE_TO_KING             = 0x05;
-export const ADDR_ENTERED_CAVERN_FIRST_TIME = 0x06;
 export const ADDR_CALIENTE_ITEMS            = 0x34;     // bit7 = spoke to girl after Paguro; bit6 = bought Asbestos Cape
 export const ADDR_FALTER_ITEMS              = 0x45;     // bit7 = Pureza warp building used (0xFF dest id)
 export const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
-export const ADDR_CEMENTAR_1                = 0x24;     // bit 1 = Returned Crest of Glory
 export const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 export const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
 export const ADDR_HERO_X_VIEW               = 0x83;
-export const ADDR_HERO_HEAD_Y_VIEW          = 0x84;
-export const ADDR_HERO_GOLD_HI              = 0x85;
-export const ADDR_HERO_GOLD_LO              = 0x86;
-export const ADDR_BANK_HI                   = 0x88;   // 24-bit bank gold: hi byte
-export const ADDR_BANK_LO                   = 0x89;   // 24-bit bank gold: lo word (2 bytes, LE)
 export const ADDR_HERO_ALMAS                = 0x8b;
 export const ADDR_HERO_LEVEL                = 0x8d;
-export const ADDR_HERO_XP                   = 0x8e;
 export const ADDR_HERO_HP                   = 0x90;
 export const ADDR_SWORD_TYPE                = 0x92;
-export const ADDR_SHIELD_TYPE               = 0x93;
-export const ADDR_SHIELD_HP                 = 0x94;
 export const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
-export const ADDR_CREST_OF_GLORY            = 0x9B;
-export const ADDR_MAGIC_MASKS              = 0xC9;   // one byte per town (9 towns)
 export const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
-export const ADDR_CURR_SPELL_TYPE           = 0x9d;
-export const ADDR_CURRENT_ACCESSORY         = 0x9E;
-export const ADDR_SHIELD_MAX_HP             = 0x96;     // word
-export const ADDR_KEYS_AMOUNT               = 0x98;
-export const ADDR_LION_KEYS_AMOUNT          = 0x99;
 export const ADDR_TEAR_COUNT                = 0xA0;
-export const ADDR_FERUZA_SHOES              = 0xA1;
-export const ADDR_SPELL_COUNTS = [
-    0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1
-];
-export const ADDR_SPELLS_ACTIVE            = 0xAB;  // base: 7 contiguous spell count bytes
-export const ADDR_MAGIC_ITEMS              = 0xA6;
-export const ADDR_HERO_MAX_HP               = 0xB2;
-export const ADDR_SPELLS_INVENTORY          = 0xB4;  // 7 bytes: espada spell inventory
-export const ADDR_ESPADA_ACTIVE             = 0xBB;
 export const ADDR_FACING                    = 0xC2;
-export const ADDR_LEFT_RUN                  = 0xC3;
 export const ADDR_PLACE_MAP_ID              = 0xC4;
 export const ADDR_LAST_SAGE_VISITED         = 0xC5;
-export const ADDR_SAGES_SPOKEN              = 0xE5;
-export const ADDR_HERO_ANIM_PHASE           = 0xE7;
-export const ADDR_INVINCIBILITY_FLAG        = 0xE8;
-export const ADDR_SWORD_ENCHANTMENT_LEVEL   = 0xE4;
-export const ADDR_SWORD_MASKS              = 0xD2;  // one byte per town (9 towns)
-export const ADDR_SHIELD_MASKS             = 0xDB;  // one byte per town
 
 // Engine-internal addresses (not in save image, used by dungeon engine)
 export const ADDR_HERO_Y                   = 0xFF35; // hero absolute Y position
-export const ADDR_HERO_DAMAGE_THIS_FRAME   = 0xFF36;
-export const ADDR_HEALING_TIMER            = 0x00C6; // word
-export const ADDR_IS_JASHIIN_CAVERN        = 0x00E6;
 export const ADDR_BOSS_BEING_HIT           = 0xFF2E;
-export const ADDR_MONSTER_INDEX            = 0xFF4A;
 export const ADDR_ANIM_TIMER               = 0xFF1B; // word
-export const ADDR_BYTE_FF24                = 0xFF24;
-export const ADDR_MAO2_START_LATCH         = 0xFF21;
-export const ADDR_DEATH_DESCRIPTORS_PTR    = 0xA006; // word
-export const ADDR_BYTE_9F02                = 0x9F02;
-export const ADDR_JUMP_HEIGHT_INCLUDING_SHOES = 0x9F0D;
-export const ADDR_TEMPERATURE_TIMER        = 0x9F25;
-export const ADDR_BYTE_9F18                = 0x9F18;
-export const ADDR_BYTE_9F27                = 0x9F27;
-export const ADDR_BYTE_9F2B                = 0x9F2B;
-export const ADDR_BOSS_REWARD_PROCESSED    = 0x9F1E;
 
 export const ADDR_BOSS_STATE_BLOCK        = 0x9D00;
 export const ADDR_BYTE_9EED               = 0x9EED; // set on casting "guerra"
 export const ADDR_MONSTER_XP_TABLE        = 0xA008; // 8 bytes
 export const ADDR_MONSTER_DAMAGE_TABLE    = 0xA010; // 8 bytes
-export const ADDR_BYTE_9F00               = 0x9F00;
 export const ADDR_BOSS_PLACEMENT          = 0x9F01;
 export const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
-export const ADDR_DOOR_TARGET_Y           = 0x9F1C; // byte
-export const ADDR_DOOR_FEATURES           = 0x9F1D; // byte
 
 
 export const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
 export const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
-export const ADDR_DUNGEON_ENTRANCE_TABLE  = 0xC00B;
 export const ADDR_NPC_CONVERSATIONS       = 0xC00D;
 export const ADDR_NPC_ARRAY_PTR           = 0xC00F;
 export const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)
 export const ADDR_CAVERN_LEVEL            = 0xC012;
 export const ADDR_TEAR_X                  = 0xC013; // word
-export const ADDR_HERO_Y_VIEW_INIT        = 0xC016;
 export const ADDR_CAVERN_SIGNS_INFO       = 0xC017; // word
 export const ADDR_PROXIMITY_MAP           = 0xE000; // 36*64 circular buffer
-export const ADDR_VIEWPORT_ENTITIES       = 0xE900; // 28*19 bytes cache buffer
 export const ADDR_MAGIC_PROJECTILES       = 0xEB15; // 4 slots × 16 bytes each
 export const ADDR_MAGIA_STONE_SPRITE0     = 0xEB60; // magia stone sprite 0 (7 bytes each, 4 sprites)
 export const ADDR_MAGIA_STONE_SPRITE1     = 0xEB67;
@@ -234,24 +179,11 @@ export const ADDR_BOSS_EXPLOSIONS_LIST    = 0xEDA0; // up to 32 entities (4 byte
 export const ADDR_FRAME_TIMER             = 0xFF1A;
 export const ADDR_SPACEBAR_LATCH          = 0xFF1D  // byte
 export const ADDR_ALTKEY_LATCH            = 0xFF1E  // byte
-export const ADDR_SPRITE_FLASH_FLAG       = 0xFF2F; // byte
-export const ADDR_BOSS_IS_DEAD            = 0xFF30; // byte — 0xFF when boss is dead
 export const ADDR_VIEWPORT_LEFT_TOP       = 0xFF31; // word; address within proximity map, corresponding to viewport row 0, column -4; 0E000h .. 0E8FFh
 export const ADDR_SPEED_CONST             = 0xFF33;
-export const ADDR_IS_BOSS_CAVERN          = 0xFF34; // byte
-export const ADDR_HERO_SPRITE_HIDDEN      = 0xFF37;
-export const ADDR_SQUAT_FLAG              = 0xFF38;
-export const ADDR_ON_ROPE_FLAGS           = 0xFF39;
-export const ADDR_HERO_HIDDEN_FLAG        = 0xFF3A;
-export const ADDR_SPELL_ACTIVE_FLAG       = 0xFF3C;
 export const ADDR_JUMP_PHASE_FLAGS        = 0xFF3D;
-export const ADDR_BYTE_FF3E               = 0xFF3E; // spell projectile active flag
-export const ADDR_SHIELD_ANIM_PHASE       = 0xFF3F;
-export const ADDR_SHIELD_ANIM_ACTIVE      = 0xFF40;
-export const ADDR_SHIELD_VARIANT_INDEX    = 0xFF41;
 export const ADDR_SLOPE_DIRECTION         = 0xFF42; // 1=right, 2=left, 0=none
 export const ADDR_SWORD_SWING_FLAG        = 0xFF43;
-export const ADDR_UI_ELEMENT_DIRTY        = 0xFF44;
 export const ADDR_SWORD_HIT_TYPE          = 0xFF45;
 export const ADDR_SWORD_MOVEMENT_PHASE    = 0xFF46;
 export const ADDR_SOUND_FX_REQUEST        = 0xFF75;
@@ -263,17 +195,12 @@ export const ADDR_RENDER_REQUEST          = 0xFF92;
 export const ADDR_RENDER_DONE             = 0xFF93;
 export const ADDR_GOLD_RENDER_REQUEST     = 0xFF94;
 export const ADDR_DEATH_COUNTER           = 0xFF95;
-export const ADDR_NOTIFICATION_MSG_ID     = 0xFF96;
-export const ADDR_NOTIFICATION_FLAG       = 0xFF97;
 export const ADDR_ALMAS_RENDER_REQUEST    = 0xFF98;
 export const ADDR_HEALTH_BAR_REQUEST      = 0xFF99;
 export const ADDR_SHIELD_HP_RENDER_REQUEST = 0xFF9A;
-export const ADDR_ROKA_PHASE              = 0xFF9D;
 export const ADDR_ROKA_COLOR              = 0xFF9E;
 export const ADDR_BOSS_HEALTH_REQUEST     = 0xFF9F;
 export const ADDR_BOSS_MODE               = 0xFFA0;
-export const ADDR_CAVERN_SIGN_FLAG        = 0xFFA1;
-export const ADDR_CAVERN_SIGN_IDX         = 0xFFA2;
 export const ADDR_MAGIC_LEFT_RENDER_REQUEST = 0xFFA3;
 export const ADDR_SWORD_RENDER_REQUEST     = 0xFFA4;
 export const ADDR_SWORD_GFX_RELOAD_REQUEST = 0xFFA5;
