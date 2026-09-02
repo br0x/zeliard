@@ -19,7 +19,6 @@
  * detection, and the wind-tunnel (cavern level 5) airflow blocking.
  */
 
-import { SEG1_BASE } from '../core/memory.js';
 import { memRead8, memRead16, memWrite8, memWrite16, segRead8 } from '../core/ts-memory.js';
 
 // ─── addresses ───
@@ -28,18 +27,13 @@ const PROX_COLS = 36;
 const PROXIMITY_SIZE = PROX_COLS * 64; // 0x900
 const ADDR_MAP_WIDTH = 0xc002; // word
 const ADDR_CAVERN_LEVEL = 0xc012;
-const SEG1_PASSABLE_TILES = seg1(0x8000); // 24 bytes
-const SEG1_AIRFLOW_TILES = seg1(0x8024); // 4×up, 4×left, 4×right
+const SEG1_PASSABLE_TILES = 0x8000; // 24 bytes (seg1-relative offset)
+const SEG1_AIRFLOW_TILES = 0x8024; // 4×up, 4×left, 4×right (seg1-relative offset)
 
 const AIRFLOW_NONE = 0xff;
 const AIRFLOW_UP = 0;
 const AIRFLOW_LEFT = 1;
 const AIRFLOW_RIGHT = 2;
-
-function seg1(offset: number): number {
-    return SEG1_BASE + offset;
-}
-/** seg1 reads must NOT be truncated to 16 bits (seg1 lives past 0x10000). */
 
 
 
