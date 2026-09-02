@@ -12,6 +12,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -24,22 +25,7 @@ const SOUND_FX_REQUEST = 0xff75;
 const PROXIMITY_MAP_LEFT_COL = 0x80; // word
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_AA53 .. byte_AA68) ───
 
@@ -164,24 +150,24 @@ const REACTION_HIGH_POSE = [3, 2, 3, 2, 1, 3, 0x82];
 // ─── boss_state_block accessors ───
 
 function bossStateAddr(g: Uint8Array): number {
-    return g16(g, BOSS_STATE_PTR);
+    return memRead16(g, BOSS_STATE_PTR);
 }
 
 // Carry-style movement helpers: return 1 on success, 0 when the 14..30
 // horizontal bound prevented it.
 function moveBossLeft(g: Uint8Array): number {
     const b = bossStateAddr(g);
-    const x = (g16(g, b + 0) - 1) & 0xffff;
+    const x = (memRead16(g, b + 0) - 1) & 0xffff;
     if (x <= 14) return 0;
-    s16(g, b + 0, x);
+    memWrite16(g, b + 0, x);
     return 1;
 }
 
 function moveBossRight(g: Uint8Array): number {
     const b = bossStateAddr(g);
-    const x = (g16(g, b + 0) + 1) & 0xffff;
+    const x = (memRead16(g, b + 0) + 1) & 0xffff;
     if (x > 30) return 0;
-    s16(g, b + 0, x);
+    memWrite16(g, b + 0, x);
     return 1;
 }
 
@@ -198,21 +184,21 @@ export function dragonAiReset(): void {
 
 /** Draw_Boss_Health equivalent. */
 function drawBossHealth(g: Uint8Array): void {
-    s8(g, BOSS_HEALTH_REQUEST, 0xff);
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff);
 }
 
 // sub_A9B4: subtract damage (saturating), redraw health, start death at 0.
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
     const b = bossStateAddr(g);
-    let hp = g16(g, b + 3);
+    let hp = memRead16(g, b + 3);
     hp = damage > hp ? 0 : (hp - damage) & 0xffff;
-    s16(g, b + 3, hp);
+    memWrite16(g, b + 3, hp);
 
     drawBossHealth(g);
     if (hp !== 0) return;
 
     deathTimer = 0;
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
     vulnerableHit = 0;
     reactionIndex = 0;
     breathActive = 0;
@@ -277,8 +263,8 @@ function renderDragon(g: Uint8Array): void {
 
     activeSpriteCount = 0;
     const b = bossStateAddr(g);
-    let x = g16(g, b + 0);
-    let si = g16(g, MONSTERS_LIST);
+    let x = memRead16(g, b + 0);
+    let si = memRead16(g, MONSTERS_LIST);
     let cell = 0;
 
     for (let col = 0; col < 29; col++, x = (x + 1) & 0xffff, cell += 10) {
@@ -290,27 +276,27 @@ function renderDragon(g: Uint8Array): void {
             const tile = layoutBuffer[cell + row] ?? 0xff;
             if (tile === 0xff) continue;
 
-            s16(g, si + 0, x);
-            s8(g, si + 2, (g8(g, b + 2) + row) & 0x3f);
-            s8(g, si + 3, currentRelX);
+            memWrite16(g, si + 0, x);
+            memWrite8(g, si + 2, (memRead8(g, b + 2) + row) & 0x3f);
+            memWrite8(g, si + 3, currentRelX);
 
             let flags = (tile >> 4) & 0xff;
-            if (g8(g, BOSS_BEING_HIT) === 0) flags |= 0x80;
-            s8(g, si + 4, flags);
-            s8(g, si + 6, tile);
-            s8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00);
+            if (memRead8(g, BOSS_BEING_HIT) === 0) flags |= 0x80;
+            memWrite8(g, si + 4, flags);
+            memWrite8(g, si + 6, tile);
+            memWrite8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, di);
-            s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, di);
+            memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount++;
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
     if (!breathActive) return;
 
     let flameTiles: ReadonlyArray<number>;
@@ -324,7 +310,7 @@ function renderDragon(g: Uint8Array): void {
         flameMasks = FLAME_RIGHT_MASKS[breathFrame & 3] ?? [];
     }
 
-    x = (g16(g, b + 0) - 10) & 0xffff;
+    x = (memRead16(g, b + 0) - 10) & 0xffff;
     if (pose === 5) x = (x + 4) & 0xffff;
 
     for (let col = 0; col < 13; col++, x = (x + 1) & 0xffff) {
@@ -337,17 +323,17 @@ function renderDragon(g: Uint8Array): void {
 
             if (win.inside) {
                 const tile = flameTiles[ft] ?? 0;
-                s16(g, si + 0, x);
-                s8(g, si + 2, (g8(g, b + 2) + row + 4) & 0x3f);
-                s8(g, si + 3, currentRelX);
-                s8(g, si + 4, ((tile >> 4) | 0x20) & 0xff);
-                s8(g, si + 6, tile);
-                s8(g, si + 5, 0);
+                memWrite16(g, si + 0, x);
+                memWrite8(g, si + 2, (memRead8(g, b + 2) + row + 4) & 0x3f);
+                memWrite8(g, si + 3, currentRelX);
+                memWrite8(g, si + 4, ((tile >> 4) | 0x20) & 0xff);
+                memWrite8(g, si + 6, tile);
+                memWrite8(g, si + 5, 0);
 
-                const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                const oldTile = g8(g, di);
-                s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-                s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+                const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                const oldTile = memRead8(g, di);
+                memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+                memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
                 si += 16;
                 activeSpriteCount++;
@@ -359,24 +345,24 @@ function renderDragon(g: Uint8Array): void {
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 }
 
 // loc_A9F2: flash/thrash then hold before signalling death.
 function deathSequenceStep(g: Uint8Array): void {
     if (deathTimer >= 40) {
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     deathTimer++;
 
     if (deathTimer < 30) {
         animPhase = (animPhase + 1) & 0xff;
         pose = (2 + (animPhase & 1)) & 0xff;
         if ((animPhase & 3) === 0) {
-            s8(g, SOUND_FX_REQUEST, 55);
+            memWrite8(g, SOUND_FX_REQUEST, 55);
         }
     } else {
         animPhase = 1;
@@ -390,7 +376,7 @@ function deathSequenceStep(g: Uint8Array): void {
 export function dragonAi(g: Uint8Array, m: number): void {
     void m;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     activeSpriteCount = 0;
     hitMonsterFlags = 0;
@@ -398,18 +384,18 @@ export function dragonAi(g: Uint8Array, m: number): void {
     // Restore proximity tiles overwritten by last frame's pseudo-monsters,
     // retaining the first struck Dragon part.
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break;
+        if (memRead16(g, si + 0) === 0xffff) break;
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            memWrite8(g, si + 3, win.xRel);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if ((g8(g, si + 5) & 0x40) !== 0 && (hitMonsterFlags & 0x80) === 0) {
-                let al = g8(g, si + 5) & 0x1f;
+            if ((memRead8(g, si + 5) & 0x40) !== 0 && (hitMonsterFlags & 0x80) === 0) {
+                let al = memRead8(g, si + 5) & 0x1f;
                 // A zero low-nibble in .flags marks the vulnerable parts.
-                if ((g8(g, si + 4) & 0x1f) === 0) al |= 0x80;
+                if ((memRead8(g, si + 4) & 0x1f) === 0) al |= 0x80;
                 hitMonsterFlags = al;
             }
         }
@@ -419,7 +405,7 @@ export function dragonAi(g: Uint8Array, m: number): void {
     }
 
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     if (hitMonsterFlags !== 0) {
         const al = hitMonsterFlags;
@@ -432,11 +418,11 @@ export function dragonAi(g: Uint8Array, m: number): void {
 
         if ((al & 0x80) !== 0) {
             vulnerableHit = 0xff;
-            s8(g, SOUND_FX_REQUEST, 52);
+            memWrite8(g, SOUND_FX_REQUEST, 52);
             damage = (damage << 1) & 0xffff;
         } else {
             moveRightAfterHit = 0xff;
-            s8(g, SOUND_FX_REQUEST, 53);
+            memWrite8(g, SOUND_FX_REQUEST, 53);
         }
 
         applyDamageToBoss(g, damage);
@@ -453,7 +439,7 @@ export function dragonAi(g: Uint8Array, m: number): void {
         vulnerableHit = 0;
     }
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequenceStep(g);
         return;
     }
@@ -461,7 +447,7 @@ export function dragonAi(g: Uint8Array, m: number): void {
     animPhase = (animPhase + 1) & 0xff;
 
     if (breathActive !== 0) {
-        s8(g, SOUND_FX_REQUEST, 54);
+        memWrite8(g, SOUND_FX_REQUEST, 54);
         let next = (breathFrame + 1) & 0xff;
         if (next >= 4) next = 2;
         breathFrame = next;
@@ -480,7 +466,7 @@ export function dragonAi(g: Uint8Array, m: number): void {
             breathCounter = 0;
             breathWindup = 0;
             breathActive = 0xff;
-            s8(g, SOUND_FX_REQUEST, 54);
+            memWrite8(g, SOUND_FX_REQUEST, 54);
         }
         renderDragon(g);
         return;
@@ -532,8 +518,8 @@ export function dragonAi(g: Uint8Array, m: number): void {
     // Select a standing pose from Dragon X relative to the viewport
     // (low-byte comparisons only, as in the original).
     {
-        const x = g16(g, bossStateAddr(g) + 0) & 0xff;
-        const left = g8(g, PROXIMITY_MAP_LEFT_COL);
+        const x = memRead16(g, bossStateAddr(g) + 0) & 0xff;
+        const left = memRead8(g, PROXIMITY_MAP_LEFT_COL);
         let edge = (left + 16) & 0xff;
 
         if (edge < x) {

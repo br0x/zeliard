@@ -48,6 +48,7 @@ import {
     mainUpdateRender,
     processHeroDeath,
 } from './dungeon-frame.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // ─── load_place_and_reinit (dungeon.c:932) ───
 //
@@ -56,46 +57,38 @@ import {
 // recompute the (defeat) door position, and re-enter Cavern_Game_Init.
 // Asset loads are stubs, exactly as in the C translation.
 function loadPlaceAndReinit(g: Uint8Array): void {
-    const g8 = (a: number): number => g[a & 0xffff] ?? 0;
-    const g16 = (a: number): number => (g[a & 0xffff] ?? 0) | ((g[(a + 1) & 0xffff] ?? 0) << 8);
-    const s8 = (a: number, v: number): void => { g[a & 0xffff] = v & 0xff; };
-    const s16 = (a: number, v: number): void => {
-        g[a & 0xffff] = v & 0xff;
-        g[(a + 1) & 0xffff] = (v >> 8) & 0xff;
-    };
+    if (memRead8(g, 0xe8 /* INVINCIBILITY_FLAG */) !== 0) return;
 
-    if (g8(0xe8 /* INVINCIBILITY_FLAG */) !== 0) return;
-
-    const mdt = g16(0xc000); // mdt_buffer → descriptor pointer
-    s8(0x9efe /* EAI_BIN_INDEX */, g8(mdt + 6)); // .boss_ai
-    s8(0x9eff /* ENP_GRP_INDEX */, g8(mdt + 7)); // .saved_enp_grp_idx
+    const mdt = memRead16(g, 0xc000); // mdt_buffer → descriptor pointer
+    memWrite8(g, 0x9efe /* EAI_BIN_INDEX */, memRead8(g, mdt + 6)); // .boss_ai
+    memWrite8(g, 0x9eff /* ENP_GRP_INDEX */, memRead8(g, mdt + 7)); // .saved_enp_grp_idx
     // (eai/enp loads + tile decompression are JS-side stubs, as in C)
 
-    s8(0xff34 /* IS_BOSS_CAVERN */, 0);
-    s8(0xffa0 /* BOSS_MODE */, 0);
+    memWrite8(g, 0xff34 /* IS_BOSS_CAVERN */, 0);
+    memWrite8(g, 0xffa0 /* BOSS_MODE */, 0);
 
     // Optional initializers from MDT descriptor+8 (addr/value word pairs).
     let si = (mdt + 8) & 0xffff;
     for (;;) {
-        const addr = g16(si);
+        const addr = memRead16(g, si);
         if (addr === 0xffff) break;
-        s16(addr, g16(si + 2));
+        memWrite16(g, addr, memRead16(g, si + 2));
         si = (si + 4) & 0xffff;
     }
 
     // Position and spawn the new door.
     const heroTl = heroCoordsToAddrInProximity(g);
-    let absX = (g16(0x80) + g8(0x83)) & 0xffff;
-    if (g8((heroTl - 5) & 0xffff) !== 0) absX = (absX + 9) & 0xffff;
-    const mapW = g16(0xc002);
+    let absX = (memRead16(g, 0x80) + memRead8(g, 0x83)) & 0xffff;
+    if (memRead8(g, (heroTl - 5) & 0xffff) !== 0) absX = (absX + 9) & 0xffff;
+    const mapW = memRead16(g, 0xc002);
     if (absX >= mapW) absX -= mapW;
-    si = g16(0xc00a /* DOORS_LIST */);
-    s16(si + 0, absX); // door[0].x0
+    si = memRead16(g, 0xc00a /* DOORS_LIST */);
+    memWrite16(g, si + 0, absX); // door[0].x0
     processDoors(g);
     // screen_flash_overlay(): stub
     clearHeroInViewport(g);
 
-    s8(0x9f1e /* BOSS_REWARD_PROCESSED */, 0);
+    memWrite8(g, 0x9f1e /* BOSS_REWARD_PROCESSED */, 0);
     cavernGameInit(g, statics); // default mainUpdateRender hook already bound
 }
 

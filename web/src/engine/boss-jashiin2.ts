@@ -13,6 +13,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -27,22 +28,7 @@ const HERO_X_VIEW = 0x83;
 const MAP_WIDTH = 0xc002; // word (low byte used by this module)
 const MAO2_START_LATCH = 0xff21; // byte — encounter-start latch
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state: byte_AC1B .. byte_AC38 ───
 
@@ -183,30 +169,30 @@ const RIGHT_MASKS: ReadonlyArray<ReadonlyArray<number>> = [
 // ─── boss_state_block accessors ───
 
 function bossState(g: Uint8Array): number {
-    return g16(g, BOSS_STATE_PTR);
+    return memRead16(g, BOSS_STATE_PTR);
 }
 function bossXGet(g: Uint8Array): number {
-    return g16(g, bossState(g) + 0);
+    return memRead16(g, bossState(g) + 0);
 }
 function bossXSet(g: Uint8Array, v: number): void {
-    s16(g, bossState(g) + 0, v);
+    memWrite16(g, bossState(g) + 0, v);
 }
 function bossYGet(g: Uint8Array): number {
-    return g8(g, bossState(g) + 2);
+    return memRead8(g, bossState(g) + 2);
 }
 function bossYSet(g: Uint8Array, v: number): void {
-    s8(g, bossState(g) + 2, v);
+    memWrite8(g, bossState(g) + 2, v);
 }
 function bossHpGet(g: Uint8Array): number {
-    return g16(g, bossState(g) + 3);
+    return memRead16(g, bossState(g) + 3);
 }
 function bossHpSet(g: Uint8Array, v: number): void {
-    s16(g, bossState(g) + 3, v);
+    memWrite16(g, bossState(g) + 3, v);
 }
 
 /** Draw_Boss_Health equivalent. */
 function drawBossHealth(g: Uint8Array): void {
-    s8(g, 0xff9f, 0xff);
+    memWrite8(g, 0xff9f, 0xff);
 }
 
 /** Jashiin2_AI_reset (mao2.c:195). */
@@ -264,7 +250,7 @@ function startShot1(g: Uint8Array): void {
 
     shot1X = (bossXGet(g) + (facingLeft & 5)) & 0xff;
     shot1Y = (bossYGet(g) + 4) & 0x3f;
-    s8(g, SOUND_FX_REQUEST, 58);
+    memWrite8(g, SOUND_FX_REQUEST, 58);
 }
 
 function startShot2(g: Uint8Array): void {
@@ -274,7 +260,7 @@ function startShot2(g: Uint8Array): void {
 
     shot2X = (bossXGet(g) + (facingLeft & 8) - 1) & 0xff;
     shot2Y = (bossYGet(g) + 4) & 0x3f;
-    s8(g, SOUND_FX_REQUEST, 58);
+    memWrite8(g, SOUND_FX_REQUEST, 58);
 }
 
 function buildBodyGrid(): void {
@@ -329,22 +315,22 @@ function renderBodyAndAttacks(g: Uint8Array): void {
             const cell = bodyGrid[col * 9 + row] ?? 0xff;
             if (cell === 0xff) continue;
 
-            s16(g, si + 0, worldX);
-            s8(g, si + 2, (bossYGet(g) + row) & 0x3f);
-            s8(g, si + 3, relX);
+            memWrite16(g, si + 0, worldX);
+            memWrite8(g, si + 2, (bossYGet(g) + row) & 0x3f);
+            memWrite8(g, si + 3, relX);
 
             // High nibble of cell becomes .flags (optionally OR 0x60);
             // the entire cell becomes .anim_counter.
-            s8(g, si + 4, ((cell >> 4) | tileFlagsOr) & 0xff);
-            s8(g, si + 6, cell);
+            memWrite8(g, si + 4, ((cell >> 4) | tileFlagsOr) & 0xff);
+            memWrite8(g, si + 6, cell);
             let ai = facingLeft & 0x80;
             if (hitFlags !== 0) ai |= 0x20;
-            s8(g, si + 5, ai);
+            memWrite8(g, si + 5, ai);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, di);
-            s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, di);
+            memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount = (activeSpriteCount + 1) & 0xff;
@@ -352,7 +338,7 @@ function renderBodyAndAttacks(g: Uint8Array): void {
     }
 
     appendPtr = si;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     renderAttackEntities(g);
 }
@@ -371,22 +357,22 @@ function renderAttackEntities(g: Uint8Array): void {
 
         const win = isInProximityWindow(g, shot1X);
         if (win.inside) {
-            s16(g, si + 0, shot1X);
-            s8(g, si + 2, shot1Y);
-            s8(g, si + 3, win.xRel);
-            s8(g, si + 4, 0x24);
+            memWrite16(g, si + 0, shot1X);
+            memWrite8(g, si + 2, shot1Y);
+            memWrite8(g, si + 3, win.xRel);
+            memWrite8(g, si + 4, 0x24);
 
             let anim = 0;
             if (shot1Age >= 3) {
                 anim = ((shot1Age & 3) + 1) & 0xff;
             }
-            s8(g, si + 6, anim);
-            s8(g, si + 5, shot1Facing & 0x80);
+            memWrite8(g, si + 6, anim);
+            memWrite8(g, si + 5, shot1Facing & 0x80);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, di);
-            s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, di);
+            memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount = (activeSpriteCount + 1) & 0xff;
@@ -398,7 +384,7 @@ function renderAttackEntities(g: Uint8Array): void {
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     // ---- attack entity 2: tile 0x25 ----
     if (shot2Active) {
@@ -413,17 +399,17 @@ function renderAttackEntities(g: Uint8Array): void {
 
         const win = isInProximityWindow(g, shot2X);
         if (win.inside) {
-            s16(g, si + 0, shot2X);
-            s8(g, si + 2, shot2Y);
-            s8(g, si + 3, win.xRel);
-            s8(g, si + 4, 0x25);
-            s8(g, si + 6, anim);
-            s8(g, si + 5, shot2Facing & 0x80);
+            memWrite16(g, si + 0, shot2X);
+            memWrite8(g, si + 2, shot2Y);
+            memWrite8(g, si + 3, win.xRel);
+            memWrite8(g, si + 4, 0x25);
+            memWrite8(g, si + 6, anim);
+            memWrite8(g, si + 5, shot2Facing & 0x80);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, di);
-            s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, di);
+            memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount = (activeSpriteCount + 1) & 0xff;
@@ -437,7 +423,7 @@ function renderAttackEntities(g: Uint8Array): void {
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
     appendPtr = si;
 }
 
@@ -448,11 +434,11 @@ function damageBoss(g: Uint8Array, damage: number): void {
 
     drawBossHealth(g);
 
-    if (hp === 0 && g8(g, BOSS_BEING_HIT) === 0) {
+    if (hp === 0 && memRead8(g, BOSS_BEING_HIT) === 0) {
         deathTimer = 0;
         shot1Active = 0;
         shot2Active = 0;
-        s8(g, BOSS_BEING_HIT, 0xff);
+        memWrite8(g, BOSS_BEING_HIT, 0xff);
     }
 }
 
@@ -470,7 +456,7 @@ function maybeRegenerate(g: Uint8Array): void {
     }
 
     bossHpSet(g, hp);
-    s8(g, SOUND_FX_REQUEST, 60);
+    memWrite8(g, SOUND_FX_REQUEST, 60);
     drawBossHealth(g);
 }
 
@@ -480,8 +466,8 @@ function chooseSpawnPosition(g: Uint8Array): void {
     // shr al,1 / sbb al,al => 00 if original bit0=0, FF if bit0=1
     facingLeft = (getRandom(g) & 1) !== 0 ? 0xff : 0x00;
 
-    const mapW = g8(g, MAP_WIDTH);
-    const left = g16(g, PROXIMITY_MAP_LEFT_COL) & 0xff;
+    const mapW = memRead8(g, MAP_WIDTH);
+    const left = memRead16(g, PROXIMITY_MAP_LEFT_COL) & 0xff;
 
     let x = ((~facingLeft & 0x14) + left + 4) & 0xff;
     if (x >= mapW) x = (x - mapW) & 0xff;
@@ -545,8 +531,8 @@ function activePhase(g: Uint8Array): void {
     }
 
     // Hero absolute X = proximity-left + hero viewport X + 3, wrapped.
-    let heroX = (g16(g, PROXIMITY_MAP_LEFT_COL) + g8(g, HERO_X_VIEW) + 3) & 0xff;
-    const mapW = g8(g, MAP_WIDTH);
+    let heroX = (memRead16(g, PROXIMITY_MAP_LEFT_COL) + memRead8(g, HERO_X_VIEW) + 3) & 0xff;
+    const mapW = memRead8(g, MAP_WIDTH);
     if (heroX >= mapW) heroX = (heroX - mapW) & 0xff;
 
     facingLeft = bossXGet(g) < heroX ? 0xff : 0x00;
@@ -627,15 +613,15 @@ function deathSequence(g: Uint8Array): void {
     const old = deathTimer;
 
     if (old >= 40) {
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
     if ((old & 7) === 0) {
-        s8(g, SOUND_FX_REQUEST, 35);
+        memWrite8(g, SOUND_FX_REQUEST, 35);
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     deathTimer = (deathTimer + 1) & 0xff;
 
     if (old >= 20) {
@@ -651,7 +637,7 @@ function deathSequence(g: Uint8Array): void {
 export function jashiin2Ai(g: Uint8Array, m: number): void {
     void m;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
 
     activeSpriteCount = 0;
@@ -660,22 +646,22 @@ export function jashiin2Ai(g: Uint8Array, m: number): void {
     // Restore every pseudo-monster tile left by the previous frame and
     // capture at most the first hit.
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break;
+        if (memRead16(g, si + 0) === 0xffff) break;
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
+            memWrite8(g, si + 3, win.xRel);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if (!(hitFlags & 0x80) && (g8(g, si + 5) & 0x40) !== 0) {
-                let al = g8(g, si + 5) & 0x1f;
+            if (!(hitFlags & 0x80) && (memRead8(g, si + 5) & 0x40) !== 0) {
+                let al = memRead8(g, si + 5) & 0x1f;
 
                 // A body cell whose tile flags low 5 bits are zero AND whose
                 // animation counter low nibble is zero is the special hit
                 // class marked by bit 7.
-                if ((g8(g, si + 4) & 0x1f) === 0 && (g8(g, si + 6) & 0x0f) === 0) {
+                if ((memRead8(g, si + 4) & 0x1f) === 0 && (memRead8(g, si + 6) & 0x0f) === 0) {
                     al |= 0x80;
                 }
                 hitFlags = al;
@@ -686,7 +672,7 @@ export function jashiin2Ai(g: Uint8Array, m: number): void {
         si += 16;
     }
 
-    s16(g, base, 0xffff);
+    memWrite16(g, base, 0xffff);
     appendPtr = base;
     activeSpriteCount = 0;
 
@@ -699,19 +685,19 @@ export function jashiin2Ai(g: Uint8Array, m: number): void {
         if (hitFlags !== 1) damage >>= 1;
 
         damageBoss(g, damage);
-        s8(g, SOUND_FX_REQUEST, 57);
+        memWrite8(g, SOUND_FX_REQUEST, 57);
 
         if (bossHpGet(g) < 200) regenPhase = 0xff;
     }
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequence(g);
         return;
     }
 
     // One-time encounter latch from byte_FF21.
     if (!encounterStarted) {
-        if (g8(g, MAO2_START_LATCH) !== 0) encounterStarted = 0xff;
+        if (memRead8(g, MAO2_START_LATCH) !== 0) encounterStarted = 0xff;
         return;
     }
 
@@ -740,7 +726,7 @@ export function jashiin2Ai(g: Uint8Array, m: number): void {
             return;
         }
 
-        s8(g, SOUND_FX_REQUEST, 59);
+        memWrite8(g, SOUND_FX_REQUEST, 59);
         tileFlagsOr = 0x60;
         animIndex = introVariant * 10;
         renderBodyAndAttacks(g);
@@ -764,7 +750,7 @@ export function jashiin2Ai(g: Uint8Array, m: number): void {
             renderAttackEntities(g);
             return;
         }
-        s8(g, SOUND_FX_REQUEST, 59);
+        memWrite8(g, SOUND_FX_REQUEST, 59);
         tileFlagsOr = 0x60;
         renderBodyAndAttacks(g);
         return;

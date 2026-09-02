@@ -25,6 +25,7 @@ import {
     getDstMonsterFlags,
 } from './dungeon-hero.js';
 import { wrapMapFromAbove, wrapMapFromBelow } from './dungeon-entities.js';
+import { memRead8, memRead16, memWrite8, memWrite16, segRead16 } from '../core/ts-memory.js';
 
 const PROX_COLS = 36;
 
@@ -54,27 +55,8 @@ export const SWORD_DAMAGES: readonly number[] = [1, 2, 4, 8, 32, 127];
 /** Static stat table byte_98BE (dungeon.c:82), indexed by al-2 for al=2..8. */
 export const BYTE_98BE: readonly number[] = [2, 4, 8, 16, 32, 64, 255];
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
 
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
-
-function seg16(g: Uint8Array, addr: number): number {
-    return (g[(SEG1_BASE + addr) & 0xffffff] ?? 0) |
-        ((g[(SEG1_BASE + addr + 1) & 0xffffff] ?? 0) << 8);
-}
 
 // ─── RNG (asm/stick.asm:1168 entropy accumulator) ───
 
@@ -94,7 +76,7 @@ export function setEntropy(v: number): void {
  * exactly: al = lo+hi (with carry into ah), then += entropy_accum.
  */
 export function getRandom(g: Uint8Array): number {
-    const anim = g16(g, ANIM_TIMER);
+    const anim = memRead16(g, ANIM_TIMER);
     let al = anim & 0xff;
     let ah = (anim >> 8) & 0xff;
     const carry = ((al + ah) >>> 8) & 0xff;
@@ -114,22 +96,22 @@ export function getRandom(g: Uint8Array): number {
  */
 export function getStats(g: Uint8Array, al: number): number {
     if (al === 0) {
-        return ((g8(g, HERO_LEVEL) >> 1) + 1) & 0xff;
+        return ((memRead8(g, HERO_LEVEL) >> 1) + 1) & 0xff;
     }
 
     if (al === 1) {
         // Sword damage: base + level/2, × difficulty, ×2 downward; saturating
-        const base = SWORD_DAMAGES[g8(g, 0x92) /* SWORD_TYPE */ - 1] ?? 0;
-        const halfLevel = g8(g, HERO_LEVEL) >> 1;
+        const base = SWORD_DAMAGES[memRead8(g, 0x92) /* SWORD_TYPE */ - 1] ?? 0;
+        const halfLevel = memRead8(g, HERO_LEVEL) >> 1;
         const sum = base + halfLevel;
         let ah: number;
         if (sum > 0xff) {
             ah = 0xff;
         } else {
-            const product = sum * ((g8(g, SWORD_ENCHANTMENT_LEVEL) + 1) & 0xff);
+            const product = sum * ((memRead8(g, SWORD_ENCHANTMENT_LEVEL) + 1) & 0xff);
             ah = product > 0xff ? 0xff : product;
         }
-        if (g8(g, SWORD_HIT_TYPE) === 2) {
+        if (memRead8(g, SWORD_HIT_TYPE) === 2) {
             const doubled = ah * 2;
             ah = doubled > 0xff ? 0xff : doubled & 0xff;
         }
@@ -137,7 +119,7 @@ export function getStats(g: Uint8Array, al: number): number {
     }
 
     if (al === 9) {
-        const temp = (g8(g, HERO_LEVEL) + 1) * 4;
+        const temp = (memRead8(g, HERO_LEVEL) + 1) * 4;
         return temp > 0xff ? 0xff : temp & 0xff;
     }
 
@@ -153,20 +135,20 @@ export function getStats(g: Uint8Array, al: number): number {
  * monster/item's ai_flags with the "hit this frame" bits (0x41).
  */
 export function applySwordHitToMapTiles(g: Uint8Array): void {
-    if (g8(g, SWORD_SWING_FLAG) === 0) return;
-    if (g8(g, IS_BOSS_CAVERN) !== 0 && g8(g, BOSS_BEING_HIT) !== 0) return;
+    if (memRead8(g, SWORD_SWING_FLAG) === 0) return;
+    if (memRead8(g, IS_BOSS_CAVERN) !== 0 && memRead8(g, BOSS_BEING_HIT) !== 0) return;
 
     // hero top-left proximity tile, adjusted up 3 rows when squatting else 4
     let si = heroCoordsToAddrInProximity(g);
-    const rows = g8(g, SQUAT_FLAG) !== 0 ? 3 : 4;
+    const rows = memRead8(g, SQUAT_FLAG) !== 0 ? 3 : 4;
     si = wrapMapFromBelow((si - rows * PROX_COLS) & 0xffff);
 
     // index into the reachability pointer table:
     // right phases 0..5 fwd, 6..9 overhead, 10 down-thrust; left adds 16
-    const dir = g8(g, FACING) & LEFT_FLAG;
+    const dir = memRead8(g, FACING) & LEFT_FLAG;
     const dir16 = (dir << 4) & 0xff;
-    const swordHitType = g8(g, SWORD_HIT_TYPE);
-    const phase = g8(g, SWORD_MOVEMENT_PHASE);
+    const swordHitType = memRead8(g, SWORD_HIT_TYPE);
+    const phase = memRead8(g, SWORD_MOVEMENT_PHASE);
     let result = dir16;
     switch (swordHitType) {
         case 0:
@@ -182,7 +164,7 @@ export function applySwordHitToMapTiles(g: Uint8Array): void {
     const idx = result & 0xfe;
 
     const reachTable = REACH_TABLE_SEG1;
-    const listOff = seg16(g, reachTable + idx);
+    const listOff = segRead16(g, reachTable + idx);
 
     // walk the FF-terminated offset list (seg1 data)
     let listPtr = (SEG1_BASE + listOff) & 0xffffff;
@@ -196,11 +178,11 @@ export function applySwordHitToMapTiles(g: Uint8Array): void {
         const { flags, monsterStruct } = getDstMonsterFlags(g, si);
         if (monsterStruct === 0) continue; // no monster/item marker here
         if ((flags & 0x20) !== 0) continue;
-        const aiFlags = g8(g, monsterStruct + 5);
+        const aiFlags = memRead8(g, monsterStruct + 5);
         if ((aiFlags & 0x20) !== 0) continue;
 
         // mark hit: keep bits 7-5, set bit6 + bit0
-        s8(g, monsterStruct + 5, (aiFlags & 0xe0) | 0x41);
+        memWrite8(g, monsterStruct + 5, (aiFlags & 0xe0) | 0x41);
     }
 }
 
@@ -208,14 +190,14 @@ export function applySwordHitToMapTiles(g: Uint8Array): void {
 
 /** update_hero_XP (dungeon.c:999): saturating word add to hero XP. */
 export function updateHeroXp(g: Uint8Array, amount: number): void {
-    const xp = g16(g, HERO_XP);
+    const xp = memRead16(g, HERO_XP);
     let next: number;
     if (amount > ((0xffff - xp) & 0xffff)) {
         next = 0xffff;
     } else {
         next = (xp + amount) & 0xffff;
     }
-    s16(g, HERO_XP, next);
+    memWrite16(g, HERO_XP, next);
 }
 
 /**
@@ -224,18 +206,18 @@ export function updateHeroXp(g: Uint8Array, amount: number): void {
  * near enough to the viewport top.
  */
 export function checkVerticalDistanceBetweenHeroAndMonster(g: Uint8Array, m: number): void {
-    s8(g, m + 6, 0); // anim_counter
-    s8(g, m + 4, g8(g, m + 4) | 0x68); // flags |= death animation bits
-    s8(g, m + 5, g8(g, m + 5) & 0x80); // clear AI flags except bit7
-    if ((g8(g, m + 7) & 0x10) !== 0 && (g8(g, m + 4) & 1) === 0) {
-        s8(g, m + 6, 0x80);
-        s8(g, m + 16 + 6, 0);
-        s8(g, m + 16 + 4, g8(g, m + 16 + 4) | 0x68);
-        s8(g, m + 16 + 5, g8(g, m + 16 + 5) & 0x80);
+    memWrite8(g, m + 6, 0); // anim_counter
+    memWrite8(g, m + 4, memRead8(g, m + 4) | 0x68); // flags |= death animation bits
+    memWrite8(g, m + 5, memRead8(g, m + 5) & 0x80); // clear AI flags except bit7
+    if ((memRead8(g, m + 7) & 0x10) !== 0 && (memRead8(g, m + 4) & 1) === 0) {
+        memWrite8(g, m + 6, 0x80);
+        memWrite8(g, m + 16 + 6, 0);
+        memWrite8(g, m + 16 + 4, memRead8(g, m + 16 + 4) | 0x68);
+        memWrite8(g, m + 16 + 5, memRead8(g, m + 16 + 5) & 0x80);
     }
-    const al = (g8(g, m + 2) - g8(g, VIEWPORT_TOP_ROW) + 1) & 0x3f;
+    const al = (memRead8(g, m + 2) - memRead8(g, VIEWPORT_TOP_ROW) + 1) & 0x3f;
     if (al < 19) {
-        s8(g, SOUND_FX_REQUEST, 7);
+        memWrite8(g, SOUND_FX_REQUEST, 7);
     }
 }
 
@@ -244,9 +226,9 @@ export function checkVerticalDistanceBetweenHeroAndMonster(g: Uint8Array, m: num
  * from the XP table indexed by flags&7... flags&0x0F per source) and kills.
  */
 export function monsterSplitOrDie(g: Uint8Array, m: number): void {
-    const flags = g8(g, m + 4);
+    const flags = memRead8(g, m + 4);
     if ((flags & 0x10) === 0) {
-        const xp = g8(g, XP_FOR_MONSTER + (flags & 0x0f));
+        const xp = memRead8(g, XP_FOR_MONSTER + (flags & 0x0f));
         updateHeroXp(g, xp);
     }
     checkVerticalDistanceBetweenHeroAndMonster(g, m);
@@ -259,39 +241,39 @@ export function monsterSplitOrDie(g: Uint8Array, m: number): void {
  * die via monster_split_or_die.
  */
 export function heroHitsMonster(g: Uint8Array, m: number): void {
-    const al = g8(g, m + 5) & 0x1f;
+    const al = memRead8(g, m + 5) & 0x1f;
     const ah = getStats(g, al);
-    const hp = g8(g, m + 8);
+    const hp = memRead8(g, m + 8);
     if (hp > ah) {
-        s8(g, m + 8, hp - ah);
-        s8(g, SOUND_FX_REQUEST, 6);
+        memWrite8(g, m + 8, hp - ah);
+        memWrite8(g, SOUND_FX_REQUEST, 6);
         return;
     }
 
     const pickDeathDescriptor = (): number => {
-        let di = g16(g, DEATH_DESCRIPTORS_PTR);
-        const bl = g8(g, m + 4) & 7;
-        di = g16(g, di + bl * 2);
-        const sel = g8(g, SWORD_HIT_TYPE) === 2 ? 0 : getRandom(g) & 3;
-        return g8(g, di + sel);
+        let di = memRead16(g, DEATH_DESCRIPTORS_PTR);
+        const bl = memRead8(g, m + 4) & 7;
+        di = memRead16(g, di + bl * 2);
+        const sel = memRead8(g, SWORD_HIT_TYPE) === 2 ? 0 : getRandom(g) & 3;
+        return memRead8(g, di + sel);
     };
 
-    if ((g8(g, m + 4) & 1) === 0 && (g8(g, m + 7) & 0x10) !== 0) {
+    if ((memRead8(g, m + 4) & 1) === 0 && (memRead8(g, m + 7) & 0x10) !== 0) {
         // big monster
-        if ((g8(g, m + 16 + 7) & 0x0f) !== 0) {
+        if ((memRead8(g, m + 16 + 7) & 0x0f) !== 0) {
             monsterSplitOrDie(g, m);
             return;
         }
         const al2 = pickDeathDescriptor();
-        s8(g, m + 16 + 7, (g8(g, m + 16 + 7) & 0xf0) | al2);
+        memWrite8(g, m + 16 + 7, (memRead8(g, m + 16 + 7) & 0xf0) | al2);
         monsterSplitOrDie(g, m);
         return;
     }
-    if ((g8(g, m + 7) & 0x0f) !== 0) {
+    if ((memRead8(g, m + 7) & 0x0f) !== 0) {
         monsterSplitOrDie(g, m);
         return;
     }
     const al2 = pickDeathDescriptor();
-    s8(g, m + 7, (g8(g, m + 7) & 0xf0) | (al2 & 0x0f));
+    memWrite8(g, m + 7, (memRead8(g, m + 7) & 0xf0) | (al2 & 0x0f));
     monsterSplitOrDie(g, m);
 }

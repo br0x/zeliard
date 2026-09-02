@@ -39,6 +39,8 @@ import {
     monsterActivation,
 } from './dungeon-monsters.js';
 
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
+
 const PROX_COLS = 36;
 
 // g_mem addresses
@@ -98,22 +100,7 @@ export const STR = {
     JASHIIN_FINALLY: 20,
 } as const;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** move one tile south (move_monster_S = direction 6). */
 function moveMonsterS(g: Uint8Array, m: number): number {
@@ -123,47 +110,47 @@ function moveMonsterS(g: Uint8Array, m: number): number {
 // ─── render-request writers ───
 
 export function renderNotificationString(g: Uint8Array, strIdx: number): void {
-    s8(g, NOTIFICATION_MSG_ID, strIdx);
-    s8(g, NOTIFICATION_FLAG, 0xff);
+    memWrite8(g, NOTIFICATION_MSG_ID, strIdx);
+    memWrite8(g, NOTIFICATION_FLAG, 0xff);
 }
 
 function printGoldDecimal(g: Uint8Array): void {
-    s8(g, GOLD_RENDER_REQUEST, 0xff);
+    memWrite8(g, GOLD_RENDER_REQUEST, 0xff);
 }
 
 function printAlmasDecimal(g: Uint8Array): void {
-    s8(g, ALMAS_RENDER_REQUEST, 0xff);
+    memWrite8(g, ALMAS_RENDER_REQUEST, 0xff);
 }
 
 function signalEnchantmentSwordGfx(g: Uint8Array): void {
-    s8(g, SWORD_GFX_RELOAD_REQUEST, 0xff);
+    memWrite8(g, SWORD_GFX_RELOAD_REQUEST, 0xff);
 }
 
 function renderSwordItemSprite(g: Uint8Array): void {
-    s8(g, SWORD_RENDER_REQUEST, 0xff);
+    memWrite8(g, SWORD_RENDER_REQUEST, 0xff);
 }
 
 // ─── gold / almas ───
 
 /** hero_got_gold (dungeon.c:3053): 32-bit gold += ax with carry. */
 export function heroGotGold(g: Uint8Array, ax: number): void {
-    const lo = (g16(g, HERO_GOLD_LO) + ax) & 0xffff;
-    s16(g, HERO_GOLD_LO, lo);
+    const lo = (memRead16(g, HERO_GOLD_LO) + ax) & 0xffff;
+    memWrite16(g, HERO_GOLD_LO, lo);
     if (lo < (ax & 0xffff)) {
-        s8(g, HERO_GOLD_HI, (g8(g, HERO_GOLD_HI) + 1) & 0xff);
+        memWrite8(g, HERO_GOLD_HI, (memRead8(g, HERO_GOLD_HI) + 1) & 0xff);
     }
     printGoldDecimal(g);
 }
 
 export function heroGotAlmas(g: Uint8Array, amount: number): void {
-    const almas = g16(g, 0x8b); // ADDR_HERO_ALMAS word
+    const almas = memRead16(g, 0x8b); // ADDR_HERO_ALMAS word
     let next: number;
     if (amount > ((0xffff - almas) & 0xffff)) {
         next = 0xffff;
     } else {
         next = (almas + amount) & 0xffff;
     }
-    s16(g, 0x8b, next);
+    memWrite16(g, 0x8b, next);
     printAlmasDecimal(g);
 }
 
@@ -171,12 +158,12 @@ export function heroGotAlmas(g: Uint8Array, amount: number): void {
 
 /** mark_collected (dungeon.c:3146). */
 export function markCollected(g: Uint8Array, m: number): void {
-    s16(g, m, 0xff00);
-    if ((g8(g, m + 7) & 0x20) !== 0) {
-        const addr = g16(g, m + 11); // spwnX is a save-flag ADDRESS here
+    memWrite16(g, m, 0xff00);
+    if ((memRead8(g, m + 7) & 0x20) !== 0) {
+        const addr = memRead16(g, m + 11); // spwnX is a save-flag ADDRESS here
         if (addr !== 0xffff) {
-            s8(g, addr, (g8(g, addr) | g8(g, m + 13)) & 0xff);
-            s16(g, m + 11, 0xffff);
+            memWrite8(g, addr, (memRead8(g, addr) | memRead8(g, m + 13)) & 0xff);
+            memWrite16(g, m + 11, 0xffff);
         }
     }
 }
@@ -186,7 +173,7 @@ function pickupCommon(g: Uint8Array, m: number, msgId: number): number {
     moveMonsterS(g, m);
     if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return 0;
 
-    s8(g, SOUND_FX_REQUEST, 17);
+    memWrite8(g, SOUND_FX_REQUEST, 17);
     renderNotificationString(g, msgId);
     return 0xff;
 }
@@ -194,8 +181,8 @@ function pickupCommon(g: Uint8Array, m: number, msgId: number): number {
 /** put_shoes_to_inventory (dungeon.c:3166). */
 function putShoesToInventory(g: Uint8Array, m: number, shoeType: number): void {
     let slot = FERUZA_SHOES;
-    while (g8(g, slot) !== 0) slot++;
-    s8(g, slot, shoeType);
+    while (memRead8(g, slot) !== 0) slot++;
+    memWrite8(g, slot, shoeType);
     markCollected(g, m);
 }
 
@@ -203,32 +190,32 @@ function putShoesToInventory(g: Uint8Array, m: number, shoeType: number): void {
 
 /** flag_10 (dungeon.c:3174): drop-item trigger. */
 export function flag10(g: Uint8Array, m: number): void {
-    if ((g8(g, m + 10) & 1) === 0) {
-        if ((g8(g, m + 5) & 0x20) === 0) return;
+    if ((memRead8(g, m + 10) & 1) === 0) {
+        if ((memRead8(g, m + 5) & 0x20) === 0) return;
 
-        s8(g, SOUND_FX_REQUEST, 18);
-        s8(g, m + 5, g8(g, m + 5) & 0x90);
-        s8(g, m + 4, g8(g, m + 4) & 0x7f);
-        s8(g, m + 4, g8(g, m + 4) | 0x60);
-        s8(g, m + 10, g8(g, m + 10) | 1);
+        memWrite8(g, SOUND_FX_REQUEST, 18);
+        memWrite8(g, m + 5, memRead8(g, m + 5) & 0x90);
+        memWrite8(g, m + 4, memRead8(g, m + 4) & 0x7f);
+        memWrite8(g, m + 4, memRead8(g, m + 4) | 0x60);
+        memWrite8(g, m + 10, memRead8(g, m + 10) | 1);
     }
 
     // Animate
-    s8(g, m + 6, (g8(g, m + 6) + 0x80) & 0xff);
-    if ((g8(g, m + 6) & 0x80) === 0) {
-        s8(g, m + 6, (g8(g, m + 6) + 1) & 0xff);
-        if (g8(g, m + 6) >= 4) {
-            s8(g, m + 6, 0);
-            let aiState = g8(g, m + 9);
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 0x80) & 0xff);
+    if ((memRead8(g, m + 6) & 0x80) === 0) {
+        memWrite8(g, m + 6, (memRead8(g, m + 6) + 1) & 0xff);
+        if (memRead8(g, m + 6) >= 4) {
+            memWrite8(g, m + 6, 0);
+            let aiState = memRead8(g, m + 9);
             if (aiState !== 0) {
                 if ((aiState & 0x10) !== 0) {
                     aiState |= 0x60; // NOTE: local var only, never stored (asm-faithful)
-                    s8(g, m + 7, g8(g, m + 7) | 0x80);
-                    s8(g, m + 15, 0);
+                    memWrite8(g, m + 7, memRead8(g, m + 7) | 0x80);
+                    memWrite8(g, m + 15, 0);
                 }
-                s8(g, m + 4, aiState);
-                s8(g, m + 5, g8(g, m + 5) & 0x80);
-                s8(g, m + 9, 0);
+                memWrite8(g, m + 4, aiState);
+                memWrite8(g, m + 5, memRead8(g, m + 5) & 0x80);
+                memWrite8(g, m + 9, 0);
             } else {
                 markCollected(g, m);
             }
@@ -238,18 +225,18 @@ export function flag10(g: Uint8Array, m: number): void {
 
 /** flag_11 (dungeon.c:3205): projectile spawner aimed at the hero's row. */
 export function flag11(g: Uint8Array, m: number): void {
-    if ((g8(g, m + 10) & 1) === 0) {
-        const ah = (g8(g, m + 2) - 3) & 0x3f;
-        if (ah !== g8(g, HERO_Y)) return;
+    if ((memRead8(g, m + 10) & 1) === 0) {
+        const ah = (memRead8(g, m + 2) - 3) & 0x3f;
+        if (ah !== memRead8(g, HERO_Y)) return;
 
         // item under hero feet
-        let al = (g8(g, HERO_XV) + 3) & 0xff;
-        al += ((g8(g, FACING) & LEFT_FLAG) !== 0 ? 1 : 0) * 2;
+        let al = (memRead8(g, HERO_XV) + 3) & 0xff;
+        al += ((memRead8(g, FACING) & LEFT_FLAG) !== 0 ? 1 : 0) * 2;
 
         for (let i = 0; i < 2; i++) {
-            if (al === g8(g, m + 3)) {
-                s8(g, SOUND_FX_REQUEST, 18);
-                s8(g, m + 10, g8(g, m + 10) | 1);
+            if (al === memRead8(g, m + 3)) {
+                memWrite8(g, SOUND_FX_REQUEST, 18);
+                memWrite8(g, m + 10, memRead8(g, m + 10) | 1);
                 return;
             }
             al++;
@@ -258,13 +245,13 @@ export function flag11(g: Uint8Array, m: number): void {
     }
 
     // armed: move south, animate
-    s8(g, m + 4, g8(g, m + 4) & 0x7f);
+    memWrite8(g, m + 4, memRead8(g, m + 4) & 0x7f);
     moveMonsterS(g, m);
-    s8(g, m + 6, (g8(g, m + 6) + 0x80) & 0xff);
-    if ((g8(g, m + 6) & 0x80) === 0) {
-        s8(g, m + 6, (g8(g, m + 6) + 1) & 0xff);
-        if (g8(g, m + 6) >= 4) {
-            s8(g, m + 6, 0);
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 0x80) & 0xff);
+    if ((memRead8(g, m + 6) & 0x80) === 0) {
+        memWrite8(g, m + 6, (memRead8(g, m + 6) + 1) & 0xff);
+        if (memRead8(g, m + 6) >= 4) {
+            memWrite8(g, m + 6, 0);
             markCollected(g, m);
         }
     }
@@ -272,29 +259,29 @@ export function flag11(g: Uint8Array, m: number): void {
 
 /** flag_12 (dungeon.c:3242): delay animation. */
 export function flag12(g: Uint8Array, m: number): void {
-    s8(g, m + 6, (g8(g, m + 6) + 1) & 0xff);
-    if (g8(g, m + 6) === 3) markCollected(g, m);
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 1) & 0xff);
+    if (memRead8(g, m + 6) === 3) markCollected(g, m);
 }
 
 /** flag_13 (dungeon.c:3250): item pickup (contact collision) + chests. */
 export function flag13(g: Uint8Array, m: number): void {
     if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return;
 
-    s8(g, SOUND_FX_REQUEST, 20);
-    if ((g8(g, m + 6) & 0x0f) === 0) {
-        let aiState = g8(g, m + 9);
+    memWrite8(g, SOUND_FX_REQUEST, 20);
+    if ((memRead8(g, m + 6) & 0x0f) === 0) {
+        let aiState = memRead8(g, m + 9);
         if ((aiState & 0x10) !== 0) {
             aiState |= 0x60; // local only (asm-faithful)
-            s8(g, m + 7, g8(g, m + 7) | 0x80);
-            s8(g, m + 15, 0);
+            memWrite8(g, m + 7, memRead8(g, m + 7) | 0x80);
+            memWrite8(g, m + 15, 0);
         }
-        s8(g, m + 4, aiState);
-        s8(g, m + 9, 0);
+        memWrite8(g, m + 4, aiState);
+        memWrite8(g, m + 9, 0);
         return;
     }
     // chest
     markCollected(g, m);
-    const chestType = g8(g, m + 6) & 0x0f;
+    const chestType = memRead8(g, m + 6) & 0x0f;
     switch (chestType) {
         case 1:
             renderNotificationString(g, STR.YOU_GET_50_GOLD);
@@ -317,11 +304,11 @@ export function flag13(g: Uint8Array, m: number): void {
             break;
         case 6:
             renderNotificationString(g, STR.YOU_GET_GLORY_CREST);
-            s8(g, CREST_OF_GLORY, 0xff);
+            memWrite8(g, CREST_OF_GLORY, 0xff);
             break;
         case 7: {
             renderNotificationString(g, STR.GET_ENCHANTMENT_SWORD);
-            s8(g, SWORD_TYPE, 6);
+            memWrite8(g, SWORD_TYPE, 6);
             renderSwordItemSprite(g);
             signalEnchantmentSwordGfx(g);
             break;
@@ -334,13 +321,13 @@ export function flag13(g: Uint8Array, m: number): void {
 /** flag_14_15_1b (dungeon.c:3301): falling almas orbs. */
 export function flag14_15_1b(g: Uint8Array, m: number): void {
     moveMonsterS(g, m);
-    s8(g, m + 6, (g8(g, m + 6) + 1) & 0xff);
-    s8(g, m + 6, g8(g, m + 6) & 3);
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 1) & 0xff);
+    memWrite8(g, m + 6, memRead8(g, m + 6) & 3);
 
     if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return;
 
-    s8(g, SOUND_FX_REQUEST, 16);
-    const price = g8(g, m + 4) & 0x0f;
+    memWrite8(g, SOUND_FX_REQUEST, 16);
+    const price = memRead8(g, m + 4) & 0x0f;
     if (price === 4) heroGotAlmas(g, 1);
     else if (price === 5) heroGotAlmas(g, 10);
     else heroGotAlmas(g, 100);
@@ -351,14 +338,14 @@ export function flag14_15_1b(g: Uint8Array, m: number): void {
 /** flag_16 (dungeon.c:3320): ordinary key. */
 export function flag16(g: Uint8Array, m: number): void {
     if (pickupCommon(g, m, STR.YOU_GET_KEY) === 0) return;
-    s8(g, 0x98 /* KEYS_AMOUNT */, (g8(g, 0x98) + 1) & 0xff);
+    memWrite8(g, 0x98 /* KEYS_AMOUNT */, (memRead8(g, 0x98) + 1) & 0xff);
     markCollected(g, m);
 }
 
 /** flag_17 (dungeon.c:3328): lion's head key. */
 export function flag17(g: Uint8Array, m: number): void {
     if (pickupCommon(g, m, STR.GET_LIONS_HEAD_KEY) === 0) return;
-    s8(g, 0x99 /* LION_KEYS_AMOUNT */, (g8(g, 0x99) + 1) & 0xff);
+    memWrite8(g, 0x99 /* LION_KEYS_AMOUNT */, (memRead8(g, 0x99) + 1) & 0xff);
     markCollected(g, m);
 }
 
@@ -366,7 +353,7 @@ export function flag17(g: Uint8Array, m: number): void {
 export function flag18(g: Uint8Array, m: number): void {
     if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return;
     renderNotificationString(g, STR.YOU_HAVE_RECOVERED);
-    s8(g, 0xc6 /* HEALING_TIMER lo */, (g8(g, 0xc6) + 10) & 0xff); // byte access in original!
+    memWrite8(g, 0xc6 /* HEALING_TIMER lo */, (memRead8(g, 0xc6) + 10) & 0xff); // byte access in original!
     markCollected(g, m);
 }
 
@@ -375,42 +362,42 @@ export function flag19(g: Uint8Array, m: number): void {
     moveMonsterS(g, m);
     if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return;
     renderNotificationString(g, STR.YOU_HAVE_RECOVERED_FULL);
-    const amount = ((g16(g, HERO_MAX_HP) >> 3) + 1) & 0xffff;
-    s16(g, HEALING_TIMER, (g16(g, HEALING_TIMER) + amount) & 0xffff);
+    const amount = ((memRead16(g, HERO_MAX_HP) >> 3) + 1) & 0xffff;
+    memWrite16(g, HEALING_TIMER, (memRead16(g, HEALING_TIMER) + amount) & 0xffff);
     markCollected(g, m);
 }
 
 /** flag_1c (dungeon.c:3352): dungeon sign display/timeout. */
 export function flag1c(g: Uint8Array, m: number): void {
-    s8(g, m + 15, 0);
-    if ((g8(g, m + 9) & 1) === 0) {
+    memWrite8(g, m + 15, 0);
+    if ((memRead8(g, m + 9) & 1) === 0) {
         if (checkMonsterAlignedToHeroAndTick(g, m) !== 0) return;
 
-        s8(g, SOUND_FX_REQUEST, 17);
-        s8(g, m + 7, g8(g, m + 7) | 0x80);
-        s8(g, m + 9, g8(g, m + 9) | 1);
-        s8(g, m + 10, 235);
-        const idx = g8(g, m + 6);
+        memWrite8(g, SOUND_FX_REQUEST, 17);
+        memWrite8(g, m + 7, memRead8(g, m + 7) | 0x80);
+        memWrite8(g, m + 9, memRead8(g, m + 9) | 1);
+        memWrite8(g, m + 10, 235);
+        const idx = memRead8(g, m + 6);
         renderCavernSigns(g, idx);
     } else {
-        if (g8(g, m + 10) === 0) {
-            s8(g, m + 9, g8(g, m + 9) & ~1);
-            s8(g, CAVERN_SIGN_FLAG, 0);
+        if (memRead8(g, m + 10) === 0) {
+            memWrite8(g, m + 9, memRead8(g, m + 9) & ~1);
+            memWrite8(g, CAVERN_SIGN_FLAG, 0);
         } else {
-            s8(g, m + 10, (g8(g, m + 10) + 1) & 0xff);
+            memWrite8(g, m + 10, (memRead8(g, m + 10) + 1) & 0xff);
         }
     }
 }
 
 function renderCavernSigns(g: Uint8Array, idx: number): void {
-    s8(g, CAVERN_SIGN_IDX, idx);
-    s8(g, CAVERN_SIGN_FLAG, 0xff);
+    memWrite8(g, CAVERN_SIGN_IDX, idx);
+    memWrite8(g, CAVERN_SIGN_FLAG, 0xff);
 }
 
 /** flag_1d (dungeon.c:3368): hero's crest. */
 export function flag1d(g: Uint8Array, m: number): void {
     if (pickupCommon(g, m, STR.GET_HEROS_CREST) === 0) return;
-    s8(g, HERO_CREST, 0xff);
+    memWrite8(g, HERO_CREST, 0xff);
     markCollected(g, m);
 }
 
@@ -422,7 +409,7 @@ export function flag1e(g: Uint8Array, m: number): void {
 
 /** flag_1a (dungeon.c:3384): cavern-level-dependent shoes. */
 export function flag1a(g: Uint8Array, m: number): void {
-    const level = (g8(g, CAVERN_LEVEL) - 4) & 0xff;
+    const level = (memRead8(g, CAVERN_LEVEL) - 4) & 0xff;
     let shoeStr: number;
     let shoeType: number;
 
@@ -450,34 +437,34 @@ export function flag1a(g: Uint8Array, m: number): void {
  * sub-type state machine (gold amounts, glory crest, enchantment sword).
  */
 export function default0toFHandler(g: Uint8Array, m: number): void {
-    s8(g, m + 6, (g8(g, m + 6) + 0x80) & 0xff);
-    if ((g8(g, m + 6) & 0x80) !== 0) return;
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 0x80) & 0xff);
+    if ((memRead8(g, m + 6) & 0x80) !== 0) return;
 
-    s8(g, m + 6, (g8(g, m + 6) + 1) & 0xff);
-    if (g8(g, m + 6) !== 3) return;
+    memWrite8(g, m + 6, (memRead8(g, m + 6) + 1) & 0xff);
+    if (memRead8(g, m + 6) !== 3) return;
 
-    s8(g, m + 15, 0);
-    if ((g8(g, m + 7) & 0x40) !== 0) {
-        s8(g, m + 7, g8(g, m + 7) & ~0x40);
+    memWrite8(g, m + 15, 0);
+    if ((memRead8(g, m + 7) & 0x40) !== 0) {
+        memWrite8(g, m + 7, memRead8(g, m + 7) & ~0x40);
         // reset another monster (index from ai_timer)
-        const idx = g8(g, m + 10);
-        const other = (g16(g, MONSTERS_LIST) + idx * 16) & 0xffff;
-        s8(g, other + 2, 0);
+        const idx = memRead8(g, m + 10);
+        const other = (memRead16(g, MONSTERS_LIST) + idx * 16) & 0xffff;
+        memWrite8(g, other + 2, 0);
     }
-    if ((g8(g, m + 7) & 0x10) === 0 || (g8(g, m + 4) & 1) !== 0) {
-        s8(g, m + 6, 0);
-        s8(g, m + 4, 0x72);
-        const stateNibble = g8(g, m + 7) & 0x0f;
+    if ((memRead8(g, m + 7) & 0x10) === 0 || (memRead8(g, m + 4) & 1) !== 0) {
+        memWrite8(g, m + 6, 0);
+        memWrite8(g, m + 4, 0x72);
+        const stateNibble = memRead8(g, m + 7) & 0x0f;
         if (stateNibble === 0) return;
         if (stateNibble === 1) {
             markCollected(g, m);
             return;
         }
-        s8(g, m + 7, g8(g, m + 7) | 0x80);
-        s8(g, m + 15, 4);
-        s8(g, m + 4, (stateNibble | 0x70) & 0xff);
-        s8(g, m + 5, g8(g, m + 5) & 0x80);
-        s8(g, m + 7, g8(g, m + 7) & 0xf0);
+        memWrite8(g, m + 7, memRead8(g, m + 7) | 0x80);
+        memWrite8(g, m + 15, 4);
+        memWrite8(g, m + 4, (stateNibble | 0x70) & 0xff);
+        memWrite8(g, m + 5, memRead8(g, m + 5) & 0x80);
+        memWrite8(g, m + 7, memRead8(g, m + 7) & 0xf0);
     } else {
         markCollected(g, m);
     }
@@ -497,32 +484,32 @@ export function placeMonsterInProximityAndRunAi(
     m: number,
     monsterAi: MonsterAiFn,
 ): void {
-    const di = coordsToProxAddr(g, g8(g, m + 3), g8(g, m + 2));
-    let al = g8(g, m + 5) & ~0x20;
+    const di = coordsToProxAddr(g, memRead8(g, m + 3), memRead8(g, m + 2));
+    let al = memRead8(g, m + 5) & ~0x20;
     if ((al & 0x40) !== 0) {
-        if ((g8(g, m + 4) & 0x20) === 0) al |= 0x20;
+        if ((memRead8(g, m + 4) & 0x20) === 0) al |= 0x20;
         al &= ~0x40;
     }
-    s8(g, m + 5, al);
-    const bl = g8(g, MONSTER_INDEX);
+    memWrite8(g, m + 5, al);
+    const bl = memRead8(g, MONSTER_INDEX);
 
     // restore previously saved second-layer entry for this monster
-    s8(g, di, g8(g, PROXIMITY_LAYER2 + bl));
+    memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + bl));
 
     // big monster lower half restoration
-    if ((g8(g, m + 4) & 0x11) === 0 && (g8(g, m + 7) & 0x10) !== 0) {
+    if ((memRead8(g, m + 4) & 0x11) === 0 && (memRead8(g, m + 7) & 0x10) !== 0) {
         const di2 = wrapMapFromAbove((di + 2 * PROX_COLS) & 0xffff);
-        const bl2 = (g8(g, MONSTER_INDEX) + 1) & 0xff;
-        s8(g, di2, g8(g, PROXIMITY_LAYER2 + bl2));
+        const bl2 = (memRead8(g, MONSTER_INDEX) + 1) & 0xff;
+        memWrite8(g, di2, memRead8(g, PROXIMITY_LAYER2 + bl2));
     }
 
     // run AI or handle items
-    if ((g8(g, m + 4) & 0x18) === 0) {
+    if ((memRead8(g, m + 4) & 0x18) === 0) {
         monsterAi(g, m);
         return;
     }
 
-    const flags = g8(g, m + 4) & 0x1f;
+    const flags = memRead8(g, m + 4) & 0x1f;
     if (flags >= 0x10) {
         switch (flags) {
             case 0x10: flag10(g, m); break;
@@ -556,61 +543,61 @@ export function monstersSpawning(
     g: Uint8Array,
     monsterAi: MonsterAiFn,
 ): void {
-    let m = g16(g, MONSTERS_LIST);
-    if (g8(g, IS_BOSS_CAVERN) !== 0 || g8(g, IS_JASHIIN_CAVERN) !== 0) {
+    let m = memRead16(g, MONSTERS_LIST);
+    if (memRead8(g, IS_BOSS_CAVERN) !== 0 || memRead8(g, IS_JASHIIN_CAVERN) !== 0) {
         // entire AI handled by boss procedure
         monsterAi(g, m);
         return;
     }
 
-    s8(g, MONSTER_INDEX, 0);
+    memWrite8(g, MONSTER_INDEX, 0);
 
     for (;;) {
-        const currX = g16(g, m);
+        const currX = memRead16(g, m);
         if (currX === 0xffff) return;
 
-        s8(g, m + 3, 0xff); // m_x_rel: not in proximity yet
+        memWrite8(g, m + 3, 0xff); // m_x_rel: not in proximity yet
 
         if (((currX >> 8) & 0xff) !== 0xff) {
             const prox = isInProximityWindow(g, currX);
             if (prox.inside) {
-                s8(g, m + 3, prox.xRel);
+                memWrite8(g, m + 3, prox.xRel);
                 placeMonsterInProximityAndRunAi(g, m, monsterAi);
-                const cx = g16(g, m);
+                const cx = memRead16(g, m);
                 if (((cx >> 8) & 0xff) !== 0xff) {
-                    const y = g8(g, m + 2);
-                    const relx = g8(g, m + 3);
+                    const y = memRead8(g, m + 2);
+                    const relx = memRead8(g, m + 3);
                     const di = coordsToProxAddr(g, relx, y);
-                    const bl = g8(g, MONSTER_INDEX);
+                    const bl = memRead8(g, MONSTER_INDEX);
                     const al = (bl | 0x80) & 0xff;
-                    const old = g8(g, di);
-                    s8(g, di, al);
-                    s8(g, PROXIMITY_LAYER2 + bl, old);
+                    const old = memRead8(g, di);
+                    memWrite8(g, di, al);
+                    memWrite8(g, PROXIMITY_LAYER2 + bl, old);
 
                     // big monster lower half
-                    if ((g8(g, m + 4) & 0x11) === 0 && (g8(g, m + 7) & 0x10) !== 0) {
+                    if ((memRead8(g, m + 4) & 0x11) === 0 && (memRead8(g, m + 7) & 0x10) !== 0) {
                         const di2 = wrapMapFromAbove((di + 2 * PROX_COLS) & 0xffff);
-                        const bl2 = (g8(g, MONSTER_INDEX) + 1) & 0xff;
+                        const bl2 = (memRead8(g, MONSTER_INDEX) + 1) & 0xff;
                         const al2 = (bl2 | 0x80) & 0xff;
-                        const old2 = g8(g, di2);
-                        s8(g, di2, al2);
-                        s8(g, PROXIMITY_LAYER2 + bl2, old2);
+                        const old2 = memRead8(g, di2);
+                        memWrite8(g, di2, al2);
+                        memWrite8(g, PROXIMITY_LAYER2 + bl2, old2);
                     }
                 }
             }
         }
 
-        if ((g8(g, m + 7) & 0x20) === 0) {
+        if ((memRead8(g, m + 7) & 0x20) === 0) {
             // not yet active: count down to activation via counter overflow
-            const c = (g8(g, m + 15) + 1) & 0xff;
+            const c = (memRead8(g, m + 15) + 1) & 0xff;
             if (c !== 0) {
-                s8(g, m + 15, c);
+                memWrite8(g, m + 15, c);
             } else {
                 monsterActivation(g, m);
             }
         }
 
-        s8(g, MONSTER_INDEX, (g8(g, MONSTER_INDEX) + 1) & 0xff);
+        memWrite8(g, MONSTER_INDEX, (memRead8(g, MONSTER_INDEX) + 1) & 0xff);
         m += 16;
     }
 }

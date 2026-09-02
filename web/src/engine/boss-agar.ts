@@ -14,6 +14,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -29,22 +30,7 @@ const BOSS_HEALTH_REQUEST = 0xff9f;
 
 const PROJECTILE_STRUCT_SIZE = 13;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_A603 .. byte_A625) ───
 
@@ -86,19 +72,19 @@ const PROJ_FAR = [0, 0, 0, 0, 50, 0, 80, 0, 0, 0, 0, 0, 0];
 // ─── boss_state_block accessors ───
 
 function bossState(g: Uint8Array): number {
-    return g16(g, BOSS_STATE_PTR);
+    return memRead16(g, BOSS_STATE_PTR);
 }
 function getBossX(g: Uint8Array): number {
-    return g16(g, bossState(g) + 0);
+    return memRead16(g, bossState(g) + 0);
 }
 function setBossX(g: Uint8Array, v: number): void {
-    s16(g, bossState(g) + 0, v);
+    memWrite16(g, bossState(g) + 0, v);
 }
 function getBossY(g: Uint8Array): number {
-    return g8(g, bossState(g) + 2);
+    return memRead8(g, bossState(g) + 2);
 }
 function setBossY(g: Uint8Array, v: number): void {
-    s8(g, bossState(g) + 2, v);
+    memWrite8(g, bossState(g) + 2, v);
 }
 
 /** Agar_AI_reset (zela.c:182). */
@@ -126,8 +112,8 @@ export function agarAiReset(): void {
 
 // The repeated "wrap (left_col_x + offset) against mapWidth" idiom.
 function wrapCol(g: Uint8Array, offset: number): number {
-    const left = g16(g, PROXIMITY_MAP_LEFT_COL);
-    const width = g16(g, MAP_WIDTH);
+    const left = memRead16(g, PROXIMITY_MAP_LEFT_COL);
+    const width = memRead16(g, MAP_WIDTH);
     let v = (left + offset) & 0xffff;
     if (v >= width) v = (v - width) & 0xffff;
     return v;
@@ -206,44 +192,44 @@ function applyDamageToBoss(g: Uint8Array, damage: number): void {
     if (hp < 0) hp = 0;
     setBossHpSafe(g, hp);
 
-    s8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
 
     if (hp !== 0) return;
-    if (g8(g, BOSS_BEING_HIT) !== 0) return; // death already started
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) return; // death already started
 
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
     deathTimer = 0;
     projectileRequest = 0;
     browseProjectilesList(g);
 }
 
 function getBossHpSafe(g: Uint8Array): number {
-    return g16(g, bossState(g) + 3);
+    return memRead16(g, bossState(g) + 3);
 }
 function setBossHpSafe(g: Uint8Array, v: number): void {
-    s16(g, bossState(g) + 3, v);
+    memWrite16(g, bossState(g) + 3, v);
 }
 
 /** Browse_Projectiles equivalent (clears the projectile array). */
 function browseProjectilesList(g: Uint8Array): void {
-    s8(g, 0xeb80, 0xff);
+    memWrite8(g, 0xeb80, 0xff);
 }
 
 // loc_A59A..loc_A5E8: flash/death sequence.
 function hitFlashAndDeathStep(g: Uint8Array): void {
     if (deathTimer >= 0x28) { // death sequence finished
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     deathTimer++;
 
     if (deathTimer >= 0x15) {
         animPhase = 2;
     } else {
         if (!(deathTimer & 3)) {
-            s8(g, SOUND_FX_REQUEST, 40);
+            memWrite8(g, SOUND_FX_REQUEST, 40);
         }
         animPhase = (animPhase + 1) & 7;
     }
@@ -264,7 +250,7 @@ function stageBodySegments(phaseIdx: number): void {
 // loc_A467..loc_A4E0: lay out the 4×3 body segments.
 function placeBossBodySegments(g: Uint8Array): void {
     segmentRenderIndex = 0;
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     let x = getBossX(g);
     let stageIdx = 0;
@@ -278,18 +264,18 @@ function placeBossBodySegments(g: Uint8Array): void {
         } else {
             let y = getBossY(g);
             for (let row = 0; row < 3; row++) {
-                s16(g, si + 0, x);                    // .currX
-                s8(g, si + 2, y);                     // .currY
-                s8(g, si + 3, lastColRelX);           // .m_x_rel
-                s8(g, si + 4, bodyTile[stageIdx] ?? 0);  // .flags
-                s8(g, si + 5, 0);                     // .ai_flags
-                s8(g, si + 6, bodyFrame[stageIdx] ?? 0); // .anim_counter
+                memWrite16(g, si + 0, x);                    // .currX
+                memWrite8(g, si + 2, y);                     // .currY
+                memWrite8(g, si + 3, lastColRelX);           // .m_x_rel
+                memWrite8(g, si + 4, bodyTile[stageIdx] ?? 0);  // .flags
+                memWrite8(g, si + 5, 0);                     // .ai_flags
+                memWrite8(g, si + 6, bodyFrame[stageIdx] ?? 0); // .anim_counter
                 stageIdx++;
 
-                const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                const oldTile = g8(g, di);
-                s8(g, di, (segmentRenderIndex | 0x80) & 0xff);
-                s8(g, PROXIMITY_LAYER2 + segmentRenderIndex, oldTile);
+                const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                const oldTile = memRead8(g, di);
+                memWrite8(g, di, (segmentRenderIndex | 0x80) & 0xff);
+                memWrite8(g, PROXIMITY_LAYER2 + segmentRenderIndex, oldTile);
 
                 si += 16;
                 segmentRenderIndex++;
@@ -300,7 +286,7 @@ function placeBossBodySegments(g: Uint8Array): void {
         x = (x + 2) & 0xffff;
     }
 
-    s16(g, si, 0xffff); // terminator
+    memWrite16(g, si, 0xffff); // terminator
 }
 
 // sub_A4F2: patch both templates' dynamic fields and fire the selected shot.
@@ -319,15 +305,15 @@ function fireProjectile(g: Uint8Array): void {
 
 /** Add_Projectile_To_Array (dungeon.c:5631). */
 function addProjectile(g: Uint8Array, src: ArrayLike<number>): void {
-    if ((g8(g, 0x9f1f) ?? 0) >= 32 - 1) return;
+    if ((memRead8(g, 0x9f1f) ?? 0) >= 32 - 1) return;
     let di = 0xeb80;
-    while (g8(g, di) !== 0xff) di += PROJECTILE_STRUCT_SIZE;
+    while (memRead8(g, di) !== 0xff) di += PROJECTILE_STRUCT_SIZE;
     for (let i = 0; i < PROJECTILE_STRUCT_SIZE; i++) {
-        s8(g, di + i, src[i] ?? 0);
+        memWrite8(g, di + i, src[i] ?? 0);
     }
     di += PROJECTILE_STRUCT_SIZE;
-    s8(g, di, 0xff);
-    s8(g, 0x9f1f, (g8(g, 0x9f1f) + 1) & 0xff);
+    memWrite8(g, di, 0xff);
+    memWrite8(g, 0x9f1f, (memRead8(g, 0x9f1f) + 1) & 0xff);
 }
 
 // loc_A453 / loc_A431
@@ -399,7 +385,7 @@ function idlePositionSync(g: Uint8Array): void {
 
 // loc_A371: idle frame (or hit-flash re-entry).
 function idleOrHitflashBranch(g: Uint8Array): void {
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         hitFlashAndDeathStep(g);
         return;
     }
@@ -438,24 +424,24 @@ function attackPatternStep(g: Uint8Array): void {
 // loc_A1C4..loc_A207: walk last frame's segments, restore tiles, pick up
 // hits (last hit wins — the original's first-hit guard is dead code).
 function collectHitAndRestoreTiles(g: Uint8Array): void {
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     segmentRenderIndex = 0;
     pendingHitFlags = 0;
 
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break; // .currX sentinel
+        if (memRead16(g, si + 0) === 0xffff) break; // .currX sentinel
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
+            memWrite8(g, si + 3, win.xRel);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + segmentRenderIndex));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + segmentRenderIndex));
 
-            if ((g8(g, si + 5) & 0x40) !== 0) {
+            if ((memRead8(g, si + 5) & 0x40) !== 0) {
                 if (!(pendingHitFlags & 0x80)) {
-                    pendingHitFlags = g8(g, si + 5) & 0x1f;
+                    pendingHitFlags = memRead8(g, si + 5) & 0x1f;
                 }
             }
         }
@@ -465,7 +451,7 @@ function collectHitAndRestoreTiles(g: Uint8Array): void {
     }
 
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 }
 
 /** Agar_AI (zela.c:206) — entry point, called once per frame. */
@@ -482,9 +468,9 @@ export function agarAi(g: Uint8Array, m: number): void {
 
         if (raw === 4) { // segment id 4: "heavy" hit
             dmg = (dmg * 4) & 0xffff;
-            s8(g, SOUND_FX_REQUEST, 36);
+            memWrite8(g, SOUND_FX_REQUEST, 36);
         } else {
-            s8(g, SOUND_FX_REQUEST, 37);
+            memWrite8(g, SOUND_FX_REQUEST, 37);
         }
 
         applyDamageToBoss(g, dmg);
@@ -500,14 +486,14 @@ export function agarAi(g: Uint8Array, m: number): void {
         }
     }
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         hitFlashAndDeathStep(g);
         return;
     }
 
     if (!attackActive) {
         const r = getRandom(g) & 0x0f;
-        if (r !== 0 || g8(g, BOSS_BEING_HIT) !== 0) {
+        if (r !== 0 || memRead8(g, BOSS_BEING_HIT) !== 0) {
             idleOrHitflashBranch(g);
             return;
         }

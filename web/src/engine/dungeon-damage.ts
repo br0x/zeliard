@@ -15,6 +15,7 @@
 import { heroCoordsToAddrInProximity, getDstMonsterFlags } from './dungeon-hero.js';
 import { isTileSafeToStay } from './dungeon-monsters.js';
 import { wrapMapFromAbove, wrapMapFromBelow } from './dungeon-entities.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 const PROX_COLS = 36;
 
@@ -48,38 +49,23 @@ export const SHIELD_BROKEN_STR = 8;
 /** Damage per cavern level − 1 (dungeon.c:3021). */
 export const AGGRESSIVE_TILES_DAMAGE_TABLE: readonly number[] = [1, 1, 4, 8, 20, 20, 20, 20, 20];
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** Draw_Hero_Health: signal JS to redraw the life bar. */
 export function drawHeroHealth(g: Uint8Array): void {
-    s8(g, HEALTH_BAR_REQUEST, 0xff);
+    memWrite8(g, HEALTH_BAR_REQUEST, 0xff);
 }
 
 /** damage_hero (dungeon.c:3008): subtract with clamp to 0. */
 export function damageHero(g: Uint8Array, damage: number): void {
-    const heroHp = g16(g, HERO_HP);
+    const heroHp = memRead16(g, HERO_HP);
     let next: number;
     if (heroHp >= damage) {
         next = (heroHp - damage) & 0xffff;
     } else {
         next = 0;
     }
-    s16(g, HERO_HP, next);
+    memWrite16(g, HERO_HP, next);
     drawHeroHealth(g);
 }
 
@@ -92,8 +78,8 @@ function checkTileContactDamage(g: Uint8Array, addr: number): number {
     if (monsterStruct === 0) return 0; // no monster/item marker
     if ((flags & 0x40) !== 0) return 0; // flying
     const idx = flags & 0x0f;
-    const dmg = g16(g, ACCUMULATED_DAMAGE);
-    s16(g, ACCUMULATED_DAMAGE, (dmg + g8(g, MONSTER_DAMAGE + idx)) & 0xffff);
+    const dmg = memRead16(g, ACCUMULATED_DAMAGE);
+    memWrite16(g, ACCUMULATED_DAMAGE, (dmg + memRead8(g, MONSTER_DAMAGE + idx)) & 0xffff);
     return 1;
 }
 
@@ -103,15 +89,15 @@ function checkTileContactDamage(g: Uint8Array, addr: number): number {
  * then fold the knockback vector into the damage-this-frame flags.
  */
 export function checkHeroContactDamage(g: Uint8Array): void {
-    if (g8(g, IS_BOSS_CAVERN) !== 0 && g8(g, BOSS_BEING_HIT) !== 0) return;
+    if (memRead8(g, IS_BOSS_CAVERN) !== 0 && memRead8(g, BOSS_BEING_HIT) !== 0) return;
 
-    s16(g, ACCUMULATED_DAMAGE, 0);
+    memWrite16(g, ACCUMULATED_DAMAGE, 0);
 
     let si = wrapMapFromBelow((heroCoordsToAddrInProximity(g) - 1) & 0xffff);
     const di = 0x9f0e; // ADDR_KNOCKBACK_VECTOR_9F0E
 
     let rows: number;
-    if (g8(g, SQUAT_FLAG) === 0) {
+    if (memRead8(g, SQUAT_FLAG) === 0) {
         si = wrapMapFromBelow((si - PROX_COLS) & 0xffff);
         rows = 3;
     } else {
@@ -129,40 +115,40 @@ export function checkHeroContactDamage(g: Uint8Array): void {
             scan = wrapMapFromAbove((scan + PROX_COLS) & 0xffff);
         }
 
-        s8(g, di + tile, found !== 0 ? 0xff : 0);
+        memWrite8(g, di + tile, found !== 0 ? 0xff : 0);
 
-        if (found !== 0 && g8(g, INVINCIBILITY_FLAG) === 0) {
-            let damage = g16(g, ACCUMULATED_DAMAGE);
+        if (found !== 0 && memRead8(g, INVINCIBILITY_FLAG) === 0) {
+            let damage = memRead16(g, ACCUMULATED_DAMAGE);
 
             // facing away from the monster means no shield block
             let noShield: boolean;
-            if (tile < 2) noShield = (g8(g, FACING) & LEFT_FLAG) === 0;
-            else noShield = (g8(g, FACING) & LEFT_FLAG) !== 0;
+            if (tile < 2) noShield = (memRead8(g, FACING) & LEFT_FLAG) === 0;
+            else noShield = (memRead8(g, FACING) & LEFT_FLAG) !== 0;
 
-            if (noShield || g8(g, SHIELD_TYPE) === 0) {
+            if (noShield || memRead8(g, SHIELD_TYPE) === 0) {
                 damageHero(g, damage);
-                s8(g, SOUND_FX_REQUEST, 9);
+                memWrite8(g, SOUND_FX_REQUEST, 9);
             } else {
                 damage = damage >> 1;
-                const shift = ((g8(g, SHIELD_TYPE) + 1) >> 1) & 0xff;
+                const shift = ((memRead8(g, SHIELD_TYPE) + 1) >> 1) & 0xff;
                 damage = damage >> shift;
 
-                const shieldHp = g16(g, SHIELD_HP);
+                const shieldHp = memRead16(g, SHIELD_HP);
                 if (shieldHp < damage) {
-                    s8(g, SHIELD_TYPE, 0);
-                    s16(g, SHIELD_HP, 0);
+                    memWrite8(g, SHIELD_TYPE, 0);
+                    memWrite16(g, SHIELD_HP, 0);
                     renderShieldBroken(g);
                 } else {
                     const left = shieldHp - damage;
-                    s16(g, SHIELD_HP, left);
+                    memWrite16(g, SHIELD_HP, left);
                     if (left === 0) {
-                        s8(g, SHIELD_TYPE, 0);
+                        memWrite8(g, SHIELD_TYPE, 0);
                         renderShieldBroken(g);
                     }
                 }
-                s8(g, SHIELD_HP_RENDER_REQUEST, 0xff);
+                memWrite8(g, SHIELD_HP_RENDER_REQUEST, 0xff);
                 damageHero(g, damage);
-                s8(g, SOUND_FX_REQUEST, 8);
+                memWrite8(g, SOUND_FX_REQUEST, 8);
             }
         }
 
@@ -170,18 +156,18 @@ export function checkHeroContactDamage(g: Uint8Array): void {
     }
 
     const flags =
-        (g8(g, KNOCKBACK_VECTOR) |
-            g8(g, KNOCKBACK_VECTOR + 1) |
-            g8(g, KNOCKBACK_VECTOR + 2) |
-            g8(g, KNOCKBACK_VECTOR + 3)) & 0xff;
-    s8(g, BYTE_9F14, flags);
-    s8(g, HERO_DAMAGE_THIS_FRAME, flags);
+        (memRead8(g, KNOCKBACK_VECTOR) |
+            memRead8(g, KNOCKBACK_VECTOR + 1) |
+            memRead8(g, KNOCKBACK_VECTOR + 2) |
+            memRead8(g, KNOCKBACK_VECTOR + 3)) & 0xff;
+    memWrite8(g, BYTE_9F14, flags);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, flags);
     if (flags !== 0) drawHeroHealth(g);
 }
 
 function renderShieldBroken(g: Uint8Array): void {
-    s8(g, NOTIFICATION_MSG_ID, SHIELD_BROKEN_STR);
-    s8(g, NOTIFICATION_FLAG, 0xff);
+    memWrite8(g, NOTIFICATION_MSG_ID, SHIELD_BROKEN_STR);
+    memWrite8(g, NOTIFICATION_FLAG, 0xff);
 }
 
 /**
@@ -190,21 +176,21 @@ function renderShieldBroken(g: Uint8Array): void {
  */
 export function stepOnAggressiveGround(g: Uint8Array): void {
     // Pirika shoes grant immunity
-    if (g8(g, CURRENT_ACCESSORY) === 2 /* SHOES_PIRIKA */) return;
+    if (memRead8(g, CURRENT_ACCESSORY) === 2 /* SHOES_PIRIKA */) return;
 
     let dangerFound = 0;
 
     let ptr = heroCoordsToAddrInProximity(g);
 
     let rowCount = 3;
-    if (g8(g, SQUAT_FLAG) !== 0) {
+    if (memRead8(g, SQUAT_FLAG) !== 0) {
         ptr = wrapMapFromAbove((ptr + PROX_COLS) & 0xffff);
         rowCount = 2;
     }
 
     for (let row = 0; row < rowCount; row++) {
         for (let col = 0; col < 3; col++) {
-            const tile = g8(g, ptr);
+            const tile = memRead8(g, ptr);
             ptr = (ptr + 1) & 0xffff;
             if (isTileSafeToStay(g, tile) === 0) {
                 dangerFound = 0xff;
@@ -214,9 +200,9 @@ export function stepOnAggressiveGround(g: Uint8Array): void {
     }
 
     // not on a rope: also check the tile under the hero's centre column
-    if (g8(g, ON_ROPE_FLAGS) === 0) {
+    if (memRead8(g, ON_ROPE_FLAGS) === 0) {
         ptr = (ptr + 1) & 0xffff;
-        const tile = g8(g, ptr);
+        const tile = memRead8(g, ptr);
         if (isTileSafeToStay(g, tile) === 0) {
             dangerFound = 0xff;
         }
@@ -224,9 +210,9 @@ export function stepOnAggressiveGround(g: Uint8Array): void {
 
     if (dangerFound === 0) return;
 
-    s8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
-    s8(g, SOUND_FX_REQUEST, 9);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
+    memWrite8(g, SOUND_FX_REQUEST, 9);
 
-    const dmg = AGGRESSIVE_TILES_DAMAGE_TABLE[(g8(g, CAVERN_LEVEL) - 1) & 0xff] ?? 1;
+    const dmg = AGGRESSIVE_TILES_DAMAGE_TABLE[(memRead8(g, CAVERN_LEVEL) - 1) & 0xff] ?? 1;
     damageHero(g, dmg);
 }

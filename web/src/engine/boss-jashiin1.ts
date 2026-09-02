@@ -12,6 +12,7 @@
 
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -29,22 +30,7 @@ const JASHIIN_FINALLY_STR = 20;
 const JASHIIN_ENJOYED_STR = 21;
 const JASHIIN_COMEON_STR = 22;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_A599 .. byte_A59C) ───
 
@@ -122,8 +108,8 @@ function showDialogBox(g: Uint8Array, textIndex: number): void {
     if (textIndex >= 3) return; // defensive; script data only ever uses 0..2
 
     const id = strIds[textIndex] ?? 0;
-    s8(g, NOTIFICATION_MSG_ID, id);
-    s8(g, NOTIFICATION_FLAG, 0xff);
+    memWrite8(g, NOTIFICATION_MSG_ID, id);
+    memWrite8(g, NOTIFICATION_FLAG, 0xff);
 }
 
 // loc_A3A2: blank a 26x2 tile block at viewport row 2, column 1 and clear
@@ -133,12 +119,12 @@ function clearDialogArea(g: Uint8Array): void {
 
     for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 26; col++) {
-            s8(g, dest + col, 0xfe);
+            memWrite8(g, dest + col, 0xfe);
         }
         dest = (dest + VIEW_COLS) & 0xffff;
     }
 
-    s8(g, NOTIFICATION_FLAG, 0);
+    memWrite8(g, NOTIFICATION_FLAG, 0);
 }
 
 // loc_A350: dispatch a cutscene command byte (top bit set).
@@ -150,9 +136,9 @@ function dispatchScriptCommand(g: Uint8Array, op: number): void {
     } else if (group === 0xc0) {
         clearDialogArea(g);
     } else if (group === 0xe0) {
-        s8(g, SOUND_FX_REQUEST, 56);
+        memWrite8(g, SOUND_FX_REQUEST, 56);
     } else if (op === 0xff) {
-        s8(g, IS_JASHIIN_CAVERN, 0);
+        memWrite8(g, IS_JASHIIN_CAVERN, 0);
     }
     // any other value: unrecognized command, silently ignored
 }
@@ -160,16 +146,16 @@ function dispatchScriptCommand(g: Uint8Array, op: number): void {
 // loc_A245..loc_A273: restore the proximity tiles last frame's entries
 // overwrote.
 function restorePreviousFrameSprites(g: Uint8Array): void {
-    let si = g16(g, MONSTERS_LIST);
+    let si = memRead16(g, MONSTERS_LIST);
     spriteWriteCursor = 0;
 
-    while (g16(g, si + 0) !== 0xffff) { // .currX sentinel
-        const win = isInProximityWindow(g, g16(g, si + 0));
+    while (memRead16(g, si + 0) !== 0xffff) { // .currX sentinel
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
+            memWrite8(g, si + 3, win.xRel);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + spriteWriteCursor));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + spriteWriteCursor));
         }
 
         spriteWriteCursor = (spriteWriteCursor + 1) & 0xff;
@@ -180,11 +166,11 @@ function restorePreviousFrameSprites(g: Uint8Array): void {
 // loc_A290..loc_A34B: lay out the 6 body-part columns × up to 8 rows for
 // the current pose.
 function renderCurrentPose(g: Uint8Array): void {
-    const bs = g16(g, BOSS_STATE_PTR);
+    const bs = memRead16(g, BOSS_STATE_PTR);
 
     // Poses 0-2 face/stand one way, poses 3+ another.
     let colX = currentPose < 3 ? 0x10 : 0x0d;
-    s16(g, bs + 0, colX); // .boss_x
+    memWrite16(g, bs + 0, colX); // .boss_x
 
     spriteWriteCursor = 0;
 
@@ -192,7 +178,7 @@ function renderCurrentPose(g: Uint8Array): void {
     const mask = POSE_MASK_TABLES[currentPose] ?? MASK_A;
     let ti = 0;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
 
     for (let col = 0; col < 6; col++) {
@@ -214,17 +200,17 @@ function renderCurrentPose(g: Uint8Array): void {
                 if (!carry) continue;
 
                 const packed = tileTable[ti] ?? 0;
-                s16(g, si + 0, colX);                                    // .currX
-                s8(g, si + 2, (g8(g, bs + 2) + row * 2) & 0x3f);          // .currY
-                s8(g, si + 3, currentColRelX);                            // .m_x_rel
-                s8(g, si + 4, (packed >> 4) & 0x0f);                      // .flags
-                s8(g, si + 6, packed & 0x0f);                             // .anim_counter
-                s8(g, si + 5, 0);                                         // never hittable
+                memWrite16(g, si + 0, colX);                                    // .currX
+                memWrite8(g, si + 2, (memRead8(g, bs + 2) + row * 2) & 0x3f);          // .currY
+                memWrite8(g, si + 3, currentColRelX);                            // .m_x_rel
+                memWrite8(g, si + 4, (packed >> 4) & 0x0f);                      // .flags
+                memWrite8(g, si + 6, packed & 0x0f);                             // .anim_counter
+                memWrite8(g, si + 5, 0);                                         // never hittable
 
-                const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                const oldTile = g8(g, di);
-                s8(g, di, (spriteWriteCursor | 0x80) & 0xff);
-                s8(g, PROXIMITY_LAYER2 + spriteWriteCursor, oldTile);
+                const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                const oldTile = memRead8(g, di);
+                memWrite8(g, di, (spriteWriteCursor | 0x80) & 0xff);
+                memWrite8(g, PROXIMITY_LAYER2 + spriteWriteCursor, oldTile);
 
                 si += 16;
                 spriteWriteCursor = (spriteWriteCursor + 1) & 0xff;
@@ -235,7 +221,7 @@ function renderCurrentPose(g: Uint8Array): void {
         colX = (colX + 2) & 0xffff;
     }
 
-    s16(g, si, 0xffff); // terminator after the last body-part segment
+    memWrite16(g, si, 0xffff); // terminator after the last body-part segment
 }
 
 /** Jashiin1_AI (mao1.c:205) — entry point, called once per frame. */
@@ -245,8 +231,8 @@ export function jashiin1Ai(g: Uint8Array, m: number): void {
     restorePreviousFrameSprites(g);
 
     // Reset this frame's sprite list before laying it out again.
-    const base = g16(g, MONSTERS_LIST);
-    s16(g, base, 0xffff);
+    const base = memRead16(g, MONSTERS_LIST);
+    memWrite16(g, base, 0xffff);
 
     scriptCursor = (scriptCursor + 1) & 0xff;
     const op = scriptCursor < CUTSCENE_SCRIPT.length

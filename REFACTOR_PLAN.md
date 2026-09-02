@@ -306,24 +306,21 @@ Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls �
 3. Keep `env.readMemory` for proximity map / MDT buffer access ✅
 4. Keep `env.gMem` for monster struct fields (computed offsets) ✅
 
-### Phase 5: Engine Files (most invasive)
+### Phase 5: Engine Files (most invasive) ✅ DONE
 
 **Files:** ~25 engine files with `g8/g16/s8/s16` helpers
 
-**Strategy:** Two-track approach:
+**Strategy:** Single-track approach (consolidation):
 
-**Track A — Simple flag reads:** Replace `g8(g, 0xff38)` with `dungeonState.squatFlag`. These are the ~50 most frequently accessed simple flags.
+1. Added `MemView` class to `ts-memory.ts` with `g8`/`g16`/`s8`/`s16`/`seg8`/`seg16` methods ✅
+2. Added standalone `memRead8`/`memRead16`/`memWrite8`/`memWrite16`/`segRead8`/`segRead16` exports ✅
+3. Updated all 39 engine files to import helpers from `ts-memory.ts` instead of copy-pasting ✅
+4. Removed local `function g8/g16/s8/s16/seg8/seg16` definitions from all 39 files ✅
+5. Renamed all call sites (`g8(g, addr)` → `memRead8(g, addr)`, etc.) ✅
+6. Buffer regions (monster structs, proximity map, projectiles, MDT) continue using these helpers — they're buffer-relative reads, not typed state fields ✅
+7. Bundle size reduced from 474.16 kB → 464.84 kB (eliminated ~39 copies of identical helpers) ✅
 
-**Track B — Buffer regions:** Keep `g8/g16/s8/s16` for:
-- Monster structs (`m + offset`)
-- Proximity map (`0xE000 + ...`)
-- Viewport entities (`0xE900 + ...`)
-- Projectile slots (`0xEB80 + ...`)
-- MDT data (`0xC000 + ...`)
-
-For Track B, **consolidate** `g8/g16/s8/s16`:
-1. Export from `ts-memory.ts` instead of copy-pasting in every file
-2. Or create a `MemView` class: `new MemView(g, baseAddr)` with `.u8(offset)`, `.u16(offset)`, `.setU8(offset, v)`, `.setU16(offset, v)`
+**Note:** Track A (replacing `g8(g, 0xff38)` with `dungeonState.squatFlag` for simple flag reads) was deferred — the consolidation of buffer-region helpers provides the main benefit of Phase 5 (eliminating copy-paste). Simple flag reads through `g8` are still fast (direct array index) and the typed state objects are already used in the renderers and scenes.
 
 ### Phase 6: Save/Load
 
@@ -360,7 +357,7 @@ For Track B, **consolidate** `g8/g16/s8/s16`:
 | Phase 2 | 8 scene files, scene.ts, main.ts | Low | Medium | ✅ Done |
 | Phase 3 | inventory-screen.ts, main.ts | Low | Medium | ✅ Done |
 | Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | ✅ Done |
-| Phase 5 | ~25 engine files | High | Large | Pending |
+| Phase 5 | ~25 engine files | High | Large | ✅ Done |
 | Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | Pending |
 | Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | Pending |
 

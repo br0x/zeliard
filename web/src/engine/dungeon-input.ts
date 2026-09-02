@@ -96,22 +96,7 @@ const HERO_DAMAGE_THIS_FRAME = 0xff36;
 
 export const CANT_OPEN_THIS_DOOR_STR = 9;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** Door data saved by enter_opened_door for deferred completion (C statics). */
 export interface DoorPendingState {
@@ -133,31 +118,31 @@ export interface InputCallbacks {
 
 /** input_handling (dungeon.c:3971). */
 export function inputHandling(g: Uint8Array): void {
-    if (g8(g, SWORD_TYPE) === 0) return;
+    if (memRead8(g, SWORD_TYPE) === 0) return;
 
-    const altSpace = g8(g, INPUT_ALT_SPACE);
-    const dirs = g8(g, INPUT_DIRS);
+    const altSpace = memRead8(g, INPUT_ALT_SPACE);
+    const dirs = memRead8(g, INPUT_DIRS);
 
     if (
         (altSpace & ALT_SPACE_SPACE) === 0 ||
-        g8(g, JUMP_PHASE_FLAGS) === 0 ||
-        g8(g, SLOPE_DIRECTION) !== 0 ||
+        memRead8(g, JUMP_PHASE_FLAGS) === 0 ||
+        memRead8(g, SLOPE_DIRECTION) !== 0 ||
         (dirs & KEY_DOWN) === 0
     ) {
         // sword_default
-        s8(g, DOWN_THRUST_HELD, 0);
+        memWrite8(g, DOWN_THRUST_HELD, 0);
 
         if (
-            g8(g, SPACEBAR_LATCH) === 0 ||
-            g8(g, SWORD_SWING_FLAG) !== 0 ||
-            g8(g, 0xff3c /* SPELL_ACTIVE_FLAG */) !== 0
+            memRead8(g, SPACEBAR_LATCH) === 0 ||
+            memRead8(g, SWORD_SWING_FLAG) !== 0 ||
+            memRead8(g, 0xff3c /* SPELL_ACTIVE_FLAG */) !== 0
         ) {
             return;
         }
 
         let overhead: number;
 
-        if (g8(g, IS_BOSS_CAVERN) !== 0) {
+        if (memRead8(g, IS_BOSS_CAVERN) !== 0) {
             overhead = dirs & KEY_UP;
         } else {
             // scan 4 rows × 8 columns above the hero for a flying monster
@@ -171,7 +156,7 @@ export function inputHandling(g: Uint8Array): void {
                     if (monsterStruct !== 0) {
                         if (
                             (flags & 0x60) === 0 &&
-                            (g8(g, monsterStruct + 7) & 0x10) === 0
+                            (memRead8(g, monsterStruct + 7) & 0x10) === 0
                         ) {
                             dl = 0xff;
                         }
@@ -182,43 +167,43 @@ export function inputHandling(g: Uint8Array): void {
             }
             overhead = dl !== 0 ? 0xff : dirs & KEY_UP;
         }
-        s8(g, SWORD_HIT_TYPE, overhead !== 0 ? 1 : 0);
-        s8(g, SWORD_MOVEMENT_PHASE, 0);
-        s8(g, SOUND_FX_REQUEST, 3);
+        memWrite8(g, SWORD_HIT_TYPE, overhead !== 0 ? 1 : 0);
+        memWrite8(g, SWORD_MOVEMENT_PHASE, 0);
+        memWrite8(g, SOUND_FX_REQUEST, 3);
     } else {
         // downward thrust (space + up + down held)
-        s8(g, SWORD_HIT_TYPE, 2);
-        s8(g, SWORD_MOVEMENT_PHASE, 2);
-        if (g8(g, DOWN_THRUST_HELD) === 0) {
-            s8(g, DOWN_THRUST_HELD, 0xff);
-            s8(g, SOUND_FX_REQUEST, 4);
+        memWrite8(g, SWORD_HIT_TYPE, 2);
+        memWrite8(g, SWORD_MOVEMENT_PHASE, 2);
+        if (memRead8(g, DOWN_THRUST_HELD) === 0) {
+            memWrite8(g, DOWN_THRUST_HELD, 0xff);
+            memWrite8(g, SOUND_FX_REQUEST, 4);
         }
     }
-    s8(g, SPACEBAR_LATCH, 0);
-    s8(g, ALTKEY_LATCH, 0);
-    s8(g, SWORD_SWING_FLAG, 0xff);
+    memWrite8(g, SPACEBAR_LATCH, 0);
+    memWrite8(g, ALTKEY_LATCH, 0);
+    memWrite8(g, SWORD_SWING_FLAG, 0xff);
 }
 
 // ─── dispatcher ───
 
 /** state_machine_dispatcher_idle_default (dungeon.c:4138). */
 export function stateMachineDispatcherIdleDefault(g: Uint8Array): void {
-    s8(g, SLOPE_DIRECTION, 0);
-    s8(g, JUMP_PHASE_FLAGS, 0x7f);
+    memWrite8(g, SLOPE_DIRECTION, 0);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0x7f);
 }
 
 /** init_horizontal_sliding (dungeon.c:4117). */
 export function initHorizontalSliding(g: Uint8Array): void {
     if (setZeroFlagIfSlippery(g) !== 0) return; // not slippery
-    if (g8(g, SLIDE_TICKS_REMAINING) !== 0) return; // already sliding
-    if (g8(g, ON_ROPE_FLAGS) !== 0) return; // on rope
+    if (memRead8(g, SLIDE_TICKS_REMAINING) !== 0) return; // already sliding
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) return; // on rope
 
-    let accum = ((g8(g, HORIZ_MOVEMENT_ACCUM) >> 1) & 0xff) as number;
+    let accum = ((memRead8(g, HORIZ_MOVEMENT_ACCUM) >> 1) & 0xff) as number;
     if (accum === 0) return;
     if (accum >= 10) accum = 10;
 
-    s8(g, SLIDE_TICKS_REMAINING, accum);
-    s8(g, HORIZ_MOVEMENT_ACCUM, 0);
+    memWrite8(g, SLIDE_TICKS_REMAINING, accum);
+    memWrite8(g, HORIZ_MOVEMENT_ACCUM, 0);
 }
 
 /** down_pressed (dungeon.c:4150). */
@@ -226,9 +211,9 @@ export function downPressed(
     g: Uint8Array,
     movePlatformDownDamageMonster: (g: Uint8Array) => boolean,
 ): void {
-    s8(g, BYTE_9F18, 0);
+    memWrite8(g, BYTE_9F18, 0);
 
-    if (g8(g, SLOPE_DIRECTION) !== 0) return;
+    if (memRead8(g, SLOPE_DIRECTION) !== 0) return;
 
     if (movePlatformDownDamageMonster(g)) return;
 
@@ -238,36 +223,36 @@ export function downPressed(
 
     if (isOverRope(g, si)) {
         // descend one step per frame while holding down on a rope
-        s8(g, 0xe7 /* HERO_ANIM_PHASE */, (g8(g, 0xe7) + 1) & 0xff);
+        memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, (memRead8(g, 0xe7) + 1) & 0xff);
 
-        if (isBlockingTile(g, g8(g, si)) !== false) {
-            s8(g, 0xe7, g8(g, 0xe7) | 1);
+        if (isBlockingTile(g, memRead8(g, si)) !== false) {
+            memWrite8(g, 0xe7, memRead8(g, 0xe7) | 1);
             return;
         }
 
         heroScrollDownLocal(g);
-        s8(g, RENDER_DONE, 0);
-        s8(g, RENDER_REQUEST, 0xff);
+        memWrite8(g, RENDER_DONE, 0);
+        memWrite8(g, RENDER_REQUEST, 0xff);
         return;
     }
 
-    if (g8(g, ON_ROPE_FLAGS) === 0) {
+    if (memRead8(g, ON_ROPE_FLAGS) === 0) {
         // already on the ground: crouch
-        s8(g, 0x9f0a /* FRAME_TICKS */, 0);
-        s8(g, SQUAT_FLAG, 0xff);
+        memWrite8(g, 0x9f0a /* FRAME_TICKS */, 0);
+        memWrite8(g, SQUAT_FLAG, 0xff);
         return;
     }
 
     // was on rope: dismount onto the ground
-    s8(g, ON_ROPE_FLAGS, 0x80);
-    s8(g, JUMP_PHASE_FLAGS, 0x80);
+    memWrite8(g, ON_ROPE_FLAGS, 0x80);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0x80);
 }
 
 function heroScrollDownLocal(g: Uint8Array): void {
-    s8(g, 0x82, (g8(g, 0x82) + 1) & 0xff);
-    let addr = (g16(g, 0xff31) + PROX_COLS) & 0xffff;
+    memWrite8(g, 0x82, (memRead8(g, 0x82) + 1) & 0xff);
+    let addr = (memRead16(g, 0xff31) + PROX_COLS) & 0xffff;
     if (addr >= 0xe000 + 36 * 64) addr -= 36 * 64;
-    s16(g, 0xff31, addr);
+    memWrite16(g, 0xff31, addr);
 }
 
 /** up_pressed (dungeon.c:5097). */
@@ -278,7 +263,7 @@ export function upPressed(
         enterTheDoor: (g: Uint8Array, shouldBreak: { v: number }) => void;
     },
 ): void {
-    s8(g, BYTE_9F18, 0);
+    memWrite8(g, BYTE_9F18, 0);
     const shouldBreak = { v: 0 };
     tryDoorInteraction(g, shouldBreak);
     if (shouldBreak.v !== 0) return;
@@ -295,9 +280,9 @@ export function tryDoorInteraction(
 ): void {
     let si = wrapMapFromBelow((heroCoordsToAddrInProximity(g) - PROX_COLS - 1) & 0xffff);
 
-    if (g8(g, si) === 0x4a) {
+    if (memRead8(g, si) === 0x4a) {
         // standing on the right door tile
-        if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
+        if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
             shouldBreak.v = 0xff;
             moveHeroLeftIfNoObstacles(g);
         }
@@ -305,16 +290,16 @@ export function tryDoorInteraction(
     }
 
     si++;
-    if (g8(g, si) === 0x4a) {
+    if (memRead8(g, si) === 0x4a) {
         // centered on the door
         if (enterTheDoor) enterTheDoor(g, shouldBreak);
         return;
     }
 
     si++;
-    if (g8(g, si) === 0x4a) {
+    if (memRead8(g, si) === 0x4a) {
         // standing on the left door tile
-        if ((g8(g, FACING) & LEFT_FLAG) === 0) {
+        if ((memRead8(g, FACING) & LEFT_FLAG) === 0) {
             shouldBreak.v = 0xff;
             moveHeroRightIfNoObstacles(g);
         }
@@ -326,9 +311,9 @@ export function tryDoorInteraction(
 /** left_default (dungeon.c:4562). */
 export function leftDefault(g: Uint8Array): void {
     let si = wrapMapFromAbove((heroCoordsToAddrInProximity(g) + 3 * PROX_COLS + 1) & 0xffff);
-    if (!isBlockingTile(g, g8(g, si))) {
+    if (!isBlockingTile(g, memRead8(g, si))) {
         si++;
-        if (isBlockingTile(g, g8(g, si))) {
+        if (isBlockingTile(g, memRead8(g, si))) {
             moveHeroRightIfNoObstacles(g);
         }
     }
@@ -337,9 +322,9 @@ export function leftDefault(g: Uint8Array): void {
 /** right_default (dungeon.c:4575). */
 export function rightDefault(g: Uint8Array): void {
     let si = wrapMapFromAbove((heroCoordsToAddrInProximity(g) + 3 * PROX_COLS + 1) & 0xffff);
-    if (!isBlockingTile(g, g8(g, si))) {
+    if (!isBlockingTile(g, memRead8(g, si))) {
         si--;
-        if (isBlockingTile(g, g8(g, si))) {
+        if (isBlockingTile(g, memRead8(g, si))) {
             moveHeroLeftIfNoObstacles(g);
         }
     }
@@ -347,14 +332,14 @@ export function rightDefault(g: Uint8Array): void {
 
 /** right_up_pressed (dungeon.c:4177). */
 export function rightUpPressed(g: Uint8Array): void {
-    s8(g, 0x9f0b /* BYTE_9F0B */, 0xff);
+    memWrite8(g, 0x9f0b /* BYTE_9F0B */, 0xff);
     jumpPressHandler(g);
     onRightPressed(g);
 }
 
 /** left_up_pressed (dungeon.c:4232). */
 export function leftUpPressed(g: Uint8Array): void {
-    s8(g, 0x9f0b, 0xff);
+    memWrite8(g, 0x9f0b, 0xff);
     jumpPressHandler(g);
     onLeftPressed(g);
 }
@@ -372,9 +357,9 @@ export function stateMachineDispatcher(
         enterTheDoor?: ((g: Uint8Array, shouldBreak: { v: number }) => void) | undefined;
     },
 ): void {
-    s8(g, SLIDE_DIRECTION, 0);
+    memWrite8(g, SLIDE_DIRECTION, 0);
 
-    const dirs = g8(g, INPUT_DIRS);
+    const dirs = memRead8(g, INPUT_DIRS);
 
     if (dirs === (KEY_LEFT | KEY_UP)) {
         leftUpPressed(g);
@@ -390,18 +375,18 @@ export function stateMachineDispatcher(
     }
 
     // squat/turn handling while airborne (not on a rope, mid-jump)
-    if (g8(g, ON_ROPE_FLAGS) === 0 && g8(g, JUMP_PHASE_FLAGS) !== 0) {
-        if (g8(g, BYTE_9F0B) === 0) {
+    if (memRead8(g, ON_ROPE_FLAGS) === 0 && memRead8(g, JUMP_PHASE_FLAGS) !== 0) {
+        if (memRead8(g, BYTE_9F0B) === 0) {
             stateMachineDispatcherIdleDefault(g);
             return;
         }
-        s8(g, BYTE_9F0B, 0);
-        if ((g8(g, FACING) & UP_FLAG) === 0) {
+        memWrite8(g, BYTE_9F0B, 0);
+        if ((memRead8(g, FACING) & UP_FLAG) === 0) {
             stateMachineDispatcherIdleDefault(g);
             return;
         }
         // no_squat_mode
-        if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
+        if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
             onLeftPressed(g);
         } else {
             onRightPressed(g);
@@ -411,11 +396,11 @@ export function stateMachineDispatcher(
     }
 
     // on ground or rope: re-trigger sliding init only when facing changed
-    const faceLeft = g8(g, FACING) & LEFT_FLAG;
-    if (faceLeft !== g8(g, BYTE_9F24)) {
+    const faceLeft = memRead8(g, FACING) & LEFT_FLAG;
+    if (faceLeft !== memRead8(g, BYTE_9F24)) {
         initHorizontalSliding(g);
     }
-    s8(g, BYTE_9F24, faceLeft);
+    memWrite8(g, BYTE_9F24, faceLeft);
 
     if (dirs === KEY_DOWN) {
         downPressed(g, deps.movePlatformDownDamageMonster);
@@ -432,10 +417,10 @@ export function stateMachineDispatcher(
     }
 
     initHorizontalSliding(g);
-    if ((g8(g, ON_ROPE_FLAGS) | g8(g, SQUAT_FLAG)) !== 0) {
+    if ((memRead8(g, ON_ROPE_FLAGS) | memRead8(g, SQUAT_FLAG)) !== 0) {
         return;
     }
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x80);
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x80);
 }
 
 function upPressedDispatch(
@@ -445,7 +430,7 @@ function upPressedDispatch(
         enterTheDoor?: ((g: Uint8Array, sb: { v: number }) => void) | undefined;
     },
 ): void {
-    s8(g, BYTE_9F18, 0);
+    memWrite8(g, BYTE_9F18, 0);
     const shouldBreak = { v: 0 };
     tryDoorInteraction(g, shouldBreak, deps.enterTheDoor);
     if (shouldBreak.v !== 0) return;
@@ -457,20 +442,20 @@ function upPressedDispatch(
 /** sliding_physics_step (dungeon.c:4334). */
 export function slidingPhysicsStep(g: Uint8Array): void {
     if (setZeroFlagIfSlippery(g) !== 0) return; // not slippery
-    if (g8(g, JUMP_PHASE_FLAGS) !== 0) return; // airborne
-    if (g8(g, SLIDE_TICKS_REMAINING) === 0) return;
+    if (memRead8(g, JUMP_PHASE_FLAGS) !== 0) return; // airborne
+    if (memRead8(g, SLIDE_TICKS_REMAINING) === 0) return;
 
-    s8(g, SLIDE_TICKS_REMAINING, (g8(g, SLIDE_TICKS_REMAINING) - 1) & 0xff);
+    memWrite8(g, SLIDE_TICKS_REMAINING, (memRead8(g, SLIDE_TICKS_REMAINING) - 1) & 0xff);
     let si = wrapMapFromAbove((heroCoordsToAddrInProximity(g) + 3 * PROX_COLS + 1) & 0xffff);
 
-    const tile = g8(g, si);
+    const tile = memRead8(g, si);
     if (tile >= 0x40 && tile < 0x49) {
-        s8(g, SLIDE_TICKS_REMAINING, 0); // non-slippery tile: stop
+        memWrite8(g, SLIDE_TICKS_REMAINING, 0); // non-slippery tile: stop
         return;
     }
 
-    const slideDir = g8(g, SLIDE_DIRECTION);
-    if ((g8(g, SLIDE_DIRECTION_LOCK) & 1) === 0) {
+    const slideDir = memRead8(g, SLIDE_DIRECTION);
+    if ((memRead8(g, SLIDE_DIRECTION_LOCK) & 1) === 0) {
         if (slideDir === 2) return;
         moveHeroLeftIfNoObstacles(g);
     } else {
@@ -481,53 +466,53 @@ export function slidingPhysicsStep(g: Uint8Array): void {
 
 /** hero_knockback_handler (dungeon.c:4269). */
 export function heroKnockbackHandler(g: Uint8Array): void {
-    if (g8(g, 0x9f14 /* BYTE_9F14 */) === 0) return;
+    if (memRead8(g, 0x9f14 /* BYTE_9F14 */) === 0) return;
 
     let moveLeft: boolean;
 
-    if (g8(g, 0x9f01 /* BOSS_PLACEMENT */) !== 0) {
+    if (memRead8(g, 0x9f01 /* BOSS_PLACEMENT */) !== 0) {
         moveLeft = true;
     } else {
-        const wordNonzero = g16(g, 0x9f0e) !== 0;
+        const wordNonzero = memRead16(g, 0x9f0e) !== 0;
         moveLeft =
-            wordNonzero && g16(g, 0x9f10) !== 0
-                ? (g8(g, FACING) & LEFT_FLAG) === 0
+            wordNonzero && memRead16(g, 0x9f10) !== 0
+                ? (memRead8(g, FACING) & LEFT_FLAG) === 0
                 : !wordNonzero;
     }
 
     if (moveLeft) {
-        if (g8(g, ON_ROPE_FLAGS) !== 0) {
-            s8(g, FACING, (g8(g, FACING) & 0xfc) | LEFT_FLAG);
-            s8(g, JUMP_PHASE_FLAGS, 0x7f);
-            s8(g, SPACEBAR_LATCH, 0);
+        if (memRead8(g, ON_ROPE_FLAGS) !== 0) {
+            memWrite8(g, FACING, (memRead8(g, FACING) & 0xfc) | LEFT_FLAG);
+            memWrite8(g, JUMP_PHASE_FLAGS, 0x7f);
+            memWrite8(g, SPACEBAR_LATCH, 0);
         }
         moveHeroLeftIfNoObstacles(g);
         moveHeroLeftIfNoObstacles(g);
     } else {
-        if (g8(g, ON_ROPE_FLAGS) !== 0) {
-            s8(g, FACING, g8(g, FACING) & 0xfc);
-            s8(g, JUMP_PHASE_FLAGS, 0x7f);
-            s8(g, SPACEBAR_LATCH, 0);
+        if (memRead8(g, ON_ROPE_FLAGS) !== 0) {
+            memWrite8(g, FACING, memRead8(g, FACING) & 0xfc);
+            memWrite8(g, JUMP_PHASE_FLAGS, 0x7f);
+            memWrite8(g, SPACEBAR_LATCH, 0);
         }
         moveHeroRightIfNoObstacles(g);
         moveHeroRightIfNoObstacles(g);
     }
 
-    if (g8(g, ON_ROPE_FLAGS) !== 0) {
-        s8(g, ON_ROPE_FLAGS, 0x80);
-        s8(g, JUMP_PHASE_FLAGS, 0);
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) {
+        memWrite8(g, ON_ROPE_FLAGS, 0x80);
+        memWrite8(g, JUMP_PHASE_FLAGS, 0);
     }
 
-    if (g8(g, AIR_UP_TILE_FOUND) !== 0) return;
-    if ((g8(g, JUMP_PHASE_FLAGS) & 0x80) !== 0) return;
+    if (memRead8(g, AIR_UP_TILE_FOUND) !== 0) return;
+    if ((memRead8(g, JUMP_PHASE_FLAGS) & 0x80) !== 0) return;
 
     // check_floor_for_landing returns nonzero when landing is possible
     const floor = floorCheck(g);
     if (floor === 0) return;
 
-    if (g8(g, 0x9f09 /* BYTE_9F09 */) !== 0) {
-        s8(g, 0x9f09, (g8(g, 0x9f09) - 1) & 0xff);
-        s8(g, HERO_HEAD_Y_VIEW, (g8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
+    if (memRead8(g, 0x9f09 /* BYTE_9F09 */) !== 0) {
+        memWrite8(g, 0x9f09, (memRead8(g, 0x9f09) - 1) & 0xff);
+        memWrite8(g, HERO_HEAD_Y_VIEW, (memRead8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
     } else {
         heroScrollDownLocal(g);
     }
@@ -537,8 +522,8 @@ import { checkFloorForLanding as floorCheck } from './dungeon-vertical.js';
 
 /** airborne_movement (dungeon.c:4475). Returns C's return value. */
 export function airborneMovement(g: Uint8Array): number {
-    if (g8(g, AIR_UP_TILE_FOUND) !== 0) return 1;
-    if ((g8(g, JUMP_PHASE_FLAGS) & 0x80) !== 0) return 1;
+    if (memRead8(g, AIR_UP_TILE_FOUND) !== 0) return 1;
+    if ((memRead8(g, JUMP_PHASE_FLAGS) & 0x80) !== 0) return 1;
 
     heroCollapsePlatformLocal(g);
     slopeAssistTick(g);
@@ -547,65 +532,65 @@ export function airborneMovement(g: Uint8Array): number {
         return landAfterJumpTickG(g);
     }
 
-    s8(g, 0x9f08 /* JUMP_HEIGHT_COUNTER */, (g8(g, 0x9f08) + 1) & 0xff);
-    if (g8(g, 0x9f09) !== 0) {
-        s8(g, 0x9f09, (g8(g, 0x9f09) - 1) & 0xff);
-        s8(g, HERO_HEAD_Y_VIEW, (g8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
+    memWrite8(g, 0x9f08 /* JUMP_HEIGHT_COUNTER */, (memRead8(g, 0x9f08) + 1) & 0xff);
+    if (memRead8(g, 0x9f09) !== 0) {
+        memWrite8(g, 0x9f09, (memRead8(g, 0x9f09) - 1) & 0xff);
+        memWrite8(g, HERO_HEAD_Y_VIEW, (memRead8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
     } else {
         heroScrollDownLocal(g);
     }
 
-    if ((g8(g, FACING) & UP_FLAG) === 0) {
+    if ((memRead8(g, FACING) & UP_FLAG) === 0) {
         const si = wrapMapFromAbove(
             (heroCoordsToAddrInProximity(g) + 2 * PROX_COLS + 1) & 0xffff,
         );
         if (isOverRope(g, si)) {
-            s8(g, ON_ROPE_FLAGS, 0xff); // grab onto rope mid-air
+            memWrite8(g, ON_ROPE_FLAGS, 0xff); // grab onto rope mid-air
             return 0;
         }
     }
 
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x80);
-    const oldPhase = g8(g, JUMP_PHASE_FLAGS);
-    s8(g, JUMP_PHASE_FLAGS, 0x7f);
-    if (g8(g, SLOPE_DIRECTION) !== 0) return 0;
-    if (g8(g, INVINCIBILITY_FLAG) !== 0) return 0;
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x80);
+    const oldPhase = memRead8(g, JUMP_PHASE_FLAGS);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0x7f);
+    if (memRead8(g, SLOPE_DIRECTION) !== 0) return 0;
+    if (memRead8(g, INVINCIBILITY_FLAG) !== 0) return 0;
 
     if (oldPhase === 0) {
         // Landing frame: re-center facing (dungeon.c:4570 — the
         // on_left/on_right_pressed calls also zero BYTE_9F18).
-        if ((g8(g, FACING) & LEFT_FLAG) !== 0) onLeftPressed(g);
+        if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) onLeftPressed(g);
         else onRightPressed(g);
-        s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
+        memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
         return 0;
     }
 
-    const horizInput = g8(g, INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
+    const horizInput = memRead8(g, INPUT_DIRS) & (KEY_LEFT | KEY_RIGHT);
 
     if (horizInput === KEY_LEFT) {
-        if ((g8(g, FACING) & LEFT_FLAG) === 0) {
-            s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
-            s8(g, FACING, g8(g, FACING) ^ LEFT_FLAG);
+        if ((memRead8(g, FACING) & LEFT_FLAG) === 0) {
+            memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
+            memWrite8(g, FACING, memRead8(g, FACING) ^ LEFT_FLAG);
             leftDefault(g);
             return 0;
         }
     } else if (horizInput === KEY_RIGHT) {
-        if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
-            s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
-            s8(g, FACING, g8(g, FACING) ^ LEFT_FLAG);
+        if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
+            memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
+            memWrite8(g, FACING, memRead8(g, FACING) ^ LEFT_FLAG);
             rightDefault(g);
             return 0;
         }
     }
 
-    if ((g8(g, FACING) & UP_FLAG) === 0) {
+    if ((memRead8(g, FACING) & UP_FLAG) === 0) {
         if (horizInput === KEY_LEFT) {
             rightDefault(g);
         } else if (horizInput === KEY_RIGHT) {
             leftDefault(g);
         }
     } else {
-        if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
+        if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
             onLeftPressed(g);
         } else {
             onRightPressed(g);
@@ -621,6 +606,8 @@ import {
     landAfterJump as landAfterJumpG,
 } from './dungeon-vertical.js';
 
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
+
 function heroCollapsePlatformLocal(g: Uint8Array): void {
     heroCollapsePlatformFn(g);
 }
@@ -633,8 +620,8 @@ function landAfterJumpTickG(g: Uint8Array): number {
 export function browseProjectiles(g: Uint8Array): void {
     let p = PROJECTILES_LIST;
     for (;;) {
-        if (g8(g, p) === 0xff) {
-            s8(g, PROJECTILES_LIST, 0xff);
+        if (memRead8(g, p) === 0xff) {
+            memWrite8(g, PROJECTILES_LIST, 0xff);
             return;
         }
         p += 13;
@@ -643,21 +630,21 @@ export function browseProjectiles(g: Uint8Array): void {
 
 /** reset_dungeon_state_vars (dungeon.c:1218). */
 export function resetDungeonStateVars(g: Uint8Array): void {
-    s8(g, SWORD_SWING_FLAG, 0);
-    s8(g, UI_ELEMENT_DIRTY, 0);
-    s8(g, 0xff3c /* SPELL_ACTIVE_FLAG */, 0);
-    s8(g, SQUAT_FLAG, 0);
-    s8(g, HERO_DAMAGE_THIS_FRAME, 0);
-    s8(g, 0x9eef /* BYTE_9EEF */, 0);
-    s8(g, 0xff3e /* BYTE_FF3E */, 0);
-    s8(g, 0xff4b /* BYTE_FF4B */, 0);
-    s8(g, HEARTBEAT_VOLUME, 0);
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
-    s8(g, PROJECTILES_LIST, 0xff);
-    s8(g, BOSS_EXPLOSIONS_LIST, 0);
-    s16(g, MAGIC_PROJECTILES_ADDR, 0xffff);
-    s8(g, HERO_HIDDEN_FLAG, 0xff);
-    s8(g, 0x9ef5 /* BYTE_9EF5 */, 0xff);
+    memWrite8(g, SWORD_SWING_FLAG, 0);
+    memWrite8(g, UI_ELEMENT_DIRTY, 0);
+    memWrite8(g, 0xff3c /* SPELL_ACTIVE_FLAG */, 0);
+    memWrite8(g, SQUAT_FLAG, 0);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0);
+    memWrite8(g, 0x9eef /* BYTE_9EEF */, 0);
+    memWrite8(g, 0xff3e /* BYTE_FF3E */, 0);
+    memWrite8(g, 0xff4b /* BYTE_FF4B */, 0);
+    memWrite8(g, HEARTBEAT_VOLUME, 0);
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
+    memWrite8(g, PROJECTILES_LIST, 0xff);
+    memWrite8(g, BOSS_EXPLOSIONS_LIST, 0);
+    memWrite16(g, MAGIC_PROJECTILES_ADDR, 0xffff);
+    memWrite8(g, HERO_HIDDEN_FLAG, 0xff);
+    memWrite8(g, 0x9ef5 /* BYTE_9EF5 */, 0xff);
     clearViewportBufferLocal(g);
 }
 

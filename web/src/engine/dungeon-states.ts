@@ -78,22 +78,7 @@ const HEARTBEAT_VOLUME = 0xff08;
 const INVINCIBILITY_FLAG = 0xe8;
 const HERO_X_IN_PROXIMITY_MAP = 0x9f1a; // word
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** C statics spanning multiple frames (dungeon.c:1823-1836). */
 export interface DungeonRuntimeStatics {
@@ -125,25 +110,25 @@ export function dungeonFinishNormalFrame(
     heroInteractionCheck(g);
     heroKnockbackHandler(g);
 
-    s8(g, FRAME_TICKS, (g8(g, FRAME_TICKS) + 1) & 0xff);
-    if (g8(g, FRAME_TICKS) === 2) {
-        s8(g, SQUAT_FLAG, 0);
+    memWrite8(g, FRAME_TICKS, (memRead8(g, FRAME_TICKS) + 1) & 0xff);
+    if (memRead8(g, FRAME_TICKS) === 2) {
+        memWrite8(g, SQUAT_FLAG, 0);
     }
 
-    if ((g8(g, 0xff17 /* INPUT_DIRS */) & 2 /* KEY_DOWN */) !== 0) {
-        s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
+    if ((memRead8(g, 0xff17 /* INPUT_DIRS */) & 2 /* KEY_DOWN */) !== 0) {
+        memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
     }
 
     if (airborneMovementTick(g) !== 0) {
         stateMachineDispatcherTick(g, deps);
     }
 
-    if (g8(g, ON_ROPE_FLAGS) !== 0) {
-        s8(g, 0xff90 /* DUNGEON_STATE */, 1 /* ROPE */);
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) {
+        memWrite8(g, 0xff90 /* DUNGEON_STATE */, 1 /* ROPE */);
     }
 
-    s8(g, RENDER_DONE, 0);
-    s8(g, RENDER_REQUEST, 0xff);
+    memWrite8(g, RENDER_DONE, 0);
+    memWrite8(g, RENDER_REQUEST, 0xff);
 }
 
 // late-bound wrappers to avoid import cycles at module init
@@ -187,9 +172,9 @@ export function dungeonUpdateNormal(
     deps: StateFrameDeps,
     callbacks: FramePreCallbacks,
 ): void {
-    if (g8(g, DUNGEON_FRAME_PHASE) === 0) {
-        if (g8(g, ON_ROPE_FLAGS) !== 0) {
-            s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_ROPE);
+    if (memRead8(g, DUNGEON_FRAME_PHASE) === 0) {
+        if (memRead8(g, ON_ROPE_FLAGS) !== 0) {
+            memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_ROPE);
             dungeonUpdateRope(g, statics, deps, callbacks);
             return;
         }
@@ -198,17 +183,17 @@ export function dungeonUpdateNormal(
         slidingPhysicsStep(g);
         const invincible = mainUpdateRenderPre(g, callbacks);
         if (invincible !== 0) {
-            s8(g, 0xff36 /* HERO_DAMAGE_THIS_FRAME */, 0);
+            memWrite8(g, 0xff36 /* HERO_DAMAGE_THIS_FRAME */, 0);
         }
         dungeonRenderTimingStep(g, invincible, callbacks);
         return;
     }
 
-    const invincible = g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
+    const invincible = memRead8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
     if (dungeonRenderTimingStep(g, invincible, callbacks) !== 0) {
-        if (g8(g, 0xff90) === DUNGEON_STATE_NORMAL) {
+        if (memRead8(g, 0xff90) === DUNGEON_STATE_NORMAL) {
             dungeonFinishNormalFrame(g, deps, callbacks);
-        } else if (g8(g, 0xff90) === DUNGEON_STATE_ROPE) {
+        } else if (memRead8(g, 0xff90) === DUNGEON_STATE_ROPE) {
             dungeonFinishRopeFrame(g, deps);
         }
     }
@@ -221,40 +206,40 @@ export function dungeonUpdateJashiinCutscene(
     deps: StateFrameDeps,
     callbacks: FramePreCallbacks,
 ): void {
-    if (g8(g, DUNGEON_FRAME_PHASE) === 0) {
+    if (memRead8(g, DUNGEON_FRAME_PHASE) === 0) {
         const invincible = mainUpdateRenderPre(g, callbacks);
         if (invincible !== 0) {
-            s8(g, 0xff36, 0);
+            memWrite8(g, 0xff36, 0);
         }
         dungeonRenderTimingStep(g, invincible, callbacks);
         return;
     }
 
-    const invincible = g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
+    const invincible = memRead8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
     if (dungeonRenderTimingStep(g, invincible, callbacks) === 0) return;
 
-    if (g8(g, IS_JASHIIN_CAVERN) !== 0) return; // still in cutscene room 1
+    if (memRead8(g, IS_JASHIIN_CAVERN) !== 0) return; // still in cutscene room 1
 
     // Cutscene done → set up room 2 (mpa0). Hero feet at TOP+HEAD+3; mpa0
     // floor row 18 with HEAD=12 → TOP must be 3. saved_y_view_init=12 turns
     // after_run_animation's adjustment into a no-op.
-    s16(g, HERO_X_IN_PROXIMITY_MAP, 24);
+    memWrite16(g, HERO_X_IN_PROXIMITY_MAP, 24);
     statics.savedDoorX1 = 24;
-    s8(g, HERO_XV, 12);
-    s8(g, BYTE_9F00_UNUSED(), 12);
-    s8(g, VIEWPORT_TOP_ROW, 3);
+    memWrite8(g, HERO_XV, 12);
+    memWrite8(g, BYTE_9F00_UNUSED(), 12);
+    memWrite8(g, VIEWPORT_TOP_ROW, 3);
     statics.savedYViewInit = 12;
 
     statics.skipRokaRun = true; // prepare_dungeon finalizes directly
 
-    s8(g, PLACE_MAP_ID, 30); // mpa0.mdt, Jashiin room 2
-    s8(g, 0xfffc /* PENDING_DUNGEON_MAP */, 30);
-    s8(g, 0xfffd /* PENDING_DUNGEON_FLAG */, 0xff);
+    memWrite8(g, PLACE_MAP_ID, 30); // mpa0.mdt, Jashiin room 2
+    memWrite8(g, 0xfffc /* PENDING_DUNGEON_MAP */, 30);
+    memWrite8(g, 0xfffd /* PENDING_DUNGEON_FLAG */, 0xff);
     // NOTE: Do NOT set DUNGEON_EXIT_FLAG here — that would trigger
     // initTownFromDungeon (town path).  The asm jashiin_place flow stays
     // inside Cavern_Game_Init and loads room 2 via the PENDING_DUNGEON_FLAG
     // → handleDungeonTransition path, same as a dungeon-to-dungeon door.
-    s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
+    memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
 }
 
 function BYTE_9F00_UNUSED(): number {
@@ -270,36 +255,37 @@ export function dungeonFinishRopeFrame(g: Uint8Array, deps?: StateFrameDeps): vo
     // use a neutral dispatcher wrapper through the exported signature.
     stateMachineDispatcherRope(g, deps);
 
-    if (g8(g, ON_ROPE_FLAGS) === 0xff) {
+    if (memRead8(g, ON_ROPE_FLAGS) === 0xff) {
         let si = wrapCheck(heroCoordsToAddr(g) + 1);
         if (isOverRopeTick(g, si)) {
-            s8(g, RENDER_DONE, 0);
-            s8(g, RENDER_REQUEST, 0xff);
+            memWrite8(g, RENDER_DONE, 0);
+            memWrite8(g, RENDER_REQUEST, 0xff);
             return;
         }
         si = wrapCheck(si + PROX_COLS);
         if (isOverRopeTick(g, si)) {
-            s8(g, RENDER_DONE, 0);
-            s8(g, RENDER_REQUEST, 0xff);
+            memWrite8(g, RENDER_DONE, 0);
+            memWrite8(g, RENDER_REQUEST, 0xff);
             return;
         }
     }
 
-    s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
-    s8(g, ON_ROPE_FLAGS, 0);
-    s8(g, SPACEBAR_LATCH, 0);
-    s8(g, ALTKEY_LATCH, 0);
-    s8(g, SLIDE_TICKS_REMAINING, 0);
-    s8(g, HORIZ_MOVEMENT_ACCUM, 0);
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x7f);
-    s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_NORMAL);
-    s8(g, RENDER_DONE, 0);
-    s8(g, RENDER_REQUEST, 0xff);
+    memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
+    memWrite8(g, ON_ROPE_FLAGS, 0);
+    memWrite8(g, SPACEBAR_LATCH, 0);
+    memWrite8(g, ALTKEY_LATCH, 0);
+    memWrite8(g, SLIDE_TICKS_REMAINING, 0);
+    memWrite8(g, HORIZ_MOVEMENT_ACCUM, 0);
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0x7f);
+    memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_NORMAL);
+    memWrite8(g, RENDER_DONE, 0);
+    memWrite8(g, RENDER_REQUEST, 0xff);
 }
 
 import { isOverRope as isOverRopeTick, setZeroFlagIfSlippery as slipperyCheck } from './dungeon-vertical.js';
 import { heroCoordsToAddrInProximity as heroCoordsToAddr, heroInteractionCheck } from './dungeon-hero.js';
 import { movePlatformDownDamageMonster as movePlatformDownImpl } from './dungeon-vertical.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 function stateMachineDispatcherRope(
     g: Uint8Array,
@@ -326,25 +312,25 @@ export function dungeonUpdateRope(
     deps: StateFrameDeps,
     callbacks: FramePreCallbacks,
 ): void {
-    if (g8(g, DUNGEON_FRAME_PHASE) === 0) {
-        s8(g, SQUAT_FLAG, 0);
-        s8(g, JUMP_PHASE_FLAGS, 0);
-        s8(g, SLOPE_DIRECTION, 0);
-        s8(g, 0xff3c /* SPELL_ACTIVE_FLAG */, 0);
+    if (memRead8(g, DUNGEON_FRAME_PHASE) === 0) {
+        memWrite8(g, SQUAT_FLAG, 0);
+        memWrite8(g, JUMP_PHASE_FLAGS, 0);
+        memWrite8(g, SLOPE_DIRECTION, 0);
+        memWrite8(g, 0xff3c /* SPELL_ACTIVE_FLAG */, 0);
         // Flush_Ui_Element_If_Dirty_proc(): stub
-        s8(g, SWORD_SWING_FLAG, 0);
+        memWrite8(g, SWORD_SWING_FLAG, 0);
 
         const invincible = mainUpdateRenderPre(g, callbacks);
         if (invincible !== 0) {
-            s8(g, 0xff36, 0);
+            memWrite8(g, 0xff36, 0);
         }
         dungeonRenderTimingStep(g, invincible, callbacks);
         return;
     }
 
-    const invincible = g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
+    const invincible = memRead8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
     if (dungeonRenderTimingStep(g, invincible, callbacks) !== 0) {
-        if (g8(g, 0xff90) === DUNGEON_STATE_ROPE) {
+        if (memRead8(g, 0xff90) === DUNGEON_STATE_ROPE) {
             dungeonFinishRopeFrame(g, deps);
         }
     }
@@ -357,15 +343,15 @@ export function dungeonDeathFrameStep(
     g: Uint8Array,
     callbacks: FramePreCallbacks,
 ): number {
-    if (g8(g, DUNGEON_FRAME_PHASE) === 0) {
+    if (memRead8(g, DUNGEON_FRAME_PHASE) === 0) {
         const invincible = mainUpdateRenderPre(g, callbacks);
         if (invincible !== 0) {
-            s8(g, 0xff36, 0);
+            memWrite8(g, 0xff36, 0);
         }
         dungeonRenderTimingStep(g, invincible, callbacks);
         return 0;
     }
-    const invincible = g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
+    const invincible = memRead8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
     return dungeonRenderTimingStep(g, invincible, callbacks);
 }
 
@@ -376,14 +362,14 @@ export function dungeonUpdateDeathFall(
 ): void {
     if (dungeonDeathFrameStep(g, callbacks) === 0) return;
 
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
-    s8(g, ON_ROPE_FLAGS, 0);
-    s8(g, HERO_SPRITE_HIDDEN, 0);
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
+    memWrite8(g, ON_ROPE_FLAGS, 0);
+    memWrite8(g, HERO_SPRITE_HIDDEN, 0);
 
     if (airborneMovementTick(g) !== 0) {
-        s8(g, HERO_SPRITE_HIDDEN, 0);
-        s8(g, 0xff90 /* DUNGEON_STATE */, 3 /* DEATH_FLASH */);
-        s8(g, DEATH_COUNTER, 0);
+        memWrite8(g, HERO_SPRITE_HIDDEN, 0);
+        memWrite8(g, 0xff90 /* DUNGEON_STATE */, 3 /* DEATH_FLASH */);
+        memWrite8(g, DEATH_COUNTER, 0);
     }
 }
 
@@ -394,40 +380,40 @@ export function dungeonUpdateDeathFlash(
 ): void {
     if (dungeonDeathFrameStep(g, callbacks) === 0) return;
 
-    s8(g, HERO_SPRITE_HIDDEN, 0);
+    memWrite8(g, HERO_SPRITE_HIDDEN, 0);
 
-    if (g8(g, 0xe7 /* HERO_ANIM_PHASE */) === 2) {
-        s8(g, BYTE_9F29, (g8(g, BYTE_9F29) + 1) & 0xff);
-        if ((g8(g, BYTE_9F29) & 0x0f) === 0) {
-            s8(g, BYTE_FF24, 8);
-            s8(g, 0xff90 /* DUNGEON_STATE */, 4 /* DEATH_FADE */);
-            s8(g, DEATH_COUNTER, 0);
+    if (memRead8(g, 0xe7 /* HERO_ANIM_PHASE */) === 2) {
+        memWrite8(g, BYTE_9F29, (memRead8(g, BYTE_9F29) + 1) & 0xff);
+        if ((memRead8(g, BYTE_9F29) & 0x0f) === 0) {
+            memWrite8(g, BYTE_FF24, 8);
+            memWrite8(g, 0xff90 /* DUNGEON_STATE */, 4 /* DEATH_FADE */);
+            memWrite8(g, DEATH_COUNTER, 0);
             return;
         }
-        if ((g8(g, BYTE_9F29) & 1) === 0) return;
-        s8(g, HERO_SPRITE_HIDDEN, 0xff);
+        if ((memRead8(g, BYTE_9F29) & 1) === 0) return;
+        memWrite8(g, HERO_SPRITE_HIDDEN, 0xff);
         return;
     }
 
-    s8(g, BYTE_9F28, (g8(g, BYTE_9F28) + 1) & 0xff);
-    if ((g8(g, BYTE_9F28) & 7) !== 0) return;
+    memWrite8(g, BYTE_9F28, (memRead8(g, BYTE_9F28) + 1) & 0xff);
+    if ((memRead8(g, BYTE_9F28) & 7) !== 0) return;
 
-    const al = (g8(g, 0xe7) + 1) & 3;
+    const al = (memRead8(g, 0xe7) + 1) & 3;
     if (al === 3) return;
-    s8(g, 0xe7, al);
+    memWrite8(g, 0xe7, al);
 }
 
 /** transit_to_sage (dungeon.c:~920). */
 export function transitToSage(g: Uint8Array): void {
-    s8(g, HEARTBEAT_VOLUME, 0);
-    s8(g, PLACE_MAP_ID, g8(g, 0xc5 /* LAST_SAGE_VISITED */));
-    s8(g, BOSS_MODE_ADDR(), 0);
+    memWrite8(g, HEARTBEAT_VOLUME, 0);
+    memWrite8(g, PLACE_MAP_ID, memRead8(g, 0xc5 /* LAST_SAGE_VISITED */));
+    memWrite8(g, BOSS_MODE_ADDR(), 0);
 
-    s16(g, HERO_X_IN_PROXIMITY_MAP, g16(g, TEAR_X));
+    memWrite16(g, HERO_X_IN_PROXIMITY_MAP, memRead16(g, TEAR_X));
 
-    s8(g, 0xffe3 /* HERO_DEATH_FLAG */, 0xff);
-    s8(g, 0xffe2 /* DUNGEON_EXIT_FLAG */, 0xff);
-    s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
+    memWrite8(g, 0xffe3 /* HERO_DEATH_FLAG */, 0xff);
+    memWrite8(g, 0xffe2 /* DUNGEON_EXIT_FLAG */, 0xff);
+    memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_EXIT);
 }
 
 function BOSS_MODE_ADDR(): number {
@@ -442,24 +428,24 @@ export function dungeonUpdateDeathFade(
 ): void {
     if (dungeonDeathFrameStep(g, callbacks) === 0) return;
 
-    const i = g8(g, DEATH_COUNTER);
-    s8(g, HERO_SPRITE_HIDDEN, (i & 1) !== 0 ? 0 : 0xff);
-    s8(g, DEATH_COUNTER, (i + 1) & 0xff);
+    const i = memRead8(g, DEATH_COUNTER);
+    memWrite8(g, HERO_SPRITE_HIDDEN, (i & 1) !== 0 ? 0 : 0xff);
+    memWrite8(g, DEATH_COUNTER, (i + 1) & 0xff);
 
     if (i >= 29) {
-        if (g8(g, DEATH_ALREADY_PROCESSED) !== 0) {
-            s8(g, 0xc5 /* LAST_SAGE_VISITED */, 0x80);
+        if (memRead8(g, DEATH_ALREADY_PROCESSED) !== 0) {
+            memWrite8(g, 0xc5 /* LAST_SAGE_VISITED */, 0x80);
             // Felishika Castle plaza spawn (cmap column 40)
-            s16(g, TEAR_X, CASTLE_RESURRECTION_X);
+            memWrite16(g, TEAR_X, CASTLE_RESURRECTION_X);
         } else {
-            const xpGain = (127 - g8(g, HERO_LEVEL) * 2) & 0xffff;
+            const xpGain = (127 - memRead8(g, HERO_LEVEL) * 2) & 0xffff;
             updateHeroXp(g, xpGain);
-            s8(g, HERO_GOLD_HI, 0);
-            s16(g, HERO_GOLD_LO, 0);
-            s16(g, HERO_ALMAS, (g16(g, HERO_ALMAS) >> 1) & 0xffff);
+            memWrite8(g, HERO_GOLD_HI, 0);
+            memWrite16(g, HERO_GOLD_LO, 0);
+            memWrite16(g, HERO_ALMAS, (memRead16(g, HERO_ALMAS) >> 1) & 0xffff);
         }
 
-        s16(g, HERO_HP, g16(g, HERO_MAX_HP));
+        memWrite16(g, HERO_HP, memRead16(g, HERO_MAX_HP));
         transitToSage(g);
     }
     void loadPlaceAndReinit;

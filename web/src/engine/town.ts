@@ -15,6 +15,7 @@
  */
 
 import { SEG1_BASE } from '../core/memory.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // ─── g_mem-relative addresses (zeliard.h / town.c) ───
 const INPUT_ALT_SPACE = 0xff16;
@@ -84,22 +85,7 @@ function seg1_16(g: Uint8Array, off: number): number {
 
 // ─── little-endian accessors with DOS uint16 address masking ───
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** uint16 decrement/increment with wraparound (C pointer arithmetic). */
 const dec16 = (v: number): number => (v - 1) & 0xffff;
@@ -161,22 +147,22 @@ function tileInSpecialList(g: Uint8Array, tile: number): boolean {
 
 /** find_non_passable_npc_at_x_pos: n_x == x && n_flags bit6. */
 function findNonPassableNpcAtX(g: Uint8Array, x: number): number | null {
-    let si = g16(g, NPC_ARRAY);
+    let si = memRead16(g, NPC_ARRAY);
     for (;;) {
-        const nx = g16(g, si);
+        const nx = memRead16(g, si);
         if (nx === NPC_TERMINATOR) return null;
-        if (nx === x && (g8(g, si + 6) & 0x40) !== 0) return si;
+        if (nx === x && (memRead8(g, si + 6) & 0x40) !== 0) return si;
         si += NPC_RECORD_SIZE;
     }
 }
 
 function findFirstNpcAtX(g: Uint8Array, dx: number): number {
-    let si = g16(g, NPC_ARRAY);
+    let si = memRead16(g, NPC_ARRAY);
     // find_first_npc_at_x_after_current: scans until n_x == dx. The C loops
     // forever if absent (every conversation target exists); we bound it so
     // a broken fixture fails loudly instead of hanging CI.
     for (let guard = 0; guard < 0x10000; guard++) {
-        if (g16(g, si) === dx) return si;
+        if (memRead16(g, si) === dx) return si;
         si += NPC_RECORD_SIZE;
     }
     throw new Error(`no NPC at x=${dx}`);
@@ -185,26 +171,26 @@ function findFirstNpcAtX(g: Uint8Array, dx: number): number {
 // ─── NPC head-tile save/restore ───
 
 function saveHeadLevelTilesInNpcs(g: Uint8Array): void {
-    let si = g16(g, NPC_ARRAY);
+    let si = memRead16(g, NPC_ARRAY);
     for (;;) {
-        const bx = g16(g, si);
+        const bx = memRead16(g, si);
         if (bx === NPC_TERMINATOR) return;
         const tileAddr = NPC_HEAD_TILES + bx * 8;
-        const head = g8(g, tileAddr);
-        s8(g, tileAddr, 0xfd);
-        s8(g, si + 3, head); // n_head_tile
+        const head = memRead8(g, tileAddr);
+        memWrite8(g, tileAddr, 0xfd);
+        memWrite8(g, si + 3, head); // n_head_tile
         si += NPC_RECORD_SIZE;
     }
 }
 
 function restoreHeadLevelTilesFromNpcs(g: Uint8Array): void {
-    let si = g16(g, NPC_ARRAY);
+    let si = memRead16(g, NPC_ARRAY);
     for (;;) {
-        const bx = g16(g, si);
+        const bx = memRead16(g, si);
         if (bx === NPC_TERMINATOR) return;
-        const head = g8(g, si + 3);
+        const head = memRead8(g, si + 3);
         if (head !== 0xfd) {
-            s8(g, TOWN_TILES + 5 + bx * 8, head);
+            memWrite8(g, TOWN_TILES + 5 + bx * 8, head);
         }
         si += NPC_RECORD_SIZE;
     }
@@ -213,22 +199,22 @@ function restoreHeadLevelTilesFromNpcs(g: Uint8Array): void {
 // ─── NPC AI table ───
 
 function npcBobInPlace(g: Uint8Array, si: number): void {
-    let al = g8(g, si + 4);
+    let al = memRead8(g, si + 4);
     al = (al + 0x10) & 0xff;
-    s8(g, si + 4, al);
+    memWrite8(g, si + 4, al);
     const ch = al;
     if ((al & 0x30) === 0) {
-        s8(g, si + 4, (ch + 1) & 1);
+        memWrite8(g, si + 4, (ch + 1) & 1);
     }
 }
 
 function npcFaceHero(g: Uint8Array, si: number): void {
-    const heroAbs = ((g8(g, HERO_XV) + 4) & 0xffff) + g16(g, LEFT_COL);
-    const dx = g16(g, si);
+    const heroAbs = ((memRead8(g, HERO_XV) + 4) & 0xffff) + memRead16(g, LEFT_COL);
+    const dx = memRead16(g, si);
     if (heroAbs >= dx) {
-        s8(g, si + 2, g8(g, si + 2) & 0x7f); // face right
+        memWrite8(g, si + 2, memRead8(g, si + 2) & 0x7f); // face right
     } else {
-        s8(g, si + 2, g8(g, si + 2) | 0x80); // face left
+        memWrite8(g, si + 2, memRead8(g, si + 2) | 0x80); // face left
     }
 }
 
@@ -238,33 +224,33 @@ function npcLookAtHeroAndBob(g: Uint8Array, si: number): void {
 }
 
 function patrolBetweenBoundaries(g: Uint8Array, si: number, dxPtr: { v: number }, ch: number): void {
-    s8(g, si + 4, (ch + 1) & 0x0f);
+    memWrite8(g, si + 4, (ch + 1) & 0x0f);
 
-    const patrolBx = g16(g, NPC_PATROL_BOUNDARIES);
-    if ((g8(g, si + 2) & 0x80) !== 0) {
+    const patrolBx = memRead16(g, NPC_PATROL_BOUNDARIES);
+    if ((memRead8(g, si + 2) & 0x80) !== 0) {
         // moving left
         dxPtr.v = dec16(dxPtr.v);
-        if (dxPtr.v <= g16(g, patrolBx)) {
-            s8(g, si + 2, g8(g, si + 2) & 0x7f); // turn right
+        if (dxPtr.v <= memRead16(g, patrolBx)) {
+            memWrite8(g, si + 2, memRead8(g, si + 2) & 0x7f); // turn right
         }
     } else {
         // moving right
         dxPtr.v = inc16(dxPtr.v);
-        if (dxPtr.v > g16(g, patrolBx + 2)) {
-            s8(g, si + 2, g8(g, si + 2) | 0x80); // turn left
+        if (dxPtr.v > memRead16(g, patrolBx + 2)) {
+            memWrite8(g, si + 2, memRead8(g, si + 2) | 0x80); // turn left
         }
     }
 }
 
 function patrolBounceAtPhase(g: Uint8Array, si: number, dxPtr: { v: number }, chIn: number): void {
     const ch = (chIn + 1) & 0xff;
-    s8(g, si + 4, ch & 0x0f);
+    memWrite8(g, si + 4, ch & 0x0f);
 
     if ((ch & 7) === 0) {
-        s8(g, si + 2, g8(g, si + 2) ^ 0x80);
+        memWrite8(g, si + 2, memRead8(g, si + 2) ^ 0x80);
         return;
     }
-    if ((g8(g, si + 2) & 0x80) !== 0) dxPtr.v = dec16(dxPtr.v);
+    if ((memRead8(g, si + 2) & 0x80) !== 0) dxPtr.v = dec16(dxPtr.v);
     else dxPtr.v = inc16(dxPtr.v);
 }
 
@@ -276,8 +262,8 @@ function npcAiFor(aiType: number, g: Uint8Array, si: number, dxPtr: { v: number 
         case 1:
         case 2: {
             // patrol_1bit / patrol_2bit: advance phase; move every 2nd/4th call
-            let al = (g8(g, si + 4) + 0x10) & 0xff;
-            s8(g, si + 4, al);
+            let al = (memRead8(g, si + 4) + 0x10) & 0xff;
+            memWrite8(g, si + 4, al);
             const ch = al;
             const mask = aiType === 1 ? 0x10 : 0x30;
             if ((al & mask) === 0) patrolBetweenBoundaries(g, si, dxPtr, ch);
@@ -291,8 +277,8 @@ function npcAiFor(aiType: number, g: Uint8Array, si: number, dxPtr: { v: number 
             break;
         case 5:
         case 6: {
-            let al = (g8(g, si + 4) + 0x10) & 0xff;
-            s8(g, si + 4, al);
+            let al = (memRead8(g, si + 4) + 0x10) & 0xff;
+            memWrite8(g, si + 4, al);
             const ch = al;
             const mask = aiType === 5 ? 0x10 : 0x30;
             if ((al & mask) === 0) patrolBounceAtPhase(g, si, dxPtr, ch);
@@ -305,17 +291,17 @@ function npcAiFor(aiType: number, g: Uint8Array, si: number, dxPtr: { v: number 
 
 function updateNpcs(g: Uint8Array): void {
     restoreHeadLevelTilesFromNpcs(g);
-    let si = g16(g, NPC_ARRAY);
+    let si = memRead16(g, NPC_ARRAY);
     for (;;) {
-        const dx = g16(g, si);
+        const dx = memRead16(g, si);
         if (dx === NPC_TERMINATOR) {
             saveHeadLevelTilesInNpcs(g);
             return;
         }
-        const aiType = g8(g, si + 5);
+        const aiType = memRead8(g, si + 5);
         const dxPtr = { v: dx };
         if (aiType < 8) npcAiFor(aiType, g, si, dxPtr);
-        s16(g, si, dxPtr.v);
+        memWrite16(g, si, dxPtr.v);
         si += NPC_RECORD_SIZE;
     }
 }
@@ -323,16 +309,16 @@ function updateNpcs(g: Uint8Array): void {
 // ─── frame-wait machinery ───
 
 function clear6HeroTilesInViewportBuffer(g: Uint8Array): void {
-    const vpCol = g8(g, HERO_XV);
+    const vpCol = memRead8(g, HERO_XV);
     if (vpCol >= 27) return;
 
     const di = VIEWPORT_BUFFER + vpCol * 8 + 5;
-    s8(g, di + 0, 0xff);
-    s8(g, di + 1, 0xff);
-    s8(g, di + 2, 0xff);
-    s8(g, di + 5, 0xff);
-    s8(g, di + 6, 0xff);
-    s8(g, di + 7, 0xff);
+    memWrite8(g, di + 0, 0xff);
+    memWrite8(g, di + 1, 0xff);
+    memWrite8(g, di + 2, 0xff);
+    memWrite8(g, di + 5, 0xff);
+    memWrite8(g, di + 6, 0xff);
+    memWrite8(g, di + 7, 0xff);
 }
 
 /**
@@ -342,10 +328,10 @@ function clear6HeroTilesInViewportBuffer(g: Uint8Array): void {
  */
 function gameLoopWithFrameWait(g: Uint8Array, st: TownTickState): void {
     clear6HeroTilesInViewportBuffer(g);
-    const target = (g8(g, SPEED_C) * 4) & 0xff;
+    const target = (memRead8(g, SPEED_C) * 4) & 0xff;
 
     if (st.updateActive) {
-        s8(g, FRAME_TMR, 0);
+        memWrite8(g, FRAME_TMR, 0);
         return;
     }
 
@@ -356,7 +342,7 @@ function gameLoopWithFrameWait(g: Uint8Array, st: TownTickState): void {
 /** town_complete_wait — procs are unregistered in the web build (no-op). */
 function townCompleteWait(g: Uint8Array, st: TownTickState): void {
     if (!st.pendingWait) return;
-    s8(g, FRAME_TMR, 0);
+    memWrite8(g, FRAME_TMR, 0);
     st.pendingWait = false;
     st.pendingWaitTarget = 0;
 }
@@ -365,39 +351,39 @@ function townCompleteWait(g: Uint8Array, st: TownTickState): void {
 
 function startNpcConversation(g: Uint8Array, siAddr: number): void {
     // Clear bit 7 of n_flags so conversation only triggers once per entry
-    s8(g, siAddr + 6, g8(g, siAddr + 6) & 0x7f);
-    s16(g, CONV_NPC_ADDR, siAddr);
-    s8(g, CONV_ACTIVE, 1);
-    s8(g, SFX_REQUEST, 30);
+    memWrite8(g, siAddr + 6, memRead8(g, siAddr + 6) & 0x7f);
+    memWrite16(g, CONV_NPC_ADDR, siAddr);
+    memWrite8(g, CONV_ACTIVE, 1);
+    memWrite8(g, SFX_REQUEST, 30);
 }
 
 function makeNpcFaceHeroAndFreeze(g: Uint8Array, npcSi: number): void {
-    s8(g, CONV_SAVED_FACING, g8(g, npcSi + 2));
-    s8(g, CONV_SAVED_AI, g8(g, npcSi + 5));
+    memWrite8(g, CONV_SAVED_FACING, memRead8(g, npcSi + 2));
+    memWrite8(g, CONV_SAVED_AI, memRead8(g, npcSi + 5));
 
-    s8(g, npcSi + 5, 7); // freeze: AI = 7 (static)
-    if ((g8(g, FACING) & 1) !== 0) {
-        s8(g, npcSi + 2, g8(g, npcSi + 2) & 0x7f); // face right
+    memWrite8(g, npcSi + 5, 7); // freeze: AI = 7 (static)
+    if ((memRead8(g, FACING) & 1) !== 0) {
+        memWrite8(g, npcSi + 2, memRead8(g, npcSi + 2) & 0x7f); // face right
     } else {
-        s8(g, npcSi + 2, g8(g, npcSi + 2) | 0x80); // face left
+        memWrite8(g, npcSi + 2, memRead8(g, npcSi + 2) | 0x80); // face left
     }
 }
 
 /** hero_spacebar_interaction */
 function heroSpacebarInteraction(g: Uint8Array): void {
-    if (g8(g, SPACEBAR) === 0) return;
-    s8(g, SPACEBAR, 0);
+    if (memRead8(g, SPACEBAR) === 0) return;
+    memWrite8(g, SPACEBAR, 0);
 
-    const viewportCol = (g8(g, HERO_XV) + 4) & 0xffff;
-    const bx = ((viewportCol * 8 + 5) & 0xffff) + g16(g, PROX_START);
-    let absX = ((viewportCol + g16(g, LEFT_COL)) & 0xffff);
+    const viewportCol = (memRead8(g, HERO_XV) + 4) & 0xffff;
+    const bx = ((viewportCol * 8 + 5) & 0xffff) + memRead16(g, PROX_START);
+    let absX = ((viewportCol + memRead16(g, LEFT_COL)) & 0xffff);
 
-    const delta = (g8(g, FACING) & 1) !== 0 ? -1 : 1;
+    const delta = (memRead8(g, FACING) & 1) !== 0 ? -1 : 1;
     absX += delta;
 
     let foundTile = false;
     for (let i = 1; i <= 3; i++) {
-        if (g8(g, (bx + 8 * delta * i) & 0xffff) === 0xfd) {
+        if (memRead8(g, (bx + 8 * delta * i) & 0xffff) === 0xfd) {
             foundTile = true;
             break;
         }
@@ -406,35 +392,35 @@ function heroSpacebarInteraction(g: Uint8Array): void {
     if (!foundTile) return;
 
     const npcSi = findFirstNpcAtX(g, absX & 0xffff);
-    if ((g8(g, npcSi + 6) & 0xc0) !== 0) return; // busy NPC
+    if ((memRead8(g, npcSi + 6) & 0xc0) !== 0) return; // busy NPC
 
     makeNpcFaceHeroAndFreeze(g, npcSi);
-    s8(g, npcSi + 4, g8(g, npcSi + 4) | 1); // n_anim_phase
+    memWrite8(g, npcSi + 4, memRead8(g, npcSi + 4) | 1); // n_anim_phase
     startNpcConversation(g, npcSi);
 }
 
 /** check_special_npc_conversation */
 function checkSpecialNpcConversation(g: Uint8Array): void {
-    const viewportCol = (g8(g, HERO_XV) + 4) & 0xffff;
-    const bx = ((viewportCol * 8 + 5) & 0xffff) + g16(g, PROX_START);
-    let absX = ((viewportCol + g16(g, LEFT_COL)) & 0xffff);
+    const viewportCol = (memRead8(g, HERO_XV) + 4) & 0xffff;
+    const bx = ((viewportCol * 8 + 5) & 0xffff) + memRead16(g, PROX_START);
+    let absX = ((viewportCol + memRead16(g, LEFT_COL)) & 0xffff);
 
-    const delta = (g8(g, FACING) & 1) !== 0 ? -2 : 2;
+    const delta = (memRead8(g, FACING) & 1) !== 0 ? -2 : 2;
     absX += delta;
-    if (g8(g, (bx + 8 * delta) & 0xffff) !== 0xfd) return;
+    if (memRead8(g, (bx + 8 * delta) & 0xffff) !== 0xfd) return;
 
     const npcSi = findFirstNpcAtX(g, absX & 0xffff);
     // NPC must face TOWARD the hero
-    if ((g8(g, FACING) & 1) !== 0) {
-        if ((g8(g, npcSi + 2) & 0x80) !== 0) return;
+    if ((memRead8(g, FACING) & 1) !== 0) {
+        if ((memRead8(g, npcSi + 2) & 0x80) !== 0) return;
     } else {
-        if ((g8(g, npcSi + 2) & 0x80) === 0) return;
+        if ((memRead8(g, npcSi + 2) & 0x80) === 0) return;
     }
-    if ((g8(g, npcSi + 6) & 0x80) === 0) return;
+    if ((memRead8(g, npcSi + 6) & 0x80) === 0) return;
 
     makeNpcFaceHeroAndFreeze(g, npcSi);
 
-    s8(g, DIALOG_EXIT, 0xff);
+    memWrite8(g, DIALOG_EXIT, 0xff);
     startNpcConversation(g, npcSi);
 }
 
@@ -442,35 +428,35 @@ function checkSpecialNpcConversation(g: Uint8Array): void {
 
 /** request_dungeon_transition */
 function requestDungeonTransition(g: Uint8Array, destMapId: number): void {
-    const tbl = (g16(g, DUNGEON_ENTRANCE_TABLE) + destMapId * 5) & 0xffff;
-    const x = g16(g, tbl);
+    const tbl = (memRead16(g, DUNGEON_ENTRANCE_TABLE) + destMapId * 5) & 0xffff;
+    const x = memRead16(g, tbl);
     hooks.setDoorX1(x); // preserved across prepare_dungeon's memset
-    const mapWidth = g16(g, MAP_WIDTH);
-    s16(g, LEFT_COL, x >= 16 ? x - 16 : x - 16 + mapWidth);
-    const y = g8(g, tbl + 2);
-    s8(g, 0x82, (y - 10) & 0x3f); // ADDR_VIEWPORT_TOP_ROW
-    const dir = g8(g, tbl + 3);
-    s8(g, LEFT_RUN, (dir & 1) !== 0 ? 0xff : 0);
-    const placeMapId = g8(g, tbl + 4);
-    s8(g, PLACE_MAP_ID, placeMapId);
-    s8(g, 0x06, 0xff); // ADDR_ENTERED_CAVERN
-    s8(g, SPACEBAR, 0);
-    s8(g, ALTKEY, 0);
-    s8(g, INPUT_DIRS, 0);
-    s8(g, INPUT_ALT_SPACE, 0);
-    s8(g, PENDING_DUNGEON_MAP, placeMapId);
-    s8(g, PENDING_DUNGEON_FLAG, 0xff);
+    const mapWidth = memRead16(g, MAP_WIDTH);
+    memWrite16(g, LEFT_COL, x >= 16 ? x - 16 : x - 16 + mapWidth);
+    const y = memRead8(g, tbl + 2);
+    memWrite8(g, 0x82, (y - 10) & 0x3f); // ADDR_VIEWPORT_TOP_ROW
+    const dir = memRead8(g, tbl + 3);
+    memWrite8(g, LEFT_RUN, (dir & 1) !== 0 ? 0xff : 0);
+    const placeMapId = memRead8(g, tbl + 4);
+    memWrite8(g, PLACE_MAP_ID, placeMapId);
+    memWrite8(g, 0x06, 0xff); // ADDR_ENTERED_CAVERN
+    memWrite8(g, SPACEBAR, 0);
+    memWrite8(g, ALTKEY, 0);
+    memWrite8(g, INPUT_DIRS, 0);
+    memWrite8(g, INPUT_ALT_SPACE, 0);
+    memWrite8(g, PENDING_DUNGEON_MAP, placeMapId);
+    memWrite8(g, PENDING_DUNGEON_FLAG, 0xff);
 }
 
 /** town_up_pressed — door lookup + begin door animation. */
 function townUpPressed(g: Uint8Array, st: TownTickState): void {
-    s8(g, HERO_ANIM, g8(g, HERO_ANIM) | 1);
+    memWrite8(g, HERO_ANIM, memRead8(g, HERO_ANIM) | 1);
 
-    const heroX = (g16(g, LEFT_COL) + g8(g, HERO_XV) + 4) & 0xffff;
-    let si = g16(g, DOORS_LIST);
+    const heroX = (memRead16(g, LEFT_COL) + memRead8(g, HERO_XV) + 4) & 0xffff;
+    let si = memRead16(g, DOORS_LIST);
 
     for (;;) {
-        const doorX = g16(g, si);
+        const doorX = memRead16(g, si);
         if (doorX === NPC_TERMINATOR) return;
         if (doorX === heroX || doorX === ((heroX + 1) & 0xffff) || doorX === ((heroX - 1) & 0xffff)) {
             break;
@@ -478,13 +464,13 @@ function townUpPressed(g: Uint8Array, st: TownTickState): void {
         si += 3; // door struct size
     }
 
-    s8(g, HERO_ANIM, 4);
+    memWrite8(g, HERO_ANIM, 4);
     restoreHeadLevelTilesFromNpcs(g);
 
     // Back-facing frame for ~SPEED_C*4 ticks; completion happens in
     // townMainLoopStep once FRAME_TMR passes the threshold.
-    s8(g, FRAME_TMR, 0);
-    st.doorPendingDest = g8(g, si + 2);
+    memWrite8(g, FRAME_TMR, 0);
+    st.doorPendingDest = memRead8(g, si + 2);
     st.doorPendingAnim = true;
 }
 
@@ -501,8 +487,8 @@ function swapA000C000Buffers(g: Uint8Array): void {
 
 /** handle_inventory_key — Enter opens the inventory overlay. */
 function handleInventoryKey(g: Uint8Array, st: TownTickState): void {
-    if ((g8(g, ENTER_WORD) & 0x01) === 0) return;
-    s8(g, SFX_REQUEST, 0x0b);
+    if ((memRead8(g, ENTER_WORD) & 0x01) === 0) return;
+    memWrite8(g, SFX_REQUEST, 0x0b);
     // clear_viewport / inventory_overlay / backup_upper_town_3_tiles are
     // unregistered procs in the web build; the buffer swaps and the
     // 0xFE fill are real.
@@ -510,24 +496,24 @@ function handleInventoryKey(g: Uint8Array, st: TownTickState): void {
     swapA000C000Buffers(g);
     g.fill(0xfe, VIEWPORT_BUFFER, VIEWPORT_BUFFER + 0xe0);
     gameLoopWithFrameWait(g, st);
-    s8(g, SPACEBAR, 0);
-    s8(g, ALTKEY, 0);
+    memWrite8(g, SPACEBAR, 0);
+    memWrite8(g, ALTKEY, 0);
 }
 
 /** handle_edge_screen_transition */
 function handleEdgeScreenTransition(g: Uint8Array, st: TownTickState): void {
-    const vpX = g8(g, HERO_XV);
+    const vpX = memRead8(g, HERO_XV);
     const goingLeft = vpX === 0xff;
     const goingRight = vpX === 27;
     if (!goingLeft && !goingRight) return;
 
     restoreHeadLevelTilesFromNpcs(g);
-    s8(g, FRAME_TMR, 40);
+    memWrite8(g, FRAME_TMR, 40);
     gameLoopWithFrameWait(g, st);
 
-    let si = g16(g, TOWN_TRANSITION_TABLE);
+    let si = memRead16(g, TOWN_TRANSITION_TABLE);
     for (;;) {
-        const flags = g8(g, si);
+        const flags = memRead8(g, si);
         if (goingLeft && !(flags & 1)) {
             si += 4;
             continue;
@@ -539,9 +525,9 @@ function handleEdgeScreenTransition(g: Uint8Array, st: TownTickState): void {
         break;
     }
 
-    const flags = g8(g, si);
-    const destMap = g8(g, si + 1);
-    const patNew = g8(g, si + 3);
+    const flags = memRead8(g, si);
+    const destMap = memRead8(g, si + 1);
+    const patNew = memRead8(g, si + 3);
 
     if ((flags & 0xfe) !== 0) {
         // some towns at the map edge transit to the dungeon
@@ -551,20 +537,20 @@ function handleEdgeScreenTransition(g: Uint8Array, st: TownTickState): void {
 
     // Signal JS to load resources asynchronously
     const destId = (destMap | 0x80) & 0xff;
-    s8(g, PLACE_MAP_ID, destId);
+    memWrite8(g, PLACE_MAP_ID, destId);
 
     if (goingLeft) {
-        s8(g, HERO_XV, 26);
-        s16(g, LEFT_COL, 0);
+        memWrite8(g, HERO_XV, 26);
+        memWrite16(g, LEFT_COL, 0);
     } else {
-        s8(g, HERO_XV, 0);
-        s16(g, LEFT_COL, 0);
+        memWrite8(g, HERO_XV, 0);
+        memWrite16(g, LEFT_COL, 0);
     }
 
-    s8(g, TRANS_MAP, destId);
-    s8(g, TRANS_PAT, patNew);
-    s8(g, TRANS_DIR, goingLeft ? 1 : 0);
-    s8(g, TRANS_FLAG, 0xff);
+    memWrite8(g, TRANS_MAP, destId);
+    memWrite8(g, TRANS_PAT, patNew);
+    memWrite8(g, TRANS_DIR, goingLeft ? 1 : 0);
+    memWrite8(g, TRANS_FLAG, 0xff);
 }
 
 // ─── the tick itself ───
@@ -573,31 +559,31 @@ function handleEdgeScreenTransition(g: Uint8Array, st: TownTickState): void {
 export function townMainLoopStep(g: Uint8Array, st: TownTickState): void {
     // Pending door animation: freeze logic until FRAME_TMR expires.
     if (st.doorPendingAnim) {
-        if (g8(g, FRAME_TMR) >= ((g8(g, SPEED_C) * 14) & 0xff)) {
+        if (memRead8(g, FRAME_TMR) >= ((memRead8(g, SPEED_C) * 14) & 0xff)) {
             st.doorPendingAnim = false;
             const destId = st.doorPendingDest;
             st.doorPendingDest = 0xff;
             if (destId === 0xff) {
                 // warp building: reuse the building handshake.
-                s8(g, BYTE_FF24, 4);
-                s8(g, BUILDING_DEST_ID, 0xff);
-                s8(g, BUILDING_ACTIVE, 1);
-                s8(g, SFX_REQUEST, 0x32);
-                s8(g, SPACEBAR, 0);
-                s8(g, ALTKEY, 0);
-                s8(g, INPUT_DIRS, 0);
-                s8(g, INPUT_ALT_SPACE, 0);
+                memWrite8(g, BYTE_FF24, 4);
+                memWrite8(g, BUILDING_DEST_ID, 0xff);
+                memWrite8(g, BUILDING_ACTIVE, 1);
+                memWrite8(g, SFX_REQUEST, 0x32);
+                memWrite8(g, SPACEBAR, 0);
+                memWrite8(g, ALTKEY, 0);
+                memWrite8(g, INPUT_DIRS, 0);
+                memWrite8(g, INPUT_ALT_SPACE, 0);
             } else if (destId >= 8) {
                 requestDungeonTransition(g, destId - 8);
             } else {
-                s8(g, BYTE_FF24, 4);
-                s8(g, BUILDING_DEST_ID, destId);
-                s8(g, BUILDING_ACTIVE, 1);
-                s8(g, SFX_REQUEST, 0x32);
-                s8(g, SPACEBAR, 0);
-                s8(g, ALTKEY, 0);
-                s8(g, INPUT_DIRS, 0);
-                s8(g, INPUT_ALT_SPACE, 0);
+                memWrite8(g, BYTE_FF24, 4);
+                memWrite8(g, BUILDING_DEST_ID, destId);
+                memWrite8(g, BUILDING_ACTIVE, 1);
+                memWrite8(g, SFX_REQUEST, 0x32);
+                memWrite8(g, SPACEBAR, 0);
+                memWrite8(g, ALTKEY, 0);
+                memWrite8(g, INPUT_DIRS, 0);
+                memWrite8(g, INPUT_ALT_SPACE, 0);
             }
         }
         return;
@@ -608,76 +594,76 @@ export function townMainLoopStep(g: Uint8Array, st: TownTickState): void {
     // JS main loop).
     updateNpcsAndRender(g, st);
 
-    if (g8(g, CONV_ACTIVE) !== 0) return;
-    if (g8(g, BUILDING_ACTIVE) !== 0) return;
+    if (memRead8(g, CONV_ACTIVE) !== 0) return;
+    if (memRead8(g, BUILDING_ACTIVE) !== 0) return;
 
     handleInventoryKey(g, st);
     handleEdgeScreenTransition(g, st);
     heroSpacebarInteraction(g);
 
     checkSpecialNpcConversation(g);
-    s8(g, HERO_MOVED, 0);
+    memWrite8(g, HERO_MOVED, 0);
 
-    const dirs = g8(g, INPUT_DIRS);
+    const dirs = memRead8(g, INPUT_DIRS);
 
     if (dirs === 0x01) {
         // Up pressed → enter door
-        s8(g, HERO_ANIM, g8(g, HERO_ANIM) | 1);
+        memWrite8(g, HERO_ANIM, memRead8(g, HERO_ANIM) | 1);
         townUpPressed(g, st);
     } else if ((dirs & 0x0c) === 0x04) {
         // Left pressed
-        const bx = (((g8(g, HERO_XV) + 3) * 8) & 0xffff) + g16(g, PROX_START);
-        const tile = g8(g, (bx + 7) & 0xffff);
+        const bx = (((memRead8(g, HERO_XV) + 3) * 8) & 0xffff) + memRead16(g, PROX_START);
+        const tile = memRead8(g, (bx + 7) & 0xffff);
         if (!tileInSpecialList(g, tile)) {
-            const tx = ((g8(g, HERO_XV) + 4) + g16(g, LEFT_COL) - 1) & 0xffff;
+            const tx = ((memRead8(g, HERO_XV) + 4) + memRead16(g, LEFT_COL) - 1) & 0xffff;
             if (findNonPassableNpcAtX(g, tx) === null) {
-                s8(g, HERO_ANIM, (g8(g, HERO_ANIM) + 1) & 3);
-                s8(g, FACING, g8(g, FACING) | 1); // face left
-                if (g8(g, HERO_XV) >= 11) {
-                    s8(g, HERO_XV, g8(g, HERO_XV) - 1);
-                } else if (g16(g, LEFT_COL) !== 0) {
-                    s16(g, LEFT_COL, dec16(g16(g, LEFT_COL)));
-                    s16(g, PROX_START, (g16(g, PROX_START) - 8) & 0xffff);
-                    s8(g, SCROLL_REQUEST, g8(g, SCROLL_REQUEST) | 0x01);
-                    if (g8(g, MIDDLE_LYR) === 1) {
-                        s8(g, SCROLL_REQUEST, g8(g, SCROLL_REQUEST) | 0x04);
+                memWrite8(g, HERO_ANIM, (memRead8(g, HERO_ANIM) + 1) & 3);
+                memWrite8(g, FACING, memRead8(g, FACING) | 1); // face left
+                if (memRead8(g, HERO_XV) >= 11) {
+                    memWrite8(g, HERO_XV, memRead8(g, HERO_XV) - 1);
+                } else if (memRead16(g, LEFT_COL) !== 0) {
+                    memWrite16(g, LEFT_COL, dec16(memRead16(g, LEFT_COL)));
+                    memWrite16(g, PROX_START, (memRead16(g, PROX_START) - 8) & 0xffff);
+                    memWrite8(g, SCROLL_REQUEST, memRead8(g, SCROLL_REQUEST) | 0x01);
+                    if (memRead8(g, MIDDLE_LYR) === 1) {
+                        memWrite8(g, SCROLL_REQUEST, memRead8(g, SCROLL_REQUEST) | 0x04);
                     }
                 } else {
-                    s8(g, HERO_XV, g8(g, HERO_XV) - 1);
+                    memWrite8(g, HERO_XV, memRead8(g, HERO_XV) - 1);
                 }
-                s8(g, HERO_MOVED, 0xff);
+                memWrite8(g, HERO_MOVED, 0xff);
             }
         }
     } else if ((dirs & 0x0c) === 0x08) {
         // Right pressed
-        const bx = (((g8(g, HERO_XV) + 6) * 8) & 0xffff) + g16(g, PROX_START);
-        const tile = g8(g, (bx + 7) & 0xffff);
+        const bx = (((memRead8(g, HERO_XV) + 6) * 8) & 0xffff) + memRead16(g, PROX_START);
+        const tile = memRead8(g, (bx + 7) & 0xffff);
         if (!tileInSpecialList(g, tile)) {
-            const tx = ((g8(g, HERO_XV) + 4) + g16(g, LEFT_COL) + 1) & 0xffff;
+            const tx = ((memRead8(g, HERO_XV) + 4) + memRead16(g, LEFT_COL) + 1) & 0xffff;
             if (findNonPassableNpcAtX(g, tx) === null) {
-                s8(g, HERO_ANIM, (g8(g, HERO_ANIM) + 1) & 3);
-                s8(g, FACING, g8(g, FACING) & ~1); // face right
-                if (g8(g, HERO_XV) < 16) {
-                    s8(g, HERO_XV, g8(g, HERO_XV) + 1);
+                memWrite8(g, HERO_ANIM, (memRead8(g, HERO_ANIM) + 1) & 3);
+                memWrite8(g, FACING, memRead8(g, FACING) & ~1); // face right
+                if (memRead8(g, HERO_XV) < 16) {
+                    memWrite8(g, HERO_XV, memRead8(g, HERO_XV) + 1);
                 } else {
-                    const rightLimit = (g16(g, MAP_WIDTH) - 35) & 0xffff;
-                    if (g16(g, LEFT_COL) + 1 === rightLimit) {
-                        s8(g, HERO_XV, g8(g, HERO_XV) + 1);
+                    const rightLimit = (memRead16(g, MAP_WIDTH) - 35) & 0xffff;
+                    if (memRead16(g, LEFT_COL) + 1 === rightLimit) {
+                        memWrite8(g, HERO_XV, memRead8(g, HERO_XV) + 1);
                     } else {
-                        s16(g, LEFT_COL, inc16(g16(g, LEFT_COL)));
-                        s16(g, PROX_START, (g16(g, PROX_START) + 8) & 0xffff);
-                        s8(g, SCROLL_REQUEST, g8(g, SCROLL_REQUEST) | 0x02);
-                        if (g8(g, MIDDLE_LYR) === 1) {
-                            s8(g, SCROLL_REQUEST, g8(g, SCROLL_REQUEST) | 0x08);
+                        memWrite16(g, LEFT_COL, inc16(memRead16(g, LEFT_COL)));
+                        memWrite16(g, PROX_START, (memRead16(g, PROX_START) + 8) & 0xffff);
+                        memWrite8(g, SCROLL_REQUEST, memRead8(g, SCROLL_REQUEST) | 0x02);
+                        if (memRead8(g, MIDDLE_LYR) === 1) {
+                            memWrite8(g, SCROLL_REQUEST, memRead8(g, SCROLL_REQUEST) | 0x08);
                         }
                     }
                 }
-                s8(g, HERO_MOVED, 0xff);
+                memWrite8(g, HERO_MOVED, 0xff);
             }
         }
     } else {
-        s8(g, HERO_ANIM, g8(g, HERO_ANIM) | 1);
-        s8(g, HERO_MOVED, 0xff);
+        memWrite8(g, HERO_ANIM, memRead8(g, HERO_ANIM) | 1);
+        memWrite8(g, HERO_MOVED, 0xff);
     }
 }
 
@@ -690,11 +676,11 @@ export function townUpdate(g: Uint8Array, st: TownTickState = townTickState): vo
 
 /** wasm_town_full_tick — ISR counters + pending-wait completion. */
 export function townFullTick(g: Uint8Array, st: TownTickState = townTickState): void {
-    s8(g, FRAME_TMR, (g8(g, FRAME_TMR) + 1) & 0xff);
-    s16(g, TICK_COUNTER, (g16(g, TICK_COUNTER) + 1) & 0xffff);
-    s16(g, ANIM_TIMER, (g16(g, ANIM_TIMER) + 1) & 0xffff);
+    memWrite8(g, FRAME_TMR, (memRead8(g, FRAME_TMR) + 1) & 0xff);
+    memWrite16(g, TICK_COUNTER, (memRead16(g, TICK_COUNTER) + 1) & 0xffff);
+    memWrite16(g, ANIM_TIMER, (memRead16(g, ANIM_TIMER) + 1) & 0xffff);
 
-    if (st.pendingWait && g8(g, FRAME_TMR) >= st.pendingWaitTarget) {
+    if (st.pendingWait && memRead8(g, FRAME_TMR) >= st.pendingWaitTarget) {
         townCompleteWait(g, st);
     }
 }
@@ -721,7 +707,7 @@ export function townInit(g: Uint8Array, st: TownTickState = townTickState): void
     st.doorPendingDest = 0xff;
     st.pendingWait = false;
     st.pendingWaitTarget = 0;
-    s8(g, SPEED_C, 5);
+    memWrite8(g, SPEED_C, 5);
 }
 
 export function townSetReturnBeforeMainLoop(
@@ -738,17 +724,17 @@ export function townSetReturnBeforeMainLoop(
  * list of {dst(word), flag(byte), then word/byte pairs until 0xFFFF}.
  */
 export function initC015ObjIfExists(g: Uint8Array): void {
-    let si = g16(g, WORD_C015);
+    let si = memRead16(g, WORD_C015);
     for (;;) {
-        const dst = g16(g, si);
+        const dst = memRead16(g, si);
         si += 2;
         if (dst === 0xffff) return;
 
-        const flag = g8(g, si);
+        const flag = memRead8(g, si);
         si += 1;
-        if ((flag & g8(g, dst)) === 0) {
+        if ((flag & memRead8(g, dst)) === 0) {
             for (;;) {
-                const w = g16(g, si);
+                const w = memRead16(g, si);
                 si += 2;
                 if (w === 0xffff) break;
                 si += 1;
@@ -756,12 +742,12 @@ export function initC015ObjIfExists(g: Uint8Array): void {
             continue;
         }
         for (;;) {
-            const d2 = g16(g, si);
+            const d2 = memRead16(g, si);
             si += 2;
             if (d2 === 0xffff) break;
-            const val = g8(g, si);
+            const val = memRead8(g, si);
             si += 1;
-            s8(g, d2, val);
+            memWrite8(g, d2, val);
         }
     }
 }
@@ -776,58 +762,58 @@ export function initC015ObjIfExists(g: Uint8Array): void {
 function townEntryCommon(g: Uint8Array, st: TownTickState): void {
     // load_hero_town_sprite / apply_sprite_mask / clear_viewport: no-op procs
 
-    s8(g, HERO_ANIM, 0);
+    memWrite8(g, HERO_ANIM, 0);
 
     // DEATH_DONE (ADDR_IS_DEATH_PROCESSED) only gates no-op music procs here.
-    void g8(g, IS_DEATH_PROCESSED);
+    void memRead8(g, IS_DEATH_PROCESSED);
 
     // Parse town descriptor: [0]=msd_index, NPC entries, FF, middle-layer, pat_id
     {
-        let si = g16(g, TOWN_DESCRIPTOR);
+        let si = memRead16(g, TOWN_DESCRIPTOR);
         si++;
-        while (g8(g, si) !== 0xff) si++;
+        while (memRead8(g, si) !== 0xff) si++;
         si++; // skip FF
         // ADDR_TOWN_HAS_MIDDLE_LAYER / ADDR_PAT_ID writes below
-        s8(g, 0x7c45, g8(g, si));
+        memWrite8(g, 0x7c45, memRead8(g, si));
         si++;
-        s8(g, PAT_ID, g8(g, si));
+        memWrite8(g, PAT_ID, memRead8(g, si));
     }
 
-    s8(g, 0x7c44, 0); // EDGE_SCROLL_ENABLED = 0
+    memWrite8(g, 0x7c44, 0); // EDGE_SCROLL_ENABLED = 0
 
-    const invinc = g8(g, INVINCIBILITY_FLAG) !== 0;
+    const invinc = memRead8(g, INVINCIBILITY_FLAG) !== 0;
     if (!invinc) {
-        const middleLyr = g8(g, MIDDLE_LYR);
-        const disableEdgeScroll = g8(g, DISABLE_EDGE_SCROLL);
+        const middleLyr = memRead8(g, MIDDLE_LYR);
+        const disableEdgeScroll = memRead8(g, DISABLE_EDGE_SCROLL);
         if ((middleLyr & 1) !== 0 && disableEdgeScroll === 0) {
-            s8(g, 0x7c44, 0xff);
+            memWrite8(g, 0x7c44, 0xff);
         }
         // backup_upper_town_3_tiles / adlib_fn0: no-op procs
     }
 
     // --- town_entry_internal ---
     initC015ObjIfExists(g);
-    s8(g, SPACEBAR, 0);
-    s8(g, ALTKEY, 0);
-    s8(g, SWORD_ENCHANTMENT_LEVEL, 0);
-    s8(g, BYTE_9F, 0);
+    memWrite8(g, SPACEBAR, 0);
+    memWrite8(g, ALTKEY, 0);
+    memWrite8(g, SWORD_ENCHANTMENT_LEVEL, 0);
+    memWrite8(g, BYTE_9F, 0);
 
     // clear_hud_bar / render_* procs: no-ops in the web build
 
     // Re-read pat_id after second FF-scan
     {
-        let si = g16(g, TOWN_DESCRIPTOR);
+        let si = memRead16(g, TOWN_DESCRIPTOR);
         si++;
-        while (g8(g, si) !== 0xff) si++;
+        while (memRead8(g, si) !== 0xff) si++;
         si += 2; // skip FF and middle-layer
-        s8(g, PAT_ID, g8(g, si));
+        memWrite8(g, PAT_ID, memRead8(g, si));
     }
 
     // render_pascal_string_1 proc: no-op
 
     {
-        const leftCol = g16(g, LEFT_COL);
-        s16(g, PROX_START, (leftCol * 8 + TOWN_TILES) & 0xffff);
+        const leftCol = memRead16(g, LEFT_COL);
+        memWrite16(g, PROX_START, (leftCol * 8 + TOWN_TILES) & 0xffff);
     }
 
     saveHeadLevelTilesInNpcs(g);
@@ -842,17 +828,17 @@ function townEntryCommon(g: Uint8Array, st: TownTickState): void {
 
     updateNpcsAndRender(g, st);
 
-    if (g8(g, 0x7c44) !== 0) {
+    if (memRead8(g, 0x7c44) !== 0) {
         // Edge-scroll pan ×5 via scroll procs — unregistered in web → no-op,
         // but each iteration still runs update_npcs_and_render.
-        const isLeft = (g8(g, FACING) & 1) !== 0;
+        const isLeft = (memRead8(g, FACING) & 1) !== 0;
         void isLeft;
         for (let i = 0; i < 5; i++) {
             updateNpcsAndRender(g, st);
         }
     }
 
-    s8(g, HERO_MOVED, 0);
+    memWrite8(g, HERO_MOVED, 0);
 
     // DEATH_DONE music proc: no-op
 }
@@ -867,7 +853,7 @@ export function townEntryDisablingEdgeScroll(
     g: Uint8Array,
     st: TownTickState = townTickState,
 ): void {
-    s8(g, DISABLE_EDGE_SCROLL, 0xff);
+    memWrite8(g, DISABLE_EDGE_SCROLL, 0xff);
     townEntryCommon(g, st);
 }
 
@@ -876,66 +862,66 @@ export function townEntryEnablingEdgeScroll(
     g: Uint8Array,
     st: TownTickState = townTickState,
 ): void {
-    s8(g, DISABLE_EDGE_SCROLL, 0);
+    memWrite8(g, DISABLE_EDGE_SCROLL, 0);
     townEntryCommon(g, st);
 }
 
 /** wasm_town_complete_transition — finish a town→town edge transition. */
 export function townCompleteTransition(g: Uint8Array, st: TownTickState = townTickState): void {
-    const destId = g8(g, TRANS_MAP);
-    const patNew = g8(g, TRANS_PAT);
-    const goingLeft = g8(g, TRANS_DIR) !== 0;
+    const destId = memRead8(g, TRANS_MAP);
+    const patNew = memRead8(g, TRANS_PAT);
+    const goingLeft = memRead8(g, TRANS_DIR) !== 0;
     void destId;
 
-    s8(g, TRANS_FLAG, 0);
+    memWrite8(g, TRANS_FLAG, 0);
 
     initC015ObjIfExists(g);
 
-    if (patNew !== g8(g, PAT_ID)) {
-        s8(g, PAT_ID, patNew);
+    if (patNew !== memRead8(g, PAT_ID)) {
+        memWrite8(g, PAT_ID, patNew);
     }
 
-    const mapWidth = g16(g, MAP_WIDTH);
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (goingLeft) {
-        s8(g, HERO_XV, 26);
-        s16(g, LEFT_COL, (mapWidth - 36) & 0xffff);
+        memWrite8(g, HERO_XV, 26);
+        memWrite16(g, LEFT_COL, (mapWidth - 36) & 0xffff);
     } else {
-        s8(g, HERO_XV, 0);
-        s16(g, LEFT_COL, 0);
+        memWrite8(g, HERO_XV, 0);
+        memWrite16(g, LEFT_COL, 0);
     }
-    const leftCol = g16(g, LEFT_COL);
-    s16(g, PROX_START, (leftCol * 8 + TOWN_TILES) & 0xffff);
+    const leftCol = memRead16(g, LEFT_COL);
+    memWrite16(g, PROX_START, (leftCol * 8 + TOWN_TILES) & 0xffff);
 
-    s8(g, FACING, goingLeft ? 1 : 0);
+    memWrite8(g, FACING, goingLeft ? 1 : 0);
 
     saveHeadLevelTilesInNpcs(g);
 
-    s8(g, SPACEBAR, 0);
-    s8(g, ALTKEY, 0);
-    s8(g, SWORD_ENCHANTMENT_LEVEL, 0);
-    s8(g, BYTE_9F, 0);
+    memWrite8(g, SPACEBAR, 0);
+    memWrite8(g, ALTKEY, 0);
+    memWrite8(g, SWORD_ENCHANTMENT_LEVEL, 0);
+    memWrite8(g, BYTE_9F, 0);
 }
 
 /** wasm_town_conversation_finish — restore frozen NPC, clear flag. */
 export function townConversationFinish(g: Uint8Array): void {
-    if (g8(g, CONV_ACTIVE) === 0) return;
-    const npcAddr = g16(g, CONV_NPC_ADDR);
+    if (memRead8(g, CONV_ACTIVE) === 0) return;
+    const npcAddr = memRead16(g, CONV_NPC_ADDR);
     if (npcAddr !== 0 && npcAddr !== 0xffff) {
-        s8(g, npcAddr + 5, g8(g, CONV_SAVED_AI));
-        s8(g, npcAddr + 2, g8(g, CONV_SAVED_FACING));
+        memWrite8(g, npcAddr + 5, memRead8(g, CONV_SAVED_AI));
+        memWrite8(g, npcAddr + 2, memRead8(g, CONV_SAVED_FACING));
     }
-    s8(g, CONV_ACTIVE, 0);
+    memWrite8(g, CONV_ACTIVE, 0);
 }
 
 /** wasm_town_building_finish — clear building latch. */
 export function townBuildingFinish(g: Uint8Array): void {
-    s8(g, BUILDING_ACTIVE, 0);
-    s8(g, BUILDING_DEST_ID, 0xff);
-    s8(g, SPACEBAR, 0);
-    s8(g, ALTKEY, 0);
-    s8(g, INPUT_DIRS, 0);
-    s8(g, INPUT_ALT_SPACE, 0);
-    s8(g, HERO_ANIM, 1);
+    memWrite8(g, BUILDING_ACTIVE, 0);
+    memWrite8(g, BUILDING_DEST_ID, 0xff);
+    memWrite8(g, SPACEBAR, 0);
+    memWrite8(g, ALTKEY, 0);
+    memWrite8(g, INPUT_DIRS, 0);
+    memWrite8(g, INPUT_ALT_SPACE, 0);
+    memWrite8(g, HERO_ANIM, 1);
 }
 
 /** Unused-import guards for constants referenced by documentation only. */

@@ -14,6 +14,7 @@ import {
 } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -27,22 +28,7 @@ const PROXIMITY_MAP_LEFT_COL = 0x80; // word
 const MAP_WIDTH = 0xc002; // word
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state ───
 
@@ -125,9 +111,9 @@ const ACID_DROPLET_SPAWN_SEQUENCE = [0x80, 0x80, 0x80, 0x80, 0x80, 0x81, 0x82, 0
 
 // boss_move_left: 1 if blocked (already at min X, 16).
 function bossMoveLeft(g: Uint8Array): number {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    if (g16(g, bossState + 0) !== 16) { // .boss_x
-        s16(g, bossState + 0, (g16(g, bossState + 0) - 1) & 0xffff);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    if (memRead16(g, bossState + 0) !== 16) { // .boss_x
+        memWrite16(g, bossState + 0, (memRead16(g, bossState + 0) - 1) & 0xffff);
         return 0;
     }
     return 1;
@@ -135,9 +121,9 @@ function bossMoveLeft(g: Uint8Array): number {
 
 // boss_move_right: 1 if blocked (already at max X, 49).
 function bossMoveRight(g: Uint8Array): number {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    if (g16(g, bossState + 0) !== 49) { // .boss_x
-        s16(g, bossState + 0, (g16(g, bossState + 0) + 1) & 0xffff);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    if (memRead16(g, bossState + 0) !== 49) { // .boss_x
+        memWrite16(g, bossState + 0, (memRead16(g, bossState + 0) + 1) & 0xffff);
         return 0;
     }
     return 1;
@@ -163,14 +149,14 @@ function acidApproachStep(g: Uint8Array): void {
 
 // trigger_acid_drop / loc_A4B9
 function triggerAcidDrop(g: Uint8Array): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
     if (!phasePlacingDroplet) {
         // first entry: pick a target column and initial movement direction
-        const leftPlus12 = (g16(g, PROXIMITY_MAP_LEFT_COL) + 12) & 0xffff;
-        const mapW = g16(g, MAP_WIDTH);
+        const leftPlus12 = (memRead16(g, PROXIMITY_MAP_LEFT_COL) + 12) & 0xffff;
+        const mapW = memRead16(g, MAP_WIDTH);
         const bound = leftPlus12 < mapW ? leftPlus12 : (leftPlus12 - mapW) & 0xffff;
 
-        movementDirectionFlag = ((g16(g, bossState + 0) + 5) & 0xffff) < bound ? 0xff : 0x00; // .boss_x
+        movementDirectionFlag = ((memRead16(g, bossState + 0) + 5) & 0xffff) < bound ? 0xff : 0x00; // .boss_x
         phaseAcidDropping = 0;
         descentSeqIndex = 0;
         phasePlacingDroplet = 0xff;
@@ -190,7 +176,7 @@ function triggerAcidDrop(g: Uint8Array): void {
         const shifted = nibble >> 1;
         const carryOut = nibble & 1;
         const step = (shifted - carryOut) & 0xff;
-        s8(g, bossState + 2, (g8(g, bossState + 2) + step) & 0x3f);
+        memWrite8(g, bossState + 2, (memRead8(g, bossState + 2) + step) & 0x3f);
     }
 
     if ((seq & 0xf0) !== 0) {
@@ -225,15 +211,15 @@ function beginRecoil(g: Uint8Array): void {
 // death_sequence_handler: runs every frame once ADDR_BOSS_BEING_HIT is set.
 function deathSequenceHandler(g: Uint8Array): void {
     if (deathTimer >= 0x28) {
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
     if (deathTimer < 0x1e && !(deathTimer & 1)) {
-        s8(g, SOUND_FX_REQUEST, 35);
+        memWrite8(g, SOUND_FX_REQUEST, 35);
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
 
     if (deathTimer >= 0x14) {
         deathTimer++;
@@ -264,53 +250,53 @@ function deathSequenceHandler(g: Uint8Array): void {
 // apply_damage_to_boss: subtract damage (clamped), redraw health bar,
 // start death sequence the first time HP reaches 0.
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    let hp = (g16(g, bossState + 3) - damage) << 16 >> 16; // int16_t
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    let hp = (memRead16(g, bossState + 3) - damage) << 16 >> 16; // int16_t
     if (hp < 0) hp = 0;
-    s16(g, bossState + 3, hp);
+    memWrite16(g, bossState + 3, hp);
 
-    s8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
 
-    if (g16(g, bossState + 3) !== 0) return;
+    if (memRead16(g, bossState + 3) !== 0) return;
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) return; // death sequence already started
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) return; // death sequence already started
 
     deathTimer = 0;
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
 }
 
 // render_body_entities (+ render_droplets_entities continuation)
 function renderBodyEntities(g: Uint8Array): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
     const layout = BODY_STATE_TO_LAYOUT[bodyAnimState] ?? CRAB_LAYOUT_NORMAL;
-    crabEntityRow = g8(g, bossState + 2); // .boss_y
+    crabEntityRow = memRead8(g, bossState + 2); // .boss_y
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     activeSpriteCount = 0;
 
     for (let row = 0; row < 6; row++) {
         const rowLayout = layout.slice(row * 10, row * 10 + 10);
-        let colX = g16(g, bossState + 0); // .boss_x
+        let colX = memRead16(g, bossState + 0); // .boss_x
 
         for (let col = 0; col < 10; col++) {
-            s16(g, si + 0, colX); // .currX (tentative)
+            memWrite16(g, si + 0, colX); // .currX (tentative)
 
             const win = isInProximityWindow(g, colX);
             if (win.inside) {
                 const rel = win.xRel;
                 const tile = rowLayout[col] ?? 0xff;
                 if (tile !== 0xff) {
-                    s8(g, si + 4, tile);             // .flags <- part/tile index
-                    s8(g, si + 2, crabEntityRow);    // .currY
-                    s8(g, si + 3, rel);              // .m_x_rel
-                    s8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00); // .ai_flags: hit-flash
-                    s8(g, si + 6, bodyAnimState);    // .anim_counter
+                    memWrite8(g, si + 4, tile);             // .flags <- part/tile index
+                    memWrite8(g, si + 2, crabEntityRow);    // .currY
+                    memWrite8(g, si + 3, rel);              // .m_x_rel
+                    memWrite8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00); // .ai_flags: hit-flash
+                    memWrite8(g, si + 6, bodyAnimState);    // .anim_counter
 
-                    const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                    const oldTile = g8(g, di);
-                    s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-                    s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+                    const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                    const oldTile = memRead8(g, di);
+                    memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+                    memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
                     activeSpriteCount++;
                     si += 16;
@@ -323,7 +309,7 @@ function renderBodyEntities(g: Uint8Array): void {
         crabEntityRow = (crabEntityRow + 1) & 0x3f;
     }
 
-    s16(g, si, 0xffff); // terminator after the last written sprite
+    memWrite16(g, si, 0xffff); // terminator after the last written sprite
 
     // --- render_droplets_entities: acid-droplet spawn/placement continuation ---
     if (!phaseSpawningDroplet) {
@@ -334,16 +320,16 @@ function renderBodyEntities(g: Uint8Array): void {
         // entry (a fixed monster.flags == 0x14 "boss prop") and drive its
         // animation from the descent sequence.
         let di = base;
-        while (g8(g, di + 4) !== 0x14) { // .flags
+        while (memRead8(g, di + 4) !== 0x14) { // .flags
             di += 16;
         }
-        s8(g, di + 6, descentSeqIndex); // .anim_counter
+        memWrite8(g, di + 6, descentSeqIndex); // .anim_counter
         if (descentSeqIndex !== 4) return;
 
         spawnSeqIndex = 0;
         phaseSpawningDroplet = 0xff;
-        dropletTargetX = (g16(g, bossState + 0) + 4) & 0xffff;
-        dropletTargetY = (g8(g, bossState + 2) + 3) & 0x3f;
+        dropletTargetX = (memRead16(g, bossState + 0) + 4) & 0xffff;
+        dropletTargetY = (memRead8(g, bossState + 2) + 3) & 0x3f;
     }
 
     // spawn_tick:
@@ -360,24 +346,24 @@ function renderBodyEntities(g: Uint8Array): void {
     const win = isInProximityWindow(g, dropletTargetX);
     if (!win.inside) return; // out of range: skip this tick
 
-    s16(g, si + 0, dropletTargetX);       // .currX
-    s8(g, si + 2, dropletTargetY);        // .currY
-    s8(g, si + 3, win.xRel);              // .m_x_rel
-    s8(g, si + 4, 0x35);                  // .flags: droplet sprite/tile index
-    s8(g, si + 6, (seq & 0x7f) & 0xff);   // .anim_counter
-    s8(g, si + 5, 0);                     // .ai_flags
-    s16(g, si + 16, 0xffff);              // fresh terminator right after this entry
+    memWrite16(g, si + 0, dropletTargetX);       // .currX
+    memWrite8(g, si + 2, dropletTargetY);        // .currY
+    memWrite8(g, si + 3, win.xRel);              // .m_x_rel
+    memWrite8(g, si + 4, 0x35);                  // .flags: droplet sprite/tile index
+    memWrite8(g, si + 6, (seq & 0x7f) & 0xff);   // .anim_counter
+    memWrite8(g, si + 5, 0);                     // .ai_flags
+    memWrite16(g, si + 16, 0xffff);              // fresh terminator right after this entry
 
-    const addr = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-    const oldTile = g8(g, addr);
-    s8(g, addr, (activeSpriteCount | 0x80) & 0xff);
-    s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+    const addr = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+    const oldTile = memRead8(g, addr);
+    memWrite8(g, addr, (activeSpriteCount | 0x80) & 0xff);
+    memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 }
 
 /** Cangrejo_AI (crab.c:163) — entry point, called once per frame. */
 export function cangrejoAi(g: Uint8Array, m: number): void {
     void m;
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     activeSpriteCount = 0;
     hitMonsterFlags = 0;
@@ -386,19 +372,19 @@ export function cangrejoAi(g: Uint8Array, m: number): void {
     // proximity-map tiles they overwrote, and pick up any hit flagged by
     // the external hit-detection code (ai_flags bit 0x40).
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break; // .currX sentinel
+        if (memRead16(g, si + 0) === 0xffff) break; // .currX sentinel
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel); // .m_x_rel
+            memWrite8(g, si + 3, win.xRel); // .m_x_rel
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if ((g8(g, si + 5) & 0x40) !== 0) { // struck this frame
+            if ((memRead8(g, si + 5) & 0x40) !== 0) { // struck this frame
                 if (!(hitMonsterFlags & 0x80)) { // only record the first hit found
-                    let al = g8(g, si + 5) & 0x1f;
-                    if ((g8(g, si + 4) & 0x10) !== 0) al |= 0x80; // .flags: facing left
+                    let al = memRead8(g, si + 5) & 0x1f;
+                    if ((memRead8(g, si + 4) & 0x10) !== 0) al |= 0x80; // .flags: facing left
                     hitMonsterFlags = al;
                 }
             }
@@ -410,23 +396,23 @@ export function cangrejoAi(g: Uint8Array, m: number): void {
 
     // Reset the sprite table; render_body_entities() repopulates it.
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
-    if (g8(g, BOSS_BEING_HIT) === 0 && hitMonsterFlags !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) === 0 && hitMonsterFlags !== 0) {
         const al = hitMonsterFlags;
         const stat = getStats(g, al & 0x1f);
         let damage = (stat << 2) & 0xffff;
         if ((al & 0x80) !== 0) damage = (damage << 1) & 0xffff;
 
         applyDamageToBoss(g, damage);
-        s8(g, SOUND_FX_REQUEST, 34);
+        memWrite8(g, SOUND_FX_REQUEST, 34);
 
-        let bound = (g16(g, PROXIMITY_MAP_LEFT_COL) + 12) & 0xffff;
-        const mapW = g16(g, MAP_WIDTH);
+        let bound = (memRead16(g, PROXIMITY_MAP_LEFT_COL) + 12) & 0xffff;
+        const mapW = memRead16(g, MAP_WIDTH);
         if (bound >= mapW) bound = mapW;
 
-        const bossState = g16(g, BOSS_STATE_PTR);
-        if ((g16(g, bossState + 0) + 5) < bound) { // .boss_x
+        const bossState = memRead16(g, BOSS_STATE_PTR);
+        if ((memRead16(g, bossState + 0) + 5) < bound) { // .boss_x
             bossMoveLeft(g);
             bossMoveLeft(g);
         } else {
@@ -437,7 +423,7 @@ export function cangrejoAi(g: Uint8Array, m: number): void {
 
     if (phasePlacingDroplet) { triggerAcidDrop(g); return; }
     if (phaseRecoil) { beginRecoil(g); return; }
-    if (g8(g, BOSS_BEING_HIT) !== 0) { deathSequenceHandler(g); return; }
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) { deathSequenceHandler(g); return; }
     if (phaseAcidDropping) { acidApproachStep(g); return; }
 
     if ((getRandom(g) & 7) === 0) {

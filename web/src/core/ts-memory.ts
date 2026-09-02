@@ -241,3 +241,93 @@ export function writeMemory(offset: number, data: Uint8Array | number[]): void {
         g_mem[offset + i] = (data[i] ?? 0) & 0xff;
     }
 }
+
+/**
+ * MemView — a lightweight wrapper around a g_mem-like Uint8Array that
+ * provides the seg-prefixed memory accessors (g8/g16/s8/s16/seg8/seg16)
+ * used by the engine modules. The original C code used segment-relative
+ * addressing (MEM8_0/MEM8_1/MEM16_0/MEM16_1); these helpers mirror the
+ * common subset that the TS engine relies on.
+ *
+ * This replaces the copy-pasted `function g8(g, addr)` helpers that were
+ * duplicated across ~39 engine files. Engine code should accept a
+ * `MemView` alongside (or instead of) the raw buffer.
+ */
+export class MemView {
+    constructor(public readonly g: Uint8Array) {}
+
+    /** 8-bit read at addr (masked to 24-bit address space, matching the C port). */
+    g8(addr: number): number {
+        return this.g[addr & 0xffffff] ?? 0;
+    }
+
+    /** 16-bit little-endian read at addr. */
+    g16(addr: number): number {
+        return (this.g[addr & 0xffffff] ?? 0) | ((this.g[(addr + 1) & 0xffffff] ?? 0) << 8);
+    }
+
+    /** 8-bit write at addr. */
+    s8(addr: number, v: number): void {
+        this.g[addr & 0xffffff] = v & 0xff;
+    }
+
+    /** 16-bit little-endian write at addr. */
+    s16(addr: number, v: number): void {
+        this.g[addr & 0xffffff] = v & 0xff;
+        this.g[(addr + 1) & 0xffffff] = (v >> 8) & 0xff;
+    }
+
+    /** seg1-relative 8-bit read (addr is offset within seg1). */
+    seg8(addr: number): number {
+        return this.g[(SEG1_BASE + addr) & 0xffffff] ?? 0;
+    }
+
+    /** seg1-relative 16-bit little-endian read. */
+    seg16(addr: number): number {
+        const a = (SEG1_BASE + addr) & 0xffffff;
+        return (this.g[a] ?? 0) | ((this.g[(a + 1) & 0xffffff] ?? 0) << 8);
+    }
+}
+
+// ─── Standalone helpers (for files that haven't migrated to MemView yet) ─────
+//
+// These match the local `function g8(g, addr)` definitions that were
+// copy-pasted across ~39 engine files. They delegate to the same logic
+// as MemView but take a raw Uint8Array, so existing call sites can be
+// updated to import these without changing signatures.
+//
+// Named with a trailing underscore to avoid confusion with the existing
+// top-level `readU8`/`readU16` functions that read directly from g_mem
+// without needing the buffer argument.
+
+/** 8-bit read at addr (buffer-aware, masked to 24-bit address space). */
+export function memRead8(g: Uint8Array, addr: number): number {
+    return g[addr & 0xffffff] ?? 0;
+}
+
+/** 16-bit little-endian read at addr (buffer-aware). */
+export function memRead16(g: Uint8Array, addr: number): number {
+    return (g[addr & 0xffffff] ?? 0) | ((g[(addr + 1) & 0xffffff] ?? 0) << 8);
+}
+
+/** 8-bit write at addr (buffer-aware). */
+export function memWrite8(g: Uint8Array, addr: number, v: number): void {
+    g[addr & 0xffffff] = v & 0xff;
+}
+
+/** 16-bit little-endian write at addr (buffer-aware). */
+export function memWrite16(g: Uint8Array, addr: number, v: number): void {
+    g[addr & 0xffffff] = v & 0xff;
+    g[(addr + 1) & 0xffffff] = (v >> 8) & 0xff;
+}
+
+/** seg1-relative 8-bit read (buffer-aware). */
+export function segRead8(g: Uint8Array, addr: number): number {
+    return g[(SEG1_BASE + addr) & 0xffffff] ?? 0;
+}
+
+/** seg1-relative 16-bit little-endian read (buffer-aware). */
+export function segRead16(g: Uint8Array, addr: number): number {
+    const a = (SEG1_BASE + addr) & 0xffffff;
+    return (g[a] ?? 0) | ((g[(a + 1) & 0xffffff] ?? 0) << 8);
+}

@@ -19,6 +19,7 @@
 
 import { damageHero } from './dungeon-damage.js';
 import { coordsToProxAddr, lookupShared } from './dungeon-entities.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 const PROJECTILE_STRUCT_SIZE = 13;
 
@@ -42,44 +43,29 @@ const PROJECTILES_LIST = 0xeb80;
 
 const SHIELD_HONOR = 4;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── sword overlay (gfmcga.c:357 — VRAM parts are JS-side stubs) ───
 
 export function renderSwordOverlay(g: Uint8Array): void {
-    if (g8(g, SWORD_SWING_FLAG) === 0) return;
+    if (memRead8(g, SWORD_SWING_FLAG) === 0) return;
 
-    const phase = (g8(g, SWORD_MOVEMENT_PHASE) + 1) & 0xff;
-    s8(g, SWORD_MOVEMENT_PHASE, phase);
-    const hitType = g8(g, SWORD_HIT_TYPE);
+    const phase = (memRead8(g, SWORD_MOVEMENT_PHASE) + 1) & 0xff;
+    memWrite8(g, SWORD_MOVEMENT_PHASE, phase);
+    const hitType = memRead8(g, SWORD_HIT_TYPE);
 
     // forward: phases 1..6; overhead/downward: phases 1..4
     if ((hitType === 0 && phase >= 7) || (hitType !== 0 && phase >= 5)) {
-        s8(g, SWORD_SWING_FLAG, 0);
+        memWrite8(g, SWORD_SWING_FLAG, 0);
     }
 }
 
 // ─── trajectory movement ───
 
-function incX(g: Uint8Array, p: number): void { s8(g, p, (g8(g, p) + 1) & 0xff); }
-function decX(g: Uint8Array, p: number): void { s8(g, p, (g8(g, p) - 1) & 0xff); }
-function incY(g: Uint8Array, p: number): void { s8(g, p + 1, (g8(g, p + 1) + 1) & 0xff); }
-function decY(g: Uint8Array, p: number): void { s8(g, p + 1, (g8(g, p + 1) - 1) & 0xff); }
+function incX(g: Uint8Array, p: number): void { memWrite8(g, p, (memRead8(g, p) + 1) & 0xff); }
+function decX(g: Uint8Array, p: number): void { memWrite8(g, p, (memRead8(g, p) - 1) & 0xff); }
+function incY(g: Uint8Array, p: number): void { memWrite8(g, p + 1, (memRead8(g, p + 1) + 1) & 0xff); }
+function decY(g: Uint8Array, p: number): void { memWrite8(g, p + 1, (memRead8(g, p + 1) - 1) & 0xff); }
 // fallthrough reuse mirrors the original (incX_decY falls into incX)
 function incXDecY(g: Uint8Array, p: number): void { decY(g, p); incX(g, p); }
 function decXDecY(g: Uint8Array, p: number): void { decY(g, p); decX(g, p); }
@@ -92,35 +78,35 @@ const FUNCS_85B9: Array<(g: Uint8Array, p: number) => void> = [
 
 /** projectile_read_curved_path_step (dungeon.c:6174). */
 export function readCurvedPathStep(g: Uint8Array, p: number): boolean {
-    const step = g8(g, p + 3);
-    const path = g16(g, p + 9);
-    let al = g8(g, path + step);
+    const step = memRead8(g, p + 3);
+    const path = memRead16(g, p + 9);
+    let al = memRead8(g, path + step);
 
     if (al === 0xff) {
-        s8(g, p + 128, 0); // why 128? (asm-faithful)
+        memWrite8(g, p + 128, 0); // why 128? (asm-faithful)
         return false;
     }
 
     al &= 7;
-    s8(g, p + 5, (g8(g, p + 5) & 0xf8) | al);
+    memWrite8(g, p + 5, (memRead8(g, p + 5) & 0xf8) | al);
     return true;
 }
 
 /** projectile_advance_position (dungeon.c:6153). */
 export function projectileAdvancePosition(g: Uint8Array, p: number): void {
-    if ((g8(g, p + 5) & 0x40) !== 0) {
+    if ((memRead8(g, p + 5) & 0x40) !== 0) {
         if (!readCurvedPathStep(g, p)) return; // curved path exhausted
     }
 
-    const dir = g8(g, p + 5) & 7;
+    const dir = memRead8(g, p + 5) & 7;
     FUNCS_85B9[dir]!(g, p);
-    s8(g, p + 1, g8(g, p + 1) & 0x3f);
+    memWrite8(g, p + 1, memRead8(g, p + 1) & 0x3f);
 }
 
 // ─── hero-row checks ───
 
 function checkYEqProjectileRow(g: Uint8Array, p: number, al: number): boolean {
-    return al === g8(g, p + 1);
+    return al === memRead8(g, p + 1);
 }
 
 function checkPrevYEqProjectileRow(g: Uint8Array, p: number, al: number): boolean {
@@ -146,7 +132,7 @@ const FUNCS_857D: Array<(g: Uint8Array, p: number, al: number) => boolean> = [
 
 /** projectile_y_vs_hero_row_dispatch (dungeon.c:6147). */
 export function projectileYVsHeroRowDispatch(g: Uint8Array, p: number, al: number): boolean {
-    const dir = g8(g, p + 5) & 7;
+    const dir = memRead8(g, p + 5) & 7;
     al &= 0x3f;
     return FUNCS_857D[dir]!(g, p, al);
 }
@@ -162,20 +148,20 @@ function isBlockingTileExtended(g: Uint8Array, tile: number): number {
 export function projectileCollisionStep(g: Uint8Array, p: number): void {
     projectileAdvancePosition(g, p);
 
-    const dirByte = g8(g, p + 5);
+    const dirByte = memRead8(g, p + 5);
 
     if ((dirByte & 0x08) === 0) {
-        if (g8(g, p) === 0) return; // .p_x_rel
+        if (memRead8(g, p) === 0) return; // .p_x_rel
 
         // static-tile collision check
         {
-            const y = g8(g, p + 1);
-            const x = g8(g, p);
+            const y = memRead8(g, p + 1);
+            const x = memRead8(g, p);
             const cell = coordsToProxAddr(g, x, y);
-            const tile = g8(g, cell);
+            const tile = memRead8(g, cell);
 
             if (isBlockingTileExtended(g, tile) !== 0) {
-                s8(g, p, 0);
+                memWrite8(g, p, 0);
                 return;
             }
         }
@@ -184,11 +170,11 @@ export function projectileCollisionStep(g: Uint8Array, p: number): void {
     // loc_8490: does the projectile's row line up with the hero band?
     let rowMatch = false;
     {
-        let al = (g8(g, VIEWPORT_TOP_ROW) + g8(g, HERO_HEAD_Y_VIEW)) & 0xff;
+        let al = (memRead8(g, VIEWPORT_TOP_ROW) + memRead8(g, HERO_HEAD_Y_VIEW)) & 0xff;
 
-        if (g8(g, SQUAT_FLAG) === 0) {
+        if (memRead8(g, SQUAT_FLAG) === 0) {
             al &= 0x3f;
-            if (al === g8(g, p + 1)) {
+            if (al === memRead8(g, p + 1)) {
                 rowMatch = true;
             }
         }
@@ -196,7 +182,7 @@ export function projectileCollisionStep(g: Uint8Array, p: number): void {
         if (!rowMatch) {
             for (let cx = 2; cx > 0; cx--) {
                 al = (al + 1) & 0x3f;
-                if (al === g8(g, p + 1)) {
+                if (al === memRead8(g, p + 1)) {
                     rowMatch = true;
                     break;
                 }
@@ -207,11 +193,11 @@ export function projectileCollisionStep(g: Uint8Array, p: number): void {
 
     // loc_84B4: does the projectile's column line up with the hero?
     {
-        let al = (g8(g, HERO_XV) + 4) & 0xff;
-        if ((g8(g, FACING) & 1) !== 0) al++;
-        if (al !== g8(g, p)) {
+        let al = (memRead8(g, HERO_XV) + 4) & 0xff;
+        if ((memRead8(g, FACING) & 1) !== 0) al++;
+        if (al !== memRead8(g, p)) {
             al = (al + 1) & 0xff;
-            if (al !== g8(g, p)) return; // column mismatch: no hit
+            if (al !== memRead8(g, p)) return; // column mismatch: no hit
         }
     }
 
@@ -221,25 +207,25 @@ export function projectileCollisionStep(g: Uint8Array, p: number): void {
 /** loc_84CD: hit confirmed — projectile is consumed either way. */
 function hitConfirmed(g: Uint8Array, p: number): void {
     // projectile is consumed either way
-    s8(g, p, 0);
+    memWrite8(g, p, 0);
 
     if (
-        g8(g, SHIELD_TYPE) !== 0 &&
-        g8(g, SWORD_SWING_FLAG) === 0 &&
-        g8(g, ON_ROPE_FLAGS) === 0
+        memRead8(g, SHIELD_TYPE) !== 0 &&
+        memRead8(g, SWORD_SWING_FLAG) === 0 &&
+        memRead8(g, ON_ROPE_FLAGS) === 0
     ) {
-        const dir = g8(g, p + 5) & 7;
+        const dir = memRead8(g, p + 5) & 7;
 
         if (dir !== 2 && dir !== 6) {
             if (dir === 0 || dir === 1 || dir === 7) {
-                if ((g8(g, FACING) & 1) !== 0) {
+                if ((memRead8(g, FACING) & 1) !== 0) {
                     shieldBlockCheck(g, p);
                     return;
                 }
                 // not shielded from this direction → damage
             } else {
                 // dir == 3, 4, or 5
-                if ((g8(g, FACING) & 1) === 0) {
+                if ((memRead8(g, FACING) & 1) === 0) {
                     shieldBlockCheck(g, p);
                     return;
                 }
@@ -253,14 +239,14 @@ function hitConfirmed(g: Uint8Array, p: number): void {
 
 /** loc_854F: shield may block depending on tier and hero row. */
 function shieldBlockCheck(g: Uint8Array, p: number): void {
-    if (g8(g, SHIELD_TYPE) >= SHIELD_HONOR) {
+    if (memRead8(g, SHIELD_TYPE) >= SHIELD_HONOR) {
         blockedByShield(g);
         return;
     }
 
-    let al = (g8(g, VIEWPORT_TOP_ROW) + g8(g, HERO_HEAD_Y_VIEW)) & 0xff;
+    let al = (memRead8(g, VIEWPORT_TOP_ROW) + memRead8(g, HERO_HEAD_Y_VIEW)) & 0xff;
     al++;
-    if (g8(g, SQUAT_FLAG) !== 0) al++;
+    if (memRead8(g, SQUAT_FLAG) !== 0) al++;
 
     if (!projectileYVsHeroRowDispatch(g, p, al)) {
         applyDamageAndKnockback(g, p); // row mismatch: shield didn't intercept
@@ -271,22 +257,22 @@ function shieldBlockCheck(g: Uint8Array, p: number): void {
 }
 
 function blockedByShield(g: Uint8Array): void {
-    s8(g, SOUND_FX_REQUEST, 10);
+    memWrite8(g, SOUND_FX_REQUEST, 10);
 }
 
 /** loc_850E: apply damage + knockback direction. */
 function applyDamageAndKnockback(g: Uint8Array, p: number): void {
-    const damage = g8(g, p + 6) & 0xffff;
+    const damage = memRead8(g, p + 6) & 0xffff;
     damageHero(g, damage);
 
-    s8(g, SOUND_FX_REQUEST, 9);
-    s8(g, BYTE_9F14, 0xff);
-    s8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
+    memWrite8(g, SOUND_FX_REQUEST, 9);
+    memWrite8(g, BYTE_9F14, 0xff);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
 
     let bx = 0xffff;
     let cx = 0xffff;
 
-    const dir = g8(g, p + 5) & 7;
+    const dir = memRead8(g, p + 5) & 7;
     if (dir !== 2 && dir !== 6) {
         bx = 0;
         if (!(dir === 0 || dir === 1 || dir === 7)) {
@@ -296,8 +282,8 @@ function applyDamageAndKnockback(g: Uint8Array, p: number): void {
         }
     }
 
-    s16(g, KNOCKBACK_VECTOR, cx); // ADDR_KNOCKBACK_VECTOR_9F0E
-    s16(g, KNOCKBACK_VECTOR + 2, bx); // ADDR_KNOCKBACK_VECTOR_9F10
+    memWrite16(g, KNOCKBACK_VECTOR, cx); // ADDR_KNOCKBACK_VECTOR_9F0E
+    memWrite16(g, KNOCKBACK_VECTOR + 2, bx); // ADDR_KNOCKBACK_VECTOR_9F10
 }
 
 /**
@@ -305,15 +291,15 @@ function applyDamageAndKnockback(g: Uint8Array, p: number): void {
  * descriptor at the list's 0xFF terminator (max 32 entries).
  */
 export function addProjectileToArray(g: Uint8Array, src: ArrayLike<number>): void {
-    if ((g8(g, LAST_PROJECTILE_INDEX) ?? 0) >= 32 - 1) return;
+    if ((memRead8(g, LAST_PROJECTILE_INDEX) ?? 0) >= 32 - 1) return;
     let di = PROJECTILES_LIST;
-    while (g8(g, di) !== 0xff) di += PROJECTILE_STRUCT_SIZE;
+    while (memRead8(g, di) !== 0xff) di += PROJECTILE_STRUCT_SIZE;
     for (let i = 0; i < PROJECTILE_STRUCT_SIZE; i++) {
-        s8(g, di + i, src[i] ?? 0);
+        memWrite8(g, di + i, src[i] ?? 0);
     }
     di += PROJECTILE_STRUCT_SIZE;
-    s8(g, di, 0xff);
-    s8(g, LAST_PROJECTILE_INDEX, (g8(g, LAST_PROJECTILE_INDEX) + 1) & 0xff);
+    memWrite8(g, di, 0xff);
+    memWrite8(g, LAST_PROJECTILE_INDEX, (memRead8(g, LAST_PROJECTILE_INDEX) + 1) & 0xff);
 }
 
 // ─── list processing (dungeon.c:5912) ───
@@ -326,13 +312,13 @@ export function projectilesCollisionProcessing(g: Uint8Array): void {
     let read = PROJECTILES_LIST;
     let write = PROJECTILES_LIST;
 
-    s8(g, LAST_PROJECTILE_INDEX, 0);
+    memWrite8(g, LAST_PROJECTILE_INDEX, 0);
 
     for (;;) {
-        const x = g8(g, read);
+        const x = memRead8(g, read);
 
         const needsProcessing =
-            x !== 0 || (g16(g, read + 7) & 0x8000) !== 0;
+            x !== 0 || (memRead16(g, read + 7) & 0x8000) !== 0;
 
         if (!needsProcessing) {
             read += PROJECTILE_STRUCT_SIZE; // drop this slot
@@ -341,11 +327,11 @@ export function projectilesCollisionProcessing(g: Uint8Array): void {
 
         if (x === 0xff) {
             // finalize the compacted list right at the write cursor
-            s8(g, write, 0xff);
+            memWrite8(g, write, 0xff);
             return;
         }
 
-        s8(g, read + 3, (g8(g, read + 3) + 1) & 0xff); // step count++
+        memWrite8(g, read + 3, (memRead8(g, read + 3) + 1) & 0xff); // step count++
         projectileCollisionStep(g, read);
 
         // rep movsb 13 bytes
@@ -353,13 +339,13 @@ export function projectilesCollisionProcessing(g: Uint8Array): void {
             g[(write + i) & 0xffff] = g[(read + i) & 0xffff] ?? 0;
         }
 
-        if ((g8(g, write + 5) & 0x40) === 0) {
-            if (g8(g, write + 3) >= g8(g, write + 4)) {
-                s8(g, write, 0); // .p_x_rel
+        if ((memRead8(g, write + 5) & 0x40) === 0) {
+            if (memRead8(g, write + 3) >= memRead8(g, write + 4)) {
+                memWrite8(g, write, 0); // .p_x_rel
             }
         }
 
-        s8(g, LAST_PROJECTILE_INDEX, (g8(g, LAST_PROJECTILE_INDEX) + 1) & 0xff);
+        memWrite8(g, LAST_PROJECTILE_INDEX, (memRead8(g, LAST_PROJECTILE_INDEX) + 1) & 0xff);
         write += PROJECTILE_STRUCT_SIZE;
         read += PROJECTILE_STRUCT_SIZE;
     }

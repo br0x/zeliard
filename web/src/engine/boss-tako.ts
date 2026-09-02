@@ -13,6 +13,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -24,22 +25,7 @@ const SPRITE_FLASH_FLAG = 0xff2f;
 const SOUND_FX_REQUEST = 0xff75;
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_AA9A .. byte_AAA1) ───
 
@@ -151,18 +137,18 @@ const INK_SPAWN_COUNTDOWN_TABLE = [
 // sub_A503: subtract damage (clamped at 0), redraw health bar, start the
 // death sequence the first time HP reaches 0.
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    let hp = (g16(g, bossState + 3) - damage) << 16 >> 16; // int16_t
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    let hp = (memRead16(g, bossState + 3) - damage) << 16 >> 16; // int16_t
     if (hp < 0) hp = 0;
-    s16(g, bossState + 3, hp);
+    memWrite16(g, bossState + 3, hp);
 
-    s8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
 
-    if (g16(g, bossState + 3) !== 0) return;
-    if (g8(g, BOSS_BEING_HIT) !== 0) return; // death sequence already started
+    if (memRead16(g, bossState + 3) !== 0) return;
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) return; // death sequence already started
 
     deathTimer = 0;
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
 }
 
 // loc_A530: death sequence — thrash ~32 frames, hold ~8 more.
@@ -170,18 +156,18 @@ function deathSequenceStep(g: Uint8Array): void {
     inkSquirtState = 0;
 
     if (deathTimer >= 40) { // 0x28: death sequence finished
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
 
     let dl: number;
     if (deathTimer < 32) { // 0x20: violent thrash phase
         deathTimer++;
         tentacleAnimStep = (tentacleAnimStep + 1) & 7;
         dl = (((deathTimer & 1) << 3) + animGroupOffset) & 0xff;
-        s8(g, SOUND_FX_REQUEST, 40);
+        memWrite8(g, SOUND_FX_REQUEST, 40);
     } else { // slow-down phase
         deathTimer++;
         dl = (animGroupOffset + 8) & 0xff;
@@ -199,10 +185,10 @@ function renderTentaclesAndInk(g: Uint8Array, dl: number): void {
     const shapeTable = TENTACLE_SHAPE_TABLES[tableIdx] ?? SHAPE_A9EF;
     let layoutIdx = 0;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
-    const bossState = g16(g, BOSS_STATE_PTR);
-    let colX = g16(g, bossState + 0); // .boss_x
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    let colX = memRead16(g, bossState + 0); // .boss_x
 
     for (let col = 0; col < 7; col++) {
         const win = isInProximityWindow(g, colX);
@@ -223,17 +209,17 @@ function renderTentaclesAndInk(g: Uint8Array, dl: number): void {
                 const carry = ((shape[0] ?? 0) & 0x80) !== 0 ? 1 : 0;
                 shape[0] = (((shape[0] ?? 0) << 1) | carry) & 0xff;
                 if (carry) {
-                    s16(g, si + 0, colX);                                          // .currX
-                    s8(g, si + 2, ((row * 2) + g8(g, bossState + 2)) & 0x3f);      // .currY
-                    s8(g, si + 3, colRelX);                                        // .m_x_rel
-                    s8(g, si + 4, layoutFull[layoutIdx] ?? 0);                     // .flags <- tile idx
-                    s8(g, si + 6, layoutFull[layoutIdx + 1] ?? 0);                 // .anim_counter
-                    s8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00);            // .ai_flags
+                    memWrite16(g, si + 0, colX);                                          // .currX
+                    memWrite8(g, si + 2, ((row * 2) + memRead8(g, bossState + 2)) & 0x3f);      // .currY
+                    memWrite8(g, si + 3, colRelX);                                        // .m_x_rel
+                    memWrite8(g, si + 4, layoutFull[layoutIdx] ?? 0);                     // .flags <- tile idx
+                    memWrite8(g, si + 6, layoutFull[layoutIdx + 1] ?? 0);                 // .anim_counter
+                    memWrite8(g, si + 5, hitMonsterFlags !== 0 ? 0x20 : 0x00);            // .ai_flags
 
-                    const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                    const oldTile = g8(g, di);
-                    s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-                    s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+                    const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                    const oldTile = memRead8(g, di);
+                    memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+                    memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
                     si += 16;
                     layoutIdx += 2;
@@ -245,7 +231,7 @@ function renderTentaclesAndInk(g: Uint8Array, dl: number): void {
         colX = (colX + 2) & 0xffff;
     }
 
-    s16(g, si, 0xffff); // terminator after the last tentacle segment
+    memWrite16(g, si, 0xffff); // terminator after the last tentacle segment
 
     // --- loc_A492: ink-droplet volley spawn continuation ---
     if ((inkSquirtState & 0x80) !== 0) {
@@ -260,30 +246,30 @@ function renderTentaclesAndInk(g: Uint8Array, dl: number): void {
             const remaining = countdown;
             if (remaining === 0) continue;
 
-            s16(g, si + 0, x);                       // .currX
-            s8(g, si + 2, inkTargetY);               // .currY
-            s8(g, si + 3, win.xRel);                 // .m_x_rel
-            s8(g, si + 4, 0x30);                     // .flags: ink droplet
-            s8(g, si + 6, (remaining - 1) & 0xff);   // .anim_counter
-            s8(g, si + 5, 0);                        // .ai_flags
+            memWrite16(g, si + 0, x);                       // .currX
+            memWrite8(g, si + 2, inkTargetY);               // .currY
+            memWrite8(g, si + 3, win.xRel);                 // .m_x_rel
+            memWrite8(g, si + 4, 0x30);                     // .flags: ink droplet
+            memWrite8(g, si + 6, (remaining - 1) & 0xff);   // .anim_counter
+            memWrite8(g, si + 5, 0);                        // .ai_flags
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, di);
-            s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, di);
+            memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount++;
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 }
 
 /** Pulpo_AI (tako.c:227) — entry point, called once per frame. */
 export function pulpoAi(g: Uint8Array, m: number): void {
     void m;
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     activeSpriteCount = 0;
     hitMonsterFlags = 0;
@@ -291,19 +277,19 @@ export function pulpoAi(g: Uint8Array, m: number): void {
     // Walk last frame's tentacle-segment pseudo-monster entries: restore
     // proximity tiles and pick up hits (first one only).
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break; // .currX sentinel
+        if (memRead16(g, si + 0) === 0xffff) break; // .currX sentinel
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel); // .m_x_rel
+            memWrite8(g, si + 3, win.xRel); // .m_x_rel
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if ((g8(g, si + 5) & 0x40) !== 0) { // struck this frame
+            if ((memRead8(g, si + 5) & 0x40) !== 0) { // struck this frame
                 if (!(hitMonsterFlags & 0x80)) { // first hit only
-                    let al = g8(g, si + 5) & 0x1f;
-                    if (g8(g, si + 4) >= 0x0e) al |= 0x80; // vulnerable segment
+                    let al = memRead8(g, si + 5) & 0x1f;
+                    if (memRead8(g, si + 4) >= 0x0e) al |= 0x80; // vulnerable segment
                     hitMonsterFlags = al;
                 }
             }
@@ -315,7 +301,7 @@ export function pulpoAi(g: Uint8Array, m: number): void {
 
     // Reset the sprite table; render_tentacles_and_ink() repopulates it.
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     if (hitMonsterFlags !== 0) {
         const al = hitMonsterFlags;
@@ -323,10 +309,10 @@ export function pulpoAi(g: Uint8Array, m: number): void {
         let damage = (stat << 1) & 0xffff; // bx = stat*2
 
         if ((al & 0x80) !== 0) {
-            s8(g, SOUND_FX_REQUEST, 36);
+            memWrite8(g, SOUND_FX_REQUEST, 36);
             damage = (damage << 1) & 0xffff; // vulnerable: stat*4 total
         } else {
-            s8(g, SOUND_FX_REQUEST, 37);
+            memWrite8(g, SOUND_FX_REQUEST, 37);
         }
 
         applyDamageToBoss(g, damage);
@@ -338,11 +324,11 @@ export function pulpoAi(g: Uint8Array, m: number): void {
             animGroupOffset += 8;
             retractState = 0x10;
             inkSquirtState |= 0x20;
-            s8(g, SOUND_FX_REQUEST, 38);
+            memWrite8(g, SOUND_FX_REQUEST, 38);
         }
     }
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequenceStep(g);
         return;
     }
@@ -373,10 +359,10 @@ export function pulpoAi(g: Uint8Array, m: number): void {
             inkSquirtState = ah;
             if (al === 0) {
                 inkSquirtState = 0xa0;
-                const bossState = g16(g, BOSS_STATE_PTR);
-                inkTargetX = (g16(g, bossState + 0) + 4) & 0xffff;          // .boss_x + 4
-                inkTargetY = (g8(g, bossState + 2) + 4) & 0x3f;             // .boss_y + 4
-                s8(g, SOUND_FX_REQUEST, 39);
+                const bossState = memRead16(g, BOSS_STATE_PTR);
+                inkTargetX = (memRead16(g, bossState + 0) + 4) & 0xffff;          // .boss_x + 4
+                inkTargetY = (memRead8(g, bossState + 2) + 4) & 0x3f;             // .boss_y + 4
+                memWrite8(g, SOUND_FX_REQUEST, 39);
             }
         }
 

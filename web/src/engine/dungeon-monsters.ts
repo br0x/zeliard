@@ -33,12 +33,13 @@
  * slice.
  */
 
-import { SEG1_BASE } from '../core/memory.js';
 import {
     coordsToProxAddr,
     wrapMapFromAbove,
     wrapMapFromBelow,
 } from './dungeon-entities.js';
+
+import { memRead8, memRead16, memWrite8, memWrite16, segRead8 } from '../core/ts-memory.js';
 
 const PROX_COLS = 36;
 
@@ -54,28 +55,9 @@ const MONSTER_INDEX = 0xff4a;
 
 const AGGRESSIVE_TILES = 0x8020; // seg1-based, 4 entries, 0-terminated
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** seg1 byte read (MEM8_1 in the C port). */
-function seg8(g: Uint8Array, addr: number): number {
-    return g[(SEG1_BASE + addr) & 0xffffff] ?? 0;
-}
-
 export interface ProximityWindowCheck {
     /** true when x lies inside the 36-column window (C returns NC). */
     inside: boolean;
@@ -89,8 +71,8 @@ export interface ProximityWindowCheck {
  * documented cases: window at map start, middle, end, straddling the edge).
  */
 export function isInProximityWindow(g: Uint8Array, x: number): ProximityWindowCheck {
-    const left = g16(g, LEFT_COL_NUM);
-    const mapWidth = g16(g, MAP_WIDTH);
+    const left = memRead16(g, LEFT_COL_NUM);
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (x >= left) {
         // Cases 1a, 1b, 2d, 2e, 3g, 4j
         const offset = (x - left) & 0xffff;
@@ -110,21 +92,21 @@ export function isInProximityWindow(g: Uint8Array, x: number): ProximityWindowCh
  */
 export function updateAllMonstersInMap(g: Uint8Array): void {
     g.fill(0, PROXIMITY_LAYER2, PROXIMITY_LAYER2 + 128);
-    s8(g, MONSTER_INDEX, 0);
-    let si = g16(g, MONSTERS_LIST);
+    memWrite8(g, MONSTER_INDEX, 0);
+    let si = memRead16(g, MONSTERS_LIST);
     for (;;) {
-        const x = g16(g, si);
+        const x = memRead16(g, si);
         if (x === 0xffff) break;
         if (((x >> 8) & 0xff) !== 0xff) {
-            s8(g, si + 3, 0xff); // m_x_rel = off-window
+            memWrite8(g, si + 3, 0xff); // m_x_rel = off-window
             const { inside, xRel } = isInProximityWindow(g, x);
             if (inside) {
-                s8(g, si + 3, xRel);
-                const addr = coordsToProxAddr(g, xRel, g8(g, si + 2));
-                s8(g, addr, g8(g, MONSTER_INDEX) | 0x80);
+                memWrite8(g, si + 3, xRel);
+                const addr = coordsToProxAddr(g, xRel, memRead8(g, si + 2));
+                memWrite8(g, addr, memRead8(g, MONSTER_INDEX) | 0x80);
             }
         }
-        s8(g, MONSTER_INDEX, (g8(g, MONSTER_INDEX) + 1) & 0xff);
+        memWrite8(g, MONSTER_INDEX, (memRead8(g, MONSTER_INDEX) + 1) & 0xff);
         si += 16;
     }
 }
@@ -139,26 +121,26 @@ export function updateAllMonstersInMap(g: Uint8Array): void {
  * monster is not aligned, increments the tick counter otherwise.
  */
 export function checkMonsterAlignedToHeroAndTick(g: Uint8Array, m: number): number {
-    if (g8(g, INVINCIBILITY_FLAG) !== 0) return 1;
+    if (memRead8(g, INVINCIBILITY_FLAG) !== 0) return 1;
 
     // Y alignment: hero_y_absolute within the 4 rows below currY+2
-    let ah = (g8(g, m + 2) + 2) & 0xff;
+    let ah = (memRead8(g, m + 2) + 2) & 0xff;
     let yMatch = false;
     for (let cx = 4; cx !== 0; cx--) {
         ah = (ah - 1) & 0x3f;
-        if (ah === g8(g, HERO_Y)) {
+        if (ah === memRead8(g, HERO_Y)) {
             yMatch = true;
             break;
         }
     }
     if (!yMatch) {
-        s8(g, m + 7, g8(g, m + 7) & 0x7f);
+        memWrite8(g, m + 7, memRead8(g, m + 7) & 0x7f);
         return 1;
     }
 
     // X alignment: hero_x_view+4 equals one of 4 offsets from m_x_rel-3
-    const al = (g8(g, HERO_XV) + 4) & 0xff;
-    ah = (g8(g, m + 3) - 3) & 0xff;
+    const al = (memRead8(g, HERO_XV) + 4) & 0xff;
+    ah = (memRead8(g, m + 3) - 3) & 0xff;
     let xMatch = false;
     for (let cx = 4; cx !== 0; cx--) {
         ah = (ah + 1) & 0xff;
@@ -168,14 +150,14 @@ export function checkMonsterAlignedToHeroAndTick(g: Uint8Array, m: number): numb
         }
     }
     if (!xMatch) {
-        s8(g, m + 7, g8(g, m + 7) & 0x7f);
+        memWrite8(g, m + 7, memRead8(g, m + 7) & 0x7f);
         return 1;
     }
 
-    if ((g8(g, m + 7) & 0x80) !== 0) {
+    if ((memRead8(g, m + 7) & 0x80) !== 0) {
         // active: tick counter, run AI every 8th tick
-        s8(g, m + 15, (g8(g, m + 15) + 1) & 0xff);
-        return (g8(g, m + 15) & 0x07) !== 0 ? 1 : 0;
+        memWrite8(g, m + 15, (memRead8(g, m + 15) + 1) & 0xff);
+        return (memRead8(g, m + 15) & 0x07) !== 0 ? 1 : 0;
     }
     return 0; // inactive: fall through to AI immediately (asm clc)
 }
@@ -188,14 +170,14 @@ export function checkMonsterAlignedToHeroAndTick(g: Uint8Array, m: number): numb
  */
 export function monsterActivation(g: Uint8Array, m: number): void {
     // monster must currently be deactivated ("item" state: currX high = FF)
-    if (g8(g, m + 1) !== 0xff) return;
+    if (memRead8(g, m + 1) !== 0xff) return;
 
     // big monsters occupy two consecutive entries; the second half must
     // also be deactivated
-    if ((g8(g, m + 7) & 0x10) !== 0 && g8(g, m + 16 + 1) !== 0xff) return;
+    if ((memRead8(g, m + 7) & 0x10) !== 0 && memRead8(g, m + 16 + 1) !== 0xff) return;
 
     // must have a defined respawn point
-    const spwnX = g16(g, m + 11);
+    const spwnX = memRead16(g, m + 11);
     if (spwnX === 0xffff) return;
 
     // hero must be within proximity range (excluding window edges)
@@ -207,82 +189,82 @@ export function monsterActivation(g: Uint8Array, m: number): void {
     // skip if the spawn row is on-screen (within 24 rows below the viewport
     // top) AND the horizontal distance isn't right at the detection edge —
     // avoids visibly popping a monster in front of the hero
-    let al = (g8(g, VIEWPORT_TOP_ROW) - 2) & 0x3f;
-    al = (g8(g, m + 13) - al) & 0x3f;
+    let al = (memRead8(g, VIEWPORT_TOP_ROW) - 2) & 0x3f;
+    al = (memRead8(g, m + 13) - al) & 0x3f;
     if (al < 24 && bl >= 3 && bl < 32) return;
 
-    if ((g8(g, m + 7) & 0x10) === 0) {
+    if ((memRead8(g, m + 7) & 0x10) === 0) {
         /* ---------------- regular (small) monster ---------------- */
-        s8(g, m + 3, bl);
+        memWrite8(g, m + 3, bl);
 
-        const diOrig = coordsToProxAddr(g, bl, g8(g, m + 13));
+        const diOrig = coordsToProxAddr(g, bl, memRead8(g, m + 13));
         let di = wrapMapFromBelow((diOrig - (PROX_COLS + 1)) & 0xffff);
         let occupancy = 0;
         for (let row = 0; row < 3; row++) {
-            occupancy |= g8(g, di) | g8(g, di + 1) | g8(g, di + 2);
+            occupancy |= memRead8(g, di) | memRead8(g, di + 1) | memRead8(g, di + 2);
             di = wrapMapFromAbove((di + PROX_COLS) & 0xffff);
         }
 
         if ((occupancy & 0x80) !== 0) return; // 3×3 area already has a monster
 
-        s8(g, diOrig, g8(g, MONSTER_INDEX) | 0x80);
-        s16(g, m, g16(g, m + 11)); // currX = spwnX
-        s8(g, m + 2, g8(g, m + 13)); // currY = spwnY
-        s8(g, m + 4, g8(g, m + 14)); // flags = type_
-        s8(g, m + 6, 0x10);
-        s8(g, m + 5, 0);
-        s8(g, m + 9, 0);
-        s8(g, m + 10, 0);
-        s8(g, m + 8, 0);
+        memWrite8(g, diOrig, memRead8(g, MONSTER_INDEX) | 0x80);
+        memWrite16(g, m, memRead16(g, m + 11)); // currX = spwnX
+        memWrite8(g, m + 2, memRead8(g, m + 13)); // currY = spwnY
+        memWrite8(g, m + 4, memRead8(g, m + 14)); // flags = type_
+        memWrite8(g, m + 6, 0x10);
+        memWrite8(g, m + 5, 0);
+        memWrite8(g, m + 9, 0);
+        memWrite8(g, m + 10, 0);
+        memWrite8(g, m + 8, 0);
 
-        s8(g, PROXIMITY_LAYER2 + g8(g, MONSTER_INDEX), 0);
+        memWrite8(g, PROXIMITY_LAYER2 + memRead8(g, MONSTER_INDEX), 0);
     } else {
         /* ---------------- big monster (2 table entries) ---------------- */
 
-        if ((g8(g, m + 14) & 1) !== 0) return;
+        if ((memRead8(g, m + 14) & 1) !== 0) return;
 
-        s8(g, m + 3, bl);
-        s8(g, m + 16 + 3, bl);
+        memWrite8(g, m + 3, bl);
+        memWrite8(g, m + 16 + 3, bl);
 
-        const diOrig = coordsToProxAddr(g, bl, g8(g, m + 13));
+        const diOrig = coordsToProxAddr(g, bl, memRead8(g, m + 13));
         let di = wrapMapFromBelow((diOrig - (PROX_COLS + 1)) & 0xffff);
         let occupancy = 0;
         for (let row = 0; row < 5; row++) {
-            occupancy |= g8(g, di) | g8(g, di + 1) | g8(g, di + 2);
+            occupancy |= memRead8(g, di) | memRead8(g, di + 1) | memRead8(g, di + 2);
             di = wrapMapFromAbove((di + PROX_COLS) & 0xffff);
         }
 
         if ((occupancy & 0x80) !== 0) return;
 
-        let al = (g8(g, MONSTER_INDEX) | 0x80) & 0xff;
+        let al = (memRead8(g, MONSTER_INDEX) | 0x80) & 0xff;
         di = diOrig;
-        s8(g, di, al);
+        memWrite8(g, di, al);
         di = wrapMapFromAbove((di + PROX_COLS * 2) & 0xffff);
         // asm increments AL itself: marker is (idx|0x80)+1 with uint8 wrap
-        s8(g, di, (al + 1) & 0xff);
+        memWrite8(g, di, (al + 1) & 0xff);
 
-        const ax = g16(g, m + 11); // spwnX
-        s16(g, m, ax);
-        s16(g, m + 16, ax);
-        al = g8(g, m + 13); // spwnY
-        s8(g, m + 2, al);
-        s8(g, m + 16 + 2, (al + 2) & 0x3f);
-        al = g8(g, m + 14); // type_
-        s8(g, m + 4, al);
-        s8(g, m + 16 + 4, (al + 1) & 0xff);
-        s8(g, m + 6, 0x10);
-        s8(g, m + 16 + 6, 0x10);
-        s8(g, m + 5, 0);
-        s8(g, m + 16 + 5, 0);
-        s8(g, m + 9, 0);
-        s8(g, m + 16 + 9, 0);
-        s8(g, m + 10, 0);
-        s8(g, m + 16 + 10, 0);
-        s8(g, m + 8, 0);
-        s8(g, m + 16 + 8, 0);
-        s8(g, m + 16 + 7, g8(g, m + 16 + 7) & 0xf0);
+        const ax = memRead16(g, m + 11); // spwnX
+        memWrite16(g, m, ax);
+        memWrite16(g, m + 16, ax);
+        al = memRead8(g, m + 13); // spwnY
+        memWrite8(g, m + 2, al);
+        memWrite8(g, m + 16 + 2, (al + 2) & 0x3f);
+        al = memRead8(g, m + 14); // type_
+        memWrite8(g, m + 4, al);
+        memWrite8(g, m + 16 + 4, (al + 1) & 0xff);
+        memWrite8(g, m + 6, 0x10);
+        memWrite8(g, m + 16 + 6, 0x10);
+        memWrite8(g, m + 5, 0);
+        memWrite8(g, m + 16 + 5, 0);
+        memWrite8(g, m + 9, 0);
+        memWrite8(g, m + 16 + 9, 0);
+        memWrite8(g, m + 10, 0);
+        memWrite8(g, m + 16 + 10, 0);
+        memWrite8(g, m + 8, 0);
+        memWrite8(g, m + 16 + 8, 0);
+        memWrite8(g, m + 16 + 7, memRead8(g, m + 16 + 7) & 0xf0);
         // clears the backup tile for BOTH halves (bx and bx+1): word write
-        s16(g, PROXIMITY_LAYER2 + g8(g, MONSTER_INDEX), 0);
+        memWrite16(g, PROXIMITY_LAYER2 + memRead8(g, MONSTER_INDEX), 0);
     }
 }
 
@@ -293,7 +275,7 @@ export function monsterActivation(g: Uint8Array, m: number): void {
  */
 export function isTileSafeToStay(g: Uint8Array, tile: number): number {
     for (let i = 0; i < 4; i++) {
-        const aggr = seg8(g, AGGRESSIVE_TILES + i);
+        const aggr = segRead8(g, AGGRESSIVE_TILES + i);
         if (aggr === 0) return 0xff; // end of list, no match
         if (tile === aggr) return 0;
     }
@@ -305,9 +287,9 @@ export function isTileSafeToStay(g: Uint8Array, tile: number): number {
  * rows below the monster's anchor cell. Returns 0 when unsafe.
  */
 export function checkMonsterOnAggressiveGround(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = wrapMapFromAbove((coordsToProxAddr(g, xRel, y) + 2 * PROX_COLS) & 0xffff);
-    const tile = g8(g, di);
+    const tile = memRead8(g, di);
     return isTileSafeToStay(g, tile);
 }

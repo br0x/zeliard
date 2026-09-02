@@ -15,6 +15,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -26,22 +27,7 @@ const SPRITE_FLASH_FLAG = 0xff2f;
 const SOUND_FX_REQUEST = 0xff75;
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state ───
 
@@ -161,19 +147,19 @@ function byteInTable(tbl: ReadonlyArray<number>, n: number, val: number): number
 
 // sub_A429: move one pixel left; stores 0xFF into back_flag at x <= 0x0E.
 function bossMoveLeft(g: Uint8Array): number {
-    const bs = g16(g, BOSS_STATE_PTR);
-    const ax = (g16(g, bs + 0) - 1) & 0xffff;
-    s16(g, bs + 0, ax);
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    const ax = (memRead16(g, bs + 0) - 1) & 0xffff;
+    memWrite16(g, bs + 0, ax);
     return ax <= 0x0e ? 0xff : 0x00;
 }
 
 // sub_A43B: move one pixel right if within x <= 50; back_flag gets 0xFF
 // on success, 0 when blocked (caller does cmc; sbb al,al).
 function bossMoveRight(g: Uint8Array): number {
-    const bs = g16(g, BOSS_STATE_PTR);
-    const ax = (g16(g, bs + 0) + 1) & 0xffff;
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    const ax = (memRead16(g, bs + 0) + 1) & 0xffff;
     if (ax <= 50) {
-        s16(g, bs + 0, ax);
+        memWrite16(g, bs + 0, ax);
         return 0xff;
     }
     return 0x00;
@@ -182,8 +168,8 @@ function bossMoveRight(g: Uint8Array): number {
 // ─── damage / death (sub_A644) ───
 
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
-    const bs = g16(g, BOSS_STATE_PTR);
-    let hp = g16(g, bs + 3);
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    let hp = memRead16(g, bs + 3);
 
     if (hp > damage) {
         hp = (hp - damage) & 0xffff;
@@ -191,8 +177,8 @@ function applyDamageToBoss(g: Uint8Array, damage: number): void {
         hp = 0;
     }
 
-    s16(g, bs + 3, hp);
-    s8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
+    memWrite16(g, bs + 3, hp);
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
 
     if (hp !== 0) return;
 
@@ -200,17 +186,17 @@ function applyDamageToBoss(g: Uint8Array, damage: number): void {
     // the death timer. Matches sub_A644 exactly.
     deathTimer = 0;
     projectileFlag = 0;
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
 }
 
 // loc_A66E: death sequence.
 function deathSequenceStep(g: Uint8Array): void {
     if (deathTimer >= 40) {
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     deathTimer++;
 
     if (deathTimer < 10) {
@@ -218,7 +204,7 @@ function deathSequenceStep(g: Uint8Array): void {
         animStep = al;
 
         if (al >= 3) {
-            s8(g, SOUND_FX_REQUEST, 51);
+            memWrite8(g, SOUND_FX_REQUEST, 51);
         }
 
         updateWalkCycleAndRender(g); // original jumps to loc_A39F here
@@ -247,7 +233,7 @@ function updateProjectile(g: Uint8Array): void {
         if ((projectileX & 0xff) < 18) {
             projectileDone = 0xff;
             projectileAnim = 3;
-            s8(g, SOUND_FX_REQUEST, 66);
+            memWrite8(g, SOUND_FX_REQUEST, 66);
             return;
         }
 
@@ -277,7 +263,7 @@ function updateProjectile(g: Uint8Array): void {
             projectileCounter === 12 ||
             projectileCounter === 15
         ) {
-            s8(g, SOUND_FX_REQUEST, 49);
+            memWrite8(g, SOUND_FX_REQUEST, 49);
         }
     } else {
         // Ending animation; holds a few frames then clears the flag.
@@ -357,16 +343,16 @@ function maybeStartCharge(g: Uint8Array): void {
     if ((getRandom(g) & 1) !== 0) return;
     if (projectileFlag) return;
 
-    const bs = g16(g, BOSS_STATE_PTR);
+    const bs = memRead16(g, BOSS_STATE_PTR);
     // mov ax, boss_x / sub ax, 20 / jb loc_A39F
-    if (g16(g, bs + 0) < 20) return;
+    if (memRead16(g, bs + 0) < 20) return;
 
     chargeFlag = 0xff;
     chargeSubstep = 0;
     // byte_A7BE = 0 written in the original but never read by the AI.
 
     animStep = 8;
-    s8(g, SOUND_FX_REQUEST, 48);
+    memWrite8(g, SOUND_FX_REQUEST, 48);
 }
 
 // loc_A3B5: charge attack state machine.
@@ -379,9 +365,9 @@ function chargeStateMachine(g: Uint8Array): void {
             animStep = 8;
             projectileFlag = 0xff;
 
-            const bs = g16(g, BOSS_STATE_PTR);
-            projectileX = (g16(g, bs + 0) + 4) & 0xffff;
-            projectileY = g8(g, bs + 2) & 0x3f;
+            const bs = memRead16(g, BOSS_STATE_PTR);
+            projectileX = (memRead16(g, bs + 0) + 4) & 0xffff;
+            projectileY = memRead8(g, bs + 2) & 0x3f;
 
             projectileAnim = 0;
             projectileCounter = 0;
@@ -466,12 +452,12 @@ function renderBodyAndProjectile(g: Uint8Array): void {
     // Convert buffer cells into pseudo-monster entries.
     activeSpriteCount = 0;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
 
-    const bs = g16(g, BOSS_STATE_PTR);
-    let colX = g16(g, bs + 0);
-    const bossY = g8(g, bs + 2);
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    let colX = memRead16(g, bs + 0);
+    const bossY = memRead8(g, bs + 2);
 
     let bufIdx = 0;
 
@@ -486,10 +472,10 @@ function renderBodyAndProjectile(g: Uint8Array): void {
 
                 if (tile === 0xff) continue;
 
-                s16(g, si + 0, colX);                          // .currX
-                s8(g, si + 2, (bossY + row) & 0x3f);           // .currY
-                s8(g, si + 3, colRelX);                        // .m_x_rel
-                s8(g, si + 6, tile);                           // .anim_counter
+                memWrite16(g, si + 0, colX);                          // .currX
+                memWrite8(g, si + 2, (bossY + row) & 0x3f);           // .currY
+                memWrite8(g, si + 3, colRelX);                        // .m_x_rel
+                memWrite8(g, si + 6, tile);                           // .anim_counter
 
                 // Flags packing: bit0x80 -> 0x60, plus (tile >> 4) & 7.
                 let flags = 0;
@@ -498,13 +484,13 @@ function renderBodyAndProjectile(g: Uint8Array): void {
                 }
                 flags = (flags | ((tile >> 4) & 7)) & 0xff;
 
-                s8(g, si + 4, flags);
-                s8(g, si + 5, hitSegment !== 0 ? 0x20 : 0x00);
+                memWrite8(g, si + 4, flags);
+                memWrite8(g, si + 5, hitSegment !== 0 ? 0x20 : 0x00);
 
-                const diAddr = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                const oldTile = g8(g, diAddr);
-                s8(g, diAddr, (activeSpriteCount | 0x80) & 0xff);
-                s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+                const diAddr = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                const oldTile = memRead8(g, diAddr);
+                memWrite8(g, diAddr, (activeSpriteCount | 0x80) & 0xff);
+                memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
                 si += 16;
                 activeSpriteCount++;
@@ -520,24 +506,24 @@ function renderBodyAndProjectile(g: Uint8Array): void {
         const win = isInProximityWindow(g, projectileX);
 
         if (win.inside) {
-            s16(g, si + 0, projectileX);       // .currX
-            s8(g, si + 2, projectileY);        // .currY
-            s8(g, si + 3, win.xRel);           // .m_x_rel
-            s8(g, si + 4, 0x26);               // .flags
-            s8(g, si + 5, 0x00);               // .ai_flags
-            s8(g, si + 6, projectileAnim);     // .anim_counter
+            memWrite16(g, si + 0, projectileX);       // .currX
+            memWrite8(g, si + 2, projectileY);        // .currY
+            memWrite8(g, si + 3, win.xRel);           // .m_x_rel
+            memWrite8(g, si + 4, 0x26);               // .flags
+            memWrite8(g, si + 5, 0x00);               // .ai_flags
+            memWrite8(g, si + 6, projectileAnim);     // .anim_counter
 
-            const diAddr = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            const oldTile = g8(g, diAddr);
-            s8(g, diAddr, (activeSpriteCount | 0x80) & 0xff);
-            s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+            const diAddr = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            const oldTile = memRead8(g, diAddr);
+            memWrite8(g, diAddr, (activeSpriteCount | 0x80) & 0xff);
+            memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
             si += 16;
             activeSpriteCount++;
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     // Projectile movement happens after the sprite table is finalized.
     updateProjectile(g);
@@ -578,7 +564,7 @@ export function tarsoAiReset(): void {
 export function tarsoAi(g: Uint8Array, m: number): void {
     void m;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
 
     activeSpriteCount = 0;
@@ -587,17 +573,17 @@ export function tarsoAi(g: Uint8Array, m: number): void {
     // Walk last frame's pseudo-monster entries: restore proximity tiles,
     // pick up hits. Unlike tako.c, EVERY hit overwrites hit_segment.
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break; // .currX sentinel
+        if (memRead16(g, si + 0) === 0xffff) break; // .currX sentinel
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
+            memWrite8(g, si + 3, win.xRel);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if ((g8(g, si + 5) & 0x40) !== 0) {
-                hitSegment = g8(g, si + 5) & 0x1f;
+            if ((memRead8(g, si + 5) & 0x40) !== 0) {
+                hitSegment = memRead8(g, si + 5) & 0x1f;
             }
         }
 
@@ -607,7 +593,7 @@ export function tarsoAi(g: Uint8Array, m: number): void {
 
     // Reset the sprite table; render_body_and_projectile() repopulates it.
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     // Process hit, if any. Damage: 1 → double, 9 → normal, else stat/8.
     if (hitSegment !== 0) {
@@ -622,18 +608,18 @@ export function tarsoAi(g: Uint8Array, m: number): void {
 
         applyDamageToBoss(g, damage);
 
-        s8(g, SOUND_FX_REQUEST, 47);
+        memWrite8(g, SOUND_FX_REQUEST, 47);
 
         // Hit while fairly far left → start the backward/recover state.
-        const bs = g16(g, BOSS_STATE_PTR);
-        if ((g16(g, bs + 0) & 0xff) < 0x2f) {
+        const bs = memRead16(g, BOSS_STATE_PTR);
+        if ((memRead16(g, bs + 0) & 0xff) < 0x2f) {
             backTimer = 0x14;
             backFlag = 0xff;
         }
     }
 
     // Death sequence has priority over normal AI.
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequenceStep(g);
         return;
     }

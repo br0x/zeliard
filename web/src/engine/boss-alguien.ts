@@ -14,6 +14,7 @@
 import { coordsToProxAddr } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -28,22 +29,7 @@ const HERO_X_VIEW = 0x83;
 const MAP_WIDTH = 0xc002; // word
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_AA1E .. byte_AA29) ───
 
@@ -112,7 +98,7 @@ const PATH_Y_A969 = [0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 
 /** Draw_Boss_Health equivalent. */
 function drawBossHealth(g: Uint8Array): void {
-    s8(g, BOSS_HEALTH_REQUEST, 0xff);
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff);
 }
 
 /** Alguien_AI_reset (akma.c:213). flight_phase starts at 0xFF. */
@@ -134,29 +120,29 @@ export function alguienAiReset(): void {
 
 // sub_A97E: subtract damage (clamped), redraw health, start death at 0.
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
-    const bs = g16(g, BOSS_STATE_PTR);
-    let hp = (g16(g, bs + 3) - damage) & 0xffff;
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    let hp = (memRead16(g, bs + 3) - damage) & 0xffff;
     if ((hp & 0x8000) !== 0) hp = 0; // int16 clamp at 0
-    s16(g, bs + 3, hp);
+    memWrite16(g, bs + 3, hp);
 
     drawBossHealth(g);
 
-    if (g16(g, bs + 3) !== 0) return;
-    if (g8(g, BOSS_BEING_HIT) !== 0) return; // death already started
+    if (memRead16(g, bs + 3) !== 0) return;
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) return; // death already started
 
     deathTimer = 0;
     attackActive = 0;
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
 }
 
 // loc_A9B0: thrash ~30 frames, hold a fixed pose ~10 more, then die.
 function deathSequenceStep(g: Uint8Array): void {
     if (deathTimer >= 0x28) {
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     const prev = deathTimer;
     deathTimer = (deathTimer + 1) & 0xff;
 
@@ -167,7 +153,7 @@ function deathSequenceStep(g: Uint8Array): void {
         overlayFrame = (overlayFrame + 1) & 1;
 
         if ((frameCounter & 3) === 0) {
-            s8(g, SOUND_FX_REQUEST, 55);
+            memWrite8(g, SOUND_FX_REQUEST, 55);
         }
     } else { // hold phase: freeze on a fixed pose
         animPhase = 1;
@@ -179,27 +165,27 @@ function deathSequenceStep(g: Uint8Array): void {
 
 // sub_A4D4: move 2 tiles left; fails once x-2 would be <= 9.
 function tryMoveBossLeft(g: Uint8Array): number {
-    const bs = g16(g, BOSS_STATE_PTR);
-    const x = (g16(g, bs + 0) - 2) & 0xffff;
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    const x = (memRead16(g, bs + 0) - 2) & 0xffff;
     if (x <= 9) return 0;
-    s16(g, bs + 0, x);
+    memWrite16(g, bs + 0, x);
     return 1;
 }
 
 // sub_A4E6: move 2 tiles right; fails once x+2 would exceed 0x33.
 function tryMoveBossRight(g: Uint8Array): number {
-    const bs = g16(g, BOSS_STATE_PTR);
-    const x = (g16(g, bs + 0) + 2) & 0xffff;
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    const x = (memRead16(g, bs + 0) + 2) & 0xffff;
     if (x > 0x33) return 0;
-    s16(g, bs + 0, x);
+    memWrite16(g, bs + 0, x);
     return 1;
 }
 
 // Shared hero-edge test behind loc_A3F5/loc_A46E. `invert` mirrors the
 // second call site's extra `not al` before masking.
 function computeEdgeFlag(g: Uint8Array, threshold: number, invert: boolean): number {
-    const heroX = (g16(g, PROXIMITY_MAP_LEFT_COL) + g8(g, HERO_X_VIEW)) & 0xffff;
-    const mapWidth = g16(g, MAP_WIDTH);
+    const heroX = (memRead16(g, PROXIMITY_MAP_LEFT_COL) + memRead8(g, HERO_X_VIEW)) & 0xffff;
+    const mapWidth = memRead16(g, MAP_WIDTH);
     const v = heroX >= mapWidth ? (heroX - mapWidth) & 0xffff : heroX;
     const below = v < threshold ? 1 : 0;
     return invert ? (below ^ 1) : below;
@@ -212,7 +198,7 @@ function startAttackTelegraph(g: Uint8Array, newFlightPhase: number, edgeThresho
     attackHolding = 0;
     attackStep = 0;
     attackActive = 0xff;
-    s8(g, SOUND_FX_REQUEST, 52);
+    memWrite8(g, SOUND_FX_REQUEST, 52);
     attackPattern = computeEdgeFlag(g, edgeThreshold, invertEdge);
 }
 
@@ -288,12 +274,12 @@ function applyOverlaySecondary(): void {
 // loc_A58B..loc_A613: walk the limb grid, turning each non-0xFF slot into
 // a hittable pseudo-monster entry. Returns the cursor past the last entry.
 function renderBodyAndEmitSprites(g: Uint8Array): number {
-    const bs = g16(g, BOSS_STATE_PTR);
-    let si = g16(g, MONSTERS_LIST);
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    let si = memRead16(g, MONSTERS_LIST);
     let gridDi = 0;
 
     activeSpriteCount = 0;
-    let x = g16(g, bs + 0); // .boss_x
+    let x = memRead16(g, bs + 0); // .boss_x
 
     for (let col = 0; col < 13; col++) {
         const win = isInProximityWindow(g, x);
@@ -304,19 +290,19 @@ function renderBodyAndEmitSprites(g: Uint8Array): number {
                 const cell = limbGrid[gridDi] ?? 0xff;
                 if (cell === 0xff) continue;
 
-                s16(g, si + 0, x);                                          // .currX
-                s8(g, si + 2, (g8(g, bs + 2) + row) & 0x3f);                 // .currY
-                s8(g, si + 3, lastRelX);                                     // .m_x_rel
-                s8(g, si + 4, (cell >> 4) & 0xff);                           // .flags
-                s8(g, si + 6, cell);                                         // .anim_counter
+                memWrite16(g, si + 0, x);                                          // .currX
+                memWrite8(g, si + 2, (memRead8(g, bs + 2) + row) & 0x3f);                 // .currY
+                memWrite8(g, si + 3, lastRelX);                                     // .m_x_rel
+                memWrite8(g, si + 4, (cell >> 4) & 0xff);                           // .flags
+                memWrite8(g, si + 6, cell);                                         // .anim_counter
                 let ai = flightPhase & 0x80;
                 if (hitFlags !== 0) ai |= 0x20;                              // hit-flash
-                s8(g, si + 5, ai);                                           // .ai_flags
+                memWrite8(g, si + 5, ai);                                           // .ai_flags
 
-                const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                const oldTile = g8(g, di);
-                s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-                s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+                const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                const oldTile = memRead8(g, di);
+                memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+                memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
                 si += 16;
                 activeSpriteCount = (activeSpriteCount + 1) & 0xff;
@@ -333,17 +319,17 @@ function renderBodyAndEmitSprites(g: Uint8Array): number {
 
 // sub_A78A: append one sweep-attack hitbox entry at (x,y).
 function spawnHitbox(g: Uint8Array, si: number, x: number, y: number, tile: number, anim: number): number {
-    s16(g, si + 0, x);                              // .currX
-    s8(g, si + 2, y & 0x3f);                        // .currY
-    s8(g, si + 3, lastRelX);                        // .m_x_rel
-    s8(g, si + 4, tile);                            // .flags
-    s8(g, si + 6, anim);                            // .anim_counter
-    s8(g, si + 5, flightPhase & 0x80);              // .ai_flags
+    memWrite16(g, si + 0, x);                              // .currX
+    memWrite8(g, si + 2, y & 0x3f);                        // .currY
+    memWrite8(g, si + 3, lastRelX);                        // .m_x_rel
+    memWrite8(g, si + 4, tile);                            // .flags
+    memWrite8(g, si + 6, anim);                            // .anim_counter
+    memWrite8(g, si + 5, flightPhase & 0x80);              // .ai_flags
 
-    const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-    const oldTile = g8(g, di);
-    s8(g, di, (activeSpriteCount | 0x80) & 0xff);
-    s8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
+    const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+    const oldTile = memRead8(g, di);
+    memWrite8(g, di, (activeSpriteCount | 0x80) & 0xff);
+    memWrite8(g, PROXIMITY_LAYER2 + activeSpriteCount, oldTile);
 
     activeSpriteCount = (activeSpriteCount + 1) & 0xff;
     return si + 16;
@@ -355,13 +341,13 @@ function spawnHitbox(g: Uint8Array, si: number, x: number, y: number, tile: numb
 function emitAttackHitboxes(g: Uint8Array, siArg: number): void {
     let si = siArg;
     if (!attackActive || attackStep === 0) {
-        s16(g, si, 0xffff);
+        memWrite16(g, si, 0xffff);
         return;
     }
 
-    const bs = g16(g, BOSS_STATE_PTR);
-    const bx0 = g16(g, bs + 0);
-    const by0 = g8(g, bs + 2);
+    const bs = memRead16(g, BOSS_STATE_PTR);
+    const bx0 = memRead16(g, bs + 0);
+    const by0 = memRead8(g, bs + 2);
     const steps = attackStep;
 
     if (!attackPattern) {
@@ -410,7 +396,7 @@ function emitAttackHitboxes(g: Uint8Array, siArg: number): void {
         }
     }
 
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 }
 
 // loc_A4F7..loc_A785 shared render tail.
@@ -435,7 +421,7 @@ function renderFrame(g: Uint8Array): void {
 export function alguienAi(g: Uint8Array, m: number): void {
     void m;
 
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
     let si = base;
     activeSpriteCount = 0;
     hitFlags = 0;
@@ -443,19 +429,19 @@ export function alguienAi(g: Uint8Array, m: number): void {
     // Walk last frame's pseudo-monster entries, restore tiles, pick up the
     // FIRST hit flagged this frame.
     for (;;) {
-        if (g16(g, si + 0) === 0xffff) break;
+        if (memRead16(g, si + 0) === 0xffff) break;
 
-        const win = isInProximityWindow(g, g16(g, si + 0));
+        const win = isInProximityWindow(g, memRead16(g, si + 0));
         if (win.inside) {
-            s8(g, si + 3, win.xRel);
+            memWrite8(g, si + 3, win.xRel);
 
-            const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-            s8(g, di, g8(g, PROXIMITY_LAYER2 + activeSpriteCount));
+            const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+            memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + activeSpriteCount));
 
-            if ((g8(g, si + 5) & 0x40) !== 0) {
+            if ((memRead8(g, si + 5) & 0x40) !== 0) {
                 if ((hitFlags & 0x80) === 0) { // only record the first hit found
-                    let al = g8(g, si + 5) & 0x1f;
-                    if (g8(g, si + 4) === 5) al |= 0x80; // vulnerable segment marker
+                    let al = memRead8(g, si + 5) & 0x1f;
+                    if (memRead8(g, si + 4) === 5) al |= 0x80; // vulnerable segment marker
                     hitFlags = al;
                 }
             }
@@ -466,15 +452,15 @@ export function alguienAi(g: Uint8Array, m: number): void {
     }
 
     si = base;
-    s16(g, si, 0xffff);
+    memWrite16(g, si, 0xffff);
 
     if (hitFlags !== 0) {
         const stat = getStats(g, hitFlags & 0x1f);
-        s8(g, SOUND_FX_REQUEST, 34);
+        memWrite8(g, SOUND_FX_REQUEST, 34);
         applyDamageToBoss(g, stat);
     }
 
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequenceStep(g);
         return;
     }
@@ -483,7 +469,7 @@ export function alguienAi(g: Uint8Array, m: number): void {
     overlayFrame = 0;
 
     animPhase = (animPhase + 1) % 3;
-    if (animPhase === 1) s8(g, SOUND_FX_REQUEST, 43);
+    if (animPhase === 1) memWrite8(g, SOUND_FX_REQUEST, 43);
 
     frameCounter = (frameCounter + 1) & 0xff;
 
@@ -495,9 +481,9 @@ export function alguienAi(g: Uint8Array, m: number): void {
             recomputeY = true;
         } else {
             // Hit the left wall -- climb one row.
-            const bs = g16(g, BOSS_STATE_PTR);
-            const y = (g8(g, bs + 2) - 2) & 0x3f;
-            s8(g, bs + 2, y);
+            const bs = memRead16(g, BOSS_STATE_PTR);
+            const y = (memRead8(g, bs + 2) - 2) & 0x3f;
+            memWrite8(g, bs + 2, y);
             if (y === 0x3d) {
                 // Reached the top -- flip to the returning phase, start a
                 // sweep-attack telegraph, then run the Y-lookup.
@@ -511,9 +497,9 @@ export function alguienAi(g: Uint8Array, m: number): void {
         if (tryMoveBossRight(g) !== 0) {
             recomputeY = true;
         } else {
-            const bs = g16(g, BOSS_STATE_PTR);
-            const y = (g8(g, bs + 2) - 2) & 0x3f;
-            s8(g, bs + 2, y);
+            const bs = memRead16(g, BOSS_STATE_PTR);
+            const y = (memRead8(g, bs + 2) - 2) & 0x3f;
+            memWrite8(g, bs + 2, y);
             if (y === 0x3d) {
                 startAttackTelegraph(g, 0, 0x14, true);
                 recomputeY = true;
@@ -524,11 +510,11 @@ export function alguienAi(g: Uint8Array, m: number): void {
     // Recompute boss_y from boss_x via the flight-path table (only after a
     // successful move or a top-of-climb flip).
     if (recomputeY) {
-        const bs = g16(g, BOSS_STATE_PTR);
+        const bs = memRead16(g, BOSS_STATE_PTR);
         const table = flightPhase ? PATH_Y_A954 : PATH_Y_A969;
-        const bxLow = g16(g, bs + 0) & 0xff;
+        const bxLow = memRead16(g, bs + 0) & 0xff;
         const idx = ((bxLow - 0x0a) >> 1) & 0xff;
-        s8(g, bs + 2, table[idx] ?? 0);
+        memWrite8(g, bs + 2, table[idx] ?? 0);
     }
 
     updateAttackTelegraph(g);

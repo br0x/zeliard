@@ -20,6 +20,8 @@ import {
     ADDR_VIEWPORT_TOP_ROW,
 } from '../core/memory.js';
 
+import { memRead8, memRead16 } from '../core/ts-memory.js';
+
 export const PROXIMITY_MAP_WIDTH = 36;
 export const MAP_HEIGHT = 64;
 /** Packed map data offset inside the MDT image (zeliard.h ADDR_PACKED_MAP_START). */
@@ -34,21 +36,13 @@ export interface UnpackStep {
     count: number;
 }
 
-function g8(mem: Uint8Array, addr: number): number {
-    return mem[addr & 0xffff] ?? 0;
-}
-
-function g16(mem: Uint8Array, addr: number): number {
-    return (mem[addr & 0xffff] ?? 0) | ((mem[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
 /** Decode one RLE segment going forward (Fight.asm unpack_step_forward). */
 export function unpackStepForward(mem: Uint8Array, ptr: number): UnpackStep {
-    const byte = g8(mem, ptr);
+    const byte = memRead8(mem, ptr);
     ptr = (ptr + 1) & 0xffff;
     switch (byte >> 6) {
         case 0: {
-            const tile = g8(mem, ptr);
+            const tile = memRead8(mem, ptr);
             ptr = (ptr + 1) & 0xffff;
             return { ptr, tile, count: (byte + 1) & 0xff };
         }
@@ -63,12 +57,12 @@ export function unpackStepForward(mem: Uint8Array, ptr: number): UnpackStep {
 
 /** Decode one RLE segment going backward (Fight.asm unpack_step_backward). */
 export function unpackStepBackward(mem: Uint8Array, ptr: number): UnpackStep {
-    const byte = g8(mem, ptr);
+    const byte = memRead8(mem, ptr);
     ptr = (ptr - 1) & 0xffff;
     switch (byte >> 6) {
         case 0: {
             const tile = byte;
-            const count = (g8(mem, ptr) + 1) & 0xff;
+            const count = (memRead8(mem, ptr) + 1) & 0xff;
             ptr = (ptr - 1) & 0xffff;
             return { ptr, tile, count };
         }
@@ -161,7 +155,7 @@ export function resetUnpackCursors(addr: number): void {
  * plus the viewport-left-top word. Updates the shared scroll cursors.
  */
 export function unpackMap(mem: Uint8Array): void {
-    const cx = g16(mem, ADDR_PROXIMITY_MAP_LEFT_COL);
+    const cx = memRead16(mem, ADDR_PROXIMITY_MAP_LEFT_COL);
 
     let ptr = ADDR_PACKED_MAP_START;
     for (let x = 0; x < cx; x++) {
@@ -170,7 +164,7 @@ export function unpackMap(mem: Uint8Array): void {
     unpackCursors.proxLeft = ptr;
 
     let ax = cx;
-    const mapWidth = g16(mem, ADDR_MDT + 2);
+    const mapWidth = memRead16(mem, ADDR_MDT + 2);
 
     for (let col = 0; col < PROXIMITY_MAP_WIDTH; col++) {
         ptr = unpackColumnForward(mem, ptr, ADDR_PROXIMITY_MAP + col);
@@ -181,9 +175,9 @@ export function unpackMap(mem: Uint8Array): void {
         }
     }
 
-    const endAddr = ax === 0 ? g16(mem, ADDR_PACKED_MAP_END_PTR) : ptr;
+    const endAddr = ax === 0 ? memRead16(mem, ADDR_PACKED_MAP_END_PTR) : ptr;
     unpackCursors.proxRight = (endAddr - 1) & 0xffff;
-    const vlt = ADDR_PROXIMITY_MAP + (g8(mem, ADDR_VIEWPORT_TOP_ROW) & 0x3f) * PROXIMITY_MAP_WIDTH;
+    const vlt = ADDR_PROXIMITY_MAP + (memRead8(mem, ADDR_VIEWPORT_TOP_ROW) & 0x3f) * PROXIMITY_MAP_WIDTH;
     mem[ADDR_VIEWPORT_LEFT_TOP] = vlt & 0xff;
     mem[ADDR_VIEWPORT_LEFT_TOP + 1] = (vlt >> 8) & 0xff;
 }

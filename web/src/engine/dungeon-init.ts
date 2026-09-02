@@ -30,6 +30,7 @@ import {
 import { resetDungeonStateVars } from './dungeon-input.js';
 import { loadEaiModule } from './eai-registry.js';
 import type { DungeonRuntimeStatics } from './dungeon-states.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses (dungeon.c defines / zeliard.h)
 const LEFT_COL_NUM = 0x80; // word — proximity map left column number
@@ -68,39 +69,24 @@ const PENDING_DUNGEON_FLAG = 0xfffd;
 // ADDR_MAGIA_STONE_SPRITE0..3 (zeliard.h): 4 sprites, 7 bytes each
 const MAGIA_STONE_SPRITES = [0xeb60, 0xeb67, 0xeb6e, 0xeb75];
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** remove_accomplished_items (dungeon.c:1218). */
 export function removeAccomplishedItems(g: Uint8Array): void {
-    let si = g16(g, ACHIEVEMENTS_TABLE);
+    let si = memRead16(g, ACHIEVEMENTS_TABLE);
     for (;;) {
-        let di = g16(g, si);
+        let di = memRead16(g, si);
         if (di === 0xffff) break;
         si += 3;
-        if ((g8(g, si - 1) & g8(g, di)) !== 0) { // move_loop
+        if ((memRead8(g, si - 1) & memRead8(g, di)) !== 0) { // move_loop
             for (;;) {
-                di = g16(g, si);
+                di = memRead16(g, si);
                 if (di === 0xffff) break; // null address
-                s16(g, di, g16(g, si + 2));
+                memWrite16(g, di, memRead16(g, si + 2));
                 si += 4;
             }
         } else { // skip_loop
-            while (g16(g, si) !== 0xffff) {
+            while (memRead16(g, si) !== 0xffff) {
                 si += 4;
             }
         }
@@ -110,13 +96,13 @@ export function removeAccomplishedItems(g: Uint8Array): void {
 
 /** hero_left_16_down_1 (dungeon.c:1242). */
 export function heroLeft16Down1(g: Uint8Array): void {
-    const x = g16(g, HERO_X_IN_PROXIMITY_MAP);
-    const w = g16(g, MAP_WIDTH);
-    s16(g, LEFT_COL_NUM, ((x < 16 ? x + w : x) - 16) & 0xffff);
-    s8(
+    const x = memRead16(g, HERO_X_IN_PROXIMITY_MAP);
+    const w = memRead16(g, MAP_WIDTH);
+    memWrite16(g, LEFT_COL_NUM, ((x < 16 ? x + w : x) - 16) & 0xffff);
+    memWrite8(
         g,
         VIEWPORT_TOP_ROW,
-        (g8(g, DOOR_TARGET_Y) + 1 - g8(g, HERO_Y_VIEW_INIT)) & 0x3f,
+        (memRead8(g, DOOR_TARGET_Y) + 1 - memRead8(g, HERO_Y_VIEW_INIT)) & 0x3f,
     );
 }
 
@@ -131,14 +117,14 @@ export function processMdtDescriptor(
         g[(MMAN_GRP_INDEX + i) & 0xffff] = g[(descrPtr1 + i) & 0xffff] ?? 0;
     }
     let idx = (descr0 >> 1) & 0x0f;
-    if (idx !== g8(g, MSD_INDEX)) {
-        s8(g, BYTE_FF24, 10);
-        s8(g, MSD_INDEX, idx);
+    if (idx !== memRead8(g, MSD_INDEX)) {
+        memWrite8(g, BYTE_FF24, 10);
+        memWrite8(g, MSD_INDEX, idx);
     } else {
         idx = 0xff;
     }
-    s8(g, BYTE_9EFA, idx);
-    s8(g, BYTE_9EFB, 0xff);
+    memWrite8(g, BYTE_9EFA, idx);
+    memWrite8(g, BYTE_9EFB, 0xff);
 }
 
 /**
@@ -153,38 +139,38 @@ export function prepareDungeon(
 ): void {
     // memset(&g_mem[ADDR_BYTE_9EED], 0, ADDR_BYTE_9F2E - ADDR_BYTE_9EED - 1);
     g.fill(0, BYTE_9EED, BYTE_9EED + (BYTE_9F2E - BYTE_9EED - 1));
-    s8(g, BYTE_9EF5, 0xff);
-    s8(g, EAI_BIN_INDEX, 0xff);
-    s8(g, ENP_GRP_INDEX, 0xff);
+    memWrite8(g, BYTE_9EF5, 0xff);
+    memWrite8(g, EAI_BIN_INDEX, 0xff);
+    memWrite8(g, ENP_GRP_INDEX, 0xff);
     // Only reset on actual town re-entry, not during door transitions.
     statics.isFromTown = isFromTown;
     if (isFromTown) statics.savedYViewInit = 10;
     resetDungeonStateVars(g);
     // Only reset magia stones on town→dungeon entry, not cavern→cavern doors
     if (isFromTown) {
-        for (const sprite of MAGIA_STONE_SPRITES) s8(g, sprite, 0xff);
+        for (const sprite of MAGIA_STONE_SPRITES) memWrite8(g, sprite, 0xff);
     }
-    s8(g, HERO_HIDDEN_FLAG, 0);
+    memWrite8(g, HERO_HIDDEN_FLAG, 0);
     // load 'fman.grp' into fman_gfx → done in JS
 
-    const mdtDescr = g16(g, MDT);
-    const al = g8(g, mdtDescr);
+    const mdtDescr = memRead16(g, MDT);
+    const al = memRead8(g, mdtDescr);
     processMdtDescriptor(g, al, mdtDescr + 1);
     // Clear_Viewport_proc(): JS-side stub
 
     // Recalculate proximity map left column using the new MDT's width;
     // saved_door_x1 survives the memset above (it zeroes 0x9F1A).
     const x = statics.savedDoorX1 & 0xffff;
-    const w = g16(g, MAP_WIDTH);
-    s16(g, LEFT_COL_NUM, ((x < 16 ? x + w : x) - 16) & 0xffff);
+    const w = memRead16(g, MAP_WIDTH);
+    memWrite16(g, LEFT_COL_NUM, ((x < 16 ? x + w : x) - 16) & 0xffff);
     // Reset hero viewport X to dungeon default (12).
-    s8(g, HERO_X_VIEW, 12);
+    memWrite8(g, HERO_X_VIEW, 12);
     // res_dispatcher_proc("roka.grp", 0x18000): JS-side stub
     if (isFromTown) {
-        s8(g, ROKA_COLOR, 0); // Render_Roca_Tilemap(0): always cyan from town
+        memWrite8(g, ROKA_COLOR, 0); // Render_Roca_Tilemap(0): always cyan from town
     }
 
-    const mapId = g8(g, PLACE_MAP_ID);
+    const mapId = memRead8(g, PLACE_MAP_ID);
     if ((mapId & 0x80) === 0) {
         removeAccomplishedItems(g);
     }
@@ -192,7 +178,7 @@ export function prepareDungeon(
 
     // Town→boss cavern entries show only the encounter flash (the original
     // never plays the roka run here).
-    const isBossCavern = (g8(g, mdtDescr) & 0x80) !== 0;
+    const isBossCavern = (memRead8(g, mdtDescr) & 0x80) !== 0;
     if (statics.skipRokaRun || (isFromTown && isBossCavern)) {
         // Post-rokademo cavern entry, or town→boss entry: finalize directly.
         statics.skipRokaRun = false;
@@ -216,25 +202,25 @@ export function wasmDungeonInit(
     void mapId;
     prepareDungeon(g, isFromTown, statics, callbacks);
 
-    s8(g, EXIT_FLAG, 0);
+    memWrite8(g, EXIT_FLAG, 0);
     // prepare_dungeon may have finalized directly into a boss cavern
     // (town→boss skips the roka run), in which case Cavern_Game_Init set the
     // state to BOSS_ENCOUNTER for the JS encounter flash. Preserve that;
     // only force NORMAL when no roka run and no encounter were started.
-    const state = g8(g, DUNGEON_STATE);
+    const state = memRead8(g, DUNGEON_STATE);
     if (
         state !== DUNGEON_STATE_ROKA_RUN &&
         state !== DUNGEON_STATE_BOSS_ENCOUNTER &&
         state !== DUNGEON_STATE_JASHIIN_CUTSCENE
     ) {
-        s8(g, DUNGEON_STATE, 0 /* DUNGEON_STATE_NORMAL */);
+        memWrite8(g, DUNGEON_STATE, 0 /* DUNGEON_STATE_NORMAL */);
     }
-    s8(g, DUNGEON_FRAME_PHASE, 0);
-    s8(g, RENDER_REQUEST, 0xff);
-    s8(g, RENDER_DONE, 0);
-    s8(g, DEATH_COUNTER, 0);
-    s8(g, DUNGEON_SUBSTATE, 0);
-    s8(g, DUNGEON_SUBSTATE_PHASE, 0);
+    memWrite8(g, DUNGEON_FRAME_PHASE, 0);
+    memWrite8(g, RENDER_REQUEST, 0xff);
+    memWrite8(g, RENDER_DONE, 0);
+    memWrite8(g, DEATH_COUNTER, 0);
+    memWrite8(g, DUNGEON_SUBSTATE, 0);
+    memWrite8(g, DUNGEON_SUBSTATE_PHASE, 0);
 }
 
 /**
@@ -246,25 +232,25 @@ export function finishRokademoTransition(
     statics: DungeonRuntimeStatics,
     callbacks?: PrepareDungeonCallbacks,
 ): void {
-    s8(g, ENP_GRP_INDEX, 0xff);
-    s8(g, EAI_BIN_INDEX, 0xff);
-    s8(g, BYTE_9EFA, g8(g, MSD_INDEX));
-    s8(g, BYTE_9F02, 0xff);
+    memWrite8(g, ENP_GRP_INDEX, 0xff);
+    memWrite8(g, EAI_BIN_INDEX, 0xff);
+    memWrite8(g, BYTE_9EFA, memRead8(g, MSD_INDEX));
+    memWrite8(g, BYTE_9F02, 0xff);
     // load_cavern_sprites_ai_music(): JS loads assets
     afterRunAnimation(g, statics, callbacks?.mainUpdateRender);
 
     // After the final (Jashiin) demo the hero is meant to die: let the death
     // sequence play out instead of re-entering this dungeon.
-    const state = g8(g, DUNGEON_STATE);
+    const state = memRead8(g, DUNGEON_STATE);
     if (state >= 2 /* DEATH_FALL */ && state <= 4 /* DEATH_FADE */) {
         return;
     }
 
-    const placeMapId = g8(g, PLACE_MAP_ID);
+    const placeMapId = memRead8(g, PLACE_MAP_ID);
     if ((placeMapId & 0x80) === 0) {
-        s8(g, PENDING_DUNGEON_MAP, placeMapId);
-        s8(g, PENDING_DUNGEON_FLAG, 0xff);
-        s8(g, DUNGEON_STATE, 6 /* DUNGEON_STATE_EXIT */);
+        memWrite8(g, PENDING_DUNGEON_MAP, placeMapId);
+        memWrite8(g, PENDING_DUNGEON_FLAG, 0xff);
+        memWrite8(g, DUNGEON_STATE, 6 /* DUNGEON_STATE_EXIT */);
         loadEaiModule(placeMapId & 0x7f); // load_eai_module (dungeon.c:1880)
         // The demo already showed the hero running in — don't play a roka
         // run when prepare_dungeon re-initializes the target cavern below.

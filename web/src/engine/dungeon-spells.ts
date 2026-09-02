@@ -26,6 +26,7 @@ import {
 } from './dungeon-entities.js';
 import { isInProximityWindow } from './dungeon-monsters.js';
 import { getDstMonsterFlags } from './dungeon-hero.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 const PROX_COLS = 36;
 const MAGIC_PROJECTILE_STRIDE = 0x10;
@@ -39,49 +40,34 @@ const BOSS_BEING_HIT = 0xff2e;
 const BYTE_FF3E = 0xff3e;
 const MAGIC_PROJECTILES = 0xeb15;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // mp field accessors
 function mpXRel(g: Uint8Array, si: number): number {
-    return g16(g, si);
+    return memRead16(g, si);
 }
 function mpSetXRel(g: Uint8Array, si: number, v: number): void {
-    s16(g, si, v);
+    memWrite16(g, si, v);
 }
 function mpYRel(g: Uint8Array, si: number): number {
-    return g8(g, si + 2);
+    return memRead8(g, si + 2);
 }
 function mpDir(g: Uint8Array, si: number): number {
-    return g8(g, si + 3);
+    return memRead8(g, si + 3);
 }
 function mpLifeTimer(g: Uint8Array, si: number): number {
-    return g8(g, si + 4);
+    return memRead8(g, si + 4);
 }
 function mpAnimFrame(g: Uint8Array, si: number): number {
-    return g8(g, si + 5);
+    return memRead8(g, si + 5);
 }
 
 /** Dispatch_Spell_Projectile_Movement (dungeon.c:6461). */
 export function dispatchSpellProjectileMovement(g: Uint8Array): void {
-    if (g8(g, BYTE_FF3E) === 0) return;
+    if (memRead8(g, BYTE_FF3E) === 0) return;
 
     const si = MAGIC_PROJECTILES;
-    const spell = (g8(g, CURRENT_MAGIC_SPELL) - 1) & 0xff; // 0..6
+    const spell = (memRead8(g, CURRENT_MAGIC_SPELL) - 1) & 0xff; // 0..6
 
     switch (spell) {
         case 0: espadaMove(g, si); break;
@@ -102,7 +88,7 @@ export function espadaMove(g: Uint8Array, si: number): void {
     }
 
     const life = (mpLifeTimer(g, si) + 1) & 0xff;
-    s8(g, si + 4, life); // C increments before the expiry check
+    memWrite8(g, si + 4, life); // C increments before the expiry check
     if (life >= 5) {
         despawnProjectileSlots(g, si, 1);
         return;
@@ -111,14 +97,14 @@ export function espadaMove(g: Uint8Array, si: number): void {
     projectileStepAndAnimate(g, si);
 
     if (monsterIsInSpawnRangeAndClear(g, si)) {
-        s8(g, si + 3, mpDir(g, si) | 0x80); // hit: mark for despawn next tick
+        memWrite8(g, si + 3, mpDir(g, si) | 0x80); // hit: mark for despawn next tick
     }
 }
 
 /** saeta_move (dungeon.c:6507). */
 export function saetaMove(g: Uint8Array, si: number): void {
     const life = (mpLifeTimer(g, si) + 1) & 0xff;
-    s8(g, si + 4, life);
+    memWrite8(g, si + 4, life);
     if (life >= 10) {
         despawnProjectileSlots(g, si, 1);
         return;
@@ -131,7 +117,7 @@ export function saetaMove(g: Uint8Array, si: number): void {
 /** fuego_move (dungeon.c:6527). */
 export function fuegoMove(g: Uint8Array, si: number): void {
     const life = (mpLifeTimer(g, si) + 1) & 0xff;
-    s8(g, si + 4, life);
+    memWrite8(g, si + 4, life);
     if (life >= 12) {
         despawnProjectileSlots(g, si, 1);
         return;
@@ -144,7 +130,7 @@ export function fuegoMove(g: Uint8Array, si: number): void {
         return;
     }
     // life = 4..11
-    s8(g, si + 5, ((mpAnimFrame(g, si) & 3) + 1) & 0xff);
+    memWrite8(g, si + 5, ((mpAnimFrame(g, si) & 3) + 1) & 0xff);
 
     // condition always true here (literal assembly translation)
     {
@@ -154,8 +140,8 @@ export function fuegoMove(g: Uint8Array, si: number): void {
                 (coordsToProxAddr(g, prox.xRel, mpYRel(g, si)) + 2 * PROX_COLS) & 0xffff,
             );
 
-            if (!isBlockingTile(g, g8(g, di)) && !isBlockingTile(g, g8(g, di + 1))) {
-                s8(g, si + 2, (mpYRel(g, si) + 1) & 0x3f);
+            if (!isBlockingTile(g, memRead8(g, di)) && !isBlockingTile(g, memRead8(g, di + 1))) {
+                memWrite8(g, si + 2, (mpYRel(g, si) + 1) & 0x3f);
             }
         }
     }
@@ -166,14 +152,14 @@ export function fuegoMove(g: Uint8Array, si: number): void {
 /** rascar_move (dungeon.c:6561): advances all 4 beam slots each frame. */
 export function rascarMove(g: Uint8Array, si: number): void {
     const life = (mpLifeTimer(g, si) + 1) & 0xff;
-    s8(g, si + 4, life);
+    memWrite8(g, si + 4, life);
     if (life >= 12) {
         despawnProjectileSlots(g, si, 4);
         return;
     }
 
     for (let i = 0; i < 4; i++) {
-        s8(g, si + 2, (mpYRel(g, si) + 2) & 0x3f);
+        memWrite8(g, si + 2, (mpYRel(g, si) + 2) & 0x3f);
         monsterIsInSpawnRangeAndClear(g, si);
         si += MAGIC_PROJECTILE_STRIDE;
     }
@@ -182,7 +168,7 @@ export function rascarMove(g: Uint8Array, si: number): void {
 /** agua_move (dungeon.c:6576): advances all 3 bubble slots each frame. */
 export function aguaMove(g: Uint8Array, si: number): void {
     const life = (mpLifeTimer(g, si) + 1) & 0xff;
-    s8(g, si + 4, life);
+    memWrite8(g, si + 4, life);
     if (life >= 10) {
         despawnProjectileSlots(g, si, 3);
         return;
@@ -203,7 +189,7 @@ export function projectileStepXByDirection(g: Uint8Array, si: number): void {
     const step = (mpDir(g, si) & 1) * 4 - 2;
     let x = mpXRel(g, si) + step;
 
-    const mapWidth = g16(g, MAP_WIDTH);
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (x < 0) x += mapWidth;
     else if (x >= mapWidth) x -= mapWidth;
 
@@ -214,7 +200,7 @@ export function projectileStepXByDirection(g: Uint8Array, si: number): void {
 function advanceProjectileAnimFrame(g: Uint8Array, si: number): void {
     let frame = (mpAnimFrame(g, si) + 1) & 0xff;
     if (frame >= 3) frame = 0;
-    s8(g, si + 5, frame);
+    memWrite8(g, si + 5, frame);
 }
 
 /** projectile_step_and_animate (asm sub_8BC2, dungeon.c:6630). */
@@ -232,7 +218,7 @@ export function despawnProjectileSlots(g: Uint8Array, si: number, slotCount: num
         mpSetXRel(g, (si + i * MAGIC_PROJECTILE_STRIDE) & 0xffff, 0xff00);
     }
 
-    s8(g, BYTE_FF3E, 0);
+    memWrite8(g, BYTE_FF3E, 0);
 }
 
 /**
@@ -240,7 +226,7 @@ export function despawnProjectileSlots(g: Uint8Array, si: number, slotCount: num
  * the projectile's 3×3 neighborhood as a spell target.
  */
 export function monsterIsInSpawnRangeAndClear(g: Uint8Array, si: number): number {
-    if (g8(g, IS_BOSS_CAVERN) !== 0 && g8(g, BOSS_BEING_HIT) !== 0) return 0;
+    if (memRead8(g, IS_BOSS_CAVERN) !== 0 && memRead8(g, BOSS_BEING_HIT) !== 0) return 0;
 
     const prox = isInProximityWindow(g, mpXRel(g, si));
     if (!prox.inside) return 0; // outside the visible proximity window
@@ -273,13 +259,13 @@ export function markProximityMonsterAsSpellTarget(g: Uint8Array, addr: number): 
 
     if ((flags & 0x20) !== 0) return 0; // flying/immune target
 
-    if ((g8(g, monsterStruct + 5) & 0x20) !== 0) return 0; // already targeted this frame
+    if ((memRead8(g, monsterStruct + 5) & 0x20) !== 0) return 0; // already targeted this frame
 
-    let ai = g8(g, monsterStruct + 5);
+    let ai = memRead8(g, monsterStruct + 5);
     ai = (ai | 0x40) & 0xe0; // keep status bits, set "hit" bit
-    ai |= (g8(g, CURRENT_MAGIC_SPELL) + 1) & 0xff; // low bits: which spell hit it
-    s8(g, monsterStruct + 5, ai);
+    ai |= (memRead8(g, CURRENT_MAGIC_SPELL) + 1) & 0xff; // low bits: which spell hit it
+    memWrite8(g, monsterStruct + 5, ai);
 
-    s8(g, BYTE_9F2A, 0xff);
+    memWrite8(g, BYTE_9F2A, 0xff);
     return 1;
 }

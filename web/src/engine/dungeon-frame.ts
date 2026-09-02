@@ -111,22 +111,7 @@ export const ACCESSORY_FERUZA_SHOES = 1;
 export const ACCESSORY_ASBESTOS_CAPE = 5;
 export const ITS_TOO_HOT_STR = 18;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── neighborhood sampling (gfmcga.c) ───
 
@@ -136,9 +121,9 @@ export const TILE_NEIGHBORHOOD_BUFFER = new Uint8Array(9);
 /** load_3x3_tiles (gfmcga.c:222). */
 export function load3x3Tiles(g: Uint8Array): void {
     let si =
-        g16(g, PROXIMITY_MAP_LEFT_TOP_ADDR) +
-        (g8(g, HERO_HEAD_Y_VIEW) ?? 0) * PROX_COLS +
-        (g8(g, HERO_XV) ?? 0) +
+        memRead16(g, PROXIMITY_MAP_LEFT_TOP_ADDR) +
+        (memRead8(g, HERO_HEAD_Y_VIEW) ?? 0) * PROX_COLS +
+        (memRead8(g, HERO_XV) ?? 0) +
         4;
     si = wrapMapFromAbove(si & 0xffff);
     let di = 0;
@@ -157,8 +142,8 @@ export function sampleNeighborhoodAttributes(g: Uint8Array): void {
     load3x3Tiles(g);
 
     const di = TILE_NEIGHBORHOOD_BUFFER;
-    let dl = (g8(g, HERO_Y /* 0xff35 */) - 1) & 0xff;
-    const a0 = 0xe000 + (g8(g, HERO_XV) ?? 0) + 3;
+    let dl = (memRead8(g, HERO_Y /* 0xff35 */) - 1) & 0xff;
+    const a0 = 0xe000 + (memRead8(g, HERO_XV) ?? 0) + 3;
 
     for (let i = 0; i < 4; i++) {
         let bx = (a0 + ((dl & 0x3f) as number) * PROX_COLS) & 0xffff;
@@ -186,25 +171,25 @@ export function bossExplosionsRenderer(g: Uint8Array): void {
     let read = list;
 
     for (;;) {
-        const col = g8(g, read);
+        const col = memRead8(g, read);
         if (col === 0xff) {
-            s8(g, write, 0xff);
+            memWrite8(g, write, 0xff);
             return;
         }
 
-        const row = g8(g, read + 1);
+        const row = memRead8(g, read + 1);
 
         // mark the 2×2 viewport-entities block as mid-animation
-        s8(g, 0xe900 + row * VIEW_COLS + col, 0xfe);
-        s8(g, 0xe900 + row * VIEW_COLS + col + 1, 0xfe);
-        s8(g, 0xe900 + (row + 1) * VIEW_COLS + col, 0xfe);
-        s8(g, 0xe900 + (row + 1) * VIEW_COLS + col + 1, 0xfe);
+        memWrite8(g, 0xe900 + row * VIEW_COLS + col, 0xfe);
+        memWrite8(g, 0xe900 + row * VIEW_COLS + col + 1, 0xfe);
+        memWrite8(g, 0xe900 + (row + 1) * VIEW_COLS + col, 0xfe);
+        memWrite8(g, 0xe900 + (row + 1) * VIEW_COLS + col + 1, 0xfe);
 
         // frame countdown (VRAM rendering elided — JS side)
-        s8(g, read + 2, (g8(g, read + 2) - 1) & 0xff);
-        if (g8(g, read + 2) !== 0xff) {
+        memWrite8(g, read + 2, (memRead8(g, read + 2) - 1) & 0xff);
+        if (memRead8(g, read + 2) !== 0xff) {
             for (let i = 0; i < 4; i++) {
-                s8(g, write + i, g8(g, read + i));
+                memWrite8(g, write + i, memRead8(g, read + i));
             }
             write += 4;
         }
@@ -217,22 +202,22 @@ export function bossExplosionsRenderer(g: Uint8Array): void {
 /** update_and_render_projectile_row_pair (dungeon.c:5862). */
 export function updateAndRenderProjectileRowPair(g: Uint8Array): void {
     for (let p = 0xeb80 /* PROJECTILES_LIST */; ; p += 13) {
-        if (g8(g, p) === 0xff) return;
+        if (memRead8(g, p) === 0xff) return;
 
-        s8(g, p + 11, g8(g, p)); // cached_x_rel
+        memWrite8(g, p + 11, memRead8(g, p)); // cached_x_rel
 
-        if (g8(g, p) >= VIEW_COLS + 4) {
-            s8(g, p, 0); // deactivate
+        if (memRead8(g, p) >= VIEW_COLS + 4) {
+            memWrite8(g, p, 0); // deactivate
             continue;
         }
 
-        const relY = ((g8(g, p + 1) - g8(g, VIEWPORT_TOP_ROW)) & 0x3f) as number;
+        const relY = ((memRead8(g, p + 1) - memRead8(g, VIEWPORT_TOP_ROW)) & 0x3f) as number;
         if (relY >= 18 /* VIEW_ROWS */) {
-            s8(g, p, 0); // deactivate
+            memWrite8(g, p, 0); // deactivate
             continue;
         }
 
-        s8(g, p + 12, relY);
+        memWrite8(g, p + 12, relY);
     }
 }
 
@@ -263,22 +248,22 @@ export function updateActiveProjectilesRender(g: Uint8Array): void {
     let mp = 0xeb15; // MAGIC_PROJECTILES
 
     for (let outer = 0; outer < 4; outer++, mp += 16) {
-        if (g16(g, mp) === 0xffff) return; // end of active list
+        if (memRead16(g, mp) === 0xffff) return; // end of active list
 
-        if (g8(g, mp + 1) === 0xff) {
-            s16(g, mp, 0xffff); // drifted far off world: retire slot
+        if (memRead8(g, mp + 1) === 0xff) {
+            memWrite16(g, mp, 0xffff); // drifted far off world: retire slot
             continue;
         }
 
-        const frameOffset = g8(g, mp + 5) * 4;
-        const table = g8(g, mp + 3) !== 0 ? SEQUENCES0 : SEQUENCES1;
+        const frameOffset = memRead8(g, mp + 5) * 4;
+        const table = memRead8(g, mp + 3) !== 0 ? SEQUENCES0 : SEQUENCES1;
 
-        const prox = isInProximityWindowCached(g, g16(g, mp));
+        const prox = isInProximityWindowCached(g, memRead16(g, mp));
         if (!prox.inside) continue;
 
-        s8(g, mp + 6, prox.xRel);
-        const relY = ((g8(g, mp + 2) - g8(g, VIEWPORT_TOP_ROW)) & 0x3f) as number;
-        s8(g, mp + 7, relY);
+        memWrite8(g, mp + 6, prox.xRel);
+        const relY = ((memRead8(g, mp + 2) - memRead8(g, VIEWPORT_TOP_ROW)) & 0x3f) as number;
+        memWrite8(g, mp + 7, relY);
 
         // sub-tile walk: tile blitting itself is JS-side; the sequence
         // cursor advances 4 subtiles (DELTAS pairs) from the frame offset
@@ -291,8 +276,8 @@ export function updateActiveProjectilesRender(g: Uint8Array): void {
 function isInProximityWindowCached(g: Uint8Array, x: number): { inside: boolean; xRel: number } {
     // same logic as dungeon-monsters.isInProximityWindow, inlined to avoid
     // an import cycle through that module's table exports
-    const left = g16(g, 0x80);
-    const mapWidth = g16(g, 0xc002);
+    const left = memRead16(g, 0x80);
+    const mapWidth = memRead16(g, 0xc002);
     if (x >= left) {
         const offset = (x - left) & 0xffff;
         return { inside: offset < 36, xRel: offset & 0xff };
@@ -312,43 +297,43 @@ export interface FramePreCallbacks {
 
 export function mainUpdateRenderPre(g: Uint8Array, callbacks: FramePreCallbacks): number {
     let jumpHeight = 2;
-    if (g8(g, CURRENT_ACCESSORY) === ACCESSORY_FERUZA_SHOES) {
+    if (memRead8(g, CURRENT_ACCESSORY) === ACCESSORY_FERUZA_SHOES) {
         jumpHeight = 4;
     }
-    s8(g, JUMP_HEIGHT_INCLUDING_SHOES, jumpHeight);
+    memWrite8(g, JUMP_HEIGHT_INCLUDING_SHOES, jumpHeight);
     checkAirflowsOnHero(g);
 
-    if (g8(g, JUMP_PHASE_FLAGS) === 0) {
+    if (memRead8(g, JUMP_PHASE_FLAGS) === 0) {
         // C zeroes ADDR_BYTE_9F09 (the jump-step counter) here — NOT
         // BYTE_9F00, which holds the viewport-follow target set at cavern
         // init and must survive this frame (zeroing it made the follow
         // branch fire on every grounded frame).
-        s8(g, 0x9f09 /* BYTE_9F09 */, 0);
-        if (g8(g, BYTE_9F00) !== g8(g, HERO_HEAD_Y_VIEW)) {
-            if (g8(g, BYTE_9F00) < g8(g, HERO_HEAD_Y_VIEW)) {
+        memWrite8(g, 0x9f09 /* BYTE_9F09 */, 0);
+        if (memRead8(g, BYTE_9F00) !== memRead8(g, HERO_HEAD_Y_VIEW)) {
+            if (memRead8(g, BYTE_9F00) < memRead8(g, HERO_HEAD_Y_VIEW)) {
                 heroScrollDown(g);
-                s8(g, HERO_HEAD_Y_VIEW, (g8(g, HERO_HEAD_Y_VIEW) - 1) & 0xff);
+                memWrite8(g, HERO_HEAD_Y_VIEW, (memRead8(g, HERO_HEAD_Y_VIEW) - 1) & 0xff);
             } else {
                 moveHeroUp(g);
-                s8(g, HERO_HEAD_Y_VIEW, (g8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
+                memWrite8(g, HERO_HEAD_Y_VIEW, (memRead8(g, HERO_HEAD_Y_VIEW) + 1) & 0xff);
             }
         }
     }
 
-    if (g8(g, IS_JASHIIN_CAVERN) !== 0 || g8(g, IS_BOSS_CAVERN) !== 0) {
-        const si = g16(g, BOSS_STATE_PTR) + 7; // arena_center_x
-        if (g8(g, HERO_XV) !== g8(g, si)) {
+    if (memRead8(g, IS_JASHIIN_CAVERN) !== 0 || memRead8(g, IS_BOSS_CAVERN) !== 0) {
+        const si = memRead16(g, BOSS_STATE_PTR) + 7; // arena_center_x
+        if (memRead8(g, HERO_XV) !== memRead8(g, si)) {
             moveHeroRightIfNoObstacles(g);
-            s8(g, HERO_XV, (g8(g, HERO_XV) - 1) & 0xff);
+            memWrite8(g, HERO_XV, (memRead8(g, HERO_XV) - 1) & 0xff);
         }
     } else {
-        if (g8(g, HERO_XV) !== 12) {
+        if (memRead8(g, HERO_XV) !== 12) {
             moveHeroLeftIfNoObstacles(g);
-            s8(g, HERO_XV, (g8(g, HERO_XV) + 1) & 0xff);
+            memWrite8(g, HERO_XV, (memRead8(g, HERO_XV) + 1) & 0xff);
         }
     }
 
-    s8(g, 0xff35 /* ADDR_HERO_Y */, (g8(g, HERO_HEAD_Y_VIEW) + g8(g, VIEWPORT_TOP_ROW)) & 0x3f);
+    memWrite8(g, 0xff35 /* ADDR_HERO_Y */, (memRead8(g, HERO_HEAD_Y_VIEW) + memRead8(g, VIEWPORT_TOP_ROW)) & 0x3f);
     updateBossHeartbeatVolume(g);
     updateAndRenderHorizPlatforms(g);
     renderVerticalPlatformsToProximity(g);
@@ -356,12 +341,12 @@ export function mainUpdateRenderPre(g: Uint8Array, callbacks: FramePreCallbacks)
     processDoors(g);
     dispatchSpellProjectileMovement(g);
 
-    if (g8(g, BOSS_IS_DEAD) === 0) {
+    if (memRead8(g, BOSS_IS_DEAD) === 0) {
         monstersSpawning(g, runMonsterAi); // Stage 9: ported AIs via the registry
     }
 
-    s8(g, HERO_DAMAGE_THIS_FRAME, 0);
-    s8(g, 0x9f14 /* BYTE_9F14 */, 0);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0);
+    memWrite8(g, 0x9f14 /* BYTE_9F14 */, 0);
     checkHeroContactDamage(g);
     // Flush_Ui_Element_If_Dirty_proc(): stub
     projectilesCollisionProcessing(g);
@@ -371,20 +356,20 @@ export function mainUpdateRenderPre(g: Uint8Array, callbacks: FramePreCallbacks)
 
     // level-7 heat damage unless wearing the Asbestos Cape
     if (
-        g8(g, 0xc012 /* CAVERN_LEVEL */) === 7 &&
-        g8(g, CURRENT_ACCESSORY) !== ACCESSORY_ASBESTOS_CAPE
+        memRead8(g, 0xc012 /* CAVERN_LEVEL */) === 7 &&
+        memRead8(g, CURRENT_ACCESSORY) !== ACCESSORY_ASBESTOS_CAPE
     ) {
-        s8(g, TEMPERATURE_TIMER, (g8(g, TEMPERATURE_TIMER) + 1) & 0xff);
-        if ((g8(g, TEMPERATURE_TIMER) & 0x3f) === 0) {
-            s8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
-            s8(g, SOUND_FX_REQUEST, 9);
+        memWrite8(g, TEMPERATURE_TIMER, (memRead8(g, TEMPERATURE_TIMER) + 1) & 0xff);
+        if ((memRead8(g, TEMPERATURE_TIMER) & 0x3f) === 0) {
+            memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0xff);
+            memWrite8(g, SOUND_FX_REQUEST, 9);
             damageHero(g, 0x0f);
             renderNotificationString(g, ITS_TOO_HOT_STR);
         }
     }
 
     // screen_flash_overlay(): stub
-    return g8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
+    return memRead8(g, INVINCIBILITY_FLAG) !== 0 ? 1 : 0;
 }
 
 // ─── dungeon_render_timing_step (dungeon.c:4707) ───
@@ -398,60 +383,60 @@ export function dungeonRenderTimingStep(
     invincible: number,
     callbacks: FramePreCallbacks,
 ): number {
-    const phase = g8(g, DUNGEON_FRAME_PHASE);
-    let speed = g8(g, SPEED_CONST);
+    const phase = memRead8(g, DUNGEON_FRAME_PHASE);
+    let speed = memRead8(g, SPEED_CONST);
     if (speed === 0) speed = 1;
 
     if (phase === 0) {
         if (invincible === 0) {
-            s8(g, HERO_SPRITE_HIDDEN, 0);
+            memWrite8(g, HERO_SPRITE_HIDDEN, 0);
         }
 
-        s8(g, SHIELD_ANIM_ACTIVE, 0);
+        memWrite8(g, SHIELD_ANIM_ACTIVE, 0);
 
-        if (g8(g, SWORD_SWING_FLAG) !== 0) {
-            s8(g, SHIELD_ANIM_ACTIVE, 0xff);
-            s8(g, SHIELD_VARIANT_INDEX, g8(g, SWORD_HIT_TYPE));
-            s8(g, SHIELD_ANIM_PHASE, g8(g, SWORD_MOVEMENT_PHASE));
-        } else if (g8(g, SPELL_ACTIVE_FLAG) !== 0) {
-            s8(g, SHIELD_ANIM_ACTIVE, 0xff);
-            s8(g, SHIELD_ANIM_PHASE, g8(g, BYTE_9F2B));
-            s8(g, SHIELD_VARIANT_INDEX, 1);
+        if (memRead8(g, SWORD_SWING_FLAG) !== 0) {
+            memWrite8(g, SHIELD_ANIM_ACTIVE, 0xff);
+            memWrite8(g, SHIELD_VARIANT_INDEX, memRead8(g, SWORD_HIT_TYPE));
+            memWrite8(g, SHIELD_ANIM_PHASE, memRead8(g, SWORD_MOVEMENT_PHASE));
+        } else if (memRead8(g, SPELL_ACTIVE_FLAG) !== 0) {
+            memWrite8(g, SHIELD_ANIM_ACTIVE, 0xff);
+            memWrite8(g, SHIELD_ANIM_PHASE, memRead8(g, BYTE_9F2B));
+            memWrite8(g, SHIELD_VARIANT_INDEX, 1);
         }
 
-        if (g8(g, HERO_SPRITE_HIDDEN) === 0) {
+        if (memRead8(g, HERO_SPRITE_HIDDEN) === 0) {
             clearHeroInViewport(g);
         }
 
         sampleNeighborhoodAttributes(g);
-        if (g8(g, INVINCIBILITY_FLAG) === 0) {
-            let timer = g16(g, HEALING_TIMER);
+        if (memRead8(g, INVINCIBILITY_FLAG) === 0) {
+            let timer = memRead16(g, HEALING_TIMER);
             if (timer !== 0) {
                 timer--;
-                s16(g, HEALING_TIMER, timer);
-                s16(g, HERO_HP, (g16(g, HERO_HP) + 8) & 0xffff);
-                if (g16(g, HERO_HP) >= g16(g, HERO_MAX_HP)) {
-                    s16(g, HERO_HP, g16(g, HERO_MAX_HP));
-                    s16(g, HEALING_TIMER, 0);
+                memWrite16(g, HEALING_TIMER, timer);
+                memWrite16(g, HERO_HP, (memRead16(g, HERO_HP) + 8) & 0xffff);
+                if (memRead16(g, HERO_HP) >= memRead16(g, HERO_MAX_HP)) {
+                    memWrite16(g, HERO_HP, memRead16(g, HERO_MAX_HP));
+                    memWrite16(g, HEALING_TIMER, 0);
                 }
-                s8(g, SOUND_FX_REQUEST, 19); // heal with potion
-                s8(g, HEALTH_BAR_REQUEST, 0xff); // Draw_Hero_Health()
+                memWrite8(g, SOUND_FX_REQUEST, 19); // heal with potion
+                memWrite8(g, HEALTH_BAR_REQUEST, 0xff); // Draw_Hero_Health()
             }
         }
 
-        if (g8(g, SPRITE_FLASH_FLAG) !== 0) {
+        if (memRead8(g, SPRITE_FLASH_FLAG) !== 0) {
             bossExplosionsRenderer(g);
-            s8(g, BYTE_FF24, 10);
+            memWrite8(g, BYTE_FF24, 10);
         }
 
-        s8(g, RENDER_DONE, 0);
-        s8(g, RENDER_REQUEST, 0xff);
-        s8(g, DUNGEON_FRAME_PHASE, 1);
+        memWrite8(g, RENDER_DONE, 0);
+        memWrite8(g, RENDER_REQUEST, 0xff);
+        memWrite8(g, DUNGEON_FRAME_PHASE, 1);
         return 0;
     }
 
     if (phase === 1) {
-        if (g8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((2 * speed) & 0xff)) {
+        if (memRead8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((2 * speed) & 0xff)) {
             return 0;
         }
 
@@ -464,13 +449,13 @@ export function dungeonRenderTimingStep(
         applySwordHitTick(g);
         renderSwordOverlayTick(g);
 
-        s8(g, RENDER_DONE, 0);
-        s8(g, RENDER_REQUEST, 0xff);
-        s8(g, DUNGEON_FRAME_PHASE, 2);
+        memWrite8(g, RENDER_DONE, 0);
+        memWrite8(g, RENDER_REQUEST, 0xff);
+        memWrite8(g, DUNGEON_FRAME_PHASE, 2);
         return 0;
     }
 
-    if (g8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((4 * speed) & 0xff)) {
+    if (memRead8(g, 0xff1a /* ADDR_FRAME_TIMER */) < ((4 * speed) & 0xff)) {
         // Confirm_Exit / Handle_Pause / Handle_Speed_Change: stubs
         return 0;
     }
@@ -478,55 +463,55 @@ export function dungeonRenderTimingStep(
     // Handle_Restore_Game_proc(): stub (returns 0)
     // restore_game(): not reached
 
-    s8(g, 0xff1a /* ADDR_FRAME_TIMER */, 0);
-    s8(g, DUNGEON_FRAME_PHASE, 0);
+    memWrite8(g, 0xff1a /* ADDR_FRAME_TIMER */, 0);
+    memWrite8(g, DUNGEON_FRAME_PHASE, 0);
 
-    if (g8(g, INVINCIBILITY_FLAG) !== 0) {
+    if (memRead8(g, INVINCIBILITY_FLAG) !== 0) {
         return 1;
     }
 
-    if (g8(g, HERO_INVINCIBILITY) === 0 && g16(g, HERO_HP) === 0) {
-        s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_DEATH_FALL);
-        s8(g, DEATH_COUNTER, 0);
+    if (memRead8(g, HERO_INVINCIBILITY) === 0 && memRead16(g, HERO_HP) === 0) {
+        memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_DEATH_FALL);
+        memWrite8(g, DEATH_COUNTER, 0);
         processHeroDeath(g);
         return 1;
     }
 
-    s8(g, BYTE_9F18, (g8(g, BYTE_9F18) + 1) & 0xff);
-    if (g8(g, BYTE_9F18) >= 16) {
-        s8(g, BYTE_9F18, 0);
-        if (g16(g, HERO_HP) < g16(g, HERO_MAX_HP)) {
+    memWrite8(g, BYTE_9F18, (memRead8(g, BYTE_9F18) + 1) & 0xff);
+    if (memRead8(g, BYTE_9F18) >= 16) {
+        memWrite8(g, BYTE_9F18, 0);
+        if (memRead16(g, HERO_HP) < memRead16(g, HERO_MAX_HP)) {
             // original version also has this bug (odd damage → eventual max+1)
-            s16(g, HERO_HP, (g16(g, HERO_HP) + 2) & 0xffff);
-            s8(g, HEALTH_BAR_REQUEST, 0xff);
+            memWrite16(g, HERO_HP, (memRead16(g, HERO_HP) + 2) & 0xffff);
+            memWrite8(g, HEALTH_BAR_REQUEST, 0xff);
         }
     }
 
-    if (g8(g, 0x9f1e /* BOSS_REWARD_PROCESSED */) !== 0) {
+    if (memRead8(g, 0x9f1e /* BOSS_REWARD_PROCESSED */) !== 0) {
         callbacks.loadPlaceAndReinit(g);
         return 1;
     }
 
-    if (g8(g, 0xff34 /* IS_BOSS_CAVERN */) !== 0 && g8(g, 0xff30 /* BOSS_IS_DEAD */) !== 0) {
-        if (g8(g, 0xeda0 /* BOSS_EXPLOSIONS_LIST */) === 0xff) {
-            const si = g16(g, 0xa002 /* BOSS_STATE_PTR */);
-            const xpReward = g16(g, si + 5);
+    if (memRead8(g, 0xff34 /* IS_BOSS_CAVERN */) !== 0 && memRead8(g, 0xff30 /* BOSS_IS_DEAD */) !== 0) {
+        if (memRead8(g, 0xeda0 /* BOSS_EXPLOSIONS_LIST */) === 0xff) {
+            const si = memRead16(g, 0xa002 /* BOSS_STATE_PTR */);
+            const xpReward = memRead16(g, si + 5);
             updateHeroXp(g, xpReward);
-            const almasReward = g16(g, si + 9); // offset 9 intentional
+            const almasReward = memRead16(g, si + 9); // offset 9 intentional
             heroGotAlmas(g, almasReward);
-            s8(g, 0x9f1e /* BOSS_REWARD_PROCESSED */, 0xff);
+            memWrite8(g, 0x9f1e /* BOSS_REWARD_PROCESSED */, 0xff);
         }
     }
 
-    if (g8(g, 0xff2e /* BOSS_BEING_HIT */) !== 0) {
+    if (memRead8(g, 0xff2e /* BOSS_BEING_HIT */) !== 0) {
         return 1;
     }
 
     // KEY_ENTER in the F9/F7/F2/F1/Esc/Ctrl-Shift-Enter latch word
-    if (((g16(g, 0xff18) & 0x100) !== 0)) {
+    if (((memRead16(g, 0xff18) & 0x100) !== 0)) {
         callbacks.bringInventoryWindow(g);
     } else {
-        s8(g, 0x9ef5 /* BYTE_9EF5 */, 0);
+        memWrite8(g, 0x9ef5 /* BYTE_9EF5 */, 0);
     }
 
     return 1;
@@ -537,32 +522,33 @@ import { runMonsterAi } from './eai-registry.js';
 import { magiaStoneUpdates as magiaStoneUpdatesTick } from './dungeon-platforms.js';
 import { renderMagiaStoneEffect as renderMagiaStoneEffectTick } from './dungeon-platforms.js';
 import { applySwordHitToMapTiles } from './dungeon-combat.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 function applySwordHitTick(g: Uint8Array): void { applySwordHitToMapTiles(g); }
 function renderSwordOverlayTick(g: Uint8Array): void { renderSwordOverlay(g); }
 
 /** process_hero_death (dungeon.c:797). */
 export function processHeroDeath(g: Uint8Array): void {
     // Flush_Ui_Element_If_Dirty_proc(): stub
-    s8(g, SWORD_SWING_FLAG, 0);
-    s8(g, JUMP_PHASE_FLAGS, 0);
-    s8(g, SQUAT_FLAG, 0);
-    s8(g, HERO_DAMAGE_THIS_FRAME, 0);
-    s8(g, INVINCIBILITY_FLAG, 0xff);
-    s8(g, 0x9f28 /* BYTE_9F28 */, 0);
-    s8(g, 0x9f29 /* BYTE_9F29 */, 0);
-    s8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
-    s8(g, ON_ROPE_FLAGS, 0);
-    s8(g, HERO_SPRITE_HIDDEN, 0);
-    s8(g, HEALTH_BAR_REQUEST, 0xff); // Draw_Hero_Health()
+    memWrite8(g, SWORD_SWING_FLAG, 0);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0);
+    memWrite8(g, SQUAT_FLAG, 0);
+    memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0);
+    memWrite8(g, INVINCIBILITY_FLAG, 0xff);
+    memWrite8(g, 0x9f28 /* BYTE_9F28 */, 0);
+    memWrite8(g, 0x9f29 /* BYTE_9F29 */, 0);
+    memWrite8(g, 0xe7 /* HERO_ANIM_PHASE */, 0);
+    memWrite8(g, ON_ROPE_FLAGS, 0);
+    memWrite8(g, HERO_SPRITE_HIDDEN, 0);
+    memWrite8(g, HEALTH_BAR_REQUEST, 0xff); // Draw_Hero_Health()
 
-    s8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_DEATH_FALL);
+    memWrite8(g, 0xff90 /* DUNGEON_STATE */, DUNGEON_STATE_DEATH_FALL);
 }
 
 /** main_update_render (dungeon.c:4699). */
 export function mainUpdateRender(g: Uint8Array, callbacks: FramePreCallbacks): void {
     const invincible = mainUpdateRenderPre(g, callbacks);
     if (invincible !== 0) {
-        s8(g, HERO_DAMAGE_THIS_FRAME, 0);
+        memWrite8(g, HERO_DAMAGE_THIS_FRAME, 0);
     }
     dungeonRenderTimingStep(g, invincible, callbacks);
 }

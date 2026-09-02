@@ -51,22 +51,7 @@ const JUMP_PHASE_FLAGS = 0xff3d;
 export const CIRCLE_DELTA_X: readonly number[] = [2, 2, 3, 4, 5, 6, 7, 8, 8, 8, 7, 6, 5, 4, 3, 2];
 export const CIRCLE_DELTA_Y: readonly number[] = [1, 0, -1, -2, -2, -2, -1, 0, 1, 2, 3, 4, 4, 4, 3, 2];
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 export interface AbsProxRelCf {
     ax: number;
@@ -81,13 +66,13 @@ export interface AbsProxRelCf {
  */
 export function horizPlatformProximityXOffset(g: Uint8Array, x: number): AbsProxRelCf {
     let xw = (x + 2) & 0xffff;
-    const mapWidth = g16(g, MAP_WIDTH);
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (xw >= mapWidth) {
         xw = (xw - mapWidth) & 0xffff;
     }
 
     let d: number;
-    const proxLeft = g16(g, 0x80);
+    const proxLeft = memRead16(g, 0x80);
 
     if (xw >= proxLeft) {
         d = (xw - proxLeft) & 0xffff;
@@ -105,19 +90,19 @@ export function horizPlatformProximityXOffset(g: Uint8Array, x: number): AbsProx
  * NOT standing on this platform (C carry convention).
  */
 export function heroOnHorizPlatform(g: Uint8Array, si: number): boolean {
-    if (((g8(g, JUMP_PHASE_FLAGS) | g8(g, ON_ROPE_FLAGS)) & 0xff) !== 0) {
+    if (((memRead8(g, JUMP_PHASE_FLAGS) | memRead8(g, ON_ROPE_FLAGS)) & 0xff) !== 0) {
         return true; // airborne / on a rope: platform doesn't apply
     }
 
-    const heroRow = (g8(g, HERO_HEAD_Y_VIEW) + g8(g, 0x82 /* VIEWPORT_TOP_ROW */) + 3) & 0x3f;
-    const platformRow = g8(g, si + 2) & 0x3f;
+    const heroRow = (memRead8(g, HERO_HEAD_Y_VIEW) + memRead8(g, 0x82 /* VIEWPORT_TOP_ROW */) + 3) & 0x3f;
+    const platformRow = memRead8(g, si + 2) & 0x3f;
     if (heroRow !== platformRow) return true;
 
-    const rel = absXToProximityRel(g, g16(g, si) & 0x3fff);
+    const rel = absXToProximityRel(g, memRead16(g, si) & 0x3fff);
     if (rel.bx > 33) return true; // C: carry set when off-window
 
     const platformCol = rel.ax & 0xff;
-    let heroCol = (g8(g, HERO_XV) + 4) & 0xff;
+    let heroCol = (memRead8(g, HERO_XV) + 4) & 0xff;
 
     for (let i = 0; i < 3; i++) {
         if (heroCol === platformCol) {
@@ -133,8 +118,8 @@ export function heroOnHorizPlatform(g: Uint8Array, si: number): boolean {
  * platform one step, carrying the hero along unless blocked.
  */
 export function updateHorizPlatformCoords(g: Uint8Array, si: number, x: number): void {
-    const oldYFlags = g8(g, si + 2);
-    s8(g, si + 2, g8(g, si + 2) & 0xbf); // clear the "paused" bit
+    const oldYFlags = memRead8(g, si + 2);
+    memWrite8(g, si + 2, memRead8(g, si + 2) & 0xbf); // clear the "paused" bit
 
     if ((oldYFlags & 0x40) !== 0) {
         // platform was paused; this tick only un-pauses it
@@ -143,9 +128,9 @@ export function updateHorizPlatformCoords(g: Uint8Array, si: number, x: number):
 
     let newX: number;
     let boundary: number;
-    const mapWidth = g16(g, MAP_WIDTH);
+    const mapWidth = memRead16(g, MAP_WIDTH);
 
-    if ((g8(g, si + 2) & 0x80) === 0) {
+    if ((memRead8(g, si + 2) & 0x80) === 0) {
         // moving right
         newX = (x + 1) & 0xffff;
         if (newX === mapWidth) {
@@ -155,7 +140,7 @@ export function updateHorizPlatformCoords(g: Uint8Array, si: number, x: number):
         if (!heroOnHorizPlatform(g, si)) {
             moveHeroRightIfNoObstacles(g);
         }
-        boundary = g16(g, si + 5); // max_x
+        boundary = memRead16(g, si + 5); // max_x
     } else {
         // moving left
         if (x === 0) {
@@ -167,23 +152,23 @@ export function updateHorizPlatformCoords(g: Uint8Array, si: number, x: number):
         if (!heroOnHorizPlatform(g, si)) {
             moveHeroLeftIfNoObstacles(g);
         }
-        boundary = g16(g, si + 3); // min_x
+        boundary = memRead16(g, si + 3); // min_x
     }
 
     // store new_x into x_and_flags preserving the top-2 flag bits
-    const oldHi = (g16(g, si) >> 8) & 0xff;
+    const oldHi = (memRead16(g, si) >> 8) & 0xff;
     const newHi = ((oldHi & 0xc0) | ((newX >> 8) & 0xff)) & 0xff;
-    s16(g, si, ((newHi << 8) | (newX & 0xff)) & 0xffff);
+    memWrite16(g, si, ((newHi << 8) | (newX & 0xff)) & 0xffff);
 
     if (boundary === newX) {
-        s8(g, si + 2, g8(g, si + 2) ^ 0x80); // reverse direction
-        s8(g, si + 2, g8(g, si + 2) | 0x40); // pause for a few ticks
+        memWrite8(g, si + 2, memRead8(g, si + 2) ^ 0x80); // reverse direction
+        memWrite8(g, si + 2, memRead8(g, si + 2) | 0x40); // pause for a few ticks
     }
 }
 
 /** update_slow_horiz_platform_coords (dungeon.c:2478): every other tick. */
 export function updateSlowHorizPlatformCoords(g: Uint8Array, si: number, x: number): void {
-    if ((g8(g, BYTE_9F07) & 1) !== 0) {
+    if ((memRead8(g, BYTE_9F07) & 1) !== 0) {
         updateHorizPlatformCoords(g, si, x);
     }
 }
@@ -193,11 +178,11 @@ export function updateSlowHorizPlatformCoords(g: Uint8Array, si: number, x: numb
  * advance each horizontal platform, draw the new footprint.
  */
 export function updateAndRenderHorizPlatforms(g: Uint8Array): void {
-    s8(g, BYTE_9F07, (g8(g, BYTE_9F07) + 1) & 0xff);
+    memWrite8(g, BYTE_9F07, (memRead8(g, BYTE_9F07) + 1) & 0xff);
 
-    let si = g16(g, HORIZ_PLATFORMS_LIST);
+    let si = memRead16(g, HORIZ_PLATFORMS_LIST);
     for (;;) {
-        const xAndFlags = g16(g, si);
+        const xAndFlags = memRead16(g, si);
         if (xAndFlags === 0xffff) return; // end-of-list sentinel
 
         const x = xAndFlags & 0x3fff;
@@ -208,7 +193,7 @@ export function updateAndRenderHorizPlatforms(g: Uint8Array): void {
             const d = off.bx;
             let count: number;
             let col: number;
-            const row = g8(g, si + 2);
+            const row = memRead8(g, si + 2);
             let di: number;
 
             if (d >= 2) {
@@ -238,18 +223,18 @@ export function updateAndRenderHorizPlatforms(g: Uint8Array): void {
         }
 
         // advance the platform's position/state (if it's time to move)
-        const curX = g16(g, si) & 0x3fff;
-        const speedFlags = (g16(g, si) >> 14) & 3;
+        const curX = memRead16(g, si) & 0x3fff;
+        const speedFlags = (memRead16(g, si) >> 14) & 3;
         if (speedFlags !== 0) {
             if (speedFlags === 1) updateSlowHorizPlatformCoords(g, si, curX);
             else updateHorizPlatformCoords(g, si, curX);
         }
 
         // draw the platform at its (possibly new) position
-        const rel = absXToProximityRel(g, g16(g, si) & 0x3fff);
+        const rel = absXToProximityRel(g, memRead16(g, si) & 0x3fff);
         if (!rel.cf) {
             // C: !abs_x_to_proximity_rel(...) — carry clear means in-window
-            const diBase = coordsToProxAddr(g, rel.bx & 0xff, g8(g, si + 2));
+            const diBase = coordsToProxAddr(g, rel.bx & 0xff, memRead8(g, si + 2));
             let tile = 0x46; // horizontal platform tiles: 0x46, 0x47, 0x48
             for (let i = 0; i < 3; i++) {
                 putDlToProximityLayered(g, tile, (diBase + i) & 0xffff);
@@ -265,11 +250,11 @@ export function updateAndRenderHorizPlatforms(g: Uint8Array): void {
  * render_vertical_platforms_to_proximity (dungeon.c:2566).
  */
 export function renderVerticalPlatformsToProximity(g: Uint8Array): void {
-    let si = g16(g, 0xc004 /* VERTICAL_PLATFORMS_LIST */);
+    let si = memRead16(g, 0xc004 /* VERTICAL_PLATFORMS_LIST */);
     for (;;) {
-        const x = g16(g, si);
+        const x = memRead16(g, si);
         if (x === 0xffff) return;
-        const y = g8(g, si + 2);
+        const y = memRead8(g, si + 2);
         const rel = absXToProximityRel(g, x);
         if (!rel.cf) {
             let di = coordsToProxAddr(g, rel.bx & 0xff, y);
@@ -288,13 +273,13 @@ export function renderVerticalPlatformsToProximity(g: Uint8Array): void {
  * process_visible_collapsing_platforms (dungeon.c:2591).
  */
 export function processVisibleCollapsingPlatforms(g: Uint8Array): void {
-    let si = g16(g, COLLAPSING_PLATFORMS_LIST);
+    let si = memRead16(g, COLLAPSING_PLATFORMS_LIST);
     for (;;) {
-        const x = g16(g, si);
+        const x = memRead16(g, si);
         if (x === 0xffff) return;
         const rel = absXToProximityRel(g, x);
         if (!rel.cf) {
-            let di = coordsToProxAddr(g, rel.bx & 0xff, g8(g, si + 2));
+            let di = coordsToProxAddr(g, rel.bx & 0xff, memRead8(g, si + 2));
             let tile = 0x43; // collapsing platform tiles: 0x43, 0x44, 0x45
             for (let i = 0; i < 3; i++) {
                 putDlToProximityLayered(g, tile, di & 0xffff);
@@ -309,20 +294,21 @@ export function processVisibleCollapsingPlatforms(g: Uint8Array): void {
 // ─── magia stones ───
 
 function proximityCellInjectSpellTarget(g: Uint8Array, spiritBase: number, proxAddr: number): void {
-    const activeShots = g8(g, spiritBase + 2);
+    const activeShots = memRead8(g, spiritBase + 2);
     if (activeShots === 0) return;
 
     const { flags, monsterStruct } = getDstMonsterFlagsSafe(g, proxAddr);
     if (monsterStruct === 0) return;
     if ((flags & 0x20) !== 0) return;
-    const aiFlags = g8(g, monsterStruct + 5);
+    const aiFlags = memRead8(g, monsterStruct + 5);
     if ((aiFlags & 0x20) !== 0) return;
-    s8(g, monsterStruct + 5, (aiFlags & 0xe0) | 0x49);
-    s8(g, spiritBase + 2, (activeShots - 1) & 0xff);
+    memWrite8(g, monsterStruct + 5, (aiFlags & 0xe0) | 0x49);
+    memWrite8(g, spiritBase + 2, (activeShots - 1) & 0xff);
 }
 
 // local import shim to avoid a cycle with dungeon-hero
 import { getDstMonsterFlags } from './dungeon-hero.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 function getDstMonsterFlagsSafe(g: Uint8Array, addr: number) {
     return getDstMonsterFlags(g, addr);
 }
@@ -332,7 +318,7 @@ function magiaStoneSpritePlaceInProximityRows(
     spiritBase: number,
     proxAddr: number,
 ): void {
-    if (g8(g, 0xff34 /* IS_BOSS_CAVERN */) !== 0 && g8(g, 0xff30 /* BOSS_IS_DEAD */) !== 0) return;
+    if (memRead8(g, 0xff34 /* IS_BOSS_CAVERN */) !== 0 && memRead8(g, 0xff30 /* BOSS_IS_DEAD */) !== 0) return;
 
     proximityCellInjectSpellTarget(g, spiritBase, proxAddr & 0xffff);
     proximityCellInjectSpellTarget(g, spiritBase, (proxAddr + 1) & 0xffff);
@@ -345,16 +331,16 @@ function magiaStoneSpritePlaceInProximityRows(
 export function magiaStoneUpdates(g: Uint8Array): void {
     for (let i = 0; i < 4; i++) {
         const base = MAGIA_STONE_SPRITE0 + i * 7;
-        let orbitPhase = g8(g, base);
+        let orbitPhase = memRead8(g, base);
         if (orbitPhase === 0xff) continue;
 
-        const orbitSpeed = g8(g, base + 1);
+        const orbitSpeed = memRead8(g, base + 1);
         orbitPhase = (orbitPhase + orbitSpeed) & 0x0f;
-        s8(g, base, orbitPhase);
+        memWrite8(g, base, orbitPhase);
 
-        const heroX = g8(g, HERO_XV);
-        const heroY = g8(g, HERO_HEAD_Y_VIEW);
-        const viewportTop = g8(g, 0x82);
+        const heroX = memRead8(g, HERO_XV);
+        const heroY = memRead8(g, HERO_HEAD_Y_VIEW);
+        const viewportTop = memRead8(g, 0x82);
         const stoneMapX = (heroX + CIRCLE_DELTA_X[orbitPhase]!) & 0xff;
         const stoneMapY = ((heroY + CIRCLE_DELTA_Y[orbitPhase]! + viewportTop) & 0xff) as number;
         let proxAddr = coordsToProxAddr(g, stoneMapX, stoneMapY);
@@ -367,22 +353,22 @@ export function magiaStoneUpdates(g: Uint8Array): void {
 export function renderMagiaStoneEffect(g: Uint8Array): void {
     for (let i = 0; i < 4; i++) {
         const base = MAGIA_STONE_SPRITE0 + i * 7;
-        const orbitPhase = g8(g, base);
+        const orbitPhase = memRead8(g, base);
         if (orbitPhase === 0xff) continue;
 
-        if (g8(g, base + 2) === 0) {
-            s8(g, base, 0xff);
-            s16(g, base + 3, 0);
-            s8(g, base + 5, 0);
-            s8(g, base + 6, 0);
+        if (memRead8(g, base + 2) === 0) {
+            memWrite8(g, base, 0xff);
+            memWrite16(g, base + 3, 0);
+            memWrite8(g, base + 5, 0);
+            memWrite8(g, base + 6, 0);
             continue;
         }
 
         const phase = orbitPhase & 0x0f;
-        const heroX = g8(g, HERO_XV);
-        const heroY = g8(g, HERO_HEAD_Y_VIEW);
-        s8(g, base + 5, (heroX + CIRCLE_DELTA_X[phase]!) & 0xff);
-        s8(g, base + 6, (heroY + CIRCLE_DELTA_Y[phase]!) & 0x3f);
-        s16(g, base + 3, 0x8000);
+        const heroX = memRead8(g, HERO_XV);
+        const heroY = memRead8(g, HERO_HEAD_Y_VIEW);
+        memWrite8(g, base + 5, (heroX + CIRCLE_DELTA_X[phase]!) & 0xff);
+        memWrite8(g, base + 6, (heroY + CIRCLE_DELTA_Y[phase]!) & 0x3f);
+        memWrite16(g, base + 3, 0x8000);
     }
 }

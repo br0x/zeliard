@@ -14,6 +14,7 @@ import { isInProximityWindow } from './dungeon-monsters.js';
 import { getStats, getRandom } from './dungeon-combat.js';
 import { addProjectileToArray } from './dungeon-projectiles.js';
 import { browseProjectiles } from './dungeon-doors.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 // g_mem addresses
 const MONSTERS_LIST = 0xc010; // word
@@ -28,22 +29,7 @@ const HERO_X_VIEW = 0x83;
 const MAP_WIDTH = 0xc002; // word
 const BOSS_HEALTH_REQUEST = 0xff9f;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── persistent state (byte_A78A .. byte_A79B) ───
 
@@ -172,40 +158,40 @@ function tickEvery3rd(): number {
 
 // sub_A58F: decrement boss_x guarded at min 0x0D. 1 = moved.
 function moveBossXLeftMin0D(g: Uint8Array): number {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    if (g8(g, bossState + 0) < 0x0d) return 0;
-    s8(g, bossState + 0, (g8(g, bossState + 0) - 1) & 0xff);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    if (memRead8(g, bossState + 0) < 0x0d) return 0;
+    memWrite8(g, bossState + 0, (memRead8(g, bossState + 0) - 1) & 0xff);
     return 1;
 }
 
 // sub_A59D: decrement boss_x guarded at min 0x11. 1 = moved.
 function moveBossXLeftMin11(g: Uint8Array): number {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    if (g8(g, bossState + 0) < 0x11) return 0;
-    s8(g, bossState + 0, (g8(g, bossState + 0) - 1) & 0xff);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    if (memRead8(g, bossState + 0) < 0x11) return 0;
+    memWrite8(g, bossState + 0, (memRead8(g, bossState + 0) - 1) & 0xff);
     return 1;
 }
 
 // sub_A5AB: increment boss_x guarded at max 0x30. 1 = moved.
 function moveBossXRightMax30(g: Uint8Array): number {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    if (g8(g, bossState + 0) >= 0x30) return 0;
-    s8(g, bossState + 0, (g8(g, bossState + 0) + 1) & 0xff);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    if (memRead8(g, bossState + 0) >= 0x30) return 0;
+    memWrite8(g, bossState + 0, (memRead8(g, bossState + 0) + 1) & 0xff);
     return 1;
 }
 
 // sub_A5BA: subtract damage (clamped), redraw health bar, start death.
 function applyDamageToBoss(g: Uint8Array, damage: number): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    let hp = g16(g, bossState + 3) - damage; // int32 in C
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    let hp = memRead16(g, bossState + 3) - damage; // int32 in C
     if (hp < 0) hp = 0;
-    s16(g, bossState + 3, hp);
+    memWrite16(g, bossState + 3, hp);
 
-    s8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
+    memWrite8(g, BOSS_HEALTH_REQUEST, 0xff); // Draw_Boss_Health
 
     if (hp !== 0) return;
 
-    s8(g, BOSS_BEING_HIT, 0xff);
+    memWrite8(g, BOSS_BEING_HIT, 0xff);
     browseProjectiles(g);
     charging = 0;
     projectileCharging = 0;
@@ -224,18 +210,18 @@ function deathSequenceStep(g: Uint8Array): void {
     const al = deathTimer;
 
     if (al >= 0x28) { // death sequence finished
-        s8(g, BOSS_IS_DEAD, 0xff);
+        memWrite8(g, BOSS_IS_DEAD, 0xff);
         return;
     }
 
-    s8(g, SPRITE_FLASH_FLAG, 0xff);
+    memWrite8(g, SPRITE_FLASH_FLAG, 0xff);
     recentlyHitFlag = 1;
     deathTimer++;
 
     if (al < 0x14) {
         tickEvery3rd();
         flapPhase = (flapPhase + 1) & 3;
-        s8(g, SOUND_FX_REQUEST, 44);
+        memWrite8(g, SOUND_FX_REQUEST, 44);
     } else {
         deathEntryFlag = 0xff;
         attackPhase = 1;
@@ -246,8 +232,8 @@ function deathSequenceStep(g: Uint8Array): void {
 
 // loc_A455: build this frame's body-part sprites into the monsters table.
 function renderBossSpriteFrame(g: Uint8Array): void {
-    const bossState = g16(g, BOSS_STATE_PTR);
-    let rowBase = g8(g, bossState + 2); // boss_y snapshot
+    const bossState = memRead16(g, BOSS_STATE_PTR);
+    let rowBase = memRead8(g, bossState + 2); // boss_y snapshot
 
     BYTE_A79C.fill(0xff);
 
@@ -263,8 +249,8 @@ function renderBossSpriteFrame(g: Uint8Array): void {
         selectPose((flapPhase + 2) & 0xff);
     }
 
-    let di = g16(g, MONSTERS_LIST);
-    let colx = g16(g, bossState + 0); // boss_x
+    let di = memRead16(g, MONSTERS_LIST);
+    let colx = memRead16(g, bossState + 0); // boss_x
     let segCount = 0;
 
     for (let col = 0; col < 9; col++) {
@@ -273,17 +259,17 @@ function renderBossSpriteFrame(g: Uint8Array): void {
             for (let row = 0; row < 8; row++) {
                 const v = BYTE_A79C[col * 8 + row] ?? 0xff;
                 if (v !== 0xff) {
-                    s16(g, di + 0, colx);                              // .currX
-                    s8(g, di + 2, (rowBase + row) & 0x3f);             // .currY
-                    s8(g, di + 3, win.xRel);                           // .m_x_rel
-                    s8(g, di + 4, (v >> 4) & 0x0f);                    // .flags <- pose high nibble
-                    s8(g, di + 6, v);                                  // .anim_counter <- whole pose
-                    s8(g, di + 5, hitResult ? 0x20 : 0x00);            // .ai_flags
+                    memWrite16(g, di + 0, colx);                              // .currX
+                    memWrite8(g, di + 2, (rowBase + row) & 0x3f);             // .currY
+                    memWrite8(g, di + 3, win.xRel);                           // .m_x_rel
+                    memWrite8(g, di + 4, (v >> 4) & 0x0f);                    // .flags <- pose high nibble
+                    memWrite8(g, di + 6, v);                                  // .anim_counter <- whole pose
+                    memWrite8(g, di + 5, hitResult ? 0x20 : 0x00);            // .ai_flags
 
-                    const mapOff = coordsToProxAddr(g, g8(g, di + 3), g8(g, di + 2));
-                    const oldTile = g8(g, mapOff);
-                    s8(g, mapOff, (segCount | 0x80) & 0xff);
-                    s8(g, PROXIMITY_LAYER2 + segCount, oldTile);
+                    const mapOff = coordsToProxAddr(g, memRead8(g, di + 3), memRead8(g, di + 2));
+                    const oldTile = memRead8(g, mapOff);
+                    memWrite8(g, mapOff, (segCount | 0x80) & 0xff);
+                    memWrite8(g, PROXIMITY_LAYER2 + segCount, oldTile);
 
                     di += 16;
                     segCount++;
@@ -293,13 +279,13 @@ function renderBossSpriteFrame(g: Uint8Array): void {
         colx = (colx + 1) & 0xffff;
     }
 
-    s16(g, di, 0xffff); // terminator after the last segment
+    memWrite16(g, di, 0xffff); // terminator after the last segment
 }
 
 /** Pollo_AI (tori.c:235) — entry point, called once per frame. */
 export function polloAi(g: Uint8Array, m: number): void {
     void m;
-    const base = g16(g, MONSTERS_LIST);
+    const base = memRead16(g, MONSTERS_LIST);
 
     // Walk last frame's body-part entries, restore proximity tiles and
     // pick the highest-priority hit this frame.
@@ -308,17 +294,17 @@ export function polloAi(g: Uint8Array, m: number): void {
         let si = base;
         let idx = 0;
 
-        while (g16(g, si) !== 0xffff) { // .currX sentinel
-            const win = isInProximityWindow(g, g16(g, si + 0));
+        while (memRead16(g, si) !== 0xffff) { // .currX sentinel
+            const win = isInProximityWindow(g, memRead16(g, si + 0));
             if (win.inside) {
-                s8(g, si + 3, win.xRel); // .m_x_rel
+                memWrite8(g, si + 3, win.xRel); // .m_x_rel
 
-                const di = coordsToProxAddr(g, g8(g, si + 3), g8(g, si + 2));
-                s8(g, di, g8(g, PROXIMITY_LAYER2 + idx));
+                const di = coordsToProxAddr(g, memRead8(g, si + 3), memRead8(g, si + 2));
+                memWrite8(g, di, memRead8(g, PROXIMITY_LAYER2 + idx));
 
-                if ((g8(g, si + 5) & 0x40) !== 0 && !(hitResult & 0x80)) {
-                    let al = g8(g, si + 5) & 0x1f;
-                    if (g8(g, si + 4) === 0) al |= 0x80; // heavy/priority part
+                if ((memRead8(g, si + 5) & 0x40) !== 0 && !(hitResult & 0x80)) {
+                    let al = memRead8(g, si + 5) & 0x1f;
+                    if (memRead8(g, si + 4) === 0) al |= 0x80; // heavy/priority part
                     hitResult = al;
                 }
             }
@@ -328,7 +314,7 @@ export function polloAi(g: Uint8Array, m: number): void {
         }
     }
 
-    s16(g, base, 0xffff); // reset the table; render repopulates it below
+    memWrite16(g, base, 0xffff); // reset the table; render repopulates it below
 
     // Apply damage for this frame's hit, if any.
     if (hitResult !== 0) {
@@ -337,7 +323,7 @@ export function polloAi(g: Uint8Array, m: number): void {
         let damage = (stat << 1) & 0xffff; // bx = stat*2
         if ((al & 0x80) !== 0) damage = (damage << 2) & 0xffff; // heavy: stat*8
 
-        s8(g, SOUND_FX_REQUEST, 41);
+        memWrite8(g, SOUND_FX_REQUEST, 41);
         applyDamageToBoss(g, damage);
 
         if (attacking) {
@@ -357,14 +343,14 @@ export function polloAi(g: Uint8Array, m: number): void {
         recentlyHitFlag = 1;
     }
 
-    const bossState = g16(g, BOSS_STATE_PTR);
+    const bossState = memRead16(g, BOSS_STATE_PTR);
 
     // Dive-charge attack in progress.
     if (attacking) {
-        if (g8(g, bossState + 2) !== 0x0e) s8(g, bossState + 2, (g8(g, bossState + 2) - 1) & 0xff);
+        if (memRead8(g, bossState + 2) !== 0x0e) memWrite8(g, bossState + 2, (memRead8(g, bossState + 2) - 1) & 0xff);
 
         attackPhase = (attackPhase + 1) & 3;
-        if (attackPhase === 2) s8(g, SOUND_FX_REQUEST, 43);
+        if (attackPhase === 2) memWrite8(g, SOUND_FX_REQUEST, 43);
 
         let cancel = 1;
         if (moveBossXLeftMin11(g) !== 0) {
@@ -377,7 +363,7 @@ export function polloAi(g: Uint8Array, m: number): void {
             attacking = 0;
             attackPhase = 0;
             recovering = 0xff;
-            s8(g, SOUND_FX_REQUEST, 42);
+            memWrite8(g, SOUND_FX_REQUEST, 42);
         }
         renderBossSpriteFrame(g);
         return;
@@ -389,8 +375,8 @@ export function polloAi(g: Uint8Array, m: number): void {
             recovering = 0;
         } else {
             attackPhase = 1;
-            if (g8(g, bossState + 2) !== 0x12) {
-                s8(g, bossState + 2, (g8(g, bossState + 2) + 1) & 0xff);
+            if (memRead8(g, bossState + 2) !== 0x12) {
+                memWrite8(g, bossState + 2, (memRead8(g, bossState + 2) + 1) & 0xff);
                 attackPhase = 0;
                 moveBossXLeftMin0D(g);
             }
@@ -408,7 +394,7 @@ export function polloAi(g: Uint8Array, m: number): void {
         }
         if (windupFlaps < 4) {
             windupFlaps++;
-            s8(g, SOUND_FX_REQUEST, 42);
+            memWrite8(g, SOUND_FX_REQUEST, 42);
             hitFlashTimer = 4;
         } else {
             charging = 0;
@@ -428,12 +414,12 @@ export function polloAi(g: Uint8Array, m: number): void {
         }
         if (windupFlaps < 2) {
             windupFlaps++;
-            s8(g, SOUND_FX_REQUEST, 42);
+            memWrite8(g, SOUND_FX_REQUEST, 42);
             hitFlashTimer = 2;
         } else {
-            const win = isInProximityWindow(g, (g16(g, bossState + 0) + 4) & 0xffff);
+            const win = isInProximityWindow(g, (memRead16(g, bossState + 0) + 4) & 0xffff);
             TORI_PROJECTILE_TEMPLATE[0] = win.xRel;
-            TORI_PROJECTILE_TEMPLATE[1] = (g8(g, bossState + 2) + 4) & 0x3f;
+            TORI_PROJECTILE_TEMPLATE[1] = (memRead8(g, bossState + 2) + 4) & 0x3f;
             addProjectileToArray(g, TORI_PROJECTILE_TEMPLATE);
             projectileCharging = 0;
         }
@@ -442,7 +428,7 @@ export function polloAi(g: Uint8Array, m: number): void {
     }
 
     // Death sequence takes over once the boss has been struck to 0 HP.
-    if (g8(g, BOSS_BEING_HIT) !== 0) {
+    if (memRead8(g, BOSS_BEING_HIT) !== 0) {
         deathSequenceStep(g);
         return;
     }
@@ -450,7 +436,7 @@ export function polloAi(g: Uint8Array, m: number): void {
     // Idle movement / attack-decision logic.
     flapPhase = (flapPhase + 1) & 3;
 
-    if (hitResult !== 0 && g8(g, bossState + 0) >= 0x14) {
+    if (hitResult !== 0 && memRead8(g, bossState + 0) >= 0x14) {
         charging = 0xff;
         windupFlaps = 0;
     }
@@ -468,11 +454,11 @@ export function polloAi(g: Uint8Array, m: number): void {
         return;
     }
 
-    let heroCol = (g8(g, PROXIMITY_MAP_LEFT_COL) + g8(g, HERO_X_VIEW)) & 0xff;
-    const mapWidth = g16(g, MAP_WIDTH);
+    let heroCol = (memRead8(g, PROXIMITY_MAP_LEFT_COL) + memRead8(g, HERO_X_VIEW)) & 0xff;
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (heroCol >= mapWidth) heroCol -= mapWidth;
 
-    const bl = (g8(g, bossState + 0) - heroCol) & 0xff;
+    const bl = (memRead8(g, bossState + 0) - heroCol) & 0xff;
 
     if (bl > 0x0c) {
         // Boss far ahead of the hero: flap toward closing the gap.

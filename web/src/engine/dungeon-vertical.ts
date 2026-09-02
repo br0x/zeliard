@@ -23,7 +23,6 @@
  * C file statics stay in g_mem; no hidden TS state.
  */
 
-import { SEG1_BASE } from '../core/memory.js';
 import {
     coordsToProxAddr,
     isBlockingTile,
@@ -38,6 +37,8 @@ import {
     moveHeroRightIfNoObstacles,
     moveHeroUp,
 } from './dungeon-hero.js';
+
+import { memRead8, memRead16, memWrite8, memWrite16, segRead8 } from '../core/ts-memory.js';
 
 const PROX_COLS = 36;
 
@@ -88,47 +89,28 @@ const ACCESSORY_SILKARN_SHOES = 3;
 const KEY_LEFT = 4;
 const KEY_RIGHT = 8;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** seg1 byte read (MEM8_1 in the C port). */
-function seg8(g: Uint8Array, addr: number): number {
-    return g[(SEG1_BASE + addr) & 0xffffff] ?? 0;
-}
-
 /** hero_scroll_down (dungeon.c:1404). */
 export function heroScrollDown(g: Uint8Array): void {
-    s8(g, VIEWPORT_TOP_ROW, (g8(g, VIEWPORT_TOP_ROW) + 1) & 0xff);
-    let addr = (g16(g, 0xff31) + PROX_COLS) & 0xffff; // ADDR_VIEWPORT_LEFT_TOP
+    memWrite8(g, VIEWPORT_TOP_ROW, (memRead8(g, VIEWPORT_TOP_ROW) + 1) & 0xff);
+    let addr = (memRead16(g, 0xff31) + PROX_COLS) & 0xffff; // ADDR_VIEWPORT_LEFT_TOP
     addr = wrapMapFromAbove(addr);
-    s16(g, 0xff31, addr);
+    memWrite16(g, 0xff31, addr);
 }
 
 /** is_over_rope (dungeon.c:4067). Rope tiles are 1 and 2. */
 export function isOverRope(g: Uint8Array, si: number): boolean {
-    const tile = g8(g, si);
+    const tile = memRead8(g, si);
     return tile === 1 || tile === 2;
 }
 
 /** set_zero_flag_if_slippery (dungeon.c:2093). 0 = slippery. */
 export function setZeroFlagIfSlippery(g: Uint8Array): number {
     if (
-        g8(g, CAVERN_LEVEL) === 4 &&
-        g8(g, CURRENT_ACCESSORY) !== ACCESSORY_RUZERIA_SHOES
+        memRead8(g, CAVERN_LEVEL) === 4 &&
+        memRead8(g, CURRENT_ACCESSORY) !== ACCESSORY_RUZERIA_SHOES
     ) {
         return 0;
     }
@@ -137,75 +119,75 @@ export function setZeroFlagIfSlippery(g: Uint8Array): number {
 
 /** init_on_ground (dungeon.c:4222). */
 export function initOnGround(g: Uint8Array): void {
-    s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
-    if (g8(g, ON_ROPE_FLAGS) === 0 && g8(g, JUMP_PHASE_FLAGS) === 0) {
-        s8(g, HERO_ANIM_PHASE, 0x80);
+    memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
+    if (memRead8(g, ON_ROPE_FLAGS) === 0 && memRead8(g, JUMP_PHASE_FLAGS) === 0) {
+        memWrite8(g, HERO_ANIM_PHASE, 0x80);
     }
 }
 
 /** on_right_pressed (dungeon.c:4185). */
 export function onRightPressed(g: Uint8Array): void {
-    s8(g, BYTE_9F18, 0);
-    if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
-        s8(g, FACING, g8(g, FACING) ^ LEFT_FLAG);
+    memWrite8(g, BYTE_9F18, 0);
+    if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
+        memWrite8(g, FACING, memRead8(g, FACING) ^ LEFT_FLAG);
         return;
     }
-    if (g8(g, SQUAT_FLAG) !== 0) return;
+    if (memRead8(g, SQUAT_FLAG) !== 0) return;
 
     if (
-        g8(g, SLOPE_DIRECTION) === SLOPE_LEFT ||
+        memRead8(g, SLOPE_DIRECTION) === SLOPE_LEFT ||
         moveHeroRightIfNoObstacles(g) === 0
     ) {
         initOnGround(g);
         return;
     }
 
-    s8(g, SLIDE_DIRECTION, SLIDE_RIGHT);
-    if (g8(g, ON_ROPE_FLAGS) !== 0) return;
+    memWrite8(g, SLIDE_DIRECTION, SLIDE_RIGHT);
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) return;
 
-    if (setZeroFlagIfSlippery(g) === 0 && g8(g, SLIDE_TICKS_REMAINING) === 0) {
-        s8(g, SLIDE_DIRECTION_LOCK, 1); // right movement locked
-        s8(g, HORIZ_MOVEMENT_ACCUM, (g8(g, HORIZ_MOVEMENT_ACCUM) + 1) & 0xff);
+    if (setZeroFlagIfSlippery(g) === 0 && memRead8(g, SLIDE_TICKS_REMAINING) === 0) {
+        memWrite8(g, SLIDE_DIRECTION_LOCK, 1); // right movement locked
+        memWrite8(g, HORIZ_MOVEMENT_ACCUM, (memRead8(g, HORIZ_MOVEMENT_ACCUM) + 1) & 0xff);
     }
 
-    s8(g, FACING, g8(g, FACING) | UP_FLAG);
-    if (g8(g, JUMP_PHASE_FLAGS) !== 0) return;
+    memWrite8(g, FACING, memRead8(g, FACING) | UP_FLAG);
+    if (memRead8(g, JUMP_PHASE_FLAGS) !== 0) return;
 
-    s8(g, HERO_ANIM_PHASE, (g8(g, HERO_ANIM_PHASE) + 1) & 0x7f);
-    s8(g, BYTE_9F19, 0);
+    memWrite8(g, HERO_ANIM_PHASE, (memRead8(g, HERO_ANIM_PHASE) + 1) & 0x7f);
+    memWrite8(g, BYTE_9F19, 0);
 }
 
 /** on_left_pressed (dungeon.c:4240). */
 export function onLeftPressed(g: Uint8Array): void {
-    s8(g, BYTE_9F18, 0);
-    if ((g8(g, FACING) & LEFT_FLAG) === 0) {
-        s8(g, FACING, g8(g, FACING) ^ LEFT_FLAG);
+    memWrite8(g, BYTE_9F18, 0);
+    if ((memRead8(g, FACING) & LEFT_FLAG) === 0) {
+        memWrite8(g, FACING, memRead8(g, FACING) ^ LEFT_FLAG);
         return;
     }
 
-    if (g8(g, SQUAT_FLAG) !== 0) return;
+    if (memRead8(g, SQUAT_FLAG) !== 0) return;
 
     if (
-        g8(g, SLOPE_DIRECTION) === SLOPE_RIGHT ||
+        memRead8(g, SLOPE_DIRECTION) === SLOPE_RIGHT ||
         moveHeroLeftIfNoObstacles(g) === 0
     ) {
         initOnGround(g);
         return;
     }
 
-    s8(g, SLIDE_DIRECTION, SLIDE_LEFT);
-    if (g8(g, ON_ROPE_FLAGS) !== 0) return;
+    memWrite8(g, SLIDE_DIRECTION, SLIDE_LEFT);
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) return;
 
-    if (setZeroFlagIfSlippery(g) === 0 && g8(g, SLIDE_TICKS_REMAINING) === 0) {
-        s8(g, SLIDE_DIRECTION_LOCK, 0); // left movement unlocked
-        s8(g, HORIZ_MOVEMENT_ACCUM, (g8(g, HORIZ_MOVEMENT_ACCUM) + 1) & 0xff);
+    if (setZeroFlagIfSlippery(g) === 0 && memRead8(g, SLIDE_TICKS_REMAINING) === 0) {
+        memWrite8(g, SLIDE_DIRECTION_LOCK, 0); // left movement unlocked
+        memWrite8(g, HORIZ_MOVEMENT_ACCUM, (memRead8(g, HORIZ_MOVEMENT_ACCUM) + 1) & 0xff);
     }
 
-    s8(g, FACING, g8(g, FACING) | UP_FLAG);
-    if (g8(g, JUMP_PHASE_FLAGS) !== 0) return;
+    memWrite8(g, FACING, memRead8(g, FACING) | UP_FLAG);
+    if (memRead8(g, JUMP_PHASE_FLAGS) !== 0) return;
 
-    s8(g, HERO_ANIM_PHASE, (g8(g, HERO_ANIM_PHASE) + 1) & 0x7f);
-    s8(g, BYTE_9F19, 0);
+    memWrite8(g, HERO_ANIM_PHASE, (memRead8(g, HERO_ANIM_PHASE) + 1) & 0x7f);
+    memWrite8(g, BYTE_9F19, 0);
 }
 
 /**
@@ -221,7 +203,7 @@ export function tryClimbRope(g: Uint8Array): void {
         // Check tile to the left of head
         si--;
         if (isOverRope(g, si)) {
-            if ((g8(g, FACING) & LEFT_FLAG) !== 0) {
+            if ((memRead8(g, FACING) & LEFT_FLAG) !== 0) {
                 onLeftPressed(g); // move left to center on rope
             }
             return;
@@ -230,7 +212,7 @@ export function tryClimbRope(g: Uint8Array): void {
         // Check tile to the right of head (restore head + 1 more)
         si += 2;
         if (isOverRope(g, si)) {
-            if ((g8(g, FACING) & LEFT_FLAG) === 0) {
+            if ((memRead8(g, FACING) & LEFT_FLAG) === 0) {
                 onRightPressed(g); // move right to center on rope
             }
             return;
@@ -238,22 +220,22 @@ export function tryClimbRope(g: Uint8Array): void {
         return; // no rope found
     }
 
-    s8(g, ON_ROPE_FLAGS, 0xff);
-    s8(g, SQUAT_FLAG, 0);
+    memWrite8(g, ON_ROPE_FLAGS, 0xff);
+    memWrite8(g, SQUAT_FLAG, 0);
 
     si = (heroCoordsToAddrInProximity(g) - 35) & 0xffff; // tile above head
     si = wrapMapFromBelow(si);
 
-    s8(g, HERO_ANIM_PHASE, (g8(g, HERO_ANIM_PHASE) - 1) & 0xff);
+    memWrite8(g, HERO_ANIM_PHASE, (memRead8(g, HERO_ANIM_PHASE) - 1) & 0xff);
 
     if (!isOverRope(g, si)) {
-        s8(g, HERO_ANIM_PHASE, g8(g, HERO_ANIM_PHASE) | 1);
+        memWrite8(g, HERO_ANIM_PHASE, memRead8(g, HERO_ANIM_PHASE) | 1);
         return;
     }
 
     moveHeroUp(g);
-    s8(g, RENDER_DONE, 0);
-    s8(g, RENDER_REQUEST, 0xff);
+    memWrite8(g, RENDER_DONE, 0);
+    memWrite8(g, RENDER_REQUEST, 0xff);
 }
 
 export interface PlatformTileMatch {
@@ -273,7 +255,7 @@ export function identifyPlatformTile(
     si: number,
     dl: number,
 ): PlatformTileMatch {
-    const tile = g8(g, si);
+    const tile = memRead8(g, si);
     let dh = 1;
     if (dl === tile) return { isPlatform: true, dh };
     dh--;
@@ -293,14 +275,14 @@ export interface AbsProxRel {
 /** abs_x_to_proximity_rel (dungeon.c:2329). */
 export function absXToProximityRel(g: Uint8Array, x: number): AbsProxRel {
     let d: number;
-    const proxLeft = g16(g, LEFT_COL_NUM);
+    const proxLeft = memRead16(g, LEFT_COL_NUM);
 
     if (x >= proxLeft) {
         d = (x - proxLeft) & 0xffff;
     } else if (x > 33) {
         d = x;
     } else {
-        d = (g16(g, MAP_WIDTH) - proxLeft + x) & 0xffff;
+        d = (memRead16(g, MAP_WIDTH) - proxLeft + x) & 0xffff;
     }
 
     return { ax: (33 - d) & 0xffff, bx: d, cf: d > 33 };
@@ -316,11 +298,11 @@ export function putDlToProximityLayered(
     tile: number,
     dst: number,
 ): void {
-    if ((g8(g, dst) & 0x80) !== 0) {
-        const monsterId = g8(g, dst) & 0x7f;
-        s8(g, PROXIMITY_LAYER2 + monsterId, tile);
+    if ((memRead8(g, dst) & 0x80) !== 0) {
+        const monsterId = memRead8(g, dst) & 0x7f;
+        memWrite8(g, PROXIMITY_LAYER2 + monsterId, tile);
     } else {
-        s8(g, dst, tile);
+        memWrite8(g, dst, tile);
     }
 }
 
@@ -341,22 +323,22 @@ export function findPlatformUnderHero(
     listPtr: number,
     dh: number,
 ): PlatformLocation {
-    let absX = (g8(g, HERO_XV) + 4 + dh) & 0xffff;
-    absX = (absX + g16(g, LEFT_COL_NUM)) & 0xffff;
-    const mapWidth = g16(g, MAP_WIDTH);
+    let absX = (memRead8(g, HERO_XV) + 4 + dh) & 0xffff;
+    absX = (absX + memRead16(g, LEFT_COL_NUM)) & 0xffff;
+    const mapWidth = memRead16(g, MAP_WIDTH);
     if (absX >= mapWidth) absX -= mapWidth;
 
     const feetY =
-        (g8(g, VIEWPORT_TOP_ROW) + g8(g, HERO_HEAD_Y_VIEW) + 3) & 0x3f;
+        (memRead8(g, VIEWPORT_TOP_ROW) + memRead8(g, HERO_HEAD_Y_VIEW) + 3) & 0x3f;
 
     let p = listPtr;
     for (;;) {
-        if (g16(g, p) === absX && g8(g, p + 2) === feetY) break;
+        if (memRead16(g, p) === absX && memRead8(g, p + 2) === feetY) break;
         p += 3;
     }
 
     const rel = absXToProximityRel(g, absX);
-    const proxAddr = coordsToProxAddr(g, rel.bx & 0xff, g8(g, p + 2));
+    const proxAddr = coordsToProxAddr(g, rel.bx & 0xff, memRead8(g, p + 2));
 
     return { entryPtr: p, proxAddr };
 }
@@ -373,11 +355,11 @@ export function tryMovePlatformDown(
 ): boolean {
     const bxSave = platformProx;
     let si = wrapMapFromAbove((platformProx + PROX_COLS - 1) & 0xffff);
-    if ((g8(g, si) & 0x80) !== 0) return false;
+    if ((memRead8(g, si) & 0x80) !== 0) return false;
 
     for (let i = 0; i < 3; i++) {
         si = (si + 1) & 0xffff;
-        if (g8(g, si) !== 0) return false;
+        if (memRead8(g, si) !== 0) return false;
     }
 
     si = wrapMapFromAbove((bxSave + PROX_COLS) & 0xffff);
@@ -387,7 +369,7 @@ export function tryMovePlatformDown(
         putDlToProximityLayered(g, 0, (bxSave + i) & 0xffff);
     }
 
-    s8(g, di + 2, (g8(g, di + 2) + 1) & 0x3f);
+    memWrite8(g, di + 2, (memRead8(g, di + 2) + 1) & 0x3f);
     return true;
 }
 
@@ -396,18 +378,18 @@ export function tryMovePlatformDown(
  * vertical platform under the hero moved up one row.
  */
 export function tryMovePlatformUp(g: Uint8Array): boolean {
-    if (g8(g, ON_ROPE_FLAGS) !== 0) return false;
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) return false;
 
     let si = (heroCoordsToAddrInProximity(g) - 35) & 0xffff;
     si = wrapMapFromBelow(si);
-    if (isBlockingTile(g, g8(g, si))) return false;
+    if (isBlockingTile(g, memRead8(g, si))) return false;
 
     si = wrapMapFromAbove((si + PROX_COLS * 4) & 0xffff);
 
     const match = identifyPlatformTile(g, si, 0x40);
     if (!match.isPlatform) return false;
 
-    const di = g16(g, VERTICAL_PLATFORMS_LIST);
+    const di = memRead16(g, VERTICAL_PLATFORMS_LIST);
     const found = findPlatformUnderHero(g, di, match.dh);
     const savedProx = found.proxAddr;
 
@@ -415,8 +397,8 @@ export function tryMovePlatformUp(g: Uint8Array): boolean {
     let siCheck = wrapMapFromBelow((bx - PROX_COLS) & 0xffff);
 
     for (let i = 0; i < 3; i++) {
-        if ((g8(g, siCheck) & 0x80) !== 0) return false;
-        if (g8(g, bx) !== 0) return false;
+        if ((memRead8(g, siCheck) & 0x80) !== 0) return false;
+        if (memRead8(g, bx) !== 0) return false;
         siCheck = (siCheck + 1) & 0xffff;
         bx = (bx + 1) & 0xffff;
     }
@@ -430,10 +412,10 @@ export function tryMovePlatformUp(g: Uint8Array): boolean {
         putDlToProximityLayered(g, 0, (platformProx + i) & 0xffff);
     }
 
-    s8(g, found.entryPtr + 2, (g8(g, found.entryPtr + 2) - 1) & 0x3f);
+    memWrite8(g, found.entryPtr + 2, (memRead8(g, found.entryPtr + 2) - 1) & 0x3f);
 
-    s8(g, HERO_ANIM_PHASE, 0x80);
-    s8(g, JUMP_PHASE_FLAGS, 0);
+    memWrite8(g, HERO_ANIM_PHASE, 0x80);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0);
     moveHeroUp(g);
 
     return true;
@@ -445,7 +427,7 @@ export function tryMovePlatformUp(g: Uint8Array): boolean {
  * Returns true when the platform moved (caller then scrolls down).
  */
 export function movePlatformDownDamageMonster(g: Uint8Array): boolean {
-    if (g8(g, ON_ROPE_FLAGS) !== 0) return false;
+    if (memRead8(g, ON_ROPE_FLAGS) !== 0) return false;
 
     let si = heroCoordsToAddrInProximity(g);
     si = wrapMapFromAbove((si + 3 * PROX_COLS + 1) & 0xffff);
@@ -453,11 +435,11 @@ export function movePlatformDownDamageMonster(g: Uint8Array): boolean {
     const match = identifyPlatformTile(g, si, 0x40);
     if (!match.isPlatform) return false;
 
-    const di = g16(g, VERTICAL_PLATFORMS_LIST);
+    const di = memRead16(g, VERTICAL_PLATFORMS_LIST);
     const found = findPlatformUnderHero(g, di, match.dh);
 
     if (tryMovePlatformDown(g, found.entryPtr, found.proxAddr, 0x40)) {
-        s8(g, HERO_ANIM_PHASE, 0x80);
+        memWrite8(g, HERO_ANIM_PHASE, 0x80);
         heroScrollDown(g);
         return true;
     }
@@ -470,12 +452,12 @@ export function movePlatformDownDamageMonster(g: Uint8Array): boolean {
         if (monsterStruct !== 0) {
             if (
                 (flags & 0x60) === 0 &&
-                (g8(g, monsterStruct + 5) & 0x20) === 0
+                (memRead8(g, monsterStruct + 5) & 0x20) === 0
             ) {
-                s8(
+                memWrite8(
                     g,
                     monsterStruct + 5,
-                    (g8(g, monsterStruct + 5) & 0xe0) | 0x40,
+                    (memRead8(g, monsterStruct + 5) & 0xe0) | 0x40,
                 );
             }
             break;
@@ -494,7 +476,7 @@ export function heroCollapsePlatform(g: Uint8Array): void {
     const match = identifyPlatformTile(g, si, 0x43);
     if (!match.isPlatform) return;
 
-    const di = g16(g, COLLAPSING_PLATFORMS_LIST);
+    const di = memRead16(g, COLLAPSING_PLATFORMS_LIST);
     const found = findPlatformUnderHero(g, di, match.dh);
     if (tryMovePlatformDown(g, found.entryPtr, found.proxAddr, 0x43)) {
         heroScrollDown(g);
@@ -512,12 +494,12 @@ export function checkFloorForLanding(g: Uint8Array): number {
     si = (si - 1) & 0xffff;
     if ((getDstMonsterFlags(g, si).flags & 0x80) !== 0) return 0;
     si = di;
-    if (isBlockingTileSimple(g, g8(g, si)) !== 0) return 0;
-    if (g8(g, HERO_ANIM_PHASE) === 0x80) return 0xff;
+    if (isBlockingTileSimple(g, memRead8(g, si)) !== 0) return 0;
+    if (memRead8(g, HERO_ANIM_PHASE) === 0x80) return 0xff;
     si = (si - 1) & 0xffff;
-    if (isBlockingTileSimple(g, g8(g, si)) === 0) return 0xff;
+    if (isBlockingTileSimple(g, memRead8(g, si)) === 0) return 0xff;
     si = (si + 2) & 0xffff;
-    if (isBlockingTileSimple(g, g8(g, si)) !== 0) return 0;
+    if (isBlockingTileSimple(g, memRead8(g, si)) !== 0) return 0;
     return 0xff;
 }
 
@@ -527,23 +509,23 @@ export function checkFloorForLanding(g: Uint8Array): number {
  * main loop (the C version encodes this as its return value).
  */
 export function landAfterJump(g: Uint8Array): boolean {
-    if ((g8(g, JUMP_PHASE_FLAGS) ^ 0x7f) !== 0) {
+    if ((memRead8(g, JUMP_PHASE_FLAGS) ^ 0x7f) !== 0) {
         return true; // still airborne — re-enter the dispatcher
     }
 
-    const oldHeight = g8(g, JUMP_HEIGHT_COUNTER);
+    const oldHeight = memRead8(g, JUMP_HEIGHT_COUNTER);
 
-    s8(g, JUMP_PHASE_FLAGS, 0); // on ground
-    s8(g, FRAME_TICKS, 0);
-    s8(g, JUMP_HEIGHT_COUNTER, 0);
-    s8(g, HERO_ANIM_PHASE, 0x80);
+    memWrite8(g, JUMP_PHASE_FLAGS, 0); // on ground
+    memWrite8(g, FRAME_TICKS, 0);
+    memWrite8(g, JUMP_HEIGHT_COUNTER, 0);
+    memWrite8(g, HERO_ANIM_PHASE, 0x80);
 
-    if (g8(g, SLOPE_DIRECTION) !== 0) {
+    if (memRead8(g, SLOPE_DIRECTION) !== 0) {
         return false;
     }
 
     if (oldHeight >= 2) {
-        s8(g, SQUAT_FLAG, 0xff); // squat after landing from a big height
+        memWrite8(g, SQUAT_FLAG, 0xff); // squat after landing from a big height
     }
     return false;
 }
@@ -561,16 +543,16 @@ export function getSlopeDirectionByTileUnderFeet(
     g: Uint8Array,
     si: number,
 ): number {
-    const tile = g8(g, si);
+    const tile = memRead8(g, si);
 
     for (let i = 0; i < 4; i++) {
-        const sl = seg8(g, SLOPE_TILES_LEFT + i);
+        const sl = segRead8(g, SLOPE_TILES_LEFT + i);
         if (sl === 0) break;
         if (tile === sl) return SLOPE_LEFT;
     }
 
     for (let i = 0; i < 4; i++) {
-        const sl = seg8(g, SLOPE_TILES_RIGHT + i);
+        const sl = segRead8(g, SLOPE_TILES_RIGHT + i);
         if (sl === 0) break;
         if (tile === sl) return SLOPE_RIGHT;
     }
@@ -581,7 +563,7 @@ export function getSlopeDirectionByTileUnderFeet(
 /** slope_assist_on_landing (dungeon.c:4394): slide the hero down a slope
  * they just landed on (Silkarn shoes climb instead). */
 export function slopeAssistOnLanding(g: Uint8Array): void {
-    s8(g, SLOPE_DIRECTION, 0);
+    memWrite8(g, SLOPE_DIRECTION, 0);
 
     const si = wrapMapFromAbove(
         (heroCoordsToAddrInProximity(g) + 2 * PROX_COLS + 1) & 0xffff,
@@ -590,14 +572,14 @@ export function slopeAssistOnLanding(g: Uint8Array): void {
     const dl = getSlopeDirectionByTileUnderFeet(g, si);
     if (dl === 0) return;
 
-    s8(g, FACING, g8(g, FACING) & ~UP_FLAG);
-    s8(g, SLOPE_DIRECTION, dl);
+    memWrite8(g, FACING, memRead8(g, FACING) & ~UP_FLAG);
+    memWrite8(g, SLOPE_DIRECTION, dl);
 
-    if (g8(g, HEIGHT_ABOVE_GROUND) !== 0) {
+    if (memRead8(g, HEIGHT_ABOVE_GROUND) !== 0) {
         // check_silkarn_shoes_and_slopes
-        if (g8(g, CURRENT_ACCESSORY) === ACCESSORY_SILKARN_SHOES) return;
-        s8(g, HEIGHT_ABOVE_GROUND, (g8(g, HEIGHT_ABOVE_GROUND) - 1) & 0xff);
-        if (g8(g, SLOPE_DIRECTION) === SLOPE_RIGHT) {
+        if (memRead8(g, CURRENT_ACCESSORY) === ACCESSORY_SILKARN_SHOES) return;
+        memWrite8(g, HEIGHT_ABOVE_GROUND, (memRead8(g, HEIGHT_ABOVE_GROUND) - 1) & 0xff);
+        if (memRead8(g, SLOPE_DIRECTION) === SLOPE_RIGHT) {
             moveHeroRightIfNoObstacles(g);
         } else {
             moveHeroLeftIfNoObstacles(g);
@@ -606,11 +588,11 @@ export function slopeAssistOnLanding(g: Uint8Array): void {
     }
 
     // height_above_ground == 0: slide every 4th tick unless holding uphill
-    const oldTicks = g8(g, TICKS);
-    s8(g, TICKS, (oldTicks + 1) & 0xff);
+    const oldTicks = memRead8(g, TICKS);
+    memWrite8(g, TICKS, (oldTicks + 1) & 0xff);
     if ((oldTicks & 3) !== 0) return;
-    const keys = g8(g, INPUT_DIRS);
-    if (g8(g, SLOPE_DIRECTION) === SLOPE_RIGHT) {
+    const keys = memRead8(g, INPUT_DIRS);
+    if (memRead8(g, SLOPE_DIRECTION) === SLOPE_RIGHT) {
         if ((keys & KEY_LEFT) === 0) moveHeroRightIfNoObstacles(g);
     } else {
         if ((keys & KEY_RIGHT) === 0) moveHeroLeftIfNoObstacles(g);

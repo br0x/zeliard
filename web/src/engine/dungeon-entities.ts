@@ -20,6 +20,7 @@
  */
 
 import { SEG1_BASE } from '../core/memory.js';
+import { memRead8, memRead16, memWrite8, memWrite16, segRead8 } from '../core/ts-memory.js';
 
 // ─── addresses ───
 const ADDR_PROXIMITY_MAP = 0xe000;
@@ -38,28 +39,9 @@ const AIRFLOW_RIGHT = 2;
 function seg1(offset: number): number {
     return SEG1_BASE + offset;
 }
-
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
-
 /** seg1 reads must NOT be truncated to 16 bits (seg1 lives past 0x10000). */
-function seg8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
 
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 // ─── proximity geometry ───
 
@@ -86,7 +68,7 @@ export function wrapMapFromBelow(addr: number): number {
 /** lookup_shared (dungeon.c:1512). Returns 1 = blocking. */
 export function lookupShared(g: Uint8Array, tile: number): number {
     for (let i = 0; i < 24; i++) {
-        if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
+        if (tile === segRead8(g, SEG1_PASSABLE_TILES + i)) return 0;
     }
     const masked = tile & 0x9f;
     if (masked === 0x90 || masked === 0x91) return 0xff;
@@ -102,7 +84,7 @@ export function isBlockingTile(g: Uint8Array, tile: number): boolean {
 export function isBlocking(g: Uint8Array, tile: number): number {
     if (tile < 0x49) {
         for (let i = 0; i < 24; i++) {
-            if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
+            if (tile === segRead8(g, SEG1_PASSABLE_TILES + i)) return 0;
         }
         return 0xff;
     }
@@ -113,7 +95,7 @@ export function isBlocking(g: Uint8Array, tile: number): number {
 export function isBlockingTileSimple(g: Uint8Array, tile: number): number {
     if (tile < 0x49) {
         for (let i = 0; i < 24; i++) {
-            if (tile === seg8(g, SEG1_PASSABLE_TILES + i)) return 0;
+            if (tile === segRead8(g, SEG1_PASSABLE_TILES + i)) return 0;
         }
         return (tile & 0x80) !== 0x80 ? 1 : 0;
     }
@@ -122,13 +104,13 @@ export function isBlockingTileSimple(g: Uint8Array, tile: number): number {
 
 /** is_right_airflow (dungeon.c:1525) — level 7 caverns have no airflows. */
 export function isRightAirflow(g: Uint8Array, tile: number): boolean {
-    if (g8(g, ADDR_CAVERN_LEVEL) === 7) return false;
+    if (memRead8(g, ADDR_CAVERN_LEVEL) === 7) return false;
     return getAirflowDirection(g, tile) === AIRFLOW_RIGHT;
 }
 
 /** is_left_airflow (dungeon.c:1533) — level 7 caverns have no airflows. */
 export function isLeftAirflow(g: Uint8Array, tile: number): boolean {
-    if (g8(g, ADDR_CAVERN_LEVEL) === 7) return false;
+    if (memRead8(g, ADDR_CAVERN_LEVEL) === 7) return false;
     return getAirflowDirection(g, tile) === AIRFLOW_LEFT;
 }
 
@@ -136,17 +118,17 @@ export function isLeftAirflow(g: Uint8Array, tile: number): boolean {
 export function getAirflowDirection(g: Uint8Array, tile: number): number {
     if (tile !== 0) {
         for (let i = 0; i < 4; i++) {
-            const af = seg8(g, SEG1_AIRFLOW_TILES + i);
+            const af = segRead8(g, SEG1_AIRFLOW_TILES + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_UP;
         }
         for (let i = 0; i < 4; i++) {
-            const af = seg8(g, SEG1_AIRFLOW_TILES + 4 + i);
+            const af = segRead8(g, SEG1_AIRFLOW_TILES + 4 + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_LEFT;
         }
         for (let i = 0; i < 4; i++) {
-            const af = seg8(g, SEG1_AIRFLOW_TILES + 8 + i);
+            const af = segRead8(g, SEG1_AIRFLOW_TILES + 8 + i);
             if (af === 0) break;
             if (tile === af) return AIRFLOW_RIGHT;
         }
@@ -158,48 +140,48 @@ export function getAirflowDirection(g: Uint8Array, tile: number): number {
 // Record layout: +0 currX (word), +2 currY, +3 m_x_rel, +6 flags, +7 state_flags
 
 function incrementX(g: Uint8Array, m: number): void {
-    let ax = (g16(g, m) + 1) & 0xffff;
-    const mapWidth = g16(g, ADDR_MAP_WIDTH);
+    let ax = (memRead16(g, m) + 1) & 0xffff;
+    const mapWidth = memRead16(g, ADDR_MAP_WIDTH);
     if (ax >= mapWidth) ax -= mapWidth;
-    s16(g, m, ax);
-    s8(g, m + 3, (g8(g, m + 3) + 1) & 0xff);
+    memWrite16(g, m, ax);
+    memWrite8(g, m + 3, (memRead8(g, m + 3) + 1) & 0xff);
 }
 
 function decrementX(g: Uint8Array, m: number): void {
-    const ax = g16(g, m);
-    s16(g, m, ax === 0 ? (g16(g, ADDR_MAP_WIDTH) - 1) & 0xffff : ax - 1);
-    s8(g, m + 3, (g8(g, m + 3) - 1) & 0xff);
+    const ax = memRead16(g, m);
+    memWrite16(g, m, ax === 0 ? (memRead16(g, ADDR_MAP_WIDTH) - 1) & 0xffff : ax - 1);
+    memWrite8(g, m + 3, (memRead8(g, m + 3) - 1) & 0xff);
 }
 
 function incrementY(g: Uint8Array, m: number): void {
-    s8(g, m + 2, (g8(g, m + 2) + 1) & 0x3f);
+    memWrite8(g, m + 2, (memRead8(g, m + 2) + 1) & 0x3f);
 }
 
 function decrementY(g: Uint8Array, m: number): void {
-    s8(g, m + 2, (g8(g, m + 2) - 1) & 0x3f);
+    memWrite8(g, m + 2, (memRead8(g, m + 2) - 1) & 0x3f);
 }
 
 // ─── wind-tunnel danger checks (E/W) ───
 
 function collisionEIncludingDanger5(g: Uint8Array, proxAddr: number): boolean {
-    const tile = g8(g, proxAddr);
+    const tile = memRead8(g, proxAddr);
     if (isBlocking(g, tile) !== 0) return true;
-    if (g8(g, ADDR_CAVERN_LEVEL) !== 5) return false;
+    if (memRead8(g, ADDR_CAVERN_LEVEL) !== 5) return false;
     return getAirflowDirection(g, tile) === AIRFLOW_LEFT;
 }
 
 function collisionWIncludingDanger5(g: Uint8Array, proxAddr: number): boolean {
-    const tile = g8(g, proxAddr);
+    const tile = memRead8(g, proxAddr);
     if (isBlocking(g, tile) !== 0) return true;
-    if (g8(g, ADDR_CAVERN_LEVEL) !== 5) return false;
+    if (memRead8(g, ADDR_CAVERN_LEVEL) !== 5) return false;
     return getAirflowDirection(g, tile) === AIRFLOW_RIGHT;
 }
 
 // ─── 2×2 footprint collision checks ───
 
 export function checkCollisionE2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) + 2;
 
     if (collisionEIncludingDanger5(g, di)) return 0xff; // (+2, 0)
@@ -208,19 +190,19 @@ export function checkCollisionE2(g: Uint8Array, m: number): number {
     if (collisionEIncludingDanger5(g, di)) return 0xff; // (+2, +1)
 
     // monster/item markers: bit7 on (+2,-1), (+2,0), (+2,+1)
-    let markers = g8(g, di); // (+2, +1)
+    let markers = memRead8(g, di); // (+2, +1)
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di); // (+2, 0)
+    markers |= memRead8(g, di); // (+2, 0)
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di); // (+2, -1)
+    markers |= memRead8(g, di); // (+2, -1)
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionW2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) - 1;
 
     if (collisionWIncludingDanger5(g, di)) return 0xff; // (-1, 0)
@@ -229,122 +211,122 @@ export function checkCollisionW2(g: Uint8Array, m: number): number {
     if (collisionWIncludingDanger5(g, di)) return 0xff; // (-1, +1)
 
     di -= 1;
-    let markers = g8(g, di); // (-2, +1)
+    let markers = memRead8(g, di); // (-2, +1)
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di); // (-2, 0)
+    markers |= memRead8(g, di); // (-2, 0)
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di); // (-2, -1)
+    markers |= memRead8(g, di); // (-2, -1)
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionN2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = wrapMapFromBelow(coordsToProxAddr(g, xRel, y) - PROX_COLS);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (0, -1)
-    if (isBlocking(g, g8(g, di + 1)) !== 0) return 0xff; // (+1, -1)
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (0, -1)
+    if (isBlocking(g, memRead8(g, di + 1)) !== 0) return 0xff; // (+1, -1)
 
     di = wrapMapFromBelow(di - PROX_COLS);
-    const markers = g8(g, di - 1) | g8(g, di) | g8(g, di + 1);
+    const markers = memRead8(g, di - 1) | memRead8(g, di) | memRead8(g, di + 1);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionS2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = wrapMapFromAbove(coordsToProxAddr(g, xRel, y) + PROX_COLS * 2);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (0, 2)
-    if (isBlocking(g, g8(g, di + 1)) !== 0) return 0xff; // (+1, 2)
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (0, 2)
+    if (isBlocking(g, memRead8(g, di + 1)) !== 0) return 0xff; // (+1, 2)
 
-    const markers = g8(g, di - 1) | g8(g, di) | g8(g, di + 1);
+    const markers = memRead8(g, di - 1) | memRead8(g, di) | memRead8(g, di + 1);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionNE2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) + 2;
 
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (2, 0)
-    let markers = g8(g, di);
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (2, 0)
+    let markers = memRead8(g, di);
 
     di = wrapMapFromBelow(di - PROX_COLS);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (2, -1)
-    markers |= g8(g, di);
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (2, -1)
+    markers |= memRead8(g, di);
 
-    if (isBlocking(g, g8(g, di - 1)) !== 0) return 0xff; // (1, -1)
+    if (isBlocking(g, memRead8(g, di - 1)) !== 0) return 0xff; // (1, -1)
 
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di) | g8(g, di - 1) | g8(g, di - 2);
+    markers |= memRead8(g, di) | memRead8(g, di - 1) | memRead8(g, di - 2);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionSE2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) + 2;
-    let markers = g8(g, di); // (+2, 0)
+    let markers = memRead8(g, di); // (+2, 0)
 
     di = wrapMapFromAbove(di + PROX_COLS);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (2, 1)
-    markers |= g8(g, di);
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (2, 1)
+    markers |= memRead8(g, di);
 
     di = wrapMapFromAbove(di + PROX_COLS);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (2, 2)
-    markers |= g8(g, di);
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (2, 2)
+    markers |= memRead8(g, di);
 
-    if (isBlocking(g, g8(g, di - 1)) !== 0) return 0xff; // (1, 2)
+    if (isBlocking(g, memRead8(g, di - 1)) !== 0) return 0xff; // (1, 2)
 
-    markers |= g8(g, di - 1) | g8(g, di - 2);
+    markers |= memRead8(g, di - 1) | memRead8(g, di - 2);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionNW2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) - 1;
 
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (-1, 0)
-    let markers = g8(g, di - 1); // (-2, 0)
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (-1, 0)
+    let markers = memRead8(g, di - 1); // (-2, 0)
 
     di = wrapMapFromBelow(di - PROX_COLS);
-    if (isBlocking(g, g8(g, di)) !== 0) return 0xff; // (-1, -1)
-    if (isBlocking(g, g8(g, di + 1)) !== 0) return 0xff; // (0, -1)
-    markers |= g8(g, di - 1); // (-2, -1)
+    if (isBlocking(g, memRead8(g, di)) !== 0) return 0xff; // (-1, -1)
+    if (isBlocking(g, memRead8(g, di + 1)) !== 0) return 0xff; // (0, -1)
+    markers |= memRead8(g, di - 1); // (-2, -1)
 
     di = wrapMapFromBelow(di - PROX_COLS);
-    markers |= g8(g, di - 1) | g8(g, di) | g8(g, di + 1);
+    markers |= memRead8(g, di - 1) | memRead8(g, di) | memRead8(g, di + 1);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
 }
 
 export function checkCollisionSW2(g: Uint8Array, m: number): number {
-    const y = g8(g, m + 2);
-    const xRel = g8(g, m + 3);
+    const y = memRead8(g, m + 2);
+    const xRel = memRead8(g, m + 3);
     let di = coordsToProxAddr(g, xRel, y) - 2;
 
-    let markers = g8(g, di); // (-2, 0)
+    let markers = memRead8(g, di); // (-2, 0)
 
     di = wrapMapFromAbove(di + PROX_COLS);
-    markers |= g8(g, di); // (-2, 1)
-    if (isBlocking(g, g8(g, di + 1)) !== 0) return 0xff; // (-1, 1)
+    markers |= memRead8(g, di); // (-2, 1)
+    if (isBlocking(g, memRead8(g, di + 1)) !== 0) return 0xff; // (-1, 1)
 
     di = wrapMapFromAbove(di + PROX_COLS);
-    if (isBlocking(g, g8(g, di + 1)) !== 0) return 0xff; // (-1, 2)
-    if (isBlocking(g, g8(g, di + 2)) !== 0) return 0xff; // (0, 2)
+    if (isBlocking(g, memRead8(g, di + 1)) !== 0) return 0xff; // (-1, 2)
+    if (isBlocking(g, memRead8(g, di + 2)) !== 0) return 0xff; // (0, 2)
 
-    markers |= g8(g, di) | g8(g, di + 1) | g8(g, di + 2);
+    markers |= memRead8(g, di) | memRead8(g, di + 1) | memRead8(g, di + 2);
     if ((markers & 0x80) !== 0) return 0xff;
 
     return 0;
@@ -367,7 +349,7 @@ export function checkCollisionInDirection(g: Uint8Array, m: number, dir: number)
 // ─── directional moves ───
 
 function moveE(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) < 34 && checkCollisionE2(g, m) === 0) {
+    if (memRead8(g, m + 3) < 34 && checkCollisionE2(g, m) === 0) {
         incrementX(g, m);
         return 0xff;
     }
@@ -375,7 +357,7 @@ function moveE(g: Uint8Array, m: number): number {
 }
 
 function moveNE(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) < 34 && checkCollisionNE2(g, m) === 0) {
+    if (memRead8(g, m + 3) < 34 && checkCollisionNE2(g, m) === 0) {
         incrementX(g, m);
         decrementY(g, m);
         return 0xff;
@@ -384,7 +366,7 @@ function moveNE(g: Uint8Array, m: number): number {
 }
 
 function moveN(g: Uint8Array, m: number): number {
-    const xRel = g8(g, m + 3);
+    const xRel = memRead8(g, m + 3);
     if (xRel !== 0 && xRel !== 35 && checkCollisionN2(g, m) === 0) {
         decrementY(g, m);
         return 0xff;
@@ -393,7 +375,7 @@ function moveN(g: Uint8Array, m: number): number {
 }
 
 function moveNW(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) >= 2 && checkCollisionNW2(g, m) === 0) {
+    if (memRead8(g, m + 3) >= 2 && checkCollisionNW2(g, m) === 0) {
         decrementX(g, m);
         decrementY(g, m);
         return 0xff;
@@ -402,7 +384,7 @@ function moveNW(g: Uint8Array, m: number): number {
 }
 
 function moveW(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) >= 2 && checkCollisionW2(g, m) === 0) {
+    if (memRead8(g, m + 3) >= 2 && checkCollisionW2(g, m) === 0) {
         decrementX(g, m);
         return 0xff;
     }
@@ -410,7 +392,7 @@ function moveW(g: Uint8Array, m: number): number {
 }
 
 function moveSW(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) >= 2 && checkCollisionSW2(g, m) === 0) {
+    if (memRead8(g, m + 3) >= 2 && checkCollisionSW2(g, m) === 0) {
         decrementX(g, m);
         incrementY(g, m);
         return 0xff;
@@ -419,7 +401,7 @@ function moveSW(g: Uint8Array, m: number): number {
 }
 
 function moveS(g: Uint8Array, m: number): number {
-    const xRel = g8(g, m + 3);
+    const xRel = memRead8(g, m + 3);
     if (xRel !== 0 && xRel !== 35 && checkCollisionS2(g, m) === 0) {
         incrementY(g, m);
         return 0xff;
@@ -428,7 +410,7 @@ function moveS(g: Uint8Array, m: number): number {
 }
 
 function moveSE(g: Uint8Array, m: number): number {
-    if (g8(g, m + 3) < 34 && checkCollisionSE2(g, m) === 0) {
+    if (memRead8(g, m + 3) < 34 && checkCollisionSE2(g, m) === 0) {
         incrementX(g, m);
         incrementY(g, m);
         return 0xff;

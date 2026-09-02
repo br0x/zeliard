@@ -13,6 +13,7 @@
 import { wrapMapFromAbove, wrapMapFromBelow } from './dungeon-entities.js';
 import { getRandom } from './dungeon-combat.js';
 import { markProximityMonsterAsSpellTarget } from './dungeon-spells.js';
+import { memRead8, memRead16, memWrite8, memWrite16 } from '../core/ts-memory.js';
 
 const MAGIC_PROJECTILE_STRIDE = 0x10;
 
@@ -34,22 +35,7 @@ const ALTKEY_LATCH = 0xff1e;
 const SPACEBAR_LATCH = 0xff1d;
 const SOUND_FX_REQUEST = 0xff75;
 
-function g8(g: Uint8Array, addr: number): number {
-    return g[addr & 0xffff] ?? 0;
-}
 
-function s8(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-}
-
-function g16(g: Uint8Array, addr: number): number {
-    return (g[addr & 0xffff] ?? 0) | ((g[(addr + 1) & 0xffff] ?? 0) << 8);
-}
-
-function s16(g: Uint8Array, addr: number, v: number): void {
-    g[addr & 0xffff] = v & 0xff;
-    g[(addr + 1) & 0xffff] = (v >> 8) & 0xff;
-}
 
 /** Injected to break the cycle into dungeon-frame (guerra re-render). */
 export interface SpellFireCallbacks {
@@ -71,46 +57,46 @@ export function magicSpellFireHandler(
         initGuerra: (g: Uint8Array, si: number) => void;
     },
 ): void {
-    if (g8(g, CURRENT_MAGIC_SPELL) === 0) return;
+    if (memRead8(g, CURRENT_MAGIC_SPELL) === 0) return;
 
-    if (g8(g, 0xff3c /* SPELL_ACTIVE_FLAG */) === 0) {
+    if (memRead8(g, 0xff3c /* SPELL_ACTIVE_FLAG */) === 0) {
         // not casting: check whether Alt was just pressed
-        if (g8(g, ALTKEY_LATCH) === 0) return;
+        if (memRead8(g, ALTKEY_LATCH) === 0) return;
 
-        s8(g, SPACEBAR_LATCH, 0);
-        s8(g, ALTKEY_LATCH, 0);
+        memWrite8(g, SPACEBAR_LATCH, 0);
+        memWrite8(g, ALTKEY_LATCH, 0);
 
-        if (g8(g, 0xff43 /* SWORD_SWING_FLAG */) !== 0) return; // mid sword-swing
-        if (g8(g, BYTE_FF3E) !== 0) return; // projectile still active
+        if (memRead8(g, 0xff43 /* SWORD_SWING_FLAG */) !== 0) return; // mid sword-swing
+        if (memRead8(g, BYTE_FF3E) !== 0) return; // projectile still active
 
-        s8(g, 0x9f2b /* BYTE_9F2B */, 0);
-        s8(g, 0xff3c, 0xff);
-        s8(g, SOUND_FX_REQUEST, 23);
+        memWrite8(g, 0x9f2b /* BYTE_9F2B */, 0);
+        memWrite8(g, 0xff3c, 0xff);
+        memWrite8(g, SOUND_FX_REQUEST, 23);
         return;
     }
 
     // already casting: advance charge-up counter (+2 per call)
-    const counter = (g8(g, 0x9f2b) + 2) & 0xff;
-    s8(g, 0x9f2b, counter);
+    const counter = (memRead8(g, 0x9f2b) + 2) & 0xff;
+    memWrite8(g, 0x9f2b, counter);
 
     if (counter !== 4) {
         if (counter >= 6) {
-            s8(g, 0xff3c, 0); // charge expired without firing
+            memWrite8(g, 0xff3c, 0); // charge expired without firing
         }
         return;
     }
 
     // charge complete: fire
-    const spell = (g8(g, CURRENT_MAGIC_SPELL) - 1) & 0xff; // 0..6
+    const spell = (memRead8(g, CURRENT_MAGIC_SPELL) - 1) & 0xff; // 0..6
 
-    if (g8(g, SPELLS_ESPADA + spell) === 0) return; // out of charges
+    if (memRead8(g, SPELLS_ESPADA + spell) === 0) return; // out of charges
 
-    s8(g, SPELLS_ESPADA + spell, (g8(g, SPELLS_ESPADA + spell) - 1) & 0xff);
-    s8(g, 0xffa3 /* MAGIC_LEFT_RENDER_REQUEST */, 0xff);
-    s8(g, SOUND_FX_REQUEST, 24);
+    memWrite8(g, SPELLS_ESPADA + spell, (memRead8(g, SPELLS_ESPADA + spell) - 1) & 0xff);
+    memWrite8(g, 0xffa3 /* MAGIC_LEFT_RENDER_REQUEST */, 0xff);
+    memWrite8(g, SOUND_FX_REQUEST, 24);
 
     const si = 0xeb15; // MAGIC_PROJECTILES
-    s8(g, BYTE_FF3E, 0xff);
+    memWrite8(g, BYTE_FF3E, 0xff);
 
     switch (spell) {
         case 0: callbacks.initMagicProjectile(g, si); break;
@@ -131,34 +117,34 @@ export function magicSpellFireHandler(
  * block by init_agua.
  */
 export function initMagicProjectile(g: Uint8Array, si: number): void {
-    const facing = g8(g, FACING);
+    const facing = memRead8(g, FACING);
     // dir encoding (NOT(facing) & 1): 0=LEFT, 1=RIGHT
     const dir = (~facing & 1) & 0xff;
-    s8(g, si + 3, dir);
+    memWrite8(g, si + 3, dir);
 
-    let y = ((g8(g, SQUAT_FLAG) & 1) +
-        (g8(g, HERO_HEAD_Y_VIEW) ?? 0) +
-        (g8(g, VIEWPORT_TOP_ROW) ?? 0)) & 0xff;
+    let y = ((memRead8(g, SQUAT_FLAG) & 1) +
+        (memRead8(g, HERO_HEAD_Y_VIEW) ?? 0) +
+        (memRead8(g, VIEWPORT_TOP_ROW) ?? 0)) & 0xff;
     y &= 0x3f;
-    s8(g, si + 2, y);
+    memWrite8(g, si + 2, y);
 
-    let xInProx = ((g8(g, HERO_XV) ?? 0) + 4) & 0xff;
+    let xInProx = ((memRead8(g, HERO_XV) ?? 0) + 4) & 0xff;
     xInProx = (xInProx + ((~dir & 1) & 0xff)) & 0xff;
 
-    let x = ((xInProx + g16(g, 0x80)) & 0xffff);
-    const mapWidth = g16(g, 0xc002);
+    let x = ((xInProx + memRead16(g, 0x80)) & 0xffff);
+    const mapWidth = memRead16(g, 0xc002);
     if (x >= mapWidth) x -= mapWidth;
-    s16(g, si, x);
+    memWrite16(g, si, x);
 
     for (const off of [8, 10, 12, 14]) {
-        s16(g, si + off, g16(g, si + off) & 0x00ff);
+        memWrite16(g, si + off, memRead16(g, si + off) & 0x00ff);
     }
 
-    s8(g, si + 4, 0); // life timer
-    s8(g, si + 5, 0); // anim frame
+    memWrite8(g, si + 4, 0); // life timer
+    memWrite8(g, si + 5, 0); // anim frame
 
     // terminate the active list right after this slot
-    s16(g, si + MAGIC_PROJECTILE_STRIDE, 0xffff);
+    memWrite16(g, si + MAGIC_PROJECTILE_STRIDE, 0xffff);
 }
 
 /** init_rascar (dungeon.c:6362): 4 beam slots across the screen width. */
@@ -166,21 +152,21 @@ export function initRascar(g: Uint8Array, siBase: number): void {
     let si = siBase;
     for (let beam = 0; beam < 4; beam++) {
         // x = left_col + {26,20,14,8}
-        let x = (6 * (4 - beam) + 2 + g16(g, 0x80)) & 0xffff;
-        const mapWidth = g16(g, 0xc002);
+        let x = (6 * (4 - beam) + 2 + memRead16(g, 0x80)) & 0xffff;
+        const mapWidth = memRead16(g, 0xc002);
         if (x >= mapWidth) x -= mapWidth;
-        s16(g, si, x);
+        memWrite16(g, si, x);
 
         let y = getRandom(g) & 3;
-        y = ((g8(g, VIEWPORT_TOP_ROW) - 3 - y) & 0x3f) as number;
+        y = ((memRead8(g, VIEWPORT_TOP_ROW) - 3 - y) & 0x3f) as number;
         y &= 0x3f;
-        s8(g, si + 2, y);
+        memWrite8(g, si + 2, y);
 
         for (const off of [8, 10, 12, 14]) {
-            s16(g, si + off, g16(g, si + off) & 0x00ff);
+            memWrite16(g, si + off, memRead16(g, si + off) & 0x00ff);
         }
-        s8(g, si + 4, 0);
-        s8(g, si + 5, 0);
+        memWrite8(g, si + 4, 0);
+        memWrite8(g, si + 5, 0);
 
         si += MAGIC_PROJECTILE_STRIDE;
     }
@@ -196,11 +182,11 @@ export function initAgua(g: Uint8Array, si: number): void {
         s += MAGIC_PROJECTILE_STRIDE;
     }
 
-    s8(g, base + 2, (g8(g, base + 2) - 2) & 0x3f);
-    s8(
+    memWrite8(g, base + 2, (memRead8(g, base + 2) - 2) & 0x3f);
+    memWrite8(
         g,
         base + 2 + MAGIC_PROJECTILE_STRIDE,
-        (g8(g, base + 2 + MAGIC_PROJECTILE_STRIDE) + 2) & 0x3f,
+        (memRead8(g, base + 2 + MAGIC_PROJECTILE_STRIDE) + 2) & 0x3f,
     );
 }
 
@@ -214,15 +200,15 @@ export function initGuerra(
     _si: number,
     callbacks?: { mainUpdateRender?: (g: Uint8Array) => void },
 ): void {
-    s8(g, BYTE_9EED, 0xff);
-    s8(g, BYTE_9EEE, 0xff);
+    memWrite8(g, BYTE_9EED, 0xff);
+    memWrite8(g, BYTE_9EEE, 0xff);
 
-    if (!(g8(g, IS_BOSS_CAVERN) !== 0 && g8(g, BOSS_BEING_HIT) !== 0)) {
-        let scan = wrapMapFromBelow((g16(g, PROXIMITY_MAP_LEFT_TOP) - 36) & 0xffff);
+    if (!(memRead8(g, IS_BOSS_CAVERN) !== 0 && memRead8(g, BOSS_BEING_HIT) !== 0)) {
+        let scan = wrapMapFromBelow((memRead16(g, PROXIMITY_MAP_LEFT_TOP) - 36) & 0xffff);
 
         for (let row = 0; row < 19; row++) {
             for (let col = 0; col < 36; col++) {
-                if ((g8(g, scan) & 0x80) !== 0) {
+                if ((memRead8(g, scan) & 0x80) !== 0) {
                     markProximityMonsterAsSpellTarget(g, scan);
                 }
                 scan = (scan + 1) & 0xffff;
@@ -231,10 +217,10 @@ export function initGuerra(
         }
     }
 
-    s8(g, BYTE_FF3E, 0);
-    s8(g, SOUND_FX_REQUEST, 25);
+    memWrite8(g, BYTE_FF3E, 0);
+    memWrite8(g, SOUND_FX_REQUEST, 25);
     // Render_Viewport_Border_Walls_proc(): JS-side flag consumer — no-op here
-    s8(g, ALTKEY_LATCH, 0);
+    memWrite8(g, ALTKEY_LATCH, 0);
     if (callbacks?.mainUpdateRender) {
         // clear_viewport_buffer + main_update_render on the C side
         callbacks.mainUpdateRender(g);
