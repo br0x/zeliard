@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isBlockingTile, isBlocking } from '../src/engine/dungeon-entities.js';
-import { setDungeonPassableTilesToBuffer, g_mem, getGmem } from '../src/core/ts-memory.js';
+import { setDungeonPassableTilesToBuffer, getGmem } from '../src/core/ts-memory.js';
 import { SEG1_BASE } from '../src/core/memory.js';
 
 describe('passable tile loading (regression: rope tiles must be passable)', () => {
