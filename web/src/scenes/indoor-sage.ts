@@ -1,12 +1,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
-import {
-    ADDR_HERO_LEVEL, ADDR_HERO_XP, ADDR_HERO_HP, ADDR_CURR_SPELL_TYPE,
-    ADDR_SPELLS_ACTIVE, ADDR_HERO_MAX_HP, ADDR_SPELLS_INVENTORY,
-    ADDR_ESPADA_ACTIVE, ADDR_INVINCIBILITY_FLAG, ADDR_PLACE_MAP_ID, ADDR_SAGES_SPOKEN,
-    MEM_SAVE_DATA,
-} from '../core/memory.js';
+import { MEM_SAVE_DATA } from '../core/memory.js';
 
 export interface SageSceneDependencies extends IndoorSceneDependencies {
     /** Legacy single-slot save hook (used when window.openSaveModal is absent). */
@@ -92,7 +87,7 @@ const SAGE_KNOWLEDGE = [
 
 function getTownIdx(readMemory: ((offset: number, length: number) => Uint8Array | null) | null): number {
     if (!readMemory) return 0;
-    return Math.max(0, Math.min(7, ((readMemory(ADDR_PLACE_MAP_ID, 1)?.[0] ?? 0) & 0x7F) - 1));
+    return Math.max(0, Math.min(7, ((readMemory(0xC4, 1)?.[0] ?? 0) & 0x7F) - 1));
 }
 
 export class SageScene extends IndoorSceneBase {
@@ -198,12 +193,12 @@ export class SageScene extends IndoorSceneBase {
 
     private _beginAudience(): void {
         this.townIdx = getTownIdx(this.readMemory);
-        const deathEntry = (this.readMemory?.(ADDR_INVINCIBILITY_FLAG, 1)?.[0] ?? 0);
+        const deathEntry = this.heroState.invincible;
         const intro = SAGE_INTROS[this.townIdx];
         const spoken = this._getSpokenBits();
         const isFirst = intro && !(spoken & intro.bit);
         if (deathEntry) {
-            this.writeMemory(ADDR_INVINCIBILITY_FLAG, Uint8Array.of(0));
+            this.heroState.invincible = false;
             this.menuDimmed = true;
             this._setDialog('While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.');
             this.sagePhase = 'dialog';
@@ -228,8 +223,8 @@ export class SageScene extends IndoorSceneBase {
         });
     }
 
-    private _getSpokenBits(): number { return this.readMemory?.(ADDR_SAGES_SPOKEN, 1)?.[0] ?? 0; }
-    private _setSpokenBit(bit: number): void { if (this.writeMemory) this.writeMemory(ADDR_SAGES_SPOKEN, Uint8Array.of(this._getSpokenBits() | bit)); }
+    private _getSpokenBits(): number { return this.heroState.sagesSpoken; }
+    private _setSpokenBit(bit: number): void { this.heroState.sagesSpoken |= bit; }
 
     // ── Dialog line buffer ────────────────────────────────────────────────────
     // dlgBuffer: string[]  – fully-committed wrapped lines (already typed out)
@@ -893,30 +888,24 @@ export class SageScene extends IndoorSceneBase {
         return 4;
     }
 
-    private _getHeroLevel(): number { return this.readMemory?.(ADDR_HERO_LEVEL, 1)?.[0] ?? 0; }
-    private _getHeroXp(): number {
-        if (!this.readMemory) return 0;
-        const b = this.readMemory(ADDR_HERO_XP, 2);
-        if (!b) return 0;
-        return (b[0] ?? 0) | (b[1] ?? 0) << 8;
-    }
+    private _getHeroLevel(): number { return this.heroState.level; }
+    private _getHeroXp(): number { return this.heroState.xp; }
     private _applyLevelUp(): void {
-        if (!this.writeMemory) return;
         const oldLevel = this._getHeroLevel();
         const threshold = SAGE_XP_TABLE[oldLevel] || 60000;
         const nextLevel = Math.min(0xFF, oldLevel + 1);
         const reward = this._getLevelReward(oldLevel);
 
-        this.writeMemory(ADDR_HERO_LEVEL, Uint8Array.of(nextLevel));
+        this.heroState.level = nextLevel;
         let xp = this._getHeroXp() - threshold;
         const newLevelClamped = Math.min(nextLevel, 15);
         const newThreshold = SAGE_XP_TABLE[newLevelClamped] || 60000;
         if (xp >= newThreshold) xp = newThreshold - 1;
-        this.writeMemory(ADDR_HERO_XP, Uint8Array.of(xp & 0xFF, (xp >> 8) & 0xFF));
-        this._writeWord(ADDR_HERO_MAX_HP, reward.hp);
-        this._writeWord(ADDR_HERO_HP, reward.hp);
-        this.writeMemory(ADDR_SPELLS_INVENTORY, Uint8Array.from(reward.spells));
-        this.writeMemory(ADDR_SPELLS_ACTIVE, Uint8Array.from(reward.spells));
+        this.heroState.xp = xp;
+        this.heroState.maxHp = reward.hp;
+        this.heroState.hp = reward.hp;
+        this.heroState.spellInventory.set(reward.spells);
+        this.heroState.spellCounts.set(reward.spells);
 
         this.drawLifeBar();
         this.renderMagicHud();
@@ -925,9 +914,7 @@ export class SageScene extends IndoorSceneBase {
 
     private _getLevelReward(level: number): { hp: number; spells: number[] } {
         if (level >= 16) {
-            const spells = this.readMemory
-                ? Array.from(this.readMemory(ADDR_SPELLS_INVENTORY, 7) ?? [0, 0, 0, 0, 0, 0, 0])
-                : [0, 0, 0, 0, 0, 0, 0];
+            const spells = Array.from(this.heroState.spellInventory);
             return {
                 hp: 800,
                 spells: spells.map(count => Math.min(0xFF, count + 2)),
@@ -936,26 +923,19 @@ export class SageScene extends IndoorSceneBase {
         return SAGE_LEVEL_REWARDS[Math.max(0, Math.min(SAGE_LEVEL_REWARDS.length - 1, level))]!;
     }
 
-    private _writeWord(addr: number, value: number): void {
-        if (!this.writeMemory) return;
-        const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
-    }
-
     private _activateIntroSpell(): void {
-        if (!this.writeMemory) return;
         if (this.townIdx < 1 || this.townIdx > 7) return;
         const spellNum = this.townIdx;
-        this.writeMemory(ADDR_CURR_SPELL_TYPE, Uint8Array.of(spellNum));
-        this.writeMemory(ADDR_ESPADA_ACTIVE + spellNum - 1, Uint8Array.of(0xFF));
+        this.heroState.currentSpellType = spellNum;
+        this.heroState.espadaActive[spellNum - 1] = 0xFF;
     }
 
     private _refreshMagicCounter(): void {
-        if (typeof document === 'undefined' || !this.readMemory) return;
-        const spell = (this.readMemory(ADDR_CURR_SPELL_TYPE, 1)?.[0] ?? 0) & 0xFF;
+        if (typeof document === 'undefined') return;
+        const spell = this.heroState.currentSpellType;
         if (!spell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = String((this.readMemory(ADDR_SPELLS_ACTIVE + spell - 1, 1)?.[0] ?? 0) & 0xFF);
+        if (counter) counter.textContent = String(this.heroState.spellCounts[spell - 1] ?? 0);
     }
 
     getName(): string {

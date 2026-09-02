@@ -7,10 +7,7 @@
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
-import {
-    ADDR_SPOKE_TO_KING, ADDR_ENTERED_CAVERN_FIRST_TIME, ADDR_DEATH_ALREADY_PROCESSED,
-    ADDR_SOUND_FX_REQUEST, ADDR_HERO_GOLD_LO, ADDR_HERO_GOLD_HI,
-} from '../core/memory.js';
+import { ADDR_SOUND_FX_REQUEST } from '../core/memory.js';
 
 const KING_IMAGE_PATHS: Array<string | null> = [
     null,
@@ -83,9 +80,9 @@ type MemoryReader = (offset: number, length: number) => Uint8Array | null;
 /** Pick the dialog script from the hero's progress flags. */
 export function selectKingDialogKey(readMemory: MemoryReader | null): KingDialogKey {
     if (!readMemory) return 'firstAudience';
-    const spoke = readMemory(ADDR_SPOKE_TO_KING, 1)?.[0] !== 0;
-    const entered = readMemory(ADDR_ENTERED_CAVERN_FIRST_TIME, 1)?.[0] !== 0;
-    const death = readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1)?.[0] !== 0;
+    const spoke = readMemory(0x05, 1)?.[0] !== 0;
+    const entered = readMemory(0x06, 1)?.[0] !== 0;
+    const death = readMemory(0x49, 1)?.[0] !== 0;
     if (!spoke && !entered) return 'firstAudience';
     if (!entered) return 'reminder';
     if (!death) return 'afterCavern';
@@ -375,9 +372,7 @@ export class KingScene extends IndoorSceneBase {
 
     // ── Gold award ────────────────────────────────────────────────────────────
     private _startGoldAward(now: number): void {
-        if (!this.readMemory) return;
-        // Already gave gold?
-        if (this.readMemory(ADDR_SPOKE_TO_KING, 1)?.[0] !== 0) return;
+        if (this.heroState.spokeToKing) return;
 
         if (!this.king) return;
         this.king.goldAward = { stepsDone: 0, nextStepAt: now + 100 };
@@ -390,8 +385,7 @@ export class KingScene extends IndoorSceneBase {
         const g = this.king?.goldAward;
         if (!g) return;
 
-        const next = this._getHeroGold() + KING_GOLD_GIFT_PER_STEP;
-        this._setHeroGold(next);
+        this.heroState.gold = this.heroState.gold + KING_GOLD_GIFT_PER_STEP;
 
         // Update the HUD so the gold counter visibly increases
         this.renderGoldHud();
@@ -410,7 +404,7 @@ export class KingScene extends IndoorSceneBase {
             this._applyGoldStep(now);
         } else {
             // Animation complete
-            this.writeMemory(ADDR_SPOKE_TO_KING, Uint8Array.of(0xFF));
+            this.heroState.spokeToKing = true;
             this.king.goldAward = null;
             // Advance to next page (or fade out)
             if (this.king.page < this.king.pages.length - 1) {
@@ -421,21 +415,6 @@ export class KingScene extends IndoorSceneBase {
                 this.startFadeOut(now);
             }
         }
-    }
-
-    private _getHeroGold(): number {
-        if (!this.readMemory) return 0;
-        const lo = this.readMemory(ADDR_HERO_GOLD_LO, 2);
-        const hi = this.readMemory(ADDR_HERO_GOLD_HI, 1);
-        if (!lo || !hi) return 0;
-        return ((lo[0] ?? 0) | (lo[1] ?? 0) << 8) + (hi[0] ?? 0) * 0x10000;
-    }
-
-    private _setHeroGold(value: number): void {
-        if (!this.writeMemory) return;
-        const clamped = Math.max(0, Math.min(0xFFFFFF, value));
-        this.writeMemory(ADDR_HERO_GOLD_LO, Uint8Array.of(clamped & 0xFF, (clamped >> 8) & 0xFF));
-        this.writeMemory(ADDR_HERO_GOLD_HI, Uint8Array.of((clamped >> 16) & 0xFF));
     }
 
     getName(): string {

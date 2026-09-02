@@ -31,12 +31,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                memSet(state, offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},
@@ -51,13 +52,18 @@ function makeDeps(state: MemState) {
     return { deps };
 }
 
+function memSet(s: MemState, addr: number, value: number): void {
+    s.bytes.set(addr, value & 0xFF);
+    s.buf[addr] = value & 0xFF;
+}
+
 const goldOf = (s: MemState) =>
-    ((s.bytes.get(0x85) ?? 0) * 0x10000) +
-    ((s.bytes.get(0x86) ?? 0) | ((s.bytes.get(0x87) ?? 0) << 8));
+    ((s.buf[0x85] ?? 0) * 0x10000) +
+    ((s.buf[0x86] ?? 0) | ((s.buf[0x87] ?? 0) << 8));
 const setGold = (s: MemState, v: number) => {
-    s.bytes.set(0x85, (v >>> 16) & 0xFF);
-    s.bytes.set(0x86, v & 0xFF);
-    s.bytes.set(0x87, (v >> 8) & 0xFF);
+    memSet(s, 0x85, (v >>> 16) & 0xFF);
+    memSet(s, 0x86, v & 0xFF);
+    memSet(s, 0x87, (v >> 8) & 0xFF);
 };
 
 describe('weapon shop tables', () => {
@@ -91,7 +97,7 @@ describe('WeaponShopScene transactions', () => {
     }
 
     async function enter(state: MemState, townId = 1) {
-        state.bytes.set(0xC4, townId);
+        memSet(state, 0xC4, townId);
         stubImages();
         const clock = { ms: 50000 };
         vi.spyOn(performance, 'now').mockImplementation(() => clock.ms);
@@ -129,7 +135,7 @@ describe('WeaponShopScene transactions', () => {
     it('buying a sword with a trade-in charges the net price', async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 5000);
-        state.bytes.set(0x92, 1); // currently owns Training sword (id 1)
+        memSet(state, 0x92, 1); // currently owns Training sword (id 1)
         const env = await enter(state);
 
         env.s.menuSel = 2; // Buy weapon
@@ -154,15 +160,15 @@ describe('WeaponShopScene transactions', () => {
         env.clock.ms += 3000; env.scene.draw(env.clock.ms);
 
         expect(goldOf(state)).toBe(goldBefore - (price - tradeIn));
-        expect(state.bytes.get(0x92)).toBe(targetIdx + 1);
-        expect(state.bytes.get(0xD2)).toBe(DEFAULT_SWORD_BITMASKS[0]! | 0x80); // old sword back in stock
+        expect(state.buf[0x92] ?? 0).toBe(targetIdx + 1);
+        expect(state.buf[0xD2] ?? 0).toBe(DEFAULT_SWORD_BITMASKS[0]! | 0x80); // old sword back in stock
         expect(env.s.boughtSomething).toBe(true);
     });
 
     it("buying the sword you already own gets you the salesman's brush-off", async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 5000);
-        state.bytes.set(0x92, 1); // owns Training sword
+        memSet(state, 0x92, 1); // owns Training sword
         const env = await enter(state);
         env.s.menuSel = 2;
         env.scene.handleInput('Space');
@@ -199,8 +205,8 @@ describe('WeaponShopScene transactions', () => {
         env.scene.handleInput('Space'); // Yes
         env.clock.ms += 3000; env.scene.draw(env.clock.ms);
 
-        expect(state.bytes.get(0x93)).toBe(targetShield + 1); // equipped id
-        const maxHp = (state.bytes.get(0x96) ?? 0) | ((state.bytes.get(0x97) ?? 0) << 8);
+        expect(state.buf[0x93] ?? 0).toBe(targetShield + 1); // equipped id
+        const maxHp = (state.buf[0x96] ?? 0) | ((state.buf[0x97] ?? 0) << 8);
         expect(maxHp).toBe(SHIELD_MAX_HP[targetShield]!);
         expect(goldOf(state)).toBe(before - price); // no trade-in, no old shield
     });
@@ -208,9 +214,9 @@ describe('WeaponShopScene transactions', () => {
     it('repair costs ceil((max-hp)/2) and restores the shield', async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 1000);
-        state.bytes.set(0x93, 2);           // Wise man's shield
-        state.bytes.set(0x96, 80); state.bytes.set(0x97, 0);   // max 80
-        state.bytes.set(0x94, 31); state.bytes.set(0x95, 0);   // hp 31
+        memSet(state, 0x93, 2);           // Wise man's shield
+        memSet(state, 0x96, 80); memSet(state, 0x97, 0);   // max 80
+        memSet(state, 0x94, 31); memSet(state, 0x95, 0);   // hp 31
         const env = await enter(state);
 
         env.s.menuSel = 1; // Repair shield
@@ -225,15 +231,15 @@ describe('WeaponShopScene transactions', () => {
         env.clock.ms += 2000; env.scene.draw(env.clock.ms);
 
         expect(goldOf(state)).toBe(1000 - Math.ceil((80 - 31) / 2)); // ceil(49/2)=25 → 975
-        const hp = (state.bytes.get(0x94) ?? 0) | ((state.bytes.get(0x95) ?? 0) << 8);
+        const hp = (state.buf[0x94] ?? 0) | ((state.buf[0x95] ?? 0) << 8);
         expect(hp).toBe(80);
     });
 
     it('Crest of Glory trade in Tumba grants the Knight\'s sword', async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 0);
-        state.bytes.set(0x24, 0x01);       // cementar_1: not yet traded
-        state.bytes.set(0x9B, 0x05);       // carrying Crest of Glory
+        memSet(state, 0x24, 0x01);       // cementar_1: not yet traded
+        memSet(state, 0x9B, 0x05);       // carrying Crest of Glory
         const env = await enter(state, 5); // Tumba (town id 5 → idx 4)
 
         expect(env.s.townIdx).toBe(4);
@@ -245,9 +251,9 @@ describe('WeaponShopScene transactions', () => {
         env.scene.handleInput('Space'); // Yes
         env.clock.ms += 3000; env.scene.draw(env.clock.ms);
 
-        expect(state.bytes.get(0x24)).toBe(0x03);          // traded bit set
-        expect(state.bytes.get(0x9B)).toBe(0);             // crest consumed
-        expect(state.bytes.get(0x92)).toBe(4);             // Knight's sword equipped
+        expect(state.buf[0x24] ?? 0).toBe(0x03);          // traded bit set
+        expect(state.buf[0x9B] ?? 0).toBe(0);             // crest consumed
+        expect(state.buf[0x92] ?? 0).toBe(4);             // Knight's sword equipped
         expect(env.s.exitAfterDialog).toBe(true);
     });
 });

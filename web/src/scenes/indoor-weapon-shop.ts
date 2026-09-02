@@ -17,11 +17,6 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
-import {
-    ADDR_PLACE_MAP_ID, ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP,
-    ADDR_SHIELD_MAX_HP, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO, ADDR_CEMENTAR_1,
-    ADDR_CREST_OF_GLORY, ADDR_SWORD_MASKS, ADDR_SHIELD_MASKS,
-} from '../core/memory.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -342,74 +337,51 @@ export class WeaponShopScene extends IndoorSceneBase {
         });
     }
 
-    // ── Memory helpers ────────────────────────────────────────────────────────
-
-    private _read(addr: number, len = 1): Uint8Array {
-        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
-    }
-
-    private _write(addr: number, bytes: Uint8Array): void {
-        if (this.writeMemory) this.writeMemory(addr, bytes);
-    }
-
     private _getTownIdx(): number {
-        const raw = (this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7F;
+        const raw = this.heroState.placeMapId & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
     private _getGold(): number {
-        const hi = this._read(ADDR_HERO_GOLD_HI, 1)[0] ?? 0;
-        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
-        return ((hi & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
+        return this.heroState.gold;
     }
 
     private _setGold(amount: number): void {
-        const v  = Math.max(0, Math.floor(amount));
-        const hi = (v >>> 16) & 0xFF;
-        const lo = v & 0xFFFF;
-        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.heroState.gold = Math.max(0, Math.floor(amount));
         this.renderGoldHud?.();
     }
 
-    private _getSwordType(): number    { return this._read(ADDR_SWORD_TYPE, 1)[0] ?? 0; }
-    private _setSwordType(v: number): void   { this._write(ADDR_SWORD_TYPE, Uint8Array.of(v)); this.renderSwordHud(); }
-    private _getShieldType(): number   { return this._read(ADDR_SHIELD_TYPE, 1)[0] ?? 0; }
-    private _setShieldType(v: number): void  { this._write(ADDR_SHIELD_TYPE, Uint8Array.of(v)); this.renderShieldHud(); }
+    private _getSwordType(): number    { return this.heroState.swordType; }
+    private _setSwordType(v: number): void   { this.heroState.swordType = v; this.renderSwordHud(); }
+    private _getShieldType(): number   { return this.heroState.shieldType; }
+    private _setShieldType(v: number): void  { this.heroState.shieldType = v; this.renderShieldHud(); }
 
-    private _getShieldHP(): number     { const b = this._read(ADDR_SHIELD_HP, 2); return (b[0] ?? 0) | ((b[1] ?? 0) << 8); }
-    private _getShieldMaxHP(): number  { const b = this._read(ADDR_SHIELD_MAX_HP, 2); return (b[0] ?? 0) | ((b[1] ?? 0) << 8); }
-    private _setShieldHP(v: number): void    { this._write(ADDR_SHIELD_HP, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF)); this.renderShieldHud(); }
-    private _setShieldMaxHP(v: number): void { this._write(ADDR_SHIELD_MAX_HP, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF)); this.renderShieldHud(); }
+    private _getShieldHP(): number     { return this.heroState.shieldHp; }
+    private _getShieldMaxHP(): number  { return this.heroState.shieldMaxHp; }
+    private _setShieldHP(v: number): void    { this.heroState.shieldHp = v & 0xFFFF; this.renderShieldHud(); }
+    private _setShieldMaxHP(v: number): void { this.heroState.shieldMaxHp = v & 0xFFFF; this.renderShieldHud(); }
 
     _getSwordBitmask()  {
-        return (this._read(ADDR_SWORD_MASKS  + this.townIdx, 1)[0]
-            || DEFAULT_SWORD_BITMASKS[this.townIdx]) ?? 0;
+        return this.heroState.swordMasks[this.townIdx] || DEFAULT_SWORD_BITMASKS[this.townIdx] || 0;
     }
     _getShieldBitmask() {
-        return (this._read(ADDR_SHIELD_MASKS + this.townIdx, 1)[0]
-            || DEFAULT_SHIELD_BITMASKS[this.townIdx]) ?? 0;
+        return this.heroState.shieldMasks[this.townIdx] || DEFAULT_SHIELD_BITMASKS[this.townIdx] || 0;
     }
     private _orSwordBitmask(bit: number): void {
-        this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(this._getSwordBitmask() | bit));
+        this.heroState.swordMasks[this.townIdx] = (this._getSwordBitmask() | bit) & 0xFF;
     }
     private _orShieldBitmask(bit: number): void {
-        this._write(ADDR_SHIELD_MASKS + this.townIdx, Uint8Array.of(this._getShieldBitmask() | bit));
+        this.heroState.shieldMasks[this.townIdx] = (this._getShieldBitmask() | bit) & 0xFF;
     }
 
     private _isCrestTradeActive(): boolean {
-        // townIdx 4 = Tumba (town_id 5 in ASM, 1-based).
         if (this.townIdx !== 4) return false;
-        const cem1  = this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0;
-        if (cem1 & 0x02) return false;    // already traded
-        return this._read(ADDR_CREST_OF_GLORY, 1)[0] !== 0;
+        if (this.heroState.cementar1Flags & 0x02) return false;
+        return this.heroState.crestOfGlory;
     }
 
     private _crestTraded(): boolean {
-        // True once the Crest of Glory has been traded for the Knight's Sword
-        // (cementar_items_1 bit 1, set by _executeCrestTrade).  Until then the
-        // Tumba smith refuses to sell the Knight's Sword (armrpro.asm sub_A47B).
-        return ((this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0) & 0x02) !== 0;
+        return (this.heroState.cementar1Flags & 0x02) !== 0;
     }
 
     private _buildInventoryLists(): void {
@@ -1123,7 +1095,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             // Enchantment Sword (item index 5, sword_type 6) is one-time only
             if (itemIdx === 5) {
                 const mask = this._getSwordBitmask();
-                this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(mask & ~itemIndexToBit(5)));
+                this.heroState.swordMasks[this.townIdx] = mask & ~itemIndexToBit(5);
             }
         } else {
             const old = this._getShieldType();
@@ -1194,19 +1166,16 @@ export class WeaponShopScene extends IndoorSceneBase {
     // ── Crest of Glory trade ──────────────────────────────────────────────────
 
     private _executeCrestTrade(_now: number): void {
-        // Permanently mark crest traded; give Knight's Sword; remove from inventory
         this.yesNoDialog = null;
-        const cem1 = this._read(ADDR_CEMENTAR_1, 1)[0] ?? 0;
-        this._write(ADDR_CEMENTAR_1, Uint8Array.of((cem1 | 0x02) & 0xFF));
-        this._write(ADDR_CREST_OF_GLORY, Uint8Array.of(0x00));
+        this.heroState.cementar1Flags = (this.heroState.cementar1Flags | 0x02) & 0xFF;
+        this.heroState.crestOfGlory = false;
 
         const old = this._getSwordType();
         if (old) this._orSwordBitmask(itemIndexToBit(old - 1));
-        this._setSwordType(4);  // SWORD_KNIGHT = 4
+        this._setSwordType(4);
 
-        // Remove Knight's Sword bit from town's sword bitmask (bit 4 = index 3)
         const mask = this._getSwordBitmask();
-        this._write(ADDR_SWORD_MASKS + this.townIdx, Uint8Array.of(mask & ~itemIndexToBit(3)));
+        this.heroState.swordMasks[this.townIdx] = mask & ~itemIndexToBit(3);
         this._buildInventoryLists();
 
         this.boughtSomething = true;

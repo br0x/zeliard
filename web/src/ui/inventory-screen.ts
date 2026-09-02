@@ -63,15 +63,10 @@ export const SHIELD_NAMES = [
 ];
 
 import {
-    ADDR_SWORD_TYPE, ADDR_SHIELD_TYPE, ADDR_SHIELD_HP, ADDR_SHIELD_MAX_HP,
-    ADDR_KEYS_AMOUNT, ADDR_LION_KEYS_AMOUNT, ADDR_ELF_CREST, ADDR_CREST_OF_GLORY,
-    ADDR_HERO_CREST, ADDR_CURR_SPELL_TYPE, ADDR_CURRENT_ACCESSORY, ADDR_FERUZA_SHOES,
-    ADDR_MAGIC_ITEMS, ADDR_SPELLS_ACTIVE, ADDR_HERO_HP, ADDR_HERO_MAX_HP,
-    ADDR_SPELLS_INVENTORY, ADDR_ESPADA_ACTIVE, ADDR_SWORD_ENCHANTMENT_LEVEL,
-    ADDR_HEALTH_BAR_REQUEST, ADDR_MAGIA_STONE_SPRITE0, ADDR_MAGIA_STONE_SPRITE1,
-    ADDR_MAGIA_STONE_SPRITE2, ADDR_MAGIA_STONE_SPRITE3, ADDR_HERO_LEVEL, ADDR_HERO_XP,
-    ADDR_HERO_ALMAS,
+    ADDR_MAGIA_STONE_SPRITE0, ADDR_MAGIA_STONE_SPRITE1,
+    ADDR_MAGIA_STONE_SPRITE2, ADDR_MAGIA_STONE_SPRITE3,
 } from '../core/memory.js';
+import type { HeroState, DungeonRuntimeState } from '../core/game-state.js';
 
 export const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
 //        Level:   0   1   2   3    4    5    6    7    8    9    10    11    12    13    14    15
@@ -80,6 +75,8 @@ export const XP_TABLE = [50,150,300,420,1000,1500,3000,5000,6000,8000,10000,1500
 export interface InventoryDeps {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
+    heroState: HeroState;
+    dungeon: DungeonRuntimeState;
     readMemory: ((offset: number, length: number) => Uint8Array | null) | null;
     writeMemory: ((offset: number, data: Uint8Array) => void) | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
@@ -118,7 +115,8 @@ export interface InventoryData {
 export class InventoryScreen {
     private readonly canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
-    private readonly readMemory: InventoryDeps['readMemory'];
+    private readonly heroState: HeroState;
+    private readonly dungeon: DungeonRuntimeState;
     private readonly writeMemory: InventoryDeps['writeMemory'];
     private readonly soundManager: InventoryDeps['soundManager'];
     private readonly onExit: InventoryDeps['onExit'];
@@ -147,7 +145,8 @@ export class InventoryScreen {
     constructor(deps: InventoryDeps) {
         this.canvas = deps.canvas;
         this.ctx = deps.ctx;
-        this.readMemory = deps.readMemory;
+        this.heroState = deps.heroState;
+        this.dungeon = deps.dungeon;
         this.writeMemory = deps.writeMemory;
         this.soundManager = deps.soundManager;
         this.onExit = deps.onExit ?? null;
@@ -209,17 +208,7 @@ export class InventoryScreen {
     }
 
     private _readGameData(): void {
-        const r0 = this.readMemory;
-        if (!r0) return;
-        // reads are guaranteed present once we know memory is live
-        const r = (addr: number, len: number): Uint8Array =>
-            r0(addr, len) ?? new Uint8Array(len);
-        /** single g_mem byte (0 when out of range) */
-        const u8 = (addr: number): number => r(addr, 1)[0] ?? 0;
-        /** little-endian g_mem word */
-        const le16 = (addr: number): number =>
-            (r(addr, 2)[0] ?? 0) | ((r(addr, 2)[1] ?? 0) << 8);
-
+        const hs = this.heroState;
         const d: InventoryData = {
             spells: [], spellCounts: [], spellMaxCounts: [],
             wearables: [], currentAccessory: 0, items: [],
@@ -230,39 +219,37 @@ export class InventoryScreen {
         };
 
         for (let i = 0; i < 7; i++) {
-            if (u8(ADDR_ESPADA_ACTIVE + i)) {
+            if (hs.espadaActive[i]) {
                 d.spells.push(i + 1);
-                d.spellCounts.push(u8(ADDR_SPELLS_ACTIVE + i));
-                d.spellMaxCounts.push(u8(ADDR_SPELLS_INVENTORY + i));
+                d.spellCounts.push(hs.spellCounts[i] ?? 0);
+                d.spellMaxCounts.push(hs.spellInventory[i] ?? 0);
             }
         }
 
-        const acc = r(ADDR_FERUZA_SHOES, 5);
         d.wearables = [0];
         for (let i = 0; i < 5; i++) {
-            d.wearables.push(acc[i] || 0);
+            d.wearables.push(hs.shoes[i] || 0);
         }
-        d.currentAccessory = u8(ADDR_CURRENT_ACCESSORY);
+        d.currentAccessory = hs.currentAccessory;
 
-        const it = r(ADDR_MAGIC_ITEMS, 5);
-        d.items = [0, ...Array.from(it).filter(v => v > 0)];
+        d.items = [0, ...Array.from(hs.magicItems).filter(v => v > 0)];
 
-        d.swordType = u8(ADDR_SWORD_TYPE);
-        d.shieldType = u8(ADDR_SHIELD_TYPE);
-        d.shieldHP = le16(ADDR_SHIELD_HP);
-        d.shieldMaxHP = le16(ADDR_SHIELD_MAX_HP);
-        d.keys = u8(ADDR_KEYS_AMOUNT);
-        d.lionKeys = u8(ADDR_LION_KEYS_AMOUNT);
-        d.elfCrest = !!u8(ADDR_ELF_CREST);
-        d.gloryCrest = !!u8(ADDR_CREST_OF_GLORY);
-        d.heroCrest = !!u8(ADDR_HERO_CREST);
-        d.currentSpell = u8(ADDR_CURR_SPELL_TYPE);
-        d.enchantCount = u8(ADDR_SWORD_ENCHANTMENT_LEVEL);
-        d.heroHP = le16(ADDR_HERO_HP);
-        d.heroMaxHP = le16(ADDR_HERO_MAX_HP);
-        d.level = u8(ADDR_HERO_LEVEL);
-        d.heroXP = le16(ADDR_HERO_XP);
-        d.almas = le16(ADDR_HERO_ALMAS);
+        d.swordType = hs.swordType;
+        d.shieldType = hs.shieldType;
+        d.shieldHP = hs.shieldHp;
+        d.shieldMaxHP = hs.shieldMaxHp;
+        d.keys = hs.keys;
+        d.lionKeys = hs.lionKeys;
+        d.elfCrest = hs.elfCrest;
+        d.gloryCrest = hs.crestOfGlory;
+        d.heroCrest = hs.heroCrest;
+        d.currentSpell = hs.currentSpellType;
+        d.enchantCount = hs.swordEnchantmentLevel;
+        d.heroHP = hs.hp;
+        d.heroMaxHP = hs.maxHp;
+        d.level = hs.level;
+        d.heroXP = hs.xp;
+        d.almas = hs.almas;
 
         this.data = d;
     }
@@ -630,12 +617,8 @@ export class InventoryScreen {
     }
 
     private _showDebugPopup(): void {
-        const r = this.readMemory;
-        if (r) {
-            this.data.level = (r(ADDR_HERO_LEVEL, 1) ?? new Uint8Array(1))[0] ?? 0;
-            const xp = r(ADDR_HERO_XP, 2) ?? new Uint8Array(2);
-            this.data.heroXP = (xp[0] ?? 0) | ((xp[1] ?? 0) << 8);
-        }
+        this.data.level = this.heroState.level;
+        this.data.heroXP = this.heroState.xp;
         this.debugPopup = true;
     }
 
@@ -767,14 +750,12 @@ export class InventoryScreen {
     }
 
     private _onNavigate(): void {
-        const w = this.writeMemory;
-        if (!w) return;
         if (this.currentTab === 0) {
             const id = this._selectedId();
-            if (id > 0) w(ADDR_CURR_SPELL_TYPE, Uint8Array.of(id));
+            if (id > 0) this.heroState.currentSpellType = id;
         } else if (this.currentTab === 1) {
             const id = this._selectedId();
-            w(ADDR_CURRENT_ACCESSORY, Uint8Array.of(id));
+            this.heroState.currentAccessory = id;
         }
     }
 
@@ -782,11 +763,7 @@ export class InventoryScreen {
         const itemId = this._selectedId();
         if (itemId === 0) return;
 
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
-
-        const it = r(ADDR_MAGIC_ITEMS, 5) ?? new Uint8Array(5);
+        const it = this.heroState.magicItems;
         let slot = -1;
         let nth = 0;
         for (let i = 0; i < 5; i++) {
@@ -812,59 +789,38 @@ export class InventoryScreen {
             case 7: this._enchantSword(); break;
             case 8:
                 this.soundManager?.playSfx(15);
-                w(ADDR_MAGIC_ITEMS + slot, Uint8Array.of(0));
+                this.heroState.magicItems[slot] = 0;
                 this.data.items.splice(this.selectedIndices[2] ?? 0, 1);
                 this.selectedIndices[2] = 0;
                 setTimeout(() => this.exit(), 600);
                 return;
         }
 
-        w(ADDR_MAGIC_ITEMS + slot, Uint8Array.of(0));
+        this.heroState.magicItems[slot] = 0;
         this.data.items.splice(this.selectedIndices[2] ?? 0, 1);
         this.selectedIndices[2] = 0;
     }
 
-    /** read a single g_mem byte, 0 when memory is unavailable */
-    private _byte(addr: number): number {
-        return (this.readMemory?.(addr, 1) ?? new Uint8Array(1))[0] ?? 0;
-    }
-
-    /** read a little-endian g_mem word */
-    private _word(addr: number): number {
-        const v = this.readMemory?.(addr, 2) ?? new Uint8Array(2);
-        return (v[0] ?? 0) | ((v[1] ?? 0) << 8);
-    }
-
     private _healHP(amount: number): void {
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
-        let val = this._word(ADDR_HERO_HP);
-        const maxVal = this._word(ADDR_HERO_MAX_HP);
-        val = Math.min(maxVal, val + amount);
-        w(ADDR_HERO_HP, Uint8Array.of(val & 0xFF, (val >> 8) & 0xFF));
-        w(ADDR_HEALTH_BAR_REQUEST, Uint8Array.of(0xFF));
-        this.data.heroHP = val;
+        const maxVal = this.heroState.maxHp;
+        this.heroState.hp = Math.min(maxVal, this.heroState.hp + amount);
+        this.dungeon.healthBarRequest = true;
+        this.data.heroHP = this.heroState.hp;
     }
 
     private _fullHeal(): void {
-        const w = this.writeMemory;
-        if (!w) return;
-        const maxVal = this._word(ADDR_HERO_MAX_HP);
-        w(ADDR_HERO_HP, Uint8Array.of(maxVal & 0xFF, (maxVal >> 8) & 0xFF));
-        w(ADDR_HEALTH_BAR_REQUEST, Uint8Array.of(0xFF));
+        const maxVal = this.heroState.maxHp;
+        this.heroState.hp = maxVal;
+        this.dungeon.healthBarRequest = true;
         this.data.heroHP = maxVal;
     }
 
     private _refillSpell(): void {
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
-        const cur = this._byte(ADDR_CURR_SPELL_TYPE);
+        const cur = this.heroState.currentSpellType;
         if (!cur) return;
         const idx = cur - 1;
-        const max = this._byte(ADDR_SPELLS_INVENTORY + idx);
-        w(ADDR_SPELLS_ACTIVE + idx, Uint8Array.of(max));
+        const max = this.heroState.spellInventory[idx] ?? 0;
+        this.heroState.spellCounts[idx] = max;
         for (let i = 0; i < this.data.spells.length; i++) {
             if (this.data.spells[i] === cur) {
                 this.data.spellCounts[i] = max;
@@ -874,15 +830,12 @@ export class InventoryScreen {
     }
 
     private _refillAllSpells(): void {
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
         for (let i = 0; i < 7; i++) {
-            w(ADDR_SPELLS_ACTIVE + i, Uint8Array.of(this._byte(ADDR_SPELLS_INVENTORY + i)));
+            this.heroState.spellCounts[i] = this.heroState.spellInventory[i] ?? 0;
         }
         for (let i = 0; i < this.data.spells.length; i++) {
             const sid = this.data.spells[i] as number;
-            this.data.spellCounts[i] = this._byte(ADDR_SPELLS_INVENTORY + sid - 1);
+            this.data.spellCounts[i] = this.heroState.spellInventory[sid - 1] ?? 0;
         }
     }
 
@@ -896,24 +849,15 @@ export class InventoryScreen {
     }
 
     private _repairShield(): void {
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
-        const st = this._byte(ADDR_SHIELD_TYPE);
+        const st = this.heroState.shieldType;
         if (!st) return;
-        let val = this._word(ADDR_SHIELD_HP);
-        const maxVal = this._word(ADDR_SHIELD_MAX_HP);
-        val = Math.min(maxVal, val + (SHIELD_HP_VALUES[st - 1] || 0));
-        w(ADDR_SHIELD_HP, Uint8Array.of(val & 0xFF, (val >> 8) & 0xFF));
-        this.data.shieldHP = val;
+        const maxVal = this.heroState.shieldMaxHp;
+        this.heroState.shieldHp = Math.min(maxVal, this.heroState.shieldHp + (SHIELD_HP_VALUES[st - 1] || 0));
+        this.data.shieldHP = this.heroState.shieldHp;
     }
 
     private _enchantSword(): void {
-        const r = this.readMemory;
-        const w = this.writeMemory;
-        if (!r || !w) return;
-        const c = this._byte(ADDR_SWORD_ENCHANTMENT_LEVEL) + 1;
-        w(ADDR_SWORD_ENCHANTMENT_LEVEL, Uint8Array.of(c));
-        this.data.enchantCount = c;
+        this.heroState.swordEnchantmentLevel = this.heroState.swordEnchantmentLevel + 1;
+        this.data.enchantCount = this.heroState.swordEnchantmentLevel;
     }
 }

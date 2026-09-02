@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrincessScene } from '../src/scenes/indoor-princess.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
+import { createLiveHeroState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, drawImage() {},
@@ -14,15 +15,14 @@ function makeDeps(overrides: Partial<IndoorSceneDependencies> & {
     memory?: Record<number, number>;
     startEndingDemo?: () => void;
 } = {}) {
+    const buf = new Uint8Array(0x10000);
+    const mem = overrides.memory ?? {};
+    for (const [k, v] of Object.entries(mem)) buf[Number(k)] = v & 0xFF;
     return {
         canvas: CANVAS,
         ctx: CTX,
-        readMemory: vi.fn((offset: number, length: number) => {
-            const mem = overrides.memory ?? {};
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = mem[offset + i] ?? 0;
-            return out;
-        }),
+        heroState: createLiveHeroState(buf),
+        readMemory: vi.fn((offset: number, length: number) => buf.subarray(offset, offset + length)),
         writeMemory: vi.fn(),
         finishCallback: vi.fn(),
         soundManager: {},

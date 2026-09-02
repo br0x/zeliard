@@ -23,12 +23,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},
@@ -43,25 +44,30 @@ function makeDeps(state: MemState) {
     return { deps };
 }
 
+function memSet(s: MemState, addr: number, value: number): void {
+    s.bytes.set(addr, value & 0xFF);
+    s.buf[addr] = value & 0xFF;
+}
+
 // gold lives at 0x85 (hi byte) + 0x86..87 (lo word)
 function goldOf(state: MemState): number {
-    const hi = state.bytes.get(0x85) ?? 0;
-    const lo = (state.bytes.get(0x86) ?? 0) | ((state.bytes.get(0x87) ?? 0) << 8);
+    const hi = state.buf[0x85] ?? 0;
+    const lo = (state.buf[0x86] ?? 0) | ((state.buf[0x87] ?? 0) << 8);
     return hi * 0x10000 + lo;
 }
 function setGold(state: MemState, v: number): void {
-    state.bytes.set(0x85, (v >>> 16) & 0xFF);
-    state.bytes.set(0x86, v & 0xFF);
-    state.bytes.set(0x87, (v >> 8) & 0xFF);
+    memSet(state, 0x85, (v >>> 16) & 0xFF);
+    memSet(state, 0x86, v & 0xFF);
+    memSet(state, 0x87, (v >> 8) & 0xFF);
 }
 function hpOf(state: MemState): number {
-    return (state.bytes.get(0x90) ?? 0) | ((state.bytes.get(0x91) ?? 0) << 8);
+    return (state.buf[0x90] ?? 0) | ((state.buf[0x91] ?? 0) << 8);
 }
 function setHp(state: MemState, hp: number, max = hp): void {
-    state.bytes.set(0x90, hp & 0xFF);
-    state.bytes.set(0x91, (hp >> 8) & 0xFF);
-    state.bytes.set(0xB2, max & 0xFF);
-    state.bytes.set(0xB3, (max >> 8) & 0xFF);
+    memSet(state, 0x90, hp & 0xFF);
+    memSet(state, 0x91, (hp >> 8) & 0xFF);
+    memSet(state, 0xB2, max & 0xFF);
+    memSet(state, 0xB3, (max >> 8) & 0xFF);
 }
 
 function stubImages(): void {
@@ -74,7 +80,7 @@ function stubImages(): void {
 }
 
 async function enterScene(state: MemState, townId = 1) {
-    state.bytes.set(0xC4, townId); // ADDR_TOWN_ID
+    memSet(state, 0xC4, townId); // ADDR_TOWN_ID
     stubImages();
     vi.spyOn(performance, 'now').mockReturnValue(100000);
     const { deps } = makeDeps(state);
@@ -125,7 +131,7 @@ describe('InnScene stay flow', () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 500);
         setHp(state, 20, 77);
-        for (let i = 0; i < 7; i++) state.bytes.set(0xB4 + i, i + 3);
+        for (let i = 0; i < 7; i++) memSet(state, 0xB4 + i, i + 3);
 
         const env = await toMenu(await enterScene(state));
         env.s.menuSel = 0; // Stay
@@ -141,7 +147,7 @@ describe('InnScene stay flow', () => {
         expect(env.s.scenePhase).toBe('morning');
         expect(hpOf(state)).toBe(77);
         for (let i = 0; i < 7; i++) {
-            expect(state.bytes.get(0xAB + i)).toBe(i + 3);
+            expect((state.buf[0xAB + i] ?? 0)).toBe(i + 3);
         }
 
         // let the morning text finish typing, then confirm → fade-out

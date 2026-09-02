@@ -150,7 +150,7 @@ import {
     gMemAt, readU8 as tsReadU8, readU16 as tsReadU16,
     readMemory as tsReadMemory, writeMemory as tsWriteMemory,
 } from './core/ts-memory.js';
-import { createLiveHeroState } from './core/game-state.js';
+import { createLiveHeroState, createLiveDungeonState } from './core/game-state.js';
 
 
 // ─── Engine imports (direct TS calls, no dispatch layer) ──────────────────────
@@ -337,7 +337,9 @@ function openInventory() {
     gamePaused = true;
 
     inventoryScreenInstance = new InventoryScreen({
-        canvas: canvas as HTMLCanvasElement, ctx, readMemory, writeMemory,
+        canvas: canvas as HTMLCanvasElement, ctx,
+        heroState, dungeon: dungeonStateObj,
+        readMemory, writeMemory,
         soundManager,
         onExit: closeInventory,
     });
@@ -1471,6 +1473,7 @@ function startIndoorScene(destId: number): void {
 // HUD rendering lives in ui/hud.ts; these bindings wire it to TS memory.
 // Delegating function declarations keep hoisting semantics for earlier code.
 const heroState = createLiveHeroState(getGmem());
+const dungeonStateObj = createLiveDungeonState(getGmem());
 const hud = new Hud({
     hero: heroState,
     mem: {

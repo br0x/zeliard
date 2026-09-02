@@ -35,20 +35,28 @@ function makeDeps(overrides: {
     readMemory?: IndoorSceneDependencies['readMemory'];
 } = {}) {
     const writes: Array<{ offset: number; data: number[] }> = [];
-    const gold = overrides.gold ?? 0;
+    let gold = overrides.gold ?? 0;
     const heroBuf = new Uint8Array(0x10000);
+    const applyFlags = (flags: Record<number, number>) => {
+        for (const [k, v] of Object.entries(flags)) {
+            heroBuf[Number(k)] = v & 0xFF;
+        }
+    };
+    const applyGold = (v: number) => {
+        heroBuf[0x85] = (v >>> 16) & 0xFF;
+        heroBuf[0x86] = v & 0xFF;
+        heroBuf[0x87] = (v >> 8) & 0xFF;
+    };
+    applyFlags(overrides.flags ?? {});
+    applyGold(gold);
     const deps: IndoorSceneDependencies = {
         canvas: CANVAS,
         ctx: CTX,
         heroState: createLiveHeroState(heroBuf),
         readMemory: overrides.readMemory ?? ((offset, length) => {
-            const flags = { ...(overrides.flags ?? {}) };
-            // encode current gold into 0x85..0x87 reads
-            if (offset === 0x86) return new Uint8Array([gold & 0xFF, (gold >> 8) & 0xFF]);
-            if (offset === 0x85) return new Uint8Array([(gold >> 16) & 0xFF]);
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = flags[offset + i] ?? 0;
-            return out;
+            if (offset === 0x86) return new Uint8Array([heroBuf[0x86] ?? 0, heroBuf[0x87] ?? 0]);
+            if (offset === 0x85) return new Uint8Array([heroBuf[0x85] ?? 0]);
+            return heroBuf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
             writes.push({ offset, data: [...data] });
@@ -63,7 +71,7 @@ function makeDeps(overrides: {
         renderMagicHud: vi.fn(),
         renderShieldHud: vi.fn(),
     };
-    return { deps, writes };
+    return { deps, writes, heroBuf };
 }
 
 beforeEach(() => {
@@ -144,7 +152,7 @@ describe('KingScene audience flow', () => {
 
     async function enter(depsOverrides: Parameters<typeof makeDeps>[0] = {}) {
         stubImages();
-        const { deps, writes } = makeDeps(depsOverrides);
+        const { deps, writes, heroBuf } = makeDeps(depsOverrides);
         const scene = new KingScene(deps);
         const s = scene as unknown as {
             phase: string; king: {
@@ -154,7 +162,7 @@ describe('KingScene audience flow', () => {
         };
         scene.enter(1000);
         await new Promise(r => setTimeout(r, 0));
-        return { scene, s, deps, writes };
+        return { scene, s, deps, writes, heroBuf };
     }
 
     async function enterAndSkipEntry(depsOverrides: Parameters<typeof makeDeps>[0] = {}) {
@@ -179,7 +187,7 @@ describe('KingScene audience flow', () => {
     });
 
     it('first audience awards 1000 gold in 10 steps with SFX requests', async () => {
-        const { scene, s, deps, writes } = await enterAndSkipEntry();
+        const { scene, s, deps, writes, heroBuf } = await enterAndSkipEntry();
         expect(s.king.dialogKey).toBe('firstAudience');
 
         // advance through pages until the gold award starts
@@ -199,7 +207,7 @@ describe('KingScene audience flow', () => {
         // all 10 steps applied → spoke flag written, back to dialog
         const sfxCount = writes.filter(w => w.offset === 0xFF75 && w.data[0] === 67).length;
         expect(sfxCount).toBeGreaterThanOrEqual(9);
-        expect(writes.some(w => w.offset === 0x05 && w.data[0] === 0xFF)).toBe(true);
+        expect(writes.some(w => w.offset === 0x05 && w.data[0] === 0xFF) || heroBuf[0x05] === 0xFF).toBe(true);
         expect(s.king.goldAward).toBeNull();
     });
 

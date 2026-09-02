@@ -30,12 +30,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.buf[offset + i] = data[i] ?? 0; state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},
@@ -50,13 +51,18 @@ function makeDeps(state: MemState) {
     return { deps };
 }
 
+function memSet(s: MemState, addr: number, value: number): void {
+    s.bytes.set(addr, value & 0xFF);
+    s.buf[addr] = value & 0xFF;
+}
+
 const goldOf = (s: MemState) =>
-    ((s.bytes.get(0x85) ?? 0) * 0x10000) +
-    ((s.bytes.get(0x86) ?? 0) | ((s.bytes.get(0x87) ?? 0) << 8));
+    ((s.buf[0x85] ?? 0) * 0x10000) +
+    ((s.buf[0x86] ?? 0) | ((s.buf[0x87] ?? 0) << 8));
 const setGold = (s: MemState, v: number) => {
-    s.bytes.set(0x85, (v >>> 16) & 0xFF);
-    s.bytes.set(0x86, v & 0xFF);
-    s.bytes.set(0x87, (v >> 8) & 0xFF);
+    memSet(s, 0x85, (v >>> 16) & 0xFF);
+    memSet(s, 0x86, v & 0xFF);
+    memSet(s, 0x87, (v >> 8) & 0xFF);
 };
 
 describe('magic-shop tables & helpers', () => {
@@ -97,7 +103,7 @@ describe('WitchcraftShopScene transactions', () => {
     }
 
     async function enter(state: MemState, townId = 1) {
-        state.bytes.set(0xC4, townId);
+        memSet(state, 0xC4, townId);
         stubImages();
         clock.ms = 50000;
         vi.spyOn(performance, 'now').mockImplementation(() => clock.ms);
@@ -151,7 +157,7 @@ describe('WitchcraftShopScene transactions', () => {
         clock.ms += 3000; env.scene.draw(clock.ms);
 
         expect(goldOf(state)).toBe(1000 - price);
-        expect(state.bytes.get(0xA6)).toBe(itemIdx + 1);      // first slot filled
+        expect((state.buf[0xA6] ?? 0)).toBe(itemIdx + 1);      // first slot filled
         // (legacy buy does not mutate the shop's stock bitmask)
         expect(env.s.shopPhase).toBe('dialog');
     });
@@ -173,13 +179,13 @@ describe('WitchcraftShopScene transactions', () => {
         clock.ms += 3000; env.scene.draw(clock.ms);
 
         expect(goldOf(state)).toBe(0);
-        expect(state.bytes.get(0xA6) ?? 0).toBe(0); // no slot written
+        expect(state.buf[0xA6] ?? 0).toBe(0); // no slot written
     });
 
     it('sell: pays half price, clears the slot and restores the stock bit', async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setGold(state, 100);
-        state.bytes.set(0xA6, 5); // Holy Water of Acero (id 5) carried
+        memSet(state, 0xA6, 5); // Holy Water of Acero (id 5) carried
         const env = await toMenu(await enter(state));
 
         env.s.menuSel = 2; // Sell item
@@ -200,8 +206,8 @@ describe('WitchcraftShopScene transactions', () => {
         clock.ms += 3000; env.scene.draw(clock.ms);
 
         expect(goldOf(state)).toBe(100 + expectedSell);
-        expect(state.bytes.get(0xA6)).toBe(0);                    // slot emptied
-        expect((state.bytes.get(0xC9) ?? 0) & itemIndexToBit(4)).not.toBe(0); // back in stock
+        expect((state.buf[0xA6] ?? 0)).toBe(0);                    // slot emptied
+        expect((state.buf[0xC9] ?? 0) & itemIndexToBit(4)).not.toBe(0); // back in stock
     });
 
     it('sell with empty inventory refuses politely', async () => {

@@ -30,12 +30,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.buf[offset + i] = data[i] ?? 0; state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},
@@ -50,15 +51,20 @@ function makeDeps(state: MemState) {
     return { deps };
 }
 
+function memSet(s: MemState, addr: number, value: number): void {
+    s.bytes.set(addr, value & 0xFF);
+    s.buf[addr] = value & 0xFF;
+}
+
 /** Live HP accessors over the shared memory map (little-endian word at 0x90). */
 function hpOf(state: MemState): number {
-    return (state.bytes.get(0x90) ?? 0) | ((state.bytes.get(0x91) ?? 0) << 8);
+    return (state.buf[0x90] ?? 0) | ((state.buf[0x91] ?? 0) << 8);
 }
 function setHp(state: MemState, hp: number, max = hp): void {
-    state.bytes.set(0x90, hp & 0xFF);
-    state.bytes.set(0x91, (hp >> 8) & 0xFF);
-    state.bytes.set(0xB2, max & 0xFF);
-    state.bytes.set(0xB3, (max >> 8) & 0xFF);
+    memSet(state, 0x90, hp & 0xFF);
+    memSet(state, 0x91, (hp >> 8) & 0xFF);
+    memSet(state, 0xB2, max & 0xFF);
+    memSet(state, 0xB3, (max >> 8) & 0xFF);
 }
 
 function stubImages(): void {
@@ -118,7 +124,7 @@ describe('ChurchScene scripted flow', () => {
         const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
         setHp(state, 30, 60);
         // inventory spells to copy into the active bank
-        for (let i = 0; i < 7; i++) state.bytes.set(0xB4 + i, i + 1);
+        for (let i = 0; i < 7; i++) memSet(state, 0xB4 + i, i + 1);
 
         const { scene, s } = await enterScene(state);
         expect(s.sceneReady).toBe(true);
@@ -138,7 +144,7 @@ describe('ChurchScene scripted flow', () => {
         expect(hpOf(state)).toBe(60); // clamped at max
         // active spells copied from inventory
         for (let i = 0; i < 7; i++) {
-            expect(state.bytes.get(0xAB + i)).toBe(i + 1);
+            expect((state.buf[0xAB + i] ?? 0)).toBe(i + 1);
         }
         expect(s.healPhase).toBe('idle');
 

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InventoryScreen, SHIELD_HP_VALUES, XP_TABLE, SPELL_NAMES } from '../src/ui/inventory-screen.js';
 import type { InventoryDeps } from '../src/ui/inventory-screen.js';
+import { createLiveHeroState, createLiveDungeonState } from '../src/core/game-state.js';
 
 const CTX = {
     save() {}, restore() {}, fillRect() {}, strokeRect() {}, drawImage() {},
@@ -13,10 +14,11 @@ const CTX = {
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
 
-interface MemState { bytes: Map<number, number> }
+interface MemState { bytes: Map<number, number>; buf: Uint8Array }
 
 function makeState(): MemState {
-    const s = { bytes: new Map<number, number>() };
+    const buf = new Uint8Array(0x10000);
+    const s: MemState = { bytes: new Map<number, number>(), buf };
     // a typical mid-game hero
     setBytes(s, 0x90, 100);  // HP
     setBytes(s, 0xB2, 200);  // max HP
@@ -39,26 +41,34 @@ function makeState(): MemState {
     setWord(s, 0x8B, 25);    // almas
     return s;
 }
-function setBytes(s: MemState, addr: number, v: number): void { s.bytes.set(addr, v & 0xFF); }
+function setBytes(s: MemState, addr: number, v: number): void {
+    s.bytes.set(addr, v & 0xFF);
+    s.buf[addr] = v & 0xFF;
+}
 function setWord(s: MemState, addr: number, v: number): void {
     s.bytes.set(addr, v & 0xFF);
     s.bytes.set(addr + 1, (v >> 8) & 0xFF);
+    s.buf[addr] = v & 0xFF;
+    s.buf[addr + 1] = (v >> 8) & 0xFF;
 }
 const wordOf = (s: MemState, addr: number) =>
-    (s.bytes.get(addr) ?? 0) | ((s.bytes.get(addr + 1) ?? 0) << 8);
+    (s.buf[addr] ?? 0) | ((s.buf[addr + 1] ?? 0) << 8);
 
 function makeDeps(state: MemState) {
     const playSfx = vi.fn();
     const deps: InventoryDeps = {
         canvas: CANVAS,
         ctx: CTX,
+        heroState: createLiveHeroState(state.buf),
+        dungeon: createLiveDungeonState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         soundManager: { playSfx: playSfx, stopMusic: vi.fn(), playMusic: vi.fn(), _currentTrack: 7 },
         onExit: vi.fn(),
@@ -110,8 +120,8 @@ type InventoryDataLike = Record<string, unknown>;
 
 describe('item use effects', () => {
     async function withItem(id: number): Promise<InventoryScreen> {
-        state.bytes.set(0xA6, id);
-        state.bytes.set(0xA7, 0);
+        setBytes(state, 0xA6, id);
+        setBytes(state, 0xA7, 0);
         const scr = await make({ deps: envs.deps, playSfx: envs.playSfx, state });
         scr.handleInput('ArrowDown'); // tab to USE panel
         // navigate to first real item (index 1)
@@ -127,9 +137,10 @@ describe('item use effects', () => {
 
     it("Ken'ko potion heals up to the max", async () => {
         state.bytes.set(0x90, 150); // hp
+        state.buf[0x90] = 150;
         await useItem(1);
         expect(wordOf(state, 0x90)).toBe(200);      // clamped at max
-        expect(state.bytes.get(0xFF99)).toBe(0xFF); // health bar redraw request
+        expect(state.buf[0xFF99] ?? 0).toBeTruthy(); // health bar redraw request
     });
 
     it("Juu-en fruit fully heals", async () => {
@@ -140,21 +151,21 @@ describe('item use effects', () => {
 
     it('Elixir refills only the current spell', async () => {
         await useItem(3);
-        expect(state.bytes.get(0xAB)).toBe(9); // Espada back to its max
-        expect(state.bytes.get(0xAC) ?? 0).toBe(0); // Saeta untouched
+        expect(state.buf[0xAB] ?? 0).toBe(9); // Espada back to its max
+        expect(state.buf[0xAC] ?? 0).toBe(0); // Saeta untouched
     });
 
     it('Chikara powder refills every spell', async () => {
-        state.bytes.set(0xAB, 0);
-        state.bytes.set(0xAC, 0);
+        setBytes(state, 0xAB, 0);
+        setBytes(state, 0xAC, 0);
         await useItem(4);
-        expect(state.bytes.get(0xAB)).toBe(9);
-        expect(state.bytes.get(0xAC)).toBe(7);
+        expect(state.buf[0xAB] ?? 0).toBe(9);
+        expect(state.buf[0xAC] ?? 0).toBe(7);
     });
 
     it('Sabre oil bumps the enchant counter', async () => {
         await useItem(7);
-        expect(state.bytes.get(0xE4)).toBe(1);
+        expect(state.buf[0xE4] ?? 0).toBe(1);
     });
 
     it('Kioku feather empties the used slot and exits shortly after', async () => {
@@ -162,7 +173,7 @@ describe('item use effects', () => {
         try {
             const scr = await useItem(8);
             vi.advanceTimersByTime(700);
-            expect(state.bytes.get(0xA6)).toBe(0);
+            expect(state.buf[0xA6] ?? 0).toBe(0);
             expect(envs.deps.onExit).toHaveBeenCalled();
             void scr;
         } finally {
@@ -172,7 +183,7 @@ describe('item use effects', () => {
 
     it('using an item consumes it from the slots', async () => {
         await useItem(1);
-        expect(state.bytes.get(0xA6)).toBe(0);
+        expect(state.buf[0xA6] ?? 0).toBe(0);
     });
 
     it('Holy Water repairs the shield by the tier value without exceeding max', async () => {

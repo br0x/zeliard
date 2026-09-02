@@ -28,12 +28,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},

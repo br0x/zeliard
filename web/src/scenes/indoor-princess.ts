@@ -8,7 +8,6 @@
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
-import { ADDR_DEATH_ALREADY_PROCESSED } from '../core/memory.js';
 
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 const PRINCESS_HOLD_MS      = 2000;
@@ -32,11 +31,8 @@ export class PrincessScene extends IndoorSceneBase {
 
     protected override onEnter(_now: number): void {
         this.shownStartTime = 0;
-        if (this.readMemory) {
-            const data = this.readMemory(ADDR_DEATH_ALREADY_PROCESSED, 1);
-            if (data && data[0] === 0xFF) {
-                this.revivePrincess = true;
-            }
+        if (this.heroState.deathAlreadyProcessed) {
+            this.revivePrincess = true;
         }
 
         this._loadImage()

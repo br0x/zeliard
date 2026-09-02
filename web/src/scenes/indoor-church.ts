@@ -10,10 +10,6 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
-import {
-    ADDR_HERO_HP, ADDR_HERO_MAX_HP, ADDR_CURR_SPELL_TYPE,
-    ADDR_SPELLS_ACTIVE, ADDR_SPELLS_INVENTORY,
-} from '../core/memory.js';
 
 const PANEL_W = 672;
 const PANEL_H = 432;
@@ -195,51 +191,30 @@ export class ChurchScene extends IndoorSceneBase {
         });
     }
 
-    private _readWord(addr: number): number {
-        if (!this.readMemory) return 0;
-        const bytes = this.readMemory(addr, 2);
-        if (!bytes) return 0;
-        return ((bytes[0] ?? 0) & 0xFF) | ((bytes[1] ?? 0) & 0xFF) << 8;
-    }
-
-    private _writeWord(addr: number, value: number): void {
-        if (!this.writeMemory) return;
-        const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
-    }
-
-    private _readByte(addr: number): number {
-        if (!this.readMemory) return 0;
-        return (this.readMemory(addr, 1)?.[0] ?? 0) & 0xFF;
-    }
-
     private _getHeroHP(): number {
-        return this._readWord(ADDR_HERO_HP);
+        return this.heroState.hp;
     }
 
     private _getHeroMaxHp(): number {
-        return this._readWord(ADDR_HERO_MAX_HP);
+        return this.heroState.maxHp;
     }
 
     private _setHeroHP(value: number): void {
-        this._writeWord(ADDR_HERO_HP, value);
+        this.heroState.hp = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
         this._refreshLifeHud();
     }
 
     private _restoreSpells(): void {
-        if (!this.readMemory || !this.writeMemory) return;
-        const inv = this.readMemory(ADDR_SPELLS_INVENTORY, 7);
-        if (!inv) return;
-        this.writeMemory(ADDR_SPELLS_ACTIVE, inv);
+        this.heroState.spellCounts.set(this.heroState.spellInventory);
         this._refreshMagicHud();
     }
 
     private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
-        const activeSpell = this._readByte(ADDR_CURR_SPELL_TYPE);
+        const activeSpell = this.heroState.currentSpellType;
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACTIVE + activeSpell - 1));
+        if (counter) counter.textContent = String(this.heroState.spellCounts[activeSpell - 1] ?? 0);
         this.renderMagicHud();
     }
 

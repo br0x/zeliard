@@ -19,10 +19,6 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
-import {
-    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO,
-    ADDR_MAGIC_ITEMS, ADDR_MAGIC_MASKS,
-} from '../core/memory.js';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -326,54 +322,34 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         });
     }
 
-    // ── Memory helpers ─────────────────────────────────────────────────────────
-
-    private _read(addr: number, len = 1): Uint8Array {
-        return (this.readMemory ? this.readMemory(addr, len) : null) ?? new Uint8Array(len);
-    }
-
-    private _write(addr: number, bytes: Uint8Array): void {
-        if (this.writeMemory) this.writeMemory(addr, bytes);
-    }
-
     private _getTownIdx(): number {
-        // place_map_id: 0x81=Muralla..0x89=Esco → index 0..8
-        const raw = (this._read(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7F;
+        const raw = this.heroState.placeMapId & 0x7F;
         return Math.max(0, Math.min(8, raw - 1));
     }
 
     private _getGold(): number {
-        const hi = this._read(ADDR_HERO_GOLD_HI, 1)[0];
-        const b  = this._read(ADDR_HERO_GOLD_LO, 2);
-        return (((hi ?? 0) & 0xFF) * 0x10000) + (((b[0] ?? 0) & 0xFF) | ((b[1] ?? 0) & 0xFF) << 8);
+        return this.heroState.gold;
     }
 
     private _setGold(amount: number): void {
-        const v  = Math.max(0, Math.floor(amount));
-        const hi = (v >>> 16) & 0xFF;
-        const lo = v & 0xFFFF;
-        this._write(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
-        this._write(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.heroState.gold = Math.max(0, Math.floor(amount));
     }
 
     private _getMagicBitmask(): number {
-        return (this._read(ADDR_MAGIC_MASKS + this.townIdx, 1)[0]
-            || DEFAULT_MAGIC_BITMASKS[this.townIdx]) ?? 0;
+        return this.heroState.magicMasks[this.townIdx] || DEFAULT_MAGIC_BITMASKS[this.townIdx] || 0;
     }
 
     private _orMagicBitmask(bit: number): void {
-        // Return bit to shop's stock (player sold it)
         const cur = this._getMagicBitmask();
-        this._write(ADDR_MAGIC_MASKS + this.townIdx, Uint8Array.of((cur | bit) & 0xFF));
+        this.heroState.magicMasks[this.townIdx] = (cur | bit) & 0xFF;
     }
 
-    /** Return player's magic item IDs (1-based) currently held (up to 5 slots). */
     private _getPlayerMagicItems(): number[] {
-        return Array.from(this._read(ADDR_MAGIC_ITEMS, 5));
+        return Array.from(this.heroState.magicItems);
     }
 
     private _setPlayerMagicSlot(slotIdx: number, itemId: number): void {
-        this._write(ADDR_MAGIC_ITEMS + slotIdx, Uint8Array.of(itemId));
+        this.heroState.magicItems[slotIdx] = itemId;
     }
 
     private _findEmptyMagicSlot(): number {

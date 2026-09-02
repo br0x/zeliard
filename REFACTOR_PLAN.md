@@ -258,51 +258,44 @@ This avoids the complexity of keeping two representations in sync.
 
 ## Implementation Phases
 
-### Phase 0: Foundation (no behavior change)
+### Phase 0: Foundation (no behavior change) ✅ DONE
 
-1. Define `HeroState`, `DungeonRuntimeState`, `TownRuntimeState`, `InputLatches` interfaces in a new file `core/game-state.ts`
-2. Add factory functions: `createHeroState(): HeroState`, `createDungeonState(): DungeonRuntimeState`, etc.
-3. Add serialization: `heroStateToBytes(h: HeroState): Uint8Array`, `heroStateFromBytes(b: Uint8Array): HeroState`
-4. Add to `ts-memory.ts`: export `getHeroState()` and `setHeroState()` — initially just wraps g_mem reads
-5. Write tests: verify round-trip `fromBytes(toBytes(state)) === state` for all fields
+1. Define `HeroState`, `DungeonRuntimeState`, `TownRuntimeState`, `InputLatches` interfaces in a new file `core/game-state.ts` ✅
+2. Add factory functions: `createHeroState(): HeroState`, `createDungeonState(): DungeonRuntimeState`, etc. ✅ (added `createLiveHeroState`/`createLiveDungeonState` that produce live views over g_mem)
+3. Add serialization: `heroStateToBytes(h: HeroState): Uint8Array`, `heroStateFromBytes(b: Uint8Array): HeroState` ✅
+4. Add to `ts-memory.ts`: export `getHeroState()` and `setHeroState()` — initially just wraps g_mem reads ✅ (heroState is constructed at main.ts init: `createLiveHeroState(getGmem())`)
+5. Write tests: verify round-trip `fromBytes(toBytes(state)) === state` for all fields ✅ (`game-state.test.ts` covers all 256 bytes round-trip)
 
-### Phase 1: HUD (highest-impact consumer)
+### Phase 1: HUD (highest-impact consumer) ✅ DONE
 
 **File:** `ui/hud.ts`
 
-Currently: `readMemory(0x90, 2)` → assemble bytes → number
-After: `heroState.hp` → direct read
+1. Change `HudMemoryAccess` interface to accept `HeroState` + `DungeonRuntimeState` ✅
+2. Update all getter/setter methods to use typed fields ✅
+3. Remove manual byte assembly (`lo[0] | lo[1] << 8`) ✅
+4. Update `main.ts` injection to pass state objects ✅
+5. **No more readMemory/writeMemory for simple state access** ✅
 
-1. Change `HudMemoryAccess` interface to accept `HeroState` + `DungeonRuntimeState`
-2. Update all getter/setter methods to use typed fields
-3. Remove manual byte assembly (`lo[0] | lo[1] << 8`)
-4. Update `main.ts` injection to pass state objects
-5. **No more readMemory/writeMemory for simple state access**
-
-### Phase 2: Indoor Scenes
+### Phase 2: Indoor Scenes ✅ DONE
 
 **Files:** All `scenes/indoor-*.ts` files
 
-Currently: Each defines local `ADDR_*` constants and calls `readMemory(addr, 2)` / `writeMemory(addr, data)`
-After: Access `heroState.level`, `heroState.hp`, etc.
+1. Update `IndoorSceneDependencies` to include `heroState: HeroState` ✅ (via `IndoorSceneBase` which all indoor scenes extend)
+2. Replace `readMemory(0x90, 2)` with `heroState.hp` ✅
+3. Replace `writeMemory(0x90, Uint8Array.of(lo, hi))` with `heroState.hp = newHp` ✅
+4. Remove all local `const ADDR_*` definitions (already done partially) ✅
+5. Scene-specific state (sage spoken bits, king gold award) stays as local class state ✅
 
-1. Update `IndoorSceneDependencies` to include `heroState: HeroState`
-2. Replace `readMemory(0x90, 2)` with `heroState.hp`
-3. Replace `writeMemory(0x90, Uint8Array.of(lo, hi))` with `heroState.hp = newHp`
-4. Remove all local `const ADDR_*` definitions (already done partially)
-5. Scene-specific state (sage spoken bits, king gold award) stays as local class state
-
-### Phase 3: Inventory Screen
+### Phase 3: Inventory Screen ✅ DONE
 
 **File:** `ui/inventory-screen.ts`
 
-Currently: 27 local `const ADDR_*` definitions, heavy `readMemory`/`writeMemory` usage
-After: Direct `heroState.*` access
+1. Update `InventoryDeps` to include `heroState: HeroState` ✅ (also added `dungeon: DungeonRuntimeState` for `healthBarRequest`)
+2. Replace all 27 local ADDR_ references with `heroState.*` fields ✅
+3. Equipment reads become direct field access ✅
+4. Spell counts become array access ✅
 
-1. Update `InventoryDeps` to include `heroState: HeroState`
-2. Replace all 27 local ADDR_ references with `heroState.*` fields
-3. Equipment reads become direct field access
-4. Spell counts become array access
+Note: `ADDR_MAGIA_STONE_SPRITE0..3` (0xEB60+) are kept as `writeMemory` calls — they live in the monster/projectile buffer region per the plan and are consumed by `render/dungeon.ts`.
 
 ### Phase 4: Renderers
 
@@ -363,15 +356,15 @@ For Track B, **consolidate** `g8/g16/s8/s16`:
 
 ## Estimated Scope
 
-| Phase | Files touched | Risk | Effort |
-|-------|--------------|------|--------|
-| Phase 0 | 1 new file + ts-memory.ts | Low | Small |
-| Phase 1 | hud.ts, main.ts | Low | Small |
-| Phase 2 | 8 scene files, scene.ts, main.ts | Low | Medium |
-| Phase 3 | inventory-screen.ts, main.ts | Low | Medium |
-| Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium |
-| Phase 5 | ~25 engine files | High | Large |
-| Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium |
-| Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small |
+| Phase | Files touched | Risk | Effort | Status |
+|-------|--------------|------|--------|--------|
+| Phase 0 | 1 new file + ts-memory.ts | Low | Small | ✅ Done |
+| Phase 1 | hud.ts, main.ts | Low | Small | ✅ Done |
+| Phase 2 | 8 scene files, scene.ts, main.ts | Low | Medium | ✅ Done |
+| Phase 3 | inventory-screen.ts, main.ts | Low | Medium | ✅ Done |
+| Phase 4 | render/dungeon.ts, render/town.ts, main.ts | Medium | Medium | Pending |
+| Phase 5 | ~25 engine files | High | Large | Pending |
+| Phase 6 | save.ts, save-file.ts, main.ts | Medium | Medium | Pending |
+| Phase 7 | memory.ts, ts-memory.ts, ~10 cleanup targets | Low | Small | Pending |
 
 **Total:** ~50 files, with Phases 0-4 being low-risk and Phase 5 being the bulk of the work.

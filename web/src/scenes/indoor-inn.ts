@@ -1,10 +1,6 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
-import {
-    ADDR_PLACE_MAP_ID, ADDR_HERO_GOLD_HI, ADDR_HERO_GOLD_LO, ADDR_HERO_HP,
-    ADDR_HERO_MAX_HP, ADDR_CURR_SPELL_TYPE, ADDR_SPELLS_ACTIVE, ADDR_SPELLS_INVENTORY,
-} from '../core/memory.js';
 
 export const INN_PRICES = [0, 30, 50, 70, 100, 150, 200, 400] as const;
 
@@ -159,71 +155,43 @@ export class InnScene extends IndoorSceneBase {
         });
     }
 
-    private _readWord(addr: number): number {
-        if (!this.readMemory) return 0;
-        const bytes = this.readMemory(addr, 2);
-        if (!bytes) return 0;
-        return ((bytes[0] ?? 0) & 0xFF) | ((bytes[1] ?? 0) & 0xFF) << 8;
-    }
-
-    private _writeWord(addr: number, value: number): void {
-        if (!this.writeMemory) return;
-        const v = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
-        this.writeMemory(addr, Uint8Array.of(v & 0xFF, (v >> 8) & 0xFF));
-    }
-
-    private _readByte(addr: number): number {
-        if (!this.readMemory) return 0;
-        return (this.readMemory(addr, 1)?.[0] ?? 0) & 0xFF;
-    }
-
     private _getTownIdx(): number {
-        const raw = this._readByte(ADDR_PLACE_MAP_ID);
-        const idx = (raw & 0x7F) - 1;
+        const idx = (this.heroState.placeMapId & 0x7F) - 1;
         return Math.max(0, Math.min(7, idx));
     }
 
     private _getGold(): number {
-        const hi = this._readByte(ADDR_HERO_GOLD_HI);
-        const lo = this._readWord(ADDR_HERO_GOLD_LO);
-        return hi * 0x10000 + lo;
+        return this.heroState.gold;
     }
 
     private _setGold(amount: number): void {
-        const v = Math.max(0, Math.floor(amount));
-        const hi = (v >>> 16) & 0xFF;
-        const lo = v & 0xFFFF;
-        this.writeMemory?.(ADDR_HERO_GOLD_HI, Uint8Array.of(hi));
-        this.writeMemory?.(ADDR_HERO_GOLD_LO, Uint8Array.of(lo & 0xFF, (lo >> 8) & 0xFF));
+        this.heroState.gold = Math.max(0, Math.floor(amount));
     }
 
     private _getHeroHP(): number {
-        return this._readWord(ADDR_HERO_HP);
+        return this.heroState.hp;
     }
 
     private _getHeroMaxHp(): number {
-        return this._readWord(ADDR_HERO_MAX_HP);
+        return this.heroState.maxHp;
     }
 
     private _setHeroHP(value: number): void {
-        this._writeWord(ADDR_HERO_HP, value);
+        this.heroState.hp = Math.max(0, Math.min(0xFFFF, Math.floor(value)));
         this._refreshLifeHud();
     }
 
     private _restoreSpells(): void {
-        if (!this.readMemory || !this.writeMemory) return;
-        const inv = this.readMemory(ADDR_SPELLS_INVENTORY, 7);
-        if (!inv) return;
-        this.writeMemory(ADDR_SPELLS_ACTIVE, inv);
+        this.heroState.spellCounts.set(this.heroState.spellInventory);
         this._refreshMagicHud();
     }
 
     private _refreshMagicHud(): void {
         if (typeof document === 'undefined') return;
-        const activeSpell = this._readByte(ADDR_CURR_SPELL_TYPE);
+        const activeSpell = this.heroState.currentSpellType;
         if (!activeSpell) return;
         const counter = document.getElementById('spellCounter');
-        if (counter) counter.textContent = String(this._readByte(ADDR_SPELLS_ACTIVE + activeSpell - 1));
+        if (counter) counter.textContent = String(this.heroState.spellCounts[activeSpell - 1] ?? 0);
         this.renderMagicHud();
     }
 

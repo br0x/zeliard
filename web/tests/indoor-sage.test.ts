@@ -30,12 +30,13 @@ function makeDeps(state: MemState) {
         ctx: CTX,
         heroState: createLiveHeroState(state.buf),
         readMemory: vi.fn((offset: number, length: number) => {
-            const out = new Uint8Array(length);
-            for (let i = 0; i < length; i++) out[i] = state.bytes.get(offset + i) ?? 0;
-            return out;
+            return state.buf.subarray(offset, offset + length);
         }),
         writeMemory: vi.fn((offset: number, data: Uint8Array) => {
-            for (let i = 0; i < data.length; i++) state.bytes.set(offset + i, data[i] ?? 0);
+            for (let i = 0; i < data.length; i++) {
+                state.buf[offset + i] = data[i] ?? 0;
+                state.buf[offset + i] = data[i] ?? 0; state.bytes.set(offset + i, data[i] ?? 0);
+            }
         }),
         finishCallback: vi.fn(),
         soundManager: {},
@@ -49,6 +50,11 @@ function makeDeps(state: MemState) {
         saveGame: vi.fn(() => true),
     };
     return { deps };
+}
+
+function memSet(s: MemState, addr: number, value: number): void {
+    s.bytes.set(addr, value & 0xFF);
+    s.buf[addr] = value & 0xFF;
 }
 
 function stubImages(): void {
@@ -74,12 +80,12 @@ async function enterScene(state: MemState) {
 
 /** Level byte 0x8D, XP word 0x8E..8F, town id 0xC4, spoken bits 0xE5. */
 function setProgress(state: MemState, opts: { townId?: number | undefined; level?: number | undefined; xp?: number; spoken?: number } = {}) {
-    if (opts.townId !== undefined) state.bytes.set(0xC4, opts.townId);
-    state.bytes.set(0x8D, opts.level ?? 0);
+    if (opts.townId !== undefined) memSet(state, 0xC4, opts.townId);
+    memSet(state, 0x8D, opts.level ?? 0);
     const xp = opts.xp ?? 0;
-    state.bytes.set(0x8E, xp & 0xFF);
-    state.bytes.set(0x8F, (xp >> 8) & 0xFF);
-    if (opts.spoken !== undefined) state.bytes.set(0xE5, opts.spoken);
+    memSet(state, 0x8E, xp & 0xFF);
+    memSet(state, 0x8F, (xp >> 8) & 0xFF);
+    if (opts.spoken !== undefined) memSet(state, 0xE5, opts.spoken);
 }
 
 beforeEach(() => {
@@ -94,7 +100,7 @@ describe('SageScene entry routing', () => {
         const { s } = await enterScene(state);
         expect(s.sagePhase).toBe('intro');
         expect(s.townIdx).toBe(2);
-        expect(state.bytes.get(0xE5)).toBe(0x20);
+        expect((state.buf[0xE5] ?? 0)).toBe(0x20);
     });
 
     it('return visit skips straight to the menu', async () => {
@@ -107,9 +113,9 @@ describe('SageScene entry routing', () => {
     it('death entry clears the invincibility flag and exits after dialog', async () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 3, spoken: 0x20 });
-        state.bytes.set(0xE8, 0xFF);
+        memSet(state, 0xE8, 0xFF);
         const { scene, s } = await enterScene(state);
-        expect(state.bytes.get(0xE8)).toBe(0);
+        expect((state.buf[0xE8] ?? 0)).toBe(0);
         expect(s.sagePhase).toBe('dialog');
         expect(s.exitAfterDialog).toBe(true);
 
@@ -141,8 +147,8 @@ describe('intro spell activation', () => {
         scene.handleInput('Space'); // confirm
 
         expect(s.sagePhase).toBe('menu');
-        expect(state.bytes.get(0x9D)).toBe(2);           // current spell
-        expect(state.bytes.get(0xBB + 2 - 1)).toBe(0xFF); // espada active flag
+        expect((state.buf[0x9D] ?? 0)).toBe(2);           // current spell
+        expect((state.buf[0xBB + 2 - 1] ?? 0)).toBe(0xFF); // espada active flag
     });
 
     it('town 1 intro grants nothing (legacy guard)', async () => {
@@ -153,7 +159,7 @@ describe('intro spell activation', () => {
         for (let i = 0; i < 200; i++) scene.draw(t += 100);
         scene.handleInput('Space');
         scene.handleInput('Space');
-        expect(state.bytes.get(0x9D) ?? 0).toBe(0);
+        expect(state.buf[0x9D] ?? 0).toBe(0);
     });
 });
 
@@ -177,8 +183,8 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
         ];
         return enterScene(state).then(({ scene }) => {
             for (const [xp, want] of cases) {
-                state.bytes.set(0x8E, xp & 0xFF);
-                state.bytes.set(0x8F, (xp >> 8) & 0xFF);
+                memSet(state, 0x8E, xp & 0xFF);
+                memSet(state, 0x8F, (xp >> 8) & 0xFF);
                 expect(checkLevelUp(scene)).toBe(want);
             }
         });
@@ -187,7 +193,7 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
     it('caps the impartable level by town (result 4)', () => {
         const state = { bytes: new Map<number, number>(), buf: new Uint8Array(0x10000) };
         setProgress(state, { townId: 1, level: SAGE_MAX_LEVEL_BY_TOWN[0] }); // town 0 caps at 3
-        state.bytes.set(0x8E, 0xE8); state.bytes.set(0x8F, 0x03); // xp 1000 ≥ threshold
+        memSet(state, 0x8E, 0xE8); memSet(state, 0x8F, 0x03); // xp 1000 ≥ threshold
         return enterScene(state).then(({ scene }) => {
             expect(checkLevelUp(scene)).toBe(4);
         });
@@ -199,12 +205,12 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
         const reward = SAGE_LEVEL_REWARDS[2]!;
         return enterScene(state).then(({ scene }) => {
             applyLevelUp(scene);
-            expect(state.bytes.get(0x8D)).toBe(3);
+            expect((state.buf[0x8D] ?? 0)).toBe(3);
             // max HP word at 0xB2
-            expect((state.bytes.get(0xB2) ?? 0) | ((state.bytes.get(0xB3) ?? 0) << 8)).toBe(reward.hp);
+            expect((state.buf[0xB2] ?? 0) | ((state.buf[0xB3] ?? 0) << 8)).toBe(reward.hp);
             // inventory spells copied
             for (let i = 0; i < 7; i++) {
-                expect(state.bytes.get(0xB4 + i)).toBe(reward.spells[i]);
+                expect((state.buf[0xB4 + i] ?? 0)).toBe(reward.spells[i]);
             }
         });
     });
@@ -214,8 +220,8 @@ describe('level-up logic (_checkLevelUp / _applyLevelUp)', () => {
         setProgress(state, { townId: 1, level: 0, xp: SAGE_XP_TABLE[0]! + 999 });
         return enterScene(state).then(({ scene }) => {
             applyLevelUp(scene);
-            expect(state.bytes.get(0x8D)).toBe(1);
-            const xp = (state.bytes.get(0x8E) ?? 0) | ((state.bytes.get(0x8F) ?? 0) << 8);
+            expect((state.buf[0x8D] ?? 0)).toBe(1);
+            const xp = (state.buf[0x8E] ?? 0) | ((state.buf[0x8F] ?? 0) << 8);
             expect(xp).toBe(Math.min(SAGE_XP_TABLE[0]! + 999 - SAGE_XP_TABLE[0]!, SAGE_XP_TABLE[1]! - 1));
         });
     });
