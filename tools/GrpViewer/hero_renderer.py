@@ -720,7 +720,7 @@ def render_comparison(canvas, state: HeroState,
 # ---------------------------------------------------------------------------
 # CLI demo — tkinter window with radio-button controls for every state param
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
+def main():
     import tkinter as tk
     from tkinter import ttk
 
@@ -828,6 +828,15 @@ if __name__ == "__main__":
                          hide_body=(v_hide_body.get() == 1),
                          hide_front_arm=(v_hide_front_arm.get() == 1))
 
+    def reload_sprites():
+        """Re-read the sprite sheets/GRP from disk and redraw with current
+        checkbox/radio settings left untouched."""
+        nonlocal hero_sheet, sword_sheet, fman_tiles, fman_frames
+        hero_sheet = load_hero_sheet()
+        sword_sheet = load_sword_sheet()
+        fman_tiles, fman_frames = load_fman_grp()
+        redraw()
+
     # --- radio-button helper -----------------------------------------------
     def _rb(parent, label, var, options, row, col=0, command=None):
         f = ttk.LabelFrame(parent, text=label)
@@ -894,9 +903,9 @@ if __name__ == "__main__":
 
     sword_row1 = ttk.Frame(sword_f)
     sword_row1.pack(side="top", anchor="w")
-    ttk.Checkbutton(sword_row1, text="Swing Active", variable=v_sword_swing,
+    ttk.Checkbutton(sword_row1, text="Swing Active  ", variable=v_sword_swing,
                     command=_on_swing_toggle).pack(side="left")
-    ttk.Label(sword_row1, text="Type:").pack(side="left")
+    ttk.Label(sword_row1, text="Sword Type:").pack(side="left")
     for t in range(1, 7):
         ttk.Radiobutton(sword_row1, text=str(t), variable=v_sword_type, value=t,
                         command=redraw).pack(side="left")
@@ -923,7 +932,13 @@ if __name__ == "__main__":
     ttk.Checkbutton(layers_f, text="Body", variable=v_hide_body,
                     command=redraw).pack(side="left")
 
+    ttk.Button(ctrl, text="Reload Sprites",
+               command=reload_sprites).grid(row=8, column=1, sticky="w", padx=4, pady=2)
+
     # --- initial draw + run -----------------------------------------------
     _update_anim_buttons()
     redraw()
     root.mainloop()
+
+if __name__ == "__main__":
+    main()
