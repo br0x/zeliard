@@ -1,38 +1,42 @@
-# Zeliard Web Porting Plan
+# Zeliard Porting Plan
 
-## Project Goal
+## Historical Scope
 
-Port all `*.asm` from x86 assembly to C, compile to WebAssembly with Emscripten, and integrate with JavaScript. The goal is to preserve **exact original logics and AI behavior** while replacing sprite graphics with alternative rendering and skipping music or optionally using OPL port. Also, all memory regions from original assembly should be preserved. Any variable needed for implementation should be outside of the original memory regions — since WebAssembly has linear memory, it is no problem to use any region outside the ranges above.
+This document originally described the project's goal of porting the original
+`asm/*.asm` from x86 assembly to C, compiling to WebAssembly with Emscripten,
+and integrating with JavaScript. That goal has been **superseded**: the
+runtime is now pure TypeScript (see
+[README.md](../README.md) and [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md)).
 
----
+This file is preserved as a **historical record and reference** — the `asm/`
+disassembly, the C ports that preceded the TypeScript engine, and the
+original architecture diagrams remain useful for understanding engine
+behavior, verifying edge cases against the original binaries, and adding
+new content (additional bosses, caverns, indoor scenes).
 
-## Current Status (August 2026)
+For the live architecture, build, and deployment status, see:
 
-The game is **fully playable from the title screen through the town ↔ dungeon loop**, live at https://br0x.github.io/zeliard/
-
-**Working:**
-- Opening intro (opdemo.asm) — `opening-intro.js`
-- Town engine (town.asm) — `src/town.c`
-- Dungeon engine (fight.asm) — `src/dungeon.c`
-- Monster AI for caverns 1–4 — `src/eai1.c` … `src/eai4.c` + `eai1_data.c`
-- Bosses: Cangrejo (`src/crab.c`), Pulpo (`src/tako.c`), Pollo (`src/tori.c`), **Agar (`src/zela.c`) — just added, being wired up (current work-in-progress, uncommitted)**
-- Town people/building scenes (King, Princess, Sage, Weapon Shop, Witchcraft Shop, Church, Bank, Inn) — `indoor-*.js`
-- Inventory screen — `inventory-screen.js`
-- Save/Restore/Export/Delete menus — `save-restore-ui.js`, `import-export-ui.js`
-- Tear-collection rokademo after boss fights — implemented in JS, final version committed (`9b966aa`)
-- PIT timer emulation via AudioWorklet — `pit-worklet.js` + `sound-manager.js`
-- Speed toggle (F9) between full/slow tick rate
-
-**Not yet ported / future work:**
-- `src/dungeon.c` `load_eai_module()` (`dungeon.c:5197`) only wires `eai1–eai4` (map IDs 0–10). Caverns 5+ (Tumba, Dorado, Llama, Pureza, Esco) need `eai5–eai8` disassembly → C port.
-- Remaining bosses: Vista (mp5d), Tarso (mp6d), Paguro (mp7d), Dragon (mp8d), Jashiin (mpa0).
-- Dungeon graphics: PNG sheets only exist for `mpp1–mpp4` / `enp1–enp4`; `mpp5–mppb` / `enp5–enp8` `.grp` files exist in `game/0/` but no PNGs yet.
-- `DUNGEONS` config in `game.js:412` covers map IDs 0–10; dungeons 11+ are not configured.
-- Several asm modules handled in JS rather than C (see module map below) — `select.asm` (inventory) and `opdemo.asm` are JS; `gfmcga.asm` is partially ported with many "rendering handled in js" stubs.
+- [../README.md](../README.md) — high-level project status and dev workflow
+- [MIGRATION_PLAN.md](MIGRATION_PLAN.md) — current TypeScript runtime state
+- [MIGRATION_HISTORY.md](MIGRATION_HISTORY.md) — Stage 0–10 migration diary
+- [REFACTOR_PLAN.md](REFACTOR_PLAN.md) — typed-state extraction plan (done)
 
 ---
 
-## 1. Architecture Overview
+## Original Goal (historical)
+
+Port all `*.asm` from x86 assembly to C, compile to WebAssembly with
+Emscripten, and integrate with JavaScript. The goal was to preserve
+**exact original logics and AI behavior** while replacing sprite graphics with
+alternative rendering and skipping music or optionally using an OPL port.
+All memory regions from the original assembly were preserved; any variable
+needed for implementation lived outside the original memory regions — since
+WebAssembly has linear memory, using any region outside the ranges above was
+not a problem.
+
+---
+
+## Original Architecture (historical)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -49,27 +53,36 @@ The game is **fully playable from the title screen through the town ↔ dungeon 
 │  ├── data.c      - Global state + g_mem[0x40000]            │
 │  ├── town.c      - Town engine (town.asm)                   │
 │  ├── dungeon.c   - Dungeon engine (fight.asm)               │
-│  ├── eai1-4.c    - Monster AI (eai1-4.asm)                  │
-│  ├── crab/tako/tori/zela.c - Boss AI                        │
+│  ├── eai1-8.c    - Monster AI (eai1-8.asm)                  │
+│  ├── boss-*.c    - Boss AI (crab/tako/tori/zela/vista/      │
+│  │                tarso/paguro/dragon/jashiin1/jashiin2)    │
 │  ├── gfmcga.c    - Cavern video lib (partially ported)      │
 │  ├── unpack.c    - RLE data unpacking                       │
 │  └── eai1_data.c - Monster AI data tables                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 Control flow
+### Original control flow
 
-- **Full tick (236.7 Hz, from PIT worklet):** `wasm_dungeon_full_tick` / `wasm_town_full_tick` — sound/music drivers, frame counters.
-- **Slow tick (every 5th tick ≈ 47 Hz):** input + game logic via `wasm_dungeon_update` / `wasm_town_update`.
-- **Rendering:** C never draws. The C side writes render requests / entity state into `g_mem`, and JS reads them each frame:
-  - `wasm_dungeon_get_render_request` / `wasm_dungeon_clear_render_request`
-  - `wasm_dungeon_get_entity_count` / `wasm_dungeon_get_entity_table`
-  - `wasm_dungeon_get_viewport_top`
-- **State machine:** dungeon states handled include `NORMAL(0)`, `DEATH_FADE(4)`, `BOSS_ENCOUNTER(5)`, `ROKA_RUN(7)`, `ROKADEMO(9)`. Transitions (dungeon↔town, indoors, boss demos) go through `ADDR_PENDING_DUNGEON_FLAG`-style memory flags read by JS, plus exports like `wasm_town_complete_transition`, `wasm_finish_rokademo_transition`, `wasm_town_building_finish`, `wasm_town_conversation_finish`.
+- **Full tick (236.7 Hz, from PIT worklet):** `wasm_dungeon_full_tick` /
+  `wasm_town_full_tick` — sound/music drivers, frame counters.
+- **Slow tick (every 5th tick ≈ 47 Hz):** input + game logic via
+  `wasm_dungeon_update` / `wasm_town_update`.
+- **Rendering:** C never drew. The C side wrote render requests / entity
+  state into `g_mem`, and JS read them each frame.
+- **State machine:** dungeon states handled included
+  `NORMAL(0)`, `DEATH_FADE(4)`, `BOSS_ENCOUNTER(5)`, `ROKA_RUN(7)`,
+  `ROKADEMO(9)`. Transitions went through memory flags read by JS plus
+  exports like `wasm_town_complete_transition`,
+  `wasm_finish_rokademo_transition`, `wasm_town_building_finish`,
+  `wasm_town_conversation_finish`.
 
-### 1.2 Memory Layout
+### Original memory layout
 
-WASM memory is a flat 256 KB linear buffer: `uint8_t g_mem[0x40000]` in `src/data.c`. Addresses are the original DOS segment:offset addresses. JS reaches it via `wasmMemory.buffer + gMemoryBase` (the offset of `g_mem` in WASM linear memory).
+WASM memory was a flat 256 KB linear buffer: `uint8_t g_mem[0x40000]` in
+`src/data.c`. Addresses were the original DOS segment:offset addresses. JS
+reached it via `wasmMemory.buffer + gMemoryBase` (the offset of `g_mem` in
+WASM linear memory).
 
 | Region          | Address (seg0) | WASM offset | Contents |
 |-----------------|----------------|-------------|----------|
@@ -88,169 +101,211 @@ WASM memory is a flat 256 KB linear buffer: `uint8_t g_mem[0x40000]` in `src/dat
 | seg2            | 0x0000-0xffff | 0x20000     | `SEG2_BASE` |
 | seg3            | 0x0000-0xffff | 0x30000     | `SEG3_BASE` |
 
-Memory helpers in `src/zeliard.h`: `MEM8(addr)` / `MEM16(addr)` for seg0; `MEM8_1` / `MEM16_1` (seg1), `_2` (seg2), `_3` (seg3) accessors.
-
-Key structures (defined in `src/zeliard.h`):
-- `SaveData g_save_data` — loaded from save file (0x0000-0x00ff)
-- Proximity map at seg0:0xe000-0xe900 (36×64) — maps objects near the hero
-- Viewport dirty buffer at 0xE900, 28×19 = 532 bytes
+In the current TypeScript runtime the same logical layout lives in
+`web/src/core/memory.ts` and `web/src/core/ts-memory.ts` as a
+`Uint8Array`. The first 256 bytes are still the save image (kept for save
+file compatibility). Buffer-relative reads (proximity map, monster structs,
+MDT data, projectiles, seg1 config) still use the same addresses because
+those regions are inherently byte-indexed.
 
 ---
 
-## 2. Module Map (asm → C → JS)
+## asm Module Reference
 
-Ground truth: `asm/` contains the reassembled/disassembled sources. `asm/build_all.sh` rebuilds them with TASM (via dosbox-x) and `asm/diff.txt` confirms the reassembly reproduces **byte-identical** binaries vs. the original game (all 32 sections, zero diffs).
+Ground truth: `asm/` contains the reassembled/disassembled sources.
+`asm/build_all.sh` rebuilds them with TASM (via dosbox-x) and `asm/diff.txt`
+confirms the reassembly reproduces **byte-identical** binaries vs. the
+original game (all 32 sections, zero diffs).
 
-| asm module | Ported in | Status |
-|------------|-----------|--------|
-| game.asm | — | Initial loader; superseded by JS bootstrap |
+| asm module | TypeScript owner | Status |
+|------------|------------------|--------|
+| game.asm | — | Initial loader; superseded by `web/src/main.ts` |
 | stick.asm | — | Low-level; not needed in browser |
-| gmmcga.asm | — | Video lib; rendering replaced by canvas JS |
-| gdmcga.asm | — | Video lib (opening); JS canvas |
-| gtmcga.asm | — | Video lib (towns); JS canvas |
-| gfmcga.asm | src/gfmcga.c | Partial; many stubs note "rendering handled in js" |
-| opdemo.asm | opening-intro.js | Fully implemented in JS |
-| town.asm | src/town.c | Fully ported |
-| fight.asm | src/dungeon.c | Fully ported |
-| select.asm | inventory-screen.js | Inventory screen in JS |
-| eai1.asm | src/eai1.c | Ported (cavern 1) |
-| eai2.asm | src/eai2.c | Ported (cavern 2) |
-| eai3.asm | src/eai3.c | Ported (cavern 3) |
-| eai4.asm | src/eai4.c | Ported (cavern 4) |
-| crab.asm | src/crab.c | Ported (Cangrejo boss) |
-| tako.asm | src/tako.c | Ported (Pulpo boss) |
-| tori.asm | src/tori.c | Ported (Pollo boss) |
-| zela.asm | src/zela.c | Ported; wiring in progress |
-| kingpro.asm | indoor-king.js | JS scene |
-| kenjpro.asm | indoor-princess.js | JS scene |
-| armrpro.asm | indoor-weapon-shop.js | JS scene |
-| drugpro.asm | indoor-magic-shop.js | JS scene |
-| bankpro.asm | indoor-bank.js | JS scene |
-| churpro.asm | indoor-church.js | JS scene |
-| innapro.asm | indoor-inn.js | JS scene |
-| omoypro.asm | indoor-sage.js | JS scene |
-| mscadlib.asm / sndadlib.asm | sound-manager.js | JS audio driver |
-| rokademo.asm | game.js (JS) | Tear-collection demo |
-| mole.asm, ckpd.asm, ympd.asm | — | Backgrounds/decor; replaced by JS + PNG |
+| gmmcga.asm | — | Video lib; rendering replaced by `web/src/render/*.ts` |
+| gdmcga.asm | — | Video lib (opening); `web/src/scenes/opening-intro.ts` |
+| gtmcga.asm | — | Video lib (towns); `web/src/render/town.ts` |
+| gfmcga.asm | — | Cavern video lib; `web/src/render/dungeon.ts` + `explosion-ring.ts` (2bpp ring decode only) |
+| lega.asm | — | Graphics decoder; PNG sheets replace runtime decode |
+| opdemo.asm | `web/src/scenes/opening-intro.ts` | Fully ported |
+| enddemo.asm | `web/src/scenes/ending-demo.ts` | Fully ported |
+| town.asm | `web/src/engine/town.ts` (+ town-state, dungeon-cutover, transitions) | Fully ported |
+| fight.asm | `web/src/engine/dungeon-*.ts` (~30 modules) | Fully ported |
+| select.asm | `web/src/ui/inventory-screen.ts` | Fully ported |
+| eai1.asm | `web/src/engine/eai1.ts` | Cavern 1 enemies |
+| eai2.asm | `web/src/engine/eai2.ts` | Cavern 2 enemies |
+| eai3.asm | `web/src/engine/eai3.ts` | Cavern 3 enemies |
+| eai4.asm | `web/src/engine/eai4.ts` | Cavern 4 enemies |
+| eai5.asm | `web/src/engine/eai5.ts` | Cavern 5 enemies |
+| eai6.asm | `web/src/engine/eai6.ts` | Cavern 6 enemies |
+| eai7.asm | `web/src/engine/eai7.ts` | Cavern 7 enemies |
+| eai8.asm | `web/src/engine/eai8.ts` | Cavern 8 enemies |
+| crab.asm | `web/src/engine/boss-crab.ts` | Cangrejo |
+| tako.asm | `web/src/engine/boss-tako.ts` | Pulpo |
+| tori.asm | `web/src/engine/boss-tori.ts` | Pollo |
+| zela.asm | `web/src/engine/boss-agar.ts` | Agar |
+| mao1.asm | `web/src/engine/boss-vista.ts` | Vista |
+| mao2.asm | `web/src/engine/boss-tarso.ts` | Tarso |
+| zel2.asm | `web/src/engine/boss-paguro.ts` | Paguro |
+| drgn.asm | `web/src/engine/boss-dragon.ts` | Dragon |
+| akma.asm | `web/src/engine/boss-jashiin1.ts` + `boss-jashiin2.ts` | Jashiin (both rooms) |
+| meda.asm | `web/src/engine/boss-alguien.ts` | Alguien (referenced) |
+| kingpro.asm | `web/src/scenes/indoor-king.ts` | King scene |
+| kenjpro.asm | `web/src/scenes/indoor-princess.ts` | Princess scene |
+| armrpro.asm | `web/src/scenes/indoor-weapon-shop.ts` | Weapon Shop |
+| drugpro.asm | `web/src/scenes/indoor-magic-shop.ts` | Magic Shop |
+| bankpro.asm | `web/src/scenes/indoor-bank.ts` | Bank |
+| churpro.asm | `web/src/scenes/indoor-church.ts` | Church |
+| innapro.asm | `web/src/scenes/indoor-inn.ts` | Inn |
+| omoypro.asm | `web/src/scenes/indoor-sage.ts` | Sage |
+| mscadlib.asm / sndadlib.asm | `web/src/audio/sound-manager.ts` | Music/SFX driver |
+| rokademo.asm | `web/src/core/roka-demo.ts` | Tear-collection demo |
+| mole.asm, ckpd.asm, ympd.asm | — | Backgrounds/decor; replaced by PNG overlays |
 
-Not yet ported (future work): **eai5–eai8.asm** (caverns 5+) and boss modules for **Vista, Tarso, Paguro, Dragon, Jashiin**. Their binaries exist in `game/0/` (`eai5-8.bin`, `vista`, `tarso`, `paguro`, `drgn`, etc.) but no disassembly listings yet — the listings live in `WORK/*.lst` and `WORK/*.bin.i64`.
+All 32 overlays/boss modules have TS owners; the asm/ tree remains the
+authoritative reference for engine semantics.
 
 ---
 
-## 3. Build System
-
-### 3.1 Build
+## Original Build System (historical)
 
 ```sh
-make          # builds build/zeliard.js + build/zeliard.wasm (+ source map)
-make serve    # python3 http.server 8000, serve the repo
+make          # built build/zeliard.js + build/zeliard.wasm (+ source map)
+make serve    # python3 http.server 8000, serving the repo root
 ```
 
-The `Makefile` (repo root) uses Emscripten (`~/emsdk/upstream/emscripten/emcc`). Debug flags: `-O0 -g3 -gsource-map`, `-s SAFE_HEAP=1`, `-s ASSERTIONS=2`. `ERROR_ON_UNDEFINED_SYMBOLS=0` tolerates a few intentionally-undefined helpers (e.g. `js_log`). Compiled artifacts are **committed** to the repo (`build/zeliard.js`, `.wasm`, `.map`).
+The `Makefile` used Emscripten (`~/emsdk/upstream/emscripten/emcc`).
+Compiled artifacts (`build/zeliard.js`, `.wasm`, `.map`) were committed to
+the repo.
 
-Exported WASM symbols (via `src/zeliard-wasm.js`):
+The current build is `pnpm build` in `web/` (Vite + TypeScript, static
+output to `web/dist/`); see [../README.md](../README.md).
 
-```
-wasm_init, wasm_set_input_keys,
-wasm_dungeon_init, wasm_dungeon_update, wasm_dungeon_full_tick,
-wasm_dungeon_get_state, wasm_dungeon_get_render_request, wasm_dungeon_clear_render_request,
-wasm_dungeon_get_entity_count, wasm_dungeon_get_entity_table,
-wasm_dungeon_get_viewport_top,
-wasm_set_scroll_ceiling_left_4px, wasm_set_scroll_ceiling_right_4px,
-wasm_set_scroll_floor_left_8px, wasm_set_scroll_floor_right_8px,
-wasm_town_init, wasm_town_update, wasm_town_full_tick,
-wasm_town_entry_disabling_edge_scroll, wasm_town_entry_enabling_edge_scroll,
-wasm_town_set_return_before_main_loop, wasm_town_complete_transition,
-wasm_town_building_finish, wasm_town_conversation_finish,
-wasm_finish_rokademo_transition
-```
-
-> Note: `src/README.md` is stale — it references `./build.sh` which no longer exists. Build is via `make` (repo-root Makefile).
-
-### 3.2 Rebuilding original asm (for verification / new disassembly)
+### Rebuilding original asm (for verification / new disassembly)
 
 ```sh
 asm/build_all.sh   # TASM in dosbox-x; verify against asm/diff.txt
 ```
 
-The `asm/` tree plus `WORK/` (`.lst` listings, `.bin.i64` disassemblies, `LEVELS/*.TXT` map dumps, `DOC/` notes/maps) are the reference for new ports.
+The `asm/` tree plus `WORK/` (`.lst` listings, `.bin.i64` disassemblies,
+`LEVELS/*.TXT` map dumps, `DOC/` notes/maps) remain the reference for any
+new engine work.
 
 ---
 
-## 4. Game Data & Assets
+## Game Data & Assets
 
-- **`game/0/`** — original game data: `*.mdt` (maps), `*.grp` (sprites), `*.bin` (code overlays + eai/boss binaries), `*.usr` (save files), `*.msd` (music).
-- **`assets/`** — extracted PNGs, OGG music, and SFX (66 sound effects). Music tracks include town/dungeon themes (e.g. `mgt1`, `ugm1`, `mgt2`, `ugm2`, `04-CavernOfMalicia`, `08-Peligro`, … `14-Absor`) mapped in `resolveMusicTrack` (`game.js:4064`).
-- **Dungeon config** — `game.js` `DUNGEONS` (`game.js:412`), one entry per map ID (0–10): MDT path, tile sheets, passable tiles, monster stats, death descriptors, boss state. `TOWN_MDTS` lists the 10 towns (Felishika's Castle, Muralla, Satono, Bosque, Hellada, Tumba, Dorado, Llama, Pureza, Esco).
-- **Tools** — `tools/` contains Python viewers/extractors used during porting: `GrpViewer` (GRP→PNG), `MdtViewer`/`MDTViewer` (map editor/viewer), `SpriteEditor`, `SFXRipper`.
+- **`game/0/`** — original game data: `*.mdt` (maps), `*.grp` (sprites),
+  `*.bin` (code overlays + eai/boss binaries), `*.usr` (save files),
+  `*.msd` (music). Served from `web/public/game/`.
+- **`assets/`** — extracted PNGs, OGG music, and SFX (66 sound effects).
+  Served from `web/public/assets/`.
+- **Dungeon config** — `web/src/data/dungeons.ts` `DUNGEONS`: one entry per
+  map ID (0–30), covering **all 8 caverns** plus boss rooms and the Jashiin
+  rooms. Each entry has MDT path, tile/entity sheets, passable tiles, slope
+  tiles, aggressive ground, airflows, monster XP/damage, death descriptors,
+  trajectories, AI (EAI1–8), and an optional `bossState`. `TOWN_MDTS` lists
+  the 10 towns (Felishika's Castle, Muralla, Satono, Bosque, Hellada, Tumba,
+  Dorado, Llama, Pureza, Esco).
+- **Tools** — `tools/` contains Python viewers/extractors used during
+  porting: `GrpViewer` (GRP→PNG), `MdtViewer`/`MDTViewer` (map
+  editor/viewer), `SpriteEditor`, `SFXRipper`. These are no longer needed
+  by the runtime but remain for asset re-extraction.
 
-### 4.1 How to add a new cavern/boss
+### Adding new content (e.g. a new boss or cavern variant)
 
-1. Disassemble the overlay (`eaiN.bin` / boss `.bin`) using the `WORK/` tooling → produce `WORK/<name>.lst` / `.bin.i64`.
-2. Port to C following `src/eai*.c` / `src/crab.c` patterns; add to the Makefile `SOURCES`.
-3. Wire map IDs in `load_eai_module()` in `src/dungeon.c:5197` (e.g. eai5 → map IDs for Tumba).
-4. Extract dungeon graphics: `tools/GrpViewer` → PNG into `assets/images/`.
-5. Add a `DUNGEONS` config entry in `game.js` (map ID, tile sheets, passable tiles, monsters, boss state).
-
----
-
-## 5. Timer & Audio
-
-The original game syncs state/music/sound via PIT timer interrupts. We emulate this with an `AudioWorkletProcessor`:
-
-- `pit-worklet.js` — emulates the PIT 8253 at **236.7 Hz** (clock 1,193,182 Hz ÷ reload 5041), firing `full_tick` messages each PIT tick and `slow_tick` every 5th tick (≈47 Hz) for input + logic.
-- `sound-manager.js` — SFX + music scheduling on the main thread, driven by the worklet's `full_tick`.
-
-Main-thread handler (from `pit-worklet.js`):
-
-```js
-node.port.onmessage = ({ data }) => {
-  if (data.type === 'full_tick') { /* sound/music driver poll; frame counters */ }
-  if (data.type === 'slow_tick') { /* poll input; run game logic (wasm_dungeon_update / wasm_town_update) */ }
-};
-```
-
-Tradeoff: `postMessage` adds ~0.5–2 ms latency; audio DSP stays in the worklet, only game-state messages cross the thread boundary.
+1. Use `asm/build_all.sh` and the `WORK/` tooling to study or disassembly-
+   edit the relevant `.asm` if you need exact behavior reference.
+2. For data-only changes (tile swaps, monster stat tweaks), edit
+   `web/src/data/dungeons.ts` directly.
+3. For new behavior, add a new owner module under
+   `web/src/engine/` following the patterns of `eai*.ts` / `boss-*.ts`, and
+   wire it through `web/src/engine/eai-registry.ts` /
+   `web/src/engine/dungeon-cutover.ts`. Keep `web/tests/` coverage high.
 
 ---
 
-## 6. Testing Strategy
+## Timer & Audio (historical → current)
 
-No automated test framework is set up. Verification approaches in use:
+The original game synced state/music/sound via PIT timer interrupts. The
+emulation lives in `web/public/pit-worklet.js`:
 
-- **Byte-identical asm rebuilds** — `asm/diff.txt` (all 32 sections empty) proves the reference disassembly is faithful, so C ports can be checked against `WORK/` listings.
-- **Manual playtesting** — the full loop (intro → town → dungeon → boss → rokademo) is exercised in-browser; save/restore/export round-trips verified against original `.usr` files.
-- **Progress commits** — incremental: each cavern/boss lands as a working, playable increment.
+- `pit-worklet.js` — emulates the PIT 8253 at **236.7 Hz** (clock
+  1,193,182 Hz ÷ reload 5041), firing `full_tick` messages each PIT tick
+  and `slow_tick` every 5th tick (≈47 Hz) for input + logic.
+- `web/src/audio/sound-manager.ts` — SFX + music scheduling on the main
+  thread, driven by the worklet's `full_tick`. The audio-owned region
+  (`sound_fx_request` byte at 0xFF75 etc.) is read by the worklet handler
+  and cleared after consumption; `web/src/core/ts-memory.ts` exposes typed
+  accessors for it.
+
+Tradeoff noted during the original port: `postMessage` adds ~0.5–2 ms
+latency; audio DSP stays in the worklet, only game-state messages cross
+the thread boundary.
 
 ---
 
-## 7. Repository Layout
+## Testing Strategy
+
+- **Pure-logic unit tests** (`web/tests/`, Vitest) — high coverage:
+  save codec, conversation engine, shop/bank transaction rules, TS memory,
+  engine helpers, combat, item/chest handling, enemy and boss AI.
+- **Playwright E2E** (`web/e2e/`) — boots the real game, skips the intro,
+  screenshots the town canvas, warps into a dungeon room and back,
+  asserts no console errors. Baselines live in `web/e2e/__screenshots__/`.
+- **Coverage** — `pnpm test --coverage` runs `vitest --coverage` with
+  `@vitest/coverage-v8` (thresholds enforced in `vite.config.ts`).
+
+Run before substantial engine, save, input, render, or scene changes:
+
+1. `pnpm typecheck`
+2. `pnpm test`
+3. `pnpm e2e`
+4. `pnpm build`
+
+---
+
+## Repository Layout (current)
 
 ```
 zeliard/
-├── index.html, styles.css
-├── game.js                  # Main JS: rendering, input, DUNGEONS/TOWN configs, transitions
-├── opening-intro.js         # opdemo.asm (title screen)
-├── sound-manager.js         # Audio driver (mscadlib/sndadlib)
-├── pit-worklet.js           # PIT timer AudioWorklet
-├── indoor-*.js              # King, Princess, Sage, shops, Church, Bank, Inn scenes
-├── inventory-screen.js      # select.asm
-├── save-restore-ui.js, import-export-ui.js, ui-menu-dialog.js
-├── guerra_border_walls.js
-├── build/                   # zeliard.js + zeliard.wasm (+ .map), committed
-├── src/
-│   ├── zeliard-wasm.js      # WASM bridge
-│   ├── zeliard.h            # Public API, memory macros, structures
-│   ├── data.c, unpack.c, eai1_data.c
-│   ├── town.c, dungeon.c
-│   ├── eai1.c .. eai4.c
-│   ├── crab.c, tako.c, tori.c, zela.c
-│   └── gfmcga.c
+├── README.md
 ├── asm/                     # Original asm sources + TASM rebuild (build_all.sh, diff.txt)
-├── WORK/                    # Disassembly listings, map dumps, docs, tools
-├── tools/                   # GrpViewer, MdtViewer, MDTViewer, SpriteEditor, SFXRipper
-├── assets/                  # PNGs, OGGs, SFX
-├── game/0/                  # Original game data
-├── Makefile                 # Emscripten build
-└── PORTING_PLAN.md          # This document
+├── docs/                    # This file + MIGRATION_*, REFACTOR_PLAN, OPTIMIZE, summary
+├── tools/                   # Python asset extractors (no longer runtime-required)
+├── WORK/                    # Disassembly listings, map dumps, docs, tools (historical)
+├── game/0/                  # Original game data (also served from web/public/game/)
+├── web/                     # Vite + TypeScript app (live runtime)
+│   ├── public/              # pit-worklet.js, assets/, game/
+│   ├── src/
+│   │   ├── main.ts          # Composition root
+│   │   ├── audio/ sound-manager.ts
+│   │   ├── config/ engine.ts
+│   │   ├── core/            # memory, ts-memory, game-state, scene, transitions,
+│   │   │                    # conversation, conversation-text, indoor-scene-base,
+│   │   │                    # roka-demo, speed-change
+│   │   ├── data/            # assets, dungeons
+│   │   ├── engine/          # town, dungeon-*.ts, eai1..8, boss-*.ts,
+│   │   │                    # unpack, mdt, input, town-state, heartbeat-table, eai-registry
+│   │   ├── input/           # key-state, key-router, touch-input
+│   │   ├── platform/        # save, save-file
+│   │   ├── render/          # canvas, sheets, dungeon, town, dungeon-logic, explosion-ring
+│   │   ├── scenes/          # opening-intro, ending-demo, indoor-*.ts
+│   │   └── ui/              # hud, menu-dialog, modal-manager, save-restore,
+│   │                        # import-export, inventory-screen, conversation-draw
+│   ├── tests/               # Vitest unit tests
+│   ├── e2e/                 # Playwright smoke/regression tests
+│   ├── package.json, tsconfig.json, vite.config.ts, playwright.config.ts
+│   └── index.html
+└── .github/workflows/deploy.yml   # GitHub Pages deploy (pnpm build → web/dist)
 ```
+
+---
+
+## See Also
+
+- [README.md](../README.md) — live project status and dev commands.
+- [MIGRATION_PLAN.md](MIGRATION_PLAN.md) — TypeScript runtime plan and goals.
+- [MIGRATION_HISTORY.md](MIGRATION_HISTORY.md) — full Stage 0–10 diary.
+- [REFACTOR_PLAN.md](REFACTOR_PLAN.md) — typed-state extraction (done).
+- [OPTIMIZE.md](OPTIMIZE.md) — input-lag optimization history.
+- [summary.md](summary.md) — project summary.

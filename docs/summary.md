@@ -1,63 +1,145 @@
 # Project Summary
 
 ## Objective
-Port of the DOS game **Zeliard** to the browser (JavaScript + WASM). The current feature is the **rokademo** — the tear-of-Esmesanti collection demo played after each boss defeat. The most recent task was save compatibility: old saves (made before the rokademo feature) restore with zero tears rendered because nothing incremented `ADDR_TEAR_COUNT` (0xA0). The fix derives the tear count from the per-cavern savegame achievement flags (e.g. `malicia_items_1` +32 "Collected a Tear of Esmesanti", per `asm/common.inc`).
 
-## Important Details
+Web port of the DOS game **Zeliard**, playable end-to-end in the browser.
+The current runtime is **pure TypeScript** (Vite + Vitest + Playwright),
+deployed automatically to GitHub Pages on push to `main`.
 
-### Save area / per-cavern tear flags (asm/common.inc, savegame area bytes 0x00–0xFF)
-The port copies 256 bytes to `gMemoryBase + 0` on save/restore. Collected tears are recorded per-cavern by each boss cavern's **exit door achievement**: the door struct (`asm/dungeon.inc` `door` STRUC, +9 `d_save_achievement_addr` dw, +11 `d_achievement_flag` db) is OR'd via `enter_opened_door` → `MEM8(addr) |= flag` (src/dungeon.c:4765-4768, mirrors asm/fight.asm `enter_opened_door`). Verified directly from the boss-cavern MDT door tables (descriptor initializer writes `0xC00A` (ADDR_DOORS_LIST) ← doors pointer):
+For full architecture, build, and deployment details see:
 
-| # | Cavern | MDT | Flag addr | Bit | Variable (asm/common.inc) |
-|---|--------|-----|-----------|-----|---------------------------|
-| 1 | Cangrejo | mp1d | 0x03 | 0x20 | malicia_items_1 |
-| 2 | Pulpo | mp2d | 0x0B | 0x08 | (door writes 0x0B; common.inc documents peligro_items_1=0x0A — doc appears off by one) |
-| 3 | Pollo | mp3d | 0x13 | 0x02 | riza_items |
-| 4 | Agar | mp4d | 0x1C | 0x10 | escarcha_items_1 |
-| 5 | Vista | mp5d | 0x24 | 0x04 | cementar_items_1 |
-| 6 | Tarso | mp6d | 0x2D | 0x10 | plata_items_2 |
-| 7 | Paguro | mp7d | 0x36 | 0x80 | caliente_items_2 |
-| 8 | Dragon | mp8d | 0x45 | 0x40 | falter_items |
-| 9 | Jashiin | mpa0 | 0x47 (≠0) | — | no door achievement (0xFFFF); mpa0 descriptor initializer writes 0xFFFF to byte 0x47 = "defeated" |
+- [README.md](../README.md) — live status, dev workflow
+- [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) — TypeScript runtime state and goals
+- [docs/PORTING_PLAN.md](PORTING_PLAN.md) — historical C/wasm plan and current asm reference
 
-Slot order on the mole strip (TEAR_SLOTS_BLUE / TEAR_SLOT_RED) matches the original `tears_order_coords` (game.asm:348), which equals `tears_coords` (rokademo.asm:577). `render_tears_collected` (game.asm) renders only from `Tears_of_Esmesanti_count` (0xA0), clamped at 9; index 8 is the big red tear (rokademo.asm `is_big_red_tear`).
+## Current Status
 
-### Rokademo implementation facts
-- `dman.png` = 936×72 ⇒ 13 sprites of 72×72: 0–9 hero phases, 10/11/12 = small/medium/large sword. Sprite 9 = salute pose.
-- `mole_t.jpg` = 672×42 sits ABOVE the canvas (672×432). Blue slots x=[49,121,193,265,386,458,530,602] y=6; red x=320 y=1. `MOLE_IMG_H = 42`.
-- Sparkle flies to the slot ABOVE the canvas → Bresenham target y is intentionally negative (`rokademoSlotCenter`: `y = Math.round(-MOLE_IMG_H + slot.y + h/2)`). Bresenham needs INTEGER coords (only ±1 steps) or it never terminates (infinite sfx-28 ping + hang).
-- Landing burst/flash is clamped back into the canvas (`rokademoLandCenter`): wide burst 192×48, flash 48×48.
-- Original asm (fight.asm:4590) jumps straight to `after_run_animation` after the demo — no second roka run. Port uses static `g_skip_roka_run` in src/dungeon.c (set in `wasm_finish_rokademo_transition` for dungeon targets, consumed in `prepare_dungeon`).
-- Boss flow sets BOTH the flag and the counter: hero touches the placed exit door → `enter_opened_door` ORs the tear flag → DOOR_PENDING → `dungeon_complete_door_transition` sees `door_features & 0x80` → `roka_entrypoint()` (src/dungeon.c:1262) increments `ADDR_TEAR_COUNT` (clamped 9) and sets `DUNGEON_STATE_ROKADEMO`.
+Game is **100% playable from the opening intro through the ending** —
+all 8 caverns, all 10 bosses (Cangrejo, Pulpo, Pollo, Agar, Vista,
+Tarso, Paguro, Dragon, Jashiin rooms 1+2), all 10 towns, all indoor
+scenes (King, Princess, Sage, Weapon Shop, Magic Shop, Church, Bank,
+Inn), inventory, save/restore/import/export, the rokademo (Tear of Esmesanti collection demo after each boss), and the ending demo.
 
-## Work State
+## Architecture (high level)
 
-### Completed
-- Whole rokademo JS state machine (run → stand → draw → salute → sparkle → fly → land → sheath → runoff) in game.js: `startRokademo`, `updateRokademo`, `drawDungeonRokademo`, `finishRokademoDemo`, `rokademoSlotCenter`/`rokademoLandCenter`, `ROKADEMO_TIMING`, asset loading.
-- `draw()` dispatch: `DUNGEON_STATE_ROKADEMO` → `drawDungeonRokademo`; `rokademoHold` fallback keeps the roka backdrop until `wasm_finish_rokademo_transition`'s transition takes over.
-- `finishRokademoDemo` calls WASM `finishRokademoTransition` and writes `ADDR_FRAME_TIMER = speedC*4` to bypass the speed gate.
-- Tear overlay `#tear-overlay` (DOM, inside `#mole-top` above canvas) synced on startGame / performGameRestore / every draw().
-- **Save-compat fix**: `TEAR_FLAGS` table (cavern order), `countCollectedTears()`, `getTearCount() = min(9, readU8(0xA0))` — the counter is authoritative (matches original `render_tears_collected`); the per-cavern flags are NOT folded in during live play because they're set before the Tear is placed (byte 0x47 = Jashiin defeated is written by `load_place_and_reinit` on boss death, before the exit-door rokademo). Old saves (counter 0, flags set) are reconciled once at load via `reconcileTearCountFromFlags()` (called from `startGame` and `performGameRestore`), which writes the flag-derived count back to `ADDR_TEAR_COUNT` only when the counter is 0.
-- WASM rebuilt and verified (`wasm_finish_rokademo_transition` exported). `node --check` passes for all JS modules. Logic tested with a standalone script (9 cases pass).
+- `web/src/main.ts` — composition root: boot, game loop, scene wiring,
+  town/dungeon transition orchestration, save/restore flow.
+- `web/src/engine/` — TypeScript simulation (town, dungeon, EAI1–8
+  enemy AI, all boss AIs, combat, items, doors, spells, projectiles,
+  state machine).
+- `web/src/core/` — memory layout, scene contracts, transitions,
+  conversation engine, rokademo, speed-change.
+- `web/src/render/` — canvas setup, town and dungeon renderers, sheet
+  helpers, animated tile rules, 2bpp explosion-ring decode.
+- `web/src/scenes/` — intro, ending, indoor scenes.
+- `web/src/ui/`, `input/`, `audio/`, `platform/`, `data/`, `config/` —
+  one owner module per feature.
+- `web/public/pit-worklet.js` — the only plain-JS runtime artifact
+  (AudioWorklet modules load by URL in their own realm).
+- `asm/`, `WORK/`, `game/0/`, `tools/` — original assets, disassembly,
+  and Python extractors. Kept as engine reference; not built or
+  served in the runtime.
 
-### Active
-- (none)
+## Save Format
 
-### Blocked
-- (none)
+256-byte save image, byte-for-byte compatible with the original `.usr` files. The first 256 bytes of the engine's `Uint8Array` (`g_mem[0..255]`) remain the save buffer. The per-cavern "Collected a Tear of Esmesanti" achievement flags are reconciled with the tear
+counter on load (see "Tear reconciliation" below).
 
-## Next Move
-- Play-test: restore an old save (pre-rokademo, counter 0, some tear flags set) and confirm the mole-strip overlay shows the collected tears; then defeat the next boss and confirm the demo plays the correct slot.
-- Optionally reconcile the Pulpo flag doc (common.inc says peligro_items_1=0x0A +8, actual door writes 0x0B +8).
+### Tear reconciliation
 
-## Relevant Files
-- `asm/common.inc` — savegame-area variable definitions incl. all "Collected a Tear of Esmesanti" bits; `Tears_of_Esmesanti_count equ 0a0h`
-- `asm/dungeon.inc` — `door` STRUC (+9 achievement addr, +11 flag); `tear_x equ 0C013h`
-- `asm/fight.asm` — `enter_opened_door` (4466-4473), boss demo path (roka_entrypoint call ~4566, `jmp after_run_animation` ~4590)
-- `asm/rokademo.asm` — demo scenario, `tear_x_mul4`/`tears_coords`, counter clamp at 9, red tear
-- `asm/game.asm` — `render_tears_collected`, `tears_order_coords`
-- `src/dungeon.c` — `roka_entrypoint` (1262), `enter_opened_door` (4763), `open_door` (4742), `try_door_interaction` (4712), `g_skip_roka_run`, `wasm_finish_rokademo_transition` (1832), `prepare_dungeon` (1853), `load_place_and_reinit` (923), `remove_accomplished_items` (1209)
-- `src/zeliard-wasm.js` — `loadSaveState` (249), `loadMdt` (235), `readMemory`/`writeMemory` (686/700), `MEM_SAVE_DATA=0`
-- `game.js` — `TEAR_FLAGS` (~901), `ADDR_TEAR_COUNT` (999), `TEAR_SLOTS_BLUE`/`TEAR_SLOT_RED`/`MOLE_IMG_H`, rokademo state machine, `countCollectedTears`/`getTearCount`/`syncTearOverlay`, `performGameRestore` (~4779), `startRokademo` (~3562)
-- `index.html` — `#mole-top`/`#tear-overlay` above the canvas
-- `Makefile` — emcc build of `build/zeliard.js`/`build/zeliard.wasm`
+On load (`performGameRestore`), if `ADDR_TEAR_COUNT` (0xA0) is 0 but
+any per-cavern tear flag is set, the counter is derived from the
+flags. Live play continues to set both the flag and the counter, so
+the flag is the authoritative source for old saves and the counter
+is authoritative for new saves.
+
+The flag table (`TEAR_FLAGS` in `web/src/data/assets.ts`) lists per-
+cavern flag address + bit:
+
+| # | Boss Name | MDT  | Flag addr | Bit  |
+|---|--------|------|-----------|------|
+| 1 | Cangrejo | mp1d | 0x03 | 0x20 |
+| 2 | Pulpo    | mp2d | 0x0B | 0x08 |
+| 3 | Pollo    | mp3d | 0x13 | 0x02 |
+| 4 | Agar     | mp4d | 0x1C | 0x10 |
+| 5 | Vista    | mp5d | 0x24 | 0x04 |
+| 6 | Tarso    | mp6d | 0x2D | 0x10 |
+| 7 | Paguro   | mp7d | 0x36 | 0x80 |
+| 8 | Dragon   | mp8d | 0x45 | 0x40 |
+| 9 | Jashiin  | mpa0 | 0x47 (≠0) | — (no door achievement) |
+
+Mole-strip slot coordinates (`TEAR_SLOTS_BLUE`, `TEAR_SLOT_RED` in
+`web/src/data/assets.ts`) match the original `tears_order_coords` /
+`tears_coords` (`asm/rokademo.asm`). Index 8 is the big red tear.
+The overlay is rendered into `#tear-overlay` (inside `#mole-top` above
+the 672×432 canvas) by `syncTearOverlay` on game start, restore, and
+every draw.
+
+## Key Engine Modules
+
+- `web/src/core/roka-demo.ts` — full state machine for the post-boss
+  Tear collection demo (run → salute → sparkle flight (Bresenham) →
+  land → tear theme → sheath → runoff). Side effects (SFX, tear
+  music, mole-strip overlays) are injected; timing, geometry, and
+  Bresenham step math are pure.
+- `web/src/core/conversation-text.ts` + `conversation.ts` — NPC
+  dialog byte-stream parser (line wrap, 15-line paging, control codes
+  0x81/0x83/0x85/0x87/0x89/0x8B) and the full conversation state
+  machine (Yes/No, purchase flow, end-code chaining).
+- `web/src/core/transitions.ts` — town/dungeon edge-lock viewport
+  math, music-track resolution, boss-state block encoding,
+  `getTownMapWidth`.
+- `web/src/engine/dungeon-*.ts` — ~30 modules covering entity
+  movement/collision, hero physics (horizontal + vertical), combat,
+  monster lifecycle, items, damage, platforms, projectiles, spells,
+  state machine, init, frame-pre, runtime. EAI1–8 are injected as
+  callbacks (`web/src/engine/eai-registry.ts`).
+- `web/src/engine/boss-*.ts` — one module per boss:
+  - `boss-crab.ts` (Cangrejo)
+  - `boss-tako.ts` (Pulpo)
+  - `boss-tori.ts` (Pollo)
+  - `boss-agar.ts` (Agar)
+  - `boss-vista.ts` (Vista)
+  - `boss-tarso.ts` (Tarso)
+  - `boss-paguro.ts` (Paguro)
+  - `boss-dragon.ts` (Dragon)
+  - `boss-alguien.ts` (Alguien)
+  - `boss-jashiin1.ts` + `boss-jashiin2.ts` (Jashiin rooms 1+2)
+
+## Testing
+
+- **Vitest unit tests** (`web/tests/`, 800+ tests) — high coverage of
+  pure logic: save codec, conversation engine, shop/bank transactions,
+  TS memory accessors, engine helpers, combat, item/chest handling,
+  enemy and boss AI, typed game state round-trip.
+- **Playwright E2E** (`web/e2e/`) — boots the real game, skips the
+  intro, screenshots the town canvas, warps into a dungeon room and
+  back, asserts no console errors.
+- **Coverage** — `pnpm test --coverage` (thresholds enforced in
+  `vite.config.ts`).
+
+## Deployment
+
+GitHub Actions workflow at `.github/workflows/deploy.yml` builds
+(`pnpm build` → `web/dist/`) and deploys to GitHub Pages on push to
+`main`. Live at https://br0x.github.io/zeliard/
+
+## Historical Notes
+
+- Pre-TypeScript era: the engine ran as x86 asm (`asm/`) ported to C
+  with emscripten → WASM, with JS (`game.js`) bridging to a canvas UI
+  and an AudioWorklet (`pit-worklet.js`) emulating the PIT 8253 at
+  236.7 Hz for tick scheduling. See `docs/PORTING_PLAN.md` for the
+  historical architecture and asm module map.
+- The migration to pure TypeScript is documented in
+  `docs/MIGRATION_HISTORY.md` (Stages 0–10).
+- The typed-state refactor (extracting `g_mem` flag/word reads into
+  typed `HeroState` / `DungeonRuntimeState` / `TownRuntimeState`
+  objects) is documented in `docs/REFACTOR_PLAN.md`.
+
+## See Also
+
+- [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) — current goals and guardrails
+- [docs/MIGRATION_HISTORY.md](MIGRATION_HISTORY.md) — migration diary
+- [docs/REFACTOR_PLAN.md](REFACTOR_PLAN.md) — typed-state plan (done)
+- [docs/OPTIMIZE.md](OPTIMIZE.md) — input-lag optimization history

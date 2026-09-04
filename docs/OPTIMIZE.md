@@ -1,19 +1,30 @@
-# Performance Optimization Plan: Input Lag on Later Levels
+# Performance Optimization History: Input Lag on Later Levels
 
-> **Note (post Stage-4 of MIGRATION_PLAN):** the files referenced below have
-> since been split and converted to TypeScript — `game.js` is now `web/src/main.ts`
-> plus owner modules under `web/src/`, and `src/zeliard-wasm.js` is
-> `web/src/wasm/bridge.ts`. Line numbers are from the monolith era; the
-> described mechanisms are unchanged.
+> **Historical note.** This document describes an early investigation and the
+> fixes that were applied to the WASM-era runtime. Phases 1–3 were
+> implemented; phases 4–5 were superseded by the migration to pure
+> TypeScript (see [MIGRATION_HISTORY.md](MIGRATION_HISTORY.md)). The engine
+> now runs in TypeScript with no WASM boundary, so main-thread contention
+> is dramatically lower than the original architecture this doc measured.
+>
+> The original `game.js` is now `web/src/main.ts` plus owner modules under
+> `web/src/`, and `src/zeliard-wasm.js` is gone entirely (the bridge was
+> deleted in Stage 10 along with the rest of `web/src/wasm/`).
+>
+> Phase 4 (RAF-on-demand) and Phase 5 (message batching) remain relevant
+> if input lag ever resurfaces; the diagnosis procedure (which worklet
+> message is stalling, what main-thread work runs between ticks) still
+> applies to the current code.
 
-## Problem Summary
+## Problem Summary (historical)
 
-Direction keys feel laggy/unresponsive on later dungeon levels (mp40–mp62). The
-root cause is **main thread contention**: heavier WASM game logic on later levels
-delays AudioWorklet `slow_tick` message processing, which writes the direction-key
-state (`ADDR_INPUT_DIRS`) that `state_machine_dispatcher()` reads for hero movement.
+Direction keys feel laggy/unresponsive on later dungeon levels (mp40–mp62).
+Root cause was **main thread contention**: heavier WASM game logic on
+later levels delayed AudioWorklet `slow_tick` message processing, which
+writes the direction-key state (`ADDR_INPUT_DIRS`) that
+`state_machine_dispatcher()` reads for hero movement.
 
-## Architecture
+## Architecture (historical)
 
 ```
 AudioWorklet (236 Hz) ─> postMessage ─> Main Thread (port.onmessage)
@@ -29,23 +40,28 @@ AudioWorklet (236 Hz) ─> postMessage ─> Main Thread (port.onmessage)
 RAF (60 Hz) ──requestAnimationFrame──>  draw()  ← drawDungeonEntities, animateDungeonTiles, etc.
 ```
 
-Messages are processed **sequentially**. If `onFullTick` (WASM logic) exceeds the ~4.2ms
-between ticks, the next `slow_tick` message queues behind pending `full_tick` messages,
-delaying `inputSetKeys(key)` → stale `ADDR_INPUT_DIRS` → input lag.
+Messages are processed **sequentially**. If `onFullTick` (WASM logic)
+exceeded the ~4.2 ms between ticks, the next `slow_tick` message queued
+behind pending `full_tick` messages, delaying `inputSetKeys(key)` → stale
+`ADDR_INPUT_DIRS` → input lag.
 
-## Root Cause Details
+## Root Cause Details (historical)
 
-1. **Heavy WASM per `onFullTick` on later levels** (dungeon.c:4528 `dungeon_update_normal`):
-   - Phase 0 calls `main_update_render_pre()` (dungeon.c:4270) which calls
-     `monsters_spawning()` (dungeon.c:2770) — iterates the entire monster table
-     (16-byte structs, 0xFFFF terminator) and runs `Monster_AI(m)` for each
-     monster in proximity.
-   - Later levels use EAI5 (967 lines) / EAI6 (841 lines) vs EAI1 (610 lines),
-     each `Monster_AI` call does more work.
+1. **Heavy WASM per `onFullTick` on later levels** (C reference: `dungeon.c:4528` `dungeon_update_normal`):
+   - Phase 0 calls `main_update_render_pre()` (C reference: `dungeon.c:4270`)
+     which calls `monsters_spawning()` (C reference: `dungeon.c:2770`) —
+     iterates the entire monster table (16-byte structs, 0xFFFF terminator)
+     and runs `Monster_AI(m)` for each monster in proximity.
+   - Later levels use EAI5 (967 lines) / EAI6 (841 lines) vs EAI1 (610
+     lines), each `Monster_AI` call does more work.
    - Additional per-frame features on later levels: airflows (level 5+),
      ice/sliding physics, projectiles, more active monsters in proximity.
+   - In the current TypeScript runtime the equivalent work lives in
+     `web/src/engine/dungeon-monsters.ts`, `dungeon-frame-pre.ts`,
+     `eai5..8.ts`, etc. With no WASM boundary, the per-call overhead is
+     dramatically lower than the original.
 
-2. **Excessive `Uint8Array` allocations from `readMemory`** (src/zeliard-wasm.js:686):
+2. **Excessive `Uint8Array` allocations from `readMemory`** (C reference: `src/zeliard-wasm.js:686`):
    ```js
    return new Uint8Array(wasmMemory.buffer, gMemoryBase + offset, length);
    ```
@@ -54,6 +70,9 @@ delaying `inputSetKeys(key)` → stale `ADDR_INPUT_DIRS` → input lag.
      (~560 per frame) → ~33,600 allocs/sec, plus 4 more per entity in `getSheetFrame`
    - `animateDungeonTiles` (game.js:3063): ~1,120 read+write calls per frame on
      cavern levels 5–8 → ~67,200 allocs/sec
+   - The current engine has no WASM boundary; typed state objects
+     (`web/src/core/game-state.ts`) read directly from the shared
+     `Uint8Array`, and per-frame buffer reads are batched.
 
 ## Optimization Plan
 
@@ -289,31 +308,34 @@ attempted after Phase 1–3 are validated.
 
 | Phase | Priority | Effort | Impact on Input Lag | Status |
 |-------|----------|--------|---------------------|--------|
-| 1     | High     | Low    | **Direct fix** — input written at 236 Hz | ✅ Done |
-| 2     | High     | Low    | Reduces GC pauses that delay ticks | ✅ Done |
-| 3     | High     | Low    | Eliminates ~33K allocs/sec from rendering | ✅ Done |
-| 4     | Medium   | Medium | Reduces 60 Hz RAF contention | — |
-| 5     | Low      | High   | Architectural — only if 1–4 insufficient | — |
+| 1     | High     | Low    | **Direct fix** — input written at 236 Hz | ✅ Done (WASM era) |
+| 2     | High     | Low    | Reduces GC pauses that delay ticks | ✅ Done (WASM era) |
+| 3     | High     | Low    | Eliminates ~33K allocs/sec from rendering | ✅ Done (WASM era) |
+| 4     | Medium   | Medium | Reduces 60 Hz RAF contention | Deferred (current `requestAnimationFrame` loop in `web/src/main.ts` re-renders only on `renderRequest` change for the dungeon side) |
+| 5     | Low      | High   | Architectural — only if 1–4 insufficient | Superseded by TS migration |
 
-## File Locations Reference
+The TS migration removed the WASM boundary entirely, which is the dominant
+fix for all three root causes; Phase 5 became unnecessary.
 
-| File | Key Sections |
-|------|-------------|
-| `game.js:1791` | `onFullTick` — adds `inputSetKeys(keys)` call |
-| `game.js:1860` | `onSlowTick` — keeps `updateInputLatches` + `inputSetKeys` for town mode |
-| `game.js:2664` | `drawDungeonTiles` — already batch-reads proximity map (good pattern) |
-| `game.js:~3256` | `drawDungeonEntities` — batch-reads proximity map into local array |
-| `game.js:~3183` | `getSheetFrame` — batch-reads 16-byte monster entry |
-| `game.js:3075` | `animateDungeonTiles` — batch-reads prox map, direct array writes |
-| `game.js:5362` | `loop` — RAF draw loop |
-| `src/zeliard-wasm.js:707` | `readMemory` — `gMemView.subarray()` on cached view (no alloc) |
-| `src/zeliard-wasm.js:723` | `writeMemory` — `gMemView.set()` on cached view |
-| `src/zeliard-wasm.js:140` | `refreshMemViews` — rebuilds cached views when WASM memory grows |
-| `src/zeliard-wasm.js:161` | `getWasmMemory` — returns cached g_mem view |
-| `sound-manager.js:315` | `_onWorkletMessage` — sequential message dispatch |
-| `pit-worklet.js:110` | `_fireTick` — fires full_tick + slow_tick messages |
-| `src/dungeon.c:2770` | `monsters_spawning` — iterates all monster structs |
-| `src/dungeon.c:4270` | `main_update_render_pre` — calls monsters_spawning + airflows |
-| `src/dungeon.c:4528` | `dungeon_update_normal` — 3-phase frame machine |
-| `src/dungeon.c:3665` | `state_machine_dispatcher` — reads `ADDR_INPUT_DIRS` at 0xFF17 |
-| `src/data.c:66` | `wasm_set_input_keys` — writes `ADDR_INPUT_DIRS` |
+## File Locations Reference (historical → current)
+
+| Original | Current | Notes |
+|----------|---------|-------|
+| `game.js:1791` `onFullTick` | `web/src/main.ts` tick dispatch | WASM-era fix added `inputSetKeys(keys)` per full tick |
+| `game.js:1860` `onSlowTick` | `web/src/main.ts` slow-tick handler | Keeps `updateInputLatches` + town-mode conversation logic |
+| `game.js:2664` `drawDungeonTiles` | `web/src/render/dungeon.ts` | Batch-reads proximity map (Phase 3 pattern) |
+| `game.js:~3256` `drawDungeonEntities` | `web/src/render/dungeon.ts` | Batch-reads proximity map into local array |
+| `game.js:~3183` `getSheetFrame` | `web/src/render/dungeon.ts` frame helpers | Batch-reads 16-byte monster entry |
+| `game.js:3075` `animateDungeonTiles` | `web/src/render/dungeon-logic.ts` (`nextAnimatedTile` etc.) | Pure rule extract; per-tile reads/writes batched |
+| `game.js:5362` `loop` | `web/src/main.ts` RAF loop | |
+| `src/zeliard-wasm.js:707` `readMemory` | `web/src/core/ts-memory.ts` `gMemView` accessors | Cached `Uint8Array` view, rebuilt only on growth (n/a in TS) |
+| `src/zeliard-wasm.js:723` `writeMemory` | `web/src/core/ts-memory.ts` `memWrite*` | `Uint8Array.set()`-based |
+| `src/zeliard-wasm.js:140` `refreshMemViews` | n/a | No WASM memory grow |
+| `src/zeliard-wasm.js:161` `getWasmMemory` | `getGmem()` in `web/src/core/ts-memory.ts` | Returns the live `Uint8Array` directly |
+| `sound-manager.js:315` `_onWorkletMessage` | `web/src/audio/sound-manager.ts` | Sequential message dispatch |
+| `pit-worklet.js:110` `_fireTick` | `web/public/pit-worklet.js` | Fires `full_tick` + `slow_tick` messages |
+| C reference `src/dungeon.c:2770` `monsters_spawning` | `web/src/engine/dungeon-monsters.ts` `monsters_spawning` | Iterates monster table |
+| C reference `src/dungeon.c:4270` `main_update_render_pre` | `web/src/engine/dungeon-frame-pre.ts` | Calls airflows, platforms, magia stones, doors |
+| C reference `src/dungeon.c:4528` `dungeon_update_normal` | `web/src/engine/dungeon-state-machine.ts` `wasm_dungeon_update` state switch | 3-phase frame machine |
+| C reference `src/dungeon.c:3665` `state_machine_dispatcher` | `web/src/engine/dungeon-state-machine.ts` | Reads `ADDR_INPUT_DIRS` at 0xFF17 |
+| C reference `src/data.c:66` `wasm_set_input_keys` | `web/src/engine/input.ts` `setInputKeys` | Writes `ADDR_INPUT_DIRS` |
