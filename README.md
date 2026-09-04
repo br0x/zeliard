@@ -2,13 +2,10 @@ This project is a web port of the original Zeliard game, work in progress.
 Try it live: https://br0x.github.io/zeliard/
 If you want to contribute, please open an issue or pull request.
 
-See [PORTING_PLAN](PORTING_PLAN.md) for technical details, and
-[MIGRATION_PLAN](MIGRATION_PLAN.md) for the current TypeScript migration
-status. The full migration diary lives in
-[docs/MIGRATION_HISTORY.md](docs/MIGRATION_HISTORY.md).
+See [docs/PORTING_PLAN](docs/PORTING_PLAN.md) for technical details.
 
 Current status:
-Game is playable until (included) gold caverns (town Dorado)
+Game is 100% playable from the opening intro through the end.
 
 ## Development
 
