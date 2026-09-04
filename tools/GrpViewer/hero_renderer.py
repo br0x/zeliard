@@ -347,6 +347,22 @@ def resolve_front_arm_frame(s: HeroState) -> Optional[int]:
     return arm_base + (s.anim_phase & 3)
 
 
+def _back_arm_shield_squat_dy(s: HeroState) -> int:
+    """Extra Y offset (in TILE_SIZE units) applied to the back-arm layer
+    while squatting, so it stays aligned with the squatting body layer."""
+    if s.squat:
+        return TILE_SIZE
+    return 0
+
+
+def _front_arm_shield_squat_dy(s: HeroState) -> int:
+    """Extra Y offset (in TILE_SIZE units) applied to the front-arm layer
+    while squatting, so it stays aligned with the squatting body layer."""
+    if s.squat:
+        return TILE_SIZE
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Sword frame resolution — port of drawDungeonSword() from dungeon.ts:762
 # ---------------------------------------------------------------------------
@@ -474,16 +490,17 @@ def render_hero(canvas, state: HeroState,
         setattr(canvas, key, photo)  # prevent GC
         canvas.create_image(dx * scale, dy * scale, anchor="nw", image=photo)
 
-    _draw_frame(back_arm, x, y)
+    _draw_frame(back_arm, x, y + _back_arm_shield_squat_dy(state))
     _draw_frame(body_frame, x, y)
-    _draw_frame(front_arm, x, y)
+    _draw_frame(front_arm, x, y + _front_arm_shield_squat_dy(state))
 
     # Sword overlay
     sword_info = resolve_sword_frame(state)
     if sword_info:
         sprite_idx, sx_off, sy_off, _ = sword_info
+        sy_squat = TILE_SIZE if state.squat else 0
         sx = x + sx_off * TILE_SIZE
-        sy = y + sy_off * TILE_SIZE
+        sy = y + sy_off * TILE_SIZE + sy_squat
         s_col = sprite_idx % SWORD_SHEET_COLS
         s_row = sprite_idx // SWORD_SHEET_COLS
         left = s_col * SWORD_FRAME_W
@@ -532,9 +549,9 @@ def render_hero_from_grp(canvas, state: HeroState,
         setattr(canvas, key, photo)
         canvas.create_image(dx * scale, dy * scale, anchor="nw", image=photo)
 
-    _draw_grp_frame(back_arm, x, y)
+    _draw_grp_frame(back_arm, x, y + _back_arm_shield_squat_dy(state))
     _draw_grp_frame(body_frame, x, y)
-    _draw_grp_frame(front_arm, x, y)
+    _draw_grp_frame(front_arm, x, y + _front_arm_shield_squat_dy(state))
 
 
 def render_comparison(canvas, state: HeroState,
@@ -572,9 +589,9 @@ def render_comparison(canvas, state: HeroState,
     front_arm = None if hide_front_arm else front_arm_raw
 
     png_layers: list[tuple[int | None, int, int]] = [
-        (back_arm, x, y),
+        (back_arm, x, y + _back_arm_shield_squat_dy(state)),
         (body_frame, x, y),
-        (front_arm, x, y),
+        (front_arm, x, y + _front_arm_shield_squat_dy(state)),
     ]
 
     def _draw_sheet_frame(frame_idx: int | None, dx: int, dy: int, prefix: str):
@@ -604,8 +621,9 @@ def render_comparison(canvas, state: HeroState,
     sword_info = resolve_sword_frame(state)
     if sword_info:
         sprite_idx, sx_off, sy_off, _ = sword_info
+        sy_squat = TILE_SIZE if state.squat else 0
         sx = x + sx_off * TILE_SIZE
-        sy = y + sy_off * TILE_SIZE
+        sy = y + sy_off * TILE_SIZE + sy_squat
         s_col = sprite_idx % SWORD_SHEET_COLS
         s_row = sprite_idx // SWORD_SHEET_COLS
         left = s_col * SWORD_FRAME_W
@@ -645,8 +663,9 @@ def render_comparison(canvas, state: HeroState,
     if sword_info:
         import grp_viewer as _gv
         sprite_idx, sx_off, sy_off, _ = sword_info
+        sy_squat = TILE_SIZE if state.squat else 0
         sx = grp_x + sx_off * TILE_SIZE * scale
-        sy = (y + sy_off * TILE_SIZE) * scale
+        sy = (y + sy_off * TILE_SIZE + sy_squat) * scale
 
         # Map TypeScript sword sheet (row, col) to sword.grp macro-tile
         s_col = sprite_idx % SWORD_SHEET_COLS
@@ -735,12 +754,12 @@ def main():
     v_jump       = tk.StringVar(value="none")
     v_slope      = tk.StringVar(value="none")
     v_shield_cat = tk.StringVar(value="none")
-    v_shield_anim = tk.IntVar(value=0)
-    v_shield_variant = tk.StringVar(value="0")
     v_sword_swing = tk.IntVar(value=0)
     v_sword_type  = tk.IntVar(value=1)
     v_sword_hit   = tk.StringVar(value="forward")
     v_sword_phase = tk.IntVar(value=0)
+    v_spell_active = tk.IntVar(value=0)
+    v_spell_phase_radio = tk.StringVar(value="0")
     v_hide_body      = tk.IntVar(value=0)
     v_hide_front_arm = tk.IntVar(value=0)
 
@@ -756,16 +775,26 @@ def main():
         shield_map = {"none": 0, "small": 1, "large": 2}
         hit_map = {"forward": 0, "overhead": 1, "downward": 2}
         body = v_body.get()
-        # When sword swing is active, the engine overwrites shield anim state
-        # with sword data (see dungeon-frame.ts:412-415)
+        # Sword swing and spell cast are mutually exclusive; the engine sets
+        # `shield_anim_active` for either (see fight.asm:2996-3001) with
+        # different `shield_phase` and `shield_variant_index` sources.
         swing_active = v_sword_swing.get() == 1 and v_sword_phase.get() > 0
+        spell_active = v_spell_active.get() == 1
+        shield_anim = swing_active or spell_active
         if swing_active:
-            shield_anim = True
-            shield_var = hit_map.get(v_sword_hit.get(), 0)
+            # Engine maps sword phase → shield phase 1:1; resolveArmFrame does
+            # phase//2 internally.
             shield_ph = v_sword_phase.get()
+            # During swing the engine also derives shield_variant from hit type
+            shield_var = hit_map.get(v_sword_hit.get(), 0)
+        elif spell_active:
+            # byte_9F2B ticks {0,2,4} → phase_off {0,1,2}; the radio value
+            # picks among {0,1,2} and we scale it to {0,2,4} to land on three
+            # distinct frames. Spell always uses shield_variant_index = 1.
+            shield_ph = int(v_spell_phase_radio.get()) * 2
+            shield_var = 1
         else:
-            shield_anim = (v_shield_anim.get() == 1)
-            shield_var = int(v_shield_variant.get())
+            shield_var = 0
             shield_ph = 0
         return HeroState(
             facing_left=(v_facing.get() == 1),
@@ -882,24 +911,21 @@ def main():
         [("None", "none"), ("Small", "small"), ("Large", "large")],
         5, command=redraw)
 
-    shield_f = ttk.LabelFrame(ctrl, text="Shield Extras")
-    shield_f.grid(row=6, column=0, sticky="w", padx=4, pady=2)
-    ttk.Checkbutton(shield_f, text="Shield Anim", variable=v_shield_anim,
-                    command=redraw).pack(side="left")
-    ttk.Radiobutton(shield_f, text="0", variable=v_shield_variant, value="0",
-                    command=redraw).pack(side="left")
-    ttk.Radiobutton(shield_f, text="1", variable=v_shield_variant, value="1",
-                    command=redraw).pack(side="left")
-    ttk.Radiobutton(shield_f, text="2", variable=v_shield_variant, value="2",
-                    command=redraw).pack(side="left")
-
-    sword_f = ttk.LabelFrame(ctrl, text="Sword")
-    sword_f.grid(row=7, column=0, sticky="w", padx=4, pady=2)
-
     def _on_swing_toggle(*_args):
         if v_sword_swing.get() and v_sword_phase.get() == 0:
             v_sword_phase.set(1)
+        if v_sword_swing.get():
+            v_spell_active.set(0)
         redraw()
+
+    def _on_spell_toggle(*_args):
+        if v_spell_active.get():
+            v_sword_swing.set(0)
+            v_sword_phase.set(0)
+        redraw()
+
+    sword_f = ttk.LabelFrame(ctrl, text="Sword")
+    sword_f.grid(row=6, column=0, sticky="w", padx=4, pady=2)
 
     sword_row1 = ttk.Frame(sword_f)
     sword_row1.pack(side="top", anchor="w")
@@ -914,7 +940,7 @@ def main():
     sword_row2.pack(side="top", anchor="w")
     ttk.Label(sword_row2, text="Hit:").pack(side="left")
     for text, val in [("Fwd", "forward"), ("Over", "overhead"), ("Down", "downward")]:
-        ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=val,
+        ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=text,
                         command=redraw).pack(side="left")
 
     sword_row3 = ttk.Frame(sword_f)
@@ -923,6 +949,24 @@ def main():
     for p in range(8):
         ttk.Radiobutton(sword_row3, text=str(p), variable=v_sword_phase, value=p,
                         command=redraw).pack(side="left")
+
+    magic_f = ttk.LabelFrame(ctrl, text="Magic")
+    magic_f.grid(row=7, column=0, sticky="w", padx=4, pady=2)
+
+    v_spell_active.trace_add("write", _on_spell_toggle)
+
+    magic_row = ttk.Frame(magic_f)
+    magic_row.pack(side="top", anchor="w")
+    ttk.Checkbutton(magic_row, text="Spell Active", variable=v_spell_active,
+                    command=_on_spell_toggle).pack(side="left")
+    ttk.Label(magic_row, text="  Phase:").pack(side="left")
+    spell_phase_btns: dict[str, ttk.Radiobutton] = {}
+    for v in ("0", "1", "2"):
+        b = ttk.Radiobutton(magic_row, text=v,
+                            variable=v_spell_phase_radio, value=v,
+                            command=redraw)
+        b.pack(side="left")
+        spell_phase_btns[v] = b
 
     # Layer visibility toggles
     layers_f = ttk.LabelFrame(ctrl, text="Hide Layers")
