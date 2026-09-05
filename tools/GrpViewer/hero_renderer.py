@@ -940,7 +940,7 @@ def main():
     sword_row2.pack(side="top", anchor="w")
     ttk.Label(sword_row2, text="Hit:").pack(side="left")
     for text, val in [("Fwd", "forward"), ("Over", "overhead"), ("Down", "downward")]:
-        ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=text,
+        ttk.Radiobutton(sword_row2, text=text, variable=v_sword_hit, value=val,
                         command=redraw).pack(side="left")
 
     sword_row3 = ttk.Frame(sword_f)
