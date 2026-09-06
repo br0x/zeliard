@@ -749,10 +749,12 @@ def main():
 
     # --- state variables (tkinter Vars drive both UI and HeroState) --------
     v_facing     = tk.IntVar(value=0)      # 0=right, 1=left
-    v_anim       = tk.StringVar(value="idle")
-    v_body       = tk.StringVar(value="normal")  # normal/invincible/squat/rope/leaving
-    v_jump       = tk.StringVar(value="none")
-    v_slope      = tk.StringVar(value="none")
+    v_body       = tk.StringVar(value="walk")  # walk/invincible/squat/jump/slope/rope/leaving
+    v_walk_phase = tk.StringVar(value="idle")
+    v_invincible_phase = tk.StringVar(value="0")
+    v_rope_phase = tk.StringVar(value="0")
+    v_jump       = tk.StringVar(value="ascent")
+    v_slope      = tk.StringVar(value="\\")
     v_shield_cat = tk.StringVar(value="none")
     v_sword_swing = tk.IntVar(value=0)
     v_sword_type  = tk.IntVar(value=1)
@@ -769,12 +771,30 @@ def main():
 
     # --- build state from UI vars ----------------------------------------
     def build_state() -> HeroState:
-        anim_map = {"idle": 0x80, "0": 0, "1": 1, "2": 2, "3": 3}
-        jump_map = {"none": 0, "ascent": 0x80, "descent": 0x7F}
-        slope_map = {"none": 0, "\\": 1, "/": 2}
+        walk_anim_map = {"idle": 0x80, "0": 0, "1": 1, "2": 2, "3": 3}
         shield_map = {"none": 0, "small": 1, "large": 2}
         hit_map = {"forward": 0, "overhead": 1, "downward": 2}
         body = v_body.get()
+        if body == "walk":
+            anim_phase = walk_anim_map.get(v_walk_phase.get(), 0x80)
+            jump, slope = 0, 0
+        elif body == "invincible":
+            anim_phase = int(v_invincible_phase.get())
+            jump, slope = 0, 0
+        elif body == "squat":
+            anim_phase, jump, slope = 0x80, 0, 0
+        elif body == "jump":
+            anim_phase = 0x80
+            jump = 0x80 if v_jump.get() == "ascent" else 0x7F
+            slope = 0
+        elif body == "slope":
+            anim_phase, jump = 0x80, 0
+            slope = 1 if v_slope.get() == "\\" else 2
+        elif body == "rope":
+            anim_phase = int(v_rope_phase.get())
+            jump, slope = 0, 0
+        else:
+            anim_phase, jump, slope = 0x80, 0, 0
         # Sword swing and spell cast are mutually exclusive; the engine sets
         # `shield_anim_active` for either (see fight.asm:2996-3001) with
         # different `shield_phase` and `shield_variant_index` sources.
@@ -798,13 +818,13 @@ def main():
             shield_ph = 0
         return HeroState(
             facing_left=(v_facing.get() == 1),
-            anim_phase=anim_map.get(v_anim.get(), 0x80),
+            anim_phase=anim_phase,
             invincible=(body == "invincible"),
             squat=(body == "squat"),
             on_rope=(body == "rope"),
             hidden=(body == "leaving"),
-            jump=jump_map.get(v_jump.get(), 0),
-            slope=slope_map.get(v_slope.get(), 0),
+            jump=jump,
+            slope=slope,
             shield_category=shield_map.get(v_shield_cat.get(), 0),
             shield_anim_active=shield_anim,
             shield_phase=shield_ph,
@@ -815,35 +835,6 @@ def main():
             sword_phase=v_sword_phase.get(),
         )
 
-    # --- walk-phase radio buttons (dynamically enabled/disabled) ----------
-    anim_buttons: dict[str, ttk.Radiobutton] = {}
-
-    def _update_anim_buttons(*_args):
-        """Enable/disable walk-phase options based on body variant and jump."""
-        body = v_body.get()
-        jump = v_jump.get()
-        # Determine which phase values are allowed
-        if body == "invincible":
-            allowed = {"idle", "0", "1", "2"}
-        elif body == "rope":
-            allowed = {"idle", "0", "1", "2", "3"}
-        elif body == "leaving":
-            allowed = {"idle"}
-        elif jump in ("ascent", "descent"):
-            allowed = {"idle"}
-        else:
-            allowed = {"idle", "0", "1", "2", "3"}
-        for key, btn in anim_buttons.items():
-            if key in allowed:
-                btn.configure(state="normal")
-            else:
-                btn.configure(state="disabled")
-        # If current selection is not allowed, snap to idle
-        if v_anim.get() not in allowed:
-            v_anim.set("idle")
-
-    v_body.trace_add("write", _update_anim_buttons)
-    v_jump.trace_add("write", _update_anim_buttons)
 
     # --- canvas + redraw --------------------------------------------------
     canvas = tk.Canvas(root, width=1024, height=400, bg=CANVAS_BG)
@@ -884,32 +875,37 @@ def main():
     _rb(ctrl, "Facing", v_facing,
         [("Right", 0), ("Left", 1)], 0, command=redraw)
 
-    # Walk phase — buttons stored for dynamic enable/disable
-    anim_f = ttk.LabelFrame(ctrl, text="Walk Phase")
-    anim_f.grid(row=1, column=0, sticky="w", padx=4, pady=2)
-    for text, val in [("Idle", "idle"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3")]:
-        btn = ttk.Radiobutton(anim_f, text=text, variable=v_anim, value=val,
-                              command=redraw)
-        btn.pack(side="left")
-        anim_buttons[val] = btn
+    # Body — vertical group; each body state has horizontal sub-mode radios
+    body_f = ttk.LabelFrame(ctrl, text="Body")
+    body_f.grid(row=1, column=0, sticky="w", padx=4, pady=2)
 
-    # Body variant — mutually exclusive radio buttons
-    _rb(ctrl, "Body", v_body,
-        [("Normal", "normal"), ("Invincible", "invincible"), ("Squat", "squat"),
-         ("On Rope", "rope"), ("Leaving", "leaving")],
-        2, command=redraw)
+    def _body_row(label, value, sub_var=None, sub_options=None):
+        row_f = ttk.Frame(body_f)
+        row_f.pack(side="top", anchor="w")
+        ttk.Radiobutton(row_f, text=label, variable=v_body, value=value,
+                        command=redraw).pack(side="left")
+        if sub_var is not None and sub_options:
+            ttk.Label(row_f, text="  ").pack(side="left")
+            for text, val in sub_options:
+                ttk.Radiobutton(row_f, text=text, variable=sub_var, value=val,
+                                command=redraw).pack(side="left")
 
-    _rb(ctrl, "Jump", v_jump,
-        [("None", "none"), ("Ascent", "ascent"), ("Descent", "descent")],
-        3, command=redraw)
-
-    _rb(ctrl, "Slope", v_slope,
-        [("None", "none"), ("\\", "\\"), ("/", "/")],
-        4, command=redraw)
+    _body_row("Walk", "walk", v_walk_phase,
+              [("Idle", "idle"), ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3")])
+    _body_row("Invincible", "invincible", v_invincible_phase,
+              [("0", "0"), ("1", "1"), ("2", "2")])
+    _body_row("Squat", "squat")
+    _body_row("Jump", "jump", v_jump,
+              [("Ascent", "ascent"), ("Descent", "descent")])
+    _body_row("Slope", "slope", v_slope,
+              [("\\", "\\"), ("/", "/")])
+    _body_row("On Rope", "rope", v_rope_phase,
+              [("0", "0"), ("1", "1"), ("2", "2"), ("3", "3")])
+    _body_row("Leaving", "leaving")
 
     _rb(ctrl, "Shield", v_shield_cat,
         [("None", "none"), ("Small", "small"), ("Large", "large")],
-        5, command=redraw)
+        2, command=redraw)
 
     def _on_swing_toggle(*_args):
         if v_sword_swing.get() and v_sword_phase.get() == 0:
@@ -925,7 +921,7 @@ def main():
         redraw()
 
     sword_f = ttk.LabelFrame(ctrl, text="Sword")
-    sword_f.grid(row=6, column=0, sticky="w", padx=4, pady=2)
+    sword_f.grid(row=3, column=0, sticky="w", padx=4, pady=2)
 
     sword_row1 = ttk.Frame(sword_f)
     sword_row1.pack(side="top", anchor="w")
@@ -951,7 +947,7 @@ def main():
                         command=redraw).pack(side="left")
 
     magic_f = ttk.LabelFrame(ctrl, text="Magic")
-    magic_f.grid(row=7, column=0, sticky="w", padx=4, pady=2)
+    magic_f.grid(row=4, column=0, sticky="w", padx=4, pady=2)
 
     v_spell_active.trace_add("write", _on_spell_toggle)
 
@@ -970,17 +966,16 @@ def main():
 
     # Layer visibility toggles
     layers_f = ttk.LabelFrame(ctrl, text="Hide Layers")
-    layers_f.grid(row=8, column=0, sticky="w", padx=4, pady=2)
+    layers_f.grid(row=5, column=0, sticky="w", padx=4, pady=2)
     ttk.Checkbutton(layers_f, text="Front Arm", variable=v_hide_front_arm,
                     command=redraw).pack(side="left")
     ttk.Checkbutton(layers_f, text="Body", variable=v_hide_body,
                     command=redraw).pack(side="left")
 
     ttk.Button(ctrl, text="Reload Sprites",
-               command=reload_sprites).grid(row=8, column=1, sticky="w", padx=4, pady=2)
+               command=reload_sprites).grid(row=5, column=1, sticky="w", padx=4, pady=2)
 
     # --- initial draw + run -----------------------------------------------
-    _update_anim_buttons()
     redraw()
     root.mainloop()
 
