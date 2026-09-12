@@ -2768,7 +2768,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 0
+    gap_x = 6
     gap_y = 6
     sprite_px = 16  # Total width/height of the 2x2 tile assembly
     frames_per_row = 16
@@ -3825,51 +3825,6 @@ def render_dchr_group(tile_bank_raw, canvas, y_offset, layout=None):
 
     return current_y - y_offset
 
-def render_composite_hero_exact(
-    canvas,
-    fman_data: bytes,
-    sword_data: bytes,
-    facing: int,
-    anim_phase: int,
-    squat: bool,
-    on_rope: bool,
-    invincible: bool,
-    hero_hidden: bool,
-    jump_phase_flags: int,
-    slope_direction: int,
-    shield_type: int,
-    shield_anim_active: bool,
-    shield_anim_phase: int,
-    sword_type: int,
-    swing_type: int,
-    swing_phase: int,
-    x: int, y: int, scale: int = SCALE
-):
-    """Legacy wrapper — delegates to hero_renderer using pre-rendered sheets."""
-    from hero_renderer import HeroState, render_hero, load_hero_sheet, load_sword_sheet
-    state = HeroState(
-        facing_left=(facing == 1),
-        anim_phase=anim_phase,
-        invincible=invincible,
-        squat=squat,
-        on_rope=on_rope,
-        hidden=hero_hidden,
-        jump=jump_phase_flags,
-        shield_anim_active=shield_anim_active,
-        shield_phase=shield_anim_phase,
-        shield_variant=0,
-        slope=slope_direction,
-        shield_category=shield_type,
-        sword_swing_active=(swing_phase > 0),
-        sword_hit_type=swing_type,
-        sword_type=sword_type,
-        sword_phase=swing_phase,
-    )
-    hero_sheet = load_hero_sheet()
-    sword_sheet = load_sword_sheet()
-    render_hero(canvas, state, hero_sheet, sword_sheet,
-                x=x, y=y, scale=scale)
-
 # ---------------------------------------------------------------------------
 # Main Application
 # ---------------------------------------------------------------------------
@@ -3889,7 +3844,6 @@ class GrpViewer:
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         tk.Button(toolbar, text="Open *.grp", command=self.on_open_click).pack(side=tk.LEFT)
-        tk.Button(toolbar, text="Composed fman", command=self.load_fman_sword).pack(side=tk.LEFT, padx=5)
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
 
@@ -3912,19 +3866,6 @@ class GrpViewer:
         path = filedialog.askopenfilename(filetypes=[("Zeliard GRP", "*.grp"), ("All Files", "*.*")])
         if path:
             self.load_file(path)
-
-    def load_fman_sword(self):
-        from hero_renderer import HeroState, render_hero, load_hero_sheet, load_sword_sheet
-        try:
-            hero_sheet = load_hero_sheet()
-            sword_sheet = load_sword_sheet()
-        except Exception as e:
-            self.info_label.config(text=f"Error: {e}")
-            return
-
-        state = HeroState()  # default idle, facing right
-        render_hero(self.canvas, state, hero_sheet, sword_sheet,
-                    x=100, y=100, scale=SCALE)
 
     def load_file(self, path):
         try:
