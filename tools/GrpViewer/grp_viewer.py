@@ -2786,7 +2786,7 @@ def render_enp_group(data, canvas, y_offset, enp_index=1):
             y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
             # Draw frame background
             canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px*scale, 
-                                     y_frame + sprite_px*scale, fill="#8c38ff", outline="")
+                                     y_frame + sprite_px*scale, fill="#000000", outline="")
             draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
 
         # Advance Y cursor to the next animation block
