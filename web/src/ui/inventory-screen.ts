@@ -124,7 +124,6 @@ export class InventoryScreen {
     active = false;
     currentTab = 0;
     selectedIndices: number[] = [0, 0, 0];
-    private savedMusicTrack: unknown = null;
 
     private sheets: Record<string, LoadedSheet> = {};
     private sheetsReady = false;
@@ -182,10 +181,9 @@ export class InventoryScreen {
 
         this._readGameData();
 
-        if (this.soundManager && this.soundManager._currentTrack) {
-            this.savedMusicTrack = this.soundManager._currentTrack;
+        if (this.soundManager) {
+            this.soundManager.setMusicMuted?.(true, 0.3);
         }
-        this.soundManager?.stopMusic(0.3);
 
         this._selectFirstAvailableTab();
 
@@ -201,9 +199,7 @@ export class InventoryScreen {
 
     exit(): void {
         this.active = false;
-        if (this.savedMusicTrack) {
-            this.soundManager?.playMusic(this.savedMusicTrack, 0.3);
-        }
+        this.soundManager?.setMusicMuted?.(false, 0.3);
         if (this.onExit) this.onExit();
     }
 

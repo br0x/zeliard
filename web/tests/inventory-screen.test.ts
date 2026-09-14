@@ -70,7 +70,7 @@ function makeDeps(state: MemState) {
                 state.bytes.set(offset + i, data[i] ?? 0);
             }
         }),
-        soundManager: { playSfx: playSfx, stopMusic: vi.fn(), playMusic: vi.fn(), _currentTrack: 7 },
+        soundManager: { playSfx: playSfx, stopMusic: vi.fn(), playMusic: vi.fn(), setMusicMuted: vi.fn(), _currentTrack: 7 },
         onExit: vi.fn(),
     };
     return { deps, playSfx };
@@ -106,13 +106,16 @@ describe('InventoryScreen data snapshot', () => {
         expect(scr.selectedIndices[0]).toBe(0);
     });
 
-    it('exit() restores music and fires the exit callback', async () => {
+    it('enter() mutes current music without stopping it; exit() unmutes and fires the exit callback', async () => {
+        const sm = envs.deps.soundManager as { stopMusic: ReturnType<typeof vi.fn>; playMusic: ReturnType<typeof vi.fn>; setMusicMuted: ReturnType<typeof vi.fn> };
         const scr = await make({ deps: envs.deps, playSfx: envs.playSfx, state });
+        expect(sm.setMusicMuted).toHaveBeenCalledWith(true, 0.3);
+        expect(sm.stopMusic).not.toHaveBeenCalled();
         scr.exit();
         expect(scr.active).toBe(false);
         expect(envs.deps.onExit).toHaveBeenCalled();
-        expect((envs.deps.soundManager as { playMusic: ReturnType<typeof vi.fn> }).playMusic)
-            .toHaveBeenCalledWith(7, 0.3);
+        expect(sm.setMusicMuted).toHaveBeenCalledWith(false, 0.3);
+        expect(sm.playMusic).not.toHaveBeenCalled();
     });
 });
 
