@@ -8,7 +8,7 @@ import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from collections import Counter, defaultdict
-from typing import Optional, Union
+from typing import Iterable, Optional, Union, cast
 
 from .mapctx import MapContext
 from .constants import PALETTE, TOWN_HEIGHT, _MONSTER_TYPE_NAMES, get_map_type_info
@@ -121,6 +121,7 @@ class MDTViewer(tk.Tk):
         self.locate_entry: Optional[tk.Entry] = None
         self.locate_status: Optional[tk.Label] = None
         self.info_box5: Optional[InfoBox] = None
+        self.brightness_lbl: Optional[tk.Label] = None
 
         self._build_ui()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -279,6 +280,22 @@ class MDTViewer(tk.Tk):
         self.info_txt1.tag_config('leg_d', foreground='#ffffff', background=self.C_BG0)
         self.info_txt1.tag_config('leg_m', foreground='#ffffff', background=self.C_BG0)
         self.info_txt1.tag_config('leg_i', foreground='#ffffff', background=self.C_BG0)
+
+        brightness_frame = tk.Frame(top_frame, bg=self.C_BG3)
+        brightness_frame.pack(fill='x', padx=5, pady=3)
+
+        brightness_header = tk.Frame(brightness_frame, bg=self.C_SURF, relief='solid', bd=1)
+        brightness_header.pack(fill='x')
+        tk.Label(brightness_header, text='TILE BRIGHTNESS', bg=self.C_SURF,
+                 fg=self.C_BLUE, font=('Consolas', 10, 'bold')).pack(side='left', padx=5, pady=3)
+
+        brightness_body = tk.Frame(brightness_frame, bg=self.C_BG3)
+        brightness_body.pack(fill='x', padx=2, pady=(2, 2))
+
+        self.brightness_lbl = tk.Label(
+            brightness_body, text='—', bg=self.C_BG3, fg=self.C_DIM,
+            font=('Consolas', 9), anchor='w', justify='left')
+        self.brightness_lbl.pack(side='left', padx=(4, 4), fill='x')
 
         locate_frame = tk.Frame(top_frame, bg=self.C_BG3)
         locate_frame.pack(fill='x', padx=5, pady=3)
@@ -439,6 +456,7 @@ class MDTViewer(tk.Tk):
         self.file_lbl.config(text='', fg=self.C_DIM)
         self.file_lbl_status.config(text='No map')
         self.title('Zeliard Sprite Editor v0.6.1')
+        self._update_brightness_info(None)
 
     # ── Drawing helpers ────────────────────────────────────────────────────
     def get_tile_image(self, ctx: MapContext, tile_idx):
@@ -810,6 +828,86 @@ class MDTViewer(tk.Tk):
             kv('Space saved', f'{saving:.1f}%', 'g' if saving > 50 else 'v')
 
         self.info_txt1.config(state='disabled')
+        self._update_brightness_info(ctx)
+
+    # ── Brightness analysis ─────────────────────────────────────────────────
+    def _get_tile_source_image(self, ctx: MapContext, tile_id: int) -> Optional[Image.Image]:
+        """Return the RGB image currently used to render tile_id (source override
+        candidate if one is selected, otherwise the decoded 8x8 gfx tile)."""
+        if self.source_tile_candidates and tile_id in self.source_tile_candidates:
+            cands = self.source_tile_candidates[tile_id]
+            sel = self.source_tile_selections.get(tile_id, 0)
+            if sel < len(cands):
+                img = cands[sel]
+                return img.convert('RGB') if img.mode != 'RGB' else img
+
+        mdt = ctx.mdt
+        if mdt.gfx and tile_id < len(mdt.gfx):
+            raw_pixels = mdt.gfx[tile_id]
+            img = Image.new('RGB', (8, 8), (0, 0, 0))  # type: ignore[arg-type]
+            for i, p_idx in enumerate(raw_pixels):
+                if p_idx == -1:
+                    continue
+                color_hex = self.PALETTE_STRS[p_idx]
+                rgb = tuple(int(color_hex[j:j+2], 16) for j in (1, 3, 5))
+                img.putpixel((i % 8, i // 8), rgb)
+            return img
+
+        return None
+
+    def _compute_avg_brightness(self, ctx: MapContext) -> Optional[tuple[float, int]]:
+        """Average luma (Y = 0.299R + 0.587G + 0.114B) over every nonzero tile
+        instance in ctx's grid. Returns (avg_brightness, unique_tile_count) or
+        None if the map has no nonzero tiles / no renderable tile art."""
+        mdt = ctx.mdt
+        if not mdt or not mdt.grid:
+            return None
+
+        counts: Counter = Counter()
+        for row in mdt.grid:
+            for tid in row:
+                if tid != 0:
+                    counts[tid] += 1
+        if not counts:
+            return None
+
+        total_y = 0.0
+        total_n = 0
+        for tile_id, occurrences in counts.items():
+            img = self._get_tile_source_image(ctx, tile_id)
+            if img is None:
+                continue
+            pixels = list(cast(Iterable[tuple], img.getdata()))
+            tile_total = 0.0
+            tile_n = 0
+            for px in pixels:
+                r, g, b = px[0], px[1], px[2]
+                tile_total += 0.299 * r + 0.587 * g + 0.114 * b
+                tile_n += 1
+            if tile_n == 0:
+                continue
+            total_y += (tile_total / tile_n) * occurrences
+            total_n += occurrences
+
+        if total_n == 0:
+            return None
+        return total_y / total_n, len(counts)
+
+    def _update_brightness_info(self, ctx: Optional[MapContext] = None):
+        if self.brightness_lbl is None:
+            return
+        ctx = ctx or self.active_map
+        if not ctx:
+            self.brightness_lbl.config(text='No map loaded', fg=self.C_DIM)
+            return
+        result = self._compute_avg_brightness(ctx)
+        if result is None:
+            self.brightness_lbl.config(text='No nonzero tiles', fg=self.C_DIM)
+            return
+        avg_y, unique_count = result
+        self.brightness_lbl.config(
+            text=f'Avg Y: {avg_y:6.2f} / 255   ({unique_count} tile types)',
+            fg=self.C_FG)
 
     # ── Source Loading (GLOBAL with MERGE) ─────────────────────────────────
     def load_source_image(self):
@@ -891,6 +989,7 @@ class MDTViewer(tk.Tk):
             self._build_tile_candidates_ui()
             if self.active_map:
                 self._draw_map(self.active_map)
+                self._update_brightness_info(self.active_map)
 
         except Exception as e:
             messagebox.showerror('Load Error', str(e))
@@ -956,6 +1055,7 @@ class MDTViewer(tk.Tk):
             self._build_tile_candidates_ui()
             if self.active_map:
                 self._draw_map(self.active_map)
+                self._update_brightness_info(self.active_map)
 
         except Exception as e:
             messagebox.showerror('Load Error', str(e))
@@ -1008,6 +1108,7 @@ class MDTViewer(tk.Tk):
             self._build_tile_candidates_ui()
             if self.active_map:
                 self._draw_map(self.active_map)
+                self._update_brightness_info(self.active_map)
 
         except Exception as e:
             messagebox.showerror('Load Error', str(e))
@@ -1019,6 +1120,9 @@ class MDTViewer(tk.Tk):
             ctx.source_tile_cache.clear()
         if self.active_map:
             self._draw_map(self.active_map)
+            self._update_brightness_info(self.active_map)
+        else:
+            self._update_brightness_info(None)
 
     def _clear_source_data(self):
         self.source_tile_candidates = None
@@ -1200,6 +1304,7 @@ class MDTViewer(tk.Tk):
             self.active_map.tile_images.clear()
             self.active_map.source_tile_cache.clear()
             self._draw_map(self.active_map)
+            self._update_brightness_info(self.active_map)
 
     # ── Save Functions ──────────────────────────────────────────────────────
     def _get_tile_image_for_export(self, ctx: MapContext, tile_id, bs):
