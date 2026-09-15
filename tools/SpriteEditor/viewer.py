@@ -1013,6 +1013,11 @@ class MDTViewer(tk.Tk):
             initialvalue=16, minvalue=1, parent=self)
         if cols is None:
             return
+        start_id = simpledialog.askinteger(
+            'Starting Tile ID', 'Tile ID that the first (top-left) tile in the sheet represents:',
+            initialvalue=0, minvalue=0, parent=self)
+        if start_id is None:
+            return
         try:
             sheet_img = Image.open(path)
             w, h = sheet_img.size
@@ -1040,8 +1045,9 @@ class MDTViewer(tk.Tk):
                     for tid in row:
                         all_tile_ids.add(tid)
             for tid in all_tile_ids:
-                if tid < len(tiles):
-                    self.source_tile_candidates[tid] = [tiles[tid]]
+                sheet_idx = tid - start_id
+                if 0 <= sheet_idx < len(tiles):
+                    self.source_tile_candidates[tid] = [tiles[sheet_idx]]
                     self.source_tile_selections[tid] = 0
 
             self.source_image_path = path
