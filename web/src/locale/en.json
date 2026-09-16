@@ -299,14 +299,14 @@
     "names": {
       "town.cmap": "Felishika's Castle",
       "town.mrmp": "Muralla Town",
-      "town.stmp": "Satono town",
+      "town.stmp": "Satono Town",
       "town.bsmp": "Bosque Village",
       "town.hlmp": "Hellada Town",
-      "town.tmmp": "Tumba",
-      "town.drmp": "Dorado",
-      "town.llmp": "Llama",
-      "town.prmp": "Pureza",
-      "town.esmp": "Esco"
+      "town.tmmp": "Tumba Town",
+      "town.drmp": "Dorado Town",
+      "town.llmp": "Llama Town",
+      "town.prmp": "Pureza Town",
+      "town.esmp": "Esco Village"
     },
     "conversations": {
       "town.bsmp.npc.0": {

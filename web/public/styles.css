@@ -115,17 +115,21 @@ canvas {
 .label {
   color: var(--text-green);
   padding: 0 8px;
-  min-width: calc(5ch + 16px); /* widest label (ENEMY = 5 chars) + 8px padding each side, keeps LIFE/ENEMY rows aligned */
+  white-space: nowrap;
+  flex: 0 0 auto;
   text-shadow: 2px 2px #e00;
 }
 
 .value {
   color: var(--text-white);
-  padding-left: 20px;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
 }
 
 .place-row .value {
   flex: 1;
+  min-width: 0;
 }
 
 .place-row.indoor-place .label {

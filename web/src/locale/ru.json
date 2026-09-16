@@ -300,13 +300,13 @@
       "town.cmap": "Замок Фелишики",
       "town.mrmp": "Город Муралла",
       "town.stmp": "Город Сатоно",
-      "town.bsmp": "Деревня Боск",
+      "town.bsmp": "Деревня Боске",
       "town.hlmp": "Город Хелада",
-      "town.tmmp": "Тумба",
-      "town.drmp": "Дорадо",
-      "town.llmp": "Ллама",
-      "town.prmp": "Пуреза",
-      "town.esmp": "Эско"
+      "town.tmmp": "Город Тумба",
+      "town.drmp": "Город Дорадо",
+      "town.llmp": "Город Ллама",
+      "town.prmp": "Город Пуреза",
+      "town.esmp": "Деревня Эско"
     },
     "conversations": {
       "town.esmp.npc.0": {
