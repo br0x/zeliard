@@ -540,14 +540,19 @@ export class SageScene extends IndoorSceneBase {
         // The inter-sentence pause only fires at those boundary lines.
         const flatLines: string[] = [];
         const sentenceEnds = new Set<number>(); // flat indices that end a sentence
+        // Capture the requested sentence index before remapping; otherwise a
+        // remapped flat index can accidentally equal a later `si` and shift the
+        // flash trigger onto the wrong sentence (locale-dependent line wrapping).
+        const flashSentenceIndex = this._powerFlashAfterIndex;
+        this._powerFlashAfterIndex = -1;
         for (let si = 0; si < queue.length; si++) {
             const sentence = queue[si]!;
             const wrapped = this._wrapText(sentence);
             for (const line of wrapped) flatLines.push(line);
             const lastIdx = flatLines.length - 1;
             sentenceEnds.add(lastIdx);
-            // Map _powerFlashAfterIndex from sentence index to last flat line of that sentence
-            if (this._powerFlashAfterIndex === si) {
+            // Map flash trigger from sentence index to last flat line of that sentence
+            if (flashSentenceIndex === si) {
                 this._powerFlashAfterIndex = lastIdx;
             }
         }

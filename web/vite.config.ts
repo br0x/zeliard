@@ -1,10 +1,31 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { copyFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-export default defineConfig({
-  // Relative base so the built site works at any Pages subpath
-  // (e.g. https://<user>.github.io/<repo>/) without config changes.
-  base: './',
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+
+function spaFallback(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'spa-404-fallback',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    closeBundle() {
+      copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));
+    },
+  };
+}
+
+export default defineConfig(({ command }) => ({
+  // Path-based locales (/ru, /isv) need an absolute base: a relative base
+  // makes import.meta.env.BASE_URL './', which breaks locale resolution and
+  // makes the 404.html SPA shell resolve assets under the locale path.
+  // On GitHub Pages the site lives at /<repo>/, locally at /.
+  base: command === 'build' && process.env.GITHUB_ACTIONS && repoName ? `/${repoName}/` : '/',
+  plugins: [spaFallback()],
   build: {
     sourcemap: true,
   },
@@ -30,4 +51,4 @@ export default defineConfig({
       thresholds: { statements: 70, branches: 58, functions: 75, lines: 72 },
     },
   },
-});
+}));

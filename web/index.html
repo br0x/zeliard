@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zeliard Web Port</title>
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        if (path.length > 1 && /\/+$/.test(path)) {
+          var trimmed = path.replace(/\/+$/, '');
+          var last = trimmed.split('/').pop();
+          if (last === 'en' || last === 'ru' || last === 'isv') {
+            history.replaceState(null, '', trimmed + window.location.search + window.location.hash);
+          }
+        }
+      })();
+    </script>
     <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./styles.css">
