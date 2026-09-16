@@ -10,6 +10,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
+import { t } from '../locale/index.js';
 
 const PANEL_W = 672;
 const PANEL_H = 432;
@@ -58,12 +59,6 @@ const CANDLE_FRAMES = [
     'assets/images/church/candle4.png',
 ];
 
-const TEXT_TIRED =
-    "Brave Knight, whenever you're tired come to this church.";
-const TEXT_WEARY =
-    "Brave Knight, whenever you're weary, come here to rest. ";
-const TEXT_HOLY =
-    'The Holy Spirit will help you to regain your strength.';
 const TEXT_FATIGUED =
     'Brave Knight, you look fatigued from battle. Why not rest awhile and let the Spirit heal you. ';
 const TEXT_MAY_GOD =
@@ -100,12 +95,24 @@ export const COMMON_SCRIPT: ChurchScriptStep[] = [
     { op: 'exit' },
 ];
 
+/** Localized common tail: fatigued text → wait → may-god → bless → continue → exit. */
+export function buildCommonScript(): ChurchScriptStep[] {
+    return [
+        { op: 'text', text: t('indoor.church.fatigued') },
+        { op: 'wait', ms: WAIT_250_MS },
+        { op: 'text', text: t('indoor.church.mayGod') },
+        { op: 'bless' },
+        { op: 'continue' },
+        { op: 'exit' },
+    ];
+}
+
 /** Full-heal path when HP already maxed; heal+restore otherwise (asm parity). */
 export function buildChurchScript(hp: number, maxHp: number): ChurchScriptStep[] {
     if (hp >= maxHp) {
         return [
             { op: 'clear' },
-            { op: 'text', text: TEXT_TIRED },
+            { op: 'text', text: t('indoor.church.tired') },
             { op: 'restore' },
             { op: 'common' },
         ];
@@ -113,10 +120,10 @@ export function buildChurchScript(hp: number, maxHp: number): ChurchScriptStep[]
 
     return [
         { op: 'clear' },
-        { op: 'text', text: TEXT_WEARY },
+        { op: 'text', text: t('indoor.church.weary') },
         { op: 'wait', ms: WAIT_250_MS },
         { op: 'wait', ms: WAIT_250_MS },
-        { op: 'text', text: TEXT_HOLY },
+        { op: 'text', text: t('indoor.church.holy') },
         { op: 'heal_restore' },
         { op: 'common' },
     ];
@@ -341,7 +348,7 @@ export class ChurchScene extends IndoorSceneBase {
                     this._restoreSpells();
                     break;
                 case 'common':
-                    this.script.splice(this.scriptIndex, 0, ...COMMON_SCRIPT);
+                    this.script.splice(this.scriptIndex, 0, ...buildCommonScript());
                     break;
                 case 'bless':
                     this._startBlessing(now);
@@ -524,6 +531,6 @@ export class ChurchScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'The Church';
+        return t('indoor.church.name');
     }
 }

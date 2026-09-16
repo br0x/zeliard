@@ -236,23 +236,47 @@ Then use `assetUrl('game/0/cmap.mdt')` and
 
 ## Text Extraction Plan
 
-### Phase 1: Shared locale plumbing
+### Phase 1: Shared locale plumbing — ✅ DONE
 
-1. Create `core/locale-utils.ts`.
-2. Create `src/locale/en.json`, `ru.json`, `isv.json`, `schema.ts`, and
+Status: complete. `assetUrl()` and boot-time `setLocale()` were also added here
+(Phase 1.9) so `/ru` and `/isv` resolve before any text surface loads.
+
+1. ✅ Create `core/locale-utils.ts`.
+   - `SUPPORTED_LOCALES`, `Locale`, `DEFAULT_LOCALE`
+   - `resolveLocaleFromPath`, `stripLocaleFromPath`, `buildLocalePath`
+   - `assetUrl()`
+2. ✅ Create `src/locale/en.json`, `ru.json`, `isv.json`, `schema.ts`, and
    `index.ts`.
-3. Add tests for locale path resolution:
-   - `/`
-   - `/en`
-   - `/ru`
-   - `/ru/`
-   - `/isv`
-   - `/zeliard/ru` when base path is `/zeliard/`
-   - unknown paths.
-4. Add a small translation completeness test that compares locale files against
-   English.
+   - `index.ts` exports `getLocale`, `setLocale`, `messages`, `t`, `getMessages`,
+     `getDungeonNotification`, `getTownName`, `getInventoryList`,
+     `getInventoryPairs`, `collectKeys`.
+   - `resolveJsonModule: true` added to `web/tsconfig.json`.
+3. ✅ Add tests for locale path resolution in `tests/locale-utils.test.ts`:
+   - `/`, `/en`, `/en/`, `/ru`, `/ru/`, `/ru/deep/path`, `/isv`, `/isv/`
+   - `/zeliard/ru` and `/zeliard/isv` when base path is `/zeliard/`
+   - unknown paths fall back to English.
+4. ✅ Add translation completeness test in `tests/locale-completeness.test.ts`
+   (required release keys, dungeon notifications 1-22, all town names) plus
+   `tests/locale-index.test.ts` for active-locale lookup and English fallback.
 
-### Phase 2: HUD, menus, and modal UI
+### Phase 2: HUD, menus, and modal UI — ✅ DONE
+
+Status: complete. Every string below is now read through `t()` / `getInventoryList` /
+`getInventoryPairs`. `src/locale/en.json`, `ru.json`, and `isv.json` all carry the
+keys, and `tests/locale-completeness.test.ts` gates them for release.
+
+Migrated surfaces:
+
+- `web/src/ui/hud.ts` — `hud.place`, `hud.gold`
+- `web/src/main.ts` — speed dialog (`modal.speedChange`, `modal.speedSelect`,
+  `modal.speedPressAnyKey`) and the boss-mode HUD toggle (`hud.enemy`)
+- `web/src/ui/save-restore.ts` — titles, `modal.restart`, `modal.newName`,
+  `modal.upDownHint`
+- `web/src/ui/import-export.ts` — tab labels, delete confirmation, empty list,
+  hints, file-import screen
+- `web/src/ui/inventory-screen.ts` — panel labels, `inventory.noUse`,
+  `inventory.iHaveUsed`, level/exp debug popup, and the spell/wearable/item/
+  sword/shield name tables via `getInventoryList` / `getInventoryPairs`
 
 Move the smallest and lowest-risk text first:
 
@@ -277,7 +301,31 @@ Verification:
 - Existing modal and inventory tests.
 - Manual smoke run in `/ru` and `/isv`.
 
-### Phase 3: Indoor scenes
+### Phase 3: Indoor scenes — ✅ DONE
+
+Status: complete. All eight indoor scenes now read their visible text from
+`indoor.*` locale keys via `t()` / `getList()`, with the original English
+constants kept as the English fallback so existing table tests still pass.
+
+Migrated files:
+
+1. ✅ `indoor-inn.ts` — menu, welcome, leave, no-funds, thank-you, morning, name
+2. ✅ `indoor-bank.ts` — menu, dots/excuse-me/greeting, all transaction dialogs
+   (deposit/withdraw/balance/exchange), numeric-entry labels, remaining/balance
+   labels, name
+3. ✅ `indoor-church.ts` — tired/weary/holy/fatigued/may-god lines, localized
+   common tail via `buildCommonScript()`, name
+4. ✅ `indoor-weapon-shop.ts` — menu, sword/shield names, item descriptions,
+   repair/buy/explain/crest-trade dialogs, name
+5. ✅ `indoor-magic-shop.ts` — menu, item names/descriptions, buy/sell/describe
+   dialogs, name
+6. ✅ `indoor-sage.ts` — per-town names and intros, knowledge, menu, power
+   sequence lines, save prompts, name
+7. ✅ `indoor-king.ts` — per-state dialog scripts, gold-gift line, name
+8. ✅ `indoor-princess.ts` — name
+
+Note: `indoor.*` sections were added to `en.json`, `ru.json`, and `isv.json`.
+Scene state machines, timing, and gameplay effects are unchanged.
 
 Extract text from each indoor scene into structured locale sections. Keep scene
 state machines unchanged; only replace constants with locale lookups.
@@ -325,7 +373,26 @@ Verification:
   the active locale.
 - Visually check wrapped Russian and Interslavic lines in narrow dialogue boxes.
 
-### Phase 4: Opening intro
+### Phase 4: Opening intro — ✅ DONE
+
+Status: complete. All 20 text arrays in `opening-intro.ts` are now overlaid from
+`openingIntro.*` at `buildTimeline()` time via `applyLocaleOverrides()`. The
+English literals stay in place as the fallback for locales that omit a list, and
+`JASHIIN_WINDOW_LINES` was extracted so the window-text step is localizable too.
+
+Keys added to `en.json`, `ru.json`, `isv.json` (all gated by
+`tests/locale-completeness.test.ts`):
+
+- `copyrightLines`, `storyLines`, `demonSpeechLines`, `creditsLines`
+- `balconyPart1`, `balconyPart2`
+- `princessDemon`, `princessVsDemon`, `demonFinal`
+- `stoned`, `kingPrincess`, `spirit`, `kingSurprised`
+- `dukeArrived`, `dukeEscorted`
+- `kingDuke1`, `kingDuke2`, `kingDuke3`
+- `finalScroll`, `jashiinWindow`
+
+Direct-speech `"` markers are preserved so the Jashiin yellow/red styling still
+triggers. `buildTimeline()` structure is unchanged (21 steps).
 
 Replace the top-level text arrays in `opening-intro.ts` with an
 `OpeningIntroText` object from the locale bundle:

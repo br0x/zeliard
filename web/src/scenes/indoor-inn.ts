@@ -1,6 +1,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
+import { getList, t } from '../locale/index.js';
 
 export const INN_PRICES = [0, 30, 50, 70, 100, 150, 200, 400] as const;
 
@@ -42,27 +43,8 @@ const SLEEP_HEAL_WAIT_MS = 150 * FULL_TICK_MS;
 const INN1_MS = 250;
 const INN2_MS = 5000;
 
-const MENU_ITEMS = ['Stay the night', 'Leave'];
 const MENU_STAY = 0;
 const MENU_LEAVE = 1;
-
-const TEXT_WELCOME_P1 =
-    "Welcome, sir!\nYou look like you've come a long way.\nOne night of rest in my inn is all you need to recover your strength. You can have the best room in the house for only ";
-
-const TEXT_WELCOME_P2 =
-    "golds. Will you stay?";
-
-const TEXT_LEAVE =
-    "Oh, I'm sorry to hear that.\nWell, if you should ever need a place to rest, do come back.";
-
-const TEXT_NO_FUNDS =
-    "I'm sorry sir, but I can't accommodate you without funds.\nPlease come back when you can afford it.";
-
-const TEXT_THANK_YOU =
-    "Thank you, sir. Enjoy your stay.";
-
-const TEXT_MORNING =
-    "I trust you had a good night's sleep. We'll be looking forward to seeing you again.";
 
 export class InnScene extends IndoorSceneBase {
     private innImages: HTMLImageElement[];
@@ -139,7 +121,7 @@ export class InnScene extends IndoorSceneBase {
         this.price = INN_PRICES[Math.min(this.townIdx, INN_PRICES.length - 1)] ?? 0;
 
         const priceStr = this.price > 0 ? `${this.price} ` : '';
-        this._setDialog(TEXT_WELCOME_P1 + priceStr + TEXT_WELCOME_P2);
+        this._setDialog(t('indoor.inn.welcomeP1') + priceStr + t('indoor.inn.welcomeP2'));
         this.scenePhase = 'greeting';
 
         this.phase = 'shown';
@@ -252,7 +234,7 @@ export class InnScene extends IndoorSceneBase {
             if (now - this.sleepStartTime >= SLEEP_HEAL_WAIT_MS) {
                 this.sleepPhase = null;
                 this.sleepAlpha = 0;
-                this._setDialog(TEXT_MORNING);
+                this._setDialog(t('indoor.inn.morning'));
                 this.scenePhase = 'morning';
             }
         }
@@ -299,13 +281,14 @@ export class InnScene extends IndoorSceneBase {
         ctx.fillStyle = '#050400';
         ctx.fillRect(MENU_X, MENU_Y, MENU_W, MENU_H);
 
+        const menuItems = getList('indoor.inn.menu');
         ctx.font = FONT_MENU;
-        for (let i = 0; i < MENU_ITEMS.length; i++) {
+        for (let i = 0; i < menuItems.length; i++) {
             const y = MENU_TEXT_Y + i * LINE_H_MENU;
             const sel = i === this.menuSel;
 
             ctx.fillStyle = sel ? '#ddbb88' : '#998866';
-            ctx.fillText(MENU_ITEMS[i]!, MENU_TEXT_X, y);
+            ctx.fillText(menuItems[i]!, MENU_TEXT_X, y);
 
             if (sel) {
                 ctx.fillStyle = '#cc9933';
@@ -460,7 +443,8 @@ export class InnScene extends IndoorSceneBase {
         if (this.scenePhase === 'menu') {
             if (key === 'ArrowUp' || key === 'ArrowDown') {
                 const dir = key === 'ArrowUp' ? -1 : 1;
-                this.menuSel = (this.menuSel + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
+                const count = getList('indoor.inn.menu').length;
+                this.menuSel = (this.menuSel + dir + count) % count;
                 return;
             }
             if (key === 'Escape') {
@@ -526,7 +510,7 @@ export class InnScene extends IndoorSceneBase {
         const gold = this._getGold();
 
         if (gold < this.price) {
-            this._setDialog(TEXT_NO_FUNDS);
+            this._setDialog(t('indoor.inn.noFunds'));
             this.scenePhase = 'dialog';
             return;
         }
@@ -534,12 +518,12 @@ export class InnScene extends IndoorSceneBase {
         this._setGold(gold - this.price);
         this._refreshLifeHud();
 
-        this._setDialog(TEXT_THANK_YOU);
+        this._setDialog(t('indoor.inn.thankYou'));
         this.scenePhase = 'paid';
     }
 
     private _handleLeave(_now: number): void {
-        this._setDialog(TEXT_LEAVE);
+        this._setDialog(t('indoor.inn.leave'));
         this.scenePhase = 'leave';
     }
 
@@ -551,6 +535,6 @@ export class InnScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'The Inn';
+        return t('indoor.inn.name');
     }
 }

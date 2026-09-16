@@ -8,6 +8,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { ADDR_SOUND_FX_REQUEST } from '../core/memory.js';
+import { getList, t } from '../locale/index.js';
 
 const KING_IMAGE_PATHS: Array<string | null> = [
     null,
@@ -75,6 +76,20 @@ export const KING_DIALOG_SCRIPTS: Record<KingDialogKey, string[]> = {
     ],
 };
 
+export function getKingGoldGiftLine(): string {
+    return t('indoor.king.goldGiftLine');
+}
+
+/** Localized dialog scripts keyed by progress state. */
+export function getKingDialogScripts(): Record<KingDialogKey, string[]> {
+    return {
+        firstAudience: getList('indoor.king.firstAudience'),
+        reminder: getList('indoor.king.reminder'),
+        afterCavern: getList('indoor.king.afterCavern'),
+        victory: getList('indoor.king.victory'),
+    };
+}
+
 type MemoryReader = (offset: number, length: number) => Uint8Array | null;
 
 /** Pick the dialog script from the hero's progress flags. */
@@ -116,7 +131,9 @@ export interface KingDialogPages {
 
 /** Wrap the chosen script into ≤4-line dialog pages; marks the gold-gift page. */
 export function buildDialogPages(ctx: CanvasRenderingContext2D, dialogKey: string): KingDialogPages {
-    const paragraphs = KING_DIALOG_SCRIPTS[dialogKey as KingDialogKey] ?? KING_DIALOG_SCRIPTS.firstAudience;
+    const scripts = getKingDialogScripts();
+    const paragraphs = scripts[dialogKey as KingDialogKey] ?? scripts.firstAudience;
+    const goldLine = getKingGoldGiftLine();
     const pages: string[][] = [];
     let goldAwardPage = -1;
     let cur: string[] = [];
@@ -130,7 +147,7 @@ export function buildDialogPages(ctx: CanvasRenderingContext2D, dialogKey: strin
                 cur = [];
             }
         }
-        if (dialogKey === 'firstAudience' && para === KING_GOLD_GIFT_LINE) {
+        if (dialogKey === 'firstAudience' && para === goldLine) {
             if (cur.length) {
                 pages.push(cur);
                 cur = [];
@@ -418,6 +435,6 @@ export class KingScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'King of Felishika';
+        return t('indoor.king.name');
     }
 }

@@ -66,6 +66,7 @@ import {
     ADDR_MAGIA_STONE_SPRITE0, ADDR_MAGIA_STONE_SPRITE1,
     ADDR_MAGIA_STONE_SPRITE2, ADDR_MAGIA_STONE_SPRITE3,
 } from '../core/memory.js';
+import { getInventoryList, getInventoryPairs, t } from '../locale/index.js';
 import type { HeroState, DungeonRuntimeState } from '../core/game-state.js';
 
 export const SHIELD_HP_VALUES = [0x50, 0x5A, 0x64, 0x6E, 0x73, 0x78];
@@ -312,17 +313,18 @@ export class InventoryScreen {
         const gap = 48;
         const rowW = 7 * iconSize + 6 * gap;
 
+        const spellNames = getInventoryList('spellNames');
         const selName = (this.selectedIndices[0] ?? 0) < spells.length
-            ? SPELL_NAMES[(spells[this.selectedIndices[0] as number] ?? 1) - 1]
+            ? spellNames[(spells[this.selectedIndices[0] as number] ?? 1) - 1]
             : '';
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#50f';
-        ctx.fillText('SELECT-MAGIC:', padX + 1, 16 + 1);
+        ctx.fillText(t('inventory.selectMagic'), padX + 1, 16 + 1);
         ctx.fillStyle = this.currentTab === 0 ? '#f00' : '#0f4';
-        ctx.fillText('SELECT-MAGIC:', padX, 16);
+        ctx.fillText(t('inventory.selectMagic'), padX, 16);
 
         if (selName) {
             ctx.fillStyle = '#fff';
@@ -393,16 +395,18 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
+        const wearableNames = getInventoryList('wearableNames');
+        const noUse = t('inventory.noUse');
         const selId: number = (this.currentTab === 1 ? d.wearables[this.selectedIndices[1] ?? 0] : 0) ?? 0;
-        const selName = selId > 0 ? (WEARABLE_NAMES[selId] || 'NO USE') : 'NO USE';
+        const selName = selId > 0 ? (wearableNames[selId] || noUse) : noUse;
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#50f';
-        ctx.fillText('WEAR:', padX + 1, y + 10 + 1);
+        ctx.fillText(t('inventory.wear'), padX + 1, y + 10 + 1);
         ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
-        ctx.fillText('WEAR:', padX, y + 10);
+        ctx.fillText(t('inventory.wear'), padX, y + 10);
 
         if (selName) {
             ctx.fillStyle = '#fff';
@@ -440,16 +444,18 @@ export class InventoryScreen {
         const gap = Math.floor((w-(padX*2+iconSize*6))/5);
         const activeCount = items.slice(1).filter(v => v > 0).length + 1; // 'No use' always present, so +1
 
+        const itemNames = getInventoryList('itemNames');
+        const noUse = t('inventory.noUse');
         const selId: number = (this.currentTab === 2 ? d.items[this.selectedIndices[2] ?? 0] : 0) ?? 0;
-        const selName = selId > 0 ? (ITEM_NAMES[selId] || 'NO USE') : 'NO USE';
+        const selName = selId > 0 ? (itemNames[selId] || noUse) : noUse;
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#50f';
-        ctx.fillText('USE:', padX + 1, y + 10 + 1);
+        ctx.fillText(t('inventory.use'), padX + 1, y + 10 + 1);
         ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
-        ctx.fillText('USE:', padX, y + 10);
+        ctx.fillText(t('inventory.use'), padX, y + 10);
 
         if (selName) {
             ctx.fillStyle = '#fff';
@@ -487,16 +493,19 @@ export class InventoryScreen {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#50f';
-        ctx.fillText('INVENTORY', x + padX + 1, y + 10 + 1);
+        ctx.fillText(t('inventory.inventory'), x + padX + 1, y + 10 + 1);
         ctx.fillStyle = '#0f4';
-        ctx.fillText('INVENTORY', x + padX, y + 10);
+        ctx.fillText(t('inventory.inventory'), x + padX, y + 10);
 
         let ey = y + 42;
         const labelX = x + 80;
         const iconSize = 48;
 
+        const swordNames = getInventoryPairs('swordNames');
+        const shieldNames = getInventoryPairs('shieldNames');
+
         if (d.swordType) {
-            const sn = SWORD_NAMES[d.swordType - 1] || ['', ''];
+            const sn = swordNames[d.swordType - 1] || ['', ''];
             this._drawSheet(ctx, 'swords', d.swordType - 1, x + 10, ey, 60, 48);
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 18px "Courier New", monospace';
@@ -506,7 +515,7 @@ export class InventoryScreen {
         }
 
         if (d.shieldType) {
-            const shn = SHIELD_NAMES[d.shieldType - 1] || ['', ''];
+            const shn = shieldNames[d.shieldType - 1] || ['', ''];
             this._drawSheet(ctx, 'shields', d.shieldType - 1, x + 10, ey + 2, iconSize, iconSize);
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 18px "Courier New", monospace';
@@ -579,7 +588,7 @@ export class InventoryScreen {
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText('I have used', x+20, y + boxH * 0.35);
+        ctx.fillText(t('inventory.iHaveUsed'), x+20, y + boxH * 0.35);
         ctx.textAlign = 'right';
         ctx.fillText(this.usageMessage, x+boxW-20, y + boxH * 0.7);
     }
@@ -605,11 +614,11 @@ export class InventoryScreen {
         ctx.fillStyle = '#fd0';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`LEVEL ${this.data.level}`, x + 20, y + boxH * 0.3);
-        ctx.fillText(`EXP ${this.data.heroXP}/${XP_TABLE[this.data.level]}`, x + 20, y + boxH * 0.7);
+        ctx.fillText(`${t('inventory.level')} ${this.data.level}`, x + 20, y + boxH * 0.3);
+        ctx.fillText(`${t('inventory.exp')} ${this.data.heroXP}/${XP_TABLE[this.data.level]}`, x + 20, y + boxH * 0.7);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`LEVEL`, x + 20, y + boxH * 0.3);
-        ctx.fillText(`EXP`, x + 20, y + boxH * 0.7);
+        ctx.fillText(t('inventory.level'), x + 20, y + boxH * 0.3);
+        ctx.fillText(t('inventory.exp'), x + 20, y + boxH * 0.7);
     }
 
     private _showDebugPopup(): void {
@@ -772,7 +781,7 @@ export class InventoryScreen {
 
         this.soundManager?.playSfx(14);
 
-        this.usageMessage = ITEM_USE_TEXT[itemId] || '';
+        this.usageMessage = getInventoryList('itemUseText')[itemId] || '';
         this.usageTimer = performance.now();
 
         switch (itemId) {

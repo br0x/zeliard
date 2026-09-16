@@ -2,6 +2,8 @@
 // Assets
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getList } from '../locale/index.js';
+
 const INTRO_LOGO_SRC            = 'assets/images/opdemo/ttl3_logo.png';
 const INTRO_NEC_SRC             = 'assets/images/opdemo/nec.png';
 const INTRO_NEC_GOLD_SRC        = 'assets/images/opdemo/nec_gold.png';
@@ -235,6 +237,55 @@ const FINAL_SCROLL_LINES = [
   '   in dethroning the Emperor of Chaos?  '
 ];
 
+const JASHIIN_WINDOW_LINES = [
+  'Suddenly, the room grew cold.  A black mist swirled around them, then took on a hideous shape.',
+  '"Are you the fool who dares to challenge me?  Don\'t be absurd!"'
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Localization overlay
+//
+// The arrays above are the English source of truth. Once per session we
+// overwrite them in place with the active locale's `openingIntro.*` lists,
+// falling back to English whenever a locale omits a list.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let localeApplied = false;
+
+function applyLocaleOverrides(): void {
+  if (localeApplied) return;
+  localeApplied = true;
+
+  const set = (arr: string[], key: string): void => {
+    const localized = getList(`openingIntro.${key}`);
+    if (localized.length) {
+      arr.length = 0;
+      arr.push(...localized);
+    }
+  };
+
+  set(INTRO_COPYRIGHT_LINES, 'copyrightLines');
+  set(STORY_LINES, 'storyLines');
+  set(DEMON_SPEECH_LINES, 'demonSpeechLines');
+  set(CREDITS_LINES, 'creditsLines');
+  set(BALCONY_LINES_PART1, 'balconyPart1');
+  set(BALCONY_LINES_PART2, 'balconyPart2');
+  set(PRINCESS_DEMON_LINES, 'princessDemon');
+  set(PRINCESS_VS_DEMON_LINES, 'princessVsDemon');
+  set(DEMON_FINAL_LINES, 'demonFinal');
+  set(STONED_LINES, 'stoned');
+  set(KING_PRINCESS_LINES, 'kingPrincess');
+  set(SPIRIT_LINES, 'spirit');
+  set(KING_SURPRISED_LINES, 'kingSurprised');
+  set(DUKE_ARRIVED_LINES, 'dukeArrived');
+  set(DUKE_ESCORTED_LINES, 'dukeEscorted');
+  set(KING_DUKE_LINES1, 'kingDuke1');
+  set(KING_DUKE_LINES2, 'kingDuke2');
+  set(KING_DUKE_LINES3, 'kingDuke3');
+  set(FINAL_SCROLL_LINES, 'finalScroll');
+  set(JASHIIN_WINDOW_LINES, 'jashiinWindow');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Timing & layout constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +426,7 @@ async function loadStoryFont(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function buildTimeline(images: IntroImages): IntroStep[] {
+  applyLocaleOverrides();
   return [
     // ── 1. Logo ──────────────────────────────────────────────────────────────
     {
@@ -644,10 +696,7 @@ export function buildTimeline(images: IntroImages): IntroStep[] {
       bgX: WIN_JASHIIN_X,
       bgY: WIN_JASHIIN_Y,
       frameImage: images.template1,
-      lines: [
-        'Suddenly, the room grew cold.  A black mist swirled around them, then took on a hideous shape.',
-        '"Are you the fool who dares to challenge me?  Don\'t be absurd!"'
-      ],
+      lines: JASHIIN_WINDOW_LINES,
       textStyle: 'jashiin',
       charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,

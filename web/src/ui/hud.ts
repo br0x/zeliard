@@ -7,6 +7,7 @@
  */
 
 import { ADDR_BOSS_MODE, ADDR_BOSS_STATE_PTR } from '../core/memory.js';
+import { t } from '../locale/index.js';
 import type { HeroState } from '../core/game-state.js';
 
 /** Writable memory surface still required for non-state regions (e.g. boss HP at runtime pointer). */
@@ -86,9 +87,9 @@ export class Hud {
         const placeName = document.getElementById('currentMapName');
         if (placeName) placeName.style.display = '';
         const placeLabel = document.getElementById('placeLabel');
-        if (placeLabel) placeLabel.textContent = 'PLACE';
+        if (placeLabel) placeLabel.textContent = t('hud.place');
         const goldLabel = document.getElementById('goldLabel');
-        if (goldLabel) { goldLabel.textContent = 'GOLD'; goldLabel.style.display = ''; }
+        if (goldLabel) { goldLabel.textContent = t('hud.gold'); goldLabel.style.display = ''; }
         const goldValue = document.getElementById('gold');
         if (goldValue) goldValue.style.display = '';
     }
@@ -97,7 +98,7 @@ export class Hud {
         const placeRow = document.querySelector('.place-row');
         const placeLabel = document.getElementById('placeLabel');
         if (placeRow) placeRow.classList.toggle('indoor-place', indoor);
-        if (placeLabel) placeLabel.textContent = indoor ? '' : 'PLACE';
+        if (placeLabel) placeLabel.textContent = indoor ? '' : t('hud.place');
         this.updateElementText('currentMapName', name);
     }
 

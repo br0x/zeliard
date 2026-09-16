@@ -1,5 +1,6 @@
 // save-restore.ts – Canvas-based save/restore dialogs for Zeliard
 import { getSaveSlotNames } from '../platform/save.js';
+import { t } from '../locale/index.js';
 
 type ConfirmCallback = (slotName: string | null) => void;
 type CancelCallback = () => void;
@@ -33,7 +34,7 @@ class BaseSaveRestoreDialog {
 
     refreshItems(): void {
         const slots = getSaveSlotNames();
-        this.items = this.includeRestart ? ['Re-Start', ...slots] : [...slots];
+        this.items = this.includeRestart ? [t('modal.restart'), ...slots] : [...slots];
         if (this.selectedIndex >= this.items.length) this.selectedIndex = Math.max(0, this.items.length - 1);
         this._clampScroll();
         // In restore mode, ensure inputActive is false
@@ -71,7 +72,7 @@ class BaseSaveRestoreDialog {
             }
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 const selected = this.items[this.selectedIndex];
-                if (selected === 'Re-Start') {
+                if (selected === t('modal.restart')) {
                     this.onConfirm(null);
                 } else if (selected) {
                     this.onConfirm(selected);
@@ -131,7 +132,7 @@ class BaseSaveRestoreDialog {
             }
             if (keyCode === 'Enter' || keyCode === 'Space' || keyCode === ' ') {
                 const selected = this.items[this.selectedIndex];
-                if (selected === 'Re-Start') {
+                if (selected === t('modal.restart')) {
                     this.onConfirm(null);
                 } else if (selected) {
                     this.onConfirm(selected);
@@ -208,7 +209,7 @@ class BaseSaveRestoreDialog {
         if (this.showNewNameInput) {
             ctx.fillStyle = '#aaf';
             ctx.font = '16px "Press Start 2P", monospace';
-            ctx.fillText('New name:', x + 30, listY + 10);
+            ctx.fillText(t('modal.newName'), x + 30, listY + 10);
             const inputX = x + 180;
             const inputY = listY;
             const inputW = 220;
@@ -226,13 +227,13 @@ class BaseSaveRestoreDialog {
 
         ctx.font = '12px monospace';
         ctx.fillStyle = '#888';
-        ctx.fillText('UP/DOWN: switch | SPACE/ENTER: confirm | ESC: cancel', x + 20, y + boxHeight - 20);
+        ctx.fillText(t('modal.upDownHint'), x + 20, y + boxHeight - 20);
     }
 }
 
 export class SaveDialog extends BaseSaveRestoreDialog {
     constructor(onSave: ConfirmCallback, onCancel: CancelCallback) {
-        super('Save your Game', false, true, onSave, onCancel);
+        super(t('modal.saveTitle'), false, true, onSave, onCancel);
         this.refreshItems();
         this.inputActive = true;
         this.selectedIndex = 0;
@@ -241,7 +242,7 @@ export class SaveDialog extends BaseSaveRestoreDialog {
 
 export class RestoreDialog extends BaseSaveRestoreDialog {
     constructor(onRestore: ConfirmCallback, onCancel: CancelCallback) {
-        super('Restore Game', true, false, onRestore, onCancel);
+        super(t('modal.restoreTitle'), true, false, onRestore, onCancel);
         this.refreshItems();
         this.inputActive = false;
         this.selectedIndex = 0;

@@ -20,6 +20,7 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import { getList, t } from '../locale/index.js';
 
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -145,8 +146,7 @@ export const ALMAS_RATES = [
 // In the original, the deposit/withdraw screen shows two rows:
 //   "GOLD CARRIED" / "GOLD IN BANK"   (current holdings, top)
 //   "DEPOSIT AMT"  / "WITHDRAW AMT"   (amount being entered, bottom)
-const DEPOSIT_LABELS  = ['GOLD CARRIED', 'DEPOSIT AMT' ];
-const WITHDRAW_LABELS = ['GOLD IN BANK', 'WITHDRAW AMT'];
+
 
 // ─── Scene class ──────────────────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ export class BankScene extends IndoorSceneBase {
         this.yesNoDialog     = null;   // YesNoDialog shown during confirm_exchange
 
         // numeric-entry state
-        this.numLabels       = DEPOSIT_LABELS;  // which labels to show
+        this.numLabels       = getList('indoor.bank.depositLabels');  // which labels to show
         this.numAmount       = 0;               // amount being entered
         this.numMax          = 0;               // maximum allowed
         this.numMode         = 'deposit';       // 'deposit' | 'withdraw'
@@ -313,7 +313,7 @@ export class BankScene extends IndoorSceneBase {
 
         // First dialog line: five dots — the ASM types these as "." chars,
         // one per frame-group (unk_A989 = form-feed, unk_A98B = ".")
-        this._setDialog('.....', null, WRITING_FRAME_MS * 2, true);
+        this._setDialog(t('indoor.bank.dots'), null, WRITING_FRAME_MS * 2, true);
         // After dots finish, "Oh, excuse me. " is shown (set inside _tickEnterAnim)
     }
 
@@ -481,7 +481,7 @@ export class BankScene extends IndoorSceneBase {
     private _confirmDeclined(_now: number): void {
         this.yesNoDialog = null;
         this._clearDlgArea();
-        this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
+        this._setAutoDialog(t('indoor.bank.notUnderstood'), (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';
@@ -591,7 +591,7 @@ export class BankScene extends IndoorSceneBase {
                 const writingDone = this.animSeqIdx >= WRITING_REPEAT * WRITING_FRAMES.length;
                 if (writingDone && this._dlgDone(now)) {
                     this._enterStage = 1;
-                    this._appendDialogText('Oh, excuse me. ');
+                    this._appendDialogText(t('indoor.bank.excuseMe'));
                 }
             } else if (this._enterStage === 1) {
                 // "Oh, excuse me.": wait until the full enter sequence is done
@@ -602,7 +602,7 @@ export class BankScene extends IndoorSceneBase {
                     this.animPhase      = 'idle';
                     
                     this.bankPhase = 'greeting';
-                    this._appendDialogText('Can I help you?', (n) => {
+                    this._appendDialogText(t('indoor.bank.canIHelp'), (n) => {
                         this.bankPhase = 'menu';
                     }, CHAR_MS, true);
                 }
@@ -656,12 +656,13 @@ export class BankScene extends IndoorSceneBase {
         ctx.fillStyle = '#000a0a';
         ctx.fillRect(MENU_X, MENU_Y, MENU_W, MENU_H);
 
+        const menuItems = getList('indoor.bank.menu');
         ctx.font = FONT_MENU;
-        for (let i = 0; i < BANK_MENU_ITEMS.length; i++) {
+        for (let i = 0; i < menuItems.length; i++) {
             const yi  = MENU_TEXT_Y + i * LINE_H_MNU;
             const sel = (i === this.menuSel) && !dimmed;
             ctx.fillStyle = sel ? '#ffff00' : '#aadddd';
-            ctx.fillText(BANK_MENU_ITEMS[i]!, MENU_TEXT_X, yi);
+            ctx.fillText(menuItems[i]!, MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#ff2200';
                 this._triangle(ctx, CURSOR_X, yi - 18, 12, 18, false);
@@ -703,7 +704,9 @@ export class BankScene extends IndoorSceneBase {
         // Row 2: remaining (for withdraw: how much stays in bank; for deposit: hero gold remaining)
         const remaining = this.numMax - this.numAmount;
         ctx.fillStyle   = '#66dd88';
-        const remLabel  = this.numMode === 'deposit' ? 'REMAINING' : 'BALANCE AFTER';
+        const remLabel  = this.numMode === 'deposit'
+            ? t('indoor.bank.remaining')
+            : t('indoor.bank.balanceAfter');
         ctx.fillText(remLabel, NUM_X + 12, NUM_Y + 152);
         ctx.fillStyle   = '#ffffff';
         ctx.fillText(String(remaining), NUM_X + 12, NUM_Y + 178);
@@ -767,8 +770,9 @@ export class BankScene extends IndoorSceneBase {
         }
         if (this.bankPhase === 'numentry')   { this._handleNumEntry(key, now, repeat); return; }
         if (this.bankPhase === 'menu') {
-            if (key === 'ArrowUp')   this.menuSel = (this.menuSel - 1 + BANK_MENU_ITEMS.length) % BANK_MENU_ITEMS.length;
-            if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % BANK_MENU_ITEMS.length;
+            const menuCount = getList('indoor.bank.menu').length;
+            if (key === 'ArrowUp')   this.menuSel = (this.menuSel - 1 + menuCount) % menuCount;
+            if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % menuCount;
             if (key === 'Space' || key === 'Enter') this._selectMenuItem(now);
             if (key === 'Escape') this._doGoOutside(now);
         }
@@ -849,11 +853,11 @@ export class BankScene extends IndoorSceneBase {
         void now;
         let msg: string;
         if (this._hadLargeSum) {
-            msg = "Thank you. Come again to make a deposit for a large sum in savings. ";
+            msg = t('indoor.bank.thankYouComeAgain');
         } else if (this._hadLargeDeposit) {
-            msg = "Next time please deposit a large sum in savings. ";
+            msg = t('indoor.bank.nextTimeLargeSum');
         } else {
-            msg = "Unless you have business, don't come in here. I'm a busy man.";
+            msg = t('indoor.bank.unlessBusiness');
         }
         this._clearDlgArea();
         this._setAutoDialog(msg, (n) => {
@@ -873,7 +877,7 @@ export class BankScene extends IndoorSceneBase {
 
         const almas = this._getAlmas();
         if (!almas) {
-            this._setAutoDialog("Sir, you aren't carrying any almas. ", (n) => {
+            this._setAutoDialog(t('indoor.bank.noAlmas'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -889,7 +893,7 @@ export class BankScene extends IndoorSceneBase {
         this._almasRateTo   = to;
 
         // "Our exchange rate is X almas to Y golds. Will that be all right?"
-        const msg = `Our exchange rate is ${from} almas to ${to} golds.\nWill that be all right?`;
+        const msg = t('indoor.bank.exchangeRate', { from, to });
         this._setDialog(msg);
         this.yesNoDialog = new YesNoDialog(
             this.ctx, FONT_MENU, YESNO_X, YESNO_Y, YESNO_W, YESNO_H, 0, {
@@ -932,7 +936,7 @@ export class BankScene extends IndoorSceneBase {
         const batches = Math.floor(almas / from);
         if (!batches) {
             this._clearDlgArea();
-            this._setAutoDialog("I'm sorry, you do not have enough almas.", (n) => {
+            this._setAutoDialog(t('indoor.bank.notEnoughAlmas'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -947,7 +951,7 @@ export class BankScene extends IndoorSceneBase {
         this._hadLargeDeposit = true;   // byte_AD23: exchanged counts as "did something"
 
         this._clearDlgArea();
-        this._setAutoDialog('Will there be anything else?', (n) => {
+        this._setAutoDialog(t('indoor.bank.anythingElse'), (n) => {
             this.bankPhase = 'menu';
         });
         this.bankPhase = 'dialog';
@@ -959,16 +963,16 @@ export class BankScene extends IndoorSceneBase {
         this._clearDlgArea();
         const heroGold = this._getHeroGold();
         if (!heroGold) {
-            this._setAutoDialog("You aren't carrying any gold, are you?", (n) => {
+            this._setAutoDialog(t('indoor.bank.noGoldCarried'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
             return;
         }
 
-        this._setDialog('How much gold would you like to deposit?');
+        this._setDialog(t('indoor.bank.howMuchDeposit'));
         this.numMode   = 'deposit';
-        this.numLabels = DEPOSIT_LABELS;
+        this.numLabels = getList('indoor.bank.depositLabels');
         this.numAmount = 0;
         this.numMax    = heroGold;
         this._resetNumRepeat();
@@ -979,16 +983,16 @@ export class BankScene extends IndoorSceneBase {
         this._clearDlgArea();
         const bankGold = this._getBankGold();
         if (!bankGold) {
-            this._setAutoDialog("I'm afraid we have a problem here. You don't have any gold in your account.", (n) => {
+            this._setAutoDialog(t('indoor.bank.noGoldInAccount'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
             return;
         }
 
-        this._setDialog('How much do you wish to withdraw?');
+        this._setDialog(t('indoor.bank.howMuchWithdraw'));
         this.numMode   = 'withdraw';
-        this.numLabels = WITHDRAW_LABELS;
+        this.numLabels = getList('indoor.bank.withdrawLabels');
         this.numAmount = 0;
         this.numMax    = bankGold;
         this._resetNumRepeat();
@@ -1003,7 +1007,7 @@ export class BankScene extends IndoorSceneBase {
         const isConfirm = key === 'Space' || key === 'Enter';
         if (key === 'Escape' || isConfirm && !this.numAmount) {
             this._clearDlgArea();
-            this._setAutoDialog("I don't understand. Please state your business clearly.", (n) => {
+            this._setAutoDialog(t('indoor.bank.notUnderstood'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -1065,7 +1069,7 @@ export class BankScene extends IndoorSceneBase {
         const hero   = this._getHeroGold();
         if (amount > hero) {
             this._clearDlgArea();
-            this._setAutoDialog("I'm sorry, you do not have enough gold.", (n) => {
+            this._setAutoDialog(t('indoor.bank.notEnoughGold'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -1089,13 +1093,13 @@ export class BankScene extends IndoorSceneBase {
         const bankGold = this._getBankGold();
         let msg: string;
         if (this._laughingActive) {
-            msg = 'Thank you. Please come again.';
+            msg = t('indoor.bank.pleaseComeAgain');
         } else if (!bankGold) {
-            msg = 'Your account is empty.';
+            msg = t('indoor.bank.accountEmpty');
         } else if (bankGold === 1) {
-            msg = 'You have one gold in your account.';
+            msg = t('indoor.bank.oneGoldAccount');
         } else {
-            msg = `Your balance is ${bankGold} golds.`;
+            msg = t('indoor.bank.balanceIs', { amount: bankGold });
         }
         this._clearDlgArea();
         this._setAutoDialog(msg, (n) => {
@@ -1109,7 +1113,7 @@ export class BankScene extends IndoorSceneBase {
         const bankGold = this._getBankGold();
         if (amount > bankGold) {
             this._clearDlgArea();
-            this._setAutoDialog("I'm afraid we have a problem here. You don't have enough gold in your account.", (n) => {
+            this._setAutoDialog(t('indoor.bank.notEnoughBankGold'), (n) => {
                 this.bankPhase = 'menu';
             });
             this.bankPhase = 'dialog';
@@ -1124,18 +1128,18 @@ export class BankScene extends IndoorSceneBase {
         const newBank = this._getBankGold();
         let handOverMsg: string;
         if (amount === 1) {
-            handOverMsg = 'Here you are, sir. One gold.';
+            handOverMsg = t('indoor.bank.hereYouAreOne');
         } else {
-            handOverMsg = `Here you are, sir. ${amount} golds.`;
+            handOverMsg = t('indoor.bank.hereYouAre', { amount });
         }
 
         let balanceMsg: string;
         if (!newBank) {
-            balanceMsg = 'Your account is now empty.';
+            balanceMsg = t('indoor.bank.accountNowEmpty');
         } else if (newBank === 1) {
-            balanceMsg = 'You have one gold in your account.';
+            balanceMsg = t('indoor.bank.oneGoldAccount');
         } else {
-            balanceMsg = `Your balance is ${newBank} golds.`;
+            balanceMsg = t('indoor.bank.balanceIs', { amount: newBank });
         }
 
         this._clearDlgArea();
@@ -1152,11 +1156,11 @@ export class BankScene extends IndoorSceneBase {
         const bankGold = this._getBankGold();
         let msg: string;
         if (!bankGold) {
-            msg = 'Your account is empty.';
+            msg = t('indoor.bank.accountEmpty');
         } else if (bankGold === 1) {
-            msg = 'You have one gold in your account.';
+            msg = t('indoor.bank.oneGoldAccount');
         } else {
-            msg = `You have ${bankGold} golds in your account.`;
+            msg = t('indoor.bank.youHaveGoldAccount', { amount: bankGold });
         }
         this._hadLargeDeposit = true;  // byte_AD23 (checking balance still counts)
         this._setAutoDialog(msg, (n) => {
@@ -1193,5 +1197,5 @@ export class BankScene extends IndoorSceneBase {
         ctx.fill();
     }
 
-    getName(): string { return 'The Bank'; }
+    getName(): string { return t('indoor.bank.name'); }
 }

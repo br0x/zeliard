@@ -8,6 +8,7 @@
 
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
+import { t } from '../locale/index.js';
 
 const PRINCESS_CHAMBER_PATH = 'assets/images/omoya/princess.png';
 const PRINCESS_HOLD_MS      = 2000;
@@ -95,6 +96,6 @@ export class PrincessScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'In the Hut';
+        return t('indoor.princess.name');
     }
 }

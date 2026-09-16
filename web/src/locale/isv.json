@@ -1,0 +1,467 @@
+{
+  "meta": {
+    "locale": "isv",
+    "label": "Medžuslovjansky"
+  },
+  "hud": {
+    "place": "MĚSTO",
+    "gold": "ZLATO",
+    "enemy": "VRAH",
+    "life": "ŽIVOT",
+    "almas": "ALMAS"
+  },
+  "modal": {
+    "speedChange": "Brzost igry",
+    "speedSelect": "Izberite 0-9:",
+    "speedPressAnyKey": "(stisnite ktory koli klaviš)",
+    "saveTitle": "Shraniti igru",
+    "restoreTitle": "Obnoviti igru",
+    "newName": "Ime:",
+    "restart": "Odnova",
+    "upDownHint": "GOR/DOL: izbor | PROBEL/ENTER: potvrditi | ESC: otkazati",
+    "importExportExport": "Izvoz",
+    "importExportImport": "Vvoz",
+    "importExportDelete": "Izbrisati",
+    "deleteConfirm": "Izbrisati to shranjenje?",
+    "deleteYesNo": "[Y] Da   [N] Ne",
+    "deleteHint": "Y: potvrditi   N / ESC: otkazati",
+    "noSavedGames": "(nema shranjenij)",
+    "exportImportHint": "←/→: režim   ↑/↓: slot   ENTER: {action} slot   ESC: otkazati",
+    "importHint": "←/→: režim   ENTER: vvoz   ESC: otkazati",
+    "loadFromFile": "Naložiti iz fajla .sav",
+    "pressEnterFile": "Stisnite ENTER za izbor fajla"
+  },
+  "inventory": {
+    "selectMagic": "MAGIJA:",
+    "wear": "NOSITI:",
+    "use": "UPOTREBITI:",
+    "inventory": "INVENTAR",
+    "level": "UROVEN",
+    "exp": "ISKUSTVO",
+    "noUse": "NE UPOTREBLJIVO",
+    "iHaveUsed": "Ja upotrebil",
+    "spellNames": ["Espada", "Saeta", "Fuego", "Lanzar", "Rascar", "Agua", "Guerra"],
+    "wearableNames": ["", "Obuv Feruza", "Obuv Pirika", "Obuv Silkarn", "Obuv Ruzeria", "Plast Asbestos"],
+    "itemNames": ["", "Zelje Ken'ko", "Plod Juu-en", "Eliksir Kashi", "Prašek Chikara", "Kamen Magia", "Sveta voda Acero", "Olej Sabre", "Pero Kioku"],
+    "itemUseText": ["", "Zelje Ken'ko.", "Plod Juu-en.", "Eliksir Kashi.", "Prašek Chikara.", "         Kamen Magia.", "Svetu vodu Acero.", "Olej Sabre.", "Pero Kioku."],
+    "swordNames": [["Trenovačny", "meč"], ["Meč mudrca", ""], ["Meč duha", ""], ["Meč rycarja", ""], ["Meč svetla", ""], ["Očarovany", "meč"]],
+    "shieldNames": [["Glineny", "ščit"], ["Ščit mudrca", ""], ["Kamenny", "ščit"], ["Ščit česti", ""], ["Ščit svetla", ""], ["Titanovy", "ščit"]]
+  },
+  "dungeon": {
+    "notifications": {
+      "1": { "leftPad": 32, "text": "Dostali ste 50 zlatyh." },
+      "2": { "leftPad": 28, "text": "Dostali ste 100 zlatyh." },
+      "3": { "leftPad": 28, "text": "Dostali ste 500 zlatyh." },
+      "4": { "leftPad": 24, "text": "Dostali ste 1000 zlatyh." },
+      "5": { "leftPad": 40, "text": "Dostali ste ključ." },
+      "6": { "leftPad": 32, "text": "Vy se obnovili." },
+      "7": { "leftPad": 16, "text": "Vy se polno obnovili." },
+      "8": { "leftPad": 50, "text": "Ščit zlomljen." },
+      "9": { "leftPad": 24, "text": "Ne možno otvoriti dveri." },
+      "10": { "leftPad": 34, "text": "V skrinji ničto." },
+      "11": { "leftPad": 10, "text": "Dostali ste Gerb Heroja." },
+      "12": { "leftPad": 0, "text": "Dostali ste obuv Ruzeria." },
+      "13": { "leftPad": 12, "text": "Dostali ste Gerb Slavy." },
+      "14": { "leftPad": 10, "text": "Dostali ste obuv Pirika." },
+      "15": { "leftPad": 10, "text": "Dostali ste obuv Feruza." },
+      "16": { "leftPad": 0, "text": "Dostali ste obuv Silkarn." },
+      "17": { "leftPad": 0, "text": "Dostali ste Očarovany meč." },
+      "18": { "leftPad": 44, "text": "Prěgorko !!" },
+      "19": { "leftPad": 14, "text": "Dostali ste ključ lvovoj glavy." },
+      "20": { "leftPad": 16, "text": "Konečno, ty došel do mene." },
+      "21": { "leftPad": 30, "text": "Mne ponravil se tvoj pokaz." },
+      "22": { "leftPad": 16, "text": "Nu! Ja te ubijem." }
+    },
+    "signs": {},
+    "names": {}
+  },
+  "town": {
+    "names": {
+      "town.cmap": "Zamok Felishika",
+      "town.mrmp": "Grad Muralla",
+      "town.stmp": "Grad Satono",
+      "town.bsmp": "Ves Bosque",
+      "town.hlmp": "Grad Hellada",
+      "town.tmmp": "Tumba",
+      "town.drmp": "Dorado",
+      "town.llmp": "Llama",
+      "town.prmp": "Pureza",
+      "town.esmp": "Esco"
+    },
+    "conversations": {}
+  },
+  "indoor": {
+    "inn": {
+      "name": "Gostinnica",
+      "menu": ["Ostati na noč", "Oditi"],
+      "welcomeP1": "Dobrodošli, gospodine!\nVidno, vy prešli dolgy put.\nJedna noč odpočinka v mojej gostinnici vratit vam sily. Najlěpša komnata v domu vsego za ",
+      "welcomeP2": "zlatyh. Ostanete?",
+      "leave": "Ah, žal mi to slyšati.\nNu, ako vam kogda bude nužny odpočinek, vratite se.",
+      "noFunds": "Prostite, gospodine, ale bez deneg ja ne mogu vas prinjati.\nVratite se, kogda budete moći zaplatiti.",
+      "thankYou": "Blagodarju vas, gospodine. Prijatnogo odpočinka.",
+      "morning": "Nadeju se, vy dobro pospali. Budem rad viděti vas znovu."
+    },
+    "bank": {
+      "name": "Banka",
+      "menu": ["Izti", "Zaměniti almasy", "Vložiti deneg", "Vzeti deneg", "Prověriti balans"],
+      "depositLabels": ["ZLATO PRI SEBĚ", "SUMA VKLADA"],
+      "withdrawLabels": ["ZLATO V BANCE", "SUMA VZETJA"],
+      "dots": ".....",
+      "excuseMe": "Oh, prostite. ",
+      "canIHelp": "Čim mogu pomoći?",
+      "notUnderstood": "Ja ne razuměju. Govorite jasněje.",
+      "thankYouComeAgain": "Blagodarju. Pridite znovu, aby vložiti veliku sumu. ",
+      "nextTimeLargeSum": "V slědujući raz vložite veliku sumu. ",
+      "unlessBusiness": "Ako nemate děla, ne vhodite tut. Ja zajety člověk.",
+      "noAlmas": "Gospodine, vy ne nosite almasov. ",
+      "exchangeRate": "Naš kurs — {from} almas za {to} zlatyh.\nBude li to dobro?",
+      "notEnoughAlmas": "Prostite, vy ne imate dovoljno almasov.",
+      "anythingElse": "Bude li čto ješče?",
+      "noGoldCarried": "Vy ne nosite zlata, da?",
+      "howMuchDeposit": "Koliko zlata hoćete vložiti?",
+      "noGoldInAccount": "Boju se, imajemo problem. Na vašem računu ni zlata.",
+      "howMuchWithdraw": "Koliko hoćete vzeti?",
+      "notEnoughBankGold": "Boju se, imajemo problem. Na vašem računu ne dovoljno zlata.",
+      "pleaseComeAgain": "Blagodarju. Pridite znovu.",
+      "notEnoughGold": "Prostite, vy ne imate dovoljno zlata.",
+      "accountEmpty": "Vaš račun jest prazny.",
+      "oneGoldAccount": "Na vašem računu jest jedno zlato.",
+      "balanceIs": "Vaš balans jest {amount} zlatyh.",
+      "hereYouAreOne": "Tu jeste, gospodine. Jedno zlato.",
+      "hereYouAre": "Tu jeste, gospodine. {amount} zlatyh.",
+      "accountNowEmpty": "Nyně vaš račun jest prazny.",
+      "youHaveGoldAccount": "Na vašem računu jest {amount} zlatyh.",
+      "remaining": "OSTATOK",
+      "balanceAfter": "BALANS POSLĚ"
+    },
+    "church": {
+      "name": "Crkva",
+      "tired": "Hrabry Rycarju, kogda ustaneš, pridi v tuto crkvu.",
+      "weary": "Hrabry Rycarju, kogda ustaneš, pridi sem odpočinuti. ",
+      "holy": "Sveti Duh pomože vam vratiti sily.",
+      "fatigued": "Hrabry Rycarju, vy ustavšy od bitvy. Čemu ne odpočinete i ne dadete Duhu iscěliti vas. ",
+      "mayGod": "Bog s vami."
+    },
+    "king": {
+      "name": "Kralj Felishiky",
+      "goldGiftLine": "Sim daruju vam 1000 zlatyh.",
+      "firstAudience": [
+        "Hrabry vojvoda Garland, vam budut potrěbne penezi v puti.",
+        "Sim daruju vam 1000 zlatyh.",
+        "Idite v grad, oblekajte se, a potom spěšite v labirint, aby poběditi sily Džašiina.",
+        "Moje kraljevstvo i život mojej dščeri pod grozbju."
+      ],
+      "reminder": [
+        "Hrabry vojvodo, vy čto-to zabylili?",
+        "Vhod v labirint jest na kraju grada.",
+        "Spěšite, dokolě ne pozdno!"
+      ],
+      "afterCavern": [
+        "Vojvodo Garland, ja v dolgu pred vami za vaše trudy.",
+        "Ne uželi vam ješče ne udalo se poběditi Džašiina?",
+        "Molju se, aby duhi vodili vas.",
+        "Ne sdavajte se, narod Zeliarda naděje se na vas!"
+      ],
+      "victory": [
+        "Vojvodo Garland, vy jeste hrabry člověk.",
+        "Vy pobědili Džašiina i vratili devet Slz Esmesanti.",
+        "Nyně spěšite v komnatu princessy Felicii.",
+        "Kristaly vratet jej k životu."
+      ]
+    },
+    "princess": {
+      "name": "V hiži"
+    },
+    "weaponShop": {
+      "name": "Oružarnica",
+      "menu": ["Izti", "Popraviti ščit", "Kupiti oružje", "Kupiti ščit", "Opisati tovar"],
+      "swordNames": ["Trenovačny meč", "Meč mudrca", "Meč duha", "Meč rycarja", "Meč svetla", "Očarovany meč"],
+      "shieldNames": ["Glineny ščit", "Ščit mudrca", "Kamenny ščit", "Ščit česti", "Ščit svetla", "Titanovy ščit"],
+      "itemDescriptions": [
+        "Nu, reku tako: tutoj meč jest dobry za novaka. Za čto platite, to i dostanete. Prostyj meč, ne trebuje uhodu. Ako s penezmi těžko — tutoj za vas.",
+        "Tutoj jest malo lěpši od trenovačnogo meča. Kogda privyknete, njim jest lahko mahati. Cěna malo vyšša, ale vy ne zgubite. Čemu ne vzjati jego s soboju?",
+        "Nravit se? Mudry izbor. Tutoj tovar vysokogo klasa. Jedin iz najhodovějših.",
+        "Oh, s radostju rasskažu. Tutoj meč jest meč pravogo muža. On pobědit monstra v mig oka.",
+        "Vy, vidim, imate harakternost. Tutoj meč udarjaet kako treba. Oružje najvyššego klasa za mečnika najvyššego klasa. Vozmete?",
+        "Ne jest li to tot meč, s ktorym vy prišli?",
+        "Tutoj ščit jest maly i ima ograničenu obranu. On ne velmi tverdy — ako ne vladati njim v sovershenstvu, dolgo ne potrǎje. Ale lěpše než ničto.",
+        "Nu, on jest malo lěpši od glinenogo ščita. Davno jedin znany geroj nedolgo upotrebil jego. Moglo byti i gorje.",
+        "Tutoj jest ščit obščego naznačenja. Ne najlěpši iz mojih. Ne mogu jego rekomendovati — myslju, skoro on ustareje.",
+        "Tutoj ščit jest sam po sobě klas. Tverdy, legky i udobny. Prevoshodny ščit — minimum za hrabrogo člověka.",
+        "Ho! Vidim, vy razumějete v tyh věčah. Tutoj ščit ne jest iz prostogo želěza. On jest iz magičnogo metala nazvanogo Magane. Protiv obyknovenogo oružja on nesokrušimy.",
+        "Tutoj ščit prevračaet najmogutnějše meči v bumagu. Legky, kako pero, i tverdy, kako diamant. Pri umělom obhodženju poslužit vam ves život."
+      ],
+      "greeting": "Čim mogu služiti, gospodine?",
+      "crestTradeIntro": "Nu nado že... Gospodine! To jest gerb česti u vas? Prošu, vhodite... to jest... e-e... Ne obměnjate li jego na meč rycarja?",
+      "crestTradeQuestion": "Ne obměnjate li jego na meč rycarja?",
+      "noShield": "Gospodine, u vas ne jest s soboju ščita. Ale u mene jest odličny izbor, ako želajete kupiti.",
+      "shieldNotDamaged": "Gospodine, vaš ščit ne trebuje popravky. Čim ješče mogu pomoći?",
+      "repairOffer": "S radostju popravju vaš ščit, gospodine, vsego za {cost} zlatyh. Načinjati?",
+      "notEnoughGold": "Prostite, gospodine, u vas ne dovoljno zlata. Može, po tom kako posětite banku...",
+      "waitMoment": "Počekajte tut, ja migom.",
+      "repairsComplete": "Popravka vašej broni jest završena. Nyně ona kako nova.",
+      "noWeaponsInStock": "Prostite, nyně u mene ne jest oružja na skladu.",
+      "noShieldsInStock": "Prostite, nyně u mene ne jest ščitov na skladu.",
+      "whichWeapon": "Kako oružje hoćete?",
+      "whichShield": "Kaky ščit hoćete?",
+      "notSellingKnightSword": "Ja ne prodaju tuto oružje. U mene ne jest ni jednogo na skladu. Izberite drugo.",
+      "priceOffer": "Oh, {item}! To bude {price} zlatyh.",
+      "tradeInLine": " Ja dam vam {amount} zlatyh za vaš stary {kind} kako zčet.",
+      "willThatBeAllRight": " Bude li to dobro?",
+      "somethingElse": "Čto-nibud ješče za vas, gospodine?",
+      "nothingToShow": "Boju se, nyně mne ne jest čto vam pokazati.",
+      "explainIntro": "Vse moje tovary najvyššego kakovosti. O ktorom prědmetu mne rasskazati?",
+      "uh": "E-e......",
+      "explainItem": "Oh, {item}? {desc}",
+      "thankYouComeAgain": "Blagodarju, vhodite ješče.",
+      "wasteTime": "Ako budete tratiti moj čas, budte dobre izti.",
+      "crestTradeThanks": "Oh, blagodarju, gospodine! Kako oběčano, tu jest vaš meč rycarja. To jest najlěpše moje oružje. Vladajte njim s umom."
+    },
+    "magicShop": {
+      "name": "Lavka čarovnyh prědmětov",
+      "menu": ["Izti", "Kupiti prědmet", "Prodati prědmet", "Opis prědmeta"],
+      "itemNames": ["Zelje Ken'ko", "Plod Juu-en", "Eliksir Kashi", "Prašek Chikara", "Kamen Magia", "Sveta voda Acero", "Olej Sabre", "Pero Kioku"],
+      "itemDescriptions": [
+        "Nu, to jest osoba směs ploda junkel i lista ripodi. Ne drogo, i kako mjahko ukrěpljajuče srědstvo — idealno.",
+        "To jest plod děreva Juu-en, ktoro plodonosi raz v deset lět. Cěna vysočka, ale on odlično snima rany i ustatost — mnogo lěpši od zelja Ken'ko.",
+        "Tuto zelje varjat iz otvara omely, kipjaščego v noć polnoj luny. Obnavlja magične sily. Velmi gorko, ale ne drogo.",
+        "To jest směs iz praška drakonjej češuji i stlučenogo Kamena Mudrca, parena sto dnej. Polno obnavlja magične sily. Cěna, ale... vysoka.",
+        "Tutoj kamen ščiti auru, ktoru izlučajut žive bytja. On okruža auru i ščiti od směšenja tujih aur, a takože od vragovyh atak.",
+        "To jest razžidženy metal iz rtuti i želěza. Ako namazati njim oslableny v boju ščit, ščit vratit sobě prědnju tverdost.",
+        "Hm... O tutom ja znaju malo, ale znaju, že on usiljaet nastupatelnu moć meča. Ne volnujte se, on ješče nikogo ne ubil.",
+        "Tuto pero pamjatаet golos poslědnjego mudrca, govorivšego s vami. Ako vozmete jego v pravuju ruku i mahnjote raz, vy vratite se k njemu. Ono ješče nikogo ne podvelo."
+      ],
+      "greeting": "Oh... zdravstvujte, čim mogu pomoći?",
+      "noThanks": "Čim ja mogu vam pomoći?",
+      "goOutside": "Blagodarju, gospodine. Vhodite ješče.",
+      "whatLookingFor": "Čto vy iskate?",
+      "buyOffer": "Vy hoćete {item}. To bude {price} zlatyh. Čto-nibud ješče?",
+      "noMoney": "U vas ne jest deneg, gospodine.",
+      "noSpace": "Vy už ne možete unesti bolje.",
+      "buyDone": "To bude... Čto-nibud ješče?",
+      "notCarryingItems": "Gospodine, vy ne nesete nikakyh magičnyh prědmetov.",
+      "whatToSell": "Čto vy hoćete prodati?",
+      "sellOffer": "Vy hoćete prodati {item}. Ja dam vam {price} zlatyh za to. Bude li to dobro?",
+      "sellDone": "Veliko blagodarju.",
+      "whichItem": "O ktorom prědmetu mne rasskazati?",
+      "describeItem": "Vas interesuje {item}. {desc}"
+    },
+    "sage": {
+      "name": "Mudrc",
+      "names": ["Mudrc Marid", "Mudrc Jasmin", "Mudrc Haddžar", "Mudrc Čiriga", "Mudrc Hišam", "Mudrc Marjam", "Mudrc Said", "Mudrc Indihar"],
+      "intros": [
+        "Ja jestem mudrc Marid.\nVy jeste velmi hrabry, že idete v tako opasny put. Ja pomogu vam v stranstvovanjah.",
+        "Ja jestem mudrc Jasmin.\nJa čekala vas. Ja nauču vas Magiji Metanja Mečov: Espada.",
+        "Ja jestem mudrc Haddžar.\nRad viděti, že vy došli tako daleko. Ja nauču vas Magiji Strěl: Saeta.",
+        "Ja jestem mudrc Čiriga.\nVy prošli dolgy put i, možno, zamrzli. Ja nauču vas Magiji Ognja: Fuego.",
+        "Ja jestem mudrc Hišam.\nVy dobro držite se, stoječe pred mnoju. Ja nauču vas Magiji Plamena: Lanzar.",
+        "Ja jestem mudrc Marjam.\nSvojeju hrabrostju vy poradovali Duhov. Ja nauču vas Magiji Padajučih Kamenev: Rascar.",
+        "Ja jestem mudrc Said.\nVy mnogo prěžili, ale put vaš ne jest končen. Vam, možno, žarko. Ja nauču vas Magiji Vody: Agua.",
+        "Ja jestem mudrc vseh mudrcev, Indihar.\nHrabry junak, vy dobro potrudili se, aby došli tako daleko.\nJa nauču vas Magiji Molnij: Guerra."
+      ],
+      "knowledge": [
+        "Moja gospođa, mudrc Jasmin, žive v podzemom gradu. K njej vy možete obratiti se v nuždi.",
+        "Kogda izidete iz grada, podnimite se na plato slěva. Vy vidite dveri, podobne k izhodu iz tutogo světa.",
+        "Izhod iz tutogo světa jest velmi blizko k izhodu iz vesi. Ale prěžde než idti tamo, vam jest nužny Gerb Heroja.",
+        "To jest poslanje od Duhov: Prigibajte se, iduče po nizkoj dorogě. Ne stupajte na krutu tropu s ledenymi iglami, izberite drugu. Vnemlite tutym slovam.",
+        "Vam ne poběditi demonov na kraju pustynj bez Meča Rycarja. Dokolě ne dostanete tutoj meč, ne otvorajte dveri demonov.",
+        "Kako izidete iz tutogo světa, dostanete obuv Silkarn, sdělanu duhami po velenju Percelja. Bez nje vam ne ujti daleko od tutogo světa.",
+        "Tot svět jest podvlastny drakonam. Aby dostati tamo, treba otvoriti tri zaključene dveri.",
+        "Na kraju tutogo světa jest poslědnji vrag, Džašiin.\nAby sražiti se s Džašiinom, vam jest nužny Meč Plamena Fei. A aby dostati tamo, treba poběditi nepobědimogo monstra Algjena."
+      ],
+      "menu": ["Izti", "Viděti silu", "Slušati znanje", "Zapisati iskustvo"],
+      "deathEntry": "Dokolě vy byli bez soznanja, duhi prinesli vas sem.\nBudte oprezni i ne istrošajte sebe v boju.\nNyně idite. Duhi gledajut za vami.",
+      "howCanIHelp": "Čim ja mogu pomoći, hrabry?",
+      "anythingElse": "Mogu li ja sdělati za vas čto-nibud ješče?",
+      "spiritsWithYou": "Duhi s vami.",
+      "seePowerIntro1": "Ja vozzovu k Duhom i ih silam.....",
+      "seePowerIntro2": "O, Sveti Duhi, očistite moje mysli i darujte mne silu.",
+      "powerUp1": "Světlo Duhov izliva se vnutri vas.",
+      "powerUp2": "Voistinu, vaša sila vozrosla.",
+      "powerResultLacking": "Vam ne dostaje iskustva. Upornujte v svojem puti.",
+      "powerResultMore": "Vam treba nakopiti bolje iskustva.",
+      "powerResultFaint": "Ja vidžu slabo světlo Duhov v vas. Vam treba potrěpati ješče malo.",
+      "powerResultMaxed": "Ja ne mogu veče prědati vam silu Duhov. Prodolžajte svoj put. Skoro vy najdete drugyh pomočnikov.",
+      "powerExhausted": "Boju se, duhi ostavili vas. Koliko by ja ni proboval, izhodit jedno i to samo.",
+      "knowledgeFallback": "Duhi napravljajut vaš put.",
+      "recordSaved": "Ja zapisu vaše iskustvo.\nMěsto shranjeno. Prodolžite li svoj put?",
+      "saveCancelled": "Shranjenje otkazano."
+    }
+  },
+  "openingIntro": {
+    "copyrightLines": [
+      "Copyright (C)1987,1990 GAME ARTS",
+      "Copyright (C)1990 Sierra On-Line",
+      "Veb-port 2026, brox//THIRTEEN"
+    ],
+    "storyLines": [
+      "           Dvě tysjači lět nazad,",
+      "  iz tёmnyh glubin drugoj galaktiki,",
+      "        demon, ne imajuči ni kapli",
+      "       sostradanja k ljudam,",
+      "          spustil se na zemju.",
+      "",
+      "          On oskvernil zemju,",
+      "   naslavši na nju gnusne stvorenja,",
+      "      i stal vladarjem světa.",
+      "",
+      "          Kralj Felishiky,",
+      "      užasnuvši se slučivšemu se,",
+      "         vozzval k Duhu",
+      "      Svete Zemje Zeliard",
+      "     o pomoći v pobědě nad monstrom.",
+      "",
+      "     S pomoćju svetyh kristalov,",
+      "        Slz Esmesanti,",
+      "     Kralj uměl otsilit silu",
+      "      u demona i zapečatati jego",
+      "      v glubinah zemje.",
+      "",
+      "            I znovu",
+      "   světlo mira vozsisjalo nad",
+      "              zemjeju.",
+      "",
+      "",
+      "Ale napisano v",
+      "       Šestoj Kňigě Esmesanti:",
+      "                    Epoha Tmy."
+    ],
+    "demonSpeechLines": [
+      "Berežite se, bo ja probudžu se",
+      "od sna dlinnoju 2000 lět",
+      "i znovu budu vladati světom."
+    ],
+    "creditsLines": [
+      "               ZELIARD                  ",
+      "",
+      "             -- SOTRUDNIKI --           ",
+      "",
+      "Prodjusér -- Japonska versija",
+      "                      Mitsuhiro Mazda   ",
+      "",
+      "Prodjusér -- Angliska versija",
+      "                        Josh Mandel     ",
+      "",
+      "Glavny programist   Tomoyuki Shimada   ",
+      "",
+      "Hudožniki             Akihiko Yoshida   ",
+      "                      Masatoshi Azumi   ",
+      "",
+      "Prěvod angliskogo teksta",
+      "                       Marti McKenna    ",
+      "",
+      "Kompozitory  -- MECANO ASSOCIATES --",
+      "                    Fumihito Kasatani   ",
+      "                    Nobuyuki Aoshima    ",
+      "",
+      "Scenarij              Masaru Takeuchi   ",
+      "",
+      "Zvukove efekty       Tomoyuki Shimada   ",
+      "",
+      "Konsultanty            Osamu Harada     ",
+      "                       Hiromi Ohba      ",
+      "                       Greg Miyaji      ",
+      "",
+      "Sistemny dizajner    Rocky Cave Maker   ",
+      "",
+      "Osoba blagodarnost",
+      "                    Toshiyuki Uchida    ",
+      "                       Yuzo Sunaga      ",
+      "                     Takeshi Miyaji     ",
+      "                     Naozumi Honma      ",
+      "                     Toshi Masubuchi    ",
+      "                     Ray E. Nakazato    ",
+      "                     Hiroyuki Koyama    ",
+      "                     Satoshi Uesaka     ",
+      "              Sierra On-Line Japan, Inc.",
+      "                    Eiji (Ed) Nagano    ",
+      "",
+      "",
+      "",
+      "    Copyright (C)1987,1990 GAME ARTS    ",
+      "    Copyright (C)1990 Sierra On-Line    ",
+      "  This edition first published 1987 by  ",
+      "  GAME ARTS Co.,Ltd./ Tomoyuki Shimada  "
+    ],
+    "balconyPart1": [
+      "Kogda-to davno na zemju Zeliarda udarila strašna bura. ",
+      "Tёmne tuči zavolokli nebo; bliskali molnije i grohotal grom. ",
+      "Den za dnem s nebes lil dožd, kako by oplakivajuči čto-to.",
+      "Na sedmy den dožda prekrasna junaja děvčina stojala na balkonu, gledajuči na tutoj tёmny, žalostny dožd.",
+      "Děvčinoju byla princessa Felicija la Felishika. Ona byla jedinoju dščerju kralja Felishiky i světlom jego života.",
+      "Jej uśměhy byli kako solnečno světlo, a glas prekrasny, kako u angela. Narod kraljevstva obožal jej.",
+      "\"Kaky užasny štorm! Ne uželi on nikogda ne končit se?\"",
+      "Jедva princessa izrekla tuty slova, kako kaple dožda obratili se v pěsčinki, pokryvše zemju pod njeju. "
+    ],
+    "balconyPart2": [
+      "Na jej očah načalo se porazitelno prěobraženje.",
+      "V jedno mgnovenje zelene holmy i ravniny stali pylno-bury. ",
+      "Derevja i cvěty smjali se i byli pogrebeni. ",
+      "Rěky i jezera izčezli pod pěskom.",
+      "Tutoj věčnozeleny kraj prěobražal se v pustynju u njej na očah."
+    ],
+    "princessDemon": [
+      "\"Kako to možno?\" — voskliknula ona. \"Kakaja zla sila mogla vyzvati takoje?\""
+    ],
+    "princessVsDemon": [
+      "Princessa Felicija zadržala, počuvši blizko tёmno prisutstvo, i vnezapno užasajuči glas progreměl, kako grom...",
+      "\"Ja jestem Džašiin, Imperator Haosa. Potomki tyh, kto zatоčil mene pod zemjeju, uznajut, že moj gněv tlěl dvě tysjači lět!\""
+    ],
+    "demonFinal": [
+      "\"Prekrasna princessa Felicija, ty staneš se prekrasnym i užasajučim simbolom mojego probuđenja. Tvoj otec ne povtorit ošibok svojih prědkov!\"",
+      "Kogda slova demona prokatili se nad zemjeju, princessa Felicija obratila se v kamen."
+    ],
+    "stoned": [
+      "Pěsčany dožd šel 108 dnej i prěobratil nekogda plodorodny kraj v pustynju.",
+      "Narod kraljevstva oplakival strašnu sudbu svojej strany i svojej princessy."
+    ],
+    "kingPrincess": [
+      "Kralj plakal bolje vseh. \"O, moja vozluбlena Felicija! Boju se, Epoha Tmy nastala. Ja bessilen ostanoviti jej... i bessilen pomoći tebě.\"",
+      "Ale slzy kralja i jego naroda vskoro probudili inu silu.",
+      "Dokolě kralj goreval, pred njim javilo se viděnje."
+    ],
+    "spirit": [
+      "\"Ja jestem Duh-Hranitel Svete Zemje Zeliard. Demon Džašiin voskreshen, i voistinu jego zla magija vvergnet tutoj svět v Epohu Tmy znovu.\"",
+      "\"Vnemli mojim slovam, kralju Felishika: jest liš jedno sposob ostanoviti tutogo demona. Hrabry voin dolžen otpraviti se v labirinty i vratiti devet Svetyh Kristalov, Slz Esmesanti.\"",
+      "\"V labirintah obitajet množstvo užasnyh stvorenj, vse oni — slugi Džašiina. Ni jedin smrtny ne odolěje tutyh smertonosnyh tvarej i ne otnimet u nih kristaly.\"",
+      "\"Odnako jest jedin, obladajuči siloju protivostojati Džašiinu. Člověk, ktoromu suđeno sražiti se s njim, skoro pribude v tvoje kraljevstvo.\"",
+      "\"Liš tutoj člověk jest dovoljno silny, aby izgnati Džašiina navsegda.\"",
+      "\"Ty dolžen dočekati se prihoda tutogo hrabrogo i blagorodnogo rycarja i rasskazati jemu vse. Liš s jego pomoćju ty možeš vernuti tutoj zemji prědnju krasotu i osvoboditi dščer od strašnogo proklętja.\"",
+      "Izrekši tuty slova, Duh izčeznul."
+    ],
+    "kingSurprised": [
+      "Kralj Felishika ne mog věriti svojim očam. \"Ne uželi moj razum igra so mnoju! Boju se, ja obezuměl od gorja.\"",
+      "Ale v slědujuči den v kraljevstvě javil se neznanec..."
+    ],
+    "dukeArrived": [
+      "\"Kakoje pustynno město! Čemu Duh privedl mene sem?\"",
+      "Vedeny světlom Duha, hrabry vojvoda Garland mnogo dnej šel v zemju Zeliard."
+    ],
+    "dukeEscorted": [
+      "Vojdši v zamok, on byl skoro prěprovođen k tronu gorevajučego kralja Felishiky."
+    ],
+    "kingDuke1": [
+      "\"Vojvodo Garland! Ty, dolžno byti, jest tot člověk sudby, o ktorom govoril Duh. Molju tebe, uništožiti demona Džašiina, proklęvšego moje kraljevstvo i obrativšego moju vozluбlenu dščer v kamen.\""
+    ],
+    "kingDuke2": [
+      "Vojvoda Garland prěklonil koleno pred kraljem. \"Vaše Veličestvo, ja slědoval světlu Duha do tutogo města.\"",
+      "\"Ja ne znaju tutogo demona i ne vědaju, kakymi silami on obladaet, ale ako ne jest nikogo drugogo, kto mog by jego odolěti, ja posvętju tutomu dělu svoj život.\""
+    ],
+    "kingDuke3": [
+      "\"Prvy raz od načala pěsčanoj bury ty vselil naděju v moje serdce, vojvodo Garland. Da budet s toboju Bog v tvojem puti.\""
+    ],
+    "finalScroll": [
+      "                Konečno,                ",
+      "      dveri sudby byli otvorene.       ",
+      "        Labirinty gluboki,             ",
+      "        i put dolgy.                    ",
+      "     Uspěje li vojvoda Garland          ",
+      "   nizvergti Imperatora Haosa?          "
+    ],
+    "jashiinWindow": [
+      "Vnezapno v komnatě stalo holodno. Črny tuman zaklubil se vokrug, a potom prinjаl otvratitelny oblik.",
+      "\"Ty i jest tot glуpec, kto směje brositi mně vyzov? Ne budi směšon!\""
+    ]
+  },
+  "endingDemo": {}
+}

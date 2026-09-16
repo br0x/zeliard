@@ -1,0 +1,467 @@
+{
+  "meta": {
+    "locale": "en",
+    "label": "English"
+  },
+  "hud": {
+    "place": "PLACE",
+    "gold": "GOLD",
+    "enemy": "ENEMY",
+    "life": "LIFE",
+    "almas": "ALMAS"
+  },
+  "modal": {
+    "speedChange": "Speed change",
+    "speedSelect": "Select 0-9:",
+    "speedPressAnyKey": "(press any key)",
+    "saveTitle": "Save your Game",
+    "restoreTitle": "Restore Game",
+    "newName": "New name:",
+    "restart": "Re-Start",
+    "upDownHint": "UP/DOWN: switch | SPACE/ENTER: confirm | ESC: cancel",
+    "importExportExport": "Export",
+    "importExportImport": "Import",
+    "importExportDelete": "Delete",
+    "deleteConfirm": "Delete this save?",
+    "deleteYesNo": "[Y] Yes   [N] No",
+    "deleteHint": "Y: confirm   N / ESC: cancel",
+    "noSavedGames": "(no saved games)",
+    "exportImportHint": "←/→: mode   ↑/↓: slot   ENTER: {action} slot   ESC: cancel",
+    "importHint": "←/→: mode   ENTER: import   ESC: cancel",
+    "loadFromFile": "Load from .sav file",
+    "pressEnterFile": "Press ENTER to select a file"
+  },
+  "inventory": {
+    "selectMagic": "SELECT-MAGIC:",
+    "wear": "WEAR:",
+    "use": "USE:",
+    "inventory": "INVENTORY",
+    "level": "LEVEL",
+    "exp": "EXP",
+    "noUse": "NO USE",
+    "iHaveUsed": "I have used",
+    "spellNames": ["Espada", "Saeta", "Fuego", "Lanzar", "Rascar", "Agua", "Guerra"],
+    "wearableNames": ["", "Feruza shoes", "Pirika shoes", "Silkarn shoes", "Ruzeria shoes", "Asbestos cape"],
+    "itemNames": ["", "Ken'ko Potion", "Juu-en Fruit", "Elixir of Kashi", "Chikara Powder", "Magia Stone", "Holy Water of Acero", "Sabre Oil", "Kioku feather"],
+    "itemUseText": ["", "a Ken'ko Potion.", "a Juu-en Fruit.", "an Elixir of Kashi.", "some Chikara Powder.", "         a Magia Stone.", "some Holy Water of Acero.", "some Sabre Oil.", "a Kioku feather."],
+    "swordNames": [["Training", "Sword"], ["Wise man's", "Sword"], ["Spirit", "Sword"], ["Knight's", "Sword"], ["Illumination", "Sword"], ["Enchantment", "Sword"]],
+    "shieldNames": [["Clay", "Shield"], ["Wise Man's", "Shield"], ["Stone", "Shield"], ["Honor", "Shield"], ["Light", "Shield"], ["Titanium", "Shield"]]
+  },
+  "dungeon": {
+    "notifications": {
+      "1": { "leftPad": 38, "text": "You get 50 golds." },
+      "2": { "leftPad": 34, "text": "You get 100 golds." },
+      "3": { "leftPad": 34, "text": "You get 500 golds." },
+      "4": { "leftPad": 30, "text": "You get 1000 golds." },
+      "5": { "leftPad": 50, "text": "You get a Key." },
+      "6": { "leftPad": 28, "text": "You have recovered." },
+      "7": { "leftPad": 8, "text": "You have recovered full." },
+      "8": { "leftPad": 60, "text": "Shield broken." },
+      "9": { "leftPad": 20, "text": "Can't open this door." },
+      "10": { "leftPad": 28, "text": "Nothing in the box." },
+      "11": { "leftPad": 6, "text": "You get the Hero's Crest." },
+      "12": { "leftPad": 0, "text": "You get the Ruzeria shoes." },
+      "13": { "leftPad": 8, "text": "You get the Glory Crest." },
+      "14": { "leftPad": 6, "text": "You get the Pirika shoes." },
+      "15": { "leftPad": 6, "text": "You get the Feruza shoes." },
+      "16": { "leftPad": 0, "text": "You get the Silkarn shoes." },
+      "17": { "leftPad": 0, "text": "Get the Enchantment sword." },
+      "18": { "leftPad": 48, "text": "It's too hot !!" },
+      "19": { "leftPad": 8, "text": "Get the lion's head Key." },
+      "20": { "leftPad": 12, "text": "Finally, you reached me." },
+      "21": { "leftPad": 24, "text": "I enjoyed your show." },
+      "22": { "leftPad": 12, "text": "Come on!  I'll kill you." }
+    },
+    "signs": {},
+    "names": {}
+  },
+  "town": {
+    "names": {
+      "town.cmap": "Felishika's Castle",
+      "town.mrmp": "Muralla Town",
+      "town.stmp": "Satono town",
+      "town.bsmp": "Bosque Village",
+      "town.hlmp": "Hellada Town",
+      "town.tmmp": "Tumba",
+      "town.drmp": "Dorado",
+      "town.llmp": "Llama",
+      "town.prmp": "Pureza",
+      "town.esmp": "Esco"
+    },
+    "conversations": {}
+  },
+  "indoor": {
+    "inn": {
+      "name": "The Inn",
+      "menu": ["Stay the night", "Leave"],
+      "welcomeP1": "Welcome, sir!\nYou look like you've come a long way.\nOne night of rest in my inn is all you need to recover your strength. You can have the best room in the house for only ",
+      "welcomeP2": "golds. Will you stay?",
+      "leave": "Oh, I'm sorry to hear that.\nWell, if you should ever need a place to rest, do come back.",
+      "noFunds": "I'm sorry sir, but I can't accommodate you without funds.\nPlease come back when you can afford it.",
+      "thankYou": "Thank you, sir. Enjoy your stay.",
+      "morning": "I trust you had a good night's sleep. We'll be looking forward to seeing you again."
+    },
+    "bank": {
+      "name": "The Bank",
+      "menu": ["Go outside", "Exchange almas", "Deposit money", "Withdraw money", "Check balance"],
+      "depositLabels": ["GOLD CARRIED", "DEPOSIT AMT"],
+      "withdrawLabels": ["GOLD IN BANK", "WITHDRAW AMT"],
+      "dots": ".....",
+      "excuseMe": "Oh, excuse me. ",
+      "canIHelp": "Can I help you?",
+      "notUnderstood": "I don't understand. Please state your business clearly.",
+      "thankYouComeAgain": "Thank you. Come again to make a deposit for a large sum in savings. ",
+      "nextTimeLargeSum": "Next time please deposit a large sum in savings. ",
+      "unlessBusiness": "Unless you have business, don't come in here. I'm a busy man.",
+      "noAlmas": "Sir, you aren't carrying any almas. ",
+      "exchangeRate": "Our exchange rate is {from} almas to {to} golds.\nWill that be all right?",
+      "notEnoughAlmas": "I'm sorry, you do not have enough almas.",
+      "anythingElse": "Will there be anything else?",
+      "noGoldCarried": "You aren't carrying any gold, are you?",
+      "howMuchDeposit": "How much gold would you like to deposit?",
+      "noGoldInAccount": "I'm afraid we have a problem here. You don't have any gold in your account.",
+      "howMuchWithdraw": "How much do you wish to withdraw?",
+      "notEnoughBankGold": "I'm afraid we have a problem here. You don't have enough gold in your account.",
+      "pleaseComeAgain": "Thank you. Please come again.",
+      "notEnoughGold": "I'm sorry, you do not have enough gold.",
+      "accountEmpty": "Your account is empty.",
+      "oneGoldAccount": "You have one gold in your account.",
+      "balanceIs": "Your balance is {amount} golds.",
+      "hereYouAreOne": "Here you are, sir. One gold.",
+      "hereYouAre": "Here you are, sir. {amount} golds.",
+      "accountNowEmpty": "Your account is now empty.",
+      "youHaveGoldAccount": "You have {amount} golds in your account.",
+      "remaining": "REMAINING",
+      "balanceAfter": "BALANCE AFTER"
+    },
+    "church": {
+      "name": "The Church",
+      "tired": "Brave Knight, whenever you're tired come to this church.",
+      "weary": "Brave Knight, whenever you're weary, come here to rest. ",
+      "holy": "The Holy Spirit will help you to regain your strength.",
+      "fatigued": "Brave Knight, you look fatigued from battle. Why not rest awhile and let the Spirit heal you. ",
+      "mayGod": "May God go with you."
+    },
+    "king": {
+      "name": "King of Felishika",
+      "goldGiftLine": "I hereby bestow upon you 1000 Golds.",
+      "firstAudience": [
+        "Brave Duke Garland, you'll need money for your journey.",
+        "I hereby bestow upon you 1000 Golds.",
+        "Go to town and outfit yourself, then make haste to the labyrinth to defeat the forces of Jashiin.",
+        "My kingdom and the life of my daughter are at stake."
+      ],
+      "reminder": [
+        "Brave Duke, did you forget something?",
+        "The entrance to the labyrinth is at the edge of town.",
+        "Please hurry, before it's too late!"
+      ],
+      "afterCavern": [
+        "Duke Garland, I am in debt to you for your efforts.",
+        "Have you not yet succeeded in vanquishing Jashiin?",
+        "I pray that the spirits will guide you.",
+        "Please don't give up, the people of Zeliard are depending on you!"
+      ],
+      "victory": [
+        "Duke Garland, you are a brave man.",
+        "You have conquered Jashiin and returned the nine Tears of Esmesanti.",
+        "Now go quickly to the chamber of Princess Felicia.",
+        "The crystals will bring her back to life."
+      ]
+    },
+    "princess": {
+      "name": "In the Hut"
+    },
+    "weaponShop": {
+      "name": "Weapon and Armour Shop",
+      "menu": ["Go outside", "Repair shield", "Buy weapon", "Buy shield", "Explain goods"],
+      "swordNames": ["Training sword", "Wise man's sword", "Spirit sword", "Knight's sword", "Illumination sword", "Enchantment sword"],
+      "shieldNames": ["Clay shield", "Wise man's shield", "Stone shield", "Honor shield", "Light shield", "Titanium shield"],
+      "itemDescriptions": [
+        "Well, I'd say this sword is all right for a beginner. You get what you pay for. It's your standard, maintenance-free sword. If money's a problem, this one's for you.",
+        "This one is just a bit better than the Training Sword. Once you get the hang of it, it's an easy one to wield. The price is a bit higher, but you can't lose on this one. Why not take it with you?",
+        "You like this one? A wise choice. This is a high grade product. It's one of my biggest sellers.",
+        "Oh, I'd be more than happy to tell you about this one. This is a real man's sword. It'll topple monsters in the wink of an eye.",
+        "You've got a lot of grit I'd say. This one really packs a punch. A top-of-the-line sword for a top-of-the-line swordsman. Will you take it?",
+        "Isn't that the sword you brought in with you?",
+        "This shield is small and has limited defense capability. It's not very durable -- unless it's used with great skill, it won't last long. It's better than nothing, I guess.",
+        "Well, it's slightly better than the Clay Shield. Long ago, a well-known hero used it for a short time. You could do a lot worse.",
+        "This one is more of a general-use shield. It's not the best one I carry. I can't really recommend it, I think it will soon be obsolete.",
+        "This shield is in a class by itself. It is strong and light and easy to use. This is a superior shield, the least a brave man should have.",
+        "Ho! You've got quite an eye for these things, I see. This shield is not made of common iron. It is made of a magic metal called Magane. Against ordinary weapons, it's unbreakable.",
+        "This shield makes the mightiest swords seem like paper. It's light as a feather and hard as a diamond. Used well, this one will last you a lifetime."
+      ],
+      "greeting": "May I be of service, sir?",
+      "crestTradeIntro": "Well I'll be... Sir! Isn't that the crest of honor you bear? Please come in... I mean... uh... Might I trade you a knight's sword for it?",
+      "crestTradeQuestion": "Might I trade you a knight's sword for it?",
+      "noShield": "Sir, you aren't carrying a shield -- however, I do have a fine selection, if you'd like to buy one.",
+      "shieldNotDamaged": "Sir, your shield is not in need of repair. How else can I help you?",
+      "repairOffer": "I'll be glad to repair your shield, sir, for the low price of {cost} golds. Shall I proceed?",
+      "notEnoughGold": "I'm sorry sir, you aren't carrying enough gold. Perhaps after you've visited the bank...",
+      "waitMoment": "Please wait here, I'll only be a moment.",
+      "repairsComplete": "The repairs to your armour are complete. It is now as good as new.",
+      "noWeaponsInStock": "I'm sorry, I have no weapons in stock at the moment.",
+      "noShieldsInStock": "I'm sorry, I have no shields in stock at the moment.",
+      "whichWeapon": "Which weapon would you like?",
+      "whichShield": "Which shield would you like?",
+      "notSellingKnightSword": "I do not sell that weapon. I haven't a single one in stock. Please choose another.",
+      "priceOffer": "Oh, the {item}! That will be {price} golds.",
+      "tradeInLine": " I'll give you {amount} golds on your old {kind} as a trade-in.",
+      "willThatBeAllRight": " Will that be all right?",
+      "somethingElse": "Will there be something else for you, sir?",
+      "nothingToShow": "I'm afraid I have nothing to show you at the moment.",
+      "explainIntro": "All of my goods are of the highest quality. Which item would you like me to tell you about?",
+      "uh": "Uh......",
+      "explainItem": "Oh, the {item}? {desc}",
+      "thankYouComeAgain": "Thank you, please come again.",
+      "wasteTime": "If you're going to waste my time, please be on your way.",
+      "crestTradeThanks": "Oh, thank you, sir! As promised, here is your knight's sword. It's the finest weapon I have. Use it well."
+    },
+    "magicShop": {
+      "name": "Witchcraft Implement Shop",
+      "menu": ["Go outside", "Buy item", "Sell item", "Description of item"],
+      "itemNames": ["Ken'ko Potion", "Juu-en Fruit", "Elixir of Kashi", "Chikara Powder", "Magia Stone", "Holy Water of Acero", "Sabre Oil", "Kioku Feather"],
+      "itemDescriptions": [
+        "Well, it's a special blend of yunkel fruit and ripodi leaf. It's low in price and as a mild health tonic, it's perfect.",
+        "This is the fruit of the Juu-en tree which bears only once every ten years. The price is a bit high, but it provides excellent relief from wounds and exhaustion -- it's quite a bit better than the Ken'ko potion.",
+        "This potion is made from the broth of mistletoe simmered on the night of a full moon. It restores magical powers. It's very bitter, but the price is low.",
+        "This is made from a mixture of the powdered dragon scales and crushed Wise Man's Stone steamed for one hundred days. It will fully restore your magical powers. The price, however... is high.",
+        "This stone protects the aura that living beings exude. It surrounds the aura to prevent interference from other auras and acts as a protection against enemy attacks.",
+        "This is a liquified metal made from mercury and iron. If you paint it on a shield weakened by battle, the shield will regain its original strength.",
+        "Hmm... I don't know much about this one, but I do know that it increases the offensive power of a sword. Don't worry, it hasn't killed anyone yet.",
+        "This feather remembers the voice of the last wise man who spoke to you. If you hold it in your right hand and swing it once, you'll return to him. It's never failed anyone I know."
+      ],
+      "greeting": "Oh... hello, can I help you?",
+      "noThanks": "Is there something I can do for you?",
+      "goOutside": "Thank you, sir. Please come again.",
+      "whatLookingFor": "What are you looking for?",
+      "buyOffer": "You'd like a {item}. That will be {price} golds. Will there be something else?",
+      "noMoney": "You have no money, sir.",
+      "noSpace": "You can't possibly carry any more.",
+      "buyDone": "That will be... Will there be something else?",
+      "notCarryingItems": "You aren't carrying any magic items, sir.",
+      "whatToSell": "What would you like to sell?",
+      "sellOffer": "You'd like to sell a {item}. I'll give you {price} golds for that. Will that be all right?",
+      "sellDone": "Thank you very much.",
+      "whichItem": "Which item can I tell you about?",
+      "describeItem": "You're interested in the {item}. {desc}"
+    },
+    "sage": {
+      "name": "The Sage",
+      "names": ["The Sage Marid", "The Sage Yasmin", "The Sage Hajjar", "The Sage Chiriga", "The Sage Hisham", "The Sage Maryam", "The Sage Saied", "The Sage Indihar"],
+      "intros": [
+        "I am the Sage Marid.\nYou are very brave to embark on such a dangerous journey. I shall assist you in your travels.",
+        "I am the Sage Yasmin.\nI have been expecting you. I shall teach you the Magic Spell of Throwing Swords: Espada.",
+        "I am the Sage Hajjar.\nI am happy to see you've made it this far. I shall teach you the Magic Spell of Arrows: Saeta.",
+        "I am the Sage Chiriga.\nYou have come far, and you must be cold. I shall teach you the Magic Spell of Fire: Fuego.",
+        "I am the Sage Hisham.\nYou are doing well to stand before me. I shall teach you the Magic Spell of Flame: Lanzar.",
+        "I am the Sage Maryam.\nYou have made the Spirits proud with your bravery. I shall teach you the Magic Spell of Falling Rocks: Rascar.",
+        "I am the Sage Saied.\nYou have lived through much, but your journey is not over. You must be hot. I shall teach you the Magic Spell of Water: Agua.",
+        "I am the Sage of All Sages, Indihar.\nBrave lad, you've done well to get this far.\nI shall teach you the Magic Spell of Lightning: Guerra."
+      ],
+      "knowledge": [
+        "My master, the Sage Yasmin, resides in the underground town. She is a person you can turn to if you are in need.",
+        "When you leave the city, climb to the plateau on the left. You'll see a door that looks like the exit from this world.",
+        "The exit from this world is very near the exit from the village. However, before you go there you must have the Hero's Crest.",
+        "This is a message from the Spirits: Bend when you walk a low road. Walk not on the steep path with the needles of ice, choose another path instead. Heed well these words.",
+        "You can't defeat the demons at the edge of the badlands without the Knight's Sword. Until you get that sword, do not open the door of the demons.",
+        "Once you leave this world, get the Silkarn shoes made by the spirits at the behest of Percel. If you do not get those, you cannot travel far from this world.",
+        "That world is controlled by dragons. To get there, you have to open three closed doors.",
+        "At the edge of this world is the final foe, Jashiin.\nTo fight Jashiin, you must have the Sword of the Fairy Flame. And to get there, you must topple the invincible monster Alguien."
+      ],
+      "menu": ["Go outside", "See Power", "Listen Knowledge", "Record Experience"],
+      "deathEntry": "While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.",
+      "howCanIHelp": "How can I help you, Brave One?",
+      "anythingElse": "Is there anything else I can do for you?",
+      "spiritsWithYou": "The Spirits are with you.",
+      "seePowerIntro1": "I shall call upon the Spirits and their powers.....",
+      "seePowerIntro2": "Oh, Holy Spirits, purify my thoughts and grant me strength.",
+      "powerUp1": "The light of the Spirits is bursting forth within you.",
+      "powerUp2": "Indeed, your power has grown.",
+      "powerResultLacking": "Your experience is lacking. Persevere in your quest.",
+      "powerResultMore": "You must accumulate more experience.",
+      "powerResultFaint": "I can see the faint light of the Spirits in you. You must endure a little longer.",
+      "powerResultMaxed": "I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.",
+      "powerExhausted": "I fear the spirits are no longer with you. No matter how many times I try, it comes out the same.",
+      "knowledgeFallback": "The Spirits guide your path.",
+      "recordSaved": "I shall record your experiences.\nPlace is saved. Will you continue your quest?",
+      "saveCancelled": "Save cancelled."
+    }
+  },
+  "openingIntro": {
+    "copyrightLines": [
+      "Copyright (C)1987,1990 GAME ARTS",
+      "Copyright (C)1990 Sierra On-Line",
+      "Web port 2026, brox//THIRTEEN"
+    ],
+    "storyLines": [
+      "           Two thousand years, ",
+      "from the dark reaches of another galaxy,",
+      "        a demon with not a shred",
+      "      of compassion for humankind,",
+      "         descended upon earth.",
+      "",
+      "          He defiled the land,",
+      "  sending vile creatures to live in it,",
+      "   and thus became ruler of the world.",
+      "",
+      "         The King of Felishika,",
+      "     appalled by what had happened,",
+      "          prayed to the Spirit",
+      "      of the Holy Land of Zeliard",
+      "    for help in defeating this monster.",
+      "",
+      "    With the help of the holy crystals",
+      "       called Tears of Esmesanti,",
+      "    the King managed to wrest power",
+      "    from the fiend and seal him deep",
+      "     within the bowels of the earth.",
+      "",
+      "            And once again,",
+      " the light of peace came to shine upon",
+      "              the earth.",
+      "",
+      "",
+      "However, it is written in",
+      "       the Sixth Book of Esmesanti:",
+      "                    The Age of Darkness."
+    ],
+    "demonSpeechLines": [
+      "Beware, for I shall wake",
+      "from my sleep of 2,000 years",
+      "and once again reign over the world."
+    ],
+    "creditsLines": [
+      "               ZELIARD                  ",
+      "",
+      "             -- STAFF --                ",
+      "",
+      "Producer -- Japanese Version",
+      "                      Mitsuhiro Mazda   ",
+      "",
+      "Producer -- English Version",
+      "                        Josh Mandel     ",
+      "",
+      "Lead Programmer      Tomoyuki Shimada   ",
+      "",
+      "Graphic Designers     Akihiko Yoshida   ",
+      "                      Masatoshi Azumi   ",
+      "",
+      "English Text Translation by",
+      "                       Marti McKenna    ",
+      "",
+      "Music Composers  -- MECANO ASSOCIATES --",
+      "                    Fumihito Kasatani   ",
+      "                    Nobuyuki Aoshima    ",
+      "",
+      "Story Maker           Masaru Takeuchi   ",
+      "",
+      "Sound Effects by     Tomoyuki Shimada   ",
+      "",
+      "Advisers               Osamu Harada     ",
+      "                       Hiromi Ohba      ",
+      "                       Greg Miyaji      ",
+      "",
+      "System Designer      Rocky Cave Maker   ",
+      "",
+      "Special Thanks to",
+      "                    Toshiyuki Uchida    ",
+      "                       Yuzo Sunaga      ",
+      "                     Takeshi Miyaji     ",
+      "                     Naozumi Honma      ",
+      "                     Toshi Masubuchi    ",
+      "                     Ray E. Nakazato    ",
+      "                     Hiroyuki Koyama    ",
+      "                     Satoshi Uesaka     ",
+      "              Sierra On-Line Japan, Inc.",
+      "                    Eiji (Ed) Nagano    ",
+      "",
+      "",
+      "",
+      "    Copyright (C)1987,1990 GAME ARTS    ",
+      "    Copyright (C)1990 Sierra On-Line    ",
+      "  This edition first published 1987 by  ",
+      "  GAME ARTS Co.,Ltd./ Tomoyuki Shimada  "
+    ],
+    "balconyPart1": [
+      "Once, long ago, a terrible storm came to the land of Zeliard. ",
+      "Dark clouds filled the sky; lightning flashed and thunder crashed. ",
+      "Day after day, rain poured from the heavens as if in lament.",
+      "On the seventh day of rain, a beautiful young girl stood on her balcony watching this dark, sad rain.",
+      "The girl was Princess Felicia la Felishika.  She was the only daughter of King Felishika, and the light of his life.",
+      "Her smiles were like sunshine, her voice as beautiful as that of an angel.  She was adored by the people of the kingdom.",
+      "\"What a dreadful storm!  Will it never end?\"",
+      "Just as the princess spoke these words, the raindrops turned to grains of sand which covered the ground below her. "
+    ],
+    "balconyPart2": [
+      "As she watched, a startling transformation began to take place.",
+      "In an instant, the green hills and plains turned a dusty brown. ",
+      "Trees and flowers crumpled and were buried. ",
+      "Rivers and lakes disappeared beneath the sand.",
+      "This ever-green land was turning to desert before her very eyes."
+    ],
+    "princessDemon": [
+      "\"How can this be?\" she cried, \"What evil power could cause such a terrible thing to happen?\""
+    ],
+    "princessVsDemon": [
+      "Princess Felicia shivered as she felt a dark presence near her, and suddenly, a terrifying voice bellowed as loud as thunder...",
+      "\"I am Jashiin, the Emperor of Chaos.  The descendants of those who imprisoned me under the earth shall know that my wrath has smoldered for two thousand years!\""
+    ],
+    "demonFinal": [
+      "\"Beautiful Princess Felicia, you will make a lovely and terrifying symbol of my awakening.  Your father will not make the mistakes of his ancestors!\"",
+      "As the words of the demon resounded over the land, Princess Felicia was turned to stone."
+    ],
+    "stoned": [
+      "The rain of sand continued for 108 days and transformed the once-fertile land into desert.",
+      "The people of the kingdom wept at the terrible fate of their country, and of their princess."
+    ],
+    "kingPrincess": [
+      "The King wept most of all. \"Oh, my beloved Felicia!  I fear the Age of Darkness is upon us.  I am powerless to stop it ... and powerless to help you.\"",
+      "But the tears of the King and his people soon awakened another power.",
+      "As the King grieved, an apparition appeared before him."
+    ],
+    "spirit": [
+      "\"I am the Guardian Spirit of the Holy Land of Zeliard.  The demon Jashiin has been resurrected, and indeed his evil magic will plunge this world into the Age of Darkness once again.\"",
+      "\"Heed my words, King Felishika: There is but one way to stop this demon.  A brave warrior must venture into the labyrinths and recover the nine Holy Crystals, the Tears of Esmesanti.\"",
+      "\"Many terrible creatures dwell within the labyrinths, all of them Jashiin's minions.  No mortal man could defeat these deadly beasts and wrest the crystals from them.\"",
+      "\"However, there is one with the power to oppose Jashiin. The man who is destined to fight him will soon arrive in your kingdom.\"",
+      "\"This man is the only being strong enough to banish Jashiin forever.\"",
+      "\"You must await the arrival of this brave and noble knight, and tell him everything.  Only with his help can you hope to restore this land to its former beauty, and free your daughter from her terrible curse.\"",
+      "Having spoken these words, the Spirit disappeared."
+    ],
+    "kingSurprised": [
+      "King Felishika could not believe what he had seen.  \"Surely my mind is playing tricks on me!  I'm afraid I have gone mad with grief.\"",
+      "But the next day, a stranger appeared in the kingdom..."
+    ],
+    "dukeArrived": [
+      "\"What a desolate place!  Why has the Spirit led me here?\"",
+      "Guided by the light of the Spirit, brave Duke Garland had journeyed many days to the land of Zeliard."
+    ],
+    "dukeEscorted": [
+      "Entering the castle, he was quickly escorted to the throne of the grieving King Felishika."
+    ],
+    "kingDuke1": [
+      "\"Duke Garland!  You must be the man of destiny of whom the Spirit spoke.  I beg of you to destroy the demon Jashiin who has cursed my kingdom and turned my beloved daughter to stone.\""
+    ],
+    "kingDuke2": [
+      "Duke Garland knelt before the King.  \"Your Majesty, I have followed the light of the Spirit to this place.\"",
+      "\"I know not of this demon, nor what powers he may possess, but if there is none else who can defeat him, then I will dedicate my life to this task.\""
+    ],
+    "kingDuke3": [
+      "\"For the first time since the sandstorm began, you have brought hope into my heart, Duke Garland.  May God go with you on your quest.\""
+    ],
+    "finalScroll": [
+      "                At last,                ",
+      "     the door of destiny was opened.    ",
+      "        The labyrinths are deep,        ",
+      "          and the way is long.          ",
+      "     Will Duke Garland be successful    ",
+      "   in dethroning the Emperor of Chaos?  "
+    ],
+    "jashiinWindow": [
+      "Suddenly, the room grew cold.  A black mist swirled around them, then took on a hideous shape.",
+      "\"Are you the fool who dares to challenge me?  Don't be absurd!\""
+    ]
+  },
+  "endingDemo": {}
+}

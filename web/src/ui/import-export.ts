@@ -1,5 +1,6 @@
 // import-export.ts – Canvas-based Import/Export dialog for Zeliard
 import { getSaveSlotNames } from '../platform/save.js';
+import { t } from '../locale/index.js';
 
 export type ImportExportMode = 'export' | 'import' | 'delete';
 
@@ -140,7 +141,7 @@ class ImportExportDialog {
         // Header with mode tabs
         ctx.font = 'bold 24px "Press Start 2P", monospace';
         const tabX = [x + 40, x + 200, x + 360];
-        const tabLabels = ['Export', 'Import', 'Delete'];
+        const tabLabels = [t('modal.importExportExport'), t('modal.importExportImport'), t('modal.importExportDelete')];
         for (let i = 0; i < 3; i++) {
             const isActive = (i === modesOrder.indexOf(this.mode));
             ctx.fillStyle = isActive ? '#ff8' : '#888';
@@ -159,16 +160,16 @@ class ImportExportDialog {
                 // Confirmation prompt
                 ctx.font = '18px "Press Start 2P", monospace';
                 ctx.fillStyle = '#f88';
-                ctx.fillText('Delete this save?', x + 100, y + 140);
+                ctx.fillText(t('modal.deleteConfirm'), x + 100, y + 140);
                 ctx.font = '16px "Press Start 2P", monospace';
                 ctx.fillStyle = '#ff8';
                 ctx.fillText('"' + this.confirmDeleteSlot + '"', x + 140, y + 190);
                 ctx.font = '16px "Press Start 2P", monospace';
                 ctx.fillStyle = '#aaa';
-                ctx.fillText('[Y] Yes   [N] No', x + 130, y + 250);
+                ctx.fillText(t('modal.deleteYesNo'), x + 130, y + 250);
                 ctx.font = '14px monospace';
                 ctx.fillStyle = '#aaa';
-                ctx.fillText('Y: confirm   N / ESC: cancel', x + 120, y + boxHeight - 25);
+                ctx.fillText(t('modal.deleteHint'), x + 120, y + boxHeight - 25);
             } else {
                 // List save slots
                 ctx.font = '18px "Press Start 2P", monospace';
@@ -176,7 +177,7 @@ class ImportExportDialog {
                 const lineHeight = 28;
                 if (this.slots.length === 0) {
                     ctx.fillStyle = '#aaa';
-                    ctx.fillText('(no saved games)', x + 40, listY);
+                    ctx.fillText(t('modal.noSavedGames'), x + 40, listY);
                 } else {
                     const maxVis = this._maxVisible();
                     for (let i = 0; i < maxVis && this.scrollOffset + i < this.slots.length; i++) {
@@ -208,20 +209,20 @@ class ImportExportDialog {
 
                 ctx.font = '14px monospace';
                 ctx.fillStyle = '#aaa';
-                const action = this.mode === 'export' ? 'export' : 'delete';
-                ctx.fillText('←/→: mode   ↑/↓: slot   ENTER: ' + action + ' slot   ESC: cancel', x + 20, y + boxHeight - 25);
+                const action = this.mode === 'export' ? t('modal.importExportExport') : t('modal.importExportDelete');
+                ctx.fillText(t('modal.exportImportHint', { action }), x + 20, y + boxHeight - 25);
             }
         }
         else { // IMPORT mode
             ctx.font = '18px "Press Start 2P", monospace';
             ctx.fillStyle = '#ff8';
-            ctx.fillText('Load from .sav file', x + 70, y + 140);
+            ctx.fillText(t('modal.loadFromFile'), x + 70, y + 140);
             ctx.font = '16px monospace';
             ctx.fillStyle = '#8af';
-            ctx.fillText('Press ENTER to select a file', x + 110, y + 200);
+            ctx.fillText(t('modal.pressEnterFile'), x + 110, y + 200);
             ctx.font = '14px monospace';
             ctx.fillStyle = '#aaa';
-            ctx.fillText('←/→: mode   ENTER: import   ESC: cancel', x + 20, y + boxHeight - 25);
+            ctx.fillText(t('modal.importHint'), x + 20, y + boxHeight - 25);
         }
     }
 }

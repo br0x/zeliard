@@ -19,6 +19,20 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import { getList, t } from '../locale/index.js';
+
+function locMagicMenu(): string[] {
+    const v = getList('indoor.magicShop.menu');
+    return v.length ? v : SHOP_MENU_ITEMS;
+}
+function locMagicItemNames(): string[] {
+    const v = getList('indoor.magicShop.itemNames');
+    return v.length ? v : MAGIC_ITEM_NAMES;
+}
+function locMagicItemDescriptions(): string[] {
+    const v = getList('indoor.magicShop.itemDescriptions');
+    return v.length ? v : MAGIC_ITEM_DESCRIPTIONS;
+}
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -309,7 +323,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._buildInventoryLists();
 
         // Show greeting dialog while entry animation plays
-        this._setDialog('Oh... hello, can I help you?');
+        this._setDialog(t('indoor.magicShop.greeting'));
         this.shopPhase = 'greeting';
     }
 
@@ -496,7 +510,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     /** "No" on a Yes/No confirm → drop back to the main menu. */
     private _confirmDeclined(_now: number): void {
         this.yesNoDialog = null;
-        this._setDialog("Is there something I can do for you?");
+        this._setDialog(t('indoor.magicShop.noThanks'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
@@ -652,12 +666,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         ctx.fillStyle = '#0a0010';
         ctx.fillRect(SHOP_MENU_X, SHOP_MENU_Y, SHOP_MENU_W, SHOP_MENU_H);
 
+        const magicMenu = locMagicMenu();
         ctx.font = SHOP_FONT_MENU;
-        for (let i = 0; i < SHOP_MENU_ITEMS.length; i++) {
+        for (let i = 0; i < magicMenu.length; i++) {
             const yi  = SHOP_MENU_TEXT_Y + i * SHOP_LINE_H_MENU;
             const sel = (i === this.menuSel) && (this.shopPhase === 'menu');
             ctx.fillStyle = sel ? '#e9f' : '#b0e';
-            ctx.fillText(SHOP_MENU_ITEMS[i]!, SHOP_MENU_TEXT_X, yi);
+            ctx.fillText(magicMenu[i]!, SHOP_MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#f20';
                 this._triangle(ctx, SHOP_CURSOR_X, yi - 16, 10, 16, false);
@@ -669,12 +684,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     // ── Rendering: sub-menu ────────────────────────────────────────────────────
 
     private _subItemNames(): string[] {
+        const names = locMagicItemNames();
         if (this.shopPhase === 'sub_buy' || this.shopPhase === 'sub_describe') {
-            return this.subItems.map(i => MAGIC_ITEM_NAMES[i] ?? '');
+            return this.subItems.map(i => names[i] ?? '');
         }
         if (this.shopPhase === 'sub_sell') {
             // subItems holds 0-based item indices derived from player slots
-            return this.subItems.map(i => MAGIC_ITEM_NAMES[i] ?? '');
+            return this.subItems.map(i => names[i] ?? '');
         }
         return [];
     }
@@ -776,7 +792,8 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             if (this.shopPhase === 'confirm_sell') {
                 if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
             } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
-                this.menuSel = (this.menuSel + dir + SHOP_MENU_ITEMS.length) % SHOP_MENU_ITEMS.length;
+                const n = locMagicMenu().length;
+                this.menuSel = (this.menuSel + dir + n) % n;
             } else if (
                 this.shopPhase === 'sub_buy'      ||
                 this.shopPhase === 'sub_sell'     ||
@@ -843,6 +860,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
                 } else {
                     this.shopPhase  = 'menu';
                     this.menuDimmed = false;
+                    this._setDialog(t('indoor.magicShop.noThanks'));
                 }
                 break;
         }
@@ -854,7 +872,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         } else if (this.shopPhase === 'sub_buy' ||
                    this.shopPhase === 'sub_sell' ||
                    this.shopPhase === 'sub_describe') {
-            this._setDialog("Is there something I can do for you?");
+            this._setDialog(t('indoor.magicShop.noThanks'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
         } else if (this.shopPhase === 'menu') {
@@ -877,7 +895,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
     private _doGoOutside(_now: number): void {
         // ASM: unk_AB0E dialog ("Thank you, sir. Please come again."), then exit
-        this._setDialog("Thank you, sir. Please come again.");
+        this._setDialog(t('indoor.magicShop.goOutside'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = true;
     }
@@ -888,7 +906,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._buildInventoryLists();
 
         if (!this._shopItemIndices.length) {
-            this._setDialog("What are you looking for?");
+            this._setDialog(t('indoor.magicShop.whatLookingFor'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -899,18 +917,18 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subScrollOffset = 0;
         this.shopPhase     = 'sub_buy';
         this.menuDimmed    = true;
-        this._setDialog("What are you looking for?");
+        this._setDialog(t('indoor.magicShop.whatLookingFor'));
     }
 
     private _onBuyItemSelected(_now: number): void {
         const itemIdx = this.subItems[this.subSel] ?? 0;
         const price   = this._getItemPrice(itemIdx);
-        const name    = MAGIC_ITEM_NAMES[itemIdx];
+        const name    = locMagicItemNames()[itemIdx];
 
         this._pendingItemIdx = itemIdx;
         this._pendingPrice   = price;
 
-        this._setDialog(`You'd like a ${name}. That will be ${price} golds. Will there be something else?`);
+        this._setDialog(t('indoor.magicShop.buyOffer', { item: name ?? '', price }));
         this.shopPhase = 'confirm_buy';
     }
 
@@ -918,7 +936,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         const gold = this._getGold();
 
         if (gold < this._pendingPrice) {
-            this._setDialog("You have no money, sir.");
+            this._setDialog(t('indoor.magicShop.noMoney'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             this._pendingItemIdx = null;
@@ -929,7 +947,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         // Check if player has a free magic item slot
         const freeSlot = this._findEmptyMagicSlot();
         if (freeSlot === -1) {
-            this._setDialog("You can't possibly carry any more.");
+            this._setDialog(t('indoor.magicShop.noSpace'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             this._pendingItemIdx = null;
@@ -948,7 +966,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._pendingItemIdx = null;
         this._pendingPrice   = 0;
 
-        this._setDialog(`That will be... Will there be something else?`);
+        this._setDialog(t('indoor.magicShop.buyDone'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
@@ -965,7 +983,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         }
 
         if (!playerCarrying.length) {
-            this._setDialog("You aren't carrying any magic items, sir.");
+            this._setDialog(t('indoor.magicShop.notCarryingItems'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -976,7 +994,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subScrollOffset = 0;
         this.shopPhase     = 'sub_sell';
         this.menuDimmed    = true;
-        this._setDialog("What would you like to sell?");
+        this._setDialog(t('indoor.magicShop.whatToSell'));
     }
 
     private _onSellItemSelected(_now: number): void {
@@ -984,13 +1002,13 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         const buyPrice  = this._getItemPrice(itemIdx);
         // Sell price = floor(buy_price / 2) — mirrors ASM shr/rcr
         const sellPrice = Math.floor(buyPrice / 2);
-        const name      = MAGIC_ITEM_NAMES[itemIdx];
+        const name      = locMagicItemNames()[itemIdx];
 
         this._pendingItemIdx = itemIdx;
         this._pendingPrice   = sellPrice;
 
         this.yesNoDialog = this._newYesNoDialog();
-        this._setDialog(`You'd like to sell a ${name}. I'll give you ${sellPrice} golds for that. Will that be all right?`);
+        this._setDialog(t('indoor.magicShop.sellOffer', { item: name ?? '', price: sellPrice }));
         this.shopPhase = 'confirm_sell';
     }
 
@@ -1017,7 +1035,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._pendingItemIdx = null;
         this._pendingPrice   = 0;
 
-        this._setDialog("Thank you very much.");
+        this._setDialog(t('indoor.magicShop.sellDone'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
@@ -1028,7 +1046,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this._buildInventoryLists();
 
         if (!this._shopItemIndices.length) {
-            this._setDialog("Which item can I tell you about?");
+            this._setDialog(t('indoor.magicShop.whichItem'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -1039,14 +1057,14 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.subScrollOffset = 0;
         this.shopPhase  = 'sub_describe';
         this.menuDimmed = true;
-        this._setDialog("Which item can I tell you about?");
+        this._setDialog(t('indoor.magicShop.whichItem'));
     }
 
     private _onDescribeItemSelected(_now: number): void {
         const itemIdx = this.subItems[this.subSel] ?? 0;
-        const name    = MAGIC_ITEM_NAMES[itemIdx];
-        const desc    = MAGIC_ITEM_DESCRIPTIONS[itemIdx] || 'A very special item.';
-        this._setDialog(`You're interested in the ${name}. ${desc}`);
+        const name    = locMagicItemNames()[itemIdx];
+        const desc    = locMagicItemDescriptions()[itemIdx] || 'A very special item.';
+        this._setDialog(t('indoor.magicShop.describeItem', { item: name ?? '', desc }));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
@@ -1067,6 +1085,6 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'Witchcraft Implement Shop';
+        return t('indoor.magicShop.name');
     }
 }

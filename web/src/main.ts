@@ -106,6 +106,25 @@ import {
     resolveMusicTrack,
 } from './core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
+import { resolveLocaleFromPath } from './core/locale-utils.js';
+import { setLocale, t } from './locale/index.js';
+
+// Resolve and install the active locale before any scene, HUD, or asset
+// loader can read translated text. URL path selects the locale.
+const activeLocale = resolveLocaleFromPath(window.location.pathname, import.meta.env.BASE_URL);
+setLocale(activeLocale);
+document.documentElement.lang = activeLocale;
+
+// Static HUD labels live in index.html; localize them before the first frame.
+for (const [id, key] of [
+    ['lifeLabel', 'hud.life'],
+    ['almasLabel', 'hud.almas'],
+    ['placeLabel', 'hud.place'],
+    ['goldLabel', 'hud.gold'],
+] as const) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(key);
+}
 
 // Save persistence lives in platform/save.ts. These exports preserve the
 // legacy public module contract used by older UI modules/tools.
@@ -1619,26 +1638,25 @@ function drawSpeedChangeDialog() {
     const cy = box.y + TILE_SIZE * 0.5;
 
     ctx.fillStyle = '#fff';
-    ctx.fillText('Speed change', cx, cy);
+    ctx.fillText(t('modal.speedChange'), cx, cy);
 
     const currentSpeed = displayedSpeed(readMemory(ADDR_SPEED_CONST, 1)[0]);
-     // strlen of "Select 0-9:" is 11
     if (speedDialog.currentPhase === 0) {
         ctx.fillStyle = '#888';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
+        ctx.fillText(t('modal.speedSelect'), cx, cy + TILE_SIZE * 1.5);
         ctx.fillText(String(currentSpeed), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
     } else if (speedDialog.currentPhase === 1) {
         ctx.fillStyle = '#fff';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
+        ctx.fillText(t('modal.speedSelect'), cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('_', cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
     } else {
         ctx.fillStyle = '#fff';
-        ctx.fillText('Select 0-9:', cx, cy + TILE_SIZE * 1.5);
+        ctx.fillText(t('modal.speedSelect'), cx, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#ffcc00';
         ctx.fillText(String(speedDialog.selectedDigit), cx + TILE_SIZE * 11, cy + TILE_SIZE * 1.5);
         ctx.fillStyle = '#888';
-        ctx.fillText('(press any key)', cx, cy + TILE_SIZE * 3);
+        ctx.fillText(t('modal.speedPressAnyKey'), cx, cy + TILE_SIZE * 3);
     }
 
     ctx.restore();
@@ -1929,15 +1947,15 @@ function draw() {
         if (bossMode) {
             if (bossLifeBar) bossLifeBar.classList.remove('hidden');
             if (placeName) placeName.style.display = 'none';
-            if (placeLabel) placeLabel.textContent = 'ENEMY';
+            if (placeLabel) placeLabel.textContent = t('hud.enemy');
             if (goldLabel) goldLabel.style.display = 'none';
             if (goldValue) goldValue.style.display = '';
         } else {
             hud.resetBossMaxHp();
             if (bossLifeBar) bossLifeBar.classList.add('hidden');
             if (placeName) placeName.style.display = '';
-            if (placeLabel) placeLabel.textContent = 'PLACE';
-            if (goldLabel) { goldLabel.textContent = 'GOLD'; goldLabel.style.display = ''; }
+            if (placeLabel) placeLabel.textContent = t('hud.place');
+            if (goldLabel) { goldLabel.textContent = t('hud.gold'); goldLabel.style.display = ''; }
             if (goldValue) goldValue.style.display = '';
         }
 

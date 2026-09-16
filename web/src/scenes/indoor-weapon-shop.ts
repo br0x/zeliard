@@ -17,6 +17,24 @@
 import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText, YesNoDialog } from '../ui/menu-dialog.js';
+import { getList, t } from '../locale/index.js';
+
+function locSwordNames(): string[] {
+    const v = getList('indoor.weaponShop.swordNames');
+    return v.length ? v : SWORD_NAMES;
+}
+function locShieldNames(): string[] {
+    const v = getList('indoor.weaponShop.shieldNames');
+    return v.length ? v : SHIELD_NAMES;
+}
+function locItemDescriptions(): string[] {
+    const v = getList('indoor.weaponShop.itemDescriptions');
+    return v.length ? v : WEAPON_ITEM_DESCRIPTIONS;
+}
+function locWeaponMenu(): string[] {
+    const v = getList('indoor.weaponShop.menu');
+    return v.length ? v : WEAPON_MENU_ITEMS;
+}
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SHOP_PANEL_W = 672;
@@ -317,13 +335,10 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._buildInventoryLists();
 
         if (this._isCrestTradeActive()) {
-            this._setDialog(
-                "Well I'll be... Sir! Isn't that the crest of honor you bear? " +
-                "Please come in... I mean... uh... Might I trade you a knight's sword for it?"
-            );
+            this._setDialog(t('indoor.weaponShop.crestTradeIntro'));
             this.shopPhase = 'crest_trade';
         } else {
-            this._setDialog('May I be of service, sir?');
+            this._setDialog(t('indoor.weaponShop.greeting'));
             this.shopPhase = 'greeting';
         }
     }
@@ -502,7 +517,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._clearPending();
         this.shopPhase  = 'menu';
         this.menuDimmed = false;
-        this._setDialog('Is there something I can do for you, sir?');
+        this._setDialog(t('indoor.weaponShop.somethingElse'));
     }
 
     private _drawYesNoDialog(now: number, alpha: number): void {
@@ -639,12 +654,13 @@ export class WeaponShopScene extends IndoorSceneBase {
         ctx.fillStyle = '#0a0502';
         ctx.fillRect(SHOP_MENU_X, SHOP_MENU_Y, SHOP_MENU_W, SHOP_MENU_H);
 
+        const weaponMenu = locWeaponMenu();
         ctx.font = SHOP_FONT_MENU;
-        for (let i = 0; i < WEAPON_MENU_ITEMS.length; i++) {
+        for (let i = 0; i < weaponMenu.length; i++) {
             const yi  = SHOP_MENU_TEXT_Y + i * SHOP_LINE_H_MENU;
             const sel = (i === this.menuSel) && (this.shopPhase === 'menu');
             ctx.fillStyle = sel ? '#ffee00' : '#ddcc88';
-            ctx.fillText(WEAPON_MENU_ITEMS[i]!, SHOP_MENU_TEXT_X, yi);
+            ctx.fillText(weaponMenu[i]!, SHOP_MENU_TEXT_X, yi);
             if (sel) {
                 ctx.fillStyle = '#ff2200';
                 this._triangle(ctx, SHOP_CURSOR_X, yi - 16, 10, 16, false);
@@ -656,14 +672,16 @@ export class WeaponShopScene extends IndoorSceneBase {
     // ── Rendering: sub-menu ───────────────────────────────────────────────────
 
     private _subItemNames(): string[] {
-        if (this.shopPhase === 'sub_weapon')  return this.subItems.map(i => SWORD_NAMES[i] ?? '');
-        if (this.shopPhase === 'sub_shield')  return this.subItems.map(i => SHIELD_NAMES[i] ?? '');
+        const swords = locSwordNames();
+        const shields = locShieldNames();
+        if (this.shopPhase === 'sub_weapon')  return this.subItems.map(i => swords[i] ?? '');
+        if (this.shopPhase === 'sub_shield')  return this.subItems.map(i => shields[i] ?? '');
         if (this.shopPhase === 'sub_explain') {
             const swordCount = this._swordIndices.length;
             return this.subItems.map((flatIdx, pos) =>
                 pos < swordCount
-                    ? SWORD_NAMES[flatIdx] ?? ''
-                    : SHIELD_NAMES[flatIdx - 6] ?? ''
+                    ? swords[flatIdx] ?? ''
+                    : shields[flatIdx - 6] ?? ''
             );
         }
         return [];
@@ -754,7 +772,8 @@ export class WeaponShopScene extends IndoorSceneBase {
                 this.shopPhase === 'confirm_crest') {
                 if (this.yesNoDialog) this.yesNoDialog.handleArrow(dir);
             } else if (this.shopPhase === 'menu' && !this.menuDimmed) {
-                this.menuSel = (this.menuSel + dir + WEAPON_MENU_ITEMS.length) % WEAPON_MENU_ITEMS.length;
+                const n = locWeaponMenu().length;
+                this.menuSel = (this.menuSel + dir + n) % n;
             } else if (
                 this.shopPhase === 'sub_weapon' ||
                 this.shopPhase === 'sub_shield'  ||
@@ -788,7 +807,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
             // ─ Crest-of-glory trigger dialog ────────────────────────────────
             case 'crest_trade':
-                this._setDialog("Might I trade you a knight's sword for it?");
+                this._setDialog(t('indoor.weaponShop.crestTradeQuestion'));
                 this.shopPhase  = 'confirm_crest';
                 this.menuDimmed = true;
                 this.yesNoDialog = this._newYesNoDialog();
@@ -838,7 +857,7 @@ export class WeaponShopScene extends IndoorSceneBase {
                 } else {
                     this.shopPhase  = 'menu';
                     this.menuDimmed = false;
-                    this._setDialog('Is there something I can do for you, sir?');
+                    this._setDialog(t('indoor.weaponShop.somethingElse'));
                 }
                 break;
         }
@@ -852,7 +871,7 @@ export class WeaponShopScene extends IndoorSceneBase {
                 this._clearPending();
                 this.shopPhase  = 'menu';
                 this.menuDimmed = false;
-                this._setDialog('Is there something I can do for you, sir?');
+                this._setDialog(t('indoor.weaponShop.somethingElse'));
                 break;
             case 'confirm_repair':
             case 'confirm_buy':
@@ -880,7 +899,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.menuDimmed = true;
         if (this.boughtSomething) {
             // Friendly farewell, then straight fade-out
-            this._setDialog('Thank you, please come again.');
+            this._setDialog(t('indoor.weaponShop.thankYouComeAgain'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = true;
             this.angryAfterDialog = false;
@@ -889,12 +908,12 @@ export class WeaponShopScene extends IndoorSceneBase {
             if (Math.random() < 0.5) {
                 // Show the rude-goodbye dialog; angry anim starts when player
                 // presses Space to dismiss it (see 'dialog' case in _onConfirm).
-                this._setDialog("If you're going to waste my time, please be on your way.");
+                this._setDialog(t('indoor.weaponShop.wasteTime'));
                 this.shopPhase        = 'dialog';
                 this.exitAfterDialog  = false;  // don't fade out on Space — play anim first
                 this.angryAfterDialog = true;
             } else {
-                this._setDialog('Thank you, please come again.');
+                this._setDialog(t('indoor.weaponShop.thankYouComeAgain'));
                 this.shopPhase       = 'dialog';
                 this.exitAfterDialog = true;
                 this.angryAfterDialog = false;
@@ -909,10 +928,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         const shieldType = this._getShieldType();
 
         if (!shieldType) {
-            this._setDialog(
-                "Sir, you aren't carrying a shield -- however, I do have a fine " +
-                "selection, if you'd like to buy one."
-            );
+            this._setDialog(t('indoor.weaponShop.noShield'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -920,7 +936,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         const maxHP = this._getShieldMaxHP();
         const hp    = this._getShieldHP();
         if (hp >= maxHP) {
-            this._setDialog("Sir, your shield is not in need of repair. How else can I help you?");
+            this._setDialog(t('indoor.weaponShop.shieldNotDamaged'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -929,9 +945,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         const cost = Math.ceil((maxHP - hp) / 2);
         this._pendingPrice = cost;
         this.yesNoDialog = this._newYesNoDialog();
-        this._setDialog(
-            `I'll be glad to repair your shield, sir, for the low price of ${cost} golds. Shall I proceed?`
-        );
+        this._setDialog(t('indoor.weaponShop.repairOffer', { cost }));
         this.shopPhase = 'confirm_repair';
     }
 
@@ -939,9 +953,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         const gold = this._getGold();
         this.yesNoDialog = null;
         if (gold < this._pendingPrice) {
-            this._setDialog(
-                "I'm sorry sir, you aren't carrying enough gold. Perhaps after you've visited the bank..."
-            );
+            this._setDialog(t('indoor.weaponShop.notEnoughGold'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             this._clearPending();
@@ -954,11 +966,11 @@ export class WeaponShopScene extends IndoorSceneBase {
 
         // ASM plays a short animation (sub_A706 waits ~150 ticks) then shows the
         // "complete" message.  We replicate the feel with two sequential dialogs.
-        this._setDialog("Please wait here, I'll only be a moment.");
+        this._setDialog(t('indoor.weaponShop.waitMoment'));
         // Chain the completion message after a short delay matching the ASM pause.
         this._repairCompleteTimer = setTimeout(() => {
             this._repairCompleteTimer = null;
-            this._setDialog('The repairs to your armour are complete. It is now as good as new.');
+            this._setDialog(t('indoor.weaponShop.repairsComplete'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
         }, 1600);
@@ -972,7 +984,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.menuDimmed = true;
         this._buildInventoryLists();
         if (!this._swordIndices.length) {
-            this._setDialog("I'm sorry, I have no weapons in stock at the moment.");
+            this._setDialog(t('indoor.weaponShop.noWeaponsInStock'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -981,7 +993,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.subSel    = 0;
         this.subKind   = 'sword';
         this.shopPhase = 'sub_weapon';
-        this._setDialog('Which weapon would you like?');
+        this._setDialog(t('indoor.weaponShop.whichWeapon'));
     }
 
     // ── Buy shield ────────────────────────────────────────────────────────────
@@ -990,7 +1002,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.menuDimmed = true;
         this._buildInventoryLists();
         if (!this._shieldIndices.length) {
-            this._setDialog("I'm sorry, I have no shields in stock at the moment.");
+            this._setDialog(t('indoor.weaponShop.noShieldsInStock'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -999,7 +1011,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.subSel    = 0;
         this.subKind   = 'shield';
         this.shopPhase = 'sub_shield';
-        this._setDialog('Which shield would you like?');
+        this._setDialog(t('indoor.weaponShop.whichShield'));
     }
 
     // ── Item selection (weapon or shield) ─────────────────────────────────────
@@ -1011,10 +1023,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         // Knight's Sword (index 3) can't be bought in Tumba until the Crest of
         // Glory has been returned (armrpro.asm sub_A47B → unk_B24C).
         if (kind === 'sword' && itemIdx === 3 && this.townIdx === 4 && !this._crestTraded()) {
-            this._setDialog(
-                "I do not sell that weapon. I haven't a single one in stock. " +
-                'Please choose another.'
-            );
+            this._setDialog(t('indoor.weaponShop.notSellingKnightSword'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -1024,7 +1033,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         if (kind === 'sword') {
             const cur = this._getSwordType();
             if (cur > 0 && cur - 1 === itemIdx) {
-                this._setDialog(WEAPON_ITEM_DESCRIPTIONS[5] ?? '');  // "Isn't that the sword you brought in…"
+                this._setDialog(locItemDescriptions()[5] ?? '');  // "Isn't that the sword you brought in…"
                 this.shopPhase       = 'dialog';
                 this.exitAfterDialog = false;
                 return;
@@ -1033,7 +1042,7 @@ export class WeaponShopScene extends IndoorSceneBase {
 
         const price     = this._getItemPrice(kind, itemIdx);
         const tradeIn   = this._calcTradeIn(kind);
-        const itemName  = kind === 'sword' ? SWORD_NAMES[itemIdx] : SHIELD_NAMES[itemIdx];
+        const itemName  = kind === 'sword' ? locSwordNames()[itemIdx] : locShieldNames()[itemIdx];
 
         this._pendingItemIdx  = itemIdx;
         this._pendingItemKind = kind;
@@ -1041,14 +1050,14 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._pendingTradeIn  = tradeIn;
 
         // Build dialog: "That will be X golds." + optional trade-in line + "Will that be all right?"
-        let msg = `That will be ${price} golds.`;
+        let msg = t('indoor.weaponShop.priceOffer', { item: itemName ?? '', price });
         if (tradeIn > 0) {
-            msg += ` I'll give you ${tradeIn} golds on your old ${kind} as a trade-in.`;
+            msg += t('indoor.weaponShop.tradeInLine', { amount: tradeIn, kind });
         }
-        msg += ' Will that be all right?';
+        msg += t('indoor.weaponShop.willThatBeAllRight');
 
         this.yesNoDialog = this._newYesNoDialog();
-        this._setDialog(`Oh, the ${itemName}! ${msg}`);
+        this._setDialog(msg);
         this.shopPhase = 'confirm_buy';
     }
 
@@ -1074,9 +1083,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.yesNoDialog = null;
 
         if (gold < netCost) {
-            this._setDialog(
-                "I'm sorry sir, you aren't carrying enough gold. Perhaps after you've visited the bank..."
-            );
+            this._setDialog(t('indoor.weaponShop.notEnoughGold'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             this._clearPending();
@@ -1110,7 +1117,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._clearPending();
         this._buildInventoryLists();
 
-        this._setDialog('Will there be something else for you, sir?');
+        this._setDialog(t('indoor.weaponShop.somethingElse'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = false;
     }
@@ -1128,7 +1135,7 @@ export class WeaponShopScene extends IndoorSceneBase {
             ...this._shieldIndices.map(i => i + 6),
         ];
         if (!this.subItems.length) {
-            this._setDialog("I'm afraid I have nothing to show you at the moment.");
+            this._setDialog(t('indoor.weaponShop.nothingToShow'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -1136,10 +1143,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this.subSel    = 0;
         this.subKind   = 'explain';
         this.shopPhase = 'sub_explain';
-        this._setDialog(
-            "All of my goods are of the highest quality. " +
-            "Which item would you like me to tell you about?"
-        );
+        this._setDialog(t('indoor.weaponShop.explainIntro'));
     }
 
     private _onExplainItem(_now: number): void {
@@ -1148,15 +1152,15 @@ export class WeaponShopScene extends IndoorSceneBase {
         // The Tumba smith dodges questions about the Knight's Sword until the
         // Crest of Glory has been returned (armrpro.asm sub_A8E0 → unk_B240).
         if (flatIdx === 3 && this.townIdx === 4 && !this._crestTraded()) {
-            this._setDialog('Uh......');
+            this._setDialog(t('indoor.weaponShop.uh'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
             return;
         }
 
-        const name    = flatIdx < 6 ? SWORD_NAMES[flatIdx] : SHIELD_NAMES[flatIdx - 6];
-        const desc    = WEAPON_ITEM_DESCRIPTIONS[flatIdx] || 'A fine piece of craftsmanship.';
-        this._setDialog(`Oh, the ${name}? ${desc}`);
+        const name    = flatIdx < 6 ? locSwordNames()[flatIdx] : locShieldNames()[flatIdx - 6];
+        const desc    = locItemDescriptions()[flatIdx] || 'A fine piece of craftsmanship.';
+        this._setDialog(t('indoor.weaponShop.explainItem', { item: name ?? '', desc }));
         // After explain, ask "Is there another item?" (ASM: aIsThereAnother)
         // We return to the explain sub-menu directly (player can press Escape to exit).
         this.shopPhase       = 'dialog';
@@ -1179,10 +1183,7 @@ export class WeaponShopScene extends IndoorSceneBase {
         this._buildInventoryLists();
 
         this.boughtSomething = true;
-        this._setDialog(
-            "Oh, thank you, sir! As promised, here is your knight's sword. " +
-            "Thank you, and please come back soon."
-        );
+        this._setDialog(t('indoor.weaponShop.crestTradeThanks'));
         this.shopPhase       = 'dialog';
         this.exitAfterDialog = true;
         this.angryAfterDialog = false;
@@ -1211,6 +1212,6 @@ export class WeaponShopScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return 'Weapon and Armour Shop';
+        return t('indoor.weaponShop.name');
     }
 }

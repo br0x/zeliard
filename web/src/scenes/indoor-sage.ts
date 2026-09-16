@@ -2,6 +2,24 @@ import { IndoorSceneBase } from '../core/indoor-scene-base.js';
 import type { IndoorSceneDependencies } from '../core/scene.js';
 import { TypewriterText } from '../ui/menu-dialog.js';
 import { MEM_SAVE_DATA } from '../core/memory.js';
+import { getList, t } from '../locale/index.js';
+
+function locSageNames(): string[] {
+    const v = getList('indoor.sage.names');
+    return v.length ? v : SAGE_NAMES;
+}
+function locSageIntros(): string[] {
+    const v = getList('indoor.sage.intros');
+    return v.length ? v : SAGE_INTROS.map(i => i.text);
+}
+function locSageKnowledge(): string[] {
+    const v = getList('indoor.sage.knowledge');
+    return v.length ? v : SAGE_KNOWLEDGE;
+}
+function locSageMenu(): string[] {
+    const v = getList('indoor.sage.menu');
+    return v.length ? v : SAGE_MENU_ITEMS;
+}
 
 export interface SageSceneDependencies extends IndoorSceneDependencies {
     /** Legacy single-slot save hook (used when window.openSaveModal is absent). */
@@ -200,15 +218,15 @@ export class SageScene extends IndoorSceneBase {
         if (deathEntry) {
             this.heroState.invincible = false;
             this.menuDimmed = true;
-            this._setDialog('While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.');
+            this._setDialog(t('indoor.sage.deathEntry'));
             this.sagePhase = 'dialog';
             this.exitAfterDialog = true;
         } else if (isFirst) {
             this._setSpokenBit(intro.bit);
-            this._setDialog(intro.text);
+            this._setDialog(locSageIntros()[this.townIdx] ?? intro.text);
             this.sagePhase = 'intro';
         } else {
-            this._setDialog('How can I help you, Brave One?');
+            this._setDialog(t('indoor.sage.howCanIHelp'));
             this.sagePhase = 'menu';   // go directly to menu; no Space needed
         }
         // _setDialog already calls typewriter.start(); no extra call needed
@@ -403,12 +421,13 @@ export class SageScene extends IndoorSceneBase {
         ctx.fillStyle = '#000';
         ctx.fillRect(SAGE_MENU_X, SAGE_MENU_Y, SAGE_MENU_W, SAGE_MENU_H);
 
+        const sageMenu = locSageMenu();
         ctx.font = SAGE_FONT_MENU;
-        for (let i = 0; i < SAGE_MENU_ITEMS.length; i++) {
+        for (let i = 0; i < sageMenu.length; i++) {
             const y = SAGE_MENU_TEXT_Y + i * SAGE_LINE_H_MENU;
             const sel = i === this.menuSel;
             ctx.fillStyle = sel ? '#ff0' : '#fff';
-            ctx.fillText(SAGE_MENU_ITEMS[i]!, SAGE_MENU_TEXT_X, y);
+            ctx.fillText(sageMenu[i]!, SAGE_MENU_TEXT_X, y);
             if (sel) {
                 ctx.fillStyle = '#f00';
                 this._triangle(ctx, SAGE_CURSOR_X, y - 18, 10, 18, false);
@@ -665,8 +684,9 @@ export class SageScene extends IndoorSceneBase {
 
         // Arrow keys navigate the menu
         if (this.sagePhase === 'menu' && !this.menuDimmed && (key === 'ArrowUp' || key === 'ArrowDown')) {
-            if (key === 'ArrowUp') this.menuSel = (this.menuSel - 1 + SAGE_MENU_ITEMS.length) % SAGE_MENU_ITEMS.length;
-            else if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % SAGE_MENU_ITEMS.length;
+            const n = locSageMenu().length;
+            if (key === 'ArrowUp') this.menuSel = (this.menuSel - 1 + n) % n;
+            else if (key === 'ArrowDown') this.menuSel = (this.menuSel + 1) % n;
             return;
         }
 
@@ -691,7 +711,7 @@ export class SageScene extends IndoorSceneBase {
                     this._activateIntroSpell();
                     this.sagePhase = 'menu';
                     this.menuDimmed = false;
-                    this._setDialog('How can I help you, Brave One?');
+                    this._setDialog(t('indoor.sage.howCanIHelp'));
                 }
                 break;
             case 'menu':
@@ -704,7 +724,7 @@ export class SageScene extends IndoorSceneBase {
                     // Return to menu; show prompt, undim menu
                     this.sagePhase = 'menu';
                     this.menuDimmed = false;
-                    this._setDialog('Is there anything else I can do for you?');
+                    this._setDialog(t('indoor.sage.anythingElse'));
                 }
                 break;
             case 'power_anim':
@@ -739,7 +759,7 @@ export class SageScene extends IndoorSceneBase {
                     this.animRun = false;
                                 this.sagePhase = 'menu';
                     this.menuDimmed = false;
-                    this._setDialog('Is there anything else I can do for you?');
+                    this._setDialog(t('indoor.sage.anythingElse'));
                 }
                 break;
         }
@@ -748,7 +768,7 @@ export class SageScene extends IndoorSceneBase {
     private _activateMenuItem(sel: number, now: number): void {
         switch (sel) {
             case SAGE_MENU_GO_OUTSIDE:
-                this._setDialog('The Spirits are with you.');
+                this._setDialog(t('indoor.sage.spiritsWithYou'));
                 this.sagePhase = 'dialog';
                 this.exitAfterDialog = true;
                 this.menuDimmed = true;
@@ -758,7 +778,7 @@ export class SageScene extends IndoorSceneBase {
                 this._seePower(now);
                 break;
             case SAGE_MENU_LISTEN_KNOWLEDGE:
-                this._setDialog(SAGE_KNOWLEDGE[this.townIdx] ?? 'The Spirits guide your path.');
+                this._setDialog(locSageKnowledge()[this.townIdx] ?? t('indoor.sage.knowledgeFallback'));
                 this.sagePhase = 'dialog';
                 this.exitAfterDialog = false;
                 this.menuDimmed = true;
@@ -778,13 +798,13 @@ export class SageScene extends IndoorSceneBase {
             const result = this._checkLevelUp();
             this.levelUpReady = (result >= 3);
 
-            const line1 = 'I shall call upon the Spirits and their powers.....';
-            const line2 = 'Oh, Holy Spirits, purify my thoughts and grant me strength.';
+            const line1 = t('indoor.sage.seePowerIntro1');
+            const line2 = t('indoor.sage.seePowerIntro2');
 
             if (result === 3) {
                 this.powerExhausted = true;
-                const firstPart = 'The light of the Spirits is bursting forth within you.';
-                const secondPart = 'Indeed, your power has grown.';
+                const firstPart = t('indoor.sage.powerUp1');
+                const secondPart = t('indoor.sage.powerUp2');
                 const queue = [line1, line2, firstPart, secondPart];
                 this._powerFlashAfterIndex = 2;
                 this._powerFlashCallback = () => this._applyLevelUp();
@@ -795,12 +815,12 @@ export class SageScene extends IndoorSceneBase {
 
             let resultLine = '';
             if (result === 4 && this.levelUpReady) {
-                resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
+                resultLine = t('indoor.sage.powerResultMaxed');
             } else {
                 const texts = [
-                    'Your experience is lacking. Persevere in your quest.',
-                    'You must accumulate more experience.',
-                    'I can see the faint light of the Spirits in you. You must endure a little longer.',
+                    t('indoor.sage.powerResultLacking'),
+                    t('indoor.sage.powerResultMore'),
+                    t('indoor.sage.powerResultFaint'),
                 ];
                 resultLine = (texts[result] || texts[0]) ?? '';
             }
@@ -810,7 +830,7 @@ export class SageScene extends IndoorSceneBase {
             return;
         }
         if (this.powerExhausted) {
-            this._setDialog('I fear the spirits are no longer with you. No matter how many times I try, it comes out the same.');
+            this._setDialog(t('indoor.sage.powerExhausted'));
             this.sagePhase = 'dialog';
             this.exitAfterDialog = false;
             return;
@@ -818,8 +838,8 @@ export class SageScene extends IndoorSceneBase {
         const result = this._checkLevelUp();
         if (result === 3) {
             this.powerExhausted = true;
-            const firstPart = 'The light of the Spirits is bursting forth within you.';
-            const secondPart = 'Indeed, your power has grown.';
+            const firstPart = t('indoor.sage.powerUp1');
+            const secondPart = t('indoor.sage.powerUp2');
             const queue = [firstPart, secondPart];
             this._powerFlashAfterIndex = 0;
             this._powerFlashCallback = () => this._applyLevelUp();
@@ -830,12 +850,12 @@ export class SageScene extends IndoorSceneBase {
         let resultLine = '';
         if (result >= 3 && this.levelUpReady) {
             this.powerExhausted = true;
-            resultLine = 'I can no longer impart the power of the Spirits to you. Continue on your quest. You will soon find others to help you.';
+            resultLine = t('indoor.sage.powerResultMaxed');
         } else {
             const texts = [
-                'Your experience is lacking. Persevere in your quest.',
-                'You must accumulate more experience.',
-                'I can see the faint light of the Spirits in you. You must endure a little longer.',
+                t('indoor.sage.powerResultLacking'),
+                t('indoor.sage.powerResultMore'),
+                t('indoor.sage.powerResultFaint'),
             ];
             resultLine = (texts[result] || texts[0]) ?? '';
         }
@@ -854,9 +874,9 @@ export class SageScene extends IndoorSceneBase {
             openSaveModal((success: boolean) => {
                 this.modalOpen = false;
                 if (success) {
-                    this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+                    this._setDialog(t('indoor.sage.recordSaved'));
                 } else {
-                    this._setDialog('Save cancelled.');
+                    this._setDialog(t('indoor.sage.saveCancelled'));
                 }
                 this.sagePhase = 'dialog';
                 this.exitAfterDialog = false;
@@ -869,7 +889,7 @@ export class SageScene extends IndoorSceneBase {
                     try { this.saveGame(snap); } catch (e) { console.error(e); }
                 }
             }
-            this._setDialog('I shall record your experiences.\nPlace is saved. Will you continue your quest?');
+            this._setDialog(t('indoor.sage.recordSaved'));
             this.sagePhase = 'dialog';
             this.exitAfterDialog = false;
         }
@@ -939,6 +959,6 @@ export class SageScene extends IndoorSceneBase {
     }
 
     getName(): string {
-        return SAGE_NAMES[this.townIdx] || 'The Sage';
+        return locSageNames()[this.townIdx] || t('indoor.sage.name');
     }
 }
