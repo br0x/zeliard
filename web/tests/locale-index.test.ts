@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { getLocale, setLocale, t, getMessages, getDungeonNotification, getTownName } from '../src/locale/index.js';
+import { getLocale, setLocale, t, getMessages, getDungeonNotification, getTownName, getDungeonName, getTownConversation } from '../src/locale/index.js';
 import { DEFAULT_LOCALE } from '../src/core/locale-utils.js';
 
 afterEach(() => {
@@ -59,6 +59,43 @@ describe('getTownName', () => {
     it('returns localized town names', () => {
         setLocale('ru');
         expect(getTownName('town.cmap')).toBe('Замок Felishika');
+    });
+});
+
+describe('getDungeonName', () => {
+    it('returns localized cavern names', () => {
+        setLocale('ru');
+        expect(getDungeonName('mp10')).toBe('Пещера Malicia');
+    });
+
+    it('falls back to English when the locale omits an id', () => {
+        setLocale('isv');
+        expect(getDungeonName('mp60')).toBe('Pečera Tesoro');
+    });
+});
+
+describe('getTownConversation', () => {
+    it('returns the English conversation with its end code', () => {
+        setLocale('en');
+        const entry = getTownConversation('bsmp', 0);
+        expect(entry?.text).toContain('Bosque Village');
+        expect(entry?.endCode).toBeNull();
+    });
+
+    it('returns English conversation text in the English locale', () => {
+        setLocale('en');
+        const entry = getTownConversation('cmap', 0);
+        expect(entry?.text).toContain('brave warrior');
+    });
+
+    it('returns undefined for a town id absent from every locale', () => {
+        setLocale('ru');
+        expect(getTownConversation('zzzz', 0)).toBeUndefined();
+    });
+
+    it('returns undefined for an unknown npc id', () => {
+        setLocale('en');
+        expect(getTownConversation('cmap', 999)).toBeUndefined();
     });
 });
 

@@ -53,6 +53,32 @@ function makeFixture(conversations: Record<number, Stream>, effects: Record<stri
     return { mgr, buf, townFinishConversation, renderAlmasHud, layout, getAlmas: () => almas, setAlmas: (v: number) => void (almas = v) };
 }
 
+/** Fixture with a localized (Unicode) conversation provider. */
+function makeLocalizedFixture(
+    localized: Record<number, { pages: string[][]; hasYesNo: boolean; endCode: number | null }>,
+    conversations: Record<number, Stream> = {},
+) {
+    const base = makeFixture(conversations);
+    const deps = {
+        readMemory: (offset: number, length: number) =>
+            (base.buf as Uint8Array).subarray(offset & 0xffff, (offset & 0xffff) + length),
+        writeMemory: (offset: number, data: ArrayLike<number>) => {
+            for (let i = 0; i < data.length; i++) base.buf[(offset + i) & 0xffff] = data[i] ?? 0;
+        },
+        getNpcConversationRaw: (id: number) => {
+            const stream = conversations[id];
+            return stream ? toBytes(stream) : null;
+        },
+        getLocalizedConversation: (id: number) => localized[id] ?? null,
+        townFinishConversation: base.townFinishConversation,
+        getHeroAlmasValue: () => base.getAlmas(),
+        setHeroAlmasValue: (v: number) => base.setAlmas(v),
+        renderAlmasHud: base.renderAlmasHud,
+        layout: base.layout,
+    };
+    return { ...base, mgr: new ConversationManager(deps) };
+}
+
 function pressSpace(f: ReturnType<typeof makeFixture>) {
     f.buf[ADDR_SPACEBAR_LATCH] = 1;
 }
@@ -377,6 +403,53 @@ describe('startDialog', () => {
         expect(onComplete).toHaveBeenCalledTimes(1);
         expect(f.mgr.active).toBe(false);
         expect(f.mgr.onComplete).toBeNull();
+    });
+});
+
+describe('localized conversation routing', () => {
+    it('prefers a localized (Unicode) conversation over the raw bytes', () => {
+        const f = makeLocalizedFixture(
+            { 0: { pages: [['Привет, странник.']], hasYesNo: false, endCode: null } },
+            { 0: ['Hello stranger.'] },
+        );
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(f.mgr.active).toBe(true);
+        expect(f.mgr.pages).toEqual([['Привет, странник.']]);
+    });
+
+    it('falls back to raw bytes when no localized entry exists', () => {
+        const f = makeLocalizedFixture({}, { 0: ['Hello stranger.'] });
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(f.mgr.pages).toEqual([['Hello stranger.']]);
+    });
+
+    it('propagates hasYesNo from the localized parse', () => {
+        const f = makeLocalizedFixture(
+            { 0: { pages: [['Берёшь?']], hasYesNo: true, endCode: null } },
+            { 0: ['Take it?', 0x81] },
+        );
+        f.buf[ADDR_NPC_ADDR_LATCH] = 0;
+
+        f.mgr.startFromWasm();
+        expect(f.mgr.hasYesNo).toBe(true);
+    });
+
+    it('routes localized follow-up patterns (0x87 chain)', () => {
+        const f = makeLocalizedFixture(
+            {
+                0: { pages: [['Часть один']], hasYesNo: false, endCode: 0x87 },
+                5: { pages: [['Часть два']], hasYesNo: false, endCode: null },
+            },
+            { 0: ['Part one', 0x87], 5: ['Part two'] },
+        );
+        f.mgr.startFromWasm();
+        pressSpace(f);
+        tick(f);
+        expect(f.mgr.pages).toEqual([['Часть два']]);
     });
 });
 

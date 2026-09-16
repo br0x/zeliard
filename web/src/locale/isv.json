@@ -40,40 +40,223 @@
     "exp": "ISKUSTVO",
     "noUse": "NE UPOTREBLJIVO",
     "iHaveUsed": "Ja upotrebil",
-    "spellNames": ["Espada", "Saeta", "Fuego", "Lanzar", "Rascar", "Agua", "Guerra"],
-    "wearableNames": ["", "Obuv Feruza", "Obuv Pirika", "Obuv Silkarn", "Obuv Ruzeria", "Plast Asbestos"],
-    "itemNames": ["", "Zelje Ken'ko", "Plod Juu-en", "Eliksir Kashi", "Prašek Chikara", "Kamen Magia", "Sveta voda Acero", "Olej Sabre", "Pero Kioku"],
-    "itemUseText": ["", "Zelje Ken'ko.", "Plod Juu-en.", "Eliksir Kashi.", "Prašek Chikara.", "         Kamen Magia.", "Svetu vodu Acero.", "Olej Sabre.", "Pero Kioku."],
-    "swordNames": [["Trenovačny", "meč"], ["Meč mudrca", ""], ["Meč duha", ""], ["Meč rycarja", ""], ["Meč svetla", ""], ["Očarovany", "meč"]],
-    "shieldNames": [["Glineny", "ščit"], ["Ščit mudrca", ""], ["Kamenny", "ščit"], ["Ščit česti", ""], ["Ščit svetla", ""], ["Titanovy", "ščit"]]
+    "spellNames": [
+      "Espada",
+      "Saeta",
+      "Fuego",
+      "Lanzar",
+      "Rascar",
+      "Agua",
+      "Guerra"
+    ],
+    "wearableNames": [
+      "",
+      "Obuv Feruza",
+      "Obuv Pirika",
+      "Obuv Silkarn",
+      "Obuv Ruzeria",
+      "Plast Asbestos"
+    ],
+    "itemNames": [
+      "",
+      "Zelje Ken'ko",
+      "Plod Juu-en",
+      "Eliksir Kashi",
+      "Prašek Chikara",
+      "Kamen Magia",
+      "Sveta voda Acero",
+      "Olej Sabre",
+      "Pero Kioku"
+    ],
+    "itemUseText": [
+      "",
+      "Zelje Ken'ko.",
+      "Plod Juu-en.",
+      "Eliksir Kashi.",
+      "Prašek Chikara.",
+      "         Kamen Magia.",
+      "Svetu vodu Acero.",
+      "Olej Sabre.",
+      "Pero Kioku."
+    ],
+    "swordNames": [
+      [
+        "Trenovačny",
+        "meč"
+      ],
+      [
+        "Meč mudrca",
+        ""
+      ],
+      [
+        "Meč duha",
+        ""
+      ],
+      [
+        "Meč rycarja",
+        ""
+      ],
+      [
+        "Meč svetla",
+        ""
+      ],
+      [
+        "Očarovany",
+        "meč"
+      ]
+    ],
+    "shieldNames": [
+      [
+        "Glineny",
+        "ščit"
+      ],
+      [
+        "Ščit mudrca",
+        ""
+      ],
+      [
+        "Kamenny",
+        "ščit"
+      ],
+      [
+        "Ščit česti",
+        ""
+      ],
+      [
+        "Ščit svetla",
+        ""
+      ],
+      [
+        "Titanovy",
+        "ščit"
+      ]
+    ]
   },
   "dungeon": {
     "notifications": {
-      "1": { "leftPad": 32, "text": "Dostali ste 50 zlatyh." },
-      "2": { "leftPad": 28, "text": "Dostali ste 100 zlatyh." },
-      "3": { "leftPad": 28, "text": "Dostali ste 500 zlatyh." },
-      "4": { "leftPad": 24, "text": "Dostali ste 1000 zlatyh." },
-      "5": { "leftPad": 40, "text": "Dostali ste ključ." },
-      "6": { "leftPad": 32, "text": "Vy se obnovili." },
-      "7": { "leftPad": 16, "text": "Vy se polno obnovili." },
-      "8": { "leftPad": 50, "text": "Ščit zlomljen." },
-      "9": { "leftPad": 24, "text": "Ne možno otvoriti dveri." },
-      "10": { "leftPad": 34, "text": "V skrinji ničto." },
-      "11": { "leftPad": 10, "text": "Dostali ste Gerb Heroja." },
-      "12": { "leftPad": 0, "text": "Dostali ste obuv Ruzeria." },
-      "13": { "leftPad": 12, "text": "Dostali ste Gerb Slavy." },
-      "14": { "leftPad": 10, "text": "Dostali ste obuv Pirika." },
-      "15": { "leftPad": 10, "text": "Dostali ste obuv Feruza." },
-      "16": { "leftPad": 0, "text": "Dostali ste obuv Silkarn." },
-      "17": { "leftPad": 0, "text": "Dostali ste Očarovany meč." },
-      "18": { "leftPad": 44, "text": "Prěgorko !!" },
-      "19": { "leftPad": 14, "text": "Dostali ste ključ lvovoj glavy." },
-      "20": { "leftPad": 16, "text": "Konečno, ty došel do mene." },
-      "21": { "leftPad": 30, "text": "Mne ponravil se tvoj pokaz." },
-      "22": { "leftPad": 16, "text": "Nu! Ja te ubijem." }
+      "1": {
+        "leftPad": 32,
+        "text": "Dostali ste 50 zlatyh."
+      },
+      "2": {
+        "leftPad": 28,
+        "text": "Dostali ste 100 zlatyh."
+      },
+      "3": {
+        "leftPad": 28,
+        "text": "Dostali ste 500 zlatyh."
+      },
+      "4": {
+        "leftPad": 24,
+        "text": "Dostali ste 1000 zlatyh."
+      },
+      "5": {
+        "leftPad": 40,
+        "text": "Dostali ste ključ."
+      },
+      "6": {
+        "leftPad": 32,
+        "text": "Vy se obnovili."
+      },
+      "7": {
+        "leftPad": 16,
+        "text": "Vy se polno obnovili."
+      },
+      "8": {
+        "leftPad": 50,
+        "text": "Ščit zlomljen."
+      },
+      "9": {
+        "leftPad": 24,
+        "text": "Ne možno otvoriti dveri."
+      },
+      "10": {
+        "leftPad": 34,
+        "text": "V skrinji ničto."
+      },
+      "11": {
+        "leftPad": 10,
+        "text": "Dostali ste Gerb Heroja."
+      },
+      "12": {
+        "leftPad": 0,
+        "text": "Dostali ste obuv Ruzeria."
+      },
+      "13": {
+        "leftPad": 12,
+        "text": "Dostali ste Gerb Slavy."
+      },
+      "14": {
+        "leftPad": 10,
+        "text": "Dostali ste obuv Pirika."
+      },
+      "15": {
+        "leftPad": 10,
+        "text": "Dostali ste obuv Feruza."
+      },
+      "16": {
+        "leftPad": 0,
+        "text": "Dostali ste obuv Silkarn."
+      },
+      "17": {
+        "leftPad": 0,
+        "text": "Dostali ste Očarovany meč."
+      },
+      "18": {
+        "leftPad": 44,
+        "text": "Prěgorko !!"
+      },
+      "19": {
+        "leftPad": 14,
+        "text": "Dostali ste ključ lvovoj glavy."
+      },
+      "20": {
+        "leftPad": 16,
+        "text": "Konečno, ty došel do mene."
+      },
+      "21": {
+        "leftPad": 30,
+        "text": "Mne ponravil se tvoj pokaz."
+      },
+      "22": {
+        "leftPad": 16,
+        "text": "Nu! Ja te ubijem."
+      }
     },
     "signs": {},
-    "names": {}
+    "names": {
+      "mp10": "Pečera Malicia",
+      "mp1d": "Pečera Malicia",
+      "mp20": "Pečera Peligro",
+      "mp21": "Pečera Peligro",
+      "mp2d": "Pečera Peligro",
+      "mp30": "Pečera Madera",
+      "mp31": "Pečera Riza",
+      "mp3d": "Pečera Riza",
+      "mp40": "Pečera Glacial",
+      "mp41": "Pečera Escarcha",
+      "mp4d": "Pečera Glacial",
+      "mp50": "Pečera Corroer",
+      "mp51": "Pečera Cementar",
+      "mp5d": "Pečera Cementar",
+      "mp60": "Pečera Tesoro",
+      "mp61": "Pečera Plata",
+      "mp62": "Pečera Arrugia",
+      "mp6d": "Pečera Tesoro",
+      "mp70": "Pečera Caliente",
+      "mp71": "Pečera Reaccion",
+      "mp72": "Pečera Correr",
+      "mp73": "V hiži",
+      "mp7d": "Pečera Caliente",
+      "mp80": "Pečera Absor",
+      "mp81": "Pečera Milagro",
+      "mp82": "Pečera Desleal",
+      "mp83": "Pečera Falter",
+      "mp84": "Pečera Final",
+      "mp8d": "Pečera Absor",
+      "mp90": "Komnata Jashiina",
+      "mpa0": "Komnata Jashiina"
+    }
   },
   "town": {
     "names": {
@@ -88,12 +271,488 @@
       "town.prmp": "Pureza",
       "town.esmp": "Esco"
     },
-    "conversations": {}
+    "conversations": {
+      "town.esmp.npc.0": {
+        "text": "Obratite pozor na dveri s sinim znakom. Ona proměnila tri boje.",
+        "endCode": null
+      },
+      "town.esmp.npc.1": {
+        "text": "Ako padnete s kamena i put vam zapre stěna, probodite je mečem. Ako stěna rassyplje se, vy budete na drogi, vedučej k obydlju Jashiina.",
+        "endCode": null
+      },
+      "town.esmp.npc.2": {
+        "text": "Skočivši pred bljuščem, a ne shodivši po njem, možete otvoriti novu drogu.",
+        "endCode": null
+      },
+      "town.esmp.npc.3": {
+        "text": "Iskajte druge dveri s sinim znakom. Ako ih vidite, obratite se vpravo.",
+        "endCode": null
+      },
+      "town.esmp.npc.4": {
+        "text": "Imate li sumnjenja? Tut jest samo klanje i razrušenje. Čto vy nadějete se dosegnuti?",
+        "endCode": null
+      },
+      "town.esmp.npc.5": {
+        "text": "Čemu Duhy poslali vas na tuto putovanje klanja? Čemu Jashiin čeka vas v molčanju?",
+        "endCode": null
+      },
+      "town.esmp.npc.6": {
+        "text": "Ne slušajte tyh dvoh, oni sut v savezu s Jashiinom. Oni pytajut se oslabiti vašu volju.",
+        "endCode": null
+      },
+      "town.stmp.npc.0": {
+        "text": "Dobro pozvani, stranniku. Vy, věrojatno, prišli jeste kroz labirinty iz vnějšnjego světa. My davno ne sretili jeste takogo hrabreca. Vam stoji obidti veliku mudricu Yasmin — ona bude rada poznati vas.",
+        "endCode": null
+      },
+      "town.stmp.npc.1": {
+        "text": "Znači, vy jeste ten hrabrec, o ktorom ja slyšal. Nu, ako vy imajete idti dalje, dam vam sovět.  Prišedši k městu zastavjenja, vykopajte jamu. Demony skryli sokrovišča v mnogih městah.",
+        "endCode": null
+      },
+      "town.stmp.npc.2": {
+        "text": "Vy jeste Duke Garland? Slava Duhom, že vy prišli jeste. My spasili se jeste od Jashiina siloju Duhov. Ale ako jeho sila stane se tak silna, že Duhy ne mogut zaštititi nas, tuto město jest osuđeno.",
+        "endCode": null
+      },
+      "town.stmp.npc.3": {
+        "text": "Dozvolite dati vam sovět, stranniku. Ako vy padnete dolu kroz kamenu plitu pred sinimi dvermi, blizko vy vidite zelene dveri. Nikako ne idite kroz te dveri — to jest dveri v prošlost.",
+        "endCode": null
+      },
+      "town.stmp.npc.4": {
+        "text": "Beregite se! Ja vošel jestem v pečery i viděl jestem užasno stvorenje — gigantskogo démona osminoga. To bylo strašno, ale ja spasil se jestem. Naděju se, že vam posreći se tako že.",
+        "endCode": null
+      },
+      "town.stmp.npc.5": {
+        "text": "Vy jeste ten hrabrec? Naděju se, že vy prineli jeste almas za nas. Almas sut čestju sily Jashiina. My upotrebjajemo ih za izgotovjenje lěkov i drugih koristnyh věčej.",
+        "endCode": null
+      },
+      "town.stmp.npc.6": {
+        "text": "Duke Garland, kogda vy opetj pojdete v pečery, postarajte se prinesti bolje almas. Da by dopolniti zaštitnu silu Duhov, my imajemo zgraditi stěnu iz almas. Ako ne dobudemo veče, město Satono jest v opasnosti.",
+        "endCode": null
+      },
+      "town.mrmp.npc.0": {
+        "text": "Ah, vy jeste ten vojin, o ktorom ja slyšal. Moj syn Michael byl hrabry vojin. On pošel v pečery i veče ne byl viděny. Prosim, budte ostrožni.",
+        "endCode": null
+      },
+      "town.mrmp.npc.1": {
+        "text": "Sir, mně snilo se, že démon stvoril podzemne pečery i napolnil ih čudoviščami. Potom Duhy prinesli vas tut, da by vse popraviti. Pred odhodom obidite magijny magazin — tam vy najdete mnogo koristnogo. Sreću v vašej poiskě.",
+        "endCode": null
+      },
+      "town.mrmp.npc.2": {
+        "text": "Vy idete v pečery, da? Ja nedavno pošel jestem v iskanje mogućnego zelja, ktore, govorjat, skryto tam. Ja ne ostal jestem dovoljno dolgo, da by najdti jego, ale možno vy najdete. Obvezno zastavite se v oružnom magazině — vam bude potrěbna silna bronja. Duke Garland, govorjat, zelje skryto v stěně pri platformě, ktora podnosit se i spuskaje se. Želaju vam sreći.",
+        "endCode": null
+      },
+      "town.mrmp.npc.3": {
+        "text": "Vy idete v pečery? Vy jeste hrabry člověk. Govorjat, pod zemjeju mnogo dverij, ale mnoge sut zamknjene, a ključe rassějane po labirintah. Naděju se, že vy najdete ih.",
+        "endCode": null
+      },
+      "town.mrmp.npc.4": {
+        "text": "Duke Garland, jeden moj znakomy prežil jestem putovanje v podzemno město Satono. Po jego slovah, droga nazad jest kratka, a droga vně jest dolga. To bude velmi opasno.",
+        "endCode": null
+      },
+      "town.mrmp.npc.5": {
+        "text": "Po legendah, podzemno město zove se Satono. ",
+        "endCode": null
+      },
+      "town.mrmp.npc.6": {
+        "text": "Minutu, Duke Garland. Ako vy vnimateljno poslušajete pred podzemnymi dvermi, vy uslyšite užasny zvuk. To jest vhod v peklo, ktoro jest domom démonov. Beregite se togo města, junošo.",
+        "endCode": null
+      },
+      "town.mrmp.npc.7": {
+        "text": "Uvy, boju se, že naděje ne jest. Vy, i ja, i vse, kto žive v tutom městě, nepreměnno poginem. Ne běžite v někoje užasno město, ostanite i vypijte so mnoju. Ah, ja znam, vy imajete idti, i ja oddaju vam čest — vy hrabry bolje mene. Da bude s vami Bog.",
+        "endCode": null
+      },
+      "town.mrmp.npc.8": {
+        "text": "Kogda vy ubijate čudovišče, vy dobivate věč zvanu «almas». Ona vredna mnogo penez. Ja i sam ne proč dobiti několiko, ale ne hoču spuskati se tam. ",
+        "endCode": null
+      },
+      "town.cmap.npc.0": {
+        "text": "Ako vy jeste ten hrabry vojin, ktorogo my čekali, my imajemo čto vam skazati: kroz věky mnoge junoši vhodili jeste v pečery, ale malo kto vrnutih se.",
+        "endCode": null
+      },
+      "town.cmap.npc.1": {
+        "text": "Po legendě, pod zemjeju mogut ješče ostati města, ne uniščene Jashiinom. Tam, možno, ješče živejut ljudi, i oni nepreměnno podadut vam ruku pomoći.",
+        "endCode": null
+      },
+      "town.cmap.npc.2": {
+        "text": "Ja byl jestem v podzemnom městě. Potom kak ja ubežal jestem, oni položeili zamok na dveri. Ako město ješče jest.... ",
+        "endCode": null
+      },
+      "town.cmap.npc.3": {
+        "text": "Tuto jest komnata bědnoj princessy Felicii, obratjenej v kamen. Vy možete vojti, Duke Garland.",
+        "endCode": null
+      },
+      "town.cmap.npc.4": {
+        "text": "Hrabry rycar, vy probudili se jeste. Kogda vy pali jeste od ruky Jashiina, Duhy prinesli vas tut. Nyně pospěšite na pomoć princessě Felicii.",
+        "endCode": null
+      },
+      "town.cmap.npc.5": {
+        "text": "Skoro, idite k princessě!",
+        "endCode": null
+      },
+      "town.cmap.npc.6": {
+        "text": "Ah, devet Slez Esmesanti. Jashiin veče ne jest, i světlo mira opet sija nad našej zemjeju... ",
+        "endCode": null
+      },
+      "town.cmap.npc.7": {
+        "text": "To bude v polzu i ljudem, ktore živejut pod zemjeju. Pospěšite k princessě Felicii.",
+        "endCode": null
+      },
+      "town.cmap.npc.8": {
+        "text": "Prišel mir, na ktory my ne směli nadějati se. Ja sobereju svoje věči i pojedu v put. Ja imajem semju, o ktoru imajem zabotiti se.",
+        "endCode": null
+      },
+      "town.cmap.npc.9": {
+        "text": "Skoro, vojdite v tutu komnatu. Svete kristaly razrušet zlo zakletje, ktoro obratilo princessu Feliciju v kamen.",
+        "endCode": null
+      },
+      "town.hlmp.npc.0": {
+        "text": "Dobro pozvani. Vy, věrojatno, zamerzli jeste. Helada nekogda byla teplo, uspěšno město, ale Jashiin obratil je v studene razvaliny.",
+        "endCode": null
+      },
+      "town.hlmp.npc.1": {
+        "text": "Vy, možno, zamětili jeste, že tut vedut dvě drogi. Jest tako že kratka droga.",
+        "endCode": null
+      },
+      "town.hlmp.npc.2": {
+        "text": "Byli li vy v ledenyh pečerah? Ševc v tutom městě pytal se dělati osoblive črevje iz kory Ruzeria, da by pomoći hrabrecu hoditi po ledu. Ledva on uspěl to učiniti, kak slugy Jashiina ubili jego. Interesno, čto stalo se s tymi črevjami.",
+        "endCode": null
+      },
+      "town.hlmp.npc.3": {
+        "text": "Vy jeste ten hrabrec? Mojego ljubimogo, Percel, ubili jeste prislužniki Jashiina tuj že po tom, kak Duhy poprosili jego dělati črevje iz Ruzeria za hrabrogo člověka. Vratite mně mojego Percel! Oh, bolje by vy ne prišli!",
+        "endCode": null
+      },
+      "town.hlmp.npc.4": {
+        "text": "Myslju, vam stoji čto znati: ševc Percel govoril jestem, že bez črevij iz Ruzeria vam ne projti za zelene dveri.",
+        "endCode": null
+      },
+      "town.hlmp.npc.5": {
+        "text": "Ruzeria — tako zove se dřevo, ktoro raste v podzemnom lěsu. Kora jego jest velmi tvrda i ne skolzit se. U Percel byli jeste važne pričiny izbrati je.",
+        "endCode": null
+      },
+      "town.hlmp.npc.6": {
+        "text": "Jeden moj znakomy govoril jestem, že viděl jestem v pečerah paru neobyčnyh črevij. Ne uvěren, te li to črevje, ktore sdelal jestem Percel.",
+        "endCode": null
+      },
+      "town.hlmp.npc.7": {
+        "text": "Prostite za to, čto ja skazal jestem nedavno. Ne znam, čto na mne najšlo. Prosim, pobědite Jashiina i odmestite za smert Percel.",
+        "endCode": null
+      },
+      "town.hlmp.npc.8": {
+        "text": "Ah, črevje Percel.... Vidžu, vy jeste hrabry člověk. Naděju se, že vy najdete Jashiina i skoro pobědite jego.",
+        "endCode": null
+      },
+      "town.hlmp.npc.9": {
+        "text": "Tut hrabrec v črevjah iz Ruzeria... S nimi i ševcov magazin podnosit se v goru... ",
+        "endCode": null
+      },
+      "town.hlmp.npc.10": {
+        "text": "Gotov sporiti, zelene slizni dostavili vam jeste nemalo hlopotov. Otkryju vam sekret: oni ne trpjat žar. Sožgite ih, i oni izčeznut v jednom klubu pary.",
+        "endCode": null
+      },
+      "town.tmmp.npc.0": {
+        "text": "Hrabry gospon, naděju se, že vy prišli jeste pomoći tutomu bědnomu městu. Nekogda tut bylo tiho grobišče, dokolě jego ne opustošil Jashiin.",
+        "endCode": null
+      },
+      "town.tmmp.npc.1": {
+        "text": "Ako vy opetj pojdete v pečery, beregite se Gelroida. To jest sino želatinasto substantstvo, ktoro vysysaje iz vas život.",
+        "endCode": null
+      },
+      "town.tmmp.npc.2": {
+        "text": "Slyšali li vy o ševcu Percel iz města Herada? On dělal jestem črevje iz Ruzeria za hodjenje po ledu i črevje Pirika, da by spasiti se od Gelroida, šipov i ognja. To sut jedine dva, o ktoryh ja znam, ale možno byli i druge.",
+        "endCode": null
+      },
+      "town.tmmp.npc.3": {
+        "text": "Mogu li dověriti se vam? Nekogda ja byl jestem špion Jashiina. Mogu skazati, že črevje Pirika položeili jeste v sunduk i vybrosili nekde v Gniloj zemji. Možno, vy ih nikogda ne najdete.",
+        "endCode": null
+      },
+      "town.tmmp.npc.4": {
+        "text": "Tretja čest tutogo kraja pokryta jest smertonosnym Gelroidom. Ako vy imajete idti dalje po labirintah, obyčne črevje vas ne zaštitit.",
+        "endCode": null
+      },
+      "town.tmmp.npc.5": {
+        "text": "V pečerah jest jedno město, gde možno projti skroz stěnu, ale samo v jednom napravjenju. Moj děd govoril jestem, že to město blizko zelenej kamenej plity. Možno sut i druge města, ale gde — ne skažu.",
+        "endCode": null
+      },
+      "town.tmmp.npc.6": {
+        "text": "Viděli li vy v pečerah strannyh golubovato-bělyh ljudij? Oni zarazili se jeste Gelroidom i nyně bludžut po zemji, jako žive mrtvecy. Da by ubijati ih, ciljajte v golvu.",
+        "endCode": null
+      },
+      "town.tmmp.npc.7": {
+        "text": "Izdaje se, že Jashiin ukradl jestem mnogo věčej. Oružnik iskaje svoj familijny gerb — Gerb Slavy. Ako vy najdete jego v pečerah, on bude velmi rad vrnutih jego.",
+        "endCode": null
+      },
+      "town.tmmp.npc.8": {
+        "text": "Tuto jest črevje Pirika. Idite skoro k obydlju Jashiina i skončite s nim. My budem moliti se o vašej uspěhu i skorom vrnutju.",
+        "endCode": null
+      },
+      "town.tmmp.npc.9": {
+        "text": "Ah, črevje Pirika! Prostite mne, hrabry gospon. Ja ne imal jestem vybora. Veče ja takogo ne sdelaju.",
+        "endCode": null
+      },
+      "town.tmmp.npc.10": {
+        "text": "Razvě to ne jest Gerb Slavy? Prosim, odnesite jego skoro vladalcu oružnogo magazina.",
+        "endCode": null
+      },
+      "town.tmmp.npc.11": {
+        "text": ". . . . . .",
+        "endCode": null
+      },
+      "town.prmp.npc.0": {
+        "text": "Opet obmanuty! Nadležny glupce! Vkusite prošlost i nikogda ne vratite se tut. /HA, HA, HA, HA... ",
+        "endCode": null
+      },
+      "town.prmp.npc.1": {
+        "text": "Vy iz vnějšnjego světa? Dobro pozvani. Vy, nesomněnno, jeste otvažny člověk, vedeny Duhami. ",
+        "endCode": null
+      },
+      "town.prmp.npc.2": {
+        "text": "Minutu, sir. Ja viděl jestem tvrđu Jashiina. Ona jest na kraju tutogo světa. Duhy prinesli mne odtud živego, da by ja mogal skazati vam o njej.",
+        "endCode": null
+      },
+      "town.prmp.npc.3": {
+        "text": "Myslju, vam stoji znati, že tuto město jest velmi blizko k tvrđi Jashiina, i jego prislužniki nesomněnno sut blizko. Budte ostrožni.",
+        "endCode": null
+      },
+      "town.prmp.npc.4": {
+        "text": "VY! Princessa, ktoru vy pytajete se spasiti, privede vas k pogibeli! Duhy sut samo démony v obličju. Čto to znači? Vy dělajete dělo djavola, znači, vy i jeste djavol!  VA, HA, HA, HA, HA... ",
+        "endCode": null
+      },
+      "town.prmp.npc.5": {
+        "text": "Duhy dali mně jeste ključ s lvinoju golvoju, ale jego ukradl jestem jeden iz prislužnikov Jashiina. Naděju se, že vy najdete jego v svojih putovanjah.",
+        "endCode": null
+      },
+      "town.prmp.npc.6": {
+        "text": "Ah, da — to jest ten ključ, ktory byl dověren mně Duhami. Upotrebjajte jego s umom. ",
+        "endCode": null
+      },
+      "town.prmp.npc.7": {
+        "text": "Molju se o vašem blagopolutnom vrnutju. ",
+        "endCode": null
+      },
+      "town.prmp.npc.8": {
+        "text": "Jedino oružje, ktoro bude potrěbno vam, da by poběditi Jashiina, jest Meč Fejskogo Plamena. Po legendě, on izpuskaje osoblivu světlost i možet sraziti ktorekoliv vraga jednim udarom. Ale gde jego najdti — drugo vprašanje... ",
+        "endCode": null
+      },
+      "town.prmp.npc.9": {
+        "text": "Blizko jest ves zvanu Esko, ale ne znam, čto stalo se s njej v poslědnjem vrěmeni. Nekogda ja znal jestem tam mnogo ljudij.",
+        "endCode": null
+      },
+      "town.prmp.npc.10": {
+        "text": "Ja slyšal jestem, že ključ s lvinoju golvoju pal jestem meždu dvěma věžami pod kamenej plitoju. Věrojatno, to jest blizko tutogo města.",
+        "endCode": null
+      },
+      "town.prmp.npc.11": {
+        "text": "Pomogite!. . . . ",
+        "endCode": null
+      },
+      "town.prmp.npc.12": {
+        "text": "Beregite se poslědnjego prislužnika Jashiina — Algaien. Govorjat, Jashiin svojeju siloju daroval jestem jego večny život.",
+        "endCode": null
+      },
+      "town.drmp.npc.0": {
+        "text": "Dobro pozvani v Dorado./Nekogda tut bylo uspěšno trgovo město, gde vse žili miroj život. Jashiin obratil je v žalostno, pustynno město.",
+        "endCode": null
+      },
+      "town.drmp.npc.1": {
+        "text": "Duhy govorjat, že Jashiin vrnutih se, začto ljudi, razmekšeni mirom i uspěhom, pogruzili se jeste v porok.",
+        "endCode": null
+      },
+      "town.drmp.npc.2": {
+        "text": "Na peneze i sokrovišča Dorada i drugih měst Jashiin zgradil jestem svoje vlastno vladanje. Pečery Tesoro i Burata sut jego domena.",
+        "endCode": null
+      },
+      "town.drmp.npc.3": {
+        "text": "Sověta mudromu: dveri s zelenym znakom ne možno otvoriti. Bezpolezno pytati se siloju — ih nikako ne možno otvoriti.",
+        "endCode": null
+      },
+      "town.drmp.npc.4": {
+        "text": "Nekde v pečerah sut črevje Shirukaano, sdelane ševcom Percelem. Postarajte se najdti ih; obuvši te črevje, vy možete vzbirati se po ktoromkoliv sklonu.",
+        "endCode": null
+      },
+      "town.drmp.npc.5": {
+        "text": "Kto-to, kto vošel jestem v pečery, skazal mně jestem, že črevje Shirukaano skryte sut v Tesoro. Iz četyrih komnat v centru oni sut v samoj pravoj.",
+        "endCode": null
+      },
+      "town.drmp.npc.6": {
+        "text": "Iz četyrih dverij v Tesoro tri nesut sinij znak. Ktory byl druhy? Ako ubij mne, ne pamjatuju.",
+        "endCode": null
+      },
+      "town.drmp.npc.7": {
+        "text": "Tutogo zdanja nekogda tut ne bylo, pravda? Takogo zdanja za noć ne zgraditi — kak ono tut okazalo se?",
+        "endCode": null
+      },
+      "town.drmp.npc.8": {
+        "text": "Tut stojala statuja mira zvana «Taruso», ale jednej noći ona izčezla jestem. Kuda, skazite na milost, ona mogla dětih se? Zloj Jashiin, věrojatno, jej prigledala se.",
+        "endCode": null
+      },
+      "town.drmp.npc.9": {
+        "text": "Ja imajem poslanje od Duhov: čekajte dvigajuči se kraj platformy iz sijajučih blokov.",
+        "endCode": null
+      },
+      "town.drmp.npc.10": {
+        "text": "Kogda najdete zelene kamene plity, ktore možno dvigati v goru i dolu, postavite ih jako lěstvicu, da by legko podnesti se.",
+        "endCode": null
+      },
+      "town.drmp.npc.11": {
+        "text": "Sredina pečerov sdelana jest iz čistogo zlata! Ale jest jedna falšiva zlata stěna, ktoru možno razrušiti.",
+        "endCode": null
+      },
+      "town.drmp.npc.12": {
+        "text": "Ah! Vy našli jeste črevje Shirukaano! Nyně vy možete vzbirati se po ktoromkoliv sklonu.",
+        "endCode": null
+      },
+      "town.drmp.npc.13": {
+        "text": "Hrabry junoša! Poslanje od Duhov: budte v največej ostrožnosti, kogda vojdete v slědujuči svět.",
+        "endCode": null
+      },
+      "town.bsmp.npc.0": {
+        "text": "Dobro pozvani v ves Bosque, hrabry vojin. Nekogda tut byl lěs, okružajuči hram, ale hram byl razrušen Jashiinom. Nyně ves Bosque jest pustynny. Naděju se, že vy tut jeste, da by pomoći nam.",
+        "endCode": null
+      },
+      "town.bsmp.npc.1": {
+        "text": "Slušajte, stranniku, na okrajině města postavjen jest stražnik. Govorju to radi vašego dobra; lěpje držati se odtud dale.",
+        "endCode": null
+      },
+      "town.bsmp.npc.2": {
+        "text": "Na hramě, ktory nekogda stojal tut, byl vysečen gerb Boga Vojny. Poběditelji sъstęzanij po bojevyh umětnostjah, ktore provodili se pred hramom, nagraždali se takymi gerbami. Tako gerb, simbol istinnogo heroja, stal znany jako Gerb Heroja.",
+        "endCode": null
+      },
+      "town.bsmp.npc.3": {
+        "text": "Razrušajuči hram, Jashiin ukradl jestem Gerb Heroja.  Nikto ne znaje, gde jego iskati.",
+        "endCode": null
+      },
+      "town.bsmp.npc.4": {
+        "text": "Gerb, věrojatno, skryt nekde v lěsu, ale gde — ne skažu.",
+        "endCode": null
+      },
+      "town.bsmp.npc.5": {
+        "text": "Kogda hram byl razrušen, ja slyšal jestem, kak Jashiin prikazoval svojim prislužnikom skryti gerb v stvolu največego dřeva. Věrojatno, on tam i skryt. Naděju se, že vy možete jego najdti.",
+        "endCode": null
+      },
+      "town.bsmp.npc.6": {
+        "text": "Javil se jestem duh i velěl mně peredati to, ako ja sretnju hrabrogo člověka: «Ako projdete kroz dveri vpravo od dřeva, ktoro tvori krst, vy možete podnesti se»./Naděju se, že to vam pomože.",
+        "endCode": null
+      },
+      "town.bsmp.npc.7": {
+        "text": "Ja imajem za vas sovět: budte ostrožni, ako pridete tam, gde listje na dřevah jest rědko. Zemja tam ne jest velmi krepka.",
+        "endCode": null
+      },
+      "town.bsmp.npc.8": {
+        "text": "Stražnik na kraju města govorit, že Duhy javili se jeste jemu v snu i velěli ne propuščati nikogo, kromě tyh, kto nese Gerb Heroja. Interesno, istinno li Duhy dali taky prikaz? Možno, on jest bezumny.",
+        "endCode": null
+      },
+      "town.bsmp.npc.9": {
+        "text": "Nemnogi proskolznuli jeste mimo stražnika nezaměčeno, ale nikto ne vrnutih se. Tam, věrojatno, jest někoje užasno čudovišče.",
+        "endCode": null
+      },
+      "town.bsmp.npc.10": {
+        "text": "Tut stražnik, věrojatno, prodal jestem dušu Jashiinu. Inače začemu jemu měšati takim hrabrecam, jako vy?",
+        "endCode": null
+      },
+      "town.bsmp.npc.11": {
+        "text": "Stojte! Imate li vy Gerb Heroja? ",
+        "endCode": "yesNo"
+      },
+      "town.bsmp.npc.12": {
+        "text": "Ne lgite, to ne pomože. Idite odtud!",
+        "endCode": null
+      },
+      "town.bsmp.npc.13": {
+        "text": "Vam ne možno tut projti bez Gerba Heroja. Moj prikaz ishodit od samyh Duhov! ",
+        "endCode": null
+      },
+      "town.bsmp.npc.14": {
+        "text": "Stojte! Vidžu, vy imate Gerb Heroja. Možete projti.",
+        "endCode": null
+      },
+      "town.llmp.npc.0": {
+        "text": "Pomogite! V našej hiži jest užasno stvorenje! Prosim, izbavite nas od jego.",
+        "endCode": null
+      },
+      "town.llmp.npc.1": {
+        "text": "Oh, děkuju vam, sir. V znak blagodarnosti ja dam vam Elfijsky Gerb. Myslju, on vam prigodit se; bez jego nikto v městě ne stane pomagati vam.",
+        "endCode": "elfCrest"
+      },
+      "town.llmp.npc.2": {
+        "text": "Ješče raz děkuju. Pravda. ",
+        "endCode": null
+      },
+      "town.llmp.npc.3": {
+        "text": "/Pečery v tutom kraji sut raskalene; vy ne vyderžite tam dolgo. Ja imajem něčto, čto vam pomože. To jest azbestovy plašč, ktory zaštitit vas od žara.",
+        "endCode": "pattern5"
+      },
+      "town.llmp.npc.4": {
+        "text": "Pečery v tutom kraji sut raskalene; vy ne vyderžite tam dolgo. Ja imajem něčto, čto vam pomože. To jest azbestovy plašč, ktory zaštitit vas od žara.",
+        "endCode": "pattern5"
+      },
+      "town.llmp.npc.5": {
+        "text": "Ale on ne jest bezplatny. On obstoji se vam 2500 almas.///",
+        "endCode": "purchase"
+      },
+      "town.llmp.npc.6": {
+        "text": "Oh, vidžu... nu, možno v slědujuči raz. ",
+        "endCode": null
+      },
+      "town.llmp.npc.7": {
+        "text": "Vy govorite, u vas ne jest 2500 almas? Ne pytajte se obmanuti mne. ",
+        "endCode": null
+      },
+      "town.llmp.npc.8": {
+        "text": "Tut, deržite. S vas 2500 almas. Beregite jego dobro. ",
+        "endCode": null
+      },
+      "town.llmp.npc.9": {
+        "text": "Vy dobro zabotite se o azbestovom plašču? To bylo moje sokrovišče, tak naděju se, že vy obhodite se s nim berežno.",
+        "endCode": null
+      },
+      "town.llmp.npc.10": {
+        "text": "Moje ime jest Michael. Tut nikto ne slušaje ni slova iz togo, čto ja govorju. Interesno, začemu?",
+        "endCode": null
+      },
+      "town.llmp.npc.11": {
+        "text": "Oh! U vas jest Elfijsky Gerb. Otlično! ",
+        "endCode": null
+      },
+      "town.llmp.npc.12": {
+        "text": "Jashiin napolnil jestem pečery pylajučim adom. Prosim, pomogite nam, hrabry junošo!",
+        "endCode": null
+      },
+      "town.llmp.npc.13": {
+        "text": "Beregite se silnyh potokov žara. V pečerah mnogo vodovorotov, i, popavši v jeden iz nih, vy veče ne vyberete se.",
+        "endCode": null
+      },
+      "town.llmp.npc.14": {
+        "text": "V pečerě Correr bezčislennoje množstvo jednostrannyh nevidimyh stěn. Da by uznati o nih veče, vprašajte Yozeras ili starějšinu Myuuza.",
+        "endCode": null
+      },
+      "town.llmp.npc.15": {
+        "text": "Ja Yozeras. Kogda vojdete v pečeru Correr, osteregajte se projoma bez bljušča. Ako projdete tam, to padnete.",
+        "endCode": null
+      },
+      "town.llmp.npc.16": {
+        "text": "Ja Myuuza, starějšina města. Ako vojdete v pečeru Correr, obvezno zapomnete boju vhodnyh dverij. Dveri vyhoda togo že boje.",
+        "endCode": null
+      },
+      "town.llmp.npc.17": {
+        "text": "Ako ne možete najdti drogu, najdite potok vozduha pri potolku pečery. Na tyh potokah možno peremeščati se.",
+        "endCode": null
+      },
+      "town.llmp.npc.18": {
+        "text": "Sir, ja vidžu, že u vas ne jest Elfijsky Gerb. Nedavno někogda prislužniki Jashiina davali se za herojev i sějali razrušenje v tutom městě. Vy slučajno ne jeden iz nih? Bez Elfijskogo Gerba nikto tut ne stane govoriti s vami.",
+        "endCode": null
+      },
+      "town.llmp.npc.19": {
+        "text": ". . . . . . . . . . . . ",
+        "endCode": null
+      }
+    }
   },
   "indoor": {
     "inn": {
       "name": "Gostinnica",
-      "menu": ["Ostati na noč", "Oditi"],
+      "menu": [
+        "Ostati na noč",
+        "Oditi"
+      ],
       "welcomeP1": "Dobrodošli, gospodine!\nVidno, vy prešli dolgy put.\nJedna noč odpočinka v mojej gostinnici vratit vam sily. Najlěpša komnata v domu vsego za ",
       "welcomeP2": "zlatyh. Ostanete?",
       "leave": "Ah, žal mi to slyšati.\nNu, ako vam kogda bude nužny odpočinek, vratite se.",
@@ -103,9 +762,21 @@
     },
     "bank": {
       "name": "Banka",
-      "menu": ["Izti", "Zaměniti almasy", "Vložiti deneg", "Vzeti deneg", "Prověriti balans"],
-      "depositLabels": ["ZLATO PRI SEBĚ", "SUMA VKLADA"],
-      "withdrawLabels": ["ZLATO V BANCE", "SUMA VZETJA"],
+      "menu": [
+        "Izti",
+        "Zaměniti almasy",
+        "Vložiti deneg",
+        "Vzeti deneg",
+        "Prověriti balans"
+      ],
+      "depositLabels": [
+        "ZLATO PRI SEBĚ",
+        "SUMA VKLADA"
+      ],
+      "withdrawLabels": [
+        "ZLATO V BANCE",
+        "SUMA VZETJA"
+      ],
       "dots": ".....",
       "excuseMe": "Oh, prostite. ",
       "canIHelp": "Čim mogu pomoći?",
@@ -174,9 +845,29 @@
     },
     "weaponShop": {
       "name": "Oružarnica",
-      "menu": ["Izti", "Popraviti ščit", "Kupiti oružje", "Kupiti ščit", "Opisati tovar"],
-      "swordNames": ["Trenovačny meč", "Meč mudrca", "Meč duha", "Meč rycarja", "Meč svetla", "Očarovany meč"],
-      "shieldNames": ["Glineny ščit", "Ščit mudrca", "Kamenny ščit", "Ščit česti", "Ščit svetla", "Titanovy ščit"],
+      "menu": [
+        "Izti",
+        "Popraviti ščit",
+        "Kupiti oružje",
+        "Kupiti ščit",
+        "Opisati tovar"
+      ],
+      "swordNames": [
+        "Trenovačny meč",
+        "Meč mudrca",
+        "Meč duha",
+        "Meč rycarja",
+        "Meč svetla",
+        "Očarovany meč"
+      ],
+      "shieldNames": [
+        "Glineny ščit",
+        "Ščit mudrca",
+        "Kamenny ščit",
+        "Ščit česti",
+        "Ščit svetla",
+        "Titanovy ščit"
+      ],
       "itemDescriptions": [
         "Nu, reku tako: tutoj meč jest dobry za novaka. Za čto platite, to i dostanete. Prostyj meč, ne trebuje uhodu. Ako s penezmi těžko — tutoj za vas.",
         "Tutoj jest malo lěpši od trenovačnogo meča. Kogda privyknete, njim jest lahko mahati. Cěna malo vyšša, ale vy ne zgubite. Čemu ne vzjati jego s soboju?",
@@ -219,8 +910,22 @@
     },
     "magicShop": {
       "name": "Lavka čarovnyh prědmětov",
-      "menu": ["Izti", "Kupiti prědmet", "Prodati prědmet", "Opis prědmeta"],
-      "itemNames": ["Zelje Ken'ko", "Plod Juu-en", "Eliksir Kashi", "Prašek Chikara", "Kamen Magia", "Sveta voda Acero", "Olej Sabre", "Pero Kioku"],
+      "menu": [
+        "Izti",
+        "Kupiti prědmet",
+        "Prodati prědmet",
+        "Opis prědmeta"
+      ],
+      "itemNames": [
+        "Zelje Ken'ko",
+        "Plod Juu-en",
+        "Eliksir Kashi",
+        "Prašek Chikara",
+        "Kamen Magia",
+        "Sveta voda Acero",
+        "Olej Sabre",
+        "Pero Kioku"
+      ],
       "itemDescriptions": [
         "Nu, to jest osoba směs ploda junkel i lista ripodi. Ne drogo, i kako mjahko ukrěpljajuče srědstvo — idealno.",
         "To jest plod děreva Juu-en, ktoro plodonosi raz v deset lět. Cěna vysočka, ale on odlično snima rany i ustatost — mnogo lěpši od zelja Ken'ko.",
@@ -248,7 +953,16 @@
     },
     "sage": {
       "name": "Mudrc",
-      "names": ["Mudrc Marid", "Mudrc Jasmin", "Mudrc Haddžar", "Mudrc Čiriga", "Mudrc Hišam", "Mudrc Marjam", "Mudrc Said", "Mudrc Indihar"],
+      "names": [
+        "Mudrc Marid",
+        "Mudrc Jasmin",
+        "Mudrc Haddžar",
+        "Mudrc Čiriga",
+        "Mudrc Hišam",
+        "Mudrc Marjam",
+        "Mudrc Said",
+        "Mudrc Indihar"
+      ],
       "intros": [
         "Ja jestem mudrc Marid.\nVy jeste velmi hrabry, že idete v tako opasny put. Ja pomogu vam v stranstvovanjah.",
         "Ja jestem mudrc Jasmin.\nJa čekala vas. Ja nauču vas Magiji Metanja Mečov: Espada.",
@@ -269,7 +983,12 @@
         "Tot svět jest podvlastny drakonam. Aby dostati tamo, treba otvoriti tri zaključene dveri.",
         "Na kraju tutogo světa jest poslědnji vrag, Džašiin.\nAby sražiti se s Džašiinom, vam jest nužny Meč Plamena Fei. A aby dostati tamo, treba poběditi nepobědimogo monstra Algjena."
       ],
-      "menu": ["Izti", "Viděti silu", "Slušati znanje", "Zapisati iskustvo"],
+      "menu": [
+        "Izti",
+        "Viděti silu",
+        "Slušati znanje",
+        "Zapisati iskustvo"
+      ],
       "deathEntry": "Dokolě vy byli bez soznanja, duhi prinesli vas sem.\nBudte oprezni i ne istrošajte sebe v boju.\nNyně idite. Duhi gledajut za vami.",
       "howCanIHelp": "Čim ja mogu pomoći, hrabry?",
       "anythingElse": "Mogu li ja sdělati za vas čto-nibud ješče?",
@@ -463,5 +1182,232 @@
       "\"Ty i jest tot glуpec, kto směje brositi mně vyzov? Ne budi směšon!\""
     ]
   },
-  "endingDemo": {}
+  "endingDemo": {
+    "dialogue": {
+      "dukePrincess": [
+        "Nakoněc, Jashiin byl uniščen i devet Slez Esmesanti vrnutih se na svoje pravo město.",
+        "Princessa Felicia vrnutih se v svoju pravdivu formu.",
+        "\"Vy jeste krasni kako roza v cvětu!\"",
+        "\"Děkuju vam, Duke Garland.\"",
+        "\"Vy učinili jeste veliko dělo, pobědivši Jashiina.  Iako moje tělo bylo tut, moja duša byla s Svetym Duhom, gledajuči vas.\"",
+        "\"Ne znam, kako vam děkovati za spasenje mene i mojej zemji.\""
+      ],
+      "kingPrincess": [
+        "\"Otče!\"",
+        "\"Moja draga Felicia!  Kako ja žedal objęti tebe i slyšati tvoj sladki glas!\"",
+        "Vně, zemja proklęta zloj magijej Jashiina načela povraćati se k svojej prvotnoj plodnosti.",
+        "Strašna sila Jashiina byla smyta s zemje, i zemja Zeliarda stala se miroju opet."
+      ],
+      "spirit": [
+        "Duh Hranitelj Svetyj zemji Zeliarda javil se pred Duke Garlandom opet.",
+        "\"Vy trpěli jeste mnogo běd, da pobědite Jashiina, Duke Garland.\""
+      ],
+      "dukeSpirit": [
+        "\"Vy borili se jeste hrabro, izpolnjajuči tuto zadatost.  Ale to bylo samo načalo.  Vaša slědujuča misija čeka vas v novoj zemji.\"",
+        "\"Moja slědujuča misija?\"",
+        "\"Mnogo jest takich, kto imaje potrěbu v vašich osoblivych talentach.  Slědujte za mnoju, i ja pokažu vam put.  My imajemo odjezdžati skoro.\"",
+        "Ne bylo vremena za odpocivanie, i ne bylo vremena ostati v toj miroj zemji."
+      ],
+      "princess1": [
+        "\"Mušite li odjezdžati tako skoro, Duke Garland?  ",
+        "Ja nadějala se...\"",
+        "\"Princessa Felicia, ja imajem prosti se s vami.  Jutro prihodit skoro, i ja propustju svetlost Duha, ako ne otjezdu pred zorju.\"",
+        "Duke odgovoril jeste skoro, jako by hotěl preduprediti slědujuče slova princessy Felicii."
+      ],
+      "farewellPart1": [
+        "Bo ako by on slyšal te slova, ne mogal by odjezdžati, iako znal jeste, že imaje.  On obrnul se i pošel odhoditi...",
+        "\"Ne odhodite, Duke Garland!\"",
+        "... i ne obrnul se nazad."
+      ],
+      "farewellPart2": [
+        "Duke Garland ostavil jeste zamok, i čutil se, jako by jeho serdce moglo razbiti se.",
+        "Gledajuči za nim, princessa Felicia rekla jeste sobě: ",
+        "\"On vrnutih se.  Put k jeho sudbině načel se tut, i tut že skončit se.\"",
+        "\"Kogda jeho dělo v světu bude završeno, on vrnutih se k mně.  Do togo vrěmeni ja mogu samo věriti i čekati jego.\""
+      ]
+    },
+    "staffCredits": [
+      {
+        "rows": [
+          "PERSONAL"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "PRODUCER — JAPANSKA VERSIJA",
+          "Mitsuhiro Mazda"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "PRODUCER — ANGLIJSKA VERSIJA",
+          "Josh Mandel"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "GLAVNY PROGRAMIST",
+          "Tomoyuki Shimada"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "GRAFIČNI DIZAJNERI",
+          "Akihiko Yoshida",
+          "Masatoshi Azumi"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "PREVOD ANGLIJSKOGO TEKSTA",
+          "Marti McKenna"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "KOMPOZITORY",
+          "-- MECANO ASSOCIATES --",
+          "Fumihito Kasatani",
+          "Nobuyuki Aoshima"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "SCENARIST",
+          "Masaru Takeuchi"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "ZVUKOVE EFEKTY",
+          "Tomoyuki Shimada"
+        ],
+        "hold": 0
+      }
+    ],
+    "thanksCredits": [
+      {
+        "rows": [
+          "OSOBLIVA BLAHODARNOST"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          [
+            "Toshiyuki Uchida",
+            "Yuzo Sunaga"
+          ],
+          [
+            "Takeshi Miyaji",
+            "Naozumi Honma"
+          ],
+          [
+            "Ray E. Nakazato",
+            "Toshi Masubuchi"
+          ]
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          [
+            "Hiroyuki Koyama",
+            "Satoshi Uesaka"
+          ],
+          "-- Sierra On-Line Japan, Inc. --",
+          "Eiji (Ed) Nagano"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "KONSULTANTY",
+          "Osamu Harada",
+          "Hiromi Ohba",
+          "Greg Miyaji"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "SYSTEMNY DIZAJNER",
+          "Rocky Cave Maker"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "SLUŽEČE ČUDOVIŠČA"
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Pečera Malicia",
+            "CANGREJO"
+          ],
+          [
+            "Peligro",
+            "PULPO"
+          ],
+          [
+            "Riza",
+            "POLLO"
+          ]
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Ledena pečera",
+            "AGAR"
+          ],
+          [
+            "Cementar",
+            "VISTA"
+          ],
+          [
+            "Tesoro",
+            "TARSO"
+          ]
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Grad Llama",
+            "PAGURO"
+          ],
+          [
+            "Gorjača pečera",
+            "DRAGON"
+          ],
+          [
+            "Absor",
+            "ALGUIEN"
+          ]
+        ],
+        "hold": 0
+      }
+    ],
+    "copyrightCredits": [
+      "Copyright (C)1987,1990 GAME ARTS",
+      "Copyright (C)1990 Sierra On-Line",
+      "First published 1987 by",
+      "GAME ARTS Co.,Ltd./ Tomoyuki Shimada"
+    ],
+    "portCredits": "Veb-port ©2026 {brox//THIRTEEN} •••••••••••••••• Obratno inženjerstvo: {brox} •••••••••••••••• Grafika: {brox} •••••••••••••••• Kod: {brox + svobodne LLM (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} •••••••••••••••• Testovanje: {Gene} •••••••••••••••• Nesvobodna LLM prědožena: {Gene} •••••••••••••••• Muzyka konečnyh titulov: 'Guinever' ©1981 {Aquarium}"
+  }
 }

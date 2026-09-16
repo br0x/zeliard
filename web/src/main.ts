@@ -97,7 +97,8 @@ import {
     DMAN_FRAME_W, DMAN_FRAME_H, DMAN_SHEET_COLS,
 } from './core/roka-demo.js';
 import { ConversationManager, readNpcConversationBytes } from './core/conversation.js';
-import { parseDialogText as parseDialogTextImpl } from './core/conversation-text.js';
+import { encodeConversationText } from './core/conversation-encode.js';
+import { parseDialogText as parseDialogTextImpl, parseLocalizedDialog } from './core/conversation-text.js';
 import { layoutConversationBox, drawConversationBox } from './ui/conversation-draw.js';
 import {
     computeTownScrollFromAbsoluteX,
@@ -107,7 +108,7 @@ import {
 } from './core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
 import { resolveLocaleFromPath } from './core/locale-utils.js';
-import { setLocale, t } from './locale/index.js';
+import { setLocale, t, getTownName as getLocalizedTownName, getDungeonName as getLocalizedDungeonName, getTownConversation } from './locale/index.js';
 
 // Resolve and install the active locale before any scene, HUD, or asset
 // loader can read translated text. URL path selects the locale.
@@ -1158,7 +1159,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         dungeonProjectiles = null;
         dungeonTileSheetReady = false;
         dungeonEntitySheetReady = false;
-        cavernName = tsGetCavernName(mdtBytes());
+        cavernName = localizedCavernName(dungeon.mdtPath) ?? tsGetCavernName(mdtBytes());
         updatePlaceHud(cavernName, true);
         await loadDungeonAssets(rawMapId);
         const cfg = DUNGEONS[rawMapId]!;
@@ -1287,8 +1288,44 @@ const inputLatches = new KeyEdgeLatches(
     () => writeMemory?.(ADDR_ALTKEY_LATCH, [1]),
 );
 
+/**
+ * NPC conversation bytes for the wasm-side pattern id. When the active locale
+ * has a translated entry for the current town the localized stream is returned;
+ * otherwise the original MDT bytes are used.
+ */
 function getNpcConversationRaw(npcId: number) {
+    const localized = localizedConversationBytes(npcId);
+    if (localized) return localized;
     return readNpcConversationBytes(readMemory, npcId);
+}
+
+function localizedConversationBytes(npcId: number): Uint8Array | null {
+    if (!readMemory) return null;
+    const placeId = (readMemory(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7f;
+    const path = TOWN_MDTS[placeId];
+    if (!path) return null;
+    const townId = townIdFromMdtPath(path);
+    if (!townId) return null;
+    const entry = getTownConversation(townId, npcId);
+    if (!entry || !entry.text) return null;
+    return encodeConversationText(entry.text, entry.endCode);
+}
+
+/**
+ * Unicode-safe localized conversation parse. English text round-trips through
+ * the byte pipeline, but Russian and Interslavic cannot, so the active locale's
+ * text is laid out directly instead.
+ */
+function getLocalizedConversation(npcId: number) {
+    if (!readMemory) return null;
+    const placeId = (readMemory(ADDR_PLACE_MAP_ID, 1)[0] ?? 0) & 0x7f;
+    const path = TOWN_MDTS[placeId];
+    if (!path) return null;
+    const townId = townIdFromMdtPath(path);
+    if (!townId) return null;
+    const entry = getTownConversation(townId, npcId);
+    if (!entry || !entry.text) return null;
+    return parseLocalizedDialog(entry.text, entry.endCode, dialogEffects);
 }
 
 // Dialog text parsing + geometry live in core/conversation-text.ts (Stage 2).
@@ -1319,6 +1356,7 @@ const conversation = new ConversationManager({
     readMemory: (offset, length) => readMemory?.(offset, length) ?? null,
     writeMemory: (offset, data) => writeMemory?.(offset, data),
     getNpcConversationRaw: getNpcConversationRaw,
+    getLocalizedConversation: getLocalizedConversation,
     townFinishConversation: () => { townConversationFinish(g()); },
     getHeroAlmasValue,
     setHeroAlmasValue,
@@ -1789,6 +1827,37 @@ function mdtBytes(): Uint8Array {
     return mdtData;
 }
 
+/** 'game/0/cmap.mdt' → 'cmap', used as the stable locale name key suffix. */
+function townIdFromMdtPath(path: string): string | null {
+    const file = path.split('/').pop() ?? '';
+    const base = file.replace(/\.mdt$/i, '');
+    return base || null;
+}
+
+/**
+ * Localized town name for the town at `placeId`, or null when the active
+ * locale has no entry (caller then falls back to the MDT bytes). `placeId`
+ * is the town index into TOWN_MDTS, matching the save's place_map_id.
+ */
+function localizedTownName(placeId: number): string | null {
+    const path = TOWN_MDTS[placeId];
+    if (!path) return null;
+    const townId = townIdFromMdtPath(path);
+    if (!townId) return null;
+    return getLocalizedTownName(`town.${townId}`) ?? null;
+}
+
+/**
+ * Localized cavern name for a dungeon MDT path ('game/0/mp10.mdt' → 'mp10'),
+ * or null when the active locale has no entry (caller falls back to MDT bytes).
+ */
+function localizedCavernName(mdtPath: string | null): string | null {
+    if (!mdtPath) return null;
+    const dungeonId = townIdFromMdtPath(mdtPath);
+    if (!dungeonId) return null;
+    return getLocalizedDungeonName(dungeonId) ?? null;
+}
+
 /** Stage 6a: MDT header fields are parsed in TS from raw file bytes. */
 function numOrNull(v: number | ''): number | null {
     return v === '' ? null : v;
@@ -2006,7 +2075,8 @@ function draw() {
             drawTownNpcs();
             drawTownHero();
             drawLifeBar();
-            let placeName = tsGetTownName(mdtBytes());
+            const placeId = gMem(ADDR_PLACE_MAP_ID) & 0x7f;
+            const placeName = localizedTownName(placeId) ?? tsGetTownName(mdtBytes());
             updatePlaceHud(townEntryRan ? placeName : '', false);
             renderGoldHud();
             renderAlmasHud();

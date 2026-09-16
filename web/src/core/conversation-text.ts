@@ -63,6 +63,14 @@ export interface ParsedDialog {
     endCode: number | null;
 }
 
+/** Terminal control-code name stored alongside localized conversation text. */
+export type ConversationEndCode =
+    | 'yesNo'
+    | 'elfCrest'
+    | 'pattern5'
+    | 'purchase'
+    | 'tear';
+
 export function charOrigWidth(ch: string): number {
     const idx = ch.charCodeAt(0) - 0x20;
     if (idx < 0 || idx >= CHAR_WIDTH_TABLE.length) return 6;
@@ -140,6 +148,80 @@ export function parseDialogText(bytes: ArrayLike<number>, effects: DialogEffects
     if (nonEmpty.length > 0) pages.push(nonEmpty);
 
     return { pages, hasYesNo, endCode };
+}
+
+/**
+ * Parse localized conversation text (a Unicode string) into the same
+ * `ParsedDialog` shape `parseDialogText` produces from MDT bytes.
+ *
+ * Needed because the original byte pipeline is ASCII-only: code points above
+ * 0x7F cannot survive it. Wrapping mirrors `parseDialogText` exactly (forced
+ * `/` breaks, break-before-word at spaces, 15 lines per page) so translated
+ * dialog wraps the same way the engine expects.
+ */
+export function parseLocalizedDialog(
+    text: string,
+    endCode: ConversationEndCode | null | undefined,
+    effects: DialogEffects = {},
+): ParsedDialog {
+    const pages: string[][] = [];
+    let lines: string[] = [''];
+    let lineW = 0;
+    const MAX_W = ORIG_MAX_LINE_PX;
+
+    const pushLine = () => {
+        lines.push('');
+        lineW = 0;
+        if (lines.length - 1 === DIALOG_LINES_PER_PAGE) {
+            pages.push(lines.slice(0, DIALOG_LINES_PER_PAGE));
+            lines = [''];
+        }
+    };
+
+    const chars = [...text];
+    for (let i = 0; i < chars.length; i++) {
+        let ch = chars[i]!;
+        if (ch === '/') {
+            pushLine();
+            continue;
+        }
+        // Match parseDialogText's byte quirks: 0x5C renders as apostrophe and
+        // 0x26 as space. Localized text keeps those bytes verbatim.
+        if (ch === '\\') ch = "'";
+        else if (ch === '&') ch = ' ';
+        const cw = charOrigWidth(ch);
+        if (ch === ' ') {
+            let nextW = 0;
+            for (let j = i + 1; j < chars.length; j++) {
+                const nb = chars[j]!;
+                if (nb === ' ' || nb === '/' || nb === '&') break;
+                nextW += charOrigWidth(nb === '\\' ? "'" : nb);
+            }
+            if (lineW + cw + nextW >= MAX_W) {
+                pushLine();
+                continue;
+            }
+        }
+        lines[lines.length - 1] += ch;
+        lineW += cw;
+    }
+
+    const nonEmpty = lines.filter((l) => l.length > 0);
+    if (nonEmpty.length > 0) pages.push(nonEmpty);
+
+    // Mirror parseDialogText's terminal-code handling so gameplay effects fire.
+    let hasYesNo = false;
+    let code: number | null = null;
+    switch (endCode) {
+        case 'yesNo': hasYesNo = true; break;
+        case 'elfCrest': effects.onElfCrest?.(); break;
+        case 'tear': effects.onFinalTearCollected?.(); break;
+        case 'pattern5': code = 0x87; break;
+        case 'purchase': code = 0x89; break;
+        default: break;
+    }
+
+    return { pages, hasYesNo, endCode: code };
 }
 
 // ── Geometry ────────────────────────────────────────────────────────────────

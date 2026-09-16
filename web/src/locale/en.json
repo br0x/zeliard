@@ -40,40 +40,223 @@
     "exp": "EXP",
     "noUse": "NO USE",
     "iHaveUsed": "I have used",
-    "spellNames": ["Espada", "Saeta", "Fuego", "Lanzar", "Rascar", "Agua", "Guerra"],
-    "wearableNames": ["", "Feruza shoes", "Pirika shoes", "Silkarn shoes", "Ruzeria shoes", "Asbestos cape"],
-    "itemNames": ["", "Ken'ko Potion", "Juu-en Fruit", "Elixir of Kashi", "Chikara Powder", "Magia Stone", "Holy Water of Acero", "Sabre Oil", "Kioku feather"],
-    "itemUseText": ["", "a Ken'ko Potion.", "a Juu-en Fruit.", "an Elixir of Kashi.", "some Chikara Powder.", "         a Magia Stone.", "some Holy Water of Acero.", "some Sabre Oil.", "a Kioku feather."],
-    "swordNames": [["Training", "Sword"], ["Wise man's", "Sword"], ["Spirit", "Sword"], ["Knight's", "Sword"], ["Illumination", "Sword"], ["Enchantment", "Sword"]],
-    "shieldNames": [["Clay", "Shield"], ["Wise Man's", "Shield"], ["Stone", "Shield"], ["Honor", "Shield"], ["Light", "Shield"], ["Titanium", "Shield"]]
+    "spellNames": [
+      "Espada",
+      "Saeta",
+      "Fuego",
+      "Lanzar",
+      "Rascar",
+      "Agua",
+      "Guerra"
+    ],
+    "wearableNames": [
+      "",
+      "Feruza shoes",
+      "Pirika shoes",
+      "Silkarn shoes",
+      "Ruzeria shoes",
+      "Asbestos cape"
+    ],
+    "itemNames": [
+      "",
+      "Ken'ko Potion",
+      "Juu-en Fruit",
+      "Elixir of Kashi",
+      "Chikara Powder",
+      "Magia Stone",
+      "Holy Water of Acero",
+      "Sabre Oil",
+      "Kioku feather"
+    ],
+    "itemUseText": [
+      "",
+      "a Ken'ko Potion.",
+      "a Juu-en Fruit.",
+      "an Elixir of Kashi.",
+      "some Chikara Powder.",
+      "         a Magia Stone.",
+      "some Holy Water of Acero.",
+      "some Sabre Oil.",
+      "a Kioku feather."
+    ],
+    "swordNames": [
+      [
+        "Training",
+        "Sword"
+      ],
+      [
+        "Wise man's",
+        "Sword"
+      ],
+      [
+        "Spirit",
+        "Sword"
+      ],
+      [
+        "Knight's",
+        "Sword"
+      ],
+      [
+        "Illumination",
+        "Sword"
+      ],
+      [
+        "Enchantment",
+        "Sword"
+      ]
+    ],
+    "shieldNames": [
+      [
+        "Clay",
+        "Shield"
+      ],
+      [
+        "Wise Man's",
+        "Shield"
+      ],
+      [
+        "Stone",
+        "Shield"
+      ],
+      [
+        "Honor",
+        "Shield"
+      ],
+      [
+        "Light",
+        "Shield"
+      ],
+      [
+        "Titanium",
+        "Shield"
+      ]
+    ]
   },
   "dungeon": {
     "notifications": {
-      "1": { "leftPad": 38, "text": "You get 50 golds." },
-      "2": { "leftPad": 34, "text": "You get 100 golds." },
-      "3": { "leftPad": 34, "text": "You get 500 golds." },
-      "4": { "leftPad": 30, "text": "You get 1000 golds." },
-      "5": { "leftPad": 50, "text": "You get a Key." },
-      "6": { "leftPad": 28, "text": "You have recovered." },
-      "7": { "leftPad": 8, "text": "You have recovered full." },
-      "8": { "leftPad": 60, "text": "Shield broken." },
-      "9": { "leftPad": 20, "text": "Can't open this door." },
-      "10": { "leftPad": 28, "text": "Nothing in the box." },
-      "11": { "leftPad": 6, "text": "You get the Hero's Crest." },
-      "12": { "leftPad": 0, "text": "You get the Ruzeria shoes." },
-      "13": { "leftPad": 8, "text": "You get the Glory Crest." },
-      "14": { "leftPad": 6, "text": "You get the Pirika shoes." },
-      "15": { "leftPad": 6, "text": "You get the Feruza shoes." },
-      "16": { "leftPad": 0, "text": "You get the Silkarn shoes." },
-      "17": { "leftPad": 0, "text": "Get the Enchantment sword." },
-      "18": { "leftPad": 48, "text": "It's too hot !!" },
-      "19": { "leftPad": 8, "text": "Get the lion's head Key." },
-      "20": { "leftPad": 12, "text": "Finally, you reached me." },
-      "21": { "leftPad": 24, "text": "I enjoyed your show." },
-      "22": { "leftPad": 12, "text": "Come on!  I'll kill you." }
+      "1": {
+        "leftPad": 38,
+        "text": "You get 50 golds."
+      },
+      "2": {
+        "leftPad": 34,
+        "text": "You get 100 golds."
+      },
+      "3": {
+        "leftPad": 34,
+        "text": "You get 500 golds."
+      },
+      "4": {
+        "leftPad": 30,
+        "text": "You get 1000 golds."
+      },
+      "5": {
+        "leftPad": 50,
+        "text": "You get a Key."
+      },
+      "6": {
+        "leftPad": 28,
+        "text": "You have recovered."
+      },
+      "7": {
+        "leftPad": 8,
+        "text": "You have recovered full."
+      },
+      "8": {
+        "leftPad": 60,
+        "text": "Shield broken."
+      },
+      "9": {
+        "leftPad": 20,
+        "text": "Can't open this door."
+      },
+      "10": {
+        "leftPad": 28,
+        "text": "Nothing in the box."
+      },
+      "11": {
+        "leftPad": 6,
+        "text": "You get the Hero's Crest."
+      },
+      "12": {
+        "leftPad": 0,
+        "text": "You get the Ruzeria shoes."
+      },
+      "13": {
+        "leftPad": 8,
+        "text": "You get the Glory Crest."
+      },
+      "14": {
+        "leftPad": 6,
+        "text": "You get the Pirika shoes."
+      },
+      "15": {
+        "leftPad": 6,
+        "text": "You get the Feruza shoes."
+      },
+      "16": {
+        "leftPad": 0,
+        "text": "You get the Silkarn shoes."
+      },
+      "17": {
+        "leftPad": 0,
+        "text": "Get the Enchantment sword."
+      },
+      "18": {
+        "leftPad": 48,
+        "text": "It's too hot !!"
+      },
+      "19": {
+        "leftPad": 8,
+        "text": "Get the lion's head Key."
+      },
+      "20": {
+        "leftPad": 12,
+        "text": "Finally, you reached me."
+      },
+      "21": {
+        "leftPad": 24,
+        "text": "I enjoyed your show."
+      },
+      "22": {
+        "leftPad": 12,
+        "text": "Come on!  I'll kill you."
+      }
     },
     "signs": {},
-    "names": {}
+    "names": {
+      "mp10": "Cavern of Malicia",
+      "mp1d": "Cavern of Malicia",
+      "mp20": "Cavern of Peligro",
+      "mp21": "Cavern of Peligro",
+      "mp2d": "Cavern of Peligro",
+      "mp30": "Cavern of Madera",
+      "mp31": "Cavern of Riza",
+      "mp3d": "Cavern of Riza",
+      "mp40": "Cavern of Glacial",
+      "mp41": "Cavern of Escarcha",
+      "mp4d": "Cavern of Glacial",
+      "mp50": "Cavern of Corroer",
+      "mp51": "Cavern of Cementar",
+      "mp5d": "Cavern of Cementar",
+      "mp60": "Cavern of Tesoro",
+      "mp61": "Cavern of Plata",
+      "mp62": "Cavern of Arrugia",
+      "mp6d": "Cavern of Tesoro",
+      "mp70": "Cavern of Caliente",
+      "mp71": "Cavern of Reaccion",
+      "mp72": "Cavern of Correr",
+      "mp73": "In the Hut",
+      "mp7d": "Cavern of Caliente",
+      "mp80": "Cavern of Absor",
+      "mp81": "Cavern of Milagro",
+      "mp82": "Cavern of Desleal",
+      "mp83": "Cavern of Falter",
+      "mp84": "Cavern of Final",
+      "mp8d": "Cavern of Absor",
+      "mp90": "Jashiinʼs room",
+      "mpa0": "Jashiinʼs room"
+    }
   },
   "town": {
     "names": {
@@ -88,12 +271,488 @@
       "town.prmp": "Pureza",
       "town.esmp": "Esco"
     },
-    "conversations": {}
+    "conversations": {
+      "town.bsmp.npc.0": {
+        "text": "Welcome to Bosque Village, brave warrior. This once was a forest surrounding a temple, but the temple was destroyed by Jashiin. Now the village of Bosque is desolate. I hope you are here to help us.",
+        "endCode": null
+      },
+      "town.bsmp.npc.1": {
+        "text": "Listen, stranger, a sentry is posted on the outskirts of the city. I\\m telling you this for your own good; it\\s best to stay away from there.",
+        "endCode": null
+      },
+      "town.bsmp.npc.10": {
+        "text": "That sentry must have sold his soul to Jashiin. Why else would he interfere with brave men such as yourself?",
+        "endCode": null
+      },
+      "town.bsmp.npc.11": {
+        "text": "Hold on there! Do you have the Hero\\s Crest? ",
+        "endCode": "yesNo"
+      },
+      "town.bsmp.npc.12": {
+        "text": "Don\\t lie, it won\\t do any good. Get out of here!",
+        "endCode": null
+      },
+      "town.bsmp.npc.13": {
+        "text": "You cannot pass here without the Hero\\s Crest. My orders are from the Spirits themselves! ",
+        "endCode": null
+      },
+      "town.bsmp.npc.14": {
+        "text": "Hold on there! You have the Hero\\s Crest, I see. You may pass.",
+        "endCode": null
+      },
+      "town.bsmp.npc.2": {
+        "text": "The temple that once stood here had the crest of the Warrior God carved into it. Winners of the martial arts competitions held in front of the temple were awarded with such crests. Thus the crest, the symbol of a true hero, became known as the Hero\\s Crest.",
+        "endCode": null
+      },
+      "town.bsmp.npc.3": {
+        "text": "When he destroyed the temple, Jashiin stole the Hero\\s Crest.  No one has any idea where to find it.",
+        "endCode": null
+      },
+      "town.bsmp.npc.4": {
+        "text": "The crest must be hidden somewhere in the forest, but I couldn\\t say where.",
+        "endCode": null
+      },
+      "town.bsmp.npc.5": {
+        "text": "When the temple was destroyed I heard Jashiin ordering his underlings to hide the crest in the trunk of the biggest tree. That must be where it is hidden. I hope you can find it.",
+        "endCode": null
+      },
+      "town.bsmp.npc.6": {
+        "text": "A spirit appeared and told me to say this if I met a brave man: \"If you go through the door to the right of the tree that forms a cross, you will be able to go up.\"/I&hope it helps you.",
+        "endCode": null
+      },
+      "town.bsmp.npc.7": {
+        "text": "I have some advice for you: Be careful if you come to a place where the leaves of the trees are thin. The ground there is not very strong.",
+        "endCode": null
+      },
+      "town.bsmp.npc.8": {
+        "text": "The sentry at the edge of town says the Spirits came to him in a dream, and told him not to allow anyone to pass unless they bear the Hero\\s Crest. I wonder if the Spirits really ordered such a thing? Perhaps he\\s mad.",
+        "endCode": null
+      },
+      "town.bsmp.npc.9": {
+        "text": "A few have slipped by the sentry undetected, but none have returned. There must be some terrible monster out there.",
+        "endCode": null
+      },
+      "town.cmap.npc.0": {
+        "text": "If you are the brave warrior we have awaited, we have something to tell you: throughout the ages, many young men have entered the caverns, but few have returned.",
+        "endCode": null
+      },
+      "town.cmap.npc.1": {
+        "text": "According to legend, there may still be underground places that have not been destroyed by Jashiin. People may still be living there, and will surely lend you a hand.",
+        "endCode": null
+      },
+      "town.cmap.npc.2": {
+        "text": "I have been in the underground town. After I fled, they put a lock on the door. If the town is still there.... ",
+        "endCode": null
+      },
+      "town.cmap.npc.3": {
+        "text": "This is the chamber of poor Princess Felicia, who has been turned to stone. You may enter, Duke Garland.",
+        "endCode": null
+      },
+      "town.cmap.npc.4": {
+        "text": "Brave knight, you have awakened. When you fell at the hand of Jashiin, the Spirits brought you here. Now make haste to the aid of the Princess Felicia.",
+        "endCode": null
+      },
+      "town.cmap.npc.5": {
+        "text": "Quickly, go to the Princess!",
+        "endCode": null
+      },
+      "town.cmap.npc.6": {
+        "text": "Ah, the Nine Tears of Esmesanti. Jashiin exists no more and the light of peace shines once again on our land... ",
+        "endCode": null
+      },
+      "town.cmap.npc.7": {
+        "text": "This will benefit the people living underground, as well. Hurry to the Princess Felicia.",
+        "endCode": null
+      },
+      "town.cmap.npc.8": {
+        "text": "The peace we dared not hope for has come. I\\ll get my things together and be on my way. I\\ve a family to attend to.",
+        "endCode": null
+      },
+      "town.cmap.npc.9": {
+        "text": "Quickly, enter this chamber. The holy crystals will break the evil spell which has turned Princess Felicia to stone.",
+        "endCode": null
+      },
+      "town.drmp.npc.0": {
+        "text": "Welcome to Dorado./This was once a thriving merchant town where everyone lived a peaceful life. Jashiin has reduced it to a sad, desolate place.",
+        "endCode": null
+      },
+      "town.drmp.npc.1": {
+        "text": "The Spirits say that Jashiin returned because the people, made soft by peace and prosperity, sank into corruption.",
+        "endCode": null
+      },
+      "town.drmp.npc.10": {
+        "text": "When you find green stone slabs that can be moved up and down, arrange them like a staircase so you can go up easily.",
+        "endCode": null
+      },
+      "town.drmp.npc.11": {
+        "text": "The middle of the caverns is made of pure gold! But there is one fake gold wall that can be destroyed.",
+        "endCode": null
+      },
+      "town.drmp.npc.12": {
+        "text": "Ah! You found the Shirukaano shoes! Now you can scale any slope.",
+        "endCode": null
+      },
+      "town.drmp.npc.13": {
+        "text": "Brave lad! A message from the Spirits: Take great care when you enter the next world.",
+        "endCode": null
+      },
+      "town.drmp.npc.2": {
+        "text": "Using the money and treasures of Dorado and other places, Jashiin built a place of his own. The Tesoro and Burata Caverns are his domain.",
+        "endCode": null
+      },
+      "town.drmp.npc.3": {
+        "text": "A word to the wise: The door bearing the green symbol cannot be opened. There\\s no use trying to force it, it absolutely cannot be opened.",
+        "endCode": null
+      },
+      "town.drmp.npc.4": {
+        "text": "Somewhere in the caverns are the Shirukaano shoes made by the shoemaker Percel. Try to find them; when you wear those shoes you can climb any slope.",
+        "endCode": null
+      },
+      "town.drmp.npc.5": {
+        "text": "Someone who went into the caverns told me the Shirukaano shoes are hidden in Tesoro. Of the four rooms in the center, they are in the far right room.",
+        "endCode": null
+      },
+      "town.drmp.npc.6": {
+        "text": "Of the four doors in Tesoro, three bear a blue symbol. What was the other one? For the life of me I can\\t remember.",
+        "endCode": null
+      },
+      "town.drmp.npc.7": {
+        "text": "This building wasn\\t here before, was it? You can\\t put up a building like this overnight -- how did it get here?",
+        "endCode": null
+      },
+      "town.drmp.npc.8": {
+        "text": "A peace statue called \\Taruso\\ stood here, but one night it disappeared. Where in the world can it have gone? The evil Jashiin must have taken a liking to it.",
+        "endCode": null
+      },
+      "town.drmp.npc.9": {
+        "text": "I have a message from the Spirits: wait for the moving edge of the platform made of shining blocks.",
+        "endCode": null
+      },
+      "town.esmp.npc.0": {
+        "text": "Pay attention to the door with the blue symbol. It has turned three colors.",
+        "endCode": null
+      },
+      "town.esmp.npc.1": {
+        "text": "If you fall from a stone and are blocked by a wall, thrust through it with your sword. If the wall crumbles away you\\ll be on the road leading to the abode of Jashiin.",
+        "endCode": null
+      },
+      "town.esmp.npc.2": {
+        "text": "By jumping in front of the ivy rather than going down it, you can open a new road.",
+        "endCode": null
+      },
+      "town.esmp.npc.3": {
+        "text": "Look for another door with a blue symbol. If you see it, turn to the right.",
+        "endCode": null
+      },
+      "town.esmp.npc.4": {
+        "text": "Do you have doubts? Here there is only slaughter and destruction. What do you expect to accomplish?",
+        "endCode": null
+      },
+      "town.esmp.npc.5": {
+        "text": "Why have the Spirits sent you on this journey of slaughter? Why does Jashiin await you in silence?",
+        "endCode": null
+      },
+      "town.esmp.npc.6": {
+        "text": "Pay no heed to those two, they are in league with Jashiin. They are trying to weaken your will.",
+        "endCode": null
+      },
+      "town.hlmp.npc.0": {
+        "text": "Welcome. You must be cold. Helada used to be a warm, prosperous place, but Jashiin has turned it into a cold ruin.",
+        "endCode": null
+      },
+      "town.hlmp.npc.1": {
+        "text": "You may have noticed that there are two roads leading here. There is also a shortcut.",
+        "endCode": null
+      },
+      "town.hlmp.npc.10": {
+        "text": "I\\ll bet the green slime creatures have caused you a lot of trouble. Let me tell you a secret: they can\\t withstand heat. Burn them and they will vanish in a single burst of steam.",
+        "endCode": null
+      },
+      "town.hlmp.npc.2": {
+        "text": "Have you been in the ice caverns? The shoemaker in this town was trying to make special shoes out of Ruzeria bark, to help a hero walk on the ice. Just as he managed to do so, Jashiin\\s minions murdered him. I wonder what happened to those shoes.",
+        "endCode": null
+      },
+      "town.hlmp.npc.3": {
+        "text": "Are you the brave one? My lover, Percel, was killed by Jashiin\\s underlings just after the Spirits asked him to make the Ruzeria shoes for a brave man. Return my Percel to me! Oh, if only you had not come!",
+        "endCode": null
+      },
+      "town.hlmp.npc.4": {
+        "text": "I think you should know something: Percel the shoemaker said that without the Ruzeria shoes you could not go beyond the green door.",
+        "endCode": null
+      },
+      "town.hlmp.npc.5": {
+        "text": "Ruzeria is the name of a tree that grows in the underground forest. The bark is very hard and is not slippery. Percel had good reason for choosing it.",
+        "endCode": null
+      },
+      "town.hlmp.npc.6": {
+        "text": "Someone I know said he had seen a pair of unusual shoes in the caverns. I\\m not sure whether those are the shoes that Percel made.",
+        "endCode": null
+      },
+      "town.hlmp.npc.7": {
+        "text": "I\\m sorry for what I said a short while ago. I don\\t know what came over me. Please defeat Jashiin and avenge the death of Percel.",
+        "endCode": null
+      },
+      "town.hlmp.npc.8": {
+        "text": "Ah, the shoes of Percel.... I see you are a brave man. I hope you will find Jashiin and defeat him quickly.",
+        "endCode": null
+      },
+      "town.hlmp.npc.9": {
+        "text": "This brave man with the Ruzeria shoes... With this the shoemaker\\s shop also floats up... ",
+        "endCode": null
+      },
+      "town.llmp.npc.0": {
+        "text": "Help! A terrible creature is in our hut! Please get rid of it for us.",
+        "endCode": null
+      },
+      "town.llmp.npc.1": {
+        "text": "Oh, thank you, sir. As a token of my gratitude I will give you the Elf Crest. I think you\\ll find it useful; without it, no one in town will help you.",
+        "endCode": "elfCrest"
+      },
+      "town.llmp.npc.10": {
+        "text": "My name is Michael. No one here listens to a word I say. I wonder why that is?",
+        "endCode": null
+      },
+      "town.llmp.npc.11": {
+        "text": "Oh! You\\ve got the Elf Crest. Great! ",
+        "endCode": null
+      },
+      "town.llmp.npc.12": {
+        "text": "Jashiin filled the caverns with a flaming inferno. Please help us, brave lad!",
+        "endCode": null
+      },
+      "town.llmp.npc.13": {
+        "text": "Beware of the great heat currents. There are many whirlpools in the caverns, and once you get caught in one you\\ll never get out.",
+        "endCode": null
+      },
+      "town.llmp.npc.14": {
+        "text": "There are countless one-way, invisible walls in Correr Cave. To find out more about them, ask Yozeras or Myuuza the elder.",
+        "endCode": null
+      },
+      "town.llmp.npc.15": {
+        "text": "I am Yozeras. When you go into Correr Cave, watch out for an opening with no ivy. You\\ll fall if you go through there.",
+        "endCode": null
+      },
+      "town.llmp.npc.16": {
+        "text": "I\\m  Myuuza, the town elder. If you go into the Correr Cave be sure to remember the color of the entrance door. The exit door is the same color.",
+        "endCode": null
+      },
+      "town.llmp.npc.17": {
+        "text": "If you can\\t find your way, find an air current near the ceiling of the cave. You can transport yourself on those currents.",
+        "endCode": null
+      },
+      "town.llmp.npc.18": {
+        "text": "Sir, I can see that you don\\t have the Elf Crest. Recently some henchmen of Jashiin have been posing as heroes and wreaking havoc on this town. You\\re not one of them by any chance, are you? Without the Elf Crest, no one here will speak to you.",
+        "endCode": null
+      },
+      "town.llmp.npc.19": {
+        "text": ". . . . . . . . . . . . ",
+        "endCode": null
+      },
+      "town.llmp.npc.2": {
+        "text": "Thanks again. Really. ",
+        "endCode": null
+      },
+      "town.llmp.npc.3": {
+        "text": "/The caverns in this region are burning hot; you won\\t be able to stand it long. I\\ve got something that will help you. It\\s an Asbestos cape that will protect you from the heat.",
+        "endCode": "pattern5"
+      },
+      "town.llmp.npc.4": {
+        "text": "The caverns in this region are burning hot; you won\\t be able to stand it long. I\\ve got something that will help you. It\\s an Asbestos cape that will protect you from the heat.",
+        "endCode": "pattern5"
+      },
+      "town.llmp.npc.5": {
+        "text": "It\\s not free though. It will cost you 2500&almas.///",
+        "endCode": "purchase"
+      },
+      "town.llmp.npc.6": {
+        "text": "Oh, I&see... well, maybe next time. ",
+        "endCode": null
+      },
+      "town.llmp.npc.7": {
+        "text": "You say you don\\t have 2500&almas to give? Don\\t try to fool me. ",
+        "endCode": null
+      },
+      "town.llmp.npc.8": {
+        "text": "Here you are. That will be 2500&almas. Take good care of it. ",
+        "endCode": null
+      },
+      "town.llmp.npc.9": {
+        "text": "Are you taking good care of the Asbestos cape? It was my prized possession so I hope you\\ll treat it well.",
+        "endCode": null
+      },
+      "town.mrmp.npc.0": {
+        "text": "Ah, you are the warrior I\\ve heard about. My son Michael was a courageous warrior. He went into the caverns and was never seen again. Please be careful.",
+        "endCode": null
+      },
+      "town.mrmp.npc.1": {
+        "text": "Sir, I dreamed that a demon created the underground caverns and filled them with monsters. Then the Spirits brought you to here to make things right again. Before you go, visit the magic shop -- you\\ll find many useful things there. Good luck on your quest.",
+        "endCode": null
+      },
+      "town.mrmp.npc.2": {
+        "text": "You\\re on your way to the caverns, aren\\t you? I recently went in search of a powerful potion said to be hidden there. I didn\\t stay long enough to find it, but perhaps you will. Be sure to stop at the weapons shop -- you\\ll need some strong armor.Duke Garland, they say that a potion is hidden in a wall near a platform that raises and lowers. I&wish you luck.",
+        "endCode": null
+      },
+      "town.mrmp.npc.3": {
+        "text": "You\\re going into the caverns? You are a brave man. They say there are many doors underground, but many are locked and the keys are scattered throughout the labyrinths. I hope you can find them.",
+        "endCode": null
+      },
+      "town.mrmp.npc.4": {
+        "text": "Duke Garland, someone I know survived a journey to the underground town, Satono. According to him, the road back is short but the road out is long. It will be very dangerous.",
+        "endCode": null
+      },
+      "town.mrmp.npc.5": {
+        "text": "According to the legends, the name of the underground town is Satono. ",
+        "endCode": null
+      },
+      "town.mrmp.npc.6": {
+        "text": "A moment, Duke Garland. If you listen closely in front of the underground door, you will hear a terrifying sound. That\\s the entrance to the inferno that is home to the demons. Beware that place, young man.",
+        "endCode": null
+      },
+      "town.mrmp.npc.7": {
+        "text": "Alas, I fear there is no hope. You and I and all who inhabit this town will surely perish. Don\\t run off to some terrible place, stay and have a drink with me. Ah, I know you must go, and I salute you -- you\\re a braver man than I. God be with you.",
+        "endCode": null
+      },
+      "town.mrmp.npc.8": {
+        "text": "When you kill a&monster you get a&thing called \\almas\\. It\\s worth a&lot of money. I\\d like to get some myself but I don\\t want to go down there. ",
+        "endCode": null
+      },
+      "town.prmp.npc.0": {
+        "text": "Fooled again! Meddlesome fool! Taste the past and never return here again. /HA, HA, HA, HA... ",
+        "endCode": null
+      },
+      "town.prmp.npc.1": {
+        "text": "Are you from the outside world? Welcome. You are certainly a courageous man guided by the Spirits. ",
+        "endCode": null
+      },
+      "town.prmp.npc.10": {
+        "text": "I\\ve heard that the lion\\s head key fell between two towers under a stone slab. It is supposedly near this town.",
+        "endCode": null
+      },
+      "town.prmp.npc.11": {
+        "text": "Help!&.&.&.&.",
+        "endCode": null
+      },
+      "town.prmp.npc.12": {
+        "text": "Beware of Jashiin\\s last henchman, Algaien. It is said that Jashiin used his power to give him eternal life.",
+        "endCode": null
+      },
+      "town.prmp.npc.2": {
+        "text": "A moment, sir. I have seen the fortress of Jashiin. It is at the edge of this world. The Spirits guided me back from there alive so I could tell you about it.",
+        "endCode": null
+      },
+      "town.prmp.npc.3": {
+        "text": "I think you should know that this town is very close to the fortress of Jashiin, and his henchmen are sure to be around. Be careful.",
+        "endCode": null
+      },
+      "town.prmp.npc.4": {
+        "text": "YOU! The princess you struggle to rescue will lead you to your doom! The Spirits are just demons in disguise. What does this mean? You do the devil\\s work, you must be the devil!  WA, HA, HA, HA, HA... ",
+        "endCode": null
+      },
+      "town.prmp.npc.5": {
+        "text": "The Spirits gave me a lion\\s head key but it was stolen by one of Jashiin\\s underlings. I hope you will find it on your travels.",
+        "endCode": null
+      },
+      "town.prmp.npc.6": {
+        "text": "Ah, yes -- that\\s the key that was entrusted to me by the Spirits. Make good use of it. ",
+        "endCode": null
+      },
+      "town.prmp.npc.7": {
+        "text": "I pray for your safe return. ",
+        "endCode": null
+      },
+      "town.prmp.npc.8": {
+        "text": "The one weapon you\\ll need to defeat Jashiin is the Fairy Flame Sword. According to legend it gives off a peculiar light and can vanquish any foe with only one blow. However, where it is to be found is another matter... ",
+        "endCode": null
+      },
+      "town.prmp.npc.9": {
+        "text": "Nearby is a village called Esko, but I don\\t know what has happened to it recently. I once knew many people there.",
+        "endCode": null
+      },
+      "town.stmp.npc.0": {
+        "text": "Welcome, stranger. You must have come through the labyrinths from the outside world. We have not encountered such a brave person in a very long time. You should visit the great sage Yasmin -- she will be anxious to meet you.",
+        "endCode": null
+      },
+      "town.stmp.npc.1": {
+        "text": "So you\\re the brave one I\\ve heard about. Well, if you\\re going to go on from here, I\\ll give you a tip.  When you come to a stopping place, dig a hole. The demons have hidden jewels in many places.",
+        "endCode": null
+      },
+      "town.stmp.npc.2": {
+        "text": "Are you Duke Garland? Thank the Spirits you\\ve come. We escaped from Jashiin through the power of the Spirits. However, if his power should become so strong that the Spirits\\ can\\t protect us, this town is doomed.",
+        "endCode": null
+      },
+      "town.stmp.npc.3": {
+        "text": "Let me give you some advice, stranger. If you fall down the stone slab in front of the blue door, you will see a green door nearby. Don\\t go through that door under any circumstances -- it is a doorway to the past.",
+        "endCode": null
+      },
+      "town.stmp.npc.4": {
+        "text": "Beware! I went into the caverns and saw an awful creature -- a giant demon octopus. It was terrifying, but I escaped. I hope you will be as lucky.",
+        "endCode": null
+      },
+      "town.stmp.npc.5": {
+        "text": "Are you the brave one? I&hope you have brought almas for us. The almas are part of Jashiin\\s power. We use them to make medicine, and other useful things.",
+        "endCode": null
+      },
+      "town.stmp.npc.6": {
+        "text": "Duke Garland, when you go into the caverns again, please try to bring back more almas. To supplement the protective power of the Spirits we must build a wall of almas. Unless we get more, Satono Town is in peril.",
+        "endCode": null
+      },
+      "town.tmmp.npc.0": {
+        "text": "Brave sir, I hope you\\ve come to help this pitiful town. It was the site of a quiet graveyard before it was decimated by Jashiin.",
+        "endCode": null
+      },
+      "town.tmmp.npc.1": {
+        "text": "If you\\re going back into the caverns, beware the Gelroid. It\\s a blue gelatinous substance which will suck the life out of you.",
+        "endCode": null
+      },
+      "town.tmmp.npc.10": {
+        "text": "Isn\\t that the Crest of Glory? Please take it quickly to the owner of the weapons store.",
+        "endCode": null
+      },
+      "town.tmmp.npc.11": {
+        "text": ". . . . . .",
+        "endCode": null
+      },
+      "town.tmmp.npc.2": {
+        "text": "Have you heard of Percel the shoemaker from Herada Town? He made Ruzeria shoes for walking on ice and Pirika shoes for getting by Gelroid, thorns and fire. Those are the only two I know of, but there may have been more.",
+        "endCode": null
+      },
+      "town.tmmp.npc.3": {
+        "text": "May I confide in you? I was once a spy for Jashiin. I can tell you that the Pirika shoes were put into a box and thrown away somewhere in the Rotten land. You may never find them.",
+        "endCode": null
+      },
+      "town.tmmp.npc.4": {
+        "text": "One third of this region is covered with deadly Gelroid. If you\\re going to continue through the labyrinths, ordinary shoes will not protect you.",
+        "endCode": null
+      },
+      "town.tmmp.npc.5": {
+        "text": "There is a certain place in the caverns where you can pass through a wall, but only in one direction. My grandfather told me the place is near a green stone slab. There may be other places, but I couldn\\t say where.",
+        "endCode": null
+      },
+      "town.tmmp.npc.6": {
+        "text": "Have you seen the strange, bluish-white people in the caverns? They were infected by the Gelroid and now they wander the land like the living dead. To kill them, aim for the head.",
+        "endCode": null
+      },
+      "town.tmmp.npc.7": {
+        "text": "It seems that Jashiin has stolen many things. The weapon maker is searching for his family crest, the Crest of Glory. If you find it in the caverns, he\\ll be most happy to have it back.",
+        "endCode": null
+      },
+      "town.tmmp.npc.8": {
+        "text": "Those are the Pirika shoes. Go quickly to the abode of Jashiin and finish him off. We will pray for your success and swift return.",
+        "endCode": null
+      },
+      "town.tmmp.npc.9": {
+        "text": "Ah, the Pirika shoes! Forgive me, brave sir. I had no choice. I won\\t do that kind of thing again.",
+        "endCode": null
+      }
+    }
   },
   "indoor": {
     "inn": {
       "name": "The Inn",
-      "menu": ["Stay the night", "Leave"],
+      "menu": [
+        "Stay the night",
+        "Leave"
+      ],
       "welcomeP1": "Welcome, sir!\nYou look like you've come a long way.\nOne night of rest in my inn is all you need to recover your strength. You can have the best room in the house for only ",
       "welcomeP2": "golds. Will you stay?",
       "leave": "Oh, I'm sorry to hear that.\nWell, if you should ever need a place to rest, do come back.",
@@ -103,9 +762,21 @@
     },
     "bank": {
       "name": "The Bank",
-      "menu": ["Go outside", "Exchange almas", "Deposit money", "Withdraw money", "Check balance"],
-      "depositLabels": ["GOLD CARRIED", "DEPOSIT AMT"],
-      "withdrawLabels": ["GOLD IN BANK", "WITHDRAW AMT"],
+      "menu": [
+        "Go outside",
+        "Exchange almas",
+        "Deposit money",
+        "Withdraw money",
+        "Check balance"
+      ],
+      "depositLabels": [
+        "GOLD CARRIED",
+        "DEPOSIT AMT"
+      ],
+      "withdrawLabels": [
+        "GOLD IN BANK",
+        "WITHDRAW AMT"
+      ],
       "dots": ".....",
       "excuseMe": "Oh, excuse me. ",
       "canIHelp": "Can I help you?",
@@ -174,9 +845,29 @@
     },
     "weaponShop": {
       "name": "Weapon and Armour Shop",
-      "menu": ["Go outside", "Repair shield", "Buy weapon", "Buy shield", "Explain goods"],
-      "swordNames": ["Training sword", "Wise man's sword", "Spirit sword", "Knight's sword", "Illumination sword", "Enchantment sword"],
-      "shieldNames": ["Clay shield", "Wise man's shield", "Stone shield", "Honor shield", "Light shield", "Titanium shield"],
+      "menu": [
+        "Go outside",
+        "Repair shield",
+        "Buy weapon",
+        "Buy shield",
+        "Explain goods"
+      ],
+      "swordNames": [
+        "Training sword",
+        "Wise man's sword",
+        "Spirit sword",
+        "Knight's sword",
+        "Illumination sword",
+        "Enchantment sword"
+      ],
+      "shieldNames": [
+        "Clay shield",
+        "Wise man's shield",
+        "Stone shield",
+        "Honor shield",
+        "Light shield",
+        "Titanium shield"
+      ],
       "itemDescriptions": [
         "Well, I'd say this sword is all right for a beginner. You get what you pay for. It's your standard, maintenance-free sword. If money's a problem, this one's for you.",
         "This one is just a bit better than the Training Sword. Once you get the hang of it, it's an easy one to wield. The price is a bit higher, but you can't lose on this one. Why not take it with you?",
@@ -219,8 +910,22 @@
     },
     "magicShop": {
       "name": "Witchcraft Implement Shop",
-      "menu": ["Go outside", "Buy item", "Sell item", "Description of item"],
-      "itemNames": ["Ken'ko Potion", "Juu-en Fruit", "Elixir of Kashi", "Chikara Powder", "Magia Stone", "Holy Water of Acero", "Sabre Oil", "Kioku Feather"],
+      "menu": [
+        "Go outside",
+        "Buy item",
+        "Sell item",
+        "Description of item"
+      ],
+      "itemNames": [
+        "Ken'ko Potion",
+        "Juu-en Fruit",
+        "Elixir of Kashi",
+        "Chikara Powder",
+        "Magia Stone",
+        "Holy Water of Acero",
+        "Sabre Oil",
+        "Kioku Feather"
+      ],
       "itemDescriptions": [
         "Well, it's a special blend of yunkel fruit and ripodi leaf. It's low in price and as a mild health tonic, it's perfect.",
         "This is the fruit of the Juu-en tree which bears only once every ten years. The price is a bit high, but it provides excellent relief from wounds and exhaustion -- it's quite a bit better than the Ken'ko potion.",
@@ -248,7 +953,16 @@
     },
     "sage": {
       "name": "The Sage",
-      "names": ["The Sage Marid", "The Sage Yasmin", "The Sage Hajjar", "The Sage Chiriga", "The Sage Hisham", "The Sage Maryam", "The Sage Saied", "The Sage Indihar"],
+      "names": [
+        "The Sage Marid",
+        "The Sage Yasmin",
+        "The Sage Hajjar",
+        "The Sage Chiriga",
+        "The Sage Hisham",
+        "The Sage Maryam",
+        "The Sage Saied",
+        "The Sage Indihar"
+      ],
       "intros": [
         "I am the Sage Marid.\nYou are very brave to embark on such a dangerous journey. I shall assist you in your travels.",
         "I am the Sage Yasmin.\nI have been expecting you. I shall teach you the Magic Spell of Throwing Swords: Espada.",
@@ -269,7 +983,12 @@
         "That world is controlled by dragons. To get there, you have to open three closed doors.",
         "At the edge of this world is the final foe, Jashiin.\nTo fight Jashiin, you must have the Sword of the Fairy Flame. And to get there, you must topple the invincible monster Alguien."
       ],
-      "menu": ["Go outside", "See Power", "Listen Knowledge", "Record Experience"],
+      "menu": [
+        "Go outside",
+        "See Power",
+        "Listen Knowledge",
+        "Record Experience"
+      ],
       "deathEntry": "While you were unconscious, the spirits brought you here.\nBe careful not to exhaust yourself in battle.\nNow be on your way. The spirits are looking after you.",
       "howCanIHelp": "How can I help you, Brave One?",
       "anythingElse": "Is there anything else I can do for you?",
@@ -463,5 +1182,232 @@
       "\"Are you the fool who dares to challenge me?  Don't be absurd!\""
     ]
   },
-  "endingDemo": {}
+  "endingDemo": {
+    "dialogue": {
+      "dukePrincess": [
+        "At long last, Jashiin was destroyed and the nine Tears of Esmesanti were returned to their rightful place.",
+        "Princess Felicia was restored to her true form.",
+        "\"You are as beautiful as a rose in bloom!\"",
+        "\"Thank you, Duke Garland.\"",
+        "\"You have done a great deed in defeating Jashiin.  Although my body was here, my soul was with the Holy Spirit, watching you.\"",
+        "\"I don't know how to thank you for rescuing me and saving my country.\""
+      ],
+      "kingPrincess": [
+        "\"Father!\"",
+        "\"My darling Felicia!  How I've longed to hold you in my arms and hear your sweet voice!\"",
+        "Outside, the land cursed by the evil magic of Jashiin began to resume its original lushness.",
+        "The dreadful power of Jashiin was washed from the earth, and the land of Zeliard was peaceful once more."
+      ],
+      "spirit": [
+        "The Guardian Spirit of the Holy Land of Zeliard appeared before Duke Garland once again.",
+        "\"You have suffered many hardships to defeat Jashiin, Duke Garland.\""
+      ],
+      "dukeSpirit": [
+        "\"You fought bravely to accomplish this quest.  But this was only the beginning.  Your next mission awaits you in a new land.\"",
+        "\"My next mission?\"",
+        "\"There are many who have need of your special talents.  Follow me and I will show you the way.  We must depart quickly.\"",
+        "There was no time to rest, and no time to stay in this peaceful land."
+      ],
+      "princess1": [
+        "\"Must you leave so soon, Duke Garland?  ",
+        "I was hoping...\"",
+        "\"Princess Felicia, I must bid you farewell.  Morning is coming soon, and I will miss the light of Spirit unless I start before the dawn.\"",
+        "The Duke answered quickly, as if to head off the next words of Princess Felicia."
+      ],
+      "farewellPart1": [
+        "For if he heard those words, he might not be able to leave, as he knew he must.  He turned and walked away...",
+        "\"Don't go, Duke Garland!\"",
+        "... and did not look back."
+      ],
+      "farewellPart2": [
+        "Duke Garland left the castle, and he felt as if his heart might break.",
+        "As she watched him go, Princess Felicia said to herself, ",
+        "\"He will return.  The road to his destiny, began here, and it shall end here.\"",
+        "\"When his work in the world is done, he'll come back to me.  Until then, I can only believe it, and wait for him.\""
+      ]
+    },
+    "staffCredits": [
+      {
+        "rows": [
+          "STAFF"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "PRODUCER - JAPANESE VERSION",
+          "Mitsuhiro Mazda"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "PRODUCER - ENGLISH VERSION",
+          "Josh Mandel"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "LEAD PROGRAMMER",
+          "Tomoyuki Shimada"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "GRAPHIC DESIGNERS",
+          "Akihiko Yoshida",
+          "Masatoshi Azumi"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "ENGLISH TEXT TRANSLATION",
+          "Marti McKenna"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "MUSIC COMPOSERS",
+          "-- MECANO ASSOCIATES --",
+          "Fumihito Kasatani",
+          "Nobuyuki Aoshima"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "STORY MAKER",
+          "Masaru Takeuchi"
+        ],
+        "hold": 4800
+      },
+      {
+        "rows": [
+          "SOUND EFFECTS",
+          "Tomoyuki Shimada"
+        ],
+        "hold": 0
+      }
+    ],
+    "thanksCredits": [
+      {
+        "rows": [
+          "SPECIAL THANKS"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          [
+            "Toshiyuki Uchida",
+            "Yuzo Sunaga"
+          ],
+          [
+            "Takeshi Miyaji",
+            "Naozumi Honma"
+          ],
+          [
+            "Ray E. Nakazato",
+            "Toshi Masubuchi"
+          ]
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          [
+            "Hiroyuki Koyama",
+            "Satoshi Uesaka"
+          ],
+          "-- Sierra On-Line Japan, Inc. --",
+          "Eiji (Ed) Nagano"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "ADVISERS",
+          "Osamu Harada",
+          "Hiromi Ohba",
+          "Greg Miyaji"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "SYSTEM DESIGNER",
+          "Rocky Cave Maker"
+        ],
+        "hold": 6500
+      },
+      {
+        "rows": [
+          "SERVING MONSTERS"
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Cavern of Malicia",
+            "CANGREJO"
+          ],
+          [
+            "Peligro",
+            "PULPO"
+          ],
+          [
+            "Riza",
+            "POLLO"
+          ]
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Cavern of Glacial",
+            "AGAR"
+          ],
+          [
+            "Cementar",
+            "VISTA"
+          ],
+          [
+            "Tesoro",
+            "TARSO"
+          ]
+        ],
+        "hold": 1500
+      },
+      {
+        "rows": [
+          [
+            "Llama Town",
+            "PAGURO"
+          ],
+          [
+            "Cavern of Caliente",
+            "DRAGON"
+          ],
+          [
+            "Absor",
+            "ALGUIEN"
+          ]
+        ],
+        "hold": 0
+      }
+    ],
+    "copyrightCredits": [
+      "Copyright (C)1987,1990 GAME ARTS",
+      "Copyright (C)1990 Sierra On-Line",
+      "First published 1987 by",
+      "GAME ARTS Co.,Ltd./ Tomoyuki Shimada"
+    ],
+    "portCredits": "Web port ©2026 {brox//THIRTEEN} •••••••••••••••• Reverse engineering: {brox} •••••••••••••••• Graphics: {brox} •••••••••••••••• Code: {brox + free LLMs (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} •••••••••••••••• QA: {Gene} •••••••••••••••• Non-free LLM provided by: {Gene} •••••••••••••••• End Credits music: 'Guinever' ©1981 {Aquarium}"
+  }
 }

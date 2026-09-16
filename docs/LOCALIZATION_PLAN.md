@@ -433,67 +433,74 @@ Verification:
 - Screenshot checks for `/`, `/ru`, and `/isv`.
 - Canvas inspection for missing glyph boxes.
 
-### Phase 5: Ending demo
+### Phase 5: Ending demo — ✅ DONE
 
-Extract ending data into `endingDemo`:
+Status: complete. All visible ending text now comes from `endingDemo.*` locale
+keys, with the byte scripts and credits tables kept as the English source of
+truth.
 
-- dialogue rows and speaker/timing metadata
-- ending credits screens
-- copyright screens
-- port credits
-- serving-monsters labels.
+Implemented data:
 
-Keep non-text animation data in code unless it becomes coupled to translated
-line counts.
+- dialogue rows and speaker/timing metadata — `endingDemo.dialogue.*`
+- ending credits screens — `endingDemo.staffCredits`
+- special-thanks and serving-monsters screens — `endingDemo.thanksCredits`
+- copyright screens — `endingDemo.copyrightCredits`
+- port credits — `endingDemo.portCredits`
+- serving-monsters labels — localized `right` column; gif mapping stays in code.
+
+How it works:
+
+- `parseDialogueScript(bytes, localizedLines?)` builds the command list exactly as
+  before, then `applyDialogueOverrides()` replaces each `text` command with the
+  localized string. Pauses (`holds`) and face animation (`faceChanges`) stay in
+  place but their character offsets are rescaled to the translated length, so
+  holds still land near the end of a sentence and lip/eye cues remain spread
+  across the line. Command structure, colors, speaker rows, and page breaks are
+  untouched.
+- `applyEndingLocaleOverrides()` overlays `staffCredits`, `thanksCredits`, and
+  `copyrightCredits` onto the source tables at `buildTimeline()` time. Only the
+  visible labels/rows are replaced; `hold`, `monsters`, `group`, `textY`, and
+  `lineHeight` animation metadata come from the source tables.
+- `getPortCredits()` reads `endingDemo.portCredits`, falling back to the built-in
+  `PORT_CREDITS` constant when a locale omits it.
+
+Keys added to `en.json`, `ru.json`, `isv.json` (gated by
+`tests/locale-completeness.test.ts`):
+
+- `dialogue.dukePrincess`, `dialogue.kingPrincess`, `dialogue.spirit`,
+  `dialogue.dukeSpirit`, `dialogue.princess1`, `dialogue.farewellPart1`,
+  `dialogue.farewellPart2`
+- `staffCredits`, `thanksCredits`, `copyrightCredits`, `portCredits`
+
+Direct-speech `"` markers are preserved so the Jashiin/blue-shadow styling still
+triggers. Non-text animation data (image keys, timing constants, monster gif
+mappings) stays in code.
 
 Important:
 
-- Some ending timing assumes specific text page lengths. Review any translated
-  page that wraps into more rows than English.
-- Keep face/lip animation triggers independent of the translated text length
-  where possible.
+- Some ending timing assumes specific text page lengths. Holds are rescaled to
+  the translated length, but any translated page that wraps into more rows than
+  English still needs a visual review.
+- Face/lip animation triggers are kept independent of the translated text
+  length via the proportional offset remap.
 
 Verification:
 
-- Existing `ending-demo` tests.
-- Long playback smoke test through the final credits in each locale.
-- Screenshot samples from the King/Princess, Spirit, farewell, and credits
-  sections.
+- `web/tests/ending-demo.test.ts` covers the localized overlay: command
+  structure is preserved, hold offsets stay within the translated length, and
+  `_initDialogueState` uses the supplied localized lines.
+- `web/tests/locale-completeness.test.ts` requires every ending key in every
+  locale.
+- `pnpm typecheck` and `pnpm test` (494 tests) pass.
+- Remaining manual check: full playback smoke test through the final credits in
+  each locale, plus screenshot samples from the King/Princess, Spirit, farewell,
+  and credits sections.
 
 ### Phase 6: Town MDT names and NPC conversations
 
-Do not mutate gameplay-critical MDT bytes at runtime unless necessary. Instead,
-overlay localized text at the point where visible strings are decoded.
-
-Recommended approach:
-
-1. Give every town a stable id based on its MDT path or town index:
-   - `town.cmap`
-   - `town.mrmp`
-   - `town.stmp`
-   - `town.bsmp`
-   - `town.hlmp`
-   - `town.tmmp`
-   - `town.drmp`
-   - `town.llmp`
-   - `town.prmp`
-   - `town.esmp`
-2. Add localized town names under `town.names`.
-3. Add localized NPC conversations under stable keys:
-   - `town.cmap.npc.0`
-   - `town.cmap.npc.1`
-   - etc.
-4. Add a converter that turns localized plain text into the existing dialog byte
-   stream format used by `parseDialogText`:
-   - `/` means forced line break.
-   - `\` in original data maps to apostrophe; localized text can use a normal
-     apostrophe.
-   - retain control-code effects separately.
-5. Split visible text from control codes. For example, a conversation that ends
-   with `0x81` should have text in locale data and `endCode: "yesNo"` metadata,
-   not a literal byte embedded in translated strings.
-6. Modify `ConversationManager` dependencies so `getNpcConversationRaw(npcId)`
-   can return localized bytes when available, falling back to original MDT bytes.
+This phase is large, so it is split into five sub-stages. Do not mutate
+gameplay-critical MDT bytes at runtime unless necessary; overlay localized text
+at the point where visible strings are decoded.
 
 Why overlay instead of rewriting MDT files:
 
@@ -503,27 +510,125 @@ Why overlay instead of rewriting MDT files:
   patching error-prone.
 - Overlaying visible text keeps original map, NPC, and event data untouched.
 
-Extraction tooling:
+#### Phase 6.1: Town names — ✅ DONE
 
-- Add a script such as `tools/extract_mdt_text.py` or a TypeScript test helper
-  that reads each MDT, walks the NPC conversation pointer table, and emits
-  English source keys.
-- Preserve original control codes as metadata in the emitted output.
-- Include source comments with MDT file name, town id, NPC id, and original byte
-  address to simplify translation review.
+Status: complete. Town names in the HUD now come from `town.names`, keyed by the
+stable town id derived from the town's MDT path (`town.cmap`, `town.mrmp`, …).
+
+- `main.ts` gained `townIdFromMdtPath()` and `localizedTownName(placeId)`, which
+  reads `TOWN_MDTS[placeId]` and looks up `town.<id>` in the active locale.
+- The town draw path uses `localizedTownName(placeId) ?? tsGetTownName(mdtBytes())`,
+  so English MDT bytes remain the fallback for any locale that omits a name.
+- `town.names` already existed in all three locales from Phase 2, so no new keys
+  were needed; `tests/locale-completeness.test.ts` already gates them.
+
+#### Phase 6.2: Dungeon/cavern names — ✅ DONE
+
+Status: complete. Cavern names in the HUD now come from `dungeon.names`, keyed by
+the stable dungeon id derived from the dungeon's MDT path (`mp10`, `mp1d`, …).
+
+- Added `getDungeonName(dungeonId)` to `src/locale/index.ts` (active-locale
+  lookup with English fallback).
+- `main.ts` gained `localizedCavernName(mdtPath)`; the dungeon transition uses
+  `localizedCavernName(dungeon.mdtPath) ?? tsGetCavernName(mdtBytes())`.
+- `dungeon.names` was populated with all 31 dungeon MDTs in `en.json`, `ru.json`,
+  and `isv.json`. English names were extracted directly from each MDT's cavern
+  name field to guarantee they match the originals.
+- Tests: `tests/locale-index.test.ts` covers localized lookup + fallback;
+  `tests/locale-completeness.test.ts` requires `dungeon.names.mp10` and
+  `dungeon.names.mp90`.
+
+Verification: `pnpm typecheck` and `pnpm test` (496 tests) pass.
+
+#### Phase 6.3: NPC conversation extraction tooling — ✅ DONE
+
+Status: complete. `tools/extract_mdt_text.py` walks each town MDT's conversation
+pointer table and emits a manifest keyed by stable ids (`town.cmap.npc.0` …).
+
+- The conversation table has no explicit length: it ends at the first zero or
+  out-of-file pointer. This yields 118 conversations across the ten towns.
+- Printable bytes are preserved verbatim. `/` (0x2F) is the only textual
+  convention; 0x5C and 0x26 stay as `\` and `&` so re-encoding keeps the exact
+  original word-wrap points (parseDialogText only breaks at 0x20).
+- Gameplay control codes are recorded as an `endCode` name (`yesNo`, `elfCrest`,
+  `pattern5`, `purchase`, `tear`) plus `_source.controlBytes`, never embedded in
+  the text. `_source` also carries the MDT file name, town id, npc id, and byte
+  address for review.
+- Output manifest: `web/src/locale/town-conversations.en.json`.
+
+Added `web/src/core/conversation-encode.ts` (`encodeConversationText`), which
+turns localized text + `endCode` back into a stream for `parseDialogText`.
 
 Verification:
 
-- Unit test that English overlay reproduces the same parsed pages as original
-  MDT bytes.
-- Unit test that every localized conversation keeps the same required control
-  codes as English.
-- Manual test important event conversations:
-  - Elf Crest
-  - final Tear collection
-  - Asbestos Cape flow
-  - Pureza warp building
-  - Yes/No and Take/No-Take conversations.
+- `web/tests/conversation-extract.test.ts` decodes every conversation in all ten
+  towns, re-encodes it, and asserts a byte-exact round trip (except streams
+  carrying sub-0x20 bytes that `parseDialogText` intentionally skips) plus
+  identical parsed pages, `hasYesNo`, and `endCode`.
+
+#### Phase 6.4: NPC conversation locale plumbing — ✅ DONE
+
+Status: complete. Conversations are overlaid at the point where the raw bytes are
+read, so the original MDT is never mutated.
+
+- `town.conversations` in each locale maps `town.<id>.npc.<n>` to
+  `{ text, endCode }` (`endCode` is `yesNo` / `elfCrest` / `pattern5` /
+  `purchase` / `tear` / null). English carries all 118 conversations; `ru` and
+  `isv` start empty and fall back to English until Phase 6.5.
+- `getTownConversation(townId, npcId)` in `src/locale/index.ts` does the
+  active-locale lookup with English fallback.
+- `encodeConversationText(text, endCode)` in
+  `src/core/conversation-encode.ts` rebuilds a byte stream for
+  `parseDialogText`, appending the recorded control code (or 0xFF).
+- `main.ts`'s `getNpcConversationRaw(npcId)` now returns the localized stream
+  when the current town has a translated entry, otherwise the original MDT
+  bytes. The current town is derived from `TOWN_MDTS[placeId]` (the same stable
+  id used by `town.names`).
+
+Verification:
+
+- `tests/locale-index.test.ts` covers localized lookup, English fallback, and an
+  unknown npc id.
+- `tests/conversation-extract.test.ts` proves the encode/decode round trip is
+  byte-exact and re-parses to identical pages for every town conversation.
+
+#### Phase 6.5: NPC conversation translation + manual QA
+
+Translate `town.conversations` into Russian and Interslavic, then verify in
+game. 118 conversations across ten towns, so this is split by town. English is
+the fallback, so each town can land independently.
+
+Sub-stages (all in `en`, `ru`, `isv` unless noted):
+
+- 6.5a — `esmp` (7 conversations) — ✅ DONE
+- 6.5b — `stmp` (7) — ✅ DONE
+- 6.5c — `mrmp` (9) — ✅ DONE
+- 6.5d — `cmap` (10) — ✅ DONE
+- 6.5e — `hlmp` (11) — ✅ DONE
+- 6.5f — `tmmp` (12) — ✅ DONE
+- 6.5g — `prmp` (13) — ✅ DONE
+- 6.5h — `drmp` (14) — ✅ DONE
+- 6.5i — `bsmp` (15) — ✅ DONE
+- 6.5j — `llmp` (20, includes the Elf Crest, pattern-5 and purchase flows) — ✅ DONE
+
+Each sub-stage:
+
+1. Translate every conversation in that town.
+2. Run `pnpm typecheck` and `pnpm test`.
+3. Spot-check the control-code-bearing conversations (0x81 / 0x83 / 0x87 /
+   0x89) still reach their follow-up patterns.
+
+Completed so far: 6.5a (`esmp`) translated into `ru` and `isv`; 509 tests pass.
+
+After all towns:
+
+4. Manual test important event conversations:
+   - Elf Crest
+   - final Tear collection
+   - Asbestos Cape flow
+   - Pureza warp building
+   - Yes/No and Take/No-Take conversations.
+5. Review wrapped Russian and Interslavic lines in narrow dialogue boxes.
 
 ### Phase 7: Dungeon MDT names, signs, and notifications
 

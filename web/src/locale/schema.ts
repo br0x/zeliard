@@ -7,6 +7,12 @@ export interface IndoorSection {
     [key: string]: string | string[] | Record<string, string> | IndoorSection;
 }
 
+/** A localized NPC conversation: raw text plus its terminal control code. */
+export interface TownConversation {
+    text: string;
+    endCode: 'yesNo' | 'elfCrest' | 'pattern5' | 'purchase' | 'tear' | null;
+}
+
 export interface LocaleMessages {
     meta: {
         locale: string;
@@ -22,7 +28,7 @@ export interface LocaleMessages {
     };
     town: {
         names: Record<string, string>;
-        conversations: Record<string, string>;
+        conversations: Record<string, TownConversation>;
     };
     indoor: Record<string, unknown>;
     openingIntro: Record<string, string | string[]>;

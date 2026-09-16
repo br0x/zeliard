@@ -57,6 +57,19 @@ const REQUIRED_RELEASE_KEYS = [
     'openingIntro.kingDuke3',
     'openingIntro.finalScroll',
     'openingIntro.jashiinWindow',
+    'endingDemo.dialogue.dukePrincess',
+    'endingDemo.dialogue.kingPrincess',
+    'endingDemo.dialogue.spirit',
+    'endingDemo.dialogue.dukeSpirit',
+    'endingDemo.dialogue.princess1',
+    'endingDemo.dialogue.farewellPart1',
+    'endingDemo.dialogue.farewellPart2',
+    'endingDemo.staffCredits',
+    'endingDemo.thanksCredits',
+    'endingDemo.copyrightCredits',
+    'endingDemo.portCredits',
+    'dungeon.names.mp10',
+    'dungeon.names.mp90',
 ];
 
 describe('locale files', () => {

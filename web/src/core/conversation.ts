@@ -70,6 +70,13 @@ export interface ConversationDeps {
     writeMemory(offset: number, data: ArrayLike<number>): void;
     /** Fetch raw conversation bytes for a pattern id (null when absent). */
     getNpcConversationRaw(npcId: number): Uint8Array | null;
+    /**
+     * Fetch an already-parsed localized conversation for a pattern id (null
+     * when the active locale has no translation). When present it takes
+     * precedence over the raw bytes, because Unicode text cannot round-trip
+     * through the ASCII byte pipeline.
+     */
+    getLocalizedConversation?(npcId: number): ParsedDialog | null;
     /** Clear the wasm-side conversation-active latch. */
     townFinishConversation(): void;
     getHeroAlmasValue(): number;
@@ -121,10 +128,18 @@ export class ConversationManager {
         return this.deps.readMemory(offset, length) ?? new Uint8Array(length);
     }
 
-    private parse(raw: Uint8Array | null): ParsedDialog | null {
+    /**
+     * Resolve a pattern id: a localized (Unicode-aware) parse when the active
+     * locale provides one, otherwise the original ASCII MDT bytes.
+     */
+    private parsePattern(npcId: number): ParsedDialog | null {
+        const localized = this.deps.getLocalizedConversation?.(npcId) ?? null;
+        if (localized && localized.pages.length > 0) return localized;
+        const raw = this.deps.getNpcConversationRaw(npcId);
         const parsed = parseDialogText(raw ?? [], this.deps.effects);
         return parsed.pages.length > 0 ? parsed : null;
     }
+
 
     /** Deactivate + clear wasm latch (+ optional completion callback). */
     close(callOnComplete = false): void {
@@ -157,7 +172,7 @@ export class ConversationManager {
             npcId = PATTERN_CAPE_ONLY_TALK;
         }
 
-        const parsed = this.parse(this.deps.getNpcConversationRaw(npcId));
+        const parsed = this.parsePattern(npcId);
         if (!parsed) {
             this.deps.townFinishConversation();
             return;
@@ -165,7 +180,7 @@ export class ConversationManager {
 
         // Hero Crest holders get different yes/no phrasing (pattern 14).
         if (this.mem(ADDR_HERO_CREST, 1)[0] && parsed.hasYesNo) {
-            const crestParsed = this.parse(this.deps.getNpcConversationRaw(PATTERN_CREST_TEXT));
+            const crestParsed = this.parsePattern(PATTERN_CREST_TEXT);
             if (!crestParsed) {
                 this.deps.townFinishConversation();
                 return;
@@ -182,7 +197,7 @@ export class ConversationManager {
 
     /** Load a conversation pattern; deactivates when it is empty. */
     loadPattern(patternIdx: number): void {
-        const parsed = this.parse(this.deps.getNpcConversationRaw(patternIdx));
+        const parsed = this.parsePattern(patternIdx);
         if (!parsed) {
             this.close();
             return;
@@ -282,7 +297,7 @@ export class ConversationManager {
         this.hasYesNo = false;
 
         const responsePattern = selectedYes ? PATTERN_YES_RESPONSE : PATTERN_NO_RESPONSE;
-        const parsed = this.parse(this.deps.getNpcConversationRaw(responsePattern));
+        const parsed = this.parsePattern(responsePattern);
         if (!parsed) {
             // Nothing more to show: release the wasm conversation latch now.
             this.deps.townFinishConversation();

@@ -1,3 +1,5 @@
+import { getEnglishMessages, getList, getMessages } from '../locale/index.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Assets
 // ─────────────────────────────────────────────────────────────────────────────
@@ -361,6 +363,7 @@ async function loadStoryFont(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildTimeline(images: DemoImages): DemoStep[] {
+  applyEndingLocaleOverrides();
   return [
     // ── 1. Duke static + Princess scroll ───────────────────────────────────────
     {
@@ -930,6 +933,103 @@ const CREDITS_COPYRIGHT_SCREENS = [
 const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} •••••••••••••••• Reverse engineering: {brox} •••••••••••••••• Graphics: {brox} •••••••••••••••• Code: {brox + free LLMs (Qwen 3.6, DeepSeek V4 Flash, GPT 5.5)} •••••••••••••••• QA: {Gene} •••••••••••••••• Non-free LLM provided by: {Gene} •••••••••••••••• End Credits music: 'Guinever' ©1981 {Aquarium}";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Localization overlay
+//
+// The byte scripts and credits tables above are the English source of truth.
+// `endingDemo.*` locale data overlays visible text at parse/state-init time:
+//   - dialogue arrays replace one text command each (holds and face changes are
+//     remapped proportionally so pauses stay near the translated sentence end);
+//   - credits tables replace only the visible labels/rows, keeping `hold`,
+//     `monsters`, `group` and other animation metadata from the source tables.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CreditScreenDef {
+  rows: Array<string | { left: string; right: string }>;
+  hold: number;
+  monsters?: Array<{ name: string; imageKey: string; section: number }>;
+  group?: number;
+  textY?: number;
+  lineHeight?: number;
+}
+
+let endingLocaleApplied = false;
+
+function getEndingRaw(key: string): unknown {
+  const primary = (getMessages().endingDemo as Record<string, unknown> | undefined)?.[key];
+  if (primary !== undefined) return primary;
+  return (getEnglishMessages().endingDemo as Record<string, unknown> | undefined)?.[key];
+}
+
+function getEndingDialogue(key: string): string[] {
+  return getList(`endingDemo.dialogue.${key}`);
+}
+
+function localizeCreditScreens(screens: CreditScreenDef[], localized: unknown): void {
+  if (!Array.isArray(localized)) return;
+  screens.forEach((screen, screenIndex) => {
+    const rows = localized[screenIndex];
+    if (!Array.isArray(rows)) return;
+    rows.forEach((row, rowIndex) => {
+      const target = screen.rows[rowIndex];
+      if (target === undefined) return;
+      if (typeof target === 'string') {
+        if (typeof row === 'string') screen.rows[rowIndex] = row;
+      } else if (Array.isArray(row) && row.length >= 2) {
+        target.left = String(row[0]);
+        target.right = String(row[1]);
+      }
+    });
+  });
+}
+
+function applyEndingLocaleOverrides(): void {
+  if (endingLocaleApplied) return;
+  endingLocaleApplied = true;
+
+  localizeCreditScreens(CREDITS_STAFF_SCREENS, getEndingRaw('staffCredits'));
+  localizeCreditScreens(CREDITS_THANKS_SCREENS, getEndingRaw('thanksCredits'));
+
+  const copyright = getEndingRaw('copyrightCredits');
+  const copyrightScreen = CREDITS_COPYRIGHT_SCREENS[0];
+  if (Array.isArray(copyright) && copyrightScreen) {
+    copyright.forEach((row, index) => {
+      if (typeof row === 'string' && index < copyrightScreen.rows.length) {
+        copyrightScreen.rows[index] = row;
+      }
+    });
+  }
+}
+
+function getPortCredits(): string {
+  const value = getEndingRaw('portCredits');
+  return typeof value === 'string' && value.length ? value : PORT_CREDITS;
+}
+
+function applyDialogueOverrides(commands: DemoStep[], localizedLines?: string[]): void {
+  if (!localizedLines || !localizedLines.length) return;
+  let index = 0;
+  for (const command of commands) {
+    if (command.type !== 'text') continue;
+    const localized = localizedLines[index];
+    index++;
+    if (typeof localized !== 'string') continue;
+    const originalLength = String(command.text ?? '').length;
+    const localizedLength = localized.length;
+    const scale = (at: number): number =>
+      originalLength > 0
+        ? Math.min(localizedLength, Math.round((at / originalLength) * localizedLength))
+        : at;
+    command.text = localized;
+    if (Array.isArray(command.holds)) {
+      command.holds = command.holds.map((hold: DemoStep) => ({ ...hold, at: scale(hold.at) }));
+    }
+    if (Array.isArray(command.faceChanges)) {
+      command.faceChanges = command.faceChanges.map((change: DemoStep) => ({ ...change, at: scale(change.at) }));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Parser – builds a flat array of command objects
 //
 // Control codes, as decoded from asm/enddemo.asm (sub_6318 / sub_66CD):
@@ -945,7 +1045,7 @@ const PORT_CREDITS = "Web port ©2026 {brox//THIRTEEN} ••••••••�
 //   0x80-0x85   Spirit lip articulation codes
 //   0x80-0xCF   lip/eye articulation codes
 // ─────────────────────────────────────────────────────────────────────────────
-function parseDialogueScript(bytes: Uint8Array): DemoStep[] {
+export function parseDialogueScript(bytes: Uint8Array, localizedLines?: string[]): DemoStep[] {
   const commands = [];
   let i = 0;
   let currentSpeaker = 'narrator';
@@ -1099,6 +1199,7 @@ function parseDialogueScript(bytes: Uint8Array): DemoStep[] {
     }
   }
   flushText();
+  applyDialogueOverrides(commands, localizedLines);
   return commands;
 }
 // Steps/states are heterogeneous declarative records (mirrors opening-intro).
@@ -1606,8 +1707,8 @@ export class EndingDemo {
   // EndingDemo._drawDukePrincessDialogueScene – now uses parsed commands
   // ─────────────────────────────────────────────────────────────────────────────
 
-  private _initDialogueState(s: DemoStepState, script: unknown): void {
-    s.commands = parseDialogueScript(script as Uint8Array);
+  private _initDialogueState(s: DemoStepState, script: unknown, localizedLines?: string[]): void {
+    s.commands = parseDialogueScript(script as Uint8Array, localizedLines);
     s.cmdIndex = 0;
     s.row = 0;                 // next text row within the current box page
     s.pageLines = [];          // lines on the current box page
@@ -1786,7 +1887,7 @@ export class EndingDemo {
   }
 
   _drawDukePrincessDialogueScene(step: DemoStep, s: DemoStepState, ts: number): void {
-    if (!s.commands) this._initDialogueState(s, DUKE_PRINCESS_SCRIPT);
+    if (!s.commands) this._initDialogueState(s, DUKE_PRINCESS_SCRIPT, getEndingDialogue('dukePrincess'));
     this._processDialogueCommands(s, ts);
 
     // ── Drawing ──────────────────────────────────────────────────────────────
@@ -1863,7 +1964,7 @@ export class EndingDemo {
 
       // Once fully faded in, run the King & Princess typewriter dialogue
       if (fadeProgress >= 1) {
-        if (!s.commands) this._initDialogueState(s, KING_PRINCESS_SCRIPT);
+        if (!s.commands) this._initDialogueState(s, KING_PRINCESS_SCRIPT, getEndingDialogue('kingPrincess'));
         this._processDialogueCommands(s, ts);
         this._drawDialogueTextBox(s);
 
@@ -1907,7 +2008,7 @@ export class EndingDemo {
     this._clearBlack();
     this.ctx.drawImage(step.image, 0, 0, this.canvas.width, this.canvas.height);
 
-    if (!s.commands) this._initDialogueState(s, SPIRIT_SCRIPT);
+    if (!s.commands) this._initDialogueState(s, SPIRIT_SCRIPT, getEndingDialogue('spirit'));
     this._processDialogueCommands(s, ts);
     this._drawDialogueTextBox(s);
 
@@ -1968,7 +2069,7 @@ export class EndingDemo {
     }
 
     if (progress >= 1) {
-      if (!s.commands) this._initDialogueState(s, DUKE_SPIRIT_SCRIPT);
+      if (!s.commands) this._initDialogueState(s, DUKE_SPIRIT_SCRIPT, getEndingDialogue('dukeSpirit'));
       this._processDialogueCommands(s, ts);
 
       // Face overlays – Duke (eyes + lips) and Spirit (lips only)
@@ -2014,7 +2115,7 @@ export class EndingDemo {
 
     // Initialise the dialogue state up front so the cross-fade can draw the
     // (empty) dialogue box over the scene.
-    if (!s.commands) this._initDialogueState(s, PRINCESS1_SCRIPT);
+    if (!s.commands) this._initDialogueState(s, PRINCESS1_SCRIPT, getEndingDialogue('princess1'));
 
     const crossfadeMs = step.crossfadeMs ?? SPIRIT_CROSSFADE_MS;
 
@@ -2107,7 +2208,7 @@ export class EndingDemo {
       s.entryImage = this._makeOffscreen();
       s.entryImage.getContext('2d').drawImage(this.canvas, 0, 0);
     }
-    if (!s.commands) this._initDialogueState(s, FAREWELL_SCRIPT_PART1);
+    if (!s.commands) this._initDialogueState(s, FAREWELL_SCRIPT_PART1, getEndingDialogue('farewellPart1'));
     s.phase = s.phase || 'crossfade';
 
     const crossfadeMs = step.crossfadeMs ?? FAREWELL_CROSSFADE_MS;
@@ -2168,7 +2269,7 @@ export class EndingDemo {
 
       if (fadeProgress >= 1) {
         s.phase = 'dialogue2';
-        this._initDialogueState(s, FAREWELL_SCRIPT_PART2);
+        this._initDialogueState(s, FAREWELL_SCRIPT_PART2, getEndingDialogue('farewellPart2'));
       }
       return;
     }
@@ -2733,7 +2834,7 @@ export class EndingDemo {
     const ctx = this.ctx;
     ctx.save();
     ctx.font = PORT_CREDITS_FONT;
-    const text = PORT_CREDITS;
+    const text = getPortCredits();
     const glyphs: Array<{ ch: string; w: number; cyan: boolean }> = [];
     let total = 0;
     let inBraces = false;

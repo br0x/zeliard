@@ -1,0 +1,1311 @@
+{
+  "town.bsmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc53e",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 0,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "Welcome to Bosque Village, brave warrior. This once was a forest surrounding a temple, but the temple was destroyed by Jashiin. Now the village of Bosque is desolate. I hope you are here to help us."
+  },
+  "town.bsmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc605",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 1,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "Listen, stranger, a sentry is posted on the outskirts of the city. I\\m telling you this for your own good; it\\s best to stay away from there."
+  },
+  "town.bsmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcb8d",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 10,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "That sentry must have sold his soul to Jashiin. Why else would he interfere with brave men such as yourself?"
+  },
+  "town.bsmp.npc.11": {
+    "_source": {
+      "byteAddress": "0xcbfa",
+      "controlBytes": [
+        "0x81"
+      ],
+      "mdt": "bsmp.mdt",
+      "npcId": 11,
+      "townId": "bsmp"
+    },
+    "endCode": "yesNo",
+    "text": "Hold on there! Do you have the Hero\\s Crest? "
+  },
+  "town.bsmp.npc.12": {
+    "_source": {
+      "byteAddress": "0xcc28",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 12,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "Don\\t lie, it won\\t do any good. Get out of here!"
+  },
+  "town.bsmp.npc.13": {
+    "_source": {
+      "byteAddress": "0xcc5a",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 13,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "You cannot pass here without the Hero\\s Crest. My orders are from the Spirits themselves! "
+  },
+  "town.bsmp.npc.14": {
+    "_source": {
+      "byteAddress": "0xccb5",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 14,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "Hold on there! You have the Hero\\s Crest, I see. You may pass."
+  },
+  "town.bsmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc693",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 2,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "The temple that once stood here had the crest of the Warrior God carved into it. Winners of the martial arts competitions held in front of the temple were awarded with such crests. Thus the crest, the symbol of a true hero, became known as the Hero\\s Crest."
+  },
+  "town.bsmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xc795",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 3,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "When he destroyed the temple, Jashiin stole the Hero\\s Crest.  No one has any idea where to find it."
+  },
+  "town.bsmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xc7fa",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 4,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "The crest must be hidden somewhere in the forest, but I couldn\\t say where."
+  },
+  "town.bsmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xc846",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 5,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "When the temple was destroyed I heard Jashiin ordering his underlings to hide the crest in the trunk of the biggest tree. That must be where it is hidden. I hope you can find it."
+  },
+  "town.bsmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xc8f9",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 6,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "A spirit appeared and told me to say this if I met a brave man: \"If you go through the door to the right of the tree that forms a cross, you will be able to go up.\"/I&hope it helps you."
+  },
+  "town.bsmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xc9b3",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 7,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "I have some advice for you: Be careful if you come to a place where the leaves of the trees are thin. The ground there is not very strong."
+  },
+  "town.bsmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xca3e",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 8,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "The sentry at the edge of town says the Spirits came to him in a dream, and told him not to allow anyone to pass unless they bear the Hero\\s Crest. I wonder if the Spirits really ordered such a thing? Perhaps he\\s mad."
+  },
+  "town.bsmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xcb19",
+      "controlBytes": [],
+      "mdt": "bsmp.mdt",
+      "npcId": 9,
+      "townId": "bsmp"
+    },
+    "endCode": null,
+    "text": "A few have slipped by the sentry undetected, but none have returned. There must be some terrible monster out there."
+  },
+  "town.cmap.npc.0": {
+    "_source": {
+      "byteAddress": "0xc40a",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 0,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "If you are the brave warrior we have awaited, we have something to tell you: throughout the ages, many young men have entered the caverns, but few have returned."
+  },
+  "town.cmap.npc.1": {
+    "_source": {
+      "byteAddress": "0xc4ac",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 1,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "According to legend, there may still be underground places that have not been destroyed by Jashiin. People may still be living there, and will surely lend you a hand."
+  },
+  "town.cmap.npc.2": {
+    "_source": {
+      "byteAddress": "0xc553",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 2,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "I have been in the underground town. After I fled, they put a lock on the door. If the town is still there.... "
+  },
+  "town.cmap.npc.3": {
+    "_source": {
+      "byteAddress": "0xc5c3",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 3,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "This is the chamber of poor Princess Felicia, who has been turned to stone. You may enter, Duke Garland."
+  },
+  "town.cmap.npc.4": {
+    "_source": {
+      "byteAddress": "0xc62c",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 4,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "Brave knight, you have awakened. When you fell at the hand of Jashiin, the Spirits brought you here. Now make haste to the aid of the Princess Felicia."
+  },
+  "town.cmap.npc.5": {
+    "_source": {
+      "byteAddress": "0xc6c4",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 5,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "Quickly, go to the Princess!"
+  },
+  "town.cmap.npc.6": {
+    "_source": {
+      "byteAddress": "0xc6e1",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 6,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "Ah, the Nine Tears of Esmesanti. Jashiin exists no more and the light of peace shines once again on our land... "
+  },
+  "town.cmap.npc.7": {
+    "_source": {
+      "byteAddress": "0xc752",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 7,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "This will benefit the people living underground, as well. Hurry to the Princess Felicia."
+  },
+  "town.cmap.npc.8": {
+    "_source": {
+      "byteAddress": "0xc7ab",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 8,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "The peace we dared not hope for has come. I\\ll get my things together and be on my way. I\\ve a family to attend to."
+  },
+  "town.cmap.npc.9": {
+    "_source": {
+      "byteAddress": "0xc81f",
+      "controlBytes": [],
+      "mdt": "cmap.mdt",
+      "npcId": 9,
+      "townId": "cmap"
+    },
+    "endCode": null,
+    "text": "Quickly, enter this chamber. The holy crystals will break the evil spell which has turned Princess Felicia to stone."
+  },
+  "town.drmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc733",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 0,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Welcome to Dorado./This was once a thriving merchant town where everyone lived a peaceful life. Jashiin has reduced it to a sad, desolate place."
+  },
+  "town.drmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc7c4",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 1,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "The Spirits say that Jashiin returned because the people, made soft by peace and prosperity, sank into corruption."
+  },
+  "town.drmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcc60",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 10,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "When you find green stone slabs that can be moved up and down, arrange them like a staircase so you can go up easily."
+  },
+  "town.drmp.npc.11": {
+    "_source": {
+      "byteAddress": "0xccd6",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 11,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "The middle of the caverns is made of pure gold! But there is one fake gold wall that can be destroyed."
+  },
+  "town.drmp.npc.12": {
+    "_source": {
+      "byteAddress": "0xcd3d",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 12,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Ah! You found the Shirukaano shoes! Now you can scale any slope."
+  },
+  "town.drmp.npc.13": {
+    "_source": {
+      "byteAddress": "0xcd7e",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 13,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Brave lad! A message from the Spirits: Take great care when you enter the next world."
+  },
+  "town.drmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc837",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 2,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Using the money and treasures of Dorado and other places, Jashiin built a place of his own. The Tesoro and Burata Caverns are his domain."
+  },
+  "town.drmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xc8c1",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 3,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "A word to the wise: The door bearing the green symbol cannot be opened. There\\s no use trying to force it, it absolutely cannot be opened."
+  },
+  "town.drmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xc94c",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 4,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Somewhere in the caverns are the Shirukaano shoes made by the shoemaker Percel. Try to find them; when you wear those shoes you can climb any slope."
+  },
+  "town.drmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xc9e1",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 5,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Someone who went into the caverns told me the Shirukaano shoes are hidden in Tesoro. Of the four rooms in the center, they are in the far right room."
+  },
+  "town.drmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xca77",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 6,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "Of the four doors in Tesoro, three bear a blue symbol. What was the other one? For the life of me I can\\t remember."
+  },
+  "town.drmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xcaeb",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 7,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "This building wasn\\t here before, was it? You can\\t put up a building like this overnight -- how did it get here?"
+  },
+  "town.drmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xcb5d",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 8,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "A peace statue called \\Taruso\\ stood here, but one night it disappeared. Where in the world can it have gone? The evil Jashiin must have taken a liking to it."
+  },
+  "town.drmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xcbfc",
+      "controlBytes": [],
+      "mdt": "drmp.mdt",
+      "npcId": 9,
+      "townId": "drmp"
+    },
+    "endCode": null,
+    "text": "I have a message from the Spirits: wait for the moving edge of the platform made of shining blocks."
+  },
+  "town.esmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc70e",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 0,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "Pay attention to the door with the blue symbol. It has turned three colors."
+  },
+  "town.esmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc75a",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 1,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "If you fall from a stone and are blocked by a wall, thrust through it with your sword. If the wall crumbles away you\\ll be on the road leading to the abode of Jashiin."
+  },
+  "town.esmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc802",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 2,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "By jumping in front of the ivy rather than going down it, you can open a new road."
+  },
+  "town.esmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xc855",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 3,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "Look for another door with a blue symbol. If you see it, turn to the right."
+  },
+  "town.esmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xc8a1",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 4,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "Do you have doubts? Here there is only slaughter and destruction. What do you expect to accomplish?"
+  },
+  "town.esmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xc905",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 5,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "Why have the Spirits sent you on this journey of slaughter? Why does Jashiin await you in silence?"
+  },
+  "town.esmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xc968",
+      "controlBytes": [],
+      "mdt": "esmp.mdt",
+      "npcId": 6,
+      "townId": "esmp"
+    },
+    "endCode": null,
+    "text": "Pay no heed to those two, they are in league with Jashiin. They are trying to weaken your will."
+  },
+  "town.hlmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc793",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 0,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Welcome. You must be cold. Helada used to be a warm, prosperous place, but Jashiin has turned it into a cold ruin."
+  },
+  "town.hlmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc806",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 1,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "You may have noticed that there are two roads leading here. There is also a shortcut."
+  },
+  "town.hlmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcd09",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 10,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "I\\ll bet the green slime creatures have caused you a lot of trouble. Let me tell you a secret: they can\\t withstand heat. Burn them and they will vanish in a single burst of steam."
+  },
+  "town.hlmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc85c",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 2,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Have you been in the ice caverns? The shoemaker in this town was trying to make special shoes out of Ruzeria bark, to help a hero walk on the ice. Just as he managed to do so, Jashiin\\s minions murdered him. I wonder what happened to those shoes."
+  },
+  "town.hlmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xc953",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 3,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Are you the brave one? My lover, Percel, was killed by Jashiin\\s underlings just after the Spirits asked him to make the Ruzeria shoes for a brave man. Return my Percel to me! Oh, if only you had not come!"
+  },
+  "town.hlmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xca21",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 4,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "I think you should know something: Percel the shoemaker said that without the Ruzeria shoes you could not go beyond the green door."
+  },
+  "town.hlmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcaa5",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 5,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Ruzeria is the name of a tree that grows in the underground forest. The bark is very hard and is not slippery. Percel had good reason for choosing it."
+  },
+  "town.hlmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xcb3c",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 6,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Someone I know said he had seen a pair of unusual shoes in the caverns. I\\m not sure whether those are the shoes that Percel made."
+  },
+  "town.hlmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xcbbf",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 7,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "I\\m sorry for what I said a short while ago. I don\\t know what came over me. Please defeat Jashiin and avenge the death of Percel."
+  },
+  "town.hlmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xcc42",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 8,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "Ah, the shoes of Percel.... I see you are a brave man. I hope you will find Jashiin and defeat him quickly."
+  },
+  "town.hlmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xccae",
+      "controlBytes": [],
+      "mdt": "hlmp.mdt",
+      "npcId": 9,
+      "townId": "hlmp"
+    },
+    "endCode": null,
+    "text": "This brave man with the Ruzeria shoes... With this the shoemaker\\s shop also floats up... "
+  },
+  "town.llmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc989",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 0,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Help! A terrible creature is in our hut! Please get rid of it for us."
+  },
+  "town.llmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc9cf",
+      "controlBytes": [
+        "0x83"
+      ],
+      "mdt": "llmp.mdt",
+      "npcId": 1,
+      "townId": "llmp"
+    },
+    "endCode": "elfCrest",
+    "text": "Oh, thank you, sir. As a token of my gratitude I will give you the Elf Crest. I think you\\ll find it useful; without it, no one in town will help you."
+  },
+  "town.llmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcc79",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 10,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "My name is Michael. No one here listens to a word I say. I wonder why that is?"
+  },
+  "town.llmp.npc.11": {
+    "_source": {
+      "byteAddress": "0xccc8",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 11,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Oh! You\\ve got the Elf Crest. Great! "
+  },
+  "town.llmp.npc.12": {
+    "_source": {
+      "byteAddress": "0xccee",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 12,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Jashiin filled the caverns with a flaming inferno. Please help us, brave lad!"
+  },
+  "town.llmp.npc.13": {
+    "_source": {
+      "byteAddress": "0xcd3c",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 13,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Beware of the great heat currents. There are many whirlpools in the caverns, and once you get caught in one you\\ll never get out."
+  },
+  "town.llmp.npc.14": {
+    "_source": {
+      "byteAddress": "0xcdbe",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 14,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "There are countless one-way, invisible walls in Correr Cave. To find out more about them, ask Yozeras or Myuuza the elder."
+  },
+  "town.llmp.npc.15": {
+    "_source": {
+      "byteAddress": "0xce39",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 15,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "I am Yozeras. When you go into Correr Cave, watch out for an opening with no ivy. You\\ll fall if you go through there."
+  },
+  "town.llmp.npc.16": {
+    "_source": {
+      "byteAddress": "0xceb0",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 16,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "I\\m  Myuuza, the town elder. If you go into the Correr Cave be sure to remember the color of the entrance door. The exit door is the same color."
+  },
+  "town.llmp.npc.17": {
+    "_source": {
+      "byteAddress": "0xcf41",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 17,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "If you can\\t find your way, find an air current near the ceiling of the cave. You can transport yourself on those currents."
+  },
+  "town.llmp.npc.18": {
+    "_source": {
+      "byteAddress": "0xcfbd",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 18,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Sir, I can see that you don\\t have the Elf Crest. Recently some henchmen of Jashiin have been posing as heroes and wreaking havoc on this town. You\\re not one of them by any chance, are you? Without the Elf Crest, no one here will speak to you."
+  },
+  "town.llmp.npc.19": {
+    "_source": {
+      "byteAddress": "0xd0b2",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 19,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": ". . . . . . . . . . . . "
+  },
+  "town.llmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xca67",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 2,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Thanks again. Really. "
+  },
+  "town.llmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xca7e",
+      "controlBytes": [
+        "0x85",
+        "0x87"
+      ],
+      "mdt": "llmp.mdt",
+      "npcId": 3,
+      "townId": "llmp"
+    },
+    "endCode": "pattern5",
+    "text": "/The caverns in this region are burning hot; you won\\t be able to stand it long. I\\ve got something that will help you. It\\s an Asbestos cape that will protect you from the heat."
+  },
+  "town.llmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xca81",
+      "controlBytes": [
+        "0x87"
+      ],
+      "mdt": "llmp.mdt",
+      "npcId": 4,
+      "townId": "llmp"
+    },
+    "endCode": "pattern5",
+    "text": "The caverns in this region are burning hot; you won\\t be able to stand it long. I\\ve got something that will help you. It\\s an Asbestos cape that will protect you from the heat."
+  },
+  "town.llmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcb33",
+      "controlBytes": [
+        "0x89"
+      ],
+      "mdt": "llmp.mdt",
+      "npcId": 5,
+      "townId": "llmp"
+    },
+    "endCode": "purchase",
+    "text": "It\\s not free though. It will cost you 2500&almas.///"
+  },
+  "town.llmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xcb69",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 6,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Oh, I&see... well, maybe next time. "
+  },
+  "town.llmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xcb8e",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 7,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "You say you don\\t have 2500&almas to give? Don\\t try to fool me. "
+  },
+  "town.llmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xcbd0",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 8,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Here you are. That will be 2500&almas. Take good care of it. "
+  },
+  "town.llmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xcc0e",
+      "controlBytes": [],
+      "mdt": "llmp.mdt",
+      "npcId": 9,
+      "townId": "llmp"
+    },
+    "endCode": null,
+    "text": "Are you taking good care of the Asbestos cape? It was my prized possession so I hope you\\ll treat it well."
+  },
+  "town.mrmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc719",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 0,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "Ah, you are the warrior I\\ve heard about. My son Michael was a courageous warrior. He went into the caverns and was never seen again. Please be careful."
+  },
+  "town.mrmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc7b2",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 1,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "Sir, I dreamed that a demon created the underground caverns and filled them with monsters. Then the Spirits brought you to here to make things right again. Before you go, visit the magic shop -- you\\ll find many useful things there. Good luck on your quest."
+  },
+  "town.mrmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc8b4",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 2,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "You\\re on your way to the caverns, aren\\t you? I recently went in search of a powerful potion said to be hidden there. I didn\\t stay long enough to find it, but perhaps you will. Be sure to stop at the weapons shop -- you\\ll need some strong armor.Duke Garland, they say that a potion is hidden in a wall near a platform that raises and lowers. I&wish you luck."
+  },
+  "town.mrmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xca1e",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 3,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "You\\re going into the caverns? You are a brave man. They say there are many doors underground, but many are locked and the keys are scattered throughout the labyrinths. I hope you can find them."
+  },
+  "town.mrmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xcae1",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 4,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "Duke Garland, someone I know survived a journey to the underground town, Satono. According to him, the road back is short but the road out is long. It will be very dangerous."
+  },
+  "town.mrmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcb90",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 5,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "According to the legends, the name of the underground town is Satono. "
+  },
+  "town.mrmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xcc54",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 6,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "A moment, Duke Garland. If you listen closely in front of the underground door, you will hear a terrifying sound. That\\s the entrance to the inferno that is home to the demons. Beware that place, young man."
+  },
+  "town.mrmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xcd23",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 7,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "Alas, I fear there is no hope. You and I and all who inhabit this town will surely perish. Don\\t run off to some terrible place, stay and have a drink with me. Ah, I know you must go, and I salute you -- you\\re a braver man than I. God be with you."
+  },
+  "town.mrmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xce1c",
+      "controlBytes": [],
+      "mdt": "mrmp.mdt",
+      "npcId": 8,
+      "townId": "mrmp"
+    },
+    "endCode": null,
+    "text": "When you kill a&monster you get a&thing called \\almas\\. It\\s worth a&lot of money. I\\d like to get some myself but I don\\t want to go down there. "
+  },
+  "town.prmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xca83",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 0,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Fooled again! Meddlesome fool! Taste the past and never return here again. /HA, HA, HA, HA... "
+  },
+  "town.prmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xcae2",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 1,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Are you from the outside world? Welcome. You are certainly a courageous man guided by the Spirits. "
+  },
+  "town.prmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcf7d",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 10,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "I\\ve heard that the lion\\s head key fell between two towers under a stone slab. It is supposedly near this town."
+  },
+  "town.prmp.npc.11": {
+    "_source": {
+      "byteAddress": "0xcfee",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 11,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Help!&.&.&.&."
+  },
+  "town.prmp.npc.12": {
+    "_source": {
+      "byteAddress": "0xcffc",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 12,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Beware of Jashiin\\s last henchman, Algaien. It is said that Jashiin used his power to give him eternal life."
+  },
+  "town.prmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xcb46",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 2,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "A moment, sir. I have seen the fortress of Jashiin. It is at the edge of this world. The Spirits guided me back from there alive so I could tell you about it."
+  },
+  "town.prmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xcbe5",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 3,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "I think you should know that this town is very close to the fortress of Jashiin, and his henchmen are sure to be around. Be careful."
+  },
+  "town.prmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xcc6a",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 4,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "YOU! The princess you struggle to rescue will lead you to your doom! The Spirits are just demons in disguise. What does this mean? You do the devil\\s work, you must be the devil!  WA, HA, HA, HA, HA... "
+  },
+  "town.prmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcd35",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 5,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "The Spirits gave me a lion\\s head key but it was stolen by one of Jashiin\\s underlings. I hope you will find it on your travels."
+  },
+  "town.prmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xcdb6",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 6,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Ah, yes -- that\\s the key that was entrusted to me by the Spirits. Make good use of it. "
+  },
+  "town.prmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xce0f",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 7,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "I pray for your safe return. "
+  },
+  "town.prmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xce2d",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 8,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "The one weapon you\\ll need to defeat Jashiin is the Fairy Flame Sword. According to legend it gives off a peculiar light and can vanquish any foe with only one blow. However, where it is to be found is another matter... "
+  },
+  "town.prmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xcf0a",
+      "controlBytes": [],
+      "mdt": "prmp.mdt",
+      "npcId": 9,
+      "townId": "prmp"
+    },
+    "endCode": null,
+    "text": "Nearby is a village called Esko, but I don\\t know what has happened to it recently. I once knew many people there."
+  },
+  "town.stmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc71a",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 0,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Welcome, stranger. You must have come through the labyrinths from the outside world. We have not encountered such a brave person in a very long time. You should visit the great sage Yasmin -- she will be anxious to meet you."
+  },
+  "town.stmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc7fb",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 1,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "So you\\re the brave one I\\ve heard about. Well, if you\\re going to go on from here, I\\ll give you a tip.  When you come to a stopping place, dig a hole. The demons have hidden jewels in many places."
+  },
+  "town.stmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc8c2",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 2,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Are you Duke Garland? Thank the Spirits you\\ve come. We escaped from Jashiin through the power of the Spirits. However, if his power should become so strong that the Spirits\\ can\\t protect us, this town is doomed."
+  },
+  "town.stmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xc998",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 3,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Let me give you some advice, stranger. If you fall down the stone slab in front of the blue door, you will see a green door nearby. Don\\t go through that door under any circumstances -- it is a doorway to the past."
+  },
+  "town.stmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xca6f",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 4,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Beware! I went into the caverns and saw an awful creature -- a giant demon octopus. It was terrifying, but I escaped. I hope you will be as lucky."
+  },
+  "town.stmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcb02",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 5,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Are you the brave one? I&hope you have brought almas for us. The almas are part of Jashiin\\s power. We use them to make medicine, and other useful things."
+  },
+  "town.stmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xcb9d",
+      "controlBytes": [],
+      "mdt": "stmp.mdt",
+      "npcId": 6,
+      "townId": "stmp"
+    },
+    "endCode": null,
+    "text": "Duke Garland, when you go into the caverns again, please try to bring back more almas. To supplement the protective power of the Spirits we must build a wall of almas. Unless we get more, Satono Town is in peril."
+  },
+  "town.tmmp.npc.0": {
+    "_source": {
+      "byteAddress": "0xc8f6",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 0,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Brave sir, I hope you\\ve come to help this pitiful town. It was the site of a quiet graveyard before it was decimated by Jashiin."
+  },
+  "town.tmmp.npc.1": {
+    "_source": {
+      "byteAddress": "0xc978",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 1,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "If you\\re going back into the caverns, beware the Gelroid. It\\s a blue gelatinous substance which will suck the life out of you."
+  },
+  "town.tmmp.npc.10": {
+    "_source": {
+      "byteAddress": "0xcf47",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 10,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Isn\\t that the Crest of Glory? Please take it quickly to the owner of the weapons store."
+  },
+  "town.tmmp.npc.11": {
+    "_source": {
+      "byteAddress": "0xcfa0",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 11,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": ". . . . . ."
+  },
+  "town.tmmp.npc.2": {
+    "_source": {
+      "byteAddress": "0xc9f9",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 2,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Have you heard of Percel the shoemaker from Herada Town? He made Ruzeria shoes for walking on ice and Pirika shoes for getting by Gelroid, thorns and fire. Those are the only two I know of, but there may have been more."
+  },
+  "town.tmmp.npc.3": {
+    "_source": {
+      "byteAddress": "0xcad5",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 3,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "May I confide in you? I was once a spy for Jashiin. I can tell you that the Pirika shoes were put into a box and thrown away somewhere in the Rotten land. You may never find them."
+  },
+  "town.tmmp.npc.4": {
+    "_source": {
+      "byteAddress": "0xcb89",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 4,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "One third of this region is covered with deadly Gelroid. If you\\re going to continue through the labyrinths, ordinary shoes will not protect you."
+  },
+  "town.tmmp.npc.5": {
+    "_source": {
+      "byteAddress": "0xcc1b",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 5,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "There is a certain place in the caverns where you can pass through a wall, but only in one direction. My grandfather told me the place is near a green stone slab. There may be other places, but I couldn\\t say where."
+  },
+  "town.tmmp.npc.6": {
+    "_source": {
+      "byteAddress": "0xccf3",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 6,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Have you seen the strange, bluish-white people in the caverns? They were infected by the Gelroid and now they wander the land like the living dead. To kill them, aim for the head."
+  },
+  "town.tmmp.npc.7": {
+    "_source": {
+      "byteAddress": "0xcda7",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 7,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "It seems that Jashiin has stolen many things. The weapon maker is searching for his family crest, the Crest of Glory. If you find it in the caverns, he\\ll be most happy to have it back."
+  },
+  "town.tmmp.npc.8": {
+    "_source": {
+      "byteAddress": "0xce61",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 8,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Those are the Pirika shoes. Go quickly to the abode of Jashiin and finish him off. We will pray for your success and swift return."
+  },
+  "town.tmmp.npc.9": {
+    "_source": {
+      "byteAddress": "0xcee4",
+      "controlBytes": [],
+      "mdt": "tmmp.mdt",
+      "npcId": 9,
+      "townId": "tmmp"
+    },
+    "endCode": null,
+    "text": "Ah, the Pirika shoes! Forgive me, brave sir. I had no choice. I won\\t do that kind of thing again."
+  }
+}

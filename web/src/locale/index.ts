@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE, type Locale, SUPPORTED_LOCALES } from '../core/locale-utils.js';
-import type { DungeonNotification, LocaleMessages } from './schema.js';
+import type { DungeonNotification, LocaleMessages, TownConversation } from './schema.js';
 import en from './en.json';
 import ru from './ru.json';
 import isv from './isv.json';
@@ -86,6 +86,23 @@ export function getTownName(townId: string): string | undefined {
     const primary = getMessages().town.names[townId];
     if (primary) return primary;
     return getEnglishMessages().town.names[townId];
+}
+
+export function getDungeonName(dungeonId: string): string | undefined {
+    const primary = getMessages().dungeon.names[dungeonId];
+    if (primary) return primary;
+    return getEnglishMessages().dungeon.names[dungeonId];
+}
+
+/**
+ * Localized NPC conversation for a town/npc id, or undefined when the active
+ * locale (and English) have no entry — the caller then uses the MDT bytes.
+ */
+export function getTownConversation(townId: string, npcId: number): TownConversation | undefined {
+    const key = `town.${townId}.npc.${npcId}`;
+    const primary = getMessages().town.conversations[key];
+    if (primary) return primary;
+    return getEnglishMessages().town.conversations[key];
 }
 
 export function getList(key: string): string[] {
