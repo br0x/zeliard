@@ -321,14 +321,15 @@ export class InventoryScreen {
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
+        const magicLabel = t('inventory.selectMagic');
         ctx.fillStyle = '#50f';
-        ctx.fillText(t('inventory.selectMagic'), padX + 1, 16 + 1);
+        ctx.fillText(magicLabel, padX + 1, 16 + 1);
         ctx.fillStyle = this.currentTab === 0 ? '#f00' : '#0f4';
-        ctx.fillText(t('inventory.selectMagic'), padX, 16);
+        ctx.fillText(magicLabel, padX, 16);
 
         if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selName, padX + 200, 16);
+            ctx.fillText(selName, padX + ctx.measureText(magicLabel).width + 8, 16);
         }
 
         const startX = padX + Math.floor((W - padX * 2 - rowW) / 2);
@@ -397,20 +398,21 @@ export class InventoryScreen {
 
         const wearableNames = getInventoryList('wearableNames');
         const noUse = t('inventory.noUse');
-        const selId: number = (this.currentTab === 1 ? d.wearables[this.selectedIndices[1] ?? 0] : 0) ?? 0;
+        const selId: number = d.wearables[this.selectedIndices[1] ?? 0] ?? 0;
         const selName = selId > 0 ? (wearableNames[selId] || noUse) : noUse;
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
+        const wearLabel = t('inventory.wear');
         ctx.fillStyle = '#50f';
-        ctx.fillText(t('inventory.wear'), padX + 1, y + 10 + 1);
-        ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
-        ctx.fillText(t('inventory.wear'), padX, y + 10);
+        ctx.fillText(wearLabel, padX + 1, y + 10 + 1);
+        ctx.fillStyle = this.currentTab === 1 ? '#f00' : '#0f4';
+        ctx.fillText(wearLabel, padX, y + 10);
 
         if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selName, x + padX + 77, y + 10);
+            ctx.fillText(selName, x + padX + ctx.measureText(wearLabel).width + 8, y + 10);
         }
 
         const iconsY = y + 54;
@@ -446,20 +448,21 @@ export class InventoryScreen {
 
         const itemNames = getInventoryList('itemNames');
         const noUse = t('inventory.noUse');
-        const selId: number = (this.currentTab === 2 ? d.items[this.selectedIndices[2] ?? 0] : 0) ?? 0;
+        const selId: number = d.items[this.selectedIndices[2] ?? 0] ?? 0;
         const selName = selId > 0 ? (itemNames[selId] || noUse) : noUse;
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
+        const useLabel = t('inventory.use');
         ctx.fillStyle = '#50f';
-        ctx.fillText(t('inventory.use'), padX + 1, y + 10 + 1);
+        ctx.fillText(useLabel, padX + 1, y + 10 + 1);
         ctx.fillStyle = this.currentTab === 2 ? '#f00' : '#0f4';
-        ctx.fillText(t('inventory.use'), padX, y + 10);
+        ctx.fillText(useLabel, padX, y + 10);
 
         if (selName) {
             ctx.fillStyle = '#fff';
-            ctx.fillText(selName, x + padX + 65, y + 10);
+            ctx.fillText(selName, x + padX + ctx.measureText(useLabel).width + 8, y + 10);
         }
 
         const iconsY = y + 54;
