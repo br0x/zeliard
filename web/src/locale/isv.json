@@ -12,8 +12,8 @@
   },
   "modal": {
     "speedChange": "Brzost igry",
-    "speedSelect": "Izberite 0-9:",
-    "speedPressAnyKey": "(stisnite ktory koli klaviš)",
+    "speedSelect": "Izberi 0-9:",
+    "speedPressAnyKey": "(nasnite PROBEL)",
     "saveTitle": "Shraniti igru",
     "restoreTitle": "Obnoviti igru",
     "newName": "Ime:",
