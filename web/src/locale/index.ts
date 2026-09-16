@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE, type Locale, SUPPORTED_LOCALES } from '../core/locale-utils.js';
-import type { DungeonNotification, LocaleMessages, TownConversation } from './schema.js';
+import type { DungeonNotification, DungeonSignLine, LocaleMessages, TownConversation } from './schema.js';
 import en from './en.json';
 import ru from './ru.json';
 import isv from './isv.json';
@@ -92,6 +92,19 @@ export function getDungeonName(dungeonId: string): string | undefined {
     const primary = getMessages().dungeon.names[dungeonId];
     if (primary) return primary;
     return getEnglishMessages().dungeon.names[dungeonId];
+}
+
+/**
+ * Localized display lines for a dungeon signpost, or null when neither the
+ * active locale nor English has an entry — the caller then decodes the MDT
+ * descriptor bytes as before.
+ */
+export function getDungeonSignLines(dungeonId: string, signIdx: number): DungeonSignLine[] | null {
+    const key = `${dungeonId}.sign.${signIdx}`;
+    const primary = getMessages().dungeon.signs[key];
+    if (primary && primary.length) return primary;
+    const fallback = getEnglishMessages().dungeon.signs[key];
+    return fallback && fallback.length ? fallback : null;
 }
 
 /**

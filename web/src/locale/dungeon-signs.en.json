@@ -1,0 +1,46 @@
+{
+  "dungeon.mp20.sign.0": {
+    "_source": {
+      "descriptorAddress": "0xd72f",
+      "dungeonId": "mp20",
+      "mdt": "mp20.mdt",
+      "signIdx": 0
+    },
+    "boxHeight": 3,
+    "lines": [
+      {
+        "text": "Danger!!",
+        "xDelta": 44
+      },
+      {
+        "text": "Don't open",
+        "xDelta": 32
+      },
+      {
+        "text": "the box ahead.",
+        "xDelta": 20
+      }
+    ],
+    "topMargin": 1
+  },
+  "dungeon.mp30.sign.0": {
+    "_source": {
+      "descriptorAddress": "0xcb54",
+      "dungeonId": "mp30",
+      "mdt": "mp30.mdt",
+      "signIdx": 0
+    },
+    "boxHeight": 2,
+    "lines": [
+      {
+        "text": "It is the",
+        "xDelta": 36
+      },
+      {
+        "text": "biggest tree.",
+        "xDelta": 22
+      }
+    ],
+    "topMargin": 3
+  }
+}

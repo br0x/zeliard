@@ -223,7 +223,32 @@
         "text": "Nu! Ja te ubijem."
       }
     },
-    "signs": {},
+    "signs": {
+      "mp20.sign.0": [
+        {
+          "xDelta": 40,
+          "text": "Opasno!!"
+        },
+        {
+          "xDelta": 28,
+          "text": "Ne otvorjaj"
+        },
+        {
+          "xDelta": 12,
+          "text": "skrinju naprěd."
+        }
+      ],
+      "mp30.sign.0": [
+        {
+          "xDelta": 44,
+          "text": "To jest"
+        },
+        {
+          "xDelta": 12,
+          "text": "največše drěvo."
+        }
+      ]
+    },
     "names": {
       "mp10": "Pečera Malicia",
       "mp1d": "Pečera Malicia",

@@ -223,7 +223,32 @@
         "text": "Come on!  I'll kill you."
       }
     },
-    "signs": {},
+    "signs": {
+      "mp20.sign.0": [
+        {
+          "xDelta": 44,
+          "text": "Danger!!"
+        },
+        {
+          "xDelta": 32,
+          "text": "Don't open"
+        },
+        {
+          "xDelta": 20,
+          "text": "the box ahead."
+        }
+      ],
+      "mp30.sign.0": [
+        {
+          "xDelta": 36,
+          "text": "It is the"
+        },
+        {
+          "xDelta": 22,
+          "text": "biggest tree."
+        }
+      ]
+    },
     "names": {
       "mp10": "Cavern of Malicia",
       "mp1d": "Cavern of Malicia",

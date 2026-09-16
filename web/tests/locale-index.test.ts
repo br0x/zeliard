@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { getLocale, setLocale, t, getMessages, getDungeonNotification, getTownName, getDungeonName, getTownConversation } from '../src/locale/index.js';
+import { getLocale, setLocale, t, getMessages, getDungeonNotification, getTownName, getDungeonName, getTownConversation, getDungeonSignLines } from '../src/locale/index.js';
 import { DEFAULT_LOCALE } from '../src/core/locale-utils.js';
 
 afterEach(() => {
@@ -58,14 +58,14 @@ describe('getDungeonNotification', () => {
 describe('getTownName', () => {
     it('returns localized town names', () => {
         setLocale('ru');
-        expect(getTownName('town.cmap')).toBe('Замок Felishika');
+        expect(getTownName('town.cmap')).toBe('Замок Фелишики');
     });
 });
 
 describe('getDungeonName', () => {
     it('returns localized cavern names', () => {
         setLocale('ru');
-        expect(getDungeonName('mp10')).toBe('Пещера Malicia');
+        expect(getDungeonName('mp10')).toBe('Пещера Малисия');
     });
 
     it('falls back to English when the locale omits an id', () => {
@@ -96,6 +96,30 @@ describe('getTownConversation', () => {
     it('returns undefined for an unknown npc id', () => {
         setLocale('en');
         expect(getTownConversation('cmap', 999)).toBeUndefined();
+    });
+});
+
+describe('getDungeonSignLines', () => {
+    it('returns localized sign lines with their x offsets', () => {
+        setLocale('ru');
+        const lines = getDungeonSignLines('mp20', 0);
+        expect(lines?.[0]).toEqual({ xDelta: 40, text: 'Опасно!!' });
+        expect(lines?.length).toBe(3);
+    });
+
+    it('falls back to English for a locale that omits a sign', () => {
+        setLocale('isv');
+        expect(getDungeonSignLines('mp20', 0)?.[0]?.text).toBe('Opasno!!');
+    });
+
+    it('returns null for an unknown sign index', () => {
+        setLocale('en');
+        expect(getDungeonSignLines('mp20', 99)).toBeNull();
+    });
+
+    it('returns null for a dungeon without signs', () => {
+        setLocale('en');
+        expect(getDungeonSignLines('mp10', 0)).toBeNull();
     });
 });
 

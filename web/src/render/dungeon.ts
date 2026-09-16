@@ -22,6 +22,7 @@ import {
     DUNGEON_SWORD_FRAME_W, DUNGEON_SWORD_FRAME_H, DUNGEON_SWORD_SHEET_COLS,
     NOTIFICATION_STRINGS,
 } from '../config/engine.js';
+import { getDungeonSignLines } from '../locale/index.js';
 import { SWORD_OVERLAY_OFFSETS, MAGIC_PROJECTILE_STRIDE, PROJECTILE_STRUCT_SIZE } from '../data/assets.js';
 import { getMagicFrameIndex } from './dungeon-logic.js';
 import type { HeroState, DungeonRuntimeState } from '../core/game-state.js';
@@ -80,6 +81,8 @@ export interface DungeonRenderEnv {
     heroState: HeroState;
     /** Typed dungeon runtime state for simple flag reads. */
     dungeonState: DungeonRuntimeState;
+    /** Stable id of the loaded dungeon MDT ('mp10'…), for locale lookups. */
+    currentDungeonId(): string | null;
 }
 
 let env: DungeonRenderEnv;
@@ -912,8 +915,10 @@ export function drawDungeonSign(): void {
 
     // Descriptor: [top_margin-25] [box_height-2] then (x_delta, text...
     // terminated by 0xFF) per line, '/' = newline
-    const topY = env.readU8(descPtr) + TILE_SIZE + 3 * (TILE_SIZE / 8);
-    const h = (env.readU8(descPtr + 1) + 2) * TILE_SIZE;
+    const topMargin = env.readU8(descPtr);
+    const boxHeight = env.readU8(descPtr + 1);
+    const topY = topMargin + TILE_SIZE + 3 * (TILE_SIZE / 8);
+    const h = (boxHeight + 2) * TILE_SIZE;
 
     const x = TILE_SIZE * 5;
     const y = TILE_SIZE;
@@ -924,6 +929,24 @@ export function drawDungeonSign(): void {
     env.ctx.font = '24px "Press Start 2P", monospace';
     env.ctx.fillStyle = '#fff';
     env.ctx.textBaseline = 'top';
+
+    // Localized lines keep the original x-offsets, so a translated sign sits in
+    // the same box even though its glyphs are narrower or wider.
+    const dungeonId = env.currentDungeonId();
+    const localized = dungeonId ? getDungeonSignLines(dungeonId, idx) : null;
+    if (localized) {
+        let cy = topY;
+        for (const line of localized) {
+            let bx = x + line.xDelta * 3;
+            for (const ch of line.text) {
+                env.ctx.fillText(ch, bx, cy);
+                bx += TILE_SIZE;
+            }
+            cy += (TILE_SIZE + TILE_SIZE / 2);
+        }
+        env.ctx.restore();
+        return;
+    }
 
     let offset = descPtr + 2;
     let cy = topY;

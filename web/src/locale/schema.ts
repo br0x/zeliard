@@ -3,6 +3,12 @@ export interface DungeonNotification {
     text: string;
 }
 
+/** One drawn row of a dungeon signpost: left offset (in 3px units) + text. */
+export interface DungeonSignLine {
+    xDelta: number;
+    text: string;
+}
+
 export interface IndoorSection {
     [key: string]: string | string[] | Record<string, string> | IndoorSection;
 }
@@ -23,7 +29,7 @@ export interface LocaleMessages {
     inventory: Record<string, string | string[] | string[][]>;
     dungeon: {
         notifications: Record<string, DungeonNotification>;
-        signs: Record<string, string[]>;
+        signs: Record<string, DungeonSignLine[]>;
         names: Record<string, string>;
         bossNames: Record<string, string>;
     };

@@ -1159,6 +1159,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         dungeonProjectiles = null;
         dungeonTileSheetReady = false;
         dungeonEntitySheetReady = false;
+        currentDungeonId = townIdFromMdtPath(dungeon.mdtPath);
         cavernName = localizedCavernName(dungeon.mdtPath) ?? tsGetCavernName(mdtBytes());
         updatePlaceHud(cavernName, true);
         await loadDungeonAssets(rawMapId);
@@ -1819,6 +1820,7 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
 // ─── Game loop ────────────────────────────────────────────────────────────────
 // let fps = 0;
 let cavernName = '';
+let currentDungeonId: string | null = null;
 let mdtData: Uint8Array | null = null;
 
 /** Raw MDT bytes for TS-side parsing (set by every loadMdt site). */
@@ -2127,6 +2129,7 @@ initDungeonRenderer({
     viewportTop: () => getViewportTop(g()),
     heroState,
     dungeonState: dungeonStateObj,
+    currentDungeonId: () => currentDungeonId,
     assets: () => ({
         tileSheet: dungeonTileSheet, tileSheetReady: dungeonTileSheetReady,
         dchrSheet: dungeonDchrSheet, dchrSheetReady: dungeonDchrSheetReady,
