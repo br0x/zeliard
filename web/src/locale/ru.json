@@ -32,7 +32,7 @@
     "pressEnterFile": "Нажмите ENTER для выбора файла"
   },
   "inventory": {
-    "selectMagic": "МАГИЯ:",
+    "selectMagic": "ВЫБОР МАГИИ:",
     "wear": "НАДЕТЬ:",
     "use": "ИСПОЛЬЗ.:",
     "inventory": "ИНВЕНТАРЬ",

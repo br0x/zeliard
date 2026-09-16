@@ -20,9 +20,8 @@ import {
     DUNGEON_VIEW_LEFT_IN_PROX, DUNGEON_ENTITY_W, DUNGEON_ENTITY_H,
     DUNGEON_HERO_FRAME_W, DUNGEON_HERO_FRAME_H, DUNGEON_HERO_SHEET_COLS,
     DUNGEON_SWORD_FRAME_W, DUNGEON_SWORD_FRAME_H, DUNGEON_SWORD_SHEET_COLS,
-    NOTIFICATION_STRINGS,
 } from '../config/engine.js';
-import { getDungeonSignLines } from '../locale/index.js';
+import { getDungeonSignLines, getDungeonNotification } from '../locale/index.js';
 import { SWORD_OVERLAY_OFFSETS, MAGIC_PROJECTILE_STRIDE, PROJECTILE_STRUCT_SIZE } from '../data/assets.js';
 import { getMagicFrameIndex } from './dungeon-logic.js';
 import type { HeroState, DungeonRuntimeState } from '../core/game-state.js';
@@ -888,9 +887,9 @@ export function drawDungeonNotification(): void {
     }
 
     const msgId = env.dungeonState.notificationMsgId;
-    const entry = (NOTIFICATION_STRINGS as unknown as Record<number, [number, string]>)[msgId];
+    const entry = getDungeonNotification(msgId);
     if (!entry) return;
-    const [leftPad, text] = entry;
+    const { leftPad, text } = entry;
     const x = TILE_SIZE;
     const y = TILE_SIZE * 2;
     const w = TILE_SIZE * (VIEW_COLS - 2);
