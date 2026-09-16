@@ -256,6 +256,18 @@
       "mp8d": "Cavern of Absor",
       "mp90": "Jashiinʼs room",
       "mpa0": "Jashiinʼs room"
+    },
+    "bossNames": {
+      "Cangrejo": "Cangrejo",
+      "Pulpo": "Pulpo",
+      "Pollo": "Pollo",
+      "Agar": "Agar",
+      "Vista": "Vista",
+      "Tarso": "Tarso",
+      "Paguro": "Paguro",
+      "Dragon": "Dragon",
+      "Alguien": "Alguien",
+      "Jashiin": "Jashiin"
     }
   },
   "town": {

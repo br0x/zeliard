@@ -95,6 +95,17 @@ export function getDungeonName(dungeonId: string): string | undefined {
 }
 
 /**
+ * Localized boss name keyed by the canonical English name stored in
+ * dungeons.ts / the boss state block. Falls back to the key itself.
+ */
+export function getBossName(englishName: string): string {
+    const primary = getMessages().dungeon.bossNames?.[englishName];
+    if (primary) return primary;
+    const fallback = getEnglishMessages().dungeon.bossNames?.[englishName];
+    return fallback ?? englishName;
+}
+
+/**
  * Localized NPC conversation for a town/npc id, or undefined when the active
  * locale (and English) have no entry — the caller then uses the MDT bytes.
  */

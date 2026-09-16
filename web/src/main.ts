@@ -108,7 +108,7 @@ import {
 } from './core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
 import { resolveLocaleFromPath } from './core/locale-utils.js';
-import { setLocale, t, getTownName as getLocalizedTownName, getDungeonName as getLocalizedDungeonName, getTownConversation } from './locale/index.js';
+import { setLocale, t, getTownName as getLocalizedTownName, getDungeonName as getLocalizedDungeonName, getBossName as getLocalizedBossName, getTownConversation } from './locale/index.js';
 
 // Resolve and install the active locale before any scene, HUD, or asset
 // loader can read translated text. URL path selects the locale.
@@ -247,7 +247,7 @@ getBossName = (): string => {
     for (let i = 0; i < len; i++) {
         s += String.fromCharCode(gMemAt(namePtr + 1 + i));
     }
-    return s;
+    return getLocalizedBossName(s);
 };
 
 let restoreName: string | null = null;

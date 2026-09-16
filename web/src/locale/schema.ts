@@ -25,6 +25,7 @@ export interface LocaleMessages {
         notifications: Record<string, DungeonNotification>;
         signs: Record<string, string[]>;
         names: Record<string, string>;
+        bossNames: Record<string, string>;
     };
     town: {
         names: Record<string, string>;

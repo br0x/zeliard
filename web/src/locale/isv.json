@@ -256,6 +256,18 @@
       "mp8d": "Pečera Absor",
       "mp90": "Komnata Jashiina",
       "mpa0": "Komnata Jashiina"
+    },
+    "bossNames": {
+      "Cangrejo": "Krab",
+      "Pulpo": "Puljpo",
+      "Pollo": "Pollo",
+      "Agar": "Žele",
+      "Vista": "Vista",
+      "Tarso": "Toptatelj",
+      "Paguro": "Paguro",
+      "Dragon": "Drakon",
+      "Alguien": "Aljgujen",
+      "Jashiin": "Džašiin"
     }
   },
   "town": {
