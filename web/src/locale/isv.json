@@ -1180,6 +1180,26 @@
     "jashiinWindow": [
       "Vnezapno v komnatě stalo holodno. Črny tuman zaklubil se vokrug, a potom prinjаl otvratitelny oblik.",
       "\"Ty i jest tot glуpec, kto směje brositi mně vyzov? Ne budi směšon!\""
+    ],
+    "dukeVsJashiinDuke1": [
+      "\"A ty, dolžno byti, jest tot zly Džašiin!\""
+    ],
+    "dukeVsJashiinJashiin1": [
+      "\"Obračaj se ko mně «Imperator Haosa»... IMPERATOR HAOSA!\"",
+      "\"Glupy junec, ja mog by uništožiti tebe sejčas, ale mně nužno někotoroe razvlečenije. Ja dam tebě vrěme na tvoj žalky pohod, ale ty dolžen obečati ne naskučiti mně.\"",
+      "\"Razuměje se, u tebe ne jest nikakaja naděja odolěti mene.\""
+    ],
+    "dukeVsJashiinDuke2": [
+      "\"Zapomni moje slova, zloděju: ja ne ostanovju se, poka ne vratju devet svetyh kristallov i ne zapečatju tebe pod zemjeju raz i navsegda!\""
+    ],
+    "dukeVsJashiinJashiin2": [
+      "Demon rassmějal se, i tot zvuk byl podoben zvonu razbitogo stekla.",
+      "\"Moje labirinty ogromny i uhodjat gluboko v zemju. Ty skoro zabluđiš se, i togda moji slugy prikončat tebe.\"",
+      "\"Mnogo lět smrtny ne zabredal v ih vladenija. Oni golodny do člověčeskoj ploti.\"",
+      "S tutymi slovami Džašiin isčez, ostaviv eho oglušiteljnogo směha."
+    ],
+    "dukePromise": [
+      "\"Ty ještě ne viděl poslědnjego od mene, Džašiin! Tvoje carstvo zla blizi se k koncu!\""
     ]
   },
   "endingDemo": {

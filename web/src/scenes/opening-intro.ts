@@ -242,6 +242,31 @@ const JASHIIN_WINDOW_LINES = [
   '"Are you the fool who dares to challenge me?  Don\'t be absurd!"'
 ];
 
+const DUKE_VS_JASHIIN_DUKE1 = [
+  '"And you must be the evil Jashiin!"'
+];
+
+const DUKE_VS_JASHIIN_JASHIIN1 = [
+  '"You shall address me as the Emperor of Chaos... THE EMPEROR OF CHAOS!"',
+  '"Young fool, I could destroy you now, but I need a little amusement.  I will give you some time to perform your little quest, but you must promise not to bore me."',
+  '"Of course, you have no hope of defeating me."'
+];
+
+const DUKE_VS_JASHIIN_DUKE2 = [
+  '"Mark my words, evil one: I will not stop until I have reclaimed the nine holy crystals, and sealed you under the earth once and for all!"'
+];
+
+const DUKE_VS_JASHIIN_JASHIIN2 = [
+  'The demon laughed, and the sound was like breaking glass.',
+  '"My labyrinths are immense, and run deep into the earth.  You\'ll soon lose your way, and then my underlings will finish you off."',
+  '"It\'s been many years since a stray mortal has wandered into their realm. They are hungry for human flesh."',
+  'With that, Jashiin disappeared leaving echoes of earsplitting laughter.'
+];
+
+const DUKE_PROMISE_LINES = [
+  '"You haven\'t seen the last of me, Jashiin! Your reign of evil is near its end!"'
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Localization overlay
 //
@@ -284,6 +309,11 @@ function applyLocaleOverrides(): void {
   set(KING_DUKE_LINES3, 'kingDuke3');
   set(FINAL_SCROLL_LINES, 'finalScroll');
   set(JASHIIN_WINDOW_LINES, 'jashiinWindow');
+  set(DUKE_VS_JASHIIN_DUKE1, 'dukeVsJashiinDuke1');
+  set(DUKE_VS_JASHIIN_JASHIIN1, 'dukeVsJashiinJashiin1');
+  set(DUKE_VS_JASHIIN_DUKE2, 'dukeVsJashiinDuke2');
+  set(DUKE_VS_JASHIIN_JASHIIN2, 'dukeVsJashiinJashiin2');
+  set(DUKE_PROMISE_LINES, 'dukePromise');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -738,19 +768,10 @@ export function buildTimeline(images: IntroImages): IntroStep[] {
       },
       mouthFrameDelayMs: 150,
       script: [
-        { speaker: 'duke',   lines: ['"And you must be the evil Jashiin!"'] },
-        { speaker: 'jashiin', lines: [
-          '"You shall address me as the Emperor of Chaos... THE EMPEROR OF CHAOS!"',
-          '"Young fool, I could destroy you now, but I need a little amusement.  I will give you some time to perform your little quest, but you must promise not to bore me."',
-          '"Of course, you have no hope of defeating me."'
-        ]},
-        { speaker: 'duke',   lines: ['"Mark my words, evil one: I will not stop until I have reclaimed the nine holy crystals, and sealed you under the earth once and for all!"'] },
-        { speaker: 'jashiin', lines: [
-          'The demon laughed, and the sound was like breaking glass.',
-          '"My labyrinths are immense, and run deep into the earth.  You\'ll soon lose your way, and then my underlings will finish you off."',
-          '"It\'s been many years since a stray mortal has wandered into their realm. They are hungry for human flesh."',
-          'With that, Jashiin disappeared leaving echoes of earsplitting laughter.'
-        ] },
+        { speaker: 'duke',   lines: DUKE_VS_JASHIIN_DUKE1 },
+        { speaker: 'jashiin', lines: DUKE_VS_JASHIIN_JASHIIN1 },
+        { speaker: 'duke',   lines: DUKE_VS_JASHIIN_DUKE2 },
+        { speaker: 'jashiin', lines: DUKE_VS_JASHIIN_JASHIIN2 },
       ],
       charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,
@@ -781,9 +802,7 @@ export function buildTimeline(images: IntroImages): IntroStep[] {
       bgX: WIN_GARLAND_X,
       bgY: WIN_GARLAND_Y,
       frameImage: images.template3,
-      lines: [
-        '"You haven\'t seen the last of me, Jashiin! Your reign of evil is near its end!"'
-      ],
+      lines: DUKE_PROMISE_LINES,
       textStyle: 'normal',
       charDelayMs: CHAR_DELAY_MS,
       autoAdvanceMs: BALCONY_AUTO_ADVANCE_MS,

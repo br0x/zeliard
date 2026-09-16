@@ -1180,6 +1180,26 @@
     "jashiinWindow": [
       "Suddenly, the room grew cold.  A black mist swirled around them, then took on a hideous shape.",
       "\"Are you the fool who dares to challenge me?  Don't be absurd!\""
+    ],
+    "dukeVsJashiinDuke1": [
+      "\"And you must be the evil Jashiin!\""
+    ],
+    "dukeVsJashiinJashiin1": [
+      "\"You shall address me as the Emperor of Chaos... THE EMPEROR OF CHAOS!\"",
+      "\"Young fool, I could destroy you now, but I need a little amusement.  I will give you some time to perform your little quest, but you must promise not to bore me.\"",
+      "\"Of course, you have no hope of defeating me.\""
+    ],
+    "dukeVsJashiinDuke2": [
+      "\"Mark my words, evil one: I will not stop until I have reclaimed the nine holy crystals, and sealed you under the earth once and for all!\""
+    ],
+    "dukeVsJashiinJashiin2": [
+      "The demon laughed, and the sound was like breaking glass.",
+      "\"My labyrinths are immense, and run deep into the earth.  You'll soon lose your way, and then my underlings will finish you off.\"",
+      "\"It's been many years since a stray mortal has wandered into their realm. They are hungry for human flesh.\"",
+      "With that, Jashiin disappeared leaving echoes of earsplitting laughter."
+    ],
+    "dukePromise": [
+      "\"You haven't seen the last of me, Jashiin! Your reign of evil is near its end!\""
     ]
   },
   "endingDemo": {
