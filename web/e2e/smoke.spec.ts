@@ -42,7 +42,9 @@ test.describe('zeliard web port smoke', () => {
             if (msg.type() === 'error') consoleErrors.push(msg.text());
         });
         page.on('pageerror', err => consoleErrors.push(String(err)));
-        await page.goto('/');
+        // Visit an explicit locale so the language selector doesn't intercept
+        // boot (the selector halts main.ts before window.__zeliard is installed).
+        await page.goto('/en');
         await skipIntro(page);
     });
 
