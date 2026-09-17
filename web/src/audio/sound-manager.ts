@@ -364,6 +364,16 @@ export class SoundManager {
         return this._ready;
     }
 
+    /** True when music is currently muted by the user (F1). */
+    get isMusicMuted(): boolean {
+        return this._musicMuted;
+    }
+
+    /** True when sound effects are currently muted by the user (F2). */
+    get isSfxMuted(): boolean {
+        return this._sfxMuted;
+    }
+
     // =========================================================================
     // Internal — worklet message handler
     // =========================================================================

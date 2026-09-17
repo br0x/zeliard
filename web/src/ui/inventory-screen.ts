@@ -139,6 +139,11 @@ export class InventoryScreen {
 
     private _lastNavSound = 0;
 
+    /** Music/sfx mute state at the moment enter() muted them, so exit() can
+     *  restore the user's on/off choice instead of forcing music back on. */
+    private _musicMutedOnEnter = false;
+    private _sfxMutedOnEnter = false;
+
     /** game-state snapshot read from g_mem on enter() */
     data!: InventoryData;
 
@@ -183,6 +188,8 @@ export class InventoryScreen {
         this._readGameData();
 
         if (this.soundManager) {
+            this._musicMutedOnEnter = !!this.soundManager.isMusicMuted;
+            this._sfxMutedOnEnter   = !!this.soundManager.isSfxMuted;
             this.soundManager.setMusicMuted?.(true, 0.3);
         }
 
@@ -200,7 +207,12 @@ export class InventoryScreen {
 
     exit(): void {
         this.active = false;
-        this.soundManager?.setMusicMuted?.(false, 0.3);
+        if (this.soundManager) {
+            // Restore the user's pre-inventory mute state instead of forcing
+            // music on. The inventory only dims audio for its own UI.
+            this.soundManager.setMusicMuted?.(this._musicMutedOnEnter, 0.3);
+            this.soundManager.setSfxMuted?.(this._sfxMutedOnEnter, 0.3);
+        }
         if (this.onExit) this.onExit();
     }
 
