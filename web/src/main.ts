@@ -107,14 +107,54 @@ import {
     resolveMusicTrack,
 } from './core/transitions.js';
 import { downloadSaveFile, pickSaveFile } from './platform/save-file.js';
-import { resolveLocaleFromPath } from './core/locale-utils.js';
+import { resolveLocaleFromPath, buildLocalePath, SUPPORTED_LOCALES } from './core/locale-utils.js';
+import type { Locale } from './core/locale-utils.js';
 import { setLocale, t, getTownName as getLocalizedTownName, getDungeonName as getLocalizedDungeonName, getBossName as getLocalizedBossName, getTownConversation } from './locale/index.js';
 
 // Resolve and install the active locale before any scene, HUD, or asset
 // loader can read translated text. URL path selects the locale.
 const activeLocale = resolveLocaleFromPath(window.location.pathname, import.meta.env.BASE_URL);
-setLocale(activeLocale);
-document.documentElement.lang = activeLocale;
+
+// Detect whether the URL actually contains a locale segment (e.g. /ru, /isv).
+// resolveLocaleFromPath returns 'en' as default for /, so we need to check
+// whether the pathname explicitly starts with a known locale code.
+function hasLocaleInPath(): boolean {
+    const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+    let path = window.location.pathname;
+    if (base && base !== '/' && path.startsWith(base)) {
+        path = path.slice(base.length);
+    }
+    path = path.replace(/^\/+/, '');
+    const first = path.split('/')[0] ?? '';
+    return SUPPORTED_LOCALES.includes(first as Locale);
+}
+
+if (hasLocaleInPath()) {
+    setLocale(activeLocale);
+    document.documentElement.lang = activeLocale;
+} else {
+    // No locale in URL — show language selector and pause boot.
+    const selector = document.getElementById('language-selector')!;
+    const introEl = document.getElementById('intro-screen')!;
+    selector.classList.remove('hidden');
+    introEl.classList.add('hidden');
+
+    selector.querySelectorAll<HTMLButtonElement>('.lang-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const locale = btn.dataset.locale as Locale;
+            window.location.href = buildLocalePath(locale, '', import.meta.env.BASE_URL);
+        });
+    });
+
+    // Keyboard shortcuts: 1/2/3 to pick language
+    window.addEventListener('keydown', e => {
+        if (e.key === '1') { window.location.href = buildLocalePath('en', '', import.meta.env.BASE_URL); }
+        if (e.key === '2') { window.location.href = buildLocalePath('ru', '', import.meta.env.BASE_URL); }
+        if (e.key === '3') { window.location.href = buildLocalePath('isv', '', import.meta.env.BASE_URL); }
+    });
+
+    throw new Error('Language selector active — halting boot until locale is chosen.');
+}
 
 // Static HUD labels live in index.html; localize them before the first frame.
 for (const [id, key] of [

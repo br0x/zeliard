@@ -26,6 +26,37 @@
     <canvas id="introCanvas" width="640" height="400" aria-label="Opening title"></canvas>
   </section>
 
+  <div id="language-selector" class="hidden">
+    <div class="lang-title">Select Language</div>
+    <button class="lang-option" data-locale="en">
+      <svg class="lang-flag" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="60" height="40" fill="#012169"/>
+        <path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" stroke-width="6"/>
+        <path d="M0,0 L60,40 M60,0 L0,40" stroke="#C8102E" stroke-width="3"/>
+        <path d="M30,0 V40 M0,20 H60" stroke="#fff" stroke-width="10"/>
+        <path d="M30,0 V40 M0,20 H60" stroke="#C8102E" stroke-width="6"/>
+      </svg>
+      <span>English</span>
+    </button>
+    <button class="lang-option" data-locale="ru">
+      <svg class="lang-flag" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="60" height="13.33" fill="#fff"/>
+        <rect y="13.33" width="60" height="13.33" fill="#0039A6"/>
+        <rect y="26.66" width="60" height="13.34" fill="#D52B1E"/>
+      </svg>
+      <span>Русский</span>
+    </button>
+    <button class="lang-option" data-locale="isv">
+      <svg class="lang-flag" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="m0 0l30 20 30-20" fill="#028"/>
+        <path d="m0 40l30-20 30 20" fill="#d23"/>
+        <path d="m0 0v40l30-20" fill="#fd0"/>
+        <path d="m60 40l-30-20 30-20" fill="#fff"/>
+      </svg>
+      <span>Medžuslovjansky</span>
+    </button>
+  </div>
+
   <div id="intro-actions" class="touch-controls" aria-hidden="true">
     <button class="touch-action-btn" data-code="Space" aria-label="Hit / Action">⚔️</button>
   </div>

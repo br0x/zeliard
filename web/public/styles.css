@@ -677,3 +677,59 @@ body.touch-mode #ui {
 #name-pad .name-key--cancel:active {
   background: rgba(200, 80, 80, 0.4);
 }
+
+/* ─── Language selector ─────────────────────────────────────────────────────── */
+#language-selector {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #111;
+  z-index: 100;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.lang-title {
+  font-size: 18px;
+  color: #ccc;
+  margin-bottom: 24px;
+  letter-spacing: 2px;
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 260px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ccc;
+  font-family: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lang-option:hover,
+.lang-option:focus {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #666;
+  outline: none;
+}
+
+.lang-option:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lang-flag {
+  width: 48px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
