@@ -591,8 +591,12 @@ class MDTViewer(tk.Tk):
         for y in range(mh):
             for x in range(mw):
                 tile_idx = mdt.grid[y][x]
-                tid = canvas.create_text(x*bs+2, y*bs+2, text=str(tile_idx),
-                                             fill='white', font=font, anchor='nw')
+                tx, ty = x*bs+2, y*bs+2
+                shadow = canvas.create_text(tx+1, ty+1, text=str(tile_idx),
+                                            fill='black', font=font, anchor='nw')
+                ctx.tile_id_overlay_ids.append(shadow)
+                tid = canvas.create_text(tx, ty, text=str(tile_idx),
+                                         fill='white', font=font, anchor='nw')
                 ctx.tile_id_overlay_ids.append(tid)
 
     def _update_canvas_scrollbars(self, ctx: MapContext, event=None):
