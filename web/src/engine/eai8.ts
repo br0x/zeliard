@@ -6,6 +6,12 @@
  * attack sequence, HP 0x40), 4=plasma (hovering seeker, HP 0x60).
  *
  * Ported 1:1; carry conventions as in eai1.ts.
+ *
+ * One deliberate deviation: the type 3 (slime) fire roll uses
+ * `proximity5RowWrapped`, which measures the hero-to-monster row distance
+ * over the cavern's 64 rows instead of 8 bits — see its comment below. The
+ * original cannot fire the slimes that stand on row 0 of mp80's top
+ * corridor; everything else stays 1:1.
  */
 
 import {
@@ -353,7 +359,7 @@ function type3Ai(g: Uint8Array, m: number): void {
 }
 
 function type3UpdateFacingAndMaybeFire(g: Uint8Array, m: number): void {
-    const pr = proximity5(g, m);
+    const pr = proximity5RowWrapped(g, m);
     if (pr.value === 0xff) return;
 
     memWrite8(g, m + 5, ((memRead8(g, m + 5) & 0x7f) | pr.value) & 0xff);
@@ -471,7 +477,32 @@ function proximity5(g: Uint8Array, m: number): ProxResult8 {
     const absDy = ((dy << 24) >> 24) < 0 ? (-((dy << 24) >> 24)) & 0xff : dy;
 
     if (absDy >= 5) return { value: 0xff, distance: 0, carry: false };
+    return proximityFacing(g, m);
+}
 
+/**
+ * sub_A75D with the cavern's 64-row wrap applied to the vertical delta —
+ * used by the type 3 (slime) fire roll only.
+ *
+ * The original subtracts the two raw bytes, so a monster standing on row 0
+ * of the top corridor (mp80's slimes at x=136 and x=162) can never see the
+ * hero: the floor of that corridor is row 2, the hero is 3 tiles tall, so
+ * `hero_y_absolute` is row 63, and `63 - 0 = 63` fails the `< 5` test
+ * forever. Sliding the delta over 6 bits makes row 63 the row just below
+ * row 0, which is the geometry the player actually sees. The original game
+ * has the same blind spot; the medusa (type 0) and crab (type 2) keep the
+ * 1:1 8-bit behaviour above.
+ */
+function proximity5RowWrapped(g: Uint8Array, m: number): ProxResult8 {
+    const dy = (memRead8(g, HERO_Y) - memRead8(g, m + 2)) & 0x3f;
+    const absDy = dy >= 32 ? 64 - dy : dy;
+
+    if (absDy >= 5) return { value: 0xff, distance: 0, carry: false };
+    return proximityFacing(g, m);
+}
+
+/** sub_A75D's facing half: which window half the monster is in, plus carry. */
+function proximityFacing(g: Uint8Array, m: number): ProxResult8 {
     let al = (0x11 - memRead8(g, m + 3)) & 0xff;
     if (((al << 24) >> 24) >= 0) {
         const ah = al;
