@@ -7,6 +7,15 @@ See [docs/PORTING_PLAN](docs/PORTING_PLAN.md) for technical details.
 Current status:
 Game is 100% playable from the opening intro through the end.
 
+## Donations info
+This project is completely free and open-source, but if you want to support
+the development, please consider donating. Crypto wallets:
+ETH     0xf75E8Fd9d54821C0b5C9B2D7A308c2cb7d403EE1
+Solana  969SVJbVXfUFZ1BQU3VtgyAztjiEdSvzNAj1mcQxVqFV
+TON     UQDetI9f7t1-Uwa3pybEuumraemy97PnuQ0nnJ5fWeVlPsMJ
+TRON    TMfDYy76WEuixhJEfRJyMR16RPc17kUdPY
+
+
 ## Development
 
 The web app lives in `web/` (Vite + TypeScript). The runtime is pure
