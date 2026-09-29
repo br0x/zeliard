@@ -303,36 +303,36 @@
   },
   "town": {
     "names": {
-      "town.cmap": "Palac Felishiki",
+      "town.cmap": "Palac Felišiki",
       "town.mrmp": "Grad Muralla",
       "town.stmp": "Grad Satono",
-      "town.bsmp": "Selo Bosque",
-      "town.hlmp": "Grad Hellada",
+      "town.bsmp": "Selo Boske",
+      "town.hlmp": "Grad Helada",
       "town.tmmp": "Grad Tumba",
       "town.drmp": "Grad Dorado",
       "town.llmp": "Grad Llama",
       "town.prmp": "Grad Pureza",
-      "town.esmp": "Selo Esco"
+      "town.esmp": "Selo Esko"
     },
     "conversations": {
       "town.esmp.npc.0": {
-        "text": "Obratite pozor na dveri s sinim znakom. Ona proměnila tri boje.",
+        "text": "Obratite fokus na dveri s sinim znakom. Ona izměnjaje tri kolora.",
         "endCode": null
       },
       "town.esmp.npc.1": {
-        "text": "Ako padnete s kamena i put vam zapre stěna, probodite je mečem. Ako stěna rassyplje se, vy budete na drogi, vedučej k obydlju Jashiina.",
+        "text": "Ako opadete s kamena i put vam zapre stěna, probijte je mečem. Ako stěna rassyplje se, vy budete na putu, vedučemu k žilišču Arhidemona.",
         "endCode": null
       },
       "town.esmp.npc.2": {
-        "text": "Skočivši pred bljuščem, a ne shodivši po njem, možete otvoriti novu drogu.",
+        "text": "Skočivši pred bljuščem, a ne shodivši po njem, možete otvoriti novu dragu.",
         "endCode": null
       },
       "town.esmp.npc.3": {
-        "text": "Iskajte druge dveri s sinim znakom. Ako ih vidite, obratite se vpravo.",
+        "text": "Iščite druge dveri s sinim znakom. Ako ih vidite, obratite se vpravo.",
         "endCode": null
       },
       "town.esmp.npc.4": {
-        "text": "Imate li sumnjenja? Tut jest samo klanje i razrušenje. Čto vy nadějete se dosegnuti?",
+        "text": "Imate li sumněnja? Tut jest samo masakra i razvaljenje. Čto vy nadějete se dosegnuti?",
         "endCode": null
       },
       "town.esmp.npc.5": {
