@@ -44,7 +44,7 @@
     "inventory": "INVENTAR",
     "level": "RANG",
     "exp": "IZKUŠENOST",
-    "noUse": "NE KORISTAJU",
+    "noUse": "NIČTO",
     "iHaveUsed": "Ja upotrebil",
     "spellNames": [
       "Espada",
@@ -186,7 +186,7 @@
       },
       "12": {
         "leftPad": 0,
-        "text": "Dostali ste obuv Ruzeria."
+        "text": "Dostali ste obuv Ruzerija."
       },
       "13": {
         "leftPad": 12,
@@ -210,11 +210,11 @@
       },
       "18": {
         "leftPad": 44,
-        "text": "Prěgorko !!"
+        "text": "Velmi goreče!!"
       },
       "19": {
         "leftPad": 14,
-        "text": "Dostali ste ključ lvovoj glavy."
+        "text": "Dostali ste ključ glavy lva."
       },
       "20": {
         "leftPad": 16,
@@ -222,11 +222,11 @@
       },
       "21": {
         "leftPad": 30,
-        "text": "Mne ponravil se tvoj pokaz."
+        "text": "Jesm prijal se tvoj pokaz."
       },
       "22": {
         "leftPad": 16,
-        "text": "Nu! Ja te ubijem."
+        "text": "Idimo! Ja te ubijem."
       }
     },
     "signs": {
@@ -241,7 +241,7 @@
         },
         {
           "xDelta": 12,
-          "text": "skrinju naprěd."
+          "text": "tu skrinju."
         }
       ],
       "mp30.sign.0": [
@@ -256,37 +256,37 @@
       ]
     },
     "names": {
-      "mp10": "Pečera Malicia",
-      "mp1d": "Pečera Malicia",
+      "mp10": "Pečera Malicija",
+      "mp1d": "Pečera Malicija",
       "mp20": "Pečera Peligro",
       "mp21": "Pečera Peligro",
       "mp2d": "Pečera Peligro",
       "mp30": "Pečera Madera",
-      "mp31": "Pečera Riza",
-      "mp3d": "Pečera Riza",
+      "mp31": "Pečera Rica",
+      "mp3d": "Pečera Rica",
       "mp40": "Pečera Glacial",
-      "mp41": "Pečera Escarcha",
+      "mp41": "Pečera Eskarha",
       "mp4d": "Pečera Glacial",
-      "mp50": "Pečera Corroer",
+      "mp50": "Pečera Korroer",
       "mp51": "Pečera Cementar",
       "mp5d": "Pečera Cementar",
-      "mp60": "Pečera Tesoro",
+      "mp60": "Pečera Tezoro",
       "mp61": "Pečera Plata",
-      "mp62": "Pečera Arrugia",
-      "mp6d": "Pečera Tesoro",
-      "mp70": "Pečera Caliente",
-      "mp71": "Pečera Reaccion",
-      "mp72": "Pečera Correr",
+      "mp62": "Pečera Arugjia",
+      "mp6d": "Pečera Tezoro",
+      "mp70": "Pečera Kaliente",
+      "mp71": "Pečera Reakcija",
+      "mp72": "Pečera Korrer",
       "mp73": "V hiži",
-      "mp7d": "Pečera Caliente",
+      "mp7d": "Pečera Kaliente",
       "mp80": "Pečera Absor",
       "mp81": "Pečera Milagro",
       "mp82": "Pečera Desleal",
-      "mp83": "Pečera Falter",
+      "mp83": "Pečera Faljter",
       "mp84": "Pečera Final",
       "mp8d": "Pečera Absor",
-      "mp90": "Komnata Jashiina",
-      "mpa0": "Komnata Jashiina"
+      "mp90": "Komnata Arhidemona",
+      "mpa0": "Komnata Arhidemona"
     },
     "bossNames": {
       "Cangrejo": "Krab",
@@ -298,21 +298,21 @@
       "Paguro": "Paguro",
       "Dragon": "Drakon",
       "Alguien": "Aljgujen",
-      "Jashiin": "Džašiin"
+      "Jashiin": "Arhidemon"
     }
   },
   "town": {
     "names": {
-      "town.cmap": "Zamok Felishika",
+      "town.cmap": "Krěpost Felishiki",
       "town.mrmp": "Grad Muralla",
       "town.stmp": "Grad Satono",
-      "town.bsmp": "Ves Bosque",
+      "town.bsmp": "Selo Bosque",
       "town.hlmp": "Grad Hellada",
-      "town.tmmp": "Tumba",
-      "town.drmp": "Dorado",
-      "town.llmp": "Llama",
-      "town.prmp": "Pureza",
-      "town.esmp": "Esco"
+      "town.tmmp": "Grad Tumba",
+      "town.drmp": "Grad Dorado",
+      "town.llmp": "Grad Llama",
+      "town.prmp": "Grad Pureza",
+      "town.esmp": "Selo Esco"
     },
     "conversations": {
       "town.esmp.npc.0": {
