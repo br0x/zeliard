@@ -31,6 +31,12 @@
     "loadFromFile": "Load from .sav file",
     "pressEnterFile": "Press ENTER to select a file"
   },
+  "dialog": {
+    "yes": "Yes",
+    "no": "No",
+    "take": "Take",
+    "noTake": "No Take"
+  },
   "inventory": {
     "selectMagic": "SELECT-MAGIC:",
     "wear": "WEAR:",

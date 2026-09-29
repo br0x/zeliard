@@ -26,6 +26,7 @@ export interface LocaleMessages {
     };
     hud: Record<string, string>;
     modal: Record<string, string>;
+    dialog: Record<string, string>;
     inventory: Record<string, string | string[] | string[][]>;
     dungeon: {
         notifications: Record<string, DungeonNotification>;

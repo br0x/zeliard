@@ -31,6 +31,12 @@
     "loadFromFile": "Загрузить из файла .sav",
     "pressEnterFile": "Нажмите ENTER для выбора файла"
   },
+  "dialog": {
+    "yes": "Да",
+    "no": "Нет",
+    "take": "Беру",
+    "noTake": "Не беру"
+  },
   "inventory": {
     "selectMagic": "ВЫБОР МАГИИ:",
     "wear": "НАДЕТЬ:",

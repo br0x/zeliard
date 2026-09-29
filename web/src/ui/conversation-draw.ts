@@ -16,6 +16,7 @@ import {
     TEXT_FIRST_BASELINE,
     TEXT_LINE_HEIGHT,
 } from '../core/conversation-text.js';
+import { t } from '../locale/index.js';
 
 /** The slice of ConversationManager public state needed to draw the box. */
 export interface ConversationDrawState {
@@ -81,7 +82,7 @@ export function drawConversationBox(
         ctx.fillText(pageLines[i]!, x + 16, y + 32 + i * TEXT_LINE_HEIGHT);
     }
     if (state.purchaseMode) {
-        const options = ['Take', 'No Take'];
+        const options = [t('dialog.take'), t('dialog.noTake')];
         const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
         for (let i = 0; i < options.length; i++) {
             const cy = baseY + i * TEXT_LINE_HEIGHT;
@@ -91,7 +92,7 @@ export function drawConversationBox(
         ctx.fillStyle = '#ffcc00';
         ctx.fillText('►', x + 12, baseY + state.purchaseCursor * TEXT_LINE_HEIGHT);
     } else if (state.yesNoMode) {
-        const options = ['Yes', 'No'];
+        const options = [t('dialog.yes'), t('dialog.no')];
         const baseY = y + TEXT_FIRST_BASELINE + pageLines.length * TEXT_LINE_HEIGHT + 8;
         for (let i = 0; i < options.length; i++) {
             const cy = baseY + i * TEXT_LINE_HEIGHT;

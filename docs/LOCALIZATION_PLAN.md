@@ -158,6 +158,7 @@ export interface LocaleMessages {
   };
   hud: Record<string, string>;
   modal: Record<string, string>;
+  dialog: Record<string, string>;
   inventory: Record<string, string | string[]>;
   dungeon: {
     notifications: Record<string, { leftPad: number; text: string }>;
@@ -277,6 +278,10 @@ Migrated surfaces:
 - `web/src/ui/inventory-screen.ts` — panel labels, `inventory.noUse`,
   `inventory.iHaveUsed`, level/exp debug popup, and the spell/wearable/item/
   sword/shield name tables via `getInventoryList` / `getInventoryPairs`
+- `web/src/ui/conversation-draw.ts` — the NPC choice rows
+  (`dialog.yes` / `dialog.no`, `dialog.take` / `dialog.noTake`)
+- `web/src/ui/menu-dialog.ts` — the shop/bank `YesNoDialog` labels
+  (`dialog.yes` / `dialog.no`)
 
 Move the smallest and lowest-risk text first:
 

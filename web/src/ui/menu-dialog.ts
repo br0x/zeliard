@@ -2,6 +2,8 @@
  * menu-dialog.ts — Reusable typewriter text and vertical menu components.
  */
 
+import { t } from '../locale/index.js';
+
 export interface YesNoColors {
     borderOuter?: string;
     borderInner?: string;
@@ -224,7 +226,7 @@ export class YesNoDialog {
         ctx.fillStyle = this.colors.bg;
         ctx.fillRect(this.x, this.y, this.w, this.h);
 
-        const items  = ['Yes', 'No'];
+        const items  = [t('dialog.yes'), t('dialog.no')];
         const textX  = this.x + 30;
         const firstY = this.y + 34;
         const lineH  = 40;

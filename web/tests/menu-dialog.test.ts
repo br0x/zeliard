@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { MenuList, TypewriterText, YesNoDialog } from '../src/ui/menu-dialog.js';
+import { setLocale } from '../src/locale/index.js';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -123,6 +124,8 @@ describe('MenuList', () => {
 });
 
 describe('YesNoDialog', () => {
+    afterEach(() => setLocale('en'));
+
     it('defaults to Yes and clamps arrow movement to [0,1]', () => {
         const d = new YesNoDialog(fakeCtx(), 'f', 10, 10, 80, 80);
         expect(d.isYes).toBe(true);
@@ -153,5 +156,13 @@ describe('YesNoDialog', () => {
         d.draw(ctx, 0.5);
         const texts = ctx.calls.map(c => c.text);
         expect(texts).toEqual(expect.arrayContaining(['Yes', 'No']));
+    });
+
+    it('renders the labels of the active locale', () => {
+        setLocale('ru');
+        const ctx = fakeCtx();
+        const d = new YesNoDialog(fakeCtx(), 'f', 10, 10, 80, 80);
+        d.draw(ctx);
+        expect(ctx.calls.map(c => c.text)).toEqual(['Да', 'Нет']);
     });
 });

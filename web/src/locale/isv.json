@@ -6,47 +6,53 @@
   "hud": {
     "place": "MĚSTO",
     "gold": "ZLATO",
-    "enemy": "VRAH",
+    "enemy": "VRAG",
     "life": "ŽIVOT",
-    "almas": "ALMAS"
+    "almas": "ALJMY"
   },
   "modal": {
-    "speedChange": "Brzost igry",
+    "speedChange": "Bystrost igry",
     "speedSelect": "Izberi 0-9:",
-    "speedPressAnyKey": "(nasnite PROBEL)",
+    "speedPressAnyKey": "(natisknite SPACE)",
     "saveTitle": "Shraniti igru",
     "restoreTitle": "Obnoviti igru",
     "newName": "Ime:",
-    "restart": "Odnova",
-    "upDownHint": "GOR/DOL: izbor | PROBEL/ENTER: potvrditi | ESC: otkazati",
-    "importExportExport": "Izvoz",
-    "importExportImport": "Vvoz",
-    "importExportDelete": "Izbrisati",
-    "deleteConfirm": "Izbrisati to shranjenje?",
-    "deleteYesNo": "[Y] Da   [N] Ne",
-    "deleteHint": "Y: potvrditi   N / ESC: otkazati",
+    "restart": "Nanovo",
+    "upDownHint": "↑/↓: izbor | SPACE/ENTER: potvrditi | ESC: odkazati",
+    "importExportExport": "Eksport",
+    "importExportImport": "Import",
+    "importExportDelete": "Oddaliti",
+    "deleteConfirm": "Oddaliti to shranjenje?",
+    "deleteYesNo": "[Y] Tak   [N] Ne",
+    "deleteHint": "Y: potvrditi   N / ESC: odkazati",
     "noSavedGames": "(nema shranjenij)",
     "exportImportHint": "←/→: režim   ↑/↓: slot   ENTER: {action} slot   ESC: otkazati",
-    "importHint": "←/→: režim   ENTER: vvoz   ESC: otkazati",
-    "loadFromFile": "Naložiti iz fajla .sav",
-    "pressEnterFile": "Stisnite ENTER za izbor fajla"
+    "importHint": "←/→: režim   ENTER: import   ESC: otkazati",
+    "loadFromFile": "Dodati iz fajla .sav",
+    "pressEnterFile": "Natisknite ENTER za izbor fajla"
+  },
+  "dialog": {
+    "yes": "Tak",
+    "no": "Ne",
+    "take": "Vzeti",
+    "noTake": "Ne brati"
   },
   "inventory": {
     "selectMagic": "MAGIJA:",
-    "wear": "NOSITI:",
+    "wear": "NADĚTI:",
     "use": "UPOTREBITI:",
     "inventory": "INVENTAR",
-    "level": "UROVEN",
-    "exp": "ISKUSTVO",
-    "noUse": "NE UPOTREBLJIVO",
+    "level": "RANG",
+    "exp": "IZKUŠENOST",
+    "noUse": "NE KORISTAJU",
     "iHaveUsed": "Ja upotrebil",
     "spellNames": [
       "Espada",
       "Saeta",
       "Fuego",
       "Lanzar",
-      "Rascar",
-      "Agua",
+      "Raskar",
+      "Akva",
       "Guerra"
     ],
     "wearableNames": [
@@ -54,34 +60,34 @@
       "Obuv Feruza",
       "Obuv Pirika",
       "Obuv Silkarn",
-      "Obuv Ruzeria",
-      "Plast Asbestos"
+      "Obuv Ruzerija",
+      "Plašč iz Asbesta"
     ],
     "itemNames": [
       "",
-      "Zelje Ken'ko",
-      "Plod Juu-en",
-      "Eliksir Kashi",
-      "Prašek Chikara",
-      "Kamen Magia",
+      "Zelje Kenjko",
+      "Plod Džuěn",
+      "Eliksir Kaši",
+      "Prašek Čikara",
+      "Magičny Kamenj",
       "Sveta voda Acero",
       "Olej Sabre",
       "Pero Kioku"
     ],
     "itemUseText": [
       "",
-      "Zelje Ken'ko.",
-      "Plod Juu-en.",
-      "Eliksir Kashi.",
-      "Prašek Chikara.",
-      "         Kamen Magia.",
+      "Zelje Kenjko.",
+      "Plod Džuěn.",
+      "Eliksir Kaši.",
+      "Prašek Čikara.",
+      "         Magičny Kamenj.",
       "Svetu vodu Acero.",
       "Olej Sabre.",
       "Pero Kioku."
     ],
     "swordNames": [
       [
-        "Trenovačny",
+        "Učebny",
         "meč"
       ],
       [
@@ -127,8 +133,8 @@
         ""
       ],
       [
-        "Titanovy",
-        "ščit"
+        "Ščit iz pancira",
+        "žuželky"
       ]
     ]
   },

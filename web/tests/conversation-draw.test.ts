@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import {
     layoutConversationBox,
     drawConversationBox,
     type ConversationDrawState,
 } from '../src/ui/conversation-draw.js';
+import { setLocale } from '../src/locale/index.js';
 import { TEXT_FIRST_BASELINE, TEXT_LINE_HEIGHT, TEXT_BOTTOM_PAD } from '../src/core/conversation-text.js';
 
 interface Call { op: string; args: unknown[] }
@@ -49,6 +50,8 @@ function state(overrides: Partial<ConversationDrawState> = {}): ConversationDraw
 }
 
 describe('drawConversationBox', () => {
+    afterEach(() => setLocale('en'));
+
     it('no-ops when inactive or when there are no pages', () => {
         const a = fakeCtx();
         drawConversationBox(a.ctx, state({ active: false }));
@@ -127,6 +130,33 @@ describe('drawConversationBox', () => {
         const texts = textCalls(f.calls);
         expect(texts.map((t) => t.args[0])).toEqual(["It's not free...", 'Take', 'No Take', '►']);
         expect(texts[3]!.args[2]).toBe(20 + TEXT_FIRST_BASELINE + TEXT_LINE_HEIGHT + 8); // cursor row 0
+    });
+
+    it('localizes the choice options for the active locale', () => {
+        setLocale('ru');
+        const yesNo = fakeCtx();
+        drawConversationBox(
+            yesNo.ctx,
+            state({ pages: [['Стойте! У вас есть Герб Героя? ']], yesNoMode: true }),
+        );
+        expect(textCalls(yesNo.calls).map((c) => c.args[0])).toEqual([
+            'Стойте! У вас есть Герб Героя? ',
+            'Да',
+            'Нет',
+            '►',
+        ]);
+
+        const purchase = fakeCtx();
+        drawConversationBox(
+            purchase.ctx,
+            state({ pages: [['Продать? ']], purchaseMode: true }),
+        );
+        expect(textCalls(purchase.calls).map((c) => c.args[0])).toEqual([
+            'Продать? ',
+            'Беру',
+            'Не беру',
+            '►',
+        ]);
     });
 });
 
