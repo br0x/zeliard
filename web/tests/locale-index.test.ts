@@ -70,7 +70,7 @@ describe('getDungeonName', () => {
 
     it('falls back to English when the locale omits an id', () => {
         setLocale('isv');
-        expect(getDungeonName('mp60')).toBe('Pečera Tesoro');
+        expect(getDungeonName('mp60')).toBe('Pečera Tezoro');
     });
 });
 
