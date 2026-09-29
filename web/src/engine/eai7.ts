@@ -78,11 +78,11 @@ const type2ShotLeft = [0, 0, EAI7_PROJECTILE_31, 0, 0x14, 4, 0x28, 0, 0, 0, 0, 0
 /** Monster_AI_7 (eai7.c:97). */
 export function monsterAi7(g: Uint8Array, m: number): void {
     switch (memRead8(g, m + 4) & 0x0f) { // .flags
-        case 0: type0Ai(g, m); return;
-        case 1: passiveTwinAi(g, m); return;
-        case 2: type2Ai(g, m); return;
-        case 3: passiveTwinAi(g, m); return;
-        case 4: type4Ai(g, m); return;
+        case 0: type0Ai(g, m); return; // sentry
+        case 1: passiveTwinAi(g, m); return; // sentry bottom
+        case 2: type2Ai(g, m); return; // fire elemental
+        case 3: passiveTwinAi(g, m); return; // fire elemental bottom
+        case 4: type4Ai(g, m); return; // blue wolf
         default: return; // five-entry jump table
     }
 }
