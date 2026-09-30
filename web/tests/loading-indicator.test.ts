@@ -36,6 +36,14 @@ const WIDTH = 672;
 const HEIGHT = 432;
 const CX = WIDTH / 2;
 const CY = HEIGHT / 2;
+const STEP_MS = 110;
+
+/** Draw one frame at a given orbit step and return the blit destination. */
+function orbitBlit(step: number) {
+    const { ctx, blits } = makeCtx();
+    drawLoadingIndicator(ctx, WIDTH, HEIGHT, step * STEP_MS, SHEET);
+    return blits[0]!;
+}
 
 describe('drawLoadingIndicator', () => {
     afterEach(() => setLocale('en'));
@@ -46,17 +54,18 @@ describe('drawLoadingIndicator', () => {
         expect(rects).toEqual([{ x: 0, y: 0, w: WIDTH, h: HEIGHT, fill: '#000' }]);
     });
 
-    it('blits the Magia Stone — frame 0x26 of the dchr sheet — centred at 2x', () => {
+    it('blits the Magia Stone — frame 0x26 of the dchr sheet — at 2x', () => {
         const { ctx, blits } = makeCtx();
         drawLoadingIndicator(ctx, WIDTH, HEIGHT, 0, SHEET);
 
         expect(blits).toHaveLength(1);
-        expect(blits[0]).toEqual({
-            sx: 0x26 * 24, sy: 0, sw: 24, sh: 24,
-            dx: CX - 24, dy: CY - 24, dw: 48, dh: 48,
-        });
-        expect(blits[0]!.sx + blits[0]!.sw).toBe(SHEET.width);
+        expect(blits[0]!.sx).toBe(0x26 * 24);
+        expect(blits[0]!.sy).toBe(0);
+        expect(blits[0]!.sw).toBe(24);
+        expect(blits[0]!.sh).toBe(24);
         expect(blits[0]!.dw).toBe(TILE_SIZE * 2);
+        expect(blits[0]!.dh).toBe(TILE_SIZE * 2);
+        expect(blits[0]!.sx + blits[0]!.sw).toBe(SHEET.width);
     });
 
     it('asks for nearest-neighbour so the upscaled art stays crisp', () => {
@@ -66,26 +75,49 @@ describe('drawLoadingIndicator', () => {
         expect(ctx.imageSmoothingEnabled).toBe(false);
     });
 
-    it('bobs the sprite and returns to the resting offset after a full cycle', () => {
-        const offsets = [0, 1, 2, 3].map(step => {
-            const { ctx, blits } = makeCtx();
-            drawLoadingIndicator(ctx, WIDTH, HEIGHT, step * 110, SHEET);
-            return blits[0]!.dy - (CY - 24);
-        });
-        expect(offsets).toEqual([0, -5, -10, -5]);
-
-        const { ctx, blits } = makeCtx();
-        drawLoadingIndicator(ctx, WIDTH, HEIGHT, 4 * 110, SHEET);
-        expect(blits[0]!.dy).toBe(CY - 24);
+    it('orbits through eight distinct slots, one per step', () => {
+        const positions = Array.from({ length: 8 }, (_, step) => `${orbitBlit(step).dx},${orbitBlit(step).dy}`);
+        expect(new Set(positions).size).toBe(8);
+        // Repeat after a full turn.
+        expect(`${orbitBlit(8).dx},${orbitBlit(8).dy}`).toBe(positions[0]);
     });
 
-    it('keeps every sprite position pixel-aligned', () => {
-        for (let step = 0; step < 4; step++) {
-            const { ctx, blits } = makeCtx();
-            drawLoadingIndicator(ctx, WIDTH, HEIGHT, step * 110, SHEET);
-            expect(Number.isInteger(blits[0]!.dx)).toBe(true);
-            expect(Number.isInteger(blits[0]!.dy)).toBe(true);
+    it('keeps every slot on the orbit, starting at twelve o\'clock, clockwise', () => {
+        const centres = Array.from({ length: 8 }, (_, step) => {
+            const b = orbitBlit(step);
+            return { dx: b.dx + b.dw / 2 - CX, dy: b.dy + b.dh / 2 - CY };
+        });
+
+        // Slot 0 sits directly above the centre.
+        expect(centres[0]!.dx).toBeCloseTo(0, 1);
+        expect(centres[0]!.dy).toBeCloseTo(-56, 1);
+
+        // Every slot keeps the orbit radius, up to pixel snapping.
+        for (const c of centres) {
+            expect(Math.abs(Math.hypot(c.dx, c.dy) - 56)).toBeLessThan(2);
         }
+
+        // Consecutive slots turn 45 degrees clockwise (screen y grows downward).
+        for (let i = 1; i < centres.length; i++) {
+            const cross = centres[i - 1]!.dx * centres[i]!.dy - centres[i - 1]!.dy * centres[i]!.dx;
+            const dot = centres[i - 1]!.dx * centres[i]!.dx + centres[i - 1]!.dy * centres[i]!.dy;
+            expect(Math.atan2(cross, dot)).toBeCloseTo(Math.PI / 4, 1);
+        }
+    });
+
+    it('keeps every orbit position pixel-aligned', () => {
+        for (let step = 0; step < 8; step++) {
+            const b = orbitBlit(step);
+            expect(Number.isInteger(b.dx)).toBe(true);
+            expect(Number.isInteger(b.dy)).toBe(true);
+        }
+    });
+
+    it('wraps negative clock values back into the first slot', () => {
+        const wrapped = makeCtx();
+        drawLoadingIndicator(wrapped.ctx, WIDTH, HEIGHT, -STEP_MS, SHEET);
+        expect(`${wrapped.blits[0]!.dx},${wrapped.blits[0]!.dy}`)
+            .toBe(`${orbitBlit(7).dx},${orbitBlit(7).dy}`);
     });
 
     it('still shows the label while the sheet is still loading', () => {
@@ -96,13 +128,15 @@ describe('drawLoadingIndicator', () => {
         expect(texts[0]!.text).toBe('LOADING');
     });
 
-    it('labels the spinner in the active locale', () => {
+    it('labels the spinner in the active locale, clear of the whole orbit', () => {
         const en = makeCtx();
         drawLoadingIndicator(en.ctx, WIDTH, HEIGHT, 0, SHEET);
         expect(en.texts[0]!.text).toBe('LOADING');
         expect(en.texts[0]!.x).toBe(CX);
-        // Sits below the sprite so the two never overlap.
-        expect(en.texts[0]!.y).toBeGreaterThan(CY + 24);
+        // Lowest the sprite ever reaches is cy + 56 + 24; the label sits below it.
+        expect(en.texts[0]!.y).toBeGreaterThan(CY + 56 + 24);
+        // ...and stays on the canvas.
+        expect(en.texts[0]!.y).toBeLessThan(HEIGHT);
 
         setLocale('ru');
         const ru = makeCtx();

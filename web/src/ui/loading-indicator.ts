@@ -17,7 +17,8 @@
  * animation phase are identical.
  *
  * The indicator is the Magia Stone sprite (the last tile of the dchr sheet,
- * the same one drawDungeonMagiaStones blits) bobbing over a localized label.
+ * the same one drawDungeonMagiaStones blits) orbiting the canvas centre
+ * through eight slots above a localized label.
  */
 import { t } from '../locale/index.js';
 import { drawSheetFrame, type SpriteSheet } from '../render/sheets.js';
@@ -32,20 +33,29 @@ const MAGIA_STONE_FRAME = 0x26;
 const SPRITE_SCALE = 2;
 const SPRITE_SIZE = TILE_SIZE * SPRITE_SCALE;
 
-/**
- * Vertical bob of the sprite, in canvas pixels, one entry per animation step.
- * Down, up, up further, up — a bounce rather than a jump-cut.
- */
-const BOB = [0, -5, -10, -5];
-/** Milliseconds per step — deliberately slow, to match the game. */
+/** Orbit slots the sprite steps through before repeating, as in the old ring. */
+const ORBIT_SLOTS = 8;
+/** Distance from the canvas centre to the sprite centre, in canvas pixels. */
+const ORBIT_RADIUS = 56;
+/** Milliseconds per slot — deliberately slow, to match the game. */
 const FRAME_MS = 110;
 
-/** Baseline for the label: sprite centre plus half its height plus a gap. */
-const LABEL_Y = 62;
+/** Clearance between the orbit's lowest point and the label. */
+const LABEL_GAP = 32;
+const LABEL_Y = ORBIT_RADIUS + SPRITE_SIZE / 2 + LABEL_GAP;
 
 const FONT = '24px "Press Start 2P", monospace';
 const BACKGROUND = '#000';
 const LABEL_COLOR = '#fc6';
+
+/**
+ * Orbit angle for an animation step: one 45 degree slot per step, starting at
+ * twelve o'clock and turning clockwise.
+ */
+function orbitAngle(step: number): number {
+    const slot = ((step % ORBIT_SLOTS) + ORBIT_SLOTS) % ORBIT_SLOTS;
+    return -Math.PI / 2 + (slot / ORBIT_SLOTS) * Math.PI * 2;
+}
 
 let sprite: HTMLImageElement | null = null;
 let spriteRequested = false;
@@ -70,8 +80,8 @@ export function loadingSprite(): SpriteSheet | null {
 }
 
 /**
- * Paint one spinner frame: black backdrop, bobbing Magia Stone, localized
- * label. `now` is a performance.now() timestamp.
+ * Paint one spinner frame: black backdrop, Magia Stone one orbit slot further
+ * on, localized label. `now` is a performance.now() timestamp.
  *
  * `sheet` defaults to the sheet this module loaded; tests pass their own.
  */
@@ -87,14 +97,15 @@ export function drawLoadingIndicator(
 
     const cx = width / 2;
     const cy = height / 2;
-    const bob = BOB[Math.floor(now / FRAME_MS) % BOB.length] ?? 0;
 
     if (sheet) {
+        const angle = orbitAngle(Math.floor(now / FRAME_MS));
         // Nearest-neighbour keeps the 24x24 art crisp at 2x.
         ctx.imageSmoothingEnabled = false;
         drawSheetFrame(
             ctx, sheet, MAGIA_STONE_FRAME, TILE_SIZE, TILE_SIZE, SHEET_COLUMNS,
-            Math.round(cx - SPRITE_SIZE / 2), Math.round(cy - SPRITE_SIZE / 2 + bob),
+            Math.round(cx + Math.cos(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
+            Math.round(cy + Math.sin(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
             SPRITE_SIZE, SPRITE_SIZE,
         );
     }
