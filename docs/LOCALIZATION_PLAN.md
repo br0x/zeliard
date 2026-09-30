@@ -713,8 +713,11 @@ The live app is deployed under `/zeliard/`. The resolver should support:
 - `https://br0x.github.io/zeliard/ru`
 - `https://br0x.github.io/zeliard/isv`
 
-If GitHub Pages does not rewrite deep links to `index.html`, add a standard SPA
-fallback such as a copied `404.html` that serves the app shell.
+GitHub Pages does not rewrite deep links, so the build emits the app shell at
+every locale path (`dist/<locale>/index.html`, copied from `dist/index.html`)
+in addition to the `404.html` fallback. Without those copies `/ru` answers 404
+and only boots because Pages serves the fallback body — the game runs, but the
+console reports a 404 for the document itself.
 
 ## Suggested Implementation Order
 

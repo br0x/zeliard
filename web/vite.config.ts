@@ -1,9 +1,45 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+
+/**
+ * Locales that get their own static entry point in the build output.
+ * Must stay in sync with SUPPORTED_LOCALES in src/core/locale-utils.ts
+ * (asserted by tests/build-locale-entries.test.ts).
+ */
+export const LOCALE_ENTRY_DIRS = ['en', 'ru', 'isv'] as const;
+
+/**
+ * Copy the built shell to `<outDir>/<locale>/index.html`.
+ *
+ * GitHub Pages has no rewrite rules, so `/<repo>/ru` can only be served by a
+ * real file. Without these copies that request answers 404 and the app only
+ * boots because Pages returns the 404.html shell for unknown paths — the game
+ * runs, but the console shows a 404 for the document itself.
+ *
+ * The copies are byte-identical to index.html on purpose: the locale comes
+ * from the URL path at runtime, and the entry script/stylesheet references
+ * resolve against the site root (the entry is absolute, the stylesheet and
+ * the runtime asset paths are relative to the last path segment).
+ */
+export function emitLocaleEntryCopies(
+    outDir: string,
+    locales: readonly string[] = LOCALE_ENTRY_DIRS,
+): string[] {
+    const indexPath = resolve(outDir, 'index.html');
+    const written: string[] = [];
+    for (const locale of locales) {
+        const dir = resolve(outDir, locale);
+        mkdirSync(dir, { recursive: true });
+        const target = resolve(dir, 'index.html');
+        copyFileSync(indexPath, target);
+        written.push(target);
+    }
+    return written;
+}
 
 function spaFallback(): Plugin {
   let outDir = 'dist';
@@ -15,6 +51,7 @@ function spaFallback(): Plugin {
     },
     closeBundle() {
       copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));
+      emitLocaleEntryCopies(outDir);
     },
   };
 }

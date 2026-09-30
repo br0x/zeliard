@@ -8,7 +8,8 @@
     "gold": "GOLD",
     "enemy": "ENEMY",
     "life": "LIFE",
-    "almas": "ALMAS"
+    "almas": "ALMAS",
+    "loading": "LOADING"
   },
   "modal": {
     "speedChange": "Speed change",

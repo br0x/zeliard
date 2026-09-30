@@ -8,7 +8,8 @@
     "gold": "ZLATO",
     "enemy": "VRAG",
     "life": "ŽIVOT",
-    "almas": "ALJMY"
+    "almas": "ALJMY",
+    "loading": "ZAGRUZKA"
   },
   "modal": {
     "speedChange": "Bystrost igry",

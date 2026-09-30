@@ -10,6 +10,7 @@ const REQUIRED_RELEASE_KEYS = [
     'hud.enemy',
     'hud.life',
     'hud.almas',
+    'hud.loading',
     'modal.speedChange',
     'modal.speedSelect',
     'modal.speedPressAnyKey',

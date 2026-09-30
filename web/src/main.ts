@@ -88,6 +88,7 @@ import {
 import { IndoorSceneBase } from './core/indoor-scene-base.js';
 import { Hud } from './ui/hud.js';
 import { ModalManager } from './ui/modal-manager.js';
+import { drawLoadingIndicator, startLoadingIndicator, stopLoadingIndicator } from './ui/loading-indicator.js';
 import { SpeedChangeDialog, displayedSpeed } from './core/speed-change.js';
 import {
     RokaDemo,
@@ -655,6 +656,10 @@ async function startGame() {
     uiScreen.classList.remove('hidden');
     layoutWrapper.classList.remove('hidden');
 
+    // The canvas is visible from here but the main loop is not running until
+    // every asset below is loaded — own the frames with a spinner meanwhile.
+    startLoadingIndicator(ctx, canvas.width, canvas.height);
+
     try {
         await soundManager.init();
     } catch (err) {
@@ -744,6 +749,10 @@ async function startGame() {
 
     soundManager.start();
 
+    // Hand the canvas over to the main loop. engineReady was set above in this
+    // same synchronous block, so no spinner frame can be captured after the
+    // first game frame lands.
+    stopLoadingIndicator();
     requestAnimationFrame(loop);
 }
 
@@ -1910,12 +1919,10 @@ let tickCounter = 0;
 let animTimer   = 0;
 
 function draw() {
-    if (!engineReady) { // emergency fallback
-        drawLifeBar();
-        renderGoldHud();
-        renderSwordHud();
-        renderMagicHud();
-        renderShieldHud();
+    if (!engineReady) {
+        // Nothing to render yet: a failed boot, or a map transition while the
+        // next level loads. Show the spinner instead of a black canvas.
+        drawLoadingIndicator(ctx, canvas.width, canvas.height, performance.now());
         return;
     }
 
