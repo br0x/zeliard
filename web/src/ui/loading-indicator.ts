@@ -46,7 +46,7 @@ const LABEL_Y = ORBIT_RADIUS + SPRITE_SIZE / 2 + LABEL_GAP;
 
 const FONT = '24px "Press Start 2P", monospace';
 const BACKGROUND = '#000';
-const LABEL_COLOR = '#fc6';
+const LABEL_COLOR = '#0df';
 
 /**
  * Orbit angle for an animation step: one 45 degree slot per step, starting at
