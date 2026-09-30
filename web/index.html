@@ -2,9 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!--
+      GitHub Pages 301s /zeliard/ru to /zeliard/ru/ to serve ru/index.html, and
+      the preload scanner resolves relative URLs before the rewrite below can
+      run — so styles.css, the mole images and every runtime fetch() /
+      Image.src would look under /zeliard/ru/ and 404. <base> is applied by the
+      parser before any URL attribute is resolved, so all of them (including
+      the asset paths in JS) resolve against the site root. Must stay the first
+      URL-bearing element in <head>.
+    -->
+    <base href="%BASE_URL%">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zeliard Web Port</title>
     <script>
+      // Cosmetic only: show /ru rather than /ru/ in the address bar, matching
+      // the locale links buildLocalePath() generates. Asset resolution is the
+      // <base> tag's job.
       (function () {
         var path = window.location.pathname;
         if (path.length > 1 && /\/+$/.test(path)) {
