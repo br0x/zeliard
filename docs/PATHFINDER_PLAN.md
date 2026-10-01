@@ -447,8 +447,10 @@ same order of magnitude), so a route costs about what a shield upgrade costs.
 
 ### 3.2 Player flow
 
+Three stages, and the route is only ever visible in the third.
+
 ```
-dungeon ──(USE ▸ Thread of Yaga)──▶ map screen opens, gamePaused = true
+dungeon ──(USE ▸ Thread of Yaga)──▶ map screen opens over the inventory
                                           │
                       map strip ◀─────────┼─────────▶ map strip
                                           │
@@ -456,15 +458,35 @@ dungeon ──(USE ▸ Thread of Yaga)──▶ map screen opens, gamePaused = t
                                           │
                                   click a passable tile
                                           │
-                             A* over the component graph
+                        A* over the component graph
                                           │
-                     route drawn on the map; item consumed
-                                          │
-        Esc / Enter ──▶ map closes, gamePaused = false
-                                          │
-                    chevrons now overlay the live cavern background,
-                    starting at the hero's head tile
+        ┌─────────────────────────────────┘
+        ▼
+  map closes — NO route is drawn on it
+        │
+        ▼
+  back in the inventory, whose usage message reads
+  "I used a Yaga thread."
+        │
+        │  (player leaves the inventory)
+        ▼
+  chevrons appear over the live cavern background,
+  starting at the hero's head tile
+        │
+        ▼
+  as the hero walks, the part already travelled is
+  dropped and the next stretch is revealed
 ```
+
+Two rules follow from this and are easy to get wrong:
+
+- **The map screen never draws the route.** It exists only to *pick* a
+  destination. Revealing it would spoil the cavern before the player has
+  committed to the destination.
+- **The inventory does not close when the item is used.** Using it opens the map
+  on top; picking a point returns here, where the usage message is the
+  confirmation. The route appears only when the player leaves, so the cavern is
+  never obscured by a menu while they are trying to walk it.
 
 ### 3.3 What the map screen shows
 
@@ -472,9 +494,12 @@ dungeon ──(USE ▸ Thread of Yaga)──▶ map screen opens, gamePaused = t
   current map name.
 - Map strip: one tab per map in the component, with the current map marked.
 - The chosen map rendered at integer scale, centred.
-- Overlay, back to front: the computed route, doors, town exits (marked, never
-  routed through), the hero marker, the cursor.
+- Overlay, back to front: doors, town exits (marked, never routed through), the
+  **hero marker**, and the cursor. **No route.**
 - Hint line: `t('map.hints')` at the bottom.
+
+The hero marker is not decoration: it is how the player knows which end of the
+map they are standing at, and the map is a cylinder, so "left" wraps.
 
 ### 3.4 Accepting a destination
 
@@ -482,13 +507,16 @@ A click is accepted when it maps to a tile that is a valid nav node (or that can
 be projected onto the nearest valid node within a 2-tile radius). Clicks on
 walls, water and out-of-map pixels are ignored with a short error blip.
 
-If A* finds no route, the map flashes `t('map.unreachable')` and the route
-clears. No path is better than a wrong path.
+Accepting one closes the map immediately. If A* found no route, the map stays open
+and flashes `t('map.unreachable')` instead — no path is better than a wrong path,
+and silently returning to the inventory would look like success.
 
 ### 3.5 The route in the live cavern view
 
-After the map closes, the route stays active and is drawn as **chevron tiles
-over the background**, beginning at the hero's head. Full specification in §10.
+Once the player leaves the inventory, the route is drawn as **chevron tiles over
+the background**, beginning at the hero's head. Only the part still ahead of the
+hero is drawn, only inside the 28×18 viewport, and it advances as he walks. Full
+specification in §10.
 
 ---
 
@@ -1132,9 +1160,9 @@ ctx.save()
   map strip (component maps)
   blit the cached map raster at (ox, oy)
   draw doors, town exits, portals
-  draw the route polyline + waypoint dots
-  draw the hero marker
+  draw the hero marker          <- "you are here"; the map is a cylinder
   draw the cursor
+  (no route: the screen exists only to pick a destination)
   hint line                                   Press Start 2P 12px
 ctx.restore()
 ```
@@ -1295,30 +1323,46 @@ active route as **chevron tiles over the background**.
 
 ### 10.1 Artwork
 
-`web/public/assets/images/path_chevrons.png` — 48×48 cells, 24×24 art, **9
-frames**:
+Four chevrons and a destination ring, **24×24 px each — one per tile**, on a
+transparent background. Not eight sprites: diagonals use the nearest cardinal.
 
-| Frame | Direction | Shown as |
+| Sprite | Points | Drawn at |
 | --- | --- | --- |
-| 0 | east | `>>>` |
-| 1 | west | `<<<` |
-| 2 | south | `v` |
-| 3 | north | `^` |
-| 4 | south-east | `\>` |
-| 5 | south-west | `/<` |
-| 6 | north-east | `/>` |
-| 7 | north-west | `\<` |
-| 8 | destination | a ring or cross — drawn on the final waypoint instead of a direction |
+| `chevron_up` | north | `^` |
+| `chevron_down` | south | `v` |
+| `chevron_left` | west | `<<<` |
+| `chevron_right` | east | `>>>` |
+| `destination` | — | a ring, drawn on the final waypoint instead of a direction |
 
-Drawn with `drawSheetFrame` (`render/sheets.ts:21-38`) at 1:1 pixel scale, with
-`imageSmoothingEnabled = false` already set (`render/canvas.ts:24`).
+**Why four and not eight.** This is pixel art rendered with
+`imageSmoothingEnabled = false` (`render/canvas.ts:24`). Rotating a 24×24 sprite by
+45° to make a diagonal resamples it and softens the edges, which is exactly the
+wrong trade here. Four sprites pre-oriented in each cardinal direction means no
+rotation at all: a diagonal step shows the nearer cardinal and the *sequence* of
+chevrons still reads as the path, at zero cost in sharpness.
 
-Colour: a bright cyan-to-white ramp so the chevrons read against every cavern
-palette without tinting. Alpha ~0.85 so the terrain stays legible underneath.
+Layout: one sheet per sprite at 24×24, or a single 5-cell strip. Drawn with
+`drawSheetFrame` (`render/sheets.ts:21-38`) at 1:1 pixel scale.
 
-### 10.2 Placement
+Constraints that matter for the assets to land correctly:
 
-For each route point `i` (from `progressIndex` onward), let
+- **24×24 exactly**, so a chevron occupies one tile and the first one sits on the
+  hero's head cell.
+- **Transparent background**, with the glyph inset at least 2 px from every edge,
+  so a chevron at the viewport border does not look clipped.
+- **Pre-oriented.** Please draw up, down, left and right as separate frames
+  rather than one frame I would rotate.
+- **Bright and consistent across all five.** A cyan-to-white ramp reads against
+  every cavern palette; nothing in a cave colour, which would vanish into rock.
+  Alpha around 0.85, so the terrain stays legible underneath.
+
+### 10.2 Placement — only what is ahead, only what is visible
+
+The overlay draws the **remaining** route: the stretch the hero has not walked
+yet, starting at his head. What he has already covered is dropped, so the chevrons
+advance as he moves rather than scrolling behind him.
+
+For each route point `i` **from `progressIndex` onward**, let
 `(x, y)` be the standing position and `(xn, yn)` the next one. Compute the
 direction with **cylindrical deltas** — `dx` shortest-path across the map seam,
 `dy` shortest-path across the 64-row wrap:
@@ -1329,8 +1373,10 @@ dy = ((yn - y + 32) + 64) % 64 - 32
 dir = directionOf(dx, dy)
 ```
 
-- Draw the chevron **at `(x, y)`** — for the first visible point, that is the
-  hero's head tile, exactly as the brief specifies.
+- Draw the chevron **at `(x, y)`** — for the first point, that is the hero's head
+  tile, exactly as the brief specifies.
+- `directionOf` maps a diagonal to the nearer cardinal, because the four sprites
+  are pre-oriented and rotating them would soften the pixels (§10.1).
 - Convert map coordinates to viewport coordinates and clip:
 
 ```ts
@@ -1339,7 +1385,7 @@ const left  = heroAbsLeftColFor(x);                    // absolute x
 const vx = (x - left + mapWidth) % mapWidth - DUNGEON_VIEW_LEFT_IN_PROX;
 const vy = ((y - top) & 0x3f) - 1;
 if (vx < -1 || vx >= VIEW_COLS || vy < -1 || vy >= VIEW_ROWS) continue;
-drawSheetFrame(ctx, chevrons, dir, 24, 24, 9, vx * TILE_SIZE, vy * TILE_SIZE);
+drawSheetFrame(ctx, chevrons, dir, 24, 24, vx * TILE_SIZE, vy * TILE_SIZE);
 ```
 
   The `- 1` on `vy` puts the first chevron at the hero's head row rather than
@@ -1347,7 +1393,10 @@ drawSheetFrame(ctx, chevrons, dir, 24, 24, 9, vx * TILE_SIZE, vy * TILE_SIZE);
   popping.
 - Draw **at most 24 chevrons** — enough to cover the viewport plus a margin, and
   a hard cap on per-frame cost.
-- The final waypoint draws frame 8 (destination) instead of a direction.
+- The final waypoint draws the destination ring instead of a direction.
+- Everything is clipped to the viewport: nothing is drawn off-screen, and no
+  offscreen culling list has to be built, because the walk stops at the first
+  point outside the view.
 - Platform ride slots between two points are skipped: the route would otherwise
   draw a column of chevrons hanging in mid-air where the platform is. Instead
   draw a single chevron on the ground node at each end of the ride, and let the
@@ -1398,10 +1447,20 @@ This satisfies "over the background" without hiding anything that matters.
 Throttled to at most once per 500 ms, and skipped entirely while the map screen
 is open (the map computes its own route).
 
-### 10.6 Progress tracking and completion
+### 10.6 Progress tracking, reveal and completion
 
-Each tick, advance `progressIndex` while the hero is within 1 tile of
-`points[progressIndex]`, using the engine's own absolute-position expression:
+The route does not appear the moment a destination is picked — it appears when the
+player leaves the inventory (§3.2). `path-guide` therefore holds the computed
+route immediately but the **overlay stays dormant** until both are true:
+
+- a route exists, and
+- the inventory and the map screen are both closed.
+
+While the overlay is dormant the route is still live: the recompute triggers in
+§10.5 keep it current, so the chevrons are right the instant the cavern appears.
+
+Each tick once revealed, advance `progressIndex` while the hero is within 1 tile
+of `points[progressIndex]`, using the engine's own absolute-position expression:
 
 ```
 absX = (g_mem[0x80] | g_mem[0x81] << 8) + g_mem[0x83] + 4   (mod mapWidth)
@@ -1409,7 +1468,12 @@ absY = (g_mem[0x82] + g_mem[0x84]) & 0x3F
 ```
 
 — the same expression `enterTheDoor` uses (`dungeon-doors.ts:90-101`). Points
-behind the index are dropped, so the array stays short.
+behind the index are dropped, so the array stays short **and so the overlay only
+ever draws the part still ahead**.
+
+Because the chevrons are clipped to the viewport and the array is truncated at
+the index, the per-frame cost does not grow with route length: a route across
+three caverns draws no more than a route across one.
 
 When `progressIndex` reaches the end, `route` is set to `null`: the overlay
 disappears, the destination has been reached.
@@ -1550,8 +1614,8 @@ Each phase is independently shippable and independently reviewable.
 | **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts` | 27 invariant tests over all 31 caverns. **[measured] 25,905 nodes / 286,886 edges, slowest build ~70 ms, 236/236 lifts and 288/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; jump apex and ceiling probe re-verified; no self-edges; CSR consistent |
 | **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) — **done** | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, `path_items.png`, locale ×3, `main.ts` | 20 tests. Save round-trip and byte-exact save image; a save without the feature marker reads as not owned **whatever it holds at 0x4A**; buying and selling move the counter and the extended stock bit, never the generic array; using one copy leaves all five generic slots byte-identical; the addresses cannot be reached by the 0xA1..0xFF forward scans |
-| **6** | Map screen | `ui/map-screen.ts`, `key-router.ts`, `main.ts` | Pointer → tile mapping under a CSS scale; keyboard cursor wrap; `gamePaused` asserted while open; keys do not reach the engine |
-| **7** | Chevron overlay | `render/path-overlay.ts`, `main.ts`, `assets/images/path_chevrons.png` | Draw order assertion; first chevron at the hero head; wrap-correct direction at the seam; ride and conveyor slots skipped; clipped to the viewport |
+| **6** | Map screen — next | `ui/map-screen.ts`, `key-router.ts`, `main.ts` | Pointer → tile mapping under a CSS scale; keyboard cursor wrap; `gamePaused` asserted while open; keys do not reach the engine; **no route is drawn on it**; accepting a point closes the map and returns to the inventory |
+| **7** | Chevron overlay | `render/path-overlay.ts`, `main.ts`, `assets/images/path_chevrons.png` | Draw order assertion; **dormant while the inventory or map is open**; first chevron at the hero head; wrap-correct direction at the seam; ride and conveyor slots skipped; clipped to the viewport; travelled points dropped as the hero advances; per-frame cost independent of route length |
 | **8** | Live route + polish | `engine/nav/path-guide.ts`, `locale` translations, README | Recompute on each §10.5 trigger; throttling; overlay clears on arrival; `Q` cancels and a later trigger does not resurrect it |
 
 Phase 8 is the one most likely to need a second pass after real playtesting,

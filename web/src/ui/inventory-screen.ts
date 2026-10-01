@@ -875,7 +875,10 @@ export class InventoryScreen {
         // count, so several copies are one row.
         if (at >= 0 && this.heroState.threadOfYaga <= 0) this.data.items.splice(at, 1);
         this.selectedIndices[2] = 0;
-        if (this.heroState.threadOfYaga <= 0) this.exit();
+        // The inventory stays open. Using the item opens the map on top of it;
+        // picking a destination closes the map and leaves this message here, and
+        // the route is only revealed once the player leaves the inventory. So this
+        // deliberately does not call exit().
         this.onOpenMapScreen?.();
     }
 
