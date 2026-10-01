@@ -475,6 +475,19 @@ function openMapScreen(): void {
         canvas,
         ctx,
         store: navGraphStore(),
+        // The map is the cavern's own art, not a class-coloured sketch: the same
+        // sheet `drawStaticTile` blits in the live view, so a wall on the map is
+        // the colour that wall has in the game. Loaded per map and cached by the
+        // image loader, so switching maps costs one image the first time.
+        tileSheets: async (mapId: number) => {
+            const dungeon = DUNGEONS[mapId];
+            if (!dungeon) return null;
+            const [tiles, platforms] = await Promise.all([
+                loadImageOnce(dungeon.tilesheetPath, () => { }),
+                loadImageOnce(DUNGEON_DCHR_SHEET_PATH, () => { }),
+            ]);
+            return { tiles, platforms };
+        },
         heroPosition: heroMapPosition,
         capabilities: heroCapabilities,
         text: (key: string) => t(key),

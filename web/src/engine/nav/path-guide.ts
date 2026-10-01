@@ -291,9 +291,13 @@ export class PathGuide {
             && on(route.points[this.progress + 1]!)) {
             this.progress++;
         }
-        // Reaching the last point ends the route; the destination ring is drawn on
-        // the frame he arrives, then the overlay retires.
-        if (on(route.points[this.progress]!) && this.progress === route.points.length - 1) {
+        // Reaching the destination ends the route. This is checked against the last
+        // point directly, not against the anchor: there is nothing after the last
+        // point for the loop above to advance to, so a hero standing on it used to
+        // leave the reveal one step short of the end and the chevrons stayed up for
+        // good.
+        const last = route.points.length - 1;
+        if (on(route.points[last]!)) {
             this.route = null;
             this.arrived = true;
         }

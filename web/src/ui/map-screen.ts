@@ -31,6 +31,8 @@ import { NavTileClassifier } from '../engine/nav/attributes.js';
 import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
+import { drawSheetFrame } from '../render/sheets.js';
+import { TILE_SIZE } from '../config/engine.js';
 
 const VIEW_W = 672;
 const VIEW_H = 432;
@@ -41,6 +43,9 @@ const HINT_TOP = 414;
 const MAX_SCALE = 8;
 const SNAP_RADIUS = 2;       // tiles searched outward for a valid standing spot
 const LRU_RASTERS = 4;
+
+/** A cavern tile is `TILE_SIZE` in the game's sheets — 24x24; the map scales down. */
+const MAP_TILE_PX = TILE_SIZE;
 
 const FONT_TITLE = '18px "Press Start 2P", monospace';
 const FONT_SMALL = '12px "Press Start 2P", monospace';
@@ -56,11 +61,27 @@ const COL = {
     empty: '#000000',
 } as const;
 
+/** The two sheets a cavern's own tiles are cut from. */
+export interface MapTileSheets {
+    /** `DUNGEONS[mapId].tilesheetPath` — tile ids 1..n are frames of it. */
+    tiles: HTMLImageElement;
+    /** The shared platform sheet — tile ids 0x40.. are frames of it. */
+    platforms: HTMLImageElement | null;
+}
+
 export interface MapScreenDeps {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
     /** Graph store, used for both the raster's tiles and the route search. */
     store: NavGraphStore;
+    /**
+     * The cavern's own tiles, loaded on demand.
+     *
+     * The map is the real cavern: the same sheet `drawStaticTile` blits in the
+     * live view, so a wall on the map is the colour that wall has in the game.
+     * Optional, and the screen falls back to flat classes without it.
+     */
+    tileSheets?: (mapId: number) => Promise<MapTileSheets | null>;
     /** Where the hero is standing, in map coordinates. */
     heroPosition: () => { mapId: number; col: number; row: number } | null;
     /** The hero's abilities, for the route search. */
@@ -94,6 +115,7 @@ export class MapScreen {
     private stripIndex = 0;
     private readonly rasters = new Map<string, HTMLCanvasElement>();
     private readonly rasterOrder: string[] = [];
+    private readonly pendingRasters = new Set<string>();
     private loading = false;
     private message = '';
     private messageUntil = 0;
@@ -314,26 +336,68 @@ export class MapScreen {
 
     // ── raster ────────────────────────────────────────────────────────────────
 
-    /** A cached offscreen canvas holding the whole cavern at its display scale. */
+    /**
+     * A cached offscreen canvas holding the whole cavern at its display scale.
+     *
+     * Built asynchronously when the cavern's tile sheets are supplied: a sheet is
+     * an image, and a screen that draws synchronously cannot wait for one. The
+     * first frame or two of a newly opened map has no raster and draws the cursor
+     * alone; the image is cached by the loader, so it is quick.
+     */
     private rasterFor(mapId: number): HTMLCanvasElement | null {
         const scale = this.scaleFor(mapId);
         const key = `${mapId}@${scale}`;
         const hit = this.rasters.get(key);
         if (hit) return hit;
 
-        const grid = this.deps.store.gridOf(mapId);
-        if (!grid) return null;
-        const built = this.rasterize(mapId, grid, scale);
-        this.rasters.set(key, built);
+        if (this.deps.tileSheets && !this.pendingRasters.has(key)) {
+            this.pendingRasters.add(key);
+            void this.buildRaster(mapId, key, scale);
+        } else if (!this.deps.tileSheets) {
+            const grid = this.deps.store.gridOf(mapId);
+            if (!grid) return null;
+            const built = this.rasterize(mapId, grid, scale, null);
+            this.rememberRaster(key, built);
+            return built;
+        }
+        return null;
+    }
+
+    private async buildRaster(mapId: number, key: string, scale: number): Promise<void> {
+        try {
+            const sheets = await this.deps.tileSheets!(mapId);
+            const grid = this.deps.store.gridOf(mapId);
+            if (sheets && grid) this.rememberRaster(key, this.rasterize(mapId, grid, scale, sheets));
+        } catch {
+            // A missing sheet leaves the map without a raster, not broken.
+        } finally {
+            this.pendingRasters.delete(key);
+        }
+    }
+
+    private rememberRaster(key: string, canvas: HTMLCanvasElement): void {
+        this.rasters.set(key, canvas);
         this.rasterOrder.push(key);
         while (this.rasterOrder.length > LRU_RASTERS) {
             const drop = this.rasterOrder.shift()!;
             this.rasters.delete(drop);
         }
-        return built;
     }
 
-    private rasterize(mapId: number, grid: NavTileGrid, scale: number): HTMLCanvasElement {
+    /**
+     * Paint the whole cavern at `scale`, from its own tiles.
+     *
+     * `drawStaticTile` (render/dungeon.ts:210) is the reference: tile id 0 is
+     * black, ids 1..n are frames of the cavern sheet, and ids 0x40.. are frames of
+     * the platform sheet. Anything else has no art and falls back to the class
+     * colour, which is all this function knew how to do before.
+     */
+    private rasterize(
+        mapId: number,
+        grid: NavTileGrid,
+        scale: number,
+        sheets: MapTileSheets | null,
+    ): HTMLCanvasElement {
         const classifier = NavTileClassifier.forMap(mapId);
         const canvas = document.createElement('canvas');
         canvas.width = grid.mapWidth * scale;
@@ -342,11 +406,39 @@ export class MapScreen {
         if (!ctx) return canvas;
         ctx.imageSmoothingEnabled = false;
 
+        const tiles = sheets?.tiles ?? null;
+        const tileCols = tiles ? Math.floor(tiles.width / MAP_TILE_PX) : 0;
+        const tileCount = tiles ? tileCols * Math.floor(tiles.height / MAP_TILE_PX) : 0;
+        const platforms = sheets?.platforms ?? null;
+        const platCols = platforms ? Math.floor(platforms.width / MAP_TILE_PX) : 0;
+        const platCount = platforms ? platCols * Math.floor(platforms.height / MAP_TILE_PX) : 0;
+
         for (let row = 0; row < NAV_MAP_HEIGHT; row++) {
             for (let col = 0; col < grid.mapWidth; col++) {
-                const flags = classifier.classify(grid.tiles[row * grid.mapWidth + col]!);
+                const id = grid.tiles[row * grid.mapWidth + col]!;
+                const x = col * scale;
+                const y = row * scale;
+                let drawn = false;
+                if (id === 0) {
+                    ctx.fillStyle = COL.empty;
+                    ctx.fillRect(x, y, scale, scale);
+                    drawn = true;
+                } else if (tiles && id >= 1 && id <= tileCount) {
+                    drawSheetFrame(ctx, tiles, id - 1, MAP_TILE_PX, MAP_TILE_PX,
+                        tileCols, x, y, scale, scale);
+                    drawn = true;
+                } else if (platforms && id >= 0x40 && id - 0x40 < platCount) {
+                    drawSheetFrame(ctx, platforms, id - 0x40, MAP_TILE_PX, MAP_TILE_PX,
+                        platCols, x, y, scale, scale);
+                    drawn = true;
+                }
+                // Anything else has no art in the sheet — one map's tile 20 runs
+                // past its own — and falls through to the class colour below, which
+                // is all this function could do before.
+                if (drawn) continue;
+                const flags = classifier.classify(id);
                 ctx.fillStyle = colourFor(flags);
-                ctx.fillRect(col * scale, row * scale, scale, scale);
+                ctx.fillRect(x, y, scale, scale);
             }
         }
         // Rope runs read better with a highlight along their length.
@@ -434,11 +526,13 @@ export class MapScreen {
         if (raster) ctx.drawImage(raster, ox, oy);
         else {
             // Data still loading, or unreadable: say so rather than draw nothing.
+            // A raster also waits on the cavern's tile sheet, which is an image.
+            const waiting = this.loading || this.pendingRasters.size > 0;
             ctx.fillStyle = '#444';
             ctx.font = FONT_SMALL;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(this.deps.text(this.loading ? 'map.loading' : 'map.noMap'), VIEW_W / 2, AREA_TOP + AREA_H / 2);
+            ctx.fillText(this.deps.text(waiting ? 'map.loading' : 'map.noMap'), VIEW_W / 2, AREA_TOP + AREA_H / 2);
             ctx.textAlign = 'left';
         }
         void scale;

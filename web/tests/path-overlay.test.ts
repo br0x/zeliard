@@ -260,6 +260,30 @@ describe('reveal', () => {
         expect(h.guide.hasRoute).toBe(false);
         expect(h.guide.remaining()).toHaveLength(0);
     });
+
+    it('clears the route when he lands on the destination out of a hop', () => {
+        // The reveal advances only while the hero is standing on each point in
+        // turn, so the last hop being a jump or a fall means he never stands on the
+        // point before the end — and the arrival test used to ask whether he was
+        // standing on the *anchor*, so the route stayed up for good after he had
+        // arrived. It has to ask whether he is on the last point.
+        const h = harness();
+        const points = h.route.points;
+        const goal = points[points.length - 1]!;
+        h.guide.setRoute(h.route, { mapId: goal.mapId, col: goal.col, row: goal.row });
+        // Let the plan settle, so the route is the whole walk and the reveal is
+        // anchored at its first point.
+        h.guide.update(1000);
+        expect(h.guide.hasRoute).toBe(true);
+        expect(h.guide.remaining().length).toBe(points.length);
+        // Then he jumps the rest of the way: on the destination, with the anchor a
+        // dozen tiles behind him and nothing in between to advance over.
+        h.hero.col = goal.col;
+        h.hero.row = goal.row;
+        h.guide.update(1050);
+        expect(h.guide.hasRoute, 'the route should end at the destination').toBe(false);
+        expect(h.guide.remaining()).toHaveLength(0);
+    });
 });
 
 describe('dormancy', () => {

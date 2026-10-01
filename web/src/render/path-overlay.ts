@@ -129,7 +129,16 @@ export function chevronFor(
     return dy < 0 ? CHEVRON_UP : CHEVRON_DOWN;
 }
 
-/** Where a chevron lands on the canvas, or null when it is off screen. */
+/**
+ * Where a chevron lands on the canvas, or null when it is off screen.
+ *
+ * `+ 1` on the column is not a fudge: the hero's sprite is drawn at `HERO_XV`
+ * (`0x83`), which is the **middle** column of his three, and the engine calls
+ * `heroCoords + 1` "the hero's cell" everywhere — `try_climb_rope` probes it, the
+ * landing check reads three rows below it. Route points are left columns, so a
+ * chevron drawn straight onto one sits a tile to the left of the sprite it belongs
+ * to, and the first one does not sit on the hero at all.
+ */
 function viewportPixel(
     point: NavPoint,
     mapId: number,
@@ -139,7 +148,7 @@ function viewportPixel(
     mapWidth: number,
 ): { x: number; y: number } | null {
     if (point.mapId !== heroMapId) return null;
-    const raw = point.col - viewportLeft;
+    const raw = point.col + 1 - viewportLeft;
     const vx = ((raw % mapWidth) + mapWidth) % mapWidth;
     const vy = (((point.row - viewportTop) % 64) + 64) % 64;
     // Allow one tile of slack so a chevron at the border scrolls in rather than

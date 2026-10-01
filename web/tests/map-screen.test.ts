@@ -20,6 +20,7 @@ import { MapScreen, shortName, type MapScreenDeps } from '../src/ui/map-screen.j
 import { NavGraphStore } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities } from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
+import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 /**
@@ -55,7 +56,12 @@ function makeStore(): NavGraphStore {
     });
 }
 
-interface Harness { screen: MapScreen; picked: () => unknown[]; exited: () => number }
+interface Harness {
+    screen: MapScreen;
+    picked: () => unknown[];
+    exited: () => number;
+    draw: (now?: number) => void;
+}
 
 function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
     const store = makeStore();
@@ -74,8 +80,66 @@ function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
     };
     const screen = new MapScreen(deps);
     screen.enter({ heroMapId: HERO.mapId, heroCol: HERO.col, heroRow: HERO.row });
-    return { screen, picked: () => picked, exited: () => exited };
+    return {
+        screen,
+        picked: () => picked,
+        exited: () => exited,
+        draw: (now = 16) => screen.draw(now),
+    };
 }
+
+/** mp10's tiles that the cavern sheet has art for — one blit each. */
+const BLITTABLE_IN_MP10 = (() => {
+    const bytes = readFileSync(resolve(REPO, 'web/public/game/0/mp10.mdt'));
+    const grid = decodeTileGrid(new Uint8Array(bytes), NAV_MAP_BY_ID.get(0)!.mapWidth, 0);
+    let n = 0;
+    // mpp1.png is 600x24, so 25 frames of 24px, and ids 1..25 are frames 0..24.
+    for (const t of grid.tiles) if (t >= 1 && t <= 25) n++;
+    return n;
+})();
+
+describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
+    it('paints each cell from the cavern sheet', async () => {
+        // Before this, every cell was filled with a hand-picked colour by class:
+        // a wall on the map was not the colour that wall has in the game.
+        const drawn: { frame: number; dx: number; dy: number; dw: number }[] = [];
+        const fills: number[] = [];
+        const inner = {
+            ...CTX,
+            drawImage: (_s: unknown, _sx: number, _sy: number, _sw: number, _sh: number,
+                dx: number, dy: number, dw: number) => {
+                drawn.push({ frame: drawn.length, dx, dy, dw });
+            },
+            fillRect: (x: number, y: number, w: number) => { fills.push(x, y, w); },
+        } as unknown as CanvasRenderingContext2D;
+        const made: { ctx: CanvasRenderingContext2D; canvas: { width: number; height: number } }[] = [];
+        const createElement = vi.spyOn(document, 'createElement').mockImplementation(
+            (() => {
+                const canvas = {
+                    width: 0, height: 0,
+                    getContext: () => inner,
+                } as unknown as HTMLCanvasElement;
+                made.push({ ctx: inner, canvas: canvas as unknown as { width: number; height: number } });
+                return canvas;
+            }) as typeof document.createElement);
+
+        const outer = { ...CTX, drawImage: () => {} } as unknown as CanvasRenderingContext2D;
+        const sheet = { width: 600, height: 24 } as HTMLImageElement;
+        const h = harness({ canvas: CANVAS, ctx: outer, tileSheets: async () => ({ tiles: sheet, platforms: null }) });
+        h.draw();
+        // The sheet is an image, so the raster arrives on a later frame.
+        await new Promise((r) => { setTimeout(r, 0); });
+        h.draw();
+        createElement.mockRestore();
+
+        // One blit per tile the sheet can draw — the whole point: a wall on the map
+        // is now the frame the game draws, not a hand-picked colour.
+        expect(drawn.length, 'every tile with art should be blitted').toBe(BLITTABLE_IN_MP10);
+        expect(made.length).toBeGreaterThan(0);
+        // Air and the rope highlight are the only fills left.
+        expect(fills.length).toBeGreaterThan(0);
+    });
+});
 
 describe('every string it asks the locale for exists', () => {
     it('resolves every map.* key in every supported locale', () => {
