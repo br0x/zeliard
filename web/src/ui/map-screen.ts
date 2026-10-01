@@ -29,6 +29,7 @@ import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
 import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
+import { CAP } from '../engine/nav/types.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
 import { drawSheetFrame } from '../render/sheets.js';
@@ -257,10 +258,48 @@ export class MapScreen {
             start: { mapId: hero.mapId, col: hero.col, row: hero.row },
             goal: { mapId: this.displayMapId, col: node.col, row: node.row },
         });
-        if (!route) { this.fail(this.deps.text('map.unreachable')); return; }
+        if (!route) {
+            // "No route found" for a door the hero has no key for is true and
+            // useless. Every door from mp80 into mp81 is locked, so picking mp81
+            // from mp80 with an empty pocket said exactly that, and the player
+            // could not tell a locked door from a severed cavern. One extra search
+            // with the keys granted says which it is.
+            this.fail(this.deps.text(this.blockedByKeysOnly() ? 'map.locked' : 'map.unreachable'));
+            return;
+        }
         this.deps.soundManager?.playSfx?.(12);
         this.active = false;
         this.deps.onPick(route);
+    }
+
+    /**
+     * Would a route exist if the hero had the keys?
+     *
+     * The keys are a search dimension, not a wall, so granting them and searching
+     * again is the honest way to tell "the door is locked" from "there is no way
+     * there" — and it costs one search, on the path where nothing was found anyway.
+     */
+    private blockedByKeysOnly(): boolean {
+        const hero = this.deps.heroPosition();
+        if (!hero) return false;
+        const caps = this.deps.capabilities();
+        const withKeys: HeroCapabilities = {
+            ...caps,
+            mask: caps.mask | CAP.KEY | CAP.LION_KEY,
+            keys: 0xff,
+            lionKeys: 0xff,
+        };
+        const goal = this.deps.store.get(this.displayMapId);
+        if (!goal) return false;
+        const target = this.snapToNode(this.cursorCol, this.cursorRow);
+        if (target < 0) return false;
+        const node = goal.nodes[target]!;
+        return findRoute({
+            store: this.deps.store,
+            caps: withKeys,
+            start: { mapId: hero.mapId, col: hero.col, row: hero.row },
+            goal: { mapId: this.displayMapId, col: node.col, row: node.row },
+        }) !== null;
     }
 
     /** Nearest standing position to a cell, searched outward. -1 if none nearby. */

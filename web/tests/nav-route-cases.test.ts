@@ -141,6 +141,42 @@ function route(mapId: number, from: [number, number], to: [number, number], caps
     });
 }
 
+describe('mp81: a jump into an up current', () => {
+    // Tiles 0x13..0x16 are up currents in caverns 80-83. A hero who stands under
+    // one and jumps is taken by it before his flight can end: the frame his head
+    // reaches the jet, `check_airflows_on_hero` sets `AIR_UP_TILE_FOUND`, and
+    // `airborne_movement` returns on that without ever running the landing check or
+    // the descent (`dungeon-input.ts:515-517`).
+    //
+    // That is the only way into mp81's row 6 corridor. Its floor is solid from
+    // column 111 to 134 and from 139 to 150 at row 9, and the corridor is walled at
+    // both ends at rows 6-7. Without the rule a flight sails past the current,
+    // finds no ground under its middle foot anywhere down the column, and lands back
+    // where it started — and (124,6) has no route at all, from anywhere on the map.
+    const MP81: [number, number] = [124, 6];
+
+    it('carries a hero who jumps at (135,16) up to the corridor', () => {
+        const r = route(24, [135, 16], MP81);
+        expect(r, 'the jump into the current should reach the corridor').not.toBeNull();
+        const kinds = r!.hops.map((hop) => hop.kind);
+        expect(kinds[0], 'the first move is a jump').toBe(EDGE.JUMP);
+        expect(kinds[1], 'and the current carries him the rest of the way up').toBe(EDGE.LIFT);
+        const last = r!.hops[r!.hops.length - 1]!;
+        expect([last.to.col, last.to.row]).toEqual(MP81);
+    });
+
+    it('finds the route the player named, from mp80 across the door', () => {
+        const r = findRoute({
+            store,
+            caps: allCapabilities(),
+            start: { mapId: 23, col: 111, row: 21 },
+            goal: { mapId: 24, col: 124, row: 6 },
+        });
+        expect(r, 'mp80 (111,21) -> mp81 (124,6)').not.toBeNull();
+        expect(r!.maps).toContain(24);
+    });
+});
+
 describe('mp80: the trip the player actually made', () => {
     // Reported from play: from the ledge below the Pureza sign up to the upper
     // gallery. This cavern is built around a horizontal platform at row 15

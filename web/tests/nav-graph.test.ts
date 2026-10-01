@@ -305,15 +305,21 @@ describe('jumps are the model\'s, not a table of guesses', () => {
             const graph = graphFor(meta.id);
             const grid = gridFor(meta.id);
             const classifier = NavTileClassifier.forMap(meta.id);
-            // The same standing slots the graph hands the model, so a jump onto a
-            // platform is compared as a landing rather than reported missing. The
-            // mark goes under the hero's middle foot, three rows below his head,
-            // which is where the platform itself is.
+            // The same two masks the graph hands the model, so a jump onto a platform
+            // or into an up current is compared as a landing rather than reported
+            // missing. A platform is marked under the hero's middle foot, three rows
+            // below the slot; a current is marked wherever `heroInLift` holds him.
             const slots = new Uint8Array(meta.mapWidth * 64);
             for (const slot of buildPlatformModel(meta.id, grid).slots) {
                 slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
             }
-            const model = new JumpModel(grid, classifier, slots);
+            const currents = new Uint8Array(meta.mapWidth * 64);
+            for (let row = 0; row < 64; row++) {
+                for (let col = 0; col < meta.mapWidth; col++) {
+                    if (heroInLift(grid, classifier, col, row)) currents[row * meta.mapWidth + col] = 1;
+                }
+            }
+            const model = new JumpModel(grid, classifier, slots, currents);
             graph.nodes.forEach((node, index) => {
                 let offered: Set<string> | null = null;
                 forEachEdge(graph, index, (edge) => {
@@ -523,7 +529,7 @@ describe('size and build cost', () => {
             nodes += graphFor(meta.id).stats.nodes;
             edges += graphFor(meta.id).stats.edges;
         }
-        // [measured] 29,917 nodes / 1,222,289 edges.
+        // [measured] 29,917 nodes / 1,133,490 edges.
         //
         // Nodes fell from 28,290 when `groundBelow` was corrected to the engine's own
         // landing test: a position with ground under the hero's left foot and open air
@@ -541,8 +547,8 @@ describe('size and build cost', () => {
         // takes, which the check above proves for all of them.
         expect(nodes).toBeGreaterThan(29800);
         expect(nodes).toBeLessThan(30000);
-        expect(edges).toBeGreaterThan(1200000);
-        expect(edges).toBeLessThan(1240000);
+        expect(edges).toBeGreaterThan(1110000);
+        expect(edges).toBeLessThan(1160000);
     });
 
     it('builds the largest cavern within the plan\'s budget', () => {

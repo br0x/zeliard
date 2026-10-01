@@ -160,6 +160,13 @@ export class JumpModel {
     private readonly guardCurrents: boolean;
     /** Where a standing platform slot can be: the feet land there, nothing blocks. */
     private readonly platform: Uint8Array;
+    /**
+     * Where an up current holds him, so a flight through it ends there.
+     *
+     * `heroInLift`'s shape over the whole map, for the same reason `platform` is
+     * handed in: the model cannot see currents on its own.
+     */
+    private readonly held: Uint8Array;
     /** 1 where the landing check would stop him, in the pose a descent has. */
     private readonly landsMoving: Uint8Array;
     /** 1 where it would stop him in the pose a rise leaves him in. */
@@ -215,7 +222,12 @@ export class JumpModel {
      *   the same `row * mapWidth + col` indexing as the tile grid. Optional, because
      *   a cavern with no platforms needs nothing.
      */
-    constructor(grid: NavTileGrid, classifier: NavTileClassifier, platforms?: Uint8Array) {
+    constructor(
+        grid: NavTileGrid,
+        classifier: NavTileClassifier,
+        platforms?: Uint8Array,
+        currents?: Uint8Array,
+    ) {
         this.mapWidth = grid.mapWidth;
         this.cells = grid.mapWidth * ROWS;
         this.flag = new Uint16Array(this.cells);
@@ -223,6 +235,7 @@ export class JumpModel {
             this.flag[i] = classifier.classify(grid.tiles[i]!);
         }
         this.platform = platforms ?? new Uint8Array(this.cells);
+        this.held = currents ?? new Uint8Array(this.cells);
         this.guardCurrents = classifier.cavernLevel() === 7;
         this.record.push({
             out: new Int32Array(320), count: 0, gen: 0,
@@ -665,6 +678,27 @@ export class JumpModel {
             if (this.seen[seenKey] === this.current.gen) continue;
             this.seen[seenKey] = this.current.gen;
             this.noteCell(c, r, cell);
+            // An up current ends a flight before the landing check is ever reached.
+            // `check_airflows_on_hero` runs at the top of the frame
+            // (dungeon-frame-pre.ts:88-113) and, finding a jet in the hero's three
+            // rows, sets `AIR_UP_TILE_FOUND` — which is what `airborne_movement`
+            // returns on (dungeon-input.ts:515-517), so neither the landing check nor
+            // the descent ever runs. The hero is simply taken.
+            //
+            // This is how mp81's row 6 corridor is entered at all: a hero standing at
+            // (135,16) jumps, and the frame his head reaches (135,14) the current at
+            // (136,14) grabs him and carries him to (135,6). Without it the flight
+            // sails on past the current, finds no ground under its middle foot, and
+            // lands back where it started — which is why (124,6) had no route at all.
+            if (this.held[cell] === 1) {
+                if (track && cell === this.wantCell) {
+                    this.pathEnd = head - 1;
+                    this.found = true;
+                    return;
+                }
+                this.noteLanding(cell, c, r, t + 1, rises);
+                continue;
+            }
             if ((firstPose ? this.landsFirst : this.landsMoving)[cell] === 1) {
                 if (track && cell === this.wantCell) {
                     this.pathEnd = head - 1;

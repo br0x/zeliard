@@ -369,10 +369,15 @@ function decodeForComparison(name: string): Uint8Array {
  * Two of the 31 dumps are damaged, and the damage is characterised below rather
  * than tolerated blindly, so a *different* bad dump fails this test too:
  *
- *   mp10  30 rows truncated on the right (they match from column 0, so they are
- *         short, not shifted), 5 characters above the 6-bit range, 4 cells wrong
+ *   mp10  30 rows truncated on the right. They match from column 0, so they are
+ *         short, not shifted, and nothing in them is compared — the one hole in
+ *         this cross-check, and it is counted rather than passed over
  *   mp90  9 characters above the 6-bit range, all 'h' in one 3x3 block of empty
  *         space at columns 8-10, rows 11-13; no cell is actually wrong
+ *
+ * `mp80` used to be a third: a route drawn over the map in `< ^ > v`, which is not
+ * an independent encode at all. It has been repaired, so it is now compared cell
+ * for cell like the other 29.
  */
 describe('agreement with the WORK/LEVELS text dumps', () => {
     const LEVELS = resolve(REPO, 'WORK/LEVELS');
@@ -440,14 +445,14 @@ describe('agreement with the WORK/LEVELS text dumps', () => {
     });
 
     it.skipIf(!available)('matches every undamaged dump on every cell', () => {
-        const clean = verifyAll().filter((v) => v.badPositions.length === 0);
-        // 28 maps. mp10 and mp90 were already damaged in the repository. mp80 has
-        // since been annotated in place — a walkable route drawn over it in the
-        // `< ^ > v` marks — so it is no longer a faithful dump. The guard still
-        // covers the other 30.
-        expect(clean).toHaveLength(28);
-        const names = clean.map((v) => v.name);
-        for (const altered of ['mp10', 'mp80', 'mp90']) {
+        // Every cell of every row of 29 dumps. mp10 has 30 short rows whose tails
+        // are not compared at all, and mp90 has nine characters outside the
+        // encoding, so neither is a clean map even though every cell either of them
+        // *does* compare matches.
+        const whole = verifyAll().filter((v) => v.badPositions.length === 0 && v.truncatedRows === 0);
+        expect(whole).toHaveLength(29);
+        const names = whole.map((v) => v.name);
+        for (const altered of ['mp10', 'mp90']) {
             expect(names).not.toContain(altered);
         }
     });
@@ -459,16 +464,45 @@ describe('agreement with the WORK/LEVELS text dumps', () => {
         expect(total).toBeGreaterThan(298000);
     });
 
-    it.skipIf(!available)('confines every discrepancy to the three altered dumps', () => {
-        const damaged = verifyAll().filter((v) => v.badPositions.length > 0).map((v) => v.name);
-        expect(damaged).toEqual(['mp10', 'mp80', 'mp90']);
+    it.skipIf(!available)('confines every discrepancy to the two altered dumps', () => {
+        const damaged = verifyAll()
+            .filter((v) => v.badPositions.length > 0 || v.truncatedRows > 0)
+            .map((v) => v.name);
+        expect(damaged).toEqual(['mp10', 'mp90']);
     });
 
-    it.skipIf(!available)('characterises the damage in MP10.TXT', () => {
+    it.skipIf(!available)('MP10.TXT compares clean over the rows it has', () => {
+        // It used to lose the tail of 30 rows *and* carry five characters above the
+        // 6-bit range and four wrong cells. The bad characters are gone; the short
+        // rows are not, so they are the whole of its remaining damage.
         const v = verifyAll().find((x) => x.name === 'mp10')!;
+        expect(v.outOfRange).toBe(0);
+        expect(v.mismatched).toBe(0);
         expect(v.truncatedRows).toBe(30);
-        expect(v.outOfRange).toBe(5);
-        expect(v.mismatched).toBe(4);
+    });
+
+    it.skipIf(!available)('shows that MP10 rows are truncated, not shifted', () => {
+        // A row that lost its tail still matches from column 0; a shifted row would
+        // need an offset to line up. This rules out a layout mismatch as the cause
+        // of the short rows.
+        const rows = dumpRows('mp10');
+        const grid = decodeTileGrid(readMdt('mp10'), 240, 0);
+        const short: { row: number; line: string }[] = [];
+        for (let row = 0; row < rows.length; row++) {
+            if (rows[row]!.length > 0 && rows[row]!.length < 240) short.push({ row, line: rows[row]! });
+        }
+        expect(short).toHaveLength(30);
+        for (const { row, line } of short) {
+            let comparable = 0;
+            let matched = 0;
+            for (let col = 0; col < line.length; col++) {
+                const code = line.charCodeAt(col) - SHIFT;
+                if (code < 0 || code > 0x3f) continue;
+                comparable++;
+                if (grid.tiles[row * 240 + col] === code) matched++;
+            }
+            expect(matched, `row ${row} of ${line.length} chars`).toBe(comparable);
+        }
     });
 
     it.skipIf(!available)('characterises the damage in MP90.TXT', () => {
@@ -484,29 +518,4 @@ describe('agreement with the WORK/LEVELS text dumps', () => {
         ]);
     });
 
-    it.skipIf(!available)('shows that MP10 rows are truncated, not shifted', () => {
-        // A row that lost its tail still matches from column 0; a shifted row
-        // would need an offset to line up. This rules out a layout mismatch as the
-        // cause of the short rows.
-        const rows = dumpRows('mp10');
-        const grid = decodeTileGrid(readMdt('mp10'), 240, 0);
-        const short: { row: number; line: string }[] = [];
-        for (let row = 0; row < rows.length; row++) {
-            if (rows[row]!.length > 0 && rows[row]!.length < 240) short.push({ row, line: rows[row]! });
-        }
-        expect(short).toHaveLength(30);
-        for (const { row, line } of short) {
-            // Five of the 30 rows also contain a character above the 6-bit range;
-            // those are the dump's damage, so only the in-range cells can match.
-            let comparable = 0;
-            let matched = 0;
-            for (let col = 0; col < line.length; col++) {
-                const code = line.charCodeAt(col) - SHIFT;
-                if (code < 0 || code > 0x3f) continue;
-                comparable++;
-                if (grid.tiles[row * 240 + col] === code) matched++;
-            }
-            expect(matched, `row ${row} of ${line.length} chars`).toBe(comparable);
-        }
-    });
 });

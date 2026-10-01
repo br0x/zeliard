@@ -150,7 +150,7 @@ describe('every string it asks the locale for exists', () => {
         // Every key the screen renders...
         const drawn = [
             'map.title', 'map.hints', 'map.unreachable', 'map.noPath',
-            'map.loading', 'map.noMap',
+            'map.loading', 'map.noMap', 'map.locked',
         ];
         // ...and the one phase 8 will use when cancelling a route.
         const all = [...drawn, 'map.routeCleared'];
@@ -315,6 +315,35 @@ describe('choosing a destination', () => {
         h.screen.choose(0, 0);
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active).toBe(true);
+    });
+
+    it('says the door is locked, not that there is no route', () => {
+        // Every door from mp80 into mp81 is locked, so a player picking mp81 from
+        // mp80 with an empty pocket got "No route found." and could not tell a
+        // locked door from a severed cavern. The keys are a search dimension, not
+        // a wall, so the screen searches once more with them granted and says which
+        // of the two it is.
+        const h = harness();
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        store.get(24);
+        h.screen.displayMapId = 24;
+        h.screen.cursorCol = 124;
+        h.screen.cursorRow = 6;
+        h.screen.choose(124, 6);
+        expect(h.picked(), 'a keyless hero cannot cross a locked door').toHaveLength(0);
+        expect(h.screen.active, 'the screen stays open').toBe(true);
+        const src = readFileSync(resolve(REPO, 'web/src/ui/map-screen.ts'), 'utf8');
+        expect(src).toContain("'map.locked'");
+        // And with a key it is offered.
+        const keyed = harness({
+            heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
+            capabilities: () => ({ ...allCapabilities(), keys: 1 }),
+        });
+        const keyedStore = (keyed.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        keyedStore.get(24);
+        keyed.screen.displayMapId = 24;
+        keyed.screen.choose(124, 6);
+        expect(keyed.picked()).toHaveLength(1);
     });
 
     it('refuses a cell with no standing position anywhere near it', () => {

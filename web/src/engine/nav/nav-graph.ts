@@ -171,7 +171,16 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     for (const slot of platforms.slots) {
         platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
-    const jumps = new JumpModel(grid, classifier, platformCells);
+    // And the up currents, for the same reason: a hero who reaches one mid-flight is
+    // taken by it rather than landing. The mask is `heroInLift` over the whole map,
+    // i.e. an up current in the hero's three rows at each cell.
+    const currentCells = new Uint8Array(cells);
+    for (let row = 0; row < 64; row++) {
+        for (let col = 0; col < mapWidth; col++) {
+            if (heroInLift(grid, classifier, col, row)) currentCells[row * mapWidth + col] = 1;
+        }
+    }
+    const jumps = new JumpModel(grid, classifier, platformCells, currentCells);
 
     const nodes: NavNode[] = [];
     const groundOf = new Int32Array(cells).fill(-1);

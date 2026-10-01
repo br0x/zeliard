@@ -145,6 +145,7 @@
     "hints": "←/→: MAP   ↑/↓: CURSOR   TAB: NEXT DOOR   ENTER: SET   ESC: CLOSE",
     "loading": "Reading the cavern...",
     "noMap": "This cavern cannot be charted.",
+    "locked": "The door is locked.",
     "noPath": "That place is not passable.",
     "routeCleared": "Route cleared.",
     "title": "THREAD OF YAGA",

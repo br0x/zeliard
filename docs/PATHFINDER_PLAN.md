@@ -1,19 +1,27 @@
 # Thread of Yaga — Cavern Pathfinding Plan
 
 Status: **implemented and played** — phases 0–8 shipped; the jump model, the rope
-family, the fall and the node rule were corrected against the engine, and the guide
-and the chevrons were corrected against a player walking the route. §18 is the
-handover: what each correction was, where it came from, and what it changed.
+family, the fall, the node rule and the current-carrying rule were corrected against
+the engine, and the guide and the chevrons were corrected against a player walking
+the route. §18 is the handover: what each correction was, where it came from, and
+what it changed. **§19 is the next piece of work and is not built**: keys are still
+only something the search spends, never something it goes and gets.
 Scope: a new consumable magic item that reveals the current cavern group, lets the
 player pick a destination, and computes and displays the shortest traversable
 route — both on the full-screen map and as chevron tiles over the live cavern
 background.
 
 This document began as the implementation plan and is kept as the record of it.
-Everything below was verified against the port source (`web/src/`), the original
-disassembly (`asm/fight.asm`, `asm/dungeon.inc`, `asm/common.inc`) and against the
+Everything below was verified against the port source (`web/src/`) and against the
 shipped data (`web/public/game/0/*.mdt`, `tools/GrpViewer/*.grp.unp`). Numbers
 marked **[measured]** come from a run over all 31 dungeon maps.
+
+**On provenance:** there is no C and no WebAssembly in this game — it is all
+TypeScript. `asm/fight.asm`, `asm/dungeon.inc` and `asm/common.inc` are the original
+disassembly, kept because they are the best executable documentation of the rules,
+and `dungeon.c:NNNN` references are provenance for the ports rather than a running
+binary. Where behaviour is claimed, the claim is traceable to a file in
+`web/src/**`.
 
 **Where a later session corrected the plan, the plan now carries the correction and
 says so.** §7.2 (what a node is), §7.3 (how a jump is generated) and §10 (how the
@@ -2859,6 +2867,29 @@ Two costs came out of the same correction:
   property — replaced by the one that still means something: he is never *buried*,
   every cell he occupies has some part of him in open space.
 
+### A current ends a flight before it can land
+
+`check_airflows_on_hero` runs at the top of every frame (`dungeon-frame-pre.ts:88-113`)
+and, finding a jet in the hero's three rows, sets `AIR_UP_TILE_FOUND` — which is what
+`airborne_movement` returns on (`dungeon-input.ts:515-517`), so **neither the landing
+check nor the descent ever runs**. A hero who jumps into a column of `0x13..0x16`
+is simply taken.
+
+The model had no such rule, and it is the only way into mp81's row 6 corridor: the
+corridor is walled at both ends at rows 6-7 and floored from column 111 to 134 and
+from 139 to 150 at row 9, so the jet at columns 134-137 is the only entrance. Without
+it a flight sails past the current, finds no ground under its middle foot anywhere
+down the column, and lands back where it started — and `(124,6)`, which is otherwise
+perfectly ordinary, had no route at all from any map. With it:
+
+```
+mp81 (135,16) --JUMP--> (134,14) --LIFT--> (134,6) --WALK--> (124,6)   12 hops
+mp80 (111,21) --> mp81 (124,6)                                          141 hops
+```
+
+The lift mask is handed to the model the way the platform mask is, and it is
+consulted **before** the landing check, because that is the order the engine has them.
+
 ### Walking off a platform, and falling that drifts
 
 Two moves from the player's own account, both in the same place as the rope work:
@@ -2921,6 +2952,20 @@ re-plans until he lands. When he *is* standing on a node and the search finds
 nothing, the world really has changed and the route goes, as it should.
 
 
+### A locked door is not "no route found"
+
+Every door from `mp80` into `mp81` is locked (`portal.key === 1`), so with an empty
+pocket the route from `mp80 (111,21)` to `mp81 (124,6)` does not exist and the map
+screen says `No route found.` — true, and useless: a player cannot tell a locked
+door from a severed cavern. Keys are a *search dimension* rather than a wall, so the
+screen now searches once more with the keys granted when the first search finds
+nothing, and says `The door is locked.` when that one succeeds. One extra search, on
+the path where nothing was found anyway.
+
+With one key the journey is 141 hops and spends it. The jump into the current that
+opens `mp81`'s corridor needs no key at all: `mp81 (135,16)` to `(124,6)` is 12 hops
+from inside the map.
+
 ### How it was proved
 
 `web/tests/nav-jump-differential.test.ts` builds five small caverns, hands each to
@@ -2955,7 +3000,7 @@ starts on the hero and ends on the destination.
 | | before | after | why |
 | --- | --- | --- | --- |
 | nodes | 28,290 | 29,917 | a node became "the hero stops here" rather than "his whole 3x3 is clear", which is the engine's own rule and gives back the positions where he rests with a side in rock — mp80's drawn route needs one at `(175,51)` |
-| edges | 211,633 | 1,222,289 | the engine's jump reaches about twenty cells per node, not seven, and falls drift a column per row |
+| edges | 211,633 | 1,133,490 | the engine's jump reaches about twenty cells per node, not seven, and falls drift a column per row; a current ending a flight took some of that back, since flights that used to sail on and land elsewhere now stop at the jet |
 | lifts reachable | 152/236 | 235/236 | a jet is entered by the cells a flight really flies through, and a fall can now drift into one |
 | conveyors reachable | 216/288 | 216/288 | unchanged from before, but by a different route: drifting falls reach columns a straight scan never looked at |
 | ride slots with an entry | 5,403/5,589 | 5,395/5,589 | platform landings needed the slot mask the jump model now has — and the mask goes on the cell under the hero's middle foot, three rows below the slot, because that is where the platform tile is. The `BOARD` edges that went were to ground nodes the hero cannot stand on: a platform occupies its own row, so there is never static ground under one |
@@ -3026,3 +3071,215 @@ reading part of a routine and building a model of the part I had read.
 model needs an engine line behind it. When something does not fit, ask with
 coordinates before theorising: every correction above arrived as coordinates, and
 each one was checkable against the map in a minute.
+
+---
+
+## 19. Keys — finding them, and routing through locked doors
+
+*Status: **planned**, not built. §18 is the last thing that shipped. This section is
+the plan for the work the player asked for, in the stages they asked for.*
+
+**A note on provenance before anything else.** There is no C and no WebAssembly in
+this game. `asm/` is the original disassembly, kept because it is the best
+executable documentation of the rules; `dungeon.c:NNNN` references throughout this
+document are provenance for the TypeScript ports, not a running binary. Where this
+section cites behaviour, it cites `web/src/**`.
+
+### 19.0 What is already true, verified
+
+| Fact | Where |
+| --- | --- |
+| The hero's ordinary key count is `0x98`, the Lion-Head key count `0x99` | `engine/dungeon-items.ts:341,348`; `engine/nav/capabilities.ts:97-99` |
+| A key pickup adds one: `flag_16` is an ordinary key, `flag_17` a Lion-Head key | `engine/dungeon-items.ts:339-350` |
+| Keys are **items in the entity list**, not a tile and not a flag in the map | the item dispatch is `placeMonsterInProximityAndRunAi`, `engine/dungeon-items.ts:482`, which routes `(m+4) & 0x18 === 0` to the monster AI and otherwise `flags = (m+4) & 0x1f` to an item handler (`0x16`, `0x17`) |
+| The entity list is a word pointer at `0xC010`, 16-byte records, `x === 0xFFFF` terminates | `monstersSpawning`, `engine/dungeon-items.ts:542-548` |
+| Record layout: `+0` word = column \| row << 8, `+2` row, `+3` relative x once in the proximity window, `+4` flags and size, `+5` active flags, `+7` activation bits, `+15` activation counter | `engine/dungeon-items.ts:485,501,512,556-577` |
+| A pickup is forgiving: the hero collects it within four rows and ±4 columns | `checkMonsterAlignedToHeroAndTick`, `engine/dungeon-monsters.ts:123-143` |
+| Items already collected are **removed from the list at dungeon init**, from the achievements table at `0xC00C` | `removeAccomplishedItems`, `engine/dungeon-init.ts:75-95`, called from `prepareDungeon` (`dungeon-init.ts:174-176`) |
+| The list is built from the MDT's `monsters_offset` block — header word at byte 16 — and **nothing parses that block yet** | `parseCavernMdtHeader`, `engine/mdt.ts:53-63` |
+| The search already treats keys as a dimension, but only as something to **spend** | `stateKey` carries `keysOrd * 8 + keysLion`; the door branch refuses when `keysOrd >= caps.keys` (`engine/nav/pathfinder.ts:412-424`) |
+
+So the shape of the work is: **one new generated table, one node attribute, and a
+search that can gain keys as well as spend them.**
+
+### 19.1 Stage 1 — extract where the keys are
+
+Build time, in `tools/build-nav.mjs`, emitting a new generated file:
+
+```ts
+/** web/src/data/nav/nav-keys.ts — GENERATED */
+export const KEY_ORDINARY = 0;
+export const KEY_LION = 1;
+export interface NavKey { readonly col: number; readonly row: number; readonly kind: 0 | 1 }
+export const NAV_KEYS: Readonly<Record<number, readonly NavKey[]>> = { /* mapId */ };
+```
+
+The parse is the record layout in §19.0, read from the MDT at
+`u16(bytes, 16)` (`monsters_offset`): walk 16-byte records from that offset until a
+record whose `x` word is `0xFFFF`, and keep the ones with `(m+4) & 0x1f` equal to
+`0x16` or `0x17`. Positions are already hero-standing positions — column and row,
+not a tile inside something else — which is the form the graph wants.
+
+**Acceptance, and it is not optional:** the two coordinates the player supplied
+must come out of the parse.
+
+| map | cell | kind |
+| --- | --- | --- |
+| `mp10` | `(99,41)` | ordinary |
+| `mp80` | `(150,7)` | Lion-Head |
+
+If the parse does not reproduce both, **the layout is wrong and the file is not
+shipped**. This is the whole risk of stage 1 and the reason it is its own stage:
+everything after it is straightforward graph and search work, and all of it rests
+on one binary format that has never been read by this project. The pickup window
+(±4 columns, four rows) gives some slack — a small constant offset in the record
+layout would still be *usable* — but it must be the offset that puts the key on
+the tile the player says it is on, not merely near it.
+
+### 19.2 Stage 2 — the graph carries the keys
+
+In `buildNavGraph`, after the nodes exist:
+
+- `keyKindAt: Int8Array(nodes.length)` — `0` none, `1` ordinary, `2` Lion-Head — set
+  from `NAV_KEYS` by cell. **No new edge kind.** A key stands on the floor, so its
+  cell is already a node the hero can walk onto, and `flag_16` fires from
+  `checkMonsterAlignedToHeroAndTick` while he is there. The pickup is the walk.
+- If a key's cell is *not* a node — an item inside the platform band, or on a cell
+  the hero cannot stand on — snap it to the nearest node within one cell and keep the
+  offset in a `keySnap` map, so the route shows where he should step. A key that
+  snaps nowhere is dropped with a diagnostic count, not silently ignored.
+- `diagnostics.keys` joins `keysFound` / `keysOnNodes` so a map whose keys all
+  vanished shows up in the tests.
+
+**The accomplished-items filter is run-time, not build-time.** The graph holds every
+key in the game; whether one is still lying there depends on the save
+(`removeAccomplishedItems` is driven by the achievements table at `0xC00C`). So
+`findRoute` gains an option
+
+```ts
+/** Whether a key is still on the floor — false when the save says it was taken. */
+keyPresent?: (mapId: number, cell: number, kind: 0 | 1) => boolean;
+```
+
+defaulting to "all present". The guide supplies one that reads `0xC00C`; the map
+screen supplies the same. A cheaper bound that is also sound: the hero cannot hold
+more keys than exist, so capping `keysHeld` by `0x98 + keysOnThisRoute` already
+prevents a route from spending keys that were never there. The predicate is the
+honest one and costs one call per pickup test.
+
+### 19.3 Stage 3 — the route, in the three stages asked for
+
+**3a. The route as if every key were in hand.** One `findRoute` with
+`unlimitedKeys: true` — both key ceilings raised, so no door is refused. Count the
+doors it used: `lockedDoors` = the hops with `req & (CAP.KEY | CAP.LION_KEY)`, split
+by kind. This is also what the map screen should report when it currently says
+`The door is locked.`: **"No route found."** becomes **"Needs 1 key."** when stage 3a
+succeeds and the key cannot be reached, and the thread's hint line can show the
+count before the destination is set.
+
+**3b. One route per key, in nearby maps of the same cavern level.** For
+`j = 1..K`, in the order ordinary keys first (they are the common case) and Lion-Head
+keys after: the cheapest route from the hero's position to *any* key of the kind
+`j` needs, where the search may not leave the set of maps whose `cavernLevel` equals
+the hero's (`nav-maps.ts` carries it per map). "Nearby" is expressed as that set,
+not as a distance: a key one door away is worth a longer walk than a key across the
+cavern, and the cost function already says so. A key route that needs a door of its
+own is fine — it may open doors, and those become available to the main route.
+
+If there is no key of the needed kind anywhere on the level, the destination is
+refused with **"No key on this level."** — a true and useful answer, and distinct
+from "no route".
+
+**3c. Merge into one route.** Two ways, and the plan builds both, in this order:
+
+1. **Concatenation** — what the player described, and it is what the UI should draw:
+   the main route with each key route spliced in at the last point the two share,
+   pickup included. It is *not* always feasible — a key route's tail may run through
+   a door that the main route opens later, so a splice can ask for a key twice. So
+   every splice is verified by stage 3a's own test: re-run the merged sequence through
+   `findRoute` with the merged key counts and require that it accepts it.
+2. **One search over the augmented state** — the sound answer, and simpler to verify:
+   state = (mapId, node, keysHeld, keysStillNeeded); entering a key node costs one
+   frame and grants a key; the goal is reached when `keysStillNeeded === 0`. This is
+   the true optimum, cannot produce an infeasible splice, and degenerates to
+   today's behaviour when no key is involved. Its state space is the product of the
+   two key counters, which §19.4 bounds.
+
+Both produce `NavRoute` plus `keysGained` / `keysSpent`, so the overlay can draw a
+pickup the same way it draws a step — it already does, because the key's cell is a
+node on the route.
+
+### 19.4 The search changes
+
+- `stateKey` currently packs `keysOrd * 8 + keysLion` into 6 bits. The new state
+  needs `keysHeld` and `keysNeeded` as well, so the key field widens to 12 bits
+  (`keysHeld` 0-15, `keysNeeded` 0-7, kind flags in the top bits) and the constant
+  that ties it to `mapId` moves with it. **Widen it deliberately and assert the
+  bound**, because an unbounded key counter silently collides states and turns the
+  search into a wrong answer rather than an error.
+- Bounds: `keysHeld ≤ min(0xFF, caps.keys) + keysOnLevel`, `keysNeeded ≤ 8`, and a
+  total expansion cap. Hitting any of them falls back to stage 3a's answer, which is
+  always valid (it assumes the keys are in hand).
+- Costs are unchanged: a pickup is `EDGE_COST.STEP` (1 frame — he walks over it), a
+  locked door is `EDGE_COST.DOOR_LOCKED` (44).
+- **The guide must re-plan when the key count changes.** Today it invalidates on the
+  capability *mask*, and `snapshotCapabilities` only sets `CAP.KEY` when the count is
+  non-zero — so 1 → 2 keys is invisible and the guide would keep drawing a route that
+  spent the old count. Add `plannedKeys` and `plannedLionKeys` to the invalidation
+  set next to `plannedMask`. This is a real bug today, not a stage-3 one.
+
+### 19.5 Files
+
+| File | Change |
+| --- | --- |
+| `tools/build-nav.mjs` | parse the MDT monsters block, emit keys |
+| `web/src/data/nav/nav-keys.ts` | **generated** |
+| `web/src/engine/nav/nav-graph.ts` | `keyKindAt` per node, key snapping, `diagnostics.keys` |
+| `web/src/engine/nav/pathfinder.ts` | `unlimitedKeys`, `keyPresent`, key nodes grant keys, `lockedDoors` / `keysGained` on the route, widened `stateKey` |
+| `web/src/engine/nav/path-guide.ts` | invalidate on key counts; draw the pickup |
+| `web/src/ui/map-screen.ts` | "needs N keys", "no key on this level"; the locked-door probe it has now is the first half of this |
+| `web/src/locale/*.json` | the two new strings, in all three locales |
+| `web/tests/nav-keys-extraction.test.ts` | **new** — stage 1's acceptance |
+| `web/tests/nav-graph.test.ts` | keys marked, snapping, accomplished keys ignored |
+| `web/tests/nav-pathfinder.test.ts` | the detours, the caps, the fallback |
+| `web/tests/nav-route-cases.test.ts` | the named journeys with keys |
+
+### 19.6 Tests, in the order they gate the work
+
+1. **Extraction.** `mp10 (99,41)` ordinary and `mp80 (150,7)` Lion-Head come out of
+   the parse; every key in every map lands on a cell that is a node or snaps to one
+   within a cell; no key is dropped silently. *Nothing else starts until this passes.*
+2. **Graph.** Keys are marked; a key on an unreachable cell is snapped and counted;
+   `keyPresent: () => false` makes every key vanish.
+3. **Search, synthetic.** A corridor with one locked door and one key beside it: the
+   route detours for the key and the door is counted in `keysSpent`. The same corridor
+   with the key behind a second locked door needs two keys and takes both. A locked
+   Lion-Head door never accepts an ordinary pickup.
+4. **Search, caps.** Hitting the `keysNeeded` cap returns stage 3a's route rather
+   than a wrong one; the state-space bound is asserted, not assumed.
+5. **Named journey.** `mp80 (111,21)` → `mp81 (124,6)` with an empty pocket and the
+   Lion-Head key at `(150,7)` reachable: the route detours for it. The same journey
+   with the key taken (`keyPresent: () => false`) must refuse — which is today's
+   behaviour, and is the reason the two differ.
+6. **UI.** The map screen says `Needs 1 key.` rather than `The door is locked.` when
+   the key is reachable, and `No key on this level.` when it is not.
+
+### 19.7 What would make this wrong, and how it would show
+
+- **The record layout.** Inferred from `monstersSpawning` and the item dispatcher,
+  not from a specification. If the two coordinates do not come out, the layout is
+  wrong; the ±4-column pickup window means a *near* miss would still be playable, so
+  the test must assert the exact cells, not proximity.
+- **Keys per save.** A key the player has already taken is absent from the world,
+  and a route that fetches it is a route that walks past nothing. If the guide's
+  re-plan on key counts (§19.4) is skipped, this shows as a chevron trail that ends
+  at a closed door.
+- **Lion-Head keys are rarer than ordinary ones.** A route that needs one and whose
+  level has none must be refused with a *specific* message; folding it into "no route"
+  hides a real answer.
+- **Keys on another cavern level.** Unreachable without a door, which is what 3b's
+  restriction encodes. If that restriction is dropped, the search will happily detour
+  through a boss arena and come back, and the stage-1 route will look absurd.
+- **The state space.** `keysHeld × keysNeeded` is small in practice and unbounded in
+  theory. The caps are not optional, and the fallback must be the *sound* answer
+  (stage 3a), not a truncation of a search that has already gone wrong.
