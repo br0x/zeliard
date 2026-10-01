@@ -7,6 +7,7 @@ function makeRouter(overrides: Record<string, unknown> = {}) {
         // state queries (defaults: nothing active, ready, town)
         modalActive: () => false,
         inventoryOpen: () => false,
+    mapScreenActive: () => false,
         introActive: () => false,
         endingActive: () => false,
         indoorScene: () => null as { handleInput: (k: string, r: boolean) => void } | null,
@@ -29,6 +30,7 @@ function makeRouter(overrides: Record<string, unknown> = {}) {
         setKey: (code: string, down: boolean) => calls.push(`setKey:${code}:${down}`),
         resetInventoryCombo: () => calls.push('resetInventoryCombo'),
         modalHandleKey: vi.fn(() => true),
+        mapHandleKey: vi.fn(() => true),
         inventoryHandleKey: vi.fn(() => true),
         introSkipPage: () => calls.push('introSkipPage'),
         endingSkipPage: () => calls.push('endingSkipPage'),

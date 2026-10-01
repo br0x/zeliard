@@ -8,7 +8,7 @@
  * that is not the cheapest.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -20,7 +20,8 @@ import {
 } from '../src/engine/nav/capabilities.js';
 import { getGmem, memWrite8 } from '../src/core/ts-memory.js';
 import { EDGE } from '../src/engine/nav/types.js';
-import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
+import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
+import { NAV_MAP_BY_ID, NAV_MAPS } from '../src/data/nav/nav-maps.js';
 import { PORTALS } from '../src/data/nav/nav-portals.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -102,6 +103,85 @@ describe('NavGraphStore', () => {
         expect(store.has(0)).toBe(false);
         store.clear();
         expect(store.size).toBe(0);
+    });
+});
+
+describe('fetching a cavern the game has not downloaded', () => {
+    it('asks for the path the game itself asks for', () => {
+        // The bug: the fetcher prefixed `assets/`, but the cavern files live at
+        // the site root under game/0/. Every other map 404'd and the screen
+        // reported "This cavern cannot be charted".
+        // main.ts loads a cavern it is about to enter with a bare
+        // `fetch(mdtPath)`, so the store must use the identical string.
+        const src = readFileSync(resolve(REPO, 'web/src/main.ts'), 'utf8');
+        expect(src).toContain('await fetch(mdtPath)');
+        expect(src).not.toContain('assets/${meta.mdtPath}');
+    });
+
+    it('resolves that path against the files that actually exist', () => {
+        for (const meta of NAV_MAPS) {
+            // public/ + mdtPath is what the server exposes at mdtPath.
+            const file = resolve(REPO, 'web/public', meta.mdtPath);
+            expect(existsSync(file), `${meta.mdtPath} should exist under public/`).toBe(true);
+        }
+    });
+
+    it('does not accidentally resolve under assets/', () => {
+        expect(existsSync(resolve(REPO, 'web/public/assets/game/0/mp81.mdt'))).toBe(false);
+    });
+
+    it('fetches and decodes a map the store did not already hold', async () => {
+        const requested: string[] = [];
+        const store = new NavGraphStore(
+            function notLoaded() { return null; },
+            async (mapId) => {
+                const meta = NAV_MAP_BY_ID.get(mapId)!;
+                requested.push(meta.mdtPath);
+                return new Uint8Array(readFileSync(resolve(REPO, 'web/public', meta.mdtPath)));
+            },
+        );
+        expect(await store.load(24)).toBe(true);          // mp81
+        expect(requested).toEqual(['game/0/mp81.mdt']);
+        expect(store.get(24)?.stats.nodes).toBeGreaterThan(0);
+    });
+});
+
+describe('the MDT image handed to the store', () => {
+    it('reads the map width from the header, so a wrong-sized image fails loudly', () => {
+        // The bug this pins: passing the whole 64 KB memory image instead of the
+        // 16 KB MDT window at 0xC000. The decoder then read the map width out of
+        // the save-image bytes and walked the packed map off the end.
+        const real = new Uint8Array(readFileSync(resolve(REPO, 'web/public/game/0/mp80.mdt')));
+        expect(real.length).toBeLessThan(0x4000);
+        expect(real[2]! | (real[3]! << 8)).toBe(256);      // mp80 is 256 wide
+
+        const wholeMemory = new Uint8Array(0x10000);
+        wholeMemory.set(real, 0xc000);                     // loaded the way the game does
+        expect(wholeMemory[2]! | (wholeMemory[3]! << 8)).not.toBe(256);
+
+        // Decoding the memory image as an MDT must fail rather than silently
+        // produce a nonsense grid. Which guard trips depends on the save bytes:
+        // a zeroed width is caught at the header, a plausible one at the RLE.
+        expect(() => decodeTileGrid(wholeMemory, 0, 23))
+            .toThrow(/map width|ran past the end/);
+        // Decoding the window the game actually holds must work.
+        const mdtWindow = wholeMemory.slice(0xc000);
+        expect(() => decodeTileGrid(mdtWindow, 0, 23)).not.toThrow();
+    });
+
+    it('declines a malformed map instead of throwing into the key handler', () => {
+        const store = new NavGraphStore(() => new Uint8Array(0x10000));
+        // Garbage: no MDT header, so the width is nonsense and the RLE overruns.
+        expect(() => store.get(0)).not.toThrow();
+        expect(store.get(0)).toBeNull();
+        // And it is not retried on every frame.
+        expect(store.isBroken(0)).toBe(true);
+    });
+
+    it('reports a missing map as unavailable rather than broken', () => {
+        const store = new NavGraphStore(function none() { return null; });
+        expect(store.get(0)).toBeNull();
+        expect(store.isBroken(0)).toBe(false);
     });
 });
 

@@ -177,6 +177,12 @@ export class InventoryScreen {
     /** Opens the cavern map screen; supplied by the composition root. */
     private onOpenMapScreen: (() => void) | null;
 
+    /**
+     * True between offering a thread to the map screen and committing to it.
+     * The thread is not spent until a destination is chosen.
+     */
+    private threadPending = false;
+
     async loadAssets(): Promise<void> {
         if (this.sheetsReady || this.sheetsLoading) return;
         this.sheetsLoading = true;
@@ -226,6 +232,8 @@ export class InventoryScreen {
     }
 
     exit(): void {
+        // Leaving the inventory cancels an uncommitted thread, so it is never lost.
+        this.threadPending = false;
         this.active = false;
         if (this.soundManager) {
             // Restore the user's pre-inventory mute state instead of forcing
@@ -863,9 +871,30 @@ export class InventoryScreen {
      * It decrements its own counter rather than clearing a `magicItems` slot, and
      * leaves the inventory so the map screen can take the pause.
      */
+    /**
+     * Spend one Thread of Yaga and open the cavern map.
+     *
+     * Nothing is consumed yet. The thread is *offered*; it is only spent once the
+     * player commits to a destination, and taking no destination gives it back.
+     * `commitThreadOfYaga` and `cancelThreadOfYaga` are called by the composition
+     * root when the map screen closes either way.
+     */
     private _useThreadOfYaga(): void {
         if (this.heroState.threadOfYaga <= 0) return;
+        if (this.threadPending) return;
+        this.threadPending = true;
         this.soundManager?.playSfx(14);
+        // The inventory stays open. The map opens on top of it; picking a point
+        // returns here with the usage message, and the route is revealed only once
+        // the player leaves. So this deliberately does not call exit().
+        this.onOpenMapScreen?.();
+    }
+
+    /** A destination was chosen: the thread is spent now. */
+    commitThreadOfYaga(): void {
+        if (!this.threadPending) return;
+        this.threadPending = false;
+        if (this.heroState.threadOfYaga <= 0) return;
         this.heroState.threadOfYaga = (this.heroState.threadOfYaga - 1) & 0xff;
         this.data.heroThreadOfYaga = this.heroState.threadOfYaga;
         this.usageMessage = getInventoryList('itemUseText')[THREAD_OF_YAGA_ID] || '';
@@ -875,11 +904,16 @@ export class InventoryScreen {
         // count, so several copies are one row.
         if (at >= 0 && this.heroState.threadOfYaga <= 0) this.data.items.splice(at, 1);
         this.selectedIndices[2] = 0;
-        // The inventory stays open. Using the item opens the map on top of it;
-        // picking a destination closes the map and leaves this message here, and
-        // the route is only revealed once the player leaves the inventory. So this
-        // deliberately does not call exit().
-        this.onOpenMapScreen?.();
+    }
+
+    /** No destination was chosen: the thread is not spent. */
+    cancelThreadOfYaga(): void {
+        this.threadPending = false;
+    }
+
+    /** True while a thread is offered to the map screen but not yet spent. */
+    get isThreadPending(): boolean {
+        return this.threadPending;
     }
 
     private _healHP(amount: number): void {

@@ -21,7 +21,7 @@ import { dirname, resolve } from 'node:path';
 import { InventoryScreen, THREAD_OF_YAGA_ID, type InventoryDeps } from '../src/ui/inventory-screen.js';
 import {
     MAGIC_ITEM_NAMES, MAGIC_ITEM_DESCRIPTIONS, MAGIC_PRICES_BY_TOWN,
-    THREAD_OF_YAGA_SHOP_INDEX, THREAD_OF_YAGA_BIT,
+    THREAD_OF_YAGA_SHOP_INDEX, THREAD_OF_YAGA_BIT, DEFAULT_MAGIC_MASKS_EXT,
 } from '../src/scenes/indoor-magic-shop.js';
 import {
     ADDR_THREAD_OF_YAGA, ADDR_MAGIC_MASKS_EXT, ADDR_FEATURE_YAGA,
@@ -245,14 +245,68 @@ describe('the inventory panel', () => {
         expect(items).toContain(THREAD_OF_YAGA_ID);
     });
 
-    it('spends the counter and opens the map screen', () => {
+    it('offers the thread to the map screen without spending it yet', () => {
         const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
         state.threadOfYaga = 3;
         h.screen.enter();
         useItem(h.screen, THREAD_OF_YAGA_ID);
-        expect(state.threadOfYaga).toBe(2);
+        // The map opened, but nothing is spent until a destination is chosen.
         expect(h.opened()).toBe(1);
+        expect(state.threadOfYaga).toBe(3);
+        expect(h.screen.isThreadPending).toBe(true);
+    });
+
+    it('spends the thread when a destination is committed', () => {
+        const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
+        state.threadOfYaga = 3;
+        h.screen.enter();
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        h.screen.commitThreadOfYaga();
+        expect(state.threadOfYaga).toBe(2);
+        expect(h.screen.isThreadPending).toBe(false);
         expect(listedItems(h.screen)).toContain(THREAD_OF_YAGA_ID);
+        const data = (h.screen as unknown as { data: { items: number[] } }).data;
+        expect(data.items.length).toBeGreaterThan(1);   // the NO USE sentinel plus it
+    });
+
+    it('gives the thread back when no destination is chosen', () => {
+        // Pressing Escape on the map must not cost a thread.
+        const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
+        state.threadOfYaga = 2;
+        h.screen.enter();
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        h.screen.cancelThreadOfYaga();
+        expect(state.threadOfYaga).toBe(2);
+        expect(h.screen.isThreadPending).toBe(false);
+    });
+
+    it('gives the thread back when the inventory is left instead', () => {
+        const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
+        state.threadOfYaga = 2;
+        h.screen.enter();
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        h.screen.exit();
+        expect(state.threadOfYaga).toBe(2);
+    });
+
+    it('cannot open the map twice from one use', () => {
+        const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
+        state.threadOfYaga = 3;
+        h.screen.enter();
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        expect(h.opened()).toBe(1);
+    });
+
+    it('committing with nothing owned spends nothing', () => {
+        const state = (h.screen as unknown as { heroState: { threadOfYaga: number } }).heroState;
+        state.threadOfYaga = 1;
+        h.screen.enter();
+        useItem(h.screen, THREAD_OF_YAGA_ID);
+        h.screen.cancelThreadOfYaga();
+        state.threadOfYaga = 0;
+        h.screen.commitThreadOfYaga();
+        expect(state.threadOfYaga).toBe(0);
     });
 
     it('never touches a generic item slot', () => {
@@ -263,7 +317,8 @@ describe('the inventory panel', () => {
         state.threadOfYaga = 2;
         h.screen.enter();
         useItem(h.screen, THREAD_OF_YAGA_ID);
-        // Using the Thread must not consume the Ken'ko Potion beside it.
+        h.screen.commitThreadOfYaga();
+        // Spending a Thread must not consume the Ken'ko Potion beside it.
         expect(g[0xa6]).toBe(1);
         expect(g[0xa7]).toBe(6);
     });
@@ -278,6 +333,7 @@ describe('the inventory panel', () => {
         useItem(h.screen, THREAD_OF_YAGA_ID);
         expect(state.threadOfYaga).toBe(0);
         expect(h.opened()).toBe(0);
+        expect(h.screen.isThreadPending).toBe(false);
     });
 });
 
@@ -309,6 +365,16 @@ describe('the magic shop', () => {
         expect(THREAD_OF_YAGA_BIT).toBe(0x80);
         // The generic mask is already 8 bits wide and every bit is used.
         expect(THREAD_OF_YAGA_SHOP_INDEX).toBe(8);
+    });
+
+    it('is stocked in every town by default', () => {
+        // The bug this pins: the extended mask has no entries in the original
+        // tables, so without an explicit default an untouched save reads zero and
+        // the item never appears in any shop.
+        expect(DEFAULT_MAGIC_MASKS_EXT).toHaveLength(9);
+        for (const [town, mask] of DEFAULT_MAGIC_MASKS_EXT.entries()) {
+            expect(mask & THREAD_OF_YAGA_BIT, `town ${town}`).toBeTruthy();
+        }
     });
 });
 

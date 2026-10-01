@@ -141,6 +141,15 @@
       ]
     ]
   },
+  "map": {
+    "hints": "←/→: MAP   ↑/↓: CURSOR   TAB: NEXT DOOR   ENTER: SET   ESC: CLOSE",
+    "loading": "Reading the cavern...",
+    "noMap": "This cavern cannot be charted.",
+    "noPath": "That place is not passable.",
+    "routeCleared": "Route cleared.",
+    "title": "THREAD OF YAGA",
+    "unreachable": "No route found."
+  },
   "dungeon": {
     "notifications": {
       "1": {

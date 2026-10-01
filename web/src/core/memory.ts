@@ -135,6 +135,7 @@ export const ADDR_DEATH_ALREADY_PROCESSED   = 0x49;
 export const ADDR_PROXIMITY_MAP_LEFT_COL    = 0x80;
 export const ADDR_VIEWPORT_TOP_ROW          = 0x82;      // byte, viewport top in proximity map
 export const ADDR_HERO_X_VIEW               = 0x83;
+export const ADDR_HERO_HEAD_Y_VIEW           = 0x84;
 export const ADDR_HERO_ALMAS                = 0x8b;
 export const ADDR_HERO_LEVEL                = 0x8d;
 export const ADDR_HERO_HP                   = 0x90;

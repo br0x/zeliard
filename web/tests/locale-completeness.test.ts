@@ -11,6 +11,16 @@ const REQUIRED_RELEASE_KEYS = [
     'hud.life',
     'hud.almas',
     'hud.loading',
+    // Cavern map screen. These were written into the plan and then missed in the
+    // locale files, so the map rendered with empty strings and logged a missing-key
+    // warning per frame. They are release-required now.
+    'map.title',
+    'map.hints',
+    'map.unreachable',
+    'map.noPath',
+    'map.loading',
+    'map.noMap',
+    'map.routeCleared',
     'modal.speedChange',
     'modal.speedSelect',
     'modal.speedPressAnyKey',

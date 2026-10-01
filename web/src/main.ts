@@ -187,8 +187,10 @@ import { DUNGEONS } from './data/dungeons.js';
 
 import {
     ADDR_BYTE4, ADDR_CALIENTE_ITEMS, ADDR_FALTER_ITEMS, ADDR_DEATH_ALREADY_PROCESSED, ADDR_PROXIMITY_MAP_LEFT_COL,
-    ADDR_HERO_X_VIEW, ADDR_SWORD_TYPE, ADDR_ELF_CREST, ADDR_TEAR_COUNT, ADDR_FACING, ADDR_PLACE_MAP_ID, ADDR_LAST_SAGE_VISITED,
+    ADDR_HERO_X_VIEW,
+    ADDR_MDT, ADDR_SWORD_TYPE, ADDR_ELF_CREST, ADDR_TEAR_COUNT, ADDR_FACING, ADDR_PLACE_MAP_ID, ADDR_LAST_SAGE_VISITED,
     ADDR_BOSS_STATE_BLOCK, ADDR_BOSS_PLACEMENT, ADDR_HERO_X_IN_PROXIMITY_MAP, ADDR_BOSS_STATE_PTR, ADDR_TEAR_X,
+    ADDR_VIEWPORT_TOP_ROW, ADDR_HERO_HEAD_Y_VIEW,
     ADDR_FRAME_TIMER, ADDR_SPACEBAR_LATCH, ADDR_ALTKEY_LATCH, ADDR_SPEED_CONST, ADDR_SOUND_FX_REQUEST, ADDR_HEARTBEAT_VOLUME,
     ADDR_DUNGEON_STATE, ADDR_DUNGEON_FRAME_PHASE, ADDR_RENDER_REQUEST, ADDR_RENDER_DONE, ADDR_GOLD_RENDER_REQUEST,
     ADDR_DEATH_COUNTER, ADDR_ALMAS_RENDER_REQUEST, ADDR_HEALTH_BAR_REQUEST, ADDR_SHIELD_HP_RENDER_REQUEST,
@@ -201,7 +203,7 @@ import {
 
 // ─── TS-owned memory buffer (replaces WASM linear memory) ────────────────────
 import {
-    getGmem, loadSaveState as tsLoadSaveState,
+    getGmem, loadSaveState as tsLoadSaveState, memRead8, memRead16,
     loadMdtToBuffer, setSpecialTileListToBuffer, setDungeonSwordReachToBuffer,
     setDungeonPassableTilesToBuffer, setDungeonSlopeTilesLeftToBuffer,
     setDungeonSlopeTilesRightToBuffer, setDungeonAggressiveGroundToBuffer,
@@ -233,6 +235,10 @@ import {
 } from './engine/dungeon-runtime.js';
 import { setInputKeys } from './engine/input.js';
 import { keyStateToBitmask } from './core/memory.js';
+import { MapScreen } from './ui/map-screen.js';
+import { NavGraphStore } from './engine/nav/pathfinder.js';
+import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
+import { NAV_MAP_BY_ID } from './data/nav/nav-maps.js';
 import { getViewportTop, clearRenderRequest } from './engine/dungeon-state.js';
 import { dungeonFullTick } from './engine/dungeon-tick.js';
 import {
@@ -403,9 +409,7 @@ function openInventory() {
         readMemory, writeMemory,
         soundManager,
         onExit: closeInventory,
-        // The Thread of Yaga's use closes the inventory and opens the map screen.
-        // Phase 6 builds the map screen; until then the hook is a no-op so the
-        // item can be owned and spent without a missing screen.
+        // Using the Thread opens the cavern map on top of the inventory.
         onOpenMapScreen: openMapScreen,
     });
 
@@ -425,14 +429,136 @@ function closeInventory() {
     renderMagicHud();
 }
 
+// ─── Cavern map screen (Thread of Yaga) ──────────────────────────────────────
+
+let mapScreenInstance: MapScreen | null = null;
+
 /**
- * Open the cavern map screen, which the Thread of Yaga reveals.
+ * Open the cavern map screen over the inventory.
  *
- * The screen itself arrives in phase 6. Until then using the item simply spends a
- * copy, so it behaves sanely rather than erroring.
+ * The inventory is already open and has already set gamePaused, so this must not
+ * toggle it: the map is a layer on top, and dismissing it returns to the
+ * inventory with the usage message still showing.
  */
-function openMapScreen() {
-    // Phase 6: build ui/map-screen.ts and set gamePaused = true.
+function openMapScreen(): void {
+    if (mapScreenInstance || !inventoryScreenInstance) return;
+    if (modalManager.isActive || indoorActiveScene) return;
+    const at = heroMapPosition();
+    if (!at) return;
+
+    mapScreenInstance = new MapScreen({
+        canvas,
+        ctx,
+        store: navGraphStore(),
+        heroPosition: heroMapPosition,
+        capabilities: heroCapabilities,
+        text: (key: string) => t(key),
+        onExit: closeMapScreen,
+        onPick: acceptMapDestination,
+        soundManager,
+    });
+    mapScreenInstance.enter({ heroMapId: at.mapId, heroCol: at.col, heroRow: at.row });
+}
+
+/**
+ * Dismissing the map returns to the inventory, not to the cavern — and gives the
+ * thread back, because no destination was chosen.
+ */
+function closeMapScreen(): void {
+    if (!mapScreenInstance) return;
+    mapScreenInstance.exit();
+    mapScreenInstance = null;
+    inventoryScreenInstance?.cancelThreadOfYaga();
+    // The inventory is still open, so the game stays paused.
+    if (!inventoryScreenInstance) gamePaused = false;
+}
+
+/**
+ * A destination was chosen. The route is already computed; the inventory is still
+ * open showing "I used a Yaga thread", and the chevrons appear only once the
+ * player leaves it.
+ */
+function acceptMapDestination(route: unknown): void {
+    if (mapScreenInstance) mapScreenInstance.exit();
+    mapScreenInstance = null;
+    // Only now is the thread spent.
+    inventoryScreenInstance?.commitThreadOfYaga();
+    activeNavRoute = route;
+}
+
+/**
+ * The route the Thread of Yaga last revealed.
+ *
+ * Phase 7 draws chevrons from this and advances them as the hero walks; until
+ * then it is only recorded.
+ */
+let activeNavRoute: unknown = null;
+void activeNavRoute;   // read by the phase 7 chevron overlay
+
+/** Graph store for the cavern map: MDT bytes in, decoded grids and graphs out. */
+let navStore: NavGraphStore | null = null;
+
+function navGraphStore(): NavGraphStore {
+    if (navStore) return navStore;
+    const cache = new Map<number, Uint8Array>();
+    navStore = new NavGraphStore(
+        (mapId) => {
+            const meta = NAV_MAP_BY_ID.get(mapId);
+            if (!meta) return null;
+            const hit = cache.get(mapId);
+            if (hit) return hit;
+            // The cavern the hero is standing in is already in memory — but at
+            // 0xC000, not at offset 0. Handing over the whole 64 KB image would
+            // make the decoder read the map width out of the save-image bytes
+            // instead of the MDT header, and then walk the packed map off the end
+            // of a nonsense-width grid.
+            if (mapId === (memRead8(getGmem(), ADDR_PLACE_MAP_ID) & 0x7f)) {
+                const live = getGmem().slice(ADDR_MDT);
+                cache.set(mapId, live);
+                return live;
+            }
+            return null;
+        },
+        // Any other cavern is downloaded only when the player browses to it.
+        // The URL is mdtPath verbatim, exactly as the game loads a cavern it is
+        // about to enter — the files live at the site root under game/0/, NOT
+        // under assets/, so an `assets/` prefix 404s and the map silently
+        // declines to open.
+        async (mapId) => {
+            const meta = NAV_MAP_BY_ID.get(mapId);
+            if (!meta) return null;
+            const response = await fetch(meta.mdtPath);
+            if (!response.ok) return null;
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            cache.set(mapId, bytes);
+            return bytes;
+        },
+    );
+    return navStore;
+}
+
+/** Where the hero stands in map coordinates, or null outside a cavern. */
+function heroMapPosition(): { mapId: number; col: number; row: number } | null {
+    if (gameMode !== 'dungeon') return null;
+    const g = getGmem();
+    const mapId = memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f;
+    const meta = NAV_MAP_BY_ID.get(mapId);
+    if (!meta) return null;
+    // The engine's own absolute-position expression (dungeon-doors.ts:90-101):
+    // left column plus the viewport offset, head row plus the viewport top.
+    const left = memRead16(g, ADDR_PROXIMITY_MAP_LEFT_COL)
+        + memRead8(g, ADDR_HERO_X_VIEW) + 4;
+    const width = meta.mapWidth;
+    return {
+        mapId,
+        col: ((left % width) + width) % width,
+        row: (memRead8(g, ADDR_VIEWPORT_TOP_ROW) + memRead8(g, ADDR_HERO_HEAD_Y_VIEW)) & 0x3f,
+    };
+}
+
+/** The hero's abilities, read from live memory. */
+function heroCapabilities(): HeroCapabilities {
+    return snapshotCapabilities(getGmem());
 }
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────
@@ -604,6 +730,8 @@ const keyRouter = new KeyRouter({
     // state
     modalActive: () => modalManager.isActive,
     inventoryOpen: () => !!inventoryScreenInstance,
+    // The cavern map opens on top of the inventory, so the router checks it first.
+    mapScreenActive: () => mapScreenInstance !== null,
     introActive: () => openingIntro.active,
     endingActive: () => endingDemo.active,
     indoorScene: () => indoorActiveScene,
@@ -630,6 +758,8 @@ const keyRouter = new KeyRouter({
     setKey: setKeyState,
     resetInventoryCombo: () => inventoryScreenInstance?.resetDebugCombo(),
     modalHandleKey: (code, now) => modalManager.handleKey(code, now),
+    mapHandleKey: (code, ctrl, shift, repeat) =>
+        mapScreenInstance?.handleKey(code, ctrl, shift, repeat) ?? false,
     inventoryHandleKey: (code, ctrl, shift, repeat) =>
         inventoryScreenInstance!.handleKey(code, ctrl, shift, repeat),
     introSkipPage: () => openingIntro.skipPage(),
@@ -2152,13 +2282,20 @@ function draw() {
     // Draw speed change dialog
     drawSpeedChangeDialog();
 
-    // Draw modal on top of everything (indoor scene or town)
-    modalManager.draw(ctx, canvas.width, canvas.height, performance.now());
-
-    // Draw inventory screen on top of everything
+    // Draw inventory screen
     if (inventoryScreenInstance && inventoryScreenInstance.active) {
         inventoryScreenInstance.draw(performance.now());
     }
+
+    // Draw the cavern map above the inventory — it opens from inside it, and the
+    // inventory fills the whole canvas, so drawing the map first hides it
+    // completely. It stays below any modal, which cannot be open at the same time.
+    if (mapScreenInstance && mapScreenInstance.active) {
+        mapScreenInstance.draw(performance.now());
+    }
+
+    // Draw modal on top of everything (indoor scene or town)
+    modalManager.draw(ctx, canvas.width, canvas.height, performance.now());
 }
 
 function loop(timestamp: number): void {
@@ -2175,6 +2312,39 @@ const layoutWrapper = document.getElementById('layout-wrapper') as HTMLElement;
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const tearOverlayEl = document.getElementById('tear-overlay');
 const ctx    = setupGameCanvas(canvas);
+
+/**
+ * Map a client-space pointer event onto the fixed 672x432 canvas.
+ *
+ * The layout can be CSS-scaled on touch devices (input/touch-input.ts), so the
+ * mapping goes through getBoundingClientRect rather than assuming 1:1.
+ */
+function canvasPointFromEvent(e: PointerEvent): { x: number; y: number } {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    };
+}
+
+// The cavern map is the only pointer-driven UI in the game, so these listeners
+// sit with the canvas and do nothing unless it is open.
+canvas.addEventListener('pointerdown', e => {
+    if (!mapScreenInstance?.active) return;
+    e.preventDefault();
+    const { x, y } = canvasPointFromEvent(e);
+    // Inside the border but outside the map area counts as "never mind".
+    if (x < 4 || x > canvas.width - 4 || y < 4 || y > canvas.height - 4) {
+        mapScreenInstance.handleClickOutside();
+        return;
+    }
+    mapScreenInstance.handlePointer(x, y, 'down');
+});
+canvas.addEventListener('pointermove', e => {
+    if (!mapScreenInstance?.active) return;
+    const { x, y } = canvasPointFromEvent(e);
+    mapScreenInstance.handlePointer(x, y, 'move');
+});
 
 // Dungeon renderer: memory accessors + mutable asset bundle.
 initDungeonRenderer({

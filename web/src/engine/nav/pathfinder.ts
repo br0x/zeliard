@@ -73,9 +73,18 @@ export interface NavRoute {
 // ── graph cache ─────────────────────────────────────────────────────────────
 
 export interface NavGridSource {
-    /** Raw MDT bytes for a map, or null while it is still loading. */
+    /** Raw MDT bytes for a map, or null while it is not available. */
     (mapId: number): Uint8Array | null;
 }
+
+/**
+ * Fetches a map's MDT on demand.
+ *
+ * The game only downloads the cavern it is standing in, but a route may cross a
+ * dozen others, and the map screen may browse all of them. Injected rather than
+ * assumed, so the engine layer stays free of I/O.
+ */
+export type NavGridFetcher = (mapId: number) => Promise<Uint8Array | null>;
 
 /**
  * Builds each map's graph once and keeps it.
@@ -87,25 +96,81 @@ export interface NavGridSource {
 export class NavGraphStore {
     private readonly graphs = new Map<number, NavGraph>();
     private readonly grids = new Map<number, NavTileGrid>();
+    /** Maps whose MDT failed to decode, so they are not retried every frame. */
+    private readonly failed = new Set<number>();
+    /** Bytes obtained from the fetcher, kept so `get` can see them. */
+    private readonly fetched = new Map<number, Uint8Array>();
 
-    constructor(private readonly source: NavGridSource) {}
+    constructor(
+        private readonly source: NavGridSource,
+        private readonly fetcher?: NavGridFetcher,
+    ) {}
 
-    /** Graph for a map, building it on first use. Null if its MDT is not loaded. */
+    /**
+     * Make sure a map's data is in memory, fetching it if needed.
+     *
+     * @returns true when the graph is available afterwards
+     */
+    async load(mapId: number): Promise<boolean> {
+        if (this.graphs.has(mapId)) return true;
+        // Already in memory (the cavern the hero is standing in): just build it.
+        // Going straight to `graphs.has` here would report "unavailable" for a
+        // map whose bytes are right there but whose graph was never built.
+        if (this.source(mapId) || !this.fetcher) return this.get(mapId) !== null;
+        try {
+            const bytes = await this.fetcher(mapId);
+            if (!bytes) return false;
+            this.fetched.set(mapId, bytes);
+        } catch {
+            return false;   // a missing or unreadable map simply is not offered
+        }
+        return this.get(mapId) !== null;
+    }
+
+    /**
+     * Graph for a map, building it on first use.
+     *
+     * Returns null when the MDT is unavailable **or malformed**. A decoder
+     * failure must not escape: this is called from the key handler, and an
+     * exception there would surface as an uncaught error and swallow the key press
+     * rather than just declining to offer the map.
+     */
     get(mapId: number): NavGraph | null {
         const cached = this.graphs.get(mapId);
         if (cached) return cached;
-        const bytes = this.source(mapId);
+        if (this.failed.has(mapId)) return null;
+        // Bytes fetched on demand take precedence over the source, so a fetcher
+        // does not have to publish into the source's own cache.
+        const bytes = this.fetched.get(mapId) ?? this.source(mapId);
         if (!bytes) return null;
-        const grid = decodeTileGrid(bytes, 0, mapId);
-        this.grids.set(mapId, grid);
-        const graph = buildNavGraph(mapId, grid);
-        this.graphs.set(mapId, graph);
-        return graph;
+        try {
+            const grid = decodeTileGrid(bytes, 0, mapId);
+            this.grids.set(mapId, grid);
+            const graph = buildNavGraph(mapId, grid);
+            this.graphs.set(mapId, graph);
+            return graph;
+        } catch (err) {
+            // Remember the failure so a broken map is not retried every frame.
+            this.failed.add(mapId);
+            console.warn(`[nav] map ${mapId} could not be decoded; excluding it`, err);
+            return null;
+        }
     }
 
     /** Preload a map's graph, e.g. while the map screen is opening. */
     warm(mapId: number): void {
         this.get(mapId);
+    }
+
+    /**
+     * The decoded tile grid for a map, without exposing the whole graph.
+     *
+     * The store already holds one from building the graph, so this costs nothing
+     * and gives the map screen the tiles it needs to draw the cavern.
+     */
+    gridOf(mapId: number): NavTileGrid | null {
+        this.get(mapId);
+        return this.grids.get(mapId) ?? null;
     }
 
     has(mapId: number): boolean {
@@ -119,11 +184,20 @@ export class NavGraphStore {
     drop(mapId: number): void {
         this.graphs.delete(mapId);
         this.grids.delete(mapId);
+        this.fetched.delete(mapId);
+        this.failed.delete(mapId);
     }
 
     clear(): void {
         this.graphs.clear();
         this.grids.clear();
+        this.fetched.clear();
+        this.failed.clear();
+    }
+
+    /** True when a map's data could not be decoded. */
+    isBroken(mapId: number): boolean {
+        return this.failed.has(mapId);
     }
 }
 

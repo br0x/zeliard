@@ -1614,7 +1614,7 @@ Each phase is independently shippable and independently reviewable.
 | **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts` | 27 invariant tests over all 31 caverns. **[measured] 25,905 nodes / 286,886 edges, slowest build ~70 ms, 236/236 lifts and 288/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; jump apex and ceiling probe re-verified; no self-edges; CSR consistent |
 | **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) — **done** | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, `path_items.png`, locale ×3, `main.ts` | 20 tests. Save round-trip and byte-exact save image; a save without the feature marker reads as not owned **whatever it holds at 0x4A**; buying and selling move the counter and the extended stock bit, never the generic array; using one copy leaves all five generic slots byte-identical; the addresses cannot be reached by the 0xA1..0xFF forward scans |
-| **6** | Map screen — next | `ui/map-screen.ts`, `key-router.ts`, `main.ts` | Pointer → tile mapping under a CSS scale; keyboard cursor wrap; `gamePaused` asserted while open; keys do not reach the engine; **no route is drawn on it**; accepting a point closes the map and returns to the inventory |
+| **6** | Map screen — **done** | `ui/map-screen.ts`, `key-router.ts`, `main.ts`, `NavGraphStore.load`/`gridOf` | 23 tests. All 31 caverns fit at an integer scale and stay centred; tile round-trip survives a 0.5×–2.25× CSS scale; cursor wraps on both axes; key repeat does not skip maps; **no route is drawn** (`draw(now)` takes no route and the class has no route accessor); a point that cannot be routed leaves the screen open; Escape and an outside click return without a route |
 | **7** | Chevron overlay | `render/path-overlay.ts`, `main.ts`, `assets/images/path_chevrons.png` | Draw order assertion; **dormant while the inventory or map is open**; first chevron at the hero head; wrap-correct direction at the seam; ride and conveyor slots skipped; clipped to the viewport; travelled points dropped as the hero advances; per-frame cost independent of route length |
 | **8** | Live route + polish | `engine/nav/path-guide.ts`, `locale` translations, README | Recompute on each §10.5 trigger; throttling; overlay clears on arrival; `Q` cancels and a later trigger does not resurrect it |
 
@@ -1876,6 +1876,8 @@ the phase-1 acceptance test.
 
 ---
 
+---
+
 ## 17. Implementation log
 
 An append-only record of what has been built, what it turned out to be, and what
@@ -2017,7 +2019,6 @@ Seven tests, skipped if `WORK/LEVELS` is absent.
 **Gates:** `tsc --noEmit` clean; `nav-mdt-grid.test.ts` 32/32;
 `nav-data.test.ts` 46/46; full suite 631/631.
 
-**Next:** phase 1b, the runtime tile-flag classifier (`NavFlags`), which must
 mirror `isBlockingTile` / `isBlockingTileSimple` exactly.
 
 ### Phase 1b — tile-flag classifier — **complete**
@@ -2072,8 +2073,6 @@ that triggers the overlap and assert both our result and the engine's.
 
 **Gates:** `tsc --noEmit` clean; `nav-attributes.test.ts` 26/26; full suite
 657/657.
-
-**Next:** phase 2, the runtime platform and airflow model.
 
 ### Phase 2 — platform and current models — **complete**
 
@@ -2138,62 +2137,6 @@ platform can never be silently dropped.
 **Gates:** `tsc --noEmit` clean; both new suites pass; full suite 692/692;
 `nav:check` clean.
 
-**Next:** phase 5, the item — inventory, magic shop and save representation.
-
-### Phase 4 — capabilities and A* — **complete**
-
-**Delivered**
-
-| File | Role |
-| --- | --- |
-| `web/src/engine/nav/capabilities.ts` | `snapshotCapabilities` from `g_mem`, plus `describeCaps`, `allCapabilities`, `bareCapabilities` |
-| `web/src/engine/nav/pathfinder.ts` | `NavGraphStore`, `findRoute`, `reachableMaps` |
-| `web/tests/nav-capabilities.test.ts` | 14 tests |
-| `web/tests/nav-pathfinder.test.ts` | 18 tests |
-
-One addition to the phase-3 graph: `NavGraph.nodeHazard`, one `HAZARD_*` word per
-node saying what the hero's footprint touches. It is recorded on the geometry
-rather than baked into edges, because whether a crossing is permitted depends on
-what he is wearing — one graph serves every loadout.
-
-**[measured]**
-
-| | |
-| --- | --- |
-| Route inside one cavern | cost 65 over 59 hops, **~1 ms**, 65 nodes expanded |
-| Route across caverns (`mp10 → mp21`) | cost 44, **~31 ms**, 209 expanded, 7 graphs built on demand |
-| Lion-Head door with no key | **correctly refused** |
-| Lion-Head door with a key | opened, `keysSpent.lion === 1` |
-
-**Keys are a search dimension, not a penalty** (decision D6). A route that would
-need four keys and the hero has three is *not a route*, and no amount of extra
-edge cost makes it one, so the state is `(node, keysSpentOrdinary, keysSpentLion)`
-and a state that cannot pay is dropped. With 163 doors in the whole game and a
-hero holding a handful of keys, the multiplier is small.
-
-**Heuristic.** Octile distance within a map, **zero across maps**. Zero is not a
-shortcut — a door can land the hero anywhere in the destination cavern, so no
-positive lower bound exists between two maps, and anything else would be
-inadmissible and could return a needlessly expensive route.
-
-**One bug worth recording.** `indexOfState` was populated only for the initial
-state, so the expansion loop could not map a popped state back to its index and
-`describeRoute` walked off the end of the chain. Symptom was a thrown error on the
-first successful search; fixed by registering each candidate's index at the moment
-it is pushed.
-
-**Two rules the tests pinned, both easy to get wrong:**
-
-- **The key counters are adjacent bytes.** `0x98` and `0x99` must be read with
-  `memRead8`, as the engine does. A word read turns one Lion-Head key into 256
-  ordinary keys. The test asserts `keys` and `lionKeys` independently.
-- **Ice and heat protections are granted only on the level where they exist.**
-  Ruzeria shoes grant nothing outside cavern level 4 and the asbestos cape nothing
-  outside level 7, because otherwise the mask claims a protection the map screen
-  would then act on where there is no hazard.
-
-**Gates:** `tsc --noEmit` clean; both new suites pass; full suite 751/751.
-
 ### Phase 3 — navigation graph — **complete**
 
 **Delivered** `web/src/engine/nav/nav-graph.ts` — `buildNavGraph`, nodes in a
@@ -2254,8 +2197,6 @@ prebuilt-blob escape hatches apply unchanged.
 
 **Gates:** `tsc --noEmit` clean; `nav-graph.test.ts` 27/27; full suite 719/719.
 
-**Next:** phase 5, the item — inventory, magic shop and save representation.
-
 ### Phase 4 — capabilities and A* — **complete**
 
 **Delivered**
@@ -2310,6 +2251,195 @@ it is pushed.
 
 **Gates:** `tsc --noEmit` clean; both new suites pass; full suite 751/751.
 
----
+### Phase 5 — the Thread of Yaga — **complete**
 
-## 17. Implementation log
+**Delivered**
+
+| File | Change |
+| --- | --- |
+| `core/memory.ts` | `ADDR_THREAD_OF_YAGA` 0x4A, `ADDR_MAGIC_MASKS_EXT` 0x4B, and the `ADDR_FEATURE_YAGA` / `FEATURE_YAGA` marker at 0x46 |
+| `core/game-state.ts` | `threadOfYaga` + `magicMasksExt` on `HeroState`, with read, write and live-view wiring |
+| `ui/inventory-screen.ts` | `THREAD_OF_YAGA_ID` (9), a counter row in the USE tab, `_useThreadOfYaga`, its own sprite sheet |
+| `scenes/indoor-magic-shop.ts` | 9th name, description and price column; stock bit in the extended mask; buy and sell branches |
+| `public/assets/images/path_items.png` | new 48×48 sheet, so `magic_items.png` keeps its eight frames |
+| `locale/{en,ru,isv}.json` | item name, use text, shop name, shop description |
+| `main.ts` | `openMapScreen` hook |
+| `tests/nav-thread-of-yaga.test.ts` | 20 tests |
+
+**A feature marker was added on top of Option D.** The plan reasoned that 0x4A is
+free because no engine constant lives there. That is true of the *port*, and the
+original game's save bytes stop at 0x49 too — but an old save can still hold
+whatever the engine left in that byte mid-play, and reading it as a count would
+hand the player a few free copies. So 0x46 now carries a marker that only a save
+from this version writes, and without it the count and stock read as zero. That is
+three bytes of well-understood machinery rather than a hopeful assumption.
+
+The marker is written **only when the item is relevant**, because
+`tests/game-state.test.ts` asserts the save image round-trips byte for byte —
+writing it unconditionally would corrupt every save that never had the item.
+
+**One behaviour bug the tests caught.** The USE panel removed the item's row on
+every use, so spending the first of three copies made it vanish. The panel shows a
+count rather than a stack, so the row should stay until the last copy is gone.
+
+**Two hazards the design had to dodge, both asserted:**
+
+- **The shoe pickup scans forward from 0xA1 for a zero**, walking into 0xA6 when
+  the shoe slots are full, and the cape purchase scans 0xA1..0xFF. An item stored
+  anywhere in that range would eventually be swallowed as a shoe or a cape. 0x4A is
+  outside it, which is the real reason to prefer this block over a spare slot near
+  the inventory.
+- **The item must not touch the generic array.** Using it leaves all five slots
+  byte-identical, which is asserted against a live memory image rather than a mock.
+
+**The live view is a getter/setter, not a captured value.** The hero buys and uses
+this item during play, so unlike the older scalar fields it has to track memory in
+both directions; setting a non-zero count also writes the marker, or the value
+would be read back as zero.
+
+**Pricing.** 2000 gold in every town, above every consumable in the same row and
+flat across towns — a route through the later caverns needs several copies, so it
+should never be a bargain somewhere. Sell price is the existing `floor(price / 2)`.
+
+**A bug found in play, and the reason it slipped through.** The item did not
+appear in any shop. `magicMasksExt` defaults to zero, and unlike the eight original
+items it had no `DEFAULT_...` fallback — the original tables have no ninth entry,
+so nothing ever seeded it. `_getMagicBitmask` falls back for the originals;
+`_getMagicBitmaskExt` did not.
+
+The constant alone was not enough to catch it, because a test asserting
+`DEFAULT_MAGIC_MASKS_EXT` would have passed while the accessor still read zero.
+The regression test now **drives the real shop scene** and asserts item 8 is in
+its buy list on a fresh save, which is what actually failed.
+
+**Gates:** `tsc --noEmit` clean; `nav-thread-of-yaga.test.ts` 21/21;
+`indoor-magic-shop.test.ts` 9/9; full suite 796/796.
+
+### Phase 6 — the cavern map screen — **complete**
+
+**Delivered**
+
+| File | Change |
+| --- | --- |
+| `ui/map-screen.ts` | the screen: scale, cached raster, map strip, hero marker, cursor, input, destination picking |
+| `engine/nav/pathfinder.ts` | `NavGraphStore.load()` for lazy MDT fetches, and `gridOf()` so the screen can draw a cavern without exposing the graph |
+| `input/key-router.ts` | `mapScreenActive` / `mapHandleKey`, checked **before** the inventory because the map sits on top of it; `Tab`, `PageUp`, `PageDown` added to `PREVENT_DEFAULT_CODES` |
+| `main.ts` | lifecycle, pointer listeners, draw call, the graph store |
+| `tests/map-screen.test.ts` | 23 tests |
+
+**No route is drawn.** The screen renders the cached raster, doors, town exits,
+the hero marker and the cursor, and nothing else. Three tests hold that in place:
+`draw` takes a timestamp and nothing else, the class exposes no route accessor,
+and drawing every one of the 31 caverns never throws.
+
+**Layout.** 672×432 with the map area at `y 28..412` and the hint at `414`. The
+integer scale is `floor(min(672/W, 384/64))`, so `mp40` and `mp60` at 320 tiles
+draw at 2× and everything fits without panning — verified for all 31 maps,
+including that the map stays centred horizontally within a pixel.
+
+**A hero marker, deliberately kept.** It is not decoration: the cavern is a
+cylinder, so "which way is left" wraps, and without a marker the player cannot
+tell which end of the map they are standing at.
+
+**Other caverns are downloaded on demand.** The game only fetches the MDT of the
+cavern it is standing in, so `NavGraphStore` takes an optional fetcher; browsing
+the strip triggers it. The current cavern is served straight from `g_mem`.
+
+**Pointer input is new to the codebase** — there was no mouse or pointer handling
+on `#gameCanvas` anywhere before this. Events are mapped through
+`getBoundingClientRect`, because touch layouts apply `transform: scale()` to the
+wrapper, and a test checks the round trip survives scales from 0.5× to 2.25×.
+
+**The inventory does not close.** Using the thread opens the map on top; picking a
+point returns to the inventory with the usage message showing; the route appears
+only when the player leaves. `gamePaused` is never toggled by the map, since the
+inventory already set it.
+
+**One process note, and one bug in my own tooling.** Index-based scripted patching
+of `main.ts` corrupted it mid-phase — 1,957 insertions against 1,749 deletions,
+with whole functions moved out of scope. It was restored from git and the wiring
+redone with verified edits; the file now differs from HEAD by **162 insertions and
+9 deletions**, all additive.
+
+The same class of mistake also duplicated this log: two `python` `str.replace` calls
+whose targets did not match the file silently did nothing, so phases 5 and 6 were
+never written and phases 3 and 4 ended up out of order and duplicated. Both are
+fixed here, and the lesson is the same as the `main.ts` one — a scripted edit that
+does not verify that it changed something is not an edit.
+
+**Gates:** `tsc --noEmit` clean; `map-screen.test.ts` 23/23; full suite 794/794.
+
+**Two bugs found in play, both from the same missing assumption: that the cavern's
+data is the file on disk.** Every test loaded MDTs straight from
+`web/public/game/0/`, so neither could see that the game hands the pathfinder
+something else.
+
+1. **The current cavern was handed the whole 64 KB memory image.**
+   `loadMdtToBuffer` writes the MDT at `0xC000` (core/ts-memory.ts:56-58), but the
+   store's source returned `getGmem().slice()` — offset 0. The decoder reads the map
+   width from bytes 2-3 of whatever it is given, so it read the *save image* there,
+   got a nonsense width, and walked the packed map off the end:
+   `NavGridError: map 23: packed map ran past the end of the image at column 2432`.
+   The fix is `getGmem().slice(ADDR_MDT)` — the 16 KB window the game actually
+   holds. A test now decodes both and asserts the memory image throws while the
+   windowed one does not.
+
+2. **The decode error was uncaught.** It escaped `NavGraphStore.get` through
+   `MapScreen.choose` and the `KeyRouter`, so it surfaced as an uncaught error in
+   the console and the key press was swallowed rather than the map simply being
+   declined. `get` now catches decode failures, remembers the map so it is not
+   retried every frame, and returns null — so a malformed asset costs you that one
+   map and nothing else. `isBroken(mapId)` exposes the state.
+
+The lesson generalises past this feature: a test that supplies its own dependency
+cannot catch a mismatch between the real dependency and the substitute, and the
+memory image is exactly that kind of substitute — the right bytes at the wrong
+address.
+
+**Two more found in play, the same morning.**
+
+3. **The map was invisible.** `mapScreenInstance.draw()` ran, but the inventory
+   drew *after* it and fills the whole canvas, so the map was painted over
+   completely. Order is now inventory → map → modal. `openMapScreen` already
+   refuses to open while a modal is up, so the map can safely sit below one.
+
+4. **The map strip ran together into one unreadable line.** From `mp80` the
+   component has **14 maps**, so each tab is 672/14 = 48px — and a full "MP80" is
+   five characters of 12px monospace, about 35px. Fourteen of them in a row with no
+   clipping read as `MP5DMP60MP61MP62...`. Tabs now use a short label
+   (`mp80` → `80`, `mp5d` → `5D`), the full name stays in the title bar for the
+   current map, and each label is clipped to its own slot so a long one can never
+   bleed into its neighbour. A test computes the required width for every tab of
+   every component and fails if any exceeds its slot.
+
+5. **Every cavern the game had not already downloaded 404'd.** The map strip
+   showed the cavern, but choosing any map other than the one the hero stood in
+   reported "This cavern cannot be charted". The fetcher used
+   `fetch('assets/' + mdtPath)` while the game loads a cavern it is about to enter
+   with a bare `fetch(mdtPath)` — the files live at the site root under
+   `game/0/`, not under `assets/`. Now uses the identical string, with a test
+   that asserts every `mdtPath` resolves to a file that exists under `public/`
+   and that nothing resolves under `assets/` by mistake.
+
+   That surfaced an implicit API contract worth fixing: `load()` depended on the
+   fetcher publishing bytes into the *source's* cache for `get()` to see them.
+   The store now keeps fetched bytes itself and consults them first, so a fetcher
+   is just "give me bytes" and cannot silently fail to be visible.
+
+5. **Esc consumed the thread.** The item was spent when the map *opened*, so
+   dismissing the map lost a copy. The thread is now only *offered*: `use` sets a
+   pending flag and opens the map; `commitThreadOfYaga` spends it when a
+   destination is chosen and shows the message; `cancelThreadOfYaga` — called on
+   Esc, on a click outside, and on leaving the inventory — gives it back. The
+   pending state lives on the inventory, which already owns the item and the
+   message, rather than on the map screen.
+
+4. **None of the seven `map.*` strings existed.** They were written into §15 of
+   this plan and never into `web/src/locale/*.json`, so the title and hint line
+   rendered empty and the console filled with a missing-key warning *per frame* —
+   which is exactly the kind of noise that gets skimmed past in a busy log.
+
+   Three guards now: the keys are added to `REQUIRED_RELEASE_KEYS` in
+   `locale-completeness.test.ts`, a test resolves every key the screen renders in
+   all three locales, and `LocaleMessages` declares the section so the schema
+   matches the data. A warning repeated every frame is a defect, not a log line.

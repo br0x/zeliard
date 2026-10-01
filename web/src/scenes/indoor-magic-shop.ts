@@ -186,6 +186,17 @@ export const DEFAULT_MAGIC_BITMASKS = [
     0xFF,  // Esco
 ];
 
+// ─── Default stock for the Thread of Yaga ────────────────────────────────────
+//
+// Bit 7 of the extended mask, one entry per town. The Thread is sold in EVERY
+// magic shop, so the default is "stocked" everywhere; unlike the eight original
+// items there is no per-town variation to record.
+//
+// Without this the shop would read a zero from an untouched save and the item
+// would never appear — the extended mask has no entries in the original
+// tables to fall back on.
+export const DEFAULT_MAGIC_MASKS_EXT = [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Convert a bitmask to an array of 0-based item indices that are set. */
@@ -374,10 +385,21 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.heroState.magicMasks[this.townIdx] = (cur | bit) & 0xFF;
     }
 
+    /**
+     * Stock of the extended mask — the Thread of Yaga — for this town.
+     *
+     * Falls back to DEFAULT_MAGIC_MASKS_EXT exactly as _getMagicBitmask does for
+     * the eight original items, so an untouched save still shows the item.
+     */
+    private _getMagicBitmaskExt(): number {
+        return this.heroState.magicMasksExt[this.townIdx]
+            || DEFAULT_MAGIC_MASKS_EXT[this.townIdx]
+            || 0;
+    }
+
     /** Stock the Thread of Yaga in this town, via the extended mask. */
     private _orMagicBitmaskExt(bit: number): void {
-        const cur = this.heroState.magicMasksExt[this.townIdx] ?? 0;
-        this.heroState.magicMasksExt[this.townIdx] = (cur | bit) & 0xFF;
+        this.heroState.magicMasksExt[this.townIdx] = (this._getMagicBitmaskExt() | bit) & 0xFF;
     }
 
     private _getPlayerMagicItems(): number[] {
@@ -404,8 +426,7 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         // mask because the 8-bit one is full, so it is appended rather than
         // decoded from it.
         this._shopItemIndices = bitmaskToItemIndices(this._getMagicBitmask());
-        const townMask = this.heroState.magicMasksExt[this.townIdx] ?? 0;
-        if (townMask & THREAD_OF_YAGA_BIT) {
+        if (this._getMagicBitmaskExt() & THREAD_OF_YAGA_BIT) {
             this._shopItemIndices.push(THREAD_OF_YAGA_SHOP_INDEX);
         }
         // Items the player is currently carrying

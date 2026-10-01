@@ -28,6 +28,8 @@ export interface LocaleMessages {
     modal: Record<string, string>;
     dialog: Record<string, string>;
     inventory: Record<string, string | string[] | string[][]>;
+    /** Cavern map screen: title, key hints, and the three refusals. */
+    map: Record<string, string>;
     dungeon: {
         notifications: Record<string, DungeonNotification>;
         signs: Record<string, DungeonSignLine[]>;

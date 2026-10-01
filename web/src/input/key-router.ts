@@ -32,6 +32,8 @@ export interface KeyRouterDeps {
     // ── state queries ──
     modalActive(): boolean;
     inventoryOpen(): boolean;
+    /** True while the cavern map screen is on top of the inventory. */
+    mapScreenActive(): boolean;
     introActive(): boolean;
     endingActive(): boolean;
     indoorScene(): IndoorSceneHandle | null;
@@ -61,12 +63,21 @@ export interface KeyRouterDeps {
     modalHandleKey(code: string, now: number): boolean;
     /** Inventory screen; args (code, ctrl, shift, repeat). Returns consumed. */
     inventoryHandleKey(code: string, ctrl: boolean, shift: boolean, repeat: boolean): boolean;
+    /**
+     * Cavern map screen; args (code, ctrl, shift, repeat). Returns consumed.
+     *
+     * Checked *before* the inventory, because the map opens on top of it and both
+     * are open at once.
+     */
+    mapHandleKey(code: string, ctrl: boolean, shift: boolean, repeat: boolean): boolean;
     introSkipPage(): void;
     endingSkipPage(): void;
 }
 
 /** Codes whose default browser behavior is always suppressed. */
 export const PREVENT_DEFAULT_CODES: ReadonlySet<string> = new Set([
+    // Tab cycles maps on the cavern map screen, so it must not move browser focus.
+    'Tab', 'PageUp', 'PageDown',
     'F1', 'F2', 'F7', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
     'Enter', 'Escape',
 ]);
@@ -118,6 +129,11 @@ export class KeyRouter {
         // If a modal is active, route keys to it (translation happens in the manager)
         if (d.modalActive()) {
             return d.modalHandleKey(e.code, now);
+        }
+
+        // The map screen sits on top of the inventory, so it wins.
+        if (d.mapScreenActive()) {
+            return d.mapHandleKey(e.code, e.ctrlKey, e.shiftKey, e.repeat);
         }
 
         // If inventory screen is open, route keys to it

@@ -91,9 +91,27 @@ describe('magic-shop tables & helpers', () => {
 });
 
 describe('WitchcraftShopScene transactions', () => {
+
     const clock = { ms: 50000 };
 
     beforeEach(() => clock.ms = 50000);
+
+    it('offers the Thread of Yaga in every town on a fresh save', async () => {
+        // Regression: the extended mask has no entries in the original tables, so
+        // with no default the shop read zero and the item never appeared at all.
+        // This drives the real scene rather than the constant.
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
+        setGold(state, 100000);
+        const { scene, s } = await enter(state, 1);
+        const shopIndices = (scene as unknown as { _shopItemIndices: number[] })._shopItemIndices;
+        expect(shopIndices, 'buy list').toContain(8);
+        // And it carries a name and a price.
+        expect(MAGIC_ITEM_NAMES[8]!).toBeTruthy();
+        expect(MAGIC_PRICES_BY_TOWN[0]![8]!).toBeGreaterThan(0);
+        expect(MAGIC_ITEM_DESCRIPTIONS[8]).toBeTruthy();
+        void s;
+    });
+
 
     function stubImages(): void {
         class FakeImage {
