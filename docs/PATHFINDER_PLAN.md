@@ -1920,8 +1920,36 @@ mostly-open rooms is **false**. Solid-tile ratios **[measured]**:
 test. What *does* separate the 8 arenas cleanly is rope presence: every arena has
 zero rope tiles, every other map has some. That is the invariant the tests use.
 
-**Gates:** `tsc --noEmit` clean; `nav-mdt-grid.test.ts` 25/25;
-`nav-data.test.ts` 46/46; full suite 624/624.
+**Third-way confirmation — `WORK/LEVELS`.** The RLE decode is now checked against a
+completely independent encode of the same data: `WORK/LEVELS/MP*.TXT` holds each
+tile as `chr(tile + 0x20)` so the maps can be read as text. **[measured]**
+
+| | |
+| --- | --- |
+| Maps present | 31 / 31 |
+| Cells compared | **298,830** |
+| Cells disagreeing with `decodeTileGrid` | **0** |
+| Characters above the 6-bit range (in the dumps) | 14 |
+| Rows truncated in the dumps | 30 |
+
+Two dumps are damaged, and the damage is *on their side* in every case:
+
+- `MP10.TXT` — 30 rows are truncated on the right. They match from column 0, so
+  they are short, **not shifted**, which rules out a layout mismatch as the cause.
+  Five characters exceed the 6-bit range (`b`, `f`, `o`, `s`, `|`) and four cells
+  read 15 or 60 where the MDT says 0. All 30 truncated rows are otherwise exact.
+- `MP90.TXT` — nine characters exceed the 6-bit range, all `h`, forming one 3×3
+  block of empty space at columns 8–10, rows 11–13. No cell is actually wrong;
+  the other 2,679 cells match.
+
+Note the dump rows each carry one stray `CR`, which is why every file is
+`mapWidth + 1` bytes wide until it is stripped — a layout detail that looks like
+an off-by-one in the decoder and is not. Both facts are asserted rather than
+tolerated, so replacing a dump with a *differently* broken one fails the suite.
+Seven tests, skipped if `WORK/LEVELS` is absent.
+
+**Gates:** `tsc --noEmit` clean; `nav-mdt-grid.test.ts` 32/32;
+`nav-data.test.ts` 46/46; full suite 631/631.
 
 **Next:** phase 1b, the runtime tile-flag classifier (`NavFlags`), which must
 mirror `isBlockingTile` / `isBlockingTileSimple` exactly.

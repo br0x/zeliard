@@ -9,7 +9,7 @@
  * `inc bh` for the count, then `inc si` and `mov bl, [si]` for the tile.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -356,3 +356,152 @@ function decodeForComparison(name: string): Uint8Array {
     return decodePackedMap(bytes, bytes[2]! | (bytes[3]! << 8));
 }
 
+
+/**
+ * Independent check against WORK/LEVELS.
+ *
+ * WORK/LEVELS/MP*.TXT is a human-readable dump of the same maps, each tile stored
+ * as `chr(tile + 0x20)` so it can be viewed as text. It is a completely separate
+ * encode of the same source data, so agreeing with it is the strongest available
+ * evidence that the RLE decoder is right — it would have to be wrong in exactly
+ * the same way twice.
+ *
+ * Two of the 31 dumps are damaged, and the damage is characterised below rather
+ * than tolerated blindly, so a *different* bad dump fails this test too:
+ *
+ *   mp10  30 rows truncated on the right (they match from column 0, so they are
+ *         short, not shifted), 5 characters above the 6-bit range, 4 cells wrong
+ *   mp90  9 characters above the 6-bit range, all 'h' in one 3x3 block of empty
+ *         space at columns 8-10, rows 11-13; no cell is actually wrong
+ */
+describe('agreement with the WORK/LEVELS text dumps', () => {
+    const LEVELS = resolve(REPO, 'WORK/LEVELS');
+    const SHIFT = 0x20;
+    const available = existsSync(LEVELS);
+
+    interface Verdict {
+        readonly name: string;
+        readonly compared: number;
+        readonly mismatched: number;
+        readonly outOfRange: number;
+        readonly truncatedRows: number;
+        readonly badPositions: readonly string[];
+    }
+
+    /** Read a dump: split on LF, drop one stray CR per row. */
+    function dumpRows(nameKey: string): string[] {
+        const raw = readFileSync(resolve(LEVELS, `${nameKey.toUpperCase()}.TXT`), 'latin1').split('\n');
+        while (raw.length > 0 && raw[raw.length - 1] === '') raw.pop();
+        return raw.map((l) => (l.endsWith('\r') ? l.slice(0, -1) : l));
+    }
+
+    function verifyAll(): Verdict[] {
+        const verdicts: Verdict[] = [];
+        for (const meta of NAV_MAPS) {
+            const text = resolve(LEVELS, `${meta.nameKey.toUpperCase()}.TXT`);
+            if (!existsSync(text)) continue;
+            const rows = dumpRows(meta.nameKey);
+            const grid = decodeTileGrid(readMdt(meta.nameKey), 0, meta.id);
+            let compared = 0;
+            let mismatched = 0;
+            let outOfRange = 0;
+            let truncatedRows = 0;
+            const badPositions: string[] = [];
+            for (let row = 0; row < rows.length; row++) {
+                if (rows[row]!.length < meta.mapWidth) {
+                    truncatedRows++;
+                    continue;
+                }
+                for (let col = 0; col < meta.mapWidth; col++) {
+                    const code = rows[row]!.charCodeAt(col) - SHIFT;
+                    if (code < 0 || code > 0x3f) {
+                        outOfRange++;
+                        badPositions.push(`(${col},${row})`);
+                        continue;
+                    }
+                    compared++;
+                    if (grid.tiles[row * meta.mapWidth + col] !== code) {
+                        mismatched++;
+                        badPositions.push(`(${col},${row})`);
+                    }
+                }
+            }
+            verdicts.push({
+                name: meta.nameKey, compared, mismatched, outOfRange, truncatedRows, badPositions,
+            });
+        }
+        return verdicts;
+    }
+
+    // WORK/LEVELS is a research folder rather than a build input, so a checkout
+    // without it should skip this block instead of failing.
+    it.skipIf(!available)('covers all 31 maps', () => {
+        expect(verifyAll()).toHaveLength(31);
+    });
+
+    it.skipIf(!available)('matches every undamaged dump on every cell', () => {
+        const clean = verifyAll().filter((v) => v.badPositions.length === 0);
+        expect(clean).toHaveLength(29);
+        const names = clean.map((v) => v.name);
+        expect(names).not.toContain('mp10');
+        expect(names).not.toContain('mp90');
+    });
+
+    it.skipIf(!available)('compares the whole cavern set, not a sample', () => {
+        const total = verifyAll().reduce((a, v) => a + v.compared, 0);
+        // 31 maps x 64 rows. A loose lower bound stops the test passing
+        // vacuously if the dumps stop decoding.
+        expect(total).toBeGreaterThan(298000);
+    });
+
+    it.skipIf(!available)('confines every discrepancy to the two damaged dumps', () => {
+        const damaged = verifyAll().filter((v) => v.badPositions.length > 0).map((v) => v.name);
+        expect(damaged).toEqual(['mp10', 'mp90']);
+    });
+
+    it.skipIf(!available)('characterises the damage in MP10.TXT', () => {
+        const v = verifyAll().find((x) => x.name === 'mp10')!;
+        expect(v.truncatedRows).toBe(30);
+        expect(v.outOfRange).toBe(5);
+        expect(v.mismatched).toBe(4);
+    });
+
+    it.skipIf(!available)('characterises the damage in MP90.TXT', () => {
+        const v = verifyAll().find((x) => x.name === 'mp90')!;
+        expect(v.truncatedRows).toBe(0);
+        expect(v.mismatched).toBe(0);
+        expect(v.outOfRange).toBe(9);
+        // All nine sit in one 3x3 block of empty space.
+        expect([...v.badPositions].sort()).toEqual([
+            '(10,11)', '(10,12)', '(10,13)',
+            '(8,11)', '(8,12)', '(8,13)',
+            '(9,11)', '(9,12)', '(9,13)',
+        ]);
+    });
+
+    it.skipIf(!available)('shows that MP10 rows are truncated, not shifted', () => {
+        // A row that lost its tail still matches from column 0; a shifted row
+        // would need an offset to line up. This rules out a layout mismatch as the
+        // cause of the short rows.
+        const rows = dumpRows('mp10');
+        const grid = decodeTileGrid(readMdt('mp10'), 240, 0);
+        const short: { row: number; line: string }[] = [];
+        for (let row = 0; row < rows.length; row++) {
+            if (rows[row]!.length > 0 && rows[row]!.length < 240) short.push({ row, line: rows[row]! });
+        }
+        expect(short).toHaveLength(30);
+        for (const { row, line } of short) {
+            // Five of the 30 rows also contain a character above the 6-bit range;
+            // those are the dump's damage, so only the in-range cells can match.
+            let comparable = 0;
+            let matched = 0;
+            for (let col = 0; col < line.length; col++) {
+                const code = line.charCodeAt(col) - SHIFT;
+                if (code < 0 || code > 0x3f) continue;
+                comparable++;
+                if (grid.tiles[row * 240 + col] === code) matched++;
+            }
+            expect(matched, `row ${row} of ${line.length} chars`).toBe(comparable);
+        }
+    });
+});
