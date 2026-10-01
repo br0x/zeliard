@@ -142,6 +142,34 @@ export const ADDR_SWORD_TYPE                = 0x92;
 export const ADDR_ELF_CREST                 = 0x9A;     // 0xFF = obtained from citizen after defeating Paguro
 export const ADDR_HERO_CREST                = 0x9C;     // 0xFF = Hero's Crest obtained
 export const ADDR_TEAR_COUNT                = 0xA0;
+
+// ── Thread of Yaga (9th magic item) ─────────────────────────────────────────
+//
+// The magic item array is full: `magicItems` is exactly 5 bytes at 0xA6..0xAA,
+// the per-town stock mask at 0xC9..0xD1 uses all 8 of its bits, and the array
+// cannot grow in place because spellCounts follows it at 0xAB. So this item gets
+// its own storage in the save image's free block.
+//
+// 0x4A matters for a second reason: `putShoesToInventory` scans forward from
+// 0xA1 for a zero and walks into 0xA6 when the shoe slots are full, and the cape
+// purchase scans 0xA1..0xFF. An item inside that range would be picked up as a
+// shoe or a cape. 0x4A is outside it, which is the reason to prefer this block
+// over any spare slot near the inventory.
+export const ADDR_THREAD_OF_YAGA          = 0x4A;   // byte: copies owned
+export const ADDR_MAGIC_MASKS_EXT         = 0x4B;   // 9 bytes, one per town; bit7 = stock
+
+/**
+ * Feature marker for the bytes above.
+ *
+ * 0x4A is unclaimed by the original game (its save bytes stop at 0x49), but an
+ * old save can still hold whatever the engine left there mid-play. Rather than
+ * trust it, a save is only allowed to carry the item if it was written by a
+ * version that knew about it. An absent marker means "not owned, nothing in
+ * stock", which is exactly right for every save that predates the item.
+ */
+export const ADDR_FEATURE_YAGA           = 0x46;
+export const FEATURE_YAGA               = 0xa7;
+
 export const ADDR_FACING                    = 0xC2;
 export const ADDR_PLACE_MAP_ID              = 0xC4;
 export const ADDR_LAST_SAGE_VISITED         = 0xC5;

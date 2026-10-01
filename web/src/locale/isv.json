@@ -73,7 +73,8 @@
       "Magičny Kamenj",
       "Sveta voda Acero",
       "Olej Sabre",
-      "Pero Kioku"
+      "Pero Kioku",
+      "Jagetka Jagi"
     ],
     "itemUseText": [
       "",
@@ -84,7 +85,8 @@
       "         Magičny Kamenj.",
       "Svetu vodu Acero.",
       "Olej Sabre.",
-      "Pero Kioku."
+      "Pero Kioku.",
+      "jagetku Jagi."
     ],
     "swordNames": [
       [
@@ -968,7 +970,8 @@
         "Kamen Magia",
         "Sveta voda Acero",
         "Olej Sabre",
-        "Pero Kioku"
+        "Pero Kioku",
+        "Jagetka Jagi"
       ],
       "itemDescriptions": [
         "Nu, to jest osoba směs ploda junkel i lista ripodi. Ne drogo, i kako mjahko ukrěpljajuče srědstvo — idealno.",
@@ -978,7 +981,8 @@
         "Tutoj kamen ščiti auru, ktoru izlučajut žive bytja. On okruža auru i ščiti od směšenja tujih aur, a takože od vragovyh atak.",
         "To jest razžidženy metal iz rtuti i želěza. Ako namazati njim oslableny v boju ščit, ščit vratit sobě prědnju tverdost.",
         "Hm... O tutom ja znaju malo, ale znaju, že on usiljaet nastupatelnu moć meča. Ne volnujte se, on ješče nikogo ne ubil.",
-        "Tuto pero pamjatаet golos poslědnjego mudrca, govorivšego s vami. Ako vozmete jego v pravuju ruku i mahnjote raz, vy vratite se k njemu. Ono ješče nikogo ne podvelo."
+        "Tuto pero pamjatаet golos poslědnjego mudrca, govorivšego s vami. Ako vozmete jego v pravuju ruku i mahnjote raz, vy vratite se k njemu. Ono ješče nikogo ne podvelo.",
+        "Nitka seroi prijazi, namotanna na derevjannuju katushku. Jestli je razkatat nad pešeroj, ona pokazet kazhdyj prochod blizko i put čerez nih. Sgoret, pokazav vam put."
       ],
       "greeting": "Oh... zdravstvujte, čim mogu pomoći?",
       "noThanks": "Čim ja mogu vam pomoći?",

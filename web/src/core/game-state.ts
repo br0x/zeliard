@@ -8,6 +8,10 @@
  * No behavior change yet; existing consumers still use g_mem directly.
  */
 
+import {
+    ADDR_THREAD_OF_YAGA, ADDR_MAGIC_MASKS_EXT, ADDR_FEATURE_YAGA, FEATURE_YAGA,
+} from './memory.js';
+
 // ─── Hero State (save image bytes 0x00..0xFF) ──────────────────────────────
 
 export interface HeroState {
@@ -62,7 +66,11 @@ export interface HeroState {
     espadaActive: Uint8Array;          // 0xBB..0xC1, 7 spells
 
     // Masks (save image bytes 0xC9..0xE3)
-    magicMasks: Uint8Array;            // 0xC9..0xD1, 9 towns
+    magicMasks: Uint8Array;            // 0xC9..0xD1, 9 towns, 8 items each
+    // Thread of Yaga (item 9) and its per-town stock mask. Its own storage
+    // because the generic array is full and cannot grow; see memory.ts.
+    threadOfYaga: number;              // 0x4A, copies owned
+    magicMasksExt: Uint8Array;         // 0x4B..0x53, 9 towns, bit7 = Thread of Yaga
     swordMasks: Uint8Array;            // 0xD2..0xDA, 9 towns
     shieldMasks: Uint8Array;           // 0xDB..0xE3, 9 towns
 
@@ -292,6 +300,13 @@ export function readHeroState(g: Uint8Array): HeroState {
         currentSpellType: readByte(g, 0x9D),
         currentAccessory: readByte(g, 0x9E),
 
+        // Thread of Yaga, guarded by its feature marker: an old save can hold
+        // engine leftovers in these bytes, and must read as "not owned".
+        threadOfYaga: (g[ADDR_FEATURE_YAGA] === FEATURE_YAGA) ? readByte(g, ADDR_THREAD_OF_YAGA) : 0,
+        magicMasksExt: (g[ADDR_FEATURE_YAGA] === FEATURE_YAGA)
+            ? readSlice(g, ADDR_MAGIC_MASKS_EXT, 9)
+            : new Uint8Array(9),
+
         // Inventory
         tearCount: readByte(g, 0xA0),
         shoes: readSlice(g, 0xA1, 5),
@@ -302,6 +317,7 @@ export function readHeroState(g: Uint8Array): HeroState {
 
         // Masks
         magicMasks: readSlice(g, 0xC9, 9),
+        // Only trust the item bytes when the save says it knows about them.
         swordMasks: readSlice(g, 0xD2, 9),
         shieldMasks: readSlice(g, 0xDB, 9),
 
@@ -368,6 +384,18 @@ export function writeHeroState(g: Uint8Array, h: HeroState): void {
     g.set(h.spellInventory, 0xB4);
     g.set(h.espadaActive, 0xBB);
 
+    // Thread of Yaga, kept beside the other masks.
+    //
+    // The marker is written only when there is something to preserve. The save
+    // image round-trips byte for byte (tests/game-state.test.ts asserts it), so
+    // writing it unconditionally would corrupt a save that never had the item.
+    const yagaHeld = h.threadOfYaga > 0 || h.magicMasksExt.some((v) => (v & 0xff) !== 0);
+    if (yagaHeld) {
+        writeByte(g, ADDR_FEATURE_YAGA, FEATURE_YAGA);
+        writeByte(g, ADDR_THREAD_OF_YAGA, h.threadOfYaga);
+        g.set(h.magicMasksExt, ADDR_MAGIC_MASKS_EXT);
+    }
+
     // Masks
     g.set(h.magicMasks, 0xC9);
     g.set(h.swordMasks, 0xD2);
@@ -431,6 +459,8 @@ export function createDefaultHeroState(): HeroState {
         espadaActive: new Uint8Array(7),
 
         magicMasks: new Uint8Array(9),
+        threadOfYaga: 0,
+        magicMasksExt: new Uint8Array(9),
         swordMasks: new Uint8Array(9),
         shieldMasks: new Uint8Array(9),
 
@@ -790,6 +820,21 @@ export function createLiveHeroState(g: Uint8Array): HeroState {
         espadaActive: { value: liveReadSlice(g, 0xBB, 7), enumerable: true },
 
         magicMasks: { value: liveReadSlice(g, 0xC9, 9), enumerable: true },
+        // A getter/setter rather than a captured value, unlike the older scalars:
+        // the hero buys and uses this item during play, so the live view has to
+        // track it in both directions. The marker is re-read too, so a save loaded
+        // mid-session behaves.
+        threadOfYaga: {
+            get: () => (g[ADDR_FEATURE_YAGA] === FEATURE_YAGA ? (g[ADDR_THREAD_OF_YAGA] ?? 0) : 0),
+            set: (v: number) => {
+                // Setting the count implies the feature marker: writing a count
+                // into a save that does not advertise it would be read back as 0.
+                if (v !== 0) g[ADDR_FEATURE_YAGA] = FEATURE_YAGA;
+                g[ADDR_THREAD_OF_YAGA] = v & 0xff;
+            },
+            enumerable: true,
+        },
+        magicMasksExt: { value: liveReadSlice(g, ADDR_MAGIC_MASKS_EXT, 9), enumerable: true },
         swordMasks: { value: liveReadSlice(g, 0xD2, 9), enumerable: true },
         shieldMasks: { value: liveReadSlice(g, 0xDB, 9), enumerable: true },
 

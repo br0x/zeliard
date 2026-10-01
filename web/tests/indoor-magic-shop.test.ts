@@ -81,9 +81,11 @@ describe('magic-shop tables & helpers', () => {
 
     it('every town has 8 prices and every item a name/description', () => {
         expect(MAGIC_PRICES_BY_TOWN).toHaveLength(9);
-        for (const row of MAGIC_PRICES_BY_TOWN) expect(row).toHaveLength(8);
-        expect(MAGIC_ITEM_NAMES).toHaveLength(8);
-        expect(MAGIC_ITEM_DESCRIPTIONS).toHaveLength(8);
+        // Nine: the eight from drugpro.asm plus the Thread of Yaga, which has its
+        // own stock bit because the 8-bit mask is full.
+        for (const row of MAGIC_PRICES_BY_TOWN) expect(row).toHaveLength(9);
+        expect(MAGIC_ITEM_NAMES).toHaveLength(9);
+        expect(MAGIC_ITEM_DESCRIPTIONS).toHaveLength(9);
         expect(DEFAULT_MAGIC_BITMASKS).toHaveLength(9);
     });
 });

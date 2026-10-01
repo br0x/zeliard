@@ -2,12 +2,24 @@ const SHEETS = {
     magics: { path: 'assets/images/magics.png', frameW: 48, frameH: 48 },
     wearables: { path: 'assets/images/wearables.png', frameW: 48, frameH: 48 },
     magic_items: { path: 'assets/images/magic_items.png', frameW: 48, frameH: 48 },
+    // Its own sheet so magic_items.png stays at 8 frames and nothing that indexes
+    // it by `id - 1` shifts.
+    path_items: { path: 'assets/images/path_items.png', frameW: 48, frameH: 48 },
     no_use: { path: 'assets/images/no_use.png', frameW: 48, frameH: 48 },
     keys: { path: 'assets/images/keys.png', frameW: 48, frameH: 48 },
     crests: { path: 'assets/images/crests.png', frameW: 48, frameH: 48 },
     shields: { path: 'assets/images/shields.png', frameW: 48, frameH: 48 },
     swords: { path: 'assets/images/swords.png', frameW: 60, frameH: 54 },
 };
+
+/**
+ * Magic item id of the Thread of Yaga.
+ *
+ * Ids 1-8 are the originals (asm/common.inc:256-264); 9 is ours. It is a real
+ * consumable — one copy opens the map once — but it is stored in its own counter
+ * because the generic array is full and cannot grow in place.
+ */
+export const THREAD_OF_YAGA_ID = 9;
 
 export const SPELL_NAMES = ['Espada', 'Saeta', 'Fuego', 'Lanzar', 'Rascar', 'Agua', 'Guerra'];
 
@@ -83,6 +95,8 @@ export interface InventoryDeps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
     soundManager?: any;
     onExit?: (() => void) | null;
+    /** Opens the cavern map screen after the Thread of Yaga is used. */
+    onOpenMapScreen?: (() => void) | null;
 }
 
 interface SheetCfg { path: string; frameW: number; frameH: number }
@@ -111,6 +125,8 @@ export interface InventoryData {
     level: number;
     heroXP: number;
     almas: number;
+    /** Copies of the Thread of Yaga still held. */
+    heroThreadOfYaga: number;
 }
 
 export class InventoryScreen {
@@ -155,7 +171,11 @@ export class InventoryScreen {
         this.writeMemory = deps.writeMemory;
         this.soundManager = deps.soundManager;
         this.onExit = deps.onExit ?? null;
+        this.onOpenMapScreen = deps.onOpenMapScreen ?? null;
     }
+
+    /** Opens the cavern map screen; supplied by the composition root. */
+    private onOpenMapScreen: (() => void) | null;
 
     async loadAssets(): Promise<void> {
         if (this.sheetsReady || this.sheetsLoading) return;
@@ -223,7 +243,7 @@ export class InventoryScreen {
             wearables: [], currentAccessory: 0, items: [],
             swordType: 0, shieldType: 0, shieldHP: 0, shieldMaxHP: 0,
             keys: 0, lionKeys: 0, elfCrest: false, gloryCrest: false, heroCrest: false,
-            currentSpell: 0, enchantCount: 0, heroHP: 0, heroMaxHP: 0,
+            currentSpell: 0, enchantCount: 0, heroHP: 0, heroMaxHP: 0, heroThreadOfYaga: 0,
             level: 0, heroXP: 0, almas: 0,
         };
 
@@ -241,7 +261,13 @@ export class InventoryScreen {
         }
         d.currentAccessory = hs.currentAccessory;
 
+        // Item 9 is the Thread of Yaga, which lives in its own counter rather than
+        // in the full 5-slot array, so it is appended here rather than pushed
+        // through the generic path. Copies beyond the first are not listed
+        // separately: the panel shows the count, not a stack.
         d.items = [0, ...Array.from(hs.magicItems).filter(v => v > 0)];
+        if (hs.threadOfYaga > 0) d.items.push(THREAD_OF_YAGA_ID);
+        d.heroThreadOfYaga = hs.threadOfYaga;
 
         d.swordType = hs.swordType;
         d.shieldType = hs.shieldType;
@@ -492,7 +518,9 @@ export class InventoryScreen {
                 ctx.strokeRect(ix - 5, iconsY - 5, iconSize + 10, iconSize + 10);
             }
 
-            if ((iid ?? 0) > 0) {
+            if ((iid ?? 0) === THREAD_OF_YAGA_ID) {
+                this._drawSheet(ctx, 'path_items', 0, ix, iconsY, iconSize, iconSize);
+            } else if ((iid ?? 0) > 0) {
                 this._drawSheet(ctx, 'magic_items', (iid as number) - 1, ix, iconsY, iconSize, iconSize);
             } else {
                 this._drawSheet(ctx, 'no_use', 0, ix, iconsY, iconSize, iconSize);
@@ -783,6 +811,14 @@ export class InventoryScreen {
         const itemId = this._selectedId();
         if (itemId === 0) return;
 
+        // The Thread of Yaga has no slot in the generic array, so it is handled
+        // before the compact-index lookup below — which would otherwise treat it as
+        // one of the five physical slots and consume the wrong item.
+        if (itemId === THREAD_OF_YAGA_ID) {
+            this._useThreadOfYaga();
+            return;
+        }
+
         const it = this.heroState.magicItems;
         let slot = -1;
         let nth = 0;
@@ -819,6 +855,28 @@ export class InventoryScreen {
         this.heroState.magicItems[slot] = 0;
         this.data.items.splice(this.selectedIndices[2] ?? 0, 1);
         this.selectedIndices[2] = 0;
+    }
+
+    /**
+     * Spend one Thread of Yaga and open the cavern map.
+     *
+     * It decrements its own counter rather than clearing a `magicItems` slot, and
+     * leaves the inventory so the map screen can take the pause.
+     */
+    private _useThreadOfYaga(): void {
+        if (this.heroState.threadOfYaga <= 0) return;
+        this.soundManager?.playSfx(14);
+        this.heroState.threadOfYaga = (this.heroState.threadOfYaga - 1) & 0xff;
+        this.data.heroThreadOfYaga = this.heroState.threadOfYaga;
+        this.usageMessage = getInventoryList('itemUseText')[THREAD_OF_YAGA_ID] || '';
+        this.usageTimer = performance.now();
+        const at = this.data.items.indexOf(THREAD_OF_YAGA_ID);
+        // Only drop the entry when the last copy is gone; the panel shows the
+        // count, so several copies are one row.
+        if (at >= 0 && this.heroState.threadOfYaga <= 0) this.data.items.splice(at, 1);
+        this.selectedIndices[2] = 0;
+        if (this.heroState.threadOfYaga <= 0) this.exit();
+        this.onOpenMapScreen?.();
     }
 
     private _healHP(amount: number): void {

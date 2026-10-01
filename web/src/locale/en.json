@@ -73,7 +73,8 @@
       "Magia Stone",
       "Holy Water of Acero",
       "Sabre Oil",
-      "Kioku feather"
+      "Kioku feather",
+      "Thread of Yaga"
     ],
     "itemUseText": [
       "",
@@ -84,7 +85,8 @@
       "         a Magia Stone.",
       "some Holy Water of Acero.",
       "some Sabre Oil.",
-      "a Kioku feather."
+      "a Kioku feather.",
+      "the Thread of Yaga."
     ],
     "swordNames": [
       [
@@ -968,7 +970,8 @@
         "Magia Stone",
         "Holy Water of Acero",
         "Sabre Oil",
-        "Kioku Feather"
+        "Kioku Feather",
+        "Thread of Yaga"
       ],
       "itemDescriptions": [
         "Well, it's a special blend of yunkel fruit and ripodi leaf. It's low in price and as a mild health tonic, it's perfect.",
@@ -978,7 +981,8 @@
         "This stone protects the aura that living beings exude. It surrounds the aura to prevent interference from other auras and acts as a protection against enemy attacks.",
         "This is a liquified metal made from mercury and iron. If you paint it on a shield weakened by battle, the shield will regain its original strength.",
         "Hmm... I don't know much about this one, but I do know that it increases the offensive power of a sword. Don't worry, it hasn't killed anyone yet.",
-        "This feather remembers the voice of the last wise man who spoke to you. If you hold it in your right hand and swing it once, you'll return to him. It's never failed anyone I know."
+        "This feather remembers the voice of the last wise man who spoke to you. If you hold it in your right hand and swing it once, you'll return to him. It's never failed anyone I know.",
+        "A length of grey thread wound on a wooden spool. Unwound over a cavern it shows every passage within reach, and the way through them. It burns away once it has shown you."
       ],
       "greeting": "Oh... hello, can I help you?",
       "noThanks": "Is there something I can do for you?",

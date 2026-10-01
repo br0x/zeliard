@@ -126,6 +126,7 @@ export const MAGIC_ITEM_NAMES = [
     'Holy Water of Acero',  // 5
     'Sabre Oil',            // 6
     'Kioku Feather',        // 7
+    'Thread of Yaga',       // 8 — ours; stored in its own counter, see memory.ts
 ];
 
 // Item descriptions (drugpro.asm off_AB3A / aWellItSASpecia .. aThisFeatherRem)
@@ -138,31 +139,35 @@ export const MAGIC_ITEM_DESCRIPTIONS = [
     "This is a liquified metal made from mercury and iron. If you paint it on a shield weakened by battle, the shield will regain its original strength.",
     "Hmm... I don't know much about this one, but I do know that it increases the offensive power of a sword. Don't worry, it hasn't killed anyone yet.",
     "This feather remembers the voice of the last wise man who spoke to you. If you hold it in your right hand and swing it once, you'll return to him. It's never failed anyone I know.",
+    "A length of grey thread wound on a wooden spool. Unwound over a cavern it shows every passage within reach, and the way through them. It burns away once it has shown you.",
 ];
 
 // ─── Price tables (drugpro.asm prices_by_town) ───────────────────────────────
-// Each row: [item0_price, item1_price, …, item7_price]  (8 magic items)
+// Each row: [item0_price, …, item7_price, thread_of_yaga]  (9 items).
+// The ninth column is ours; the first eight are drugpro.asm prices_by_town,
+// which stop at eight. The Thread is priced high on purpose: one copy opens the
+// map once, and a route through the later caverns needs several.
 // Price records in ASM are 3 bytes each: flag byte (always 0) + word price.
 // The flag byte appears to be unused; we store the word price directly.
 export const MAGIC_PRICES_BY_TOWN = [
     // Muralla  (town 0, 1-based town_id=1)
-    [  50,  240,   60,  320, 1000,  100, 1200,  350 ],
+    [  50,  240,   60,  320, 1000,  100, 1200,  350, 2000 ],
     // Satono   (town 1)
-    [  50,  240,   60,  320, 1000,  100, 1200,  350 ],
+    [  50,  240,   60,  320, 1000,  100, 1200,  350, 2000 ],
     // Bosque   (town 2)
-    [  50,  240,   60,  320, 1500,  100, 1200,  350 ],
+    [  50,  240,   60,  320, 1500,  100, 1200,  350, 2000 ],
     // Helada   (town 3)
-    [  50,  300,  120,  320, 1500,  100, 1200,  350 ],
+    [  50,  300,  120,  320, 1500,  100, 1200,  350, 2000 ],
     // Tumba    (town 4)
-    [   5,  600,  240,  480, 2000,  200, 2000,  350 ],
+    [   5,  600,  240,  480, 2000,  200, 2000,  350, 2000 ],
     // Dorado   (town 5)
-    [   5,  600,  240,  480, 2000,  200, 2000,  350 ],
+    [   5,  600,  240,  480, 2000,  200, 2000,  350, 2000 ],
     // Llama    (town 6)
-    [   5,  900,  360,  960, 2500,  400, 2400,  350 ],
+    [   5,  900,  360,  960, 2500,  400, 2400,  350, 2000 ],
     // Pureza   (town 7)
-    [   5,  900,  360,  960, 2500,  400, 2400,  350 ],
+    [   5,  900,  360,  960, 2500,  400, 2400,  350, 2000 ],
     // Esco     (town 8)
-    [   2,  200,   40,  280,  800,   80, 1000,  150 ],
+    [   2,  200,   40,  280,  800,   80, 1000,  150, 2000 ],
 ];
 
 // Sell price = floor(buy_price / 2)  (ASM: shr dl,1; rcr ax,1)
@@ -193,6 +198,17 @@ export function bitmaskToItemIndices(bitmask: number): number[] {
 }
 
 export function itemIndexToBit(i: number): number { return 0x80 >> i; }
+
+/**
+ * Shop index of the Thread of Yaga.
+ *
+ * Ids 1-8 occupy the generic 8-bit stock mask, so the ninth item has its own bit
+ * in `magicMasksExt`. See memory.ts for why it does not live in the mask.
+ */
+export const THREAD_OF_YAGA_SHOP_INDEX = 8;
+
+/** Stock bit for the Thread of Yaga, in the extended mask. */
+export const THREAD_OF_YAGA_BIT = 0x80;
 
 // ─── Scene class ──────────────────────────────────────────────────────────────
 
@@ -358,6 +374,12 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         this.heroState.magicMasks[this.townIdx] = (cur | bit) & 0xFF;
     }
 
+    /** Stock the Thread of Yaga in this town, via the extended mask. */
+    private _orMagicBitmaskExt(bit: number): void {
+        const cur = this.heroState.magicMasksExt[this.townIdx] ?? 0;
+        this.heroState.magicMasksExt[this.townIdx] = (cur | bit) & 0xFF;
+    }
+
     private _getPlayerMagicItems(): number[] {
         return Array.from(this.heroState.magicItems);
     }
@@ -378,8 +400,14 @@ export class WitchcraftShopScene extends IndoorSceneBase {
     }
 
     private _buildInventoryLists(): void {
-        // Items the shop has in stock
+        // Items the shop has in stock. The Thread of Yaga rides in the extended
+        // mask because the 8-bit one is full, so it is appended rather than
+        // decoded from it.
         this._shopItemIndices = bitmaskToItemIndices(this._getMagicBitmask());
+        const townMask = this.heroState.magicMasksExt[this.townIdx] ?? 0;
+        if (townMask & THREAD_OF_YAGA_BIT) {
+            this._shopItemIndices.push(THREAD_OF_YAGA_SHOP_INDEX);
+        }
         // Items the player is currently carrying
         this._playerItemIds   = this._getPlayerMagicItems();
     }
@@ -958,8 +986,16 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         // Deduct gold
         this._setGold(gold - this._pendingPrice);
 
-        // Place item in player slot (item id = 1-based index)
-        this._setPlayerMagicSlot(freeSlot, (this._pendingItemIdx ?? 0) + 1);
+        // Place the item. The Thread of Yaga has no slot in the generic array —
+        // it is a counter — so it takes its own branch rather than going through
+        // the slot lookup that the free-slot check above just did.
+        const itemIdx = this._pendingItemIdx ?? 0;
+        if (itemIdx === THREAD_OF_YAGA_SHOP_INDEX) {
+            this.heroState.threadOfYaga = (this.heroState.threadOfYaga + 1) & 0xff;
+            this._orMagicBitmaskExt(THREAD_OF_YAGA_BIT);
+        } else {
+            this._setPlayerMagicSlot(freeSlot, itemIdx + 1);
+        }
 
         this._buildInventoryLists();
 
@@ -1017,15 +1053,29 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         const sellPrice = this._pendingPrice;
         this.yesNoDialog = null;
 
-        // Find and clear the player's slot for this item
-        const itemId1 = itemIdx + 1;
-        const slot    = this._findMagicSlotByItemId(itemId1);
-        if (slot !== -1) {
-            this._setPlayerMagicSlot(slot, 0);
+        if (itemIdx === THREAD_OF_YAGA_SHOP_INDEX) {
+            // The counter has no slot to clear; decrement it and restock the bit.
+            if (this.heroState.threadOfYaga <= 0) {
+                this.yesNoDialog = null;
+                this._pendingItemIdx = null;
+                this._pendingPrice = 0;
+                this._setDialog(t('indoor.magicShop.noItem'));
+                this.shopPhase = 'dialog';
+                this.exitAfterDialog = false;
+                return;
+            }
+            this.heroState.threadOfYaga = (this.heroState.threadOfYaga - 1) & 0xff;
+            this._orMagicBitmaskExt(THREAD_OF_YAGA_BIT);
+        } else {
+            // Find and clear the player's slot for this item
+            const itemId1 = itemIdx + 1;
+            const slot    = this._findMagicSlotByItemId(itemId1);
+            if (slot !== -1) {
+                this._setPlayerMagicSlot(slot, 0);
+            }
+            // Return item to shop stock
+            this._orMagicBitmask(itemIndexToBit(itemIdx));
         }
-
-        // Return item to shop stock
-        this._orMagicBitmask(itemIndexToBit(itemIdx));
 
         // Add gold to player
         this._setGold(this._getGold() + sellPrice);

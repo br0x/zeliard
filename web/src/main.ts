@@ -403,6 +403,10 @@ function openInventory() {
         readMemory, writeMemory,
         soundManager,
         onExit: closeInventory,
+        // The Thread of Yaga's use closes the inventory and opens the map screen.
+        // Phase 6 builds the map screen; until then the hook is a no-op so the
+        // item can be owned and spent without a missing screen.
+        onOpenMapScreen: openMapScreen,
     });
 
     if (inventoryScreenInstance.ready) {
@@ -419,6 +423,16 @@ function closeInventory() {
     inventoryScreenInstance = null;
     gamePaused = false;
     renderMagicHud();
+}
+
+/**
+ * Open the cavern map screen, which the Thread of Yaga reveals.
+ *
+ * The screen itself arrives in phase 6. Until then using the item simply spends a
+ * copy, so it behaves sanely rather than erroring.
+ */
+function openMapScreen() {
+    // Phase 6: build ui/map-screen.ts and set gamePaused = true.
 }
 
 // ─── Sound Manager ────────────────────────────────────────────────────────────
