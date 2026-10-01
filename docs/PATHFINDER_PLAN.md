@@ -1,17 +1,24 @@
 # Thread of Yaga — Cavern Pathfinding Plan
 
-Status: **implemented** — phases 0–8 shipped; §18 is the handover from the session
-that closed the last defect (the jump model)
+Status: **implemented and played** — phases 0–8 shipped; the jump model, the rope
+family, the fall and the node rule were corrected against the engine, and the guide
+and the chevrons were corrected against a player walking the route. §18 is the
+handover: what each correction was, where it came from, and what it changed.
 Scope: a new consumable magic item that reveals the current cavern group, lets the
 player pick a destination, and computes and displays the shortest traversable
 route — both on the full-screen map and as chevron tiles over the live cavern
 background.
 
-This document is the implementation plan. Everything below was verified against
-the port source (`web/src/`), the original disassembly (`asm/fight.asm`,
-`asm/dungeon.inc`, `asm/common.inc`) and against the shipped data
-(`web/public/game/0/*.mdt`, `tools/GrpViewer/*.grp.unp`). Numbers marked
-**[measured]** come from a prototype run over all 31 dungeon maps.
+This document began as the implementation plan and is kept as the record of it.
+Everything below was verified against the port source (`web/src/`), the original
+disassembly (`asm/fight.asm`, `asm/dungeon.inc`, `asm/common.inc`) and against the
+shipped data (`web/public/game/0/*.mdt`, `tools/GrpViewer/*.grp.unp`). Numbers
+marked **[measured]** come from a run over all 31 dungeon maps.
+
+**Where a later session corrected the plan, the plan now carries the correction and
+says so.** §7.2 (what a node is), §7.3 (how a jump is generated) and §10 (how the
+route is drawn and kept) were all wrong at first in ways only playing the game
+showed; §18 says what they were.
 
 ---
 
@@ -298,7 +305,7 @@ to `mp5d`. The table above is the ground truth.
 | Largest component's tiles | 138,368 (component 7) |
 | Ground nodes | 17,806 |
 | Rope nodes | 4,779 |
-| **Standing/rope nav nodes, total** | **22,585** |
+| **Standing/rope nav nodes, total** | **22,585** — as first measured, before §7.2's node rule was corrected to the engine's; the graph now has **29,917** ground/rope/ride nodes for the same reasons (§18) |
 | **Component 0 / component 7 nodes** | **6,553 / 8,581** |
 | Rope cells total | 5,379 |
 | Platform ride slots (all maps) | 2,354 (390 + 50 + 1914) |
@@ -875,9 +882,9 @@ flat array with a per-node offset — a compressed-sparse-row layout.
 | --- | --- | --- | --- | --- |
 | `WALK` | `(x±1, y)` ground node | 1 | — | plain walking |
 | `STEP` | `(x±1, y∓1)` | 2 | — | one-tile step up/down |
-| `JUMP` | any `(x+dx, y+dh)` node, `dx ∈ [−3,3]`, `dh ∈ [−2,+3]` | `2*2 + |dx| + |dh|` | — | swept-arc validated, see below |
-| `JUMP_HIGH` | same with `dh ∈ [−4,…]` | `2*4 + |dx| + |dh|` | `CAP_JUMP_HIGH` | Feruza only |
-| `FALL` | first node found dropping from `(x±1, y)` | `1 + dropRows` | — | matches 1 row/tick |
+| `JUMP` | every landing the engine's jump reaches from `(x,y)` | frames in the flight | — | a search, not an offset table — see below |
+| `JUMP_HIGH` | the landings that need more than two rows of rise | frames in the flight | `CAP_JUMP_HIGH` | Feruza only |
+| `FALL` | every landing reached by stepping off `(x±1, y)` and falling | frames in the fall, plus the columns carried sideways | — | the fall steers one column per row |
 | `CLIMB` | `(x, y∓1)` rope node | 1 | `CAP_CLIMB` (always) | rope is innate |
 | `SLOPE_UP` | `(x±1, y∓1)` across a slope tile | 3 | `CAP_SLOPE_STAND` | Silkarn only |
 | `SLOPE_DOWN` | `(x±1, y±1)` down a slope | 2 | — | sliding is always possible |
@@ -889,18 +896,45 @@ flat array with a per-node offset — a compressed-sparse-row layout.
 | `LIFT` | node in a lift column → escape node above | `ceil(rows / 2)` | — | §7.6 |
 | `CARRY_L` / `CARRY_R` | node in a conveyor run → escape node downstream | `ceil(cols / 2)` | — | §7.6 |
 
-**Jump validation.** A `JUMP` candidate is accepted only if:
+**Jumps and falls are searches, not tables.** `nav/jump.ts` replays
+`jump_press_handler`, `airborne_movement` and `check_floor_for_landing` for a cell
+and returns the landings, the frame count, and how many rows the hero rose. The
+cost is the number of frames the flight takes — one per rise, one on the frame the
+rise stopped, one per row he falls, one for the landing check — and a fall adds the
+columns it carries him sideways, because those are frames to him too and without
+them the search drifts as far as a fall can carry him and then falls again.
 
-1. the landing position is a node;
-2. every 3×3 box at the apex `(x + dx/2, y + dh)` is free — the hero rises
-   before he crosses;
-3. the tile directly above the hero's box at `(x+1, y−1)` is free, mirroring
-   the engine's ceiling probe at `heroTL − 35` (`dungeon-hero.ts:334`).
+There is no apex test and no swept box, because there is none in the game:
 
-Condition 3 is deliberately conservative: the engine probes one column left of
-the box, so a route accepted here is always accepted in game, and occasionally a
-route is rejected that would have worked. Erring that way is correct for a
-guidance tool.
+1. the rise consults one cell, `heroTL − 35` — above the middle of his head
+   (`dungeon-hero.ts:334`), and his body passes through anything else;
+2. the sideways step tests one column, and not the one he is entering
+   (`asm/fight.asm:1370, 1087`);
+3. the descent tests nothing at all (`dungeon-input.ts:536-541`);
+4. the landing check reads one cell, under his middle foot
+   (`dungeon-vertical.ts:488-504`).
+
+So which landings a jump has is not a property of the offset — it depends on the
+terrain under the flight, and asking is cheaper than guessing. The old rule
+(`dx ∈ [−3,3]`, an apex box clear) refused the hop off the platform onto the row 10
+gallery, which is the first move of the route the player drew, and it would have
+refused the pit jump at `(175,51)` as well.
+
+**A rope is not a launchpad.** `jump_press_handler` returns while
+`ON_ROPE_FLAGS` is set (`dungeon-hero.ts:322`), so a hero on a rope cannot jump at
+all; climbing is `try_climb_rope`'s `moveHeroUp` (`dungeon-vertical.ts:236`), and
+leaving is one step sideways, after which the rope frame finds no rope at his new
+middle column and hands him back to the dungeon (`dungeon-states.ts:258-280`). Rope
+nodes therefore carry `CLIMB`, a `STEP` onto ground beside them, and a fall in either
+direction — and no `JUMP`.
+
+**A platform is a floor, not a row of tiles.** Platforms are not in the static map at
+all, so the jump model is handed the standing ride slots and treats them as ground
+under the hero's middle foot — which is `slot.headRow + 3`, since a slot's head row
+is the platform row minus three. Marking the slot cell itself tells the model a hero
+lands a row too high, and he never lands on it. The same slots are what lets a ride
+node be walked off: the hero on a platform is standing, not airborne, so stepping
+over the side is a step and then a fall.
 
 ### 7.4 Airflow suppression of ordinary edges
 
@@ -1376,9 +1410,15 @@ The overlay draws the **remaining** route: the stretch the hero has not walked
 yet, starting at his head. What he has already covered is dropped, so the chevrons
 advance as he moves rather than scrolling behind him.
 
-For each route point `i` **from `progressIndex` onward**, let
-`(x, y)` be the standing position and `(xn, yn)` the next one. Compute the
-direction with **cylindrical deltas** — `dx` shortest-path across the map seam,
+**One chevron per cell, not per hop.** A hop can cover many tiles — the player's own
+trip in mp80 is 146 hops and 359 cells — and one arrow at the tile a hop left from
+leaves the columns between it blank. `PathGuide.cellsForHop(i)` answers with every
+cell the hop covers: two for an ordinary step, and for a jump or a fall the cells the
+hero really passes through, from the same jump model the graph is built from. The
+cells of consecutive hops share an endpoint, so the drawn line is continuous.
+
+For each cell `(x, y)` of a hop, let `(xn, yn)` be the next cell along it. Compute
+the direction with **cylindrical deltas** — `dx` shortest-path across the map seam,
 `dy` shortest-path across the 64-row wrap:
 
 ```
@@ -1387,7 +1427,7 @@ dy = ((yn - y + 32) + 64) % 64 - 32
 dir = directionOf(dx, dy)
 ```
 
-- Draw the chevron **at `(x, y)`** — for the first point, that is the hero's head
+- Draw the chevron **at `(x, y)`** — for the first cell, that is the hero's head
   tile, exactly as the brief specifies.
 - `directionOf` maps a diagonal to the nearer cardinal, because the four sprites
   are pre-oriented and rotating them would soften the pixels (§10.1).
@@ -1405,9 +1445,11 @@ drawSheetFrame(ctx, chevrons, dir, 24, 24, vx * TILE_SIZE, vy * TILE_SIZE);
   The `- 1` on `vy` puts the first chevron at the hero's head row rather than
   above it, and the `±1` slack lets a chevron scroll half into view instead of
   popping.
-- Draw **at most 24 chevrons** — enough to cover the viewport plus a margin, and
-  a hard cap on per-frame cost.
-- The final waypoint draws the destination ring instead of a direction.
+- Draw **at most 512 chevrons** — a cap on the loop arithmetic, not on what is
+  visible, because anything off screen is dropped before it is drawn. It has to be
+  far above a viewport's worth now that a route draws every cell it covers: the
+  player's trip needs 359.
+- The final waypoint draws the destination ring instead of a direction, once.
 - Everything is clipped to the viewport: nothing is drawn off-screen, and no
   offscreen culling list has to be built, because the walk stops at the first
   point outside the view.
@@ -1461,6 +1503,21 @@ This satisfies "over the background" without hiding anything that matters.
 Throttled to at most once per 500 ms, and skipped entirely while the map screen
 is open (the map computes its own route).
 
+**Drift is only drift when the hero is standing somewhere.** The search runs from a
+node, so a hero in mid-air — or a hero whose cell is not a standing position for any
+other reason — cannot start one, and a search from him finds nothing. Treating that
+failure as "the goal became unreachable" deleted a good route the moment the hero
+jumped over the platform at `(182,57)` in mp80, and sometimes after a menu closed.
+So the drift check first asks `nodeAt` whether the hero is on a node at all, and
+stands down until he lands. A failed search from a node still drops the route: there
+the world really has changed under the plan.
+
+**A restore clears the route.** `performGameRestore` (F7) replaces the world under
+the hero — another place, another position — and the route planned before the load
+was about nothing, yet the chevrons stayed on screen and kept being drawn against
+the restored hero. The restore calls `clearActiveRoute()` before it loads
+anything.
+
 ### 10.6 Progress tracking, reveal and completion
 
 The route does not appear the moment a destination is picked — it appears when the
@@ -1510,18 +1567,25 @@ read through the wrap helpers. The chevron direction delta (§10.2) must use the
 same wrap or arrows will point the wrong way at the seam. Unit-test a wrap
 crossing explicitly.
 
-### 11.2 Jump model is approximate
+### 11.2 The jump model was approximate; it is the engine's now
 
-The engine's jump is a hand-written state machine, not ballistic motion
-(`dungeon-hero.ts:319-360`, `dungeon-input.ts:524-600`). The swept-arc model in
-§7.3 is conservative by construction, but two known approximations remain:
+This section used to list what the swept-arc model got wrong, and name the two
+places it was conservative:
 
-- The engine's right-move probe is one column short of the hero's leading edge
-  and is compensated by `heroInteractionCheck` (`dungeon-hero.ts:274-290`). The
-  graph models the ideal case.
-- Landing over a hole in the centre column is allowed by the engine
-  (`dungeon-vertical.ts:498`). The graph does not model this, so it will
-  occasionally reject a ledge-walk that works in game.
+- *the right-move probe is one column short of the hero's leading edge, and
+  `heroInteractionCheck` compensates*;
+- *landing over a hole in the centre column is allowed by the engine
+  (`dungeon-vertical.ts:498`), so the graph will occasionally reject a ledge-walk
+  that works in game*.
+
+Both are gone, and both were the same mistake: the model was stricter than the
+game, so it refused moves the player could make. §7.3 now replays
+`jump_press_handler`, `airborne_movement` and `check_floor_for_landing` instead of
+sampling an arc, and `tests/nav-jump-differential.test.ts` flies the engine against
+it cavern by cavern. The remaining approximation is deliberate and named: the
+engine can come to rest with a side in rock or fall through a floor, and the model
+does allow both — what it will not do is let the hero be *buried*, which the game
+has no test for either but which no route should be drawn through.
 
 **Mitigation:** validate every route before showing it with a **simulation
 pass** — replay the route's hops against the real predicates from
@@ -1628,15 +1692,17 @@ Each phase is independently shippable and independently reviewable.
 | **1a** | Runtime tile decoder — **done** | `engine/nav/mdt-grid.ts`, `tests/nav-mdt-grid.test.ts` | 25 tests. Every opcode against hand-encoded columns; `tile = next byte` pinned explicitly; byte-for-byte agreement with the extractor on all 31 caverns; the 8-arena rope split |
 | **1b** | Tile-flag classifier — **done** | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
-| **3** | Navigation graph — **done, jump model outstanding** | `engine/nav/nav-graph.ts` | 27 invariant tests over all 31 caverns. **[measured] 25,905 nodes / 286,886 edges, slowest build ~70 ms, 236/236 lifts and 288/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; jump apex and ceiling probe re-verified; no self-edges; CSR consistent |
-| **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
+| **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts`, `jump.ts`, `geometry.ts` | 28 invariant tests over all 31 caverns plus the differential suite. **[measured] 29,917 nodes / 1,222,289 edges, all 31 caverns built in 1.1 s, 235/236 lifts and 216/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; **every jump edge is one the model produces**; a jump crosses no further than the frames it takes; no self-edges; CSR consistent. The jump model itself is the engine's, proved against it — see §18 |
+| **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests, plus a change in §18: the component flood now honours the hero's capabilities, so it picks a goal the hero can actually reach. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) — **done** | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, `path_items.png`, locale ×3, `main.ts` | 20 tests. Save round-trip and byte-exact save image; a save without the feature marker reads as not owned **whatever it holds at 0x4A**; buying and selling move the counter and the extended stock bit, never the generic array; using one copy leaves all five generic slots byte-identical; the addresses cannot be reached by the 0xA1..0xFF forward scans |
 | **6** | Map screen — **done** | `ui/map-screen.ts`, `key-router.ts`, `main.ts`, `NavGraphStore.load`/`gridOf` | 23 tests. All 31 caverns fit at an integer scale and stay centred; tile round-trip survives a 0.5×–2.25× CSS scale; cursor wraps on both axes; key repeat does not skip maps; **no route is drawn** (`draw(now)` takes no route and the class has no route accessor); a point that cannot be routed leaves the screen open; Escape and an outside click return without a route |
-| **7** | Chevron overlay — **done** | `render/path-overlay.ts`, `main.ts`, `assets/images/chevrons.png` | 19 tests. The sheet is 5x24x24 and the frame order is asserted from the PNG header; cardinal, seam and diagonal directions all correct; dormant while a menu is open; route cleared on arrival; per-frame cost independent of route length |
-| **8** | Live route — **done** | `engine/nav/path-guide.ts`, `key-router.ts` | Re-plans on capability, key-count, component, drift (>3 tiles) and a 20 s refresh; throttled to 500 ms; `Q` cancels only in an unpaused cavern; an unreachable goal drops the route rather than drawing a wrong one |
+| **7** | Chevron overlay — **done** | `render/path-overlay.ts`, `main.ts`, `assets/images/chevrons.png` | 25 tests. The sheet is 5x24x24 and the frame order is asserted from the PNG header; cardinal, seam and diagonal directions all correct; dormant while a menu is open; route cleared on arrival; **one chevron per cell, so a nine-column jump draws nine arrows and the line has no gap**; per-frame cost independent of route length |
+| **8** | Live route — **done** | `engine/nav/path-guide.ts`, `key-router.ts` | Re-plans on capability, key-count, component, drift (>3 tiles) and a 20 s refresh; throttled to 500 ms; `Q` cancels only in an unpaused cavern; an unreachable goal drops the route rather than drawing a wrong one; **no re-plan is attempted while the hero is on no node**, so a jump over a gap no longer deletes the route; **F7 clears the route** |
 
-Phase 8 is the one most likely to need a second pass after real playtesting,
-because it is the only one whose behaviour is felt rather than asserted.
+Phase 8 was the one that needed the second pass, and it got one: playing the route
+found three faults in the display layer — stale chevrons after a restore, gaps where
+a jump covers many tiles, and a route deleted because a re-plan was attempted from a
+cell the hero was passing through. All three are in §18 and all three have tests.
 
 ---
 
@@ -1900,6 +1966,13 @@ the phase-1 acceptance test.
 An append-only record of what has been built, what it turned out to be, and what
 is still outstanding. Entries are in dependency order.
 
+**The measurements in this log are the ones taken on the day each phase was
+delivered, and are left that way on purpose.** Several were superseded by the
+corrections in §18 — the node rule of §7.2, the jump generator of §7.3 and the
+drawing rules of §10 all changed, and the numbers below predate those changes. The
+current figures are the ones in §7, §10 and §18's *Numbers that moved* table; where
+the two disagree, this log is the older one.
+
 ### Phase 0 — build-time extractor and generated data — **complete**
 
 **Delivered**
@@ -2097,7 +2170,7 @@ that triggers the overlap and assert both our result and the engine's.
 
 | File | Role |
 | --- | --- |
-| `web/src/engine/nav/geometry.ts` | the hero's occupancy tests: `heroBoxFree`, `groundBelow`, `isStanding`, `heroInLift`, `blockedByCounterCurrent`, wraps |
+| `web/src/engine/nav/geometry.ts` | the hero's occupancy tests: `heroBoxFree`, `groundBelow`, `canRest`/`isStanding`, `heroCanStepSideways`, `heroInLift`, `blockedByCounterCurrent`, wraps |
 | `web/src/engine/nav/platforms.ts` | `buildPlatformModel` — ride slots, adjacency, inert platforms with reasons |
 | `web/src/engine/nav/airflows.ts` | `buildAirflowModel` — lift stops and conveyor exits |
 | `web/tests/nav-platform-model.test.ts` | 19 tests |
@@ -2158,8 +2231,9 @@ platform can never be silently dropped.
 
 **Delivered** `web/src/engine/nav/nav-graph.ts` — `buildNavGraph`, nodes in a
 compact list with CSR edge offsets, plus `nodeAt`, `forEachEdge`, `edgesOf`; and
-`web/tests/nav-graph.test.ts` with 27 tests that check *invariants* rather than
-reproducing the builder.
+`web/tests/nav-graph.test.ts` with 28 tests that check *invariants* rather than
+reproducing the builder — as of that day; §18 changed the numbers and the rules
+they assert, and the phase table at §13 carries the current figures.
 
 **[measured] over all 31 caverns**
 
@@ -2396,7 +2470,7 @@ Delivered together, because the overlay is inert without the guide behind it.
 | `web/src/render/path-overlay.ts` | draws the remaining chevrons, clipped to the viewport |
 | `web/src/main.ts` | loads `chevrons.png`, wires the guide, draws the overlay, `Q` to cancel |
 | `web/src/input/key-router.ts` | the `Q` branch |
-| `web/tests/path-overlay.test.ts` | 19 tests, end-to-end against the real cavern data |
+| `web/tests/path-overlay.test.ts` | 25 tests, end-to-end against the real cavern data |
 
 **The sheet is `assets/images/chevrons.png`, 120×24 — five 24×24 frames in one row:
 `>` `^` `<` `v` then the destination ring.** The overlay indexes it as
@@ -2613,6 +2687,60 @@ address.
    all three locales, and `LocaleMessages` declares the section so the schema
    matches the data. A warning repeated every frame is a defect, not a log line.
 
+### Phase 3, 7 and 8 corrections — the jump model, and playing the route
+
+The route named above, mp80 `(113,21)` to `(151,6)`, was re-reported against the
+drawing in `WORK/LEVELS/MP80.TXT`. It had two faults of its own and exposed **six
+defects under it, five in the graph and one in the display**. The graph's were all
+one mistake wearing different clothes: a model stricter than the game.
+
+1. **The jump model was an invented arc.** An offset table — every landing within
+   three columns and three rows — gated on an apex box that corresponds to no code
+   in the engine. It refused the first move of the drawn route, the hop off the
+   platform onto the row 10 gallery, because at the top of that jump the hero's feet
+   are level with the ledge he is landing on. Replaced by `nav/jump.ts`, a replay of
+   `jump_press_handler`, `airborne_movement` and `check_floor_for_landing`.
+2. **A hero on a rope cannot jump.** `jump_press_handler` returns while
+   `ON_ROPE_FLAGS` is set (`dungeon-hero.ts:322`); climbing is `try_climb_rope`,
+   and leaving is one step sideways. The model had rope jumps, and the route used
+   three of them. The player reported all three as impossible, which they were.
+3. **An up current holds him over a hole.** mp80's row 21 has floor tiles of `0x13`
+   at columns 94-96: passable *and* an up current, so the landing check finds
+   nothing under his middle foot while `check_airflows_on_hero` holds him up.
+   Standing now means "held up", by ground or by a current.
+4. **The body does not have to fit.** The engine tests one cell on a rise, one
+   column on a step, nothing on a fall and one cell on a landing, so he comes to
+   rest with a foot in rock — mp80's `(175,51)`, on the drawn route — and falls
+   through floors. Requiring a free 3×3 refused three moves the player had made.
+5. **Falls drift and platforms can be walked off.** `airborne_movement` re-reads
+   `INPUT_DIRS` every tick, so a fall picks a column per row; ledges scanned one
+   column, which is why walking off the cliff at `(166,50)` never found the platform
+   at `(164,51)`. And a hero on a platform is standing, not airborne, so stepping
+   over the side is a step and then a fall.
+6. **The route was deleted by a jump.** The drift check re-planned when the hero was
+   more than three tiles off the line — which is what he is, mid-jump — and a
+   search from a cell that is no node returns nothing, which was being read as "the
+   goal became unreachable". The chevrons vanished over the platform at `(182,57)`
+   and sometimes after a menu.
+
+Two display faults came from playing it, with the route itself correct: **a restore
+left the old chevrons on screen** (F7 never touched the guide), and **one arrow per
+hop left gaps** wherever a hop covered many tiles — nine blank columns at each of
+the two places the player reported.
+
+**Proved, not asserted.** `tests/nav-jump-differential.test.ts` builds five caverns,
+hands each to the engine's own memory image, flies a sample of input plans through
+`dungeon_finish_normal_frame`, and requires every landing the engine produces to be
+one the model offers. The harness checks that the proximity window holds the cavern
+it was given, which caught two setup faults before it caught anything else. The
+harness itself was wrong twice — the model and the engine disagreed only because
+the test was feeding the model a different map than the engine.
+
+**[measured]** 29,917 nodes / 1,222,289 edges, all 31 caverns built in 1.1 s,
+235/236 lifts and 216/288 conveyors reachable, 5,395 of 5,589 ride slots with an
+entry. The route resolves in 146 hops and draws 359 chevron cells. Full suite
+856/856.
+
 ---
 
 ## 18. Handover — read this first
@@ -2808,6 +2936,15 @@ different widths.
 The test also carries the mp80 hop as a named case: two rows up, three columns
 across, four frames, no shoes.
 
+`web/tests/path-overlay.test.ts` covers the three display faults, each of which was
+found by playing the route rather than by reading the code:
+
+- a hero standing on no node is not drift, and the route survives 60 s of it;
+- every cell the route draws joins up hop to hop, and the nine-column jump over the
+  airflow gap reports its cells rather than one arrow at an end;
+- the reveal still tracks the hero along a walk, and an unreachable goal still
+  drops the route rather than drawing a wrong one.
+
 The three assertions that were skipped for weeks are live in `tests/nav-route-cases`:
 the route resolves, it never leaves the hero *buried* — every cell he occupies has
 some part of him in open space, which is the property the game actually has — and it
@@ -2823,6 +2960,8 @@ starts on the hero and ends on the destination.
 | conveyors reachable | 216/288 | 216/288 | unchanged from before, but by a different route: drifting falls reach columns a straight scan never looked at |
 | ride slots with an entry | 5,403/5,589 | 5,395/5,589 | platform landings needed the slot mask the jump model now has — and the mask goes on the cell under the hero's middle foot, three rows below the slot, because that is where the platform tile is. The `BOARD` edges that went were to ground nodes the hero cannot stand on: a platform occupies its own row, so there is never static ground under one |
 | all 31 caverns built | 1.7 s | 1.1 s | the predicates are masks over the map now, not modular arithmetic per state |
+| route from the start ledge | no route | 146 hops, 359 chevron cells | it resolves leg for leg as drawn, and every cell of it is drawn |
+| chevrons per frame cap | 64 | 512 | one per cell rather than per hop, so a cross-cavern route needs hundreds; the cap only bounds loop arithmetic |
 
 ### Traps in this code that cost a session
 
