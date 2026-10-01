@@ -1544,7 +1544,7 @@ Each phase is independently shippable and independently reviewable.
 | **0** | Extractor + generated data — **done** | `tools/build-nav.mjs`, `tools/navlib/*`, `web/src/data/nav/*.ts` | `tests/nav-data.test.ts`: 46 tests, all passing. 31 maps; portals **[measured 163 / 15 to-town / 2 lion / 17 dead-end / 1 one-way]**; 15 components; attribute tables verified against `mpp*.grp.unp`; platforms **[72 / 21 / 123]**; currents **[2,809 cells → 236 lifts / 381 conveyors]** |
 | **1a** | Runtime tile decoder — **done** | `engine/nav/mdt-grid.ts`, `tests/nav-mdt-grid.test.ts` | 25 tests. Every opcode against hand-encoded columns; `tile = next byte` pinned explicitly; byte-for-byte agreement with the extractor on all 31 caverns; the 8-arena rope split |
 | **1b** | Tile-flag classifier | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
-| **2** | Platform + airflow model | `engine/nav/platforms.ts`, `engine/nav/airflows.ts` | Travel ranges match a hand-computed case (e.g. `mp10 x=48 y=24 → 24..30`); ride-slot validity for every platform; no boss-room platforms; every lift column resolves; every conveyor run is one-way |
+| **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
 | **3** | Nav graph builder | `engine/nav/nav-graph.ts` | Node counts match §2.9 within 5%; every node has ≥ 1 edge unless isolated; wrap edges at `x = 0 ↔ mapWidth−1`; every `RIDE_V`/`RIDE_H`/`BOARD`/`LIFT`/`CARRY_*` edge has both endpoints valid; no `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift column |
 | **4** | Pathfinding | `engine/nav/pathfinder.ts`, `capabilities.ts` | Hand-authored routes for 5 known journeys; key-budget pruning; unreachable returns `null`; no route contains a town portal; a known platform-only shortcut is found; a known conveyor-only shortcut is found |
 | **5** | Item + inventory + shop + save (Option D) | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, locale ×3 | Save/load round-trip; an old 256-byte save loads with count 0; buy/sell updates `magicMasksExt` and not `magicMasks`; use decrements `0x4A` and does **not** touch `magicItems`; the shoe forward scan past `0xA5` cannot see the item |
@@ -2008,6 +2008,73 @@ that triggers the overlap and assert both our result and the engine's.
 657/657.
 
 **Next:** phase 2, the runtime platform and airflow model.
+
+### Phase 2 — platform and current models — **complete**
+
+**Delivered**
+
+| File | Role |
+| --- | --- |
+| `web/src/engine/nav/geometry.ts` | the hero's occupancy tests: `heroBoxFree`, `groundBelow`, `isStanding`, `heroInLift`, `blockedByCounterCurrent`, wraps |
+| `web/src/engine/nav/platforms.ts` | `buildPlatformModel` — ride slots, adjacency, inert platforms with reasons |
+| `web/src/engine/nav/airflows.ts` | `buildAirflowModel` — lift stops and conveyor exits |
+| `web/tests/nav-platform-model.test.ts` | 19 tests |
+| `web/tests/nav-airflow-model.test.ts` | 16 tests |
+
+The geometric predicates live in their own module because three later stages need
+them and they must not disagree about whether the hero fits somewhere.
+
+**[measured] over all 31 caverns**
+
+| | |
+| --- | --- |
+| Platforms modelled | 216 |
+| **Ride slots** | **3,204** |
+| Platforms refused a ride | **71** |
+| — horizontal span could slide out from under the hero | 70 |
+| — only one rideable row | 1 |
+| Lift columns modelled | 236 |
+| **Lift stops** | **738** |
+| Conveyor runs modelled | 288 of 381 |
+| **Conveyor exits** | **1,470** |
+
+**The carry-hazard guard does real work.** `updateHorizPlatformCoords` moves the
+hero with `moveHeroRightIfNoObstacles`, and that call *fails* when something is in
+the way — while the platform moves regardless, so it can slide out from under him.
+70 of the 123 horizontal platforms have a span where some column offers no clear
+standing position, and those are given no ride edges at all rather than a route
+that strands him mid-ride. That is a third of the horizontal platforms, so this is
+not a corner case.
+
+**A row-convention difference that mattered.** A **platform** sits beneath the
+hero, so his head is at `platformRow - 3`. A **current** acts on his *body* —
+`checkAirflowsOnHero` probes his middle column at head, body and feet — so the
+lowest row he can be lifted from is `currentRow - 2`, with the cell under his
+feet. Using the platform convention made 2 of mp71's 113 lifts claim a stop the
+engine would never deliver. Lift and conveyor stops are now produced by simulating
+the engine's own step — check, lift two rows, check — rather than by arithmetic on
+the run, with a visited-set guard for lifts that wrap the whole map.
+
+**Three data facts the tests pinned down:**
+
+- **Ten maps declare current tiles; eight place any.** `mp51` and `mp84` carry the
+  same tilesets as their neighbours but place none, so "declares a current" and
+  "has one" are different facts — an earlier draft of this log conflated them.
+- **No platform is frozen.** All 123 horizontal platforms are speed 1 or 2, so the
+  `speed === 0` branch is defensive. The test asserts the data property rather
+  than pretending the branch fires.
+- **One vertical platform really does have a one-row range**, so
+  `REASON_SINGLE_ROW` is exercised, unlike the frozen branch.
+
+Every platform ends up with either slots or a recorded reason — asserted, so a new
+platform can never be silently dropped.
+
+**Gates:** `tsc --noEmit` clean; both new suites pass; full suite 692/692;
+`nav:check` clean.
+
+**Next:** phase 3, the navigation graph builder — nodes from `isStanding`, edges
+from the walk, jump, fall, rope, slope, door, platform and current primitives, with
+the airflow suppression rules applied.
 
 ---
 
