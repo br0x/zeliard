@@ -17,8 +17,11 @@ import { dirname, resolve } from 'node:path';
 import {
     buildPlatformModel, REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
 } from '../src/engine/nav/platforms.js';
-import { heroBoxFree, groundBelow, wrapCol, wrapRow, isStanding } from '../src/engine/nav/geometry.js';
+import {
+    flagsAt, groundBelow, heroBoxFree, heroInLift, isStanding, wrapCol, wrapRow,
+} from '../src/engine/nav/geometry.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
+import { blocksBody } from '../src/engine/nav/types.js';
 import { decodeTileGrid, type NavTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { NAV_PLATFORMS } from '../src/data/nav/nav-platforms.js';
 import { NAV_MAP_BY_ID, NAV_MAPS } from '../src/data/nav/nav-maps.js';
@@ -48,14 +51,25 @@ describe('geometry predicates', () => {
         expect(wrapCol(100, 100)).toBe(0);
     });
 
-    it('agrees with itself: standing implies the box is free and supported', () => {
+    it('agrees with itself: standing means held up, with his middle column open', () => {
+        // Not "the whole 3x3 is clear". The engine never asks that: the landing
+        // check reads one cell under his middle foot, a rise reads one cell above
+        // it, a step reads one column, and the descent reads nothing — so the hero
+        // comes to rest with a *side* in rock (mp80's pit at (175,51) is drawn on
+        // the player's route) and can fall through a floor. What the engine does
+        // assume is his middle column, so that is what standing has to mean.
         const grid = gridFor(0);
         const classifier = NavTileClassifier.forMap(0);
         for (let row = 0; row < 64; row += 7) {
             for (let col = 0; col < 240; col += 11) {
                 if (!isStanding(grid, classifier, col, row)) continue;
-                expect(heroBoxFree(grid, classifier, col, row), `(${col},${row}) box`).toBe(true);
-                expect(groundBelow(grid, classifier, col, row), `(${col},${row}) ground`).toBe(true);
+                for (let j = 0; j < 3; j++) {
+                    const f = flagsAt(grid, classifier, col + 1, row + j);
+                    expect(blocksBody(f), `(${col},${row}) middle row ${j}`).toBe(false);
+                }
+                const held = groundBelow(grid, classifier, col, row)
+                    || heroInLift(grid, classifier, col, row);
+                expect(held, `(${col},${row}) held up`).toBe(true);
             }
         }
     });

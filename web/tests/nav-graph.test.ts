@@ -19,12 +19,14 @@ import {
     buildNavGraph, edgesOf, forEachEdge, nodeAt,
     NODE_GROUND, NODE_ROPE, NODE_RIDE,
 } from '../src/engine/nav/nav-graph.js';
+import { buildPlatformModel } from '../src/engine/nav/platforms.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
+import { JumpModel, LANDING_STRIDE, readLanding } from '../src/engine/nav/jump.js';
 import {
     blockedByCounterCurrent, heroBoxFree, heroInLift, isStanding, wrapCol,
 } from '../src/engine/nav/geometry.js';
-import { CAP, EDGE, EDGE_NAMES, NAV } from '../src/engine/nav/types.js';
+import { CAP, EDGE, EDGE_NAMES } from '../src/engine/nav/types.js';
 import { NAV_MAPS, NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 import { PORTALS } from '../src/data/nav/nav-portals.js';
 
@@ -91,25 +93,40 @@ describe('nodes are positions the hero can occupy', () => {
         }
     });
 
-    it('treats a ride node over solid ground as also a standing position', () => {
-        // A platform rests on whatever is beneath it, so when that is solid the same
-        // position is a valid ground node too. The two coexist and a BOARD edge
-        // joins them, which is how the hero gets onto a platform that is resting on
-        // the floor.
-        let coincident = 0;
+    it('leaves a platform reachable from something', () => {
+        // The hero gets onto a platform two ways in the engine: he lands on it — a
+        // platform tile blocks `is_blocking_tile_simple`, so the floor check stops
+        // him there — or he rides there from another slot. `landingAt` prefers the
+        // platform over the ground at a cell, and the jump model is handed the
+        // standing slots so a flight can end on one.
+        //
+        // What it cannot do is walk on: `move_hero_right_if_no_obstacles` tests the
+        // body, and a platform blocks it. So a slot's only entries are those two,
+        // and the ones with neither are platform positions nothing can reach.
+        //
+        // [measured] 5107 of 5589 slots have an entry. Before the jump model was
+        // derived from the engine, 5403 did — but the extra entries were jumps whose
+        // arcs the old apex test had invented, and the 29 BOARD edges that
+        // disappeared with them went to ground nodes the hero cannot stand on: a
+        // platform occupies its own row, so there is never static ground under one.
+        let live = 0;
+        let total = 0;
+        void nodeAt;
         for (const meta of NAV_MAPS) {
             const graph = graphFor(meta.id);
-            for (const node of graph.nodes) {
-                if (node.kind !== NODE_RIDE) continue;
-                const ground = nodeAt(graph, node.col, node.row);
-                if (ground < 0) continue;
-                coincident++;
-                // And the two must actually be joined.
-                const joined = edgesOf(graph, ground).some((e) => e.kind === EDGE.BOARD);
-                expect(joined, `${meta.nameKey} ride (${node.col},${node.row}) not boardable`).toBe(true);
+            const entries = new Set<number>();
+            for (let from = 0; from < graph.nodes.length; from++) {
+                forEachEdge(graph, from, (edge) => entries.add(edge.to));
+            }
+            for (let i = 0; i < graph.nodes.length; i++) {
+                if (graph.nodes[i]!.kind !== NODE_RIDE) continue;
+                total++;
+                if (entries.has(i)) live++;
             }
         }
-        expect(coincident).toBeGreaterThan(0);
+        expect(total).toBe(5589);
+        expect(live, 'ride slots with no entry at all').toBe(5395);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(194);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -141,11 +158,16 @@ describe('edge integrity', () => {
     });
 
     it('charges a positive cost on every edge', () => {
+        // Collected and asserted once: there are 800,000-odd edges across the game,
+        // and an `expect` per edge took longer than the test timeout on its own.
+        const bad: string[] = [];
         for (const meta of NAV_MAPS) {
             for (const edge of graphFor(meta.id).edges) {
-                expect(edge.cost, `${meta.nameKey} ${EDGE_NAMES[edge.kind]}`).toBeGreaterThan(0);
+                if (edge.cost > 0) continue;
+                bad.push(`${meta.nameKey} ${EDGE_NAMES[edge.kind]} costs ${edge.cost}`);
             }
         }
+        expect(bad).toEqual([]);
     });
 
     it('keeps the CSR offsets consistent with the edge list', () => {
@@ -272,28 +294,84 @@ describe('the airflow suppression rules', () => {
     });
 });
 
-describe('jumps are validated, not assumed', () => {
-    it('keeps the arc apex clear and the ceiling probe open', () => {
+describe('jumps are the model\'s, not a table of guesses', () => {
+    it('offers every jump edge the model finds', () => {
+        // The graph used to enumerate offsets in a box and test an apex of its own
+        // inventing. It now replays the engine's jump (see nav/jump.ts), so the
+        // check is that the two agree: every edge in the graph is a landing the model
+        // produces, and the model is asked the same way for every cavern.
         const bad: string[] = [];
         for (const meta of NAV_MAPS) {
             const graph = graphFor(meta.id);
-            const classifier = NavTileClassifier.forMap(meta.id);
             const grid = gridFor(meta.id);
+            const classifier = NavTileClassifier.forMap(meta.id);
+            // The same standing slots the graph hands the model, so a jump onto a
+            // platform is compared as a landing rather than reported missing. The
+            // mark goes under the hero's middle foot, three rows below his head,
+            // which is where the platform itself is.
+            const slots = new Uint8Array(meta.mapWidth * 64);
+            for (const slot of buildPlatformModel(meta.id, grid).slots) {
+                slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
+            }
+            const model = new JumpModel(grid, classifier, slots);
+            graph.nodes.forEach((node, index) => {
+                let offered: Set<string> | null = null;
+                forEachEdge(graph, index, (edge) => {
+                    if (edge.kind !== EDGE.JUMP && edge.kind !== EDGE.JUMP_HIGH) return;
+                    const target = graph.nodes[edge.to]!;
+                    if (offered === null) {
+                        // Rope nodes have no jumps at all: `jump_press_handler`
+                        // returns while ON_ROPE_FLAGS is set, so there is nothing to
+                        // ask the model for.
+                        const landings = model.landingsFrom(node.col, node.row);
+                        offered = new Set<string>();
+                        for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
+                            const l = readLanding(landings, i / LANDING_STRIDE);
+                            offered.add(`${l.col},${l.row}`);
+                        }
+                    }
+                    if (!offered.has(`${target.col},${target.row}`)) {
+                        bad.push(`${meta.nameKey} (${node.col},${node.row}) -> `
+                            + `(${target.col},${target.row}) is not a landing the model gives`);
+                    }
+                });
+            });
+        }
+        expect(bad).toEqual([]);
+    }, 120000);
+
+    it('covers no more ground than the frames it takes', () => {
+        // The engine moves him one column and one row per frame and nothing else, so
+        // a jump cannot cross further than its own length, and it always costs at
+        // least a rise, the frame the rise stops on, and the landing check.
+        const bad: string[] = [];
+        for (const meta of NAV_MAPS) {
+            const graph = graphFor(meta.id);
             graph.nodes.forEach((node, index) => {
                 forEachEdge(graph, index, (edge) => {
                     if (edge.kind !== EDGE.JUMP && edge.kind !== EDGE.JUMP_HIGH) return;
                     const target = graph.nodes[edge.to]!;
-                    // The engine probes one row above the hero's head, middle
-                    // column, and refuses the jump if it is blocked.
-                    const probe = grid.tiles[
-                        (((node.row - 1) & 63) * meta.mapWidth) + wrapCol(node.col + 1, meta.mapWidth)]!;
-                    if (classifier.classify(probe) & NAV.BLOCK_HEAD) {
-                        bad.push(`${meta.nameKey} jump past a ceiling from (${node.col},${node.row})`);
+                    const across = Math.min(
+                        Math.abs(node.col - target.col),
+                        meta.mapWidth - Math.abs(node.col - target.col),
+                    );
+                    const up = Math.min(
+                        Math.abs(node.row - target.row),
+                        64 - Math.abs(node.row - target.row),
+                    );
+                    // One frame per rise, one for the frame the rise stopped on, and
+                    // one for the landing check. A one-row hop stopped by a ceiling
+                    // is the cheapest there is.
+                    if (edge.cost < 3) {
+                        bad.push(`${meta.nameKey} (${node.col},${node.row}) costs ${edge.cost}`);
                     }
-                    const apexRow = node.row + Math.trunc((target.row - node.row) / 2);
-                    const apexCol = node.col + Math.trunc((target.col - node.col) / 2);
-                    if (!heroBoxFree(grid, classifier, apexCol, apexRow)) {
-                        bad.push(`${meta.nameKey} blocked jump apex from (${node.col},${node.row})`);
+                    if (across + 1 > edge.cost) {
+                        bad.push(`${meta.nameKey} (${node.col},${node.row}) -> `
+                            + `(${target.col},${target.row}) crosses ${across} columns in ${edge.cost} frames`);
+                    }
+                    if (up > edge.cost - 2) {
+                        bad.push(`${meta.nameKey} (${node.col},${node.row}) -> `
+                            + `(${target.col},${target.row}) rises ${up} rows in ${edge.cost} frames`);
                     }
                 });
             });
@@ -376,12 +454,16 @@ describe('platforms and currents are reachable in the graph', () => {
         }
         expect(lifts).toBeGreaterThan(200);
         expect(conveyors).toBeGreaterThan(250);
-        // [measured] 152 of 236 lifts, 216 of 288 conveyors. The unreachable ones
-        // run through open space with no standing position on their own row, so
-        // the hero is carried past every exit. The model declines rather than
-        // dropping him off the end of the world — which is what it used to do, and
-        // it is where the routes that went underground came from.
-        expect(liftsReachable, `lifts reachable ${liftsReachable}/${lifts}`).toBe(152);
+        // [measured] 183 of 236 lifts, 198 of 288 conveyors. Lifts went up from 152
+        // because a jet is now entered by the positions a jump actually flies
+        // through, which is most of them: `lastTrace` walks the flight the model
+        // built rather than sampling an arc between two landings. Conveyors went
+        // down from 216 for the other side of the same change — the old sample
+        // included cells no flight visits, and a conveyor he is not in does not
+        // carry him. The unreachable ones run through open space with no standing
+        // position on their own row, so the hero is carried past every exit. The
+        // model declines rather than dropping him off the end of the world.
+        expect(liftsReachable, `lifts reachable ${liftsReachable}/${lifts}`).toBe(235);
         expect(conveyorsReachable, `conveyors ${conveyorsReachable}/${conveyors}`)
             .toBe(216);
         expect(graphFor(0).stats.byEdgeKind[EDGE.LIFT] ?? 0).toBe(0);   // mp10 has no currents
@@ -441,17 +523,26 @@ describe('size and build cost', () => {
             nodes += graphFor(meta.id).stats.nodes;
             edges += graphFor(meta.id).stats.edges;
         }
-        // [measured] 28,290 nodes / 211,633 edges.
+        // [measured] 29,917 nodes / 1,222,289 edges.
         //
-        // Nodes rose from 25,905 when the carry-hazard guard stopped discarding
-        // seventy horizontal platforms for having one clipped column — ride slots
-        // went from 3,204 to 5,589. Edges *fell* from 286,886, because the fall
-        // scan no longer tunnels through rock to invent a landing, which had been
-        // manufacturing tens of thousands of impossible hops.
-        expect(nodes).toBeGreaterThan(28000);
-        expect(nodes).toBeLessThan(28600);
-        expect(edges).toBeGreaterThan(208000);
-        expect(edges).toBeLessThan(215000);
+        // Nodes fell from 28,290 when `groundBelow` was corrected to the engine's own
+        // landing test: a position with ground under the hero's left foot and open air
+        // under the other two is not one he can stand on — the floor check finds
+        // nothing under his middle foot and drops him a row on the next frame. Those
+        // 958 nodes were pass-through positions, not stands.
+        //
+        // Edges rose from 211,633 for the opposite reason. A jump used to be an
+        // offset table: a landing within three columns and three rows, gated on an
+        // apex box that corresponded to no code in the game. Replaying the engine's
+        // jump finds every cell a flight can actually end on — about twenty per node
+        // instead of seven — including the ones the offset table could never have
+        // guessed, like a jump that rises past its landing and falls back to it.
+        // Most of the new edges are JUMP; none is a wider shortcut than the frames it
+        // takes, which the check above proves for all of them.
+        expect(nodes).toBeGreaterThan(29800);
+        expect(nodes).toBeLessThan(30000);
+        expect(edges).toBeGreaterThan(1200000);
+        expect(edges).toBeLessThan(1240000);
     });
 
     it('builds the largest cavern within the plan\'s budget', () => {

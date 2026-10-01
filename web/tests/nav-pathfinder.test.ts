@@ -15,9 +15,11 @@ import { dirname, resolve } from 'node:path';
 import { NavGraphStore, findRoute, reachableMaps, mapName } from '../src/engine/nav/pathfinder.js';
 import { HAZARD_AGGRESSIVE, type NavGraph } from '../src/engine/nav/nav-graph.js';
 import {
-    allCapabilities, bareCapabilities, snapshotCapabilities, ACCESSORY_FERUZA,
-    ACCESSORY_PIRIKA, ADDR_KEYS, ADDR_LION_KEYS,
+    allCapabilities, bareCapabilities, snapshotCapabilities, hasCap,
+    ACCESSORY_FERUZA, ACCESSORY_PIRIKA, ADDR_KEYS, ADDR_LION_KEYS,
+    type HeroCapabilities,
 } from '../src/engine/nav/capabilities.js';
+import { CAP } from '../src/engine/nav/types.js';
 import { getGmem, memWrite8 } from '../src/core/ts-memory.js';
 import { EDGE } from '../src/engine/nav/types.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
@@ -55,16 +57,22 @@ function keysHeld(ordinary: number, lion: number) {
  * chambers, and the whole point of the fall fix is that a route can no longer
  * cross rock to reach one. Choosing a goal from the start node's own component
  * makes these tests exercise a real route rather than hoping a guessed pair of
- * columns happens to be connected.
+ * columns happens to be connected. And the component is filled with the hero's
+ * capabilities, not the whole graph, for the same reason.
  */
 function farthestNode(
     graph: NavGraph,
     col: number,
     row: number,
+    caps: HeroCapabilities = bareCapabilities(),
 ): { col: number; row: number } | null {
     const start = graph.groundOf[((row & 63) * graph.mapWidth) + ((col % graph.mapWidth) + graph.mapWidth) % graph.mapWidth]!;
     if (start < 0) return null;
-    // Flood fill out from the start; only these are actually reachable.
+    // Flood fill out from the start, over the edges this hero may actually take —
+    // the same two gates `findRoute` applies. Filling over *all* of them picks a
+    // goal the hero cannot reach, and the assertion below would then be testing the
+    // pathfinder's refusal rather than its routes: a tall jump now needs Feruza
+    // shoes, so a component full of JUMP_HIGH edges is not a bare hero's to walk.
     const seen = new Set<number>([start]);
     const queue = [start];
     let head = 0;
@@ -77,7 +85,11 @@ function farthestNode(
             + Math.min(Math.abs(nd.row - row), 64 - Math.abs(nd.row - row));
         if (d > bestDist) { bestDist = d; best = n; }
         for (let e = graph.edgeOffsets[n]!; e < graph.edgeOffsets[n + 1]!; e++) {
-            const to = graph.edges[e]!.to;
+            const edge = graph.edges[e]!;
+            if ((edge.req & ~caps.mask) !== 0) continue;
+            if (!hasCap(caps, CAP.GROUND_SAFE)
+                && (graph.nodeHazard[edge.to]! & HAZARD_AGGRESSIVE)) continue;
+            const to = edge.to;
             if (seen.has(to)) continue;
             seen.add(to);
             queue.push(to);

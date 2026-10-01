@@ -1972,6 +1972,12 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
         return;
     }
 
+    // A restore replaces the world under the hero: a different place, a different
+    // position, whatever route was planned is about nothing. The guide is only
+    // reachable through `pathGuide`, and the chevrons left on screen after F7 came
+    // from exactly this.
+    clearActiveRoute();
+
     // Abort any indoor scene or conversation
     if (indoorActiveScene) {
         indoorActiveScene = null;

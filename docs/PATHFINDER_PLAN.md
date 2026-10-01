@@ -1,6 +1,7 @@
 # Thread of Yaga — Cavern Pathfinding Plan
 
-Status: **proposed / not started**
+Status: **implemented** — phases 0–8 shipped; §18 is the handover from the session
+that closed the last defect (the jump model)
 Scope: a new consumable magic item that reveals the current cavern group, lets the
 player pick a destination, and computes and displays the shortest traversable
 route — both on the full-screen map and as chevron tiles over the live cavern
@@ -827,16 +828,28 @@ is a single array read.
 A node is a `(x, y)` standing position, encoded as `y * mapWidth + x`, with `x`
 the hero's left column and `y` the hero's head row.
 
-A position is a node when **all** of these hold, mirroring
-`moveHeroRightIfNoObstacles` and `checkFloorForLanding`:
+A node is **where the hero stops**, which is what `checkFloorForLanding` alone
+decides, plus the one thing the engine assumes about him everywhere: his middle
+column is not inside rock.
 
 ```
-!isBlockingTile(tile(x,   y   ))   // head row
-!isBlockingTileSimple(tile(x+i, y  )) for i in 1..2
-!isBlockingTileSimple(tile(x+i, y+j)) for i,j in 1..2   // body + feet
-and  (isBlockingTileSimple(tile(x,   y+3))              // ground under the hero,
-   || isBlockingTileSimple(tile(x+1, y+3)))             // per checkFloorForLanding
+his middle column, all three rows, is not blocking:
+   !isBlockingTileSimple(tile(x+1, y+j)) for j in 0..2
+and he is held up, by either:
+   isBlockingTileSimple(tile(x+1, y+3))          // ground under the middle foot
+   || an up current in his three rows            // checkAirflowsOnHero
 ```
+
+The body is deliberately **not** asked about. Every test the engine makes in a jump
+or a fall reads one cell or one column: the ceiling above the middle of his head,
+the column he already occupies on a step, the cell under his middle foot on a
+landing, and nothing at all on the way down. So he can rise through the lip of a
+ledge, come to rest with a foot inside a shelf — mp80's `(175,51)`, on the player's
+own route — or fall through a floor because his middle foot is over the hole beside
+it. Requiring the whole 3×3 to be clear refuses all three, and did until the player
+drew them. What the middle column buys is the guarantee every probe relies on: a
+position in this game is a position where he is standing in front of something, not
+one he is buried in.
 
 Three node kinds:
 
@@ -849,8 +862,9 @@ Three node kinds:
 - `RIDE` — the hero is standing on a platform. Generated per §7.5 for each
   platform ride slot, with the platform cell treated as ground.
 
-**[measured]** 22,585 ground/rope nodes across all 31 maps — 6,553 in component 0
-and 8,581 in component 7, the two largest (§2.9).
+**[measured]** 29,917 ground/rope/ride nodes across all 31 maps, up from 28,290
+before the rule above changed. The 5,589 ride slots are unchanged; the rest are the
+positions the looser landing rule gives back.
 
 ### 7.3 Static edges
 
@@ -2603,70 +2617,212 @@ address.
 
 ## 18. Handover — read this first
 
-**State at end of session:** `tsc --noEmit` clean, **844 passing, 3 skipped**
-across 58 files. The feature works end to end except for one known defect,
-described below. Nothing is in a half-edited state.
+**State at end of session:** `tsc --noEmit` clean, **856 passing** across 59 files,
+nothing skipped. The jump model is derived from the engine and has no deviations
+from it left; the rope family, the fall, the platform and the node rules are
+corrected; the route from the start ledge to `(151,6)` resolves leg for leg as the
+player drew it; and the chevrons the guide draws for it are continuous, survive a
+restore, and are not deleted by a jump.
 
-**One outstanding defect, and it is mine: the jump model was invented rather than
-derived.**
+### What the model was, and what it is now
 
-### The verified facts
+It was an offset table — every landing within three columns and three rows, gated on
+an apex box that corresponded to no code in the game — and it rejected the hop the
+player made off a platform onto a ledge, because at the top of that jump his feet
+are level with the very surface he is landing on.
 
-The player walked a route in cavern `mp80` and drew it into
-`WORK/LEVELS/MP80.TXT` using `<`, `^`, `>`, `v`. Read with the rule he gave —
-*marker = hero's left column + 1, except on the five rope runs where marker =
-hero's left column* — the route is:
+It is now `web/src/engine/nav/jump.ts`: a replay of `jump_press_handler`,
+`airborne_movement` and `check_floor_for_landing`, written down as the engine's
+rules rather than as an envelope.
+
+| Engine line | What it means for a jump |
+| --- | --- |
+| `jump_press_handler` reads `heroTL - 35` — one row up, one column right of his top-left cell — and nothing else (`dungeon-hero.ts:327-360`) | the only obstruction the rise consults is the cell above the middle of his head. His body can pass through the lip of the ledge he is jumping onto, because the engine never asks |
+| `right_up_pressed` calls `jump_press_handler` and then `on_right_pressed` (`dungeon-input.ts:337`) | the sideways step happens on the same frame as the rise |
+| `airborne_movement` re-reads `INPUT_DIRS` every frame (`dungeon-input.ts:568-598`) | he steers mid-air, and a frame spent turning around is a frame he still descends |
+| the descent is one row per frame with no test at all (`dungeon-input.ts:536-541`) | the landing check is the only thing that stops it |
+| `check_floor_for_landing` (`dungeon-vertical.ts:488-504`) | ground under his **middle** foot; his outer two feet count only in the single frame a rise leaves his animation phase at 0 |
+
+Three consequences, all of which the offset table could not express:
+
+- **The apex is not a place.** A jump can rise past its landing and fall back to it,
+  so a landing's height says nothing about how many rows he rose. Only the second
+  decides whether he needs Feruza shoes.
+- **A jump is a search, not a table.** A long jump is a long fall that stops at the
+  first ground, and the lateral reach is exactly one column per frame — at most
+  `rises + 1 + descents`. From a typical node it reaches about twenty cells instead
+  of seven.
+- **The hop off a platform needs no shoes.** From the ride slot at `(136,12)` the
+  hero rises two rows and steps east once per frame, three columns in all, and lands
+  on `(138,10)` in four frames. The old apex test rejected it because his feet were
+  on the ledge.
+
+### Ropes: what the engine actually allows
+
+There is **no jump off a rope**. `jump_press_handler` opens with
 
 ```
-(110,21) west to (90,21) -> up the rope to (90,10) -> east to (124,10)
-  -> down to (125,12) -> east along the platform to (135,12)
-  -> jump up and right, landing at (138,10)  <-- this hop is rejected
-  -> east to (140,10) -> down the rope at 142 -> east to (156,21)
-  -> up to (156,11) -> east to (172,11) -> up to (172,0)
-  -> west to (149,0) -> fall to (149,6)
+if (memRead8(g, ON_ROPE_FLAGS) !== 0) return;      // dungeon-hero.ts:322
 ```
 
-Everything either side of the failure is confirmed against the map data and works:
+so on a rope it does nothing at all. Climbing is `try_climb_rope`'s `moveHeroUp`
+(`dungeon-vertical.ts:236`), and leaving is one step sideways:
+`on_right_pressed` moves him a column and returns because he is on a rope
+(`dungeon-vertical.ts:139,146`), and the rope frame then finds no rope at his new
+middle column and puts him back in the dungeon (`dungeon-states.ts:258-280`). A rope
+node therefore has: climb up, climb down, a step onto ground beside it, and a fall
+off it in either direction. An earlier version of this file claimed otherwise and
+was wrong — the guard on line 322 was read past.
 
-| Fact | Status |
+The fall is a **drifting** fall, not a straight one: `airborne_movement` reads
+`INPUT_DIRS` every tick, so the hero picks a column per row, which is how the row 10
+gallery is reached from the top of the column 91 rope (a fall east from `(90,3)`
+lands anywhere from `(92,10)` to `(99,10)`). A straight `fallTo` cannot express
+that, so rope departures go through the same descent the jump uses, with no rise.
+
+### One more thing the engine was already doing
+
+At columns 94-96 of row 21 the floor tile is `0x13`, which is both passable **and**
+an up current. The floor check finds nothing under the hero's middle foot — but
+`check_airflows_on_hero` runs before `airborne_movement` and sets
+`AIR_UP_TILE_FOUND`, which puts both the landing check and the descent out of reach
+(`dungeon-input.ts:515-517`). A hero over a hole a current holds does not fall
+through it, so `isStanding` accepts a position held by an up current even with no
+ground under his feet. Without that, the walk west along row 21 breaks at column 93
+and the only way across is a jump — which is the point the player raised about hop
+13.
+
+### The last thing the engine never asked: whether his body fits
+
+Three of the player's own corrections landed on the same invented rule. The model
+required the hero's whole 3x3 to be clear at every cell of a flight. The game has no
+such test:
+
+| engine test | what it leaves untested |
 | --- | --- |
-| The ride node at `(135,12)` exists | confirmed |
-| `(138,10)` is a standing position: all nine body cells are tile `0x00`, feet row 13 is solid (`0x3`, `0x4`, `0x5`; none is in mp80's passable list) | confirmed, `groundOf` holds a node |
-| The jump offset `dx=+3, dy=-2` is inside the enumeration | confirmed |
-| `ride(149,51) -> DROP>(149,6)` — the free fall off the moving platform | fixed and tested this session |
-| The hop from the ride node to `(138,10)` | **rejected by `canJump`** |
+| a rise, `heroTL - 35` | one cell — the hero rises straight through the lip of a ledge |
+| a step, `move_hero_right_if_no_obstacles` | the column he is entering |
+| the descent | everything — he falls through a floor whose middle foot is over the hole beside it |
+| the landing | one cell, under his middle foot — so he rests with a *side* in rock |
 
-### Why it is rejected
+mp80's pit at `(175,51)` is the last of those: the row 53 shelf ends at column 175,
+so his middle foot finds the floor at `(176,54)` while his left foot is inside the
+shelf. He leaves it by jumping — the rise takes him to `(175,50)`, where
+`move_hero_left_if_no_obstacles` finds his column clear — and the player drew exactly
+that: fall into the pit, jump left and up, land on the shelf.
 
-`canJump` in `web/src/engine/nav/nav-graph.ts` tests that the hero's **whole 3×3
-body is clear at the apex**. For this jump the apex is row 11, so the body spans
-rows 11–13 — and row 13 at columns 136–138 is the very ledge he is landing on. The
-test therefore rejects the jump because the destination floor is under his feet
-mid-arc, which is exactly where a floor should be.
+So a node is now **where the hero stops**, which is the landing check and nothing
+more, and the body is only asked about where the engine itself assumes it: his
+**middle column**, because every probe the jump and the fall make reads that column.
+He may have a side in rock. He may not have his middle in it.
 
-**That test corresponds to nothing in the game.** It was written by reasoning
-about what a jump ought to look like instead of reading the engine.
+The model has **no deviations left**. An earlier version refused flights where the
+hero's body did not fit, which was a reading of `fallTo` rather than of the engine,
+and it refused three moves the player made. What the engine does not test, the model
+does not test.
 
-### The agreed next step
+Two costs came out of the same correction:
 
-Derive the reachable set from the routines that actually implement the jump, and
-change nothing until that is done:
+- A fall charges for the columns it carries him sideways. Both are frames to him,
+  but without the second the search drifts as far as a fall can carry him and then
+  falls again, and a route the player drew as a walk along a corridor comes out as a
+  row of two-column "falls" that never fall.
+- "Never passes through solid rock" is gone as a premise — the game has no such
+  property — replaced by the one that still means something: he is never *buried*,
+  every cell he occupies has some part of him in open space.
 
-| Routine | What it actually does |
-| --- | --- |
-| `jumpPressHandler` — `web/src/engine/dungeon-hero.ts:319-360` | Rises one row per tick while `0x9F09 < jumpHeight` (2, or 4 with Feruza shoes). The **only** obstruction tested is the cell above the hero's head at his left column (`heroTL - 35`). |
-| `airborneMovement` — `web/src/engine/dungeon-input.ts:524-600` | One row per tick downward, and it reads `INPUT_DIRS` each tick, so the hero **steers horizontally while airborne**. |
-| `checkFloorForLanding` — `web/src/engine/dungeon-vertical.ts:488-504` | Decides when he is down, testing floor beneath his three columns. |
+### Walking off a platform, and falling that drifts
 
-So a jump is not a straight line between two nodes and the apex-box test is not a
-thing in the game. The faithful model is: rise up to H rows checking only the cell
-above the head, then fall, steering freely, landing wherever the landing check
-succeeds — and the set of cells reachable by one jump is computed from those three
-rules rather than from an assumed envelope.
+Two moves from the player's own account, both in the same place as the rope work:
 
-**Then re-run the route above and report the result before claiming success.** The
-three assertions in `web/tests/nav-route-cases.test.ts` are `it.skip` and carry
-this analysis; un-skip them when the route resolves.
+- **A ride node can be walked off.** The hero on a platform is standing, not
+  airborne, so stepping over the side is a step and then a fall; the platform's
+  straight `DROP` is only one of the ways off it.
+- **A fall reaches a whole slope, not one column.** `airborne_movement` re-reads
+  `INPUT_DIRS` on the tick it descends, so the hero picks a column per row. Ground
+  ledges were still scanning one column, which is why walking west off the cliff at
+  `(166,50)` did not find the platform at `(164,51)`.
+
+### The route, leg for leg
+
+146 hops, and it reads as the drawing: walk west along row 21 to `(101,21)`; one jump
+across the `0x13` airflow gap to `(91,21)`; step onto the column 91 rope; climb to
+`(90,10)`; fall east onto the row 10 gallery; walk it to `(121,10)`; drop onto the
+moving platform and cross to the east floor at `(148,21)`; walk to `(156,21)`;
+climb the 157 rope; east along row 11 to `(171,11)`; climb the 173 rope to `(172,0)`
+and on through the seam to `(172,58)`; cross the lower cavern; climb the 189 rope;
+west along row 47; **fall into the pit at `(175,51)`, jump left and up onto
+`(169,50)`**; onto the platform, ride west to `(149,51)`; **`DROP` to `(149,6)`** —
+the free fall from row 51 through row 63 and across the seam into the target — and
+one step east to the goal.
+
+The rope at column 173 is two stretches in the static map, rows 0-12 and 56-63, and
+the graph chains them into one rope: `try_climb_rope` reads the tile one row above
+his head and the map wraps, so he really can climb from row 0 straight into row 63.
+
+
+### The guide and the overlay, after playing it
+
+The route was right and the chevrons still lied about it, three ways. All three were
+in the display layer, and all three have tests now.
+
+**A restore left the old route drawn.** `performGameRestore` replaces the world
+under the hero — another place, another position — and never touched the guide, so
+whatever was planned before F7 stayed planned and kept being drawn against the
+restored hero. It calls `clearActiveRoute()` before it loads anything.
+
+**One arrow per hop put holes in the line.** The overlay drew a chevron at the tile
+a hop *left* from, so a nine-column jump got one arrow at one end and nothing for the
+nine columns it crossed. The gaps the player saw at `(100,21)` and `(121,10)` were
+exactly that. The guide now answers `cellsForHop`: every cell the hop covers, from
+the same jump model the graph is built from, so the cells are the ones the hero
+really flies through rather than a line joined between the ends. With it the player's
+route draws **359 cells** for its 146 hops, which is why the per-frame cap went from
+64 to 512 — the cap only bounds loop arithmetic, since off-screen cells are dropped
+before anything is drawn.
+
+**The route vanished when he jumped over the platform at `(182,57)`.** The drift
+check asks whether the hero is within three tiles of any point still ahead; mid-jump
+he is standing nowhere, and the cell under him in mid-air is not a standing
+position, so the re-plan that followed searched from a cell that is not a node, found
+nothing, and cleared the route. The same door explains the route sometimes
+disappearing after the inventory: a re-plan from a position that is not a node.
+**A jump is how this route crosses gaps, so being off the line is not drift** —
+`needsReplan` returns early when `nodeAt` has no node where the hero is, and nothing
+re-plans until he lands. When he *is* standing on a node and the search finds
+nothing, the world really has changed and the route goes, as it should.
+
+
+### How it was proved
+
+`web/tests/nav-jump-differential.test.ts` builds five small caverns, hands each to
+the engine's own memory image (`unpack_map`, then `dungeon_finish_normal_frame`
+every frame — the real frame order, not a re-enactment), flies a sample of input
+plans from every launch cell with and without Feruza shoes, and requires every
+landing the engine produces to be one the model offers. The harness checks itself:
+`hero_coords_to_addr_in_proximity` must hold the cavern's tiles, or the comparison
+would be between two different maps. That check earned its place immediately — it
+caught a packed map laid out row-major instead of column-major, and pictures of two
+different widths.
+
+The test also carries the mp80 hop as a named case: two rows up, three columns
+across, four frames, no shoes.
+
+The three assertions that were skipped for weeks are live in `tests/nav-route-cases`:
+the route resolves, it never leaves the hero *buried* — every cell he occupies has
+some part of him in open space, which is the property the game actually has — and it
+starts on the hero and ends on the destination.
+
+### Numbers that moved, and why
+
+| | before | after | why |
+| --- | --- | --- | --- |
+| nodes | 28,290 | 29,917 | a node became "the hero stops here" rather than "his whole 3x3 is clear", which is the engine's own rule and gives back the positions where he rests with a side in rock — mp80's drawn route needs one at `(175,51)` |
+| edges | 211,633 | 1,222,289 | the engine's jump reaches about twenty cells per node, not seven, and falls drift a column per row |
+| lifts reachable | 152/236 | 235/236 | a jet is entered by the cells a flight really flies through, and a fall can now drift into one |
+| conveyors reachable | 216/288 | 216/288 | unchanged from before, but by a different route: drifting falls reach columns a straight scan never looked at |
+| ride slots with an entry | 5,403/5,589 | 5,395/5,589 | platform landings needed the slot mask the jump model now has — and the mask goes on the cell under the hero's middle foot, three rows below the slot, because that is where the platform tile is. The `BOARD` edges that went were to ground nodes the hero cannot stand on: a platform occupies its own row, so there is never static ground under one |
+| all 31 caverns built | 1.7 s | 1.1 s | the predicates are masks over the map now, not modular arithmetic per state |
 
 ### Traps in this code that cost a session
 
@@ -2685,11 +2841,49 @@ These were all wrong turns, recorded so they are not walked again:
   riding position.
 - **Never widen a threshold to make a route appear.** Every time that was done
   here it hid the real defect underneath.
+- **A harness must check itself.** An engine harness that silently reads a
+  different map than the model under test will agree with anything. It earned this
+  twice, catching a packed map laid out row-major instead of column-major and
+  pictures of two different widths.
+- **The game has no body test, so a model that adds one is inventing.** It cost
+  three corrections in a row: the ledge hop that rises through a lip, the pit at
+  `(175,51)` where he rests with a foot in a shelf, and a fall that drops through a
+  floor because his middle foot is over the hole beside it. Every predicate in a
+  movement model has an engine line behind it or it does not belong in the model.
+- **Read the guard clauses, not just the branches.** `jump_press_handler` opens with
+  `if (ON_ROPE_FLAGS !== 0) return;` on line 322. Reading lines 327-357 and quoting
+  them is what produced a rope jump that does not exist, and it took two sessions to
+  notice.
+- **A re-plan from a cell the hero is only passing through always fails.** `nodeAt`
+  returns -1 mid-jump, `findRoute` returns null, and code that treats that as "the
+  goal became unreachable" deletes a perfectly good route. Ask whether the hero is
+  *on a node* before concluding anything from a failed search.
+- **One marker per move is one marker per cell.** Drawing one chevron per hop looked
+  right for a walk and left a nine-column gap for a jump. The unit that matters is
+  the tile, not the edge.
+
+### Where the code is
+
+| file | what it owns |
+| --- | --- |
+| `web/src/engine/nav/jump.ts` | the jump and the fall: one replay of `jump_press_handler`, `airborne_movement` and `check_floor_for_landing`, and the per-map masks it evaluates them into |
+| `web/src/engine/nav/geometry.ts` | occupancy: `heroBoxFree`, `canRest`/`isStanding`, `heroCanStepSideways`, `heroInLift` |
+| `web/src/engine/nav/nav-graph.ts` | nodes, edges, platforms, currents, and which cells a jump or a fall reaches |
+| `web/src/engine/nav/path-guide.ts` | the live route: the reveal anchor, when to re-plan, and which cells a hop is drawn through |
+| `web/src/render/path-overlay.ts` | the chevrons themselves |
+| `web/tests/nav-jump-differential.test.ts` | the engine flown against the model, cavern by cavern |
+| `web/tests/nav-route-cases.test.ts` | the player's journey through mp80, end to end |
 
 ### Process
 
-The player corrected four things this session that reasoning alone would have got
-wrong: the dump's width, the marker offset, the column-150 blockage, and — most
-importantly — the instruction to derive behaviour from the engine's own code
-instead of inventing a model. **Read the routine, quote the line, then implement.**
-When something does not fit, ask with coordinates before theorising.
+The player corrected seven things across three sessions that reasoning alone would
+have got wrong: the dump's width, the marker offset, the column-150 blockage, that
+there is no jumping off a rope, that an up current holds him over a hole, that his
+body does not have to fit, and that the chevrons lie even when the route does not.
+Two of them — the rope guard and the body test — were cases of the same failure:
+reading part of a routine and building a model of the part I had read.
+
+**Read the routine, quote the line, then implement.** Every predicate in a movement
+model needs an engine line behind it. When something does not fit, ask with
+coordinates before theorising: every correction above arrived as coordinates, and
+each one was checkable against the map in a minute.

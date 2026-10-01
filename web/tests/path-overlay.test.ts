@@ -18,6 +18,8 @@ import {
     CHEVRON_DESTINATION, CHEVRON_FRAMES, CHEVRON_FRAME_W, CHEVRON_FRAME_H, CHEVRON_SHEET,
 } from '../src/render/path-overlay.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
+import { EDGE } from '../src/engine/nav/types.js';
+import type { NavNode } from '../src/engine/nav/nav-graph.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 import {
     findRoute, NavGraphStore, type NavPoint, type NavRoute,
@@ -75,41 +77,44 @@ function realStore(): NavGraphStore {
 function harness(): Harness {
     const store = realStore();
     const graph = store.get(0)!;
-    let start = -1;
-    for (let i = 0; i < graph.nodes.length; i++) {
-        const n = graph.nodes[i]!;
-        if (n.kind !== 0) continue;
-        if (graph.edgeOffsets[i + 1]! - graph.edgeOffsets[i]! >= 6) { start = i; break; }
-    }
-    expect(start, 'mp10 should have a well-connected standing position').toBeGreaterThanOrEqual(0);
-    const from = graph.nodes[start]!;
+    const w = graph.mapWidth;
 
-    // A real goal a short walk away on the same map.
-    let goalNode = -1;
-    for (let i = 0; i < graph.nodes.length && goalNode < 0; i++) {
-        const n = graph.nodes[i]!;
-        if (n.kind !== 0) continue;
-        const d = Math.min(Math.abs(n.col - from.col), graph.mapWidth - Math.abs(n.col - from.col));
-        if (d > 8 && d < 20 && Math.abs(n.row - from.row) < 4) goalNode = i;
+    // A run of ten standing positions on one row, which gives a start, a goal
+    // twelve tiles along, and a route between them that is nothing but steps. What
+    // this file tests is the guide revealing a route one tile at a time, so the route
+    // has to be made of single steps: "whatever the search prefers" would no longer
+    // be a walk now that jumps and drifting falls reach so much further than a step.
+    let from: NavNode | null = null;
+    let goal: NavNode | null = null;
+    for (let row = 0; row < 64 && !from; row++) {
+        for (let col = 0; col < w - 10; col++) {
+            let run = 0;
+            while (run < 10 && graph.groundOf[row * w + ((col + run) % w)]! >= 0) run++;
+            if (run < 10) { col += run; continue; }
+            from = graph.nodes[graph.groundOf[row * w + col]!]!;
+            goal = graph.nodes[graph.groundOf[row * w + col + 12]!]!;
+            break;
+        }
     }
-    expect(goalNode, 'mp10 should have a reachable goal nearby').toBeGreaterThanOrEqual(0);
-    const goal = graph.nodes[goalNode]!;
+    expect(from, 'mp10 should have a row of standing positions').not.toBeNull();
+    expect(goal, 'mp10 should have a goal twelve tiles along it').not.toBeNull();
 
-    const hero = { mapId: 0, col: from.col, row: from.row };
+    const hero = { mapId: 0, col: from!.col, row: from!.row };
     const caps = { ...allCapabilities() };
     const route = findRoute({
         store, caps,
-        start: { mapId: hero.mapId, col: hero.col, row: hero.row },
-        goal: { mapId: 0, col: goal.col, row: goal.row },
+        start: { mapId: 0, col: hero.col, row: hero.row },
+        goal: { mapId: 0, col: goal!.col, row: goal!.row },
     })!;
     expect(route.points.length).toBeGreaterThan(1);
+    expect(route.hops.every((hop) => hop.kind === EDGE.WALK || hop.kind === EDGE.STEP)).toBe(true);
 
     const guide = new PathGuide({
         store,
         heroPosition: () => ({ ...hero }),
         capabilities: () => ({ ...caps }),
     });
-    return { guide, store, hero, caps, route };
+    return { guide, store, hero, caps, route: route! };
 }
 
 describe('choosing a chevron for a step', () => {
@@ -315,6 +320,74 @@ describe('keeping the route true', () => {
         h.guide.setRoute(h.route, { mapId: 29, col: 0, row: 0 });
         h.guide.update(1000);
         expect(h.guide.hasRoute).toBe(false);
+    });
+
+    it('keeps the route while the hero is in mid-air', () => {
+        // The chevrons vanished when he jumped over the platform at (182,57): the
+        // cell under him in mid-air is not a standing position, so the drift check
+        // demanded a re-plan, the search from there found nothing, and the guide
+        // cleared the route. A jump is how the route itself crosses gaps, so being
+        // off the line is not drift and no re-plan is due.
+        const h = harness();
+        const goal = h.route.points[h.route.points.length - 1]!;
+        const guide = new PathGuide({
+            store: h.store,
+            heroPosition: () => ({ mapId: 0, col: goal.col + 40, row: goal.row }),
+            capabilities: () => allCapabilities(),
+        });
+        guide.setRoute(h.route, goal);
+        guide.update(1000);
+        expect(guide.hasRoute, 'a hero standing on no node is not drift').toBe(true);
+        // Twenty seconds of it: long past the refresh interval, still standing
+        // nowhere.
+        for (let t = 2000; t <= 60_000; t += 2000) guide.update(t);
+        expect(guide.hasRoute).toBe(true);
+    });
+
+    it('draws every cell a long hop covers, so the line has no gap', () => {
+        // One chevron per hop put an arrow at the tile a jump left from and nothing
+        // for the nine columns it crossed, which read on screen as a broken route.
+        const store = realStore();
+        const route = findRoute({
+            store, caps: allCapabilities(),
+            start: { mapId: 23, col: 113, row: 21 },
+            goal: { mapId: 23, col: 151, row: 6 },
+        });
+        expect(route, 'the player route should resolve').not.toBeNull();
+        const guide = new PathGuide({
+            store,
+            heroPosition: () => ({ mapId: 23, col: 113, row: 21 }),
+            capabilities: () => allCapabilities(),
+        });
+        guide.setRoute(route!, route!.points[route!.points.length - 1]!);
+
+        // Every hop of two tiles or more must report the cells between its ends,
+        // and the whole route must come out with no tile missing between the first
+        // and last cell drawn.
+        const gaps: string[] = [];
+        let previous: NavPoint | null = null;
+        const points = route!.points;
+        for (let i = 0; i + 1 < points.length; i++) {
+            const cells = guide.cellsForHop(i);
+            if (cells.length < 2) continue;
+            if (previous) {
+                const d = Math.abs(previous.col - cells[0]!.col)
+                    + Math.abs(previous.row - cells[0]!.row);
+                if (d > 1) gaps.push(`${previous.col},${previous.row} -> ${cells[0]!.col},${cells[0]!.row}`);
+            }
+            previous = cells[cells.length - 1]!;
+        }
+        expect(gaps, 'chevron cells should join up hop to hop').toEqual([]);
+
+        // And the jump over the airflow gap is one of them: nine columns, no bare
+        // arrow at one end.
+        const jump = route!.hops.findIndex((hop) => {
+            if (hop.kind !== EDGE.JUMP && hop.kind !== EDGE.JUMP_HIGH) return false;
+            const d = Math.abs(hop.from.col - hop.to.col);
+            return d > 3;
+        });
+        expect(jump, 'the route should contain a multi-column jump').toBeGreaterThanOrEqual(0);
+        expect(guide.cellsForHop(jump).length).toBeGreaterThan(3);
     });
 
     it('survives being told the hero is not in a cavern at all', () => {

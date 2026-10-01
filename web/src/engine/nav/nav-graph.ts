@@ -32,13 +32,14 @@
 
 import {
     NAV, EDGE, EDGE_COST, CAP,
-    JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA,
     blocksBody,
 } from './types.js';
 import { NavTileClassifier } from './attributes.js';
 import {
-    blockedByCounterCurrent, flagsAt, heroBoxFree, heroInLift, isStanding, wrapCol, wrapRow,
+    blockedByCounterCurrent, flagsAt, heroBoxFree, heroCanStepSideways, heroInLift,
+    isStanding, wrapCol, wrapRow,
 } from './geometry.js';
+import { JumpModel, LANDING_STRIDE } from './jump.js';
 import { buildPlatformModel, type PlatformModel } from './platforms.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
 import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from '../../data/nav/nav-portals.js';
@@ -160,6 +161,17 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     const classifier = NavTileClassifier.forMap(mapId);
     const platforms = buildPlatformModel(mapId, grid);
     const currents = buildAirflowModel(mapId, grid);
+    // A platform is a floor the hero can land on and nothing else, and it is not in
+    // the static map at all, so the jump model has to be told where the slots are.
+    // The mark goes on the cell the landing check reads — under the hero's middle
+    // foot, three rows below his head. A slot's `headRow` is the platform row minus
+    // three, so the platform tile itself is at `headRow + 3`; marking the slot cell
+    // instead would tell the model a hero lands one row too high and never on it.
+    const platformCells = new Uint8Array(cells);
+    for (const slot of platforms.slots) {
+        platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
+    }
+    const jumps = new JumpModel(grid, classifier, platformCells);
 
     const nodes: NavNode[] = [];
     const groundOf = new Int32Array(cells).fill(-1);
@@ -226,79 +238,87 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     /** Per-node edge lists, flattened into CSR at the end. */
     const outgoing: NavEdge[][] = nodes.map(() => []);
 
+    /** Where each node's jump flight went, col/row pairs, see {@link traceAt}. */
+    let traceCells = new Int32Array(4096);
+    const traceOffset = new Int32Array(nodes.length + 1);
+
     const add = (from: number, to: number, kind: number, cost: number, req = 0, portal = -1): void => {
         if (to < 0 || to === from) return;
         outgoing[from]!.push({ to, kind, cost, req, portal });
     };
 
-    /** Jump offsets the plan allows: dx across, dh up or down. */
-    const jumpOffsets = (height: number): [number, number][] => {
-        const out: [number, number][] = [];
-        for (let dx = -3; dx <= 3; dx++) {
-            for (let dh = -height; dh <= 3; dh++) {
-                if (dx !== 0 || dh !== 0) out.push([dx, dh]);
-            }
-        }
-        return out;
-    };
-    const normalJumps = jumpOffsets(JUMP_HEIGHT_DEFAULT);
-    const highJumps = jumpOffsets(JUMP_HEIGHT_FERUZA);
-
-    /**
-     * Can the hero jump from here to `to`?
-     *
-     * Conservative by construction: the landing must be a node, the arc's apex must
-     * be clear for his whole body, and the ceiling probe the engine makes at
-     * `heroTL - 35` (one row above his head, middle column) must be open.
-     */
-    const canJump = (from: NavNode, to: NavNode): boolean => {
-        // The engine's ceiling probe: one row above the head, middle column.
-        if (blocksBody(flagsAt(grid, classifier, from.col + 1, from.row - 1))) return false;
-        // The apex of the arc, where the hero is highest.
-        const apexRow = from.row + Math.trunc((to.row - from.row) / 2);
-        const apexCol = from.col + Math.trunc((to.col - from.col) / 2);
-        if (!heroBoxFree(grid, classifier, apexCol, apexRow)) return false;
-        // The whole swept body, not just the apex. A jump crosses one column per
-        // tick, so a three-column jump really does pass through the two in
-        // between; checking only the apex let routes whose arc clipped a wall
-        // through, and the chevrons for them were drawn in the scenery.
-        return jumpSweepClear(from, to);
-    };
-
     /**
      * Every jump available from a node, to a platform or to the ground.
+     *
+     * The reachable set is the engine's own: nav/jump.ts replays `jump_press_handler`,
+     * `airborne_movement` and `check_floor_for_landing` rather than testing an
+     * arc, because the engine tests no arc. What comes back is a landing cell, a
+     * frame count, and how many rows the hero rose — the last of which is what
+     * decides whether the hero needs Feruza shoes, and it is not the same as the
+     * landing's height above the launch, since a jump can rise past its landing
+     * and fall back to it.
      *
      * Shared by ground nodes and ride slots: a hero standing on a platform can
      * jump off it exactly as he can from a ledge.
      */
-    const addJumpEdges = (from: NavNode, fromIndex: number, high: boolean): void => {
-        const offsets = high ? highJumps : normalJumps;
-        for (const [dx, dh] of offsets) {
-            // The high jump only adds the rows a plain jump cannot reach.
-            if (high && dh >= -JUMP_HEIGHT_DEFAULT) continue;
-            const to = landingAt(from.col + dx, from.row + dh);
-            if (to < 0 || to === fromIndex) continue;
-            const target = nodes[to]!;
-            if (!canJump(from, target)) continue;
+    const addJumpEdges = (fromIndex: number, fromCol: number, fromRow: number): void => {
+        const landings = jumps.landingsFrom(fromCol, fromRow);
+        for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
+            const to = landingAt(landings[i]!, landings[i + 1]!);
+            const feruza = landings[i + 4] === 1;
             add(fromIndex, to,
-                high ? EDGE.JUMP_HIGH : EDGE.JUMP,
-                (high ? EDGE_COST.JUMP_HIGH : EDGE_COST.JUMP) + Math.abs(dx) + Math.abs(dh),
-                high ? CAP.JUMP_HIGH : 0);
+                feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
+                landings[i + 2]!,
+                feruza ? CAP.JUMP_HIGH : 0);
+        }
+        // Keep where he went, so the current sweeps below can ask which cells the
+        // flight passed through without walking it a second time.
+        const trace = jumps.lastTrace();
+        const at = traceOffset[fromIndex]!;
+        if (at + trace.length > traceCells.length) {
+            const grown = new Int32Array(Math.max(at + trace.length, traceCells.length * 2));
+            grown.set(traceCells);
+            traceCells = grown;
+        }
+        traceCells.set(trace, at);
+        traceOffset[fromIndex + 1] = at + trace.length;
+    };
+
+    /**
+     * The cells one node's jump flew through, col/row pairs.
+     *
+     * Only jumpers have one; `check_airflows_on_hero` sweeps whatever the hero is
+     * doing, but a current cannot catch a hero who is standing on a rope.
+     */
+    const traceAt = (index: number, visit: (col: number, row: number) => void): void => {
+        for (let i = traceOffset[index]!; i < traceOffset[index + 1]!; i += 2) {
+            visit(traceCells[i]!, traceCells[i + 1]!);
         }
     };
 
-    /** Is the hero's 3x3 body clear everywhere along the straight line from -> to? */
-    const jumpSweepClear = (from: NavNode, to: NavNode): boolean => {
-        const dCol = to.col - from.col;
-        const dRow = to.row - from.row;
-        if (dCol === 0 && dRow === 0) return false;
-        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dCol), Math.abs(dRow)) * 4));
-        for (let s = 0; s <= steps; s++) {
-            const col = from.col + Math.round((dCol * s) / steps);
-            const row = from.row + Math.round((dRow * s) / steps);
-            if (!heroBoxFree(grid, classifier, col, row)) return false;
+    /**
+     * Every landing a hero stepping off at `(col, row)` can fall to.
+     *
+     * @param skip a node already added by another edge, so one cell is not two edges
+     */
+    const addFalls = (fromIndex: number, col: number, row: number, skip: number): void => {
+        const landings = jumps.landingsFrom(col, row, 0);
+        for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
+            const to = landingAt(landings[i]!, landings[i + 1]!);
+            if (to < 0 || to === skip) continue;
+            // A hero swept into a current is pushed, not dropped, so a fall never ends
+            // inside one — the lift edges from the cells the flight crosses are what
+            // carries him instead.
+            if (heroInLift(grid, classifier, nodes[to]!.col, nodes[to]!.row)) continue;
+            // Frames, plus the columns he is carried sideways while in the air. Both
+            // are frames to him, but without the second the pathfinder will drift
+            // as far as a fall can carry him and then fall again — a route that walks
+            // west along a corridor comes out as a row of two-column "falls" that
+            // never fall. The player drew the walk.
+            const across = Math.abs(nodes[to]!.col - col);
+            const sideways = Math.min(across, mapWidth - across);
+            add(fromIndex, to, EDGE.FALL, landings[i + 2]! + sideways);
         }
-        return true;
     };
 
     /**
@@ -370,19 +390,16 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
 
         // Jumps. Suppressed while an up current holds him.
         const lifted = heroInLift(grid, classifier, node.col, node.row);
-        if (!lifted) {
-            addJumpEdges(node, index, false);
-            addJumpEdges(node, index, true);
-        }
+        if (!lifted) addJumpEdges(index, node.col, node.row);
 
-        // Step off a ledge. A hero swept into a current is pushed, not dropped, so
-        // a fall never ends inside one.
+        // Step off a ledge. The hero steers while he is in the air, so a fall
+        // reaches a whole slope of ground rather than one column — which is how the
+        // player crosses into the moving platform in mp80, one column west of the
+        // edge he walked off. A hero swept into a current is pushed, not dropped,
+        // so a fall never ends inside one; `addFalls` sees to that.
         if (!lifted) {
             for (const dir of [1, -1] as const) {
-                const land = fallTo(node.col + dir, node.row);
-                if (land.node < 0) continue;
-                if (heroInLift(grid, classifier, nodes[land.node]!.col, nodes[land.node]!.row)) continue;
-                add(index, land.node, EDGE.FALL, land.rows);
+                addFalls(index, node.col + dir, node.row, -1);
             }
         }
 
@@ -409,11 +426,20 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
             if (rideNode >= 0) add(index, rideNode, EDGE.BOARD, EDGE_COST.BOARD);
         }
 
-        // A rope in an adjacent column: the engine centres on it with a step.
+        // A rope in an adjacent column: the engine centres on it with a step, and a
+        // current that opposes the step makes that impossible, same as a walk.
         for (const dir of [1, -1] as const) {
             const rope = ropeAtNode(node.col + dir, node.row);
-            if (rope >= 0) add(index, rope, EDGE.STEP, EDGE_COST.STEP);
+            if (rope >= 0 && !blockedByCounterCurrent(grid, classifier, node.col + dir, node.row, dir)) {
+                add(index, rope, EDGE.STEP, EDGE_COST.STEP);
+            }
         }
+        // A rope in his own middle column, at his own feet: `try_climb_rope`
+        // probes exactly that cell first (dungeon-vertical.ts:199-202), so
+        // pressing Up puts him straight on it with no step. mp80's player does
+        // this at the foot of the column 91 rope to leave the start ledge.
+        const under = ropeAtNode(node.col, node.row);
+        if (under >= 0) add(index, under, EDGE.CLIMB, EDGE_COST.CLIMB);
 
         // A door on this cell. A town door is never routed through; a door onto
         // another map is left to the pathfinder, which follows the component's
@@ -444,8 +470,29 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         // Step off the rope onto the ground beneath, or alongside it.
         const same = groundAt(node.col, node.row);
         if (same >= 0) add(index, same, EDGE.STEP, EDGE_COST.STEP);
-        const land = fallTo(node.col, node.row);
-        if (land.node >= 0) add(index, land.node, EDGE.FALL, land.rows + 1);
+        // Step off it, left or right. `on_right_pressed` moves him one column and
+        // then returns because he is on a rope (dungeon-vertical.ts:139,146); the
+        // rope frame finds no rope at his new middle column and puts him back in the
+        // dungeon (dungeon-states.ts:258-280), where the cell he stepped to stands or
+        // falls by the ordinary rules.
+        //
+        // This is the only way off a rope. `jump_press_handler` returns the moment
+        // ON_ROPE_FLAGS is set (dungeon-hero.ts:322), so there is no jumping off one;
+        // climbing is `try_climb_rope`'s `moveHeroUp` (dungeon-vertical.ts:236), and
+        // leaving is one step sideways.
+        for (const dir of [1, -1] as const) {
+            if (!heroCanStepSideways(grid, classifier, node.col, node.row, dir)) continue;
+            const there = groundAt(node.col + dir, node.row);
+            if (there >= 0) add(index, there, EDGE.STEP, EDGE_COST.STEP);
+            // Off the side and down. He picks a column every row he is in the air
+            // (`airborne_movement` reads INPUT_DIRS each tick), so the fall from one
+            // column reaches a whole slope of ground — which is how the gallery in
+            // mp80 is reached from the top of the rope, and a straight `fallTo` does
+            // not see it.
+            addFalls(index, node.col + dir, node.row, there);
+        }
+        // And straight down off the foot of it.
+        addFalls(index, node.col, node.row, -1);
     });
 
     // Ride slots.
@@ -469,11 +516,22 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         // Or simply drop off it.
         const drop = fallTo(slot.leftCol, slot.headRow);
         if (drop.node >= 0) add(index, drop.node, EDGE.DROP, drop.rows);
+        // Or walk off the edge and fall. A hero on a platform is standing, not
+        // airborne, so stepping over the side is a step and then a fall, and the fall
+        // drifts: `airborne_movement` reads INPUT_DIRS every tick. In mp80 that is
+        // the whole last leg of the player's route — ride the platform to
+        // (149,51), walk right off it, and fall thirteen rows, through the seam at
+        // row 63, into (149,6).
+        for (const dir of [1, -1] as const) {
+            if (!heroCanStepSideways(grid, classifier, slot.leftCol, slot.headRow, dir)) continue;
+            const there = groundAt(slot.leftCol + dir, slot.headRow);
+            if (there >= 0) add(index, there, EDGE.ALIGHT, EDGE_COST.ALIGHT);
+            addFalls(index, slot.leftCol + dir, slot.headRow, there);
+        }
         // Or jump off it. A platform is a launchpad: without these, a ride that
         // cannot be walked off sideways is a dead end, and the level's whole upper
         // route was unreachable because of it.
-        addJumpEdges(nodes[index]!, index, false);
-        addJumpEdges(nodes[index]!, index, true);
+        addJumpEdges(index, slot.leftCol, slot.headRow);
     });
 
     // ── current edges ────────────────────────────────────────────────────────
@@ -536,13 +594,10 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
                 enterLift(index, node.col + dir, node.row + d);
             }
         }
-        // Jumping through it.
-        for (const [dx, dh] of normalJumps) {
-            if (dh < 0) continue;   // only downward arcs matter for a lift
-            const apexRow = node.row + Math.trunc(dh / 2);
-            enterLift(index, node.col + dx, apexRow);
-            enterLift(index, node.col + dx, node.row + dh);
-        }
+        // Flying through it. A jump puts him in a great many cells, and the sweep
+        // is by position, so it is every one of them.
+        if (heroInLift(grid, classifier, node.col, node.row)) return;
+        traceAt(index, (col, row) => enterLift(index, col, row));
     });
 
     for (let i = 0; i < currents.lifts.length; i++) {
@@ -614,11 +669,8 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
             const land = fallTo(node.col + dir, node.row);
             for (let d = 1; d <= land.rows; d++) enterConveyor(node.col + dir, node.row + d);
         }
-        for (const [dx, dh] of normalJumps) {
-            if (dh < 0) continue;
-            enterConveyor(node.col + dx, node.row + Math.trunc(dh / 2));
-            enterConveyor(node.col + dx, node.row + dh);
-        }
+        if (heroInLift(grid, classifier, node.col, node.row)) return;
+        traceAt(index, (col, row) => enterConveyor(col, row));
     });
 
     for (let i = 0; i < currents.conveyors.length; i++) {

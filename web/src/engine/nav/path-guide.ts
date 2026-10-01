@@ -12,10 +12,15 @@
  */
 
 import type { CapabilityMask } from './types.js';
+import { EDGE } from './types.js';
 import type { HeroCapabilities } from './capabilities.js';
 import {
     findRoute, reachableMaps, type NavGraphStore, type NavPoint, type NavRoute,
 } from './pathfinder.js';
+import { nodeAt } from './nav-graph.js';
+import { NavTileClassifier } from './attributes.js';
+import { JumpModel } from './jump.js';
+import { buildPlatformModel } from './platforms.js';
 
 /** Re-plan when the hero has drifted this far from the route, in tiles. */
 const DRIFT_TOLERANCE = 3;
@@ -122,6 +127,65 @@ export class PathGuide {
     }
 
     /**
+     * Every cell one hop is drawn through, so a long hop is a line and not a gap.
+     *
+     * One chevron per hop put an arrow at the tile a jump *left* from and nothing at
+     * all for the nine columns it covered, which read on screen as a broken route
+     * exactly where the player had drawn a continuous one. A jump and a fall cover
+     * many cells, and the cells they cover are known exactly: nav/jump.ts replays
+     * the same descent the graph is built from, so this asks it where the hero
+     * actually goes rather than joining the ends with a line.
+     */
+    cellsForHop(index: number): NavPoint[] {
+        const route = this.route;
+        if (!route) return [];
+        const from = route.points[this.progress + index];
+        const to = route.points[this.progress + index + 1];
+        if (!from || !to) return [];
+        const hop = route.hops[this.progress + index];
+        if (!hop || from.mapId !== to.mapId) return [from, to];
+        if (hop.kind !== EDGE.JUMP && hop.kind !== EDGE.JUMP_HIGH
+            && hop.kind !== EDGE.FALL && hop.kind !== EDGE.DROP) return [from, to];
+        const model = this.flightModel(from.mapId);
+        if (!model) return [from, to];
+        const path = model.flightPath(from.col, from.row, to.col, to.row);
+        if (path.length < 4) return [from, to];
+        const cells: NavPoint[] = [{ mapId: from.mapId, col: from.col, row: from.row, node: -1 }];
+        // The flight starts where the rise ended, which is above and beside where
+        // the hero took off; the line has to begin at the tile he is standing on.
+        if (path[0] !== from.col || path[1] !== from.row) {
+            cells.push({ mapId: from.mapId, col: path[0]!, row: path[1]!, node: -1 });
+        }
+        for (let i = 2; i < path.length; i += 2) {
+            cells.push({ mapId: from.mapId, col: path[i]!, row: path[i + 1]!, node: -1 });
+        }
+        return cells;
+    }
+
+    /** One jump model per map, built on first use — a hop that needs one. */
+    private readonly flightModels = new Map<number, JumpModel | null>();
+
+    private flightModel(mapId: number): JumpModel | null {
+        const held = this.flightModels.get(mapId);
+        if (held !== undefined) return held;
+        const grid = this.deps.store.gridOf(mapId);
+        if (!grid) {
+            this.flightModels.set(mapId, null);
+            return null;
+        }
+        // The same standing platform slots the graph gives the model, so a hop that
+        // ends on a platform finds its flight.
+        const surfaces = new Uint8Array(grid.mapWidth * 64);
+        for (const slot of buildPlatformModel(mapId, grid).slots) {
+            surfaces[(slot.headRow + 3) * grid.mapWidth
+                + (((slot.leftCol + 1) % grid.mapWidth) + grid.mapWidth) % grid.mapWidth] = 1;
+        }
+        const model = new JumpModel(grid, NavTileClassifier.forMap(mapId), surfaces);
+        this.flightModels.set(mapId, model);
+        return model;
+    }
+
+    /**
      * Advance the reveal and re-plan when the world has changed under us.
      *
      * @param now performance.now()
@@ -144,8 +208,10 @@ export class PathGuide {
         });
         this.lastPlanAt = now;
         if (!next) {
-            // The goal has become unreachable. Say so rather than drawing a route
-            // that will not work.
+            // The hero is standing on a node here — `needsReplan` does not look for a
+            // route from a cell he is only passing through — so a search that finds
+            // nothing means the world really changed under the plan. Say so rather
+            // than drawing a route that will not work.
             this.clear();
             return;
         }
@@ -162,6 +228,11 @@ export class PathGuide {
         if (this.plannedKeys !== caps.keys) return true;
         if (this.plannedLionKeys !== caps.lionKeys) return true;
         if (!this.goal || !reachableMaps(hero.mapId).includes(this.goal.mapId)) return true;
+        // Mid-jump he is standing nowhere, and that is not drift: the route itself
+        // sends him over gaps. Re-planning from a cell that is not a node can only
+        // fail, so do not try until he lands.
+        const graph = this.deps.store.get(hero.mapId);
+        if (!graph || nodeAt(graph, hero.col, hero.row) < 0) return false;
         // Walking off the route: the hero should be near it.
         const points = this.route!.points;
         const from = Math.max(0, this.progress - 1);

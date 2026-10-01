@@ -149,8 +149,16 @@ function viewportPixel(
     return { x: vx * TILE_SIZE, y: vy * TILE_SIZE };
 }
 
-/** Hard cap per frame, well above what a 28x18 viewport can show. */
-const MAX_CHEVRONS = 64;
+/**
+ * Hard cap per frame.
+ *
+ * One chevron per *cell* now, not per hop, so a route that crosses a cavern needs
+ * hundreds: the player's own trip in mp80 is 146 hops and about 300 tiles of
+ * walking, flying and falling. The cap only bounds the loop arithmetic — anything
+ * off screen is dropped by `viewportPixel` before anything is drawn — so it can sit
+ * well above a viewport's worth.
+ */
+const MAX_CHEVRONS = 512;
 
 /**
  * Hops that carry the hero rather than walk him.
@@ -195,19 +203,34 @@ export function drawPathOverlay(now: number): void {
 
     let drawn = 0;
     for (let i = 0; i + 1 < points.length && drawn < MAX_CHEVRONS; i++) {
-        const from = points[i]!;
-        const to = points[i + 1]!;
         // A carried hop gets no arrow; the next walkable point does.
         if (isCarriedHop(guide.hopKindAt(i))) continue;
-        const destination = i + 2 === points.length;
-        const frame = chevronFor(from, to, mapWidth, destination);
-        if (frame === null) continue;
-        const at = viewportPixel(from, from.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
-        if (!at) continue;
-        drawSheetFrame(ctx, sheet, frame, CHEVRON_FRAME_W, CHEVRON_FRAME_H,
-            CHEVRON_FRAMES, at.x, at.y, TILE_SIZE, TILE_SIZE);
-        env.placed.push({ x: at.x, y: at.y, frame, mapId: from.mapId });
-        drawn++;
+        // Every cell the hop covers, not just where it started. One arrow per hop
+        // drew nothing at all for the nine columns a jump covered, which read on
+        // screen as a broken route exactly where the player had drawn a continuous
+        // one.
+        const cells = guide.cellsForHop(i);
+        if (cells.length < 2) continue;
+        for (let c = 0; c + 1 < cells.length && drawn < MAX_CHEVRONS; c++) {
+            const from = cells[c]!;
+            const to = cells[c + 1]!;
+            const frame = chevronFor(from, to, mapWidth, false);
+            if (frame === null) continue;
+            const at = viewportPixel(from, from.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
+            if (!at) continue;
+            drawSheetFrame(ctx, sheet, frame, CHEVRON_FRAME_W, CHEVRON_FRAME_H,
+                CHEVRON_FRAMES, at.x, at.y, TILE_SIZE, TILE_SIZE);
+            env.placed.push({ x: at.x, y: at.y, frame, mapId: from.mapId });
+            drawn++;
+        }
+    }
+    // The destination is marked where the route ends, not per hop.
+    const last = points[points.length - 1]!;
+    const ringAt = viewportPixel(last, last.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
+    if (ringAt && drawn < MAX_CHEVRONS) {
+        drawSheetFrame(ctx, sheet, CHEVRON_DESTINATION, CHEVRON_FRAME_W, CHEVRON_FRAME_H,
+            CHEVRON_FRAMES, ringAt.x, ringAt.y, TILE_SIZE, TILE_SIZE);
+        env.placed.push({ x: ringAt.x, y: ringAt.y, frame: CHEVRON_DESTINATION, mapId: last.mapId });
     }
     ctx.restore();
     void now;

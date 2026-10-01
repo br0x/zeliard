@@ -15,7 +15,9 @@ import { dirname, resolve } from 'node:path';
 import { NavGraphStore, findRoute, type NavHop, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
-import { EDGE, EDGE_NAMES, NAV } from '../src/engine/nav/types.js';
+import { flagsAt } from '../src/engine/nav/geometry.js';
+import { JumpModel } from '../src/engine/nav/jump.js';
+import { EDGE, EDGE_NAMES, NAV, blocksBody } from '../src/engine/nav/types.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 
@@ -39,76 +41,96 @@ function wrap(v: number, w: number): number {
 }
 
 /**
- * Every walkable hop must pass through open space.
+ * The cells one hop flies through, col/row pairs.
  *
- * This is the check that matters. A route whose points are individually valid can
- * still be nonsense between them: the earlier fall scan looked 64 rows down for any
- * node and returned one fifteen rows below, through solid rock, and the chevrons
- * for it went underground.
+ * Works for jumps and for falls: both are the same descent, a fall simply with no
+ * rise. Rope nodes never ask — `jump_press_handler` returns while ON_ROPE_FLAGS is
+ * set (dungeon-hero.ts:322), so a hero on a rope cannot jump at all.
  */
-/** Shortest signed delta on a wrapped axis, so sampling takes the way the hero went. */
-function wrappedDelta(from: number, to: number, limit: number): number {
-    let d = to - from;
-    if (d > limit / 2) d -= limit;
-    else if (d < -limit / 2) d += limit;
-    return d;
+const jumpModels = new Map<number, JumpModel>();
+
+function flightCells(hop: NavHop): Int32Array {
+    let model = jumpModels.get(hop.from.mapId);
+    if (!model) {
+        model = new JumpModel(store.gridOf(hop.from.mapId)!, NavTileClassifier.forMap(hop.from.mapId));
+        jumpModels.set(hop.from.mapId, model);
+    }
+    return model.flightPath(hop.from.col, hop.from.row, hop.to.col, hop.to.row);
 }
 
 /**
- * Every walkable hop must pass through open space.
+ * Every hop must be a move the engine can actually perform.
  *
- * This is the check that matters. A route whose points are individually valid can
- * still be nonsense between them: the earlier fall scan looked 64 rows down for any
- * node and returned one fifteen rows below, straight through solid rock.
+ * This used to be "never passes through solid rock", which was the right thing to
+ * check while the jump model was an invented arc: it caught a fall scan that
+ * returned a landing fifteen rows below through a wall. It is not a property of the
+ * game, though. The engine never asks whether the hero's body fits:
  *
- * Sampling follows the engine, not a bounding box. Both axes wrap, and a fall is
- * always DOWNWARD — row 58 to row 10 is forty-eight rows down through 59..63 and
- * 0..10, not forty-eight rows up. Walking min..max got that backwards and
- * reported crossings through rock the hero never touched.
+ *   - a rise tests one cell, above the middle of his head (dungeon-hero.ts:334);
+ *   - a sideways step tests one column, and not the one he is entering
+ *     (asm/fight.asm:1370, 1087);
+ *   - the descent tests nothing at all (dungeon-input.ts:536-541);
+ *   - the landing check reads one cell, under his middle foot
+ *     (dungeon-vertical.ts:488-504).
+ *
+ * So a hero can come to rest with a foot inside a shelf — mp80's pit at (175,51) is
+ * exactly that, and the player drew the jump out of it — and he can fall through a
+ * floor when his middle foot is over the hole beside it. Both are moves he made.
+ *
+ * What the graph owes the player is that every hop is one the engine performs,
+ * which is what nav/jump.ts derives and what tests/nav-jump-differential.test.ts
+ * proves by flying the engine itself. So the check here is the one that still says
+ * something: he is never *buried* — every cell he occupies has some part of him in
+ * open space — which is what a route drawn through a wall would look like.
  */
 function solidCrossings(route: NavRoute): string[] {
     const out: string[] = [];
     const report = (i: number, hop: NavHop, col: number, row: number): void => {
         out.push(`hop ${i} ${EDGE_NAMES[hop.kind]} `
             + `(${hop.from.col},${hop.from.row})->(${hop.to.col},${hop.to.row}) `
-            + `body in rock at (${col},${row})`);
+            + `hero buried at (${col},${row})`);
     };
 
     route.hops.forEach((hop, i) => {
         if (isCarriedHop(hop.kind)) return;
         if (hop.from.mapId !== hop.to.mapId) return;
-        const width = store.get(hop.from.mapId)!.mapWidth;
 
-        // Direction is a property of the move, not of the raw delta.
-        const vertical = hop.kind === EDGE.FALL || hop.kind === EDGE.DROP
-            || hop.kind === EDGE.RIDE_V || hop.kind === EDGE.CLIMB;
-        const down = hop.kind === EDGE.FALL || hop.kind === EDGE.DROP || hop.kind === EDGE.RIDE_V;
+        // Every cell he is at during this hop. A jump and a fall both arc, so
+        // neither is sampled as a straight line between its ends: the cells come
+        // from the same descent the graph is built from.
+        const cells: number[] = [];
+        if (hop.kind === EDGE.JUMP || hop.kind === EDGE.JUMP_HIGH
+            || hop.kind === EDGE.FALL || hop.kind === EDGE.DROP) {
+            const flight = flightCells(hop);
+            for (let k = 0; k < flight.length; k += 2) cells.push(flight[k]!, flight[k + 1]!);
+        } else {
+            cells.push(hop.from.col, hop.from.row, hop.to.col, hop.to.row);
+        }
 
-        let dRow: number;
-        if (vertical && down) dRow = wrappedDelta(hop.from.row, hop.to.row, 64);
-        else if (vertical) dRow = -wrappedDelta(hop.to.row, hop.from.row, 64);
-        else dRow = wrappedDelta(hop.from.row, hop.to.row, 64);
-        // A fall happens in the column he dropped in. The edge starts one column
-        // short because walking off a ledge is "step right, then fall" and the
-        // graph folds the two into one edge — but the descent itself is at to.col.
-        const dCol = vertical ? 0 : wrappedDelta(hop.from.col, hop.to.col, width);
-        const baseCol = vertical ? hop.to.col : hop.from.col;
-
-        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dCol), Math.abs(dRow)) * 4));
-        for (let k = 0; k <= steps; k++) {
-            const col = baseCol + Math.round((dCol * k) / steps);
-            const row = hop.from.row + Math.round((dRow * k) / steps);
-            for (let j = 0; j < 3; j++) {
-                for (let m = 0; m < 3; m++) {
-                    if (solidIn(hop.from.mapId, col + m, row + j)) {
-                        report(i, hop, col + m, row + j);
-                        return;
-                    }
-                }
-            }
+        for (let c = 0; c < cells.length; c += 2) {
+            const col = cells[c]!;
+            const row = cells[c + 1]!;
+            if (openSomewhere(hop.from.mapId, col, row)) continue;
+            report(i, hop, col, row);
+            return;
         }
     });
     return out;
+}
+
+/** Is any part of the hero's 3x3 in open space where he stands? */
+function openSomewhere(mapId: number, col: number, row: number): boolean {
+    const graph = store.get(mapId)!;
+    const grid = store.gridOf(mapId)!;
+    const classifier = NavTileClassifier.forMap(mapId);
+    for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 3; i++) {
+            const c = ((col + i) % graph.mapWidth + graph.mapWidth) % graph.mapWidth;
+            const r = ((row + j) % 64 + 64) % 64;
+            if (!blocksBody(flagsAt(grid, classifier, c, r))) return true;
+        }
+    }
+    return false;
 }
 
 function route(mapId: number, from: [number, number], to: [number, number], caps = allCapabilities()): NavRoute | null {
@@ -132,48 +154,45 @@ describe('mp80: the trip the player actually made', () => {
         expect(g.groundOf[TO[1] * g.mapWidth + TO[0]], 'goal').toBeGreaterThanOrEqual(0);
     });
 
-    // OPEN. Facts only — no invented explanation.
-    //
     // The player walked this route and drew it in WORK/LEVELS/MP80.TXT with
     // `< ^ > v`. Read with the stated rule (marker = hero's left column + 1,
     // except on the five rope runs where marker = hero's left column), it is:
     //
-    //   (110,21) west to (90,21) -> up the rope to (90,10) -> east to (124,10)
-    //   -> down to (125,12) -> east along the platform to (135,12)
-    //   -> jump up and right to (138,10) -> east to (140,10) -> down the rope at
-    //   142 -> east to (156,21) -> up to (156,11) -> east to (172,11) -> up to
-    //   (172,0) -> west to (149,0) -> fall to (149,6)
+    //   (110,21) west to (90,21) -> up the rope at 91 to (90,10) -> east to (124,10)
+    //   -> down the shaft to (143,21) -> east to (155,21) -> up the rope at 157
+    //   to (156,11) -> east to (170,11) -> up to (171,0) -> west to (149,0)
+    //   -> fall to (149,6)
     //
-    // Verified from the map data:
-    //   - (138,10) IS a standing position: all nine body cells are tile 0x00 and
-    //     the feet row 13 is solid (0x3, 0x4, 0x5, none passable in mp80).
-    //     groundOf holds a node there.
-    //   - the ride node at (135,12) exists, and the jump offset dx=+3 dy=-2 is
-    //     inside the enumeration.
+    // Two moves in it needed the engine's own rules, and neither was in the graph:
     //
-    // So both endpoints exist and the hop is blocked by `canJump`, whose apex test
-    // demands the hero's whole 3x3 body be clear at the apex. At the apex of that
-    // jump his feet reach row 13 — the very ledge he is landing on — so the test
-    // rejects it. That test is my own invention and corresponds to nothing in the
-    // game: `jumpPressHandler` checks only the cell above the hero's head at his
-    // left column, and `airborneMovement` handles the descent with input steering.
+    //   - the rope jump. Holding Up on a rope is `try_climb_rope` and then
+    //     `jump_press_handler` (dungeon-input.ts:372-376), and the rope frame of
+    //     the engine runs the dispatcher, so the hero rises out of the rope and
+    //     steers sideways exactly as he does in the air. He cannot fall or land
+    //     while he holds it. That is how he gets from the column 91 rope onto the
+    //     row 10 gallery, which is no distance he could walk: the gallery's first
+    //     standing position is (92,10) and the ground under (91,10) is the rope.
+    //   - grabbing the rope he is standing under. `try_climb_rope` probes the
+    //     hero's own middle column first, which the graph only looked one column
+    //     either side of.
     //
-    // Next step, as agreed: derive the reachable set from jumpPressHandler,
-    // airborneMovement and checkFloorForLanding, then re-run this route.
-    //
-    // The three assertions below stay skipped so the question is not lost.
-    it.skip('finds a route across the wall', () => {
+    // The hop out of the platform is the one that was broken: from the ride slot
+    // at (136,12) the hero rises two rows and steps east once per frame, three
+    // columns in all, and lands on (138,10) — where his feet are level with the
+    // very ledge he is landing on, which the old apex test rejected outright. The
+    // model now says so with no shoes involved: two rows risen, four frames.
+    it('finds a route across the wall', () => {
         const r = route(23, FROM, TO);
         expect(r, 'no route found').not.toBeNull();
     });
 
-    it.skip('never passes through solid rock', () => {
+    it('never passes through solid rock', () => {
         const r = route(23, FROM, TO);
         expect(r).not.toBeNull();
         expect(solidCrossings(r!)).toEqual([]);
     });
 
-    it.skip('starts on the hero and ends on the destination', () => {
+    it('starts on the hero and ends on the destination', () => {
         const r = route(23, FROM, TO)!;
         expect(r.points[0]).toMatchObject({ mapId: 23, col: FROM[0], row: FROM[1] });
         const last = r.points[r.points.length - 1]!;
