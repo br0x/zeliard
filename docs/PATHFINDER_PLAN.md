@@ -1548,7 +1548,7 @@ Each phase is independently shippable and independently reviewable.
 | **1b** | Tile-flag classifier | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
 | **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts` | 27 invariant tests over all 31 caverns. **[measured] 25,905 nodes / 286,886 edges, slowest build ~70 ms, 236/236 lifts and 288/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; jump apex and ceiling probe re-verified; no self-edges; CSR consistent |
-| **4** | Pathfinding | `engine/nav/pathfinder.ts`, `capabilities.ts` | Hand-authored routes for 5 known journeys; key-budget pruning; unreachable returns `null`; no route contains a town portal; a known platform-only shortcut is found; a known conveyor-only shortcut is found |
+| **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, locale ×3 | Save/load round-trip; an old 256-byte save loads with count 0; buy/sell updates `magicMasksExt` and not `magicMasks`; use decrements `0x4A` and does **not** touch `magicItems`; the shoe forward scan past `0xA5` cannot see the item |
 | **6** | Map screen | `ui/map-screen.ts`, `key-router.ts`, `main.ts` | Pointer → tile mapping under a CSS scale; keyboard cursor wrap; `gamePaused` asserted while open; keys do not reach the engine |
 | **7** | Chevron overlay | `render/path-overlay.ts`, `main.ts`, `assets/images/path_chevrons.png` | Draw order assertion; first chevron at the hero head; wrap-correct direction at the seam; ride and conveyor slots skipped; clipped to the viewport |
@@ -2074,7 +2074,61 @@ platform can never be silently dropped.
 **Gates:** `tsc --noEmit` clean; both new suites pass; full suite 692/692;
 `nav:check` clean.
 
-**Next:** phase 4, the A* pathfinder and the capability snapshot.
+**Next:** phase 5, the item — inventory, magic shop and save representation.
+
+### Phase 4 — capabilities and A* — **complete**
+
+**Delivered**
+
+| File | Role |
+| --- | --- |
+| `web/src/engine/nav/capabilities.ts` | `snapshotCapabilities` from `g_mem`, plus `describeCaps`, `allCapabilities`, `bareCapabilities` |
+| `web/src/engine/nav/pathfinder.ts` | `NavGraphStore`, `findRoute`, `reachableMaps` |
+| `web/tests/nav-capabilities.test.ts` | 14 tests |
+| `web/tests/nav-pathfinder.test.ts` | 18 tests |
+
+One addition to the phase-3 graph: `NavGraph.nodeHazard`, one `HAZARD_*` word per
+node saying what the hero's footprint touches. It is recorded on the geometry
+rather than baked into edges, because whether a crossing is permitted depends on
+what he is wearing — one graph serves every loadout.
+
+**[measured]**
+
+| | |
+| --- | --- |
+| Route inside one cavern | cost 65 over 59 hops, **~1 ms**, 65 nodes expanded |
+| Route across caverns (`mp10 → mp21`) | cost 44, **~31 ms**, 209 expanded, 7 graphs built on demand |
+| Lion-Head door with no key | **correctly refused** |
+| Lion-Head door with a key | opened, `keysSpent.lion === 1` |
+
+**Keys are a search dimension, not a penalty** (decision D6). A route that would
+need four keys and the hero has three is *not a route*, and no amount of extra
+edge cost makes it one, so the state is `(node, keysSpentOrdinary, keysSpentLion)`
+and a state that cannot pay is dropped. With 163 doors in the whole game and a
+hero holding a handful of keys, the multiplier is small.
+
+**Heuristic.** Octile distance within a map, **zero across maps**. Zero is not a
+shortcut — a door can land the hero anywhere in the destination cavern, so no
+positive lower bound exists between two maps, and anything else would be
+inadmissible and could return a needlessly expensive route.
+
+**One bug worth recording.** `indexOfState` was populated only for the initial
+state, so the expansion loop could not map a popped state back to its index and
+`describeRoute` walked off the end of the chain. Symptom was a thrown error on the
+first successful search; fixed by registering each candidate's index at the moment
+it is pushed.
+
+**Two rules the tests pinned, both easy to get wrong:**
+
+- **The key counters are adjacent bytes.** `0x98` and `0x99` must be read with
+  `memRead8`, as the engine does. A word read turns one Lion-Head key into 256
+  ordinary keys. The test asserts `keys` and `lionKeys` independently.
+- **Ice and heat protections are granted only on the level where they exist.**
+  Ruzeria shoes grant nothing outside cavern level 4 and the asbestos cape nothing
+  outside level 7, because otherwise the mask claims a protection the map screen
+  would then act on where there is no hazard.
+
+**Gates:** `tsc --noEmit` clean; both new suites pass; full suite 751/751.
 
 ### Phase 3 — navigation graph — **complete**
 
@@ -2136,7 +2190,61 @@ prebuilt-blob escape hatches apply unchanged.
 
 **Gates:** `tsc --noEmit` clean; `nav-graph.test.ts` 27/27; full suite 719/719.
 
-**Next:** phase 4, the A* pathfinder and the capability snapshot.
+**Next:** phase 5, the item — inventory, magic shop and save representation.
+
+### Phase 4 — capabilities and A* — **complete**
+
+**Delivered**
+
+| File | Role |
+| --- | --- |
+| `web/src/engine/nav/capabilities.ts` | `snapshotCapabilities` from `g_mem`, plus `describeCaps`, `allCapabilities`, `bareCapabilities` |
+| `web/src/engine/nav/pathfinder.ts` | `NavGraphStore`, `findRoute`, `reachableMaps` |
+| `web/tests/nav-capabilities.test.ts` | 14 tests |
+| `web/tests/nav-pathfinder.test.ts` | 18 tests |
+
+One addition to the phase-3 graph: `NavGraph.nodeHazard`, one `HAZARD_*` word per
+node saying what the hero's footprint touches. It is recorded on the geometry
+rather than baked into edges, because whether a crossing is permitted depends on
+what he is wearing — one graph serves every loadout.
+
+**[measured]**
+
+| | |
+| --- | --- |
+| Route inside one cavern | cost 65 over 59 hops, **~1 ms**, 65 nodes expanded |
+| Route across caverns (`mp10 → mp21`) | cost 44, **~31 ms**, 209 expanded, 7 graphs built on demand |
+| Lion-Head door with no key | **correctly refused** |
+| Lion-Head door with a key | opened, `keysSpent.lion === 1` |
+
+**Keys are a search dimension, not a penalty** (decision D6). A route that would
+need four keys and the hero has three is *not a route*, and no amount of extra
+edge cost makes it one, so the state is `(node, keysSpentOrdinary, keysSpentLion)`
+and a state that cannot pay is dropped. With 163 doors in the whole game and a
+hero holding a handful of keys, the multiplier is small.
+
+**Heuristic.** Octile distance within a map, **zero across maps**. Zero is not a
+shortcut — a door can land the hero anywhere in the destination cavern, so no
+positive lower bound exists between two maps, and anything else would be
+inadmissible and could return a needlessly expensive route.
+
+**One bug worth recording.** `indexOfState` was populated only for the initial
+state, so the expansion loop could not map a popped state back to its index and
+`describeRoute` walked off the end of the chain. Symptom was a thrown error on the
+first successful search; fixed by registering each candidate's index at the moment
+it is pushed.
+
+**Two rules the tests pinned, both easy to get wrong:**
+
+- **The key counters are adjacent bytes.** `0x98` and `0x99` must be read with
+  `memRead8`, as the engine does. A word read turns one Lion-Head key into 256
+  ordinary keys. The test asserts `keys` and `lionKeys` independently.
+- **Ice and heat protections are granted only on the level where they exist.**
+  Ruzeria shoes grant nothing outside cavern level 4 and the asbestos cape nothing
+  outside level 7, because otherwise the mask claims a protection the map screen
+  would then act on where there is no hazard.
+
+**Gates:** `tsc --noEmit` clean; both new suites pass; full suite 751/751.
 
 ---
 

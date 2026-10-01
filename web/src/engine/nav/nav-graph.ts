@@ -49,6 +49,12 @@ export const NODE_GROUND = 0;
 export const NODE_ROPE = 1;
 export const NODE_RIDE = 2;
 
+/** Bits in NavGraph.nodeHazard. */
+export const HAZARD_AGGRESSIVE = 1 << 0;
+export const HAZARD_CURRENT = 1 << 1;
+export const HAZARD_SLOPE = 1 << 2;
+export const HAZARD_ROPE = 1 << 3;
+
 export const NODE_NAMES: Readonly<Record<number, string>> = Object.freeze({
     [NODE_GROUND]: 'ground',
     [NODE_ROPE]: 'rope',
@@ -98,6 +104,15 @@ export interface NavGraph {
     readonly ropeOf: Int32Array;
     /** Ride slot index -> node index, or -1. */
     readonly rideOf: Int32Array;
+    /**
+     * Per-node hazard flags, one entry per node: HAZARD_* bits describing what
+     * the hero's 3x3 footprint touches there.
+     *
+     * Recorded on the geometry rather than baked into the edges, because whether a
+     * crossing is allowed depends on what the hero is wearing: one graph serves
+     * every loadout and the pathfinder prunes at search time.
+     */
+    readonly nodeHazard: Uint8Array;
     /**
      * Node -> portal index for a door departing that node, or -1.
      *
@@ -566,6 +581,24 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     }
     edgeOffsets[nodes.length] = flat.length;
 
+    // What each node's footprint touches, so the pathfinder can gate on it and the
+    // map screen can warn about it.
+    const nodeHazard = new Uint8Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i]!;
+        let h = 0;
+        for (let j = 0; j < 3; j++) {
+            for (let k = 0; k < 3; k++) {
+                const f = flagsAt(grid, classifier, node.col + k, node.row + j);
+                if (f & NAV.AGGRESSIVE) h |= HAZARD_AGGRESSIVE;
+                if (f & (NAV.AIRFLOW_UP | NAV.AIRFLOW_LEFT | NAV.AIRFLOW_RIGHT)) h |= HAZARD_CURRENT;
+                if (f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT)) h |= HAZARD_SLOPE;
+                if (f & NAV.ROPE) h |= HAZARD_ROPE;
+            }
+        }
+        nodeHazard[i] = h;
+    }
+
     const stats: NavGraphStats = {
         nodes: nodes.length,
         edges: flat.length,
@@ -577,7 +610,8 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
 
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf,
-        portalAtNode, platforms, currents, stats, diagnostics: graphDiagnostics,
+        nodeHazard, portalAtNode, platforms, currents, stats,
+        diagnostics: graphDiagnostics,
     };
 }
 
