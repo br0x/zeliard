@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
-    "e2e:update": "playwright test --update-snapshots"
+    "e2e:update": "playwright test --update-snapshots",
+    "nav:build": "node ../tools/build-nav.mjs",
+    "nav:check": "node ../tools/build-nav.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -1,0 +1,346 @@
+/**
+ * GENERATED FILE — do not edit.
+ *
+ * Produced by tools/build-nav.mjs from web/public/game/0/mp*.mdt and
+ * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
+ * regenerate, then commit the result.
+ *
+ * See docs/PATHFINDER_PLAN.md §6.
+ */
+/**
+ * Per-cavern tile attribute tables.
+ *
+ * These mirror mppX.grp.unp bytes 0x00-0x2F and are what main.ts pushes into
+ * seg1 at 0x8000 (core/ts-memory.ts:124-147). They are per-map overrides, not
+ * tileset defaults: every boss room shares its world's mppX.grp but declares
+ * empty slope, aggressive and airflow tables, because an arena has no hazards.
+ */
+export interface NavTileTables {
+    /** 24 entries. A tile id is passable iff it appears here. */
+    readonly passable: readonly number[];
+    readonly slopeLeft: readonly number[];
+    readonly slopeRight: readonly number[];
+    readonly aggressive: readonly number[];
+    /** 4 up, then 4 left, then 4 right; zero-filled, zero-terminated per group. */
+    readonly airflows: readonly number[];
+}
+
+export const NAV_TILES: Readonly<Record<number, NavTileTables>> = {
+    0: {
+        passable: [0, 1, 2, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
+        slopeLeft: [11],
+        slopeRight: [12],
+        aggressive: [15, 14, 13],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    1: {
+        passable: [0, 1, 2, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    2: {
+        passable: [0, 1, 2, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25],
+        slopeLeft: [16, 0, 0, 0],
+        slopeRight: [17, 0, 0, 0],
+        aggressive: [18, 19, 20, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    3: {
+        passable: [0, 1, 2, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25],
+        slopeLeft: [16, 0, 0, 0],
+        slopeRight: [17, 0, 0, 0],
+        aggressive: [18, 19, 20, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    4: {
+        passable: [0, 1, 2, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    5: {
+        passable: [0, 1, 2, 7, 11, 12, 27, 28, 29, 32, 33, 34, 35, 36, 37, 38, 0, 0, 0, 0, 0, 0, 0, 0],
+        slopeLeft: [27, 0, 0, 0],
+        slopeRight: [28, 0, 0, 0],
+        aggressive: [29, 30, 31, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    6: {
+        passable: [0, 1, 2, 7, 11, 12, 27, 28, 29, 32, 33, 34, 35, 36, 37, 38, 0, 0, 0, 0, 0, 0, 0, 0],
+        slopeLeft: [27, 0, 0, 0],
+        slopeRight: [28, 0, 0, 0],
+        aggressive: [29, 30, 31, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    7: {
+        passable: [0, 1, 2, 7, 11, 12, 27, 28, 29, 32, 33, 34, 35, 36, 37, 38],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    8: {
+        passable: [0, 1, 2, 8, 11, 13, 14, 15, 16, 17, 18, 19],
+        slopeLeft: [13, 0, 0, 0],
+        slopeRight: [14, 0, 0, 0],
+        aggressive: [11, 12, 0, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    9: {
+        passable: [0, 1, 2, 8, 11, 13, 14, 15, 16, 17, 18, 19],
+        slopeLeft: [13, 0, 0, 0],
+        slopeRight: [14, 0, 0, 0],
+        aggressive: [11, 12, 0, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    10: {
+        passable: [0, 1, 2, 8, 11, 13, 14, 15, 16, 17, 18, 19],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    11: {
+        passable: [0, 1, 2, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46, 47],
+        slopeLeft: [33, 0, 0, 0],
+        slopeRight: [34, 0, 0, 0],
+        aggressive: [26, 27, 28, 29],
+        airflows: [0, 0, 0, 0, 37, 38, 0, 0, 35, 36, 0, 0],
+        },
+    12: {
+        passable: [0, 1, 2, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46, 47],
+        slopeLeft: [33, 0, 0, 0],
+        slopeRight: [34, 0, 0, 0],
+        aggressive: [26, 27, 28, 29],
+        airflows: [0, 0, 0, 0, 37, 38, 0, 0, 35, 36, 0, 0],
+        },
+    13: {
+        passable: [0, 1, 2, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46, 47],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    14: {
+        passable: [0, 1, 2, 6, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 33, 34],
+        slopeLeft: [25, 0, 0, 0],
+        slopeRight: [24, 0, 0, 0],
+        aggressive: [22, 33, 34, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    15: {
+        passable: [0, 1, 2, 6, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 33, 34],
+        slopeLeft: [25, 0, 0, 0],
+        slopeRight: [24, 0, 0, 0],
+        aggressive: [22, 33, 34, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    16: {
+        passable: [0, 1, 2, 6, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 33, 34],
+        slopeLeft: [25, 0, 0, 0],
+        slopeRight: [24, 0, 0, 0],
+        aggressive: [22, 33, 34, 0],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    17: {
+        passable: [0, 1, 2, 6, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 33, 34],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    18: {
+        passable: [
+            0,
+            1,
+            2,
+            20,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+                ],
+        slopeLeft: [30, 0, 0, 0],
+        slopeRight: [35, 0, 0, 0],
+        aggressive: [43, 44, 45, 0],
+        airflows: [42, 0, 0, 0, 41, 0, 0, 0, 40, 0, 0, 0],
+        },
+    19: {
+        passable: [
+            0,
+            1,
+            2,
+            20,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+                ],
+        slopeLeft: [30, 0, 0, 0],
+        slopeRight: [35, 0, 0, 0],
+        aggressive: [43, 44, 45, 0],
+        airflows: [42, 0, 0, 0, 41, 0, 0, 0, 40, 0, 0, 0],
+        },
+    20: {
+        passable: [
+            0,
+            1,
+            2,
+            20,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+                ],
+        slopeLeft: [30, 0, 0, 0],
+        slopeRight: [35, 0, 0, 0],
+        aggressive: [43, 44, 45, 0],
+        airflows: [42, 0, 0, 0, 41, 0, 0, 0, 40, 0, 0, 0],
+        },
+    21: {
+        passable: [0],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    22: {
+        passable: [
+            0,
+            1,
+            2,
+            20,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+                ],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    23: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [15, 0, 0, 0],
+        slopeRight: [16, 0, 0, 0],
+        aggressive: [37, 38, 39, 40],
+        airflows: [19, 20, 21, 22, 18, 26, 27, 28, 17, 23, 24, 25],
+        },
+    24: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [15, 0, 0, 0],
+        slopeRight: [16, 0, 0, 0],
+        aggressive: [37, 38, 39, 40],
+        airflows: [19, 20, 21, 22, 18, 26, 27, 28, 17, 23, 24, 25],
+        },
+    25: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [15, 0, 0, 0],
+        slopeRight: [16, 0, 0, 0],
+        aggressive: [37, 38, 39, 40],
+        airflows: [19, 20, 21, 22, 18, 26, 27, 28, 17, 23, 24, 25],
+        },
+    26: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [15, 0, 0, 0],
+        slopeRight: [16, 0, 0, 0],
+        aggressive: [37, 38, 39, 40],
+        airflows: [19, 20, 21, 22, 18, 26, 27, 28, 17, 23, 24, 25],
+        },
+    27: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [15, 0, 0, 0],
+        slopeRight: [16, 0, 0, 0],
+        aggressive: [37, 38, 39, 40],
+        airflows: [19, 20, 21, 22, 18, 26, 27, 28, 17, 23, 24, 25],
+        },
+    28: {
+        passable: [0, 1, 2, 8, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27, 28, 37, 38, 39, 40, 41],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    29: {
+        passable: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+    30: {
+        passable: [0, 9, 10, 11, 12, 13, 14, 17, 18, 19],
+        slopeLeft: [],
+        slopeRight: [],
+        aggressive: [],
+        airflows: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+};

@@ -236,6 +236,11 @@ left column** (it spans `x … x+2`), and the hero's **head row = table `y` − 
 | collapsing | 21 | 50 ride rows | 5 maps (mp70, mp71, mp80, mp81, mp83) |
 | horizontal | 123 | 1914 ride columns | 16 maps (mp10 … mp83) |
 
+Travel ranges are computed by replaying the engine's own guards, including the
+headroom check `tryMovePlatformUp` performs at `(x + 1, headY - 1)`, which the
+extractor initially omitted. `mp10 x=48` therefore travels `17…24`, not a flat
+ledge.
+
 Boss rooms and every post-game map (`mp1d`, `mp2d`, `mp3d`, `mp4d`, `mp5d`,
 `mp6d`, `mp7d`, `mp8d`, `mp84`, `mp90`, `mpa0`) have **none**. Platforms are an
 outdoor-cavern mechanic only, so platform modelling cannot break boss routes.
@@ -244,26 +249,44 @@ Many vertical platforms are immobile (a 1-row range) — e.g. `mp10 x=221 y=44`,
 `mp20 x=102 y=61`, `mp20 x=157 y=39`, `mp30 x=7 y=50`. Those emit no `RIDE`
 edges and behave as plain ledges.
 
-### 2.8 The cavern graph **[measured]**
+### 2.8 The cavern portal graph **[measured]**
 
-Decoding all 31 door tables and cutting at `y1 == 0xFF` gives six connected
-components. These are the "graphs" of the brief.
+Decoding all 31 door tables gives **163 doors**, of which **15 lead to towns**
+(`y1 == 0xFF`) and **2 need a Lion-Head key** (`mp60 (31,5) → mp62`,
+`mp84 (16,51) → mp8d`).
 
-| Component | Maps (id: file) | Notes |
+**The topology is directed, and that is not a detail.** Three kinds of edge exist,
+and treating them all as two-way produces a wrong answer:
+
+| Kind | Count | Meaning |
 | --- | --- | --- |
-| **0** | `0:mp10 1:mp1d 2:mp20 3:mp21 4:mp2d 5:mp30 6:mp31 7:mp3d 8:mp40 9:mp41 10:mp4d` | caverns 1–4 incl. boss rooms |
-| **1** | `11:mp50 12:mp51 13:mp5d` | cavern 5 |
-| **2** | `14:mp60 15:mp61 16:mp62 17:mp6d 18:mp70 19:mp71 20:mp72 22:mp7d 23:mp80 24:mp81 25:mp82 26:mp83 28:mp8d` | caverns 6–8, **13 maps — the worst case** |
-| **3** | `21:mp73` | Paguro's hut; entered by the Pureza warp building, not by a door |
-| **4** | `27:mp84 29:mp90` | post-game, gated by a Lion-Head key |
-| **5** | `30:mpa0` | Jashiin finale |
+| linked pair | 130 portals / 65 pairs | each arrives exactly where the other departs, and each leads back to the other's map — usable both ways |
+| dead end | 17 portals | the destination map has **no door table at all**. Boss arenas and Jashiin rooms hold a bare `0xFFFF` sentinel; the exit is synthesised at runtime after the fight by `load_place_and_reinit` writing one word into the table (`engine/dungeon-cutover.ts`). Enterable, never leaveable. |
+| one way | 1 portal | `mp81 (227,59)`, a self-loop shortcut arriving on `mp81 (151,16)` — exactly where a *different* door departs, one that leads to mp82 rather than back |
 
-Totals **[measured]**: 163 doors, of which **15 lead to towns** and **2 need a
-Lion-Head key** (`mp60 (31,5) → map 16`, `mp84 (16,51) → map 28`).
+Modelling the graph as undirected silently welds `mp84`'s island onto the main
+group: `mp84` and `mp81` both point at the doorless `mp8d`, and an undirected
+walk routes `mp84 → mp8d → mp81`. This was caught during implementation.
 
-Note that the graph does **not** line up with the game's cavern numbering —
-`mp30` has a door back to `mp20`, and `mp70` has a door back to `mp60`. The
-components above are the ground truth.
+So a **component** is a strongly connected component of the linked pairs, and the
+map strip additionally offers everything reachable **outbound** — which keeps boss
+arenas selectable as destinations without pretending they are two-way:
+
+| Component | Maps | Tiles |
+| --- | --- | --- |
+| **0** | `mp10 mp20 mp21 mp30 mp31 mp40 mp41` | 112,064 |
+| **5** | `mp50 mp51` | 30,720 |
+| **7** | `mp60 mp61 mp62 mp70 mp71 mp72 mp80 mp81 mp82 mp83` | 138,368 |
+| 1,2,3,4,6,9,10,11,12,13,14 | `mp1d` `mp2d` `mp3d` `mp4d` `mp5d` `mp6d` `mp73` `mp7d` `mp84` `mp8d` `mp90` `mpa0` (each alone) | — |
+
+**15 components in total** **[measured]**. Reachable-set sizes are the useful
+figure for the UI: from `mp10` you can reach **11** maps (the seven of component 0
+plus four boss arenas), from `mp80` **14**, from `mp84` **3** (itself, `mp8d`,
+`mp90`), and `mp73` / `mpa0` reach only themselves.
+
+The graph does **not** line up with the game's cavern numbering: `mp30` has a
+door back to `mp20`, `mp70` has one back to `mp60`, and `mp60` has one forward
+to `mp5d`. The table above is the ground truth.
 
 ### 2.9 Sizes **[measured]**
 
@@ -271,18 +294,21 @@ components above are the ground truth.
 | --- | --- |
 | Total dungeon tiles (31 maps) | 306,048 |
 | Largest single map | 320 × 64 = 20,480 (`mp40`, `mp60`) |
-| Largest component's tiles | 138,368 (component 2) |
-| Rope cells total | ~14,500 |
-| Standing/rope nav nodes, permissive model | 25,748 |
-| Nav edges, permissive model | ~168,000 |
-| Component 2 nodes / edges | 11,436 / 75,645 |
-| Platform ride slots (all maps) | 390 + 50 + 1914 = 2,354 |
+| Largest component's tiles | 138,368 (component 7) |
+| Ground nodes | 17,806 |
+| Rope nodes | 4,779 |
+| **Standing/rope nav nodes, total** | **22,585** |
+| **Component 0 / component 7 nodes** | **6,553 / 8,581** |
+| Rope cells total | 5,379 |
+| Platform ride slots (all maps) | 2,354 (390 + 50 + 1914) |
 | **Projected extra edges from platforms** | **~5,000–15,000** |
-| Airflow cells (all maps) | 67, in 8 maps |
-| **Projected extra edges from airflows** | **~50–200** |
+| Airflow cells (all maps) | **2,809**, in 8 maps |
+| Lift columns / conveyor runs | 236 / 381 |
+| **Projected extra edges from airflows** | **~2,000–6,000** |
 
 A full-map RLE decode is ≈ 0.5 ms per 20k-tile map; building the whole nav graph
-for every map is well under 100 ms of pure JS.
+for every map is well under 100 ms of pure JS. Edge counts are still projections —
+they are measured in phase 3, once the generators run.
 
 ### 2.10 How the map fits the canvas **[measured]**
 
@@ -294,9 +320,9 @@ Integer scale `S = clamp(floor(min(672 / mapWidth, 432 / 64)), 1, 8)`:
 | 256 | `mp61`, `mp80`, `mp81` | 2 | 512 × 128 |
 | 240 | `mp10`, `mp50`, `mp51` | 2 | 480 × 128 |
 | 224 | `mp20` | 3 | 672 × 192 |
-| 204 – 196 | `mp30`, `mp31`, `mp70`, `mp71` | 3 | 588 – 612 × 192 |
+| 208 – 192 | `mp30`, `mp31`, `mp70`, `mp71`, `mp41`, `mp82` | 3 | 576 – 624 × 192 |
 | 128 | `mp72`, `mp83` | 5 | 640 × 320 |
-| 96 – 42 | `mp21`, boss rooms, `mp90`, `mpa0` | 6 | 252 – 576 × 384 |
+| 96 – 42 | `mp21`, boss rooms, `mp84`, `mp90`, `mpa0` | 6 | 252 – 576 × 384 |
 
 Everything fits inside 672 × 432 without panning or zooming.
 
@@ -378,27 +404,29 @@ a solid wall for **monsters** on cavern level 5. Monsters are not obstacles here
 (§1), so this rule does not enter the graph. Recorded so it is not mistaken for a
 missing hero rule.
 
-**Measured footprint** **[measured]** — small, and worth stating plainly:
+**Measured footprint** **[measured]** — this is a *large* feature, not a
+sparse one:
 
-| Map | up / left / right cells | nav nodes in a current | walk edges rejected |
-| --- | --- | --- | --- |
-| `mp50` | 0 / 3 / 3 | 2 | 0 |
-| `mp51` | 0 / 0 / 0 | 0 | 0 |
-| `mp70` | 3 / 0 / 0 | 0 | 0 |
-| `mp71` | 0 / 0 / 18 | 2 | 4 |
-| `mp72` | 2 / 0 / 0 | 0 | 0 |
-| `mp80` | 9 / 6 / 3 | 1 | 2 |
-| `mp81` | 9 / 2 / 9 | 0 | 0 |
-| `mp82`, `mp83`, `mp84` | 0 / 0 / 0 | 0 | 0 |
-| **total** | **67** | **5** | **6** |
+| Map | up / left / right cells | nav nodes inside a current | lift columns | conveyor runs |
+| --- | --- | --- | --- | --- |
+| `mp50` | 0 / 12 / 12 | 2 | 0 | 12 |
+| `mp71` | 327 / 77 / 432 | 2 | 113 | 56 |
+| `mp72` | 45 / 221 / 334 | 0 | 8 | 149 |
+| `mp80` | 73 / 86 / 10 | 1 | 17 | 35 |
+| `mp81` | 62 / 12 / 32 | 0 | 10 | 30 |
+| `mp82` | 54 / 37 / 48 | 0 | 15 | 23 |
+| `mp83` | 195 / 165 / 169 | 0 | 58 | 32 |
+| **total** | **2,809 cells in 8 maps** | **5** | **236** | **381** |
 
-Zero nav nodes sit inside an up-lift column, because the lift cells that are
-actually passable (`0x13` in `mp80`/`mp81`, `0x2A` in `mp70`/`mp72`) are the
-bottom of each jet while the tiles above them are solid decoration. The longest
-up run is 3 cells (`mp80` col 215, rows 61–63). So in the shipped data this is a
-**correctness fix with a negligible graph cost**, not a large feature — but the
-lift-through-solid rule is a genuine traversal capability and the
-blocking rule is a genuine constraint, so both are modelled rather than ignored.
+Caverns 6–8 are visibly built around currents: `mp72` is 221/334 left/right cells,
+`mp71` is 327 up cells forming **113 separate lift columns**. Modelling these is
+not a nicety — without them the pathfinder will happily route the hero into a
+current that flings him the wrong way, or miss a jet that is the only way up.
+
+Zero nav nodes sit inside an up-lift, because in each jet only the bottom cell is
+passable while the tiles above are solid decoration — and it is exactly that solid
+part the lift carries the hero through. So the lift's reachability comes entirely
+from the lift-through-solidity rule, and modelling it correctly is the whole point.
 
 ---
 
@@ -482,7 +510,7 @@ over the background**, beginning at the hero's head. Full specification in §10.
 
 ```
                        build time                        run time
-  tools/build-nav.ts ────────────▶ web/src/data/nav/*.ts   (generated, committed)
+  tools/build-nav.mjs ────────────▶ web/src/data/nav/*.ts   (generated, committed)
                                    · nav-maps.ts        map metadata + cavern level
                                    · nav-portals.ts     door records + town flags
                                    · nav-components.ts  graph components + stats
@@ -524,7 +552,7 @@ New modules:
 | `web/src/ui/map-screen.ts` | the full-screen map UI (key + pointer input, drawing) |
 | `web/public/assets/images/path_chevrons.png` | 8-direction chevron sprites |
 | `web/src/data/nav/*.ts` | generated build output |
-| `tools/build-nav.ts` | the build-time extractor |
+| `tools/build-nav.mjs` | the build-time extractor |
 
 `web/src/ui/map-screen.ts` deliberately follows the `InventoryScreen` shape
 (`ui/inventory-screen.ts:76-86, 181-217, 650-709`) rather than the `Modal`
@@ -537,26 +565,16 @@ one occupant.
 
 ## 6. Build-time pre-calculation
 
-`tools/build-nav.ts`, run with `pnpm --filter zeliard-web nav:build` and wired
+`tools/build-nav.mjs`, run with `pnpm nav:build` from `web/` and wired
 into `pnpm build`. Output is committed, exactly like `web/src/data/dungeons.ts`,
 so there is no build-time dependency for contributors.
 
 ### 6.1 `nav-maps.ts`
 
-```ts
-export interface NavMapMeta {
-    readonly id: number;
-    readonly mdtPath: string;
-    readonly nameKey: string;          // 'dungeon.names.mp10'
-    readonly cavernLevel: number;      // 1..9, drives ice/heat/aggressive damage
-    readonly mapWidth: number;
-    readonly component: number;        // 0..5, see §2.8
-    readonly isBossRoom: boolean;
-}
-```
+### 6.1 `nav-maps.ts`
 
-`cavernLevel` is read from MDT header byte `0x12`; `isBossRoom` is derived from
-the file-name convention `MP<W>D` (`tools/MDTViewer/core/constants.py:165-186`).
+Emitted metadata, portals, components and the reachability table; see §6.3 for
+the full interface, which is the authoritative description.
 
 ### 6.2 `nav-portals.ts`
 
@@ -568,11 +586,19 @@ export interface NavPortal {
     readonly x0: number;      // door column on this map
     readonly y0: number;      // door row
     readonly toTown: boolean; // y1 === 0xFF — a graph boundary, never routed
-    readonly destMapId: number;   // -1 when toTown
+    readonly destMapId: number;   // -1 when toTown; the file's own field is stale
     readonly destX: number;   // hero X after the transition  (x1)
     readonly destY: number;   // hero Y after the transition  (y1)
     readonly key: PortalKeyKind; // d_features bit 0
     readonly rokademo: boolean;   // d_features bit 7 — boss exit, one-way
+    readonly exitFacesLeft: boolean;
+    readonly color: number;        // d_flags bits 2-0
+    readonly fromX: number;        // standing position, source side
+    readonly fromY: number;
+    readonly toX: number;          // standing position, destination side; -1 toTown
+    readonly toY: number;
+    readonly deadEnd: boolean;     // destination map has no door table
+    readonly oneWay: boolean;      // no door there leads back
 }
 ```
 
@@ -584,21 +610,52 @@ from = (x0,    y0 + 1)
 to   = (destX, destY + 1)
 ```
 
-163 portals total; 15 of them carry `toTown: true`.
+163 portals total; 15 carry `toTown`, 17 are dead ends, 1 is one-way, and the
+remaining 130 form 65 linked pairs. The module also exports
+`NAV_PORTALS_BY_MAP` (portal indices grouped by source map, so the graph builder
+can size its buffers) and `NAV_DOOR_COUNT`.
 
-### 6.3 `nav-components.ts`
+### 6.3 `nav-maps.ts` — components and reachability
 
 ```ts
+export interface NavMapMeta {
+    readonly id: number;
+    readonly mdtPath: string;
+    readonly nameKey: string;          // locale key: 'dungeon.names.mp10'
+    readonly cavernLevel: number;      // MDT +0x12; 1..9 drive ice/heat/damage
+    readonly mapWidth: number;
+    readonly component: number;        // SCC id, see §2.8
+    /**
+     * No door table at all. True for the 8 boss arenas AND for the three
+     * warp-only rooms (mp73, mp90, mpa0) — a topology fact, not a genre.
+     */
+    readonly isDoorless: boolean;
+    /** The 8 MP<W>D arenas, by file-name convention. These have no rope tiles. */
+    readonly isBossArena: boolean;
+}
+
 export interface NavComponent {
     readonly id: number;
     readonly maps: readonly number[];              // sorted DUNGEONS ids
-    readonly portalPairs: ReadonlyArray<readonly [number, number]>; // indices into PORTALS
-    readonly totals: { maps: number; tiles: number; nodes: number; platformRides: number };
+    /** Indices into PORTALS, one entry per linked pair, recorded once. */
+    readonly portalPairs: ReadonlyArray<readonly [number, number]>;
+    readonly tiles: number;
 }
+
+export const NAV_MAP_TILES: readonly number[];      // for buffer sizing
+export const NAV_REACHABLE: readonly (readonly number[])[];
 ```
 
-`nodes` and `platformRides` are the measured counts from §2.9, emitted purely so
-the runtime can size its buffers before building anything.
+Components and the reachability table are described in §2.8. A **component** is a
+strongly connected component of the linked door pairs — the maps the hero can path
+to *and back from*, which is what the map strip should offer as a group.
+`NAV_REACHABLE[id]` is the wider set of maps a route can be plotted *to*, following
+outbound doors everywhere and inbound doors only where they are mutual; it is
+always a superset of the owning component's maps, which is what keeps boss arenas
+selectable without pretending they are two-way.
+
+`nodes` and `platformRides` counts are not emitted here: they depend on the phase-3
+graph builder and will be added to `NAV_COMPONENTS` when it lands.
 
 ### 6.4 `nav-tiles.ts`
 
@@ -762,8 +819,8 @@ Three node kinds:
 - `RIDE` — the hero is standing on a platform. Generated per §7.5 for each
   platform ride slot, with the platform cell treated as ground.
 
-**[measured]** 25,748 ground/rope nodes across all 31 maps; ~11,400 in the worst
-component; ~2,354 ride slots (§2.9).
+**[measured]** 22,585 ground/rope nodes across all 31 maps — 6,553 in component 0
+and 8,581 in component 7, the two largest (§2.9).
 
 ### 7.3 Static edges
 
@@ -925,10 +982,14 @@ toward `toY` and consider every row `r` in between as an escape point:
 level 5 (`dungeon-entities.ts:160-172`). Monsters are not obstacles (§1), so this
 rule is deliberately not modelled.
 
-**[measured]** With 67 current cells in 8 maps and only 5 nav nodes touching one,
-this adds on the order of 50–200 edges in total and rejects 6 walk-edge
-candidates. It is cheap to model and would be invisible if missed only by luck,
-which is exactly why it is in the plan rather than in a follow-up.
+**[measured]** 2,809 current cells in 8 maps resolve to **236 lift columns** and
+**381 conveyor runs**, so this adds on the order of 2,000–6,000 edges and rejects
+a small number of walk-edge candidates. Only 5 nav nodes sit *inside* a current
+cell, but that is a misleading way to size it: a lift's reachability comes from
+carrying the hero through solid tiles, which no node count can show. Caverns 6–8
+are built around these jets and conveyors — `mp72` alone is 221 left-push and
+334 right-push cells — so routing around them would be wrong constantly, not
+rarely.
 
 ### 7.7 Capability mask
 
@@ -1446,7 +1507,7 @@ built in well under 100 ms. Build it off the main thread if needed:
 2. `map-screen.ts` opens instantly and shows a spinner (`ui/loading-indicator.ts`)
    while the worker runs.
 
-If profiling still shows a problem, flip `tools/build-nav.ts` to also emit
+If profiling still shows a problem, flip  the build-time extractor to also emit
 `web/public/nav/mpNN.nbin` (per-map node/edge blobs, ~4 bytes per edge) and have
 the runtime `fetch` them. Estimated cost: ~90 KB gzipped for the largest
 component. **This is the escape hatch for D5; do not build it speculatively.**
@@ -1480,8 +1541,9 @@ Each phase is independently shippable and independently reviewable.
 
 | Phase | Deliverable | Files | Test |
 | --- | --- | --- | --- |
-| **0** | Extractor + generated data | `tools/build-nav.ts`, `web/src/data/nav/*.ts` | `tests/nav-data.test.ts`: 31 maps; portal counts match the MDTs **[measured 163 / 15 / 2]**; components match §2.8; attribute tables byte-match `mpp*.grp.unp`; platform counts match **[measured 72 / 21 / 123]**; airflow cell counts match **[measured 67 across 8 maps]** |
-| **1** | Map decoding + tile flags | `engine/nav/mdt-grid.ts`, `types.ts`, `attributes.ts` | Round-trip decode against `tools/MDTViewer/core/decoder.py:455-510`; flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
+| **0** | Extractor + generated data — **done** | `tools/build-nav.mjs`, `tools/navlib/*`, `web/src/data/nav/*.ts` | `tests/nav-data.test.ts`: 46 tests, all passing. 31 maps; portals **[measured 163 / 15 to-town / 2 lion / 17 dead-end / 1 one-way]**; 15 components; attribute tables verified against `mpp*.grp.unp`; platforms **[72 / 21 / 123]**; currents **[2,809 cells → 236 lifts / 381 conveyors]** |
+| **1a** | Runtime tile decoder — **done** | `engine/nav/mdt-grid.ts`, `tests/nav-mdt-grid.test.ts` | 25 tests. Every opcode against hand-encoded columns; `tile = next byte` pinned explicitly; byte-for-byte agreement with the extractor on all 31 caverns; the 8-arena rope split |
+| **1b** | Tile-flag classifier | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + airflow model | `engine/nav/platforms.ts`, `engine/nav/airflows.ts` | Travel ranges match a hand-computed case (e.g. `mp10 x=48 y=24 → 24..30`); ride-slot validity for every platform; no boss-room platforms; every lift column resolves; every conveyor run is one-way |
 | **3** | Nav graph builder | `engine/nav/nav-graph.ts` | Node counts match §2.9 within 5%; every node has ≥ 1 edge unless isolated; wrap edges at `x = 0 ↔ mapWidth−1`; every `RIDE_V`/`RIDE_H`/`BOARD`/`LIFT`/`CARRY_*` edge has both endpoints valid; no `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift column |
 | **4** | Pathfinding | `engine/nav/pathfinder.ts`, `capabilities.ts` | Hand-authored routes for 5 known journeys; key-budget pruning; unreachable returns `null`; no route contains a town portal; a known platform-only shortcut is found; a known conveyor-only shortcut is found |
@@ -1556,17 +1618,54 @@ gate. Run it.
 
 ## 16. Appendix — verified reference data
 
-### A. Cavern graph components **[measured]**
+### A. Cavern components and reachability **[measured]**
 
 ```
-C0: mp10 mp1d mp20 mp21 mp2d mp30 mp31 mp3d mp40 mp41 mp4d     (11 maps)
-C1: mp50 mp51 mp5d                                             ( 3 maps)
-C2: mp60 mp61 mp62 mp6d mp70 mp71 mp72 mp7d
-    mp80 mp81 mp82 mp83 mp8d                                    (13 maps)
-C3: mp73                                                       ( 1 map, warp-only)
-C4: mp84 mp90                                                  ( 2 maps, lion-key)
-C5: mpa0                                                       ( 1 map)
+SCC 0  mp10 mp20 mp21 mp30 mp31 mp40 mp41                          ( 7 maps)
+SCC 5  mp50 mp51                                                   ( 2 maps)
+SCC 7  mp60 mp61 mp62 mp70 mp71 mp72 mp80 mp81 mp82 mp83            ( 9 maps)
+alone  mp1d mp2d mp3d mp4d mp5d mp6d mp7d mp8d mp90 mp73 mp84 mpa0 (12 maps)
 ```
+
+Reachable-set sizes — outbound doors everywhere, inbound only through a linked
+pair — **[measured]**:
+
+| From | Maps | From | Maps |
+| --- | --- | --- | --- |
+| `mp10` | 11 (SCC 0 + `mp1d` `mp2d` `mp3d` `mp4d`) | `mp84` | 3 (`mp84` `mp8d` `mp90`) |
+| `mp50` | 4 (`mp50` `mp51` `mp4d` `mp5d`) | `mp73` | 1 |
+| `mp80` | 14 | `mpa0` | 1 |
+
+### A2. Door edge kinds **[measured]**
+
+| Kind | Count | Notes |
+| --- | --- | --- |
+| linked pairs | 65 pairs / 130 portals | both directions usable |
+| dead ends | 17 portals | destination map has no door table (boss arena / Jashiin) |
+| one way | 1 portal | `mp81 (227,59)`, a self-loop onto `mp81 (151,16)` |
+| to town | 15 portals | never routed through |
+| Lion-Head key | 2 portals | `mp60 (31,5)`, `mp84 (16,51)` |
+
+One linked pair is a shortcut rather than a round trip: `mp81(151,15) ↔ mp82(174,9)`
+returns the hero to `mp81 (227,60)` rather than `(151,16)`. Chained with the
+one-way self-loop — which arrives exactly at `(151,16)` — the three form a closed
+circuit. The pathfinder must place the return hop where the data says, not where
+the outbound hop started.
+
+Four data quirks the extractor now asserts, each of which produced a wrong answer
+before it was found:
+
+- `d_place_map_id` for a **town door is stale** and must not be trusted — all 15
+  keep a real-looking destination id. `y1 === 0xFF` is the only town test.
+- `x1` is an absolute X on the **destination** map, so it can exceed the source
+  map's width: `mp30` is 204 wide and has a door arriving at `x1 = 205` in the
+  224-wide `mp20`. Checking `x1` against the source width rejects 15 good doors.
+- `mp50`'s two town doors carry a redundant set bit 7 in `d_place_map_id` that the
+  other 13 do not. The engine ORs the bit in itself once `y1 === 0xFF` has already
+  identified the door, so the stored bit is masked off and merely reported.
+- The cavern graph is **directed**. Adding a reverse edge for a dead-end portal
+  invents a two-way link and welds `mp84`'s island onto the main group, because
+  `mp84` and `mp81` both point at the doorless `mp8d`.
 
 ### B. Town-boundary doors **[measured]**
 
@@ -1602,14 +1701,29 @@ C5: mpa0                                                       ( 1 map)
 
 Sample vertical travel ranges **[measured]**:
 
-| Map | x | start y | range |
+| Map | x | start y | travel range |
 | --- | --- | --- | --- |
-| `mp10` | 48 | 24 | 24 – 30 |
-| `mp10` | 221 | 44 | 44 – 44 (immobile) |
-| `mp20` | 124 | 61 | 52 – 62 |
-| `mp20` | 128 | 60 | 51 – 63 |
-| `mp21` | 47 | 36 | 32 – 44 |
-| `mp21` | 59 | 25 | 14 – 25 |
+| `mp10` | 48 | 24 | 17 – 24 |
+| `mp10` | 221 | 44 | 38 – 54 |
+| `mp20` | 102 | 61 | 58 – 63 |
+| `mp20` | 124 | 61 | 60 – 63 |
+| `mp20` | 128 | 60 | 50 – 60 |
+| `mp20` | 157 | 16 | 11 – 25 |
+| `mp20` | 157 | 39 | 38 – 45 |
+| `mp21` | 47 | 36 | 35 – 44 |
+| `mp21` | 59 | 25 | 17 – 25 |
+
+Collapsing platforms **[measured]**, descending only:
+
+| Map | x | start y | bottom y |
+| --- | --- | --- | --- |
+| `mp70` | 26 | 39 | 48 |
+| `mp70` | 29 | 38 | 48 |
+| `mp70` | 32 | 36 | 48 |
+| `mp71` | 128 | 9 | 26 |
+| `mp71` | 131 | 9 | 26 |
+| `mp71` | 139 | 25 | 37 |
+| `mp71` | 142 | 26 | 37 |
 
 Horizontal spans wrap the seam, e.g. `mp51 r57 231-11`, `mp60 r18 314-21`,
 `mp61 r42 248-12`, `mp71 r29 190-22`.
@@ -1621,9 +1735,9 @@ order up, left, right (`ts-memory.ts:144-147`).
 
 | Map | up | left | right | cells U/L/R |
 | --- | --- | --- | --- | --- |
-| `mp50`, `mp51` (cavern 5) | — | `0x25`, `0x26` | `0x23`, `0x24` | 0/3/3, 0/0/0 |
-| `mp70`, `mp71`, `mp72` (cavern 7) | `0x2A` | `0x29` | `0x28` | 3/0/0, 0/0/18, 2/0/0 |
-| `mp80`–`mp84` (cavern 8) | `0x13`–`0x16` | `0x12`, `0x1A`–`0x1C` | `0x11`, `0x17`–`0x19` | 9/6/3, 9/2/9, 0/0/0, 0/0/0, 0/0/0 |
+| `mp50`, `mp51` (cavern 5) | — | `0x25`, `0x26` | `0x23`, `0x24` | 24 / 0 |
+| `mp70`, `mp71`, `mp72` (cavern 7) | `0x2A` | `0x29` | `0x28` | 1,163 / 298 / 755 |
+| `mp80`–`mp84` (cavern 8) | `0x13`–`0x16` | `0x12`, `0x1A`–`0x1C` | `0x11`, `0x17`–`0x19` | 384 / 300 / 259 |
 
 No tile appears in two groups in the shipped data **[measured]**, so the
 up-before-left-before-right precedence of `getAirflowDirection` is currently
@@ -1636,7 +1750,8 @@ sit above its passable cell, the lift is what carries the hero through them —
 and it does so unconditionally, which is why lift runs must be collected over
 solid tiles too (§6.6).
 
-Total across all 31 maps: **67 current cells in 8 maps**.
+Total across all 31 maps: **2,809 current cells in 8 maps**, resolving to **236
+lift columns** and **381 conveyor runs**.
 
 ### F. Wearable effects, from `asm/common.inc:251-255`
 
@@ -1692,3 +1807,125 @@ Column-major; each column fills 64 rows. Token = one byte `b`, dispatched on
 Mirrors `engine/unpack.ts:39-56` and
 `tools/MDTViewer/core/decoder.py:455-510`. A decoder verified against both is
 the phase-1 acceptance test.
+
+---
+
+## 17. Implementation log
+
+An append-only record of what has been built, what it turned out to be, and what
+is still outstanding. Entries are in dependency order.
+
+### Phase 0 — build-time extractor and generated data — **complete**
+
+**Delivered**
+
+| File | Role |
+| --- | --- |
+| `tools/build-nav.mjs` | orchestrator; `node tools/build-nav.mjs` writes, `--check` fails on stale output |
+| `tools/navlib/mdt.mjs` | MDT header, packed-map RLE, door and platform table readers |
+| `tools/navlib/dungeons-source.mjs` | strict `dungeons.ts` parser plus the `mpp*.grp.unp` drift guard |
+| `tools/navlib/graph-model.mjs` | directed portal topology: mutuality, components, reachability |
+| `tools/navlib/platforms.mjs` | platform tables plus precomputed travel ranges |
+| `tools/navlib/airflows.mjs` | current tables, lift columns, conveyor runs |
+| `tools/navlib/emit.mjs` | TypeScript emitter for the generated modules |
+| `web/src/data/nav/*.ts` | generated, committed, 240 KB total |
+| `tools/build-nav.mjs` | orchestrator; `node tools/build-nav.mjs` writes, `--check` fails on stale output |
+| `web/tests/nav-data.test.ts` | 46 integrity tests |
+| `web/package.json` | `nav:build` and `nav:check` scripts |
+
+**Deviation from the plan:** the extractor is `tools/build-nav.mjs`, not `.ts`.
+`tools/` sits outside `web/`, and `web/package.json` is the repo's only manifest —
+its `devDependencies` have no TS runner (`tsx`/`ts-node` are absent) and its
+`tsconfig.json` `include` is `["src", "tests", "vite.config.ts"]`, so a `tools/*.ts`
+file would be neither executed nor typechecked by anything in the repo. Plain ESM
+with JSDoc runs unmodified and still emits real `.ts`.
+
+Run it as `pnpm nav:build` / `pnpm nav:check` **from `web/`**; the scripts use a
+relative `../tools/` path. `pnpm --filter zeliard-web …` also works — pnpm falls
+back to the single package when no workspace file is present.
+
+**Six defects the phase found, all of which had silently produced wrong answers:**
+
+1. **The MDT RLE decoder used in the earlier research was wrong.** `unpack_forward_case0`
+   in `asm/fight.asm` reads the token byte for the count and the *following* byte
+   for the tile. The research decoder used the token byte as the tile. The
+   extractor was verified against `asm/fight.asm`, the port's `engine/unpack.ts`
+   and `tools/MDTViewer/core/decoder.py` — three independent readings that agree —
+   and the extracted decoder matches them. Every tile-derived figure in §2 has been
+   recomputed; the old ones were wrong, some by 40×. `nav-data.test.ts` now carries
+   an explicit test for this, and a second one asserting the decoded jet tiles are
+   rare, because a wrong decode makes them look like background texture.
+2. **The cavern graph is directed.** Adding a reverse edge for a door into a
+   doorless map invents a two-way link. `mp84` and `mp81` both point at the doorless
+   `mp8d`, so an undirected walk merged `mp84`'s island into the main group. Now:
+   SCCs over linked pairs, plus a separate reachability set. 15 components, not 6.
+3. **The reverse-door index was keyed by destination instead of origin**, which
+   reported 64 legitimate pairs as unmatched.
+4. **Platform travel ranges ignored the headroom check** in `tryMovePlatformUp`
+   (`(x + 1, headY - 1)` must be non-blocking). `mp10 x=48` therefore travels
+   `17…24`; the range is also now gated on the hero's 3×3 box fitting at the
+   destination, so every emitted ride slot has a standing position.
+5. **`d_place_map_id` bit 7 is inconsistent** — set on `mp50`'s two town doors, clear
+   on the other 13 — and the engine never reads it, since it ORs the bit in itself
+   once `y1 === 0xFF` has identified the door. Masked off, reported, not trusted.
+6. **`x1` is an absolute X on the destination map**, so validating it against the
+   source width rejected 15 legitimate doors.
+
+**Two genuine data properties worth keeping in mind:**
+
+- `mp81(151,15) ↔ mp82(174,9)` is a **shortcut, not a round trip** — the return
+  lands at `mp81 (227,60)`, not `(151,16)`. With the one-way self-loop
+  `mp81 (227,59)`, which arrives exactly at `(151,16)`, the three form a closed
+  circuit.
+- Boss rooms and Jashiin rooms carry a bare `0xFFFF` door sentinel. Their exit is
+  synthesised at runtime after the fight. They are dead ends by design, not by
+  accident, and are modelled as such.
+
+**Gates:** `tsc --noEmit` clean; `nav-data.test.ts` 46/46; full suite 599/599
+unchanged. Edge counts remain projections — they are measured in phase 3.
+
+### Phase 1a — runtime tile decoder — **complete**
+
+**Delivered** `web/src/engine/nav/mdt-grid.ts` — `decodeTileGrid`, `readMapWidth`,
+`tileAt` / `tileAtUnwrapped`, `wrapRow` / `wrapCol`, and `NavGridCache`; plus
+`web/tests/nav-mdt-grid.test.ts` with 25 tests.
+
+The decoder is pure and imports `MAP_HEIGHT` and `ADDR_PACKED_MAP_START` from
+`engine/unpack.ts` rather than restating them, so the RLE constants have one home.
+
+**Two defects, both found by the tests:**
+
+1. **`ADDR_PACKED_MAP_START` is the wrong offset for a file.** It is `0xC01B`, the
+   *g_mem* address where the engine loads the image — not an MDT-file offset. Used
+   directly it reads past the end of a 6 KB file immediately. `PACKED_MAP_OFFSET`
+   is now derived as `ADDR_PACKED_MAP_START - MDT_BASE` and asserted to be `0x1B`,
+   which keeps the two tied together instead of merely correct today. The unit
+   tests did not catch this because the fake-MDT fixture used the same wrong
+   constant, so the error cancelled out; only the tests that read real MDTs failed.
+2. **`isBossRoom` in the generated data meant "doorless", not "boss arena".** It is
+   derived from `doors.length === 0`, which is also true of `mp73`, `mp90` and
+   `mpa0` — the Paguro hut and the two Jashiin rooms, which are warp-only rooms
+   with real terrain and ropes. Renamed to `isDoorless`, with a separate
+   `isBossArena` derived from the `MP<W>D` file-name convention.
+
+**A third finding worth recording:** the natural assumption that boss arenas are
+mostly-open rooms is **false**. Solid-tile ratios **[measured]**:
+
+| | Ratio range |
+| --- | --- |
+| Boss arenas | 0.090 (`mp5d`) … **0.922 (`mp2d`)** |
+| Open caves | 0.246 (`mp40`) … 0.655 (`mp62`) |
+
+`mp1d` is 88% solid and `mp5d` is 9%, so there is no arena/open threshold to
+test. What *does* separate the 8 arenas cleanly is rope presence: every arena has
+zero rope tiles, every other map has some. That is the invariant the tests use.
+
+**Gates:** `tsc --noEmit` clean; `nav-mdt-grid.test.ts` 25/25;
+`nav-data.test.ts` 46/46; full suite 624/624.
+
+**Next:** phase 1b, the runtime tile-flag classifier (`NavFlags`), which must
+mirror `isBlockingTile` / `isBlockingTileSimple` exactly.
+
+---
+
+## 17. Implementation log
