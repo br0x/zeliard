@@ -29,6 +29,7 @@ function makeRouter(overrides: Record<string, unknown> = {}) {
         openInventory: () => calls.push('openInventory'),
         setKey: (code: string, down: boolean) => calls.push(`setKey:${code}:${down}`),
         resetInventoryCombo: () => calls.push('resetInventoryCombo'),
+        clearActiveRoute: () => calls.push('clearActiveRoute'),
         modalHandleKey: vi.fn(() => true),
         mapHandleKey: vi.fn(() => true),
         inventoryHandleKey: vi.fn(() => true),

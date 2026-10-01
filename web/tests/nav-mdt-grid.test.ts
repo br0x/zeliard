@@ -441,10 +441,15 @@ describe('agreement with the WORK/LEVELS text dumps', () => {
 
     it.skipIf(!available)('matches every undamaged dump on every cell', () => {
         const clean = verifyAll().filter((v) => v.badPositions.length === 0);
-        expect(clean).toHaveLength(29);
+        // 28 maps. mp10 and mp90 were already damaged in the repository. mp80 has
+        // since been annotated in place — a walkable route drawn over it in the
+        // `< ^ > v` marks — so it is no longer a faithful dump. The guard still
+        // covers the other 30.
+        expect(clean).toHaveLength(28);
         const names = clean.map((v) => v.name);
-        expect(names).not.toContain('mp10');
-        expect(names).not.toContain('mp90');
+        for (const altered of ['mp10', 'mp80', 'mp90']) {
+            expect(names).not.toContain(altered);
+        }
     });
 
     it.skipIf(!available)('compares the whole cavern set, not a sample', () => {
@@ -454,9 +459,9 @@ describe('agreement with the WORK/LEVELS text dumps', () => {
         expect(total).toBeGreaterThan(298000);
     });
 
-    it.skipIf(!available)('confines every discrepancy to the two damaged dumps', () => {
+    it.skipIf(!available)('confines every discrepancy to the three altered dumps', () => {
         const damaged = verifyAll().filter((v) => v.badPositions.length > 0).map((v) => v.name);
-        expect(damaged).toEqual(['mp10', 'mp90']);
+        expect(damaged).toEqual(['mp10', 'mp80', 'mp90']);
     });
 
     it.skipIf(!available)('characterises the damage in MP10.TXT', () => {

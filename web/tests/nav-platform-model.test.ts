@@ -262,21 +262,25 @@ describe('platforms that must not move the hero', () => {
         }
     });
 
-    it('refuses to ride a horizontal platform whose span it could slide out from under', () => {
-        // The carry call can fail while the platform moves on, so a span with any
-        // column lacking a clear standing position is not modelled at all. This
-        // fires on a large share of the shipped platforms.
-        let refused = 0;
+    it('still rides a platform where only part of the span fits', () => {
+        // The carry call can fail while the platform moves on, so a ride must never
+        // link two columns that both fit when they are the same. But refusing the
+        // WHOLE platform because one column of a thirteen-wide span is clipped is
+        // far too blunt: it threw away the platform mp80's upper route is built
+        // around. A column where the hero's body does not fit simply has no slot.
+        let rideable = 0;
+        let refusedForSpan = 0;
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const model = buildPlatformModel(meta.id, grid);
+            rideable += model.slots.length;
             for (const entry of model.inertPlatforms) {
-                if (entry.reason !== REASON_UNCLEAR_SPAN) continue;
-                refused++;
-                expect(model.slotsByPlatform[entry.platform]!).toHaveLength(0);
+                if (entry.reason === REASON_UNCLEAR_SPAN) refusedForSpan++;
             }
         }
-        expect(refused).toBeGreaterThan(0);
+        // [measured] 5,589 ride slots; no platform is refused for an unclear span.
+        expect(rideable).toBeGreaterThan(5000);
+        expect(refusedForSpan).toBe(0);
     });
 
     it('gives every platform either slots or a recorded reason', () => {

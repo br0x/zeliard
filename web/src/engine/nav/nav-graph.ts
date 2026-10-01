@@ -252,19 +252,82 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
      * `heroTL - 35` (one row above his head, middle column) must be open.
      */
     const canJump = (from: NavNode, to: NavNode): boolean => {
+        // The engine's ceiling probe: one row above the head, middle column.
         if (blocksBody(flagsAt(grid, classifier, from.col + 1, from.row - 1))) return false;
+        // The apex of the arc, where the hero is highest.
         const apexRow = from.row + Math.trunc((to.row - from.row) / 2);
         const apexCol = from.col + Math.trunc((to.col - from.col) / 2);
-        return heroBoxFree(grid, classifier, apexCol, apexRow);
+        if (!heroBoxFree(grid, classifier, apexCol, apexRow)) return false;
+        // The whole swept body, not just the apex. A jump crosses one column per
+        // tick, so a three-column jump really does pass through the two in
+        // between; checking only the apex let routes whose arc clipped a wall
+        // through, and the chevrons for them were drawn in the scenery.
+        return jumpSweepClear(from, to);
     };
 
-    /** The first landing at or below `row` in column `col`: platform or ground. */
+    /**
+     * Every jump available from a node, to a platform or to the ground.
+     *
+     * Shared by ground nodes and ride slots: a hero standing on a platform can
+     * jump off it exactly as he can from a ledge.
+     */
+    const addJumpEdges = (from: NavNode, fromIndex: number, high: boolean): void => {
+        const offsets = high ? highJumps : normalJumps;
+        for (const [dx, dh] of offsets) {
+            // The high jump only adds the rows a plain jump cannot reach.
+            if (high && dh >= -JUMP_HEIGHT_DEFAULT) continue;
+            const to = landingAt(from.col + dx, from.row + dh);
+            if (to < 0 || to === fromIndex) continue;
+            const target = nodes[to]!;
+            if (!canJump(from, target)) continue;
+            add(fromIndex, to,
+                high ? EDGE.JUMP_HIGH : EDGE.JUMP,
+                (high ? EDGE_COST.JUMP_HIGH : EDGE_COST.JUMP) + Math.abs(dx) + Math.abs(dh),
+                high ? CAP.JUMP_HIGH : 0);
+        }
+    };
+
+    /** Is the hero's 3x3 body clear everywhere along the straight line from -> to? */
+    const jumpSweepClear = (from: NavNode, to: NavNode): boolean => {
+        const dCol = to.col - from.col;
+        const dRow = to.row - from.row;
+        if (dCol === 0 && dRow === 0) return false;
+        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dCol), Math.abs(dRow)) * 4));
+        for (let s = 0; s <= steps; s++) {
+            const col = from.col + Math.round((dCol * s) / steps);
+            const row = from.row + Math.round((dRow * s) / steps);
+            if (!heroBoxFree(grid, classifier, col, row)) return false;
+        }
+        return true;
+    };
+
+    /**
+     * The first landing at or below `row` in column `col`: platform or ground.
+     *
+     * The hero's 3x3 body has to fit in the whole column on the way down. Without
+     * that check this scanned 64 rows for any node at all and happily returned a
+     * landing fifteen rows below — straight through solid rock. That produced
+     * "fall" and conveyor edges that left the hero inside a wall, and the chevrons
+     * for them pointed into the scenery.
+     */
     const fallTo = (col: number, row: number): { node: number; rows: number } => {
         for (let d = 1; d <= 64; d++) {
-            const node = landingAt(col, row + d);
+            const at = row + d;
+            // Anything solid in the way stops the fall there. A landing is the
+            // first free cell whose cell below is occupied.
+            if (!columnClear(col, at)) return { node: -1, rows: 0 };
+            const node = landingAt(col, at);
             if (node >= 0) return { node, rows: d };
         }
         return { node: -1, rows: 0 };
+    };
+
+    /** Is the hero's 3-wide body free in this column at this row? */
+    const columnClear = (col: number, row: number): boolean => {
+        for (let i = 0; i < 3; i++) {
+            if (blocksBody(flagsAt(grid, classifier, col + i, row))) return false;
+        }
+        return true;
     };
 
     /** Slope tiles a step would cross, in either direction. */
@@ -308,24 +371,8 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         // Jumps. Suppressed while an up current holds him.
         const lifted = heroInLift(grid, classifier, node.col, node.row);
         if (!lifted) {
-            for (const [dx, dh] of normalJumps) {
-                const to = landingAt(node.col + dx, node.row + dh);
-                if (to < 0) continue;
-                const target = nodes[to]!;
-                if (!canJump(node, target)) continue;
-                add(index, to, EDGE.JUMP,
-                    EDGE_COST.JUMP + Math.abs(dx) + Math.abs(dh));
-            }
-            for (const [dx, dh] of highJumps) {
-                // Only the rows a plain jump cannot reach.
-                if (dh >= -JUMP_HEIGHT_DEFAULT) continue;
-                const to = landingAt(node.col + dx, node.row + dh);
-                if (to < 0) continue;
-                const target = nodes[to]!;
-                if (!canJump(node, target)) continue;
-                add(index, to, EDGE.JUMP_HIGH,
-                    EDGE_COST.JUMP_HIGH + Math.abs(dx) + Math.abs(dh), CAP.JUMP_HIGH);
-            }
+            addJumpEdges(node, index, false);
+            addJumpEdges(node, index, true);
         }
 
         // Step off a ledge. A hero swept into a current is pushed, not dropped, so
@@ -422,6 +469,11 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         // Or simply drop off it.
         const drop = fallTo(slot.leftCol, slot.headRow);
         if (drop.node >= 0) add(index, drop.node, EDGE.DROP, drop.rows);
+        // Or jump off it. A platform is a launchpad: without these, a ride that
+        // cannot be walked off sideways is a dead end, and the level's whole upper
+        // route was unreachable because of it.
+        addJumpEdges(nodes[index]!, index, false);
+        addJumpEdges(nodes[index]!, index, true);
     });
 
     // ── current edges ────────────────────────────────────────────────────────
@@ -521,9 +573,15 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
      * Exits of every conveyor, keyed by the hero's left column while swept.
      *
      * While a conveyor holds him he is airborne — it pushes him sideways every
-     * frame — so the swept position is not a standing position and cannot be a
-     * node. An exit therefore lands him: the first standing position at or below
-     * the swept column, which is where he would end up if he let go.
+     * frame — so the swept position is only a *body-clear* cell, not a standing
+     * position. A ride therefore only offers an exit where the conveyor's own row
+     * actually offers a standing position. A conveyor in open space has none, and
+     * is not offered as a way to get somewhere: the hero has to leave it on his own
+     * terms with a jump or a fall, which is a separate edge from a real node.
+     *
+     * Reaching for the first landing *below* the swept cell instead — which this
+     * used to do — turns every conveyor into "swept sideways, then plummet", and
+     * that is how a route came to run twenty rows underground.
      */
     const conveyorExits = new Map<number, { to: number; ticks: number }[]>();
     for (const run of currents.conveyors) {
@@ -531,10 +589,11 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         for (const exit of run.exits) {
             // While swept, the current is in his middle column.
             const sweptCol = wrapCol(exit.fromColumn - 1, mapWidth);
-            const land = fallTo(sweptCol, headRow);
-            if (land.node < 0) continue;
+            if (!columnClear(sweptCol, headRow)) continue;
+            const stand = groundAt(sweptCol, headRow);
+            if (stand < 0) continue;
             const list = conveyorExits.get(sweptCol) ?? [];
-            list.push({ to: land.node, ticks: exit.ticks });
+            list.push({ to: stand, ticks: exit.ticks });
             conveyorExits.set(sweptCol, list);
         }
     }

@@ -57,6 +57,8 @@ export interface KeyRouterDeps {
     openInventory(): void;
     setKey(code: string, down: boolean): void;
     resetInventoryCombo(): void;
+    /** Clears the active Thread of Yaga route. */
+    clearActiveRoute(): void;
 
     // ── sinks with their own key handling ──
     /** Modal manager; args (code, nowMs). Returns consumed. */
@@ -195,6 +197,13 @@ export class KeyRouter {
         if (e.code === 'Enter' && !e.repeat && d.engineReady() && !d.modalActive() &&
             !d.conversationActive() && (d.gameMode() === 'town' || d.gameMode() === 'dungeon')) {
             d.openInventory();
+            return true;
+        }
+
+        // Q clears a route the player no longer wants. Gated to a paused-free
+        // cavern so it can never fire while a menu or a text field has focus.
+        if (e.code === 'KeyQ' && d.gameMode() === 'dungeon' && !d.gamePaused()) {
+            d.clearActiveRoute();
             return true;
         }
 

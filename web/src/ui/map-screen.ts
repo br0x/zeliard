@@ -28,7 +28,7 @@ import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../data/nav/nav-maps.js';
 import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
-import { findRoute, type NavGraphStore } from '../engine/nav/pathfinder.js';
+import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
 
@@ -70,7 +70,7 @@ export interface MapScreenDeps {
     /** Dismissed without choosing — back to the inventory. */
     onExit: () => void;
     /** A destination was chosen; the route is already computed. */
-    onPick: (route: unknown) => void;
+    onPick: (route: NavRoute) => void;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
     soundManager?: any;
 }

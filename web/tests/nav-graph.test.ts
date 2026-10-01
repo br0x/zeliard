@@ -376,11 +376,14 @@ describe('platforms and currents are reachable in the graph', () => {
         }
         expect(lifts).toBeGreaterThan(200);
         expect(conveyors).toBeGreaterThan(250);
-        // [measured] every one of them, once entry is modelled along the hero's
-        // arcs rather than only from standing positions.
-        expect(liftsReachable, `lifts reachable ${liftsReachable}/${lifts}`).toBe(lifts);
+        // [measured] 152 of 236 lifts, 216 of 288 conveyors. The unreachable ones
+        // run through open space with no standing position on their own row, so
+        // the hero is carried past every exit. The model declines rather than
+        // dropping him off the end of the world — which is what it used to do, and
+        // it is where the routes that went underground came from.
+        expect(liftsReachable, `lifts reachable ${liftsReachable}/${lifts}`).toBe(152);
         expect(conveyorsReachable, `conveyors ${conveyorsReachable}/${conveyors}`)
-            .toBe(conveyors);
+            .toBe(216);
         expect(graphFor(0).stats.byEdgeKind[EDGE.LIFT] ?? 0).toBe(0);   // mp10 has no currents
         expect((graphFor(19).stats.byEdgeKind[EDGE.CARRY_L] ?? 0)
             + (graphFor(19).stats.byEdgeKind[EDGE.CARRY_R] ?? 0)).toBeGreaterThan(0);
@@ -438,15 +441,17 @@ describe('size and build cost', () => {
             nodes += graphFor(meta.id).stats.nodes;
             edges += graphFor(meta.id).stats.edges;
         }
-        // [measured] 25,905 nodes / 286,886 edges. Nodes match the projection
-        // (22,585 ground+rope plus 3,204 ride, plus overlap where a platform rests
-        // on solid ground). Edges came in well above the early ~190k estimate
-        // because a current is "enter anywhere along an arc, leave at any exit",
-        // which is quadratic in the run's length; see the phase 3 log entry.
-        expect(nodes).toBeGreaterThan(25500);
-        expect(nodes).toBeLessThan(26500);
-        expect(edges).toBeGreaterThan(280000);
-        expect(edges).toBeLessThan(295000);
+        // [measured] 28,290 nodes / 211,633 edges.
+        //
+        // Nodes rose from 25,905 when the carry-hazard guard stopped discarding
+        // seventy horizontal platforms for having one clipped column — ride slots
+        // went from 3,204 to 5,589. Edges *fell* from 286,886, because the fall
+        // scan no longer tunnels through rock to invent a landing, which had been
+        // manufacturing tens of thousands of impossible hops.
+        expect(nodes).toBeGreaterThan(28000);
+        expect(nodes).toBeLessThan(28600);
+        expect(edges).toBeGreaterThan(208000);
+        expect(edges).toBeLessThan(215000);
     });
 
     it('builds the largest cavern within the plan\'s budget', () => {

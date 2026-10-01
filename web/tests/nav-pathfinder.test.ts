@@ -48,22 +48,43 @@ function keysHeld(ordinary: number, lion: number) {
     return snapshotCapabilities(g, 1);
 }
 
-/** The ground node furthest from a point, ignoring distance through walls. */
+/**
+ * A standing position in the SAME component as `from`, as far away as possible.
+ *
+ * Not "the furthest node in the map" — a cavern can be several separate
+ * chambers, and the whole point of the fall fix is that a route can no longer
+ * cross rock to reach one. Choosing a goal from the start node's own component
+ * makes these tests exercise a real route rather than hoping a guessed pair of
+ * columns happens to be connected.
+ */
 function farthestNode(
     graph: NavGraph,
     col: number,
     row: number,
 ): { col: number; row: number } | null {
-    let best = -1;
+    const start = graph.groundOf[((row & 63) * graph.mapWidth) + ((col % graph.mapWidth) + graph.mapWidth) % graph.mapWidth]!;
+    if (start < 0) return null;
+    // Flood fill out from the start; only these are actually reachable.
+    const seen = new Set<number>([start]);
+    const queue = [start];
+    let head = 0;
+    let best = start;
     let bestDist = -1;
-    for (let i = 0; i < graph.nodes.length; i++) {
-        const n = graph.nodes[i]!;
-        if (n.kind !== 0) continue;
-        const d = Math.min(Math.abs(n.col - col), graph.mapWidth - Math.abs(n.col - col))
-            + Math.min(Math.abs(n.row - row), 64 - Math.abs(n.row - row));
-        if (d > bestDist) { bestDist = d; best = i; }
+    while (head < queue.length) {
+        const n = queue[head++]!;
+        const nd = graph.nodes[n]!;
+        const d = Math.min(Math.abs(nd.col - col), graph.mapWidth - Math.abs(nd.col - col))
+            + Math.min(Math.abs(nd.row - row), 64 - Math.abs(nd.row - row));
+        if (d > bestDist) { bestDist = d; best = n; }
+        for (let e = graph.edgeOffsets[n]!; e < graph.edgeOffsets[n + 1]!; e++) {
+            const to = graph.edges[e]!.to;
+            if (seen.has(to)) continue;
+            seen.add(to);
+            queue.push(to);
+        }
     }
-    return best < 0 ? null : { col: graph.nodes[best]!.col, row: graph.nodes[best]!.row };
+    const node = graph.nodes[best]!;
+    return { col: node.col, row: node.row };
 }
 
 /** A standing position with plenty of exits, so a route is usually possible. */
@@ -207,18 +228,12 @@ describe('routes inside one cavern', () => {
         const store = makeStore();
         const graph = store.get(0)!;
         const start = pickStart(store, 0);
-        const far = graph.nodes.reduce((best, n, i) => {
-            const d = Math.abs(n.col - start.col);
-            if (n.kind !== 0) return best;
-            if (best < 0 || d > Math.abs(graph.nodes[best]!.col - start.col)) return i;
-            return best;
-        }, -1);
-        expect(far).toBeGreaterThanOrEqual(0);
-        const target = graph.nodes[far]!;
+        const target = farthestNode(graph, start.col, start.row)!;
+        expect(target, 'the start cavern should have a reachable goal').not.toBeNull();
         const route = findRoute({
             store, caps: bareCapabilities(), start, goal: { mapId: 0, col: target.col, row: target.row },
         });
-        expect(route).not.toBeNull();
+        expect(route, 'a goal in the start component must be routable').not.toBeNull();
         const summed = route!.hops.reduce((a, h) => a + h.cost, 0);
         expect(route!.cost).toBe(summed);
         expect(route!.hops).toHaveLength(route!.points.length - 1);
@@ -354,21 +369,48 @@ describe('capability pruning', () => {
     });
 
     it('lets Pirika shoes cross what a bare hero may not', () => {
+        // The point is the difference between the two, so compare the same trip
+        // under both sets of shoes. Start in the thorns and walk out of them.
         const store = makeStore();
         const graph = store.get(23)!;
-        let hazardNode = -1;
+        // Two standing positions in the same component, one of them in thorns.
+        const thorns: number[] = [];
         for (let i = 0; i < graph.nodes.length; i++) {
-            if (graph.nodeHazard[i]! & HAZARD_AGGRESSIVE) { hazardNode = i; break; }
+            if (graph.nodes[i]!.kind !== 0) continue;
+            if (graph.nodeHazard[i]! & HAZARD_AGGRESSIVE) thorns.push(i);
         }
-        const target = graph.nodes[hazardNode]!;
+        expect(thorns.length, 'mp80 should have thorn beds on standable ground')
+            .toBeGreaterThan(1);
+        const here = thorns[0]!;
+        const start = { mapId: 23, col: graph.nodes[here]!.col, row: graph.nodes[here]!.row };
+
+        // Somewhere reachable from there, within the same component.
+        const seen = new Set<number>([here]);
+        const queue = [here];
+        let head = 0;
+        let partner = -1;
+        while (head < queue.length) {
+            const n = queue[head++]!;
+            for (let e = graph.edgeOffsets[n]!; e < graph.edgeOffsets[n + 1]!; e++) {
+                const to = graph.edges[e]!.to;
+                if (seen.has(to)) continue;
+                seen.add(to);
+                queue.push(to);
+                if (partner < 0 && graph.nodes[to]!.kind === 0
+                    && !(graph.nodeHazard[to]! & HAZARD_AGGRESSIVE)) partner = to;
+            }
+        }
+        expect(partner, 'a thorn bed should lead somewhere solid').toBeGreaterThanOrEqual(0);
+        const goal = { mapId: 23, col: graph.nodes[partner]!.col, row: graph.nodes[partner]!.row };
+
+        // Without the shoes, the thorns are impassable.
+        expect(findRoute({ store, caps: bareCapabilities(), start, goal })).toBeNull();
+        // With them, the way opens.
         const g = getGmem();
         memWrite8(g, 0x9e, ACCESSORY_PIRIKA);
-        const caps = snapshotCapabilities(g, 1);
-        const start = pickStart(store, 23);
-        const route = findRoute({ store, caps, start, goal: { mapId: 23, col: target.col, row: target.row } });
-        expect(route).not.toBeNull();
-        const last = route!.points[route!.points.length - 1]!;
-        expect(graph.nodeHazard[last.node]! & HAZARD_AGGRESSIVE).toBeTruthy();
+        const route = findRoute({ store, caps: snapshotCapabilities(g, 1), start, goal });
+        expect(route, 'Pirika shoes should open a way across the thorns').not.toBeNull();
+        expect(graph.nodeHazard[route!.points[0]!.node]! & HAZARD_AGGRESSIVE).toBeTruthy();
     });
 
     it('uses Feruza shoes for the jumps a bare hero cannot make', () => {

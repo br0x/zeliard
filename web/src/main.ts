@@ -236,7 +236,12 @@ import {
 import { setInputKeys } from './engine/input.js';
 import { keyStateToBitmask } from './core/memory.js';
 import { MapScreen } from './ui/map-screen.js';
-import { NavGraphStore } from './engine/nav/pathfinder.js';
+import { PathGuide } from './engine/nav/path-guide.js';
+import {
+    initPathOverlay, drawPathOverlay, setChevronSheet, clearPathOverlay,
+    CHEVRON_SHEET,
+} from './render/path-overlay.js';
+import { NavGraphStore, type NavRoute } from './engine/nav/pathfinder.js';
 import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID } from './data/nav/nav-maps.js';
 import { getViewportTop, clearRenderRequest } from './engine/dungeon-state.js';
@@ -427,6 +432,26 @@ function closeInventory() {
     inventoryScreenInstance = null;
     gamePaused = false;
     renderMagicHud();
+    // This is the moment the chevrons appear: the route was chosen and confirmed
+    // while the menus were up, and the cavern is about to be visible again.
+    syncPathOverlayVisibility();
+}
+
+/**
+ * Show the chevrons only when nothing covers the cavern.
+ *
+ * The route stays live underneath — it keeps tracking the hero and re-planning —
+ * so the line is correct the instant the menus close rather than stale.
+ */
+function syncPathOverlayVisibility(): void {
+    const covered = gamePaused || inventoryScreenInstance !== null || mapScreenInstance !== null;
+    pathGuide?.setDormant(covered);
+}
+
+/** Clears a route the player no longer wants. */
+function clearActiveRoute(): void {
+    clearPathOverlay();
+    syncPathOverlayVisibility();
 }
 
 // ─── Cavern map screen (Thread of Yaga) ──────────────────────────────────────
@@ -471,6 +496,7 @@ function closeMapScreen(): void {
     inventoryScreenInstance?.cancelThreadOfYaga();
     // The inventory is still open, so the game stays paused.
     if (!inventoryScreenInstance) gamePaused = false;
+    syncPathOverlayVisibility();
 }
 
 /**
@@ -478,23 +504,67 @@ function closeMapScreen(): void {
  * open showing "I used a Yaga thread", and the chevrons appear only once the
  * player leaves it.
  */
-function acceptMapDestination(route: unknown): void {
+function acceptMapDestination(route: NavRoute): void {
     if (mapScreenInstance) mapScreenInstance.exit();
     mapScreenInstance = null;
     // Only now is the thread spent.
     inventoryScreenInstance?.commitThreadOfYaga();
-    activeNavRoute = route;
+    const guide = navPathGuide();
+    guide.setRoute(route, {
+        mapId: route.points[route.points.length - 1]!.mapId,
+        col: route.points[route.points.length - 1]!.col,
+        row: route.points[route.points.length - 1]!.row,
+    });
 }
 
 /**
- * The route the Thread of Yaga last revealed.
+ * The route the Thread of Yaga revealed, and the guide that keeps it honest.
  *
- * Phase 7 draws chevrons from this and advances them as the hero walks; until
- * then it is only recorded.
+ * It lives outside both the inventory and the map screen because it has to
+ * outlive them: the thread is spent, the menus close, and the chevrons keep
+ * tracking the hero across three caverns.
  */
-let activeNavRoute: unknown = null;
-void activeNavRoute;   // read by the phase 7 chevron overlay
+let pathGuide: PathGuide | null = null;
 
+function navPathGuide(): PathGuide {
+    if (pathGuide) return pathGuide;
+    pathGuide = new PathGuide({
+        store: navGraphStore(),
+        heroPosition: heroMapPosition,
+        capabilities: heroCapabilities,
+    });
+    initPathOverlay({
+        ctx,
+        viewW: () => canvas.width,
+        viewH: () => canvas.height,
+        guide: pathGuide,
+        viewportLeftCol: () => memRead16(getGmem(), ADDR_PROXIMITY_MAP_LEFT_COL) + 4,
+        viewportTopRow: () => memRead8(getGmem(), ADDR_VIEWPORT_TOP_ROW),
+        heroMapId: () => (gameMode === 'dungeon'
+            ? (memRead8(getGmem(), ADDR_PLACE_MAP_ID) & 0x7f)
+            : null),
+        mapWidth: () => {
+            const id = gameMode === 'dungeon' ? (memRead8(getGmem(), ADDR_PLACE_MAP_ID) & 0x7f) : -1;
+            return NAV_MAP_BY_ID.get(id)?.mapWidth ?? 1;
+        },
+        chevrons: null,
+    });
+    void loadChevronSheet();
+    return pathGuide;
+}
+
+/**
+ * Load the chevron strip.
+ *
+ * Optional on purpose: a missing sheet must not break the game, it just means no
+ * route overlay. The map screen and the thread itself are unaffected.
+ */
+function loadChevronSheet(): void {
+    const image = new Image();
+    image.onload = () => setChevronSheet(image);
+    image.onerror = () => console.warn('[nav] chevron sheet unavailable; route overlay disabled');
+    image.src = CHEVRON_SHEET;
+}
 /** Graph store for the cavern map: MDT bytes in, decoded grids and graphs out. */
 let navStore: NavGraphStore | null = null;
 
@@ -757,6 +827,7 @@ const keyRouter = new KeyRouter({
     openInventory,
     setKey: setKeyState,
     resetInventoryCombo: () => inventoryScreenInstance?.resetDebugCombo(),
+    clearActiveRoute: () => { clearActiveRoute(); },
     modalHandleKey: (code, now) => modalManager.handleKey(code, now),
     mapHandleKey: (code, ctrl, shift, repeat) =>
         mapScreenInstance?.handleKey(code, ctrl, shift, repeat) ?? false,
@@ -2146,6 +2217,10 @@ function draw() {
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 drawDungeonTiles(); // background cavern tiles
                 animateDungeonTiles(); // advance cavern 5–8 tiles once per game tick
+                // The Thread of Yaga's chevrons, over the background but under
+                // everything that can move or hurt you.
+                pathGuide?.update(performance.now());
+                drawPathOverlay(performance.now());
                 drawDungeonMagicProjectiles(); // hero magic spell projectiles (blitted into the tile layer in the original)
                 drawDungeonEntities(); // monsters/items, in original row-major order
                 drawDungeonHero(); // hero 3x3 tiles sprite

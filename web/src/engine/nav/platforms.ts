@@ -67,6 +67,17 @@ export interface RideSlot {
     /** Where the hero stands while aboard. */
     readonly leftCol: number;
     readonly headRow: number;
+    /**
+     * How the hero sits on a horizontal platform, in columns from the platform's
+     * own left cell: -1 hanging off the left, 0 centred, 1 off the right.
+     *
+     * This is what identifies a riding position. `leftCol` alone does not: at
+     * platform columns 149, 150 and 151 the hero can all stand at left column
+     * 150 (with offsets +1, 0 and -1), so three distinct slots share one cell.
+     * Linking rides by left column therefore joined two slots where the hero had
+     * not moved at all, and he could never travel along the platform.
+     */
+    readonly offset: number;
     /** Adjacent slots along the platform, or -1 where the ride ends. Mutated
      *  once while the model is built, then read-only. */
     next: number;
@@ -134,6 +145,7 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
                 kind: PLATFORM_VERTICAL,
                 pos: wrapRow(row),
                 leftCol: p.x,
+                offset: 0,
                 headRow,
                 next: -1,
                 prev: -1,
@@ -156,6 +168,7 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
                 kind: PLATFORM_COLLAPSING,
                 pos: wrapRow(row),
                 leftCol: p.x,
+                offset: 0,
                 headRow,
                 next: -1,
                 prev: -1,
@@ -178,10 +191,9 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
         const columns = Array.from({ length: p.cols }, (_, i) => wrapCol(p.minX + i, mapWidth));
 
         // For each column of the span, which riding offsets are usable?
-        const usable = new Map<number, { slot: number; leftCol: number }[]>();
-        let clear = true;
+        const usable = new Map<number, { slot: number; leftCol: number; offset: number }[]>();
         for (const column of columns) {
-            const standing: { slot: number; leftCol: number }[] = [];
+            const standing: { slot: number; leftCol: number; offset: number }[] = [];
             for (const offset of [-1, 0, 1]) {
                 const leftCol = wrapCol(column + offset, mapWidth);
                 if (!standingAboard(grid, classifier, leftCol, headRow)) continue;
@@ -191,26 +203,31 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
                     kind: PLATFORM_HORIZONTAL,
                     pos: column,
                     leftCol,
+                    offset,
                     headRow,
                     next: -1,
                     prev: -1,
                 });
-                standing.push({ slot: index, leftCol });
+                standing.push({ slot: index, leftCol, offset });
             }
-            if (standing.length === 0) clear = false;
             usable.set(column, standing);
         }
 
-        if (!clear) {
-            // Roll the slots back: an undependable span gets no ride edges at all,
-            // because the platform could slide out from under the hero mid-ride.
+        if (usable.size === 0 || [...usable.values()].every((s) => s.length === 0)) {
+            // No part of the span can hold the hero, so there is no ride at all.
             inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_UNCLEAR_SPAN });
-            slots.length = slots.length - columns.reduce(
-                (n, c) => n + (usable.get(c)?.length ?? 0), 0,
-            );
             emit([]);
             continue;
         }
+        // Any column where the hero's body does not fit simply has no slot. The
+        // ride is still real across the columns that do fit — which is most of
+        // them. Refusing the whole platform because one column of a thirteen-wide
+        // span is clipped is far too blunt: it threw away the very platform mp80's
+        // upper route is built around, and with it the whole level.
+        //
+        // What still matters is that a ride is only ever linked between two
+        // columns that both have a valid position, so the chain cannot ask the
+        // hero to stand somewhere he cannot fit.
 
         // Ride along the span, linking columns that share a riding offset.
         const local: number[] = [];
@@ -220,9 +237,14 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
         for (let i = 0; i + 1 < columns.length; i++) {
             const from = usable.get(columns[i]!)!;
             const to = usable.get(columns[i + 1]!)!;
+            // Link by RIDING OFFSET, not by the hero's left column. Riding from
+            // platform column i to i+1 with the same offset carries the hero one
+            // column along, which is the whole point of the platform. Matching
+            // left column instead pairs two slots where he is already standing,
+            // so the ride goes nowhere.
             for (const a of from) {
                 for (const b of to) {
-                    if (a.leftCol === b.leftCol) link(slots, a.slot, b.slot);
+                    if (a.offset === b.offset) link(slots, a.slot, b.slot);
                 }
             }
         }
