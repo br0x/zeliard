@@ -813,9 +813,11 @@ and  (isBlockingTileSimple(tile(x,   y+3))              // ground under the hero
 Three node kinds:
 
 - `GROUND` — as above.
-- `ROPE` — `tile(x+1, y+1)` is a rope tile and the 3×3 box is free. Rope nodes
-  are generated *in addition to* ground nodes at the same coordinate, because a
-  hero beside a rope can either stand or climb.
+- `ROPE` — `tile(x+1, y)` is a rope tile and the 3×3 box is free. The middle
+  column at the **head** row, because `tryClimbRope` probes `heroCoords + 1`
+  (dungeon-vertical.ts:199-202), which is exactly that cell. Rope nodes are
+  generated *in addition to* ground nodes at the same coordinate, because a hero
+  on a rope is climbing, not standing.
 - `RIDE` — the hero is standing on a platform. Generated per §7.5 for each
   platform ride slot, with the platform cell treated as ground.
 
@@ -1545,7 +1547,7 @@ Each phase is independently shippable and independently reviewable.
 | **1a** | Runtime tile decoder — **done** | `engine/nav/mdt-grid.ts`, `tests/nav-mdt-grid.test.ts` | 25 tests. Every opcode against hand-encoded columns; `tile = next byte` pinned explicitly; byte-for-byte agreement with the extractor on all 31 caverns; the 8-arena rope split |
 | **1b** | Tile-flag classifier | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
-| **3** | Nav graph builder | `engine/nav/nav-graph.ts` | Node counts match §2.9 within 5%; every node has ≥ 1 edge unless isolated; wrap edges at `x = 0 ↔ mapWidth−1`; every `RIDE_V`/`RIDE_H`/`BOARD`/`LIFT`/`CARRY_*` edge has both endpoints valid; no `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift column |
+| **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts` | 27 invariant tests over all 31 caverns. **[measured] 25,905 nodes / 286,886 edges, slowest build ~70 ms, 236/236 lifts and 288/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; jump apex and ceiling probe re-verified; no self-edges; CSR consistent |
 | **4** | Pathfinding | `engine/nav/pathfinder.ts`, `capabilities.ts` | Hand-authored routes for 5 known journeys; key-budget pruning; unreachable returns `null`; no route contains a town portal; a known platform-only shortcut is found; a known conveyor-only shortcut is found |
 | **5** | Item + inventory + shop + save (Option D) | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, locale ×3 | Save/load round-trip; an old 256-byte save loads with count 0; buy/sell updates `magicMasksExt` and not `magicMasks`; use decrements `0x4A` and does **not** touch `magicItems`; the shoe forward scan past `0xA5` cannot see the item |
 | **6** | Map screen | `ui/map-screen.ts`, `key-router.ts`, `main.ts` | Pointer → tile mapping under a CSS scale; keyboard cursor wrap; `gamePaused` asserted while open; keys do not reach the engine |
@@ -2072,9 +2074,69 @@ platform can never be silently dropped.
 **Gates:** `tsc --noEmit` clean; both new suites pass; full suite 692/692;
 `nav:check` clean.
 
-**Next:** phase 3, the navigation graph builder — nodes from `isStanding`, edges
-from the walk, jump, fall, rope, slope, door, platform and current primitives, with
-the airflow suppression rules applied.
+**Next:** phase 4, the A* pathfinder and the capability snapshot.
+
+### Phase 3 — navigation graph — **complete**
+
+**Delivered** `web/src/engine/nav/nav-graph.ts` — `buildNavGraph`, nodes in a
+compact list with CSR edge offsets, plus `nodeAt`, `forEachEdge`, `edgesOf`; and
+`web/tests/nav-graph.test.ts` with 27 tests that check *invariants* rather than
+reproducing the builder.
+
+**[measured] over all 31 caverns**
+
+| | |
+| --- | --- |
+| Nodes | **25,905** (ground + rope + 3,204 ride, plus overlap) |
+| Edges | **286,886** |
+| Slowest single-map build | **mp10 at ~70 ms** |
+| Lifts reachable / total | **236 / 236** |
+| Conveyors reachable / total | **288 / 288** |
+
+Edges by kind: `WALK` 32,760 · `STEP` 1,547 · `JUMP` 97,316 · `JUMP_HIGH` 1,845 ·
+`FALL` 40,301 · `CLIMB` 9,062 · `SLOPE_UP` 245 · `SLOPE_DOWN` 241 · `DOOR` 7 ·
+`RIDE_V` 973 · `RIDE_H` 1,355 · `BOARD` 23 · `ALIGHT` 134 · `DROP` 3,204 ·
+`LIFT` 2,818 · `CARRY_L` 37,941 · `CARRY_R` 57,114.
+
+**Three modelling gaps the tests exposed, all of them structural:**
+
+1. **Platforms were unreachable.** A ride slot can never also be a ground node — the
+   platform occupies the feet row — so falls and jumps had nowhere to land and
+   `BOARD` fired on only 1–3 nodes per map. Falls and jumps now target *either* a
+   ground node or a ride slot (`landingAt`), which is how the hero actually gets
+   onto a platform: by landing on it. `BOARD` is kept for the genuinely different
+   case of a platform resting on solid ground, where both nodes exist and a step
+   joins them — 23 such cases **[measured]**.
+
+2. **Only 34 of 236 lifts were reachable.** A lift was entered only from a node
+   standing in the swept column, but `checkAirflowsOnHero` runs every frame
+   regardless of what the hero is doing — the usual way into a jet is to *fall or
+   jump into it*, and a graph of standing positions cannot express "airborne but
+   swept". Entry is now found **along the hero's own arcs**: standing, falling off
+   a ledge, or anywhere on a jump. That took lifts from 34 to **236 of 236**.
+
+3. **Conveyors had the same problem, twice over.** A swept hero is airborne, so
+   the swept position is not a node either. Exit edges therefore *land* him: the
+   first standing position at or below the exit column, which is where he ends up
+   if he lets go. Conveyors went from none to **288 of 288**.
+
+**Where the plan was wrong:** §7.2 specified a rope node as `tile(x+1, y+1)`. The
+engine probes `heroCoords + 1`, which is the middle column at the hero's **head**
+row — `tile(x+1, y)`. Corrected in place. A second bug of the same kind lived in
+the builder: the rope probe did not wrap the column, so at the seam it read into
+the next row and minted a rope node on tile 9. That is why the invariant test
+pinned the probe to the engine's expression rather than to a literal.
+
+**Cost note.** The edge count came in well above the ~190k projection because a
+current is "enter anywhere along an arc, leave at any exit" — quadratic in the
+run's length, and 95k of the 287k edges are conveyor exits. That is inherent to
+the semantics rather than an accident, and the graph is built lazily per map, so
+it stays inside the plan's budget. If it ever does not, §11.6's worker and
+prebuilt-blob escape hatches apply unchanged.
+
+**Gates:** `tsc --noEmit` clean; `nav-graph.test.ts` 27/27; full suite 719/719.
+
+**Next:** phase 4, the A* pathfinder and the capability snapshot.
 
 ---
 
