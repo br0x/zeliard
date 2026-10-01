@@ -1954,6 +1954,61 @@ Seven tests, skipped if `WORK/LEVELS` is absent.
 **Next:** phase 1b, the runtime tile-flag classifier (`NavFlags`), which must
 mirror `isBlockingTile` / `isBlockingTileSimple` exactly.
 
+### Phase 1b — tile-flag classifier — **complete**
+
+**Delivered** `web/src/engine/nav/types.ts` (flag, capability, edge and cost
+constants) and `web/src/engine/nav/attributes.ts` (`NavTileClassifier`,
+`airflowGroups`), plus `web/tests/nav-attributes.test.ts` with 26 tests.
+
+**The test that matters** is differential. The engine already implements
+passability against `g_mem`; this module reimplements it against the generated
+tables. The test loads each cavern's generated tables into `g_mem` exactly as
+`main.ts` does, then runs the engine's own `is_blocking_tile`,
+`is_blocking_tile_simple`, `lookup_shared` and `get_airflow_direction` beside ours
+for **every tile id of every cavern** — 0x00–0xFF, 31 maps. That is the only way
+to be sure the reimplementation has not drifted.
+
+**Three defects, all caught by those tests:**
+
+1. **`Uint8Array` silently truncated the flags.** `BLOCK_HEAD` is bit 8, so a
+   256-entry byte table stored `0` for every blocking tile — which reads as
+   "nothing blocks" rather than as an error, and would have made the pathfinder
+   treat solid rock as walkable. The table is now `Uint16Array`.
+2. **The table was sized for the static range only.** 64 entries covered tiles
+   `0x00`–`0x3F`, and everything above fell into a "clamp to solid" fallback.
+   But `0x40`–`0x48` are platforms, `0x49`–`0x60` are door frame, and `0x80 | n`
+   is an entity marker — all meaningful, and all classified as "blocked". The
+   table now spans the full byte and `classify` is total.
+3. **The airflow constants did not match the engine's.** They were renumbered to
+   start `NONE` at 0, which forced a translation table in the differential test
+   and made a direct comparison impossible. They now *are* the engine's values
+   (`NONE 0xff`, `UP 0`, `LEFT 1`, `RIGHT 2`, dungeon-entities.ts:33-36), so
+   `getAirflowDirection` compares straight against ours.
+
+**Design point worth keeping: two blocking bits, not one.** The engine has two
+different predicates that deliberately disagree over the platform band —
+`is_blocking_tile` passes anything ≥ `0x40`, `is_blocking_tile_simple` only from
+`0x49` — so a platform blocks the body but not the head, which is why the hero
+can stand on one. Collapsing them into a single `SOLID` would lose that.
+`staticTilesAgree()` asserts they happen to coincide over the static range
+(because the RLE is 6-bit), so the graph builder may still use one bit there.
+
+**A rule that turns out to be unreachable.** `lookup_shared`'s hard-block on
+`0x90`/`0x91` cannot fire from either engine predicate: both short-circuit above
+their cutoffs, so the masked value equals the tile itself and never equals
+`0x90`. It is reachable only by calling `lookup_shared` directly, which the test
+now does — so the behaviour is pinned rather than assumed.
+
+**Airflow precedence** (up before left before right) is unobservable in the
+shipped data, since no tileset double-lists a tile. `NavTileClassifier.fromTables`
+builds a classifier over explicit tables, so the test can construct the table
+that triggers the overlap and assert both our result and the engine's.
+
+**Gates:** `tsc --noEmit` clean; `nav-attributes.test.ts` 26/26; full suite
+657/657.
+
+**Next:** phase 2, the runtime platform and airflow model.
+
 ---
 
 ## 17. Implementation log
