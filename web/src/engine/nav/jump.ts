@@ -100,6 +100,27 @@ import { NavTileClassifier } from './attributes.js';
 import { ROWS, wrapCol, wrapRow } from './geometry.js';
 import type { NavTileGrid } from './mdt-grid.js';
 
+/**
+ * Which sideways descents a search may use, as a mask.
+ *
+ * A flight picks one at take-off and keeps it — see {@link JumpModel.descend} — so
+ * every search runs three descents and these say which of them count.
+ */
+export const STEER_ALL = 0b111;
+export const STEER_STRAIGHT = 0b001;
+export const STEER_LEFT = 0b010;
+export const STEER_RIGHT = 0b100;
+
+/** The three descents, in the order they are searched. */
+const STEER_ORDER = [0, -1, 1] as const;
+
+/** Is this descent one of the ones `allow` permits? */
+function steerAllowed(steer: number, allow: number): boolean {
+    if (steer === 0) return (allow & STEER_STRAIGHT) !== 0;
+    if (steer < 0) return (allow & STEER_LEFT) !== 0;
+    return (allow & STEER_RIGHT) !== 0;
+}
+
 /** Ints per landing in the array {@link JumpModel.landingsFrom} hands back. */
 export const LANDING_STRIDE = 5;
 
@@ -241,7 +262,8 @@ export class JumpModel {
             out: new Int32Array(320), count: 0, gen: 0,
             stamp: new Int32Array(this.cells), slot: new Int32Array(this.cells),
         });
-        this.seen = new Int32Array(this.cells * 2);
+        // Six slots per cell: first-pose or not, times one per locked steer.
+        this.seen = new Int32Array(this.cells * 6);
         this.traceStamp = new Int32Array(this.cells);
         this.queue = new Int32Array(this.cells * 2 * QUEUE_STRIDE);
         this.queueParent = new Int32Array(this.cells * 2);
@@ -393,7 +415,12 @@ export class JumpModel {
      * The result is a view on a buffer this model reuses — read it before asking
      * again.
      */
-    landingsFrom(col: number, row: number, height: number = JUMP_HEIGHT_FERUZA): Int32Array {
+    landingsFrom(
+        col: number,
+        row: number,
+        height: number = JUMP_HEIGHT_FERUZA,
+        allow: number = STEER_ALL,
+    ): Int32Array {
         const gen = ++this.generation;
         this.traceGen = gen;
         this.traceCount = 0;
@@ -403,9 +430,9 @@ export class JumpModel {
         // the same whatever path it takes, so fewer rows risen is fewer frames —
         // so there is nothing for the tall jump to add on ground the short one
         // already covers, and re-walking it would only cost time.
-        this.flight(col, row, Math.min(height, JUMP_HEIGHT_DEFAULT), 0, gen);
+        this.flight(col, row, Math.min(height, JUMP_HEIGHT_DEFAULT), 0, gen, allow);
         const plain = this.record[0]!;
-        if (height > JUMP_HEIGHT_DEFAULT) this.flight(col, row, height, 1, gen);
+        if (height > JUMP_HEIGHT_DEFAULT) this.flight(col, row, height, 1, gen, allow);
         else this.record[1]!.count = 0;
         this.tracing = false;
         const high = this.record[1]!;
@@ -458,6 +485,7 @@ export class JumpModel {
         landingCol: number,
         landingRow: number,
         fromRope = false,
+        allow: number = STEER_ALL,
     ): Int32Array {
         const width = this.mapWidth;
         this.wantCell = wrapRow(landingRow) * width + wrapCol(landingCol, width);
@@ -469,13 +497,18 @@ export class JumpModel {
         // Shortest rise first, for the same reason the landings search uses it: the
         // first flight that reaches the cell is the cheapest one.
         for (const height of [JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA]) {
-            const starts = this.collectStarts(col, row, height);
-            for (let i = 0; i < starts; i++) {
-                const o = i * START_STRIDE;
-                this.descend(this.starts[o]!, this.starts[o + 1]!, this.starts[o + 2]!, true);
-                if (this.found) {
-                    this.writePath(o);
-                    return this.path.subarray(0, this.pathCount * 2);
+            for (const steer of STEER_ORDER) {
+                if (!steerAllowed(steer, allow)) continue;
+                // The rise is searched with the same intent as the descent, exactly as
+                // `flight` does it, so the path handed back is one whole flight.
+                const starts = this.collectStarts(col, row, height, steer);
+                for (let i = 0; i < starts; i++) {
+                    const o = i * START_STRIDE;
+                    this.descend(this.starts[o]!, this.starts[o + 1]!, this.starts[o + 2]!, true, steer);
+                    if (this.found) {
+                        this.writePath(o);
+                        return this.path.subarray(0, this.pathCount * 2);
+                    }
                 }
             }
         }
@@ -556,26 +589,37 @@ export class JumpModel {
      *
      * @param which 0 for a plain jump, 1 for Feruza; picks the record set.
      */
-    private flight(col: number, row: number, height: number, which: 0 | 1, gen: number): void {
+    private flight(col: number, row: number, height: number, which: 0 | 1, gen: number, allow: number): void {
         const width = this.mapWidth;
         const set = this.record[which]!;
         set.count = 0;
         set.gen = gen;
         this.current = set;
-        const starts = this.collectStarts(col, row, height);
-
-        // ── the descents ──────────────────────────────────────────────────────
-        // Each rise's end is searched on its own, in the order the rise produced
-        // them: shortest rise first. Every landing below one start costs the same
-        // number of ticks whatever path it takes, so searching in that order is
-        // what keeps a cell's recorded cost the best one available — a cell is
-        // only ever expanded under the cheapest flight that reaches it.
-        for (let i = 0; i < starts; i++) {
-            const o = i * START_STRIDE;
-            const sCol = this.starts[o]!;
-            const sRow = this.starts[o + 1]!;
-            if (this.canLand[wrapRow(sRow) * width + wrapCol(sCol, width)] === 0) continue;
-            this.descend(sCol, sRow, this.starts[o + 2]!, false);
+        // ── the flights ───────────────────────────────────────────────────────
+        // One lateral intent per flight: the direction he holds from the instant he
+        // presses jump until he lands. The rise drifts that way where it can, and
+        // the descent continues the same way, so **a flight that went up to the
+        // right can never come down to the left**.
+        //
+        // Searching the rise once with all three descents attached is what produced
+        // that. The mp30 leg `(2,21) -> (184,47)` traced as
+        // `(2,21) (3,20) (4,19) (5,19) (4,20) (3,21) ...` — two rows up and to the
+        // right, then a twenty-two column descent to the left, which is not a flight
+        // the hero can take. He presses one direction and gets one flight.
+        for (const steer of STEER_ORDER) {
+            if (!steerAllowed(steer, allow)) continue;
+            const starts = this.collectStarts(col, row, height, steer);
+            // Each rise's end is searched on its own, in the order the rise produced
+            // them: shortest rise first. Every landing below one start costs the same
+            // number of ticks whatever path it takes, so searching in that order is
+            // what keeps a cell's recorded cost the best one available.
+            for (let i = 0; i < starts; i++) {
+                const o = i * START_STRIDE;
+                const sCol = this.starts[o]!;
+                const sRow = this.starts[o + 1]!;
+                if (this.canLand[wrapRow(sRow) * width + wrapCol(sCol, width)] === 0) continue;
+                this.descend(sCol, sRow, this.starts[o + 2]!, false, steer);
+            }
         }
     }
 
@@ -589,7 +633,7 @@ export class JumpModel {
      * may follow it. The rise ends at the height cap (`r === height`) or at a
      * ceiling, and the descent begins from wherever he ended up.
      */
-    private collectStarts(col: number, row: number, height: number): number {
+    private collectStarts(col: number, row: number, height: number, steer: number): number {
         const width = this.mapWidth;
         let front = this.riseA;
         let back = this.riseB;
@@ -615,15 +659,12 @@ export class JumpModel {
                 if (open) {
                     const up = wrapRow(at - 1);
                     next = this.pushRise(back, backChain, next, c, frontChain, from, rises + 1);
-                    if (this.stepAt(c, up, -1)) {
-                        const nc = wrapCol(c - 1, width);
+                    // Only the direction he is holding: the rise and the descent
+                    // are one flight, not two independent choices.
+                    if (steer !== 0 && this.stepAt(c, up, steer)) {
+                        const nc = wrapCol(c + steer, width);
                         next = this.pushRise(back, backChain, next, nc, frontChain, from, rises + 1);
-                        this.noteCell(c - 1, up, up * width + nc);
-                    }
-                    if (this.stepAt(c, up, 1)) {
-                        const nc = wrapCol(c + 1, width);
-                        next = this.pushRise(back, backChain, next, nc, frontChain, from, rises + 1);
-                        this.noteCell(c + 1, up, up * width + nc);
+                        this.noteCell(nc, up, up * width + nc);
                     }
                     continue;
                 }
@@ -631,15 +672,10 @@ export class JumpModel {
                 // The rise stops on this frame — ceiling or height cap. He still
                 // steps sideways, and the descent begins where he ends up.
                 starts = this.pushStart(starts, c, at, rises, frontChain, from);
-                if (this.stepAt(c, here, -1)) {
-                    const nc = wrapCol(c - 1, width);
+                if (steer !== 0 && this.stepAt(c, here, steer)) {
+                    const nc = wrapCol(c + steer, width);
                     starts = this.pushStart(starts, nc, at, rises, frontChain, from);
-                    this.noteCell(c - 1, here, here * width + nc);
-                }
-                if (this.stepAt(c, here, 1)) {
-                    const nc = wrapCol(c + 1, width);
-                    starts = this.pushStart(starts, nc, at, rises, frontChain, from);
-                    this.noteCell(c + 1, here, here * width + nc);
+                    this.noteCell(nc, here, here * width + nc);
                 }
             }
             const swap = front;
@@ -702,7 +738,13 @@ export class JumpModel {
      * No rope is involved: a hero holding one cannot jump at all, and the graph
      * gives rope nodes a step sideways instead (see nav-graph.ts).
      */
-    private descend(col: number, headRow: number, rises: number, track: boolean): void {
+    private descend(
+        col: number,
+        headRow: number,
+        rises: number,
+        track: boolean,
+        steer: number,
+    ): void {
         const width = this.mapWidth;
         // Frames so far: one per rise, plus the frame on which the rise stopped.
         const ticks = rises + 1;
@@ -718,7 +760,11 @@ export class JumpModel {
             const t = this.queue[o + 2]!;
             const firstPose = this.queue[o + 3] === 1;
             const cell = r * width + c;
-            const seenKey = cell * 2 + (firstPose ? 1 : 0);
+            // One lane per locked steer, or the second descent would be thrown away
+            // by marks the first left behind: they share a generation, so a
+            // generation-scoped dedupe would let only one of the three run.
+            const steerLane = steer > 0 ? 2 : steer < 0 ? 1 : 0;
+            const seenKey = (cell * 2 + (firstPose ? 1 : 0)) * 3 + steerLane;
             if (this.seen[seenKey] === this.current.gen) continue;
             this.seen[seenKey] = this.current.gen;
             this.noteCell(c, r, cell);
@@ -753,16 +799,30 @@ export class JumpModel {
                 continue;
             }
 
+            // One sideways direction for the whole flight, decided at take-off,
+            // and no switching back to straight afterwards.
+            //
+            // A jump goes up in the direction it was pressed, and from the apex it
+            // comes down at 45 degrees **in that same direction** — up+right descends
+            // right, up+left descends left. Holding a key, the hero moves that way or
+            // is stopped by something: `on_left_pressed` calls `initOnGround` and
+            // returns when the step is blocked (dungeon-vertical.ts:127-136). He does
+            // not get to *choose* to drop straight down and then start drifting, so
+            // straight is the fallback when the step is blocked and never an
+            // alternative to it.
+            //
+            // Offering both on every frame is what let a flight slide down five rows
+            // of open air and then turn: the mp30 trace for `(0,21) -> (184,47)` was
+            // `(0,21) (1,20) (2,19) (3,19) (3,20) ... (3,24) (2,25) (1,26) ...`, a
+            // twenty-three column diagonal that the hero cannot fly, and it was the
+            // leg the player reported.
             const below = wrapRow(r + 1);
             const fallTo = below * width;
-            if (this.canLand[fallTo + c] === 1) tail = this.enqueue(tail, c, below, t + 1, false, head - 1);
-            if (this.stepAt(c, below, -1)) {
-                const nc = wrapCol(c - 1, width);
+            if (steer !== 0 && this.stepAt(c, below, steer)) {
+                const nc = wrapCol(c + steer, width);
                 if (this.canLand[fallTo + nc] === 1) tail = this.enqueue(tail, nc, below, t + 1, false, head - 1);
-            }
-            if (this.stepAt(c, below, 1)) {
-                const nc = wrapCol(c + 1, width);
-                if (this.canLand[fallTo + nc] === 1) tail = this.enqueue(tail, nc, below, t + 1, false, head - 1);
+            } else if (this.canLand[fallTo + c] === 1) {
+                tail = this.enqueue(tail, c, below, t + 1, false, head - 1);
             }
         }
     }

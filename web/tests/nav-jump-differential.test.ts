@@ -402,6 +402,139 @@ function compare(cavern: Cavern): string[] {
  * both sides, and a shaft whose floor is far enough down that the descent needs a
  * current to stop it.
  */
+/**
+ * No flight may change direction sideways after take-off.
+ *
+ * A jump goes up in the direction it was pressed and comes down at 45 degrees in
+ * *that* direction: up+right descends right, up+left descends left. The hero holds
+ * one key for the length of the flight, so there is no such thing as a flight that
+ * drifts east for three frames and west for five.
+ *
+ * The model used to branch left, straight and right on every descent frame, which
+ * described flights the hero cannot perform. Nothing caught it: the comparison
+ * above only asserts the engine's landings are a subset of the model's, and a model
+ * that offers *more* than the engine can fly passes that happily. This asserts the
+ * property directly, over every traced flight.
+ */
+describe('a descent does not straighten and then turn', () => {
+    it('only drops straight down while the sideways step is blocked', () => {
+        // Holding a key, the hero moves that way or something stops him:
+        // `on_left_pressed` calls `initOnGround` and returns when the step is
+        // blocked (dungeon-vertical.ts:127-136). He never gets to *choose* to drop
+        // straight down through open air and then start drifting again.
+        //
+        // Offering straight-down as a free alternative to the lateral step on every
+        // frame is how the mp30 route to (176,50) acquired a twenty-two column
+        // diagonal leg `(2,21) -> (184,47)` whose trace slid five rows straight down
+        // column 3 and then turned left and drifted the rest of the way.
+        let totalStraight = 0;
+        for (const cavern of CAVERNS) {
+            const model = new JumpModel(cavern.grid, CLASSIFIER);
+            const width = cavern.width;
+            let traced = 0;
+            for (let row = 0; row < ROWS && traced < 200; row++) {
+                for (let col = 0; col < width && traced < 200; col++) {
+                    if (cavern.tiles[row * width + col] !== 0x00) continue;
+                    const landings = model.landingsFrom(col, row);
+                    for (let i = 0; i < landings.length && traced < 200; i += LANDING_STRIDE) {
+                        const l = readLanding(landings, i / LANDING_STRIDE);
+                        const path = model.flightPath(col, row, l.col, l.row);
+                        if (path.length < 4) continue;
+                        traced++;
+                        let apex = 0;
+                        for (let p = 2; p < path.length; p += 2) {
+                            if (path[p + 1]! <= path[apex + 1]!) apex = p;
+                        }
+                        // Work out which way this descent went, then check every
+                        // straight step in it was forced.
+                        let dir = 0;
+                        for (let p = apex; p + 2 < path.length; p += 2) {
+                            const raw = path[p + 2]! - path[p]!;
+                            const dc = ((raw % width) + width * 1.5) % width - width * 0.5;
+                            if (Math.abs(dc) < 0.5) continue;
+                            const step = dc > 0 ? 1 : -1;
+                            if (dir === 0) dir = step;
+                            expect(step, `${cavern.name} reverses after a straight drop`).toBe(dir);
+                        }
+                        if (dir === 0) continue;
+                        for (let p = apex; p + 2 < path.length; p += 2) {
+                            if (path[p + 2]! !== path[p]!) continue;
+                            if (path[p + 3]! <= path[p + 1]!) continue;   // not a drop
+                            totalStraight++;
+                            // A straight drop is only legal where he could not have
+                            // stepped sideways instead.
+                            expect(
+                                bodyFits(cavern, path[p]! + dir, path[p + 3]!),
+                                `${cavern.name}: flight from (${col},${row}) drops straight `
+                                + `at (${path[p]},${path[p + 1]}) with open space one column `
+                                + `${dir > 0 ? 'right' : 'left'}`,
+                            ).toBe(false);
+                        }
+                    }
+                }
+            }
+            expect(traced, `${cavern.name}: no flights were traced`).toBeGreaterThan(0);
+        }
+        // Across the whole sample, so the check cannot go vacuous: a flight has to be
+        // forced straight somewhere, or this proves nothing.
+        expect(totalStraight, 'no forced straight drops were checked at all').toBeGreaterThan(0);
+    });
+});
+
+describe('a jump flies one way', () => {
+    it('never reverses sideways mid-flight', { timeout: 60_000 }, () => {
+        for (const cavern of CAVERNS) {
+            const model = new JumpModel(cavern.grid, CLASSIFIER);
+            const width = cavern.width;
+            let traced = 0;
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < width; col++) {
+                    if (cavern.tiles[row * width + col] !== 0x00) continue;
+                    const landings = model.landingsFrom(col, row);
+                    for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
+                        const l = readLanding(landings, i / LANDING_STRIDE);
+                        const path = model.flightPath(col, row, l.col, l.row);
+                        if (path.length < 4) continue;
+                        traced++;
+                        if (traced >= 200) break;
+                        // The apex is the highest point of the trace, and it is where
+                        // the descent begins. The rise may carry him sideways as it
+                        // lifts — that is a different part of the flight — so only what
+                        // comes after the apex has to fly one way.
+                        // The rise can wander sideways at one height, so take the
+                        // *last* cell at the highest row: everything from there on is
+                        // descent, and by then the direction is settled.
+                        let apex = 0;
+                        for (let p = 2; p < path.length; p += 2) {
+                            if (path[p + 1]! <= path[apex + 1]!) apex = p;
+                        }
+                        let dir = 0;
+                        for (let p = apex; p + 2 < path.length; p += 2) {
+                            // The trace is unwrapped: a step left off column 0 reads as
+                            // `+31`, so the delta has to be taken the short way round.
+                            const raw = path[p + 2]! - path[p]!;
+                            const dc = ((raw % cavern.width) + cavern.width * 1.5) % cavern.width
+                                - cavern.width * 0.5;
+                            if (Math.abs(dc) < 0.5) continue;
+                            const step = dc > 0 ? 1 : -1;
+                            if (dir === 0) dir = step;
+                            expect(
+                                step,
+                                `${cavern.name}: flight from (${col},${row}) to `
+                                + `(${l.col},${l.row}) changes direction mid-descent`,
+                            ).toBe(dir);
+                        }
+                        if (traced >= 200) break;
+                    }
+                    if (traced >= 200) break;
+                }
+                if (traced >= 200) break;
+            }
+            expect(traced, `${cavern.name}: no flights were traced`).toBeGreaterThan(0);
+        }
+    });
+});
+
 const CAVERNS: readonly Cavern[] = [
     // mp80's own geometry: the hero stands on the low shelf with his head on row 12
     // and the ledge he is jumping onto begins three columns east and two rows up,

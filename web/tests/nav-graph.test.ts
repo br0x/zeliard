@@ -77,6 +77,48 @@ describe('nodes are positions the hero can occupy', () => {
         }
     });
 
+    it('never carries a hero off a rope against the direction he stepped', () => {
+        // Leaving a rope is two tiles in the direction he steps, because his head is
+        // centred over the rope and the rope is his middle column — the cliff edge is
+        // the cell past it. Where a wall denies him the two-tile move he takes one and
+        // then falls holding the same key, so he may drift **that** way, which is one
+        // column per row of descent, and never the other.
+        //
+        // (Before the two-tile move was modelled, 6,874 of mp30's 13,387 rope-exit
+        // edges moved four columns or more sideways and most of those were drifts in
+        // whichever direction happened to be shortest.)
+        const IS_FALL: number[] = [EDGE.FALL];
+        for (const meta of NAV_MAPS) {
+            const graph = graphFor(meta.id);
+            const width = meta.mapWidth;
+            for (const node of graph.nodes) {
+                if (node.kind !== NODE_ROPE) continue;
+                const index = graph.nodes.indexOf(node);
+                forEachEdge(graph, index, (edge) => {
+                    const to = graph.nodes[edge.to]!;
+                    const raw = to.col - node.col;
+                    const lateral = ((raw % width) + width * 1.5) % width - width * 0.5;
+                    // The exit itself: two tiles at most.
+                    if (!IS_FALL.includes(edge.kind)) {
+                        expect(Math.abs(lateral),
+                            `${meta.nameKey} rope (${node.col},${node.row}) -> `
+                            + `(${to.col},${to.row}) steps ${lateral} columns`).toBeLessThanOrEqual(2);
+                        return;
+                    }
+                    // A fall: the two-tile exit, one more column for the first pose as
+                    // it leaves the rope row, then 45 degrees — and never drifting back
+                    // across the rope, because the descent is locked to the direction he
+                    // stepped in.
+                    const descent = (((to.row - node.row) % 64) + 64) % 64;
+                    expect(Math.abs(lateral),
+                        `${meta.nameKey} rope (${node.col},${node.row}) -> `
+                        + `(${to.col},${to.row}) drifts ${lateral} columns over ${descent} rows`)
+                        .toBeLessThanOrEqual(3 + descent);
+                });
+            }
+        }
+    });
+
     it('gives every ride node a slot from the platform model', () => {
         for (const meta of NAV_MAPS) {
             const graph = graphFor(meta.id);
@@ -231,9 +273,13 @@ describe('the airflow suppression rules', () => {
                 forEachEdge(graph, index, (edge) => {
                     if (edge.kind !== EDGE.WALK && edge.kind !== EDGE.STEP) return;
                     const target = graph.nodes[edge.to]!;
-                    const dir = target.col === node.col
-                        ? 0
-                        : wrapCol(node.col + 1, meta.mapWidth) === target.col ? 1 : -1;
+                    // Signed, and by however many columns: leaving a rope is a two-tile
+                    // move, so testing `node.col + 1 === target.col` would call a
+                    // rightward exit leftward and flag every current it moved with.
+                    const raw = target.col - node.col;
+                    const shift = ((raw % meta.mapWidth) + meta.mapWidth * 1.5) % meta.mapWidth
+                        - meta.mapWidth * 0.5;
+                    const dir = shift > 0 ? 1 : shift < 0 ? -1 : 0;
                     if (dir === 0) return;
                     if (blockedByCounterCurrent(grid, classifier, target.col, target.row, dir)) {
                         bad.push(`${meta.nameKey} (${node.col},${node.row})->(${target.col},${target.row})`);
@@ -550,8 +596,13 @@ describe('size and build cost', () => {
         // takes, which the check above proves for all of them.
         expect(nodes).toBeGreaterThan(29800);
         expect(nodes).toBeLessThan(30000);
-        expect(edges).toBeGreaterThan(1060000);
-        expect(edges).toBeLessThan(1110000);
+        // Was 1,080,257, then 1,029,620 once each descent was locked to the launch
+        // direction. Locking the falls off a rope removed the rest of the steering:
+        // 6,874 of mp30's rope-exit edges alone were long diagonal descents the hero
+        // cannot take, and the same search is still correct for a ledge, which does
+        // leave him airborne.
+        expect(edges).toBeGreaterThan(500000);
+        expect(edges).toBeLessThan(560000);
     });
 
     it('builds the largest cavern within the plan\'s budget', () => {

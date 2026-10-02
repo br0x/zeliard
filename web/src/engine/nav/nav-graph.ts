@@ -31,7 +31,7 @@
  */
 
 import {
-    NAV, EDGE, EDGE_COST, CAP, KEY_LION, KEY_ORDINARY,
+    NAV, EDGE, EDGE_COST, CAP, KEY_LION, KEY_ORDINARY, JUMP_TICK_PENALTY,
     blocksBody,
 } from './types.js';
 import { NavTileClassifier } from './attributes.js';
@@ -39,7 +39,9 @@ import {
     blockedByCounterCurrent, flagsAt, heroBoxFree, heroCanStepSideways, heroInLift,
     isStanding, wrapCol, wrapRow,
 } from './geometry.js';
-import { JumpModel, LANDING_STRIDE } from './jump.js';
+import {
+    JumpModel, LANDING_STRIDE, STEER_ALL, STEER_STRAIGHT, STEER_LEFT, STEER_RIGHT,
+} from './jump.js';
 import { buildPlatformModel, type PlatformModel } from './platforms.js';
 import { NAV_KEYS } from '../../data/nav/nav-keys.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
@@ -410,7 +412,7 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
             const feruza = landings[i + 4] === 1;
             add(fromIndex, to,
                 feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
-                landings[i + 2]!,
+                landings[i + 2]! + JUMP_TICK_PENALTY,
                 feruza ? CAP.JUMP_HIGH : 0);
         }
         // Keep where he went, so the current sweeps below can ask which cells the
@@ -443,8 +445,14 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
      *
      * @param skip a node already added by another edge, so one cell is not two edges
      */
-    const addFalls = (fromIndex: number, col: number, row: number, skip: number): void => {
-        const landings = jumps.landingsFrom(col, row, 0);
+    const addFalls = (
+        fromIndex: number,
+        col: number,
+        row: number,
+        skip: number,
+        allow: number = STEER_ALL,
+    ): void => {
+        const landings = jumps.landingsFrom(col, row, 0, allow);
         for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
             const to = landingAt(landings[i]!, landings[i + 1]!);
             if (to < 0 || to === skip) continue;
@@ -602,6 +610,11 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         }
     });
 
+    // The descents a rope exit in `dir` may use: straight down, or drifting in the
+    // direction he stepped and never the opposite one.
+    const steerMask = (dir: number): number =>
+        STEER_STRAIGHT | (dir > 0 ? STEER_RIGHT : STEER_LEFT);
+
     // Rope nodes.
     nodes.forEach((node, index) => {
         if (node.kind !== NODE_ROPE) return;
@@ -620,21 +633,40 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         //
         // This is the only way off a rope. `jump_press_handler` returns the moment
         // ON_ROPE_FLAGS is set (dungeon-hero.ts:322), so there is no jumping off one;
-        // climbing is `try_climb_rope`'s `moveHeroUp` (dungeon-vertical.ts:236), and
-        // leaving is one step sideways.
+        // climbing is `try_climb_rope`'s `moveHeroUp` (dungeon-vertical.ts:236).
+        //
+        // **The exit is two tiles, not one.** His head is centred over the rope, so the
+        // rope is his *middle* column and the cell he lands on by stepping is the one
+        // past it — which is the cliff edge. One tile only reaches the rope's own
+        // column, and that is not a standing position. All three of the game's rope
+        // exits are shaped exactly this way:
+        //
+        //     mp80 r10   ###.R|NNNNN     rope node 90, rope 91, ledge from 92
+        //     mp30 r 7   ...R|NNNNNN     rope node 57, rope 58, ledge from 59
+        //     mp80 r11   #NN.R|NNNNN     rope node 156, rope 157, ledge from 158
+        //
+        // And where a wall denies him the two-tile move he takes one, then falls
+        // beside the cliff **holding the same key**, so the drift is in the direction he
+        // stepped and never the opposite one.
         for (const dir of [1, -1] as const) {
             if (!heroCanStepSideways(grid, classifier, node.col, node.row, dir)) continue;
+            if (blockedByCounterCurrent(grid, classifier, node.col + dir, node.row, dir)) continue;
+            // Two tiles: the way onto the cliff edge.
+            if (heroCanStepSideways(grid, classifier, node.col + dir, node.row, dir)) {
+                const far = node.col + 2 * dir;
+                const land = groundAt(far, node.row);
+                if (land >= 0 && !blockedByCounterCurrent(grid, classifier, far, node.row, dir)) {
+                    add(index, land, EDGE.STEP, EDGE_COST.STEP);
+                }
+                addFalls(index, far, node.row, land, steerMask(dir));
+            }
+            // One tile, then down in the same direction.
             const there = groundAt(node.col + dir, node.row);
             if (there >= 0) add(index, there, EDGE.STEP, EDGE_COST.STEP);
-            // Off the side and down. He picks a column every row he is in the air
-            // (`airborne_movement` reads INPUT_DIRS each tick), so the fall from one
-            // column reaches a whole slope of ground — which is how the gallery in
-            // mp80 is reached from the top of the rope, and a straight `fallTo` does
-            // not see it.
-            addFalls(index, node.col + dir, node.row, there);
+            addFalls(index, node.col + dir, node.row, there, steerMask(dir));
         }
-        // And straight down off the foot of it.
-        addFalls(index, node.col, node.row, -1);
+        // And straight down off the foot of it, with no direction at all.
+        addFalls(index, node.col, node.row, -1, STEER_STRAIGHT);
     });
 
     // Ride slots.

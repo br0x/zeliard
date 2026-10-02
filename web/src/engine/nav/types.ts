@@ -198,6 +198,22 @@ export const EDGE_COST = {
 } as const;
 
 /**
+ * Ticks added to every jump, over and above the frames the flight actually takes.
+ *
+ * The hero covers one column per airborne frame, so a jump that crosses *n* columns
+ * takes about *n* frames — exactly what walking those *n* columns would cost. With
+ * the raw frame count the two tie, and the search then takes the jump: on mp30 it
+ * hopped `(193,19) -> (200,21)` across a staircase the hero can simply walk down,
+ * and `(202,21) -> (184,47)` across 18 columns where the ledges are contiguous.
+ *
+ * Both work, which is the problem: the player should be shown the way he would walk,
+ * and a jump should appear only where walking cannot go. Two ticks is enough to
+ * break the tie for a staircase and small enough that a jump genuinely crossing a
+ * chasm still wins on distance — which is the only reason to leave the ground.
+ */
+export const JUMP_TICK_PENALTY = 2;
+
+/**
  * The hero's jump ceiling, in tiles, by whether Feruza shoes are worn.
  * engine/dungeon-frame.ts:299-303.
  */

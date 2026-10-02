@@ -1736,7 +1736,7 @@ Each phase is independently shippable and independently reviewable.
 | **1a** | Runtime tile decoder — **done** | `engine/nav/mdt-grid.ts`, `tests/nav-mdt-grid.test.ts` | 25 tests. Every opcode against hand-encoded columns; `tile = next byte` pinned explicitly; byte-for-byte agreement with the extractor on all 31 caverns; the 8-arena rope split |
 | **1b** | Tile-flag classifier — **done** | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
-| **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts`, `jump.ts`, `geometry.ts` | 28 invariant tests over all 31 caverns plus the differential suite. **[measured] 29,917 nodes / 1,222,289 edges, all 31 caverns built in 1.1 s, 235/236 lifts and 216/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; **every jump edge is one the model produces**; a jump crosses no further than the frames it takes; no self-edges; CSR consistent. The jump model itself is the engine's, proved against it — see §18 |
+| **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts`, `jump.ts`, `geometry.ts` | 28 invariant tests over all 31 caverns plus the differential suite. **[measured] 29,917 nodes / 1,222,289 edges, all 31 caverns built in 1.1 s, 235/236 lifts and 216/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; **every jump edge is one the model produces**; a jump crosses no further than the frames it takes; no self-edges; CSR consistent. The jump model itself is the engine's, proved against it — see §18. **A flight descends only in the direction it was launched**: up+right comes down right, up+left comes down left, and no flight reverses sideways after the apex, because the hero holds one key for its length. **A rope exit is two tiles**, because the hero's head is centred over the rope and the cliff edge is the cell past it; blocked to one tile, he falls holding the same key, so a rope descent never drifts against the direction he stepped. **Every jump costs two ticks more than its flight**, so a walk is preferred wherever one exists |
 | **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests, plus: **a vertical lift is ridden in both directions** (`RIDE_V` follows `slot.prev` as well as `slot.next`; a lift that could only be ridden down was a dead end), and **any rise whose feet touch a slope demands Silkarn**, keyed on the single cell the engine probes; dead ride slots 194 → 185, plus a change in §18: the component flood now honours the hero's capabilities, so it picks a goal the hero can actually reach. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) — **done** | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, `path_items.png`, locale ×3, `main.ts` | 20 tests. Save round-trip and byte-exact save image; a save without the feature marker reads as not owned **whatever it holds at 0x4A**; buying and selling move the counter and the extended stock bit, never the generic array; using one copy leaves all five generic slots byte-identical; the addresses cannot be reached by the 0xA1..0xFF forward scans |
 | **6** | Map screen — **done** | `ui/map-screen.ts`, `key-router.ts`, `main.ts`, `NavGraphStore.load`/`gridOf` | 23 tests. All 31 caverns fit at an integer scale and stay centred; tile round-trip survives a 0.5×–2.25× CSS scale; cursor wraps on both axes; key repeat does not skip maps; **no route is drawn** (`draw(now)` takes no route and the class has no route accessor); a point that cannot be routed leaves the screen open; Escape and an outside click return without a route; **the whole reachable set is loaded before a route is searched**, so a destination in another chamber of the same map is found rather than reported unreachable |
@@ -3018,6 +3018,169 @@ a fourth door.
   current cavern.
 
 **Gates:** `tsc --noEmit` clean; full suite **877/877** across 63 files.
+
+#### The sixth cause: a jump flew both ways
+
+The player drew a route and pointed at two hops where the guide used a jump where
+walking would do — at `(193,19)` and again at `(203,21)` — and at a diagonal move
+the search called impossible that the hero can make.
+
+**A jump tied with walking, so it won.** The cost of a jump edge is the number of
+frames the flight takes, and the hero covers a column per frame — so a jump crossing
+*n* columns costs about *n*, exactly what walking those *n* columns costs. The search
+was therefore free to prefer the jump, and did: it hopped `(193,19) -> (200,21)`
+across a staircase of `STEP`s and `WALK`s the hero simply walks down. Every jump now
+carries `JUMP_TICK_PENALTY` on top of its frames, which breaks the tie without
+making a jump across a real chasm lose to a long walk around it. Both hops now walk.
+
+**A descent could change direction mid-air.** This is the one that was wrong in the
+model rather than in the cost. The jump went up in the direction it was pressed and
+came down at 45 degrees **in that direction** — up+right descends right, up+left
+descends left — because the hero holds one key for the length of the flight. The
+descent branched left, straight and right on *every frame*, so it described arcs that
+weave: three frames east and five west. No such flight exists. `descend` now takes
+the launch direction and never changes it, and `flight` runs three of them per rise —
+straight, locked left, locked right. The union is still every flight the hero can
+fly, because which one he performs is his choice at take-off; each one on its own is
+real.
+
+The differential tests against the engine caught the first attempt at this as a
+**false** failure, which was informative: the descent dedupe is generation-scoped, so
+the second and third locked descents were thrown away by marks the first left behind.
+The seen set is now one lane per steer.
+
+**[measured]** edges across all 31 caverns: **1,080,257 → 1,029,620**. The ~50,000
+edges that went are the zig-zag flights.
+
+#### Tests
+
+- `nav-jump-differential.test.ts` — **new**: over every traced flight, the descent
+  from the apex never reverses sideways. This is the guard that was missing: the
+  existing comparison only asserts the *engine's* landings are a subset of the
+  *model's*, so a model offering more than the hero can fly passes it happily.
+  Verified to fail with the lock removed.
+- `nav-graph.test.ts` — the edge projection, 1,080,257 → 1,029,620.
+
+**Gates:** `tsc --noEmit` clean; full suite **878/878** across 63 files.
+
+#### The seventh cause: a rope that steered on the way down
+
+Still a long diagonal descent, this time off a rope. The player is right that it is
+impossible, and it was the last place the hero could be moved sideways without
+choosing to be.
+
+Leaving a rope is **one step sideways and then straight down**.
+`dungeon_finish_rope_frame` (dungeon-states.ts:248-283) clears `UP_FLAG` and hands
+him back to `DUNGEON_STATE_NORMAL` before the frame ends, so he is *standing* where
+he stepped rather than airborne — and nothing reads a direction for him on the way
+down. The model was searching the full steering fall from a rope node, which is the
+right search for stepping off a **ledge** and the wrong one here:
+
+```ts
+addFalls(index, node.col + dir, node.row, there);          // was: full steering fall
+addFalls(index, node.col + dir, node.row, there, STEER_STRAIGHT);
+addFalls(index, node.col, node.row, -1, STEER_STRAIGHT);  // and off the foot of it
+```
+
+`landingsFrom` grew a steer mask — `STEER_ALL`, `STEER_LEFT`, `STEER_RIGHT`,
+`STEER_STRAIGHT` — and `flight` runs only the descents it permits. Ledge falls, ride
+drops and jumps keep the full set; rope exits get the straight one.
+
+**[measured]**
+
+| | before | after |
+| --- | --- | --- |
+| mp30 rope-exit edges | 13,387 | 1,843 |
+| mp30 rope exits drifting ≥ 4 columns | 6,874 | **0** |
+| mp31 rope-exit edges | 8,327 | 1,676 |
+| mp31 rope exits drifting ≥ 4 columns | 3,685 | **0** |
+| edges, all 31 caverns | 1,029,620 | **814,545** |
+
+Lateral 2 is the one step, not a drift: the rope is the hero's *middle* column, so
+stepping off it to the right moves his cell two columns.
+
+The two routes already checked still resolve with no shoes — `mp30 (185,19) →
+(161,54)` at 230 points through the same four doors and the same lift, and
+`(185,19) → (176,50)` at 22 points walking the staircase.
+
+#### Tests
+
+- `nav-graph.test.ts` — **new**: no `FALL` out of a rope node moves more than two
+  columns sideways, on any of the 31 caverns. Verified to fail with the mask removed
+  (`mp10 rope (27,0) -> (24,4) drifts -3 columns`).
+
+**Gates:** `tsc --noEmit` clean; full suite **879/879** across 63 files.
+
+#### The eighth cause: a flight that changed direction, and a rope measured in one tile
+
+Two more, both in the same area of the model.
+
+**The rise and the descent were two separate choices.** Locking the descent was not
+enough, because the *rise* still searched sideways in both directions and every rise
+end was offered all three descents. So the model produced a flight that went up two
+rows **and to the right**, then descended 22 columns **to the left**:
+
+```
+(2,21) (3,20) (4,19) (5,19) (4,20) (3,21) (3,22) (3,23) (3,24) (2,25) (1,26) (0,27) (203,28) … (184,47)
+```
+
+One lateral intent now governs the whole flight: the direction the hero holds from
+the instant he presses jump until he lands. `collectStarts` takes the same `steer`
+the descent does, and `flight` runs rise and descent together per intent rather than
+attaching three descents to every rise. The rise may drift in that direction where it
+can and rises straight where it cannot — the same rule the descent follows.
+
+**A descent could straighten and then turn.** Even with the direction locked, the
+descent still offered "straight down" as a *free alternative* to the lateral step on
+every frame, so a flight could slide down several rows of open air and then start
+drifting. Holding a key, the hero moves that way or is stopped —
+`on_left_pressed` calls `initOnGround` and returns when the step is blocked
+(dungeon-vertical.ts:127-136) — he does not get to choose. Straight is now the
+fallback when the step is blocked, never an alternative to it.
+
+**A rope was measured in one tile, and it is two.** The rope's head is centred over
+the rope, so the rope is the hero's *middle* column and the cell he lands on by
+stepping is the one **past** it — the cliff edge. A one-tile exit only reaches the
+rope's own column, which is not a standing position. All three rope exits in the game
+are shaped exactly this way:
+
+```
+mp80 r10   ###.R|NNNNN     rope node 90,  rope 91,  ledge from 92
+mp30 r 7   ...R|NNNNNN     rope node 57,  rope 58,  ledge from 59
+mp80 r11   #NN.R|NNNNN     rope node 156, rope 157, ledge from 158
+```
+
+Modelling it as one tile had quietly severed mp80's gallery crossing, mp80's second
+rope and mp30's row-7 ledge — eleven tests, including two journeys the player had
+drawn himself. Where a wall denies the two-tile move he takes one and then falls
+**holding the same key**, so the drift is in the direction he stepped and never the
+other.
+
+#### The journeys, all bare
+
+| journey | before this round | after |
+| --- | --- | --- |
+| `mp30 (185,19) → (162,55)` | **no route** | 230 points, no equipment, `maps [5,6,5,6,5]` |
+| `mp30 (185,19) → (176,50)` | 21 points, one impossible leg | 21 points, no impossible leg |
+| `mp80 (113,21) → (151,6)` | no route | route found, touches no rock |
+| `mp80 (111,21) → mp81 (124,6)` | no route | route found, no closed doors |
+
+**[measured]** edges, all 31 caverns: 598,373 → **533,372**.
+
+#### Tests
+
+- `nav-graph.test.ts` — rewritten: a rope `STEP` moves at most two columns, and a
+  rope `FALL` at most three plus one per row of descent. Verified to fail with the
+  two-tile move removed.
+- `nav-jump-differential.test.ts` — two invariants over every traced flight: the
+  descent never reverses, and a straight drop only happens where the sideways step was
+  blocked. Both verified to fail against the code they replace.
+- `nav-graph.test.ts` — the counter-current check now reads its direction from the
+  **signed** column delta. Testing `node.col + 1 === target.col` cannot express a
+  two-tile exit, so it called every rightward rope exit leftward and flagged the very
+  currents the hero was moving *with*.
+
+**Gates:** `tsc --noEmit` clean; full suite **880/880** across 63 files.
 
 #### A fourth lesson
 
