@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { NAV_MAPS } from '../src/data/nav/nav-maps.js';
+import { diagPath } from './diag-path.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 describe('feature bits', () => {
@@ -35,7 +36,7 @@ describe('feature bits', () => {
         lines.unshift(`doors: ${open} open, ${closed} closed; feature bit0 set on ${bit0}`
             + ` of which ${bit0WithAch} have a real achievement word;`
             + ` closed doors with no achievement word: ${noAch}`);
-        writeFileSync('/tmp/kilo/feat.txt', lines.join('\n'));
+        writeFileSync(diagPath('feat.txt'), lines.join('\n'));
         expect(lines.length).toBeGreaterThan(0);
     });
 });
