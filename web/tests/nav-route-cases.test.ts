@@ -17,7 +17,8 @@ import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilitie
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt } from '../src/engine/nav/geometry.js';
 import { JumpModel } from '../src/engine/nav/jump.js';
-import { EDGE, EDGE_NAMES, NAV, blocksBody } from '../src/engine/nav/types.js';
+import { EDGE, EDGE_NAMES, NAV, CAP, blocksBody } from '../src/engine/nav/types.js';
+import { nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
 import { NAV_MAP_BY_ID, NAV_MAPS } from '../src/data/nav/nav-maps.js';
@@ -277,6 +278,91 @@ describe('locked doors and the keys for them', () => {
         // Arrived: the route retires cleanly rather than throwing its way out.
         expect(left).toBe(0);
         expect(guide.hasRoute).toBe(false);
+    });
+
+it('demands Silkarn shoes for the uphill step across a slope on mp30', () => {
+        // The player's own trip: mp30 (185,19) -> (162,55). The route the search
+        // produced crossed the `/` slope at column 151 of rows 59-61 with a STEP and
+        // a JUMP that carried **no requirement**, and the player correctly reported
+        // that it cannot be walked in boots. `SLOPE_UP` was gated and these were not:
+        // the slope they cross is under the hero's feet rather than in the column he
+        // steps into, so the generators that emit steps and jumps had no idea.
+        const g = store.get(5)!;
+        const from = nodeAt(g, 50, 59);
+        expect(from).toBeGreaterThanOrEqual(0);
+        const uphill: NavEdge[] = [];
+        for (let i = g.edgeOffsets[from]!; i < g.edgeOffsets[from + 1]!; i++) {
+            const e = g.edges[i]!;
+            if (g.nodes[e.to]!.row < g.nodes[from]!.row) uphill.push(e);
+        }
+        expect(uphill.length).toBeGreaterThan(0);
+        for (const e of uphill) {
+            expect(e.req & CAP.SLOPE_STAND, `${EDGE_NAMES[e.kind]} uphill over a slope`)
+                .toBeTruthy();
+        }
+
+// And the journey the player walks resolves with nothing at all: the door at
+        // (22,24), the lift at mp31 column 5 ridden all the way up, the doors at
+        // (47,15), (88,7) and (114,7), then the two ropes at columns 133 and 145.
+        const bare = findRoute({
+            store, caps: bareCapabilities(),
+            start: { mapId: 5, col: 185, row: 19 }, goal: { mapId: 5, col: 161, row: 54 },
+        })!;
+        expect(bare, 'the route the player walks must be offered').not.toBeNull();
+        expect(bare.equipment, 'and it needs no shoes').toEqual([]);
+        expect(bare.points[0]).toMatchObject({ mapId: 5, col: 185, row: 19 });
+        expect(bare.points[bare.points.length - 1]).toMatchObject({ mapId: 5, col: 161, row: 54 });
+
+        // It leaves mp30, rides mp31's lift upwards, and comes back — which is the
+        // only way into the chamber, so the lift has to be rideable in both
+        // directions or this route does not exist at all.
+        expect(bare.maps).toEqual([5, 6, 5, 6, 5]);
+        expect(bare.hops.some((h) => h.kind === EDGE.RIDE_V), 'the mp31 lift is ridden').toBe(true);
+        const ropes = bare.hops.filter((h) => h.kind === EDGE.CLIMB);
+        expect(ropes.length, 'both ropes at columns 133 and 145 are climbed')
+            .toBeGreaterThan(4);
+
+        // And a bare hero is never routed over it: the search goes round instead. (It can,
+        // now that the mp31 lift carries both ways — which is what finally makes this
+        // corner reachable at all.)
+        const detour = findRoute({
+            store, caps: bareCapabilities(),
+            start: { mapId: 5, col: 50, row: 59 }, goal: { mapId: 5, col: 54, row: 56 },
+        })!;
+        expect(detour).not.toBeNull();
+        expect(detour.equipment).toEqual([]);
+        const usedSlopeStep = detour.hops.some((h, i) =>
+            h.kind === EDGE.STEP
+            && detour.points[i]!.col === 50 && detour.points[i]!.row === 59
+            && detour.points[i + 1]!.col === 51 && detour.points[i + 1]!.row === 58);
+        expect(usedSlopeStep, 'the bare route must not cross the slope').toBe(false);
+    });
+
+    it('keeps a shoe-dependent route alive across ticks', () => {
+        // The map screen plans with planAccessories so a bare hero can be sent on a
+        // route that needs Feruza/Silkarn/Pirika shoes. The guide re-plans every tick
+        // against the hero's actual caps; re-searching bare would find nothing and drop
+        // the whole route before a single chevron drew (the mp30 report). Keeping the
+        // plan honest has to use the same augmented mask.
+        const route = findRoute({
+            store, caps: bareCapabilities(),
+            start: { mapId: 5, col: 185, row: 19 },
+            goal: { mapId: 5, col: 161, row: 54 },
+            planAccessories: true,
+        })!;
+        expect(route.equipment.length).toBeGreaterThan(0);
+        const hero = { mapId: 5, col: 185, row: 19 };
+        const guide = new PathGuide({
+            store,
+            heroPosition: () => ({ ...hero }),
+            capabilities: () => bareCapabilities(),
+        });
+        guide.setRoute(route, route.points[route.points.length - 1]!);
+        for (let t = 1000; t <= 6000; t += 500) {
+            guide.update(t);
+            expect(guide.isActive, `dropped at tick ${t}`).toBe(true);
+            expect(guide.remaining().length).toBeGreaterThan(1);
+        }
     });
 
     it('records where each key is, which is not where the route walks', () => {

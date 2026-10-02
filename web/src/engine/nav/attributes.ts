@@ -59,6 +59,29 @@ export function airflowGroups(airflows: readonly number[]): {
 }
 
 /**
+ * Read one zero-terminated 4-byte attribute group.
+ *
+ * The slope and aggressive tables are written as up to four tile ids followed by a
+ * zero terminator (`SEG1_BASE + 0x8018` / `0x801C` / `0x8020`, plan §2.3), and the
+ * generated arrays keep that terminator — `mp30`'s aggressive group is the three
+ * real tiles plus the `0` that ends it. Building a `Set` from the raw array folds
+ * that terminator in as a member, and tile `0` is *empty space*: it is most of a
+ * cavern. So every open cell was classified aggressive and sloped, every node's
+ * 3x3 footprint touched one, and `HAZARD_AGGRESSIVE` was set on all 978 nodes of
+ * mp30 — which refused the hero every route on the map unless he wore Pirika
+ * shoes. Stopping at the terminator is the same rule `airflowGroups` already
+ * applies to the three current groups.
+ */
+function terminatedGroup(entries: readonly number[]): Set<number> {
+    const out = new Set<number>();
+    for (const v of entries) {
+        if (v === 0) break;
+        out.add(v);
+    }
+    return out;
+}
+
+/**
  * lookup_shared (dungeon.c:1512) — the shared tail of both blocking predicates.
  * Returns true when blocking.
  */
@@ -96,9 +119,9 @@ export class NavTileClassifier {
         private readonly tables: NavTileTables,
     ) {
         const currents = airflowGroups(tables.airflows);
-        const slopeLeft = new Set(tables.slopeLeft);
-        const slopeRight = new Set(tables.slopeRight);
-        const aggressive = new Set(tables.aggressive);
+        const slopeLeft = terminatedGroup(tables.slopeLeft);
+        const slopeRight = terminatedGroup(tables.slopeRight);
+        const aggressive = terminatedGroup(tables.aggressive);
 
         this.flags = new Uint16Array(TILE_COUNT);
         for (let tile = 0; tile < TILE_COUNT; tile++) {

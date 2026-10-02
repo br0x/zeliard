@@ -4,8 +4,11 @@ Status: **implemented and played** — phases 0–8 shipped; the jump model, the
 family, the fall, the node rule and the current-carrying rule were corrected against
 the engine, and the guide and the chevrons were corrected against a player walking
 the route. §18 is the handover: what each correction was, where it came from, and
-what it changed. **§19 is the next piece of work and is not built**: keys are still
-only something the search spends, never something it goes and gets.
+what it changed. **§19 is built** — the search now goes and gets keys as well as
+spending them. **The last correction round is §17's final entry**: a zero-terminated
+attribute table read as if it were not terminated, which made every cavern's empty
+space into aggressive ground and refused the hero entire maps unless he happened to
+own the right shoes.
 Scope: a new consumable magic item that reveals the current cavern group, lets the
 player pick a destination, and computes and displays the shortest traversable
 route — both on the full-screen map and as chevron tiles over the live cavern
@@ -104,6 +107,14 @@ table, matching the engine exactly (`engine/dungeon-entities.ts:63-97`):
 | slope right (`\`) | 4 B | `+ 0x801C` | `slopeTilesRight` |
 | aggressive ground | 4 B | `+ 0x8020` | `aggressiveGround` |
 | airflows | 12 B | `+ 0x8024` | `airflows` |
+
+**The three 4-byte tables are zero-terminated**, not count-prefixed: up to three tile
+ids, then a `0`. The generated arrays keep that terminator — `mp30`'s aggressive
+group is `[29, 30, 31, 0]` — so reading one as a plain list folds `0` in as a member,
+and **tile `0` is the void**, which is most of a cavern. The last entry in §17 is what
+that cost.
+`attributes.ts` reads all three through `terminatedGroup()`, the rule `airflowGroups`
+already applied to the three current groups.
 
 Engine predicates to mirror exactly:
 
@@ -527,6 +538,16 @@ Accepting one closes the map immediately. If A* found no route, the map stays op
 and flashes `t('map.unreachable')` instead — no path is better than a wrong path,
 and silently returning to the inventory would look like success.
 
+**The route may leave the cavern the destination is on, and usually must.** These
+caverns are not one connected space each: `mp30`'s 978 nodes split 244 / 734, and
+`(185,19)` and `(161,54)` are on opposite sides of that split with eleven doors to
+`mp31` between them. A same-map destination can therefore be a cross-map journey, and
+the chevrons will show it walking out of a door and back in. That is the honest
+shortest route, not a detour — but it means **every map the route could use must be
+in memory before the search runs**, because the game only downloads the cavern the
+hero stands in and `findRoute` skips any door whose destination graph is missing.
+Without that, every such destination reports `No route found.`
+
 ### 3.5 The route in the live cavern view
 
 Once the player leaves the inventory, the route is drawn as **chevron tiles over
@@ -824,9 +845,9 @@ One byte per tile, computed on the fly from `NavTileTables` and the raw tile id:
 | 0 | `SOLID` | `isBlockingTile` or `isBlockingTileSimple` reports blocking |
 | 1 | `EMPTY` | tile id `0` |
 | 2 | `ROPE` | tile id is `1` or `2` |
-| 3 | `SLOPE_LEFT` | tile in `slopeLeft` |
-| 4 | `SLOPE_RIGHT` | tile in `slopeRight` |
-| 5 | `AGGRESSIVE` | tile in `aggressive` |
+| 3 | `SLOPE_LEFT` | tile in `slopeLeft`, up to the terminating zero |
+| 4 | `SLOPE_RIGHT` | tile in `slopeRight`, up to the terminating zero |
+| 5 | `AGGRESSIVE` | tile in `aggressive`, up to the terminating zero |
 | 6 | `AIRFLOW_UP` | resolves to an up current (checked first) |
 | 7 | `AIRFLOW_LEFT` | resolves to a left current |
 | 8 | `AIRFLOW_RIGHT` | resolves to a right current |
@@ -837,6 +858,11 @@ A tile listed in two groups takes the first, exactly as
 
 `nav/attributes.ts` builds a 64-entry lookup per cavern once, so classification
 is a single array read.
+
+The three 4-byte groups are read through `terminatedGroup()`, which stops at the
+zero that ends them (§2.3). This is not a formality: **tile 0 is the void**, so a
+terminator read as a member classifies every empty cell as slope and as aggressive
+ground. The last entry in §17 has the numbers.
 
 ### 7.2 Nodes
 
@@ -1520,6 +1546,16 @@ So the drift check first asks `nodeAt` whether the hero is on a node at all, and
 stands down until he lands. A failed search from a node still drops the route: there
 the world really has changed under the plan.
 
+**Re-plan against the mask the route was planned with, not the one the hero wears.**
+The map screen accepts routes planned with `planAccessories`, which searches as
+though every shoe were available, and a hero who does not own those shoes cannot walk
+it as planned. Re-searching with his real mask finds nothing, and the guide read that
+as "the goal became unreachable" and cleared the route on its first tick — before a
+single chevron drew. So when the active route carries equipment, the re-plan and the
+mask comparison both use `caps.mask | SHOE_MASK`. `bare | SHOE_MASK === shod |
+SHOE_MASK`, so this is stable across the moment the player puts the shoes on. Keys are
+*not* in that union: a key is something he picks up, not something he puts on.
+
 **A restore clears the route.** `performGameRestore` (F7) replaces the world under
 the hero — another place, another position — and the route planned before the load
 was about nothing, yet the chevrons stayed on screen and kept being drawn against
@@ -1701,11 +1737,11 @@ Each phase is independently shippable and independently reviewable.
 | **1b** | Tile-flag classifier — **done** | `engine/nav/attributes.ts`, `engine/nav/types.ts` | Flag classification against a hand table for `mpp1`; airflow precedence (up before left before right) |
 | **2** | Platform + current model — **done** | `engine/nav/geometry.ts`, `platforms.ts`, `airflows.ts` | 35 tests. Every ride slot's box verified free; links mutual and intra-platform; collapsing platforms descend only; every platform has slots or a recorded reason; **[measured] 3,204 ride slots, 71 platforms refused, 236 lifts / 738 stops, 288 conveyors / 1,470 exits** |
 | **3** | Navigation graph — **done** | `engine/nav/nav-graph.ts`, `jump.ts`, `geometry.ts` | 28 invariant tests over all 31 caverns plus the differential suite. **[measured] 29,917 nodes / 1,222,289 edges, all 31 caverns built in 1.1 s, 235/236 lifts and 216/288 conveyors reachable.** No `WALK` into an opposing current; no `FALL`/`JUMP` out of a lift; no fall into a current; **every jump edge is one the model produces**; a jump crosses no further than the frames it takes; no self-edges; CSR consistent. The jump model itself is the engine's, proved against it — see §18 |
-| **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests, plus a change in §18: the component flood now honours the hero's capabilities, so it picks a goal the hero can actually reach. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
+| **4** | Capabilities + A* — **done** | `engine/nav/capabilities.ts`, `pathfinder.ts`, plus `nodeHazard` on the graph | 32 tests, plus: **a vertical lift is ridden in both directions** (`RIDE_V` follows `slot.prev` as well as `slot.next`; a lift that could only be ridden down was a dead end), and **any rise whose feet touch a slope demands Silkarn**, keyed on the single cell the engine probes; dead ride slots 194 → 185, plus a change in §18: the component flood now honours the hero's capabilities, so it picks a goal the hero can actually reach. **[measured] same-cavern route ~1 ms, cross-cavern ~31 ms.** Lion-Head door refused without a key and opened with one, spending exactly 1; bare hero kept off aggressive ground and Pirika shoes allowed across; a town door is never an edge; a route never leaves the start map's reachable set; cost equals the sum of its hops; determinism |
 | **5** | Item + inventory + shop + save (Option D) — **done** | `memory.ts`, `game-state.ts`, `inventory-screen.ts`, `indoor-magic-shop.ts`, `path_items.png`, locale ×3, `main.ts` | 20 tests. Save round-trip and byte-exact save image; a save without the feature marker reads as not owned **whatever it holds at 0x4A**; buying and selling move the counter and the extended stock bit, never the generic array; using one copy leaves all five generic slots byte-identical; the addresses cannot be reached by the 0xA1..0xFF forward scans |
-| **6** | Map screen — **done** | `ui/map-screen.ts`, `key-router.ts`, `main.ts`, `NavGraphStore.load`/`gridOf` | 23 tests. All 31 caverns fit at an integer scale and stay centred; tile round-trip survives a 0.5×–2.25× CSS scale; cursor wraps on both axes; key repeat does not skip maps; **no route is drawn** (`draw(now)` takes no route and the class has no route accessor); a point that cannot be routed leaves the screen open; Escape and an outside click return without a route |
+| **6** | Map screen — **done** | `ui/map-screen.ts`, `key-router.ts`, `main.ts`, `NavGraphStore.load`/`gridOf` | 23 tests. All 31 caverns fit at an integer scale and stay centred; tile round-trip survives a 0.5×–2.25× CSS scale; cursor wraps on both axes; key repeat does not skip maps; **no route is drawn** (`draw(now)` takes no route and the class has no route accessor); a point that cannot be routed leaves the screen open; Escape and an outside click return without a route; **the whole reachable set is loaded before a route is searched**, so a destination in another chamber of the same map is found rather than reported unreachable |
 | **7** | Chevron overlay — **done** | `render/path-overlay.ts`, `main.ts`, `assets/images/chevrons.png` | 25 tests. The sheet is 5x24x24 and the frame order is asserted from the PNG header; cardinal, seam and diagonal directions all correct; dormant while a menu is open; route cleared on arrival; **one chevron per cell, so a nine-column jump draws nine arrows and the line has no gap**; per-frame cost independent of route length |
-| **8** | Live route — **done** | `engine/nav/path-guide.ts`, `key-router.ts` | Re-plans on capability, key-count, component, drift (>3 tiles) and a 20 s refresh; throttled to 500 ms; `Q` cancels only in an unpaused cavern; an unreachable goal drops the route rather than drawing a wrong one; **no re-plan is attempted while the hero is on no node**, so a jump over a gap no longer deletes the route; **F7 clears the route** |
+| **8** | Live route — **done** | `engine/nav/path-guide.ts`, `key-router.ts` | Re-plans on capability, key-count, component, drift (>3 tiles) and a 20 s refresh; throttled to 500 ms; `Q` cancels only in an unpaused cavern; an unreachable goal drops the route rather than drawing a wrong one; **no re-plan is attempted while the hero is on no node**, so a jump over a gap no longer deletes the route; **a shoe-dependent route re-plans against its own mask**, so re-planning cannot delete what the map screen accepted; **F7 clears the route** |
 
 Phase 8 was the one that needed the second pass, and it got one: playing the route
 found three faults in the display layer — stale chevrons after a restore, gaps where
@@ -2749,16 +2785,261 @@ the test was feeding the model a different map than the engine.
 entry. The route resolves in 146 hops and draws 359 chevron cells. Full suite
 856/856.
 
+### Phase 1b, 7 and 8 corrections — a route the player walks every day
+
+The player: at `mp30 (185,19)`, used the thread for `(162,55)` on the same map, and
+**no chevrons appeared at all**. Not a broken line, not a wrong direction — nothing.
+
+There were two independent defects, and the first one I fixed was the *second* one.
+
+#### The real cause: a zero terminator read as a tile id
+
+The report was that the route could not be found. It could not, and the reason was
+that the hero was treated as unable to walk his own cavern.
+
+The slope and aggressive tables are **zero-terminated 4-byte groups** (§2.3), and the
+generated arrays keep the terminator — `mp30`'s aggressive group is `[29, 30, 31, 0]`.
+`NavTileClassifier` built its sets straight from those arrays:
+
+```ts
+const slopeLeft  = new Set(tables.slopeLeft);      // {27, 0}
+const aggressive = new Set(tables.aggressive);     // {29, 30, 31, 0}
+```
+
+`0` is a fine `Set` member and a terrible tile. **Tile 0 is the void** — it is 8,478
+of `mp30`'s 13,056 cells, the open air of the cavern. So:
+
+| | |
+| --- | --- |
+| tile `0` gained | `SLOPE_LEFT`, `SLOPE_RIGHT`, `AGGRESSIVE` |
+| `nodeHazard` scans each node's whole 3×3 footprint | and nearly every node has void tiles in it |
+| so | **every node on the map** got `HAZARD_AGGRESSIVE` |
+| and `permitted()` refuses to *enter* an aggressive node without `CAP.GROUND_SAFE` | Pirika shoes |
+
+With an empty pocket and no shoes the search could not enter a single node on `mp30`,
+so it found no route — a cavern the player has crossed many times. **19 of the 31 maps
+were affected**, every one that declares an aggressive group longer than three tiles.
+
+**[measured], all 31 caverns:**
+
+| | before | after |
+| --- | --- | --- |
+| nodes | 29,917 | **29,917** (unchanged — node generation reads blocking, not hazard) |
+| edges | 1,081,449 | 1,080,257 (−1,192 slope edges that tile 0 had invented) |
+| aggressive-hazard nodes | 16,995 | **884** |
+| slope-hazard nodes | 26,562 | **210** |
+
+`terminatedGroup()` stops at the terminator, which is the rule `airflowGroups` had
+always applied to the three current groups three functions above. The slope test in
+`nav-attributes.test.ts` had *known* about the padding and filtered it; the aggressive
+test two cases below did not, and so **asserted the bug** — it iterated the raw array
+and required the terminator to classify as aggressive. Both now skip padding, and a
+new test requires that tile 0 is never a slope and never aggressive on any of the 31
+maps.
+
+The lesson is the same one the file already records twice, in a new place: **a
+terminator is not a value.** The airflow tables are zero-terminated too, and the code
+that reads them says so explicitly; the three tables beside them did not, and nothing
+about the shape of the array says which convention it follows.
+
+#### The second cause: a shoe-dependent route dropped on its first tick
+
+With the terminator fixed, stage 1 of the map screen's search finds the bare route and
+nothing is wrong. But `planAccessories` (§18, "The route should say which shoes it
+needs") means a route *can* legitimately be planned against an augmented mask, and that
+route was then destroyed before a frame was drawn.
+
+`PathGuide.tick` re-planned against the hero's **actual** capabilities:
+
+```ts
+const next = findRoute({ store, caps, start, goal });   // caps = what he wears
+if (!next) { this.clear(); }                             // "the goal became unreachable"
+```
+
+A route planned with `planAccessories: true` was searched with `caps.mask | SHOE_MASK`,
+so re-searching bare found nothing — and the guide read that as the world having
+changed and cleared the route. On `mp30` this was hidden behind the terminator bug;
+it was still live, and still killed the 148-hop Feruza route that genuinely needs
+those shoes.
+
+The fix plans against the same mask the route was planned with, whenever the active
+route carries equipment:
+
+```ts
+const wantsShoes = (this.route.equipment?.length ?? 0) > 0;
+const planCaps = wantsShoes ? { ...caps, mask: caps.mask | SHOE_MASK } : caps;
+```
+
+`recordPlan`/`needsReplan` then compare against that same mask, so the drift check
+does not see a shoe-dependent route as drifted. It stays correct once the hero actually
+puts the shoes on, because `bare | SHOE_MASK === shod | SHOE_MASK`.
+
+`SHOE_MASK` is now exported from `pathfinder.ts` rather than restated, so the map
+screen and the guide cannot disagree about what "counting on the shoes" means.
+
+#### What the player's own route is
+
+The bare `mp30 (185,19) -> (161,54)` is **176 points with no equipment** — no shoes, no
+keys, `WALK`/`STEP`/`JUMP`/`CLIMB`/`FALL` only. The 148-point route the search
+preferred *with* every shoe was not better; it was the cheapest route through a
+hazards table that claimed the whole cavern was lava. Removing 1,192 impossible edges
+and 16,111 phantom hazards made the honest route the cheap one.
+
+#### The third cause: the screen never fetched the caverns a route needs
+
+The bare route was still refused after the two fixes above, and this one was not in
+the model at all — it was in what the game had **in memory**.
+
+`mp30 (185,19) -> (161,54)` has **no path that stays inside `mp30`**. The two cells
+are in different chambers, and **[measured]** the map's 978 nodes split 244 / 734
+between them. The way through is `mp31`, which `mp30` reaches through **eleven** doors.
+The honest shortest route is therefore 176 points that leave `mp30`, cross to `mp31`,
+and come back — `route.maps` is `[5, 6, 5, 6, 5]`.
+
+The game only downloads the MDT of the cavern the hero is standing in. `MapScreen`
+loaded the map **on screen** — the one the player is looking at, for the raster and
+the cursor — and nothing else, so `store.get(6)` returned null, and `findRoute`
+silently skips any door whose destination graph is missing:
+
+```ts
+const dest = store.get(portal.destMapId);
+if (!dest) continue;                    // dungeon not downloaded: door invisible
+```
+
+Every route that had to leave the cavern was therefore reported **`No route found.`**
+for a journey that exists, one door away from being found. This is not a rare shape:
+it is every destination in a different chamber, which in these caverns is most of them.
+
+**Fix.** `MapScreen` now loads the whole reachable set — `ensureComponent()`,
+memoized, kicked off in `enter()` so it runs while the player reads the map, and
+awaited in `choose()` so the search never races it. `choose()` became `async` for
+this, and re-checks after the await that the map on screen is still the one the
+snapped node came from, since a browse can change it mid-wait.
+
+**[measured]** for the reported trip the fetcher now pulls maps
+`0,1,2,3,4,6,7,8,9,10` — the whole reachable set bar the one already in memory — and
+returns 176 points, no equipment, no keys.
+
+#### A third lesson
+
+Every test in this file loaded MDTs from `web/public/game/0/`, so **every map was
+always available** and no test could see this. It is the same substitution mistake as
+§17's `getGmem().slice()` finding, one level up: not the wrong bytes but the wrong
+*availability*. A store that can answer for every map is a fixture, and a fixture more
+capable than the real thing hides exactly the bugs that are about capability.
+
+The guards for this defect are `nav-mp30-cross-map.test.ts` — a store that serves only
+the current cavern and fetches the rest, exactly as `main.ts` wires it. It reports
+`expected [] to have a length of 1` with `await this.ensureComponent()` removed.
+
+#### The fourth and fifth causes: an uphill step the slope gate missed, and a lift that only went down
+
+The bare trip still failed after the three above. Two more defects, both in the edge
+generators, and the second is why this report is long.
+
+**Uphill over a slope carried no requirement.** The route the search produced crossed
+the `/` slope at column 151, rows 59-61, with a `STEP` `(50,59) -> (51,58)` and a
+`JUMP` `(51,58) -> (54,56)` that both claimed `req=0`. The player correctly reported
+that it cannot be walked in boots.
+
+`SLOPE_UP` was gated on Silkarn, but it only fires when the slope tile sits in the
+column the hero steps *into*. These two edges cross a slope lying under his *feet*, so
+the step and jump generators never saw it — and §7.3 already says climbing a slope is
+a Silkarn move. The engine agrees: `slope_assist_on_landing`
+(dungeon-vertical.ts:563-599) slides the hero down every fourth tick unless he holds
+uphill, and `check_silkarn_shoes_and_slopes` is what stops the shove while he is
+airborne. The rule now lives in `add()`, keyed on **the one cell the engine reads** —
+`getSlopeDirectionByTileUnderFeet` probes the middle foot, `heroCoords + 2*36 + 1`, so
+two cells and not nine — so no generator can forget it:
+
+```ts
+const ascentOverSlope = (fromCol, fromRow, toCol, toRow) => {
+    if (toRow >= fromRow) return false;          // level or downhill: sliding helps
+    return boxTouchesSlope(fromCol + 1, fromRow + 2)
+        || boxTouchesSlope(toCol + 1, toRow + 2);
+};
+```
+
+Asking about the whole 3×3 would have gated every rise that merely passes near a
+slope, which is a different and much worse error. Both offending edges now read
+`req=4`.
+
+**A vertical lift could only be ridden down.** This is the one that mattered. mp31 has
+a lift at **column 5**, `startY 26, topY 0, bottomY 26`. The hero boards it the way
+the player described — *"short jump left+up"*, because the lift's lowest position is
+one tile above the ground he stands on — then presses Up and rides to the top.
+
+Vertical platforms are static until the hero is aboard and drives them, and `chain()`
+links every adjacent pair **both** ways, setting `next` and `prev`. But the graph only
+ever followed `next`:
+
+```ts
+for (const [next, kind, cost] of [
+    [slot.next, slot.kind === 2 ? EDGE.RIDE_H : EDGE.RIDE_V, ...],
+] as [number, number, number][]) { add(index, rideOf[next]!, kind, cost); }
+```
+
+`next` walks the chain in **one** direction, and for a lift that direction is *down*.
+`(5,23)` — the boarding slot — had no edge to `(5,22)` or anything above it, so the
+lift was a dead end, and with it the only way into mp30's destination chamber.
+`RIDE_V` is now emitted from `slot.prev` as well, but **only for `PLATFORM_VERTICAL`**:
+a collapsing platform descends and never rises (dungeon-vertical.ts:472-484), and a
+horizontal platform is fully automated, so the hero can always wait for it to come
+back and one direction already spans both.
+
+**[measured]** dead ride slots across all 31 caverns: **194 → 185**.
+
+#### The route the player walks
+
+**216 points, no equipment, no keys**, `maps [5, 6, 5, 6, 5]`:
+
+| | leg | |
+| --- | --- | --- |
+| 1 | mp30 `(185,19)` → door `(22,24)` | walk right, jump right |
+| 2 | mp31 `(22,24)` → `(5,23)` | walk left, **short jump onto the lift** |
+| 3 | mp31 col 5 `(5,23)` → `(5,0)` → `(5,63)` | **ride the lift all the way up**, `RIDE_V` × 23 |
+| 4 | mp31 → door `(47,15)` → mp30 | walk right, fall |
+| 5 | mp30 `(47,15)` → rope → door `(88,7)` → mp31 | walk right, climb the rope at column 57 |
+| 6 | mp31 `(88,7)` → door `(114,7)` → mp30 | walk right |
+| 7 | mp30 `(114,7)` → `(161,54)` | walk right to `(132,7)`, **climb the col-133 rope** to `(132,1)`, fall, walk right to `(144,1)`, **climb the col-145 rope** over the seam to `(144,54)`, walk right |
+
+mp30's 978 nodes split 244 / 734 between the hero's chamber and the goal chamber, so
+the journey must leave `mp30`. It uses mp31's lift to get back up and returns through
+a fourth door.
+
+#### Tests
+
+- `nav-route-cases.test.ts` — every uphill edge out of mp30 `(50,59)` carries
+  `CAP.SLOPE_STAND`; the full trip resolves bare with `maps [5,6,5,6,5]`, no
+  equipment, riding a `RIDE_V` and climbing both ropes; and a bare hero routed from
+  `(50,59)` to `(54,56)` goes *round* rather than over the slope.
+- `nav-graph.test.ts` — the dead-ride-slot count, 194 → 185.
+- `nav-mp30-cross-map.test.ts` — the whole trip through a store that serves only the
+  current cavern.
+
+**Gates:** `tsc --noEmit` clean; full suite **877/877** across 63 files.
+
+#### A fourth lesson
+
+Two of the five defects were edges that existed but pointed one way, or claimed a
+requirement they did not have. Neither shows in a route's *shape*: a 176-point route
+looks exactly as convincing as a 216-point one. Printing it exposed both — hop 77 had
+no `req`, and the `RIDE_V` chain visibly ran one way. **Print the route, and print the
+requirement on every hop.** A merely *plausible* route is the failure mode, because
+the search will always hand you one.
+
 ---
 
 ## 18. Handover — read this first
 
-**State at end of session:** `tsc --noEmit` clean, **856 passing** across 59 files,
+**State at end of session:** `tsc --noEmit` clean, **877 passing** across 63 files,
 nothing skipped. The jump model is derived from the engine and has no deviations
 from it left; the rope family, the fall, the platform and the node rules are
 corrected; the route from the start ledge to `(151,6)` resolves leg for leg as the
 player drew it; and the chevrons the guide draws for it are continuous, survive a
-restore, and are not deleted by a jump.
+restore, and are not deleted by a jump. The cavern's own hazard tables are read with
+their terminators, so a hero without shoes can walk the cavern he is standing in, and
+the map screen loads every cavern a route may need before it searches.
 
 ### What the model was, and what it is now
 
@@ -3093,6 +3374,9 @@ starts on the hero and ends on the destination.
 | all 31 caverns built | 1.7 s | 1.1 s | the predicates are masks over the map now, not modular arithmetic per state |
 | route from the start ledge | no route | 146 hops, 359 chevron cells | it resolves leg for leg as drawn, and every cell of it is drawn |
 | chevrons per frame cap | 64 | 512 | one per cell rather than per hop, so a cross-cavern route needs hundreds; the cap only bounds loop arithmetic |
+| aggressive-hazard nodes | 16,995 | 884 | the aggressive table is zero-terminated, and its terminator was being read as the tile `0` — which is the void, and most of a cavern. 19 of 31 maps were affected, and a hero without Pirika shoes could not enter a single node |
+| slope-hazard nodes | 26,562 | 210 | the same terminator, in the two slope tables beside it |
+| edges | 1,081,449 | 1,080,257 | −1,192 `SLOPE_UP`/`SLOPE_DOWN` edges that the void tile had invented. Nodes are unchanged at 29,917: node generation reads blocking, not hazard |
 
 ### Traps in this code that cost a session
 
@@ -3131,6 +3415,27 @@ These were all wrong turns, recorded so they are not walked again:
 - **One marker per move is one marker per cell.** Drawing one chevron per hop looked
   right for a walk and left a nine-column gap for a jump. The unit that matters is
   the tile, not the edge.
+- **A terminator is not a value.** The slope and aggressive tables are
+  zero-terminated 4-byte groups, so reading one as a plain list makes the tile `0` a
+  member — and `0` is the void, which is most of a cavern. It read as harmless
+  because a `Set` accepts `0` without complaint and the flags it produced were merely
+  *too many*, never visibly wrong. The airflow tables three functions above were
+  already read with an explicit stop-at-zero; when two tables beside each other use
+  different conventions, neither can be copied from the other without checking.
+- **Fix the cause you can name, not the first symptom that reproduces.** The dropped
+  shoe-dependent route was reproducible, had a clean one-line cause, and had a test
+  written for it in twenty minutes. It was also downstream of a defect that made
+  16,995 of 29,917 nodes dangerous. Fixing it first produced a green suite and a
+  cavern the hero still could not walk. The same trip then failed a *third* time for
+  a reason with nothing to do with either: the map the route needed had never been
+  downloaded. Three defects, one symptom, and the first two were found by reading
+  code while the third was found only by asking what the game actually had in memory.
+- **A fixture more capable than the real thing hides capability bugs.** Every test
+  loaded MDTs from disk, so every map was always available. A store that can answer
+  for all 31 caverns is not a more thorough fixture, it is a different program — and
+  the bug it hid was a search that skipped any door whose destination was missing.
+  When a dependency is *lazily* available in production, the test double must be lazy
+  too, or the test is asserting about a world the player does not live in.
 
 ### Where the code is
 

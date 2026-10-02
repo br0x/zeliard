@@ -15,7 +15,7 @@ import type { CapabilityMask } from './types.js';
 import { EDGE } from './types.js';
 import type { HeroCapabilities } from './capabilities.js';
 import {
-    findRoute, reachableMaps, type NavGraphStore, type NavPoint, type NavRoute,
+    findRoute, reachableMaps, SHOE_MASK, type NavGraphStore, type NavPoint, type NavRoute,
 } from './pathfinder.js';
 import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
@@ -294,11 +294,21 @@ export class PathGuide {
         const hero = this.deps.heroPosition();
         if (!hero) return;
 
-        if (!this.needsReplan(now, caps, hero)) return;
+        // A route that counts on shoes the hero can put on was planned against the
+        // augmented mask, so keeping it honest has to use the same one: re-searching
+        // bare would drop every feruza/silkarn/pirika route on the first tick after
+        // the thread is spent. Once the hero actually wears the needed accessory the
+        // augmented mask equals his real mask, so this stays correct either way.
+        const wantsShoes = (this.route.equipment?.length ?? 0) > 0;
+        const planCaps: HeroCapabilities = wantsShoes
+            ? { ...caps, mask: caps.mask | SHOE_MASK }
+            : caps;
+
+        if (!this.needsReplan(now, planCaps, hero)) return;
 
         const next = findRoute({
             store: this.deps.store,
-            caps,
+            caps: planCaps,
             start: { mapId: hero.mapId, col: hero.col, row: hero.row },
             goal: this.goal,
         });
@@ -315,7 +325,7 @@ export class PathGuide {
             return;
         }
         this.route = next;
-        this.recordPlan(caps);
+        this.recordPlan(planCaps);
         // `progress` is an index into the *old* point list, and the new route is a
         // different list, so carrying it over left the reveal starting wherever that
         // number happened to fall — a jump that skipped three points re-planned from

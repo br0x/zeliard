@@ -125,8 +125,11 @@ describe('nodes are positions the hero can occupy', () => {
             }
         }
         expect(total).toBe(5589);
-        expect(live, 'ride slots with no entry at all').toBe(5395);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(194);
+        // 185 dead slots, down from 194: a vertical lift used to be linked along
+        // `slot.next` only, which walks the chain in one direction, so every lift
+        // could be ridden down but never up and the top of it had no way in.
+        expect(live, 'ride slots with no entry at all').toBe(5404);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(185);
     });
 
     it('finds standing positions on the biggest caverns', () => {

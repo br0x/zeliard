@@ -139,7 +139,7 @@ const SHOE_BITS: readonly (readonly [number, number, string])[] = [
 ];
 
 /** The mask that lets the search plan a route the hero can walk in shoes. */
-const SHOE_MASK = SHOE_BITS.reduce((mask, [bit]) => mask | bit, 0);
+export const SHOE_MASK = SHOE_BITS.reduce((mask, [bit]) => mask | bit, 0);
 
 export class NavGraphStore {
     private readonly graphs = new Map<number, NavGraph>();

@@ -175,8 +175,11 @@ describe('every string it asks the locale for exists', () => {
 
 describe('fitting every cavern into the canvas', () => {
     it('uses an integer scale that keeps the whole map inside the map area', () => {
+        // One screen for the sweep: `enter` warms the reachable component, and the
+        // store caches graphs, so a screen per cavern would rebuild the same caverns
+        // 31 times over for a test that only measures geometry.
+        const { screen } = harness();
         for (const meta of NAV_MAPS) {
-            const { screen } = harness();
             const scale = screen.scaleFor(meta.id);
             expect(Number.isInteger(scale), meta.nameKey).toBe(true);
             expect(scale).toBeGreaterThanOrEqual(1);
@@ -275,7 +278,7 @@ describe('choosing a destination', () => {
         throw new Error('no off-node neighbour found in mp10');
     });
 
-    it('returns a route and closes on a valid destination', () => {
+    it('returns a route and closes on a valid destination', async () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         const graph = store.get(0)!;
@@ -289,7 +292,7 @@ describe('choosing a destination', () => {
         }
         expect(goal).toBeGreaterThanOrEqual(0);
         const target = graph.nodes[goal]!;
-        h.screen.choose(target.col, target.row);
+        await h.screen.choose(target.col, target.row);
         expect(h.picked()).toHaveLength(1);
         const route = h.picked()[0] as { points: unknown[]; cost: number; maps: number[] };
         expect(route.points.length).toBeGreaterThan(1);
@@ -298,38 +301,38 @@ describe('choosing a destination', () => {
         expect(h.screen.active).toBe(false);
     });
 
-    it('routes to the cell the hero is standing on', () => {
+    it('routes to the cell the hero is standing on', async () => {
         const h = harness();
-        h.screen.choose(HERO.col, HERO.row);
+        await h.screen.choose(HERO.col, HERO.row);
         expect(h.picked()).toHaveLength(1);
         expect(h.screen.active).toBe(false);
     });
 
-    it('stays open and reports a goal it cannot route to', () => {
+    it('stays open and reports a goal it cannot route to', async () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         // mp29 is mp90, behind a Lion-Head door from mp84 and not in mp10's
         // reachable set, so a route to it must fail rather than silently succeed.
         store.get(29);
         h.screen.displayMapId = 29;
-        h.screen.choose(0, 0);
+        await h.screen.choose(0, 0);
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active).toBe(true);
     });
 
-    it('offers the closed-door route when the hero is carrying the key', () => {
+    it('offers the closed-door route when the hero is carrying the key', async () => {
         // mp10 (26,16) -> mp1d crosses a closed ordinary-key door. With a key in his
         // pocket the first search finds it; with an empty pocket it does not.
         const keyed = harness({ capabilities: () => ({ ...bareCapabilities(), keys: 1, mask: 0xff }) });
         keyed.screen.displayMapId = 1;
-        keyed.screen.choose(27, 15);
+        await keyed.screen.choose(27, 15);
         expect(keyed.picked(), 'a key opens a closed door').toHaveLength(1);
         const route = keyed.picked()[0] as NavRoute;
         expect(route.lockedDoors.ordinary).toBeGreaterThan(0);
         expect(route.keysSpent.ordinary).toBeGreaterThan(0);
     });
 
-    it('sets the journey the player reported, which needs no key', () => {
+    it('sets the journey the player reported, which needs no key', async () => {
         // mp80 (111,21) -> mp81 (124,6) crosses doors that are *open*. The
         // generator used to mark every door as needing a key, and this was refused
         // for three sessions because of it.
@@ -340,13 +343,13 @@ describe('choosing a destination', () => {
         const store = (empty.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         store.get(24);
         empty.screen.displayMapId = 24;
-        empty.screen.choose(124, 6);
+        await empty.screen.choose(124, 6);
         expect(empty.picked(), 'an open way through, no key needed').toHaveLength(1);
         const route = empty.picked()[0] as NavRoute;
         expect(route.lockedDoors.ordinary + route.lockedDoors.lion).toBe(0);
     });
 
-    it('refuses a cell with no standing position anywhere near it', () => {
+    it('refuses a cell with no standing position anywhere near it', async () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         const graph = store.get(0)!;
@@ -358,7 +361,7 @@ describe('choosing a destination', () => {
             }
         }
         expect(empty).toBeGreaterThanOrEqual(0);
-        h.screen.choose(Math.floor(empty / 100), empty % 100);
+        await h.screen.choose(Math.floor(empty / 100), empty % 100);
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active).toBe(true);
     });
@@ -482,8 +485,9 @@ describe('the screen shows no route', () => {
 
 describe('drawing does not throw for any map', () => {
     it('renders every cavern, including the doorless ones', () => {
+        // One screen, as in play: the store caches each cavern's graph.
+        const h = harness();
         for (const meta of NAV_MAPS) {
-            const h = harness();
             h.screen.displayMapId = meta.id;
             expect(() => h.screen.draw(0), meta.nameKey).not.toThrow();
         }
@@ -504,7 +508,7 @@ describe('drawing does not throw for any map', () => {
         screen.enter({ heroMapId: HERO.mapId, heroCol: HERO.col, heroRow: HERO.row });
         expect(() => screen.draw(0)).not.toThrow();
         // And a click cannot silently produce a route out of nothing.
-        screen.choose(10, 10);
+        void screen.choose(10, 10);
     });
 
     it('shows a transient message instead of the hint line while one is set', () => {

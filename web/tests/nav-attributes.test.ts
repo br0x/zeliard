@@ -220,10 +220,27 @@ describe('slopes, hazards and currents', () => {
     it('marks the cavern-specific aggressive ground', () => {
         for (const meta of NAV_MAPS) {
             const classifier = NavTileClassifier.forMap(meta.id);
-            for (const tile of NAV_TILES[meta.id]!.aggressive) {
+            // Zero-padded to four slots like the slope lists, so skip the padding.
+            for (const tile of NAV_TILES[meta.id]!.aggressive.filter((v) => v !== 0)) {
                 expect(classifier.classify(tile) & NAV.AGGRESSIVE, `${meta.nameKey} ${tile}`)
                     .toBeTruthy();
             }
+        }
+    });
+
+    it('never treats the void tile as a slope or as aggressive ground', () => {
+        // The three tables are zero-terminated, and the generated arrays keep that
+        // terminator — mp30's aggressive group is [29,30,31,0]. Reading one raw made
+        // tile 0, which is empty space and most of a cavern, an aggressive slope,
+        // which set HAZARD_AGGRESSIVE on all 978 nodes of mp30 and refused the hero
+        // every route on it unless he wore Pirika shoes. The terminator ends the
+        // list; it is never a member of it.
+        for (const meta of NAV_MAPS) {
+            const f = NavTileClassifier.forMap(meta.id).classify(0);
+            expect(f & NAV.AGGRESSIVE, meta.nameKey).toBe(0);
+            expect(f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT), meta.nameKey).toBe(0);
+            // And tile 0 is still the void, exactly as before.
+            expect(f & NAV.EMPTY, meta.nameKey).toBeTruthy();
         }
     });
 

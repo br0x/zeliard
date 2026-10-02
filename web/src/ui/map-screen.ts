@@ -128,6 +128,21 @@ export class MapScreen {
     private loading = false;
     private message = '';
     private messageUntil = 0;
+    /** The hero's map when the screen opened; the reachable set is keyed off it. */
+    private heroMapId = 0;
+    /**
+     * Loading every cavern the route may use, once.
+     *
+     * The game only holds the MDT of the cavern the hero is standing in, so a store
+     * that has never been asked for another map reports `null` for it — and
+     * `findRoute` skips any door whose destination graph is missing. That silently
+     * deleted every route that needs to leave the map, and it is not a rare shape:
+     * **mp30 has no internal path at all** from `(185,19)` to `(161,54)`, because the
+     * two cells are in different chambers and the way through is via mp31. Asked for
+     * that destination, the screen reported "No route found." while mp31's graph sat
+     * unloaded behind a door the player could have walked through.
+     */
+    private componentReady: Promise<unknown> | null = null;
 
     constructor(private readonly deps: MapScreenDeps) {}
 
@@ -137,11 +152,31 @@ export class MapScreen {
         this.loading = false;
         this.message = '';
         this.displayMapId = snapshot.heroMapId;
+        this.heroMapId = snapshot.heroMapId;
         this.cursorCol = snapshot.heroCol;
         this.cursorRow = snapshot.heroRow;
         this.refreshStrip(snapshot.heroMapId);
         this.stripIndex = Math.max(0, this.maps.indexOf(snapshot.heroMapId));
         this.clearMessage();
+        // Start fetching the rest of the component now, while the player is still
+        // reading the map. By the time a destination is picked this has usually
+        // finished, and `choose` waits for it either way.
+        void this.ensureComponent();
+    }
+
+    /**
+     * Every cavern the hero can be routed through, fetched and graphed.
+     *
+     * Memoized, so a screen opened and closed repeatedly does not refetch, and
+     * concurrent calls share one pass. A map that fails to load is simply absent
+     * from the search — the same as before, and no worse.
+     */
+    private ensureComponent(): Promise<unknown> {
+        if (!this.componentReady) {
+            const ids = reachableFor(this.heroMapId);
+            this.componentReady = Promise.all(ids.map((id) => this.deps.store.load(id)));
+        }
+        return this.componentReady;
     }
 
     exit(): void {
@@ -196,7 +231,7 @@ export class MapScreen {
         if (canvasY < AREA_TOP + STRIP_H) { this.clickStrip(canvasX, canvasY); return; }
         const t = this.tileFromCanvas(canvasX, canvasY);
         if (!t) return;
-        this.choose(t.col, t.row);
+        void this.choose(t.col, t.row);
     }
 
     /** A click outside the map dismisses, matching the rest of the UI. */
@@ -229,7 +264,7 @@ export class MapScreen {
                 return true;
             case 'Enter':
             case ' ':
-                if (!repeat) this.choose(this.cursorCol, this.cursorRow);
+                if (!repeat) void this.choose(this.cursorCol, this.cursorRow);
                 return true;
             case 'Escape':
                 if (!repeat) this.deps.onExit();
@@ -248,8 +283,13 @@ export class MapScreen {
      *
      * The cell is snapped to the nearest standing position, so a click on the
      * wall beside a ledge still means "there".
+     *
+     * Async because a route may leave the cavern: the destination is often only
+     * reachable through a door into a map whose MDT the game has not downloaded,
+     * and searching before that arrives reports "no route" for a journey that
+     * exists. See {@link ensureComponent}.
      */
-    choose(col: number, row: number): void {
+    async choose(col: number, row: number): Promise<void> {
         if (this.loading) return;
         const hero = this.deps.heroPosition();
         if (!hero) { this.fail(this.deps.text('map.noMap')); return; }
@@ -259,7 +299,17 @@ export class MapScreen {
         const target = this.snapToNode(col, row);
         if (target < 0) { this.fail(this.deps.text('map.noPath')); return; }
 
-        const node = graph.nodes[target]!;
+        // Every map this route could use, not just the one on screen.
+        await this.ensureComponent();
+        // A browse during the wait can have changed which map is on screen, and the
+        // node snapped above belongs to the map that was showing when it was taken.
+        const onScreen = this.deps.store.get(this.displayMapId);
+        if (!onScreen || this.displayMapId !== graph.mapId) {
+            this.fail(this.deps.text('map.noMap'));
+            return;
+        }
+
+        const node = onScreen.nodes[target]!;
         const from = { mapId: hero.mapId, col: hero.col, row: hero.row };
         const to = { mapId: this.displayMapId, col: node.col, row: node.row };
         const caps = this.deps.capabilities();

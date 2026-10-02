@@ -343,9 +343,50 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     const traceOffset = new Int32Array(nodes.length + 1);
 
 
+    /**
+     * Silkarn's shoes, demanded by any move that *rises* over a slope.
+     *
+     * A slope is a ramp the hero slides down, and the engine slides him every fourth
+     * tick unless he is holding uphill (`slope_assist_on_landing`,
+     * dungeon-vertical.ts:563-599) — while airborne it is `check_silkarn_shoes_and_slopes`
+     * that stops the shove. So going *up* a slope is not a walk: it takes the shoes.
+     *
+     * This lives in `add` rather than in one generator because the generators cannot
+     * be trusted to remember it. The `STEP` generator emitted `(50,59) -> (51,58)`
+     * and the jump generator `(51,58) -> (54,56)` on mp30 with no requirement at all,
+     * and the route that used them claimed a bare hero could cross a slope — which
+     * the player reported as unwalkable, correctly. The dedicated `SLOPE_UP` edge was
+     * gated, but these two were not, because the slope they cross is under the hero's
+     * *feet* rather than in the column he is stepping into.
+     *
+     * The test is deliberately the conservative direction: an ascent that touches a
+     * slope anywhere in either 3x3 box is treated as needing the shoes. That can
+     * refuse a rise a bare hero could make, and never the reverse.
+     */
+    const ascentOverSlope = (fromCol: number, fromRow: number, toCol: number, toRow: number): boolean => {
+        if (toRow >= fromRow) return false;              // level or downhill: sliding helps
+        // The engine reads exactly one cell: the tile under the hero's middle foot,
+        // `getSlopeDirectionByTileUnderFeet` (dungeon-vertical.ts:539-561) probing
+        // `heroCoords + 2*36 + 1`. Two cells, not nine — asking about the whole box
+        // would gate every rise that merely happens to pass near a slope.
+        return boxTouchesSlope(fromCol + 1, fromRow + 2)
+            || boxTouchesSlope(toCol + 1, toRow + 2);
+    };
+    const boxTouchesSlope = (col: number, row: number): boolean => {
+        const f = flagsAt(grid, classifier, col, row);
+        return (f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT)) !== 0;
+    };
+
     const add = (from: number, to: number, kind: number, cost: number, req = 0, portal = -1): void => {
         if (to < 0 || to === from) return;
-        outgoing[from]!.push({ to, kind, cost, req, portal });
+        // Every node in this graph is on this map, so both endpoints have cells.
+        let need = req;
+        if ((need & CAP.SLOPE_STAND) === 0) {
+            const a = nodes[from]!;
+            const b = nodes[to]!;
+            if (ascentOverSlope(a.col, a.row, b.col, b.row)) need |= CAP.SLOPE_STAND;
+        }
+        outgoing[from]!.push({ to, kind, cost, req: need, portal });
     };
 
     /**
@@ -603,6 +644,18 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         for (const [next, kind, cost] of [
             [slot.next, slot.kind === 2 ? EDGE.RIDE_H : EDGE.RIDE_V,
                 slot.kind === 2 ? EDGE_COST.RIDE_H_SLOW : EDGE_COST.RIDE_V],
+            // A vertical lift carries him either way, because he drives it with Up
+            // and Down (dungeon-vertical.ts:380-467). `chain` links every adjacent
+            // pair both ways, but `next` alone walks the chain in one direction only
+            // — down — so a lift could be ridden down and never up. That is how the
+            // mp31 lift at column 5 lost its route: the hero jumps on at (5,23),
+            // presses Up, and the graph had no edge to (5,22) or anywhere above it.
+            //
+            // A collapsing platform is deliberately *not* linked upwards: it descends
+            // one row per frame and never rises (dungeon-vertical.ts:472-484).
+            // A horizontal platform is fully automated, and the hero can always wait
+            // for it to come back, so one direction already spans both.
+            [slot.kind === 0 ? slot.prev : -1, EDGE.RIDE_V, EDGE_COST.RIDE_V],
         ] as [number, number, number][]) {
             const to = next < 0 ? -1 : rideOf[next]!;
             add(index, to, kind, cost);
