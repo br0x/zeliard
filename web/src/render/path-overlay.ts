@@ -159,6 +159,33 @@ function viewportPixel(
 }
 
 /**
+ * A marker on the border the route left the room through.
+ *
+ * The viewport is 28x18 tiles and the route is drawn only where the hero can see
+ * it, so a jump that crosses the room — or leaves for another map — draws nothing at
+ * all and the line looks severed at the edge. This says "it goes that way" instead,
+ * which is the honest thing to show: the chevrons are off screen, not gone.
+ */
+function edgeChevron(
+    ctx: CanvasRenderingContext2D,
+    sheet: HTMLImageElement | null,
+    from: NavPoint,
+    to: NavPoint,
+    mapWidth: number,
+): void {
+    const frame = chevronFor(from, to, mapWidth, false);
+    if (frame === null) return;
+    const dCol = to.col - from.col;
+    const dRow = to.row - from.row;
+    // Which edge: whichever axis the hop mostly moved along.
+    if (!sheet) return;
+    const col = dCol >= 0 ? VIEW_COLS - 1 : 0;
+    const row = Math.max(0, Math.min(VIEW_ROWS - 1, ((dRow % 64) + 64) % 64 < 32 ? dRow : dRow));
+    drawSheetFrame(ctx, sheet, frame, CHEVRON_FRAME_W, CHEVRON_FRAME_H, CHEVRON_FRAMES,
+        col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+}
+
+/**
  * Hard cap per frame.
  *
  * One chevron per *cell* now, not per hop, so a route that crosses a cavern needs
@@ -168,6 +195,33 @@ function viewportPixel(
  * well above a viewport's worth.
  */
 const MAX_CHEVRONS = 512;
+
+/**
+ * How far ahead of the hero the chevrons stay solid, and where they fade to almost
+ * nothing — measured in drawn cells, which is how far along the line the eye is.
+ *
+ * A route is one line but many decisions: every fork, current and jump that could
+ * have been taken instead adds chevrons, and at equal weight the route is
+ * unreadable. Fading by distance keeps the next few steps — the ones the player is
+ * choosing between — at full strength and lets the rest of the cavern recede.
+ */
+const CHEVRON_SOLID_CELLS = 3;
+const CHEVRON_FADE_CELLS = 15;
+const CHEVRON_FAR_ALPHA = 0.15;
+
+/** Opacity for the cell `ahead` of the hero along the drawn route. */
+export function chevronAlpha(ahead: number): number {
+    if (ahead <= CHEVRON_SOLID_CELLS) return 1;
+    if (ahead >= CHEVRON_FADE_CELLS) return CHEVRON_FAR_ALPHA;
+    const t = (ahead - CHEVRON_SOLID_CELLS) / (CHEVRON_FADE_CELLS - CHEVRON_SOLID_CELLS);
+    return 1 + (CHEVRON_FAR_ALPHA - 1) * t;
+}
+
+/** Throttle on the console summary, in milliseconds. */
+const REPORT_EVERY_MS = 4000;
+
+/** When the summary last printed, so it does not print every frame. */
+let lastReport = -1e9;
 
 /**
  * Hops that carry the hero rather than walk him.
@@ -212,27 +266,67 @@ export function drawPathOverlay(now: number): void {
 
     let drawn = 0;
     for (let i = 0; i + 1 < points.length && drawn < MAX_CHEVRONS; i++) {
-        // A carried hop gets no arrow; the next walkable point does.
-        if (isCarriedHop(guide.hopKindAt(i))) continue;
         // Every cell the hop covers, not just where it started. One arrow per hop
         // drew nothing at all for the nine columns a jump covered, which read on
         // screen as a broken route exactly where the player had drawn a continuous
         // one.
-        const cells = guide.cellsForHop(i);
+        //
+        // A carried hop — a ride, a lift, a door — used to be skipped outright, which
+        // left a hole exactly as wide as the move. The line is what the player reads,
+        // so it is drawn along the move's own axis: up the column for a lift, along
+        // the row for a ride, across the room for a door.
+        // One hop must never be able to cost the rest of the line. `cellsForHop`
+        // replays the flight, and a flight that cannot be found falls back to the
+        // hop's two ends — which is still a chevron.
+        let cells: NavPoint[];
+        try {
+            cells = guide.cellsForHop(i);
+        } catch (err) {
+            console.warn(`[path] chevrons: hop ${i} `
+                + `(${points[i]!.col},${points[i]!.row})`
+                + `->(${points[i + 1]!.col},${points[i + 1]!.row}) failed:`, err);
+            cells = [points[i]!, points[i + 1]!];
+        }
         if (cells.length < 2) continue;
         for (let c = 0; c + 1 < cells.length && drawn < MAX_CHEVRONS; c++) {
             const from = cells[c]!;
             const to = cells[c + 1]!;
             const frame = chevronFor(from, to, mapWidth, false);
             if (frame === null) continue;
+            const alpha = chevronAlpha(drawn);
             const at = viewportPixel(from, from.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
-            if (!at) continue;
+            if (!at) {
+                // The route has left the room. One marker on the border it went out
+                // through, pointing that way — and nothing more: pinning every cell
+                // beyond the edge drew a band of marks along the screen border,
+                // which is the one thing that makes the route impossible to read.
+                ctx.globalAlpha = alpha;
+                edgeChevron(ctx, sheet, from, to, mapWidth);
+                continue;
+            }
+            ctx.globalAlpha = alpha;
             drawSheetFrame(ctx, sheet, frame, CHEVRON_FRAME_W, CHEVRON_FRAME_H,
                 CHEVRON_FRAMES, at.x, at.y, TILE_SIZE, TILE_SIZE);
             env.placed.push({ x: at.x, y: at.y, frame, mapId: from.mapId });
             drawn++;
         }
     }
+    // Report, throttled: what was asked for, and what was drawn. A line that stops
+    // early is either the cap or a cell outside the viewport, and those two look
+    // identical on screen and nothing else.
+    if (drawn < MAX_CHEVRONS && now - lastReport > REPORT_EVERY_MS) {
+        lastReport = now;
+        const last = points[points.length - 1]!;
+        const kit = guide.equipment();
+        console.info(`[path] chevrons: ${drawn} drawn of ${points.length - 1} points,`
+            + ` from (${points[0]!.col},${points[0]!.row}) to`
+            + ` map${last.mapId} (${last.col},${last.row}), reveal ${guide.remaining().length} left`
+            + (kit.length ? `, shoes: ${kit}` : ', shoes: none'));
+    }
+
+    // The destination ring is the one mark that must stay findable however far off it
+    // is, so it does not fade with the steps that lead to it.
+    ctx.globalAlpha = 1;
     // The destination is marked where the route ends, not per hop.
     const last = points[points.length - 1]!;
     const ringAt = viewportPixel(last, last.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);

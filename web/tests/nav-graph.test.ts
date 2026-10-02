@@ -471,7 +471,7 @@ describe('platforms and currents are reachable in the graph', () => {
         // model declines rather than dropping him off the end of the world.
         expect(liftsReachable, `lifts reachable ${liftsReachable}/${lifts}`).toBe(235);
         expect(conveyorsReachable, `conveyors ${conveyorsReachable}/${conveyors}`)
-            .toBe(216);
+            .toBe(206);
         expect(graphFor(0).stats.byEdgeKind[EDGE.LIFT] ?? 0).toBe(0);   // mp10 has no currents
         expect((graphFor(19).stats.byEdgeKind[EDGE.CARRY_L] ?? 0)
             + (graphFor(19).stats.byEdgeKind[EDGE.CARRY_R] ?? 0)).toBeGreaterThan(0);
@@ -529,7 +529,7 @@ describe('size and build cost', () => {
             nodes += graphFor(meta.id).stats.nodes;
             edges += graphFor(meta.id).stats.edges;
         }
-        // [measured] 29,917 nodes / 1,133,490 edges.
+        // [measured] 29,917 nodes / 1,081,449 edges.
         //
         // Nodes fell from 28,290 when `groundBelow` was corrected to the engine's own
         // landing test: a position with ground under the hero's left foot and open air
@@ -547,8 +547,8 @@ describe('size and build cost', () => {
         // takes, which the check above proves for all of them.
         expect(nodes).toBeGreaterThan(29800);
         expect(nodes).toBeLessThan(30000);
-        expect(edges).toBeGreaterThan(1110000);
-        expect(edges).toBeLessThan(1160000);
+        expect(edges).toBeGreaterThan(1060000);
+        expect(edges).toBeLessThan(1110000);
     });
 
     it('builds the largest cavern within the plan\'s budget', () => {

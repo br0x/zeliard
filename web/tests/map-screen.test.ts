@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import { MapScreen, shortName, type MapScreenDeps } from '../src/ui/map-screen.js';
-import { NavGraphStore } from '../src/engine/nav/pathfinder.js';
-import { allCapabilities } from '../src/engine/nav/capabilities.js';
+import { NavGraphStore, type NavRoute } from '../src/engine/nav/pathfinder.js';
+import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 
@@ -150,7 +150,7 @@ describe('every string it asks the locale for exists', () => {
         // Every key the screen renders...
         const drawn = [
             'map.title', 'map.hints', 'map.unreachable', 'map.noPath',
-            'map.loading', 'map.noMap', 'map.locked',
+            'map.loading', 'map.noMap', 'map.needsKeys', 'map.needsOneKey',
         ];
         // ...and the one phase 8 will use when cancelling a route.
         const all = [...drawn, 'map.routeCleared'];
@@ -317,33 +317,33 @@ describe('choosing a destination', () => {
         expect(h.screen.active).toBe(true);
     });
 
-    it('says the door is locked, not that there is no route', () => {
-        // Every door from mp80 into mp81 is locked, so a player picking mp81 from
-        // mp80 with an empty pocket got "No route found." and could not tell a
-        // locked door from a severed cavern. The keys are a search dimension, not
-        // a wall, so the screen searches once more with them granted and says which
-        // of the two it is.
-        const h = harness();
-        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
-        store.get(24);
-        h.screen.displayMapId = 24;
-        h.screen.cursorCol = 124;
-        h.screen.cursorRow = 6;
-        h.screen.choose(124, 6);
-        expect(h.picked(), 'a keyless hero cannot cross a locked door').toHaveLength(0);
-        expect(h.screen.active, 'the screen stays open').toBe(true);
-        const src = readFileSync(resolve(REPO, 'web/src/ui/map-screen.ts'), 'utf8');
-        expect(src).toContain("'map.locked'");
-        // And with a key it is offered.
-        const keyed = harness({
+    it('offers the closed-door route when the hero is carrying the key', () => {
+        // mp10 (26,16) -> mp1d crosses a closed ordinary-key door. With a key in his
+        // pocket the first search finds it; with an empty pocket it does not.
+        const keyed = harness({ capabilities: () => ({ ...bareCapabilities(), keys: 1, mask: 0xff }) });
+        keyed.screen.displayMapId = 1;
+        keyed.screen.choose(27, 15);
+        expect(keyed.picked(), 'a key opens a closed door').toHaveLength(1);
+        const route = keyed.picked()[0] as NavRoute;
+        expect(route.lockedDoors.ordinary).toBeGreaterThan(0);
+        expect(route.keysSpent.ordinary).toBeGreaterThan(0);
+    });
+
+    it('sets the journey the player reported, which needs no key', () => {
+        // mp80 (111,21) -> mp81 (124,6) crosses doors that are *open*. The
+        // generator used to mark every door as needing a key, and this was refused
+        // for three sessions because of it.
+        const empty = harness({
             heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
-            capabilities: () => ({ ...allCapabilities(), keys: 1 }),
+            capabilities: () => bareCapabilities(),
         });
-        const keyedStore = (keyed.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
-        keyedStore.get(24);
-        keyed.screen.displayMapId = 24;
-        keyed.screen.choose(124, 6);
-        expect(keyed.picked()).toHaveLength(1);
+        const store = (empty.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        store.get(24);
+        empty.screen.displayMapId = 24;
+        empty.screen.choose(124, 6);
+        expect(empty.picked(), 'an open way through, no key needed').toHaveLength(1);
+        const route = empty.picked()[0] as NavRoute;
+        expect(route.lockedDoors.ordinary + route.lockedDoors.lion).toBe(0);
     });
 
     it('refuses a cell with no standing position anywhere near it', () => {

@@ -29,7 +29,6 @@ import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
 import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
-import { CAP } from '../engine/nav/types.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
 import { drawSheetFrame } from '../render/sheets.js';
@@ -93,6 +92,15 @@ export interface MapScreenDeps {
     onExit: () => void;
     /** A destination was chosen; the route is already computed. */
     onPick: (route: NavRoute) => void;
+    /**
+     * Whether a key is still lying where the generated table says there was one.
+     *
+     * A key the player has already taken is not in the world — the engine drops it
+     * from the list at dungeon init (engine/dungeon-init.ts:75). The composition
+     * root answers from the save; without it the screen assumes every key is
+     * still there, which is right for a fresh game.
+     */
+    keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
     soundManager?: any;
 }
@@ -252,54 +260,52 @@ export class MapScreen {
         if (target < 0) { this.fail(this.deps.text('map.noPath')); return; }
 
         const node = graph.nodes[target]!;
-        const route = findRoute({
-            store: this.deps.store,
-            caps: this.deps.capabilities(),
-            start: { mapId: hero.mapId, col: hero.col, row: hero.row },
-            goal: { mapId: this.displayMapId, col: node.col, row: node.row },
+        const from = { mapId: hero.mapId, col: hero.col, row: hero.row };
+        const to = { mapId: this.displayMapId, col: node.col, row: node.row };
+        const caps = this.deps.capabilities();
+
+        // 1. With the keys in his pocket: the route as it stands today.
+        const held = findRoute({ store: this.deps.store, caps, start: from, goal: to });
+        if (held) return this.accept(held);
+
+        // 1b. The same, counting on shoes the player can put on. A slope wants
+        //     Silkarn's and a four-tile jump wants Feruza's, and the hero can change
+        //     accessory in a shop — so refusing those hops makes the route walk the
+        //     long way round something he could stride over. The route says which
+        //     shoes it needs and where.
+        const shod = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, planAccessories: true,
         });
-        if (!route) {
-            // "No route found" for a door the hero has no key for is true and
-            // useless. Every door from mp80 into mp81 is locked, so picking mp81
-            // from mp80 with an empty pocket said exactly that, and the player
-            // could not tell a locked door from a severed cavern. One extra search
-            // with the keys granted says which it is.
-            this.fail(this.deps.text(this.blockedByKeysOnly() ? 'map.locked' : 'map.unreachable'));
-            return;
-        }
+        if (shod) return this.accept(shod);
+
+        // 2. As if he were carrying every key in the game. That is the shape of the
+        //    journey, and the locked doors on it are how many keys it needs.
+        const open = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true,
+        });
+        if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
+
+        // 3. Going to get them. The search is already bounded by the component — no
+        //    route leaves it — and deliberately *not* by cavern level: the game's one
+        //    Lion-Head key is on level 8 and its one Lion-Head door on level 6, so a
+        //    same-level rule would make that door unopenable by any route at all.
+        const collected = findRoute({
+            store: this.deps.store, caps, start: from, goal: to,
+            collectKeys: true,
+            ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
+        });
+        if (collected) return this.accept(collected);
+
+        // Reachable, but the keys are not on this level to be had.
+        const needed = open.lockedDoors.ordinary + open.lockedDoors.lion;
+        this.fail(this.deps.text(needed === 1 ? 'map.needsOneKey' : 'map.needsKeys'));
+    }
+
+    /** Take a route and close the screen. */
+    private accept(route: NavRoute): void {
         this.deps.soundManager?.playSfx?.(12);
         this.active = false;
         this.deps.onPick(route);
-    }
-
-    /**
-     * Would a route exist if the hero had the keys?
-     *
-     * The keys are a search dimension, not a wall, so granting them and searching
-     * again is the honest way to tell "the door is locked" from "there is no way
-     * there" — and it costs one search, on the path where nothing was found anyway.
-     */
-    private blockedByKeysOnly(): boolean {
-        const hero = this.deps.heroPosition();
-        if (!hero) return false;
-        const caps = this.deps.capabilities();
-        const withKeys: HeroCapabilities = {
-            ...caps,
-            mask: caps.mask | CAP.KEY | CAP.LION_KEY,
-            keys: 0xff,
-            lionKeys: 0xff,
-        };
-        const goal = this.deps.store.get(this.displayMapId);
-        if (!goal) return false;
-        const target = this.snapToNode(this.cursorCol, this.cursorRow);
-        if (target < 0) return false;
-        const node = goal.nodes[target]!;
-        return findRoute({
-            store: this.deps.store,
-            caps: withKeys,
-            start: { mapId: hero.mapId, col: hero.col, row: hero.row },
-            goal: { mapId: this.displayMapId, col: node.col, row: node.row },
-        }) !== null;
     }
 
     /** Nearest standing position to a cell, searched outward. -1 if none nearby. */

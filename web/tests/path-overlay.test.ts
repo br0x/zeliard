@@ -18,6 +18,7 @@ import {
     CHEVRON_DESTINATION, CHEVRON_FRAMES, CHEVRON_FRAME_W, CHEVRON_FRAME_H, CHEVRON_SHEET,
 } from '../src/render/path-overlay.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
+import { chevronAlpha } from '../src/render/path-overlay.js';
 import { EDGE } from '../src/engine/nav/types.js';
 import type { NavNode } from '../src/engine/nav/nav-graph.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
@@ -41,6 +42,9 @@ function route(steps: number, mapWidth = 240, mapId = 0): NavRoute {
         })),
         cost: steps,
         keysSpent: { ordinary: 0, lion: 0 },
+    keysGained: { ordinary: 0, lion: 0 },
+    equipment: [],
+    lockedDoors: { ordinary: 0, lion: 0 },
         maps: [mapId],
         crossesAggressiveGround: false,
         crossesSlopes: false,
@@ -283,6 +287,60 @@ describe('reveal', () => {
         h.guide.update(1050);
         expect(h.guide.hasRoute, 'the route should end at the destination').toBe(false);
         expect(h.guide.remaining()).toHaveLength(0);
+    });
+});
+
+describe('the reveal starts at the hero', () => {
+    it('follows him when a jump skips points on the line', () => {
+        // The second screenshot: nothing drawn at the hero's feet, the line starting
+        // in a wall. The anchor only moved when he stood *exactly* on the next point,
+        // so any move that skipped one left it behind — and the reveal started
+        // there, off screen or inside scenery.
+        const h = harness();
+        const pts = h.route.points;
+        expect(pts.length).toBeGreaterThan(4);
+        const guide = new PathGuide({
+            store: h.store,
+            heroPosition: () => ({ ...h.hero }),
+            capabilities: () => allCapabilities(),
+        });
+        guide.setRoute(h.route, pts[pts.length - 1]!);
+        // Put the hero three points along, as a jump would.
+        const ahead = pts[3]!;
+        h.hero.mapId = ahead.mapId;
+        h.hero.col = ahead.col;
+        h.hero.row = ahead.row;
+        guide.update(600);
+        const remaining = guide.remaining();
+        // eslint-disable-next-line no-console
+        console.log('DEBUG hero', JSON.stringify(h.hero), 'pts0..8',
+            pts.slice(0, 9).map((p) => `${p.col},${p.row}`).join(' '),
+            'remaining0', `${remaining[0]?.col},${remaining[0]?.row}`, 'hasRoute', guide.hasRoute);
+        expect(remaining.length).toBeGreaterThan(0);
+        expect(remaining[0], 'the reveal should start where the hero stands').toMatchObject({
+            col: ahead.col, row: ahead.row,
+        });
+    });
+});
+
+describe('chevron opacity', () => {
+    it('is solid for the next steps and nearly gone fifteen ahead', () => {
+        // The route is one line but many decisions; equal weight made it unreadable.
+        for (const ahead of [0, 1, 2, 3]) {
+            expect(chevronAlpha(ahead), `${ahead} ahead`).toBe(1);
+        }
+        expect(chevronAlpha(4)).toBeLessThan(1);
+        expect(chevronAlpha(9)).toBeGreaterThan(0.15);
+        for (const ahead of [15, 16, 90, 400]) {
+            expect(chevronAlpha(ahead), `${ahead} ahead`).toBeCloseTo(0.15, 5);
+        }
+        // And it only ever fades: never brighter further along.
+        let last = 1;
+        for (let ahead = 0; ahead < 40; ahead++) {
+            const a = chevronAlpha(ahead);
+            expect(a, `ahead ${ahead}`).toBeLessThanOrEqual(last + 1e-9);
+            last = a;
+        }
     });
 });
 

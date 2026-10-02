@@ -127,6 +127,17 @@ export type CapabilityMask = number;
 export const CAP_ALWAYS: CapabilityMask = CAP.CLIMB;
 
 /** Edge kinds in the navigation graph. */
+/**
+ * Keys per node, in `NavGraph.keyKindAt`.
+ *
+ * `0x16` is an ordinary key and `0x17` a Lion-Head one in the entity records
+ * (`flag16` / `flag17`, engine/dungeon-items.ts:339-350); the graph stores them one
+ * apart from zero so a plain array can be compared against zero.
+ */
+export const KEY_NONE = 0;
+export const KEY_ORDINARY = 1;
+export const KEY_LION = 2;
+
 export const EDGE = {
     WALK: 0,
     STEP: 1,

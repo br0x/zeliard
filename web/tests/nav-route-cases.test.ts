@@ -18,8 +18,10 @@ import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt } from '../src/engine/nav/geometry.js';
 import { JumpModel } from '../src/engine/nav/jump.js';
 import { EDGE, EDGE_NAMES, NAV, blocksBody } from '../src/engine/nav/types.js';
+import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
-import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
+import { NAV_MAP_BY_ID, NAV_MAPS } from '../src/data/nav/nav-maps.js';
+import { NAV_KEYS } from '../src/data/nav/nav-keys.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const store = new NavGraphStore((id) => {
@@ -174,6 +176,135 @@ describe('mp81: a jump into an up current', () => {
         });
         expect(r, 'mp80 (111,21) -> mp81 (124,6)').not.toBeNull();
         expect(r!.maps).toContain(24);
+    });
+});
+
+describe('locked doors and the keys for them', () => {
+    // The game's doors are mostly open. [measured] 139 of 163 are walked through for
+    // free; 22 want an ordinary key and 2 a Lion-Head one. So the key machinery has
+    // very little to do — and what little it does has to be right, because a door
+    // marked locked by mistake puts an ordinary key between the player and a room he
+    // can walk into. That is not hypothetical: the generator used to mark *every*
+    // door as needing a key.
+    const store = new NavGraphStore((id) => {
+        const meta = NAV_MAP_BY_ID.get(id);
+        if (!meta) return null;
+        return new Uint8Array(readFileSync(resolve(REPO, `web/public/${meta.mdtPath}`)));
+    });
+
+    const go = (
+        from: { mapId: number; col: number; row: number },
+        to: { mapId: number; col: number; row: number },
+        options: Record<string, unknown>,
+    ) => findRoute({
+        store, caps: bareCapabilities(), start: from, goal: to,
+        ...options,
+    } as Parameters<typeof findRoute>[0]);
+
+    // mp10 -> mp1d is a closed ordinary-key door; mp60 -> mp62 is the game's one
+    // Lion-Head door.
+    const ORDINARY = { from: { mapId: 0, col: 26, row: 16 }, to: { mapId: 1, col: 27, row: 15 } };
+    const LION = { from: { mapId: 14, col: 31, row: 6 }, to: { mapId: 16, col: 62, row: 14 } };
+
+    it('needs no key at all for the journey the player reported', () => {
+        // mp80 (111,21) -> mp81 (124,6). The generator used to insist on a key for
+        // every door in the game, and this journey was refused for three sessions
+        // because of it. There is an open way through: 156 hops, no closed doors.
+        const r = findRoute({
+            store, caps: bareCapabilities(),
+            start: { mapId: 23, col: 111, row: 21 },
+            goal: { mapId: 24, col: 124, row: 6 },
+        });
+        expect(r, 'mp80 (111,21) -> mp81 (124,6)').not.toBeNull();
+        expect(r!.lockedDoors.ordinary + r!.lockedDoors.lion).toBe(0);
+        expect(r!.keysSpent.ordinary + r!.keysSpent.lion).toBe(0);
+    });
+
+    it('counts a closed door as a key it needs, and an open one as nothing', () => {
+        const closed = go(ORDINARY.from, ORDINARY.to, { maps: [0, 1], unlimitedKeys: true });
+        expect(closed, 'the closed mp10 -> mp1d door exists').not.toBeNull();
+        expect(closed!.lockedDoors.ordinary).toBe(1);
+        expect(closed!.keysSpent.ordinary, 'assumed keys are not spent from the pocket').toBe(0);
+
+        const lion = go(LION.from, LION.to, { unlimitedKeys: true });
+        expect(lion!.lockedDoors.lion).toBe(1);
+        expect(lion!.lockedDoors.ordinary).toBe(0);
+        // An ordinary key does not open a Lion-Head door, and no amount of walking
+        // round finds the door open.
+        expect(go(LION.from, LION.to, { keys: 1 })).toBeNull();
+    });
+
+    it('will not spend a Lion-Head key on an ordinary door', () => {
+        // The two counters are separate resources. Granting both was how a route
+        // opened an ordinary door with a Lion-Head key, and it read as "this journey
+        // works" when the engine would never let it.
+        const r = go(ORDINARY.from, ORDINARY.to, { maps: [0, 1], unlimitedKeys: true });
+        expect(r!.keysGained.lion).toBe(0);
+        expect(r!.keysGained.ordinary).toBe(0);
+    });
+
+    it('keeps the drawn line the whole way, including across a conveyor', () => {
+        // The player reports the chevrons stopping at (98,21), "right before the
+        // airflow" — the conveyor run on row 21. Walk a route that goes west along
+        // that row and require the reveal to reach its end: every cell drawn, no
+        // exception out of the per-frame update, nothing retired on the way.
+        const route = findRoute({
+            store, caps: allCapabilities(),
+            start: { mapId: 23, col: 111, row: 21 },
+            goal: { mapId: 23, col: 90, row: 21 },
+        })!;
+        const hero = { mapId: route.points[0]!.mapId, col: route.points[0]!.col, row: route.points[0]!.row };
+        const guide = new PathGuide({
+            store,
+            heroPosition: () => ({ ...hero }),
+            capabilities: () => allCapabilities(),
+        });
+        guide.setRoute(route, route.points[route.points.length - 1]!);
+        let now = 0;
+        let left = guide.remaining().length;
+        for (let i = 1; i < route.points.length; i++) {
+            hero.mapId = route.points[i]!.mapId;
+            hero.col = route.points[i]!.col;
+            hero.row = route.points[i]!.row;
+            now += 600;
+            guide.update(now);            // must not throw
+            left = guide.remaining().length;
+            // Zero on the last step only: that is the destination arriving.
+            if (i < route.points.length - 1) {
+                expect(left, `reveal emptied early at (${hero.col},${hero.row})`).toBeGreaterThan(0);
+            }
+        }
+        // Arrived: the route retires cleanly rather than throwing its way out.
+        expect(left).toBe(0);
+        expect(guide.hasRoute).toBe(false);
+    });
+
+    it('records where each key is, which is not where the route walks', () => {
+        // Every key in the game is stored a row or two from the cell the hero stands
+        // in, because the engine collects from a window around the record. Asking
+        // "is it still there?" about the node reports every key as collected, the
+        // collecting search finds nothing, and the screen says the way is locked for a
+        // key lying in plain sight.
+        let checked = 0;
+        let offset = 0;
+        for (const meta of NAV_MAPS) {
+            const graph = store.get(meta.id);
+            if (!graph) continue;
+            for (const key of NAV_KEYS[meta.id] ?? []) {
+                const cell = (key.row % 64) * meta.mapWidth
+                    + ((key.col % meta.mapWidth) + meta.mapWidth) % meta.mapWidth;
+                for (let n = 0; n < graph.nodes.length; n++) {
+                    if (graph.keyCellAt[n] !== cell) continue;
+                    checked++;
+                    const node = graph.nodes[n]!;
+                    const nodeCell = node.row * meta.mapWidth + node.col;
+                    if (nodeCell !== cell) offset++;
+                }
+            }
+        }
+        expect(checked, 'every key hangs on a node').toBe(18);
+        expect(offset, 'and every one of them on a different cell than the record')
+            .toBe(18);
     });
 });
 

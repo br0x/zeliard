@@ -1,3 +1,5 @@
+
+
 /**
  * pathfinder.ts — A* across a cavern component.
  *
@@ -22,7 +24,7 @@
  * Town doors are never edges, so a route can never leave a cavern by one.
  */
 
-import { EDGE, EDGE_COST } from './types.js';
+import { EDGE, EDGE_COST, KEY_LION, KEY_ORDINARY } from './types.js';
 import type { HeroCapabilities } from './capabilities.js';
 import { hasCap } from './capabilities.js';
 import { CAP } from './types.js';
@@ -44,6 +46,16 @@ export interface NavPoint {
     readonly node: number;
 }
 
+/** A shoe the route needs, and where it first needs it. */
+export interface NavRequirement {
+    /** Accessory id, as `ACCESSORY_*` in capabilities.ts. */
+    readonly accessory: number;
+    /** Locale key naming it, e.g. `items.silkarn`. */
+    readonly label: string;
+    /** The point on the route where it is first required. */
+    readonly at: NavPoint;
+}
+
 /** One hop of a route, mirroring the edge that produced it. */
 export interface NavHop {
     readonly kind: number;
@@ -57,8 +69,29 @@ export interface NavRoute {
     readonly hops: readonly NavHop[];
     /** Total cost in game ticks, one tick per tile of movement. */
     readonly cost: number;
-    /** Keys the route spends opening doors. */
+    /** Keys the route *spends* opening doors. */
     readonly keysSpent: { ordinary: number; lion: number };
+    /**
+     * Keys the route picks up on the way, by kind.
+     *
+     * Only non-zero when the search was told it may collect: without that the route
+     * walks past whatever lies on the floor, which is what a route drawn for the keys
+     * already in the pocket means.
+     */
+    readonly keysGained: { ordinary: number; lion: number };
+    /**
+     * Shoes the route needs, in the order it needs them, with the point each is
+     * first required at. Empty when the hero can walk the whole route as he is.
+     */
+    readonly equipment: readonly NavRequirement[];
+    /**
+     * Locked doors on the route, by kind — how many keys the journey *needs*.
+     *
+     * This is what makes "the destination needs one key" a fact rather than a
+     * shrug, and it is the first thing to know when a route cannot be drawn because
+     * the hero's pocket is empty.
+     */
+    readonly lockedDoors: { ordinary: number; lion: number };
     /** Maps visited, in order, with consecutive duplicates collapsed. */
     readonly maps: readonly number[];
     /** Hazards the route's footprints touch, for a warning on the map screen. */
@@ -93,6 +126,21 @@ export type NavGridFetcher = (mapId: number) => Promise<Uint8Array | null>;
  * maps of one component at a time. `drop` is there for the mode change that
  * throws them away.
  */
+/**
+ * The bits that mean "wear these shoes": every ability the accessory grants, keys
+ * excluded because a key is something he picks up rather than puts on.
+ */
+const SHOE_BITS: readonly (readonly [number, number, string])[] = [
+    [CAP.JUMP_HIGH, 1, 'feruza'],
+    [CAP.SLOPE_STAND, 3, 'silkarn'],
+    [CAP.GROUND_SAFE, 2, 'pirika'],
+    [CAP.ICE_SAFE, 4, 'ruzeria'],
+    [CAP.HEAT_SAFE, 5, 'asbestos'],
+];
+
+/** The mask that lets the search plan a route the hero can walk in shoes. */
+const SHOE_MASK = SHOE_BITS.reduce((mask, [bit]) => mask | bit, 0);
+
 export class NavGraphStore {
     private readonly graphs = new Map<number, NavGraph>();
     private readonly grids = new Map<number, NavTileGrid>();
@@ -216,6 +264,8 @@ interface State {
     /** Edge kind taken to get here; meaningless at the start. */
     readonly via: number;
     readonly viaCost: number;
+    /** What the edge required; meaningless at the start. */
+    readonly viaReq: number;
 }
 
 /**
@@ -225,8 +275,19 @@ interface State {
  * node < 2^18, keys < 8 and 31 maps pack losslessly into a double.
  */
 const NODE_LIMIT = 1 << 18;
+/**
+ * Six bits per key counter, so both are held counts rather than a single spent
+ * total: a state that picks a key up and a state that did not are different
+ * states, which is the whole point of the dimension. 63 of each is not a practical
+ * limit — a route through 63 locked doors is not a route — and `holdCap` enforces
+ * it by saturating rather than overflowing into the neighbouring field, which
+ * would collide states and turn the search into a wrong answer instead of an error.
+ */
 const stateKey = (s: State): number =>
-    s.mapId * NODE_LIMIT * 64 + s.node * 64 + s.keysOrd * 8 + s.keysLion;
+    s.mapId * NODE_LIMIT * 4096 + s.node * 4096 + s.keysOrd * 64 + s.keysLion;
+
+/** Most keys of one kind a state may hold. Saturating, so the key stays unique. */
+const HOLD_CAP = 63;
 
 /** Min-heap over `f`. */
 class Heap {
@@ -288,9 +349,113 @@ export interface FindRouteOptions {
     readonly maps?: readonly number[];
     /** Give up after this many nodes expanded. Guards against a pathological map. */
     readonly maxExpanded?: number;
+    /**
+     * Plan for shoes the hero can put on, rather than refusing those hops.
+     *
+     * A high jump wants Feruza shoes, a slope wants Silkarn's, and the hero can
+     * change accessory in a shop, so refusing them makes the route take the long way
+     * round something he could simply walk over. With this set, the search may use
+     * them and the route says which ones and where, in order — *wear Silkarn shoes,
+     * jump on the slope, wear Feruza shoes again* — because a route that needs three
+     * changes of shoes is a different journey from one that needs none, and the
+     * player has to be told.
+     *
+     * Keys are not equipment and stay a resource: they must already be in hand.
+     */
+    readonly planAccessories?: boolean;
+    /**
+     * Route as if the hero were carrying every key in the game: locked doors cost
+     * nothing and the counters are seeded at the cap.
+     *
+     * This is the first of the three stages in §19.3. Its answer is the *shape* of
+     * the journey, and counting the locked doors on it says how many keys the player
+     * needs before the second stage is worth running.
+     */
+    readonly unlimitedKeys?: boolean;
+    /**
+     * Let the route go and collect keys on the way: stepping onto a node with a key
+     * on it grants one, and a locked door spends one.
+     *
+     * Off by default, so every existing route keeps its meaning: without it the
+     * search may only spend what the hero already holds, which is what a route drawn
+     * for the pocket he has actually got can promise.
+     */
+    readonly collectKeys?: boolean;
+    /**
+     * Whether a key is still lying at `(mapId, col, row)`. Defaults to "yes".
+     *
+     * A key the player has already taken is not in the world — the engine drops it
+     * from the list at dungeon init (`remove_accomplished_items`,
+     * engine/dungeon-init.ts:75) — so a table entry means "there was one here",
+     * not "there is one here now".
+     */
+    readonly keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
+    /**
+     * Only collect keys on maps of this cavern level.
+     *
+     * §19.3 stage two: "in the nearby maps of the same cavern level". A key on
+     * another level is reachable only through a door, and routing the detour through
+     * one produces a journey no player would draw.
+     */
+    readonly keyCavernLevel?: number;
 }
 
 const DEFAULT_LIMIT = 400000;
+
+/**
+ * The key count after stepping onto `node`: a key lying there is picked up, because
+ * that is what walking over it does (`flag_16` / `flag_17`,
+ * engine/dungeon-items.ts:339-350). Only when the search is allowed to collect, the
+ * key is still there, and the map is on the level the hero is on.
+ *
+ * Saturating at {@link HOLD_CAP} keeps `stateKey` injective; a route that wanted a
+ * 64th key is not a route, and the saturated state is the same for every route that
+ * wanted one.
+ */
+function keysAfterPickup(
+    graph: NavGraph,
+    state: State,
+    node: number,
+    options: FindRouteOptions,
+): number {
+    if (!options.collectKeys) return state.keysOrd;
+    // Only an *ordinary* key counts here: a Lion-Head key is a different resource
+    // and must not open an ordinary door. Granting both was a silent way to walk
+    // through a locked cavern.
+    if (graph.keyKindAt[node] !== KEY_ORDINARY) return state.keysOrd;
+    if (options.keyCavernLevel !== undefined) {
+        const meta = NAV_MAP_BY_ID.get(state.mapId);
+        if (meta && meta.cavernLevel !== options.keyCavernLevel) return state.keysOrd;
+    }
+    // Asked about the key's *record*, not the node: the two differ on every key in
+    // the game, and the record is what the engine holds.
+    const cell = graph.keyCellAt[node]!;
+    if (options.keyPresent && !options.keyPresent(
+        state.mapId, cell % graph.mapWidth, (cell / graph.mapWidth) | 0, 0,
+    )) {
+        return state.keysOrd;
+    }
+    return Math.min(state.keysOrd + 1, HOLD_CAP);
+}
+
+function keysLionAfterPickup(
+    graph: NavGraph,
+    state: State,
+    node: number,
+    options: FindRouteOptions,
+): number {
+    if (!options.collectKeys) return state.keysLion;
+    if (graph.keyKindAt[node] !== KEY_LION) return state.keysLion;
+    if (options.keyCavernLevel !== undefined) {
+        const meta = NAV_MAP_BY_ID.get(state.mapId);
+        if (meta && meta.cavernLevel !== options.keyCavernLevel) return state.keysLion;
+    }
+    const cell = graph.keyCellAt[node]!;
+    if (options.keyPresent && !options.keyPresent(
+        state.mapId, cell % graph.mapWidth, (cell / graph.mapWidth) | 0, 1,
+    )) return state.keysLion;
+    return Math.min(state.keysLion + 1, HOLD_CAP);
+}
 
 /**
  * Octile distance within a map, zero across maps.
@@ -345,6 +510,12 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
     if (startNode < 0 || goalNode < 0) return null;
 
     const maps = new Set(options.maps ?? NAV_REACHABLE[start.mapId] ?? [start.mapId]);
+    const unlimitedKeys = options.unlimitedKeys === true;
+    // When the route may count on shoes the hero can put on, the search treats those
+    // abilities as available and reports what it used.
+    const effective: HeroCapabilities = options.planAccessories
+        ? { ...caps, mask: caps.mask | SHOE_MASK }
+        : caps;
 
     // stateKey is not injective across maps, so keep the best cost per key in a Map.
     const best = new Map<number, number>();
@@ -354,7 +525,9 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
     const open = new Heap();
 
     const initial: State = {
-        mapId: start.mapId, node: startNode, keysOrd: 0, keysLion: 0,
+        mapId: start.mapId, node: startNode, viaReq: 0,
+        keysOrd: options.unlimitedKeys ? HOLD_CAP : Math.min(caps.keys, HOLD_CAP),
+        keysLion: options.unlimitedKeys ? HOLD_CAP : Math.min(caps.lionKeys, HOLD_CAP),
         g: 0, f: heuristic(start.mapId, startNode, goalGraph, goalNode),
         parent: -1, via: -1, viaCost: 0,
     };
@@ -388,10 +561,12 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         const to = graph.edgeOffsets[current.node + 1]!;
         for (let i = from; i < to; i++) {
             const edge = graph.edges[i]!;
-            if (!permitted(edge.req, edge.to, hazard, caps)) continue;
+            if (!permitted(edge.req, edge.to, hazard, effective)) continue;
             relax(
-                current, currentIndex, current.mapId, edge.to, edge.kind, edge.cost,
-                current.keysOrd, current.keysLion, states, best, settled, indexOfState,
+                current, currentIndex, current.mapId, edge.to, edge.kind, edge.cost, edge.req,
+                keysAfterPickup(graph, current, edge.to, options),
+                keysLionAfterPickup(graph, current, edge.to, options),
+                states, best, settled, indexOfState,
                 open, goalGraph, goalNode,
             );
         }
@@ -410,16 +585,25 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
             let keysLion = current.keysLion;
             let cost: number = EDGE_COST.DOOR;
             if (portal.key === 2) {
-                if (keysLion >= caps.lionKeys) continue;
-                keysLion++;
+                // A closed door with the Lion-Head feature bit costs a Lion-Head key.
+                // Under `unlimitedKeys` the search is told to assume every key in the
+                // game, so it pays nothing and does not decrement.
+                if (!unlimitedKeys) {
+                    if (keysLion < 1) continue;
+                    keysLion--;
+                }
                 cost = EDGE_COST.DOOR_LOCKED;
             } else if (portal.key === 1) {
-                if (keysOrd >= caps.keys) continue;
-                keysOrd++;
+                if (!unlimitedKeys) {
+                    if (keysOrd < 1) continue;
+                    keysOrd--;
+                }
                 cost = EDGE_COST.DOOR_LOCKED;
             }
+            // portal.key === 0 is an open door: walked through, costing nothing.
             relax(
                 current, currentIndex, portal.destMapId, landing, EDGE.DOOR, cost,
+                portal.key === 2 ? CAP.LION_KEY : (portal.key === 1 ? CAP.KEY : 0),
                 keysOrd, keysLion, states, best, settled, indexOfState,
                 open, goalGraph, goalNode,
             );
@@ -427,7 +611,7 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
     }
 
     if (goalState < 0) return null;
-    const route = describeRoute(states, goalState, store);
+    const route = describeRoute(states, goalState, store, unlimitedKeys);
     return { ...route, expanded };
 }
 
@@ -439,6 +623,7 @@ function relax(
     node: number,
     kind: number,
     cost: number,
+    req: number,
     keysOrd: number,
     keysLion: number,
     states: State[],
@@ -453,7 +638,7 @@ function relax(
     const candidate: State = {
         mapId, node, keysOrd, keysLion, g,
         f: g + heuristic(mapId, node, goalGraph, goalNode),
-        parent: parentIndex, via: kind, viaCost: cost,
+        parent: parentIndex, via: kind, viaCost: cost, viaReq: req,
     };
     const key = stateKey(candidate);
     const seen = best.get(key);
@@ -465,11 +650,21 @@ function relax(
     open.push(candidate);
 }
 
+/** The shoes an edge's requirement asks for, if any. */
+function shoeFor(req: number): { accessory: number; label: string } | null {
+    for (const [bit, accessory, label] of SHOE_BITS) {
+        if ((req & bit) !== 0) return { accessory, label };
+    }
+    return null;
+}
+
 /** Walk the predecessor chain into a NavRoute. */
 function describeRoute(
     states: State[],
     goalState: number,
     store: NavGraphStore,
+    /** The search was told to assume every key in the game. */
+    assumeKeys = false,
 ): NavRoute {
     const chain: State[] = [];
     for (let i = goalState; i >= 0; i = states[i]!.parent) {
@@ -509,6 +704,41 @@ function describeRoute(
         if (hazard & HAZARD_SLOPE) crossesSlopes = true;
     }
 
+    // Counted from the hops rather than from the counters, so every number describes
+    // the route the player is shown: a locked door costs one key of its kind, and a
+    // Shoes, in the order the route needs them. A hop that requires one is a hop the
+    // hero can only take equipped, so the route says so rather than letting him walk
+    // into a slope that throws him back down the hill.
+    const equipment: NavRequirement[] = [];
+    for (let i = 1; i < chain.length; i++) {
+        const worn = shoeFor(chain[i]!.viaReq);
+        if (!worn) continue;
+        const last = equipment[equipment.length - 1];
+        if (last && last.accessory === worn.accessory) continue;
+        equipment.push({ accessory: worn.accessory, label: worn.label, at: points[i]! });
+    }
+
+    // pickup is a hop that raised a counter.
+    const lockedDoors = { ordinary: 0, lion: 0 };
+    const picked = { ordinary: 0, lion: 0 };
+    for (let i = 1; i < chain.length; i++) {
+        if (chain[i]!.keysOrd > chain[i - 1]!.keysOrd) picked.ordinary++;
+        if (chain[i]!.keysLion > chain[i - 1]!.keysLion) picked.lion++;
+    }
+    for (let i = 1; i < chain.length; i++) {
+        const via = chain[i]!.via;
+        if (via !== EDGE.DOOR) continue;
+        // The portal belongs to the map the hop *leaves*, so both the graph and the
+        // node come from the previous state.
+        const graph = store.get(chain[i - 1]!.mapId)!;
+        const portalIndex = graph.portalAtNode[chain[i - 1]!.node]!;
+        if (portalIndex < 0) continue;
+        const portal = PORTALS[portalIndex]!;
+        if (!portal) continue;
+        if (portal.key === 2) lockedDoors.lion++;
+        else if (portal.key === 1) lockedDoors.ordinary++;
+    }
+
     const maps: number[] = [];
     for (const p of points) {
         if (maps[maps.length - 1] !== p.mapId) maps.push(p.mapId);
@@ -519,7 +749,13 @@ function describeRoute(
         points,
         hops,
         cost: last.g,
-        keysSpent: { ordinary: last.keysOrd, lion: last.keysLion },
+        // Under `unlimitedKeys` the keys were assumed rather than fetched, so nothing
+        // was taken and nothing was picked up; `lockedDoors` is then what the
+        // journey *needs*.
+        keysSpent: assumeKeys ? { ordinary: 0, lion: 0 } : { ...lockedDoors },
+        keysGained: assumeKeys ? { ordinary: 0, lion: 0 } : picked,
+        equipment,
+        lockedDoors,
         maps,
         crossesAggressiveGround,
         crossesSlopes,

@@ -335,6 +335,31 @@ export function flag14_15_1b(g: Uint8Array, m: number): void {
     markCollected(g, m);
 }
 
+/**
+ * Every key lying on the floor right now, as `col,row,kind` keys.
+ *
+ * The engine drops keys the player has already taken from the entity list at
+ * dungeon init (`remove_accomplished_items`, dungeon-init.ts:75), so the list that
+ * `monstersSpawning` walks *after* that call is the world as it stands. Reading it
+ * is how the pathfinder learns that a key in the generated table is no longer there
+ * — a route that fetched a collected key would walk past bare floor.
+ *
+ * kind 0 an ordinary key (`flag_16`), 1 a Lion-Head one (`flag_17`).
+ */
+export function presentKeys(g: Uint8Array): Set<string> {
+    const out = new Set<string>();
+    let m = memRead16(g, MONSTERS_LIST);
+    for (;;) {
+        const x = memRead16(g, m);
+        if (x === 0xffff) return out;
+        const flags = memRead8(g, m + 4) & 0x1f;
+        if (flags === 0x16 || flags === 0x17) {
+            out.add(`${x & 0xff},${memRead8(g, m + 2) & 0xff},${flags === 0x16 ? 0 : 1}`);
+        }
+        m += 16;
+    }
+}
+
 /** flag_16 (dungeon.c:3320): ordinary key. */
 export function flag16(g: Uint8Array, m: number): void {
     if (pickupCommon(g, m, STR.YOU_GET_KEY) === 0) return;

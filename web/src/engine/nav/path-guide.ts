@@ -21,6 +21,7 @@ import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
 import { JumpModel } from './jump.js';
 import { buildPlatformModel } from './platforms.js';
+import { heroInLift } from './geometry.js';
 
 /** Re-plan when the hero has drifted this far from the route, in tiles. */
 const DRIFT_TOLERANCE = 3;
@@ -50,6 +51,54 @@ export interface PathGuideDeps {
     heroPosition: () => { mapId: number; col: number; row: number } | null;
     /** The hero's current abilities. */
     capabilities: () => HeroCapabilities;
+}
+
+/** What the shoes are called, from the accessory ids. */
+const ACCESSORY_NAMES: Record<number, string> = {
+    1: 'Feruza shoes',
+    2: 'Pirika shoes',
+    3: 'Silkarn shoes',
+    4: 'Ruzeria shoes',
+    5: 'Asbestos cape',
+};
+
+/** Map widths, so a line between two positions knows where the seam is. */
+const MAP_WIDTHS = new Map<number, number>();
+
+/**
+ * The cells a straight line between two positions covers, one tile at a time.
+ *
+ * For the moves the flight model does not replay — a ride, a lift, a door, a step —
+ * the hero travels the whole way, so the line is drawn the whole way. Skipping these
+ * is what left the drawn route broken across every door and every current in it.
+ */
+function lineCells(from: NavPoint, to: NavPoint): NavPoint[] {
+    const cells: NavPoint[] = [{ ...from }];
+    if (from.mapId !== to.mapId) {
+        // A door between maps: he steps through it, and the room on the other side is
+        // drawn from its own arrival, so the two ends are the honest line.
+        cells.push({ ...to });
+        return cells;
+    }
+    const mapWidth = MAP_WIDTHS.get(from.mapId) ?? 256;
+    let dCol = to.col - from.col;
+    if (dCol > mapWidth / 2) dCol -= mapWidth;
+    else if (dCol < -mapWidth / 2) dCol += mapWidth;
+    let dRow = to.row - from.row;
+    if (dRow > 32) dRow -= 64;
+    else if (dRow < -32) dRow += 64;
+    const steps = Math.max(Math.abs(dCol), Math.abs(dRow));
+    for (let s = 1; s <= steps; s++) {
+        const col = from.col + Math.round((dCol * s) / steps);
+        const row = from.row + Math.round((dRow * s) / steps);
+        cells.push({
+            mapId: from.mapId,
+            col: ((col % mapWidth) + mapWidth) % mapWidth,
+            row: ((row % 64) + 64) % 64,
+            node: -1,
+        });
+    }
+    return cells;
 }
 
 export class PathGuide {
@@ -136,6 +185,22 @@ export class PathGuide {
      * the same descent the graph is built from, so this asks it where the hero
      * actually goes rather than joining the ends with a line.
      */
+    /**
+     * The shoes this route needs, in order, as a phrase for the log: `Silkarn shoes at
+     * (21,21), Feruza shoes at (23,16)`.
+     *
+     * A route that wants three changes of shoe is a different journey from one that
+     * wants none, and the player has to be told which they are being sent on.
+     */
+    equipment(): string {
+        const route = this.route;
+        if (!route || route.equipment.length === 0) return '';
+        return route.equipment
+            .map((need) => `${ACCESSORY_NAMES[need.accessory] ?? 'shoes'}`
+                + ` at (${need.at.col},${need.at.row})`)
+            .join(', ');
+    }
+
     cellsForHop(index: number): NavPoint[] {
         const route = this.route;
         if (!route) return [];
@@ -145,7 +210,9 @@ export class PathGuide {
         const hop = route.hops[this.progress + index];
         if (!hop || from.mapId !== to.mapId) return [from, to];
         if (hop.kind !== EDGE.JUMP && hop.kind !== EDGE.JUMP_HIGH
-            && hop.kind !== EDGE.FALL && hop.kind !== EDGE.DROP) return [from, to];
+            && hop.kind !== EDGE.FALL && hop.kind !== EDGE.DROP) {
+            return lineCells(from, to);
+        }
         const model = this.flightModel(from.mapId);
         if (!model) return [from, to];
         const path = model.flightPath(from.col, from.row, to.col, to.row);
@@ -166,21 +233,32 @@ export class PathGuide {
     private readonly flightModels = new Map<number, JumpModel | null>();
 
     private flightModel(mapId: number): JumpModel | null {
-        const held = this.flightModels.get(mapId);
-        if (held !== undefined) return held;
+        const width = this.deps.store.get(mapId)?.mapWidth;
+        if (width) MAP_WIDTHS.set(mapId, width);
+        const cached = this.flightModels.get(mapId);
+        if (cached !== undefined) return cached;
         const grid = this.deps.store.gridOf(mapId);
         if (!grid) {
             this.flightModels.set(mapId, null);
             return null;
         }
-        // The same standing platform slots the graph gives the model, so a hop that
-        // ends on a platform finds its flight.
+        // The same two masks the graph gives the model. A hop that ends on a platform
+        // or in a current is a real flight, and leaving either mask out means those
+        // hops cannot be replayed — the overlay falls back to the hop's two ends and
+        // the drawn line has a hole exactly where the route is most interesting.
+        const classifier = NavTileClassifier.forMap(mapId);
         const surfaces = new Uint8Array(grid.mapWidth * 64);
         for (const slot of buildPlatformModel(mapId, grid).slots) {
             surfaces[(slot.headRow + 3) * grid.mapWidth
                 + (((slot.leftCol + 1) % grid.mapWidth) + grid.mapWidth) % grid.mapWidth] = 1;
         }
-        const model = new JumpModel(grid, NavTileClassifier.forMap(mapId), surfaces);
+        const currents = new Uint8Array(grid.mapWidth * 64);
+        for (let row = 0; row < 64; row++) {
+            for (let col = 0; col < grid.mapWidth; col++) {
+                if (heroInLift(grid, classifier, col, row)) currents[row * grid.mapWidth + col] = 1;
+            }
+        }
+        const model = new JumpModel(grid, classifier, surfaces, currents);
         this.flightModels.set(mapId, model);
         return model;
     }
@@ -191,8 +269,26 @@ export class PathGuide {
      * @param now performance.now()
      */
     update(now: number): void {
+        // Any throw here happens inside the per-frame update, so it takes the rest of
+        // the frame's work with it — the chevrons simply stop, with nothing on screen
+        // to say why. Say it instead.
+        try {
+            this.tick(now);
+        } catch (err) {
+            const hero = this.deps.heroPosition();
+            console.warn(`[path] update failed at ${hero ? `${hero.mapId}:(${hero.col},${hero.row})` : 'unknown'}`
+                + ` with ${this.remaining().length} points left:`, err);
+        }
+    }
+
+    private tick(now: number): void {
         if (!this.route || !this.goal) return;
         this.advanceProgress();
+        // Arriving clears the route and raises the `arrived` latch. Returning here is
+        // what stops the tick falling into `needsReplan` with no route to inspect —
+        // which it did, once per arrival, throwing out of the per-frame update and
+        // taking the rest of the frame's work with it.
+        if (!this.route || this.arrived) return;
 
         const caps = this.deps.capabilities();
         const hero = this.deps.heroPosition();
@@ -210,8 +306,11 @@ export class PathGuide {
         if (!next) {
             // The hero is standing on a node here — `needsReplan` does not look for a
             // route from a cell he is only passing through — so a search that finds
-            // nothing means the world really changed under the plan. Say so rather
-            // than drawing a route that will not work.
+            // nothing means the world really changed under the plan. Say so, and say
+            // where it gave up, rather than drawing a route that will not work and
+            // leaving the player with no clue why the line stopped.
+            console.warn(`[path] dropped: no route from map${hero.mapId} (${hero.col},${hero.row})`
+                + ` to map${this.goal.mapId} (${this.goal.col},${this.goal.row})`);
             this.clear();
             return;
         }
@@ -234,7 +333,8 @@ export class PathGuide {
         const graph = this.deps.store.get(hero.mapId);
         if (!graph || nodeAt(graph, hero.col, hero.row) < 0) return false;
         // Walking off the route: the hero should be near it.
-        const points = this.route!.points;
+        const points = this.route?.points;
+        if (!points) return false;
         const from = Math.max(0, this.progress - 1);
         for (let i = from; i < points.length; i++) {
             const p = points[i]!;
@@ -286,10 +386,22 @@ export class PathGuide {
             && columnDelta(point.col, hero.col, width) === 0
             && rowDelta(point.row, hero.row) === 0;
 
-        // Advance only once he has actually left the current point.
-        while (this.progress + 1 < route.points.length
-            && on(route.points[this.progress + 1]!)) {
-            this.progress++;
+        /**
+         * Put the anchor on the hero, not on the last point he stood on exactly.
+         *
+         * Requiring exact occupancy meant that any move that skipped a point — a
+         * jump, a fall, a platform carrying him — left the anchor where it was. The
+         * reveal then started somewhere behind him, its first cells were off screen
+         * or behind, and **nothing was drawn at his feet**: the line appeared to start
+         * in the middle of a wall, which is the state in the player's second
+         * screenshot. Looking for his own cell along the route finds it wherever the
+         * skipped points left it, and a hero in mid-air — matching nothing — keeps the
+         * anchor he had rather than losing the line.
+         */
+        for (let i = this.progress; i < route.points.length; i++) {
+            if (!on(route.points[i]!)) continue;
+            this.progress = i;
+            break;
         }
         // Reaching the destination ends the route. This is checked against the last
         // point directly, not against the anchor: there is nothing after the last

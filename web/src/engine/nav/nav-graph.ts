@@ -31,7 +31,7 @@
  */
 
 import {
-    NAV, EDGE, EDGE_COST, CAP,
+    NAV, EDGE, EDGE_COST, CAP, KEY_LION, KEY_ORDINARY,
     blocksBody,
 } from './types.js';
 import { NavTileClassifier } from './attributes.js';
@@ -41,6 +41,7 @@ import {
 } from './geometry.js';
 import { JumpModel, LANDING_STRIDE } from './jump.js';
 import { buildPlatformModel, type PlatformModel } from './platforms.js';
+import { NAV_KEYS } from '../../data/nav/nav-keys.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
 import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from '../../data/nav/nav-portals.js';
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
@@ -122,6 +123,26 @@ export interface NavGraph {
      * represent.
      */
     readonly portalAtNode: Int32Array;
+    /**
+     * The key lying on each node: 0 none, 1 ordinary, 2 Lion-Head.
+     *
+     * A key is an item standing on the floor, so it needs no edge of its own — the
+     * pickup fires from the ordinary alignment test while the hero walks over the
+     * cell (`checkMonsterAlignedToHeroAndTick`, dungeon-monsters.ts:123). The search
+     * credits a key when it steps onto a node with one, and the route therefore
+     * passes through the cell without being told to.
+     */
+    readonly keyKindAt: Int8Array;
+    /**
+     * Where each key is *recorded*, as `row * mapWidth + col`, or -1.
+     *
+     * Not the node it hangs on. The engine collects from a window around the
+     * record, so every key in the game is stored a row or two from the cell the hero
+     * stands in — which is why this exists: asking whether a key is still on the
+     * floor has to be about the record the engine holds, not about the node the route
+     * walks through. Getting that wrong makes every key look already collected.
+     */
+    readonly keyCellAt: Int32Array;
     readonly platforms: PlatformModel;
     readonly currents: AirflowModel;
     readonly stats: NavGraphStats;
@@ -135,7 +156,57 @@ export interface NavGraph {
         liftsUnreachable: number;
         conveyorsReachable: number;
         conveyorsUnreachable: number;
+        /** Keys the MDT lists for this map. */
+        keysFound: number;
+        /** Of those, how many landed on a node, directly or after a one-cell snap. */
+        keysOnNodes: number;
+        /** Keys whose cell has no node within a cell — unreachable, and counted. */
+        keysDropped: number;
     };
+}
+
+/**
+ * The node a key lying at `(col, row)` is collected on.
+ *
+ * The key's stored cell is the *item's*, not the hero's. `checkMonsterAlignedToHeroAndTick`
+ * compares the hero's position against the record and accepts him anywhere in a small
+ * window (`dungeon-monsters.ts:123-152`): rows `row - 2 .. row + 1` and columns
+ * `col - 2 .. col + 1`, both asymmetric because the engine walks the two axes in
+ * opposite directions from the record. So the nearest node inside that window is
+ * the cell the route should cross — walking over it collects the key, because the
+ * pickup fires from this same test.
+ *
+ * mp10's key is stored at (99,41) and the standing position next to it is (99,40):
+ * a hero one row higher. That is the window, not an off-by-one.
+ *
+ * -1 when nothing is in range, which is counted rather than dropped in silence.
+ */
+function nodeForKey(
+    groundOf: Int32Array,
+    rideNodeOfCell: Int32Array,
+    mapWidth: number,
+    col: number,
+    row: number,
+): number {
+    let best = -1;
+    let bestDistance = 99;
+    for (let dr = -2; dr <= 1; dr++) {
+        for (let dc = -2; dc <= 1; dc++) {
+            const cell = wrapRow(row + dr) * mapWidth + wrapCol(col + dc, mapWidth);
+            const ground = groundOf[cell]!;
+            const ride = rideNodeOfCell[cell]!;
+            const node = ground >= 0 ? ground : ride;
+            if (node < 0) continue;
+            // Ground first, then distance: standing over the key is better than a
+            // platform a step away.
+            const distance = (ground >= 0 ? 0 : 8) + Math.abs(dr) + Math.abs(dc);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = node;
+            }
+        }
+    }
+    return best;
 }
 
 /**
@@ -238,6 +309,26 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         const r = wrapRow(row);
         return groundOf[r * mapWidth + wrapCol(col, mapWidth)]!;
     };
+
+    // Keys. The table lists every key in the original data; whether one is still
+    // lying there depends on the save (engine/dungeon-init.ts:75 drops collected
+    // ones at dungeon init), so the graph carries them all and the search is told
+    // which are present.
+    const keyKindAt = new Int8Array(nodes.length);
+    const keyCellAt = new Int32Array(nodes.length).fill(-1);
+    let keysOnNodes = 0;
+    let keysDropped = 0;
+    for (const key of NAV_KEYS[mapId] ?? []) {
+        const kind = key.kind === 1 ? KEY_LION : KEY_ORDINARY;
+        const node = nodeForKey(groundOf, rideNodeOfCell, mapWidth, key.col, key.row);
+        if (node < 0) {
+            keysDropped++;
+            continue;
+        }
+        if (keyKindAt[node] === 0) keysOnNodes++;
+        keyKindAt[node] = kind;
+        keyCellAt[node] = wrapRow(key.row) * mapWidth + wrapCol(key.col, mapWidth);
+    }
     const ropeAtNode = (col: number, row: number): number => {
         const r = wrapRow(row);
         return ropeOf[r * mapWidth + wrapCol(col, mapWidth)]!;
@@ -250,6 +341,7 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     /** Where each node's jump flight went, col/row pairs, see {@link traceAt}. */
     let traceCells = new Int32Array(4096);
     const traceOffset = new Int32Array(nodes.length + 1);
+
 
     const add = (from: number, to: number, kind: number, cost: number, req = 0, portal = -1): void => {
         if (to < 0 || to === from) return;
@@ -562,19 +654,70 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     const isSwept = (col: number, row: number): boolean =>
         sweptAt[wrapRow(row) * mapWidth + wrapCol(col, mapWidth)] === 1;
 
-    // Stops of every lift the hero could be carried to, keyed by the lift's column
-    // so a swept position can be matched to it.
-    const stopsByColumn = new Map<number, { stop: number; ticks: number }[]>();
+    /**
+     * Stops of every lift the hero could be carried to, keyed by the lift's column
+     * *and the run it belongs to*.
+     *
+     * Keying by column alone mixes every current in that column: mp80's column 96
+     * has two, one reaching rows 21-29 and one 44-50, and a hero swept at row 21 was
+     * offered the second run's stop at row 50 — an **upward** current carrying him
+     * twenty-nine rows *down*. `LiftModel.topRow` and `rows` say where each run
+     * starts and how far it reaches, which is what identifies the one he is in.
+     */
+    type LiftExit = { stop: number; ticks: number; headRow: number };
+    /**
+     * `span` is how many rows of head position the run covers: the tiles run from
+     * two rows below `topRow`, and a hero is swept while any of the three rows of
+     * his body is in the current, so the swept window is `rows + 2` tall.
+     */
+    const stopsByRun = new Map<number, { span: number; stops: LiftExit[] }[]>();
     for (const lift of currents.lifts) {
         const entryCol = wrapCol(lift.x - 1, mapWidth);
-        const list = stopsByColumn.get(entryCol) ?? [];
+        const list = stopsByRun.get(entryCol) ?? [];
+        // `topRow` is the hero's *head* row at the top of the run, and the tiles run
+        // from two rows below that to the end. He is swept while any of the three is
+        // in his middle column, so the window a hero can be caught in is head rows
+        // `topRow .. topRow + rows + 1` — three rows taller than the tiles.
+        const span = lift.rows + 2;
+        const stops: LiftExit[] = [];
         for (const stop of lift.stops) {
             if (!stop.escapable) continue;
-            if (groundAt(stop.leftCol, stop.headRow) < 0) continue;
-            list.push({ stop: groundAt(stop.leftCol, stop.headRow), ticks: stop.ticks });
+            const node = groundAt(stop.leftCol, stop.headRow);
+            if (node < 0) continue;
+            stops.push({ stop: node, ticks: stop.ticks, headRow: stop.headRow });
         }
-        stopsByColumn.set(entryCol, list);
+        list.push({ span, stops });
+        stopsByRun.set(entryCol, list);
     }
+
+    /**
+     * The lifts a hero at `(sweptCol, sweptRow)` can be carried up by.
+     *
+     * Two rules, and both are about direction. An up current only carries him
+     * *up*, so a stop at or below where he was swept is not an exit; and a current
+     * only reaches its own run, so a stop further above than the run is tall is
+     * another current's. Both are measured as a distance in rows that wraps — the
+     * runs are a few tiles long, so the wrap cannot confuse up with down, and the
+     * bound is what keeps one run from offering another's stops.
+     *
+     * mp80's column 96 is the case that mattered: two currents in one column, one
+     * reaching rows 21-29 and one 44-50. Keyed by column alone, a hero swept at row
+     * 21 was offered the second run's stop at row 50 — an upward current carrying
+     * him twenty-nine rows *down*, which the player rightly called impossible.
+     */
+    const liftStopsAt = (sweptCol: number, sweptRow: number): { stop: number; ticks: number }[] => {
+        const runs = stopsByRun.get(wrapCol(sweptCol, mapWidth));
+        if (!runs) return [];
+        const out: { stop: number; ticks: number }[] = [];
+        for (const run of runs) {
+            for (const exit of run.stops) {
+                const up = wrapRow(sweptRow - exit.headRow);
+                if (up < 1 || up > run.span) continue;
+                out.push({ stop: exit.stop, ticks: exit.ticks });
+            }
+        }
+        return out;
+    };
 
     const graphDiagnostics = {
         liftsReachable: 0, liftsUnreachable: 0,
@@ -585,9 +728,7 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     /** Send the hero from `from` to a lift he can be swept by on his way. */
     const enterLift = (from: number, sweptCol: number, sweptRow: number): void => {
         if (!isSwept(sweptCol, sweptRow)) return;
-        const list = stopsByColumn.get(wrapCol(sweptCol, mapWidth));
-        if (!list) return;
-        for (const { stop, ticks } of list) {
+        for (const { stop, ticks } of liftStopsAt(sweptCol, sweptRow)) {
             add(from, stop, EDGE.LIFT, ticks + 1);
         }
         reachedLifts.add(wrapCol(sweptCol, mapWidth));
@@ -656,9 +797,14 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
             if (!columnClear(sweptCol, headRow)) continue;
             const stand = groundAt(sweptCol, headRow);
             if (stand < 0) continue;
-            const list = conveyorExits.get(sweptCol) ?? [];
+            // Keyed by column *and row*. A conveyor carries the hero sideways along
+            // its own row, so an exit twenty rows up is not an exit from it — and
+            // keying by column alone offered him one, which is how a route came to
+            // cross a room in a current that only moves along one line.
+            const key = headRow * mapWidth + sweptCol;
+            const list = conveyorExits.get(key) ?? [];
             list.push({ to: stand, ticks: exit.ticks });
-            conveyorExits.set(sweptCol, list);
+            conveyorExits.set(key, list);
         }
     }
 
@@ -667,7 +813,7 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
         const enterConveyor = (col: number, row: number): void => {
             const dir = conveyorDirAt(col, row);
             if (dir === 0) return;
-            const list = conveyorExits.get(wrapCol(col, mapWidth));
+            const list = conveyorExits.get(wrapRow(row) * mapWidth + wrapCol(col, mapWidth));
             if (!list) return;
             const kind = dir === 1 ? EDGE.CARRY_L : EDGE.CARRY_R;
             for (const { to, ticks } of list) add(index, to, kind, ticks + 1);
@@ -730,8 +876,13 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
 
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf,
-        nodeHazard, portalAtNode, platforms, currents, stats,
-        diagnostics: graphDiagnostics,
+        nodeHazard, portalAtNode, keyKindAt, keyCellAt, platforms, currents, stats,
+        diagnostics: {
+            ...graphDiagnostics,
+            keysFound: (NAV_KEYS[mapId] ?? []).length,
+            keysOnNodes,
+            keysDropped,
+        },
     };
 }
 

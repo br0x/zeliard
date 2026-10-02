@@ -2966,6 +2966,92 @@ With one key the journey is 141 hops and spends it. The jump into the current th
 opens `mp81`'s corridor needs no key at all: `mp81 (135,16)` to `(124,6)` is 12 hops
 from inside the map.
 
+### A current may only carry him up
+
+Found by the player reading a route out loud: hop 15 was `LIFT mp80 (96,21) ->
+(95,50)`, an **upward** current carrying him twenty-nine rows *down*, and hop 16 a
+conveyor taking him back up the same column. Both were the same mistake — **currents
+were indexed by column alone**, so every current in a column offered every other
+current's exits.
+
+**[measured]** mp80's column 96 has two: one reaching rows 21-29, one 44-50. A hero
+swept at row 21 was handed the second run's stop at row 50.
+
+- A lift now offers only the stops **above** where he was swept, and only within its
+  own run's height. Both bounds are needed and neither is a fudge: an up current
+  cannot take him down, and it cannot reach another current's stops. The distance is
+  measured in wrapping rows, which is safe because a run is a few tiles long.
+- A conveyor's exits are keyed by column **and row**. A conveyor carries him sideways
+  along its own line; keyed by column alone it offered exits twenty rows away.
+
+Both were found by playing the route, not by reading the code, and both had been
+there since the currents were first modelled. Hop 15 is now what it should always
+have been:
+
+```
+ 15 JUMP  mp80 (96,21) -> mp80 (91,21)
+```
+
+The route grew from 156 hops to 184, which is what removing impossible shortcuts does
+to the cheapest path — the lifts and conveyors it can no longer pretend to ride.
+
+### Following the line, and why it had holes
+
+The chevrons faded with distance — solid for the next few cells, nearly gone fifteen
+ahead — and the player reported the path as both discontinuous and hard to follow.
+Both were real, and neither was the fade:
+
+- **Every jump lost its take-off.** `flightPath` returned the *descent* only; the
+  rise was dropped when the rise's column chain was removed in an earlier
+  simplification, so every jump drew a hole three tiles wide exactly where the hero
+  left the ground — and jumps are most of a long route. The rise is back: the chain
+  of columns is recorded per rise end and written out one cell per row climbed.
+- **A hop that ended in a current could not be replayed at all.** The guide's own
+  jump model was built with the platform mask but not the currents mask, so a flight
+  that ends because the hero is swept fell back to the hop's two ends — a hole of the
+  whole flight.
+- **Carried hops were skipped outright.** A door, a ride, a lift drew nothing at all,
+  so the line stopped dead at every door and every current: four holes in this route,
+  one of them a door *inside* mp81 with seventeen columns unaccounted for. They are
+  drawn now along the move's own axis.
+
+**[measured]** the drawn line for mp80 (111,21) → mp81 (124,6): **390 cells over 184
+hops with no breaks in it.** Before: 266 cells, five holes, and every jump missing
+its first three tiles.
+
+### The route is longer than the room
+
+The log settles it: **`23 drawn of 196 points`** for the mp80 journey. The route runs
+sixty columns west and the view is twenty-eight wide, so most of it is off screen at
+any moment, and the line stopped at the room's edge — which is what "not continuous"
+meant. Every cell beyond the view is now drawn **clamped to the border it lies
+past**, at the same fading alpha, so the route leaves the room instead of stopping in
+it: a faint smear along one edge saying which way the cavern goes, and pointing at
+the line of the cavern the route follows rather than a single arrow in a corner.
+
+### The route should say which shoes it needs
+
+The player: *"it should mention in your log — wear Silkarn shoes, jump on the slope,
+wear Feruza shoes again."* And they were right that it cannot: the search **refused**
+every hop gated on an accessory, because `permitted` drops an edge whose `req` the
+hero's mask does not carry. So a route that could be walked in boots went the long
+way round, and nothing said why.
+
+`findRoute` now takes `planAccessories`. With it the search counts on shoes the
+player can put on, the route gains `equipment: NavRequirement[]` — accessory, label and
+the point each is first needed, **in order** — and the guide spells it out:
+
+```
+[path] chevrons: … , shoes: Feruza shoes at (88,21)
+```
+
+**[measured]** mp80 (111,21) → mp81 (124,6): **184 hops refusing the shoes, 152
+using them**, needing Feruza shoes once, at (88,21).
+
+Keys stay what they were — something he picks up and must already have, not something
+he puts on — so `planAccessories` widens only the accessory bits (Feruza, Silkarn,
+Pirika, Ruzeria, Asbestos) and never the key ones.
+
 ### How it was proved
 
 `web/tests/nav-jump-differential.test.ts` builds five small caverns, hands each to
@@ -3076,8 +3162,9 @@ each one was checkable against the map in a minute.
 
 ## 19. Keys — finding them, and routing through locked doors
 
-*Status: **planned**, not built. §18 is the last thing that shipped. This section is
-the plan for the work the player asked for, in the stages they asked for.*
+*Status: **built**, in the stages below. The map screen runs stages 1–3 as three
+searches; stage 3's merge is the single augmented search rather than a string splice,
+because a splice can ask for a key the hero has not picked up yet.*
 
 **A note on provenance before anything else.** There is no C and no WebAssembly in
 this game. `asm/` is the original disassembly, kept because it is the best
@@ -3264,7 +3351,109 @@ node on the route.
 6. **UI.** The map screen says `Needs 1 key.` rather than `The door is locked.` when
    the key is reachable, and `No key on this level.` when it is not.
 
-### 19.7 What would make this wrong, and how it would show
+### 19.7 What shipped, and what it measures
+
+| stage | where | what |
+| --- | --- | --- |
+| 1. extract | `tools/navlib/mdt.mjs:readKeys`, emitted `web/src/data/nav/nav-keys.ts` | 17 ordinary keys and 1 Lion-Head key across 12 of the 31 caverns. Both acceptance coordinates reproduced exactly: `mp10 (99,41)` and `mp80 (150,7)` |
+| 2. graph | `NavGraph.keyKindAt`, `diagnostics.keysFound/keysOnNodes/keysDropped` | all 18 keys land on a node, none dropped. A key's stored cell is the *item's*, not the hero's — `checkMonsterAlignedToHeroAndTick` accepts him anywhere in rows −2..+1 and columns −2..+1 of it, asymmetric because the engine walks the two axes in opposite directions. `mp10`'s key is stored at (99,41) and the standing position beside it is (99,40) |
+| 3a. keys assumed | `findRoute({unlimitedKeys})`, `route.lockedDoors` | the shape of the journey, and how many keys it needs |
+| door keys | `tools/build-nav.mjs`, `NavPortal.key` | 0 for an open door, 1 ordinary, 2 Lion-Head — from the door's own open and feature bits. **Getting this wrong marked all 163 doors locked and refused the journey the player drew.** |
+| 3b/3c. collect | `findRoute({collectKeys, keyCavernLevel, keyPresent})`, `route.keysGained` | one search over (node, keysOrd, keysLion). Stepping onto a key node grants one; a locked door spends one. The counters are six bits each and saturate, so `stateKey` stays injective |
+| screen | `map-screen.ts:choose`, `map.needsKeys`, `map.needsOneKey` | stage 1 with the keys in hand, else stage 2 to learn the requirement, else stage 3 and offer the collecting route — or say the way is locked |
+| save | `dungeon-items.ts:presentKeys`, `main.ts` `keyPresent` | read after the dungeon init, which drops collected keys from the entity list, so a route never fetches one that is gone. Asked about the key's **record**, not the node the route walks — they differ on every key in the game, and asking about the node reported every key as collected |
+
+**[measured] The doors were the bug, not the search.** 139 of the game's 163
+doors are *open* — walked through for nothing (`enterOpenedDoor`,
+`dungeon-doors.ts:110-112`) — and the generator marked **every** door as needing a
+key, because it read
+
+```js
+key: d.needsLionKey ? 2 : 1        // tools/build-nav.mjs, before this fix
+```
+
+as the game's rule. It is not: `open_door` (`dungeon-doors.ts:122-131`) is only
+reached for a door that is *closed*, and it spends a Lion-Head key when the feature
+bit says so and an ordinary key otherwise. So the correct reading is
+
+```js
+key: d.open ? 0 : (d.needsLionKey ? 2 : 1)
+```
+
+and the graph then has 22 ordinary-locked doors and 2 Lion-Head ones instead of 163
+locked ones. The journey the player reported — mp80 (111,21) to mp81 (124,6) — needs
+**no key at all**: 156 hops with an empty pocket, zero closed doors, zero keys
+spent. It had been refused for three sessions because the graph insisted on a key
+for a door that is simply open.
+
+What the key search is actually for, in this game's data, is the honest version of
+the answer the player asked for: the *closed* doors need keys, and those keys are
+mostly collected **after** you have walked past them — for `mp80 -> mp82`, the one
+closed door out of mp80, the ordinary keys on the far side are mp81 (125,37),
+(232,39) and mp82 (26,48), which is exactly the pair the player described gathering.
+So a route that needs a key it has not got is a route the player has not earned yet,
+and the collecting stage finds nothing in this data: there is no closed door whose
+key lies on the near side. The machinery is in place and correct —
+
+| | |
+| --- | --- |
+| closed ordinary-key door, key in hand | the route is drawn, `keysSpent` counts it |
+| closed ordinary-key door, empty pocket | refused, and the screen says the way is locked |
+| Lion-Head key offered to an ordinary door | refused (`keysGained.lion` stays 0) |
+| the one Lion-Head door, with the key on another level | fetchable — the level gate had to go, or the game's only lion key could never open the game's only lion door |
+
+and a test now pins the data invariant that made this bug visible: every key hangs
+on a node, and every one of them on a **different** cell than the record.
+
+The mp84 (16,51) door is the one record whose Lion-Head bit the player says is not
+a Lion-Head door: it can only be opened from the far side, once the boss there is
+dead. **[measured]** it leads into a map with no door table at all, so no route is
+drawn through it in either direction, and from mp84's side the graph refuses it for
+want of a Lion-Head key — which is exactly what the game does. No change: the
+effect is already right, and inventing a rule to match the description would be
+guessing about data rather than reading code.
+
+### 19.7.1 The chevrons stopping
+
+Walking the guide along the drawn route, step by step, and watching
+`remaining().length`: it runs the whole way with no early stop — 157 points down to 1
+on the mp80 → mp81 route, and all 13 hops of a route west along row 21, which is the
+conveyor at (98,21) where the player reports the line stopping. That walk found one
+real fault and it is fixed: **arrival threw.** `advanceProgress` nulls the route when
+the hero reaches the destination, and `update` then carried on into `needsReplan`,
+which dereferences `this.route.points` — an exception out of the per-frame update,
+which takes the rest of the frame's work with it.
+
+The symptom the player reports is the one fault I could not reproduce headlessly: the
+game's route to (124,6) is not either of the routes the search produces here (its
+hero has an accessory that changes what he can jump), so the stopping is somewhere in
+a route I have not seen. **Reported: neither message appeared** — so the guide did
+not throw and did not retire the route, and the line is lost in the *drawing*, not in
+the reveal. Two candidate causes look identical on screen: the per-frame cap, and
+cells outside the viewport.
+
+So the display now says what it did, throttled to every four seconds:
+
+```
+[path] chevrons: 196 drawn of 156 points, from (111,21) to map24 (124,6), reveal 156 left
+```
+
+`drawn of points` distinguishes all three cases at once — equal means the route is
+shorter than the screen suggests, a small `drawn` with a large `points` means the cap
+or the viewport. A hop whose flight cannot be replayed also logs itself and falls
+back to that hop's two ends, so one bad hop cannot cost the rest of the line again.
+
+### 19.8 One thing worth remembering about the pickup window
+
+A key is not on the tile the route crosses. It is where the record says, and the
+engine collects from four rows and ±4 columns around that. So two questions look
+identical and are not: *which node does the route walk to collect this key* (the
+nearest node in the window) and *is this key still on the floor* (the record). The
+first is geometry, the second is save state, and asking the second with the first
+makes every key look collected — which is exactly what happened, and it presented as
+"no route".
+
+### 19.9 What would make this wrong, and how it would show
 
 - **The record layout.** Inferred from `monstersSpawning` and the item dispatcher,
   not from a specification. If the two coordinates do not come out, the layout is

@@ -30,6 +30,7 @@ export type {
     NavVerticalPlatform, NavCollapsingPlatform, NavHorizontalPlatform,
 } from './nav-platforms.js';
 export { NAV_PLATFORMS } from './nav-platforms.js';
+export { NAV_KEYS, NAV_KEY_COUNT } from './nav-keys.js';
 
 export type { NavAirflowTables, NavLiftColumn, NavConveyorRun } from './nav-airflows.js';
 export { NAV_AIRFLOWS } from './nav-airflows.js';

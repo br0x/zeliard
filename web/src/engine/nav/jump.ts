@@ -103,19 +103,14 @@ import type { NavTileGrid } from './mdt-grid.js';
 /** Ints per landing in the array {@link JumpModel.landingsFrom} hands back. */
 export const LANDING_STRIDE = 5;
 
-/** Append `col` to a small column set, ignoring duplicates. */
-function pushColumn(list: Int32Array, count: number, col: number): number {
-    for (let i = 0; i < count; i++) if (list[i] === col) return count;
-    if (count >= list.length) return count;
-    list[count] = col;
-    return count + 1;
-}
-
 /** Ints per queued descent state: col, row, ticks, first-pose. */
 const QUEUE_STRIDE = 4;
 
-/** Ints per recorded rise end: col, row, rows risen. */
-const START_STRIDE = 3;
+/** Ints per recorded rise end: col, row, rows risen, then the column at each rise. */
+const START_STRIDE = 8;
+
+/** Columns a chain can hold: one per row of rise, the most Feruza shoes give. */
+const RISE_SLOTS = 5;
 
 /** One decoded landing, for callers that would rather not index by hand. */
 export interface JumpLanding {
@@ -187,9 +182,11 @@ export class JumpModel {
     private readonly queue: Int32Array;
     /** Queue slot each state came from, for {@link flightPath}. */
     private readonly queueParent: Int32Array;
-    /** Columns the hero can be at part-way through a rise. */
+    /** Columns the hero can be at part-way through a rise, with their chains. */
     private readonly riseA = new Int32Array(16);
     private readonly riseB = new Int32Array(16);
+    private readonly chainA = new Int32Array(16 * START_STRIDE);
+    private readonly chainB = new Int32Array(16 * START_STRIDE);
     /** Where rises ended this query: {@link START_STRIDE} ints each. */
     private readonly starts: Int32Array = new Int32Array(192 * START_STRIDE);
     /** Landing {@link flightPath} is looking for, and where it was reached. */
@@ -510,7 +507,18 @@ export class JumpModel {
             chain[j] = c0;
             chain[j + 1] = r0;
         }
+        const startRow = this.starts[startOffset + 1]!;
         this.pathCount = 0;
+        // The rise, one cell per row the hero climbed, then the fall. Both are part
+        // of the flight: leaving the rise out put a hole at the take-off of every
+        // jump, and the line only looked continuous where he never left the ground.
+        const rises = this.starts[startOffset + 2]!;
+        for (let k = 0; k <= rises; k++) {
+            this.pushPath(
+                this.starts[startOffset + 3 + k]!,
+                wrapRow(startRow + rises - k),
+            );
+        }
         for (let i = 0; i < chain.length; i += 2) {
             this.pushPath(chain[i]!, chain[i + 1]!);
         }
@@ -585,8 +593,11 @@ export class JumpModel {
         const width = this.mapWidth;
         let front = this.riseA;
         let back = this.riseB;
+        let frontChain = this.chainA;
+        let backChain = this.chainB;
         let count = 1;
         front[0] = col;
+        frontChain[3] = col;
         let starts = 0;
 
         for (let rises = 0; rises <= height; rises++) {
@@ -595,6 +606,7 @@ export class JumpModel {
             const capped = rises === height;
             let next = 0;
             for (let i = 0; i < count; i++) {
+                const from = i * START_STRIDE;
                 const c = wrapCol(front[i]!, width);
                 this.noteCell(c, here, here * width + c);
                 // A rise of no rows is no jump at all: with his head against a
@@ -602,15 +614,15 @@ export class JumpModel {
                 const open = !capped && this.headroom(c, at);
                 if (open) {
                     const up = wrapRow(at - 1);
-                    next = pushColumn(back, next, c);
-                    if (this.stepAt(c, wrapRow(at - 1), -1)) {
+                    next = this.pushRise(back, backChain, next, c, frontChain, from, rises + 1);
+                    if (this.stepAt(c, up, -1)) {
                         const nc = wrapCol(c - 1, width);
-                        next = pushColumn(back, next, nc);
+                        next = this.pushRise(back, backChain, next, nc, frontChain, from, rises + 1);
                         this.noteCell(c - 1, up, up * width + nc);
                     }
-                    if (this.stepAt(c, wrapRow(at - 1), 1)) {
+                    if (this.stepAt(c, up, 1)) {
                         const nc = wrapCol(c + 1, width);
-                        next = pushColumn(back, next, nc);
+                        next = this.pushRise(back, backChain, next, nc, frontChain, from, rises + 1);
                         this.noteCell(c + 1, up, up * width + nc);
                     }
                     continue;
@@ -618,32 +630,64 @@ export class JumpModel {
                 if (!capped && rises < 1) continue;
                 // The rise stops on this frame — ceiling or height cap. He still
                 // steps sideways, and the descent begins where he ends up.
-                starts = this.pushStart(starts, c, at, rises);
+                starts = this.pushStart(starts, c, at, rises, frontChain, from);
                 if (this.stepAt(c, here, -1)) {
                     const nc = wrapCol(c - 1, width);
-                    starts = this.pushStart(starts, nc, at, rises);
+                    starts = this.pushStart(starts, nc, at, rises, frontChain, from);
                     this.noteCell(c - 1, here, here * width + nc);
                 }
                 if (this.stepAt(c, here, 1)) {
                     const nc = wrapCol(c + 1, width);
-                    starts = this.pushStart(starts, nc, at, rises);
+                    starts = this.pushStart(starts, nc, at, rises, frontChain, from);
                     this.noteCell(c + 1, here, here * width + nc);
                 }
             }
             const swap = front;
             front = back;
             back = swap;
+            const swapChain = frontChain;
+            frontChain = backChain;
+            backChain = swapChain;
             count = next;
         }
         return starts;
     }
 
-    private pushStart(count: number, col: number, row: number, rises: number): number {
+    private pushStart(
+        count: number,
+        col: number,
+        row: number,
+        rises: number,
+        chain: Int32Array,
+        from: number,
+    ): number {
         if ((count + 1) * START_STRIDE > this.starts.length) return count;
         const o = count * START_STRIDE;
         this.starts[o] = col;
         this.starts[o + 1] = row;
         this.starts[o + 2] = rises;
+        for (let k = 0; k < RISE_SLOTS; k++) this.starts[o + 3 + k] = chain[from + 3 + k]!;
+        return count + 1;
+    }
+
+    /**
+     * Add a column to the rise frontier, keeping the chain of columns that reached
+     * it — the rise is part of the flight and the drawn line has to show it.
+     */
+    private pushRise(
+        list: Int32Array,
+        chain: Int32Array,
+        count: number,
+        col: number,
+        fromChain: Int32Array,
+        from: number,
+        riseIdx: number,
+    ): number {
+        for (let i = 0; i < count; i++) if (list[i] === col) return count;
+        if (count >= list.length || (count + 1) * START_STRIDE > chain.length) return count;
+        list[count] = col;
+        for (let k = 0; k < START_STRIDE; k++) chain[count * START_STRIDE + k] = fromChain[from + k]!;
+        chain[count * START_STRIDE + 3 + riseIdx] = col;
         return count + 1;
     }
 

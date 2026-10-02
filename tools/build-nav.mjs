@@ -15,6 +15,7 @@
  *   web/src/data/nav/nav-portals.ts    door records, normalised to standing spots
  *   web/src/data/nav/nav-tiles.ts      per-cavern attribute tables
  *   web/src/data/nav/nav-platforms.ts  platform tables plus precomputed travel ranges
+ *   web/src/data/nav/nav-keys.ts       key pickups, so the search can go and get them
  *   web/src/data/nav/nav-airflows.ts   current tables plus lift columns and conveyor runs
  *   web/src/data/nav/index.ts          shared constants and the barrel
  *
@@ -54,9 +55,11 @@ for (let id = 0; id < MAP_COUNT; id++) {
 
 const platforms = new Map();
 const airflows = new Map();
+const keys = new Map();
 for (const { id, cavern } of maps) {
     platforms.set(id, buildPlatforms(cavern, source.get(id).passable, MAP_HEIGHT));
     airflows.set(id, buildAirflows(cavern, MAP_HEIGHT, source.get(id).airflows ?? []));
+    keys.set(id, cavern.keys);
 }
 
 // ── validate ────────────────────────────────────────────────────────────────
@@ -130,7 +133,12 @@ for (const { id, cavern } of maps) {
             destMapId: d.toTown ? -1 : d.destMapId,
             destX: d.toTown ? -1 : d.x1,
             destY: d.toTown ? -1 : d.y1,
-            key: d.needsLionKey ? 2 : 1,
+            // An *open* door is walked through and costs nothing
+            // (`enterOpenedDoor`, dungeon-doors.ts:110-112); only a closed one
+            // calls `openDoor`, which spends a Lion-Head key when the feature bit
+            // says so and an ordinary key otherwise (dungeon-doors.ts:122-131).
+            // [measured] 139 of the 163 doors in the game are open.
+            key: d.open ? 0 : (d.needsLionKey ? 2 : 1),
             rokademo: d.rokademo,
             exitFacesLeft: d.exitFacesLeft,
             color: d.color,
@@ -464,6 +472,46 @@ export interface NavAirflowTables {
     `export const NAV_AIRFLOWS: Readonly<Record<number, NavAirflowTables>> = ${lit(airflowItems, 0)};\n`,
 ], CHECK_ONLY);
 
+const navKeys = writeModule(resolve(OUT_DIR, 'nav-keys.ts'), [
+    `/** A key lying on the floor: the hero collects it by walking over the cell. */
+export interface NavKey {
+    /** Hero left column. */
+    readonly col: number;
+    /** Hero head row. */
+    readonly row: number;
+    /** 0 an ordinary key (flag_16), 1 a Lion-Head key (flag_17). */
+    readonly kind: 0 | 1;
+}
+
+/**
+ * Key pickups per map, read from the MDT's 16-byte entity records.
+ *
+ * The cell is already a hero standing position, so a key needs no edge of its own:
+ * the pickup fires from the ordinary alignment test while he walks over it, and the
+ * route therefore passes through the cell without being told to.
+ *
+ * A key the player has already taken is not in this table's world: the engine drops
+ * it from the list at dungeon init (remove_accomplished_items,
+ * engine/dungeon-init.ts:75). So a table entry means "there is a key here in the
+ * original data", not "there is a key here now" — the search is told which are
+ * still present.
+ */
+export const NAV_KEYS: Readonly<Record<number, readonly NavKey[]>> = {
+${INDENT}${maps.map((m) => {
+        const list = keys.get(m.id);
+        if (!list || list.length === 0) return null;
+        const items = list.map((k) => `{col: ${k.col}, row: ${k.row}, kind: ${k.kind === 'lion' ? 1 : 0}}`);
+        return `${m.id}: [${items.join(', ')}]`;
+    }).filter(Boolean).join(`,\n${INDENT}`)},
+};
+`,
+    `/** Key count per map, ordered by id, for sizing. */
+export const NAV_KEY_COUNT: readonly number[] = [
+${INDENT}${maps.map((m) => String(keys.get(m.id)?.length ?? 0)).join(`,\n${INDENT}`)},
+];
+`,
+], CHECK_ONLY);
+
 const index = writeModule(resolve(OUT_DIR, 'index.ts'), [
     `/** Rows in every cavern map; fixed by the MDT format. */
 export const NAV_MAP_HEIGHT = ${MAP_HEIGHT};
@@ -488,6 +536,7 @@ export type {
     NavVerticalPlatform, NavCollapsingPlatform, NavHorizontalPlatform,
 } from './nav-platforms.js';
 export { NAV_PLATFORMS } from './nav-platforms.js';
+export { NAV_KEYS, NAV_KEY_COUNT } from './nav-keys.js';
 
 export type { NavAirflowTables, NavLiftColumn, NavConveyorRun } from './nav-airflows.js';
 export { NAV_AIRFLOWS } from './nav-airflows.js';

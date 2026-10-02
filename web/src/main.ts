@@ -251,6 +251,7 @@ import {
     makeDungeonInit,
     makeFinishRokademoTransition,
 } from './engine/dungeon-cutover.js';
+import { presentKeys } from './engine/dungeon-items.js';
 import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
@@ -271,6 +272,15 @@ let getBossName: any;
 const g = (): Uint8Array => getGmem();
 const dungeonUpdateFn = makeDungeonUpdate(g);
 const dungeonInitFn = makeDungeonInit(g);
+
+/**
+ * Keys lying on the floor of the current cavern, as `col,row,kind`.
+ *
+ * Read after the dungeon init, which drops the ones the player has already taken
+ * from the entity list (`remove_accomplished_items`). The map screen asks it so a
+ * route never detours for a key that is no longer there.
+ */
+let keysOnFloor: Set<string> = new Set();
 const finishRokademoFn = makeFinishRokademoTransition(g);
 
 let engineReady  = false;
@@ -475,6 +485,9 @@ function openMapScreen(): void {
         canvas,
         ctx,
         store: navGraphStore(),
+        // A key in the generated table may have been collected already; the engine
+        // knows which, and a route must not fetch one that is gone.
+        keyPresent: (_mapId, col, row, kind) => keysOnFloor.has(`${col},${row},${kind}`),
         // The map is the cavern's own art, not a class-coloured sketch: the same
         // sheet `drawStaticTile` blits in the live view, so a wall on the map is
         // the colour that wall has in the game. Loaded per map and cached by the
@@ -1464,6 +1477,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         await loadRokaImages();
         await loadEncounterImage();
         dungeonInitFn(rawMapId, isFromTown);
+        keysOnFloor = presentKeys(getGmem());
         gameMode = 'dungeon';
         townEntryRan = false;
         const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));

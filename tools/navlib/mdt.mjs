@@ -158,6 +158,43 @@ export function readDoors(bytes, doorsPtr, bound) {
     return out;
 }
 
+/**
+ * Key pickups out of the 16-byte entity records, 0xFFFF-terminated.
+ *
+ *   +0 word x     column in the low byte. The high byte is not a row: the engine
+ *                 compares it against 0xFF to decide whether the record is live
+ *                 (`monstersSpawning`, engine/dungeon-items.ts:553-556).
+ *   +2 byte y     the row
+ *   +4 byte flags the low five bits pick the handler in
+ *                 `placeMonsterInProximityAndRunAi` (engine/dungeon-items.ts:512):
+ *                 0 is a monster, 0x10 and up are items, and 0x16 / 0x17 are
+ *                 the ordinary and Lion-Head keys (`flag16`, `flag17`,
+ *                 engine/dungeon-items.ts:339-350).
+ *
+ * Both are already hero-standing positions — column and row, not a tile inside
+ * something else — which is the form the graph wants. Acceptance: mp10 (99,41) is
+ * an ordinary key and mp80 (150,7) a Lion-Head one.
+ *
+ * @returns {{col: number, row: number, kind: 'ordinary'|'lion'}[]}
+ */
+export function readKeys(bytes, monstersPtr, bound) {
+    const start = ptrToOffset(monstersPtr, bytes.length);
+    if (start === null) return [];
+    const out = [];
+    for (let i = start; i + 15 < (bound ?? bytes.length); i += 16) {
+        const x = word(bytes, i);
+        if (x === 0xffff) break;
+        const flags = bytes[i + 4] & 0x1f;
+        if (flags !== 0x16 && flags !== 0x17) continue;
+        out.push({
+            col: x & 0xff,
+            row: bytes[i + 2] & 0xff,
+            kind: flags === 0x16 ? 'ordinary' : 'lion',
+        });
+    }
+    return out;
+}
+
 /** 3-byte `{x: word, y: byte}` entries — vertical and collapsing platforms. */
 export function readVerticalPlatforms(bytes, ptr, bound) {
     const start = ptrToOffset(ptr, bytes.length);
@@ -214,9 +251,20 @@ export function readCavern(bytes) {
     return {
         header,
         tiles: decodePackedMap(bytes, header.mapWidth),
+        /** Raw MDT image, kept so callers can walk tables readCavern does not. */
+        bytes,
         doors: readDoors(bytes, header.doors, bDoors ?? bytes.length),
         verticalPlatforms: readVerticalPlatforms(bytes, header.vertPlatforms, bVert ?? bytes.length),
         collapsingPlatforms: readVerticalPlatforms(bytes, header.collapsingPlatforms, bColl ?? bytes.length),
         horizontalPlatforms: readHorizontalPlatforms(bytes, header.horizPlatforms, bHoriz ?? bytes.length),
+        /**
+         * Entity records, 16 bytes each — the monsters and the items alike.
+         *
+         * The monster table is the last one in the file: the layout runs header,
+         * packed map, then vertical/collapsing/horizontal platforms, doors,
+         * accomplished items, cavern name, and the entity records last. So the file
+         * length is its bound; no header pointer sits beyond it.
+         */
+        keys: readKeys(bytes, header.monsters, bytes.length),
     };
 }
