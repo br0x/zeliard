@@ -312,10 +312,6 @@ describe('the reveal starts at the hero', () => {
         h.hero.row = ahead.row;
         guide.update(600);
         const remaining = guide.remaining();
-        // eslint-disable-next-line no-console
-        console.log('DEBUG hero', JSON.stringify(h.hero), 'pts0..8',
-            pts.slice(0, 9).map((p) => `${p.col},${p.row}`).join(' '),
-            'remaining0', `${remaining[0]?.col},${remaining[0]?.row}`, 'hasRoute', guide.hasRoute);
         expect(remaining.length).toBeGreaterThan(0);
         expect(remaining[0], 'the reveal should start where the hero stands').toMatchObject({
             col: ahead.col, row: ahead.row,

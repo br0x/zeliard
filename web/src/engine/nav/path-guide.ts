@@ -316,7 +316,13 @@ export class PathGuide {
         }
         this.route = next;
         this.recordPlan(caps);
-        // Keep the reveal pointed at the hero rather than restarting from zero.
+        // `progress` is an index into the *old* point list, and the new route is a
+        // different list, so carrying it over left the reveal starting wherever that
+        // number happened to fall — a jump that skipped three points re-planned from
+        // where the hero stood and still began its arrows three tiles past him, off
+        // screen or inside scenery. The new route is searched from the hero, so its
+        // first point is his cell: re-anchor there and the line starts at his feet.
+        this.progress = 0;
         this.advanceProgress();
     }
 
