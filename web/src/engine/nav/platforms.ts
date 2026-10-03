@@ -33,13 +33,33 @@
  * way — while the platform moves regardless. A horizontal platform is therefore
  * modelled only where every column of its span has a clear standing position, so
  * it can never slide out from under him.
+ *
+ * ── where a platform is a thing and not a place ─────────────────────────────
+ * All of the above treats a platform as a *range* of places: every row it can reach
+ * mints a ride slot and every one of those slots is a landing surface, and no tile
+ * anywhere is marked as solid. Both are wrong, and in the same way — the platform is
+ * one object standing in one row right now.
+ *
+ * So the model reports two things about that one row. `restingCells` marks the three
+ * tiles the platform occupies as solid, because it is rock while it is there and a
+ * flight must not pass through it; the graph hands that mask to the jump model, which
+ * is the only thing that needs it. And `places` says which row each platform was
+ * found at, so that only *that* slot is a landing surface — every other position it
+ * has ever been, or will be, is reachable by riding and not by jumping.
+ *
+ * Horizontal platforms are the exception and are in neither: they sweep their span
+ * continuously and the hero can wait for them, so they have no "where it is standing".
+ * That also matches what a caller can keep up with — the live rows are read out of
+ * `g_mem` for the vertical and collapsing lists (platform-state.ts), and the graph is
+ * rebuilt when they change.
  */
 
 import { NAV_PLATFORMS, type NavPlatformTables } from '../../data/nav/nav-platforms.js';
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import type { NavTileGrid } from './mdt-grid.js';
 import { NavTileClassifier } from './attributes.js';
-import { blocksBody, flagsAt, heroBoxFree, wrapCol, wrapRow } from './geometry.js';
+import { ROWS, blocksBody, flagsAt, heroBoxFree, wrapCol, wrapRow } from './geometry.js';
+import type { PlatformPlaces } from './platform-state.js';
 
 /** Platform families, matching the `kind` field in nav-platforms.ts. */
 export const PLATFORM_VERTICAL = 0;
@@ -92,6 +112,47 @@ export interface PlatformModel {
     readonly slotsByPlatform: readonly (readonly number[])[];
     /** Platforms deliberately given no ride edges, with the reason. */
     readonly inertPlatforms: readonly { platform: number; reason: string }[];
+    /**
+     * The cells each platform occupies where it is *resting*, as a solid obstacle.
+     *
+     * A platform's position is engine memory, not map data: the tile grid says a
+     * platform exists here and how far it travels, and the MDT cell it occupies right
+     * now is ordinary empty air. So the hero's flight model has to be told where the
+     * platform is standing, or it flies straight through it — which is what let mp80's
+     * lift at column 1 be jumped onto from `(6,37)` while it sat at row 34, three
+     * tiles wide at `(1,34) (2,34) (3,34)`, blocking the very arc.
+     */
+    readonly restingCells: Uint8Array;
+    /**
+     * The row of each platform as this build found it, by left column. Recorded so a
+     * caller can see what the graph assumed and rebuild when the hero moves one.
+     */
+    readonly places: ReadonlyMap<number, number>;
+}
+
+/**
+ * Can a hero *land* on this slot, rather than only reach it by riding?
+ *
+ * A platform is three solid tiles and the hero comes down on top of it, so the only
+ * surface it offers is the row it is standing at right now. Every other row of a
+ * vertical or collapsing platform's travel is somewhere he can be carried to and
+ * cannot jump at.
+ *
+ * A horizontal platform is the exception and every column of its span passes: it
+ * sweeps the span continuously and the hero can wait for it, so there is no "where it
+ * is standing" to pin to. See the note on `restingCells`.
+ *
+ * This lives here rather than in the graph builder because two callers have to agree
+ * on it exactly — the graph and the overlay's replay of a hop — and when they did not,
+ * a jump the graph offered could not be redrawn.
+ */
+export function isLandingSlot(
+    model: PlatformModel,
+    slot: RideSlot,
+    mapWidth: number,
+): boolean {
+    if (slot.kind === PLATFORM_HORIZONTAL) return true;
+    return model.places.get(wrapCol(slot.leftCol, mapWidth)) === slot.pos;
 }
 
 /** Can the hero stand here with the platform cell counted as ground? */
@@ -117,16 +178,43 @@ function range(from: number, to: number): number[] {
 }
 
 /** Build the platform model for one map from its decoded tile grid. */
-export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformModel {
+export function buildPlatformModel(
+    mapId: number,
+    grid: NavTileGrid,
+    /**
+     * Where the platforms are right now, by left column. Defaults to the generated
+     * `startY`, which is where they stand when a cavern is entered and where they go
+     * back to when it is entered again.
+     */
+    places?: PlatformPlaces,
+): PlatformModel {
     const tables: NavPlatformTables | undefined = NAV_PLATFORMS[mapId];
     const meta = NAV_MAP_BY_ID.get(mapId);
     if (!tables) throw new Error(`no generated platform tables for map ${mapId}`);
     const classifier = NavTileClassifier.forMap(mapId);
     const mapWidth = meta?.mapWidth ?? grid.mapWidth;
+    const restingCells = new Uint8Array(mapWidth * ROWS);
+    const where = new Map<number, number>();
 
     const slots: RideSlot[] = [];
     const slotsByPlatform: number[][] = [];
     const inertPlatforms: { platform: number; reason: string }[] = [];
+
+    /** Mark the tiles a platform is standing on right now. */
+    const rest = (leftCol: number, row: number, cols: number): void => {
+        for (let i = 0; i < cols; i++) {
+            restingCells[row * mapWidth + wrapCol(leftCol + i, mapWidth)] = 1;
+        }
+    };
+
+    /**
+     * A vertical or collapsing platform: three solid tiles at its current row, and a
+     * note of where that is so the graph can be rebuilt when the hero moves it.
+     */
+    const place = (leftCol: number, row: number): void => {
+        rest(leftCol, wrapRow(row), 3);
+        where.set(wrapCol(leftCol, mapWidth), wrapRow(row));
+    };
 
     /** Append one platform's slots and return their indices. */
     const emit = (indices: number[]): void => {
@@ -135,6 +223,7 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
 
     // ── vertical and collapsing ────────────────────────────────────────────
     for (const p of tables.vertical) {
+        place(p.x, places?.get(p.x) ?? p.startY);
         const local: number[] = [];
         for (const row of range(p.topY, p.bottomY)) {
             const headRow = wrapRow(row - 3);
@@ -157,6 +246,7 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
     }
 
     for (const p of tables.collapsing) {
+        place(p.x, places?.get(p.x) ?? p.startY);
         const local: number[] = [];
         // startY downwards only: heroCollapsePlatform never raises it.
         for (const row of range(p.startY, p.bottomY)) {
@@ -180,6 +270,13 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
     }
 
     // ── horizontal ─────────────────────────────────────────────────────────
+    // A horizontal platform is deliberately left out of `restingCells` and of
+    // `places`. It never sits still — it sweeps its whole span, and the hero can wait
+    // for it, which is why the graph has always treated every column of the span as a
+    // position it will be at. Pinning one column as solid would draw a wall that is
+    // gone a frame later and that nothing rebuilds the graph for, and dropping the
+    // other columns as landing surfaces would deny a landing the hero can genuinely
+    // wait for. A platform that moves on its own has no "where it is standing".
     for (const p of tables.horizontal) {
         if (p.speed === 0) {
             // Frozen: a static ledge the hero stands on, not a lift.
@@ -251,7 +348,7 @@ export function buildPlatformModel(mapId: number, grid: NavTileGrid): PlatformMo
         emit(local);
     }
 
-    return { mapId, slots, slotsByPlatform, inertPlatforms };
+    return { mapId, slots, slotsByPlatform, inertPlatforms, restingCells, places: where };
 }
 
 /** Point each slot at the next along a one-dimensional platform. */

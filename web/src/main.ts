@@ -242,6 +242,7 @@ import {
     CHEVRON_SHEET,
 } from './render/path-overlay.js';
 import { NavGraphStore, type NavRoute } from './engine/nav/pathfinder.js';
+import { readPlatformPlaces } from './engine/nav/platform-state.js';
 import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID } from './data/nav/nav-maps.js';
 import { getViewportTop, clearRenderRequest } from './engine/dungeon-state.js';
@@ -582,6 +583,27 @@ function acceptMapDestination(route: NavRoute): void {
  * tracking the hero across three caverns.
  */
 let pathGuide: PathGuide | null = null;
+
+/**
+ * Keep the navigation model told where the platforms are.
+ *
+ * A vertical or collapsing platform is three solid tiles the hero drives up and down,
+ * and the cavern resets every one of them to `startY` when he enters through a door.
+ * Both facts are engine state, not map data, so the graph has to be rebuilt whenever
+ * they change: a platform that has moved is a wall where the route drew open air, and
+ * its new top is the only surface he can land on.
+ *
+ * Reading the live rows is two short lists of three-byte entries, and the store does
+ * nothing with them unless a row actually changed — in which case it drops the
+ * cavern's graph, and the next search builds it over the new arrangement.
+ */
+function syncPlatformPlaces(): void {
+    const g = getGmem();
+    navGraphStore().setPlatformPlaces(
+        memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f,
+        readPlatformPlaces(g),
+    );
+}
 
 function navPathGuide(): PathGuide {
     if (pathGuide) return pathGuide;
@@ -2303,6 +2325,11 @@ function draw() {
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 drawDungeonTiles(); // background cavern tiles
                 animateDungeonTiles(); // advance cavern 5–8 tiles once per game tick
+                // A platform the hero has just driven is a new wall and a new ledge,
+                // so the graph is rebuilt before the chevrons are laid out. This is
+                // what makes a route that rides a lift follow the lift instead of the
+                // place it started.
+                syncPlatformPlaces();
                 // The Thread of Yaga's chevrons, over the background but under
                 // everything that can move or hurt you.
                 pathGuide?.update(performance.now());

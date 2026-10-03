@@ -32,6 +32,7 @@ import {
     HAZARD_AGGRESSIVE, HAZARD_SLOPE, buildNavGraph, nodeAt, type NavGraph,
 } from './nav-graph.js';
 import { decodeTileGrid, type NavTileGrid } from './mdt-grid.js';
+import { samePlatformPlaces, type PlatformPlaces } from './platform-state.js';
 import { PORTALS } from '../../data/nav/nav-portals.js';
 import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../../data/nav/nav-maps.js';
 
@@ -141,6 +142,9 @@ const SHOE_BITS: readonly (readonly [number, number, string])[] = [
 /** The mask that lets the search plan a route the hero can walk in shoes. */
 export const SHOE_MASK = SHOE_BITS.reduce((mask, [bit]) => mask | bit, 0);
 
+/** Handed back for a cavern nobody has reported a platform position for. */
+const NO_PLATFORM_PLACES: PlatformPlaces = new Map();
+
 export class NavGraphStore {
     private readonly graphs = new Map<number, NavGraph>();
     private readonly grids = new Map<number, NavTileGrid>();
@@ -148,6 +152,8 @@ export class NavGraphStore {
     private readonly failed = new Set<number>();
     /** Bytes obtained from the fetcher, kept so `get` can see them. */
     private readonly fetched = new Map<number, Uint8Array>();
+    /** Where each cavern's platforms stand, by left column. */
+    private readonly places = new Map<number, PlatformPlaces>();
 
     constructor(
         private readonly source: NavGridSource,
@@ -176,6 +182,53 @@ export class NavGraphStore {
     }
 
     /**
+     * Record where a cavern's platforms stand.
+     *
+     * A platform is three solid tiles the hero drives up and down and that snap back
+     * to `startY` when the cavern is entered through a door, so a graph built a
+     * moment ago can be wrong twice over: it may have drawn a solid wall where the
+     * platform has since gone, or offered a landing on the far side of a platform that
+     * has since moved under him. Reading the live rows out of `g_mem` and comparing
+     * them is what makes the route follow the platform rather than the map.
+     *
+     * The graph is *not* dropped here, only marked by comparison: `get` rebuilds it the
+     * next time anybody asks. That matters because a platform the hero is riding
+     * reports a new row every single frame, and a ride is exactly when a graph cannot
+     * be used — he is on it, not standing anywhere a route could start. Eagerly
+     * dropping it rebuilt the largest caverns sixty times a second for nothing.
+     *
+     * @returns true when anything moved, so the caller can re-plan
+     */
+    setPlatformPlaces(mapId: number, places: PlatformPlaces): boolean {
+        const before = this.places.get(mapId);
+        if (before && samePlatformPlaces(before, places)) return false;
+        this.places.set(mapId, new Map(places));
+        return true;
+    }
+
+    /**
+     * Where a cavern's platforms stand as of the last reading.
+     *
+     * Empty until something has told the store, and empty means "wherever the
+     * generated `startY` says", which is the same answer for a cavern entered through
+     * a door.
+     */
+    platformPlaces(mapId: number): PlatformPlaces {
+        return this.places.get(mapId) ?? NO_PLATFORM_PLACES;
+    }
+
+    /**
+     * The graph if one has been built, without building one.
+     *
+     * For the questions where building costs far more than the answer. "Is the hero
+     * standing on a node?" is asked every tick, and a lift ride changes the platform
+     * arrangement on every one of them.
+     */
+    peek(mapId: number): NavGraph | null {
+        return this.graphs.get(mapId) ?? null;
+    }
+
+    /**
      * Graph for a map, building it on first use.
      *
      * Returns null when the MDT is unavailable **or malformed**. A decoder
@@ -184,8 +237,16 @@ export class NavGraphStore {
      * rather than just declining to offer the map.
      */
     get(mapId: number): NavGraph | null {
+        const places = this.places.get(mapId);
         const cached = this.graphs.get(mapId);
-        if (cached) return cached;
+        if (cached) {
+            // A graph built over an older arrangement is not merely stale, it is wrong:
+            // the platform it treated as solid has moved, and the row it offered as a
+            // landing is not the one the platform is at. The graph carries the rows it
+            // was built from, so the comparison needs no extra bookkeeping.
+            if (!places || samePlatformPlaces(cached.platforms.places, places)) return cached;
+            this.graphs.delete(mapId);
+        }
         if (this.failed.has(mapId)) return null;
         // Bytes fetched on demand take precedence over the source, so a fetcher
         // does not have to publish into the source's own cache.
@@ -194,7 +255,7 @@ export class NavGraphStore {
         try {
             const grid = decodeTileGrid(bytes, 0, mapId);
             this.grids.set(mapId, grid);
-            const graph = buildNavGraph(mapId, grid);
+            const graph = buildNavGraph(mapId, grid, places);
             this.graphs.set(mapId, graph);
             return graph;
         } catch (err) {

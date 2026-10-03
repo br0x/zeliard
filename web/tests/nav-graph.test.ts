@@ -19,8 +19,7 @@ import {
     buildNavGraph, edgesOf, forEachEdge, nodeAt,
     NODE_GROUND, NODE_ROPE, NODE_RIDE,
 } from '../src/engine/nav/nav-graph.js';
-import { buildPlatformModel } from '../src/engine/nav/platforms.js';
-import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
+import { buildPlatformModel, isLandingSlot } from '../src/engine/nav/platforms.js';import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { JumpModel, LANDING_STRIDE, readLanding } from '../src/engine/nav/jump.js';
 import {
@@ -28,6 +27,7 @@ import {
 } from '../src/engine/nav/geometry.js';
 import { CAP, EDGE, EDGE_NAMES } from '../src/engine/nav/types.js';
 import { NAV_MAPS, NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
+import { NAV_PLATFORMS } from '../src/data/nav/nav-platforms.js';
 import { PORTALS } from '../src/data/nav/nav-portals.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -167,11 +167,20 @@ describe('nodes are positions the hero can occupy', () => {
             }
         }
         expect(total).toBe(5589);
-        // 185 dead slots, down from 194: a vertical lift used to be linked along
-        // `slot.next` only, which walks the chain in one direction, so every lift
-        // could be ridden down but never up and the top of it had no way in.
-        expect(live, 'ride slots with no entry at all').toBe(5404);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(185);
+        // 186 dead slots. Two corrections moved it here. First, a vertical lift used
+        // to be linked along `slot.next` only, which walks the chain in one
+        // direction, so every lift could be ridden down but never up and the top of
+        // it had no way in — 194 to 185. Second, a slot is now a landing surface
+        // only where its platform is standing, so one more slot died: the single one
+        // in the whole game whose *only* way in was a jump onto a row its platform
+        // was nowhere near.
+        //
+        // That is one, and not the thousand the rule sounds like it should be,
+        // because `chain` already links every slot of a multi-row platform to its
+        // neighbour. Riding is the entry that survives; landing was only ever the
+        // entry for a platform with a single rideable row.
+        expect(live, 'ride slots with no entry at all').toBe(5403);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(186);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -179,6 +188,47 @@ describe('nodes are positions the hero can occupy', () => {
             expect(graphFor(id).stats.ground, NAV_MAP_BY_ID.get(id)!.nameKey)
                 .toBeGreaterThan(1000);
         }
+    });
+
+    it('will not fly a jump onto a lift that is standing somewhere else', () => {
+        // The reported case: mp80 `(6,37) -> (1,33) JUMP_HIGH`, where the column 1
+        // lift rests at row 34 and the arc went straight through `(3,34)` to land on
+        // top of it. A platform is three solid tiles — it stops
+        // `is_blocking_tile_simple`, so the model marks its resting cells the same way
+        // the map's own rock — and it offers a landing only on the row it is at.
+        //
+        // Deliberately *not* stated as "no flight crosses a platform tile". The engine
+        // tests one cell on a rise and one column on a step, so a hero does clip
+        // scenery in a real jump — jump.ts says so, and a model that refused it would
+        // refuse the player's route. What must not happen is landing on the far side
+        // of a platform, which is what this checks.
+        const meta = NAV_MAP_BY_ID.get(23)!;
+        const graph = graphFor(23);
+        const lift = NAV_PLATFORMS[23]!.vertical.find((p) => p.x === 1)!;
+        expect(lift.startY, 'the lift rests at row 34').toBe(34);
+
+        // Its three tiles are solid, so nothing can pass through them.
+        const solidAt = (col: number, row: number): boolean =>
+            graph.platforms.restingCells[row * meta.mapWidth + col] === 1;
+        expect([1, 2, 3].map((c) => solidAt(c, 34))).toEqual([true, true, true]);
+
+        // And only its resting row is a landing surface.
+        const slots = graph.platforms.slots.filter(
+            (s) => s.kind !== 2 && s.leftCol === 1,
+        );
+        expect(slots.length, 'the lift has slots all along its travel').toBeGreaterThan(1);
+        const landing = slots.filter((s) => isLandingSlot(graph.platforms, s, meta.mapWidth));
+        expect(landing.map((s) => s.pos)).toEqual([34]);
+
+        // So the reported arc is gone: nothing from (6,37) reaches any of its slots.
+        const from = nodeAt(graph, 6, 37);
+        expect(from, 'the reported take-off is a standing position').toBeGreaterThanOrEqual(0);
+        const reached = new Set<string>();
+        forEachEdge(graph, from!, (edge) => {
+            const node = graph.nodes[edge.to]!;
+            if (slots.some((s) => s.headRow === node.row)) reached.add(`${node.col},${node.row}`);
+        });
+        expect([...reached]).toEqual([]);
     });
 });
 
@@ -354,22 +404,28 @@ describe('jumps are the model\'s, not a table of guesses', () => {
             const graph = graphFor(meta.id);
             const grid = gridFor(meta.id);
             const classifier = NavTileClassifier.forMap(meta.id);
-            // The same two masks the graph hands the model, so a jump onto a platform
+// The same masks the graph hands the model, so a jump onto a platform
             // or into an up current is compared as a landing rather than reported
             // missing. A platform is marked under the hero's middle foot, three rows
-            // below the slot; a current is marked wherever `heroInLift` holds him.
+            // below the slot, and only where the platform is standing right now; a
+            // current is marked wherever `heroInLift` holds him. The tiles the
+            // platforms are standing on come along too, or a flight the graph
+            // refused because it passed through one looks possible here.
+            const platforms = buildPlatformModel(meta.id, grid);
             const slots = new Uint8Array(meta.mapWidth * 64);
-            for (const slot of buildPlatformModel(meta.id, grid).slots) {
+            for (const slot of platforms.slots) {
+                if (!isLandingSlot(platforms, slot, meta.mapWidth)) continue;
                 slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
             }
             const currents = new Uint8Array(meta.mapWidth * 64);
             for (let row = 0; row < 64; row++) {
                 for (let col = 0; col < meta.mapWidth; col++) {
-                    if (heroInLift(grid, classifier, col, row)) currents[row * meta.mapWidth + col] = 1;
+                    if (heroInLift(grid, classifier, col, row)) currents[row * grid.mapWidth + col] = 1;
                 }
             }
-            const model = new JumpModel(grid, classifier, slots, currents);
+            const model = new JumpModel(grid, classifier, slots, currents, platforms.restingCells);
             graph.nodes.forEach((node, index) => {
+
                 let offered: Set<string> | null = null;
                 forEachEdge(graph, index, (edge) => {
                     if (edge.kind !== EDGE.JUMP && edge.kind !== EDGE.JUMP_HIGH) return;

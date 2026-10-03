@@ -42,7 +42,10 @@ import {
 import {
     JumpModel, LANDING_STRIDE, STEER_ALL, STEER_STRAIGHT, STEER_LEFT, STEER_RIGHT,
 } from './jump.js';
-import { buildPlatformModel, type PlatformModel } from './platforms.js';
+import {
+    buildPlatformModel, isLandingSlot, type PlatformModel,
+} from './platforms.js';
+import type { PlatformPlaces } from './platform-state.js';
 import { NAV_KEYS } from '../../data/nav/nav-keys.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
 import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from '../../data/nav/nav-portals.js';
@@ -223,7 +226,12 @@ function ropeAt(grid: NavTileGrid, col: number, row: number): boolean {
 }
 
 /** Build the navigation graph for one map from its decoded tile grid. */
-export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
+export function buildNavGraph(
+    mapId: number,
+    grid: NavTileGrid,
+    /** Where this cavern's platforms stand right now, by left column. */
+    places?: PlatformPlaces,
+): NavGraph {
     const meta = NAV_MAP_BY_ID.get(mapId);
     if (!meta) throw new Error(`no map metadata for map ${mapId}`);
     const mapWidth = meta.mapWidth;
@@ -232,7 +240,7 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     }
     const cells = mapWidth * 64;
     const classifier = NavTileClassifier.forMap(mapId);
-    const platforms = buildPlatformModel(mapId, grid);
+    const platforms = buildPlatformModel(mapId, grid, places);
     const currents = buildAirflowModel(mapId, grid);
     // A platform is a floor the hero can land on and nothing else, and it is not in
     // the static map at all, so the jump model has to be told where the slots are.
@@ -240,8 +248,18 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
     // foot, three rows below his head. A slot's `headRow` is the platform row minus
     // three, so the platform tile itself is at `headRow + 3`; marking the slot cell
     // instead would tell the model a hero lands one row too high and never on it.
+    //
+    // Only the row a platform is standing at right now is a landing surface. It is
+    // three solid tiles and the hero can only come down on top of it, so where it
+    // stands is the only row he can land on; every other row of its travel is
+    // something he reaches by riding it, not by jumping at it. Marking the whole
+    // travel range made a jump onto a platform that was nowhere near that row look
+    // possible — and, with `restingCells` below, a flight through where the platform
+    // actually is look possible too. `isLandingSlot` is the rule; platforms.ts says
+    // why, and the overlay asks the same function.
     const platformCells = new Uint8Array(cells);
     for (const slot of platforms.slots) {
+        if (!isLandingSlot(platforms, slot, mapWidth)) continue;
         platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
     // And the up currents, for the same reason: a hero who reaches one mid-flight is
@@ -253,7 +271,9 @@ export function buildNavGraph(mapId: number, grid: NavTileGrid): NavGraph {
             if (heroInLift(grid, classifier, col, row)) currentCells[row * mapWidth + col] = 1;
         }
     }
-    const jumps = new JumpModel(grid, classifier, platformCells, currentCells);
+    // `restingCells` is what makes the platform a thing rather than a place: the three
+    // tiles it is standing on stop a flight, exactly as the map's own solid tiles do.
+    const jumps = new JumpModel(grid, classifier, platformCells, currentCells, platforms.restingCells);
 
     const nodes: NavNode[] = [];
     const groundOf = new Int32Array(cells).fill(-1);

@@ -20,8 +20,9 @@ import {
 import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
 import { JumpModel } from './jump.js';
-import { buildPlatformModel } from './platforms.js';
-import { heroInLift } from './geometry.js';
+import { buildPlatformModel, isLandingSlot } from './platforms.js';
+import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
+import { wrapCol, heroInLift } from './geometry.js';
 
 /** Re-plan when the hero has drifted this far from the route, in tiles. */
 const DRIFT_TOLERANCE = 3;
@@ -64,6 +65,13 @@ const ACCESSORY_NAMES: Record<number, string> = {
 
 /** Map widths, so a line between two positions knows where the seam is. */
 const MAP_WIDTHS = new Map<number, number>();
+
+/** Width of a cavern in tiles, for the cylindrical arithmetic. */
+function mapWidthOf(mapId: number): number {
+    const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth;
+    if (width) MAP_WIDTHS.set(mapId, width);
+    return width ?? 256;
+}
 
 /**
  * The cells a straight line between two positions covers, one tile at a time.
@@ -110,6 +118,8 @@ export class PathGuide {
     private plannedMask: CapabilityMask = -1;
     private plannedKeys = -1;
     private plannedLionKeys = -1;
+    /** The platform positions the current route was planned against. */
+    private lastPlatformVersion = '';
     /**
      * True while a menu covers the cavern. The route stays live underneath — so
      * the chevrons are correct the moment the menus close — but nothing is drawn.
@@ -233,10 +243,12 @@ export class PathGuide {
     private readonly flightModels = new Map<number, JumpModel | null>();
 
     private flightModel(mapId: number): JumpModel | null {
-        const width = this.deps.store.get(mapId)?.mapWidth;
-        if (width) MAP_WIDTHS.set(mapId, width);
+        // The cache first, and the width from map metadata rather than from a graph:
+        // this runs per drawn hop per frame, and a `get` here would rebuild the cavern
+        // whenever a platform had moved since the last one.
         const cached = this.flightModels.get(mapId);
         if (cached !== undefined) return cached;
+        mapWidthOf(mapId);
         const grid = this.deps.store.gridOf(mapId);
         if (!grid) {
             this.flightModels.set(mapId, null);
@@ -246,11 +258,17 @@ export class PathGuide {
         // or in a current is a real flight, and leaving either mask out means those
         // hops cannot be replayed — the overlay falls back to the hop's two ends and
         // the drawn line has a hole exactly where the route is most interesting.
+        //
+        // The third is where the platforms are *right now*, so a hop replays against
+        // the platform the route was planned with. The guide drops its flight models
+        // whenever that changes, so the two cannot drift apart.
         const classifier = NavTileClassifier.forMap(mapId);
+        const platformModel = buildPlatformModel(mapId, grid, this.deps.store.platformPlaces(mapId));
         const surfaces = new Uint8Array(grid.mapWidth * 64);
-        for (const slot of buildPlatformModel(mapId, grid).slots) {
+        for (const slot of platformModel.slots) {
+            if (!isLandingSlot(platformModel, slot, grid.mapWidth)) continue;
             surfaces[(slot.headRow + 3) * grid.mapWidth
-                + (((slot.leftCol + 1) % grid.mapWidth) + grid.mapWidth) % grid.mapWidth] = 1;
+                + wrapCol(slot.leftCol + 1, grid.mapWidth)] = 1;
         }
         const currents = new Uint8Array(grid.mapWidth * 64);
         for (let row = 0; row < 64; row++) {
@@ -258,7 +276,9 @@ export class PathGuide {
                 if (heroInLift(grid, classifier, col, row)) currents[row * grid.mapWidth + col] = 1;
             }
         }
-        const model = new JumpModel(grid, classifier, surfaces, currents);
+        const model = new JumpModel(
+            grid, classifier, surfaces, currents, platformModel.restingCells,
+        );
         this.flightModels.set(mapId, model);
         return model;
     }
@@ -326,6 +346,11 @@ export class PathGuide {
         }
         this.route = next;
         this.recordPlan(planCaps);
+        this.lastPlatformVersion = this.platformVersion();
+        // The flight models were built for the arrangement that route was planned
+        // against, so a hop replayed through one of them now draws an arc the hero no
+        // longer flies. Drop them and let the next hop rebuild.
+        this.flightModels.clear();
         // `progress` is an index into the *old* point list, and the new route is a
         // different list, so carrying it over left the reveal starting wherever that
         // number happened to fall — a jump that skipped three points re-planned from
@@ -336,18 +361,47 @@ export class PathGuide {
         this.advanceProgress();
     }
 
+    /**
+     * An identity for every platform's position across the maps the route touches.
+     *
+     * A route planned against a different signature was drawn over a different world:
+     * the platform the graph treated as solid has moved, and the row it offered as a
+     * landing is not the one it is at. So a difference here is enough on its own to
+     * re-plan, ahead of any interval.
+     */
+    private platformVersion(): string {
+        const parts: string[] = [];
+        for (const mapId of this.route?.maps ?? []) {
+            const places = [...this.deps.store.platformPlaces(mapId)]
+                .sort((a, b) => a[0] - b[0]);
+            for (const [x, y] of places) parts.push(`${mapId}:${x}:${y}`);
+        }
+        return parts.join(',');
+    }
+
     /** True when the route no longer reflects the world. */
     private needsReplan(now: number, caps: HeroCapabilities, hero: { mapId: number; col: number; row: number }): boolean {
+        // First: can a route be planned from here at all? Mid-jump, and **mid-ride**,
+        // he is standing nowhere the search could start from, and that is not drift —
+        // the route itself is what put him there. A lift is the sharp case: his row
+        // changes every frame he climbs, so re-planning on the platform would fire
+        // every frame and always come back empty, which is not a slower route but no
+        // route at all, and the guide drops what it was drawing. `peek` rather than
+        // `get`, so asking the question does not rebuild the cavern to answer it.
+        const graph = this.deps.store.peek(hero.mapId);
+        if (!graph || nodeAt(graph, hero.col, hero.row) < 0) return false;
+
+        // A platform the hero has just driven is a new wall and a new ledge, so the
+        // route is stale the moment it moves and no waiting interval should hold it
+        // back. The store has the live rows, so a differing signature is a real move
+        // rather than a stale plan.
+        if (this.lastPlatformVersion !== this.platformVersion()) return true;
+
         if (now - this.lastPlanAt < MIN_INTERVAL_MS) return false;
         if (this.plannedMask !== caps.mask) return true;
         if (this.plannedKeys !== caps.keys) return true;
         if (this.plannedLionKeys !== caps.lionKeys) return true;
         if (!this.goal || !reachableMaps(hero.mapId).includes(this.goal.mapId)) return true;
-        // Mid-jump he is standing nowhere, and that is not drift: the route itself
-        // sends him over gaps. Re-planning from a cell that is not a node can only
-        // fail, so do not try until he lands.
-        const graph = this.deps.store.get(hero.mapId);
-        if (!graph || nodeAt(graph, hero.col, hero.row) < 0) return false;
         // Walking off the route: the hero should be near it.
         const points = this.route?.points;
         if (!points) return false;
@@ -355,8 +409,7 @@ export class PathGuide {
         for (let i = from; i < points.length; i++) {
             const p = points[i]!;
             if (p.mapId !== hero.mapId) continue;
-            const d = columnDelta(p.col, hero.col, this.deps.store.get(hero.mapId)?.mapWidth ?? hero.col + 1)
-                + rowDelta(p.row, hero.row);
+            const d = columnDelta(p.col, hero.col, graph.mapWidth) + rowDelta(p.row, hero.row);
             if (d <= DRIFT_TOLERANCE) return false;
         }
         return now - this.lastPlanAt >= REFRESH_MS;
@@ -397,7 +450,9 @@ export class PathGuide {
         if (!route) return;
         const hero = this.deps.heroPosition();
         if (!hero) return;
-        const width = this.deps.store.get(hero.mapId)?.mapWidth ?? 1;
+        // Metadata, not `store.get`: this runs every tick, and asking for a graph here
+        // would rebuild the hero's cavern on every row of a lift ride.
+        const width = mapWidthOf(hero.mapId);
         const on = (point: NavPoint): boolean => point.mapId === hero.mapId
             && columnDelta(point.col, hero.col, width) === 0
             && rowDelta(point.row, hero.row) === 0;

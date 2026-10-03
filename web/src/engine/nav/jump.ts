@@ -239,18 +239,26 @@ export class JumpModel {
      * @param platforms 1 where a standing platform slot can put the hero's feet, in
      *   the same `row * mapWidth + col` indexing as the tile grid. Optional, because
      *   a cavern with no platforms needs nothing.
+     * @param resting 1 where a platform is standing right now, which is solid rock
+     *   the hero cannot pass through. It cannot come from the tile grid, because a
+     *   platform's position is engine memory rather than map data.
      */
     constructor(
         grid: NavTileGrid,
         classifier: NavTileClassifier,
         platforms?: Uint8Array,
         currents?: Uint8Array,
+        resting?: Uint8Array,
     ) {
         this.mapWidth = grid.mapWidth;
         this.cells = grid.mapWidth * ROWS;
         this.flag = new Uint16Array(this.cells);
         for (let i = 0; i < this.cells; i++) {
-            this.flag[i] = classifier.classify(grid.tiles[i]!);
+            // A platform's resting cells are solid as far as geometry is concerned:
+            // the hero stands on one and is stopped by one. `is_blocking_tile_simple`
+            // is the predicate that stops at a platform tile, and BLOCK_BODY is it.
+            this.flag[i] = classifier.classify(grid.tiles[i]!)
+                | (resting?.[i] === 1 ? NAV.BLOCK_BODY : 0);
         }
         this.platform = platforms ?? new Uint8Array(this.cells);
         this.held = currents ?? new Uint8Array(this.cells);

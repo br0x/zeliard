@@ -3191,6 +3191,136 @@ no `req`, and the `RIDE_V` chain visibly ran one way. **Print the route, and pri
 requirement on every hop.** A merely *plausible* route is the failure mode, because
 the search will always hand you one.
 
+#### A ninth cause: a platform was a place, not a thing
+
+The report this round was a single hop: `mp80 (6,37) → (1,33) JUMP_HIGH`. The vertical
+lift at column 1 rests at its default row, three solid tiles at `(1,34) (2,34) (3,34)`,
+and the arc went straight through `(3,34)`.
+
+Chasing it turned up the real problem, which is that **a moving platform was modelled as
+a place rather than a thing.** Everything about one was baked into the map at build
+time: its whole travel range minted ride slots, every one of those slots was treated as
+a landing surface, and no tile anywhere was marked solid. So the search could land the
+hero on a platform three rows from where it stood, and fly through the three tiles that
+were actually there.
+
+What the game does:
+
+- Entering a cavern through **any** door resets every vertical and collapsing platform
+  to its `startY`. It is the engine's own state, not map data.
+- A platform is **three solid tiles**. A platform tile stops `is_blocking_tile_simple`
+  and passes `is_blocking_tile`, so it blocks the body and feet rows and lets the head
+  through — which is how the hero rises onto one from underneath.
+- He comes down on it **only from the top**, and only where it is standing right now.
+  Every other row of its travel is somewhere he can be *carried*, never somewhere he
+  can jump.
+- Once he has driven it, it stays where he left it until the cavern is entered again.
+
+So the model now reads the live row of each platform out of `g_mem` — the lists at
+`0xc004` and `0xc006` hold three-byte `{ absX word, y byte }` entries terminated by
+`absX === 0xffff`, the same walk `render_vertical_platforms_to_proximity` does
+(dungeon-platforms.ts) — and three things follow:
+
+- `PlatformModel.restingCells` marks the tiles each platform currently occupies as
+  `BLOCK_BODY`, so they stop a flight exactly as the map's own rock does. The tile grid
+  cannot say so: the cell a platform is standing in is ordinary empty air in the MDT.
+- `PlatformModel.places` records the row each platform was found at, and
+  `isLandingSlot` makes only that row a landing surface.
+- `NavGraphStore.setPlatformPlaces` compares the live rows and **rebuilds** a cavern's
+  graph when they differ, and `PathGuide` re-plans on that alone — no refresh interval,
+  because a platform the hero is riding moves every row he climbs.
+
+**A horizontal platform is deliberately in none of the three.** It sweeps its span
+continuously and the hero can wait for it, so it has no "where it is standing": pinning
+one column would draw a wall that is gone a frame later and that nothing rebuilds the
+graph for, while dropping the rest as landing surfaces would deny a landing he can
+genuinely wait for. Every column of a span stays a landing surface, as before.
+
+**[measured]** the reported hop — every edge from mp80 `(6,37)` into the column 1 lift:
+
+| | edges into the lift |
+| --- | --- |
+| before | `JUMP_HIGH (1,36) (1,35) (1,34) (1,33)` — four landings on rows it is not at |
+| after | none |
+
+**[measured]** the whole game: edges 533,372 → **525,046**, nodes unchanged at 29,917.
+The 8,326 that went are jumps that flew into, or landed on, a platform standing
+somewhere else. Ride slots with no entry at all: 5,404 → **5,403** — one, and one is
+the honest answer: `chain` already gives every slot of a multi-row platform an entry by
+riding, so landing was only ever the entry for a platform with a single rideable row.
+
+**And the mp30 trip the player walks is untouched**: 230 points → 231, cost 307 either
+way, `maps [5,6,5,6,5]`, no equipment, still riding the column 5 lift from `(5,23)` to
+`(5,1)`.
+
+#### The same round, second pass: a ride is not a re-plan
+
+The first cut of the platform work **made the chevrons disappear the moment the hero
+rode a lift.** Two mistakes, both in how the live rows were wired in, and both worth
+writing down because the reasoning error is the interesting part.
+
+**The route was thrown away every row.** The guide re-planned the instant a platform
+moved, which is right in principle — a lift the hero is riding reports a new row on
+every frame of the climb. But a hero *on a platform* is not standing anywhere the
+search could start from: `nodeAt` resolves ground positions only, so a ride node is
+not one. `findRoute` came back empty, and the guide's answer to an empty plan is to
+clear the route — so the drawn line vanished on the first row of every ride. There was
+already a guard for this, *"mid-jump he is standing nowhere, do not try until he
+lands"*, and the new check had been put **above** it, where the guard could not reach
+it. The order is the whole fix: **may a route be planned from here at all**, and only
+then whether the world has changed.
+
+The hole underneath was older than the trigger. `findRoute` has never been able to
+start from a ride node, so *any* re-plan while the hero is aboard a platform has always
+failed — the twenty-second refresh used to hit it too, which is why this read as a new
+bug rather than an old one.
+
+**The cavern was rebuilt sixty times a second.** Recording the rows dropped the graph
+eagerly, and two things asked for it on every frame: `advanceProgress` and
+`flightModel` each called `store.get()` to read a map *width*, which is static map
+metadata. A ride rebuilt mp31 — 18,000-odd edges and a full jump model — per frame.
+Both now read the width from `NAV_MAP_BY_ID`, the rebuild is deferred to whoever next
+asks for a graph (`get` compares the rows the cached graph was built from, which it
+already carries in `platforms.places`), and `peek` answers *"is the hero on a node?"*
+without building anything.
+
+The general shape: **a per-frame signal needs a per-frame guard on who may act on it.**
+A platform moves sixty times a second and exactly one thing in the program can use
+that — a re-plan from a standing position.
+
+**[measured]** mp31, a six-row ride: graph builds 7 → **0**, and the drawn route now
+shortens one row at a time as the hero climbs (43 → 37 points), which is what
+following a drawn route looks like.
+
+#### Tests
+
+- `nav-platform-state.test.ts` — a ride, row by row, with the store proxied so the
+  number of graph builds is observable: the guide stays active, the reveal shortens by
+  one point per row, and nothing rebuilds the cavern.
+- `nav-platform-model.test.ts` — a new block, *a platform is a thing, not a place*: the
+  solid mask is exactly the union of the lifts' three tiles and nothing else; every
+  lift starts at `startY` and moves when it is told to; and a slot is a landing slot if
+  and only if its platform is standing there. Including the three caverns where two
+  lifts share a column, which a column-keyed live row cannot separate — named there
+  rather than left to surprise someone.
+- `nav-platform-state.test.ts` — the plumbing: the `g_mem` list walk, with a decoy past
+  the terminator that must not be read and a zero pointer that must read as empty; then
+  the store rebuilding on a changed row and refusing to rebuild on an unchanged one; and
+  the guide re-planning mid-interval when the lift moves two rows.
+- `nav-graph.test.ts` — the reported case as a regression, asserting the three
+  measurements above: the lift's tiles are solid, only row 34 is landable, and nothing
+  reaches the lift from `(6,37)`.
+- `nav-graph.test.ts` — the two counting tests re-measured, and *every jump edge is a
+  landing the model gives* now builds its model from the same `isLandingSlot` and
+  `restingCells` the graph does. That one is not bookkeeping: the graph and the
+  overlay have to agree on where a platform is, or a hop the graph offers cannot be
+  redrawn. The first version of this filter disagreed with the graph about horizontal
+  platforms, and `path-overlay.test.ts` failed on a nine-column jump in mp80 that the
+  graph still had — the two callers now ask one function, in `platforms.ts`.
+
+**Gates:** `tsc --noEmit` clean; full suite **906/906** across 64 files; the Playwright
+smoke test passes.
+
 ---
 
 ## 18. Handover — read this first

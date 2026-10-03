@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import {
-    buildPlatformModel, REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
+    buildPlatformModel, isLandingSlot, REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
 } from '../src/engine/nav/platforms.js';
 import {
     flagsAt, groundBelow, heroBoxFree, heroInLift, isStanding, wrapCol, wrapRow,
@@ -310,6 +310,136 @@ describe('platforms that must not move the hero', () => {
                 }
             }
         }
+    });
+});
+
+describe('a platform is a thing, not a place', () => {
+    /** Columns carrying more than one lift, which the live row cannot separate. */
+    const sharedColumns = (): Map<number, Set<number>> => {
+        const out = new Map<number, Set<number>>();
+        for (const meta of platformMaps) {
+            const seen = new Set<number>();
+            const shared = new Set<number>();
+            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
+                const col = wrapCol(p.x, meta.mapWidth);
+                if (seen.has(col)) shared.add(col);
+                seen.add(col);
+            }
+            out.set(meta.id, shared);
+        }
+        return out;
+    };
+
+    it('marks exactly the tiles the lifts are standing on, as solid', () => {
+        // Nothing in the MDT says a platform is there: its position is engine memory.
+        // The three tiles it currently occupies are rock, and a flight through them is
+        // a route the hero cannot fly.
+        for (const meta of platformMaps) {
+            const grid = gridFor(meta.id);
+            const model = buildPlatformModel(meta.id, grid);
+            const at = (col: number, row: number): boolean =>
+                model.restingCells[row * meta.mapWidth + wrapCol(col, meta.mapWidth)] === 1;
+            // The whole mask is exactly the union of the lifts' three tiles, so a
+            // horizontal platform contributes none of it: it sweeps its span and there
+            // is no column to pin it to, so pinning one would draw a wall that is gone
+            // a frame later.
+            const want = new Set<string>();
+            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
+                for (let i = 0; i < 3; i++) want.add(`${wrapCol(p.x + i, meta.mapWidth)},${p.startY}`);
+            }
+            const got: string[] = [];
+            for (let row = 0; row < 64; row++) {
+                for (let col = 0; col < meta.mapWidth; col++) {
+                    if (at(col, row)) got.push(`${col},${row}`);
+                }
+            }
+            expect([...got].sort(), meta.nameKey).toEqual([...want].sort());
+        }
+    });
+
+    it('puts every lift at its startY until something says otherwise', () => {
+        const shared = sharedColumns();
+        for (const meta of platformMaps) {
+            const model = buildPlatformModel(meta.id, gridFor(meta.id));
+            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
+                const col = wrapCol(p.x, meta.mapWidth);
+                if (shared.get(meta.id)!.has(col)) continue;   // two lifts, one key
+                expect(model.places.get(col), `${meta.nameKey} at ${col}`).toBe(p.startY);
+            }
+        }
+    });
+
+    it('follows a live row, and the solid tiles move with it', () => {
+        // The hero drives a lift up and it stays where he left it, so the model has to
+        // be told rather than assume. mp80's column 1 lift is the reported case.
+        const meta = NAV_MAP_BY_ID.get(23)!;
+        const grid = gridFor(23);
+        const p = NAV_PLATFORMS[23]!.vertical.find((v) => v.x === 1)!;
+        expect(p.startY, 'the lift rests at row 34, where the bad arc went through it')
+            .toBe(34);
+        const moved = buildPlatformModel(23, grid, new Map([[1, p.topY]]));
+        const at = (col: number, row: number): boolean =>
+            moved.restingCells[row * meta.mapWidth + col] === 1;
+        expect(moved.places.get(1)).toBe(p.topY);
+        for (let i = 0; i < 3; i++) {
+            expect(at(1 + i, p.topY), `lift raised to (${1 + i},${p.topY})`).toBe(true);
+            expect(at(1 + i, 34), `the row it left, (${1 + i},34)`).toBe(false);
+        }
+    });
+
+    it('offers a landing only on the row the platform is standing at', () => {
+        // A platform is three solid tiles and the hero comes down on top of it, so the
+        // row it is at is the only one he can land on. Every other row of its travel is
+        // reachable by riding and not by jumping — which is what used to offer mp80's
+        // lift at row 34 to a hero standing at row 20.
+        const shared = sharedColumns();
+        let pinned = 0;
+        let horizontal = 0;
+        let lifts = 0;
+        for (const meta of platformMaps) {
+            const model = buildPlatformModel(meta.id, gridFor(meta.id));
+            for (const slot of model.slots) {
+                if (slot.kind === 2) {
+                    horizontal++;
+                    expect(isLandingSlot(model, slot, meta.mapWidth),
+                        `${meta.nameKey} horizontal (${slot.leftCol},${slot.headRow})`).toBe(true);
+                    continue;
+                }
+                const col = wrapCol(slot.leftCol, meta.mapWidth);
+                if (shared.get(meta.id)!.has(col)) continue;
+                const atRest = model.places.get(col) === slot.pos;
+                expect(isLandingSlot(model, slot, meta.mapWidth),
+                    `${meta.nameKey} slot (${slot.leftCol},${slot.headRow}) pos ${slot.pos}`).toBe(atRest);
+                if (atRest) pinned++;
+            }
+            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
+                const col = wrapCol(p.x, meta.mapWidth);
+                if (shared.get(meta.id)!.has(col)) continue;
+                lifts++;
+            }
+        }
+        // At most one row per lift, against thousands of ride slots and a whole game's
+        // worth of horizontal span. Two lifts in the game stand somewhere the hero's
+        // body does not fit, so they have no slot at all and pin nothing.
+        expect(pinned).toBe(lifts - 2);
+        expect(horizontal).toBeGreaterThan(1000);
+    });
+
+    it('cannot separate two lifts that share a column', () => {
+        // The live row is read as `{ absX, y }` entries keyed by column, so a cavern
+        // with two lifts in one column cannot say which is where, and only the last one
+        // read is pinned. Named here so the three slots it costs are a known quantity
+        // rather than a surprise.
+        const shared: string[] = [];
+        for (const meta of platformMaps) {
+            const seen = new Set<number>();
+            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
+                const col = wrapCol(p.x, meta.mapWidth);
+                if (seen.has(col)) shared.push(`${meta.nameKey}:${col}`);
+                seen.add(col);
+            }
+        }
+        expect([...new Set(shared)]).toEqual(['mp20:157', 'mp61:63', 'mp82:184']);
     });
 });
 
