@@ -495,7 +495,11 @@ export class InventoryScreen {
         const itemNames = getInventoryList('itemNames');
         const noUse = t('inventory.noUse');
         const selId: number = d.items[this.selectedIndices[2] ?? 0] ?? 0;
-        const selName = selId > 0 ? (itemNames[selId] || noUse) : noUse;
+        let selName = selId > 0 ? (itemNames[selId] || noUse) : noUse;
+        // The thread is one row holding every copy, so show what is left.
+        if (selId === THREAD_OF_YAGA_ID && d.heroThreadOfYaga > 0) {
+            selName = `${selName} (${d.heroThreadOfYaga})`;
+        }
 
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
