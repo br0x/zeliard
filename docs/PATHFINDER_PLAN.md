@@ -3318,7 +3318,114 @@ following a drawn route looks like.
   platforms, and `path-overlay.test.ts` failed on a nine-column jump in mp80 that the
   graph still had — the two callers now ask one function, in `platforms.ts`.
 
-**Gates:** `tsc --noEmit` clean; full suite **906/906** across 64 files; the Playwright
+#### The same round, third pass: a fall is not a jump with a smaller rise
+
+With the lift ride fixed, the next report was **chevrons drawn through solid rock** — a
+diagonal of arrows crossing a cavern wall in mp82.
+
+Two things were drawing lines where a flight belongs, and only one of them was new.
+
+**A fall could never be replayed.** The graph builds a fall by asking the model from
+the column *beside* the hero, with **no rise at all** — he is already one column over
+when he starts dropping, and he picks a column every row after that (`addFalls` →
+`landingsFrom(col, row, 0)`). The overlay replays with `flightPath`, which searched two
+rises and two, never zero, and only from the hero's own cell. So **every** fall came
+back empty and was drawn as its own two ends. A ten-row fall became one chevron
+pointing across a fall nobody had traced, and a route drawn through a cave the hero
+crosses said nothing about the crossing.
+
+The platform work made this much more visible, which is why it looked new: with a
+platform landable only where it stands, falls land deeper and drift further, so the
+jumps between them got longer. Falls drawn as a straight line, mp82, 103 routes:
+**137 → 7** after asking the fall the fall's question — a rise of 0, from the hero's
+own column and then either side of it. The 7 that remain are edges no flight the model
+can produce (`fallTo` and the ride-slot case use their own geometry), and they draw one
+chevron rather than a line, so nothing goes through rock.
+
+The lesson is the same shape as the one above: **a hop must be re-derived the way it was
+built.** "A fall is a jump that does not rise" sounds right and is wrong — it is a
+different question, from a different cell, and asking the wrong one returns nothing at
+all rather than something close.
+
+#### Tests
+
+- `path-overlay.test.ts` — *the line a fall draws*: the jump question from the hero's
+  own cell finds nothing where the fall question from the column beside him finds the
+  flight, and a real mp82 route's six-column fall is drawn as ten cells rather than two.
+- `path-overlay.test.ts` — per-frame cost measured while fixing it, since a fall that is
+  searched four times must not be searched four times per chevron: the longest route in
+  the game, 234 hops, costs **0.2 ms** a frame.
+
+#### The same round, fourth pass: waiting is for riding, not for landing
+
+Two more things were drawing lines where the hero cannot go, and one of them was mine.
+
+**A horizontal platform got an exemption it should never have had.** The tenth cause
+pinned every vertical and collapsing platform to the row it stands at — and left
+horizontal platforms landable across their whole span, on the reasoning that the hero
+can wait for one. That reasoning is right about **riding** and wrong about **landing**.
+He can wait for a platform from the ground, and the graph still says so: every column
+of a span has a slot, so walking up to one and stepping on (`BOARD`) works anywhere
+along it. But a hero already *falling* cannot stop and wait for one to arrive under
+him, and the model was offering him the whole span as a floor. mp10's row-43 platform
+is the case in one line: `mp10 (6,32) -> (7,40)` was a fall onto **column 9** of a
+platform standing at **column 7**, and then a run of two-column "rides" along a span
+he had no way to be on. Flights that end with nothing at all underfoot, mp10:
+**102 → 1**.
+
+So a horizontal platform is a thing too: solid at its `startX` — the only place it is
+until something rebuilds the graph, because nothing but the hero moves it and he cannot
+drive it — and landable only there. Its span stays rideable and boardable, which is
+what waiting buys. The whole span being a floor is what it cost.
+
+That is 181 ride slots losing their only way in, and it is the price of being honest:
+a slot the hero cannot land on and cannot be carried to is not a place he can be. Ride
+slots with no entry at all: 5,403 → **5,222**. Edges, all 31 caverns: 525,046 →
+**509,562**. **mp30 is untouched**: 231 points, cost 307, `maps [5,6,5,6,5]`, no
+equipment, still boarding the column 5 lift at `(5,23)` and riding it to `(5,1)`.
+
+**A lift is drawn as its two legs.** `enterLift` does not mean the hero moves from one
+cell to another: he reaches a cell an up current occupies — walking off a ledge into it,
+or through it mid-jump — and is carried **straight up that column** to the exit. The
+swept cell is neither end of the edge. mp82 has `LIFT (23,0) -> (9,21)`, seventeen
+columns and twenty-one rows apart with the current in column 9, and `lineCells` drew it
+as a twenty-two-cell diagonal through whatever rock lay between two standing positions.
+8,626 such edges in the game.
+
+There was no room for the swept cell: `NavEdge` is `{to u32, kind u8, cost u8, req u16}`,
+already eight bytes, and `edges` is half a million of them. So it goes in a side table
+keyed by edge index — only lift edges have an entry — and the overlay looks it up by
+finding the edge, which is the thing it was avoiding. Drawn cells inside solid rock in
+a 55-route sample of mp82, by kind: **LIFT 464 → 1**, and the lift is now the climb it
+is: the approach as a flight to the swept cell, then straight up one column to the exit.
+
+#### Tests
+
+- `nav-graph.test.ts` — every lift edge in the game resolves to a swept cell, in the
+  exit's own column, where `heroInLift` really holds the hero: **8,626** of them.
+- `path-overlay.test.ts` — a real mp82 lift hop draws as an approach plus a climb, one
+  column wide, one row at a time, ending on the exit.
+- `path-overlay.test.ts` — the landing-slot rule re-measured for all three families: one
+  landing per platform, against thousands of ride slots and every column of every
+  horizontal span.
+
+#### Still standing, and it is the engine's own
+
+A flight the model replays can still have the hero's body inside rock, and that is what
+the game does. `check_floor_for_landing` reads **one tile**, three rows below his top
+left and one column right — the middle of his feet — and nothing else. The rise tests
+**one cell**, above the middle of his head, so a jump can carry him through a ledge
+lip; the descent has **no test at all**, so a hero falling past a one-row shelf goes
+through it, because his feet find clear air underneath. Measured across the game: 1,791
+flights pass through a shelf and 501 end with nothing underfoot.
+
+Drawing those honestly means drawing what the hero does. It is the same trade the plan
+has always made — "the game allows it, so a model that refuses it refuses the player's
+route" — and the alternative is a drawn line the hero would not fly, which is its own
+kind of nonsense. If the engine's clipping is a bug, it is a bug in the game and in
+every route that crosses a shelf, and the fix belongs in `airborne_movement`, not here.
+
+**Gates:** `tsc --noEmit` clean; full suite **910/910** across 64 files; the Playwright
 smoke test passes.
 
 ---

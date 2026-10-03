@@ -19,10 +19,13 @@ import {
 } from './pathfinder.js';
 import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
-import { JumpModel } from './jump.js';
+import {
+    FALL_RISE_HEIGHTS, JUMP_RISE_HEIGHTS, JumpModel, STEER_ALL,
+} from './jump.js';
 import { buildPlatformModel, isLandingSlot } from './platforms.js';
+import { liftSweptCell } from './nav-graph.js';
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
-import { wrapCol, heroInLift } from './geometry.js';
+import { heroInLift, wrapCol, wrapRow } from './geometry.js';
 
 /** Re-plan when the hero has drifted this far from the route, in tiles. */
 const DRIFT_TOLERANCE = 3;
@@ -108,6 +111,41 @@ function lineCells(from: NavPoint, to: NavPoint): NavPoint[] {
     }
     return cells;
 }
+
+/**
+ * The flight behind a fall, asked from every place the graph could have asked from.
+ *
+ * `addFalls` builds a fall from the columns to either side of the hero, so the flight
+ * that produced a given fall edge began one column from where the hero was standing.
+ * The overlay only knows the hop's two ends, and the hero's own column is not one of
+ * them, so it is asked as well. Whichever start finds the landing first is the flight
+ * that was drawn, and its first cell is one column over — which is true, and which
+ * `cellsForHop` already draws a chevron for.
+ *
+ * Only fall-shaped hops are asked three times; a jump is always from his own cell.
+ */
+function fallPath(model: JumpModel, from: NavPoint, to: NavPoint, mapWidth: number): Int32Array {
+    for (const [dc, dr] of FALL_STARTS) {
+        const path = model.flightPath(
+            wrapCol(from.col + dc, mapWidth), wrapRow(from.row + dr),
+            to.col, to.row, false, STEER_ALL, FALL_RISE_HEIGHTS,
+        );
+        if (path.length >= 4) return path;
+    }
+    return EMPTY_FLIGHT;
+}
+
+/** Empty result of {@link fallPath}: no flight from any of the starts reaches it. */
+const EMPTY_FLIGHT = new Int32Array(0);
+
+/**
+ * Where a falling hero can begin, relative to the cell he is standing on: his own
+ * column, either side of it, and the column past him and one row up, which is where
+ * `addFalls` starts the fall off a rope.
+ */
+const FALL_STARTS: readonly (readonly [number, number])[] = [
+    [0, 0], [-1, 0], [1, 0], [1, -1],
+];
 
 export class PathGuide {
     private route: NavRoute | null = null;
@@ -219,13 +257,27 @@ export class PathGuide {
         if (!from || !to) return [];
         const hop = route.hops[this.progress + index];
         if (!hop || from.mapId !== to.mapId) return [from, to];
+        if (hop.kind === EDGE.LIFT) return this.liftCells(from, to);
         if (hop.kind !== EDGE.JUMP && hop.kind !== EDGE.JUMP_HIGH
             && hop.kind !== EDGE.FALL && hop.kind !== EDGE.DROP) {
             return lineCells(from, to);
         }
         const model = this.flightModel(from.mapId);
         if (!model) return [from, to];
-        const path = model.flightPath(from.col, from.row, to.col, to.row);
+        // Asked the way the graph asked when it built this hop, which is not the way
+        // this function's arguments suggest. A jump leaves from the hero's own cell and
+        // rises. A fall does neither: `addFalls` asks the model from the column *beside*
+        // him — he is already one column over when he starts dropping, and he chooses a
+        // column every row after that — and with no rise at all. A rise of 0 is not a
+        // smaller jump but a different question, and the wrong column is a third one, so
+        // asking either way wrong finds nothing. Then the overlay falls back to a
+        // straight line between the hop's two ends, and a ten-row fall becomes one
+        // diagonal drawn through whatever rock happens to be beside it.
+        const falls = hop.kind === EDGE.FALL || hop.kind === EDGE.DROP;
+        const heights = falls ? FALL_RISE_HEIGHTS : JUMP_RISE_HEIGHTS;
+        const path = falls
+            ? fallPath(model, from, to, mapWidthOf(from.mapId))
+            : model.flightPath(from.col, from.row, to.col, to.row, false, STEER_ALL, heights);
         if (path.length < 4) return [from, to];
         const cells: NavPoint[] = [{ mapId: from.mapId, col: from.col, row: from.row, node: -1 }];
         // The flight starts where the rise ended, which is above and beside where
@@ -235,6 +287,62 @@ export class PathGuide {
         }
         for (let i = 2; i < path.length; i += 2) {
             cells.push({ mapId: from.mapId, col: path[i]!, row: path[i + 1]!, node: -1 });
+        }
+        return cells;
+    }
+
+    /**
+     * The two legs of a lift, which is what a lift is.
+     *
+     * `enterLift` does not mean the hero moves from one cell to another. It means he
+     * reaches a cell an up current occupies — walking off a ledge into it, or passing
+     * through it mid-jump — and is then carried **straight up that column** to the
+     * exit, one row at a time, for as long as he is in the current. The swept cell is
+     * neither end of the edge: mp82 has `LIFT (23,0) -> (9,21)`, seventeen columns and
+     * twenty-one rows apart with the current in column 9.
+     *
+     * So a line between the two ends is twenty-two tiles of fiction, and it goes
+     * through whatever rock lies between two standing positions. This draws the two
+     * legs instead — the approach, as the flight it is, then the climb — and only
+     * falls back to the straight line when the sweep is not recorded.
+     */
+    private liftCells(from: NavPoint, to: NavPoint): NavPoint[] {
+        const graph = this.deps.store.peek(from.mapId);
+        const sweptCell = graph ? liftSweptCell(graph, from.node, to.node) : -1;
+        if (!graph || sweptCell < 0) return lineCells(from, to);
+        const width = graph.mapWidth;
+        const sweptCol = sweptCell % width;
+        const sweptRow = (sweptCell - sweptCol) / width;
+        const at = (col: number, row: number): NavPoint =>
+            ({ mapId: from.mapId, col: wrapCol(col, width), row: wrapRow(row), node: -1 });
+        const cells: NavPoint[] = [at(from.col, from.row)];
+
+        // The approach: whatever flight puts him in the current. A jump is tried
+        // first because a swept cell is most often somewhere along an arc, and the
+        // fall the same way a fall hop is — from beside him, with no rise.
+        const model = this.flightModel(from.mapId);
+        const approach = model?.flightPath(
+            from.col, from.row, sweptCol, sweptRow, false, STEER_ALL, JUMP_RISE_HEIGHTS,
+        ) ?? EMPTY_FLIGHT;
+        if (approach.length >= 4) {
+            for (let i = 0; i < approach.length; i += 2) {
+                cells.push(at(approach[i]!, approach[i + 1]!));
+            }
+        } else if (model) {
+            const viaFall = fallPath(model, from, at(sweptCol, sweptRow), width);
+            for (let i = 0; i < viaFall.length; i += 2) {
+                cells.push(at(viaFall[i]!, viaFall[i + 1]!));
+            }
+        }
+        // Then the climb: straight up the current's own column, which is the only
+        // direction an up current carries him.
+        let row = sweptRow;
+        while (row !== to.row) {
+            row = wrapRow(row - 1);
+            cells.push(at(sweptCol, row));
+        }
+        if (cells[cells.length - 1]!.row !== to.row || cells[cells.length - 1]!.col !== to.col) {
+            cells.push(at(to.col, to.row));
         }
         return cells;
     }
@@ -266,7 +374,7 @@ export class PathGuide {
         const platformModel = buildPlatformModel(mapId, grid, this.deps.store.platformPlaces(mapId));
         const surfaces = new Uint8Array(grid.mapWidth * 64);
         for (const slot of platformModel.slots) {
-            if (!isLandingSlot(platformModel, slot, grid.mapWidth)) continue;
+            if (!isLandingSlot(slot)) continue;
             surfaces[(slot.headRow + 3) * grid.mapWidth
                 + wrapCol(slot.leftCol + 1, grid.mapWidth)] = 1;
         }

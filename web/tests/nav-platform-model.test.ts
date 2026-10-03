@@ -330,22 +330,28 @@ describe('a platform is a thing, not a place', () => {
         return out;
     };
 
-    it('marks exactly the tiles the lifts are standing on, as solid', () => {
+    it('marks exactly the tiles every platform is standing on, as solid', () => {
         // Nothing in the MDT says a platform is there: its position is engine memory.
-        // The three tiles it currently occupies are rock, and a flight through them is
-        // a route the hero cannot fly.
+        // The tiles it currently occupies are rock, and a flight through them is a
+        // route the hero cannot fly.
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const model = buildPlatformModel(meta.id, grid);
             const at = (col: number, row: number): boolean =>
                 model.restingCells[row * meta.mapWidth + wrapCol(col, meta.mapWidth)] === 1;
-            // The whole mask is exactly the union of the lifts' three tiles, so a
-            // horizontal platform contributes none of it: it sweeps its span and there
-            // is no column to pin it to, so pinning one would draw a wall that is gone
-            // a frame later.
+            // The whole mask is exactly the union of the platforms' tiles where they
+            // stand — a horizontal platform included. It is standing somewhere too:
+            // at its `startX`, which is the only place it is until a graph is rebuilt,
+            // because nothing but the hero moves it and the hero cannot drive it.
             const want = new Set<string>();
             for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
                 for (let i = 0; i < 3; i++) want.add(`${wrapCol(p.x + i, meta.mapWidth)},${p.startY}`);
+            }
+            for (const p of NAV_PLATFORMS[meta.id]!.horizontal) {
+                if (p.speed === 0) continue;
+                for (let i = 0; i < p.cols; i++) {
+                    want.add(`${wrapCol(p.startX + i, meta.mapWidth)},${p.y}`);
+                }
             }
             const got: string[] = [];
             for (let row = 0; row < 64; row++) {
@@ -387,42 +393,56 @@ describe('a platform is a thing, not a place', () => {
         }
     });
 
-    it('offers a landing only on the row the platform is standing at', () => {
-        // A platform is three solid tiles and the hero comes down on top of it, so the
-        // row it is at is the only one he can land on. Every other row of its travel is
+    it('offers a landing only where the platform is standing', () => {
+        // A platform is solid tiles and the hero comes down on top of it, so the row it
+        // is at is the only one he can land on. Every other row of its travel is
         // reachable by riding and not by jumping — which is what used to offer mp80's
         // lift at row 34 to a hero standing at row 20.
+        //
+        // A horizontal platform gets no exemption. He can *wait* for a moving platform,
+        // but only from the ground: a hero already falling cannot stop and wait for one
+        // to arrive under him. Its whole span stays rideable and boardable from beside
+        // it, and the one column it stands at is a landing.
         const shared = sharedColumns();
-        let pinned = 0;
-        let horizontal = 0;
-        let lifts = 0;
+        let atRest = 0;
+        let spans = 0;
         for (const meta of platformMaps) {
             const model = buildPlatformModel(meta.id, gridFor(meta.id));
+            // Platform index -> the column it stands at, in the order the model builds
+            // them: the vertical family, then the collapsing one, then horizontal.
+            const standsAt: (number | undefined)[] = [];
+            for (const p of NAV_PLATFORMS[meta.id]!.vertical) {
+                standsAt.push(model.places.get(wrapCol(p.x, meta.mapWidth)));
+            }
+            for (const p of NAV_PLATFORMS[meta.id]!.collapsing) {
+                standsAt.push(model.places.get(wrapCol(p.x, meta.mapWidth)));
+            }
+            for (const p of NAV_PLATFORMS[meta.id]!.horizontal) {
+                standsAt.push(p.speed === 0 ? undefined : wrapCol(p.startX, meta.mapWidth));
+            }
             for (const slot of model.slots) {
-                if (slot.kind === 2) {
-                    horizontal++;
-                    expect(isLandingSlot(model, slot, meta.mapWidth),
-                        `${meta.nameKey} horizontal (${slot.leftCol},${slot.headRow})`).toBe(true);
+                // A column carrying two lifts is one key in `places`, so only the last
+                // one read can be pinned. The test below names those three caverns.
+                if (slot.kind !== 2
+                    && shared.get(meta.id)!.has(wrapCol(slot.leftCol, meta.mapWidth))) {
                     continue;
                 }
-                const col = wrapCol(slot.leftCol, meta.mapWidth);
-                if (shared.get(meta.id)!.has(col)) continue;
-                const atRest = model.places.get(col) === slot.pos;
-                expect(isLandingSlot(model, slot, meta.mapWidth),
-                    `${meta.nameKey} slot (${slot.leftCol},${slot.headRow}) pos ${slot.pos}`).toBe(atRest);
-                if (atRest) pinned++;
-            }
-            for (const p of [...NAV_PLATFORMS[meta.id]!.vertical, ...NAV_PLATFORMS[meta.id]!.collapsing]) {
-                const col = wrapCol(p.x, meta.mapWidth);
-                if (shared.get(meta.id)!.has(col)) continue;
-                lifts++;
+                const where = standsAt[slot.platform];
+                // A vertical slot is indexed by row and a horizontal one by column, so
+                // "standing at it" is the same question either way.
+                const isRest = where !== undefined && slot.pos === where;
+                expect(isLandingSlot(slot),
+                    `${meta.nameKey} slot (${slot.leftCol},${slot.headRow}) pos ${slot.pos}`
+                    + ` of platform standing at ${String(where)}`).toBe(isRest);
+                if (isLandingSlot(slot)) atRest++;
+                if (slot.kind === 2) spans++;
             }
         }
-        // At most one row per lift, against thousands of ride slots and a whole game's
-        // worth of horizontal span. Two lifts in the game stand somewhere the hero's
-        // body does not fit, so they have no slot at all and pin nothing.
-        expect(pinned).toBe(lifts - 2);
-        expect(horizontal).toBeGreaterThan(1000);
+        // One landing per platform, against thousands of ride slots and every column
+        // of every horizontal span.
+        expect(atRest).toBeGreaterThan(200);
+        expect(spans).toBeGreaterThan(1000);
+        expect(atRest / spans).toBeLessThan(0.1);
     });
 
     it('cannot separate two lifts that share a column', () => {

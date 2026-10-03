@@ -19,7 +19,8 @@ import {
     buildNavGraph, edgesOf, forEachEdge, nodeAt,
     NODE_GROUND, NODE_ROPE, NODE_RIDE,
 } from '../src/engine/nav/nav-graph.js';
-import { buildPlatformModel, isLandingSlot } from '../src/engine/nav/platforms.js';import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
+import { buildPlatformModel, isLandingSlot } from '../src/engine/nav/platforms.js';
+import { liftSweptCell } from '../src/engine/nav/nav-graph.js';import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { JumpModel, LANDING_STRIDE, readLanding } from '../src/engine/nav/jump.js';
 import {
@@ -167,20 +168,29 @@ describe('nodes are positions the hero can occupy', () => {
             }
         }
         expect(total).toBe(5589);
-        // 186 dead slots. Two corrections moved it here. First, a vertical lift used
-        // to be linked along `slot.next` only, which walks the chain in one
-        // direction, so every lift could be ridden down but never up and the top of
-        // it had no way in — 194 to 185. Second, a slot is now a landing surface
-        // only where its platform is standing, so one more slot died: the single one
-        // in the whole game whose *only* way in was a jump onto a row its platform
-        // was nowhere near.
+        // 367 dead slots, from three corrections.
         //
-        // That is one, and not the thousand the rule sounds like it should be,
-        // because `chain` already links every slot of a multi-row platform to its
-        // neighbour. Riding is the entry that survives; landing was only ever the
-        // entry for a platform with a single rideable row.
-        expect(live, 'ride slots with no entry at all').toBe(5403);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(186);
+        // First, a vertical lift used to be linked along `slot.next` only, which walks
+        // the chain in one direction, so every lift could be ridden down but never up
+        // and the top of it had no way in: 194 to 185.
+        //
+        // Then a slot became a landing surface only where its platform is standing.
+        // That is one slot among the vertical and collapsing families — `chain` already
+        // links every slot of a multi-row platform to its neighbour, so riding is the
+        // entry that survives, and landing was only ever the entry for a platform with
+        // a single rideable row.
+        //
+        // And 181 more among horizontal platforms, which is the same rule and the
+        // correction that came with it. A horizontal platform is standing at its
+        // `startX` like any other, so only that column of its span is a landing; the
+        // rest is rideable and boardable from beside it, and no longer a place a
+        // falling hero can be dropped onto. Those slots were reachable before by a
+        // flight that ends in mid-air over a platform fifteen columns from where it
+        // is. mp10's row-43 platform is the case: `(6,32) -> (7,40)` was a fall onto
+        // column 9 of a platform standing at column 7, and then a run of two-column
+        // "rides" along a span he had no way to be on.
+        expect(live, 'ride slots with no entry at all').toBe(5222);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(367);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -188,6 +198,35 @@ describe('nodes are positions the hero can occupy', () => {
             expect(graphFor(id).stats.ground, NAV_MAP_BY_ID.get(id)!.nameKey)
                 .toBeGreaterThan(1000);
         }
+    });
+
+    it('remembers where every lift has the hero swept', () => {
+        // A lift edge has to carry the cell the hero is swept at, because that cell is
+        // what the drawn line is: the approach is a flight to it, and the rest is
+        // straight up its column. Without it the overlay can only join the two ends,
+        // which is a straight line through the cavern.
+        let lifts = 0;
+        for (const meta of NAV_MAPS) {
+            const graph = graphFor(meta.id);
+            graph.nodes.forEach((node, from) => {
+                forEachEdge(graph, from, (edge) => {
+                    if (edge.kind !== EDGE.LIFT) return;
+                    lifts++;
+                    const swept = liftSweptCell(graph, from, edge.to);
+                    expect(swept, `${meta.nameKey} LIFT (${node.col},${node.row}) -> `
+                        + `(${graph.nodes[edge.to]!.col},${graph.nodes[edge.to]!.row})`)
+                        .toBeGreaterThanOrEqual(0);
+                    // An up current only carries him up its own column, so the sweep
+                    // and the exit must share one.
+                    expect(swept % meta.mapWidth, 'the exit is in the swept column')
+                        .toBe(graph.nodes[edge.to]!.col);
+                    expect(heroInLift(gridFor(meta.id), NavTileClassifier.forMap(meta.id),
+                        swept % meta.mapWidth, (swept / meta.mapWidth) | 0),
+                    'and the hero really is swept there').toBe(true);
+                });
+            });
+        }
+        expect(lifts, 'the game has lifts').toBeGreaterThan(8000);
     });
 
     it('will not fly a jump onto a lift that is standing somewhere else', () => {
@@ -217,7 +256,7 @@ describe('nodes are positions the hero can occupy', () => {
             (s) => s.kind !== 2 && s.leftCol === 1,
         );
         expect(slots.length, 'the lift has slots all along its travel').toBeGreaterThan(1);
-        const landing = slots.filter((s) => isLandingSlot(graph.platforms, s, meta.mapWidth));
+        const landing = slots.filter((s) => isLandingSlot(s));
         expect(landing.map((s) => s.pos)).toEqual([34]);
 
         // So the reported arc is gone: nothing from (6,37) reaches any of its slots.
@@ -414,7 +453,7 @@ describe('jumps are the model\'s, not a table of guesses', () => {
             const platforms = buildPlatformModel(meta.id, grid);
             const slots = new Uint8Array(meta.mapWidth * 64);
             for (const slot of platforms.slots) {
-                if (!isLandingSlot(platforms, slot, meta.mapWidth)) continue;
+                if (!isLandingSlot(slot)) continue;
                 slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
             }
             const currents = new Uint8Array(meta.mapWidth * 64);

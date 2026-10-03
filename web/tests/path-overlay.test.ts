@@ -18,8 +18,12 @@ import {
     CHEVRON_DESTINATION, CHEVRON_FRAMES, CHEVRON_FRAME_W, CHEVRON_FRAME_H, CHEVRON_SHEET,
 } from '../src/render/path-overlay.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
+import { FALL_RISE_HEIGHTS, JUMP_RISE_HEIGHTS, JumpModel, STEER_ALL } from '../src/engine/nav/jump.js';
+import { NavTileClassifier } from '../src/engine/nav/attributes.js';
+import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { chevronAlpha } from '../src/render/path-overlay.js';
 import { EDGE } from '../src/engine/nav/types.js';
+import { wrapRow } from '../src/engine/nav/geometry.js';
 import type { NavNode } from '../src/engine/nav/nav-graph.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 import {
@@ -365,6 +369,94 @@ describe('dormancy', () => {
         expect(h.guide.hasRoute).toBe(true);
         expect(h.guide.remaining().length).toBeLessThan(h.route.points.length);
     });
+});
+
+describe('the line a fall draws', () => {
+    // A fall is not a jump with a smaller rise. `addFalls` asks the model from the
+    // column *beside* the hero, with no rise at all: he is already one column over
+    // when he starts dropping, and he picks a column every row after that. So the
+    // flight behind a fall is a different question from the one behind a jump, asked
+    // from a different cell — and the overlay, which only knows the hop's two ends,
+    // used to ask the jump's question from the hero's own column and found nothing.
+    //
+    // What it drew then was the hop's own two ends, joined by one chevron pointing
+    // across a fall it had never traced. On mp82 that was most of the falls in the
+    // game, and a route drawn through a cave the hero crosses said nothing about.
+
+    it('asks the fall the question the graph asked', () => {
+        const store = realStore();
+        const graph = store.get(25)!;
+        const model = new JumpModel(
+            decodeTileGrid(
+                new Uint8Array(readFileSync(resolve(REPO, `web/public/${NAV_MAP_BY_ID.get(25)!.mdtPath}`))),
+                0, 25,
+            ),
+            NavTileClassifier.forMap(25),
+            undefined, undefined, graph.platforms.restingCells,
+        );
+        // mp82 `(119,44) -> (121,54)`: a fall the graph built, ten columns and rows
+        // of drift apart, that no jump-shaped question finds from where the hero stood.
+        const asJump = model.flightPath(119, 44, 121, 54, false, STEER_ALL, JUMP_RISE_HEIGHTS);
+        expect(asJump.length, 'the jump question, from the hero\'s own cell').toBe(0);
+        const asFall = model.flightPath(118, 44, 121, 54, false, STEER_ALL, FALL_RISE_HEIGHTS);
+        expect(asFall.length / 2, 'the fall question, from the column beside him')
+            .toBeGreaterThan(4);
+        // And the cells it walks are the ones a falling hero walks: one column and one
+        // row per frame, ending on the landing.
+        const cells: string[] = [];
+        for (let i = 0; i < asFall.length; i += 2) cells.push(`${asFall[i]},${asFall[i + 1]}`);
+        expect(cells[0]).toBe('118,44');
+        expect(cells[cells.length - 1]).toBe('121,54');
+    });
+
+    it('draws a lift as the two legs it is', () => {
+        // `enterLift` does not mean the hero moves from one cell to another: he reaches
+        // a cell an up current occupies and is carried **straight up that column** to the
+        // exit. The swept cell is neither end — mp82 has `LIFT (23,0) -> (9,21)`,
+        // seventeen columns and twenty-one rows apart — so a line between the ends is
+        // twenty-two tiles of fiction, and it goes through whatever rock lies between
+        // two standing positions. That was the largest single source of a chevron trail
+        // running through solid ground in the game: 464 drawn cells inside rock in a
+        // 55-route sample of mp82, against 160 for every other kind of hop together.
+        const store = realStore();
+        const caps = allCapabilities();
+        const start = { mapId: 25, col: 19, row: 0 };
+        const goal = { mapId: 25, col: 15, row: 10 };
+        const found = findRoute({ store, caps, start, goal, maxExpanded: 60000 });
+        expect(found).not.toBeNull();
+        const guide = new PathGuide({ store, heroPosition: () => start, capabilities: () => caps });
+        guide.setRoute(found!, goal);
+        const hop = found!.hops[153]!;
+        expect(hop.kind).toBe(EDGE.LIFT);
+        const cells = guide.cellsForHop(153);
+        // The climb is up one column: from the swept cell to the exit, every cell shares
+        // the exit's column, which is the only direction an up current carries him.
+        const climb = cells.slice(cells.findIndex((c) => c.col === hop.to.col));
+        expect(climb.length).toBeGreaterThan(1);
+        expect(new Set(climb.map((c) => c.col)).size).toBe(1);
+        expect(climb[climb.length - 1]).toMatchObject({ col: hop.to.col, row: hop.to.row });
+        for (let i = 1; i < climb.length; i++) {
+            expect(climb[i]!.row).toBe(wrapRow(climb[i - 1]!.row - 1));
+        }
+    }, 120000);
+
+    it('draws a long fall as the flight, not as its two ends', () => {
+        const store = realStore();
+        const caps = allCapabilities();
+        const start = { mapId: 0, col: 141, row: 2 };
+        const goal = { mapId: 0, col: 16, row: 16 };
+        const found = findRoute({ store, caps, start, goal, maxExpanded: 60000 });
+        expect(found).not.toBeNull();
+        const guide = new PathGuide({
+            store, heroPosition: () => start, capabilities: () => caps,
+        });
+        guide.setRoute(found!, goal);
+        // Hop 25 of this route is the fall `(113,7) -> (118,20)`: thirteen rows down and
+        // five columns across, which as a single chevron says nothing about where the
+        // hero passes. Seventeen cells is the flight.
+        expect(found!.hops[25]).toMatchObject({ kind: EDGE.FALL });
+        expect(guide.cellsForHop(25).length).toBeGreaterThan(10);
+    }, 120000);
 });
 
 describe('keeping the route true', () => {

@@ -114,6 +114,21 @@ export const STEER_RIGHT = 0b100;
 /** The three descents, in the order they are searched. */
 const STEER_ORDER = [0, -1, 1] as const;
 
+/**
+ * The rises a hop can have, shortest first.
+ *
+ * A jump rises, so these are the two the graph asks for. A fall does not: the hero
+ * steps off something and drops, which is `landingsFrom(col, row, 0)` — a flight with
+ * no rise at all. A rise of 0 is not a smaller jump, it is the other question the
+ * engine can be asked, and a hop that came from that question cannot be found without
+ * asking it again.
+ *
+ * Falls search 0 first because that is the flight they are, and the search hands back
+ * the *first* flight that reaches the landing: the cheapest one should be found first.
+ */
+export const JUMP_RISE_HEIGHTS: readonly number[] = [JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA];
+export const FALL_RISE_HEIGHTS: readonly number[] = [0, JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA];
+
 /** Is this descent one of the ones `allow` permits? */
 function steerAllowed(steer: number, allow: number): boolean {
     if (steer === 0) return (allow & STEER_STRAIGHT) !== 0;
@@ -494,6 +509,13 @@ export class JumpModel {
         landingRow: number,
         fromRope = false,
         allow: number = STEER_ALL,
+        /**
+         * The rises to search, shortest first. {@link JUMP_RISE_HEIGHTS} for a jump,
+         * {@link FALL_RISE_HEIGHTS} for a fall — which is the question the graph asked
+         * when it built the hop, and a flight found under one of those is not a flight
+         * the other can take.
+         */
+        heights: readonly number[] = JUMP_RISE_HEIGHTS,
     ): Int32Array {
         const width = this.mapWidth;
         this.wantCell = wrapRow(landingRow) * width + wrapCol(landingCol, width);
@@ -504,7 +526,7 @@ export class JumpModel {
 
         // Shortest rise first, for the same reason the landings search uses it: the
         // first flight that reaches the cell is the cheapest one.
-        for (const height of [JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA]) {
+        for (const height of heights) {
             for (const steer of STEER_ORDER) {
                 if (!steerAllowed(steer, allow)) continue;
                 // The rise is searched with the same intent as the descent, exactly as

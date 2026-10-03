@@ -98,6 +98,22 @@ export interface RideSlot {
      * not moved at all, and he could never travel along the platform.
      */
     readonly offset: number;
+    /**
+     * Is this the position the platform is standing at *right now*?
+     *
+     * A platform is three (or thirteen) solid tiles and the hero comes down on top
+     * of it, so the only row it can be landed on is the row it is at. Every other
+     * position along its travel is somewhere he can be **carried** to and cannot
+     * jump onto — and a horizontal platform is no exception, which is easy to get
+     * backwards: he can *wait* for a moving platform, but only while he is standing
+     * on the ground. A falling hero cannot wait for one to arrive under him, so a
+     * slot anywhere else in a horizontal span is not a landing either.
+     *
+     * Recorded per slot, where the platform it belongs to is known, rather than
+     * derived later from {@link PlatformModel.places} — which is keyed by column and
+     * so cannot say which of two platforms sharing a column is which.
+     */
+    readonly atRest: boolean;
     /** Adjacent slots along the platform, or -1 where the ride ends. Mutated
      *  once while the model is built, then read-only. */
     next: number;
@@ -133,26 +149,18 @@ export interface PlatformModel {
 /**
  * Can a hero *land* on this slot, rather than only reach it by riding?
  *
- * A platform is three solid tiles and the hero comes down on top of it, so the only
- * surface it offers is the row it is standing at right now. Every other row of a
- * vertical or collapsing platform's travel is somewhere he can be carried to and
- * cannot jump at.
+ * A platform is solid tiles and the hero comes down on top of it, so the only
+ * surface it offers is the row — or, for a horizontal platform, the column — it is
+ * standing at right now. Everything else along its travel is somewhere he can be
+ * carried to and cannot be dropped onto.
  *
- * A horizontal platform is the exception and every column of its span passes: it
- * sweeps the span continuously and the hero can wait for it, so there is no "where it
- * is standing" to pin to. See the note on `restingCells`.
- *
- * This lives here rather than in the graph builder because two callers have to agree
- * on it exactly — the graph and the overlay's replay of a hop — and when they did not,
- * a jump the graph offered could not be redrawn.
+ * The answer is recorded per slot when the model is built, where the platform it
+ * belongs to is known. Asking {@link PlatformModel.places} instead was wrong twice
+ * over: it is keyed by column, so it cannot say which of two platforms sharing a
+ * column is which, and it has no column for a horizontal platform at all.
  */
-export function isLandingSlot(
-    model: PlatformModel,
-    slot: RideSlot,
-    mapWidth: number,
-): boolean {
-    if (slot.kind === PLATFORM_HORIZONTAL) return true;
-    return model.places.get(wrapCol(slot.leftCol, mapWidth)) === slot.pos;
+export function isLandingSlot(slot: RideSlot): boolean {
+    return slot.atRest;
 }
 
 /** Can the hero stand here with the platform cell counted as ground? */
@@ -211,9 +219,11 @@ export function buildPlatformModel(
      * A vertical or collapsing platform: three solid tiles at its current row, and a
      * note of where that is so the graph can be rebuilt when the hero moves it.
      */
-    const place = (leftCol: number, row: number): void => {
-        rest(leftCol, wrapRow(row), 3);
-        where.set(wrapCol(leftCol, mapWidth), wrapRow(row));
+    const place = (leftCol: number, row: number): number => {
+        const at = wrapRow(row);
+        rest(leftCol, at, 3);
+        where.set(wrapCol(leftCol, mapWidth), at);
+        return at;
     };
 
     /** Append one platform's slots and return their indices. */
@@ -223,7 +233,7 @@ export function buildPlatformModel(
 
     // ── vertical and collapsing ────────────────────────────────────────────
     for (const p of tables.vertical) {
-        place(p.x, places?.get(p.x) ?? p.startY);
+        const rowNow = place(p.x, places?.get(p.x) ?? p.startY);
         const local: number[] = [];
         for (const row of range(p.topY, p.bottomY)) {
             const headRow = wrapRow(row - 3);
@@ -236,6 +246,7 @@ export function buildPlatformModel(
                 leftCol: p.x,
                 offset: 0,
                 headRow,
+                atRest: wrapRow(row) === rowNow,
                 next: -1,
                 prev: -1,
             });
@@ -246,7 +257,7 @@ export function buildPlatformModel(
     }
 
     for (const p of tables.collapsing) {
-        place(p.x, places?.get(p.x) ?? p.startY);
+        const rowNow = place(p.x, places?.get(p.x) ?? p.startY);
         const local: number[] = [];
         // startY downwards only: heroCollapsePlatform never raises it.
         for (const row of range(p.startY, p.bottomY)) {
@@ -260,6 +271,7 @@ export function buildPlatformModel(
                 leftCol: p.x,
                 offset: 0,
                 headRow,
+                atRest: wrapRow(row) === wrapRow(rowNow),
                 next: -1,
                 prev: -1,
             });
@@ -270,14 +282,19 @@ export function buildPlatformModel(
     }
 
     // ── horizontal ─────────────────────────────────────────────────────────
-    // A horizontal platform is deliberately left out of `restingCells` and of
-    // `places`. It never sits still — it sweeps its whole span, and the hero can wait
-    // for it, which is why the graph has always treated every column of the span as a
-    // position it will be at. Pinning one column as solid would draw a wall that is
-    // gone a frame later and that nothing rebuilds the graph for, and dropping the
-    // other columns as landing surfaces would deny a landing the hero can genuinely
-    // wait for. A platform that moves on its own has no "where it is standing".
+    // A horizontal platform is standing somewhere too — at `startX`, and nowhere
+    // else, because the hero cannot drive it and the live rows are only kept for the
+    // vertical and collapsing lists. So it is pinned there like any other: solid where
+    // it is, and landable only where it is.
+    //
+    // Its *span* is still rideable end to end, and that is the part waiting buys: the
+    // hero stands on the ground and lets it come to him, then rides. What waiting
+    // does not buy is a landing. A hero already falling cannot stop and wait, so a
+    // slot anywhere else in the span is not a surface he can come down on — and
+    // treating it as one is how a route came to claim that he falls onto a platform
+    // that is fifteen columns away from where it stands.
     for (const p of tables.horizontal) {
+        if (p.speed !== 0) rest(wrapCol(p.startX, mapWidth), wrapRow(p.y), p.cols);
         if (p.speed === 0) {
             // Frozen: a static ledge the hero stands on, not a lift.
             inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_FROZEN });
@@ -302,6 +319,12 @@ export function buildPlatformModel(
                     leftCol,
                     offset,
                     headRow,
+                    // The platform is drawn at `startX` until the hero drives it,
+                    // which for a horizontal one he never does, and the live rows are
+                    // only read for the vertical and collapsing lists. So this is
+                    // always the position it was found at, and the rest of the span is
+                    // reachable by riding and not by landing.
+                    atRest: column === wrapCol(p.startX, mapWidth),
                     next: -1,
                     prev: -1,
                 });

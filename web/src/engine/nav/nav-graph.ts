@@ -112,6 +112,23 @@ export interface NavGraph {
     /** Ride slot index -> node index, or -1. */
     readonly rideOf: Int32Array;
     /**
+     * Edge index -> the cell, as `row * mapWidth + col`, where an `EDGE.LIFT` hop
+     * has the hero swept by a current.
+     *
+     * A lift edge is not a move between its two ends. `enterLift` means the hero
+     * passes through some cell an up current occupies and is carried **straight up
+     * that column** to the exit, and that cell is neither end: mp82 has
+     * `LIFT (23,0) -> (9,21)`, seventeen columns and twenty-one rows apart, with the
+     * current in column 9. A line drawn straight between those ends is twenty-two
+     * tiles of fiction through whatever rock lies between two standing positions —
+     * which is what the overlay used to draw, and the largest source of a chevron
+     * trail running through solid ground in the game.
+     *
+     * Only the 8,626 lift edges carry an entry, so this costs a rounding error over
+     * a map of half a million edges, and `NavEdge` stays eight bytes.
+     */
+    readonly liftSwept: ReadonlyMap<number, number>;
+    /**
      * Per-node hazard flags, one entry per node: HAZARD_* bits describing what
      * the hero's 3x3 footprint touches there.
      *
@@ -259,7 +276,7 @@ export function buildNavGraph(
     // why, and the overlay asks the same function.
     const platformCells = new Uint8Array(cells);
     for (const slot of platforms.slots) {
-        if (!isLandingSlot(platforms, slot, mapWidth)) continue;
+        if (!isLandingSlot(slot)) continue;
         platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
     // And the up currents, for the same reason: a hero who reaches one mid-flight is
@@ -833,11 +850,28 @@ export function buildNavGraph(
     /** Send the hero from `from` to a lift he can be swept by on his way. */
     const enterLift = (from: number, sweptCol: number, sweptRow: number): void => {
         if (!isSwept(sweptCol, sweptRow)) return;
+        const sweptCell = wrapRow(sweptRow) * mapWidth + wrapCol(sweptCol, mapWidth);
         for (const { stop, ticks } of liftStopsAt(sweptCol, sweptRow)) {
             add(from, stop, EDGE.LIFT, ticks + 1);
+            // First sweep that reaches this stop wins: it is the one the drawn line
+            // will show, and any other would be as true.
+            let per = sweptByLift.get(from);
+            if (!per) {
+                per = new Map<number, number>();
+                sweptByLift.set(from, per);
+            }
+            if (!per.has(stop)) per.set(stop, sweptCell);
         }
         reachedLifts.add(wrapCol(sweptCol, mapWidth));
     };
+
+    /**
+     * Which cell each lift edge has the hero swept at, by node pair.
+     *
+     * Keyed by node and target rather than by edge index because the edge does not
+     * exist yet: the CSR index is only known when the edges are flattened, below.
+     */
+    const sweptByLift = new Map<number, Map<number, number>>();
 
     nodes.forEach((node, index) => {
         // Standing in it, or climbing through it.
@@ -943,11 +977,16 @@ export function buildNavGraph(
     const edgeOffsets = new Int32Array(nodes.length + 1);
     const flat: NavEdge[] = [];
     const byEdgeKind: Record<number, number> = {};
+    const liftSwept = new Map<number, number>();
     for (let i = 0; i < outgoing.length; i++) {
         edgeOffsets[i] = flat.length;
+        const swept = sweptByLift.get(i);
         for (const edge of outgoing[i]!) {
             flat.push(edge);
             byEdgeKind[edge.kind] = (byEdgeKind[edge.kind] ?? 0) + 1;
+            if (edge.kind !== EDGE.LIFT) continue;
+            const cell = swept?.get(edge.to);
+            if (cell !== undefined) liftSwept.set(flat.length - 1, cell);
         }
     }
     edgeOffsets[nodes.length] = flat.length;
@@ -981,7 +1020,7 @@ export function buildNavGraph(
 
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf,
-        nodeHazard, portalAtNode, keyKindAt, keyCellAt, platforms, currents, stats,
+        liftSwept, nodeHazard, portalAtNode, keyKindAt, keyCellAt, platforms, currents, stats,
         diagnostics: {
             ...graphDiagnostics,
             keysFound: (NAV_KEYS[mapId] ?? []).length,
@@ -1000,6 +1039,24 @@ function countKind(nodes: readonly NavNode[], kind: number): number {
 /** Edges leaving `index`, as a subarray of the flat edge list. */
 export function edgesOf(graph: NavGraph, index: number): NavEdge[] {
     return graph.edges.slice(graph.edgeOffsets[index]!, graph.edgeOffsets[index + 1]!);
+}
+
+/**
+ * Where the hero is swept for the lift edge between two nodes, as
+ * `row * mapWidth + col`, or -1 when the two are not joined by a lift.
+ *
+ * The sweep is not on the edge — there is no room for it — so it is looked up by
+ * finding the edge. A node has a handful of edges, and this is asked once per drawn
+ * lift hop.
+ */
+export function liftSweptCell(graph: NavGraph, fromNode: number, toNode: number): number {
+    if (fromNode < 0 || graph.liftSwept.size === 0) return -1;
+    for (let i = graph.edgeOffsets[fromNode]!, e = graph.edgeOffsets[fromNode + 1]!; i < e; i++) {
+        const edge = graph.edges[i]!;
+        if (edge.kind !== EDGE.LIFT || edge.to !== toNode) continue;
+        return graph.liftSwept.get(i) ?? -1;
+    }
+    return -1;
 }
 
 /**
