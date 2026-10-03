@@ -4,7 +4,7 @@ import { setLocale } from '../src/locale/index.js';
 import { DUNGEON_DCHR_SHEET_PATH } from '../src/data/assets.js';
 import { TILE_SIZE } from '../src/config/engine.js';
 
-interface Blit { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number }
+interface Blit { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number; alpha: number }
 
 function makeCtx() {
     const rects: { x: number; y: number; w: number; h: number; fill: string }[] = [];
@@ -14,6 +14,7 @@ function makeCtx() {
         fillStyle: '#000',
         font: '',
         imageSmoothingEnabled: true,
+        globalAlpha: 1,
         textAlign: 'left' as CanvasTextAlign,
         textBaseline: 'alphabetic' as CanvasTextBaseline,
         fillRect(x: number, y: number, w: number, h: number) {
@@ -23,7 +24,7 @@ function makeCtx() {
             texts.push({ text, x, y });
         },
         drawImage(_src: unknown, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number) {
-            blits.push({ sx, sy, sw, sh, dx, dy, dw, dh });
+            blits.push({ sx, sy, sw, sh, dx, dy, dw, dh, alpha: ctx.globalAlpha });
         },
     };
     return { ctx: ctx as unknown as CanvasRenderingContext2D, rects, blits, texts };
@@ -37,12 +38,18 @@ const HEIGHT = 432;
 const CX = WIDTH / 2;
 const CY = HEIGHT / 2;
 const STEP_MS = 110;
+const TRAIL = 8;
 
-/** Draw one frame at a given orbit step and return the blit destination. */
-function orbitBlit(step: number) {
+/** Draw one frame at a given orbit step; blit 0 is the opaque head. */
+function trailBlits(step: number) {
     const { ctx, blits } = makeCtx();
     drawLoadingIndicator(ctx, WIDTH, HEIGHT, step * STEP_MS, SHEET);
-    return blits[0]!;
+    return blits;
+}
+
+/** Draw one frame at a given orbit step and return the head blit. */
+function orbitBlit(step: number) {
+    return trailBlits(step)[0]!;
 }
 
 describe('drawLoadingIndicator', () => {
@@ -54,18 +61,53 @@ describe('drawLoadingIndicator', () => {
         expect(rects).toEqual([{ x: 0, y: 0, w: WIDTH, h: HEIGHT, fill: '#000' }]);
     });
 
-    it('blits the Magia Stone — frame 0x26 of the dchr sheet — at 2x', () => {
+    it('blits the Magia Stone — frame 0x26 of the dchr sheet — at tile size', () => {
         const { ctx, blits } = makeCtx();
         drawLoadingIndicator(ctx, WIDTH, HEIGHT, 0, SHEET);
 
-        expect(blits).toHaveLength(1);
-        expect(blits[0]!.sx).toBe(0x26 * 24);
-        expect(blits[0]!.sy).toBe(0);
-        expect(blits[0]!.sw).toBe(24);
-        expect(blits[0]!.sh).toBe(24);
-        expect(blits[0]!.dw).toBe(TILE_SIZE * 2);
-        expect(blits[0]!.dh).toBe(TILE_SIZE * 2);
-        expect(blits[0]!.sx + blits[0]!.sw).toBe(SHEET.width);
+        expect(blits).toHaveLength(TRAIL);
+        for (const b of blits) {
+            expect(b.sx).toBe(0x26 * 24);
+            expect(b.sy).toBe(0);
+            expect(b.sw).toBe(24);
+            expect(b.sh).toBe(24);
+            expect(b.dw).toBe(TILE_SIZE);
+            expect(b.dh).toBe(TILE_SIZE);
+            expect(b.sx + b.sw).toBe(SHEET.width);
+        }
+    });
+
+    it('draws eight copies, fading from fully opaque to fully transparent', () => {
+        const { ctx, blits } = makeCtx();
+        drawLoadingIndicator(ctx, WIDTH, HEIGHT, 0, SHEET);
+
+        expect(blits).toHaveLength(TRAIL);
+        expect(blits[0]!.alpha).toBe(1);
+        expect(blits[TRAIL - 1]!.alpha).toBe(0);
+        for (let i = 1; i < TRAIL; i++) {
+            expect(blits[i]!.alpha).toBeLessThan(blits[i - 1]!.alpha);
+            expect(blits[i]!.alpha).toBeCloseTo(1 - i / (TRAIL - 1), 5);
+        }
+    });
+
+    it('fills the eight orbit slots, each copy trailing one slot behind the head', () => {
+        const blits = trailBlits(0);
+        const positions = blits.map(b => `${b.dx},${b.dy}`);
+        expect(new Set(positions).size).toBe(TRAIL);
+
+        // Copy i sits on the slot the head occupied i steps ago.
+        for (let i = 1; i < TRAIL; i++) {
+            expect(positions[i]).toBe(`${orbitBlit(-i).dx},${orbitBlit(-i).dy}`);
+        }
+    });
+
+    it('advances the whole trail one slot per step', () => {
+        const before = trailBlits(0);
+        const after = trailBlits(1);
+        for (let i = 0; i < TRAIL; i++) {
+            expect(`${after[i]!.dx},${after[i]!.dy}`).toBe(`${orbitBlit(1 - i).dx},${orbitBlit(1 - i).dy}`);
+            expect(after[i]!.alpha).toBe(before[i]!.alpha);
+        }
     });
 
     it('asks for nearest-neighbour so the upscaled art stays crisp', () => {
@@ -149,6 +191,12 @@ describe('drawLoadingIndicator', () => {
         drawLoadingIndicator(ctx, WIDTH, HEIGHT, 0, SHEET);
         expect(ctx.textAlign).toBe('left');
         expect(ctx.textBaseline).toBe('alphabetic');
+    });
+
+    it('restores the shared canvas alpha for the game renderers', () => {
+        const { ctx } = makeCtx();
+        drawLoadingIndicator(ctx, WIDTH, HEIGHT, 0, SHEET);
+        expect(ctx.globalAlpha).toBe(1);
     });
 });
 
@@ -242,7 +290,7 @@ describe('startLoadingIndicator / stopLoadingIndicator', () => {
 
         runFrame(0);
         expect(loadingSprite()).toBe(created[0]);
-        expect(blits).toHaveLength(1);
+        expect(blits).toHaveLength(TRAIL);
         expect(blits[0]!.sx).toBe(0x26 * TILE_SIZE);
     });
 

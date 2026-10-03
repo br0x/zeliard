@@ -88,7 +88,7 @@ import {
 import { IndoorSceneBase } from './core/indoor-scene-base.js';
 import { Hud } from './ui/hud.js';
 import { ModalManager } from './ui/modal-manager.js';
-import { drawLoadingIndicator, startLoadingIndicator, stopLoadingIndicator } from './ui/loading-indicator.js';
+import { startLoadingIndicator, stopLoadingIndicator } from './ui/loading-indicator.js';
 import { SpeedChangeDialog, displayedSpeed } from './core/speed-change.js';
 import {
     RokaDemo,
@@ -2220,9 +2220,10 @@ let animTimer   = 0;
 
 function draw() {
     if (!engineReady) {
-        // Nothing to render yet: a failed boot, or a map transition while the
-        // next level loads. Show the spinner instead of a black canvas.
-        drawLoadingIndicator(ctx, canvas.width, canvas.height, performance.now());
+        // Nothing to render: a failed boot, or a map transition while the next
+        // level loads. The boot window owns its own RAF loop (see startGame),
+        // so the indicator is not painted here — a transition just holds the
+        // last game frame on screen.
         return;
     }
 

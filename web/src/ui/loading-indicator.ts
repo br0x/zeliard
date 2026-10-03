@@ -1,24 +1,23 @@
 /**
  * loading-indicator.ts — animated "please wait" overlay for the game canvas.
  *
- * Two windows leave the canvas black while there is nothing to draw yet:
+ * One window leaves the canvas black while there is nothing to draw yet: boot.
+ * The canvas is revealed when the opening intro finishes, but the first
+ * `loop()` frame is only requested after audio, level data and sprites are
+ * loaded — seconds of loading, and the main loop is not running yet, so
+ * draw() cannot cover it.
  *
- *   1. Boot: the canvas is revealed when the opening intro finishes, but the
- *      first `loop()` frame is only requested after audio, level data and
- *      sprites are loaded — seconds of loading, and the main loop is not
- *      running yet, so draw() cannot cover it.
- *   2. Map transitions: `engineReady` is cleared while the next level's data
- *      and assets are fetched, and the loop keeps running with nothing to
- *      render.
- *
- * `startLoadingIndicator` owns a private RAF loop for the boot window;
- * `drawLoadingIndicator` is the single-frame version main.ts draw() calls
- * while the engine is not ready. Both share one painter, so the look and the
- * animation phase are identical.
+ * `startLoadingIndicator` owns a private RAF loop for exactly that window and
+ * `stopLoadingIndicator` hands the canvas back to the main loop. Map
+ * transitions deliberately do not use it: `engineReady` is cleared while the
+ * next level loads, but the loop keeps running and the last game frame simply
+ * stays on screen.
  *
  * The indicator is the Magia Stone sprite (the last tile of the dchr sheet,
- * the same one drawDungeonMagiaStones blits) orbiting the canvas centre
- * through eight slots above a localized label.
+ * the same one drawDungeonMagiaStones blits) chasing itself clockwise around
+ * the canvas centre: eight copies, one per orbit slot, fading from fully
+ * opaque at the head to fully transparent at the tail, above a localized
+ * label.
  */
 import { t } from '../locale/index.js';
 import { drawSheetFrame, type SpriteSheet } from '../render/sheets.js';
@@ -29,11 +28,9 @@ import { TILE_SIZE } from '../config/engine.js';
 const SHEET_COLUMNS = 39;
 /** Frame 0x26 — the Magia Stone, same index as dungeon.ts drawDungeonMagiaStones. */
 const MAGIA_STONE_FRAME = 0x26;
-/** Drawn at 2x: 48x48 on a 672x432 canvas, crisp with smoothing off. */
-const SPRITE_SCALE = 2;
-const SPRITE_SIZE = TILE_SIZE * SPRITE_SCALE;
+const SPRITE_SIZE = TILE_SIZE;
 
-/** Orbit slots the sprite steps through before repeating, as in the old ring. */
+/** Orbit slots the sprite trail covers, one copy each — as in the old ring. */
 const ORBIT_SLOTS = 8;
 /** Distance from the canvas centre to the sprite centre, in canvas pixels. */
 const ORBIT_RADIUS = 56;
@@ -55,6 +52,14 @@ const LABEL_COLOR = '#0df';
 function orbitAngle(step: number): number {
     const slot = ((step % ORBIT_SLOTS) + ORBIT_SLOTS) % ORBIT_SLOTS;
     return -Math.PI / 2 + (slot / ORBIT_SLOTS) * Math.PI * 2;
+}
+
+/**
+ * Opacity of the copy `index` steps back along the trail: 1 at the head, 0 at
+ * the tail, evenly spaced in between.
+ */
+function trailAlpha(index: number): number {
+    return (ORBIT_SLOTS - 1 - index) / (ORBIT_SLOTS - 1);
 }
 
 let sprite: HTMLImageElement | null = null;
@@ -80,8 +85,8 @@ export function loadingSprite(): SpriteSheet | null {
 }
 
 /**
- * Paint one spinner frame: black backdrop, Magia Stone one orbit slot further
- * on, localized label. `now` is a performance.now() timestamp.
+ * Paint one spinner frame: black backdrop, the fading Magia Stone trail,
+ * localized label. `now` is a performance.now() timestamp.
  *
  * `sheet` defaults to the sheet this module loaded; tests pass their own.
  */
@@ -99,15 +104,24 @@ export function drawLoadingIndicator(
     const cy = height / 2;
 
     if (sheet) {
-        const angle = orbitAngle(Math.floor(now / FRAME_MS));
-        // Nearest-neighbour keeps the 24x24 art crisp at 2x.
+        const step = Math.floor(now / FRAME_MS);
+        // Nearest-neighbour keeps the pixel art crisp.
         ctx.imageSmoothingEnabled = false;
-        drawSheetFrame(
-            ctx, sheet, MAGIA_STONE_FRAME, TILE_SIZE, TILE_SIZE, SHEET_COLUMNS,
-            Math.round(cx + Math.cos(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
-            Math.round(cy + Math.sin(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
-            SPRITE_SIZE, SPRITE_SIZE,
-        );
+        // Head first, then the copies trailing one slot behind it, each dimmer
+        // than the last until the tail fades out completely.
+        for (let i = 0; i < ORBIT_SLOTS; i++) {
+            const angle = orbitAngle(step - i);
+            ctx.globalAlpha = trailAlpha(i);
+            drawSheetFrame(
+                ctx, sheet, MAGIA_STONE_FRAME, TILE_SIZE, TILE_SIZE, SHEET_COLUMNS,
+                Math.round(cx + Math.cos(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
+                Math.round(cy + Math.sin(angle) * ORBIT_RADIUS - SPRITE_SIZE / 2),
+                SPRITE_SIZE, SPRITE_SIZE,
+            );
+        }
+        // The game canvas is shared with every renderer — restore the default so
+        // the next draw() is unaffected.
+        ctx.globalAlpha = 1;
     }
 
     ctx.font = FONT;
