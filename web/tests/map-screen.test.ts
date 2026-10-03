@@ -16,10 +16,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import { MapScreen, shortName, type MapScreenDeps } from '../src/ui/map-screen.js';
+import { MapScreen, shortName, rokaColour, type MapScreenDeps } from '../src/ui/map-screen.js';
 import { NavGraphStore, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
+import { PORTALS, NAV_PORTALS_BY_MAP } from '../src/data/nav/nav-portals.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -443,44 +444,250 @@ describe('the cursor wraps, because a cavern is a cylinder', () => {
     });
 });
 
-describe('dismissing', () => {
-    it('Escape and the outside click both return without a route', () => {
+describe('Tab switches maps, and the arrows only move the cursor', () => {
+    it('Tab steps the strip forwards and Shift+Tab back through it', () => {
+        // The keydown reports Tab and shift together, so the direction has to be
+        // read from the Tab case itself — guarding only PageUp left Shift+Tab
+        // stepping forwards like a bare Tab.
         const h = harness();
-        h.screen.handleKey('Escape', false, false, false);
-        expect(h.exited()).toBe(1);
-        expect(h.picked()).toHaveLength(0);
-        h.screen.active = true;
-        h.screen.handleClickOutside();
-        expect(h.exited()).toBe(2);
+        const first = h.screen.displayMapId;
+        h.screen.handleKey('Tab', false, false, false);
+        const second = h.screen.displayMapId;
+        expect(second).not.toBe(first);
+        h.screen.handleKey('Tab', false, true, false);       // shift
+        expect(h.screen.displayMapId).toBe(first);
     });
 
-    it('does nothing while inactive', () => {
+    it('Tab wraps at both ends of the strip', () => {
         const h = harness();
-        h.screen.exit();
-        expect(h.screen.handleKey('ArrowRight', false, false, false)).toBe(false);
-        expect(h.screen.handlePointer(100, 100, 'down')).toBeUndefined();
-        expect(h.picked()).toHaveLength(0);
-        expect(h.exited()).toBe(0);
+        h.screen.handleKey('Tab', false, false, false);
+        h.screen.handleKey('Tab', false, true, false);
+        expect(h.screen.displayMapId).toBe(0);
+    });
+
+    it('no arrow key changes the map on screen', () => {
+        // The hint line claims the arrows are the cursor; a strip change under
+        // one of them would send the player to another cavern mid-aim.
+        const h = harness();
+        for (const code of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
+            h.screen.displayMapId = 0;
+            const before = `${h.screen.cursorCol},${h.screen.cursorRow}`;
+            h.screen.handleKey(code, false, false, false);
+            expect(h.screen.displayMapId).toBe(0);
+            expect(`${h.screen.cursorCol},${h.screen.cursorRow}`).not.toBe(before);
+        }
+    });
+
+    it('Shift+Tab past the ends of the strip still lands on a map', () => {
+        const h = harness();
+        h.screen.handleKey('Tab', false, true, false);
+        expect(NAV_REACHABLE[0]).toContain(h.screen.displayMapId);
     });
 });
 
-describe('the screen shows no route', () => {
-    it('draws from a timestamp alone, with no route to pass in', () => {
-        // draw(now) is the whole contract. If the map ever grew a route overlay,
-        // this signature is the first thing that would have to change.
-        const { screen } = harness();
-        expect(screen.draw.length).toBe(1);
-        expect(() => screen.draw(0)).not.toThrow();
+describe('doors are drawn as the cavern draws them', () => {
+    // The two sheets are kept distinct so a blit can be attributed: the raster
+    // cuts the cavern's own tiles out of `tiles`, the door composites out of
+    // `platforms` — the shared dchr band, as in the live view.
+    const tileSheet = { width: 8 * 24, height: 24 } as HTMLImageElement;
+    const doorSheet = { width: 39 * 24, height: 24 } as HTMLImageElement;
+
+    interface Blit { sheet: unknown; sx: number; dx: number; dy: number; dw: number }
+
+    /** Blits drawn out of the dchr sheet, captured for one frame. */
+    function captureDoorBlits(): Blit[] {
+        const seen: Blit[] = [];
+        vi.spyOn(CTX, 'drawImage').mockImplementation(((
+            img: unknown, sx: number, _sy: number, _sw: number, _sh: number,
+            dx: number, dy: number, dw: number,
+        ) => {
+            if (img === doorSheet) seen.push({ sheet: img, sx, dx, dy, dw });
+        }) as never);
+        return seen;
+    }
+
+    /** Let the sheet promise land; the doors appear on the frame after it does. */
+    const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
+
+    it('blits the dchr frames of a door, at the map scale', async () => {
+        const h = harness({
+            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
+        });
+        h.screen.draw(0);            // no sheet yet, so no doors
+        await settle();
+        const seen = captureDoorBlits();
+        h.screen.draw(0);
+        vi.restoreAllMocks();
+
+        // mp10 has doors, and each one is a 5x4 composite. Two tiles of it are not
+        // blitted: the open table's two id-0 tiles — the void in the doorway —
+        // and the roka colour in the middle of the lintel, which is drawn as a
+        // flat square. So a shut door blits 19 and an open one 17.
+        const doors = NAV_PORTALS_BY_MAP[0]!.length;
+        expect(seen.length).toBeGreaterThan(doors * 16);
+        expect(seen.length).toBeLessThanOrEqual(doors * 19);
+        // Door tiles 0x49.. are dchr frames 0x09..; nothing comes from outside
+        // the sheet, and every blit is a whole map tile at the map scale.
+        expect(seen.every((b) => b.sx >= 9 * 24 && b.sx < 39 * 24)).toBe(true);
+        const widths = new Set(seen.map((b) => b.dw));
+        expect(widths.size).toBe(1);
+        expect(widths.has(h.screen.scaleFor(0))).toBe(true);
+        // And they cover 5x4 tiles per door, not the one square the old marker drew.
+        expect(new Set(seen.map((b) => b.dx)).size).toBeLessThanOrEqual(5 * doors);
+        expect(new Set(seen.map((b) => b.dy)).size).toBeLessThanOrEqual(4 * doors);
     });
 
-    it('has no public route accessor', () => {
+    it('puts the composite where the hero walks through it', async () => {
+        const h = harness({
+            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
+        });
+        h.screen.draw(0);
+        await settle();
+        const seen = captureDoorBlits();
+        h.screen.draw(0);
+        vi.restoreAllMocks();
+
+        // The frame hangs one column left and one row above the standing cell, so
+        // the trigger tile the door record names is the composite's second column.
+        const portal = PORTALS.find((p) => p.mapId === 0)!;
+        const scale = h.screen.scaleFor(0);
+        const { ox, oy } = h.screen.originFor(0);
+        const left = ox + (portal.fromX - 1) * scale;
+        const top = oy + (portal.fromY - 1) * scale;
+        const tiles = seen.filter((b) =>
+            b.dx >= left && b.dx < left + 5 * scale && b.dy >= top && b.dy < top + 4 * scale);
+        expect(tiles.length).toBeGreaterThan(0);
+        expect(Math.min(...tiles.map((b) => b.dx))).toBe(left);
+        expect(Math.min(...tiles.map((b) => b.dy))).toBe(top);
+        expect(new Set(tiles.map((b) => b.dx)).size).toBe(5);
+    });
+
+    it('picks the open or the closed composite from the door state', async () => {
+        const shut = harness({
+            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
+            doorOpen: () => false,
+        });
+        const open = harness({
+            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
+            doorOpen: () => true,
+        });
+        shut.screen.draw(0);
+        open.screen.draw(0);
+        await settle();
+        const a = captureDoorBlits();
+        shut.screen.draw(0);
+        vi.restoreAllMocks();
+        const b = captureDoorBlits();
+        open.screen.draw(0);
+        vi.restoreAllMocks();
+
+        // Same doors in the same places, different art: the two tables share the
+        // frame and the jamb columns and differ across the middle. Three of the
+        // twenty tiles are filled rather than blitted — the roka colour, and the
+        // two id-0 tiles the open table has and the shut one does not — so the
+        // shut door shows 19 tiles and the open one 17.
+        const rectOf = (p: (typeof PORTALS)[number]): { l: number; t: number; w: number; h: number } => {
+            const { ox, oy } = shut.screen.originFor(0);
+            const scale = shut.screen.scaleFor(0);
+            return { l: ox + (p.fromX - 1) * scale, t: oy + (p.fromY - 1) * scale, w: 5 * scale, h: 4 * scale };
+        };
+        const inside = (r: ReturnType<typeof rectOf>, b: Blit): boolean =>
+            b.dx >= r.l && b.dx < r.l + r.w && b.dy >= r.t && b.dy < r.t + r.h;
+
+        const shutPortal = PORTALS.find((p) => p.mapId === 0)!;
+        const r = rectOf(shutPortal);
+        expect(a.filter((b) => inside(r, b)).length).toBe(19);
+        expect(b.filter((b) => inside(r, b)).length).toBe(17);
+        expect(a.map((x) => x.sx)).not.toEqual(b.map((x) => x.sx));
+    });
+
+    it('falls back to the level data when no door state is supplied', async () => {
+        // Without a live answer, `key === 0` — a door the MDT shipped open — is
+        // drawn open and the rest shut, so mp10's doors come out mixed. Neither
+        // all-open nor all-closed is correct for it, and 139 of the game's 163
+        // doors ship open, so "everything shut" would be wrong nearly every time.
+        const sheets = { tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }) };
+
+        const mixed = harness(sheets);
+        const allOpen = harness({ ...sheets, doorOpen: () => true });
+        const allShut = harness({ ...sheets, doorOpen: () => false });
+        mixed.screen.draw(0);
+        allOpen.screen.draw(0);
+        allShut.screen.draw(0);
+        await settle();
+
+        const framesOf = async (screen: MapScreen): Promise<number[]> => {
+            const seen = captureDoorBlits();
+            screen.draw(0);
+            vi.restoreAllMocks();
+            return seen.map((b) => b.sx);
+        };
+        const [asShipped, open, shut] = await Promise.all([
+            framesOf(mixed.screen), framesOf(allOpen.screen), framesOf(allShut.screen),
+        ]);
+
+        expect(new Set(asShipped).size).toBeGreaterThan(0);
+        expect(asShipped).not.toEqual(open);
+        expect(asShipped).not.toEqual(shut);
+        // Both ends of the strip are represented, which is the point of asking.
+        expect(open.some((sx) => !shut.includes(sx))).toBe(true);
+        expect(shut.some((sx) => !open.includes(sx))).toBe(true);
+    });
+
+    it('draws the roka colour as a flat square, not the orb sprite', async () => {
+        const h = harness({
+            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
+        });
+        h.screen.draw(0);
+        await settle();
+
+        // The orb is 24px of art the map has no room for; at map scale it is a
+        // smear over the frame. Capture every fill so the square can be found.
+        const fills: { style: string; x: number; y: number; w: number; h: number }[] = [];
+        vi.spyOn(CTX, 'fillRect').mockImplementation(((x: number, y: number, w: number, h: number) => {
+            fills.push({ style: String(CTX.fillStyle), x, y, w, h });
+        }) as never);
+        h.screen.draw(0);
+        vi.restoreAllMocks();
+
+        const scale = h.screen.scaleFor(0);
+        // One square per door, in the middle column of the lintel. The screen
+        // fills other tiles black too, so the squares are located rather than
+        // counted.
+        const squares = fills.filter((f) =>
+            f.style.startsWith('#') && f.w === scale && f.h === scale);
+        const { ox, oy } = h.screen.originFor(0);
+        const mine = new Set(PORTALS.filter((p) => p.mapId === 0)
+            .map((p) => `${ox + (p.fromX + 1) * scale},${oy + (p.fromY - 1) * scale}`));
+        const mineSquares = squares.filter((f) => mine.has(`${f.x},${f.y}`));
+        expect(mineSquares.length).toBe(mine.size);
+        expect(new Set(mineSquares.map((f) => f.style)).size).toBeGreaterThan(1);
+        for (const portal of PORTALS.filter((p) => p.mapId === 0)) {
+            const at = squares.filter((f) =>
+                f.x === ox + (portal.fromX + 1) * scale && f.y === oy + (portal.fromY - 1) * scale);
+            expect(at).toHaveLength(1);
+            expect(at[0]!.style).toBe(rokaColour(portal.color));
+        }
+    });
+
+    it('maps each roka colour to its own square', () => {
+        // The generated door table uses these five and nothing else.
+        expect([0, 1, 2, 3, 4].map(rokaColour))
+            .toEqual(['#000000', '#ff0000', '#0000ff', '#00ff00', '#ff00ff']);
+        expect(new Set(PORTALS.map((p) => p.color))).toEqual(new Set([0, 1, 2, 3, 4]));
+        // Anything outside them is a colour the map has no square for; it must not
+        // silently borrow a neighbour's, and must not reach the canvas at all.
+        expect(rokaColour(5)).not.toBe(rokaColour(2));
+        expect(rokaColour(7)).not.toBe(rokaColour(3));
+    });
+
+    it('draws no doors without a sheet, and does not throw', () => {
         const h = harness();
-        const keys = Object.keys(h.screen).concat(
-            Object.getOwnPropertyNames(Object.getPrototypeOf(h.screen)),
-        );
-        expect(keys.filter((k) => /route|path/i.test(k))).toEqual([]);
+        const seen = captureDoorBlits();
+        expect(() => h.screen.draw(0)).not.toThrow();
+        vi.restoreAllMocks();
+        expect(seen).toEqual([]);
     });
-
 });
 
 describe('drawing does not throw for any map', () => {
@@ -522,5 +729,22 @@ describe('drawing does not throw for any map', () => {
         // for its lifetime, which is why it is drawn on top rather than stored.
         expect(seen.some((t) => t === 'map.hints')).toBe(true);
         spy.mockRestore();
+    });
+
+    it('sets the hint line in the only face whose glyphs fit it', () => {
+        // "Press Start 2P" glyphs are as wide as they are tall, and the hint is
+        // the longest line the screen draws — at 12px it ran past the canvas.
+        const fonts: string[] = [];
+        const h = harness({ text: (k: string) => k });
+        const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string) => {
+            if (t === 'map.hints') fonts.push(CTX.font);
+        }) as never);
+        h.screen.draw(0);
+        spy.mockRestore();
+        expect(fonts).toHaveLength(1);
+        // The weight is not pinned — only the family and the size, which are what
+        // decide whether the line fits.
+        expect(fonts[0]).toMatch(/(?:^|\s)14px "Courier New", Courier, monospace$/);
+        expect(fonts[0]).not.toContain('Press Start 2P');
     });
 });

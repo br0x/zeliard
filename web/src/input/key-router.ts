@@ -111,7 +111,12 @@ export class KeyRouter {
         }
 
         if (e.code === 'F7') {
-            if (!d.modalActive() && !d.gamePaused()) d.openRestoreModal();
+            // The inventory and the cavern map pause the game themselves, so the
+            // plain pause check would swallow F7 in both of them — and both are
+            // exactly where a player reaches for "load" after a long thread. A
+            // pause that belongs to a menu of ours is not one to refuse on.
+            const inMenu = d.inventoryOpen() || d.mapScreenActive();
+            if (!d.modalActive() && (!d.gamePaused() || inMenu)) d.openRestoreModal();
             return false;
         }
 

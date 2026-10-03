@@ -69,6 +69,23 @@ describe('KeyRouter.function keys', () => {
         expect(paused.calls).toEqual([]);
     });
 
+    it('F7 still opens restore from the inventory and the cavern map', () => {
+        // Both pause the game themselves, so a plain pause check would swallow
+        // the one key a player reaches for when a thread has gone wrong.
+        for (const dep of [{ inventoryOpen: () => true }, { mapScreenActive: () => true }]) {
+            const menu = makeRouter({ gamePaused: () => true, ...dep });
+            menu.router.keyDown(ev('F7'), 0);
+            expect(menu.calls).toEqual(['openRestoreModal']);
+        }
+
+        // ...but not over a modal, which is still the only thing that may own F7.
+        const both = makeRouter({
+            gamePaused: () => true, inventoryOpen: () => true, modalActive: () => true,
+        });
+        both.router.keyDown(ev('F7'), 0);
+        expect(both.calls).toEqual([]);
+    });
+
     it('F8 additionally requires an engine-ready state', () => {
         const notReady = makeRouter({ engineReady: () => false });
         notReady.router.keyDown(ev('F8'), 0);

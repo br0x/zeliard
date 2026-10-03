@@ -190,6 +190,7 @@ export const ADDR_HERO_X_IN_PROXIMITY_MAP = 0x9F1A; // word
 
 export const ADDR_TOWN_DESCRIPTOR_PTR     = 0xC000;
 export const ADDR_MAP_WIDTH               = 0xC002; // word (from MDT)
+export const ADDR_DOORS_LIST             = 0xC00A; // word — pointer to door table (12-byte entries)
 export const ADDR_NPC_CONVERSATIONS       = 0xC00D;
 export const ADDR_NPC_ARRAY_PTR           = 0xC00F;
 export const ADDR_MONSTERS_LIST           = 0xC010; // word — pointer to monster table (16-byte entries)

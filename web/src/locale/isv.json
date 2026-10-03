@@ -142,15 +142,15 @@
     ]
   },
   "map": {
-    "hints": "←/→: КАРТА   ↑/↓: КУРСОР   TAB: СЛЕДУЮЩИЕ ДВЕРИ   ENTER: ВЫБРАТИ   ESC: ОТКАЗАТИ",
-    "loading": "Читаю пешеру...",
-    "noMap": "Эту пешеру не нанести на карту.",
-    "needsKeys": "Ключа на этом уровне нет. Проход заперт.",
-    "needsOneKey": "Проход заперт. Нужен один ключ.",
-    "noPath": "Там не пройти.",
-    "routeCleared": "Путь стёрт.",
-    "title": "НИТЬ ЯГИ",
-    "unreachable": "Пути нет."
+    "hints": "⬅⬆➡⬇: KURSOR   TAB/SHIFT+TAB: NAST./POPR. MAPA   ENTER: ОК   ESC: ANULACIJA",
+    "loading": "Čitam pečeru...",
+    "noMap": "Tutu pečeru ne mogu kartovati.",
+    "needsKeys": "Tutoj level ne ima ključe. Prohoda nema.",
+    "needsOneKey": "Prohoda nema. potrěbny ključ.",
+    "noPath": "Tamo ne projdti.",
+    "routeCleared": "Put iztrěny.",
+    "title": "NIT YAGI",
+    "unreachable": "Puta nema."
   },
   "dungeon": {
     "notifications": {

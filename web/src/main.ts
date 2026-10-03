@@ -198,7 +198,7 @@ import {
     ADDR_SWORD_GFX_RELOAD_REQUEST, ADDR_DUNGEON_EXIT_FLAG, ADDR_HERO_DEATH_FLAG, ADDR_PENDING_TRANSITION_FLAG,
     ADDR_BUILDING_ACTIVE, ADDR_BUILDING_DEST_ID, ADDR_PENDING_DUNGEON_MAP, ADDR_PENDING_DUNGEON_FLAG, DUNGEON_STATE_DEATH_FALL,
     DUNGEON_STATE_DEATH_FADE, DUNGEON_STATE_BOSS_ENCOUNTER, DUNGEON_STATE_ROKA_RUN, DUNGEON_STATE_ROKADEMO,
-    ADDR_SCROLL_FLAG, ADDR_CONVERSATION_ACTIVE,
+    ADDR_SCROLL_FLAG, ADDR_CONVERSATION_ACTIVE, ADDR_DOORS_LIST,
 } from './core/memory.js';
 
 // ─── TS-owned memory buffer (replaces WASM linear memory) ────────────────────
@@ -503,12 +503,43 @@ function openMapScreen(): void {
         },
         heroPosition: heroMapPosition,
         capabilities: heroCapabilities,
+        // A door the hero has already opened is open on the map, and the engine's
+        // door table is the only place that shows it — the level data only says
+        // how each door shipped. It holds one cavern's doors, so anything else is
+        // unknown and the screen falls back to the level data.
+        doorOpen: liveDoorOpen,
         text: (key: string) => t(key),
         onExit: closeMapScreen,
         onPick: acceptMapDestination,
         soundManager,
     });
     mapScreenInstance.enter({ heroMapId: at.mapId, heroCol: at.col, heroRow: at.row });
+}
+
+/** Bytes per door record in the table at `ADDR_DOORS_LIST`. */
+const DOOR_RECORD_SIZE = 12;
+
+/**
+ * Whether the engine currently has a door standing open at (x0, y0) on `mapId`.
+ *
+ * The live door table (ADDR_DOORS_LIST, 12-byte records) belongs to the loaded
+ * cavern only, and `d_flags` bit 7 is the open bit that `openDoor` sets — the same
+ * read `enterTheDoor` and `processDoors` make. Null when the table is not the map
+ * being browsed, so the caller can answer from level data instead.
+ */
+function liveDoorOpen(mapId: number, x0: number, y0: number): boolean | null {
+    if (gameMode !== 'dungeon') return null;
+    const g = getGmem();
+    if ((memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f) !== mapId) return null;
+    const end = g.length;
+    for (let si = memRead16(g, ADDR_DOORS_LIST); si + DOOR_RECORD_SIZE <= end; si += DOOR_RECORD_SIZE) {
+        const dx = memRead16(g, si);
+        if (dx === 0xffff) return null;   // end of table
+        if (dx === x0 && memRead8(g, si + 2) === y0) {
+            return (memRead8(g, si + 3) & 0x80) !== 0;
+        }
+    }
+    return null;
 }
 
 /**
@@ -1876,8 +1907,29 @@ function openSaveModal(onSaveComplete: (success: boolean) => void): void {
 
 function openRestoreModal() {
     if (modalManager.isActive) return;
+    // F7 reaches the inventory and the cavern map, both of which pause the game.
+    // The menus stay open *under* the dialog — cancelling drops straight back into
+    // them — so the pause this dialog takes is only borrowed, and it is handed
+    // back to whoever still wants it when the dialog closes.
     gamePaused = true;
+    const closeRestoreModal = (): void => {
+        modalManager.close();
+        // Whatever survived the dialog still owns the pause; a restore tore the
+        // menus down, so the cavern gets it back.
+        gamePaused = inventoryScreenInstance !== null;
+        syncPathOverlayVisibility();
+    };
     const onRestore = async (slotName: string | null): Promise<void> => {
+        // A restore replaces the world under the open menus, so they go first.
+        // Left standing they would show another game's inventory, over a cavern
+        // the hero no longer stands in. The thread needs no refund: it is spent
+        // only when a destination is picked (acceptMapDestination), and the save
+        // carries its own.
+        if (mapScreenInstance) { mapScreenInstance.exit(); mapScreenInstance = null; }
+        if (inventoryScreenInstance) {
+            inventoryScreenInstance = null;
+            renderMagicHud();
+        }
         let saveData = null;
         if (slotName === null) {  // Re-Start
             try {
@@ -1897,10 +1949,10 @@ function openRestoreModal() {
                 console.error('Failed to load save:', slotName);
             }
         }
-        closeModal();
+        closeRestoreModal();
     };
     const onCancel = () => {
-        closeModal();
+        closeRestoreModal();
     };
     modalManager.open(new RestoreDialog(onRestore, onCancel));
 }
@@ -2397,7 +2449,8 @@ function draw() {
 
     // Draw the cavern map above the inventory — it opens from inside it, and the
     // inventory fills the whole canvas, so drawing the map first hides it
-    // completely. It stays below any modal, which cannot be open at the same time.
+    // completely. The restore dialog can sit on top of both, since F7 reaches the
+    // map screen; it is drawn last and the map ignores pointer input meanwhile.
     if (mapScreenInstance && mapScreenInstance.active) {
         mapScreenInstance.draw(performance.now());
     }
@@ -2436,9 +2489,11 @@ function canvasPointFromEvent(e: PointerEvent): { x: number; y: number } {
 }
 
 // The cavern map is the only pointer-driven UI in the game, so these listeners
-// sit with the canvas and do nothing unless it is open.
+// sit with the canvas and do nothing unless it is open. A modal counts as closed
+// input here: F7 reaches the map screen with the restore dialog on top of it, and
+// a click that landed on the dialog must not also pick a destination underneath.
 canvas.addEventListener('pointerdown', e => {
-    if (!mapScreenInstance?.active) return;
+    if (!mapScreenInstance?.active || modalManager.isActive) return;
     e.preventDefault();
     const { x, y } = canvasPointFromEvent(e);
     // Inside the border but outside the map area counts as "never mind".
@@ -2449,7 +2504,7 @@ canvas.addEventListener('pointerdown', e => {
     mapScreenInstance.handlePointer(x, y, 'down');
 });
 canvas.addEventListener('pointermove', e => {
-    if (!mapScreenInstance?.active) return;
+    if (!mapScreenInstance?.active || modalManager.isActive) return;
     const { x, y } = canvasPointFromEvent(e);
     mapScreenInstance.handlePointer(x, y, 'move');
 });

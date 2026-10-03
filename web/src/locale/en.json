@@ -142,7 +142,7 @@
     ]
   },
   "map": {
-    "hints": "←/→: MAP   ↑/↓: CURSOR   TAB: NEXT DOOR   ENTER: SET   ESC: CLOSE",
+    "hints": "⬅⬆➡⬇: CURSOR   TAB/SHIFT+TAB: NEXT/PREV MAP   ENTER: SET   ESC: CLOSE",
     "loading": "Reading the cavern...",
     "noMap": "This cavern cannot be charted.",
     "needsKeys": "No key on this level. The way is locked.",

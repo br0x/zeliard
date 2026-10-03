@@ -28,6 +28,7 @@ import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../data/nav/nav-maps.js';
 import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
+import { CLOSED_DOOR_TILES, OPENED_DOOR_TILES } from '../engine/dungeon-frame-pre.js';
 import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
@@ -47,8 +48,31 @@ const LRU_RASTERS = 4;
 /** A cavern tile is `TILE_SIZE` in the game's sheets — 24x24; the map scales down. */
 const MAP_TILE_PX = TILE_SIZE;
 
-const FONT_TITLE = '18px "Press Start 2P", monospace';
-const FONT_SMALL = '12px "Press Start 2P", monospace';
+/**
+ * The door composite: 5 tiles wide, 4 tall, blitted from the shared dchr sheet.
+ *
+ * The tile ids themselves are `CLOSED_DOOR_TILES` / `OPENED_DOOR_TILES` in
+ * engine/dungeon-frame-pre.ts — the same tables the live view stamps into the
+ * proximity map — so a door here is the door there, at the map's own scale.
+ */
+const DOOR_W = 5;
+const DOOR_H = 4;
+/** First tile id of the dchr band; `TILE_ID - 0x40` is its frame index. */
+const DCHR_BASE_TILE = 0x40;
+/** The one tile of the composite that is neither frame nor doorway: roka colour. */
+const ROKA_COLOUR_INDEX = 2;
+
+const FONT_TITLE = 'bold 18px "Courier New", Courier, monospace';
+const FONT_SMALL = '14px "Courier New", Courier, monospace';
+
+/**
+ * The hint line, in the only face that fits it.
+ *
+ * "Press Start 2P" is a pixel font whose glyphs are as wide as they are tall, and
+ * the hint is the longest line the screen draws: at 12px it ran past the canvas.
+ * Courier's 0.6em advance is a third narrower, and 14px still reads at a glance.
+ */
+const FONT_HINT = 'bold 14px "Courier New", Courier, monospace';
 
 /** Colours for the scaled raster, by tile class. */
 const COL = {
@@ -101,6 +125,15 @@ export interface MapScreenDeps {
      * still there, which is right for a fresh game.
      */
     keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
+    /**
+     * Whether a door stands open right now, or null when the answer is not known.
+     *
+     * The cavern a door is on is not necessarily the one the hero stands in, and
+     * the engine keeps a door table only for the loaded cavern, so this is asked
+     * per door and may decline. Without it a door is drawn from its level data:
+     * a door the MDT shipped open, which is 139 of the 163 in the game.
+     */
+    doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
     soundManager?: any;
 }
@@ -143,6 +176,16 @@ export class MapScreen {
      * unloaded behind a door the player could have walked through.
      */
     private componentReady: Promise<unknown> | null = null;
+    /**
+     * The shared dchr sheet, for the door composites.
+     *
+     * Doors are drawn live rather than baked into the raster: opening one changes
+     * it, and a raster is cached for as long as the screen lives. The sheet is the
+     * same image `buildRaster` already loads for the platform tiles, so the first
+     * frame after a map is shown has no doors and the frames after it do.
+     */
+    private doorSheet: HTMLImageElement | null = null;
+    private doorSheetWanted = false;
 
     constructor(private readonly deps: MapScreenDeps) {}
 
@@ -243,6 +286,7 @@ export class MapScreen {
         if (!this.active) return false;
         const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
         switch (code) {
+            // Every arrow moves the destination point; the map strip is Tab's.
             case 'ArrowLeft':
                 this.cursorCol = (this.cursorCol - 1 + width) % width;
                 return true;
@@ -255,12 +299,18 @@ export class MapScreen {
             case 'ArrowDown':
                 this.cursorRow = (this.cursorRow + 1) % NAV_MAP_HEIGHT;
                 return true;
-            case 'PageDown':
+            // Tab steps the map strip forwards and Shift+Tab back through it. The
+            // shift guard has to sit on Tab itself: the keydown reports both keys
+            // at once, so testing `shift` only on PageUp left Shift+Tab stepping
+            // forwards like a bare Tab.
             case 'Tab':
+                if (!repeat) this.stepStrip(shift ? -1 : 1);
+                return true;
+            case 'PageDown':
                 if (!repeat) this.stepStrip(1);
                 return true;
             case 'PageUp':
-                if (!shift) this.stepStrip(-1);
+                if (!repeat) this.stepStrip(-1);
                 return true;
             case 'Enter':
             case ' ':
@@ -633,21 +683,16 @@ export class MapScreen {
         void scale;
     }
 
-    /** Doors and town exits. The hero. Nothing else — no route. */
+    /** Doors, and the hero. Nothing else — no route. */
     private drawMarkers(ctx: CanvasRenderingContext2D): void {
         const { ox, oy, scale } = this.originFor(this.displayMapId);
         const s = Math.max(1, scale);
-        for (const index of NAV_PORTALS_BY_MAP[this.displayMapId] ?? []) {
-            const p = PORTALS[index]!;
-            // The door record's cell is one row above the hero's head, so the
-            // trigger tile is drawn at the standing position below it.
-            const x = ox + p.fromX * scale;
-            const y = oy + p.fromY * scale;
-            ctx.fillStyle = p.toTown ? '#f80' : '#8f8';
-            ctx.fillRect(x, y, s, s);
-            if (p.toTown) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(x, y + (s >> 1), s, Math.max(1, s >> 2));
+        const sheet = this.ensureDoorSheet();
+        if (sheet) {
+            const cols = Math.floor(sheet.width / MAP_TILE_PX);
+            for (const index of NAV_PORTALS_BY_MAP[this.displayMapId] ?? []) {
+                const p = PORTALS[index]!;
+                this.drawDoor(ctx, sheet, cols, p, ox, oy, scale);
             }
         }
 
@@ -668,6 +713,77 @@ export class MapScreen {
         ctx.stroke();
     }
 
+    /**
+     * Blit one door at display scale, exactly as the cavern view stamps it.
+     *
+     * The composite is 5x4 tiles and hangs one column to the left of the hero's
+     * standing cell, with the trigger tile at the door record's own cell — so the
+     * portal's `fromX`/`fromY` is the cell the hero stands on, and the frame starts
+     * one column left and one row above it.
+     */
+    private drawDoor(
+        ctx: CanvasRenderingContext2D,
+        sheet: HTMLImageElement,
+        cols: number,
+        p: (typeof PORTALS)[number],
+        ox: number,
+        oy: number,
+        scale: number,
+    ): void {
+        const open = this.deps.doorOpen?.(p.mapId, p.x0, p.y0) ?? (p.key === 0);
+        const tiles = open ? OPENED_DOOR_TILES : CLOSED_DOOR_TILES;
+        const left = p.fromX - 1;
+        const top = p.fromY - 1;
+        // A cavern is a cylinder: 64 rows in a ring, and columns that wrap at the
+        // map width. A door on either seam is still a door.
+        const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
+
+        for (let row = 0; row < DOOR_H; row++) {
+            const mapRow = (((top + row) % NAV_MAP_HEIGHT) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            for (let col = 0; col < DOOR_W; col++) {
+                const i = row * DOOR_W + col;
+                const mapCol = (((left + col) % width) + width) % width;
+                const x = ox + mapCol * scale;
+                const y = oy + mapRow * scale;
+                // The roka colour sits in the middle of the lintel, and is the one
+                // tile of the composite that is not frame or doorway.
+                if (i === ROKA_COLOUR_INDEX) {
+                    ctx.fillStyle = rokaColour(p.color);
+                    ctx.fillRect(x, y, scale, scale);
+                    continue;
+                }
+                const id = tiles[i]!;
+                // Tile 0 is the black void in front of an open doorway, and the
+                // map behind it is whatever the cavern drew.
+                if (id === 0) {
+                    ctx.fillStyle = COL.empty;
+                    ctx.fillRect(x, y, scale, scale);
+                    continue;
+                }
+                drawSheetFrame(ctx, sheet, id - DCHR_BASE_TILE, MAP_TILE_PX, MAP_TILE_PX,
+                    cols, x, y, scale, scale);
+            }
+        }
+    }
+
+    /**
+     * The shared dchr sheet, fetched on first use and kept.
+     *
+     * `tileSheets` already resolves it — it is the platform band of the same sheet
+     * the raster cuts its tiles from — and `loadImageOnce` caches by URL, so this
+     * is one promise shared with the raster rather than a second download. Returns
+     * null for the frame or two before it lands, which is also what a screen
+     * without sheets draws.
+     */
+    private ensureDoorSheet(): HTMLImageElement | null {
+        if (this.doorSheet || this.doorSheetWanted || !this.deps.tileSheets) return this.doorSheet;
+        this.doorSheetWanted = true;
+        void this.deps.tileSheets(this.displayMapId)
+            .then((sheets) => { this.doorSheet = sheets?.platforms ?? null; })
+            .catch(() => { /* a missing sheet leaves the doors off, not the screen */ });
+        return null;
+    }
+
     private drawCursor(ctx: CanvasRenderingContext2D): void {
         const { ox, oy, scale } = this.originFor(this.displayMapId);
         const s = Math.max(2, scale);
@@ -679,14 +795,33 @@ export class MapScreen {
     }
 
     private drawHint(ctx: CanvasRenderingContext2D, now: number): void {
-        ctx.font = FONT_SMALL;
+        ctx.font = FONT_HINT;
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#ccc';
+        ctx.fillStyle = '#fff';
         const text = now < this.messageUntil && this.message
             ? this.message
             : this.deps.text('map.hints');
         ctx.fillText(text, 16, HINT_TOP);
     }
+}
+
+/**
+ * A door's roka colour as a flat square.
+ *
+ * The cavern view stamps an orb sprite from dchr.png at the centre of the door
+ * frame, but the map is drawn at a fraction of that size: the orb arrives as a
+ * couple of pixels of mud sitting on top of the frame, reading as noise rather
+ * than as a door. The colour is the only part of it that carries meaning — it is
+ * what tells one door from another at a glance — so the map draws just that.
+ *
+ * The five entries are the colours the generated door table actually uses; white
+ * stands in for anything else rather than silently borrowing a neighbour's.
+ */
+const ROKA_COLOURS: readonly string[] =
+    ['#000000', '#ff0000', '#0000ff', '#00ff00', '#ff00ff'];
+
+export function rokaColour(color: number): string {
+    return ROKA_COLOURS[color] ?? '#ffffff';
 }
 
 /** Reachable maps for a hero standing on `mapId` — the component's map strip. */
