@@ -318,10 +318,6 @@ export function drawPathOverlay(now: number): void {
         lastReport = now;
         const last = points[points.length - 1]!;
         const kit = guide.equipment();
-        console.info(`[path] chevrons: ${drawn} drawn of ${points.length - 1} points,`
-            + ` from (${points[0]!.col},${points[0]!.row}) to`
-            + ` map${last.mapId} (${last.col},${last.row}), reveal ${guide.remaining().length} left`
-            + (kit.length ? `, shoes: ${kit}` : ', shoes: none'));
     }
 
     // The destination ring is the one mark that must stay findable however far off it

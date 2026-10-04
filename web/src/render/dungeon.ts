@@ -502,12 +502,13 @@ export function drawGuerraOverlay(): void {
     if (guerraFlashActive) {
         const viewW = VIEW_COLS * TILE_SIZE;
         const viewH = VIEW_ROWS * TILE_SIZE;
-        const img = env.ctx.getImageData(0, 0, viewW, viewH);
-        const d = img.data;
-        for (let i = 0; i < d.length; i += 4) {
-            d[i] = (d[i] ?? 0) ^ 0xff;   // XOR the viewport content with red
-        }
-        env.ctx.putImageData(img, 0, 0);
+        // Complementing the red byte (XOR 0xff == 255 - r) is what `difference`
+        // against opaque red computes for free: |r-255| = 255-r, |g-0| = g,
+        // |b-0| = b. One composite pass instead of a per-frame readback.
+        env.ctx.globalCompositeOperation = 'difference';
+        env.ctx.fillStyle = 'rgb(255,0,0)';
+        env.ctx.fillRect(0, 0, viewW, viewH);
+        env.ctx.globalCompositeOperation = 'source-over';
     }
     if (guerraRings) {
         const t = 3;   // flat border thickness in px
