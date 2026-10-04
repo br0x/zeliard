@@ -217,12 +217,6 @@ export function chevronAlpha(ahead: number): number {
     return 1 + (CHEVRON_FAR_ALPHA - 1) * t;
 }
 
-/** Throttle on the console summary, in milliseconds. */
-const REPORT_EVERY_MS = 4000;
-
-/** When the summary last printed, so it does not print every frame. */
-let lastReport = -1e9;
-
 /**
  * Hops that carry the hero rather than walk him.
  *
@@ -310,14 +304,6 @@ export function drawPathOverlay(now: number): void {
             env.placed.push({ x: at.x, y: at.y, frame, mapId: from.mapId });
             drawn++;
         }
-    }
-    // Report, throttled: what was asked for, and what was drawn. A line that stops
-    // early is either the cap or a cell outside the viewport, and those two look
-    // identical on screen and nothing else.
-    if (drawn < MAX_CHEVRONS && now - lastReport > REPORT_EVERY_MS) {
-        lastReport = now;
-        const last = points[points.length - 1]!;
-        const kit = guide.equipment();
     }
 
     // The destination ring is the one mark that must stay findable however far off it
