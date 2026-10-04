@@ -142,6 +142,8 @@
     ]
   },
   "map": {
+    "dest": "DEST",
+    "hero": "HERO",
     "hints": "⬅⬆➡⬇: CURSOR   TAB/SHIFT+TAB: NEXT/PREV MAP   ENTER: SET   ESC: CLOSE",
     "loading": "Reading the cavern...",
     "noMap": "This cavern cannot be charted.",

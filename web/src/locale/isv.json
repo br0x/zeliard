@@ -142,6 +142,8 @@
     ]
   },
   "map": {
+    "dest": "CILJ",
+    "hero": "GEROJ",
     "hints": "⬅⬆➡⬇: KURSOR   TAB/SHIFT+TAB: NAST./POPR. MAPA   ENTER: ОК   ESC: ANULACIJA",
     "loading": "Čitam pečeru...",
     "noMap": "Tutu pečeru ne mogu kartovati.",

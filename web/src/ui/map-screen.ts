@@ -16,18 +16,24 @@
  * Layout, all in the fixed 672x432 canvas space:
  *
  *   y  0..26   border and title
- *   y 28..412  map strip at the top, map area below
+ *   y 28..54   map strip — the caverns this one can be routed through
+ *   y 54..390  map area, below the strip
+ *   y 394..410 status line: where the hero stands, where the cursor points
  *   y 414..430 hint line
  *
- * The map is the cavern at an integer scale that fits: `S = floor(min(672/W,
- * 432/64))`, clamped to 1..8. The widest cavern is 320 tiles, so S is 2 and
- * everything fits without panning or zooming.
+ * The map is the cavern at an integer scale that fits its chart, the rows of it
+ * that have anything on them:
+ * `S = floor(min(672/W, 336/charted))`, clamped to 1..12. The widest cavern is
+ * 320 tiles, so S is 2 there and everything fits without panning or zooming. A
+ * cavern 73 tiles wide or less is not asked to fit all 64 of its rows: a boss
+ * arena is two thirds solid rock and draws at 9x, or 12x at 52 tiles wide.
  */
 
 import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../data/nav/nav-maps.js';
 import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
+import { NAV } from '../engine/nav/types.js';
 import { CLOSED_DOOR_TILES, OPENED_DOOR_TILES } from '../engine/dungeon-frame-pre.js';
 import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
@@ -37,16 +43,50 @@ import { TILE_SIZE } from '../config/engine.js';
 
 const VIEW_W = 672;
 const VIEW_H = 432;
+const STRIP_TOP = 28;
 const STRIP_H = 26;
-const AREA_TOP = 28;
-const AREA_H = 384;          // 28..412
+/**
+ * The map area starts under the strip, not at it.
+ *
+ * Both used to share `y 28..412`, which only works while the map is shorter than
+ * the strip: a cavern scaled to fill all 384px centres its top edge on y 28 and
+ * paints straight over the tabs. Only the height-bound caverns ever got that far
+ * — the eight boss arenas and the one normal cavern as narrow as they are — and
+ * the strip is drawn first, so the map won.
+ */
+const AREA_TOP = STRIP_TOP + STRIP_H;   // 54
+const AREA_H = 336;                     // 54..390, clear of the status line
+const STATUS_TOP = 394;
 const HINT_TOP = 414;
-const MAX_SCALE = 8;
+/**
+ * Ceiling on the display scale.
+ *
+ * High enough for the narrowest cavern to fill the width, which is what trimming
+ * the chart buys: only mp2d (52 tiles) is actually held back by this.
+ */
+const MAX_SCALE = 12;
 const SNAP_RADIUS = 2;       // tiles searched outward for a valid standing spot
 const LRU_RASTERS = 4;
 
 /** A cavern tile is `TILE_SIZE` in the game's sheets — 24x24; the map scales down. */
 const MAP_TILE_PX = TILE_SIZE;
+
+/**
+ * Rows a standing cell carries below its own.
+ *
+ * The hero's box is three rows tall (`heroBoxFree`, nav/geometry.ts:69) and the
+ * floor check reads the row after his feet — `headRow + 3`, nav/geometry.ts:118 —
+ * so a chart that ends on his row ends on the tile he is stood on.
+ */
+const HERO_BOX_ROWS = 3;
+
+/**
+ * The tiles a chart is trimmed of: the void, and the rock a cavern is cut into.
+ *
+ * Both are drawn, but neither is anything a player aims at, and in a boss cavern
+ * they are most of the map. See {@link MapScreen.chartedRows}.
+ */
+const TRIMMED = NAV.EMPTY | NAV.BLOCK_HEAD | NAV.BLOCK_BODY;
 
 /**
  * The door composite: 5 tiles wide, 4 tall, blitted from the shared dchr sheet.
@@ -73,6 +113,15 @@ const FONT_SMALL = '14px "Courier New", Courier, monospace';
  * Courier's 0.6em advance is a third narrower, and 14px still reads at a glance.
  */
 const FONT_HINT = 'bold 14px "Courier New", Courier, monospace';
+
+/**
+ * The status line, one step down from the hint line.
+ *
+ * Both are read in the same glance as the map itself, so they share a face; the
+ * line is regular weight and sits a band above the hint, because it reports
+ * state rather than explaining the controls.
+ */
+const FONT_STATUS = '14px "Courier New", Courier, monospace';
 
 /** Colours for the scaled raster, by tile class. */
 const COL = {
@@ -157,6 +206,8 @@ export class MapScreen {
     private stripIndex = 0;
     private readonly rasters = new Map<string, HTMLCanvasElement>();
     private readonly rasterOrder: string[] = [];
+    /** Rows each charted cavern keeps, by map. Measured once the grid is here. */
+    private readonly charted = new Map<number, number>();
     private readonly pendingRasters = new Set<string>();
     private loading = false;
     private message = '';
@@ -228,10 +279,61 @@ export class MapScreen {
 
     // ── geometry ─────────────────────────────────────────────────────────────
 
-    /** Integer scale that fits this map in the map area. */
+    /**
+     * How many of a cavern's 64 rows the chart has any business drawing.
+     *
+     * The rows are a ring — a cavern is a cylinder — so all 64 of them are real
+     * whether or not anything is in them, and the map used to fit all 64 whatever
+     * that cost. In a boss arena most of them are the solid body of the rock the
+     * arena is cut into, drawn as near-black, which held every boss map at 5x: a
+     * third under the width fit, to draw two thirds of nothing.
+     *
+     * Two things end a chart, and the deeper of them wins. The first is a row
+     * holding a tile that is neither void nor rock. The second is a standing row,
+     * and it carries three more rows than it counts: the hero's box is three rows
+     * tall (`heroBoxFree`, geometry.ts:69) and the floor he stands on is the row
+     * after his feet, so a cell at row R is standing on row R + 3 — cut that off
+     * and mp1d and mp2d drew their arenas with the ground the hero is stood on
+     * missing off the bottom, which is the one tile the chart cannot do without.
+     *
+     * A standing row is not counted when its support comes round the ring instead:
+     * R + 3 past the last row is row 0's rock reached by wrapping, which is mp4d's
+     * row 61 — 73 cells with forty rows of void above their heads, and an island in
+     * the graph, with no route into it from the arena. Counting those is what held
+     * the arenas at 5x while the width fit allowed 9x.
+     */
+    chartedRows(mapId: number): number {
+        const cached = this.charted.get(mapId);
+        if (cached !== undefined) return cached;
+        const grid = this.deps.store.gridOf(mapId);
+        // Nothing measured yet: chart the whole ring, which is what this did before.
+        if (!grid) return NAV_MAP_HEIGHT;
+        const classifier = NavTileClassifier.forMap(mapId);
+        const graph = this.deps.store.get(mapId);
+
+        let art = 0;
+        for (let row = 0; row < NAV_MAP_HEIGHT; row++) {
+            for (let col = 0; col < grid.mapWidth; col++) {
+                const flags = classifier.classify(grid.tiles[row * grid.mapWidth + col] ?? 0);
+                if ((flags & TRIMMED) === 0) { art = row + 1; break; }
+            }
+        }
+
+        let standing = 0;
+        for (const node of graph?.nodes ?? []) {
+            if (node.row + HERO_BOX_ROWS >= NAV_MAP_HEIGHT) continue;
+            standing = Math.max(standing, node.row + 1 + HERO_BOX_ROWS);
+        }
+
+        const charted = Math.max(art, standing, 1);
+        this.charted.set(mapId, charted);
+        return charted;
+    }
+
+    /** Integer scale that fits this map's chart in the map area. */
     scaleFor(mapId: number): number {
         const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
-        const s = Math.floor(Math.min(VIEW_W / width, AREA_H / NAV_MAP_HEIGHT));
+        const s = Math.floor(Math.min(VIEW_W / width, AREA_H / this.chartedRows(mapId)));
         return Math.max(1, Math.min(MAX_SCALE, s));
     }
 
@@ -240,18 +342,19 @@ export class MapScreen {
         const scale = this.scaleFor(mapId);
         const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
         const ox = Math.round((VIEW_W - width * scale) / 2);
-        const oy = AREA_TOP + Math.round((AREA_H - NAV_MAP_HEIGHT * scale) / 2);
+        const rows = this.chartedRows(mapId);
+        const oy = AREA_TOP + Math.round((AREA_H - rows * scale) / 2);
         return { ox, oy, scale };
     }
 
-    /** Map cell under a canvas pixel, or null when the click missed the map. */
+    /** Map cell under a canvas pixel, or null when the click missed the chart. */
     tileFromCanvas(x: number, y: number): { col: number; row: number } | null {
         const { ox, oy, scale } = this.originFor(this.displayMapId);
         if (x < ox || y < oy) return null;
         const col = Math.floor((x - ox) / scale);
         const row = Math.floor((y - oy) / scale);
         const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 0;
-        if (row < 0 || row >= NAV_MAP_HEIGHT || col < 0 || col >= width) return null;
+        if (row < 0 || row >= this.chartedRows(this.displayMapId) || col < 0 || col >= width) return null;
         return { col, row };
     }
 
@@ -271,7 +374,7 @@ export class MapScreen {
             return;
         }
         // A click in the map area picks a destination.
-        if (canvasY < AREA_TOP + STRIP_H) { this.clickStrip(canvasX, canvasY); return; }
+        if (canvasY < STRIP_TOP + STRIP_H) { this.clickStrip(canvasX, canvasY); return; }
         const t = this.tileFromCanvas(canvasX, canvasY);
         if (!t) return;
         void this.choose(t.col, t.row);
@@ -285,6 +388,9 @@ export class MapScreen {
     handleKey(code: string, ctrl: boolean, shift: boolean, repeat: boolean): boolean {
         if (!this.active) return false;
         const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
+        // The chart is trimmed, so the ring it shows is shorter than the cavern's:
+        // the cursor wraps within what is on the map, and cannot walk off it.
+        const rows = this.chartedRows(this.displayMapId);
         switch (code) {
             // Every arrow moves the destination point; the map strip is Tab's.
             case 'ArrowLeft':
@@ -294,10 +400,10 @@ export class MapScreen {
                 this.cursorCol = (this.cursorCol + 1) % width;
                 return true;
             case 'ArrowUp':
-                this.cursorRow = (this.cursorRow - 1 + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+                this.cursorRow = (this.cursorRow - 1 + rows) % rows;
                 return true;
             case 'ArrowDown':
-                this.cursorRow = (this.cursorRow + 1) % NAV_MAP_HEIGHT;
+                this.cursorRow = (this.cursorRow + 1) % rows;
                 return true;
             // Tab steps the map strip forwards and Shift+Tab back through it. The
             // shift guard has to sit on Tab itself: the keydown reports both keys
@@ -457,7 +563,7 @@ export class MapScreen {
 
     private clickStrip(canvasX: number, canvasY: number): void {
         if (this.maps.length === 0) return;
-        const top = AREA_TOP;
+        const top = STRIP_TOP;
         if (canvasY < top || canvasY >= top + STRIP_H) return;
         const slot = VIEW_W / this.maps.length;
         const index = Math.floor(canvasX / slot);
@@ -469,6 +575,12 @@ export class MapScreen {
     private showMap(mapId: number): void {
         this.displayMapId = mapId;
         this.clearMessage();
+        // The next chart may be narrower and shorter than the cell the cursor is
+        // on — a boss arena is a third of the width and a fifth of the height — and
+        // a cursor outside its chart is a destination the player cannot see.
+        const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
+        this.cursorCol = Math.min(this.cursorCol, width - 1);
+        this.cursorRow = Math.min(this.cursorRow, this.chartedRows(mapId) - 1);
         void this.ensureMap(mapId);
     }
 
@@ -530,12 +642,16 @@ export class MapScreen {
     }
 
     /**
-     * Paint the whole cavern at `scale`, from its own tiles.
+     * Paint the cavern at `scale`, from its own tiles, over its charted rows.
      *
      * `drawStaticTile` (render/dungeon.ts:210) is the reference: tile id 0 is
      * black, ids 1..n are frames of the cavern sheet, and ids 0x40.. are frames of
      * the platform sheet. Anything else has no art and falls back to the class
      * colour, which is all this function knew how to do before.
+     *
+     * The raster stops at the last charted row rather than running the full ring:
+     * the rows below are rock and void, and a boss cavern at 12x is a canvas of
+     * 62,400 near-black pixels that would be drawn and thrown away every frame.
      */
     private rasterize(
         mapId: number,
@@ -544,9 +660,10 @@ export class MapScreen {
         sheets: MapTileSheets | null,
     ): HTMLCanvasElement {
         const classifier = NavTileClassifier.forMap(mapId);
+        const rows = this.chartedRows(mapId);
         const canvas = document.createElement('canvas');
         canvas.width = grid.mapWidth * scale;
-        canvas.height = NAV_MAP_HEIGHT * scale;
+        canvas.height = rows * scale;
         const ctx = canvas.getContext('2d');
         if (!ctx) return canvas;
         ctx.imageSmoothingEnabled = false;
@@ -558,7 +675,7 @@ export class MapScreen {
         const platCols = platforms ? Math.floor(platforms.width / MAP_TILE_PX) : 0;
         const platCount = platforms ? platCols * Math.floor(platforms.height / MAP_TILE_PX) : 0;
 
-        for (let row = 0; row < NAV_MAP_HEIGHT; row++) {
+        for (let row = 0; row < rows; row++) {
             for (let col = 0; col < grid.mapWidth; col++) {
                 const id = grid.tiles[row * grid.mapWidth + col]!;
                 const x = col * scale;
@@ -588,7 +705,7 @@ export class MapScreen {
         }
         // Rope runs read better with a highlight along their length.
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        for (let row = 0; row < NAV_MAP_HEIGHT; row++) {
+        for (let row = 0; row < rows; row++) {
             for (let col = 0; col < grid.mapWidth; col++) {
                 if (!(classifier.classify(grid.tiles[row * grid.mapWidth + col]!) & 2 /* ROPE */)) continue;
                 ctx.fillRect(col * scale, row * scale, scale, Math.max(1, scale >> 1));
@@ -612,8 +729,20 @@ export class MapScreen {
         this.drawTitle(ctx);
         this.drawStrip(ctx);
         this.drawMap(ctx);
+        // Doors and the cursor are placed by map row, and a cavern's ring reaches
+        // past the chart: mp4d's walkable ring at row 61 draws on a chart 62 rows
+        // deep, while a door on the row above the arena's top wraps to row 63. Clip
+        // to what the chart actually shows, or a marker lands on the status line.
+        const { oy, scale } = this.originFor(this.displayMapId);
+        const chartBottom = oy + this.chartedRows(this.displayMapId) * scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, oy, VIEW_W, chartBottom - oy);
+        ctx.clip();
         this.drawMarkers(ctx);
         this.drawCursor(ctx);
+        ctx.restore();
+        this.drawStatus(ctx);
         this.drawHint(ctx, now);
         ctx.restore();
     }
@@ -634,7 +763,7 @@ export class MapScreen {
     private drawStrip(ctx: CanvasRenderingContext2D): void {
         if (this.maps.length === 0) return;
         const slot = VIEW_W / this.maps.length;
-        const top = AREA_TOP;
+        const top = STRIP_TOP;
         ctx.font = FONT_SMALL;
         ctx.textBaseline = 'top';
         for (let i = 0; i < this.maps.length; i++) {
@@ -792,6 +921,41 @@ export class MapScreen {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = Math.max(1, Math.floor(s / 3));
         ctx.strokeRect(x - ctx.lineWidth, y - ctx.lineWidth, s + ctx.lineWidth * 2, s + ctx.lineWidth * 2);
+    }
+
+    /**
+     * Where the hero stands, and where the cursor is pointing.
+     *
+     * Both ends of the route as numbers, because the cavern is a cylinder of 64
+     * rows and up to 320 columns wrapping at both seams: the marker and the cursor
+     * give direction, not position, and the player cannot read "left" off a map
+     * that wraps without knowing the column.
+     *
+     * The two ends are coloured as the marks that locate them — yellow for the
+     * hero wedge, cyan for the cursor — and sit at opposite ends of the line so
+     * they never collide on a wide map, where the coordinate labels are longest.
+     */
+    private drawStatus(ctx: CanvasRenderingContext2D): void {
+        ctx.font = FONT_STATUS;
+        ctx.textBaseline = 'top';
+        const hero = this.deps.heroPosition();
+        if (hero) {
+            // A cavern is only worth naming when it is not the one on screen: bare
+            // numbers from another map would be read as this map's.
+            const heroMap = NAV_MAP_BY_ID.get(hero.mapId);
+            const away = hero.mapId === this.displayMapId || !heroMap
+                ? ''
+                : ` ${shortName(String(heroMap.nameKey))}`;
+            ctx.fillStyle = '#ff0';
+            ctx.fillText(`${this.deps.text('map.hero')} ${hero.col},${hero.row}${away}`, 16, STATUS_TOP);
+        }
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#0ee';
+        ctx.fillText(
+            `${this.deps.text('map.dest')} ${this.cursorCol},${this.cursorRow}`,
+            VIEW_W - 16, STATUS_TOP,
+        );
+        ctx.textAlign = 'left';
     }
 
     private drawHint(ctx: CanvasRenderingContext2D, now: number): void {

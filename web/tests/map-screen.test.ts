@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import { MapScreen, shortName, rokaColour, type MapScreenDeps } from '../src/ui/map-screen.js';
-import { NavGraphStore, type NavRoute } from '../src/engine/nav/pathfinder.js';
+import { NavGraphStore, findRoute, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../src/data/nav/nav-portals.js';
@@ -150,7 +150,7 @@ describe('every string it asks the locale for exists', () => {
         // of thing that gets missed in a busy console, so it is asserted instead.
         // Every key the screen renders...
         const drawn = [
-            'map.title', 'map.hints', 'map.unreachable', 'map.noPath',
+            'map.title', 'map.hints', 'map.hero', 'map.dest', 'map.unreachable', 'map.noPath',
             'map.loading', 'map.noMap', 'map.needsKeys', 'map.needsOneKey',
         ];
         // ...and the one phase 8 will use when cancelling a route.
@@ -175,7 +175,11 @@ describe('every string it asks the locale for exists', () => {
 });
 
 describe('fitting every cavern into the canvas', () => {
-    it('uses an integer scale that keeps the whole map inside the map area', () => {
+    /** The strip band, and the map area below it, in canvas pixels. */
+    const STRIP_BOTTOM = 28 + 26;
+    const AREA_BOTTOM = 390;
+
+    it('uses an integer scale that keeps the chart inside the map area', () => {
         // One screen for the sweep: `enter` warms the reachable component, and the
         // store caches graphs, so a screen per cavern would rebuild the same caverns
         // 31 times over for a test that only measures geometry.
@@ -186,9 +190,11 @@ describe('fitting every cavern into the canvas', () => {
             expect(scale).toBeGreaterThanOrEqual(1);
             const { ox, oy } = screen.originFor(meta.id);
             expect(ox + meta.mapWidth * scale, `${meta.nameKey} width`).toBeLessThanOrEqual(672);
-            expect(oy + 64 * scale, `${meta.nameKey} height`).toBeLessThanOrEqual(412);
+            expect(oy + screen.chartedRows(meta.id) * scale, `${meta.nameKey} height`)
+                .toBeLessThanOrEqual(AREA_BOTTOM);
             expect(ox).toBeGreaterThanOrEqual(0);
-            expect(oy).toBeGreaterThanOrEqual(28);
+            // Below the strip, not merely inside the area that used to contain it.
+            expect(oy, `${meta.nameKey} top`).toBeGreaterThanOrEqual(STRIP_BOTTOM);
         }
     });
 
@@ -202,11 +208,139 @@ describe('fitting every cavern into the canvas', () => {
         }
     });
 
-    it('uses the smallest scale the widest cavern needs', () => {
+    it('fits the widest cavern, and only that one, at 2x', () => {
         const { screen } = harness();
         // 320 tiles is the widest, so 2x is the floor for the whole game.
         expect(screen.scaleFor(8)).toBe(2);      // mp40, 320 wide
-        expect(screen.scaleFor(21)).toBe(6);     // mp73, 73 wide
+    });
+
+    it('draws every boss arena far larger than fitting all 64 rows allowed', () => {
+        // The point of the trimmed chart. Every arena is 52..73 tiles wide and two
+        // thirds filler, so fitting the whole ring held them at 5x — a third under
+        // the width fit — to draw two thirds of nothing. All eight now take the
+        // width, including mp4d, whose chart ends at row 20 once its phantom ring
+        // below is gone (see the next test).
+        const { screen } = harness();
+        const fitEverything = (meta: typeof NAV_MAPS[number]): number =>
+            Math.max(1, Math.min(8, Math.floor(Math.min(672 / meta.mapWidth, 336 / 64))));
+
+        const arenas = NAV_MAPS.filter((m) => m.isBossArena);
+        expect(arenas.length).toBe(8);
+        for (const arena of arenas) {
+            expect(screen.chartedRows(arena.id), arena.nameKey).toBeLessThan(32);
+            expect(screen.scaleFor(arena.id), arena.nameKey)
+                .toBeGreaterThan(fitEverything(arena));
+        }
+        expect(screen.chartedRows(10), 'mp4d').toBe(21);
+        expect(screen.scaleFor(1)).toBe(9);      // mp1d, 73 wide, 18 rows
+        expect(screen.scaleFor(4)).toBe(12);     // mp2d, 52 wide, 20 rows
+        expect(screen.scaleFor(10)).toBe(9);     // mp4d, 73 wide, 21 rows
+        expect(screen.scaleFor(21)).toBe(9);     // mp73, 73 wide, 16 rows
+    });
+
+    it('trims mp4d\'s ring of 73 cells that only the wrap makes standing', () => {
+        // Row 61 of mp4d reads as 73 standing cells in the graph, and every one of
+        // them is standing on row 0's rock: the hero's box is three rows and the
+        // floor check reads the row after his feet, so the tile under him at row 61
+        // is row 64, which the ring wraps to row 0. The rows above are void, so
+        // nothing joins that run to anything — it is an island in the graph, and no
+        // route from the arena reaches it. Counting it held mp4d at 5x while the
+        // other seven arenas drew at 9x.
+        const h = harness();
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const graph = store.get(10)!;
+        const ring = graph.nodes.filter((n) => n.row === 61);
+        expect(ring.length).toBe(73);
+        // Every edge out of the run stays inside row 61.
+        for (const node of ring) {
+            const from = graph.groundOf[61 * graph.mapWidth + node.col]!;
+            for (let e = graph.edgeOffsets[from]!; e < graph.edgeOffsets[from + 1]!; e++) {
+                expect(graph.nodes[graph.edges[e]!.to]!.row).toBe(61);
+            }
+        }
+        // And the engine agrees there is no way there from the arena.
+        const arena = graph.nodes.find((n) => n.kind === 0 && n.row === 15)!;
+        expect(findRoute({
+            store,
+            caps: allCapabilities(),
+            start: { mapId: 10, col: arena.col, row: arena.row },
+            goal: { mapId: 10, col: ring[0]!.col, row: 61 },
+            unlimitedKeys: true,
+        })).toBeNull();
+        expect(h.screen.chartedRows(10), 'the arena, to row 20, and nothing below it').toBe(21);
+    });
+
+it('trims rock and void, and never the ground a standing cell needs', () => {
+        // The safety property of the whole idea: a chart that ended on a standing
+        // cell's own row would end on the floor he is stood on, since the hero's
+        // box is three rows and `groundBelow` reads headRow + 3. mp1d and mp2d
+        // both drew their arena without the ground the hero stands on.
+        const h = harness();
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        for (const meta of NAV_MAPS) {
+            const charted = h.screen.chartedRows(meta.id);
+            expect(charted, meta.nameKey).toBeGreaterThanOrEqual(1);
+            expect(charted, meta.nameKey).toBeLessThanOrEqual(64);
+            const graph = store.get(meta.id)!;
+            for (const node of graph.nodes) {
+                // Support borrowed round the ring is not a place the hero is put.
+                if (node.row + 3 >= 64) continue;
+                expect(node.row + 4, `${meta.nameKey} node at row ${node.row} and its floor`)
+                    .toBeLessThanOrEqual(charted);
+            }
+            // Every door in the cavern has to be on the chart too.
+            for (const index of NAV_PORTALS_BY_MAP[meta.id] ?? []) {
+                const portal = PORTALS[index]!;
+                expect(portal.fromY, `${meta.nameKey} door at row ${portal.fromY}`)
+                    .toBeLessThan(charted);
+            }
+        }
+    });
+
+    it('draws the floor the hero stands on, in the two arenas that lost it', () => {
+        // The check above, stated the way it was reported. mp1d's arena ends at
+        // row 20 and its hero walks on row 15, standing on rock at row 18 — a chart
+        // of 18 rows puts the ground he is stood on off the bottom of it. mp2d's
+        // hero is on row 19 and the rock under him is row 22.
+        const h = harness();
+        expect(h.screen.chartedRows(1), 'mp1d').toBe(19);
+        expect(h.screen.chartedRows(4), 'mp2d').toBe(23);
+        for (const [id, head] of [[1, 15], [4, 19]] as const) {
+            const charted = h.screen.chartedRows(id);
+            expect(head + 3, `map ${id}: the floor under row ${head}`).toBeLessThan(charted);
+        }
+    });
+
+    it('keeps the charted rows, and not the whole ring, on the click map', () => {
+        // A click below the chart is not a cell of the map. It was the whole ring
+        // before, so every click in the space below a boss arena was a destination
+        // the player could not see.
+        const h = harness();
+        for (const id of [1, 4, 21, 0, 8]) {
+            h.screen.displayMapId = id;
+            const { ox, oy, scale } = h.screen.originFor(id);
+            const charted = h.screen.chartedRows(id);
+            const mid = Math.floor(scale / 2);
+            expect(h.screen.tileFromCanvas(ox + mid, oy + mid), `map ${id} in the chart`)
+                .toEqual({ col: 0, row: 0 });
+            if (charted >= 64) continue;
+            expect(h.screen.tileFromCanvas(ox + mid, oy + charted * scale + mid), `map ${id} below`)
+                .toBeNull();
+        }
+    });
+
+    it('keeps the cursor on the chart, whatever map it arrives from', () => {
+        const h = harness();
+        // mp1d is a third of the width and a fifth of the height: a cursor left
+        // where mp10 put it would be a destination drawn off the chart entirely.
+        h.screen.cursorCol = NAV_MAP_BY_ID.get(0)!.mapWidth - 1;
+        h.screen.cursorRow = 63;
+        for (let i = 0; i < NAV_REACHABLE[0]!.length && h.screen.displayMapId !== 1; i++) {
+            h.screen.handleKey('Tab', false, false, false);
+        }
+        expect(h.screen.displayMapId).toBe(1);
+        expect(h.screen.cursorCol).toBeLessThan(NAV_MAP_BY_ID.get(1)!.mapWidth);
+        expect(h.screen.cursorRow).toBeLessThan(h.screen.chartedRows(1));
     });
 });
 
@@ -482,6 +616,64 @@ describe('Tab switches maps, and the arrows only move the cursor', () => {
         const h = harness();
         h.screen.handleKey('Tab', false, true, false);
         expect(NAV_REACHABLE[0]).toContain(h.screen.displayMapId);
+    });
+});
+
+describe('the status line names both ends of the route', () => {
+    /** Every `fillText` of one frame, with where it landed. */
+    function drawn(h: Harness): { text: string; x: number; y: number }[] {
+        const seen: { text: string; x: number; y: number }[] = [];
+        const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string, x: number, y: number) => {
+            seen.push({ text: t, x, y });
+        }) as never);
+        h.draw(0);
+        spy.mockRestore();
+        return seen;
+    }
+
+    it('reports the hero and the cursor in map coordinates', () => {
+        // A cavern wraps at both seams and is up to 320 columns wide, so the
+        // markers give direction and the numbers give the position.
+        const h = harness();
+        h.screen.cursorCol = 77;
+        h.screen.cursorRow = 31;
+        const lines = drawn(h);
+        expect(lines).toContainEqual({ text: `map.hero ${HERO.col},${HERO.row}`, x: 16, y: 394 });
+        expect(lines).toContainEqual({ text: 'map.dest 77,31', x: 672 - 16, y: 394 });
+    });
+
+    it('tracks the cursor as it moves', () => {
+        const h = harness();
+        h.screen.handleKey('ArrowRight', false, false, false);
+        h.screen.handleKey('ArrowDown', false, false, false);
+        const dest = drawn(h).find((l) => l.text.startsWith('map.dest'))!;
+        expect(dest.text).toBe(`map.dest ${HERO.col + 1},${HERO.row + 1}`);
+    });
+
+    it('names the hero\'s cavern when it is not the one on screen', () => {
+        // Without the name, the hero's numbers would be read as belonging to the
+        // map being displayed — which is a different cavern with different columns.
+        const h = harness({ heroPosition: () => ({ mapId: 1, col: 27, row: 15 }) });
+        const hero = drawn(h).find((l) => l.text.startsWith('map.hero'))!;
+        expect(hero.text).toBe('map.hero 27,15 1D');
+    });
+
+    it('draws the hero without a name while the hero\'s own map is on screen', () => {
+        const h = harness();
+        const hero = drawn(h).find((l) => l.text.startsWith('map.hero'))!;
+        expect(hero.text).toBe(`map.hero ${HERO.col},${HERO.row}`);
+    });
+
+    it('sits between the map and the hint line, on the canvas', () => {
+        const h = harness();
+        const lines = drawn(h);
+        const hero = lines.find((l) => l.text.startsWith('map.hero'))!;
+        const hint = lines.find((l) => l.text === 'map.hints')!;
+        // The map area ends at 390, so a 14px line at 394 is the first band that
+        // clears it, and the hint stays the last one the border leaves room for.
+        expect(hero.y).toBe(394);
+        expect(hint.y).toBe(414);
+        expect(hero.y).toBeLessThan(hint.y);
     });
 });
 
