@@ -190,6 +190,13 @@ for (const { id, cavern } of maps) {
             rokademo: d.rokademo,
             exitFacesLeft: d.exitFacesLeft,
             color: d.color,
+            // The savegame byte/bit stamped when the player opens this door
+            // (engine/dungeon-doors.ts:135-137, asm enterOpenedDoor `or [bx], al`).
+            // A door once opened stays open for good, and the engine's door table
+            // only covers the loaded cavern — so this bit is the one persistent
+            // record of "this door is open" the pathfinder can consult.
+            saveAchievementAddr: d.saveAchievementAddr,
+            saveAchievementFlag: d.saveAchievementFlag,
             // Standing position on the source side. enterTheDoor matches
             // heroAbsX === x0 and heroAbsY - 1 === y0 (engine/dungeon-doors.ts:90),
             // so the departure cell is (x0, y0 + 1).

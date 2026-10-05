@@ -246,6 +246,7 @@ import { readPlatformPlaces } from './engine/nav/platform-state.js';
 import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
 import { NavRecorder } from './engine/nav/recorder.js';
 import { NAV_MAP_BY_ID } from './data/nav/nav-maps.js';
+import { PORTALS } from './data/nav/nav-portals.js';
 import { getViewportTop, clearRenderRequest } from './engine/dungeon-state.js';
 import { dungeonFullTick } from './engine/dungeon-tick.js';
 import {
@@ -495,13 +496,15 @@ function openMapScreen(): void {
         ctx,
         store: navGraphStore(),
         // A key in the generated table may have been collected already; the engine
-        // knows which, and a route must not fetch one that is gone.
-        keyPresent: (mapId, col, row, kind) => onThisCavern(mapId)
-            && keysOnFloor.has(`${col},${row},${kind}`),
+        // knows which, and a route must not fetch one that is gone. A cavern that is
+        // not loaded is not known to be anything, so it answers true — the same rule
+        // as `liveDoorOpen`'s null, and the one the comment on `onThisCavern` states.
+        keyPresent: (mapId, col, row, kind) => !onThisCavern(mapId)
+            || keysOnFloor.has(`${col},${row},${kind}`),
         // A pair of shoes, like a key, may have been picked up already — and a pair
         // the player is already carrying is no detour at all.
-        shoePresent: (mapId, col, row, shoe) => onThisCavern(mapId)
-            && shoesOnFloor.has(`${col},${row},${shoe}`),
+        shoePresent: (mapId, col, row, shoe) => !onThisCavern(mapId)
+            || shoesOnFloor.has(`${col},${row},${shoe}`),
         // The map is the cavern's own art, not a class-coloured sketch: the same
         // sheet `drawStaticTile` blits in the live view, so a wall on the map is
         // the colour that wall has in the game. Loaded per map and cached by the
@@ -553,16 +556,55 @@ function onThisCavern(mapId: number): boolean {
 }
 
 /**
+ * The savegame achievement bit that records a door the player has opened.
+ *
+ * `openDoor` and `enterOpenedDoor` OR `d_achievement_flag` into the savegame byte
+ * at `d_save_achievement_addr` (engine/dungeon-doors.ts:135-137, asm
+ * `or [bx], al`), and `remove_accomplished_items` re-applies it to the door
+ * table on every cavern entry. A door once opened stays open for good, so this
+ * bit is the one persistent record of "this door is open" — and it answers for
+ * every cavern, not just the one the engine has loaded.
+ *
+ * Keyed by `mapId,x0,y0` (the door record's own cell, which is what the search
+ * and the map screen ask about). Built once from the generated portal data.
+ */
+const DOOR_ACHIEVEMENTS = new Map<string, { addr: number; flag: number }>();
+for (const p of PORTALS) {
+    if (p.saveAchievementAddr === 0xffff) continue;
+    DOOR_ACHIEVEMENTS.set(`${p.mapId},${p.x0},${p.y0}`, {
+        addr: p.saveAchievementAddr,
+        flag: p.saveAchievementFlag,
+    });
+}
+
+/**
  * Whether the engine currently has a door standing open at (x0, y0) on `mapId`.
  *
- * The live door table (ADDR_DOORS_LIST, 12-byte records) belongs to the loaded
- * cavern only, and `d_flags` bit 7 is the open bit that `openDoor` sets — the same
- * read `enterTheDoor` and `processDoors` make. Null when the table is not the map
- * being browsed, so the caller can answer from level data instead.
+ * Two sources, in order of how far they reach:
+ *
+ *   1. The savegame achievement bit, which the engine stamps when the player
+ *      opens a door and re-applies on every cavern entry. It answers for every
+ *      cavern, so a door the hero opened before crossing into the next one is
+ *      still open from the search's point of view — which is the whole thread
+ *      surviving a door. Without it the search fell back to the level data for
+ *      any cavern but the loaded one, the level data says how the door *shipped*
+ *      (locked), and a hero who had already spent the key could not plan his way
+ *      back through it: the re-plan from the far side found nothing and the
+ *      chevrons stopped at the first door.
+ *   2. The live door table (ADDR_DOORS_LIST, 12-byte records), which belongs to
+ *      the loaded cavern only, and `d_flags` bit 7 is the open bit that
+ *      `openDoor` sets — the same read `enterTheDoor` and `processDoors` make.
+ *
+ * Null when neither source knows the door, so the caller can answer from level
+ * data instead.
  */
 function liveDoorOpen(mapId: number, x0: number, y0: number): boolean | null {
     if (gameMode !== 'dungeon') return null;
     const g = getGmem();
+    const achievement = DOOR_ACHIEVEMENTS.get(`${mapId},${x0},${y0}`);
+    if (achievement) {
+        return (memRead8(g, achievement.addr) & achievement.flag) !== 0;
+    }
     if ((memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f) !== mapId) return null;
     const end = g.length;
     for (let si = memRead16(g, ADDR_DOORS_LIST); si + DOOR_RECORD_SIZE <= end; si += DOOR_RECORD_SIZE) {

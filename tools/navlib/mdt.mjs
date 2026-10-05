@@ -157,6 +157,10 @@ function readDoorAt(bytes, i) {
         needsLionKey: (features & 0x01) !== 0,
         rokademo: (features & 0x80) !== 0,
         features,
+        /** d_save_achievement_addr: savegame byte stamped when the door is opened. */
+        saveAchievementAddr: word(bytes, i + 9),
+        /** d_achievement_flag: mask ORed into that byte (engine/dungeon-doors.ts:135-137). */
+        saveAchievementFlag: bytes[i + 11] & 0xff,
     };
 }
 
