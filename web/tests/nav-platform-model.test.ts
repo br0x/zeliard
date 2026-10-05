@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import {
-    buildPlatformModel, isLandingSlot, HORIZONTAL_RIDE_OFFSETS, PLATFORM_HORIZONTAL,
+    buildPlatformModel, isLandingSlot, HORIZONTAL_RIDE_OFFSETS, PLATFORM_HORIZONTAL, PLATFORM_WIDTH,
     REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
 } from '../src/engine/nav/platforms.js';
 import {
@@ -354,7 +354,16 @@ describe('a platform is a thing, not a place', () => {
             }
             for (const p of NAV_PLATFORMS[meta.id]!.horizontal) {
                 if (p.speed === 0) continue;
-                for (let i = 0; i < p.cols; i++) {
+                // THREE tiles, not `p.cols`. A horizontal platform's `cols` is the
+                // length of the span it travels, which is a different number: mp10's
+                // row-59 platform has `cols: 14` and is three tiles wide. Marking the
+                // span made a fourteen-tile wall out of a three-tile ledge, and a
+                // flight could not cross a span the hero had just ridden — every jump
+                // off mp10's row-59 platform stopped on the row-56 ledge instead of
+                // clearing to (57,59), which is the hop the bare route to (128,33)
+                // needs. The ride itself still covers the whole span; only the solid
+                // footprint is three tiles.
+                for (let i = 0; i < PLATFORM_WIDTH; i++) {
                     want.add(`${wrapCol(p.startX + i, meta.mapWidth)},${p.y}`);
                 }
             }

@@ -281,16 +281,28 @@ export function buildNavGraph(
     // three, so the platform tile itself is at `headRow + 3`; marking the slot cell
     // instead would tell the model a hero lands one row too high and never on it.
     //
-    // Only the row a platform is standing at right now is a landing surface. It is
-    // three solid tiles and the hero can only come down on top of it, so where it
-    // stands is the only row he can land on; every other row of its travel is
-    // something he reaches by riding it, not by jumping at it. Marking the whole
-    // travel range made a jump onto a platform that was nowhere near that row look
-    // possible — and, with `restingCells` below, a flight through where the platform
-    // actually is look possible too. `isLandingSlot` is the rule; platforms.ts says
-    // why, and the overlay asks the same function.
+    // A platform is a landing surface only on the row it is standing at right now,
+    // and *that rule is different for the two families*, because they travel on
+    // different axes.
+    //
+    // A **vertical** platform moves up and down. It has one row, so `isLandingSlot`
+    // — the row it is on — is the whole of it: a hero cannot come down on the row it
+    // will be on in two seconds' time, only the one under him now.
+    //
+    // A **horizontal** platform moves sideways at a fixed row. Every column of its
+    // span is a row it *will be at*, and it goes there and comes back, so a hero who
+    // falls anywhere along the span is landed on when it arrives under him. The whole
+    // span is therefore landable, and restricting it to `isLandingSlot` threw away a
+    // move the player made: in mp80 he jumps off the ledge at `(181,47)`, falls past
+    // the row 54 platform and lands on it at `(163,51)`, rides it west to `(149,51)`
+    // and steps off — the search cannot get to the goal at all without that fall,
+    // because `(149,0)` above it is not a standing position.
     const platformCells = new Uint8Array(cells);
     for (const slot of platforms.slots) {
+        if (slot.kind === PLATFORM_HORIZONTAL) {
+            platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
+            continue;
+        }
         if (!isLandingSlot(slot)) continue;
         platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
@@ -641,10 +653,33 @@ export function buildNavGraph(
             }
         }
 
-        // Board a platform whose slot occupies this exact position.
+        // Board a platform. This is a **one-tile step onto** the slot, not a boarding
+        // in place, because that is what the engine does: `moveHeroLeftIfNoObstacles`
+        // / `moveHeroRightIfNoObstacles` shift the hero a column (engine/dungeon-hero.ts:218-275)
+        // and the platform's tile lands under his middle foot in the same frame, so he
+        // is up on it one column to the side of where he was standing.
+        //
+        // mp10's row-53 platform is boarded exactly that way and only that way. Its
+        // span is columns 32..53 over a pit that has no map floor anywhere between
+        // columns 31 and 54, so the only standing position at the east end is the
+        // cliff edge at `(55,50)`; the hero waits there, the platform arrives at its
+        // rightmost position `P = 53`, and he steps left to `(54,50)`. Requiring a
+        // ride slot to sit on the *same* cell as the ground node made that impossible,
+        // and the corridor was unreachable even though the recording walks its length.
+        //
+        // Both cases are kept. Same-cell is a real thing — a platform parked over map
+        // ground is boarded where he already stands — and the step is how he gets on
+        // when the platform comes to him.
         for (let slotIndex = 0; slotIndex < platforms.slots.length; slotIndex++) {
             const slot = platforms.slots[slotIndex]!;
-            if (slot.leftCol !== node.col || slot.headRow !== node.row) continue;
+            if (slot.headRow !== node.row) continue;
+            if (slot.leftCol !== node.col && Math.abs(slot.leftCol - node.col) !== 1) continue;
+            if (slot.leftCol !== node.col
+                && !heroCanStepSideways(grid, classifier, node.col, node.row,
+                    slot.leftCol > node.col ? 1 : -1)) continue;
+            if (slot.leftCol !== node.col
+                && blockedByCounterCurrent(grid, classifier, slot.leftCol, node.row,
+                    slot.leftCol > node.col ? 1 : -1)) continue;
             const rideNode = rideOf[slotIndex]!;
             if (rideNode >= 0) add(index, rideNode, EDGE.BOARD, EDGE_COST.BOARD);
         }

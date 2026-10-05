@@ -13,17 +13,17 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import { NavGraphStore, findRoute, type NavHop, type NavRoute } from '../src/engine/nav/pathfinder.js';
-import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
+import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt } from '../src/engine/nav/geometry.js';
 import { JumpModel } from '../src/engine/nav/jump.js';
-import { EDGE, EDGE_NAMES, NAV, CAP, blocksBody } from '../src/engine/nav/types.js';
+import { EDGE, EDGE_NAMES, NAV, CAP, KEY_ORDINARY, blocksBody } from '../src/engine/nav/types.js';
 import { nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { NAV_KEYS } from '../src/data/nav/nav-keys.js';
-import { NAV_BOSS_EXITS } from '../src/data/nav/nav-portals.js';
+import { NAV_BOSS_EXITS, PORTALS } from '../src/data/nav/nav-portals.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const store = new NavGraphStore((id) => {
@@ -636,5 +636,197 @@ describe('a few more real journeys', () => {
         // effect at all there would be no route-hood difference anywhere; the
         // count is reported so a regression to zero is visible.
         expect(disagreed).toBeGreaterThanOrEqual(0);
+    });
+});
+
+/**
+ * Every node the hero can stand on, reached from one place with one capability
+ * mask — a flood, not a search.
+ *
+ * Keys are counted the way the search counts them, which is what makes this usable
+ * as a check against a recording: pick a key up on stepping onto a node that
+ * carries one, spend one on an ordinary door. The recording walks through a locked
+ * door having already collected the key, so the flood has to be allowed to as well.
+ *
+ * A node is revisited whenever more keys arrive than it was last reached with,
+ * because the only thing more keys buy is a door. Lion-Head keys are not counted,
+ * so a Lion-Head door stays shut and a route that wants one has to say so.
+ */
+function floodFrom(
+    start: { mapId: number; col: number; row: number },
+    caps: HeroCapabilities,
+): Map<number, Uint8Array> {
+    const mask = CAP.CLIMB;
+    // A hero cannot be holding more keys than the game contains, and the cap is what
+    // makes the fixed point terminate: without it, standing on the same key cell
+    // again on a loop would raise the count for ever.
+    let keyCap = 0;
+    for (const keys of Object.values(NAV_KEYS)) {
+        for (const k of keys) if (k.kind === 0) keyCap++;
+    }
+    const reached = new Map<number, Uint8Array>();
+    const bestKeys = new Map<number, Int32Array>();
+    const queue: Array<{ mapId: number; node: number; keys: number }> = [];
+    const push = (mapId: number, node: number, keys: number): void => {
+        const g = store.get(mapId)!;
+        let s = reached.get(mapId);
+        if (!s) {
+            s = new Uint8Array(g.nodes.length);
+            reached.set(mapId, s);
+        }
+        let best = bestKeys.get(mapId);
+        if (!best) {
+            best = new Int32Array(g.nodes.length).fill(-1);
+            bestKeys.set(mapId, best);
+        }
+        if (keys <= best[node]!) return;
+        best[node] = keys;
+        s[node] = 1;
+        queue.push({ mapId, node, keys });
+    };
+    const g0 = store.get(start.mapId)!;
+    push(start.mapId, nodeAt(g0, start.col, start.row)!, caps.keys);
+    while (queue.length) {
+        const cur = queue.pop()!;
+        const g = store.get(cur.mapId)!;
+        const keys = Math.min(keyCap, cur.keys + (g.keyKindAt[cur.node] === KEY_ORDINARY ? 1 : 0));
+        for (let i = g.edgeOffsets[cur.node]!; i < g.edgeOffsets[cur.node + 1]!; i++) {
+            const e = g.edges[i]!;
+            if ((e.req & ~mask) !== 0) continue;
+            if ((g.nodeHazard[e.to]! & 1) !== 0) continue;
+            push(cur.mapId, e.to, keys);
+        }
+        const pi = g.portalAtNode[cur.node]!;
+        if (pi >= 0) {
+            const p = PORTALS[pi]!;
+            if (p.toTown) continue;
+            if (p.key === 1 && keys < 1) continue;
+            if (p.key === 2) continue;                    // a Lion-Head key, uncounted
+            const dg = store.get(p.destMapId);
+            if (dg) {
+                const dn = nodeAt(dg, p.toX, p.toY);
+                if (dn >= 0) push(p.destMapId, dn, keys - p.key);
+            }
+        }
+        const ei = g.bossExitAtNode[cur.node]!;
+        if (ei >= 0) {
+            const ex = NAV_BOSS_EXITS[ei]!;
+            const dg = store.get(ex.destMapId);
+            if (dg) {
+                const dn = nodeAt(dg, ex.destX, ex.destY);
+                if (dn >= 0) push(ex.destMapId, dn, keys);
+            }
+        }
+    }
+    return reached;
+}
+
+describe('mp10: the whole of level 1, bare', () => {
+    // The trip the player walked with no accessory at all, recorded end to end in
+    // WORK/DOC/level1.txt: from the town-door standing position at (61,7) to the
+    // other one at (128,33). 1364 recorded standing cells, and it needs no shoes —
+    // no slope climbing, no high jump, and nothing walked on aggressive ground.
+    //
+    // Three defects stood between the search and this route, all in the same place,
+    // and all from treating a horizontal platform as if it were a place:
+    //
+    //   1. **Its footprint.** `restingCells` marked `p.cols` tiles solid — fourteen,
+    //      for mp10's row-59 platform — instead of the three it actually is. That is
+    //      a fourteen-tile wall where a three-tile ledge belongs, and the row-56
+    //      corridor sat behind it: nothing could jump clear of the platform at all.
+    //
+    //   2. **Its landing surface.** A horizontal platform moves in *columns* at a
+    //      fixed row and sweeps its whole span, so every column of that span is a
+    //      row it will be at. Marking only the column it stands at — right for a
+    //      *vertical* platform, which moves in rows and has exactly one — made 181
+    //      horizontal slots places no falling hero could arrive at, and this route
+    //      needs two of them: it falls onto the row-53 platform at (53,50) and onto
+    //      the row-59 one at (46,56).
+    //
+    //   3. **Boarding.** A slot was only boardable from a ground node standing on the
+    //      same cell. But `moveHeroLeftIfNoObstacles` / `moveHeroRightIfNoObstacles`
+    //      shift the hero one column, and the platform's tile lands under his middle
+    //      foot in the same frame, so he is up on it a column to the side of where
+    //      he stood. On mp10's row-53 platform that is the only way on: the span is
+    //      columns 32..53 over a pit with no map floor between 31 and 54, so the hero
+    //      waits on the cliff edge at (55,50), the platform arrives at its rightmost
+    //      position, and he steps left onto the slot.
+    //
+    // The route spends one ordinary key. It crosses to mp21 and back for the key at
+    // mp10(99,41), then goes through the locked door at mp10(26,16) into the boss
+    // room mp1d, whose exit is the row-33 corridor the goal stands in. A boss room is
+    // a passage rather than a wall, and a key is an item rather than an accessory —
+    // neither is `equipment`, which is what "bare" is about.
+    const START = { mapId: 0, col: 61, row: 7 } as const;
+    const GOAL = { mapId: 0, col: 128, row: 33 } as const;
+    const ALL_MAPS = [...NAV_MAP_BY_ID.keys()];
+
+    const route = () => findRoute({
+        store, caps: bareCapabilities(), maps: ALL_MAPS, collectKeys: true,
+        start: START, goal: GOAL,
+    });
+
+    it('is found with no accessory at all', () => {
+        expect(route(), 'bare route mp10 (61,7) -> (128,33)').not.toBeNull();
+    });
+
+    it('asks for no equipment and crosses nothing that needs one', () => {
+        const r = route()!;
+        expect(r.equipment, 'equipment on a bare route').toEqual([]);
+        expect(r.crossesAggressiveGround, 'aggressive ground').toBe(false);
+        expect(r.crossesSlopes, 'slopes').toBe(false);
+        expect(r.usesCurrents, 'currents').toBe(false);
+    });
+
+    it('spends one key on the locked door, which is the only one there is', () => {
+        const r = route()!;
+        expect(r.keysSpent.ordinary).toBe(1);
+        expect(r.keysSpent.lion).toBe(0);
+        expect(r.keysGained.ordinary).toBeGreaterThanOrEqual(1);
+        expect(r.lockedDoors.ordinary).toBe(1);
+    });
+
+    it('uses both horizontal platforms, the way the recording does', () => {
+        // The two legs the fourteen-tile wall and the span of the platform made
+        // impossible. The row-53 one: the cliff edge at (55,50) the hero waits on,
+        // the slot the platform carries him to, and the far cliff he steps off at.
+        // The row-59 one: the platform at (46,56), and the ledge at (57,59) that the
+        // hop off it has to clear to.
+        const on = new Set(route()!.points.map((p) => `${p.mapId}:${p.col},${p.row}`));
+        expect(on.has('0:55,50'), 'waits on the cliff edge at (55,50)').toBe(true);
+        expect(on.has('0:53,50'), 'the row-53 platform carries him to (53,50)').toBe(true);
+        expect(on.has('0:31,50'), 'rides it to (31,50)').toBe(true);
+        expect(on.has('0:30,50'), 'steps off onto the cliff at (30,50)').toBe(true);
+        expect(on.has('0:46,56'), 'the row-59 platform at (46,56)').toBe(true);
+        expect(on.has('0:57,59'), 'the ledge at (57,59) past it').toBe(true);
+    });
+
+    it('never passes through solid rock', () => {
+        expect(solidCrossings(route()!)).toEqual([]);
+    });
+
+    it('reaches every standing position the recording reaches', () => {
+        // The bisect that found all three defects, kept as a standing check: walk
+        // the recording in order and report the first cell a bare hero cannot get to.
+        // It is the cheapest possible statement that the graph agrees with a walk
+        // through every mechanic in the cavern.
+        const raw = readFileSync(resolve(REPO, 'WORK/DOC/level1.txt'), 'utf8').replace(/\\n/g, '\n');
+        const reached = floodFrom(START, bareCapabilities());
+        const missed: string[] = [];
+        for (const line of raw.split('\n')) {
+            const m = /^\s*map\s+(\d+)\s+\(\s*(\d+),\s*(\d+)\)\s+x\s+\w+\s+(.*)$/.exec(line);
+            if (!m) continue;
+            if (m[4]!.includes('airborne')) continue;    // flew through, not stood on
+            const mapId = +m[1]!;
+            const col = +m[2]!;
+            const row = +m[3]!;
+            const g = store.get(mapId);
+            if (!g) continue;
+            const node = nodeAt(g, col, row);
+            if (node < 0) continue;
+            if (reached.get(mapId)?.[node]) continue;
+            missed.push(`${NAV_MAP_BY_ID.get(mapId)?.nameKey}(${col},${row})`);
+        }
+        expect(missed, 'recorded standing cells a bare hero cannot reach').toEqual([]);
     });
 });

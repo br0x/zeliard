@@ -4668,7 +4668,13 @@ the node the graph holds for `(35,56)` is the *other* slot there, whose chain st
 a column further along. Riding is now generated per cell — every slot in a cell to
 every slot in the cell beside it — instead of by `slot.next`.
 
-### 24.3 What is still missing
+### 24.3 What is still missing — **superseded by §25**
+
+> **This section is wrong and §25 replaces it.** The walk below is a plain jump, not
+> a slope slide: the duplicate `(52,54)` in it is the frame the rise stops on, and the
+> whole arc is one flight with a locked steer. Nothing is missing from the flight
+> model; three things were wrong about horizontal platforms. §24.3's list of what
+> "the next piece" should be — a slide traversal — is not to be worked on.
 
 **[measured]** the first cell on the recorded walk the graph still cannot reach is
 **`mp10(58,59)`**. The hero got there from the row-56 platform: riding to `(49,56)`,
@@ -4682,3 +4688,99 @@ So the next piece is the **slide**: a hero on a slope does not fall, he is carri
 down it a row at a time in whichever direction the slope runs, which is a traversal
 the flight model does not have. The recording gives its exact shape — nine cells from
 `(49,56)` to `(58,59)` — and §23.4's harness work is what will settle it.
+
+## 25. §24.3 was wrong, and the whole of level 1 is found
+
+§24.3 read the walk out of `(49,56)` as a **slope slide** and said the flight model
+could not produce it. That reading was wrong, and the graph was not missing a
+traversal at all — it was misreading horizontal platforms. §24.3's own arithmetic
+gave the game away: it printed `(52,54)` twice out of a nine-cell arc, and a jump
+that puts him two columns across in one row *is* a jump. The rise stops on the frame
+the height cap is reached (`jump_press_handler`, `dungeon-hero.ts:319-360`) and he
+still steps sideways that frame, which is what the duplicate cell was.
+
+### 25.1 How it was found
+
+Not by reading the model — by **bisecting the recording**: walk it in order and report
+the first standing cell a bare hero cannot reach. That is now a test
+(`nav-route-cases.test.ts`, *"reaches every standing position the recording
+reaches"*), because it is the cheapest statement that the graph agrees with a walk
+through every mechanic in the cavern.
+
+It moved three times, each time exposing a different mistake about platforms:
+
+| | first unreachable cell | what it was |
+| --- | --- | --- |
+| 1 | `mp10(30,50)` | the row-53 platform could not be boarded from the east |
+| 2 | `mp1d(27,15)` | the key door, once the corridor was reachable |
+| 3 | — | nothing |
+
+### 25.2 The three defects
+
+All three are the same mistake: treating a platform as a *place* — a set of cells —
+when it is a *thing* that is somewhere.
+
+**One: the footprint was the span, not the platform.** `restingCells` marked
+`p.cols` tiles solid. `cols` is the length of the span the platform *travels*; the
+platform is three tiles (`update_and_render_horiz_platforms` draws `0x46 0x47 0x48`,
+`dungeon-platforms.ts:234-243`), and so are the other two families. For mp10's row-59
+platform that is a **fourteen-tile wall where a three-tile ledge belongs**, sealing
+columns 43..56, and every jump off it stopped on the row-56 ledge instead of
+clearing to `(57,59)`. `PLATFORM_WIDTH = 3`, and the three is now a named constant
+with the three call sites that say why.
+
+**Two: the landing surface was where it stands, not where it goes.** §21 restricted
+landings to `isLandingSlot` — the column a platform is standing at — and justified it
+as "waiting buys a ride, not a landing". That is right for a **vertical** platform,
+which moves in rows and has exactly one of them: a hero cannot come down on the row
+it will be on in two seconds. It is wrong for a **horizontal** one, which moves in
+*columns* at a fixed row and sweeps its whole span, going there and back. Every column
+of that span is a row it will be at, so every column of it is a landing, and the
+hero who falls anywhere along it is landed on when it arrives under him. That
+withheld **181 horizontal slots**, and it cost mp80 its goal: from the ledge at
+`(181,47)` the player falls onto the row-54 platform at `(163,51)`, rides it west to
+`(149,51)` and steps off. Withhold that fall and `(151,6)` is unreachable from
+anywhere, because `(149,0)` above it is not a standing position.
+
+The rule is now per family: `slot.kind === PLATFORM_HORIZONTAL` marks the whole
+span, everything else stays `isLandingSlot`.
+
+**Three: boarding is a step, not a teleport.** A slot was boardable only from a
+ground node standing on the *same* cell. But `moveHeroLeftIfNoObstacles` /
+`moveHeroRightIfNoObstacles` shift the hero one column (`dungeon-hero.ts:218-275`) and
+the platform's tile lands under his middle foot in the same frame, so he is up on it
+a column to the side of where he was standing. On mp10's row-53 platform that is the
+*only* way on: the span is columns 32..53 over a pit with no map floor between 31 and
+54, so the hero waits on the cliff edge at `(55,50)`, the platform arrives at its
+rightmost position, and he steps left onto the slot. `BOARD` now also goes to the
+cell beside, gated on `heroCanStepSideways` and the counter-current check, the same
+two the walk beside a rope uses.
+
+### 25.3 The result
+
+`findRoute(bareCapabilities(), mp10(61,7) → mp10(128,33))` — 752 points, cost 1030,
+`equipment: []`. No shoes, no slope, no high jump, no aggressive ground. It spends one
+ordinary key: it crosses to mp21 and back for the key at `mp10(99,41)`, then goes
+through the locked door at `mp10(26,16)` into the boss room `mp1d`, whose exit is the
+row-33 corridor the goal stands in. A boss room is a passage, not a wall (§20), and a
+key is an item, not an accessory — neither is `equipment`, which is what "bare" means.
+
+The route crosses both of mp10's horizontal platforms, in the way the recording does:
+it waits on the cliff at `(55,50)`, falls onto the row-53 platform as it arrives,
+rides it to `(31,50)` and alights on the far cliff at `(30,50)`; then later it falls
+onto the row-59 platform at `(46,56)` and jumps clear to `(57,59)` — the hop §24.3
+thought unreachable.
+
+**Tests.** 945 pass, `tsc --noEmit` clean. Three existing tests pinned the wrong rule
+and were rewritten rather than relaxed: the platform-footprint expectation in
+`nav-platform-model.test.ts`, the jump-edge differential mask in `nav-graph.test.ts`
+(which had to be taught the per-family rule or it compared the graph against a model
+built on the old one), and the ride-slot entry count, 5542 → 5543 live and 6 → 5 dead.
+
+**What is still true.** §21.2's riding offsets — `leftCol = platformCol - 2 ..
+platformCol` — are unchanged, and were tried both ways while chasing this. They are
+right: the hero's *middle foot* is what the floor check reads
+(`checkFloorForLanding`, `dungeon-vertical.ts:488-504`), and at `leftCol = P + 1` that
+foot is on the platform's middle tile with nothing under him, so he falls. The one
+column the offsets do *not* reach is `P + 1`, and the route reaches the row-53
+platform at `(53,50)` — `P - 1` — not at `(54,50)`.

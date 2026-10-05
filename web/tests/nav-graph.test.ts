@@ -19,7 +19,7 @@ import {
     buildNavGraph, edgesOf, forEachEdge, nodeAt,
     NODE_GROUND, NODE_ROPE, NODE_RIDE,
 } from '../src/engine/nav/nav-graph.js';
-import { buildPlatformModel, isLandingSlot } from '../src/engine/nav/platforms.js';
+import { buildPlatformModel, isLandingSlot, PLATFORM_HORIZONTAL } from '../src/engine/nav/platforms.js';
 import { liftSweptCell } from '../src/engine/nav/nav-graph.js';import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { JumpModel, LANDING_STRIDE, readLanding } from '../src/engine/nav/jump.js';
@@ -180,23 +180,20 @@ describe('nodes are positions the hero can occupy', () => {
         // the chain in one direction, so every lift could be ridden down but never up
         // and the top of it had no way in: 194 to 185.
         //
-        // Then a slot became a landing surface only where its platform is standing.
-        // That is one slot among the vertical and collapsing families — `chain` already
-        // links every slot of a multi-row platform to its neighbour, so riding is the
-        // entry that survives, and landing was only ever the entry for a platform with
-        // a single rideable row.
-        //
-        // And 181 more among horizontal platforms, which is the same rule and the
-        // correction that came with it. A horizontal platform is standing at its
-        // `startX` like any other, so only that column of its span is a landing; the
-        // rest is rideable and boardable from beside it, and no longer a place a
-        // falling hero can be dropped onto. Those slots were reachable before by a
-        // flight that ends in mid-air over a platform fifteen columns from where it
-        // is. mp10's row-43 platform is the case: `(6,32) -> (7,40)` was a fall onto
-        // column 9 of a platform standing at column 7, and then a run of two-column
-        // "rides" along a span he had no way to be on.
-        expect(live, 'ride slots with no entry at all').toBe(5542);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(6);
+        // Then a slot's landing surface was narrowed to where its platform is standing.
+        // That is right for a **vertical** platform, which moves in rows and has
+        // exactly one of them — but wrong for a **horizontal** one, which moves in
+        // columns at a fixed row and sweeps its whole span. Every column of that span
+        // is a row it will be at, and it goes there and comes back, so a hero who
+        // falls anywhere along it is landed on when the platform arrives under him.
+        // Requiring the standing column made 181 horizontal slots into positions
+        // nothing could be dropped onto, and lost the move the player made in mp80:
+        // from the ledge at `(181,47)` he falls onto the row-54 platform at `(163,51)`,
+        // rides it west to `(149,51)` and steps off. Withholding that fall the search
+        // cannot reach `(151,6)` at all, because `(149,0)` above it is not a standing
+        // position.
+        expect(live, 'ride slots with no entry at all').toBe(5543);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(5);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -457,14 +454,17 @@ describe('jumps are the model\'s, not a table of guesses', () => {
 // The same masks the graph hands the model, so a jump onto a platform
             // or into an up current is compared as a landing rather than reported
             // missing. A platform is marked under the hero's middle foot, three rows
-            // below the slot, and only where the platform is standing right now; a
-            // current is marked wherever `heroInLift` holds him. The tiles the
-            // platforms are standing on come along too, or a flight the graph
-            // refused because it passed through one looks possible here.
+            // below the slot; a **vertical** platform is a landing only on the row it
+            // is standing at now, because it moves in rows. A **horizontal** one moves
+            // in columns at a fixed row and sweeps its whole span, so every column of
+            // the span is a landing — that is the rule the graph uses, and this mask
+            // has to be the same one. A current is marked wherever `heroInLift` holds
+            // him. The tiles the platforms are standing on come along too, or a flight
+            // the graph refused because it passed through one looks possible here.
             const platforms = buildPlatformModel(meta.id, grid);
             const slots = new Uint8Array(meta.mapWidth * 64);
             for (const slot of platforms.slots) {
-                if (!isLandingSlot(slot)) continue;
+                if (slot.kind !== PLATFORM_HORIZONTAL && !isLandingSlot(slot)) continue;
                 slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
             }
             const currents = new Uint8Array(meta.mapWidth * 64);

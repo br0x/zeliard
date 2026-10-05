@@ -81,6 +81,17 @@ export const REASON_SINGLE_ROW = 'only one rideable row, so it cannot move';
  * Each column of the span therefore offers three riding positions, and they all
  * ride together at the same offset — see the linking below.
  */
+/**
+ * How many tiles wide a platform is.
+ *
+ * Three for every family: `update_and_render_horiz_platforms` draws `0x46 0x47 0x48`,
+ * `render_vertical_platforms_to_proximity` draws `0x40 0x41 0x42` and
+ * `process_visible_collapsing_platforms` draws `0x43 0x44 0x45`. A horizontal
+ * platform's `cols` is the length of the span it travels, which is a different
+ * number and much larger.
+ */
+export const PLATFORM_WIDTH = 3;
+
 export const HORIZONTAL_RIDE_OFFSETS: readonly number[] = [-2, -1, 0];
 
 /**
@@ -306,7 +317,14 @@ export function buildPlatformModel(
     // treating it as one is how a route came to claim that he falls onto a platform
     // that is fifteen columns away from where it stands.
     for (const p of tables.horizontal) {
-        if (p.speed !== 0) rest(wrapCol(p.startX, mapWidth), wrapRow(p.y), p.cols);
+        // THREE tiles, not `p.cols`. `cols` is the length of the span the platform
+        // travels, which is what the ride is made of; the platform itself is the three
+        // tiles `update_and_render_horiz_platforms` draws (dungeon-platforms.ts:234-243).
+        // Marking the whole span solid made a fourteen-tile wall out of a three-tile
+        // ledge, and a flight could not cross a span it had just ridden: mp10's platform
+        // at row 59 sealed columns 43..56, so every jump off it stopped on the row-56
+        // ledge instead of clearing to (57,59) — the hop the route to (128,33) needs.
+        if (p.speed !== 0) rest(wrapCol(p.startX, mapWidth), wrapRow(p.y), PLATFORM_WIDTH);
         if (p.speed === 0) {
             // Frozen: a static ledge the hero stands on, not a lift.
             inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_FROZEN });
