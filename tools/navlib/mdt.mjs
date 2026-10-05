@@ -262,6 +262,69 @@ export function readKeys(bytes, monstersPtr, bound) {
     return out;
 }
 
+/**
+ * Shoe pickups out of the same 16-byte entity records as the keys.
+ *
+ * A pair is an **item lying in the cavern**: the hero walks over it and it goes into
+ * his inventory (`put_shoes_to_inventory`, engine/dungeon-items.ts:182-187), where
+ * it stays. He may wear any pair he holds, or none — so unlike a key, which is
+ * spent on the door it opens, a shoe is never consumed and a route that needs two
+ * different pairs collects two.
+ *
+ * Two handlers pick a pair up, and which pair comes off the **cavern level**, not
+ * off the record:
+ *
+ *   +0x1A  `flag1a` (engine/dungeon-items.ts:436-458) — level 4 Ruzeria, level 5
+ *          Pirika, level 6 and up Silkarn;
+ *   +0x1E  `flag1e` (:430-433) — Feruza, on every level.
+ *
+ * So the same record means different shoes in different caverns, which is why this
+ * takes the level and cannot be a lookup table.
+ *
+ * The handler code is readable from either byte, because a record goes through
+ * `flag_13` first: `flag13`'s pickup branch copies `+9` over `+4` and masks it to
+ * `| 0x60` (engine/dungeon-items.ts:267-281), so a record that has not been
+ * touched yet carries its handler in `+9` and one that has carries it in `+4`. In
+ * the shipped data mp40's is in `+4` and mp50/mp60/mp62's are in `+9`; both are the
+ * same pickup.
+ *
+ * @returns {{col: number, row: number, shoe: NavShoeKind}[]}
+ */
+export function readAccessories(bytes, monstersPtr, bound, cavernLevel) {
+    const start = ptrToOffset(monstersPtr, bytes.length);
+    if (start === null) return [];
+    const out = [];
+    for (let i = start; i + 15 < (bound ?? bytes.length); i += 16) {
+        const x = word(bytes, i);
+        if (x === 0xffff) break;
+        const handler = pickShoeHandler(bytes[i + 4] & 0x1f, bytes[i + 9] & 0x1f);
+        if (!handler) continue;
+        out.push({
+            col: x & 0xff,
+            row: bytes[i + 2] & 0xff,
+            shoe: handler === 0x1e ? 'feruza' : levelShoe(cavernLevel),
+        });
+    }
+    return out;
+}
+
+/** 0x1E Feruza, 0x1A the level-dependent pair, or null for anything else. */
+function pickShoeHandler(flags, aiState) {
+    for (const candidate of [flags, aiState]) {
+        if (candidate === 0x1a || candidate === 0x1e) return candidate;
+    }
+    return null;
+}
+
+/** Which pair `flag1a` hands over on this level. */
+function levelShoe(cavernLevel) {
+    switch ((cavernLevel - 4) & 0xff) {
+        case 0: return 'ruzeria';
+        case 1: return 'pirika';
+        default: return 'silkarn';
+    }
+}
+
 /** 3-byte `{x: word, y: byte}` entries — vertical and collapsing platforms. */
 export function readVerticalPlatforms(bytes, ptr, bound) {
     const start = ptrToOffset(ptr, bytes.length);
@@ -333,6 +396,9 @@ export function readCavern(bytes) {
          * length is its bound; no header pointer sits beyond it.
          */
         keys: readKeys(bytes, header.monsters, bytes.length),
+        accessories: readAccessories(
+            bytes, header.monsters, bytes.length, header.cavernLevel,
+        ),
         /**
          * The door a boss arena grows when its boss dies, or null on every other
          * map. See {@link readPostBossDoor}: the record lives in the file, but the

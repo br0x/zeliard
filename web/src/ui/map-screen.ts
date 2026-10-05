@@ -175,6 +175,15 @@ export interface MapScreenDeps {
      */
     keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
     /**
+     * Whether a pair of shoes is still lying where the generated table says.
+     *
+     * Same reason as {@link keyPresent} — the engine drops an item the player has
+     * already taken from the entity list at dungeon init (engine/dungeon-init.ts:75) —
+     * and the same default: with nothing to ask, every pair is assumed to be there,
+     * which is right for a fresh game.
+     */
+    shoePresent?: (mapId: number, col: number, row: number, shoe: number) => boolean;
+    /**
      * Whether a door stands open right now, or null when the answer is not known.
      *
      * The cavern a door is on is not necessarily the one the hero stands in, and
@@ -470,37 +479,65 @@ export class MapScreen {
         const to = { mapId: this.displayMapId, col: node.col, row: node.row };
         const caps = this.deps.capabilities();
 
-        // 1. With the keys in his pocket: the route as it stands today.
+        // Four rungs, and the order is what makes the screen's answer the route the
+        // player asked for rather than merely the shortest one. Shoes cost the hero
+        // nothing — he changes them between steps, so a route that needs them is
+        // never refused — but the route this feature exists to produce is one that
+        // needs nothing at all, so a route with no accessory on it is built first and
+        // the shoe route is the last thing offered.
+        //
+        // mp10 is the case that fixes the order. From (61,7) to the town door at
+        // (128,33) there are two answers: the bare one, 752 points and cost 1030,
+        // which crosses to mp21 for the key at (99,41), comes back, spends it on the
+        // locked door at (26,16) and leaves the boss arena at (141,33); and the shoe
+        // one, 121 points and cost 167, a Feruza four-tile jump at (155,37) over the
+        // Silkarn slope, which is the corridor's only other way in. Asked with the
+        // shoes rung first the screen offered the 121, and the bare route was never
+        // built at all.
+
+        // 1. What he has: the keys in his pocket, the doors as they stand, and the
+        //    accessory he is wearing.
         const held = findRoute({ store: this.deps.store, caps, start: from, goal: to });
         if (held) return this.accept(held);
 
-        // 1b. The same, counting on shoes the player can put on. A slope wants
-        //     Silkarn's and a four-tile jump wants Feruza's, and the hero can change
-        //     accessory in a shop — so refusing those hops makes the route walk the
-        //     long way round something he could stride over. The route says which
-        //     shoes it needs and where.
-        const shod = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, planAccessories: true,
-        });
-        if (shod) return this.accept(shod);
-
-        // 2. As if he were carrying every key in the game. That is the shape of the
-        //    journey, and the locked doors on it are how many keys it needs.
-        const open = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true,
-        });
-        if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
-
-        // 3. Going to get them. The search is already bounded by the component — no
-        //    route leaves it — and deliberately *not* by cavern level: the game's one
-        //    Lion-Head key is on level 8 and its one Lion-Head door on level 6, so a
-        //    same-level rule would make that door unopenable by any route at all.
+        // 2. Fetching the keys on the way. Deliberately *not* bounded by cavern
+        //    level: the game's one Lion-Head key is on level 8 and its one Lion-Head
+        //    door on level 6, so a same-level rule would make that door unopenable
+        //    by any route at all.
         const collected = findRoute({
             store: this.deps.store, caps, start: from, goal: to,
             collectKeys: true,
             ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
         });
         if (collected) return this.accept(collected);
+
+        // 3. Shoes. A pair is an item lying in the cavern, so the honest answer is to
+        //    walk to one and pick it up — the hero may wear whichever pair he is
+        //    carrying, or none, and changing costs nothing, so `equipment` is the plan:
+        //    *collect these here, put them on here, take them off again*.
+        const shod = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, collectAccessories: true,
+            ...(this.deps.shoePresent ? { shoePresent: this.deps.shoePresent } : {}),
+        });
+        if (shod) return this.accept(shod);
+
+        // 3b. No pair within reach — but the inventory is not per cavern. A pair picked
+        //     up on some other level is still in it, so the shoes rung may also mean
+        //     "he is wearing some already", and there is nothing to walk to. This is
+        //     what answers for mp10's town door: the Silkarn pair is a level away, and
+        //     the slope into the row-33 corridor is a four-tile Feruza jump.
+        const worn = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, planAccessories: true,
+        });
+        if (worn) return this.accept(worn);
+
+        // 4. Neither. As if he were carrying every key in the game: that is the
+        //    shape of the journey, and the locked doors on it are how many keys it
+        //    needs. Only the message is left to read off it.
+        const open = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true,
+        });
+        if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
 
         // Reachable, but the keys are not on this level to be had.
         const needed = open.lockedDoors.ordinary + open.lockedDoors.lion;

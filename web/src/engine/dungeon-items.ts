@@ -336,6 +336,42 @@ export function flag14_15_1b(g: Uint8Array, m: number): void {
 }
 
 /**
+ * Every pair of shoes lying on the floor right now, as `col,row,shoe` keys.
+ *
+ * The mirror of {@link presentKeys}, and for the same reason: a pair the player has
+ * already picked up is dropped from the entity list by `remove_accomplished_items` at
+ * dungeon init (dungeon-init.ts:75), so the list this walks is the world as it
+ * stands. A route that fetched a collected pair would walk to bare floor and be told
+ * to put on shoes he is already carrying.
+ *
+ * A record names its pair through the handler byte, in `+4` or — for the ones
+ * `flag_13` has not handed over yet — in `+9`, and `0x1A` means the pair the cavern
+ * level decides. Read from the game's point of view rather than from the generated
+ * table, because this is the *save's* answer and the table is the original data.
+ *
+ * shoe is 1 Feruza, 2 Pirika, 3 Silkarn, 4 Ruzeria, matching `put_shoes_to_inventory`'s
+ * types in `flag1a`/`flag1e` (this file, :430-458).
+ */
+export function presentShoes(g: Uint8Array): Set<string> {
+    const out = new Set<string>();
+    const level = (memRead8(g, CAVERN_LEVEL) - 4) & 0xff;
+    const levelShoe = level === 0 ? 4 : level === 1 ? 2 : 3;
+    let m = memRead16(g, MONSTERS_LIST);
+    for (;;) {
+        const x = memRead16(g, m);
+        if (x === 0xffff) return out;
+        for (const handler of [memRead8(g, m + 4) & 0x1f, memRead8(g, m + 9) & 0x1f]) {
+            if (handler === 0x1a || handler === 0x1e) {
+                out.add(`${x & 0xff},${memRead8(g, m + 2) & 0xff},`
+                    + `${handler === 0x1e ? 1 : levelShoe}`);
+                break;
+            }
+        }
+        m += 16;
+    }
+}
+
+/**
  * Every key lying on the floor right now, as `col,row,kind` keys.
  *
  * The engine drops keys the player has already taken from the entity list at

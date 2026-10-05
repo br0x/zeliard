@@ -253,7 +253,7 @@ import {
     makeDungeonInit,
     makeFinishRokademoTransition,
 } from './engine/dungeon-cutover.js';
-import { presentKeys } from './engine/dungeon-items.js';
+import { presentKeys, presentShoes } from './engine/dungeon-items.js';
 import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
@@ -283,6 +283,13 @@ const dungeonInitFn = makeDungeonInit(g);
  * route never detours for a key that is no longer there.
  */
 let keysOnFloor: Set<string> = new Set();
+/**
+ * Pairs of shoes lying on the floor of the current cavern, as `col,row,shoe`.
+ *
+ * Read at the same moment as {@link keysOnFloor} and for the same reason: a route
+ * must not send the player to fetch a pair he is already wearing.
+ */
+let shoesOnFloor: Set<string> = new Set();
 const finishRokademoFn = makeFinishRokademoTransition(g);
 
 let engineReady  = false;
@@ -490,6 +497,9 @@ function openMapScreen(): void {
         // A key in the generated table may have been collected already; the engine
         // knows which, and a route must not fetch one that is gone.
         keyPresent: (_mapId, col, row, kind) => keysOnFloor.has(`${col},${row},${kind}`),
+        // A pair of shoes, like a key, may have been picked up already — and a pair
+        // the player is already carrying is no detour at all.
+        shoePresent: (_mapId, col, row, shoe) => shoesOnFloor.has(`${col},${row},${shoe}`),
         // The map is the cavern's own art, not a class-coloured sketch: the same
         // sheet `drawStaticTile` blits in the live view, so a wall on the map is
         // the colour that wall has in the game. Loaded per map and cached by the
@@ -1532,6 +1542,7 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         await loadEncounterImage();
         dungeonInitFn(rawMapId, isFromTown);
         keysOnFloor = presentKeys(getGmem());
+        shoesOnFloor = presentShoes(getGmem());
         gameMode = 'dungeon';
         townEntryRan = false;
         const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));

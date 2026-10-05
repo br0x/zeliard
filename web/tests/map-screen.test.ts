@@ -484,6 +484,36 @@ describe('choosing a destination', () => {
         expect(route.lockedDoors.ordinary + route.lockedDoors.lion).toBe(0);
     });
 
+    it('asks for the keys before it asks for shoes', async () => {
+        // mp10 (61,7) -> (128,33), the other town door's standing position, with an
+        // empty pocket and nothing worn. There are two answers, and which one the
+        // screen takes is a question of order, not of cost:
+        //
+        //   - bare, 752 points and cost 1030, via mp21 for the key at (99,41) and
+        //     back through the locked door at (26,16) into the boss arena;
+        //   - Feruza, 121 points and cost 167, a four-tile jump at (155,37) over the
+        //     Silkarn slope that is the only other way into the row-33 corridor.
+        //
+        // The shoes rung used to be tried first, so it answered and the bare route
+        // was never built — and a key is not a cost while an accessory is. A key is
+        // in a drawer in the level and he picks it up on the way past; shoes mean
+        // stopping to change what he is wearing. So keys come first, however much
+        // further the detour.
+        const h = harness({
+            heroPosition: () => ({ mapId: 0, col: 61, row: 7 }),
+            capabilities: () => bareCapabilities(),
+        });
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        store.get(1);                     // the arena the bare route goes through
+        store.get(3);                     // and mp21, where its key is
+        h.screen.displayMapId = 0;
+        await h.screen.choose(128, 33);
+        expect(h.picked(), 'a bare route exists and must be preferred').toHaveLength(1);
+        const route = h.picked()[0] as NavRoute;
+        expect(route.equipment, 'no accessory on a route that needs none').toEqual([]);
+        expect(route.keysSpent.ordinary, 'it spends the key it collects').toBe(1);
+    });
+
     it('refuses a cell with no standing position anywhere near it', async () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;

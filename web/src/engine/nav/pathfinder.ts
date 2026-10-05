@@ -318,6 +318,8 @@ interface State {
     readonly node: number;
     readonly keysOrd: number;
     readonly keysLion: number;
+    /** Pairs picked up and still carried: one bit per `NavShoe`, zero when none. */
+    readonly shoes: number;
     readonly g: number;
     readonly f: number;
     /** Index of the predecessor state, or -1 at the start. */
@@ -333,7 +335,8 @@ interface State {
  * Pack a state into one number.
  *
  * Node counts are per map and well under 2^18 even for the largest cavern, so
- * node < 2^18, keys < 8 and 31 maps pack losslessly into a double.
+ * node < 2^18, keys < 64, the shoe mask < 16 and 31 maps pack losslessly into a
+ * double — the largest key is about 5.3e8, well inside 2^53.
  */
 const NODE_LIMIT = 1 << 18;
 /**
@@ -345,7 +348,8 @@ const NODE_LIMIT = 1 << 18;
  * would collide states and turn the search into a wrong answer instead of an error.
  */
 const stateKey = (s: State): number =>
-    s.mapId * NODE_LIMIT * 4096 + s.node * 4096 + s.keysOrd * 64 + s.keysLion;
+    s.mapId * NODE_LIMIT * 65536 + s.node * 65536 + s.shoes * 4096
+    + s.keysOrd * 64 + s.keysLion;
 
 /** Most keys of one kind a state may hold. Saturating, so the key stays unique. */
 const HOLD_CAP = 63;
@@ -413,17 +417,45 @@ export interface FindRouteOptions {
     /**
      * Plan for shoes the hero can put on, rather than refusing those hops.
      *
-     * A high jump wants Feruza shoes, a slope wants Silkarn's, and the hero can
-     * change accessory in a shop, so refusing them makes the route take the long way
-     * round something he could simply walk over. With this set, the search may use
-     * them and the route says which ones and where, in order — *wear Silkarn shoes,
-     * jump on the slope, wear Feruza shoes again* — because a route that needs three
-     * changes of shoes is a different journey from one that needs none, and the
-     * player has to be told.
+     * A high jump wants Feruza shoes and a slope wants Silkarn's. Changing shoes
+     * costs the hero nothing and takes no time — he does it between steps — so a
+     * route that needs them is a real route, and refusing them only makes the search
+     * walk the long way round something he could simply stride over. With this set
+     * the search may use them, and the route says which ones and where, in order —
+     * *wear Silkarn shoes, climb the slope, wear Feruza shoes again* — because a
+     * route that needs three changes of shoe is a different journey from one that
+     * needs none, and the player has to be told which one he is being shown.
      *
-     * Keys are not equipment and stay a resource: they must already be in hand.
+     * Keys are not equipment and stay a resource: they must already be in hand, or
+     * the route has to go and get them, which is {@link collectKeys}'s business and
+     * not this flag's.
      */
     readonly planAccessories?: boolean;
+    /**
+     * Let the route go and pick a pair of shoes up on the way, the way
+     * {@link collectKeys} lets it go and get a key.
+     *
+     * A pair is an item lying in the cavern: walking over it puts it in the hero's
+     * inventory (`put_shoes_to_inventory`, engine/dungeon-items.ts:182-187) and it
+     * stays there. He wears whichever pair he is carrying, or none, and changing
+     * costs nothing — so what the route needs is not "these shoes are on", it is
+     * "these shoes are in this cavern and I can walk to them". Unlike a key, nothing
+     * is spent, so the search only ever adds a pair and a journey that wants a slope
+     * *and* a four-tile jump collects both.
+     *
+     * Off by default. {@link planAccessories} is the weaker version of the same
+     * promise: it takes the pair as already held, without the walk to fetch it.
+     */
+    readonly collectAccessories?: boolean;
+    /**
+     * Is a pair still lying where the generated table says, or has the player taken
+     * it? Same shape and purpose as {@link keyPresent}: the table is the original
+     * data, and the engine drops a collected item at dungeon init
+     * (engine/dungeon-init.ts:75).
+     */
+    readonly shoePresent?: (
+        mapId: number, col: number, row: number, shoe: number,
+    ) => boolean;
     /**
      * Route as if the hero were carrying every key in the game: locked doors cost
      * nothing and the counters are seeded at the cap.
@@ -519,6 +551,54 @@ function keysLionAfterPickup(
 }
 
 /**
+ * The pairs the hero is carrying after stepping onto `node`.
+ *
+ * A pair is added, never removed: it is an inventory, not a purse. There are four
+ * in the whole game and none is duplicated, so a bit per kind is the whole state.
+ */
+function shoesAfterPickup(
+    graph: NavGraph,
+    state: State,
+    node: number,
+    options: FindRouteOptions,
+): number {
+    if (!options.collectAccessories) return state.shoes;
+    const shoe = graph.accessoryShoeAt[node]!;
+    if (shoe === 0) return state.shoes;
+    const bit = 1 << (shoe - 1);
+    if ((state.shoes & bit) !== 0) return state.shoes;
+    if (options.shoePresent && !options.shoePresent(state.mapId, node % graph.mapWidth,
+        (node / graph.mapWidth) | 0, shoe)) {
+        return state.shoes;
+    }
+    return state.shoes | bit;
+}
+
+/**
+ * The pairs the hero is already wearing when the route starts, as the same bit mask
+ * {@link shoesAfterPickup} uses — so a pair he has on counts from the first step and
+ * does not have to be walked to.
+ */
+function wornShoeMask(caps: HeroCapabilities): number {
+    let shoes = 0;
+    for (const [bit, accessory] of SHOE_BITS) {
+        if ((caps.mask & bit) !== 0) shoes |= 1 << (accessory - 1);
+    }
+    return shoes;
+}
+
+/** The capabilities a state's carried pairs add to what he already wears. */
+function maskWithShoes(caps: HeroCapabilities, shoes: number): HeroCapabilities {
+    let mask = caps.mask;
+    if (shoes !== 0) {
+        for (const [bit, accessory] of SHOE_BITS) {
+            if ((shoes & (1 << (accessory - 1))) !== 0) mask |= bit;
+        }
+    }
+    return mask === caps.mask ? caps : { ...caps, mask };
+}
+
+/**
  * Octile distance within a map, zero across maps.
  *
  * Zero across maps is admissible because a door can land the hero anywhere in the
@@ -589,6 +669,7 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         mapId: start.mapId, node: startNode, viaReq: 0,
         keysOrd: options.unlimitedKeys ? HOLD_CAP : Math.min(caps.keys, HOLD_CAP),
         keysLion: options.unlimitedKeys ? HOLD_CAP : Math.min(caps.lionKeys, HOLD_CAP),
+        shoes: wornShoeMask(caps),
         g: 0, f: heuristic(start.mapId, startNode, goalGraph, goalNode),
         parent: -1, via: -1, viaCost: 0,
     };
@@ -645,7 +726,7 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         // An open door is walked through, costing nothing.
         relax(
             current, currentIndex, destMapId, landing, EDGE.DOOR, cost, keyReq,
-            keysOrd, keysLion, states, best, settled, indexOfState,
+            keysOrd, keysLion, current.shoes, states, best, settled, indexOfState,
             open, goalGraph, goalNode,
         );
     };
@@ -666,17 +747,22 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
 
         const graph = store.get(current.mapId)!;
         const hazard = graph.nodeHazard;
+        // What he can do here is what he wears *or* what he is carrying: he changes
+        // shoes between steps for nothing, so a pair picked up earlier in the route
+        // opens its hops later in it.
+        const able = maskWithShoes(effective, current.shoes);
 
         // ── hops inside this map ──
         const from = graph.edgeOffsets[current.node]!;
         const to = graph.edgeOffsets[current.node + 1]!;
         for (let i = from; i < to; i++) {
             const edge = graph.edges[i]!;
-            if (!permitted(edge.req, edge.to, hazard, effective)) continue;
+            if (!permitted(edge.req, edge.to, hazard, able)) continue;
             relax(
                 current, currentIndex, current.mapId, edge.to, edge.kind, edge.cost, edge.req,
                 keysAfterPickup(graph, current, edge.to, options),
                 keysLionAfterPickup(graph, current, edge.to, options),
+                shoesAfterPickup(graph, current, edge.to, options),
                 states, best, settled, indexOfState,
                 open, goalGraph, goalNode,
             );
@@ -718,6 +804,7 @@ function relax(
     req: number,
     keysOrd: number,
     keysLion: number,
+    shoes: number,
     states: State[],
     best: Map<number, number>,
     settled: Set<number>,
@@ -728,7 +815,7 @@ function relax(
 ): void {
     const g = parent.g + cost;
     const candidate: State = {
-        mapId, node, keysOrd, keysLion, g,
+        mapId, node, keysOrd, keysLion, shoes, g,
         f: g + heuristic(mapId, node, goalGraph, goalNode),
         parent: parentIndex, via: kind, viaCost: cost, viaReq: req,
     };

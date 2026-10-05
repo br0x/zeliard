@@ -4784,3 +4784,130 @@ right: the hero's *middle foot* is what the floor check reads
 foot is on the platform's middle tile with nothing under him, so he falls. The one
 column the offsets do *not* reach is `P + 1`, and the route reaches the row-53
 platform at `(53,50)` — `P - 1` — not at `(54,50)`.
+
+## 26. The map screen asked for shoes before it asked for keys
+
+Reported as: *"I tried to find the route from mp10 (61,7) to mp10 (128,33) when the
+boss is already defeated and it cannot find bare path — it build the route that
+requires shoes to climb the slope."*
+
+The boss is a red herring. The shoes route never goes near the boss room, and the
+bare route exists either way. What the report is really about is the **order of the
+four rungs** in `MapScreen.choose` (`web/src/ui/map-screen.ts`), which was:
+
+| rung | what it allows | mp10(61,7) → (128,33) |
+| --- | --- | --- |
+| 1 `held` | keys in pocket, doors as they stand | none |
+| 2 `shod` | `planAccessories` | **121 pts, cost 167, `feruza`** |
+| 3 `open` | `unlimitedKeys` | 544 pts, cost 772 |
+| 4 `collected` | `collectKeys` | 752 pts, cost 1030 |
+
+Rung 2 answered, so rungs 3 and 4 never ran and the bare route was never built. The
+bare route goes mp10 → mp21 → mp10 → mp1d → mp10: it crosses to mp21 for the key at
+`mp10(99,41)`, comes back, spends it on the locked door at `mp10(26,16)`, and leaves
+the boss arena at `mp10(141,33)` — which is the row-33 corridor the goal stands in.
+The shoes route instead takes a Feruza four-tile jump at `(155,37)` over the Silkarn
+slope, the corridor's only other way in.
+
+### 26.1 The order
+
+**Changing shoes is free** — the hero does it between steps, in no time and at no
+cost, so a route that needs a pair is a real route and is never refused. What the
+order expresses is not a cost comparison but what the screen is *for*: the route the
+player asked this feature for is one that needs nothing at all, so a route with no
+accessory on it is built before one that asks for a pair. Keys are tried before shoes:
+
+1. `held` — what he has: keys in pocket, doors as they stand, the accessory he wears.
+2. `collected` — fetching the keys on the way.
+3. `shod` — shoes the player can put on.
+4. `open` — `unlimitedKeys`, now only to read the "needs N keys" message off.
+
+The bare route is six times the cost of the shoes one, 1030 against 167, and it is
+still the one offered, because it needs nothing. `open` moved to last because it
+answers for nothing but the failure message.
+
+### 26.2 The row-33 corridor, measured
+
+Worth writing down, because it looks like there should be a way in from the west and
+there is not. Holding the boss arena open, the corridor — mp10 head row 33, columns
+122 to 151 — has exactly two entrances the graph can see:
+
+- the arena exit at `mp10(141,33)`, which appears when the boss dies
+  (`load_place_and_reinit` swaps the door-table pointer, `dungeon-cutover.ts:76-99`);
+  **[confirmed]** it is still there once the boss is dead, so the arena stays a
+  passage;
+- up the Silkarn slope staircase `(154,37) → (154,36) → (152,34) → (151,33)`, the
+  tiles being `0x5B` at `(153,36)`, `(154,37)`, `(155,38)` and `(156,39)`.
+
+The pocket at columns 121–130, rows 29–35 — which holds `(121,32)` and the corridor's
+west end — is **sealed on the west**: columns 119 and 120 are solid from row 24 to
+row 35, and the rope at column 117 only drops to the ledge on row 42, which has no
+way back up. With the arena unavailable there is no bare route to `(128,33)` at all,
+and the shoes route is the only one there is.
+
+### 26.3 A pair of shoes is an item, and it is not a key
+
+§26.1's rung 3 was still wrong, and the reason is that a pair of shoes is a thing that
+**lies in the cavern**, exactly as a key does. Walking over one puts it in the hero's
+inventory (`put_shoes_to_inventory`, engine/dungeon-items.ts:182-187) and it stays
+there; he may wear whichever pair he is carrying, or none, and changing costs nothing
+and takes no time. A key is the opposite: one ordinary key opens one ordinary door, is
+gone, and that door is then open for good.
+
+So a route that needs a slope is not "a route that needs shoes", it is "a route that
+needs to walk to the shoes", and `planAccessories` — which takes the pair as already
+held — was answering a different question than the one the player asked. There is now a
+`collectAccessories` flag that mirrors `collectKeys`: stepping onto a node with a pair
+on it **grants** it, and what it grants is never spent.
+
+**[measured]** the four pairs in the whole game, all read out of the MDT entity records
+by `tools/navlib/mdt.mjs:readAccessories`:
+
+| file | record | pair | what it opens |
+| --- | --- | --- | --- |
+| mp40 (id 8, level 4) | (177,13) | Ruzeria | ice — level 4 only |
+| mp50 (id 11, level 5) | (208,27) | Pirika | aggressive ground |
+| mp60 (id 14, level 6) | (201,13) | Silkarn | slopes |
+| mp62 (id 16, level 6) | (27,26) | Feruza | the four-tile jump |
+
+There are four and no more, so no pair is ever duplicated and one bit per kind is the
+whole inventory state — which is what the search now carries, where a key's counter is
+what it carried before. Collecting is therefore monotone: the mask only ever gains.
+
+**Which pair a record is, is not in the record.** `flag_1e` is always Feruza, but
+`flag_1a` (`flag1a`, engine/dungeon-items.ts:436-458) hands over whatever the *cavern
+level* decides — Ruzeria on level 4, Pirika on level 5, Silkarn on level 6 and up — so
+the extractor takes the level and cannot be a table lookup. The handler code is also
+readable from either `+4` or `+9`, because a record goes through `flag_13` first and
+`flag13` copies `+9` over `+4` masked with `| 0x60`
+(engine/dungeon-items.ts:267-281): in the shipped data mp40's is in `+4` and the other
+three are in `+9`, and both are the same pickup. The extractor accepts either, and the
+extraction test decodes the records a second time by hand to make sure the two agree.
+
+A pair hangs on the nearest node inside the pickup window, so it sits a row or two from
+its record — the same offset every key in the game has. **[measured]** the Feruza pair
+is on the node `(27,25)`; its record is `(27,26)`.
+
+Because the inventory is **not per cavern**, rung 3 is two searches: collect a pair
+within reach, and failing that assume he is already carrying one. For mp10's town door
+the Silkarn pair is a level away and out of the component, so `collectAccessories`
+finds nothing and rung 3b answers with the Feruza jump — which is right, because by
+then he may well be wearing Feruza from mp62.
+
+### 26.4 Tests
+
+961 pass, `tsc --noEmit` clean, `nav:check` up to date.
+
+- `tests/map-screen.test.ts` — *"asks for the keys before it asks for shoes"*, naming
+  both routes with their costs so the order cannot move back unnoticed. Fails on the
+  old order with `no accessory on a route that needs none: expected [ { accessory: 1, …} ]`.
+- `tests/nav-accessories-extraction.test.ts` — the four records against the player's
+  coordinates and names, a second decode written out longhand, four pairs in the whole
+  game, and that mp50's and mp60's come out different pairs from the *level* rather than
+  from anything in the record.
+- `tests/nav-shoe-routing.test.ts` — a journey that only a pair opens, found from the
+  graph rather than written down, because both ends have to be standing positions and
+  the pair's record cell is not one. Then: the route walks over the pair, names it,
+  does so once and keeps it for the rest; the same journey is unreachable without the
+  flag and with the pair marked as already taken; and a pair he already wears counts
+  from the first step.

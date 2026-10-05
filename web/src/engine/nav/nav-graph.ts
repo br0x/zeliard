@@ -48,6 +48,7 @@ import {
 } from './platforms.js';
 import type { PlatformPlaces } from './platform-state.js';
 import { NAV_KEYS } from '../../data/nav/nav-keys.js';
+import { NAV_ACCESSORIES } from '../../data/nav/nav-accessories.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
 import {
     PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT,
@@ -180,6 +181,15 @@ export interface NavGraph {
      * walks through. Getting that wrong makes every key look already collected.
      */
     readonly keyCellAt: Int32Array;
+    /**
+     * The pair of shoes lying on each node, as a `NavShoe`, or 0 for none.
+     *
+     * A pair is an item on the floor exactly as a key is — the pickup fires from the
+     * same alignment test — so it needs no edge of its own either. Unlike a key it is
+     * not spent: it goes into the hero's inventory and stays, so the search only ever
+     * *adds* a bit here, and a route may collect two different pairs.
+     */
+    readonly accessoryShoeAt: Int8Array;
     readonly platforms: PlatformModel;
     readonly currents: AirflowModel;
     readonly stats: NavGraphStats;
@@ -199,6 +209,12 @@ export interface NavGraph {
         keysOnNodes: number;
         /** Keys whose cell has no node within a cell — unreachable, and counted. */
         keysDropped: number;
+        /** Pairs of shoes the MDT lists for this map. */
+        shoesFound: number;
+        /** Of those, how many landed on a node. */
+        shoesOnNodes: number;
+        /** Pairs whose cell has no node within a cell — unreachable, and counted. */
+        shoesDropped: number;
     };
 }
 
@@ -416,6 +432,23 @@ export function buildNavGraph(
         keyKindAt[node] = kind;
         keyCellAt[node] = wrapRow(key.row) * mapWidth + wrapCol(key.col, mapWidth);
     }
+    // Shoes, the same way: an item on the floor, placed on the node the hero
+    // collects it from. There are four in the whole game and none is duplicated, so
+    // a node can hold at most one pair and a bit per kind is enough to say what the
+    // hero is carrying.
+    const accessoryShoeAt = new Int8Array(nodes.length);
+    let shoesOnNodes = 0;
+    let shoesDropped = 0;
+    for (const shoe of NAV_ACCESSORIES[mapId] ?? []) {
+        const node = nodeForKey(groundOf, rideNodeOfCell, mapWidth, shoe.col, shoe.row);
+        if (node < 0) {
+            shoesDropped++;
+            continue;
+        }
+        shoesOnNodes++;
+        accessoryShoeAt[node] = shoe.shoe;
+    }
+
     const ropeAtNode = (col: number, row: number): number => {
         const r = wrapRow(row);
         return ropeOf[r * mapWidth + wrapCol(col, mapWidth)]!;
@@ -1119,12 +1152,16 @@ export function buildNavGraph(
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf,
         liftSwept, nodeHazard, portalAtNode, bossExitAtNode, keyKindAt, keyCellAt,
+        accessoryShoeAt,
         platforms, currents, stats,
         diagnostics: {
             ...graphDiagnostics,
             keysFound: (NAV_KEYS[mapId] ?? []).length,
             keysOnNodes,
             keysDropped,
+            shoesFound: (NAV_ACCESSORIES[mapId] ?? []).length,
+            shoesOnNodes,
+            shoesDropped,
         },
     };
 }
