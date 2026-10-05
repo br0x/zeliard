@@ -4894,9 +4894,130 @@ the Silkarn pair is a level away and out of the component, so `collectAccessorie
 finds nothing and rung 3b answers with the Feruza jump — which is right, because by
 then he may well be wearing Feruza from mp62.
 
-### 26.4 Tests
+### 26.4 A door that is open is not a door that needs a key
 
-961 pass, `tsc --noEmit` clean, `nav:check` up to date.
+Still not fixed by any of the above, and the reason is the same mistake one level
+down. §26.1 reordered the rungs, but the state they are asked about was wrong: **a
+key is spent once and its door is then open for good.** After the boss, the player has
+been through the locked door at `mp10(26,16)`, so:
+
+- that door stands open, and costs nothing ever again;
+- the key they spent on it is gone from the floor, so no route may fetch it — which is
+  exactly what `keyPresent` says, and the reason `collectKeys` cannot rescue the route;
+- an empty pocket and no key in the cavern means the `held` and `collectKeys` rungs
+  both fail **on that door alone**.
+
+So every rung above the shoes one came back empty and the screen offered the Feruza
+jump — the symptom, exactly. The bare route through the arena and out at `mp10(141,33)`
+existed the whole time and needed nothing at all.
+
+**`doorOpen` already knew.** It is on `MapScreenDeps` and the composition root wires
+`liveDoorOpen`, which reads `d_flags` bit 7 out of the live door table — the same read
+`enterTheDoor` and `processDoors` make. It was consulted for exactly one thing, drawing
+the door open or closed on the chart (`map-screen.ts:899`). **The search never asked.**
+So `findRoute` has a `doorOpen` option now, and `crossDoor` asks it before deciding
+what a door costs: an open door is walked through at `EDGE_COST.DOOR`, spends no key
+and reports `viaReq: 0`. Null from the callback means "not known" — the engine keeps a
+door table for the loaded cavern only — and the level data answers, as it does for the
+drawing.
+
+Two consequences beyond the hop itself:
+
+- **`lockedDoors` and `keysSpent` no longer count an open door.** They were read off
+  the portal record, so a door walked through open still reported as a locked door with
+  a key spent on it. They now count only hops taken under a requirement, and the
+  post-boss route reports zero of both.
+- **A boss arena's exit is passed as "no door record".** It has no MDT portal at all —
+  it is the door the arena grows when the boss dies — so there is nothing to ask and it
+  is always open, which is right for a boss that is dead.
+
+**[measured]** the ladder for `mp10(61,7) → mp10(128,33)` in that state — open door,
+spent key, empty pocket, no accessory:
+
+| rung | answer |
+| --- | --- |
+| 1 `held` | **544 pts, cost 732, no equipment, no locked door, no key spent** |
+| 2 `collectKeys` | 544 pts — the same route; nothing to fetch |
+| 3a `collectAccessories` | 544 pts — the same route |
+| 3b `planAccessories` | 121 pts, feruza — never reached |
+
+### 26.5 The thread then vanished, because the guide re-plans
+
+`findRoute` has six call sites. I changed five of them — every rung on the map screen —
+and left the sixth, and it is the one that runs the moment the thread is spent.
+
+`PathGuide` does not replay the route the screen handed over. It **re-plans** from
+wherever the hero has got to, on `update`, and `needsReplan` forces that on the very
+first tick. The re-plan was a bare `findRoute` under the hero's own capabilities, so
+the moment the thread was spent the guide asked a **stricter** question than the screen
+had answered, found nothing, and took `clear()` — which drops the route, and
+`isActive` is false, and the overlay draws nothing. `console.warn` says so, once:
+
+```
+[path] dropped: no route from map0 (61,7) to map0 (128,33)
+```
+
+Worse than a wrong line, because there is nothing to look at at all.
+
+Two causes, both state the screen knew and the guide did not:
+
+- **The key a route fetches.** On a **fresh game** — no open doors involved —
+  `mp10(61,7) → mp10(128,33)` has no route at all with an empty pocket, so the screen
+  answers at its `collectKeys` rung and hands over a route that walks to the key at
+  `mp10(99,41)`. Re-planned without `collectKeys`, with an empty pocket and a locked
+  door, there is no route. **This is the ordinary case and it broke every fresh
+  journey of this shape.**
+- **The door that key opened.** After the boss, the door is open and the key is gone;
+  re-planned against level data, which says the door shipped locked, again nothing.
+
+The fix is that the screen now says *how* it planned. `NavRoutePlan` is the subset of
+`FindRouteOptions` that changes the answer — `collectKeys`, `collectAccessories`,
+`planAccessories`, `keyPresent`, `shoePresent`, `doorOpen` — and `onPick` and
+`PathGuide.setRoute` both carry it. The guide replays it on every re-plan, and
+`doorState()` falls back to the live `doorOpen` on its deps for a route handed over by
+any other caller.
+
+The guide already did the equivalent for shoes — `wantsShoes` widens the mask to
+`SHOE_MASK` when the route it holds names a pair — which is why a shoes route survived
+all along and a key route did not. The assumption is now carried rather than inferred.
+
+### 26.6 And then it died at the first door
+
+`keyPresent` and `shoePresent` had a fault that was invisible while the map screen was
+the only caller, because it could only ever ask about the cavern the player was standing
+in. Both closures ignore the `mapId` they are handed:
+
+```ts
+keyPresent: (_mapId, col, row, kind) => keysOnFloor.has(`${col},${row},${kind}`),
+```
+
+`keysOnFloor` is `presentKeys(getGmem())` — the entity list of the **loaded** cavern,
+read once at dungeon init. It is not a table of the game's keys; it is one cavern's. So
+the moment the hero walks the thread through a door, those closures answer about the
+cavern he is now in, and about nothing else.
+
+And the route is routinely longer than one cavern. **[measured]** the bare route for
+`mp10(61,7) → mp10(128,33)` is 752 points over `maps [0, 3, 0, 1, 0]` — mp10 → mp21 →
+mp10 → mp1d → mp10 — and the first foreign point is index **555**, mp21 `(79,51)`.
+Standing there, mp21 holds no keys, so a key lying in mp10 read as already collected,
+the re-plan could not fetch it, and the route was cleared. Which is exactly the report:
+*chevrons up to the first door between mp10 and mp21, and nothing after it*.
+
+**The rule is that an unknown cavern is not known to be empty.** The search already
+assumes every key is present when it is given no callback at all, and that is the right
+default: a route that detours to a cavern the engine has not loaded should fetch what
+the level data says is there, because "I have not looked" is not "it is gone".
+`liveDoorOpen` already follows it with its `null`. So the two closures now gate on the
+map they are asked about, through a new `isLoadedCavern(g, mapId)`
+(`engine/dungeon-items.ts`), and a cavern that is not loaded answers true.
+
+That helper lives in the engine rather than in the composition root because it is a
+statement about what the engine knows, not about how the app is wired — and it is what
+makes the rule testable at all, since `main.ts` is not.
+
+### 26.7 Tests
+
+971 pass, `tsc --noEmit` clean, `nav:check` up to date.
 
 - `tests/map-screen.test.ts` — *"asks for the keys before it asks for shoes"*, naming
   both routes with their costs so the order cannot move back unnoticed. Fails on the
@@ -4905,6 +5026,20 @@ then he may well be wearing Feruza from mp62.
   coordinates and names, a second decode written out longhand, four pairs in the whole
   game, and that mp50's and mp60's come out different pairs from the *level* rather than
   from anything in the record.
+- `tests/nav-guide-cross-door.test.ts` — `isLoadedCavern` against a memory image, the
+  route's `[0, 3, 0, 1, 0]` shape and its first foreign point at 555, that a re-plan
+  from mp21 keeps the route when `keyPresent` answers honestly, and that the same
+  re-plan drops it when the callback ignores the map — the two halves of the fault, so
+  neither the bug nor the fix can be lost.
+- `tests/nav-guide-replan.test.ts` — five checks on the re-plan: a route that fetches a
+  key keeps it and draws, a route through an open door keeps it, the `doorOpen` on the
+  deps answers for a route set without a plan — and, for both, the same route with the
+  plan withheld is dropped on the first frame, which is the thread vanishing.
+- `tests/map-screen.test.ts` — *"asks for nothing at all once the door is open and the
+  key is spent"*, the post-boss state: `keyPresent` says the key is gone and `doorOpen`
+  says the door it opened is open. Fails without §26.4 with
+  `nothing to put on: expected [ { accessory: 1, …(2) ] to deeply equal []` — the
+  reported symptom, verbatim.
 - `tests/nav-shoe-routing.test.ts` — a journey that only a pair opens, found from the
   graph rather than written down, because both ends have to be standing positions and
   the pair's record cell is not one. Then: the route walks over the pair, names it,

@@ -484,6 +484,35 @@ describe('choosing a destination', () => {
         expect(route.lockedDoors.ordinary + route.lockedDoors.lion).toBe(0);
     });
 
+    it('asks for nothing at all once the door is open and the key is spent', async () => {
+        // The state after the boss. The player has been through the locked door at
+        // mp10 (26,16), so that door now stands open for good — and the key they spent
+        // on it is gone from the floor at mp10 (99,41), which is `keyPresent`'s whole
+        // job to say.
+        //
+        // Nothing else changes: no accessory, an empty pocket, and no key anywhere to
+        // fetch. So the keys rung cannot help and the shoes rung is the only thing left
+        // — and it must not be reached, because the door is open and the route through
+        // the boss arena needs nothing at all. Before `doorOpen` reached the search
+        // (it was consulted only to draw the door on the chart) every rung below the
+        // shoes one failed on that door and the screen offered the Feruza jump.
+        const h = harness({
+            heroPosition: () => ({ mapId: 0, col: 61, row: 7 }),
+            capabilities: () => bareCapabilities(),
+            keyPresent: () => false,
+            doorOpen: (mapId, x0, y0) => (mapId === 0 && x0 === 26 && y0 === 15 ? true : null),
+        });
+        h.screen.displayMapId = 0;
+        await h.screen.choose(128, 33);
+        expect(h.picked(), 'a bare route exists and must be preferred').toHaveLength(1);
+        const route = h.picked()[0] as NavRoute;
+        expect(route.equipment, 'nothing to put on').toEqual([]);
+        expect(route.lockedDoors.ordinary, 'the door is open, so it is not a locked door')
+            .toBe(0);
+        expect(route.keysSpent.ordinary, 'no key is spent on an open door').toBe(0);
+        expect(route.maps, 'through the boss arena it leaves by').toContain(1);
+    });
+
     it('asks for the keys before it asks for shoes', async () => {
         // mp10 (61,7) -> (128,33), the other town door's standing position, with an
         // empty pocket and nothing worn. There are two answers, and which one the

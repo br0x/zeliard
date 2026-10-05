@@ -35,7 +35,9 @@ import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
 import { NAV } from '../engine/nav/types.js';
 import { CLOSED_DOOR_TILES, OPENED_DOOR_TILES } from '../engine/dungeon-frame-pre.js';
-import { findRoute, type NavGraphStore, type NavRoute } from '../engine/nav/pathfinder.js';
+import {
+    findRoute, type NavGraphStore, type NavRoute, type NavRoutePlan,
+} from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
 import type { HeroCapabilities } from '../engine/nav/capabilities.js';
 import { drawSheetFrame } from '../render/sheets.js';
@@ -163,8 +165,15 @@ export interface MapScreenDeps {
     text: (key: string) => string;
     /** Dismissed without choosing — back to the inventory. */
     onExit: () => void;
-    /** A destination was chosen; the route is already computed. */
-    onPick: (route: NavRoute) => void;
+    /**
+     * A destination was chosen; the route is already computed.
+     *
+     * `plan` says which rung of the ladder answered, so the guide that keeps drawing
+     * the thread can re-plan under the same assumptions. Without it a route that went
+     * to fetch a key is re-planned as though the hero were already holding one, and
+     * with an empty pocket that search finds nothing and the thread is dropped.
+     */
+    onPick: (route: NavRoute, plan: NavRoutePlan) => void;
     /**
      * Whether a key is still lying where the generated table says there was one.
      *
@@ -495,10 +504,22 @@ export class MapScreen {
         // shoes rung first the screen offered the 121, and the bare route was never
         // built at all.
 
+        // Every search below is told which doors stand open, not just which keys are
+        // in the pocket. A key is spent once and its door is open for good after
+        // that, so a hero who has been through a locked door once must still be able
+        // to plan a route back through it — and with the key gone from the floor there
+        // is nothing left to fetch. `doorOpen` already answered this to draw the door
+        // on the chart; the search asks it too.
+        const doors = this.deps.doorOpen
+            ? { doorOpen: this.deps.doorOpen }
+            : {};
+
         // 1. What he has: the keys in his pocket, the doors as they stand, and the
         //    accessory he is wearing.
-        const held = findRoute({ store: this.deps.store, caps, start: from, goal: to });
-        if (held) return this.accept(held);
+        const held = findRoute({
+            store: this.deps.store, caps, start: from, goal: to, ...doors,
+        });
+        if (held) return this.accept(held, { ...doors });
 
         // 2. Fetching the keys on the way. Deliberately *not* bounded by cavern
         //    level: the game's one Lion-Head key is on level 8 and its one Lion-Head
@@ -508,8 +529,11 @@ export class MapScreen {
             store: this.deps.store, caps, start: from, goal: to,
             collectKeys: true,
             ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
+            ...doors,
         });
-        if (collected) return this.accept(collected);
+        if (collected) {
+            return this.accept(collected, { collectKeys: true, ...doors });
+        }
 
         // 3. Shoes. A pair is an item lying in the cavern, so the honest answer is to
         //    walk to one and pick it up — the hero may wear whichever pair he is
@@ -518,8 +542,11 @@ export class MapScreen {
         const shod = findRoute({
             store: this.deps.store, caps, start: from, goal: to, collectAccessories: true,
             ...(this.deps.shoePresent ? { shoePresent: this.deps.shoePresent } : {}),
+            ...doors,
         });
-        if (shod) return this.accept(shod);
+        if (shod) {
+            return this.accept(shod, { collectAccessories: true, ...doors });
+        }
 
         // 3b. No pair within reach — but the inventory is not per cavern. A pair picked
         //     up on some other level is still in it, so the shoes rung may also mean
@@ -527,15 +554,15 @@ export class MapScreen {
         //     what answers for mp10's town door: the Silkarn pair is a level away, and
         //     the slope into the row-33 corridor is a four-tile Feruza jump.
         const worn = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, planAccessories: true,
+            store: this.deps.store, caps, start: from, goal: to, planAccessories: true, ...doors,
         });
-        if (worn) return this.accept(worn);
+        if (worn) return this.accept(worn, { planAccessories: true, ...doors });
 
         // 4. Neither. As if he were carrying every key in the game: that is the
         //    shape of the journey, and the locked doors on it are how many keys it
         //    needs. Only the message is left to read off it.
         const open = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true,
+            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true, ...doors,
         });
         if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
 
@@ -545,10 +572,10 @@ export class MapScreen {
     }
 
     /** Take a route and close the screen. */
-    private accept(route: NavRoute): void {
+    private accept(route: NavRoute, plan: NavRoutePlan = {}): void {
         this.deps.soundManager?.playSfx?.(12);
         this.active = false;
-        this.deps.onPick(route);
+        this.deps.onPick(route, plan);
     }
 
     /** Nearest standing position to a cell, searched outward. -1 if none nearby. */

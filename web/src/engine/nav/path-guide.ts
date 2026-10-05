@@ -16,6 +16,7 @@ import { EDGE } from './types.js';
 import type { HeroCapabilities } from './capabilities.js';
 import {
     findRoute, reachableMaps, SHOE_MASK, type NavGraphStore, type NavPoint, type NavRoute,
+    type NavRoutePlan,
 } from './pathfinder.js';
 import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
@@ -55,6 +56,21 @@ export interface PathGuideDeps {
     heroPosition: () => { mapId: number; col: number; row: number } | null;
     /** The hero's current abilities. */
     capabilities: () => HeroCapabilities;
+    /**
+     * Whether a door stands open right now, or null when the answer is not known.
+     *
+     * The guide **re-plans** the route from wherever the hero has got to, and it has
+     * to plan it under the same assumptions the map screen did or the two disagree.
+     * A key is spent once and its door is then open for good, so a re-plan that fell
+     * back to the level data would price an already-open door as locked — and with the
+     * key spent and gone from the floor there would be nothing to fetch, so the search
+     * would find no route at all. The guide drops its route when that happens
+     * (`update`), which is the whole thread vanishing on the first frame after it is
+     * spent.
+     *
+     * Optional, and null is the normal answer for any cavern but the loaded one.
+     */
+    doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null;
 }
 
 /** What the shoes are called, from the accessory ids. */
@@ -150,6 +166,12 @@ const FALL_STARTS: readonly (readonly [number, number])[] = [
 export class PathGuide {
     private route: NavRoute | null = null;
     private goal: { mapId: number; col: number; row: number } | null = null;
+    /**
+     * What the route was planned under, from the map screen. Replayed on every
+     * re-plan, so the guide never asks a stricter question than the one the route
+     * itself answers. See {@link PathGuide.setRoute}.
+     */
+    private plan: NavRoutePlan = {};
     private progress = 0;
     private lastPlanAt = 0;
     /** Capability mask and key counts the current route was planned against. */
@@ -169,13 +191,33 @@ export class PathGuide {
     constructor(private readonly deps: PathGuideDeps) {}
 
     /** A destination was chosen on the map screen. */
-    setRoute(route: NavRoute, goal: { mapId: number; col: number; row: number }): void {
+    setRoute(
+        route: NavRoute,
+        goal: { mapId: number; col: number; row: number },
+        /**
+         * What the route was planned under — whether it goes to fetch a key or a pair,
+         * and which doors stand open. The map screen knows which of its four rungs
+         * answered and says so here, because the re-plan below has to repeat it.
+         */
+        plan: NavRoutePlan = {},
+    ): void {
         this.route = route;
         this.goal = goal;
+        this.plan = plan;
         this.progress = 0;
         this.arrived = false;
         this.plannedMask = -1;      // force the next update() to record the plan
         this.lastPlanAt = 0;
+    }
+
+    /**
+     * The door state to re-plan under: the plan's own if it carries one, otherwise the
+     * live callback, otherwise nothing and the level data answers.
+     */
+    private doorState(): { doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null } {
+        if (this.plan.doorOpen) return { doorOpen: this.plan.doorOpen };
+        if (this.deps.doorOpen) return { doorOpen: this.deps.doorOpen };
+        return {};
     }
 
     /** Forget the route; the overlay draws nothing. */
@@ -439,6 +481,15 @@ export class PathGuide {
             caps: planCaps,
             start: { mapId: hero.mapId, col: hero.col, row: hero.row },
             goal: this.goal,
+            // The same assumptions the map screen planned under: a route that fetches a
+            // key or a pair still has to fetch it, and a door that stood open when the
+            // thread was spent still stands open. Without them this search asks a
+            // stricter question than the one that produced the route, finds nothing,
+            // and clears the thread on the first frame.
+            ...this.plan,
+            // A route set without a plan still gets the live door state, if there is
+            // one, so a door that has been opened is never priced as locked.
+            ...this.doorState(),
         });
         this.lastPlanAt = now;
         if (!next) {

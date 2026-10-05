@@ -62,6 +62,7 @@ const ANIM_TIMER_HI_UNUSED = 0xff1c;
 void ANIM_TIMER_HI_UNUSED;
 const MONSTERS_LIST = 0xc010; // word pointer
 const CAVERN_LEVEL = 0xc012;
+const PLACE_MAP_ID = 0xc4;   // same address as core/memory.ts ADDR_PLACE_MAP_ID
 const PROXIMITY_LAYER2 = 0xed20;
 const HERO_Y = 0xff35;
 const IS_BOSS_CAVERN = 0xff34;
@@ -333,6 +334,25 @@ export function flag14_15_1b(g: Uint8Array, m: number): void {
     else heroGotAlmas(g, 100);
 
     markCollected(g, m);
+}
+
+/**
+ * Is `mapId` the cavern whose entity list is in memory right now?
+ *
+ * {@link presentKeys} and {@link presentShoes} walk the loaded cavern's entity list and
+ * can say nothing at all about any other cavern — and a route is routinely longer than
+ * one cavern.
+ *
+ * This exists because answering such a question from the loaded cavern's list
+ * regardless of which map was asked about is a silent and very confusing fault: the
+ * player walks a route into mp21, mp21 holds no keys, and a key lying in mp10 now reads
+ * as already collected. A route that went to fetch it then cannot be re-planned, and the
+ * chevrons stop at the door they just came through. So a caller that holds a per-cavern
+ * list must gate it on this and treat every other cavern as *not known to be empty*,
+ * which is the same assumption the search makes when it is given no callback at all.
+ */
+export function isLoadedCavern(g: Uint8Array, mapId: number): boolean {
+    return (memRead8(g, PLACE_MAP_ID) & 0x7f) === mapId;
 }
 
 /**

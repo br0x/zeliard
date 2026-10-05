@@ -65,6 +65,23 @@ export interface NavHop {
     readonly to: NavPoint;
 }
 
+/**
+ * What a route was planned under, so a later search can repeat it.
+ *
+ * `findRoute` answers differently depending on these, and the difference is not
+ * cosmetic: a route planned with `collectKeys` walks to a key the hero does not have,
+ * and re-planning it without that flag asks for a route from a hero who still has
+ * nothing, which does not exist. `PathGuide` re-plans every route it holds, so it has
+ * to be told — and the door state is here for the same reason, since a door the player
+ * has opened is open for good and costs nothing.
+ *
+ * The same fields as {@link FindRouteOptions}, minus `store`, `caps`, `start`, `goal`,
+ * `maps` and `maxExpanded`.
+ */
+export type NavRoutePlan = Pick<FindRouteOptions,
+    'collectKeys' | 'collectAccessories' | 'planAccessories'
+    | 'keyPresent' | 'shoePresent' | 'doorOpen'>;
+
 export interface NavRoute {
     readonly points: readonly NavPoint[];
     readonly hops: readonly NavHop[];
@@ -482,6 +499,22 @@ export interface FindRouteOptions {
      * engine/dungeon-init.ts:75) — so a table entry means "there was one here",
      * not "there is one here now".
      */
+    /**
+     * Does the door at `(mapId, x0, y0)` stand open right now, or null for unknown.
+     *
+     * **A key is spent once and its door is then open for good** — that is the game,
+     * and it is why this is not the same question as {@link keyPresent}. A key the
+     * player has taken is gone from the floor, so no route may fetch it; but the door
+     * it opened is standing open behind it and costs nothing ever again. Asking only
+     * about keys makes a hero who has been through a locked door once unable to plan
+     * a route back through it.
+     *
+     * Null means the answer is not known — the engine keeps a door table for the
+     * loaded cavern only — and the level data is used instead, which says how the door
+     * shipped. The same answer already exists for drawing the door on the chart; this
+     * is the search asking it too.
+     */
+    readonly doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null;
     readonly keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
     /**
      * Only collect keys on maps of this cavern level.
@@ -697,6 +730,12 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         toX: number,
         toY: number,
         keyReq: number,
+        /**
+         * Where the door this is sits, so `doorOpen` can be asked about it. The MDT
+         * portal is a door record and has both; a boss arena's exit has no record at
+         * all, and is always open — it exists only because the boss died.
+         */
+        door: { mapId: number; x0: number; y0: number } | null,
     ): void => {
         if (destMapId < 0 || !maps.has(destMapId)) return;
         const dest = store.get(destMapId);
@@ -707,6 +746,19 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         let keysOrd = current.keysOrd;
         let keysLion = current.keysLion;
         let cost: number = EDGE_COST.DOOR;
+        // An open door is walked through, costing nothing — and a door the player has
+        // already opened is open, whatever the level data says it shipped as.
+        const isOpen = door !== null
+            ? (options.doorOpen?.(door.mapId, door.x0, door.y0) ?? keyReq === 0)
+            : true;
+        if (isOpen) {
+            relax(
+                current, currentIndex, destMapId, landing, EDGE.DOOR, EDGE_COST.DOOR, 0,
+                keysOrd, keysLion, current.shoes, states, best, settled, indexOfState,
+                open, goalGraph, goalNode,
+            );
+            return;
+        }
         if (keyReq === CAP.LION_KEY) {
             // A closed door with the Lion-Head feature bit costs a Lion-Head key.
             // Under `unlimitedKeys` the search is told to assume every key in the
@@ -723,7 +775,6 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
             }
             cost = EDGE_COST.DOOR_LOCKED;
         }
-        // An open door is walked through, costing nothing.
         relax(
             current, currentIndex, destMapId, landing, EDGE.DOOR, cost, keyReq,
             keysOrd, keysLion, current.shoes, states, best, settled, indexOfState,
@@ -773,7 +824,8 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         if (portalIndex >= 0) {
             const portal = PORTALS[portalIndex]!;
             crossDoor(current, currentIndex, portal.destMapId, portal.toX, portal.toY,
-                portal.key === 2 ? CAP.LION_KEY : (portal.key === 1 ? CAP.KEY : 0));
+                portal.key === 2 ? CAP.LION_KEY : (portal.key === 1 ? CAP.KEY : 0),
+                { mapId: current.mapId, x0: portal.x0, y0: portal.y0 });
         }
 
         // ── the door a boss arena grows when its boss dies ──
@@ -783,8 +835,10 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         const exitIndex = graph.bossExitAtNode[current.node]!;
         if (exitIndex >= 0) {
             const exit = NAV_BOSS_EXITS[exitIndex]!;
+            // A boss arena's exit has no door record: it is the door the arena grows
+            // when the boss dies, so it is always open and there is nothing to ask.
             crossDoor(current, currentIndex, exit.destMapId, exit.destX, exit.destY,
-                exit.key === 2 ? CAP.LION_KEY : (exit.key === 1 ? CAP.KEY : 0));
+                exit.key === 2 ? CAP.LION_KEY : (exit.key === 1 ? CAP.KEY : 0), null);
         }
     }
 
@@ -907,6 +961,11 @@ function describeRoute(
     for (let i = 1; i < chain.length; i++) {
         const via = chain[i]!.via;
         if (via !== EDGE.DOOR) continue;
+        // A door that stood open costs nothing, so it is not a locked door on this
+        // route and no key was spent on it — even when the level data shipped it
+        // locked, and even when the portal says it needs a key. `viaReq` is the
+        // requirement the hop was actually taken under, which is 0 for an open door.
+        if (chain[i]!.viaReq === 0) continue;
         // The portal belongs to the map the hop *leaves*, so both the graph and the
         // node come from the previous state.
         const graph = store.get(chain[i - 1]!.mapId)!;

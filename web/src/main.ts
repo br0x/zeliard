@@ -241,7 +241,7 @@ import {
     initPathOverlay, drawPathOverlay, setChevronSheet, clearPathOverlay,
     CHEVRON_SHEET,
 } from './render/path-overlay.js';
-import { NavGraphStore, type NavRoute } from './engine/nav/pathfinder.js';
+import { NavGraphStore, type NavRoute, type NavRoutePlan } from './engine/nav/pathfinder.js';
 import { readPlatformPlaces } from './engine/nav/platform-state.js';
 import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
 import { NavRecorder } from './engine/nav/recorder.js';
@@ -253,7 +253,7 @@ import {
     makeDungeonInit,
     makeFinishRokademoTransition,
 } from './engine/dungeon-cutover.js';
-import { presentKeys, presentShoes } from './engine/dungeon-items.js';
+import { isLoadedCavern, presentKeys, presentShoes } from './engine/dungeon-items.js';
 import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
@@ -496,10 +496,12 @@ function openMapScreen(): void {
         store: navGraphStore(),
         // A key in the generated table may have been collected already; the engine
         // knows which, and a route must not fetch one that is gone.
-        keyPresent: (_mapId, col, row, kind) => keysOnFloor.has(`${col},${row},${kind}`),
+        keyPresent: (mapId, col, row, kind) => onThisCavern(mapId)
+            && keysOnFloor.has(`${col},${row},${kind}`),
         // A pair of shoes, like a key, may have been picked up already — and a pair
         // the player is already carrying is no detour at all.
-        shoePresent: (_mapId, col, row, shoe) => shoesOnFloor.has(`${col},${row},${shoe}`),
+        shoePresent: (mapId, col, row, shoe) => onThisCavern(mapId)
+            && shoesOnFloor.has(`${col},${row},${shoe}`),
         // The map is the cavern's own art, not a class-coloured sketch: the same
         // sheet `drawStaticTile` blits in the live view, so a wall on the map is
         // the colour that wall has in the game. Loaded per map and cached by the
@@ -530,6 +532,25 @@ function openMapScreen(): void {
 
 /** Bytes per door record in the table at `ADDR_DOORS_LIST`. */
 const DOOR_RECORD_SIZE = 12;
+
+/**
+ * Is `mapId` the cavern the engine currently has loaded?
+ *
+ * `keysOnFloor` and `shoesOnFloor` are read from the loaded cavern's entity list and
+ * nothing else, so they say nothing at all about any other cavern — and a route is
+ * routinely longer than one cavern.
+ *
+ * Answering from them regardless of which map was asked about is how a key in mp10 came
+ * to read as already collected: the player had walked the thread into mp21, mp21 has no
+ * keys, and the re-plan from there refused to fetch mp10's. The guide then dropped the
+ * route and the chevrons stopped at the first door, which is the whole thread lost on a
+ * question nobody asked. So a cavern that is not loaded answers **true** — "not known to
+ * be gone", which is what the search assumes when it is given no callback at all, and
+ * the same rule `liveDoorOpen` follows with its `null`.
+ */
+function onThisCavern(mapId: number): boolean {
+    return isLoadedCavern(getGmem(), mapId);
+}
 
 /**
  * Whether the engine currently has a door standing open at (x0, y0) on `mapId`.
@@ -573,17 +594,21 @@ function closeMapScreen(): void {
  * open showing "I used a Yaga thread", and the chevrons appear only once the
  * player leaves it.
  */
-function acceptMapDestination(route: NavRoute): void {
+function acceptMapDestination(route: NavRoute, plan: NavRoutePlan = {}): void {
     if (mapScreenInstance) mapScreenInstance.exit();
     mapScreenInstance = null;
     // Only now is the thread spent.
     inventoryScreenInstance?.commitThreadOfYaga();
     const guide = navPathGuide();
+    // The plan goes with it: the guide re-plans from wherever the hero has got to, and
+    // it has to ask the same question the map screen did — a route that walks to a key
+    // it does not have, and a door that stands open, are both still true of the world
+    // the thread is being drawn on.
     guide.setRoute(route, {
         mapId: route.points[route.points.length - 1]!.mapId,
         col: route.points[route.points.length - 1]!.col,
         row: route.points[route.points.length - 1]!.row,
-    });
+    }, { ...plan, doorOpen: plan.doorOpen ?? liveDoorOpen });
 }
 
 /**
@@ -622,6 +647,11 @@ function navPathGuide(): PathGuide {
         store: navGraphStore(),
         heroPosition: heroMapPosition,
         capabilities: heroCapabilities,
+        // The guide re-plans the route as the hero walks it, and must plan it under
+        // the door state the map screen planned under — or an already-open door gets
+        // priced as locked, the search finds nothing, and the thread vanishes on the
+        // first frame after it is spent.
+        doorOpen: liveDoorOpen,
     });
     initPathOverlay({
         ctx,
