@@ -5046,3 +5046,139 @@ makes the rule testable at all, since `main.ts` is not.
   does so once and keeps it for the rest; the same journey is unreachable without the
   flag and with the pair marked as already taken; and a pair he already wears counts
   from the first step.
+
+## 27. A chevron pointing into the ground, and a trip that had grown 116 hops
+
+### The report
+
+Thread of Yaga, `mp80 (111,21) → mp81 (123,6)`: the route "seems incorrect" — the
+chevron at `mp80 (27,21)` points straight down into solid ground, and it is unclear
+where to go next.
+
+Two defects, both in the guide, and the second finding explains the number the report
+opened with: the trip had grown from 152 hops to 269 since §17 measured it, and that
+growth is correct.
+
+### 27.1 The guide's platform mask was not the graph's
+
+`buildNavGraph` marks a platform's landing surface family by family (§25): a
+**horizontal** platform sweeps one fixed row, so every column of its span is a row it
+will be at again and the whole span is landable; a **vertical** one has only the row it
+is standing at, and `isLandingSlot` is the whole of it.
+
+`PathGuide.flightModel` filtered *both* families through `isLandingSlot`. **[measured]**
+on mp80 that is 36 marked cells against the graph's 158, and on the row-33 platform —
+span 22..44, fifteen landing columns — three against fifteen.
+
+**[measured]** the trip's first fall, `FALL mp23(26,21) → mp23(29,30)`:
+
+| model | `flightPath(25,21 → 29,30)` |
+| --- | --- |
+| the graph's mask | `(25,21) (25,21) (25,21) (25,22) (25,23) (25,24) (25,25) (25,26) (26,27) (27,28) (28,29) (29,30)` |
+| the guide's mask | empty |
+
+An empty flight is the two-ends fallback, so the overlay drew a single chevron. It is
+drawn at the route point's column **plus one** — the engine's own "the hero's cell",
+which is what puts a chevron on his sprite — so the player read it at `(27,21)`, and
+row 24 under that column is rock: the shaft is columns 24-26, and the landing is nine
+rows below, undrawn. One arrow, into the wall, with the way down missing.
+
+The guide now asks the rule the graph asks.
+
+### 27.2 A fall that begins two columns out
+
+`addFalls` asks from `node.col + dir` **and** from `far = node.col + 2 * dir` — the
+two-tile step off a rope, which is the only way off one. `FALL_STARTS` had the first
+and not the second, so `FALL mp23(103,39) → mp23(108,41)`, which begins once he has
+stepped out to 105, could not be replayed either. Both starts are asked now.
+
+**[measured]** the whole trip: **six** of its flight hops fell back to their two ends
+before, **none** after.
+
+### 27.3 The trip had grown, and the growth is right
+
+**[measured]** `mp80 (111,21) → mp81 (124,6)`, by commit:
+
+| commit | shoes | no shoes |
+| --- | --- | --- |
+| `7efc96f` | 152 hops, cost 290 | 184 hops, cost 320 |
+| `a3a29b9` | — | 224 hops, cost 358 |
+| `d1a5028` | — | 406 hops, cost 547 |
+| `d28ab04` | — | 319 hops, cost 437 |
+| now | 268 hops, cost 409 | 319 hops, cost 437 |
+
+`(123,6)`, the cell the report names, is one hop more: 269 hops, cost 410.
+
+The old route crossed **mp25**: `mp80 → door (250,31) → mp25 → door (174,10) →
+mp81 (227,60)`, three map changes and 184 hops of it. What went is the far-east leg.
+**[measured]** the cost of standing at `mp80 (250,32)` from `(111,21)`, with every edge
+allowed:
+
+| commit | cost |
+| --- | --- |
+| `7efc96f` | 138 |
+| `684ae11` | 158 |
+| `a3a29b9` | 172 |
+| `d1a5028` | no route |
+| now | no route bare, 656 with shoes |
+
+`d1a5028` is *"a platform was a place, not a thing"*: `isLandingSlot` made only a
+vertical platform's resting row landable, which is the engine — §2.7's lift is driven
+by the hero, so while he stands on the ground it is where he left it. The old route's
+first move into the far east was
+
+```
+JUMP_HIGH mp23(8,37) → mp23(1,35)
+```
+
+a landing on the column-1 lift at head row 35 — platform row 38 — while it rests at
+`startY` 34. Taking the `isLandingSlot` filter back out restores `(250,32)` to 146;
+leaving it in leaves the old numbers unreachable. **The shortcut was never legal**, and
+152 was measuring a route through a platform that was not there.
+
+Priced honestly, the search goes west: row 21 out to `(26,21)`, down the shaft onto the
+row-33 platform, the row-25 corridor, the row-41 gallery, and the door at `(117,31)`.
+That is not a preference, it is the optimum under the corrected graph — and the shelf
+has no shorter way down. **[measured]** east of the column-95 up current, row 24 is
+solid from column 97 to 155, so the row-21 shelf the route walks has no drop east of
+it; the descent is the shaft at column 26.
+
+### Still open: riding a platform is priced above hopping along it
+
+**[measured]** on mp80's row-33 platform, from the ride cell `(29,30)`:
+
+| edge | cost |
+| --- | --- |
+| `RIDE_H → (30,30)` | 4 |
+| `FALL → (30,30)` | 2 |
+| `FALL → (31,30)` | 3 |
+
+So the route hops along the platform in two-column arcs and the overlay draws those
+arcs faithfully — four of them, immediately after the shaft, which is exactly where the
+report was looking. Two reasons, neither of them touched here:
+
+- `nav-graph.ts` prices **every** horizontal ride at `RIDE_H_SLOW`, though
+  `RIDE_H_FAST` exists and the engine moves a `speed 1` platform every other tick and
+  any other speed every tick (`dungeon-platforms.ts:229`). mp80's row-33 platform is
+  speed 2 and is charged the slow price.
+- A same-row landing is charged `frames + sideways` with `frames` counted at 1, while
+  the flight it draws takes four frames.
+
+Fixing either reprices every horizontal platform in the game, which is its own round
+with its own before-and-after route measurements. Recorded here so it is not rediscovered
+as a new bug.
+
+### What would make this wrong
+
+If a hero could wait for a lift he does not drive, `isLandingSlot` would be wrong for
+vertical platforms too and §27.3 would be arguing against the engine. The test is the
+trip again: it should come back at 152 hops through mp25, and it does not.
+
+### Tests
+
+972 pass, `tsc --noEmit` clean, `nav:check` up to date.
+
+- `tests/path-overlay.test.ts` — *"replays every flight in the trip the player
+  reported"*: the real `(111,21) → (123,6)` trip, every `FALL`/`JUMP`/`JUMP_HIGH`/`DROP`
+  in it asked of `cellsForHop`, and none may come back as its two ends. Without §27.1
+  and §27.2 it fails with six of them, the first being `FALL (26,21)→(29,30)`.

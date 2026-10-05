@@ -23,7 +23,7 @@ import { NavTileClassifier } from './attributes.js';
 import {
     FALL_RISE_HEIGHTS, JUMP_RISE_HEIGHTS, JumpModel, STEER_ALL,
 } from './jump.js';
-import { buildPlatformModel, isLandingSlot } from './platforms.js';
+import { buildPlatformModel, isLandingSlot, PLATFORM_HORIZONTAL } from './platforms.js';
 import { liftSweptCell } from './nav-graph.js';
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import { heroInLift, wrapCol, wrapRow } from './geometry.js';
@@ -156,11 +156,14 @@ const EMPTY_FLIGHT = new Int32Array(0);
 
 /**
  * Where a falling hero can begin, relative to the cell he is standing on: his own
- * column, either side of it, and the column past him and one row up, which is where
- * `addFalls` starts the fall off a rope.
+ * column, either side of it, the column past him and one row up, and the column
+ * *two* past him — `addFalls` asks from `node.col + dir` and from `far`, the
+ * two-tile step off a rope, so a fall that leaves a rope starts two columns over
+ * from the node the route records (mp80 (103,39) -> (108,41) is one of those: the
+ * flight only begins once he has stepped out to 105).
  */
 const FALL_STARTS: readonly (readonly [number, number])[] = [
-    [0, 0], [-1, 0], [1, 0], [1, -1],
+    [0, 0], [-1, 0], [1, 0], [1, -1], [2, 0], [-2, 0],
 ];
 
 export class PathGuide {
@@ -415,7 +418,22 @@ export class PathGuide {
         const classifier = NavTileClassifier.forMap(mapId);
         const platformModel = buildPlatformModel(mapId, grid, this.deps.store.platformPlaces(mapId));
         const surfaces = new Uint8Array(grid.mapWidth * 64);
+        // The graph's rule, family by family (see `buildNavGraph`): a horizontal
+        // platform moves sideways along one fixed row, so every column of its span is
+        // a row it will be at again, and a hero who falls anywhere along it is landed
+        // on — the whole span is landable. A vertical platform only has the row it is
+        // on now, so `isLandingSlot` is the whole of it. Filtering both through
+        // `isLandingSlot` kept only the slots the platform currently occupies: on mp80
+        // that is three cells of the row 33 span instead of fifteen, and the fall off
+        // the ledge at (26,21) onto it could not be replayed at all — the overlay
+        // fell back to the hop's two ends and drew one chevron pointing straight down
+        // into the rock under the shaft.
         for (const slot of platformModel.slots) {
+            if (slot.kind === PLATFORM_HORIZONTAL) {
+                surfaces[(slot.headRow + 3) * grid.mapWidth
+                    + wrapCol(slot.leftCol + 1, grid.mapWidth)] = 1;
+                continue;
+            }
             if (!isLandingSlot(slot)) continue;
             surfaces[(slot.headRow + 3) * grid.mapWidth
                 + wrapCol(slot.leftCol + 1, grid.mapWidth)] = 1;

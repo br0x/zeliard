@@ -22,7 +22,7 @@ import { FALL_RISE_HEIGHTS, JUMP_RISE_HEIGHTS, JumpModel, STEER_ALL } from '../s
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { chevronAlpha } from '../src/render/path-overlay.js';
-import { EDGE } from '../src/engine/nav/types.js';
+import { EDGE, EDGE_NAMES } from '../src/engine/nav/types.js';
 import { wrapRow } from '../src/engine/nav/geometry.js';
 import type { NavNode } from '../src/engine/nav/nav-graph.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
@@ -481,6 +481,47 @@ describe('the line a fall draws', () => {
         );
         expect(guide.cellsForHop(at).length).toBeGreaterThan(1);
         expect(guide.cellsForHop(at).length).toBeGreaterThanOrEqual(apart);
+    }, 120000);
+
+    it('replays every flight in the trip the player reported', () => {
+        // mp80 (111,21) → mp81 (123,6), the trip the player drew and then reported
+        // as looking wrong. Two hops in it could not be replayed at all and fell
+        // back to the hop's two ends, which is one chevron, and it pointed into the
+        // scenery:
+        //
+        //   - `FALL (26,21) → (29,30)` steps off the west edge of the row-21 shelf
+        //     and drops down the shaft onto the row-33 platform. Its landing is a
+        //     column of a **horizontal** platform's span, so the guide's flight
+        //     model has to mark the whole span the way `buildNavGraph` does — it
+        //     was filtering every family through `isLandingSlot`, three cells of
+        //     the span instead of fifteen, and the answer was a single down
+        //     chevron at the drawn column 27, under which row 24 is rock.
+        //   - `FALL (103,39) → (108,41)` leaves a rope: `addFalls` starts it at
+        //     `node.col + 2`, the two-tile step off the rope, and `FALL_STARTS`
+        //     did not ask from there.
+        const store = realStore();
+        const caps = allCapabilities();
+        const start = { mapId: 23, col: 111, row: 21 };
+        const goal = { mapId: 24, col: 123, row: 6 };
+        const found = findRoute({ store, caps, start, goal });
+        expect(found).not.toBeNull();
+        const guide = new PathGuide({
+            store, heroPosition: () => start, capabilities: () => caps,
+        });
+        guide.setRoute(found!, goal);
+        const flights = new Set<number>([
+            EDGE.FALL, EDGE.JUMP, EDGE.JUMP_HIGH, EDGE.DROP,
+        ]);
+        const stubs: string[] = [];
+        found!.hops.forEach((hop, i) => {
+            if (!flights.has(hop.kind)) return;
+            const cells = guide.cellsForHop(i);
+            if (cells.length > 2) return;
+            stubs.push(`${EDGE_NAMES[hop.kind]}`
+                + ` (${hop.from.col},${hop.from.row})→(${hop.to.col},${hop.to.row})`
+                + ` drew ${cells.length} cell(s)`);
+        });
+        expect(stubs, 'flights the overlay could not replay').toEqual([]);
     }, 120000);
 });
 
