@@ -181,8 +181,8 @@ export class ChurchScene extends IndoorSceneBase {
                 return;
             })
             .then(() => {
-                if (this.sceneReady || this.phase !== 'fadeIn') return;
-                this.lastCandleTime = now;
+                if (this.sceneReady || this.phase === 'fadeOut' || this.phase === 'idle') return;
+                this.lastCandleTime = performance.now();
                 this.script = buildChurchScript(this._getHeroHP(), this._getHeroMaxHp());
                 this.scriptIndex = 0;
                 this.sceneReady = true;
