@@ -335,6 +335,10 @@ export interface NavPortal {
      * route may cross outwards but never back through this portal.
      */
     readonly oneWay: boolean;
+    /** Savegame achievement address for door-open persistence (0xFFFF if none). */
+    readonly saveAchievementAddr: number;
+    /** Savegame achievement flag bit for door-open persistence (0xFF if none). */
+    readonly saveAchievementFlag: number;
 }
 `,
     emitArray('PORTALS', 'NavPortal', portalItems),
