@@ -890,7 +890,7 @@ export function drawDungeonNotification(): void {
     const msgId = env.dungeonState.notificationMsgId;
     const entry = getDungeonNotification(msgId);
     if (!entry) return;
-    const { leftPad, text } = entry;
+    const { text } = entry;
     const x = TILE_SIZE;
     const y = TILE_SIZE * 2;
     const w = TILE_SIZE * (VIEW_COLS - 2);
@@ -901,7 +901,9 @@ export function drawDungeonNotification(): void {
     env.ctx.font = '24px "Press Start 2P", monospace';
     env.ctx.fillStyle = '#fff';
     env.ctx.textBaseline = 'middle';
-    env.ctx.fillText(text, x + leftPad * (TILE_SIZE / 8), y + h / 2);
+    const textWidth = env.ctx.measureText(text).width;
+    const textX = x + (w - textWidth) / 2;
+    env.ctx.fillText(text, textX, y + h / 2);
     env.ctx.restore();
 }
 
