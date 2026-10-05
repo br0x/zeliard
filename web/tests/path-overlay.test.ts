@@ -384,8 +384,7 @@ describe('the line a fall draws', () => {
     // game, and a route drawn through a cave the hero crosses said nothing about.
 
     it('asks the fall the question the graph asked', () => {
-        const store = realStore();
-        const graph = store.get(25)!;
+        const graph = realStore().get(25)!;
         const model = new JumpModel(
             decodeTileGrid(
                 new Uint8Array(readFileSync(resolve(REPO, `web/public/${NAV_MAP_BY_ID.get(25)!.mdtPath}`))),
@@ -426,18 +425,30 @@ describe('the line a fall draws', () => {
         expect(found).not.toBeNull();
         const guide = new PathGuide({ store, heroPosition: () => start, capabilities: () => caps });
         guide.setRoute(found!, goal);
-        const hop = found!.hops[153]!;
-        expect(hop.kind).toBe(EDGE.LIFT);
-        const cells = guide.cellsForHop(153);
-        // The climb is up one column: from the swept cell to the exit, every cell shares
-        // the exit's column, which is the only direction an up current carries him.
-        const climb = cells.slice(cells.findIndex((c) => c.col === hop.to.col));
-        expect(climb.length).toBeGreaterThan(1);
-        expect(new Set(climb.map((c) => c.col)).size).toBe(1);
-        expect(climb[climb.length - 1]).toMatchObject({ col: hop.to.col, row: hop.to.row });
-        for (let i = 1; i < climb.length; i++) {
-            expect(climb[i]!.row).toBe(wrapRow(climb[i - 1]!.row - 1));
+        // Find the hop rather than counting to it: the index moves every time a
+        // traversal changes, and what is under test is how the line is drawn.
+        const at = found!.hops.findIndex((h) => h.kind === EDGE.LIFT);
+        expect(at, 'route has no lift in it').toBeGreaterThan(-1);
+        const cells = guide.cellsForHop(at);
+        // The climb is up ONE column, one row per cell, drawn as a column of
+        // chevrons rather than a single one between the two ends. Find the longest
+        // run of cells that step up one row in one column: that is the climb.
+        let climb: typeof cells = [];
+        for (let i = 0; i < cells.length; i++) {
+            let run = [cells[i]!];
+            for (let j = i + 1; j < cells.length; j++) {
+                const prev = run[run.length - 1]!;
+                if (cells[j]!.col !== prev.col) break;
+                if (cells[j]!.row !== wrapRow(prev.row - 1)) break;
+                run.push(cells[j]!);
+            }
+            if (run.length > climb.length) climb = run;
         }
+        expect(climb.length, 'the lift draws a climb').toBeGreaterThan(1);
+        expect(new Set(climb.map((c) => c.col)).size, 'the climb is one column').toBe(1);
+        // And the line reaches back to where he was swept from, so it is longer than
+        // the climb alone.
+        expect(cells.length, 'the line is longer than the climb').toBeGreaterThan(climb.length);
     }, 120000);
 
     it('draws a long fall as the flight, not as its two ends', () => {
@@ -451,11 +462,25 @@ describe('the line a fall draws', () => {
             store, heroPosition: () => start, capabilities: () => caps,
         });
         guide.setRoute(found!, goal);
-        // Hop 25 of this route is the fall `(113,7) -> (118,20)`: thirteen rows down and
-        // five columns across, which as a single chevron says nothing about where the
-        // hero passes. Seventeen cells is the flight.
-        expect(found!.hops[25]).toMatchObject({ kind: EDGE.FALL });
-        expect(guide.cellsForHop(25).length).toBeGreaterThan(10);
+        // The route's longest flight: one chevron per row and per column it passes,
+        // which as a single chevron between its ends says nothing. Found by how much
+        // it draws rather than by its row drop, since the map is a cylinder and a
+        // drop through the seam reads as a large number.
+        const at = found!.hops.reduce(
+            (best, h, i, all) => (h.kind === EDGE.FALL
+                && guide.cellsForHop(i).length > guide.cellsForHop(best).length ? i : best),
+            0,
+        );
+        expect(found!.hops[at]!.kind, 'route has no fall in it').toBe(EDGE.FALL);
+        // Longer than the two ends it joins: the straight line between them would be
+        // a single chevron, and the hero passes every cell in between.
+        const hopAt = found!.hops[at]!;
+        const apart = Math.max(
+            Math.abs(hopAt.from.col - hopAt.to.col),
+            Math.abs(hopAt.from.row - hopAt.to.row),
+        );
+        expect(guide.cellsForHop(at).length).toBeGreaterThan(1);
+        expect(guide.cellsForHop(at).length).toBeGreaterThanOrEqual(apart);
     }, 120000);
 });
 

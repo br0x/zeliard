@@ -21,8 +21,9 @@ import { EDGE, EDGE_NAMES, NAV, CAP, blocksBody } from '../src/engine/nav/types.
 import { nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
-import { NAV_MAP_BY_ID, NAV_MAPS } from '../src/data/nav/nav-maps.js';
+import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { NAV_KEYS } from '../src/data/nav/nav-keys.js';
+import { NAV_BOSS_EXITS } from '../src/data/nav/nav-portals.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const store = new NavGraphStore((id) => {
@@ -523,13 +524,68 @@ describe('a few more real journeys', () => {
         expect(solidCrossings(r!)).toEqual([]);
     });
 
-    it('finds a route between two boss arenas only through their cavern', () => {
-        // mp1d is a dead end by design: reachable from mp10, but you cannot route
-        // out of it, because its exit door is synthesised at runtime after the
-        // fight. So a goal inside mp1d is fine, but a trip that must pass
-        // through it is not.
-        const into = route(23, [113, 21], [0, 0]);
-        expect(into === null || into.maps[0] === 23).toBe(true);
+    it('finds a route out of a boss arena, and one into it', () => {
+        // Both halves of the passage. Into mp1d: mp10's door at (141,32) is open, so
+        // the hero walks in at (47,15). Out of it: the door the fight opens puts him
+        // on mp10 (141,33), which is a node he can leave on foot.
+        const into = findRoute({
+            store, caps: allCapabilities(),
+            start: { mapId: 0, col: 141, row: 33 },
+            goal: { mapId: 1, col: 27, row: 15 },
+        });
+        expect(into?.maps).toEqual([0, 1]);
+        const out = findRoute({
+            store, caps: allCapabilities(),
+            start: { mapId: 1, col: 47, row: 15 },
+            goal: { mapId: 0, col: 141, row: 33 },
+        });
+        expect(out?.maps).toEqual([1, 0]);
+        expect(out!.points[1]).toMatchObject({ mapId: 0, col: 141, row: 33 });
+    });
+
+    it('routes through a boss arena, out of the door the fight opens', () => {
+        // mp1d reads as doorless, so before this its exit could not be used and the
+        // arena was a terminus. It is not: mp10 (26,15) walks the hero in at
+        // (27,15), and the door that appears when the boss dies puts him on mp10
+        // (141,33) — the far side of the arena. Two hops and one closed door.
+        const r = findRoute({
+            store,
+            caps: { ...bareCapabilities(), keys: 1 },
+            start: { mapId: 0, col: 26, row: 16 },
+            goal: { mapId: 0, col: 135, row: 33 },
+        });
+        expect(r).not.toBeNull();
+        expect(r!.maps).toEqual([0, 1, 0]);
+        expect(r!.points.map((p) => `${p.mapId}(${p.col},${p.row})`)).toEqual([
+            '0(26,16)', '1(27,15)', '0(141,33)', '0(140,33)', '0(139,33)',
+            '0(138,33)', '0(137,33)', '0(136,33)', '0(135,33)',
+        ]);
+        expect(solidCrossings(r!)).toEqual([]);
+    });
+
+    it('offers the post-boss door from every standing position on its row', () => {
+        // The exit has no column of its own — `load_place_and_reinit` stamps the
+        // record's x0 with wherever the hero is standing — so every node on row
+        // y0 + 1 has to carry it, not just the one the file happens to name.
+        const exit = NAV_BOSS_EXITS.find((e) => e.mapId === 1)!;
+        const g = store.get(1)!;
+        const row = (exit.y0 + 1) & 0x3f;
+        let onRow = 0;
+        for (let n = 0; n < g.nodes.length; n++) {
+            if (g.nodes[n]!.row !== row) continue;
+            onRow++;
+            expect(g.bossExitAtNode[n]!, `node (${g.nodes[n]!.col},${row})`).toBe(0);
+        }
+        expect(onRow).toBeGreaterThan(1);
+    });
+
+    it('refuses to leave a boss arena whose exit opens onto a town', () => {
+        // mp73's post-boss door is a town door. A town is never an edge, so a goal
+        // past it stays out of reach rather than being drawn.
+        const exit = NAV_BOSS_EXITS.find((e) => e.mapId === 21)!;
+        expect(exit.toTown).toBe(true);
+        const maps = NAV_REACHABLE[21]!;
+        expect(maps).not.toContain(0);
     });
 
     it('refuses a goal with no route even with everything the hero can wear', () => {

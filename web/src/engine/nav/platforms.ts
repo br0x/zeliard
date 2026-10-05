@@ -24,9 +24,9 @@
  * position aboard is therefore `(leftCol = x, headRow = platformRow - 3)`.
  *
  * Horizontal platforms are looser: `heroOnHorizPlatform` carries the hero when any
- * of his three columns matches the platform's mapped column, which works out to
- * his left column being within one of the platform's left cell, so a horizontal
- * slot allows `leftCol = platformCol - 1 .. platformCol + 1`.
+ * of his three columns matches the platform's mapped column, so the platform hangs
+ * off his right and a horizontal slot allows `leftCol = platformCol - 2 ..
+ * platformCol` (see {@link HORIZONTAL_RIDE_OFFSETS}).
  *
  * The carry itself is not guaranteed. `updateHorizPlatformCoords` moves the hero
  * with `moveHeroRightIfNoObstacles`, and that call *fails* when something is in the
@@ -72,6 +72,18 @@ export const REASON_UNCLEAR_SPAN =
 export const REASON_SINGLE_ROW = 'only one rideable row, so it cannot move';
 
 /**
+ * Where a hero may sit relative to a horizontal platform's own left cell.
+ *
+ * The platform is three tiles wide and hangs off the hero's right, so it is the
+ * hero's LEFT column that has to line up: `heroOnHorizPlatform`
+ * (engine/dungeon-platforms.ts:107-112) carries him when any of his three columns
+ * equals the platform's `x`, which is `leftCol = platformCol - 2 .. platformCol`.
+ * Each column of the span therefore offers three riding positions, and they all
+ * ride together at the same offset — see the linking below.
+ */
+export const HORIZONTAL_RIDE_OFFSETS: readonly number[] = [-2, -1, 0];
+
+/**
  * One position the hero can ride at.
  *
  * Vertical and collapsing slots are indexed by row, horizontal ones by column.
@@ -89,11 +101,11 @@ export interface RideSlot {
     readonly headRow: number;
     /**
      * How the hero sits on a horizontal platform, in columns from the platform's
-     * own left cell: -1 hanging off the left, 0 centred, 1 off the right.
+     * own left cell — see {@link HORIZONTAL_RIDE_OFFSETS}.
      *
      * This is what identifies a riding position. `leftCol` alone does not: at
      * platform columns 149, 150 and 151 the hero can all stand at left column
-     * 150 (with offsets +1, 0 and -1), so three distinct slots share one cell.
+     * 149 (with offsets 0, -1 and -2), so three distinct slots share one cell.
      * Linking rides by left column therefore joined two slots where the hero had
      * not moved at all, and he could never travel along the platform.
      */
@@ -305,10 +317,24 @@ export function buildPlatformModel(
         const columns = Array.from({ length: p.cols }, (_, i) => wrapCol(p.minX + i, mapWidth));
 
         // For each column of the span, which riding offsets are usable?
+        //
+        // `heroOnHorizPlatform` (engine/dungeon-platforms.ts:107-112) carries the
+        // hero when *any* of his three columns equals the platform's own left cell,
+        // so his left column is `platformCol - 2 .. platformCol` — the platform
+        // hangs off his right. That was `platformCol - 1 .. platformCol + 1` here,
+        // which is a different set: it invented a riding position with the platform
+        // hanging off the hero's LEFT, and dropped the one that really exists.
+        //
+        // Dropping the real one is not a small thing. A slot is only ever boarded
+        // from a ground node standing on the same cell, so with the leftmost riding
+        // position a column too far right, a hero standing at (116,61) had no way
+        // onto the platform standing at column 118 — the widest mp10 platform, the
+        // one that carries the whole cavern — and mp10's row 61 was unreachable
+        // from the ground in both directions.
         const usable = new Map<number, { slot: number; leftCol: number; offset: number }[]>();
         for (const column of columns) {
             const standing: { slot: number; leftCol: number; offset: number }[] = [];
-            for (const offset of [-1, 0, 1]) {
+            for (const offset of HORIZONTAL_RIDE_OFFSETS) {
                 const leftCol = wrapCol(column + offset, mapWidth);
                 if (!standingAboard(grid, classifier, leftCol, headRow)) continue;
                 const index = slots.length;

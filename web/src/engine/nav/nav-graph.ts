@@ -43,12 +43,16 @@ import {
     JumpModel, LANDING_STRIDE, STEER_ALL, STEER_STRAIGHT, STEER_LEFT, STEER_RIGHT,
 } from './jump.js';
 import {
-    buildPlatformModel, isLandingSlot, type PlatformModel,
+    buildPlatformModel, isLandingSlot, PLATFORM_HORIZONTAL, PLATFORM_VERTICAL,
+    type PlatformModel,
 } from './platforms.js';
 import type { PlatformPlaces } from './platform-state.js';
 import { NAV_KEYS } from '../../data/nav/nav-keys.js';
 import { buildAirflowModel, type AirflowModel } from './airflows.js';
-import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from '../../data/nav/nav-portals.js';
+import {
+    PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT,
+    NAV_BOSS_EXITS, NAV_BOSS_EXIT_BY_MAP,
+} from '../../data/nav/nav-portals.js';
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import type { NavTileGrid } from './mdt-grid.js';
 
@@ -145,6 +149,17 @@ export interface NavGraph {
      * represent.
      */
     readonly portalAtNode: Int32Array;
+    /**
+     * Node -> index into {@link NAV_BOSS_EXITS} for a node the arena's post-boss
+     * door can be walked into from, or -1.
+     *
+     * A boss arena's own door table reads as empty, so this is the only way out of
+     * one — and the exit has no column of its own. `load_place_and_reinit` stamps
+     * the record's x0 with the column the hero is standing on when the boss dies
+     * (engine/dungeon-cutover.ts:76-99), so the door appears wherever he is, and
+     * every standing position on row `y0 + 1` is an exit.
+     */
+    readonly bossExitAtNode: Int32Array;
     /**
      * The key lying on each node: 0 none, 1 ordinary, 2 Lion-Head.
      *
@@ -323,6 +338,18 @@ export function buildNavGraph(
 
     const portalAtNode = new Int32Array(nodes.length).fill(-1);
 
+    // A boss arena's way out. The post-boss door has no column, so it is offered
+    // from every standing position on the row the engine matches on — heroAbsY - 1
+    // === y0 — which is where the door will be standing when the boss dies.
+    const bossExitAtNode = new Int32Array(nodes.length).fill(-1);
+    const bossExitIndex = NAV_BOSS_EXIT_BY_MAP[mapId] ?? -1;
+    if (bossExitIndex >= 0) {
+        const row = (NAV_BOSS_EXITS[bossExitIndex]!.y0 + 1) & 0x3f;
+        nodes.forEach((node, index) => {
+            if (node.kind === NODE_GROUND && node.row === row) bossExitAtNode[index] = bossExitIndex;
+        });
+    }
+
     // A ride slot can never also be a ground node: the platform occupies the feet
     // row, and a ground node needs support one row *below* the feet. So a platform
     // mid-air is only reachable by landing on it, and landings must consider ride
@@ -334,12 +361,21 @@ export function buildNavGraph(
     });
 
     /**
-     * Where the hero ends up if he arrives at this position: a platform if one is
-     * there (it is what he lands on), otherwise open ground.
+     * Where the hero ends up if he arrives at this position: a rope he is holding if
+     * there is one, a platform if one is there (it is what he lands on), otherwise
+     * open ground.
+     *
+     * The rope comes first because a catch and a landing are the same cell read two
+     * ways: `airborne_movement` lands the frame and then probes **that same cell**
+     * for a rope (dungeon-input.ts:509-546), so a flight that ends on a rope ends
+     * where the rope node is — one column west of the tile, the rule every rope node
+     * is built from.
      */
     const landingAt = (col: number, row: number): number => {
         const r = wrapRow(row);
         const cell = r * mapWidth + wrapCol(col, mapWidth);
+        const rope = ropeOf[cell]!;
+        if (rope >= 0) return rope;
         const ride = rideNodeOfCell[cell]!;
         return ride >= 0 ? ride : groundOf[cell]!;
     };
@@ -707,27 +743,54 @@ export function buildNavGraph(
     });
 
     // Ride slots.
+    //
+    // A horizontal platform's slots are per riding offset, so three of them can sit
+    // in one cell — the offset says which of the platform's three tiles is under
+    // which part of the hero, and every one of them puts his left column in the same
+    // cell. One cell, one place: so the ride is generated per CELL, connecting every
+    // slot in a cell to every slot in the cell beside it. Going through `slot.next`
+    // instead picks one offset's chain per cell and leaves the hero on the platform
+    // but off the chain the graph draws — which is how mp10 (34,56) -> (35,56) was
+    // lost: the hero boarded at the leftmost riding position, stepped east, and the
+    // node the graph holds for (35,56) was the other slot there, whose chain starts a
+    // column further along.
+    const horizontalSlotsByCell = new Map<number, number[]>();
+    platforms.slots.forEach((slot, slotIndex) => {
+        if (slot.kind !== PLATFORM_HORIZONTAL || rideOf[slotIndex]! < 0) return;
+        const key = slot.headRow * mapWidth + wrapCol(slot.leftCol, mapWidth);
+        const same = horizontalSlotsByCell.get(key);
+        if (same) same.push(slotIndex);
+        else horizontalSlotsByCell.set(key, [slotIndex]);
+    });
+    for (const [cell, sameCell] of horizontalSlotsByCell) {
+        for (const dir of [1, -1] as const) {
+            const beside = horizontalSlotsByCell.get(
+                Math.floor(cell / mapWidth) * mapWidth + wrapCol((cell % mapWidth) + dir, mapWidth),
+            );
+            if (!beside) continue;
+            for (const a of sameCell) {
+                for (const b of beside) add(rideOf[a]!, rideOf[b]!, EDGE.RIDE_H, EDGE_COST.RIDE_H_SLOW);
+            }
+        }
+    }
+
     platforms.slots.forEach((slot, slotIndex) => {
         const index = rideOf[slotIndex]!;
         if (index < 0) return;
-        for (const [next, kind, cost] of [
-            [slot.next, slot.kind === 2 ? EDGE.RIDE_H : EDGE.RIDE_V,
-                slot.kind === 2 ? EDGE_COST.RIDE_H_SLOW : EDGE_COST.RIDE_V],
-            // A vertical lift carries him either way, because he drives it with Up
-            // and Down (dungeon-vertical.ts:380-467). `chain` links every adjacent
-            // pair both ways, but `next` alone walks the chain in one direction only
-            // — down — so a lift could be ridden down and never up. That is how the
-            // mp31 lift at column 5 lost its route: the hero jumps on at (5,23),
-            // presses Up, and the graph had no edge to (5,22) or anywhere above it.
-            //
-            // A collapsing platform is deliberately *not* linked upwards: it descends
-            // one row per frame and never rises (dungeon-vertical.ts:472-484).
-            // A horizontal platform is fully automated, and the hero can always wait
-            // for it to come back, so one direction already spans both.
-            [slot.kind === 0 ? slot.prev : -1, EDGE.RIDE_V, EDGE_COST.RIDE_V],
-        ] as [number, number, number][]) {
-            const to = next < 0 ? -1 : rideOf[next]!;
-            add(index, to, kind, cost);
+        // A vertical lift carries him either way, because he drives it with Up
+        // and Down (dungeon-vertical.ts:380-467). `chain` links every adjacent
+        // pair both ways, but `next` alone walks the chain in one direction only
+        // — down — so a lift could be ridden down and never up. That is how the
+        // mp31 lift at column 5 lost its route: the hero jumps on at (5,23),
+        // presses Up, and the graph had no edge to (5,22) or anywhere above it.
+        //
+        // A collapsing platform is deliberately *not* linked upwards: it descends
+        // one row per frame and never rises (dungeon-vertical.ts:472-484).
+        if (slot.kind !== PLATFORM_HORIZONTAL) {
+            const down = slot.next < 0 ? -1 : rideOf[slot.next]!;
+            const up = slot.kind === PLATFORM_VERTICAL && slot.prev >= 0 ? rideOf[slot.prev]! : -1;
+            add(index, down, EDGE.RIDE_V, EDGE_COST.RIDE_V);
+            add(index, up, EDGE.RIDE_V, EDGE_COST.RIDE_V);
         }
         // Leave the platform: sideways onto ground at his own height, or upward.
         for (const dir of [1, -1] as const) {
@@ -1020,7 +1083,8 @@ export function buildNavGraph(
 
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf,
-        liftSwept, nodeHazard, portalAtNode, keyKindAt, keyCellAt, platforms, currents, stats,
+        liftSwept, nodeHazard, portalAtNode, bossExitAtNode, keyKindAt, keyCellAt,
+        platforms, currents, stats,
         diagnostics: {
             ...graphDiagnostics,
             keysFound: (NAV_KEYS[mapId] ?? []).length,

@@ -42,6 +42,7 @@ export interface NavPortal {
     /**
      * True when the destination map has no door table at all — a boss arena or
      * a Jashiin room. The route may enter but must never leave by this door.
+     * A boss arena's way out is BOSS_EXITS, not a portal of its own.
      */
     readonly deadEnd: boolean;
     /**
@@ -3219,4 +3220,197 @@ export const NAV_DOOR_COUNT: readonly number[] = [
     0,
     0,
     0,
+];
+
+/**
+ * The way out of a boss arena, which the arena's own door table does not describe.
+ *
+ * An arena's `doors` pointer aims at a bare 0xFFFF sentinel, so a route that only
+ * walked doors found it doorless and stopped there. It is not: when the boss dies,
+ * `load_place_and_reinit` swaps the door-table pointer for a second list
+ * (engine/dungeon-cutover.ts:76-99, list at the cavern descriptor + 8) and then
+ * writes ONE word into it — the record's x0, stamped with the column the hero is
+ * standing on.
+ *
+ * So this is a door with no column: everything else about it is file data, and the
+ * hero leaves by walking into the door that appears where he happens to be standing.
+ * The graph therefore offers it from EVERY standing position on row `y0 + 1`, which
+ * is the row enterTheDoor matches on (heroAbsY - 1 === y0, dungeon-doors.ts:90).
+ * [measured] every one of the ten answers opens back onto the cavern its arena
+ * belongs to: mp1d onto mp10 at (141,33), mp2d onto mp20 at (190,48),
+ * mp8d onto mp84 at (16,52), mp73 onto a town, mpa0 onto itself.
+ */
+export interface NavBossExit {
+    /** The arena. */
+    readonly mapId: number;
+    /** d_y0 of the record: the hero stands on row y0 + 1 to walk into it. */
+    readonly y0: number;
+    /** y1 === 0xFF: the exit opens onto a town, so it is never routed through. */
+    readonly toTown: boolean;
+    readonly destMapId: number;
+    readonly destX: number;
+    readonly destY: number;
+    readonly key: PortalKeyKind;
+    readonly rokademo: boolean;
+    readonly exitFacesLeft: boolean;
+    readonly color: number;
+}
+
+
+export const NAV_BOSS_EXITS: readonly NavBossExit[] = [
+    {
+        mapId: 1,
+        y0: 14,
+        toTown: false,
+        destMapId: 0,
+        destX: 141,
+        destY: 33,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 4,
+        y0: 18,
+        toTown: false,
+        destMapId: 2,
+        destX: 190,
+        destY: 48,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 7,
+        y0: 21,
+        toTown: false,
+        destMapId: 6,
+        destX: 174,
+        destY: 5,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 10,
+        y0: 14,
+        toTown: false,
+        destMapId: 11,
+        destX: 25,
+        destY: 15,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 13,
+        y0: 21,
+        toTown: false,
+        destMapId: 14,
+        destX: 14,
+        destY: 6,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 17,
+        y0: 14,
+        toTown: false,
+        destMapId: 14,
+        destX: 28,
+        destY: 47,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 21,
+        y0: 14,
+        toTown: true,
+        destMapId: -1,
+        destX: -1,
+        destY: -1,
+        key: 0,
+        rokademo: false,
+        exitFacesLeft: true,
+        color: 0,
+    },
+    {
+        mapId: 22,
+        y0: 14,
+        toTown: false,
+        destMapId: 23,
+        destX: 57,
+        destY: 6,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 28,
+        y0: 14,
+        toTown: false,
+        destMapId: 27,
+        destX: 16,
+        destY: 52,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: false,
+        color: 2,
+    },
+    {
+        mapId: 30,
+        y0: 14,
+        toTown: false,
+        destMapId: 30,
+        destX: 36,
+        destY: 39,
+        key: 0,
+        rokademo: true,
+        exitFacesLeft: true,
+        color: 0,
+    },
+];
+
+/** Index into NAV_BOSS_EXITS per map id, -1 where there is no post-boss door. */
+export const NAV_BOSS_EXIT_BY_MAP: readonly number[] = [
+    -1,
+    0,
+    -1,
+    -1,
+    1,
+    -1,
+    -1,
+    2,
+    -1,
+    -1,
+    3,
+    -1,
+    -1,
+    4,
+    -1,
+    -1,
+    -1,
+    5,
+    -1,
+    -1,
+    -1,
+    6,
+    7,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    8,
+    -1,
+    9,
 ];

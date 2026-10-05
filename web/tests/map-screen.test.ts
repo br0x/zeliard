@@ -504,11 +504,12 @@ describe('choosing a destination', () => {
 
 describe('the map strip', () => {
     it('labels every tab so it fits inside its own slot', () => {
-        // Fourteen maps is the widest component (from mp80). At 672px that is a
-        // 48px slot, and a full "MP80" is five characters — the labels ran
-        // together into one unreadable line across the top of the screen.
+        // Boss arenas are passages now, so nearly every cavern reaches nearly
+        // every other: 29 is the widest set (from mp10). At 672px that is a 23px
+        // slot, and the labels have to fit in it — a full "MP80" is five
+        // characters and ran together into one unreadable line across the top.
         const widest = Math.max(...NAV_MAPS.map((m) => NAV_REACHABLE[m.id]!.length));
-        expect(widest).toBe(14);
+        expect(widest).toBe(29);
         for (const meta of NAV_MAPS) {
             const count = NAV_REACHABLE[meta.id]!.length;
             if (count === 0) continue;
@@ -533,7 +534,12 @@ describe('the map strip', () => {
         const h = harness();
         // The strip is what the arrows cycle through; it must match the data the
         // pathfinder uses, or the player could pick a map it can never route to.
-        expect(NAV_REACHABLE[0]).toHaveLength(11);
+        // 29 of the 31: every boss arena is now a passage, so walking into one
+        // carries the route into the cavern its exit opens onto. Only mp73, whose
+        // post-boss door opens onto a town, and mpa0 stay out.
+        expect(NAV_REACHABLE[0]).toHaveLength(29);
+        expect(NAV_REACHABLE[0]).not.toContain(21);
+        expect(NAV_REACHABLE[0]).not.toContain(30);
         void h;
     });
 

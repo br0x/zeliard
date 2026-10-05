@@ -27,6 +27,9 @@
 /** Absolute g_mem address the MDT image is loaded at. */
 export const MDT_BASE = 0xc000;
 
+/** seg0 address of the door-table pointer word (MEM_DOORS_LIST). */
+const DOORS_LIST = 0xc00a;
+
 /** Rows in every cavern map. Fixed at 64 by the format. */
 export const MAP_HEIGHT = 64;
 
@@ -117,9 +120,49 @@ export function decodePackedMap(bytes, mapWidth) {
 }
 
 /**
+ * One 12-byte door record.
+ *
+ * Fields follow asm/dungeon.inc:32-39 and engine/dungeon-doors.ts:83-118:
+ *
+ *   +0 word x0        the trigger column; the hero must be standing on it
+ *   +2 byte y0        the trigger row, one above the hero's head
+ *   +3 byte d_flags   bit 7 open, bit 6 the exit faces left, bits 0-2 roka colour
+ *   +4 byte           d_place_map_id; bit 7 is redundant (see build-nav.mjs)
+ *   +5 word x1        arrival column, absolute on the DESTINATION map
+ *   +7 byte y1        arrival row; 0xFF means the door leads to a town
+ *   +8 byte           d_features; bit 0 needs a Lion-Head key, bit 7 is rokademo
+ *   +9 word           achievement address + mask, stamped when the door is opened
+ *  +11 byte
+ */
+function readDoorAt(bytes, i) {
+    const x0 = word(bytes, i);
+    const flags = bytes[i + 3] & 0xff;
+    const destMapIdRaw = bytes[i + 4] & 0xff;
+    const y1 = bytes[i + 7] & 0xff;
+    const features = bytes[i + 8] & 0xff;
+    return {
+        x0,
+        y0: bytes[i + 2] & 0xff,
+        flags,
+        open: (flags & 0x80) !== 0,
+        exitFacesLeft: (flags & 0x40) !== 0,
+        color: flags & 0x07,
+        /** Raw d_place_map_id byte. Bit 7 is never set in the shipped files. */
+        destMapIdRaw,
+        destMapId: destMapIdRaw & 0x7f,
+        x1: word(bytes, i + 5),
+        y1,
+        /** y1 === 0xFF means the door leads to a town (dungeon-doors.ts:250). */
+        toTown: y1 === 0xff,
+        needsLionKey: (features & 0x01) !== 0,
+        rokademo: (features & 0x80) !== 0,
+        features,
+    };
+}
+
+/**
  * 12-byte door records, 0xFFFF-terminated.
  *
- * Fields follow asm/dungeon.inc:32-39 and engine/dungeon-doors.ts:83-118.
  * `bound` is the offset of the next table in the file and exists purely to stop
  * a malformed list from running into unrelated data.
  */
@@ -128,34 +171,58 @@ export function readDoors(bytes, doorsPtr, bound) {
     if (start === null) return [];
     const out = [];
     for (let i = start; i + 11 < (bound ?? bytes.length); i += 12) {
-        const x0 = word(bytes, i);
-        if (x0 === 0xffff) break;
-        const y0 = bytes[i + 2] & 0xff;
-        const flags = bytes[i + 3] & 0xff;
-        const destMapIdRaw = bytes[i + 4] & 0xff;
-        const x1 = word(bytes, i + 5);
-        const y1 = bytes[i + 7] & 0xff;
-        const features = bytes[i + 8] & 0xff;
-        out.push({
-            x0,
-            y0,
-            flags,
-            open: (flags & 0x80) !== 0,
-            exitFacesLeft: (flags & 0x40) !== 0,
-            color: flags & 0x07,
-            /** Raw d_place_map_id byte. Bit 7 is never set in the shipped files. */
-            destMapIdRaw,
-            destMapId: destMapIdRaw & 0x7f,
-            x1,
-            y1,
-            /** y1 === 0xFF means the door leads to a town (dungeon-doors.ts:250). */
-            toTown: y1 === 0xff,
-            needsLionKey: (features & 0x01) !== 0,
-            rokademo: (features & 0x80) !== 0,
-            features,
-        });
+        if (word(bytes, i) === 0xffff) break;
+        out.push(readDoorAt(bytes, i));
     }
     return out;
+}
+
+/**
+ * The door an arena grows once its boss is dead.
+ *
+ * A boss arena's door table reads as empty — its `doors` pointer aims at a bare
+ * 0xFFFF sentinel, so `readDoors` finds nothing and the room looks doorless. It
+ * is not: `load_place_and_reinit` runs when the boss dies
+ * (engine/dungeon-cutover.ts:76-99) and does two things that matter here.
+ *
+ *   1. It walks the optional initialiser list at the cavern descriptor — MDT
+ *      byte 0 holds the descriptor address and the list starts at descriptor + 8,
+ *      `(address, value)` words ended by an address of 0xFFFF. An arena's list
+ *      carries a `(0xC00A, <door table>)` entry: after the fight the door-table
+ *      pointer is swapped for a second list, sitting further into the file.
+ *   2. It then writes ONE word into that list: `memWrite16(doorsTable + 0, absX)`
+ *      stamps the record's x0 with the column the hero is standing on (plus 9 if
+ *      the tile five columns to his left is solid, so the door clears his own
+ *      body).
+ *
+ * So every field of the record except its column is plain MDT data — the row the
+ * hero must stand on, the map it opens onto, where it puts him and what it costs
+ * — and only the column is written at runtime. That is what a route needs: the
+ * hero leaves by walking into the door that appears where he stands when the
+ * fight ends, so the exit belongs to every standing position on row y0 + 1, not
+ * to one column.
+ *
+ * Ten maps answer — the eight cavern arenas, plus mp73 and mpa0 — and every one of
+ * the nine that opens onto a cavern opens back onto the cavern the arena belongs
+ * to: mp1d onto mp10 at (141,33), mp8d onto mp84 at (16,52). mp73's opens onto a
+ * town and mpa0's onto itself.
+ *
+ * @returns {ReturnType<typeof readDoorAt>|null} null when the cavern has no
+ *          post-boss door (which is every map that is not an arena)
+ */
+export function readPostBossDoor(bytes) {
+    const descriptor = ptrToOffset(word(bytes, 0), bytes.length);
+    if (descriptor === null) return null;
+    // The list cannot start before descriptor + 8, and each entry needs 4 bytes.
+    for (let i = descriptor + 8; i + 3 < bytes.length; i += 4) {
+        const addr = word(bytes, i);
+        if (addr === 0xffff) return null;
+        if (addr !== DOORS_LIST) continue;
+        const at = ptrToOffset(word(bytes, i + 2), bytes.length);
+        if (at === null || at + 11 >= bytes.length) return null;
+        return readDoorAt(bytes, at);
+    }
+    return null;
 }
 
 /**
@@ -266,5 +333,11 @@ export function readCavern(bytes) {
          * length is its bound; no header pointer sits beyond it.
          */
         keys: readKeys(bytes, header.monsters, bytes.length),
+        /**
+         * The door a boss arena grows when its boss dies, or null on every other
+         * map. See {@link readPostBossDoor}: the record lives in the file, but the
+         * header's door pointer skips past it, so it does not show up in `doors`.
+         */
+        postBossDoor: readPostBossDoor(bytes),
     };
 }

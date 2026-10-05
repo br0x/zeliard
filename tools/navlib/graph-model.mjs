@@ -8,8 +8,9 @@
  * The topology is DIRECTED, not undirected, and that matters:
  *
  *   - A door into a boss arena or a Jashiin room has no partner on the far side
- *     (those MDTs hold a bare 0xFFFF sentinel; the exit is synthesised at
- *     runtime after the fight). The hero crosses outwards but never back.
+ *     (those MDTs hold a bare 0xFFFF sentinel). The hero crosses outwards but
+ *     never back — except out of a boss arena, whose post-boss door is passed in
+ *     separately as an outbound edge.
  *   - mp82 (174,9) arrives on mp81 (227,60), which is where mp81's own shortcut
  *     door departs, so that link is one-way in the original data too.
  *
@@ -31,8 +32,14 @@ export class GraphError extends Error {}
  * @param {Array<{mapId:number, toTown:boolean, destMapId:number, fromX:number, fromY:number, toX:number, toY:number}>} portals
  *        flat portal list, as emitted to nav-portals.ts
  * @param {number} mapCount
+ * @param {Array<{mapId:number, toTown:boolean, destMapId:number}>} [bossExits]
+ *        flat post-boss exits, as emitted to nav-portals.ts. A boss arena's door
+ *        table reads as empty, so this is the arena's only way out; it counts as
+ *        an outbound door and nothing else — there is no record to match an
+ *        inbound portal against, because the hero may leave from wherever he is
+ *        standing when the fight ends.
  */
-export function buildGraph(portals, mapCount) {
+export function buildGraph(portals, mapCount, bossExits = []) {
     // --- mutuality -----------------------------------------------------------
     // A portal is mutual when the destination map carries a portal that departs
     // from exactly this portal's arrival cell and leads back to its origin.
@@ -85,6 +92,14 @@ export function buildGraph(portals, mapCount) {
     for (const p of portals) {
         if (p.toTown) continue;
         outbound[p.mapId].add(p.destMapId);
+    }
+    // A boss arena's post-boss door is an outbound edge like any other, which is
+    // what lets a route START in an arena and come back out. It is deliberately
+    // not matched for mutuality: the exit has no column of its own, so it cannot
+    // be the partner of the door the hero walked in through.
+    for (const e of bossExits) {
+        if (e.toTown) continue;
+        outbound[e.mapId].add(e.destMapId);
     }
     // Where the hero can go from map X: every outbound door, plus the inbound
     // direction of a door only where the two are mutual. A dead-end or one-way

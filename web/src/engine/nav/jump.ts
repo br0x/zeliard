@@ -363,6 +363,26 @@ export class JumpModel {
      * @param firstPose true on the frame a rise hands over to the descent, when the
      *   hero's animation phase is 0 and his outer two feet are consulted too.
      */
+    /**
+     * Does a falling hero catch a rope on this frame?
+     *
+     * `airborne_movement` lands the frame first and only then probes for a rope, and
+     * both probes read the *same* cell: the one under his middle foot, three rows
+     * below his head (`dungeon-input.ts:509-546`). So a rope is caught exactly when
+     * the landing check has already failed on that cell, and the hero ends the
+     * frame **one row lower than where the check was**, hanging on it.
+     *
+     * That is what the player did at mp10: he stepped off the ledge at `(110,7)`,
+     * and the frames after were `(111,8)` then `(111,9)` with `ON_ROPE_FLAGS` set —
+     * the catch at `(112,11)`, three rows below the head at `(111,8)`. Nothing in the
+     * graph could follow him: a flight ended on ground or on a platform, never on a
+     * rope, so every rope in a cavern was unreachable from above. The recording is
+     * `WORK/DOC/level1.txt`; the analysis is §23.3.
+     */
+    private catchesRope(col: number, headRow: number): boolean {
+        return (this.at(col + 1, headRow + 3) & NAV.ROPE) !== 0;
+    }
+
     private landsIn(col: number, headRow: number, firstPose: boolean): boolean {
         const w = this.mapWidth;
         const feet = wrapRow(headRow + 3) * w;
@@ -400,6 +420,14 @@ export class JumpModel {
                     const cell = here + col;
                     if (reach[cell] === 1) continue;
                     if (this.landsMoving[cell] === 1) {
+                        reach[cell] = 1;
+                        changed = true;
+                        continue;
+                    }
+                    // A rope under his middle foot ends the flight one row lower, so
+                    // a cell above one is still worth visiting — without this the
+                    // descent is never enqueued there and the catch never happens.
+                    if (this.catchesRope(col, row)) {
                         reach[cell] = 1;
                         changed = true;
                         continue;
@@ -826,6 +854,22 @@ export class JumpModel {
                     return;
                 }
                 this.noteLanding(cell, c, r, t + 1, rises);
+                continue;
+            }
+
+            // No floor under his middle foot, and a rope in that same cell: he grabs
+            // it. The row moved down before the probe, so he ends one row below
+            // where the check ran, and the sideways step after it never happens.
+            if (this.catchesRope(c, r)) {
+                const nr = wrapRow(r + 1);
+                const nc = wrapCol(c, width);
+                const ncell = nr * width + nc;
+                if (track && ncell === this.wantCell) {
+                    this.pathEnd = head - 1;
+                    this.found = true;
+                    return;
+                }
+                this.noteLanding(ncell, nc, nr, t + 1, rises);
                 continue;
             }
 

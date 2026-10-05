@@ -288,7 +288,7 @@ and treating them all as two-way produces a wrong answer:
 | Kind | Count | Meaning |
 | --- | --- | --- |
 | linked pair | 130 portals / 65 pairs | each arrives exactly where the other departs, and each leads back to the other's map — usable both ways |
-| dead end | 17 portals | the destination map has **no door table at all**. Boss arenas and Jashiin rooms hold a bare `0xFFFF` sentinel; the exit is synthesised at runtime after the fight by `load_place_and_reinit` writing one word into the table (`engine/dungeon-cutover.ts`). Enterable, never leaveable. |
+| dead end | 17 portals | the destination map has **no door table at all**. Boss arenas and Jashiin rooms hold a bare `0xFFFF` sentinel. Enterable, and for an arena no longer leaveable — see §2.8.1 — but for `mp73` / `mp90` / `mpa0` still a terminus. |
 | one way | 1 portal | `mp81 (227,59)`, a self-loop shortcut arriving on `mp81 (151,16)` — exactly where a *different* door departs, one that leads to mp82 rather than back |
 
 Modelling the graph as undirected silently welds `mp84`'s island onto the main
@@ -297,7 +297,7 @@ walk routes `mp84 → mp8d → mp81`. This was caught during implementation.
 
 So a **component** is a strongly connected component of the linked pairs, and the
 map strip additionally offers everything reachable **outbound** — which keeps boss
-arenas selectable as destinations without pretending they are two-way:
+arenas selectable as destinations:
 
 | Component | Maps | Tiles |
 | --- | --- | --- |
@@ -306,14 +306,73 @@ arenas selectable as destinations without pretending they are two-way:
 | **7** | `mp60 mp61 mp62 mp70 mp71 mp72 mp80 mp81 mp82 mp83` | 138,368 |
 | 1,2,3,4,6,9,10,11,12,13,14 | `mp1d` `mp2d` `mp3d` `mp4d` `mp5d` `mp6d` `mp73` `mp7d` `mp84` `mp8d` `mp90` `mpa0` (each alone) | — |
 
-**15 components in total** **[measured]**. Reachable-set sizes are the useful
-figure for the UI: from `mp10` you can reach **11** maps (the seven of component 0
-plus four boss arenas), from `mp80` **14**, from `mp84` **3** (itself, `mp8d`,
-`mp90`), and `mp73` / `mpa0` reach only themselves.
+**15 components in total** **[measured]**, and they are unchanged: the components
+are a property of the door *tables*, which still read as empty for an arena. What
+changed is the reachable set, because an arena is now a way out as well as a way in
+(§2.8.1): from `mp10` you can reach **29** of the 31 maps, and so can every map
+except `mp73` (its post-boss door opens onto a town) and `mpa0` (which has no other
+door at all).
 
 The graph does **not** line up with the game's cavern numbering: `mp30` has a
 door back to `mp20`, `mp70` has one back to `mp60`, and `mp60` has one forward
 to `mp5d`. The table above is the ground truth.
+
+### 2.8.1 A boss arena is a passage, and the exit is in the file **[measured]**
+
+> The player: *"You can always assume that boss room has exactly one entrance and
+> one exit. Exit door appears dynamically after defeating the boss (check
+> accomplished mdt data)."*
+
+An arena reads as doorless because its header's `doors` pointer aims at a bare
+`0xFFFF` sentinel — so `readDoors` finds nothing and the room looked like a
+terminus. It is not, and the exit is not synthesised out of thin air: it is a door
+record in the file, which `load_place_and_reinit` **activates** when the boss dies
+(`engine/dungeon-cutover.ts:76-99`, asm/fight.asm:3295-3318):
+
+1. it walks the optional initialiser list at the cavern descriptor — MDT byte 0
+   holds the descriptor address, the list starts at descriptor + 8, and it is
+   `(address, value)` words ended by an address of `0xFFFF`;
+2. an arena's list carries a **`(0xC00A, <door table>)`** entry, so after the fight
+   the door-table pointer is swapped for a second list, sitting further into the
+   file (mp1d: `0xC1B6`, i.e. one record past the one its header names);
+3. then it writes **one word**: `memWrite16(doorsTable + 0, absX)` stamps the
+   record's `x0` with the column the hero is standing on — plus 9 if the tile five
+   columns to his left is solid, so the door clears his own body.
+
+So every field of the record except its column is file data, and **the column is
+the hero's own position**. Ten maps answer, and each one opens back into the cavern
+its arena belongs to:
+
+| Arena | Exit row | Opens onto | Lands at |
+| --- | --- | --- | --- |
+| `mp1d` | 15 | `mp10` | `(141,33)` |
+| `mp2d` | 19 | `mp20` | `(190,48)` |
+| `mp3d` | 22 | `mp31` | `(174,5)` |
+| `mp4d` | 15 | `mp50` | `(25,15)` |
+| `mp5d` | 22 | `mp60` | `(14,6)` |
+| `mp6d` | 15 | `mp60` | `(28,47)` |
+| `mp73` | 15 | a town | — |
+| `mp7d` | 15 | `mp80` | `(57,6)` |
+| `mp8d` | 15 | `mp84` | `(16,52)` |
+| `mpa0` | 15 | `mpa0` itself | `(36,39)` |
+
+**[measured]** each landing is a standing position on a door of the far map that
+leads back into the arena — the exit is the exact reverse of one of the arena's own
+entrances. That is what makes an arena a *passage*: walk in on one side, kill the
+thing, come out on the other. `mp1d` is the clearest: `mp10 (26,15)` walks the hero
+in at `(27,15)`, and the door that appears when the boss dies puts him on `mp10
+(141,33)` — the far side, six columns from `mp10 (128,32)`, a town door.
+
+Because the column is written at runtime, the exit belongs to **every standing
+position on row `y0 + 1`** — the row `enterTheDoor` matches on
+(`heroAbsY - 1 === y0`, `engine/dungeon-doors.ts:90`) — not to the one column the
+file happens to name. mp1d has 43 such nodes and the hero may leave from any of
+them.
+
+All ten exits are already open (`d_flags` bit 7) and carry no key bit, so the fight
+is the only cost. `mpa0` is the one exception to "opens into the cavern": its exit
+opens onto `mpa0` itself, and since it has no other door there is nothing to pair it
+with.
 
 ### 2.9 Sizes **[measured]**
 
@@ -679,6 +738,29 @@ to   = (destX, destY + 1)
 remaining 130 form 65 linked pairs. The module also exports
 `NAV_PORTALS_BY_MAP` (portal indices grouped by source map, so the graph builder
 can size its buffers) and `NAV_DOOR_COUNT`.
+
+The same module carries the ten post-boss doors of §2.8.1, which are **not**
+portals because they have no column:
+
+```ts
+export interface NavBossExit {
+    readonly mapId: number;      // the arena
+    readonly y0: number;         // d_y0: the hero stands on row y0 + 1 to use it
+    readonly toTown: boolean;    // mp73's opens onto a town, so it is never routed
+    readonly destMapId: number;
+    readonly destX: number;
+    readonly destY: number;
+    readonly key: PortalKeyKind; // every one of them is 0
+    readonly rokademo: boolean;
+    readonly exitFacesLeft: boolean;
+    readonly color: number;
+}
+export const NAV_BOSS_EXITS: readonly NavBossExit[];      // 10 entries
+export const NAV_BOSS_EXIT_BY_MAP: readonly number[];      // index per map id, -1
+```
+
+`deadEnd` above therefore reads "the far map's door table is empty", which is still
+true of every arena; whether the hero can get back out is the boss exit's business.
 
 ### 6.3 `nav-maps.ts` — components and reachability
 
@@ -1146,6 +1228,10 @@ hero; there is no item that unlocks, extends or disables them.
   16 and stays far below a millisecond.
 - Town portals never appear as edges. They are drawn as markers only.
 - Rokademo portals (`d_features & 0x80`) are edges but flagged one-way.
+- A boss arena's post-boss door (§2.8.1) is an ordinary `DOOR` hop, offered from
+  every standing position on the door's row rather than from a single column. It
+  goes through the same code as a portal — same key spending, same cost — because
+  the game spends a key the same way for either.
 
 Result type:
 
@@ -1821,13 +1907,19 @@ alone  mp1d mp2d mp3d mp4d mp5d mp6d mp7d mp8d mp90 mp73 mp84 mpa0 (12 maps)
 ```
 
 Reachable-set sizes — outbound doors everywhere, inbound only through a linked
-pair — **[measured]**:
+pair, plus a boss arena's post-boss door (§2.8.1) — **[measured]**:
 
 | From | Maps | From | Maps |
 | --- | --- | --- | --- |
-| `mp10` | 11 (SCC 0 + `mp1d` `mp2d` `mp3d` `mp4d`) | `mp84` | 3 (`mp84` `mp8d` `mp90`) |
-| `mp50` | 4 (`mp50` `mp51` `mp4d` `mp5d`) | `mp73` | 1 |
-| `mp80` | 14 | `mpa0` | 1 |
+| `mp10` | **29** (everything bar `mp73`, `mpa0`) | `mp84` | 3 (`mp84` `mp8d` `mp90`) |
+| `mp50` | **29** | `mp73` | 1 |
+| `mp80` | **29** | `mpa0` | 1 |
+
+An arena is a passage, so nearly every cavern now reaches nearly every other.
+Before §2.8.1 the figures were 11 / 4 / 14: the arenas were dead ends, and the
+only way from one cavern group to the next was a normal door. `mp84` is the one
+island left — its only doors point at `mp8d` and `mp90`, and `mp8d`'s exit brings
+the route straight back to `mp84`.
 
 ### A2. Door edge kinds **[measured]**
 
@@ -4177,3 +4269,416 @@ makes every key look collected — which is exactly what happened, and it presen
 - **The state space.** `keysHeld × keysNeeded` is small in practice and unbounded in
   theory. The caps are not optional, and the fallback must be the *sound* answer
   (stage 3a), not a truncation of a search that has already gone wrong.
+
+---
+
+## 20. Boss arenas are passages
+
+### The report
+
+The player: *"I tried to build route with Yaga Thread, from mp10 (61,7) to mp10
+(135,33). It created a route that implies hero has Silkarn shoes to climb the
+slope. But currently I have no any shoes, so the route should be created for bare
+hero. You can always assume that boss room has exactly one entrance and one exit.
+Exit door appears dynamically after defeating the boss (check accomplished mdt
+data). Fix this — the bare route from mp10 (61,7) to mp10 (135,33) should be found
+via boss room."*
+
+Two things in there, and only one of them was a defect.
+
+### What was a defect: the arena read as doorless
+
+An arena's door table is a bare `0xFFFF` sentinel, so `readDoors` returned nothing
+and `mp1d` had no way out at all. The exit is not missing, it is *dormant*: it is a
+record in the file that `load_place_and_reinit` installs by writing `0xC00A` from
+the cavern descriptor's initialiser list, and then stamps with the hero's own
+column (§2.8.1). Ten maps answer, and each opens back into the cavern its arena
+belongs to — so an arena is a passage, and the route builder now walks through it.
+
+`bossExitAtNode` on the graph is the whole runtime change: an `Int32Array` over
+nodes holding a `NAV_BOSS_EXITS` index, set for every ground node on the door's
+row. The search treats it exactly like a portal, because the game spends a key the
+same way for either.
+
+**[measured]** consequences, all in the numbers:
+
+| | before | after |
+| --- | --- | --- |
+| `NAV_BOSS_EXITS` | — | 10 |
+| reachable maps from `mp10` / `mp50` / `mp80` | 11 / 4 / 14 | 29 / 29 / 29 |
+| strongly connected components | 15 | 15 (unchanged) |
+| dead-end portals | 17 | 17 (the flag reads the door table, which is still empty) |
+| `mp80 (113,21) → mp81 (124,6)` | 10,552 expansions | 10,552 expansions |
+
+The components are untouched because a component is a property of the door
+*tables*, and a table is still empty. What changed is that an arena is now also a
+way **out**, so the reachable set reaches almost the whole game. `mp84` is the one
+island left: its only doors point at `mp8d` and `mp90`, and `mp8d`'s exit arrives
+back on `mp84`.
+
+### What was not a defect: the trip needs shoes
+
+**[measured]** the trip the player named still has no shoe-free route, and it is
+not the boss room that stops it. Exhaustively flooding `mp10`'s bare-reachable
+nodes from `(61,7)` gives **720 nodes**, and the whole of that region has exactly
+**one** portal in it — the town door at `(61,6)`. The one hop that leaves the region
+is the `STEP (12,20) → (13,19)` over the `0x0B` slope ramp, which is `req=4`,
+Silkarn (§7.7). There is no other exit, so the arena cannot be reached from there.
+
+The destination is equally shut:
+
+| Into `(135,33)`'s alcove | From | Cost |
+| --- | --- | --- |
+| `JUMP_HIGH (155,37) → (150,33)` | the east corridor, bare-reachable | Feruza — a four-row rise |
+| `SLOPE_UP (154,36) → (153,35)` | the outer corridor, itself only reachable over the Silkarn ramp | Silkarn |
+| the town door at `(128,32)` | a town | not a graph edge, by design (§7.8) |
+
+And the route the map screen produced was already the honest answer for the hero as
+he is: **101 points, one requirement — Feruza shoes at `(118,20)`** — which is the
+`JUMP_HIGH (101,7) → (118,20)` out of a seventeen-column pit. The reverse
+direction, `(135,33) → (61,7)`, is bare-walkable in **153 hops**, because that
+crossing is a nine-column *fall* downhill and only its reverse is a rise. The trip
+the player asked about is the one direction that needs a shoe.
+
+So the two halves of the report answer differently, and saying so is the useful
+thing: the boss room was broken and is fixed, and the trip is not shoe-free for a
+reason no boss room can reach. `(26,16) → (135,33)` — the trip the boss room *is*
+on — went from **no route** to **9 points**: door, arena, door.
+
+### What would make this wrong
+
+- **The initialiser list.** `(0xC00A, <door table>)` was read off eight arenas that
+  all agree; a ninth cavern that stores its post-boss door some other way would read
+  as no exit and the arena would go back to being a terminus. The test asserts the
+  landing of all ten, so a new arena that fails to answer fails the suite.
+- **The column.** The exit is modelled as reachable from a whole row, because
+  `absX` is the hero's column at the moment the fight ends. If the engine ever
+  clamped it to the record's own `x0`, the model would be too generous by up to
+  forty columns — visible as a route that walks to the far end of the arena.
+- **Reaching the fight.** Nothing here says the hero can *win*. A route through an
+  arena is a route that asks him to fight the boss, which the pathfinder cannot
+  weigh; the route says nothing about it, and that is worth remembering when one
+  turns up as an answer rather than as a detour.
+
+---
+
+## 21. Horizontal platforms: both directions, and the right three positions
+
+The player: *"I found the reason why you cannot find the route. The most simple test
+— a route from mp10 (31, 59) to mp10 (56,60). It involves travel on horizontal
+platform. You should assume horizontal platform as array of linked nodes from min_x
+to max_x. It is static, so has no runtime cost."*
+
+Two defects, both in `platforms.ts` / `nav-graph.ts`, both read straight out of the
+engine. **[measured]** ride slots with no entry at all fell **367 → 12**, and mp10's
+bare-reachable node count from `(61,7)` rose **716 → 933**.
+
+### 21.1 A horizontal platform carried him one way only
+
+`platforms.ts` builds each span as a doubly linked chain — `link()` sets both `next`
+and `prev` — and `nav-graph.ts` followed `slot.next` for `RIDE_H` and `slot.prev` only
+for `PLATFORM_VERTICAL`. The reasoning, recorded in the code, was that a horizontal
+platform is automated and the hero can wait for it to come back, so "one direction
+already spans both".
+
+It does not. `next` runs the chain in **increasing column**, which is the direction
+the slots happen to be built in, so every horizontal platform in the game carried him
+east and never west. Since a horizontal platform is static — the hero cannot drive it,
+and the live rows are read for the vertical and collapsing lists only, so there is
+nothing to rebuild — the honest model is the player's: **an array of linked nodes from
+`min_x` to `max_x`, walkable both ways**. Nothing about it is time-dependent, and
+nothing is rebuilt at runtime.
+
+### 21.2 The three riding positions were one column out
+
+`heroOnHorizPlatform` (`engine/dungeon-platforms.ts:107-112`) carries the hero when
+**any of his three columns equals the platform's own left cell**, so
+
+```ts
+export const HORIZONTAL_RIDE_OFFSETS: readonly number[] = [-2, -1, 0];
+```
+
+— the platform hangs off his **right**. The model had `[-1, 0, +1]`, which is a
+different set of three: it invented a position with the platform hanging off the
+hero's left, and **dropped the one that exists**.
+
+Dropping the real one is not a small thing, because a ride slot is only ever boarded
+from a ground node standing on the same cell. With the leftmost riding position a
+column too far east, a hero standing at `(116,61)` had no way onto the platform
+standing at column 118 — mp10's widest platform, the one that crosses the whole
+cavern — and mp10's row 61 was unreachable from the ground in either direction.
+
+### 21.3 What the platform fixes bought, and what is still cut off
+
+**[measured]** the player's own crossing of the pit is bare and already was, by
+another hop: `mp10 (61,7) → (118,20)` is **46 points, `WALK=44 JUMP=1`**, going
+`(105,7) → (118,20) → … → (113,21)`. The seventeen-column hop from `(101,7)` that the
+search reaches for is a different flight and does cost three rises — a flight covers
+sideways at most `rises + 1 + descents` columns, so three is Feruza shoes. The model
+and the engine were put head to head on exactly that shape (`a wide open drop`, 44
+columns of empty air over a floor twenty-four rows down) and they agree; it is in
+`nav-jump-differential.test.ts` so it stays agreed. **The player's route is cheaper
+than the one the search wanted, and the graph had it all along.**
+
+The player's second route — step onto the rope at `(111,9)`, climb to `(111,13)`,
+fall to `(113,21)` — is not in the graph: there is no rope node at `(110,9)` or
+`(110,13)`. mp10's rope at column 111 runs rows 7-30 in the model, so that stretch is
+missing or is a different column.
+
+What the platform fixes actually bought, measured by flooding `mp10` the way
+`findRoute` does:
+
+| From | Bare-reachable nodes, before | after |
+| --- | --- | --- |
+| `(61,7)` | 716 | 720 |
+| `(34,56)` | — | 933 |
+| `(31,59)` | — | 917 |
+
+**(56,59)** and **(135,33)** are still out of reach, and the reason is now a short
+list rather than a mystery: **mp10 is cut into regions by its two Silkarn ramps**, and
+both goals are on the far side of one. The whole frontier from `(61,7)` is 27 gated
+edges, and every one is on a ramp:
+
+| Ramp | Edges |
+| --- | --- |
+| columns 13-15, rows 16-22 | `STEP/JUMP (12,20) → (13,19)`, `(11,20) → (13,19)`, `(10,20) → (13,19)`, `(11,20)/(12,20) → (14,18)`, `JUMP_HIGH (10,20) → (14,18)/(15,17)`, … all `req=4` |
+| the staircase ramp `(153,36)`-`(154,38)` | `JUMP (155,37)/(156,37) → (153,35)`, `(155,37)/(156,37)/(157,37)/(158,37) → (154,36)`, all `req=4` |
+| the one Feruza hop | `JUMP_HIGH (156,37) → (151,33)` `req=2`, and `(155,37) → (150,33)` `req=6` |
+
+The player on the last: *"`(155,37)→(150,33)` is impossible and only available after
+hero visits cavern level 8 … auxiliary (not necessary) route."* Agreed — 4 rows of
+rise against an engine cap of 2 (`dungeon-frame.ts:297-303`, `dungeon-hero.ts:327`).
+And on the ramps: *"without Silkarn shoes this slope is not climbable."* Also agreed.
+
+Which leaves the question this section does not answer: the row-33 corridor has a
+second mouth at `(121,32)`, and that ledge is a spur — nothing in the graph leads to
+it but the corridor itself.
+
+---
+
+## 22. Recorder mode
+
+The player, asked how the model should learn a route it could not find:
+
+> *"It will be much more productive if you implement recorder mode so I can live
+> play and copy-paste from console log"*
+>
+> *"You should also log all key presses during the recording"*
+
+Both halves of §21.3 are arguments about the geometry of two ramps, settled by
+reading tiles. Watching the game walk them is faster and it is evidence. So:
+
+`web/src/engine/nav/recorder.ts` — `NavRecorder`, installed on `window` by main.ts:
+
+```
+navRecorder.start()      begin recording
+<play the route>
+navRecorder.report()     print it beside what the graph calls each hop
+navRecorder.clear()      forget it
+```
+
+`report()` also **returns** its text, so it can be pasted without selecting console
+output.
+
+**A cell he flew over is not a disagreement**, and the first recording showed what
+happens when the report fails to say so: 461 of 462 flagged hops were mid-jump and
+mid-fall air, which has no node and must not have one, and the one line that mattered
+was lost in them. Each sample therefore carries `flewThrough` — true while *every*
+frame at that cell had `airborne` set, cleared the moment a frame is spent on the
+ground — and a cell with no node that he merely passed through prints as
+`over … in flight` rather than `***`. Only a cell he stood on is counted.
+
+### What a sample holds
+
+One reading per rendered frame, from `loop()`, and the call returns at once unless
+recording is on, so the mode costs nothing when it is off.
+
+| Field | Where it comes from |
+| --- | --- |
+| map cell | the engine's own expression: window left column + `hero_x` + 4, head row + viewport top (`dungeon-doors.ts:90-101`) |
+| **input** | `INPUT_DIRS` (0xff17) and `INPUT_ALT_SPACE` (0xff16), spelled as up / down / left / right / space / alt |
+| state | `on_rope` 0xff39, `airborne` 0xff3d, `sliding` 0x9f22, `on_slope` 0xff42, `on_air` 0x9f15 |
+| accessory | `ADDR_ACCESSORY` 0x9e, so a recording taken in boots says so |
+
+The **input the engine acted on**, not the DOM event: the engine's own byte is what
+`state_machine_dispatcher_idle_default` branches on (`dungeon-input.ts:364-373`), so
+it is what a jump actually was. The hero's distinct inputs are kept per cell in the
+order they first appear, so a jump shows as `up+right` rather than sixty identical
+frames of `up+right`.
+
+### What the report is for
+
+The disagreement. Every hop is looked up in the graph and printed with what the graph
+calls it:
+
+```
+  mp10(105,7) -> mp10(118,20)  JUMP bare  (pressed right)
+  mp10(12,20) -> mp10(13,19): NO EDGE in the graph; hero did it bare with "up+right"
+  -- 1 hop(s) the graph does not have; each *** line above is a bug in the graph --
+```
+
+Three outcomes per hop, and they are kept apart because they are different bugs:
+**no edge at all** (the model refuses a move the game allows), **not a standing
+position** (the hero passed through the air, which is normal, and is not the same
+thing), and **an edge that costs a capability** — printed with the shoes or key by
+name, so a route recorded in Feruza shoes explains itself.
+
+The last line is `raw cells: 0:31,59 0:32,58 …`, so a recording is reproducible in a
+test without the console.
+
+### Tests
+
+`web/tests/nav-recorder.test.ts`, 8 tests, on a synthetic cavern built through the
+same `buildNavGraph` the product uses — a floor with a hole in it, so a hop the graph
+really does refuse can be constructed rather than hoped for. It covers the visit
+order, the input per cell, the three hop outcomes, a map change, and the idle case.
+
+---
+
+## 23. What a level-1 recording proved
+
+> *"I passed entire level 1 — started from town door, went for the key, ran to the
+> boss room (killing all the monsters on my way), killed the boss, the door appeared,
+> exited to target coords, moved to the second town door. No equipment was used."*
+> — `WORK/DOC/level1.txt`, 1364 cells, 38,649 frames, `mp10` `mp21` `mp1d`
+
+### 23.1 The traversal model is right
+
+**[measured]** Taking the recording's cells in order and asking the graph about every
+pair of **standing positions** — the cells whose frames never had `airborne` set —
+gives **787 hops with no edge missing and not one that needs a capability.** Not one,
+across a whole cavern walked end to end, with no shoes.
+
+So the model that produced the "Silkarn at `(13,19)`" and "Feruza at `(118,20)`"
+hints was not inventing traversals. The 461 `***` lines the report printed are
+almost all cells the hero was **passing through** — mid-jump and mid-fall air, which
+has no node and should have none. The recorder's wording invited that reading and
+should be tightened: a cell he flew over is not a disagreement.
+
+### 23.2 The boss-exit model is confirmed by the game
+
+The recording's last two map changes are the whole feature:
+
+```
+mp10(26,16) -> mp1d(27,15)   CHANGED MAP
+... he fights, and ...
+mp1d(21,15) -> mp10(141,33)  CHANGED MAP
+```
+
+He walked in at `mp10 (26,16)`, killed the boss, and left from **`mp1d (21,15)`** —
+row 15, `y0 + 1`, which is the row the exit is offered on — and landed on
+**`mp10 (141,33)`**, which is `NAV_BOSS_EXITS[0]` to the cell. The arena is a
+passage, and the passage is the one §2.8.1 describes.
+
+### 23.3 The one real gap: a rope caught mid-flight
+
+Walking the recording forward against a bare flood from `(61,7)` — 720 nodes — the
+first cell the graph cannot reach is **`mp10(164,19)`, a rope node, `[on_rope]`**, and
+the ten cells before it are all `on_rope` at `(162,18)`…`(162,27)`. The player got
+there like this:
+
+```
+mp10(165,26)  [sliding]      a ground node
+mp10(164,26)  [sliding]      a ground node
+mp10(163,26)  [sliding]      NOT A NODE — nothing under his middle foot
+mp10(162,27)  [airborne]     the rope node
+mp10(162,28)  [on_rope]
+```
+
+He stepped west off the ledge, fell through `(163,26)` — a cell with no ground under
+its middle column, so correctly not a node — and **caught the rope at column 163 on
+the way down.** The graph cannot follow him, because a flight never ends on a rope.
+
+This is the gap `jump.ts:85-89` already lists as not modelled:
+
+> *A rope caught mid-flight (`airborne_movement` grabs one at the hero's feet and
+> stops the fall, dungeon-input.ts:543-551): ignored, so a flight may pass through a
+> rope where the game would have him climb it.*
+
+And the engine says exactly how: `airborneMovement` probes
+`hero_coords + 2*36 + 1` — **the middle column at the feet row** — every frame the
+hero is airborne, and sets `ON_ROPE_FLAGS` when it finds a rope
+(`dungeon-input.ts:539-546`). The same happens from a standing hero through
+`tryClimbRope` (`dungeon-input.ts:198-224`), which checks three columns: `col + 1`,
+`col`, and `col + 2`.
+
+It is the second break in the walk and it is why the trip in §21.3 has no shoe-free
+route. It is also why the *first* two ropes the recording uses are unreachable
+although the rope nodes themselves are exactly where the hero stood — the graph's
+rope columns are right (he is recorded at rope tile − 1 every time: col 19 for the
+rope at 20, col 111 for the rope at 112, col 162 for the rope at 163), and the only
+thing missing is a way **onto** one from a fall.
+
+### 23.4 Why it is not fixed here
+
+The engine settles *that* the catch happens. It does not settle *where the hero ends
+up*, and that matters: the tile he grabs is two rows below his head, while a rope
+node is the position where the rope runs through his middle column **at his head
+row**. So a catch is not automatically a rope node, and landing it on the nearest one
+would be a guess.
+
+The differential harness cannot settle it either, as it stands: `Harness.fly()`
+reports where a flight *lands* — the frame that clears `JUMP_PHASE_FLAGS` after it
+was set — and a rope catch returns **before** that flag is set, so the harness flies
+straight past the catch. The cavern added for it
+(`a rope hanging off a ledge`, `nav-jump-differential.test.ts`) passes vacuously.
+
+So the work is: teach `Harness.fly()` to stop on a catch and report the cell, put the
+ledge-and-rope shape in the differential, and only then give `JumpModel.descend` a
+rope landing. That is a contained piece of work with the evidence already in hand.
+
+---
+
+## 24. Two fixes the recording turned into, and what is left
+
+§23 named the gap and stopped. Here is what fixing it actually took, measured on
+mp10's bare-reachable node count from `(61,7)`.
+
+| | before | after |
+| --- | --- | --- |
+| bare-reachable nodes in mp10 from `(61,7)` | 720 | **938** |
+| ride slots with no entry at all (all 31 maps) | 367 | **6** |
+
+### 24.1 A rope caught mid-flight — 720 → 897
+
+`jump.ts` gains `catchesRope(col, headRow)`: the cell under his middle column, three
+rows below his head. That is not a new probe — it is **the same cell `landsIn`
+already reads**, because `airborne_movement` lands the frame and then probes for a
+rope *at the cell the landing check just rejected* (`dungeon-input.ts:509-546`). So:
+
+- in `descend`, after the landing tests fail, a rope in that cell ends the flight
+  with the hero **one row lower** than where the check ran, which is exactly the
+  `(111,8) → (111,9)` the player recorded;
+- in `solveCanLand`, such a cell is worth visiting — without that the descent is
+  never enqueued there and the catch never happens;
+- `landingAt` resolves a rope before a platform, because a catch and a landing are
+  one cell read two ways.
+
+That is what takes the walk past the ropes. Every rope in a cavern used to be
+reachable only from below.
+
+### 24.2 Ride slots are per cell, not per offset — 897 → 938
+
+A horizontal platform mints up to three slots per column, one per riding offset,
+and **all of them are the same cell** — the offset says which of the platform's
+three tiles is under which part of the hero. The graph keeps one node per cell
+(`rideNodeOfCell`), so boarding and riding could land on two different slots in one
+cell: the hero boards at mp10's leftmost riding position `(34,56)`, steps east, and
+the node the graph holds for `(35,56)` is the *other* slot there, whose chain starts
+a column further along. Riding is now generated per cell — every slot in a cell to
+every slot in the cell beside it — instead of by `slot.next`.
+
+### 24.3 What is still missing
+
+**[measured]** the first cell on the recorded walk the graph still cannot reach is
+**`mp10(58,59)`**. The hero got there from the row-56 platform: riding to `(49,56)`,
+then `(50,55) (51,54) (52,54) (53,55) (54,56) (55,57) (56,58) (57,59) (58,59)`,
+recorded `[airborne sliding]`. That path alternates — up, right, up, down, down — and
+the jump model offers one locked steer per flight (straight, left or right,
+`jump.ts:838-851`), never the alternation a slope slide produces
+(`slope_assist_tick`, `dungeon-vertical.ts:157-176`).
+
+So the next piece is the **slide**: a hero on a slope does not fall, he is carried
+down it a row at a time in whichever direction the slope runs, which is a traversal
+the flight model does not have. The recording gives its exact shape — nine cells from
+`(49,56)` to `(58,59)` — and §23.4's harness work is what will settle it.

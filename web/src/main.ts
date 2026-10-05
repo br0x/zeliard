@@ -244,6 +244,7 @@ import {
 import { NavGraphStore, type NavRoute } from './engine/nav/pathfinder.js';
 import { readPlatformPlaces } from './engine/nav/platform-state.js';
 import { snapshotCapabilities, type HeroCapabilities } from './engine/nav/capabilities.js';
+import { NavRecorder } from './engine/nav/recorder.js';
 import { NAV_MAP_BY_ID } from './data/nav/nav-maps.js';
 import { getViewportTop, clearRenderRequest } from './engine/dungeon-state.js';
 import { dungeonFullTick } from './engine/dungeon-tick.js';
@@ -2489,7 +2490,32 @@ function draw() {
 
 function loop(timestamp: number): void {
     draw();
+    // One call per frame, and it returns at once unless the recorder is running —
+    // see nav/recorder.ts, which exists so a route the graph refuses can be settled
+    // by watching the game walk it.
+    navRecorder.sample();
     requestAnimationFrame(loop);
+}
+
+/**
+ * The live-play recorder, on `window` so it can be driven from the console:
+ *
+ *   navRecorder.start()      begin recording
+ *   <play the route>
+ *   navRecorder.report()     print it beside what the graph calls each hop
+ *   navRecorder.clear()      forget it
+ *
+ * `report()` also returns the text, so it can be pasted from the console without
+ * selecting the output.
+ */
+const navRecorder = new NavRecorder({
+    heroPosition: heroMapPosition,
+    memory: getGmem,
+    store: navGraphStore,
+});
+
+if (typeof window !== 'undefined') {
+    (window as unknown as { navRecorder: NavRecorder }).navRecorder = navRecorder;
 }
 
 // ─── DOM references ───────────────────────────────────────────────────────────

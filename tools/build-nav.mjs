@@ -12,7 +12,8 @@
  *
  * Outputs (committed):
  *   web/src/data/nav/nav-maps.ts       map metadata and graph components
- *   web/src/data/nav/nav-portals.ts    door records, normalised to standing spots
+ *   web/src/data/nav/nav-portals.ts    door records, normalised to standing spots,
+ *                                       plus the post-boss door of every arena
  *   web/src/data/nav/nav-tiles.ts      per-cavern attribute tables
  *   web/src/data/nav/nav-platforms.ts  platform tables plus precomputed travel ranges
  *   web/src/data/nav/nav-keys.ts       key pickups, so the search can go and get them
@@ -120,6 +121,49 @@ for (const { id, src, cavern } of maps) {
 
 const mapWidthOf = maps.map((m) => m.cavern.header.mapWidth);
 
+// ── boss exits ──────────────────────────────────────────────────────────────
+// A boss arena's door table reads as a bare 0xFFFF sentinel, so its doors never
+// reach `portalItems`. The exit is not missing though: it is the record the
+// cavern's post-boss initialiser list installs, and only its COLUMN is written
+// at runtime (`load_place_and_reinit`, engine/dungeon-cutover.ts:76-99). See
+// readPostBossDoor in tools/navlib/mdt.mjs.
+
+const bossExitItems = [];
+for (const { id, cavern } of maps) {
+    const d = cavern.postBossDoor;
+    if (!d) continue;
+    const label = () => `${maps[id].src.mdtPath.split('/').pop()} -> map ${d.destMapId}`;
+    if (cavern.doors.length > 0) {
+        problems.push(`map ${id}: has a post-boss door but its door table is not empty`);
+        continue;
+    }
+    if (d.toTown) {
+        // mp73's post-boss door opens onto a town, which is never routed through.
+        bossExitItems.push({ mapId: id, y0: d.y0, toTown: true, destMapId: -1, destX: -1, destY: -1, key: 0, rokademo: d.rokademo, exitFacesLeft: d.exitFacesLeft, color: d.color });
+        continue;
+    }
+    if (d.destMapId >= MAP_COUNT) {
+        problems.push(`map ${id}: post-boss door points at map ${d.destMapId}`);
+        continue;
+    }
+    if (d.x1 >= maps[d.destMapId].cavern.header.mapWidth) {
+        problems.push(`${label()}: post-boss x1=${d.x1} exceeds the destination width`);
+        continue;
+    }
+    bossExitItems.push({
+        mapId: id,
+        y0: d.y0,
+        toTown: false,
+        destMapId: d.destMapId,
+        destX: d.x1,
+        destY: (d.y1 + 1) & 0x3f,
+        key: d.open ? 0 : (d.needsLionKey ? 2 : 1),
+        rokademo: d.rokademo,
+        exitFacesLeft: d.exitFacesLeft,
+        color: d.color,
+    });
+}
+
 // ── portals ─────────────────────────────────────────────────────────────────
 
 const portalItems = [];
@@ -159,7 +203,7 @@ for (const { id, cavern } of maps) {
     }
 }
 
-const graph = buildGraph(portalItems, MAP_COUNT);
+const graph = buildGraph(portalItems, MAP_COUNT, bossExitItems);
 
 // Flag the one-way portals the topology pass found. deadEnd = the far map has no
 // door table at all (a boss arena); oneWay = a different door occupies the
@@ -272,6 +316,7 @@ export interface NavPortal {
     /**
      * True when the destination map has no door table at all — a boss arena or
      * a Jashiin room. The route may enter but must never leave by this door.
+     * A boss arena's way out is BOSS_EXITS, not a portal of its own.
      */
     readonly deadEnd: boolean;
     /**
@@ -293,6 +338,47 @@ ${INDENT}${maps.map((m) => {
     `/** Doors per map, so the graph builder can size its buffers. */
 export const NAV_DOOR_COUNT: readonly number[] = [
 ${INDENT}${maps.map((m) => String(m.cavern.doors.length)).join(`,\n${INDENT}`)},
+];
+`,
+    `/**
+ * The way out of a boss arena, which the arena's own door table does not describe.
+ *
+ * An arena's \`doors\` pointer aims at a bare 0xFFFF sentinel, so a route that only
+ * walked doors found it doorless and stopped there. It is not: when the boss dies,
+ * \`load_place_and_reinit\` swaps the door-table pointer for a second list
+ * (engine/dungeon-cutover.ts:76-99, list at the cavern descriptor + 8) and then
+ * writes ONE word into it — the record's x0, stamped with the column the hero is
+ * standing on.
+ *
+ * So this is a door with no column: everything else about it is file data, and the
+ * hero leaves by walking into the door that appears where he happens to be standing.
+ * The graph therefore offers it from EVERY standing position on row \`y0 + 1\`, which
+ * is the row enterTheDoor matches on (heroAbsY - 1 === y0, dungeon-doors.ts:90).
+ * [measured] every one of the ten answers opens back onto the cavern its arena
+ * belongs to: mp1d onto mp10 at (141,33), mp2d onto mp20 at (190,48),
+ * mp8d onto mp84 at (16,52), mp73 onto a town, mpa0 onto itself.
+ */
+export interface NavBossExit {
+    /** The arena. */
+    readonly mapId: number;
+    /** d_y0 of the record: the hero stands on row y0 + 1 to walk into it. */
+    readonly y0: number;
+    /** y1 === 0xFF: the exit opens onto a town, so it is never routed through. */
+    readonly toTown: boolean;
+    readonly destMapId: number;
+    readonly destX: number;
+    readonly destY: number;
+    readonly key: PortalKeyKind;
+    readonly rokademo: boolean;
+    readonly exitFacesLeft: boolean;
+    readonly color: number;
+}
+
+`,
+    emitArray('NAV_BOSS_EXITS', 'NavBossExit', bossExitItems),
+    `/** Index into NAV_BOSS_EXITS per map id, -1 where there is no post-boss door. */
+export const NAV_BOSS_EXIT_BY_MAP: readonly number[] = [
+${INDENT}${maps.map((m) => String(bossExitItems.findIndex((e) => e.mapId === m.id))).join(`,\n${INDENT}`)},
 ];
 `,
 ], CHECK_ONLY);
@@ -525,8 +611,8 @@ export const NAV_TOWN_COUNT = ${TOWNS};
     `export type { NavMapMeta, NavComponent } from './nav-maps.js';
 export { NAV_MAPS, NAV_MAP_BY_ID, NAV_MAP_TILES, NAV_COMPONENTS } from './nav-maps.js';
 
-export type { NavPortal, PortalKeyKind } from './nav-portals.js';
-export { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from './nav-portals.js';
+export type { NavPortal, NavBossExit, PortalKeyKind } from './nav-portals.js';
+export { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT, NAV_BOSS_EXITS, NAV_BOSS_EXIT_BY_MAP } from './nav-portals.js';
 
 export type { NavTileTables } from './nav-tiles.js';
 export { NAV_TILES } from './nav-tiles.js';
@@ -579,6 +665,8 @@ if (CHECK_ONLY) {
         lionKeyPortals: portalItems.filter((p) => p.key === 2).length,
         deadEndPortals: portalItems.filter((p) => p.deadEnd).length,
         oneWayPortals: portalItems.filter((p) => p.oneWay).length,
+        bossExits: bossExitItems.length,
+        bossExitsToTown: bossExitItems.filter((e) => e.toTown).length,
         components: graph.sccs.length,
         tiles: maps.reduce((acc, m) => acc + m.cavern.tiles.length, 0),
         verticalPlatforms: maps.reduce((acc, m) => acc + platforms.get(m.id).vertical.length, 0),

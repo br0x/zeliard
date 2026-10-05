@@ -147,9 +147,9 @@ describe('nodes are positions the hero can occupy', () => {
         // body, and a platform blocks it. So a slot's only entries are those two,
         // and the ones with neither are platform positions nothing can reach.
         //
-        // [measured] 5107 of 5589 slots have an entry. Before the jump model was
-        // derived from the engine, 5403 did — but the extra entries were jumps whose
-        // arcs the old apex test had invented, and the 29 BOARD edges that
+        // [measured] 5536 of 5548 slots have an entry. Before the jump model was
+        // derived from the engine, 5403 of 5589 did — but the extra entries were jumps
+        // whose arcs the old apex test had invented, and the BOARD edges that
         // disappeared with them went to ground nodes the hero cannot stand on: a
         // platform occupies its own row, so there is never static ground under one.
         let live = 0;
@@ -167,8 +167,14 @@ describe('nodes are positions the hero can occupy', () => {
                 if (entries.has(i)) live++;
             }
         }
-        expect(total).toBe(5589);
-        // 367 dead slots, from three corrections.
+        expect(total).toBe(5548);
+        // 12 dead slots. Most of what used to be dead is not: the horizontal riding
+        // offsets were `platformCol - 1 .. platformCol + 1` when the engine's own
+        // `heroOnHorizPlatform` carries the hero when any of his three columns equals
+        // the platform's left cell, which is `platformCol - 2 .. platformCol`. A slot
+        // is only ever boarded from a ground node standing on the same cell, so that
+        // one-column error put every platform's leftmost riding position out of reach
+        // of the ground beside it.
         //
         // First, a vertical lift used to be linked along `slot.next` only, which walks
         // the chain in one direction, so every lift could be ridden down but never up
@@ -189,8 +195,8 @@ describe('nodes are positions the hero can occupy', () => {
         // is. mp10's row-43 platform is the case: `(6,32) -> (7,40)` was a fall onto
         // column 9 of a platform standing at column 7, and then a run of two-column
         // "rides" along a span he had no way to be on.
-        expect(live, 'ride slots with no entry at all').toBe(5222);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(367);
+        expect(live, 'ride slots with no entry at all').toBe(5542);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(6);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -265,7 +271,12 @@ describe('nodes are positions the hero can occupy', () => {
         const reached = new Set<string>();
         forEachEdge(graph, from!, (edge) => {
             const node = graph.nodes[edge.to]!;
-            if (slots.some((s) => s.headRow === node.row)) reached.add(`${node.col},${node.row}`);
+            // The lift occupies column 1, so match its column too: a slot's row is
+            // shared by every cell on it, and mp80 (13,36) is a rope the hero catches
+            // out of a fall — nothing to do with the lift.
+            if (slots.some((s) => s.headRow === node.row && s.leftCol === node.col)) {
+                reached.add(`${node.col},${node.row}`);
+            }
         });
         expect([...reached]).toEqual([]);
     });

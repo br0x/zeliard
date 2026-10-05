@@ -562,6 +562,22 @@ const CAVERNS: readonly Cavern[] = [
         [14, 20, 4, 2],
         [2, 12, 4, 2],
     ]),
+    // A ledge with a rope hanging below and to the right of its edge. `airborne_movement`
+    // probes `hero_coords + 2*36 + 1` — his middle column at his FEET row — every frame
+    // he is airborne, and grabs the rope when he finds one
+    // (dungeon-input.ts:539-546). That is the mp10 (110,7) -> (111,9) catch the
+    // player recorded in WORK/DOC/level1.txt, and jump.ts listed it as not modelled.
+    cavern('a rope hanging off a ledge', 32, [
+        [4, 12, 8, 2],
+        [12, 18, 2, 12],
+    ]),
+    // A wide open drop: nothing to stop a sideways step for twenty rows, so the only
+    // thing bounding the flight is the sideways budget `rises + 1 + descents`. This is
+    // the shape that decides whether a seventeen-column hop across a thirteen-row drop
+    // costs three rises — and so Feruza shoes — which several mp10 routes turn on.
+    cavern('a wide open drop', 44, [
+        [0, 24, 44, 3],
+    ]),
 ];
 
 describe('nav/jump.ts against the engine', () => {

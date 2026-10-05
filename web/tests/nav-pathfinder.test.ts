@@ -315,11 +315,13 @@ describe('routes across caverns', () => {
         const store = makeStore();
         const start = pickStart(store, 0);
         const allowed = new Set(reachableMaps(0));
-        // mp90 is behind a Lion-Head door from mp84 and is not in mp10's set.
-        expect(allowed.has(29)).toBe(false);
+        // mp73 is only reached through the Pureza building and its own post-boss
+        // door opens onto a town, so it is in nobody's set but its own.
+        expect(allowed.has(21)).toBe(false);
         const route = findRoute({
-            store, caps: allCapabilities(), start, goal: { mapId: 29, col: 0, row: 0 },
+            store, caps: allCapabilities(), start, goal: { mapId: 21, col: 0, row: 0 },
         });
+        expect(route).toBeNull();
         if (route) {
             for (const mapId of route.maps) expect(allowed.has(mapId)).toBe(true);
         }

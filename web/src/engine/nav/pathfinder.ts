@@ -33,7 +33,7 @@ import {
 } from './nav-graph.js';
 import { decodeTileGrid, type NavTileGrid } from './mdt-grid.js';
 import { samePlatformPlaces, type PlatformPlaces } from './platform-state.js';
-import { PORTALS } from '../../data/nav/nav-portals.js';
+import { PORTALS, NAV_BOSS_EXITS } from '../../data/nav/nav-portals.js';
 import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../../data/nav/nav-maps.js';
 
 /** One standing position on a route. */
@@ -600,6 +600,56 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
     let expanded = 0;
     let goalState = -1;
 
+    /**
+     * Step through a door onto another map: `keyReq` is the capability the door
+     * costs (CAP.KEY, CAP.LION_KEY, or 0 for an open door), and the landing is
+     * already a standing position on the far side.
+     *
+     * Both door kinds go through here — an MDT door record, and the post-boss
+     * door a boss arena grows — because the game spends a key the same way for
+     * either.
+     */
+    const crossDoor = (
+        current: State,
+        currentIndex: number,
+        destMapId: number,
+        toX: number,
+        toY: number,
+        keyReq: number,
+    ): void => {
+        if (destMapId < 0 || !maps.has(destMapId)) return;
+        const dest = store.get(destMapId);
+        if (!dest) return;
+        // The hero's left column is the portal's arrival, in standing terms.
+        const landing = nodeAt(dest, toX, toY);
+        if (landing < 0) return;
+        let keysOrd = current.keysOrd;
+        let keysLion = current.keysLion;
+        let cost: number = EDGE_COST.DOOR;
+        if (keyReq === CAP.LION_KEY) {
+            // A closed door with the Lion-Head feature bit costs a Lion-Head key.
+            // Under `unlimitedKeys` the search is told to assume every key in the
+            // game, so it pays nothing and does not decrement.
+            if (!unlimitedKeys) {
+                if (keysLion < 1) return;
+                keysLion--;
+            }
+            cost = EDGE_COST.DOOR_LOCKED;
+        } else if (keyReq === CAP.KEY) {
+            if (!unlimitedKeys) {
+                if (keysOrd < 1) return;
+                keysOrd--;
+            }
+            cost = EDGE_COST.DOOR_LOCKED;
+        }
+        // An open door is walked through, costing nothing.
+        relax(
+            current, currentIndex, destMapId, landing, EDGE.DOOR, cost, keyReq,
+            keysOrd, keysLion, states, best, settled, indexOfState,
+            open, goalGraph, goalNode,
+        );
+    };
+
     while (open.size > 0) {
         const current = open.pop()!;
         const key = stateKey(current);
@@ -636,38 +686,19 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
         const portalIndex = graph.portalAtNode[current.node]!;
         if (portalIndex >= 0) {
             const portal = PORTALS[portalIndex]!;
-            if (portal.toTown || !maps.has(portal.destMapId)) continue;
-            const dest = store.get(portal.destMapId);
-            if (!dest) continue;
-            // The hero's left column is the portal's arrival, in standing terms.
-            const landing = nodeAt(dest, portal.toX, portal.toY);
-            if (landing < 0) continue;
-            let keysOrd = current.keysOrd;
-            let keysLion = current.keysLion;
-            let cost: number = EDGE_COST.DOOR;
-            if (portal.key === 2) {
-                // A closed door with the Lion-Head feature bit costs a Lion-Head key.
-                // Under `unlimitedKeys` the search is told to assume every key in the
-                // game, so it pays nothing and does not decrement.
-                if (!unlimitedKeys) {
-                    if (keysLion < 1) continue;
-                    keysLion--;
-                }
-                cost = EDGE_COST.DOOR_LOCKED;
-            } else if (portal.key === 1) {
-                if (!unlimitedKeys) {
-                    if (keysOrd < 1) continue;
-                    keysOrd--;
-                }
-                cost = EDGE_COST.DOOR_LOCKED;
-            }
-            // portal.key === 0 is an open door: walked through, costing nothing.
-            relax(
-                current, currentIndex, portal.destMapId, landing, EDGE.DOOR, cost,
-                portal.key === 2 ? CAP.LION_KEY : (portal.key === 1 ? CAP.KEY : 0),
-                keysOrd, keysLion, states, best, settled, indexOfState,
-                open, goalGraph, goalNode,
-            );
+            crossDoor(current, currentIndex, portal.destMapId, portal.toX, portal.toY,
+                portal.key === 2 ? CAP.LION_KEY : (portal.key === 1 ? CAP.KEY : 0));
+        }
+
+        // ── the door a boss arena grows when its boss dies ──
+        // The arena has no door of its own in the file, and the exit's column is
+        // stamped from wherever the hero is standing, so the graph offers it from
+        // every standing position on the door's row (nav-graph.ts bossExitAtNode).
+        const exitIndex = graph.bossExitAtNode[current.node]!;
+        if (exitIndex >= 0) {
+            const exit = NAV_BOSS_EXITS[exitIndex]!;
+            crossDoor(current, currentIndex, exit.destMapId, exit.destX, exit.destY,
+                exit.key === 2 ? CAP.LION_KEY : (exit.key === 1 ? CAP.KEY : 0));
         }
     }
 

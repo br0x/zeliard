@@ -21,7 +21,7 @@ import { dirname, resolve } from 'node:path';
 import {
     NAV_MAPS, NAV_MAP_BY_ID, NAV_MAP_TILES, NAV_COMPONENTS, NAV_REACHABLE,
 } from '../src/data/nav/nav-maps.js';
-import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from '../src/data/nav/nav-portals.js';
+import { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT, NAV_BOSS_EXITS, NAV_BOSS_EXIT_BY_MAP } from '../src/data/nav/nav-portals.js';
 import { NAV_TILES } from '../src/data/nav/nav-tiles.js';
 import { NAV_PLATFORMS } from '../src/data/nav/nav-platforms.js';
 import { NAV_AIRFLOWS } from '../src/data/nav/nav-airflows.js';
@@ -257,13 +257,19 @@ describe('nav topology', () => {
         }
     });
 
-    it('lets a cave reach its boss arena even though the arena cannot come back', () => {
+    it('lets a cave reach its boss arena and out the far side', () => {
         const fromMp10 = NAV_REACHABLE[0]!;
         expect(fromMp10).toContain(0);
-        expect(fromMp10).toContain(1);   // mp1d, a dead end
-        expect(fromMp10).toHaveLength(11);
-        // ...and mp1d reaches only itself.
-        expect(NAV_REACHABLE[1]).toEqual([1]);
+        expect(fromMp10).toContain(1);   // mp1d, entered at (26,16)
+        expect(fromMp10).toContain(11);  // mp50, only through mp4d's post-boss door
+        // 29 of 31. A boss arena is a passage, not a terminus, so the reachable set
+        // is now the whole game bar the two warp rooms that open onto a town or
+        // nowhere: mp73 (21) and mpa0 (30).
+        expect(fromMp10).toHaveLength(29);
+        expect(fromMp10).not.toContain(21);
+        expect(fromMp10).not.toContain(30);
+        // ...and mp1d, having an exit of its own, is no longer a cul-de-sac.
+        expect(NAV_REACHABLE[1]).toEqual(fromMp10);
     });
 
     it('confines mp84 to its own three-map island', () => {
@@ -273,6 +279,90 @@ describe('nav topology', () => {
     it('confines the warp-only maps to themselves', () => {
         expect(NAV_REACHABLE[21]).toEqual([21]);   // mp73, reached by the Pureza building
         expect(NAV_REACHABLE[30]).toEqual([30]);   // mpa0
+    });
+});
+
+describe('boss arena exits', () => {
+    it('finds a post-boss door in ten maps, and every one of them is doorless', () => {
+        // The eight cavern bosses plus mp73 and mpa0. A map that has one must have
+        // an empty door table, or the extractor has found something it cannot read
+        // as a boss exit.
+        expect(NAV_BOSS_EXITS).toHaveLength(10);
+        expect(NAV_BOSS_EXITS.map((e) => e.mapId)).toEqual([1, 4, 7, 10, 13, 17, 21, 22, 28, 30]);
+        for (const exit of NAV_BOSS_EXITS) {
+            const meta = NAV_MAP_BY_ID.get(exit.mapId)!;
+            expect(NAV_DOOR_COUNT[exit.mapId], meta.nameKey).toBe(0);
+            expect(meta.isDoorless, meta.nameKey).toBe(true);
+        }
+        // And the lookup table agrees with it, one entry per map, -1 elsewhere.
+        expect(NAV_BOSS_EXIT_BY_MAP).toHaveLength(31);
+        for (const meta of NAV_MAPS) {
+            const index = NAV_BOSS_EXIT_BY_MAP[meta.id]!;
+            if (index < 0) {
+                expect(NAV_BOSS_EXITS.some((e) => e.mapId === meta.id), meta.nameKey).toBe(false);
+            } else {
+                expect(NAV_BOSS_EXITS[index]!.mapId, meta.nameKey).toBe(meta.id);
+            }
+        }
+    });
+
+    it('opens every one of them back into the cavern the arena belongs to', () => {
+        // [measured] this is the property that makes an arena a passage: the
+        // post-boss door is the reverse of one of the arena's own entrances, so a
+        // route can walk in on one side and out on the other.
+        const landings = NAV_BOSS_EXITS.filter((e) => !e.toTown && e.mapId !== 30).map((e) => {
+            // The exit must put the hero on a door of the far map that leads back
+            // into the arena: that is the round trip, and it is why the arena is a
+            // passage rather than a cul-de-sac.
+            const partner = PORTALS.find(
+                (p) => p.mapId === e.destMapId
+                    && !p.toTown
+                    && p.fromX === e.destX
+                    && p.fromY === e.destY
+                    && p.destMapId === e.mapId,
+            );
+            expect(partner, `nothing in ${NAV_MAP_BY_ID.get(e.mapId)!.nameKey} departs from (${e.destX},${e.destY})`)
+                .toBeDefined();
+            return `${NAV_MAP_BY_ID.get(e.mapId)!.nameKey} -> ${NAV_MAP_BY_ID.get(e.destMapId)!.nameKey} (${e.destX},${e.destY})`;
+        });
+        expect(landings).toEqual([
+            'mp1d -> mp10 (141,33)',
+            'mp2d -> mp20 (190,48)',
+            'mp3d -> mp31 (174,5)',
+            'mp4d -> mp50 (25,15)',
+            'mp5d -> mp60 (14,6)',
+            'mp6d -> mp60 (28,47)',
+            'mp7d -> mp80 (57,6)',
+            'mp8d -> mp84 (16,52)',
+        ]);
+    });
+
+    it('brings the hero back into mpa0, because mpa0 has no other door', () => {
+        // The last room is the exception: its post-boss door opens onto mpa0 itself
+        // at (36,39), so there is no partner on the far side to pair it with.
+        const final = NAV_BOSS_EXITS.find((e) => e.mapId === 30)!;
+        expect(final.destMapId).toBe(30);
+        expect([final.destX, final.destY]).toEqual([36, 39]);
+        expect(NAV_DOOR_COUNT[30]).toBe(0);
+    });
+
+    it('never asks for a key, and never lands outside its destination', () => {
+        // Every post-boss door is already open (d_flags bit 7), so the fight is the
+        // only cost. mp73's opens onto a town and is the one that does not carry
+        // the rokademo feature bit — the game marks a door for the boss's treasure,
+        // and mp73's opens onto a town rather than back into the cavern.
+        for (const exit of NAV_BOSS_EXITS) {
+            expect(exit.key, `map ${exit.mapId}`).toBe(0);
+            expect(exit.rokademo, `map ${exit.mapId}`).toBe(!exit.toTown);
+            if (exit.toTown) {
+                expect(exit.destMapId, `map ${exit.mapId}`).toBe(-1);
+                continue;
+            }
+            expect(NAV_MAP_BY_ID.get(exit.destMapId), `map ${exit.mapId}`).toBeDefined();
+            expect(exit.destX, `map ${exit.mapId}`).toBeLessThan(NAV_MAP_BY_ID.get(exit.destMapId)!.mapWidth);
+            expect(exit.destY, `map ${exit.mapId}`).toBeGreaterThanOrEqual(0);
+            expect(exit.destY, `map ${exit.mapId}`).toBeLessThan(MAP_HEIGHT);
+        }
     });
 });
 

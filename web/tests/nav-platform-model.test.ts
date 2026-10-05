@@ -15,7 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import {
-    buildPlatformModel, isLandingSlot, REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
+    buildPlatformModel, isLandingSlot, HORIZONTAL_RIDE_OFFSETS, PLATFORM_HORIZONTAL,
+    REASON_FROZEN, REASON_SINGLE_ROW, REASON_UNCLEAR_SPAN,
 } from '../src/engine/nav/platforms.js';
 import {
     flagsAt, groundBelow, heroBoxFree, heroInLift, isStanding, wrapCol, wrapRow,
@@ -115,15 +116,19 @@ describe('ride slots are positions the hero can actually occupy', () => {
         }
     });
 
-    it('keeps a horizontal slot within one column of the platform cell', () => {
+    it('keeps a horizontal slot on the platform\'s own three tiles', () => {
+        // The platform hangs off the hero's RIGHT: `heroOnHorizPlatform` carries him
+        // when any of his three columns equals the platform's own left cell, so a
+        // riding position is `leftCol = platformCol - 2 .. platformCol`. Anything
+        // outside that is a position the game never carries him from.
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const model = buildPlatformModel(meta.id, grid);
             for (const slot of model.slots) {
-                if (slot.kind !== 2) continue;
+                if (slot.kind !== PLATFORM_HORIZONTAL) continue;
                 const delta = ((slot.leftCol - slot.pos + meta.mapWidth / 2) % meta.mapWidth + meta.mapWidth)
                     % meta.mapWidth - meta.mapWidth / 2;
-                expect([-1, 0, 1], `${meta.nameKey} slot offset`).toContain(Math.round(delta));
+                expect(HORIZONTAL_RIDE_OFFSETS, `${meta.nameKey} slot offset`).toContain(Math.round(delta));
             }
         }
     });

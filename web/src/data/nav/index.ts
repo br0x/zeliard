@@ -19,8 +19,8 @@ export const NAV_TOWN_COUNT = 9;
 export type { NavMapMeta, NavComponent } from './nav-maps.js';
 export { NAV_MAPS, NAV_MAP_BY_ID, NAV_MAP_TILES, NAV_COMPONENTS } from './nav-maps.js';
 
-export type { NavPortal, PortalKeyKind } from './nav-portals.js';
-export { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT } from './nav-portals.js';
+export type { NavPortal, NavBossExit, PortalKeyKind } from './nav-portals.js';
+export { PORTALS, NAV_PORTALS_BY_MAP, NAV_DOOR_COUNT, NAV_BOSS_EXITS, NAV_BOSS_EXIT_BY_MAP } from './nav-portals.js';
 
 export type { NavTileTables } from './nav-tiles.js';
 export { NAV_TILES } from './nav-tiles.js';
