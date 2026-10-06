@@ -1,0 +1,1179 @@
+`=== nav recording: 585 cells, 21589 frames, maps mp82, mp80, mp81 ===
+hero's accessory: 0x1
+
+-- where the hero stood, in order, and what he pressed --
+  map 25  (102,54)  x 513f  - then left  (wearing 0x1)
+  map 25  (101,54)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (100,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 99,54)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  ( 98,54)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  ( 97,54)  x  19f  left  [sliding]  (wearing 0x1)
+  map 25  ( 96,54)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  ( 95,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 94,54)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  ( 93,54)  x  18f  left  [sliding]  (wearing 0x1)
+  map 25  ( 92,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 91,54)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  ( 90,54)  x  19f  left  [sliding]  (wearing 0x1)
+  map 25  ( 89,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 88,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 87,54)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  ( 86,54)  x  19f  left  [sliding]  (wearing 0x1)
+  map 25  ( 85,54)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  ( 84,54)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  ( 83,54)  x 105f  left then - then up then up+space  [sliding]  (wearing 0x1)
+  map 25  ( 83,53)  x  40f  up+space then space  [airborne]  (wearing 0x1)
+  map 25  ( 83,54)  x 104f  space then - then left  [airborne]  (wearing 0x1)
+  map 25  ( 82,54)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  ( 81,54)  x  82f  left then -  [sliding]  (wearing 0x1)
+  map 25  ( 80,54)  x  83f  left then - then down  [sliding]  (wearing 0x1)
+  map 25  ( 80,55)  x  20f  down  (wearing 0x1)
+  map 25  ( 80,56)  x  21f  down  (wearing 0x1)
+  map 25  ( 80,57)  x  20f  down  (wearing 0x1)
+  map 25  ( 80,58)  x  22f  down  (wearing 0x1)
+  map 25  ( 80,59)  x  20f  down  (wearing 0x1)
+  map 25  ( 80,60)  x  21f  down  (wearing 0x1)
+  map 25  ( 80,61)  x  21f  down  (wearing 0x1)
+  map 25  ( 80,62)  x  22f  down  (wearing 0x1)
+  map 25  ( 80,63)  x  19f  down  (wearing 0x1)
+  map 25  ( 80, 0)  x 124f  down then - then right  (wearing 0x1)
+  map 25  ( 81, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 82, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  ( 83, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 84, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 85, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 86, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  ( 87, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 88, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 89, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 90, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  ( 91, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 92, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 93, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 94, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  ( 95, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 96, 0)  x  19f  right  [sliding]  (wearing 0x1)
+  map 25  ( 97, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 98, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  ( 99, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (100, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (101, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (102, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (103, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (104, 0)  x  19f  right  [sliding]  (wearing 0x1)
+  map 25  (105, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (106, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (107, 0)  x  21f  right then right+space  [sliding]  (wearing 0x1)
+  map 25  (108, 0)  x  20f  right+space then right  [sliding]  (wearing 0x1)
+  map 25  (109, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (110, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (111, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (112, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (113, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (114, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (115, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (116, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (117, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (118, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (119, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (120, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (121, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (122, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (123, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (124, 0)  x  21f  right then right+space  [sliding]  (wearing 0x1)
+  map 25  (125, 0)  x  20f  right+space then right  [sliding]  (wearing 0x1)
+  map 25  (126, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (127, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (128, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (129, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (130, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (131, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (132, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (133, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (134, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (135, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (136, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (137, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (138, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (139, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (140, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (141, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (142, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (143, 0)  x  20f  right then right+space  [sliding]  (wearing 0x1)
+  map 25  (144, 0)  x  21f  right+space then right  [sliding]  (wearing 0x1)
+  map 25  (145, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (146, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (147, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (148, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (149, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (150, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (151, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (152, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (153, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (154, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (155, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (156, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (157, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (158, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (159, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (160, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (161, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (162, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (163, 0)  x  22f  right then right+space  [sliding]  (wearing 0x1)
+  map 25  (164, 0)  x  20f  right+space then right  [sliding]  (wearing 0x1)
+  map 25  (165, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (166, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (167, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (168, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (169, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (170, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (171, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (172, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (173, 0)  x  19f  right  [sliding]  (wearing 0x1)
+  map 25  (174, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (175, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (176, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (177, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (178, 0)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (179, 0)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (180, 0)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (181, 0)  x  20f  right then up+right  [sliding]  (wearing 0x1)
+  map 25  (182,63)  x  22f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (183,62)  x  20f  up+right then right  [airborne sliding]  (wearing 0x1)
+  map 25  (184,62)  x  21f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (185,63)  x 103f  - then left  [airborne sliding]  (wearing 0x1)
+  map 25  (184,63)  x 125f  left then - then up  [sliding]  (wearing 0x1)
+  map 25  (184,62)  x  20f  up  (wearing 0x1)
+  map 25  (184,61)  x  21f  up  (wearing 0x1)
+  map 25  (184,60)  x  20f  up  (wearing 0x1)
+  map 25  (184,59)  x  22f  up  (wearing 0x1)
+  map 25  (184,58)  x  19f  up  (wearing 0x1)
+  map 25  (184,57)  x  20f  up  (wearing 0x1)
+  map 25  (184,56)  x  22f  up  (wearing 0x1)
+  map 25  (184,55)  x  20f  up  (wearing 0x1)
+  map 25  (184,54)  x  21f  up  (wearing 0x1)
+  map 25  (184,53)  x  20f  up  (wearing 0x1)
+  map 25  (184,52)  x  83f  up then -  (wearing 0x1)
+  map 25  (184,51)  x 105f  up then - then left  (wearing 0x1)
+  map 25  (183,51)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (182,51)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (181,51)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  (180,51)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (179,51)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  (178,52)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 25  (178,53)  x 104f  left then -  [airborne sliding]  (wearing 0x1)
+  map 25  (177,53)  x 310f  left then -  [sliding]  (wearing 0x1)
+  map 25  (176,53)  x  20f  left then -  [sliding]  (wearing 0x1)
+  map 25  (175,54)  x  22f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (175,55)  x  20f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (175,56)  x  40f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (174,56)  x  21f  - then down  [sliding]  (wearing 0x1)
+  map 25  (173,56)  x  20f  down  (wearing 0x1)
+  map 25  (172,56)  x  22f  down  (wearing 0x1)
+  map 25  (171,56)  x  20f  down  (wearing 0x1)
+  map 25  (170,56)  x  41f  down  (wearing 0x1)
+  map 25  (171,56)  x  20f  down  (wearing 0x1)
+  map 25  (172,56)  x  22f  down  (wearing 0x1)
+  map 25  (173,56)  x  20f  down  (wearing 0x1)
+  map 25  (174,56)  x  21f  down  (wearing 0x1)
+  map 25  (175,56)  x  20f  down  (wearing 0x1)
+  map 25  (176,56)  x  42f  down  (wearing 0x1)
+  map 25  (175,56)  x  21f  down  (wearing 0x1)
+  map 25  (174,56)  x  20f  down  (wearing 0x1)
+  map 25  (173,56)  x  22f  down  (wearing 0x1)
+  map 25  (172,56)  x  20f  down then -  (wearing 0x1)
+  map 25  (171,56)  x  21f  - then left  (wearing 0x1)
+  map 25  (169,56)  x  41f  left then - then down  [sliding]  (wearing 0x1)
+  map 25  (170,56)  x  20f  down  (wearing 0x1)
+  map 25  (171,56)  x  21f  down  (wearing 0x1)
+  map 25  (172,56)  x  21f  down  (wearing 0x1)
+  map 25  (173,56)  x  21f  down  (wearing 0x1)
+  map 25  (174,56)  x  20f  down  (wearing 0x1)
+  map 25  (175,56)  x  42f  down  (wearing 0x1)
+  map 25  (174,56)  x  21f  down  (wearing 0x1)
+  map 25  (173,56)  x  21f  down  (wearing 0x1)
+  map 25  (172,56)  x  19f  down  (wearing 0x1)
+  map 25  (171,56)  x  22f  down then -  (wearing 0x1)
+  map 25  (170,56)  x  20f  - then left  (wearing 0x1)
+  map 25  (169,56)  x   1f  left  (wearing 0x1)
+  map 25  (168,56)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (167,56)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (166,56)  x   2f  left  [sliding]  (wearing 0x1)
+  map 25  (165,56)  x  20f  left then -  [sliding]  (wearing 0x1)
+  map 25  (164,56)  x  20f  -  (wearing 0x1)
+  map 25  (163,56)  x  20f  -  (wearing 0x1)
+  map 25  (162,56)  x  21f  - then left then up  (wearing 0x1)
+  map 25  (161,56)  x   2f  up  (wearing 0x1)
+  map 25  (161,55)  x  20f  up then up+left  [airborne]  (wearing 0x1)
+  map 25  (160,54)  x  21f  up+left  [airborne sliding]  (wearing 0x1)
+  map 25  (159,53)  x  20f  up+left  [airborne sliding]  (wearing 0x1)
+  map 25  (158,52)  x  22f  up+left then left then -  [airborne sliding]  (wearing 0x1)
+  map 25  (157,52)  x  20f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (156,53)  x  21f  -  [airborne sliding]  (wearing 0x1)
+  map 25  (156,54)  x  82f  - then right  [airborne sliding]  (wearing 0x1)
+  map 25  (157,54)  x  83f  right then - then up  [sliding]  (wearing 0x1)
+  map 25  (157,53)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,52)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,51)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,50)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,49)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,48)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,47)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,46)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,45)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (157,44)  x  83f  up then - then right  [on_rope]  (wearing 0x1)
+  map 25  (158,44)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (159,45)  x  20f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (159,46)  x  64f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (160,46)  x  19f  right  [sliding]  (wearing 0x1)
+  map 25  (161,46)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (162,46)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (163,46)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (164,46)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (165,46)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (166,46)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (167,45)  x  20f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (168,44)  x  23f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (169,44)  x  19f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (170,45)  x  41f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (171,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (172,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (173,45)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (174,45)  x  81f  right then space then -  [sliding]  (wearing 0x1)
+  map 25  (172,45)  x  61f  - then right  (wearing 0x1)
+  map 25  (173,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (174,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (175,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (176,45)  x 146f  right then right+space then space then -  [sliding]  (wearing 0x1)
+  map 25  (177,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (178,45)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (179,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (180,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (181,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (182,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (183,45)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (184,45)  x 103f  right then - then up  [sliding]  (wearing 0x1)
+  map 25  (184,44)  x  22f  up  [airborne]  (wearing 0x1)
+  map 25  (184,43)  x  20f  up  [airborne]  (wearing 0x1)
+  map 25  (184,42)  x  22f  up  [airborne]  (wearing 0x1)
+  map 25  (184,41)  x  19f  up  [airborne]  (wearing 0x1)
+  map 25  (184,40)  x  22f  up  [on_rope airborne]  (wearing 0x1)
+  map 25  (184,39)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,38)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,37)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,36)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,35)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,34)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,33)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (184,32)  x 103f  up then - then left  [on_rope]  (wearing 0x1)
+  map 25  (183,32)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  (182,33)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 25  (182,34)  x  22f  left  [airborne sliding]  (wearing 0x1)
+  map 25  (181,35)  x 123f  left then -  [airborne sliding]  (wearing 0x1)
+  map 25  (180,35)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  (179,35)  x  20f  left  [sliding]  (wearing 0x1)
+  map 25  (178,35)  x  22f  left  [sliding]  (wearing 0x1)
+  map 25  (177,35)  x1095f  left then -  [sliding]  (wearing 0x1)
+  map 25  (176,35)  x  21f  left  [sliding]  (wearing 0x1)
+  map 25  (175,35)  x  62f  left then -  [sliding]  (wearing 0x1)
+  map 25  (174,35)  x  40f  -  (wearing 0x1)
+  map 25  (173,35)  x  41f  -  (wearing 0x1)
+  map 25  (172,35)  x  42f  -  (wearing 0x1)
+  map 25  (171,35)  x  41f  -  (wearing 0x1)
+  map 25  (170,35)  x  42f  - then up  (wearing 0x1)
+  map 25  (169,35)  x   1f  up  (wearing 0x1)
+  map 25  (169,34)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,33)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,32)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,31)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,30)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,29)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,28)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,27)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,26)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,25)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,24)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 25  (169,23)  x  63f  up then - then right  [on_rope]  (wearing 0x1)
+  map 25  (170,23)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (171,24)  x  19f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (171,25)  x  63f  right  [airborne sliding]  (wearing 0x1)
+  map 25  (172,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (173,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (174,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (175,25)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (176,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (177,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (178,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (179,25)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (180,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (181,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (182,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (183,25)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (184,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (185,25)  x  20f  right then right+space  [sliding]  (wearing 0x1)
+  map 25  (186,25)  x  21f  right+space then right  [sliding]  (wearing 0x1)
+  map 25  (187,25)  x  19f  right  [sliding]  (wearing 0x1)
+  map 25  (188,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (189,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (190,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (191,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (  0,25)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (  1,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (  2,25)  x  22f  right  [sliding]  (wearing 0x1)
+  map 25  (  3,25)  x  20f  right  [sliding]  (wearing 0x1)
+  map 25  (  4,25)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  (  5,25)  x  20f  right then up+right  [sliding]  (wearing 0x1)
+  map 25  (  6,24)  x  20f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (  7,23)  x  21f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (  8,22)  x  21f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  (  9,21)  x  20f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 11,17)  x  21f  up+right  [sliding on_air]  (wearing 0x1)
+  map 25  ( 12,18)  x  20f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 18,18)  x   2f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 18,19)  x  18f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 20,19)  x  23f  up+right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 21,18)  x  20f  up+right then right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 22,18)  x  21f  right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 23,19)  x  42f  right  [airborne sliding]  (wearing 0x1)
+  map 25  ( 24,19)  x  20f  right then -  [sliding]  (wearing 0x1)
+  map 25  ( 25,19)  x  21f  right  [sliding]  (wearing 0x1)
+  map 25  ( 26,19)  x 171f  right then - then up  [sliding]  (wearing 0x1)
+  map 23  (166,31)  x 380f  - then right  (wearing 0x1)
+  map 23  (167,31)  x  20f  right  [sliding]  (wearing 0x1)
+  map 23  (168,31)  x  21f  right  [sliding]  (wearing 0x1)
+  map 23  (169,31)  x  20f  right+space  [sliding]  (wearing 0x1)
+  map 23  (168,31)  x  22f  right+space then right then -  [sliding]  (wearing 0x1)
+  map 23  (166,31)  x  61f  - then right  (wearing 0x1)
+  map 23  (167,31)  x  22f  right  [sliding]  (wearing 0x1)
+  map 23  (168,31)  x 186f  right then - then space then left  [sliding]  (wearing 0x1)
+  map 23  (167,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (166,31)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (165,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (164,31)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (163,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (162,31)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (161,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (160,31)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (159,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (158,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (157,31)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (156,31)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (155,31)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (154,31)  x  18f  left  [sliding]  (wearing 0x1)
+  map 23  (153,31)  x  83f  left then -  [sliding]  (wearing 0x1)
+  map 23  (152,31)  x  63f  left then -  [sliding]  (wearing 0x1)
+  map 23  (151,31)  x  62f  left then - then up+left  [sliding]  (wearing 0x1)
+  map 23  (150,30)  x  20f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (149,29)  x  21f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (148,29)  x  20f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (147,30)  x  22f  up+left then left  [airborne sliding]  (wearing 0x1)
+  map 23  (146,31)  x  61f  left  [airborne sliding]  (wearing 0x1)
+  map 23  (145,31)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (144,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (143,31)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (142,31)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (141,31)  x 103f  left then -  [sliding]  (wearing 0x1)
+  map 23  (140,30)  x  21f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (139,29)  x  42f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (139,30)  x  20f  up+left  [on_rope airborne]  (wearing 0x1)
+  map 23  (138,30)  x  21f  up+left  [sliding]  (wearing 0x1)
+  map 23  (137,31)  x  19f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (131,31)  x   2f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (131,32)  x  41f  up+left  [airborne sliding]  (wearing 0x1)
+  map 23  (130,31)  x  21f  up+left then left  [airborne sliding]  (wearing 0x1)
+  map 23  (129,31)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 23  (128,32)  x  83f  left then space then -  [airborne sliding]  (wearing 0x1)
+  map 23  (130,32)  x  42f  - then left  (wearing 0x1)
+  map 23  (129,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (128,32)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (127,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (126,32)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (125,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (124,32)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (123,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (122,32)  x  22f  left  [sliding]  (wearing 0x1)
+  map 23  (121,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (120,32)  x  21f  left  [sliding]  (wearing 0x1)
+  map 23  (119,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (118,32)  x  20f  left  [sliding]  (wearing 0x1)
+  map 23  (117,32)  x 111f  left then - then up  [sliding]  (wearing 0x1)
+  map 24  (153,45)  x 398f  - then left  (wearing 0x1)
+  map 24  (152,45)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (151,45)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (150,45)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (149,45)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (148,45)  x 145f  left then left+space then space then - then right  [sliding]  (wearing 0x1)
+  map 24  (149,45)  x  21f  right  [sliding]  (wearing 0x1)
+  map 24  (150,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (151,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (152,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (153,45)  x  21f  right then right+space  [sliding]  (wearing 0x1)
+  map 24  (154,45)  x 123f  right+space then - then right  [sliding]  (wearing 0x1)
+  map 24  (155,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (156,45)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (157,45)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (158,45)  x  19f  right  [sliding]  (wearing 0x1)
+  map 24  (159,45)  x  43f  right then -  [sliding]  (wearing 0x1)
+  map 24  (160,44)  x  20f  up  [airborne sliding]  (wearing 0x1)
+  map 24  (160,43)  x  20f  up  [on_rope airborne]  (wearing 0x1)
+  map 24  (160,42)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,41)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,40)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,39)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,38)  x  19f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,37)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,36)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (160,35)  x  41f  up then - then right  [on_rope]  (wearing 0x1)
+  map 24  (161,35)  x  21f  right  [sliding]  (wearing 0x1)
+  map 24  (162,36)  x  42f  right  [airborne sliding]  (wearing 0x1)
+  map 24  (163,36)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (164,36)  x  21f  right  [sliding]  (wearing 0x1)
+  map 24  (165,36)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (166,36)  x 125f  right then - then up  [sliding]  (wearing 0x1)
+  map 24  (166,35)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,34)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,33)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,32)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,31)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,30)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,29)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,28)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,27)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (166,26)  x  83f  up then up+left then left  [on_rope]  (wearing 0x1)
+  map 24  (165,26)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (164,27)  x  22f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (163,28)  x  61f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (162,28)  x  22f  left then left+space  [sliding]  (wearing 0x1)
+  map 24  (161,28)  x  83f  left+space then space then - then left  [sliding]  (wearing 0x1)
+  map 24  (160,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (159,28)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (158,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (157,28)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (156,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (155,28)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (154,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (153,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (152,28)  x  22f  left then left+space  [sliding]  (wearing 0x1)
+  map 24  (151,28)  x 124f  left+space then left then -  [sliding]  (wearing 0x1)
+  map 24  (150,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (149,28)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (148,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (147,28)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (146,28)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (145,28)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (144,28)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (143,28)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (142,28)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (141,28)  x  19f  left then -  [sliding]  (wearing 0x1)
+  map 24  (140,29)  x  21f  -  [airborne sliding]  (wearing 0x1)
+  map 24  (140,30)  x  62f  - then up  [on_rope airborne sliding]  (wearing 0x1)
+  map 24  (140,29)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,28)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,27)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,26)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,25)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,24)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,23)  x 226f  up then - then left  [on_rope]  (wearing 0x1)
+  map 24  (139,23)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (138,24)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (138,25)  x  42f  left then left+space  [airborne sliding]  (wearing 0x1)
+  map 24  (140,27)  x  20f  left+space then left  [on_rope sliding]  (wearing 0x1)
+  map 24  (139,27)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (139,28)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (139,29)  x  22f  left then -  [airborne sliding]  (wearing 0x1)
+  map 24  (139,30)  x  20f  -  [airborne sliding]  (wearing 0x1)
+  map 24  (139,31)  x  21f  -  [airborne sliding]  (wearing 0x1)
+  map 24  (139,32)  x  20f  -  [airborne sliding]  (wearing 0x1)
+  map 24  (139,33)  x  22f  - then right then right+space  [airborne sliding]  (wearing 0x1)
+  map 24  (139,34)  x  19f  right+space then space  [airborne sliding]  (wearing 0x1)
+  map 24  (139,35)  x  22f  space then -  [airborne sliding]  (wearing 0x1)
+  map 24  (139,36)  x  61f  - then left  [airborne sliding]  (wearing 0x1)
+  map 24  (138,36)  x  23f  left  [sliding]  (wearing 0x1)
+  map 24  (137,36)  x  19f  left then left+space  [sliding]  (wearing 0x1)
+  map 24  (136,36)  x 476f  left+space then space then - then right then alt  [sliding]  (wearing 0x1)
+  map 24  (137,36)  x 793f  right then - then alt  [sliding]  (wearing 0x1)
+  map 24  (138,36)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (139,36)  x  63f  right then - then up  [sliding]  (wearing 0x1)
+  map 24  (140,35)  x  20f  up  [airborne sliding]  (wearing 0x1)
+  map 24  (140,34)  x  21f  up  [on_rope airborne]  (wearing 0x1)
+  map 24  (140,33)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,32)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,31)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,30)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,29)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,28)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,27)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,26)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,25)  x  22f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,24)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (140,23)  x  41f  up then up+left then left  [on_rope]  (wearing 0x1)
+  map 24  (139,23)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (138,24)  x  20f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (138,25)  x  63f  left  [airborne sliding]  (wearing 0x1)
+  map 24  (137,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (136,25)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (135,25)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (134,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (133,25)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (132,25)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (131,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (130,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (129,25)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (128,25)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (127,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (126,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (125,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (124,25)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (123,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (122,25)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (121,25)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (120,25)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (119,25)  x  61f  left then - then up  [sliding]  (wearing 0x1)
+  map 24  (119,24)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,23)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,22)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,21)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,20)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,19)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,18)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,17)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,16)  x  21f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,15)  x  20f  up  [on_rope]  (wearing 0x1)
+  map 24  (119,14)  x  83f  up then right  [on_rope]  (wearing 0x1)
+  map 24  (120,14)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (121,15)  x  23f  right  [airborne sliding]  (wearing 0x1)
+  map 24  (121,16)  x  60f  right  [airborne sliding]  (wearing 0x1)
+  map 24  (122,16)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (123,16)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (124,16)  x  21f  right  [sliding]  (wearing 0x1)
+  map 24  (125,16)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (126,16)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (127,16)  x  20f  right  [sliding]  (wearing 0x1)
+  map 24  (128,16)  x  21f  right then - then space  [sliding]  (wearing 0x1)
+  map 24  (126,16)  x 123f  - then right  (wearing 0x1)
+  map 24  (127,16)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (128,16)  x 205f  right+space then space then - then right  [sliding]  (wearing 0x1)
+  map 24  (129,16)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (130,16)  x  41f  right then - then up  [sliding]  (wearing 0x1)
+  map 24  (130,15)  x  20f  up  [airborne]  (wearing 0x1)
+  map 24  (130,14)  x  22f  up  [airborne]  (wearing 0x1)
+  map 24  (130,13)  x  42f  up  [airborne]  (wearing 0x1)
+  map 24  (130,14)  x  19f  up  [airborne]  (wearing 0x1)
+  map 24  (130,15)  x  22f  up  [airborne]  (wearing 0x1)
+  map 24  (130,16)  x  61f  up then - then right  [airborne]  (wearing 0x1)
+  map 24  (131,16)  x  22f  right  [sliding]  (wearing 0x1)
+  map 24  (132,16)  x  40f  right then - then up  [sliding]  (wearing 0x1)
+  map 24  (132,15)  x  21f  up  [airborne]  (wearing 0x1)
+  map 24  (132,14)  x  42f  up  [airborne]  (wearing 0x1)
+  map 24  (132,15)  x  20f  up  [airborne]  (wearing 0x1)
+  map 24  (132,16)  x  63f  up then - then right  [airborne]  (wearing 0x1)
+  map 24  (133,16)  x  61f  right then - then up  [sliding]  (wearing 0x1)
+  map 24  (133,15)  x  21f  up  [airborne]  (wearing 0x1)
+  map 24  (133,14)  x  21f  up  [airborne]  (wearing 0x1)
+  map 24  (133,13)  x  19f  up  [airborne]  (wearing 0x1)
+  map 24  (134,13)  x  20f  up  [airborne]  (wearing 0x1)
+  map 24  (134, 9)  x   2f  up  [on_air]  (wearing 0x1)
+  map 24  (133, 8)  x  20f  up  [airborne on_air]  (wearing 0x1)
+  map 24  (133, 7)  x  22f  up  [airborne]  (wearing 0x1)
+  map 24  (133, 6)  x  19f  up  [airborne]  (wearing 0x1)
+  map 24  (131, 5)  x  42f  up then up+space then space then -  [airborne]  (wearing 0x1)
+  map 24  (131, 6)  x 290f  - then left  [airborne]  (wearing 0x1)
+  map 24  (130, 6)  x  20f  left  [sliding]  (wearing 0x1)
+  map 24  (129, 6)  x  23f  left  [sliding]  (wearing 0x1)
+  map 24  (128, 6)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (127, 6)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (126, 6)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (125, 6)  x  22f  left  [sliding]  (wearing 0x1)
+  map 24  (124, 6)  x  19f  left  [sliding]  (wearing 0x1)
+  map 24  (123, 6)  x  21f  left  [sliding]  (wearing 0x1)
+  map 24  (122, 6)  x1070f  left then - then right  [sliding]  (wearing 0x1)
+
+-- every hop, beside what the graph calls it --
+  mp82(102,54) -> mp82(101,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(101,54) -> mp82(100,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(100,54) -> mp82(99,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(99,54) -> mp82(98,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(98,54) -> mp82(97,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(97,54) -> mp82(96,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(96,54) -> mp82(95,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(95,54) -> mp82(94,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(94,54) -> mp82(93,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(93,54) -> mp82(92,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(92,54) -> mp82(91,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(91,54) -> mp82(90,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(90,54) -> mp82(89,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(89,54) -> mp82(88,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(88,54) -> mp82(87,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(87,54) -> mp82(86,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(86,54) -> mp82(85,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(85,54) -> mp82(84,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(84,54) -> mp82(83,54)  FALL bare | FALL bare | WALK bare  (pressed left then - then up then up+space)
+      mp82(83,54) -> mp82(83,53)  over mp82(83,53) in flight
+      mp82(83,53) -> mp82(83,54)  over mp82(83,53) in flight
+  mp82(83,54) -> mp82(82,54)  FALL bare | FALL bare | WALK bare  (pressed left)
+  *** mp82(82,54) -> mp82(81,54): mp82(81,54) is not a standing position in the graph, and the hero stood there with "left then -"
+  *** mp82(81,54) -> mp82(80,54): mp82(81,54) is not a standing position in the graph, and the hero stood there with "left then - then down"
+  *** mp82(80,54) -> mp82(80,55): mp82(80,54) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,55) -> mp82(80,56): mp82(80,55) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,56) -> mp82(80,57): mp82(80,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,57) -> mp82(80,58): mp82(80,57) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,58) -> mp82(80,59): mp82(80,58) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,59) -> mp82(80,60): mp82(80,59) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,60) -> mp82(80,61): mp82(80,60) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,61) -> mp82(80,62): mp82(80,61) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,62) -> mp82(80,63): mp82(80,62) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(80,63) -> mp82(80,0): mp82(80,63) is not a standing position in the graph, and the hero stood there with "down then - then right"
+  *** mp82(80,0) -> mp82(81,0): mp82(80,0) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp82(81,0) -> mp82(82,0): mp82(81,0) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp82(82,0) -> mp82(83,0): mp82(82,0) is not a standing position in the graph, and the hero stood there with "right"
+  mp82(83,0) -> mp82(84,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(84,0) -> mp82(85,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(85,0) -> mp82(86,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(86,0) -> mp82(87,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(87,0) -> mp82(88,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(88,0) -> mp82(89,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(89,0) -> mp82(90,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(90,0) -> mp82(91,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(91,0) -> mp82(92,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(92,0) -> mp82(93,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(93,0) -> mp82(94,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(94,0) -> mp82(95,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(95,0) -> mp82(96,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(96,0) -> mp82(97,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(97,0) -> mp82(98,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(98,0) -> mp82(99,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(99,0) -> mp82(100,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(100,0) -> mp82(101,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(101,0) -> mp82(102,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(102,0) -> mp82(103,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(103,0) -> mp82(104,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(104,0) -> mp82(105,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(105,0) -> mp82(106,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(106,0) -> mp82(107,0)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp82(107,0) -> mp82(108,0)  FALL bare | FALL bare | WALK bare  (pressed right+space then right)
+  mp82(108,0) -> mp82(109,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(109,0) -> mp82(110,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(110,0) -> mp82(111,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(111,0) -> mp82(112,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(112,0) -> mp82(113,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(113,0) -> mp82(114,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(114,0) -> mp82(115,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(115,0) -> mp82(116,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(116,0) -> mp82(117,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(117,0) -> mp82(118,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(118,0) -> mp82(119,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(119,0) -> mp82(120,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(120,0) -> mp82(121,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(121,0) -> mp82(122,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(122,0) -> mp82(123,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(123,0) -> mp82(124,0)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp82(124,0) -> mp82(125,0)  FALL bare | FALL bare | WALK bare  (pressed right+space then right)
+  mp82(125,0) -> mp82(126,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(126,0) -> mp82(127,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(127,0) -> mp82(128,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(128,0) -> mp82(129,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(129,0) -> mp82(130,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(130,0) -> mp82(131,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(131,0) -> mp82(132,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(132,0) -> mp82(133,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(133,0) -> mp82(134,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(134,0) -> mp82(135,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(135,0) -> mp82(136,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(136,0) -> mp82(137,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(137,0) -> mp82(138,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(138,0) -> mp82(139,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(139,0) -> mp82(140,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(140,0) -> mp82(141,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(141,0) -> mp82(142,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(142,0) -> mp82(143,0)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp82(143,0) -> mp82(144,0)  FALL bare | FALL bare | WALK bare  (pressed right+space then right)
+  mp82(144,0) -> mp82(145,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(145,0) -> mp82(146,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(146,0) -> mp82(147,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(147,0) -> mp82(148,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(148,0) -> mp82(149,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(149,0) -> mp82(150,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(150,0) -> mp82(151,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(151,0) -> mp82(152,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(152,0) -> mp82(153,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(153,0) -> mp82(154,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(154,0) -> mp82(155,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(155,0) -> mp82(156,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(156,0) -> mp82(157,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(157,0) -> mp82(158,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(158,0) -> mp82(159,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(159,0) -> mp82(160,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(160,0) -> mp82(161,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(161,0) -> mp82(162,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(162,0) -> mp82(163,0)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp82(163,0) -> mp82(164,0)  FALL bare | FALL bare | WALK bare  (pressed right+space then right)
+  mp82(164,0) -> mp82(165,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(165,0) -> mp82(166,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(166,0) -> mp82(167,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(167,0) -> mp82(168,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(168,0) -> mp82(169,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(169,0) -> mp82(170,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(170,0) -> mp82(171,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(171,0) -> mp82(172,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(172,0) -> mp82(173,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(173,0) -> mp82(174,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(174,0) -> mp82(175,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(175,0) -> mp82(176,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(176,0) -> mp82(177,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(177,0) -> mp82(178,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(178,0) -> mp82(179,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(179,0) -> mp82(180,0)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(180,0) -> mp82(181,0)  FALL bare | FALL bare | WALK bare  (pressed right then up+right)
+      mp82(181,0) -> mp82(182,63)  over mp82(182,63) in flight
+      mp82(182,63) -> mp82(183,62)  over mp82(182,63) in flight
+      mp82(183,62) -> mp82(184,62)  over mp82(183,62) in flight
+      mp82(184,62) -> mp82(185,63)  over mp82(184,62) in flight
+      mp82(185,63) -> mp82(184,63)  over mp82(185,63) in flight
+  *** mp82(184,63) -> mp82(184,62): mp82(184,63) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,62) -> mp82(184,61): mp82(184,62) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,61) -> mp82(184,60): mp82(184,61) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,60) -> mp82(184,59): mp82(184,60) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,59) -> mp82(184,58): mp82(184,59) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,58) -> mp82(184,57): mp82(184,58) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,57) -> mp82(184,56): mp82(184,57) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,56) -> mp82(184,55): mp82(184,56) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,55) -> mp82(184,54): mp82(184,55) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,54) -> mp82(184,53): mp82(184,54) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,53) -> mp82(184,52): mp82(184,53) is not a standing position in the graph, and the hero stood there with "up then -"
+  *** mp82(184,52) -> mp82(184,51): mp82(184,52) is not a standing position in the graph, and the hero stood there with "up then - then left"
+  *** mp82(184,51) -> mp82(183,51): mp82(184,51) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(183,51) -> mp82(182,51): mp82(183,51) is not a standing position in the graph, and the hero stood there with "left"
+  mp82(182,51) -> mp82(181,51)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  mp82(181,51) -> mp82(180,51)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  *** mp82(180,51) -> mp82(179,51): mp82(179,51) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(179,51) -> mp82(178,52): mp82(179,51) is not a standing position in the graph, and the hero stood there with "left"
+      mp82(178,52) -> mp82(178,53)  over mp82(178,52) in flight
+  mp82(178,53) -> mp82(177,53)  FALL bare | FALL bare | WALK bare  (pressed left then -)
+  *** mp82(177,53) -> mp82(176,53): mp82(176,53) is not a standing position in the graph, and the hero stood there with "left then -"
+  *** mp82(176,53) -> mp82(175,54): mp82(176,53) is not a standing position in the graph, and the hero stood there with "-"
+      mp82(175,54) -> mp82(175,55)  over mp82(175,54) in flight
+      mp82(175,55) -> mp82(175,56)  over mp82(175,55) in flight
+      mp82(175,56) -> mp82(174,56)  over mp82(175,56) in flight
+  *** mp82(174,56) -> mp82(173,56): mp82(174,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(173,56) -> mp82(172,56): mp82(173,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(172,56) -> mp82(171,56): mp82(172,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(171,56) -> mp82(170,56): mp82(171,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(170,56) -> mp82(171,56): mp82(170,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(171,56) -> mp82(172,56): mp82(171,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(172,56) -> mp82(173,56): mp82(172,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(173,56) -> mp82(174,56): mp82(173,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(174,56) -> mp82(175,56): mp82(174,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(175,56) -> mp82(176,56): mp82(175,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(176,56) -> mp82(175,56): mp82(176,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(175,56) -> mp82(174,56): mp82(175,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(174,56) -> mp82(173,56): mp82(174,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(173,56) -> mp82(172,56): mp82(173,56) is not a standing position in the graph, and the hero stood there with "down then -"
+  *** mp82(172,56) -> mp82(171,56): mp82(172,56) is not a standing position in the graph, and the hero stood there with "- then left"
+  *** mp82(171,56) -> mp82(169,56): mp82(171,56) is not a standing position in the graph, and the hero stood there with "left then - then down"
+  *** mp82(169,56) -> mp82(170,56): mp82(169,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(170,56) -> mp82(171,56): mp82(170,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(171,56) -> mp82(172,56): mp82(171,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(172,56) -> mp82(173,56): mp82(172,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(173,56) -> mp82(174,56): mp82(173,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(174,56) -> mp82(175,56): mp82(174,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(175,56) -> mp82(174,56): mp82(175,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(174,56) -> mp82(173,56): mp82(174,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(173,56) -> mp82(172,56): mp82(173,56) is not a standing position in the graph, and the hero stood there with "down"
+  *** mp82(172,56) -> mp82(171,56): mp82(172,56) is not a standing position in the graph, and the hero stood there with "down then -"
+  *** mp82(171,56) -> mp82(170,56): mp82(171,56) is not a standing position in the graph, and the hero stood there with "- then left"
+  *** mp82(170,56) -> mp82(169,56): mp82(170,56) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(169,56) -> mp82(168,56): mp82(169,56) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(168,56) -> mp82(167,56): mp82(168,56) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(167,56) -> mp82(166,56): mp82(167,56) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(166,56) -> mp82(165,56): mp82(166,56) is not a standing position in the graph, and the hero stood there with "left then -"
+  *** mp82(165,56) -> mp82(164,56): mp82(165,56) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(164,56) -> mp82(163,56): mp82(164,56) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(163,56) -> mp82(162,56): mp82(163,56) is not a standing position in the graph, and the hero stood there with "- then left then up"
+  *** mp82(162,56) -> mp82(161,56): mp82(162,56) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(161,56) -> mp82(161,55): mp82(161,56) is not a standing position in the graph, and the hero stood there with "up then up+left"
+      mp82(161,55) -> mp82(160,54)  over mp82(161,55) in flight
+      mp82(160,54) -> mp82(159,53)  over mp82(160,54) in flight
+      mp82(159,53) -> mp82(158,52)  over mp82(159,53) in flight
+      mp82(158,52) -> mp82(157,52)  over mp82(158,52) in flight
+      mp82(157,52) -> mp82(156,53)  over mp82(157,52) in flight
+      mp82(156,53) -> mp82(156,54)  over mp82(156,53) in flight
+  mp82(156,54) -> mp82(157,54)  WALK bare  (pressed right then - then up)
+  *** mp82(157,54) -> mp82(157,53): mp82(157,53) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,53) -> mp82(157,52): mp82(157,53) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,52) -> mp82(157,51): mp82(157,52) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,51) -> mp82(157,50): mp82(157,51) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,50) -> mp82(157,49): mp82(157,50) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,49) -> mp82(157,48): mp82(157,49) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,48) -> mp82(157,47): mp82(157,48) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,47) -> mp82(157,46): mp82(157,47) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,46) -> mp82(157,45): mp82(157,46) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(157,45) -> mp82(157,44): mp82(157,45) is not a standing position in the graph, and the hero stood there with "up then - then right"
+  *** mp82(157,44) -> mp82(158,44): mp82(157,44) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp82(158,44) -> mp82(159,45): mp82(158,44) is not a standing position in the graph, and the hero stood there with "right"
+      mp82(159,45) -> mp82(159,46)  over mp82(159,45) in flight
+  mp82(159,46) -> mp82(160,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(160,46) -> mp82(161,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(161,46) -> mp82(162,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(162,46) -> mp82(163,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(163,46) -> mp82(164,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(164,46) -> mp82(165,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(165,46) -> mp82(166,46)  FALL bare | FALL bare | WALK bare  (pressed right)
+      mp82(166,46) -> mp82(167,45)  over mp82(167,45) in flight
+      mp82(167,45) -> mp82(168,44)  over mp82(167,45) in flight
+      mp82(168,44) -> mp82(169,44)  over mp82(168,44) in flight
+      mp82(169,44) -> mp82(170,45)  over mp82(169,44) in flight
+  mp82(170,45) -> mp82(171,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(171,45) -> mp82(172,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(172,45) -> mp82(173,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(173,45) -> mp82(174,45)  FALL bare | FALL bare | WALK bare  (pressed right then space then -)
+  mp82(174,45) -> mp82(172,45)  FALL bare | JUMP bare  (pressed - then right)
+  mp82(172,45) -> mp82(173,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(173,45) -> mp82(174,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(174,45) -> mp82(175,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(175,45) -> mp82(176,45)  FALL bare | FALL bare | WALK bare  (pressed right then right+space then space then -)
+  mp82(176,45) -> mp82(177,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(177,45) -> mp82(178,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(178,45) -> mp82(179,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(179,45) -> mp82(180,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(180,45) -> mp82(181,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(181,45) -> mp82(182,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(182,45) -> mp82(183,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(183,45) -> mp82(184,45)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+      mp82(184,45) -> mp82(184,44)  over mp82(184,44) in flight
+      mp82(184,44) -> mp82(184,43)  over mp82(184,44) in flight
+      mp82(184,43) -> mp82(184,42)  over mp82(184,43) in flight
+      mp82(184,42) -> mp82(184,41)  over mp82(184,42) in flight
+      mp82(184,41) -> mp82(184,40)  over mp82(184,41) in flight
+      mp82(184,40) -> mp82(184,39)  over mp82(184,40) in flight
+  *** mp82(184,39) -> mp82(184,38): mp82(184,39) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,38) -> mp82(184,37): mp82(184,38) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,37) -> mp82(184,36): mp82(184,37) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,36) -> mp82(184,35): mp82(184,36) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,35) -> mp82(184,34): mp82(184,35) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,34) -> mp82(184,33): mp82(184,34) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(184,33) -> mp82(184,32): mp82(184,33) is not a standing position in the graph, and the hero stood there with "up then - then left"
+  *** mp82(184,32) -> mp82(183,32): mp82(184,32) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(183,32) -> mp82(182,33): mp82(183,32) is not a standing position in the graph, and the hero stood there with "left"
+      mp82(182,33) -> mp82(182,34)  over mp82(182,33) in flight
+      mp82(182,34) -> mp82(181,35)  over mp82(182,34) in flight
+  mp82(181,35) -> mp82(180,35)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(180,35) -> mp82(179,35)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(179,35) -> mp82(178,35)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp82(178,35) -> mp82(177,35)  FALL bare | FALL bare | WALK bare  (pressed left then -)
+  *** mp82(177,35) -> mp82(176,35): mp82(176,35) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp82(176,35) -> mp82(175,35): mp82(176,35) is not a standing position in the graph, and the hero stood there with "left then -"
+  *** mp82(175,35) -> mp82(174,35): mp82(175,35) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(174,35) -> mp82(173,35): mp82(174,35) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(173,35) -> mp82(172,35): mp82(173,35) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(172,35) -> mp82(171,35): mp82(172,35) is not a standing position in the graph, and the hero stood there with "-"
+  *** mp82(171,35) -> mp82(170,35): mp82(171,35) is not a standing position in the graph, and the hero stood there with "- then up"
+  *** mp82(170,35) -> mp82(169,35): mp82(170,35) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,35) -> mp82(169,34): mp82(169,35) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,34) -> mp82(169,33): mp82(169,34) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,33) -> mp82(169,32): mp82(169,33) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,32) -> mp82(169,31): mp82(169,32) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,31) -> mp82(169,30): mp82(169,31) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,30) -> mp82(169,29): mp82(169,30) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,29) -> mp82(169,28): mp82(169,29) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,28) -> mp82(169,27): mp82(169,28) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,27) -> mp82(169,26): mp82(169,27) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,26) -> mp82(169,25): mp82(169,26) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,25) -> mp82(169,24): mp82(169,25) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp82(169,24) -> mp82(169,23): mp82(169,24) is not a standing position in the graph, and the hero stood there with "up then - then right"
+  *** mp82(169,23) -> mp82(170,23): mp82(169,23) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp82(170,23) -> mp82(171,24): mp82(170,23) is not a standing position in the graph, and the hero stood there with "right"
+      mp82(171,24) -> mp82(171,25)  over mp82(171,24) in flight
+  mp82(171,25) -> mp82(172,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(172,25) -> mp82(173,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(173,25) -> mp82(174,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(174,25) -> mp82(175,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(175,25) -> mp82(176,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(176,25) -> mp82(177,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(177,25) -> mp82(178,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(178,25) -> mp82(179,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(179,25) -> mp82(180,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(180,25) -> mp82(181,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(181,25) -> mp82(182,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(182,25) -> mp82(183,25)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(183,25) -> mp82(184,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(184,25) -> mp82(185,25)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp82(185,25) -> mp82(186,25)  FALL bare | FALL bare | WALK bare  (pressed right+space then right)
+  mp82(186,25) -> mp82(187,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(187,25) -> mp82(188,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(188,25) -> mp82(189,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(189,25) -> mp82(190,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(190,25) -> mp82(191,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(191,25) -> mp82(0,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(0,25) -> mp82(1,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(1,25) -> mp82(2,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(2,25) -> mp82(3,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(3,25) -> mp82(4,25)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp82(4,25) -> mp82(5,25)  FALL bare | FALL bare | WALK bare  (pressed right then up+right)
+      mp82(5,25) -> mp82(6,24)  over mp82(6,24) in flight
+      mp82(6,24) -> mp82(7,23)  over mp82(6,24) in flight
+      mp82(7,23) -> mp82(8,22)  over mp82(7,23) in flight
+      mp82(8,22) -> mp82(9,21)  over mp82(8,22) in flight
+  *** mp82(9,21) -> mp82(11,17): mp82(11,17) is not a standing position in the graph, and the hero stood there with "up+right"
+  *** mp82(11,17) -> mp82(12,18): mp82(11,17) is not a standing position in the graph, and the hero stood there with "up+right"
+      mp82(12,18) -> mp82(18,18)  over mp82(12,18) in flight
+      mp82(18,18) -> mp82(18,19)  over mp82(18,18) in flight
+      mp82(18,19) -> mp82(20,19)  over mp82(18,19) in flight
+      mp82(20,19) -> mp82(21,18)  over mp82(21,18) in flight
+      mp82(21,18) -> mp82(22,18)  over mp82(21,18) in flight
+      mp82(22,18) -> mp82(23,19)  over mp82(22,18) in flight
+  mp82(23,19) -> mp82(24,19)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right then -)
+  mp82(24,19) -> mp82(25,19)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed right)
+  mp82(25,19) -> mp82(26,19)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+  mp82(26,19) -> mp80(166,31)  CHANGED MAP  (pressed - then right)
+  mp80(166,31) -> mp80(167,31)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp80(167,31) -> mp80(168,31)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp80(168,31) -> mp80(169,31)  FALL bare | FALL bare | WALK bare  (pressed right+space)
+  mp80(169,31) -> mp80(168,31)  FALL bare | FALL bare | WALK bare  (pressed right+space then right then -)
+  mp80(168,31) -> mp80(166,31)  FALL bare | JUMP bare  (pressed - then right)
+  mp80(166,31) -> mp80(167,31)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp80(167,31) -> mp80(168,31)  FALL bare | FALL bare | WALK bare  (pressed right then - then space then left)
+  mp80(168,31) -> mp80(167,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(167,31) -> mp80(166,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(166,31) -> mp80(165,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(165,31) -> mp80(164,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(164,31) -> mp80(163,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(163,31) -> mp80(162,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(162,31) -> mp80(161,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(161,31) -> mp80(160,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(160,31) -> mp80(159,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(159,31) -> mp80(158,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(158,31) -> mp80(157,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(157,31) -> mp80(156,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(156,31) -> mp80(155,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(155,31) -> mp80(154,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(154,31) -> mp80(153,31)  FALL bare | FALL bare | WALK bare  (pressed left then -)
+  mp80(153,31) -> mp80(152,31)  FALL bare | FALL bare | WALK bare  (pressed left then -)
+  mp80(152,31) -> mp80(151,31)  FALL bare | FALL bare | WALK bare  (pressed left then - then up+left)
+      mp80(151,31) -> mp80(150,30)  over mp80(150,30) in flight
+      mp80(150,30) -> mp80(149,29)  over mp80(150,30) in flight
+      mp80(149,29) -> mp80(148,29)  over mp80(149,29) in flight
+      mp80(148,29) -> mp80(147,30)  over mp80(148,29) in flight
+      mp80(147,30) -> mp80(146,31)  over mp80(147,30) in flight
+  mp80(146,31) -> mp80(145,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(145,31) -> mp80(144,31)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(144,31) -> mp80(143,31)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  mp80(143,31) -> mp80(142,31)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  mp80(142,31) -> mp80(141,31)  FALL bare | FALL bare | WALK bare  (pressed left then -)
+      mp80(141,31) -> mp80(140,30)  over mp80(140,30) in flight
+      mp80(140,30) -> mp80(139,29)  over mp80(140,30) in flight
+      mp80(139,29) -> mp80(139,30)  over mp80(139,29) in flight
+      mp80(139,30) -> mp80(138,30)  over mp80(139,30) in flight
+  *** mp80(138,30) -> mp80(137,31): mp80(138,30) is not a standing position in the graph, and the hero stood there with "up+left"
+      mp80(137,31) -> mp80(131,31)  over mp80(137,31) in flight
+      mp80(131,31) -> mp80(131,32)  over mp80(131,31) in flight
+      mp80(131,32) -> mp80(130,31)  over mp80(130,31) in flight
+      mp80(130,31) -> mp80(129,31)  over mp80(130,31) in flight
+      mp80(129,31) -> mp80(128,32)  over mp80(129,31) in flight
+  mp80(128,32) -> mp80(130,32)  FALL bare | JUMP bare  (pressed - then left)
+  mp80(130,32) -> mp80(129,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(129,32) -> mp80(128,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(128,32) -> mp80(127,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  *** mp80(127,32) -> mp80(126,32): mp80(126,32) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp80(126,32) -> mp80(125,32): mp80(126,32) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp80(125,32) -> mp80(124,32): mp80(125,32) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp80(124,32) -> mp80(123,32): mp80(124,32) is not a standing position in the graph, and the hero stood there with "left"
+  mp80(123,32) -> mp80(122,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(122,32) -> mp80(121,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(121,32) -> mp80(120,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(120,32) -> mp80(119,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(119,32) -> mp80(118,32)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp80(118,32) -> mp80(117,32)  FALL bare | FALL bare | WALK bare  (pressed left then - then up)
+  mp80(117,32) -> mp81(153,45)  CHANGED MAP  (pressed - then left)
+  mp81(153,45) -> mp81(152,45)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(152,45) -> mp81(151,45)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(151,45) -> mp81(150,45)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(150,45) -> mp81(149,45)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(149,45) -> mp81(148,45)  FALL bare | FALL bare | WALK bare  (pressed left then left+space then space then - then right)
+  mp81(148,45) -> mp81(149,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(149,45) -> mp81(150,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(150,45) -> mp81(151,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(151,45) -> mp81(152,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(152,45) -> mp81(153,45)  FALL bare | FALL bare | WALK bare  (pressed right then right+space)
+  mp81(153,45) -> mp81(154,45)  FALL bare | FALL bare | WALK bare  (pressed right+space then - then right)
+  mp81(154,45) -> mp81(155,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(155,45) -> mp81(156,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(156,45) -> mp81(157,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(157,45) -> mp81(158,45)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(158,45) -> mp81(159,45)  FALL bare | FALL bare | WALK bare  (pressed right then -)
+      mp81(159,45) -> mp81(160,44)  over mp81(160,44) in flight
+      mp81(160,44) -> mp81(160,43)  over mp81(160,44) in flight
+      mp81(160,43) -> mp81(160,42)  over mp81(160,43) in flight
+  *** mp81(160,42) -> mp81(160,41): mp81(160,42) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,41) -> mp81(160,40): mp81(160,41) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,40) -> mp81(160,39): mp81(160,40) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,39) -> mp81(160,38): mp81(160,39) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,38) -> mp81(160,37): mp81(160,38) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,37) -> mp81(160,36): mp81(160,37) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(160,36) -> mp81(160,35): mp81(160,36) is not a standing position in the graph, and the hero stood there with "up then - then right"
+  *** mp81(160,35) -> mp81(161,35): mp81(160,35) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp81(161,35) -> mp81(162,36): mp81(161,35) is not a standing position in the graph, and the hero stood there with "right"
+  mp81(162,36) -> mp81(163,36)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(163,36) -> mp81(164,36)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(164,36) -> mp81(165,36)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(165,36) -> mp81(166,36)  WALK bare  (pressed right then - then up)
+  *** mp81(166,36) -> mp81(166,35): mp81(166,35) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,35) -> mp81(166,34): mp81(166,35) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,34) -> mp81(166,33): mp81(166,34) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,33) -> mp81(166,32): mp81(166,33) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,32) -> mp81(166,31): mp81(166,32) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,31) -> mp81(166,30): mp81(166,31) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,30) -> mp81(166,29): mp81(166,30) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,29) -> mp81(166,28): mp81(166,29) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,28) -> mp81(166,27): mp81(166,28) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(166,27) -> mp81(166,26): mp81(166,27) is not a standing position in the graph, and the hero stood there with "up then up+left then left"
+  *** mp81(166,26) -> mp81(165,26): mp81(166,26) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp81(165,26) -> mp81(164,27): mp81(165,26) is not a standing position in the graph, and the hero stood there with "left"
+      mp81(164,27) -> mp81(163,28)  over mp81(164,27) in flight
+  mp81(163,28) -> mp81(162,28)  FALL bare | FALL bare | WALK bare  (pressed left then left+space)
+  mp81(162,28) -> mp81(161,28)  FALL bare | FALL bare | WALK bare  (pressed left+space then space then - then left)
+  mp81(161,28) -> mp81(160,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(160,28) -> mp81(159,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(159,28) -> mp81(158,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(158,28) -> mp81(157,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(157,28) -> mp81(156,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(156,28) -> mp81(155,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(155,28) -> mp81(154,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(154,28) -> mp81(153,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(153,28) -> mp81(152,28)  FALL bare | FALL bare | WALK bare  (pressed left then left+space)
+  mp81(152,28) -> mp81(151,28)  FALL bare | FALL bare | WALK bare  (pressed left+space then left then -)
+  mp81(151,28) -> mp81(150,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(150,28) -> mp81(149,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(149,28) -> mp81(148,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(148,28) -> mp81(147,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(147,28) -> mp81(146,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(146,28) -> mp81(145,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(145,28) -> mp81(144,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(144,28) -> mp81(143,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(143,28) -> mp81(142,28)  FALL bare | FALL bare | WALK bare  (pressed left)
+  *** mp81(142,28) -> mp81(141,28): mp81(141,28) is not a standing position in the graph, and the hero stood there with "left then -"
+  *** mp81(141,28) -> mp81(140,29): mp81(141,28) is not a standing position in the graph, and the hero stood there with "-"
+      mp81(140,29) -> mp81(140,30)  over mp81(140,29) in flight
+      mp81(140,30) -> mp81(140,29)  over mp81(140,30) in flight
+  *** mp81(140,29) -> mp81(140,28): mp81(140,29) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,28) -> mp81(140,27): mp81(140,28) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,27) -> mp81(140,26): mp81(140,27) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,26) -> mp81(140,25): mp81(140,26) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,25) -> mp81(140,24): mp81(140,25) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,24) -> mp81(140,23): mp81(140,24) is not a standing position in the graph, and the hero stood there with "up then - then left"
+  *** mp81(140,23) -> mp81(139,23): mp81(140,23) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp81(139,23) -> mp81(138,24): mp81(139,23) is not a standing position in the graph, and the hero stood there with "left"
+      mp81(138,24) -> mp81(138,25)  over mp81(138,24) in flight
+  *** mp81(138,25) -> mp81(140,27): mp81(140,27) is not a standing position in the graph, and the hero stood there with "left+space then left"
+  *** mp81(140,27) -> mp81(139,27): mp81(140,27) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp81(139,27) -> mp81(139,28): mp81(139,27) is not a standing position in the graph, and the hero stood there with "left"
+      mp81(139,28) -> mp81(139,29)  over mp81(139,28) in flight
+      mp81(139,29) -> mp81(139,30)  over mp81(139,29) in flight
+      mp81(139,30) -> mp81(139,31)  over mp81(139,30) in flight
+      mp81(139,31) -> mp81(139,32)  over mp81(139,31) in flight
+      mp81(139,32) -> mp81(139,33)  over mp81(139,32) in flight
+      mp81(139,33) -> mp81(139,34)  over mp81(139,33) in flight
+      mp81(139,34) -> mp81(139,35)  over mp81(139,34) in flight
+      mp81(139,35) -> mp81(139,36)  over mp81(139,35) in flight
+  mp81(139,36) -> mp81(138,36)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(138,36) -> mp81(137,36)  FALL bare | FALL bare | WALK bare  (pressed left then left+space)
+  mp81(137,36) -> mp81(136,36)  FALL bare | FALL bare | WALK bare  (pressed left+space then space then - then right then alt)
+  mp81(136,36) -> mp81(137,36)  FALL bare | FALL bare | WALK bare  (pressed right then - then alt)
+  mp81(137,36) -> mp81(138,36)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(138,36) -> mp81(139,36)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+      mp81(139,36) -> mp81(140,35)  over mp81(140,35) in flight
+      mp81(140,35) -> mp81(140,34)  over mp81(140,35) in flight
+      mp81(140,34) -> mp81(140,33)  over mp81(140,34) in flight
+  *** mp81(140,33) -> mp81(140,32): mp81(140,33) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,32) -> mp81(140,31): mp81(140,32) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,31) -> mp81(140,30): mp81(140,31) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,30) -> mp81(140,29): mp81(140,30) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,29) -> mp81(140,28): mp81(140,29) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,28) -> mp81(140,27): mp81(140,28) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,27) -> mp81(140,26): mp81(140,27) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,26) -> mp81(140,25): mp81(140,26) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,25) -> mp81(140,24): mp81(140,25) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(140,24) -> mp81(140,23): mp81(140,24) is not a standing position in the graph, and the hero stood there with "up then up+left then left"
+  *** mp81(140,23) -> mp81(139,23): mp81(140,23) is not a standing position in the graph, and the hero stood there with "left"
+  *** mp81(139,23) -> mp81(138,24): mp81(139,23) is not a standing position in the graph, and the hero stood there with "left"
+      mp81(138,24) -> mp81(138,25)  over mp81(138,24) in flight
+  mp81(138,25) -> mp81(137,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(137,25) -> mp81(136,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(136,25) -> mp81(135,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(135,25) -> mp81(134,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(134,25) -> mp81(133,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(133,25) -> mp81(132,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(132,25) -> mp81(131,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(131,25) -> mp81(130,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(130,25) -> mp81(129,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(129,25) -> mp81(128,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(128,25) -> mp81(127,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(127,25) -> mp81(126,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(126,25) -> mp81(125,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(125,25) -> mp81(124,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(124,25) -> mp81(123,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(123,25) -> mp81(122,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(122,25) -> mp81(121,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(121,25) -> mp81(120,25)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(120,25) -> mp81(119,25)  WALK bare  (pressed left then - then up)
+  *** mp81(119,25) -> mp81(119,24): mp81(119,24) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,24) -> mp81(119,23): mp81(119,24) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,23) -> mp81(119,22): mp81(119,23) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,22) -> mp81(119,21): mp81(119,22) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,21) -> mp81(119,20): mp81(119,21) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,20) -> mp81(119,19): mp81(119,20) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,19) -> mp81(119,18): mp81(119,19) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,18) -> mp81(119,17): mp81(119,18) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,17) -> mp81(119,16): mp81(119,17) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,16) -> mp81(119,15): mp81(119,16) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(119,15) -> mp81(119,14): mp81(119,15) is not a standing position in the graph, and the hero stood there with "up then right"
+  *** mp81(119,14) -> mp81(120,14): mp81(119,14) is not a standing position in the graph, and the hero stood there with "right"
+  *** mp81(120,14) -> mp81(121,15): mp81(120,14) is not a standing position in the graph, and the hero stood there with "right"
+      mp81(121,15) -> mp81(121,16)  over mp81(121,15) in flight
+  mp81(121,16) -> mp81(122,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(122,16) -> mp81(123,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(123,16) -> mp81(124,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(124,16) -> mp81(125,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(125,16) -> mp81(126,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(126,16) -> mp81(127,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(127,16) -> mp81(128,16)  FALL bare | FALL bare | WALK bare  (pressed right then - then space)
+  mp81(128,16) -> mp81(126,16)  FALL bare | JUMP bare  (pressed - then right)
+  mp81(126,16) -> mp81(127,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(127,16) -> mp81(128,16)  FALL bare | FALL bare | WALK bare  (pressed right+space then space then - then right)
+  mp81(128,16) -> mp81(129,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(129,16) -> mp81(130,16)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+      mp81(130,16) -> mp81(130,15)  over mp81(130,15) in flight
+      mp81(130,15) -> mp81(130,14)  over mp81(130,15) in flight
+      mp81(130,14) -> mp81(130,13)  over mp81(130,14) in flight
+      mp81(130,13) -> mp81(130,14)  over mp81(130,13) in flight
+      mp81(130,14) -> mp81(130,15)  over mp81(130,14) in flight
+      mp81(130,15) -> mp81(130,16)  over mp81(130,15) in flight
+  mp81(130,16) -> mp81(131,16)  FALL bare | FALL bare | WALK bare  (pressed right)
+  mp81(131,16) -> mp81(132,16)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+      mp81(132,16) -> mp81(132,15)  over mp81(132,15) in flight
+      mp81(132,15) -> mp81(132,14)  over mp81(132,15) in flight
+      mp81(132,14) -> mp81(132,15)  over mp81(132,14) in flight
+      mp81(132,15) -> mp81(132,16)  over mp81(132,15) in flight
+  mp81(132,16) -> mp81(133,16)  FALL bare | FALL bare | WALK bare  (pressed right then - then up)
+      mp81(133,16) -> mp81(133,15)  over mp81(133,15) in flight
+      mp81(133,15) -> mp81(133,14)  over mp81(133,15) in flight
+      mp81(133,14) -> mp81(133,13)  over mp81(133,14) in flight
+      mp81(133,13) -> mp81(134,13)  over mp81(133,13) in flight
+  *** mp81(134,13) -> mp81(134,9): mp81(134,9) is not a standing position in the graph, and the hero stood there with "up"
+  *** mp81(134,9) -> mp81(133,8): mp81(134,9) is not a standing position in the graph, and the hero stood there with "up"
+      mp81(133,8) -> mp81(133,7)  over mp81(133,8) in flight
+      mp81(133,7) -> mp81(133,6)  over mp81(133,7) in flight
+      mp81(133,6) -> mp81(131,5)  over mp81(131,5) in flight
+      mp81(131,5) -> mp81(131,6)  over mp81(131,5) in flight
+  mp81(131,6) -> mp81(130,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(130,6) -> mp81(129,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(129,6) -> mp81(128,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(128,6) -> mp81(127,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(127,6) -> mp81(126,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(126,6) -> mp81(125,6)  FALL bare | FALL bare | WALK bare  (pressed left)
+  mp81(125,6) -> mp81(124,6)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  mp81(124,6) -> mp81(123,6)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left)
+  mp81(123,6) -> mp81(122,6)  FALL bare | FALL bare | JUMP bare | WALK bare  (pressed left then - then right)
+
+-- 181 hop(s) the graph does not have; each *** line above is a bug in the graph --
+
+raw cells: 25:102,54 25:101,54 25:100,54 25:99,54 25:98,54 25:97,54 25:96,54 25:95,54 25:94,54 25:93,54 25:92,54 25:91,54 25:90,54 25:89,54 25:88,54 25:87,54 25:86,54 25:85,54 25:84,54 25:83,54 25:83,53 25:83,54 25:82,54 25:81,54 25:80,54 25:80,55 25:80,56 25:80,57 25:80,58 25:80,59 25:80,60 25:80,61 25:80,62 25:80,63 25:80,0 25:81,0 25:82,0 25:83,0 25:84,0 25:85,0 25:86,0 25:87,0 25:88,0 25:89,0 25:90,0 25:91,0 25:92,0 25:93,0 25:94,0 25:95,0 25:96,0 25:97,0 25:98,0 25:99,0 25:100,0 25:101,0 25:102,0 25:103,0 25:104,0 25:105,0 25:106,0 25:107,0 25:108,0 25:109,0 25:110,0 25:111,0 25:112,0 25:113,0 25:114,0 25:115,0 25:116,0 25:117,0 25:118,0 25:119,0 25:120,0 25:121,0 25:122,0 25:123,0 25:124,0 25:125,0 25:126,0 25:127,0 25:128,0 25:129,0 25:130,0 25:131,0 25:132,0 25:133,0 25:134,0 25:135,0 25:136,0 25:137,0 25:138,0 25:139,0 25:140,0 25:141,0 25:142,0 25:143,0 25:144,0 25:145,0 25:146,0 25:147,0 25:148,0 25:149,0 25:150,0 25:151,0 25:152,0 25:153,0 25:154,0 25:155,0 25:156,0 25:157,0 25:158,0 25:159,0 25:160,0 25:161,0 25:162,0 25:163,0 25:164,0 25:165,0 25:166,0 25:167,0 25:168,0 25:169,0 25:170,0 25:171,0 25:172,0 25:173,0 25:174,0 25:175,0 25:176,0 25:177,0 25:178,0 25:179,0 25:180,0 25:181,0 25:182,63 25:183,62 25:184,62 25:185,63 25:184,63 25:184,62 25:184,61 25:184,60 25:184,59 25:184,58 25:184,57 25:184,56 25:184,55 25:184,54 25:184,53 25:184,52 25:184,51 25:183,51 25:182,51 25:181,51 25:180,51 25:179,51 25:178,52 25:178,53 25:177,53 25:176,53 25:175,54 25:175,55 25:175,56 25:174,56 25:173,56 25:172,56 25:171,56 25:170,56 25:171,56 25:172,56 25:173,56 25:174,56 25:175,56 25:176,56 25:175,56 25:174,56 25:173,56 25:172,56 25:171,56 25:169,56 25:170,56 25:171,56 25:172,56 25:173,56 25:174,56 25:175,56 25:174,56 25:173,56 25:172,56 25:171,56 25:170,56 25:169,56 25:168,56 25:167,56 25:166,56 25:165,56 25:164,56 25:163,56 25:162,56 25:161,56 25:161,55 25:160,54 25:159,53 25:158,52 25:157,52 25:156,53 25:156,54 25:157,54 25:157,53 25:157,52 25:157,51 25:157,50 25:157,49 25:157,48 25:157,47 25:157,46 25:157,45 25:157,44 25:158,44 25:159,45 25:159,46 25:160,46 25:161,46 25:162,46 25:163,46 25:164,46 25:165,46 25:166,46 25:167,45 25:168,44 25:169,44 25:170,45 25:171,45 25:172,45 25:173,45 25:174,45 25:172,45 25:173,45 25:174,45 25:175,45 25:176,45 25:177,45 25:178,45 25:179,45 25:180,45 25:181,45 25:182,45 25:183,45 25:184,45 25:184,44 25:184,43 25:184,42 25:184,41 25:184,40 25:184,39 25:184,38 25:184,37 25:184,36 25:184,35 25:184,34 25:184,33 25:184,32 25:183,32 25:182,33 25:182,34 25:181,35 25:180,35 25:179,35 25:178,35 25:177,35 25:176,35 25:175,35 25:174,35 25:173,35 25:172,35 25:171,35 25:170,35 25:169,35 25:169,34 25:169,33 25:169,32 25:169,31 25:169,30 25:169,29 25:169,28 25:169,27 25:169,26 25:169,25 25:169,24 25:169,23 25:170,23 25:171,24 25:171,25 25:172,25 25:173,25 25:174,25 25:175,25 25:176,25 25:177,25 25:178,25 25:179,25 25:180,25 25:181,25 25:182,25 25:183,25 25:184,25 25:185,25 25:186,25 25:187,25 25:188,25 25:189,25 25:190,25 25:191,25 25:0,25 25:1,25 25:2,25 25:3,25 25:4,25 25:5,25 25:6,24 25:7,23 25:8,22 25:9,21 25:11,17 25:12,18 25:18,18 25:18,19 25:20,19 25:21,18 25:22,18 25:23,19 25:24,19 25:25,19 25:26,19 23:166,31 23:167,31 23:168,31 23:169,31 23:168,31 23:166,31 23:167,31 23:168,31 23:167,31 23:166,31 23:165,31 23:164,31 23:163,31 23:162,31 23:161,31 23:160,31 23:159,31 23:158,31 23:157,31 23:156,31 23:155,31 23:154,31 23:153,31 23:152,31 23:151,31 23:150,30 23:149,29 23:148,29 23:147,30 23:146,31 23:145,31 23:144,31 23:143,31 23:142,31 23:141,31 23:140,30 23:139,29 23:139,30 23:138,30 23:137,31 23:131,31 23:131,32 23:130,31 23:129,31 23:128,32 23:130,32 23:129,32 23:128,32 23:127,32 23:126,32 23:125,32 23:124,32 23:123,32 23:122,32 23:121,32 23:120,32 23:119,32 23:118,32 23:117,32 24:153,45 24:152,45 24:151,45 24:150,45 24:149,45 24:148,45 24:149,45 24:150,45 24:151,45 24:152,45 24:153,45 24:154,45 24:155,45 24:156,45 24:157,45 24:158,45 24:159,45 24:160,44 24:160,43 24:160,42 24:160,41 24:160,40 24:160,39 24:160,38 24:160,37 24:160,36 24:160,35 24:161,35 24:162,36 24:163,36 24:164,36 24:165,36 24:166,36 24:166,35 24:166,34 24:166,33 24:166,32 24:166,31 24:166,30 24:166,29 24:166,28 24:166,27 24:166,26 24:165,26 24:164,27 24:163,28 24:162,28 24:161,28 24:160,28 24:159,28 24:158,28 24:157,28 24:156,28 24:155,28 24:154,28 24:153,28 24:152,28 24:151,28 24:150,28 24:149,28 24:148,28 24:147,28 24:146,28 24:145,28 24:144,28 24:143,28 24:142,28 24:141,28 24:140,29 24:140,30 24:140,29 24:140,28 24:140,27 24:140,26 24:140,25 24:140,24 24:140,23 24:139,23 24:138,24 24:138,25 24:140,27 24:139,27 24:139,28 24:139,29 24:139,30 24:139,31 24:139,32 24:139,33 24:139,34 24:139,35 24:139,36 24:138,36 24:137,36 24:136,36 24:137,36 24:138,36 24:139,36 24:140,35 24:140,34 24:140,33 24:140,32 24:140,31 24:140,30 24:140,29 24:140,28 24:140,27 24:140,26 24:140,25 24:140,24 24:140,23 24:139,23 24:138,24 24:138,25 24:137,25 24:136,25 24:135,25 24:134,25 24:133,25 24:132,25 24:131,25 24:130,25 24:129,25 24:128,25 24:127,25 24:126,25 24:125,25 24:124,25 24:123,25 24:122,25 24:121,25 24:120,25 24:119,25 24:119,24 24:119,23 24:119,22 24:119,21 24:119,20 24:119,19 24:119,18 24:119,17 24:119,16 24:119,15 24:119,14 24:120,14 24:121,15 24:121,16 24:122,16 24:123,16 24:124,16 24:125,16 24:126,16 24:127,16 24:128,16 24:126,16 24:127,16 24:128,16 24:129,16 24:130,16 24:130,15 24:130,14 24:130,13 24:130,14 24:130,15 24:130,16 24:131,16 24:132,16 24:132,15 24:132,14 24:132,15 24:132,16 24:133,16 24:133,15 24:133,14 24:133,13 24:134,13 24:134,9 24:133,8 24:133,7 24:133,6 24:131,5 24:131,6 24:130,6 24:129,6 24:128,6 24:127,6 24:126,6 24:125,6 24:124,6 24:123,6 24:122,6`

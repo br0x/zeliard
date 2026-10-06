@@ -18,7 +18,6 @@ import {
     findRoute, reachableMaps, SHOE_MASK, type NavGraphStore, type NavPoint, type NavRoute,
     type NavRoutePlan,
 } from './pathfinder.js';
-import { nodeAt } from './nav-graph.js';
 import { NavTileClassifier } from './attributes.js';
 import {
     FALL_RISE_HEIGHTS, JUMP_RISE_HEIGHTS, JumpModel, STEER_ALL,
@@ -558,15 +557,22 @@ export class PathGuide {
 
     /** True when the route no longer reflects the world. */
     private needsReplan(now: number, caps: HeroCapabilities, hero: { mapId: number; col: number; row: number }): boolean {
-        // First: can a route be planned from here at all? Mid-jump, and **mid-ride**,
-        // he is standing nowhere the search could start from, and that is not drift —
-        // the route itself is what put him there. A lift is the sharp case: his row
-        // changes every frame he climbs, so re-planning on the platform would fire
-        // every frame and always come back empty, which is not a slower route but no
-        // route at all, and the guide drops what it was drawing. `peek` rather than
-        // `get`, so asking the question does not rebuild the cavern to answer it.
+        // First: is he on the ground at all? Mid-jump, and **mid-ride**, he is not,
+        // and that is not drift — the route itself is what put him there. A lift is
+        // the sharp case: his row changes every frame he climbs, so re-planning on
+        // the platform would fire every frame against a `platformVersion` that has
+        // just changed, which is not a slower route but no route at all, and the
+        // guide drops what it was drawing. `peek` rather than `get`, so asking the
+        // question does not rebuild the cavern to answer it.
+        //
+        // Ground specifically, not `nodeAt`: `nodeAt` answers with a rope or a
+        // platform when there is one, because that is where a route may begin, and
+        // a platform under him is exactly the case that must not re-plan. The two
+        // questions are different — "where is he" versus "is he standing still".
         const graph = this.deps.store.peek(hero.mapId);
-        if (!graph || nodeAt(graph, hero.col, hero.row) < 0) return false;
+        if (!graph) return false;
+        const cell = wrapRow(hero.row) * graph.mapWidth + wrapCol(hero.col, graph.mapWidth);
+        if (graph.groundOf[cell]! < 0) return false;
 
         // A platform the hero has just driven is a new wall and a new ledge, so the
         // route is stale the moment it moves and no waiting interval should hold it

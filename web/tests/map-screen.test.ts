@@ -543,6 +543,31 @@ describe('choosing a destination', () => {
         expect(route.keysSpent.ordinary, 'it spends the key it collects').toBe(1);
     });
 
+    it('sends a journey that needs shoes and a key at the same time', async () => {
+        // mp80 (111,21) -> mp82 (102,54) is short of both at once: Silkarn shoes for
+        // the ramp at columns 82..86, and the ordinary key for the door at (57,16).
+        // Every rung below the first granted only its own axis — 2 and 4 the key, 3
+        // and 3b the shoes, 4 the key again through `unlimitedKeys` but never the
+        // shoes — so all five answered NULL and the screen reported `map.unreachable`
+        // for a journey of 384 hops. A journey can be short of a key and of shoes
+        // together, and no rung may assume otherwise.
+        const h = harness({
+            heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
+            capabilities: () => bareCapabilities(),
+        });
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        store.get(25);
+        h.screen.displayMapId = 25;
+        await h.screen.choose(102, 54);
+        expect(h.picked(), 'the way exists once shoes and keys are allowed together')
+            .toHaveLength(1);
+        const route = h.picked()[0] as NavRoute;
+        expect(route.equipment.map((e) => e.label), 'the ramp needs the shoes')
+            .toContain('silkarn');
+        expect(route.lockedDoors.ordinary, 'the door at (57,16) needs one key').toBe(1);
+        expect(route.maps, 'mp80 -> mp82').toEqual(expect.arrayContaining([23, 25]));
+    }, 120_000);
+
     it('refuses a cell with no standing position anywhere near it', async () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;

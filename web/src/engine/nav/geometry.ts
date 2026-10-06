@@ -255,6 +255,52 @@ export function heroInLift(
 }
 
 /**
+ * Which way the sideways current in this cell's middle column blows:
+ * `-1` west, `+1` east, `0` for none.
+ *
+ * `check_airflows_on_hero` (dungeon-frame-pre.ts:65-72) reads the middle column
+ * at `headRow`, `headRow + 1` and `headRow + 2` and calls `dispatchAirflows` on
+ * each, so a current anywhere in those three rows owns the hero every frame —
+ * two columns sideways, with no test beyond the one `move_hero_*_if_no_obstacles`
+ * makes.
+ */
+export function conveyorDir(
+    grid: NavTileGrid,
+    classifier: NavTileClassifier,
+    col: number,
+    headRow: number,
+): -1 | 0 | 1 {
+    for (const dy of [0, 1, 2]) {
+        const flags = middleFlags(grid, classifier, col, headRow, dy);
+        if (flags & NAV.AIRFLOW_LEFT) return -1;
+        if (flags & NAV.AIRFLOW_RIGHT) return 1;
+    }
+    return 0;
+}
+
+/**
+ * Does a sideways current sit in any of the three rows the engine probes?
+ *
+ * A cell a sideways current holds is not one he comes to rest in: the moment he
+ * stops there he is pushed out of it again, so neither a step, a jump nor a fall
+ * may *enter* it against the blow. The mirror of {@link heroInLift}, which is
+ * what stops a fall ending inside a jet.
+ *
+ * mp82's row-44 gallery is the case the player found: a current blowing west
+ * across columns 137..141 sealed the corridor, and the graph still offered
+ * `WALK (134,44) -> (142,44)` across it — and, once that was closed, a chain of
+ * `FALL` edges drifting two columns east a hop through the same seal.
+ */
+export function heroInConveyor(
+    grid: NavTileGrid,
+    classifier: NavTileClassifier,
+    col: number,
+    headRow: number,
+): boolean {
+    return conveyorDir(grid, classifier, col, headRow) !== 0;
+}
+
+/**
  * Would walking into `col` put the hero against a current that opposes him?
  *
  * `isLeftAirflow` blocks a move to the right and `isRightAirflow` blocks a move

@@ -514,6 +514,20 @@ export class MapScreen {
             ? { doorOpen: this.deps.doorOpen }
             : {};
 
+        // Fetching a key on the way goes with every rung below the first, because a
+        // journey can be short of a key *and* of shoes at once. mp80's west gallery
+        // is exactly that: Silkarn shoes to climb the ramp at columns 82..86, and the
+        // ordinary key for the door at (57,16). When each rung granted only its own
+        // axis, all five answered NULL for it and the screen said `map.unreachable`
+        // for a route of 384 hops. Rung 2 still runs on its own first, so a journey
+        // the keys alone cover is never sent in shoes — that order is what
+        // `asks for the keys before it asks for shoes` pins down — and every plan
+        // carries `keyPresent` because the search under it did.
+        const keyFetch = {
+            collectKeys: true,
+            ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
+        };
+
         // 1. What he has: the keys in his pocket, the doors as they stand, and the
         //    accessory he is wearing.
         const held = findRoute({
@@ -527,12 +541,11 @@ export class MapScreen {
         //    by any route at all.
         const collected = findRoute({
             store: this.deps.store, caps, start: from, goal: to,
-            collectKeys: true,
-            ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
+            ...keyFetch,
             ...doors,
         });
         if (collected) {
-            return this.accept(collected, { collectKeys: true, ...doors });
+            return this.accept(collected, { ...keyFetch, ...doors });
         }
 
         // 3. Shoes. A pair is an item lying in the cavern, so the honest answer is to
@@ -542,10 +555,14 @@ export class MapScreen {
         const shod = findRoute({
             store: this.deps.store, caps, start: from, goal: to, collectAccessories: true,
             ...(this.deps.shoePresent ? { shoePresent: this.deps.shoePresent } : {}),
+            ...keyFetch,
             ...doors,
         });
         if (shod) {
-            return this.accept(shod, { collectAccessories: true, ...doors });
+            const shoes = this.deps.shoePresent ? { shoePresent: this.deps.shoePresent } : {};
+            return this.accept(shod, {
+                collectAccessories: true, ...shoes, ...keyFetch, ...doors,
+            });
         }
 
         // 3b. No pair within reach — but the inventory is not per cavern. A pair picked
@@ -554,15 +571,20 @@ export class MapScreen {
         //     what answers for mp10's town door: the Silkarn pair is a level away, and
         //     the slope into the row-33 corridor is a four-tile Feruza jump.
         const worn = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, planAccessories: true, ...doors,
+            store: this.deps.store, caps, start: from, goal: to,
+            planAccessories: true, ...keyFetch, ...doors,
         });
-        if (worn) return this.accept(worn, { planAccessories: true, ...doors });
+        if (worn) return this.accept(worn, { planAccessories: true, ...keyFetch, ...doors });
 
-        // 4. Neither. As if he were carrying every key in the game: that is the
-        //    shape of the journey, and the locked doors on it are how many keys it
-        //    needs. Only the message is left to read off it.
+        // 4. Neither. As if he were carrying every key in the game and wearing every
+        //    pair in it: that is the shape of the journey, and the locked doors on it
+        //    are how many keys it needs. Only the message is left to read off it. It
+        //    must take the shoes too — `unlimitedKeys` only seeds the key counters, so
+        //    without them the ramp at mp80 (82..86) refuses the search outright and
+        //    the journey's shape is never drawn.
         const open = findRoute({
-            store: this.deps.store, caps, start: from, goal: to, unlimitedKeys: true, ...doors,
+            store: this.deps.store, caps, start: from, goal: to,
+            unlimitedKeys: true, planAccessories: true, ...doors,
         });
         if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
 

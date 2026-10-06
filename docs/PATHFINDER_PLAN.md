@@ -5170,7 +5170,11 @@ as a new bug.
 
 ### What would make this wrong
 
-If a hero could wait for a lift he does not drive, `isLandingSlot` would be wrong for
+Three ways. If the engine really does let a hero aim at a platform well below
+him, five rows is an invented limit and §28.4 is deleting moves the game makes —
+and if a *fall* is as blind as a jump, exempting falls leaves the same edges in
+under a different name. If a hero could wait for a lift he does not drive,
+`isLandingSlot` would be wrong for
 vertical platforms too and §27.3 would be arguing against the engine. The test is the
 trip again: it should come back at 152 hops through mp25, and it does not.
 
@@ -5182,3 +5186,446 @@ trip again: it should come back at 152 hops through mp25, and it does not.
   reported"*: the real `(111,21) → (123,6)` trip, every `FALL`/`JUMP`/`JUMP_HIGH`/`DROP`
   in it asked of `cellsForHop`, and none may come back as its two ends. Without §27.1
   and §27.2 it fails with six of them, the first being `FALL (26,21)→(29,30)`.
+
+## 28. The impossible rope grab, and the route that walked east through a gale
+
+Defects the player named in `mp80 (58,16) → mp81 (123,6)`, in the mp82 gallery,
+and in the key route out of `mp82 (26,47)` — each of them the graph offering a move
+the game cannot make, each fixed in `nav-graph.ts`. A jump may not take a rope below
+it; the hero does not walk east into a west wind; he does not jump a platform he
+cannot see; and he does not let go of a rope while there are rungs left under him.
+
+Then came `WORK/DOC/esco.txt`, the player's own recording of a real journey, and it
+found two faults of a different kind: the graph did not know *where the hero was*
+(§28.6) and it read *how far down* a landing was wrong at the seam where row 63
+meets row 0 (§28.7).
+
+### 28.1 A jump may not *take* a rope below it
+
+**[measured]** mp82's `JUMP_HIGH (44,37) → (62,37)` — rope tile 63, rope node at
+column 62, one west of the tile — was in the graph. The hero takes a rope with
+**upward** momentum: he grabs the rung above his head on the ascending part of the
+arc, or he does not grab at all. A trajectory that ends below its launch passes the
+rope on the way *down*, and the engine hands control back to the player only once the
+arc is over.
+
+`addJumpEdges` now refuses any rope landing whose row is below the launch
+(`target.kind === NODE_ROPE && toRow > fromRow`). While testing it, `landingAt`
+was also returning `-1` when no rung was in reach and the old code pushed that
+through to `nodes[-1]` — an `undefined` node that cost `NaN` in A\*; that branch
+now `continue`s.
+
+The reported descent is the one the player described and it is what the graph gives:
+climb down rope col 47, fall to the horizontal platform, walk to its rightmost tile,
+cross to the neighbouring platform, climb col 63's rope when it arrives.
+
+**What would make this wrong** — if the engine let a hero grab a rope while falling
+past it, this guard would delete a legal move. `jump.ts` traces the arc frame by frame
+and the grab is only tested at the apex-to-landing end of it.
+
+### 28.2 Walking east into a west wind
+
+**[measured]** mp82 row 44 carries `AIRFLOW_LEFT` across **columns 137–141**, with
+rock beneath it (r40 solid cols 128–148, r41 solid 135–147, r42 solid 136–142) and a
+floor at r47–49. The gallery runs from column 128 to 142 at row 44 with **no other
+row** through it. The player reported the crossing `134,44 → 142,44`.
+
+Walking was already refused — `blockedByCounterCurrent` (`geometry.ts:316`) finds the
+current in the box the step takes. What was left was a chain of **FALL** edges that
+never fell: `134→135`, `135→136`, `136→137`, `137→138`, `138→139`, `139→141`, then
+`WALK 141→142`. Each fall is one column, each lands on the same row, and together they
+walk the hero through the blow.
+
+That is not what the game does. `checkAirflowsOnHero` (`dungeon-frame-pre.ts:65`)
+runs every frame, before anything else, probing the middle column rows `head..head+2`
+— which for a hero standing at row 44 is rows 44, 45, 46 — and on `AIRFLOW_LEFT` calls
+`moveHeroLeftIfNoObstacles` **twice**. Two columns a frame, west, with no test beyond
+the move itself. He never comes to rest in the band, so the band is not a place a route
+can enter and leave at will; and a flight across it is pushed back out the moment it
+lands. The engine's own arithmetic settles it: net one column a frame *against* the
+blow is the best any input can do.
+
+`pushedBack(fromIndex, toCol, toIndex)` (`nav-graph.ts`) refuses a jump or fall whose
+landing is in a sideways current **when the horizontal step goes against that current**,
+in both `addJumpEdges` and `addFalls`. East-with-the-blow stays legal — that is the way
+the wind carries him, and it is how the hero gets *out* of the gallery.
+
+**[measured]** after the fix, on mp82:
+
+| probe | hops |
+| --- | --- |
+| `(134,44) → (142,44)` | NULL |
+| `(142,44) → (134,44)` | 8 |
+| `(145,44) → (26,19)` | 78 |
+| `(119,25) → (145,44)` | 58 |
+
+The wind still runs one way and the graph now does too.
+
+The first attempt was the other half of the same idea: refuse every jump and fall whose
+**source** sits in a sideways current. That is the truer statement of "he cannot rest
+here", and it is what `swept` did — but it costs the mp80 shaft entry
+(`(92,29)`, held by column 93's `AIRFLOW_RIGHT`) and buys nothing the landing-side
+refusal does not already refuse, so it is out.
+
+### 28.3 What the closed gallery cost
+
+The crossing the player complained about was also the route the graph was using for
+three other journeys, because it was the only east-west link mp82 had at row 44 and the
+only way into mp80's row-32 gallery. **[measured]**, every one of them carried
+`FALL (135,44)→(136,44)` … `(138,44)→(139,44)` in it:
+
+| journey | hops with the band open | after |
+| --- | --- | --- |
+| mp80 `(111,21) → mp81 (123,6)` | 301 | NULL |
+| mp80 `(111,21) → (117,32)` (door, mp81) | 218 | NULL |
+| mp80 `(58,16) → (166,31)` | 129 | NULL |
+| mp82 `(19,0) → (15,10)` | 536 | NULL |
+
+mp80's own row-32 band has the same shape — `AIRFLOW_LEFT` across columns 134–138 with
+nodes at 132, 133, 136 and no other row through it — and the rule refuses
+`FALL (132,32)→(133,32)` … `(136,32)→(137,33)` there too.
+
+mp80's shaft is the other half of the cost. With the lifted-node guard on, `CARRY_L
+(95,27) → (96,29)` is gone — col 97 blows west, and `(96,29)` is a held cell, not a
+rest position — and **`(96,29)` has no in-edges at all** except `JUMP_HIGH` up from the
+row-32 nodes at columns 97–101, which came out of the same cavity. The lower-east
+cavity (rows 28–31 east of column 98, and everything below it) is entered only from the
+east. The route the graph found before walked the long way round — west to column 84,
+`JUMP_HIGH` to row 16, back east along row 16 — and then across the shaft with that
+impossible carry. **[measured]** `111,21 → 92,29` = 126 hops and `→ 92,21` = 19 hops
+both still work, so the shelf is fine; it is the drop through the mouth that is sealed.
+
+### 28.4 The jump that lands where he cannot see
+
+**[measured]** the same mp82 report gave the second half of the fix. Once the
+rope landing was refused, `JUMP (44,37)` kept a different edge out of the same
+ledge: `JUMP (44,37) -> (61,49)`, twelve rows down onto the platform behind
+rope 47. `JumpModel` allows one column of drift per row it falls, so a flight
+that rises two rows and drops fourteen is arithmetically reachable — and
+practically a blind throw, because at take-off the platform is far below the
+ledge he is standing on. The player's rule: **a platform more than five tiles
+below the jump's starting point is not one he can aim at.**
+
+`addJumpEdges` now refuses any landing with `toRow - fromRow > 5`. Falls are
+untouched: stepping off a ledge is a drop he watches and steers, not a jump he
+takes blind, and every shaft the routes descend is a fall.
+
+**[measured]** the rule costs **634 edges** across the three caverns and nothing
+else — mp80 281, mp81 231, mp82 122 — and the suite does not move: 965 pass,
+the same 5 fail as before it. The deepest of them is `JUMP (180,0) -> (184,63)`
+on mp82, sixty-three rows, a fall the whole height of the map dressed up as a
+jump because the model lets it drift sideways while it drops.
+
+That last one turned out to be neither. Row 63 sits one row *above* row 0, so the
+edge was one row up and the sixty-three was an artefact of a raw subtraction; §28.7
+counts the rows through the seam and puts it back.
+
+With both halves in, the edges out of `mp82 (44,37)` are the ones the player
+described and no others:
+
+```
+WALK      -> (43,37)
+JUMP      -> (42,37) (41,37) (40,37) (39,37)
+JUMP      -> (46,37) (46,36)          rope column 47, beside the ledge
+JUMP_HIGH -> (38,37) (37,37)
+JUMP_HIGH -> (46,35)                  rope column 47, above the launch
+FALL      -> (46,38) (46,39)          onto that rope — the way down
+FALL      -> (45,49) (43,49)          a drop, steered, not a jump
+```
+
+The route out of the key now falls onto rope 47 at `(46,39)` and climbs it — 152
+hops where the blind jump made it 136. Where it *leaves* that rope is §28.5.
+
+### 28.5 Leaving a rope: the rung directly above where he is going
+
+**[measured]** the player's reply to §28.4 corrected the last piece. Banning the
+blind jump fixed *where the route took off from*; it did not fix *where it let go
+of the rope*. After §28.4 the key route still read
+
+```
+CLIMB (46,40) -> (46,41) ... -> (46,44)
+FALL  (46,44) -> (53,49)      five rows down, seven columns east
+```
+
+and the player's instruction was that this is the wrong answer twice over: *"It
+should be always preferred to climb down a rope as close as possible to the
+platform. That is (46,48). Only then hero should leave the rope and fall on the
+platform."* The rope is the way down. Letting go at `(46,44)` means falling past
+five rungs he was already standing on, onto a platform that is outside the five
+tiles he can see.
+
+**[measured]** the three states of `mp82 (26,47) → mp80 (58,16)`, by how far below
+the rung a rope may let go:
+
+| rope-sourced fall allowed | hops | where he lets go |
+|---|---|---|
+| no limit (§28.4 as shipped) | 152 | `FALL (46,40) → (57,49)` — nine rows up the rope |
+| more than 5 rows | 158 | `FALL (46,44) → (53,49)` — the state quoted above |
+| more than 1 row (**shipped**) | **154** | `FALL (46,48) → (48,49)` — the player's walk |
+
+`addFalls` now refuses a rope-sourced landing more than one row below the rung:
+
+```ts
+if (nodes[fromIndex]!.kind === NODE_ROPE && landings[i + 1]! - row > 1) continue;
+```
+
+(§28.7 replaces the row difference with one counted through the seam; the rule is
+the same one.)
+
+One row is what a drop onto the tile beside the rope is; two is a decision to
+fall rather than to climb, and there is no rung it saves. The rule is rope-only —
+stepping off a ledge is the ordinary fall, and §27's trip descends the mp80 shaft
+in one of them. A *general* five-row limit was tried first and costs a sixth test
+(`map-screen`, `111,21 → 124,6` came back as `route.maps [0,1,0]` instead of `[0]`),
+which is why the guard is keyed on `NODE_ROPE` rather than on the landing.
+
+**[measured]** the rule removes **4202 rope-sourced fall edges** — mp80 1489, mp81
+1500, mp82 1213 — the deepest of them `worst 28` rows on mp80. Every rope node
+still has an exit: mp80 277/277 ropes with a fall before, 272 after; mp81 256 → 249;
+mp82 199 → 192, and **zero ropes are stranded** in any of the three maps. The suite
+does not move: 965 pass, the same 5 fail.
+
+The key route out of `mp82 (26,47)` now reads, in full:
+
+```
+WALK      (40,37) -> (41,37) -> (42,37) -> (43,37)
+FALL      (43,37) -> (46,39)            onto rope 47
+CLIMB     (46,39) -> ... -> (46,48)      down to the rung above the platform
+FALL      (46,48) -> (48,49)             the only let-go, one row down
+JUMP_HIGH (48,49) -> (57,49) -> (62,46)  along row 49, onto rope 63
+CLIMB     (62,46) -> ... -> (62,35)      up to the gallery
+```
+
+which is the walk the player recorded — down rope 47 to `(46,48)`, off it, along
+row 49, up rope 63 — at **154 hops**. (§28.7 counts the same rows through the seam
+at the top of the map and revises the edge totals above; the route does not change.)
+
+### 28.6 The hero on a rope has a position
+
+**[measured]** the player handed over `WORK/DOC/esco.txt` — *a nav recording: 585
+cells, 21589 frames, maps mp82, mp80, mp81* — the real journey, walked. Its last
+line reads *"181 hop(s) the graph does not have; each \*\*\* line above is a bug in
+the graph"*, and not one of those 181 is a missing **edge**: every hop whose two
+cells resolve is in the graph. What was missing was the lookup.
+
+`nodeAt` read `groundOf` alone:
+
+```ts
+export function nodeAt(graph: NavGraph, col: number, row: number): number {
+    return graph.groundOf[r * graph.mapWidth + wrapCol(col, graph.mapWidth)]!;
+}
+```
+
+so every cell where the hero stands on a rope or rides a platform answered -1, and
+the recorder called it *"is not a standing position"*. The graph had built that node
+three hundred lines earlier; `landingAt`, which decides where a flight may land,
+already resolved **rope → ride → ground** and used it. Two questions — *where is he*
+and *where may he land* — were being answered from two different tables, and the
+first one only ever read the third entry.
+
+`NavGraph` now carries `standOf` beside `groundOf` and `ropeOf`, filled with the same
+precedence, and `nodeAt` reads it.
+
+**[measured]** that clears **121 of the 181** flagged hops; 60 remain over **39
+distinct cells**, in three kinds:
+
+| kind | cells | what they are |
+|---|---|---|
+| the tile beside a rope | 5 | mp82 `(158,44)` `(170,23)`, mp81 `(161,35)` `(141,28)` `(120,14)` — the hero is one column east of the rope *node*, on the rope *tile*. The engine puts a hero on a rope at `heroCoords + 1`, so the node is at the tile's left; the cell he steps onto as he lets go has no ground under it, and the graph expresses the step as one `FALL` out of the rope node. |
+| where a platform was | 13 | mp82's shaft at column 80, column 184 rows 58–60, the block along row 56 — beside a `NODE_RIDE` node. The graph is a snapshot of where the platforms stand *now*; the recorder diffs the whole journey against the graph as it is **at the end of the recording**, so a cell the platform occupied twenty minutes earlier is gone by then. |
+| no node at all | 21 | void (tile 0) or solid where `isStanding` is false: mp82 `(80,0)` `(81,0)` `(82,0)`, the gaps in row 51 at columns 183–185, `(183,32)`, `(11,17)`; mp80 `(124,32)` `(126,32)` `(138,30)`; mp81 `(165,26)` `(139,23)` `(139,27)` `(134,9)`. |
+
+The first kind is the graph being right and the recorder being finer-grained than
+the model; the second is a property of a recording, not of a graph; the third is
+where the work is, and none of it is a route the graph currently offers anyway.
+
+One consequence had to be undone. `path-guide`'s `needsReplan` was leaning on
+`nodeAt < 0` to mean *"the hero is not standing still"* — mid-jump and mid-ride he
+has no node, so the route did not rebuild under him. With `standOf` filled in,
+rope and ride cells answer with a real index and the guide rebuilt **1470 times**
+on `nav-platform-state`, which expects none. `needsReplan` now asks `graph.groundOf`
+directly, wrapped, which is the question it always meant to ask: a hero who is
+standing on *anything* has not moved, and a hero in the air has. The two functions
+differ on purpose — *where is he* vs *is he at rest* — and neither is a substitute
+for the other. With both halves in, `tsc --noEmit` is clean and the suite does not
+move: **965 pass, 5 fail**.
+
+### 28.7 Counting rows across the seam
+
+**[measured]** the same recording climbs mp82's column 184 by hopping off the top
+of the map:
+
+```
+JUMP (181,0) -> (182,63) -> (183,62) -> (184,62) -> (185,63) -> (184,63)
+```
+
+The map wraps vertically — stepping up off row 0 lands on row 63, and falling off
+row 63 lands on row 0 — and every row guard in `nav-graph.ts` read the difference
+raw. From row 0 to row 63 is **one row up**; the raw `toRow - fromRow` says
+sixty-three **down**. Three guards were therefore backwards at the seam:
+
+- `addJumpEdges`'s blind-jump rule refused the hop as a 63-row fall;
+- `addJumpEdges`'s rope rule read a rope hanging at row 63 as *below* a launch on
+  row 0 and refused it;
+- `addFalls`'s rope-exit rule read a fall from row 62 onto row 1 as sixty-one rows
+  *up* and let through a fall it should have refused.
+
+All three now count from where the arc turns over:
+
+```ts
+const rises = landings[i + 3]!;
+const apex = wrapRow(fromRow - rises);
+const below = wrapRow(toRow - apex) - rises;
+if (target.kind === NODE_ROPE && below > 0) continue;
+if (below > 5) continue;
+// ... and in addFalls:
+if (nodes[fromIndex]!.kind === NODE_ROPE && wrapRow(landings[i + 1]! - row) > 1) continue;
+```
+
+`rises` is how far the arc climbed before it turned over, so `apex` is where it
+turned and `below` is the rows between the launch and the landing whether the
+flight crossed the seam or not. Off the seam `below` reduces to `toRow - fromRow`
+exactly, which is why §28.4 and §28.5's numbers still stand for everything except
+the seam.
+
+**[measured]** A/B, old guard → new, over the three caverns:
+
+| map | JUMP + JUMP_HIGH | FALL | of which from a rope |
+|---|---|---|---|
+| mp80 | 16272 → 16247 | 11985 → 11899 | 847 → 761 |
+| mp81 | 13121 → 13137 | 9243 → 9176 | 705 → 638 |
+| mp82 | 11600 → 11509 | 8125 → 8106 | 556 → 537 |
+
+The seam both **gives** and **takes**. mp81 gains 16 jumps that land just above
+their launch; mp82 loses 91 that wrapped the other way and were really thirty-row
+falls — the old `JUMP (180,0) → (184,63)` of §28.4's table was one of them, counted
+at 63 rows because the arithmetic never looked at where row 63 sits. The rope-exit
+rule now removes **4374 rope-sourced fall edges** rather than §28.5's 4202, the
+extra 172 being the wrapped ones. Ropes with no fall at all stay where §28.5 left
+them — mp80 5, mp81 7, mp82 7 — and **`JUMP (181,0) → (184,63)` exists again**.
+
+The key route does not move: still 154 hops, still `FALL (46,48) → (48,49)`, still
+§28.5's trace hop for hop. The suite does not move either: **965 pass, 5 fail**,
+the same five before and after.
+
+### Still open: three routes the fix took away, and the recording's own
+
+`npx vitest run` is **5 failed | 966 passed** — the same five as at §28.3. **None is
+pre-existing**: all five pass with `web/src` reverted to `37ba8f1`, which the earlier
+version of this paragraph got wrong when it called two of them pre-existing.
+
+**[measured]**, reverting one refusal at a time:
+
+| single revert | tests it restores |
+| --- | --- |
+| the lifted-node guard on `enterConveyor` (the mp80 shaft mouth) | **all five** |
+| §28.2's fall `pushedBack` | three |
+
+So `map-screen:482` and `nav-route-cases:220` — both *"needs no key"*, both
+`111,21 → 124,6` on `bareCapabilities` — are the shaft guard's on their own. The
+other three need **both** refusals closed to fail, which also corrects §28.3's
+attribution of them to §28.2 alone:
+
+- `nav-route-cases:172` *"mp81: a jump into an up current → finds the route the player named"*
+- `path-overlay:425` *"draws a lift as the two legs it is"*
+- `path-overlay:507` *"replays every flight in the trip the player reported"*
+
+Open either edge and the graph finds a way; close both and it does not. That is the
+shape of a journey with two alternative legs, not evidence that either refusal is
+wrong — but it does mean §28.3's table understated the cost by naming one refusal
+per row.
+
+**[measured]** the two that matter are closed components, not missing nodes. Flood
+from `mp80 (111,21)` reaches **1409 of 2170** nodes, columns 0–255, rows 0–63 — and
+is closed: no edge leaves it. Its whole footprint along the bottom gallery is row 21
+(columns 88–123) plus a stub down to row 24 at columns 93–95. `(117,32)` is 11 rows
+below `(117,21)`, both have nodes, and nothing joins them. Flood from `mp82 (102,54)`
+reaches **771 of 1515** and is closed too: it gets as far as `(181,0)` and, since
+§28.7, across the seam to `(184,63)` — but not to `(177,45)`, `(5,25)` or `(26,19)`,
+because the lift that carries a hero up column 184 is only where it stands *now*
+(rows 61–63) and the cells it covered during the recording are gone.
+
+Nothing in §28.1 or §28.2 is going back: both are the engine's own behaviour, and both
+measured refusals are correct. What is undecided is whether each of the three has a
+legitimate route the graph still does not know (mp82 `(19,0) → (15,10)` is the doubtful
+one — `(15,10)` is reachable from `(73,26)`, `(119,25)` and `(26,19)` but not from its
+eastern neighbour, at any hop count), or whether the assertion should be re-pointed at
+the journey the graph can honestly make.
+
+### What would make this wrong
+
+If the engine only applies the wind to an *idle* hero — not one mid-flight — then
+`pushedBack` is deleting legal crossings and §28.2 is the bug rather than the fix. The
+test is the player's own complaint: they said the crossing cannot be made, and the
+graph said it could. §28.1 has the same shape in reverse: if a hero *could* take a rope
+on the way down, deleting that grab would hide a route the game allows. §28.5 has
+the third shape: if a rope can end *above* the floor it serves — rungs stopping five
+rows short of the platform — then "one row below the rung" deletes the only way off
+it. It does not today (every one of mp80's 20, mp81's 18 and mp82's 15 rope columns
+still has an exit), but a cavern drawn with a hanging rope would.
+
+§28.6 would be wrong if a hero on a rope or on a platform were *not* somewhere a route
+may be planned from — if `standOf` should answer -1 there after all. It is not a
+theory: `try_climb_rope` reads `heroCoords + 1`, the hero has a cell while he climbs,
+and `landingAt` was already treating that cell as a legal landing. What would make
+§28.6 *hurt* is the other half — if `path-guide` ever ought to re-plan while he is on
+a rope or a lift, because `needsReplan` now reads `groundOf` and a hero on a rope
+never rebuilds the line under him.
+
+§28.7 would be wrong if the map did **not** wrap vertically — if row 63 were the floor
+of the world instead of one row above row 0 — because then `wrapRow` in these three
+guards measures a descent that never happens and quietly refuses the long falls at the
+bottom of every cavern. The recording is the evidence the other way: the player's hero
+walks off `mp82 (181,0)` and lands on `(184,63)`, and climbs column 184 from there.
+
+## 29. Two rungs short: the screen never granted shoes and keys at once
+
+The map screen plans a destination with a ladder of `findRoute` calls in
+`map-screen.ts`, one axis per rung: as he is, then `collectKeys`, then
+`collectAccessories`, then `planAccessories`, then `unlimitedKeys`. The journey the
+player opened this session with — **mp80 `(111,21)` → mp82 `(102,54)`** — is short of
+*both* at once, and no rung granted both:
+
+| rung | grants | for `(111,21) → (102,54)` |
+| --- | --- | --- |
+| 1 held | — | NULL |
+| 2 collected | keys | NULL — the ramp at mp80 columns 82..86 needs Silkarn |
+| 3 shod | shoes walked to | NULL — the door at `(57,16)` needs a key |
+| 3b worn | shoes from the pocket | NULL — same door |
+| 4 open | `unlimitedKeys` | NULL — `unlimitedKeys` seeds the key counters but only `planAccessories` ORs `SHOE_MASK` (`pathfinder.ts:690`) |
+
+so the screen reached `map.unreachable` for a journey of **384 hops** and never
+`map.needsOneKey`.
+
+**[measured]** with `bareCapabilities()`:
+
+| search | hops |
+| --- | --- |
+| `planAccessories` + `collectKeys` | **384**, one ordinary door, two changes of shoe |
+| `unlimitedKeys` + `planAccessories` | **51**, one ordinary door |
+
+Neither half was wrong on its own — `111,21 → 26,47` needs no shoes at all (253 hops
+bare) and `26,47 → 102,54` answers as soon as the state has both, which is why the
+journey *looked* half-findable. `findRoute` plans the whole trip in one search from
+the state it is handed; it does not splice two halves planned under different states.
+
+**The fix.** `collectKeys` (and `keyPresent`) now go with every rung below the first,
+rung 4 takes `planAccessories` as well, and every plan handed to `accept()` carries
+the same `keyPresent`/`shoePresent` the search under it used, so `path-guide`
+re-plans under identical assumptions. Rung 2 still runs on its own first, so a journey
+the keys alone cover is never sent in shoes — that ordering is what *"asks for the
+keys before it asks for shoes"* pins down, and it still passes.
+
+Regression test: `map-screen.test.ts` *"sends a journey that needs shoes and a key at
+the same time"*, which fails without the change and passes with it.
+
+**What would make this wrong** — if changing shoes cost anything, rung 3b's promise
+would be false and a route that asks for two changes would not be the honest answer.
+The engine says otherwise: `equipment` exists precisely because the swap is free and
+the player has to be told which pair the journey wants and where.
+
+### Tests
+
+966 pass, 5 fail. The five are §28's refusals and are attributed in *"Still open"*
+above — none is pre-existing at `37ba8f1`. `tsc --noEmit` clean, `nav:check` up to
+date.
