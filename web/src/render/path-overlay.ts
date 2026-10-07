@@ -198,7 +198,9 @@ const MAX_CHEVRONS = 512;
 
 /**
  * How far ahead of the hero the chevrons stay solid, and where they fade to almost
- * nothing — measured in drawn cells, which is how far along the line the eye is.
+ * nothing — measured in cells along the route, whether or not the viewport was
+ * showing each one, so the fade does not restart or stall whenever the line runs
+ * off screen (see the counter in {@link drawPathOverlay}).
  *
  * A route is one line but many decisions: every fork, current and jump that could
  * have been taken instead adds chevrons, and at equal weight the route is
@@ -209,7 +211,7 @@ const CHEVRON_SOLID_CELLS = 3;
 const CHEVRON_FADE_CELLS = 15;
 const CHEVRON_FAR_ALPHA = 0.15;
 
-/** Opacity for the cell `ahead` of the hero along the drawn route. */
+/** Opacity for the cell `ahead` of the hero along the route. */
 export function chevronAlpha(ahead: number): number {
     if (ahead <= CHEVRON_SOLID_CELLS) return 1;
     if (ahead >= CHEVRON_FADE_CELLS) return CHEVRON_FAR_ALPHA;
@@ -246,6 +248,30 @@ export function drawPathOverlay(now: number): void {
     const points = guide.remaining();
     if (points.length === 0) return;
 
+    /**
+     * Where the route comes back to the hero's own map, having left it.
+     *
+     * That crossing is the way *out* of a door, and the anchor is still before the
+     * door — so nothing between here and there has been walked. Those cells sit on
+     * his own map, at real positions on his own row, and if they took the ordinary
+     * fade they would read as the next steps to take: the line would come out of an
+     * entrance he never entered at full strength and tell him to walk on past it.
+     * They take the far end of the fade instead, exactly like the cells on the other
+     * side of the door do, so the whole of the un-entered stretch says the same
+     * faint thing wherever he is standing.
+     *
+     * There is nothing to find on a route that never leaves the map, and a hero who
+     * has *made* the crossing has his anchor past it, so the crossing is already
+     * behind `remaining()[0]` and is not looked at again.
+     */
+    let returnIndex = points.length;
+    for (let i = 1; i < points.length; i++) {
+        if (points[i]!.mapId === heroMapId && points[i - 1]!.mapId !== heroMapId) {
+            returnIndex = i;
+            break;
+        }
+    }
+
     const mapWidth = env.mapWidth() || 1;
     const viewportLeft = env.viewportLeftCol();
     const viewportTop = env.viewportTopRow();
@@ -258,6 +284,32 @@ export function drawPathOverlay(now: number): void {
     ctx.rect(0, 0, env.viewW(), env.viewH());
     ctx.clip();
 
+    /**
+     * `step` — cells counted along the route, visible or not — which is what the fade
+     * runs on. `drawn` — marks actually placed — only bounds the loop.
+     *
+     * The fade used to run on `drawn`, so every cell the viewport could not see
+     * left the counter where it was. Everything past a door is such a cell: those
+     * chevrons are in another room, they are drawn as a marker on the border, and
+     * they all came out at the opacity of the last chevron *before* the door.
+     * Leading to the door and leading from it looked equally solid, which reads as
+     * "don't go in".
+     *
+     * Three rules, in this order:
+     *
+     *   - a cell in another room has no distance to show on this one — the marker
+     *     says only "it leaves that way" — so it takes the far end of the fade
+     *     rather than whatever the counter happens to be at the door;
+     *   - the same goes for the stretch where the route comes *back* to this map,
+     *     which is the way out of a door the anchor says he has not entered: it is
+     *     drawn on his own row at real positions, so leaving it to the ordinary
+     *     fade is what showed a full-strength line running out past an entrance he
+     *     had walked by (see `returnIndex`);
+     *   - otherwise the fade is a function of the step's index alone, so a cell
+     *     keeps the opacity it had no matter how many of the cells before it the
+     *     viewport happened to be showing when the frame was drawn.
+     */
+    let step = 0;
     let drawn = 0;
     for (let i = 0; i + 1 < points.length && drawn < MAX_CHEVRONS; i++) {
         // Every cell the hop covers, not just where it started. One arrow per hop
@@ -287,7 +339,11 @@ export function drawPathOverlay(now: number): void {
             const to = cells[c + 1]!;
             const frame = chevronFor(from, to, mapWidth, false);
             if (frame === null) continue;
-            const alpha = chevronAlpha(drawn);
+            const beyond = i >= returnIndex;
+            const alpha = (beyond || from.mapId !== heroMapId)
+                ? CHEVRON_FAR_ALPHA
+                : chevronAlpha(step);
+            step++;
             const at = viewportPixel(from, from.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
             if (!at) {
                 // The route has left the room. One marker on the border it went out
@@ -296,6 +352,7 @@ export function drawPathOverlay(now: number): void {
                 // which is the one thing that makes the route impossible to read.
                 ctx.globalAlpha = alpha;
                 edgeChevron(ctx, sheet, from, to, mapWidth);
+                drawn++;
                 continue;
             }
             ctx.globalAlpha = alpha;

@@ -23,7 +23,7 @@ import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
 import { chevronAlpha } from '../src/render/path-overlay.js';
 import { EDGE, EDGE_NAMES } from '../src/engine/nav/types.js';
-import { wrapRow } from '../src/engine/nav/geometry.js';
+import { wrapRow, ROWS } from '../src/engine/nav/geometry.js';
 import type { NavNode } from '../src/engine/nav/nav-graph.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 import {
@@ -393,19 +393,21 @@ describe('the line a fall draws', () => {
             NavTileClassifier.forMap(25),
             undefined, undefined, graph.platforms.restingCells,
         );
-        // mp82 `(119,44) -> (121,54)`: a fall the graph built, ten columns and rows
-        // of drift apart, that no jump-shaped question finds from where the hero stood.
-        const asJump = model.flightPath(119, 44, 121, 54, false, STEER_ALL, JUMP_RISE_HEIGHTS);
+        // mp82 `(93,10) -> (90,26)`: a fall the graph built, sixteen rows and three
+        // columns of drift apart, that no jump-shaped question finds from where the
+        // hero stood. The graph asks it from the column beside him — `(92,10)` — because
+        // that is where his left column goes as he steps off the ledge.
+        const asJump = model.flightPath(93, 10, 90, 26, false, STEER_ALL, JUMP_RISE_HEIGHTS);
         expect(asJump.length, 'the jump question, from the hero\'s own cell').toBe(0);
-        const asFall = model.flightPath(118, 44, 121, 54, false, STEER_ALL, FALL_RISE_HEIGHTS);
+        const asFall = model.flightPath(92, 10, 90, 26, false, STEER_ALL, FALL_RISE_HEIGHTS);
         expect(asFall.length / 2, 'the fall question, from the column beside him')
             .toBeGreaterThan(4);
         // And the cells it walks are the ones a falling hero walks: one column and one
         // row per frame, ending on the landing.
         const cells: string[] = [];
         for (let i = 0; i < asFall.length; i += 2) cells.push(`${asFall[i]},${asFall[i + 1]}`);
-        expect(cells[0]).toBe('118,44');
-        expect(cells[cells.length - 1]).toBe('121,54');
+        expect(cells[0]).toBe('92,10');
+        expect(cells[cells.length - 1]).toBe('90,26');
     });
 
     it('draws a lift as the two legs it is', () => {
@@ -473,11 +475,17 @@ describe('the line a fall draws', () => {
         );
         expect(found!.hops[at]!.kind, 'route has no fall in it').toBe(EDGE.FALL);
         // Longer than the two ends it joins: the straight line between them would be
-        // a single chevron, and the hero passes every cell in between.
+        // a single chevron, and the hero passes every cell in between. Both gaps are
+        // counted the short way round the cylinder — a drop through the seam is ten
+        // rows down, not fifty-four up — because what the drawing has to beat is the
+        // distance the hero actually travels.
         const hopAt = found!.hops[at]!;
+        const mapWidth = store.get(hopAt.from.mapId)!.mapWidth;
+        const colGap = Math.abs(hopAt.from.col - hopAt.to.col);
+        const rowGap = Math.abs(hopAt.from.row - hopAt.to.row);
         const apart = Math.max(
-            Math.abs(hopAt.from.col - hopAt.to.col),
-            Math.abs(hopAt.from.row - hopAt.to.row),
+            Math.min(colGap, mapWidth - colGap),
+            Math.min(rowGap, ROWS - rowGap),
         );
         expect(guide.cellsForHop(at).length).toBeGreaterThan(1);
         expect(guide.cellsForHop(at).length).toBeGreaterThanOrEqual(apart);

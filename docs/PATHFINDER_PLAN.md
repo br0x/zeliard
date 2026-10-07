@@ -5629,3 +5629,267 @@ the player has to be told which pair the journey wants and where.
 966 pass, 5 fail. The five are §28's refusals and are attributed in *"Still open"*
 above — none is pre-existing at `37ba8f1`. `tsc --noEmit` clean, `nav:check` up to
 date.
+
+## 30. The frame that froze, and the line that looked equally solid on both sides of a door
+
+Two reports from the player, one in each half of the path overlay.
+
+**The report.** The game froze at random for several milliseconds while he was
+following the chevrons; and the chevrons *after* a door did not fade — they came out
+at the same strength as the ones leading *into* it.
+
+### 30.1 The freeze was the search, and it was being asked for while he moved
+
+`PathGuide.tick` runs `findRoute` synchronously inside the frame. It is the only
+synchronous search in the loop, and it rebuilds cavern graphs through `store.get`
+when a platform has moved — a stall of the size reported, at the times reported
+(whenever the world under the route changed while he was walking it).
+
+**The fix.** `PathGuideDeps` takes an optional `isIdle`, consulted immediately
+before `findRoute`. `main.ts` wires `createHeroIdleProbe` (`engine/nav/idle.ts`),
+which answers from the bytes the frame itself writes rather than from a guess about
+the tile under him:
+
+| question | byte | why it is a frame he is not idle in |
+| --- | --- | --- |
+| key held down | `0xff17`, `0xff16` | he is pushing, even into a wall he does not move through |
+| airborne | `0xff3d` | the frame set it; the next one clears it |
+| sliding | `0x9f22` | a slope is carrying him |
+| climbing | `0xff39` | a rope is carrying him |
+| in a jet | `0x9f15` | an up current is carrying him |
+| cell unchanged | `heroMapPosition()` | covers everything the flags do not: a walk, a fall, a platform under him |
+
+Deferring costs nothing, and that is the point of where the guard sits: `lastPlanAt`
+is written *by* the search and not by the decision to run it, so a busy frame
+postpones the re-plan to the first idle one instead of pushing it back every time it
+is asked. The trade he asked for is explicit — a route that lags a step behind
+while he walks beats a frame that drops.
+
+### 30.2 The opacity ran on drawn cells, so the counter stopped at every door
+
+`chevronAlpha(ahead)` is a function of distance along the route: solid for three
+cells, fading to `CHEVRON_FAR_ALPHA` (0.15) by fifteen. The loop fed it `drawn` —
+marks actually *placed* — so every cell the viewport could not see left the counter
+exactly where it was.
+
+Everything past a door is such a cell: those cells are on another map, so
+`viewportPixel` returns null for every one of them and they are drawn as a marker on
+the border instead. None of them moved `drawn`. So all of them came out at the
+opacity of the last chevron *before* the door — leading to the door and leading from
+it looked equally solid, which reads as "don't go in".
+
+**The fix**, in two rules in `drawPathOverlay`:
+
+- `step` counts every cell the route yields, visible or not, and is what the fade
+  runs on; `drawn` counts marks and only bounds the loop. A border marker on the
+  hero's *own* map therefore keeps the fade it would have had if it had been on
+  screen — the counter no longer restarts whenever the line leaves the viewport.
+- a cell in another room has no distance to show on this one, so it takes
+  `CHEVRON_FAR_ALPHA` outright: the marker says only "it leaves that way", which is
+  the near-transparency he asked for — as faded as fifteen cells away, whatever the
+  counter happened to be at the door.
+
+Intra-map doors are covered by the first rule alone: their cells stay on the hero's
+map, so the fade simply continues through them instead of being frozen.
+
+### 30.3 The line that came out of a door he had never entered
+
+A second report, with two screenshots: approaching the door, the line fades as it
+should; *missing it by several tiles* and the way out of the door is drawn at full
+strength, so the route tells him to walk on past an entrance he has not gone
+through — and the whole point of going in is what is in there.
+
+**[measured]** A route which goes in for a key looks like this in the point list:
+
+```
+map0 (10,10) (11,10) (12,10) | map1 (3,10) (4,10) | map0 (12,12) (11,12) (10,12)
+        the way in           |      the key      |        the way out
+```
+
+The hero's own map appears **twice**. `advanceProgress` scanned the whole list for
+the cell he is standing on and found the *second* visit, so the anchor — and with it
+`remaining()` and the fade's step counter — started on the way out. Cells three
+steps from the anchor are at full strength by construction, and they sit on his own
+row at real positions: not a marker on a border, but a line of arrows running out of
+the door. Standing at the door the anchor is still on the way in, which is why the
+first screenshot was right and the second was not.
+
+**The fix**, in three places, all saying the same thing — *a point on the far side of
+a door he has not crossed is not the route ahead of him*:
+
+- `advanceProgress` stops at the first point that leaves his map, so the anchor can
+  be carried across a door he has just walked through (it is left on the map he
+  left, and is skipped forward) but never *jumped* to the far side while he is
+  standing here.
+- `drawPathOverlay` finds the first crossing *back* into his map and draws
+  everything from there at `CHEVRON_FAR_ALPHA` — the same faintness as the cells on
+  the other side of the door, so the whole un-entered stretch says one thing
+  wherever he is standing.
+- the drift check in `needsReplan` stops at that crossing too. It used to `continue`
+  past it and pick up the return leg on the way out, which called him "on the route"
+  while he walked past the very door the line was leading him to; he is now off it,
+  and the refresh interval re-plans from where he actually is.
+
+### What would make this wrong
+
+- If a hero could be idle *and* mid-route-change in a way the bytes do not record,
+  the route would go stale until he stopped. The probe samples one position per
+  frame and every motion the engine drives writes a byte, so this would need a new
+  kind of movement with no flag and no cell change — a lift that moved him zero
+  rows, say.
+- If the border marker were meant to carry distance, `CHEVRON_FAR_ALPHA` would be
+  throwing information away. It is a marker on a border; the distance it would be
+  reporting is in a room the player cannot see.
+- If a route could come back to the hero's map by something other than a door, §30.3
+  would dim a leg he is entitled to walk. The graph has one way out of a map today —
+  a `DOOR` edge — so leaving the map and returning is the same fact as going
+  through a door; a second mechanism would need the rule to ask which.
+
+### Tests
+
+`nav-idle.test.ts` (the probe's six answers, and a guide that keeps its thread while
+busy and spends it the moment he stops), `path-overlay-alpha.test.ts` (a fade that
+does not restart when the line runs off screen, a door's far side at the far end of
+the fade, and the way back out of a door he never entered), and
+`nav-door-progress.test.ts` (an anchor that walks the way in, carries across a door
+he did walk through, and does not jump to the way out).
+
+979 pass, 5 fail — the same five §28 refusals, attributed in *"Still open"* above.
+`tsc --noEmit` clean, `nav:check` up to date.
+
+## 31. A fall the engine cannot fly: sixteen columns of drift in one flight
+
+**The report.** The line to mp82 `(84,0)` crossed open air from the shelf at row 46
+— `FALL (68,46) -> (84,0)` and `FALL (69,46) -> (84,0)` — landing sixteen columns east
+of where the hero stepped off. `(84,0)` is a three-cell island at the top of the
+cavern, and nothing between column 68 and column 84 at any row would hold him.
+
+### 31.1 What the engine actually allows while falling
+
+`addFalls` (`nav-graph.ts:813`) asks `JumpModel.landingsFrom` for the landings of a
+fall, and `JumpModel.descend` let the hero step sideways on **every** airborne frame,
+whenever the air beside him was clear. The engine does not.
+
+While there is no floor under him, `airborne_movement` runs its steering block and
+returns 0 (`dungeon-input.ts:599`), so `stateMachineDispatcher` never runs
+(`dungeon-states.ts:121-123`) and nothing that leads to `up_pressed` / a jump is
+reachable mid-fall. What runs instead is one of three things:
+
+| frame | what happens | line |
+| --- | --- | --- |
+| the first airborne frame (`oldPhase === 0`) | `on_left/right_pressed` outright — a full body-checked step with **no** floor condition — then `FACING &= ~UP_FLAG` | `dungeon-input.ts:559-566` |
+| every later frame, `UP_FLAG` clear, holding the direction he faces | `left_default` / `right_default` | `dungeon-input.ts:312` / `:323` |
+| a frame that grabs a rope | he stops being a falling hero | `dungeon-input.ts:547-550` |
+
+`left_default` and `right_default` are not movement towards the key so much as slope
+catches, and both read the same three cells at `head + 3`:
+
+```
+si = heroAddr + 3*PROX_COLS + 1        // (leftCol + 1, head + 3)
+left_default : if open there -> si++ -> if solid at (leftCol + 2, head + 3) -> move right
+right_default: if open there -> si-- -> if solid at (leftCol,     head + 3) -> move left
+```
+
+So a falling hero moves sideways **only** when the cell under his middle foot is open
+*and* the cell under the foot he is moving onto is solid rock — `dungeon-input.ts:312-331`.
+A hero with nothing under him at all cannot be steered, however open the air beside
+him is. Sixteen columns of open air have none, so he falls straight down.
+
+### 31.2 The gate
+
+`JumpModel` now precomputes, for every cell, whether each of those two conditions
+holds (`jump.ts:314-327`):
+
+```ts
+if (blocksHead(this.at(col + 1, row + 3))) continue;          // middle foot must be open
+if (blocksHead(this.at(col + 2, row + 3))) this.driftRight[cell] = 1;
+if (blocksHead(this.at(col,     row + 3))) this.driftLeft[cell]  = 1;
+```
+
+indexed by the head row the frame *advanced to*, with `col` the left column before
+the step — because `airborne_movement` scrolls down before it runs the steering, so
+`head + 3` is three below the new row, not the old one.
+
+`descend` consults it only where the engine would (`jump.ts:925-927`):
+
+```ts
+const steered = steer !== 0
+    && this.stepAt(c, below, steer)
+    && (rises !== 0 || firstPose || this.driftAt(c, below, steer));
+```
+
+- `stepAt` was already there: the body check `move_hero_right_if_no_obstacles` does.
+- `firstPose` is the frame the fall starts on, which is the `oldPhase === 0` free move.
+- `rises !== 0` exempts every **jump**. A jump descends with `UP_FLAG` still set from
+  the ascent and takes the `on_left/right_pressed` branch instead of the defaults, so
+  the floor condition never applies to it.
+
+### 31.3 What it cost, and one thing it exposed
+
+With the gate, mp82's row-0 gallery keeps only the falls between the cells of the
+seam's own row (`(83,0)`, `(85,0)`, `(86,0)`) and the two jumps off the ride at
+`(80,59)` / `(80,60)`; every fall from the row-46 shelf, and every fall from the
+platform column `(80,55..60)`, is gone. The route to `(84,0)` now goes down the
+platform, rides it and jumps (`FALL (82,54) -> (80,54)`, `RIDE_V` to `(80,59)`,
+`JUMP (80,59) -> (84,0)`).
+
+The gate did **not** remove reachability elsewhere so much as move it: map 23's edge
+count went *up*, 35940 → 35991, because a flight that can no longer drift lands
+straight down and reaches ground the drifting flight sailed over.
+
+It also exposed a reporting defect in `describeRoute`. `shoeFor` returned the **first**
+bit of a hop's `req`, so a hop asking for two pairs at once reported one. The mp80 →
+mp82 journey the map screen checks is now taken by `JUMP_HIGH (36,19) -> (42,16)`,
+whose `req` is `JUMP_HIGH | SLOPE_STAND` — Feruza *and* Silkarn — and the route listed
+only Feruza, which read as though the ramp had stopped being needed. It had not. The
+loop now walks every bit of `SHOE_BITS` (`pathfinder.ts:932-949`), and the broken
+sentence that used to introduce it — "a locked door costs one key of its kind, and a /
+Shoes, in the order the route needs them" — is split back into the comment it belongs
+to.
+
+### What would make this wrong
+
+- The gate models the direction he is **already facing**. The flip frame — pressing the
+  opposite direction mid-fall — flips `FACING` and then runs the *other* default, which
+  can move him the way he came from before the key takes hold a frame later. Nothing in
+  the graph uses a flight that turns around, so the gate is on the conservative side of
+  that, but a route that needed exactly one backwards frame would be refused.
+- `firstPose` is modelled as one free step taken *or not* on the first frame. The engine
+  calls `on_left/right_pressed` from `FACING`, not from the key held, so which direction
+  the free step goes is decided before the player's input is read.
+- `flight()` — the search `landingsFrom` builds the graph from — passes
+  `firstPose = false` (`jump.ts:702`), so a fall edge gets its free column from
+  `collectStarts`'s one-column offset at the launch row rather than from the descent's
+  first frame; `flightPath`, which is what the overlay draws with, passes `true`
+  (`jump.ts:588`). Both give a fall one free sideways move, and neither gives it two.
+  Passing `true` from `flight` would hand every fall edge an extra column, and this
+  change was asked to take edges away, not to add them — so it was left as it was.
+- Jumps are exempt entirely (`rises !== 0`). The engine is stricter than that: if a jump's
+  free step is *blocked*, `on_right_pressed` calls `init_on_ground` and clears `UP_FLAG`
+  (`dungeon-vertical.ts:137-142`), and the rest of that descent falls back to the floor
+  condition. Exempting jumps is the direction the player asked for — "ignore
+  `JUMP (80,60)k2 -> (84,0)` for now" — and it can only over-offer landings, never
+  under-offer them.
+- `blocksHead` is the nav classifier's predicate and `is_blocking_tile` is the engine's
+  (`tile < 0x40 && lookupShared(...)`). They are derived from the same table, but a tile
+  where they disagree would gate a step the engine allows, or the reverse.
+
+### Tests
+
+`nav-route-cases.test.ts` → *"mp82: the fall into the row-0 gallery"*: the graph offers
+no fall into `(84,0)` from any column of the row-46 shelf (and the seam's own falls are
+still there, so the assertion is not vacuous); no column of that shelf has `(84,0)` in
+its `landingsFrom(..., 0, STEER_ALL)` — the gate, asked directly; and a route from
+`(26,47)` still arrives, by `JUMP`, not by a fall.
+
+`path-overlay.test.ts`'s two fall-drawing cases moved with it: *"asks the fall the
+question the graph asked"* now uses `FALL (93,10) -> (90,26)`, which is sixteen rows and
+three columns of drift and still exists; *"draws a long fall as the flight"* counts both
+gaps the short way round the cylinder, because the longest fall in that route now drops
+through the seam and `Math.abs(61 - 7)` is fifty-four rows of nothing.
+
+`map-screen.test.ts` → *"sends a journey that needs shoes and a key at the same time"*
+passes again on the fixed equipment list.
+
+980 pass, 5 fail — the same five as before this section, all attributed in §28's
+*"Still open"*. `tsc --noEmit` clean, `nav:check` up to date.

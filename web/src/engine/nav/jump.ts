@@ -206,6 +206,22 @@ export class JumpModel {
     private readonly stepRight: Uint8Array;
     private readonly stepLeft: Uint8Array;
     /**
+     * 1 where `left_default` / `right_default` would push a falling hero sideways.
+     *
+     * Once `airborne_movement` has spent the landing frame's `oldPhase === 0` call
+     * to `on_left/right_pressed` it clears `UP_FLAG`, and every later frame of a
+     * plain fall takes the branch that runs the slope helpers instead of the free
+     * move. Those helpers only step when the cell under his middle foot is open
+     * *and* the cell under the foot he is stepping onto is solid rock
+     * (`dungeon-input.ts:312-331`) — a hero with nothing under him at all cannot
+     * be steered, however open the air beside him is.
+     *
+     * Indexed by the head row the frame advanced to, `row * mapWidth + col`, where
+     * `col` is his left column *before* the step.
+     */
+    private readonly driftRight: Uint8Array;
+    private readonly driftLeft: Uint8Array;
+    /**
      * 1 where a hero falling at this cell can still reach a landing.
      *
      * A fall that reaches no landing is a fall out of the world, so those states
@@ -295,6 +311,8 @@ export class JumpModel {
         this.landsFirst = new Uint8Array(this.cells);
         this.stepRight = new Uint8Array(this.cells);
         this.stepLeft = new Uint8Array(this.cells);
+        this.driftRight = new Uint8Array(this.cells);
+        this.driftLeft = new Uint8Array(this.cells);
         for (let row = 0; row < ROWS; row++) {
             for (let col = 0; col < this.mapWidth; col++) {
                 const cell = row * this.mapWidth + col;
@@ -302,6 +320,11 @@ export class JumpModel {
                 if (this.landsIn(col, row, true)) this.landsFirst[cell] = 1;
                 if (this.stepIn(col, row, 1)) this.stepRight[cell] = 1;
                 if (this.stepIn(col, row, -1)) this.stepLeft[cell] = 1;
+                // Both slope helpers read the cell under his middle foot first and
+                // give up when it is solid, so the two masks share it.
+                if (blocksHead(this.at(col + 1, row + 3))) continue;
+                if (blocksHead(this.at(col + 2, row + 3))) this.driftRight[cell] = 1;
+                if (blocksHead(this.at(col, row + 3))) this.driftLeft[cell] = 1;
             }
         }
         this.canLand = this.solveCanLand();
@@ -892,13 +915,28 @@ export class JumpModel {
             // leg the player reported.
             const below = wrapRow(r + 1);
             const fallTo = below * width;
-            if (steer !== 0 && this.stepAt(c, below, steer)) {
+            // A plain fall gets one free sideways step: the frame it starts on is
+            // `oldPhase === 0`, which calls `on_left/right_pressed` outright, and
+            // that block clears `UP_FLAG` on the way out. Every later frame of the
+            // fall runs `left_default`/`right_default` instead, so a step that needs
+            // more than an open lane also needs floor under the foot he is moving
+            // onto — see {@link driftRight}. A jump is left alone: it descends with
+            // `UP_FLAG` still set from the ascent and keeps the free move.
+            const steered = steer !== 0
+                && this.stepAt(c, below, steer)
+                && (rises !== 0 || firstPose || this.driftAt(c, below, steer));
+            if (steered) {
                 const nc = wrapCol(c + steer, width);
                 if (this.canLand[fallTo + nc] === 1) tail = this.enqueue(tail, nc, below, t + 1, false, head - 1);
             } else if (this.canLand[fallTo + c] === 1) {
                 tail = this.enqueue(tail, c, below, t + 1, false, head - 1);
             }
         }
+    }
+
+    /** Would a falling hero's slope helper permit the step? */
+    private driftAt(col: number, row: number, dir: number): boolean {
+        return (dir > 0 ? this.driftRight : this.driftLeft)[row * this.mapWidth + col] === 1;
     }
 
     private enqueue(

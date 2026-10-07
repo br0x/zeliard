@@ -16,7 +16,7 @@ import { NavGraphStore, findRoute, type NavHop, type NavRoute } from '../src/eng
 import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt } from '../src/engine/nav/geometry.js';
-import { JumpModel } from '../src/engine/nav/jump.js';
+import { JumpModel, LANDING_STRIDE, STEER_ALL } from '../src/engine/nav/jump.js';
 import { EDGE, EDGE_NAMES, NAV, CAP, KEY_ORDINARY, blocksBody } from '../src/engine/nav/types.js';
 import { nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
@@ -178,6 +178,88 @@ describe('mp81: a jump into an up current', () => {
         });
         expect(r, 'mp80 (111,21) -> mp81 (124,6)').not.toBeNull();
         expect(r!.maps).toContain(24);
+    });
+});
+
+describe('mp82: the fall into the row-0 gallery', () => {
+    // (84,0) is an island — a three-cell shelf at the top of mp82 with no floor
+    // beside it — and the graph used to offer a fall straight onto it from the shelf
+    // at row 46: `FALL (68,46) -> (84,0)` and `FALL (69,46) -> (84,0)`, sixteen
+    // columns of drift in one flight. `addFalls` asks `JumpModel.descend` for its
+    // landings, and the model let the hero step sideways on every airborne frame.
+    //
+    // The engine gives a plain fall one free sideways step: the frame it starts on has
+    // `oldPhase === 0`, which calls `on_left/right_pressed` outright and then clears
+    // `UP_FLAG` on the way out (`dungeon-input.ts:559-566`). Every frame after that
+    // runs `left_default` / `right_default`, which step only when there is floor under
+    // the foot he is moving onto (`dungeon-input.ts:311-325`). Sixteen columns of open
+    // air have none, so he falls straight down and lands nowhere near the gallery.
+    //
+    // A jump is not gated the same way: it descends with `UP_FLAG` still set from the
+    // ascent and keeps the free move, which is why `JUMP (80,59)k2 -> (84,0)` stands.
+    const GALLERY: [number, number] = [84, 0];
+
+    /** Every fall the mp82 graph offers into `(col,row)`, as its `from` cell. */
+    function fallsInto(col: number, row: number): string[] {
+        const g = store.get(25)!;
+        const out: string[] = [];
+        for (let i = 0; i < g.nodes.length; i++) {
+            for (let e = g.edgeOffsets[i]!; e < g.edgeOffsets[i + 1]!; e++) {
+                const edge = g.edges[e]!;
+                if (edge.kind !== EDGE.FALL) continue;
+                const to = g.nodes[edge.to]!;
+                if (to.col !== col || to.row !== row) continue;
+                const from = g.nodes[i]!;
+                out.push(`(${from.col},${from.row})`);
+            }
+        }
+        return out;
+    }
+
+    it('offers no fall onto it from the row-46 shelf', () => {
+        const falls = fallsInto(...GALLERY);
+        // The only falls left are the short ones between the cells of the seam's own
+        // row, which drift a column or two and no more.
+        expect(falls.length, 'the seam\'s own falls are still offered').toBeGreaterThan(0);
+        expect(falls.every((f) => f === '(83,0)' || f === '(85,0)' || f === '(86,0)'),
+            `a fall into (84,0) from somewhere it cannot fly: ${falls.join(' ') || 'none'}`)
+            .toBe(true);
+        expect(falls, 'the impossible sixteen-column drift').not.toContain('(68,46)');
+        expect(falls, 'the impossible sixteen-column drift').not.toContain('(69,46)');
+    });
+
+    it('is not a landing any column of the shelf offers', () => {
+        // The gate lives in `JumpModel.descend`, so this asks the model rather than
+        // the graph: from every column the shelf's own nodes stand in, the landings a
+        // plain fall (`rises === 0`) offers must not include the gallery.
+        const model = new JumpModel(
+            store.gridOf(25)!, NavTileClassifier.forMap(25),
+            undefined, undefined, store.get(25)!.platforms.restingCells,
+        );
+        for (let col = 66; col <= 71; col++) {
+            const lands = model.landingsFrom(col, 46, 0, STEER_ALL);
+            const reaches: string[] = [];
+            for (let i = 0; i < lands.length; i += LANDING_STRIDE) {
+                if (lands[i] === GALLERY[0] && lands[i + 1] === GALLERY[1]) {
+                    reaches.push(`(${col},46)`);
+                }
+            }
+            expect(reaches, `(${col},46) should not fall to (84,0)`).toEqual([]);
+        }
+    });
+
+    it('is reached anyway, by the jump off the platform at (80,59)', () => {
+        const r = route(25, [26, 47], GALLERY);
+        expect(r, 'mp82 (26,47) -> (84,0)').not.toBeNull();
+        const arrivals = r!.hops.filter((h) => h.to.col === GALLERY[0] && h.to.row === GALLERY[1]);
+        expect(arrivals.length, 'the route arrives somewhere').toBeGreaterThan(0);
+        expect(arrivals.map((h) => EDGE_NAMES[h.kind]),
+            'nothing arrives by a fall').not.toContain(EDGE_NAMES[EDGE.FALL]);
+        const last = r!.hops[r!.hops.length - 1]!;
+        expect(last.kind, 'the last hop is the jump off the platform').toBe(EDGE.JUMP);
+        expect(last.from.col, 'the jump leaves column 80').toBe(80);
+        expect([59, 60], 'the jump leaves the ride at row 59 or 60')
+            .toContain(last.from.row);
     });
 });
 

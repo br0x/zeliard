@@ -883,14 +883,6 @@ function relax(
     open.push(candidate);
 }
 
-/** The shoes an edge's requirement asks for, if any. */
-function shoeFor(req: number): { accessory: number; label: string } | null {
-    for (const [bit, accessory, label] of SHOE_BITS) {
-        if ((req & bit) !== 0) return { accessory, label };
-    }
-    return null;
-}
-
 /** Walk the predecessor chain into a NavRoute. */
 function describeRoute(
     states: State[],
@@ -937,20 +929,26 @@ function describeRoute(
         if (hazard & HAZARD_SLOPE) crossesSlopes = true;
     }
 
-    // Counted from the hops rather than from the counters, so every number describes
-    // the route the player is shown: a locked door costs one key of its kind, and a
-    // Shoes, in the order the route needs them. A hop that requires one is a hop the
-    // hero can only take equipped, so the route says so rather than letting him walk
-    // into a slope that throws him back down the hill.
+    // Shoes, in the order the route needs them: every number here describes the route
+    // the player is shown. A hop that requires a pair is a hop the hero can only take
+    // equipped, so the route says so rather than letting him walk into a slope that
+    // throws him back down the hill. A hop may ask for two pairs at once — a four-tile
+    // jump whose ascent crosses a slope wants Feruza and Silkarn together — and naming
+    // only the first of them understated what the hero has to be wearing, which is the
+    // one thing this list is for.
     const equipment: NavRequirement[] = [];
     for (let i = 1; i < chain.length; i++) {
-        const worn = shoeFor(chain[i]!.viaReq);
-        if (!worn) continue;
-        const last = equipment[equipment.length - 1];
-        if (last && last.accessory === worn.accessory) continue;
-        equipment.push({ accessory: worn.accessory, label: worn.label, at: points[i]! });
+        const req = chain[i]!.viaReq;
+        for (const [bit, accessory, label] of SHOE_BITS) {
+            if ((req & bit) === 0) continue;
+            const last = equipment[equipment.length - 1];
+            if (last && last.accessory === accessory) continue;
+            equipment.push({ accessory, label, at: points[i]! });
+        }
     }
 
+    // Counted from the hops rather than from the counters, so every number describes
+    // the route the player is shown: a locked door costs one key of its kind, and a key
     // pickup is a hop that raised a counter.
     const lockedDoors = { ordinary: 0, lion: 0 };
     const picked = { ordinary: 0, lion: 0 };

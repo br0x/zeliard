@@ -237,6 +237,7 @@ import { setInputKeys } from './engine/input.js';
 import { keyStateToBitmask } from './core/memory.js';
 import { MapScreen } from './ui/map-screen.js';
 import { PathGuide } from './engine/nav/path-guide.js';
+import { createHeroIdleProbe } from './engine/nav/idle.js';
 import {
     initPathOverlay, drawPathOverlay, setChevronSheet, clearPathOverlay,
     CHEVRON_SHEET,
@@ -694,6 +695,12 @@ function navPathGuide(): PathGuide {
         // priced as locked, the search finds nothing, and the thread vanishes on the
         // first frame after it is spent.
         doorOpen: liveDoorOpen,
+        // Re-planning is a synchronous search inside the frame, and it is the one
+        // thing in the loop that can be seen to stall — the frame freezes for
+        // several milliseconds at random. So it waits for the hero to be standing
+        // still with nothing held down. While he is walking, the chevrons on screen
+        // are the route he already has, which is what he wants anyway.
+        isIdle: createHeroIdleProbe({ memory: getGmem, heroPosition: heroMapPosition }),
     });
     initPathOverlay({
         ctx,

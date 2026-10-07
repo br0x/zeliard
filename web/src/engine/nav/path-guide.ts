@@ -70,6 +70,22 @@ export interface PathGuideDeps {
      * Optional, and null is the normal answer for any cavern but the loaded one.
      */
     doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null;
+    /**
+     * May a re-plan run this frame, or is the hero in the middle of something?
+     *
+     * `findRoute` is synchronous, and it is the only thing in the per-frame path
+     * that can be seen to stall the game — the player reported the frame freezing
+     * for several milliseconds at random while he was following the chevrons. So it
+     * runs only when he is standing still with nothing held down; see
+     * {@link createHeroIdleProbe} for what that means in engine bytes.
+     *
+     * Optional, and absent means "always": the guide's own tests, and any embedder
+     * with no input to report, have no reason to wait. Deferring costs nothing —
+     * `lastPlanAt` is written by the search and not by the decision to run it, so
+     * a busy frame postpones the re-plan to the first idle one rather than pushing
+     * it back every time it is asked.
+     */
+    isIdle?: () => boolean;
 }
 
 /** What the shoes are called, from the accessory ids. */
@@ -493,6 +509,12 @@ export class PathGuide {
 
         if (!this.needsReplan(now, planCaps, hero)) return;
 
+        // The search is the only synchronous work in this frame that can be seen, so
+        // it waits for the hero to be standing still. The route it leaves on screen
+        // is stale for as long as he is moving — which is the trade he asked for: a
+        // line that lags a step behind beats a frame that drops.
+        if (this.deps.isIdle && !this.deps.isIdle()) return;
+
         const next = findRoute({
             store: this.deps.store,
             caps: planCaps,
@@ -588,10 +610,18 @@ export class PathGuide {
         // Walking off the route: the hero should be near it.
         const points = this.route?.points;
         if (!points) return false;
-        const from = Math.max(0, this.progress - 1);
-        for (let i = from; i < points.length; i++) {
+        // Only the stretch he is actually on counts. The route may come back to this
+        // map later — the way out of a door he has not entered — and a point there is
+        // not where he is: calling that "near the route" is what let him walk past
+        // the entrance the line was leading him to and be told he was still on it.
+        // A point on another map also ends the stretch: an anchor left on the map he
+        // has just left is skipped first, so standing on the far side of a door he
+        // *did* walk through still measures against the room he is in.
+        let start = Math.max(0, this.progress - 1);
+        while (start < points.length && points[start]!.mapId !== hero.mapId) start++;
+        for (let i = start; i < points.length; i++) {
             const p = points[i]!;
-            if (p.mapId !== hero.mapId) continue;
+            if (p.mapId !== hero.mapId) break;
             const d = columnDelta(p.col, hero.col, graph.mapWidth) + rowDelta(p.row, hero.row);
             if (d <= DRIFT_TOLERANCE) return false;
         }
@@ -651,9 +681,24 @@ export class PathGuide {
          * screenshot. Looking for his own cell along the route finds it wherever the
          * skipped points left it, and a hero in mid-air — matching nothing — keeps the
          * anchor he had rather than losing the line.
+         *
+         * The search stops at the first point that leaves his map, because a route
+         * that goes out through a door and comes back visits this map **twice** — and
+         * that is what a route which goes in to find a key looks like. Scanning past
+         * the crossing found the later visit, matched his cell on the way *out*, and
+         * started the reveal there: the chevrons came out of the door at full
+         * strength and told him to walk on past an entrance he had not gone through.
+         * The one case that must still scan across is an anchor left on the map he
+         * has just left — the crossing itself put it there — so points on another map
+         * ahead of the anchor are skipped, and only then does the stop-at-a-crossing
+         * rule apply.
          */
-        for (let i = this.progress; i < route.points.length; i++) {
-            if (!on(route.points[i]!)) continue;
+        const points = route.points;
+        let i = this.progress;
+        while (i < points.length && points[i]!.mapId !== hero.mapId) i++;
+        for (; i < points.length; i++) {
+            if (i > this.progress && points[i]!.mapId !== hero.mapId) break;
+            if (!on(points[i]!)) continue;
             this.progress = i;
             break;
         }
