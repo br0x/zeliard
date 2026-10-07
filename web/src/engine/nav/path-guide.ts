@@ -532,14 +532,8 @@ export class PathGuide {
         });
         this.lastPlanAt = now;
         if (!next) {
-            // The hero is standing on a node here — `needsReplan` does not look for a
-            // route from a cell he is only passing through — so a search that finds
-            // nothing means the world really changed under the plan. Say so, and say
-            // where it gave up, rather than drawing a route that will not work and
-            // leaving the player with no clue why the line stopped.
-            console.warn(`[path] dropped: no route from map${hero.mapId} (${hero.col},${hero.row})`
-                + ` to map${this.goal.mapId} (${this.goal.col},${this.goal.row})`);
-            this.clear();
+            console.warn(`[path] replan failed from map${hero.mapId} (${hero.col},${hero.row})`
+                + ` to map${this.goal.mapId} (${this.goal.col},${this.goal.row}); keeping old route`);
             return;
         }
         this.route = next;
@@ -570,9 +564,10 @@ export class PathGuide {
     private platformVersion(): string {
         const parts: string[] = [];
         for (const mapId of this.route?.maps ?? []) {
-            const places = [...this.deps.store.platformPlaces(mapId)]
-                .sort((a, b) => a[0] - b[0]);
-            for (const [x, y] of places) parts.push(`${mapId}:${x}:${y}`);
+            const graph = this.deps.store.peek(mapId);
+            const places = graph?.platforms.places ?? this.deps.store.platformPlaces(mapId);
+            const sorted = [...places].sort((a, b) => a[0] - b[0]);
+            for (const [x, y] of sorted) parts.push(`${mapId}:${x}:${y}`);
         }
         return parts.join(',');
     }

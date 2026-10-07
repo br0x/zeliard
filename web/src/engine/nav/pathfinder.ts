@@ -219,6 +219,8 @@ export class NavGraphStore {
     setPlatformPlaces(mapId: number, places: PlatformPlaces): boolean {
         const before = this.places.get(mapId);
         if (before && samePlatformPlaces(before, places)) return false;
+        const graph = this.graphs.get(mapId);
+        if (graph && samePlatformPlaces(graph.platforms.places, places)) return false;
         this.places.set(mapId, new Map(places));
         return true;
     }
