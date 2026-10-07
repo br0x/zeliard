@@ -201,10 +201,20 @@ function standingAboard(
     return true;
 }
 
-/** Inclusive row range as an array. */
+/**
+ * Inclusive row range as an array, across the cylinder.
+ *
+ * A lift's travel is an arc, not an interval: it can cross row 0 coming from row
+ * 63, so `topY` may sit numerically above `bottomY`. Walking `from -> to` modulo
+ * `ROWS` gives that arc, and is identical to a plain `from <= to` interval
+ * wherever the range did not wrap.
+ */
 function range(from: number, to: number): number[] {
     const out: number[] = [];
-    for (let i = from; i <= to; i++) out.push(i);
+    for (let i = from; ; i = (i + 1) % ROWS) {
+        out.push(i);
+        if (i === to || out.length > ROWS) break;
+    }
     return out;
 }
 

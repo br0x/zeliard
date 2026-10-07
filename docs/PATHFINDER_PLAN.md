@@ -5893,3 +5893,86 @@ passes again on the fixed equipment list.
 
 980 pass, 5 fail — the same five as before this section, all attributed in §28's
 *"Still open"*. `tsc --noEmit` clean, `nav:check` up to date.
+
+## 32. A lift that could not cross row 0, and the island nothing could reach
+
+**The report.** `findRoute` answered NONE for mp82 `(179,0)` → `(181,51)`. Both are
+standing positions, the second on the row-51 ledge east of the seam, and the player
+had walked the journey: `WORK/DOC/esco.txt` records it hop for hop — right along row
+0 to `(181,0)`, a jump onto the lift at column 184, up from `(184,63)` to
+`(184,51)`, then left to `(181,51)`.
+
+### 32.1 What the graph could see
+
+Working backwards from `(181,51)` gave an island of exactly eleven nodes —
+`(180..182,51)`, `(177..179,53)` and four slots on the row-56 horizontal platform —
+with two ways in and nothing else. One is the horizontal platform at columns
+168..175, which the graph can board only from a ground node at row 56, and there is
+no ground at row 56 anywhere in columns 160..200. The other is the vertical lift at
+column 3, whose jump lands on `(191,51)` — a cell the island cannot reach on foot.
+So the island was sealed, and the lift the player actually used was not one of the
+doors.
+
+### 32.2 The extractor stopped walking at row 0
+
+`tools/navlib/platforms.mjs` computed a lift's range by walking from `startY` in each
+direction:
+
+```js
+const ascendFrom = (x, y) => {
+    let top = y;
+    while (top > 0 && spanClear(x, top - 1) && boxFree(x, headFor(top - 1))) top--;
+    return top;
+};
+```
+
+`top > 0` treats row 0 as a wall. It is not one. Both engine writes mask the
+position: `memWrite8(g, found.entryPtr + 2, (… - 1) & 0x3f)` in
+`tryMovePlatformUp` and `(… + 1) & 0x3f` in `tryMovePlatformDown`
+(`dungeon-vertical.ts`). Row 0 ascends into row 63, and the map is a cylinder
+everywhere else — falls, steps and rope climbs all cross the seam — so a lift standing
+at row 2 should have walked on up through row 63.
+
+It did not. mp82's lift is `startY 2`, just under the seam, and it came out as
+`topY 0, bottomY 2`: three slots, at head rows 61..63. The player rode it from
+`(184,63)` to `(184,51)`, which is platform rows 66 down to 54. `descendFrom` had the
+mirror-image guard (`bottom < mapHeight - 1`) and could not cross row 63 either; mp31's
+lift, documented in §30 as `startY 26, topY 0, bottomY 26`, is the same shape.
+
+### 32.3 What changed
+
+`ascendFrom` and `descendFrom` became one `travel(x, y, step)` that walks the cylinder
+and stops only on a guard — or on arriving back at `startY`, a platform that circles
+the whole map, which no `topY`/`bottomY` pair can express, so it warns instead of
+guessing. `range(from, to)` in `platforms.ts` now walks modulo `ROWS` when
+`from > to`, because the arc a lift travels can have its top numerically **above** its
+bottom: mp82's column 184 is now `topY 53, bottomY 2`, meaning rows 54..66.
+
+Sixteen ranges across ten maps moved. The lift in mp82 became `topY 53` rather than
+the 54 the ceiling at row 49 suggests, because `boxFree` asks for the hero's whole
+3x3 and tile `(184,50)` is inside it; `standingAboard` then drops that slot, so the
+model still offers head rows 51..63 and not 50.
+
+### 32.4 What it cost
+
++136 ride slots (5,548 → 5,684), of which 5,679 have an entry — the same five
+impossible-to-reach slots as before, so none of the new ones is stranded. Nodes
+29,917 → 30,012; edges 506,899. The projection bound moved from `< 30,000` to
+`< 31,000`.
+
+### Tests
+
+`nav-data.test.ts` → *"walks mp82 column 184 across the row 0 seam"* pins
+`{ x: 184, startY: 2, topY: 53, bottomY: 2 }`. The invariant *"keeps every vertical
+travel range inside the map"* no longer asks `topY <= startY <= bottomY`, which an arc
+across the seam cannot satisfy; it walks from `topY` to `bottomY` modulo `MAP_HEIGHT`
+and requires `startY` to lie on that arc.
+
+`nav-route-cases.test.ts` → *"mp82: the lift that crosses row 0"* routes
+`(179,0)` → `(181,51)` bare-free (ten hops, cost 27): `JUMP_HIGH` onto the lift,
+eight `RIDE_V` down its column, `JUMP_HIGH` off onto the ledge, and no `solidCrossings`.
+
+`nav-graph.test.ts` — the ride-slot count and live/dead split, and the node bound.
+
+984 pass, 5 fail — the same five as §31, all attributed in §28's *"Still open"*.
+`tsc --noEmit` clean, `nav:check` up to date.

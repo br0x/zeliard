@@ -449,9 +449,12 @@ describe('nav platforms', () => {
                 expect(p.topY).toBeLessThan(MAP_HEIGHT);
                 expect(p.bottomY).toBeLessThan(MAP_HEIGHT);
                 // A range is computed by walking from startY in each direction, so
-                // it always contains startY.
-                expect(p.topY).toBeLessThanOrEqual(p.startY);
-                expect(p.bottomY).toBeGreaterThanOrEqual(p.startY);
+                // it always contains startY. The walk is over a cylinder, though:
+                // row 0 ascends into row 63, so topY can sit numerically above
+                // bottomY and only the arc from topY says where the range is.
+                const arcLength = ((p.bottomY - p.topY) + MAP_HEIGHT) % MAP_HEIGHT;
+                const startYFromTop = ((p.startY - p.topY) + MAP_HEIGHT) % MAP_HEIGHT;
+                expect(startYFromTop, `map ${meta.id} x=${p.x}`).toBeLessThanOrEqual(arcLength);
             }
         }
     });
@@ -463,6 +466,18 @@ describe('nav platforms', () => {
         expect(vertical).toHaveLength(2);
         expect(vertical[0]).toMatchObject({ x: 48, startY: 24, topY: 17, bottomY: 24 });
         expect(vertical[1]).toMatchObject({ x: 221, startY: 44, topY: 38, bottomY: 54 });
+    });
+
+    it('walks mp82 column 184 across the row 0 seam', () => {
+        // The lift stands at row 2, one row under the seam, and the player rode it
+        // from (184,63) up to (184,51) (WORK/DOC/esco.txt). Both engine writes mask
+        // the position with `& 0x3f` (dungeon-vertical.ts `tryMovePlatformUp`/`Down`),
+        // so row 0 ascends into row 63 and the travel is rows 54..66 — an arc whose
+        // top sits numerically *above* its bottom. It stops at row 54 because the
+        // ceiling at row 49 leaves the hero's box no room above that.
+        const lift = NAV_PLATFORMS[25]!.vertical.find((p) => p.x === 184 && p.startY === 2);
+        expect(lift).toBeDefined();
+        expect(lift).toMatchObject({ x: 184, startY: 2, topY: 53, bottomY: 2 });
     });
 
     it('gives a collapsing platform no upward travel', () => {

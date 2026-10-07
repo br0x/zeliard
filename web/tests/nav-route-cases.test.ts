@@ -263,6 +263,36 @@ describe('mp82: the fall into the row-0 gallery', () => {
     });
 });
 
+describe('mp82: the lift that crosses row 0', () => {
+    // The player walked this one, and it is recorded hop for hop in
+    // WORK/DOC/esco.txt: right along row 0 to (181,0), a jump onto the lift at
+    // column 184, up from (184,63) to (184,51), then left to (181,51). The island
+    // those last three cells sit on has exactly one way in — that lift — so when the
+    // lift's range came out wrong the search answered NONE for a recorded journey.
+    //
+    // The extractor walked the range with `while (top > 0 ...)`, which treats row 0
+    // as a wall. It is not: both engine writes mask the position with `& 0x3f`
+    // (dungeon-vertical.ts `tryMovePlatformUp`/`Down`), so a lift standing at row 2
+    // ascends into row 63 and keeps going. It came out as rows 0..2 — three slots at
+    // head rows 61..63 — when it really travels rows 54..66.
+    const ISLAND: [number, number] = [181, 51];
+
+    it('rides the column-184 lift up to the island', () => {
+        const r = route(25, [179, 0], ISLAND);
+        expect(r, 'mp82 (179,0) -> (181,51)').not.toBeNull();
+        expect(r!.maps).toEqual([25]);
+        const rides = r!.hops.filter((h) => h.kind === EDGE.RIDE_V);
+        expect(rides.length, 'the lift carries him most of the way')
+            .toBeGreaterThan(5);
+        expect(rides.every((h) => h.from.col === 184 && h.to.col === 184),
+            'and it is the column-184 lift').toBe(true);
+        expect(Math.min(...rides.map((h) => h.to.row)),
+            'the lift carries him below the head rows the truncated range offered')
+            .toBeLessThan(61);
+        expect(solidCrossings(r!)).toEqual([]);
+    });
+});
+
 describe('locked doors and the keys for them', () => {
     // The game's doors are mostly open. [measured] 139 of 163 are walked through for
     // free; 22 want an ordinary key and 2 a Lion-Head one. So the key machinery has

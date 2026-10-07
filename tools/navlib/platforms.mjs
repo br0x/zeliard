@@ -71,38 +71,49 @@ export function buildPlatforms(cavern, passable, mapHeight = MAP_HEIGHT) {
     /** Hero head row for a platform sitting on row r. */
     const headFor = (r) => (r - 3 + mapHeight) % mapHeight;
 
-    const descendFrom = (x, y) => {
-        let bottom = y;
-        while (bottom < mapHeight - 1
-            && spanClear(x, bottom + 1)
-            && boxFree(x, headFor(bottom + 1))) {
-            bottom++;
+    /**
+     * Walk one row at a time in `step` (+1 down, -1 up) until a guard fails.
+     *
+     * The rows are a cylinder: both engine writes mask with `& 0x3f`
+     * (dungeon-vertical.ts `tryMovePlatformUp`/`Down`), so row 0 ascends into
+     * row 63 and row 63 descends into row 0. The walk therefore cannot be
+     * bounded by `0` / `mapHeight - 1`; it stops only on a guard, or on coming
+     * back to where it started — a platform that could travel the whole circle,
+     * which no range pair can express, so the caller is told.
+     *
+     * @returns the last row reached, or `null` on a full circle.
+     */
+    const travel = (x, y, step) => {
+        let at = y;
+        for (;;) {
+            const next = (at + step + mapHeight) % mapHeight;
+            if (next === y) return null;
+            if (!spanClear(x, next) || !boxFree(x, headFor(next))) return at;
+            at = next;
         }
-        return bottom;
     };
-    const ascendFrom = (x, y) => {
-        let top = y;
-        while (top > 0
-            && spanClear(x, top - 1)
-            && boxFree(x, headFor(top - 1))) {
-            top--;
-        }
-        return top;
+
+    /** topY/bottomY, or the widest arc expressible if the platform circles. */
+    const arc = (x, y) => {
+        const up = travel(x, y, -1);
+        const down = travel(x, y, 1);
+        if (up !== null && down !== null) return { topY: up, bottomY: down };
+        console.warn(`platform x=${x} startY=${y} travels the whole cylinder`);
+        return { topY: y, bottomY: (y - 1 + mapHeight) % mapHeight };
     };
 
     const vertical = verticalPlatforms.map((p) => ({
         kind: 0,
         x: p.x,
         startY: p.y,
-        topY: ascendFrom(p.x, p.y),
-        bottomY: descendFrom(p.x, p.y),
+        ...arc(p.x, p.y),
     }));
 
     const collapsing = collapsingPlatforms.map((p) => ({
         kind: 1,
         x: p.x,
         startY: p.y,
-        bottomY: descendFrom(p.x, p.y),
+        bottomY: travel(p.x, p.y, 1) ?? (p.y - 1 + mapHeight) % mapHeight,
     }));
 
     const horizontal = horizontalPlatforms.map((p) => ({

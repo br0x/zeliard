@@ -147,7 +147,7 @@ describe('nodes are positions the hero can occupy', () => {
         // body, and a platform blocks it. So a slot's only entries are those two,
         // and the ones with neither are platform positions nothing can reach.
         //
-        // [measured] 5536 of 5548 slots have an entry. Before the jump model was
+        // [measured] 5679 of 5684 slots have an entry. Before the jump model was
         // derived from the engine, 5403 of 5589 did — but the extra entries were jumps
         // whose arcs the old apex test had invented, and the BOARD edges that
         // disappeared with them went to ground nodes the hero cannot stand on: a
@@ -167,7 +167,7 @@ describe('nodes are positions the hero can occupy', () => {
                 if (entries.has(i)) live++;
             }
         }
-        expect(total).toBe(5548);
+        expect(total).toBe(5684);
         // 12 dead slots. Most of what used to be dead is not: the horizontal riding
         // offsets were `platformCol - 1 .. platformCol + 1` when the engine's own
         // `heroOnHorizPlatform` carries the hero when any of his three columns equals
@@ -192,7 +192,7 @@ describe('nodes are positions the hero can occupy', () => {
         // rides it west to `(149,51)` and steps off. Withholding that fall the search
         // cannot reach `(151,6)` at all, because `(149,0)` above it is not a standing
         // position.
-        expect(live, 'ride slots with no entry at all').toBe(5543);
+        expect(live, 'ride slots with no entry at all').toBe(5679);
         expect(total - live, 'ride slots nothing can land on or ride to').toBe(5);
     });
 
@@ -684,7 +684,7 @@ describe('size and build cost', () => {
             nodes += graphFor(meta.id).stats.nodes;
             edges += graphFor(meta.id).stats.edges;
         }
-        // [measured] 29,917 nodes / 1,081,449 edges.
+        // [measured] 30,012 nodes / 506,899 edges.
         //
         // Nodes fell from 28,290 when `groundBelow` was corrected to the engine's own
         // landing test: a position with ground under the hero's left foot and open air
@@ -701,7 +701,7 @@ describe('size and build cost', () => {
         // Most of the new edges are JUMP; none is a wider shortcut than the frames it
         // takes, which the check above proves for all of them.
         expect(nodes).toBeGreaterThan(29800);
-        expect(nodes).toBeLessThan(30000);
+        expect(nodes).toBeLessThan(31000);
         // Was 1,080,257, then 1,029,620 once each descent was locked to the launch
         // direction. Locking the falls off a rope removed the rest of the steering:
         // 6,874 of mp30's rope-exit edges alone were long diagonal descents the hero
