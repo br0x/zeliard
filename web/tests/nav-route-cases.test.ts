@@ -799,6 +799,26 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         expect(r!.maps, 'straight back out and through the locked door').toEqual([25, 24, 23, 25]);
         expect(solidCrossings(r!), 'and through no rock').toEqual([]);
     }, 30_000);
+
+    it('plans it again after the world under him has been replaced', () => {
+        // The player walked the trip, drove a platform in mp81 on the way, and then
+        // restored a save. The store still held mp81 at the arrangement he left it
+        // in, but the engine puts a platform back at `startY` when its cavern is
+        // entered through a door — so the graph the search drew over that reading
+        // promised a passage that was no longer there, and the search ran out of
+        // budget before it could notice. A hard refresh emptied the store and the
+        // journey came back; a restore now does the same.
+        const [col, row] = store.get(24)!.platforms.places.entries().next().value as [number, number];
+        store.setPlatformPlaces(24, new Map([[col, row - 3]]));
+        try {
+            store.reset();
+            const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
+            expect(r, 'the journey, from a store that has just forgotten the ride').not.toBeNull();
+            expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 25, 24, 23, 25]);
+        } finally {
+            store.reset();
+        }
+    }, 60_000);
 });
 
 describe('a few more real journeys', () => {

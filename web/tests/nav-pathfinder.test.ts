@@ -137,6 +137,27 @@ describe('NavGraphStore', () => {
         store.clear();
         expect(store.size).toBe(0);
     });
+
+    it('forgets where the platforms stood, but not what the map says', () => {
+        const store = makeStore();
+        const resting = new Map(store.get(24)!.platforms.places);
+        const [col, row] = resting.entries().next().value!;
+
+        // The hero rides one platform. The store only ever reads the live rows, so
+        // while he is in another cavern this reading stays exactly as he left it —
+        // and the engine will put the platform back at `startY` the moment he next
+        // enters through a door.
+        store.setPlatformPlaces(24, new Map([[col, row - 3]]));
+        expect(store.get(24)!.platforms.places.get(col)).toBe(row - 3);
+
+        store.reset();
+
+        // A new graph, over the resting arrangement again.
+        expect(store.peek(24)).toBeNull();
+        expect(store.get(24)!.platforms.places.get(col)).toBe(row);
+        // The decoded bytes are map data, and a restore does not change the map.
+        expect(store.gridOf(24)).not.toBeNull();
+    });
 });
 
 describe('fetching a cavern the game has not downloaded', () => {

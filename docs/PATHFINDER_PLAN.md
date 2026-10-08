@@ -408,7 +408,7 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1007` tests passing.
+- `1009` tests passing.
 - `5` tests failing.
 
 ## 12. Known remaining issues
@@ -484,6 +484,23 @@ The same journey is now 14,824 expansions, and `nav-route-cases` pins all three 
 phases: the whole trip, the re-plan from the mp81 arrival, and the walk back out once
 the key is held.
 
+Walking it and then restoring a save broke it again, in a way that had nothing to do
+with the graph. A platform reading is engine state, and it is read for whichever
+cavern the hero is standing in — so the store held every *other* cavern at whatever
+arrangement he last left it in, mid-ride included. A platform snaps back to `startY`
+when its cavern is entered through a door, so that reading was not the one he would
+find, and the graph drawn over it promised a passage the engine had already closed
+up: displacing mp81's platform at column 24 turned a 2.3-second search into one that
+had not finished in two minutes. A hard refresh emptied the store and the journey
+came back; a restore did not, because nothing on the restore path touched it.
+`NavGraphStore.reset()` now drops the graphs and every platform reading while keeping
+the map data, `performGameRestore` calls it (along with the floor-set and the
+cavern-change latch `syncPlatformPlaces` works from), and `syncPlatformPlaces` calls
+it on every change of cavern — which is the actual invariant: a reading is true only
+for as long as the hero stays in that cavern. `clearActiveRoute` also clears the
+guide's route now, not just the overlay; it was leaving a route live underneath the
+chevrons it had just wiped.
+
 ## 13. Working rules for future changes
 
 1. **Model the engine, not an intuitive physics model.**
@@ -508,6 +525,10 @@ the key is held.
 14. A pickup the journey depends on is a waypoint, not a state dimension to flood
     through. When `collectKeys` is set and the one-shot search fails, ask for the
     shape of the journey and then split it at the key — see section 12.
+15. Anything the graph is built from that is a reading of live engine memory must be
+    dropped when the world under it is replaced. A restore is one; a change of cavern
+    is another, because a platform only stays where the hero left it until the engine
+    puts it back. Map data is the exception and survives everything.
 
 ## 14. Useful invariants
 

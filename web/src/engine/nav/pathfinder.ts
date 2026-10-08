@@ -169,7 +169,13 @@ export class NavGraphStore {
     private readonly failed = new Set<number>();
     /** Bytes obtained from the fetcher, kept so `get` can see them. */
     private readonly fetched = new Map<number, Uint8Array>();
-    /** Where each cavern's platforms stand, by left column. */
+    /**
+     * Where each cavern's platforms stand, by left column.
+     *
+     * A reading of engine memory, not of map data, and it is read for whichever
+     * cavern the hero is standing in — so it holds every other cavern at whatever
+     * arrangement he last left it in, mid-ride included. See {@link reset}.
+     */
     private readonly places = new Map<number, PlatformPlaces>();
 
     constructor(
@@ -321,6 +327,35 @@ export class NavGraphStore {
         this.grids.clear();
         this.fetched.clear();
         this.failed.clear();
+        this.places.clear();
+    }
+
+    /**
+     * Forget every reading taken out of live engine memory.
+     *
+     * A graph is built from map data *and* from where the platforms stood when it
+     * was asked for, and only the second half is a reading of the machine. It is
+     * also a reading of the *current* cavern and of nothing else: `syncPlatformPlaces`
+     * runs inside the dungeon frame, so while the hero is in one cavern the store
+     * holds every other one at whatever arrangement he left it in — mid-ride
+     * included, a lift part-way up its travel rather than at `startY`.
+     *
+     * That is stale the moment the world is replaced. A platform snaps back to
+     * `startY` when its cavern is entered through a door, so the arrangement the
+     * store remembers is not the one the hero will find, and a graph drawn over it
+     * promises a passage that is not there: the search walks into that cavern and
+     * floods its budget on a route nobody can walk. Restoring a save is exactly that
+     * — every cavern is about to be entered afresh — and so is any other tear-down
+     * that does not go through the dungeon frame.
+     *
+     * Map *data* is left alone. MDT bytes and the decode failures they caused are
+     * as true after a restore as before it, and dropping them would only cost a
+     * re-download.
+     */
+    reset(): void {
+        this.graphs.clear();
+        this.grids.clear();
+        this.places.clear();
     }
 
     /** True when a map's data could not be decoded. */

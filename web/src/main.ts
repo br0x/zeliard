@@ -471,6 +471,11 @@ function syncPathOverlayVisibility(): void {
 
 /** Clears a route the player no longer wants. */
 function clearActiveRoute(): void {
+    // The guide has to be told too, not only the overlay. It holds the route and
+    // re-plans it as the hero walks, so clearing just the chevrons left a route
+    // still live underneath — invisible, and re-spending the search on a journey
+    // nobody is following any more.
+    pathGuide?.clear();
     clearPathOverlay();
     syncPathOverlayVisibility();
 }
@@ -664,6 +669,12 @@ function acceptMapDestination(route: NavRoute, plan: NavRoutePlan = {}): void {
 let pathGuide: PathGuide | null = null;
 
 /**
+ * The cavern {@link syncPlatformPlaces} last reported, so a change of cavern is
+ * noticed. -1 for "none yet", which is the state a restore puts it back in.
+ */
+let lastPlatformMapId = -1;
+
+/**
  * Keep the navigation model told where the platforms are.
  *
  * A vertical or collapsing platform is three solid tiles the hero drives up and down,
@@ -675,13 +686,23 @@ let pathGuide: PathGuide | null = null;
  * Reading the live rows is two short lists of three-byte entries, and the store does
  * nothing with them unless a row actually changed — in which case it drops the
  * cavern's graph, and the next search builds it over the new arrangement.
+ *
+ * A reading is also only true for as long as the hero stays in that cavern: the
+ * moment he is somewhere else, the rows in memory belong to the cavern he is in, and
+ * the one he left will be put back at `startY` when he next comes through a door.
+ * So a change of cavern empties every reading the store holds. Leaving one behind
+ * mid-ride is how a later route through it walked into a passage the engine had
+ * already closed up and spent its whole budget not finding the other side.
  */
 function syncPlatformPlaces(): void {
     const g = getGmem();
-    navGraphStore().setPlatformPlaces(
-        memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f,
-        readPlatformPlaces(g),
-    );
+    const mapId = memRead8(g, ADDR_PLACE_MAP_ID) & 0x7f;
+    const store = navGraphStore();
+    if (mapId !== lastPlatformMapId) {
+        lastPlatformMapId = mapId;
+        store.reset();
+    }
+    store.setPlatformPlaces(mapId, readPlatformPlaces(g));
 }
 
 function navPathGuide(): PathGuide {
@@ -2169,6 +2190,20 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
     // reachable through `pathGuide`, and the chevrons left on screen after F7 came
     // from exactly this.
     clearActiveRoute();
+
+    // The rest of the pathfinder's state is a reading of the world the save is
+    // about to replace, and none of it is in the save. `keysOnFloor` and
+    // `shoesOnFloor` describe the cavern the engine has loaded, and
+    // `navGraphStore` holds every other cavern's platforms at the arrangement the
+    // hero last left them in — mid-ride included. A platform snaps back to its
+    // `startY` when its cavern is entered through a door, so the store's answer is
+    // not the one he will find, and a route planned over it walks into a passage
+    // that is no longer there and runs out of budget before it notices. A hard
+    // refresh clears all of it; so does this.
+    keysOnFloor = new Set();
+    shoesOnFloor = new Set();
+    lastPlatformMapId = -1;
+    navStore?.reset();
 
     // Abort any indoor scene or conversation
     if (indoorActiveScene) {
