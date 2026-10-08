@@ -515,30 +515,49 @@ export class PathGuide {
         // line that lags a step behind beats a frame that drops.
         if (this.deps.isIdle && !this.deps.isIdle()) return;
 
-        const next = findRoute({
-            store: this.deps.store,
-            caps: planCaps,
-            start: { mapId: hero.mapId, col: hero.col, row: hero.row },
-            goal: this.goal,
-            // The same assumptions the map screen planned under: a route that fetches a
-            // key or a pair still has to fetch it, and a door that stood open when the
-            // thread was spent still stands open. Without them this search asks a
-            // stricter question than the one that produced the route, finds nothing,
-            // and clears the thread on the first frame.
-            ...this.plan,
-            // A route set without a plan still gets the live door state, if there is
-            // one, so a door that has been opened is never priced as locked.
-            ...this.doorState(),
-        });
+        // What the world looks like to *this* route right now, captured before the
+        // search runs. It is recorded on every attempt below, successful or not, and
+        // that is the whole of the fix for the freeze the player hit on mp81: a
+        // platform move returns true from `needsReplan` ahead of every interval, so
+        // an attempt that left the signature stale re-fired on the very next frame —
+        // one synchronous `findRoute` after another for as long as he stood still.
+        const askedFor = this.platformVersion();
         this.lastPlanAt = now;
+        let next: NavRoute | null;
+        try {
+            next = findRoute({
+                store: this.deps.store,
+                caps: planCaps,
+                start: { mapId: hero.mapId, col: hero.col, row: hero.row },
+                goal: this.goal,
+                // The same assumptions the map screen planned under: a route that fetches a
+                // key or a pair still has to fetch it, and a door that stood open when the
+                // thread was spent still stands open. Without them this search asks a
+                // stricter question than the one that produced the route, finds nothing,
+                // and clears the thread on the first frame.
+                ...this.plan,
+                // A route set without a plan still gets the live door state, if there is
+                // one, so a door that has been opened is never priced as locked.
+                ...this.doorState(),
+            });
+        } catch (err) {
+            // The question was asked. Throwing out of it must not make the guide ask
+            // it again on the next frame — `update` logs the throw from up there.
+            this.recordAsk(askedFor, planCaps);
+            throw err;
+        }
         if (!next) {
             console.warn(`[path] replan failed from map${hero.mapId} (${hero.col},${hero.row})`
                 + ` to map${this.goal.mapId} (${this.goal.col},${this.goal.row}); keeping old route`);
+            this.recordAsk(askedFor, planCaps);
             return;
         }
         this.route = next;
-        this.recordPlan(planCaps);
+        // Re-read rather than reusing `askedFor`: the new route may touch maps the old
+        // one did not, and the signature is a property of the route it is stored
+        // against.
         this.lastPlatformVersion = this.platformVersion();
+        this.recordPlan(planCaps);
         // The flight models were built for the arrangement that route was planned
         // against, so a hop replayed through one of them now draws an arc the hero no
         // longer flies. Drop them and let the next hop rebuild.
@@ -633,6 +652,21 @@ export class PathGuide {
         this.plannedMask = caps.mask;
         this.plannedKeys = caps.keys;
         this.plannedLionKeys = caps.lionKeys;
+    }
+
+    /**
+     * Remember that a search *was made* against this world — whether it answered or not.
+     *
+     * Both halves matter. `lastPlatformVersion` is checked ahead of every interval, so
+     * an attempt that left it stale fired `needsReplan` on the very next frame and the
+     * frames after that: one synchronous `findRoute` after another while the hero
+     * stood still on mp81, which is the freeze the player hit. And `recordPlan` is what
+     * stops the same doomed question being asked again half a second later, which is
+     * the slower version of the same loop.
+     */
+    private recordAsk(platforms: string, caps: HeroCapabilities): void {
+        this.lastPlatformVersion = platforms;
+        this.recordPlan(caps);
     }
 
     /**

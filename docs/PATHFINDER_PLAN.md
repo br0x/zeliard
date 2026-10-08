@@ -408,7 +408,7 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `984` tests passing.
+- `1007` tests passing.
 - `5` tests failing.
 
 ## 12. Known remaining issues
@@ -435,12 +435,54 @@ Affected tests/routes are documented by their test names rather than by reproduc
 entire debugging history:
 
 - `map-screen:482` — mp80 `(111,21)` → mp81 `(124,6)`, bare capabilities.
-- `nav-route-cases:220` — same route.
-- `nav-route-cases:172` — mp81 jump into an up current.
-- `path-overlay:425` — lift rendering/replay.
-- `path-overlay:507` — replay of the recorded trip.
+- `nav-route-cases:362` — same route.
+- `nav-graph:170` — ride-slot census: 5,969 slots where the table expects 5,684, from
+  the crouched slots added under low ceilings.
+- `nav-graph:501` — 415 jump edges the model does not offer, all of them launched from
+  a crouched slot.
+- `nav-platform-state` — the first `setPlatformPlaces` report is no longer news when it
+  agrees with `startY`.
 
 These are the next investigation targets.
+
+Two of the original five have since been closed, both by the same change, and the story
+is worth keeping because the design section above had it right while the code did not:
+
+- `nav-route-cases:172` — the mp81 jump into an up current.
+- `path-overlay:425` and `path-overlay:507` — lift rendering and the recorded trip.
+
+Horizontal ride edges were built from per-cell adjacency alone, which by construction
+never joins two cells in different rows. A horizontal platform's slots are per *riding
+offset*, and where the ceiling is under three tiles the hero crouches and his head row
+drops one — so the standing slots at row 56 and the crouched ones at row 57 of the same
+platform were two islands, and any walk that needed both had no route. The graph now
+also links each horizontal slot to `slot.next` / `slot.prev`, which is the platform's
+own movement chain at a fixed offset, and skips the pairs cell adjacency already
+covers. That is what rule "ride links follow platform movement/offset chains rather
+than simple spatial adjacency" meant, and it is what makes mp82 `(179,53)` →
+`(157,54)` findable.
+
+A journey that has to fetch a key and then come back and use it is the other half of
+the mp80/81/82 story, and it is not a graph problem at all. mp82 `(27,19)` is the
+landing of the door back into mp80, and the only other way into that region is the
+ordinary-key door at mp80 `(57,15)` — whose key is on mp82, past the mp81 passage.
+Every leg of the trip is found in a few thousand expansions. One search that has to
+hold all three is not: the state dimension that records a pickup means the search
+settles every state reachable while still holding no key before it ever sees one, and
+that covers the whole of every cavern on the level — 7.6 million expansions against a
+400,000 budget. The screen answered "this journey needs one key" while the player
+stood on the route that fetches it, and once he had walked out to mp81 the guide's
+re-plan turned round and sent him back through the door he had just left.
+
+`findRoute` now splits it when `collectKeys` is set and the one-shot search fails: ask
+for the shape of the journey under `unlimitedKeys` (cheap, no key dimension), take
+`lockedDoors` as the demand, then try each key of a needed kind as a *waypoint* — walk
+to it, then walk on from it with the key already in the pocket — and splice the two
+halves into one route. When he already carries what the journey costs, the demand is
+met and the retry simply drops the pickup dimension, which is the part that floods.
+The same journey is now 14,824 expansions, and `nav-route-cases` pins all three of its
+phases: the whole trip, the re-plan from the mp81 arrival, and the walk back out once
+the key is held.
 
 ## 13. Working rules for future changes
 
@@ -455,9 +497,17 @@ These are the next investigation targets.
 8. Boss arenas are passages only after their post-boss exit is active.
 9. A mid-flight position is not a navigation node and must not trigger route invalidation.
 10. A failed replan does not automatically mean the route became invalid.
-11. Validate questionable behavior against the engine's real frame loop or a player
+11. A search that was *asked for* is recorded either way. `PathGuide` re-plans ahead of
+    every waiting interval when a platform moves, so an attempt that left the platform
+    signature stale re-fired on the next frame — one synchronous `findRoute` after
+    another while the hero stood still. Record the signature and the plan before
+    returning on failure or throwing.
+12. Validate questionable behavior against the engine's real frame loop or a player
     recording.
-12. Keep generated navigation data reproducible with `nav:check`.
+13. Keep generated navigation data reproducible with `nav:check`.
+14. A pickup the journey depends on is a waypoint, not a state dimension to flood
+    through. When `collectKeys` is set and the one-shot search fails, ask for the
+    shape of the journey and then split it at the key — see section 12.
 
 ## 14. Useful invariants
 
@@ -485,4 +535,6 @@ These are the highest-value sanity checks when changing the pathfinder:
 - crouching is required to ride horizontal platforms beneath low ceilings
 - crouched ride slots use platformRow - 2 rather than platformRow - 3
 - the platform's platformRow must remain separate from the hero's headRow
+- a crouched slot and a standing slot on the same platform are one ride, joined along
+  the platform's `next`/`prev` chain — see section 12
 - the pathfinder's crouch support is still incomplete, because crouch isn't yet modeled as a complete general navigation state.

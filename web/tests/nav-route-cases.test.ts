@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import { NavGraphStore, findRoute, type NavHop, type NavRoute } from '../src/engine/nav/pathfinder.js';
+import { NavGraphStore, findRoute, type NavHop, type NavPoint, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt } from '../src/engine/nav/geometry.js';
@@ -657,6 +657,148 @@ describe('the horizontal platform in mp80', () => {
         });
         expect(leaving, 'nothing can get off a ride slot').toBeGreaterThan(0);
     });
+});
+
+describe('mp82: the walk across the row-59 platforms', () => {
+    // The walk the player named, from (179,53) to (157,54), has four legs: fall onto
+    // the platform at row 59, ride it left, jump across to the neighbouring platform
+    // under him, and jump from that one into the destination. Three of the four were
+    // fine. The ride was not: there was no route at all.
+    //
+    // The platform's ceiling is under three tiles over columns 171-173, so the hero
+    // has to crouch for that stretch. `platforms.ts` drops his head row one and gives
+    // him a slot of his own at row 57 — and the graph linked horizontal ride slots by
+    // per-cell adjacency alone, which by construction never joins two cells in
+    // different rows. Standing slots at row 56 and crouched ones at row 57 were two
+    // islands, and the walk that needed both had no route.
+    const FROM: [number, number] = [179, 53];
+    const TO: [number, number] = [157, 54];
+
+    it('finds the walk, with a bare hero', () => {
+        const r = route(25, FROM, TO, bareCapabilities());
+        expect(r, 'mp82 (179,53) -> (157,54)').not.toBeNull();
+        expect(r!.maps).toEqual([25]);
+        expect(solidCrossings(r!), 'and through no rock').toEqual([]);
+    });
+
+    it('rides the platform left through the crouched stretch', () => {
+        const r = route(25, FROM, TO, bareCapabilities())!;
+        const rides = r!.hops.filter((h) => h.kind === EDGE.RIDE_H);
+        expect(rides.length, 'the ride is what the walk is for').toBeGreaterThan(0);
+        // A ride whose endpoints sit in different rows is the step from a standing
+        // slot onto a crouched one. Without that step the platform's left half is
+        // unreachable and the walk cannot be planned at all.
+        expect(rides.some((h) => h.from.row !== h.to.row),
+            'the ride never crosses between the standing and the crouched rows').toBe(true);
+        // Leftwards: the destination is west of the fall.
+        expect(rides.every((h) => h.to.col < h.from.col), 'and every ride step goes left').toBe(true);
+    });
+
+    it('gets off it by jumping to the neighbouring platform, then to the goal', () => {
+        const r = route(25, FROM, TO, bareCapabilities())!;
+        const kinds = r!.hops.map((h) => h.kind);
+        const firstRide = kinds.indexOf(EDGE.RIDE_H);
+        expect(firstRide, 'the ride is the point of the walk').toBeGreaterThan(0);
+        expect(kinds.slice(0, firstRide), 'he walks off the ledge and falls onto it')
+            .toEqual([EDGE.WALK, EDGE.WALK, EDGE.FALL]);
+        expect(kinds).toContain(EDGE.JUMP);
+        expect(kinds.every((k) => k === EDGE.FALL || k === EDGE.RIDE_H || k === EDGE.JUMP
+            || k === EDGE.WALK), `unexpected hop kinds: ${kinds}`).toBe(true);
+        const last = r!.hops[r!.hops.length - 1]!;
+        expect([last.to.col, last.to.row]).toEqual(TO);
+    });
+
+    it('links the crouched slots to the standing ones along the platform', () => {
+        // The walk above is the symptom; this is the cause. A horizontal slot's
+        // `next`/`prev` chain is the platform's own movement, one column per tick at
+        // a fixed riding offset, and the graph has to follow it wherever the head row
+        // happens to be.
+        const g = store.get(25)!;
+        const ride = (col: number, row: number): number =>
+            g.nodes.findIndex((n) => n.kind === 2 && n.col === col && n.row === row);
+        const standing = ride(174, 56);
+        const crouched = ride(173, 57);
+        expect(standing, 'no standing slot at (174,56)').toBeGreaterThanOrEqual(0);
+        expect(crouched, 'no crouched slot at (173,57)').toBeGreaterThanOrEqual(0);
+        const linked = (from: number, to: number): boolean => {
+            for (let e = g.edgeOffsets[from]!; e < g.edgeOffsets[from + 1]!; e++) {
+                if (g.edges[e]!.to === to && g.edges[e]!.kind === EDGE.RIDE_H) return true;
+            }
+            return false;
+        };
+        expect(linked(standing, crouched), '(174,56) does not ride onto (173,57)').toBe(true);
+        expect(linked(crouched, standing), 'and not back the other way either').toBe(true);
+    });
+});
+
+describe('a journey that has to fetch a key and come back for the door', () => {
+    // mp82 (27,19) is the landing of the door back into mp80, and the only other way
+    // into that region is the ordinary-key door at mp80 (57,15). The key for it is
+    // on mp82 — on the far side of the map, behind the mp81 passage. So the journey
+    // the player described is out to mp81, into mp82, across to the key, back out
+    // through the same door, home to mp80, and through the locked door at last.
+    //
+    // One search cannot hold it. The state dimension that records a pickup means the
+    // search settles every state reachable while *still holding no key* before it
+    // ever sees one, and that covers the whole of every cavern on the level: 7.6
+    // million expansions against a 400,000 budget, so the screen answered "this
+    // journey needs one key" while the player stood on the route that fetches it.
+    // `findRoute` now splits it — the shape of the journey under `unlimitedKeys`,
+    // then the key as a waypoint, then on from the key with it already held — and
+    // both halves are a few thousand expansions.
+    const START: NavPoint = { mapId: 23, col: 111, row: 21 };
+    const GOAL: NavPoint = { mapId: 25, col: 27, row: 19 };
+    /** Where the mp81 door at (250,38) puts him. */
+    const ARRIVAL: NavPoint = { mapId: 25, col: 88, row: 35 };
+    /** The key at mp82 (26,48) sits one row above the ground node that holds it. */
+    const KEY: NavPoint = { mapId: 25, col: 26, row: 47 };
+    const PLAN = { collectKeys: true, planAccessories: true } as const;
+
+    /** Index of the first hop that leaves `mapId`, or -1. */
+    const leaves = (r: NavRoute, mapId: number): number =>
+        r.hops.findIndex((h) => h.kind === EDGE.DOOR && h.from.mapId === mapId);
+
+    it('plans the whole trip, out to the key and back through the door', () => {
+        const t0 = Date.now();
+        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
+        expect(r, 'mp80 (111,21) -> mp82 (27,19), bare, fetching the key').not.toBeNull();
+        expect(r!.keysGained.ordinary, 'the route fetches the ordinary key').toBe(1);
+        expect(r!.keysSpent.ordinary, 'and spends it on the locked door').toBe(1);
+        expect(r!.maps, 'out through mp81 and home through mp80').toEqual([23, 24, 25, 24, 23, 25]);
+        // The key is fetched before the door is paid for, which is the whole point.
+        const keyIndex = r!.points.findIndex(
+            (p) => p.mapId === KEY.mapId && p.col === KEY.col && p.row === KEY.row);
+        expect(keyIndex, 'the key is on the route').toBeGreaterThanOrEqual(0);
+        const paidAt = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
+            && h.from.mapId === 23 && h.from.col === 57 && h.from.row === 16);
+        expect(paidAt, 'and the locked door is used after it, not before').toBeGreaterThan(keyIndex);
+        expect(Date.now() - t0, 'and without the 7.6-million-expansion search').toBeLessThan(10_000);
+    }, 30_000);
+
+    it('keeps leading to the key after he crosses into mp82', () => {
+        // This is the bug the player hit: he walked the route, crossed at mp81
+        // (250,39), and the thread turned round and sent him back through the door he
+        // had just come out of. The re-plan from the arrival has to still go and get
+        // the key — it is on the far side of the map and the door is right behind him.
+        const r = findRoute({ store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN });
+        expect(r, 're-planned from mp82 (88,35)').not.toBeNull();
+        const keyIndex = r!.points.findIndex(
+            (p) => p.mapId === KEY.mapId && p.col === KEY.col && p.row === KEY.row);
+        expect(keyIndex, 'the key is still the next thing to fetch').toBeGreaterThanOrEqual(0);
+        const outAgain = leaves(r!, 25);
+        expect(outAgain, 'he leaves mp82 only after fetching it').toBeGreaterThan(keyIndex);
+        expect(r!.maps, 'and comes back to it through the locked door').toEqual([25, 24, 23, 25]);
+    }, 30_000);
+
+    it('once the key is in his pocket, leads back through the door instead', () => {
+        const r = findRoute({
+            store, caps: { ...bareCapabilities(), keys: 1 }, start: KEY, goal: GOAL, ...PLAN,
+        });
+        expect(r, 'from the key with it held').not.toBeNull();
+        expect(r!.keysGained, 'nothing left to fetch').toEqual({ ordinary: 0, lion: 0 });
+        expect(r!.maps, 'straight back out and through the locked door').toEqual([25, 24, 23, 25]);
+        expect(solidCrossings(r!), 'and through no rock').toEqual([]);
+    }, 30_000);
 });
 
 describe('a few more real journeys', () => {

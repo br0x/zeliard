@@ -999,6 +999,30 @@ export function buildNavGraph(
             const up = slot.kind === PLATFORM_VERTICAL && slot.prev >= 0 ? rideOf[slot.prev]! : -1;
             add(index, down, EDGE.RIDE_V, EDGE_COST.RIDE_V);
             add(index, up, EDGE.RIDE_V, EDGE_COST.RIDE_V);
+        } else {
+            // Along the platform's own movement chain as well as by cell adjacency.
+            //
+            // A horizontal platform carries its rider one column per tick at a *fixed*
+            // riding offset, and that is what `slot.next`/`slot.prev` trace: the same
+            // offset, the next column over. Per-cell adjacency cannot follow it when
+            // the head row changes, and it does change — where the ceiling is under
+            // three tiles the hero has to crouch, his head row drops one, and two
+            // cells in different rows are never neighbours of the adjacency map. The
+            // result was a ride that fell into islands: mp82's platform at row 59 had
+            // its standing slots at row 56 and its crouched ones at row 57, so the
+            // walk from (179,53) to (157,54) had no route at all.
+            for (const neighbour of [slot.next, slot.prev]) {
+                if (neighbour < 0) continue;
+                const to = rideOf[neighbour]!;
+                if (to < 0) continue;
+                // The pair is already linked when both slots sit in neighbouring cells
+                // of the same row; only the cross-row step is new.
+                const other = platforms.slots[neighbour]!;
+                if (other.headRow === slot.headRow
+                    && Math.min(Math.abs(other.leftCol - slot.leftCol),
+                        mapWidth - Math.abs(other.leftCol - slot.leftCol)) === 1) continue;
+                add(index, to, EDGE.RIDE_H, EDGE_COST.RIDE_H_SLOW);
+            }
         }
         // Leave the platform: sideways onto ground at his own height, or upward.
         for (const dir of [1, -1] as const) {

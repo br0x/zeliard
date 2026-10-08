@@ -23,7 +23,7 @@
  * Both are carried now: the screen hands the guide the plan that produced the route
  * (`NavRoutePlan`), and the guide replays it.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -168,5 +168,43 @@ describe('the guide and the map screen must agree about doors', () => {
         guide.setRoute(route, { mapId: GOAL.mapId, col: GOAL.col, row: GOAL.row });
         guide.update(1_000_000);
         expect(guide.hasRoute, 'the fallback keeps it').toBe(true);
+    });
+});
+
+describe('a re-plan that finds nothing does not become a loop', () => {
+    // The guide searches again the moment a platform moves, ahead of every waiting
+    // interval — rightly, since the row a platform offers as a landing has changed
+    // under the route. What it did not do was record that it had *asked* when the
+    // answer was nothing: the platform signature was only written after a successful
+    // search, so it stayed stale, `needsReplan` kept answering true, and the guide
+    // ran one synchronous `findRoute` after another for as long as the hero stood
+    // still. That is the freeze the player hit on mp81 after driving its platform up.
+    it('asks again only when the world changes, not on every frame', { timeout: 120_000 }, () => {
+        const store = realStore();
+        const caps = bareCapabilities();
+        const route = findRoute({ store, caps, collectKeys: true, start: START, goal: GOAL })!;
+        expect(route, 'the screen answers at the keys rung').not.toBeNull();
+
+        const warns: string[] = [];
+        const spy = vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+            warns.push(args.map(String).join(' '));
+        });
+        const guide = new PathGuide({
+            store,
+            heroPosition: () => ({ ...START }),
+            capabilities: () => caps,
+        });
+        // Set without the plan that found the route, so every re-plan asks the
+        // stricter question and finds nothing.
+        guide.setRoute(route, { mapId: GOAL.mapId, col: GOAL.col, row: GOAL.row });
+
+        // A platform on the route moves, and he stands there watching it.
+        store.setPlatformPlaces(0, new Map([[0, 1]]));
+        for (let t = 1; t <= 200; t++) guide.update(1_000_000 + t);
+
+        expect(warns.length, `one search, not one per frame:\n${warns.slice(0, 5).join('\n')}`)
+            .toBe(1);
+        expect(guide.hasRoute, 'the old route is kept throughout').toBe(true);
+        spy.mockRestore();
     });
 });

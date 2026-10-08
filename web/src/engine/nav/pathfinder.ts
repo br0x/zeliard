@@ -674,6 +674,162 @@ function permitted(
 
 /** Find a route, or null when the goal is unreachable with what the hero has. */
 export function findRoute(options: FindRouteOptions): NavRoute | null {
+    const route = search(options);
+    if (route || !options.collectKeys) return route;
+    return searchViaKey(options);
+}
+
+/**
+ * A journey that has to fetch a key and then *come back and use it* does not fit
+ * in one frontier.
+ *
+ * The state dimension that holds keys is what makes a pickup visible to the rest of
+ * the journey, and it is also what makes this pair unfindable in practice. The
+ * search settles every state it can reach while still holding no key before it ever
+ * sees one — and "still holding no key" covers the whole of every cavern on the
+ * level, because nothing about the goal tells it which of them is worth leaving
+ * alone. mp80 `(111,21)` to mp82 `(27,19)` is the case: the goal sits in the region
+ * behind the locked door at mp80 `(57,15)`, the key for it is on mp82, and every
+ * leg of the trip — to the door, to the key, back from the key to the door — is
+ * found in a few thousand expansions. The one search that has to hold all three
+ * settles 7.6 million states and still times out, so the player is told the
+ * journey needs a key while standing on top of the route that fetches it.
+ *
+ * So split it. The shape of the journey is asked for first, under `unlimitedKeys`
+ * where keys are free and the state space has no key dimension at all — that
+ * answers in a few thousand expansions and says which keys the trip needs. Then
+ * each key of a needed kind is tried as a *waypoint*: walk to it, then walk on from
+ * it with the key already in the pocket. Both halves are ordinary searches and both
+ * are cheap, because neither has to hold "has the key" and "has not" at once.
+ *
+ * The result is one route, points and all, so the player is shown the journey it
+ * actually is — out to the key, then on to the door — rather than two legs.
+ * `PathGuide` replans it as he walks, and once the key really is in his pocket the
+ * ordinary search finds the rest on its own.
+ */
+function searchViaKey(options: FindRouteOptions): NavRoute | null {
+    const { store, caps, start } = options;
+    const maps = [...(options.maps ?? NAV_REACHABLE[start.mapId] ?? [start.mapId])];
+
+    // Dropped so the cheap questions below cannot ask about a pickup: they are told
+    // every key in the game is there, and counting the ones that are not would rank
+    // a key the player has already taken above one he has not.
+    const { keyPresent: _keyPresent, ...plain } = options;
+
+    // What the journey is, and which keys it needs. `unlimitedKeys` seeds the
+    // counters and pays for nothing, so `lockedDoors` is the demand and the key
+    // dimension never branches: this is the cheap question.
+    const shape = search({ ...plain, collectKeys: false, unlimitedKeys: true });
+    if (!shape) return null;
+    const needOrdinary = shape.lockedDoors.ordinary;
+    const needLion = shape.lockedDoors.lion;
+    if (needOrdinary + needLion === 0) return null;
+
+    // He already carries what the journey costs. Then nothing is missing and the
+    // one-shot search failed on its own budget rather than on a key — so ask again
+    // with the pickup dimension taken off, which is the part that floods: settling
+    // every state he could reach while holding *one fewer* key than he holds now.
+    if (caps.keys >= needOrdinary && caps.lionKeys >= needLion) {
+        const { collectKeys: _collectKeys, ...held } = plain;
+        return search(held);
+    }
+
+    // Every key of a needed kind the hero could still pick up, scored by how far
+    // out of the way it is. The score search is the same cheap one as the shape: no
+    // key dimension, so it cannot blow up on the way to asking.
+    const candidates: { point: NavPoint; lion: boolean; score: number }[] = [];
+    for (const mapId of maps) {
+        const graph = store.get(mapId);
+        if (!graph) continue;
+        for (let node = 0; node < graph.nodes.length; node++) {
+            const kind = graph.keyKindAt[node]!;
+            if (kind !== KEY_LION && kind !== KEY_ORDINARY) continue;
+            if (kind === KEY_LION ? needLion === 0 : needOrdinary === 0) continue;
+            const cell = graph.keyCellAt[node]!;
+            if (cell < 0) continue;
+            const col = cell % graph.mapWidth;
+            const row = (cell / graph.mapWidth) | 0;
+            // Asked about the key's *record*, not its node, the same way the pickup
+            // itself is: the two differ on every key in the game.
+            if (options.keyPresent && !options.keyPresent(mapId, col, row, kind === KEY_LION ? 1 : 0)) {
+                continue;
+            }
+            const node2 = graph.nodes[node]!;
+            const point: NavPoint = { mapId, col: node2.col, row: node2.row, node };
+            const scored = search({ ...plain, collectKeys: false, unlimitedKeys: true, goal: point });
+            if (!scored) continue;
+            candidates.push({ point, lion: kind === KEY_LION, score: scored.cost });
+        }
+    }
+    candidates.sort((a, b) => a.score - b.score);
+
+    let best: NavRoute | null = null;
+    // A handful is enough: the nearest key of each kind is the one a player would
+    // take, and trying every key on sixteen caverns would cost more than the search
+    // this is replacing.
+    for (const candidate of candidates.slice(0, 6)) {
+        const out = search({ ...options, goal: candidate.point });
+        if (!out) continue;
+        const onwardCaps: HeroCapabilities = {
+            ...caps,
+            keys: Math.min(caps.keys + (candidate.lion ? 0 : 1), HOLD_CAP),
+            lionKeys: Math.min(caps.lionKeys + (candidate.lion ? 1 : 0), HOLD_CAP),
+        };
+        // If this one key settles the whole demand, the rest of the journey has
+        // nothing left to fetch and the pickup dimension is only there to flood:
+        // drop it, the same way the pocket-full case above does.
+        const allOfIt = onwardCaps.keys >= needOrdinary && onwardCaps.lionKeys >= needLion;
+        const on = allOfIt
+            ? search({ ...plain, collectKeys: false, caps: onwardCaps, start: candidate.point })
+            : search({ ...options, caps: onwardCaps, start: candidate.point });
+        if (!on) continue;
+        const joined = concatRoutes(out, on);
+        if (!best || joined.cost < best.cost) best = joined;
+    }
+    return best;
+}
+
+/**
+ * Splice two routes that meet at a node into the one journey they are.
+ *
+ * The second starts where the first ended — the key's own node — so its first point
+ * is dropped and its hops are appended. Everything counted is summed rather than
+ * recomputed: both halves were built by `describeRoute`, which already counted them
+ * from the hops, and the pickup at the join belongs to the first half alone because
+ * the second was searched with the key already in the pocket.
+ */
+function concatRoutes(first: NavRoute, second: NavRoute): NavRoute {
+    const points = [...first.points, ...second.points.slice(1)];
+    const hops = [...first.hops, ...second.hops];
+    const sum = (a: { ordinary: number; lion: number }, b: { ordinary: number; lion: number }) =>
+        ({ ordinary: a.ordinary + b.ordinary, lion: a.lion + b.lion });
+    const maps: number[] = [];
+    for (const p of points) if (maps[maps.length - 1] !== p.mapId) maps.push(p.mapId);
+    const equipment = [...first.equipment];
+    for (const e of second.equipment) {
+        const last = equipment[equipment.length - 1];
+        if (last && last.accessory === e.accessory) continue;
+        equipment.push(e);
+    }
+    return {
+        points,
+        hops,
+        cost: first.cost + second.cost,
+        keysSpent: sum(first.keysSpent, second.keysSpent),
+        keysGained: sum(first.keysGained, second.keysGained),
+        equipment,
+        lockedDoors: sum(first.lockedDoors, second.lockedDoors),
+        maps,
+        crossesAggressiveGround: first.crossesAggressiveGround || second.crossesAggressiveGround,
+        crossesSlopes: first.crossesSlopes || second.crossesSlopes,
+        usesPlatforms: first.usesPlatforms || second.usesPlatforms,
+        usesCurrents: first.usesCurrents || second.usesCurrents,
+        expanded: first.expanded + second.expanded,
+    };
+}
+
+/** One search. {@link findRoute} wraps this and adds the key decomposition. */
+function search(options: FindRouteOptions): NavRoute | null {
     const { store, caps, start, goal } = options;
     const limit = options.maxExpanded ?? DEFAULT_LIMIT;
 
