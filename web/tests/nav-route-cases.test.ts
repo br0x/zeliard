@@ -320,7 +320,7 @@ describe('locked doors and the keys for them', () => {
     const ORDINARY = { from: { mapId: 0, col: 26, row: 16 }, to: { mapId: 1, col: 27, row: 15 } };
     const LION = { from: { mapId: 14, col: 31, row: 6 }, to: { mapId: 16, col: 62, row: 14 } };
 
-    it('needs no key at all for the journey the player reported', () => {
+    it('needs no key at all for the journey the player reported', async () => {
         // mp80 (111,21) -> mp81 (124,6). The generator used to insist on a key for
         // every door in the game, and this journey was refused for three sessions
         // because of it. There is an open way through: 156 hops, no closed doors.
@@ -329,6 +329,36 @@ describe('locked doors and the keys for them', () => {
             start: { mapId: 23, col: 111, row: 21 },
             goal: { mapId: 24, col: 124, row: 6 },
         });
+        if (!r) {
+            // Debug: check the portal that should be used
+            const { PORTALS, NAV_PORTALS_BY_MAP } = await import('../src/data/nav/nav-portals.js');
+            const portals23 = NAV_PORTALS_BY_MAP[23] ?? [];
+            console.log('Portals on map 23:');
+            for (const pi of portals23) {
+                const p = PORTALS[pi];
+                console.log(`  portal ${pi}: from=(${p.fromX},${p.fromY}) to=(${p.toX},${p.toY}) destMap=${p.destMapId} key=${p.key} color=${p.color}`);
+            }
+
+            // Debug: check door edges from door nodes
+            const { nodeAt } = await import('../src/engine/nav/nav-graph.js');
+            const graph23 = store.get(23);
+            if (graph23) {
+                for (const col of [57, 58, 59, 60, 61]) {
+                    const n = nodeAt(graph23, col, 35);
+                    if (n >= 0) {
+                        console.log(`Door node at (${col},35): ${n}`);
+                        const from = graph23.edgeOffsets[n];
+                        const to = graph23.edgeOffsets[n + 1];
+                        for (let i = from; i < to; i++) {
+                            const e = graph23.edges[i];
+                            if (e.kind === 3) { // DOOR
+                                console.log(`  DOOR edge: to=${e.to} cost=${e.cost} req=${e.req} portalIdx=${e.portal}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         expect(r, 'mp80 (111,21) -> mp81 (124,6)').not.toBeNull();
         expect(r!.lockedDoors.ordinary + r!.lockedDoors.lion).toBe(0);
         expect(r!.keysSpent.ordinary + r!.keysSpent.lion).toBe(0);

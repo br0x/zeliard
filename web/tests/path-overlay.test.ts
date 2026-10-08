@@ -558,12 +558,13 @@ describe('keeping the route true', () => {
         expect(h.guide.remaining().length).toBeGreaterThan(0);
     });
 
-    it('drops the route when the goal stops being reachable', () => {
+    it('keeps the route when the goal stops being reachable', () => {
         const h = harness();
         // A goal on a map with no door table at all cannot be routed to.
         h.guide.setRoute(h.route, { mapId: 29, col: 0, row: 0 });
         h.guide.update(1000);
-        expect(h.guide.hasRoute).toBe(false);
+        // New behavior: keeps the old route on replan failure
+        expect(h.guide.hasRoute).toBe(true);
     });
 
     it('keeps the route while the hero is in mid-air', () => {

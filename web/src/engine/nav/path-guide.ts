@@ -564,10 +564,9 @@ export class PathGuide {
     private platformVersion(): string {
         const parts: string[] = [];
         for (const mapId of this.route?.maps ?? []) {
-            const graph = this.deps.store.peek(mapId);
-            const places = graph?.platforms.places ?? this.deps.store.platformPlaces(mapId);
-            const sorted = [...places].sort((a, b) => a[0] - b[0]);
-            for (const [x, y] of sorted) parts.push(`${mapId}:${x}:${y}`);
+            const places = [...this.deps.store.platformPlaces(mapId)]
+                .sort((a, b) => a[0] - b[0]);
+            for (const [x, y] of places) parts.push(`${mapId}:${x}:${y}`);
         }
         return parts.join(',');
     }

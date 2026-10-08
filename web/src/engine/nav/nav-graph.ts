@@ -321,7 +321,8 @@ export function buildNavGraph(
     const platformCells = new Uint8Array(cells);
     for (const slot of platforms.slots) {
         if (slot.kind === PLATFORM_HORIZONTAL) {
-            platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
+            const platformRow = slot.platformRow ?? (slot.headRow + 3);
+            platformCells[platformRow * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
             continue;
         }
         if (!isLandingSlot(slot)) continue;
@@ -956,19 +957,13 @@ export function buildNavGraph(
         // And straight down off the foot of it, with no direction at all.
         addFalls(index, node.col, node.row, -1, STEER_STRAIGHT);
     });
-
-    // Ride slots.
-    //
+    // Horizontal ride edges: per-cell spatial adjacency.
     // A horizontal platform's slots are per riding offset, so three of them can sit
     // in one cell — the offset says which of the platform's three tiles is under
-    // which part of the hero, and every one of them puts his left column in the same
-    // cell. One cell, one place: so the ride is generated per CELL, connecting every
-    // slot in a cell to every slot in the cell beside it. Going through `slot.next`
-    // instead picks one offset's chain per cell and leaves the hero on the platform
-    // but off the chain the graph draws — which is how mp10 (34,56) -> (35,56) was
-    // lost: the hero boarded at the leftmost riding position, stepped east, and the
-    // node the graph holds for (35,56) was the other slot there, whose chain starts a
-    // column further along.
+    // the hero's middle column at his head row. The hero boards at the offset
+    // matching his column, and rides along the platform by maintaining that offset.
+    // Horizontal platforms: link ride slots that share a cell to the slots in the
+    // neighbouring cell. This connects the ride chains across columns.
     const horizontalSlotsByCell = new Map<number, number[]>();
     platforms.slots.forEach((slot, slotIndex) => {
         if (slot.kind !== PLATFORM_HORIZONTAL || rideOf[slotIndex]! < 0) return;
@@ -989,19 +984,17 @@ export function buildNavGraph(
         }
     }
 
+    // Ride slots.
+    //
+    // A horizontal platform's slots are per riding offset, so three of them can sit
+    // in one cell — the offset says which of the platform's three tiles is under
+    // the hero's middle column at his head row. The hero boards at the offset
+    // matching his column, and rides along the platform by maintaining that offset.
+    // Horizontal platforms use spatial adjacency; vertical/collapsing use next=down, prev=up.
     platforms.slots.forEach((slot, slotIndex) => {
         const index = rideOf[slotIndex]!;
-        if (index < 0) return;
-        // A vertical lift carries him either way, because he drives it with Up
-        // and Down (dungeon-vertical.ts:380-467). `chain` links every adjacent
-        // pair both ways, but `next` alone walks the chain in one direction only
-        // — down — so a lift could be ridden down and never up. That is how the
-        // mp31 lift at column 5 lost its route: the hero jumps on at (5,23),
-        // presses Up, and the graph had no edge to (5,22) or anywhere above it.
-        //
-        // A collapsing platform is deliberately *not* linked upwards: it descends
-        // one row per frame and never rises (dungeon-vertical.ts:472-484).
         if (slot.kind !== PLATFORM_HORIZONTAL) {
+            // Vertical/collapsing: next=down, prev=up
             const down = slot.next < 0 ? -1 : rideOf[slot.next]!;
             const up = slot.kind === PLATFORM_VERTICAL && slot.prev >= 0 ? rideOf[slot.prev]! : -1;
             add(index, down, EDGE.RIDE_V, EDGE_COST.RIDE_V);

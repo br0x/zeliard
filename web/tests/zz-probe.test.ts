@@ -41,6 +41,18 @@ describe('probe', () => {
             { mapId: 24, col: 10, row: 53 }, { mapId: 25, col: 179, row: 0 });
         go('map25(10,53)->map25(179,53)',
             { mapId: 25, col: 10, row: 53 }, { mapId: 25, col: 179, row: 53 });
+        // Test the crouching route on mp82
+        const crouch = go('crouch mp82(179,53)->mp82(158,54)',
+            { mapId: 25, col: 179, row: 53 }, { mapId: 25, col: 158, row: 54 });
+        if (crouch) {
+            for (const [i, h] of crouch.hops.entries()) {
+                const p = crouch.points[i];
+                const n = crouch.points[i+1];
+                if (p && n) {
+                    console.log(`  ${p.mapId}(${p.col},${p.row}) -> ${n.mapId}(${n.col},${n.row})  ${h.kind}`);
+                }
+            }
+        }
         expect(true).toBe(true);
     }, 300000);
 

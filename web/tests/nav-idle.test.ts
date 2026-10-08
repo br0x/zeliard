@@ -151,7 +151,8 @@ describe('PathGuide re-planning', () => {
         });
         guide.setRoute(route, { mapId: 1, col: 27, row: 15 });
         guide.update(1000);
-        expect(guide.hasRoute, 'nothing found, so nothing drawn').toBe(false);
+        // New behavior: keeps the old route on replan failure, logs warning
+        expect(guide.hasRoute, 'replan failed but keeps old route').toBe(true);
     });
 
     it('keeps it while the hero is busy, and spends it the moment he stops', () => {
@@ -173,7 +174,8 @@ describe('PathGuide re-planning', () => {
 
         idle = true;
         guide.update(3000);
-        expect(guide.hasRoute, 'now he has stopped, so it searched and found nothing')
-            .toBe(false);
+        // New behavior: keeps the old route on replan failure
+        expect(guide.hasRoute, 'now he has stopped, replan failed but keeps old route')
+            .toBe(true);
     });
 });

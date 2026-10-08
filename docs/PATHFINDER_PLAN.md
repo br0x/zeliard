@@ -3520,18 +3520,46 @@ every route that crosses a shelf, and the fix belongs in `airborne_movement`, no
 **Gates:** `tsc --noEmit` clean; full suite **910/910** across 64 files; the Playwright
 smoke test passes.
 
+### Phase 3, 4 and 7 corrections — crouching on horizontal platforms and platform version tracking
+
+A player reported two bugs after the last round:
+
+1. **Crouching on horizontal platforms under low ceilings.** On mp82, a horizontal platform at row 59 (cols 170–176) has a ceiling at row 56 — the hero must crouch (2 tiles tall) to ride under it. The graph only created ride slots for standing height (3 tiles), so the route `mp82(179,53) → mp82(158,54)` failed.
+
+   The fix adds `crouchingAboard()` in `platforms.ts`: when `standingAboard` fails, it tries one row lower (head at `platformRow - 2` instead of `platformRow - 3`), checking only 2 body rows. The slot stores its `headRow` and the platform's fixed `platformRow` (via new `RideSlot.platformRow`), so the landing cell in `nav-graph.ts` uses `platformRow` regardless of crouching.
+
+2. **Ride direction for moving-left horizontal platforms.** Platform B on mp82 (row 59, cols 170–176) moves left (`movingLeft: true`). The linking code always connected column i → i+1 (left-to-right), but the hero rides in the platform's movement direction. When moving left, edges must go right-to-left (decreasing column).
+
+   The fix in `platforms.ts` links columns in reverse order when `p.movingLeft` is true.
+
+3. **Graph ride edges follow platform chains.** The graph builder used spatial adjacency (same `headRow`, adjacent column) for horizontal `RIDE_H` edges. This broke when crouching slots had a different `headRow` than standing slots. The fix in `nav-graph.ts` uses the platform's `next`/`prev` links (which connect by riding offset across columns) instead of spatial adjacency.
+
+4. **Infinite replan loop on platform version mismatch.** Entering a new map triggered `syncPlatformPlaces`, which read live platform positions before the engine reset them to `startY`. This stored stale positions, changed `platformVersion`, triggered a replan that rebuilt the graph with wrong platform data, then another rebuild when the engine reset them — an infinite CPU loop.
+
+   The fix in `path-guide.ts`: `platformVersion` now uses the graph's stable platform places (`graph.platforms.places`) instead of live places. On replan failure, `lastPlatformVersion` is updated to the current version so the same mismatch does not retry immediately.
+
+5. **Replan failure keeps the old route.** A transient `findRoute` failure (e.g., from a specific start position) would clear the route entirely. The fix logs a warning and keeps the existing route, retrying on the next tick.
+
+**[measured]** route `mp82(179,53) → mp82(158,54)` now resolves: **41 cost, 9 hops**, using crouching ride slots on the left-moving platform at row 59.
+
+**Gates:** `tsc --noEmit` clean; full suite **915/915** across 64 files.
+
 ---
 
 ## 18. Handover — read this first
 
-**State at end of session:** `tsc --noEmit` clean, **877 passing** across 63 files,
+**State at end of session:** `tsc --noEmit` clean, **915 passing** across 64 files,
 nothing skipped. The jump model is derived from the engine and has no deviations
 from it left; the rope family, the fall, the platform and the node rules are
-corrected; the route from the start ledge to `(151,6)` resolves leg for leg as the
-player drew it; and the chevrons the guide draws for it are continuous, survive a
-restore, and are not deleted by a jump. The cavern's own hazard tables are read with
-their terminators, so a hero without shoes can walk the cavern he is standing in, and
-the map screen loads every cavern a route may need before it searches.
+corrected; **crouching on horizontal platforms under low ceilings is supported**;
+**horizontal platform ride direction follows `movingLeft`**; the route from the
+start ledge to `(151,6)` resolves leg for leg as the player drew it; and the
+chevrons the guide draws for it are continuous, survive a restore, and are not
+deleted by a jump. The cavern's own hazard tables are read with their terminators,
+so a hero without shoes can walk the cavern he is standing in, and the map screen
+loads every cavern a route may need before it searches. **Platform version
+tracking uses the graph's stable places, preventing infinite replan loops on map
+entry; a failed replan keeps the old route and retries next tick.**
 
 ### What the model was, and what it is now
 
@@ -3928,6 +3956,27 @@ These were all wrong turns, recorded so they are not walked again:
   the bug it hid was a search that skipped any door whose destination was missing.
   When a dependency is *lazily* available in production, the test double must be lazy
   too, or the test is asserting about a world the player does not live in.
+- **A horizontal platform is a lift, not a floor.** The model offered every column
+  of a horizontal span as a landing target, but the hero cannot stop and wait for one
+  while falling. The fix: only `startX` is a landing target; the full span stays
+  rideable (waiting works for boarding). 181 ride slots lost their only entry.
+- **Ride direction is the platform's velocity, not left-to-right.** A left-moving
+  platform carries the hero from high column to low column. The graph linked i → i+1
+  unconditionally, so a left-moving platform had edges backwards. Link in the
+  platform's movement direction.
+- **Horizontal ride edges follow offset chains, not spatial adjacency.** When the
+  hero crouches under a low ceiling, his `headRow` drops by one but his riding
+  offset stays the same. Spatial adjacency (same `headRow`, adjacent column) broke
+  the chain. Use the platform's `next`/`prev` links (which connect by offset across
+  columns) instead.
+- **A live platform snapshot is not the graph's platform.** `syncPlatformPlaces`
+  reads engine positions that reset to `startY` on map entry. Storing a stale
+  snapshot changed `platformVersion`, triggering an infinite replan loop. Use the
+  graph's stable `platforms.places` for versioning; update `lastPlatformVersion` on
+  replan failure to break the retry cycle.
+- **A failed replan is not "the world changed."** It may be a transient position
+  where `findRoute` returns null. Keep the old route and retry; clear only when the
+  hero is on a node and the world really has changed.
 
 ### Where the code is
 

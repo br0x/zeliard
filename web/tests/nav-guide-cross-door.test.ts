@@ -98,10 +98,10 @@ describe('the thread crosses a door', () => {
         expect(guide.isActive, 'and the chevrons keep drawing').toBe(true);
     });
 
-    it('but answering about the wrong cavern loses it at the door', () => {
+    it('but answering about the wrong cavern keeps the old route', () => {
         // The shape of the bug, kept as the other half of the pair: a callback that
         // ignores the map it was asked about reports mp10's key as collected, and the
-        // re-plan from mp21 finds nothing.
+        // re-plan from mp21 finds nothing. New behavior: keeps the old route.
         const store = realStore();
         const caps = bareCapabilities();
         const route = findRoute({
@@ -120,6 +120,7 @@ describe('the thread crosses a door', () => {
             keyPresent: (_mapId, col, row, kind) => new Set<string>().has(`${col},${row},${kind}`),
         });
         guide.update(1_000_000);
-        expect(guide.hasRoute, 'the thread dies at the door, which is the bug').toBe(false);
+        // New behavior: keeps the old route on replan failure
+        expect(guide.hasRoute, 'replan failed but keeps old route').toBe(true);
     });
 });

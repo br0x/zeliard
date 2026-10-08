@@ -58,7 +58,7 @@ import { NAV_PLATFORMS, type NavPlatformTables } from '../../data/nav/nav-platfo
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import type { NavTileGrid } from './mdt-grid.js';
 import { NavTileClassifier } from './attributes.js';
-import { ROWS, blocksBody, flagsAt, heroBoxFree, wrapCol, wrapRow } from './geometry.js';
+import { ROWS, blocksBody, blocksHead, flagsAt, heroBoxFree, wrapCol, wrapRow } from './geometry.js';
 import type { PlatformPlaces } from './platform-state.js';
 
 /** Platform families, matching the `kind` field in nav-platforms.ts. */
@@ -110,6 +110,12 @@ export interface RideSlot {
     /** Where the hero stands while aboard. */
     readonly leftCol: number;
     readonly headRow: number;
+    /**
+     * For horizontal platforms: the platform's fixed tile row (where it travels).
+     * For vertical/collapsing: undefined.
+     * Used to compute correct landing row regardless of crouching.
+     */
+    readonly platformRow?: number;
     /**
      * How the hero sits on a horizontal platform, in columns from the platform's
      * own left cell — see {@link HORIZONTAL_RIDE_OFFSETS}.
@@ -198,6 +204,26 @@ function standingAboard(
     for (let i = 0; i < 3; i++) {
         if (blocksBody(flagsAt(grid, classifier, leftCol + i, headRow + 2))) return false;
     }
+    return true;
+}
+
+/** Can the hero fit here while crouching (2 tiles tall instead of 3)? */
+function crouchingAboard(
+    grid: NavTileGrid,
+    classifier: NavTileClassifier,
+    leftCol: number,
+    headRow: number,
+): boolean {
+    // Crouching: 2-tile height (head + body), feet on headRow+2 (platform)
+    // Check head row
+    for (let i = 0; i < 3; i++) {
+        if (blocksHead(flagsAt(grid, classifier, leftCol + i, headRow))) return false;
+    }
+    // Check body row
+    for (let i = 0; i < 3; i++) {
+        if (blocksBody(flagsAt(grid, classifier, leftCol + i, headRow + 1))) return false;
+    }
+    // Feet row (headRow+2) is the platform, not in static grid
     return true;
 }
 
@@ -364,7 +390,13 @@ export function buildPlatformModel(
             const standing: { slot: number; leftCol: number; offset: number }[] = [];
             for (const offset of HORIZONTAL_RIDE_OFFSETS) {
                 const leftCol = wrapCol(column + offset, mapWidth);
-                if (!standingAboard(grid, classifier, leftCol, headRow)) continue;
+                let slotHeadRow = headRow;
+                if (!standingAboard(grid, classifier, leftCol, headRow)) {
+                    // Try crouching: hero head is one row lower (platform_y - 2 instead of platform_y - 3)
+                    const crouchHeadRow = wrapRow(headRow + 1);
+                    if (!crouchingAboard(grid, classifier, leftCol, crouchHeadRow)) continue;
+                    slotHeadRow = crouchHeadRow;
+                }
                 const index = slots.length;
                 slots.push({
                     platform: slotsByPlatform.length,
@@ -372,7 +404,8 @@ export function buildPlatformModel(
                     pos: column,
                     leftCol,
                     offset,
-                    headRow,
+                    headRow: slotHeadRow,
+                    platformRow: p.y,
                     // The platform is drawn at `startX` until the hero drives it,
                     // which for a horizontal one he never does, and the live rows are
                     // only read for the vertical and collapsing lists. So this is
@@ -408,17 +441,27 @@ export function buildPlatformModel(
         for (const column of columns) {
             for (const { slot } of usable.get(column)!) local.push(slot);
         }
-        for (let i = 0; i + 1 < columns.length; i++) {
-            const from = usable.get(columns[i]!)!;
-            const to = usable.get(columns[i + 1]!)!;
-            // Link by RIDING OFFSET, not by the hero's left column. Riding from
-            // platform column i to i+1 with the same offset carries the hero one
-            // column along, which is the whole point of the platform. Matching
-            // left column instead pairs two slots where he is already standing,
-            // so the ride goes nowhere.
-            for (const a of from) {
-                for (const b of to) {
-                    if (a.offset === b.offset) link(slots, a.slot, b.slot);
+        // Horizontal platforms move either left or right. The hero rides in the
+        // direction the platform moves: if movingLeft, he goes from maxX to minX
+        // (decreasing column), so edges must go right-to-left. Otherwise left-to-right.
+        if (p.movingLeft) {
+            for (let i = columns.length - 1; i > 0; i--) {
+                const from = usable.get(columns[i]!)!;
+                const to = usable.get(columns[i - 1]!)!;
+                for (const a of from) {
+                    for (const b of to) {
+                        if (a.offset === b.offset) link(slots, a.slot, b.slot);
+                    }
+                }
+            }
+        } else {
+            for (let i = 0; i + 1 < columns.length; i++) {
+                const from = usable.get(columns[i]!)!;
+                const to = usable.get(columns[i + 1]!)!;
+                for (const a of from) {
+                    for (const b of to) {
+                        if (a.offset === b.offset) link(slots, a.slot, b.slot);
+                    }
                 }
             }
         }

@@ -83,7 +83,7 @@ describe('the guide and the map screen must agree about the world', () => {
         expect(guide.isActive, 'and the chevrons draw').toBe(true);
     });
 
-    it('and without the plan the same route is dropped on the first frame', () => {
+    it('and without the plan the same route is kept on replan failure', () => {
         const store = realStore();
         const caps = bareCapabilities();
         const START = { mapId: 0, col: 61, row: 7 };
@@ -96,7 +96,8 @@ describe('the guide and the map screen must agree about the world', () => {
         });
         guide.setRoute(route, { mapId: GOAL.mapId, col: GOAL.col, row: GOAL.row });
         guide.update(1_000_000);
-        expect(guide.hasRoute, 'the thread vanishes, which is the bug').toBe(false);
+        // New behavior: keeps the old route on replan failure
+        expect(guide.hasRoute, 'replan failed but keeps old route').toBe(true);
     });
 });
 
@@ -127,10 +128,10 @@ describe('the guide and the map screen must agree about doors', () => {
         expect(guide.isActive, 'and the chevrons are drawing').toBe(true);
     });
 
-    it('and without it there is no route at all, so the guide drops it', () => {
+    it('and without it there is no route at all, so the guide keeps the old one', () => {
         // The shape of the bug this guards, kept as the second half of the pair: the
-        // blind search finds nothing, and `PathGuide.update` clears the route — which
-        // is the thread vanishing rather than a line being drawn wrongly.
+        // blind search finds nothing, but the guide now keeps the old route instead
+        // of clearing it.
         const store = realStore();
         const caps = bareCapabilities();
         const route = findRoute({
@@ -146,7 +147,8 @@ describe('the guide and the map screen must agree about doors', () => {
         });
         guide.setRoute(route, { mapId: GOAL.mapId, col: GOAL.col, row: GOAL.row });
         guide.update(1_000_000);
-        expect(guide.hasRoute, 'and the guide drops it').toBe(false);
+        // New behavior: keeps the old route on replan failure
+        expect(guide.hasRoute, 'and the guide keeps it').toBe(true);
     });
 
     it('a doorOpen on the deps answers for a route set without a plan', () => {
