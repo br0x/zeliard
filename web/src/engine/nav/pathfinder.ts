@@ -727,63 +727,104 @@ export function findRoute(options: FindRouteOptions): NavRoute | null {
 }
 
 /**
- * A journey that has to fetch a key and then *come back and use it* does not fit
+ * A journey that has to fetch keys and then *come back and use them* does not fit
  * in one frontier.
  *
  * The state dimension that holds keys is what makes a pickup visible to the rest of
- * the journey, and it is also what makes this pair unfindable in practice. The
+ * the journey, and it is also what makes such a journey unfindable in practice. The
  * search settles every state it can reach while still holding no key before it ever
  * sees one — and "still holding no key" covers the whole of every cavern on the
  * level, because nothing about the goal tells it which of them is worth leaving
- * alone. mp80 `(111,21)` to mp82 `(27,19)` is the case: the goal sits in the region
- * behind the locked door at mp80 `(57,15)`, the key for it is on mp82, and every
- * leg of the trip — to the door, to the key, back from the key to the door — is
- * found in a few thousand expansions. The one search that has to hold all three
- * settles 7.6 million states and still times out, so the player is told the
- * journey needs a key while standing on top of the route that fetches it.
+ * alone. mp80 `(111,21)` to mp80 `(227,34)` is the case: two doors stand between
+ * him and it, the keys for them lie on mp82 and on mp81, and each fetch is a journey
+ * of its own. Every leg of the trip is found in a few thousand expansions; the one
+ * search that has to hold all of them at once floods its 400,000 budget and returns
+ * nothing, so the player is told the journey needs keys while standing on the route
+ * that fetches them.
  *
- * So split it. The shape of the journey is asked for first, under `unlimitedKeys`
- * where keys are free and the state space has no key dimension at all — that
- * answers in a few thousand expansions and says which keys the trip needs. Then
- * each key of a needed kind is tried as a *waypoint*: walk to it, then walk on from
- * it with the key already in the pocket. Both halves are ordinary searches and both
- * are cheap, because neither has to hold "has the key" and "has not" at once.
+ * So split it, and keep splitting it. The *shape* of what is left is asked for
+ * first, under `unlimitedKeys`, where keys are free and the state space has no key
+ * dimension at all — that answers in a few thousand expansions and says how many
+ * keys the rest of the journey costs. If he is carrying that many, the rest is one
+ * ordinary search and this is over. Otherwise a key of a kind he is short of is
+ * tried as a *waypoint*: walk to it, count the keys lying where he walks, subtract
+ * the ones the walk spent, and ask the same question again from where he now
+ * stands — one key deeper, until the rest of the journey is payable.
+ *
+ * Each leg is walked with `collectKeys` off on purpose. The pickup dimension is the
+ * part that floods, and a leg whose goal is a key does not need it: the key is where
+ * the leg ends, so the accounting above can count it without the search branching on
+ * whether he has it yet. What such a leg cannot see is a key it walks *past*, so the
+ * keys are counted from the points the leg actually visits rather than from what it
+ * reports — the waypoint included, since a leg that reports no pickups reports none
+ * for the key standing at its end too.
  *
  * The result is one route, points and all, so the player is shown the journey it
- * actually is — out to the key, then on to the door — rather than two legs.
- * `PathGuide` replans it as he walks, and once the key really is in his pocket the
- * ordinary search finds the rest on its own.
+ * actually is — out to a key, back to the door it opens, on toward the next one —
+ * rather than a string of legs. `PathGuide` replans it as he walks, and once a key
+ * really is in his pocket the ordinary search finds the rest on its own.
  */
+
+/** Keys the journey may go and fetch before it gives up on it. */
+const MAX_KEY_FETCHES = 3;
+
+/** Waypoints tried at each fetch, cheapest first; deeper fetches try fewer. */
+const KEY_FETCH_TRIES = [6, 4, 4];
+
 function searchViaKey(options: FindRouteOptions): NavRoute | null {
-    const { store, caps, start } = options;
-    const maps = [...(options.maps ?? NAV_REACHABLE[start.mapId] ?? [start.mapId])];
-
-    // Dropped so the cheap questions below cannot ask about a pickup: they are told
-    // every key in the game is there, and counting the ones that are not would rank
-    // a key the player has already taken above one he has not.
     const { keyPresent: _keyPresent, ...plain } = options;
-
-    // What the journey is, and which keys it needs. `unlimitedKeys` seeds the
-    // counters and pays for nothing, so `lockedDoors` is the demand and the key
-    // dimension never branches: this is the cheap question.
-    const shape = search({ ...plain, collectKeys: false, unlimitedKeys: true });
-    if (!shape) return null;
-    const needOrdinary = shape.lockedDoors.ordinary;
-    const needLion = shape.lockedDoors.lion;
-    if (needOrdinary + needLion === 0) return null;
-
-    // He already carries what the journey costs. Then nothing is missing and the
-    // one-shot search failed on its own budget rather than on a key — so ask again
-    // with the pickup dimension taken off, which is the part that floods: settling
-    // every state he could reach while holding *one fewer* key than he holds now.
-    if (caps.keys >= needOrdinary && caps.lionKeys >= needLion) {
+    // With every key free there is nothing to go and fetch: the one-shot search
+    // above failed on its budget rather than on a key, and the pickup dimension —
+    // which still branches, and still floods — is all that is missing.
+    if (options.unlimitedKeys) {
         const { collectKeys: _collectKeys, ...held } = plain;
         return search(held);
     }
+    return fetchNextKey(options, plain, new Set(), 0);
+}
 
-    // Every key of a needed kind the hero could still pick up, scored by how far
-    // out of the way it is. The score search is the same cheap one as the shape: no
-    // key dimension, so it cannot blow up on the way to asking.
+/**
+ * The rest of the journey, fetched one key at a time.
+ *
+ * `taken` holds every key node already walked over on the way here, so the next
+ * fetch cannot ask for a key he has taken; `depth` is how many keys were fetched to
+ * get here, and bounds the branching each fetch costs.
+ */
+function fetchNextKey(
+    options: FindRouteOptions,
+    plain: FindRouteOptions,
+    taken: ReadonlySet<string>,
+    depth: number,
+): NavRoute | null {
+    const { store, caps, start, goal } = options;
+
+    // What is left of the journey, and which keys it costs. `unlimitedKeys` seeds
+    // the counters and pays for nothing, so `lockedDoors` is the demand and the key
+    // dimension never branches: this is the cheap question.
+    const shape = search({ ...plain, collectKeys: false, unlimitedKeys: true, caps, start, goal });
+    if (!shape) return null;
+    const needOrdinary = shape.lockedDoors.ordinary;
+    const needLion = shape.lockedDoors.lion;
+
+    // He already carries what the rest costs. Then nothing is missing and the
+    // one-shot search failed on its budget rather than on a key — so ask again with
+    // the pickup dimension taken off, which is the part that floods.
+    if (caps.keys >= needOrdinary && caps.lionKeys >= needLion) {
+        const { collectKeys: _collectKeys, ...held } = plain;
+        const direct = search({ ...held, caps, start, goal });
+        if (direct) return direct;
+        // The shape counts the doors on *a* route, not on every route: when it
+        // promised keys he has and the honest search still fails, the journey costs
+        // more keys than the shape does, and fetching is the answer.
+        if (needOrdinary + needLion === 0) return null;
+    }
+
+    if (depth >= MAX_KEY_FETCHES) return null;
+
+    // Every key of a needed kind he could still pick up, scored by how far out of
+    // the way it is. The score search is the same cheap one as the shape: no key
+    // dimension, so it cannot blow up on the way to asking.
+    const maps = [...(options.maps ?? NAV_REACHABLE[start.mapId] ?? [start.mapId])];
     const candidates: { point: NavPoint; lion: boolean; score: number }[] = [];
     for (const mapId of maps) {
         const graph = store.get(mapId);
@@ -791,49 +832,104 @@ function searchViaKey(options: FindRouteOptions): NavRoute | null {
         for (let node = 0; node < graph.nodes.length; node++) {
             const kind = graph.keyKindAt[node]!;
             if (kind !== KEY_LION && kind !== KEY_ORDINARY) continue;
-            if (kind === KEY_LION ? needLion === 0 : needOrdinary === 0) continue;
+            const lion = kind === KEY_LION;
+            // Only a kind the journey still costs is worth a leg for.
+            if (lion ? needLion === 0 : needOrdinary === 0) continue;
+            if (taken.has(`${mapId}/${node}`)) continue;
             const cell = graph.keyCellAt[node]!;
             if (cell < 0) continue;
             const col = cell % graph.mapWidth;
             const row = (cell / graph.mapWidth) | 0;
             // Asked about the key's *record*, not its node, the same way the pickup
             // itself is: the two differ on every key in the game.
-            if (options.keyPresent && !options.keyPresent(mapId, col, row, kind === KEY_LION ? 1 : 0)) {
-                continue;
-            }
+            if (options.keyPresent && !options.keyPresent(mapId, col, row, lion ? 1 : 0)) continue;
             const node2 = graph.nodes[node]!;
             const point: NavPoint = { mapId, col: node2.col, row: node2.row, node };
-            const scored = search({ ...plain, collectKeys: false, unlimitedKeys: true, goal: point });
+            const scored = search({
+                ...plain, collectKeys: false, unlimitedKeys: true, caps, start, goal: point,
+            });
             if (!scored) continue;
-            candidates.push({ point, lion: kind === KEY_LION, score: scored.cost });
+            candidates.push({ point, lion, score: scored.cost });
         }
     }
     candidates.sort((a, b) => a.score - b.score);
 
     let best: NavRoute | null = null;
-    // A handful is enough: the nearest key of each kind is the one a player would
-    // take, and trying every key on sixteen caverns would cost more than the search
-    // this is replacing.
-    for (const candidate of candidates.slice(0, 6)) {
-        const out = search({ ...options, goal: candidate.point });
-        if (!out) continue;
-        const onwardCaps: HeroCapabilities = {
-            ...caps,
-            keys: Math.min(caps.keys + (candidate.lion ? 0 : 1), HOLD_CAP),
-            lionKeys: Math.min(caps.lionKeys + (candidate.lion ? 1 : 0), HOLD_CAP),
-        };
-        // If this one key settles the whole demand, the rest of the journey has
-        // nothing left to fetch and the pickup dimension is only there to flood:
-        // drop it, the same way the pocket-full case above does.
-        const allOfIt = onwardCaps.keys >= needOrdinary && onwardCaps.lionKeys >= needLion;
-        const on = allOfIt
-            ? search({ ...plain, collectKeys: false, caps: onwardCaps, start: candidate.point })
-            : search({ ...options, caps: onwardCaps, start: candidate.point });
-        if (!on) continue;
-        const joined = concatRoutes(out, on);
+    const tries = KEY_FETCH_TRIES[Math.min(depth, KEY_FETCH_TRIES.length - 1)]!;
+    for (const candidate of candidates.slice(0, tries)) {
+        // Walk to the key as if he means to pick nothing up: the pickup dimension is
+        // what floods, and the key is where the walk ends, so the accounting below
+        // counts it without the search branching on it.
+        const leg = search({
+            ...plain, collectKeys: false, unlimitedKeys: false, caps, start,
+            goal: candidate.point,
+        });
+        if (!leg) continue;
+        const picked = keysAlong(leg, taken, options);
+        const keys = caps.keys + picked.ordinary - leg.keysSpent.ordinary;
+        const lionKeys = caps.lionKeys + picked.lion - leg.keysSpent.lion;
+        if (keys < 0 || lionKeys < 0) continue;
+        const onward = fetchNextKey(
+            { ...options, caps: { ...caps, keys, lionKeys }, start: candidate.point },
+            plain, picked.visited, depth + 1,
+        );
+        if (!onward) continue;
+        // The leg was walked without the pickup dimension, so it reports none: the
+        // keys it went over are counted here, the waypoint at its end included.
+        const joined = concatRoutes({
+            ...leg,
+            keysGained: {
+                ordinary: leg.keysGained.ordinary + picked.ordinary,
+                lion: leg.keysGained.lion + picked.lion,
+            },
+        }, onward);
         if (!best || joined.cost < best.cost) best = joined;
     }
     return best;
+}
+
+/**
+ * Keys the hero picks up walking `leg`, which was planned as if they were not there.
+ *
+ * Every key node the leg's points go over is one he walks over, and walking over a
+ * key is what takes it (`keysAfterPickup`) — the key at the leg's end among them,
+ * which is the whole reason the leg was walked. `taken` already holds the ones
+ * earlier legs took, so a key is counted exactly once however many legs pass it.
+ */
+function keysAlong(
+    leg: NavRoute,
+    taken: ReadonlySet<string>,
+    options: FindRouteOptions,
+): { ordinary: number; lion: number; visited: Set<string> } {
+    let ordinary = 0;
+    let lion = 0;
+    const visited = new Set(taken);
+    for (let i = 1; i < leg.points.length; i++) {
+        const point = leg.points[i]!;
+        const graph = options.store.get(point.mapId);
+        if (!graph) continue;
+        const cell = graph.keyCellAt[point.node] ?? -1;
+        if (cell < 0) continue;
+        const kind = graph.keyKindAt[point.node]!;
+        if (kind !== KEY_LION && kind !== KEY_ORDINARY) continue;
+        const id = `${point.mapId}/${point.node}`;
+        if (visited.has(id)) continue;
+        // The same two questions the pickup itself is asked: which level the map is
+        // on, and whether the key is still lying there.
+        if (options.keyCavernLevel !== undefined) {
+            const meta = NAV_MAP_BY_ID.get(point.mapId);
+            if (meta && meta.cavernLevel !== options.keyCavernLevel) continue;
+        }
+        const col = cell % graph.mapWidth;
+        const row = (cell / graph.mapWidth) | 0;
+        if (options.keyPresent && !options.keyPresent(
+            point.mapId, col, row, kind === KEY_LION ? 1 : 0,
+        )) continue;
+        visited.add(id);
+        if (kind === KEY_LION) lion++;
+        else ordinary++;
+    }
+    return { ordinary, lion, visited };
 }
 
 /**

@@ -499,15 +499,36 @@ that covers the whole of every cavern on the level — 7.6 million expansions ag
 stood on the route that fetches it, and once he had walked out to mp81 the guide's
 re-plan turned round and sent him back through the door he had just left.
 
-`findRoute` now splits it when `collectKeys` is set and the one-shot search fails: ask
-for the shape of the journey under `unlimitedKeys` (cheap, no key dimension), take
-`lockedDoors` as the demand, then try each key of a needed kind as a *waypoint* — walk
-to it, then walk on from it with the key already in the pocket — and splice the two
-halves into one route. When he already carries what the journey costs, the demand is
-met and the retry simply drops the pickup dimension, which is the part that floods.
-The same journey is now 14,824 expansions, and `nav-route-cases` pins all three of its
-phases: the whole trip, the re-plan from the mp81 arrival, and the walk back out once
-the key is held.
+`findRoute` now splits it when `collectKeys` is set and the one-shot search fails, and
+it keeps splitting: ask for the shape of what is left under `unlimitedKeys` (cheap, no
+key dimension), take `lockedDoors` as the demand, and when he is not carrying that
+many, try each key of a kind he is short of as a *waypoint* — walk to it, count the
+keys he goes over (the waypoint's own among them), subtract what the walk spent, and
+ask the same question again from where he now stands, one key deeper. Every leg is
+walked with `collectKeys` off, because the pickup dimension is the part that floods and
+a leg whose goal *is* a key does not need it; what that cannot see is a key walked
+*past* on the way, so the keys are counted from the points the leg actually visits
+rather than from what it reports. When he already carries what the rest costs, the
+demand is met and the retry simply drops the pickup dimension; when the shape says the
+journey costs no keys at all, the one-shot failed on the flood and the plain search is
+the answer. The one-key journey is 7,923 expansions, and `nav-route-cases` pins all
+three of its phases: the whole trip, the re-plan from the mp81 arrival, and the walk
+back out once the key is held.
+
+One waypoint is not always enough. mp80 `(111,21)` → mp80 `(227,34)` needs the key at
+mp82 `(26,47)` for the west-gallery door at `(57,15)` and the key at mp81 `(125,36)`
+for the door at mp81 `(236,4)`, and neither key is on the way to the other — the mp81
+key sits behind the first door, so no single trip to it can also carry the first key
+any further. The same question asked from the first waypoint finds the second, and the
+route that comes back is 13,453 expansions and 1,745 ticks, with two keys gained and
+two spent. That is
+what `nav-route-cases` "a journey that needs two keys, and goes and fetches both" pins
+down, and the check in it that matters is not the count but the walk: replaying the
+route the way the engine would — a key for every node he goes over, a door for every
+closed one he goes through — and requiring the pocket never to go below zero. The
+decomposition used to hand back a route that spent three keys out of a pocket that
+held one, which is exactly the "leads to a closed door, the hero has no key" the player
+reported.
 
 Walking it and then restoring a save broke it again, in a way that had nothing to do
 with the graph. A platform reading is engine state, and it is read for whichever

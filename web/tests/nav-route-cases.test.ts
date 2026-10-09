@@ -801,6 +801,104 @@ describe('a journey that has to fetch a key and come back for the door', () => {
     }, 60_000);
 });
 
+describe('a journey that needs two keys, and goes and fetches both', () => {
+    // mp80 (111,21) to mp80 (227,34): the west-gallery door at mp80 (57,15) and the
+    // door at mp81 (236,4) both stand closed, and the keys for them are on mp82 and
+    // on mp81. Neither key is on the way — the mp82 key is behind the free passage
+    // through mp81, and the mp81 key is behind the first door — so the journey is
+    // out to one key, back through the door it opens, on to the next, and through
+    // the second door at last.
+    //
+    // One search cannot hold it: the dimension that records a pickup means settling
+    // every state he can reach while still holding *no* key before he ever sees one,
+    // and that covers the whole of every cavern on the level. `findRoute` fetches
+    // the keys one at a time instead, and what it hands back has to be walkable as
+    // it stands — every door paid for out of a pocket that is really there.
+    const START: NavPoint = { mapId: 23, col: 111, row: 21 };
+    const GOAL: NavPoint = { mapId: 23, col: 227, row: 34 };
+    /** The mp82 key, one row above the ground node that holds it. */
+    const KEY1: NavPoint = { mapId: 25, col: 26, row: 47 };
+    /** The mp81 key, again one row above its record. */
+    const KEY2: NavPoint = { mapId: 24, col: 125, row: 36 };
+    const PLAN = { collectKeys: true, planAccessories: true } as const;
+
+    /**
+     * Walk `r` the way the engine would: every key node he goes over is picked up
+     * once, every closed door he goes through costs one, and `low` is the smallest
+     * pocket reaches on the way. A route that ever goes below zero spends a key the
+     * hero does not have — the bug this whole decomposition exists to avoid.
+     */
+    function pocket(r: NavRoute, startKeys: number): { low: number; end: number; picks: number } {
+        let held = startKeys;
+        let low = held;
+        let picks = 0;
+        const taken = new Set<string>();
+        for (let i = 0; i < r.hops.length; i++) {
+            const from = r.points[i]!;
+            const to = r.points[i + 1]!;
+            if (from.mapId !== to.mapId) {
+                const graph = store.get(from.mapId)!;
+                const index = graph.portalAtNode[from.node]!;
+                const portal = index >= 0 ? PORTALS[index] : undefined;
+                if (portal?.key === 1) held--;
+            } else {
+                const graph = store.get(to.mapId)!;
+                if ((graph.keyCellAt[to.node] ?? -1) >= 0 && !taken.has(`${to.mapId}/${to.node}`)) {
+                    taken.add(`${to.mapId}/${to.node}`);
+                    held++;
+                    picks++;
+                }
+            }
+            low = Math.min(low, held);
+        }
+        return { low, end: held, picks };
+    }
+
+    /** Index of the first hop that goes through the closed door at `(mapId, col, row)`. */
+    const paidAt = (r: NavRoute, mapId: number, col: number, row: number): number =>
+        r.hops.findIndex((h) => h.kind === EDGE.DOOR && h.from.mapId === mapId
+            && h.from.col === col && h.from.row === row);
+
+    const at = (r: NavRoute, key: NavPoint): number =>
+        r.points.findIndex((p) => p.mapId === key.mapId && p.col === key.col && p.row === key.row);
+
+    it('fetches both keys with an empty pocket', () => {
+        const t0 = Date.now();
+        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
+        expect(r, 'mp80 (111,21) -> mp80 (227,34), bare, fetching two keys').not.toBeNull();
+        expect(r!.lockedDoors.ordinary, 'two closed doors stand on the way').toBe(2);
+        expect(r!.keysGained.ordinary, 'and it fetches the two keys for them').toBe(2);
+        expect(r!.keysSpent.ordinary, 'both of which it spends').toBe(2);
+
+        const walked = pocket(r!, 0);
+        expect(walked.low, 'he is never asked for a key he does not have')
+            .toBeGreaterThanOrEqual(0);
+        expect(walked.end, 'and is left with nothing').toBe(0);
+        expect(walked.picks, 'picking exactly the two keys on the route').toBe(2);
+
+        const key1 = at(r!, KEY1);
+        const key2 = at(r!, KEY2);
+        expect(key1, 'the mp82 key is on the route').toBeGreaterThanOrEqual(0);
+        expect(key2, 'the mp81 key is on the route').toBeGreaterThanOrEqual(0);
+        expect(key1, 'and the first key comes before the door it opens')
+            .toBeLessThan(paidAt(r!, 23, 57, 16));
+        expect(key2, 'and so does the second').toBeLessThan(paidAt(r!, 24, 236, 5));
+        expect(Date.now() - t0, 'without the search that floods').toBeLessThan(15_000);
+    }, 30_000);
+
+    it('is still walkable when he starts with one key of his own', () => {
+        const r = findRoute({
+            store, caps: { ...bareCapabilities(), keys: 1 }, start: START, goal: GOAL, ...PLAN,
+        });
+        expect(r, 'the same journey from a pocket with one key in it').not.toBeNull();
+        expect(r!.lockedDoors.ordinary, 'two doors still stand in the way').toBe(2);
+        const walked = pocket(r!, 1);
+        expect(walked.low, 'and he is never overdrawn on the way').toBeGreaterThanOrEqual(0);
+        expect(walked.end, 'finishing with what he started plus what he found, minus what he paid')
+            .toBe(1 + walked.picks - r!.keysSpent.ordinary);
+    }, 30_000);
+});
+
 describe('a few more real journeys', () => {
     it('finds a route inside mp80 from the start ledge to the left gallery', () => {
         const r = route(23, [113, 21], [120, 10]);
