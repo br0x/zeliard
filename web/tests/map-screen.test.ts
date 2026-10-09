@@ -908,15 +908,15 @@ describe('doors are drawn as the cavern draws them', () => {
         allShut.screen.draw(0);
         await settle();
 
-        const framesOf = async (screen: MapScreen): Promise<number[]> => {
+        const framesOf = (screen: MapScreen): number[] => {
             const seen = captureDoorBlits();
             screen.draw(0);
             vi.restoreAllMocks();
             return seen.map((b) => b.sx);
         };
-        const [asShipped, open, shut] = await Promise.all([
-            framesOf(mixed.screen), framesOf(allOpen.screen), framesOf(allShut.screen),
-        ]);
+        const asShipped = framesOf(mixed.screen);
+        const open = framesOf(allOpen.screen);
+        const shut = framesOf(allShut.screen);
 
         expect(new Set(asShipped).size).toBeGreaterThan(0);
         expect(asShipped).not.toEqual(open);

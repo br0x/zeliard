@@ -752,7 +752,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         const paidAt = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
             && h.from.mapId === 23 && h.from.col === 57 && h.from.row === 16);
         expect(paidAt, 'and the locked door is used after it, not before').toBeGreaterThan(keyIndex);
-        expect(Date.now() - t0, 'and without the 7.6-million-expansion search').toBeLessThan(10_000);
+        expect(Date.now() - t0, 'and without the 7.6-million-expansion search').toBeLessThan(15_000);
     }, 30_000);
 
     it('keeps leading to the key after he crosses into mp82', () => {

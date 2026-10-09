@@ -198,8 +198,8 @@ describe('a re-plan that finds nothing does not become a loop', () => {
         // stricter question and finds nothing.
         guide.setRoute(route, { mapId: GOAL.mapId, col: GOAL.col, row: GOAL.row });
 
-        // A platform on the route moves, and he stands there watching it.
-        store.setPlatformPlaces(0, new Map([[0, 1]]));
+        // A platform on the route moves (mp81 = map 24), and he stands there watching it.
+        store.setPlatformPlaces(24, new Map([[0, 1]]));
         for (let t = 1; t <= 200; t++) guide.update(1_000_000 + t);
 
         expect(warns.length, `one search, not one per frame:\n${warns.slice(0, 5).join('\n')}`)
