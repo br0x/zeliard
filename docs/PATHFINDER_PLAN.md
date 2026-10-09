@@ -408,7 +408,7 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1015` tests passing.
+- `1017` tests passing.
 - `5` tests failing.
 
 ## 12. Known remaining issues
@@ -503,8 +503,8 @@ chevrons it had just wiped.
 
 The last of the level-8 defects was in the guide and the overlay rather than the
 pathfinder, and it was invisible to every test of the route itself — the route was
-always correct. Three of them, and none of the first two was the one the player was
-hitting; all three were found by reading his console, not by a test.
+always correct. Four of them, and none of the first two was the one the player was
+hitting; all four were found by reading his console, not by a test.
 
 The Thread of Yaga is a list of *visits*, not a set of cells, and this journey walks the
 same corridor twice: mp82's row 35 runs from the portal at (88,35) down to the key at
@@ -530,7 +530,8 @@ a re-entry, and a route whose anchor precedes the entry has an entry, not a retu
 The whole of the room he was standing in went to `CHEVRON_FAR_ALPHA` — measured, the
 brightest chevron anywhere near him was 0.15, which is no chevrons. Two changes: the
 anchor now moves to the start of the visit on the hero's map even with no exact cell
-match (never a rewind, since it only ever moves forward), and `returnIndex` counts the
+match (never a rewind *within one visit*, since a visit is only ever reached by
+moving forward), and `returnIndex` counts the
 first entry into his map as where he is heading, taking only a *later* one as the
 return. Landing at (89,35), (88,34) or (88,35) all now draw the same bright trail west
 toward the key.
@@ -551,6 +552,23 @@ so the anchor normally moves one or two points a frame and the bound never comes
 it, while a cell that appears only much later stops being a match and goes back to being
 a coincidence. The window is measured from `visit` rather than from the old anchor, so a
 portal crossing still works: `visit` has already skipped off the map he has just left.
+
+A fourth one, and the one that outlived the other three. The player walked through a
+door, walked straight back out of it, went in again — and the chevrons went out and never
+came back. The anchor had been searching in one direction only. Coming back out of the
+door put it on the *far* side: `points[progress]` was a cell of the room he had left, the
+forward scan skipped off that map looking for a room he was no longer in, found no later
+visit of it at all, and stopped — leaving `remaining()` opening on a foreign point. The
+overlay's `returnIndex` then never found an entry into his room either, so every cell in
+view was either outside his cavern or a hundred points along the fade: `tiles=0`, border
+marks only. Re-entering did not help, because the same scan ran again from an anchor that
+was still behind him. The search now runs **backwards over the same `ANCHOR_SCAN` window**,
+and the two sides are compared: the nearer one wins, ties going forward, because the route
+is walked in order and a cell on both sides of the anchor is normally the outbound and the
+return of the same corridor. That gives the door case (the room he is standing in is
+*behind* the anchor) and the rope case (the later occurrence is far *ahead*, outside the
+window) the right answer each way, and the fallback with no cell match at all now takes
+the nearer of the two visit boundaries instead of only ever jumping forward.
 
 ## 13. Working rules for future changes
 
@@ -590,8 +608,9 @@ portal crossing still works: `visit` has already skipped off the map he has just
     cannot tell a room it *entered* from one it *returned* to unless the anchor is
     already inside. So `advanceProgress` moves to the start of the visit even when no
     cell matches — a landing a tile off the line is not a reason to leave the anchor in
-    the room he has just left, and it is never a rewind, because that start is only ever
-    found by moving forward.
+    the room he has just left. Reaching that start is not by itself a rewind and not
+    by itself a leap: it happens on whichever side of the anchor his visit begins, and
+    the nearer side wins.
 18. "The first cell ahead of him that he is standing on" is only the same as "where he
     is" when the route passes each cell once. A route that goes down a rope and back up
     it passes the mouth twice without leaving the map, and the later occurrence is the
@@ -599,6 +618,15 @@ portal crossing still works: `visit` has already skipped off the map he has just
     the whole descent. Bounding the search past the start of the visit keeps a match
     from being a coincidence, and the bound must be measured from `visit`, not from the
     old anchor, or a portal crossing falls outside it.
+19. A route is walked in order, but the hero is not obliged to walk it in order. He goes
+    back out of a door the route only crosses once, and then in again; a search that
+    only ever looks forward leaves the anchor on the far side of that door, on a map he
+    is no longer standing in, and everything downstream — `remaining()`, `returnIndex`,
+    the fade — reads it as having nothing to draw. So the search runs both ways over the
+    same window and the **nearer** end wins, ties going forward: forward alone breaks the
+    rope (the later occurrence is far ahead), backward alone breaks the corridor walked
+    twice (the earlier pass is behind him), and neither is a rewind in the sense rule 17
+    warns about, because the window is bounded.
 
 ## 14. Useful invariants
 

@@ -845,34 +845,84 @@ export class PathGuide {
          * cell there put the anchor on the way back: the trail began above him,
          * pointing up the shaft and east to the door, while the descent he was
          * actually on sat behind the anchor and was never drawn.
+         *
+         * The same search runs **backwards**, over the same distance, because the
+         * hero walks backwards too: straight back out of a door he has just used.
+         * A search that only ever looked ahead left the anchor on the far side of
+         * that door — on the map he was no longer standing in — where `remaining()`
+         * begins on a foreign point and the overlay has nothing inside his cavern to
+         * draw. The chevrons went out and never came back when he re-entered, which
+         * is the third of the player's three defects. The nearer end wins, ties going
+         * forward: the route is walked in order, so a cell on both sides of the
+         * anchor is normally the outbound and the return of the same corridor, and
+         * the one ahead of him is where he is going.
          */
         const points = route.points;
-        let i = this.progress;
-        while (i < points.length && points[i]!.mapId !== hero.mapId) i++;
-        // Where this visit of his own map begins, before looking for his cell on it.
-        const visit = i;
-        const scanTo = Math.min(visit + ANCHOR_SCAN, points.length);
-        for (; i < scanTo; i++) {
-            if (i > this.progress && points[i]!.mapId !== hero.mapId) break;
+        if (points.length === 0) return;
+        const progress = this.progress;
+        // Where this visit of his own map begins, ahead of the anchor.
+        let visit = progress;
+        while (visit < points.length && points[visit]!.mapId !== hero.mapId) visit++;
+        const fwdEnd = Math.min(visit + ANCHOR_SCAN, points.length);
+        // ...and the last point of his map *before* the anchor, walking back over the
+        // points the crossing left behind.
+        const floor = Math.max(0, progress - ANCHOR_SCAN);
+        let back = Math.min(progress, points.length - 1);
+        while (back > floor && points[back]!.mapId !== hero.mapId) back--;
+
+        let match = -1;
+        for (let i = visit; i < fwdEnd; i++) {
+            if (i > progress && points[i]!.mapId !== hero.mapId) break;
             if (!on(points[i]!)) continue;
-            this.progress = i;
+            match = i;
             break;
         }
-        // He is on the route's map but not standing on any of its cells — a landing
-        // that put him a tile off the door, a step taken off the line. The anchor has
-        // to be *on his map* even so, because everything downstream reads it that way:
-        // `remaining()` starts at the anchor, and the overlay works out which stretch
-        // is the way back from where the anchor sits. Left on the map he has just
-        // crossed out of, the whole of the room he is standing in is read as the way
-        // back out of a door he has not entered, and is drawn at the far end of the
-        // fade — no chevrons at all, which is what the player hit crossing into mp82.
-        // This is never a rewind: `visit` is only ever reached by moving forward.
-        if (visit < points.length && visit > this.progress) {
-            if (PATH_DIAG) {
-                console.log(`[path] anchor crossed ${this.progress} -> ${visit} with no cell match`
-                    + ` (hero ${at(hero)}, route length ${points.length})`);
+        if (points[back]!.mapId === hero.mapId) {
+            for (let i = back; i >= floor; i--) {
+                if (i < progress && points[i]!.mapId !== hero.mapId) break;
+                if (!on(points[i]!)) continue;
+                if (match === -1 || progress - i < match - progress) match = i;
+                break;
             }
-            this.progress = visit;
+        }
+        if (match !== -1) {
+            if (PATH_DIAG && match < progress) {
+                console.log(`[path] anchor back ${progress} -> ${match}`
+                    + ` (he went back to his own cell, hero ${at(hero)})`);
+            }
+            this.progress = match;
+        } else {
+            // He is on the route's map but not standing on any of its cells — a
+            // landing that put him a tile off the door, a step taken off the line. The
+            // anchor has to be *on his map* even so, because everything downstream
+            // reads it that way: `remaining()` starts at the anchor, and the overlay
+            // works out which stretch is the way back from where the anchor sits.
+            // Left on the map he has just crossed out of, the whole of the room he is
+            // standing in is read as the way back out of a door he has not entered,
+            // and is drawn at the far end of the fade — no chevrons at all, which is
+            // what the player hit crossing into mp82. Taking the nearer of the two
+            // sides is what puts him back on screen when he walks back out of a door
+            // the route only crosses once: there is no later visit of his room to
+            // jump to, and the only point of it the anchor can see is the one he has
+            // just come back to.
+            const ahead = visit < points.length ? visit : -1;
+            const behind = points[back]!.mapId === hero.mapId ? back : -1;
+            const next = ahead < 0 ? behind
+                : behind < 0 ? ahead
+                    : ahead - progress <= progress - behind ? ahead : behind;
+            if (next > progress) {
+                if (PATH_DIAG) {
+                    console.log(`[path] anchor crossed ${progress} -> ${next} with no cell match`
+                        + ` (hero ${at(hero)}, route length ${points.length})`);
+                }
+                this.progress = next;
+            } else if (next >= 0 && next < progress) {
+                if (PATH_DIAG) {
+                    console.log(`[path] anchor rewound ${progress} -> ${next} with no cell match`
+                        + ` — he went back (hero ${at(hero)}, route length ${points.length})`);
+                }
+                this.progress = next;
+            }
         }
         // Reaching the destination ends the route. This is checked against the last
         // point directly, not against the anchor: there is nothing after the last
