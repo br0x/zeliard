@@ -471,18 +471,28 @@ describe('choosing a destination', () => {
         // mp80 (111,21) -> mp81 (124,6) crosses doors that are *open*. The
         // generator used to mark every door as needing a key, and this was refused
         // for three sessions because of it.
+        //
+        // Which door is open is `doorOpen`'s answer to give. Without it the screen
+        // does the honest thing instead: the west-gallery door at mp80 (57,15) is an
+        // ordinary-key door and is now the only way out of the start region, so every
+        // rung that can reach the journey fetches its key on the way and comes back
+        // with `lockedDoors.ordinary === 1` and one key spent.
         const empty = harness({
             heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
             capabilities: () => bareCapabilities(),
+            doorOpen: (mapId, x0, y0) => (mapId === 23 && x0 === 57 && y0 === 15 ? true : null),
         });
         const store = (empty.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        store.get(23);
         store.get(24);
+        store.get(25);
         empty.screen.displayMapId = 24;
         await empty.screen.choose(124, 6);
         expect(empty.picked(), 'an open way through, no key needed').toHaveLength(1);
         const route = empty.picked()[0] as NavRoute;
         expect(route.lockedDoors.ordinary + route.lockedDoors.lion).toBe(0);
-    });
+        expect(route.keysSpent.ordinary + route.keysSpent.lion).toBe(0);
+    }, 120000);
 
     it('asks for nothing at all once the door is open and the key is spent', async () => {
         // The state after the boss. The player has been through the locked door at

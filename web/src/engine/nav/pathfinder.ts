@@ -226,9 +226,21 @@ export class NavGraphStore {
         const before = this.places.get(mapId);
         if (before && samePlatformPlaces(before, places)) return false;
         const graph = this.graphs.get(mapId);
-        if (graph && samePlatformPlaces(graph.platforms.places, places)) return false;
+        // The reading is recorded first and the answer worked out afterwards, because
+        // the two questions are different. Recording is what `get` compares against —
+        // a reading dropped because the graph in hand happened to agree leaves
+        // `this.places` describing a world that has already moved on, and the *next*
+        // reading then rebuilds the graph from the wrong rows. So the first report is
+        // news even when it agrees with `startY`: nothing has been said before, so the
+        // graph in hand was built on the generated assumption rather than on the
+        // world, and from here on it is the reading that says.
+        const first = !before;
         this.places.set(mapId, new Map(places));
-        return true;
+        if (first) return true;
+        // After that: rebuild and re-plan only if the graph does not already answer
+        // for these rows. It may have been left standing by a ride that came back to
+        // where it started.
+        return !(graph && samePlatformPlaces(graph.platforms.places, places));
     }
 
     /**

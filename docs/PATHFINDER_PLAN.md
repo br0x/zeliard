@@ -408,44 +408,69 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1017` tests passing.
-- `5` tests failing.
+- `1022` tests passing.
+- `0` tests failing.
 
-## 12. Known remaining issues
+## 12. The five level-8 failures, and how each closed
 
-The remaining five failures are concentrated in the current traversal model around
-`mp80`/`mp81`/`mp82`.
+The five failures left at the end of the previous revision were concentrated in the
+traversal model around `mp80`/`mp81`/`mp82`. All five are closed, and they split
+evenly: three were tests describing a graph that no longer exists, and two were the
+graph offering something the engine does not do. In both of those the graph changed.
 
-Measured findings:
+The measured findings that got them separated:
 
 - The mp80 shaft is split into a closed component of 1,409/2,170 nodes.
 - The mp82 lower region is also a closed component.
-- Two recent engine-faithful restrictions are involved:
-  - the lifted-node guard for entering a conveyor;
-  - the fall `pushedBack` behavior.
-- Reverting the lifted-node guard restores all five failures.
-- Three of the five additionally depend on the fall restriction.
-- These failures are **not** evidence that either restriction is wrong; both match
-  engine behavior.
-- What remains unresolved is whether the affected recorded journeys are genuinely
-  missing a graph edge or whether the tests are asserting a route that the engine cannot
-  traverse from the recorded state.
+- Two engine-faithful restrictions are involved, and neither is wrong: the lifted-node
+  guard for entering a conveyor, and the fall `pushedBack` behavior.
 
-Affected tests/routes are documented by their test names rather than by reproducing the
-entire debugging history:
+Affected tests, by their names:
 
+- `nav-graph:170` — ride-slot census: 5,969 slots where the table expected 5,684, from
+  the crouched slots added under low ceilings. The table predates crouch, so the census
+  now asserts the measurement (5,969 total, 5,966 live, 3 dead slots) rather than a
+  number nobody can derive.
+- `nav-graph:501` — 415 jump edges the model did not offer, all of them launched from a
+  crouched slot. The test built its platform mask from `slot.headRow + 3`, which for a
+  crouched slot is the row *under* the platform; the graph builds it from
+  `slot.platformRow`. The graph was right.
+- `nav-platform-state` — the first `setPlatformPlaces` report was dropped when it
+  happened to agree with the graph in hand, so `this.places` went on describing a world
+  that had already moved on and the *next* reading rebuilt from the wrong rows. It now
+  records the reading first and only then decides whether the graph needs rebuilding.
 - `map-screen:482` — mp80 `(111,21)` → mp81 `(124,6)`, bare capabilities.
-- `nav-route-cases:362` — same route.
-- `nav-graph:170` — ride-slot census: 5,969 slots where the table expects 5,684, from
-  the crouched slots added under low ceilings.
-- `nav-graph:501` — 415 jump edges the model does not offer, all of them launched from
-  a crouched slot.
-- `nav-platform-state` — the first `setPlatformPlaces` report is no longer news when it
-  agrees with `startY`.
+- `nav-route-cases:362` — the same route.
 
-These are the next investigation targets.
+The last two were the interesting pair, and the answer to the question section 12 used
+to leave open — *is a graph edge missing, or are the tests asserting a route the engine
+cannot traverse?* — is the second one, with a twist. Bisecting `37ba8f1` (passing) to
+`2523aa9` (failing) narrowed it to a single hunk: the lifted-node guard moved to the top
+of the conveyor-entry block. That moved guard removed five edges, and the bare route
+needs exactly one of them, `CARRY_L (95,27) → (96,29)` across the mp80 shaft. With it
+gone the journey is not merely longer, it does not exist for a bare hero: every path out
+of the start region now goes through the ordinary-key door at mp80 `(57,15)` — proved by
+deleting that portal and watching reachability fall from 5,033 nodes to 2,558 with the
+goal gone — and every path needs `SLOPE_STAND`, because the ramp at columns 82..86 is a
+slope.
 
-Two of the original five have since been closed, both by the same change, and the story
+So the graph changed correctly and the tests were the stale side. The edge they were
+standing on is one the *player* had already disproved: standing at `(95,27)` with the
+jet under him, the route offered `CARRY_L (95,27) → (96,29)` and he was carried up to
+`(96,21)` instead, never reaching it. The recorded trip in `WORK/DOC/esco.txt` does not
+use the edge either — it comes into mp80 at `(166,31)` and walks the row-32 gallery to
+`(117,32)`.
+
+Both tests were then made to say what their own comments always claimed. `doorOpen`
+reports the west-gallery door at `(57,15)` as standing open — it is, in the session the
+journey was reported from — and `nav-route-cases` adds `planAccessories` for the ramp.
+Neither spends a key, which is what both tests were written to pin down, and the screen
+reaches the journey on its own shoes rung, the rung whose comment already named this
+corridor: *"mp80's west gallery is exactly that: Silkarn shoes to climb the ramp at
+columns 82..86, and the ordinary key for the door at (57,16)."* The door is now open
+instead of fetched, so rung 2 answers nothing and rung 3b answers the journey.
+
+Two of the original five were closed earlier, both by the same change, and the story
 is worth keeping because the design section above had it right while the code did not:
 
 - `nav-route-cases:172` — the mp81 jump into an up current.
@@ -627,6 +652,13 @@ the nearer of the two visit boundaries instead of only ever jumping forward.
     rope (the later occurrence is far ahead), backward alone breaks the corridor walked
     twice (the earlier pass is behind him), and neither is a rewind in the sense rule 17
     warns about, because the window is bounded.
+20. When a test and a player report disagree about what the engine does, the report wins
+    and the test is the thing that changes. mp80 `(111,21)` → mp81 `(124,6)` was written
+    as a bare, keyless walk while the graph still offered `CARRY_L (95,27) → (96,29)` —
+    an edge he stood on and reported as not happening. Closing that edge was right and
+    the journey it broke did not exist any more, so the fix was to say so (the door is
+    open, the shoes are on) rather than to keep an edge the game does not have. Find out
+    which side is stale by bisection before assuming either; see section 12.
 
 ## 14. Useful invariants
 

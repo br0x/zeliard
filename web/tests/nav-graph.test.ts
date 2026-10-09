@@ -147,11 +147,18 @@ describe('nodes are positions the hero can occupy', () => {
         // body, and a platform blocks it. So a slot's only entries are those two,
         // and the ones with neither are platform positions nothing can reach.
         //
-        // [measured] 5679 of 5684 slots have an entry. Before the jump model was
+        // [measured] 5966 of 5969 slots have an entry. Before the jump model was
         // derived from the engine, 5403 of 5589 did — but the extra entries were jumps
         // whose arcs the old apex test had invented, and the BOARD edges that
         // disappeared with them went to ground nodes the hero cannot stand on: a
         // platform occupies its own row, so there is never static ground under one.
+        //
+        // The census itself grew from 5684 to 5969 when low ceilings were modelled:
+        // where the roof is under three tiles the hero rides crouched, his head row
+        // drops one, and `buildPlatformModel` emits those as slots of their own
+        // alongside the standing ones at the same offset. They are the slots that made
+        // mp82's row-59 platform walkable at all — its standing slots sit at row 56
+        // and its crouched ones at 57 — so the count, not the graph, was what moved.
         let live = 0;
         let total = 0;
         void nodeAt;
@@ -167,8 +174,9 @@ describe('nodes are positions the hero can occupy', () => {
                 if (entries.has(i)) live++;
             }
         }
-        expect(total).toBe(5684);
-        // 12 dead slots. Most of what used to be dead is not: the horizontal riding
+        expect(total).toBe(5969);
+        // Three dead slots, down from twelve. Most of what used to be dead is not: the
+        // horizontal riding
         // offsets were `platformCol - 1 .. platformCol + 1` when the engine's own
         // `heroOnHorizPlatform` carries the hero when any of his three columns equals
         // the platform's left cell, which is `platformCol - 2 .. platformCol`. A slot
@@ -192,8 +200,8 @@ describe('nodes are positions the hero can occupy', () => {
         // rides it west to `(149,51)` and steps off. Withholding that fall the search
         // cannot reach `(151,6)` at all, because `(149,0)` above it is not a standing
         // position.
-        expect(live, 'ride slots with no entry at all').toBe(5679);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(5);
+        expect(live, 'ride slots with no entry at all').toBe(5966);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(3);
     });
 
     it('finds standing positions on the biggest caverns', () => {
@@ -465,7 +473,11 @@ describe('jumps are the model\'s, not a table of guesses', () => {
             const slots = new Uint8Array(meta.mapWidth * 64);
             for (const slot of platforms.slots) {
                 if (slot.kind !== PLATFORM_HORIZONTAL && !isLandingSlot(slot)) continue;
-                slots[(slot.headRow + 3) * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
+                // The row of the platform *tile*, not of the slot's head: a crouched
+                // slot's head sits one row below a standing one, so `headRow + 3` is
+                // a row under the platform rather than on it.
+                const platformRow = slot.platformRow ?? (slot.headRow + 3);
+                slots[platformRow * meta.mapWidth + wrapCol(slot.leftCol + 1, meta.mapWidth)] = 1;
             }
             const currents = new Uint8Array(meta.mapWidth * 64);
             for (let row = 0; row < 64; row++) {
