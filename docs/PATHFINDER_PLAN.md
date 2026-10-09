@@ -408,7 +408,7 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1009` tests passing.
+- `1015` tests passing.
 - `5` tests failing.
 
 ## 12. Known remaining issues
@@ -501,6 +501,57 @@ for as long as the hero stays in that cavern. `clearActiveRoute` also clears the
 guide's route now, not just the overlay; it was leaving a route live underneath the
 chevrons it had just wiped.
 
+The last of the level-8 defects was in the guide and the overlay rather than the
+pathfinder, and it was invisible to every test of the route itself — the route was
+always correct. Three of them, and none of the first two was the one the player was
+hitting; all three were found by reading his console, not by a test.
+
+The Thread of Yaga is a list of *visits*, not a set of cells, and this journey walks the
+same corridor twice: mp82's row 35 runs from the portal at (88,35) down to the key at
+(26,47) and then straight back through the same door, so that corridor is walked once at
+route indices 183–206 and again at 309–332, cell for cell. `drawPathOverlay` painted in
+draw order, which made the *second* pass win: every chevron from col 87 westward to 65
+came out pointing east, and because the return pass sits a hundred cells further along
+the route it arrived at the far end of the fade, taking the outbound chevrons with it. A
+cell is now painted at most once per frame, first visit wins — the first visit is always
+the one ahead of him, because `remaining()` is ordered — and once he has the key the
+anchor has moved past the outbound run, the return becomes the first visit, and the line
+turns round on its own. `step` is still counted for a withheld paint, so the fade spends
+itself against the route's real length.
+
+That fixed the direction and left the player with no chevrons at all, which pointed at
+the second one. `advanceProgress` only moved the anchor when the hero stood *exactly* on
+one of the route's cells, and a portal landing does not always do that — the engine's
+position is a tile off the line the search drew. The anchor then stayed on the room he
+had just crossed out of, and everything downstream reads that anchor: `remaining()`
+started back in mp81, so the overlay saw mp82 *enter* its own stretch and took that
+first entry for the way back out of a door he had not walked through (it is looking for
+a re-entry, and a route whose anchor precedes the entry has an entry, not a return).
+The whole of the room he was standing in went to `CHEVRON_FAR_ALPHA` — measured, the
+brightest chevron anywhere near him was 0.15, which is no chevrons. Two changes: the
+anchor now moves to the start of the visit on the hero's map even with no exact cell
+match (never a rewind, since it only ever moves forward), and `returnIndex` counts the
+first entry into his map as where he is heading, taking only a *later* one as the
+return. Landing at (89,35), (88,34) or (88,35) all now draw the same bright trail west
+toward the key.
+
+A third one, found the same way — by logging rather than by testing, and the logs made
+it plain that the first two were not what the player was seeing. He described it
+exactly: *"chevrons start to go west, then down the rope, and halfway on the rope they
+stop and reverse — up, then right to the door"*, and the trace showed why. The anchor
+searched forward for the hero's cell and took the first hit, but a rope the route goes
+down and comes straight back up passes the same cell **twice without leaving the map**,
+and the mouth of that rope is a cell the route only reaches on the way *back*. So the
+scan found the ascent a hundred points on, the anchor landed on the return leg while he
+was still descending, and `remaining()` opened above him: the trail began at the top of
+the shaft pointing up and east to a door he had not reached, with the whole descent
+behind the anchor and therefore never drawn. The search is now bounded to
+`ANCHOR_SCAN` points past where the visit begins — a route is walked one cell at a time,
+so the anchor normally moves one or two points a frame and the bound never comes into
+it, while a cell that appears only much later stops being a match and goes back to being
+a coincidence. The window is measured from `visit` rather than from the old anchor, so a
+portal crossing still works: `visit` has already skipped off the map he has just left.
+
 ## 13. Working rules for future changes
 
 1. **Model the engine, not an intuitive physics model.**
@@ -529,6 +580,25 @@ chevrons it had just wiped.
     dropped when the world under it is replaced. A restore is one; a change of cavern
     is another, because a platform only stays where the hero left it until the engine
     puts it back. Map data is the exception and survives everything.
+16. A route is a list of *visits*, not a set of cells, so drawing it in order is not the
+    same as drawing it correctly. A journey that fetches something and comes back walks
+    the same corridor twice, and the second pass would overwrite the first — pointing the
+    line back out the door and taking the fade with it. The first visit of a cell is the
+    one ahead of the hero; paint it once and let the anchor decide when that changes.
+17. The anchor must always be on the map the hero is standing in. Every consumer reads
+    it that way, and a consumer that asks "where does the route come back to this room"
+    cannot tell a room it *entered* from one it *returned* to unless the anchor is
+    already inside. So `advanceProgress` moves to the start of the visit even when no
+    cell matches — a landing a tile off the line is not a reason to leave the anchor in
+    the room he has just left, and it is never a rewind, because that start is only ever
+    found by moving forward.
+18. "The first cell ahead of him that he is standing on" is only the same as "where he
+    is" when the route passes each cell once. A route that goes down a rope and back up
+    it passes the mouth twice without leaving the map, and the later occurrence is the
+    *ascent* — matching it there puts the anchor on the way back and silently discards
+    the whole descent. Bounding the search past the start of the visit keeps a match
+    from being a coincidence, and the bound must be measured from `visit`, not from the
+    old anchor, or a portal crossing falls outside it.
 
 ## 14. Useful invariants
 

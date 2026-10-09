@@ -321,6 +321,54 @@ describe('the reveal starts at the hero', () => {
             col: ahead.col, row: ahead.row,
         });
     });
+
+    it('anchors in the room he is standing in when the landing is off the line', () => {
+        // The portal's landing is not always one of the route's own cells: the engine
+        // puts him a tile over, or a step taken off the line leaves him beside one.
+        // The anchor then has nowhere exact to go, and it stayed on the room he had
+        // just crossed out of. Everything downstream reads that anchor — `remaining()`
+        // starts at it, and the overlay works out which stretch is the way back from
+        // where it sits — so the whole of the room he was now standing in read as the
+        // way out of a door he had not entered, and was sent to the far end of the
+        // fade. On mp82 that was no chevrons toward the key at all.
+        const points: NavPoint[] = [
+            { mapId: 0, col: 10, row: 10, node: 0 },
+            { mapId: 0, col: 11, row: 10, node: 1 },
+            { mapId: 1, col: 5, row: 10, node: 2 },
+            { mapId: 1, col: 6, row: 10, node: 3 },
+            { mapId: 1, col: 7, row: 10, node: 4 },
+        ];
+        const route: NavRoute = {
+            points,
+            hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to })),
+            cost: points.length - 1,
+            keysSpent: { ordinary: 0, lion: 0 },
+            keysGained: { ordinary: 0, lion: 0 },
+            equipment: [],
+            lockedDoors: { ordinary: 0, lion: 0 },
+            maps: [0, 1],
+            crossesAggressiveGround: false,
+            crossesSlopes: false,
+            usesPlatforms: false,
+            usesCurrents: false,
+            expanded: points.length - 1,
+        };
+        // A store with no graphs in it, so `needsReplan` answers "no" straight away
+        // and what is left is the anchor and nothing else.
+        const hero = { mapId: 1, col: 9, row: 10 };
+        const guide = new PathGuide({
+            store: new NavGraphStore(() => null),
+            heroPosition: () => hero,
+            capabilities: () => allCapabilities(),
+        });
+        guide.setRoute(route, points[points.length - 1]!);
+        guide.update(0);
+
+        const remaining = guide.remaining();
+        expect(remaining.length, 'the route still has somewhere to go').toBeGreaterThan(0);
+        expect(remaining[0]!.mapId, 'the reveal starts in the room he is standing in')
+            .toBe(hero.mapId);
+    });
 });
 
 describe('chevron opacity', () => {

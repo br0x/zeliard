@@ -36,6 +36,43 @@ const REFRESH_MS = 20_000;
 /** Never re-plan more often than this. */
 const MIN_INTERVAL_MS = 500;
 
+/**
+ * How far ahead of where the hero's current visit begins his own cell may be found.
+ *
+ * The route is walked one cell at a time, so the anchor normally moves one or two
+ * points a frame and this never comes into it. What it stops is a cell the route
+ * passes **again later** pulling the anchor past everything in between. A rope the
+ * route goes down and comes back up is the sharp case: standing at its mouth, the
+ * hero's cell is not on the descent at all — it is the *ascent* a hundred points
+ * later — so the scan found it there, the anchor landed on the way back, and the
+ * chevrons reversed mid-rope: up the shaft and east to a door he had not reached,
+ * with the whole descent behind the anchor and therefore never drawn.
+ *
+ * A crossing still works, because the window is measured from where the visit
+ * begins, not from the old anchor: `visit` has already skipped off this map.
+ */
+const ANCHOR_SCAN = 32;
+
+/**
+ * Temporary: one line a second of what the guide thinks it is showing.
+ *
+ * The player reports "no chevrons leading to the key" while every test of the
+ * route says the route is right, so the two things nobody can see from the
+ * outside — where the anchor sits, and what the replan was actually asked —
+ * have to say themselves. Off under vitest, where every test that builds a
+ * guide would otherwise log; flip this to false when the report is closed.
+ */
+const PATH_DIAG = false; //((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE) !== 'test';
+
+/** State lines are throttled; the guide ticks every frame. */
+const DIAG_INTERVAL_MS = 1000;
+let lastDiagAt = -Infinity;
+
+/** `25:(89,35)`, or `-` for nothing. */
+function at(p: { mapId: number; col: number; row: number } | null | undefined): string {
+    return p ? `${p.mapId}:(${p.col},${p.row})` : '-';
+}
+
 /** Cyclic distance between two columns on a cavern cylinder. */
 function columnDelta(a: number, b: number, mapWidth: number): number {
     const raw = Math.abs(a - b);
@@ -226,6 +263,12 @@ export class PathGuide {
         this.arrived = false;
         this.plannedMask = -1;      // force the next update() to record the plan
         this.lastPlanAt = 0;
+        if (PATH_DIAG) {
+            console.log(`[path] setRoute goal=${at(goal)} cost=${route.cost}`
+                + ` maps=[${route.maps.join(',')}] points=${route.points.length}`
+                + ` plan={keys:${!!plan.collectKeys}, shoes:${!!plan.planAccessories},`
+                + ` doorOpen:${typeof plan.doorOpen}}`);
+        }
     }
 
     /**
@@ -240,6 +283,13 @@ export class PathGuide {
 
     /** Forget the route; the overlay draws nothing. */
     clear(): void {
+        if (PATH_DIAG && this.route) {
+            // Who cleared it matters more than that it did: a route dropped at a
+            // portal means no chevrons at all, and the caller is nowhere else visible.
+            console.warn(`[path] clear route goal=${at(this.goal)} anchor=${this.progress}`
+                + ` remaining=${this.route.points.length - this.progress}`);
+            console.trace('[path] clear called from');
+        }
         this.route = null;
         this.goal = null;
         this.progress = 0;
@@ -257,6 +307,10 @@ export class PathGuide {
 
     /** Hide the overlay without losing the route. */
     setDormant(dormant: boolean): void {
+        if (PATH_DIAG && dormant !== this.dormant) {
+            console.log(`[path] dormant=${dormant}`
+                + ` (this hides every chevron without clearing the route)`);
+        }
         this.dormant = dormant;
     }
 
@@ -476,6 +530,16 @@ export class PathGuide {
         // the frame's work with it — the chevrons simply stop, with nothing on screen
         // to say why. Say it instead.
         try {
+            if (!this.route) {
+                // No route means nothing is drawn at all, which is the only state that
+                // looks exactly like the player's report. Throttle it the same way.
+                if (PATH_DIAG && now - lastDiagAt >= DIAG_INTERVAL_MS) {
+                    lastDiagAt = now;
+                    console.log('[path] guide has NO route — overlay draws nothing'
+                        + ` (arrived=${this.arrived} goal=${at(this.goal)} dormant=${this.dormant})`);
+                }
+                return;
+            }
             this.tick(now);
         } catch (err) {
             const hero = this.deps.heroPosition();
@@ -507,6 +571,8 @@ export class PathGuide {
             ? { ...caps, mask: caps.mask | SHOE_MASK }
             : caps;
 
+        this.logState(now, planCaps, hero);
+
         if (!this.needsReplan(now, planCaps, hero)) return;
 
         // The search is the only synchronous work in this frame that can be seen, so
@@ -523,6 +589,12 @@ export class PathGuide {
         // one synchronous `findRoute` after another for as long as he stood still.
         const askedFor = this.platformVersion();
         this.lastPlanAt = now;
+        if (PATH_DIAG) {
+            console.log(`[path] replan ask ${at(hero)} -> ${at(this.goal)}`
+                + ` keys=${planCaps.keys} mask=0x${(planCaps.mask >>> 0).toString(16)}`
+                + ` plan={keys:${!!this.plan.collectKeys}, shoes:${!!this.plan.planAccessories},`
+                + ` doorOpen:${typeof this.plan.doorOpen}} liveKeys=${caps.keys}`);
+        }
         let next: NavRoute | null;
         try {
             next = findRoute({
@@ -547,10 +619,20 @@ export class PathGuide {
             throw err;
         }
         if (!next) {
-            console.warn(`[path] replan failed from map${hero.mapId} (${hero.col},${hero.row})`
-                + ` to map${this.goal.mapId} (${this.goal.col},${this.goal.row}); keeping old route`);
+            console.warn(`[path] replan FAILED ${at(hero)} -> ${at(this.goal)}`
+                + ` keys=${planCaps.keys} collectKeys=${!!this.plan.collectKeys}`
+                + ` doorOpen=${typeof this.plan.doorOpen}; keeping old route`);
             this.recordAsk(askedFor, planCaps);
             return;
+        }
+        if (PATH_DIAG) {
+            console.log(`[path] replan ok cost=${next.cost} maps=[${next.maps.join(',')}]`
+                + ` points=${next.points.length} first=${at(next.points[0])}`
+                + ` last=${at(next.points[next.points.length - 1])}`
+                + ` locked=${next.lockedDoors.ordinary}/${next.lockedDoors.lion}`
+                + ` spent=${next.keysSpent.ordinary}/${next.keysSpent.lion}`
+                + ` gained=${next.keysGained.ordinary}/${next.keysGained.lion}`
+                + ` shoes=${next.equipment.length}`);
         }
         this.route = next;
         // Re-read rather than reusing `askedFor`: the new route may touch maps the old
@@ -570,6 +652,42 @@ export class PathGuide {
         // first point is his cell: re-anchor there and the line starts at his feet.
         this.progress = 0;
         this.advanceProgress();
+    }
+
+    /**
+     * One line a second of what the guide believes it is showing.
+     *
+     * `progress` is the thing every consumer reads and the thing nobody can see
+     * from the outside: when it sits on the room the hero has just left, the
+     * overlay draws the room he is standing in as the way back out of a door he
+     * never entered, and the player reports "no chevrons at all" with nothing
+     * looking wrong about the route. Hero, anchor, next point and capabilities on
+     * one line is the whole of the state behind the three logs.
+     */
+    private logState(now: number, caps: HeroCapabilities, hero: { mapId: number; col: number; row: number }): void {
+        if (!PATH_DIAG || now - lastDiagAt < DIAG_INTERVAL_MS) return;
+        lastDiagAt = now;
+        const points = this.route!.points;
+        // The next few points, so the shape of the plan is visible without dumping
+        // the whole route: `[(25:62,36) (25:62,35) ...]`.
+        const head: string[] = [];
+        for (let i = this.progress; i < points.length && head.length < 6; i++) {
+            const p = points[i]!;
+            head.push(`${p.mapId}:(${p.col},${p.row})`);
+        }
+        console.log(`[path] guide hero=${at(hero)}`
+            + ` anchor=${this.progress}/${points.length}`
+            + ` next=${at(points[this.progress])}`
+            + ` head=[${head.join(' ')}]`
+            + ` remaining=${points.length - this.progress}`
+            + ` maps=[${this.route!.maps.join(',')}]`
+            + ` keys=${caps.keys} lionKeys=${caps.lionKeys} mask=0x${(caps.mask >>> 0).toString(16)}`
+            + ` plan={keys:${!!this.plan.collectKeys}, shoes:${!!this.plan.planAccessories},`
+            + ` doorOpen:${typeof this.plan.doorOpen}}`
+            + ` spent=${this.route!.keysSpent.ordinary}/${this.route!.keysSpent.lion}`
+            + ` gained=${this.route!.keysGained.ordinary}/${this.route!.keysGained.lion}`
+            + ` cost=${this.route!.cost} expanded=${this.route!.expanded}`
+            + ` dormant=${this.dormant} arrived=${this.arrived}`);
     }
 
     /**
@@ -720,15 +838,41 @@ export class PathGuide {
          * has just left — the crossing itself put it there — so points on another map
          * ahead of the anchor are skipped, and only then does the stop-at-a-crossing
          * rule apply.
+         *
+         * And it stops at {@link ANCHOR_SCAN} points past that visit, because a route
+         * may pass the same cell twice *without leaving the map* — down a rope and
+         * straight back up it. The ascent is the later occurrence, so finding his
+         * cell there put the anchor on the way back: the trail began above him,
+         * pointing up the shaft and east to the door, while the descent he was
+         * actually on sat behind the anchor and was never drawn.
          */
         const points = route.points;
         let i = this.progress;
         while (i < points.length && points[i]!.mapId !== hero.mapId) i++;
-        for (; i < points.length; i++) {
+        // Where this visit of his own map begins, before looking for his cell on it.
+        const visit = i;
+        const scanTo = Math.min(visit + ANCHOR_SCAN, points.length);
+        for (; i < scanTo; i++) {
             if (i > this.progress && points[i]!.mapId !== hero.mapId) break;
             if (!on(points[i]!)) continue;
             this.progress = i;
             break;
+        }
+        // He is on the route's map but not standing on any of its cells — a landing
+        // that put him a tile off the door, a step taken off the line. The anchor has
+        // to be *on his map* even so, because everything downstream reads it that way:
+        // `remaining()` starts at the anchor, and the overlay works out which stretch
+        // is the way back from where the anchor sits. Left on the map he has just
+        // crossed out of, the whole of the room he is standing in is read as the way
+        // back out of a door he has not entered, and is drawn at the far end of the
+        // fade — no chevrons at all, which is what the player hit crossing into mp82.
+        // This is never a rewind: `visit` is only ever reached by moving forward.
+        if (visit < points.length && visit > this.progress) {
+            if (PATH_DIAG) {
+                console.log(`[path] anchor crossed ${this.progress} -> ${visit} with no cell match`
+                    + ` (hero ${at(hero)}, route length ${points.length})`);
+            }
+            this.progress = visit;
         }
         // Reaching the destination ends the route. This is checked against the last
         // point directly, not against the anchor: there is nothing after the last

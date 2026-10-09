@@ -217,4 +217,35 @@ describe('the opacity of a chevron', () => {
             'out of a door he never entered is as faded as fifteen cells away')
             .toBe(true);
     });
+
+    it('treats the first entry into his map as where he is heading, not a return', () => {
+        // The route is still behind the door when `remaining()` starts: the anchor is
+        // on the room he has just left, so his own room *enters* the stretch. That
+        // entry is where he is going, and only a later one is the way back to a door
+        // he has not walked through. Taking the first for the second sent the whole of
+        // the room he was standing in — the way to the key included — to the far end
+        // of the fade, which is why the player saw no chevrons at all after crossing
+        // the portal into mp82.
+        const seen = draw(through([
+            { mapId: 1, col: 3, row: 10, node: 0 },
+            { mapId: 0, col: 0, row: 10, node: 1 },
+            { mapId: 0, col: 1, row: 10, node: 2 },
+            { mapId: 0, col: 2, row: 10, node: 3 },
+            { mapId: 1, col: 4, row: 10, node: 4 },
+            { mapId: 0, col: 5, row: 10, node: 5 },
+            { mapId: 0, col: 6, row: 10, node: 6 },
+        ], [1, 0]), { heroMapId: 0, left: 0, top: 0 });
+
+        const inRoom = seen.filter(
+            (d) => d.frame !== CHEVRON_DESTINATION && d.y === 10 * TILE_SIZE,
+        );
+        expect(inRoom.length, 'the stretch in his own room is drawn').toBeGreaterThanOrEqual(3);
+        expect(inRoom.some((d) => d.alpha === 1),
+            'the first entry into his room is solid, not at the far end of the fade')
+            .toBe(true);
+        // The way back out, after the route has left and re-entered, still is not.
+        expect(inRoom.some((d) => d.alpha === chevronAlpha(15)),
+            'only the genuine return is faded')
+            .toBe(true);
+    });
 });

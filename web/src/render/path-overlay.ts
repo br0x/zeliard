@@ -68,6 +68,31 @@ export interface PathOverlayEnv {
 
 let env: PathOverlayEnv | null = null;
 
+/**
+ * Temporary: one line a second of what the overlay actually put on screen.
+ *
+ * "No chevrons leading to the key" has four different causes — no route, a
+ * route that is not live, a route whose anchor is on another map, and a route
+ * that is live and drawn but sitting at the far end of the fade — and only this
+ * line separates them. Off under vitest; flip to false when the report is
+ * closed.
+ */
+const PATH_DIAG = false; //((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE) !== 'test';
+const DIAG_INTERVAL_MS = 1000;
+let lastDiagAt = -Infinity;
+
+const FRAME_NAME = ['R', 'U', 'L', 'D', '@'] as const;
+
+/** Say why a frame drew nothing, at most once a second. */
+function diagSkip(now: number, reason: string): void {
+    if (!PATH_DIAG || now - lastDiagAt < DIAG_INTERVAL_MS) return;
+    lastDiagAt = now;
+    console.log(`[path] draw SKIP ${reason}`
+        + ` sheet=${env?.chevrons !== null} active=${!!env?.guide?.isActive}`
+        + ` remaining=${env?.guide ? env.guide.remaining().length : 'n/a'}`
+        + ` map=${env?.heroMapId() ?? 'none'}`);
+}
+
 /** Wire the overlay once the composition root has its pieces. */
 export function initPathOverlay(next: Omit<PathOverlayEnv, 'placed'>): void {
     env = { ...next, placed: [] };
@@ -241,12 +266,22 @@ export function drawPathOverlay(now: number): void {
     if (!env) return;
     env.placed.length = 0;
     const guide = env.guide;
-    if (!guide || !env.chevrons || !guide.isActive) return;
+    if (!guide) { diagSkip(now, 'no guide'); return; }
+    if (!env.chevrons) { diagSkip(now, 'sheet not loaded'); return; }
+    if (!guide.isActive) { diagSkip(now, 'not active'); return; }
 
     const heroMapId = env.heroMapId();
-    if (heroMapId === null) return;
+    if (heroMapId === null) { diagSkip(now, 'outside a cavern'); return; }
     const points = guide.remaining();
-    if (points.length === 0) return;
+    if (points.length === 0) { diagSkip(now, 'nothing remaining'); return; }
+
+    /** `true` at most once a second: the guide ticks every frame too. */
+    const diag = PATH_DIAG && now - lastDiagAt >= DIAG_INTERVAL_MS;
+    let diagTiles = 0;
+    let diagEdges = 0;
+    let diagWithheld = 0;
+    let diagBright = 0;
+    const diagNear: string[] = [];
 
     /**
      * Where the route comes back to the hero's own map, having left it.
@@ -263,12 +298,22 @@ export function drawPathOverlay(now: number): void {
      * There is nothing to find on a route that never leaves the map, and a hero who
      * has *made* the crossing has his anchor past it, so the crossing is already
      * behind `remaining()[0]` and is not looked at again.
+     *
+     * A route that begins on some other map — the anchor is still on the room he
+     * has just left — enters his map for the first time, and that entry is where he
+     * is heading, not a return to it. Only a *later* entry is the way back, so the
+     * first one is counted past: taking it as the return sent the whole of the room
+     * he was standing in to the far end of the fade.
      */
     let returnIndex = points.length;
+    let entered = points[0]!.mapId === heroMapId;
     for (let i = 1; i < points.length; i++) {
         if (points[i]!.mapId === heroMapId && points[i - 1]!.mapId !== heroMapId) {
-            returnIndex = i;
-            break;
+            if (entered) {
+                returnIndex = i;
+                break;
+            }
+            entered = true;
         }
     }
 
@@ -311,6 +356,26 @@ export function drawPathOverlay(now: number): void {
      */
     let step = 0;
     let drawn = 0;
+    /**
+     * Cells already painted this frame, on the hero's own map.
+     *
+     * A route is a list of visits, not a set of cells, and it may walk the same
+     * corridor twice — a key fetched across a cavern and then spent back the way
+     * he came is drawn as the outbound run of tiles and the inbound one on top of
+     * each other, cell for cell. Painting in draw order made the *second* pass
+     * win, so the line at the hero's feet pointed back out the door he had just
+     * come through, and the fade the second pass carries (`step` is a hundred
+     * cells further on) took the first pass's chevrons down to the far end of the
+     * fade with it: on mp82 the whole stretch toward the key vanished and the
+     * door was all that was left pointing anywhere.
+     *
+     * The first visit is always the one ahead of him — `remaining()` is ordered,
+     * so a cell cannot be reached twice without its earlier occurrence coming
+     * first. First paint wins, and the return pass simply does not draw over it.
+     * Once he has the key the anchor has moved past the outbound run, the return
+     * becomes the first visit, and the line turns round on its own.
+     */
+    const painted = new Set<number>();
     for (let i = 0; i + 1 < points.length && drawn < MAX_CHEVRONS; i++) {
         // Every cell the hop covers, not just where it started. One arrow per hop
         // drew nothing at all for the nine columns a jump covered, which read on
@@ -340,10 +405,19 @@ export function drawPathOverlay(now: number): void {
             const frame = chevronFor(from, to, mapWidth, false);
             if (frame === null) continue;
             const beyond = i >= returnIndex;
+            const usedStep = step;
             const alpha = (beyond || from.mapId !== heroMapId)
                 ? CHEVRON_FAR_ALPHA
                 : chevronAlpha(step);
             step++;
+            // Once per cell per frame, on the hero's map. Counted after `step`, so
+            // a route that walks the same corridor twice still spends the fade the
+            // way its length says it should; only the paint is withheld.
+            if (from.mapId === heroMapId) {
+                const cell = from.row * mapWidth + from.col;
+                if (painted.has(cell)) { if (diag) diagWithheld++; continue; }
+                painted.add(cell);
+            }
             const at = viewportPixel(from, from.mapId, heroMapId, viewportLeft, viewportTop, mapWidth);
             if (!at) {
                 // The route has left the room. One marker on the border it went out
@@ -352,6 +426,7 @@ export function drawPathOverlay(now: number): void {
                 // which is the one thing that makes the route impossible to read.
                 ctx.globalAlpha = alpha;
                 edgeChevron(ctx, sheet, from, to, mapWidth);
+                if (diag) diagEdges++;
                 drawn++;
                 continue;
             }
@@ -359,6 +434,19 @@ export function drawPathOverlay(now: number): void {
             drawSheetFrame(ctx, sheet, frame, CHEVRON_FRAME_W, CHEVRON_FRAME_H,
                 CHEVRON_FRAMES, at.x, at.y, TILE_SIZE, TILE_SIZE);
             env.placed.push({ x: at.x, y: at.y, frame, mapId: from.mapId });
+            if (diag) {
+                diagTiles++;
+                if (alpha >= 0.9) diagBright++;
+                // The first tiles drawn are the ones at the hero's feet, so a short
+                // prefix of them is the whole of the answer to "where does it start".
+                // `i` is the index into `remaining()`, `B` means the far half of the
+                // fade was chosen for this hop, `s` is the step the alpha came from:
+                // between them those say *why* a cell is faint.
+                if (diagNear.length < 14) {
+                    diagNear.push(`i${i}${beyond ? 'B' : ''}s${usedStep}`
+                        + `(${from.mapId}:${from.col},${from.row})${FRAME_NAME[frame]}${alpha.toFixed(2)}`);
+                }
+            }
             drawn++;
         }
     }
@@ -375,5 +463,21 @@ export function drawPathOverlay(now: number): void {
         env.placed.push({ x: ringAt.x, y: ringAt.y, frame: CHEVRON_DESTINATION, mapId: last.mapId });
     }
     ctx.restore();
-    void now;
+    if (diag) {
+        lastDiagAt = now;
+        const first = points[0]!;
+        // A sheet that loaded as a blank or broken image draws nothing at all while
+        // every other number on this line says chevrons went out.
+        const img = sheet as unknown as { width?: number; height?: number; complete?: boolean; naturalWidth?: number };
+        console.log(`[path] draw map=${heroMapId} remaining=${points.length}`
+            + ` sheet=${img.width}x${img.height}`
+            + ` complete=${img.complete} natural=${img.naturalWidth}`
+            + ` first=${first.mapId}:(${first.col},${first.row})`
+            + ` returnIndex=${returnIndex}`
+            + ` viewport=${viewportLeft},${viewportTop} width=${mapWidth}`
+            + ` tiles=${diagTiles} bright=${diagBright}`
+            + ` edgeMarks=${diagEdges} withheld=${diagWithheld}`
+            + ` step=${step} drawn=${drawn}/${MAX_CHEVRONS}`
+            + ` near=[${diagNear.join(' ')}]`);
+    }
 }
