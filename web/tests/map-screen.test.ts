@@ -22,6 +22,7 @@ import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilitie
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../src/data/nav/nav-portals.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
+import { NAV_PLATFORMS } from '../src/data/nav/nav-platforms.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 /**
@@ -139,6 +140,98 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
         expect(made.length).toBeGreaterThan(0);
         // Air and the rope highlight are the only fills left.
         expect(fills.length).toBeGreaterThan(0);
+    });
+
+    it('draws every platform, where the level data says it stands', async () => {
+        // A platform is runtime state: `render_vertical_platforms_to_proximity` and its
+        // two siblings stamp three tiles into the proximity map every frame, and none of
+        // them is ever in the MDT. So the chart was a cavern with all of its machinery
+        // missing — the player rides the row-30 platform at mp80 (203,27) and the map
+        // shows the empty air he is standing in.
+        //
+        // They are drawn at the **default** position, which is where a cavern is entered
+        // and where a platform snaps back to when its map is loaded again, so the chart
+        // is the cavern the player meets. Where one travels is not drawn: a horizontal
+        // platform has already started moving by the time the map opens, and a span it
+        // is not on would be worse than nothing.
+        // `drawSheetFrame` turns a frame index into a source cell before blitting, so
+        // the frame is recovered from the source column: the platform sheet is one row
+        // of 24px cells, and frame N sits at column N.
+        const blits: { frame: number; dx: number; dy: number }[] = [];
+        const inner = {
+            ...CTX,
+            drawImage: (_s: unknown, sx: number, _sy: number, _sw: number, _sh: number,
+                dx: number, dy: number) => { blits.push({ frame: sx / 24, dx, dy }); },
+        } as unknown as CanvasRenderingContext2D;
+        const createElement = vi.spyOn(document, 'createElement').mockImplementation(
+            (() => ({
+                width: 0, height: 0, getContext: () => inner,
+            } as unknown as HTMLCanvasElement)) as typeof document.createElement);
+
+        const outer = { ...CTX, drawImage: () => {} } as unknown as CanvasRenderingContext2D;
+        // Nine frames, one row — the platform sheet's real shape, so all three families
+        // blit. Only the three triples' first frames are checked, because the two
+        // families that start at frame 3 and 6 would need the sheet to hold them.
+        const sheet = { width: 24 * 9, height: 24 } as HTMLImageElement;
+        const h = harness({
+            canvas: CANVAS, ctx: outer, tileSheets: async () => ({ tiles: sheet, platforms: sheet }),
+        });
+        h.draw();
+        await new Promise((r) => { setTimeout(r, 0); });
+        h.draw();
+        createElement.mockRestore();
+
+        const tables = NAV_PLATFORMS[HERO.mapId]!;
+        // Three families, three different triples of the shared sheet: 0x40 vertical,
+        // 0x43 collapsing, 0x46 horizontal (dungeon-vertical.ts, dungeon-platforms.ts).
+        const wanted = [
+            ...tables.vertical.map((p) => ({ col: p.x, row: p.startY, frame: 0 })),
+            ...tables.collapsing.map((p) => ({ col: p.x, row: p.startY, frame: 3 })),
+            ...tables.horizontal.filter((p) => p.speed !== 0)
+                .map((p) => ({ col: p.startX, row: p.y, frame: 6 })),
+        ];
+        // The first tile of each platform is frame 0x40, 0x43 and 0x46 of the sheet,
+        // and `drawSheetFrame` indexes the sheet from zero.
+        expect(wanted.length, 'mp10 has platforms of all three kinds').toBeGreaterThan(3);
+        const { scale } = (h.screen as unknown as {
+            originFor: (id: number) => { ox: number; oy: number; scale: number };
+        }).originFor(HERO.mapId);
+        // The raster is a canvas of its own, so a blit carries chart-local coordinates;
+        // `drawMap` places it on the sheet afterwards.
+        const drawn = new Set(blits.map((b) => `${b.frame},${b.dx},${b.dy}`));
+        for (const p of wanted) {
+            const at = `${p.frame},${p.col * scale},${p.row * scale}`;
+            expect(drawn.has(at), `a platform at column ${p.col}, row ${p.row}`).toBe(true);
+        }
+    });
+
+    it('shows a platform even with no art to draw it with', () => {
+        // The sheet is what tells a lift from a conveyor, not the chart's geometry, so
+        // a screen with no sheets still marks them — in the class colour the raster
+        // falls back to everywhere else.
+        const fills: [number, number][] = [];
+        const inner = {
+            ...CTX,
+            fillRect: (x: number, y: number) => { fills.push([x, y]); },
+        } as unknown as CanvasRenderingContext2D;
+        const createElement = vi.spyOn(document, 'createElement').mockImplementation(
+            (() => ({
+                width: 0, height: 0, getContext: () => inner,
+            } as unknown as HTMLCanvasElement)) as typeof document.createElement);
+        const outer = { ...CTX, drawImage: () => {} } as unknown as CanvasRenderingContext2D;
+        const h = harness({ canvas: CANVAS, ctx: outer });
+        h.draw();
+        createElement.mockRestore();
+
+        const p = NAV_PLATFORMS[HERO.mapId]!.vertical[0]!;
+        const { scale } = (h.screen as unknown as {
+            originFor: (id: number) => { ox: number; oy: number; scale: number };
+        }).originFor(HERO.mapId);
+        const painted = new Set(fills.map(([x, y]) => `${x},${y}`));
+        for (let i = 0; i < 3; i++) {
+            expect(painted.has(`${(p.x + i) * scale},${p.startY * scale}`),
+                `a platform tile at column ${p.x + i}, row ${p.startY}`).toBe(true);
+        }
     });
 });
 

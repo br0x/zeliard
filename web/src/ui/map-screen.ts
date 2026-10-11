@@ -32,7 +32,10 @@
 import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../data/nav/nav-maps.js';
 import { NAV_MAP_HEIGHT } from '../data/nav/index.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../data/nav/nav-portals.js';
+import { NAV_PLATFORMS } from '../data/nav/nav-platforms.js';
 import { NavTileClassifier } from '../engine/nav/attributes.js';
+import { PLATFORM_WIDTH } from '../engine/nav/platforms.js';
+import { wrapCol } from '../engine/nav/geometry.js';
 import { NAV } from '../engine/nav/types.js';
 import { CLOSED_DOOR_TILES, OPENED_DOOR_TILES } from '../engine/dungeon-frame-pre.js';
 import {
@@ -789,6 +792,20 @@ export class MapScreen {
                 ctx.fillRect(x, y, scale, scale);
             }
         }
+        // Platforms, where the level data says they stand. They are runtime state and
+        // appear nowhere in the MDT — `render_vertical_platforms_to_proximity` and its
+        // two siblings stamp them into the proximity map every frame — so the chart was
+        // a cavern with all of its machinery missing: the hero rides one at (203,27)
+        // and the map shows the empty air he is standing in.
+        //
+        // The default position is the right one to draw, because it is the one the
+        // cavern is entered at and the one a platform snaps back to when its map is
+        // loaded again (`platform-state.ts`), so the chart is the cavern as the player
+        // will meet it. Where they *travel* is a fact about the level the chart does not
+        // claim: a horizontal platform has already begun to move by the time the map is
+        // open, and drawing a span it is not on would be worse than drawing nothing.
+        this.paintPlatforms(ctx, mapId, grid.mapWidth, scale, rows, platforms, platCols, platCount);
+
         // Rope runs read better with a highlight along their length.
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         for (let row = 0; row < rows; row++) {
@@ -798,6 +815,61 @@ export class MapScreen {
             }
         }
         return canvas;
+    }
+
+    /**
+     * Every platform this cavern has, drawn where its record says it stands.
+     *
+     * Three tiles each, and the three families are three different triples of the
+     * shared platform sheet — `0x40..0x42` vertical, `0x43..0x45` collapsing,
+     * `0x46..0x48` horizontal (dungeon-vertical.ts:341-366, dungeon-platforms.ts:234-243)
+     * — so the art tells them apart for free. A screen without the sheet falls back to
+     * one colour: it is the sheet that tells a lift from a conveyor, not the chart's
+     * own geometry.
+     *
+     * Rows outside the chart are left out rather than clipped: the chart is cut at the
+     * last row with anything on it (see {@link chartedRows}), and a platform below that
+     * is in rock nobody is ever shown.
+     */
+    private paintPlatforms(
+        ctx: CanvasRenderingContext2D,
+        mapId: number,
+        mapWidth: number,
+        scale: number,
+        rows: number,
+        sheet: HTMLImageElement | null,
+        sheetCols: number,
+        sheetCount: number,
+    ): void {
+        const tables = NAV_PLATFORMS[mapId];
+        if (!tables) return;
+        const at = (left: number, row: number, first: number): void => {
+            if (row < 0 || row >= rows) return;
+            const x = wrapCol(left, mapWidth) * scale;
+            const y = row * scale;
+            for (let i = 0; i < PLATFORM_WIDTH; i++) {
+                const dx = x + i * scale;
+                // A platform that would run off the right of the chart is a cylinder:
+                // it wraps, exactly as the columns of the cavern itself do.
+                const dx2 = dx >= mapWidth * scale ? dx - mapWidth * scale : dx;
+                const frame = first + i;
+                if (sheet && frame - DCHR_BASE_TILE < sheetCount) {
+                    drawSheetFrame(ctx, sheet, frame - DCHR_BASE_TILE, MAP_TILE_PX, MAP_TILE_PX,
+                        sheetCols, dx2, y, scale, scale);
+                } else {
+                    ctx.fillStyle = COL.platform;
+                    ctx.fillRect(dx2, y, scale, scale);
+                }
+            }
+        };
+        for (const p of tables.vertical) at(p.x, p.startY, DCHR_BASE_TILE);
+        for (const p of tables.collapsing) at(p.x, p.startY, DCHR_BASE_TILE + 3);
+        for (const p of tables.horizontal) {
+            // speed 0 is a frozen platform: a static ledge, not machinery, and the
+            // model declines to move the hero on it (platforms.ts REASON_FROZEN).
+            if (p.speed === 0) continue;
+            at(p.startX, p.y, DCHR_BASE_TILE + 6);
+        }
     }
 
     // ── drawing ───────────────────────────────────────────────────────────────

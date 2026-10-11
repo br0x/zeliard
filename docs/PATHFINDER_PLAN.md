@@ -297,6 +297,9 @@ The map screen:
 
 - shows the current cavern group/map strip;
 - renders the selected map at an integer scale;
+- shows every platform — vertical, collapsing and horizontal — at the default position
+  its record carries, from the shared platform sheet, which is also what tells the three
+  families apart;
 - shows doors and town exits;
 - shows the hero's map position;
 - accepts only valid/reprojectable navigation destinations;
@@ -306,6 +309,25 @@ The map screen:
 The full map fits inside the 672×432 canvas without panning.
 
 The map UI must remain visually consistent with the existing inventory/menu UI.
+
+### Platforms on the chart
+
+A platform is runtime state, not map data. `render_vertical_platforms_to_proximity`,
+`process_visible_collapsing_platforms` and `update_and_render_horiz_platforms` stamp
+three tiles into the proximity map every frame, and none of them is ever in the MDT —
+so the chart was a cavern with all of its machinery missing. The player rides mp80's
+row-30 platform at `(203,27)` and the map showed the empty air he was standing in.
+
+They are drawn at the **default** position, which is the one a cavern is entered at and
+the one a platform snaps back to when its map is loaded again
+(`platform-state.ts`), so the chart is the cavern the player meets. Where a platform
+*travels* is deliberately not drawn: a horizontal platform has already begun to move by
+the time the map opens, and a span it is not on would be worse than nothing. Rows below
+the chart's last row with anything on it are skipped — the chart is cut at
+`chartedRows`, and a platform under that is in rock nobody is shown.
+
+`speed: 0` platforms are left out with everything else the model treats as a static
+ledge rather than machinery.
 
 ## 7. Live route guide
 
