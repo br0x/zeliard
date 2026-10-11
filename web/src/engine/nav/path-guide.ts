@@ -658,9 +658,16 @@ export class PathGuide {
         // the ledge at (26,21) onto it could not be replayed at all — the overlay
         // fell back to the hop's two ends and drew one chevron pointing straight down
         // into the rock under the shaft.
+        //
+        // The horizontal row comes from `platformRow`, not `headRow + 3`. Where the
+        // ceiling is under three tiles the hero crouches and his head row drops one,
+        // so the two are only the same row for a standing slot — and marking a
+        // crouched slot's platform a row too low makes the guide's model disagree
+        // with the graph's on exactly the flights that pass over one.
         for (const slot of platformModel.slots) {
             if (slot.kind === PLATFORM_HORIZONTAL) {
-                surfaces[(slot.headRow + 3) * grid.mapWidth
+                const platformRow = slot.platformRow ?? (slot.headRow + 3);
+                surfaces[platformRow * grid.mapWidth
                     + wrapCol(slot.leftCol + 1, grid.mapWidth)] = 1;
                 continue;
             }

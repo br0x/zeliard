@@ -168,13 +168,14 @@ Node kinds:
 A node is created from the engine's standing/landing rules, not from a generic 3×3
 clearance test.
 
-Current measured graph size is approximately:
+Current measured graph size is:
 
-- 30,012 nodes.
-- 5,684 platform ride slots.
-- 506,899 edges.
+- 30,317 nodes (19,433 ground, 4,895 rope, 5,989 ride).
+- 511,524 edges.
 
-These values are useful sanity checks, not API contracts.
+These values are useful sanity checks, not API contracts. `nav-graph` measures them
+rather than asserting a table nobody can re-derive; see §15 for how the last change
+moved them.
 
 ### Edges
 
@@ -404,12 +405,16 @@ Recorded player routes have been used to validate:
 - current lifts;
 - seam-wrapping platform travel.
 
-Current repository state at the end of the supplied document:
+Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1036` tests passing.
+- `1026` tests passing.
 - `0` tests failing.
+
+The five failures recorded here closed on the previous revision; the mp80 journey to
+`(244,7)` and what it says about the lift model is §15, and the rules it added are
+§16.24 to §16.27.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -785,8 +790,152 @@ These are the highest-value sanity checks when changing the pathfinder:
 - A route starts at the hero and ends at the selected destination.
 - A route in hand is never short of keys: locked doors ahead of the anchor are covered by
   the pocket plus the keys the route says it picks up.
+- A lift's `topY`/`bottomY` is what `try_move_platform_up`/`Down` allow, walking the
+  decoded map one row at a time — re-derived and compared in `nav-platform-model`.
+- A vertical ride slot has an open **middle** column; a horizontal one has a free 3x3.
+- A flight with Up held alone can end on a rope, and one with a direction held cannot.
 
-## Crouching 
+## 15. mp80 (203,29) -> mp80 (244,7), and the recorder diff behind it
+
+The player picked that journey with the Thread of Yaga and got nothing. He then ran
+recorder mode over the whole trip and pasted the report, which ends:
+
+```text
+-- 33 hop(s) the graph does not have; each *** line above is a bug in the graph --
+```
+
+The trip is: ride the row-30 platform east and back, take the rope in column 197 to
+its head at (197,9), walk the row-11 gallery to the lift at column 227, ride it down,
+cross to the rope in column 243, drop to the row-19 shelf, ride the x=250 lift to the
+top of its travel, and jump up-left into the row-7 gallery, where (244,7) is.
+
+Thirty-three lines is a report about the whole level, and most of them are not this
+journey. Three of them are, and each was in a different file.
+
+### The rope on the way up
+
+He was riding the platform at (197,27), held Up, and the jump rose to (197,25) — where
+the rope hanging in column 198 begins — and took hold of it. The model had no way to
+express that: `nav/jump.ts` knew a descent could end on a rope (`airborne_movement`
+probes the cell under his middle foot after it has dropped a row) and that a fall
+could, but a **rise** was only ever a rise.
+
+The code is `try_climb_rope`, and it is reached from exactly one place:
+`state_machine_dispatcher` routes **Up held on its own** to `up_pressed_dispatch`,
+which calls it on every frame of the rise (dungeon-input.ts:372-374, 426-440).
+`right_up_pressed` and `left_up_pressed` jump and step sideways and never reach it,
+so a jump with a direction held is exactly the flight it was — which is the easy half
+to get wrong, and `nav-jump-differential` now proves both halves against the engine's
+own frame loop.
+
+### The lift's travel
+
+`tools/navlib/platforms.mjs` walked a lift's range with a **3x3 box clear** test on
+top of the engine's guards. The engine asks one cell — `try_move_platform_up` reads
+the tile above the middle of the hero's head — and two three-cell spans: the row the
+platform is about to occupy and the one above it (`bx` and `si` in asm/fight.asm). It
+asks nothing about his body, because he is already standing there.
+
+The box test was wrong twice over and it cost every vertical lift on the level rows it
+really travels. On mp80 seven of eight were cut short and the x=250 lift stopped at row
+15 when the engine takes it to 13. The range is now the engine's own walk, and
+`nav-platform-model` re-derives it from the decoded map and compares, so the generator
+cannot drift from the guards again.
+
+### The lift's slot
+
+With the range right, (250,10) and (250,11) still were not slots, because the hero's
+*right* column is inside the wall at column 252 on those two rows. `standingAboard`
+demanded a free 3x3, and the engine demands nothing of the kind:
+`move_platform_down_damage_monster` finds the platform by reading the tile under the
+hero's **middle** foot and carries him a row with it, and
+`dungeon-hero.move_hero_right_if_no_obstacles` probes one column — the one he is
+already in.
+
+So a lift slot now asks `canRest`'s question and nothing more: the hero's middle column
+over his three rows must be open. A cell whose middle column is inside rock is a
+number in a grid, not a position; a cell whose *side* is inside rock is a position the
+player has stood in. That is §13's rule 3, and this is where it was being broken.
+
+The four-row jump off the top of that lift is what reaches the row-7 gallery, and
+without any of the three the whole map north of row 11 was unreachable from the ledge
+he started on.
+
+### What else the recorder named, and is not fixed here
+
+The remaining lines are two other things, and they are worth naming because the next
+recording will still show them.
+
+- **A lift carries him at `x - 1 .. x + 1`, not `x`.** `identify_platform_tile` reads
+  the tile under his middle foot and `find_platform_under_hero` turns it into the
+  platform's column with `absX = heroLeftCol + dh`, `dh` in `1, 0, -1` — so a hero
+  hanging off either side of the three-tile ledge is aboard it. The player's own trip
+  rides the x=227 lift at (226,18) and then down from there to (228,26). Thirteen of
+  the 33 lines are these. It is modelled as `x` alone, and the reason is not that the
+  reading is unclear: `PlatformModel.places` is the live row read out of `g_mem` as
+  `{ absX, y }` keyed by **column**, so two lifts a column apart cannot be told apart
+  at all — three caverns already share one, and `nav-platform-model` names them.
+  Widening the riding positions makes every neighbouring pair share a column as well,
+  and the graph would pin the wrong row to the wrong lift. The reading has to become
+  `{ platform, y }` before the slots can widen.
+- **A crouched hero is carried into a position his 3x3 does not fit.** The recorder
+  has him at (212,27) and (213,27) on the row-30 platform with `DOWN` held, and he got
+  there because `move_hero_right_if_no_obstacles` **skips the head-row test while
+  `SQUAT_FLAG` is set** (dungeon-hero.ts:227). Crouch is still not a general navigation
+  state; see the last section.
+
+And a handful of the lines are the recorder's own: he spends a few frames on a cell
+with nothing under him whenever he steps off a rope, because `dungeon_finish_rope_frame`
+clears `ON_ROPE_FLAGS` on one frame of the two-phase dungeon frame and the recorder
+reads `JUMP_PHASE_FLAGS` on the next. It is one frame of falling that reads as
+standing. (197,9), (198,9), (225,17) and (244,17) are all that, and none of them is a
+node the graph owes him.
+
+### What the level looks like afterwards
+
+The passage the player described is now in the graph, and several long-standing
+journeys got shorter and cheaper as a side effect, so the tests that pinned them were
+re-based:
+
+| Journey | Before | After |
+| --- | --- | --- |
+| mp80 (111,21) -> mp82 (27,19), bare | 644 hops, 1 key | 359 hops, no key |
+| mp80 (111,21) -> mp80 (227,34), bare | 1061 hops, 2 keys | 649 hops, 1 key |
+| mp80 (111,21) -> mp81 (124,6), all shoes | 399 hops | 352 hops |
+| mp80 (203,29) -> mp80 (244,7) | no route | 74 hops |
+
+The reason is that mp80 reaches mp82 through the door at (166,31) and the row-32
+gallery, which the plan has described as a thing the player walked since section 12
+and which the graph did not have: the lifts that lead to it stopped two rows short.
+So the west-gallery door at (57,16) is no longer on the way to anything, and the
+Silkarn ramp at columns 82..86 is not on it either.
+
+Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census in
+`nav-graph` is measured rather than assumed, as section 12 requires.
+
+## 16. Working rules, continued
+
+24. **A rise is driven by held input, and Up alone is the input that climbs.** The
+    whole ascent runs through `state_machine_dispatcher`, which answers Up on its own
+    with `try_climb_rope` on every frame. A flight can therefore end on a rope *going
+    up*, which is a different piece of code from the rope caught on the way down, and a
+    model that only knows the second cannot follow the player off a platform into a
+    rope. The gate matters: `right_up_pressed` never reaches it.
+25. **A lift's range is the engine's guards, walked one row at a time, and nothing
+    else.** `try_move_platform_up` asks one cell above the head and two three-cell
+    spans; it asks nothing about the hero's body, and a body test on top of it is
+    §13 rule 3 broken in the generator rather than in the graph.
+26. **A platform supplies its own support, so a ride slot does not ask for one.** What
+    is left is `canRest`'s question — is the hero's middle column open — and nothing
+    else. A horizontal platform keeps the box test, because there the ride is pinned
+    where it stands and the hero walks onto it from the ground.
+27. **When a question is asked about a platform, ask which platform.** A lift's live
+    row is `{ absX, y }` keyed by column, so two lifts in one column are
+    indistinguishable. That is why the riding offsets stay at `x` for now; widening
+    them is correct in the engine and wrong in the model until the key stops being a
+    column.
+
+## 17. Crouching
 - standing hero: 3×3
 - squat/crouch hero: 3×2
 - crouched head is one tile lower
@@ -796,3 +945,8 @@ These are the highest-value sanity checks when changing the pathfinder:
 - a crouched slot and a standing slot on the same platform are one ride, joined along
   the platform's `next`/`prev` chain — see section 12
 - the pathfinder's crouch support is still incomplete, because crouch isn't yet modeled as a complete general navigation state.
+- while `SQUAT_FLAG` is set, `move_hero_right_if_no_obstacles` **skips the head-row
+  test** (dungeon-hero.ts:227), so a crouched hero is carried sideways into a position
+  his 3x3 does not fit. That is two of the recorder's remaining lines — the player at
+  (212,27) and (213,27) on mp80's row-30 platform with `DOWN` held — and it needs the
+  same treatment a lift slot got in §15: the box is not a test the engine performs.

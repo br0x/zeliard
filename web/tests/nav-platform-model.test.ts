@@ -89,16 +89,48 @@ describe('geometry predicates', () => {
 });
 
 describe('ride slots are positions the hero can actually occupy', () => {
-    it('emits only slots whose box is free', () => {
+    it('holds a horizontal slot to a free 3x3 box', () => {
+        // A horizontal platform is pinned where it stands and the hero walks onto it
+        // from the ground beside it, so the body-fit test is what decides whether a
+        // riding offset exists at all — `standingAboard`, with a crouched fallback
+        // under a low ceiling.
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const classifier = NavTileClassifier.forMap(meta.id);
             const model = buildPlatformModel(meta.id, grid);
             for (const slot of model.slots) {
+                if (slot.kind !== PLATFORM_HORIZONTAL) continue;
                 expect(
                     heroBoxFree(grid, classifier, slot.leftCol, slot.headRow),
                     `${meta.nameKey} slot (${slot.leftCol},${slot.headRow})`,
                 ).toBe(true);
+            }
+        }
+    });
+
+    it('holds a lift slot to a free middle column, and no more', () => {
+        // `move_platform_down_damage_monster` and `try_move_platform_up` find the
+        // platform by reading the tile under the hero's middle foot and carry him a
+        // row with it; neither looks at his left or right column. So a lift will take
+        // a hero whose side is inside rock, and the slot has to exist there — mp80's
+        // x=250 lift rides to (250,11) and (250,10) with column 252 in the wall, and
+        // the journey to (244,7) leaves the map from the top of it.
+        //
+        // What is still required is `canRest`'s rule: a cell whose middle column is
+        // inside rock is a number in a grid, not a position. That is the whole test.
+        for (const meta of platformMaps) {
+            const grid = gridFor(meta.id);
+            const classifier = NavTileClassifier.forMap(meta.id);
+            const model = buildPlatformModel(meta.id, grid);
+            for (const slot of model.slots) {
+                if (slot.kind === PLATFORM_HORIZONTAL) continue;
+                let free = true;
+                for (let j = 0; j < 3 && free; j++) {
+                    free = !blocksBody(
+                        flagsAt(grid, classifier, slot.leftCol + 1, slot.headRow + j));
+                }
+                expect(free, `${meta.nameKey} slot (${slot.leftCol},${slot.headRow})`)
+                    .toBe(true);
             }
         }
     });
@@ -230,6 +262,94 @@ describe('ride adjacency', () => {
     });
 });
 
+describe('how far a lift travels', () => {
+    it('is the engine own walk, not a body test', () => {
+        // `try_move_platform_up` guards a rise with three things and no more: the
+        // tile above the middle of his head must not block, and the three cells the
+        // platform is about to occupy and the three above them must be tile 0.
+        // `try_move_platform_down` guards only the three below. The range in
+        // `nav-platforms.ts` was once walked with a 3x3 box clear test on top of
+        // that, which the engine does not perform anywhere, and it cost every
+        // vertical lift on the level two rows it really travels — mp80's x=250 lift
+        // stopped at row 15 and the journey to (244,7) went off the top of it.
+        //
+        // So the range is re-derived here from the engine's own guards and compared.
+        // It is deliberately *not* re-implemented in the generator's terms: this is
+        // the test that says the two agree, and it is the only place the guards are
+        // written out a second time.
+        const at = (grid: NavTileGrid, col: number, row: number): number =>
+            grid.tiles[(((row % 64) + 64) % 64) * grid.mapWidth
+                + (((col % grid.mapWidth) + grid.mapWidth) % grid.mapWidth)]!;
+        const make = (mapId: number) => {
+            const classifier = NavTileClassifier.forMap(mapId);
+            // is_blocking_tile_simple, over the static map and this cavern's table.
+            const solid = (grid: NavTileGrid, col: number, row: number): boolean =>
+                blocksBody(classifier.classify(at(grid, col, row)));
+            // The three cells the platform is about to occupy, which must be tile 0.
+            const spanClear = (grid: NavTileGrid, col: number, row: number): boolean =>
+                at(grid, col, row) === 0 && at(grid, col + 1, row) === 0
+                && at(grid, col + 2, row) === 0;
+            const headClear = (grid: NavTileGrid, x: number, platformRow: number): boolean =>
+                !solid(grid, x + 1, ((platformRow - 3) % 64 + 64) % 64);
+            const walk = (grid: NavTileGrid, x: number, from: number, step: number): number => {
+                let row = from;
+                for (;;) {
+                    const next = ((row + step) % 64 + 64) % 64;
+                    if (next === from) return row;
+                    if (!spanClear(grid, x, next)) return row;
+                    if (step < 0 && (!spanClear(grid, x, ((next - 1) % 64 + 64) % 64)
+                        || !headClear(grid, x, next))) return row;
+                    row = next;
+                }
+            };
+            return walk;
+        };
+
+        for (const meta of platformMaps) {
+            const grid = gridFor(meta.id);
+            const walk = make(meta.id);
+            for (const p of NAV_PLATFORMS[meta.id]!.vertical) {
+                expect(walk(grid, p.x, p.startY, -1), `${meta.nameKey} x=${p.x} topY`)
+                    .toBe(p.topY);
+                expect(walk(grid, p.x, p.startY, 1), `${meta.nameKey} x=${p.x} bottomY`)
+                    .toBe(p.bottomY);
+            }
+            for (const p of NAV_PLATFORMS[meta.id]!.collapsing) {
+                expect(walk(grid, p.x, p.startY, 1), `${meta.nameKey} x=${p.x} collapsing`)
+                    .toBe(p.bottomY);
+            }
+        }
+    });
+
+    it('carries mp80 the hero to the top of the x=250 lift, sides and all', () => {
+        // The player's own trip: he rode this lift from head row 18 to head row 10,
+        // and the top two of those rows put his right column inside the wall at
+        // column 252. `move_platform_down_damage_monster` finds the platform by the
+        // tile under his middle foot and never looks at the rest of him, so those are
+        // positions; the slot test has to agree or the row-7 gallery is out of reach
+        // of the whole map.
+        const grid = gridFor(23);
+        const classifier = NavTileClassifier.forMap(23);
+        const model = buildPlatformModel(23, grid);
+        const lift = NAV_PLATFORMS[23]!.vertical.find((p) => p.x === 250)!;
+        expect(lift.topY, 'and the lift travels that far').toBe(13);
+        for (const headRow of [10, 11, 18]) {
+            const slot = model.slots.find((s) => s.leftCol === 250 && s.headRow === headRow);
+            expect(slot, `a slot at (250,${headRow})`).toBeDefined();
+        }
+        // And the rows above the top are not offered: the guard stops the rise.
+        expect(model.slots.some((s) => s.leftCol === 250 && s.headRow < 10)).toBe(false);
+        // Column 252 is rock across the two rows that made this a question: the hero
+        // rides them with his right side inside a wall, which the engine allows and a
+        // 3x3 test does not.
+        const tileAt = (col: number, row: number): number =>
+            grid.tiles[(((row % 64) + 64) % 64) * grid.mapWidth
+                + (((col % grid.mapWidth) + grid.mapWidth) % grid.mapWidth)]!;
+        expect(blocksBody(classifier.classify(tileAt(252, 11)))).toBe(true);
+        expect(blocksBody(classifier.classify(tileAt(252, 10)))).toBe(true);
+    });
+});
+
 describe('platforms that must not move the hero', () => {
     it('leaves no frozen horizontal platform moving, and the data has none', () => {
         // speed 0 means "frozen" and the platform is a static ledge. No shipped
@@ -259,26 +379,30 @@ describe('platforms that must not move the hero', () => {
     });
 
     it('marks a platform with fewer than two rideable rows as unable to move', () => {
-        // Some vertical platforms really do have a one-row range: a fixed ledge
-        // the hero stands on, not a lift. Count them from the data rather than
-        // assuming, so the branch is known to be exercised.
+        // A platform whose range yields fewer than two usable slots is a fixed ledge
+        // the hero stands on, not a lift, and the model must say so rather than give
+        // it ride edges.
+        //
+        // It used to be counted from the *data* — a range one row long — and there was
+        // exactly one such platform in the game. Walking the range with the engine's
+        // own guards instead of a 3x3 box test gave that one more row, and relaxing
+        // the lift slot's body test gave platforms whose row the box test rejected a
+        // usable slot at all. Nothing in the shipped data is one row any more, so the
+        // branch is pinned on the rule rather than on a census that no longer says
+        // anything: every platform the model calls inert has fewer than two slots, and
+        // the count is measured rather than assumed.
         let oneRowPlatforms = 0;
-        for (const meta of NAV_MAPS) {
-            for (const p of NAV_PLATFORMS[meta.id]!.vertical) {
-                if (p.bottomY - p.topY + 1 === 1) oneRowPlatforms++;
-            }
-        }
-        expect(oneRowPlatforms).toBeGreaterThan(0);
-
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const model = buildPlatformModel(meta.id, grid);
             for (const entry of model.inertPlatforms) {
                 if (entry.reason !== REASON_SINGLE_ROW) continue;
+                oneRowPlatforms++;
                 expect(model.slotsByPlatform[entry.platform]!.length,
                     `${meta.nameKey} platform ${entry.platform}`).toBeLessThan(2);
             }
         }
+        expect(oneRowPlatforms, 'one-row lifts left in the shipped data').toBe(0);
     });
 
     it('still rides a platform where only part of the span fits', () => {

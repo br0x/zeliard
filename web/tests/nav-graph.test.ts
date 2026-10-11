@@ -159,6 +159,14 @@ describe('nodes are positions the hero can occupy', () => {
         // alongside the standing ones at the same offset. They are the slots that made
         // mp82's row-59 platform walkable at all — its standing slots sit at row 56
         // and its crouched ones at 57 — so the count, not the graph, was what moved.
+        //
+        // And from 5969 to 5989 when a lift's travel range was walked with the
+        // engine's own guards instead of a 3x3 box test, and a lift slot stopped
+        // demanding that box: `move_platform_down_damage_monster` finds the platform
+        // by the tile under the hero's middle foot and never looks at the rest of him,
+        // so the top rows of a lift whose side column is inside rock are places he
+        // really stands. mp80's x=250 lift is one, and the journey the player reported
+        // to `(244,7)` goes off the top of it.
         let live = 0;
         let total = 0;
         void nodeAt;
@@ -174,8 +182,8 @@ describe('nodes are positions the hero can occupy', () => {
                 if (entries.has(i)) live++;
             }
         }
-        expect(total).toBe(5969);
-        // Three dead slots, down from twelve. Most of what used to be dead is not: the
+        expect(total).toBe(5989);
+        // Two dead slots, down from twelve and from three. Most of what used to be dead is not: the
         // horizontal riding
         // offsets were `platformCol - 1 .. platformCol + 1` when the engine's own
         // `heroOnHorizPlatform` carries the hero when any of his three columns equals
@@ -200,8 +208,8 @@ describe('nodes are positions the hero can occupy', () => {
         // rides it west to `(149,51)` and steps off. Withholding that fall the search
         // cannot reach `(151,6)` at all, because `(149,0)` above it is not a standing
         // position.
-        expect(live, 'ride slots with no entry at all').toBe(5966);
-        expect(total - live, 'ride slots nothing can land on or ride to').toBe(3);
+        expect(live, 'ride slots with no entry at all').toBe(5987);
+        expect(total - live, 'ride slots nothing can land on or ride to').toBe(2);
     });
 
     it('finds standing positions on the biggest caverns', () => {

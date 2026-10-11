@@ -14,15 +14,20 @@
  *   must not hold a monster. It moves down one row and carries the hero.
  *
  * Up — tryMovePlatformUp (engine/dungeon-vertical.ts:380-422):
- *   the tile at (x + 1, headY - 1) must be non-blocking — one row above the hero's
- *   head — and the three cells one row above the platform must be tile 0. It then
- *   moves the platform up one row and calls moveHeroUp, carrying the hero.
+ *   the tile above the middle of his head must be non-blocking, and the three cells
+ *   one row above the platform *and* the three cells two rows above it must be tile
+ *   0. It then moves the platform up one row and calls moveHeroUp, carrying the hero.
  *
- * Both directions additionally need the hero's 3x3 box to be clear at the
- * resulting row, which is not something the engine tests because the hero is
- * already standing there; without it a platform could rise into a ceiling the
- * hero cannot occupy. Requiring it here means every emitted ride slot has a
- * standing position, so the graph builder can trust it.
+ * That is the whole of it. There is no test of the hero's body anywhere in either
+ * routine, and one used to sit on top of them here: a 3x3 box-clear test, written
+ * down as "not something the engine tests because the hero is already standing
+ * there". It was wrong twice over — nine cells where the engine asks one, and nine
+ * for *every* row when the engine asks its head-row question of a single column — and
+ * it cost every vertical lift on the level rows it really travels. On mp80 seven of
+ * the eight were cut short and the x=250 lift stopped at row 15 when the engine takes
+ * it to 13; the player rode it there, and the route to mp80 `(244,7)` goes off the top
+ * of it. `headClear` is the engine's own question in its place, and
+ * `nav-platform-model` re-derives the range from these rules and compares.
  *
  * Collapsing platforms descend the same way and never rise
  * (heroCollapsePlatform, engine/dungeon-vertical.ts:472-484).
@@ -58,15 +63,16 @@ export function buildPlatforms(cavern, passable, mapHeight = MAP_HEIGHT) {
     /** The three cells the platform itself would occupy one row up/down. */
     const spanClear = (x, y) => at(x, y) === 0 && at(x + 1, y) === 0 && at(x + 2, y) === 0;
 
-    /** The hero's 3x3 box at head row hy. */
-    const boxFree = (x, hy) => {
-        for (let j = 0; j < 3; j++) {
-            for (let i = 0; i < 3; i++) {
-                if (solid(x + i, hy + j)) return false;
-            }
-        }
-        return true;
-    };
+    /**
+     * The one cell a rise is allowed to be stopped by: the hero's head row itself.
+     *
+     * `try_move_platform_up` reads `heroCoordsToAddrInProximity - 35` — one row above
+     * the head, one column right of his top-left, so the hero's middle column — and
+     * `is_blocking_tile` is the head-row predicate. The hero is still at the platform's
+     * *old* row when it reads it, so that probe lands exactly on the head row the move
+     * would give him: a platform cannot rise to `platformRow` under a ceiling.
+     */
+    const headClear = (x, platformRow) => !solid(x + 1, headFor(platformRow));
 
     /** Hero head row for a platform sitting on row r. */
     const headFor = (r) => (r - 3 + mapHeight) % mapHeight;
@@ -88,7 +94,14 @@ export function buildPlatforms(cavern, passable, mapHeight = MAP_HEIGHT) {
         for (;;) {
             const next = (at + step + mapHeight) % mapHeight;
             if (next === y) return null;
-            if (!spanClear(x, next) || !boxFree(x, headFor(next))) return at;
+            if (!spanClear(x, next)) return at;
+            // Up also needs the row the feet move into clear, and the one cell above
+            // the head: `try_move_platform_up` checks `bx` at row-1 and `si` at
+            // row-2 across the platform's width before it writes anything.
+            if (step < 0) {
+                if (!spanClear(x, (next - 1 + mapHeight) % mapHeight)) return at;
+                if (!headClear(x, next)) return at;
+            }
             at = next;
         }
     };

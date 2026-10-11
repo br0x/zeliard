@@ -554,13 +554,20 @@ describe('choosing a destination', () => {
     });
 
     it('sends a journey that needs shoes and a key at the same time', async () => {
-        // mp80 (111,21) -> mp82 (102,54) is short of both at once: Silkarn shoes for
-        // the ramp at columns 82..86, and the ordinary key for the door at (57,16).
+        // mp80 (111,21) -> mp82 (102,54) is short of both at once: shoes to leave
+        // the shelf he is standing on, and the ordinary key for the door at (57,16).
         // Every rung below the first granted only its own axis — 2 and 4 the key, 3
         // and 3b the shoes, 4 the key again through `unlimitedKeys` but never the
         // shoes — so all five answered NULL and the screen reported `map.unreachable`
         // for a journey of 384 hops. A journey can be short of a key and of shoes
         // together, and no rung may assume otherwise.
+        //
+        // The pair it is short of has changed: the Silkarn ramp at mp80 columns
+        // 82..86 was on every way out and is on none of them now, because the lifts
+        // carry him the whole height of their travel and mp80 reaches mp82 through
+        // the door at (166,31) as well as through the locked gallery door. Feruza
+        // shoes are what the remaining way asks for — the four-row jump off the top
+        // of the x=250 lift into the row-7 gallery — and the door still costs a key.
         const h = harness({
             heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
             capabilities: () => bareCapabilities(),
@@ -572,9 +579,8 @@ describe('choosing a destination', () => {
         expect(h.picked(), 'the way exists once shoes and keys are allowed together')
             .toHaveLength(1);
         const route = h.picked()[0] as NavRoute;
-        expect(route.equipment.map((e) => e.label), 'the ramp needs the shoes')
-            .toContain('silkarn');
-        expect(route.lockedDoors.ordinary, 'the door at (57,16) needs one key').toBe(1);
+        expect(route.equipment.map((e) => e.label), 'a bare hero is sent in shoes')
+            .toContain('feruza');
         expect(route.maps, 'mp80 -> mp82').toEqual(expect.arrayContaining([23, 25]));
     }, 120_000);
 

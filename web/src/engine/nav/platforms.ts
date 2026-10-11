@@ -23,6 +23,24 @@
  * hero's left column equal to it (dungeon-vertical.ts:253-344). The standing
  * position aboard is therefore `(leftCol = x, headRow = platformRow - 3)`.
  *
+ * ── the one column of that sentence that is not true yet ──────────────────
+ * `identify_platform_tile` answers one of three variants, and
+ * `find_platform_under_hero` turns that into the platform's own column with
+ * `absX = heroLeftCol + dh` for `dh` of `1`, `0` and `-1`. The tile it reads is
+ * under the hero's **middle** foot, so a hero hanging off either side of the
+ * three-tile ledge is aboard it too: `leftCol` is `x - 1 .. x + 1`, not `x`.
+ *
+ * Only `x` is modelled. The player's recording has him on the x=227 lift at
+ * (226,18) and then riding it *down* from there to (228,26) — eleven positions the
+ * graph says do not exist — and the recorder names all of them. It is not a small
+ * thing to close, and the reason it has been left is `PlatformModel.places`: the
+ * live row of a lift is read out of `g_mem` as `{ absX, y }` keyed by **column**, so
+ * two lifts a column apart cannot be told apart at all, and widening the riding
+ * positions to `x - 1 .. x + 1` makes adjacent lifts overlap. Three caverns already
+ * share a column (`nav-platform-model` names them); widening the offsets would make
+ * every neighbouring pair share one as well, and the graph would pin the wrong row
+ * to the wrong lift. The reading has to become `{ platform, y }` first.
+ *
  * Horizontal platforms are looser: `heroOnHorizPlatform` carries the hero when any
  * of his three columns matches the platform's mapped column, so the platform hangs
  * off his right and a horizontal slot allows `leftCol = platformCol - 2 ..
@@ -58,7 +76,7 @@ import { NAV_PLATFORMS, type NavPlatformTables } from '../../data/nav/nav-platfo
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import type { NavTileGrid } from './mdt-grid.js';
 import { NavTileClassifier } from './attributes.js';
-import { ROWS, blocksBody, blocksHead, flagsAt, heroBoxFree, wrapCol, wrapRow } from './geometry.js';
+import { ROWS, blocksBody, blocksHead, flagsAt, heroBoxFree, middleColumnFree, wrapCol, wrapRow } from './geometry.js';
 import type { PlatformPlaces } from './platform-state.js';
 
 /** Platform families, matching the `kind` field in nav-platforms.ts. */
@@ -207,6 +225,34 @@ function standingAboard(
     return true;
 }
 
+/**
+ * Can the hero be aboard a vertical or collapsing platform at this head row?
+ *
+ * The engine asks nothing at all. `move_platform_down_damage_monster` and
+ * `try_move_platform_up` find the platform by reading the tile under the hero's
+ * **middle** foot (dungeon-vertical.ts:253-344), carry him a row with it, and never
+ * look at the rest of his body — so a lift will happily raise a hero whose left or
+ * right column is inside rock, and he rides it there.
+ *
+ * That is the player's mp80 `(244,7)`. The x=250 lift's top two rows put his right
+ * column in the wall at column 252, and he rode them and jumped the pocket off the
+ * top; `standingAboard`'s 3x3 test called those two positions impossible, so the ride
+ * stopped two rows short and the journey had no route at all.
+ *
+ * So the only question left is whether the hero is in the map, and that is the rule
+ * `canRest` already states: a cell whose **middle** column is inside rock is a number
+ * in a grid, not a position. Nothing here is a whole-body test the engine does not
+ * perform — that is §13's rule 3, and this is where it was being broken.
+ */
+function aboardLift(
+    grid: NavTileGrid,
+    classifier: NavTileClassifier,
+    leftCol: number,
+    headRow: number,
+): boolean {
+    return middleColumnFree(grid, classifier, leftCol, headRow);
+}
+
 /** Can the hero fit here while crouching (2 tiles tall instead of 3)? */
 function crouchingAboard(
     grid: NavTileGrid,
@@ -296,7 +342,7 @@ export function buildPlatformModel(
         const local: number[] = [];
         for (const row of range(p.topY, p.bottomY)) {
             const headRow = wrapRow(row - 3);
-            if (!standingAboard(grid, classifier, p.x, headRow)) continue;
+            if (!aboardLift(grid, classifier, p.x, headRow)) continue;
             local.push(slots.length);
             slots.push({
                 platform: slotsByPlatform.length,
@@ -321,7 +367,7 @@ export function buildPlatformModel(
         // startY downwards only: heroCollapsePlatform never raises it.
         for (const row of range(p.startY, p.bottomY)) {
             const headRow = wrapRow(row - 3);
-            if (!standingAboard(grid, classifier, p.x, headRow)) continue;
+            if (!aboardLift(grid, classifier, p.x, headRow)) continue;
             local.push(slots.length);
             slots.push({
                 platform: slotsByPlatform.length,

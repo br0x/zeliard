@@ -173,8 +173,14 @@ export function canRest(
         && groundBelow(grid, classifier, col, headRow);
 }
 
-/** Is the hero's middle column open over his three rows? */
-function middleColumnFree(
+/**
+ * Is the hero's middle column open over his three rows?
+ *
+ * Exported because it is the whole of "is this a position in this game at all",
+ * with the support left out — see {@link canRest}. A platform supplies its own
+ * support, so a ride slot asks only this.
+ */
+export function middleColumnFree(
     grid: NavTileGrid,
     classifier: NavTileClassifier,
     col: number,

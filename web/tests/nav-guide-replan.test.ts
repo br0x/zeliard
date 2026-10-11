@@ -213,7 +213,10 @@ describe('a re-plan that finds nothing does not become a loop', () => {
 
 describe('a route the hero can no longer pay for is re-planned at once', () => {
     // The player's journey: mp80 (111,21) to mp80 (227,34), past the locked door at
-    // mp80 (57,16) and the locked door at mp81 (236,5), fetching the key for each.
+    // mp81 (236,5), fetching the key for it. It used to be two doors and two keys —
+    // the west gallery at mp80 (57,16) was on the way as well — but mp80 now reaches
+    // mp82 through the door at (166,31) and the row-32 gallery, so the gallery is not
+    // on the way and the journey costs the one key the mp81 door needs.
     //
     // He came back to mp82 (174,10) — the doorway onto mp81 — with the second key
     // still on the floor at mp81 (125,36), and the chevrons told him to go straight
@@ -347,20 +350,27 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             // -1, no re-plan went out, and the route drew him through the door at
             // mp82 (174,10) into mp81 (227,60) and on to the shut door at mp81 (236,5).
             //
-            // The same shape on the journey the test already has: hold the whole
-            // two-key trip, stand just past the key it fetches last, and give the guide
-            // an empty pocket. One key still on the floor at mp81 (125,36) is behind
-            // him now, and the shut door at mp81 (236,5) is not.
+            // The same shape on the journey the test already has: hold the whole trip,
+            // walk him on to the shut door at mp81 (236,5), and give the guide an empty
+            // pocket. The key he fetched at mp81 (125,36) is a long way behind him by
+            // then, and the door he is standing in front of is not.
+            //
+            // The walk has to end *in front of* the door rather than a step past the key,
+            // because a key is collected from the cell the hero stands on: re-planning
+            // while he is still on it answers honestly, and there is nothing to be short
+            // of. That is the guard working, not failing.
             const store = realStore();
             const journey = findRoute({
                 store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
             })!;
-            expect(journey.keysGained.ordinary, 'the journey fetches two keys').toBe(2);
+            expect(journey.keysGained.ordinary, 'the journey fetches a key').toBe(1);
             const lastKey = journey.points.findIndex((p) => p.mapId === 24
                 && p.col === 125 && p.row === 36);
             expect(lastKey, 'and the mp81 key is on it').toBeGreaterThan(0);
-            const past = lastKey + 1;
-            expect(journey.points[past], 'which is the first step after it').toBeDefined();
+            const shut = journey.hops.findIndex((h) => h.doorKey === 1);
+            expect(shut, 'and the door it opens is on it too').toBeGreaterThan(lastKey);
+            const past = shut - 1;
+            expect(journey.points[past], 'which is the cell in front of it').toBeDefined();
 
             const hero = { ...journey.points[0]! };
             const guide = new PathGuide({
@@ -407,10 +417,15 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const journey = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
         })!;
-        expect(journey.keysGained.ordinary).toBe(2);
+        expect(journey.keysGained.ordinary).toBe(1);
         const lastKey = journey.points.findIndex((p) => p.mapId === 24
             && p.col === 125 && p.row === 36);
         expect(lastKey).toBeGreaterThan(0);
+        // Walk him on to the shut door itself, for the reason the test above gives:
+        // a key is collected from the cell he stands on, so a hero still on it is not
+        // short of anything.
+        const shut = journey.hops.findIndex((h) => h.doorKey === 1);
+        expect(shut).toBeGreaterThan(lastKey);
 
         const hero = { ...journey.points[0]! };
         const guide = new PathGuide({
@@ -421,7 +436,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         });
         guide.setRoute(journey, GOAL, PLAN);
         let clock = 1_000;
-        for (let i = 0; i <= lastKey + 1; i++) {
+        for (let i = 0; i <= shut - 1; i++) {
             const step = journey.points[i]!;
             hero.mapId = step.mapId; hero.col = step.col; hero.row = step.row;
             clock += 500;
@@ -533,18 +548,18 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
     });
 
     it('and counts a key ahead as well as a door, per pocket', () => {
-        // The whole two-key journey from the top: two shut doors ahead, two keys ahead,
-        // an empty pocket. Short only if the pickups are counted, and the pickups are
-        // the half that is not a door — they can only come from the route itself, which
-        // is why `findRoute` names the points they lie on rather than leaving a consumer
-        // to go and look for them.
+        // The whole journey from the top: one shut door ahead, one key ahead, an empty
+        // pocket. Short only if the pickup is counted, and a pickup is the half that is
+        // not a door — it can only come from the route itself, which is why `findRoute`
+        // names the points its keys lie on rather than leaving a consumer to go and
+        // look for them.
         const store = realStore();
         const journey = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
         })!;
-        expect(journey.lockedDoors.ordinary, 'two shut doors on it').toBe(2);
-        expect(journey.picks.length, 'and two keys it collects').toBe(2);
-        expect(journey.picks.every((p) => p.kind === 0), 'both ordinary').toBe(true);
+        expect(journey.lockedDoors.ordinary, 'a shut door on it').toBe(1);
+        expect(journey.picks.length, 'and the one key it collects').toBe(1);
+        expect(journey.picks.every((p) => p.kind === 0), 'ordinary').toBe(true);
 
         const hero = { ...journey.points[0]! };
         const guide = new PathGuide({
@@ -554,8 +569,8 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             isIdle: () => false,
         });
         guide.setRoute(journey, GOAL, PLAN);
-        expect(shortfall(guide, 0), 'two keys ahead pay for two doors').toBe(0);
-        expect(shortfall(guide, 2), 'and two in the pocket').toBe(0);
+        expect(shortfall(guide, 0), 'the key ahead pays for the door').toBe(0);
+        expect(shortfall(guide, 1), 'and one in the pocket').toBe(0);
 
         // Past the first fetch and the door it opened, with nothing to show for it:
         // one door and one key still ahead of him.

@@ -82,13 +82,33 @@
  * on. A long jump is a long fall that stops at the first ground, not a glide,
  * and that is what makes this a search rather than an offset table.
  *
+ * ── the rope on the way up ──────────────────────────────────────────────────
+ * A flight can end on a rope in two different places, and they are different code.
+ * The descent one is `airborne_movement`: it lands the frame, drops a row, and then
+ * probes the cell under his middle foot two rows below the new head row
+ * (dungeon-input.ts:543-551) — see {@link JumpModel.catchesRope}. The ascent one is
+ * `try_climb_rope`, and it has no analogue in the descent at all: while the hero is
+ * rising `airborne_movement` returns at once (jump_phase_flags is 0xFF), so the whole
+ * rise is driven by held input through the dispatcher, and `state_machine_dispatcher`
+ * routes **Up held on its own** to `up_pressed_dispatch`, which calls `try_climb_rope`
+ * on every frame (dungeon-input.ts:372-374, 426-440). A rope in the hero's middle
+ * column at his head row ends that rise and he is climbing.
+ *
+ * The player did exactly that in mp80. He was riding the row-30 platform at
+ * `(197,27)`, held Up, and the jump rose to `(197,25)` — where the rope hanging in
+ * column 198 begins — and took hold of it instead of coming back down. Nothing in
+ * the graph could follow him: a rise was only ever a rise, so the flight sailed
+ * through `(197,25)`, found the platform again on the way down and reported a landing
+ * where the hero had already left the level's geometry for a rope. Every rope in a
+ * cavern whose foot is above a ledge was unreachable that way.
+ *
+ * Only the Up-alone rise is this. `right_up_pressed` and `left_up_pressed` jump and
+ * then step sideways and never reach `try_climb_rope`, so a jump with a direction
+ * held is exactly the flight it was before.
+ *
  * ── what this does not model ────────────────────────────────────────────────
- * A rope caught mid-flight (`airborne_movement` grabs one at the hero's feet and
- * stops the fall, dungeon-input.ts:543-551): ignored, so a flight may pass
- * through a rope where the game would have him climb it — the graph's rope nodes
- * carry CLIMB edges, and a step sideways off one. There is no jump off a rope at
- * all: `jump_press_handler` returns while ON_ROPE_FLAGS is set
- * (dungeon-hero.ts:322). Slopes
+ * There is no jump off a rope at all: `jump_press_handler` returns while
+ * ON_ROPE_FLAGS is set (dungeon-hero.ts:322). Slopes
  * (`slope_assist_on_landing`), crumbling platforms (`hero_collapse_platform`) and
  * ice (`set_zero_flag_if_slippery`) are separate graph families and are likewise
  * left to them. Jumps out of a current are suppressed by the graph (§7.4 of the
@@ -404,6 +424,22 @@ export class JumpModel {
      */
     private catchesRope(col: number, headRow: number): boolean {
         return (this.at(col + 1, headRow + 3) & NAV.ROPE) !== 0;
+    }
+
+    /**
+     * Does a rise end here because the hero took hold of a rope?
+     *
+     * `try_climb_rope` reads the cell above the middle of his head — the same cell
+     * `dungeon_finish_rope_frame` reads to decide whether he is still holding one
+     * (dungeon-states.ts:258-271) — and it is reached only from `up_pressed_dispatch`,
+     * which `state_machine_dispatcher` runs for **Up alone** while the hero is rising
+     * (dungeon-input.ts:372-374, 426-440). One row above a climb is where the rope
+     * starts, so that is exactly the row a rising hero arrives at.
+     *
+     * The climb out of it is a `CLIMB` edge, which every rope node already has.
+     */
+    private grabsRopeOnRise(col: number, headRow: number): boolean {
+        return (this.at(col + 1, headRow) & NAV.ROPE) !== 0;
     }
 
     private landsIn(col: number, headRow: number, firstPose: boolean): boolean {
@@ -734,6 +770,15 @@ export class JumpModel {
                 const from = i * START_STRIDE;
                 const c = wrapCol(front[i]!, width);
                 this.noteCell(c, here, here * width + c);
+                // A rope ends the rise on the frame his head reaches it, not only on
+                // the frame the rise stops. `try_climb_rope` is asked on every frame
+                // of a rise, so every row of one is somewhere the flight can end, and
+                // each is handed on as a rise end of its own — `descend` recognises
+                // it there and stops there. A rise of no rows cannot, which is the
+                // `rises >= 1` below and is also what keeps a plain fall out of it.
+                if (steer === 0 && rises >= 1 && this.grabsRopeOnRise(c, at)) {
+                    starts = this.pushStart(starts, c, at, rises, frontChain, from);
+                }
                 // A rise of no rows is no jump at all: with his head against a
                 // ceiling the engine leaves the hero grounded (dungeon-hero.ts:357).
                 const open = !capped && this.headroom(c, at);
@@ -849,6 +894,20 @@ export class JumpModel {
             if (this.seen[seenKey] === this.current.gen) continue;
             this.seen[seenKey] = this.current.gen;
             this.noteCell(c, r, cell);
+            // The hero took hold of a rope on the way up. Only a rise can do this —
+            // a fall's start has no rise to spend — and only with Up held on its
+            // own, which is the one input the dispatcher answers with `try_climb_rope`.
+            // The rope is at his head row, so the flight ends right here; the climb
+            // out of it is a CLIMB edge on the rope node this hands back.
+            if (firstPose && rises > 0 && steer === 0 && this.grabsRopeOnRise(c, r)) {
+                if (track && cell === this.wantCell) {
+                    this.pathEnd = head - 1;
+                    this.found = true;
+                    return;
+                }
+                this.noteLanding(cell, c, r, t, rises);
+                continue;
+            }
             // An up current ends a flight before the landing check is ever reached.
             // `check_airflows_on_hero` runs at the top of the frame
             // (dungeon-frame-pre.ts:88-113) and, finding a jet in the hero's three

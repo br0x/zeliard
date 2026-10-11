@@ -58,7 +58,7 @@ const ADDR_CAVERN_LEVEL = 0xc012;
 const ADDR_ANIM_PHASE = 0xe7;
 const ADDR_JUMP_STEP = 0x9f09;
 const ADDR_JUMP_HEIGHT = 0x9f0d;
-const ADDIR_INPUT_DIRS = 0xff17;
+const ADDR_INPUT_DIRS = 0xff17;
 const ADDR_FACING = 0xc2;
 const ADDR_SQUAT = 0xff38;
 const ADDR_ON_ROPE = 0xff39;
@@ -255,7 +255,7 @@ class Harness {
         const g = this.g;
         let rose = false;
         for (const dirs of plan) {
-            memWrite8(g, ADDIR_INPUT_DIRS, dirs);
+            memWrite8(g, ADDR_INPUT_DIRS, dirs);
             dungeonFinishNormalFrame(g, DEPS, CALLBACKS);
             // 0xFF is the rising phase, written by `jump_press_handler` on the frame
             // it lifts him. Without it nothing jumped and the flight is a walk.
@@ -263,6 +263,23 @@ class Harness {
             if (rose && memRead8(g, ADDR_JUMP_PHASE) === 0) return this.at();
         }
         return null;
+    }
+
+    /**
+     * Hold a plan for its whole length and report where the hero ended up.
+     *
+     * `fly` stops at the landing check, and a hero who takes hold of a rope never
+     * reaches it: `try_climb_rope` sets `ON_ROPE_FLAGS` and leaves `JUMP_PHASE_FLAGS`
+     * alone, so the rise continues and the run has to be bounded by the plan rather
+     * than by the ground.
+     */
+    hold(plan: readonly number[]): { col: number; row: number; onRope: boolean } {
+        const g = this.g;
+        for (const dirs of plan) {
+            memWrite8(g, ADDR_INPUT_DIRS, dirs);
+            dungeonFinishNormalFrame(g, DEPS, CALLBACKS);
+        }
+        return { ...this.at(), onRope: memRead8(g, ADDR_ON_ROPE) !== 0 };
     }
 }
 
@@ -597,6 +614,55 @@ describe('nav/jump.ts against the engine', () => {
         expect(hop!.rises).toBe(2);
         expect(hop!.ticks).toBe(4);
         expect(hop!.feruza).toBe(false);
+    });
+
+    it('a rise with Up held alone takes hold of a rope it passes', () => {
+        // mp80's own shape: the player was riding the row-30 platform at (197,27),
+        // held Up, and the jump rose to (197,25) — where the rope hanging in column
+        // 198 begins — and took hold of it instead of coming back down to the
+        // platform he launched from. Nothing in the model could follow him: a rise
+        // was only ever a rise, so the flight sailed through (197,25) and reported a
+        // landing where the hero had already left for a rope.
+        //
+        // `try_climb_rope` is reached only from `up_pressed_dispatch`, which
+        // `state_machine_dispatcher` answers for **Up on its own**. `right_up_pressed`
+        // and `left_up_pressed` jump and step sideways and never call it, so a jump
+        // with a direction held is exactly the flight it was — which the third
+        // assertion here pins down, because it is the easy half to get wrong.
+        const shaft = cavern('a rope hanging above a ledge', 32, [
+            [6, 15, 6, 2],
+        ]);
+        for (let row = 5; row <= 11; row++) shaft.tiles[row * shaft.width + 7] = ROPE;
+
+        const harness = new Harness(shaft);
+        harness.place(5, 12, false);
+
+        // Up alone, frame by frame, exactly as the player held it.
+        const up: number[] = Array<number>(3).fill(KEY_UP);
+        const flown = harness.hold(up);
+        expect(flown.onRope, 'the engine has him on a rope').toBe(true);
+        expect(flown.row, 'at the top row the rope reaches')
+            .toBeLessThan(12);
+
+        const landings = new JumpModel(shaft.grid, CLASSIFIER).landingsFrom(5, 12);
+        const modelled = new Set<string>();
+        for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
+            const l = readLanding(landings, i / LANDING_STRIDE);
+            modelled.add(`${l.col},${l.row}`);
+        }
+        expect(modelled, 'the model ends the flight where the engine did')
+            .toContain(`${flown.col},${flown.row}`);
+
+        // Up with a direction: the hero jumps and comes back down to the ledge, and
+        // never touches the rope — `right_up_pressed` jumps and steps sideways and
+        // never reaches `try_climb_rope`. That is the engine half of the rule; the
+        // model's half is that it only ends a flight on a rope for the Up-alone steer,
+        // which is what `grabsRopeOnRise` is gated on.
+        harness.place(5, 12, false);
+        const steered = harness.hold(Array<number>(6).fill(KEY_UP | KEY_RIGHT));
+        expect(steered.onRope, 'a jump with a direction held never reaches try_climb_rope')
+            .toBe(false);
+        expect(steered.row, 'and he is back on the ledge he left').toBe(12);
     });
 
     for (const cavern of CAVERNS) {
