@@ -125,6 +125,82 @@ export interface PathGuideDeps {
     isIdle?: () => boolean;
 }
 
+/**
+ * What a route costs and yields from each index onwards.
+ *
+ * `pickOrd` / `pickLion` count key nodes still lying on the floor at index `i` and
+ * after; `lockedOrd` / `lockedLion` count shut doors to be opened in `hops[i]` and
+ * after. All four are suffix counts, so the answer at any anchor is a pair of array
+ * reads.
+ */
+interface BudgetTables {
+    readonly route: NavRoute;
+    readonly pickOrd: Int32Array;
+    readonly pickLion: Int32Array;
+    readonly lockedOrd: Int32Array;
+    readonly lockedLion: Int32Array;
+}
+
+/**
+ * Count a route's keys and shut doors, per pocket, from every point onwards.
+ *
+ * A key is counted **once**, at the point the search named it on, because walking over
+ * one twice takes it once. A door is counted in `hops`, at the crossing, and only
+ * while it is shut: a door the player has already opened costs nothing ever again.
+ *
+ * **Nothing here touches the store**, and that is not an optimisation. The first
+ * version read `graph.portalAtNode` and `graph.keyCellAt`, and it failed: the guide is
+ * routinely in a cavern whose graph has not been built — `store.reset` empties the lot
+ * on every change of cavern — and asking the store for one *builds* it, which is the
+ * largest thing in a frame and which `nav-platform-state` counts precisely because a
+ * ride changes the arrangement every row. A cavern that is not built read as having
+ * neither a shut door nor a key, so the shortfall quietly decayed to zero while the
+ * stale route went on being drawn: the player's log had `short=1 askedShort=1` at one
+ * anchor and `short=0` at the next, same anchor, same route.
+ *
+ * So the search says it instead. Every hop carries what its crossing costs and every
+ * route names the points its keys lie on, precisely so this question can be answered
+ * from the route alone, in the state the guide is usually in.
+ */
+function buildBudget(route: NavRoute): BudgetTables {
+    const n = route.hops.length + 1;
+    const pickOrd = new Int32Array(n);
+    const pickLion = new Int32Array(n);
+    const lockedOrd = new Int32Array(n);
+    const lockedLion = new Int32Array(n);
+
+    // Doors first: one backwards pass, each hop adding what its crossing costs. A hop
+    // with `doorKey === 0` is either not a door or one the player has already opened and
+    // will not pay for again — the search made that call when it planned the hop.
+    for (let i = route.hops.length - 1; i >= 0; i--) {
+        let ordinary = lockedOrd[i + 1]!;
+        let lion = lockedLion[i + 1]!;
+        if (route.hops[i]!.doorKey === 2) lion++;
+        else if (route.hops[i]!.doorKey === 1) ordinary++;
+        lockedOrd[i] = ordinary;
+        lockedLion[i] = lion;
+    }
+
+    // Keys second: the search named the points they lie on, one entry each and already
+    // de-duplicated across a journey that walks over the same key twice. One backwards
+    // pass turns those into suffix counts.
+    const marks = route.picks;
+    let nextOrd = 0;
+    let nextLion = 0;
+    let next = marks.length;
+    for (let i = route.points.length - 1; i >= 0; i--) {
+        while (next > 0 && marks[next - 1]!.at >= i) {
+            next--;
+            if (marks[next]!.kind === 1) nextLion++; else nextOrd++;
+        }
+        // `i` counts the point the hero is standing on, and the anchor is a point, so
+        // the table is read at the anchor and answers for everything from it onwards.
+        pickOrd[i] = nextOrd;
+        pickLion[i] = nextLion;
+    }
+    return { route, pickOrd, pickLion, lockedOrd, lockedLion };
+}
+
 /** What the shoes are called, from the accessory ids. */
 const ACCESSORY_NAMES: Record<number, string> = {
     1: 'Feruza shoes',
@@ -233,6 +309,13 @@ export class PathGuide {
     private plannedMask: CapabilityMask = -1;
     private plannedKeys = -1;
     private plannedLionKeys = -1;
+    /**
+     * How short of keys the last ask found the route to be, so the same shortfall is
+     * not asked about again on the very next frame. Zero before anything has been
+     * asked, which is the same answer as "the route is payable": the question only
+     * ever fires on a shortfall that is worse than the one already asked about.
+     */
+    private askedShortfall = 0;
     /** The platform positions the current route was planned against. */
     private lastPlatformVersion = '';
     /**
@@ -262,6 +345,7 @@ export class PathGuide {
         this.progress = 0;
         this.arrived = false;
         this.plannedMask = -1;      // force the next update() to record the plan
+        this.askedShortfall = 0;
         this.lastPlanAt = 0;
         if (PATH_DIAG) {
             console.log(`[path] setRoute goal=${at(goal)} cost=${route.cost}`
@@ -281,6 +365,81 @@ export class PathGuide {
         return {};
     }
 
+    /**
+     * What a route still costs and still yields, counted once per route rather than
+     * once per frame: how many locked doors are left in each pocket from each index
+     * onwards, and how many keys are still lying on the floor along the way.
+     */
+    private budgetOf: BudgetTables | null = null;
+
+    /**
+     * How many keys the rest of the route cannot pay for from where the hero stands.
+     * Positive is a shortfall: the route in hand is a plan he cannot finish.
+     *
+     * Both halves are counted over the stretch **ahead of the anchor only**, and that
+     * is the whole of the fix. The first version compared the locked doors ahead with
+     * `keys + route.keysGained`, and `keysGained` is a total for the whole journey — so
+     * it counted keys the hero had already picked up as ones still coming. The player's
+     * log said so outright: standing at mp81 (151,16) on an 876-point route, `gained=2`
+     * and `keys=0`, both fetches already behind him, and the answer came back `-1` — a
+     * route with a locked door ahead and nothing in the pocket, reported as covered.
+     * That route walks him through the door at mp82 (174,10) into mp81 (227,60) and on
+     * to the shut door at mp81 (236,5), which is the "single chevron pointing back at
+     * the door" he reported.
+     *
+     * So a key counts only where the route has not been walked yet, and a key already
+     * taken is not counted at all. Counting per pocket rather than as one number is
+     * what keeps a Lion-Head key from being spent on an ordinary door.
+     *
+     * The tables are built once per route and read every frame, because a route is
+     * walked a cell at a time and this is asked on each of them. `store.get` rather
+     * than `peek`: a cavern the route crosses may never have been built in this
+     * session's cache, and a graph that cannot be found reads as neither a door to pay
+     * for nor a key to pick up — the answer that lets a shut door through.
+     */
+    private keysShort(caps: HeroCapabilities): number {
+        const route = this.route;
+        if (!route) return 0;
+        let tables = this.budgetOf;
+        if (tables?.route !== route) {
+            tables = buildBudget(route);
+            this.budgetOf = tables;
+        }
+        const at = Math.min(this.progress, route.hops.length);
+        const ordinary = tables.lockedOrd[at]! - (caps.keys + tables.pickOrd[at]!);
+        const lion = tables.lockedLion[at]! - (caps.lionKeys + tables.pickLion[at]!);
+        return Math.max(0, ordinary) + Math.max(0, lion);
+    }
+
+
+    /**
+     * A hero standing on a cell the route passes **twice**, which is the only state in
+     * which the anchor can be wrong without anything else being wrong: two indices
+     * claim the same tile, and which one the hero is on is decided by where the old
+     * anchor was. mp82 (174,10) is the standing case — outbound for the key at
+     * mp81 (125,36), then on the way back out of it — and the two draw opposite
+     * chevrons from the same tile. Unthrottled, and only when the cell really is
+     * ambiguous, because it is the one line that names the difference.
+     */
+    private logDoubleVisit(): void {
+        const route = this.route;
+        const hero = this.deps.heroPosition();
+        if (!route || !hero) return;
+        const points = route.points;
+        const here: number[] = [];
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i]!;
+            if (p.mapId === hero.mapId && p.col === hero.col && p.row === hero.row) here.push(i);
+        }
+        if (here.length < 2) return;
+        console.log(`[path] DOUBLE VISIT hero=${at(hero)}`
+            + ` indices=[${here.join(',')}] anchor=${this.progress}`
+            + ` keys=${this.deps.capabilities().keys}`
+            + ` short=${this.keysShort(this.deps.capabilities())}`
+            + ` next=${at(points[this.progress + 1])}`
+            + ` routePts=${points.length} maps=[${route.maps.join(',')}]`);
+    }
+
     /** Forget the route; the overlay draws nothing. */
     clear(): void {
         if (PATH_DIAG && this.route) {
@@ -295,6 +454,8 @@ export class PathGuide {
         this.progress = 0;
         this.arrived = false;
         this.plannedMask = -1;
+        this.askedShortfall = 0;
+        this.budgetOf = null;
     }
 
     get isActive(): boolean {
@@ -573,13 +734,37 @@ export class PathGuide {
 
         this.logState(now, planCaps, hero);
 
-        if (!this.needsReplan(now, planCaps, hero)) return;
+        /**
+         * True when the route in hand is a plan the hero can no longer finish: it
+         * still walks him through doors that are standing shut, and he has no key
+         * left to open them with.
+         *
+         * This is the one invalidation that must not wait for an idle frame. Every
+         * other one — a platform under him moving, a refresh interval coming round —
+         * makes the route *stale*: the same journey, drawn a moment out of date. This
+         * one makes it *unwalkable*, because the key is gone. A hero who spent the
+         * key at mp80 (57,16) and kept walking held the route planned for the pocket
+         * he had one moment earlier, and it drew him out of the door at mp82 (174,10)
+         * towards the locked door at mp81 (236,5) with nothing in his pocket — the
+         * "as if I had the key" the player reported. Waiting for him to stop does not
+         * bring the key back; it only leaves him following a line into a shut door
+         * until he happens to pause.
+         *
+         * The count is deliberately generous in the hero's favour: it counts every
+         * key the route says it will pick up, including ones he has already picked
+         * up, so a shortfall here is a shortfall for certain.
+         */
+        const unpaid = this.keysShort(planCaps) > this.askedShortfall;
+
+        if (!unpaid && !this.needsReplan(now, planCaps, hero)) return;
 
         // The search is the only synchronous work in this frame that can be seen, so
         // it waits for the hero to be standing still. The route it leaves on screen
         // is stale for as long as he is moving — which is the trade he asked for: a
-        // line that lags a step behind beats a frame that drops.
-        if (this.deps.isIdle && !this.deps.isIdle()) return;
+        // line that lags a step behind beats a frame that drops. A route that walks
+        // him into a shut door is not that trade, so it goes out at once; a search
+        // keyed to a key count is a handful of frames per journey, not one a frame.
+        if (!unpaid && this.deps.isIdle && !this.deps.isIdle()) return;
 
         // What the world looks like to *this* route right now, captured before the
         // search runs. It is recorded on every attempt below, successful or not, and
@@ -678,6 +863,7 @@ export class PathGuide {
         console.log(`[path] guide hero=${at(hero)}`
             + ` anchor=${this.progress}/${points.length}`
             + ` next=${at(points[this.progress])}`
+            + ` after=${at(points[this.progress + 1])}`
             + ` head=[${head.join(' ')}]`
             + ` remaining=${points.length - this.progress}`
             + ` maps=[${this.route!.maps.join(',')}]`
@@ -686,6 +872,8 @@ export class PathGuide {
             + ` doorOpen:${typeof this.plan.doorOpen}}`
             + ` spent=${this.route!.keysSpent.ordinary}/${this.route!.keysSpent.lion}`
             + ` gained=${this.route!.keysGained.ordinary}/${this.route!.keysGained.lion}`
+            + ` short=${this.keysShort(caps)} askedShort=${this.askedShortfall}`
+            + ` plat=${this.lastPlatformVersion === this.platformVersion() ? 'same' : 'DIFF'}`
             + ` cost=${this.route!.cost} expanded=${this.route!.expanded}`
             + ` dormant=${this.dormant} arrived=${this.arrived}`);
     }
@@ -770,6 +958,11 @@ export class PathGuide {
         this.plannedMask = caps.mask;
         this.plannedKeys = caps.keys;
         this.plannedLionKeys = caps.lionKeys;
+        // The shortfall this ask was made against, for the same reason the counters
+        // are recorded: a route the pocket cannot cover is asked about again when the
+        // pocket changes, not on every frame. Asking every frame is the freeze the
+        // player hit on mp81, one search per frame while he stood there.
+        this.askedShortfall = this.keysShort(caps);
     }
 
     /**
@@ -886,11 +1079,14 @@ export class PathGuide {
             }
         }
         if (match !== -1) {
-            if (PATH_DIAG && match < progress) {
-                console.log(`[path] anchor back ${progress} -> ${match}`
-                    + ` (he went back to his own cell, hero ${at(hero)})`);
+            if (PATH_DIAG && match !== progress) {
+                console.log(`[path] anchor ${match < progress ? 'back' : 'fwd'}`
+                    + ` ${progress} -> ${match} (hero ${at(hero)})`
+                    + ` ${at(points[match])} next ${at(points[match + 1])}`
+                    + ` prev ${at(points[match - 1])} keys=${this.deps.capabilities().keys}`);
             }
             this.progress = match;
+            if (PATH_DIAG) this.logDoubleVisit();
         } else {
             // He is on the route's map but not standing on any of its cells — a
             // landing that put him a tile off the door, a step taken off the line. The

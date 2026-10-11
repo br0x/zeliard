@@ -408,7 +408,7 @@ Current repository state at the end of the supplied document:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1022` tests passing.
+- `1036` tests passing.
 - `0` tests failing.
 
 ## 12. The five level-8 failures, and how each closed
@@ -616,6 +616,69 @@ return of the same corridor. That gives the door case (the room he is standing i
 window) the right answer each way, and the fallback with no cell match at all now takes
 the nearer of the two visit boundaries instead of only ever jumping forward.
 
+The fifth of the guide's defects, and the one the player hit last, was not in the anchor at
+all: every number in the route was right, and the guide still drew a line into a locked
+door. He planned mp80 `(111,21)` → mp80 `(227,34)` and followed it to the end of the second
+key fetch, where the trail led him out of the door at mp82 `(174,10)` into mp81 `(227,60)`
+and on to the door at mp81 `(236,5)` — shut, and with nothing in his pocket. *"As if I had
+the key, but I still have to pick up it."* Opening the inventory and closing it fixed it,
+and that was the tell that settled where the fault lay.
+
+A route is not a path, it is a **plan**: "walk to that key, then come back and spend it".
+`PathGuide` re-plans it, but it re-plans only when a *counter* differs from the one
+recorded at plan time — mask, keys, Lion-Head keys, the platform signature — and it defers
+the search to a frame where the hero is standing still, because the search is synchronous
+and a held direction key is what makes a walk feel like a walk. Both halves are right for
+what they were built for, and together they produced this: the route in hand was planned
+for the pocket the hero had a moment earlier, the pocket then changed under it, and until
+he happened to release a key the guide kept drawing a plan it knew to be stale and could
+not afford. The fix is not to re-plan more often. It is to tell *stale* from *unwalkable*.
+
+`PathGuide.keysShort` answers "can he still open what is left of this?", and both halves of
+the answer have to be counted over the stretch **ahead of the anchor only** — which is
+where the first attempt at this was wrong, and it is worth recording because the console
+line said so in one row:
+
+```text
+hero=24:(151,16) anchor=770/876 keys=0 gained=2/0 spent=2/0 short=-1
+```
+
+An 876-point route, an empty pocket, both of its key fetches already walked past, one shut
+door still ahead — and the guard answered "covered". It compared the shut doors ahead with
+`keys + route.keysGained`, and `keysGained` is a total for the whole journey: the two keys
+he had already picked up counted as ones still to come. The route drew him through the door
+at mp82 `(174,10)` into mp81 `(227,60)` and on to the shut door at mp81 `(236,5)`, and the
+line stood for the whole leg because the idle gate was the only thing that would have
+re-planned. So: shut doors in `hops[i..]`, keys still lying on the floor at `points[i+1..]`,
+each counted once, **per pocket** so a Lion-Head key cannot pay for an ordinary door, and a
+key already taken not counted at all. That answer is zero for every route the search hands
+out honestly — `nav-route-cases` replays the pocket along the whole journey and it never
+goes negative — and positive exactly when the route and the pocket have come apart. It
+bypasses the idle gate; everything else still waits for one, and the shortfall is recorded
+with the ask like every other signature, because a question asked every frame is the mp81
+freeze with a new cause.
+
+The second version read those two facts out of the graph, and it failed in exactly the
+place the first one had. `store.reset` empties the cache on every change of cavern, so the
+guide is routinely standing in a cavern with no graph built — and a cavern with no graph
+reads as having neither a shut door nor a key. The player's second log caught the
+question decaying rather than answering:
+
+```text
+anchor=770/876 keys=0 gained=2/0 spent=2/0 short=0 askedShort=1
+```
+
+`askedShort=1` is a shortfall already found and recorded; `short=0` is the same route at
+the same anchor a moment later. Nothing about the route or the pocket had changed — the
+store had. So the answer no longer comes from a graph at all. `findRoute` says it: every
+hop carries the key kind its crossing costs (`NavHop.doorKey`, 0 for an open door), and
+every route names the points its keys lie on (`NavRoute.picks`). The legs of a decomposed
+journey are searched with `collectKeys` off precisely because the pickup dimension floods,
+so their counters never rise and only the accounting that stitched them knows — which is
+why the picks are attached there, with their indices rebased at the join. `buildBudget`
+now reads nothing but the route: no store, no `peek`, no `get`, no rebuild during a ride,
+and no answer that depends on which cavern happens to be cached.
+
 ## 13. Working rules for future changes
 
 1. **Model the engine, not an intuitive physics model.**
@@ -680,6 +743,27 @@ the nearer of the two visit boundaries instead of only ever jumping forward.
     the journey it broke did not exist any more, so the fix was to say so (the door is
     open, the shoes are on) rather than to keep an edge the game does not have. Find out
     which side is stale by bisection before assuming either; see section 12.
+21. **Stale and unwalkable are different failures, and only one of them may wait.** The
+    idle gate exists so a held direction key cannot turn a walk into a pathfinding loop;
+    it is not a licence to keep drawing a route into a shut door. A key the hero has spent
+    does not come back, so a route that walks him through a locked door is not the same
+    journey drawn a moment out of date — it is a journey he cannot finish, and re-planning
+    it is the only way the line becomes true again. Ask the question cheaply, bypass the
+    gate when it says yes, and record the answer with the ask: a question asked on every
+    frame is the mp81 freeze wearing a new cause.
+22. **Count a plan over the part of it that is still ahead of the hero.** A route's totals
+    (`keysGained`, `keysSpent`) describe the whole journey, and a route the hero is halfway
+    through is not that journey any more. `keysShort` counted the shut doors ahead against
+    `keys + keysGained` and reported a hero with an empty pocket, standing at a locked door,
+    with both his fetches behind him, as covered — the same arithmetic twice, once per pocket
+    is right, once over the whole route is not.
+23. **A question asked per frame must be answerable from data that does not decay.** The
+    fix for the above read the cavern's graph, and `store.reset` empties the cache on every
+    change of cavern — so the answer depended on which cavern happened to be built, and
+    went to zero while the stale route went on being drawn. `NavHop.doorKey` and
+    `NavRoute.picks` exist so the route can answer for itself. Anything the guide asks
+    every frame about the world has the same obligation: either it is derived from the
+    route, or it is a reading whose lifetime is bounded and whose loss is handled.
 
 ## 14. Useful invariants
 
@@ -699,6 +783,8 @@ These are the highest-value sanity checks when changing the pathfinder:
   test.
 - The overlay draws cells, not merely one marker per graph edge.
 - A route starts at the hero and ends at the selected destination.
+- A route in hand is never short of keys: locked doors ahead of the anchor are covered by
+  the pocket plus the keys the route says it picks up.
 
 ## Crouching 
 - standing hero: 3×3

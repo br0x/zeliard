@@ -57,12 +57,30 @@ export interface NavRequirement {
     readonly at: NavPoint;
 }
 
-/** One hop of a route, mirroring the edge that produced it. */
+/**
+ * One hop of a route, mirroring the edge that produced it.
+ *
+ * `doorKey` is the key kind a crossing costs, and it is the only way to tell a shut
+ * door from an open one without a graph in hand: 0 none (an open door, or not a door),
+ * 1 ordinary, 2 Lion-Head. The cost says *that* a door was locked; this says which
+ * pocket paid for it. A consumer that has to answer "can he still open what is left of
+ * this?" from the route alone — with no cavern graph, which is the state the guide is
+ * often in — needs both, and neither is derivable from `from`/`to` alone.
+ */
 export interface NavHop {
     readonly kind: number;
     readonly cost: number;
     readonly from: NavPoint;
     readonly to: NavPoint;
+    readonly doorKey: number;
+}
+
+/** A key the route collects, as an index into {@link NavRoute.points}. */
+export interface NavPick {
+    /** Index of the standing position the key lies on. */
+    readonly at: number;
+    /** 0 ordinary, 1 Lion-Head — the pocket it goes into. */
+    readonly kind: number;
 }
 
 /**
@@ -110,6 +128,17 @@ export interface NavRoute {
      * the hero's pocket is empty.
      */
     readonly lockedDoors: { ordinary: number; lion: number };
+    /**
+     * The keys this route collects, as point indices.
+     *
+     * Walking over a key is what takes it, so the pickup is a point rather than an
+     * edge — and the point has to be *named*, because `keysGained` is a total and a
+     * consumer part-way along the route needs to know which of them are still ahead of
+     * it. None of them can be read off a graph here: the legs of a decomposed journey
+     * are searched with `collectKeys` off precisely because the pickup dimension floods,
+     * so their counters never rise and only the accounting that stitched them knows.
+     */
+    readonly picks: readonly NavPick[];
     /** Maps visited, in order, with consecutive duplicates collapsed. */
     readonly maps: readonly number[];
     /** Hazards the route's footprints touch, for a warning on the map screen. */
@@ -875,9 +904,12 @@ function fetchNextKey(
         );
         if (!onward) continue;
         // The leg was walked without the pickup dimension, so it reports none: the
-        // keys it went over are counted here, the waypoint at its end included.
+        // keys it went over are counted here, the waypoint at its end included — and
+        // *named*, because a consumer part-way along the joined route has to know which
+        // of them are still ahead of it. `keysGained` alone cannot say.
         const joined = concatRoutes({
             ...leg,
+            picks: picked.picks,
             keysGained: {
                 ordinary: leg.keysGained.ordinary + picked.ordinary,
                 lion: leg.keysGained.lion + picked.lion,
@@ -900,10 +932,11 @@ function keysAlong(
     leg: NavRoute,
     taken: ReadonlySet<string>,
     options: FindRouteOptions,
-): { ordinary: number; lion: number; visited: Set<string> } {
+): { ordinary: number; lion: number; visited: Set<string>; picks: NavPick[] } {
     let ordinary = 0;
     let lion = 0;
     const visited = new Set(taken);
+    const picks: NavPick[] = [];
     for (let i = 1; i < leg.points.length; i++) {
         const point = leg.points[i]!;
         const graph = options.store.get(point.mapId);
@@ -926,10 +959,11 @@ function keysAlong(
             point.mapId, col, row, kind === KEY_LION ? 1 : 0,
         )) continue;
         visited.add(id);
+        picks.push({ at: i, kind: kind === KEY_LION ? 1 : 0 });
         if (kind === KEY_LION) lion++;
         else ordinary++;
     }
-    return { ordinary, lion, visited };
+    return { ordinary, lion, visited, picks };
 }
 
 /**
@@ -948,6 +982,13 @@ function concatRoutes(first: NavRoute, second: NavRoute): NavRoute {
         ({ ordinary: a.ordinary + b.ordinary, lion: a.lion + b.lion });
     const maps: number[] = [];
     for (const p of points) if (maps[maps.length - 1] !== p.mapId) maps.push(p.mapId);
+    // The second half's points start where the first half's do, minus the one point
+    // they share, so its pickups move by the same amount.
+    const offset = first.points.length - 1;
+    const picks: NavPick[] = [
+        ...first.picks,
+        ...second.picks.map((pick) => ({ at: pick.at + offset, kind: pick.kind })),
+    ];
     const equipment = [...first.equipment];
     for (const e of second.equipment) {
         const last = equipment[equipment.length - 1];
@@ -962,6 +1003,7 @@ function concatRoutes(first: NavRoute, second: NavRoute): NavRoute {
         keysGained: sum(first.keysGained, second.keysGained),
         equipment,
         lockedDoors: sum(first.lockedDoors, second.lockedDoors),
+        picks,
         maps,
         crossesAggressiveGround: first.crossesAggressiveGround || second.crossesAggressiveGround,
         crossesSlopes: first.crossesSlopes || second.crossesSlopes,
@@ -1214,7 +1256,18 @@ function describeRoute(
     for (let i = 1; i < chain.length; i++) {
         const from = points[i - 1]!;
         const to = points[i]!;
-        hops.push({ kind: chain[i]!.via, cost: chain[i]!.viaCost, from, to });
+        // What a crossing costs: 0 for anything but a shut door, and for a door the
+        // player has already opened — walked through for nothing, which is the same
+        // answer `viaReq` gives. Which pocket it draws from is not recoverable from
+        // the hop's endpoints later, so it is kept on the hop. The portal belongs to
+        // the map the hop *leaves*, and so does the node.
+        let doorKey = 0;
+        if (chain[i]!.via === EDGE.DOOR && chain[i]!.viaReq !== 0) {
+            const fromGraph = store.get(chain[i - 1]!.mapId)!;
+            const fromPortal = fromGraph.portalAtNode[chain[i - 1]!.node]!;
+            doorKey = fromPortal >= 0 ? (PORTALS[fromPortal]?.key ?? 0) : 0;
+        }
+        hops.push({ kind: chain[i]!.via, cost: chain[i]!.viaCost, from, to, doorKey });
         if (chain[i]!.via === EDGE.RIDE_V || chain[i]!.via === EDGE.RIDE_H
             || chain[i]!.via === EDGE.BOARD || chain[i]!.via === EDGE.ALIGHT
             || chain[i]!.via === EDGE.DROP) {
@@ -1253,9 +1306,16 @@ function describeRoute(
     // pickup is a hop that raised a counter.
     const lockedDoors = { ordinary: 0, lion: 0 };
     const picked = { ordinary: 0, lion: 0 };
+    const picks: NavPick[] = [];
     for (let i = 1; i < chain.length; i++) {
-        if (chain[i]!.keysOrd > chain[i - 1]!.keysOrd) picked.ordinary++;
-        if (chain[i]!.keysLion > chain[i - 1]!.keysLion) picked.lion++;
+        if (chain[i]!.keysOrd > chain[i - 1]!.keysOrd) {
+            picked.ordinary++;
+            picks.push({ at: i, kind: 0 });
+        }
+        if (chain[i]!.keysLion > chain[i - 1]!.keysLion) {
+            picked.lion++;
+            picks.push({ at: i, kind: 1 });
+        }
     }
     for (let i = 1; i < chain.length; i++) {
         const via = chain[i]!.via;
@@ -1293,6 +1353,7 @@ function describeRoute(
         keysGained: assumeKeys ? { ordinary: 0, lion: 0 } : picked,
         equipment,
         lockedDoors,
+        picks: assumeKeys ? [] : picks,
         maps,
         crossesAggressiveGround,
         crossesSlopes,
