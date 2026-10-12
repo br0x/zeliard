@@ -505,13 +505,18 @@ is worth keeping because the design section above had it right while the code di
 
 Horizontal ride edges were built from per-cell adjacency alone, which by construction
 never joins two cells in different rows. A horizontal platform's slots are per *riding
-offset*, and where the ceiling is under three tiles the hero crouches and his head row
-drops one — so the standing slots at row 56 and the crouched ones at row 57 of the same
-platform were two islands, and any walk that needed both had no route. The graph now
-also links each horizontal slot to `slot.next` / `slot.prev`, which is the platform's
-own movement chain at a fixed offset, and skips the pairs cell adjacency already
-covers. That is what rule "ride links follow platform movement/offset chains rather
-than simple spatial adjacency" meant, and it is what makes mp82 `(179,53)` →
+offset*, and where the ceiling is under three tiles the hero crouches — so the standing
+slots at row 56 and the crouched ones at row 57 of the same platform were two islands,
+and any walk that needed both had no route. (Those two rows are themselves the mistake
+described in §17a: the crouched hero never dropped a row, so the row-57 slots were
+phantom cells and the row-56 slots he actually rides were being thrown away. §18 fixed
+the cause; the chain linking here is still what makes the movement an offset-wise walk
+rather than a set of adjacent pairs.)
+
+The graph now also links each horizontal slot to `slot.next` / `slot.prev`, which is
+the platform's own movement chain at a fixed offset, and skips the pairs cell adjacency
+already covers. That is what rule "ride links follow platform movement/offset chains
+rather than simple spatial adjacency" meant, and it is what makes mp82 `(179,53)` →
 `(157,54)` findable.
 
 A journey that has to fetch a key and then come back and use it is the other half of
@@ -814,7 +819,9 @@ These are the highest-value sanity checks when changing the pathfinder:
   the pocket plus the keys the route says it picks up.
 - A lift's `topY`/`bottomY` is what `try_move_platform_up`/`Down` allow, walking the
   decoded map one row at a time — re-derived and compared in `nav-platform-model`.
-- A vertical ride slot has an open **middle** column; a horizontal one has a free 3x3.
+- A vertical ride slot has an open **middle** column; a horizontal one has the two rows
+  under the hero's head clear across his three columns — the crouched carry test, not a
+  3x3 box. See §17.
 - A flight with Up held alone can end on a rope, and one with a direction held cannot.
 
 ## 15. mp80 (203,29) -> mp80 (244,7), and the recorder diff behind it
@@ -903,8 +910,8 @@ recording will still show them.
 - **A crouched hero is carried into a position his 3x3 does not fit.** The recorder
   has him at (212,27) and (213,27) on the row-30 platform with `DOWN` held, and he got
   there because `move_hero_right_if_no_obstacles` **skips the head-row test while
-  `SQUAT_FLAG` is set** (dungeon-hero.ts:227). Crouch is still not a general navigation
-  state; see the last section.
+  `SQUAT_FLAG` is set** (dungeon-hero.ts:227). **Fixed in §18** — the horizontal ride
+  slot is the carried-crouched test, not a 3x3 box.
 
 And a handful of the lines are the recorder's own: he spends a few frames on a cell
 with nothing under him whenever he steps off a rope, because `dungeon_finish_rope_frame`
@@ -960,15 +967,138 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
 ## 17. Crouching
 - standing hero: 3×3
 - squat/crouch hero: 3×2
-- crouched head is one tile lower
+- **a crouched hero does not get a row lower.** This section used to say he did, and
+  the model acted on it; §18 is the report that proved otherwise.
 - crouching is required to ride horizontal platforms beneath low ceilings
-- crouched ride slots use platformRow - 2 rather than platformRow - 3
-- the platform's platformRow must remain separate from the hero's headRow
-- a crouched slot and a standing slot on the same platform are one ride, joined along
-  the platform's `next`/`prev` chain — see section 12
-- the pathfinder's crouch support is still incomplete, because crouch isn't yet modeled as a complete general navigation state.
-- while `SQUAT_FLAG` is set, `move_hero_right_if_no_obstacles` **skips the head-row
-  test** (dungeon-hero.ts:227), so a crouched hero is carried sideways into a position
-  his 3x3 does not fit. That is two of the recorder's remaining lines — the player at
-  (212,27) and (213,27) on mp80's row-30 platform with `DOWN` held — and it needs the
-  same treatment a lift slot got in §15: the box is not a test the engine performs.
+- **the ride row is always `platformRow - 3`**, for a crouched hero as much as a
+  standing one. The platform's `platformRow` must remain separate from the hero's
+  `headRow` regardless.
+- while `SQUAT_FLAG` is set, `move_hero_right_if_no_obstacles` and
+  `move_hero_left_if_no_obstacles` **skip the head-row test** (dungeon-hero.ts:227 and
+  :255), so a crouched hero is carried sideways into a position his 3×3 does not fit.
+  That is the player's mp80 `(212,27)`/`(213,27)` on the row-30 platform, and mp83's
+  `(26,32)`-`(29,32)` on the row-35 platform.
+- a horizontal ride slot is therefore exactly the strongest position the platform can
+  hold: the two rows under the hero's head clear across his three columns. Nothing
+  else. That is `ridingAboard`.
+
+### 17a. Why crouching is not a navigation state
+
+The head row cannot move while `SQUAT_FLAG` is set, and that is a closed question
+rather than a reading:
+
+- `down_pressed` sets `SQUAT_FLAG` and writes nothing else (dungeon-input.ts:239-244).
+  The `hero_scroll_down` above it is the rope branch, which returns before it.
+- The only two writers of the viewport row anywhere in the engine are the jump-up
+  step (dungeon-hero.ts:309) and the rope descent (dungeon-input.ts:252).
+- `draw_dungeon_hero` draws the squatting body at the same `dy`, from a different
+  sprite frame — the arms drop a tile, the body does not.
+
+So a crouched hero is a *standing* hero with his head-row cell exempt from the
+sideways test, at the same row. A slot at `headRow + 1` is a cell nothing occupies,
+and a slot rejected by a 3×3 test is a cell he demonstrably occupies.
+
+`check_floor_for_landing` agrees and is the reason this is not a special case: it
+reads `base + 3*36 + 1`, so a crouched hero's support is still three rows under his
+head. A 2-tall hero has no floor of its own to land on. Crouch changes what the
+sideways move consults and the hitbox (`dungeon-combat.ts:143`), and nothing else.
+
+### 17b. What this cost
+
+Modelling the crouch as a second row put a hole in every horizontal ride whose
+ceiling drops, because a `RIDE_H` edge never joins two cells in different rows. mp82's
+row-59 platform had standing slots at row 56 and phantom ones at 57 over columns
+171-174; the walk `(179,53)` → `(157,54)` needed both and had no route. It is now one
+unbroken chain along row 56 through the low stretch, and mp82's interior opened up
+enough that the search now prefers mp81's own door at `(151,16)` over doubling back
+through mp80 — the passage the player walked is still routable, it is just no longer
+cheapest.
+
+## 18. mp83 (34,31) -> mp83 (17,28), and the crouch that was a row, not a state
+
+The report: Yaga Thread, mp83, from `(34,31)` to `(17,28)`, walked by the player, no
+route. The recorder put six cells on the map as *not a standing position*:
+
+    (29,31) (29,32) (28,32) (27,32) (26,32)     — no node at all
+    (25,32) (24,32) (23,32)                     — ride nodes, present all along
+
+### 18a. What the log said
+
+He walked the row-31 floor west from `(34,31)` to `(30,31)`, stepped to `(29,31)` —
+column 29 is rock at row 31, which is the engine's one-column-inside-rock step — fell
+onto the row-35 platform, and rode it left. The ride is the part:
+
+    (29,32)  x 74f  down
+    (28,32)  x 37f  down
+    (27,32)  x 72f  down then -
+    (26,32)  x 37f  -
+    (25,32)  x 36f  -
+    (24,32)  x 35f  -
+    (23,32)  x 20f  -
+
+`DOWN` is held from `(28,32)` to the end. mp83's row-35 platform spans columns 18-29,
+so its riding head row is 32 — and column 28 is solid at row 32. His cells `(26,32)` to
+`(29,32)` are all cells a standing 3x3 does not fit in. The model had no slots there,
+so it drew a wall.
+
+### 18b. What the engine does
+
+`move_hero_right_if_no_obstacles` / `move_hero_left_if_no_obstacles` take **one**
+column of the hero — the one he faces — and test it, and they **skip the head-row test
+while `SQUAT_FLAG` is set** (dungeon-hero.ts:227, :255). So they test exactly two rows:
+`headRow + 1` and `headRow + 2`.
+
+A horizontal platform moves the hero through those and nothing else
+(`update_horiz_platform_coords` → `hero_on_horiz_platform` →
+`move_hero_*_if_no_obstacles`, dungeon-platforms.ts:264-300). `hero_on_horiz_platform`
+asks only whether a platform cell is under his feet row; it never looks at his body,
+his facing, or which way the platform is going.
+
+So a crouched hero can be carried into any cell his two rows under the head are clear
+across, and the head row is not consulted at all.
+
+### 18c. The mistake that made this a bug
+
+The model answered "the ceiling is low" by emitting a **second set of slots one row
+lower** (`headRow + 1`, `platformRow - 2`), so the crouched hero lived at row 33 while
+the platform sat at row 35 and his head row was 32. Two things are wrong with that:
+
+1. **He never moves down.** `down_pressed` sets `SQUAT_FLAG` and writes nothing else
+   (dungeon-input.ts:239-244); the `hero_scroll_down` above it is the rope branch,
+   which returns first. The only two writers of the viewport row in the engine are the
+   jump-up step (dungeon-hero.ts:309) and the rope descent (dungeon-input.ts:252).
+   `draw_dungeon_hero` draws the squatting body at the same `dy` from a different frame.
+   The log above is the confirmation: `DOWN` held, row 32 throughout.
+2. **There is no floor at the shorter height.** `check_floor_for_landing` reads
+   `base + 3*36 + 1` regardless of crouch, so a crouched hero's support is still three
+   rows under his head. A 2-tall hero has no landing check of its own.
+
+So the row-33 slots were cells nothing ever occupies, and the real row-32 slots were
+being thrown away by a 3x3 test the engine never performs. §17a follows from this.
+
+The replacement is `ridingAboard`: the two rows under the head, clear across the three
+columns. It subsumes the old standing test — it is that test with the head row
+dropped — so the slot set is a superset of what §12's crouch produced, minus the
+phantoms. The crouch is no longer a second row and therefore no longer an island in the
+`next`/`prev` chain.
+
+### 18d. Tests
+
+- `nav-route-cases` `mp83: the walk west along the row-35 platform` — the walk itself,
+  with a bare hero, through no rock; the ride through cells a standing hero does not
+  fit; and the chain joined both ways. `(29,32)` is deliberately *not* pinned: column 31
+  at row 34 is the exit tile `0x03` and `is_blocking_tile_simple` blocks it, so the
+  engine's own carry refuses that cell too. He reached it by falling, which consults
+  nothing.
+- `nav-platform-model` `holds a horizontal slot to the two rows the engine ever
+  consults` — every horizontal slot's two body rows are clear, and at least one slot
+  has its head row inside rock, so the loop cannot pass without testing the rule.
+- `nav-route-cases` `mp82: the walk across the row-59 platforms` — rewritten. It used
+  to pin a `RIDE_H` edge crossing between row 56 and row 57, which is the mechanism
+  §18c removes; it now pins one head row for the whole platform and the ride running
+  through the stretch whose 3x3 does not fit.
+- `nav-route-cases` `a journey that has to fetch a key and come back for the door` — the
+  map sequences were the route the search happened to pick. It now goes mp80 → mp81 →
+  mp82 through mp81's own keyless door at `(151,16)` instead of doubling back through
+  mp80. The passage the player walked is still routable and is pinned directly now; the
+  sequence is a cost decision, not a property.

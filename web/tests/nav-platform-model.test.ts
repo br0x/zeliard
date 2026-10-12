@@ -89,23 +89,35 @@ describe('geometry predicates', () => {
 });
 
 describe('ride slots are positions the hero can actually occupy', () => {
-    it('holds a horizontal slot to a free 3x3 box', () => {
-        // A horizontal platform is pinned where it stands and the hero walks onto it
-        // from the ground beside it, so the body-fit test is what decides whether a
-        // riding offset exists at all — `standingAboard`, with a crouched fallback
-        // under a low ceiling.
+    it('holds a horizontal slot to the two rows the engine ever consults', () => {
+        // A horizontal platform moves the hero by calling `move_hero_*_if_no_obstacles`,
+        // which take one column and test it — and skip the head row entirely while he
+        // is squatting. Squatting does not move him (`down_pressed` writes
+        // `SQUAT_FLAG` and nothing else), so a crouching hero is a standing hero
+        // with his head-row cell exempt, at the same row. The two rows under his
+        // head are therefore the strongest position a horizontal platform can hold.
+        //
+        // mp83 is the report: he rode the row-35 platform left from `(29,32)` to
+        // `(23,32)` holding DOWN, through cells his 3x3 does not fit in at all.
+        let exempted = 0;
         for (const meta of platformMaps) {
             const grid = gridFor(meta.id);
             const classifier = NavTileClassifier.forMap(meta.id);
             const model = buildPlatformModel(meta.id, grid);
             for (const slot of model.slots) {
                 if (slot.kind !== PLATFORM_HORIZONTAL) continue;
-                expect(
-                    heroBoxFree(grid, classifier, slot.leftCol, slot.headRow),
-                    `${meta.nameKey} slot (${slot.leftCol},${slot.headRow})`,
-                ).toBe(true);
+                for (let i = 0; i < 3; i++) {
+                    for (const dr of [1, 2]) {
+                        const cell = flagsAt(grid, classifier, slot.leftCol + i, slot.headRow + dr);
+                        expect(blocksBody(cell),
+                            `${meta.nameKey} slot (${slot.leftCol},${slot.headRow}) body cell (${slot.leftCol + i},${slot.headRow + dr})`).toBe(false);
+                    }
+                }
+                if (!heroBoxFree(grid, classifier, slot.leftCol, slot.headRow)) exempted++;
             }
         }
+        // If none existed the loop above would pass without ever testing the rule.
+        expect(exempted, 'slots whose head row is inside rock, i.e. crouched rides').toBeGreaterThan(0);
     });
 
     it('holds a lift slot to a free middle column, and no more', () => {

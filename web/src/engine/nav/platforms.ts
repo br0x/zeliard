@@ -76,7 +76,7 @@ import { NAV_PLATFORMS, type NavPlatformTables } from '../../data/nav/nav-platfo
 import { NAV_MAP_BY_ID } from '../../data/nav/nav-maps.js';
 import type { NavTileGrid } from './mdt-grid.js';
 import { NavTileClassifier } from './attributes.js';
-import { ROWS, blocksBody, blocksHead, flagsAt, heroBoxFree, middleColumnFree, wrapCol, wrapRow } from './geometry.js';
+import { ROWS, blocksBody, flagsAt, middleColumnFree, wrapCol, wrapRow } from './geometry.js';
 import type { PlatformPlaces } from './platform-state.js';
 
 /** Platform families, matching the `kind` field in nav-platforms.ts. */
@@ -210,21 +210,6 @@ export function isLandingSlot(slot: RideSlot): boolean {
     return slot.atRest;
 }
 
-/** Can the hero stand here with the platform cell counted as ground? */
-function standingAboard(
-    grid: NavTileGrid,
-    classifier: NavTileClassifier,
-    leftCol: number,
-    headRow: number,
-): boolean {
-    if (!heroBoxFree(grid, classifier, leftCol, headRow)) return false;
-    // The platform sits on the feet row, so that row must be clear, not solid.
-    for (let i = 0; i < 3; i++) {
-        if (blocksBody(flagsAt(grid, classifier, leftCol + i, headRow + 2))) return false;
-    }
-    return true;
-}
-
 /**
  * Can the hero be aboard a vertical or collapsing platform at this head row?
  *
@@ -253,23 +238,40 @@ function aboardLift(
     return middleColumnFree(grid, classifier, leftCol, headRow);
 }
 
-/** Can the hero fit here while crouching (2 tiles tall instead of 3)? */
-function crouchingAboard(
+/**
+ * Can the hero be riding a horizontal platform with his head on `headRow`?
+ *
+ * A horizontal platform moves the hero by calling `move_hero_left_if_no_obstacles`
+ * or `move_hero_right_if_no_obstacles` (dungeon-platforms.ts:264-300), which take one
+ * column of the hero — the one he faces — and test it. Neither asks about the platform,
+ * the hero's facing, or which way it is travelling; `hero_on_horiz_platform` has
+ * already decided he is aboard. So the two rows under the hero's head are all that is
+ * ever consulted, and the test is **skipped entirely on the head row while he is
+ * squatting** (dungeon-hero.ts:227 and :255).
+ *
+ * Squatting is free: `down_pressed` sets `SQUAT_FLAG` and nothing else (dungeon-input.ts
+ * :239-244), and the only two writers of the viewport row in the whole engine are the
+ * jump-up step (dungeon-hero.ts:309) and the rope descent (dungeon-input.ts:252).
+ * A crouching hero is a standing hero whose head-row cell is exempt from the sideways
+ * test — **he does not get a row lower**, which is what §12 assumed and what
+ * `crouchingAboard`'s `headRow + 1` used to mint.
+ *
+ * So the strongest position a horizontal platform can hold is a crouched one, and it
+ * is on the same row as every standing slot. This is the player's mp83: he rode the
+ * row-35 platform left from `(29,32)` to `(23,32)` holding DOWN the whole way, and
+ * `(26,32)`-`(29,32)` are all cells his 3x3 does not fit in — column 28 is rock at
+ * row 32 — yet `standingAboard` refused them and no route existed.
+ */
+function ridingAboard(
     grid: NavTileGrid,
     classifier: NavTileClassifier,
     leftCol: number,
     headRow: number,
 ): boolean {
-    // Crouching: 2-tile height (head + body), feet on headRow+2 (platform)
-    // Check head row
-    for (let i = 0; i < 3; i++) {
-        if (blocksHead(flagsAt(grid, classifier, leftCol + i, headRow))) return false;
-    }
-    // Check body row
     for (let i = 0; i < 3; i++) {
         if (blocksBody(flagsAt(grid, classifier, leftCol + i, headRow + 1))) return false;
+        if (blocksBody(flagsAt(grid, classifier, leftCol + i, headRow + 2))) return false;
     }
-    // Feet row (headRow+2) is the platform, not in static grid
     return true;
 }
 
@@ -436,13 +438,7 @@ export function buildPlatformModel(
             const standing: { slot: number; leftCol: number; offset: number }[] = [];
             for (const offset of HORIZONTAL_RIDE_OFFSETS) {
                 const leftCol = wrapCol(column + offset, mapWidth);
-                let slotHeadRow = headRow;
-                if (!standingAboard(grid, classifier, leftCol, headRow)) {
-                    // Try crouching: hero head is one row lower (platform_y - 2 instead of platform_y - 3)
-                    const crouchHeadRow = wrapRow(headRow + 1);
-                    if (!crouchingAboard(grid, classifier, leftCol, crouchHeadRow)) continue;
-                    slotHeadRow = crouchHeadRow;
-                }
+                if (!ridingAboard(grid, classifier, leftCol, headRow)) continue;
                 const index = slots.length;
                 slots.push({
                     platform: slotsByPlatform.length,
@@ -450,7 +446,7 @@ export function buildPlatformModel(
                     pos: column,
                     leftCol,
                     offset,
-                    headRow: slotHeadRow,
+                    headRow,
                     platformRow: p.y,
                     // The platform is drawn at `startX` until the hero drives it,
                     // which for a horizontal one he never does, and the live rows are

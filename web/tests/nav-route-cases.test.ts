@@ -15,7 +15,7 @@ import { dirname, resolve } from 'node:path';
 import { NavGraphStore, findRoute, type NavHop, type NavPoint, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
-import { flagsAt } from '../src/engine/nav/geometry.js';
+import { flagsAt, heroBoxFree } from '../src/engine/nav/geometry.js';
 import { JumpModel, LANDING_STRIDE, STEER_ALL } from '../src/engine/nav/jump.js';
 import { EDGE, EDGE_NAMES, NAV, CAP, KEY_ORDINARY, blocksBody } from '../src/engine/nav/types.js';
 import { edgesOf, NODE_RIDE, nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
@@ -202,6 +202,68 @@ describe('mp80: the journey the player reported to (244,7)', () => {
         expect(graph.nodes[top]!.kind, 'and it is a platform, not ground').toBe(NODE_RIDE);
         expect(edgesOf(graph, top).some((e) => e.kind === EDGE.JUMP_HIGH),
             'with a Feruza jump off the top of it').toBe(true);
+    });
+});
+
+describe('mp83: the walk west along the row-35 platform', () => {
+    // The player walked mp83 (34,31) to mp83 (17,28) holding DOWN for the whole
+    // descent, and the graph had no route at all. He falls onto the row-35 platform
+    // around column 29 and rides it left to (23,32) — through cells his 3x3 does
+    // not fit in at all, because column 28 is rock at row 32 — then jumps up-left
+    // and walks home. The recorder called all six of those cells "not a standing
+    // position", because the platform had no ride slots there.
+    //
+    // The cause is §18's crouch. A horizontal platform carries the hero with
+    // `move_hero_*_if_no_obstacles`, which skips the head-row test while he is
+    // squatting, and squatting does not move him. `platforms.ts` used to answer a
+    // low ceiling by dropping his head row one and giving him a slot at row 33
+    // instead of 32 — cells nothing ever occupies, which left the real ones empty.
+    const FROM: [number, number] = [34, 31];
+    const TO: [number, number] = [17, 28];
+
+    it('finds the walk, with a bare hero', () => {
+        const r = route(26, FROM, TO, bareCapabilities());
+        expect(r, 'mp83 (34,31) -> mp83 (17,28)').not.toBeNull();
+        expect(r!.maps).toEqual([26]);
+        expect(solidCrossings(r!), 'and through no rock').toEqual([]);
+    });
+
+    it('rides the platform through the cells a standing hero does not fit', () => {
+        const g = store.get(26)!;
+        const grid = store.gridOf(26)!;
+        const classifier = NavTileClassifier.forMap(26);
+        // The cells the player rode through, and the column 28 wall they do not fit.
+        // (29,32) is left out on purpose: column 31 at row 34 is the exit tile 0x03,
+        // and `is_blocking_tile_simple` blocks it, so the engine's own carry test
+        // refuses it and so does the model. He reached that cell by falling, which
+        // consults nothing, not by being carried there.
+        for (const col of [28, 27, 26]) {
+            const node = nodeAt(g, col, 32);
+            expect(node, `no ride slot at (${col},32)`).toBeGreaterThanOrEqual(0);
+            expect(g.nodes[node]!.kind, `(${col},32) is a platform`).toBe(NODE_RIDE);
+        }
+        expect(heroBoxFree(grid, classifier, 27, 32),
+            'mp83 (27,32) fits a standing hero after all, so this pins nothing').toBe(false);
+        // And they are joined into one ride, not three islands.
+        const linked = (from: number, to: number): boolean =>
+            edgesOf(g, from).some((e) => e.kind === EDGE.RIDE_H && e.to === to);
+        for (const col of [28, 27]) {
+            expect(linked(nodeAt(g, col, 32), nodeAt(g, col - 1, 32)),
+                `(${col},32) does not ride onto (${col - 1},32)`).toBe(true);
+            expect(linked(nodeAt(g, col - 1, 32), nodeAt(g, col, 32)),
+                `and not back the other way either`).toBe(true);
+        }
+    });
+
+    it('goes by the platform, and not over the top of the wall', () => {
+        const r = route(26, FROM, TO, bareCapabilities())!;
+        const kinds = r!.hops.map((h) => h.kind);
+        expect(kinds, 'the ride is what the walk is for').toContain(EDGE.RIDE_H);
+        const rides = r!.hops.filter((h) => h.kind === EDGE.RIDE_H);
+        expect(rides.every((h) => h.from.row === h.to.row),
+            'and it never changes head row').toBe(true);
+        expect(rides.every((h) => h.to.col < h.from.col),
+            'the destination is west, so every ride step goes left').toBe(true);
     });
 });
 
@@ -705,12 +767,21 @@ describe('mp82: the walk across the row-59 platforms', () => {
     // under him, and jump from that one into the destination. Three of the four were
     // fine. The ride was not: there was no route at all.
     //
-    // The platform's ceiling is under three tiles over columns 171-173, so the hero
-    // has to crouch for that stretch. `platforms.ts` drops his head row one and gives
-    // him a slot of his own at row 57 — and the graph linked horizontal ride slots by
-    // per-cell adjacency alone, which by construction never joins two cells in
-    // different rows. Standing slots at row 56 and crouched ones at row 57 were two
-    // islands, and the walk that needed both had no route.
+    // The platform's ceiling is under three tiles over columns 171-174, so the hero
+    // has to crouch for that stretch. `platforms.ts` used to answer that by dropping
+    // his head row one and giving him a slot of his own at row 57 — which is wrong,
+    // because squatting does not move him: `down_pressed` writes `SQUAT_FLAG` and
+    // nothing else, and the only two writers of the viewport row in the engine are
+    // the jump-up step (dungeon-hero.ts:309) and the rope descent
+    // (dungeon-input.ts:252). So rows 56 and 57 were two islands, and the walk that
+    // needed both had no route.
+    //
+    // The ride now keeps one head row and exempts the head-row cell from the
+    // sideways test, which is what `move_hero_*_if_no_obstacles` does while the hero
+    // is squatting. The slots run unbroken along row 56 and the low ceiling is
+    // simply a stretch of it the hero rides crouched. This is the same rule mp83
+    // needs, where he rides the row-35 platform left through columns whose 3x3 does
+    // not fit at all.
     const FROM: [number, number] = [179, 53];
     const TO: [number, number] = [157, 54];
 
@@ -725,13 +796,18 @@ describe('mp82: the walk across the row-59 platforms', () => {
         const r = route(25, FROM, TO, bareCapabilities())!;
         const rides = r!.hops.filter((h) => h.kind === EDGE.RIDE_H);
         expect(rides.length, 'the ride is what the walk is for').toBeGreaterThan(0);
-        // A ride whose endpoints sit in different rows is the step from a standing
-        // slot onto a crouched one. Without that step the platform's left half is
-        // unreachable and the walk cannot be planned at all.
-        expect(rides.some((h) => h.from.row !== h.to.row),
-            'the ride never crosses between the standing and the crouched rows').toBe(true);
+        // One head row for the whole platform: a crouched hero is a standing hero
+        // with his head-row cell exempt, not a hero a row lower.
+        expect(rides.every((h) => h.from.row === h.to.row),
+            'and the ride never changes head row').toBe(true);
         // Leftwards: the destination is west of the fall.
         expect(rides.every((h) => h.to.col < h.from.col), 'and every ride step goes left').toBe(true);
+        // And it really does run through the low ceiling — where a 3x3 box will not
+        // fit, which is the whole reason for the exemption.
+        const grid = store.gridOf(25)!;
+        const classifier = NavTileClassifier.forMap(25);
+        expect(rides.some((h) => !heroBoxFree(grid, classifier, h.to.col, h.to.row)),
+            'no ride step is a cell his standing body does not fit in').toBe(true);
     });
 
     it('gets off it by jumping to the neighbouring platform, then to the goal', () => {
@@ -739,8 +815,8 @@ describe('mp82: the walk across the row-59 platforms', () => {
         const kinds = r!.hops.map((h) => h.kind);
         const firstRide = kinds.indexOf(EDGE.RIDE_H);
         expect(firstRide, 'the ride is the point of the walk').toBeGreaterThan(0);
-        expect(kinds.slice(0, firstRide), 'he walks off the ledge and falls onto it')
-            .toEqual([EDGE.WALK, EDGE.WALK, EDGE.FALL]);
+        expect(kinds.slice(0, firstRide), 'he walks off the ledge and jumps onto it')
+            .toEqual([EDGE.WALK, EDGE.JUMP]);
         expect(kinds).toContain(EDGE.JUMP);
         expect(kinds.every((k) => k === EDGE.FALL || k === EDGE.RIDE_H || k === EDGE.JUMP
             || k === EDGE.WALK), `unexpected hop kinds: ${kinds}`).toBe(true);
@@ -748,26 +824,33 @@ describe('mp82: the walk across the row-59 platforms', () => {
         expect([last.to.col, last.to.row]).toEqual(TO);
     });
 
-    it('links the crouched slots to the standing ones along the platform', () => {
+    it('runs the ride unbroken across the low ceiling', () => {
         // The walk above is the symptom; this is the cause. A horizontal slot's
         // `next`/`prev` chain is the platform's own movement, one column per tick at
-        // a fixed riding offset, and the graph has to follow it wherever the head row
-        // happens to be.
+        // a fixed riding offset. Under the old model the chain had a hole in it
+        // wherever the ceiling dropped, because the hero's slot jumped to row 57 and
+        // no `RIDE_H` edge joins two cells in different rows.
         const g = store.get(25)!;
         const ride = (col: number, row: number): number =>
             g.nodes.findIndex((n) => n.kind === 2 && n.col === col && n.row === row);
-        const standing = ride(174, 56);
-        const crouched = ride(173, 57);
-        expect(standing, 'no standing slot at (174,56)').toBeGreaterThanOrEqual(0);
-        expect(crouched, 'no crouched slot at (173,57)').toBeGreaterThanOrEqual(0);
         const linked = (from: number, to: number): boolean => {
             for (let e = g.edgeOffsets[from]!; e < g.edgeOffsets[from + 1]!; e++) {
                 if (g.edges[e]!.to === to && g.edges[e]!.kind === EDGE.RIDE_H) return true;
             }
             return false;
         };
-        expect(linked(standing, crouched), '(174,56) does not ride onto (173,57)').toBe(true);
-        expect(linked(crouched, standing), 'and not back the other way either').toBe(true);
+        const chain = [174, 173, 172, 171, 170].map((c) => ride(c, 56));
+        expect(chain.map((i) => i >= 0), 'a slot is missing from row 56')
+            .toEqual([true, true, true, true, true]);
+        for (let i = 0; i < chain.length - 1; i++) {
+            expect(linked(chain[i]!, chain[i + 1]!), `(${174 - i},56) does not ride onto (${173 - i},56)`).toBe(true);
+            expect(linked(chain[i + 1]!, chain[i]!), `and not back the other way either`).toBe(true);
+        }
+        // 171-174 is the stretch whose ceiling is under three tiles.
+        const grid = store.gridOf(25)!;
+        const classifier = NavTileClassifier.forMap(25);
+        expect(heroBoxFree(grid, classifier, 171, 56),
+            'mp82 (171,56) fits a standing hero after all, so this pins nothing').toBe(false);
     });
 });
 
@@ -783,6 +866,12 @@ describe('a journey that has to fetch a key and come back for the door', () => {
     // walks a tile to the goal, with no door and no key anywhere on it. The tests
     // below pin *that*, and the key fetch itself is pinned where it still costs
     // something, in the next block.
+    //
+    // It is also no longer the route the search picks: §18's crouched ride slots
+    // opened up mp81's interior, so it now goes mp80 -> mp81 -> mp82 through mp81's
+    // own keyless door at (151,16) and skips the doubling back. The passage the
+    // player walked is still routable, and that is what the first test pins — the
+    // map sequence is what the search happens to choose, and it is a cost decision.
     //
     // One search cannot hold a journey that does fetch a key, and that is still the
     // reason the machinery exists. The state dimension that records a pickup means the
@@ -812,12 +901,21 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         expect(r!.lockedDoors.ordinary, 'no closed door stands on the way').toBe(0);
         expect(r!.keysGained.ordinary, 'so there is no key to fetch').toBe(0);
         expect(r!.keysSpent.ordinary, 'nor to spend').toBe(0);
-        // Out through mp81, back into mp80 at (117,32), and on to the door at
-        // (166,31) — the passage the player walked and the graph had not.
-        expect(r!.maps, 'out through mp81 and home through mp80').toEqual([23, 24, 23, 25]);
-        const used166 = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
-            && h.from.mapId === 23 && h.from.col === 166 && h.from.row === 31);
-        expect(used166, 'and in through the door at mp80 (166,31)').toBeGreaterThanOrEqual(0);
+        // Out through mp81 and in through mp81's own keyless door at (151,16),
+        // which is cheaper than doubling back through mp80. That used to cost the
+        // mp80 detour because nothing in mp81's interior could hold the hero; the
+        // crouched ride slots in §14 are what opened it up.
+        expect(r!.maps, 'out through mp81 and home through mp81').toEqual([23, 24, 25]);
+        const used151 = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
+            && h.from.mapId === 24 && h.from.col === 151 && h.from.row === 16);
+        expect(used151, 'and in through the door at mp81 (151,16)').toBeGreaterThanOrEqual(0);
+        // The passage the player walked is still in the graph, which is the thing
+        // this block is about — the search simply no longer needs it.
+        const walked = findRoute({
+            store, caps: bareCapabilities(), start: { mapId: 23, col: 117, row: 32 }, goal: GOAL, ...PLAN,
+        });
+        expect(walked, 'and the way he came, mp80 (117,32) -> mp82 (27,19)').not.toBeNull();
+        expect(walked!.maps, 'still routes through mp80').toEqual([23, 25]);
         expect(solidCrossings(r!), 'through no rock').toEqual([]);
         expect(Date.now() - t0, 'and without the 7.6-million-expansion search').toBeLessThan(15_000);
     }, 30_000);
@@ -830,8 +928,8 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         const r = findRoute({ store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN });
         expect(r, 're-planned from mp82 (88,35)').not.toBeNull();
         expect(leaves(r!, 25), 'he leaves mp82 at all').toBeGreaterThanOrEqual(0);
-        expect(r!.maps, 'by mp81 and mp80, and not straight back where he came from')
-            .toEqual([25, 24, 23, 25]);
+        expect(r!.maps, 'by mp81 and not straight back where he came from')
+            .toEqual([25, 24, 25]);
         expect(solidCrossings(r!), 'through no rock').toEqual([]);
     }, 30_000);
 
@@ -856,7 +954,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         });
         expect(r, 'from the key with it held').not.toBeNull();
         expect(r!.keysGained, 'nothing left to fetch').toEqual({ ordinary: 0, lion: 0 });
-        expect(r!.maps, 'straight back out the way he came').toEqual([25, 24, 23, 25]);
+        expect(r!.maps, 'straight back out the way he came').toEqual([25, 24, 25]);
         expect(solidCrossings(r!), 'and through no rock').toEqual([]);
     }, 30_000);
 
@@ -874,7 +972,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
             store.reset();
             const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
             expect(r, 'the journey, from a store that has just forgotten the ride').not.toBeNull();
-            expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 23, 25]);
+            expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 25]);
         } finally {
             store.reset();
         }
