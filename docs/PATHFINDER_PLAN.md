@@ -822,6 +822,11 @@ These are the highest-value sanity checks when changing the pathfinder:
 - A vertical ride slot has an open **middle** column; a horizontal one has the two rows
   under the hero's head clear across his three columns — the crouched carry test, not a
   3x3 box. See §17.
+- A flight pose whose **middle** column is inside a platform standing right now does not
+  exist. Neither `check_floor_for_landing` nor `jump_press_handler` asks it, and a
+  lift is three tiles wide. See §19.
+- A lift with no `atRest` slot is unreachable: the hero boards by landing, and the only
+  row he can land on is the one it is standing at. Such a lift emits no slots. See §19.
 - A flight with Up held alone can end on a rope, and one with a direction held cannot.
 
 ## 15. mp80 (203,29) -> mp80 (244,7), and the recorder diff behind it
@@ -1102,3 +1107,81 @@ phantoms. The crouch is no longer a second row and therefore no longer an island
   mp82 through mp81's own keyless door at `(151,16)` instead of doubling back through
   mp80. The passage the player walked is still routable and is pinned directly now; the
   sequence is a cost decision, not a property.
+
+## 19. mp81 row 62, columns 153 to 158
+
+The player: *"There is no way through mp81 row 62 between columns 153 and 158."* Five
+times, and correctly. The graph was routing the hero along that stretch.
+
+### 19a. What the bad route did
+
+For mp80 `(111,21)` → mp81 `(124,6)`, all shoes:
+
+```
+mp81(143,62) -> mp81(153,62)   WALK x10
+mp81(153,62) -> mp81(155,0)    FALL
+mp81(155,0)  -> mp81(158,62)   JUMP_HIGH
+```
+
+The x=155 vertical lift rests at row 63 across columns 155-157. It is three solid
+tiles and **cannot be moved**, because there is no standing position on top of it —
+row 60 at columns 155-156 is rock — so the hero can never board it. The player's own
+route never goes near row 62: it arrives at mp81 `(154,45)` and climbs to `(160,42)`
+on airflow.
+
+The passage was in the graph from `808459e` onward and is **not** a regression from
+§18. Its parent `caf3772` routed mp80 `(111,21)` → mp81 `(124,6)` as `23,25,23,24` /
+399 hops, never touching row 62.
+
+### 19b. Why neither flight test caught it
+
+The descent's only floor test is `check_floor_for_landing`, and it reads **one cell**
+— under the middle of the hero's feet, with `is_blocking_tile_simple`
+(dungeon-vertical.ts:488-506). The rise's only test is `jump_press_handler`, reading
+**one cell** — above the middle of his head, with `is_blocking_tile` (:333-337).
+
+Between them, nothing asks whether a three-tile-wide platform is *beside* him. He
+drops through it. `mp81 (155,0)` is a ground node unrelated to the lift, which is why
+the route appeared to thread it.
+
+### 19c. The rule
+
+`clearOfPlatform` in `jump.ts`: a flight pose whose **middle column** is inside a
+platform standing right now is not a position, and the pose is dropped.
+
+- **Middle column only.** This is `canRest` and it is deliberately not a whole-body
+  test: a side column inside a platform is how the hero rides, and how mp83 and mp82
+  work. Marking resting cells `BLOCK_HEAD` instead removes a legitimate rise and cost
+  mp80's reported journey a 646-hop detour before it was reverted.
+- **The hero's three rows only.** The feet row is where he *stands on* a platform, so
+  it is not part of being inside one. Testing it deleted mp80's own start `(203,29)`
+  and goal `(244,7)`.
+- **A separate array from `flag`.** `flag` keeps marking resting cells `BLOCK_BODY`,
+  which is the landing surface and must stay landable.
+
+### 19d. `REASON_UNBOARDABLE`
+
+A lift with **no `atRest` slot** emits no slots at all. The hero boards a lift by
+landing on it, and the only row he can land on is the one it is standing at now, so
+with no boardable row every slot the platform had was a position he could not reach.
+This removed ten fabricated slots, three on the x=155 lift at headRows 61-63.
+
+It is correct, but it is **not** what fixed this route — the route goes through the
+ground node mp81 `(155,0)`. Claiming otherwise was wrong; see 19b.
+
+### 19e. What it costs
+
+Closing the span cuts mp81's interior off from its own door at mp81 `(151,16)`,
+which was the only keyless way into mp82. Journeys that were keyless now fetch keys:
+mp80 `(111,21)` → mp82 `(27,19)` needs one, mp80 `(111,21)` → mp80 `(227,34)` needs
+two. Twelve assertions across `nav-route-cases`, `nav-guide-replan` and `nav-graph`
+were updated, and where a test was really asking whether the pocket is ever overdrawn
+it now asserts that instead of an incidental ordering.
+
+### 19f. Corrections to earlier sections
+
+- §18's slot is unchanged and still correct — the mp83 crouch fix stands.
+- §14's "a horizontal ride slot is a free 3x3" is superseded by `ridingAboard`.
+- Earlier reasoning in this session blamed §18's `ridingAboard` for this route, then
+  blamed the x=155 slots. Both were wrong. The route was already wrong at `808459e`,
+  and the cause is the flight model, per 19b.

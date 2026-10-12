@@ -8,6 +8,7 @@ import {
     DEFAULT_MAGIC_BITMASKS,
     bitmaskToItemIndices,
     itemIndexToBit,
+    THREAD_OF_YAGA_SHOP_INDEX,
 } from '../src/scenes/indoor-magic-shop.js';
 import type { IndoorSceneDependencies } from '../src/core/scene.js';
 import { createLiveHeroState } from '../src/core/game-state.js';
@@ -180,6 +181,75 @@ describe('WitchcraftShopScene transactions', () => {
         expect((state.buf[0xA6] ?? 0)).toBe(itemIdx + 1);      // first slot filled
         // (legacy buy does not mutate the shop's stock bitmask)
         expect(env.s.shopPhase).toBe('dialog');
+    });
+
+    it('holds the inventory to five items, and the Thread of Yaga is one of them', async () => {
+        // The player's report: a Magia Stone and a Thread of Yaga in hand, then two
+        // Ju-uen fruits and two Sabre Oils bought on top — six items. The Thread is
+        // the engine's `ADDR_THREAD_OF_YAGA` counter and has no `0xA6..0xAA` slot to
+        // fill, so counting that array alone let a sixth thing in.
+        const state: MemState = { bytes: new Map(), buf: new Uint8Array(0x10000) };
+        setGold(state, 1000000);
+        // One Magia Stone, and one Thread of Yaga held.
+        state.buf[0xA6] = 1;
+        state.buf[0x46] = 0xa7;   // ADDR_FEATURE_YAGA / FEATURE_YAGA, or the
+        state.buf[0x4A] = 1;      // Thread counter does not register at all
+        state.buf[0xC9] = 0xff;   // every extended bit, so the Thread is offered
+
+        const env = await toMenu(await enter(state, 1));
+        const s = env.scene as unknown as {
+            heroState: { magicItems: Uint8Array; threadOfYaga: number };
+            _magicSlotsUsed(): number;
+            _findEmptyMagicSlot(): number;
+            _hasRoomFor(itemIdx: number): boolean;
+        };
+
+        expect(s._magicSlotsUsed(), 'the Thread counts against the five').toBe(2);
+
+        // Three more fit, and the five are then spoken for — while the array still
+        // shows a free slot. This is the case that used to slip through: the shop
+        // asked `_findEmptyMagicSlot` alone, saw room, and sold a sixth item.
+        s.heroState.magicItems[1] = 2;
+        s.heroState.magicItems[2] = 3;
+        s.heroState.magicItems[3] = 4;
+        expect(s._magicSlotsUsed(), 'five items held').toBe(5);
+        expect(s._findEmptyMagicSlot(), 'yet the array still has room').toBe(4);
+
+        // Sell one, and there is room again.
+        s.heroState.magicItems[3] = 0;
+        expect(s._magicSlotsUsed(), 'four held').toBe(4);
+        expect(s._findEmptyMagicSlot(), 'with room in the array').toBe(3);
+
+        // A stack of threads is one slot, not one per copy: three array items and a
+        // stack of three threads are four, not six.
+        s.heroState.threadOfYaga = 3;
+        expect(s._magicSlotsUsed(), 'three threads are still one slot').toBe(4);
+
+        // The player's second report: a Magia Stone, two Threads and three Kioku
+        // Feathers is five slots — four array items and one for the stack — and
+        // buying a further Thread failed. It stacks onto the slot the first one
+        // already occupies, so it opens none and must be allowed like this.
+        s.heroState.magicItems[1] = 2; s.heroState.magicItems[2] = 3;
+        s.heroState.magicItems[3] = 4; s.heroState.magicItems[4] = 0;
+        s.heroState.threadOfYaga = 2;
+        expect(s._magicSlotsUsed(), 'five items held').toBe(5);
+        expect(s._findEmptyMagicSlot(), 'with one array cell still free').toBe(4);
+        expect(s._hasRoomFor(THREAD_OF_YAGA_SHOP_INDEX),
+            'another Thread stacks onto the one he has, so it fits').toBe(true);
+        expect(s._hasRoomFor(0), 'but a sixth item does not').toBe(false);
+
+        // With the Thread sold the slot is free again, and a first Thread needs one.
+        s.heroState.threadOfYaga = 0;
+        expect(s._magicSlotsUsed(), 'four held').toBe(4);
+        expect(s._hasRoomFor(THREAD_OF_YAGA_SHOP_INDEX), 'a first Thread fits').toBe(true);
+        expect(s._hasRoomFor(0), 'and one more item fits too').toBe(true);
+
+        // And a full array with no Thread: the first Thread still needs a slot, so it
+        // is refused on its own account rather than the array's.
+        s.heroState.magicItems[4] = 6;
+        expect(s._magicSlotsUsed(), 'five array items held').toBe(5);
+        expect(s._findEmptyMagicSlot(), 'and the array is full').toBe(-1);
+        expect(s._hasRoomFor(THREAD_OF_YAGA_SHOP_INDEX), 'but a first Thread has nowhere to go').toBe(false);
     });
 
     it('buy without funds keeps gold and shows the refusal', async () => {

@@ -416,6 +416,43 @@ export class WitchcraftShopScene extends IndoorSceneBase {
         return idx;  // -1 if full
     }
 
+    /**
+     * How many of the five magic item slots are spoken for.
+     *
+     * The Thread of Yaga is the one item that is not in the array. The engine keeps
+     * it in its own counter at `ADDR_THREAD_OF_YAGA` and it has no `0xA6..0xAA` slot
+     * to fill, so counting that array alone lets a sixth thing into the inventory:
+     * the player had a Magia Stone and a Thread, bought two Ju-uen and two Sabre
+     * Oils, and ended up carrying six. It is an item he is holding like any other,
+     * so it takes one of the five.
+     */
+    private _magicSlotsUsed(): number {
+        let used = 0;
+        for (const v of this.heroState.magicItems) if (v > 0) used++;
+        // A stack is one slot however many copies are on the counter.
+        if (this.heroState.threadOfYaga > 0) used++;
+        return used;
+    }
+
+    /**
+     * Would buying `itemIdx` have somewhere to put it?
+     *
+     * A Thread the hero **already holds** stacks onto the one he has: it opens no new
+     * slot, so it can be bought with the inventory full. Only the first Thread costs
+     * a slot. The player had a Magia Stone, two Threads and three Kioku Feathers —
+     * five slots — and could not buy another Thread, which is wrong: the fifth slot is
+     * already his.
+     *
+     * Everything else needs a slot of its own, and for those two things must hold: the
+     * `0xA6..0xAA` array has a free cell, and the five as a whole are not spoken for.
+     * The Thread takes a slot in that count even though it has no cell to fill.
+     */
+    private _hasRoomFor(itemIdx: number): boolean {
+        if (itemIdx === THREAD_OF_YAGA_SHOP_INDEX && this.heroState.threadOfYaga > 0) return true;
+        if (this._magicSlotsUsed() >= 5) return false;
+        return itemIdx === THREAD_OF_YAGA_SHOP_INDEX || this._findEmptyMagicSlot() !== -1;
+    }
+
     private _findMagicSlotByItemId(itemId1based: number): number {
         const items = this._getPlayerMagicItems();
         return items.indexOf(itemId1based);
@@ -993,9 +1030,18 @@ export class WitchcraftShopScene extends IndoorSceneBase {
             return;
         }
 
-        // Check if player has a free magic item slot
-        const freeSlot = this._findEmptyMagicSlot();
-        if (freeSlot === -1) {
+        // Check if player has a free magic item slot. The Thread of Yaga takes a slot
+        // in the count even though it has none to fill, so both tests are needed: the
+        // array has to have room for a slot item, and the five as a whole have to have
+        // room for the Thread.
+        //
+        // But a Thread the hero **already holds** stacks onto the one it has: it
+        // opens no new slot, so it can be bought with the inventory full. Only the
+        // first Thread costs a slot. The player had a Magia Stone, two Threads and
+        // three Kioku Feathers — five slots — and could not buy another Thread, which
+        // is wrong: the fifth slot is already his.
+        const itemIdx = this._pendingItemIdx ?? 0;
+        if (!this._hasRoomFor(itemIdx)) {
             this._setDialog(t('indoor.magicShop.noSpace'));
             this.shopPhase       = 'dialog';
             this.exitAfterDialog = false;
@@ -1009,13 +1055,12 @@ export class WitchcraftShopScene extends IndoorSceneBase {
 
         // Place the item. The Thread of Yaga has no slot in the generic array —
         // it is a counter — so it takes its own branch rather than going through
-        // the slot lookup that the free-slot check above just did.
-        const itemIdx = this._pendingItemIdx ?? 0;
+        // the slot lookup that the room check above just did.
         if (itemIdx === THREAD_OF_YAGA_SHOP_INDEX) {
             this.heroState.threadOfYaga = (this.heroState.threadOfYaga + 1) & 0xff;
             this._orMagicBitmaskExt(THREAD_OF_YAGA_BIT);
         } else {
-            this._setPlayerMagicSlot(freeSlot, itemIdx + 1);
+            this._setPlayerMagicSlot(this._findEmptyMagicSlot(), itemIdx + 1);
         }
 
         this._buildInventoryLists();
