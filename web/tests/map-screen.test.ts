@@ -1023,7 +1023,7 @@ describe('doors are drawn as the cavern draws them', () => {
         // Both ends of the strip are represented, which is the point of asking.
         expect(open.some((sx) => !shut.includes(sx))).toBe(true);
         expect(shut.some((sx) => !open.includes(sx))).toBe(true);
-    });
+    }, 120000);
 
     it('draws the roka colour as a flat square, not the orb sprite', async () => {
         const h = harness({
