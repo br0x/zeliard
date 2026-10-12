@@ -284,6 +284,8 @@ export class JumpModel {
     /** Cells a traced flight passed through, two ints each. */
     private trace: Int32Array = new Int32Array(512);
     private traceCount = 0;
+    /** Trace cells (pairs) the plain jump produced; the rest are Feruza-only. */
+    private plainTraceCount = 0;
     private readonly traceStamp: Int32Array;
     private traceGen = 0;
     private tracing = false;
@@ -340,7 +342,8 @@ export class JumpModel {
         this.seen = new Int32Array(this.cells * 6);
         this.traceStamp = new Int32Array(this.cells);
         this.queue = new Int32Array(this.cells * 2 * QUEUE_STRIDE);
-        this.queueParent = new Int32Array(this.cells * 2);
+        // Indexed by `slot * QUEUE_STRIDE` like the queue itself, so it needs the same size.
+        this.queueParent = new Int32Array(this.cells * 2 * QUEUE_STRIDE);
 
         this.landsMoving = new Uint8Array(this.cells);
         this.landsFirst = new Uint8Array(this.cells);
@@ -586,6 +589,9 @@ export class JumpModel {
         // already covers, and re-walking it would only cost time.
         this.flight(col, row, Math.min(height, JUMP_HEIGHT_DEFAULT), 0, gen, allow);
         const plain = this.record[0]!;
+        // Everything traced so far is a cell the plain jump reaches. The two passes
+        // share one stamp, so whatever the tall pass adds is a cell only it reaches.
+        this.plainTraceCount = this.traceCount;
         if (height > JUMP_HEIGHT_DEFAULT) this.flight(col, row, height, 1, gen, allow);
         else this.record[1]!.count = 0;
         this.tracing = false;
@@ -619,6 +625,17 @@ export class JumpModel {
      */
     lastTrace(): Int32Array {
         return this.trace.subarray(0, this.traceCount * 2);
+    }
+
+    /**
+     * How many of {@link lastTrace}'s cells (pairs, not ints) the plain jump reaches.
+     *
+     * The cells after that point are reached only by the tall pass, so a graph edge
+     * built from one of them needs Feruza shoes. The split is exact because both
+     * passes share one stamp: a cell the plain pass noted is never noted again.
+     */
+    lastTracePlainCount(): number {
+        return this.plainTraceCount;
     }
 
     /**
@@ -821,7 +838,7 @@ export class JumpModel {
                 // it there and stops there. A rise of no rows cannot, which is the
                 // `rises >= 1` below and is also what keeps a plain fall out of it.
                 if (steer === 0 && rises >= 1 && this.grabsRopeOnRise(c, at)) {
-                    starts = this.pushStart(starts, c, at, rises, frontChain, from);
+                    starts = this.pushStart(starts, c, here, rises, frontChain, from);
                 }
                 // A rise of no rows is no jump at all: with his head against a
                 // ceiling the engine leaves the hero grounded (dungeon-hero.ts:357).
@@ -841,10 +858,10 @@ export class JumpModel {
                 if (!capped && rises < 1) continue;
                 // The rise stops on this frame — ceiling or height cap. He still
                 // steps sideways, and the descent begins where he ends up.
-                starts = this.pushStart(starts, c, at, rises, frontChain, from);
+                starts = this.pushStart(starts, c, here, rises, frontChain, from);
                 if (steer !== 0 && this.stepAt(c, here, steer)) {
                     const nc = wrapCol(c + steer, width);
-                    starts = this.pushStart(starts, nc, at, rises, frontChain, from);
+                    starts = this.pushStart(starts, nc, here, rises, frontChain, from);
                     this.noteCell(nc, here, here * width + nc);
                 }
             }
@@ -1079,8 +1096,10 @@ export class JumpModel {
             set.stamp[cell] = set.gen;
             set.slot[cell] = 0;
         }
+        // `slot` holds offset + 1, so that 0 can mean "no record". Storing the raw
+        // offset made the first landing of every query (offset 0) look unrecorded.
         const held = set.slot[cell]!;
-        if (held !== 0 && set.out[held + 2]! <= ticks) return;
+        if (held !== 0 && set.out[held - 1 + 2]! <= ticks) return;
         if (held === 0) {
             if ((set.count + 1) * LANDING_STRIDE > set.out.length) return;
             const o = set.count * LANDING_STRIDE;
@@ -1088,14 +1107,15 @@ export class JumpModel {
             set.out[o + 1] = row;
             set.out[o + 2] = ticks;
             set.out[o + 3] = rises;
-            set.slot[cell] = o;
+            set.slot[cell] = o + 1;
             set.count++;
             return;
         }
-        set.out[held] = col;
-        set.out[held + 1] = row;
-        set.out[held + 2] = ticks;
-        set.out[held + 3] = rises;
+        const h = held - 1;
+        set.out[h] = col;
+        set.out[h + 1] = row;
+        set.out[h + 2] = ticks;
+        set.out[h + 3] = rises;
     }
 }
 

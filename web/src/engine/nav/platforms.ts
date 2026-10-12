@@ -386,8 +386,9 @@ export function buildPlatformModel(
     for (const p of tables.collapsing) {
         const rowNow = place(p.x, places?.get(p.x) ?? p.startY);
         const local: number[] = [];
-        // startY downwards only: heroCollapsePlatform never raises it.
-        for (const row of range(p.startY, p.bottomY)) {
+        // From where it stands now downwards only: heroCollapsePlatform never raises
+        // it, so rows between `startY` and `rowNow` can never be reached again.
+        for (const row of range(rowNow, p.bottomY)) {
             const headRow = wrapRow(row - 3);
             if (!aboardLift(grid, classifier, p.x, headRow)) continue;
             local.push(slots.length);

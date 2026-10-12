@@ -292,6 +292,13 @@ export function buildNavGraph(
         throw new Error(`grid width ${grid.mapWidth} does not match map ${mapId} width ${mapWidth}`);
     }
     const cells = mapWidth * 64;
+    /** Short-way signed row delta across the seam; positive is down. Range [-32, 31]. */
+    const rowDelta = (from: number, to: number): number => ((to - from + 32) & 63) - 32;
+    /** Short-way signed column delta; mapWidth need not be a power of two. */
+    const colDelta = (from: number, to: number): number => {
+        const half = mapWidth >> 1;
+        return ((((to - from + half) % mapWidth) + mapWidth) % mapWidth) - half;
+    };
     const classifier = NavTileClassifier.forMap(mapId);
     const platforms = buildPlatformModel(mapId, grid, places);
     const currents = buildAirflowModel(mapId, grid);
@@ -322,11 +329,11 @@ export function buildNavGraph(
     for (const slot of platforms.slots) {
         if (slot.kind === PLATFORM_HORIZONTAL) {
             const platformRow = slot.platformRow ?? (slot.headRow + 3);
-            platformCells[platformRow * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
+            platformCells[wrapRow(platformRow) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
             continue;
         }
         if (!isLandingSlot(slot)) continue;
-        platformCells[(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
+        platformCells[wrapRow(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
     // And the up currents, for the same reason: a hero who reaches one mid-flight is
     // taken by it rather than landing. The mask is `heroInLift` over the whole map,
@@ -489,7 +496,23 @@ export function buildNavGraph(
 
     /** Where each node's jump flight went, col/row pairs, see {@link traceAt}. */
     let traceCells = new Int32Array(4096);
-    const traceOffset = new Int32Array(nodes.length + 1);
+    // Per-node [start, end) into traceCells. Nodes that never jump keep 0..0, so a
+    // single shared offset array (which a skipped node left at 0) cannot alias them
+    // onto the start of the buffer.
+    const traceStart = new Int32Array(nodes.length);
+    const traceEnd = new Int32Array(nodes.length);
+    /** Where a node's trace stops being plain-jump cells and starts being Feruza-only. */
+    const traceSplit = new Int32Array(nodes.length);
+    let traceLen = 0;
+    /**
+     * `node * cells + cell` for every cell a node's jump edge lands on.
+     *
+     * A flight that ends in a current is already an edge: the jump lands on the node
+     * inside it and the current's own edge carries on from there. Sweeping the same
+     * cell again from the trace would add a second, cheaper edge that skips the jump's
+     * cost, so the sweeps ask this first.
+     */
+    const jumpLanded = new Set<number>();
 
 
     /**
@@ -512,8 +535,16 @@ export function buildNavGraph(
      * slope anywhere in either 3x3 box is treated as needing the shoes. That can
      * refuse a rise a bare hero could make, and never the reverse.
      */
-    const ascentOverSlope = (fromCol: number, fromRow: number, toCol: number, toRow: number): boolean => {
-        if (toRow >= fromRow) return false;              // level or downhill: sliding helps
+    const ascentOverSlope = (
+        fromCol: number, fromRow: number, toCol: number, toRow: number, kind: number,
+    ): boolean => {
+        // Falls, drops, currents and doors can span more than half the cylinder, so
+        // the short-way row delta says nothing about their direction. A fall only
+        // ever goes down and a door is a teleport; neither is an ascent.
+        if (kind === EDGE.FALL || kind === EDGE.DROP || kind === EDGE.LIFT
+            || kind === EDGE.CARRY_L || kind === EDGE.CARRY_R || kind === EDGE.DOOR) return false;
+        // Seam-aware: row 63 is one row *above* row 0.
+        if (rowDelta(fromRow, toRow) >= 0) return false; // level or downhill: sliding helps
         // The engine reads exactly one cell: the tile under the hero's middle foot,
         // `getSlopeDirectionByTileUnderFeet` (dungeon-vertical.ts:539-561) probing
         // `heroCoords + 2*36 + 1`. Two cells, not nine — asking about the whole box
@@ -533,7 +564,7 @@ export function buildNavGraph(
         if ((need & CAP.SLOPE_STAND) === 0) {
             const a = nodes[from]!;
             const b = nodes[to]!;
-            if (ascentOverSlope(a.col, a.row, b.col, b.row)) need |= CAP.SLOPE_STAND;
+            if (ascentOverSlope(a.col, a.row, b.col, b.row, kind)) need |= CAP.SLOPE_STAND;
         }
         outgoing[from]!.push({ to, kind, cost, req: need, portal });
     };
@@ -601,24 +632,50 @@ export function buildNavGraph(
             // Falls are not touched. Stepping off a ledge is a drop he watches
             // and steers, not a jump he takes blind, and the shafts the routes
             // descend are all of them falls.
-            if (below > 5) continue;
-            const feruza = landings[i + 4] === 1;
-            add(fromIndex, to,
-                feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
-                landings[i + 2]! + JUMP_TICK_PENALTY,
-                feruza ? CAP.JUMP_HIGH : 0);
+             if (below > 5) continue;
+             const feruza = landings[i + 4] === 1;
+             // Check if this ascending jump passes through any slope cells.
+             // The engine's airborne_movement (dungeon-vertical.ts:563-599) calls
+             // check_silkarn_shoes_and_slopes on every frame, which probes the tile
+             // under the hero's middle foot and stops the slope shove if he has
+             // Silkarn shoes. A jump that ascends over a slope needs them.
+             let req = feruza ? CAP.JUMP_HIGH : 0;
+             // `below` is the landing's drop below the launch with the seam counted,
+             // so negative means the landing is above the launch.
+             if (below < 0) {
+                 // Get the flight path for this specific landing
+                 const path = jumps.flightPath(fromCol, fromRow, toCol, toRow);
+                 for (let j = 0; j < path.length; j += 2) {
+                     const col = path[j]!;
+                     const row = path[j + 1]!;
+                     // Check the middle foot position (col+1, row+2)
+                     const f = flagsAt(grid, classifier, col + 1, row + 2);
+                     if (f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT)) {
+                         req |= CAP.SLOPE_STAND;
+                         break;
+                     }
+                 }
+             }
+             add(fromIndex, to,
+                 feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
+                 landings[i + 2]! + JUMP_TICK_PENALTY,
+                 req);
+             jumpLanded.add(fromIndex * cells + wrapRow(toRow) * mapWidth + wrapCol(toCol, mapWidth));
         }
         // Keep where he went, so the current sweeps below can ask which cells the
         // flight passed through without walking it a second time.
         const trace = jumps.lastTrace();
-        const at = traceOffset[fromIndex]!;
+        const at = traceLen;
         if (at + trace.length > traceCells.length) {
             const grown = new Int32Array(Math.max(at + trace.length, traceCells.length * 2));
             grown.set(traceCells);
             traceCells = grown;
         }
         traceCells.set(trace, at);
-        traceOffset[fromIndex + 1] = at + trace.length;
+        traceLen = at + trace.length;
+        traceStart[fromIndex] = at;
+        traceEnd[fromIndex] = traceLen;
+        traceSplit[fromIndex] = at + jumps.lastTracePlainCount() * 2;
     };
 
     /**
@@ -627,9 +684,12 @@ export function buildNavGraph(
      * Only jumpers have one; `check_airflows_on_hero` sweeps whatever the hero is
      * doing, but a current cannot catch a hero who is standing on a rope.
      */
-    const traceAt = (index: number, visit: (col: number, row: number) => void): void => {
-        for (let i = traceOffset[index]!; i < traceOffset[index + 1]!; i += 2) {
-            visit(traceCells[i]!, traceCells[i + 1]!);
+    const traceAt = (
+        index: number,
+        visit: (col: number, row: number, tallOnly: boolean) => void,
+    ): void => {
+        for (let i = traceStart[index]!; i < traceEnd[index]!; i += 2) {
+            visit(traceCells[i]!, traceCells[i + 1]!, i >= traceSplit[index]!);
         }
     };
 
@@ -653,8 +713,10 @@ export function buildNavGraph(
         const target = nodes[toIndex]!;
         const fromCol = nodes[fromIndex]!.col;
         const dir = conveyorDir(grid, classifier, target.col, target.row);
-        if (dir === 0 || toCol === fromCol) return false;
-        return Math.sign(toCol - fromCol) === -dir;
+        // Short-way column delta: a drift from the last column to column 0 is east.
+        const step = colDelta(fromCol, toCol);
+        if (dir === 0 || step === 0) return false;
+        return Math.sign(step) === -dir;
     };
 
     /**
@@ -851,13 +913,13 @@ export function buildNavGraph(
         for (let slotIndex = 0; slotIndex < platforms.slots.length; slotIndex++) {
             const slot = platforms.slots[slotIndex]!;
             if (slot.headRow !== node.row) continue;
-            if (slot.leftCol !== node.col && Math.abs(slot.leftCol - node.col) !== 1) continue;
-            if (slot.leftCol !== node.col
-                && !heroCanStepSideways(grid, classifier, node.col, node.row,
-                    slot.leftCol > node.col ? 1 : -1)) continue;
-            if (slot.leftCol !== node.col
-                && blockedByCounterCurrent(grid, classifier, slot.leftCol, node.row,
-                    slot.leftCol > node.col ? 1 : -1)) continue;
+            // Column distance across the seam: column 0 is next to the last column.
+            const dc = colDelta(node.col, slot.leftCol);
+            if (dc !== 0 && Math.abs(dc) !== 1) continue;
+            const sdir = dc > 0 ? 1 : -1;
+            if (dc !== 0 && !heroCanStepSideways(grid, classifier, node.col, node.row, sdir)) continue;
+            if (dc !== 0
+                && blockedByCounterCurrent(grid, classifier, slot.leftCol, node.row, sdir)) continue;
             const rideNode = rideOf[slotIndex]!;
             if (rideNode >= 0) add(index, rideNode, EDGE.BOARD, EDGE_COST.BOARD);
         }
@@ -1143,11 +1205,11 @@ export function buildNavGraph(
     const reachedLifts = new Set<number>();
 
     /** Send the hero from `from` to a lift he can be swept by on his way. */
-    const enterLift = (from: number, sweptCol: number, sweptRow: number): void => {
+    const enterLift = (from: number, sweptCol: number, sweptRow: number, req = 0): void => {
         if (!isSwept(sweptCol, sweptRow)) return;
         const sweptCell = wrapRow(sweptRow) * mapWidth + wrapCol(sweptCol, mapWidth);
         for (const { stop, ticks } of liftStopsAt(sweptCol, sweptRow)) {
-            add(from, stop, EDGE.LIFT, ticks + 1);
+            add(from, stop, EDGE.LIFT, ticks + 1, req);
             // First sweep that reaches this stop wins: it is the one the drawn line
             // will show, and any other would be as true.
             let per = sweptByLift.get(from);
@@ -1181,7 +1243,15 @@ export function buildNavGraph(
         // Flying through it. A jump puts him in a great many cells, and the sweep
         // is by position, so it is every one of them.
         if (heroInLift(grid, classifier, node.col, node.row)) return;
-        traceAt(index, (col, row) => enterLift(index, col, row));
+        // A cell a jump edge already lands on is covered by that edge plus the lift
+        // edge from the node inside the current; sweeping it here as well would give a
+        // second, cheaper way in that skips the jump's own cost. A cell only the tall
+        // jump reaches is swept with the Feruza requirement the jump itself would have.
+        traceAt(index, (col, row, tallOnly) => {
+            const cell = wrapRow(row) * mapWidth + wrapCol(col, mapWidth);
+            if (jumpLanded.has(index * cells + cell)) return;
+            enterLift(index, col, row, tallOnly ? CAP.JUMP_HIGH : 0);
+        });
     });
 
     for (let i = 0; i < currents.lifts.length; i++) {
@@ -1244,13 +1314,13 @@ export function buildNavGraph(
 
     const reachedConveyors = new Set<number>();
     nodes.forEach((node, index) => {
-        const enterConveyor = (col: number, row: number): void => {
+        const enterConveyor = (col: number, row: number, req = 0): void => {
             const dir = conveyorDirAt(col, row);
             if (dir === 0) return;
             const list = conveyorExits.get(wrapRow(row) * mapWidth + wrapCol(col, mapWidth));
             if (!list) return;
             const kind = dir === 1 ? EDGE.CARRY_L : EDGE.CARRY_R;
-            for (const { to, ticks } of list) add(index, to, kind, ticks + 1);
+            for (const { to, ticks } of list) add(index, to, kind, ticks + 1, req);
             reachedConveyors.add(wrapCol(col, mapWidth));
         };
         // A hero an up current holds is not falling into anything: he rises two
@@ -1265,7 +1335,7 @@ export function buildNavGraph(
             const land = fallTo(node.col + dir, node.row);
             for (let d = 1; d <= land.rows; d++) enterConveyor(node.col + dir, node.row + d);
         }
-        traceAt(index, (col, row) => enterConveyor(col, row));
+        traceAt(index, (col, row, tallOnly) => enterConveyor(col, row, tallOnly ? CAP.JUMP_HIGH : 0));
     });
     for (let i = 0; i < currents.conveyors.length; i++) {
         const entryCol = wrapCol(currents.conveyors[i]!.columns[0]! - 1, mapWidth);
