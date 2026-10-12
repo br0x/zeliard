@@ -42,9 +42,10 @@ function route(steps: number, mapWidth = 240, mapId = 0): NavRoute {
     return {
         points,
         hops: points.slice(1).map((to, i) => ({
-            kind: 0, cost: 1, from: points[i]!, to,
+            kind: 0, cost: 1, from: points[i]!, to, doorKey: 0,
         })),
         cost: steps,
+        picks: [],
         keysSpent: { ordinary: 0, lion: 0 },
     keysGained: { ordinary: 0, lion: 0 },
     equipment: [],
@@ -340,9 +341,10 @@ describe('the reveal starts at the hero', () => {
         ];
         const route: NavRoute = {
             points,
-            hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to })),
+            hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to, doorKey: 0 })),
             cost: points.length - 1,
-            keysSpent: { ordinary: 0, lion: 0 },
+            picks: [],
+        keysSpent: { ordinary: 0, lion: 0 },
             keysGained: { ordinary: 0, lion: 0 },
             equipment: [],
             lockedDoors: { ordinary: 0, lion: 0 },

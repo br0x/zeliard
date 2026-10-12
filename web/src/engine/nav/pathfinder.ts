@@ -494,14 +494,27 @@ class Heap {
 
 // ── search ──────────────────────────────────────────────────────────────────
 
+/**
+ * Where to plot from or to, before the graph resolves it to a node.
+ *
+ * `findRoute` takes these rather than {@link NavPoint}s on purpose: the hero's
+ * position is known as a cell, and `nodeAt` turns it into a node index
+ * (pathfinder.ts:1025-1026). `node` is an artefact of the graph, not an input.
+ */
+export interface NavEndpoint {
+    readonly mapId: number;
+    readonly col: number;
+    readonly row: number;
+}
+
 export interface FindRouteOptions {
     /** Graph source. Only maps the MDT is loaded for can be searched. */
     readonly store: NavGraphStore;
     readonly caps: HeroCapabilities;
     /** Where the hero stands. */
-    readonly start: { mapId: number; col: number; row: number };
+    readonly start: NavEndpoint;
     /** Where the player clicked. Must resolve to a node; see nearestNode. */
-    readonly goal: { mapId: number; col: number; row: number };
+    readonly goal: NavEndpoint;
     /**
      * Maps the route may use. Defaults to NAV_REACHABLE for the start map, so a
      * route can never be plotted through a town.

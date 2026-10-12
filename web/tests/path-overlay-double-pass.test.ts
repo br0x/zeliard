@@ -52,8 +52,9 @@ function outAndBack(outCols: number[], backCols: number[]): NavRoute {
         .map((col, i) => ({ mapId: 0, col, row: ROW, node: i }));
     return {
         points,
-        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to })),
+        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to, doorKey: 0 })),
         cost: points.length - 1,
+        picks: [],
         keysSpent: { ordinary: 0, lion: 0 },
         keysGained: { ordinary: 0, lion: 0 },
         equipment: [],

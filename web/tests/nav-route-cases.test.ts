@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import { NavGraphStore, findRoute, type NavHop, type NavPoint, type NavRoute } from '../src/engine/nav/pathfinder.js';
+import { NavGraphStore, findRoute, type NavEndpoint, type NavHop, type NavRoute } from '../src/engine/nav/pathfinder.js';
 import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt, heroBoxFree } from '../src/engine/nav/geometry.js';
@@ -882,12 +882,12 @@ describe('a journey that has to fetch a key and come back for the door', () => {
     // `findRoute` splits it — the shape of the journey under `unlimitedKeys`, then
     // the key as a waypoint, then on from the key with it already held — and both
     // halves are a few thousand expansions.
-    const START: NavPoint = { mapId: 23, col: 111, row: 21 };
-    const GOAL: NavPoint = { mapId: 25, col: 27, row: 19 };
+    const START: NavEndpoint = { mapId: 23, col: 111, row: 21 };
+    const GOAL: NavEndpoint = { mapId: 25, col: 27, row: 19 };
     /** Where the mp81 door at (250,38) puts him. */
-    const ARRIVAL: NavPoint = { mapId: 25, col: 88, row: 35 };
+    const ARRIVAL: NavEndpoint = { mapId: 25, col: 88, row: 35 };
     /** The key at mp82 (26,48) sits one row above the ground node that holds it. */
-    const KEY: NavPoint = { mapId: 25, col: 26, row: 47 };
+    const KEY: NavEndpoint = { mapId: 25, col: 26, row: 47 };
     const PLAN = { collectKeys: true, planAccessories: true } as const;
 
     /** Index of the first hop that leaves `mapId`, or -1. */
@@ -994,12 +994,12 @@ describe('a journey that needs a key, and goes and fetches it', () => {
     // every cavern on the level. `findRoute` fetches the key instead, and what it
     // hands back has to be walkable as it stands — the door paid for out of a pocket
     // that is really there.
-    const START: NavPoint = { mapId: 23, col: 111, row: 21 };
-    const GOAL: NavPoint = { mapId: 23, col: 227, row: 34 };
+    const START: NavEndpoint = { mapId: 23, col: 111, row: 21 };
+    const GOAL: NavEndpoint = { mapId: 23, col: 227, row: 34 };
     /** The mp82 key, one row above the ground node that holds it. No longer needed. */
-    const KEY1: NavPoint = { mapId: 25, col: 26, row: 47 };
+    const KEY1: NavEndpoint = { mapId: 25, col: 26, row: 47 };
     /** The mp81 key, again one row above its record. */
-    const KEY2: NavPoint = { mapId: 24, col: 125, row: 36 };
+    const KEY2: NavEndpoint = { mapId: 24, col: 125, row: 36 };
     const PLAN = { collectKeys: true, planAccessories: true } as const;
 
     /**
@@ -1039,7 +1039,7 @@ describe('a journey that needs a key, and goes and fetches it', () => {
         r.hops.findIndex((h) => h.kind === EDGE.DOOR && h.from.mapId === mapId
             && h.from.col === col && h.from.row === row);
 
-    const at = (r: NavRoute, key: NavPoint): number =>
+    const at = (r: NavRoute, key: NavEndpoint): number =>
         r.points.findIndex((p) => p.mapId === key.mapId && p.col === key.col && p.row === key.row);
 
     it('fetches the key with an empty pocket and spends it on the door', () => {

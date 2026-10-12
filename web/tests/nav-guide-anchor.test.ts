@@ -45,8 +45,9 @@ function downAndBackUp(): NavRoute {
     points.push({ mapId: 0, col: 9, row: 10, node: points.length });
     return {
         points,
-        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to })),
+        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to, doorKey: 0 })),
         cost: points.length - 1,
+        picks: [],
         keysSpent: { ordinary: 0, lion: 0 },
         keysGained: { ordinary: 0, lion: 0 },
         equipment: [],
@@ -131,8 +132,9 @@ function throughTheDoor(mapsAfterTheDoor: NavPoint[]): NavRoute {
     ];
     return {
         points,
-        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to })),
+        hops: points.slice(1).map((to, i) => ({ kind: 0, cost: 1, from: points[i]!, to, doorKey: 0 })),
         cost: points.length - 1,
+        picks: [],
         keysSpent: { ordinary: 0, lion: 0 },
         keysGained: { ordinary: 0, lion: 0 },
         equipment: [],
