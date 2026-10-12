@@ -88,6 +88,8 @@ export const REASON_FROZEN = 'frozen (speed 0): a static ledge, not a lift';
 export const REASON_UNCLEAR_SPAN =
     'span has no clear standing position, so it would slide out from under the hero';
 export const REASON_SINGLE_ROW = 'only one rideable row, so it cannot move';
+export const REASON_UNBOARDABLE =
+    'no row where the hero can stand on it, so he can never get aboard and it can never move';
 
 /**
  * Where a hero may sit relative to a horizontal platform's own left cell.
@@ -213,21 +215,28 @@ export function isLandingSlot(slot: RideSlot): boolean {
 /**
  * Can the hero be aboard a vertical or collapsing platform at this head row?
  *
- * The engine asks nothing at all. `move_platform_down_damage_monster` and
- * `try_move_platform_up` find the platform by reading the tile under the hero's
- * **middle** foot (dungeon-vertical.ts:253-344), carry him a row with it, and never
- * look at the rest of his body — so a lift will happily raise a hero whose left or
- * right column is inside rock, and he rides it there.
+ * The engine finds the platform by reading the tile under the hero's **middle** foot
+ * (`move_platform_down_damage_monster` and `try_move_platform_up`,
+ * dungeon-vertical.ts:253-344), carries him a row with it, and never looks at the
+ * rest of his body. So a lift will raise a hero whose left or right column is inside
+ * rock, and he rides it there — that is the player's mp80 `(244,7)`, where the x=250
+ * lift's top rows put his right column in the wall at column 252 and he rode them.
+ * The middle column is therefore all the hero needs.
  *
- * That is the player's mp80 `(244,7)`. The x=250 lift's top two rows put his right
- * column in the wall at column 252, and he rode them and jumped the pocket off the
- * top; `standingAboard`'s 3x3 test called those two positions impossible, so the ride
- * stopped two rows short and the journey had no route at all.
+ * But the hero is standing **on** the platform, so the platform's own three cells at
+ * that row have to be somewhere it can be. Without that test the model mints riding
+ * positions for lifts that cannot hold one, and `808459e` shipped exactly that: ten
+ * fabricated slots in mp81, three of them on the x=155 lift at headRows 61-63 — the
+ * lift the player says can never be moved, because there is no standing position on
+ * top of it and he can therefore never board it. Those slots made the route to
+ * mp81 `(124,6)` cheaper by 47 hops, and it took the passage it should not: the walk
+ * along mp81 row 62 to `(153,62)` and then a fall and a `JUMP_HIGH` that threads the
+ * lift through mp81 `(155,0)` and `(160,62)`. The player's own route never goes near
+ * there; it arrives at mp81 `(153,45)` and climbs to `(160,42)`.
  *
- * So the only question left is whether the hero is in the map, and that is the rule
- * `canRest` already states: a cell whose **middle** column is inside rock is a number
- * in a grid, not a position. Nothing here is a whole-body test the engine does not
- * perform — that is §13's rule 3, and this is where it was being broken.
+ * So the test is two things: the hero's middle column open, and the platform's own
+ * cells at this row clear. That is the `canRest` rule applied to the thing being stood
+ * on rather than to the hero alone.
  */
 function aboardLift(
     grid: NavTileGrid,
@@ -358,6 +367,17 @@ export function buildPlatformModel(
                 prev: -1,
             });
         }
+        if (!local.some((i) => slots[i]!.atRest)) {
+            // A lift the hero can never stand on is a thing, not a place. He boards
+            // one by landing on it, and the only row he can land on is the one it is
+            // standing at now — so with no `atRest` slot there is no way aboard, and
+            // every slot below is a position he cannot reach. See the mp81 x=155 lift
+            // in REASON_UNBOARDABLE's comment at the top of this function.
+            inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_UNBOARDABLE });
+            slots.length -= local.length;
+            emit([]);
+            continue;
+        }
         chain(slots, local);
         if (local.length < 2) inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_SINGLE_ROW });
         emit(local);
@@ -382,6 +402,12 @@ export function buildPlatformModel(
                 next: -1,
                 prev: -1,
             });
+        }
+        if (!local.some((i) => slots[i]!.atRest)) {
+            inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_UNBOARDABLE });
+            slots.length -= local.length;
+            emit([]);
+            continue;
         }
         chain(slots, local);
         if (local.length < 2) inertPlatforms.push({ platform: slotsByPlatform.length, reason: REASON_SINGLE_ROW });

@@ -363,12 +363,27 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             const journey = findRoute({
                 store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
             })!;
-            expect(journey.keysGained.ordinary, 'the journey fetches a key').toBe(1);
+            // Two, not one: with mp81's interior cut off from the non-passable
+            // stretch of row 62 at columns 153-158, the mp81 key is no longer within
+            // reach without first crossing mp80's shut door at (57,16). See
+            // `clearOfPlatform` in jump.ts.
+            expect(journey.keysGained.ordinary, 'the journey fetches a key for each shut door').toBe(2);
             const lastKey = journey.points.findIndex((p) => p.mapId === 24
                 && p.col === 125 && p.row === 36);
             expect(lastKey, 'and the mp81 key is on it').toBeGreaterThan(0);
+            // The mp81 key is fetched *after* the first shut door now, so what holds
+            // is the pocket: every door is paid for out of keys already in hand.
+            // `pick` walks the route the way the guide does.
+            let pocket = 0;
+            let overdrawn = -1;
+            for (let i = 0; i < journey.hops.length; i++) {
+                for (const p of journey.picks) if (p.at <= i) pocket++;
+                if (journey.hops[i]!.doorKey === 1) pocket--;
+                if (pocket < 0 && overdrawn < 0) overdrawn = i;
+            }
+            expect(overdrawn, 'never overdrawn on the way').toBe(-1);
             const shut = journey.hops.findIndex((h) => h.doorKey === 1);
-            expect(shut, 'and the door it opens is on it too').toBeGreaterThan(lastKey);
+            expect(shut, 'and the doors it opens are on it').toBeGreaterThanOrEqual(0);
             const past = shut - 1;
             expect(journey.points[past], 'which is the cell in front of it').toBeDefined();
 
@@ -417,14 +432,16 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const journey = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
         })!;
-        expect(journey.keysGained.ordinary).toBe(1);
+        expect(journey.keysGained.ordinary, 'one key per shut door').toBe(2);
         const lastKey = journey.points.findIndex((p) => p.mapId === 24
             && p.col === 125 && p.row === 36);
         expect(lastKey).toBeGreaterThan(0);
         // Walk him on to the shut door itself, for the reason the test above gives:
         // a key is collected from the cell he stands on, so a hero still on it is not
         // short of anything.
-        const shut = journey.hops.findIndex((h) => h.doorKey === 1);
+        // The **last** shut door is the one the mp81 key pays for, and the mp81 key
+        // now comes after the first shut door on the way there — see the test above.
+        const shut = journey.hops.map((h) => h.doorKey === 1).lastIndexOf(true);
         expect(shut).toBeGreaterThan(lastKey);
 
         const hero = { ...journey.points[0]! };
@@ -557,8 +574,8 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const journey = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
         })!;
-        expect(journey.lockedDoors.ordinary, 'a shut door on it').toBe(1);
-        expect(journey.picks.length, 'and the one key it collects').toBe(1);
+        expect(journey.lockedDoors.ordinary, 'two shut doors on it').toBe(2);
+        expect(journey.picks.length, 'and a key for each').toBe(2);
         expect(journey.picks.every((p) => p.kind === 0), 'ordinary').toBe(true);
 
         const hero = { ...journey.points[0]! };

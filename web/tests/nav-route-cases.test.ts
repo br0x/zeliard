@@ -894,21 +894,37 @@ describe('a journey that has to fetch a key and come back for the door', () => {
     const leaves = (r: NavRoute, mapId: number): number =>
         r.hops.findIndex((h) => h.kind === EDGE.DOOR && h.from.mapId === mapId);
 
-    it('plans the whole trip without a key, and says so', () => {
+    /** Was every key on the route picked up before the hop at `index` spent one? */
+    const gainedBefore = (r: NavRoute, index: number): boolean => {
+        let pocket = 0;
+        for (let i = 0; i < r.hops.length; i++) {
+            if (i === index) return pocket > 0;
+            if (r.hops[i]!.doorKey === 1) pocket--;
+            for (const pick of r.picks) {
+                if (pick.at <= i) pocket++;
+            }
+        }
+        return true;
+    };
+
+    it('fetches a key for it, and says which door it is for', () => {
+        // This used to assert the journey was keyless, going out through mp81 and
+        // back in through mp81's own door at (151,16). That door is only reachable
+        // from inside mp81 by the row-62 gallery, and the stretch of it between
+        // columns 153 and 158 is non-passable — the player says so outright, and the
+        // x=155 lift standing across those columns is the reason. With that gone the
+        // only way into mp82 is the shut door at mp80 (57,16), so the journey has to
+        // fetch the key the player fetched. See clearOfPlatform in jump.ts.
         const t0 = Date.now();
         const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
         expect(r, 'mp80 (111,21) -> mp82 (27,19), bare').not.toBeNull();
-        expect(r!.lockedDoors.ordinary, 'no closed door stands on the way').toBe(0);
-        expect(r!.keysGained.ordinary, 'so there is no key to fetch').toBe(0);
-        expect(r!.keysSpent.ordinary, 'nor to spend').toBe(0);
-        // Out through mp81 and in through mp81's own keyless door at (151,16),
-        // which is cheaper than doubling back through mp80. That used to cost the
-        // mp80 detour because nothing in mp81's interior could hold the hero; the
-        // crouched ride slots in §14 are what opened it up.
-        expect(r!.maps, 'out through mp81 and home through mp81').toEqual([23, 24, 25]);
-        const used151 = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
-            && h.from.mapId === 24 && h.from.col === 151 && h.from.row === 16);
-        expect(used151, 'and in through the door at mp81 (151,16)').toBeGreaterThanOrEqual(0);
+        expect(r!.lockedDoors.ordinary, 'one shut door stands on the way').toBe(1);
+        expect(r!.keysGained.ordinary, 'so the journey fetches a key').toBe(1);
+        expect(r!.keysSpent.ordinary, 'and spends it').toBe(1);
+        const paidAt = r!.hops.findIndex((h) => h.kind === EDGE.DOOR
+            && h.from.mapId === 23 && h.from.col === 57 && h.from.row === 16);
+        expect(paidAt, 'and spends it on the door at mp80 (57,16)').toBeGreaterThanOrEqual(0);
+        expect(gainedBefore(r!, paidAt), 'after picking it up, never before').toBe(true);
         // The passage the player walked is still in the graph, which is the thing
         // this block is about — the search simply no longer needs it.
         const walked = findRoute({
@@ -928,8 +944,11 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         const r = findRoute({ store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN });
         expect(r, 're-planned from mp82 (88,35)').not.toBeNull();
         expect(leaves(r!, 25), 'he leaves mp82 at all').toBeGreaterThanOrEqual(0);
-        expect(r!.maps, 'by mp81 and not straight back where he came from')
-            .toEqual([25, 24, 25]);
+        // By mp81 and on through mp80: mp81's own door into mp82 is cut off from
+        // the inside by the non-passable stretch of row 62 at columns 153-158, so
+        // mp81 is no longer a way through and the journey goes round by mp80.
+        expect(r!.maps, 'by mp81 and mp80, not straight back where he came from')
+            .toEqual([25, 24, 23, 25]);
         expect(solidCrossings(r!), 'through no rock').toEqual([]);
     }, 30_000);
 
@@ -954,7 +973,9 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         });
         expect(r, 'from the key with it held').not.toBeNull();
         expect(r!.keysGained, 'nothing left to fetch').toEqual({ ordinary: 0, lion: 0 });
-        expect(r!.maps, 'straight back out the way he came').toEqual([25, 24, 25]);
+        // Out through mp81 and round by mp80 — see the note on the row-62 passage
+        // in 'fetches a key for it' above.
+        expect(r!.maps, 'back out the way he came, by mp80').toEqual([25, 24, 23, 25]);
         expect(solidCrossings(r!), 'and through no rock').toEqual([]);
     }, 30_000);
 
@@ -972,7 +993,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
             store.reset();
             const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
             expect(r, 'the journey, from a store that has just forgotten the ride').not.toBeNull();
-            expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 25]);
+            expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 25, 24, 23, 25]);
         } finally {
             store.reset();
         }
@@ -1046,22 +1067,26 @@ describe('a journey that needs a key, and goes and fetches it', () => {
         const t0 = Date.now();
         const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
         expect(r, 'mp80 (111,21) -> mp80 (227,34), bare, fetching a key').not.toBeNull();
-        expect(r!.lockedDoors.ordinary, 'one closed door stands on the way').toBe(1);
-        expect(r!.keysGained.ordinary, 'and it fetches the key for it').toBe(1);
-        expect(r!.keysSpent.ordinary, 'which it spends').toBe(1);
+        // Two, not one: with the mp81 row-62 passage closed this journey has to cross
+        // mp80's shut door at (57,16) to reach the key and again on the way back.
+        expect(r!.lockedDoors.ordinary, 'two closed doors stand on the way').toBe(2);
+        expect(r!.keysGained.ordinary, 'and it fetches a key for each').toBe(2);
+        expect(r!.keysSpent.ordinary, 'spending both').toBe(2);
 
         const walked = pocket(r!, 0);
         expect(walked.low, 'he is never asked for a key he does not have')
             .toBeGreaterThanOrEqual(0);
         expect(walked.end, 'and is left with nothing').toBe(0);
-        expect(walked.picks, 'picking exactly the one key on the route').toBe(1);
+        expect(walked.picks, 'picking up a key for each door').toBe(2);
 
         const key1 = at(r!, KEY1);
         const key2 = at(r!, KEY2);
         expect(key2, 'the mp81 key is on the route').toBeGreaterThanOrEqual(0);
         expect(key2, 'and it comes before the door it opens')
             .toBeLessThan(paidAt(r!, 24, 236, 5));
-        expect(key1, 'and the mp82 key is not needed any more').toBe(-1);
+        // The mp82 key at (26,47) is needed again now: with mp81's interior cut off
+        // from the row-62 passage, reaching it costs mp80's shut door at (57,16).
+        expect(key1, 'and the mp82 key is fetched for the first door').toBeGreaterThanOrEqual(0);
         expect(Date.now() - t0, 'without the search that floods').toBeLessThan(15_000);
     }, 30_000);
 
@@ -1070,7 +1095,7 @@ describe('a journey that needs a key, and goes and fetches it', () => {
             store, caps: { ...bareCapabilities(), keys: 1 }, start: START, goal: GOAL, ...PLAN,
         });
         expect(r, 'the same journey from a pocket with one key in it').not.toBeNull();
-        expect(r!.lockedDoors.ordinary, 'the door still stands in the way').toBe(1);
+        expect(r!.lockedDoors.ordinary, 'both doors still stand in the way').toBe(2);
         const walked = pocket(r!, 1);
         expect(walked.low, 'and he is never overdrawn on the way').toBeGreaterThanOrEqual(0);
         expect(walked.end, 'finishing with what he started plus what he found, minus what he paid')

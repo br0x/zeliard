@@ -167,6 +167,15 @@ describe('nodes are positions the hero can occupy', () => {
         // so the top rows of a lift whose side column is inside rock are places he
         // really stands. mp80's x=250 lift is one, and the journey the player reported
         // to `(244,7)` goes off the top of it.
+        // And 5989 to 5986 when a lift with **no row the hero can stand on** stopped
+        // emitting slots at all. He boards a lift by landing on it, and the only row
+        // he can land on is the one it is standing at now, so a lift with no `atRest`
+        // slot is a thing he can never get aboard — every slot it had was a position
+        // he could not reach. The player names the one that matters: mp81's x=155
+        // lift, which "absolutely" cannot be moved because there is no standing
+        // position on top of it. Its three slots at headRows 61-63 had made the route
+        // to mp81 `(124,6)` cheaper by 47 hops, and it took the passage it must not —
+        // the walk along mp81 row 62 past the lift. See REASON_UNBOARDABLE.
         let live = 0;
         let total = 0;
         void nodeAt;
@@ -182,7 +191,7 @@ describe('nodes are positions the hero can occupy', () => {
                 if (entries.has(i)) live++;
             }
         }
-        expect(total).toBe(5989);
+        expect(total).toBe(5986);
         // Two dead slots, down from twelve and from three. Most of what used to be dead is not: the
         // horizontal riding
         // offsets were `platformCol - 1 .. platformCol + 1` when the engine's own
@@ -208,7 +217,7 @@ describe('nodes are positions the hero can occupy', () => {
         // rides it west to `(149,51)` and steps off. Withholding that fall the search
         // cannot reach `(151,6)` at all, because `(149,0)` above it is not a standing
         // position.
-        expect(live, 'ride slots with no entry at all').toBe(5987);
+        expect(live, 'ride slots with no entry at all').toBe(5984);
         expect(total - live, 'ride slots nothing can land on or ride to').toBe(2);
     });
 

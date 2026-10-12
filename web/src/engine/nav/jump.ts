@@ -211,6 +211,8 @@ export class JumpModel {
     private readonly guardCurrents: boolean;
     /** Where a standing platform slot can be: the feet land there, nothing blocks. */
     private readonly platform: Uint8Array;
+    /** Cells a platform is standing on right now; the hero's body may not enter one. */
+    private readonly solid: Uint8Array;
     /**
      * Where an up current holds him, so a flight through it ends there.
      *
@@ -311,6 +313,19 @@ export class JumpModel {
             this.flag[i] = classifier.classify(grid.tiles[i]!)
                 | (resting?.[i] === 1 ? NAV.BLOCK_BODY : 0);
         }
+        // A platform is three solid tiles and the hero is three wide and three tall,
+        // so the hero cannot be *inside* one at any point of a flight. Kept apart from
+        // `flag` on purpose: BLOCK_HEAD would also stop a rise on the single cell
+        // above his head, and that is a different question from "is his body clear",
+        // which is the one the player settled for mp81 — there is no way through mp81
+        // row 62 between columns 153 and 158, whatever the tiles above his head say.
+        //
+        // `isBlockingTileSimple` blocks a platform tile the same as rock, and the
+        // hero's own descent test consults only his feet row (dungeon-vertical.ts
+        // :488-506), so a flight can drop him straight through a lift. It landed the
+        // route to mp81 (124,6) on mp81 (155,0) and then flew it back out to
+        // mp81 (158,62) through the x=155 lift's three columns.
+        this.solid = resting ?? new Uint8Array(this.cells);
         this.platform = platforms ?? new Uint8Array(this.cells);
         this.held = currents ?? new Uint8Array(this.cells);
         this.guardCurrents = classifier.cavernLevel() === 7;
@@ -378,6 +393,35 @@ export class JumpModel {
      */
     private headroom(col: number, headRow: number): boolean {
         return !blocksHead(this.at(col + 1, headRow - 1));
+    }
+
+    /**
+     * Is the hero's body clear of a platform that is standing right now?
+     *
+     * **The middle column only.** This is the `canRest` rule and it is not a
+     * whole-body test: a side column inside a platform is how the hero rides them,
+     * and how mp83 and mp82 work, so it has to stay allowed. Only his middle column
+     * inside a platform makes the cell a number in a grid rather than a position.
+     *
+     * A lift is three tiles wide and never moves while it is unmoved, so there is no
+     * way through the row it occupies — the player's mp81, between columns 153 and
+     * 158, is non-passable and that is the whole of it. Neither the rise nor the
+     * descent asks this on its own: `jump_press_handler` reads one cell above the
+     * middle of his head with `is_blocking_tile`, and `check_floor_for_landing` reads
+     * one cell under his middle foot with `is_blocking_tile_simple`. Between them a
+     * flight drops him straight through a lift — which is how the route to mp81
+     * `(124,6)` came to land on mp81 `(155,0)` and fly back out to mp81 `(158,62)`.
+     *
+     * Only the hero's own three rows are tested. The feet row is where he *stands on*
+     * a platform, so it is not part of being inside one.
+     */
+    private clearOfPlatform(col: number, headRow: number): boolean {
+        const w = this.mapWidth;
+        const mid = wrapCol(col + 1, w);
+        for (let j = 0; j < 3; j++) {
+            if (this.solid[wrapRow(headRow + j) * w + mid] === 1) return false;
+        }
+        return true;
     }
 
 /**
@@ -781,9 +825,9 @@ export class JumpModel {
                 }
                 // A rise of no rows is no jump at all: with his head against a
                 // ceiling the engine leaves the hero grounded (dungeon-hero.ts:357).
+                const up = wrapRow(at - 1);
                 const open = !capped && this.headroom(c, at);
                 if (open) {
-                    const up = wrapRow(at - 1);
                     next = this.pushRise(back, backChain, next, c, frontChain, from, rises + 1);
                     // Only the direction he is holding: the rise and the descent
                     // are one flight, not two independent choices.
@@ -894,6 +938,13 @@ export class JumpModel {
             if (this.seen[seenKey] === this.current.gen) continue;
             this.seen[seenKey] = this.current.gen;
             this.noteCell(c, r, cell);
+            // A pose whose **middle** column is inside a platform standing right now
+            // is not a position the hero can be in. `check_floor_for_landing` reads
+            // only his feet row, so without this a descent drops him straight through
+            // a lift: that is how the route to mp81 (124,6) landed on mp81 (155,0)
+            // and flew back out to mp81 (158,62) through the x=155 lift's columns.
+            // Side columns may overlap — he rides them that way — so only the middle.
+            if (!this.clearOfPlatform(c, r)) continue;
             // The hero took hold of a rope on the way up. Only a rise can do this —
             // a fall's start has no rise to spend — and only with Up held on its
             // own, which is the one input the dispatcher answers with `try_climb_rope`.
