@@ -613,5 +613,9 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         // covered.
         (after as unknown as { progress: number }).progress = door;
         expect(shortfall(after, 0), 'the same route, one step earlier, is one short').toBe(1);
-    });
+    // This plans the whole journey from the top with `collectKeys` on, which is the
+    // search that floods — it is the same shape as the 30s budgets in
+    // nav-route-cases, and it was passing at 3.1s locally while timing out at the 5s
+    // default on CI.
+    }, 30_000);
 });

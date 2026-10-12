@@ -255,7 +255,10 @@ describe('nodes are positions the hero can occupy', () => {
             });
         }
         expect(lifts, 'the game has lifts').toBeGreaterThan(8000);
-    });
+        // This builds every cavern's graph and walks every edge of all of them, so
+        // it is the longest thing in this file and CI is slower than a local run —
+        // it was passing at 1.9s here and timing out at the 5s default there.
+    }, 60_000);
 
     it('will not fly a jump onto a lift that is standing somewhere else', () => {
         // The reported case: mp80 `(6,37) -> (1,33) JUMP_HIGH`, where the column 1
