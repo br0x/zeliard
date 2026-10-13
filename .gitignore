@@ -10,3 +10,4 @@ asm/*.drv
 build/.emcache/
 LOGCPU.TXT
 web/coverage/
+node_modules
