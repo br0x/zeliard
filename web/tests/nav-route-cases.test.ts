@@ -18,7 +18,7 @@ import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt, heroBoxFree } from '../src/engine/nav/geometry.js';
 import { JumpModel, LANDING_STRIDE, STEER_ALL } from '../src/engine/nav/jump.js';
 import { EDGE, EDGE_NAMES, NAV, CAP, KEY_ORDINARY, blocksBody } from '../src/engine/nav/types.js';
-import { edgesOf, NODE_RIDE, nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
+import { edgesOf, NODE_RIDE, NODE_ROPE, nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
 import { HAZARD_AGGRESSIVE } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
@@ -1206,6 +1206,82 @@ describe('mp50: the journey the player reported to mp51 (192,17)', () => {
         expect(granted.equipment.map((e) => e.label), 'in shoes from other levels')
             .toEqual(expect.arrayContaining(['silkarn', 'feruza']));
     }, 30_000);
+});
+
+describe('mp21: the three ropes against a wall, from (93,56) to (86,39)', () => {
+    // Yaga Thread, a hero with **no shoes and no keys**, mp21 `(93,56)` to
+    // mp21 `(86,39)`: no route. The recorder's own trip, end to end:
+    //
+    //     climb the rope in column 94 from (93,56) to (93,43)  — its head
+    //     step left off it into (92,43) and fall to the rope in column 92
+    //     climb it to (91,40), step left, fall to the rope in column 90
+    //     climb it to (89,37), step left, fall west to (87,39) and walk to (86,39)
+    //
+    // Three parallel ropes, each with rock in the column beside it, climbed to the
+    // rung where each one stops. The graph held the bottom of all three and
+    // `heroBoxFree` refused the top of every one, so the climb stopped six cells
+    // short and the journey did not exist. See docs/PATHFINDER_PLAN.md §21.
+    const START: [number, number] = [93, 56];
+    const GOAL: [number, number] = [86, 39];
+
+    it('finds the climb, with a bare hero and an empty pocket', () => {
+        const r = route(3, START, GOAL, bareCapabilities());
+        expect(r, 'mp21 (93,56) -> mp21 (86,39)').not.toBeNull();
+        expect(r!.maps).toEqual([3]);
+        expect(r!.lockedDoors, 'and it opens no door').toEqual({ ordinary: 0, lion: 0 });
+        expect(r!.equipment, 'and it asks for no pair of shoes').toEqual([]);
+        expect(solidCrossings(r!), 'through no rock').toEqual([]);
+    });
+
+    it('keeps the head of every rope it climbed', () => {
+        const graph = store.get(3)!;
+        const grid = store.gridOf(3)!;
+        const classifier = NavTileClassifier.forMap(3);
+        // The top rung of each of the three ropes, and the wall in the column beside
+        // it that the 3x3 box test found and `try_climb_rope` never does.
+        for (const [col, row] of [[93, 43], [91, 40], [89, 37]] as const) {
+            const index = nodeAt(graph, col, row);
+            expect(index, `the head of the rope at (${col},${row})`).toBeGreaterThanOrEqual(0);
+            expect(graph.nodes[index]!.kind, `(${col},${row}) is a rope`).toBe(NODE_ROPE);
+            expect(heroBoxFree(grid, classifier, col, row),
+                `(${col},${row}) fits a standing hero, so this pins nothing`).toBe(false);
+        }
+    });
+
+    it('climbs each of the three ropes the whole way to its head', () => {
+        // The thing the box test took away: from the rung the player left, one row
+        // at a time, all the way to the rung where the rope stops.
+        const graph = store.get(3)!;
+        const climbsTo = (col: number, fromRow: number, toRow: number): boolean => {
+            for (let row = fromRow; row > toRow; row--) {
+                const from = nodeAt(graph, col, row);
+                const to = nodeAt(graph, col, row - 1);
+                if (from < 0 || to < 0) return false;
+                if (!edgesOf(graph, from).some((e) => e.kind === EDGE.CLIMB && e.to === to)) return false;
+            }
+            return true;
+        };
+        expect(climbsTo(93, 56, 43), 'the column-94 rope up to (93,43)').toBe(true);
+        expect(climbsTo(91, 45, 40), 'the column-92 rope up to (91,40)').toBe(true);
+        expect(climbsTo(89, 42, 37), 'the column-90 rope up to (89,37)').toBe(true);
+    });
+
+    it('crosses from rope to rope on falls', () => {
+        // Which rung it leaves each rope at is the search's to choose — it drops
+        // from (91,42), two rows below that rope's head, and from (89,39) — and
+        // which fall it takes is its own too. What it cannot do without the fix is
+        // start: the climb out of (93,56) is the first leg either way.
+        const r = route(3, START, GOAL, bareCapabilities())!;
+        const kinds = r.hops.map((h) => h.kind);
+        expect(kinds[0], 'the first leg is the climb').toBe(EDGE.CLIMB);
+        expect(kinds, 'and it crosses from rope to rope on falls').toContain(EDGE.FALL);
+        const columns = new Set(r.hops.map((h) => h.from.col));
+        for (const col of [93, 91, 89]) {
+            expect(columns.has(col), `the route uses the rope in column ${col + 1}`).toBe(true);
+        }
+        const last = r.hops[r.hops.length - 1]!;
+        expect([last.to.col, last.to.row]).toEqual(GOAL);
+    });
 });
 
 describe('a few more real journeys', () => {

@@ -24,7 +24,7 @@ import { liftSweptCell } from '../src/engine/nav/nav-graph.js';import { decodeTi
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { JumpModel, LANDING_STRIDE, readLanding } from '../src/engine/nav/jump.js';
 import {
-    blockedByCounterCurrent, heroBoxFree, heroInLift, isStanding, wrapCol,
+    blockedByCounterCurrent, heroBoxFree, heroInLift, isStanding, middleColumnFree, wrapCol,
 } from '../src/engine/nav/geometry.js';
 import { CAP, EDGE, EDGE_NAMES } from '../src/engine/nav/types.js';
 import { NAV_MAPS, NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
@@ -60,7 +60,7 @@ describe('nodes are positions the hero can occupy', () => {
         }
     });
 
-    it('gives every rope node a rope through his middle column and a free body', () => {
+    it('gives every rope node a rope through his middle column and a free middle column', () => {
         for (const meta of NAV_MAPS) {
             const graph = graphFor(meta.id);
             const classifier = NavTileClassifier.forMap(meta.id);
@@ -72,9 +72,30 @@ describe('nodes are positions the hero can occupy', () => {
                 const tile = grid.tiles[node.row * meta.mapWidth + wrapCol(node.col + 1, meta.mapWidth)]!;
                 expect(tile === 1 || tile === 2,
                     `${meta.nameKey} rope (${node.col},${node.row}) tile ${tile}`).toBe(true);
-                expect(heroBoxFree(grid, classifier, node.col, node.row),
-                    `${meta.nameKey} rope box`).toBe(true);
+                // His **middle column**, and not his whole 3x3: `try_climb_rope`
+                // asks no question about the rest of him, and the rope frame that
+                // keeps him on reads the same one cell. A hero hanging with a wall
+                // in his side column is a position the game has.
+                expect(middleColumnFree(grid, classifier, node.col, node.row),
+                    `${meta.nameKey} rope (${node.col},${node.row}) middle column`).toBe(true);
             }
+        }
+    });
+
+    it('keeps the top of a rope that hugs a wall', () => {
+        // The player's mp21 climb: three parallel ropes in columns 94, 92 and 90,
+        // each with rock in the column beside them, climbed to the rung where each
+        // one stops. `heroBoxFree` refused the top of all three and the climb simply
+        // stopped short — see docs/PATHFINDER_PLAN.md §21.
+        const grid = gridFor(3);
+        for (const [col, row] of [[93, 45], [93, 44], [93, 43], [91, 40], [89, 38], [89, 37]] as const) {
+            const graph = graphFor(3);
+            expect(heroBoxFree(grid, NavTileClassifier.forMap(3), col, row),
+                `mp21 (${col},${row}) is beside rock, which is why the box test refused it`)
+                .toBe(false);
+            const index = nodeAt(graph, col, row);
+            expect(index, `mp21 rope (${col},${row})`).toBeGreaterThanOrEqual(0);
+            expect(graph.nodes[index]!.kind, `mp21 rope (${col},${row})`).toBe(NODE_ROPE);
         }
     });
 

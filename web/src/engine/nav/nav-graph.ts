@@ -36,8 +36,8 @@ import {
 } from './types.js';
 import { NavTileClassifier } from './attributes.js';
 import {
-    blockedByCounterCurrent, conveyorDir, flagsAt, heroBoxFree, heroCanStepSideways, heroInLift,
-    isStanding, wrapCol, wrapRow,
+    blockedByCounterCurrent, conveyorDir, flagsAt, heroCanStepSideways, heroInLift,
+    isStanding, middleColumnFree, wrapCol, wrapRow,
 } from './geometry.js';
 import {
     JumpModel, LANDING_STRIDE, STEER_ALL, STEER_STRAIGHT, STEER_LEFT, STEER_RIGHT,
@@ -371,9 +371,28 @@ export function buildNavGraph(
                 nodes.push({ kind: NODE_GROUND, col, row, platform: -1 });
             }
             // A rope node needs the rope through his middle column at his head row
-            // and room for his body; it does not need ground, because he is
-            // holding on.
-            if (ropeAt(grid, col + 1, row) && heroBoxFree(grid, classifier, col, row)) {
+            // and room for his **middle column** — not his whole body.
+            //
+            // `try_climb_rope` (dungeon-vertical.ts:198-239) asks exactly two
+            // questions: is the cell at his middle column, head row a rope, and is
+            // the one above it a rope so he can go on climbing. There is no body
+            // test anywhere in it, and the rope frame that keeps him on
+            // (`dungeon-states.ts:258-271`) reads the same middle-column cell. So a
+            // hero hanging with a wall in his *side* column is a position the game
+            // has and the game lets him stay in, and §13's rule 3 — do not invent a
+            // whole-body collision rule the engine does not perform — is what the
+            // 3x3 box was doing here.
+            //
+            // The player's mp21 climb is the case: ropes in columns 94, 92 and 90,
+            // each hugging a wall on its right, and he takes all three up to the
+            // rung where they stop. `heroBoxFree` refused (93,45), (93,44),
+            // (93,43), (91,40), (89,38) and (89,37) — six rope cells, the top of
+            // every one of the three ropes — so the climb simply stopped short and
+            // mp21 `(93,56)` -> `(86,39)` had no route. `middleColumnFree` is the
+            // same question `canRest` and `isStanding` ask for a position at all:
+            // his middle column must be open over his three rows, and his sides may
+            // be in rock.
+            if (ropeAt(grid, col + 1, row) && middleColumnFree(grid, classifier, col, row)) {
                 ropeOf[cell] = nodes.length;
                 nodes.push({ kind: NODE_ROPE, col, row, platform: -1 });
             }

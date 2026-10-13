@@ -170,12 +170,17 @@ clearance test.
 
 Current measured graph size is:
 
-- 30,317 nodes (19,433 ground, 4,895 rope, 5,989 ride).
-- 511,524 edges.
+- 30,410 nodes (19,433 ground, 4,991 rope, 5,986 ride).
+- 460,804 edges.
 
-These values are useful sanity checks, not API contracts. `nav-graph` measures them
-rather than asserting a table nobody can re-derive; see §15 for how the last change
-moved them.
+Measured by building every one of the 31 caverns from its MDT with no platform
+reading — the `buildNavGraph(meta.id, gridFor(meta.id))` that `nav-graph.test.ts`
+does — and summing. These values are useful sanity checks, not API contracts;
+`nav-graph` measures them rather than asserting a table nobody can re-derive; see
+§15 for how an earlier change moved them and §21 for the last one.
+
+The ride figure is the one that moved for a reason nobody would guess: it used to
+read 5,989 here, and §19d's `REASON_UNBOARDABLE` took three slots off it.
 
 ### Edges
 
@@ -423,6 +428,18 @@ Cells merely flown through are reported as flight, not as missing navigation nod
 This is the preferred diagnostic tool when a player reports a route the graph cannot
 reproduce.
 
+**A `***` line is not always a bug in the graph**, and the summary line at the foot
+of the report says one is. The recorder decides "he stood here" from
+`JUMP_PHASE_FLAGS`, and there is one engine frame after the hero steps sideways off
+a rope in which he is in mid-air, has no rope under him, and reads as neither
+`on_rope` nor `airborne` — `on_left_pressed` moves him inside the *rope* frame and
+`dungeon_finish_rope_frame` then drops `ON_ROPE_FLAGS` while `dungeon_update_rope`
+has `JUMP_PHASE_FLAGS` at `0` for the whole frame. The fall that proves he was in
+the air is stepped by the next frame. The cell he stepped into has nothing under
+him, so the graph is right that it is not a node, and the recorder will still call
+it one. §21d has the frame-by-frame account and says what the honest fix would
+have to ask instead.
+
 ## 9. Save/shop integration
 
 The Thread of Yaga is:
@@ -475,6 +492,7 @@ Recorded player routes have been used to validate:
 - boss-arena entry and post-boss exit;
 - platform riding;
 - rope catches;
+- a rope climb taken to the rung where it stops, beside a wall (mp21, §21);
 - current lifts;
 - seam-wrapping platform travel.
 
@@ -482,7 +500,7 @@ Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1048` tests passing.
+- `1053` tests passing.
 - `0` tests failing.
 
 The five failures recorded here closed on the previous revision; the mp80 journey to
@@ -491,7 +509,8 @@ The five failures recorded here closed on the previous revision; the mp80 journe
 added are §16.28 and §16.29. The map screen's input contract — aim, then Enter — and the
 two defects under it (a chart fitted to the canvas rather than to the border, and a
 refusal stamped on a clock `draw` never read) are §6, and the rules they added are
-§16.30 to §16.32.
+§16.30 to §16.32. The rope that hangs beside a wall, and the mp21 climb it cut short,
+is §21, and the rules it added are §13.24 and §16.33.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -844,13 +863,25 @@ and no answer that depends on which cavern happens to be cached.
     `keys + keysGained` and reported a hero with an empty pocket, standing at a locked door,
     with both his fetches behind him, as covered — the same arithmetic twice, once per pocket
     is right, once over the whole route is not.
-23. **A question asked per frame must be answerable from data that does not decay.** The
-    fix for the above read the cavern's graph, and `store.reset` empties the cache on every
-    change of cavern — so the answer depended on which cavern happened to be built, and
-    went to zero while the stale route went on being drawn. `NavHop.doorKey` and
+23. **A question asked per frame must be answerable from data that does not decay.**
+    The fix for the above read the cavern's graph, and `store.reset` empties the cache on
+    every change of cavern — so the answer depended on which cavern happened to be built,
+    and went to zero while the stale route went on being drawn. `NavHop.doorKey` and
     `NavRoute.picks` exist so the route can answer for itself. Anything the guide asks
     every frame about the world has the same obligation: either it is derived from the
     route, or it is a reading whose lifetime is bounded and whose loss is handled.
+24. **Ask each position the question its own code asks, and never a stricter one.**
+    There are four of them and they are not the same question. `canRest`/`isStanding`
+    ask for the middle column over three rows plus support, because that is what
+    `check_floor_for_landing` and `move_hero_*_if_no_obstacles` consult. A vertical lift
+    slot asks the same, because `move_platform_down_damage_monster` finds the platform
+    by the tile under the middle foot. A horizontal ride slot asks for the two rows
+    under the head, because that is all a crouched carry consults. A **rope** node asks
+    for a rope in the middle column and an open middle column and nothing else, because
+    `try_climb_rope` asks no body question at all. Reaching for a 3×3 on any of them is
+    rule 3, and §15, §18 and §21 are the three times it has cost a passage the player
+    walked. The general shape: the model's test should be the narrowest one the engine
+    applies at that moment, and a test can only ever be as wrong as the code it copies.
 
 ## 14. Useful invariants
 
@@ -883,6 +914,9 @@ These are the highest-value sanity checks when changing the pathfinder:
 - A lift with no `atRest` slot is unreachable: the hero boards by landing, and the only
   row he can land on is the one it is standing at. Such a lift emits no slots. See §19.
 - A flight with Up held alone can end on a rope, and one with a direction held cannot.
+- A rope node has an open **middle** column and a rope in it, and nothing is asked of
+  his sides. `try_climb_rope` and `dungeon_finish_rope_frame` read that one cell and
+  nothing else, so a hero may hang with a shoulder in rock. See §21.
 
 ## 15. mp80 (203,29) -> mp80 (244,7), and the recorder diff behind it
 
@@ -978,7 +1012,8 @@ with nothing under him whenever he steps off a rope, because `dungeon_finish_rop
 clears `ON_ROPE_FLAGS` on one frame of the two-phase dungeon frame and the recorder
 reads `JUMP_PHASE_FLAGS` on the next. It is one frame of falling that reads as
 standing. (197,9), (198,9), (225,17) and (244,17) are all that, and none of them is a
-node the graph owes him.
+node the graph owes him. §21d is the same line written out frame by frame, and it is
+not one *sample* — it is one whole engine frame, thirteen of them at this speed.
 
 ### What the level looks like afterwards
 
@@ -1049,6 +1084,13 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
     not an available width; it is 660. A fit measured against the canvas is wrong only
     where `width * scale` lands exactly on it — mp20, at 224 columns — so one report is
     not one map's story, and a sweep over every map is what turns it into a rule. See §6.
+33. **A rope node asks for a rope and an open middle column, and nothing else.**
+    `try_climb_rope` and `dungeon_finish_rope_frame` both read the single cell at the
+    hero's middle column and his head row, and neither asks anything about the rest of
+    him, so a hero hanging beside a wall is a position the game has and keeps him in.
+    A rope is where a hero is most reliably *not* asked about his body: he cannot jump
+    off one, and the engine lets him climb one with his shoulder in rock. §13 rule 3
+    and §21.
 
 ## 17. Crouching
 - standing hero: 3×3
@@ -1356,3 +1398,121 @@ more, and `componentStore()` in that file is what reproduces it. Without it the 
 measures a game where level 5 can reach level 6's keys, and the whole rung ordering is
 answered against a different world.
 
+
+## 21. mp21 (93,56) -> mp21 (86,39), and the rope that hangs beside a wall
+
+Thread of Yaga, a hero with **no shoes and no keys**, mp21 `(93,56)` to mp21
+`(86,39)`: no route. The recorder's report is twelve `***` lines and the trip is
+thirty-four cells long.
+
+### 21a. What the log says
+
+Three parallel ropes, one two columns west of the next, each with rock in the
+column beside it, and the player takes all three up to the rung where each one
+stops and drops off it sideways to the next:
+
+```text
+  (93,56) .. up .. (93,43)   the column-94 rope, 43..56     80f held at the top
+  (93,43) -> (92,43) -> (91,44) -> (91,45)   step left off it, fall to the next
+  (91,45) .. up .. (91,40)   the column-92 rope, 40..48     66f held at the top
+  (91,40) -> (90,40) -> (89,41) -> (89,42)   step left off it, fall to the next
+  (89,42) .. up .. (89,37)   the column-90 rope, 37..45     80f held at the top
+  (89,37) -> (88,37) -> (87,38) -> (87,39)   step left off it, fall west
+```
+
+Twelve lines is a report about six cells, listed twice each because both hops that
+touch a cell fail at once. Six of the nine cells it names are the **tops** of the
+three ropes:
+
+| Cell | Rope at | What is beside it |
+| --- | --- | --- |
+| `(93,45)` `(93,44)` `(93,43)` | column 94 | `(95,45)`, `(95,44)`, `(95,43)` are `0x9`/`0xc` |
+| `(91,40)` | column 92 | `(93,40)` is `0xc` |
+| `(89,38)` `(89,37)` | column 90 | `(91,38)` is `0xd`, `(91,37)` is `0x9` |
+
+The graph held rows 46..56 of the first rope and 44..41 of the second, and stopped
+there. Each climb was cut short by exactly the rows where a wall stands next to it.
+
+### 21b. What the engine does
+
+`try_climb_rope` (dungeon-vertical.ts:198-239) asks two questions and no more:
+
+```ts
+let si = heroCoordsToAddrInProximity(g) + 1;   // the middle column, at his HEAD row
+if (!isOverRope(g, si)) { ...look one column left, then one right... return; }
+memWrite8(g, ON_ROPE_FLAGS, 0xff);
+// ...then the cell one row above the same column, and moveHeroUp if that is a rope
+```
+
+There is no body test in it, and there is none in the frame that keeps him on:
+`dungeon_finish_rope_frame` (dungeon-states.ts:258-271) reads the same
+middle-column cell, twice, and if it is not a rope he is done. Nothing anywhere
+asks whether his left or right column is in rock, and the 80 frames he spent at
+the top of each rope holding `Up` are the engine telling him so — he is on the
+rope, there is no rope above him, and nothing stops him being there.
+
+So a hero hanging with a wall in his *side* column is a position the game has. The
+node asked for a free 3×3 instead, which is §13's rule 3 broken in the one place
+the rule exists to protect: a whole-body collision test the engine does not
+perform.
+
+The test that answers it is the same one `canRest`, `isStanding` and a vertical
+lift slot already use — `middleColumnFree`, his middle column open over his three
+rows, his sides free to be in rock. §15 made that change for lift slots and §18
+for horizontal ride slots; the rope node was left behind.
+
+### 21c. What it was worth
+
+Rope nodes went from 4,895 to 4,991 and edges from 460,317 to 460,804. The journey
+is 22 hops and cost 26, and the search finds a **cheaper** shape than the one the
+player walked — it leaves the column-92 rope at `(91,42)`, two rungs below its
+head, and takes a three-column drift off the column-90 rope at `(89,39)`:
+
+```text
+mp21(93,56) .. CLIMB .. mp21(93,43)
+mp21(93,43)  -> mp21(91,44)  FALL
+mp21(91,44) .. CLIMB .. mp21(91,42)
+mp21(91,42)  -> mp21(89,43)  FALL
+mp21(89,43) .. CLIMB .. mp21(89,39)
+mp21(89,39)  -> mp21(86,39)  FALL
+```
+
+Bare, keyless, no door opened, no pair of shoes asked for, and through no rock.
+Which rung of each rope it leaves at is a cost decision and is not asserted; that
+each rope can be climbed *all the way to its head* is, because that is what the
+box test took away.
+
+### 21d. The other six lines are the recorder's, not the graph's
+
+The remaining cells are `(92,43)`, `(90,40)` and `(88,37)` — the cell the hero is
+in on the frame he steps off a rope — and they are not nodes and should not be.
+Nothing is under any of them: `check_floor_for_landing` finds no ground at all
+under `(92,43)`'s middle foot, so the engine drops him a row on the very next
+frame. They are not a missing node; they are the whole of what a fall is.
+
+The recorder calls them standing positions anyway, and the reason is engine-shaped
+rather than a rounding error. `on_left_pressed` shifts the hero's column inside the
+**rope** frame, and `dungeon_finish_rope_frame` then drops `ON_ROPE_FLAGS` because
+there is no rope at his new middle column — with `JUMP_PHASE_FLAGS` still at the
+`0` that `dungeon_update_rope` writes for the whole rope frame (dungeon-states.ts:317).
+The fall is stepped by the next frame's `airborne_movement`, which is what sets
+`JUMP_PHASE_FLAGS` to `0x7f` (dungeon-input.ts:555). So there is a whole engine
+frame — thirteen rendered frames at the game's speed — in which the hero is in
+mid-air, has no rope under him, and reads as neither `on_rope` nor `airborne`. The
+recorder's `flewThrough` reads that byte and calls the cell a standing position.
+
+`§15` named the same class of line and called it one frame; it is one engine
+frame, and at this speed that is not one sample. Nothing about it is a graph bug,
+and the `***` line still says "each `***` line above is a bug in the graph", so the
+next recording of this same trip will raise it again.
+
+The honest fix is not to change what the recorder reads — `JUMP_PHASE_FLAGS` is the
+byte it should read — but to have it ask the engine's own question instead, which is
+`check_floor_for_landing` over the proximity map: *is there ground under his middle
+foot, a rope through his middle column, or a platform under him?* That is the test
+`isStanding` is, and a cell it fails is a cell the hero cannot stop in by
+construction. It is deliberately **not** done here, because the proximity map
+answers for platforms too and the model deliberately does not model the riding
+offsets that carry him onto one (§16 rule 27), so the floor test is the only thing
+that can tell those thirteen lines of §15 from the six of this section — and a
+recorder change that has to be right about that is a change of its own.
