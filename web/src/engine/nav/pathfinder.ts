@@ -691,8 +691,12 @@ function shoesAfterPickup(
     if (shoe === 0) return state.shoes;
     const bit = 1 << (shoe - 1);
     if ((state.shoes & bit) !== 0) return state.shoes;
-    if (options.shoePresent && !options.shoePresent(state.mapId, node % graph.mapWidth,
-        (node / graph.mapWidth) | 0, shoe)) {
+    // Asked about the pair's *record*, not the node, exactly as a key is: the two
+    // differ on every pair in the game, and the record is what the engine holds.
+    const cell = graph.accessoryCellAt[node]!;
+    if (options.shoePresent && !options.shoePresent(
+        state.mapId, cell % graph.mapWidth, (cell / graph.mapWidth) | 0, shoe,
+    )) {
         return state.shoes;
     }
     return state.shoes | bit;

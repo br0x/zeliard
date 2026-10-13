@@ -431,12 +431,13 @@ Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1026` tests passing.
+- `1038` tests passing.
 - `0` tests failing.
 
 The five failures recorded here closed on the previous revision; the mp80 journey to
 `(244,7)` and what it says about the lift model is §15, and the rules it added are
-§16.24 to §16.27.
+§16.24 to §16.27. The pair a level-5 journey could not fetch is §20, and the rules it
+added are §16.28 and §16.29.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -968,6 +969,19 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
     indistinguishable. That is why the riding offsets stay at `x` for now; widening
     them is correct in the engine and wrong in the model until the key stops being a
     column.
+28. **A pickup on the floor is asked about by its record, never by the cell the route
+    walks through.** The engine collects from a window around the entity record, so
+    the two are different cells for every key and for all four pairs of shoes — and
+    the runtime callbacks (`keyPresent`, `shoePresent`) are answered from the loaded
+    cavern's entity list, which speaks in records. Asked the other way, every pickup
+    in the game reads as already collected. See §20.
+29. **A rung that grants an accessory is a statement about the inventory, not about
+    the level.** `planAccessories` may assume a pair the hero is already carrying and
+    nothing else: a pair he would have to walk to is `collectAccessories`' business,
+    and if that cannot fetch it then this level has no such pair. The fallback is
+    still worth having — it is what answers for a pair picked up on another level —
+    but it must be the *last* thing offered, and the rungs above it must be able to
+    do their job, which is §20b.
 
 ## 17. Crouching
 - standing hero: 3×3
@@ -1185,3 +1199,93 @@ it now asserts that instead of an incidental ordering.
 - Earlier reasoning in this session blamed §18's `ridingAboard` for this route, then
   blamed the x=155 slots. Both were wrong. The route was already wrong at `808459e`,
   and the cause is the flight model, per 19b.
+
+## 20. mp50 (94,11) -> mp51 (192,17), and the pair the hero could not fetch
+
+Thread of Yaga, a hero with **no shoes and no keys**. The route that came back led up
+the slope between mp51 `(117,60)` and mp51 `(124,54)`, and the report was: *"Since
+hero does not have Silkarn shoes, he cannot climb up the slope, so this hop should be
+disabled."*
+
+### 20a. The hop was never offered
+
+The ramp at mp51 columns 117..124 is gated correctly. Every ascending edge off it
+carries `CAP.SLOPE_STAND` — from `add`'s ascent gate (which reads the tile under the
+hero's middle foot, `dungeon-vertical.ts:568-572`) and from the ascending-jump flight
+path — and `permitted` refuses an edge whose requirement the mask does not cover. So
+`findRoute` for these endpoints with nothing else returns **null**, and that is the
+right answer: a bare hero cannot make the journey at all.
+
+What was wrong is which answer the screen settled for. The map screen's rungs (§6,
+`map-screen.ts:494-596`) answer in order, and the one that produced this route is rung
+3b, `planAccessories` — which grants **every pair in the game** and reports what it
+used. That is honest for a pair already in the inventory and fiction for one that
+cannot be reached. Level 5 has exactly one pair lying in it: Pirika at mp50
+`(208,27)`. There is no Silkarn and no Feruza here to be had at all.
+
+The real journey is that one, and the player named all three of its legs: walk over
+the Pirika pair, cross to mp51 for the key at `(101,15)`, spend it on the door at mp50
+`(132,54)`, and walk to the goal over aggressive ground — which is what the pair is
+for, and why `permitted`'s hazard gate refuses that ground to a bare hero.
+
+### 20b. Why rung 3 could not find it
+
+Rung 3 is `collectAccessories`, and it could not fetch the Pirika pair on **any**
+journey in the game. `shoesAfterPickup` asked `shoePresent` about the **node** the
+pair lands on. `shoePresent` is `presentShoes` over the engine's own entity list
+(`main.ts:512`), so it answers in **records** — and a pair is not on the cell the hero
+stands on:
+
+```text
+map  8: record (177,13) -> node (177,12)
+map 11: record (208,27) -> node (208,26)
+map 14: record (201,13) -> node (201,12)
+map 16: record ( 27,26) -> node ( 27,25)
+```
+
+All four pairs in the game are recorded one row **above** the standing position the
+pickup snaps to, because the engine collects from a window around the record
+(`nodeForKey`, the same ±2 snap keys go through). So every pair answered "already
+collected", rung 3 found nothing it could fetch, and the screen fell through to the
+slope.
+
+Keys already do this correctly and say so — `keysAfterPickup` asks about
+`graph.keyCellAt`, "the record the engine holds, not the node the route walks through.
+Getting that wrong makes every key look already collected". The shoe pickup was the
+same question asked the other way, and nothing said so.
+
+`NavGraph.accessoryCellAt` is the fix: the record cell beside `accessoryShoeAt`, for
+the reason `keyCellAt` exists. `nav-shoe-routing` pins both halves — the record cell
+of every pair, and that a `shoePresent` answering in records fetches while one
+answering in nodes does not.
+
+### 20c. What it is worth
+
+The journey is 987 hops and cost 1432, and its shape is not a cost decision:
+
+| Leg | Where |
+| --- | --- |
+| the Pirika pair | mp50 `(208,26)`, point 730 |
+| the key | mp51 `(97,15)`, point 208 |
+| the door it opens | mp50 `(131,54)`, point 879 |
+| the goal | mp51 `(192,17)` |
+
+It visits mp50 and mp51 five times over and crosses no slope at all
+(`crossesSlopes === false`). Which pickup comes first is the search's to choose and is
+not asserted; that each is in the pocket before the hop that spends it is.
+
+### 20d. The test that measures the screen, not just the search
+
+`map-screen.test.ts` drives `choose(192,17)` with `shoePresent`/`keyPresent` built the
+way `main.ts` builds them, and asserts the route handed back crosses no slope and asks
+for no pair from another level. It fails on the unfixed code with
+`crossesSlopes: expected true to be false` — the report, verbatim, as an assertion.
+
+One harness change was needed to make it mean anything. `NavGraphStore` builds a graph
+the moment anybody asks and its source answers for every cavern on disk; in the browser
+it does not, because `navGraphStore`'s source reads the live `g_mem` for the cavern the
+hero is standing in and nothing else. A search therefore sees its own component and no
+more, and `componentStore()` in that file is what reproduces it. Without it the test
+measures a game where level 5 can reach level 6's keys, and the whole rung ordering is
+answered against a different world.
+

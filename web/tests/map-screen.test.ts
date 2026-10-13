@@ -22,7 +22,10 @@ import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilitie
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../src/data/nav/nav-portals.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
+import { nodeAt } from '../src/engine/nav/nav-graph.js';
 import { NAV_PLATFORMS } from '../src/data/nav/nav-platforms.js';
+import { NAV_ACCESSORIES } from '../src/data/nav/nav-accessories.js';
+import { NAV_KEYS } from '../src/data/nav/nav-keys.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 /**
@@ -63,6 +66,40 @@ interface Harness {
     picked: () => unknown[];
     exited: () => number;
     draw: (now?: number) => void;
+}
+
+/**
+ * A store holding only the maps of one component, the way the game has one.
+ *
+ * `NavGraphStore` builds a graph the moment anybody asks, and its source answers for
+ * every cavern on disk. In the browser it does not: `navGraphStore`'s source reads
+ * the live `g_mem` for the cavern the hero is standing in and nothing else, and any
+ * other is downloaded when the player browses to it — so `ensureComponent` is what
+ * puts a level's maps in memory, and a search run from it sees its own component and
+ * no more. A test that hands it every map measures a game that does not exist.
+ */
+function componentStore(mapIds: readonly number[]): NavGraphStore {
+    const inside = new Set(mapIds);
+    const cache = new Map<number, Uint8Array>();
+    return new NavGraphStore((mapId) => {
+        const meta = NAV_MAP_BY_ID.get(mapId);
+        if (!meta || !inside.has(mapId)) return null;
+        let hit = cache.get(mapId);
+        if (!hit) {
+            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`)));
+            cache.set(mapId, hit);
+        }
+        return hit;
+    });
+}
+
+/** The standing position the search sees for a cell, as a node index in `store`. */
+function nodeOf(store: NavGraphStore, mapId: number, col: number, row: number): number {
+    const graph = store.get(mapId);
+    if (!graph) throw new Error(`no graph for map ${mapId}`);
+    const node = nodeAt(graph, col, row);
+    if (node < 0) throw new Error(`(${col},${row}) is not a standing position on map ${mapId}`);
+    return node;
 }
 
 function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
@@ -675,6 +712,63 @@ describe('choosing a destination', () => {
         expect(route.equipment.map((e) => e.label), 'a bare hero is sent in shoes')
             .toContain('feruza');
         expect(route.maps, 'mp80 -> mp82').toEqual(expect.arrayContaining([23, 25]));
+    }, 120_000);
+
+    it('fetches the pair on the floor rather than wearing one he cannot get', async () => {
+        // mp50 (94,11) -> mp51 (192,17), a hero with no shoes and no keys. The report
+        // was that the route led up the slope between mp51 (117,60) and mp51 (124,54):
+        // *"Since hero does not have Silkarn shoes, he cannot climb up the slope, so
+        // this hop should be disabled."* The hop was never offered to him — it is
+        // gated, and a bare hero is refused it — but a route that walks him into it
+        // was, and the graph was right to.
+        //
+        // The slope route is rung 3b: `planAccessories` grants every pair in the game
+        // and reports what it used, which is right for a pair the player is already
+        // carrying and nonsense for one he cannot reach. Level 5 has exactly one pair
+        // lying in it, Pirika at mp50 (208,27), and the journey the player described is
+        // that one: walk over the pair, cross mp51 (101,15) for the key, spend it on
+        // the door at mp50 (132,54), and walk to the goal over aggressive ground.
+        //
+        // Rung 3 is the rung that finds it, and it could not, because `shoePresent` was
+        // asked about the *node* the pair lands on and the engine's entity list reports
+        // the *record*. All four pairs in the game are recorded one row above the node
+        // the pickup snaps to, so every one of them read as already collected, rung 3
+        // answered NULL, and the screen fell through to the slope.
+        const store = componentStore([11, 12]);
+        const h = harness({
+            store,
+            heroPosition: () => ({ mapId: 11, col: 94, row: 11 }),
+            capabilities: () => bareCapabilities(),
+            // `presentShoes` / `presentKeys` read the loaded cavern's entity list, and a
+            // cavern that is not loaded is not known to be anything (main.ts:504-513).
+            shoePresent: (mapId, col, row, shoe) => (mapId !== 11 && mapId !== 12)
+                || NAV_ACCESSORIES[mapId]!.some(
+                    (a) => a.col === col && a.row === row && a.shoe === shoe),
+            keyPresent: (mapId, col, row, kind) => (mapId !== 11 && mapId !== 12)
+                || NAV_KEYS[mapId]!.some((k) => k.col === col && k.row === row && k.kind === kind),
+        });
+        h.screen.displayMapId = 12;
+        await h.screen.choose(192, 17);
+
+        expect(h.picked(), 'the journey exists and the screen found it').toHaveLength(1);
+        const route = h.picked()[0] as NavRoute;
+        expect(route.crossesSlopes, 'and it is not the one over the slope').toBe(false);
+        expect(route.equipment.map((e) => e.label), 'no pair he does not own is asked for')
+            .not.toContain('silkarn');
+        expect(route.equipment.map((e) => e.label)).not.toContain('feruza');
+        // The three legs the player named, in the order they have to be in: the pair,
+        // then the key, then the door the key opens.
+        const shoeNode = nodeOf(store, 11, 208, 26);
+        const keyNode = nodeOf(store, 12, 97, 15);
+        const atPair = route.points.findIndex((p) => p.mapId === 11 && p.node === shoeNode);
+        const atKey = route.points.findIndex((p) => p.mapId === 12 && p.node === keyNode);
+        expect(atPair, 'walks over the Pirika pair').toBeGreaterThan(0);
+        expect(atKey, 'and collects the key at mp51 (101,15)').toBeGreaterThan(0);
+        expect(route.keysSpent.ordinary, 'and spends it on a closed door').toBe(1);
+        expect(route.hops.some(
+            (hop) => hop.from.mapId === 11 && hop.from.col === 131 && hop.from.row === 54,
+        ), 'through the door at mp50 (132,54)').toBe(true);
+        expect(route.crossesAggressiveGround, 'which is what the pair is for').toBe(true);
     }, 120_000);
 
     it('refuses a cell with no standing position anywhere near it', async () => {

@@ -195,6 +195,15 @@ export interface NavGraph {
      * *adds* a bit here, and a route may collect two different pairs.
      */
     readonly accessoryShoeAt: Int8Array;
+    /**
+     * Where each pair of shoes is *recorded*, as `row * mapWidth + col`, or -1.
+     *
+     * The same distinction as {@link keyCellAt}, and for the same reason: the engine
+     * collects from a window around the record, so the pair hangs on a node a row or
+     * two from the cell `presentShoes` reports. Whether it is still on the floor has
+     * to be asked about the record.
+     */
+    readonly accessoryCellAt: Int32Array;
     readonly platforms: PlatformModel;
     readonly currents: AirflowModel;
     readonly stats: NavGraphStats;
@@ -472,7 +481,15 @@ export function buildNavGraph(
     // collects it from. There are four in the whole game and none is duplicated, so
     // a node can hold at most one pair and a bit per kind is enough to say what the
     // hero is carrying.
+    //
+    // The record cell is kept beside it for the reason `keyCellAt` exists: the node
+    // a pickup snaps to is not the cell the engine holds it at, and `shoePresent` is
+    // answered from the engine's own entity list. mp50's Pirika pair is recorded at
+    // (208,27) and lands on the node at (208,26), so asking about the node makes
+    // every pair read as already collected — and the journey that needs them loses
+    // its shoes rung and is offered a slope it cannot climb instead.
     const accessoryShoeAt = new Int8Array(nodes.length);
+    const accessoryCellAt = new Int32Array(nodes.length).fill(-1);
     let shoesOnNodes = 0;
     let shoesDropped = 0;
     for (const shoe of NAV_ACCESSORIES[mapId] ?? []) {
@@ -483,6 +500,7 @@ export function buildNavGraph(
         }
         shoesOnNodes++;
         accessoryShoeAt[node] = shoe.shoe;
+        accessoryCellAt[node] = wrapRow(shoe.row) * mapWidth + wrapCol(shoe.col, mapWidth);
     }
 
     const ropeAtNode = (col: number, row: number): number => {
@@ -1391,7 +1409,7 @@ export function buildNavGraph(
     return {
         mapId, mapWidth, nodes, edges: flat, edgeOffsets, groundOf, ropeOf, rideOf, standOf,
         liftSwept, nodeHazard, portalAtNode, bossExitAtNode, keyKindAt, keyCellAt,
-        accessoryShoeAt,
+        accessoryShoeAt, accessoryCellAt,
         platforms, currents, stats,
         diagnostics: {
             ...graphDiagnostics,

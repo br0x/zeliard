@@ -139,6 +139,74 @@ describe('a pair on the floor', () => {
             expect(g.diagnostics.shoesDropped, `cavern ${idStr} dropped one`).toBe(0);
         }
     });
+
+    it('is asked about by its record, which is not the node it lands on', () => {
+        // The same distinction `keyCellAt` exists for, and for the same reason: the
+        // engine collects from a window around the record, so a pair hangs on a node a
+        // row or two from the cell `presentShoes` reports. Asking whether it is still
+        // on the floor has to be about the record — which is what `accessoryCellAt`
+        // carries and what `shoesAfterPickup` asks `shoePresent` about.
+        //
+        // Measured: every pair in the game is recorded one row *above* the standing
+        // position the pickup snaps to, so asking about the node made all four read as
+        // already collected and left `collectAccessories` unable to fetch any of them
+        // anywhere in the game.
+        for (const [idStr, list] of Object.entries(NAV_ACCESSORIES)) {
+            const g = store.get(Number(idStr)) as NavGraph;
+            for (const pair of list) {
+                let node = -1;
+                for (let n = 0; n < g.nodes.length; n++) {
+                    if (g.accessoryShoeAt[n] === pair.shoe) { node = n; break; }
+                }
+                expect(node, `cavern ${idStr} carries its pair`).toBeGreaterThanOrEqual(0);
+                const cell = g.accessoryCellAt[node]!;
+                expect(cell % g.mapWidth, `cavern ${idStr} record column`)
+                    .toBe(pair.col);
+                expect(((cell / g.mapWidth) | 0), `cavern ${idStr} record row`).toBe(pair.row);
+                expect([g.nodes[node]!.col, g.nodes[node]!.row],
+                    `cavern ${idStr}: and the node is genuinely a different cell`)
+                    .not.toEqual([pair.col, pair.row]);
+            }
+        }
+    });
+});
+
+describe('a pair the engine still lists', () => {
+    it('is fetched when shoePresent answers about the record', () => {
+        // The regression itself. `shoePresent` is `presentShoes` over the engine's own
+        // entity list (main.ts:512), so it answers in records; the search used to ask it
+        // in nodes, every pair came back "already collected", and the rung that fetches
+        // a pair could not fetch one on any journey in the game.
+        const j = JOURNEY!;
+        const start = { mapId: j.mapId, ...j.start };
+        const goal = { mapId: j.mapId, ...j.goal };
+        const byRecord = findRoute({
+            store, caps: bareCapabilities(), maps: [j.mapId], collectAccessories: true,
+            shoePresent: (mapId, col, row, shoe) => NAV_ACCESSORIES[mapId]!.some(
+                (a) => a.col === col && a.row === row && a.shoe === shoe,
+            ),
+            start, goal,
+        });
+        expect(byRecord, 'the pair is on the floor, so the journey is walkable')
+            .not.toBeNull();
+
+        // And the question is not vacuous: asking about the node instead says no.
+        const byNode = findRoute({
+            store, caps: bareCapabilities(), maps: [j.mapId], collectAccessories: true,
+            shoePresent: (mapId, col, row, shoe) => {
+                const g = store.get(mapId)!;
+                for (let n = 0; n < g.nodes.length; n++) {
+                    if (g.accessoryShoeAt[n] === shoe) {
+                        return g.nodes[n]!.col === col && g.nodes[n]!.row === row;
+                    }
+                }
+                return true;
+            },
+            start, goal,
+        });
+        expect(byNode, 'a record the engine does not list is a pair that is gone')
+            .toBeNull();
+    });
 });
 
 describe('collecting a pair', () => {

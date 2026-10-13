@@ -19,10 +19,12 @@ import { flagsAt, heroBoxFree } from '../src/engine/nav/geometry.js';
 import { JumpModel, LANDING_STRIDE, STEER_ALL } from '../src/engine/nav/jump.js';
 import { EDGE, EDGE_NAMES, NAV, CAP, KEY_ORDINARY, blocksBody } from '../src/engine/nav/types.js';
 import { edgesOf, NODE_RIDE, nodeAt, type NavEdge } from '../src/engine/nav/nav-graph.js';
+import { HAZARD_AGGRESSIVE } from '../src/engine/nav/nav-graph.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { isCarriedHop } from '../src/render/path-overlay.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { NAV_KEYS } from '../src/data/nav/nav-keys.js';
+import { NAV_ACCESSORIES } from '../src/data/nav/nav-accessories.js';
 import { NAV_BOSS_EXITS, PORTALS } from '../src/data/nav/nav-portals.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -1100,6 +1102,109 @@ describe('a journey that needs a key, and goes and fetches it', () => {
         expect(walked.low, 'and he is never overdrawn on the way').toBeGreaterThanOrEqual(0);
         expect(walked.end, 'finishing with what he started plus what he found, minus what he paid')
             .toBe(1 + walked.picks - r!.keysSpent.ordinary);
+    }, 30_000);
+});
+
+describe('mp50: the journey the player reported to mp51 (192,17)', () => {
+    // Thread of Yaga, mp50 (94,11) -> mp51 (192,17), a hero with no shoes and no keys,
+    // and the route the screen drew went up the slope between mp51 (117,60) and mp51
+    // (124,54). *"Since hero does not have Silkarn shoes, he cannot climb up the slope,
+    // so this hop should be disabled."*
+    //
+    // The hop was never offered to him: every ascending edge off that ramp asks for
+    // `SLOPE_STAND` (nav-graph.ts, `add`'s ascent gate), and a bare hero is refused
+    // them — `findRoute` with these endpoints and nothing else returns null, which is
+    // the right answer. What was wrong is the route he was handed. Rung 3b
+    // (`planAccessories`) grants every pair in the game and reports what it used,
+    // which is honest for a pair in the inventory and fiction for one he cannot reach:
+    // level 5 has exactly one pair lying in it, Pirika at mp50 (208,27), and there is
+    // no Silkarn and no Feruza to be had here at all.
+    //
+    // So the journey is that one. Fetch the pair, cross to mp51 for the key at
+    // (101,15), spend it on the door at mp50 (132,54), and walk to the goal over
+    // aggressive ground — which is what the pair is for, and why the graph's hazard
+    // gate refuses the ground for a bare hero.
+    //
+    // Rung 3 is the rung that finds this, and it could not, because `shoePresent` was
+    // asked about the *node* a pair lands on while the engine's entity list reports the
+    // *record*. All four pairs in the game are recorded a row above their node, so
+    // every one of them read as already collected and the rung had nothing to fetch.
+    const START: NavEndpoint = { mapId: 11, col: 94, row: 11 };
+    const GOAL: NavEndpoint = { mapId: 12, col: 192, row: 17 };
+    /** Level 5 is one component — mp50 and mp51 — and that is all the search may use. */
+    const COMPONENT = [11, 12];
+    /** What the screen passes: the loaded cavern's entity list, read by record. */
+    const onFloor = {
+        keyPresent: (mapId: number, col: number, row: number, kind: 0 | 1) =>
+            !COMPONENT.includes(mapId)
+            || NAV_KEYS[mapId]!.some((k) => k.col === col && k.row === row && k.kind === kind),
+        shoePresent: (mapId: number, col: number, row: number, shoe: number) =>
+            !COMPONENT.includes(mapId)
+            || NAV_ACCESSORIES[mapId]!.some((a) => a.col === col && a.row === row && a.shoe === shoe),
+    };
+    const PLAN = { maps: COMPONENT, collectKeys: true, collectAccessories: true, ...onFloor } as const;
+
+    /** The Pirika pair is recorded at (208,27) and collected from the node below it. */
+    const pair = () => nodeAt(store.get(11)!, 208, 26);
+    /** The key at mp51 (97,16) likewise hangs on the node a row under it. */
+    const key = () => nodeAt(store.get(12)!, 97, 15);
+
+    it('goes the way the player walked, not up the slope', () => {
+        const t0 = Date.now();
+        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
+        expect(r, 'mp50 (94,11) -> mp51 (192,17), bare').not.toBeNull();
+        expect(r!.crossesSlopes, 'and it does not climb the slope at mp51 (117,60)')
+            .toBe(false);
+        expect(r!.crossesAggressiveGround, 'it crosses aggressive ground instead').toBe(true);
+        expect(r!.maps.every((m) => COMPONENT.includes(m)), 'stays in level 5').toBe(true);
+        const last = r!.points[r!.points.length - 1]!;
+        expect([last.mapId, last.col, last.row], 'and arrives where it was asked to')
+            .toEqual([GOAL.mapId, GOAL.col, GOAL.row]);
+        expect(solidCrossings(r!), 'through no rock').toEqual([]);
+        expect(Date.now() - t0, 'without the search that floods').toBeLessThan(15_000);
+    }, 30_000);
+
+    it('picks the pair and the key up before anything spends them', () => {
+        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN })!;
+        const atPair = r.points.findIndex((p) => p.mapId === 11 && p.node === pair());
+        const atKey = r.points.findIndex((p) => p.mapId === 12 && p.node === key());
+        const paidAt = r.hops.findIndex((h) => h.kind === EDGE.DOOR
+            && h.from.mapId === 11 && h.from.col === 131 && h.from.row === 54);
+        const firstAgg = r.points.findIndex((p) =>
+            (store.get(p.mapId)!.nodeHazard[p.node]! & HAZARD_AGGRESSIVE) !== 0);
+
+        // Which comes first is a cost decision and the search's to make — the pair and
+        // the key are a row and a column apart in their own caverns, and either order
+        // walks. What is not the search's to decide is that each is in the pocket
+        // before the thing that needs it.
+        expect(atPair, 'walks over the Pirika pair at mp50 (207,27)').toBeGreaterThan(0);
+        expect(atPair, 'and has it before the aggressive ground').toBeLessThan(firstAgg);
+        expect(atKey, 'collects the key at mp51 (101,15)').toBeGreaterThan(0);
+        expect(atKey, 'and has it before the door it opens').toBeLessThan(paidAt);
+        expect(r.keysGained.ordinary, 'one key fetched').toBe(1);
+        expect(r.keysSpent.ordinary, 'and one spent').toBe(1);
+        expect(paidAt, 'on the door at mp50 (132,54)').toBeGreaterThanOrEqual(0);
+    }, 30_000);
+
+    it('is not the route the shoe rung invents', () => {
+        // The same question with the pair declared gone, which is what rung 3 saw. The
+        // journey then needs shoes the hero cannot fetch, and `planAccessories` answers
+        // by granting every pair in the game — a 189-hop walk up the mp51 ramp that
+        // names Feruza and Silkarn, neither of which exists on this level. It is a plan
+        // for a hero who is not this one, which is the whole defect.
+        const gone = findRoute({
+            store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
+            shoePresent: () => false,
+        });
+        expect(gone, 'the honest answer once the pair is off the floor').toBeNull();
+
+        const granted = findRoute({
+            store, caps: bareCapabilities(), start: START, goal: GOAL,
+            maps: COMPONENT, collectKeys: true, planAccessories: true, ...onFloor,
+        })!;
+        expect(granted.crossesSlopes, 'the fallback climbs the slope').toBe(true);
+        expect(granted.equipment.map((e) => e.label), 'in shoes from other levels')
+            .toEqual(expect.arrayContaining(['silkarn', 'feruza']));
     }, 30_000);
 });
 
