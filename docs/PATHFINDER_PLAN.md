@@ -224,7 +224,8 @@ Keys are a search dimension, not merely a door penalty.
 - The generated navigation data contains 18 keys: 17 ordinary and 1 Lion-Head.
 - The graph records key locations separately from the exact item record because the
   engine's pickup radius means those positions are not identical.
-- Already-collected keys are filtered from the runtime world state.
+- Already-collected keys are filtered from the runtime world state — at the moment the
+  question is asked, not at cavern entry. §22.
 
 Closed doors require their actual key type. Open doors cost no key.
 
@@ -232,6 +233,10 @@ The search can:
 - route with the keys currently held;
 - temporarily assume keys are available to determine requirements;
 - collect keys along a route when that is actually possible.
+
+A key the hero picks up on the way is a **record**, and a record is worth one key however
+many times the route crosses it. The search's state carries a count, so the answer it
+produces is checked against the floor before it is believed; see §22 and §13 rule 25.
 
 ### Build-time data
 
@@ -493,6 +498,7 @@ Recorded player routes have been used to validate:
 - platform riding;
 - rope catches;
 - a rope climb taken to the rung where it stops, beside a wall (mp21, §21);
+- a two-key journey on mp20 whose route walked in circles (mp20, §22);
 - current lifts;
 - seam-wrapping platform travel.
 
@@ -500,7 +506,7 @@ Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1053` tests passing.
+- `1060` tests passing.
 - `0` tests failing.
 
 The five failures recorded here closed on the previous revision; the mp80 journey to
@@ -510,7 +516,9 @@ added are §16.28 and §16.29. The map screen's input contract — aim, then Ent
 two defects under it (a chart fitted to the canvas rather than to the border, and a
 refusal stamped on a clock `draw` never read) are §6, and the rules they added are
 §16.30 to §16.32. The rope that hangs beside a wall, and the mp21 climb it cut short,
-is §21, and the rules it added are §13.24 and §16.33.
+is §21, and the rules it added are §13.24 and §16.33. The mp20 journey that looped,
+and the two faults under it — a search that picked the same key up twice, and a floor
+that was a photograph — are §22, and the rules they added are §13.25 and §16.34.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -635,6 +643,12 @@ closed one he goes through — and requiring the pocket never to go below zero. 
 decomposition used to hand back a route that spent three keys out of a pocket that
 held one, which is exactly the "leads to a closed door, the hero has no key" the player
 reported.
+
+That replay was a test, and it should have been the pathfinder: §22 is the same
+arithmetic run against the *other* answer, the one the one-shot search produces when it
+finishes in budget instead of flooding, and it is a route that claims a key the hero
+never picks up. `claimsAreOnTheFloor` is the replay, in the product, over the answer
+about to be handed over.
 
 Walking it and then restoring a save broke it again, in a way that had nothing to do
 with the graph. A platform reading is engine state, and it is read for whichever
@@ -882,6 +896,16 @@ and no answer that depends on which cavern happens to be cached.
     rule 3, and §15, §18 and §21 are the three times it has cost a passage the player
     walked. The general shape: the model's test should be the narrowest one the engine
     applies at that moment, and a test can only ever be as wrong as the code it copies.
+25. **A counter is not a set, and the search's state has to say which one it is.** The
+    key dimension is a *count* and the floor is a *set of records*, so a search that
+    needs one more key than it holds can farm one by walking over the same node twice —
+    which is cheaper than walking to the next key, so it is what it does. The engine
+    cannot do that, because the key is gone once he has it. So an answer produced by
+    that dimension is an approximation and has to be checked against the floor before
+    it is believed, the way §22's `claimsAreOnTheFloor` does; the decomposition, which
+    counts a record once by construction, is what answers when the check fails. The
+    general form: **an optimisation that stands in for a harder question is only
+    allowed to be believed while it agrees with the hard question.**
 
 ## 14. Useful invariants
 
@@ -917,6 +941,13 @@ These are the highest-value sanity checks when changing the pathfinder:
 - A rope node has an open **middle** column and a rope in it, and nothing is asked of
   his sides. `try_climb_rope` and `dungeon_finish_rope_frame` read that one cell and
   nothing else, so a hero may hang with a shoulder in rock. See §21.
+- A route never claims a key it does not walk over. `keysAfterPickup` grants a pickup
+  per *visit*, so the one-shot search can farm one by stepping onto the same node
+  twice; `claimsAreOnTheFloor` counts each key record once and sends the answer to the
+  decomposition when the two disagree. See §22.
+- `keyPresent` and `shoePresent` answer from the loaded cavern's entity list **as it
+  is when they are asked**, and a record `mark_collected` has stamped reads as gone.
+  See §22.
 
 ## 15. mp80 (203,29) -> mp80 (244,7), and the recorder diff behind it
 
@@ -1091,6 +1122,17 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
     A rope is where a hero is most reliably *not* asked about his body: he cannot jump
     off one, and the engine lets him climb one with his shoulder in rock. §13 rule 3
     and §21.
+34. **Read the floor when the question is asked, never when the snapshot was taken.**
+    `keysOnFloor` and `shoesOnFloor` were `Set`s built at cavern entry and never
+    touched again, so every key and pair the hero picked up afterwards was still on the
+    floor for the rest of the session — and the guide re-plans the instant the pocket
+    changes, so the first re-plan after a pickup is answered with "go and get the one
+    you are holding". `keyIsPresent` and `shoeIsPresent` walk the entity list at the
+    moment they are asked. Two things have to be true of that walk, and both are the
+    engine's: a record `mark_collected` has stamped is dead, and the way to know is the
+    `0xff` high byte it wrote — the `0xffff` terminator is a different marker and a walk
+    that knows only that one runs straight past a collected key into the rest of the
+    list. See §22.
 
 ## 17. Crouching
 - standing hero: 3×3
@@ -1516,3 +1558,170 @@ answers for platforms too and the model deliberately does not model the riding
 offsets that carry him onto one (§16 rule 27), so the floor test is the only thing
 that can tell those thirteen lines of §15 from the six of this section — and a
 recorder change that has to be right about that is a change of its own.
+
+## 22. mp20 (6,62) -> mp2d (25,19), and the key the search picked up twice
+
+Thread of Yaga, a hero with **no shoes and no keys**. The route came back, the player
+followed it, and he spent the rest of the cavern walking in circles. His report:
+*"the route is looped, so I walking in circles when following it. First wrong re-route
+happens when I reach mp20 (105,3), it points back to the key I just picked up."*
+
+### 22a. What the journey is
+
+mp2d is the boss arena, and it is not reachable for nothing. Two ordinary keys stand
+between mp20 `(6,62)` and mp2d `(25,19)`:
+
+| Door | Portal | Key |
+| --- | --- | --- |
+| mp20 `(95,36)` → mp21 `(15,36)` | 7 | ordinary |
+| mp20 `(171,55)` → mp2d `(24,19)` | 9 | ordinary |
+
+and mp20 holds exactly two keys, at `(89,44)` and `(149,44)`. The doorway at
+`(190,48)` is open and leads to the arena too, but it is on the far side of the cavern
+from the west gallery, and the route that gets there goes through mp21 and comes back.
+
+So the journey is a plan and not a path: fetch a key, spend it, fetch the next, spend
+that. §12 built the machinery for exactly this and pinned the two cases it knew.
+
+### 22b. What came back
+
+```text
+548 hops, cost 888, 137,454 expansions
+keysGained { ordinary: 2 }   keysSpent { ordinary: 2 }
+picks [ { at: 124 }, { at: 126 } ]
+```
+
+Both picks are **the same cell**:
+
+```text
+119 mp20(96,43)
+120 mp20(93,43)  121 (92,43)  122 (91,43)  123 (90,43)
+124 mp20(89,43)   <- pick, the key record at (89,44)
+125 mp20(90,43)
+126 mp20(89,43)   <- pick, *again*, the same key record at (89,44)
+127 mp20(90,43)  128 (91,43)  129 (92,43)  130 (93,43)
+```
+
+Out to the key, one tile back, and over it again — the loop the player is walking. The
+search granted two keys from one, spent them on the two doors, and the journey it drew
+cannot be finished: at mp20 `(171,55)` the hero has one key in his pocket and the door
+wants one he never picked up. The guide re-plans there, correctly, given the route it
+was handed, and sends him back for the key he is already carrying. That is the report,
+in order.
+
+### 22c. Why the search could do it
+
+`keysAfterPickup` (pathfinder.ts:632) is a function of **the node the hero steps onto**:
+
+```ts
+if (!options.collectKeys) return state.keysOrd;
+if (graph.keyKindAt[node] !== KEY_ORDINARY) return state.keysOrd;
+...
+return Math.min(state.keysOrd + 1, HOLD_CAP);
+```
+
+It has no way to say *which* key he took, because the state carries a **count** and the
+floor is a **set**. The engine's is a set: a key is lying there until he walks over it,
+and then it is in his pocket and not there any more (`flag_16`,
+engine/dungeon-items.ts:414). So the model grants a pickup on every visit and the game
+grants it on the first, and any journey that is short a key can farm one by stepping
+onto the node twice — which is cheaper than walking to the other key, so it is what
+the search does.
+
+`picks` is derived from a counter *rise* (pathfinder.ts:1328), so it duly reported two.
+
+This is not the flood of §12, which was about a search too big to finish. It is a
+search that finished, in budget, with a route that lies. And §13's rule 14 already says
+the pickup dimension is the wrong mechanism — the one-shot is a *cheap approximation*
+of a journey whose real mechanism is the split at the key — but nothing ever checked
+the approximation against the floor before handing it over.
+
+### 22d. The fix: believe the floor, not the counter
+
+`findRoute` now asks the engine's own question of the route it is about to return:
+
+```ts
+const route = search(options);
+if (!options.collectKeys) return route;
+if (route && claimsAreOnTheFloor(route, options)) return route;
+return searchViaKey(options);
+```
+
+`claimsAreOnTheFloor` walks the route's points and counts each key **record** once
+however many times the hero crosses it — the same two questions `keysAlong` asks, the
+same `keyPresent` answer, and both now go through one `keyOnFloor` helper so a leg
+walked by the decomposition and a search run by the one-shot cannot disagree about what
+is on the floor. A route that claims more keys of a kind than it walks over is not a
+route, and the decomposition answers instead.
+
+It is worth being precise about what this does and does not do. It does not make the
+key dimension sound: a route that farms a key and then *does* walk over a second one
+claims two and passes. It makes every route the player is shown one the pocket can
+pay for, and the one case that gets through — farming one key and counting another
+that was genuinely walked over — is a route that finishes. The sound version is a
+"which keys have I taken" bit in the search state, and §16.29 is why that is not a
+small change: `stateKey` packs a 5-bit map, an 18-bit node, the shoes mask and two
+6-bit key counters into one number that has to stay under 2^53, and 18 key records do
+not fit in what is left. Rule 25 is the trade this makes.
+
+The journey is now **811 hops, cost 1194**, and the picks are at 124 (mp20 `(89,43)`,
+the record at `(89,44)`) and 366 (mp20 `(149,43)`, the record at `(149,44)`) — two
+distinct records, the pocket never below zero, no shoe and no second door.
+
+It costs about twice the search time: the one-shot is still run, still rejected, and
+the decomposition runs on top. That is the price of a correct answer over a cheap wrong
+one, and §12's decomposition was already measured in the same range.
+
+### 22e. The other half: the floor was a photograph
+
+The check above asks whether the key is *still lying there*, and the answer the guide
+got was from a `Set` taken when the hero walked into the cavern:
+
+```ts
+// main.ts, before
+keyPresent: (mapId, col, row, kind) => !onThisCavern(mapId)
+    || keysOnFloor.has(`${col},${row},${kind}`),
+```
+
+Nothing ever put anything back into it and nothing ever took anything out. So the
+frame after the hero steps on the key at `(89,44)`, when the guide re-plans because
+the pocket changed, the answer was still *"yes, it is on the floor"* — and the re-plan
+sent him back for the key he is standing on. That is the second half of *"points back
+to the key I just picked up"*, and it is a rule-23 fault in time rather than in space:
+a reading whose lifetime is the session, used to answer a question about a frame.
+
+And the snapshot was not even right to begin with. `mark_collected`
+(engine/dungeon-items.ts:161) writes `0xff00` over the record's `x` word, and
+`update_all_monsters_in_map` (dungeon-monsters.ts:103) skips any record whose high
+byte is `0xff` for exactly that reason. `presentKeys` knew only the list's `0xffff`
+terminator, so **even recomputing it would have reported a collected key as present** —
+a collected item keeps its handler bytes, and the `x` it was marked with is the only
+thing that says it is gone.
+
+Both are fixed together, because they are the same question asked at the wrong time:
+
+- `presentKeys` and `presentShoes` skip a record whose high byte is `0xff`, which is
+  what the engine's own walk does.
+- `keyIsPresent` and `shoeIsPresent` answer for **one** key or pair, walking the list
+  and stopping at the first match, and `main.ts` calls them at the moment of the
+  question instead of at cavern entry. The `keysOnFloor` and `shoesOnFloor` snapshots
+  are gone.
+
+The cost is bounded and was measured: the pickup dimension asks the question 1,144
+times over the whole mp20 journey, and the list is tens of records, so the live read is
+noise next to the search it sits inside. `isLoadedCavern` still gates it, and a cavern
+that is not loaded still answers "not known to be gone" — `nav-guide-cross-door` is
+what pins that half, and it is unchanged.
+
+### 22f. Tests
+
+- `nav-route-cases` `mp20: the journey the player was walked round in circles on` —
+  the journey exists and costs two doors; the pocket replay never goes below zero and
+  finds two *distinct* keys; **no key node is walked over twice**; and the re-plan the
+  guide makes the moment the hero steps on the first key goes on ahead to the second
+  rather than back over the first. The first two fail on the unfixed code with the
+  loop itself as the assertion.
+- `nav-guide-cross-door` `the floor is read when it is asked about, not when it was
+  written down` — a synthetic entity list, a `mark_collected`, and then: the key he is
+  carrying reads as gone, the one he has not taken still reads as there, the same for a
+  pair of shoes, and a collected record does not end the walk.

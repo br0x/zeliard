@@ -1284,6 +1284,124 @@ describe('mp21: the three ropes against a wall, from (93,56) to (86,39)', () => 
     });
 });
 
+describe('mp20: the journey the player was walked round in circles on', () => {
+    // Yaga Thread, a hero with **no shoes and no keys**, mp20 `(6,62)` to mp2d
+    // `(25,19)`. The route came back, and it is a route that costs two keys: the door
+    // at mp20 `(95,36)` into mp21 and the door at `(171,55)` into the arena.
+    //
+    // It came back claiming both of them **from the one key lying in the cavern**, at
+    // `(89,44)` — out to the node that holds it, one tile back, and over it again. The
+    // hero follows it, opens the first door, walks to the second with an empty pocket,
+    // and the guide re-plans, correctly, and sends him back for the key he is carrying.
+    //
+    // The cause is that the search's key dimension is a *counter* and the floor is a
+    // *set*: `keysAfterPickup` grants a pickup on every visit to a key node, and the
+    // engine grants it once. See docs/PATHFINDER_PLAN.md §22.
+    const START: NavEndpoint = { mapId: 2, col: 6, row: 62 };
+    const GOAL: NavEndpoint = { mapId: 4, col: 25, row: 19 };
+    /** Both mp20 keys, by the record the engine holds rather than the node walked. */
+    const KEY_A = '2,89,44,0';
+    const KEY_B = '2,149,44,0';
+    /** A `keyPresent` with nothing collected yet. */
+    const onFloor = (taken: ReadonlySet<string> = new Set()) =>
+        (mapId: number, col: number, row: number, kind: 0 | 1): boolean =>
+            !taken.has(`${mapId},${col},${row},${kind}`);
+
+    /**
+     * Walk `r` the way the engine would: every key node he goes over is picked up
+     * once, every closed door he goes through costs one.
+     */
+    function pocket(r: NavRoute, startKeys = 0): { low: number; end: number; picks: number } {
+        let held = startKeys;
+        let low = held;
+        let picks = 0;
+        const taken = new Set<string>();
+        for (let i = 0; i < r.hops.length; i++) {
+            const from = r.points[i]!;
+            const to = r.points[i + 1]!;
+            if (from.mapId !== to.mapId) {
+                const graph = store.get(from.mapId)!;
+                const portal = PORTALS[graph.portalAtNode[from.node]!];
+                if (portal?.key === 1) held--;
+            } else {
+                const graph = store.get(to.mapId)!;
+                if ((graph.keyCellAt[to.node] ?? -1) >= 0 && !taken.has(`${to.mapId}/${to.node}`)) {
+                    taken.add(`${to.mapId}/${to.node}`);
+                    held++;
+                    picks++;
+                }
+            }
+            low = Math.min(low, held);
+        }
+        return { low, end: held, picks };
+    }
+
+    it('fetches a key for each of the two doors it has to open', () => {
+        const r = findRoute({
+            store, caps: bareCapabilities(), start: START, goal: GOAL,
+            collectKeys: true, keyPresent: onFloor(),
+        });
+        expect(r, 'mp20 (6,62) -> mp2d (25,19)').not.toBeNull();
+        expect(r!.lockedDoors, 'two ordinary doors stand in the way').toEqual({ ordinary: 2, lion: 0 });
+        expect(r!.equipment, 'and it asks for no pair of shoes').toEqual([]);
+        expect(r!.maps, 'through mp21 and back, because that is the way round').toEqual([2, 3, 2, 4]);
+        const walked = pocket(r!);
+        expect(walked.picks, 'two distinct keys on the floor').toBe(2);
+        expect(r!.keysGained, 'and the route claims exactly those two')
+            .toEqual({ ordinary: 2, lion: 0 });
+        expect(walked.low, 'the pocket never goes below zero').toBe(0);
+    });
+
+    it('never counts the same key twice', () => {
+        // The loop itself: a key node the route stands on more than once, which the
+        // counter read as a second key.
+        const r = findRoute({
+            store, caps: bareCapabilities(), start: START, goal: GOAL,
+            collectKeys: true, keyPresent: onFloor(),
+        })!;
+        const seen = new Map<string, number>();
+        for (const p of r.points) {
+            const graph = store.get(p.mapId);
+            if (!graph || (graph.keyCellAt[p.node] ?? -1) < 0) continue;
+            const id = `${p.mapId}/${p.node}`;
+            seen.set(id, (seen.get(id) ?? 0) + 1);
+        }
+        const repeated = [...seen].filter(([, n]) => n > 1);
+        expect(repeated, 'no key node is walked over twice').toEqual([]);
+        expect(r!.picks.length, 'and one pick per key').toBe(seen.size);
+    });
+
+    it('goes on ahead when the hero re-plans holding the first key', () => {
+        // What the player actually hit: he steps on the key, the pocket changes, the
+        // guide re-plans — and the new route pointed back at the key he was standing
+        // on, because the answer to "is it still there" came from a snapshot of the
+        // floor taken when he walked into the cavern.
+        const first = findRoute({
+            store, caps: bareCapabilities(), start: START, goal: GOAL,
+            collectKeys: true, keyPresent: onFloor(),
+        })!;
+        const pick = first.picks[0]!;
+        const where = first.points[pick.at]!;
+        expect(`${where.mapId},89,44,0`, 'the first key is the one at (89,44)').toBe(KEY_A);
+
+        const after = findRoute({
+            store, caps: { ...bareCapabilities(), keys: 1 }, start: where, goal: GOAL,
+            collectKeys: true, keyPresent: onFloor(new Set([KEY_A])),
+        })!;
+        expect(after.picks.length, 'and it still fetches exactly one more').toBe(1);
+        expect(pocket(after, 1).low, 'with the pocket never going below zero').toBe(0);
+        // Forward, not back: the second fetch is the *other* key, sixty columns east.
+        const next = after.points[after.picks[0]!.at]!;
+        const graph = store.get(next.mapId)!;
+        const cell = graph.keyCellAt[next.node]!;
+        const record = `${next.mapId},${cell % graph.mapWidth},${(cell / graph.mapWidth) | 0},0`;
+        expect(record, 'the re-plan goes for the key at (149,44)').toBe(KEY_B);
+        expect(after.hops.slice(0, 6).some((h) => h.to.col < where.col),
+            'and nothing in the first few hops walks back west over the key')
+            .toBe(false);
+    });
+});
+
 describe('a few more real journeys', () => {
     it('finds a route inside mp80 from the start ledge to the left gallery', () => {
         const r = route(23, [113, 21], [120, 10]);

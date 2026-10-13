@@ -380,6 +380,7 @@ export function presentShoes(g: Uint8Array): Set<string> {
     for (;;) {
         const x = memRead16(g, m);
         if (x === 0xffff) return out;
+        if (isDeadRecord(x)) { m += 16; continue; }
         for (const handler of [memRead8(g, m + 4) & 0x1f, memRead8(g, m + 9) & 0x1f]) {
             if (handler === 0x1a || handler === 0x1e) {
                 out.add(`${x & 0xff},${memRead8(g, m + 2) & 0xff},`
@@ -408,9 +409,87 @@ export function presentKeys(g: Uint8Array): Set<string> {
     for (;;) {
         const x = memRead16(g, m);
         if (x === 0xffff) return out;
+        if (isDeadRecord(x)) { m += 16; continue; }
         const flags = memRead8(g, m + 4) & 0x1f;
         if (flags === 0x16 || flags === 0x17) {
             out.add(`${x & 0xff},${memRead8(g, m + 2) & 0xff},${flags === 0x16 ? 0 : 1}`);
+        }
+        m += 16;
+    }
+}
+
+/**
+ * Is this record a thing the player has already taken?
+ *
+ * `mark_collected` (dungeon-items.ts:161) writes `0xff00` over the record's `x` word,
+ * and `update_all_monsters_in_map` (dungeon-monsters.ts:103) skips any record whose
+ * high byte is `0xff` for exactly that reason — a collected item keeps its handler
+ * bytes, so the only thing that says it is gone is the `x` it was marked with.
+ *
+ * `remove_accomplished_items` at dungeon init drops the ones the *save* says are gone;
+ * this is the other half, the one that happens while the cavern is being played, and
+ * reading the list without it answers "still there" for a key in the hero's pocket.
+ */
+function isDeadRecord(x: number): boolean {
+    return ((x >> 8) & 0xff) === 0xff;
+}
+
+/**
+ * Is this key lying on the floor of the loaded cavern, asked *now*?
+ *
+ * {@link presentKeys} answers the same question for the whole cavern and is right
+ * about the world at the moment it is called — which for a caller that wants a Set is
+ * the moment it took one, and that is the trouble. A snapshot is taken when the hero
+ * walks into the cavern and never shrinks afterwards, so the first key he picks up in
+ * it is still on the floor in the snapshot for the rest of the session.
+ *
+ * That is not a cosmetic difference. The player's mp20 journey plans out to the key at
+ * `(89,44)`, and the moment he steps on it the guide re-plans — because the pocket
+ * changed — and the re-plan asks whether that key is still lying there. The snapshot
+ * says it is, so the answer is "go and get it", and the chevrons turn round and walk
+ * him back to the key he is already carrying. This is the same answer `presentKeys`
+ * gives, read at the moment it is asked, and it stops at the first match rather than
+ * building a set for one yes-or-no.
+ *
+ * Says nothing about any other cavern — see `isLoadedCavern`.
+ */
+export function keyIsPresent(g: Uint8Array, col: number, row: number, kind: 0 | 1): boolean {
+    let m = memRead16(g, MONSTERS_LIST);
+    for (;;) {
+        const x = memRead16(g, m);
+        if (x === 0xffff) return false;
+        if (!isDeadRecord(x) && (x & 0xff) === col && (memRead8(g, m + 2) & 0xff) === row) {
+            const flags = memRead8(g, m + 4) & 0x1f;
+            if (flags === 0x16 || flags === 0x17) {
+                if ((flags === 0x16 ? 0 : 1) === kind) return true;
+            }
+        }
+        m += 16;
+    }
+}
+
+/**
+ * Is this pair of shoes lying on the floor of the loaded cavern, asked *now*?
+ *
+ * {@link keyIsPresent} for a pair, and the same reason: §20b's journey is planned with
+ * `shoePresent`, and a pair the hero picks up mid-journey has to stop reading as a
+ * pickup the route may go and make. The handler byte names the pair directly for
+ * `0x1e`; `0x1a` is the pair the cavern level decides, which is `levelShoe`.
+ */
+export function shoeIsPresent(g: Uint8Array, col: number, row: number, shoe: number): boolean {
+    const level = (memRead8(g, CAVERN_LEVEL) - 4) & 0xff;
+    const levelShoe = level === 0 ? 4 : level === 1 ? 2 : 3;
+    let m = memRead16(g, MONSTERS_LIST);
+    for (;;) {
+        const x = memRead16(g, m);
+        if (x === 0xffff) return false;
+        if (!isDeadRecord(x) && (x & 0xff) === col && (memRead8(g, m + 2) & 0xff) === row) {
+            for (const handler of [memRead8(g, m + 4) & 0x1f, memRead8(g, m + 9) & 0x1f]) {
+                if (handler === 0x1a || handler === 0x1e) {
+                    if ((handler === 0x1e ? 1 : levelShoe) === shoe) return true;
+                    break;
+                }
+            }
         }
         m += 16;
     }

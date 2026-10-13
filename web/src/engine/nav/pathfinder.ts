@@ -768,8 +768,58 @@ function permitted(
 /** Find a route, or null when the goal is unreachable with what the hero has. */
 export function findRoute(options: FindRouteOptions): NavRoute | null {
     const route = search(options);
-    if (route || !options.collectKeys) return route;
+    if (!options.collectKeys) return route;
+    // The one-shot answer is checked before it is believed, because a key is on the
+    // floor until he walks over it *once* and the search's counter cannot tell the
+    // difference — see {@link claimsAreOnTheFloor}.
+    if (route && claimsAreOnTheFloor(route, options)) return route;
     return searchViaKey(options);
+}
+
+/**
+ * Does every key the route claims to have picked up exist on the floor?
+ *
+ * `keysAfterPickup` is a function of the node the hero steps onto, not of the path he
+ * took to it: walk over a key and the counter goes up, walk back over it and it goes
+ * up again. The engine's is not like that — a key is *there* until he walks over it,
+ * and then it is in his pocket and not there any more (`flag_16`, dungeon-items.ts:
+ * :414) — so a search that walks over one key twice collects two, and the route
+ * spends a key the hero does not have.
+ *
+ * The player's mp20 journey is that route, and the shape it takes is a loop the guide
+ * then walks the hero round: mp20 `(6,62)` to mp2d `(25,19)` needs two keys for the
+ * doors at `(95,36)` and `(171,55)`, and the graph found a 548-hop route that claimed
+ * both of them from the one key lying at `(89,44)` — out to the node, one tile back,
+ * and over it again. He follows it, opens the first door, walks to the second with an
+ * empty pocket, and the guide — correctly, given the route it was handed — sends him
+ * back for the key he is already carrying.
+ *
+ * So the check is the engine's own: walk the route's points, count each key record once
+ * however many times the hero crosses it, and ask whether there are that many. It is
+ * the same two questions `keysAlong` asks and the same `keyPresent` answer, so a route
+ * that passes is one the hero can actually finish, and one that does not is the
+ * decomposition's to answer — which is §13 rule 14's mechanism, and the one that
+ * counts a key once to begin with.
+ */
+function claimsAreOnTheFloor(route: NavRoute, options: FindRouteOptions): boolean {
+    // Under `unlimitedKeys` the keys were assumed rather than fetched, so nothing is
+    // claimed and nothing is counted; there is nothing here to doubt.
+    if (route.keysGained.ordinary === 0 && route.keysGained.lion === 0) return true;
+    const walked = { ordinary: 0, lion: 0 };
+    const taken = new Set<string>();
+    // From 1: `describeRoute` counts a pickup as a counter *rise*, so the cell he
+    // starts on is not one the route claims anything for.
+    for (let i = 1; i < route.points.length; i++) {
+        const point = route.points[i]!;
+        const graph = options.store.get(point.mapId);
+        if (!graph) continue;
+        const kind = keyOnFloor(graph, point, options, taken);
+        if (kind === KEY_ORDINARY) walked.ordinary++;
+        else if (kind === KEY_LION) walked.lion++;
+        if (kind !== 0) taken.add(`${point.mapId}/${point.node}`);
+    }
+    return walked.ordinary >= route.keysGained.ordinary
+        && walked.lion >= route.keysGained.lion;
 }
 
 /**
@@ -958,29 +1008,49 @@ function keysAlong(
         const point = leg.points[i]!;
         const graph = options.store.get(point.mapId);
         if (!graph) continue;
-        const cell = graph.keyCellAt[point.node] ?? -1;
-        if (cell < 0) continue;
-        const kind = graph.keyKindAt[point.node]!;
-        if (kind !== KEY_LION && kind !== KEY_ORDINARY) continue;
-        const id = `${point.mapId}/${point.node}`;
-        if (visited.has(id)) continue;
-        // The same two questions the pickup itself is asked: which level the map is
-        // on, and whether the key is still lying there.
-        if (options.keyCavernLevel !== undefined) {
-            const meta = NAV_MAP_BY_ID.get(point.mapId);
-            if (meta && meta.cavernLevel !== options.keyCavernLevel) continue;
-        }
-        const col = cell % graph.mapWidth;
-        const row = (cell / graph.mapWidth) | 0;
-        if (options.keyPresent && !options.keyPresent(
-            point.mapId, col, row, kind === KEY_LION ? 1 : 0,
-        )) continue;
-        visited.add(id);
+        const kind = keyOnFloor(graph, point, options, visited);
+        if (kind === 0) continue;
+        visited.add(`${point.mapId}/${point.node}`);
         picks.push({ at: i, kind: kind === KEY_LION ? 1 : 0 });
         if (kind === KEY_LION) lion++;
         else ordinary++;
     }
     return { ordinary, lion, visited, picks };
+}
+
+/**
+ * The kind of key the hero picks up by standing on `point`, or 0 when he picks up
+ * none.
+ *
+ * The same two questions `keysAfterPickup` asks, asked the same way round, so a leg
+ * walked here and a search run there agree about what is on the floor: the map's
+ * **record** rather than the node the route walks through (§12, and §20b for the same
+ * question about a pair of shoes), the level the search is allowed to detour to, and
+ * the save's own answer to whether it is still lying there. `taken` holds the keys
+ * already counted, so one record is worth one key however many times the hero crosses
+ * it.
+ */
+function keyOnFloor(
+    graph: NavGraph,
+    point: NavPoint,
+    options: FindRouteOptions,
+    taken: ReadonlySet<string>,
+): 0 | 1 | 2 {
+    const cell = graph.keyCellAt[point.node] ?? -1;
+    if (cell < 0) return 0;
+    const kind = graph.keyKindAt[point.node]!;
+    if (kind !== KEY_LION && kind !== KEY_ORDINARY) return 0;
+    if (taken.has(`${point.mapId}/${point.node}`)) return 0;
+    if (options.keyCavernLevel !== undefined) {
+        const meta = NAV_MAP_BY_ID.get(point.mapId);
+        if (meta && meta.cavernLevel !== options.keyCavernLevel) return 0;
+    }
+    const col = cell % graph.mapWidth;
+    const row = (cell / graph.mapWidth) | 0;
+    if (options.keyPresent && !options.keyPresent(
+        point.mapId, col, row, kind === KEY_LION ? 1 : 0,
+    )) return 0;
+    return kind;
 }
 
 /**

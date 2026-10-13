@@ -255,7 +255,7 @@ import {
     makeDungeonInit,
     makeFinishRokademoTransition,
 } from './engine/dungeon-cutover.js';
-import { isLoadedCavern, presentKeys, presentShoes } from './engine/dungeon-items.js';
+import { isLoadedCavern, keyIsPresent, shoeIsPresent } from './engine/dungeon-items.js';
 import {
     getTownName as tsGetTownName,
     getCavernName as tsGetCavernName,
@@ -277,21 +277,6 @@ const g = (): Uint8Array => getGmem();
 const dungeonUpdateFn = makeDungeonUpdate(g);
 const dungeonInitFn = makeDungeonInit(g);
 
-/**
- * Keys lying on the floor of the current cavern, as `col,row,kind`.
- *
- * Read after the dungeon init, which drops the ones the player has already taken
- * from the entity list (`remove_accomplished_items`). The map screen asks it so a
- * route never detours for a key that is no longer there.
- */
-let keysOnFloor: Set<string> = new Set();
-/**
- * Pairs of shoes lying on the floor of the current cavern, as `col,row,shoe`.
- *
- * Read at the same moment as {@link keysOnFloor} and for the same reason: a route
- * must not send the player to fetch a pair he is already wearing.
- */
-let shoesOnFloor: Set<string> = new Set();
 const finishRokademoFn = makeFinishRokademoTransition(g);
 
 let engineReady  = false;
@@ -505,12 +490,19 @@ function openMapScreen(): void {
         // knows which, and a route must not fetch one that is gone. A cavern that is
         // not loaded is not known to be anything, so it answers true — the same rule
         // as `liveDoorOpen`'s null, and the one the comment on `onThisCavern` states.
+        //
+        // Asked of the entity list *at the moment of the question*, not of a snapshot
+        // taken when the hero walked in: a key he picks up while the cavern is being
+        // played is marked collected there and then (`mark_collected`), and a snapshot
+        // never shrinks. The player's mp20 thread plans out to the key at `(89,44)`,
+        // and the frame after he steps on it the guide re-plans and asks whether that
+        // key is still there — so a snapshot sends him back for the one in his pocket.
         keyPresent: (mapId, col, row, kind) => !onThisCavern(mapId)
-            || keysOnFloor.has(`${col},${row},${kind}`),
+            || keyIsPresent(getGmem(), col, row, kind),
         // A pair of shoes, like a key, may have been picked up already — and a pair
         // the player is already carrying is no detour at all.
         shoePresent: (mapId, col, row, shoe) => !onThisCavern(mapId)
-            || shoesOnFloor.has(`${col},${row},${shoe}`),
+            || shoeIsPresent(getGmem(), col, row, shoe),
         // The map is the cavern's own art, not a class-coloured sketch: the same
         // sheet `drawStaticTile` blits in the live view, so a wall on the map is
         // the colour that wall has in the game. Loaded per map and cached by the
@@ -545,9 +537,9 @@ const DOOR_RECORD_SIZE = 12;
 /**
  * Is `mapId` the cavern the engine currently has loaded?
  *
- * `keysOnFloor` and `shoesOnFloor` are read from the loaded cavern's entity list and
- * nothing else, so they say nothing at all about any other cavern — and a route is
- * routinely longer than one cavern.
+ * `keyIsPresent` and `shoeIsPresent` are answered from the loaded cavern's entity
+ * list and nothing else, so they say nothing at all about any other cavern — and a
+ * route is routinely longer than one cavern.
  *
  * Answering from them regardless of which map was asked about is how a key in mp10 came
  * to read as already collected: the player had walked the thread into mp21, mp21 has no
@@ -1641,8 +1633,6 @@ async function handleDungeonTransition(mapId: number, isFromTown: boolean): Prom
         await loadRokaImages();
         await loadEncounterImage();
         dungeonInitFn(rawMapId, isFromTown);
-        keysOnFloor = presentKeys(getGmem());
-        shoesOnFloor = presentShoes(getGmem());
         gameMode = 'dungeon';
         townEntryRan = false;
         const trackId = resolveMusicTrack(tsGetMusicTrackId(mdtBytes()));
@@ -2192,16 +2182,13 @@ async function performGameRestore(saveData: Uint8Array): Promise<void> {
     clearActiveRoute();
 
     // The rest of the pathfinder's state is a reading of the world the save is
-    // about to replace, and none of it is in the save. `keysOnFloor` and
-    // `shoesOnFloor` describe the cavern the engine has loaded, and
-    // `navGraphStore` holds every other cavern's platforms at the arrangement the
-    // hero last left them in — mid-ride included. A platform snaps back to its
-    // `startY` when its cavern is entered through a door, so the store's answer is
+    // about to replace, and none of it is in the save. `navGraphStore` holds every
+    // cavern's platforms at the arrangement the hero last left them in — mid-ride
+    // included. A platform snaps back to its `startY` when its cavern is entered
+    // through a door, so the store's answer is
     // not the one he will find, and a route planned over it walks into a passage
     // that is no longer there and runs out of budget before it notices. A hard
     // refresh clears all of it; so does this.
-    keysOnFloor = new Set();
-    shoesOnFloor = new Set();
     lastPlatformMapId = -1;
     navStore?.reset();
 

@@ -20,8 +20,10 @@ import { dirname, resolve } from 'node:path';
 import { NavGraphStore, findRoute } from '../src/engine/nav/pathfinder.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
 import { bareCapabilities } from '../src/engine/nav/capabilities.js';
-import { isLoadedCavern } from '../src/engine/dungeon-items.js';
-import { memWrite8 } from '../src/core/ts-memory.js';
+import {
+    isLoadedCavern, keyIsPresent, markCollected, presentKeys, presentShoes, shoeIsPresent,
+} from '../src/engine/dungeon-items.js';
+import { memWrite8, memWrite16 } from '../src/core/ts-memory.js';
 import { ADDR_PLACE_MAP_ID } from '../src/core/memory.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
 
@@ -51,6 +53,82 @@ describe('isLoadedCavern', () => {
         expect(isLoadedCavern(g, 3), '0x83 & 0x7f is 3').toBe(true);
         expect(isLoadedCavern(g, 0)).toBe(false);
         expect(isLoadedCavern(g, 16)).toBe(false);
+    });
+});
+
+describe('the floor is read when it is asked about, not when it was written down', () => {
+    // A cavern's entity list, 16 bytes a record, terminated by `x === 0xffff`.
+    const LIST = 0xd000;
+    const MONSTERS_LIST = 0xc010;
+    const CAVERN_LEVEL = 0xc012;
+    const KEY_HANDLER = 0x16;
+    const SHOE_HANDLER = 0x1a;
+
+    function cavern(records: { col: number; row: number; handler: number }[]): Uint8Array {
+        const g = new Uint8Array(0x10000);
+        memWrite16(g, MONSTERS_LIST, LIST);
+        records.forEach((r, i) => {
+            const m = LIST + i * 16;
+            memWrite16(g, m, r.col);
+            memWrite8(g, m + 2, r.row);
+            memWrite8(g, m + 4, r.handler);
+        });
+        memWrite16(g, LIST + records.length * 16, 0xffff);
+        return g;
+    }
+
+    const withKey = () => cavern([
+        { col: 89, row: 44, handler: KEY_HANDLER },
+        { col: 149, row: 44, handler: KEY_HANDLER },
+    ]);
+    const withShoe = () => {
+        const g = cavern([{ col: 208, row: 27, handler: SHOE_HANDLER }]);
+        memWrite8(g, CAVERN_LEVEL, 5);   // level 5's pair is Pirika
+        return g;
+    };
+
+    it('finds what is lying there', () => {
+        const g = withKey();
+        expect(keyIsPresent(g, 89, 44, 0)).toBe(true);
+        expect(keyIsPresent(g, 149, 44, 0)).toBe(true);
+        expect(keyIsPresent(g, 89, 44, 1), 'and nothing that is not').toBe(false);
+        expect(keyIsPresent(g, 90, 44, 0)).toBe(false);
+        expect(presentKeys(g)).toEqual(new Set(['89,44,0', '149,44,0']));
+    });
+
+    it('stops saying a key is there the moment he picks it up', () => {
+        // The player's mp20 thread: he walks to the key at `(89,44)` to open the door
+        // at `(95,36)`, and the frame after he steps on it the guide re-plans. Read
+        // from a snapshot taken when he walked into the cavern, that key is still on
+        // the floor for the rest of the session — and the re-plan goes back for it.
+        const g = withKey();
+        markCollected(g, LIST);
+        expect(keyIsPresent(g, 89, 44, 0), 'the key he is carrying').toBe(false);
+        expect(presentKeys(g), 'and the whole-cavern answer agrees').toEqual(new Set(['149,44,0']));
+        expect(keyIsPresent(g, 149, 44, 0), 'while the one he has not taken still is')
+            .toBe(true);
+    });
+
+    it('says the same for a pair of shoes', () => {
+        const g = withShoe();
+        expect(shoeIsPresent(g, 208, 27, 2)).toBe(true);
+        expect(shoeIsPresent(g, 208, 27, 1)).toBe(false);
+        markCollected(g, LIST);
+        expect(shoeIsPresent(g, 208, 27, 2), 'the pair he put on').toBe(false);
+        expect(presentShoes(g).size).toBe(0);
+    });
+
+    it('ends at the end of the list rather than at a collected record', () => {
+        // `mark_collected` writes `0xff00`, and the terminator is `0xffff`; a walk
+        // that only knows the second one runs on into the rest of the list.
+        const g = cavern([
+            { col: 89, row: 44, handler: KEY_HANDLER },
+            { col: 149, row: 44, handler: KEY_HANDLER },
+            { col: 7, row: 30, handler: KEY_HANDLER },
+        ]);
+        markCollected(g, LIST);
+        expect(presentKeys(g), 'the two behind the collected one are still found')
+            .toEqual(new Set(['149,44,0', '7,30,0']));
     });
 });
 
