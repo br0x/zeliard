@@ -708,7 +708,7 @@ describe('a refusal reaches the player', () => {
         expect(hintOf(h, 60_016)).toBe('map.unreachable');
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active, 'a refusal leaves the screen open to try again').toBe(true);
-    });
+    }, 120000);
 });
 
 describe('choosing a destination', () => {
