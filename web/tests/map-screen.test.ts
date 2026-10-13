@@ -127,6 +127,51 @@ function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
     };
 }
 
+/** The canvas pixel at the centre of a cell of the map on screen. */
+function pixelOf(screen: MapScreen, col: number, row: number): { x: number; y: number } {
+    const { ox, oy, scale } = screen.originFor(screen.displayMapId);
+    return {
+        x: ox + col * scale + Math.floor(scale / 2),
+        y: oy + row * scale + Math.floor(scale / 2),
+    };
+}
+
+/** A standing position in mp10 far enough away to be worth walking to. */
+function farNode(screen: MapScreen): { col: number; row: number } {
+    const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+    const graph = store.get(0)!;
+    for (let i = 0; i < graph.nodes.length; i++) {
+        const node = graph.nodes[i]!;
+        if (node.kind !== 0) continue;
+        const d = Math.abs(node.col - HERO.col);
+        if (d > 40 && d < 90) return { col: node.col, row: node.row };
+    }
+    throw new Error('no standing position in mp10 far from the hero');
+}
+
+/** A cell of mp10 with no standing position anywhere near it — a refusal. */
+function unreachableCell(screen: MapScreen): { col: number; row: number } {
+    const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+    const graph = store.get(0)!;
+    for (let col = 0; col < graph.mapWidth; col++) {
+        for (let row = 0; row < 64; row++) {
+            if (screen.snapToNode(col, row) < 0) return { col, row };
+        }
+    }
+    throw new Error('every cell of mp10 is within the snap radius of a node');
+}
+
+/** The hint line of one frame — a refusal while one is set, the controls after. */
+function hintOf(h: Harness, now: number): string {
+    const seen: string[] = [];
+    const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string) => {
+        seen.push(t);
+    }) as never);
+    h.draw(now);
+    spy.mockRestore();
+    return seen[seen.length - 1]!;          // the hint line is drawn last
+}
+
 /** mp10's tiles that the cavern sheet has art for — one blit each. */
 const BLITTABLE_IN_MP10 = (() => {
     const bytes = readFileSync(resolve(REPO, 'web/public/game/0/mp10.mdt'));
@@ -344,6 +389,25 @@ describe('fitting every cavern into the canvas', () => {
         expect(screen.scaleFor(8)).toBe(2);      // mp40, 320 wide
     });
 
+    it('fits the chart inside the border, not edge to edge', () => {
+        // `draw` strokes a 2px frame 4px in from the edge, so a chart may use
+        // 660px and not 672. mp20 is 224 columns and 672/224 is 3.000: asking the
+        // canvas for a width it does not have put the map straight over both sides
+        // of the frame, and every other cavern clears it by 2px or more, which is
+        // why only mp20 showed it.
+        const BORDER = 6;
+        const { screen } = harness();
+        for (const meta of NAV_MAPS) {
+            const { ox, scale } = screen.originFor(meta.id);
+            expect(ox, `${meta.nameKey} left gap`).toBeGreaterThanOrEqual(BORDER);
+            expect(672 - (ox + meta.mapWidth * scale), `${meta.nameKey} right gap`)
+                .toBeGreaterThanOrEqual(BORDER);
+        }
+        expect(NAV_MAP_BY_ID.get(2)!.mapWidth, 'mp20 is 224 columns wide').toBe(224);
+        expect(screen.scaleFor(2), 'and 224 * 3 is the whole canvas, so 2x it is')
+            .toBe(2);
+    });
+
     it('draws every boss arena far larger than fitting all 64 rows allowed', () => {
         // The point of the trimmed chart. Every arena is 52..73 tiles wide and two
         // thirds filler, so fitting the whole ring held them at 5x — a third under
@@ -514,28 +578,6 @@ describe('clicking maps back to tiles', () => {
 });
 
 describe('the mouse aims, and only Enter spends the thread', () => {
-    /** The canvas pixel at the centre of a cell of the map on screen. */
-    function pixelOf(screen: MapScreen, col: number, row: number): { x: number; y: number } {
-        const { ox, oy, scale } = screen.originFor(screen.displayMapId);
-        return {
-            x: ox + col * scale + Math.floor(scale / 2),
-            y: oy + row * scale + Math.floor(scale / 2),
-        };
-    }
-
-    /** A standing position in mp10 far enough away to be worth walking to. */
-    function farNode(screen: MapScreen): { col: number; row: number } {
-        const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
-        const graph = store.get(0)!;
-        for (let i = 0; i < graph.nodes.length; i++) {
-            const node = graph.nodes[i]!;
-            if (node.kind !== 0) continue;
-            const d = Math.abs(node.col - HERO.col);
-            if (d > 40 && d < 90) return { col: node.col, row: node.row };
-        }
-        throw new Error('no standing position in mp10 far from the hero');
-    }
-
     it('a click moves the target rectangle, and nothing else happens', () => {
         // The reported defect, verbatim: a click both aimed and confirmed, so
         // reaching for a spot spent the thread there. The click is now the same
@@ -608,37 +650,64 @@ describe('the mouse aims, and only Enter spends the thread', () => {
         expect(h.picked(), 'browsing is not choosing').toHaveLength(0);
     });
 
-    it('clears the last refusal when the player aims somewhere else', async () => {
+it('clears the last refusal when the player aims somewhere else', async () => {
         // "That place is not passable." is about the cell it was asked for, and a
         // click has just moved the target off it.
-        const hintOf = (h: Harness): string => {
-            const seen: string[] = [];
-            const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string) => {
-                seen.push(t);
-            }) as never);
-            h.draw(0);
-            spy.mockRestore();
-            return seen[seen.length - 1]!;      // the hint line is drawn last
-        };
-
         const h = harness({ text: (k: string) => k });
-        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
-        const graph = store.get(0)!;
-        let empty = -1;
-        for (let col = 0; col < graph.mapWidth && empty < 0; col++) {
-            for (let row = 0; row < 64; row++) {
-                if (h.screen.snapToNode(col, row) < 0) { empty = col * 100 + row; break; }
-            }
-        }
-        expect(empty).toBeGreaterThanOrEqual(0);
-        await h.screen.choose(Math.floor(empty / 100), empty % 100);
-        expect(hintOf(h)).toBe('map.noPath');
+        const cell = unreachableCell(h.screen);
+        h.draw(0);
+        await h.screen.choose(cell.col, cell.row);
+        expect(hintOf(h, 16)).toBe('map.noPath');
 
         const goal = farNode(h.screen);
         const { x, y } = pixelOf(h.screen, goal.col, goal.row);
         h.screen.handleClick(x, y);
-        expect(hintOf(h), 'the refusal was about the cell before this one')
+        expect(hintOf(h, 16), 'the refusal was about the cell before this one')
             .toBe('map.hints');
+    });
+});
+
+describe('a refusal reaches the player', () => {
+    it('draws it at the time a map is actually opened', async () => {
+        // The report, as a fact about the game: no refusal had ever been seen. `fail`
+        // stamped the literal `2000` while `draw` is handed `performance.now()`, so
+        // the message could only ever be on screen during the first two seconds of the
+        // page's life — and the map is opened from the inventory, minutes into a
+        // game. `now` was long past the deadline, so an unreachable destination was
+        // reported by silence.
+        const h = harness({ text: (k: string) => k });
+        h.draw(60_000);
+        const cell = unreachableCell(h.screen);
+        await h.screen.choose(cell.col, cell.row);
+        expect(h.picked()).toHaveLength(0);
+        expect(hintOf(h, 60_016), 'one frame after the refusal').toBe('map.noPath');
+    });
+
+    it('gives the hint line back after two seconds', async () => {
+        const h = harness({ text: (k: string) => k });
+        h.draw(60_000);
+        const cell = unreachableCell(h.screen);
+        await h.screen.choose(cell.col, cell.row);
+        expect(hintOf(h, 61_999), 'still up just before the deadline').toBe('map.noPath');
+        expect(hintOf(h, 62_000), 'and gone at it').toBe('map.hints');
+    });
+
+    it('names the refusal that fits, and the screen stays open', async () => {
+        // mp29 is mp90, behind a Lion-Head door and not in mp10's reachable set. A
+        // standing position *on* mp29 is a valid destination the search refuses —
+        // all four rungs, the last one carrying every key and every shoe in the
+        // game — which is a different sentence from "no such cell", and the screen
+        // has one line for it.
+        const h = harness({ text: (k: string) => k });
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const graph = store.get(29)!;
+        const node = graph.nodes.find((n) => n.kind === 0)!;
+        h.screen.displayMapId = 29;
+        h.draw(60_000);
+        await h.screen.choose(node.col, node.row);
+        expect(hintOf(h, 60_016)).toBe('map.unreachable');
+        expect(h.picked()).toHaveLength(0);
+        expect(h.screen.active, 'a refusal leaves the screen open to try again').toBe(true);
     });
 });
 
@@ -1332,17 +1401,24 @@ describe('drawing does not throw for any map', () => {
         void screen.choose(10, 10);
     });
 
-    it('shows a transient message instead of the hint line while one is set', () => {
+    it('shows a transient message instead of the hint line while one is set', async () => {
+        // The hint line is drawn every frame; a failure message replaces it only
+        // for its lifetime, which is why it is drawn on top rather than stored.
+        // Driving a real refusal is the whole point — the old version drew a frame
+        // with no message set and asserted the *absence* of the thing under test.
         const seen: string[] = [];
         const h = harness({ text: (k: string) => k });
+        const cell = unreachableCell(h.screen);
+        h.draw(0);
+        await h.screen.choose(cell.col, cell.row);
         const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string) => {
             seen.push(t);
         }) as never);
-        h.screen.draw(0);
-        // The hint line is drawn every frame; a failure message replaces it only
-        // for its lifetime, which is why it is drawn on top rather than stored.
-        expect(seen.some((t) => t === 'map.hints')).toBe(true);
+        h.draw(16);
         spy.mockRestore();
+        expect(seen).not.toContain('map.hints');
+        expect(seen[seen.length - 1], 'the refusal is the last line drawn')
+            .toBe('map.noPath');
     });
 
     it('sets the hint line in the only face whose glyphs fit it', () => {

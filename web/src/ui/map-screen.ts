@@ -27,8 +27,8 @@
  *   y 414..430 hint line
  *
  * The map is the cavern at an integer scale that fits its chart, the rows of it
- * that have anything on them:
- * `S = floor(min(672/W, 336/charted))`, clamped to 1..12. The widest cavern is
+ * that have anything on them, inside the border rather than edge to edge:
+ * `S = floor(min(660/W, 336/charted))`, clamped to 1..12. The widest cavern is
  * 320 tiles, so S is 2 there and everything fits without panning or zooming. A
  * cavern 73 tiles wide or less is not asked to fit all 64 of its rows: a boss
  * arena is two thirds solid rock and draws at 9x, or 12x at 52 tiles wide.
@@ -68,6 +68,25 @@ const AREA_TOP = STRIP_TOP + STRIP_H;   // 54
 const AREA_H = 336;                     // 54..390, clear of the status line
 const STATUS_TOP = 394;
 const HINT_TOP = 414;
+/**
+ * How far inside the canvas edge the border sits, and what is left to draw in.
+ *
+ * `draw` strokes a 2px frame 4px in from the edge, so the map has to fit 660px
+ * and not 672 — and nothing looks wrong until a map lands exactly on the
+ * difference. mp20 is 224 columns and 672/224 is 3.000: the fit asked the canvas
+ * for a width it does not have, and the chart came out 672px wide, straight over
+ * both sides of the frame. Every other cavern is 2px or more clear, which is why
+ * this sat unnoticed until somebody opened mp20.
+ */
+const BORDER_INSET = 6;
+const MAP_W = VIEW_W - 2 * BORDER_INSET;   // 660
+/**
+ * How long a refusal stays on the hint line.
+ *
+ * Long enough to read a route of words, short enough that the controls are back
+ * before the player looks up from the map.
+ */
+const REFUSAL_MS = 2000;
 /**
  * Ceiling on the display scale.
  *
@@ -238,6 +257,22 @@ export class MapScreen {
     private loading = false;
     private message = '';
     private messageUntil = 0;
+    /**
+     * The clock `draw` was last called with, in its own units (ms).
+     *
+     * The screen has exactly one timer — the transient refusal message — and it has
+     * to be stamped from the same clock `drawHint` compares it against. It was not:
+     * `fail` wrote the literal `2000` and `draw` is handed `performance.now()`, so a
+     * refusal was only on screen during the first two seconds of the page's life.
+     * The map is opened from the inventory, minutes into a game, so `now` was long
+     * past it and **no refusal has ever been drawn** — the one thing the message
+     * exists to say, reported to nobody. The player is told a destination is
+     * unreachable by silence.
+     *
+     * Recorded in `draw` rather than read from `performance` here, because then the
+     * two ends cannot drift apart again and a test drives both with one number.
+     */
+    private clock = 0;
     /** The hero's map when the screen opened; the reachable set is keyed off it. */
     private heroMapId = 0;
     /**
@@ -359,7 +394,8 @@ export class MapScreen {
     /** Integer scale that fits this map's chart in the map area. */
     scaleFor(mapId: number): number {
         const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
-        const s = Math.floor(Math.min(VIEW_W / width, AREA_H / this.chartedRows(mapId)));
+        // Inside the border, not edge to edge — see {@link BORDER_INSET}.
+        const s = Math.floor(Math.min(MAP_W / width, AREA_H / this.chartedRows(mapId)));
         return Math.max(1, Math.min(MAX_SCALE, s));
     }
 
@@ -643,7 +679,8 @@ export class MapScreen {
 
     private fail(message: string): void {
         this.message = message;
-        this.messageUntil = 2000;
+        // A deadline on the screen's own clock, not a constant — see {@link clock}.
+        this.messageUntil = this.clock + REFUSAL_MS;
         this.deps.soundManager?.playSfx?.(22);
     }
 
@@ -893,6 +930,7 @@ export class MapScreen {
 
     draw(now: number): void {
         if (!this.active) return;
+        this.clock = now;
         const { ctx } = this.deps;
         ctx.save();
         ctx.fillStyle = '#000';

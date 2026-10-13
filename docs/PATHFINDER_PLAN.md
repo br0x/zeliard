@@ -332,6 +332,35 @@ Two things were wrong before, and both cost the player the thread:
 `handleClick` clears the transient refusal message: *"That place is not passable."* is
 about the cell it was asked for, and a click has just moved the target off it.
 
+### The chart fits inside the border
+
+`scaleFor` fits `floor(min(672/W, 336/charted))`, and 672 is the canvas — not the area
+inside the frame `draw` strokes 4px in from the edge. That is a 6px lie on each side,
+and only one cavern in the game steps on it: **mp20 is 224 columns and 672/224 is
+3.000**, so the fit asked for a scale the canvas cannot hold and drew the chart 672px
+wide, straight across both sides of the border. Every other map clears it by 2px or
+more (the next nearest are mp21's 480 and mp40's 640), which is why this was reported
+against mp20 and looked like a fact about mp20.
+
+The fit is now `floor(min(660/W, 336/charted))` (`BORDER_INSET`/`MAP_W`), and mp20
+draws at 2x. `map-screen.test.ts` sweeps all 31 caverns and asserts both gutters are
+at least 6px, which catches the next one whatever its width.
+
+### Where a refusal is printed, and why nobody has seen one
+
+On the **hint line** — the last row, `y 414`, the same row that carries the controls —
+for two seconds, in place of the controls. That is the only place the screen prints
+anything about a failed destination.
+
+It was never seen because `fail` stamped the literal `2000` as the deadline while
+`draw` is handed `performance.now()`: the message was on screen only during the first
+two seconds of the *page's* life, and the map is opened from the inventory minutes
+into a game. `now` was long past the deadline, so an unreachable destination was
+reported by silence, and *"I never seen a single one"* was not a player failing to
+notice. The screen now records the clock `draw` was last called with and stamps the
+deadline from it, so the two ends cannot disagree again and a test drives both with
+one number. Rule 23 is the same obligation about decaying data, in time.
+
 ### Platforms on the chart
 
 A platform is runtime state, not map data. `render_vertical_platforms_to_proximity`,
@@ -453,14 +482,16 @@ Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1044` tests passing.
+- `1048` tests passing.
 - `0` tests failing.
 
 The five failures recorded here closed on the previous revision; the mp80 journey to
 `(244,7)` and what it says about the lift model is §15, and the rules it added are
 §16.24 to §16.27. The pair a level-5 journey could not fetch is §20, and the rules it
-added are §16.28 and §16.29. The map screen's input contract — aim, then Enter — is
-§6, and the rule it added is §16.30.
+added are §16.28 and §16.29. The map screen's input contract — aim, then Enter — and the
+two defects under it (a chart fitted to the canvas rather than to the border, and a
+refusal stamped on a clock `draw` never read) are §6, and the rules they added are
+§16.30 to §16.32.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -1008,6 +1039,16 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
 30. **On the map screen, aiming and committing are different acts.** A click or an arrow
     key puts the target rectangle on a cell; Enter spends the thread and a click never does. A pointer that trails the mouse is not aiming, it is
     re-deciding: on a 320-column chart, looking at the map is itself an input. See §6.
+31. **A timer and the clock it is compared against are one clock.** `fail` wrote a literal
+    `2000` into a field that `drawHint` compared against `performance.now()`, so a refusal
+    could only appear during the first two seconds of the *page's* life — and the map is
+    opened from the inventory minutes into a game. Nothing was drawn and nothing failed: a
+    deadline is a value on the same timeline as the frame that reads it. Rule 23 is the
+    same obligation about decaying data, in time. See §6.
+32. **Fit inside the border, not to the canvas.** `draw` strokes a frame 4px in, so 672 is
+    not an available width; it is 660. A fit measured against the canvas is wrong only
+    where `width * scale` lands exactly on it — mp20, at 224 columns — so one report is
+    not one map's story, and a sweep over every map is what turns it into a rule. See §6.
 
 ## 17. Crouching
 - standing hero: 3×3
