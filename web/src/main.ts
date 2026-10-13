@@ -2667,10 +2667,14 @@ function canvasPointFromEvent(e: PointerEvent): { x: number; y: number } {
     };
 }
 
-// The cavern map is the only pointer-driven UI in the game, so these listeners
-// sit with the canvas and do nothing unless it is open. A modal counts as closed
-// input here: F7 reaches the map screen with the restore dialog on top of it, and
-// a click that landed on the dialog must not also pick a destination underneath.
+// The cavern map is the only pointer-driven UI in the game, so this listener
+// sits with the canvas and does nothing unless it is open. A modal counts as
+// closed input here: F7 reaches the map screen with the restore dialog on top of
+// it, and a click that landed on the dialog must not also aim underneath.
+//
+// There is no `pointermove` listener, and that is the point rather than an
+// oversight: on the map the target rectangle is a destination the player sets,
+// not a cursor that follows the mouse. A click aims, and only a key commits.
 canvas.addEventListener('pointerdown', e => {
     if (!mapScreenInstance?.active || modalManager.isActive) return;
     e.preventDefault();
@@ -2680,12 +2684,7 @@ canvas.addEventListener('pointerdown', e => {
         mapScreenInstance.handleClickOutside();
         return;
     }
-    mapScreenInstance.handlePointer(x, y, 'down');
-});
-canvas.addEventListener('pointermove', e => {
-    if (!mapScreenInstance?.active || modalManager.isActive) return;
-    const { x, y } = canvasPointFromEvent(e);
-    mapScreenInstance.handlePointer(x, y, 'move');
+    mapScreenInstance.handleClick(x, y);
 });
 
 // Dungeon renderer: memory accessors + mutable asset bundle.

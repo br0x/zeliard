@@ -513,6 +513,135 @@ describe('clicking maps back to tiles', () => {
     });
 });
 
+describe('the mouse aims, and only Enter spends the thread', () => {
+    /** The canvas pixel at the centre of a cell of the map on screen. */
+    function pixelOf(screen: MapScreen, col: number, row: number): { x: number; y: number } {
+        const { ox, oy, scale } = screen.originFor(screen.displayMapId);
+        return {
+            x: ox + col * scale + Math.floor(scale / 2),
+            y: oy + row * scale + Math.floor(scale / 2),
+        };
+    }
+
+    /** A standing position in mp10 far enough away to be worth walking to. */
+    function farNode(screen: MapScreen): { col: number; row: number } {
+        const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const graph = store.get(0)!;
+        for (let i = 0; i < graph.nodes.length; i++) {
+            const node = graph.nodes[i]!;
+            if (node.kind !== 0) continue;
+            const d = Math.abs(node.col - HERO.col);
+            if (d > 40 && d < 90) return { col: node.col, row: node.row };
+        }
+        throw new Error('no standing position in mp10 far from the hero');
+    }
+
+    it('a click moves the target rectangle, and nothing else happens', () => {
+        // The reported defect, verbatim: a click both aimed and confirmed, so
+        // reaching for a spot spent the thread there. The click is now the same
+        // gesture as an arrow key — it moves the rectangle and stops.
+        const h = harness();
+        const before = `${h.screen.cursorCol},${h.screen.cursorRow}`;
+        const goal = farNode(h.screen);
+        const { x, y } = pixelOf(h.screen, goal.col, goal.row);
+        h.screen.handleClick(x, y);
+        expect(`${h.screen.cursorCol},${h.screen.cursorRow}`, 'the rectangle moved')
+            .toBe(`${goal.col},${goal.row}`);
+        expect(before).not.toBe(`${goal.col},${goal.row}`);
+        expect(h.picked(), 'and no route was planned').toHaveLength(0);
+        expect(h.screen.active, 'and the screen is still open').toBe(true);
+    });
+
+    it('Enter commits the cell the click just set', async () => {
+        const h = harness();
+        const goal = farNode(h.screen);
+        const { x, y } = pixelOf(h.screen, goal.col, goal.row);
+        h.screen.handleClick(x, y);
+        // `choose` is asynchronous — a route may need a cavern the game has not
+        // downloaded yet — so the keypress only starts it.
+        h.screen.handleKey('Enter', false, false, false);
+        await vi.waitFor(() => expect(h.picked()).toHaveLength(1));
+        const route = h.picked()[0] as { points: unknown[]; maps: number[] };
+        const end = route.points[route.points.length - 1] as { col: number; row: number };
+        expect([end.col, end.row], 'the route ends where the click aimed')
+            .toEqual([goal.col, goal.row]);
+        expect(route.maps).toEqual([0]);
+        expect(h.screen.active, 'and the screen closes').toBe(false);
+    });
+
+    it('never lets the pointer drag the target along behind it', () => {
+        // The target is a destination, not a cursor. It used to re-aim on every
+        // `pointermove`, so sweeping the mouse across a 320-column chart to look
+        // at it moved the thread's destination under the pointer. There is no
+        // motion entry point to reintroduce that through, and nothing in the
+        // composition root feeds pointer motion to the screen.
+        expect(Object.getOwnPropertyNames(MapScreen.prototype))
+            .not.toContain('handlePointer');
+        const main = readFileSync(resolve(REPO, 'web/src/main.ts'), 'utf8');
+        expect(main, 'no pointer-motion listener reaches the map screen')
+            .not.toMatch(/addEventListener\(\s*['"`]pointermove/);
+    });
+
+    it('ignores a click that lands off the chart', () => {
+        // A click below a trimmed chart, or beside it, is not a cell of the map
+        // and must leave the destination the player already aimed.
+        const h = harness();
+        const before = `${h.screen.cursorCol},${h.screen.cursorRow}`;
+        const { ox, oy, scale } = h.screen.originFor(0);
+        h.screen.handleClick(ox - 4, oy + 10);
+        h.screen.handleClick(ox + 10, oy - 4);
+        h.screen.handleClick(ox + 10, oy + h.screen.chartedRows(0) * scale + 4);
+        expect(`${h.screen.cursorCol},${h.screen.cursorRow}`).toBe(before);
+        expect(h.picked()).toHaveLength(0);
+    });
+
+    it('still browses the map strip with a click', () => {
+        // The strip is not a destination: clicking a tab is Tab's gesture, and it
+        // changed maps when the click also confirmed, so it has to keep doing it.
+        const h = harness();
+        const first = h.screen.displayMapId;
+        const count = NAV_REACHABLE[0]!.length;
+        const slot = 672 / count;
+        const index = NAV_REACHABLE[0]!.indexOf(first) + 1;
+        h.screen.handleClick(slot * (index + 0.5), 28 + 13);
+        expect(h.screen.displayMapId).toBe(NAV_REACHABLE[0]![index]);
+        expect(h.picked(), 'browsing is not choosing').toHaveLength(0);
+    });
+
+    it('clears the last refusal when the player aims somewhere else', async () => {
+        // "That place is not passable." is about the cell it was asked for, and a
+        // click has just moved the target off it.
+        const hintOf = (h: Harness): string => {
+            const seen: string[] = [];
+            const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string) => {
+                seen.push(t);
+            }) as never);
+            h.draw(0);
+            spy.mockRestore();
+            return seen[seen.length - 1]!;      // the hint line is drawn last
+        };
+
+        const h = harness({ text: (k: string) => k });
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const graph = store.get(0)!;
+        let empty = -1;
+        for (let col = 0; col < graph.mapWidth && empty < 0; col++) {
+            for (let row = 0; row < 64; row++) {
+                if (h.screen.snapToNode(col, row) < 0) { empty = col * 100 + row; break; }
+            }
+        }
+        expect(empty).toBeGreaterThanOrEqual(0);
+        await h.screen.choose(Math.floor(empty / 100), empty % 100);
+        expect(hintOf(h)).toBe('map.noPath');
+
+        const goal = farNode(h.screen);
+        const { x, y } = pixelOf(h.screen, goal.col, goal.row);
+        h.screen.handleClick(x, y);
+        expect(hintOf(h), 'the refusal was about the cell before this one')
+            .toBe('map.hints');
+    });
+});
+
 describe('choosing a destination', () => {
     /** A standing position on mp10, at least `min` columns from the hero. */
     function findNodeFrom(min: number): { col: number; row: number } | null {

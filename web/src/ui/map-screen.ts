@@ -3,9 +3,14 @@
  *
  * The screen exists for exactly one purpose: choosing where to go. It draws no
  * route — revealing the path before the player has committed to a destination
- * would spoil the cavern — and picking a point closes it straight back to the
- * inventory, whose usage message confirms the thread was spent. The route itself
- * appears only once the player leaves the inventory; see render/path-overlay.ts.
+ * would spoil the cavern — and confirming a point with Enter closes it straight
+ * back to the inventory, whose usage message confirms the thread was spent. The
+ * route itself appears only once the player leaves the inventory; see
+ * render/path-overlay.ts.
+ *
+ * Aiming and committing are separate. A click puts the target rectangle on a
+ * cell, exactly as an arrow key does, and does nothing else; Enter — the key the
+ * hint line names — is what spends the thread.
  *
  * It follows the shape of InventoryScreen rather than the `Modal` contract,
  * because it needs raw `KeyboardEvent.code` (Modal translates `KeyA` to `a`) and
@@ -382,23 +387,35 @@ export class MapScreen {
     // ── input ─────────────────────────────────────────────────────────────────
 
     /**
-     * A canvas-space pointer event.
+     * A click on the screen, in canvas space.
      *
      * The caller maps client pixels to canvas pixels, because the layout can be
      * CSS-scaled on touch devices (input/touch-input.ts:277-352).
+     *
+     * A click aims, and only aims: it puts the target rectangle on the cell under
+     * the pointer and leaves the screen open, exactly as an arrow key does.
+     * Enter commits — and the mouse does neither.
+     *
+     * This used to call `choose` outright, which made the mouse pick *and* confirm
+     * in one gesture: a player reaching for a spot and drifting a pixel while
+     * pressing spent the thread there, with no way to look at a target and change
+     * their mind, and the arrows were the only aiming the screen offered.
+     *
+     * There is deliberately no pointer-motion path — `handleClick` is the whole
+     * API, and the caller registers no `pointermove` listener for it. The target
+     * is a destination, not a cursor, and one that trailed the pointer meant that
+     * merely sweeping across a 320-column chart to look at it re-aimed the thread.
      */
-    handlePointer(canvasX: number, canvasY: number, kind: 'down' | 'move'): void {
+    handleClick(canvasX: number, canvasY: number): void {
         if (!this.active) return;
-        if (kind === 'move') {
-            const t = this.tileFromCanvas(canvasX, canvasY);
-            if (t) { this.cursorCol = t.col; this.cursorRow = t.row; }
-            return;
-        }
-        // A click in the map area picks a destination.
+        // The strip is Tab's, and a click on it browses exactly as it always did.
         if (canvasY < STRIP_TOP + STRIP_H) { this.clickStrip(canvasX, canvasY); return; }
         const t = this.tileFromCanvas(canvasX, canvasY);
         if (!t) return;
-        void this.choose(t.col, t.row);
+        this.cursorCol = t.col;
+        this.cursorRow = t.row;
+        // Whatever the last refusal said was about the cell before this one.
+        this.clearMessage();
     }
 
     /** A click outside the map dismisses, matching the rest of the UI. */

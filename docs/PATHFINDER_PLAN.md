@@ -310,6 +310,28 @@ The full map fits inside the 672×432 canvas without panning.
 
 The map UI must remain visually consistent with the existing inventory/menu UI.
 
+### Aiming is not committing
+
+The screen has one verb, and it is *aim*: move the target rectangle. Committing is
+**Enter** — and nothing else commits. `MapScreen.handleClick`
+is the whole pointer API — a click in the map area puts the rectangle on that cell and stops, a
+click on the strip browses (Tab's gesture), and `choose` runs only from the Enter case in
+`handleKey`.
+
+Two things were wrong before, and both cost the player the thread:
+
+- A click called `choose` outright, so the mouse aimed *and* confirmed in one gesture. A
+  player reaching for a spot and drifting a pixel while pressing spent the thread there,
+  and the only way to look at a destination and change their mind was the arrow keys, one
+  tile per press.
+- `pointermove` re-aimed on every frame, so sweeping the pointer across a chart to look
+  at it moved the destination under the pointer. There is no `pointermove` listener in
+  `main.ts` and no motion entry point on the screen, and `map-screen.test.ts` asserts
+  both, because either one alone would bring the trailing target back.
+
+`handleClick` clears the transient refusal message: *"That place is not passable."* is
+about the cell it was asked for, and a click has just moved the target off it.
+
 ### Platforms on the chart
 
 A platform is runtime state, not map data. `render_vertical_platforms_to_proximity`,
@@ -431,13 +453,14 @@ Current repository state:
 
 - `tsc --noEmit`: clean.
 - `nav:check`: up to date.
-- `1038` tests passing.
+- `1044` tests passing.
 - `0` tests failing.
 
 The five failures recorded here closed on the previous revision; the mp80 journey to
 `(244,7)` and what it says about the lift model is §15, and the rules it added are
 §16.24 to §16.27. The pair a level-5 journey could not fetch is §20, and the rules it
-added are §16.28 and §16.29.
+added are §16.28 and §16.29. The map screen's input contract — aim, then Enter — is
+§6, and the rule it added is §16.30.
 
 ## 12. The five level-8 failures, and how each closed
 
@@ -982,6 +1005,9 @@ Ride slots went from 5,969 to 5,989 and nodes from 30,297 to 30,317; the census 
     still worth having — it is what answers for a pair picked up on another level —
     but it must be the *last* thing offered, and the rungs above it must be able to
     do their job, which is §20b.
+30. **On the map screen, aiming and committing are different acts.** A click or an arrow
+    key puts the target rectangle on a cell; Enter spends the thread and a click never does. A pointer that trails the mouse is not aiming, it is
+    re-deciding: on a 320-column chart, looking at the map is itself an input. See §6.
 
 ## 17. Crouching
 - standing hero: 3×3
