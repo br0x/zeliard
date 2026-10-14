@@ -2,11 +2,12 @@
  * attributes.ts — per-cavern tile classification.
  *
  * Passability is not a property of a tile id: it is a 24-entry per-cavern table
- * that the engine pushes into seg1 at 0x8000 (core/ts-memory.ts:124-147), and the
- * engine resolves a tile through it at runtime. Those tables are pre-calculated
- * per map by tools/build-nav.mjs into web/src/data/nav/nav-tiles.ts, and this
- * module turns them into a single 64-entry flag lookup so classifying a cell is
- * one array read rather than a 24-way scan.
+ * that the engine pushes into seg1 at 0x8000 (core/ts-memory.ts:124-147), and
+ * the engine resolves a tile through it at runtime. Those tables are
+ * pre-calculated per map by tools/build-nav.mjs into
+ * web/src/data/nav/nav-tiles.ts, and this module turns them into a single
+ * 256-entry flag lookup so classifying a cell is one array read rather than a
+ * 24-way scan.
  *
  * The two blocking bits deliberately reproduce the engine's *two* different
  * predicates, which disagree over the platform band:
@@ -14,10 +15,10 @@
  *   is_blocking_tile         (dungeon-entities.ts:73)   tile >= 0x40 passes
  *   is_blocking_tile_simple  (dungeon-entities.ts:89)   tile >= 0x49 passes
  *
- * so a platform tile (0x40..0x48) blocks the body but not the head — which is why
- * the hero can stand on one. Collapsing both into a single SOLID bit would lose
- * that. For the *static* map the two agree, because the RLE is 6-bit and no tile
- * above 0x3F can appear; `staticTilesAreSixBit` asserts exactly that.
+ * so a platform tile (0x40..0x48) blocks the body but not the head — which is
+ * why the hero can stand on one. Collapsing both into a single SOLID bit would
+ * lose that. For the *static* map the two agree, because the RLE is 6-bit and
+ * no tile above 0x3F can appear; `staticTilesAreSixBit` asserts exactly that.
  */
 
 import { NAV, AIRFLOW_NONE, AIRFLOW_UP, AIRFLOW_LEFT, AIRFLOW_RIGHT } from './types.js';
@@ -59,18 +60,13 @@ export function airflowGroups(airflows: readonly number[]): {
 }
 
 /**
- * Read one zero-terminated 4-byte attribute group.
+ * Read one zero-terminated attribute group.
  *
- * The slope and aggressive tables are written as up to four tile ids followed by a
- * zero terminator (`SEG1_BASE + 0x8018` / `0x801C` / `0x8020`, plan §2.3), and the
- * generated arrays keep that terminator — `mp30`'s aggressive group is the three
- * real tiles plus the `0` that ends it. Building a `Set` from the raw array folds
- * that terminator in as a member, and tile `0` is *empty space*: it is most of a
- * cavern. So every open cell was classified aggressive and sloped, every node's
- * 3x3 footprint touched one, and `HAZARD_AGGRESSIVE` was set on all 978 nodes of
- * mp30 — which refused the hero every route on the map unless he wore Pirika
- * shoes. Stopping at the terminator is the same rule `airflowGroups` already
- * applies to the three current groups.
+ * The slope and aggressive tables are written as up to four tile ids followed
+ * by a zero terminator (`SEG1_BASE + 0x8018` / `0x801C` / `0x8020`). The
+ * generated arrays keep that terminator, and tile `0` is empty space — the bulk
+ * of a cavern — so folding it in as a member would classify every open cell as
+ * aggressive and sloped.
  */
 function terminatedGroup(entries: readonly number[]): Set<number> {
     const out = new Set<number>();
@@ -97,8 +93,8 @@ function lookupShared(tile: number, passable: Set<number>): boolean {
 /**
  * Tile classification for one cavern.
  *
- * Immutable after construction and safe to share; build it once per map and keep
- * it next to the decoded tile grid.
+ * Immutable after construction and safe to share; build it once per map and
+ * keep it next to the decoded tile grid.
  */
 export class NavTileClassifier {
     /** Lookup by map id. */
@@ -225,7 +221,7 @@ export class NavTileClassifier {
         return true;
     }
 
-    /** The 64-entry flag table, for bulk classification. Do not mutate. */
+    /** The 256-entry flag table, for bulk classification. Do not mutate. */
     table(): Readonly<Uint16Array> {
         return this.flags;
     }

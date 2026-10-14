@@ -37,41 +37,15 @@ const REFRESH_MS = 20_000;
 const MIN_INTERVAL_MS = 500;
 
 /**
- * How far ahead of where the hero's current visit begins his own cell may be found.
+ * How far ahead of where the hero's current visit begins his own cell may be
+ * found.
  *
  * The route is walked one cell at a time, so the anchor normally moves one or two
  * points a frame and this never comes into it. What it stops is a cell the route
- * passes **again later** pulling the anchor past everything in between. A rope the
- * route goes down and comes back up is the sharp case: standing at its mouth, the
- * hero's cell is not on the descent at all — it is the *ascent* a hundred points
- * later — so the scan found it there, the anchor landed on the way back, and the
- * chevrons reversed mid-rope: up the shaft and east to a door he had not reached,
- * with the whole descent behind the anchor and therefore never drawn.
- *
- * A crossing still works, because the window is measured from where the visit
- * begins, not from the old anchor: `visit` has already skipped off this map.
+ * passes **again later** pulling the anchor past everything in between: a rope the
+ * route goes down and comes back up, where the ascent is the later occurrence.
  */
 const ANCHOR_SCAN = 32;
-
-/**
- * Temporary: one line a second of what the guide thinks it is showing.
- *
- * The player reports "no chevrons leading to the key" while every test of the
- * route says the route is right, so the two things nobody can see from the
- * outside — where the anchor sits, and what the replan was actually asked —
- * have to say themselves. Off under vitest, where every test that builds a
- * guide would otherwise log; flip this to false when the report is closed.
- */
-const PATH_DIAG = false; //((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE) !== 'test';
-
-/** State lines are throttled; the guide ticks every frame. */
-const DIAG_INTERVAL_MS = 1000;
-let lastDiagAt = -Infinity;
-
-/** `25:(89,35)`, or `-` for nothing. */
-function at(p: { mapId: number; col: number; row: number } | null | undefined): string {
-    return p ? `${p.mapId}:(${p.col},${p.row})` : '-';
-}
 
 /** Cyclic distance between two columns on a cavern cylinder. */
 function columnDelta(a: number, b: number, mapWidth: number): number {
@@ -95,14 +69,11 @@ export interface PathGuideDeps {
     /**
      * Whether a door stands open right now, or null when the answer is not known.
      *
-     * The guide **re-plans** the route from wherever the hero has got to, and it has
-     * to plan it under the same assumptions the map screen did or the two disagree.
-     * A key is spent once and its door is then open for good, so a re-plan that fell
-     * back to the level data would price an already-open door as locked — and with the
-     * key spent and gone from the floor there would be nothing to fetch, so the search
-     * would find no route at all. The guide drops its route when that happens
-     * (`update`), which is the whole thread vanishing on the first frame after it is
-     * spent.
+     * The guide **re-plans** the route from wherever the hero has got to, and it
+     * has to plan it under the same assumptions the map screen did or the two
+     * disagree. A key is spent once and its door is then open for good, so a
+     * re-plan that fell back to the level data would price an already-open door as
+     * locked.
      *
      * Optional, and null is the normal answer for any cavern but the loaded one.
      */
@@ -110,17 +81,12 @@ export interface PathGuideDeps {
     /**
      * May a re-plan run this frame, or is the hero in the middle of something?
      *
-     * `findRoute` is synchronous, and it is the only thing in the per-frame path
-     * that can be seen to stall the game — the player reported the frame freezing
-     * for several milliseconds at random while he was following the chevrons. So it
-     * runs only when he is standing still with nothing held down; see
-     * {@link createHeroIdleProbe} for what that means in engine bytes.
+     * `findRoute` is synchronous, so it runs only when the hero is standing still
+     * with nothing held down; see {@link createHeroIdleProbe} for what that means
+     * in engine bytes.
      *
      * Optional, and absent means "always": the guide's own tests, and any embedder
-     * with no input to report, have no reason to wait. Deferring costs nothing —
-     * `lastPlanAt` is written by the search and not by the decision to run it, so
-     * a busy frame postpones the re-plan to the first idle one rather than pushing
-     * it back every time it is asked.
+     * with no input to report, have no reason to wait.
      */
     isIdle?: () => boolean;
 }
@@ -130,8 +96,8 @@ export interface PathGuideDeps {
  *
  * `pickOrd` / `pickLion` count key nodes still lying on the floor at index `i` and
  * after; `lockedOrd` / `lockedLion` count shut doors to be opened in `hops[i]` and
- * after. All four are suffix counts, so the answer at any anchor is a pair of array
- * reads.
+ * after. All four are suffix counts, so the answer at any anchor is a pair of
+ * array reads.
  */
 interface BudgetTables {
     readonly route: NavRoute;
@@ -144,23 +110,18 @@ interface BudgetTables {
 /**
  * Count a route's keys and shut doors, per pocket, from every point onwards.
  *
- * A key is counted **once**, at the point the search named it on, because walking over
- * one twice takes it once. A door is counted in `hops`, at the crossing, and only
- * while it is shut: a door the player has already opened costs nothing ever again.
+ * A key is counted **once**, at the point the search named it on, because walking
+ * over one twice takes it once. A door is counted in `hops`, at the crossing, and
+ * only while it is shut: a door the player has already opened costs nothing ever
+ * again.
  *
- * **Nothing here touches the store**, and that is not an optimisation. The first
- * version read `graph.portalAtNode` and `graph.keyCellAt`, and it failed: the guide is
- * routinely in a cavern whose graph has not been built — `store.reset` empties the lot
- * on every change of cavern — and asking the store for one *builds* it, which is the
- * largest thing in a frame and which `nav-platform-state` counts precisely because a
- * ride changes the arrangement every row. A cavern that is not built read as having
- * neither a shut door nor a key, so the shortfall quietly decayed to zero while the
- * stale route went on being drawn: the player's log had `short=1 askedShort=1` at one
- * anchor and `short=0` at the next, same anchor, same route.
- *
- * So the search says it instead. Every hop carries what its crossing costs and every
- * route names the points its keys lie on, precisely so this question can be answered
- * from the route alone, in the state the guide is usually in.
+ * **Nothing here touches the store**, and that is not an optimisation. The guide
+ * is routinely in a cavern whose graph has not been built — `store.reset` empties
+ * the lot on every change of cavern — and asking the store for one *builds* it,
+ * which is the largest thing in a frame. A cavern that is not built would read as
+ * having neither a shut door nor a key. So the search says it instead: every hop
+ * carries what its crossing costs and every route names the points its keys lie
+ * on.
  */
 function buildBudget(route: NavRoute): BudgetTables {
     const n = route.hops.length + 1;
@@ -169,9 +130,7 @@ function buildBudget(route: NavRoute): BudgetTables {
     const lockedOrd = new Int32Array(n);
     const lockedLion = new Int32Array(n);
 
-    // Doors first: one backwards pass, each hop adding what its crossing costs. A hop
-    // with `doorKey === 0` is either not a door or one the player has already opened and
-    // will not pay for again — the search made that call when it planned the hop.
+    // Doors first: one backwards pass, each hop adding what its crossing costs.
     for (let i = route.hops.length - 1; i >= 0; i--) {
         let ordinary = lockedOrd[i + 1]!;
         let lion = lockedLion[i + 1]!;
@@ -181,9 +140,8 @@ function buildBudget(route: NavRoute): BudgetTables {
         lockedLion[i] = lion;
     }
 
-    // Keys second: the search named the points they lie on, one entry each and already
-    // de-duplicated across a journey that walks over the same key twice. One backwards
-    // pass turns those into suffix counts.
+    // Keys second: the search named the points they lie on, one entry each and
+    // already de-duplicated. One backwards pass turns those into suffix counts.
     const marks = route.picks;
     let nextOrd = 0;
     let nextLion = 0;
@@ -193,8 +151,6 @@ function buildBudget(route: NavRoute): BudgetTables {
             next--;
             if (marks[next]!.kind === 1) nextLion++; else nextOrd++;
         }
-        // `i` counts the point the hero is standing on, and the anchor is a point, so
-        // the table is read at the anchor and answers for everything from it onwards.
         pickOrd[i] = nextOrd;
         pickLion[i] = nextLion;
     }
@@ -223,15 +179,14 @@ function mapWidthOf(mapId: number): number {
 /**
  * The cells a straight line between two positions covers, one tile at a time.
  *
- * For the moves the flight model does not replay — a ride, a lift, a door, a step —
- * the hero travels the whole way, so the line is drawn the whole way. Skipping these
- * is what left the drawn route broken across every door and every current in it.
+ * For the moves the flight model does not replay — a ride, a lift, a door, a step
+ * — the hero travels the whole way, so the line is drawn the whole way.
  */
 function lineCells(from: NavPoint, to: NavPoint): NavPoint[] {
     const cells: NavPoint[] = [{ ...from }];
     if (from.mapId !== to.mapId) {
-        // A door between maps: he steps through it, and the room on the other side is
-        // drawn from its own arrival, so the two ends are the honest line.
+        // A door between maps: he steps through it, and the room on the other side
+        // is drawn from its own arrival.
         cells.push({ ...to });
         return cells;
     }
@@ -257,14 +212,13 @@ function lineCells(from: NavPoint, to: NavPoint): NavPoint[] {
 }
 
 /**
- * The flight behind a fall, asked from every place the graph could have asked from.
+ * The flight behind a fall, asked from every place the graph could have asked
+ * from.
  *
- * `addFalls` builds a fall from the columns to either side of the hero, so the flight
- * that produced a given fall edge began one column from where the hero was standing.
- * The overlay only knows the hop's two ends, and the hero's own column is not one of
- * them, so it is asked as well. Whichever start finds the landing first is the flight
- * that was drawn, and its first cell is one column over — which is true, and which
- * `cellsForHop` already draws a chevron for.
+ * `addFalls` builds a fall from the columns to either side of the hero, so the
+ * flight that produced a given fall edge began one column from where the hero was
+ * standing. The overlay only knows the hop's two ends, and the hero's own column
+ * is not one of them, so it is asked as well.
  *
  * Only fall-shaped hops are asked three times; a jump is always from his own cell.
  */
@@ -283,12 +237,11 @@ function fallPath(model: JumpModel, from: NavPoint, to: NavPoint, mapWidth: numb
 const EMPTY_FLIGHT = new Int32Array(0);
 
 /**
- * Where a falling hero can begin, relative to the cell he is standing on: his own
- * column, either side of it, the column past him and one row up, and the column
- * *two* past him — `addFalls` asks from `node.col + dir` and from `far`, the
- * two-tile step off a rope, so a fall that leaves a rope starts two columns over
- * from the node the route records (mp80 (103,39) -> (108,41) is one of those: the
- * flight only begins once he has stepped out to 105).
+ * Where a falling hero can begin, relative to the cell he is standing on.
+ *
+ * `addFalls` asks from `node.col + dir` and from `far`, the two-tile step off a
+ * rope, so a fall that leaves a rope starts two columns over from the node the
+ * route records.
  */
 const FALL_STARTS: readonly (readonly [number, number])[] = [
     [0, 0], [-1, 0], [1, 0], [1, -1], [2, 0], [-2, 0],
@@ -310,10 +263,9 @@ export class PathGuide {
     private plannedKeys = -1;
     private plannedLionKeys = -1;
     /**
-     * How short of keys the last ask found the route to be, so the same shortfall is
-     * not asked about again on the very next frame. Zero before anything has been
-     * asked, which is the same answer as "the route is payable": the question only
-     * ever fires on a shortfall that is worse than the one already asked about.
+     * How short of keys the last ask found the route to be, so the same shortfall
+     * is not asked about again on the very next frame. Zero before anything has
+     * been asked, which is the same answer as "the route is payable".
      */
     private askedShortfall = 0;
     /** The platform positions the current route was planned against. */
@@ -333,8 +285,8 @@ export class PathGuide {
         route: NavRoute,
         goal: { mapId: number; col: number; row: number },
         /**
-         * What the route was planned under — whether it goes to fetch a key or a pair,
-         * and which doors stand open. The map screen knows which of its four rungs
+         * What the route was planned under — whether it goes to fetch a key or a
+         * pair, and which doors stand open. The map screen knows which of its rungs
          * answered and says so here, because the re-plan below has to repeat it.
          */
         plan: NavRoutePlan = {},
@@ -347,17 +299,11 @@ export class PathGuide {
         this.plannedMask = -1;      // force the next update() to record the plan
         this.askedShortfall = 0;
         this.lastPlanAt = 0;
-        if (PATH_DIAG) {
-            console.log(`[path] setRoute goal=${at(goal)} cost=${route.cost}`
-                + ` maps=[${route.maps.join(',')}] points=${route.points.length}`
-                + ` plan={keys:${!!plan.collectKeys}, shoes:${!!plan.planAccessories},`
-                + ` doorOpen:${typeof plan.doorOpen}}`);
-        }
     }
 
     /**
-     * The door state to re-plan under: the plan's own if it carries one, otherwise the
-     * live callback, otherwise nothing and the level data answers.
+     * The door state to re-plan under: the plan's own if it carries one, otherwise
+     * the live callback, otherwise nothing and the level data answers.
      */
     private doorState(): { doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null } {
         if (this.plan.doorOpen) return { doorOpen: this.plan.doorOpen };
@@ -367,8 +313,7 @@ export class PathGuide {
 
     /**
      * What a route still costs and still yields, counted once per route rather than
-     * once per frame: how many locked doors are left in each pocket from each index
-     * onwards, and how many keys are still lying on the floor along the way.
+     * once per frame.
      */
     private budgetOf: BudgetTables | null = null;
 
@@ -376,26 +321,13 @@ export class PathGuide {
      * How many keys the rest of the route cannot pay for from where the hero stands.
      * Positive is a shortfall: the route in hand is a plan he cannot finish.
      *
-     * Both halves are counted over the stretch **ahead of the anchor only**, and that
-     * is the whole of the fix. The first version compared the locked doors ahead with
-     * `keys + route.keysGained`, and `keysGained` is a total for the whole journey — so
-     * it counted keys the hero had already picked up as ones still coming. The player's
-     * log said so outright: standing at mp81 (151,16) on an 876-point route, `gained=2`
-     * and `keys=0`, both fetches already behind him, and the answer came back `-1` — a
-     * route with a locked door ahead and nothing in the pocket, reported as covered.
-     * That route walks him through the door at mp82 (174,10) into mp81 (227,60) and on
-     * to the shut door at mp81 (236,5), which is the "single chevron pointing back at
-     * the door" he reported.
-     *
-     * So a key counts only where the route has not been walked yet, and a key already
-     * taken is not counted at all. Counting per pocket rather than as one number is
-     * what keeps a Lion-Head key from being spent on an ordinary door.
+     * Both halves are counted over the stretch **ahead of the anchor only**. A key
+     * already taken is not counted at all, and a key counts only where the route has
+     * not been walked yet. Counting per pocket rather than as one number is what
+     * keeps a Lion-Head key from being spent on an ordinary door.
      *
      * The tables are built once per route and read every frame, because a route is
-     * walked a cell at a time and this is asked on each of them. `store.get` rather
-     * than `peek`: a cavern the route crosses may never have been built in this
-     * session's cache, and a graph that cannot be found reads as neither a door to pay
-     * for nor a key to pick up — the answer that lets a shut door through.
+     * walked a cell at a time and this is asked on each of them.
      */
     private keysShort(caps: HeroCapabilities): number {
         const route = this.route;
@@ -411,44 +343,8 @@ export class PathGuide {
         return Math.max(0, ordinary) + Math.max(0, lion);
     }
 
-
-    /**
-     * A hero standing on a cell the route passes **twice**, which is the only state in
-     * which the anchor can be wrong without anything else being wrong: two indices
-     * claim the same tile, and which one the hero is on is decided by where the old
-     * anchor was. mp82 (174,10) is the standing case — outbound for the key at
-     * mp81 (125,36), then on the way back out of it — and the two draw opposite
-     * chevrons from the same tile. Unthrottled, and only when the cell really is
-     * ambiguous, because it is the one line that names the difference.
-     */
-    private logDoubleVisit(): void {
-        const route = this.route;
-        const hero = this.deps.heroPosition();
-        if (!route || !hero) return;
-        const points = route.points;
-        const here: number[] = [];
-        for (let i = 0; i < points.length; i++) {
-            const p = points[i]!;
-            if (p.mapId === hero.mapId && p.col === hero.col && p.row === hero.row) here.push(i);
-        }
-        if (here.length < 2) return;
-        console.log(`[path] DOUBLE VISIT hero=${at(hero)}`
-            + ` indices=[${here.join(',')}] anchor=${this.progress}`
-            + ` keys=${this.deps.capabilities().keys}`
-            + ` short=${this.keysShort(this.deps.capabilities())}`
-            + ` next=${at(points[this.progress + 1])}`
-            + ` routePts=${points.length} maps=[${route.maps.join(',')}]`);
-    }
-
     /** Forget the route; the overlay draws nothing. */
     clear(): void {
-        if (PATH_DIAG && this.route) {
-            // Who cleared it matters more than that it did: a route dropped at a
-            // portal means no chevrons at all, and the caller is nowhere else visible.
-            console.warn(`[path] clear route goal=${at(this.goal)} anchor=${this.progress}`
-                + ` remaining=${this.route.points.length - this.progress}`);
-            console.trace('[path] clear called from');
-        }
         this.route = null;
         this.goal = null;
         this.progress = 0;
@@ -468,10 +364,6 @@ export class PathGuide {
 
     /** Hide the overlay without losing the route. */
     setDormant(dormant: boolean): void {
-        if (PATH_DIAG && dormant !== this.dormant) {
-            console.log(`[path] dormant=${dormant}`
-                + ` (this hides every chevron without clearing the route)`);
-        }
         this.dormant = dormant;
     }
 
@@ -479,8 +371,8 @@ export class PathGuide {
      * The kind of hop taken from `remaining()` index `index`.
      *
      * -1 at the last point, which has no hop. The overlay uses this to leave
-     * carried segments unmarked: a platform ride or a swept cell is not
-     * something the player walks.
+     * carried segments unmarked: a platform ride or a swept cell is not something
+     * the player walks.
      */
     hopKindAt(index: number): number {
         if (!this.route) return -1;
@@ -499,21 +391,8 @@ export class PathGuide {
     }
 
     /**
-     * Every cell one hop is drawn through, so a long hop is a line and not a gap.
-     *
-     * One chevron per hop put an arrow at the tile a jump *left* from and nothing at
-     * all for the nine columns it covered, which read on screen as a broken route
-     * exactly where the player had drawn a continuous one. A jump and a fall cover
-     * many cells, and the cells they cover are known exactly: nav/jump.ts replays
-     * the same descent the graph is built from, so this asks it where the hero
-     * actually goes rather than joining the ends with a line.
-     */
-    /**
-     * The shoes this route needs, in order, as a phrase for the log: `Silkarn shoes at
-     * (21,21), Feruza shoes at (23,16)`.
-     *
-     * A route that wants three changes of shoe is a different journey from one that
-     * wants none, and the player has to be told which they are being sent on.
+     * The shoes this route needs, in order, as a phrase: `Silkarn shoes at (21,21),
+     * Feruza shoes at (23,16)`.
      */
     equipment(): string {
         const route = this.route;
@@ -524,6 +403,15 @@ export class PathGuide {
             .join(', ');
     }
 
+    /**
+     * Every cell one hop is drawn through, so a long hop is a line and not a gap.
+     *
+     * One chevron per hop put an arrow at the tile a jump *left* from and nothing
+     * at all for the nine columns it covered. A jump and a fall cover many cells,
+     * and the cells they cover are known exactly: nav/jump.ts replays the same
+     * descent the graph is built from, so this asks it where the hero actually
+     * goes rather than joining the ends with a line.
+     */
     cellsForHop(index: number): NavPoint[] {
         const route = this.route;
         if (!route) return [];
@@ -539,15 +427,9 @@ export class PathGuide {
         }
         const model = this.flightModel(from.mapId);
         if (!model) return [from, to];
-        // Asked the way the graph asked when it built this hop, which is not the way
-        // this function's arguments suggest. A jump leaves from the hero's own cell and
-        // rises. A fall does neither: `addFalls` asks the model from the column *beside*
-        // him — he is already one column over when he starts dropping, and he chooses a
-        // column every row after that — and with no rise at all. A rise of 0 is not a
-        // smaller jump but a different question, and the wrong column is a third one, so
-        // asking either way wrong finds nothing. Then the overlay falls back to a
-        // straight line between the hop's two ends, and a ten-row fall becomes one
-        // diagonal drawn through whatever rock happens to be beside it.
+        // Asked the way the graph asked when it built this hop: a jump leaves from
+        // the hero's own cell and rises; a fall does neither — `addFalls` asks the
+        // model from the column *beside* him, with no rise at all.
         const falls = hop.kind === EDGE.FALL || hop.kind === EDGE.DROP;
         const heights = falls ? FALL_RISE_HEIGHTS : JUMP_RISE_HEIGHTS;
         const path = falls
@@ -569,17 +451,15 @@ export class PathGuide {
     /**
      * The two legs of a lift, which is what a lift is.
      *
-     * `enterLift` does not mean the hero moves from one cell to another. It means he
-     * reaches a cell an up current occupies — walking off a ledge into it, or passing
-     * through it mid-jump — and is then carried **straight up that column** to the
-     * exit, one row at a time, for as long as he is in the current. The swept cell is
-     * neither end of the edge: mp82 has `LIFT (23,0) -> (9,21)`, seventeen columns and
-     * twenty-one rows apart with the current in column 9.
+     * `enterLift` does not mean the hero moves from one cell to another. It means
+     * he reaches a cell an up current occupies — walking off a ledge into it, or
+     * passing through it mid-jump — and is then carried **straight up that
+     * column** to the exit, one row at a time, for as long as he is in the current.
+     * The swept cell is neither end of the edge.
      *
-     * So a line between the two ends is twenty-two tiles of fiction, and it goes
-     * through whatever rock lies between two standing positions. This draws the two
-     * legs instead — the approach, as the flight it is, then the climb — and only
-     * falls back to the straight line when the sweep is not recorded.
+     * So this draws the two legs instead — the approach, as the flight it is, then
+     * the climb — and only falls back to the straight line when the sweep is not
+     * recorded.
      */
     private liftCells(from: NavPoint, to: NavPoint): NavPoint[] {
         const graph = this.deps.store.peek(from.mapId);
@@ -627,8 +507,8 @@ export class PathGuide {
 
     private flightModel(mapId: number): JumpModel | null {
         // The cache first, and the width from map metadata rather than from a graph:
-        // this runs per drawn hop per frame, and a `get` here would rebuild the cavern
-        // whenever a platform had moved since the last one.
+        // this runs per drawn hop per frame, and a `get` here would rebuild the
+        // cavern whenever a platform had moved since the last one.
         const cached = this.flightModels.get(mapId);
         if (cached !== undefined) return cached;
         mapWidthOf(mapId);
@@ -637,33 +517,20 @@ export class PathGuide {
             this.flightModels.set(mapId, null);
             return null;
         }
-        // The same two masks the graph gives the model. A hop that ends on a platform
-        // or in a current is a real flight, and leaving either mask out means those
-        // hops cannot be replayed — the overlay falls back to the hop's two ends and
-        // the drawn line has a hole exactly where the route is most interesting.
-        //
-        // The third is where the platforms are *right now*, so a hop replays against
-        // the platform the route was planned with. The guide drops its flight models
-        // whenever that changes, so the two cannot drift apart.
+        // The same two masks the graph gives the model. A hop that ends on a
+        // platform or in a current is a real flight, and leaving either mask out
+        // means those hops cannot be replayed.
         const classifier = NavTileClassifier.forMap(mapId);
         const platformModel = buildPlatformModel(mapId, grid, this.deps.store.platformPlaces(mapId));
         const surfaces = new Uint8Array(grid.mapWidth * 64);
-        // The graph's rule, family by family (see `buildNavGraph`): a horizontal
-        // platform moves sideways along one fixed row, so every column of its span is
-        // a row it will be at again, and a hero who falls anywhere along it is landed
-        // on — the whole span is landable. A vertical platform only has the row it is
-        // on now, so `isLandingSlot` is the whole of it. Filtering both through
-        // `isLandingSlot` kept only the slots the platform currently occupies: on mp80
-        // that is three cells of the row 33 span instead of fifteen, and the fall off
-        // the ledge at (26,21) onto it could not be replayed at all — the overlay
-        // fell back to the hop's two ends and drew one chevron pointing straight down
-        // into the rock under the shaft.
+        // The graph's rule, family by family: a horizontal platform moves sideways
+        // along one fixed row, so every column of its span is a row it will be at
+        // again, and a hero who falls anywhere along it is landed on — the whole
+        // span is landable. A vertical platform only has the row it is on now.
         //
         // The horizontal row comes from `platformRow`, not `headRow + 3`. Where the
         // ceiling is under three tiles the hero crouches and his head row drops one,
-        // so the two are only the same row for a standing slot — and marking a
-        // crouched slot's platform a row too low makes the guide's model disagree
-        // with the graph's on exactly the flights that pass over one.
+        // so the two are only the same row for a standing slot.
         for (const slot of platformModel.slots) {
             if (slot.kind === PLATFORM_HORIZONTAL) {
                 const platformRow = slot.platformRow ?? (slot.headRow + 3);
@@ -694,20 +561,11 @@ export class PathGuide {
      * @param now performance.now()
      */
     update(now: number): void {
-        // Any throw here happens inside the per-frame update, so it takes the rest of
-        // the frame's work with it — the chevrons simply stop, with nothing on screen
-        // to say why. Say it instead.
+        // Any throw here happens inside the per-frame update, so it takes the rest
+        // of the frame's work with it — the chevrons simply stop, with nothing on
+        // screen to say why. Say it instead.
         try {
-            if (!this.route) {
-                // No route means nothing is drawn at all, which is the only state that
-                // looks exactly like the player's report. Throttle it the same way.
-                if (PATH_DIAG && now - lastDiagAt >= DIAG_INTERVAL_MS) {
-                    lastDiagAt = now;
-                    console.log('[path] guide has NO route — overlay draws nothing'
-                        + ` (arrived=${this.arrived} goal=${at(this.goal)} dormant=${this.dormant})`);
-                }
-                return;
-            }
+            if (!this.route) return;
             this.tick(now);
         } catch (err) {
             const hero = this.deps.heroPosition();
@@ -719,10 +577,9 @@ export class PathGuide {
     private tick(now: number): void {
         if (!this.route || !this.goal) return;
         this.advanceProgress();
-        // Arriving clears the route and raises the `arrived` latch. Returning here is
-        // what stops the tick falling into `needsReplan` with no route to inspect —
-        // which it did, once per arrival, throwing out of the per-frame update and
-        // taking the rest of the frame's work with it.
+        // Arriving clears the route and raises the `arrived` latch. Returning here
+        // is what stops the tick falling into `needsReplan` with no route to
+        // inspect.
         if (!this.route || this.arrived) return;
 
         const caps = this.deps.capabilities();
@@ -733,13 +590,11 @@ export class PathGuide {
         // augmented mask, so keeping it honest has to use the same one: re-searching
         // bare would drop every feruza/silkarn/pirika route on the first tick after
         // the thread is spent. Once the hero actually wears the needed accessory the
-        // augmented mask equals his real mask, so this stays correct either way.
+        // augmented mask equals his real mask.
         const wantsShoes = (this.route.equipment?.length ?? 0) > 0;
         const planCaps: HeroCapabilities = wantsShoes
             ? { ...caps, mask: caps.mask | SHOE_MASK }
             : caps;
-
-        this.logState(now, planCaps, hero);
 
         /**
          * True when the route in hand is a plan the hero can no longer finish: it
@@ -747,46 +602,28 @@ export class PathGuide {
          * left to open them with.
          *
          * This is the one invalidation that must not wait for an idle frame. Every
-         * other one — a platform under him moving, a refresh interval coming round —
-         * makes the route *stale*: the same journey, drawn a moment out of date. This
-         * one makes it *unwalkable*, because the key is gone. A hero who spent the
-         * key at mp80 (57,16) and kept walking held the route planned for the pocket
-         * he had one moment earlier, and it drew him out of the door at mp82 (174,10)
-         * towards the locked door at mp81 (236,5) with nothing in his pocket — the
-         * "as if I had the key" the player reported. Waiting for him to stop does not
-         * bring the key back; it only leaves him following a line into a shut door
-         * until he happens to pause.
-         *
-         * The count is deliberately generous in the hero's favour: it counts every
-         * key the route says it will pick up, including ones he has already picked
-         * up, so a shortfall here is a shortfall for certain.
+         * other one makes the route *stale*: the same journey, drawn a moment out
+         * of date. This one makes it *unwalkable*, because the key is gone. The
+         * count is deliberately generous in the hero's favour: it counts every key
+         * the route says it will pick up, including ones he has already picked up,
+         * so a shortfall here is a shortfall for certain.
          */
         const unpaid = this.keysShort(planCaps) > this.askedShortfall;
 
         if (!unpaid && !this.needsReplan(now, planCaps, hero)) return;
 
-        // The search is the only synchronous work in this frame that can be seen, so
-        // it waits for the hero to be standing still. The route it leaves on screen
-        // is stale for as long as he is moving — which is the trade he asked for: a
-        // line that lags a step behind beats a frame that drops. A route that walks
-        // him into a shut door is not that trade, so it goes out at once; a search
-        // keyed to a key count is a handful of frames per journey, not one a frame.
+        // The search is the only synchronous work in this frame that can be seen,
+        // so it waits for the hero to be standing still. A route that walks him
+        // into a shut door is not that trade, so it goes out at once.
         if (!unpaid && this.deps.isIdle && !this.deps.isIdle()) return;
 
         // What the world looks like to *this* route right now, captured before the
-        // search runs. It is recorded on every attempt below, successful or not, and
-        // that is the whole of the fix for the freeze the player hit on mp81: a
-        // platform move returns true from `needsReplan` ahead of every interval, so
-        // an attempt that left the signature stale re-fired on the very next frame —
-        // one synchronous `findRoute` after another for as long as he stood still.
+        // search runs. It is recorded on every attempt below, successful or not,
+        // because a platform move returns true from `needsReplan` ahead of every
+        // interval: an attempt that left the signature stale would re-fire on the
+        // very next frame.
         const askedFor = this.platformVersion();
         this.lastPlanAt = now;
-        if (PATH_DIAG) {
-            console.log(`[path] replan ask ${at(hero)} -> ${at(this.goal)}`
-                + ` keys=${planCaps.keys} mask=0x${(planCaps.mask >>> 0).toString(16)}`
-                + ` plan={keys:${!!this.plan.collectKeys}, shoes:${!!this.plan.planAccessories},`
-                + ` doorOpen:${typeof this.plan.doorOpen}} liveKeys=${caps.keys}`);
-        }
         let next: NavRoute | null;
         try {
             next = findRoute({
@@ -794,104 +631,53 @@ export class PathGuide {
                 caps: planCaps,
                 start: { mapId: hero.mapId, col: hero.col, row: hero.row },
                 goal: this.goal,
-                // The same assumptions the map screen planned under: a route that fetches a
-                // key or a pair still has to fetch it, and a door that stood open when the
-                // thread was spent still stands open. Without them this search asks a
-                // stricter question than the one that produced the route, finds nothing,
-                // and clears the thread on the first frame.
+                // The same assumptions the map screen planned under: a route that
+                // fetches a key or a pair still has to fetch it, and a door that
+                // stood open when the thread was spent still stands open.
                 ...this.plan,
-                // A route set without a plan still gets the live door state, if there is
-                // one, so a door that has been opened is never priced as locked.
+                // A route set without a plan still gets the live door state, if
+                // there is one, so a door that has been opened is never priced as
+                // locked.
                 ...this.doorState(),
             });
         } catch (err) {
-            // The question was asked. Throwing out of it must not make the guide ask
-            // it again on the next frame — `update` logs the throw from up there.
+            // The question was asked. Throwing out of it must not make the guide
+            // ask it again on the next frame.
             this.recordAsk(askedFor, planCaps);
             throw err;
         }
         if (!next) {
-            console.warn(`[path] replan FAILED ${at(hero)} -> ${at(this.goal)}`
+            console.warn(`[path] replan FAILED ${hero.mapId}:(${hero.col},${hero.row})`
+                + ` -> ${this.goal.mapId}:(${this.goal.col},${this.goal.row})`
                 + ` keys=${planCaps.keys} collectKeys=${!!this.plan.collectKeys}`
                 + ` doorOpen=${typeof this.plan.doorOpen}; keeping old route`);
             this.recordAsk(askedFor, planCaps);
             return;
         }
-        if (PATH_DIAG) {
-            console.log(`[path] replan ok cost=${next.cost} maps=[${next.maps.join(',')}]`
-                + ` points=${next.points.length} first=${at(next.points[0])}`
-                + ` last=${at(next.points[next.points.length - 1])}`
-                + ` locked=${next.lockedDoors.ordinary}/${next.lockedDoors.lion}`
-                + ` spent=${next.keysSpent.ordinary}/${next.keysSpent.lion}`
-                + ` gained=${next.keysGained.ordinary}/${next.keysGained.lion}`
-                + ` shoes=${next.equipment.length}`);
-        }
         this.route = next;
-        // Re-read rather than reusing `askedFor`: the new route may touch maps the old
-        // one did not, and the signature is a property of the route it is stored
+        // Re-read rather than reusing `askedFor`: the new route may touch maps the
+        // old one did not, and the signature is a property of the route it is stored
         // against.
         this.lastPlatformVersion = this.platformVersion();
         this.recordPlan(planCaps);
         // The flight models were built for the arrangement that route was planned
-        // against, so a hop replayed through one of them now draws an arc the hero no
-        // longer flies. Drop them and let the next hop rebuild.
+        // against, so a hop replayed through one of them now draws an arc the hero
+        // no longer flies. Drop them and let the next hop rebuild.
         this.flightModels.clear();
         // `progress` is an index into the *old* point list, and the new route is a
-        // different list, so carrying it over left the reveal starting wherever that
-        // number happened to fall — a jump that skipped three points re-planned from
-        // where the hero stood and still began its arrows three tiles past him, off
-        // screen or inside scenery. The new route is searched from the hero, so its
-        // first point is his cell: re-anchor there and the line starts at his feet.
+        // different list. The new route is searched from the hero, so its first
+        // point is his cell: re-anchor there.
         this.progress = 0;
         this.advanceProgress();
     }
 
     /**
-     * One line a second of what the guide believes it is showing.
-     *
-     * `progress` is the thing every consumer reads and the thing nobody can see
-     * from the outside: when it sits on the room the hero has just left, the
-     * overlay draws the room he is standing in as the way back out of a door he
-     * never entered, and the player reports "no chevrons at all" with nothing
-     * looking wrong about the route. Hero, anchor, next point and capabilities on
-     * one line is the whole of the state behind the three logs.
-     */
-    private logState(now: number, caps: HeroCapabilities, hero: { mapId: number; col: number; row: number }): void {
-        if (!PATH_DIAG || now - lastDiagAt < DIAG_INTERVAL_MS) return;
-        lastDiagAt = now;
-        const points = this.route!.points;
-        // The next few points, so the shape of the plan is visible without dumping
-        // the whole route: `[(25:62,36) (25:62,35) ...]`.
-        const head: string[] = [];
-        for (let i = this.progress; i < points.length && head.length < 6; i++) {
-            const p = points[i]!;
-            head.push(`${p.mapId}:(${p.col},${p.row})`);
-        }
-        console.log(`[path] guide hero=${at(hero)}`
-            + ` anchor=${this.progress}/${points.length}`
-            + ` next=${at(points[this.progress])}`
-            + ` after=${at(points[this.progress + 1])}`
-            + ` head=[${head.join(' ')}]`
-            + ` remaining=${points.length - this.progress}`
-            + ` maps=[${this.route!.maps.join(',')}]`
-            + ` keys=${caps.keys} lionKeys=${caps.lionKeys} mask=0x${(caps.mask >>> 0).toString(16)}`
-            + ` plan={keys:${!!this.plan.collectKeys}, shoes:${!!this.plan.planAccessories},`
-            + ` doorOpen:${typeof this.plan.doorOpen}}`
-            + ` spent=${this.route!.keysSpent.ordinary}/${this.route!.keysSpent.lion}`
-            + ` gained=${this.route!.keysGained.ordinary}/${this.route!.keysGained.lion}`
-            + ` short=${this.keysShort(caps)} askedShort=${this.askedShortfall}`
-            + ` plat=${this.lastPlatformVersion === this.platformVersion() ? 'same' : 'DIFF'}`
-            + ` cost=${this.route!.cost} expanded=${this.route!.expanded}`
-            + ` dormant=${this.dormant} arrived=${this.arrived}`);
-    }
-
-    /**
      * An identity for every platform's position across the maps the route touches.
      *
-     * A route planned against a different signature was drawn over a different world:
-     * the platform the graph treated as solid has moved, and the row it offered as a
-     * landing is not the one it is at. So a difference here is enough on its own to
-     * re-plan, ahead of any interval.
+     * A route planned against a different signature was drawn over a different
+     * world: the platform the graph treated as solid has moved, and the row it
+     * offered as a landing is not the one it is at. So a difference here is enough
+     * on its own to re-plan, ahead of any interval.
      */
     private platformVersion(): string {
         const parts: string[] = [];
@@ -909,14 +695,12 @@ export class PathGuide {
         // and that is not drift — the route itself is what put him there. A lift is
         // the sharp case: his row changes every frame he climbs, so re-planning on
         // the platform would fire every frame against a `platformVersion` that has
-        // just changed, which is not a slower route but no route at all, and the
-        // guide drops what it was drawing. `peek` rather than `get`, so asking the
-        // question does not rebuild the cavern to answer it.
+        // just changed, which is not a slower route but no route at all. `peek`
+        // rather than `get`, so asking the question does not rebuild the cavern.
         //
         // Ground specifically, not `nodeAt`: `nodeAt` answers with a rope or a
-        // platform when there is one, because that is where a route may begin, and
-        // a platform under him is exactly the case that must not re-plan. The two
-        // questions are different — "where is he" versus "is he standing still".
+        // platform when there is one, and a platform under him is exactly the case
+        // that must not re-plan.
         const graph = this.deps.store.peek(hero.mapId);
         if (!graph) return false;
         const cell = wrapRow(hero.row) * graph.mapWidth + wrapCol(hero.col, graph.mapWidth);
@@ -924,8 +708,7 @@ export class PathGuide {
 
         // A platform the hero has just driven is a new wall and a new ledge, so the
         // route is stale the moment it moves and no waiting interval should hold it
-        // back. The store has the live rows, so a differing signature is a real move
-        // rather than a stale plan.
+        // back.
         if (this.lastPlatformVersion !== this.platformVersion()) return true;
 
         if (now - this.lastPlanAt < MIN_INTERVAL_MS) return false;
@@ -936,13 +719,10 @@ export class PathGuide {
         // Walking off the route: the hero should be near it.
         const points = this.route?.points;
         if (!points) return false;
-        // Only the stretch he is actually on counts. The route may come back to this
-        // map later — the way out of a door he has not entered — and a point there is
-        // not where he is: calling that "near the route" is what let him walk past
-        // the entrance the line was leading him to and be told he was still on it.
-        // A point on another map also ends the stretch: an anchor left on the map he
-        // has just left is skipped first, so standing on the far side of a door he
-        // *did* walk through still measures against the room he is in.
+        // Only the stretch he is actually on counts. The route may come back to
+        // this map later — the way out of a door he has not entered — and a point
+        // there is not where he is. A point on another map also ends the stretch:
+        // an anchor left on the map he has just left is skipped first.
         let start = Math.max(0, this.progress - 1);
         while (start < points.length && points[start]!.mapId !== hero.mapId) start++;
         for (let i = start; i < points.length; i++) {
@@ -959,28 +739,27 @@ export class PathGuide {
      *
      * Door state is deliberately not tracked: a door cannot be closed in play, and
      * a route through a locked door already assumes the key, so opening it later
-     * cannot invalidate the plan. The refresh interval picks up anything else.
+     * cannot invalidate the plan.
      */
     private recordPlan(caps: HeroCapabilities): void {
         this.plannedMask = caps.mask;
         this.plannedKeys = caps.keys;
         this.plannedLionKeys = caps.lionKeys;
         // The shortfall this ask was made against, for the same reason the counters
-        // are recorded: a route the pocket cannot cover is asked about again when the
-        // pocket changes, not on every frame. Asking every frame is the freeze the
-        // player hit on mp81, one search per frame while he stood there.
+        // are recorded: a route the pocket cannot cover is asked about again when
+        // the pocket changes, not on every frame.
         this.askedShortfall = this.keysShort(caps);
     }
 
     /**
-     * Remember that a search *was made* against this world — whether it answered or not.
+     * Remember that a search *was made* against this world — whether it answered
+     * or not.
      *
-     * Both halves matter. `lastPlatformVersion` is checked ahead of every interval, so
-     * an attempt that left it stale fired `needsReplan` on the very next frame and the
-     * frames after that: one synchronous `findRoute` after another while the hero
-     * stood still on mp81, which is the freeze the player hit. And `recordPlan` is what
-     * stops the same doomed question being asked again half a second later, which is
-     * the slower version of the same loop.
+     * Both halves matter. `lastPlatformVersion` is checked ahead of every interval,
+     * so an attempt that left it stale would fire `needsReplan` on the very next
+     * frame and the frames after that: one synchronous `findRoute` after another
+     * while the hero stood still. And `recordPlan` is what stops the same doomed
+     * question being asked again half a second later.
      */
     private recordAsk(platforms: string, caps: HeroCapabilities): void {
         this.lastPlatformVersion = platforms;
@@ -991,72 +770,27 @@ export class PathGuide {
      * Keep the reveal anchored to the point the hero is standing on.
      *
      * `progress` is the index of the route point he currently occupies, so the
-     * chevron drawn there marks the step he is about to take. Two earlier
-     * attempts were wrong in ways that showed on screen:
+     * chevron drawn there marks the step he is about to take. Both positions are
+     * integers from the same g_mem expression, so the match is exact and there is
+     * no rounding to absorb.
      *
-     *   - matching "within one tile" let the hero standing on point N also count as
-     *     being on point N+1, because route steps are exactly one tile apart. The
-     *     reveal ran ahead and swallowed the first arrows.
-     *   - counting a point as reached the moment he stood on it moved the anchor
-     *     past the hero, so the arrow for the step leaving him was never drawn and
-     *     the path appeared to start in mid-air, pointing into the scenery.
-     *
-     * Both positions are integers from the same g_mem expression, so the match is
-     * exact and there is no rounding to absorb.
+     * The search runs in both directions because the hero walks backwards too, and
+     * the nearer end wins, ties going forward. It is bounded so that a cell the
+     * route passes again later — down a rope and straight back up — cannot pull
+     * the anchor past everything in between.
      */
     private advanceProgress(): void {
         const route = this.route;
         if (!route) return;
         const hero = this.deps.heroPosition();
         if (!hero) return;
-        // Metadata, not `store.get`: this runs every tick, and asking for a graph here
-        // would rebuild the hero's cavern on every row of a lift ride.
+        // Metadata, not `store.get`: this runs every tick, and asking for a graph
+        // here would rebuild the hero's cavern on every row of a lift ride.
         const width = mapWidthOf(hero.mapId);
         const on = (point: NavPoint): boolean => point.mapId === hero.mapId
             && columnDelta(point.col, hero.col, width) === 0
             && rowDelta(point.row, hero.row) === 0;
 
-        /**
-         * Put the anchor on the hero, not on the last point he stood on exactly.
-         *
-         * Requiring exact occupancy meant that any move that skipped a point — a
-         * jump, a fall, a platform carrying him — left the anchor where it was. The
-         * reveal then started somewhere behind him, its first cells were off screen
-         * or behind, and **nothing was drawn at his feet**: the line appeared to start
-         * in the middle of a wall, which is the state in the player's second
-         * screenshot. Looking for his own cell along the route finds it wherever the
-         * skipped points left it, and a hero in mid-air — matching nothing — keeps the
-         * anchor he had rather than losing the line.
-         *
-         * The search stops at the first point that leaves his map, because a route
-         * that goes out through a door and comes back visits this map **twice** — and
-         * that is what a route which goes in to find a key looks like. Scanning past
-         * the crossing found the later visit, matched his cell on the way *out*, and
-         * started the reveal there: the chevrons came out of the door at full
-         * strength and told him to walk on past an entrance he had not gone through.
-         * The one case that must still scan across is an anchor left on the map he
-         * has just left — the crossing itself put it there — so points on another map
-         * ahead of the anchor are skipped, and only then does the stop-at-a-crossing
-         * rule apply.
-         *
-         * And it stops at {@link ANCHOR_SCAN} points past that visit, because a route
-         * may pass the same cell twice *without leaving the map* — down a rope and
-         * straight back up it. The ascent is the later occurrence, so finding his
-         * cell there put the anchor on the way back: the trail began above him,
-         * pointing up the shaft and east to the door, while the descent he was
-         * actually on sat behind the anchor and was never drawn.
-         *
-         * The same search runs **backwards**, over the same distance, because the
-         * hero walks backwards too: straight back out of a door he has just used.
-         * A search that only ever looked ahead left the anchor on the far side of
-         * that door — on the map he was no longer standing in — where `remaining()`
-         * begins on a foreign point and the overlay has nothing inside his cavern to
-         * draw. The chevrons went out and never came back when he re-entered, which
-         * is the third of the player's three defects. The nearer end wins, ties going
-         * forward: the route is walked in order, so a cell on both sides of the
-         * anchor is normally the outbound and the return of the same corridor, and
-         * the one ahead of him is where he is going.
-         */
         const points = route.points;
         if (points.length === 0) return;
         const progress = this.progress;
@@ -1064,8 +798,8 @@ export class PathGuide {
         let visit = progress;
         while (visit < points.length && points[visit]!.mapId !== hero.mapId) visit++;
         const fwdEnd = Math.min(visit + ANCHOR_SCAN, points.length);
-        // ...and the last point of his map *before* the anchor, walking back over the
-        // points the crossing left behind.
+        // ...and the last point of his map *before* the anchor, walking back over
+        // the points the crossing left behind.
         const floor = Math.max(0, progress - ANCHOR_SCAN);
         let back = Math.min(progress, points.length - 1);
         while (back > floor && points[back]!.mapId !== hero.mapId) back--;
@@ -1086,44 +820,24 @@ export class PathGuide {
             }
         }
         if (match !== -1) {
-            if (PATH_DIAG && match !== progress) {
-                console.log(`[path] anchor ${match < progress ? 'back' : 'fwd'}`
-                    + ` ${progress} -> ${match} (hero ${at(hero)})`
-                    + ` ${at(points[match])} next ${at(points[match + 1])}`
-                    + ` prev ${at(points[match - 1])} keys=${this.deps.capabilities().keys}`);
-            }
             this.progress = match;
-            if (PATH_DIAG) this.logDoubleVisit();
         } else {
             // He is on the route's map but not standing on any of its cells — a
-            // landing that put him a tile off the door, a step taken off the line. The
-            // anchor has to be *on his map* even so, because everything downstream
-            // reads it that way: `remaining()` starts at the anchor, and the overlay
-            // works out which stretch is the way back from where the anchor sits.
-            // Left on the map he has just crossed out of, the whole of the room he is
-            // standing in is read as the way back out of a door he has not entered,
-            // and is drawn at the far end of the fade — no chevrons at all, which is
-            // what the player hit crossing into mp82. Taking the nearer of the two
-            // sides is what puts him back on screen when he walks back out of a door
-            // the route only crosses once: there is no later visit of his room to
-            // jump to, and the only point of it the anchor can see is the one he has
-            // just come back to.
+            // landing that put him a tile off the door, a step taken off the line.
+            // The anchor has to be *on his map* even so, because everything
+            // downstream reads it that way: `remaining()` starts at the anchor, and
+            // the overlay works out which stretch is the way back from where the
+            // anchor sits. Taking the nearer of the two sides is what puts him back
+            // on screen when he walks back out of a door the route only crosses
+            // once.
             const ahead = visit < points.length ? visit : -1;
             const behind = points[back]!.mapId === hero.mapId ? back : -1;
             const next = ahead < 0 ? behind
                 : behind < 0 ? ahead
                     : ahead - progress <= progress - behind ? ahead : behind;
             if (next > progress) {
-                if (PATH_DIAG) {
-                    console.log(`[path] anchor crossed ${progress} -> ${next} with no cell match`
-                        + ` (hero ${at(hero)}, route length ${points.length})`);
-                }
                 this.progress = next;
             } else if (next >= 0 && next < progress) {
-                if (PATH_DIAG) {
-                    console.log(`[path] anchor rewound ${progress} -> ${next} with no cell match`
-                        + ` — he went back (hero ${at(hero)}, route length ${points.length})`);
-                }
                 this.progress = next;
             }
         }

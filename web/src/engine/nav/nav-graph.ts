@@ -1,33 +1,31 @@
 /**
  * nav-graph.ts — build the navigation graph for one cavern.
  *
- * A **node** is a standing position: the hero's left column and head row, a 3x3
- * body that fits there, and ground beneath (geometry.isStanding). Three kinds:
+ * A **node** is a standing position: the hero's left column and head row, an
+ * open middle column, and ground beneath (geometry.isStanding). Three kinds:
  *
  *   GROUND  the hero can stand on it
- *   ROPE    a rope runs through his middle column at his head row
- *           (dungeon-vertical.ts:199-202 probes heroCoords+1, which is exactly
- *           that cell) and his body fits, so he can climb it
+ *   ROPE    a rope runs through his middle column at his head row and his body
+ *           fits, so he can climb it
  *   RIDE    a platform slot from nav/platforms.ts
  *
  * An **edge** is one traversal the hero can perform, with a cost in ticks and the
- * capability it needs. Costs come from EDGE_COST: one tick moves him one tile, a
- * jump costs twice its ceiling, and currents move him two tiles per tick so their
- * distance is halved.
+ * capability it needs. Costs come from EDGE_COST.
  *
  * Two edge families are deliberately *static*. Platforms and currents both act
  * automatically, but neither makes reachability time-dependent — the hero can
  * always wait for a platform or hold on to a current — so they are folded into
  * the same graph rather than needing a clock.
  *
- * The airflow suppression rules of the plan (§7.4) are applied here, not in the
- * pathfinder, because they are properties of the geometry:
+ * The airflow suppression rules are applied here, not in the pathfinder, because
+ * they are properties of the geometry:
  *
  *   - a walk into a current that opposes it is impossible
  *     (dungeon-hero.ts:218-268), so no such edge exists;
  *   - while lifted the hero cannot fall or jump (dungeon-input.ts:524-525), so no
  *     fall or jump leaves a lift column, though he can always step sideways out;
- *   - a hero swept into a current is pushed, not dropped, so no fall ends inside one.
+ *   - a hero swept into a current is pushed, not dropped, so no fall ends inside
+ *     one.
  */
 
 import {
@@ -125,25 +123,18 @@ export interface NavGraph {
      * Edge index -> the cell, as `row * mapWidth + col`, where an `EDGE.LIFT` hop
      * has the hero swept by a current.
      *
-     * A lift edge is not a move between its two ends. `enterLift` means the hero
-     * passes through some cell an up current occupies and is carried **straight up
-     * that column** to the exit, and that cell is neither end: mp82 has
-     * `LIFT (23,0) -> (9,21)`, seventeen columns and twenty-one rows apart, with the
-     * current in column 9. A line drawn straight between those ends is twenty-two
-     * tiles of fiction through whatever rock lies between two standing positions —
-     * which is what the overlay used to draw, and the largest source of a chevron
-     * trail running through solid ground in the game.
-     *
-     * Only the 8,626 lift edges carry an entry, so this costs a rounding error over
-     * a map of half a million edges, and `NavEdge` stays eight bytes.
+     * A lift edge is not a move between its two ends: the hero passes through
+     * some cell an up current occupies and is carried straight up that column to
+     * the exit, and that cell is neither end. A line drawn straight between the
+     * two standing positions would run through whatever rock lies between them.
      */
     readonly liftSwept: ReadonlyMap<number, number>;
     /**
      * Per-node hazard flags, one entry per node: HAZARD_* bits describing what
      * the hero's 3x3 footprint touches there.
      *
-     * Recorded on the geometry rather than baked into the edges, because whether a
-     * crossing is allowed depends on what the hero is wearing: one graph serves
+     * Recorded on the geometry rather than baked into the edges, because whether
+     * a crossing is allowed depends on what the hero is wearing: one graph serves
      * every loadout and the pathfinder prunes at search time.
      */
     readonly nodeHazard: Uint8Array;
@@ -171,37 +162,30 @@ export interface NavGraph {
      *
      * A key is an item standing on the floor, so it needs no edge of its own — the
      * pickup fires from the ordinary alignment test while the hero walks over the
-     * cell (`checkMonsterAlignedToHeroAndTick`, dungeon-monsters.ts:123). The search
-     * credits a key when it steps onto a node with one, and the route therefore
-     * passes through the cell without being told to.
+     * cell (`checkMonsterAlignedToHeroAndTick`, dungeon-monsters.ts:123).
      */
     readonly keyKindAt: Int8Array;
     /**
      * Where each key is *recorded*, as `row * mapWidth + col`, or -1.
      *
      * Not the node it hangs on. The engine collects from a window around the
-     * record, so every key in the game is stored a row or two from the cell the hero
-     * stands in — which is why this exists: asking whether a key is still on the
-     * floor has to be about the record the engine holds, not about the node the route
-     * walks through. Getting that wrong makes every key look already collected.
+     * record, so every key in the game is stored a row or two from the cell the
+     * hero stands in — and asking whether a key is still on the floor has to be
+     * about the record the engine holds.
      */
     readonly keyCellAt: Int32Array;
     /**
      * The pair of shoes lying on each node, as a `NavShoe`, or 0 for none.
      *
-     * A pair is an item on the floor exactly as a key is — the pickup fires from the
-     * same alignment test — so it needs no edge of its own either. Unlike a key it is
-     * not spent: it goes into the hero's inventory and stays, so the search only ever
-     * *adds* a bit here, and a route may collect two different pairs.
+     * A pair is an item on the floor exactly as a key is. Unlike a key it is not
+     * spent: it goes into the hero's inventory and stays, so the search only ever
+     * *adds* a bit here.
      */
     readonly accessoryShoeAt: Int8Array;
     /**
      * Where each pair of shoes is *recorded*, as `row * mapWidth + col`, or -1.
      *
-     * The same distinction as {@link keyCellAt}, and for the same reason: the engine
-     * collects from a window around the record, so the pair hangs on a node a row or
-     * two from the cell `presentShoes` reports. Whether it is still on the floor has
-     * to be asked about the record.
+     * The same distinction as {@link keyCellAt}, and for the same reason.
      */
     readonly accessoryCellAt: Int32Array;
     readonly platforms: PlatformModel;
@@ -235,16 +219,13 @@ export interface NavGraph {
 /**
  * The node a key lying at `(col, row)` is collected on.
  *
- * The key's stored cell is the *item's*, not the hero's. `checkMonsterAlignedToHeroAndTick`
- * compares the hero's position against the record and accepts him anywhere in a small
- * window (`dungeon-monsters.ts:123-152`): rows `row - 2 .. row + 1` and columns
+ * The key's stored cell is the *item's*, not the hero's.
+ * `checkMonsterAlignedToHeroAndTick` compares the hero's position against the
+ * record and accepts him anywhere in a small window
+ * (`dungeon-monsters.ts:123-152`): rows `row - 2 .. row + 1` and columns
  * `col - 2 .. col + 1`, both asymmetric because the engine walks the two axes in
  * opposite directions from the record. So the nearest node inside that window is
- * the cell the route should cross — walking over it collects the key, because the
- * pickup fires from this same test.
- *
- * mp10's key is stored at (99,41) and the standing position next to it is (99,40):
- * a hero one row higher. That is the window, not an off-by-one.
+ * the cell the route should cross.
  *
  * -1 when nothing is in range, which is counted rather than dropped in silence.
  */
@@ -311,29 +292,21 @@ export function buildNavGraph(
     const classifier = NavTileClassifier.forMap(mapId);
     const platforms = buildPlatformModel(mapId, grid, places);
     const currents = buildAirflowModel(mapId, grid);
-    // A platform is a floor the hero can land on and nothing else, and it is not in
-    // the static map at all, so the jump model has to be told where the slots are.
-    // The mark goes on the cell the landing check reads — under the hero's middle
-    // foot, three rows below his head. A slot's `headRow` is the platform row minus
-    // three, so the platform tile itself is at `headRow + 3`; marking the slot cell
-    // instead would tell the model a hero lands one row too high and never on it.
+    // A platform is a floor the hero can land on and nothing else, and it is not
+    // in the static map at all, so the jump model has to be told where the slots
+    // are. The mark goes on the cell the landing check reads — under the hero's
+    // middle foot, three rows below his head.
     //
     // A platform is a landing surface only on the row it is standing at right now,
-    // and *that rule is different for the two families*, because they travel on
-    // different axes.
+    // and that rule differs between the two families:
     //
     // A **vertical** platform moves up and down. It has one row, so `isLandingSlot`
-    // — the row it is on — is the whole of it: a hero cannot come down on the row it
-    // will be on in two seconds' time, only the one under him now.
+    // — the row it is on — is the whole of it.
     //
     // A **horizontal** platform moves sideways at a fixed row. Every column of its
-    // span is a row it *will be at*, and it goes there and comes back, so a hero who
-    // falls anywhere along the span is landed on when it arrives under him. The whole
-    // span is therefore landable, and restricting it to `isLandingSlot` threw away a
-    // move the player made: in mp80 he jumps off the ledge at `(181,47)`, falls past
-    // the row 54 platform and lands on it at `(163,51)`, rides it west to `(149,51)`
-    // and steps off — the search cannot get to the goal at all without that fall,
-    // because `(149,0)` above it is not a standing position.
+    // span is a row it *will be at*, and it goes there and comes back, so a hero
+    // who falls anywhere along the span is landed on when it arrives under him.
+    // The whole span is therefore landable.
     const platformCells = new Uint8Array(cells);
     for (const slot of platforms.slots) {
         if (slot.kind === PLATFORM_HORIZONTAL) {
@@ -344,17 +317,18 @@ export function buildNavGraph(
         if (!isLandingSlot(slot)) continue;
         platformCells[wrapRow(slot.headRow + 3) * mapWidth + wrapCol(slot.leftCol + 1, mapWidth)] = 1;
     }
-    // And the up currents, for the same reason: a hero who reaches one mid-flight is
-    // taken by it rather than landing. The mask is `heroInLift` over the whole map,
-    // i.e. an up current in the hero's three rows at each cell.
+    // And the up currents, for the same reason: a hero who reaches one mid-flight
+    // is taken by it rather than landing. The mask is `heroInLift` over the whole
+    // map.
     const currentCells = new Uint8Array(cells);
     for (let row = 0; row < 64; row++) {
         for (let col = 0; col < mapWidth; col++) {
             if (heroInLift(grid, classifier, col, row)) currentCells[row * mapWidth + col] = 1;
         }
     }
-    // `restingCells` is what makes the platform a thing rather than a place: the three
-    // tiles it is standing on stop a flight, exactly as the map's own solid tiles do.
+    // `restingCells` is what makes the platform a thing rather than a place: the
+    // three tiles it is standing on stop a flight, exactly as the map's own solid
+    // tiles do.
     const jumps = new JumpModel(grid, classifier, platformCells, currentCells, platforms.restingCells);
 
     const nodes: NavNode[] = [];
@@ -376,22 +350,8 @@ export function buildNavGraph(
             // `try_climb_rope` (dungeon-vertical.ts:198-239) asks exactly two
             // questions: is the cell at his middle column, head row a rope, and is
             // the one above it a rope so he can go on climbing. There is no body
-            // test anywhere in it, and the rope frame that keeps him on
-            // (`dungeon-states.ts:258-271`) reads the same middle-column cell. So a
-            // hero hanging with a wall in his *side* column is a position the game
-            // has and the game lets him stay in, and §13's rule 3 — do not invent a
-            // whole-body collision rule the engine does not perform — is what the
-            // 3x3 box was doing here.
-            //
-            // The player's mp21 climb is the case: ropes in columns 94, 92 and 90,
-            // each hugging a wall on its right, and he takes all three up to the
-            // rung where they stop. `heroBoxFree` refused (93,45), (93,44),
-            // (93,43), (91,40), (89,38) and (89,37) — six rope cells, the top of
-            // every one of the three ropes — so the climb simply stopped short and
-            // mp21 `(93,56)` -> `(86,39)` had no route. `middleColumnFree` is the
-            // same question `canRest` and `isStanding` ask for a position at all:
-            // his middle column must be open over his three rows, and his sides may
-            // be in rock.
+            // test anywhere in it, so a hero hanging with a wall in his *side*
+            // column is a position the game has.
             if (ropeAt(grid, col + 1, row) && middleColumnFree(grid, classifier, col, row)) {
                 ropeOf[cell] = nodes.length;
                 nodes.push({ kind: NODE_ROPE, col, row, platform: -1 });
@@ -433,17 +393,11 @@ export function buildNavGraph(
      * Cell -> the node a hero occupying that cell is *at*, in the engine's own
      * order of precedence: a rope first, then a platform he is riding, then the
      * ground under him. This is `landingAt`'s answer, and it is the answer every
-     * cell question needs — a cell where a rope passes his middle column is a rope
-     * cell whether he is climbing it or standing under it, and `airborne_movement`
-     * probes the landing cell for a rope before it does anything else
-     * (dungeon-input.ts:509-546).
+     * cell question needs.
      *
      * `groundOf` alone is not enough for the caller that asks "where is the hero":
      * a rope node is built from the rope in his middle column and does not need
-     * ground, so every cell of a rope is absent from `groundOf`. Reading a standing
-     * position through `groundOf` reports -1 for the whole length of a climb, which
-     * is how a recording came to name 71 rope cells "not a standing position in the
-     * graph" while the graph was holding every one of them.
+     * ground, so every cell of a rope is absent from `groundOf`.
      */
     const standOf = new Int32Array(cells);
     for (let i = 0; i < cells; i++) {
@@ -453,15 +407,9 @@ export function buildNavGraph(
     }
 
     /**
-     * Where the hero ends up if he arrives at this position: a rope he is holding if
-     * there is one, a platform if one is there (it is what he lands on), otherwise
-     * open ground.
-     *
-     * The rope comes first because a catch and a landing are the same cell read two
-     * ways: `airborne_movement` lands the frame and then probes **that same cell**
-     * for a rope (dungeon-input.ts:509-546), so a flight that ends on a rope ends
-     * where the rope node is — one column west of the tile, the rule every rope node
-     * is built from.
+     * Where the hero ends up if he arrives at this position: a rope he is holding
+     * if there is one, a platform if one is there (it is what he lands on),
+     * otherwise open ground.
      */
     const landingAt = (col: number, row: number): number => {
         const r = wrapRow(row);
@@ -497,16 +445,13 @@ export function buildNavGraph(
         keyCellAt[node] = wrapRow(key.row) * mapWidth + wrapCol(key.col, mapWidth);
     }
     // Shoes, the same way: an item on the floor, placed on the node the hero
-    // collects it from. There are four in the whole game and none is duplicated, so
-    // a node can hold at most one pair and a bit per kind is enough to say what the
-    // hero is carrying.
+    // collects it from. There are four in the whole game and none is duplicated,
+    // so a node can hold at most one pair and a bit per kind is enough to say what
+    // the hero is carrying.
     //
-    // The record cell is kept beside it for the reason `keyCellAt` exists: the node
-    // a pickup snaps to is not the cell the engine holds it at, and `shoePresent` is
-    // answered from the engine's own entity list. mp50's Pirika pair is recorded at
-    // (208,27) and lands on the node at (208,26), so asking about the node makes
-    // every pair read as already collected — and the journey that needs them loses
-    // its shoes rung and is offered a slope it cannot climb instead.
+    // The record cell is kept beside it for the reason `keyCellAt` exists: the
+    // node a pickup snaps to is not the cell the engine holds it at, and
+    // `shoePresent` is answered from the engine's own entity list.
     const accessoryShoeAt = new Int8Array(nodes.length);
     const accessoryCellAt = new Int32Array(nodes.length).fill(-1);
     let shoesOnNodes = 0;
@@ -534,8 +479,8 @@ export function buildNavGraph(
     /** Where each node's jump flight went, col/row pairs, see {@link traceAt}. */
     let traceCells = new Int32Array(4096);
     // Per-node [start, end) into traceCells. Nodes that never jump keep 0..0, so a
-    // single shared offset array (which a skipped node left at 0) cannot alias them
-    // onto the start of the buffer.
+    // single shared offset array (which a skipped node left at 0) cannot alias
+    // them onto the start of the buffer.
     const traceStart = new Int32Array(nodes.length);
     const traceEnd = new Int32Array(nodes.length);
     /** Where a node's trace stops being plain-jump cells and starts being Feruza-only. */
@@ -544,48 +489,36 @@ export function buildNavGraph(
     /**
      * `node * cells + cell` for every cell a node's jump edge lands on.
      *
-     * A flight that ends in a current is already an edge: the jump lands on the node
-     * inside it and the current's own edge carries on from there. Sweeping the same
-     * cell again from the trace would add a second, cheaper edge that skips the jump's
-     * cost, so the sweeps ask this first.
+     * A flight that ends in a current is already an edge: the jump lands on the
+     * node inside it and the current's own edge carries on from there. Sweeping
+     * the same cell again from the trace would add a second, cheaper edge that
+     * skips the jump's cost, so the sweeps ask this first.
      */
     const jumpLanded = new Set<number>();
-
 
     /**
      * Silkarn's shoes, demanded by any move that *rises* over a slope.
      *
-     * A slope is a ramp the hero slides down, and the engine slides him every fourth
-     * tick unless he is holding uphill (`slope_assist_on_landing`,
-     * dungeon-vertical.ts:563-599) — while airborne it is `check_silkarn_shoes_and_slopes`
-     * that stops the shove. So going *up* a slope is not a walk: it takes the shoes.
+     * A slope is a ramp the hero slides down, and the engine slides him every
+     * fourth tick unless he is holding uphill (`slope_assist_on_landing`,
+     * dungeon-vertical.ts:563-599). So going *up* a slope is not a walk: it takes
+     * the shoes.
      *
-     * This lives in `add` rather than in one generator because the generators cannot
-     * be trusted to remember it. The `STEP` generator emitted `(50,59) -> (51,58)`
-     * and the jump generator `(51,58) -> (54,56)` on mp30 with no requirement at all,
-     * and the route that used them claimed a bare hero could cross a slope — which
-     * the player reported as unwalkable, correctly. The dedicated `SLOPE_UP` edge was
-     * gated, but these two were not, because the slope they cross is under the hero's
-     * *feet* rather than in the column he is stepping into.
-     *
-     * The test is deliberately the conservative direction: an ascent that touches a
-     * slope anywhere in either 3x3 box is treated as needing the shoes. That can
-     * refuse a rise a bare hero could make, and never the reverse.
+     * The engine reads exactly one cell for this: the tile under the hero's middle
+     * foot (`getSlopeDirectionByTileUnderFeet`, dungeon-vertical.ts:539-561,
+     * probing `heroCoords + 2*36 + 1`). The test here touches the same two cells
+     * in either 3x3 box, which is the conservative direction.
      */
     const ascentOverSlope = (
         fromCol: number, fromRow: number, toCol: number, toRow: number, kind: number,
     ): boolean => {
-        // Falls, drops, currents and doors can span more than half the cylinder, so
-        // the short-way row delta says nothing about their direction. A fall only
-        // ever goes down and a door is a teleport; neither is an ascent.
+        // Falls, drops, currents and doors can span more than half the cylinder,
+        // so the short-way row delta says nothing about their direction. A fall
+        // only ever goes down and a door is a teleport; neither is an ascent.
         if (kind === EDGE.FALL || kind === EDGE.DROP || kind === EDGE.LIFT
             || kind === EDGE.CARRY_L || kind === EDGE.CARRY_R || kind === EDGE.DOOR) return false;
         // Seam-aware: row 63 is one row *above* row 0.
         if (rowDelta(fromRow, toRow) >= 0) return false; // level or downhill: sliding helps
-        // The engine reads exactly one cell: the tile under the hero's middle foot,
-        // `getSlopeDirectionByTileUnderFeet` (dungeon-vertical.ts:539-561) probing
-        // `heroCoords + 2*36 + 1`. Two cells, not nine — asking about the whole box
-        // would gate every rise that merely happens to pass near a slope.
         return boxTouchesSlope(fromCol + 1, fromRow + 2)
             || boxTouchesSlope(toCol + 1, toRow + 2);
     };
@@ -609,13 +542,12 @@ export function buildNavGraph(
     /**
      * Every jump available from a node, to a platform or to the ground.
      *
-     * The reachable set is the engine's own: nav/jump.ts replays `jump_press_handler`,
-     * `airborne_movement` and `check_floor_for_landing` rather than testing an
-     * arc, because the engine tests no arc. What comes back is a landing cell, a
-     * frame count, and how many rows the hero rose — the last of which is what
-     * decides whether the hero needs Feruza shoes, and it is not the same as the
-     * landing's height above the launch, since a jump can rise past its landing
-     * and fall back to it.
+     * The reachable set is the engine's own: nav/jump.ts replays
+     * `jump_press_handler`, `airborne_movement` and `check_floor_for_landing`
+     * rather than testing an arc, because the engine tests no arc. What comes back
+     * is a landing cell, a frame count, and how many rows the hero rose — the last
+     * of which is what decides whether the hero needs Feruza shoes, and it is not
+     * the same as the landing's height above the launch.
      *
      * Shared by ground nodes and ride slots: a hero standing on a platform can
      * jump off it exactly as he can from a ledge.
@@ -630,15 +562,12 @@ export function buildNavGraph(
             const target = nodes[to]!;
             // A landing the blow goes against is not a place he comes to rest in:
             // `check_airflows_on_hero` runs first every frame and shoves him two
-            // columns before he has stood anywhere. Landing is therefore refused,
-            // the same way `addFalls` refuses a landing inside a jet.
+            // columns before he has stood anywhere.
             if (pushedBack(fromIndex, toCol, to)) continue;
             // How far below the launch this landing is, with the seam counted.
-            // Row 63 sits one row *above* row 0 — stepping up off the top of the
-            // map lands on the bottom row of the last — so the raw `toRow -
-            // fromRow` reads a hop from row 0 to row 63 as sixty-three rows down
-            // when it is one row up, and the player's own recording hops off
-            // mp82's row 0 to reach column 184 that way.
+            // Row 63 sits one row *above* row 0, so the raw `toRow - fromRow`
+            // would read a hop from row 0 to row 63 as sixty-three rows down when
+            // it is one row up.
             //
             // `rises` is how far the arc climbed before it turned over, so the
             // apex is `fromRow - rises` and the landing is `below` rows past it.
@@ -647,57 +576,40 @@ export function buildNavGraph(
             const below = wrapRow(toRow - apex) - rises;
             // A rope he would land on *below* the cell he jumped from is not one
             // he catches: the arc has already turned over by then and the game
-            // does not let him take the rope on the way down. The player found
-            // this on mp82, where the graph offered
-            // `JUMP_HIGH (44,37) -> (62,47)` — ten rows down onto the rope that
-            // hangs in column 63 — and the route used it to cross from the west
-            // gallery to the east one, which the game refuses.
-            //
-            // A landing at or above the launch stays: that is the ordinary hop
-            // onto a rope beside a ledge, and it is how the same route reaches
-            // the rope in column 47 to climb down it. Falls are not touched —
-            // catching a rope in a fall is the way the game has you descend.
+            // does not let him take the rope on the way down.
             if (target.kind === NODE_ROPE && below > 0) continue;
             // A landing he cannot see is not one he can aim at. The model lets a
-            // jump drift one column per row it falls, so mp82's `JUMP (44,37) ->
-            // (61,49)` — twelve rows down onto a platform behind the rope in
-            // column 47 — is arithmetically reachable and practically a blind
-            // throw: at take-off the platform is far below the ledge he is
-            // standing on, and the player's answer is that such a jump lands by
-            // luck. Five rows is the limit he gave.
-            //
-            // Falls are not touched. Stepping off a ledge is a drop he watches
-            // and steers, not a jump he takes blind, and the shafts the routes
-            // descend are all of them falls.
-             if (below > 5) continue;
-             const feruza = landings[i + 4] === 1;
-             // Check if this ascending jump passes through any slope cells.
-             // The engine's airborne_movement (dungeon-vertical.ts:563-599) calls
-             // check_silkarn_shoes_and_slopes on every frame, which probes the tile
-             // under the hero's middle foot and stops the slope shove if he has
-             // Silkarn shoes. A jump that ascends over a slope needs them.
-             let req = feruza ? CAP.JUMP_HIGH : 0;
-             // `below` is the landing's drop below the launch with the seam counted,
-             // so negative means the landing is above the launch.
-             if (below < 0) {
-                 // Get the flight path for this specific landing
-                 const path = jumps.flightPath(fromCol, fromRow, toCol, toRow);
-                 for (let j = 0; j < path.length; j += 2) {
-                     const col = path[j]!;
-                     const row = path[j + 1]!;
-                     // Check the middle foot position (col+1, row+2)
-                     const f = flagsAt(grid, classifier, col + 1, row + 2);
-                     if (f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT)) {
-                         req |= CAP.SLOPE_STAND;
-                         break;
-                     }
-                 }
-             }
-             add(fromIndex, to,
-                 feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
-                 landings[i + 2]! + JUMP_TICK_PENALTY,
-                 req);
-             jumpLanded.add(fromIndex * cells + wrapRow(toRow) * mapWidth + wrapCol(toCol, mapWidth));
+            // jump drift one column per row it falls, so a jump that lands twelve
+            // rows down is arithmetically reachable and practically a blind throw.
+            if (below > 5) continue;
+            const feruza = landings[i + 4] === 1;
+            // Check if this ascending jump passes through any slope cells.
+            // The engine's airborne_movement (dungeon-vertical.ts:563-599) calls
+            // check_silkarn_shoes_and_slopes on every frame, which probes the tile
+            // under the hero's middle foot and stops the slope shove if he has
+            // Silkarn shoes.
+            let req = feruza ? CAP.JUMP_HIGH : 0;
+            // `below` is the landing's drop below the launch with the seam counted,
+            // so negative means the landing is above the launch.
+            if (below < 0) {
+                // Get the flight path for this specific landing.
+                const path = jumps.flightPath(fromCol, fromRow, toCol, toRow);
+                for (let j = 0; j < path.length; j += 2) {
+                    const col = path[j]!;
+                    const row = path[j + 1]!;
+                    // Check the middle foot position (col+1, row+2).
+                    const f = flagsAt(grid, classifier, col + 1, row + 2);
+                    if (f & (NAV.SLOPE_LEFT | NAV.SLOPE_RIGHT)) {
+                        req |= CAP.SLOPE_STAND;
+                        break;
+                    }
+                }
+            }
+            add(fromIndex, to,
+                feruza ? EDGE.JUMP_HIGH : EDGE.JUMP,
+                landings[i + 2]! + JUMP_TICK_PENALTY,
+                req);
+            jumpLanded.add(fromIndex * cells + wrapRow(toRow) * mapWidth + wrapCol(toCol, mapWidth));
         }
         // Keep where he went, so the current sweeps below can ask which cells the
         // flight passed through without walking it a second time.
@@ -734,17 +646,12 @@ export function buildNavGraph(
      * Is this arrival somewhere the hero is pushed out of again, because he
      * drifted *against* the blow?
      *
-     * A landing inside a sideways current is refused only when the flight goes
-     * the way the current does not: coming with it he is carried through and put
-     * down beyond the run of cells, which is how mp80's westward row-32 gallery
-     * is crossed today, while coming against it he never arrives at all. mp82's
-     * row-44 gallery is sealed by a current blowing west across columns 137..141
-     * and the graph still offered `FALL (135,44) -> (136,44)` and a chain of
-     * two-column drifts east through the seal, from `(134,44)` to `(142,44)`.
+     * A landing inside a sideways current is refused only when the flight goes the
+     * way the current does not: coming with it he is carried through and put down
+     * beyond the run of cells, while coming against it he never arrives at all.
      *
-     * A landing in the same column is left alone: nothing is being pushed into
-     * him sideways there, and the current's own edges are what move him once he
-     * is in.
+     * A landing in the same column is left alone: nothing is being pushed into him
+     * sideways there.
      */
     const pushedBack = (fromIndex: number, toCol: number, toIndex: number): boolean => {
         const target = nodes[toIndex]!;
@@ -772,42 +679,29 @@ export function buildNavGraph(
         for (let i = 0; i < landings.length; i += LANDING_STRIDE) {
             const to = landingAt(landings[i]!, landings[i + 1]!);
             if (to < 0 || to === skip) continue;
-            // A hero swept into a current is pushed, not dropped, so a fall never ends
-            // inside one — the lift edges from the cells the flight crosses are what
-            // carries him instead.
+            // A hero swept into a current is pushed, not dropped, so a fall never
+            // ends inside one — the lift edges from the cells the flight crosses
+            // are what carries him instead.
             if (heroInLift(grid, classifier, nodes[to]!.col, nodes[to]!.row)) continue;
-            // The same for a sideways current: he is shoved two columns before he has
-            // stood anywhere, so a landing the blow goes against is somewhere he is
-            // never at rest. mp82's row-44 gallery runs `FALL (136,44) -> (137,44)`
-            // straight east into the west blow across columns 137..141, which is how
-            // a route came to claim the hero could cross it.
+            // The same for a sideways current: he is shoved two columns before he
+            // has stood anywhere, so a landing the blow goes against is somewhere
+            // he is never at rest.
             if (pushedBack(fromIndex, landings[i]!, to)) continue;
             // A hero leaves a rope from the rung directly above where he is going.
             // The rope runs past him — it is the way down — so letting go while
             // there are still rungs below means falling blind past stairs he was
-            // already standing on, and the platform he is aiming at is below the
-            // five rows he can see. mp82's key route did exactly that:
-            // `FALL (46,40) -> (57,49)` let go nine rows up and eleven columns
-            // east of the platform when the rope carried him to (46,48), one row
-            // above it. The player's instruction: climb to (46,48), and only then
-            // leave the rope.
+            // already standing on.
             //
             // One row of overshoot is allowed because that is what a drop onto the
             // tile beside the rope is; two is a decision to fall rather than to
             // climb, and there is no rung it saves.
             //
-            // Only from a rope. Stepping off a ledge is the ordinary fall, and
-            // §27's trip descends the mp80 shaft in one of them.
-            //
-            // The rows are counted through the seam, so a rope whose fall wraps
-            // off row 63 onto row 0 still reads as one row down rather than as
-            // sixty-three up.
+            // The rows are counted through the seam, so a rope whose fall wraps off
+            // row 63 onto row 0 still reads as one row down.
             if (nodes[fromIndex]!.kind === NODE_ROPE && wrapRow(landings[i + 1]! - row) > 1) continue;
-            // Frames, plus the columns he is carried sideways while in the air. Both
-            // are frames to him, but without the second the pathfinder will drift
-            // as far as a fall can carry him and then fall again — a route that walks
-            // west along a corridor comes out as a row of two-column "falls" that
-            // never fall. The player drew the walk.
+            // Frames, plus the columns he is carried sideways while in the air.
+            // Both are frames to him, but without the second the pathfinder will
+            // drift as far as a fall can carry him and then fall again.
             const across = Math.abs(nodes[to]!.col - col);
             const sideways = Math.min(across, mapWidth - across);
             add(fromIndex, to, EDGE.FALL, landings[i + 2]! + sideways);
@@ -817,11 +711,9 @@ export function buildNavGraph(
     /**
      * The first landing at or below `row` in column `col`: platform or ground.
      *
-     * The hero's 3x3 body has to fit in the whole column on the way down. Without
-     * that check this scanned 64 rows for any node at all and happily returned a
-     * landing fifteen rows below — straight through solid rock. That produced
-     * "fall" and conveyor edges that left the hero inside a wall, and the chevrons
-     * for them pointed into the scenery.
+     * The hero's 3x3 body has to fit in the whole column on the way down, or this
+     * would scan 64 rows and happily return a landing fifteen rows below — through
+     * solid rock.
      */
     const fallTo = (col: number, row: number): { node: number; rows: number } => {
         for (let d = 1; d <= 64; d++) {
@@ -847,8 +739,7 @@ export function buildNavGraph(
     const slopeFlags = (col: number, row: number): number => flagsAt(grid, classifier, col, row);
 
     // Doors whose source side is on this map. Intra-map doors become edges here;
-    // cross-map ones are handed to the pathfinder through `portalAtNode`, which
-    // walks the component's portal pairs rather than a single map's grid.
+    // cross-map ones are handed to the pathfinder through `portalAtNode`.
     const portalByFromNode = new Map<number, number>();
     for (const portalIndex of NAV_PORTALS_BY_MAP[mapId] ?? []) {
         const portal = PORTALS[portalIndex]!;
@@ -867,22 +758,14 @@ export function buildNavGraph(
         // he is doing — `checkAirflowsOnHero` runs first every frame and
         // `airborneMovement` then returns early, so there is no gravity and no
         // landing to be had. A cell the current holds is therefore not a place he
-        // can move *from* by ordinary means: his row is the current's to choose,
-        // and a fall or a step into space below him can never happen. What the
-        // engine still gives him is the current itself and one horizontal move
-        // out of the column (`dungeon-input.ts:484-505`), so those are the only
-        // two things offered here.
-        //
-        // mp80's shaft is the case the player found: standing at `(95,27)` with
-        // the jet under him, the route offered `CARRY_L (95,27) -> (96,29)` — a
-        // fall two rows *down* into a side current — and he was carried up to
-        // `(96,21)` instead of ever reaching it.
+        // can move *from* by ordinary means. What the engine still gives him is the
+        // current itself and one horizontal move out of the column
+        // (dungeon-input.ts:484-505), so those are the only two things offered here.
         const lifted = heroInLift(grid, classifier, node.col, node.row);
 
         // Walk. A current that opposes the direction makes the step impossible,
         // and while he is held he may only walk *out* of the column: a target the
-        // same current holds is a cell he never comes to rest in, so the edge
-        // would end somewhere he cannot be.
+        // same current holds is a cell he never comes to rest in.
         for (const dir of [1, -1] as const) {
             const to = groundAt(node.col + dir, node.row);
             if (to < 0) continue;
@@ -904,10 +787,9 @@ export function buildNavGraph(
         if (!lifted) addJumpEdges(index, node.col, node.row);
 
         // Step off a ledge. The hero steers while he is in the air, so a fall
-        // reaches a whole slope of ground rather than one column — which is how the
-        // player crosses into the moving platform in mp80, one column west of the
-        // edge he walked off. A hero swept into a current is pushed, not dropped,
-        // so a fall never ends inside one; `addFalls` sees to that.
+        // reaches a whole slope of ground rather than one column. A hero swept
+        // into a current is pushed, not dropped, so a fall never ends inside one;
+        // `addFalls` sees to that.
         if (!lifted) {
             for (const dir of [1, -1] as const) {
                 addFalls(index, node.col + dir, node.row, -1);
@@ -929,24 +811,17 @@ export function buildNavGraph(
             }
         }
 
-        // Board a platform. This is a **one-tile step onto** the slot, not a boarding
-        // in place, because that is what the engine does: `moveHeroLeftIfNoObstacles`
-        // / `moveHeroRightIfNoObstacles` shift the hero a column (engine/dungeon-hero.ts:218-275)
-        // and the platform's tile lands under his middle foot in the same frame, so he
-        // is up on it one column to the side of where he was standing.
+        // Board a platform. This is a **one-tile step onto** the slot, not a
+        // boarding in place, because that is what the engine does:
+        // `moveHeroLeftIfNoObstacles` / `moveHeroRightIfNoObstacles` shift the hero
+        // a column (engine/dungeon-hero.ts:218-275) and the platform's tile lands
+        // under his middle foot in the same frame, so he is up on it one column to
+        // the side of where he was standing.
         //
-        // mp10's row-53 platform is boarded exactly that way and only that way. Its
-        // span is columns 32..53 over a pit that has no map floor anywhere between
-        // columns 31 and 54, so the only standing position at the east end is the
-        // cliff edge at `(55,50)`; the hero waits there, the platform arrives at its
-        // rightmost position `P = 53`, and he steps left to `(54,50)`. Requiring a
-        // ride slot to sit on the *same* cell as the ground node made that impossible,
-        // and the corridor was unreachable even though the recording walks its length.
-        //
-        // Both cases are kept. Same-cell is a real thing — a platform parked over map
-        // ground is boarded where he already stands — and the step is how he gets on
-        // when the platform comes to him. Neither happens while he is carried up:
-        // the step needs a row to land on and he has none.
+        // Both cases are kept. Same-cell is a real thing — a platform parked over
+        // map ground is boarded where he already stands — and the step is how he
+        // gets on when the platform comes to him. Neither happens while he is
+        // carried up: the step needs a row to land on and he has none.
         for (let slotIndex = 0; slotIndex < platforms.slots.length; slotIndex++) {
             const slot = platforms.slots[slotIndex]!;
             if (slot.headRow !== node.row) continue;
@@ -973,9 +848,8 @@ export function buildNavGraph(
             }
         }
         // A rope in his own middle column, at his own feet: `try_climb_rope`
-        // probes exactly that cell first (dungeon-vertical.ts:199-202), so
-        // pressing Up puts him straight on it with no step. mp80's player does
-        // this at the foot of the column 91 rope to leave the start ledge.
+        // probes exactly that cell first (dungeon-vertical.ts:199-202), so pressing
+        // Up puts him straight on it with no step.
         const under = ropeAtNode(node.col, node.row);
         if (under >= 0) add(index, under, EDGE.CLIMB, EDGE_COST.CLIMB);
 
@@ -1015,27 +889,22 @@ export function buildNavGraph(
         if (same >= 0) add(index, same, EDGE.STEP, EDGE_COST.STEP);
         // Step off it, left or right. `on_right_pressed` moves him one column and
         // then returns because he is on a rope (dungeon-vertical.ts:139,146); the
-        // rope frame finds no rope at his new middle column and puts him back in the
-        // dungeon (dungeon-states.ts:258-280), where the cell he stepped to stands or
-        // falls by the ordinary rules.
+        // rope frame finds no rope at his new middle column and puts him back in
+        // the dungeon (dungeon-states.ts:258-280), where the cell he stepped to
+        // stands or falls by the ordinary rules.
         //
         // This is the only way off a rope. `jump_press_handler` returns the moment
-        // ON_ROPE_FLAGS is set (dungeon-hero.ts:322), so there is no jumping off one;
-        // climbing is `try_climb_rope`'s `moveHeroUp` (dungeon-vertical.ts:236).
+        // ON_ROPE_FLAGS is set (dungeon-hero.ts:322), so there is no jumping off
+        // one; climbing is `try_climb_rope`'s `moveHeroUp`
+        // (dungeon-vertical.ts:236).
         //
-        // **The exit is two tiles, not one.** His head is centred over the rope, so the
-        // rope is his *middle* column and the cell he lands on by stepping is the one
-        // past it — which is the cliff edge. One tile only reaches the rope's own
-        // column, and that is not a standing position. All three of the game's rope
-        // exits are shaped exactly this way:
-        //
-        //     mp80 r10   ###.R|NNNNN     rope node 90, rope 91, ledge from 92
-        //     mp30 r 7   ...R|NNNNNN     rope node 57, rope 58, ledge from 59
-        //     mp80 r11   #NN.R|NNNNN     rope node 156, rope 157, ledge from 158
-        //
-        // And where a wall denies him the two-tile move he takes one, then falls
-        // beside the cliff **holding the same key**, so the drift is in the direction he
-        // stepped and never the opposite one.
+        // **The exit is two tiles, not one.** His head is centred over the rope, so
+        // the rope is his *middle* column and the cell he lands on by stepping is
+        // the one past it — which is the cliff edge. One tile only reaches the
+        // rope's own column, and that is not a standing position. Where a wall
+        // denies him the two-tile move he takes one, then falls beside the cliff
+        // **holding the same key**, so the drift is in the direction he stepped
+        // and never the opposite one.
         for (const dir of [1, -1] as const) {
             if (!heroCanStepSideways(grid, classifier, node.col, node.row, dir)) continue;
             if (blockedByCounterCurrent(grid, classifier, node.col + dir, node.row, dir)) continue;
@@ -1061,8 +930,6 @@ export function buildNavGraph(
     // in one cell — the offset says which of the platform's three tiles is under
     // the hero's middle column at his head row. The hero boards at the offset
     // matching his column, and rides along the platform by maintaining that offset.
-    // Horizontal platforms: link ride slots that share a cell to the slots in the
-    // neighbouring cell. This connects the ride chains across columns.
     const horizontalSlotsByCell = new Map<number, number[]>();
     platforms.slots.forEach((slot, slotIndex) => {
         if (slot.kind !== PLATFORM_HORIZONTAL || rideOf[slotIndex]! < 0) return;
@@ -1086,10 +953,8 @@ export function buildNavGraph(
     // Ride slots.
     //
     // A horizontal platform's slots are per riding offset, so three of them can sit
-    // in one cell — the offset says which of the platform's three tiles is under
-    // the hero's middle column at his head row. The hero boards at the offset
-    // matching his column, and rides along the platform by maintaining that offset.
-    // Horizontal platforms use spatial adjacency; vertical/collapsing use next=down, prev=up.
+    // in one cell. Horizontal platforms use spatial adjacency; vertical/collapsing
+    // use next=down, prev=up.
     platforms.slots.forEach((slot, slotIndex) => {
         const index = rideOf[slotIndex]!;
         if (slot.kind !== PLATFORM_HORIZONTAL) {
@@ -1101,21 +966,19 @@ export function buildNavGraph(
         } else {
             // Along the platform's own movement chain as well as by cell adjacency.
             //
-            // A horizontal platform carries its rider one column per tick at a *fixed*
-            // riding offset, and that is what `slot.next`/`slot.prev` trace: the same
-            // offset, the next column over. Per-cell adjacency cannot follow it when
-            // the head row changes, and it does change — where the ceiling is under
-            // three tiles the hero has to crouch, his head row drops one, and two
-            // cells in different rows are never neighbours of the adjacency map. The
-            // result was a ride that fell into islands: mp82's platform at row 59 had
-            // its standing slots at row 56 and its crouched ones at row 57, so the
-            // walk from (179,53) to (157,54) had no route at all.
+            // A horizontal platform carries its rider one column per tick at a
+            // *fixed* riding offset, and that is what `slot.next`/`slot.prev`
+            // trace: the same offset, the next column over. Per-cell adjacency
+            // cannot follow it when the head row changes, and it does change —
+            // where the ceiling is under three tiles the hero has to crouch, his
+            // head row drops one, and two cells in different rows are never
+            // neighbours of the adjacency map.
             for (const neighbour of [slot.next, slot.prev]) {
                 if (neighbour < 0) continue;
                 const to = rideOf[neighbour]!;
                 if (to < 0) continue;
-                // The pair is already linked when both slots sit in neighbouring cells
-                // of the same row; only the cross-row step is new.
+                // The pair is already linked when both slots sit in neighbouring
+                // cells of the same row; only the cross-row step is new.
                 const other = platforms.slots[neighbour]!;
                 if (other.headRow === slot.headRow
                     && Math.min(Math.abs(other.leftCol - slot.leftCol),
@@ -1134,11 +997,8 @@ export function buildNavGraph(
         const drop = fallTo(slot.leftCol, slot.headRow);
         if (drop.node >= 0) add(index, drop.node, EDGE.DROP, drop.rows);
         // Or walk off the edge and fall. A hero on a platform is standing, not
-        // airborne, so stepping over the side is a step and then a fall, and the fall
-        // drifts: `airborne_movement` reads INPUT_DIRS every tick. In mp80 that is
-        // the whole last leg of the player's route — ride the platform to
-        // (149,51), walk right off it, and fall thirteen rows, through the seam at
-        // row 63, into (149,6).
+        // airborne, so stepping over the side is a step and then a fall, and the
+        // fall drifts: `airborne_movement` reads INPUT_DIRS every tick.
         for (const dir of [1, -1] as const) {
             if (!heroCanStepSideways(grid, classifier, slot.leftCol, slot.headRow, dir)) continue;
             const there = groundAt(slot.leftCol + dir, slot.headRow);
@@ -1146,18 +1006,17 @@ export function buildNavGraph(
             addFalls(index, slot.leftCol + dir, slot.headRow, there);
         }
         // Or jump off it. A platform is a launchpad: without these, a ride that
-        // cannot be walked off sideways is a dead end, and the level's whole upper
-        // route was unreachable because of it.
+        // cannot be walked off sideways is a dead end.
         addJumpEdges(index, slot.leftCol, slot.headRow);
     });
 
     // ── current edges ────────────────────────────────────────────────────────
     // `checkAirflowsOnHero` runs every frame from mainUpdateRenderPre whatever the
     // hero is doing — grounded, on a rope, or in mid-air — and sweeps him whenever
-    // an up current sits in his middle column at his head, body or feet row. So the
-    // hero is very often lifted *while falling or jumping into* a jet rather than
-    // while standing beside one, and a standing-positions-only node model would miss
-    // most of them.
+    // an up current sits in his middle column at his head, body or feet row. So
+    // the hero is very often lifted *while falling or jumping into* a jet rather
+    // than while standing beside one, and a standing-positions-only node model
+    // would miss most of them.
     //
     // Sweep a mask first: sweptAt(col,row) is a single array read, so testing a
     // whole arc is cheap.
@@ -1174,11 +1033,11 @@ export function buildNavGraph(
      * Stops of every lift the hero could be carried to, keyed by the lift's column
      * *and the run it belongs to*.
      *
-     * Keying by column alone mixes every current in that column: mp80's column 96
-     * has two, one reaching rows 21-29 and one 44-50, and a hero swept at row 21 was
-     * offered the second run's stop at row 50 — an **upward** current carrying him
-     * twenty-nine rows *down*. `LiftModel.topRow` and `rows` say where each run
-     * starts and how far it reaches, which is what identifies the one he is in.
+     * Keying by column alone mixes every current in that column: one cavern can
+     * have two currents in the same column, and a hero swept at the top of one
+     * would be offered the other's stop twenty-nine rows away. `LiftModel.topRow`
+     * and `rows` say where each run starts and how far it reaches, which is what
+     * identifies the one he is in.
      */
     type LiftExit = { stop: number; ticks: number; headRow: number };
     /**
@@ -1190,10 +1049,11 @@ export function buildNavGraph(
     for (const lift of currents.lifts) {
         const entryCol = wrapCol(lift.x - 1, mapWidth);
         const list = stopsByRun.get(entryCol) ?? [];
-        // `topRow` is the hero's *head* row at the top of the run, and the tiles run
-        // from two rows below that to the end. He is swept while any of the three is
-        // in his middle column, so the window a hero can be caught in is head rows
-        // `topRow .. topRow + rows + 1` — three rows taller than the tiles.
+        // `topRow` is the hero's *head* row at the top of the run, and the tiles
+        // run from two rows below that to the end. He is swept while any of the
+        // three is in his middle column, so the window a hero can be caught in is
+        // head rows `topRow .. topRow + rows + 1` — three rows taller than the
+        // tiles.
         const span = lift.rows + 2;
         const stops: LiftExit[] = [];
         for (const stop of lift.stops) {
@@ -1213,13 +1073,7 @@ export function buildNavGraph(
      * *up*, so a stop at or below where he was swept is not an exit; and a current
      * only reaches its own run, so a stop further above than the run is tall is
      * another current's. Both are measured as a distance in rows that wraps — the
-     * runs are a few tiles long, so the wrap cannot confuse up with down, and the
-     * bound is what keeps one run from offering another's stops.
-     *
-     * mp80's column 96 is the case that mattered: two currents in one column, one
-     * reaching rows 21-29 and one 44-50. Keyed by column alone, a hero swept at row
-     * 21 was offered the second run's stop at row 50 — an upward current carrying
-     * him twenty-nine rows *down*, which the player rightly called impossible.
+     * runs are a few tiles long, so the wrap cannot confuse up with down.
      */
     const liftStopsAt = (sweptCol: number, sweptRow: number): { stop: number; ticks: number }[] => {
         const runs = stopsByRun.get(wrapCol(sweptCol, mapWidth));
@@ -1281,9 +1135,10 @@ export function buildNavGraph(
         // is by position, so it is every one of them.
         if (heroInLift(grid, classifier, node.col, node.row)) return;
         // A cell a jump edge already lands on is covered by that edge plus the lift
-        // edge from the node inside the current; sweeping it here as well would give a
-        // second, cheaper way in that skips the jump's own cost. A cell only the tall
-        // jump reaches is swept with the Feruza requirement the jump itself would have.
+        // edge from the node inside the current; sweeping it here as well would give
+        // a second, cheaper way in that skips the jump's own cost. A cell only the
+        // tall jump reaches is swept with the Feruza requirement the jump itself
+        // would have.
         traceAt(index, (col, row, tallOnly) => {
             const cell = wrapRow(row) * mapWidth + wrapCol(col, mapWidth);
             if (jumpLanded.has(index * cells + cell)) return;
@@ -1299,8 +1154,8 @@ export function buildNavGraph(
 
     // A conveyor sweeps him one way, and like a lift he is usually swept by
     // falling or jumping into it rather than by standing in it — the current acts
-    // on his body every frame whatever he is doing. So the entry is found along his
-    // arcs, the same way a lift's is.
+    // on his body every frame whatever he is doing. So the entry is found along
+    // his arcs, the same way a lift's is.
     //
     // Direction per position: 1 left, 2 right, 0 none. A position is "in" a
     // conveyor when his middle column holds a conveyor tile.
@@ -1322,12 +1177,8 @@ export function buildNavGraph(
      * frame — so the swept position is only a *body-clear* cell, not a standing
      * position. A ride therefore only offers an exit where the conveyor's own row
      * actually offers a standing position. A conveyor in open space has none, and
-     * is not offered as a way to get somewhere: the hero has to leave it on his own
-     * terms with a jump or a fall, which is a separate edge from a real node.
-     *
-     * Reaching for the first landing *below* the swept cell instead — which this
-     * used to do — turns every conveyor into "swept sideways, then plummet", and
-     * that is how a route came to run twenty rows underground.
+     * is not offered as a way to get somewhere: the hero has to leave it on his
+     * own terms with a jump or a fall, which is a separate edge from a real node.
      */
     const conveyorExits = new Map<number, { to: number; ticks: number }[]>();
     for (const run of currents.conveyors) {
@@ -1338,10 +1189,8 @@ export function buildNavGraph(
             if (!columnClear(sweptCol, headRow)) continue;
             const stand = groundAt(sweptCol, headRow);
             if (stand < 0) continue;
-            // Keyed by column *and row*. A conveyor carries the hero sideways along
-            // its own row, so an exit twenty rows up is not an exit from it — and
-            // keying by column alone offered him one, which is how a route came to
-            // cross a room in a current that only moves along one line.
+            // Keyed by column *and row*. A conveyor carries the hero sideways
+            // along its own row, so an exit twenty rows up is not an exit from it.
             const key = headRow * mapWidth + sweptCol;
             const list = conveyorExits.get(key) ?? [];
             list.push({ to: stand, ticks: exit.ticks });
@@ -1363,9 +1212,7 @@ export function buildNavGraph(
         // A hero an up current holds is not falling into anything: he rises two
         // rows a frame and `airborneMovement` returns before gravity, so neither
         // the step off the ledge nor the flight across the gap can put him on a
-        // conveyor's line. The flight trace below was already refused for him;
-        // the two entries above it were not, and that is how mp80 offered
-        // `CARRY_L (95,27) -> (96,29)` from a cell the jet lifts him out of.
+        // conveyor's line.
         if (heroInLift(grid, classifier, node.col, node.row)) return;
         enterConveyor(node.col, node.row);
         for (const dir of [1, -1] as const) {
@@ -1458,8 +1305,8 @@ export function edgesOf(graph: NavGraph, index: number): NavEdge[] {
  * `row * mapWidth + col`, or -1 when the two are not joined by a lift.
  *
  * The sweep is not on the edge — there is no room for it — so it is looked up by
- * finding the edge. A node has a handful of edges, and this is asked once per drawn
- * lift hop.
+ * finding the edge. A node has a handful of edges, and this is asked once per
+ * drawn lift hop.
  */
 export function liftSweptCell(graph: NavGraph, fromNode: number, toNode: number): number {
     if (fromNode < 0 || graph.liftSwept.size === 0) return -1;
@@ -1475,7 +1322,7 @@ export function liftSweptCell(graph: NavGraph, fromNode: number, toNode: number)
  * Visit every edge leaving `index` without allocating.
  *
  * `edgesOf` slices, which is fine for a handful of nodes but not for a whole
- * cavern: at ~26k nodes and ~200k edges the copies dominate.
+ * cavern.
  */
 export function forEachEdge(
     graph: NavGraph,

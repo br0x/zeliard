@@ -1,23 +1,16 @@
 /**
  * recorder.ts — record a live playthrough and diff it against the graph.
  *
- * The player: *"It will be much more productive if you implement recorder mode so I
- * can live play and copy-paste from console log."*
+ * Samples the hero every frame — position, the input the engine actually acted
+ * on, and the handful of state bytes that decide what a frame does — and
+ * `report()` prints it next to the graph's own answer.
  *
- * A route the graph refuses is a claim about the game, and the way to settle one is
- * to watch the game do it. This samples the hero every frame — position, the input
- * the engine actually acted on, and the handful of state bytes that decide what a
- * frame does — and `report()` prints it next to the graph's own answer.
+ * Every hop the player made is looked up in the graph and printed with what the
+ * graph calls it, so a `***` line names the exact hop to fix instead of leaving
+ * a whole cavern to be re-derived.
  *
- * What the report is for is the disagreement. Every hop the player made is looked
- * up in the graph and printed with what the graph calls it, so the line
- *
- *     *** (12,20) -> (13,19): NOT IN THE GRAPH, hero did it bare with input "up+right"
- *
- * names the exact hop to fix instead of leaving a whole cavern to be re-derived.
- *
- * Sampling is one function call per rendered frame and returns immediately unless
- * recording is on, so the mode costs nothing when it is off.
+ * Sampling is one function call per rendered frame and returns immediately
+ * unless recording is on, so the mode costs nothing when it is off.
  */
 import { memRead8, memRead16 } from '../../core/ts-memory.js';
 import {
@@ -82,7 +75,7 @@ interface NavSample {
     row: number;
     /** Frames spent here. */
     frames: number;
-    /** Every distinct input state seen while here, in the order they first appeared. */
+    /** Every distinct input state seen while here, in order of first appearance. */
     readonly inputs: string[];
     /** `on_rope` / `airborne` / `sliding` / `on_air` seen while here. */
     readonly states: Set<string>;
@@ -120,9 +113,9 @@ function stateNames(g: Uint8Array): string[] {
 }
 
 /**
- * The hero's map cell, read from memory the way `heroMapPosition` in main.ts reads
- * it: the engine's own expression, proximity left column plus the viewport offset
- * and head row plus the viewport top (engine/dungeon-doors.ts:90-101).
+ * The hero's map cell, read from memory the way `heroMapPosition` in main.ts
+ * reads it: the engine's own expression, proximity left column plus the viewport
+ * offset and head row plus the viewport top (engine/dungeon-doors.ts:90-101).
  *
  * Only used when the injected `heroPosition` declines to answer, so the recorder
  * still works if it is wired before the map screen's dependencies exist.
@@ -173,8 +166,8 @@ export class NavRecorder {
     }
 
     /**
-     * Take one reading. Called once per rendered frame; returns immediately unless
-     * recording is on.
+     * Take one reading. Called once per rendered frame; returns immediately
+     * unless recording is on.
      */
     sample(): void {
         if (!this.recording) return;
@@ -269,8 +262,7 @@ export class NavRecorder {
             if (a < 0 || b < 0) {
                 // A cell the hero flew through. Mid-jump and mid-fall air has no
                 // node and must not have one, so this is expected rather than a
-                // disagreement — and it is the great majority of a recording, since
-                // a walk is mostly air. Only a cell he *stood* on is worth flagging.
+                // disagreement. Only a cell he *stood* on is worth flagging.
                 const which = a < 0 ? from : to;
                 if (!which.flewThrough) {
                     lines.push(`  *** ${here} -> ${there}: ${

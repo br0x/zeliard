@@ -22,8 +22,8 @@
  * Two of them only matter on particular cavern levels, and gating them on level
  * keeps the mask honest: ice sliding exists only on cavern level 4
  * (`setZeroFlagIfSlippery`, dungeon-vertical.ts:110-118) and heat only on level 7
- * (`dungeon-frame.ts:357-369). A hero wearing Ruzeria shoes in cavern 1 has no ice
- * to resist, so ICE_SAFE is not granted.
+ * (`dungeon-frame.ts:357-369`). A hero wearing Ruzeria shoes in cavern 1 has no
+ * ice to resist, so ICE_SAFE is not granted.
  */
 
 import { CAP, type CapabilityMask } from './types.js';
@@ -113,11 +113,11 @@ export function snapshotCapabilities(
 
 /**
  * Capabilities with every wearable granted, for previews and for the
- * "what is reachable at all" question the map screen asks before the hero has the
- * shoes. Ice and heat are granted because a route may cross another cavern.
+ * "what is reachable at all" question the map screen asks before the hero has
+ * the shoes. Ice and heat are granted because a route may cross another cavern.
  */
 export function allCapabilities(): HeroCapabilities {
-    let mask: CapabilityMask = CAP.CLIMB | CAP.JUMP_HIGH | CAP.SLOPE_STAND
+    const mask: CapabilityMask = CAP.CLIMB | CAP.JUMP_HIGH | CAP.SLOPE_STAND
         | CAP.GROUND_SAFE | CAP.ICE_SAFE | CAP.HEAT_SAFE | CAP.KEY | CAP.LION_KEY;
     // Saturate the key counters so every locked door on any route is affordable.
     return { mask, accessory: ACCESSORY_NONE, cavernLevel: LEVEL_HEAT, keys: 255, lionKeys: 255 };

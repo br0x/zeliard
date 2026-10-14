@@ -1,19 +1,18 @@
 /**
  * platform-state.ts — where the platforms are, right now.
  *
- * A moving platform is not a fixed feature of a cavern. It rests at the `startY` its
- * generated table records, the hero drives it up or down while he is aboard, and it
- * stays wherever he left it until the cavern is entered again through a door — at
- * which point every vertical and collapsing platform in it is put back to its default.
- * The engine keeps the live row for each one in a list of three-byte entries,
- * `{ absX word, y byte }`, terminated by `absX === 0xffff`
+ * A moving platform is not a fixed feature of a cavern. It rests at the `startY`
+ * its generated table records, the hero drives it up or down while he is aboard,
+ * and it stays wherever he left it until the cavern is entered again through a
+ * door — at which point every vertical and collapsing platform in it is put back
+ * to its default. The engine keeps the live row for each one in a list of
+ * three-byte entries, `{ absX word, y byte }`, terminated by `absX === 0xffff`
  * (`render_vertical_platforms_to_proximity`, dungeon-platforms.ts).
  *
- * So the navigation model has to be told where they are rather than assume it. It
- * matters in both directions: a platform three tiles wide at row *y* is solid rock
- * the hero cannot pass through, and its top at row *y* is the only surface he can
- * land on — which is why a route drawn while the platform sat at row 34 has to be
- * rebuilt the moment he rides it somewhere else.
+ * The navigation model is told where they are rather than assuming it. It
+ * matters in both directions: a platform three tiles wide at row *y* is solid
+ * rock the hero cannot pass through, and its top at row *y* is the only surface
+ * he can land on.
  */
 import { memRead8, memRead16 } from '../../core/ts-memory.js';
 
@@ -31,9 +30,9 @@ export const COLLAPSING_PLATFORMS_LIST = 0xc006;
 export type PlatformPlaces = ReadonlyMap<number, number>;
 
 /**
- * Read one `{ absX, y }` list. Guarded on `0xffff` exactly as the engine walks it,
- * and on the pointer being zero, so an uninitialised cavern yields an empty map
- * rather than a walk off the end of memory.
+ * Read one `{ absX, y }` list. Guarded on `0xffff` exactly as the engine walks
+ * it, and on the pointer being zero, so an uninitialised cavern yields an empty
+ * map rather than a walk off the end of memory.
  */
 function readList(g: Uint8Array, listPtr: number, into: Map<number, number>): void {
     const at = memRead16(g, listPtr);

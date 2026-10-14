@@ -2,26 +2,26 @@
  * airflows.ts — the runtime current model.
  *
  * Turns the pre-calculated tables in data/nav/nav-airflows.ts into concrete
- * **current regions**: the lifts that carry the hero upward and the conveyors that
- * sweep him sideways, each resolved against the decoded map.
+ * **current regions**: the lifts that carry the hero upward and the conveyors
+ * that sweep him sideways, each resolved against the decoded map.
  *
  * How a current acts (engine/dungeon-frame-pre.ts:40-71): every frame
- * `checkAirflowsOnHero` probes the hero's **middle column** at three rows — feet,
- * body, head — and `dispatchAirflows` responds:
+ * `checkAirflowsOnHero` probes the hero's **middle column** at three rows —
+ * feet, body, head — and `dispatchAirflows` responds:
  *
  *   up    moveHeroUp() x2                  2 rows per frame, NO collision test
  *   left  moveHeroLeftIfNoObstacles() x2    2 columns per frame, collision-checked
  *   right moveHeroRightIfNoObstacles() x2   2 columns per frame, collision-checked
  *
- * Two consequences the graph must respect, both handled in nav/graph rather than
- * here (docs/PATHFINDER_PLAN.md §7.4):
+ * Two consequences the graph must respect, both handled in nav-graph rather than
+ * here:
  *
  *   - the lift passes through solid geometry, so a lift run is collected over
  *     every up tile regardless of passability;
  *   - while lifted the hero cannot fall or jump, but can step sideways out.
  *
- * This module's job is to say *where* the hero can be taken and *where* he can get
- * off. Reachable set aside, the hero waits, so no clock is needed.
+ * This module says *where* the hero can be taken and *where* he can get off.
+ * The hero can wait, so no clock is needed.
  *
  * The level-5 monster rule — where a left current is a wall for monsters
  * (dungeon-entities.ts:160-172) — is deliberately not modelled: monsters are not
@@ -87,8 +87,8 @@ function standing(
 /**
  * Build the current model for one map.
  *
- * A lift column is the hero's **middle** column, so a lift sitting at map column `c`
- * is ridden with `leftCol = c - 1`.
+ * A lift column is the hero's **middle** column, so a lift sitting at map column
+ * `c` is ridden with `leftCol = c - 1`.
  */
 export function buildAirflowModel(mapId: number, grid: NavTileGrid): AirflowModel {
     const tables: NavAirflowTables | undefined = NAV_AIRFLOWS[mapId];
@@ -162,9 +162,9 @@ export function buildAirflowModel(mapId: number, grid: NavTileGrid): AirflowMode
 /**
  * Is the hero still in a lift at this head row?
  *
- * `checkAirflowsOnHero` probes his middle column at three rows — head, body, feet —
- * and stops the moment none of them holds an up current. The lift moves him two
- * rows per tick, so the probe walks up in steps of two.
+ * `checkAirflowsOnHero` probes his middle column at three rows — head, body,
+ * feet — and stops the moment none of them holds an up current. The lift moves
+ * him two rows per tick, so the probe walks up in steps of two.
  */
 function stillLifted(
     grid: NavTileGrid,

@@ -8,8 +8,8 @@
  * Per-tile classification, one bit each.
  *
  * A tile's flags are a pure function of its id and its cavern's attribute
- * tables, so they are computed once per tile id into a 64-entry table rather than
- * per cell — see nav/attributes.ts.
+ * tables, so they are computed once per tile id into a 256-entry table rather
+ * than per cell — see nav/attributes.ts.
  */
 export const NAV = {
     /** Tile id 0: the void. Passable in every cavern. */
@@ -77,9 +77,9 @@ export function isConveyor(flags: number): boolean {
 /**
  * Which way a current pushes the hero.
  *
- * These are the engine's own values (engine/dungeon-entities.ts:33-36) rather than
- * a tidier renumbering, so `getAirflowDirection` can be compared directly against
- * `NavTileClassifier.airflowDirection` with no translation table between them.
+ * These are the engine's own values (engine/dungeon-entities.ts:33-36) rather
+ * than a tidier renumbering, so `getAirflowDirection` can be compared directly
+ * against `NavTileClassifier.airflowDirection` with no translation table.
  */
 export const AIRFLOW_NONE = 0xff;
 export const AIRFLOW_UP = 0;
@@ -126,13 +126,12 @@ export type CapabilityMask = number;
 /** Which abilities are already granted, ignoring keys and the current loadout. */
 export const CAP_ALWAYS: CapabilityMask = CAP.CLIMB;
 
-/** Edge kinds in the navigation graph. */
 /**
  * Keys per node, in `NavGraph.keyKindAt`.
  *
  * `0x16` is an ordinary key and `0x17` a Lion-Head one in the entity records
- * (`flag16` / `flag17`, engine/dungeon-items.ts:339-350); the graph stores them one
- * apart from zero so a plain array can be compared against zero.
+ * (`flag16` / `flag17`, engine/dungeon-items.ts:339-350); the graph stores them
+ * one apart from zero so a plain array can be compared against zero.
  */
 export const KEY_NONE = 0;
 export const KEY_ORDINARY = 1;
@@ -200,16 +199,11 @@ export const EDGE_COST = {
 /**
  * Ticks added to every jump, over and above the frames the flight actually takes.
  *
- * The hero covers one column per airborne frame, so a jump that crosses *n* columns
- * takes about *n* frames — exactly what walking those *n* columns would cost. With
- * the raw frame count the two tie, and the search then takes the jump: on mp30 it
- * hopped `(193,19) -> (200,21)` across a staircase the hero can simply walk down,
- * and `(202,21) -> (184,47)` across 18 columns where the ledges are contiguous.
- *
- * Both work, which is the problem: the player should be shown the way he would walk,
- * and a jump should appear only where walking cannot go. Two ticks is enough to
- * break the tie for a staircase and small enough that a jump genuinely crossing a
- * chasm still wins on distance — which is the only reason to leave the ground.
+ * The hero covers one column per airborne frame, so a jump that crosses *n*
+ * columns takes about *n* frames — the same as walking those columns. Without
+ * this penalty the two tie and the search takes jumps over walkable ground. Two
+ * ticks is enough to break the tie while keeping a jump that genuinely crosses a
+ * chasm the cheaper option.
  */
 export const JUMP_TICK_PENALTY = 2;
 

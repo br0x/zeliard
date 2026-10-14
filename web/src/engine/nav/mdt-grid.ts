@@ -14,20 +14,13 @@
  *   token >> 6 == 2   count = token & 63,       tile = 0             (1 byte)
  *   token >> 6 == 3   count = 1,                tile = token & 63    (1 byte)
  *
- * The `tile = NEXT byte` reading of case 0 is the one that matters. Decoding
- * `tile = token` instead yields a grid that looks plausible and is entirely
- * wrong — every solid/empty distinction shifts — and the original research
- * prototypes made exactly that mistake. Two assertions guard it:
- * `tests/nav-mdt-grid.test.ts` checks case 0 directly against a hand-built
- * stream, and `tests/nav-data.test.ts` cross-checks the shipped decode.
+ * Case 0 reads the tile from the *following* byte, not from the token. That is
+ * the one detail worth guarding: decoding it as `tile = token` produces a grid
+ * that looks plausible and is entirely wrong.
  *
- * Grid layout is row-major, index `row * mapWidth + col`, so that
- * `row * mapWidth + col` matches the addressing the extractor used and the
- * platform and airflow ranges in nav-platforms.ts / nav-airflows.ts were
- * computed against.
- *
- * Rows wrap mod 64 and columns mod mapWidth — a cavern is a cylinder in both
- * axes — so callers must wrap on access rather than rely on bounds.
+ * Grid layout is row-major, index `row * mapWidth + col`. Rows wrap mod 64 and
+ * columns mod mapWidth — a cavern is a cylinder in both axes — so callers must
+ * wrap on access rather than rely on bounds.
  */
 
 import { MAP_HEIGHT, ADDR_PACKED_MAP_START } from '../unpack.js';
@@ -146,10 +139,9 @@ export function tileAtUnwrapped(grid: NavTileGrid, col: number, row: number): nu
 /**
  * Per-session cache of decoded grids.
  *
- * A pathfinder may touch every map of a component, but the map screen only ever
- * needs a few at once, so this is an unbounded map that the caller is free to
- * clear on a mode change. Decoding is ~0.5 ms for a 20k-tile map, so a miss is
- * cheap enough that eviction is not worth the complexity yet.
+ * Decoding is ~0.5 ms for a 20k-tile map, so a miss is cheap enough that
+ * eviction is not worth the complexity; the caller is free to `clear()` on a
+ * mode change.
  */
 export class NavGridCache {
     private readonly grids = new Map<number, NavTileGrid>();

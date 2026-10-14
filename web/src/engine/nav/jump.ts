@@ -7,11 +7,7 @@
  *   airborne_movement         engine/dungeon-input.ts:524-600
  *   check_floor_for_landing   engine/dungeon-vertical.ts:488-504
  *
- * Everything below is those routines read in the order the hero meets them. The
- * previous model was not: it wanted his whole 3x3 body clear at the apex, which
- * corresponds to no code in the game and rejects the ordinary hop up onto a
- * ledge, because at the top of such a jump his feet are level with the very
- * surface he is landing on.
+ * Everything below is those routines read in the order the hero meets them.
  *
  * ── the frame ───────────────────────────────────────────────────────────────
  * `dungeonFinishNormalFrame` calls `airborne_movement` first and only calls
@@ -26,15 +22,10 @@
  *     else if (BYTE_9F09 != 0)                    -> stop rising    (hero:351)
  *     else                                        -> no jump at all  (hero:357)
  *
- * `heroTL` is the proximity address of the hero's top-left cell and the address
- * is `row * 36 + col`, so `heroTL - 35` is one row up and one column right: the
- * cell above the middle of his head. That single cell is the only obstruction
- * the rise ever consults — nothing about the rest of his body, and nothing at
- * the height he is rising *through*. He comes up past the lip of the ledge he is
- * jumping onto because the engine never asks.
+ * `heroTL - 35` is one row up and one column right: the cell above the middle of
+ * his head. That single cell is the only obstruction the rise consults.
  *
- * A jump needs at least one rise (the last branch leaves him grounded with his
- * head against a ceiling), so a jump from a tunnel roof is not a jump.
+ * A jump needs at least one rise, so a jump from a tunnel roof is not a jump.
  *
  * ── 2. the sideways step ────────────────────────────────────────────────────
  * One column per frame, on every frame of the flight:
@@ -44,75 +35,47 @@
  *     the same frame;
  *   - on the frame the rise stops, for the same reason;
  *   - on every descent frame, because `airborne_movement` re-reads `INPUT_DIRS`
- *     itself (dungeon-input.ts:568) — the hero can change his mind in flight,
- *     and the frame he spends turning around is a frame he still descends.
+ *     itself (dungeon-input.ts:568).
  *
- * There is no frame that is neither a rise nor a descent, so a jump covers
- * sideways at most `rises + 1 + descents` columns: one per rise, one on the
- * frame the rise stops, one per row he falls. The probe is the engine's own,
- * `heroCanStepSideways`.
+ * So a jump covers sideways at most `rises + 1 + descents` columns.
  *
  * ── 3. the descent ──────────────────────────────────────────────────────────
- * One row per frame with no test at all — `BYTE_9F09--` and
- * `HERO_HEAD_Y_VIEW++`, or `hero_scroll_down` once that counter is spent
- * (dungeon-input.ts:536-541). The only thing that stops it is the landing check,
- * which runs at the top of each frame, before the row is added.
+ * One row per frame with no test at all. The only thing that stops it is the
+ * landing check, which runs at the top of each frame, before the row is added.
  *
- * Note what is *not* here: the engine never asks whether the hero's body fits. Not
- * on the way up (only the cell above his head), not on a sideways step (one column,
- * and not the one he is entering), not on the way down (no test at all), not on
- * landing (one cell, under his middle foot). A ledge jump in mp80 clips a column of
- * rock on the way up and lands with the hero's feet inside a floor; the game allows
- * it, so a model that refuses it refuses the player's route.
+ * The engine never asks whether the hero's body fits. Not on the way up, not on a
+ * sideways step, not on the way down, not on landing. A ledge jump can clip a
+ * column of rock on the way up and land with the hero's feet inside a floor, and
+ * the game allows it.
  *
  * ── 4. the landing ──────────────────────────────────────────────────────────
  * `check_floor_for_landing` is reproduced in geometry.canLand. The hero lands
  * when there is ground under his middle foot; in the single frame where his
  * animation phase is 0 rather than 0x80 — the pose a rise leaves him in — his
- * outer two feet are consulted too, which is how he stops over a one-tile gap.
- * Landing clears `JUMP_PHASE_FLAGS` and the flight is over.
+ * outer two feet are consulted too.
  *
  * A platform counts as ground here and appears nowhere in the static map, so the
  * model is told where the standing slots are and treats those cells as a floor.
- * That is the engine's own split: a platform tile is 0x40..0x48, which
- * `is_blocking_tile_simple` stops at and `is_blocking_tile` lets through, so it
- * blocks the feet and not the head — he lands on it and can rise through it.
- *
- * So a landing ends the flight: the hero cannot drift past a row he would land
- * on. A long jump is a long fall that stops at the first ground, not a glide,
- * and that is what makes this a search rather than an offset table.
  *
  * ── the rope on the way up ──────────────────────────────────────────────────
- * A flight can end on a rope in two different places, and they are different code.
- * The descent one is `airborne_movement`: it lands the frame, drops a row, and then
- * probes the cell under his middle foot two rows below the new head row
- * (dungeon-input.ts:543-551) — see {@link JumpModel.catchesRope}. The ascent one is
- * `try_climb_rope`, and it has no analogue in the descent at all: while the hero is
- * rising `airborne_movement` returns at once (jump_phase_flags is 0xFF), so the whole
- * rise is driven by held input through the dispatcher, and `state_machine_dispatcher`
- * routes **Up held on its own** to `up_pressed_dispatch`, which calls `try_climb_rope`
- * on every frame (dungeon-input.ts:372-374, 426-440). A rope in the hero's middle
- * column at his head row ends that rise and he is climbing.
+ * A flight can end on a rope in two different places, and they are different
+ * code. The descent one is `airborne_movement`: it lands the frame, drops a row,
+ * and then probes the cell under his middle foot two rows below the new head row
+ * (dungeon-input.ts:543-551) — see {@link JumpModel.catchesRope}. The ascent one
+ * is `try_climb_rope`: while the hero is rising `airborne_movement` returns at
+ * once, so the whole rise is driven by held input, and `state_machine_dispatcher`
+ * routes **Up held on its own** to `up_pressed_dispatch`, which calls
+ * `try_climb_rope` on every frame (dungeon-input.ts:372-374, 426-440).
  *
- * The player did exactly that in mp80. He was riding the row-30 platform at
- * `(197,27)`, held Up, and the jump rose to `(197,25)` — where the rope hanging in
- * column 198 begins — and took hold of it instead of coming back down. Nothing in
- * the graph could follow him: a rise was only ever a rise, so the flight sailed
- * through `(197,25)`, found the platform again on the way down and reported a landing
- * where the hero had already left the level's geometry for a rope. Every rope in a
- * cavern whose foot is above a ledge was unreachable that way.
- *
- * Only the Up-alone rise is this. `right_up_pressed` and `left_up_pressed` jump and
- * then step sideways and never reach `try_climb_rope`, so a jump with a direction
- * held is exactly the flight it was before.
+ * Only the Up-alone rise is this. `right_up_pressed` and `left_up_pressed` jump
+ * and then step sideways and never reach `try_climb_rope`.
  *
  * ── what this does not model ────────────────────────────────────────────────
  * There is no jump off a rope at all: `jump_press_handler` returns while
- * ON_ROPE_FLAGS is set (dungeon-hero.ts:322). Slopes
- * (`slope_assist_on_landing`), crumbling platforms (`hero_collapse_platform`) and
- * ice (`set_zero_flag_if_slippery`) are separate graph families and are likewise
- * left to them. Jumps out of a current are suppressed by the graph (§7.4 of the
- * plan), because `check_airflows_on_hero` runs first and owns the hero.
+ * ON_ROPE_FLAGS is set (dungeon-hero.ts:322). Slopes, crumbling platforms and
+ * ice are separate graph families and are likewise left to them. Jumps out of a
+ * current are suppressed by the graph, because `check_airflows_on_hero` runs
+ * first and owns the hero.
  */
 
 import { JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA, NAV, blocksBody, blocksHead } from './types.js';
@@ -123,8 +86,8 @@ import type { NavTileGrid } from './mdt-grid.js';
 /**
  * Which sideways descents a search may use, as a mask.
  *
- * A flight picks one at take-off and keeps it — see {@link JumpModel.descend} — so
- * every search runs three descents and these say which of them count.
+ * A flight picks one at take-off and keeps it — see {@link JumpModel.descend} —
+ * so every search runs three descents and these say which of them count.
  */
 export const STEER_ALL = 0b111;
 export const STEER_STRAIGHT = 0b001;
@@ -137,14 +100,12 @@ const STEER_ORDER = [0, -1, 1] as const;
 /**
  * The rises a hop can have, shortest first.
  *
- * A jump rises, so these are the two the graph asks for. A fall does not: the hero
- * steps off something and drops, which is `landingsFrom(col, row, 0)` — a flight with
- * no rise at all. A rise of 0 is not a smaller jump, it is the other question the
- * engine can be asked, and a hop that came from that question cannot be found without
- * asking it again.
+ * A jump rises, so these are the two the graph asks for. A fall does not:
+ * `landingsFrom(col, row, 0)` is a flight with no rise at all.
  *
- * Falls search 0 first because that is the flight they are, and the search hands back
- * the *first* flight that reaches the landing: the cheapest one should be found first.
+ * Falls search 0 first because that is the flight they are, and the search hands
+ * back the *first* flight that reaches the landing: the cheapest one should be
+ * found first.
  */
 export const JUMP_RISE_HEIGHTS: readonly number[] = [JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA];
 export const FALL_RISE_HEIGHTS: readonly number[] = [0, JUMP_HEIGHT_DEFAULT, JUMP_HEIGHT_FERUZA];
@@ -198,9 +159,8 @@ export function readLanding(landings: Int32Array, i: number): JumpLanding {
  * One cavern's jump reachability.
  *
  * Built once per map and queried once per node, so everything it needs is
- * preallocated. The five masks below are the engine's predicates evaluated over the
- * whole map once each, because the descent asks them millions of times: a search
- * that re-derived them per state spent its time in modular arithmetic.
+ * preallocated. The masks below are the engine's predicates evaluated over the
+ * whole map once each, because the descent asks them millions of times.
  */
 export class JumpModel {
     private readonly mapWidth: number;
@@ -236,10 +196,7 @@ export class JumpModel {
      * move. Those helpers only step when the cell under his middle foot is open
      * *and* the cell under the foot he is stepping onto is solid rock
      * (`dungeon-input.ts:312-331`) — a hero with nothing under him at all cannot
-     * be steered, however open the air beside him is.
-     *
-     * Indexed by the head row the frame advanced to, `row * mapWidth + col`, where
-     * `col` is his left column *before* the step.
+     * be steered.
      */
     private readonly driftRight: Uint8Array;
     private readonly driftLeft: Uint8Array;
@@ -291,12 +248,11 @@ export class JumpModel {
     private tracing = false;
 
     /**
-     * @param platforms 1 where a standing platform slot can put the hero's feet, in
-     *   the same `row * mapWidth + col` indexing as the tile grid. Optional, because
-     *   a cavern with no platforms needs nothing.
-     * @param resting 1 where a platform is standing right now, which is solid rock
-     *   the hero cannot pass through. It cannot come from the tile grid, because a
-     *   platform's position is engine memory rather than map data.
+     * @param platforms 1 where a standing platform slot can put the hero's feet,
+     *   in the same `row * mapWidth + col` indexing as the tile grid.
+     * @param resting 1 where a platform is standing right now, which is solid
+     *   rock the hero cannot pass through. It cannot come from the tile grid,
+     *   because a platform's position is engine memory rather than map data.
      */
     constructor(
         grid: NavTileGrid,
@@ -310,23 +266,16 @@ export class JumpModel {
         this.flag = new Uint16Array(this.cells);
         for (let i = 0; i < this.cells; i++) {
             // A platform's resting cells are solid as far as geometry is concerned:
-            // the hero stands on one and is stopped by one. `is_blocking_tile_simple`
-            // is the predicate that stops at a platform tile, and BLOCK_BODY is it.
+            // `is_blocking_tile_simple` is the predicate that stops at a platform
+            // tile, and BLOCK_BODY is it.
             this.flag[i] = classifier.classify(grid.tiles[i]!)
                 | (resting?.[i] === 1 ? NAV.BLOCK_BODY : 0);
         }
-        // A platform is three solid tiles and the hero is three wide and three tall,
-        // so the hero cannot be *inside* one at any point of a flight. Kept apart from
-        // `flag` on purpose: BLOCK_HEAD would also stop a rise on the single cell
-        // above his head, and that is a different question from "is his body clear",
-        // which is the one the player settled for mp81 — there is no way through mp81
-        // row 62 between columns 153 and 158, whatever the tiles above his head say.
-        //
-        // `isBlockingTileSimple` blocks a platform tile the same as rock, and the
-        // hero's own descent test consults only his feet row (dungeon-vertical.ts
-        // :488-506), so a flight can drop him straight through a lift. It landed the
-        // route to mp81 (124,6) on mp81 (155,0) and then flew it back out to
-        // mp81 (158,62) through the x=155 lift's three columns.
+        // A platform is three solid tiles and the hero is three wide and three
+        // tall, so the hero cannot be *inside* one at any point of a flight. Kept
+        // apart from `flag` on purpose: BLOCK_HEAD would also stop a rise on the
+        // single cell above his head, and that is a different question from "is
+        // his body clear".
         this.solid = resting ?? new Uint8Array(this.cells);
         this.platform = platforms ?? new Uint8Array(this.cells);
         this.held = currents ?? new Uint8Array(this.cells);
@@ -402,21 +351,15 @@ export class JumpModel {
      * Is the hero's body clear of a platform that is standing right now?
      *
      * **The middle column only.** This is the `canRest` rule and it is not a
-     * whole-body test: a side column inside a platform is how the hero rides them,
-     * and how mp83 and mp82 work, so it has to stay allowed. Only his middle column
-     * inside a platform makes the cell a number in a grid rather than a position.
+     * whole-body test: a side column inside a platform is how the hero rides them.
      *
-     * A lift is three tiles wide and never moves while it is unmoved, so there is no
-     * way through the row it occupies — the player's mp81, between columns 153 and
-     * 158, is non-passable and that is the whole of it. Neither the rise nor the
-     * descent asks this on its own: `jump_press_handler` reads one cell above the
-     * middle of his head with `is_blocking_tile`, and `check_floor_for_landing` reads
-     * one cell under his middle foot with `is_blocking_tile_simple`. Between them a
-     * flight drops him straight through a lift — which is how the route to mp81
-     * `(124,6)` came to land on mp81 `(155,0)` and fly back out to mp81 `(158,62)`.
+     * Neither the rise nor the descent asks this on its own: `jump_press_handler`
+     * reads one cell above the middle of his head, and `check_floor_for_landing`
+     * reads one cell under his middle foot. Between them a flight would drop him
+     * straight through a lift.
      *
-     * Only the hero's own three rows are tested. The feet row is where he *stands on*
-     * a platform, so it is not part of being inside one.
+     * Only the hero's own three rows are tested. The feet row is where he *stands
+     * on* a platform, so it is not part of being inside one.
      */
     private clearOfPlatform(col: number, headRow: number): boolean {
         const w = this.mapWidth;
@@ -427,7 +370,7 @@ export class JumpModel {
         return true;
     }
 
-/**
+    /**
      * `move_hero_right_if_no_obstacles` and its mirror. See geometry.ts.
      */
     private stepIn(col: number, headRow: number, dir: number): boolean {
@@ -448,26 +391,14 @@ export class JumpModel {
     }
 
     /**
-     * `check_floor_for_landing`: does a hero here stop falling?
-     *
-     * @param firstPose true on the frame a rise hands over to the descent, when the
-     *   hero's animation phase is 0 and his outer two feet are consulted too.
-     */
-    /**
      * Does a falling hero catch a rope on this frame?
      *
-     * `airborne_movement` lands the frame first and only then probes for a rope, and
-     * both probes read the *same* cell: the one under his middle foot, three rows
-     * below his head (`dungeon-input.ts:509-546`). So a rope is caught exactly when
-     * the landing check has already failed on that cell, and the hero ends the
-     * frame **one row lower than where the check was**, hanging on it.
-     *
-     * That is what the player did at mp10: he stepped off the ledge at `(110,7)`,
-     * and the frames after were `(111,8)` then `(111,9)` with `ON_ROPE_FLAGS` set —
-     * the catch at `(112,11)`, three rows below the head at `(111,8)`. Nothing in the
-     * graph could follow him: a flight ended on ground or on a platform, never on a
-     * rope, so every rope in a cavern was unreachable from above. The recording is
-     * `WORK/DOC/level1.txt`; the analysis is §23.3.
+     * `airborne_movement` lands the frame first and only then probes for a rope,
+     * and both probes read the *same* cell: the one under his middle foot, three
+     * rows below his head (`dungeon-input.ts:509-546`). So a rope is caught
+     * exactly when the landing check has already failed on that cell, and the
+     * hero ends the frame **one row lower than where the check was**, hanging on
+     * it.
      */
     private catchesRope(col: number, headRow: number): boolean {
         return (this.at(col + 1, headRow + 3) & NAV.ROPE) !== 0;
@@ -476,12 +407,11 @@ export class JumpModel {
     /**
      * Does a rise end here because the hero took hold of a rope?
      *
-     * `try_climb_rope` reads the cell above the middle of his head — the same cell
-     * `dungeon_finish_rope_frame` reads to decide whether he is still holding one
-     * (dungeon-states.ts:258-271) — and it is reached only from `up_pressed_dispatch`,
-     * which `state_machine_dispatcher` runs for **Up alone** while the hero is rising
-     * (dungeon-input.ts:372-374, 426-440). One row above a climb is where the rope
-     * starts, so that is exactly the row a rising hero arrives at.
+     * `try_climb_rope` reads the cell above the middle of his head — the same
+     * cell `dungeon_finish_rope_frame` reads to decide whether he is still
+     * holding one (dungeon-states.ts:258-271) — and it is reached only from
+     * `up_pressed_dispatch`, which `state_machine_dispatcher` runs for **Up
+     * alone** while the hero is rising (dungeon-input.ts:372-374, 426-440).
      *
      * The climb out of it is a `CLIMB` edge, which every rope node already has.
      */
@@ -489,6 +419,12 @@ export class JumpModel {
         return (this.at(col + 1, headRow) & NAV.ROPE) !== 0;
     }
 
+    /**
+     * `check_floor_for_landing`: does a hero here stop falling?
+     *
+     * @param firstPose true on the frame a rise hands over to the descent, when
+     *   the hero's animation phase is 0 and his outer two feet are consulted too.
+     */
     private landsIn(col: number, headRow: number, firstPose: boolean): boolean {
         const w = this.mapWidth;
         const feet = wrapRow(headRow + 3) * w;
@@ -509,8 +445,8 @@ export class JumpModel {
      * Where a falling hero can still get to ground.
      *
      * True at a cell where he lands outright, or where he can fall one row — with
-     * or without a sideways step — to somewhere he can. A cell only depends on the
-     * row below, so one descending pass settles everything except across the
+     * or without a sideways step — to somewhere he can. A cell only depends on
+     * the row below, so one descending pass settles everything except across the
      * wrap; the loop ends after the second.
      */
     private solveCanLand(): Uint8Array {
@@ -530,9 +466,8 @@ export class JumpModel {
                         changed = true;
                         continue;
                     }
-                    // A rope under his middle foot ends the flight one row lower, so
-                    // a cell above one is still worth visiting — without this the
-                    // descent is never enqueued there and the catch never happens.
+                    // A rope under his middle foot ends the flight one row lower,
+                    // so a cell above one is still worth visiting.
                     if (this.catchesRope(col, row)) {
                         reach[cell] = 1;
                         changed = true;
@@ -560,14 +495,11 @@ export class JumpModel {
      * Every landing one jump from `(col, row)` can reach.
      *
      * Both jump heights run and merge. A plain jump needs nothing, so a landing
-     * the plain jump also reaches is not repeated as a Feruza one: the cheap edge
-     * already exists for every hero.
+     * the plain jump also reaches is not repeated as a Feruza one.
      *
      * `height = 0` asks the other question the engine can be asked, which is what
-     * happens when the hero steps off something rather than jumping: no rise, then
-     * the same fall, with the same steering. That is "fall down left, fall down
-     * right" from a rope, and a straight `fallTo` cannot express it — the hero
-     * chooses a column every row he is in the air.
+     * happens when the hero steps off something rather than jumping: no rise,
+     * then the same fall, with the same steering.
      *
      * The result is a view on a buffer this model reuses — read it before asking
      * again.
@@ -583,14 +515,13 @@ export class JumpModel {
         this.traceCount = 0;
         this.tracing = true;
         // Both heights share one dedupe set. A landing the plain jump reaches is
-        // always the cheaper of the two — every landing below one rise's end costs
-        // the same whatever path it takes, so fewer rows risen is fewer frames —
-        // so there is nothing for the tall jump to add on ground the short one
-        // already covers, and re-walking it would only cost time.
+        // always the cheaper of the two, so there is nothing for the tall jump to
+        // add on ground the short one already covers.
         this.flight(col, row, Math.min(height, JUMP_HEIGHT_DEFAULT), 0, gen, allow);
         const plain = this.record[0]!;
-        // Everything traced so far is a cell the plain jump reaches. The two passes
-        // share one stamp, so whatever the tall pass adds is a cell only it reaches.
+        // Everything traced so far is a cell the plain jump reaches. The two
+        // passes share one stamp, so whatever the tall pass adds is a cell only it
+        // reaches.
         this.plainTraceCount = this.traceCount;
         if (height > JUMP_HEIGHT_DEFAULT) this.flight(col, row, height, 1, gen, allow);
         else this.record[1]!.count = 0;
@@ -613,42 +544,38 @@ export class JumpModel {
     /**
      * Every position the jump just asked about passed through, two ints each.
      *
-     * What `check_airflows_on_hero` sees the hero in, frame by frame, for both jump
-     * heights. The graph needs it to decide where a current can catch a jump: a jet
-     * is entered by being swept, so the positions that matter are the ones he
-     * actually occupies, not an arc sampled between two landings. It is the union
-     * over every flight from that cell, which is why a hop that lands somewhere
-     * wants {@link flightPath} instead.
+     * What `check_airflows_on_hero` sees the hero in, frame by frame, for both
+     * jump heights. The graph needs it to decide where a current can catch a
+     * jump: a jet is entered by being swept, so the positions that matter are the
+     * ones he actually occupies, not an arc sampled between two landings.
      *
-     * Valid until the next {@link landingsFrom} — it is the same search, so the
-     * cells come for free and asking again separately would walk the flight twice.
+     * Valid until the next {@link landingsFrom}.
      */
     lastTrace(): Int32Array {
         return this.trace.subarray(0, this.traceCount * 2);
     }
 
     /**
-     * How many of {@link lastTrace}'s cells (pairs, not ints) the plain jump reaches.
+     * How many of {@link lastTrace}'s cells (pairs, not ints) the plain jump
+     * reaches.
      *
-     * The cells after that point are reached only by the tall pass, so a graph edge
-     * built from one of them needs Feruza shoes. The split is exact because both
-     * passes share one stamp: a cell the plain pass noted is never noted again.
+     * The cells after that point are reached only by the tall pass, so a graph
+     * edge built from one of them needs Feruza shoes.
      */
     lastTracePlainCount(): number {
         return this.plainTraceCount;
     }
 
     /**
-     * The cells one flight through, as col/row pairs.
+     * The cells one flight passes through, as col/row pairs.
      *
      * The descent only, from where the rise ended to the landing: the rise is the
-     * one part of a jump the engine never tests the hero's body against, so it can
-     * carry him through a ledge lip and there is nothing to check. The descent is
-     * the part that travels, and this is the one path through it that ends at the
-     * landing asked for — the trace is the union over every flight from the same
-     * cell, which includes flights that go somewhere else entirely.
+     * one part of a jump the engine never tests the hero's body against, so it
+     * can carry him through a ledge lip and there is nothing to check. The
+     * descent is the part that travels.
      *
-     * Empty when no flight from `(col, row)` lands there. A view on a reused buffer.
+     * Empty when no flight from `(col, row)` lands there. A view on a reused
+     * buffer.
      */
     flightPath(
         col: number,
@@ -658,10 +585,10 @@ export class JumpModel {
         fromRope = false,
         allow: number = STEER_ALL,
         /**
-         * The rises to search, shortest first. {@link JUMP_RISE_HEIGHTS} for a jump,
-         * {@link FALL_RISE_HEIGHTS} for a fall — which is the question the graph asked
-         * when it built the hop, and a flight found under one of those is not a flight
-         * the other can take.
+         * The rises to search, shortest first. {@link JUMP_RISE_HEIGHTS} for a
+         * jump, {@link FALL_RISE_HEIGHTS} for a fall — which is the question the
+         * graph asked when it built the hop, and a flight found under one of those
+         * is not a flight the other can take.
          */
         heights: readonly number[] = JUMP_RISE_HEIGHTS,
     ): Int32Array {
@@ -672,13 +599,13 @@ export class JumpModel {
         this.current = this.record[0]!;
         this.current.gen = ++this.generation;
 
-        // Shortest rise first, for the same reason the landings search uses it: the
-        // first flight that reaches the cell is the cheapest one.
+        // Shortest rise first, for the same reason the landings search uses it:
+        // the first flight that reaches the cell is the cheapest one.
         for (const height of heights) {
             for (const steer of STEER_ORDER) {
                 if (!steerAllowed(steer, allow)) continue;
-                // The rise is searched with the same intent as the descent, exactly as
-                // `flight` does it, so the path handed back is one whole flight.
+                // The rise is searched with the same intent as the descent, so
+                // the path handed back is one whole flight.
                 const starts = this.collectStarts(col, row, height, steer);
                 for (let i = 0; i < starts; i++) {
                     const o = i * START_STRIDE;
@@ -696,8 +623,8 @@ export class JumpModel {
     /**
      * Walk the parent chain back out of the queue and emit the cells.
      *
-     * Every cell the flight occupies, rise and fall alike: the engine's tests mean
-     * the hero can clip scenery on the way up as well as on the way down, so
+     * Every cell the flight occupies, rise and fall alike: the engine's tests
+     * mean the hero can clip scenery on the way up as well as on the way down, so
      * neither is separable from the other.
      */
     private writePath(startOffset: number): void {
@@ -720,9 +647,8 @@ export class JumpModel {
         }
         const startRow = this.starts[startOffset + 1]!;
         this.pathCount = 0;
-        // The rise, one cell per row the hero climbed, then the fall. Both are part
-        // of the flight: leaving the rise out put a hole at the take-off of every
-        // jump, and the line only looked continuous where he never left the ground.
+        // The rise, one cell per row the hero climbed, then the fall. Both are
+        // part of the flight.
         const rises = this.starts[startOffset + 2]!;
         for (let k = 0; k <= rises; k++) {
             this.pushPath(
@@ -774,23 +700,18 @@ export class JumpModel {
         set.gen = gen;
         this.current = set;
         // ── the flights ───────────────────────────────────────────────────────
-        // One lateral intent per flight: the direction he holds from the instant he
-        // presses jump until he lands. The rise drifts that way where it can, and
-        // the descent continues the same way, so **a flight that went up to the
-        // right can never come down to the left**.
-        //
-        // Searching the rise once with all three descents attached is what produced
-        // that. The mp30 leg `(2,21) -> (184,47)` traced as
-        // `(2,21) (3,20) (4,19) (5,19) (4,20) (3,21) ...` — two rows up and to the
-        // right, then a twenty-two column descent to the left, which is not a flight
-        // the hero can take. He presses one direction and gets one flight.
+        // One lateral intent per flight: the direction he holds from the instant
+        // he presses jump until he lands. The rise drifts that way where it can,
+        // and the descent continues the same way, so **a flight that went up to
+        // the right can never come down to the left**.
         for (const steer of STEER_ORDER) {
             if (!steerAllowed(steer, allow)) continue;
             const starts = this.collectStarts(col, row, height, steer);
-            // Each rise's end is searched on its own, in the order the rise produced
-            // them: shortest rise first. Every landing below one start costs the same
-            // number of ticks whatever path it takes, so searching in that order is
-            // what keeps a cell's recorded cost the best one available.
+            // Each rise's end is searched on its own, in the order the rise
+            // produced them: shortest rise first. Every landing below one start
+            // costs the same number of ticks whatever path it takes, so searching
+            // in that order is what keeps a cell's recorded cost the best one
+            // available.
             for (let i = 0; i < starts; i++) {
                 const o = i * START_STRIDE;
                 const sCol = this.starts[o]!;
@@ -805,11 +726,12 @@ export class JumpModel {
      * Where the rise can end, one record per way it can end: col, row, rows
      * risen, then the column he was at for each of those rows.
      *
-     * `front` holds the columns the hero can be at after `r` rises, so his head is
-     * on `row - r`. Every frame either lifts him one row — if the cell above the
-     * middle of his head is open — or ends the rise, and either way a sideways step
-     * may follow it. The rise ends at the height cap (`r === height`) or at a
-     * ceiling, and the descent begins from wherever he ended up.
+     * `front` holds the columns the hero can be at after `r` rises, so his head
+     * is on `row - r`. Every frame either lifts him one row — if the cell above
+     * the middle of his head is open — or ends the rise, and either way a
+     * sideways step may follow it. The rise ends at the height cap
+     * (`r === height`) or at a ceiling, and the descent begins from wherever he
+     * ended up.
      */
     private collectStarts(col: number, row: number, height: number, steer: number): number {
         const width = this.mapWidth;
@@ -831,12 +753,11 @@ export class JumpModel {
                 const from = i * START_STRIDE;
                 const c = wrapCol(front[i]!, width);
                 this.noteCell(c, here, here * width + c);
-                // A rope ends the rise on the frame his head reaches it, not only on
-                // the frame the rise stops. `try_climb_rope` is asked on every frame
-                // of a rise, so every row of one is somewhere the flight can end, and
-                // each is handed on as a rise end of its own — `descend` recognises
-                // it there and stops there. A rise of no rows cannot, which is the
-                // `rises >= 1` below and is also what keeps a plain fall out of it.
+                // A rope ends the rise on the frame his head reaches it, not only
+                // on the frame the rise stops. `try_climb_rope` is asked on every
+                // frame of a rise, so every row of one is somewhere the flight can
+                // end. A rise of no rows cannot, which is the `rises >= 1` below
+                // and is also what keeps a plain fall out of it.
                 if (steer === 0 && rises >= 1 && this.grabsRopeOnRise(c, at)) {
                     starts = this.pushStart(starts, c, here, rises, frontChain, from);
                 }
@@ -894,8 +815,9 @@ export class JumpModel {
     }
 
     /**
-     * Add a column to the rise frontier, keeping the chain of columns that reached
-     * it — the rise is part of the flight and the drawn line has to show it.
+     * Add a column to the rise frontier, keeping the chain of columns that
+     * reached it — the rise is part of the flight and the drawn line has to show
+     * it.
      */
     private pushRise(
         list: Int32Array,
@@ -921,9 +843,6 @@ export class JumpModel {
      * falling here": either the check ends the flight, or he drops a row and may
      * step sideways — unless nothing can be landed on from there, which is what
      * {@link canLand} rules out.
-     *
-     * No rope is involved: a hero holding one cannot jump at all, and the graph
-     * gives rope nodes a step sideways instead (see nav-graph.ts).
      */
     private descend(
         col: number,
@@ -947,26 +866,22 @@ export class JumpModel {
             const t = this.queue[o + 2]!;
             const firstPose = this.queue[o + 3] === 1;
             const cell = r * width + c;
-            // One lane per locked steer, or the second descent would be thrown away
-            // by marks the first left behind: they share a generation, so a
+            // One lane per locked steer, or the second descent would be thrown
+            // away by marks the first left behind: they share a generation, so a
             // generation-scoped dedupe would let only one of the three run.
             const steerLane = steer > 0 ? 2 : steer < 0 ? 1 : 0;
             const seenKey = (cell * 2 + (firstPose ? 1 : 0)) * 3 + steerLane;
             if (this.seen[seenKey] === this.current.gen) continue;
             this.seen[seenKey] = this.current.gen;
             this.noteCell(c, r, cell);
-            // A pose whose **middle** column is inside a platform standing right now
-            // is not a position the hero can be in. `check_floor_for_landing` reads
-            // only his feet row, so without this a descent drops him straight through
-            // a lift: that is how the route to mp81 (124,6) landed on mp81 (155,0)
-            // and flew back out to mp81 (158,62) through the x=155 lift's columns.
-            // Side columns may overlap — he rides them that way — so only the middle.
+            // A pose whose **middle** column is inside a platform standing right
+            // now is not a position the hero can be in. `check_floor_for_landing`
+            // reads only his feet row, so without this a descent drops him
+            // straight through a lift. Side columns may overlap — he rides them
+            // that way — so only the middle.
             if (!this.clearOfPlatform(c, r)) continue;
-            // The hero took hold of a rope on the way up. Only a rise can do this —
-            // a fall's start has no rise to spend — and only with Up held on its
-            // own, which is the one input the dispatcher answers with `try_climb_rope`.
-            // The rope is at his head row, so the flight ends right here; the climb
-            // out of it is a CLIMB edge on the rope node this hands back.
+            // The hero took hold of a rope on the way up. Only a rise can do
+            // this, and only with Up held on its own.
             if (firstPose && rises > 0 && steer === 0 && this.grabsRopeOnRise(c, r)) {
                 if (track && cell === this.wantCell) {
                     this.pathEnd = head - 1;
@@ -976,18 +891,12 @@ export class JumpModel {
                 this.noteLanding(cell, c, r, t, rises);
                 continue;
             }
-            // An up current ends a flight before the landing check is ever reached.
-            // `check_airflows_on_hero` runs at the top of the frame
+            // An up current ends a flight before the landing check is ever
+            // reached. `check_airflows_on_hero` runs at the top of the frame
             // (dungeon-frame-pre.ts:88-113) and, finding a jet in the hero's three
             // rows, sets `AIR_UP_TILE_FOUND` — which is what `airborne_movement`
-            // returns on (dungeon-input.ts:515-517), so neither the landing check nor
-            // the descent ever runs. The hero is simply taken.
-            //
-            // This is how mp81's row 6 corridor is entered at all: a hero standing at
-            // (135,16) jumps, and the frame his head reaches (135,14) the current at
-            // (136,14) grabs him and carries him to (135,6). Without it the flight
-            // sails on past the current, finds no ground under its middle foot, and
-            // lands back where it started — which is why (124,6) had no route at all.
+            // returns on (dungeon-input.ts:515-517), so neither the landing check
+            // nor the descent ever runs.
             if (this.held[cell] === 1) {
                 if (track && cell === this.wantCell) {
                     this.pathEnd = head - 1;
@@ -1007,9 +916,9 @@ export class JumpModel {
                 continue;
             }
 
-            // No floor under his middle foot, and a rope in that same cell: he grabs
-            // it. The row moved down before the probe, so he ends one row below
-            // where the check ran, and the sideways step after it never happens.
+            // No floor under his middle foot, and a rope in that same cell: he
+            // grabs it. The row moved down before the probe, so he ends one row
+            // below where the check ran.
             if (this.catchesRope(c, r)) {
                 const nr = wrapRow(r + 1);
                 const nc = wrapCol(c, width);
@@ -1027,28 +936,19 @@ export class JumpModel {
             // and no switching back to straight afterwards.
             //
             // A jump goes up in the direction it was pressed, and from the apex it
-            // comes down at 45 degrees **in that same direction** — up+right descends
-            // right, up+left descends left. Holding a key, the hero moves that way or
-            // is stopped by something: `on_left_pressed` calls `initOnGround` and
-            // returns when the step is blocked (dungeon-vertical.ts:127-136). He does
-            // not get to *choose* to drop straight down and then start drifting, so
-            // straight is the fallback when the step is blocked and never an
-            // alternative to it.
-            //
-            // Offering both on every frame is what let a flight slide down five rows
-            // of open air and then turn: the mp30 trace for `(0,21) -> (184,47)` was
-            // `(0,21) (1,20) (2,19) (3,19) (3,20) ... (3,24) (2,25) (1,26) ...`, a
-            // twenty-three column diagonal that the hero cannot fly, and it was the
-            // leg the player reported.
+            // comes down at 45 degrees **in that same direction**. Holding a key,
+            // the hero moves that way or is stopped by something. Straight is the
+            // fallback when the step is blocked and never an alternative to it.
             const below = wrapRow(r + 1);
             const fallTo = below * width;
             // A plain fall gets one free sideways step: the frame it starts on is
             // `oldPhase === 0`, which calls `on_left/right_pressed` outright, and
             // that block clears `UP_FLAG` on the way out. Every later frame of the
-            // fall runs `left_default`/`right_default` instead, so a step that needs
-            // more than an open lane also needs floor under the foot he is moving
-            // onto — see {@link driftRight}. A jump is left alone: it descends with
-            // `UP_FLAG` still set from the ascent and keeps the free move.
+            // fall runs `left_default`/`right_default` instead, so a step that
+            // needs more than an open lane also needs floor under the foot he is
+            // moving onto — see {@link driftRight}. A jump is left alone: it
+            // descends with `UP_FLAG` still set from the ascent and keeps the free
+            // move.
             const steered = steer !== 0
                 && this.stepAt(c, below, steer)
                 && (rises !== 0 || firstPose || this.driftAt(c, below, steer));
