@@ -11,7 +11,7 @@
  * The route itself is deliberately absent from this screen, and that is asserted
  * rather than assumed.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -46,6 +46,15 @@ const CTX = {
 } as unknown as CanvasRenderingContext2D;
 
 const CANVAS = { width: 672, height: 432 } as HTMLCanvasElement;
+
+/**
+ * Where a map lands in the chart area. `fitFor` is private on `MapScreen`, so
+ * the tests reach it through a cast — the same trick they use for the store.
+ */
+interface Fit { scale: number; ox: number; oy: number; w: number; h: number }
+function fitOf(screen: MapScreen, mapId: number): Fit {
+    return (screen as unknown as { fitFor: (id: number) => Fit }).fitFor(mapId);
+}
 
 function makeStore(): NavGraphStore {
     const cache = new Map<number, Uint8Array>();
@@ -129,7 +138,7 @@ function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
 
 /** The canvas pixel at the centre of a cell of the map on screen. */
 function pixelOf(screen: MapScreen, col: number, row: number): { x: number; y: number } {
-    const { ox, oy, scale } = screen.originFor(screen.displayMapId);
+    const { ox, oy, scale } = fitOf(screen, screen.displayMapId);
     return {
         x: ox + col * scale + Math.floor(scale / 2),
         y: oy + row * scale + Math.floor(scale / 2),
@@ -275,14 +284,12 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
         // The first tile of each platform is frame 0x40, 0x43 and 0x46 of the sheet,
         // and `drawSheetFrame` indexes the sheet from zero.
         expect(wanted.length, 'mp10 has platforms of all three kinds').toBeGreaterThan(3);
-        const { scale } = (h.screen as unknown as {
-            originFor: (id: number) => { ox: number; oy: number; scale: number };
-        }).originFor(HERO.mapId);
-        // The raster is a canvas of its own, so a blit carries chart-local coordinates;
-        // `drawMap` places it on the sheet afterwards.
+        const P = 24;   // MAP_TILE_PX — one tile of the raster, at native resolution.
+        // The raster is a canvas of its own, at 1:1, so a blit carries raster-local
+        // coordinates; `drawMap` scales the whole picture onto the canvas afterwards.
         const drawn = new Set(blits.map((b) => `${b.frame},${b.dx},${b.dy}`));
         for (const p of wanted) {
-            const at = `${p.frame},${p.col * scale},${p.row * scale}`;
+            const at = `${p.frame},${p.col * P},${p.row * P}`;
             expect(drawn.has(at), `a platform at column ${p.col}, row ${p.row}`).toBe(true);
         }
     });
@@ -306,12 +313,10 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
         createElement.mockRestore();
 
         const p = NAV_PLATFORMS[HERO.mapId]!.vertical[0]!;
-        const { scale } = (h.screen as unknown as {
-            originFor: (id: number) => { ox: number; oy: number; scale: number };
-        }).originFor(HERO.mapId);
+        const P = 24;   // MAP_TILE_PX — the raster is at 1:1, not at the fit scale.
         const painted = new Set(fills.map(([x, y]) => `${x},${y}`));
         for (let i = 0; i < 3; i++) {
-            expect(painted.has(`${(p.x + i) * scale},${p.startY * scale}`),
+            expect(painted.has(`${(p.x + i) * P},${p.startY * P}`),
                 `a platform tile at column ${p.x + i}, row ${p.startY}`).toBe(true);
         }
     });
@@ -353,40 +358,52 @@ describe('fitting every cavern into the canvas', () => {
     /** The strip band, and the map area below it, in canvas pixels. */
     const STRIP_BOTTOM = 28 + 26;
     const AREA_BOTTOM = 390;
+    /**
+     * The width a chart may occupy: the canvas less 6px of border on each side.
+     * `draw` strokes a 2px frame 4px in from the edge, so a map that lands on
+     * the canvas edge (mp20 is 224 columns, and 672/224 is exactly 3) would run
+     * over the frame.
+     */
+    const BORDER = 6;
+    const MAP_W = 672 - 2 * BORDER;
 
-    it('uses an integer scale that keeps the chart inside the map area', () => {
-        // One screen for the sweep: `enter` warms the reachable component, and the
-        // store caches graphs, so a screen per cavern would rebuild the same caverns
-        // 31 times over for a test that only measures geometry.
+    it('uses a fractional scale that keeps the chart inside the map area', () => {
+        // The scale is deliberately fractional — the chart is one scaled blit of
+        // the native-resolution raster, so the browser's filter sees the whole
+        // picture and there is no seam for an integer to hide. The old code
+        // floored the scale to keep per-tile draws from leaving hairlines, which
+        // cost a visible band of unused space along whichever axis bound the fit.
         const { screen } = harness();
         for (const meta of NAV_MAPS) {
-            const scale = screen.scaleFor(meta.id);
-            expect(Number.isInteger(scale), meta.nameKey).toBe(true);
-            expect(scale).toBeGreaterThanOrEqual(1);
-            const { ox, oy } = screen.originFor(meta.id);
-            expect(ox + meta.mapWidth * scale, `${meta.nameKey} width`).toBeLessThanOrEqual(672);
-            expect(oy + screen.chartedRows(meta.id) * scale, `${meta.nameKey} height`)
+            const fit = fitOf(screen, meta.id);
+            expect(fit.scale, meta.nameKey).toBeGreaterThan(0);
+            expect(fit.ox + meta.mapWidth * fit.scale, `${meta.nameKey} width`)
+                .toBeLessThanOrEqual(672);
+            expect(fit.oy + screen.chartedRows(meta.id) * fit.scale, `${meta.nameKey} height`)
                 .toBeLessThanOrEqual(AREA_BOTTOM);
-            expect(ox).toBeGreaterThanOrEqual(0);
+            expect(fit.ox).toBeGreaterThanOrEqual(0);
             // Below the strip, not merely inside the area that used to contain it.
-            expect(oy, `${meta.nameKey} top`).toBeGreaterThanOrEqual(STRIP_BOTTOM);
+            expect(fit.oy, `${meta.nameKey} top`).toBeGreaterThanOrEqual(STRIP_BOTTOM);
         }
     });
 
     it('centres the map horizontally', () => {
         const { screen } = harness();
         for (const meta of NAV_MAPS) {
-            const { ox, scale } = screen.originFor(meta.id);
+            const { ox, scale } = fitOf(screen, meta.id);
             const leftGap = ox;
             const rightGap = 672 - (ox + meta.mapWidth * scale);
             expect(Math.abs(leftGap - rightGap), meta.nameKey).toBeLessThanOrEqual(1);
         }
     });
 
-    it('fits the widest cavern, and only that one, at 2x', () => {
+    it('fits the widest cavern at just over 2x', () => {
         const { screen } = harness();
-        // 320 tiles is the widest, so 2x is the floor for the whole game.
-        expect(screen.scaleFor(8)).toBe(2);      // mp40, 320 wide
+        // 320 tiles is the widest, and the chart may use 660px of canvas, so the
+        // width fit is 660/320 = 2.0625 — over 2x, and no cavern takes less.
+        const fit = fitOf(screen, 8);
+        expect(fit.scale).toBeGreaterThan(2);
+        expect(fit.scale).toBeLessThanOrEqual(MAP_W / 320);
     });
 
     it('fits the chart inside the border, not edge to edge', () => {
@@ -395,17 +412,18 @@ describe('fitting every cavern into the canvas', () => {
         // canvas for a width it does not have put the map straight over both sides
         // of the frame, and every other cavern clears it by 2px or more, which is
         // why only mp20 showed it.
-        const BORDER = 6;
         const { screen } = harness();
         for (const meta of NAV_MAPS) {
-            const { ox, scale } = screen.originFor(meta.id);
+            const { ox, scale } = fitOf(screen, meta.id);
             expect(ox, `${meta.nameKey} left gap`).toBeGreaterThanOrEqual(BORDER);
             expect(672 - (ox + meta.mapWidth * scale), `${meta.nameKey} right gap`)
                 .toBeGreaterThanOrEqual(BORDER);
         }
         expect(NAV_MAP_BY_ID.get(2)!.mapWidth, 'mp20 is 224 columns wide').toBe(224);
-        expect(screen.scaleFor(2), 'and 224 * 3 is the whole canvas, so 2x it is')
-            .toBe(2);
+        // 224 * 3 would be 672, over the whole canvas: mp20's width fit is below
+        // 3x, and the chart keeps its 6px gutter on each side.
+        expect(fitOf(screen, 2).scale, 'mp20 stays inside the frame')
+            .toBeLessThanOrEqual(MAP_W / 224);
     });
 
     it('draws every boss arena far larger than fitting all 64 rows allowed', () => {
@@ -416,20 +434,20 @@ describe('fitting every cavern into the canvas', () => {
         // below is gone (see the next test).
         const { screen } = harness();
         const fitEverything = (meta: typeof NAV_MAPS[number]): number =>
-            Math.max(1, Math.min(8, Math.floor(Math.min(672 / meta.mapWidth, 336 / 64))));
+            Math.min(MAP_W / meta.mapWidth, 336 / 64);
 
         const arenas = NAV_MAPS.filter((m) => m.isBossArena);
         expect(arenas.length).toBe(8);
         for (const arena of arenas) {
             expect(screen.chartedRows(arena.id), arena.nameKey).toBeLessThan(32);
-            expect(screen.scaleFor(arena.id), arena.nameKey)
+            expect(fitOf(screen, arena.id).scale, arena.nameKey)
                 .toBeGreaterThan(fitEverything(arena));
         }
         expect(screen.chartedRows(10), 'mp4d').toBe(21);
-        expect(screen.scaleFor(1)).toBe(9);      // mp1d, 73 wide, 18 rows
-        expect(screen.scaleFor(4)).toBe(12);     // mp2d, 52 wide, 20 rows
-        expect(screen.scaleFor(10)).toBe(9);     // mp4d, 73 wide, 21 rows
-        expect(screen.scaleFor(21)).toBe(9);     // mp73, 73 wide, 16 rows
+        expect(fitOf(screen, 1).scale, 'mp1d, 73 wide, 18 rows').toBeCloseTo(MAP_W / 73, 4);
+        expect(fitOf(screen, 4).scale, 'mp2d, 52 wide, 20 rows').toBeCloseTo(MAP_W / 52, 4);
+        expect(fitOf(screen, 10).scale, 'mp4d, 73 wide, 21 rows').toBeCloseTo(MAP_W / 73, 4);
+        expect(fitOf(screen, 21).scale, 'mp73, 73 wide, 16 rows').toBeCloseTo(MAP_W / 73, 4);
     });
 
     it('trims mp4d\'s ring of 73 cells that only the wrap makes standing', () => {
@@ -438,8 +456,8 @@ describe('fitting every cavern into the canvas', () => {
         // floor check reads the row after his feet, so the tile under him at row 61
         // is row 64, which the ring wraps to row 0. The rows above are void, so
         // nothing joins that run to anything — it is an island in the graph, and no
-        // route from the arena reaches it. Counting it held mp4d at 5x while the
-        // other seven arenas drew at 9x.
+        // route from the arena reaches it. Counting it held mp4d at a fraction of
+        // the width fit while the other seven arenas drew at the full width.
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         const graph = store.get(10)!;
@@ -464,7 +482,7 @@ describe('fitting every cavern into the canvas', () => {
         expect(h.screen.chartedRows(10), 'the arena, to row 20, and nothing below it').toBe(21);
     });
 
-it('trims rock and void, and never the ground a standing cell needs', () => {
+    it('trims rock and void, and never the ground a standing cell needs', () => {
         // The safety property of the whole idea: a chart that ended on a standing
         // cell's own row would end on the floor he is stood on, since the hero's
         // box is three rows and `groundBelow` reads headRow + 3. mp1d and mp2d
@@ -512,7 +530,7 @@ it('trims rock and void, and never the ground a standing cell needs', () => {
         const h = harness();
         for (const id of [1, 4, 21, 0, 8]) {
             h.screen.displayMapId = id;
-            const { ox, oy, scale } = h.screen.originFor(id);
+            const { ox, oy, scale } = fitOf(h.screen, id);
             const charted = h.screen.chartedRows(id);
             const mid = Math.floor(scale / 2);
             expect(h.screen.tileFromCanvas(ox + mid, oy + mid), `map ${id} in the chart`)
@@ -542,7 +560,7 @@ describe('clicking maps back to tiles', () => {
     it('round-trips a tile through a canvas pixel', () => {
         const { screen } = harness();
         for (const [col, row] of [[0, 0], [26, 16], [239, 63], [120, 40]] as const) {
-            const { ox, oy, scale } = screen.originFor(0);
+            const { ox, oy, scale } = fitOf(screen, 0);
             const x = ox + col * scale + Math.floor(scale / 2);
             const y = oy + row * scale + Math.floor(scale / 2);
             expect(screen.tileFromCanvas(x, y), `${col},${row}`).toEqual({ col, row });
@@ -551,7 +569,7 @@ describe('clicking maps back to tiles', () => {
 
     it('returns null for clicks outside the map', () => {
         const { screen } = harness();
-        const { ox, oy } = screen.originFor(0);
+        const { ox, oy } = fitOf(screen, 0);
         expect(screen.tileFromCanvas(ox - 4, oy + 10)).toBeNull();
         expect(screen.tileFromCanvas(ox + 4, oy - 4)).toBeNull();
         expect(screen.tileFromCanvas(672 - 2, oy + 10)).toBeNull();
@@ -562,7 +580,7 @@ describe('clicking maps back to tiles', () => {
         // client pixel maps to a different canvas pixel. The screen only ever
         // receives canvas pixels, so the round trip must survive any scale.
         const { screen } = harness();
-        const { ox, oy, scale } = screen.originFor(0);
+        const { ox, oy, scale } = fitOf(screen, 0);
         for (const cssScale of [0.5, 1, 2.25]) {
             const col = 77;
             const row = 31;
@@ -629,7 +647,7 @@ describe('the mouse aims, and only Enter spends the thread', () => {
         // and must leave the destination the player already aimed.
         const h = harness();
         const before = `${h.screen.cursorCol},${h.screen.cursorRow}`;
-        const { ox, oy, scale } = h.screen.originFor(0);
+        const { ox, oy, scale } = fitOf(h.screen, 0);
         h.screen.handleClick(ox - 4, oy + 10);
         h.screen.handleClick(ox + 10, oy - 4);
         h.screen.handleClick(ox + 10, oy + h.screen.chartedRows(0) * scale + 4);
@@ -650,7 +668,7 @@ describe('the mouse aims, and only Enter spends the thread', () => {
         expect(h.picked(), 'browsing is not choosing').toHaveLength(0);
     });
 
-it('clears the last refusal when the player aims somewhere else', async () => {
+    it('clears the last refusal when the player aims somewhere else', async () => {
         // "That place is not passable." is about the cell it was asked for, and a
         // click has just moved the target off it.
         const h = harness({ text: (k: string) => k });
@@ -712,15 +730,6 @@ describe('a refusal reaches the player', () => {
 });
 
 describe('choosing a destination', () => {
-    /** A standing position on mp10, at least `min` columns from the hero. */
-    function findNodeFrom(min: number): { col: number; row: number } | null {
-        const h = harness();
-        const graph = h.screen['store' as never];
-        void graph;
-        return null;
-    }
-    void findNodeFrom;
-
     it('snaps a click beside a ledge onto the standing position', () => {
         const h = harness();
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
@@ -1174,114 +1183,171 @@ describe('doors are drawn as the cavern draws them', () => {
     // `platforms` — the shared dchr band, as in the live view.
     const tileSheet = { width: 8 * 24, height: 24 } as HTMLImageElement;
     const doorSheet = { width: 39 * 24, height: 24 } as HTMLImageElement;
+    /** MAP_TILE_PX — one tile of the raster and of the door composite. */
+    const P = 24;
 
-    interface Blit { sheet: unknown; sx: number; dx: number; dy: number; dw: number }
+    interface Blit { img: unknown; sx: number; dx: number; dy: number; dw: number }
 
-    /** Blits drawn out of the dchr sheet, captured for one frame. */
-    function captureDoorBlits(): Blit[] {
-        const seen: Blit[] = [];
-        vi.spyOn(CTX, 'drawImage').mockImplementation(((
-            img: unknown, sx: number, _sy: number, _sw: number, _sh: number,
-            dx: number, dy: number, dw: number,
-        ) => {
-            if (img === doorSheet) seen.push({ sheet: img, sx, dx, dy, dw });
-        }) as never);
-        return seen;
-    }
+    /**
+     * The context every offscreen canvas gets.
+     *
+     * The screen builds two kinds of canvas through `document.createElement` —
+     * the cavern raster and the per-door composites — and both are drawn at
+     * native resolution. Their blits land here, not on the visible canvas; the
+     * visible canvas only ever receives the *finished* composite, cell by cell.
+     * happy-dom returns null for `getContext('2d')`, so this mock is also what
+     * keeps `doorCanvasFor` from throwing on `imageSmoothingEnabled`.
+     */
+    let offCtx: CanvasRenderingContext2D;
+    /** The canvas `createElement` hands back, so its outer blits can be told apart. */
+    let madeCanvas: HTMLCanvasElement;
+
+    beforeEach(() => {
+        offCtx = {
+            ...CTX, drawImage: () => {}, fillRect: () => {},
+        } as unknown as CanvasRenderingContext2D;
+        madeCanvas = {
+            width: 0, height: 0,
+            getContext: () => offCtx,
+        } as unknown as HTMLCanvasElement;
+        vi.spyOn(document, 'createElement').mockImplementation(
+            (() => madeCanvas) as typeof document.createElement,
+        );
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
 
     /** Let the sheet promise land; the doors appear on the frame after it does. */
     const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
 
-    it('blits the dchr frames of a door, at the map scale', async () => {
+    /**
+     * Blits drawn *into* the door composites of one frame.
+     *
+     * Returns its own `restore` rather than letting callers reach for
+     * `vi.restoreAllMocks()`. That would also put back `document.createElement`,
+     * and a test that draws two door states — two screens, two caches — would
+     * build the second composite against a real canvas, whose `getContext('2d')`
+     * is null in happy-dom. The raster is built before the sheet promise
+     * resolves and then cached, so by the time this spy is installed the only
+     * thing still blitting into an offscreen canvas is the door composite.
+     */
+    function captureCompositeBlits(): { seen: Blit[]; restore: () => void } {
+        const seen: Blit[] = [];
+        const spy = vi.spyOn(offCtx, 'drawImage').mockImplementation(((
+            img: unknown, sx: number, _sy: number, _sw: number, _sh: number,
+            dx: number, dy: number, dw: number,
+        ) => {
+            if (img === doorSheet) seen.push({ img, sx, dx, dy, dw });
+        }) as never);
+        return { seen, restore: () => spy.mockRestore() };
+    }
+
+    /**
+     * Outer blits of the door composites onto the visible canvas.
+     *
+     * The raster is also drawn from `madeCanvas` on every frame, so the filter
+     * keeps only blits whose width is one map tile at the fit's scale — the
+     * per-tile placements of the composites. Same self-restore as above, and for
+     * the same reason.
+     */
+    function captureDoorPlacements(scale: number): { seen: Blit[]; restore: () => void } {
+        const seen: Blit[] = [];
+        const spy = vi.spyOn(CTX, 'drawImage').mockImplementation(((
+            img: unknown, sx: number, _sy: number, _sw: number, _sh: number,
+            dx: number, dy: number, dw: number,
+        ) => {
+            if (img === madeCanvas && dw === scale) seen.push({ img, sx, dx, dy, dw });
+        }) as never);
+        return { seen, restore: () => spy.mockRestore() };
+    }
+
+    it('composites each door from the dchr frames, at native resolution', async () => {
         const h = harness({
             tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
         });
-        h.screen.draw(0);            // no sheet yet, so no doors
+        h.screen.draw(0);            // the sheet is an image, so no doors yet
         await settle();
-        const seen = captureDoorBlits();
+        const { seen, restore } = captureCompositeBlits();
         h.screen.draw(0);
-        vi.restoreAllMocks();
+        restore();
 
-        // mp10 has doors, and each one is a 5x4 composite. Two tiles of it are not
-        // blitted: the open table's two id-0 tiles — the void in the doorway —
-        // and the roka colour in the middle of the lintel, which is drawn as a
-        // flat square. So a shut door blits 19 and an open one 17.
-        const doors = NAV_PORTALS_BY_MAP[0]!.length;
-        expect(seen.length).toBeGreaterThan(doors * 16);
-        expect(seen.length).toBeLessThanOrEqual(doors * 19);
-        // Door tiles 0x49.. are dchr frames 0x09..; nothing comes from outside
-        // the sheet, and every blit is a whole map tile at the map scale.
+        // Each door is a 5x4 composite, and two of its twenty tiles are painted
+        // rather than blitted: the roka colour, and the id-0 void an open door has
+        // where a shut one has art. So a shut door cuts 19 tiles and an open one
+        // 17, and the composite is cached by its (open, colour) key — a cavern
+        // that reuses a colour does not rebuild it.
+        const keys = new Set(NAV_PORTALS_BY_MAP[0]!.map((i) => {
+            const p = PORTALS[i]!;
+            return `${p.key === 0 ? 'o' : 'c'}_${p.color}`;
+        }));
+        expect(seen.length).toBeGreaterThanOrEqual(keys.size * 17);
+        expect(seen.length).toBeLessThanOrEqual(keys.size * 19);
+        // Door tiles are dchr frames 9..; nothing comes from outside the sheet,
+        // and every cut is a whole native tile — the composite is drawn at 1:1
+        // and scaled as one picture, so there is no seam inside a door.
         expect(seen.every((b) => b.sx >= 9 * 24 && b.sx < 39 * 24)).toBe(true);
         const widths = new Set(seen.map((b) => b.dw));
         expect(widths.size).toBe(1);
-        expect(widths.has(h.screen.scaleFor(0))).toBe(true);
-        // And they cover 5x4 tiles per door, not the one square the old marker drew.
-        expect(new Set(seen.map((b) => b.dx)).size).toBeLessThanOrEqual(5 * doors);
-        expect(new Set(seen.map((b) => b.dy)).size).toBeLessThanOrEqual(4 * doors);
+        expect(widths.has(P)).toBe(true);
     });
 
-    it('puts the composite where the hero walks through it', async () => {
+    it('places the whole composite where the hero walks through it', async () => {
         const h = harness({
             tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
         });
         h.screen.draw(0);
         await settle();
-        const seen = captureDoorBlits();
+        const fit = fitOf(h.screen, 0);
+        const scale = fit.scale;
+        const { seen, restore } = captureDoorPlacements(scale);
         h.screen.draw(0);
-        vi.restoreAllMocks();
+        restore();
 
-        // The frame hangs one column left and one row above the standing cell, so
-        // the trigger tile the door record names is the composite's second column.
-        const portal = PORTALS.find((p) => p.mapId === 0)!;
-        const scale = h.screen.scaleFor(0);
-        const { ox, oy } = h.screen.originFor(0);
-        const left = ox + (portal.fromX - 1) * scale;
-        const top = oy + (portal.fromY - 1) * scale;
-        const tiles = seen.filter((b) =>
+        // Pick a door well inside the chart, so its 5x4 footprint does not wrap a
+        // seam — a wrapped door is drawn the same way, but the placement maths
+        // below would have to track the wrap too.
+        const width = NAV_MAP_BY_ID.get(0)!.mapWidth;
+        const portal = NAV_PORTALS_BY_MAP[0]!
+            .map((i) => PORTALS[i]!)
+            .find((p) => p.fromX > 6 && p.fromX < width - 6 && p.fromY > 6 && p.fromY < 60)!;
+        // The composite hangs one column left and one row above the standing cell,
+        // so the trigger tile the door record names is its second column.
+        const left = fit.ox + (portal.fromX - 1) * scale;
+        const top = fit.oy + (portal.fromY - 1) * scale;
+        const mine = seen.filter((b) =>
             b.dx >= left && b.dx < left + 5 * scale && b.dy >= top && b.dy < top + 4 * scale);
-        expect(tiles.length).toBeGreaterThan(0);
-        expect(Math.min(...tiles.map((b) => b.dx))).toBe(left);
-        expect(Math.min(...tiles.map((b) => b.dy))).toBe(top);
-        expect(new Set(tiles.map((b) => b.dx)).size).toBe(5);
+        expect(mine.length).toBeGreaterThanOrEqual(20);
+        expect(new Set(mine.map((b) => b.dx)).size).toBe(5);
+        expect(new Set(mine.map((b) => b.dy)).size).toBe(4);
+        expect(Math.min(...mine.map((b) => b.dx))).toBeCloseTo(left, 6);
+        expect(Math.min(...mine.map((b) => b.dy))).toBeCloseTo(top, 6);
     });
 
     it('picks the open or the closed composite from the door state', async () => {
-        const shut = harness({
-            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
-            doorOpen: () => false,
-        });
-        const open = harness({
-            tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }),
-            doorOpen: () => true,
-        });
+        const sheets = { tileSheets: async () => ({ tiles: tileSheet, platforms: doorSheet }) };
+        const shut = harness({ ...sheets, doorOpen: () => false });
+        const open = harness({ ...sheets, doorOpen: () => true });
         shut.screen.draw(0);
         open.screen.draw(0);
         await settle();
-        const a = captureDoorBlits();
+
+        // Each screen has its own door-composite cache, so both frames build
+        // their composites from scratch: the spies have to be installed and
+        // torn down one at a time, and `vi.restoreAllMocks()` between them would
+        // take `document.createElement` with it.
+        const shutCapture = captureCompositeBlits();
         shut.screen.draw(0);
-        vi.restoreAllMocks();
-        const b = captureDoorBlits();
+        shutCapture.restore();
+        const openCapture = captureCompositeBlits();
         open.screen.draw(0);
-        vi.restoreAllMocks();
+        openCapture.restore();
 
         // Same doors in the same places, different art: the two tables share the
-        // frame and the jamb columns and differ across the middle. Three of the
-        // twenty tiles are filled rather than blitted — the roka colour, and the
-        // two id-0 tiles the open table has and the shut one does not — so the
-        // shut door shows 19 tiles and the open one 17.
-        const rectOf = (p: (typeof PORTALS)[number]): { l: number; t: number; w: number; h: number } => {
-            const { ox, oy } = shut.screen.originFor(0);
-            const scale = shut.screen.scaleFor(0);
-            return { l: ox + (p.fromX - 1) * scale, t: oy + (p.fromY - 1) * scale, w: 5 * scale, h: 4 * scale };
-        };
-        const inside = (r: ReturnType<typeof rectOf>, b: Blit): boolean =>
-            b.dx >= r.l && b.dx < r.l + r.w && b.dy >= r.t && b.dy < r.t + r.h;
-
-        const shutPortal = PORTALS.find((p) => p.mapId === 0)!;
-        const r = rectOf(shutPortal);
-        expect(a.filter((b) => inside(r, b)).length).toBe(19);
-        expect(b.filter((b) => inside(r, b)).length).toBe(17);
-        expect(a.map((x) => x.sx)).not.toEqual(b.map((x) => x.sx));
+        // frame and the jamb columns and differ across the middle, and the open
+        // one has two id-0 tiles the shut one does not.
+        const frames = (bs: Blit[]): number[] => [...new Set(bs.map((b) => b.sx))].sort();
+        expect(frames(shutCapture.seen).length).toBeGreaterThan(0);
+        expect(frames(openCapture.seen).length).toBeGreaterThan(0);
+        expect(frames(shutCapture.seen)).not.toEqual(frames(openCapture.seen));
     });
 
     it('falls back to the level data when no door state is supplied', async () => {
@@ -1299,11 +1365,15 @@ describe('doors are drawn as the cavern draws them', () => {
         allShut.screen.draw(0);
         await settle();
 
+        // Three screens, three caches, and each frame rebuilds its composites —
+        // so the spy is installed and torn down per screen, and *not* with
+        // `vi.restoreAllMocks()`, which would also drop the `createElement` mock
+        // the next screen needs.
         const framesOf = (screen: MapScreen): number[] => {
-            const seen = captureDoorBlits();
+            const capture = captureCompositeBlits();
             screen.draw(0);
-            vi.restoreAllMocks();
-            return seen.map((b) => b.sx);
+            capture.restore();
+            return capture.seen.map((b) => b.sx);
         };
         const asShipped = framesOf(mixed.screen);
         const open = framesOf(allOpen.screen);
@@ -1325,32 +1395,24 @@ describe('doors are drawn as the cavern draws them', () => {
         await settle();
 
         // The orb is 24px of art the map has no room for; at map scale it is a
-        // smear over the frame. Capture every fill so the square can be found.
+        // smear over the frame. It is painted onto the *composite*, not onto the
+        // visible canvas — the whole composite is scaled as one picture, so the
+        // square is at native resolution inside the door canvas.
         const fills: { style: string; x: number; y: number; w: number; h: number }[] = [];
-        vi.spyOn(CTX, 'fillRect').mockImplementation(((x: number, y: number, w: number, h: number) => {
-            fills.push({ style: String(CTX.fillStyle), x, y, w, h });
-        }) as never);
+        const spy = vi.spyOn(offCtx, 'fillRect').mockImplementation(
+            ((x: number, y: number, w: number, h: number) => {
+                fills.push({ style: String(offCtx.fillStyle), x, y, w, h });
+            }) as never,
+        );
         h.screen.draw(0);
-        vi.restoreAllMocks();
+        spy.mockRestore();
 
-        const scale = h.screen.scaleFor(0);
-        // One square per door, in the middle column of the lintel. The screen
-        // fills other tiles black too, so the squares are located rather than
-        // counted.
-        const squares = fills.filter((f) =>
-            f.style.startsWith('#') && f.w === scale && f.h === scale);
-        const { ox, oy } = h.screen.originFor(0);
-        const mine = new Set(PORTALS.filter((p) => p.mapId === 0)
-            .map((p) => `${ox + (p.fromX + 1) * scale},${oy + (p.fromY - 1) * scale}`));
-        const mineSquares = squares.filter((f) => mine.has(`${f.x},${f.y}`));
-        expect(mineSquares.length).toBe(mine.size);
-        expect(new Set(mineSquares.map((f) => f.style)).size).toBeGreaterThan(1);
-        for (const portal of PORTALS.filter((p) => p.mapId === 0)) {
-            const at = squares.filter((f) =>
-                f.x === ox + (portal.fromX + 1) * scale && f.y === oy + (portal.fromY - 1) * scale);
-            expect(at).toHaveLength(1);
-            expect(at[0]!.style).toBe(rokaColour(portal.color));
-        }
+        // The roka tile is the third of the composite's top row: column 2, row 0.
+        const at = fills.filter((f) => f.x === 2 * P && f.y === 0 && f.w === P && f.h === P);
+        const expected = new Set(
+            PORTALS.filter((p) => p.mapId === 0).map((p) => rokaColour(p.color)),
+        );
+        expect(new Set(at.map((f) => f.style))).toEqual(expected);
     });
 
     it('maps each roka colour to its own square', () => {
@@ -1366,10 +1428,10 @@ describe('doors are drawn as the cavern draws them', () => {
 
     it('draws no doors without a sheet, and does not throw', () => {
         const h = harness();
-        const seen = captureDoorBlits();
+        const capture = captureCompositeBlits();
         expect(() => h.screen.draw(0)).not.toThrow();
-        vi.restoreAllMocks();
-        expect(seen).toEqual([]);
+        capture.restore();
+        expect(capture.seen).toEqual([]);
     });
 });
 

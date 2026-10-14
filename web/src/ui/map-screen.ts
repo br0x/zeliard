@@ -4,13 +4,13 @@
  * The screen exists for exactly one purpose: choosing where to go. It draws no
  * route — revealing the path before the player has committed to a destination
  * would spoil the cavern — and confirming a point with Enter closes it straight
- * back to the inventory, whose usage message confirms the thread was spent. The
+ * back to the inventory, whose usage message confirms the Thread was spent. The
  * route itself appears only once the player leaves the inventory; see
  * render/path-overlay.ts.
  *
  * Aiming and committing are separate. A click puts the target rectangle on a
  * cell, exactly as an arrow key does, and does nothing else; Enter — the key the
- * hint line names — is what spends the thread.
+ * hint line names — is what spends the Thread.
  *
  * It follows the shape of InventoryScreen rather than the `Modal` contract,
  * because it needs raw `KeyboardEvent.code` (Modal translates `KeyA` to `a`) and
@@ -26,12 +26,18 @@
  *   y 394..410 status line: where the hero stands, where the cursor points
  *   y 414..430 hint line
  *
- * The map is the cavern at an integer scale that fits its chart, the rows of it
- * that have anything on them, inside the border rather than edge to edge:
- * `S = floor(min(660/W, 336/charted))`, clamped to 1..12. The widest cavern is
- * 320 tiles, so S is 2 there and everything fits without panning or zooming. A
- * cavern 73 tiles wide or less is not asked to fit all 64 of its rows: a boss
- * arena is two thirds solid rock and draws at 9x, or 12x at 52 tiles wide.
+ * The map is the cavern at the largest scale that fits its chart — the rows of
+ * it that have anything on them — inside the border rather than edge to edge:
+ * `S = min(660/W, 336/charted)`. The scale is fractional, because the chart is
+ * drawn as one scaled blit of a native-resolution offscreen canvas: the
+ * browser's filter sees the whole picture, so adjacent tiles cannot show a
+ * seam and the fit can be exact. Drawing tiles individually at a fractional
+ * scale would give each one its own rounded edges and leave hairlines between
+ * neighbours, which is why the scale used to be floored to an integer — at the
+ * cost of a band of unused space along the axis that was rounded down. A cavern
+ * 73 tiles wide or less is not asked to fit all 64 of its rows: a boss arena is
+ * two thirds solid rock and fills the chart with only the rows that hold
+ * anything.
  */
 
 import { NAV_MAP_BY_ID, NAV_REACHABLE } from '../data/nav/nav-maps.js';
@@ -58,11 +64,8 @@ const STRIP_H = 26;
 /**
  * The map area starts under the strip, not at it.
  *
- * Both used to share `y 28..412`, which only works while the map is shorter than
- * the strip: a cavern scaled to fill all 384px centres its top edge on y 28 and
- * paints straight over the tabs. Only the height-bound caverns ever got that far
- * — the eight boss arenas and the one normal cavern as narrow as they are — and
- * the strip is drawn first, so the map won.
+ * The strip is drawn first and the map second, so a chart that centred its top
+ * edge on the strip's top would paint over the tabs.
  */
 const AREA_TOP = STRIP_TOP + STRIP_H;   // 54
 const AREA_H = 336;                     // 54..390, clear of the status line
@@ -72,11 +75,8 @@ const HINT_TOP = 414;
  * How far inside the canvas edge the border sits, and what is left to draw in.
  *
  * `draw` strokes a 2px frame 4px in from the edge, so the map has to fit 660px
- * and not 672 — and nothing looks wrong until a map lands exactly on the
- * difference. mp20 is 224 columns and 672/224 is 3.000: the fit asked the canvas
- * for a width it does not have, and the chart came out 672px wide, straight over
- * both sides of the frame. Every other cavern is 2px or more clear, which is why
- * this sat unnoticed until somebody opened mp20.
+ * and not 672 — the difference is what makes a map that lands exactly on the
+ * canvas edge (mp20 is 224 columns) run over the frame.
  */
 const BORDER_INSET = 6;
 const MAP_W = VIEW_W - 2 * BORDER_INSET;   // 660
@@ -87,17 +87,15 @@ const MAP_W = VIEW_W - 2 * BORDER_INSET;   // 660
  * before the player looks up from the map.
  */
 const REFUSAL_MS = 2000;
-/**
- * Ceiling on the display scale.
- *
- * High enough for the narrowest cavern to fill the width, which is what trimming
- * the chart buys: only mp2d (52 tiles) is actually held back by this.
- */
-const MAX_SCALE = 12;
 const SNAP_RADIUS = 2;       // tiles searched outward for a valid standing spot
-const LRU_RASTERS = 4;
+/**
+ * Rasters kept. One per map, at native sheet resolution — see {@link rasterize}
+ * — so a wide cavern is tens of megabytes. Two is enough to cover a tab step in
+ * each direction without keeping a whole component's worth of pixels alive.
+ */
+const LRU_RASTERS = 2;
 
-/** A cavern tile is `TILE_SIZE` in the game's sheets — 24x24; the map scales down. */
+/** A cavern tile is `TILE_SIZE` in the game's sheets — 24x24. */
 const MAP_TILE_PX = TILE_SIZE;
 
 /**
@@ -163,6 +161,24 @@ const COL = {
     empty: '#000000',
 } as const;
 
+/**
+ * How one map lands in the chart area, at draw time.
+ *
+ * `scale` is pixels per tile and is fractional: the chart is one scaled blit of
+ * the 1:1 raster (see {@link MapScreen.drawMap}), so the browser's filter sees
+ * the whole picture and there is no seam for an integer to hide. `ox`/`oy` are
+ * the map's top-left corner in canvas pixels; `w`/`h` its drawn size. `ox`/`oy`
+ * are subpixel on purpose — rounding them reintroduces the off-by-a-pixel edge
+ * the fractional scale exists to remove.
+ */
+interface MapFit {
+    readonly scale: number;
+    readonly ox: number;
+    readonly oy: number;
+    readonly w: number;
+    readonly h: number;
+}
+
 /** The two sheets a cavern's own tiles are cut from. */
 export interface MapTileSheets {
     /** `DUNGEONS[mapId].tilesheetPath` — tile ids 1..n are frames of it. */
@@ -195,28 +211,29 @@ export interface MapScreenDeps {
     /**
      * A destination was chosen; the route is already computed.
      *
-     * `plan` says which rung of the ladder answered, so the guide that keeps drawing
-     * the thread can re-plan under the same assumptions. Without it a route that went
-     * to fetch a key is re-planned as though the hero were already holding one, and
-     * with an empty pocket that search finds nothing and the thread is dropped.
+     * `plan` says which rung of the ladder answered, so the guide that keeps
+     * drawing the thread can re-plan under the same assumptions. Without it a
+     * route that went to fetch a key is re-planned as though the hero were
+     * already holding one, and with an empty pocket that search finds nothing
+     * and the thread is dropped.
      */
     onPick: (route: NavRoute, plan: NavRoutePlan) => void;
     /**
      * Whether a key is still lying where the generated table says there was one.
      *
-     * A key the player has already taken is not in the world — the engine drops it
-     * from the list at dungeon init (engine/dungeon-init.ts:75). The composition
-     * root answers from the save; without it the screen assumes every key is
-     * still there, which is right for a fresh game.
+     * A key the player has already taken is not in the world — the engine drops
+     * it from the list at dungeon init (engine/dungeon-init.ts:75). The
+     * composition root answers from the save; without it the screen assumes
+     * every key is still there, which is right for a fresh game.
      */
     keyPresent?: (mapId: number, col: number, row: number, kind: 0 | 1) => boolean;
     /**
      * Whether a pair of shoes is still lying where the generated table says.
      *
      * Same reason as {@link keyPresent} — the engine drops an item the player has
-     * already taken from the entity list at dungeon init (engine/dungeon-init.ts:75) —
-     * and the same default: with nothing to ask, every pair is assumed to be there,
-     * which is right for a fresh game.
+     * already taken from the entity list at dungeon init
+     * (engine/dungeon-init.ts:75) — and the same default: with nothing to ask,
+     * every pair is assumed to be there, which is right for a fresh game.
      */
     shoePresent?: (mapId: number, col: number, row: number, shoe: number) => boolean;
     /**
@@ -249,28 +266,32 @@ export class MapScreen {
 
     private readonly maps: number[] = [];
     private stripIndex = 0;
-    private readonly rasters = new Map<string, HTMLCanvasElement>();
-    private readonly rasterOrder: string[] = [];
+    /**
+     * The 1:1 raster of each chart, keyed by map id.
+     *
+     * Built at native sheet resolution — `mapWidth * 24` by `charted * 24` — and
+     * scaled down at draw time, so the fit can be fractional without the raster
+     * ever being rebuilt for it. The old code baked the integer scale into the
+     * raster, which meant every change of fit was a full rebuild and forced the
+     * scale to be an integer at all.
+     */
+    private readonly rasters = new Map<number, HTMLCanvasElement>();
+    private readonly rasterOrder: number[] = [];
     /** Rows each charted cavern keeps, by map. Measured once the grid is here. */
     private readonly charted = new Map<number, number>();
-    private readonly pendingRasters = new Set<string>();
+    private readonly pendingRasters = new Set<number>();
+    /** Doors composited at 1:1, keyed by `open_colour` — see {@link doorCanvasFor}. */
+    private readonly doorCanvases = new Map<string, HTMLCanvasElement>();
     private loading = false;
     private message = '';
     private messageUntil = 0;
     /**
      * The clock `draw` was last called with, in its own units (ms).
      *
-     * The screen has exactly one timer — the transient refusal message — and it has
-     * to be stamped from the same clock `drawHint` compares it against. It was not:
-     * `fail` wrote the literal `2000` and `draw` is handed `performance.now()`, so a
-     * refusal was only on screen during the first two seconds of the page's life.
-     * The map is opened from the inventory, minutes into a game, so `now` was long
-     * past it and **no refusal has ever been drawn** — the one thing the message
-     * exists to say, reported to nobody. The player is told a destination is
-     * unreachable by silence.
-     *
-     * Recorded in `draw` rather than read from `performance` here, because then the
-     * two ends cannot drift apart again and a test drives both with one number.
+     * The screen has exactly one timer — the transient refusal message — and it
+     * has to be stamped from the same clock `drawHint` compares it against.
+     * Recorded in `draw` rather than read from `performance` here, so the two
+     * ends cannot drift apart and a test drives both with one number.
      */
     private clock = 0;
     /** The hero's map when the screen opened; the reachable set is keyed off it. */
@@ -278,14 +299,13 @@ export class MapScreen {
     /**
      * Loading every cavern the route may use, once.
      *
-     * The game only holds the MDT of the cavern the hero is standing in, so a store
-     * that has never been asked for another map reports `null` for it — and
+     * The game only holds the MDT of the cavern the hero is standing in, so a
+     * store that has never been asked for another map reports `null` for it — and
      * `findRoute` skips any door whose destination graph is missing. That silently
      * deleted every route that needs to leave the map, and it is not a rare shape:
-     * **mp30 has no internal path at all** from `(185,19)` to `(161,54)`, because the
-     * two cells are in different chambers and the way through is via mp31. Asked for
-     * that destination, the screen reported "No route found." while mp31's graph sat
-     * unloaded behind a door the player could have walked through.
+     * a cavern with two chambers and no internal path between them is one door
+     * away from a route, and the door's destination is a map this screen has to
+     * fetch before it can be searched.
      */
     private componentReady: Promise<unknown> | null = null;
     /**
@@ -346,22 +366,23 @@ export class MapScreen {
      * The rows are a ring — a cavern is a cylinder — so all 64 of them are real
      * whether or not anything is in them, and the map used to fit all 64 whatever
      * that cost. In a boss arena most of them are the solid body of the rock the
-     * arena is cut into, drawn as near-black, which held every boss map at 5x: a
-     * third under the width fit, to draw two thirds of nothing.
+     * arena is cut into, drawn as near-black, which held every boss map at a
+     * fraction of the width fit, to draw two thirds of nothing.
      *
      * Two things end a chart, and the deeper of them wins. The first is a row
      * holding a tile that is neither void nor rock. The second is a standing row,
      * and it carries three more rows than it counts: the hero's box is three rows
      * tall (`heroBoxFree`, geometry.ts:69) and the floor he stands on is the row
      * after his feet, so a cell at row R is standing on row R + 3 — cut that off
-     * and mp1d and mp2d drew their arenas with the ground the hero is stood on
-     * missing off the bottom, which is the one tile the chart cannot do without.
+     * and the narrow caverns draw their arenas with the ground the hero is stood
+     * on missing off the bottom, which is the one tile the chart cannot do
+     * without.
      *
      * A standing row is not counted when its support comes round the ring instead:
-     * R + 3 past the last row is row 0's rock reached by wrapping, which is mp4d's
-     * row 61 — 73 cells with forty rows of void above their heads, and an island in
-     * the graph, with no route into it from the arena. Counting those is what held
-     * the arenas at 5x while the width fit allowed 9x.
+     * R + 3 past the last row is row 0's rock reached by wrapping, which is an
+     * island in the graph, with no route into it from the arena. Counting those
+     * would hold the arenas at a fraction of the width fit for rows nobody can
+     * reach.
      */
     chartedRows(mapId: number): number {
         const cached = this.charted.get(mapId);
@@ -391,30 +412,40 @@ export class MapScreen {
         return charted;
     }
 
-    /** Integer scale that fits this map's chart in the map area. */
-    scaleFor(mapId: number): number {
+    /**
+     * Where a map lands in the chart area.
+     *
+     * The scale is the largest one that fits both axes and is deliberately
+     * fractional: the map is drawn as one scaled blit of the 1:1 raster (see
+     * {@link drawMap}), so the browser's filter sees the whole picture and no
+     * two tiles have to line up. The previous integer floor existed only because
+     * the chart was drawn tile by tile — each tile rounded its own edges and a
+     * fractional scale left hairlines between neighbours — and it cost a visible
+     * band of unused space along whichever axis bound the fit.
+     */
+    private fitFor(mapId: number): MapFit {
         const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
-        // Inside the border, not edge to edge — see {@link BORDER_INSET}.
-        const s = Math.floor(Math.min(MAP_W / width, AREA_H / this.chartedRows(mapId)));
-        return Math.max(1, Math.min(MAX_SCALE, s));
-    }
-
-    /** Top-left canvas pixel of the scaled map. */
-    originFor(mapId: number): { ox: number; oy: number; scale: number } {
-        const scale = this.scaleFor(mapId);
-        const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
-        const ox = Math.round((VIEW_W - width * scale) / 2);
         const rows = this.chartedRows(mapId);
-        const oy = AREA_TOP + Math.round((AREA_H - rows * scale) / 2);
-        return { ox, oy, scale };
+        const scale = Math.min(MAP_W / width, AREA_H / rows);
+        const w = width * scale;
+        const h = rows * scale;
+        return {
+            scale,
+            w,
+            h,
+            // Centred in the canvas. `w` is at most `MAP_W`, so `VIEW_W - w` is at
+            // least `2 * BORDER_INSET` and the map never touches the frame.
+            ox: (VIEW_W - w) / 2,
+            oy: AREA_TOP + (AREA_H - h) / 2,
+        };
     }
 
     /** Map cell under a canvas pixel, or null when the click missed the chart. */
     tileFromCanvas(x: number, y: number): { col: number; row: number } | null {
-        const { ox, oy, scale } = this.originFor(this.displayMapId);
-        if (x < ox || y < oy) return null;
-        const col = Math.floor((x - ox) / scale);
-        const row = Math.floor((y - oy) / scale);
+        const fit = this.fitFor(this.displayMapId);
+        if (x < fit.ox || y < fit.oy) return null;
+        const col = Math.floor((x - fit.ox) / fit.scale);
+        const row = Math.floor((y - fit.oy) / fit.scale);
         const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 0;
         if (row < 0 || row >= this.chartedRows(this.displayMapId) || col < 0 || col >= width) return null;
         return { col, row };
@@ -431,11 +462,6 @@ export class MapScreen {
      * A click aims, and only aims: it puts the target rectangle on the cell under
      * the pointer and leaves the screen open, exactly as an arrow key does.
      * Enter commits — and the mouse does neither.
-     *
-     * This used to call `choose` outright, which made the mouse pick *and* confirm
-     * in one gesture: a player reaching for a spot and drifting a pixel while
-     * pressing spent the thread there, with no way to look at a target and change
-     * their mind, and the arrows were the only aiming the screen offered.
      *
      * There is deliberately no pointer-motion path — `handleClick` is the whole
      * API, and the caller registers no `pointermove` listener for it. The target
@@ -544,41 +570,33 @@ export class MapScreen {
         const to = { mapId: this.displayMapId, col: node.col, row: node.row };
         const caps = this.deps.capabilities();
 
-        // Four rungs, and the order is what makes the screen's answer the route the
-        // player asked for rather than merely the shortest one. Shoes cost the hero
-        // nothing — he changes them between steps, so a route that needs them is
-        // never refused — but the route this feature exists to produce is one that
-        // needs nothing at all, so a route with no accessory on it is built first and
-        // the shoe route is the last thing offered.
+        // Four rungs, and the order is what makes the screen's answer the route
+        // the player asked for rather than merely the shortest one. Shoes cost the
+        // hero nothing — he changes them between steps, so a route that needs them
+        // is never refused — but the route this feature exists to produce is one
+        // that needs nothing at all, so a route with no accessory on it is built
+        // first and the shoe route is the last thing offered.
         //
-        // mp10 is the case that fixes the order. From (61,7) to the town door at
-        // (128,33) there are two answers: the bare one, 752 points and cost 1030,
-        // which crosses to mp21 for the key at (99,41), comes back, spends it on the
-        // locked door at (26,16) and leaves the boss arena at (141,33); and the shoe
-        // one, 121 points and cost 167, a Feruza four-tile jump at (155,37) over the
-        // Silkarn slope, which is the corridor's only other way in. Asked with the
-        // shoes rung first the screen offered the 121, and the bare route was never
-        // built at all.
+        // The order matters because the bare route and the shod route can be very
+        // different journeys: a bare route may cross to another cavern for a key,
+        // and the shoe route may be a single jump over the slope. Asked with the
+        // shoes rung first the screen would offer the shorter, shoe-dependent route
+        // and never build the bare one.
 
         // Every search below is told which doors stand open, not just which keys are
         // in the pocket. A key is spent once and its door is open for good after
         // that, so a hero who has been through a locked door once must still be able
-        // to plan a route back through it — and with the key gone from the floor there
-        // is nothing left to fetch. `doorOpen` already answered this to draw the door
-        // on the chart; the search asks it too.
+        // to plan a route back through it — and with the key gone from the floor
+        // there is nothing left to fetch.
         const doors = this.deps.doorOpen
             ? { doorOpen: this.deps.doorOpen }
             : {};
 
         // Fetching a key on the way goes with every rung below the first, because a
-        // journey can be short of a key *and* of shoes at once. mp80's west gallery
-        // is exactly that: Silkarn shoes to climb the ramp at columns 82..86, and the
-        // ordinary key for the door at (57,16). When each rung granted only its own
-        // axis, all five answered NULL for it and the screen said `map.unreachable`
-        // for a route of 384 hops. Rung 2 still runs on its own first, so a journey
-        // the keys alone cover is never sent in shoes — that order is what
-        // `asks for the keys before it asks for shoes` pins down — and every plan
-        // carries `keyPresent` because the search under it did.
+        // journey can be short of a key *and* of shoes at once. Rung 2 still runs
+        // on its own first, so a journey the keys alone cover is never sent in
+        // shoes, and every plan carries `keyPresent` because the search under it
+        // did.
         const keyFetch = {
             collectKeys: true,
             ...(this.deps.keyPresent ? { keyPresent: this.deps.keyPresent } : {}),
@@ -604,10 +622,10 @@ export class MapScreen {
             return this.accept(collected, { ...keyFetch, ...doors });
         }
 
-        // 3. Shoes. A pair is an item lying in the cavern, so the honest answer is to
-        //    walk to one and pick it up — the hero may wear whichever pair he is
-        //    carrying, or none, and changing costs nothing, so `equipment` is the plan:
-        //    *collect these here, put them on here, take them off again*.
+        // 3. Shoes. A pair is an item lying in the cavern, so the honest answer is
+        //    to walk to one and pick it up — the hero may wear whichever pair he is
+        //    carrying, or none, and changing costs nothing, so `equipment` is the
+        //    plan: *collect these here, put them on here, take them off again*.
         const shod = findRoute({
             store: this.deps.store, caps, start: from, goal: to, collectAccessories: true,
             ...(this.deps.shoePresent ? { shoePresent: this.deps.shoePresent } : {}),
@@ -621,11 +639,10 @@ export class MapScreen {
             });
         }
 
-        // 3b. No pair within reach — but the inventory is not per cavern. A pair picked
-        //     up on some other level is still in it, so the shoes rung may also mean
-        //     "he is wearing some already", and there is nothing to walk to. This is
-        //     what answers for mp10's town door: the Silkarn pair is a level away, and
-        //     the slope into the row-33 corridor is a four-tile Feruza jump.
+        // 3b. No pair within reach — but the inventory is not per cavern. A pair
+        //     picked up on some other level is still in it, so the shoes rung may
+        //     also mean "he is wearing some already", and there is nothing to walk
+        //     to.
         const worn = findRoute({
             store: this.deps.store, caps, start: from, goal: to,
             planAccessories: true, ...keyFetch, ...doors,
@@ -635,9 +652,9 @@ export class MapScreen {
         // 4. Neither. As if he were carrying every key in the game and wearing every
         //    pair in it: that is the shape of the journey, and the locked doors on it
         //    are how many keys it needs. Only the message is left to read off it. It
-        //    must take the shoes too — `unlimitedKeys` only seeds the key counters, so
-        //    without them the ramp at mp80 (82..86) refuses the search outright and
-        //    the journey's shape is never drawn.
+        //    must take the shoes too — `unlimitedKeys` only seeds the key counters,
+        //    so without them the slopes and four-tile jumps refuse the search
+        //    outright and the journey's shape is never drawn.
         const open = findRoute({
             store: this.deps.store, caps, start: from, goal: to,
             unlimitedKeys: true, planAccessories: true, ...doors,
@@ -737,47 +754,50 @@ export class MapScreen {
     // ── raster ────────────────────────────────────────────────────────────────
 
     /**
-     * A cached offscreen canvas holding the whole cavern at its display scale.
+     * A cached offscreen canvas holding the whole cavern at native sheet
+     * resolution.
      *
      * Built asynchronously when the cavern's tile sheets are supplied: a sheet is
      * an image, and a screen that draws synchronously cannot wait for one. The
      * first frame or two of a newly opened map has no raster and draws the cursor
      * alone; the image is cached by the loader, so it is quick.
+     *
+     * The raster is not scaled by the fit. It is at 1:1 — one tile is
+     * {@link MAP_TILE_PX} square — and the fit is applied at draw time, so a
+     * fractional fit costs nothing to compute and never rebuilds the raster.
      */
     private rasterFor(mapId: number): HTMLCanvasElement | null {
-        const scale = this.scaleFor(mapId);
-        const key = `${mapId}@${scale}`;
-        const hit = this.rasters.get(key);
+        const hit = this.rasters.get(mapId);
         if (hit) return hit;
 
-        if (this.deps.tileSheets && !this.pendingRasters.has(key)) {
-            this.pendingRasters.add(key);
-            void this.buildRaster(mapId, key, scale);
+        if (this.deps.tileSheets && !this.pendingRasters.has(mapId)) {
+            this.pendingRasters.add(mapId);
+            void this.buildRaster(mapId);
         } else if (!this.deps.tileSheets) {
             const grid = this.deps.store.gridOf(mapId);
             if (!grid) return null;
-            const built = this.rasterize(mapId, grid, scale, null);
-            this.rememberRaster(key, built);
+            const built = this.rasterize(mapId, grid, null);
+            this.rememberRaster(mapId, built);
             return built;
         }
         return null;
     }
 
-    private async buildRaster(mapId: number, key: string, scale: number): Promise<void> {
+    private async buildRaster(mapId: number): Promise<void> {
         try {
             const sheets = await this.deps.tileSheets!(mapId);
             const grid = this.deps.store.gridOf(mapId);
-            if (sheets && grid) this.rememberRaster(key, this.rasterize(mapId, grid, scale, sheets));
+            if (sheets && grid) this.rememberRaster(mapId, this.rasterize(mapId, grid, sheets));
         } catch {
             // A missing sheet leaves the map without a raster, not broken.
         } finally {
-            this.pendingRasters.delete(key);
+            this.pendingRasters.delete(mapId);
         }
     }
 
-    private rememberRaster(key: string, canvas: HTMLCanvasElement): void {
-        this.rasters.set(key, canvas);
-        this.rasterOrder.push(key);
+    private rememberRaster(mapId: number, canvas: HTMLCanvasElement): void {
+        this.rasters.set(mapId, canvas);
+        this.rasterOrder.push(mapId);
         while (this.rasterOrder.length > LRU_RASTERS) {
             const drop = this.rasterOrder.shift()!;
             this.rasters.delete(drop);
@@ -785,87 +805,87 @@ export class MapScreen {
     }
 
     /**
-     * Paint the cavern at `scale`, from its own tiles, over its charted rows.
+     * Paint the cavern at native sheet resolution, over its charted rows.
      *
      * `drawStaticTile` (render/dungeon.ts:210) is the reference: tile id 0 is
      * black, ids 1..n are frames of the cavern sheet, and ids 0x40.. are frames of
      * the platform sheet. Anything else has no art and falls back to the class
-     * colour, which is all this function knew how to do before.
+     * colour.
      *
      * The raster stops at the last charted row rather than running the full ring:
-     * the rows below are rock and void, and a boss cavern at 12x is a canvas of
-     * 62,400 near-black pixels that would be drawn and thrown away every frame.
+     * the rows below are rock and void, and they would only be drawn and thrown
+     * away. It is deliberately *not* drawn at the fitted scale — the fit is
+     * fractional, and per-tile `drawImage` at a fractional scale leaves hairlines
+     * between tiles because each one rounds its own edges. A single scaled blit of
+     * this canvas (see {@link drawMap}) has no neighbours to line up.
      */
     private rasterize(
         mapId: number,
         grid: NavTileGrid,
-        scale: number,
         sheets: MapTileSheets | null,
     ): HTMLCanvasElement {
         const classifier = NavTileClassifier.forMap(mapId);
         const rows = this.chartedRows(mapId);
+        const P = MAP_TILE_PX;
         const canvas = document.createElement('canvas');
-        canvas.width = grid.mapWidth * scale;
-        canvas.height = rows * scale;
+        canvas.width = grid.mapWidth * P;
+        canvas.height = rows * P;
         const ctx = canvas.getContext('2d');
         if (!ctx) return canvas;
         ctx.imageSmoothingEnabled = false;
 
         const tiles = sheets?.tiles ?? null;
-        const tileCols = tiles ? Math.floor(tiles.width / MAP_TILE_PX) : 0;
-        const tileCount = tiles ? tileCols * Math.floor(tiles.height / MAP_TILE_PX) : 0;
+        const tileCols = tiles ? Math.floor(tiles.width / P) : 0;
+        const tileCount = tiles ? tileCols * Math.floor(tiles.height / P) : 0;
         const platforms = sheets?.platforms ?? null;
-        const platCols = platforms ? Math.floor(platforms.width / MAP_TILE_PX) : 0;
-        const platCount = platforms ? platCols * Math.floor(platforms.height / MAP_TILE_PX) : 0;
+        const platCols = platforms ? Math.floor(platforms.width / P) : 0;
+        const platCount = platforms ? platCols * Math.floor(platforms.height / P) : 0;
 
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < grid.mapWidth; col++) {
                 const id = grid.tiles[row * grid.mapWidth + col]!;
-                const x = col * scale;
-                const y = row * scale;
+                const x = col * P;
+                const y = row * P;
                 let drawn = false;
                 if (id === 0) {
                     ctx.fillStyle = COL.empty;
-                    ctx.fillRect(x, y, scale, scale);
+                    ctx.fillRect(x, y, P, P);
                     drawn = true;
                 } else if (tiles && id >= 1 && id <= tileCount) {
-                    drawSheetFrame(ctx, tiles, id - 1, MAP_TILE_PX, MAP_TILE_PX,
-                        tileCols, x, y, scale, scale);
+                    drawSheetFrame(ctx, tiles, id - 1, P, P, tileCols, x, y, P, P);
                     drawn = true;
                 } else if (platforms && id >= 0x40 && id - 0x40 < platCount) {
-                    drawSheetFrame(ctx, platforms, id - 0x40, MAP_TILE_PX, MAP_TILE_PX,
-                        platCols, x, y, scale, scale);
+                    drawSheetFrame(ctx, platforms, id - 0x40, P, P, platCols, x, y, P, P);
                     drawn = true;
                 }
                 // Anything else has no art in the sheet — one map's tile 20 runs
-                // past its own — and falls through to the class colour below, which
-                // is all this function could do before.
+                // past its own — and falls through to the class colour below.
                 if (drawn) continue;
                 const flags = classifier.classify(id);
                 ctx.fillStyle = colourFor(flags);
-                ctx.fillRect(x, y, scale, scale);
+                ctx.fillRect(x, y, P, P);
             }
         }
-        // Platforms, where the level data says they stand. They are runtime state and
-        // appear nowhere in the MDT — `render_vertical_platforms_to_proximity` and its
-        // two siblings stamp them into the proximity map every frame — so the chart was
-        // a cavern with all of its machinery missing: the hero rides one at (203,27)
-        // and the map shows the empty air he is standing in.
+        // Platforms, where the level data says they stand. They are runtime state
+        // and appear nowhere in the MDT — `render_vertical_platforms_to_proximity`
+        // and its two siblings stamp them into the proximity map every frame — so
+        // the chart would otherwise be a cavern with all of its machinery missing.
         //
         // The default position is the right one to draw, because it is the one the
-        // cavern is entered at and the one a platform snaps back to when its map is
-        // loaded again (`platform-state.ts`), so the chart is the cavern as the player
-        // will meet it. Where they *travel* is a fact about the level the chart does not
-        // claim: a horizontal platform has already begun to move by the time the map is
-        // open, and drawing a span it is not on would be worse than drawing nothing.
-        this.paintPlatforms(ctx, mapId, grid.mapWidth, scale, rows, platforms, platCols, platCount);
+        // cavern is entered at and the one a platform snaps back to when its map
+        // is loaded again (`platform-state.ts`), so the chart is the cavern as the
+        // player will meet it. Where they *travel* is a fact about the level the
+        // chart does not claim: a horizontal platform has already begun to move by
+        // the time the map is open, and drawing a span it is not on would be worse
+        // than drawing nothing.
+        this.paintPlatforms(ctx, mapId, grid.mapWidth, rows, platforms, platCols, platCount);
 
         // Rope runs read better with a highlight along their length.
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < grid.mapWidth; col++) {
                 if (!(classifier.classify(grid.tiles[row * grid.mapWidth + col]!) & 2 /* ROPE */)) continue;
-                ctx.fillRect(col * scale, row * scale, scale, Math.max(1, scale >> 1));
+                ctx.fillRect(col * P, row * P, P, Math.max(1, P >> 1));
             }
         }
         return canvas;
@@ -876,20 +896,19 @@ export class MapScreen {
      *
      * Three tiles each, and the three families are three different triples of the
      * shared platform sheet — `0x40..0x42` vertical, `0x43..0x45` collapsing,
-     * `0x46..0x48` horizontal (dungeon-vertical.ts:341-366, dungeon-platforms.ts:234-243)
-     * — so the art tells them apart for free. A screen without the sheet falls back to
-     * one colour: it is the sheet that tells a lift from a conveyor, not the chart's
-     * own geometry.
+     * `0x46..0x48` horizontal (dungeon-vertical.ts:341-366,
+     * dungeon-platforms.ts:234-243) — so the art tells them apart for free. A
+     * screen without the sheet falls back to one colour: it is the sheet that
+     * tells a lift from a conveyor, not the chart's own geometry.
      *
-     * Rows outside the chart are left out rather than clipped: the chart is cut at the
-     * last row with anything on it (see {@link chartedRows}), and a platform below that
-     * is in rock nobody is ever shown.
+     * Rows outside the chart are left out rather than clipped: the chart is cut at
+     * the last row with anything on it (see {@link chartedRows}), and a platform
+     * below that is in rock nobody is ever shown.
      */
     private paintPlatforms(
         ctx: CanvasRenderingContext2D,
         mapId: number,
         mapWidth: number,
-        scale: number,
         rows: number,
         sheet: HTMLImageElement | null,
         sheetCols: number,
@@ -897,22 +916,24 @@ export class MapScreen {
     ): void {
         const tables = NAV_PLATFORMS[mapId];
         if (!tables) return;
+        const P = MAP_TILE_PX;
         const at = (left: number, row: number, first: number): void => {
             if (row < 0 || row >= rows) return;
-            const x = wrapCol(left, mapWidth) * scale;
-            const y = row * scale;
+            const x = wrapCol(left, mapWidth) * P;
+            const y = row * P;
             for (let i = 0; i < PLATFORM_WIDTH; i++) {
-                const dx = x + i * scale;
-                // A platform that would run off the right of the chart is a cylinder:
-                // it wraps, exactly as the columns of the cavern itself do.
-                const dx2 = dx >= mapWidth * scale ? dx - mapWidth * scale : dx;
+                const dx = x + i * P;
+                // A platform that would run off the right of the chart is a
+                // cylinder: it wraps, exactly as the columns of the cavern itself
+                // do.
+                const dx2 = dx >= mapWidth * P ? dx - mapWidth * P : dx;
                 const frame = first + i;
                 if (sheet && frame - DCHR_BASE_TILE < sheetCount) {
-                    drawSheetFrame(ctx, sheet, frame - DCHR_BASE_TILE, MAP_TILE_PX, MAP_TILE_PX,
-                        sheetCols, dx2, y, scale, scale);
+                    drawSheetFrame(ctx, sheet, frame - DCHR_BASE_TILE, P, P, sheetCols,
+                        dx2, y, P, P);
                 } else {
                     ctx.fillStyle = COL.platform;
-                    ctx.fillRect(dx2, y, scale, scale);
+                    ctx.fillRect(dx2, y, P, P);
                 }
             }
         };
@@ -943,14 +964,14 @@ export class MapScreen {
         this.drawStrip(ctx);
         this.drawMap(ctx);
         // Doors and the cursor are placed by map row, and a cavern's ring reaches
-        // past the chart: mp4d's walkable ring at row 61 draws on a chart 62 rows
-        // deep, while a door on the row above the arena's top wraps to row 63. Clip
-        // to what the chart actually shows, or a marker lands on the status line.
-        const { oy, scale } = this.originFor(this.displayMapId);
-        const chartBottom = oy + this.chartedRows(this.displayMapId) * scale;
+        // past the chart: a door on the row above the arena's top wraps to the
+        // bottom of the ring, and the marker would land on the status line. Clip
+        // to what the chart actually shows.
+        const fit = this.fitFor(this.displayMapId);
+        const chartBottom = fit.oy + fit.h;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(0, oy, VIEW_W, chartBottom - oy);
+        ctx.rect(0, fit.oy, VIEW_W, chartBottom - fit.oy);
         ctx.clip();
         this.drawMarkers(ctx);
         this.drawCursor(ctx);
@@ -1009,9 +1030,18 @@ export class MapScreen {
 
     private drawMap(ctx: CanvasRenderingContext2D): void {
         const raster = this.rasterFor(this.displayMapId);
-        const { ox, oy, scale } = this.originFor(this.displayMapId);
-        if (raster) ctx.drawImage(raster, ox, oy);
-        else {
+        const fit = this.fitFor(this.displayMapId);
+        if (raster) {
+            // One scaled blit of the whole chart. The browser's filter sees the
+            // whole picture, so a fractional scale does not show the hairlines
+            // that per-tile draws at the same scale would: two tiles drawn
+            // individually each round their own edges, and the rounding does not
+            // line up.
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(raster, fit.ox, fit.oy, fit.w, fit.h);
+            ctx.imageSmoothingEnabled = false;
+        } else {
             // Data still loading, or unreadable: say so rather than draw nothing.
             // A raster also waits on the cavern's tile sheet, which is an image.
             const waiting = this.loading || this.pendingRasters.size > 0;
@@ -1022,26 +1052,25 @@ export class MapScreen {
             ctx.fillText(this.deps.text(waiting ? 'map.loading' : 'map.noMap'), VIEW_W / 2, AREA_TOP + AREA_H / 2);
             ctx.textAlign = 'left';
         }
-        void scale;
     }
 
     /** Doors, and the hero. Nothing else — no route. */
     private drawMarkers(ctx: CanvasRenderingContext2D): void {
-        const { ox, oy, scale } = this.originFor(this.displayMapId);
-        const s = Math.max(1, scale);
+        const fit = this.fitFor(this.displayMapId);
         const sheet = this.ensureDoorSheet();
         if (sheet) {
             const cols = Math.floor(sheet.width / MAP_TILE_PX);
             for (const index of NAV_PORTALS_BY_MAP[this.displayMapId] ?? []) {
                 const p = PORTALS[index]!;
-                this.drawDoor(ctx, sheet, cols, p, ox, oy, scale);
+                this.drawDoor(ctx, sheet, cols, p, fit);
             }
         }
 
         const hero = this.deps.heroPosition();
         if (!hero || hero.mapId !== this.displayMapId) return;
-        const hx = ox + hero.col * scale;
-        const hy = oy + hero.row * scale;
+        const s = fit.scale;
+        const hx = fit.ox + hero.col * s;
+        const hy = fit.oy + hero.row * s;
         // A small bright wedge, pointing up, so it reads as "you are here".
         ctx.fillStyle = '#ff0';
         ctx.beginPath();
@@ -1056,56 +1085,99 @@ export class MapScreen {
     }
 
     /**
-     * Blit one door at display scale, exactly as the cavern view stamps it.
+     * One door composited at native resolution, cached by open/closed and colour.
      *
-     * The composite is 5x4 tiles and hangs one column to the left of the hero's
-     * standing cell, with the trigger tile at the door record's own cell — so the
-     * portal's `fromX`/`fromY` is the cell the hero stands on, and the frame starts
-     * one column left and one row above it.
+     * Drawing the 5x4 composite as twenty individual scaled tiles would give each
+     * tile its own rounded edges and leave hairlines inside a single door; the
+     * composite is composited once at 1:1 and the whole frame is scaled as one
+     * picture, the same way the chart itself is.
      */
-    private drawDoor(
-        ctx: CanvasRenderingContext2D,
+    private doorCanvasFor(
         sheet: HTMLImageElement,
         cols: number,
-        p: (typeof PORTALS)[number],
-        ox: number,
-        oy: number,
-        scale: number,
-    ): void {
-        const open = this.deps.doorOpen?.(p.mapId, p.x0, p.y0) ?? (p.key === 0);
+        open: boolean,
+        color: number,
+    ): HTMLCanvasElement {
+        const key = `${open ? 'o' : 'c'}_${color}`;
+        const hit = this.doorCanvases.get(key);
+        if (hit) return hit;
+        const P = MAP_TILE_PX;
+        const canvas = document.createElement('canvas');
+        canvas.width = DOOR_W * P;
+        canvas.height = DOOR_H * P;
+        const off = canvas.getContext('2d')!;
+        off.imageSmoothingEnabled = false;
         const tiles = open ? OPENED_DOOR_TILES : CLOSED_DOOR_TILES;
-        const left = p.fromX - 1;
-        const top = p.fromY - 1;
-        // A cavern is a cylinder: 64 rows in a ring, and columns that wrap at the
-        // map width. A door on either seam is still a door.
-        const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
-
         for (let row = 0; row < DOOR_H; row++) {
-            const mapRow = (((top + row) % NAV_MAP_HEIGHT) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
             for (let col = 0; col < DOOR_W; col++) {
                 const i = row * DOOR_W + col;
-                const mapCol = (((left + col) % width) + width) % width;
-                const x = ox + mapCol * scale;
-                const y = oy + mapRow * scale;
+                const x = col * P;
+                const y = row * P;
                 // The roka colour sits in the middle of the lintel, and is the one
                 // tile of the composite that is not frame or doorway.
                 if (i === ROKA_COLOUR_INDEX) {
-                    ctx.fillStyle = rokaColour(p.color);
-                    ctx.fillRect(x, y, scale, scale);
+                    off.fillStyle = rokaColour(color);
+                    off.fillRect(x, y, P, P);
                     continue;
                 }
                 const id = tiles[i]!;
                 // Tile 0 is the black void in front of an open doorway, and the
                 // map behind it is whatever the cavern drew.
                 if (id === 0) {
-                    ctx.fillStyle = COL.empty;
-                    ctx.fillRect(x, y, scale, scale);
+                    off.fillStyle = COL.empty;
+                    off.fillRect(x, y, P, P);
                     continue;
                 }
-                drawSheetFrame(ctx, sheet, id - DCHR_BASE_TILE, MAP_TILE_PX, MAP_TILE_PX,
-                    cols, x, y, scale, scale);
+                drawSheetFrame(off, sheet, id - DCHR_BASE_TILE, P, P, cols, x, y, P, P);
             }
         }
+        this.doorCanvases.set(key, canvas);
+        return canvas;
+    }
+
+    /**
+     * Blit one door at the fit's scale, exactly as the cavern view stamps it.
+     *
+     * The composite is 5x4 tiles and hangs one column to the left of the hero's
+     * standing cell, with the trigger tile at the door record's own cell — so the
+     * portal's `fromX`/`fromY` is the cell the hero stands on, and the frame starts
+     * one column left and one row above it.
+     *
+     * A cavern is a cylinder, and the door's 5x4 footprint can straddle either
+     * seam. Drawing it as one blit would then need two more for the wrapped
+     * halves; drawing it cell by cell is simpler and the source is the 1:1 door
+     * canvas, so each cell is crisp within itself.
+     */
+    private drawDoor(
+        ctx: CanvasRenderingContext2D,
+        sheet: HTMLImageElement,
+        cols: number,
+        p: (typeof PORTALS)[number],
+        fit: MapFit,
+    ): void {
+        const open = this.deps.doorOpen?.(p.mapId, p.x0, p.y0) ?? (p.key === 0);
+        const doorCanvas = this.doorCanvasFor(sheet, cols, open, p.color);
+        const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
+        const P = MAP_TILE_PX;
+        const left = p.fromX - 1;
+        const top = p.fromY - 1;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        for (let row = 0; row < DOOR_H; row++) {
+            const mapRow = (((top + row) % NAV_MAP_HEIGHT) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            for (let col = 0; col < DOOR_W; col++) {
+                const mapCol = (((left + col) % width) + width) % width;
+                const dstX = fit.ox + mapCol * fit.scale;
+                const dstY = fit.oy + mapRow * fit.scale;
+                ctx.drawImage(
+                    doorCanvas,
+                    col * P, row * P, P, P,
+                    dstX, dstY, fit.scale, fit.scale,
+                );
+            }
+        }
+        ctx.imageSmoothingEnabled = false;
     }
 
     /**
@@ -1127,10 +1199,10 @@ export class MapScreen {
     }
 
     private drawCursor(ctx: CanvasRenderingContext2D): void {
-        const { ox, oy, scale } = this.originFor(this.displayMapId);
-        const s = Math.max(2, scale);
-        const x = ox + this.cursorCol * scale;
-        const y = oy + this.cursorRow * scale;
+        const fit = this.fitFor(this.displayMapId);
+        const s = Math.max(2, fit.scale);
+        const x = fit.ox + this.cursorCol * fit.scale;
+        const y = fit.oy + this.cursorRow * fit.scale;
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = Math.max(1, Math.floor(s / 3));
         ctx.strokeRect(x - ctx.lineWidth, y - ctx.lineWidth, s + ctx.lineWidth * 2, s + ctx.lineWidth * 2);
