@@ -181,6 +181,8 @@ function hintOf(h: Harness, now: number): string {
     return seen[seen.length - 1]!;          // the hint line is drawn last
 }
 
+interface Rect { x: number; y: number; w: number; h: number }
+
 /** mp10's tiles that the cavern sheet has art for — one blit each. */
 const BLITTABLE_IN_MP10 = (() => {
     const bytes = readFileSync(resolve(REPO, 'web/public/game/0/mp10.mdt'));
@@ -195,15 +197,15 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
     it('paints each cell from the cavern sheet', async () => {
         // Before this, every cell was filled with a hand-picked colour by class:
         // a wall on the map was not the colour that wall has in the game.
-        const drawn: { frame: number; dx: number; dy: number; dw: number }[] = [];
-        const fills: number[] = [];
+        const drawn: Rect[] = [];
+        const fills: Rect[] = [];
         const inner = {
             ...CTX,
             drawImage: (_s: unknown, _sx: number, _sy: number, _sw: number, _sh: number,
-                dx: number, dy: number, dw: number) => {
-                drawn.push({ frame: drawn.length, dx, dy, dw });
+                dx: number, dy: number, dw: number, dh: number) => {
+                drawn.push({ x: dx, y: dy, w: dw, h: dh });
             },
-            fillRect: (x: number, y: number, w: number) => { fills.push(x, y, w); },
+            fillRect: (x: number, y: number, w: number, h: number) => { fills.push({ x, y, w, h }); },
         } as unknown as CanvasRenderingContext2D;
         const made: { ctx: CanvasRenderingContext2D; canvas: { width: number; height: number } }[] = [];
         const createElement = vi.spyOn(document, 'createElement').mockImplementation(
@@ -229,8 +231,12 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
         // is now the frame the game draws, not a hand-picked colour.
         expect(drawn.length, 'every tile with art should be blitted').toBe(BLITTABLE_IN_MP10);
         expect(made.length).toBeGreaterThan(0);
-        // Air and the rope highlight are the only fills left.
+        // Air is the only thing filled, and it never lands on a tile with art.
         expect(fills.length).toBeGreaterThan(0);
+        for (const f of fills) {
+            expect(drawn.some((d) => d.x === f.x && d.y === f.y),
+                `a fill at ${f.x},${f.y} covering the art blitted there`).toBe(false);
+        }
     });
 
     it('draws every platform, where the level data says it stands', async () => {
@@ -533,12 +539,33 @@ describe('fitting every cavern into the canvas', () => {
         // of 18 rows puts the ground he is stood on off the bottom of it. mp2d's
         // hero is on row 19 and the rock under him is row 22.
         const h = harness();
-        expect(h.screen.chartedRows(1), 'mp1d').toBe(19);
-        expect(h.screen.chartedRows(4), 'mp2d').toBe(23);
+        expect(h.screen.chartedRows(1), 'mp1d').toBe(21);
+        expect(h.screen.chartedRows(4), 'mp2d').toBe(25);
         for (const [id, head] of [[1, 15], [4, 19]] as const) {
             const charted = h.screen.chartedRows(id);
             expect(head + 3, `map ${id}: the floor under row ${head}`).toBeLessThan(charted);
         }
+    });
+
+    it('draws rock under an arena floor that ends the chart', () => {
+        // In mp1d, mp2d, mp5d and mp7d the hero's floor is the last row with
+        // anything on it, so the chart used to stop on it and the arena was drawn
+        // on one row of rock with the void under that. Three rows of rock below
+        // the hero's feet is what the other four arenas already get from `art`.
+        const h = harness();
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        for (const meta of NAV_MAPS.filter((m) => m.isBossArena)) {
+            const graph = store.get(meta.id)!;
+            let floor = -1;
+            for (const node of graph.nodes) {
+                if (node.row + 3 >= 64) continue;
+                floor = Math.max(floor, node.row + 3);
+            }
+            expect(h.screen.chartedRows(meta.id), meta.nameKey).toBeGreaterThanOrEqual(floor + 3);
+        }
+        // And the arenas `art` already covers past the floor do not grow.
+        expect(h.screen.chartedRows(10), 'mp4d').toBe(21);
+        expect(h.screen.chartedRows(7), 'mp3d').toBe(28);
     });
 
     it('keeps the charted rows, and not the whole ring, on the click map', () => {
@@ -571,6 +598,75 @@ describe('fitting every cavern into the canvas', () => {
         expect(h.screen.displayMapId).toBe(1);
         expect(h.screen.cursorCol).toBeLessThan(NAV_MAP_BY_ID.get(1)!.mapWidth);
         expect(h.screen.cursorRow).toBeLessThan(h.screen.chartedRows(1));
+    });
+
+    const MP90 = NAV_MAPS.find((m) => m.nameKey === 'mp90')!;
+
+    it('charts its room as one run, from row 62', () => {
+        // mp90 is the only cavern whose content straddles the wrap: rows 62 and 63
+        // of the ring are the top of its starfield and rows 0..15 are the rest, with
+        // 46 rows of empty ring in between. Counting from row 0 made `art` run to
+        // the end of the ring and held the cavern at 5x to draw two thirds of void.
+        const { screen } = harness();
+        expect(screen.chartedRows(MP90.id)).toBe(18);
+        const rows: number[] = [];
+        for (let ring = 62; ring < 64 + 16; ring++) {
+            const chartRow = screen.chartRowOn(MP90.id, ring % 64);
+            expect(chartRow, `ring row ${ring % 64}`).toBe(rows.length);
+            rows.push(chartRow);
+        }
+        // And the empty ring between the two halves is off the chart entirely.
+        expect(screen.chartRowOn(MP90.id, 16)).toBe(-1);
+        expect(screen.chartRowOn(MP90.id, 61)).toBe(-1);
+    });
+
+    it('draws both of the solid rows its floor is made of', () => {
+        // Rows 14 and 15 are the rock the hero stands on. The trim stops on solid
+        // rock, so without the chart carrying the second the room stands on the
+        // edge of its own chart — and the row after it is void, not rock, so the
+        // chart must not run on to it.
+        const { screen } = harness();
+        const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const grid = store.gridOf(MP90.id)!;
+        expect(screen.chartRowOn(MP90.id, 15), 'the second floor row').toBe(17);
+        expect(screen.chartedRows(MP90.id)).toBe(18);
+        for (const row of [14, 15]) {
+            for (let col = 0; col < grid.mapWidth; col++) {
+                expect(grid.tiles[row * grid.mapWidth + col], `row ${row} col ${col}`)
+                    .not.toBe(0);
+            }
+        }
+    });
+
+    it('takes the width fit rather than the height one', () => {
+        const { screen } = harness();
+        const fit = fitOf(screen, MP90.id);
+        expect(fit.scale).toBeCloseTo(MAP_W / MP90.mapWidth, 4);
+        expect(fit.h).toBeLessThan(336);
+    });
+
+    it('reports ring rows, not chart rows, for a click', () => {
+        // The top of the chart is row 62 of the cavern; the status line and the
+        // route search both speak in cavern rows.
+        const h = harness();
+        h.screen.displayMapId = MP90.id;
+        const { ox, oy, scale } = fitOf(h.screen, MP90.id);
+        const mid = Math.floor(scale / 2);
+        expect(h.screen.tileFromCanvas(ox + mid, oy + mid)).toEqual({ col: 0, row: 62 });
+        expect(h.screen.chartRowOn(MP90.id, 62)).toBe(0);
+    });
+
+    it('leaves every other cavern starting at row 0', () => {
+        const { screen } = harness();
+        for (const meta of NAV_MAPS) {
+            if (meta.nameKey === 'mp90') continue;
+            const store = (screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+            const graph = store.get(meta.id)!;
+            const heroRow = graph.nodes.find((n) => n.kind === 0)?.row;
+            if (heroRow === undefined) continue;
+            expect(screen.chartRowOn(meta.id, heroRow), meta.nameKey)
+                .toBe(screen.chartRowOn(meta.id, 0) + heroRow);
+        }
     });
 });
 

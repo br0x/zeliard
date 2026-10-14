@@ -108,6 +108,41 @@ const MAP_TILE_PX = TILE_SIZE;
 const HERO_BOX_ROWS = 3;
 
 /**
+ * Rows of rock a boss arena's chart carries below the hero's floor.
+ *
+ * `art` ends a chart on the last row holding anything that is not rock or void,
+ * and in four of the eight arenas that is the hero's own floor — so the arena is
+ * drawn with a single row of rock under him and reads as hanging in the void.
+ * The other four already reach further down on their own. See
+ * {@link MapScreen.chartedRows}.
+ */
+const ARENA_ROCK_ROWS = 2;
+
+/**
+ * Where a cavern's chart starts on its 64-row ring.
+ *
+ * mp90's room is cut across the seam: rows 62 and 63 of the ring are the top of
+ * its starfield and rows 0..15 are the rest of it, with 46 rows of empty ring
+ * between. A chart that began at row 0 therefore drew a room two thirds of whose
+ * height was void, and held the cavern at 5x to do it. Starting at row 62 joins
+ * the room back into one run, which is the run the live view shows.
+ *
+ * Only mp90 needs it. In every other cavern the content starts at row 0, so the
+ * empty rows all fall at the bottom where they cost nothing to trim.
+ */
+const CHART_FIRST_ROW: Readonly<Record<string, number>> = { mp90: 62 };
+
+/**
+ * Rock kept under a hero's feet, past the one floor row every chart already
+ * draws, for the caverns that are not a boss arena.
+ *
+ * mp90's floor is two solid rows, 14 and 15, and the trim stopped on the first of
+ * them — the room stood on the edge of its own chart. It is the only cavern that
+ * needs this; see {@link ARENA_ROCK_ROWS} for the arenas.
+ */
+const CHART_ROCK_ROWS: Readonly<Record<string, number>> = { mp90: 1 };
+
+/**
  * The tiles a chart is trimmed of: the void, and the rock a cavern is cut into.
  *
  * Both are drawn, but neither is anything a player aims at, and in a boss cavern
@@ -329,7 +364,8 @@ export class MapScreen {
         this.displayMapId = snapshot.heroMapId;
         this.heroMapId = snapshot.heroMapId;
         this.cursorCol = snapshot.heroCol;
-        this.cursorRow = snapshot.heroRow;
+        const row = this.chartRowOn(snapshot.heroMapId, snapshot.heroRow);
+        this.cursorRow = row < 0 ? 0 : Math.min(row, this.chartedRows(snapshot.heroMapId) - 1);
         this.refreshStrip(snapshot.heroMapId);
         this.stripIndex = Math.max(0, this.maps.indexOf(snapshot.heroMapId));
         this.clearMessage();
@@ -383,6 +419,18 @@ export class MapScreen {
      * island in the graph, with no route into it from the arena. Counting those
      * would hold the arenas at a fraction of the width fit for rows nobody can
      * reach.
+     *
+     * A boss arena takes {@link ARENA_ROCK_ROWS} more still. The floor the hero
+     * stands on is the last row an arena like mp1d, mp2d, mp5d or mp7d has
+     * anything on, so without them the arena is drawn on one row of rock with
+     * nothing under it. `art` already carries the other four arenas down past
+     * that, which is why the extra rows leave them alone.
+     * {@link CHART_ROCK_ROWS} is the same thing for a cavern that is not an arena.
+     *
+     * Rows are counted from the chart's own first row, not from row 0 — see
+     * {@link CHART_FIRST_ROW} — and a chart row is a position on the chart, not a
+     * row of the ring. {@link ringRowOf} and {@link MapScreen.chartRowOn} are
+     * the two conversions.
      */
     chartedRows(mapId: number): number {
         const cached = this.charted.get(mapId);
@@ -394,22 +442,36 @@ export class MapScreen {
         const graph = this.deps.store.get(mapId);
 
         let art = 0;
-        for (let row = 0; row < NAV_MAP_HEIGHT; row++) {
+        for (let chartRow = 0; chartRow < NAV_MAP_HEIGHT; chartRow++) {
+            const row = ringRowOf(mapId, chartRow);
             for (let col = 0; col < grid.mapWidth; col++) {
                 const flags = classifier.classify(grid.tiles[row * grid.mapWidth + col] ?? 0);
-                if ((flags & TRIMMED) === 0) { art = row + 1; break; }
+                if ((flags & TRIMMED) === 0) { art = chartRow + 1; break; }
             }
         }
 
+        const meta = NAV_MAP_BY_ID.get(mapId);
+        const floorRows = (meta?.isBossArena ? ARENA_ROCK_ROWS : 0)
+            + (CHART_ROCK_ROWS[String(meta?.nameKey)] ?? 0);
         let standing = 0;
         for (const node of graph?.nodes ?? []) {
             if (node.row + HERO_BOX_ROWS >= NAV_MAP_HEIGHT) continue;
-            standing = Math.max(standing, node.row + 1 + HERO_BOX_ROWS);
+            const chartRow = (node.row - chartFirstRow(mapId) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            standing = Math.max(standing, chartRow + 1 + HERO_BOX_ROWS + floorRows);
         }
 
         const charted = Math.max(art, standing, 1);
         this.charted.set(mapId, charted);
         return charted;
+    }
+
+    /**
+     * Where a row of the ring falls on this cavern's chart, or -1 when the chart
+     * does not reach it.
+     */
+    chartRowOn(mapId: number, ringRow: number): number {
+        const chartRow = (ringRow - chartFirstRow(mapId) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+        return chartRow < this.chartedRows(mapId) ? chartRow : -1;
     }
 
     /**
@@ -445,10 +507,10 @@ export class MapScreen {
         const fit = this.fitFor(this.displayMapId);
         if (x < fit.ox || y < fit.oy) return null;
         const col = Math.floor((x - fit.ox) / fit.scale);
-        const row = Math.floor((y - fit.oy) / fit.scale);
+        const chartRow = Math.floor((y - fit.oy) / fit.scale);
         const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 0;
-        if (row < 0 || row >= this.chartedRows(this.displayMapId) || col < 0 || col >= width) return null;
-        return { col, row };
+        if (chartRow < 0 || chartRow >= this.chartedRows(this.displayMapId) || col < 0 || col >= width) return null;
+        return { col, row: ringRowOf(this.displayMapId, chartRow) };
     }
 
     // ── input ─────────────────────────────────────────────────────────────────
@@ -474,8 +536,10 @@ export class MapScreen {
         if (canvasY < STRIP_TOP + STRIP_H) { this.clickStrip(canvasX, canvasY); return; }
         const t = this.tileFromCanvas(canvasX, canvasY);
         if (!t) return;
+        const chartRow = this.chartRowOn(this.displayMapId, t.row);
+        if (chartRow < 0) return;
         this.cursorCol = t.col;
-        this.cursorRow = t.row;
+        this.cursorRow = chartRow;
         // Whatever the last refusal said was about the cell before this one.
         this.clearMessage();
     }
@@ -520,7 +584,7 @@ export class MapScreen {
                 return true;
             case 'Enter':
             case ' ':
-                if (!repeat) void this.choose(this.cursorCol, this.cursorRow);
+                if (!repeat) void this.choose(this.cursorCol, ringRowOf(this.displayMapId, this.cursorRow));
                 return true;
             case 'Escape':
                 if (!repeat) this.deps.onExit();
@@ -842,8 +906,9 @@ export class MapScreen {
         const platCount = platforms ? platCols * Math.floor(platforms.height / P) : 0;
 
         for (let row = 0; row < rows; row++) {
+            const gridRow = ringRowOf(mapId, row);
             for (let col = 0; col < grid.mapWidth; col++) {
-                const id = grid.tiles[row * grid.mapWidth + col]!;
+                const id = grid.tiles[gridRow * grid.mapWidth + col]!;
                 const x = col * P;
                 const y = row * P;
                 let drawn = false;
@@ -880,14 +945,6 @@ export class MapScreen {
         // than drawing nothing.
         this.paintPlatforms(ctx, mapId, grid.mapWidth, rows, platforms, platCols, platCount);
 
-        // Rope runs read better with a highlight along their length.
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < grid.mapWidth; col++) {
-                if (!(classifier.classify(grid.tiles[row * grid.mapWidth + col]!) & 2 /* ROPE */)) continue;
-                ctx.fillRect(col * P, row * P, P, Math.max(1, P >> 1));
-            }
-        }
         return canvas;
     }
 
@@ -917,8 +974,9 @@ export class MapScreen {
         const tables = NAV_PLATFORMS[mapId];
         if (!tables) return;
         const P = MAP_TILE_PX;
-        const at = (left: number, row: number, first: number): void => {
-            if (row < 0 || row >= rows) return;
+        const at = (left: number, ringY: number, frame0: number): void => {
+            const row = (ringY - chartFirstRow(mapId) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            if (row >= rows) return;
             const x = wrapCol(left, mapWidth) * P;
             const y = row * P;
             for (let i = 0; i < PLATFORM_WIDTH; i++) {
@@ -927,7 +985,7 @@ export class MapScreen {
                 // cylinder: it wraps, exactly as the columns of the cavern itself
                 // do.
                 const dx2 = dx >= mapWidth * P ? dx - mapWidth * P : dx;
-                const frame = first + i;
+                const frame = frame0 + i;
                 if (sheet && frame - DCHR_BASE_TILE < sheetCount) {
                     drawSheetFrame(ctx, sheet, frame - DCHR_BASE_TILE, P, P, sheetCols,
                         dx2, y, P, P);
@@ -1069,9 +1127,11 @@ export class MapScreen {
 
         const hero = this.deps.heroPosition();
         if (!hero || hero.mapId !== this.displayMapId) return;
+        const heroRow = this.chartRowOn(this.displayMapId, hero.row);
+        if (heroRow < 0) return;
         const s = fit.scale;
         const hx = fit.ox + hero.col * s;
-        const hy = fit.oy + hero.row * s;
+        const hy = fit.oy + heroRow * s;
         // A small bright wedge, pointing up, so it reads as "you are here".
         ctx.fillStyle = '#ff0';
         ctx.beginPath();
@@ -1158,7 +1218,9 @@ export class MapScreen {
     ): void {
         const open = this.deps.doorOpen?.(p.mapId, p.x0, p.y0) ?? (p.key === 0);
         const doorCanvas = this.doorCanvasFor(sheet, cols, open, p.color);
-        const width = NAV_MAP_BY_ID.get(this.displayMapId)?.mapWidth ?? 1;
+        const mapId = this.displayMapId;
+        const width = NAV_MAP_BY_ID.get(mapId)?.mapWidth ?? 1;
+        const rows = this.chartedRows(mapId);
         const P = MAP_TILE_PX;
         const left = p.fromX - 1;
         const top = p.fromY - 1;
@@ -1167,10 +1229,12 @@ export class MapScreen {
         ctx.imageSmoothingQuality = 'high';
         for (let row = 0; row < DOOR_H; row++) {
             const mapRow = (((top + row) % NAV_MAP_HEIGHT) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            const chartRow = (mapRow - chartFirstRow(mapId) + NAV_MAP_HEIGHT) % NAV_MAP_HEIGHT;
+            if (chartRow >= rows) continue;
             for (let col = 0; col < DOOR_W; col++) {
                 const mapCol = (((left + col) % width) + width) % width;
                 const dstX = fit.ox + mapCol * fit.scale;
-                const dstY = fit.oy + mapRow * fit.scale;
+                const dstY = fit.oy + chartRow * fit.scale;
                 ctx.drawImage(
                     doorCanvas,
                     col * P, row * P, P, P,
@@ -1238,7 +1302,7 @@ export class MapScreen {
         ctx.textAlign = 'right';
         ctx.fillStyle = '#0ee';
         ctx.fillText(
-            `${this.deps.text('map.dest')} ${this.cursorCol},${this.cursorRow}`,
+            `${this.deps.text('map.dest')} ${this.cursorCol},${ringRowOf(this.displayMapId, this.cursorRow)}`,
             VIEW_W - 16, STATUS_TOP,
         );
         ctx.textAlign = 'left';
@@ -1277,6 +1341,16 @@ export function rokaColour(color: number): string {
 /** Reachable maps for a hero standing on `mapId` — the component's map strip. */
 function reachableFor(mapId: number): readonly number[] {
     return NAV_REACHABLE[mapId] ?? [mapId];
+}
+
+/** The first row of `mapId`'s ring its chart starts on — see {@link CHART_FIRST_ROW}. */
+function chartFirstRow(mapId: number): number {
+    return CHART_FIRST_ROW[String(NAV_MAP_BY_ID.get(mapId)?.nameKey)] ?? 0;
+}
+
+/** The ring row a chart row is drawn from. */
+function ringRowOf(mapId: number, chartRow: number): number {
+    return (chartFirstRow(mapId) + chartRow) % NAV_MAP_HEIGHT;
 }
 
 /**
