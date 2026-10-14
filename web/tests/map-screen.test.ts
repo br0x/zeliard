@@ -352,6 +352,24 @@ describe('every string it asks the locale for exists', () => {
             }
         }
     });
+
+    it('resolves the cavern name the title bar asks for, in every locale', () => {
+        // `t` hands back the key it was given when nothing is filed under it, so a
+        // cavern with no name in a locale would put "dungeon.names.mp10" in the
+        // corner of the title bar.
+        const src = readFileSync(resolve(REPO, 'web/src/ui/map-screen.ts'), 'utf8');
+        expect(src).toContain('dungeon.names.');
+        for (const meta of NAV_MAPS) {
+            for (const locale of ['en', 'ru', 'isv']) {
+                const json = JSON.parse(
+                    readFileSync(resolve(REPO, `web/src/locale/${locale}.json`), 'utf8'),
+                ) as { dungeon?: { names?: Record<string, string> } };
+                const value = json.dungeon?.names?.[meta.nameKey];
+                expect(value, `${locale} dungeon.names.${meta.nameKey}`).toBeTruthy();
+                expect(typeof value).toBe('string');
+            }
+        }
+    });
 });
 
 describe('fitting every cavern into the canvas', () => {
@@ -993,6 +1011,29 @@ describe('choosing a destination', () => {
         await h.screen.choose(Math.floor(empty / 100), empty % 100);
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active).toBe(true);
+    });
+});
+
+describe('the title bar', () => {
+    it('names the cavern in the corner rather than the MDT file', () => {
+        // `MP10` names a file, not a place. The corner is the one place in the
+        // title bar with room for the cavern's own name, and the strip tabs keep
+        // the short form because they have to tell two levels of one cavern apart.
+        const en = JSON.parse(
+            readFileSync(resolve(REPO, 'web/src/locale/en.json'), 'utf8'),
+        ) as { dungeon: { names: Record<string, string> } };
+        const h = harness({
+            text: (key) => en.dungeon.names[key.replace('dungeon.names.', '')] ?? key,
+        });
+        const seen: { text: string; x: number; y: number }[] = [];
+        const spy = vi.spyOn(CTX, 'fillText').mockImplementation(((t: string, x: number, y: number) => {
+            seen.push({ text: t, x, y });
+        }) as never);
+        h.draw(0);
+        spy.mockRestore();
+        const meta = NAV_MAP_BY_ID.get(h.screen.displayMapId)!;
+        expect(seen).toContainEqual({ text: en.dungeon.names[meta.nameKey], x: 672 - 16, y: 14 });
+        expect(seen.some((l) => l.text === String(meta.nameKey).toUpperCase())).toBe(false);
     });
 });
 

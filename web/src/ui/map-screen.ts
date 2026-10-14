@@ -990,7 +990,8 @@ export class MapScreen {
         ctx.fillStyle = '#eee';
         ctx.font = FONT_SMALL;
         ctx.textAlign = 'right';
-        ctx.fillText(name ? String(name.nameKey).toUpperCase() : '', VIEW_W - 16, 14);
+        const cavernKey = name ? `dungeon.names.${String(name.nameKey)}` : '';
+        ctx.fillText(cavernKey ? this.deps.text(cavernKey) : '', VIEW_W - 16, 14);
         ctx.textAlign = 'left';
     }
 
@@ -1279,10 +1280,9 @@ function reachableFor(mapId: number): readonly number[] {
 }
 
 /**
- * A tab label short enough to fit: `mp80` -> `80`, `mp5d` -> `5D`.
+ * A tab label short enough to fit: `mp80.mdt` -> `80`, `mp5d.mdt` -> `5D`
  *
- * The full name is redundant on every tab because only one is meaningful at a
- * time, and the title bar already shows the current map in full.
+ * Full localized cavern's name is displayed in the title bar.
  */
 export function shortName(nameKey: string): string {
     return nameKey.replace(/^mp/i, '').toUpperCase();
