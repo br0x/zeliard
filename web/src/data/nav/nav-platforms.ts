@@ -5,7 +5,7 @@
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 /**
  * A vertical platform the hero operates with Up/Down. It is a bidirectional lift

@@ -21,7 +21,7 @@
  *   web/src/data/nav/nav-airflows.ts   current tables plus lift columns and conveyor runs
  *   web/src/data/nav/index.ts          shared constants and the barrel
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 
 import { readFileSync } from 'node:fs';

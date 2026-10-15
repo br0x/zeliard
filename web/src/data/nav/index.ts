@@ -5,7 +5,7 @@
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 /** Rows in every cavern map; fixed by the MDT format. */
 export const NAV_MAP_HEIGHT = 64;

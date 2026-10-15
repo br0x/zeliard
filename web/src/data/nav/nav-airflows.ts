@@ -5,7 +5,7 @@
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 /**
  * A column that lifts the hero 2 rows per frame with NO collision test

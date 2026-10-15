@@ -4,7 +4,7 @@
  * The graph is the thing every later stage trusts, so these tests check the
  * *invariants* rather than reproducing the builder: that a node is a position the
  * hero can occupy, that an edge is a traversal the engine actually permits, and
- * that the three airflow suppression rules of docs/PATHFINDER_PLAN.md §7.4 hold.
+ * that the three airflow suppression rules of docs/PATHFINDER.md §7.4 hold.
  *
  * Anything that says "no" here would send the player into rock or let a current
  * throw him the wrong way, so the checks are deliberately exhaustive over all 31
@@ -86,7 +86,7 @@ describe('nodes are positions the hero can occupy', () => {
         // The player's mp21 climb: three parallel ropes in columns 94, 92 and 90,
         // each with rock in the column beside them, climbed to the rung where each
         // one stops. `heroBoxFree` refused the top of all three and the climb simply
-        // stopped short — see docs/PATHFINDER_PLAN.md §21.
+        // stopped short — see docs/PATHFINDER.md §21.
         const grid = gridFor(3);
         for (const [col, row] of [[93, 45], [93, 44], [93, 43], [91, 40], [89, 38], [89, 37]] as const) {
             const graph = graphFor(3);

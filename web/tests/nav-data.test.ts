@@ -1,7 +1,7 @@
 /**
  * nav-data.test.ts — integrity of the generated navigation data.
  *
- * These are the assertions docs/PATHFINDER_PLAN.md §13 lists for phase 0. They
+ * These are the assertions docs/PATHFINDER.md §13 lists for phase 0. They
  * guard the extractor against three failure modes that a wrong pathfinder would
  * otherwise surface only as an impossible route in game:
  *

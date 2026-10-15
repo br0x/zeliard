@@ -1220,7 +1220,7 @@ describe('mp21: the three ropes against a wall, from (93,56) to (86,39)', () => 
     // Three parallel ropes, each with rock in the column beside it, climbed to the
     // rung where each one stops. The graph held the bottom of all three and
     // `heroBoxFree` refused the top of every one, so the climb stopped six cells
-    // short and the journey did not exist. See docs/PATHFINDER_PLAN.md §21.
+    // short and the journey did not exist. See docs/PATHFINDER.md §21.
     const START: [number, number] = [93, 56];
     const GOAL: [number, number] = [86, 39];
 
@@ -1296,7 +1296,7 @@ describe('mp20: the journey the player was walked round in circles on', () => {
     //
     // The cause is that the search's key dimension is a *counter* and the floor is a
     // *set*: `keysAfterPickup` grants a pickup on every visit to a key node, and the
-    // engine grants it once. See docs/PATHFINDER_PLAN.md §22.
+    // engine grants it once. See docs/PATHFINDER.md §22.
     const START: NavEndpoint = { mapId: 2, col: 6, row: 62 };
     const GOAL: NavEndpoint = { mapId: 4, col: 25, row: 19 };
     /** Both mp20 keys, by the record the engine holds rather than the node walked. */

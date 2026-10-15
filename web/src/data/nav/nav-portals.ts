@@ -5,7 +5,7 @@
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 /** 0 = no key, 1 = ordinary key, 2 = Lion-Head key. */
 export type PortalKeyKind = 0 | 1 | 2;

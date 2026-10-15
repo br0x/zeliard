@@ -5,7 +5,7 @@
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
- * See docs/PATHFINDER_PLAN.md §6.
+ * See docs/PATHFINDER.md §6.
  */
 /** Which pair a pickup hands over: 1 Feruza, 2 Pirika, 3 Silkarn, 4 Ruzeria. */
 export type NavShoe = 1 | 2 | 3 | 4;

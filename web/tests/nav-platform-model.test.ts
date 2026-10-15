@@ -7,7 +7,7 @@
  * checked here against the decoded map rather than against the tables.
  *
  * The engine's own rules come from dungeon-vertical.ts and dungeon-platforms.ts;
- * docs/PATHFINDER_PLAN.md §2.7 and §7.4 have the full derivations.
+ * docs/PATHFINDER.md §2.7 and §7.4 have the full derivations.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
