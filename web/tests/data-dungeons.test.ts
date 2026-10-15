@@ -18,7 +18,7 @@ describe('data/dungeons.ts tables', () => {
         for (const id of ids) {
             const d = DUNGEONS[String(id)];
             expect(d, `DUNGEONS[${id}] missing`).toBeTruthy();
-            expect(d!.mdtPath).toMatch(/^game\/0\/(mp|cmap|llmp)[0-9a-z]*\.mdt$/);
+            expect(d!.mdtPath).toMatch(/^mdt\/(mp|cmap|llmp)[0-9a-z]*\.mdt$/);
             expect(d!.tilesheetPath).toMatch(/^assets\/images\//);
             expect(d!.entitySheetPath).toMatch(/^assets\/images\//);
             expect(Array.isArray(d!.passableTiles)).toBe(true);

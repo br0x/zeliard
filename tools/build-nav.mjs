@@ -83,7 +83,7 @@ for (const { id, src, cavern } of maps) {
     if (cavern.tiles.length !== width * MAP_HEIGHT) {
         problems.push(`map ${id}: decoded ${cavern.tiles.length} tiles, expected ${width * MAP_HEIGHT}`);
     }
-    if (!/^game\/0\/mp[0-9a-f]+\.mdt$/i.test(src.mdtPath)) {
+    if (!/^mdt\/mp[0-9a-f]+\.mdt$/i.test(src.mdtPath)) {
         problems.push(`map ${id}: unexpected mdtPath '${src.mdtPath}'`);
     }
     if (src.passable.length === 0) problems.push(`map ${id}: empty passableTiles`);
