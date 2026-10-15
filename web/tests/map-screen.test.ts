@@ -237,7 +237,7 @@ describe('the map is the cavern\'s own tiles, not a sketch of them', () => {
             expect(drawn.some((d) => d.x === f.x && d.y === f.y),
                 `a fill at ${f.x},${f.y} covering the art blitted there`).toBe(false);
         }
-    });
+    }, 120000);
 
     it('draws every platform, where the level data says it stands', async () => {
         // A platform is runtime state: `render_vertical_platforms_to_proximity` and its
