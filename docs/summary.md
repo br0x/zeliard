@@ -36,7 +36,7 @@ Inn), inventory, save/restore/import/export, the rokademo (Tear of Esmesanti col
   one owner module per feature.
 - `web/public/pit-worklet.js` — the only plain-JS runtime artifact
   (AudioWorklet modules load by URL in their own realm).
-- `asm/`, `WORK/`, `game/0/`, `tools/` — original assets, disassembly,
+- `asm/`, `WORK/`, `mdt/`, `tools/` — original assets, disassembly,
   and Python extractors. Kept as engine reference; not built or
   served in the runtime.
 

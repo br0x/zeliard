@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not edit.
  *
- * Produced by tools/build-nav.mjs from web/public/game/0/mp*.mdt and
+ * Produced by tools/build-nav.mjs from web/public/mdt/mp*.mdt and
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *

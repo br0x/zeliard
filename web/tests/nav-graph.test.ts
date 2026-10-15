@@ -36,7 +36,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const gridFor = (mapId: number) => {
     const meta = NAV_MAP_BY_ID.get(mapId)!;
     return decodeTileGrid(
-        new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`))),
+        new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${meta.nameKey}.mdt`))),
         0, mapId,
     );
 };

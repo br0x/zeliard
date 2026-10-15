@@ -36,7 +36,7 @@ function makeStore(): NavGraphStore {
         if (!meta) return null;
         let bytes = cache.get(mapId);
         if (!bytes) {
-            bytes = new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`)));
+            bytes = new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${meta.nameKey}.mdt`)));
             cache.set(mapId, bytes);
         }
         return bytes;
@@ -163,7 +163,7 @@ describe('NavGraphStore', () => {
 describe('fetching a cavern the game has not downloaded', () => {
     it('asks for the path the game itself asks for', () => {
         // The bug: the fetcher prefixed `assets/`, but the cavern files live at
-        // the site root under game/0/. Every other map 404'd and the screen
+        // the site root under mdt/. Every other map 404'd and the screen
         // reported "This cavern cannot be charted".
         // main.ts loads a cavern it is about to enter with a bare
         // `fetch(mdtPath)`, so the store must use the identical string.
@@ -181,7 +181,7 @@ describe('fetching a cavern the game has not downloaded', () => {
     });
 
     it('does not accidentally resolve under assets/', () => {
-        expect(existsSync(resolve(REPO, 'web/public/assets/game/0/mp81.mdt'))).toBe(false);
+        expect(existsSync(resolve(REPO, 'web/public/assets/mdt/mp81.mdt'))).toBe(false);
     });
 
     it('fetches and decodes a map the store did not already hold', async () => {
@@ -195,7 +195,7 @@ describe('fetching a cavern the game has not downloaded', () => {
             },
         );
         expect(await store.load(24)).toBe(true);          // mp81
-        expect(requested).toEqual(['game/0/mp81.mdt']);
+        expect(requested).toEqual(['mdt/mp81.mdt']);
         expect(store.get(24)?.stats.nodes).toBeGreaterThan(0);
     });
 });
@@ -205,7 +205,7 @@ describe('the MDT image handed to the store', () => {
         // The bug this pins: passing the whole 64 KB memory image instead of the
         // 16 KB MDT window at 0xC000. The decoder then read the map width out of
         // the save-image bytes and walked the packed map off the end.
-        const real = new Uint8Array(readFileSync(resolve(REPO, 'web/public/game/0/mp80.mdt')));
+        const real = new Uint8Array(readFileSync(resolve(REPO, 'web/public/mdt/mp80.mdt')));
         expect(real.length).toBeLessThan(0x4000);
         expect(real[2]! | (real[3]! << 8)).toBe(256);      // mp80 is 256 wide
 

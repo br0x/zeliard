@@ -31,7 +31,7 @@ import { NAV_TILES } from '../src/data/nav/nav-tiles.js';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const readMdt = (name: string): Uint8Array =>
-    new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${name}.mdt`)));
+    new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${name}.mdt`)));
 
 /** Assemble a fake MDT image whose packed map holds exactly the given bytes. */
 function fakeMdt(mapWidth: number, packed: number[]): Uint8Array {

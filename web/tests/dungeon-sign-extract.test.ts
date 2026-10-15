@@ -17,7 +17,7 @@ function u16(buf: Uint8Array, offset: number): number {
 }
 
 function readMdt(dungeon: string): Uint8Array {
-    const url = new URL(`../public/game/0/${dungeon}.mdt`, import.meta.url);
+    const url = new URL(`../public/mdt/${dungeon}.mdt`, import.meta.url);
     return new Uint8Array(readFileSync(url));
 }
 

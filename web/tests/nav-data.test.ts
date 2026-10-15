@@ -70,8 +70,8 @@ describe('nav maps', () => {
     });
 
     it('builds a lookup by id', () => {
-        expect(NAV_MAP_BY_ID.get(0)?.mdtPath).toBe('game/0/mp10.mdt');
-        expect(NAV_MAP_BY_ID.get(30)?.mdtPath).toBe('game/0/mpa0.mdt');
+        expect(NAV_MAP_BY_ID.get(0)?.mdtPath).toBe('mdt/mp10.mdt');
+        expect(NAV_MAP_BY_ID.get(30)?.mdtPath).toBe('mdt/mpa0.mdt');
         expect(NAV_MAP_BY_ID.get(31)).toBeUndefined();
     });
 });
@@ -612,7 +612,7 @@ describe('extractor reproducibility', () => {
         // and the FOLLOWING byte for the tile. Decoding `tile = token` instead
         // yields a plausible-looking but wrong map — the variant this test exists
         // to prevent.
-        const bytes = new Uint8Array(readFileSync(resolve(REPO, 'web/public/game/0/mp70.mdt')));
+        const bytes = new Uint8Array(readFileSync(resolve(REPO, 'web/public/mdt/mp70.mdt')));
         const width = bytes[2]! | (bytes[3]! << 8);
         const tiles = new Uint8Array(width * MAP_HEIGHT);
         let p = 0x1b;

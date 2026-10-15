@@ -6,7 +6,7 @@
  *   node tools/build-nav.mjs --check    # fail if the committed output is stale
  *
  * Inputs
- *   web/public/game/0/mp*.mdt          map geometry, doors, platforms
+ *   web/public/mdt/mp*.mdt          map geometry, doors, platforms
  *   web/src/data/dungeons.ts           per-map tile attribute tables
  *   tools/GrpViewer/mpp*.grp.unp        original tileset headers, drift guard only
  *

@@ -11,7 +11,7 @@ export const VIEW_WIDTH  = VIEW_COLS * TILE_SIZE;
 export const RUN_TOWN_ENTRY_ON_START = true;
 export const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
 export const STDPLY_PATH = 'game/stdply.bin';
-export const START_TOWN_MDT_PATH = 'game/0/cmap.mdt';
+export const START_TOWN_MDT_PATH = 'mdt/cmap.mdt';
 
 export const NOTIFICATION_STRINGS = {
     1:  [38, "You get 50 golds."],
@@ -49,16 +49,16 @@ export const TOWN_VISIBLE_COL_OFFSET = 4;
 export const TOWN_ANIMATION_FULL_TICKS = 24;
 export const TOWN_BACKGROUND_ROWS = 11;
 export const TOWN_MDTS = [
-    'game/0/cmap.mdt', // Felishika's Castle
-    'game/0/mrmp.mdt', // Muralla Town
-    'game/0/stmp.mdt', // Satono town
-    'game/0/bsmp.mdt', // Bosque Village
-    'game/0/hlmp.mdt', // Hellada Town
-    'game/0/tmmp.mdt', // Tumba
-    'game/0/drmp.mdt', // Dorado
-    'game/0/llmp.mdt', // Llama
-    'game/0/prmp.mdt', // Pureza
-    'game/0/esmp.mdt', // Esco
+    'mdt/cmap.mdt', // Felishika's Castle
+    'mdt/mrmp.mdt', // Muralla Town
+    'mdt/stmp.mdt', // Satono Town
+    'mdt/bsmp.mdt', // Bosque Village
+    'mdt/hlmp.mdt', // Hellada Town
+    'mdt/tmmp.mdt', // Tumba Town
+    'mdt/drmp.mdt', // Dorado Town
+    'mdt/llmp.mdt', // Llama Town
+    'mdt/prmp.mdt', // Pureza Town
+    'mdt/esmp.mdt', // Esco Village
 ];
 export const HERO_FRAME_W = 48;
 export const HERO_FRAME_H = 72;

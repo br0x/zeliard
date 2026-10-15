@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """extract_mdt_text.py — extract English NPC conversation text from town MDTs.
 
-Reads each town ``.mdt`` in ``web/public/game/0``, walks the NPC conversation
+Reads each town ``.mdt`` in ``web/public/mdt``, walks the NPC conversation
 pointer table (header word at offset 0x0d), and emits a JSON manifest keyed by
 stable town/NPC ids (``town.cmap.npc.0`` …).
 

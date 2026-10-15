@@ -72,7 +72,7 @@ The following files currently hold English text directly in TypeScript:
 
 ### MDT-backed text
 
-The game loads original `.mdt` files from `web/public/game/0`.
+The game loads original `.mdt` files from `web/public/mdt`.
 
 Town files:
 
@@ -210,7 +210,7 @@ Do this near the top-level composition root, before `Hud`, `OpeningIntro`,
 
 ### 4. Make asset paths absolute or base-aware
 
-The game currently uses paths like `game/0/cmap.mdt` and
+The game currently uses paths like `mdt/cmap.mdt` and
 `assets/images/opdemo/ttl3_logo.png`. These work from `/ru`, but paths with a
 trailing slash such as `/ru/` can resolve relative to `/ru/`.
 
@@ -232,7 +232,7 @@ export function assetUrl(path: string): string {
 }
 ```
 
-Then use `assetUrl('game/0/cmap.mdt')` and
+Then use `assetUrl('mdt/cmap.mdt')` and
 `assetUrl('assets/images/opdemo/ttl3_logo.png')`.
 
 ## Text Extraction Plan

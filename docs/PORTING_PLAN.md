@@ -196,7 +196,7 @@ new engine work.
 
 - **`game/0/`** — original game data: `*.mdt` (maps), `*.grp` (sprites),
   `*.bin` (code overlays + eai/boss binaries), `*.usr` (save files),
-  `*.msd` (music). Served from `web/public/game/`.
+  `*.msd` (music), for historical reference.
 - **`assets/`** — extracted PNGs, OGG music, and SFX (66 sound effects).
   Served from `web/public/assets/`.
 - **Dungeon config** — `web/src/data/dungeons.ts` `DUNGEONS`: one entry per
@@ -272,10 +272,9 @@ zeliard/
 ├── asm/                     # Original asm sources + TASM rebuild (build_all.sh, diff.txt)
 ├── docs/                    # This file + MIGRATION_*, REFACTOR_PLAN, OPTIMIZE, summary
 ├── tools/                   # Python asset extractors (no longer runtime-required)
-├── WORK/                    # Disassembly listings, map dumps, docs, tools (historical)
-├── game/0/                  # Original game data (also served from web/public/game/)
+├── WORK/                    # Disassembly listings, map dumps, docs, tools (historical), Original game data (also served from web/public/game/)
 ├── web/                     # Vite + TypeScript app (live runtime)
-│   ├── public/              # pit-worklet.js, assets/, game/
+│   ├── public/              # pit-worklet.js, assets/, mdt/
 │   ├── src/
 │   │   ├── main.ts          # Composition root
 │   │   ├── audio/ sound-manager.ts

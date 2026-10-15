@@ -134,8 +134,8 @@ def parse_mdt(path):
 
 def main():
     files = [
-        '/home/brox/Projects/zeliard/game/0/mp10.mdt',
-        '/home/brox/Projects/zeliard/game/0/mp21.mdt',
+        '/home/brox/Projects/zeliard/web/public/mdt/mp10.mdt',
+        '/home/brox/Projects/zeliard/web/public/mdt/mp21.mdt',
     ]
     results = {}
     for f in files:

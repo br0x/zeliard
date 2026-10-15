@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not edit.
  *
- * Produced by tools/build-nav.mjs from web/public/game/0/mp*.mdt and
+ * Produced by tools/build-nav.mjs from web/public/mdt/mp*.mdt and
  * web/src/data/dungeons.ts. Run `pnpm --filter zeliard-web nav:build` to
  * regenerate, then commit the result.
  *
@@ -48,7 +48,7 @@ export interface NavComponent {
 export const NAV_MAPS: readonly NavMapMeta[] = [
     {
         id: 0,
-        mdtPath: 'game/0/mp10.mdt',
+        mdtPath: 'mdt/mp10.mdt',
         nameKey: 'mp10',
         cavernLevel: 1,
         mapWidth: 240,
@@ -58,7 +58,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 1,
-        mdtPath: 'game/0/mp1d.mdt',
+        mdtPath: 'mdt/mp1d.mdt',
         nameKey: 'mp1d',
         cavernLevel: 1,
         mapWidth: 73,
@@ -68,7 +68,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 2,
-        mdtPath: 'game/0/mp20.mdt',
+        mdtPath: 'mdt/mp20.mdt',
         nameKey: 'mp20',
         cavernLevel: 2,
         mapWidth: 224,
@@ -78,7 +78,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 3,
-        mdtPath: 'game/0/mp21.mdt',
+        mdtPath: 'mdt/mp21.mdt',
         nameKey: 'mp21',
         cavernLevel: 2,
         mapWidth: 96,
@@ -88,7 +88,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 4,
-        mdtPath: 'game/0/mp2d.mdt',
+        mdtPath: 'mdt/mp2d.mdt',
         nameKey: 'mp2d',
         cavernLevel: 2,
         mapWidth: 52,
@@ -98,7 +98,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 5,
-        mdtPath: 'game/0/mp30.mdt',
+        mdtPath: 'mdt/mp30.mdt',
         nameKey: 'mp30',
         cavernLevel: 3,
         mapWidth: 204,
@@ -108,7 +108,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 6,
-        mdtPath: 'game/0/mp31.mdt',
+        mdtPath: 'mdt/mp31.mdt',
         nameKey: 'mp31',
         cavernLevel: 3,
         mapWidth: 204,
@@ -118,7 +118,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 7,
-        mdtPath: 'game/0/mp3d.mdt',
+        mdtPath: 'mdt/mp3d.mdt',
         nameKey: 'mp3d',
         cavernLevel: 3,
         mapWidth: 73,
@@ -128,7 +128,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 8,
-        mdtPath: 'game/0/mp40.mdt',
+        mdtPath: 'mdt/mp40.mdt',
         nameKey: 'mp40',
         cavernLevel: 4,
         mapWidth: 320,
@@ -138,7 +138,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 9,
-        mdtPath: 'game/0/mp41.mdt',
+        mdtPath: 'mdt/mp41.mdt',
         nameKey: 'mp41',
         cavernLevel: 4,
         mapWidth: 192,
@@ -148,7 +148,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 10,
-        mdtPath: 'game/0/mp4d.mdt',
+        mdtPath: 'mdt/mp4d.mdt',
         nameKey: 'mp4d',
         cavernLevel: 4,
         mapWidth: 73,
@@ -158,7 +158,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 11,
-        mdtPath: 'game/0/mp50.mdt',
+        mdtPath: 'mdt/mp50.mdt',
         nameKey: 'mp50',
         cavernLevel: 5,
         mapWidth: 240,
@@ -168,7 +168,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 12,
-        mdtPath: 'game/0/mp51.mdt',
+        mdtPath: 'mdt/mp51.mdt',
         nameKey: 'mp51',
         cavernLevel: 5,
         mapWidth: 240,
@@ -178,7 +178,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 13,
-        mdtPath: 'game/0/mp5d.mdt',
+        mdtPath: 'mdt/mp5d.mdt',
         nameKey: 'mp5d',
         cavernLevel: 5,
         mapWidth: 73,
@@ -188,7 +188,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 14,
-        mdtPath: 'game/0/mp60.mdt',
+        mdtPath: 'mdt/mp60.mdt',
         nameKey: 'mp60',
         cavernLevel: 6,
         mapWidth: 320,
@@ -198,7 +198,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 15,
-        mdtPath: 'game/0/mp61.mdt',
+        mdtPath: 'mdt/mp61.mdt',
         nameKey: 'mp61',
         cavernLevel: 6,
         mapWidth: 256,
@@ -208,7 +208,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 16,
-        mdtPath: 'game/0/mp62.mdt',
+        mdtPath: 'mdt/mp62.mdt',
         nameKey: 'mp62',
         cavernLevel: 6,
         mapWidth: 73,
@@ -218,7 +218,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 17,
-        mdtPath: 'game/0/mp6d.mdt',
+        mdtPath: 'mdt/mp6d.mdt',
         nameKey: 'mp6d',
         cavernLevel: 6,
         mapWidth: 73,
@@ -228,7 +228,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 18,
-        mdtPath: 'game/0/mp70.mdt',
+        mdtPath: 'mdt/mp70.mdt',
         nameKey: 'mp70',
         cavernLevel: 7,
         mapWidth: 208,
@@ -238,7 +238,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 19,
-        mdtPath: 'game/0/mp71.mdt',
+        mdtPath: 'mdt/mp71.mdt',
         nameKey: 'mp71',
         cavernLevel: 7,
         mapWidth: 196,
@@ -248,7 +248,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 20,
-        mdtPath: 'game/0/mp72.mdt',
+        mdtPath: 'mdt/mp72.mdt',
         nameKey: 'mp72',
         cavernLevel: 7,
         mapWidth: 128,
@@ -258,7 +258,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 21,
-        mdtPath: 'game/0/mp73.mdt',
+        mdtPath: 'mdt/mp73.mdt',
         nameKey: 'mp73',
         cavernLevel: 1,
         mapWidth: 73,
@@ -268,7 +268,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 22,
-        mdtPath: 'game/0/mp7d.mdt',
+        mdtPath: 'mdt/mp7d.mdt',
         nameKey: 'mp7d',
         cavernLevel: 7,
         mapWidth: 70,
@@ -278,7 +278,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 23,
-        mdtPath: 'game/0/mp80.mdt',
+        mdtPath: 'mdt/mp80.mdt',
         nameKey: 'mp80',
         cavernLevel: 8,
         mapWidth: 256,
@@ -288,7 +288,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 24,
-        mdtPath: 'game/0/mp81.mdt',
+        mdtPath: 'mdt/mp81.mdt',
         nameKey: 'mp81',
         cavernLevel: 8,
         mapWidth: 256,
@@ -298,7 +298,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 25,
-        mdtPath: 'game/0/mp82.mdt',
+        mdtPath: 'mdt/mp82.mdt',
         nameKey: 'mp82',
         cavernLevel: 8,
         mapWidth: 192,
@@ -308,7 +308,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 26,
-        mdtPath: 'game/0/mp83.mdt',
+        mdtPath: 'mdt/mp83.mdt',
         nameKey: 'mp83',
         cavernLevel: 8,
         mapWidth: 128,
@@ -318,7 +318,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 27,
-        mdtPath: 'game/0/mp84.mdt',
+        mdtPath: 'mdt/mp84.mdt',
         nameKey: 'mp84',
         cavernLevel: 8,
         mapWidth: 64,
@@ -328,7 +328,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 28,
-        mdtPath: 'game/0/mp8d.mdt',
+        mdtPath: 'mdt/mp8d.mdt',
         nameKey: 'mp8d',
         cavernLevel: 8,
         mapWidth: 70,
@@ -338,7 +338,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 29,
-        mdtPath: 'game/0/mp90.mdt',
+        mdtPath: 'mdt/mp90.mdt',
         nameKey: 'mp90',
         cavernLevel: 9,
         mapWidth: 42,
@@ -348,7 +348,7 @@ export const NAV_MAPS: readonly NavMapMeta[] = [
     },
     {
         id: 30,
-        mdtPath: 'game/0/mpa0.mdt',
+        mdtPath: 'mdt/mpa0.mdt',
         nameKey: 'mpa0',
         cavernLevel: 10,
         mapWidth: 73,

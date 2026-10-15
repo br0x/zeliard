@@ -36,7 +36,7 @@ function realStore(): NavGraphStore {
         if (!meta) return null;
         let hit = cache.get(mapId);
         if (!hit) {
-            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`)));
+            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${meta.nameKey}.mdt`)));
             cache.set(mapId, hit);
         }
         return hit;

@@ -751,7 +751,7 @@ export interface DungeonDefinition {
 
 export const DUNGEONS: Record<string, DungeonDefinition> = {
     0: { 
-        mdtPath: 'game/0/mp10.mdt',
+        mdtPath: 'mdt/mp10.mdt',
         tilesheetPath: 'assets/images/mpp1.png',
         entitySheetPath: 'assets/images/enp1.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -778,7 +778,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI1,
     },
     1: { // Dungeon 1 boss room — same dungeon group, shares tilesheets with index 0
-        mdtPath: 'game/0/mp1d.mdt',
+        mdtPath: 'mdt/mp1d.mdt',
         tilesheetPath: 'assets/images/mpp1.png',
         entitySheetPath: 'assets/images/crab.png',
         passableTiles: [
@@ -812,7 +812,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: CRAB,
     },
     2: {
-        mdtPath: 'game/0/mp20.mdt',
+        mdtPath: 'mdt/mp20.mdt',
         tilesheetPath: 'assets/images/mpp2.png',
         entitySheetPath: 'assets/images/enp2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -845,7 +845,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI2,
     },
     3: {
-        mdtPath: 'game/0/mp21.mdt',
+        mdtPath: 'mdt/mp21.mdt',
         tilesheetPath: 'assets/images/mpp2.png',
         entitySheetPath: 'assets/images/enp2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -878,7 +878,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI2,
     },
     4: { // Dungeon 2 boss room
-        mdtPath: 'game/0/mp2d.mdt',
+        mdtPath: 'mdt/mp2d.mdt',
         tilesheetPath: 'assets/images/mpp2.png',
         entitySheetPath: 'assets/images/tako.png',
         passableTiles: [
@@ -911,7 +911,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: TAKO,
     },
     5: {
-        mdtPath: 'game/0/mp30.mdt',
+        mdtPath: 'mdt/mp30.mdt',
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/enp3.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -941,7 +941,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI3,
     },
     6: {
-        mdtPath: 'game/0/mp31.mdt',
+        mdtPath: 'mdt/mp31.mdt',
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/enp3.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -971,7 +971,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI3,
     },
     7: { // dungeon 3 boss room
-        mdtPath: 'game/0/mp3d.mdt',
+        mdtPath: 'mdt/mp3d.mdt',
         tilesheetPath: 'assets/images/mpp3.png',
         entitySheetPath: 'assets/images/tori.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1007,7 +1007,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: TORI,
     },
     8: {
-        mdtPath: 'game/0/mp40.mdt',
+        mdtPath: 'mdt/mp40.mdt',
         tilesheetPath: 'assets/images/mpp4.png',
         entitySheetPath: 'assets/images/enp4.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1037,7 +1037,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI4,
     },
     9: {
-        mdtPath: 'game/0/mp41.mdt',
+        mdtPath: 'mdt/mp41.mdt',
         tilesheetPath: 'assets/images/mpp4.png',
         entitySheetPath: 'assets/images/enp4.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1067,7 +1067,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI4,
     },
     10: { // dungeon 4 boss room
-        mdtPath: 'game/0/mp4d.mdt',
+        mdtPath: 'mdt/mp4d.mdt',
         tilesheetPath: 'assets/images/mpp4.png',
         entitySheetPath: 'assets/images/zela.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1103,7 +1103,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: ZELA,
     },
     11: {
-        mdtPath: 'game/0/mp50.mdt',
+        mdtPath: 'mdt/mp50.mdt',
         tilesheetPath: 'assets/images/mpp5.png',
         entitySheetPath: 'assets/images/enp5.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1133,7 +1133,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI5,
     },
     12: {
-        mdtPath: 'game/0/mp51.mdt',
+        mdtPath: 'mdt/mp51.mdt',
         tilesheetPath: 'assets/images/mpp5.png',
         entitySheetPath: 'assets/images/enp5.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1163,7 +1163,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI5,
     },
     13: { // dungeon 5 boss room
-        mdtPath: 'game/0/mp5d.mdt',
+        mdtPath: 'mdt/mp5d.mdt',
         tilesheetPath: 'assets/images/mpp5.png',
         entitySheetPath: 'assets/images/meda.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1199,7 +1199,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: MEDA,
     },
     14: {
-        mdtPath: 'game/0/mp60.mdt',
+        mdtPath: 'mdt/mp60.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
         entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1229,7 +1229,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI6,
     },
     15: {
-        mdtPath: 'game/0/mp61.mdt',
+        mdtPath: 'mdt/mp61.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
         entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1259,7 +1259,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI6,
     },
     16: {
-        mdtPath: 'game/0/mp62.mdt',
+        mdtPath: 'mdt/mp62.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
         entitySheetPath: 'assets/images/enp6.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1289,7 +1289,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI6,
     },
     17: { // dungeon 6 boss room
-        mdtPath: 'game/0/mp6d.mdt',
+        mdtPath: 'mdt/mp6d.mdt',
         tilesheetPath: 'assets/images/mpp6.png',
         entitySheetPath: 'assets/images/lega.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1324,7 +1324,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: LEGA,
     },
     18: {
-        mdtPath: 'game/0/mp70.mdt',
+        mdtPath: 'mdt/mp70.mdt',
         tilesheetPath: 'assets/images/mpp7.png',
         entitySheetPath: 'assets/images/enp7.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1358,7 +1358,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI7,
     },
     19: {
-        mdtPath: 'game/0/mp71.mdt',
+        mdtPath: 'mdt/mp71.mdt',
         tilesheetPath: 'assets/images/mpp7.png',
         entitySheetPath: 'assets/images/enp7.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1392,7 +1392,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI7,
     },
     20: {
-        mdtPath: 'game/0/mp72.mdt',
+        mdtPath: 'mdt/mp72.mdt',
         tilesheetPath: 'assets/images/mpp7.png',
         entitySheetPath: 'assets/images/enp7.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1426,7 +1426,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI7,
     },
     21: { // Llama hut with Paguro boss
-        mdtPath: 'game/0/mp73.mdt',
+        mdtPath: 'mdt/mp73.mdt',
         tilesheetPath: 'assets/images/mppb.png',
         entitySheetPath: 'assets/images/zel2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1462,7 +1462,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: ZEL2,
     },
     22: { // dungeon 7 boss room
-        mdtPath: 'game/0/mp7d.mdt',
+        mdtPath: 'mdt/mp7d.mdt',
         tilesheetPath: 'assets/images/mpp7.png',
         entitySheetPath: 'assets/images/drgn.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1498,7 +1498,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: DRGN,
     },
     23: {
-        mdtPath: 'game/0/mp80.mdt',
+        mdtPath: 'mdt/mp80.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/enp8.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1529,7 +1529,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI8,
     },
     24: {
-        mdtPath: 'game/0/mp81.mdt',
+        mdtPath: 'mdt/mp81.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/enp8.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1560,7 +1560,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI8,
     },
     25: {
-        mdtPath: 'game/0/mp82.mdt',
+        mdtPath: 'mdt/mp82.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/enp8.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1591,7 +1591,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI8,
     },
     26: {
-        mdtPath: 'game/0/mp83.mdt',
+        mdtPath: 'mdt/mp83.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/enp8.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1622,7 +1622,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI8,
     },
     27: {
-        mdtPath: 'game/0/mp84.mdt',
+        mdtPath: 'mdt/mp84.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/enp8.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1653,7 +1653,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: EAI8,
     },
     28: { // dungeon 8 boss room
-        mdtPath: 'game/0/mp8d.mdt',
+        mdtPath: 'mdt/mp8d.mdt',
         tilesheetPath: 'assets/images/mpp8.png',
         entitySheetPath: 'assets/images/akma.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1688,7 +1688,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: AKMA,
     },
     29: { // Jashiin room 1
-        mdtPath: 'game/0/mp90.mdt',
+        mdtPath: 'mdt/mp90.mdt',
         tilesheetPath: 'assets/images/mpp9.png',
         entitySheetPath: 'assets/images/mao1.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17
@@ -1723,7 +1723,7 @@ export const DUNGEONS: Record<string, DungeonDefinition> = {
         ai: MAO1,
     },
     30: { // Jashiin room 2
-        mdtPath: 'game/0/mpa0.mdt',
+        mdtPath: 'mdt/mpa0.mdt',
         tilesheetPath: 'assets/images/mppa.png',
         entitySheetPath: 'assets/images/mao2.png',
         passableTiles: [ // mppX.grp.unp bytes 0..0x17

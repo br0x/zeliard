@@ -120,10 +120,10 @@ describe('buildLocalePath', () => {
 
 describe('assetUrl', () => {
     it('produces a root-relative URL by default', () => {
-        expect(assetUrl('game/0/cmap.mdt')).toBe('/game/0/cmap.mdt');
+        expect(assetUrl('mdt/cmap.mdt')).toBe('/mdt/cmap.mdt');
     });
 
     it('strips leading slashes from the asset path', () => {
-        expect(assetUrl('/game/0/cmap.mdt')).toBe('/game/0/cmap.mdt');
+        expect(assetUrl('/mdt/cmap.mdt')).toBe('/mdt/cmap.mdt');
     });
 });

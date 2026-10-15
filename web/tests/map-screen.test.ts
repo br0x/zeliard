@@ -63,7 +63,7 @@ function makeStore(): NavGraphStore {
         if (!meta) return null;
         let hit = cache.get(mapId);
         if (!hit) {
-            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`)));
+            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${meta.nameKey}.mdt`)));
             cache.set(mapId, hit);
         }
         return hit;
@@ -95,7 +95,7 @@ function componentStore(mapIds: readonly number[]): NavGraphStore {
         if (!meta || !inside.has(mapId)) return null;
         let hit = cache.get(mapId);
         if (!hit) {
-            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/game/0/${meta.nameKey}.mdt`)));
+            hit = new Uint8Array(readFileSync(resolve(REPO, `web/public/mdt/${meta.nameKey}.mdt`)));
             cache.set(mapId, hit);
         }
         return hit;
@@ -185,7 +185,7 @@ interface Rect { x: number; y: number; w: number; h: number }
 
 /** mp10's tiles that the cavern sheet has art for — one blit each. */
 const BLITTABLE_IN_MP10 = (() => {
-    const bytes = readFileSync(resolve(REPO, 'web/public/game/0/mp10.mdt'));
+    const bytes = readFileSync(resolve(REPO, 'web/public/mdt/mp10.mdt'));
     const grid = decodeTileGrid(new Uint8Array(bytes), NAV_MAP_BY_ID.get(0)!.mapWidth, 0);
     let n = 0;
     // mpp1.png is 600x24, so 25 frames of 24px, and ids 1..25 are frames 0..24.

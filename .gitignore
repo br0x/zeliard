@@ -3,11 +3,9 @@ venv/
 .env
 .pyc
 __pycache__
-asm/LOG.TXT
-asm/diff.txt
-asm/*.bin
-asm/*.drv
-build/.emcache/
-LOGCPU.TXT
+WORK/asm/LOG.TXT
+WORK/asm/diff.txt
+WORK/asm/*.bin
+WORK/asm/*.drv
 web/coverage/
 node_modules

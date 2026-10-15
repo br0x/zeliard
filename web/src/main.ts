@@ -773,7 +773,7 @@ function navGraphStore(): NavGraphStore {
         },
         // Any other cavern is downloaded only when the player browses to it.
         // The URL is mdtPath verbatim, exactly as the game loads a cavern it is
-        // about to enter — the files live at the site root under game/0/, NOT
+        // about to enter — the files live at the site root under mdt/, NOT
         // under assets/, so an `assets/` prefix 404s and the map silently
         // declines to open.
         async (mapId) => {
@@ -2313,7 +2313,7 @@ function mdtBytes(): Uint8Array {
     return mdtData;
 }
 
-/** 'game/0/cmap.mdt' → 'cmap', used as the stable locale name key suffix. */
+/** 'mdt/cmap.mdt' → 'cmap', used as the stable locale name key suffix. */
 function townIdFromMdtPath(path: string): string | null {
     const file = path.split('/').pop() ?? '';
     const base = file.replace(/\.mdt$/i, '');
@@ -2334,7 +2334,7 @@ function localizedTownName(placeId: number): string | null {
 }
 
 /**
- * Localized cavern name for a dungeon MDT path ('game/0/mp10.mdt' → 'mp10'),
+ * Localized cavern name for a dungeon MDT path ('mdt/mp10.mdt' → 'mp10'),
  * or null when the active locale has no entry (caller falls back to MDT bytes).
  */
 function localizedCavernName(mdtPath: string | null): string | null {

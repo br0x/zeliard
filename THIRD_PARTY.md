@@ -95,7 +95,7 @@ The MIT License for this repository does **not** apply to the underlying Zeliard
 The files matching:
 
 ```text
-web/public/game/0/*.mdt
+web/public/mdt/*.mdt
 ```
 
 contain world-map data derived from the original Zeliard game.
