@@ -18,7 +18,11 @@ import { dirname, resolve } from 'node:path';
 
 import { MapScreen, shortName, rokaColour, type MapScreenDeps } from '../src/ui/map-screen.js';
 import { NavGraphStore, findRoute, type NavRoute } from '../src/engine/nav/pathfinder.js';
-import { allCapabilities, bareCapabilities } from '../src/engine/nav/capabilities.js';
+import {
+    allCapabilities, bareCapabilities, snapshotCapabilities,
+    ACCESSORY_FERUZA, ACCESSORY_RUZERIA, ACCESSORY_SILKARN,
+    ADDR_ACCESSORY, ADDR_WEARABLES, ADDR_CAVERN_LEVEL, LEVEL_ICE,
+} from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID, NAV_MAPS, NAV_REACHABLE } from '../src/data/nav/nav-maps.js';
 import { PORTALS, NAV_PORTALS_BY_MAP } from '../src/data/nav/nav-portals.js';
 import { decodeTileGrid } from '../src/engine/nav/mdt-grid.js';
@@ -75,6 +79,8 @@ interface Harness {
     picked: () => unknown[];
     exited: () => number;
     draw: (now?: number) => void;
+    /** Move the clock on without drawing, as a synchronous search does. */
+    elapse: (ms: number) => void;
 }
 
 /**
@@ -115,12 +121,18 @@ function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
     const store = makeStore();
     const picked: unknown[] = [];
     let exited = 0;
+    // The screen's clock, in one place. `draw` moves it and `fail` reads it, which
+    // is what makes the two ends the same clock — and it is a variable rather than a
+    // number the test hands each caller, so a test can let time pass *between* a
+    // frame and the refusal a blocking search produces after it.
+    let clock = 0;
     const deps: MapScreenDeps = {
         canvas: CANVAS,
         ctx: CTX,
         store,
         heroPosition: () => HERO,
         capabilities: () => allCapabilities(),
+        now: () => clock,
         text: (key: string) => key,
         onExit: () => { exited++; },
         onPick: (route: unknown) => { picked.push(route); },
@@ -132,7 +144,8 @@ function harness(overrides: Partial<MapScreenDeps> = {}): Harness {
         screen,
         picked: () => picked,
         exited: () => exited,
-        draw: (now = 16) => screen.draw(now),
+        draw: (now = 16) => { clock = now; screen.draw(now); },
+        elapse: (ms: number) => { clock += ms; },
     };
 }
 
@@ -168,6 +181,20 @@ function unreachableCell(screen: MapScreen): { col: number; row: number } {
         }
     }
     throw new Error('every cell of mp10 is within the snap radius of a node');
+}
+
+/**
+ * A `g_mem` with one pair in the wearable inventory and one pair worn.
+ *
+ * Both caverns of the mp40/mp41 journey are level 4, so the Ruzeria shoes are worth
+ * exactly what the level hands out — no ice slide — and the hero holds no keys.
+ */
+function ruzeriaMemory(): Uint8Array {
+    const g = new Uint8Array(0x10000);
+    g[ADDR_ACCESSORY] = ACCESSORY_RUZERIA;
+    g[ADDR_WEARABLES] = ACCESSORY_RUZERIA;
+    g[ADDR_CAVERN_LEVEL] = LEVEL_ICE;
+    return g;
 }
 
 /** The hint line of one frame — a refusal while one is set, the controls after. */
@@ -841,6 +868,34 @@ describe('a refusal reaches the player', () => {
         expect(h.picked()).toHaveLength(0);
         expect(h.screen.active, 'a refusal leaves the screen open to try again').toBe(true);
     }, 120000);
+
+    it('survives a search long enough to run out the two seconds', async () => {
+        // The player who reported it heard the "no route" sound and saw nothing at
+        // all, on a journey whose message is `map.unreachable` — and it is not that
+        // the message was wrong, only that it was never painted.
+        //
+        // Choosing a destination searches **synchronously**, which blocks the frame
+        // loop while it runs: 1.8 s for the mp41 (16,22) → mp40 (225,19) ladder on
+        // graphs already built, and more when the caverns still have to be decoded.
+        // `fail` used to stamp its deadline from the last drawn frame, so a refusal
+        // that followed a search over two seconds was born already expired — the
+        // sound played at the end of it and the hint line had gone back to the
+        // controls before anything drew it.
+        const h = harness({ text: (k: string) => k });
+        const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
+        const graph = store.get(29)!;
+        const node = graph.nodes.find((n) => n.kind === 0)!;
+        h.screen.displayMapId = 29;
+        h.draw(60_000);
+        // The search runs here, and no frame is painted while it does.
+        h.elapse(5_000);
+        await h.screen.choose(node.col, node.row);
+        expect(hintOf(h, 65_016), 'the refusal is up on the very next frame')
+            .toBe('map.unreachable');
+        expect(hintOf(h, 66_999), 'and it stays up for its two seconds')
+            .toBe('map.unreachable');
+        expect(hintOf(h, 67_000), 'before the controls come back').toBe('map.hints');
+    }, 120000);
 });
 
 describe('choosing a destination', () => {
@@ -928,9 +983,13 @@ describe('choosing a destination', () => {
         // ordinary-key door and is now the only way out of the start region, so every
         // rung that can reach the journey fetches its key on the way and comes back
         // with `lockedDoors.ordinary === 1` and one key spent.
+        //
+        // The hero is one who walked it, so the Silkarn pair is in his pocket: the
+        // only way out of the mp80 start region climbs the ramp at columns 82..86, and
+        // the shoe rung wears what the inventory holds and nothing beyond it.
         const empty = harness({
             heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => ({ ...bareCapabilities(), carried: [ACCESSORY_SILKARN] }),
             doorOpen: (mapId, x0, y0) => (mapId === 23 && x0 === 57 && y0 === 15 ? true : null),
         });
         const store = (empty.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
@@ -1016,12 +1075,17 @@ describe('choosing a destination', () => {
         // The pair it is short of has changed: the Silkarn ramp at mp80 columns
         // 82..86 was on every way out and is on none of them now, because the lifts
         // carry him the whole height of their travel and mp80 reaches mp82 through
-        // the door at (166,31) as well as through the locked gallery door. Feruza
-        // shoes are what the remaining way asks for — the four-row jump off the top
-        // of the x=250 lift into the row-7 gallery — and the door still costs a key.
+        // the door at (166,31) as well as through the locked gallery door. The ramp
+        // is still on the way *out* of the start region, so the hero who walked this
+        // was carrying Silkarn as well as wearing Feruza: the four-row jump off the
+        // top of the x=250 lift into the row-7 gallery is what Feruza buys, and the
+        // door still costs a key. Both pairs are in his pocket, which is the whole
+        // of what the shoe rung may wear.
         const h = harness({
             heroPosition: () => ({ mapId: 23, col: 111, row: 21 }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => ({
+                ...bareCapabilities(), carried: [ACCESSORY_SILKARN, ACCESSORY_FERUZA],
+            }),
         });
         const store = (h.screen as unknown as { deps: { store: NavGraphStore } }).deps.store;
         store.get(25);
@@ -1030,7 +1094,7 @@ describe('choosing a destination', () => {
         expect(h.picked(), 'the way exists once shoes and keys are allowed together')
             .toHaveLength(1);
         const route = h.picked()[0] as NavRoute;
-        expect(route.equipment.map((e) => e.label), 'a bare hero is sent in shoes')
+        expect(route.equipment.map((e) => e.label), 'a hero in shoes is sent in shoes')
             .toContain('feruza');
         expect(route.maps, 'mp80 -> mp82').toEqual(expect.arrayContaining([23, 25]));
     }, 120_000);
@@ -1090,6 +1154,39 @@ describe('choosing a destination', () => {
             (hop) => hop.from.mapId === 11 && hop.from.col === 131 && hop.from.row === 54,
         ), 'through the door at mp50 (132,54)').toBe(true);
         expect(route.crossesAggressiveGround, 'which is what the pair is for').toBe(true);
+    }, 120_000);
+
+    it('refuses a destination that needs a pair the hero does not own', async () => {
+        // mp41 (16,22) -> mp40 (225,19) for a hero carrying Ruzeria shoes and nothing
+        // else. The route the screen used to hand over walked the row-14 gallery of
+        // mp40 and jumped for mp40 (231,19) off it: a four-row rise, which is Feruza,
+        // for a hero who owns no Feruza and cannot fetch one on the way.
+        //
+        // Every rung now answers NULL, including the shoe rung, and the last one is
+        // asked as if he had every pair in the game — which finds a journey that
+        // opens no locked door at all. There is no key message to give for that: what
+        // is missing is shoes, and the only honest refusal is that there is no route.
+        const caps = snapshotCapabilities(ruzeriaMemory());
+        expect(caps.carried, 'the pair he walked over is the only one he has')
+            .toEqual([ACCESSORY_RUZERIA]);
+        const h = harness({
+            store: componentStore([8, 9]),
+            heroPosition: () => ({ mapId: 9, col: 16, row: 22 }),
+            capabilities: () => caps,
+            shoePresent: (mapId, col, row, shoe) => (NAV_ACCESSORIES[mapId] ?? []).some(
+                (a) => a.col === col && a.row === row && a.shoe === shoe,
+            ),
+            keyPresent: (mapId, col, row, kind) => (NAV_KEYS[mapId] ?? []).some(
+                (k) => k.col === col && k.row === row && k.kind === kind,
+            ),
+        });
+        h.screen.displayMapId = 8;
+        h.draw(60_000);
+        await h.screen.choose(225, 19);
+
+        expect(h.picked(), 'no route is drawn for a journey he cannot walk').toHaveLength(0);
+        expect(h.screen.active, 'and the screen stays open').toBe(true);
+        expect(hintOf(h, 60_016), 'naming the refusal').toBe('map.unreachable');
     }, 120_000);
 
     it('refuses a cell with no standing position anywhere near it', async () => {
@@ -1582,7 +1679,7 @@ describe('drawing does not throw for any map', () => {
         }
     });
 
-    it('renders when the map data has not loaded yet', () => {
+    it('renders when the map data has not loaded yet', async () => {
         const store = new NavGraphStore(function noData() { return null; });
         const screen = new MapScreen({
             canvas: CANVAS,
@@ -1590,14 +1687,16 @@ describe('drawing does not throw for any map', () => {
             store,
             heroPosition: () => HERO,
             capabilities: () => allCapabilities(),
+            now: () => 0,
             text: (k: string) => k,
             onExit: () => {},
             onPick: () => {},
         });
         screen.enter({ heroMapId: HERO.mapId, heroCol: HERO.col, heroRow: HERO.row });
         expect(() => screen.draw(0)).not.toThrow();
-        // And a click cannot silently produce a route out of nothing.
-        void screen.choose(10, 10);
+        // And a click cannot silently produce a route out of nothing — it is
+        // refused, which is the branch that reads the clock.
+        await screen.choose(10, 10);
     });
 
     it('shows a transient message instead of the hint line while one is set', async () => {

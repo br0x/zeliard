@@ -11,7 +11,12 @@
  *   0x98  ordinary key count        dungeon-doors.ts:40
  *   0x99  Lion-Head key count      dungeon-doors.ts:41
  *   0x9E  equipped accessory id     dungeon-vertical.ts:87-88
+ *   0xA1  wearable inventory       dungeon-items.ts:184
  *   0xC012 cavern level            dungeon-frame.ts:359
+ *
+ * `mask` is the pair he has *on*; `carried` is the rest of the inventory. They are
+ * not the same question, and a route that may put on a pair it does not own is a
+ * route for a hero the player is not.
  *
  * Accessory codes are from asm/common.inc:36-40:
  *
@@ -44,6 +49,16 @@ export const LEVEL_HEAT = 7;
 export const ADDR_KEYS = 0x98;
 export const ADDR_LION_KEYS = 0x99;
 export const ADDR_ACCESSORY = 0x9e;
+/**
+ * First slot of the wearable inventory, and how many the save keeps.
+ *
+ * `put_shoes_to_inventory` (dungeon-items.ts:184) fills this array from the first
+ * zero upward with the pair he walks over, and a shop purchase writes the cape into
+ * the same slots (conversation.ts:331) — so one array holds every wearable, not
+ * only the shoes. The save image keeps five of them (game-state.ts:312).
+ */
+export const ADDR_WEARABLES = 0xa1;
+export const WEARABLE_SLOTS = 5;
 export const ADDR_CAVERN_LEVEL = 0xc012;
 
 /** A hero's abilities at one moment, plus the counts a route may spend. */
@@ -57,6 +72,14 @@ export interface HeroCapabilities {
     readonly keys: number;
     /** Lion-Head keys held. */
     readonly lionKeys: number;
+    /**
+     * Accessory ids lying in the wearable inventory — what the hero could put on.
+     *
+     * Distinct from `mask`, which is the one pair he has *on*. Changing pair is
+     * free and costs no time (`put_shoes_to_inventory` adds, never replaces), so a
+     * route may use any pair listed here and no pair outside it.
+     */
+    readonly carried: readonly number[];
 }
 
 /** Does this capability set include `bit`? */
@@ -108,8 +131,22 @@ export function snapshotCapabilities(
     if (keys > 0) mask |= CAP.KEY;
     if (lionKeys > 0) mask |= CAP.LION_KEY;
 
-    return { mask, accessory, cavernLevel, keys, lionKeys };
+    // The array is zero-terminated by the slot it hands out next, so the first
+    // zero ends the inventory — `put_shoes_to_inventory` scans forward for it.
+    const carried: number[] = [];
+    for (let i = 0; i < WEARABLE_SLOTS; i++) {
+        const id = memRead8(g, ADDR_WEARABLES + i) & 0xff;
+        if (id === ACCESSORY_NONE) break;
+        carried.push(id);
+    }
+
+    return { mask, accessory, cavernLevel, keys, lionKeys, carried };
 }
+
+/** Every accessory id in the game, in the order `SHOE_BITS` names them. */
+export const EVERY_ACCESSORY: readonly number[] = [
+    ACCESSORY_FERUZA, ACCESSORY_PIRIKA, ACCESSORY_SILKARN, ACCESSORY_RUZERIA, ACCESSORY_ASBESTOS,
+];
 
 /**
  * Capabilities with every wearable granted, for previews and for the
@@ -120,10 +157,16 @@ export function allCapabilities(): HeroCapabilities {
     const mask: CapabilityMask = CAP.CLIMB | CAP.JUMP_HIGH | CAP.SLOPE_STAND
         | CAP.GROUND_SAFE | CAP.ICE_SAFE | CAP.HEAT_SAFE | CAP.KEY | CAP.LION_KEY;
     // Saturate the key counters so every locked door on any route is affordable.
-    return { mask, accessory: ACCESSORY_NONE, cavernLevel: LEVEL_HEAT, keys: 255, lionKeys: 255 };
+    return {
+        mask, accessory: ACCESSORY_NONE, cavernLevel: LEVEL_HEAT,
+        keys: 255, lionKeys: 255, carried: EVERY_ACCESSORY,
+    };
 }
 
 /** Capabilities with nothing but innate movement — the bare hero. */
 export function bareCapabilities(): HeroCapabilities {
-    return { mask: CAP.CLIMB, accessory: ACCESSORY_NONE, cavernLevel: 1, keys: 0, lionKeys: 0 };
+    return {
+        mask: CAP.CLIMB, accessory: ACCESSORY_NONE, cavernLevel: 1,
+        keys: 0, lionKeys: 0, carried: [],
+    };
 }

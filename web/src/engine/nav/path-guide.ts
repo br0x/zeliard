@@ -15,7 +15,7 @@ import type { CapabilityMask } from './types.js';
 import { EDGE } from './types.js';
 import type { HeroCapabilities } from './capabilities.js';
 import {
-    findRoute, reachableMaps, SHOE_MASK, type NavGraphStore, type NavPoint, type NavRoute,
+    carriedShoeMask, findRoute, reachableMaps, type NavGraphStore, type NavPoint, type NavRoute,
     type NavRoutePlan,
 } from './pathfinder.js';
 import { NavTileClassifier } from './attributes.js';
@@ -589,11 +589,13 @@ export class PathGuide {
         // A route that counts on shoes the hero can put on was planned against the
         // augmented mask, so keeping it honest has to use the same one: re-searching
         // bare would drop every feruza/silkarn/pirika route on the first tick after
-        // the thread is spent. Once the hero actually wears the needed accessory the
-        // augmented mask equals his real mask.
+        // the thread is spent. The augmentation is the pairs in the inventory and
+        // nothing wider — the same bound `findRoute` puts on `planAccessories`, so
+        // the re-plan cannot grant a pair the hero does not own. Once the hero
+        // actually wears the needed accessory the augmented mask equals his real one.
         const wantsShoes = (this.route.equipment?.length ?? 0) > 0;
         const planCaps: HeroCapabilities = wantsShoes
-            ? { ...caps, mask: caps.mask | SHOE_MASK }
+            ? { ...caps, mask: caps.mask | carriedShoeMask(caps) }
             : caps;
 
         /**

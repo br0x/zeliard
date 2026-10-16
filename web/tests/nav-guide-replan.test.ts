@@ -32,8 +32,26 @@ import {
     NavGraphStore, findRoute, type NavPoint, type NavRoute,
 } from '../src/engine/nav/pathfinder.js';
 import { PathGuide } from '../src/engine/nav/path-guide.js';
-import { bareCapabilities } from '../src/engine/nav/capabilities.js';
+import {
+    bareCapabilities, ACCESSORY_SILKARN, type HeroCapabilities,
+} from '../src/engine/nav/capabilities.js';
 import { NAV_MAP_BY_ID } from '../src/data/nav/nav-maps.js';
+
+/**
+ * The hero who walked the mp80 journey these tests plot: the Silkarn pair in his
+ * pocket, because the way out of the start region climbs the ramp at columns 82..86
+ * and `planAccessories` reaches no further than the inventory — a pair lying on the
+ * floor is the screen's `collectAccessories` rung to fetch, not this search's to
+ * assume. His pockets vary; his shoes do not.
+ */
+function walked(start: { keys?: number; lionKeys?: number } = {}): HeroCapabilities {
+    return {
+        ...bareCapabilities(),
+        keys: start.keys ?? 0,
+        lionKeys: start.lionKeys ?? 0,
+        carried: [ACCESSORY_SILKARN],
+    };
+}
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -246,7 +264,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
      */
     function shortfall(guide: PathGuide, keys: number, lionKeys = 0): number {
         return (guide as unknown as { keysShort(caps: unknown): number })
-            .keysShort({ ...bareCapabilities(), keys, lionKeys });
+            .keysShort(walked({ keys, lionKeys }));
     }
 
     /**
@@ -259,7 +277,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const guide = new PathGuide({
             store,
             heroPosition: () => ({ ...hero }),
-            capabilities: () => ({ ...bareCapabilities(), keys }),
+            capabilities: () => walked({ keys }),
             // The hero is walking: a direction key is held, so the guide may not
             // spend a frame on a search. That is the whole of the report.
             isIdle: () => idle,
@@ -272,7 +290,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         { timeout: 120_000 }, () => {
             const store = realStore();
             const route = findRoute({
-                store, caps: { ...bareCapabilities(), keys: 1 },
+                store, caps: walked({ keys: 1 }),
                 start: ARRIVAL, goal: GOAL, ...PLAN,
             })!;
             expect(route, 'mp81 (53,18) with one key held').not.toBeNull();
@@ -286,7 +304,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         { timeout: 120_000 }, () => {
             const store = realStore();
             const route = findRoute({
-                store, caps: { ...bareCapabilities(), keys: 1 },
+                store, caps: walked({ keys: 1 }),
                 start: ARRIVAL, goal: GOAL, ...PLAN,
             })!;
             const guide = guideWith(store, route, 0, false);
@@ -294,7 +312,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
 
             expect(guide.hasRoute, 'a route is still drawn').toBe(true);
             const rest = findRoute({
-                store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN,
+                store, caps: walked(), start: ARRIVAL, goal: GOAL, ...PLAN,
             })!;
             // The re-plan is asked from where the hero stands, so what it found is
             // the journey an empty pocket can actually finish.
@@ -311,7 +329,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             // only makes sense once the key is in his pocket, which it is not.
             const store = realStore();
             const route = findRoute({
-                store, caps: { ...bareCapabilities(), keys: 1 },
+                store, caps: walked({ keys: 1 }),
                 start: ARRIVAL, goal: GOAL, ...PLAN,
             })!;
             const door = route.points.findIndex((p) => p.mapId === 25 && p.col === 174 && p.row === 10);
@@ -323,7 +341,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             const guide = new PathGuide({
                 store,
                 heroPosition: () => ({ ...hero }),
-                capabilities: () => ({ ...bareCapabilities(), keys: 0 }),
+                capabilities: () => walked(),
                 isIdle: () => false,
             });
             guide.setRoute(route, GOAL, PLAN);
@@ -361,7 +379,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             // of. That is the guard working, not failing.
             const store = realStore();
             const journey = findRoute({
-                store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
+                store, caps: walked(), start: START, goal: GOAL, ...PLAN,
             })!;
             // Two, not one: with mp81's interior cut off from the non-passable
             // stretch of row 62 at columns 153-158, the mp81 key is no longer within
@@ -393,7 +411,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
                 heroPosition: () => ({ ...hero }),
                 // An empty pocket throughout, so the pickup on the cell at mp81 (125,36)
                 // does not register: the key is behind him and he has nothing.
-                capabilities: () => bareCapabilities(),
+                capabilities: () => walked(),
                 // Walking the whole way. Waiting for him to stop is what let the wrong
                 // line stand for the whole leg.
                 isIdle: () => false,
@@ -430,7 +448,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         // the guide is genuinely in most of the time, and the shortfall must not move.
         const store = realStore();
         const journey = findRoute({
-            store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
+            store, caps: walked(), start: START, goal: GOAL, ...PLAN,
         })!;
         expect(journey.keysGained.ordinary, 'one key per shut door').toBe(2);
         const lastKey = journey.points.findIndex((p) => p.mapId === 24
@@ -448,7 +466,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const guide = new PathGuide({
             store,
             heroPosition: () => ({ ...hero }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => walked(),
             isIdle: () => false,
         });
         guide.setRoute(journey, GOAL, PLAN);
@@ -522,7 +540,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         // has to be recorded, or it is exactly that freeze with a new cause.
         const store = realStore();
         const route = findRoute({
-            store, caps: { ...bareCapabilities(), keys: 1 },
+            store, caps: walked({ keys: 1 }),
             start: ARRIVAL, goal: GOAL, ...PLAN,
         })!;
         const warns: string[] = [];
@@ -533,7 +551,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
             const guide = new PathGuide({
                 store,
                 heroPosition: () => ({ ...ARRIVAL }),
-                capabilities: () => ({ ...bareCapabilities(), keys: 0 }),
+                capabilities: () => walked(),
                 isIdle: () => false,
             });
             // Set without the plan that found the route, so the re-plan asks the
@@ -551,7 +569,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
     it('and a route the pocket does cover is left alone until the hero stops', () => {
         const store = realStore();
         const route = findRoute({
-            store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN,
+            store, caps: walked(), start: ARRIVAL, goal: GOAL, ...PLAN,
         })!;
         expect(route.keysGained.ordinary, 'with an empty pocket it fetches the key')
             .toBe(1);
@@ -572,7 +590,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         // look for them.
         const store = realStore();
         const journey = findRoute({
-            store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
+            store, caps: walked(), start: START, goal: GOAL, ...PLAN,
         })!;
         expect(journey.lockedDoors.ordinary, 'two shut doors on it').toBe(2);
         expect(journey.picks.length, 'and a key for each').toBe(2);
@@ -582,7 +600,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const guide = new PathGuide({
             store,
             heroPosition: () => ({ ...hero }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => walked(),
             isIdle: () => false,
         });
         guide.setRoute(journey, GOAL, PLAN);
@@ -597,7 +615,7 @@ describe('a route the hero can no longer pay for is re-planned at once', () => {
         const after = new PathGuide({
             store,
             heroPosition: () => ({ ...pastDoor }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => walked(),
             isIdle: () => false,
         });
         after.setRoute(journey, GOAL, PLAN);

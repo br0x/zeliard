@@ -285,7 +285,12 @@ approximation may be believed only while it agrees with the exact question.
   is skipped, aggressive ground is refused without Pirika shoes, and crossing a locked
   door spends a key.
 - `planAccessories` lets the route assume shoes the hero can put on. Swapping is free, so
-  the route reports which pair is needed and where.
+  the route reports which pair is needed and where. The pairs it may assume are exactly the
+  ones in the hero's **inventory** — `HeroCapabilities.carried`, the wearable array at
+  `0xA1..0xA5` — and nothing wider. A pair lying on the floor is `collectAccessories`' to
+  fetch and a pair that exists only on another level is nobody's, so a hop gated on a pair
+  the hero does not own is never offered. Ice and heat are not gated on cavern level here,
+  unlike `snapshotCapabilities`, because a route may cross into a cavern where they exist.
 - `collectAccessories` lets the route fetch a pair lying in the cavern. A pair is added to
   the inventory and never removed.
 - `keyCavernLevel` restricts key collection to maps of one level.
@@ -389,14 +394,27 @@ is no `pointermove` handler; a pointer that trails the mouse would turn looking 
 into an input. `handleClick` clears the transient refusal message.
 
 **Refusals** are printed on the hint line (the last row, replacing the controls) for two
-seconds. The deadline must be stamped from the same clock `draw` receives
-(`performance.now()`), not a literal.
+seconds. The deadline is stamped from `deps.now()` — the same clock `draw` receives
+(`performance.now()`) — and it is read *at the moment of the refusal* rather than recorded
+from the last painted frame. Choosing a destination searches synchronously and blocks the
+frame loop while it runs: 1.8 s for the mp41 (16,22) → mp40 (225,19) ladder on graphs
+already built, more when caverns still have to be decoded. A deadline measured from a frame
+the search has since run past is expired before anything draws it, and the refusal is a
+sound with no message beside it.
 
 **Search ladder.** The screen answers in rungs, from strictest to loosest: the hero as he
 is; fetching keys and pairs lying in the level (`collectKeys`, `collectAccessories`); then
 planning with accessories he could put on (`planAccessories`). A rung that grants an
 accessory is a statement about the inventory, not the level, so it comes last and may
 assume only a pair the hero already carries.
+
+The last rung is not one of these. It asks what the journey's **shape** is — as if he were
+carrying every key in the game and wearing every pair in it — and reads nothing off it but
+the count of locked doors, which is the message. It passes `EVERY_ACCESSORY` as the hero's
+inventory precisely so that it is looser than rung 3b. A shape that opens no locked door
+at all is not a journey short of keys; it is one only the assumed pairs made possible, and
+there is no message for that, so the screen refuses with `map.unreachable` like any other
+unreachable destination.
 
 ## 7. Live route guide
 
@@ -450,7 +468,10 @@ Re-planning is synchronous, so it is throttled:
 - A re-plan repeats the assumptions the route was planned under (`NavRoutePlan`:
   `collectKeys`, `collectAccessories`, `planAccessories`, `keyPresent`, `shoePresent`,
   `doorOpen`). Asking a stricter question would find nothing and clear the route.
-- A route that counts on shoes the hero can put on is re-planned with the augmented mask.
+- A route that counts on shoes the hero can put on is re-planned with the augmented mask,
+  and the augmentation is `carriedShoeMask(caps)` — the pairs in his inventory, the same
+  bound `findRoute` puts on `planAccessories`. Widening it would keep a route alive for a
+  hero who owns none of the pairs it names.
 - Invalidating events: a change in capability mask, key counts or reachable maps, or a
   difference in the platform signature of any map on the route. A platform move triggers a
   re-plan ahead of the waiting interval.
@@ -548,6 +569,9 @@ Recorded player routes pin real journeys:
 - the mp83 ride along a low-ceiling platform (mp83)
 - journeys that fetch one key, or two, and come back for the doors (mp80/81/82, mp20)
 - fetching a pair of shoes on another map to avoid a slope (mp50 → mp51)
+- a journey refused because the only way through wants a pair the hero does not own
+  (mp41 (16,22) → mp40 (225,19), Ruzeria shoes and no keys), and the same journey
+  routed once the Feruza pair is in his pocket
 
 Checks that should hold:
 
@@ -583,36 +607,42 @@ Checks that should hold:
 12. Keys and shoes are world items with save-state presence, not permanent graph features.
     Ask about a pickup by its record, never by the cell the route walks through. Read the
     floor when the question is asked, not when a snapshot was taken.
-13. Anything built from a live engine-memory reading must be dropped when the world under it
+13. A pair the hero may wear is one in his inventory. "May put on" is not "exists in the
+    game": granting abilities the inventory does not hold produces a walkable route for a
+    hero the player is not, which reads as a working feature and is not one.
+14. Anything built from a live engine-memory reading must be dropped when the world under it
     is replaced (a save restore, a change of cavern). Map data survives.
-14. A pickup the journey depends on is a waypoint, not a dimension to flood through.
-15. A counter is not a set. An answer produced by an approximation must be checked against
+15. A pickup the journey depends on is a waypoint, not a dimension to flood through.
+16. A counter is not a set. An answer produced by an approximation must be checked against
     the exact question before it is believed.
 
 ### Guide and overlay
 
-16. A mid-flight position is not a navigation node and must not trigger invalidation.
-17. A failed re-plan does not mean the route became invalid. A search that was asked for is
+17. A mid-flight position is not a navigation node and must not trigger invalidation.
+18. A failed re-plan does not mean the route became invalid. A search that was asked for is
     recorded either way, including when it fails or throws, or the guide re-fires every
     frame.
-18. Stale and unwalkable are different failures. Only a stale route may wait for an idle
+19. Stale and unwalkable are different failures. Only a stale route may wait for an idle
     frame.
-19. Count a plan over the part still ahead of the hero. Totals such as `keysGained` and
+20. Count a plan over the part still ahead of the hero. Totals such as `keysGained` and
     `keysSpent` describe the whole journey.
-20. A question asked every frame must be answerable from data that does not decay: either
+21. A question asked every frame must be answerable from data that does not decay: either
     derived from the route, or from a reading with a bounded lifetime whose loss is
     handled.
-21. A route is a list of visits. Paint each cell once and let the anchor decide which visit
+22. A route is a list of visits. Paint each cell once and let the anchor decide which visit
     is ahead.
-22. The anchor must always be on the map the hero is standing in.
-23. The anchor search must be bounded, measured from the start of the current visit, and run
+23. The anchor must always be on the map the hero is standing in.
+24. The anchor search must be bounded, measured from the start of the current visit, and run
     in both directions with the nearer match winning.
 
 ### Map screen
 
-24. Aiming and committing are different acts: only Enter commits.
-25. A timer and the clock it is compared against are one clock.
-26. Fit the chart inside the frame border, not to the canvas, and sweep every map in tests.
+25. Aiming and committing are different acts: only Enter commits.
+26. A timer and the clock it is compared against are one clock — and the timer is
+    started from that clock **now**, not from a value cached before whatever ran in
+    between. A synchronous search on the way to the refusal is exactly what runs in
+    between.
+27. Fit the chart inside the frame border, not to the canvas, and sweep every map in tests.
 
 ## 13. Invariants worth checking
 
@@ -634,6 +664,10 @@ Checks that should hold:
 - A flight with Up held alone can end on a rope; one with a direction held cannot.
 - A jump can be reproduced by the same frame-by-frame rules the differential test uses.
 - A route starts at the hero and ends at the selected destination.
+- Every refusal is painted for its full two seconds, however long the search that
+  produced it took. A sound with no message beside it is the failure this rules out.
+- A route names no pair the hero does not own and cannot be fetched: every accessory on
+  `NavRoute.equipment` is in `HeroCapabilities.carried` or was walked over on the way.
 - A route never claims a key it does not walk over, and a route in hand is never short of
   keys.
 - `keyPresent` and `shoePresent` answer from the loaded cavern's entity list as it is when

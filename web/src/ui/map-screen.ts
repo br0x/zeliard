@@ -53,7 +53,7 @@ import {
     findRoute, type NavGraphStore, type NavRoute, type NavRoutePlan,
 } from '../engine/nav/pathfinder.js';
 import type { NavTileGrid } from '../engine/nav/mdt-grid.js';
-import type { HeroCapabilities } from '../engine/nav/capabilities.js';
+import { EVERY_ACCESSORY, type HeroCapabilities } from '../engine/nav/capabilities.js';
 import { drawSheetFrame } from '../render/sheets.js';
 import { TILE_SIZE } from '../config/engine.js';
 
@@ -280,6 +280,17 @@ export interface MapScreenDeps {
      * a door the MDT shipped open, which is 139 of the 163 in the game.
      */
     doorOpen?: (mapId: number, x0: number, y0: number) => boolean | null;
+    /**
+     * The screen's clock, in ms — the same one `draw` is called with.
+     *
+     * Read by {@link fail}, never by `draw`, and that is the whole reason it is a
+     * dependency rather than a field written in `draw`. Choosing a destination
+     * searches synchronously, which blocks the frame loop for as long as the search
+     * runs — seconds, on a journey that crosses a component — so a deadline stamped
+     * from the last drawn frame has already expired by the time the next one is
+     * painted. The refusal is then silent: the sound plays and no message follows.
+     */
+    now: () => number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy SoundManager
     soundManager?: any;
 }
@@ -320,15 +331,6 @@ export class MapScreen {
     private loading = false;
     private message = '';
     private messageUntil = 0;
-    /**
-     * The clock `draw` was last called with, in its own units (ms).
-     *
-     * The screen has exactly one timer — the transient refusal message — and it
-     * has to be stamped from the same clock `drawHint` compares it against.
-     * Recorded in `draw` rather than read from `performance` here, so the two
-     * ends cannot drift apart and a test drives both with one number.
-     */
-    private clock = 0;
     /** The hero's map when the screen opened; the reachable set is keyed off it. */
     private heroMapId = 0;
     /**
@@ -705,8 +707,10 @@ export class MapScreen {
 
         // 3b. No pair within reach — but the inventory is not per cavern. A pair
         //     picked up on some other level is still in it, so the shoes rung may
-        //     also mean "he is wearing some already", and there is nothing to walk
-        //     to.
+        //     also mean "he could put on one he already has", and there is nothing to
+        //     walk to. `caps.carried` is the whole of what this rung may grant: a
+        //     pair the hero does not own is rung 3's to fetch, and a pair that lies
+        //     on no level he can reach is nobody's.
         const worn = findRoute({
             store: this.deps.store, caps, start: from, goal: to,
             planAccessories: true, ...keyFetch, ...doors,
@@ -718,15 +722,21 @@ export class MapScreen {
         //    are how many keys it needs. Only the message is left to read off it. It
         //    must take the shoes too — `unlimitedKeys` only seeds the key counters,
         //    so without them the slopes and four-tile jumps refuse the search
-        //    outright and the journey's shape is never drawn.
+        //    outright and the journey's shape is never drawn. Hence the whole
+        //    inventory, which rung 3b's narrower grant would otherwise withhold.
         const open = findRoute({
-            store: this.deps.store, caps, start: from, goal: to,
+            store: this.deps.store, caps: { ...caps, carried: EVERY_ACCESSORY },
+            start: from, goal: to,
             unlimitedKeys: true, planAccessories: true, ...doors,
         });
         if (!open) { this.fail(this.deps.text('map.unreachable')); return; }
 
-        // Reachable, but the keys are not on this level to be had.
+        // Reachable, but the keys are not on this level to be had. A journey that
+        // needs no key is not a journey short of one: it is one whose shape was only
+        // drawn because rung 4 assumed every pair in the game, so what is missing is
+        // shoes and there is no message for that.
         const needed = open.lockedDoors.ordinary + open.lockedDoors.lion;
+        if (needed === 0) { this.fail(this.deps.text('map.unreachable')); return; }
         this.fail(this.deps.text(needed === 1 ? 'map.needsOneKey' : 'map.needsKeys'));
     }
 
@@ -760,8 +770,10 @@ export class MapScreen {
 
     private fail(message: string): void {
         this.message = message;
-        // A deadline on the screen's own clock, not a constant — see {@link clock}.
-        this.messageUntil = this.clock + REFUSAL_MS;
+        // Stamped now, not from the last frame — see {@link MapScreenDeps.now}. A
+        // deadline measured from a frame that a search has since run past is a
+        // message nobody ever sees.
+        this.messageUntil = this.deps.now() + REFUSAL_MS;
         this.deps.soundManager?.playSfx?.(22);
     }
 
@@ -1009,7 +1021,6 @@ export class MapScreen {
 
     draw(now: number): void {
         if (!this.active) return;
-        this.clock = now;
         const { ctx } = this.deps;
         ctx.save();
         ctx.fillStyle = '#000';

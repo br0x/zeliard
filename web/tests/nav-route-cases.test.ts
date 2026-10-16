@@ -13,7 +13,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import { NavGraphStore, findRoute, type NavEndpoint, type NavHop, type NavRoute } from '../src/engine/nav/pathfinder.js';
-import { allCapabilities, bareCapabilities, type HeroCapabilities } from '../src/engine/nav/capabilities.js';
+import {
+    allCapabilities, bareCapabilities, snapshotCapabilities,
+    ACCESSORY_RUZERIA, ACCESSORY_FERUZA, ACCESSORY_SILKARN,
+    ADDR_ACCESSORY, ADDR_WEARABLES, ADDR_CAVERN_LEVEL, LEVEL_ICE,
+    type HeroCapabilities,
+} from '../src/engine/nav/capabilities.js';
 import { NavTileClassifier } from '../src/engine/nav/attributes.js';
 import { flagsAt, heroBoxFree } from '../src/engine/nav/geometry.js';
 import { JumpModel, LANDING_STRIDE, STEER_ALL } from '../src/engine/nav/jump.js';
@@ -145,6 +150,18 @@ function route(mapId: number, from: [number, number], to: [number, number], caps
         start: { mapId, col: from[0], row: from[1] },
         goal: { mapId, col: to[0], row: to[1] },
     });
+}
+
+/**
+ * A bare hero carrying `carried` — the pairs in the wearable inventory at 0xA1..0xA5.
+ *
+ * `planAccessories` reaches for what the hero owns and nothing else, so a journey
+ * that was recorded being walked in shoes is plotted here as the hero who walked it.
+ * A pair still lying on the floor is the screen's `collectAccessories` rung to fetch,
+ * not a search's to assume.
+ */
+function wearing(...carried: number[]): HeroCapabilities {
+    return { ...bareCapabilities(), carried };
 }
 
 describe('mp80: the journey the player reported to (244,7)', () => {
@@ -454,10 +471,11 @@ describe('locked doors and the keys for them', () => {
         // region now — the conveyor entry that used to carry a bare hero across the
         // mp80 shaft was one the player tested and found does not happen — so it is
         // told the door stands open rather than being asked to fetch its key. And
-        // the ramp at columns 82..86 is a slope, which is what `planAccessories`
-        // grants; without it there is no route at all from here.
+        // the ramp at columns 82..86 is a slope, which is why the player walking it
+        // had the Silkarn pair on; `planAccessories` may wear that and nothing else,
+        // and without it there is no route at all from here.
         const r = findRoute({
-            store, caps: bareCapabilities(),
+            store, caps: wearing(ACCESSORY_SILKARN),
             start: { mapId: 23, col: 111, row: 21 },
             goal: { mapId: 24, col: 124, row: 6 },
             planAccessories: true,
@@ -586,23 +604,26 @@ it('demands Silkarn shoes for the uphill step across a slope on mp30', () => {
     });
 
     it('keeps a shoe-dependent route alive across ticks', () => {
-        // The map screen plans with planAccessories so a bare hero can be sent on a
-        // route that needs Feruza/Silkarn/Pirika shoes. The guide re-plans every tick
-        // against the hero's actual caps; re-searching bare would find nothing and drop
-        // the whole route before a single chevron drew (the mp30 report). Keeping the
-        // plan honest has to use the same augmented mask.
+        // The map screen plans with planAccessories so a hero can be sent on a route
+        // that needs shoes, and the only shoes it may assume are the ones in his
+        // pocket. The guide re-plans every tick against the hero's actual caps;
+        // re-searching without the pair would find nothing and drop the whole route
+        // before a single chevron drew (the mp30 report), and re-searching with *every*
+        // pair would keep it alive for a hero who owns none. Keeping the plan honest
+        // has to use the same augmentation, which is `carriedShoeMask` and no wider.
+        const caps = wearing(ACCESSORY_FERUZA);
         const route = findRoute({
-            store, caps: bareCapabilities(),
+            store, caps,
             start: { mapId: 5, col: 185, row: 19 },
             goal: { mapId: 5, col: 161, row: 54 },
             planAccessories: true,
         })!;
-        expect(route.equipment.length).toBeGreaterThan(0);
+        expect(route.equipment.map((e) => e.label)).toContain('feruza');
         const hero = { mapId: 5, col: 185, row: 19 };
         const guide = new PathGuide({
             store,
             heroPosition: () => ({ ...hero }),
-            capabilities: () => bareCapabilities(),
+            capabilities: () => caps,
         });
         guide.setRoute(route, route.points[route.points.length - 1]!);
         for (let t = 1000; t <= 6000; t += 500) {
@@ -890,6 +911,11 @@ describe('a journey that has to fetch a key and come back for the door', () => {
     const ARRIVAL: NavEndpoint = { mapId: 25, col: 88, row: 35 };
     /** The key at mp82 (26,48) sits one row above the ground node that holds it. */
     const KEY: NavEndpoint = { mapId: 25, col: 26, row: 47 };
+    // The way out of the mp80 start region climbs the ramp at columns 82..86, so the
+    // player who walked this had the Silkarn pair in his pocket. `planAccessories`
+    // wears what is there and nothing else, and this block is about the key fetch,
+    // not about the shoes.
+    const SHOD = wearing(ACCESSORY_SILKARN);
     const PLAN = { collectKeys: true, planAccessories: true } as const;
 
     /** Index of the first hop that leaves `mapId`, or -1. */
@@ -918,8 +944,8 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         // only way into mp82 is the shut door at mp80 (57,16), so the journey has to
         // fetch the key the player fetched. See clearOfPlatform in jump.ts.
         const t0 = Date.now();
-        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
-        expect(r, 'mp80 (111,21) -> mp82 (27,19), bare').not.toBeNull();
+        const r = findRoute({ store, caps: SHOD, start: START, goal: GOAL, ...PLAN });
+        expect(r, 'mp80 (111,21) -> mp82 (27,19), an empty pocket').not.toBeNull();
         expect(r!.lockedDoors.ordinary, 'one shut door stands on the way').toBe(1);
         expect(r!.keysGained.ordinary, 'so the journey fetches a key').toBe(1);
         expect(r!.keysSpent.ordinary, 'and spends it').toBe(1);
@@ -930,7 +956,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         // The passage the player walked is still in the graph, which is the thing
         // this block is about — the search simply no longer needs it.
         const walked = findRoute({
-            store, caps: bareCapabilities(), start: { mapId: 23, col: 117, row: 32 }, goal: GOAL, ...PLAN,
+            store, caps: SHOD, start: { mapId: 23, col: 117, row: 32 }, goal: GOAL, ...PLAN,
         });
         expect(walked, 'and the way he came, mp80 (117,32) -> mp82 (27,19)').not.toBeNull();
         expect(walked!.maps, 'still routes through mp80').toEqual([23, 25]);
@@ -943,7 +969,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         // turned round and sent him back out of the door he had just come through.
         // The re-plan from the arrival has to leave by the same passage and go on,
         // not fold back over itself.
-        const r = findRoute({ store, caps: bareCapabilities(), start: ARRIVAL, goal: GOAL, ...PLAN });
+        const r = findRoute({ store, caps: SHOD, start: ARRIVAL, goal: GOAL, ...PLAN });
         expect(r, 're-planned from mp82 (88,35)').not.toBeNull();
         expect(leaves(r!, 25), 'he leaves mp82 at all').toBeGreaterThanOrEqual(0);
         // By mp81 and on through mp80: mp81's own door into mp82 is cut off from
@@ -971,7 +997,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         // From the key with one key already held, the journey to mp82 (27,19) no
         // longer needs to fetch anything — but the pocket has to end up saying so.
         const r = findRoute({
-            store, caps: { ...bareCapabilities(), keys: 1 }, start: KEY, goal: GOAL, ...PLAN,
+            store, caps: { ...SHOD, keys: 1 }, start: KEY, goal: GOAL, ...PLAN,
         });
         expect(r, 'from the key with it held').not.toBeNull();
         expect(r!.keysGained, 'nothing left to fetch').toEqual({ ordinary: 0, lion: 0 });
@@ -993,7 +1019,7 @@ describe('a journey that has to fetch a key and come back for the door', () => {
         store.setPlatformPlaces(24, new Map([[col, row - 3]]));
         try {
             store.reset();
-            const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
+            const r = findRoute({ store, caps: SHOD, start: START, goal: GOAL, ...PLAN });
             expect(r, 'the journey, from a store that has just forgotten the ride').not.toBeNull();
             expect(r!.maps, 'and the same journey it always was').toEqual([23, 24, 25, 24, 23, 25]);
         } finally {
@@ -1023,6 +1049,9 @@ describe('a journey that needs a key, and goes and fetches it', () => {
     const KEY1: NavEndpoint = { mapId: 25, col: 26, row: 47 };
     /** The mp81 key, again one row above its record. */
     const KEY2: NavEndpoint = { mapId: 24, col: 125, row: 36 };
+    // The same mp80 start region as the block above, and the same ramp at columns
+    // 82..86: the hero who walked this had the Silkarn pair on.
+    const SHOD = wearing(ACCESSORY_SILKARN);
     const PLAN = { collectKeys: true, planAccessories: true } as const;
 
     /**
@@ -1067,8 +1096,9 @@ describe('a journey that needs a key, and goes and fetches it', () => {
 
     it('fetches the key with an empty pocket and spends it on the door', () => {
         const t0 = Date.now();
-        const r = findRoute({ store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN });
-        expect(r, 'mp80 (111,21) -> mp80 (227,34), bare, fetching a key').not.toBeNull();
+        const r = findRoute({ store, caps: SHOD, start: START, goal: GOAL, ...PLAN });
+        expect(r, 'mp80 (111,21) -> mp80 (227,34), an empty pocket, fetching a key')
+            .not.toBeNull();
         // Two, not one: with the mp81 row-62 passage closed this journey has to cross
         // mp80's shut door at (57,16) to reach the key and again on the way back.
         expect(r!.lockedDoors.ordinary, 'two closed doors stand on the way').toBe(2);
@@ -1094,7 +1124,7 @@ describe('a journey that needs a key, and goes and fetches it', () => {
 
     it('is still walkable when he starts with one key of his own', () => {
         const r = findRoute({
-            store, caps: { ...bareCapabilities(), keys: 1 }, start: START, goal: GOAL, ...PLAN,
+            store, caps: { ...SHOD, keys: 1 }, start: START, goal: GOAL, ...PLAN,
         });
         expect(r, 'the same journey from a pocket with one key in it').not.toBeNull();
         expect(r!.lockedDoors.ordinary, 'both doors still stand in the way').toBe(2);
@@ -1188,10 +1218,15 @@ describe('mp50: the journey the player reported to mp51 (192,17)', () => {
 
     it('is not the route the shoe rung invents', () => {
         // The same question with the pair declared gone, which is what rung 3 saw. The
-        // journey then needs shoes the hero cannot fetch, and `planAccessories` answers
-        // by granting every pair in the game — a 189-hop walk up the mp51 ramp that
-        // names Feruza and Silkarn, neither of which exists on this level. It is a plan
-        // for a hero who is not this one, which is the whole defect.
+        // journey then needs shoes the hero cannot fetch — the mp51 ramp wants Silkarn
+        // and level 5 has no Silkarn to be had — so every rung below answers NULL, the
+        // screen 3b included.
+        //
+        // It used to answer otherwise. `planAccessories` granted every pair in the game
+        // and reported what it used, so rung 3b drew a 189-hop walk up the mp51 ramp
+        // naming Feruza and Silkarn for a hero who owns neither: a plan for somebody
+        // else. It reaches for the wearable inventory now, and this hero has none, so
+        // it is the same NULL rung 3 gets and the screen refuses the destination.
         const gone = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL, ...PLAN,
             shoePresent: () => false,
@@ -1201,11 +1236,62 @@ describe('mp50: the journey the player reported to mp51 (192,17)', () => {
         const granted = findRoute({
             store, caps: bareCapabilities(), start: START, goal: GOAL,
             maps: COMPONENT, collectKeys: true, planAccessories: true, ...onFloor,
-        })!;
-        expect(granted.crossesSlopes, 'the fallback climbs the slope').toBe(true);
-        expect(granted.equipment.map((e) => e.label), 'in shoes from other levels')
-            .toEqual(expect.arrayContaining(['silkarn', 'feruza']));
+        });
+        expect(granted, 'and the shoe rung cannot invent a pair either').toBeNull();
     }, 30_000);
+});
+
+describe('mp41 (16,22) -> mp40 (225,19), a hero with Ruzeria shoes and no keys', () => {
+    // The report: *"the route assumes high jump between mp40 (245,14) and
+    // mp40 (232,19). Since hero does not have Feruza shoes, this hop should be
+    // disabled."* Both caverns are level 4, where ice exists, so the one pair he
+    // owns is the one the level hands out — and it buys him nothing on the way west.
+    //
+    // The hop is right in the graph: five rows down and thirteen columns across is a
+    // four-row rise and a long fall, which is Feruza and only Feruza. What was wrong
+    // is that `planAccessories` granted *every* pair in the game, so the screen's
+    // shoe rung — the last one before the screen gives up — drew a 250-hop journey
+    // for a hero who owns nothing but Ruzeria shoes. The rung now reaches for the
+    // wearable inventory at 0xA1..0xA5 and no further, and the hop is exactly as
+    // gated as it always was; it is only offered to a hero who can make it.
+    const MP40 = 8;
+    const MP41 = 9;
+    const START: NavEndpoint = { mapId: MP41, col: 16, row: 22 };
+    const GOAL: NavEndpoint = { mapId: MP40, col: 225, row: 19 };
+    const PLAN = { collectKeys: true, planAccessories: true } as const;
+
+    /** The hero as the engine has him: one slot filled, cavern level 4, no keys. */
+    function ruzeria(): HeroCapabilities {
+        const g = new Uint8Array(0x10000);
+        g[ADDR_ACCESSORY] = ACCESSORY_RUZERIA;
+        g[ADDR_WEARABLES] = ACCESSORY_RUZERIA;
+        g[ADDR_CAVERN_LEVEL] = LEVEL_ICE;
+        return snapshotCapabilities(g);
+    }
+
+    it('is not routed for him, because the shoe rung may not invent a pair', () => {
+        const caps = ruzeria();
+        expect(caps.carried, 'the one pair he picked up').toEqual([ACCESSORY_RUZERIA]);
+        expect(findRoute({ store, caps, start: START, goal: GOAL }), 'as he stands').toBeNull();
+        expect(findRoute({ store, caps, start: START, goal: GOAL, ...PLAN }),
+            'nor with the keys fetched on the way').toBeNull();
+    }, 60_000);
+
+    it('names the hop that needs Feruza when he carries the Feruza pair', () => {
+        // The same journey, the same 250 ticks, for the hero who owns the pair: the
+        // gate is the inventory's, not the graph's, and it opens for him.
+        const caps: HeroCapabilities = {
+            ...ruzeria(), carried: [ACCESSORY_RUZERIA, ACCESSORY_FERUZA],
+        };
+        const r = findRoute({ store, caps, start: START, goal: GOAL, ...PLAN });
+        expect(r, 'with the Feruza pair in his pocket').not.toBeNull();
+        expect(r!.equipment.map((e) => e.label), 'the route says which pair it wants')
+            .toContain('feruza');
+        const hop = r!.hops.find((h) => h.kind === EDGE.JUMP_HIGH
+            && h.from.mapId === MP40 && h.from.col === 245);
+        expect(hop, 'and the gated hop is the one off the row-14 gallery at mp40 (245,14)')
+            .toMatchObject({ from: { mapId: MP40, col: 245, row: 14 }, to: { mapId: MP40, row: 19 } });
+    }, 60_000);
 });
 
 describe('mp21: the three ropes against a wall, from (93,56) to (86,39)', () => {

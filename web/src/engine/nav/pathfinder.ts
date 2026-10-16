@@ -147,8 +147,26 @@ const SHOE_BITS: readonly (readonly [number, number, string])[] = [
     [CAP.HEAT_SAFE, 5, 'asbestos'],
 ];
 
-/** The mask that lets the search plan a route the hero can walk in shoes. */
-export const SHOE_MASK = SHOE_BITS.reduce((mask, [bit]) => mask | bit, 0);
+/**
+ * The abilities the pairs in `caps.carried` would grant if the hero put them on.
+ *
+ * `planAccessories` may reach no further than this. A pair lying on the floor is
+ * {@link collectAccessories}' business — the route walks to it and picks it up —
+ * and a pair that exists only on another level is no plan at all. Granting the
+ * whole game here is what produced routes for a hero the player is not: a thread
+ * spent on mp41 (16,22) drew a five-hop Feruza jump out of mp40 (245,14) for a hero
+ * carrying nothing but Ruzeria shoes.
+ *
+ * Not gated on cavern level, unlike {@link snapshotCapabilities}: a route may cross
+ * into a cavern where ice or heat exists, and the pair is in the pocket either way.
+ */
+export function carriedShoeMask(caps: HeroCapabilities): number {
+    let mask = 0;
+    for (const [bit, accessory] of SHOE_BITS) {
+        if (caps.carried.includes(accessory)) mask |= bit;
+    }
+    return mask;
+}
 
 /** Handed back for a cavern nobody has reported a platform position for. */
 const NO_PLATFORM_PLACES: PlatformPlaces = new Map();
@@ -462,6 +480,10 @@ export interface FindRouteOptions {
      * Changing shoes costs the hero nothing and takes no time, so a route that
      * needs them is a real route. With this set the search may use them, and the
      * route says which ones and where, in order.
+     *
+     * Scoped to `caps.carried`: the pairs already in the inventory, which
+     * {@link collectAccessories} extends by fetching. A pair the hero does not own
+     * is a route for somebody else.
      */
     readonly planAccessories?: boolean;
     /**
@@ -992,9 +1014,10 @@ function search(options: FindRouteOptions): NavRoute | null {
     const maps = new Set(options.maps ?? NAV_REACHABLE[start.mapId] ?? [start.mapId]);
     const unlimitedKeys = options.unlimitedKeys === true;
     // When the route may count on shoes the hero can put on, the search treats
-    // those abilities as available and reports what it used.
+    // those abilities as available and reports what it used. Only the pairs in
+    // the inventory — see `carriedShoeMask`.
     const effective: HeroCapabilities = options.planAccessories
-        ? { ...caps, mask: caps.mask | SHOE_MASK }
+        ? { ...caps, mask: caps.mask | carriedShoeMask(caps) }
         : caps;
 
     // stateKey is not injective across maps, so keep the best cost per key in a Map.

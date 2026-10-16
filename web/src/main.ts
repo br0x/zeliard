@@ -523,6 +523,11 @@ function openMapScreen(): void {
         // how each door shipped. It holds one cavern's doors, so anything else is
         // unknown and the screen falls back to the level data.
         doorOpen: liveDoorOpen,
+        // The same clock `draw` is called with. It is asked here as well as taken
+        // there, because choosing a destination searches synchronously for seconds
+        // and a refusal deadline measured from the last painted frame has already
+        // expired by the time the next one is drawn.
+        now: () => performance.now(),
         text: (key: string) => t(key),
         onExit: closeMapScreen,
         onPick: acceptMapDestination,
