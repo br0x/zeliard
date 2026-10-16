@@ -1092,7 +1092,10 @@ async function startGame() {
         lastTearOverlayCount = -1;
         syncTearOverlay();
         const placeId = ((saveState as Uint8Array)[ADDR_PLACE_MAP_ID] ?? 0) & 0x7f;
-        const mdtPath = TOWN_MDTS[placeId]!;
+        const mdtPath = TOWN_MDTS[placeId];
+        if (!mdtPath) {
+            throw new Error(`No town map for place ${placeId} in the loaded save`);
+        }
 
         const response = await fetch(mdtPath);
         if (!response.ok) {

@@ -10,7 +10,7 @@ export const VIEW_WIDTH  = VIEW_COLS * TILE_SIZE;
 // ─── Feature flags ────────────────────────────────────────────────────────────
 export const RUN_TOWN_ENTRY_ON_START = true;
 export const RETURN_BEFORE_TOWN_MAIN_LOOP = true;
-export const STDPLY_PATH = 'game/stdply.bin';
+export const STDPLY_PATH = 'mdt/stdply.bin';
 export const START_TOWN_MDT_PATH = 'mdt/cmap.mdt';
 
 export const NOTIFICATION_STRINGS = {
