@@ -896,18 +896,6 @@ TORI_SHAPE_BASES = [
 # the original data -- e.g. idx 0/1, 3/4/5, 6/7/8/9).
 TORI_SHAPE_MAP = [0, 0, 1, 2, 2, 2, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-# Human-readable label for each pose index, matching the al values
-# select_pose() is called with from Tori_AI_proc's render_boss_sprite_frame
-# (see tori.c).
-TORI_POSE_LABELS = [
-    "idle: recently_hit_flag=0", "idle: recently_hit_flag=1",
-    "idle: flap_phase=0", "idle: flap_phase=1", "idle: flap_phase=2", "idle: flap_phase=3",
-    "idle: approach_phase=0", "idle: approach_phase=1", "idle: approach_phase=2", "idle: approach_phase=3",
-    "idle: tick_div3=0", "idle: tick_div3=1", "idle: tick_div3=2",
-    "attacking: attack_phase=0", "attacking: attack_phase=1", "attacking: attack_phase=2", "attacking: attack_phase=3",
-    "death/recovering: attack_phase=0", "death/recovering: attack_phase=1",
-]
-
 # For Lega body tiles, the tile byte written by Lega_AI_proc is decoded as:
 #
 #   group = (tile >> 4) & 7
@@ -1403,7 +1391,74 @@ def draw_tile_pixels(canvas, pixels, x0, y0, tile_w=8, scale=SCALE, transparent_
             # draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, "#8c38ff", scale)
             continue
         draw_pixel(canvas, x0 + rx * scale, y0 + ry * scale, PALETTE_STRS[p_idx], scale)
-        
+
+
+# ---------------------------------------------------------------------------
+# Brick registry (shared IDs across Part 1 composite poses and Part 2 listing)
+# ---------------------------------------------------------------------------
+
+class BrickRegistry:
+    """Assigns stable numeric IDs to unique 16x16 (2x2 tile) bricks."""
+
+    def __init__(self):
+        self._ids = {}
+        self._items = []
+
+    def add(self, frame_data):
+        key = tuple(frame_data)
+        if key not in self._ids:
+            self._ids[key] = len(self._items)
+            self._items.append(key)
+        return self._ids[key]
+
+    def __iter__(self):
+        return enumerate(self._items)
+
+    def __len__(self):
+        return len(self._items)
+
+
+def draw_brick(canvas, frame_data, tiles_raw, x, y, scale, registry, show_tiles=False):
+    """Draw a composed 16x16 brick (2x2 tiles) and register it for the ID map."""
+    brick_id = registry.add(frame_data)
+    draw_composed_16x16_frame(
+        canvas, frame_data, tiles_raw, x, y, scale,
+        brick_id=brick_id, show_tiles=show_tiles
+    )
+    return brick_id
+
+
+def render_brick_browser(canvas, registry, tiles_raw, y_offset, scale=3):
+    """Draw every unique 2x2 brick used by a monster, labeled with its ID."""
+    sprite_px = 16
+    frames_per_row = 16
+    gap_x, gap_y = 8, 16
+
+    y = y_offset + 22
+
+    for brick_id, frame_data in registry:
+        x_frame = 10 + (brick_id % frames_per_row) * (sprite_px * scale + gap_x)
+        y_frame = y + (brick_id // frames_per_row) * (sprite_px * scale + gap_y)
+
+        canvas.create_text(
+            x_frame + 8, y_frame - 8,
+            text=f"{brick_id}",
+            fill="white", font=("TkDefaultFont", 7)
+        )
+        canvas.create_rectangle(
+            x_frame, y_frame,
+            x_frame + sprite_px * scale,
+            y_frame + sprite_px * scale,
+            fill="#8c38ff", outline=""
+        )
+        draw_composed_16x16_frame(
+            canvas, frame_data, tiles_raw,
+            x_frame, y_frame, scale
+        )
+
+    num_rows = (len(registry) + frames_per_row - 1) // frames_per_row
+    return y + num_rows * (sprite_px * scale + gap_y) + 12 - y_offset
+
 
 # ---------------------------------------------------------------------------
 # Fman rendering (fman.grp hero dungeon sprites)
@@ -1416,7 +1471,7 @@ def decode_fman_tile(t_data, lut):
     pixels = []
     for ry in range(8):
         p0 = (t_data[ry*4]   << 8) | t_data[ry*4 + 1]
-        p1 = (t_data[ry*4+2] << 8) | t_data[ry*4 + 3]
+        p1 = (t_data[ry*4+2] << 8) | t_data[ry*4+3]
         combined = p0 | p1
         row_mask = ~(combined | (combined >> 1) | (combined << 2)) & 0xFFFF
         for rx in range(8):
@@ -1427,34 +1482,61 @@ def decode_fman_tile(t_data, lut):
     return pixels
 
 
-def draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale):
-    """Draws a 16x16 frame composed of four 8x8 tiles [tl, tr, bl, br]."""
+def draw_composed_16x16_frame(
+    canvas, frame_data, tiles_raw, x_frame, y_frame, scale,
+    brick_id=None, show_tiles=False
+):
+    """Draws a 16x16 frame composed of four 8x8 tiles [tl, tr, bl, br].
+
+    If `brick_id` is given and `show_tiles` is True, draws a yellow outline
+    around the brick and prints the brick ID in its top-left corner.
+    """
     TILE_SIZE = 32
     pal_idx = frame_data[0]
-    tile_indices = frame_data[1:] # [tl, tr, bl, br]
+    tile_indices = frame_data[1:]  # [tl, tr, bl, br]
     lut = PAL_DECODE_TABLES[pal_idx]
-    
+
     for i, t_idx in enumerate(tile_indices):
-        if t_idx == 0: continue
+        if t_idx == 0:
+            continue
         # Slice the 32-byte raw data for the 8x8 tile
         tile_data = tiles_raw[t_idx * TILE_SIZE : (t_idx + 1) * TILE_SIZE]
         pixels = decode_fman_tile(tile_data, lut)
-        
+
         # Calculate sub-tile position within the 16x16 block
         col_offset = (i % 2) * 8 * scale
         row_offset = (i // 2) * 8 * scale
         draw_tile_pixels(canvas, pixels, x_frame + col_offset, y_frame + row_offset, scale=scale)
-    # canvas.create_rectangle(x_frame-1, y_frame-1, x_frame + 16*scale, y_frame + 16*scale, outline="gray")
+
+    if show_tiles:
+        canvas.create_rectangle(
+            x_frame, y_frame,
+            x_frame + 16 * scale, y_frame + 16 * scale,
+            outline="#ffff00", width=1
+        )
+        if brick_id is not None:
+            canvas.create_text(
+                x_frame + 2, y_frame + 2,
+                text=str(brick_id), anchor="nw",
+                fill="#ffff00", font=("TkDefaultFont", 8)
+            )
 
 
-def render_crab_group(data, canvas, y_offset):
+def render_crab_group(data, canvas, y_offset, show_tiles=False):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
     gap_x, gap_y = 25, 35
-    
+
     # Header size in crab.grp is 0; tiles start immediately after the descriptors
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    # Pre-register every brick in a stable, dictionary-definition order so
+    # Part 1 composite poses and the Part 2 listing use identical IDs.
+    registry = BrickRegistry()
+    for frames in CRAB_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Crab Body (Phases 0-9)
@@ -1476,36 +1558,26 @@ def render_crab_group(data, canvas, y_offset):
     for phase in range(10):
         x_base = 10 + (phase % frames_per_row) * (5*16 * scale + gap_x)
         y_base = current_y + (phase // frames_per_row) * (3*16 * scale + gap_y)
-        
+
         canvas.create_rectangle(x_base-1, y_base-1, x_base + 5*16*scale, y_base + 3*16*scale, outline="gray")
 
-        if phase < 9:
-            # Standard rendering for phases 0-8
-            for name, gx, gy in body_layout08:
-                draw_composed_16x16_frame(canvas, CRAB_FRAMES[name][phase], tiles_raw, x_base + gx*scale, y_base + gy*scale, scale)
-        else:
-            # Phase 9: Special placement
-            for name, gx, gy in body_layout9:
-                draw_composed_16x16_frame(canvas, CRAB_FRAMES[name][phase], tiles_raw, x_base + gx*scale, y_base + gy*scale, scale)
+        layout = body_layout08 if phase < 9 else body_layout9
+        for name, gx, gy in layout:
+            draw_brick(
+                canvas, CRAB_FRAMES[name][phase], tiles_raw,
+                x_base + gx*scale, y_base + gy*scale,
+                scale, registry, show_tiles
+            )
 
-    # Advance y_cursor past the 2 rows of body phases
-    current_y += 3 * (48 * scale + gap_y) + 36
-    
+    # Advance y_cursor past all 4 rows of body phases (10 phases / 3 per row)
+    num_body_rows = (10 + frames_per_row - 1) // frames_per_row
+    current_y += num_body_rows * (3 * 16 * scale + gap_y) + 24
+
     # -----------------------------------------------------------------------
-    # Part 2: Render Remaining 16x16 frames
+    # Part 2: Render brick listing for every unique 2x2 brick
     # -----------------------------------------------------------------------
-    for anim_name in ["Mouth Acid Frames", "Acid Drops"]:
-        frames = CRAB_FRAMES[anim_name]
-        f_per_row = 10
-        for f_idx, frame_data in enumerate(frames):
-            x_f = 276 + (f_idx % f_per_row) * (16 * scale + 12)
-            y_f = current_y + (f_idx // f_per_row) * (16 * scale)
-            
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_f, y_f, scale)
-        
-        num_rows = (len(frames) + f_per_row - 1) // f_per_row
-        current_y += num_rows * (16 * scale + 12)
-        
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
+
     return current_y - y_offset
 
 def _drgn_apply_sparse_layer(grid, x0, y0, tiles, masks):
@@ -1591,7 +1663,7 @@ DRGN_BODY_FRAMES = (
 )
 
 
-def render_drgn_group(data, canvas, y_offset):
+def render_drgn_group(data, canvas, y_offset, show_tiles=False):
     """
     Dragon boss.
 
@@ -1600,11 +1672,17 @@ def render_drgn_group(data, canvas, y_offset):
     with each breath frame attached. Grid positions are 8px world-tile steps
     while each descriptor draws a 16x16 composed sprite, exactly like Tori/Lega.
 
-    Part 2 renders every raw 16x16 descriptor in DRGN_FRAMES for inspection.
+    Part 2 lists every unique 2x2 brick used to compose those bodies, with
+    numeric IDs so they can be cross-referenced against Part 1.
     """
     TILE_SIZE = 32
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
     current_y = y_offset
+
+    registry = BrickRegistry()
+    for frames in DRGN_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     body_scale = 1
     step = 8
@@ -1615,10 +1693,10 @@ def render_drgn_group(data, canvas, y_offset):
     rows = 12  # breath reaches body-relative row 11
     block_w = (cols - 1) * step * body_scale + sprite_span * body_scale
     block_h = (rows - 1) * step * body_scale + sprite_span * body_scale
-    frames_per_row_body = 3
+    frames_per_row_body = 4
     body_gap_x, body_gap_y = 12, 18
 
-    for f_idx, (label, pose, anim_phase, motion_phase, breath_frame) in enumerate(DRGN_BODY_FRAMES):
+    for f_idx, (_, pose, anim_phase, motion_phase, breath_frame) in enumerate(DRGN_BODY_FRAMES):
         col_idx = f_idx % frames_per_row_body
         row_idx = f_idx // frames_per_row_body
         x_base = 10 + col_idx * (block_w + body_gap_x)
@@ -1626,8 +1704,6 @@ def render_drgn_group(data, canvas, y_offset):
 
         canvas.create_rectangle(x_base - 1, y_base - 1,
                                 x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
-                           anchor="w", fill="white", font=("TkDefaultFont", 7))
 
         placements = compute_drgn_body_layout(pose, anim_phase, motion_phase)
         if breath_frame is not None:
@@ -1640,37 +1716,18 @@ def render_drgn_group(data, canvas, y_offset):
             frames = DRGN_FRAMES[set_name]
             if frame_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(
+            draw_brick(
                 canvas, frames[frame_idx], tiles_raw,
                 x_base + (gcol - min_col) * step * body_scale,
                 y_base + grow * step * body_scale,
-                body_scale)
+                body_scale, registry, show_tiles
+            )
 
     num_body_rows = (len(DRGN_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # Raw descriptor browser.
-    scale = 3
-    sprite_px = 16
-    frames_per_row = 16
-    gap_x, gap_y = 0, 8
-    n = 0
-    for set_name, frames in DRGN_FRAMES.items():
-        current_y += 20
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                               fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame,
-                                    x_frame + sprite_px * scale,
-                                    y_frame + sprite_px * scale,
-                                    fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw,
-                                       x_frame, y_frame, scale)
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -1711,7 +1768,7 @@ def compute_tako_phase_layout(table_idx):
     return placements
 
 
-def render_tako_group(data, canvas, y_offset):
+def render_tako_group(data, canvas, y_offset, show_tiles=False):
     """
     Pulpo boss.
 
@@ -1721,24 +1778,20 @@ def render_tako_group(data, canvas, y_offset):
     TAKO_SHAPE_BASES, using each placement's tile_group to pick the right
     TAKO_FRAMES set and anim_idx to pick the frame within it.
 
-    Part 2 is a plain browser over every raw frame set (same as before),
-    since one of them (Frame Set 16 / byte_A25F) is never referenced by
-    the tentacle layout tables at all -- it's some other sprite (most
-    likely the ink-droplet projectile, which Pulpo_AI_proc addresses with
-    a fixed tile id rather than through anim_frame_table_ptrs) and so has
-    no placement of its own in the composite body.
+    Part 2 lists every unique 2x2 brick used to compose those bodies, with
+    numeric IDs so they can be cross-referenced against Part 1 (including
+    Frame Set 16 / byte_A25F, which is never referenced by the tentacle
+    layout tables but shows up in the ID registry).
     """
     TILE_SIZE = 32
-    scale = 3
     current_y = y_offset
-    gap_x = 0
-    gap_y = 8
-    sprite_px = 16  # Total width/height of the 2x2 tile assembly
-    frames_per_row = 16
 
-    # Ensure the data buffer is padded to prevent index-out-of-range errors
-    # for high tile indices.
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in TAKO_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tako Body (32 tentacle_anim_step / phase combos)
@@ -1756,8 +1809,6 @@ def render_tako_group(data, canvas, y_offset):
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        # canvas.create_text(x_base+5, y_base + 5, text=f"step {table_idx % 8} / offs {(table_idx // 8) * 8}",
-        #                     anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
             set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
@@ -1766,39 +1817,16 @@ def render_tako_group(data, canvas, y_offset):
             frames = TAKO_FRAMES[set_name]
             if anim_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + gcol * 16 * body_scale,
-                                       y_base + grow * 16 * body_scale,
-                                       body_scale)
+            draw_brick(canvas, frames[anim_idx], tiles_raw,
+                       x_base + gcol * 16 * body_scale,
+                       y_base + grow * 16 * body_scale,
+                       body_scale, registry, show_tiles)
 
     num_body_rows = (32 + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set (including the one the composite
-    # body never uses, Frame Set 16)
-    # -----------------------------------------------------------------------
-    n=0
-    for set_name, frames in TAKO_FRAMES.items():
-        
-        # Label each frame set so it's clear which slot in
-        # anim_frame_table_ptrs it came from.
-        # canvas.create_text(10, current_y + 8, text=set_name, anchor="w", fill="white")
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame+8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n+=1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -1845,14 +1873,7 @@ def compose_tori_frame(pose_indices):
     """
     Combine the placements from several select_pose()/sub_A552 calls into
     one shared 9x8 body grid, exactly as Tori_AI_proc's
-    render_boss_sprite_frame does per frame: during the "attacking" and
-    "death/recovering" states it calls select_pose() exactly once (a
-    single pose index already fills in the whole body), but during the
-    plain idle state it calls select_pose() FOUR times in a row --
-    recently_hit_flag, then approach_phase+6, then tick_div3+0x0A, then
-    flap_phase+2 -- each contributing a distinct, non-overlapping subset
-    of body-part cells (they're driven by separate mask arrays, so they
-    never write the same cell twice). Rendering any single one of those
+    render_boss_sprite_frame does per frame. Rendering any single one of those
     four alone only shows a fragment (e.g. just a wing-tip or a head
     bob), which is why a full idle body needs all four combined.
     """
@@ -1892,7 +1913,7 @@ TORI_BODY_FRAMES = [
 ]
 
 
-def render_tori_group(data, canvas, y_offset):
+def render_tori_group(data, canvas, y_offset, show_tiles=False):
     """
     Pollo boss.
 
@@ -1906,35 +1927,24 @@ def render_tori_group(data, canvas, y_offset):
     pseudo-monster's .flags/.anim_counter fields) to pick the right
     TORI_FRAMES set and row within it.
 
-    Part 2 is a plain browser over every raw frame set (same approach
-    as render_tako_group's Part 2), so every individual 16x16 frame can
-    be inspected regardless of whether the composite body walk reaches
-    it.
+    Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 0
-    gap_y = 8
-    sprite_px = 16  # Total width/height of the 2x2 tile assembly
-    frames_per_row = 16
 
-    # Ensure the data buffer is padded to prevent index-out-of-range errors
-    # for high tile indices.
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in TORI_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tori Body (named states from TORI_BODY_FRAMES)
     # -----------------------------------------------------------------------
     body_scale = 2  # the 9x8-tile grid is much larger than crab's, scale down to fit
     cols, rows = 9, 8
-    # currX/currY (and so col/row here) are in 8px world-tile units -- the
-    # same unit render_roka_group/render_dchr_group use for the dungeon
-    # map (`col * (8 * SCALE)`) -- while each composed frame is a 16x16
-    # (2x2 world-tile) sprite. So adjacent grid steps must be 8px apart
-    # (half the drawn sprite's width/height), not a full 16px sprite-width
-    # apart, or every piece ends up floating in its own cell with a gap
-    # on every side instead of overlapping/tiling with its neighbors.
     step = 8
     sprite_span = 16  # composed frame's own width/height
     block_w = (cols - 1) * step * body_scale + sprite_span * body_scale
@@ -1942,15 +1952,13 @@ def render_tori_group(data, canvas, y_offset):
     frames_per_row_body = 5
     body_gap_x, body_gap_y = 12, 16
 
-    for f_idx, (label, pose_indices) in enumerate(TORI_BODY_FRAMES):
+    for f_idx, (_, pose_indices) in enumerate(TORI_BODY_FRAMES):
         col_idx = f_idx % frames_per_row_body
         row_idx = f_idx // frames_per_row_body
         x_base = 10 + col_idx * (block_w + body_gap_x)
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
-                            anchor="w", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, table_index, row_index in compose_tori_frame(pose_indices):
             set_name = TORI_FRAME_SET_BY_INDEX.get(table_index)
@@ -1959,34 +1967,16 @@ def render_tori_group(data, canvas, y_offset):
             frames = TORI_FRAMES[set_name]
             if row_index >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[row_index], tiles_raw,
-                                       x_base + gcol * step * body_scale,
-                                       y_base + grow * step * body_scale,
-                                       body_scale)
+            draw_brick(canvas, frames[row_index], tiles_raw,
+                       x_base + gcol * step * body_scale,
+                       y_base + grow * step * body_scale,
+                       body_scale, registry, show_tiles)
 
     num_body_rows = (len(TORI_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set
-    # -----------------------------------------------------------------------
-    n = 0
-    for set_name, frames in TORI_FRAMES.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -2217,7 +2207,7 @@ def compute_zela_body_layout(anim_phase):
     return placements
 
 
-def render_zela_group(data, canvas, y_offset, layout):
+def render_zela_group(data, canvas, y_offset, layout, show_tiles=False):
     """
     Render zela.grp sprites (Agar/Zela boss).
 
@@ -2228,12 +2218,7 @@ def render_zela_group(data, canvas, y_offset, layout):
     indices 0-11, and place_boss_body_segments() lays those 12 slots
     into the 4x3 grid in column-major order (column, then row).
 
-    Part 2 is a plain browser over every raw frame set (ZELA_FRAMES),
-    including the frames beyond index 11 that the composite body never
-    reaches -- tables 3 and 4 have two trailing all-zero (blank)
-    entries at indices 12-13, and all five tables have a couple of
-    entries beyond that the body walk never selects; same caveat as
-    Tako's unused Frame Set 16.
+    Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
     scale = 3
@@ -2242,6 +2227,11 @@ def render_zela_group(data, canvas, y_offset, layout):
     # Ensure the data buffer is padded to prevent index-out-of-range
     # errors for high tile indices.
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in layout.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Zela Body (anim_phase 0-7)
@@ -2258,8 +2248,6 @@ def render_zela_group(data, canvas, y_offset, layout):
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base + 2, y_base - 8, text=f"anim_phase {phase}",
-                            anchor="w", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, tile_group, frame_idx in compute_zela_body_layout(phase):
             set_name = ZELA_FRAME_SET_BY_INDEX.get(tile_group)
@@ -2268,38 +2256,16 @@ def render_zela_group(data, canvas, y_offset, layout):
             frames = layout[set_name]
             if frame_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[frame_idx], tiles_raw,
-                                       x_base + gcol * 16 * scale,
-                                       y_base + grow * 16 * scale,
-                                       scale)
+            draw_brick(canvas, frames[frame_idx], tiles_raw,
+                       x_base + gcol * 16 * scale,
+                       y_base + grow * 16 * scale,
+                       scale, registry, show_tiles)
 
     num_body_rows = (8 + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set (including frames the composite
-    # body never reaches)
-    # -----------------------------------------------------------------------
-    gap_x, gap_y = 0, 8
-    sprite_px = 16
-    frames_per_row = 16
-    n = 0
-    for set_name, frames in layout.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -2507,7 +2473,7 @@ def compute_meda_body_layout(direction_zone, anim_frame):
     return placements
 
 
-def render_meda_group(data, canvas, y_offset):
+def render_meda_group(data, canvas, y_offset, show_tiles=False):
     """
     Render meda.grp sprites (Vista / Meda boss).
 
@@ -2515,13 +2481,18 @@ def render_meda_group(data, canvas, y_offset):
     for various direction_zone (0-5) and anim_frame (0-4) combinations,
     reproducing build_frame_sprite_list() from meda.c / meda.asm.
 
-    Part 2 renders every raw frame set (MEDA_FRAMES).
+    Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
 
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in MEDA_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Meda Body
@@ -2548,15 +2519,13 @@ def render_meda_group(data, canvas, y_offset):
         ("wing flap 4 (center)", 2, 4),
     ]
 
-    for f_idx, (label, dz, wf) in enumerate(poses_to_render):
+    for f_idx, (_, dz, wf) in enumerate(poses_to_render):
         col_idx = f_idx % phases_per_row
         row_idx = f_idx // phases_per_row
         x_base = 10 + col_idx * (block_w + body_gap_x)
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base + 2, y_base - 8, text=f"{f_idx}: {label}",
-                            anchor="w", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, tile_group, anim_idx in compute_meda_body_layout(dz, wf):
             set_name = MEDA_FRAME_SET_BY_INDEX.get(tile_group)
@@ -2565,42 +2534,21 @@ def render_meda_group(data, canvas, y_offset):
             frames = MEDA_FRAMES[set_name]
             if anim_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + int(gcol * step * body_scale),
-                                       y_base + int(grow * step * body_scale),
-                                       body_scale)
+            draw_brick(canvas, frames[anim_idx], tiles_raw,
+                       x_base + int(gcol * step * body_scale),
+                       y_base + int(grow * step * body_scale),
+                       body_scale, registry, show_tiles)
 
     num_body_rows = (len(poses_to_render) + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set
-    # -----------------------------------------------------------------------
-    gap_x, gap_y = 0, 8
-    sprite_px = 16
-    frames_per_row = 16
-    n = 0
-    for set_name, frames in MEDA_FRAMES.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
 
-def render_lega_group(data, canvas, y_offset):
+def render_lega_group(data, canvas, y_offset, show_tiles=False):
     """
     Lega / Tarso boss.
 
@@ -2611,15 +2559,19 @@ def render_lega_group(data, canvas, y_offset):
     16x16 sprite parts overlap on an 8px grid, like Tori/Meda, not on a
     16px grid like Crab/Tako.
 
-    Part 2 is a plain browser over every raw frame set, including group 6,
-    which is the projectile/special animation set.
+    Part 2 lists every unique 2x2 brick used to compose those bodies,
+    including group 6 (the projectile/special animation set).
     """
     TILE_SIZE = 32
 
     current_y = y_offset
 
-    # Pad to avoid index errors on high tile indices.
     tiles_raw = data + b"\x00" * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in LEGA_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render composite Lega body
@@ -2635,7 +2587,7 @@ def render_lega_group(data, canvas, y_offset):
     frames_per_row = 5
     body_gap_x, body_gap_y = 12, 16
 
-    for f_idx, (label, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
+    for f_idx, (_, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
         col_idx = f_idx % frames_per_row
         row_idx = f_idx // frames_per_row
 
@@ -2650,15 +2602,6 @@ def render_lega_group(data, canvas, y_offset):
             outline="gray"
         )
 
-        canvas.create_text(
-            x_base + 2,
-            y_base - 8,
-            text=f"{f_idx}: {label}",
-            anchor="w",
-            fill="white",
-            font=("TkDefaultFont", 7)
-        )
-
         for gcol, grow, tile_group, frame_idx in compute_lega_phase_layout(table_idx, head_anim):
             set_name = LEGA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2668,65 +2611,22 @@ def render_lega_group(data, canvas, y_offset):
             if frame_idx >= len(frames):
                 continue
 
-            draw_composed_16x16_frame(
+            draw_brick(
                 canvas,
                 frames[frame_idx],
                 tiles_raw,
                 x_base + int(gcol * step * body_scale),
                 y_base + int(grow * step * body_scale),
-                body_scale
+                body_scale,
+                registry,
+                show_tiles
             )
 
     num_body_rows = (len(LEGA_BODY_FRAMES) + frames_per_row - 1) // frames_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set
-    # -----------------------------------------------------------------------
-    gap_x, gap_y = 0, 8
-    sprite_px = 16
-    scale = 3
-    frames_per_row = 16
-
-    n = 0
-
-    for set_name, frames in LEGA_FRAMES.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(
-                x_frame + 8,
-                y_frame - 8,
-                text=f"{n}",
-                fill="white",
-                font=("TkDefaultFont", 7)
-            )
-
-            n += 1
-
-            canvas.create_rectangle(
-                x_frame,
-                y_frame,
-                x_frame + sprite_px * scale,
-                y_frame + sprite_px * scale,
-                fill="#8c38ff",
-                outline=""
-            )
-
-            draw_composed_16x16_frame(
-                canvas,
-                frame_data,
-                tiles_raw,
-                x_frame,
-                y_frame,
-                scale
-            )
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -2989,7 +2889,7 @@ def compute_akma_body_layout(phase, pose_idx, arm_parity=0, overlay_idx=0):
     return placements
 
 
-def render_akma_group(data, canvas, y_offset):
+def render_akma_group(data, canvas, y_offset, show_tiles=False):
     """
     Akma (Alguien) boss.
 
@@ -2999,36 +2899,25 @@ def render_akma_group(data, canvas, y_offset):
     plus the arm/head overlay tables, using each placement's tile_group
     to pick the right AKMA_FRAMES set and anim_idx to pick the frame
     within it. The overlay pieces are shown in their default state
-    (arm_parity=0, overlay_idx=0); Part 2 below includes every raw frame
-    (including the other overlay/parity variants and the unused Group 6)
-    for full reference.
+    (arm_parity=0, overlay_idx=0).
 
-    Part 2 is a plain browser over every raw frame set, since Group 6
-    (byte_A2B3/byte_A2EF) is never referenced by the pose/overlay tables
-    at all -- like TAKO_FRAMES' Frame Set 16, it has no placement of its
-    own in the composite body.
+    Part 2 lists every unique 2x2 brick used to compose those bodies,
+    including the unused Group 6.
     """
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 0
-    gap_y = 8
-    sprite_px = 16
-    frames_per_row = 16
 
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in AKMA_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Akma Body (6 pose combos: 3 poses x 2 phases)
     # -----------------------------------------------------------------------
-    # Each grid (col, row) step is one world-coordinate unit -- and the
-    # game's base map tile is 8px, not 16 -- so adjacent 16x16 composed
-    # pieces must be placed 8px apart (half their own width/height) to
-    # overlap and tile together into a single connected sprite, exactly
-    # like Akma_AI_proc's own currX/currY (boss_x+col, boss_y+row)
-    # placement onto the 8px proximity map. Using a full 16px step here
-    # (one step per whole sprite) is what produced the disconnected
-    # "island" pieces with gaps between them.
     GRID_STEP = 8
     body_scale = 3
     cols, rows = 13, 16
@@ -3046,8 +2935,6 @@ def render_akma_group(data, canvas, y_offset):
         y_base = current_y + row_idx * (block_h + body_gap_y)
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
-        canvas.create_text(x_base + 4, y_base - 10, text=f"phase {phase} / pose {pose_idx}",
-                            anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
         for gcol, grow, tile_group, anim_idx in compute_akma_body_layout(phase, pose_idx):
             set_name = AKMA_FRAME_SET_BY_INDEX.get(phase, {}).get(tile_group)
@@ -3056,35 +2943,16 @@ def render_akma_group(data, canvas, y_offset):
             frames = AKMA_FRAMES[set_name]
             if anim_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + gcol * GRID_STEP * body_scale,
-                                       y_base + grow * GRID_STEP * body_scale,
-                                       body_scale)
+            draw_brick(canvas, frames[anim_idx], tiles_raw,
+                       x_base + gcol * GRID_STEP * body_scale,
+                       y_base + grow * GRID_STEP * body_scale,
+                       body_scale, registry, show_tiles)
 
     num_body_rows = (len(combos) + poses_per_row - 1) // poses_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set (including Group 6, which the
-    # composite body never uses)
-    # -----------------------------------------------------------------------
-    n = 0
-    for set_name, frames in AKMA_FRAMES.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -3244,7 +3112,7 @@ def compute_mao1_pose_layout(pose_idx):
     return placements
 
 
-def render_mao1_group(data, canvas, y_offset):
+def render_mao1_group(data, canvas, y_offset, show_tiles=False):
     """
     Jashiin boss, room 1 (mao1.grp).
 
@@ -3255,35 +3123,24 @@ def render_mao1_group(data, canvas, y_offset):
 
     Part 1 assembles the actual boss body (6 columns x 8 rows) for each of
     the 11 poses, exactly as Mao1_AI_proc lays it out from
-    MAO1_LAYOUT_TABLES / MAO1_SHAPE_BASES, using each placement's
-    tile_group to pick the right MAO1_FRAMES set and anim_idx to pick the
-    frame within it.
+    MAO1_LAYOUT_TABLES / MAO1_SHAPE_BASES.
 
-    Part 2 is a plain browser over every raw frame set, same pattern as
-    render_tako_group/render_akma_group.
+    Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x = 0
-    gap_y = 8
-    sprite_px = 16
-    frames_per_row = 16
 
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
+
+    registry = BrickRegistry()
+    for frames in MAO1_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Jashiin Body (11 poses)
     # -----------------------------------------------------------------------
-    # Mao1_AI_proc advances both column and row by 2 world-tile units per
-    # step (col_x += 2 per column; currY = boss_y + row*2), and the game's
-    # base map tile is 8px -- not 16 -- so each grid step here is
-    # 2 * 8px = 16px, which lands pieces edge-to-edge rather than
-    # overlapping (unlike Akma's 1-unit/8px-per-column step, which
-    # deliberately overlaps its 16x16 pieces). Deriving the step from the
-    # 8px world-tile size instead of hardcoding 16 keeps this consistent
-    # with how the engine actually places these pieces on the 8px
-    # proximity map.
     WORLD_TILE_PX = 8
     COL_STEP_UNITS = 2
     ROW_STEP_UNITS = 2
@@ -3314,34 +3171,16 @@ def render_mao1_group(data, canvas, y_offset):
             frames = MAO1_FRAMES[set_name]
             if anim_idx >= len(frames):
                 continue
-            draw_composed_16x16_frame(canvas, frames[anim_idx], tiles_raw,
-                                       x_base + gcol * GRID_STEP_X * body_scale,
-                                       y_base + grow * GRID_STEP_Y * body_scale,
-                                       body_scale)
+            draw_brick(canvas, frames[anim_idx], tiles_raw,
+                       x_base + gcol * GRID_STEP_X * body_scale,
+                       y_base + grow * GRID_STEP_Y * body_scale,
+                       body_scale, registry, show_tiles)
 
     num_body_rows = (11 + poses_per_row - 1) // poses_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
 
-    # -----------------------------------------------------------------------
-    # Part 2: Render every raw frame set
-    # -----------------------------------------------------------------------
-    n = 0
-    for set_name, frames in MAO1_FRAMES.items():
-        current_y += 20
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (sprite_px * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (sprite_px * scale + gap_y)
-
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                                fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame, x_frame + sprite_px * scale,
-                                     y_frame + sprite_px * scale, fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw, x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (sprite_px * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -3525,7 +3364,7 @@ def compute_mao2_pose_layout(pose_idx, direction):
     return placements
 
 
-def render_mao2_group(data, canvas, y_offset):
+def render_mao2_group(data, canvas, y_offset, show_tiles=False):
     """
     Jashiin / Mao boss, room 2.
 
@@ -3535,11 +3374,16 @@ def render_mao2_group(data, canvas, y_offset):
     world tile is 8 pixels while each descriptor is a composed 16x16 sprite,
     so neighboring pieces are placed every 8px and overlap by 8px.
 
-    Part 2 renders every raw descriptor from both A030 and A070 frame tables.
+    Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
     current_y = y_offset
+
+    registry = BrickRegistry()
+    for frames in MAO2_FRAMES.values():
+        for frame_data in frames:
+            registry.add(frame_data)
 
     WORLD_TILE_PX = 8
     SPRITE_PX = 16
@@ -3574,41 +3418,17 @@ def render_mao2_group(data, canvas, y_offset):
                 if anim_idx >= len(frames):
                     continue
 
-                draw_composed_16x16_frame(
+                draw_brick(
                     canvas, frames[anim_idx], tiles_raw,
                     x_base + gcol * WORLD_TILE_PX * body_scale,
                     y_base + grow * WORLD_TILE_PX * body_scale,
-                    body_scale)
+                    body_scale, registry, show_tiles)
 
         num_rows = (14 + poses_per_row - 1) // poses_per_row
         current_y += num_rows * (block_h + body_gap_y) + 30
 
-    # Raw frame browser.
-    scale = 3
-    frames_per_row = 16
-    gap_x, gap_y = 0, 8
-    n = 0
-
-    for set_name, frames in MAO2_FRAMES.items():
-        canvas.create_text(10, current_y + 7, text=set_name,
-                           anchor="w", fill="white", font=("TkDefaultFont", 8))
-        current_y += 8
-
-        for f_idx, frame_data in enumerate(frames):
-            x_frame = 10 + (f_idx % frames_per_row) * (SPRITE_PX * scale + gap_x)
-            y_frame = current_y + (f_idx // frames_per_row) * (SPRITE_PX * scale + gap_y)
-            canvas.create_text(x_frame + 8, y_frame - 8, text=f"{n}",
-                               fill="white", font=("TkDefaultFont", 7))
-            n += 1
-            canvas.create_rectangle(x_frame, y_frame,
-                                    x_frame + SPRITE_PX * scale,
-                                    y_frame + SPRITE_PX * scale,
-                                    fill="#8c38ff", outline="")
-            draw_composed_16x16_frame(canvas, frame_data, tiles_raw,
-                                       x_frame, y_frame, scale)
-
-        num_rows = (len(frames) + frames_per_row - 1) // frames_per_row
-        current_y += num_rows * (SPRITE_PX * scale + gap_y) + 12
+    # Part 2: unique brick listing.
+    current_y += render_brick_browser(canvas, registry, tiles_raw, current_y)
 
     return current_y - y_offset
 
@@ -3622,6 +3442,7 @@ class GrpViewer:
         self.root = root
         self.root.title("Zeliard GRP Viewer")
         self.root.configure(bg=CANVAS_BG)
+        self.last_render = None
         self.setup_ui()
 
         if len(sys.argv) > 1:
@@ -3632,6 +3453,20 @@ class GrpViewer:
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         tk.Button(toolbar, text="Open *.grp", command=self.on_open_click).pack(side=tk.LEFT)
+
+        self.show_tiles_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            toolbar,
+            text="Show tiles",
+            variable=self.show_tiles_var,
+            command=self.on_show_tiles_toggle,
+            bg=CANVAS_BG,
+            fg="#aaaacc",
+            selectcolor=CANVAS_BG,
+            activebackground=CANVAS_BG,
+            activeforeground="white",
+        ).pack(side=tk.LEFT, padx=8)
+
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
 
@@ -3655,6 +3490,9 @@ class GrpViewer:
         if path:
             self.load_file(path)
 
+    def on_show_tiles_toggle(self):
+        if self.last_render is not None:
+            self.render(*self.last_render)
 
     def load_file(self, path):
         try:
@@ -3681,55 +3519,59 @@ class GrpViewer:
         self.render(unpacked, modes, filename, overrides)
 
     def render(self, data, modes, filename, overrides):
+        self.last_render = (data, modes, filename, overrides)
         self.canvas.delete("all")
         y_cursor = 10
+        show_tiles = self.show_tiles_var.get()
 
         # Single-mode special cases
         if isinstance(modes, int):
             if modes == 12:
-                consumed = render_crab_group(data, self.canvas, y_cursor)
+                consumed = render_crab_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Cangrejo Sprites")
             elif modes == 14:
-                consumed = render_tako_group(data, self.canvas, y_cursor)
+                consumed = render_tako_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Pulpo Sprites")
             elif modes == 15:
-                consumed = render_tori_group(data, self.canvas, y_cursor)
+                consumed = render_tori_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Pollo Sprites")
             elif modes == 16:
-                consumed = render_zela_group(data, self.canvas, y_cursor, layout=ZELA_FRAMES)
+                consumed = render_zela_group(data, self.canvas, y_cursor,
+                                              layout=ZELA_FRAMES, show_tiles=show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Agar Sprites")
             elif modes == 17:
-                consumed = render_meda_group(data, self.canvas, y_cursor)
+                consumed = render_meda_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Vista Sprites")
             elif modes == 18:
-                consumed = render_lega_group(data, self.canvas, y_cursor)
+                consumed = render_lega_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Tarso Sprites")
             elif modes == 19:
-                consumed = render_drgn_group(data, self.canvas, y_cursor)
+                consumed = render_drgn_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Dragon Boss Sprites")
+                self.info_label.config(text=f"File: {filename} | Dragon Sprites")
             elif modes == 20:
-                consumed = render_zela_group(data, self.canvas, y_cursor, layout=ZELA2_FRAMES)
+                consumed = render_zela_group(data, self.canvas, y_cursor,
+                                              layout=ZELA2_FRAMES, show_tiles=show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Monsters/Items Sprites")
+                self.info_label.config(text=f"File: {filename} | Paguro Sprites")
             elif modes == 21:
-                consumed = render_akma_group(data, self.canvas, y_cursor)
+                consumed = render_akma_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Akma (Alguien) Boss Sprites")
+                self.info_label.config(text=f"File: {filename} | Alguien Sprites")
             elif modes == 22:
-                consumed = render_mao1_group(data, self.canvas, y_cursor)
+                consumed = render_mao1_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Mao1 (Jashiin) Boss Sprites")
+                self.info_label.config(text=f"File: {filename} | Jashiin1 Sprites")
             elif modes == 23:
-                consumed = render_mao2_group(data, self.canvas, y_cursor)
+                consumed = render_mao2_group(data, self.canvas, y_cursor, show_tiles)
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
-                self.info_label.config(text=f"File: {filename} | Mao2 (Jashiin) Boss Sprites")
+                self.info_label.config(text=f"File: {filename} | Jashiin2 Sprites")
             else:
                 return
             return

@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/tools/GrpViewer/mpp8.grp"
+                "${workspaceFolder}/WORK/game/0/crab.grp"
             ],
             "console": "integratedTerminal",
         },
