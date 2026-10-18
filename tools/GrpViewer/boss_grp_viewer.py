@@ -55,7 +55,6 @@ BG_COLOR = "#1a1a2e"
 BRICK_NATIVE = 16
 POSE_IMAGE_SCALE = 3
 SPRITESHEET_SCALE = 3
-SPRITESHEET_COLS = 16
 CAND_THUMB = 40
 CHOSEN_COLOR = "#ffffff"
 AVG_SELECTED_COLOR = "#89b4fa"
@@ -1467,17 +1466,7 @@ def register_sheet_frames(canvas, registry, frames_dict, sheet_order=None):
             sheet_frames.append((brick_id, frame_key))
             frame_idx += 1
 
-    old_frames = []
-    old_seen = set()
-    for frames in frames_dict.values():
-        for frame_data in frames:
-            frame_key = tuple(frame_data)
-            if frame_key not in old_seen:
-                old_seen.add(frame_key)
-                old_frames.append(frame_key)
-
     setattr(canvas, "brick_sheet_frames", sheet_frames)
-    setattr(canvas, "brick_old_frames", old_frames)
     return sheet_frames
 
 
@@ -3643,7 +3632,7 @@ class GrpViewer:
         ).pack(side=tk.LEFT, padx=8)
 
         tk.Button(toolbar, text="Save spritesheet", command=self.save_spritesheet).pack(side=tk.LEFT, padx=8)
-        tk.Button(toolbar, text="Import old spritesheet", command=self.import_old_spritesheet).pack(side=tk.LEFT, padx=8)
+        tk.Button(toolbar, text="Load spritesheet", command=self.load_spritesheet).pack(side=tk.LEFT, padx=8)
 
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
@@ -3719,7 +3708,7 @@ class GrpViewer:
 
     def on_show_tiles_toggle(self):
         if self.last_render is not None:
-            self.render(*self.last_render)
+            self._render_canvas(*self.last_render)
 
     def load_file(self, path):
         try:
@@ -3768,7 +3757,6 @@ class GrpViewer:
         setattr(self.canvas, "brick_registry", None)
         setattr(self.canvas, "brick_tiles_raw", None)
         setattr(self.canvas, "brick_sheet_frames", None)
-        setattr(self.canvas, "brick_old_frames", None)
         y_cursor = 10
         show_tiles = self.show_tiles_var.get()
 
@@ -4074,15 +4062,15 @@ class GrpViewer:
             "Saved",
             f"Boss spritesheet saved ({len(sheet_frames)} frames, {cell}px, game order):\n{path}")
 
-    def import_old_spritesheet(self):
-        registry = getattr(self.canvas, "brick_registry", None)
-        old_frames = getattr(self.canvas, "brick_old_frames", None)
-        if registry is None or not old_frames:
+    def load_spritesheet(self):
+        sheet_frames = getattr(self.canvas, "brick_sheet_frames", None)
+        if not sheet_frames:
             messagebox.showwarning("Warning", "Load a .grp file first.")
             return
 
+        cell = BRICK_NATIVE * SPRITESHEET_SCALE
         path = filedialog.askopenfilename(
-            title="Import old spritesheet (16-column brick grid)",
+            title=f"Load spritesheet ({len(sheet_frames)} frames, {cell}px, game order)",
             filetypes=[("PNG image", "*.png"), ("All files", "*.*")])
         if not path:
             return
@@ -4092,25 +4080,17 @@ class GrpViewer:
             messagebox.showerror("Load Error", str(e))
             return
 
-        cell = BRICK_NATIVE * SPRITESHEET_SCALE
-        cols = SPRITESHEET_COLS
-        rows = (len(old_frames) + cols - 1) // cols
-        need_w = min(len(old_frames), cols) * cell
-        need_h = rows * cell
-        if img.width < need_w or img.height < need_h:
+        need_w = len(sheet_frames) * cell
+        if img.width < need_w or img.height < cell:
             messagebox.showerror(
                 "Size Mismatch",
-                f"Old spritesheet must be a {cols}-column grid of {cell}px bricks\n"
-                f"(at least {need_w}x{need_h}px for {len(old_frames)} bricks).")
+                f"Spritesheet must be a single row of {len(sheet_frames)} {cell}px frames\n"
+                f"(at least {need_w}x{cell}px).")
             return
 
         added = 0
-        for old_id, frame_data in enumerate(old_frames):
-            brick_id = registry.id_for(frame_data)
-            if brick_id is None:
-                continue
-            r, c = divmod(old_id, cols)
-            crop = img.crop((c * cell, r * cell, c * cell + cell, r * cell + cell))
+        for frame_idx, (brick_id, _) in enumerate(sheet_frames):
+            crop = img.crop((frame_idx * cell, 0, frame_idx * cell + cell, cell))
             cands = self.candidates.setdefault(brick_id, [])
             if not any(cand.tobytes() == crop.tobytes() for cand in cands):
                 cands.append(crop)
@@ -4120,7 +4100,7 @@ class GrpViewer:
             self.dirty = True
         if self.last_render is not None:
             self.render(*self.last_render)
-        messagebox.showinfo("Imported", f"Added {added} brick candidate(s) from:\n{path}")
+        messagebox.showinfo("Loaded", f"Added {added} brick candidate(s) from:\n{path}")
 
     def _selections_path(self):
         if not self.current_grp_path:
