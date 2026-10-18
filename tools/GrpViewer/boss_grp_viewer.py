@@ -1413,19 +1413,72 @@ class BrickRegistry:
     def __init__(self):
         self._ids = {}
         self._items = []
+        self._next_id = 0
 
     def add(self, frame_data):
         key = tuple(frame_data)
-        if key not in self._ids:
-            self._ids[key] = len(self._items)
-            self._items.append(key)
-        return self._ids[key]
+        brick_id = self._ids.get(key)
+        if brick_id is None:
+            brick_id = self._next_id
+            self._next_id += 1
+            self._ids[key] = brick_id
+            self._items.append((brick_id, key))
+        return brick_id
+
+    def add_at(self, frame_data, brick_id):
+        key = tuple(frame_data)
+        existing = self._ids.get(key)
+        if existing is not None:
+            return existing
+        self._ids[key] = brick_id
+        if brick_id >= self._next_id:
+            self._next_id = brick_id + 1
+        self._items.append((brick_id, key))
+        return brick_id
+
+    def id_for(self, frame_data):
+        return self._ids.get(tuple(frame_data))
+
+    def max_id(self):
+        return max((brick_id for brick_id, _ in self._items), default=-1)
 
     def __iter__(self):
-        return enumerate(self._items)
+        return iter(self._items)
 
     def __len__(self):
         return len(self._items)
+
+
+CRAB_SHEET_ORDER = [
+    "Left Eye", "Right Eye", "Left Tibia", "Left Femur", "Mouth",
+    "Right Femur", "Right Tibia", "Left Bottom Legs", "Right Bottom Legs",
+    "Left Claw", "Maxilla", "Right Claw", "Mouth Acid Frames", "Acid Drops",
+]
+
+
+def register_sheet_frames(canvas, registry, frames_dict, sheet_order=None):
+    order = sheet_order if sheet_order is not None else list(frames_dict)
+    sheet_frames = []
+    frame_idx = 0
+    for key in order:
+        for frame_data in frames_dict[key]:
+            frame_key = tuple(frame_data)
+            brick_id = registry.add_at(frame_key, frame_idx)
+            sheet_frames.append((brick_id, frame_key))
+            frame_idx += 1
+
+    old_frames = []
+    old_seen = set()
+    for frames in frames_dict.values():
+        for frame_data in frames:
+            frame_key = tuple(frame_data)
+            if frame_key not in old_seen:
+                old_seen.add(frame_key)
+                old_frames.append(frame_key)
+
+    setattr(canvas, "brick_sheet_frames", sheet_frames)
+    setattr(canvas, "brick_old_frames", old_frames)
+    return sheet_frames
 
 
 def draw_brick(canvas, frame_data, tiles_raw, x, y, scale, registry, show_tiles=False):
@@ -1524,7 +1577,7 @@ def render_brick_browser(canvas, registry, tiles_raw, y_offset, scale=3):
             x_frame, y_frame, scale, brick_id=brick_id
         )
 
-    num_rows = (len(registry) + frames_per_row - 1) // frames_per_row
+    num_rows = (registry.max_id() + 1 + frames_per_row - 1) // frames_per_row
     return y + num_rows * (sprite_px * scale + gap_y) + 12 - y_offset
 
 
@@ -1643,12 +1696,9 @@ def render_crab_group(data, canvas, y_offset, show_tiles=False):
     # Header size in crab.grp is 0; tiles start immediately after the descriptors
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
-    # Pre-register every brick in a stable, dictionary-definition order so
-    # Part 1 composite poses and the Part 2 listing use identical IDs.
+    # Register bricks in game frame order so IDs match the game's spritesheet.
     registry = BrickRegistry()
-    for frames in CRAB_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, CRAB_FRAMES, CRAB_SHEET_ORDER)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Crab Body (Phases 0-9)
@@ -1794,9 +1844,7 @@ def render_drgn_group(data, canvas, y_offset, show_tiles=False):
     current_y = y_offset
 
     registry = BrickRegistry()
-    for frames in DRGN_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, DRGN_FRAMES)
 
     body_scale = 1
     step = 8
@@ -1905,9 +1953,7 @@ def render_tako_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in TAKO_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, TAKO_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tako Body (32 tentacle_anim_step / phase combos)
@@ -2054,9 +2100,7 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in TORI_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, TORI_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tori Body (named states from TORI_BODY_FRAMES)
@@ -2349,9 +2393,7 @@ def render_zela_group(data, canvas, y_offset, layout, show_tiles=False, label="z
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in layout.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, layout)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Zela Body (anim_phase 0-7)
@@ -2612,9 +2654,7 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in MEDA_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, MEDA_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Meda Body
@@ -2693,9 +2733,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b"\x00" * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in LEGA_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, LEGA_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render composite Lega body
@@ -3037,9 +3075,7 @@ def render_akma_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in AKMA_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, AKMA_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Akma Body (6 pose combos: 3 poses x 2 phases)
@@ -3262,9 +3298,7 @@ def render_mao1_group(data, canvas, y_offset, show_tiles=False):
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
 
     registry = BrickRegistry()
-    for frames in MAO1_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, MAO1_FRAMES)
 
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Jashiin Body (11 poses)
@@ -3511,9 +3545,7 @@ def render_mao2_group(data, canvas, y_offset, show_tiles=False):
     current_y = y_offset
 
     registry = BrickRegistry()
-    for frames in MAO2_FRAMES.values():
-        for frame_data in frames:
-            registry.add(frame_data)
+    register_sheet_frames(canvas, registry, MAO2_FRAMES)
 
     WORLD_TILE_PX = 8
     SPRITE_PX = 16
@@ -3572,7 +3604,7 @@ def render_mao2_group(data, canvas, y_offset, show_tiles=False):
 class GrpViewer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Zeliard GRP Viewer")
+        self.root.title("Zeliard Boss Sprite Editor")
         self.root.configure(bg=CANVAS_BG)
         self.last_render: tuple[object, object, str, object] | None = None
         self.current_grp_path: str | None = None
@@ -3582,6 +3614,7 @@ class GrpViewer:
         self.avg_group: set[int] = set()
         self.dirty = False
         self._cand_photo_refs = []
+        self._cand_rows: dict[int, list[tuple[int, tk.Frame]]] = {}
         self.cand_canvas: tk.Canvas | None = None
         self.cand_inner: tk.Frame | None = None
         self.setup_ui()
@@ -3610,6 +3643,7 @@ class GrpViewer:
         ).pack(side=tk.LEFT, padx=8)
 
         tk.Button(toolbar, text="Save spritesheet", command=self.save_spritesheet).pack(side=tk.LEFT, padx=8)
+        tk.Button(toolbar, text="Import old spritesheet", command=self.import_old_spritesheet).pack(side=tk.LEFT, padx=8)
 
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
@@ -3720,6 +3754,10 @@ class GrpViewer:
         self.render(unpacked, modes, filename, overrides)
 
     def render(self, data, modes, filename, overrides):
+        if self._render_canvas(data, modes, filename, overrides):
+            self._build_candidates_panel()
+
+    def _render_canvas(self, data, modes, filename, overrides):
         self.last_render = (data, modes, filename, overrides)
         self.canvas.delete("all")
         setattr(self.canvas, "current_pose", None)
@@ -3729,6 +3767,8 @@ class GrpViewer:
         setattr(self.canvas, "brick_selections", self.selections)
         setattr(self.canvas, "brick_registry", None)
         setattr(self.canvas, "brick_tiles_raw", None)
+        setattr(self.canvas, "brick_sheet_frames", None)
+        setattr(self.canvas, "brick_old_frames", None)
         y_cursor = 10
         show_tiles = self.show_tiles_var.get()
 
@@ -3783,9 +3823,9 @@ class GrpViewer:
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Jashiin2 Sprites")
             else:
-                return
-            self._build_candidates_panel()
-            return
+                return False
+            return True
+        return False
 
     def _hit_pose(self, cx, cy):
         regions = getattr(self.canvas, "brick_pose_regions", None)
@@ -3852,6 +3892,7 @@ class GrpViewer:
         for w in cand_inner.winfo_children():
             w.destroy()
         self._cand_photo_refs = []
+        self._cand_rows = {}
 
         registry = getattr(self.canvas, "brick_registry", None)
         tiles_raw = getattr(self.canvas, "brick_tiles_raw", None)
@@ -3890,18 +3931,10 @@ class GrpViewer:
         photo = ImageTk.PhotoImage(thumb)
         self._cand_photo_refs.append(photo)
 
-        chosen = self.selections.get(brick_id, -1) == idx
-        selected = self.avg_row == brick_id and idx in self.avg_group
-        if chosen:
-            border = CHOSEN_COLOR
-        elif selected:
-            border = AVG_SELECTED_COLOR
-        else:
-            border = BG_COLOR
-        frame = tk.Frame(parent, bg=BG_COLOR, relief="flat",
-                         highlightthickness=2 if (chosen or selected) else 1,
-                         highlightbackground=border)
+        frame = tk.Frame(parent, bg=BG_COLOR, relief="flat")
         frame.pack(side=tk.LEFT, padx=2)
+        self._style_candidate_thumb(brick_id, idx, frame)
+        self._cand_rows.setdefault(brick_id, []).append((idx, frame))
 
         lbl = tk.Label(frame, image=photo, bg=BG_COLOR, borderwidth=0)
         lbl.pack()
@@ -3911,32 +3944,52 @@ class GrpViewer:
             widget.bind("<Control-Button-1>",
                         lambda e, b=brick_id, i=idx: self.toggle_avg_candidate(b, i))
 
+    def _style_candidate_thumb(self, brick_id, idx, frame):
+        chosen = self.selections.get(brick_id, -1) == idx
+        selected = self.avg_row == brick_id and idx in self.avg_group
+        if chosen:
+            border = CHOSEN_COLOR
+        elif selected:
+            border = AVG_SELECTED_COLOR
+        else:
+            border = BG_COLOR
+        frame.config(highlightthickness=2 if (chosen or selected) else 1,
+                     highlightbackground=border)
+
+    def _refresh_candidate_row(self, brick_id):
+        for idx, frame in self._cand_rows.get(brick_id, ()):
+            self._style_candidate_thumb(brick_id, idx, frame)
+
     def select_candidate(self, brick_id, idx):
-        changed = False
+        changed_rows = {brick_id}
         if self.avg_row is not None and self.avg_row != brick_id:
+            changed_rows.add(self.avg_row)
             self.avg_row = None
             self.avg_group = set()
-            changed = True
         if self.selections.get(brick_id, -1) != idx:
             if idx < 0:
                 self.selections.pop(brick_id, None)
             else:
                 self.selections[brick_id] = idx
             self.dirty = True
-            changed = True
-        if changed and self.last_render is not None:
-            self.render(*self.last_render)
+            if self.last_render is not None:
+                self._render_canvas(*self.last_render)
+        for bid in changed_rows:
+            self._refresh_candidate_row(bid)
 
     def toggle_avg_candidate(self, brick_id, idx):
+        changed_rows = {brick_id}
         if self.avg_row != brick_id:
+            if self.avg_row is not None:
+                changed_rows.add(self.avg_row)
             self.avg_row = brick_id
             self.avg_group = set()
         if idx in self.avg_group:
             self.avg_group.discard(idx)
         else:
             self.avg_group.add(idx)
-        if self.last_render is not None:
-            self.render(*self.last_render)
+        for bid in changed_rows:
+            self._refresh_candidate_row(bid)
 
     def average_selected(self):
         if self.avg_row is None or len(self.avg_group) < 2:
@@ -3987,31 +4040,29 @@ class GrpViewer:
     def save_spritesheet(self):
         registry = getattr(self.canvas, "brick_registry", None)
         tiles_raw = getattr(self.canvas, "brick_tiles_raw", None)
-        if registry is None or tiles_raw is None or len(registry) == 0:
+        sheet_frames = getattr(self.canvas, "brick_sheet_frames", None)
+        if registry is None or tiles_raw is None or not sheet_frames:
             messagebox.showwarning("Warning", "Load a .grp file first.")
             return
 
-        cols = SPRITESHEET_COLS
         cell = BRICK_NATIVE * SPRITESHEET_SCALE
-        rows = (len(registry) + cols - 1) // cols
-        sheet = Image.new("RGBA", (cols * cell, rows * cell))
+        sheet = Image.new("RGBA", (len(sheet_frames) * cell, cell))
 
-        for brick_id, frame_data in registry:
+        for frame_idx, (brick_id, frame_data) in enumerate(sheet_frames):
             idx = self.selections.get(brick_id)
             cands = self.candidates.get(brick_id)
             if idx is not None and cands and 0 <= idx < len(cands):
                 img = cands[idx].convert("RGBA").resize((cell, cell), Image.Resampling.NEAREST)
             else:
                 img = brick_frame_to_pil(frame_data, tiles_raw, scale=SPRITESHEET_SCALE)
-            r, c = divmod(brick_id, cols)
-            sheet.paste(img, (c * cell, r * cell))
+            sheet.paste(img, (frame_idx * cell, 0))
 
         base = os.path.splitext(os.path.basename(self.current_grp_path))[0] \
             if self.current_grp_path else "boss"
         path = filedialog.asksaveasfilename(
             defaultextension=".png",
             filetypes=[("PNG image", "*.png")],
-            initialfile=f"{base}_bricks.png")
+            initialfile=f"{base}.png")
         if not path:
             return
         try:
@@ -4019,7 +4070,57 @@ class GrpViewer:
         except Exception as e:
             messagebox.showerror("Save Error", str(e))
             return
-        messagebox.showinfo("Saved", f"Brick spritesheet saved ({cols}x{rows} cells, {cell}px):\n{path}")
+        messagebox.showinfo(
+            "Saved",
+            f"Boss spritesheet saved ({len(sheet_frames)} frames, {cell}px, game order):\n{path}")
+
+    def import_old_spritesheet(self):
+        registry = getattr(self.canvas, "brick_registry", None)
+        old_frames = getattr(self.canvas, "brick_old_frames", None)
+        if registry is None or not old_frames:
+            messagebox.showwarning("Warning", "Load a .grp file first.")
+            return
+
+        path = filedialog.askopenfilename(
+            title="Import old spritesheet (16-column brick grid)",
+            filetypes=[("PNG image", "*.png"), ("All files", "*.*")])
+        if not path:
+            return
+        try:
+            img = Image.open(path).convert("RGBA")
+        except Exception as e:
+            messagebox.showerror("Load Error", str(e))
+            return
+
+        cell = BRICK_NATIVE * SPRITESHEET_SCALE
+        cols = SPRITESHEET_COLS
+        rows = (len(old_frames) + cols - 1) // cols
+        need_w = min(len(old_frames), cols) * cell
+        need_h = rows * cell
+        if img.width < need_w or img.height < need_h:
+            messagebox.showerror(
+                "Size Mismatch",
+                f"Old spritesheet must be a {cols}-column grid of {cell}px bricks\n"
+                f"(at least {need_w}x{need_h}px for {len(old_frames)} bricks).")
+            return
+
+        added = 0
+        for old_id, frame_data in enumerate(old_frames):
+            brick_id = registry.id_for(frame_data)
+            if brick_id is None:
+                continue
+            r, c = divmod(old_id, cols)
+            crop = img.crop((c * cell, r * cell, c * cell + cell, r * cell + cell))
+            cands = self.candidates.setdefault(brick_id, [])
+            if not any(cand.tobytes() == crop.tobytes() for cand in cands):
+                cands.append(crop)
+                added += 1
+
+        if added:
+            self.dirty = True
+        if self.last_render is not None:
+            self.render(*self.last_render)
+        messagebox.showinfo("Imported", f"Added {added} brick candidate(s) from:\n{path}")
 
     def _selections_path(self):
         if not self.current_grp_path:
